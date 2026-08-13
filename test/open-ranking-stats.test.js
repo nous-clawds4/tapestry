@@ -26,6 +26,10 @@
  * B* : ORE-02 /stats/pubkey behavior — algorithm selection, POV rules, field
  *      mapping, validation, CORS headers.
  * V* / E* : pubkey validation helper + the malformed-JSON error middleware.
+ * P* : ore-pov-availability #1 (ADR ore-pov-availability/0001) — the informative
+ *      POV-unavailable refusal (AC1) and the upstream-proposal / docs / worksheet
+ *      artifact pins (AC4/AC5). Added failing 2026-08-12; existing B5/G1–G3/B4/B12
+ *      pin that story's AC2/AC3 and are intentionally unmodified.
  *
  * ALL tests FAIL pre-implementation (module absent) and must PASS post.
  */
@@ -406,6 +410,98 @@ test('E2: oreJsonErrorHandler passes non-ORE-path errors through to next (does n
   mod.oreJsonErrorHandler(err, { path: '/api/something-else', method: 'POST' }, res, (e) => { nextedWith = e || err; });
   assert(nextedWith === err, 'a parse error on a non-ORE path must be forwarded via next(err), not handled here.');
   assert(res.ended !== true, 'the middleware must not write a response for non-ORE paths.');
+});
+
+// ===========================================================================
+// P* — ore-pov-availability #1: informative POV-unavailable refusal + artifacts.
+// ADR ore-pov-availability/0001. AC2/AC3 are pinned by the EXISTING G1/G2 and
+// B4/G3/B12 above (unmodified); these tests add AC1's reason-content/body-shape
+// pin and the AC4/AC5 deliverable pins.
+// ===========================================================================
+
+const PROPOSAL_PATH = path.resolve(__dirname, '../protocols/upstream/ore-01-pov-unavailable.md');
+const DOCS_PAGE_PATH = path.resolve(__dirname, '../ui/src/pages/developers/OpenRanking.jsx');
+const WORKSHEET_PATH = path.resolve(__dirname, '../protocols/worksheet.md');
+const PROTOCOLS_README_PATH = path.resolve(__dirname, '../protocols/README.md');
+
+test('P1 (AC1, gate OPEN): the unprovisioned-pov 422 X-Reason explains unavailability AND names the default global algorithm; the body is the bare error object with no stats fields', async () => {
+  const mod = loadModule();
+  const deps = makeDeps({ personalizedStats: true });
+  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: UNPROV_POV }, deps);
+  assert(r.httpStatus === 422, `an unavailable pov must return 422; got ${r.httpStatus}.`);
+  const reason = String(hget(r.headers, 'X-Reason') || '');
+  assert(/pov not provisioned/.test(reason),
+    `X-Reason must keep the 'pov not provisioned' continuity token (ADR: log/operator continuity); got ${JSON.stringify(reason)}.`);
+  assert(/not available/i.test(reason),
+    `X-Reason must STATE the unavailability ("personalized scores are not available…") — a bare refusal fails AC1's informative-refusal requirement; got ${JSON.stringify(reason)}.`);
+  // The alternative must be registry-derived (ORE-01: default = first element), so
+  // derive the expectation from the capability doc rather than hardcoding it here.
+  const defaultId = mod.buildCapabilityResponse().body['/stats/pubkey'][0].id;
+  assert(reason.includes(`'${defaultId}'`),
+    `X-Reason must point at a usable alternative by naming the endpoint's default algorithm '${defaultId}' (AC1 / ADR ore-pov-availability/0001); got ${JSON.stringify(reason)}.`);
+  assert(r.body && r.body.error === reason,
+    `the 422 body must be the bare error object mirroring X-Reason ({ error: <reason> }, the ORE-00 errorTriple shape); got ${JSON.stringify(r.body)}.`);
+  for (const f of ['rank', 'hops', 'followers', 'muters', 'reporters', 'follows', 'mutes', 'reporting', 'pagerank']) {
+    assert(!(f in r.body),
+      `the 422 body must carry NO stats field, but found '${f}' — no other POV's numbers may ever ride under the caller's label (never-substitute).`);
+  }
+  assert(deps._fetchCalls.length === 0,
+    'scores must never be fetched for an unavailable pov — the never-substitute invariant (POV invariant, worksheet W12).');
+});
+
+test('P2 (AC4): the upstream proposal artifact exists and is submission-ready (verbatim spec text + PR title/description)', () => {
+  const t = safeRead(PROPOSAL_PATH);
+  assert(t.length > 0,
+    'protocols/upstream/ore-01-pov-unavailable.md does not exist yet — the Implementer must create the upstream proposal artifact (ADR ore-pov-availability/0001 §Implementation notes 4).');
+  assert(/### Unavailable pov/.test(t),
+    "the proposal must contain the proposed ORE-01 subsection heading '### Unavailable pov'.");
+  assert(/MUST NOT fall back to a different point of view/.test(t),
+    'the proposal must contain the never-substitute sentence — the heart of the rule.');
+  assert(/`?422 Unprocessable Content`?/.test(t),
+    'the proposal must mandate 422 Unprocessable Content for an unavailable pov.');
+  assert(/X-Reason/.test(t),
+    'the proposal must direct providers to explain the refusal in the X-Reason header.');
+  assert(/202/.test(t) && /Retry-After/.test(t),
+    'the proposal must cross-reference the existing 202/Retry-After path for still-computing povs (the 422-vs-202 split).');
+  assert(/01\.md/.test(t),
+    'the artifact must name its target file (01.md — ORE-01 § Point of View (Pov)).');
+  assert(/Closes #8/.test(t),
+    "the PR description must end by closing the upstream issue ('Closes #8').");
+  assert(/wds4/.test(t),
+    'the artifact must record that submission is the author\'s act (wds4).');
+});
+
+test('P3 (AC5): /developers/open-ranking documents the contract — never-substitute guarantee, client recovery, upstream link', () => {
+  const t = safeRead(DOCS_PAGE_PATH);
+  assert(t.length > 0, 'ui/src/pages/developers/OpenRanking.jsx missing — unexpected.');
+  assert(/never/i.test(t),
+    'the docs page must state the never-substitute guarantee (results are never silently computed from another point of view) — the word is absent today.');
+  assert(/request the (default )?global algorithm|re-request/i.test(t),
+    "the docs page must state the client's recovery on the 422: explicitly request the default global algorithm.");
+  assert(/Open-Ranking\/protocol\/issues\/8/.test(t),
+    'the docs page must link the upstream issue (github.com/Open-Ranking/protocol/issues/8) so readers can follow the contract\'s provenance.');
+});
+
+test('P4 (AC5): worksheet W12 records the upstream proposal (artifact path, date, story ref) without losing its history', () => {
+  const t = safeRead(WORKSHEET_PATH);
+  const a = t.indexOf('## W12');
+  const b = t.indexOf('## W13');
+  const w12 = a >= 0 ? t.slice(a, b > a ? b : undefined) : '';
+  assert(w12.length > 0, 'protocols/worksheet.md must contain a W12 section — if this fails, the worksheet was restructured.');
+  assert(/protocols\/upstream\/ore-01-pov-unavailable\.md/.test(w12),
+    'W12 must point at the drafted proposal artifact (protocols/upstream/ore-01-pov-unavailable.md).');
+  assert(/2026-08-12/.test(w12),
+    'W12 must carry the dated update (2026-08-12) recording that the proposal was drafted.');
+  assert(/ore-pov-availability/.test(w12),
+    'W12 must reference the ore-pov-availability story that produced the proposal.');
+  assert(/enumeration|oracle/i.test(w12),
+    "W12's existing auth/oracle history must remain intact — the update appends, never rewrites.");
+});
+
+test('P5 (AC4): protocols/README.md indexes the new upstream/ directory in its layout block', () => {
+  const t = safeRead(PROTOCOLS_README_PATH);
+  assert(/upstream\//.test(t),
+    "protocols/README.md must gain the 'upstream/' layout line (ADR ore-pov-availability/0001 §Implementation notes 5) — proposals to external protocols need a discoverable home.");
 });
 
 async function run() {

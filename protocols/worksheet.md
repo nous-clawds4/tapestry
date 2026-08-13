@@ -116,6 +116,8 @@ Open questions: **(1)** Is a non-ORE, Tapestry-namespaced **availability probe**
 
 **Refs:** `engineering-team/audits/open-ranking/book.md` (acceptance frame; the `422` decision); ORE-01 + ORE-00 (capability doc + conventions, `github.com/Open-Ranking/protocol`); `src/api/_shared/pov.js` (POV→delegate→suffix resolution); `src/algos/nip85/loadScoresIntoMeilisearch.js` + `src/algos/customers/nip85/` (the three POV loaders); the `pov-resolution` epic; BIBLE NIP-85 publishing tables.
 
+**2026-08-12 update (`ore-pov-availability` #1):** open question **(2)** is resolved — we proposed upstream. A submission-ready ORE-01 "Unavailable pov" subsection (error + MUST-NOT-substitute + `X-Reason` guidance + the `202`/`Retry-After` split for still-computing POVs) is drafted per the maintainer-endorsed solution 1 of [Open-Ranking/protocol#8](https://github.com/Open-Ranking/protocol/issues/8): `protocols/upstream/ore-01-pov-unavailable.md`, awaiting the author's submission (wds4). Local alignment (informative refusal, never-substitute test pins, `/developers/open-ranking` docs): ADR `ore-pov-availability/0001`. Open question **(1)** — the enumeration-oracle / auth half (the ADR `open-ranking/0005` gate) — remains open and untouched.
+
 ## W13 — Cross-store POV identity: main pubkey (Neo4j cards) vs delegated-key suffix (Meili columns)
 
 **Status:** Open · raised 2026-06-19
