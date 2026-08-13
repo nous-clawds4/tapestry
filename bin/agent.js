@@ -131,6 +131,41 @@ function buildNegotiationEvent({ sk, bountyId, listCoordinate, offerKind, scope,
   return sign({ kind: NEGOTIATION_KIND, tags, content }, sk);
 }
 
+// Map create-bounty CLI flags to the POST /api/bounties body. Pure, exported
+// for tests. A bare `--amount` (no value) becomes boolean true, and
+// Number(true)===1 would silently post a 1-sat bounty; require a real integer
+// string.
+function buildBountyCreateBody(flags) {
+  const posInt = (v, name) => {
+    if (typeof v !== 'string' || !/^\d+$/.test(v.trim())) throw new Error(`--${name} must be a positive integer`);
+    const n = Number(v);
+    if (!Number.isInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`);
+    return n;
+  };
+  const boolFlag = (v, name) => {
+    if (v === true || v === 'true') return true;
+    if (v === 'false') return false;
+    throw new Error(`--${name} takes no value (or true/false)`);
+  };
+  const listCoordinate = flags.list || flags.coordinate || flags['list-coordinate'];
+  if (!listCoordinate || typeof listCoordinate !== 'string') throw new Error('--list <kind:pubkey:dtag> is required');
+  if (flags.amount === undefined) throw new Error('--amount <sats> is required');
+  if (!flags.criteria || typeof flags.criteria !== 'string') throw new Error('--criteria <text> is required');
+  const body = { listCoordinate, amountSats: posInt(flags.amount, 'amount'), criteria: String(flags.criteria) };
+  if (flags.cap !== undefined) body.bountyCapSats = posInt(flags.cap, 'cap');
+  if (flags['reward-per-item'] !== undefined && boolFlag(flags['reward-per-item'], 'reward-per-item')) body.rewardPerItem = true;
+  if (flags['max-rewards'] !== undefined) body.maxRewardsPerNpub = posInt(flags['max-rewards'], 'max-rewards');
+  if (flags.expiration !== undefined) body.expiration = posInt(flags.expiration, 'expiration');
+  // Auto-pay: the server enforces authorization (owner/admin/allowlist → 403
+  // otherwise), so the CLI passes the intent through instead of hiding it.
+  if (flags['auto-pay'] !== undefined && boolFlag(flags['auto-pay'], 'auto-pay')) body.autoPay = true;
+  if (flags['min-rank'] !== undefined) {
+    if (body.autoPay !== true) throw new Error('--min-rank only applies with --auto-pay');
+    body.autoPayMinRank = posInt(flags['min-rank'], 'min-rank');
+  }
+  return body;
+}
+
 function parseNegotiation(event) {
   let body = {};
   try { body = JSON.parse(event.content); } catch { /* opaque */ }
@@ -287,26 +322,10 @@ const commands = {
 
   // Post a bounty against a list coordinate. Requires a prior `auth-login` (the
   // server sets issuer = the session pubkey and ignores any issuer in the body).
-  // --auto-pay is intentionally not exposed: it needs owner/admin/allowlist.
+  // --auto-pay needs owner/admin/allowlist; the server rejects it with 403 otherwise.
   async 'create-bounty'(flags) {
     loadKey(); // fail fast if MC_NSEC is missing — you must auth-login as this key first
-    // A bare `--amount` (no value) becomes boolean true, and Number(true)===1
-    // would silently post a 1-sat bounty; require a real integer string.
-    const posInt = (v, name) => {
-      if (typeof v !== 'string' || !/^\d+$/.test(v.trim())) throw new Error(`--${name} must be a positive integer`);
-      const n = Number(v);
-      if (!Number.isInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`);
-      return n;
-    };
-    const listCoordinate = flags.list || flags.coordinate || flags['list-coordinate'];
-    if (!listCoordinate || typeof listCoordinate !== 'string') throw new Error('--list <kind:pubkey:dtag> is required');
-    if (flags.amount === undefined) throw new Error('--amount <sats> is required');
-    if (!flags.criteria || typeof flags.criteria !== 'string') throw new Error('--criteria <text> is required');
-    const body = { listCoordinate, amountSats: posInt(flags.amount, 'amount'), criteria: String(flags.criteria) };
-    if (flags.cap !== undefined) body.bountyCapSats = posInt(flags.cap, 'cap');
-    if (flags['reward-per-item'] === true || flags['reward-per-item'] === 'true') body.rewardPerItem = true;
-    if (flags['max-rewards'] !== undefined) body.maxRewardsPerNpub = posInt(flags['max-rewards'], 'max-rewards');
-    if (flags.expiration !== undefined) body.expiration = posInt(flags.expiration, 'expiration');
+    const body = buildBountyCreateBody(flags);
     const res = await request('POST', '/api/bounties', { body, useCookie: true });
     emit({ ok: true, ...res });
   },
@@ -430,4 +449,4 @@ async function main() {
 // CLI that just lets main() resolve would hang instead of returning.
 if (require.main === module) main().then(() => process.exit(process.exitCode || 0)).catch(die);
 
-module.exports = { commands, parseArgs, buildNegotiationEvent, parseNegotiation, paymentsDue, provisionDelegate, repairLegacyPayments, resetClaim, NEGOTIATION_TOPIC, NEGOTIATION_KIND };
+module.exports = { commands, parseArgs, buildBountyCreateBody, buildNegotiationEvent, parseNegotiation, paymentsDue, provisionDelegate, repairLegacyPayments, resetClaim, NEGOTIATION_TOPIC, NEGOTIATION_KIND };

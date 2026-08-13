@@ -66,12 +66,34 @@ cross-check, not the accounting — `discover` can silently truncate (see step 2
      of Tennessee to earn the reward."). If you can't phrase an objectively
      judgeable criterion, pick a different topic — fuzzy criteria create
      unpayable disputes.
-   - Do not attempt auto-pay: the CLI deliberately doesn't expose it, and this
-     pipeline settles through the judgment-gated cycle skill.
+   - Settlement mode is a per-loop input (see "Auto-pay bounties" below).
+     Default is judgment-gated: no auto-pay flags, settle through the cycle
+     skill.
 7. **Report** the tick: topic, coordinate, bounty id, sats committed vs budget
    remaining, open-bounty count. (The ledger row was already appended before
    `create-bounty` in step 6 — if creation failed, mark that row `failed`
    rather than deleting it.)
+
+## Auto-pay bounties (allowlisted issuers only)
+
+Only when the operator asks for auto-pay. The watcher pays valid claims with
+no human in the loop, so every cap sat is committed money.
+
+- The issuer pubkey must be owner, admin, or in `AUTO_PAY_ALLOWLIST_PUBKEYS`
+  on the instance — the server rejects `autoPay` with 403 otherwise. Getting
+  a 403 means stop and tell the operator; do not retry without auto-pay.
+- Add `--auto-pay` (and optionally `--min-rank <n>`, default 3) to
+  `create-bounty`:
+  `node bin/agent.js create-bounty --list <coordinate> --amount 100 --cap 500 --reward-per-item --max-rewards 1 --auto-pay --criteria "<criteria>"`
+- Use `--reward-per-item` with `--max-rewards 1` so one npub cannot drain the
+  cap alone.
+- The watcher has a hard daily spend limit (`AUTO_PAY_MAX_SATS`, prod default
+  5,000 sats/day) and pays from the shared instance wallet float. Keep
+  Σ open auto-pay caps within the float — check the float before a batch, and
+  treat the daily limit as a second ceiling on top of `budget_sats`.
+- Verify after creation: `GET $MC_BASE_URL/api/bounties/<id>` must show
+  `auto_pay: 1` and the expected slot count
+  (`paymentState.totalRewardSlots == cap / amount`).
 
 ## Running as a loop
 

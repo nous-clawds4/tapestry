@@ -5,6 +5,7 @@ const path = require('path');
 const { generateSecretKey, getPublicKey, verifyEvent } = require('nostr-tools');
 const {
   parseArgs,
+  buildBountyCreateBody,
   buildNegotiationEvent,
   parseNegotiation,
   NEGOTIATION_KIND,
@@ -22,6 +23,40 @@ test('parseArgs handles --flag value, --flag=value, boolean, positionals', () =>
   assert.strictEqual(flags.bounty, 'b1');
   assert.strictEqual(flags.message, 'hi there');
   assert.strictEqual(flags['dry-run'], true);
+});
+
+test('create-bounty body: minimal flags produce a plain non-auto-pay bounty', () => {
+  const coord = `39998:${'a'.repeat(64)}:dogs`;
+  const body = buildBountyCreateBody({ list: coord, amount: '100', criteria: 'Submit a dog breed.' });
+  assert.deepStrictEqual(body, { listCoordinate: coord, amountSats: 100, criteria: 'Submit a dog breed.' });
+  assert.ok(!('autoPay' in body), 'autoPay must be absent unless requested');
+});
+
+test('create-bounty body: --auto-pay and --min-rank pass through (server enforces allowlist)', () => {
+  const coord = `39998:${'a'.repeat(64)}:dogs`;
+  const body = buildBountyCreateBody({
+    list: coord, amount: '100', cap: '500', criteria: 'Submit a dog breed.',
+    'reward-per-item': true, 'max-rewards': '1', 'auto-pay': true, 'min-rank': '3',
+  });
+  assert.strictEqual(body.autoPay, true);
+  assert.strictEqual(body.autoPayMinRank, 3);
+  assert.strictEqual(body.rewardPerItem, true);
+  assert.strictEqual(body.maxRewardsPerNpub, 1);
+  assert.strictEqual(body.bountyCapSats, 500);
+});
+
+test('create-bounty body: --min-rank without --auto-pay is rejected', () => {
+  assert.throws(
+    () => buildBountyCreateBody({ list: `39998:${'a'.repeat(64)}:dogs`, amount: '100', criteria: 'c', 'min-rank': '3' }),
+    /--min-rank only applies with --auto-pay/
+  );
+});
+
+test('create-bounty body: bare --amount (boolean true) is rejected, not posted as 1 sat', () => {
+  assert.throws(
+    () => buildBountyCreateBody({ list: `39998:${'a'.repeat(64)}:dogs`, amount: true, criteria: 'c' }),
+    /--amount must be a positive integer/
+  );
 });
 
 test('negotiation envelope is a valid signed kind-1111 carrying bountyId + queryable anchors', () => {
