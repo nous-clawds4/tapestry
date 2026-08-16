@@ -1,6 +1,6 @@
 # Story 2: ORE-06 /followers + ORE-07 /muters (global)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-16
 **Type:** Feature
 
@@ -94,4 +94,4 @@ All resolved at the Architecture gate (ADR ore-parity/0002, operator-approved 20
 - ADR: `engineering-team/decisions/ore-parity/0002-followers-muters.md` (Accepted)
 - Test plan: `engineering-team/stories/ore-parity/2-followers-muters.test-plan.md`
   (`test/open-ranking-followers-muters.test.js`, 16 tests)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/ore-parity/2-followers-muters.md`
