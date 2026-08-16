@@ -86,7 +86,8 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1"
+    "@playwright/test": "^1.56.1",
+    "open-ranking": "0.1.1"
   },
   "engines": {
     "node": ">=18.0.0"

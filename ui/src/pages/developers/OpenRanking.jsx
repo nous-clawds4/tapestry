@@ -34,6 +34,17 @@ export default function DevelopersOpenRanking() {
   -H 'Content-Type: application/json' \\
   -d '{"query":"jack","limit":20}'`;
 
+  const rankReq = `curl -s -X POST ${base}/rank/pubkeys \\
+  -H 'Content-Type: application/json' \\
+  -d '{"pubkeys":["<64-hex-pubkey>","<64-hex-pubkey>"]}'`;
+
+  const rankResp = `{
+  "results": [
+    { "pubkey": "<hex>", "rank": 93 },
+    { "pubkey": "<hex>", "rank": 0 }
+  ]
+}`;
+
   const searchResp = `{
   "results": [
     { "pubkey": "<hex>", "rank": 100 },
@@ -88,10 +99,22 @@ export default function DevelopersOpenRanking() {
       <p style={{ ...S.p, marginTop: '0.5rem' }}>Response:</p>
       <pre style={S.pre}>{searchResp}</pre>
 
+      <h2 style={S.h2}>4. Batch rank — <code style={S.code}>POST /rank/pubkeys</code></h2>
+      <p style={S.p}>
+        Ranks a set of pubkeys (up to 1000 per request; duplicates collapse) by this instance's global GrapeRank in one call —
+        the batch counterpart of <code style={S.code}>/stats/pubkey</code>, reading the same scores, so the two endpoints agree.
+        Every requested pubkey comes back ranked, highest first; pubkeys unknown to this instance rank 0. An optional{' '}
+        <code style={S.code}>limit</code> keeps only the top-ranked (default: the batch size; a larger value is silently clamped).
+      </p>
+      <pre style={S.pre}>{rankReq}</pre>
+      <p style={{ ...S.p, marginTop: '0.5rem' }}>Response:</p>
+      <pre style={S.pre}>{rankResp}</pre>
+
       <h2 style={S.h2}>Conventions</h2>
       <p style={S.p}>
         All endpoints are JSON over HTTP with <code style={S.code}>Access-Control-Allow-Origin: *</code>. Pubkeys are 64-character
-        lowercase hex. Errors are signalled by HTTP status — <code style={S.code}>400</code> (malformed JSON),
+        lowercase hex. Errors are signalled by HTTP status — <code style={S.code}>400</code> (malformed JSON),{' '}
+        <code style={S.code}>413</code> (more than 1000 pubkeys in one <code style={S.code}>/rank/pubkeys</code> request),{' '}
         <code style={S.code}>422</code> (invalid input / unsupported algorithm / missing or unprovisioned <code style={S.code}>pov</code>) —
         with a human-readable <code style={S.code}>X-Reason</code> header.
       </p>
@@ -104,7 +127,7 @@ export default function DevelopersOpenRanking() {
 
       <h2 style={S.h2}>Reference</h2>
       <ul style={{ ...S.p }}>
-        <li><a href="https://github.com/Open-Ranking/protocol" target="_blank" rel="noreferrer">Open Ranking protocol spec</a> — ORE-01 (discovery), ORE-02 (stats), ORE-05 (search)</li>
+        <li><a href="https://github.com/Open-Ranking/protocol" target="_blank" rel="noreferrer">Open Ranking protocol spec</a> — ORE-01 (discovery), ORE-02 (stats), ORE-03 (batch rank), ORE-05 (search)</li>
         <li><a href="https://github.com/nous-clawds4/tapestry" target="_blank" rel="noreferrer">Brainstorm Search repo</a> — this provider's implementation</li>
         <li><a href="https://github.com/Open-Ranking/protocol/issues/8" target="_blank" rel="noreferrer">Open-Ranking/protocol#8</a> — personalization honesty: the upstream proposal behind this provider's never-substitute rule (draft: <code style={S.code}>protocols/upstream/ore-01-pov-unavailable.md</code>)</li>
       </ul>
