@@ -80,21 +80,17 @@ No new concept-graph concepts. Existing concepts referenced, not modified: `grap
 - The NosFabrica codebase; npub.world's lack of a muters row (their UI, not ours).
 
 ## Open questions
-- **`total` source & freshness** — live count from the same scan that produces the list, vs the
-  batch-written `verifiedFollowerCount`/`verifiedMuterCount` node properties ORE-02 reports.
-  They can drift between batch runs; Architect to pick one (leaning live-scan for
-  self-consistency between `results` and `total` in a single response) and note the drift
-  characteristics vs `/stats/pubkey`.
-- **Default and max `limit`** — ORE-05 shipped 20/200; the verified set can be ~20k rows for
-  large accounts, so the Architect should pick values (and verify query cost at the max) rather
-  than inherit blindly.
-- **Cutoff for muters** — confirm whether the muters surface uses the same
-  `VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF` or a muter-specific config; the story intends "the same
-  verification line the existing verified-muters surface uses," whatever its name.
-- **Tie order** — deterministic secondary sort for equal ranks (Architect picks; must be pinned
-  by tests).
+All resolved at the Architecture gate (ADR ore-parity/0002, operator-approved 2026-08-16):
+- **`total` source & freshness** — resolved: live count from the same filtered scan as the list
+  (self-consistent responses); drift vs `/stats/pubkey`'s batch-written counts documented (ADR
+  Option C rejection).
+- **Default and max `limit`** — resolved: default 50, max 1000; over max → `422` (ADR decision 2).
+- **Cutoff for muters** — resolved: muters have their own `VERIFIED_MUTERS_INFLUENCE_CUTOFF`
+  (followers use `VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF`); each endpoint uses its own (ADR
+  decision 4).
+- **Tie order** — resolved: `influence DESC, pubkey ASC` (ADR decision 3).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/ore-parity/0002-followers-muters.md` (Accepted)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
