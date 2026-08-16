@@ -83,5 +83,6 @@ All resolved at the Architecture gate (ADR ore-parity/0001, operator-approved 20
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/ore-parity/0001-rank-pubkeys.md` (Accepted)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/ore-parity/1-rank-pubkeys.test-plan.md`
+  (`test/open-ranking-rank.test.js`, 16 tests)
 - Review: (filled in after Review phase)
