@@ -1700,7 +1700,7 @@ See ADR 0033 for the ratification decision (the normative/aspirational split) an
 
 ## 28. Open Ranking (ORE) Provider
 
-Brainstorm exposes its web of trust over **[Open Ranking](https://github.com/Open-Ranking/protocol)** (ORE) — an external, MIT-licensed HTTP/JSON protocol for reputation/ranking/discovery on nostr. ORE is a **second, complementary export** alongside the NIP-85 (kind 30382/10040) publication: the *same* underlying GrapeRank / Neo4j / Meili data, but a **pull, request/response HTTP interface** for clients that don't speak the nostr relay protocol. It does **not** replace NIP-85 (which stays the signed, relay-native, independently-verifiable channel); ORE adds ad-hoc query patterns NIP-85 structurally can't serve (search by text; stats for an arbitrary pubkey). ORE is an external spec we *consume*, so it's documented here (per `protocols/README.md`'s boundary rule), not as a `protocols/` pre-NIP. Established by ADRs `open-ranking/0001` (provider + stats) and `open-ranking/0002` (search), book `engineering-team/audits/open-ranking/`; batch rank added by ADR `ore-parity/0001`, book `engineering-team/audits/ore-parity/`.
+Brainstorm exposes its web of trust over **[Open Ranking](https://github.com/Open-Ranking/protocol)** (ORE) — an external, MIT-licensed HTTP/JSON protocol for reputation/ranking/discovery on nostr. ORE is a **second, complementary export** alongside the NIP-85 (kind 30382/10040) publication: the *same* underlying GrapeRank / Neo4j / Meili data, but a **pull, request/response HTTP interface** for clients that don't speak the nostr relay protocol. It does **not** replace NIP-85 (which stays the signed, relay-native, independently-verifiable channel); ORE adds ad-hoc query patterns NIP-85 structurally can't serve (search by text; stats for an arbitrary pubkey). ORE is an external spec we *consume*, so it's documented here (per `protocols/README.md`'s boundary rule), not as a `protocols/` pre-NIP. Established by ADRs `open-ranking/0001` (provider + stats) and `open-ranking/0002` (search), book `engineering-team/audits/open-ranking/`; batch rank added by ADR `ore-parity/0001` and followers/muters by ADR `ore-parity/0002`, book `engineering-team/audits/ore-parity/`.
 
 ### Surface (as-built)
 
@@ -1712,6 +1712,8 @@ Public, read-only, **unauthenticated, unsigned**. All routes live **off the `/ap
 | POST | `/stats/pubkey` | ORE-02 | `{ pubkey, rank, hops, followers, muters, reporters, follows, mutes, reporting, pagerank }` — inbound (followers/muters/reporters) **verified**; outbound (follows/mutes/`reporting`) exact totals; `pagerank` raw; no `ttl`. |
 | POST | `/rank/pubkeys` | ORE-03 | `{ results: [{ pubkey, rank }] }` — batch rank of the supplied pubkeys (≤1000, duplicates collapsed), ranked desc, capped at `limit` (default = batch size, over-size silently clamped); every requested pubkey ranked, unknown → 0; no `ttl`. |
 | POST | `/search/pubkeys` | ORE-05 | `{ results: [{ pubkey, rank }] }` — free-text profile search, ranked desc, capped at `limit` (no `ttl`). |
+| POST | `/followers` | ORE-06 | `{ results: [{ pubkey, rank }], total }` — the target's **verified** followers ranked by their own global GrapeRank, desc; ≤`limit` (default 50, max 1000 → over `422`); `total` = live verified-set cardinality; unknown target → `200` empty (no 404); no `ttl`. |
+| POST | `/muters` | ORE-07 | Same contract as `/followers` over the mute graph (verified muters). |
 
 Each endpoint advertises a **global** algorithm `graperank` (`pov:false`, the default); `/stats/pubkey` additionally advertises a **personalized** `graperank-personalized` (`pov:true`). Personalized *search* is deferred (below). (Algorithm ids were renamed `grapevine`→`graperank` by ADR 0003, to match the GrapeRank algorithm and the kind-30382 metric vocabulary.)
 
@@ -1721,6 +1723,7 @@ ORE's `pov` is §27's PoV machinery. The **global `graperank`** is the instance'
 
 - **Stats** → **Neo4j**: `fetchProfileScores(pubkey, observerPubkey:'owner')` reads the `NostrUser` node — the **Owner PoV** (§27) — with `rank = round(influence × 100)`. The response also carries `hops`, raw `pagerank` (personalizedPageRank under the active POV), the **verified** inbound counts (`followers`=verifiedFollowerCount, `muters`=verifiedMuterCount, `reporters`=verifiedReporterCount, mirroring kind-30382), and the exact **outbound** totals `follows`/`mutes`/`reporting` (ADR 0003/0004 — "total" inbound is unknowable, so verified is the line; the outbound report count is named `reporting`, not ORE's *inbound* `reports`).
 - **Batch rank** → **Neo4j**: one `UNWIND` over the same owner-baseline `NostrUser.influence` that stats reads (`rank = round(influence × 100)` — the two endpoints agree by construction); `OPTIONAL MATCH` + `COALESCE` ranks unknown pubkeys 0 (ORE-03's every-pubkey rule). One round trip per batch (`fetchInfluences`, `src/api/open-ranking/rank.js`).
+- **Followers / muters** → **Neo4j**: live top-N + live count over the inbound `FOLLOWS`/`MUTES` edges filtered by the per-edge verified cutoffs (`VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF` / `VERIFIED_MUTERS_INFLUENCE_CUTOFF`, bound as `$cutoff`), each row ranked by the *follower's/muter's own* influence, ties broken `pubkey ASC`; both statements under the `NEO4J_QUERY_TIMEOUT_MS` deadline (`fetchVerifiedInbound`, `src/api/open-ranking/inbound.js`). `total` is the live count from the same scan — it can drift from `/stats/pubkey`'s batch-written `verified*Count` properties between recomputes (ADR ore-parity/0002 Option C, deliberate).
 - **Search** → **Meili**: ranks by the owner's `wot_rank_<ownerSuffix>` column (`ownerSuffix = getOwnerAssistantPubkey().slice(0,8)` — the runtime TA helper, never hardcoded) via `nostr-search-api` with `sort=wot_rank_<ownerSuffix>:desc`; `rank` floors to 0 for unscored profiles. This is the kind-30382 → Meili read of §27, keyed to the owner's own delegated suffix.
 
 The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's **main pubkey** (`observer_pubkey`), Meili columns by the **delegated-key suffix** — which is the open seam recorded in worksheet **W13**.
@@ -1738,7 +1741,7 @@ The `graperank-personalized` **stats** path is an **unauthenticated provisioning
 ### Deferred
 
 - **Personalized search** (`graperank-personalized` on `/search/pubkeys`) — needs a server-side **main→delegated PoV resolver** to bridge the two stores (worksheet **W13**); planned as `open-ranking` Story 3.
-- **ORE-A / Nostr Web Token (kind 27519) auth**; the remaining ORE endpoints (`/followers`, `/muters` — ore-parity story 2; `/recommend/pubkeys`, `/compromised/pubkeys` — unplanned); a standard PoV-availability mechanism / upstream ORE proposal (W12).
+- **ORE-A / Nostr Web Token (kind 27519) auth**; the remaining ORE endpoints (`/recommend/pubkeys`, `/compromised/pubkeys` — unplanned); a standard PoV-availability mechanism / upstream ORE proposal (W12).
 
 ### Deployment
 
