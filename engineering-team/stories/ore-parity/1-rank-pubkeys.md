@@ -31,8 +31,10 @@ Testable from outside (anonymous HTTP; routes off the `/api/` prefix, same as ex
       unchanged. The document passes the official `open-ranking` JS SDK `validateCapabilities()`
       (npub.world's Validate path) with no mandatory-endpoint throw.
 - [ ] **Batch rank happy path.** `POST /rank/pubkeys` with `{ "pubkeys": [<valid pubkeys>] }` and
-      no `algorithm` → 200 with `{ results: [{ pubkey, rank }, …], ttl }`, `results` sorted by
-      `rank` descending, containing each requested pubkey exactly once (when `limit` ≥ count).
+      no `algorithm` → 200 with `{ results: [{ pubkey, rank }, …] }` (no `ttl` — amended at the
+      Architecture gate per ADR open-ranking/0004's "No `ttl` anywhere"; `ttl` is optional in
+      ORE-03), `results` sorted by `rank` descending, containing each requested pubkey exactly
+      once (when `limit` ≥ count).
 - [ ] **Rank semantics.** `rank` has the same scale and meaning as ORE-02 `/stats/pubkey`'s `rank`
       under the instance's global POV (`round(influence × 100)`) — the two endpoints agree for the
       same pubkey. Pubkeys unknown to the instance still appear, with floor rank 0 (ORE-03: a rank
@@ -71,14 +73,15 @@ per-deployment). Existing machinery (reference, do not re-define):
 - Any UI; any change to the NosFabrica codebase; BIBLE write-up beyond what review requires.
 
 ## Open questions
-- **Provider max `pubkeys`** — adopt the spec's suggested 1000, or lower to bound the batch query
-  cost? Architect to decide with a measurement if needed.
-- **`ttl` value** — ORE-05 shipped `ttl: 300`; same here unless the Architect finds a reason to
-  differ (spec example uses 3600).
-- **Invalid-entry handling** — AC above rejects the whole request (422) on any non-ORE-00 pubkey;
-  Architect to confirm against ORE-00's format wording (vs. treating invalid entries as unknown).
+All resolved at the Architecture gate (ADR ore-parity/0001, operator-approved 2026-08-15):
+- **Provider max `pubkeys`** — resolved: 1000 (the spec's SHOULD-NOT ceiling), enforced pre-dedup
+  → `413` (ADR decision 4).
+- **`ttl` value** — resolved: omitted entirely, honoring ADR open-ranking/0004's "No `ttl`
+  anywhere" (`ttl` is optional in ORE-03); AC 2 amended accordingly (ADR decision 1).
+- **Invalid-entry handling** — resolved: whole-request `422` — ORE-00 makes 64-char lowercase hex
+  a MUST for all requests; unknown-but-valid pubkeys stay rank 0 (ADR decision 5).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/ore-parity/0001-rank-pubkeys.md` (Accepted)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
