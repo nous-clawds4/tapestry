@@ -1700,7 +1700,7 @@ See ADR 0033 for the ratification decision (the normative/aspirational split) an
 
 ## 28. Open Ranking (ORE) Provider
 
-Brainstorm exposes its web of trust over **[Open Ranking](https://github.com/Open-Ranking/protocol)** (ORE) — an external, MIT-licensed HTTP/JSON protocol for reputation/ranking/discovery on nostr. ORE is a **second, complementary export** alongside the NIP-85 (kind 30382/10040) publication: the *same* underlying GrapeRank / Neo4j / Meili data, but a **pull, request/response HTTP interface** for clients that don't speak the nostr relay protocol. It does **not** replace NIP-85 (which stays the signed, relay-native, independently-verifiable channel); ORE adds ad-hoc query patterns NIP-85 structurally can't serve (search by text; stats for an arbitrary pubkey). ORE is an external spec we *consume*, so it's documented here (per `protocols/README.md`'s boundary rule), not as a `protocols/` pre-NIP. Established by ADRs `open-ranking/0001` (provider + stats) and `open-ranking/0002` (search); book `engineering-team/audits/open-ranking/`.
+Brainstorm exposes its web of trust over **[Open Ranking](https://github.com/Open-Ranking/protocol)** (ORE) — an external, MIT-licensed HTTP/JSON protocol for reputation/ranking/discovery on nostr. ORE is a **second, complementary export** alongside the NIP-85 (kind 30382/10040) publication: the *same* underlying GrapeRank / Neo4j / Meili data, but a **pull, request/response HTTP interface** for clients that don't speak the nostr relay protocol. It does **not** replace NIP-85 (which stays the signed, relay-native, independently-verifiable channel); ORE adds ad-hoc query patterns NIP-85 structurally can't serve (search by text; stats for an arbitrary pubkey). ORE is an external spec we *consume*, so it's documented here (per `protocols/README.md`'s boundary rule), not as a `protocols/` pre-NIP. Established by ADRs `open-ranking/0001` (provider + stats) and `open-ranking/0002` (search), book `engineering-team/audits/open-ranking/`; batch rank added by ADR `ore-parity/0001`, book `engineering-team/audits/ore-parity/`.
 
 ### Surface (as-built)
 
@@ -1710,6 +1710,7 @@ Public, read-only, **unauthenticated, unsigned**. All routes live **off the `/ap
 |---|---|---|---|
 | GET | `/.well-known/open-ranking.json` | ORE-01 | Capability document — a JSON object keyed by endpoint path → arrays of Algorithm Objects (first element = default). |
 | POST | `/stats/pubkey` | ORE-02 | `{ pubkey, rank, hops, followers, muters, reporters, follows, mutes, reporting, pagerank }` — inbound (followers/muters/reporters) **verified**; outbound (follows/mutes/`reporting`) exact totals; `pagerank` raw; no `ttl`. |
+| POST | `/rank/pubkeys` | ORE-03 | `{ results: [{ pubkey, rank }] }` — batch rank of the supplied pubkeys (≤1000, duplicates collapsed), ranked desc, capped at `limit` (default = batch size, over-size silently clamped); every requested pubkey ranked, unknown → 0; no `ttl`. |
 | POST | `/search/pubkeys` | ORE-05 | `{ results: [{ pubkey, rank }] }` — free-text profile search, ranked desc, capped at `limit` (no `ttl`). |
 
 Each endpoint advertises a **global** algorithm `graperank` (`pov:false`, the default); `/stats/pubkey` additionally advertises a **personalized** `graperank-personalized` (`pov:true`). Personalized *search* is deferred (below). (Algorithm ids were renamed `grapevine`→`graperank` by ADR 0003, to match the GrapeRank algorithm and the kind-30382 metric vocabulary.)
@@ -1719,6 +1720,7 @@ Each endpoint advertises a **global** algorithm `graperank` (`pov:false`, the de
 ORE's `pov` is §27's PoV machinery. The **global `graperank`** is the instance's **owner-anchored** view, but it is read from a different store per endpoint:
 
 - **Stats** → **Neo4j**: `fetchProfileScores(pubkey, observerPubkey:'owner')` reads the `NostrUser` node — the **Owner PoV** (§27) — with `rank = round(influence × 100)`. The response also carries `hops`, raw `pagerank` (personalizedPageRank under the active POV), the **verified** inbound counts (`followers`=verifiedFollowerCount, `muters`=verifiedMuterCount, `reporters`=verifiedReporterCount, mirroring kind-30382), and the exact **outbound** totals `follows`/`mutes`/`reporting` (ADR 0003/0004 — "total" inbound is unknowable, so verified is the line; the outbound report count is named `reporting`, not ORE's *inbound* `reports`).
+- **Batch rank** → **Neo4j**: one `UNWIND` over the same owner-baseline `NostrUser.influence` that stats reads (`rank = round(influence × 100)` — the two endpoints agree by construction); `OPTIONAL MATCH` + `COALESCE` ranks unknown pubkeys 0 (ORE-03's every-pubkey rule). One round trip per batch (`fetchInfluences`, `src/api/open-ranking/rank.js`).
 - **Search** → **Meili**: ranks by the owner's `wot_rank_<ownerSuffix>` column (`ownerSuffix = getOwnerAssistantPubkey().slice(0,8)` — the runtime TA helper, never hardcoded) via `nostr-search-api` with `sort=wot_rank_<ownerSuffix>:desc`; `rank` floors to 0 for unscored profiles. This is the kind-30382 → Meili read of §27, keyed to the owner's own delegated suffix.
 
 The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's **main pubkey** (`observer_pubkey`), Meili columns by the **delegated-key suffix** — which is the open seam recorded in worksheet **W13**.
@@ -1727,7 +1729,7 @@ The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's
 
 ### Conventions (ORE-00, as-built)
 
-64-char-lowercase-hex pubkeys (npub rejected → `422`); `application/json` in/out; `Access-Control-Allow-Origin: *` on every response incl. errors; errors via HTTP status (`400` malformed JSON, `422` validation/algorithm/pov) + a human-readable `X-Reason` header; no `ttl` (dropped, ADR 0004); a `pov` sent to a global algorithm is **ignored**. Reads are synchronous → success is always `200` (no `202`/`Retry-After`). **`OPTIONS` preflight returns a `2xx` (204) via the platform's global CORS**, not a strict ORE-00 `200` — a documented cosmetic deviation (a strict-200 shim is a deferred follow-up). The outbound search call is bounded by `AbortSignal.timeout(5000)`.
+64-char-lowercase-hex pubkeys (npub rejected → `422`); `application/json` in/out; `Access-Control-Allow-Origin: *` on every response incl. errors; errors via HTTP status (`400` malformed JSON, `413` batch over the `/rank/pubkeys` 1000-pubkey provider max, `422` validation/algorithm/pov) + a human-readable `X-Reason` header; no `ttl` (dropped, ADR 0004); a `pov` sent to a global algorithm is **ignored**. Reads are synchronous → success is always `200` (no `202`/`Retry-After`). **`OPTIONS` preflight returns a `2xx` (204) via the platform's global CORS**, not a strict ORE-00 `200` — a documented cosmetic deviation (a strict-200 shim is a deferred follow-up). The outbound search call is bounded by `AbortSignal.timeout(5000)`.
 
 ### Security — personalized-stats enumeration oracle
 
@@ -1736,11 +1738,11 @@ The `graperank-personalized` **stats** path is an **unauthenticated provisioning
 ### Deferred
 
 - **Personalized search** (`graperank-personalized` on `/search/pubkeys`) — needs a server-side **main→delegated PoV resolver** to bridge the two stores (worksheet **W13**); planned as `open-ranking` Story 3.
-- **ORE-A / Nostr Web Token (kind 27519) auth**; the other ORE endpoints (`/rank/pubkeys`, `/recommend/pubkeys`, `/followers`, `/muters`, `/compromised/pubkeys`); a standard PoV-availability mechanism / upstream ORE proposal (W12).
+- **ORE-A / Nostr Web Token (kind 27519) auth**; the remaining ORE endpoints (`/followers`, `/muters` — ore-parity story 2; `/recommend/pubkeys`, `/compromised/pubkeys` — unplanned); a standard PoV-availability mechanism / upstream ORE proposal (W12).
 
 ### Deployment
 
-Live on **`staging.brainstorm.world`**: ORE-01 + ORE-02 via [apps#318](https://github.com/nous-clawds4/tapestry/pull/318) (2026-06-18); ORE-05 via [apps#322](https://github.com/nous-clawds4/tapestry/pull/322) (2026-06-19). **Not on production** (the personalized-stats gate above must be resolved first). Sources: ADRs `engineering-team/decisions/open-ranking/0001`–`0002`; book `engineering-team/audits/open-ranking/`; worksheet W12/W13.
+Live on **`staging.brainstorm.world`**: ORE-01 + ORE-02 via [apps#318](https://github.com/nous-clawds4/tapestry/pull/318) (2026-06-18); ORE-05 via [apps#322](https://github.com/nous-clawds4/tapestry/pull/322) (2026-06-19). **Also live on production (`tapestry.brainstorm.world`)** — the earlier "not on production" hold was resolved when ADR `open-ranking/0005` shipped the personalized-stats gate OFF by default (W12 gates *opening personalization*, not the global surface); both instances verified serving the ORE surface 2026-08-15. Sources: ADRs `engineering-team/decisions/open-ranking/0001`–`0002`; book `engineering-team/audits/open-ranking/`; worksheet W12/W13.
 
 ---
 

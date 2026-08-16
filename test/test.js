@@ -112,6 +112,7 @@ const bTagSeeds = require('./b-tag-seeds.test.js');
 const dualZWriter = require('./dual-z-writer.test.js');
 const openRankingStats = require('./open-ranking-stats.test.js');
 const openRankingSearch = require('./open-ranking-search.test.js');
+const openRankingRank = require('./open-ranking-rank.test.js');
 const verifiedMutersReadApi = require('./verified-muters-read-api.test.js');
 const verifiedMutersProfileSurface = require('./verified-muters-profile-surface.test.js');
 // epic: event-tagging — Story 1 (protocol core + spec)
@@ -440,6 +441,9 @@ async function main() {
 
   console.log('\nopen-ranking-search suite:');
   const openRankingSearchResult = await openRankingSearch.run();
+
+  console.log('\nopen-ranking-rank suite:');
+  const openRankingRankResult = await openRankingRank.run();
 
   console.log('\nverified-muters-read-api suite:');
   const verifiedMutersReadApiResult = await verifiedMutersReadApi.run();
@@ -898,6 +902,9 @@ async function main() {
     `open-ranking-search suite:                       ${openRankingSearchResult.fail === 0 ? 'PASS' : 'FAIL'} (${openRankingSearchResult.pass} passed, ${openRankingSearchResult.fail} failed)`
   );
   console.log(
+    `open-ranking-rank suite:                         ${openRankingRankResult.fail === 0 ? 'PASS' : 'FAIL'} (${openRankingRankResult.pass} passed, ${openRankingRankResult.fail} failed)`
+  );
+  console.log(
     `verified-muters-read-api suite:                  ${verifiedMutersReadApiResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedMutersReadApiResult.pass} passed, ${verifiedMutersReadApiResult.fail} failed)`
   );
   console.log(
@@ -1186,6 +1193,7 @@ async function main() {
     dualZWriterResult.fail === 0 &&
     openRankingStatsResult.fail === 0 &&
     openRankingSearchResult.fail === 0 &&
+    openRankingRankResult.fail === 0 &&
     verifiedMutersReadApiResult.fail === 0 &&
     verifiedMutersProfileSurfaceResult.fail === 0 &&
     eventTaggingCoreResult.fail === 0 &&
@@ -1339,7 +1347,7 @@ async function main() {
     noteSurfacesReadPathResult, noteSurfacesUiResult, eventPageReadPathResult, eventPageUiResult,
     verifiedReportersReportColumnsResult, profileIdentityDetailsPopoverResult, profileFollowsHopsResult, profileHopsPathResult,
     tagReadUnionResult, bTagPrimitiveResult, bTagSeedsResult, dualZWriterResult,
-    openRankingStatsResult, openRankingSearchResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
+    openRankingStatsResult, openRankingSearchResult, openRankingRankResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
