@@ -92,5 +92,6 @@ All resolved at the Architecture gate (ADR ore-parity/0002, operator-approved 20
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/ore-parity/0002-followers-muters.md` (Accepted)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/ore-parity/2-followers-muters.test-plan.md`
+  (`test/open-ranking-followers-muters.test.js`, 16 tests)
 - Review: (filled in after Review phase)
