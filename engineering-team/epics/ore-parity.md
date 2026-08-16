@@ -1,7 +1,7 @@
 # Epic: ore-parity
 
 **Created:** 2026-08-15
-**Status:** Open
+**Status:** Done (epic retired 2026-08-16 at the ore-parity book close — both stories Done, shipped to production via PRs #554/#555 and #556/#557)
 **Book:** `engineering-team/audits/ore-parity/book.md` (acceptance-frame, standard gated mode)
 **Provenance:** Operator request 2026-08-15 (in-session): npub.world's provider validation fails
 against the R&D instances with `no algorithms registered in the mandatory /rank/pubkeys`; the
@@ -30,7 +30,9 @@ advertises an endpoint only in the same story that implements it.
    npub.world validates both instances, verified 2026-08-16.)*
 2. **followers-muters** — **ORE-06 `POST /followers` + ORE-07 `POST /muters`** (global only): the
    top-ranked verified followers/muters of a target pubkey, registered in the capability document.
-   Structural twins, one story. *(approved — in cycle)*
+   Structural twins, one story. *(Done — live on staging + production via
+   [#556](https://github.com/nous-clawds4/tapestry/pull/556)/[#557](https://github.com/nous-clawds4/tapestry/pull/557);
+   npub.world's Followers (ORE-06) row ✓ on both instances, verified 2026-08-16.)*
 
 ## Out of scope (whole epic)
 - `pov: true` personalized algorithms anywhere (W12 auth gate; ADR open-ranking/0005).
