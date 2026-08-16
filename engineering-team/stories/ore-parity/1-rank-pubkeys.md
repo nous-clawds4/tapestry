@@ -81,6 +81,17 @@ All resolved at the Architecture gate (ADR ore-parity/0001, operator-approved 20
 - **Invalid-entry handling** — resolved: whole-request `422` — ORE-00 makes 64-char lowercase hex
   a MUST for all requests; unknown-but-valid pubkeys stay rank 0 (ADR decision 5).
 
+## Deviations
+- **BIBLE §28 Deployment staleness fixed in passing (Implementer, 2026-08-15).** The paragraph
+  claimed ORE was "**Not on production**", but tapestry.brainstorm.world verifiably serves the
+  ORE surface (its capability document was fetched live this session). Corrected to record that
+  production went live once ADR open-ranking/0005 shipped the personalized-stats gate OFF by
+  default — one sentence, adjacent to the table this story edits; left as-was it would have been
+  a review flag.
+- **Developers-page section numbering.** The new `/rank/pubkeys` docs section was appended as
+  §4 (after search) rather than renumbering existing sections into strict ORE order — smallest
+  diff; the capability document and BIBLE table carry the spec ordering.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/ore-parity/0001-rank-pubkeys.md` (Accepted)
 - Test plan: `engineering-team/stories/ore-parity/1-rank-pubkeys.test-plan.md`

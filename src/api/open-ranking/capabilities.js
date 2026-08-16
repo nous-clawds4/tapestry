@@ -2,8 +2,9 @@
  * ORE-01 capability registry — the single source of truth for both the served
  * capability document AND per-request algorithm validation. See ADR open-ranking/0001.
  *
- * Story 1 advertises only /stats/pubkey (Story 2 adds /search/pubkeys). The first
- * element of each endpoint's array is that endpoint's default algorithm (ORE-01).
+ * Story 1 advertises only /stats/pubkey (Story 2 adds /search/pubkeys; ore-parity #1
+ * adds the mandatory /rank/pubkeys, ADR ore-parity/0001). The first element of each
+ * endpoint's array is that endpoint's default algorithm (ORE-01).
  */
 
 const { oreHeaders } = require('./shared');
@@ -22,6 +23,15 @@ const CAPABILITIES = {
       pov: true,
       description: 'GrapeRank from the supplied point-of-view pubkey. Requires a provisioned POV.',
     },
+  ],
+  '/rank/pubkeys': [
+    {
+      id: 'graperank',
+      name: 'GrapeRank',
+      pov: false,
+      description: "Batch GrapeRank web-of-trust ranking of the supplied pubkeys (influence ×100) from this instance's global point of view. Unknown pubkeys rank 0.",
+    },
+    // Personalized batch rank stays out until the W12 auth work (ADR open-ranking/0005).
   ],
   '/search/pubkeys': [
     {
