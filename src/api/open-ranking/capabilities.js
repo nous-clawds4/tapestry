@@ -42,6 +42,22 @@ const CAPABILITIES = {
     },
     // graperank-personalized (pov:true) deferred to Story 3 (worksheet W13).
   ],
+  '/followers': [
+    {
+      id: 'graperank',
+      name: 'GrapeRank',
+      pov: false,
+      description: "Verified followers of the target pubkey (WoT cutoff), each ranked by their own global GrapeRank (influence ×100), top-ranked first. total = verified-follower cardinality.",
+    },
+  ],
+  '/muters': [
+    {
+      id: 'graperank',
+      name: 'GrapeRank',
+      pov: false,
+      description: "Verified muters of the target pubkey (WoT cutoff), each ranked by their own global GrapeRank (influence ×100), top-ranked first. total = verified-muter cardinality.",
+    },
+  ],
 };
 
 /**

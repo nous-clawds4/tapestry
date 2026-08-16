@@ -25,10 +25,12 @@ advertises an endpoint only in the same story that implements it.
 `stories/ore-parity/`:
 1. **rank-pubkeys** — **ORE-03 `POST /rank/pubkeys`** (global `graperank` only): batch counterpart
    of ORE-02, registered in the capability document; the SDK's `validateCapabilities()` passes and
-   npub.world's Validate flips to success. *(approved — in cycle)*
+   npub.world's Validate flips to success. *(Done — live on staging + production via
+   [#554](https://github.com/nous-clawds4/tapestry/pull/554)/[#555](https://github.com/nous-clawds4/tapestry/pull/555);
+   npub.world validates both instances, verified 2026-08-16.)*
 2. **followers-muters** — **ORE-06 `POST /followers` + ORE-07 `POST /muters`** (global only): the
    top-ranked verified followers/muters of a target pubkey, registered in the capability document.
-   Structural twins, one story. *(planned — drafted after story 1 ships)*
+   Structural twins, one story. *(approved — in cycle)*
 
 ## Out of scope (whole epic)
 - `pov: true` personalized algorithms anywhere (W12 auth gate; ADR open-ranking/0005).
