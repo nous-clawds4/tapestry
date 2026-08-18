@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `tapestry.brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-08-05 (content: §31 The Self and Its Keys — ratifies the instance-identity doctrine (the TA pubkey is the instance's "me"; the Owner a distinct correspondent; absorption explicit, chosen per feature) + §30 cross-ref + §16 changelog row — self-ontology #2 / ADR 0002, F0 of the shared-concepts-adoption book; prior: §6 tapestry elements author `word` + brain-first authoring note (misdiagnosis corrected), §16 changelog row — brain-first-tapestry-authoring book / ADR tapestries/0007; prior: §30 The Self and Its Stores — ratifies the self ontology (Neo4j = the definitive "me"; LMDB = subordinate cache; events = "letters") plus the binding obligations it creates — self-ontology #1 / ADR 0001; prior: §29 Derived-JSON Store — documents the standalone tapestry-store LMDB layer (`tapestryKey` + `lmdb:` pointers), alongside a `handlePut` await fix; §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
+**Last updated:** 2026-08-17 (content: §3 "The wider estate" — names the NosFabrica production repos and the shared `NosFabrica/protocols` spec repo (whose `ECOSYSTEM.md` is the canonical estate inventory); closes the gap where the sanctioned onboarding path never mentioned the production half of the estate — estate-wiring; prior: §31 The Self and Its Keys — ratifies the instance-identity doctrine (the TA pubkey is the instance's "me"; the Owner a distinct correspondent; absorption explicit, chosen per feature) + §30 cross-ref + §16 changelog row — self-ontology #2 / ADR 0002, F0 of the shared-concepts-adoption book; prior: §6 tapestry elements author `word` + brain-first authoring note (misdiagnosis corrected), §16 changelog row — brain-first-tapestry-authoring book / ADR tapestries/0007; prior: §30 The Self and Its Stores — ratifies the self ontology (Neo4j = the definitive "me"; LMDB = subordinate cache; events = "letters") plus the binding obligations it creates — self-ontology #1 / ADR 0001; prior: §29 Derived-JSON Store — documents the standalone tapestry-store LMDB layer (`tapestryKey` + `lmdb:` pointers), alongside a `handlePut` await fix; §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
 
 ---
 
@@ -84,6 +84,18 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 |------|-----|----------------|-------------|
 | **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `main` | Docker stack: strfry + Neo4j + Express + React UI + Meilisearch + NIP-50 proxy + firmware |
 | **tapestry-cli** | `github.com/nous-clawds4/tapestry-cli` | `main` | CLI tool for graph operations |
+
+### The wider estate
+
+Tapestry is the **R&D half of a two-organization estate operated by one team**; the production half lives under [NosFabrica](https://github.com/NosFabrica) (flagship deployment: `brainstorm.world`). Features and protocols are proven here first, then adopted by the production repos. The canonical inventory of the whole estate — every repository, deployment hostname, and role — is [ECOSYSTEM.md in `NosFabrica/protocols`](https://github.com/NosFabrica/protocols/blob/main/ECOSYSTEM.md). The immediate siblings:
+
+| Repo | Role |
+|------|------|
+| [`NosFabrica/protocols`](https://github.com/NosFabrica/protocols) | Shared protocol specifications — the estate-wide publication tier that specs graduate to from [`protocols/`](./protocols/README.md) here — plus the canonical estate map |
+| [`NosFabrica/Brainstorm-UI`](https://github.com/NosFabrica/Brainstorm-UI) | Production web UI |
+| [`NosFabrica/brainstorm_server`](https://github.com/NosFabrica/brainstorm_server) | Production backend: event ingest, GrapeRank runs, Trusted Assertion publishing, Vespa profile search |
+| [`NosFabrica/brainstorm_graperank_algorithm`](https://github.com/NosFabrica/brainstorm_graperank_algorithm) | The GrapeRank computation (Java worker) |
+| [`nous-clawds4/brainstorm-cli`](https://github.com/nous-clawds4/brainstorm-cli) | CLI for LLM agents against the production Brainstorm backend |
 
 ### Recommended branch strategy
 
