@@ -2125,3 +2125,20 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 **Strictness:** Standard.
 **Phase path:** check `protocols/README.md` per the house rule — note the normative spec has *graduated* to NosFabrica/protocols, so this story implements conformance rather than drafting spec (no Protocol-Spec docs-mode needed); then `/plan-feature`, likely one story.
 **References:** [NosFabrica/protocols#3](https://github.com/NosFabrica/protocols/issues/3); [`specs/trusted-assertions.md` § Implementation variance](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md); `src/algos/customers/nip85/publish_kind30382.js:144-170`; `src/algos/customers/nip85/loadScoresIntoMeilisearch.js`.
+
+---
+
+## 2026-08-18 — Serve llms.txt on the tapestry fleet (protocols#6)
+
+**NOT PICKED UP.** Estate-wide tracking: [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6). Add [llms.txt](https://llmstxt.org/) — a root-level curated markdown map of key documents for visiting AI agents — to all six tapestry-fleet hosts, as one more exact-match document through the site-trust plumbing this repo already ships.
+
+**Why (from the estate issue):** the adoption path for the estate's trust scores increasingly runs through developers' AI assistants; an agent fetching `<host>/llms.txt` should be routed on the first hop to the normative specs ([trusted-assertions](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md), [graperank](https://github.com/NosFabrica/protocols/blob/main/specs/graperank.md)), [CONCEPTS.md](https://github.com/NosFabrica/protocols/blob/main/CONCEPTS.md), and [ECOSYSTEM.md](https://github.com/NosFabrica/protocols/blob/main/ECOSYSTEM.md). Honest caveat carried from the issue: no major crawler commits to consuming it — this is cheap insurance plus a deliberate-agent affordance, not SEO.
+
+**Why it's small here:** `src/utils/siteTrust.js` already renders security.txt and robots.txt as a pure module with a shape-based rule ahead of the SPA catch-all (site-trust-signals book; ADR `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`). llms.txt is a third document through the same module: static pointer manifest, per-deployment canonical hostname supplied the way security.txt's values are, served `text/plain` or `text/markdown`, honest 404s untouched. Content is **pointers only** (mostly into NosFabrica/protocols) so the file almost never changes; the estate discrepancy rule applies — ECOSYSTEM.md is canonical, llms.txt only points.
+
+**Test shape:** follow the existing siteTrust suite — assert 200 + content type + link inventory on `/llms.txt`, and fold "do the links resolve" into the same renewal ritual that owns the security.txt `Expires` check (test U1's family).
+
+**Classification:** Feature (small; serving-layer only, no wire format).
+**Strictness:** Standard.
+**Phase path:** `/plan-feature`, one story. Coordinate timing with the Brainstorm-UI (nginx) and brainstorm-k8s (edge) portions via protocols#6 — no ordering dependency, but shipping all fleets near-together keeps the estate's root-document story consistent.
+**References:** [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6); `src/utils/siteTrust.js`; `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`; [llmstxt.org](https://llmstxt.org/).
