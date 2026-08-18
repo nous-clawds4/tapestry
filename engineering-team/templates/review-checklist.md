@@ -17,6 +17,10 @@
 - [ ] No criterion is silently dropped.
 - [ ] No behavior added that isn't in the story.
 
+> **Docs-mode / doc-lane variant:** there are no ACs and no test surface — replace this section with a **claims-adherence table**: one row per substantive claim the document makes, with the evidence that verified it (file read, command run, source checked). The *Quality gates* section records the doc-facing checks actually performed (links resolve, cross-references accurate, index rows updated). File the review under the non-numbered form (0-intake §3).
+
+> **Test-deliverable stories** (the deliverable IS a test change): a non-empty Phase-4 `test/` diff is expected, not a violation — verify which case applies per the carve-out in `templates/adr.md`: Phase 4 may edit the suites under repair and MUST NOT touch the Tester's guard suite.
+
 ## ADR adherence
 - [ ] Files changed match the ADR's implementation notes.
 - [ ] Layering / module boundaries respected.
