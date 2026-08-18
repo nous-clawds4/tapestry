@@ -28,6 +28,8 @@ Any new user request.
 
    *(Doc-lane reviews use the **non-numbered filename form** — `reviews/<epic>/<slug>.md` — and require no story file: the lane's record IS the review. Numbered filenames are reserved for storied reviews; lint L4 enforces story-matching only for those. This ratifies the former workaround as the convention — OPEN.md row 16, second cause. The review template carries a docs-mode variant for these reviews.)*
 
+   *(Trial: a book may opt into the **Light profile** — book-scoped, this table unchanged, declared in the intake entry and book.md — see [workflows/light-profile.md](light-profile.md). Two human gates, judged interior, per-story scoped gate command named at Gate A.)*
+
 4. **Bracket the book of work (eager anchor).** A *book* is a PRD (or one roadmap phase of one), or — with no PRD — a bounded ask. Decide whether this request starts a new book or joins an open one (`engineering-team/audits/*/book.md` with `Status: Open`):
    - **Joins an open book** → add its epic to that `book.md`. Nothing else to capture.
    - **Starts a new book, PRD-backed** → create `engineering-team/audits/<book-slug>/book.md` from `templates/book.md`, anchor pointing at the PRD §sections it realizes. Completion will be *computed*.
