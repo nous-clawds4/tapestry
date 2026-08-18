@@ -2,6 +2,8 @@
 
 The home for every protocol specification this project authors — published Custom NIPs, local pre-NIPs, and the worksheet of unsolved protocol problems. Created by the protocols-directory epic; design record: [docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md](../docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md). Process: specs are ratified through the [Protocol-Spec workflow](../engineering-team/workflows/protocol-spec-workflow.md) (docs-mode).
 
+**Where specs graduate.** This directory is the estate's drafting workshop. A spec that matures to estate-wide adoption (implemented on both the R&D and NosFabrica production sides, or ready for adoption beyond the estate) moves its working copy to [`NosFabrica/protocols`](https://github.com/NosFabrica/protocols) — the shared, stable publication tier — leaving a pointer behind; the maturity model and status ladder live in [its README](https://github.com/NosFabrica/protocols/blob/main/README.md), and the canonical estate map is [its `ECOSYSTEM.md`](https://github.com/NosFabrica/protocols/blob/main/ECOSYSTEM.md). Consumer-facing specs already living there: [trusted-assertions.md](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md), [graperank.md](https://github.com/NosFabrica/protocols/blob/main/specs/graperank.md).
+
 ## The boundary rule (what belongs here vs. the BIBLE)
 
 > **Does it leave the machine as signed nostr events that an independent implementation would need to parse or produce to interoperate?**
