@@ -2142,3 +2142,26 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 **Strictness:** Standard.
 **Phase path:** `/plan-feature`, one story. Coordinate timing with the Brainstorm-UI (nginx) and brainstorm-k8s (edge) portions via protocols#6 — no ordering dependency, but shipping all fleets near-together keeps the estate's root-document story consistent.
 **References:** [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6); `src/utils/siteTrust.js`; `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`; [llmstxt.org](https://llmstxt.org/).
+
+---
+
+## 2026-08-18 — Make the test gate fast and honest (umbrella: the instrument cluster)
+
+**NOT PICKED UP.** Filed from the 2026-08-18 harness review (four-analyst corpus study; findings doc: the "Harness Review & the Light Profile" artifact), whose top-ranked friction was not the gates but **the instruments behind them**: ~20 of OPEN.md's 81 `meta` rows are the test gate being slow, flaky, or wrong about its own result. This entry consolidates that cluster into one queued objective so it competes for scheduling as a unit instead of as scattered lessons.
+
+**The objective, in one sentence:** the gate finishes inside tool timeouts, its exit code is always true, and a red result always means signal — so that nobody is ever again trained to expect red and shrug.
+
+**The cluster (by OPEN.md row):**
+
+- **Runtime:** the full `npm test` cannot finish inside the 10-minute Bash tool cap (#83; the CHANGELOG's 2026-07-28 row records a ~32-minute full run dying verdict-less when backgrounded). Fix shape to evaluate: a story-scoped default gate (changed-area suites + the guard suites) with the full sweep as a scheduled/nightly and pre-close gate, and/or suite parallelization.
+- **Exit-code integrity:** background notifications reporting exit 0 for failing runs, three times in one story (#103/#105); the documented mitigation itself broken under zsh (#111); piping the gate through `tail` destroying the diagnosis and masking the code — third sighting, still unratified as a standing rule (#157). Fix shape: ratify the brace-redirect capture pattern and the never-pipe-the-gate rule into the workflow/role docs, and consider a harness-lint check for gate invocations in scripts.
+- **Assertion classes that lie:** vacuous passes over not-yet-produced collections (#108); byte-offset assertions that fail on correct code and pass on broken code (#109); presence assertions that decay as fixtures accumulate (#126); env-skips masking zombies (#59, #60); H-class silently flipping EXECUTED/SKIPPED while reporting PASS (#104/#106). Fix shape: a sweep story auditing the suite for these five patterns, converting each to the author-scoped/guard-suite idiom.
+
+**The model to follow — this cluster is provably fixable:** row #150 (the strfry write-assertion bracket) was the worst flake in the corpus — re-measured at **83% spurious red** before fixing — and `test-suite-hermeticity` #1 fixed it properly: author-scoped brackets, a guard suite with teeth, and the "re-run/quiesce" folklore withdrawn. That story also ratified the test-deliverable phase split now stated in `templates/adr.md` (OPEN #167, closed 2026-08-18) — so the lane these stories need already exists.
+
+**Why this outranks process changes:** the harness review measured the median story at ~1–1.5 h end-to-end with gates costing minutes; the hours-class losses in the corpus all trace to instrument failures, and a gate whose instrument lies converts every downstream control (Reviewer re-runs included) into noise.
+
+**Classification:** Refactor/feature (test infrastructure; likely an epic of 2–3 stories: runtime, exit-code ratification, assertion sweep).
+**Strictness:** Standard (these are test-deliverable stories — the #167 carve-out applies).
+**Phase path:** `/plan-feature` per story; the runtime story likely wants an ADR (gate composition is a decision future sessions must honor).
+**References:** OPEN.md rows #43, #59, #60, #75, #83, #103/#105, #104/#106, #108, #109, #111, #126, #157 (the cluster), #150 + `engineering-team/stories/test-suite-hermeticity/1-*` (the model fix); the 2026-08-18 harness review, F1b/F7.
