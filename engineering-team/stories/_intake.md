@@ -2102,3 +2102,26 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 **Strictness:** Standard.
 **Phase path:** `/plan-feature` — likely two stories (1: auto-provision on role grant + deprovision on role loss; 2: owner slot re-key + migration). Consider whether the retired `security-auth-exposure` epic's successor should host them or a new `assistant-key-lifecycle` epic is warranted.
 **References:** `docs/TA_KEY_EXPOSURE_AUDIT_2026-08-10.md` §4; `BIBLE.md:1046` (Assistant Keys); `src/utils/assistantKeys.js:20-39`; `src/utils/customerRelayKeys.js:66`; `src/api/assistant/index.js:486-522`; `src/utils/customerManager.js:524,666,295,370`; `src/api/admin/index.js:221`; `setup/create_nostr_identity.sh:127`.
+
+---
+
+## 2026-08-18 — Converge the kind-30382 TA tag set to the normative short names (protocols#3)
+
+**NOT PICKED UP.** Filed from the estate documentation program so it is not rediscovered; tracked estate-wide as [NosFabrica/protocols#3](https://github.com/NosFabrica/protocols/issues/3). The Trusted Assertions consumer spec — now the normative wire-format home, at [NosFabrica/protocols `specs/trusted-assertions.md`](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md) — declares the short tag names `rank` / `followers` / `reporters` / `muters` / `hops` normative (they are the assertion keys enumerated in kind-10040 designation rows, and the production producer already emits exactly that set). This repo's producer diverges.
+
+**The divergence (verified 2026-08-17 against `src/algos/customers/nip85/publish_kind30382.js:144-170`):** emits `d`/`rank`/`followers`/`hops` from the normative set but **not `muters`/`reporters`**; instead publishes long-form `verifiedFollowerCount` / `verifiedMuterCount` / `verifiedReporterCount` (the first duplicating `followers`) plus algorithm diagnostics (`personalizedGrapeRank_influence`/`_average`/`_confidence`/`_input`, `personalizedPageRank`).
+
+**Convergence target (from protocols#3):**
+
+1. Emit the normative five — `muters` and `reporters` added, values from the verified counts already computed.
+2. Long-form count tags: drop after a deprecation window, or keep temporarily as duplicates — producer's choice. The diagnostics may stay indefinitely as extensions; the spec requires consumers to ignore unknown tags.
+3. Verify `hops` omission at the unreachable sentinel. The current Neo4j selection filter (`hops < 100`) means no sentinel row is ever selected, so this is likely already conformant — confirm rather than assume.
+
+**Local-consumer caution:** any in-repo readers of the long-form tags must migrate in the same story — grep `verifiedFollowerCount|verifiedMuterCount|verifiedReporterCount|personalizedGrapeRank` across `src/` and `ui/` before deleting emissions (`src/algos/customers/nip85/loadScoresIntoMeilisearch.js` is a candidate).
+
+**Acceptance (from protocols#3):** a TA published by this repo validates against the spec's tag table with no consumer special-casing — the five normative tags present with the specified semantics, unknown tags ignorable.
+
+**Classification:** Refactor/feature (protocol conformance; wire-touching).
+**Strictness:** Standard.
+**Phase path:** check `protocols/README.md` per the house rule — note the normative spec has *graduated* to NosFabrica/protocols, so this story implements conformance rather than drafting spec (no Protocol-Spec docs-mode needed); then `/plan-feature`, likely one story.
+**References:** [NosFabrica/protocols#3](https://github.com/NosFabrica/protocols/issues/3); [`specs/trusted-assertions.md` § Implementation variance](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md); `src/algos/customers/nip85/publish_kind30382.js:144-170`; `src/algos/customers/nip85/loadScoresIntoMeilisearch.js`.
