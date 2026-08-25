@@ -1,6 +1,6 @@
 # Tapestry / Brainstorm Search
 
-Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at tapestry.brainstorm.world.
+Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at tapestry.brainstorm.world. R&D arm of the Brainstorm/Tapestry estate — the map of the estate's repos and deployments is [ECOSYSTEM.md](https://github.com/NosFabrica/protocols/blob/main/ECOSYSTEM.md) in `NosFabrica/protocols`.
 
 **Read for your task — don't bulk-read.** The SessionStart digest (`scripts/session-start.sh`) auto-runs the harness health check; `/whats-open` gives the full roll-up. Line budgets on this file and AGENTS.md are lint-enforced (`scripts/harness-budgets.txt` — free lines before adding any).
 
