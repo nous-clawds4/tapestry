@@ -35,7 +35,7 @@ selection on the Trust Determination Methods page.
 - *(planned)* Story 3 — **Certainty**: one function call further — `average ×
   (1 − 0.5^input)` via the existing input→confidence function (rigor 0.5). The full spec
   formula's number, still under the count-based predicate.
-- `stories/trusted-lists/4-weighted-member-certainty.md` — **Formalization**: the spec's wire
+- `stories/trusted-lists/4-weighted-member-certainty.md` — **Formalization** (NOT a selectable method — operator direction 2026-08-27 collapsed the selector to the three real methods): the spec's wire
   contract becomes the default — integer 0–100 per-member scores always on, `rigor` metadata,
   `score ≥ 1` predicate replacing `applies > disputes` (net-negative and 50/50 members drop
   off the list), score-desc ordering.

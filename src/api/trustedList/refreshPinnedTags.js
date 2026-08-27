@@ -69,6 +69,10 @@ function dedupeReplaceable(events) {
   return Array.from(byKey.values());
 }
 
+// ADR trusted-lists/0002: 6-decimal rounding for published weighted scores —
+// full precision for hand validation, without binary-float noise.
+function round6(x) { return Number(x.toFixed(6)); }
+
 function computeTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
   return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
 }
@@ -154,15 +158,27 @@ async function runOnePin(pinEvent) {
   const cutoff = Number.isFinite(curation.cutoff) ? curation.cutoff : 1;
   const minRankForTag = Number.isFinite(minRank) ? minRank : 0;
 
-  const { byTarget } = await profileTags.aggregateProfilesTagged({
+  const { byTarget, wotFiltering } = await profileTags.aggregateProfilesTagged({
     tagEventId, povSuffix, minRank,
   });
   // ADR trusted-lists/0001: the pipeline-wide membership method, resolved
   // fresh per refresh (fail-safe: always an implemented id). Dispatch is a
   // map so rungs 2-4 add branches without touching the count path.
-  const membershipMethod = resolveMembershipMethod();
+  // ADR trusted-lists/0002: weighted methods need the WoT filter's ranks;
+  // without them the fold degrades to count and the wire tag records the
+  // math that actually ran.
+  const requestedMethod = resolveMembershipMethod();
+  const membershipMethod =
+    (requestedMethod === 'input' && !wotFiltering) ? 'count' : requestedMethod;
   const membershipFolds = {
     count: () => applyDisputesFunction(byTarget, cutoff),
+    // Rung 2: membership/order unchanged (same fold), plus the signed
+    // trust-weighted sum as the per-member score. round6 kills float noise
+    // for hand validation (ADR 0002 point 4).
+    input: () => applyDisputesFunction(byTarget, cutoff).map((m) => ({
+      ...m,
+      score: round6(byTarget.get(m.pubkey)?.weightedSum ?? 0),
+    })),
   };
   const members = membershipFolds[membershipMethod]();
 
@@ -170,7 +186,10 @@ async function runOnePin(pinEvent) {
   // when the pin requested includeScoreInTL AND the observer's POV is
   // resolvable. AC-8: degrade silently when POV is unresolvable
   // (povSuffix null) — members still publish without scores.
-  if (curation.includeScoreInTL === true && povSuffix) {
+  // ADR trusted-lists/0002 point 3: under a weighted method the method's
+  // score owns the slot — the legacy wot_rank enrichment applies only to
+  // count. (Reconciliation is rung 4's.)
+  if (membershipMethod === 'count' && curation.includeScoreInTL === true && povSuffix) {
     try {
       const memberPubkeys = members.map((m) => m.pubkey);
       if (memberPubkeys.length > 0) {

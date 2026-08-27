@@ -15,12 +15,10 @@ function shortPubkey(pk) {
 const TL_MEMBERSHIP_METHODS = [
   { id: 'count', label: 'Count — verified taggers (current)', available: true,
     blurb: 'A member joins when enough gate-passing taggers applied the tag and applies outnumber disputes. Every tagger counts as 1.' },
-  { id: 'input', label: 'Input & agreement — trust-weighted taggers', available: false,
-    blurb: 'Each tagger counts by their trust weight (WoT rank ÷ 100). "Input" = the sum of those weights. "Agreement" = the weighted vote, applies (+1) vs disputes (−1), divided by input: all applies → 1.0, an even split → 0, mostly disputes → negative.' },
+  { id: 'input', label: 'Weighted sum — trust-weighted applies − disputes', available: true,
+    blurb: 'One score per member: each tagger counts by their trust weight (WoT rank ÷ 100), applies add, disputes subtract. An equal-weight split nets to 0; dispute-heavy goes negative. Membership and order still follow Count at this rung.' },
   { id: 'certainty', label: 'Certainty — saturating input × agreement', available: false,
     blurb: 'Input converted to certainty (more total trust weight → closer to 1, with diminishing returns), then multiplied by agreement. The full formula.' },
-  { id: 'score', label: 'Score — formalized 0–100 contract', available: false,
-    blurb: 'Published integer scores, score ≥ 1 membership predicate, score-ordered lists.' },
 ];
 
 /**

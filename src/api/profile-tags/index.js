@@ -660,6 +660,11 @@ async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
   const deduped = dedupeReplaceable(scanned.flat());
 
   let authorAllowed = () => true;
+  // ADR trusted-lists/0002: when the WoT filter is active the author docs are
+  // already in hand — the same gate also yields each asserter's trust weight
+  // (rank/100) for the weighted membership methods. authorWeight returns null
+  // when weights are unavailable (no filtering) so counts stay the only signal.
+  let authorWeight = () => null;
   if (wotFiltering) {
     const authorPubkeys = Array.from(new Set(deduped.map((ev) => ev.pubkey)));
     const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
@@ -669,6 +674,10 @@ async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
       if (!doc) return false;
       const r = doc[rankField];
       return typeof r === 'number' && r >= minRank;
+    };
+    authorWeight = (authorPk) => {
+      const r = authorDocs.get(authorPk)?.[rankField];
+      return typeof r === 'number' ? r / 100 : null;
     };
   }
 
@@ -684,11 +693,17 @@ async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
     const targetPk = pTag[1];
     let entry = byTarget.get(targetPk);
     if (!entry) {
-      entry = { pubkey: targetPk, applications: 0, disputes: 0 };
+      entry = { pubkey: targetPk, applications: 0, disputes: 0, weightedInput: 0, weightedSum: 0 };
       byTarget.set(targetPk, entry);
     }
-    if (bucket === 'apply') entry.applications += 1;
-    else if (bucket === 'dispute') entry.disputes += 1;
+    const w = authorWeight(ev.pubkey);
+    if (bucket === 'apply') {
+      entry.applications += 1;
+      if (w !== null) { entry.weightedInput += w; entry.weightedSum += w; }
+    } else if (bucket === 'dispute') {
+      entry.disputes += 1;
+      if (w !== null) { entry.weightedInput += w; entry.weightedSum -= w; }
+    }
   }
 
   return { byTarget, deduped, wotFiltering, authorAllowed };

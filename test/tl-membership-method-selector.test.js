@@ -161,12 +161,17 @@ t('U1 defaults.json ships trustedLists.membershipMethod="count" (AC-5)', async (
     'defaults.json must ship trustedLists.membershipMethod="count"');
 });
 
-t('U2 membershipMethods exports METHOD_IDS (4 rungs, ordered) and IMPLEMENTED=["count"]', async () => {
+t('U2 membershipMethods exports METHOD_IDS (3 methods, ordered) + resolver', async () => {
+  // Amended 2026-08-27 (Story 2, operator direction): the selector collapsed
+  // to the original three methods — rung-4 formalization is not a method.
+  // IMPLEMENTED grows per rung, so assert count is first and the list is a
+  // prefix of METHOD_IDS rather than pinning this story's snapshot.
   const m = loadMembershipMethods(undefined);
-  assertEqual(JSON.stringify(m.METHOD_IDS), JSON.stringify(['count', 'input', 'certainty', 'score']),
-    'METHOD_IDS must be the four ladder ids in wire-stable order');
-  assertEqual(JSON.stringify(m.IMPLEMENTED_METHOD_IDS), JSON.stringify(['count']),
-    'IMPLEMENTED_METHOD_IDS must be exactly ["count"] in this story');
+  assertEqual(JSON.stringify(m.METHOD_IDS), JSON.stringify(['count', 'input', 'certainty']),
+    'METHOD_IDS must be the three ladder methods in wire-stable order');
+  assert(Array.isArray(m.IMPLEMENTED_METHOD_IDS) && m.IMPLEMENTED_METHOD_IDS[0] === 'count'
+    && m.IMPLEMENTED_METHOD_IDS.every((id) => m.METHOD_IDS.includes(id)),
+    'IMPLEMENTED_METHOD_IDS must start with "count" and be a subset of METHOD_IDS');
   assert(typeof m.resolveMembershipMethod === 'function',
     'membershipMethods must export resolveMembershipMethod()');
 });
@@ -177,8 +182,10 @@ t('U3 resolver: no settings file → "count" (AC-5)', async () => {
     'with no settings file the resolver must return "count"');
 });
 
-t('U4 resolver: valid-but-unimplemented "input" → "count" (fail-safe)', async () => {
-  const m = loadMembershipMethods(JSON.stringify({ trustedLists: { membershipMethod: 'input' } }));
+t('U4 resolver: valid-but-unimplemented id → "count" (fail-safe)', async () => {
+  // Amended at Story 2: 'input' became implemented; 'certainty' is the
+  // current valid-but-unimplemented exemplar (rung 3 will move it too).
+  const m = loadMembershipMethods(JSON.stringify({ trustedLists: { membershipMethod: 'certainty' } }));
   assertEqual(m.resolveMembershipMethod(), 'count',
     'a known-but-not-yet-implemented method id must resolve to "count" in this story');
 });
@@ -211,10 +218,10 @@ t('U7 resolver: override "count" honored on a fresh per-call disk read (AC-2)', 
 
 /* Source contract */
 
-t('S1 TrustDetermination.jsx renders the TL membership-method panel: 4 ids, 3 disabled (AC-1)', async () => {
+t('S1 TrustDetermination.jsx renders the TL membership-method panel: 3 methods, unimplemented disabled (AC-1)', async () => {
   const src = fs.readFileSync(
     path.join(REPO_ROOT, 'ui', 'src', 'pages', 'grapevine', 'TrustDetermination.jsx'), 'utf-8');
-  for (const id of ['count', 'input', 'certainty', 'score']) {
+  for (const id of ['count', 'input', 'certainty']) {
     assert(new RegExp(`['"\`]${id}['"\`]`).test(src),
       `TrustDetermination.jsx must reference membership-method id "${id}"`);
   }
@@ -249,6 +256,41 @@ t('L0 GUARD publish policy is local-only (AC-6) — FAILS if external publishing
 
 t('L1+L2 pin + apply → refresh → TL keeps today\'s shape AND carries ["membership-method","count"] (AC-3, AC-4)', async () => {
   if (!liveReady) return { skipped: true, reason: liveSkipReason };
+
+  // Amended at Story 2: the membership method AND the house POV are real
+  // operator knobs now, so this test must PIN its environment (count mode,
+  // no POV filter — its ephemeral tagger is unranked and a live POV gate
+  // would drop the apply) instead of assuming it. Snapshot/restore via
+  // docker exec, same technique as the story-2 suite.
+  let snapshot = null;
+  let canPin = false;
+  try {
+    snapshot = execSync(`docker exec ${TAPESTRY_CONTAINER} cat /var/lib/brainstorm/settings.json`,
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    canPin = true;
+  } catch { snapshot = null; canPin = true; /* file may not exist; still writable */ }
+  const pinMethod = (content) => execFileSync('docker',
+    ['exec', '-i', TAPESTRY_CONTAINER, 'sh', '-c', 'cat > /var/lib/brainstorm/settings.json'],
+    { input: content });
+  try {
+    let obj = {};
+    try { obj = snapshot ? JSON.parse(snapshot) : {}; } catch {}
+    const pinned = { ...obj, trustedLists: { ...(obj.trustedLists || {}), membershipMethod: 'count' } };
+    if (pinned.grapevine?.searchPreferences) {
+      pinned.grapevine = { ...pinned.grapevine };
+      delete pinned.grapevine.searchPreferences;
+    }
+    pinMethod(JSON.stringify(pinned, null, 2) + '\n');
+    await runL1L2CountModeBody();
+  } finally {
+    if (canPin) {
+      if (snapshot === null) execSync(`docker exec ${TAPESTRY_CONTAINER} rm -f /var/lib/brainstorm/settings.json`);
+      else pinMethod(snapshot);
+    }
+  }
+});
+
+async function runL1L2CountModeBody() {
 
   const taPubkey = await fetchRuntimeTaPubkey();
   assert(taPubkey, 'could not resolve runtime TA pubkey');
@@ -327,7 +369,7 @@ t('L1+L2 pin + apply → refresh → TL keeps today\'s shape AND carries ["membe
   assert(methodTag, 'TL must carry a ["membership-method", …] tag (AC-4)');
   assertEqual(methodTag[1], 'count',
     'with default settings the recorded membership method must be "count"');
-});
+}
 
 t('L3 unauthenticated PUT /api/settings is rejected (settings auth gate)', async () => {
   if (!liveReady) return { skipped: true, reason: liveSkipReason };

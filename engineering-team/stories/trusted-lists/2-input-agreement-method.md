@@ -55,7 +55,7 @@ excluded and absent polarity counts as apply — identical bucketing to today.
       - applies from ten rank-3 taggers → score 0.3;
       - applies from two rank-90 taggers → score 1.8 (weighting beats counting: fewer,
         stronger taggers outscore the rank-3 crowd);
-      - an apply from rank 80 plus a dispute from rank 40 → score 0.4;
+      - two rank-40 applies plus a rank-40 dispute → score 0.4 (0.4+0.4−0.4; single-apply-vs-single-dispute cannot pass the count predicate, so D uses unequal counts);
       - equal-rank apply + dispute (50/50) → score 0.
 - [ ] **Membership and ordering unchanged.** For identical inputs, the member set and member
       order are identical to Count's (predicate `applies ≥ cutoff AND applies > disputes`;

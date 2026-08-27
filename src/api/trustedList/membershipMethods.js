@@ -13,11 +13,14 @@
  */
 
 // All ladder methods, in rung order. These strings ride the published TL's
-// ['membership-method', <id>] tag — never rename them.
-const METHOD_IDS = ['count', 'input', 'certainty', 'score'];
+// ['membership-method', <id>] tag — never rename them. Rung 4
+// (formalization: 0–100 integer wire scores, score>=1 predicate) is NOT a
+// separate method — it changes what `certainty` publishes and gates
+// (operator direction 2026-08-27; see epic trusted-lists).
+const METHOD_IDS = ['count', 'input', 'certainty'];
 
-// Methods the pipeline can actually execute today. Story 1: count only.
-const IMPLEMENTED_METHOD_IDS = ['count'];
+// Methods the pipeline can actually execute today. Story 2: count + input.
+const IMPLEMENTED_METHOD_IDS = ['count', 'input'];
 
 /**
  * Resolve the active membership method for the TL refresh pipeline.

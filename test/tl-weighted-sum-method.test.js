@@ -337,7 +337,9 @@ t('LB seeded-POV known-value matrix (scores on the TL, membership/order/counts u
     A: { expected: 1,     taggings: [[100, 1]] },
     B: { expected: 0.3,   taggings: Array.from({ length: 10 }, () => [3, 1]) },
     C: { expected: 1.8,   taggings: [[90, 1], [90, 1]] },
-    D: { expected: 0.4,   taggings: [[80, 1], [40, -1]] },
+    // 1 apply vs 1 dispute can never pass `applies > disputes` — D uses
+    // unequal counts with the same weighted result (fixture corrected).
+    D: { expected: 0.4,   taggings: [[40, 1], [40, 1], [40, -1]] },
     E: { expected: 0,     taggings: [[40, 1], [40, 1], [80, -1]] },
     F: { expected: -0.84, taggings: [[3, 1], [3, 1], [90, -1]] },
   };

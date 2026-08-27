@@ -24,7 +24,7 @@
 | A | 100@apply | `1` |
 | B | 3@apply ×10 | `0.3` |
 | C | 90@apply ×2 | `1.8` |
-| D | 80@apply, 40@dispute | `0.4` |
+| D | 40@apply ×2, 40@dispute | `0.4` (1-apply-vs-1-dispute cannot pass the count predicate; unequal counts, same weighted result — fixture corrected during implementation) |
 | E | 40@apply ×2, 80@dispute | `0` (equal-weight split — ADR point 6) |
 | F | 3@apply ×2, 90@dispute | `-0.84` (dispute dominance, negative visible) |
 
