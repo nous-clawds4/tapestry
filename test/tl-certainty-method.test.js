@@ -183,8 +183,8 @@ t('S2 prune script exists; kit prunes before seeding and scales certainty ×100'
   const prunePath = path.join(REPO_ROOT, 'scripts', 'tl-prune-fixtures.js');
   assert(fs.existsSync(prunePath), 'scripts/tl-prune-fixtures.js must exist (OPEN 182)');
   const prune = fs.readFileSync(prunePath, 'utf-8');
-  assert(/ids/.test(prune) && /strfry delete/.test(prune),
-    'prune must delete by explicit id lists via strfry delete');
+  assert(/ids/.test(prune) && /strfry delete|'strfry',\s*'delete'/.test(prune),
+    'prune must delete by explicit id lists via strfry delete (string or argv form)');
   const kit = fs.readFileSync(path.join(REPO_ROOT, 'scripts', 'tl-ladder-validate.js'), 'utf-8');
   assert(/prune/i.test(kit), 'kit must invoke the prune before seeding (--no-prune to skip)');
   assert(/\* 100|\*100/.test(kit), 'kit certainty expectation must be on the 0–100 scale');

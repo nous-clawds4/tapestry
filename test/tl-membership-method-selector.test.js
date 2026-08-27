@@ -182,12 +182,16 @@ t('U3 resolver: no settings file → "count" (AC-5)', async () => {
     'with no settings file the resolver must return "count"');
 });
 
-t('U4 resolver: valid-but-unimplemented id → "count" (fail-safe)', async () => {
-  // Amended at Story 2: 'input' became implemented; 'certainty' is the
-  // current valid-but-unimplemented exemplar (rung 3 will move it too).
-  const m = loadMembershipMethods(JSON.stringify({ trustedLists: { membershipMethod: 'certainty' } }));
-  assertEqual(m.resolveMembershipMethod(), 'count',
-    'a known-but-not-yet-implemented method id must resolve to "count" in this story');
+t('U4 resolver: every ladder method resolves to itself (ladder complete)', async () => {
+  // Amended at Story 3: all METHOD_IDS are implemented, so the
+  // valid-but-unimplemented exemplar is retired. The fail-safe property
+  // survives via U5/U6 (garbage/malformed → count); this test now pins the
+  // completed ladder: each declared method is honored verbatim.
+  for (const id of ['count', 'input', 'certainty']) {
+    const m = loadMembershipMethods(JSON.stringify({ trustedLists: { membershipMethod: id } }));
+    assertEqual(m.resolveMembershipMethod(), id,
+      `implemented method "${id}" must resolve to itself`);
+  }
 });
 
 t('U5 resolver: garbage value → "count" (fail-safe)', async () => {

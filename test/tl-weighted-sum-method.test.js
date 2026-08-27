@@ -238,10 +238,12 @@ function contentMember(tl, pk) {
 const tests = [];
 function t(name, fn) { tests.push([name, fn]); }
 
-t('U1 IMPLEMENTED_METHOD_IDS is ["count","input"] (method selectable)', async () => {
+t('U1 IMPLEMENTED_METHOD_IDS contains count + input (ladder prefix)', async () => {
+  // Amended at Story 3: later rungs append; this suite pins its own rung's
+  // methods as a prefix rather than freezing the full list.
   const m = loadMembershipMethods(undefined);
-  assertEqual(JSON.stringify(m.IMPLEMENTED_METHOD_IDS), JSON.stringify(['count', 'input']),
-    'rung 2 must implement exactly count + input');
+  assert(m.IMPLEMENTED_METHOD_IDS[0] === 'count' && m.IMPLEMENTED_METHOD_IDS[1] === 'input',
+    'count and input must be the first two implemented methods');
 });
 
 t('U2 resolver: settings "input" → "input"', async () => {
@@ -249,9 +251,11 @@ t('U2 resolver: settings "input" → "input"', async () => {
   assertEqual(m.resolveMembershipMethod(), 'input', 'implemented "input" must resolve to itself');
 });
 
-t('U3 resolver: "certainty" still fail-safes to "count"', async () => {
-  const m = loadMembershipMethods(JSON.stringify({ trustedLists: { membershipMethod: 'certainty' } }));
-  assertEqual(m.resolveMembershipMethod(), 'count', 'unimplemented "certainty" must still resolve to "count"');
+t('U3 resolver: garbage id fail-safes to "count"', async () => {
+  // Amended at Story 3: 'certainty' became implemented; the fail-safe
+  // property is pinned with an id that will never be valid.
+  const m = loadMembershipMethods(JSON.stringify({ trustedLists: { membershipMethod: 'not-a-method' } }));
+  assertEqual(m.resolveMembershipMethod(), 'count', 'unknown ids must resolve to "count"');
 });
 
 t('S1 UI: "input" option enabled with Weighted-sum label', async () => {

@@ -71,7 +71,8 @@ function expectation(method, taggings) {
   const wsum = taggings.reduce((s, [r, v]) => s + (r / 100) * v, 0);
   if (method === 'input') return { kind: 'score', value: round6(wsum) };
   if (method === 'certainty') {
-    const value = input === 0 ? 0 : round6((wsum / input) * (1 - Math.pow(0.5, input)));
+    // ADR 0003: certainty publishes on the 0-100 scale (decimals kept).
+    const value = input === 0 ? 0 : round6(((wsum / input) * (1 - Math.pow(0.5, input))) * 100);
     return { kind: 'score', value };
   }
   throw new Error(`no expectation defined for method "${method}"`);
@@ -142,6 +143,13 @@ async function main() {
     throw new Error('publish policy is NOT local-only — refusing to seed fixtures');
   }
   console.log('✓ preconditions: nak, container, local-only publish policy');
+
+  // 0.5 Prune prior fixture debris (OPEN 182) so refresh stays fast.
+  // Skip with --no-prune (second arg).
+  if (!process.argv.includes('--no-prune')) {
+    console.log('… pruning prior fixture events (scripts/tl-prune-fixtures.js)');
+    sh(`node ${__dirname}/tl-prune-fixtures.js`, { timeout: 600000 });
+  }
 
   // 1. House POV (seed if absent).
   let settings = readSettings();

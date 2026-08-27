@@ -17,8 +17,8 @@ const TL_MEMBERSHIP_METHODS = [
     blurb: 'A member joins when enough gate-passing taggers applied the tag and applies outnumber disputes. Every tagger counts as 1.' },
   { id: 'input', label: 'Weighted sum — trust-weighted applies − disputes', available: true,
     blurb: 'One score per member: each tagger counts by their trust weight (WoT rank ÷ 100), applies add, disputes subtract. An equal-weight split nets to 0; dispute-heavy goes negative. Membership and order still follow Count at this rung.' },
-  { id: 'certainty', label: 'Certainty — saturating input × agreement', available: false,
-    blurb: 'Input converted to certainty (more total trust weight → closer to 1, with diminishing returns), then multiplied by agreement. The full formula.' },
+  { id: 'certainty', label: 'Certainty — saturating input × agreement (0–100)', available: true,
+    blurb: 'The full formula: input converted to certainty (more total trust weight → closer to 1, with diminishing returns), multiplied by agreement, published on the 0–100 scale. One rank-100 apply → 50; an equal-weight split → 0.' },
 ];
 
 /**

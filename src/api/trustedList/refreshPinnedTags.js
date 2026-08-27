@@ -169,7 +169,7 @@ async function runOnePin(pinEvent) {
   // math that actually ran.
   const requestedMethod = resolveMembershipMethod();
   const membershipMethod =
-    (requestedMethod === 'input' && !wotFiltering) ? 'count' : requestedMethod;
+    (requestedMethod !== 'count' && !wotFiltering) ? 'count' : requestedMethod;
   const membershipFolds = {
     count: () => applyDisputesFunction(byTarget, cutoff),
     // Rung 2: membership/order unchanged (same fold), plus the signed
@@ -179,6 +179,17 @@ async function runOnePin(pinEvent) {
       ...m,
       score: round6(byTarget.get(m.pubkey)?.weightedSum ?? 0),
     })),
+    // Rung 3 (ADR 0003): the full formula on the 0-100 scale —
+    // agreement (weightedSum/weightedInput) x certainty (1 - 0.5^input) x 100.
+    // Decimals kept for hand validation; rung 4 rounds to integers and flips
+    // the membership predicate.
+    certainty: () => applyDisputesFunction(byTarget, cutoff).map((m) => {
+      const entry = byTarget.get(m.pubkey);
+      const input = entry?.weightedInput ?? 0;
+      const score = input === 0 ? 0
+        : round6(((entry.weightedSum / input) * (1 - Math.pow(0.5, input))) * 100);
+      return { ...m, score };
+    }),
   };
   const members = membershipFolds[membershipMethod]();
 

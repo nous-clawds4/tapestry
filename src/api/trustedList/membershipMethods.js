@@ -19,8 +19,8 @@
 // (operator direction 2026-08-27; see epic trusted-lists).
 const METHOD_IDS = ['count', 'input', 'certainty'];
 
-// Methods the pipeline can actually execute today. Story 2: count + input.
-const IMPLEMENTED_METHOD_IDS = ['count', 'input'];
+// Methods the pipeline can actually execute today. Story 3: all three.
+const IMPLEMENTED_METHOD_IDS = ['count', 'input', 'certainty'];
 
 /**
  * Resolve the active membership method for the TL refresh pipeline.
