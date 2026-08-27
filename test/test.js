@@ -243,6 +243,7 @@ const retireOfferingVocabulary = require('./retire-offering-vocabulary.test.js')
 const siteTrustSignals = require('./site-trust-signals.test.js');
 const tlMembershipMethodSelector = require('./tl-membership-method-selector.test.js');
 const tlWeightedSumMethod = require('./tl-weighted-sum-method.test.js');
+const tlCertaintyMethod = require('./tl-certainty-method.test.js');
 // epic: shared-concepts-seeding — Story 1 (honest broadcast reporting).
 const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js');
 // epic: shared-concepts-seeding — Story 3 (not-yet-shared filter on the Concepts list).
@@ -615,6 +616,7 @@ async function main() {
   const siteTrustSignalsResult = await siteTrustSignals.run();
   const tlMembershipMethodSelectorResult = await tlMembershipMethodSelector.run();
   const tlWeightedSumMethodResult = await tlWeightedSumMethod.run();
+  const tlCertaintyMethodResult = await tlCertaintyMethod.run();
 
   console.log('\nhonest-broadcast-reporting suite:');
   const honestBroadcastReportingResult = await honestBroadcastReporting.run();
@@ -1106,6 +1108,7 @@ async function main() {
   console.log(`site-trust-signals suite:                        ${siteTrustSignalsResult.fail === 0 ? 'PASS' : 'FAIL'} (${siteTrustSignalsResult.pass} passed, ${siteTrustSignalsResult.fail} failed, ${siteTrustSignalsResult.skipped} skipped)`);
   console.log(`tl-membership-method-selector suite:             ${tlMembershipMethodSelectorResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlMembershipMethodSelectorResult.pass} passed, ${tlMembershipMethodSelectorResult.fail} failed, ${tlMembershipMethodSelectorResult.skipped} skipped)`);
   console.log(`tl-weighted-sum-method suite:                    ${tlWeightedSumMethodResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlWeightedSumMethodResult.pass} passed, ${tlWeightedSumMethodResult.fail} failed, ${tlWeightedSumMethodResult.skipped} skipped)`);
+  console.log(`tl-certainty-method suite:                       ${tlCertaintyMethodResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlCertaintyMethodResult.pass} passed, ${tlCertaintyMethodResult.fail} failed, ${tlCertaintyMethodResult.skipped} skipped)`);
   console.log(`honest-broadcast-reporting suite:                ${honestBroadcastReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestBroadcastReportingResult.pass} passed, ${honestBroadcastReportingResult.fail} failed, ${honestBroadcastReportingResult.skipped} skipped)`);
   // Skip-aware: H-class contract checks skip when the local stack is absent;
   // the U-class predicate and S-class source audit always run and gate.
@@ -1322,6 +1325,7 @@ async function main() {
     siteTrustSignalsResult.fail === 0 &&
     tlMembershipMethodSelectorResult.fail === 0 &&
     tlWeightedSumMethodResult.fail === 0 &&
+    tlCertaintyMethodResult.fail === 0 &&
     // shared-concepts-seeding #1 — honest broadcast reporting
     honestBroadcastReportingResult.fail === 0 &&
     // shared-concepts-seeding #3 — not-yet-shared filter on the Concepts list
@@ -1377,7 +1381,7 @@ async function main() {
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
     publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
     stateOnConceptPageResult, sharedByMeResult, honestBroadcastReportingResult,
-    retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult,
+    retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult, tlCertaintyMethodResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
