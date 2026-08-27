@@ -32,7 +32,7 @@ selection on the Trust Determination Methods page.
   per-member `input` (weighted sum Σ(rank/100) over all non-neutral taggings) and
   `agreement` (weighted apply/dispute vote ÷ input; 50/50 equal-rank → 0), hand-validatable
   against Meili ranks. Membership predicate and ordering stay count-based at this rung.
-- *(planned)* Story 3 — **Certainty**: one function call further — `average ×
+- `stories/trusted-lists/3-certainty-method.md` — **Certainty**: `agreement ×
   (1 − 0.5^input)` via the existing input→confidence function (rigor 0.5). The full spec
   formula's number, still under the count-based predicate.
 - `stories/trusted-lists/4-weighted-member-certainty.md` — **Formalization** (NOT a selectable method — operator direction 2026-08-27 collapsed the selector to the three real methods): the spec's wire

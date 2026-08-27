@@ -1,6 +1,6 @@
 # Story 3: Certainty membership method (rung 3) + fixture prune
 
-**Status:** Approved (operator delegated the full rung-3 cycle, 2026-08-27)
+**Status:** Done
 **Created:** 2026-08-27
 **Type:** Feature
 
@@ -77,4 +77,4 @@ Same as Story 2 (no concept definitions change; no firmware reinstall).
 - Epic: `engineering-team/epics/trusted-lists.md`
 - ADR: `engineering-team/decisions/trusted-lists/0003-certainty-method-and-prune.md`
 - Test plan: `engineering-team/stories/trusted-lists/3-certainty-method.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/trusted-lists/3-certainty-method.md`
