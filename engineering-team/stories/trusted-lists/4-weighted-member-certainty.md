@@ -115,6 +115,13 @@ Architect should resolve handles at orientation. Plain-language list:
 
 ## Open questions
 
+- **`membership-method` tag: spec it or strip it before deploy.** Story 1 added a
+  `['membership-method', <id>]` tag to published TLs for ladder-testing visibility. It is not
+  part of the brainstorm_server spec handoff and appears in no protocol spec. Operator
+  direction (2026-08-27): keep during the ladder; decide at this story — either write it into
+  the rung-4 wire contract (protocols entry) or remove it from the emit path before anything
+  deploys beyond local.
+
 - ~~**D12 finality.**~~ Resolved 2026-08-27: the operator confirmed the source decision record
   is **Approved**, no longer Proposed. Wire details in the spec handoff are final.
 - ~~**Score emission: default or flag?**~~ Resolved 2026-08-27 at the Planning gate: the
