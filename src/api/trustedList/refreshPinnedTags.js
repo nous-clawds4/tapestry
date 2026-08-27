@@ -25,6 +25,7 @@ const profileTags = require('../profile-tags');
 const { buildAndPublishTL } = require('./index');
 const { resolvePov } = require('../_shared/pov');
 const { curateNotes } = require('../../lib/event-tagging');
+const { resolveMembershipMethod } = require('./membershipMethods');
 
 const TA_PUBKEY = profileTags.TA_PUBKEY;
 const TAG_PINNING_Z_TAG = profileTags.TAG_PINNING_Z_TAG;
@@ -156,7 +157,14 @@ async function runOnePin(pinEvent) {
   const { byTarget } = await profileTags.aggregateProfilesTagged({
     tagEventId, povSuffix, minRank,
   });
-  const members = applyDisputesFunction(byTarget, cutoff);
+  // ADR trusted-lists/0001: the pipeline-wide membership method, resolved
+  // fresh per refresh (fail-safe: always an implemented id). Dispatch is a
+  // map so rungs 2-4 add branches without touching the count path.
+  const membershipMethod = resolveMembershipMethod();
+  const membershipFolds = {
+    count: () => applyDisputesFunction(byTarget, cutoff),
+  };
+  const members = membershipFolds[membershipMethod]();
 
   // Story 12 / ADR 0011 AC-7: enrich members with their wot_rank score
   // when the pin requested includeScoreInTL AND the observer's POV is
@@ -201,6 +209,7 @@ async function runOnePin(pinEvent) {
         ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
         ['cutoff', String(cutoff)],
         ['min-rank', String(minRankForTag)],
+        ['membership-method', membershipMethod],
       ],
       content: JSON.stringify({
         members: members.map((m) => ({

@@ -10,6 +10,148 @@ function shortPubkey(pk) {
   return pk.slice(0, 12) + '…' + pk.slice(-6);
 }
 
+// TL membership-method ladder (ADR trusted-lists/0001). Mirrors the server
+// constant in src/api/trustedList/membershipMethods.js — keep in sync.
+const TL_MEMBERSHIP_METHODS = [
+  { id: 'count', label: 'Count — verified taggers (current)', available: true,
+    blurb: 'A member joins when enough gate-passing taggers applied the tag and applies outnumber disputes. Every tagger counts as 1.' },
+  { id: 'input', label: 'Input & agreement — weighted sum + apply/dispute average', available: false,
+    blurb: 'Weighted sum of each tagger’s rank score ("input") plus the apply/dispute weighted average.' },
+  { id: 'certainty', label: 'Certainty — input → confidence × agreement', available: false,
+    blurb: 'One function call further: input converted to certainty, multiplied by the agreement average.' },
+  { id: 'score', label: 'Score — formalized 0–100 contract', available: false,
+    blurb: 'Published integer scores, score ≥ 1 membership predicate, score-ordered lists.' },
+];
+
+/**
+ * Server-side, pipeline-wide TL membership-method selector (ADR
+ * trusted-lists/0001). Persists via the owner-gated /api/settings
+ * (settings.json on the persistent volume) — distinct from the viewer-side
+ * Scoring Method above, which is per-browser localStorage.
+ */
+function TLMembershipMethodCard() {
+  const [method, setMethod] = useState(null); // null = loading
+  const [readOnly, setReadOnly] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch('/api/settings');
+        if (resp.status === 401 || resp.status === 403) {
+          if (!cancelled) { setReadOnly(true); setMethod('count'); }
+          return;
+        }
+        const data = await resp.json();
+        if (cancelled) return;
+        setMethod(data?.settings?.trustedLists?.membershipMethod || 'count');
+      } catch {
+        if (!cancelled) { setReadOnly(true); setMethod('count'); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const selectMethod = useCallback(async (id) => {
+    if (readOnly || saving || id === method) return;
+    setSaveError(null);
+    const prev = method;
+    setMethod(id); // optimistic — the pipeline reads settings per refresh, no restart needed
+    setSaving(true);
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trustedLists: { membershipMethod: id } }),
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok || data?.success === false) {
+        setMethod(prev);
+        setSaveError(data?.error || `Save failed (${resp.status})`);
+      }
+    } catch (err) {
+      setMethod(prev);
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }, [readOnly, saving, method]);
+
+  return (
+    <div style={{
+      padding: '1.25rem',
+      border: '1px solid var(--border, #444)',
+      borderRadius: '8px',
+      backgroundColor: 'var(--bg-secondary, #1a1a2e)',
+      marginBottom: '1.5rem',
+    }}>
+      <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>TL Membership Method</h3>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', opacity: 0.6, lineHeight: 1.5 }}>
+        How this instance&apos;s refresh pipeline computes <strong>Trusted-List membership</strong> from
+        pinned-tag assertions. One setting for the whole pipeline, stored server-side — unlike the
+        viewer-side Scoring Method above, which only affects what this browser displays. Published
+        TLs record the active method in a <code>membership-method</code> tag.
+      </p>
+      {method === null ? (
+        <div style={{ opacity: 0.5, fontSize: '0.85rem' }}>Loading…</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {TL_MEMBERSHIP_METHODS.map((m) => {
+            const disabled = !m.available || readOnly;
+            return (
+              <label
+                key={m.id}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
+                  padding: '0.6rem 0.75rem',
+                  backgroundColor: 'var(--bg-primary, #0f0f23)',
+                  border: `1px solid ${method === m.id ? '#58a6ff' : 'var(--border, #444)'}`,
+                  borderRadius: '6px',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: m.available ? 1 : 0.45,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="tl-membership-method"
+                  value={m.id}
+                  checked={method === m.id}
+                  disabled={disabled}
+                  onChange={() => selectMethod(m.id)}
+                  style={{ marginTop: '0.15rem' }}
+                />
+                <span>
+                  <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                    {m.label}
+                    {!m.available && (
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', opacity: 0.7 }}>
+                        (not yet available)
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ display: 'block', fontSize: '0.75rem', opacity: 0.6, marginTop: '0.15rem' }}>
+                    {m.blurb}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+          {readOnly && (
+            <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+              Sign in as the instance owner to change this setting.
+            </div>
+          )}
+          {saveError && (
+            <div style={{ fontSize: '0.8rem', color: '#f85149' }}>{saveError}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TrustDetermination() {
   const {
     povPubkey,
@@ -229,6 +371,8 @@ export default function TrustDetermination() {
 
       {/* Readiness Check */}
       <PovReadinessCheck povPubkey={povPubkey} />
+
+      <TLMembershipMethodCard />
 
       {/* Explanation */}
       <div style={{
