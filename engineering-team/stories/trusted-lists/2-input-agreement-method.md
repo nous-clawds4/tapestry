@@ -1,6 +1,6 @@
 # Story 2: Weighted-sum membership method (rung 2)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-27
 **Type:** Feature
 
@@ -105,4 +105,4 @@ the Trust Determination Methods selector (one option flips to enabled).
 - Spec handoff: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`
 - ADR: `engineering-team/decisions/trusted-lists/0002-weighted-sum-method.md`
 - Test plan: `engineering-team/stories/trusted-lists/2-input-agreement-method.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/trusted-lists/2-input-agreement-method.md`
