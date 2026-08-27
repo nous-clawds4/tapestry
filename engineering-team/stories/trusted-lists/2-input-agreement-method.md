@@ -103,6 +103,6 @@ the Trust Determination Methods selector (one option flips to enabled).
 - Book: `engineering-team/audits/tl-weighted-certainty/book.md`
 - Epic: `engineering-team/epics/trusted-lists.md`
 - Spec handoff: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/trusted-lists/0002-weighted-sum-method.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
