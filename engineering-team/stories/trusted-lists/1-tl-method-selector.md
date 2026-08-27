@@ -1,6 +1,6 @@
 # Story 1: TL membership-method selector (Count only)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-27
 **Type:** Feature
 
@@ -89,4 +89,4 @@ Plain-language list:
 - Spec handoff: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`
 - ADR: `engineering-team/decisions/trusted-lists/0001-tl-membership-method-selector.md`
 - Test plan: `engineering-team/stories/trusted-lists/1-tl-method-selector.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/trusted-lists/1-tl-method-selector.md`
