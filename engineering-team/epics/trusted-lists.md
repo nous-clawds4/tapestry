@@ -22,5 +22,21 @@ handoff is `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`.
 
 ## Stories
 
-- `stories/trusted-lists/1-weighted-member-certainty.md` — replace count-based membership with
-  GrapeRank single-hop weighting and publish per-member certainty scores.
+Delivered as a **stepwise ladder** (operator direction, 2026-08-27): one rung per story, with
+operator hand-validation between rungs. The membership method is a single pipeline-wide
+selection on the Trust Determination Methods page.
+
+- `stories/trusted-lists/1-tl-method-selector.md` — the selector itself, Count (current math)
+  as the only available method; behavior unchanged, method recorded on published TLs.
+- *(planned)* Story 2 — **Input & agreement**: publish per-member `input` (weighted sum
+  Σ(rank/100) over all non-neutral taggings) and the apply/dispute weighted `average`
+  (ratings +1/−1; 50/50 equal-rank → 0), hand-validatable against Meili ranks. The membership
+  *predicate* stays count-based at this rung.
+- *(planned)* Story 3 — **Certainty**: one function call further — `average ×
+  (1 − 0.5^input)` via the existing input→confidence function (rigor 0.5). The full spec
+  formula's number, still under the count-based predicate.
+- `stories/trusted-lists/4-weighted-member-certainty.md` — **Formalization**: the spec's wire
+  contract becomes the default — integer 0–100 per-member scores always on, `rigor` metadata,
+  `score ≥ 1` predicate replacing `applies > disputes` (net-negative and 50/50 members drop
+  off the list), score-desc ordering.
+- *(queued in intake)* kind-10040 TL-provider line (`30392` designation) — after the ladder.

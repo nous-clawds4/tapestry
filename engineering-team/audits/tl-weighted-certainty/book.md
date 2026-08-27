@@ -13,6 +13,14 @@ The self-contained spec is `/home/vcavallo/tl-weighted-certainty-spec-for-tapest
 operator confirmed the working branch (`feat/tl-weighted-certainty`, cut from `origin/staging`
 at `106c5de0` because `main` does not yet contain the Trusted-List stack).
 
+**Re-sequenced 2026-08-27 (operator direction at the Planning gate):** delivery is a stepwise
+ladder — (1) a pipeline-wide method selector on the Trust Determination Methods page with only
+Count available, (2) add Input & agreement (weighted sum + apply/dispute weighted average, so
+disagreement is represented from rung 2 on), (3) add Certainty (one function call further —
+the full formula's number), (4) formalize the wire contract and flip the membership predicate
+— with operator hand-testing between rungs. The criteria below describe the book's end state
+and are reached at rung 4.
+
 The book is complete when:
 
 - [ ] Trusted-List membership is decided by GrapeRank single-hop **weighting** of live taggings

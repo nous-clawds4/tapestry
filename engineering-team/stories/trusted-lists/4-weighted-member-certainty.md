@@ -1,8 +1,16 @@
-# Story 1: Weighted member certainty for Trusted-List membership
+# Story 4: Weighted member certainty for Trusted-List membership (full formula)
 
-**Status:** Approved
+**Status:** Draft — re-approve when rungs 1–3 are operator-validated
 **Created:** 2026-08-27
 **Type:** Feature
+
+> **Restructured 2026-08-27 (Planning):** originally approved as Story 1 (a direct swap of the
+> membership math), then re-sequenced by the operator into a stepwise ladder — Story 1: method
+> selector (Count only); Story 2: Input (weighted sum); Story 3: Certainty; this story: the
+> full `certainty × agreement` formula, where disputes discount and a 50/50 equal-rank split
+> scores 0 and drops off the list. The ACs below describe that end state and now apply *as the
+> fourth selectable method* under the pipeline-wide selector rather than as an unconditional
+> replacement of Count.
 
 ## Background
 

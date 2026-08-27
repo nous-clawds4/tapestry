@@ -2180,7 +2180,7 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 
 ## 2026-08-27 — Advertise TL provision in kind-10040 (follow-up to weighted certainty)
 
-**QUEUED** → planned as `engineering-team/stories/trusted-lists/2-*` (same book, `tl-weighted-certainty`), to be planned after Story 1.
+**QUEUED** → later story in book `tl-weighted-certainty`, after the method ladder (selector → input → certainty → full formula) is operator-validated.
 
 **Raw request (operator, at the Story-1 Planning gate):** "we want to update 10040s to include a `30392,<ta-pubkey>` line. but maybe that's a brainstorm thing?" — Resolved: it IS a tapestry thing. Tapestry owns the kind-10040 builders (`src/api/export/nip85/commands/create-unsigned-kind10040.js` and `commands/kind10040.js`), which currently emit only `30382:<metric>` provider lines. Adding a kind-30392 (Trusted List) provider designation makes the newly-scored TLs discoverable via NIP-85.
 
@@ -2188,3 +2188,12 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 
 **Classification:** Feature (small)
 **Strictness:** Standard
+
+## 2026-08-27 — Re-sequencing: TL weighted certainty delivered as a stepwise method ladder
+
+**PICKED UP** → `engineering-team/stories/trusted-lists/1-tl-method-selector.md`; original spec story renumbered to `4-weighted-member-certainty.md` (Draft again; re-approve at rung 4).
+
+**Operator direction (at the Story-1 Planning gate, verbatim gist):** unconvinced of the best way to crunch the numbers; deliver stepwise so each step proves the math. (1) Selector on the Trust Determination Methods page — pipeline-global, Count only — stop and test. (2) Add Input (weighted sum of tagger rank scores) — test. (3) Add Certainty (input → convertInputToConfidence) — test. Rung 4 (certainty × agreement, dispute discounting: 50/50 equal-rank → 0, off the list) confirmed as the desired end state during the same conversation. Scores always-on stands. D12 confirmed Approved.
+
+**Classification:** Feature (ladder of small features)
+**Strictness:** Standard, per story
