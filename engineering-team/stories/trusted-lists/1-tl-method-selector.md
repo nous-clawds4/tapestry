@@ -87,6 +87,6 @@ Plain-language list:
 - Book: `engineering-team/audits/tl-weighted-certainty/book.md`
 - Epic: `engineering-team/epics/trusted-lists.md`
 - Spec handoff: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/trusted-lists/0001-tl-membership-method-selector.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
