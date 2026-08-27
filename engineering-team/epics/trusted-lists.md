@@ -28,10 +28,10 @@ selection on the Trust Determination Methods page.
 
 - `stories/trusted-lists/1-tl-method-selector.md` — the selector itself, Count (current math)
   as the only available method; behavior unchanged, method recorded on published TLs.
-- *(planned)* Story 2 — **Input & agreement**: publish per-member `input` (weighted sum
-  Σ(rank/100) over all non-neutral taggings) and the apply/dispute weighted `average`
-  (ratings +1/−1; 50/50 equal-rank → 0), hand-validatable against Meili ranks. The membership
-  *predicate* stays count-based at this rung.
+- `stories/trusted-lists/2-input-agreement-method.md` — **Input & agreement**: publish
+  per-member `input` (weighted sum Σ(rank/100) over all non-neutral taggings) and
+  `agreement` (weighted apply/dispute vote ÷ input; 50/50 equal-rank → 0), hand-validatable
+  against Meili ranks. Membership predicate and ordering stay count-based at this rung.
 - *(planned)* Story 3 — **Certainty**: one function call further — `average ×
   (1 − 0.5^input)` via the existing input→confidence function (rigor 0.5). The full spec
   formula's number, still under the count-based predicate.
