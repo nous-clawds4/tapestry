@@ -1,6 +1,6 @@
 # Story 3: TL opt-in, preview, and publish
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-27
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-08-27 in the
 book's kickoff exchange; scoped gate (the new suite + the three guard suites named at Gate A):
@@ -20,29 +20,29 @@ this instance's Assistant — to offer, preview, sign, and publish the updated M
 start being published on my behalf without disturbing anything else in my Map.
 
 ## Acceptance criteria
-- [ ] AC-1: Given a found Map, a status card states one of three things: pubkey-TL support
+- [x] AC-1: Given a found Map, a status card states one of three things: pubkey-TL support
       **absent**, **external** (generic `30392` entry pointing at a non-local pubkey, shown), or
       **local** (pointing at this instance's TA). No judgment renders while `taPubkey` is
       unresolved. The generic entry is found by ADR §4's first-occurrence rule; only an entry
       with a valid delegate counts (story 2's demotion rule); named `30392:<name>` entries are
       inert for this check.
-- [ ] AC-2: In the **absent** and **external** states the card asks, verbatim: "Would you like
+- [x] AC-2: In the **absent** and **external** states the card asks, verbatim: "Would you like
       the local Tapestry instance to publish your pubkey Trusted Lists on your behalf?" with a
       Publish affordance. In the **local** state there is no prompt and no publish affordance.
-- [ ] AC-3: Whenever the Publish affordance is visible, a preview of the exact updated
+- [x] AC-3: Whenever the Publish affordance is visible, a preview of the exact updated
       **unsigned** kind-10040 is available: every other tag preserved verbatim in order, the
       first generic `30392` entry replaced in place (later generic duplicates dropped — the
       writer normalizes to at most one, ADR §3) or the new entry appended when none exists;
       relay hint from `aRelays.aTrustedListRelays[0]` (empty string when unconfigured);
       `content` preserved; fresh `created_at`.
-- [ ] AC-4: Confirming publishes: NIP-07 signature as the signed-in user (drift-guarded via
+- [x] AC-4: Confirming publishes: NIP-07 signature as the signed-in user (drift-guarded via
       `getActiveSignerOrThrow`), then `publishOrThrow` → local strfry + the external publish
       relays, inheriting the deployment's local-only publish gate (`skippedByGate`) unchanged.
       On success the page re-runs its search and the card lands in the **local** state.
-- [ ] AC-5: Failures surface in the card (signer declined / drifted extension / every relay
+- [x] AC-5: Failures surface in the card (signer declined / drifted extension / every relay
       failed) without corrupting page state; the Map on screen stays the found event until a
       publish succeeds.
-- [ ] AC-6: Story 2's Map Entries panel, the no-Map-found path, and the raw-event toggle are
+- [x] AC-6: Story 2's Map Entries panel, the no-Map-found path, and the raw-event toggle are
       unchanged.
 
 ## Design note *(Light profile — provisional here, ratified at Gate B)*
@@ -109,6 +109,6 @@ contract) — pass before and after.
   (consumed, not authored here)
 - Test suite: `test/tl-treasure-map-optin-publish.test.js` (+ guard suites named in the scoped
   gate above)
-- Review: (filled at Gate B)
+- Review: `engineering-team/reviews/tl-treasure-map/3-tl-opt-in-preview-publish.md`
 
 Link by path only — never record verdicts or round history in this file.
