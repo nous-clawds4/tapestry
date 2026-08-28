@@ -1,6 +1,6 @@
 # Story 1: Entrypoint memory override
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-28
 **Type:** Bug *(Light lane — workflows/light-profile.md: Implementer + Reviewer, one human stop
 at Gate B; no irreversibility trigger fires (single-repo config path). Scoped gate:
@@ -22,20 +22,20 @@ As the operator of a shared-VM dev machine, I want to pin Neo4j's memory profile
 every deployment that sets nothing (all droplets) keeps provably identical behavior.
 
 ## Acceptance criteria
-- [ ] AC-1: With none of `BRAINSTORM_NEO4J_HEAP_MB` / `_CACHE_MB` / `_TX_MAX_MB` set — or set
+- [x] AC-1: With none of `BRAINSTORM_NEO4J_HEAP_MB` / `_CACHE_MB` / `_TX_MAX_MB` set — or set
       to the empty string — the entrypoint's computed values and written config lines are
       identical to today's: the formula reproduces staging's live 8038/8038/4019 from its
       measured MemTotal (32,866,228 kB), pinned behaviorally.
-- [ ] AC-2: With a var set, its value is used verbatim in the written config. Vars are
+- [x] AC-2: With a var set, its value is used verbatim in the written config. Vars are
       independent; an overridden heap does **not** re-derive the tx ceiling — a coherent
       profile sets all three (documented in the script comment).
-- [ ] AC-3: `docker-compose.yml` passes the three vars through with empty defaults; the
+- [x] AC-3: `docker-compose.yml` passes the three vars through with empty defaults; the
       entrypoint logs a single note line when any override is active, in `set -e`-safe form.
-- [ ] AC-4: The local `.env` carries 2048/1024/1024; after image rebuild + container recreate,
+- [x] AC-4: The local `.env` carries 2048/1024/1024; after image rebuild + container recreate,
       the live config shows the override, Neo4j is healthy, and the concept-graph API answers.
-- [ ] AC-5: After this change deploys to staging, its live config still reads exactly
+- [x] AC-5: After this change deploys to staging, its live config still reads exactly
       8038/8038/4019 with Neo4j up — the droplet no-change proof.
-- [ ] AC-6: `entrypoint-template-rendering` guard suite stays green.
+- [x] AC-6: `entrypoint-template-rendering` guard suite stays green.
 
 ## Design note *(Light profile — provisional here, ratified at Gate B)*
 - **Chosen approach:** three `VAR="${BRAINSTORM_…:-$VAR}"` lines inserted in
@@ -73,6 +73,6 @@ every deployment that sets nothing (all droplets) keeps provably identical behav
 ## Linked artifacts
 - ADR: — (no trigger; Design note above)
 - Test suite: `test/neo4j-sizing-override.test.js` (+ guard `entrypoint-template-rendering`)
-- Review: (filled at Gate B)
+- Review: `engineering-team/reviews/neo4j-sizing/1-entrypoint-memory-override.md`
 
 Link by path only — never record verdicts or round history in this file.

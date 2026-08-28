@@ -36,7 +36,15 @@ function sizingBlock() {
   return lines.slice(start, end).join('\n');
 }
 
-/** Run the real block with stubbed system probes and the given env. */
+const NO_OVERRIDE = { BRAINSTORM_NEO4J_HEAP_MB: '', BRAINSTORM_NEO4J_CACHE_MB: '', BRAINSTORM_NEO4J_TX_MAX_MB: '' };
+
+/** Run the real block with stubbed system probes and the given env.
+ *  The base env NEUTRALIZES ambient BRAINSTORM_NEO4J_* (empty ≡ unset by the
+ *  `:-` contract): the full `npm test` loads the repo `.env` into process.env
+ *  via lib/config, and this machine's `.env` legitimately carries the dev
+ *  override (row 186) — without the pin, the P-tests would measure the
+ *  operator's profile instead of the formula (caught at the neo4j-sizing
+ *  book-close gate, 2026-08-28). Tests opt in explicitly via `env`. */
 function runSizing({ memTotalKb, env = {} }) {
   const script = [
     'grep() { echo "MemTotal:       ' + memTotalKb + ' kB"; }',
@@ -46,7 +54,7 @@ function runSizing({ memTotalKb, env = {} }) {
   ].join('\n');
   const out = cp.execFileSync('bash', ['-c', script], {
     encoding: 'utf8',
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...NO_OVERRIDE, ...env },
     timeout: 15000,
   });
   const m = out.match(/RESULT (\d+) (\d+) (\d+)/);
@@ -54,7 +62,6 @@ function runSizing({ memTotalKb, env = {} }) {
   return { heap: +m[1], cache: +m[2], tx: +m[3] };
 }
 
-const NO_OVERRIDE = { BRAINSTORM_NEO4J_HEAP_MB: '', BRAINSTORM_NEO4J_CACHE_MB: '', BRAINSTORM_NEO4J_TX_MAX_MB: '' };
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }

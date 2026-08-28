@@ -1,7 +1,7 @@
 # Epic: neo4j-sizing
 
 **Created:** 2026-08-28
-**Status:** Active
+**Status:** Done (epic retired 2026-08-28 at the neo4j-sizing book close — story Done, on staging via PR #578; prod inherits passively at its next deploy)
 **Book:** `engineering-team/audits/neo4j-sizing/book.md` (acceptance-frame, **Light profile
 trial** #2 — workflows/light-profile.md; Bug lane)
 **Provenance:** Operator request 2026-08-28 (in-session), out of the row-185 Neo4j crash-loop
