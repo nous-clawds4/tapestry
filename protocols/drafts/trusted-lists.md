@@ -110,7 +110,7 @@ bare-kind entry** (ADR `tl-treasure-map/0001`):
 - **Reader semantics.** If duplicate generic entries for one kind appear in the wild, the first
   occurrence wins.
 - **Relay hint.** A relay where the advertised publisher's lists of that kind can be found. A
-  Tapestry instance advertising its own TA fills it from
+  Tapestry instance advertising the signed-in user's Assistant fills it from
   `settings.aRelays.aTrustedListRelays[0]` (runtime-resolved via `/api/relays`); the hint is the
   empty string when unconfigured — the entry keeps its three-element shape.
 - **Named entries (reserved).** `["<kind>:<name>", <pubkey>, <relay>]` will, once specified,

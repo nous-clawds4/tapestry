@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useConfig } from '../../context/ConfigContext';
 import { findGenericTlDelegation, upsertGenericTlTag, composeManualUpdate } from '../../utils/treasureMap';
 import { getActiveSignerOrThrow } from '../../utils/signerGuard';
@@ -15,7 +16,14 @@ const KIND_PUBKEY_TL = 30392;
  * publishOrThrow, which inherits the deployment's local-only publish gate).
  */
 export default function TlOptInCard({ event, onPublished }) {
-  const { taPubkey, aRelays } = useConfig();
+  // The delegate is the SIGNED-IN USER'S assistant (per-user, minted at
+  // signup; getAssistantKeys). The ConfigContext TA value is the instance
+  // OWNER's assistant and must not be used here — on a dev box the two
+  // coincide (operator == owner), which is how the escaped defect hid
+  // (OPEN.md 188; the suite bars that token from this file).
+  const { user } = useAuth();
+  const assistantPubkey = user?.assistantPubkey || null;
+  const { aRelays } = useConfig();
   const [showPreview, setShowPreview] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState(null);
@@ -26,15 +34,16 @@ export default function TlOptInCard({ event, onPublished }) {
   // Representative preview; the publish handler recomposes fresh so created_at
   // is stamped at publish time.
   const preview = useMemo(
-    () => (taPubkey ? upsertGenericTlTag(event, KIND_PUBKEY_TL, taPubkey, relayHint) : null),
-    [event, taPubkey, relayHint]
+    () => (assistantPubkey ? upsertGenericTlTag(event, KIND_PUBKEY_TL, assistantPubkey, relayHint) : null),
+    [event, assistantPubkey, relayHint]
   );
 
-  // No judgment until the runtime TA pubkey resolves — never flash a verdict
-  // computed against a missing baseline.
-  if (!event || !taPubkey) return null;
+  // No judgment until the user's assistant resolves — and a user with no
+  // provisioned assistant (guest) gets no card at all: there is nothing
+  // valid to compose.
+  if (!event || !assistantPubkey) return null;
 
-  const status = !delegation ? 'absent' : delegation.pubkey === taPubkey ? 'local' : 'external';
+  const status = !delegation ? 'absent' : delegation.pubkey === assistantPubkey ? 'local' : 'external';
 
   async function handlePublish() {
     setPublishing(true);
@@ -42,7 +51,7 @@ export default function TlOptInCard({ event, onPublished }) {
     try {
       // Refuse to sign as an extension account drifted from the session.
       const authorPk = await getActiveSignerOrThrow();
-      const unsigned = { ...upsertGenericTlTag(event, KIND_PUBKEY_TL, taPubkey, relayHint), pubkey: authorPk };
+      const unsigned = { ...upsertGenericTlTag(event, KIND_PUBKEY_TL, assistantPubkey, relayHint), pubkey: authorPk };
       const signed = await window.nostr.signEvent(unsigned);
       await publishOrThrow(signed);
       if (onPublished) onPublished();
@@ -66,7 +75,7 @@ export default function TlOptInCard({ event, onPublished }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem' }}>
           <span style={{ fontSize: '1.25rem' }}>✅</span>
           <div>
-            Published by this instance's Tapestry Assistant.
+            Published by your Tapestry Assistant.
             {delegation.relay && (
               <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', opacity: 0.6, marginLeft: '0.5rem' }}>
                 {delegation.relay}
