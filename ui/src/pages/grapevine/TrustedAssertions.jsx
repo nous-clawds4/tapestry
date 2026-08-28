@@ -215,24 +215,6 @@ export default function TrustedAssertions() {
             )}
           </div>
 
-          {/* Summary info */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '0.75rem',
-            marginBottom: '1rem',
-          }}>
-            <InfoCard label="Event ID" value={event.id?.slice(0, 16) + '…'} mono />
-            <InfoCard label="Tags" value={`${event.tags?.length || 0} tags`} />
-            <InfoCard
-              label="Content"
-              value={event.content ? `${event.content.length} chars` : '(empty)'}
-            />
-          </div>
-
-          {/* Pubkey Trusted Lists — the salient question + opt-in (tl-treasure-map #3) */}
-          <TlOptInCard event={event} onPublished={search} />
-
           {/* Map entries — one row per tag (tl-treasure-map #2) */}
           <div style={{ marginBottom: '1rem' }}>
             <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', opacity: 0.7 }}>Map Entries</h4>
@@ -263,6 +245,13 @@ export default function TrustedAssertions() {
               {JSON.stringify(event, null, 2)}
             </pre>
           )}
+
+          {/* Pubkey Trusted Lists — the salient question + opt-in (tl-treasure-map #3).
+              Placed last deliberately: the blocks above show the Map as it IS;
+              this panel is what you can DO about it. */}
+          <div style={{ marginTop: '1rem' }}>
+            <TlOptInCard event={event} onPublished={search} />
+          </div>
         </div>
       )}
 
@@ -316,31 +305,6 @@ export default function TrustedAssertions() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/* ─── Helper Components ─────────────────────────────────── */
-
-function InfoCard({ label, value, mono }) {
-  return (
-    <div style={{
-      padding: '0.5rem 0.75rem',
-      backgroundColor: 'var(--bg-primary, #0f0f23)',
-      border: '1px solid var(--border, #444)',
-      borderRadius: '6px',
-    }}>
-      <div style={{ fontSize: '0.7rem', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: '0.9rem',
-        fontWeight: 600,
-        marginTop: '0.15rem',
-        fontFamily: mono ? 'monospace' : 'inherit',
-      }}>
-        {value}
-      </div>
     </div>
   );
 }
