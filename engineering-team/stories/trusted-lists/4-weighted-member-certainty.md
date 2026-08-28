@@ -67,6 +67,6 @@ All under the **certainty** method unless stated; count/input behavior byte-unch
 - Book: `engineering-team/audits/tl-weighted-certainty/book.md`
 - Epic: `engineering-team/epics/trusted-lists.md`
 - Spec handoff: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`
-- ADR: `engineering-team/decisions/trusted-lists/0004-formalized-certainty-contract.md`
-- Test plan: `engineering-team/stories/trusted-lists/4-weighted-member-certainty.test-plan.md`
+- ADR: none (Light profile — the story's five operator-decided items are the contract)
+- Test plan: none (Light profile — existing ladder suites amended in-diff)
 - Review: `engineering-team/reviews/trusted-lists/4-weighted-member-certainty.md`
