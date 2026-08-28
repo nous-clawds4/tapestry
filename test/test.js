@@ -241,6 +241,9 @@ const sharedByMe = require('./shared-by-me.test.js');
 // epic: shared-concepts-seeding — Story 2 (retire the offering vocabulary).
 const retireOfferingVocabulary = require('./retire-offering-vocabulary.test.js');
 const siteTrustSignals = require('./site-trust-signals.test.js');
+const tlMembershipMethodSelector = require('./tl-membership-method-selector.test.js');
+const tlWeightedSumMethod = require('./tl-weighted-sum-method.test.js');
+const tlCertaintyMethod = require('./tl-certainty-method.test.js');
 // epic: tl-treasure-map — Story 2 (Treasure-Map tags panel).
 const tlTreasureMapPanel = require('./tl-treasure-map-panel.test.js');
 // epic: tl-treasure-map — Story 3 (TL opt-in, preview, publish).
@@ -617,6 +620,9 @@ async function main() {
   console.log('\nretire-offering-vocabulary suite:');
   const retireOfferingVocabularyResult = await retireOfferingVocabulary.run();
   const siteTrustSignalsResult = await siteTrustSignals.run();
+  const tlMembershipMethodSelectorResult = await tlMembershipMethodSelector.run();
+  const tlWeightedSumMethodResult = await tlWeightedSumMethod.run();
+  const tlCertaintyMethodResult = await tlCertaintyMethod.run();
 
   console.log('\ntl-treasure-map-panel suite:');
   const tlTreasureMapPanelResult = await tlTreasureMapPanel.run();
@@ -1115,6 +1121,9 @@ async function main() {
   console.log(`shared-by-me suite:                              ${sharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${sharedByMeResult.pass} passed, ${sharedByMeResult.fail} failed, ${sharedByMeResult.skipped} skipped)`);
   console.log(`retire-offering-vocabulary suite:                ${retireOfferingVocabularyResult.fail === 0 ? 'PASS' : 'FAIL'} (${retireOfferingVocabularyResult.pass} passed, ${retireOfferingVocabularyResult.fail} failed, ${retireOfferingVocabularyResult.skipped} skipped)`);
   console.log(`site-trust-signals suite:                        ${siteTrustSignalsResult.fail === 0 ? 'PASS' : 'FAIL'} (${siteTrustSignalsResult.pass} passed, ${siteTrustSignalsResult.fail} failed, ${siteTrustSignalsResult.skipped} skipped)`);
+  console.log(`tl-membership-method-selector suite:             ${tlMembershipMethodSelectorResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlMembershipMethodSelectorResult.pass} passed, ${tlMembershipMethodSelectorResult.fail} failed, ${tlMembershipMethodSelectorResult.skipped} skipped)`);
+  console.log(`tl-weighted-sum-method suite:                    ${tlWeightedSumMethodResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlWeightedSumMethodResult.pass} passed, ${tlWeightedSumMethodResult.fail} failed, ${tlWeightedSumMethodResult.skipped} skipped)`);
+  console.log(`tl-certainty-method suite:                       ${tlCertaintyMethodResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlCertaintyMethodResult.pass} passed, ${tlCertaintyMethodResult.fail} failed, ${tlCertaintyMethodResult.skipped} skipped)`);
   console.log(`tl-treasure-map-panel suite:                     ${tlTreasureMapPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapPanelResult.pass} passed, ${tlTreasureMapPanelResult.fail} failed, ${tlTreasureMapPanelResult.skipped} skipped)`);
   console.log(`tl-treasure-map-optin-publish suite:             ${tlTreasureMapOptinResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapOptinResult.pass} passed, ${tlTreasureMapOptinResult.fail} failed, ${tlTreasureMapOptinResult.skipped} skipped)`);
   console.log(`neo4j-sizing-override suite:                     ${neo4jSizingOverrideResult.fail === 0 ? 'PASS' : 'FAIL'} (${neo4jSizingOverrideResult.pass} passed, ${neo4jSizingOverrideResult.fail} failed, ${neo4jSizingOverrideResult.skipped} skipped)`);
@@ -1332,6 +1341,9 @@ async function main() {
     // shared-concepts-seeding #2 — the vocabulary guard
     retireOfferingVocabularyResult.fail === 0 &&
     siteTrustSignalsResult.fail === 0 &&
+    tlMembershipMethodSelectorResult.fail === 0 &&
+    tlWeightedSumMethodResult.fail === 0 &&
+    tlCertaintyMethodResult.fail === 0 &&
     // tl-treasure-map #2 — Treasure-Map tags panel
     tlTreasureMapPanelResult.fail === 0 &&
     // tl-treasure-map #3 — TL opt-in, preview, publish
@@ -1393,6 +1405,8 @@ async function main() {
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
     publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
     stateOnConceptPageResult, sharedByMeResult, honestBroadcastReportingResult,
+    retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult, tlCertaintyMethodResult,
+    retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);

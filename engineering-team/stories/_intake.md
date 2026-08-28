@@ -2165,3 +2165,35 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 **Strictness:** Standard (these are test-deliverable stories — the #167 carve-out applies).
 **Phase path:** `/plan-feature` per story; the runtime story likely wants an ADR (gate composition is a decision future sessions must honor).
 **References:** OPEN.md rows #43, #59, #60, #75, #83, #103/#105, #104/#106, #108, #109, #111, #126, #157 (the cluster), #150 + `engineering-team/stories/test-suite-hermeticity/1-*` (the model fix); the 2026-08-18 harness review, F1b/F7.
+
+## 2026-08-27 — Weighted member certainty for Trusted Lists (brainstorm_server D12, tapestry-first)
+
+**PICKED UP** → `engineering-team/stories/trusted-lists/1-weighted-member-certainty.md` (book `tl-weighted-certainty` opened eagerly).
+
+**Raw request:** Cross-session handoff from the brainstorm_server harness (operator-directed): implement the weighted-member-certainty change for Trusted Lists **in tapestry first**. Replace count-based TL membership (`applications >= cutoff && applications > disputes`, each gate-passing asserter = 1) with GrapeRank single-hop weighting (weight = asserter's POV influence, rating ±1 by polarity bucket), publish per-member integer 0–100 certainty scores in the p-tag's reserved third position plus a `["rigor","0.5"]` metadata tag. WoT floor (`minRank`, inclusive ≥ 3) stays as the spam gate. Self-contained spec: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`; provenance: brainstorm_server `engineering-team/decisions/trusted-lists/0001` Amendment D12 (status Proposed at handoff — wire details to be confirmed with the operator before shipping beyond local).
+
+**Operator decisions at intake:** new branch `feat/tl-weighted-certainty` cut from `origin/staging` @ `106c5de0` (main lacks the TL stack — `src/api/trustedList/` and `src/api/profile-tags/` exist on staging only).
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases)
+
+## 2026-08-27 — Advertise TL provision in kind-10040 (follow-up to weighted certainty)
+
+**REASSIGNED (2026-08-27)** — David is implementing the kind-10040 TL-provider line separately; not built in this repo/book (operator direction at the rung-3 close).
+
+**Raw request (operator, at the Story-1 Planning gate):** "we want to update 10040s to include a `30392,<ta-pubkey>` line. but maybe that's a brainstorm thing?" — Resolved: it IS a tapestry thing. Tapestry owns the kind-10040 builders (`src/api/export/nip85/commands/create-unsigned-kind10040.js` and `commands/kind10040.js`), which currently emit only `30382:<metric>` provider lines. Adding a kind-30392 (Trusted List) provider designation makes the newly-scored TLs discoverable via NIP-85.
+
+**Open wire question for planning:** exact tag shape — existing lines are `["30382:<metric>", <provider-pubkey>, <relay>]`; is the TL line `["30392", <ta-pubkey>, <relay>]` or does it carry a metric/qualifier suffix? Confirm with the operator (and against the assistant-designation pre-NIP in `protocols/drafts/`) at Story-2 planning.
+
+**Classification:** Feature (small)
+**Strictness:** Standard
+
+## 2026-08-27 — Re-sequencing: TL weighted certainty delivered as a stepwise method ladder
+
+**PICKED UP** → `engineering-team/stories/trusted-lists/1-tl-method-selector.md`; original spec story renumbered to `4-weighted-member-certainty.md` (Draft again; re-approve at rung 4).
+
+**Operator direction (at the Story-1 Planning gate, verbatim gist):** unconvinced of the best way to crunch the numbers; deliver stepwise so each step proves the math. (1) Selector on the Trust Determination Methods page — pipeline-global, Count only — stop and test. (2) Add Input (weighted sum of tagger rank scores) — test. (3) Add Certainty (input → convertInputToConfidence) — test. Rung 4 (certainty × agreement, dispute discounting: 50/50 equal-rank → 0, off the list) confirmed as the desired end state during the same conversation. Scores always-on stands. D12 confirmed Approved.
+
+**Classification:** Feature (ladder of small features)
+**Strictness:** Standard, per story

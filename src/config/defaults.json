@@ -51,6 +51,9 @@
   "openRanking": {
     "personalizedStats": false
   },
+  "trustedLists": {
+    "membershipMethod": "count"
+  },
   "nip05": {
     "names": {},
     "relays": {}
