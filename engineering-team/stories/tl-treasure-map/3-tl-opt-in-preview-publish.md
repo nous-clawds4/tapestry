@@ -27,8 +27,11 @@ start being published on my behalf without disturbing anything else in my Map.
       with a valid delegate counts (story 2's demotion rule); named `30392:<name>` entries are
       inert for this check.
 - [x] AC-2: In the **absent** and **external** states the card asks, verbatim: "Would you like
-      the local Tapestry instance to publish your pubkey Trusted Lists on your behalf?" with a
-      Publish affordance. In the **local** state there is no prompt and no publish affordance.
+      the local Tapestry instance to publish your Trusted Lists for pubkeys on your behalf? If
+      so, you will need to update your Treasure Map so external clients can find your Trusted
+      Lists." with a Publish affordance. In the **local** state there is no prompt and no
+      publish affordance. *(Copy amended at the operator's pre-close cosmetic pass, 2026-08-27 —
+      originally "…publish your pubkey Trusted Lists on your behalf?")*
 - [x] AC-3: Whenever the Publish affordance is visible, a preview of the exact updated
       **unsigned** kind-10040 is available: every other tag preserved verbatim in order, the
       first generic `30392` entry replaced in place (later generic duplicates dropped — the

@@ -53,22 +53,26 @@ export default function TlOptInCard({ event, onPublished }) {
     }
   }
 
+  const titleStyle = { margin: '0 0 0.5rem', fontSize: '0.85rem', opacity: 0.7 };
+
   if (status === 'local') {
     return (
       <div style={{
-        display: 'flex', alignItems: 'center', gap: '0.75rem',
         padding: '0.75rem 1rem', marginBottom: '1rem',
         border: '1px solid #3fb950', borderRadius: '6px',
         backgroundColor: 'rgba(63, 185, 80, 0.08)',
       }}>
-        <span style={{ fontSize: '1.25rem' }}>✅</span>
-        <div style={{ fontSize: '0.9rem' }}>
-          <strong>Pubkey Trusted Lists:</strong> published by this instance's Tapestry Assistant.
-          {delegation.relay && (
-            <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', opacity: 0.6, marginLeft: '0.5rem' }}>
-              {delegation.relay}
-            </span>
-          )}
+        <h4 style={titleStyle}>Trusted Lists for Pubkeys ({KIND_PUBKEY_TL})</h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem' }}>
+          <span style={{ fontSize: '1.25rem' }}>✅</span>
+          <div>
+            Published by this instance's Tapestry Assistant.
+            {delegation.relay && (
+              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', opacity: 0.6, marginLeft: '0.5rem' }}>
+                {delegation.relay}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -80,13 +84,14 @@ export default function TlOptInCard({ event, onPublished }) {
       border: '1px solid #f59e0b', borderRadius: '6px',
       backgroundColor: 'rgba(245, 158, 11, 0.06)',
     }}>
+      <h4 style={titleStyle}>Trusted Lists for Pubkeys ({KIND_PUBKEY_TL})</h4>
+
       <div style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-        <strong>Pubkey Trusted Lists:</strong>{' '}
         {status === 'absent' ? (
-          <>your Treasure Map does not yet delegate pubkey Trusted Lists (kind {KIND_PUBKEY_TL}).</>
+          <>Your Treasure Map does not yet delegate Trusted Lists for pubkeys.</>
         ) : (
           <>
-            currently delegated to an external publisher{' '}
+            Currently delegated to an external publisher{' '}
             <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
               {delegation.pubkey.slice(0, 8)}…{delegation.pubkey.slice(-4)}
             </span>.
@@ -95,8 +100,32 @@ export default function TlOptInCard({ event, onPublished }) {
       </div>
 
       <p style={{ fontSize: '0.95rem', margin: '0 0 0.75rem' }}>
-        Would you like the local Tapestry instance to publish your pubkey Trusted Lists on your behalf?
+        Would you like the local Tapestry instance to publish your Trusted Lists for pubkeys on your behalf? If so, you will need to update your Treasure Map so external clients can find your Trusted Lists.
       </p>
+
+      {/* Preview sits above the publish button (operator request): inspect the
+          exact updated event first, then act on it. */}
+      <div style={{ marginBottom: '0.75rem' }}>
+        <button
+          className="btn btn-sm"
+          onClick={() => setShowPreview((v) => !v)}
+          style={{ fontSize: '0.8rem' }}
+        >
+          {showPreview ? '▾ Hide preview' : '▸ Preview updated event'}
+        </button>
+        {showPreview && preview && (
+          <pre style={{
+            marginTop: '0.75rem', padding: '1rem',
+            backgroundColor: 'var(--bg-primary, #0f0f23)',
+            border: '1px solid var(--border, #444)',
+            borderRadius: '6px', fontSize: '0.75rem',
+            overflow: 'auto', maxHeight: '320px',
+            whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+          }}>
+            {JSON.stringify(preview, null, 2)}
+          </pre>
+        )}
+      </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <button
@@ -105,13 +134,6 @@ export default function TlOptInCard({ event, onPublished }) {
           disabled={publishing}
         >
           {publishing ? '⏳ Publishing…' : '📤 Yes — update my Treasure Map'}
-        </button>
-        <button
-          className="btn btn-sm"
-          onClick={() => setShowPreview((v) => !v)}
-          style={{ fontSize: '0.8rem' }}
-        >
-          {showPreview ? '▾ Hide preview' : '▸ Preview updated event'}
         </button>
         {status === 'external' && (
           <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>
@@ -129,19 +151,6 @@ export default function TlOptInCard({ event, onPublished }) {
         }}>
           Error: {error}
         </div>
-      )}
-
-      {showPreview && preview && (
-        <pre style={{
-          marginTop: '0.75rem', padding: '1rem',
-          backgroundColor: 'var(--bg-primary, #0f0f23)',
-          border: '1px solid var(--border, #444)',
-          borderRadius: '6px', fontSize: '0.75rem',
-          overflow: 'auto', maxHeight: '320px',
-          whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-        }}>
-          {JSON.stringify(preview, null, 2)}
-        </pre>
       )}
     </div>
   );

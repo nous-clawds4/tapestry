@@ -29,7 +29,8 @@ const PUBLISH_PROFILE_TAG = path.resolve(__dirname, '../ui/src/utils/publishProf
 const PK_A = 'a'.repeat(64); // stands in for the local TA
 const PK_B = 'b'.repeat(64); // an external delegate
 
-const PROMPT = 'Would you like the local Tapestry instance to publish your pubkey Trusted Lists on your behalf?';
+// Copy amended at the operator's pre-close cosmetic pass (2026-08-27).
+const PROMPT = 'Would you like the local Tapestry instance to publish your Trusted Lists for pubkeys on your behalf? If so, you will need to update your Treasure Map so external clients can find your Trusted Lists.';
 
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
 async function loadEsm(absPath) { try { return await import(pathToFileURL(absPath).href); } catch { return null; } }
