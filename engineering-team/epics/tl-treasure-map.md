@@ -25,6 +25,8 @@ local strfry + the general-purpose relays, with the exact event previewable befo
 2. `2-treasure-map-tags-panel.md` — the tags panel. Light feature lane.
 3. `3-tl-opt-in-preview-publish.md` — salient check, opt-in prompt, preview, sign & publish.
    Light feature lane.
+4. `4-manual-treasure-map-editor.md` — hand-edit the raw 10040 and republish (operator
+   pre-close addition, 2026-08-27). Light feature lane.
 
 ## Decisions
 `decisions/tl-treasure-map/`:
