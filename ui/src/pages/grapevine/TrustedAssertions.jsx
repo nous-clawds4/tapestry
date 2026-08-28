@@ -4,6 +4,7 @@ import { queryRelay } from '../../api/relay';
 import { useCypher } from '../../hooks/useCypher';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import TreasureMapTagsPanel from './TreasureMapTagsPanel';
+import TlOptInCard from './TlOptInCard';
 
 const KIND_TRUSTED_ASSERTIONS = 10040;
 
@@ -228,6 +229,9 @@ export default function TrustedAssertions() {
               value={event.content ? `${event.content.length} chars` : '(empty)'}
             />
           </div>
+
+          {/* Pubkey Trusted Lists — the salient question + opt-in (tl-treasure-map #3) */}
+          <TlOptInCard event={event} onPublished={search} />
 
           {/* Map entries — one row per tag (tl-treasure-map #2) */}
           <div style={{ marginBottom: '1rem' }}>
