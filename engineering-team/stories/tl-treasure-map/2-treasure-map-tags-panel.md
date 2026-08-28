@@ -64,9 +64,10 @@ my behalf.
   check, the opt-in prompt, preview, and publish are story 3.
 
 ## Edge cases & not-covered
-- **E1 (not derivable from any AC):** `ConfigContext.taPubkey` resolves async after first
-  render — the local TA's own row must not flash "external" before the fetch lands (AC-4's
-  loading clause exists because of this race).
+- **E1:** `ConfigContext.taPubkey` resolves async after first render — the local TA's own row
+  must not flash "external" before the fetch lands (this race is why AC-4 carries its loading
+  clause; the clause was derived from this edge, so E1 reads as derivable from the final AC
+  text).
 - E2: named entry `"30392:mylist"` → cls `tl`, name displayed — display-only today (ADR 0001
   named-entry reservation).
 - E3: uppercase-hex pubkey in a wild event — accepted case-insensitively, linked lowercase.
