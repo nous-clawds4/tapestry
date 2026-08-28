@@ -35,13 +35,14 @@ function assertEqual(actual, expected, msg) {
   }
 }
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-function round6(x) { return Number(x.toFixed(6)); }
-// Same expression shape as the implementation — float-exact expectations.
+// Story 4 (formalized contract): integer score with the negative clamp —
+// round(max(agreement x certainty, 0) x 100). Same expression shape as the
+// implementation, so expectations are float-exact.
 function certaintyScore(taggings) {
   const input = taggings.reduce((s, [r]) => s + r / 100, 0);
   if (input === 0) return 0;
   const wsum = taggings.reduce((s, [r, v]) => s + (r / 100) * v, 0);
-  return round6(((wsum / input) * (1 - Math.pow(0.5, input))) * 100);
+  return Math.round(Math.max((wsum / input) * (1 - Math.pow(0.5, input)), 0) * 100);
 }
 
 /* unit scaffolding (story-1/2 technique) */
@@ -283,8 +284,11 @@ t('LB certainty known-value matrix (0–100 scores; membership/order/counts unch
   tls.sort((a, b) => b.created_at - a.created_at);
   const tl = tls[0];
   assert(tl, `expected TL at ${dTag}`);
-  assertEqual(tl.tags.find((x) => x[0] === 'membership-method')?.[1], 'certainty',
-    'TL must record membership-method "certainty"');
+  // Story 4: method tag stripped; rigor rides certainty TLs (D12).
+  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
+    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
+  assertEqual(tl.tags.find((x) => x[0] === 'rigor')?.[1], '0.5',
+    'certainty TLs must carry ["rigor","0.5"] (D12 reproducibility)');
 
   let content = {};
   try { content = JSON.parse(tl.content); } catch {}
@@ -292,9 +296,14 @@ t('LB certainty known-value matrix (0–100 scores; membership/order/counts unch
     const pk = targets[key];
     const expected = certaintyScore(sc.taggings);
     const p = tl.tags.find((x) => x[0] === 'p' && x[1] === pk);
-    assert(p, `scenario ${key}: target must be a member (count predicate until rung 4)`);
+    if (expected < 1) {
+      // Predicate v2: net-zero/negative members drop off the list entirely.
+      assert(!p, `scenario ${key}: score ${expected} must be EXCLUDED (score >= 1 predicate)`);
+      continue;
+    }
+    assert(p, `scenario ${key}: target must be a member (score ${expected} >= 1)`);
     assertEqual(p[3], String(expected),
-      `scenario ${key}: p-tag score must be certainty×agreement on the 0–100 scale`);
+      `scenario ${key}: p-tag score must be the INTEGER certainty score`);
     const cm = (content.members || []).find((m) => m.pubkey === pk);
     assertEqual(cm?.score, expected, `scenario ${key}: content JSON score`);
     const applies = sc.taggings.filter(([, v]) => v === 1).length;
@@ -302,9 +311,15 @@ t('LB certainty known-value matrix (0–100 scores; membership/order/counts unch
     assertEqual(cm?.endorsements, applies, `scenario ${key}: endorsements unchanged`);
     assertEqual(cm?.disputes, disputes, `scenario ${key}: disputes unchanged`);
   }
-  // Sanity anchors on the scale itself:
+  // Score ordering: members sorted score desc, then pubkey asc.
+  const fixturePks = new Set(Object.values(targets));
+  const listed = tl.tags.filter((x) => x[0] === 'p' && fixturePks.has(x[1]));
+  const sorted = [...listed].sort((a, b) => (Number(b[3]) - Number(a[3])) || a[1].localeCompare(b[1]));
+  assertEqual(JSON.stringify(listed), JSON.stringify(sorted),
+    'certainty TLs must order members score desc, pubkey asc');
+  // Sanity anchors on the formalized scale:
   assertEqual(certaintyScore(scenarios.A.taggings), 50, 'formula anchor: A must be exactly 50');
-  assert(certaintyScore(scenarios.F.taggings) < 0, 'formula anchor: F must be negative');
+  assertEqual(certaintyScore(scenarios.F.taggings), 0, 'formula anchor: F clamps to 0 (excluded)');
 });
 
 /* runner */

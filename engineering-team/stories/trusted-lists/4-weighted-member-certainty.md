@@ -1,141 +1,72 @@
-# Story 4: Weighted member certainty for Trusted-List membership (full formula)
+# Story 4: Formalize the certainty contract (rung 4)
 
-**Status:** Draft — re-approve when rungs 1–3 are operator-validated
+**Status:** Approved (operator ratified the five-item package, 2026-08-27; delegated cycle)
 **Created:** 2026-08-27
 **Type:** Feature
 
-> **Restructured 2026-08-27 (Planning):** originally approved as Story 1 (a direct swap of the
-> membership math), then re-sequenced by the operator into a stepwise ladder — Story 1: method
-> selector (Count only); Story 2: Input (weighted sum); Story 3: Certainty; this story: the
-> full `certainty × agreement` formula, where disputes discount and a 50/50 equal-rank split
-> scores 0 and drops off the list. The ACs below describe that end state and now apply *as the
-> fourth selectable method* under the pipeline-wide selector rather than as an unconditional
-> replacement of Count.
+> **Provenance:** originally approved as Story 1 (a direct swap of the membership math per the
+> brainstorm_server D12 spec handoff `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`),
+> re-sequenced into the stepwise ladder, and finally scoped at rung 3's close to this
+> five-item formalization package, each item operator-decided explicitly (2026-08-27):
+> 1. integer rounding — YES; 2. `score ≥ 1` predicate + score ordering — YES;
+> 3. `rigor` tag — YES (it is required by the approved D12 spec);
+> 4. `membership-method` tag — **REMOVE** from published TLs (never spec'd);
+> 5. `includeScoreInTL` — retire (slot means one thing everywhere).
 
 ## Background
 
-Trusted-List membership is count-based today: a target joins the TL when at least `cutoff`
-gate-passing asserters applied the tag and applies outnumber disputes, with every asserter past
-the WoT floor counting as exactly 1. That makes ten barely-trusted taggers (rank 3) outweigh two
-highly-trusted ones (rank 90) — the opposite of what an observer's web of trust means. And the
-published TL exposes only raw counts, so any consumer that wants a trust-aware read (search
-ranking, other instances) must re-derive the math itself.
-
-The direction comes from the brainstorm_server decision record
-`engineering-team/decisions/trusted-lists/0001`, Amendment D12 (2026-08-27), operator-redirected
-to be implemented tapestry-first. The self-contained spec handoff — the normative statement of
-the intended math, units, and wire behavior — is
-`/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`. This story treats that spec's
-behavioral contract as its requirement; anything the spec leaves open is listed under Open
-questions.
-
-Affected: every consumer of published TLs for the `nostr-user-tag` pin pipeline, and any
-downstream reader of TL events (kinds 30392–30395).
-
-## User-facing description
-
-As an observer whose pinned tag produces a Trusted List, I want membership and ordering to be
-weighted by how much *my* web of trust stands behind each asserter — and I want each member
-published with a certainty score — so that a couple of voices I strongly trust count for more
-than a crowd I barely trust, and so that consumers of my TL can read the trust level directly
-instead of recomputing it.
+Rungs 1–3 delivered the selectable method ladder, all validated. The certainty method
+currently publishes 6-decimal 0–100 scores as annotations while membership stays count-based.
+This story makes certainty's published contract final per the D12 spec: integer scores decide
+membership and order, reproducibility metadata rides the event, and the two
+ladder/legacy-era wire artifacts (`membership-method` tag, `includeScoreInTL` rank-in-slot)
+are removed. Count and Input remain selectable as diagnostics, unchanged.
 
 ## Acceptance criteria
 
-All criteria are observable from the published TL event and/or the refresh pipeline's output.
-"Score" below means the spec's number: per-tagging rating `+1` (apply) / `−1` (dispute), weight
-= asserter's POV influence on the unit interval (their 0–100 WoT rank ÷ 100), `average` =
-Σ(w×r)/Σw (0 when Σw = 0), `certainty` = 1 − rigor^Σw with rigor 0.5, `score` =
-round(max(average × certainty, 0) × 100), an integer 0–100.
+All under the **certainty** method unless stated; count/input behavior byte-unchanged.
 
-- [ ] **Weighting beats counting.** Given one tag with ten distinct applying asserters of WoT
-      rank 3 on target A, and two distinct applying asserters of rank 90 on target B (all above
-      the WoT floor, no disputes), when the TL is refreshed, then B's published score is higher
-      than A's and B is ordered above A.
-- [ ] **Score on the wire, no shape change.** Given a TL refresh producing members, then each
-      member's `p` tag carries the integer score as a string in the tag's existing reserved
-      third position (with an empty relay placeholder when no relay is present), the same score
-      appears in the event's content JSON alongside the existing endorsement/dispute counts, and
-      the event validates against the existing TL shape (no new tag positions invented).
-- [ ] **Reproducibility metadata.** Given any published TL from this pipeline, then it carries a
-      `["rigor", "0.5"]` tag alongside the existing `cutoff`/`min-rank` metadata, and a consumer
-      applying the spec formula to the live taggings and published parameters reproduces each
-      member's score exactly.
-- [ ] **Units.** Internal math on [0, 1]; wire values are ×100, rounded, integer strings —
-      an asserter set whose combined math yields 1.0 publishes as `"100"`, 0.5 as `"50"`,
-      0.375 as `"38"`.
-- [ ] **Known-value check.** Given exactly one applying asserter of rank 100 and no disputes,
-      when the TL refreshes, then that member's published score is `50` (certainty 1 − 0.5¹ = 0.5,
-      average 1).
-- [ ] **Membership predicate v2.** A target is a member iff `applications ≥ cutoff` AND
-      `score ≥ 1`. Given a target whose disputes outweigh its applies (net-negative average) or
-      whose total asserter weight is negligible (score rounds to 0), then it does not appear in
-      the TL even if raw applies exceed cutoff.
-- [ ] **Ordering.** Members are ordered score descending, then pubkey ascending; two refreshes
-      over identical inputs publish identically ordered lists.
-- [ ] **Polarity handling unchanged.** A tagging with no polarity value counts as an apply (+1);
-      polarity ≥ 0.5 counts as apply; ≤ −0.5 counts as dispute; an explicit value strictly
-      inside (−0.5, 0.5) is excluded from both the fold and the counts — same bucketing as today.
-- [ ] **The WoT floor stays.** Given an asserter below the active POV's `minRank` (inclusive
-      floor unchanged), then their tagging contributes nothing — no weight, no count — exactly
-      as today. Weighting supplements the gate; it does not replace it.
-- [ ] **Counts keep their meaning.** The published endorsement/dispute counts remain the raw
-      per-asserter counts (unweighted), unchanged from today's values for the same inputs.
-- [ ] **Everything else untouched.** Retraction publishes, d-tag computation, replaceable
-      dedupe, POV resolution, and TA signing behave identically to before for the same inputs.
-- [ ] **Local-only publishing.** All events produced while building and verifying this story go
-      to the local dev relay only (standing project rule for tag-stack work).
-
-## Concepts touched
-
-Concept Graph API was not reachable at planning time (strfry answering on the panel port) — the
-Architect should resolve handles at orientation. Plain-language list:
-
-- **nostr-user-tag** taggings (kind 39999) — the assertions being weighted (read-only here).
-- **tag-pinning** pins (kind 39999) — the trigger for TL refresh (read-only here).
-- **Trusted List** events (kinds 30392–30395) — the published output whose membership math and
-  member annotations this story changes.
-- The per-POV WoT rank surface (Meilisearch `wot_rank_<povSuffix>`) — the source of asserter
-  weight (read-only here).
+- [ ] **Integer scores.** Per member: `score = round(max(agreement × certainty, 0) × 100)`,
+      an integer 0–100 (spec formula incl. the negative clamp). Wire: integer string in the
+      p-tag slot; integer in content JSON. Known values: A(100@apply)→50; B(10×3@apply)→19;
+      C(2×90@apply)→71; D(40,40@apply+40@dispute)→19; E(equal-weight split)→0; F(dispute
+      dominance)→0 (clamped).
+- [ ] **Membership predicate v2.** Member iff `applications ≥ cutoff AND score ≥ 1` — E and
+      F publish on NO list (net-zero/negative members drop off entirely, the operator's
+      50/50 intuition). Count/input keep the count predicate.
+- [ ] **Score ordering.** Certainty TLs order members score desc, then pubkey asc; identical
+      inputs → identical published order.
+- [ ] **Reproducibility.** Certainty TLs carry `["rigor", "0.5"]` alongside cutoff/min-rank
+      (required by D12); a consumer applying the spec formula to the live taggings + ranks
+      reproduces every score exactly. Rigor is a constant, not a knob.
+- [ ] **`membership-method` tag removed** from ALL published TLs (every method). It was
+      ladder tooling, never spec'd. Suites/kit identify the active method by its observable
+      output instead.
+- [ ] **`includeScoreInTL` retired.** The legacy per-pin option no longer injects members'
+      raw wot_rank into the score slot under any method; old pins carrying the flag are
+      accepted and the flag ignored (no rejections). The slot's meaning is now singular:
+      the method's score, always on for weighted methods, absent for count.
+- [ ] **Invariants.** WoT floor (inclusive `minRank`), polarity bucketing, raw
+      endorsements/disputes counts in content JSON, replaceable dedupe, retraction, d-tags,
+      TA signing, no-POV fallback (publishes as count, no scores): all unchanged.
+- [ ] **Kit + suites updated.** Kit validates the formalized contract (integer expectations,
+      membership expectations — "E/F correctly excluded"); prior suites' method-tag
+      assertions amended to assert the tag's ABSENCE.
+- [ ] **Local-only publishing** throughout.
 
 ## Out of scope
 
-- Making `rigor` tunable — it is a published constant (0.5) in this story.
-- Changing the WoT floor value or semantics, or replacing the gate with weighting.
-- Any change to how WoT ranks are computed (GrapeRank pipeline untouched — this story only
-  *reads* ranks).
-- Trust propagation *through the tag graph itself* (e.g., weighting an asserter up because
-  trusted people tagged them as a good tagger, or feeding tag-derived scores back into
-  influence iteratively). Note the asserter weights are already the output of the full
-  multi-hop GrapeRank computation over the follow graph — this story applies one
-  interpretation step on top of those weights and adds no further propagation.
-- Consumer-side changes (search/Vespa reading the score) — separate work, likely not in this repo.
-- Re-deriving or migrating historical TLs — scores appear on the next refresh naturally.
-- Publishing beyond the local dev relay, and any brainstorm_server-side implementation.
-
-## Open questions
-
-- **`membership-method` tag: spec it or strip it before deploy.** Story 1 added a
-  `['membership-method', <id>]` tag to published TLs for ladder-testing visibility. It is not
-  part of the brainstorm_server spec handoff and appears in no protocol spec. Operator
-  direction (2026-08-27): keep during the ladder; decide at this story — either write it into
-  the rung-4 wire contract (protocols entry) or remove it from the emit path before anything
-  deploys beyond local.
-
-- ~~**D12 finality.**~~ Resolved 2026-08-27: the operator confirmed the source decision record
-  is **Approved**, no longer Proposed. Wire details in the spec handoff are final.
-- ~~**Score emission: default or flag?**~~ Resolved 2026-08-27 at the Planning gate: the
-  operator chose **always on** for this pipeline — every TL this pipeline publishes carries
-  per-member scores, no opt-in switch.
-- **Reusing the existing certainty function.** The spec requires reusing the estate's existing
-  input→confidence conversion rather than a second implementation; *how* it is shared is the
-  Architect's call.
+- Flipping the DEFAULT method from `count` to `certainty` — a deploy/promotion decision,
+  recorded as the book's final open item, not a code change here.
+- Protocol-spec prose for the TL wire contract (rigor tag etc.) — the tags/TL draft spec
+  lineage update is docs-mode work, noted for the book close.
+- Tunable rigor; multi-hop propagation; consumer-side changes; brainstorm_server-side work.
 
 ## Linked artifacts
 
 - Book: `engineering-team/audits/tl-weighted-certainty/book.md`
 - Epic: `engineering-team/epics/trusted-lists.md`
 - Spec handoff: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/trusted-lists/0004-formalized-certainty-contract.md`
+- Test plan: `engineering-team/stories/trusted-lists/4-weighted-member-certainty.test-plan.md`
 - Review: (filled in after Review phase)

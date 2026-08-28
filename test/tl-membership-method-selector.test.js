@@ -368,11 +368,11 @@ async function runL1L2CountModeBody() {
       `TL must keep its existing ['${tagName}', …] tag (shape unchanged)`);
   }
 
-  // AC-4 — the one permitted delta: the computing method, on the wire.
-  const methodTag = tl.tags.find((x) => x[0] === 'membership-method');
-  assert(methodTag, 'TL must carry a ["membership-method", …] tag (AC-4)');
-  assertEqual(methodTag[1], 'count',
-    'with default settings the recorded membership method must be "count"');
+  // Story 4 amendment: the ladder's membership-method tag was STRIPPED
+  // (operator decision — never spec'd). Count TLs are now byte-identical
+  // to the pre-ladder shape; assert the tag's absence.
+  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
+    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
 }
 
 t('L3 unauthenticated PUT /api/settings is rejected (settings auth gate)', async () => {

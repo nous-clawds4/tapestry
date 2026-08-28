@@ -179,45 +179,26 @@ async function runOnePin(pinEvent) {
       ...m,
       score: round6(byTarget.get(m.pubkey)?.weightedSum ?? 0),
     })),
-    // Rung 3 (ADR 0003): the full formula on the 0-100 scale —
-    // agreement (weightedSum/weightedInput) x certainty (1 - 0.5^input) x 100.
-    // Decimals kept for hand validation; rung 4 rounds to integers and flips
-    // the membership predicate.
-    certainty: () => applyDisputesFunction(byTarget, cutoff).map((m) => {
-      const entry = byTarget.get(m.pubkey);
-      const input = entry?.weightedInput ?? 0;
-      const score = input === 0 ? 0
-        : round6(((entry.weightedSum / input) * (1 - Math.pow(0.5, input))) * 100);
-      return { ...m, score };
-    }),
+    // Story 4 (formalized contract, D12): integer score
+    // round(max(agreement x certainty, 0) x 100); membership predicate v2
+    // (applications >= cutoff AND score >= 1 — net-zero/negative members
+    // drop off the list); ordered score desc, pubkey asc.
+    certainty: () => applyDisputesFunction(byTarget, cutoff)
+      .map((m) => {
+        const entry = byTarget.get(m.pubkey);
+        const input = entry?.weightedInput ?? 0;
+        const score = input === 0 ? 0
+          : Math.round(Math.max((entry.weightedSum / input) * (1 - Math.pow(0.5, input)), 0) * 100);
+        return { ...m, score };
+      })
+      .filter((m) => m.score >= 1)
+      .sort((a, b) => (b.score - a.score) || a.pubkey.localeCompare(b.pubkey)),
   };
   const members = membershipFolds[membershipMethod]();
-
-  // Story 12 / ADR 0011 AC-7: enrich members with their wot_rank score
-  // when the pin requested includeScoreInTL AND the observer's POV is
-  // resolvable. AC-8: degrade silently when POV is unresolvable
-  // (povSuffix null) — members still publish without scores.
-  // ADR trusted-lists/0002 point 3: under a weighted method the method's
-  // score owns the slot — the legacy wot_rank enrichment applies only to
-  // count. (Reconciliation is rung 4's.)
-  if (membershipMethod === 'count' && curation.includeScoreInTL === true && povSuffix) {
-    try {
-      const memberPubkeys = members.map((m) => m.pubkey);
-      if (memberPubkeys.length > 0) {
-        const memberDocs = await profileTags.meiliFetchProfilesByPubkey(memberPubkeys);
-        const rankField = `wot_rank_${povSuffix}`;
-        for (const m of members) {
-          const doc = memberDocs.get(m.pubkey);
-          if (doc && typeof doc[rankField] === 'number') {
-            m.score = doc[rankField];
-          }
-        }
-      }
-    } catch {
-      // Meili unreachable / lookup failed → degrade silently; members
-      // still publish without scores.
-    }
-  }
+  // Story 4: the legacy Story-12 includeScoreInTL enrichment (member's raw
+  // wot_rank in the score slot) is retired — the slot's meaning is singular:
+  // the active method's score. Old pins carrying the flag are accepted and
+  // the flag ignored.
 
   const dTag = computeTLDTag({
     observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug,
@@ -239,7 +220,10 @@ async function runOnePin(pinEvent) {
         ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
         ['cutoff', String(cutoff)],
         ['min-rank', String(minRankForTag)],
-        ['membership-method', membershipMethod],
+        // Story 4: the ladder's membership-method tag is stripped (never
+        // spec'd); rigor rides certainty TLs so consumers can reproduce
+        // scores (D12: constant, not a knob).
+        ...(membershipMethod === 'certainty' ? [['rigor', '0.5']] : []),
       ],
       content: JSON.stringify({
         members: members.map((m) => ({

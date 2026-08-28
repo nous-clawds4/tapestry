@@ -71,9 +71,11 @@ function expectation(method, taggings) {
   const wsum = taggings.reduce((s, [r, v]) => s + (r / 100) * v, 0);
   if (method === 'input') return { kind: 'score', value: round6(wsum) };
   if (method === 'certainty') {
-    // ADR 0003: certainty publishes on the 0-100 scale (decimals kept).
-    const value = input === 0 ? 0 : round6(((wsum / input) * (1 - Math.pow(0.5, input))) * 100);
-    return { kind: 'score', value };
+    // Story 4 (formalized): integer round(max(agreement x certainty, 0) x 100);
+    // members below 1 are EXCLUDED from the list (score >= 1 predicate).
+    const value = input === 0 ? 0
+      : Math.round(Math.max((wsum / input) * (1 - Math.pow(0.5, input)), 0) * 100);
+    return value >= 1 ? { kind: 'score', value } : { kind: 'excluded', value };
   }
   throw new Error(`no expectation defined for method "${method}"`);
 }
@@ -232,7 +234,7 @@ async function main() {
   // 3. Per method: set → refresh → read back.
   const taPubkey = (await (await fetch(`${CONTROL_PANEL_BASE}/api/assistant/pubkey`)).json()).pubkey;
   const dTag = `tl-pin-${viewerPk.slice(0, 8)}-${tagAuthorPk.slice(0, 8)}-${slug}`;
-  const results = {}; // method → { tl, wireMethod }
+  const results = {}; // method → { tl }
   for (const method of methods) {
     setMethod(method);
     console.log(`… refreshing under "${method}" (this is the slow part)`);
@@ -242,7 +244,7 @@ async function main() {
     tls.sort((a, b) => b.created_at - a.created_at);
     const tl = tls[0];
     if (!tl) throw new Error(`no TL published at ${dTag} under ${method}`);
-    results[method] = { tl, wireMethod: tl.tags.find((t) => t[0] === 'membership-method')?.[1] };
+    results[method] = { tl };
   }
 
   // 4. Combined report.
@@ -258,15 +260,27 @@ async function main() {
       if (!ok) failures += 1;
       return { text: p ? `member ${member?.endorsements ?? '?'}↑ ${member?.disputes ?? '?'}↓` : 'NOT MEMBER', ok };
     }
+    if (exp.kind === 'excluded') {
+      const ok = !p; // predicate v2: must be off the list entirely
+      if (!ok) failures += 1;
+      return { text: p ? `ON LIST (${p[3]})` : 'excluded', ok };
+    }
     const ok = !!p && p[3] === String(exp.value);
     if (!ok) failures += 1;
     return { text: p ? (p[3] !== undefined ? p[3] : '(no score)') : '(not member)', ok, expected: exp.value };
   };
 
   console.log(`\nd-tag: ${dTag}`);
+  // Story 4: the membership-method tag is stripped from published TLs; the
+  // rigor tag identifies certainty TLs instead.
   for (const method of methods) {
-    const wm = results[method].wireMethod;
-    if (wm !== method) { failures += 1; console.log(`✗ under "${method}" the wire records "${wm}" (POV gate unresolvable?)`); }
+    const { tl } = results[method];
+    if (tl.tags.some((t) => t[0] === 'membership-method')) {
+      failures += 1; console.log(`✗ under "${method}" a membership-method tag leaked onto the wire (stripped at Story 4)`);
+    }
+    if (method === 'certainty' && tl.tags.find((t) => t[0] === 'rigor')?.[1] !== '0.5') {
+      failures += 1; console.log('✗ certainty TL missing ["rigor","0.5"] (D12)');
+    }
   }
   const header = ['scenario', 'description'.padEnd(53)].concat(
     methods.map((m) => `${m} (expected)`.padEnd(22))).join('  ');
@@ -276,7 +290,8 @@ async function main() {
     const cells = methods.map((m) => {
       const c = cell(m, sc);
       const expText = expectation(m, sc.taggings);
-      const expStr = expText.kind === 'member' ? `${expText.applies}↑ ${expText.disputes}↓` : String(expText.value);
+      const expStr = expText.kind === 'member' ? `${expText.applies}↑ ${expText.disputes}↓`
+        : expText.kind === 'excluded' ? 'excluded' : String(expText.value);
       return `${c.ok ? '✓' : '✗'} ${c.text} (${expStr})`.padEnd(22);
     });
     console.log([sc.key.padEnd(8), sc.desc.padEnd(53).slice(0, 53)].concat(cells).join('  '));

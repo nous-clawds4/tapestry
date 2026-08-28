@@ -18,7 +18,7 @@ const TL_MEMBERSHIP_METHODS = [
   { id: 'input', label: 'Weighted sum — trust-weighted applies − disputes', available: true,
     blurb: 'One score per member: each tagger counts by their trust weight (WoT rank ÷ 100), applies add, disputes subtract. An equal-weight split nets to 0; dispute-heavy goes negative. Membership and order still follow Count at this rung.' },
   { id: 'certainty', label: 'Certainty — saturating input × agreement (0–100)', available: true,
-    blurb: 'The full formula: input converted to certainty (more total trust weight → closer to 1, with diminishing returns), multiplied by agreement, published on the 0–100 scale. One rank-100 apply → 50; an equal-weight split → 0.' },
+    blurb: 'The full formula, 0–100. Agreement = the trust-weighted balance of votes: applies (+1) vs disputes (−1), so all-applies → 1, an even split → 0, dispute-heavy → negative. Certainty = how much total trust weighed in, saturating toward 1. Score = agreement × certainty × 100: one rank-100 apply → 50; an equal-weight split → 0.' },
 ];
 
 /**

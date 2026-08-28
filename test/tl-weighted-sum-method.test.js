@@ -319,9 +319,10 @@ t('LA no-POV fallback: method "input" on an unfiltered stack publishes as count'
   const ta = await fetchTaPubkey();
   const tl = await findLatestTL(ta, dTag);
   assert(tl, `expected TL at ${dTag}`);
-  const methodTag = tl.tags.find((x) => x[0] === 'membership-method');
-  assertEqual(methodTag?.[1], 'count',
-    'with no resolvable POV the wire must record the math that ran: count');
+  // Story 4: method tag stripped; fallback-to-count is observable as
+  // score-less plain p tags.
+  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
+    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
   const p = pTagFor(tl, targetPk);
   assert(p && p.length <= 2,
     `fallback TL must carry plain p tags (no score); got ${JSON.stringify(p)}`);
@@ -382,8 +383,9 @@ t('LB seeded-POV known-value matrix (scores on the TL, membership/order/counts u
   const tl = await findLatestTL(ta, dTag);
   assert(tl, `expected TL at ${dTag}`);
 
-  const methodTag = tl.tags.find((x) => x[0] === 'membership-method');
-  assertEqual(methodTag?.[1], 'input', 'TL must record membership-method "input"');
+  // Story 4: method tag stripped; input mode is observable by its scores.
+  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
+    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
 
   for (const [key, sc] of Object.entries(scenarios)) {
     const pk = targets[key];
@@ -421,8 +423,8 @@ t('LC switching back to count restores Story-1 output shape', async () => {
   tls.sort((a, b) => b.created_at - a.created_at);
   const tl = tls[0];
   assert(tl, 'expected the known-value TL to have re-published under count');
-  assertEqual(tl.tags.find((x) => x[0] === 'membership-method')?.[1], 'count',
-    'after switching back the wire must record count');
+  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
+    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
   const scored = tl.tags.filter((x) => x[0] === 'p' && x.length > 2);
   assertEqual(scored.length, 0, 'count TLs must carry plain p tags again (no scores)');
 });
