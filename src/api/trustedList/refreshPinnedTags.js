@@ -14,7 +14,7 @@
  *   min-rank = <integer string>
  *   p tags   = one per member that passes the disputes function (v1: pubkey only,
  *              no relay/score since Story-10's default has includeScoreInTL=false)
- *   content  = JSON { members: [{ pubkey, endorsements, disputes }] }
+ *   content  = "" (tl-fixes #1: the members JSON duplicated the p tags; empty since)
  *
  * Retraction: empty-membership replacement at the same d-tag with a
  * ["status","retracted"] marker tag. No on-disk status; derived from strfry.
@@ -202,14 +202,10 @@ async function runOnePin(pinEvent) {
         ['cutoff', String(cutoff)],
         ['min-rank', String(minRankForTag)],
       ],
-      content: JSON.stringify({
-        members: members.map((m) => ({
-          pubkey: m.pubkey,
-          endorsements: m.endorsements,
-          disputes: m.disputes,
-          ...(m.score != null ? { score: m.score } : {}),
-        })),
-      }),
+      // tl-fixes #1 (operator, 2026-08-28): the per-member content JSON was
+      // almost entirely duplicative of the p tags — dropped. Members live in
+      // the tags; per-member endorsement/dispute counts left the wire with it.
+      content: '',
     });
     return {
       status: 'ok',

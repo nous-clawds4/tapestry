@@ -384,23 +384,14 @@ tBasic('published TL content body carries per-member endorsement/dispute counts 
   const dTag = expectedTLDTag({ observerPk: viewerPk, tagAuthorPk: tag.authorPubkey, tagSlug: tag.slug });
   const tl = await findLatestTL(dTag);
   assert(tl, 'TL must exist');
-  assert(typeof tl.content === 'string' && tl.content.length > 0,
-    `TL content body must be a non-empty JSON string; got ${JSON.stringify(tl.content)}`);
-  let body;
-  try { body = JSON.parse(tl.content); }
-  catch (e) { throw new Error(`TL content body must be valid JSON; got ${tl.content?.slice(0, 200)}`); }
-  assert(Array.isArray(body.members),
-    `TL content.members must be an array; got ${JSON.stringify(body)}`);
-  // The target had 2 endorsements / 0 disputes from the fixture; with
-  // cutoff=2 (default) it should make the TL.
+  // tl-fixes #1 (2026-08-28): the per-member content JSON was dropped as
+  // duplicative of the p tags — content is empty; membership lives in tags.
+  assert(tl.content === '',
+    `TL content must be empty since tl-fixes #1; got ${JSON.stringify(tl.content?.slice(0, 100))}`);
   const { targetPk } = basicCtx;
-  const targetRow = body.members.find((m) => m.pubkey === targetPk);
+  const targetRow = tl.tags.find((x) => x[0] === 'p' && x[1] === targetPk);
   assert(targetRow,
-    `TL content.members must include the qualifying target; got ${JSON.stringify(body.members)}`);
-  assert(typeof targetRow.endorsements === 'number' && targetRow.endorsements >= 2,
-    `target's endorsements count must be >= 2; got ${JSON.stringify(targetRow)}`);
-  assert(typeof targetRow.disputes === 'number',
-    `target's disputes count must be a number; got ${JSON.stringify(targetRow)}`);
+    `TL p tags must include the qualifying target; got ${JSON.stringify(tl.tags.filter((x)=>x[0]==='p'))}`);
 });
 
 tBasic('refreshing the same pin twice replaces the TL in place — same d-tag, latest created_at wins (AC-2)', async () => {
