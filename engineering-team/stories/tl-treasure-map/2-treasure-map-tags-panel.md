@@ -1,6 +1,6 @@
 # Story 2: Treasure-Map tags panel
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-27
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-08-27 in the
 book's kickoff exchange; scoped gate:
@@ -23,22 +23,22 @@ profile, and a Local-TA/external indication, so that I can see at a glance who p
 my behalf.
 
 ## Acceptance criteria
-- [ ] AC-1: Given a found Map, the page shows a panel with one row per tag, in event order — no
+- [x] AC-1: Given a found Map, the page shows a panel with one row per tag, in event order — no
       tag omitted.
-- [ ] AC-2: Each row shows the tag's first element and its classification — kinds 30380–30389 →
+- [x] AC-2: Each row shows the tag's first element and its classification — kinds 30380–30389 →
       "Trusted Assertion", 30390–30399 → "Trusted List", everything else → "other" (ADR 0001
       parse rule; a named `"<kind>:<name>"` entry classifies by its kind segment and displays
       the name).
-- [ ] AC-3: Rows whose second element is a 64-hex pubkey show an Avatar linking to
+- [x] AC-3: Rows whose second element is a 64-hex pubkey show an Avatar linking to
       `/tapestry/users/<pubkey>`; the panel batch-fetches kind-0 profiles via
       `/api/profiles?pubkeys=` so avatars carry real pictures where available.
-- [ ] AC-4: The delegate is labeled **Local TA** when it equals the runtime-resolved TA pubkey
+- [x] AC-4: The delegate is labeled **Local TA** when it equals the runtime-resolved TA pubkey
       (`ConfigContext.taPubkey`), **external** otherwise; while the TA pubkey is still loading,
       neither label is shown. No TA pubkey literal appears in the diff.
-- [ ] AC-5: The relay hint (third element) is displayed when present.
-- [ ] AC-6: Tags that are malformed or non-delegation (`["d", …]`, short arrays, non-hex second
+- [x] AC-5: The relay hint (third element) is displayed when present.
+- [x] AC-6: Tags that are malformed or non-delegation (`["d", …]`, short arrays, non-hex second
       element) render as "other" rows without an avatar and without crashing.
-- [ ] AC-7: The no-Map-found path and the raw-event toggle are unchanged.
+- [x] AC-7: The no-Map-found path and the raw-event toggle are unchanged.
 
 ## Design note *(Light profile — provisional here, ratified at Gate B)*
 - **Chosen approach:** a pure classifier util + a presentational panel. New
@@ -96,6 +96,6 @@ regression sentinels that pass today and fail only on collateral damage.
 - ADR: `engineering-team/decisions/tl-treasure-map/0001-treasure-map-tl-advertisement-convention.md`
   (consumed, not authored here)
 - Test suite: `test/tl-treasure-map-panel.test.js` (the story's scoped gate)
-- Review: (filled at Gate B)
+- Review: `engineering-team/reviews/tl-treasure-map/2-treasure-map-tags-panel.md`
 
 Link by path only — never record verdicts or round history in this file.
