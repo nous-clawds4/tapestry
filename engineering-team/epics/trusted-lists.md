@@ -1,7 +1,7 @@
 # Epic: trusted-lists
 
 **Created:** 2026-08-27
-**Status:** Open
+**Status:** Done — ladder complete; default-method flip to `certainty` is a deploy decision (book close item)
 
 ## Goal
 
@@ -35,8 +35,7 @@ selection on the Trust Determination Methods page.
 - `stories/trusted-lists/3-certainty-method.md` — **Certainty**: `agreement ×
   (1 − 0.5^input)` via the existing input→confidence function (rigor 0.5). The full spec
   formula's number, still under the count-based predicate.
-- `stories/trusted-lists/4-weighted-member-certainty.md` — **Formalization** (NOT a selectable method — operator direction 2026-08-27 collapsed the selector to the three real methods): the spec's wire
-  contract becomes the default — integer 0–100 per-member scores always on, `rigor` metadata,
-  `score ≥ 1` predicate replacing `applies > disputes` (net-negative and 50/50 members drop
-  off the list), score-desc ordering.
+- `stories/trusted-lists/4-weighted-member-certainty.md` — **Formalization** (Done, Light
+  profile): integer scores, score>=1 predicate + score ordering, rigor tag on certainty TLs,
+  membership-method tag stripped (operator: never spec'd), includeScoreInTL retired.
 - ~~kind-10040 TL-provider line~~ — reassigned to David (external to this repo), 2026-08-27.

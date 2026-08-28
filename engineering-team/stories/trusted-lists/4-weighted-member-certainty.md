@@ -1,6 +1,6 @@
 # Story 4: Formalize the certainty contract (rung 4)
 
-**Status:** Approved (operator ratified the five-item package, 2026-08-27; delegated cycle)
+**Status:** Done
 **Created:** 2026-08-27
 **Type:** Feature
 
@@ -69,4 +69,4 @@ All under the **certainty** method unless stated; count/input behavior byte-unch
 - Spec handoff: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`
 - ADR: `engineering-team/decisions/trusted-lists/0004-formalized-certainty-contract.md`
 - Test plan: `engineering-team/stories/trusted-lists/4-weighted-member-certainty.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/trusted-lists/4-weighted-member-certainty.md`
