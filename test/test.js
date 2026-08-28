@@ -248,6 +248,8 @@ const tlCertaintyMethod = require('./tl-certainty-method.test.js');
 const tlTreasureMapPanel = require('./tl-treasure-map-panel.test.js');
 // epic: tl-treasure-map — Story 3 (TL opt-in, preview, publish).
 const tlTreasureMapOptin = require('./tl-treasure-map-optin-publish.test.js');
+// epic: neo4j-sizing — Story 1 (entrypoint memory override).
+const neo4jSizingOverride = require('./neo4j-sizing-override.test.js');
 // epic: shared-concepts-seeding — Story 1 (honest broadcast reporting).
 const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js');
 // epic: shared-concepts-seeding — Story 3 (not-yet-shared filter on the Concepts list).
@@ -627,6 +629,9 @@ async function main() {
 
   console.log('\ntl-treasure-map-optin-publish suite:');
   const tlTreasureMapOptinResult = await tlTreasureMapOptin.run();
+
+  console.log('\nneo4j-sizing-override suite:');
+  const neo4jSizingOverrideResult = await neo4jSizingOverride.run();
 
   console.log('\nhonest-broadcast-reporting suite:');
   const honestBroadcastReportingResult = await honestBroadcastReporting.run();
@@ -1121,6 +1126,7 @@ async function main() {
   console.log(`tl-certainty-method suite:                       ${tlCertaintyMethodResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlCertaintyMethodResult.pass} passed, ${tlCertaintyMethodResult.fail} failed, ${tlCertaintyMethodResult.skipped} skipped)`);
   console.log(`tl-treasure-map-panel suite:                     ${tlTreasureMapPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapPanelResult.pass} passed, ${tlTreasureMapPanelResult.fail} failed, ${tlTreasureMapPanelResult.skipped} skipped)`);
   console.log(`tl-treasure-map-optin-publish suite:             ${tlTreasureMapOptinResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapOptinResult.pass} passed, ${tlTreasureMapOptinResult.fail} failed, ${tlTreasureMapOptinResult.skipped} skipped)`);
+  console.log(`neo4j-sizing-override suite:                     ${neo4jSizingOverrideResult.fail === 0 ? 'PASS' : 'FAIL'} (${neo4jSizingOverrideResult.pass} passed, ${neo4jSizingOverrideResult.fail} failed, ${neo4jSizingOverrideResult.skipped} skipped)`);
   console.log(`honest-broadcast-reporting suite:                ${honestBroadcastReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestBroadcastReportingResult.pass} passed, ${honestBroadcastReportingResult.fail} failed, ${honestBroadcastReportingResult.skipped} skipped)`);
   // Skip-aware: H-class contract checks skip when the local stack is absent;
   // the U-class predicate and S-class source audit always run and gate.
@@ -1342,6 +1348,8 @@ async function main() {
     tlTreasureMapPanelResult.fail === 0 &&
     // tl-treasure-map #3 — TL opt-in, preview, publish
     tlTreasureMapOptinResult.fail === 0 &&
+    // neo4j-sizing #1 — entrypoint memory override
+    neo4jSizingOverrideResult.fail === 0 &&
     // shared-concepts-seeding #1 — honest broadcast reporting
     honestBroadcastReportingResult.fail === 0 &&
     // shared-concepts-seeding #3 — not-yet-shared filter on the Concepts list
@@ -1399,6 +1407,7 @@ async function main() {
     stateOnConceptPageResult, sharedByMeResult, honestBroadcastReportingResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult, tlCertaintyMethodResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
+    retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
