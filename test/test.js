@@ -243,6 +243,8 @@ const retireOfferingVocabulary = require('./retire-offering-vocabulary.test.js')
 const siteTrustSignals = require('./site-trust-signals.test.js');
 // epic: tl-treasure-map — Story 2 (Treasure-Map tags panel).
 const tlTreasureMapPanel = require('./tl-treasure-map-panel.test.js');
+// epic: tl-treasure-map — Story 3 (TL opt-in, preview, publish).
+const tlTreasureMapOptin = require('./tl-treasure-map-optin-publish.test.js');
 // epic: shared-concepts-seeding — Story 1 (honest broadcast reporting).
 const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js');
 // epic: shared-concepts-seeding — Story 3 (not-yet-shared filter on the Concepts list).
@@ -616,6 +618,9 @@ async function main() {
 
   console.log('\ntl-treasure-map-panel suite:');
   const tlTreasureMapPanelResult = await tlTreasureMapPanel.run();
+
+  console.log('\ntl-treasure-map-optin-publish suite:');
+  const tlTreasureMapOptinResult = await tlTreasureMapOptin.run();
 
   console.log('\nhonest-broadcast-reporting suite:');
   const honestBroadcastReportingResult = await honestBroadcastReporting.run();
@@ -1106,6 +1111,7 @@ async function main() {
   console.log(`retire-offering-vocabulary suite:                ${retireOfferingVocabularyResult.fail === 0 ? 'PASS' : 'FAIL'} (${retireOfferingVocabularyResult.pass} passed, ${retireOfferingVocabularyResult.fail} failed, ${retireOfferingVocabularyResult.skipped} skipped)`);
   console.log(`site-trust-signals suite:                        ${siteTrustSignalsResult.fail === 0 ? 'PASS' : 'FAIL'} (${siteTrustSignalsResult.pass} passed, ${siteTrustSignalsResult.fail} failed, ${siteTrustSignalsResult.skipped} skipped)`);
   console.log(`tl-treasure-map-panel suite:                     ${tlTreasureMapPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapPanelResult.pass} passed, ${tlTreasureMapPanelResult.fail} failed, ${tlTreasureMapPanelResult.skipped} skipped)`);
+  console.log(`tl-treasure-map-optin-publish suite:             ${tlTreasureMapOptinResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapOptinResult.pass} passed, ${tlTreasureMapOptinResult.fail} failed, ${tlTreasureMapOptinResult.skipped} skipped)`);
   console.log(`honest-broadcast-reporting suite:                ${honestBroadcastReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestBroadcastReportingResult.pass} passed, ${honestBroadcastReportingResult.fail} failed, ${honestBroadcastReportingResult.skipped} skipped)`);
   // Skip-aware: H-class contract checks skip when the local stack is absent;
   // the U-class predicate and S-class source audit always run and gate.
@@ -1322,6 +1328,8 @@ async function main() {
     siteTrustSignalsResult.fail === 0 &&
     // tl-treasure-map #2 — Treasure-Map tags panel
     tlTreasureMapPanelResult.fail === 0 &&
+    // tl-treasure-map #3 — TL opt-in, preview, publish
+    tlTreasureMapOptinResult.fail === 0 &&
     // shared-concepts-seeding #1 — honest broadcast reporting
     honestBroadcastReportingResult.fail === 0 &&
     // shared-concepts-seeding #3 — not-yet-shared filter on the Concepts list
@@ -1377,7 +1385,7 @@ async function main() {
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
     publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
     stateOnConceptPageResult, sharedByMeResult, honestBroadcastReportingResult,
-    retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult,
+    retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
