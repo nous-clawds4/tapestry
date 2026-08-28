@@ -36,6 +36,8 @@ Specific files, function names, module boundaries. The Implementer reads this, s
 
 Test-file changes the ADR requires (suite re-aims, runner registration) belong to Phase 3 — the Tester's lane — never to implementation: Direction-mode Gate 4 pins an empty `test/` diff after the Gate-3 commit, and test edits during Phase 4 blur the failing-tests-first contract in the human-gated flow too. (note-tagging-inspector retro, 2026-07-18.)
 
+**Carve-out — a story whose deliverable IS a test change** (ratified at test-suite-hermeticity #1's Phase-3 gate; OPEN.md row 167): the standing rule inverts. The Tester writes a **new guard suite** that fails against the suites under repair; Phase 4 edits those suites and is explicitly barred from touching the guard suite. The rule's purpose — an Implementer must not weaken their own judge — is preserved, while Phase 4 keeps a real, failing-test-driven deliverable. A reviewer who sees a non-empty Phase-4 `test/` diff checks which case they are in before flagging it.
+
 - File: `path/to/file.js` — add function `doX(input)`.
 - File: `path/to/other.js` — extend with the new branch.
 - Concept: new handle `kind:pubkey:new-slug` with schema `{...}`; firmware definition at `firmware/concepts/<slug>.json`.

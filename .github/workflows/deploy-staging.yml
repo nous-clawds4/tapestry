@@ -4,6 +4,14 @@ on:
   push:
     branches: [staging]
 
+# Serialize deploys: two rapid merges once ran `docker compose up -d --build`
+# concurrently on the droplet and left the app container in Created (never
+# started) — staging 502'd until a manual re-up (OPEN.md row 183, 2026-08-27).
+# The newest queued push wins; an in-flight deploy is never cancelled.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
