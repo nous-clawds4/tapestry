@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { queryRelay } from '../../api/relay';
 import { useCypher } from '../../hooks/useCypher';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import TreasureMapTagsPanel from './TreasureMapTagsPanel';
 
 const KIND_TRUSTED_ASSERTIONS = 10040;
 
@@ -228,13 +229,11 @@ export default function TrustedAssertions() {
             />
           </div>
 
-          {/* Tag summary */}
-          {event.tags?.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
-              <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', opacity: 0.7 }}>Tag Summary</h4>
-              <TagSummary tags={event.tags} />
-            </div>
-          )}
+          {/* Map entries — one row per tag (tl-treasure-map #2) */}
+          <div style={{ marginBottom: '1rem' }}>
+            <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', opacity: 0.7 }}>Map Entries</h4>
+            <TreasureMapTagsPanel tags={event.tags || []} />
+          </div>
 
           {/* Raw event toggle */}
           <button
@@ -338,36 +337,6 @@ function InfoCard({ label, value, mono }) {
       }}>
         {value}
       </div>
-    </div>
-  );
-}
-
-function TagSummary({ tags }) {
-  // Group tags by type and count
-  const groups = {};
-  for (const tag of tags) {
-    const type = tag[0] || '(empty)';
-    groups[type] = (groups[type] || 0) + 1;
-  }
-
-  return (
-    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-      {Object.entries(groups)
-        .sort((a, b) => b[1] - a[1])
-        .map(([type, count]) => (
-          <span
-            key={type}
-            style={{
-              padding: '0.2rem 0.5rem',
-              fontSize: '0.75rem',
-              backgroundColor: 'var(--bg-primary, #0f0f23)',
-              border: '1px solid var(--border, #444)',
-              borderRadius: '4px',
-            }}
-          >
-            <strong>{type}</strong>: {count}
-          </span>
-        ))}
     </div>
   );
 }
