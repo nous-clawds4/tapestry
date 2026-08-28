@@ -16,6 +16,8 @@ const ENTRY = /^(\d{5})(?::(.+))?$/;
  * @returns {{raw: string, kind: number|null, name: string|null,
  *            cls: 'ta'|'tl'|'other', pubkey: string|null, relay: string|null}}
  *   `cls`: 30380–30389 → 'ta', 30390–30399 → 'tl', anything else → 'other'.
+ *   A delegation entry without a valid delegate is no delegation: rows whose
+ *   second element is not 64-hex classify 'other' regardless of kind (AC-6).
  *   `pubkey`: lowercased 64-hex second element, or null when absent/non-hex.
  *   Never throws on malformed input — unparseable rows come back as 'other'.
  */
@@ -25,10 +27,11 @@ export function classifyEntry(tag) {
   const m = first.match(ENTRY);
   const kind = m ? Number(m[1]) : null;
   const name = m && m[2] !== undefined ? m[2] : null;
-  const cls = kind !== null && kind >= 30380 && kind <= 30389 ? 'ta'
+  const pubkey = typeof t[1] === 'string' && HEX64.test(t[1]) ? t[1].toLowerCase() : null;
+  const cls = pubkey === null ? 'other'
+    : kind !== null && kind >= 30380 && kind <= 30389 ? 'ta'
     : kind !== null && kind >= 30390 && kind <= 30399 ? 'tl'
     : 'other';
-  const pubkey = typeof t[1] === 'string' && HEX64.test(t[1]) ? t[1].toLowerCase() : null;
   const relay = typeof t[2] === 'string' && t[2] !== '' ? t[2] : null;
   return { raw: first, kind, name, cls, pubkey, relay };
 }
