@@ -69,7 +69,7 @@ Same as Story 2 (no concept definitions change; no firmware reinstall).
   `membership-method` spec-or-strip, `includeScoreInTL` reconciliation.
 - Tunable rigor (constant 0.5).
 - Meilisearch fixture-doc cleanup (harmless leftovers; noted, not blocking).
-- Hardening the two legacy suites (OPEN 183).
+- Hardening the two legacy suites (OPEN 184).
 
 ## Linked artifacts
 

@@ -81,4 +81,4 @@
 fallback, kit), the diff matches ADR 0002 with one operator-ratified deviation (selector
 collapse) properly recorded, and every red run during the extended session traced to
 environment (zombie refreshes, unpinned settings), each now either fixed in-suite or
-ledgered (OPEN 182/183).
+ledgered (OPEN 182/184).
