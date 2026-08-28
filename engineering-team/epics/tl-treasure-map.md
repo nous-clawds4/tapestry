@@ -1,7 +1,7 @@
 # Epic: tl-treasure-map
 
 **Created:** 2026-08-27
-**Status:** Active
+**Status:** Done (epic retired 2026-08-27 at the tl-treasure-map book close — all four stories Done, on staging via PRs #568–#573; production promotion pending operator)
 **Book:** `engineering-team/audits/tl-treasure-map/book.md` (acceptance-frame, **Light profile
 trial** — workflows/light-profile.md; story 1 escalated to Standard docs-mode by the wire-format
 trigger)
