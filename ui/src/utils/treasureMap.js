@@ -50,14 +50,6 @@ export function findGenericTlDelegation(tags, kind = 30392) {
 }
 
 /**
- * The updated unsigned Map: the first generic `kind` entry replaced in place
- * (later generic duplicates dropped — the writer normalizes to at most one,
- * ADR §3), or the new entry appended when none exists; every other tag copied
- * verbatim, in order. `created_at` is strictly greater than the old event's so
- * a skewed-clock original can never outrank the replacement (relays keep the
- * newest replaceable event).
- */
-/**
  * Parse a hand-edited Treasure-Map JSON text into the unsigned replacement —
  * the manual-editor path (story 4, re-stamp policy). Honors the edit's
  * kind/tags/content exactly (kind defaults to 10040 when absent; content to
@@ -90,6 +82,14 @@ export function composeManualUpdate(text, oldEvent) {
   };
 }
 
+/**
+ * The updated unsigned Map: the first generic `kind` entry replaced in place
+ * (later generic duplicates dropped — the writer normalizes to at most one,
+ * ADR §3), or the new entry appended when none exists; every other tag copied
+ * verbatim, in order. `created_at` is strictly greater than the old event's so
+ * a skewed-clock original can never outrank the replacement (relays keep the
+ * newest replaceable event).
+ */
 export function upsertGenericTlTag(event, kind, pubkey, relay) {
   const kindStr = String(kind);
   const entry = [kindStr, pubkey, typeof relay === 'string' ? relay : ''];
