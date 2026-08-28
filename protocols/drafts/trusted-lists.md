@@ -87,6 +87,39 @@ trusted-tagged set up to a high, operator-tunable ceiling, marking `truncated` b
 underlying scan was itself bounded — ADR event-tagging/0017. Consumers should treat a missing
 `truncated` tag as authoritative-complete and a present one as a cue to reconcile from raw taggings.)
 
+## Treasure-Map advertisement (kind 10040)
+
+A user's NIP-85 **Treasure Map** (kind `10040`) delegates each Trusted-Assertion kind+metric to a
+publisher: `["30382:rank", <pubkey>, <relay>]`. Trusted Lists extend the Map with a **generic
+bare-kind entry** (ADR `tl-treasure-map/0001`):
+
+```json
+["30392", "<publisher-pubkey>", "wss://nip85.brainstorm.world"]
+```
+
+- **Shape.** `["<TL-kind>", <pubkey>, <relay>]` — the first element is the decimal TL kind as a
+  string, with **no `:name` suffix**. Parse rule: split the first element on `:` — a single
+  all-digits segment is a generic TL entry; two segments are NIP-85 kind:metric (`3038x`) or a
+  named TL entry (`3039x`, reserved below).
+- **Meaning.** The advertised pubkey publishes the Map owner's Trusted Lists of that kind —
+  lists computed under the owner's point of view — discoverable at the relay hint. One entry
+  delegates *all* lists of the kind; list names are not enumerated.
+- **Writer semantics.** At most one generic entry per TL kind. Switching publishers **replaces**
+  the existing generic entry for that kind; every other tag in the Map is preserved verbatim.
+  `10040` is replaceable, so an update republishes the full tag set with a fresh `created_at`.
+- **Reader semantics.** If duplicate generic entries for one kind appear in the wild, the first
+  occurrence wins.
+- **Relay hint.** A relay where the advertised publisher's lists of that kind can be found. A
+  Tapestry instance advertising its own TA fills it from
+  `settings.aRelays.aTrustedListRelays[0]` (runtime-resolved via `/api/relays`); the hint is the
+  empty string when unconfigured — the entry keeps its three-element shape.
+- **Named entries (reserved).** `["<kind>:<name>", <pubkey>, <relay>]` will, once specified,
+  override the generic entry **for that list only**. Until then readers treat named `3039x`
+  entries as unrecognized: display them as Trusted List entries, drive no behavior from them.
+
+The convention is stated for the whole family (`30392`–`30395`); Tapestry currently exercises it
+for `30392` (pubkey TLs).
+
 ## Current members of the family (Tapestry deployments)
 
 | List | Kind | Members | Publisher |

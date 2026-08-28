@@ -17,7 +17,7 @@
       F −0.84), `membership-method: input` on the wire, raw p-tags printed.
 - [x] Neighbor regression: `tl-publication-from-pins-publish` 7/7; `profile-tags` 13/13
       (the shared-aggregator consumer). `customize-pin-curation-publish` 3/3 in the first
-      clean batch; its later red was environmental (see OPEN 183 — assumes count mode).
+      clean batch; its later red was environmental (see OPEN 184 — assumes count mode).
 - [x] `node --check` on changed server files; UI `vite build` clean; served bundle verified.
 - [ ] Full `npm test` not re-run (multi-suite live gate; see the flake findings below —
       running it serially on this machine currently takes tens of minutes, OPEN 182).
@@ -73,7 +73,7 @@
    one. Candidate future fix rides OPEN 182 (fixture prune / incremental refresh).
 2. **Story-1 suite hardened** (in this diff): pins count + no-POV with byte-exact
    snapshot/restore — the method and POV became real operator knobs this book, so
-   environment-assuming tests must pin. Legacy suites' same weakness: OPEN 183.
+   environment-assuming tests must pin. Legacy suites' same weakness: OPEN 184.
 
 ## Verdict
 
