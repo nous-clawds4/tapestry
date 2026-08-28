@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useConfig } from '../../context/ConfigContext';
-import { findGenericTlDelegation, upsertGenericTlTag } from '../../utils/treasureMap';
+import { findGenericTlDelegation, upsertGenericTlTag, composeManualUpdate } from '../../utils/treasureMap';
 import { getActiveSignerOrThrow } from '../../utils/signerGuard';
 import { publishOrThrow } from '../../utils/publishProfileTag';
 
@@ -74,6 +74,7 @@ export default function TlOptInCard({ event, onPublished }) {
             )}
           </div>
         </div>
+        <ManualEditSection key={event.id} event={event} onPublished={onPublished} />
       </div>
     );
   }
@@ -150,6 +151,104 @@ export default function TlOptInCard({ event, onPublished }) {
           color: '#f85149', fontSize: '0.85rem',
         }}>
           Error: {error}
+        </div>
+      )}
+
+      <ManualEditSection key={event.id} event={event} onPublished={onPublished} />
+    </div>
+  );
+}
+
+/**
+ * Hand-edit escape hatch (story 4): the CURRENT found event, verbatim, in an
+ * editable field; publish appears only once the text differs. Keyed on
+ * event.id by both mount sites so a refreshed event re-seeds the editor and
+ * deliberately discards edits composed against a Map that is no longer
+ * current.
+ */
+function ManualEditSection({ event, onPublished }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const baseline = useMemo(() => JSON.stringify(event, null, 2), [event]);
+  const dirty = open && text !== baseline;
+
+  function toggle() {
+    setError(null);
+    if (!open) setText(baseline); // (re)seed from the found event on open
+    setOpen((v) => !v);
+  }
+
+  async function handleManualPublish() {
+    setPublishing(true);
+    setError(null);
+    try {
+      // Refuse to sign as an extension account drifted from the session.
+      const authorPk = await getActiveSignerOrThrow();
+      const unsigned = { ...composeManualUpdate(text, event), pubkey: authorPk };
+      const signed = await window.nostr.signEvent(unsigned);
+      await publishOrThrow(signed);
+      setOpen(false);
+      if (onPublished) onPublished();
+    } catch (err) {
+      setError(err?.message || 'Publish failed.');
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border, #444)', paddingTop: '0.75rem' }}>
+      <button
+        className="btn btn-sm"
+        onClick={toggle}
+        style={{ fontSize: '0.8rem' }}
+      >
+        {open ? '▾' : '▸'} Update your kind 10040 event Treasure Map by hand
+      </button>
+
+      {open && (
+        <div style={{ marginTop: '0.75rem' }}>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            spellCheck={false}
+            style={{
+              width: '100%', minHeight: '260px', resize: 'vertical',
+              padding: '0.75rem', boxSizing: 'border-box',
+              backgroundColor: 'var(--bg-primary, #0f0f23)',
+              border: '1px solid var(--border, #444)',
+              borderRadius: '6px', color: 'inherit',
+              fontFamily: 'monospace', fontSize: '0.75rem', lineHeight: 1.45,
+            }}
+          />
+          <div style={{ fontSize: '0.7rem', opacity: 0.5, marginTop: '0.35rem' }}>
+            id, sig, and created_at are re-stamped when the edited event is signed.
+          </div>
+
+          {dirty && (
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={handleManualPublish}
+              disabled={publishing}
+              style={{ marginTop: '0.5rem' }}
+            >
+              {publishing ? '⏳ Publishing…' : '📤 Publish updated event'}
+            </button>
+          )}
+
+          {error && (
+            <div style={{
+              marginTop: '0.5rem', padding: '0.5rem 0.75rem',
+              border: '1px solid #f85149', borderRadius: '6px',
+              backgroundColor: 'rgba(248, 81, 73, 0.08)',
+              color: '#f85149', fontSize: '0.85rem',
+            }}>
+              Error: {error}
+            </div>
+          )}
         </div>
       )}
     </div>
