@@ -39,4 +39,4 @@ selection on the Trust Determination Methods page.
   contract becomes the default — integer 0–100 per-member scores always on, `rigor` metadata,
   `score ≥ 1` predicate replacing `applies > disputes` (net-negative and 50/50 members drop
   off the list), score-desc ordering.
-- *(queued in intake)* kind-10040 TL-provider line (`30392` designation) — after the ladder.
+- ~~kind-10040 TL-provider line~~ — reassigned to David (external to this repo), 2026-08-27.

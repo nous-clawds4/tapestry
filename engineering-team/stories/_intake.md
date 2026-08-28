@@ -2180,7 +2180,7 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 
 ## 2026-08-27 — Advertise TL provision in kind-10040 (follow-up to weighted certainty)
 
-**QUEUED** → later story in book `tl-weighted-certainty`, after the method ladder (selector → input → certainty → full formula) is operator-validated.
+**REASSIGNED (2026-08-27)** — David is implementing the kind-10040 TL-provider line separately; not built in this repo/book (operator direction at the rung-3 close).
 
 **Raw request (operator, at the Story-1 Planning gate):** "we want to update 10040s to include a `30392,<ta-pubkey>` line. but maybe that's a brainstorm thing?" — Resolved: it IS a tapestry thing. Tapestry owns the kind-10040 builders (`src/api/export/nip85/commands/create-unsigned-kind10040.js` and `commands/kind10040.js`), which currently emit only `30382:<metric>` provider lines. Adding a kind-30392 (Trusted List) provider designation makes the newly-scored TLs discoverable via NIP-85.
 
