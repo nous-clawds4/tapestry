@@ -131,17 +131,19 @@ test('S3: panel batch-fetches kind-0 profiles and tolerates fetch failure', () =
     'edge (not-covered boundary): profile-fetch failure must not throw — a catch is present');
 });
 
-test('S4: panel reads the runtime TA pubkey from ConfigContext', () => {
+test('S4: panel judges delegation against the SIGNED-IN USER\'S assistant, never the owner TA', () => {
   const panel = safeRead(PANEL);
-  assert(/useConfig\s*\(/.test(panel) && /taPubkey/.test(panel),
-    'AC-4: Local-TA/external judgment uses useConfig().taPubkey (never a literal)');
+  assert(/useAuth\s*\(/.test(panel) && /assistantPubkey/.test(panel),
+    'AC-4 (as amended, treasure-map-user-assistant #1): baseline = useAuth().user.assistantPubkey');
+  assert(!/taPubkey/.test(panel),
+    'escaped-defect pin (OPEN.md 188): ConfigContext.taPubkey is the OWNER assistant — it must not appear in the panel');
 });
 
-test('S5: badge logic is guarded while taPubkey is still loading', () => {
+test('S5: badge logic is guarded while the user assistant is still unresolved', () => {
   const panel = safeRead(PANEL);
-  assert(/external/i.test(panel) && /Local TA/i.test(panel), 'AC-4: both labels exist');
-  assert(/(!taPubkey|taPubkey\s*(\?|&&))/.test(panel),
-    'E1: the badge must not flash "external" before taPubkey resolves — a truthiness guard on taPubkey is required');
+  assert(/external/i.test(panel) && /Your assistant/i.test(panel), 'AC-4: both labels exist');
+  assert(/(!assistantPubkey|assistantPubkey\s*(\?|&&))/.test(panel),
+    'E1: the badge must not flash "external" before the user\'s assistantPubkey resolves (null ⇒ no badge)');
 });
 
 test('S6: zero-tag Map renders an explicit empty state', () => {

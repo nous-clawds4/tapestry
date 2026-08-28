@@ -197,10 +197,14 @@ test('R5: no 64-hex pubkey literal in the card or the util (passes on the empty 
   }
 });
 
-test('S5: no judgment renders while taPubkey is unresolved', () => {
+test('S5: the delegate is the signed-in user\'s assistant, guarded while unresolved', () => {
   const card = safeRead(CARD);
-  assert(/taPubkey/.test(card) && /(!taPubkey|taPubkey\s*(\?|&&))/.test(card),
-    'AC-1: the card must not judge local/external before the runtime TA pubkey resolves');
+  assert(/useAuth\s*\(/.test(card) && /assistantPubkey/.test(card),
+    'AC-1 (as amended, treasure-map-user-assistant #1): compose/check/preview use useAuth().user.assistantPubkey');
+  assert(/(!.*assistantPubkey|assistantPubkey\s*(\?|&&))/.test(card),
+    'AC-1: no judgment or prompt before the user\'s assistantPubkey resolves (null ⇒ card renders nothing)');
+  assert(!/taPubkey/.test(card),
+    'escaped-defect pin (OPEN.md 188): ConfigContext.taPubkey is the OWNER assistant — it must not appear in the card');
 });
 
 test('S6: failures surface in the card without corrupting page state', () => {
