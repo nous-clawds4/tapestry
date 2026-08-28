@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useConfig } from '../../context/ConfigContext';
+import { useAuth } from '../../context/AuthContext';
 import Avatar from '../../components/Avatar';
 import { classifyEntry } from '../../utils/treasureMap';
 
@@ -14,7 +14,10 @@ const CLS_COLOR = { ta: '#58a6ff', tl: '#d2a8ff', other: '#8b949e' };
  * Display-only — the opt-in/publish flow is story 3's.
  */
 export default function TreasureMapTagsPanel({ tags }) {
-  const { taPubkey } = useConfig();
+  // Badge baseline = the SIGNED-IN USER'S assistant, not the instance owner's
+  // (escaped-defect pin, OPEN.md row 188).
+  const { user } = useAuth();
+  const assistantPubkey = user?.assistantPubkey || null;
   const [profiles, setProfiles] = useState({});
 
   const rows = useMemo(() => (tags || []).map(classifyEntry), [tags]);
@@ -40,16 +43,16 @@ export default function TreasureMapTagsPanel({ tags }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {rows.map((row, i) => (
-        <EntryRow key={i} row={row} taPubkey={taPubkey} profile={row.pubkey ? profiles[row.pubkey] : null} />
+        <EntryRow key={i} row={row} assistantPubkey={assistantPubkey} profile={row.pubkey ? profiles[row.pubkey] : null} />
       ))}
     </div>
   );
 }
 
-function EntryRow({ row, taPubkey, profile }) {
-  // No judgment until the runtime TA pubkey has resolved — the local TA's own
-  // row must never flash "external" while /api/assistant/pubkey is in flight.
-  const locality = !taPubkey || !row.pubkey ? null : row.pubkey === taPubkey ? 'local' : 'external';
+function EntryRow({ row, assistantPubkey, profile }) {
+  // No judgment until the user's assistant has resolved (null ⇒ no badge) —
+  // a delegate row must never flash "external" against a missing baseline.
+  const locality = !assistantPubkey || !row.pubkey ? null : row.pubkey === assistantPubkey ? 'local' : 'external';
 
   return (
     <div style={{
@@ -96,7 +99,7 @@ function EntryRow({ row, taPubkey, profile }) {
           fontSize: '0.7rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '999px',
           backgroundColor: 'rgba(63, 185, 80, 0.15)', color: '#3fb950', whiteSpace: 'nowrap',
         }}>
-          Local TA
+          Your assistant
         </span>
       )}
       {locality === 'external' && (
