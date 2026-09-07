@@ -186,3 +186,99 @@ rule is correct and well covered, the byte bound is demonstrated against a 3.1M-
 query, the security posture improves, and nothing else in the tree regresses. Two related
 asks stand in the way, and they are the story's own thesis — a bounded read must never
 report itself complete, and that path must be tested. Blocking 1 is a one-line change.
+
+---
+
+# Round 2 — re-review
+
+**Date:** 2026-09-07
+**Diff:** `1a3cd275..2cbfd8be` (test `a741f414`, fix `2cbfd8be`)
+
+## What was asked, and what came back
+
+**Blocking 1 — a bounded read reporting itself complete.** Closed. The decision is
+now `resolveTotal({bounded, counted, received})` in
+`src/api/strfry/queries/scan.js`, a total function over the three cases:
+
+| input | result |
+|---|---|
+| not bounded | `{total: received, truncated: false}` |
+| bounded, count known | `{total: counted, truncated: counted > received}` |
+| bounded, count **unknown** | `{total: null, truncated: true}` |
+
+Verified by direct call, all four shapes including the exact-fit case
+(`bounded, counted 5, received 5 → truncated false`) that a naive
+`truncated: bounded` would have turned into a false alarm.
+
+The Implementer went **wider than the literal ask on one point**, and was right to.
+My suggested shape left `total = events.length` beside `truncated: true`, which
+renders as "showing 500 of 500, truncated" — a contradiction I did not think
+through. Reporting an unknowable total as `null` is the honest form. The wider
+change was declared rather than slipped in, and it forced two consequent edits
+(`ui/src/api/relay.js` passes null through; the List Items render guards it) that
+are both present.
+
+**Blocking 2 — the test gap.** Closed, and routed correctly: the tests landed in
+their own commit (`a741f414`) *failing*, ahead of the fix, rather than being
+written to fit it. Five cases — completed read, genuine truncation, exact fit, the
+defect itself, and the UI consequence.
+
+## Quality gates (re-run)
+
+- [x] **All 181 suites individually:** `2,700 pass · 54 fail · 35 skipped`.
+  The failing-suite set is **byte-identical** to the pre-fix run (verified by diff),
+  and the pass count rose by exactly 5 — the new D tests, nothing else. No regression.
+- [x] **Story suite:** `28 passed, 0 failed, 0 skipped`.
+- [x] **`D5` is mutation-verified.** Removing the null guard from the render fails it;
+  restoring it passes. It tests behavior, not a substring.
+- [x] **Live:** `limit:5 → {count 5, total 9556, truncated true}`;
+  `{kinds:[9998,39998]} → {274, 274, false}`; unbounded `{9556, 9556, false}`.
+- [x] **Browser:** `500 items · showing the 500 most recent of 9,556 on the relay`.
+- [x] **Null-total blast radius contained.** Audited every `/api/strfry/scan` consumer
+  in the tree — `usePinnedNotes`, `useTagMemberSets`, `useTLDetail`,
+  `BrainstormSettings` (×3), `BrainstormSearch` (×3), `NodeNeo4j`, `users/Index`,
+  `shared-concepts/HeaderEvent`, `firmware/install.js`. Every one reads `.events` and
+  `.success` only. Nothing but `queryRelayBounded` reads `.total`, and it handles null.
+
+## Findings
+
+### Blocking
+None.
+
+### Non-blocking
+
+1. **`src/api/strfry/queries/scan.js` — `resolveTotal` is now exported and its
+   `counted` contract is "number or null".** Called with `undefined` it would fall to
+   the third branch and yield `{total: undefined, truncated: false}` — a silent
+   complete-claim, the exact shape just removed. Unreachable from the handler
+   (`countMatching` returns only a number or null) and covered by D1-D4, so it is not
+   blocking. Worth a guard if the function ever gains a second caller.
+2. Round-1 non-blocking items 1-4 (no single-flight on the counts cache; no
+   `proc.stdout` `'error'` listener; minor fetch duplication in `relay.js`; the ADR's
+   "two cheap calls" prose) all stand, unchanged and still not blocking.
+
+### Harness friction
+
+3. **Crude regexes over JSX produced two false failures in one story.** `U3` forbade
+   the named constant the ADR mandates; `D5` banned a substring that also appears in
+   the correct guarded form. Both needed correcting during implementation — the second
+   time is a pattern, not an accident. The repo has no way to unit-test JSX (tests are
+   CommonJS; the pages are ESM+JSX), so static source pins are the only tool, and
+   they are sharp. Worth an OPEN.md `meta` row: either a documented convention for
+   writing them (assert the guard exists, never ban a substring) or a small JSX-aware
+   helper. Joins items 1-2 from round 1.
+
+## Verdict
+
+**PASS**
+
+Both asks are closed, the fix is better than the one I proposed, and the evidence is
+independent: the failing-suite set is identical to before, the new tests were red
+before they were green, and D5 survives mutation. The story's thesis now holds on
+every path — a bounded read never claims to be complete, including when it cannot
+find out how much it missed.
+
+**Not yet proven, and outside this verdict:** AC-1 and AC-5 at ≥450,000 items. Nothing
+local reaches that scale. `staging.brainstorm.world` and `tags.brainstorm.world` are
+still broken until this deploys, and the book's acceptance frame is not satisfiable
+until the staging smoke in the test plan is run.
