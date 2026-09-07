@@ -110,3 +110,161 @@ export function upsertGenericTlTag(event, kind, pubkey, relay) {
     tags,
   };
 }
+
+/* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */
+
+/**
+ * The relays to check for a Map, unioned from the named `aRelays` groups.
+ *
+ * Group KEYS are policy (which kinds of relay are worth checking); the URLs inside them are
+ * configuration the operator edits at Home > Settings > Relays. A relay listed in two groups
+ * yields one row carrying both labels. Order follows `groupKeys`, then position within a group.
+ *
+ * Never throws: a missing, empty, or malformed group is skipped, so bad config degrades the
+ * panel to fewer rows rather than taking the page down.
+ *
+ * @param {Object|null} aRelays  the settings relay map (from useConfig)
+ * @param {string[]} groupKeys   which groups to union
+ * @returns {Array<{url: string, groups: string[]}>}
+ */
+export function buildPresenceTargets(aRelays, groupKeys) {
+  const byUrl = new Map();
+  for (const key of (Array.isArray(groupKeys) ? groupKeys : [])) {
+    const group = aRelays && aRelays[key];
+    if (!Array.isArray(group)) continue;
+    for (const raw of group) {
+      if (typeof raw !== 'string') continue;
+      const url = raw.trim();
+      if (!/^wss?:\/\/.+/i.test(url)) continue;
+      const existing = byUrl.get(url);
+      if (existing) {
+        if (!existing.groups.includes(key)) existing.groups.push(key);
+      } else {
+        byUrl.set(url, { url, groups: [key] });
+      }
+    }
+  }
+  return Array.from(byUrl.values());
+}
+
+/**
+ * How a relay's copy relates to the Map on screen.
+ *
+ * Kind 10040 is replaceable, so "does this relay have it" is not a yes/no: a relay may hold a
+ * different version, and a relay serving a stale one silently advertises a delegation the user
+ * has already changed.
+ *
+ * @param {Object|null} displayed  the event being shown ({ id, created_at })
+ * @param {Object|null} found      what the relay returned ({ id, created_at })
+ * @returns {'same'|'older'|'newer'|'divergent'|null}
+ *   `divergent` = a different event with the SAME timestamp — real, and no order can honestly
+ *   be claimed. `null` when either side is missing.
+ */
+export function compareMapVersions(displayed, found) {
+  if (!displayed || !found) return null;
+  if (typeof displayed.id !== 'string' || typeof found.id !== 'string') return null;
+  if (displayed.id === found.id) return 'same';
+  const mine = Number(displayed.created_at) || 0;
+  const theirs = Number(found.created_at) || 0;
+  if (theirs < mine) return 'older';
+  if (theirs > mine) return 'newer';
+  return 'divergent';
+}
+
+/**
+ * One-line verdict over a set of relay row states — the panel's status light.
+ *
+ * Names the most serious finding rather than counting coverage: one relay serving a STALE Map
+ * is worse than three relays not having it, because a missing Map means a reader finds nothing
+ * while a stale one points them at a delegation the user may already have revoked.
+ *
+ * Precedence (ADR treasure-map-relay-presence/0003 § Decision):
+ *   1. divergent   — any relay holds a different version
+ *   2. checking    — else, any relay has not answered yet
+ *   3. missing     — else, any relay lacks the Map
+ *   4. unreachable — else, any relay could not be reached
+ *   5. ok          — else
+ *
+ * Note that `divergent` sits ABOVE `checking` while everything else sits below it. That is not
+ * an oversight: a divergence is already true and no later answer can revoke it, so reporting it
+ * early is honest — whereas a missing count can still fall and an all-clear can be withdrawn,
+ * so both must wait for the check to finish.
+ *
+ * Never throws: it runs on every render.
+ *
+ * @param {Object|null} localEvent  local strfry's copy, the comparison base
+ * @param {Array<{status: string, event: Object|null}>} rowStates  one per reported location
+ * @returns {{level: string, counts: Object}}
+ */
+export function summarizePresence(localEvent, rowStates) {
+  const rows = Array.isArray(rowStates) ? rowStates : [];
+  const counts = {
+    divergent: 0, missing: 0, unreachable: 0, agreeing: 0, pending: 0, unjudged: 0,
+    total: rows.length,
+  };
+
+  for (const row of rows) {
+    const status = row && typeof row.status === 'string' ? row.status : 'pending';
+    if (status === 'unreachable') counts.unreachable++;
+    else if (status === 'absent') counts.missing++;
+    else if (status === 'present') {
+      const rel = compareMapVersions(localEvent, row.event);
+      if (rel === 'same') counts.agreeing++;
+      else if (rel !== null) counts.divergent++;
+      // rel === null: the relay has a Map, but there is nothing local to compare it against, so
+      // it is neither agreement nor divergence. Counted explicitly — an unjudged row must not
+      // silently vanish from the tally, or the level could fall through to an all-clear over a
+      // row that was never actually judged.
+      else counts.unjudged++;
+    } else counts.pending++;
+  }
+
+  let level;
+  if (counts.divergent > 0) level = 'divergent';
+  else if (counts.pending > 0) level = 'checking';
+  else if (counts.missing > 0) level = 'missing';
+  else if (counts.unreachable > 0) level = 'unreachable';
+  // `unjudged` sits here — below every real finding, above the all-clear. It must never let the
+  // level fall through to `ok` (that would be an all-clear over a row nothing ever judged), but
+  // it must not outrank a finding either: the ordinary case of an unjudged row is "the Map is
+  // not in local strfry, so relay copies cannot be compared", and there the useful thing to say
+  // is that local is missing it — not a "checking" that never resolves.
+  else if (counts.unjudged > 0) level = 'checking';
+  else level = 'ok';
+
+  return { level, counts };
+}
+
+/**
+ * Which way, if any, a sync between local strfry and one relay should go.
+ *
+ * `localEvent` is what LOCAL holds — not necessarily what the page is displaying. When the Map
+ * was found on an external relay rather than locally, local holds nothing and the caller must
+ * pass null (ADR treasure-map-relay-presence/0002 § Decision).
+ *
+ * Never throws: it runs during render, once per row.
+ *
+ * @param {Object|null} localEvent  local strfry's copy ({ id, created_at }) or null
+ * @param {Object|null} relayEvent  the relay's copy ({ id, created_at }) or null
+ * @returns {{direction: 'push'|'pull'|null, reason: string|null}}
+ *   `push` = send local's copy out; `pull` = bring the relay's copy back.
+ *   A null direction always carries a reason: `in-sync`, `divergent`, or `nothing-to-sync`.
+ */
+export function planRelaySync(localEvent, relayEvent) {
+  const hasLocal = !!(localEvent && typeof localEvent.id === 'string');
+  const hasRelay = !!(relayEvent && typeof relayEvent.id === 'string');
+
+  if (!hasLocal && !hasRelay) return { direction: null, reason: 'nothing-to-sync' };
+  if (hasLocal && !hasRelay) return { direction: 'push', reason: null };
+  if (!hasLocal && hasRelay) return { direction: 'pull', reason: null };
+
+  switch (compareMapVersions(localEvent, relayEvent)) {
+    case 'same': return { direction: null, reason: 'in-sync' };
+    case 'older': return { direction: 'push', reason: null };
+    case 'newer': return { direction: 'pull', reason: null };
+    // Equal created_at, different id. Neither copy is "more recent", so no honest direction
+    // label exists — and NIP-01 breaks such a tie by lowest id, so a push might silently
+    // no-op. Report it and offer nothing rather than guess on the user's behalf.
+    default: return { direction: null, reason: 'divergent' };
+  }
+}

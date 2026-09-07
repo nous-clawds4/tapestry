@@ -1,7 +1,7 @@
 # Epic: treasure-map-user-assistant
 
 **Created:** 2026-08-28
-**Status:** Active
+**Status:** Done (epic retired 2026-09-07 at the book close — both stories Done, in production via PRs #582 and #586; escaped defect row 188 closed, recovery confirmed in the wild)
 **Book:** `engineering-team/audits/treasure-map-user-assistant/book.md` (acceptance-frame,
 **Light profile trial** #3 — Bug lane)
 **Provenance:** Operator bug report 2026-08-28 (in-session): production team member's

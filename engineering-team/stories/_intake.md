@@ -2165,3 +2165,84 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 **Strictness:** Standard (these are test-deliverable stories — the #167 carve-out applies).
 **Phase path:** `/plan-feature` per story; the runtime story likely wants an ADR (gate composition is a decision future sessions must honor).
 **References:** OPEN.md rows #43, #59, #60, #75, #83, #103/#105, #104/#106, #108, #109, #111, #126, #157 (the cluster), #150 + `engineering-team/stories/test-suite-hermeticity/1-*` (the model fix); the 2026-08-18 harness review, F1b/F7.
+
+## 2026-08-27 — Weighted member certainty for Trusted Lists (brainstorm_server D12, tapestry-first)
+
+**PICKED UP** → `engineering-team/stories/trusted-lists/1-weighted-member-certainty.md` (book `tl-weighted-certainty` opened eagerly).
+
+**Raw request:** Cross-session handoff from the brainstorm_server harness (operator-directed): implement the weighted-member-certainty change for Trusted Lists **in tapestry first**. Replace count-based TL membership (`applications >= cutoff && applications > disputes`, each gate-passing asserter = 1) with GrapeRank single-hop weighting (weight = asserter's POV influence, rating ±1 by polarity bucket), publish per-member integer 0–100 certainty scores in the p-tag's reserved third position plus a `["rigor","0.5"]` metadata tag. WoT floor (`minRank`, inclusive ≥ 3) stays as the spam gate. Self-contained spec: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`; provenance: brainstorm_server `engineering-team/decisions/trusted-lists/0001` Amendment D12 (status Proposed at handoff — wire details to be confirmed with the operator before shipping beyond local).
+
+**Operator decisions at intake:** new branch `feat/tl-weighted-certainty` cut from `origin/staging` @ `106c5de0` (main lacks the TL stack — `src/api/trustedList/` and `src/api/profile-tags/` exist on staging only).
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases)
+
+## 2026-08-27 — Advertise TL provision in kind-10040 (follow-up to weighted certainty)
+
+**REASSIGNED (2026-08-27)** — David is implementing the kind-10040 TL-provider line separately; not built in this repo/book (operator direction at the rung-3 close).
+
+**Raw request (operator, at the Story-1 Planning gate):** "we want to update 10040s to include a `30392,<ta-pubkey>` line. but maybe that's a brainstorm thing?" — Resolved: it IS a tapestry thing. Tapestry owns the kind-10040 builders (`src/api/export/nip85/commands/create-unsigned-kind10040.js` and `commands/kind10040.js`), which currently emit only `30382:<metric>` provider lines. Adding a kind-30392 (Trusted List) provider designation makes the newly-scored TLs discoverable via NIP-85.
+
+**Open wire question for planning:** exact tag shape — existing lines are `["30382:<metric>", <provider-pubkey>, <relay>]`; is the TL line `["30392", <ta-pubkey>, <relay>]` or does it carry a metric/qualifier suffix? Confirm with the operator (and against the assistant-designation pre-NIP in `protocols/drafts/`) at Story-2 planning.
+
+**Classification:** Feature (small)
+**Strictness:** Standard
+
+## 2026-08-27 — Re-sequencing: TL weighted certainty delivered as a stepwise method ladder
+
+**PICKED UP** → `engineering-team/stories/trusted-lists/1-tl-method-selector.md`; original spec story renumbered to `4-weighted-member-certainty.md` (Draft again; re-approve at rung 4).
+
+**Operator direction (at the Story-1 Planning gate, verbatim gist):** unconvinced of the best way to crunch the numbers; deliver stepwise so each step proves the math. (1) Selector on the Trust Determination Methods page — pipeline-global, Count only — stop and test. (2) Add Input (weighted sum of tagger rank scores) — test. (3) Add Certainty (input → convertInputToConfidence) — test. Rung 4 (certainty × agreement, dispute discounting: 50/50 equal-rank → 0, off the list) confirmed as the desired end state during the same conversation. Scores always-on stands. D12 confirmed Approved.
+
+**Classification:** Feature (ladder of small features)
+**Strictness:** Standard, per story
+
+## 2026-09-07 — Operator-controllable publish policy (external fan-out on/off)
+
+**Raw request (operator, at the treasure-map-user-assistant close):** "there are situations where
+I would like the ability to create something locally and have it show up on public relays… My
+idea is to have a setting somewhere where Vinney and I could turn this behaviour on and off."
+
+**Why this surfaced now.** The book-close gate went red on three `trusted-lists` suites whose
+`L0 GUARD` refuses to run live-publish tests unless the deployment is in local-only mode. That
+led to a provenance check with a result worth carrying into planning:
+
+- The guard itself (`BRAINSTORM_PUBLISH_LOCAL_ONLY`, event-tagging **ADR 0002**) is **opt-in,
+  default OFF** — "the default is external publishing, so existing deployments are unaffected
+  with no config change." Today it is settable only as deployment env / `brainstorm.conf`
+  (a container recreate), or per-machine via `docker-compose.override.yml`.
+- The "keep dev publishes off the live network **(recommended)**" section of
+  `docs/DEVELOPMENT.md` arrived in the same commit as the feature — `a412b0d4`, 2026-06-26,
+  Vinney Cavallo. It is a **recommendation**, never a ratified rule, and the operator never
+  opted in on this machine.
+- What made it feel like a rule: on **2026-08-27** the three `trusted-lists` suites turned that
+  recommendation into a hard precondition for a green full `npm test` (OPEN.md row 191).
+
+**The ask, restated:** a place where the operator (and Vinney) can turn external publishing on
+and off without a container recreate — the posture becoming operator-controlled state rather
+than deploy-time configuration.
+
+**Open questions — must be settled at Gate A / Planning, not assumed:**
+1. **Where does the setting live?** Settings UI (owner/admin-gated, like the existing
+   `settings.json` surfaces) vs env-only vs both — and if both, the precedence rule against the
+   existing env → `brainstorm.conf` → default chain in `src/api/publish-policy/`.
+2. **What precisely is "this behaviour"?** All external fan-out, or per-surface (tags/pins vs
+   Treasure Maps vs concept exports)? Per-relay-set? Global-only is the simplest honest scope.
+3. **Who may flip it, and is it per-deployment or per-user?** A user-level toggle on a shared
+   instance means one person's setting changes what another person's publish does.
+4. **Does the client's fail-open behaviour still hold?** `isExternalPublishAllowed()` caches at
+   module scope and fails open by design — a runtime-flippable setting needs a story for
+   staleness (a page loaded before the flip keeps the old posture until reload).
+5. **Do the three `trusted-lists` suites keep hard-failing, or skip?** The repo has a SKIP
+   precedent for environment-conditional tests (`strfry-write-assertion-bracket` H-class). This
+   is arguably a separate small story, but it is the friction that surfaced the request.
+
+**Classification:** Feature — but the requirements are genuinely unsettled (Q1–Q3 are product
+decisions with a security/safety edge: this setting governs whether signed events reach the
+public network irreversibly). **Recommend starting with `/discuss` or Product-Team Discovery
+rather than jumping to `/plan-feature`.**
+**Strictness:** Standard. Likely an ADR (auth/trust default + config-precedence change are
+irreversibility triggers).
+**Related:** OPEN.md rows 191; ADR `engineering-team/decisions/event-tagging/0002-global-publish-gate.md`;
+`docs/CONFIGURATION.md` § Publish policy; `docs/DEVELOPMENT.md` § Keep dev publishes off the live network.

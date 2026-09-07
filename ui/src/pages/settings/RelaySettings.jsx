@@ -10,6 +10,7 @@ const RELAY_GROUPS = [
   { key: 'aWotRelays', label: 'Web of Trust Relays', hint: 'Kinds 3, 1984, 1000', restart: false },
   { key: 'aTrustedAssertionRelays', label: 'Trusted Assertion Relays', hint: 'Kinds 30382–30385', restart: false },
   { key: 'aTrustedListRelays', label: 'Trusted List Relays', hint: 'Kinds 30392–30396', restart: false },
+  { key: 'aTapestryInstanceRelays', label: 'Tapestry Instance Relays', hint: 'Peer Tapestry / Brainstorm instances. Checked when reporting which relays hold your Treasure Map.', restart: false },
   { key: 'safeModeRelays', label: 'Safe Mode Relays', hint: 'Minimal set for safe mode operation', restart: false },
   { key: 'aOutboxRelays', label: 'Outbox Relays', hint: 'For outbox model publishing', restart: false },
   { key: 'aTagFederationRelays', label: 'Tag Federation Relays (read-union)', hint: 'Tag reads (the /tags index and profile tag chips) union events from these relays at read time. Empty = local-only (federation OFF). Add trusted relays to surface tags from across the network.', restart: false },

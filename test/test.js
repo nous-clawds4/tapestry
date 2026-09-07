@@ -241,6 +241,9 @@ const sharedByMe = require('./shared-by-me.test.js');
 // epic: shared-concepts-seeding — Story 2 (retire the offering vocabulary).
 const retireOfferingVocabulary = require('./retire-offering-vocabulary.test.js');
 const siteTrustSignals = require('./site-trust-signals.test.js');
+const tlMembershipMethodSelector = require('./tl-membership-method-selector.test.js');
+const tlWeightedSumMethod = require('./tl-weighted-sum-method.test.js');
+const tlCertaintyMethod = require('./tl-certainty-method.test.js');
 // epic: tl-treasure-map — Story 2 (Treasure-Map tags panel).
 const tlTreasureMapPanel = require('./tl-treasure-map-panel.test.js');
 // epic: tl-treasure-map — Story 3 (TL opt-in, preview, publish).
@@ -253,6 +256,12 @@ const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js')
 const notYetSharedFilter = require('./not-yet-shared-filter.test.js');
 // epic: shared-concepts-seeding — Story 4 (route from Shared by me to the not-yet-shared list).
 const shareFromSharedByMe = require('./share-from-shared-by-me.test.js');
+// epic: treasure-map-relay-presence — Story 1 (which relays hold the Treasure Map).
+const treasureMapRelayPresence = require('./treasure-map-relay-presence.test.js');
+// epic: treasure-map-relay-presence — Story 2 (per-relay Treasure Map sync).
+const treasureMapRelaySync = require('./treasure-map-relay-sync.test.js');
+// epic: treasure-map-relay-presence — Story 3 (scannable panel: status-light summary).
+const treasureMapPanelSummary = require('./treasure-map-panel-summary.test.js');
 // epic: relay-scan-bounds — Story 1 (bound the Simple Lists relay scans).
 const relayScanBounds = require('./relay-scan-bounds.test.js');
 
@@ -619,6 +628,9 @@ async function main() {
   console.log('\nretire-offering-vocabulary suite:');
   const retireOfferingVocabularyResult = await retireOfferingVocabulary.run();
   const siteTrustSignalsResult = await siteTrustSignals.run();
+  const tlMembershipMethodSelectorResult = await tlMembershipMethodSelector.run();
+  const tlWeightedSumMethodResult = await tlWeightedSumMethod.run();
+  const tlCertaintyMethodResult = await tlCertaintyMethod.run();
 
   console.log('\ntl-treasure-map-panel suite:');
   const tlTreasureMapPanelResult = await tlTreasureMapPanel.run();
@@ -636,6 +648,15 @@ async function main() {
   const honestBroadcastReportingResult = await honestBroadcastReporting.run();
   const notYetSharedFilterResult = await notYetSharedFilter.run();
   const shareFromSharedByMeResult = await shareFromSharedByMe.run();
+
+  console.log('\ntreasure-map-relay-presence suite:');
+  const treasureMapRelayPresenceResult = await treasureMapRelayPresence.run();
+
+  console.log('\ntreasure-map-relay-sync suite:');
+  const treasureMapRelaySyncResult = await treasureMapRelaySync.run();
+
+  console.log('\ntreasure-map-panel-summary suite:');
+  const treasureMapPanelSummaryResult = await treasureMapPanelSummary.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1120,6 +1141,9 @@ async function main() {
   console.log(`shared-by-me suite:                              ${sharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${sharedByMeResult.pass} passed, ${sharedByMeResult.fail} failed, ${sharedByMeResult.skipped} skipped)`);
   console.log(`retire-offering-vocabulary suite:                ${retireOfferingVocabularyResult.fail === 0 ? 'PASS' : 'FAIL'} (${retireOfferingVocabularyResult.pass} passed, ${retireOfferingVocabularyResult.fail} failed, ${retireOfferingVocabularyResult.skipped} skipped)`);
   console.log(`site-trust-signals suite:                        ${siteTrustSignalsResult.fail === 0 ? 'PASS' : 'FAIL'} (${siteTrustSignalsResult.pass} passed, ${siteTrustSignalsResult.fail} failed, ${siteTrustSignalsResult.skipped} skipped)`);
+  console.log(`tl-membership-method-selector suite:             ${tlMembershipMethodSelectorResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlMembershipMethodSelectorResult.pass} passed, ${tlMembershipMethodSelectorResult.fail} failed, ${tlMembershipMethodSelectorResult.skipped} skipped)`);
+  console.log(`tl-weighted-sum-method suite:                    ${tlWeightedSumMethodResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlWeightedSumMethodResult.pass} passed, ${tlWeightedSumMethodResult.fail} failed, ${tlWeightedSumMethodResult.skipped} skipped)`);
+  console.log(`tl-certainty-method suite:                       ${tlCertaintyMethodResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlCertaintyMethodResult.pass} passed, ${tlCertaintyMethodResult.fail} failed, ${tlCertaintyMethodResult.skipped} skipped)`);
   console.log(`tl-treasure-map-panel suite:                     ${tlTreasureMapPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapPanelResult.pass} passed, ${tlTreasureMapPanelResult.fail} failed, ${tlTreasureMapPanelResult.skipped} skipped)`);
   console.log(`tl-treasure-map-optin-publish suite:             ${tlTreasureMapOptinResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapOptinResult.pass} passed, ${tlTreasureMapOptinResult.fail} failed, ${tlTreasureMapOptinResult.skipped} skipped)`);
   console.log(`neo4j-sizing-override suite:                     ${neo4jSizingOverrideResult.fail === 0 ? 'PASS' : 'FAIL'} (${neo4jSizingOverrideResult.pass} passed, ${neo4jSizingOverrideResult.fail} failed, ${neo4jSizingOverrideResult.skipped} skipped)`);
@@ -1133,6 +1157,9 @@ async function main() {
       : `${notYetSharedFilterResult.fail === 0 ? 'PASS' : 'FAIL'} (${notYetSharedFilterResult.pass} passed, ${notYetSharedFilterResult.fail} failed${notYetSharedFilterResult.skipped ? `, ${notYetSharedFilterResult.skipped} skipped` : ''})`;
   console.log(`not-yet-shared-filter suite:                     ${notYetSharedFilterLine}`);
   console.log(`share-from-shared-by-me suite:                   ${shareFromSharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${shareFromSharedByMeResult.pass} passed, ${shareFromSharedByMeResult.fail} failed)`);
+  console.log(`treasure-map-relay-presence suite:               ${treasureMapRelayPresenceResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapRelayPresenceResult.pass} passed, ${treasureMapRelayPresenceResult.fail} failed)`);
+  console.log(`treasure-map-relay-sync suite:                   ${treasureMapRelaySyncResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapRelaySyncResult.pass} passed, ${treasureMapRelaySyncResult.fail} failed)`);
+  console.log(`treasure-map-panel-summary suite:                ${treasureMapPanelSummaryResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapPanelSummaryResult.pass} passed, ${treasureMapPanelSummaryResult.fail} failed)`);
 
   const overallOk =
     configOk &&
@@ -1338,6 +1365,9 @@ async function main() {
     // shared-concepts-seeding #2 — the vocabulary guard
     retireOfferingVocabularyResult.fail === 0 &&
     siteTrustSignalsResult.fail === 0 &&
+    tlMembershipMethodSelectorResult.fail === 0 &&
+    tlWeightedSumMethodResult.fail === 0 &&
+    tlCertaintyMethodResult.fail === 0 &&
     // tl-treasure-map #2 — Treasure-Map tags panel
     tlTreasureMapPanelResult.fail === 0 &&
     // tl-treasure-map #3 — TL opt-in, preview, publish
@@ -1351,6 +1381,9 @@ async function main() {
     notYetSharedFilterResult.fail === 0 &&
     // shared-concepts-seeding #4 — route from Shared by me to the not-yet-shared list
     shareFromSharedByMeResult.fail === 0 &&
+    treasureMapRelayPresenceResult.fail === 0 &&
+    treasureMapRelaySyncResult.fail === 0 &&
+    treasureMapPanelSummaryResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1400,6 +1433,8 @@ async function main() {
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
     publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
     stateOnConceptPageResult, sharedByMeResult, honestBroadcastReportingResult,
+    retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult, tlCertaintyMethodResult,
+    retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
     relayScanBoundsResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
