@@ -1,6 +1,6 @@
 # Story 3: Make the presence panel scannable
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-07
 **Type:** Feature
 
@@ -100,4 +100,4 @@ relays should shout louder than that, the precedence is a one-line change.
 
 - ADR: `engineering-team/decisions/treasure-map-relay-presence/0003-scannable-presence-panel.md`
 - Test plan: `engineering-team/stories/treasure-map-relay-presence/3-scannable-presence-panel.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/treasure-map-relay-presence/3-scannable-presence-panel.md`

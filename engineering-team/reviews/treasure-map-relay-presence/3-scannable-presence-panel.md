@@ -154,19 +154,90 @@ behavior, not implementation details of a caution line. Accepted; recorded as no
 
 None this story.
 
+## Round 1 outcome — `CHANGES_REQUESTED`
+
+Both blocking findings above were returned to the Implementer. They were the same problem from
+opposite ends: this story's whole purpose is to let a user *safely* stop looking at the panel.
+Blocking 1 meant some users could no longer look at it at all; blocking 2 meant the helper that
+decides "nothing to see here" could say so about rows it never examined.
+
+## Round 2 — re-audit after the fixes (commit `d7988bd7`)
+
+**Blocking 1 — resolved.** The header now carries `role="button"`, `tabIndex={0}`,
+`aria-expanded` tracking the open state, an `aria-label` carrying the current status, and an
+`onKeyDown` handling Enter and Space with `preventDefault` (so Space cannot scroll the page).
+Verified in the live DOM: `{tag: DIV, tabIndex: 0, role: "button", ariaExpanded: "false",
+ariaLabel: "Where this Map lives — ○ 3 relays do not have it", keyboardReachable: true}`, and the
+handler toggles correctly when invoked (`▸ → ▾`, `aria-expanded false → true`).
+
+**Verification limit, stated plainly:** end-to-end keypress could **not** be exercised. The
+Browser pane delivers no keyboard events to the page at all — with the element confirmed focused
+immediately before and after, `computer{action:"key"}` produced zero keydowns on the element *and*
+zero on a capture-phase `document` listener; `computer{action:"type"}` likewise. So the evidence
+is handler-logic-by-invocation plus focusability/ARIA-by-DOM-read, not a real keystroke. Filed as
+**OPEN.md row 196**, including the note that the first observation looks exactly like a broken
+handler until a raw listener shows the event never arrived.
+
+**Blocking 2 — resolved, and the fix needed a second pass.** `summarizePresence` now counts an
+unjudged row explicitly (`counts.unjudged`), so the tally always sums to `total` and the level can
+no longer fall through to `ok` over a row nothing judged.
+
+The placement mattered, and the Implementer caught a regression they had introduced in the first
+attempt: with `unjudged` at the same rank as `pending`, the false all-clear was fixed but the
+ordinary panel case — local missing the Map, relays holding it — went from `missing` to a
+`checking` that never resolves. It now sits **below every real finding and above the all-clear**.
+Re-measured across seven panel-realistic inputs:
+
+| Input | Level | Tally |
+|---|---|---|
+| helper alone: no local + one present relay | `checking` (was `ok`) | complete |
+| helper alone: no local + present + absent | `missing` | complete |
+| PANEL: local absent, one relay has it | `missing` | complete |
+| PANEL: local absent, all relays have it | `missing` | complete |
+| PANEL: healthy, everything agrees | `ok` | complete |
+| PANEL: one divergent while pending | `divergent` | complete |
+| empty | `ok`, total 0 | complete |
+
+The ADR's normative ordering is preserved and no level was added to the vocabulary — `unjudged`
+maps onto the existing `checking`, so the ADR's "adding a level is a coordinated change" clause is
+not triggered.
+
+**Non-blocking 1 — resolved.** Every doc block again immediately precedes the function it
+documents (checked mechanically across all six exports); `counts.pending += 0` is gone.
+
+**Regression surface, enumerated rather than assumed.** The changed modules are referenced by
+seven suites; all seven were run post-fix and are green: `treasure-map-panel-summary` 18/18,
+`treasure-map-relay-sync` 22/22, `treasure-map-relay-presence` 35/35, `tl-treasure-map-panel`
+18/18, `tl-treasure-map-optin-publish` 23/23, `treasure-maps-router-preset` 5/5,
+`scheduled-search-and-house-scores-refresh` 12/12. The background full-gate run was started
+*before* these fixes and so does not validate them; it is disregarded rather than cited, and the
+enumerated seven stand in its place. The three `trusted-lists` failures of OPEN.md row 191 remain
+unrelated and pre-existing (proven at story 1's review).
+
+### Residual non-blocking (round 2)
+
+1. A helper-only input consisting solely of unjudged rows yields `checking`, which the panel would
+   render as "⏳ checking N locations…" perpetually. Unreachable from the panel (every panel case
+   above resolves to a real finding), and it errs toward "incomplete picture" rather than a false
+   all-clear — the safe direction. Worth a dedicated level if a second caller ever appears.
+2. `aria-controls` is not set on the disclosure. Correct ARIA without it; adding it would let a
+   screen reader jump straight to the region.
+3. `M8` remains weaker than it should be — it asserts what the level is *not*, never what it *is*,
+   which is why the round-1 defect passed the suite. Tester-lane strengthening on the next touch.
+
 ## Verdict
 
-**CHANGES_REQUESTED**
+**PASS**
 
-The feature works, is well-tested where it is testable, and the precedence table — this story's
-substance — is implemented exactly as ratified and confirmed in the rendered output. Neither
-blocking finding is about that.
+Both blocking findings are fixed, re-verified by the reviewer rather than accepted on report, and
+the fix to the second one was itself checked for the regression it could have introduced — which
+it had, and which was caught before this round. The precedence table remains exactly as ratified,
+the disclosure is now a real control, and the regression surface is enumerated and green.
 
-They are both about the same thing from opposite ends: this story's whole purpose is to let a user
-*safely* stop looking at the panel. Blocking 1 means some users can no longer look at it at all,
-and blocking 2 means the helper that decides "nothing to see here" can say so about rows it never
-examined. Shipping a status light requires that the light be reachable and that it never lie; the
-rest of the diff is ready.
+The one thing this review cannot claim is a real keystroke, and that is a harness limitation with
+its own ledger row rather than an unknown about the code.
 
-Both asks are small and local. No re-architecture, no new tests required beyond the `M8`
-strengthening noted above (Tester lane, not a gate on this fix).
+## On PASS (same commit)
+
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection performed; result reported in chat, not recorded here.
