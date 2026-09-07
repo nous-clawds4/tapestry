@@ -2,11 +2,18 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
-import { queryRelay } from '../../api/relay';
+import { queryRelayBounded } from '../../api/relay';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
+
+/**
+ * How many items this page renders at once. The relay can hold far more than a
+ * table is any use for — staging carries ~473,000 — so we ask for a bounded set
+ * and say plainly how much of the whole it is.
+ */
+const ITEMS_LIMIT = 500;
 
 function getTag(event, name, index = 1) {
   const tag = event.tags?.find(t => t[0] === name);
@@ -38,6 +45,8 @@ export default function DListItemsList() {
   // Filters
   const [kindFilter, setKindFilter] = useState('');
   const [authorFilter, setAuthorFilter] = useState('');
+  const [total, setTotal] = useState(0);
+  const [truncated, setTruncated] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,8 +55,12 @@ export default function DListItemsList() {
       try {
         setLoading(true);
         setError(null);
-        const events = await queryRelay({ kinds: [9999, 39999] });
-        if (!cancelled) setItems(events);
+        const res = await queryRelayBounded({ kinds: [9999, 39999], limit: ITEMS_LIMIT });
+        if (!cancelled) {
+          setItems(res.events);
+          setTotal(res.total);
+          setTruncated(res.truncated);
+        }
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -229,6 +242,7 @@ export default function DListItemsList() {
         {filteredRows.length === rows.length
           ? `${rows.length} items`
           : `${filteredRows.length} of ${rows.length} items`}
+        {truncated && ` · showing the ${rows.length} most recent of ${total.toLocaleString()} on the relay`}
       </p>
 
       <DataTable
@@ -236,6 +250,7 @@ export default function DListItemsList() {
         data={filteredRows}
         onRowClick={(row) => navigate(`/tapestry/lists/items/${encodeURIComponent(row.routeId)}`)}
         emptyMessage="No DList items match your filters"
+        pageSize={50}
       />
     </div>
   );
