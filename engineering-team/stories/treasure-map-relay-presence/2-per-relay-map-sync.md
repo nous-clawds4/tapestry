@@ -110,6 +110,6 @@ cheaply rather than discovered later:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/treasure-map-relay-presence/0002-per-relay-map-sync.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
