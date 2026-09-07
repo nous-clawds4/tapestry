@@ -1,6 +1,6 @@
 # Story 2: Sync the Treasure Map with one relay
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-07
 **Type:** Feature
 
@@ -112,4 +112,4 @@ cheaply rather than discovered later:
 
 - ADR: `engineering-team/decisions/treasure-map-relay-presence/0002-per-relay-map-sync.md`
 - Test plan: `engineering-team/stories/treasure-map-relay-presence/2-per-relay-map-sync.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/treasure-map-relay-presence/2-per-relay-map-sync.md`
