@@ -98,6 +98,6 @@ relays should shout louder than that, the precedence is a one-line change.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/treasure-map-relay-presence/0003-scannable-presence-panel.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
