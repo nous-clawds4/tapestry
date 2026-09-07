@@ -19,6 +19,11 @@
       "wss://nip85.brainstorm.world",
       "wss://dcosl.brainstorm.world"
     ],
+    "aTapestryInstanceRelays": [
+      "wss://tapestry.brainstorm.world/relay",
+      "wss://staging.brainstorm.world/relay",
+      "wss://tags.brainstorm.world/relay"
+    ],
     "aWotRelays": [
       "wss://wot.grapevine.network"
     ],

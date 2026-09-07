@@ -110,3 +110,63 @@ export function upsertGenericTlTag(event, kind, pubkey, relay) {
     tags,
   };
 }
+
+/* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */
+
+/**
+ * The relays to check for a Map, unioned from the named `aRelays` groups.
+ *
+ * Group KEYS are policy (which kinds of relay are worth checking); the URLs inside them are
+ * configuration the operator edits at Home > Settings > Relays. A relay listed in two groups
+ * yields one row carrying both labels. Order follows `groupKeys`, then position within a group.
+ *
+ * Never throws: a missing, empty, or malformed group is skipped, so bad config degrades the
+ * panel to fewer rows rather than taking the page down.
+ *
+ * @param {Object|null} aRelays  the settings relay map (from useConfig)
+ * @param {string[]} groupKeys   which groups to union
+ * @returns {Array<{url: string, groups: string[]}>}
+ */
+export function buildPresenceTargets(aRelays, groupKeys) {
+  const byUrl = new Map();
+  for (const key of (Array.isArray(groupKeys) ? groupKeys : [])) {
+    const group = aRelays && aRelays[key];
+    if (!Array.isArray(group)) continue;
+    for (const raw of group) {
+      if (typeof raw !== 'string') continue;
+      const url = raw.trim();
+      if (!/^wss?:\/\/.+/i.test(url)) continue;
+      const existing = byUrl.get(url);
+      if (existing) {
+        if (!existing.groups.includes(key)) existing.groups.push(key);
+      } else {
+        byUrl.set(url, { url, groups: [key] });
+      }
+    }
+  }
+  return Array.from(byUrl.values());
+}
+
+/**
+ * How a relay's copy relates to the Map on screen.
+ *
+ * Kind 10040 is replaceable, so "does this relay have it" is not a yes/no: a relay may hold a
+ * different version, and a relay serving a stale one silently advertises a delegation the user
+ * has already changed.
+ *
+ * @param {Object|null} displayed  the event being shown ({ id, created_at })
+ * @param {Object|null} found      what the relay returned ({ id, created_at })
+ * @returns {'same'|'older'|'newer'|'divergent'|null}
+ *   `divergent` = a different event with the SAME timestamp — real, and no order can honestly
+ *   be claimed. `null` when either side is missing.
+ */
+export function compareMapVersions(displayed, found) {
+  if (!displayed || !found) return null;
+  if (typeof displayed.id !== 'string' || typeof found.id !== 'string') return null;
+  if (displayed.id === found.id) return 'same';
+  const mine = Number(displayed.created_at) || 0;
+  const theirs = Number(found.created_at) || 0;
+  if (theirs < mine) return 'older';
+  if (theirs > mine) return 'newer';
+  return 'divergent';
+}

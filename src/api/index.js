@@ -81,6 +81,7 @@ const { handleEventCheck, handleEventUpdate, handleEventUuids } = require('./neo
 const { handleFetchProfiles } = require('./profiles/fetchProfiles.js');
 const { handleFetchExternalReactions } = require('./reactions/fetchReactions.js');
 const { handleFetchExternalEvents } = require('./relay/fetchEvents.js');
+const { handleRelayPresence } = require('./relay/presence.js');
 const { handleGetFeed } = require('./feed/feedReadPath.js');
 const { handleGetUserNotes } = require('./notes/userNotesReadPath.js');
 const { handleGetProfileContent } = require('./notes/profileContentReadPath.js');
@@ -307,6 +308,7 @@ async function register(app) {
     // Reactions (external relay query)
     app.get('/api/reactions/external', handleFetchExternalReactions);
     app.get('/api/relay/external', handleFetchExternalEvents);
+    app.get('/api/relay/presence', handleRelayPresence);
 
     // Live-feed read path (public, read-only) — Story live-feed #1, ADR live-feed/0001
     app.get('/api/feed', handleGetFeed);
