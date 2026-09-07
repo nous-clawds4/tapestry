@@ -60,7 +60,7 @@ reviewed here is the *current* state of story 2's code, including two fixes no r
 what the relay serves afterwards instead. The ADR did not describe this, because the reason for it
 was discovered *after* the ADR was accepted: `SimplePool.publish()` returns an array of promises,
 and `publishToRelays` races that non-thenable array against its timeout, so every publish reports
-success unconditionally (OPEN.md row 194, verified in-container).
+success unconditionally (OPEN.md row 200, verified in-container).
 
 Reviewer's assessment: **the deviation is required, not optional.** AC-2's "given the publish
 fails, then the row says so" is unsatisfiable through `successes`, so an implementation that
