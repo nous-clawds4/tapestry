@@ -186,6 +186,59 @@ export function compareMapVersions(displayed, found) {
  *   `push` = send local's copy out; `pull` = bring the relay's copy back.
  *   A null direction always carries a reason: `in-sync`, `divergent`, or `nothing-to-sync`.
  */
+/**
+ * One-line verdict over a set of relay row states — the panel's status light.
+ *
+ * Names the most serious finding rather than counting coverage: one relay serving a STALE Map
+ * is worse than three relays not having it, because a missing Map means a reader finds nothing
+ * while a stale one points them at a delegation the user may already have revoked.
+ *
+ * Precedence (ADR treasure-map-relay-presence/0003 § Decision):
+ *   1. divergent   — any relay holds a different version
+ *   2. checking    — else, any relay has not answered yet
+ *   3. missing     — else, any relay lacks the Map
+ *   4. unreachable — else, any relay could not be reached
+ *   5. ok          — else
+ *
+ * Note that `divergent` sits ABOVE `checking` while everything else sits below it. That is not
+ * an oversight: a divergence is already true and no later answer can revoke it, so reporting it
+ * early is honest — whereas a missing count can still fall and an all-clear can be withdrawn,
+ * so both must wait for the check to finish.
+ *
+ * Never throws: it runs on every render.
+ *
+ * @param {Object|null} localEvent  local strfry's copy, the comparison base
+ * @param {Array<{status: string, event: Object|null}>} rowStates  one per reported location
+ * @returns {{level: string, counts: Object}}
+ */
+export function summarizePresence(localEvent, rowStates) {
+  const rows = Array.isArray(rowStates) ? rowStates : [];
+  const counts = { divergent: 0, missing: 0, unreachable: 0, agreeing: 0, pending: 0, total: rows.length };
+
+  for (const row of rows) {
+    const status = row && typeof row.status === 'string' ? row.status : 'pending';
+    if (status === 'unreachable') counts.unreachable++;
+    else if (status === 'absent') counts.missing++;
+    else if (status === 'present') {
+      // With nothing local to differ from, a relay's copy is not a divergence — and it is not
+      // agreement either, since there is no local version for it to agree with.
+      const rel = compareMapVersions(localEvent, row.event);
+      if (rel === null) counts.pending += 0;
+      else if (rel === 'same') counts.agreeing++;
+      else counts.divergent++;
+    } else counts.pending++;
+  }
+
+  let level;
+  if (counts.divergent > 0) level = 'divergent';
+  else if (counts.pending > 0) level = 'checking';
+  else if (counts.missing > 0) level = 'missing';
+  else if (counts.unreachable > 0) level = 'unreachable';
+  else level = 'ok';
+
+  return { level, counts };
+}
+
 export function planRelaySync(localEvent, relayEvent) {
   const hasLocal = !!(localEvent && typeof localEvent.id === 'string');
   const hasRelay = !!(relayEvent && typeof relayEvent.id === 'string');

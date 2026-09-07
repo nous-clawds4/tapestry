@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useConfig } from '../../context/ConfigContext';
-import { buildPresenceTargets, compareMapVersions, planRelaySync } from '../../utils/treasureMap';
+import { buildPresenceTargets, compareMapVersions, planRelaySync, summarizePresence } from '../../utils/treasureMap';
 import { publishToRelays, publishToLocalStrfry, isExternalPublishAllowed } from '../../utils/nostrPublish';
 
 /**
@@ -33,6 +33,27 @@ const GROUP_LABELS = {
 
 // Enough parallelism to fill the panel promptly without starving the page's other requests.
 const CONCURRENCY = 4;
+
+// The closed panel's status light. Wording and colour are presentation and live here; the
+// precedence that picks between them is logic and lives in summarizePresence().
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const SUMMARY = {
+  divergent: {
+    color: '#f59e0b',
+    text: (c) => `⚠️ ${plural(c.divergent, 'relay has', 'relays have')} a different version`
+      + (c.missing > 0 ? ` · ${c.missing} missing` : ''),
+  },
+  checking: { color: 'inherit', text: (c) => `⏳ checking ${c.total} locations…` },
+  missing: {
+    color: 'inherit',
+    text: (c) => `○ ${plural(c.missing, 'relay does', 'relays do')} not have it`,
+  },
+  unreachable: {
+    color: 'inherit',
+    text: (c) => `⛔ ${plural(c.unreachable, 'relay', 'relays')} could not be reached`,
+  },
+  ok: { color: '#3fb950', text: (c) => `● all ${c.total} in sync` },
+};
 
 function relayLabel(url) {
   return url.replace(/^wss?:\/\//i, '');
@@ -72,6 +93,9 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
   const [rows, setRows] = useState({});
   const [syncing, setSyncing] = useState({});
   const [canPublishOut, setCanPublishOut] = useState(true); // fail-open, matching the helper
+  // Default closed — the panel is ten rows tall and on a healthy day every row says the same
+  // thing. Matches the page's sibling disclosure (TreasureMapManualEdit.jsx:22).
+  const [open, setOpen] = useState(false);
 
   // ConfigContext starts aRelays at null and fills it from /api/relays. Until it lands we know
   // nothing about the relay set — which is NOT the same as knowing it is empty, and saying
@@ -189,9 +213,15 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
     }
   }, [event, probeOne, confirmSync, onMapReplaced]);
 
-  const settled = targets.filter(t => rows[t.url] && rows[t.url].status !== 'pending');
-  const holding = settled.filter(t => rows[t.url].status === 'present').length;
-  const done = settled.length === targets.length && targets.length > 0;
+  const done = targets.every(t => rows[t.url] && rows[t.url].status !== 'pending') && targets.length > 0;
+
+  // The local row is one of the reported locations and the comparison base, so it belongs in the
+  // verdict — a summary that skipped it would disagree with the rows beneath it.
+  const summary = summarizePresence(localEvent, [
+    { status: inLocal ? 'present' : 'absent', event: localEvent },
+    ...targets.map(t => rows[t.url] || { status: 'pending', event: null }),
+  ]);
+  const light = SUMMARY[summary.level] || SUMMARY.checking;
 
   return (
     <div style={{
@@ -201,17 +231,27 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
       borderRadius: '6px',
       marginBottom: '1rem',
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-        <h4 style={{ margin: 0, fontSize: '0.85rem' }}>Where this Map lives</h4>
+      {/* Header is the disclosure control AND the status light. The rows collapse; this never
+          does — a light you have to open the panel to see is not a light. */}
+      <div
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+          cursor: 'pointer', marginBottom: open ? '0.5rem' : 0,
+        }}
+      >
+        <h4 style={{ margin: 0, fontSize: '0.85rem' }}>
+          {open ? '▾' : '▸'} Where this Map lives
+        </h4>
         {targets.length > 0 && (
-          <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-            {done
-              ? `${holding + (inLocal ? 1 : 0)} of ${targets.length + 1} hold a copy`
-              : `checking ${targets.length} relays…`}
+          <span style={{ fontSize: '0.75rem', color: light.color }}>
+            {light.text(summary.counts)}
           </span>
         )}
       </div>
 
+      {open && (
+      <>
       {/* Local strfry — known already from the page's own lookup, so it needs no request. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.6rem',
@@ -301,17 +341,26 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
               </button>
             )}
 
+            {/* The version's age is what distinguishes a stale copy worth overwriting from a
+                newer one worth pulling, so it is text, not a tooltip. */}
             <span style={{ color, fontSize: '0.78rem', minWidth: '9rem', textAlign: 'right' }} title={detail}>
               {text}
+              {detail && (
+                <span style={{ display: 'block', fontSize: '0.66rem', opacity: 0.55, fontWeight: 400 }}>
+                  {detail}
+                </span>
+              )}
             </span>
           </div>
         );
       })}
 
-      {done && holding === 0 && !inLocal && (
+      {done && summary.counts.agreeing === 0 && (
         <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.5rem' }}>
           No relay checked is serving this Map — other people's clients will not find it.
         </div>
+      )}
+      </>
       )}
     </div>
   );
