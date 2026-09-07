@@ -23,6 +23,7 @@ const { pathToFileURL } = require('url');
 const UTIL = path.resolve(__dirname, '../ui/src/utils/treasureMap.js');
 const CARD = path.resolve(__dirname, '../ui/src/pages/grapevine/TlOptInCard.jsx');
 const PAGE = path.resolve(__dirname, '../ui/src/pages/grapevine/TrustedAssertions.jsx');
+const MANUAL = path.resolve(__dirname, '../ui/src/pages/grapevine/TreasureMapManualEdit.jsx');
 const NOSTR_PUBLISH = path.resolve(__dirname, '../ui/src/utils/nostrPublish.js');
 const PUBLISH_PROFILE_TAG = path.resolve(__dirname, '../ui/src/utils/publishProfileTag.js');
 
@@ -215,30 +216,59 @@ test('S6: failures surface in the card without corrupting page state', () => {
 
 /* ── S (story 4): manual-editor section ────────────────────── */
 
-test('S7: the hand-edit toggle exists with the exact title, in both card states, keyed to re-seed', () => {
-  const card = safeRead(CARD);
-  assert(card.includes('Update your kind 10040 event Treasure Map by hand'),
-    'AC-1: the toggle title, verbatim');
-  assert(/<textarea/.test(card), 'AC-2: an editable field');
-  assert(/key=\{event\.id\}/.test(card),
-    'E1: the section is keyed on event.id so a refreshed event re-seeds the editor and drops stale edits');
-  const mounts = (card.match(/<ManualEditSection/g) || []).length;
-  assert(mounts >= 2, `AC-1: mounted in both card states (found ${mounts} mount(s))`);
+test('S7: the hand-edit panel is its own module, mounted by the PAGE and keyed to re-seed', () => {
+  const manual = safeRead(MANUAL);
+  const page = safeRead(PAGE);
+  assert(manual.length > 0,
+    'story 2 AC-1: ui/src/pages/grapevine/TreasureMapManualEdit.jsx must exist');
+  assert(manual.includes('Update your kind 10040 event Treasure Map by hand'),
+    'AC-1 (story 4): the toggle title, verbatim');
+  assert(/<textarea/.test(manual), 'AC-2 (story 4): an editable field');
+  assert(/import\s+TreasureMapManualEdit/.test(page) && /<TreasureMapManualEdit/.test(page),
+    'story 2 AC-1: the page mounts the editor itself — availability must not depend on the opt-in card');
+  assert(/<TreasureMapManualEdit[^>]*key=\{event\.id\}/.test(page),
+    'E1: the page mount is keyed on event.id so a refreshed event re-seeds and drops stale edits');
+  assert(/<TreasureMapManualEdit[^>]*onPublished=\{search\}/.test(page),
+    'story 2 E1: a manual publish re-runs the page search (the re-seed that discards stale edits)');
 });
 
 test('S8: the editor seeds from the found event verbatim and gates publish on dirty text', () => {
-  const card = safeRead(CARD);
-  assert(/JSON\.stringify\(event,\s*null,\s*2\)/.test(card),
+  const manual = safeRead(MANUAL);
+  assert(/JSON\.stringify\(event,\s*null,\s*2\)/.test(manual),
     'AC-2: the baseline is the CURRENT found event (id/sig included), not the derived preview');
-  assert(card.includes('Publish updated event'), 'AC-3: the publish button, verbatim');
-  assert(/text\s*!==\s*baseline|baseline\s*!==\s*text/.test(card),
+  assert(manual.includes('Publish updated event'), 'AC-3: the publish button, verbatim');
+  assert(/text\s*!==\s*baseline|baseline\s*!==\s*text/.test(manual),
     'AC-3/E3: the button appears only when the text differs from the original (textual dirty gate)');
+  assert(/getActiveSignerOrThrow/.test(manual) && /publishOrThrow/.test(manual),
+    'AC-4 (story 4): drift-guarded signing + the both-fail-throws publish contract survive the move');
 });
 
 test('S9: the manual publish path composes via the helper with its own error surface', () => {
+  const manual = safeRead(MANUAL);
+  assert(/composeManualUpdate/.test(manual) && /from\s+'\.\.\/\.\.\/utils\/treasureMap'/.test(manual),
+    'AC-4/AC-5: the editor module imports and uses composeManualUpdate from the shared util');
+  assert(/[Ee]rror/.test(manual) && /catch/.test(manual),
+    'AC-5 (story 4): parse/sign/publish failures render in the section, not thrown at the page');
+});
+
+test('S10: the opt-in card carries NO hand-edit affordance, and page order puts the editor last', () => {
   const card = safeRead(CARD);
-  assert(/composeManualUpdate/.test(card) && /from\s+'\.\.\/\.\.\/utils\/treasureMap'/.test(card),
-    'AC-4/AC-5: the card imports and uses composeManualUpdate from the shared util');
+  const page = safeRead(PAGE);
+  // The coupling pin (story 2): the escape hatch needs only a found event, so it
+  // must never live inside the most-conditional panel on the page again.
+  assert(!card.includes('Update your kind 10040 event Treasure Map by hand'),
+    'story 2 AC-2: the hand-edit toggle must not live in the opt-in card');
+  assert(!/<textarea/.test(card) && !/ManualEditSection/.test(card) && !/composeManualUpdate/.test(card),
+    'story 2 AC-2: no editor markup, mount, or helper import left in the opt-in card');
+  const at = (needle) => page.indexOf(needle);
+  assert(at('<TreasureMapTagsPanel') < at('Show raw event')
+      && at('Show raw event') < at('<TlOptInCard')
+      && at('<TlOptInCard') < at('<TreasureMapManualEdit'),
+    'story 2 AC-4: page order is entries -> raw event -> Trusted Lists panel -> hand edit');
+  // Anchor on the not-found branch's own headline, not on the string "Not found":
+  // a same-named code comment lives far above, inside search().
+  assert(at('<TreasureMapManualEdit') < at('No Trusted Assertions event found'),
+    'story 2 AC-6: the editor is inside the found-Map block — nothing to hand-edit when no Map was found');
 });
 
 /* ── R: regression sentinels (pass before and after) ───────── */
