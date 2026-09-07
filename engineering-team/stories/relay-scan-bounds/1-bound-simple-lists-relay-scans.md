@@ -1,6 +1,6 @@
 # Story 1: Simple Lists pages must work on a large relay
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-09-07
 **Type:** Bug
 
