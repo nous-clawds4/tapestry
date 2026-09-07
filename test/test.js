@@ -258,6 +258,8 @@ const notYetSharedFilter = require('./not-yet-shared-filter.test.js');
 const shareFromSharedByMe = require('./share-from-shared-by-me.test.js');
 // epic: treasure-map-relay-presence — Story 1 (which relays hold the Treasure Map).
 const treasureMapRelayPresence = require('./treasure-map-relay-presence.test.js');
+// epic: treasure-map-relay-presence — Story 2 (per-relay Treasure Map sync).
+const treasureMapRelaySync = require('./treasure-map-relay-sync.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -642,6 +644,9 @@ async function main() {
 
   console.log('\ntreasure-map-relay-presence suite:');
   const treasureMapRelayPresenceResult = await treasureMapRelayPresence.run();
+
+  console.log('\ntreasure-map-relay-sync suite:');
+  const treasureMapRelaySyncResult = await treasureMapRelaySync.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1142,6 +1147,7 @@ async function main() {
   console.log(`not-yet-shared-filter suite:                     ${notYetSharedFilterLine}`);
   console.log(`share-from-shared-by-me suite:                   ${shareFromSharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${shareFromSharedByMeResult.pass} passed, ${shareFromSharedByMeResult.fail} failed)`);
   console.log(`treasure-map-relay-presence suite:               ${treasureMapRelayPresenceResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapRelayPresenceResult.pass} passed, ${treasureMapRelayPresenceResult.fail} failed)`);
+  console.log(`treasure-map-relay-sync suite:                   ${treasureMapRelaySyncResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapRelaySyncResult.pass} passed, ${treasureMapRelaySyncResult.fail} failed)`);
 
   const overallOk =
     configOk &&
@@ -1363,6 +1369,7 @@ async function main() {
     // shared-concepts-seeding #4 — route from Shared by me to the not-yet-shared list
     shareFromSharedByMeResult.fail === 0 &&
     treasureMapRelayPresenceResult.fail === 0 &&
+    treasureMapRelaySyncResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&

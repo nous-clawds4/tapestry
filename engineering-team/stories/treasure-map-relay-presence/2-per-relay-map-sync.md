@@ -111,5 +111,5 @@ cheaply rather than discovered later:
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/treasure-map-relay-presence/0002-per-relay-map-sync.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/treasure-map-relay-presence/2-per-relay-map-sync.test-plan.md`
 - Review: (filled in after Review phase)
