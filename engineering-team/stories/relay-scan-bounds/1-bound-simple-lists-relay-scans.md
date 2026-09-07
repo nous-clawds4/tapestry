@@ -49,8 +49,11 @@ the most data in them.
       2026-09-07), when an operator opens **List Headers**, then the page renders its table of
       list headers with no error message.
 - [ ] Given that same deployment, when an operator reads any row's **Items** count, then the
-      number shown is the true count of items belonging to that list — exact, not capped,
-      not approximate.
+      number shown is the true count of items belonging to that list — exact, not capped, not
+      approximate. An item belonging to two lists counts in **both** rows.
+- [ ] Given a set of lists that share items, when an operator reads the page **total**, then each
+      item is counted **once** across all lists. Two lists of 10 sharing 5 items read as "10",
+      "10", and a total of 15 — the per-list counts deliberately do not sum to the total.
 - [ ] Given that same deployment, when an operator opens **List Items**, then the page renders
       a bounded set of items with no error, and states on screen both how many it is showing
       and how many exist in total (e.g. "showing 500 of 473,101"). A truncated view is never
@@ -61,8 +64,11 @@ the most data in them.
       successful result or an explicit refusal naming what to do instead. It never receives a
       `maxBuffer` failure, and never a result that is quietly partial or quietly empty.
 - [ ] Given a deployment holding far fewer items than the bound (prod and local as of
-      2026-09-07, ~9,000), when an operator opens either page, then both show the same
-      information they show today: the same Items counts and the same set of items.
+      2026-09-07, ~9,000), when an operator opens either page, then neither errors and **List
+      Items** shows the same set of items it shows today. Counts follow the two criteria above,
+      which corrects them where today's page is wrong — measured on the local relay: 7 of 28
+      counted rows read higher, and the total reads 9,368 rather than 9,497 once items belonging
+      to no list stop being counted.
 
 ## Concepts touched
 
@@ -97,7 +103,15 @@ Handles are per-deployment; `<TA>` is the local Tapestry Assistant pubkey, resol
   Architecture — the story constrains only that the number shown and the true total are both
   on screen, not what the bound is.
 
+**Resolved 2026-09-07 (at the Architecture gate).** Architecture measured that the page's
+current attribution rule — first `z` tag, else first `e` — is an artifact of `getTag()` rather
+than a design, and undercounts every item belonging to more than one list (427 of 9,497 items
+locally). The operator specified the intended semantics: per-list counts are set membership (an
+item in two lists counts in both); the page total is the union (that item counts once). Criteria
+2, 3 and 6 above are the amended form. See
+`engineering-team/decisions/relay-scan-bounds/0001-bounded-scan-contract-and-grouped-tally.md`.
+
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/relay-scan-bounds/0001-bounded-scan-contract-and-grouped-tally.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
