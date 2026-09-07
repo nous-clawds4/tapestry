@@ -42,12 +42,32 @@ function countMatching(filter) {
 }
 
 /**
+ * Decide what a finished read should report.
+ *
+ * Split out because the interesting case is the one that is awkward to reach
+ * from the outside: we stopped early AND could not learn the true total. The
+ * read still *knows* it stopped, so the honest answer is "partial, size
+ * unknown" — never "complete". Passing the bounded length off as the total
+ * would produce "showing 500 of 500, truncated", and dropping the truncation
+ * flag would recreate the silent partial this endpoint exists to remove.
+ *
+ * @param {{bounded: boolean, counted: number|null, received: number}} o
+ * @returns {{total: number|null, truncated: boolean}}
+ */
+function resolveTotal({ bounded, counted, received }) {
+  if (!bounded) return { total: received, truncated: false };
+  if (counted === null) return { total: null, truncated: true };
+  return { total: counted, truncated: counted > received };
+}
+
+/**
  * GET /api/strfry/scan?filter=<json-filter>
  * Returns { success: true, events, count, total, truncated, limit }.
  *
  * `events` and `count` keep their original meaning, so callers that read only
- * those are unaffected. `total` is the true number of matching events and
- * `truncated` says whether `events` is all of them.
+ * those are unaffected. `truncated` says whether `events` is all of them.
+ * `total` is the true number of matching events, or **null** when the read was
+ * bounded and the count could not be read — unknown, never guessed.
  */
 function handleStrfryScan(req, res) {
   const filterParam = req.query.filter || '{}';
@@ -116,21 +136,22 @@ function handleStrfryScan(req, res) {
     }
 
     // Reading to the end IS the total; only a bounded read has to go ask.
-    let total = events.length;
-    if (bounded) {
-      const counted = await countMatching(filter);
-      if (counted !== null) total = counted;
-    }
+    const counted = bounded ? await countMatching(filter) : null;
+    const { total, truncated } = resolveTotal({
+      bounded,
+      counted,
+      received: events.length,
+    });
 
     res.json({
       success: true,
       events,
       count: events.length,
       total,
-      truncated: total > events.length,
+      truncated,
       limit: effectiveLimit,
     });
   });
 }
 
-module.exports = { handleStrfryScan, SCAN_MAX_EVENTS, SCAN_MAX_BYTES };
+module.exports = { handleStrfryScan, resolveTotal, SCAN_MAX_EVENTS, SCAN_MAX_BYTES };
