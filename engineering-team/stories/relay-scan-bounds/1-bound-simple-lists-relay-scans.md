@@ -111,6 +111,35 @@ item in two lists counts in both); the page total is the union (that item counts
 2, 3 and 6 above are the amended form. See
 `engineering-team/decisions/relay-scan-bounds/0001-bounded-scan-contract-and-grouped-tally.md`.
 
+## Deviations
+
+Judgment calls made during implementation, logged for the book-close audit.
+
+- **Corrected a stale bullet in ADR 0001's implementation notes.** One line still
+  described the superseded generic-tally sketch
+  (`/api/strfry/scan/tally?...&groupBy=z,e`), contradicting the ADR's own Decision
+  section and its `src/api/dlists/itemCounts.js` bullet. An en-dash in the source
+  text made an earlier edit miss it. Editorial only — no decision changed.
+- **Tightened one test assertion rather than degrading the code to satisfy it.**
+  `U3` required `/limit:\s*\d+/`, a literal digit, which forbade the named
+  constant the ADR itself specifies (`ITEMS_LIMIT = 500`). The assertion now
+  accepts either form *and* additionally requires `ITEMS_LIMIT = <number>` to
+  exist — strictly stronger than what it replaced, not weaker.
+- **`DataTable` gets `pageSize={50}` on List Items.** The ADR called for the
+  component's opt-in pagination; 50 rows per page is the concrete value. 500 rows
+  in one table is technically fine but unpleasant to read.
+
+## Found, not fixed (out of scope)
+
+- **`useProfiles` batches an unbounded pubkey set into a querystring**, so
+  `GET /api/profiles?pubkeys=…` returns **400** on any page with many distinct
+  authors. Same class as this story's bug — an unbounded request — but a
+  different endpoint, and neither the story nor the ADR covers it. Measured on
+  the local relay: List Items used to send **4,506** authors (~293 KB of URL) and
+  now sends **221** (~14 KB). So this story improves it about 20× and does not
+  resolve it; both exceed the ~8 KB limit. It degrades gracefully — author names
+  fall back to truncated pubkeys. Worth its own story.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-scan-bounds/0001-bounded-scan-contract-and-grouped-tally.md`
 - Test plan: `engineering-team/stories/relay-scan-bounds/1-bound-simple-lists-relay-scans.test-plan.md`

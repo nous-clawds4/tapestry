@@ -327,7 +327,9 @@ test('U3: List Items requests a bounded set and states the total when truncated'
   assert(src, 'ui/src/pages/events/DListItemsList.jsx unreadable');
   assert(!/queryRelay\(\{\s*kinds:\s*\[9999,\s*39999\]\s*\}\)/.test(src),
     'AC-4: this page makes the same unbounded request and fails the same way');
-  assert(/limit:\s*\d+/.test(src), 'AC-4: it must ask for a bounded set explicitly');
+  assert(/limit:\s*(\d+|ITEMS_LIMIT)/.test(src), 'AC-4: it must ask for a bounded set explicitly');
+  assert(/ITEMS_LIMIT\s*=\s*\d+/.test(src),
+    'AC-4: the bound must be a named constant with a numeric value (ADR: ITEMS_LIMIT = 500)');
   assert(/truncated/.test(src) && /total/.test(src),
     'AC-4: it must render "showing N of M" from the response\'s truncated/total — ' +
     'a truncated view is never presented as complete');

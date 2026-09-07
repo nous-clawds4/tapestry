@@ -289,9 +289,10 @@ makes it a domain endpoint rather than a generic tally primitive.
   caller keeps working unchanged.
 
 - **`ui/src/pages/lists/Index.jsx`** — drop the `queryRelay({ kinds: [9999, 39999] })` at line
-  66 and the `itemCountMap` at lines 87–99. Fetch `/api/strfry/scan/tally?filter=
-  {"kinds":[9999,39999]}&groupBy=z,e` instead and read `tallies[parentRef]`. The `parentRef`
-  construction at lines 111–118 is unchanged, and so is every rendered value.
+  66 and the `itemCountMap` at lines 87–99. Fetch `/api/dlists/item-counts` instead and read
+  `counts[parentRef]`. The `parentRef` construction at lines 111–118 is unchanged. The subtitle
+  at line 236 changes from `{items.length} items` to the endpoint's `totalItems` — the union,
+  per the ratified rule.
 
 - **`ui/src/pages/events/DListItemsList.jsx`** — change line 49 to
   `queryRelayBounded({ kinds: [9999, 39999], limit: ITEMS_LIMIT })` with `ITEMS_LIMIT = 500`.
