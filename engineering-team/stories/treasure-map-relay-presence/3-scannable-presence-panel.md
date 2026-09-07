@@ -99,5 +99,5 @@ relays should shout louder than that, the precedence is a one-line change.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/treasure-map-relay-presence/0003-scannable-presence-panel.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/treasure-map-relay-presence/3-scannable-presence-panel.test-plan.md`
 - Review: (filled in after Review phase)

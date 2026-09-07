@@ -260,6 +260,8 @@ const shareFromSharedByMe = require('./share-from-shared-by-me.test.js');
 const treasureMapRelayPresence = require('./treasure-map-relay-presence.test.js');
 // epic: treasure-map-relay-presence — Story 2 (per-relay Treasure Map sync).
 const treasureMapRelaySync = require('./treasure-map-relay-sync.test.js');
+// epic: treasure-map-relay-presence — Story 3 (scannable panel: status-light summary).
+const treasureMapPanelSummary = require('./treasure-map-panel-summary.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -647,6 +649,9 @@ async function main() {
 
   console.log('\ntreasure-map-relay-sync suite:');
   const treasureMapRelaySyncResult = await treasureMapRelaySync.run();
+
+  console.log('\ntreasure-map-panel-summary suite:');
+  const treasureMapPanelSummaryResult = await treasureMapPanelSummary.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1148,6 +1153,7 @@ async function main() {
   console.log(`share-from-shared-by-me suite:                   ${shareFromSharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${shareFromSharedByMeResult.pass} passed, ${shareFromSharedByMeResult.fail} failed)`);
   console.log(`treasure-map-relay-presence suite:               ${treasureMapRelayPresenceResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapRelayPresenceResult.pass} passed, ${treasureMapRelayPresenceResult.fail} failed)`);
   console.log(`treasure-map-relay-sync suite:                   ${treasureMapRelaySyncResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapRelaySyncResult.pass} passed, ${treasureMapRelaySyncResult.fail} failed)`);
+  console.log(`treasure-map-panel-summary suite:                ${treasureMapPanelSummaryResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapPanelSummaryResult.pass} passed, ${treasureMapPanelSummaryResult.fail} failed)`);
 
   const overallOk =
     configOk &&
@@ -1370,6 +1376,7 @@ async function main() {
     shareFromSharedByMeResult.fail === 0 &&
     treasureMapRelayPresenceResult.fail === 0 &&
     treasureMapRelaySyncResult.fail === 0 &&
+    treasureMapPanelSummaryResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
