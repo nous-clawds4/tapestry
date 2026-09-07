@@ -5,6 +5,7 @@ import { useCypher } from '../../hooks/useCypher';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import TreasureMapTagsPanel from './TreasureMapTagsPanel';
 import TlOptInCard from './TlOptInCard';
+import TreasureMapManualEdit from './TreasureMapManualEdit';
 
 const KIND_TRUSTED_ASSERTIONS = 10040;
 
@@ -252,6 +253,12 @@ export default function TrustedAssertions() {
           <div style={{ marginTop: '1rem' }}>
             <TlOptInCard event={event} onPublished={search} />
           </div>
+
+          {/* Hand-edit escape hatch (tl-treasure-map #4), mounted here rather
+              than inside the card (treasure-map-user-assistant #2): it needs
+              only a found event, so no state of the delegation panel — including
+              the card withholding itself entirely — can make it unreachable. */}
+          <TreasureMapManualEdit key={event.id} event={event} onPublished={search} />
         </div>
       )}
 

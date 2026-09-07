@@ -32,6 +32,10 @@ instead of **his own**. Fix: the delegate everywhere in the Treasure-Map surface
       corrected to the signed-in user's Assistant.
 - [ ] **Recovery path holds:** the team member's owner-TA entry will read **external** after
       the fix, re-prompt him, and be replaced in place per ADR 0001 §3.
+- [x] **Hand-edit reachable** *(operator addition, 2026-09-07)*: the "Update ... by hand" panel is
+      available to every viewer of a found Map — mounted by the page, not nested inside the
+      delegation card, so no card state (including the null-assistant case story 1 introduced)
+      can withhold it.
 - [ ] **Ledger:** escaped-defect row 188 minted (attributed to tl-treasure-map for the trial
       record) and DONE with the fix pointer.
 
