@@ -21,6 +21,8 @@ every customer (the fix).
 `stories/treasure-map-user-assistant/`:
 1. `1-per-user-assistant-delegate.md` — swap the delegate source, badge semantics, null safety,
    copy/spec corrections, suite re-aims. Bug, Light lane.
+2. `2-manual-edit-available-to-all.md` — hoist the hand-edit panel out of the opt-in card so
+   every viewer of a found Map can reach it (operator report 2026-09-07). Bug, Light lane.
 
 ## Decisions
 None — no irreversibility trigger (the ADR-0001 wire convention is untouched and already
