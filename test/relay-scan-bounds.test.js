@@ -23,6 +23,11 @@
  *   E (endpoint)   — GET /api/dlists/item-counts. Live HTTP. FAIL until implemented.
  *   U (ui)         — structural pins on the two pages and the relay client.
  *                    FAIL until implemented.
+ *   D (degraded)   — what a bounded read reports when it CANNOT learn the true
+ *                    total. Added at review: the happy paths were covered and
+ *                    this one was not, which is how a silent-partial response
+ *                    survived a green suite. See
+ *                    engineering-team/reviews/relay-scan-bounds/1-*.md Blocking 1-2.
  *   R (regression) — green BEFORE and AFTER: the guard must not disturb the
  *                    scan siblings or the callers this story never touches.
  *
@@ -340,6 +345,64 @@ test('U4: the relay client exposes the bounded envelope without changing queryRe
   assert(src, 'ui/src/api/relay.js unreadable');
   assert(/truncated/.test(src) && /total/.test(src),
     'AC-4: a caller needs total/truncated, which queryRelay currently discards (it returns data.events)');
+});
+
+/* ── D: the degraded path — bounded, but the total is unknowable ──────────── */
+
+/** The truncation decision, isolated so the unknowable-total branch is testable
+ *  without breaking strfry. Pinned at review; see Blocking 1-2. */
+function loadResolveTotal() {
+  try { return require(SCAN_JS).resolveTotal; } catch { return null; }
+}
+
+test('D1: a read that finished is complete — total is what came back', () => {
+  const resolveTotal = loadResolveTotal();
+  assert(typeof resolveTotal === 'function',
+    'src/api/strfry/queries/scan.js must export resolveTotal({bounded, counted, received}) ' +
+    '-> { total, truncated } — the truncation decision, separable from the stream');
+  const r = resolveTotal({ bounded: false, counted: null, received: 42 });
+  assert(r.total === 42, `a completed read totals what it returned; got ${r.total}`);
+  assert(r.truncated === false, 'a completed read is not truncated');
+});
+
+test('D2: a bounded read reports the true total and says it is truncated', () => {
+  const resolveTotal = loadResolveTotal();
+  assert(typeof resolveTotal === 'function', 'resolveTotal not exported (see D1)');
+  const r = resolveTotal({ bounded: true, counted: 473101, received: 500 });
+  assert(r.total === 473101, `AC-4: the true total must survive; got ${r.total}`);
+  assert(r.truncated === true, 'AC-4: 500 of 473,101 is truncated');
+});
+
+test('D3: a bound hit at exactly the match size is NOT truncated', () => {
+  const resolveTotal = loadResolveTotal();
+  assert(typeof resolveTotal === 'function', 'resolveTotal not exported (see D1)');
+  const r = resolveTotal({ bounded: true, counted: 5, received: 5 });
+  assert(r.truncated === false,
+    'asking for 5 when exactly 5 exist stops at the bound but hides nothing — ' +
+    'reporting it truncated would be a false alarm');
+  assert(r.total === 5, `got ${r.total}`);
+});
+
+test('D4: a bounded read whose total cannot be read NEVER claims to be complete', () => {
+  const resolveTotal = loadResolveTotal();
+  assert(typeof resolveTotal === 'function', 'resolveTotal not exported (see D1)');
+  const r = resolveTotal({ bounded: true, counted: null, received: 500 });
+  assert(r.truncated === true,
+    'AC-5: the read stopped early — that is known for certain. If the count is ' +
+    'unavailable the response must still say the set is partial. Reporting ' +
+    'truncated:false here is the silent-partial failure this whole story exists to remove');
+  assert(r.total !== 500,
+    'AC-5: and it must not pass the bounded length off as the true total — ' +
+    '"showing 500 of 500, truncated" is a contradiction. Report the total as unknown (null)');
+  assert(r.total === null, `an unknowable total is null, not a guess; got ${r.total}`);
+});
+
+test('D5: List Items renders a truncated set whose total is unknown, without crashing', () => {
+  const src = safeRead(LIST_ITEMS_JSX);
+  assert(src, 'ui/src/pages/events/DListItemsList.jsx unreadable');
+  assert(!/\btotal\.toLocaleString\(\)/.test(src),
+    'AC-4: total can be null when it could not be read (D4), so an unguarded ' +
+    'total.toLocaleString() would throw and blank the page on exactly the degraded path');
 });
 
 /* ── R: regression pins — green BEFORE and AFTER ──────────────────────────── */
