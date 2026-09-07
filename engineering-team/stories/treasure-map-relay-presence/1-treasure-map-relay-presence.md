@@ -1,6 +1,6 @@
 # Story 1: Show which relays hold the Treasure Map
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-07
 **Type:** Feature
 
@@ -117,4 +117,4 @@ list that omits the Tapestry instances does not answer the request. Two facts to
 
 - ADR: `engineering-team/decisions/treasure-map-relay-presence/0001-per-relay-presence-probe.md`
 - Test plan: `engineering-team/stories/treasure-map-relay-presence/1-treasure-map-relay-presence.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/treasure-map-relay-presence/1-treasure-map-relay-presence.md`
