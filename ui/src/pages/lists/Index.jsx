@@ -42,7 +42,7 @@ export default function DListsIndex() {
   const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
   const navigate = useNavigate();
   const [headers, setHeaders] = useState([]);
-  const [items, setItems] = useState([]);
+  const [itemCounts, setItemCounts] = useState({ counts: {}, totalItems: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -60,16 +60,22 @@ export default function DListsIndex() {
         setLoading(true);
         setError(null);
 
-        // Fetch headers, items, and Neo4j uuids in parallel
-        const [hdrs, itms, neo4jRes] = await Promise.all([
+        // Headers, per-list item counts, and Neo4j uuids in parallel.
+        // The counts come from the server: this page needs one number per row
+        // and a total, not the items themselves — fetching them all is what
+        // used to fail once a relay held more than the scan buffer.
+        const [hdrs, countsRes, neo4jRes] = await Promise.all([
           queryRelay({ kinds: [9998, 39998] }),
-          queryRelay({ kinds: [9999, 39999] }),
+          fetch('/api/dlists/item-counts').then(r => r.json()).catch(() => ({})),
           fetch('/api/neo4j/event-uuids').then(r => r.json()).catch(() => ({ uuids: [] })),
         ]);
 
         if (!cancelled) {
           setHeaders(hdrs);
-          setItems(itms);
+          setItemCounts({
+            counts: countsRes.counts || {},
+            totalItems: countsRes.totalItems || 0,
+          });
           setNeo4jUuids(new Set(neo4jRes.uuids || []));
         }
       } catch (err) {
@@ -82,21 +88,6 @@ export default function DListsIndex() {
     fetchData();
     return () => { cancelled = true; };
   }, []);
-
-  // Build item count map: parentRef -> count
-  const itemCountMap = useMemo(() => {
-    const map = new Map();
-    for (const item of items) {
-      // Items point to their parent via "z" tag (kind 39999) or "e" tag (kind 9999)
-      const zRef = getTag(item, 'z');
-      const eRef = getTag(item, 'e');
-      const ref = zRef || eRef;
-      if (ref) {
-        map.set(ref, (map.get(ref) || 0) + 1);
-      }
-    }
-    return map;
-  }, [items]);
 
   // Transform headers into table rows
   const rows = useMemo(() => {
@@ -114,7 +105,7 @@ export default function DListsIndex() {
         parentRef = ev.id;
       }
 
-      const itemCount = itemCountMap.get(parentRef) || 0;
+      const itemCount = itemCounts.counts[parentRef] || 0;
 
       // Route ID: use a-tag for 39998, event id for 9998
       const routeId = ev.kind === 39998 ? parentRef : ev.id;
@@ -136,7 +127,7 @@ export default function DListsIndex() {
         inNeo4j: neo4jUuids.has(uuid),
       };
     });
-  }, [headers, itemCountMap, neo4jUuids]);
+  }, [headers, itemCounts, neo4jUuids]);
 
   // Derive filter options from all rows (before filtering)
   const kindOptions = useMemo(() => {
@@ -233,7 +224,7 @@ export default function DListsIndex() {
         <div>
           <h1>📋 Simple Lists (DLists)</h1>
           <p className="subtitle">
-            {headers.length} list headers · {items.length} items · from local strfry
+            {headers.length} list headers · {itemCounts.totalItems} items · from local strfry
           </p>
         </div>
         <button className="btn-primary" onClick={() => navigate('/tapestry/lists/new')}>
