@@ -186,7 +186,7 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
         // Deliberately NOT trusting result.successes. SimplePool.publish() returns an ARRAY of
         // promises, and publishToRelays races that non-thenable array against its timeout — so
         // the race resolves instantly and every publish is reported as a success, whatever the
-        // relay did (OPEN.md row 194). Asking the relay what it now holds is the only honest
+        // relay did (OPEN.md row 200). Asking the relay what it now holds is the only honest
         // signal, and the confirmation below is therefore the real check, not a formality.
       } else {
         // Pull: take the event the probe already verified, then import it locally.

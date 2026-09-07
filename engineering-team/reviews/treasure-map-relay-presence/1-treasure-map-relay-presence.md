@@ -198,11 +198,11 @@ None.
 
 Both already filed by the Implementer; the Reviewer confirms each independently:
 
-1. **OPEN.md row 192** — CLAUDE.md § House rules claims the repo is bind-mounted into the
+1. **OPEN.md row 198** — CLAUDE.md § House rules claims the repo is bind-mounted into the
    `tapestry` container ("source edits are live"). Confirmed false: `HostConfig.Binds` carries no
    repo path and `docker-compose.yml:30-34` declares only named volumes. The real deploy is
    `docker cp` + `supervisorctl restart`, per the cycle-local skill.
-2. **OPEN.md row 193** — `/cycle-local` step 1 fails in a fresh worktree (`vite: command not
+2. **OPEN.md row 199** — `/cycle-local` step 1 fails in a fresh worktree (`vite: command not
    found`); the skill's comment claims the flow works "in any checkout or worktree". Row 193 also
    records the non-obvious trap that root `.gitignore:41` uses `node_modules/` (directory-only),
    so the symlink workaround leaves an entry a `git add -A` would commit — verified via
