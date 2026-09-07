@@ -143,4 +143,4 @@ Judgment calls made during implementation, logged for the book-close audit.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-scan-bounds/0001-bounded-scan-contract-and-grouped-tally.md`
 - Test plan: `engineering-team/stories/relay-scan-bounds/1-bound-simple-lists-relay-scans.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/relay-scan-bounds/1-bound-simple-lists-relay-scans.md`
