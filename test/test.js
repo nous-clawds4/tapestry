@@ -174,6 +174,8 @@ const relationshipPrimitivesProbe = require('./relationship-primitives-probe.tes
 // epic: graph-curation-ui — Story 1 (place/move nodes between sets from the concept pages).
 const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
 const siteTrustSignals = require('./site-trust-signals.test.js');
+// epic: relay-scan-bounds — Story 1 (bound the Simple Lists relay scans).
+const relayScanBounds = require('./relay-scan-bounds.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -470,6 +472,8 @@ async function main() {
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
   const siteTrustSignalsResult = await siteTrustSignals.run();
+  console.log('\nrelay-scan-bounds suite:');
+  const relayScanBoundsResult = await relayScanBounds.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -810,6 +814,7 @@ async function main() {
       ? `SKIP (${moveNodesBetweenSetsUiResult.skipped} tests; preconditions not met)`
       : `${moveNodesBetweenSetsUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${moveNodesBetweenSetsUiResult.pass} passed, ${moveNodesBetweenSetsUiResult.fail} failed${moveNodesBetweenSetsUiResult.skipped ? `, ${moveNodesBetweenSetsUiResult.skipped} skipped` : ''})`;
   console.log(`move-nodes-between-sets-ui suite:                ${moveNodesBetweenSetsUiLine}`);
+  console.log(`relay-scan-bounds suite:                         ${relayScanBoundsResult.fail === 0 ? 'PASS' : 'FAIL'} (${relayScanBoundsResult.pass} passed, ${relayScanBoundsResult.fail} failed, ${relayScanBoundsResult.skipped} skipped)`);
 
   const overallOk =
     configOk &&
@@ -949,6 +954,7 @@ async function main() {
     relationshipPrimitivesProbeResult.fail === 0 &&
     // graph-curation-ui #1 — place/move nodes between sets UI
     // (LIVE chain — before the severed terminator; OPEN.md #43).
+    relayScanBoundsResult.fail === 0 &&
     moveNodesBetweenSetsUiResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
@@ -991,6 +997,7 @@ async function main() {
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     siteTrustSignalsResult,
+    relayScanBoundsResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
