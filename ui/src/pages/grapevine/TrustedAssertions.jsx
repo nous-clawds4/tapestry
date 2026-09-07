@@ -196,6 +196,7 @@ export default function TrustedAssertions() {
             inLocal={inLocal}
             onImportLocal={importToLocal}
             importing={importingLocal}
+            onMapReplaced={search}
           />
 
           {/* Map entries — one row per tag (tl-treasure-map #2) */}

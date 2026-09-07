@@ -170,3 +170,37 @@ export function compareMapVersions(displayed, found) {
   if (theirs > mine) return 'newer';
   return 'divergent';
 }
+
+/**
+ * Which way, if any, a sync between local strfry and one relay should go.
+ *
+ * `localEvent` is what LOCAL holds — not necessarily what the page is displaying. When the Map
+ * was found on an external relay rather than locally, local holds nothing and the caller must
+ * pass null (ADR treasure-map-relay-presence/0002 § Decision).
+ *
+ * Never throws: it runs during render, once per row.
+ *
+ * @param {Object|null} localEvent  local strfry's copy ({ id, created_at }) or null
+ * @param {Object|null} relayEvent  the relay's copy ({ id, created_at }) or null
+ * @returns {{direction: 'push'|'pull'|null, reason: string|null}}
+ *   `push` = send local's copy out; `pull` = bring the relay's copy back.
+ *   A null direction always carries a reason: `in-sync`, `divergent`, or `nothing-to-sync`.
+ */
+export function planRelaySync(localEvent, relayEvent) {
+  const hasLocal = !!(localEvent && typeof localEvent.id === 'string');
+  const hasRelay = !!(relayEvent && typeof relayEvent.id === 'string');
+
+  if (!hasLocal && !hasRelay) return { direction: null, reason: 'nothing-to-sync' };
+  if (hasLocal && !hasRelay) return { direction: 'push', reason: null };
+  if (!hasLocal && hasRelay) return { direction: 'pull', reason: null };
+
+  switch (compareMapVersions(localEvent, relayEvent)) {
+    case 'same': return { direction: null, reason: 'in-sync' };
+    case 'older': return { direction: 'push', reason: null };
+    case 'newer': return { direction: 'pull', reason: null };
+    // Equal created_at, different id. Neither copy is "more recent", so no honest direction
+    // label exists — and NIP-01 breaks such a tie by lowest id, so a push might silently
+    // no-op. Report it and offer nothing rather than guess on the user's behalf.
+    default: return { direction: null, reason: 'divergent' };
+  }
+}

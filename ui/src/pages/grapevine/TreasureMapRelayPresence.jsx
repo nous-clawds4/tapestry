@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useConfig } from '../../context/ConfigContext';
-import { buildPresenceTargets, compareMapVersions } from '../../utils/treasureMap';
+import { buildPresenceTargets, compareMapVersions, planRelaySync } from '../../utils/treasureMap';
+import { publishToRelays, publishToLocalStrfry, isExternalPublishAllowed } from '../../utils/nostrPublish';
 
 /**
  * Where does this Treasure Map actually live? — ADR treasure-map-relay-presence/0001.
@@ -66,9 +67,11 @@ function describe(row, displayed) {
   }
 }
 
-export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal, importing }) {
+export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal, importing, onMapReplaced }) {
   const { aRelays } = useConfig();
   const [rows, setRows] = useState({});
+  const [syncing, setSyncing] = useState({});
+  const [canPublishOut, setCanPublishOut] = useState(true); // fail-open, matching the helper
 
   // ConfigContext starts aRelays at null and fills it from /api/relays. Until it lands we know
   // nothing about the relay set — which is NOT the same as knowing it is empty, and saying
@@ -80,6 +83,25 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
     [aRelays]
   );
   const targetsKey = targets.map(t => t.url).join(',');
+
+  // One per-relay probe path, shared by the opening fan-out and by the re-check after a sync.
+  // `full` opts into the whole signed event (needed to import a relay's newer copy); the default
+  // stays the narrow projection.
+  const probeOne = useCallback(async (url, { full = false } = {}) => {
+    try {
+      const res = await fetch(
+        `/api/relay/presence?relay=${encodeURIComponent(url)}`
+        + `&pubkey=${encodeURIComponent(event.pubkey)}&kind=${encodeURIComponent(event.kind)}`
+        + (full ? '&full=1' : '')
+      );
+      const data = await res.json();
+      return data?.success
+        ? { status: data.status, event: data.event, error: data.error }
+        : { status: 'unreachable', event: null, error: data?.error || 'request failed' };
+    } catch (err) {
+      return { status: 'unreachable', event: null, error: err?.message || 'request failed' };
+    }
+  }, [event?.pubkey, event?.kind]);
 
   useEffect(() => {
     if (!event?.pubkey || targets.length === 0) return;
@@ -96,26 +118,57 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
         const i = cursor++;
         if (i >= targets.length) return;
         const { url } = targets[i];
-        let outcome;
-        try {
-          const res = await fetch(
-            `/api/relay/presence?relay=${encodeURIComponent(url)}`
-            + `&pubkey=${encodeURIComponent(event.pubkey)}&kind=${encodeURIComponent(event.kind)}`
-          );
-          const data = await res.json();
-          outcome = data?.success
-            ? { status: data.status, event: data.event, error: data.error }
-            : { status: 'unreachable', event: null, error: data?.error || 'request failed' };
-        } catch (err) {
-          outcome = { status: 'unreachable', event: null, error: err?.message || 'request failed' };
-        }
+        const outcome = await probeOne(url);
         if (!cancelled) setRows(prev => ({ ...prev, [url]: outcome }));
       }
     }
     for (let w = 0; w < CONCURRENCY; w++) worker();
 
     return () => { cancelled = true; };
-  }, [event?.id, event?.pubkey, event?.kind, targetsKey]);
+  }, [event?.id, event?.pubkey, event?.kind, targetsKey, probeOne]);
+
+  // Whether this deployment permits publishing outward at all. Read once and reflected in the
+  // affordance, so a suppressed action is visible BEFORE it is pressed rather than after.
+  useEffect(() => {
+    let cancelled = false;
+    isExternalPublishAllowed().then(v => { if (!cancelled) setCanPublishOut(v); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // What LOCAL holds — not what the page is displaying. When the Map was found on an external
+  // relay, local holds nothing, and every row's direction must be judged against that.
+  const localEvent = inLocal ? event : null;
+
+  const runSync = useCallback(async (url, direction) => {
+    setSyncing(prev => ({ ...prev, [url]: { busy: true, error: null, note: null } }));
+    try {
+      if (direction === 'push') {
+        const result = await publishToRelays(event, [url]);
+        if (result?.skippedByGate) {
+          setSyncing(prev => ({ ...prev, [url]: { busy: false, error: null, note: 'kept local — external publishing is off for this instance' } }));
+          return;
+        }
+        if (!result?.successes?.length) {
+          throw new Error('the relay did not accept it (your browser may not be able to reach it)');
+        }
+      } else {
+        // Pull: take the event the probe already verified, then import it locally.
+        const fresh = await probeOne(url, { full: true });
+        if (fresh.status !== 'present' || !fresh.event) {
+          throw new Error(fresh.error || 'the relay no longer has a copy to fetch');
+        }
+        const local = await publishToLocalStrfry(fresh.event);
+        if (!local?.success) throw new Error(local?.error || 'local import failed');
+        if (onMapReplaced) onMapReplaced();
+      }
+      const after = await probeOne(url);
+      setRows(prev => ({ ...prev, [url]: after }));
+      setSyncing(prev => ({ ...prev, [url]: { busy: false, error: null, note: null } }));
+    } catch (err) {
+      // Scoped to this row on purpose: one relay's failure must not disturb any other row.
+      setSyncing(prev => ({ ...prev, [url]: { busy: false, error: err?.message || 'sync failed', note: null } }));
+    }
+  }, [event, probeOne, onMapReplaced]);
 
   const settled = targets.filter(t => rows[t.url] && rows[t.url].status !== 'pending');
   const holding = settled.filter(t => rows[t.url].status === 'present').length;
@@ -178,6 +231,13 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
       {targets.map((t, idx) => {
         const row = rows[t.url];
         const [symbol, color, text, detail] = describe(row, event);
+        const busy = syncing[t.url] || {};
+        // Only a settled, reachable row can be synced; a pending or unreachable relay has
+        // nothing to converge with.
+        const settledRow = row && row.status !== 'pending' && row.status !== 'unreachable';
+        const plan = settledRow ? planRelaySync(localEvent, row.event) : { direction: null, reason: null };
+        const blockedByPolicy = plan.direction === 'push' && !canPublishOut;
+
         return (
           <div
             key={t.url}
@@ -192,6 +252,36 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
             <span style={{ fontSize: '0.68rem', opacity: 0.4 }}>
               {t.groups.map(g => GROUP_LABELS[g] || g).join(' · ')}
             </span>
+
+            {plan.reason === 'divergent' && (
+              <span style={{ fontSize: '0.68rem', color: '#f59e0b' }} title="Same timestamp, different event — neither is newer">
+                can't be ordered
+              </span>
+            )}
+            {busy.note && (
+              <span style={{ fontSize: '0.68rem', opacity: 0.6 }}>{busy.note}</span>
+            )}
+            {busy.error && (
+              <span style={{ fontSize: '0.68rem', color: '#f85149' }} title={busy.error}>sync failed</span>
+            )}
+            {blockedByPolicy && (
+              <span style={{ fontSize: '0.68rem', opacity: 0.5 }} title="This instance is configured to keep publishing local-only">
+                external publishing off
+              </span>
+            )}
+            {plan.direction && !blockedByPolicy && (
+              <button
+                className="btn btn-sm"
+                onClick={() => runSync(t.url, plan.direction)}
+                disabled={busy.busy}
+                style={{ fontSize: '0.68rem' }}
+              >
+                {busy.busy
+                  ? '⏳ Syncing…'
+                  : plan.direction === 'push' ? '📤 Send my version' : '📥 Get the newer version'}
+              </button>
+            )}
+
             <span style={{ color, fontSize: '0.78rem', minWidth: '9rem', textAlign: 'right' }} title={detail}>
               {text}
             </span>

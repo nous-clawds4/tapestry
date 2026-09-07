@@ -49,14 +49,24 @@ async function handleRelayPresence(req, res, deps = {}) {
     result = { status: 'unreachable', event: null, error: err && err.message ? err.message : String(err) };
   }
 
+  // `full=1` opts into the whole signed event, which the sync path needs in order to import a
+  // relay's newer copy (ADR 0002). ADDITIVE on purpose: the default stays the narrow projection,
+  // because that narrowing was a deliberate decision, not an oversight.
+  //
+  // The event handed back is the one probeRelayForEvent already signature-verified — the caller
+  // must never re-fetch it unverified, which is the whole reason `full` lives on this endpoint
+  // rather than being a second request.
+  const full = query.full === '1' || query.full === 'true';
+
   // A relay-level failure is a 200 carrying the status: the row needs the outcome, and a
   // non-2xx would conflate transport with what the relay said.
   return res.json({
     success: true,
     relay,
     status: result.status,
-    // Only what the caller renders. The full event is already on the caller's screen.
-    event: result.event ? { id: result.event.id, created_at: result.event.created_at } : null,
+    event: result.event
+      ? (full ? result.event : { id: result.event.id, created_at: result.event.created_at })
+      : null,
     error: result.error || null,
   });
 }
