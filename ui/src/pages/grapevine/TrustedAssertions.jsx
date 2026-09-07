@@ -6,6 +6,7 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import TreasureMapTagsPanel from './TreasureMapTagsPanel';
 import TlOptInCard from './TlOptInCard';
 import TreasureMapManualEdit from './TreasureMapManualEdit';
+import TreasureMapRelayPresence from './TreasureMapRelayPresence';
 
 const KIND_TRUSTED_ASSERTIONS = 10040;
 
@@ -187,34 +188,16 @@ export default function TrustedAssertions() {
             </div>
           </div>
 
-          {/* Local strfry status */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '0.75rem 1rem',
-            backgroundColor: 'var(--bg-primary, #0f0f23)',
-            border: '1px solid var(--border, #444)',
-            borderRadius: '6px',
-            marginBottom: '1rem',
-          }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Local Strfry:</span>
-            {inLocal ? (
-              <span style={{ color: '#3fb950' }}>● Present</span>
-            ) : (
-              <>
-                <span style={{ opacity: 0.6 }}>○ Not present</span>
-                <button
-                  className="btn btn-sm btn-primary"
-                  onClick={importToLocal}
-                  disabled={importingLocal}
-                  style={{ fontSize: '0.75rem', marginLeft: '0.5rem' }}
-                >
-                  {importingLocal ? '⏳ Importing…' : '📥 Import to local strfry'}
-                </button>
-              </>
-            )}
-          </div>
+          {/* Relay presence — local strfry plus every configured relay a reader might check
+              (treasure-map-relay-presence #1). Owns its own state and its own requests, so a
+              slow or failing check cannot delay or block anything below it. */}
+          <TreasureMapRelayPresence
+            event={event}
+            inLocal={inLocal}
+            onImportLocal={importToLocal}
+            importing={importingLocal}
+            onMapReplaced={search}
+          />
 
           {/* Map entries — one row per tag (tl-treasure-map #2) */}
           <div style={{ marginBottom: '1rem' }}>
