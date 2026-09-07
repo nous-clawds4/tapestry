@@ -113,5 +113,5 @@ item in two lists counts in both); the page total is the union (that item counts
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-scan-bounds/0001-bounded-scan-contract-and-grouped-tally.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/relay-scan-bounds/1-bound-simple-lists-relay-scans.test-plan.md`
 - Review: (filled in after Review phase)
