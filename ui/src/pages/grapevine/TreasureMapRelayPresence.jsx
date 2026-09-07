@@ -139,6 +139,17 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
   // relay, local holds nothing, and every row's direction must be judged against that.
   const localEvent = inLocal ? event : null;
 
+  // A relay acknowledges a publish before the event is necessarily queryable, so an immediate
+  // re-check can still read the pre-publish state and report a sync that worked as a failure.
+  // Measured against tags.brainstorm.world 2026-09-07: the publish landed, the instant re-probe
+  // said "Not here", a fresh load said "Has this version". One bounded second look.
+  const confirmSync = useCallback(async (url) => {
+    const first = await probeOne(url);
+    if (first.status === 'present') return first;
+    await new Promise(r => setTimeout(r, 1500));
+    return probeOne(url);
+  }, [probeOne]);
+
   const runSync = useCallback(async (url, direction) => {
     setSyncing(prev => ({ ...prev, [url]: { busy: true, error: null, note: null } }));
     try {
@@ -148,9 +159,11 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
           setSyncing(prev => ({ ...prev, [url]: { busy: false, error: null, note: 'kept local — external publishing is off for this instance' } }));
           return;
         }
-        if (!result?.successes?.length) {
-          throw new Error('the relay did not accept it (your browser may not be able to reach it)');
-        }
+        // Deliberately NOT trusting result.successes. SimplePool.publish() returns an ARRAY of
+        // promises, and publishToRelays races that non-thenable array against its timeout — so
+        // the race resolves instantly and every publish is reported as a success, whatever the
+        // relay did (OPEN.md row 194). Asking the relay what it now holds is the only honest
+        // signal, and the confirmation below is therefore the real check, not a formality.
       } else {
         // Pull: take the event the probe already verified, then import it locally.
         const fresh = await probeOne(url, { full: true });
@@ -161,14 +174,20 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
         if (!local?.success) throw new Error(local?.error || 'local import failed');
         if (onMapReplaced) onMapReplaced();
       }
-      const after = await probeOne(url);
+
+      const after = await confirmSync(url);
       setRows(prev => ({ ...prev, [url]: after }));
+      if (direction === 'push' && after.status !== 'present') {
+        // The relay never took it. Reported from what the relay serves, not from the publish
+        // call's own (unreliable) verdict.
+        throw new Error('the relay did not take it — your browser may not be able to reach it, or it declined the event');
+      }
       setSyncing(prev => ({ ...prev, [url]: { busy: false, error: null, note: null } }));
     } catch (err) {
       // Scoped to this row on purpose: one relay's failure must not disturb any other row.
       setSyncing(prev => ({ ...prev, [url]: { busy: false, error: err?.message || 'sync failed', note: null } }));
     }
-  }, [event, probeOne, onMapReplaced]);
+  }, [event, probeOne, confirmSync, onMapReplaced]);
 
   const settled = targets.filter(t => rows[t.url] && rows[t.url].status !== 'pending');
   const holding = settled.filter(t => rows[t.url].status === 'present').length;
