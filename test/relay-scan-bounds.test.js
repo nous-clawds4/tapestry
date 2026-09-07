@@ -400,9 +400,15 @@ test('D4: a bounded read whose total cannot be read NEVER claims to be complete'
 test('D5: List Items renders a truncated set whose total is unknown, without crashing', () => {
   const src = safeRead(LIST_ITEMS_JSX);
   assert(src, 'ui/src/pages/events/DListItemsList.jsx unreadable');
-  assert(!/\btotal\.toLocaleString\(\)/.test(src),
-    'AC-4: total can be null when it could not be read (D4), so an unguarded ' +
-    'total.toLocaleString() would throw and blank the page on exactly the degraded path');
+  // `total` is null when the count could not be read (D4). Any member access on
+  // it must be guarded, or the page throws on exactly the degraded path. A
+  // substring ban cannot tell guarded from unguarded, so require the guard.
+  const usesMember = /\btotal\s*\.\s*toLocaleString\s*\(/.test(src);
+  const guarded = /total\s*===\s*null|total\s*==\s*null|total\s*\?\?|total\s*\?\.|typeof\s+total\s*===\s*'number'|Number\.isFinite\(\s*total/.test(src);
+  assert(!usesMember || guarded,
+    'AC-4: total can be null when it could not be read (D4). The render reads a ' +
+    'property off it with no null guard anywhere in the file, so the degraded ' +
+    'path would throw and blank the page.');
 });
 
 /* ── R: regression pins — green BEFORE and AFTER ──────────────────────────── */

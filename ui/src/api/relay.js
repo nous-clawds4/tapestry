@@ -30,7 +30,10 @@ export async function queryRelay(filter = {}) {
  *
  * @param {Object} filter - Nostr filter object (pass an explicit `limit` when
  *   you intend to render the result)
- * @returns {Promise<{events: Array, count: number, total: number, truncated: boolean, limit: number}>}
+ * `total` is null when the scan was bounded and the true count could not be
+ * read — unknown, not zero. Render it as such rather than assuming a number.
+ *
+ * @returns {Promise<{events: Array, count: number, total: number|null, truncated: boolean, limit: number}>}
  */
 export async function queryRelayBounded(filter = {}) {
   const encoded = encodeURIComponent(JSON.stringify(filter));
@@ -44,7 +47,7 @@ export async function queryRelayBounded(filter = {}) {
   return {
     events: data.events,
     count: data.count,
-    total: data.total,
+    total: data.total === undefined ? null : data.total,
     truncated: Boolean(data.truncated),
     limit: data.limit,
   };
