@@ -116,5 +116,5 @@ list that omits the Tapestry instances does not answer the request. Two facts to
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/treasure-map-relay-presence/0001-per-relay-presence-probe.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/treasure-map-relay-presence/1-treasure-map-relay-presence.test-plan.md`
 - Review: (filled in after Review phase)
