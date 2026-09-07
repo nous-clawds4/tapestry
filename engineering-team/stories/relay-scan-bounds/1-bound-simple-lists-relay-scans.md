@@ -125,6 +125,19 @@ Judgment calls made during implementation, logged for the book-close audit.
   constant the ADR itself specifies (`ITEMS_LIMIT = 500`). The assertion now
   accepts either form *and* additionally requires `ITEMS_LIMIT = <number>` to
   exist — strictly stronger than what it replaced, not weaker.
+- **Second test-assertion correction, same cause as the first.** `D5` banned the
+  substring `total.toLocaleString()` — but that substring appears in the *guarded*
+  form too, so the assertion could not tell guarded from unguarded. It now requires
+  a null guard to exist wherever a member is read off `total`. Mutation-verified:
+  removing the guard fails it, restoring it passes. Two of the three static JSX pins
+  written for this story have needed correction; crude regexes over JSX are the
+  common cause, recorded as harness friction in the review rather than fixed here.
+- **`total` is `null`, not a number, when a bounded read cannot learn the true
+  count.** The reviewer's suggested shape left `total = events.length` alongside
+  `truncated: true`, which reads as "showing 500 of 500, truncated". Reporting the
+  total as unknown is the honest form, so `resolveTotal` returns `null` and both the
+  relay client and the List Items render handle it. This is slightly wider than the
+  literal ask and was taken deliberately.
 - **`DataTable` gets `pageSize={50}` on List Items.** The ADR called for the
   component's opt-in pagination; 50 rows per page is the concrete value. 500 rows
   in one table is technically fine but unpleasant to read.

@@ -242,7 +242,7 @@ export default function DListItemsList() {
         {filteredRows.length === rows.length
           ? `${rows.length} items`
           : `${filteredRows.length} of ${rows.length} items`}
-        {truncated && ` · showing the ${rows.length} most recent of ${total.toLocaleString()} on the relay`}
+        {truncated && ` · showing the ${rows.length} most recent of ${total === null ? 'more' : total.toLocaleString()} on the relay`}
       </p>
 
       <DataTable
