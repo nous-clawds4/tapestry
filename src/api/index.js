@@ -67,6 +67,7 @@ const algos = require('./algos');
 const graperank = require('./export/graperank');
 const manage = require('./manage');
 const lists = require('./lists');
+const dlists = require('./dlists');
 const status = require('./status');
 const customers = require('./customers/index.js');
 const neo4jHealth = require('./neo4j-health/index.js');
@@ -262,6 +263,10 @@ async function register(app) {
     app.get('/api/strfry/scan', strfry.handleStrfryScan);  // Scan events from strfry (public)
     app.get('/api/strfry/scan/stream', strfry.handleStrfryScanStream);  // Streaming scan (JSONL, no buffer limit)
     app.get('/api/strfry/scan/count', strfry.handleStrfryScanCount);   // Count only (no memory issues)
+
+    // Simple Lists (DList) aggregates. Per-list item counts + the union total,
+    // computed server-side so the page does not fetch every item to count them.
+    app.get('/api/dlists/item-counts', dlists.handleListItemCounts);  // Public, read-only
     app.post('/api/strfry/publish', strfry.handlePublishEvent);  // Sign and publish events to strfry
     app.get('/api/get-strfry-filteredContent', strfry.handleGetFilteredContentStatus);  // Status query (public)
     app.post('/api/toggle-strfry-filteredContent', strfry.handleToggleStrfryPlugin);  // Toggle command (owner only)
