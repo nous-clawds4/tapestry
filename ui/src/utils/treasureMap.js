@@ -172,21 +172,6 @@ export function compareMapVersions(displayed, found) {
 }
 
 /**
- * Which way, if any, a sync between local strfry and one relay should go.
- *
- * `localEvent` is what LOCAL holds — not necessarily what the page is displaying. When the Map
- * was found on an external relay rather than locally, local holds nothing and the caller must
- * pass null (ADR treasure-map-relay-presence/0002 § Decision).
- *
- * Never throws: it runs during render, once per row.
- *
- * @param {Object|null} localEvent  local strfry's copy ({ id, created_at }) or null
- * @param {Object|null} relayEvent  the relay's copy ({ id, created_at }) or null
- * @returns {{direction: 'push'|'pull'|null, reason: string|null}}
- *   `push` = send local's copy out; `pull` = bring the relay's copy back.
- *   A null direction always carries a reason: `in-sync`, `divergent`, or `nothing-to-sync`.
- */
-/**
  * One-line verdict over a set of relay row states — the panel's status light.
  *
  * Names the most serious finding rather than counting coverage: one relay serving a STALE Map
@@ -213,19 +198,24 @@ export function compareMapVersions(displayed, found) {
  */
 export function summarizePresence(localEvent, rowStates) {
   const rows = Array.isArray(rowStates) ? rowStates : [];
-  const counts = { divergent: 0, missing: 0, unreachable: 0, agreeing: 0, pending: 0, total: rows.length };
+  const counts = {
+    divergent: 0, missing: 0, unreachable: 0, agreeing: 0, pending: 0, unjudged: 0,
+    total: rows.length,
+  };
 
   for (const row of rows) {
     const status = row && typeof row.status === 'string' ? row.status : 'pending';
     if (status === 'unreachable') counts.unreachable++;
     else if (status === 'absent') counts.missing++;
     else if (status === 'present') {
-      // With nothing local to differ from, a relay's copy is not a divergence — and it is not
-      // agreement either, since there is no local version for it to agree with.
       const rel = compareMapVersions(localEvent, row.event);
-      if (rel === null) counts.pending += 0;
-      else if (rel === 'same') counts.agreeing++;
-      else counts.divergent++;
+      if (rel === 'same') counts.agreeing++;
+      else if (rel !== null) counts.divergent++;
+      // rel === null: the relay has a Map, but there is nothing local to compare it against, so
+      // it is neither agreement nor divergence. Counted explicitly — an unjudged row must not
+      // silently vanish from the tally, or the level could fall through to an all-clear over a
+      // row that was never actually judged.
+      else counts.unjudged++;
     } else counts.pending++;
   }
 
@@ -234,11 +224,32 @@ export function summarizePresence(localEvent, rowStates) {
   else if (counts.pending > 0) level = 'checking';
   else if (counts.missing > 0) level = 'missing';
   else if (counts.unreachable > 0) level = 'unreachable';
+  // `unjudged` sits here — below every real finding, above the all-clear. It must never let the
+  // level fall through to `ok` (that would be an all-clear over a row nothing ever judged), but
+  // it must not outrank a finding either: the ordinary case of an unjudged row is "the Map is
+  // not in local strfry, so relay copies cannot be compared", and there the useful thing to say
+  // is that local is missing it — not a "checking" that never resolves.
+  else if (counts.unjudged > 0) level = 'checking';
   else level = 'ok';
 
   return { level, counts };
 }
 
+/**
+ * Which way, if any, a sync between local strfry and one relay should go.
+ *
+ * `localEvent` is what LOCAL holds — not necessarily what the page is displaying. When the Map
+ * was found on an external relay rather than locally, local holds nothing and the caller must
+ * pass null (ADR treasure-map-relay-presence/0002 § Decision).
+ *
+ * Never throws: it runs during render, once per row.
+ *
+ * @param {Object|null} localEvent  local strfry's copy ({ id, created_at }) or null
+ * @param {Object|null} relayEvent  the relay's copy ({ id, created_at }) or null
+ * @returns {{direction: 'push'|'pull'|null, reason: string|null}}
+ *   `push` = send local's copy out; `pull` = bring the relay's copy back.
+ *   A null direction always carries a reason: `in-sync`, `divergent`, or `nothing-to-sync`.
+ */
 export function planRelaySync(localEvent, relayEvent) {
   const hasLocal = !!(localEvent && typeof localEvent.id === 'string');
   const hasRelay = !!(relayEvent && typeof relayEvent.id === 'string');

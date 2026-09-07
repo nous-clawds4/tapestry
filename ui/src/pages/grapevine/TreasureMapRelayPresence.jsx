@@ -232,9 +232,22 @@ export default function TreasureMapRelayPresence({ event, inLocal, onImportLocal
       marginBottom: '1rem',
     }}>
       {/* Header is the disclosure control AND the status light. The rows collapse; this never
-          does — a light you have to open the panel to see is not a light. */}
+          does — a light you have to open the panel to see is not a light.
+          It is a real control, not just a clickable div: this panel is what puts the rows behind
+          a disclosure, so a pointer-only toggle would make every relay's status and every sync
+          button unreachable without a mouse. */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        aria-label={`Where this Map lives — ${light.text(summary.counts)}`}
         onClick={() => setOpen(v => !v)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault(); // Space would otherwise scroll the page
+            setOpen(v => !v);
+          }
+        }}
         style={{
           display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
           cursor: 'pointer', marginBottom: open ? '0.5rem' : 0,
