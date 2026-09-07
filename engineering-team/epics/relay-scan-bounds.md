@@ -1,7 +1,7 @@
 # Epic: relay-scan-bounds
 
 **Created:** 2026-09-07
-**Status:** Active
+**Status:** Done (epic retired 2026-09-07 at the relay-scan-bounds book close — story #1 Done and live on all three deployments: staging PR #588, prod PR #589, tags PR #591 by cherry-pick)
 **Book:** `engineering-team/audits/relay-scan-bounds/book.md` (acceptance-frame; Bug lane)
 **Provenance:** Operator report 2026-09-07 (in-session) — `/tapestry/lists` returns
 `Error: stdout maxBuffer length exceeded` on `staging.brainstorm.world` and
