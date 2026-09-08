@@ -22,6 +22,21 @@ Two additions the operator raised after Stories 1 and 2 shipped:
 The second is the more load-bearing of the two: it is the first written statement of the
 dictionary data model, and later work will be built against it.
 
+### The explainer text — durable baseline
+
+This is the operator's message, exactly as sent (2026-09-08). It is reproduced here because the
+only other copy in the repository is the JSX itself, which would make "it is verbatim" a
+self-certifying claim: a future paraphrase would have nothing to be caught against. Diff the
+rendered prose of `ui/src/pages/dictionaries/Placeholders.jsx` against this block, not against any
+summary of it. 1489 characters, three paragraphs on the page, sentence-boundary breaks only.
+
+```text
+There are currently three dictionaries: Tags, DLists, and Concepts. More will be added later. Each Dictionary is a concept, and each dictionary entry is an element of its corresponding concept. (But that only works for the Tapestry Owner. And so: Conversely, for users who do not have their own neo4j: each dictionary may be a DList Header, and each dictionary entry may be an item on that dlist.) The primary criteria to be an element (or item) of any given dictionary is usage and acceptance by the community. There may be more than one way to measure usage and acceptance, and the precise criteria for any given dictionary may evolve over time. This is exemplified by Tags: criteria may be based on direct usage, on b-tags, and/or on pins. These criteria can be used to keep track of dictionary entries dynamically and automatically. Which means that dictionary entries can be added and removed automatically. Which means there needs to be a property specified by the DList header (or Concept Header) to flag elements / items that are considered no longer valid items. But there is a second way to gain entry into a dictionary, and that is to be added by hand by the steward of the dictionary. For Tapestry, that typically means: the owner of the Tapestry instance. Being added by hand will override community-based criteria. Therefore, each dictionary concept needs to have a field to keep track of whether it is added by hand, lest it be removed from the concept by automated scripts.
+```
+
+*(Added after the Story-3 review, which could only verify the text against a session transcript —
+see that review's finding on the missing baseline.)*
+
 ## User-facing description
 
 As the operator, I want a Set Up page under Trusted Agents and the dictionary model written out on

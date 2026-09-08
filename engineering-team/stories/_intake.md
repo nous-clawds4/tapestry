@@ -2328,6 +2328,11 @@ a security boundary. But the operator surfaces are now one click away for every 
 question of whether the legacy pages should be gated server-side (and what they expose) is worth
 answering deliberately rather than by omission.
 
+Confirmed live during the Story-3 review: `curl /legacy/sign-in.html` returns 200 unauthenticated.
+`app.use(authMiddleware)` sits at `bin/control-panel.js:286`, *after* all of these. Note the reach
+is wider than the two explicit routes — `:150` mounts the **entire `public/` tree** under
+`/legacy/`, also above the middleware.
+
 **Suggested path:** Bug/hardening, Standard — audit what `public/*.html` actually exposes, then
 decide gate-or-retire. Retirement may be the right answer: the legacy dashboard is superseded by
 `/tapestry/`.
