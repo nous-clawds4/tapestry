@@ -2246,3 +2246,66 @@ rather than jumping to `/plan-feature`.**
 irreversibility triggers).
 **Related:** OPEN.md rows 191; ADR `engineering-team/decisions/event-tagging/0002-global-publish-gate.md`;
 `docs/CONFIGURATION.md` § Publish policy; `docs/DEVELOPMENT.md` § Keep dev publishes off the live network.
+
+## 2026-09-07 — `publishToRelays` reports every external publish as a success
+
+**Surfaced during:** treasure-map-relay-presence #2 live verification, at the operator's request
+to try a real sync against a real relay. Filed as **OPEN.md row 200** at the book close; not
+fixed there because it is shared code on five shipped paths and well outside that story's scope.
+
+**The defect.** `ui/src/utils/nostrPublish.js:107-112`:
+
+```js
+await Promise.race([
+  pool.publish([relay], signedEvent),   // <- an ARRAY of promises, not a promise
+  new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)),
+]);
+successes.push(relay);
+```
+
+`SimplePool.publish()` returns `Promise<string>[]`. Verified in-container 2026-09-07:
+`Array.isArray(r) === true`, `typeof r.then === 'undefined'`. `Promise.race` resolves a
+non-thenable member immediately, so the race always wins on the first tick, `successes.push()`
+runs unconditionally, and the 5s timeout can never fire. **The relay's own OK/failure is never
+awaited.**
+
+**Consequence.** Every caller branching on `successes` / `failures` is branching on a constant.
+`publishOrThrow` (`ui/src/utils/publishProfileTag.js:24`) can never throw on external failure.
+The profile-tag, tag-detail, pin, TL opt-in and manual-editor publish paths all report success
+for a relay that rejected the event or never received it. All five are in production.
+
+**Fix shape.** `await Promise.allSettled(pool.publish(...))` — or await the single element for a
+one-relay call — and classify per relay from the settled results.
+
+**Measure the blast radius before writing the fix.** This is the part that makes it a book rather
+than a one-liner: the fix *creates* failure reports where there are none today.
+
+- `publishOrThrow` only throws when **both** local and external fail, and tolerates external
+  failure when local succeeds — so the user-visible impact may be much smaller than the defect
+  sounds. **Verify that rather than assuming it**; the tolerance is by design (its docstring says
+  the strfry router redistributes later), but it has never been exercised with a truthful signal.
+- Enumerate every consumer of `successes` / `failures` / `skippedByGate` first. `skippedByGate`
+  is a separate, working path — do not disturb it.
+- Expect previously-silent failures to surface in the tag/TL publish suites; those move in the
+  same change.
+
+**Precedent worth reading first.** `ui/src/pages/grapevine/TreasureMapRelayPresence.jsx` `runSync`
+already routes around this by judging the outcome from **what the relay actually serves** after
+the publish, rather than from the publish call's verdict. That is the only honest signal available
+today, and it is a reasonable pattern for any caller that needs certainty — but it costs an extra
+round trip and is not a substitute for fixing the primitive.
+
+**Related, same family.** **OPEN.md row 201** — a relay acknowledges a publish before the event is
+queryable, so an immediate post-publish read can report a successful write as a failure (measured
+against `tags.brainstorm.world`: publish landed, instant re-probe said "Not here", fresh load said
+"Has this version"). Any fix that verifies a publish by re-reading needs the bounded second look
+that `confirmSync` uses. Worth doing in the same book.
+
+**Classification:** Bug — but with a blast radius that needs measuring before the code changes, so
+not the "skip Architecture if obvious" lane. **Recommend `/plan-feature` with an explicit
+investigation step, or `/discuss` first if the consumer sweep turns up surprises.**
+**Strictness:** Standard. An ADR is likely: changing what "publish succeeded" means across five
+shipped paths is a contract change, and the ADR should record whether partial-failure tolerance
+stays as-is.
+**Related:** OPEN.md rows 200, 201; `ui/src/utils/nostrPublish.js`;
+`ui/src/utils/publishProfileTag.js`; `audits/treasure-map-relay-presence/audit.md` §4 #2 and §6.
