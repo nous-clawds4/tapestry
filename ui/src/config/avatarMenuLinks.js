@@ -48,7 +48,7 @@ export function personalLinks({ pubkey, assistantPubkey, profileBase }) {
       icon: '🗺️',
       label: 'My Treasure Map',
       // Already per-viewer: the page filters kind 10040 on the signed-in pubkey.
-      to: '/tapestry/grapevine/trusted-assertions',
+      to: '/tapestry/grapevine/treasure-map',
     },
     {
       key: 'my-trusted-agents',
