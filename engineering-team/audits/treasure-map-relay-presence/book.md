@@ -1,8 +1,9 @@
 # Book of Work: Treasure Map — Relay Presence
 
 **Slug:** treasure-map-relay-presence
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-07
+**Closed:** 2026-09-07
 **Strictness:** Standard — all five phases (operator's choice at intake, 2026-09-07)
 **Branch:** `feat/treasure-map-relay-presence` (worktree `.claude/worktrees/relay-presence`, off `staging`)
 
@@ -16,19 +17,19 @@ Brainstorm / NosFabrica ecosystem, and general-purpose relays.
 
 ### Acceptance frame
 
-- [ ] **Coverage:** the page reports presence per location across local strfry, the Tapestry
+- [x] **Coverage:** the page reports presence per location across local strfry, the Tapestry
       instance relays, the trusted-assertion relays, the trusted-list relays, and the
       general-purpose relays — one row each, not one aggregate verdict.
-- [ ] **Not hardcoded:** every checked relay URL comes from operator-editable configuration
+- [x] **Not hardcoded:** every checked relay URL comes from operator-editable configuration
       (Home > Settings > Relays), so a deployment other than this one can point at its own peers.
       No relay literal in page or component source.
-- [ ] **Version-aware:** because kind 10040 is replaceable, each row distinguishes *holds the
+- [x] **Version-aware:** because kind 10040 is replaceable, each row distinguishes *holds the
       version displayed* from *holds a different version* (with its timestamp, older or newer).
-- [ ] **Absent ≠ unreachable:** a relay with no matching event and a relay that times out or
+- [x] **Absent ≠ unreachable:** a relay with no matching event and a relay that times out or
       errors are reported as different states.
-- [ ] **Non-degrading:** a slow or failing check never delays or blocks the Map itself, the Map
+- [x] **Non-degrading:** a slow or failing check never delays or blocks the Map itself, the Map
       Entries panel, the TL opt-in card, or the manual editor.
-- [ ] **Verified against reality:** the shipped panel is checked on the local stack against the
+- [x] **Verified against reality:** the shipped panel is checked on the local stack against the
       measured 2026-09-07 baseline (owner's Map present at 6 of 14 locations, absent from 8) — a
       panel that reports all-present would be wrong and must be caught.
 
@@ -41,6 +42,14 @@ Brainstorm / NosFabrica ecosystem, and general-purpose relays.
   straight into story 1; this book is the eager anchor (OPEN.md row 29's known `/plan-feature`
   gap, opened deliberately here rather than backfilled at review).
 
-## Close artifacts *(filled by `/close-book`)*
+## Provenance at close
+- **Mode:** Acceptance-frame (no PRD)
+- **Confidence:** high — all six frame bullets satisfied, and the last one ("verified against
+  reality") was met on **production** rather than only the dev stack: all three presence states
+  correct against real relays, and production's own TA pubkey (`919ba08a…`) distinct from
+  staging's and dev's, confirming no hardcoded identity leaked.
+- **In production:** 2026-09-07 via PR #590 → staging, PR #597 → main (`21dc569f`).
+
+## Close artifacts
 - Build audit: `engineering-team/audits/treasure-map-relay-presence/audit.md`
 - Product feedback: `engineering-team/audits/treasure-map-relay-presence/prd-seed.md`
