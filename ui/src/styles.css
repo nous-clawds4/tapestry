@@ -141,6 +141,21 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   margin-bottom: 24px;
 }
 
+/* Body prose on a page — several paragraphs of explanation, measure-limited so
+   long lines stay readable. The global reset zeroes <p> margins, so the spacing
+   between paragraphs has to be stated here. */
+.page-prose {
+  max-width: 52rem;
+  margin-bottom: 24px;
+}
+.page-prose p {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.page-prose p + p {
+  margin-top: 0.9rem;
+}
+
 .placeholder {
   color: var(--text-muted);
   padding: 40px;
@@ -755,8 +770,17 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   cursor: pointer;
   transition: background 0.15s;
 }
-.dropdown-item:hover { background: var(--bg-tertiary); }
+.dropdown-item:hover:not(:disabled) { background: var(--bg-tertiary); }
 .dropdown-item:last-child { border-radius: 0 0 8px 8px; }
+/* Disabled rows stay visible so the menu reads the same for every signed-in
+   user — e.g. My Assistant's Profile with no provisioned assistant key. The
+   wrapper carries the explanatory tooltip, because Firefox suppresses pointer
+   events on the disabled button itself. */
+.dropdown-item:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.dropdown-item-wrap { display: block; }
 
 /* ─── Page Header Row ────────────────────────────────── */
 .page-header-row {
@@ -2812,6 +2836,54 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   flex-direction: column;
   gap: 0.4rem;
 }
+/* Personal + destination link sections (navigation-scaffolding #2). Compact
+   rows rather than the full-width boxes the footer uses — eight of those would
+   make the dropdown taller than most viewports. */
+.bs-usermenu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.5rem;
+}
+.bs-usermenu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.82rem;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.bs-usermenu-link:hover {
+  background: rgba(255,255,255,0.06);
+}
+.bs-usermenu-link.is-disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.bs-usermenu-link.is-disabled:hover {
+  background: none;
+}
+.bs-usermenu-link-icon {
+  width: 1.15rem;
+  flex-shrink: 0;
+  text-align: center;
+}
+.bs-usermenu-role-badge {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 4px;
+  background: rgba(251, 191, 36, 0.08);
+  color: #fcd34d;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
 .bs-usermenu-pov-indicator {
   font-size: 0.8rem;
   opacity: 0.6;
@@ -2914,51 +2986,6 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-usermenu-signout:hover {
   background: rgba(255,255,255,0.06);
-}
-.bs-usermenu-admin-panel {
-  padding: 0.75rem 1rem 0.9rem;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  background: rgba(251, 191, 36, 0.04);
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.bs-usermenu-admin-label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #fbbf24;
-  margin-bottom: 0.15rem;
-}
-.bs-usermenu-admin-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #fbbf24;
-  box-shadow: 0 0 6px rgba(251, 191, 36, 0.7);
-  flex-shrink: 0;
-}
-.bs-usermenu-admin-btn {
-  display: block;
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid rgba(251, 191, 36, 0.25);
-  border-radius: 8px;
-  background: rgba(251, 191, 36, 0.06);
-  color: #fcd34d;
-  font-size: 0.8rem;
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.bs-usermenu-admin-btn:hover {
-  background: rgba(251, 191, 36, 0.12);
-  border-color: rgba(251, 191, 36, 0.45);
 }
 .bs-usermenu-action-btn {
   background: none;
