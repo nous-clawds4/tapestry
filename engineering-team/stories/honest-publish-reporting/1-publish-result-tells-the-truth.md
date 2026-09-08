@@ -1,6 +1,6 @@
 # Story 1: The publish result tells the truth about what each relay did
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-07
 **Type:** Bug
 
@@ -112,4 +112,4 @@ directs reviewers to reject its removal without a re-parenting migration.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/honest-publish-reporting/0001-per-relay-publish-classification.md`
 - Test plan: `engineering-team/stories/honest-publish-reporting/1-publish-result-tells-the-truth.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/honest-publish-reporting/1-publish-result-tells-the-truth.md`
