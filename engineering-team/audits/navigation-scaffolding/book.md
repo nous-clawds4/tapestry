@@ -1,9 +1,9 @@
 # Book of Work: Navigation scaffolding — Dictionaries, Trusted Agents, unified avatar menus
 
 **Slug:** navigation-scaffolding
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-08
-**Closed:** —
+**Closed:** 2026-09-08
 
 ## Intent anchor
 
@@ -25,32 +25,32 @@ The raw ask, verbatim in its shape:
 
 ### Acceptance frame
 
-- [ ] The left Tapestry sidebar shows two new collapsible top-level groups **below** Shared
+- [x] The left Tapestry sidebar shows two new collapsible top-level groups **below** Shared
       Concepts: **Dictionaries** (children: Dictionaries, Tags, DLists, Concepts) and
       **Trusted Agents** (children: Mine, All). They toggle open/closed like the existing groups.
-- [ ] Each of the six new pages renders and says, in plain words, that it is a placeholder.
-- [ ] Both avatar menus — the **Main** one on the landing/search pages
+- [x] Each of the six new pages renders and says, in plain words, that it is a placeholder.
+- [x] Both avatar menus — the **Main** one on the landing/search pages
       (`BrainstormUserMenu`) and the **Tapestry** one in the control-panel header (`Header`) —
       offer every one of: My Profile, My Assistant's Profile, My Treasure Map,
       My Trusted Agents, Dictionaries.
-- [ ] Both avatar menus carry a **separate section** with: Brainstorm Landing Page,
+- [x] Both avatar menus carry a **separate section** with: Brainstorm Landing Page,
       Tapestry Dashboard, Legacy Dashboard.
-- [ ] Every one of those links is visible to **every logged-in user**, not just owner/admin.
+- [x] Every one of those links is visible to **every logged-in user**, not just owner/admin.
       Exception confirmed at intake: My Assistant's Profile renders for everyone but is
       *disabled with an explanatory tooltip* when the caller has no provisioned assistant key.
-- [ ] From the **Main** avatar menu, My Profile / My Assistant's Profile go to the `/user/<pubkey>`
+- [x] From the **Main** avatar menu, My Profile / My Assistant's Profile go to the `/user/<pubkey>`
       pages (the same profile page search results link to). From the **Tapestry** avatar menu they
       keep going to `/tapestry/users/<pubkey>`.
-- [ ] Navigation on the Legacy pages is untouched.
+- [x] Navigation on the Legacy pages is untouched.
 
 ### Amended 2026-09-08 (operator, after Stories 1–2 shipped)
 
 Two additions raised in-session. Both are inside the book's intent — the same navigation
 scaffolding — so they extend the frame rather than opening a second book.
 
-- [ ] Trusted Agents carries a third sub-item, **Set Up**, where a Sponsor is paired with an
+- [x] Trusted Agents carries a third sub-item, **Set Up**, where a Sponsor is paired with an
       Agent. Placeholder like its siblings.
-- [ ] The Dictionaries index carries the operator's explainer **verbatim** — the first written
+- [x] The Dictionaries index carries the operator's explainer **verbatim** — the first written
       statement of the dictionary model (dictionary = concept with entries as elements, or DList
       header with entries as items for users without neo4j; entry by community usage/acceptance,
       measured per-dictionary and evolving; hence a validity flag on the header for automatic
@@ -61,9 +61,16 @@ scaffolding — so they extend the frame rather than opening a second book.
   unification of the two avatar menus.
 
 ## Provenance
-- **Mode:** Acceptance-frame
-- **Confidence at close:** high
+- **Mode:** Acceptance-frame — captured eagerly at intake before any story existed; amended once
+  mid-book (see the dated block above) when the operator added the Set Up page and the Dictionaries
+  explainer.
+- **Confidence at close:** high. Every frame bullet is satisfied by code verified in production;
+  the two amendments are recorded in the operator's own words. *(The `prd-seed.md` carries a
+  deliberately lower confidence — what shipped is certain, what it implies about the product is not.)*
 
-## Close artifacts *(filled by `/close-book`)*
+## Close artifacts
 - Build audit: `engineering-team/audits/navigation-scaffolding/audit.md`
 - Product feedback: `engineering-team/audits/navigation-scaffolding/prd-seed.md`
+- Retro dispositions: `audit.md` §7 — two new OPEN.md `meta` rows (212, 213), one on-branch fix
+  (`8bb3e9b0`), three recorded declines.
+- Shipped: staging PR #610 (`450d433d`) 2026-09-08; production PR #611 (`b3b84505`) 2026-09-08.
