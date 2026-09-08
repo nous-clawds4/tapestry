@@ -755,8 +755,14 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   cursor: pointer;
   transition: background 0.15s;
 }
-.dropdown-item:hover { background: var(--bg-tertiary); }
+.dropdown-item:hover:not(:disabled) { background: var(--bg-tertiary); }
 .dropdown-item:last-child { border-radius: 0 0 8px 8px; }
+/* Disabled rows stay visible so the menu reads the same for every signed-in
+   user — e.g. My Assistant's Profile with no provisioned assistant key. */
+.dropdown-item:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
 
 /* ─── Page Header Row ────────────────────────────────── */
 .page-header-row {
@@ -2811,6 +2817,54 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+}
+/* Personal + destination link sections (navigation-scaffolding #2). Compact
+   rows rather than the full-width boxes the footer uses — eight of those would
+   make the dropdown taller than most viewports. */
+.bs-usermenu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.5rem;
+}
+.bs-usermenu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.82rem;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.bs-usermenu-link:hover {
+  background: rgba(255,255,255,0.06);
+}
+.bs-usermenu-link.is-disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.bs-usermenu-link.is-disabled:hover {
+  background: none;
+}
+.bs-usermenu-link-icon {
+  width: 1.15rem;
+  flex-shrink: 0;
+  text-align: center;
+}
+.bs-usermenu-role-badge {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 4px;
+  background: rgba(251, 191, 36, 0.08);
+  color: #fcd34d;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
 }
 .bs-usermenu-pov-indicator {
   font-size: 0.8rem;

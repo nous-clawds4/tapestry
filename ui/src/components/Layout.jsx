@@ -84,6 +84,27 @@ const mainNavItems = [
       { to: '/tapestry/shared-concepts/dictionary', label: 'Trusted Dictionary' },
     ],
   },
+  // Placeholder sections — the shape of two upcoming areas, in the nav ahead of
+  // the pages themselves (navigation-scaffolding #1). Not owner-gated, matching
+  // the Shared Concepts group above.
+  {
+    label: '📖 Dictionaries',
+    prefix: '/tapestry/dictionaries',
+    children: [
+      { to: '/tapestry/dictionaries', label: 'Dictionaries', end: true },
+      { to: '/tapestry/dictionaries/tags', label: 'Tags' },
+      { to: '/tapestry/dictionaries/dlists', label: 'DLists' },
+      { to: '/tapestry/dictionaries/concepts', label: 'Concepts' },
+    ],
+  },
+  {
+    label: '🕵️ Trusted Agents',
+    prefix: '/tapestry/trusted-agents',
+    children: [
+      { to: '/tapestry/trusted-agents/mine', label: 'Mine' },
+      { to: '/tapestry/trusted-agents/all', label: 'All' },
+    ],
+  },
 ];
 
 const managementNavItems = [
