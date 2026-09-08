@@ -114,3 +114,87 @@ honest-publish-reporting: 3 passed, 7 failed, 0 skipped
 break the happy path; `G1` pins the local-only gate the story puts out of scope; `S1` pins the
 consumer contract AC-4 depends on. Every failure names the expected behavior and prints the actual
 result, so an Implementer reading only the output knows what to build.
+
+---
+
+# Follow-up (2026-09-08): the suite must not run against the wrong nostr-tools
+
+**Guard suite:** `test/honest-publish-reporting-ci-guard.test.js`
+**Repairs:** `test/honest-publish-reporting.test.js`
+**Mode:** the ADR-template carve-out for a change whose deliverable IS a test change (OPEN.md row
+167) — the Tester writes the guard; Phase 4 repairs the suite beneath it and may not edit the guard.
+
+## What went wrong
+
+The shipped suite failed the required `stack-free` check on `main` (`D1`, 9 passed / 1 failed).
+
+The suite resolves nostr-tools with `require.resolve('nostr-tools/pool', { paths: [UI] })`, meaning
+to get ui/'s pinned copy — the one Vite bundles into production. But **`paths:` falls back to
+ancestor `node_modules`**, and CI runs `npm ci` at the repo root only
+(`.github/workflows/test.yml:36`), so `ui/node_modules` never exists there. Resolution silently
+landed on the repo root's nostr-tools **2.10.4** instead of ui/'s **2.23.3**, and the two report a
+failed connection differently:
+
+| version | `onerror` | settled shape | classified |
+|---|---|---|---|
+| 2.23.3 (ui/, ships to prod) | `reject("connection failed")`, caught by `pool.publish` | **fulfilled** `"connection failure: …"` | `unreachable` ✅ |
+| 2.10.4 (repo root, CI) | `reject(ev.message ‖ "websocket error")` | **rejected** `"connection refused"` | `refused` ❌ |
+
+**The original plan named this exact hazard** — "the repo root carries an older nostr-tools (2.10.4
+vs 2.23.3)" — and guarded the wrong failure mode: the CJS/ESM twin trap was handled, the
+absent-`node_modules` ancestor fallback was not.
+
+Production was never affected: Vite builds from `ui/` against the pin. What was false is the
+suite's own claim to be exercising the shipped code — in CI it exercised a library 13 minor versions
+older, while still appearing to pass 9 of 10.
+
+## What the guard requires
+
+| # | Requirement |
+|---|---|
+| `Q1` | the suite exports `nostrToolsVersionGate({resolved, pinned})` and `SKIP_REASON`, so the skip decision is testable rather than buried |
+| `Q2` | a mismatch produces a skip reason **naming both versions** (tested with the real 2.10.4 / 2.23.3 pair) |
+| `Q3` | matching versions do **not** skip |
+| `Q4` | the expected version is read from `ui/package-lock.json`, **never hardcoded** — a literal rots at the next dependency bump, the same class of failure as the bug being fixed |
+| `Q5` | **the suite does not skip where ui/'s pinned deps are installed** |
+
+`Q5` is the load-bearing one. A gate that always skips would turn CI green while silently deleting
+every assertion the story depends on — a worse outcome than the failure it replaces. `Q5` fails if
+the fix takes that shortcut.
+
+**Explicitly rejected fix:** making `D1` accept either `refused` or `unreachable`. That assertion
+encodes ADR 0001's decisive constraint (an unreachable relay *fulfils*, so status alone is not
+enough); loosening it would remove the single most valuable line in the suite.
+
+## Verification
+
+Guard fails against the current suite — confirmed 2026-09-08:
+
+```
+  ✗ Q1 the suite exposes a nostr-tools version gate
+        … got undefined
+  ✗ Q2 the gate skips when the resolved nostr-tools is not the version ui/ pins
+  ✗ Q3 the gate runs when the resolved nostr-tools IS the version ui/ pins
+  ✗ Q4 the pinned version is read from ui/package-lock.json, never hardcoded
+  ✗ Q5 the suite does NOT skip here, where ui/ pinned deps are installed
+honest-publish-reporting-ci-guard: 0 passed, 5 failed, 0 skipped
+```
+
+**CI's condition reproduced locally** by moving `ui/node_modules/nostr-tools` aside:
+
+```
+honest-publish-reporting: 9 passed, 1 failed, 0 skipped     # identical to CI
+```
+
+That is the exact command Phase 4 must turn into a run where the relay-behavior tests **skip**
+(`fail === 0`), while the same suite with ui/ deps present still reports **10 passed, 0 skipped**.
+
+## Out of scope
+
+- Installing `ui/` dependencies in CI. That would give CI real coverage of the shipped version, but
+  it is a workflow change with its own cost and belongs to a separate decision.
+- The deeper fragility this exposed: `startsWith('connection failure:')` in
+  `ui/src/utils/nostrPublish.js` depends on a nostr-tools **internal message format**, not a public
+  contract. A future bump could silently turn `unreachable` back into `accepted` — regressing into
+  the very bug this story fixed. ADR 0001 chose that signal knowingly as the only one available;
+  nothing currently pins it. Belongs in the ledger, not in this fix.

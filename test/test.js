@@ -253,6 +253,7 @@ const neo4jSizingOverride = require('./neo4j-sizing-override.test.js');
 // epic: shared-concepts-seeding — Story 1 (honest broadcast reporting).
 const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js');
 const honestPublishReporting = require('./honest-publish-reporting.test.js');
+const honestPublishReportingCiGuard = require('./honest-publish-reporting-ci-guard.test.js');
 // epic: shared-concepts-seeding — Story 3 (not-yet-shared filter on the Concepts list).
 const notYetSharedFilter = require('./not-yet-shared-filter.test.js');
 // epic: shared-concepts-seeding — Story 4 (route from Shared by me to the not-yet-shared list).
@@ -648,6 +649,7 @@ async function main() {
   console.log('\nhonest-broadcast-reporting suite:');
   const honestBroadcastReportingResult = await honestBroadcastReporting.run();
   const honestPublishReportingResult = await honestPublishReporting.run();
+  const honestPublishReportingCiGuardResult = await honestPublishReportingCiGuard.run();
   const notYetSharedFilterResult = await notYetSharedFilter.run();
   const shareFromSharedByMeResult = await shareFromSharedByMe.run();
 
@@ -1152,6 +1154,7 @@ async function main() {
   console.log(`relay-scan-bounds suite:                         ${relayScanBoundsResult.fail === 0 ? 'PASS' : 'FAIL'} (${relayScanBoundsResult.pass} passed, ${relayScanBoundsResult.fail} failed, ${relayScanBoundsResult.skipped} skipped)`);
   console.log(`honest-broadcast-reporting suite:                ${honestBroadcastReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestBroadcastReportingResult.pass} passed, ${honestBroadcastReportingResult.fail} failed, ${honestBroadcastReportingResult.skipped} skipped)`);
   console.log(`honest-publish-reporting suite:                  ${honestPublishReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestPublishReportingResult.pass} passed, ${honestPublishReportingResult.fail} failed, ${honestPublishReportingResult.skipped} skipped)`);
+  console.log(`honest-publish-reporting-ci-guard suite:         ${honestPublishReportingCiGuardResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestPublishReportingCiGuardResult.pass} passed, ${honestPublishReportingCiGuardResult.fail} failed, ${honestPublishReportingCiGuardResult.skipped} skipped)`);
   // Skip-aware: H-class contract checks skip when the local stack is absent;
   // the U-class predicate and S-class source audit always run and gate.
   const notYetSharedFilterLine =
@@ -1381,6 +1384,7 @@ async function main() {
     // shared-concepts-seeding #1 — honest broadcast reporting
     honestBroadcastReportingResult.fail === 0 &&
     honestPublishReportingResult.fail === 0 &&
+    honestPublishReportingCiGuardResult.fail === 0 &&
     // shared-concepts-seeding #3 — not-yet-shared filter on the Concepts list
     notYetSharedFilterResult.fail === 0 &&
     // shared-concepts-seeding #4 — route from Shared by me to the not-yet-shared list
@@ -1436,7 +1440,7 @@ async function main() {
     addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
     publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
-    stateOnConceptPageResult, sharedByMeResult, honestBroadcastReportingResult, honestPublishReportingResult,
+    stateOnConceptPageResult, sharedByMeResult, honestBroadcastReportingResult, honestPublishReportingResult, honestPublishReportingCiGuardResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult, tlCertaintyMethodResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
