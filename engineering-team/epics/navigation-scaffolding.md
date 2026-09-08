@@ -1,7 +1,8 @@
 # Epic: navigation-scaffolding
 
 **Created:** 2026-09-08
-**Status:** In progress
+**Status:** Done (epic retired 2026-09-08 at the book close — all three stories Done and reviewed,
+in production via PR #610 → staging and PR #611 → main (`b3b84505`); folders moved under `done/`)
 **Provenance:** Operator request 2026-09-08 (in-session). Two new collapsible sections on the
 left Tapestry menu with placeholder pages behind them, then a rework of both avatar menus so the
 same set of personal destinations is reachable from either one, by every logged-in user.
@@ -34,14 +35,18 @@ the start rather than being retrofitted later.
 
 ## Stories
 
-`stories/navigation-scaffolding/`:
+`stories/done/navigation-scaffolding/`:
 1. `1-dictionaries-and-trusted-agents-nav.md` — the two collapsible sidebar groups, their routes,
-   and the six placeholder pages.
-2. `2-unified-avatar-menus.md` — both avatar menus carry the same personal section and the same
-   destinations section, visible to every logged-in user.
+   and the six placeholder pages. **Done.**
+2. `2-unified-avatar-menus.md` — all *three* avatar menus (the count was wrong at planning time —
+   see audit §4 #1) carry the same personal section and the same destinations section, visible to
+   every logged-in user. **Done.**
 3. `3-setup-page-and-dictionaries-explainer.md` — the Trusted Agents **Set Up** page, the
    operator's dictionary-model explainer on the Dictionaries index, and the two non-blocking
-   findings from the Stories 1–2 reviews.
+   findings from the Stories 1–2 reviews. **Done.**
+
+All three PASS on first pass, no kick-backs. Reviews: `reviews/done/navigation-scaffolding/`.
+Close artifacts: `audits/navigation-scaffolding/{audit.md,prd-seed.md}`.
 
 ## Key facts / guardrails
 
