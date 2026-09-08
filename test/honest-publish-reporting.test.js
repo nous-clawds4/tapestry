@@ -25,10 +25,20 @@
  * The seam is nostr-tools' own `useWebSocketImplementation()` — the supported injection point for
  * non-browser environments. No production code changes for testability.
  *
- * IMPORTANT: the ESM build must be the one injected into. `require.resolve('nostr-tools/pool')`
- * returns the CJS twin, a DIFFERENT module instance; injecting there silently does nothing to the
- * ESM copy that nostrPublish.js imports. Resolve from ui/ (repo root carries an older nostr-tools)
- * and step across to the esm sibling.
+ * TWO RESOLUTION TRAPS, both of which fail SILENTLY — the suite keeps reporting passes while
+ * testing something other than what it claims:
+ *
+ *   1. The ESM build must be the one injected into. `require.resolve('nostr-tools/pool')` returns
+ *      the CJS twin, a DIFFERENT module instance; injecting there does nothing to the ESM copy
+ *      nostrPublish.js imports. Hence the step across to the esm sibling.
+ *   2. `paths: [UI]` falls back to ANCESTOR node_modules. CI runs `npm ci` at the repo root only
+ *      (.github/workflows/test.yml), so ui/node_modules does not exist there and resolution lands
+ *      on the repo root's OLDER nostr-tools. The versions disagree about how a failed connection is
+ *      reported — 2.23.3 fulfils with "connection failure: …", 2.10.4 rejects with the socket's own
+ *      error — so D1 classified an unreachable relay as `refused` and the required stack-free check
+ *      on main failed. `nostrToolsVersionGate` below closes this: when the resolved version is not
+ *      the one ui/ pins, the relay-behavior tests SKIP rather than assert things that cannot be
+ *      true of the shipped code. G1 and S1 still run — neither depends on relay semantics.
  *
  *   B1..B5 — behavioral: per-relay classification driven by real relay behavior.
  *   D1     — the per-relay `details` map (ADR 0001 Option B).
@@ -63,6 +73,51 @@ function esmPoolPath() {
   const cjs = require.resolve('nostr-tools/pool', { paths: [UI] });
   return path.resolve(path.dirname(cjs), '../esm/pool.js');
 }
+
+/** The nostr-tools version ui/ pins — the copy Vite bundles into production. */
+function pinnedNostrToolsVersion() {
+  try {
+    const lock = JSON.parse(fs.readFileSync(path.join(UI, 'package-lock.json'), 'utf8'));
+    const entry = Object.entries(lock.packages || {}).find(([k]) => k.endsWith('node_modules/nostr-tools'));
+    return (entry && entry[1].version) || null;
+  } catch { return null; }
+}
+
+/** The version `paths: [UI]` ACTUALLY resolved — which is not always ui/'s. See header. */
+function resolvedNostrToolsVersion() {
+  try {
+    const cjs = require.resolve('nostr-tools/pool', { paths: [UI] });
+    // .../nostr-tools/lib/{cjs,esm}/pool.js -> .../nostr-tools/package.json
+    const pkg = path.resolve(path.dirname(cjs), '../../package.json');
+    return JSON.parse(fs.readFileSync(pkg, 'utf8')).version || null;
+  } catch { return null; }
+}
+
+/**
+ * Can the relay-behavior tests mean what they claim?
+ *
+ * They assert how nostr-tools reports a failed connection, and that reporting differs between
+ * versions — so they are only evidence about production when run against the version production
+ * ships. Returns null to run, or a reason to skip.
+ *
+ * @returns {string|null}
+ */
+function nostrToolsVersionGate({ resolved, pinned }) {
+  if (!pinned) return 'could not read the nostr-tools pin from ui/package-lock.json';
+  if (!resolved) return `nostr-tools did not resolve from ui/ (ui/ pins ${pinned}) — run \`npm ci\` in ui/`;
+  if (resolved !== pinned) {
+    return `resolved nostr-tools ${resolved} but ui/ pins ${pinned} — \`paths: [UI]\` fell back to an ` +
+      `ancestor node_modules, so these tests would assert against a version production never ships ` +
+      `(run \`npm ci\` in ui/ to fix)`;
+  }
+  return null;
+}
+
+/** null when the suite is running against ui/'s pinned copy; a reason string otherwise. */
+const SKIP_REASON = nostrToolsVersionGate({
+  resolved: resolvedNostrToolsVersion(),
+  pinned: pinnedNostrToolsVersion(),
+});
 
 // ── the fake relay ────────────────────────────────────────────────────────────
 // Behavior is keyed by URL so tests never collide; nostr-tools normalizes URLs
@@ -120,6 +175,7 @@ const EVENT = {
 // ═══ B — per-relay classification, driven by real relay behavior ═════════════
 
 test('B1 a relay that accepts the event is reported as a success', async () => {
+  if (SKIP_REASON) return 'SKIP';
   const url = relay('accept');
   const r = await harness()(EVENT, [url]);
   assert(r.successes.includes(url), `an accepting relay must be a success; got ${JSON.stringify(r)}`);
@@ -127,6 +183,7 @@ test('B1 a relay that accepts the event is reported as a success', async () => {
 });
 
 test('B2 a relay that refuses the event (OK:false) is reported as a failure, not a success', async () => {
+  if (SKIP_REASON) return 'SKIP';
   const url = relay('refused');
   const r = await harness()(EVENT, [url]);
   assert(!r.successes.includes(url),
@@ -135,6 +192,7 @@ test('B2 a relay that refuses the event (OK:false) is reported as a failure, not
 });
 
 test('B3 a relay that cannot be connected to is reported as a failure', async () => {
+  if (SKIP_REASON) return 'SKIP';
   const url = relay('unreachable');
   const r = await harness()(EVENT, [url]);
   assert(!r.successes.includes(url),
@@ -145,6 +203,7 @@ test('B3 a relay that cannot be connected to is reported as a failure', async ()
 });
 
 test('B4 a relay that connects but never answers is reported as a failure, within a bounded wait', async () => {
+  if (SKIP_REASON) return 'SKIP';
   const url = relay('silent');
   const started = Date.now();
   const r = await harness()(EVENT, [url]);
@@ -158,6 +217,7 @@ test('B4 a relay that connects but never answers is reported as a failure, withi
 });
 
 test('B5 a mixed relay set is partitioned correctly in one call', async () => {
+  if (SKIP_REASON) return 'SKIP';
   const good = relay('accept');
   const bad = relay('refused');
   const gone = relay('unreachable');
@@ -171,6 +231,7 @@ test('B5 a mixed relay set is partitioned correctly in one call', async () => {
 // ═══ D — the per-relay detail map (ADR 0001 Option B) ════════════════════════
 
 test('D1 each relay carries a status and a reason distinguishing refused from unreachable', async () => {
+  if (SKIP_REASON) return 'SKIP';
   const good = relay('accept');
   const bad = relay('refused');
   const gone = relay('unreachable');
@@ -191,6 +252,7 @@ test('D1 each relay carries a status and a reason distinguishing refused from un
 // ═══ I — the primitive feeding the real classifier ══════════════════════════
 
 test("I1 when no relay accepted, the real broadcast core classifies the real result as not-delivered", async () => {
+  if (SKIP_REASON) return 'SKIP';
   const bad = relay('refused');
   const gone = relay('unreachable');
   const result = await harness()(EVENT, [bad, gone]);
@@ -208,6 +270,7 @@ test("I1 when no relay accepted, the real broadcast core classifies the real res
 // ═══ R — no unhandled rejection ═════════════════════════════════════════════
 
 test('R1 a refused publish leaves no unhandled promise rejection', async () => {
+  if (SKIP_REASON) return 'SKIP';
   // A mode of its own, so this test counts only the rejection it caused: every
   // mode but 'accept' / 'silent' / 'unreachable' is a refusal whose reason IS the mode name.
   const url = relay('refused-r1-only');
@@ -273,6 +336,7 @@ test('S1 publishOrThrow still derives external success from successes.length', (
 });
 
 async function run() {
+  if (SKIP_REASON) console.log(`  (relay-behavior tests skipped — ${SKIP_REASON})`);
   let pass = 0, fail = 0, skipped = 0;
   const failures = [];
   for (const t of tests) {
@@ -291,7 +355,7 @@ async function run() {
   return { pass, fail, skipped, failures };
 }
 
-module.exports = { run };
+module.exports = { run, nostrToolsVersionGate, SKIP_REASON };
 
 if (require.main === module) {
   run().then((r) => process.exit(r.fail ? 1 : 0));
