@@ -1,6 +1,6 @@
 # Story 1: Dictionaries and Trusted Agents sections on the Tapestry sidebar
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-08
 **Type:** Feature
 

@@ -1,6 +1,6 @@
 # Story 2: Both avatar menus carry the same destinations, for every logged-in user
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-08
 **Type:** Feature
 
