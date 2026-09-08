@@ -68,7 +68,7 @@ import {
   DictionaryDLists,
   DictionaryConcepts,
 } from './pages/dictionaries/Placeholders';
-import { MyTrustedAgents, AllTrustedAgents } from './pages/trusted-agents/Placeholders';
+import { MyTrustedAgents, AllTrustedAgents, TrustedAgentSetup } from './pages/trusted-agents/Placeholders';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
 
@@ -414,6 +414,7 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="/tapestry/trusted-agents/mine" replace /> },
           { path: 'mine', element: <MyTrustedAgents />, handle: { crumb: 'Mine' } },
           { path: 'all', element: <AllTrustedAgents />, handle: { crumb: 'All' } },
+          { path: 'setup', element: <TrustedAgentSetup />, handle: { crumb: 'Set Up' } },
         ],
       },
       { path: 'relationships', element: <RelationshipsIndex />, handle: { crumb: 'Relationships' } },

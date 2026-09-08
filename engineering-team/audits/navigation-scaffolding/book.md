@@ -43,6 +43,19 @@ The raw ask, verbatim in its shape:
       keep going to `/tapestry/users/<pubkey>`.
 - [ ] Navigation on the Legacy pages is untouched.
 
+### Amended 2026-09-08 (operator, after Stories 1–2 shipped)
+
+Two additions raised in-session. Both are inside the book's intent — the same navigation
+scaffolding — so they extend the frame rather than opening a second book.
+
+- [ ] Trusted Agents carries a third sub-item, **Set Up**, where a Sponsor is paired with an
+      Agent. Placeholder like its siblings.
+- [ ] The Dictionaries index carries the operator's explainer **verbatim** — the first written
+      statement of the dictionary model (dictionary = concept with entries as elements, or DList
+      header with entries as items for users without neo4j; entry by community usage/acceptance,
+      measured per-dictionary and evolving; hence a validity flag on the header for automatic
+      removal, and an added-by-hand field so hand-curation survives the scripts).
+
 ## Epics in this book
 - `navigation-scaffolding` — the two new nav sections with their placeholder pages, and the
   unification of the two avatar menus.

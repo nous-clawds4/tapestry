@@ -103,6 +103,7 @@ const mainNavItems = [
     children: [
       { to: '/tapestry/trusted-agents/mine', label: 'Mine' },
       { to: '/tapestry/trusted-agents/all', label: 'All' },
+      { to: '/tapestry/trusted-agents/setup', label: 'Set Up' },
     ],
   },
 ];

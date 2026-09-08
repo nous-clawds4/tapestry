@@ -31,3 +31,13 @@ export function AllTrustedAgents() {
     </PlaceholderPage>
   );
 }
+
+export function TrustedAgentSetup() {
+  return (
+    <PlaceholderPage title="🕵️ Set Up a Trusted Agent">
+      <p>
+        This page is where you will pair a <strong>Sponsor</strong> with an <strong>Agent</strong>.
+      </p>
+    </PlaceholderPage>
+  );
+}

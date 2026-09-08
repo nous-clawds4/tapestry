@@ -26,13 +26,20 @@ function classificationBadge(classification) {
  * vanishing, so the menu reads the same for every signed-in user.
  */
 function MenuItem({ link, onGo }) {
+  // The tooltip lives on a wrapping span, not on the disabled button: Firefox
+  // suppresses pointer events on disabled form controls, so a `title` there can
+  // silently never appear — and the tooltip is the whole point of this state.
+  if (!link.to) {
+    return (
+      <span className="dropdown-item-wrap" title={link.disabledReason}>
+        <button className="dropdown-item" disabled aria-disabled="true">
+          {link.icon} {link.label}
+        </button>
+      </span>
+    );
+  }
   return (
-    <button
-      className="dropdown-item"
-      disabled={!link.to}
-      title={link.to ? undefined : link.disabledReason}
-      onClick={() => link.to && onGo(link)}
-    >
+    <button className="dropdown-item" onClick={() => onGo(link)}>
       {link.icon} {link.label}
     </button>
   );

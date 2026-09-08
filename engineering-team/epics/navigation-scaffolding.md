@@ -39,6 +39,9 @@ the start rather than being retrofitted later.
    and the six placeholder pages.
 2. `2-unified-avatar-menus.md` — both avatar menus carry the same personal section and the same
    destinations section, visible to every logged-in user.
+3. `3-setup-page-and-dictionaries-explainer.md` — the Trusted Agents **Set Up** page, the
+   operator's dictionary-model explainer on the Dictionaries index, and the two non-blocking
+   findings from the Stories 1–2 reviews.
 
 ## Key facts / guardrails
 
@@ -57,7 +60,9 @@ the start rather than being retrofitted later.
   and a *customer relay key* for everyone else — null when none is provisioned. Operator decision
   at intake: show the item to everyone, disabled with a tooltip, rather than hiding it or minting
   a new page.
-- **Placeholder pages are placeholders.** No POV columns, no trust filtering, no data access. The
-  domain questions behind "Dictionaries" (the S3b / trusted-dictionary thread in
-  `stories/_intake.md`) and "Trusted Agents" are deliberately deferred; nothing here should
-  pre-commit their model.
+- **Placeholder pages are placeholders.** No POV columns, no trust filtering, no data access.
+  The domain question behind "Trusted Agents" is deliberately deferred; nothing here should
+  pre-commit its model. **The one exception is the Dictionaries index** — Story 3 puts the
+  operator's own statement of the dictionary model on it, verbatim. That prose is the record of
+  the model and later work will be built against it: don't paraphrase, tighten, or "fix" it in
+  passing. See also the S3b / trusted-dictionary thread in `stories/_intake.md`.

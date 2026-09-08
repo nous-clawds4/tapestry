@@ -2309,3 +2309,25 @@ shipped paths is a contract change, and the ADR should record whether partial-fa
 stays as-is.
 **Related:** OPEN.md rows 200, 201; `ui/src/utils/nostrPublish.js`;
 `ui/src/utils/publishProfileTag.js`; `audits/treasure-map-relay-presence/audit.md` §4 #2 and §6.
+
+---
+
+### 2026-09-08 — Security note: `/legacy/*.html` is served with no auth check
+
+**Type:** Security / hardening. **Classification:** not yet triaged.
+
+Surfaced (not caused) by `navigation-scaffolding` Story 2, which un-gated the Legacy Dashboard
+link so every signed-in user sees it. The reviewer checked the server side and found that
+`bin/control-panel.js:207–266` serves `/legacy` and `/legacy/:filename.html` with no
+authentication or classification check at all — the owner/admin gate was only ever on the *link*,
+which was never a control. Un-gating changed discoverability, not reachability: any unauthenticated
+visitor could already request those pages directly.
+
+**Not a regression from that story** — the story is correct as specified, and hiding a link is not
+a security boundary. But the operator surfaces are now one click away for every `guest`, so the
+question of whether the legacy pages should be gated server-side (and what they expose) is worth
+answering deliberately rather than by omission.
+
+**Suggested path:** Bug/hardening, Standard — audit what `public/*.html` actually exposes, then
+decide gate-or-retire. Retirement may be the right answer: the legacy dashboard is superseded by
+`/tapestry/`.
