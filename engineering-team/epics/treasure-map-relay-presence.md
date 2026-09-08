@@ -1,7 +1,8 @@
 # Epic: treasure-map-relay-presence
 
 **Created:** 2026-09-07
-**Status:** Active
+**Status:** Done (epic retired 2026-09-07 at the book close — all three stories Done and
+reviewed, in production via PRs #590 → staging and #597 → main; folders moved under `done/`)
 **Provenance:** Operator request 2026-09-07 (in-session): the TA Treasure Map page reports only
 whether the Map is in local strfry; show which relay or relays actually hold it — the three
 Digital Ocean Tapestry instances, other Brainstorm/NosFabrica ecosystem relays, and general
@@ -32,9 +33,22 @@ express that; the divergence is exactly the thing worth surfacing.
 
 ## Stories
 
-`stories/treasure-map-relay-presence/`:
-1. `1-treasure-map-relay-presence.md` — per-relay presence and version-divergence for the
-   displayed Map, over operator-configured relay groups including the Tapestry instances.
+`stories/done/treasure-map-relay-presence/`:
+1. `1-treasure-map-relay-presence.md` — per-relay presence and version-divergence over
+   operator-configured relay groups. **Done.**
+2. `2-per-relay-map-sync.md` — per-relay sync converging local strfry and one relay on the more
+   recent copy. **Done.**
+3. `3-scannable-presence-panel.md` — collapsed by default behind a status light; visible version
+   timestamps. **Done.**
+
+*(Plus one doc-lane chore: dropping the unreachable `*.nostr.band` relays from shipped
+defaults — `reviews/done/treasure-map-relay-presence/drop-unreachable-nostr-band-relays.md`.)*
+
+## Decisions
+`decisions/done/treasure-map-relay-presence/`:
+- `0001-per-relay-presence-probe.md`
+- `0002-per-relay-map-sync.md`
+- `0003-scannable-presence-panel.md`
 
 ## Key facts / guardrails
 
