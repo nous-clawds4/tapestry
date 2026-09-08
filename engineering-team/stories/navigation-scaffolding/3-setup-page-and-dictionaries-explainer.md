@@ -1,6 +1,6 @@
 # Story 3: Trusted Agents "Set Up" page, and the Dictionaries explainer
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-08
 **Type:** Feature
 
