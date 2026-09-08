@@ -111,5 +111,5 @@ directs reviewers to reject its removal without a re-parenting migration.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/honest-publish-reporting/0001-per-relay-publish-classification.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/honest-publish-reporting/1-publish-result-tells-the-truth.test-plan.md`
 - Review: (filled in after Review phase)
