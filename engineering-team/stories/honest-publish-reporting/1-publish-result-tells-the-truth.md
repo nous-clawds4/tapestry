@@ -110,6 +110,6 @@ directs reviewers to reject its removal without a re-parenting migration.
   the fix.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/honest-publish-reporting/0001-per-relay-publish-classification.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
