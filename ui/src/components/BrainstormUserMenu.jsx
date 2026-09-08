@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePov } from '../context/PovContext';
+import { personalLinks, destinationLinks } from '../config/avatarMenuLinks';
+import AvatarMenuLink from './AvatarMenuLink';
 
 /**
  * Compact user avatar + dropdown menu for Brainstorm Search pages.
  * Shows avatar, welcome, a POV SWITCH (House ⇄ My WoT) writing through the shared
- * PovContext selection (pov-selectable-tag-surfaces Story 4), settings link, sign out.
+ * PovContext selection (pov-selectable-tag-surfaces Story 4), the shared personal +
+ * destination link sections (navigation-scaffolding #2), settings link, sign out.
  */
 export default function BrainstormUserMenu({ user, login, logout }) {
   const [open, setOpen] = useState(false);
@@ -88,6 +91,14 @@ export default function BrainstormUserMenu({ user, login, logout }) {
 
   const houseName = houseProfile?.name || 'House';
 
+  // The Main menu points its two profile links at /user/<pubkey> — the same
+  // profile page search results link to (navigation-scaffolding #2).
+  const myLinks = personalLinks({
+    pubkey: user.pubkey,
+    assistantPubkey: user.assistantPubkey,
+    profileBase: '/user',
+  });
+
   return (
     <div className="bs-usermenu" ref={menuRef}>
       <button
@@ -108,7 +119,18 @@ export default function BrainstormUserMenu({ user, login, logout }) {
           <div className="bs-usermenu-welcome">
             {picture && <img src={picture} alt="" className="bs-usermenu-dropdown-pic" onError={e => { e.target.style.display = 'none'; }} />}
             <div>
-              <div className="bs-usermenu-dropdown-name">{displayName}</div>
+              <div className="bs-usermenu-dropdown-name">
+                {displayName}
+                {/* The Owner/Admin indicator used to live on the admin panel at the
+                    bottom, alongside the two dashboard links. Those links are now in
+                    the destinations section for everyone, so the badge moves up here
+                    rather than being lost with the panel. */}
+                {isOwnerOrAdmin && (
+                  <span className="bs-usermenu-role-badge">
+                    {user.classification === 'owner' ? 'Owner' : 'Admin'}
+                  </span>
+                )}
+              </div>
               <div className="bs-usermenu-dropdown-pubkey">{user.pubkey.slice(0, 12)}…{user.pubkey.slice(-6)}</div>
             </div>
           </div>
@@ -140,6 +162,18 @@ export default function BrainstormUserMenu({ user, login, logout }) {
             </div>
           </div>
 
+          <div className="bs-usermenu-section bs-usermenu-links">
+            {myLinks.map(link => (
+              <AvatarMenuLink key={link.key} link={link} onNavigate={() => setOpen(false)} />
+            ))}
+          </div>
+
+          <div className="bs-usermenu-section bs-usermenu-links">
+            {destinationLinks.map(link => (
+              <AvatarMenuLink key={link.key} link={link} onNavigate={() => setOpen(false)} />
+            ))}
+          </div>
+
           <div className="bs-usermenu-footer">
             <a
               href="/pins"
@@ -159,29 +193,6 @@ export default function BrainstormUserMenu({ user, login, logout }) {
               Sign out
             </button>
           </div>
-
-          {isOwnerOrAdmin && (
-            <div className="bs-usermenu-admin-panel">
-              <div className="bs-usermenu-admin-label">
-                <span className="bs-usermenu-admin-dot" />
-                {user.classification === 'owner' ? 'Owner' : 'Admin'}
-              </div>
-              <a
-                href="/tapestry/"
-                className="bs-usermenu-admin-btn"
-                onClick={() => setOpen(false)}
-              >
-                Tapestry Dashboard
-              </a>
-              <a
-                href="/legacy/"
-                className="bs-usermenu-admin-btn"
-                onClick={() => setOpen(false)}
-              >
-                Legacy Dashboard
-              </a>
-            </div>
-          )}
         </div>
       )}
     </div>

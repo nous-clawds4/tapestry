@@ -62,6 +62,13 @@ import SelfDeclaredDetail from './pages/shared-concepts/SelfDeclaredDetail';
 import AdoptionQueue from './pages/shared-concepts/AdoptionQueue';
 import TrustedDictionary from './pages/shared-concepts/TrustedDictionary';
 import HeaderEvent from './pages/shared-concepts/HeaderEvent';
+import {
+  DictionariesIndex,
+  DictionaryTags,
+  DictionaryDLists,
+  DictionaryConcepts,
+} from './pages/dictionaries/Placeholders';
+import { MyTrustedAgents, AllTrustedAgents, TrustedAgentSetup } from './pages/trusted-agents/Placeholders';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
 
@@ -387,6 +394,27 @@ const router = createBrowserRouter([
           { path: 'dictionary', element: <TrustedDictionary />, handle: { crumb: 'Trusted Dictionary' } },
           { path: 'header/:coord', element: <HeaderEvent />, handle: { crumb: 'Header Event' } },
           { path: ':uuid', element: <SharedConceptDetail />, handle: { crumb: 'Detail' } },
+        ],
+      },
+      {
+        path: 'dictionaries',
+        handle: { crumb: 'Dictionaries' },
+        children: [
+          { index: true, element: <DictionariesIndex /> },
+          { path: 'tags', element: <DictionaryTags />, handle: { crumb: 'Tags' } },
+          { path: 'dlists', element: <DictionaryDLists />, handle: { crumb: 'DLists' } },
+          { path: 'concepts', element: <DictionaryConcepts />, handle: { crumb: 'Concepts' } },
+        ],
+      },
+      {
+        path: 'trusted-agents',
+        handle: { crumb: 'Trusted Agents' },
+        children: [
+          // No index page was asked for; a bare prefix is better redirected than 404'd.
+          { index: true, element: <Navigate to="/tapestry/trusted-agents/mine" replace /> },
+          { path: 'mine', element: <MyTrustedAgents />, handle: { crumb: 'Mine' } },
+          { path: 'all', element: <AllTrustedAgents />, handle: { crumb: 'All' } },
+          { path: 'setup', element: <TrustedAgentSetup />, handle: { crumb: 'Set Up' } },
         ],
       },
       { path: 'relationships', element: <RelationshipsIndex />, handle: { crumb: 'Relationships' } },
