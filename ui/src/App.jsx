@@ -351,7 +351,7 @@ const router = createBrowserRouter([
         path: 'grapevine',
         handle: { crumb: 'My Grapevine' },
         children: [
-          { path: 'trusted-assertions', element: <TrustedAssertions />, handle: { crumb: 'TA Treasure Map' } },
+          { path: 'treasure-map', element: <TrustedAssertions />, handle: { crumb: 'TA Treasure Map' } },
           { path: 'assertions', element: <TrustedAssertionsList />, handle: { crumb: 'Trusted Assertions' } },
           { path: 'trust-determination', element: <TrustDetermination />, handle: { crumb: 'Trust Determination' } },
           { path: 'trusted-lists', element: <TrustedLists />, handle: { crumb: 'Trusted Lists' } },

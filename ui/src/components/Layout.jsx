@@ -46,7 +46,7 @@ const mainNavItems = [
     label: '🍇 My Grapevine',
     prefix: '/tapestry/grapevine',
     children: [
-      { to: '/tapestry/grapevine/trusted-assertions', label: 'TA Treasure Map' },
+      { to: '/tapestry/grapevine/treasure-map', label: 'TA Treasure Map' },
       { to: '/tapestry/grapevine/assertions', label: 'Trusted Assertions' },
       { to: '/tapestry/grapevine/trusted-lists', label: 'Trusted Lists' },
       { to: '/tapestry/grapevine/trust-determination', label: 'Trust Determination' },
