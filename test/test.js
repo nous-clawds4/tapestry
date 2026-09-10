@@ -276,6 +276,8 @@ const summariesElementCount = require('./summaries-element-count.test.js');
 const dlistCurationTlPanel = require('./dlist-curation-tl-panel.test.js');
 // epic: dlist-curation — Story 4 (the assistant curation-header endpoint).
 const dlistCurationHeaderEndpoint = require('./dlist-curation-header-endpoint.test.js');
+// epic: dlist-curation — Story 5 (the DList Curation panel).
+const dlistCurationPanel = require('./dlist-curation-panel.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -686,6 +688,9 @@ async function main() {
 
   console.log('\ndlist-curation-header-endpoint suite:');
   const dlistCurationHeaderEndpointResult = await dlistCurationHeaderEndpoint.run();
+
+  console.log('\ndlist-curation-panel suite:');
+  const dlistCurationPanelResult = await dlistCurationPanel.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1196,6 +1201,7 @@ async function main() {
   console.log(`summaries-element-count suite:                   ${summariesElementCountResult.fail === 0 ? 'PASS' : 'FAIL'} (${summariesElementCountResult.pass} passed, ${summariesElementCountResult.fail} failed)`);
   console.log(`dlist-curation-tl-panel suite:                   ${dlistCurationTlPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationTlPanelResult.pass} passed, ${dlistCurationTlPanelResult.fail} failed)`);
   console.log(`dlist-curation-header-endpoint suite:            ${dlistCurationHeaderEndpointResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationHeaderEndpointResult.pass} passed, ${dlistCurationHeaderEndpointResult.fail} failed)`);
+  console.log(`dlist-curation-panel suite:                      ${dlistCurationPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationPanelResult.pass} passed, ${dlistCurationPanelResult.fail} failed)`);
 
   const overallOk =
     configOk &&
@@ -1437,7 +1443,8 @@ async function main() {
     conceptCountCanonicalResult.fail === 0 &&
     summariesElementCountResult.fail === 0 &&
     dlistCurationTlPanelResult.fail === 0 &&
-    dlistCurationHeaderEndpointResult.fail === 0;
+    dlistCurationHeaderEndpointResult.fail === 0 &&
+    dlistCurationPanelResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -1480,7 +1487,7 @@ async function main() {
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
     relayScanBoundsResult, addNodeAsElementRestoreResult, conceptCountCanonicalResult, summariesElementCountResult,
-    dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult,
+    dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult, dlistCurationPanelResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

@@ -105,7 +105,7 @@ Map records that you empowered it."); the AC-1 labels are "N DLists curated" / "
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0005-dlist-curation-panel.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/dlist-curation/5-dlist-curation-panel.test-plan.md` (suite: `test/dlist-curation-panel.test.js`)
 - Review: (filled in after Review phase)
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
