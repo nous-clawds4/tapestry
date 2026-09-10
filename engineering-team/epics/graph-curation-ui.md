@@ -38,7 +38,8 @@ top-level superset.
 4. `stories/graph-curation-ui/4-summaries-element-count.md` — fix the same direct-only defect in
    `GET /api/concept-graph/summaries`, the endpoint AGENTS.md makes the first call of the
    orientation ladder. Split from #3 because it is a documented public read contract.
-   **Approved** (2026-09-09).
+   **Done** (review PASS 2026-09-09; local only, not yet on staging). `setCount` folded in at the
+   Architecture gate by operator decision.
 
 ## Key facts / guardrails
 

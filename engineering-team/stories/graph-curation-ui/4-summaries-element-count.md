@@ -1,6 +1,6 @@
 # Story 4: Make the summaries endpoint's element count mean what the rest of the system means
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-09
 **Revised:** 2026-09-09 at the Architecture gate — `setCount` folded into scope by operator
 decision. AC-5 originally pinned it as unchanged; the Architect's measurement showed the
@@ -114,4 +114,4 @@ reading the endpoint, for whom the present value is simply wrong.
 
 - ADR: `engineering-team/decisions/graph-curation-ui/0004-summaries-element-count.md`
 - Test plan: `engineering-team/stories/graph-curation-ui/4-summaries-element-count.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/graph-curation-ui/4-summaries-element-count.md`
