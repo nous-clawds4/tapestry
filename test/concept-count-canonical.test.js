@@ -1,6 +1,7 @@
 /**
  * Story graph-curation-ui #3 — one correct element/set count on the concept page.
- * ADR graph-curation-ui/0003 — canonical count computed once, shared via outlet context.
+ * ADR graph-curation-ui/0003 — canonical count computed once, shared via outlet context,
+ *   AMENDMENT 1 — the concept uuid is a query PARAMETER, never interpolated.
  * Plan: engineering-team/stories/graph-curation-ui/3-count-concepts-as-elements.test-plan.md
  *
  * ADR 0003 chose Option C: the counting rule moves to a pure ui/src/utils/conceptCounts.js;
@@ -43,8 +44,9 @@ function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return
 async function loadEsm(p) { try { return await import(pathToFileURL(p).href); } catch { return null; } }
 
 const NOT_BUILT =
-  'ui/src/utils/conceptCounts.js must export conceptCountsCypher(uuid) returning Cypher that ' +
-  'yields elementCount and setCount — not implemented yet (ADR graph-curation-ui/0003, decision 1).';
+  'ui/src/utils/conceptCounts.js must export conceptCountsCypher() — no argument — returning a ' +
+  'PARAMETERIZED query (matching {uuid: $conceptUuid}) that yields elementCount and setCount ' +
+  '(ADR graph-curation-ui/0003 decision 1, as amended by Amendment 1).';
 
 async function builder() {
   const mod = await loadEsm(COUNTS);
@@ -106,13 +108,45 @@ const H = (ta, slug) => `39998:${ta}:${slug}`;
 // U — the pure builder, imported and called. No stack required.
 // ===========================================================================
 
-test('U1 (ADR d1): conceptCountsCypher is a pure builder — same uuid in, identical Cypher out, no side effects', async () => {
+test('U1 (ADR d1 + A1): conceptCountsCypher is pure and PARAMETERIZED — one query text serves every concept', async () => {
   const fn = await builder();
-  const a = fn('39998:aa:example');
-  const b = fn('39998:aa:example');
+  const a = fn();
   assert(typeof a === 'string' && a.length > 0, `must return a non-empty Cypher string; got ${typeof a}.`);
-  assert(a === b, 'two calls with the same uuid must produce identical Cypher (pure builder).');
-  assert(a !== fn('39998:aa:other'), 'the returned Cypher must actually depend on the uuid it was given.');
+  assert(a === fn(), 'repeat calls must produce identical Cypher (pure builder).');
+  assert(/\$conceptUuid\b/.test(a),
+    'Amendment 1: the concept must arrive as the $conceptUuid PARAMETER, so the same query text ' +
+    `serves every concept. Got: ${a.slice(0, 160)}`);
+  assert(!/39998:[0-9a-f]{8}/.test(a),
+    'no concept handle may be interpolated into the query text — that is what made three concepts ' +
+    '(set, properties-set, goal-set) look like write queries to the server guard.');
+});
+
+test('U3 (A1, the whole point): the builder\'s Cypher does not trip the server\'s write-keyword guard', async () => {
+  const fn = await builder();
+  // The server's own regex, copied verbatim from src/api/neo4j/queryPost.js:17.
+  const WRITE_KEYWORDS = /\b(CREATE|MERGE|DELETE|SET|REMOVE|DETACH|DROP|CALL\s*\{)\b/i;
+  const q = fn();
+  assert(!WRITE_KEYWORDS.test(q),
+    'the counting query is a READ. If the server\'s write-keyword regex matches its text, every ' +
+    'unauthenticated caller gets 403 — logged-out visitors and this test runner alike. That is ' +
+    `exactly what interpolating a ":set" handle did. Offending text: ${q.match(WRITE_KEYWORDS)}`);
+  // And it must stay clean once a real handle is supplied as a parameter rather than inlined.
+  for (const slug of ['set', 'properties-set', 'goal-set']) {
+    assert(!WRITE_KEYWORDS.test(q),
+      `still clean for the ${slug} concept, because its handle never enters the query text.`);
+  }
+});
+
+test('U4 (A1): useCypher forwards params AND serializes them into its effect deps', async () => {
+  const src = safeRead(path.join(ROOT, 'ui/src/hooks/useCypher.js'));
+  assert(src.length > 0, 'ui/src/hooks/useCypher.js is missing — unexpected.');
+  assert(/cypher\(\s*query\s*,\s*params\s*\)/.test(src),
+    'useCypher must forward params to cypher(query, params) — ui/src/api/cypher.js has accepted ' +
+    'them all along; the hook never passed them.');
+  assert(/JSON\.stringify\(\s*params\s*\)/.test(src),
+    'the effect dependency list must include JSON.stringify(params). Without it the query text is ' +
+    'now CONSTANT across concepts, so navigating from one concept to another would not refetch — ' +
+    'the page would show the PREVIOUS concept\'s counts (ADR 0003 Amendment 1, decision 3).');
 });
 
 test('U2 (ADR d1): the module is dependency-free — no React, no fetch, so the runner can execute it', async () => {
@@ -131,7 +165,7 @@ test('U2 (ADR d1): the module is dependency-free — no React, no fetch, so the 
 test('L1 (AC1): the builder returns exactly one row carrying elementCount and setCount', async () => {
   const s = await stack(); if (!s.up) return 'SKIP';
   const fn = await builder();
-  const row = await run1(fn(H(s.ta, 'nostr-relay')));
+  const row = await run1(fn(), { conceptUuid: H(s.ta, 'nostr-relay') });
   assert(row && typeof row.elementCount === 'number',
     `the query must project a numeric elementCount; got ${JSON.stringify(row)}.`);
   assert(typeof row.setCount === 'number',
@@ -147,7 +181,7 @@ test('L2 (AC1): the builder agrees with an independently written derivation, acr
   assert(handles.length > 10, `expected the graph to hold many concepts; got ${handles.length}.`);
   const bad = [];
   for (const h of handles) {
-    const got = await run1(fn(h));
+    const got = await run1(fn(), { conceptUuid: h });
     const want = await derive(h);
     if (got.elementCount !== want.elementCount || got.setCount !== want.setCount) {
       bad.push(`${h.split(':').pop()}: builder=${got.elementCount}/${got.setCount} derived=${want.elementCount}/${want.setCount}`);
@@ -163,7 +197,7 @@ test('L3 (AC2): concepts whose elements are themselves concepts are counted — 
   const fn = await builder();
   for (const slug of ['firmware-concept', 'concept-header']) {
     const u = H(s.ta, slug);
-    const got = (await run1(fn(u))).elementCount;
+    const got = (await run1(fn(), { conceptUuid: u })).elementCount;
     const narrow = await listItemOnly(u);
     const want = (await derive(u)).elementCount;
     assert(got === want, `${slug}: builder said ${got}, independent derivation said ${want}.`);
@@ -182,7 +216,7 @@ test('L4 (AC3+AC4): elements nested under sets are counted — the reversed-trav
   let sawNested = 0;
   for (const slug of ['word', 'validation-tool', 'graph', 'set', 'property']) {
     const u = H(s.ta, slug);
-    const got = (await run1(fn(u))).elementCount;
+    const got = (await run1(fn(), { conceptUuid: u })).elementCount;
     const direct = await directOnly(u);
     const want = (await derive(u)).elementCount;
     assert(got === want, `${slug}: builder said ${got}, independent derivation said ${want}.`);
@@ -204,7 +238,7 @@ test('L5 (AC5 regression guard): concepts that are already counted correctly do 
   const fn = await builder();
   for (const slug of ['nostr-relay', 'nostr-kind']) {
     const u = H(s.ta, slug);
-    const got = (await run1(fn(u))).elementCount;
+    const got = (await run1(fn(), { conceptUuid: u })).elementCount;
     const want = (await derive(u)).elementCount;
     const direct = await directOnly(u);
     const narrow = await listItemOnly(u);
@@ -222,7 +256,7 @@ test('L6 (ADR d3): setCount counts the whole superset walk, not just the superse
   let sawDeep = 0;
   for (const slug of ['word', 'nostr-relay', 'graph']) {
     const u = H(s.ta, slug);
-    const got = (await run1(fn(u))).setCount;
+    const got = (await run1(fn(), { conceptUuid: u })).setCount;
     const want = (await derive(u)).setCount;
     assert(got === want, `${slug}: builder setCount=${got}, derived=${want}.`);
     if (want > 1) { sawDeep++; assert(got > 1,
@@ -230,6 +264,28 @@ test('L6 (ADR d3): setCount counts the whole superset walk, not just the superse
       `traversal is still in force (it can only ever see the superset itself).`); }
   }
   assert(sawDeep > 0, 'expected at least one fixture concept to have nested sets.');
+});
+
+test('L7 (A1 payoff): the three concepts whose handles trip the write guard now count fine UNAUTHENTICATED', async () => {
+  const s = await stack(); if (!s.up) return 'SKIP';
+  const fn = await builder();
+  // This runner sends no session cookie, so it exercises exactly the logged-out visitor's path.
+  // Before Amendment 1 each of these returned HTTP 403 "Write queries require owner
+  // authentication", because the interpolated handle put a bare `set` in the query text.
+  for (const slug of ['set', 'properties-set', 'goal-set']) {
+    const u = H(s.ta, slug);
+    let got;
+    try {
+      got = await run1(fn(), { conceptUuid: u });
+    } catch (err) {
+      throw new Error(
+        `${slug}: an unauthenticated read still fails — ${err.message}. The concept uuid must be ` +
+        `a parameter so its handle never appears in the query text (ADR 0003 Amendment 1).`);
+    }
+    const want = (await derive(u)).elementCount;
+    assert(got.elementCount === want,
+      `${slug}: builder said ${got.elementCount}, independent derivation said ${want}.`);
+  }
 });
 
 // ===========================================================================
@@ -268,6 +324,18 @@ test('S3 (ADR d2): the counts reach the Overview through the outlet context the 
     'ConceptDetail.jsx must carry both counts so they can be passed down.');
   assert(/useOutletContext\(\)/.test(overview) && /elementCount/.test(overview),
     'ConceptOverview.jsx must read elementCount from outlet context rather than its own query.');
+});
+
+test('S5 (A1): both remaining page queries pass the concept as a parameter, not interpolated text', async () => {
+  for (const [label, p] of [['ConceptDetail', DETAIL], ['ConceptOverview', OVERVIEW]]) {
+    const src = safeRead(p);
+    assert(!/uuid:\s*'\$\{/.test(src),
+      `${label} must not interpolate the concept uuid into Cypher text — Amendment 1 covers all ` +
+      `three queries on this page, so that logged-out visitors can read the set / properties-set / ` +
+      `goal-set concepts at all.`);
+    assert(/\$conceptUuid/.test(src),
+      `${label} must match on the $conceptUuid parameter.`);
+  }
 });
 
 test('S4 (AC1): the Overview still renders both figures — deleting the query must not delete the display', async () => {

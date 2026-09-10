@@ -3,6 +3,11 @@
 **Story:** `engineering-team/stories/graph-curation-ui/3-count-concepts-as-elements.md`
 **ADR:** `engineering-team/decisions/graph-curation-ui/0003-one-canonical-concept-count.md`
 **Date:** 2026-09-09
+**Re-aimed:** 2026-09-09 after ADR 0003 **Amendment 1**. The builder's contract changed —
+`conceptCountsCypher()` now takes no argument and the concept arrives as `$conceptUuid` — so
+`U1` and every `L*` call site were re-pointed, and three tests were added that only became
+possible once the query was parameterized. Re-aiming a suite is Phase 3 work; the Implementer
+kicked back rather than editing their own judge.
 
 ## Test level, and what changed since story #2
 
@@ -14,9 +19,9 @@ than prove text.
 
 | Tier | What it does | Stack needed |
 |---|---|---|
-| `U1–U2` | Import and call the pure builder; assert purity and dependency-freedom | no |
-| `L1–L6` | **Run the builder's Cypher against the live graph** and cross-check | yes (SKIP if down) |
-| `S1–S4` | Structural claims a query result cannot show | no |
+| `U1–U4` | Import and call the pure builder; assert purity, parameterization, guard-safety, and the hook's params wiring | no |
+| `L1–L7` | **Run the builder's Cypher against the live graph** and cross-check | yes (SKIP if down) |
+| `S1–S5` | Structural claims a query result cannot show | no |
 | `R1–R3` | Regression sentinels; PASS before and after | no |
 
 ## No hard-coded counts — and why that is load-bearing
@@ -53,13 +58,34 @@ reproduces every measurement taken at Architecture — `firmware concept` 37, `c
 | AC-3 set-nested elements counted | `L4` `word`, `validation tool`: `> 0` and strictly `>` direct-only | live |
 | AC-4 mixed direct + nested | `L4` `graph`, `set`, `property`: strictly `>` direct-only | live |
 | AC-5 regression guard | `L5` `nostr relay`, `nostr kind`: all three rules must still agree | live |
-| ADR d1 pure builder | `U1` purity + uuid dependence; `U2` no React, no I/O | unit |
+| ADR d1 pure builder | `U1` purity + parameterization (no handle in the text); `U2` no React, no I/O | unit |
 | ADR d1 header uses it | `S1` imports the builder; no `:ListItem` match remains | source |
 | ADR d2 Overview stops counting | `S2` no reversed traversal, no `count(DISTINCT elem/setNode)` | source |
 | ADR d3 setCount corrected | `L6` walks the whole superset tree, not just the superset | live |
 | Display survives the deletion | `S4` ELEMENTS and SETS still rendered | source |
+| A1 query is guard-safe | `U3` the server's own write-keyword regex, run against the builder's output | unit |
+| A1 hook wiring | `U4` params forwarded, and `JSON.stringify(params)` in the effect deps | source |
+| A1 payoff | `L7` `set`, `properties-set`, `goal-set` count correctly **unauthenticated** | live |
+| A1 page queries | `S5` neither page interpolates the uuid into Cypher text | source |
 
-`U*`, `L*` and `S1–S3` fail now. `S4` and `R1–R3` pass before and after.
+**State at the re-aim:** 17 pass, 2 fail. The two failures are precisely the parts of Amendment 1
+not yet built — `U4` (the `useCypher` params passthrough) and `S5` (the two page queries still
+interpolate). Everything the pre-amendment implementation already satisfied stays green, and
+`L7` **already passes**: parameterizing the builder alone was enough to make the three
+guard-tripping concepts readable without a session.
+
+## The two tests Amendment 1 made possible
+
+`U3` runs **the server's own regex**, copied verbatim from `src/api/neo4j/queryPost.js:17`,
+against the builder's output. It encodes the reason the amendment exists: if that regex ever
+matches the counting query's text again, every unauthenticated caller gets a 403 and the whole
+live tier goes dark. A future edit that reverts to interpolation fails here immediately, with
+the offending match quoted.
+
+`L7` is the user-facing payoff, and it is testable only because the runner is itself
+unauthenticated: it reads `set`, `properties-set` and `goal-set` with no session and asserts the
+counts are right. Before the amendment each returned `HTTP 403 Write queries require owner
+authentication` — the same failure a logged-out visitor to those pages hits today.
 
 ## Edge cases covered
 
@@ -110,30 +136,31 @@ node test/test.js
 
 ## Verification
 
-Confirmed failing for the right reasons on 2026-09-09 at commit `f040fd32`. Every `U*`/`L*`
-failure names the missing export; `S1–S3` name and quote the unchanged source. No failure is an
-import error or a typo.
+Re-run after the re-aim, 2026-09-09 (commit `6530c3bc`). `U4` and `S5` name exactly what
+Amendment 1 still requires; every other test is green. No failure is an import error or a typo.
 
 ```
-  ✗ U1 (ADR d1): conceptCountsCypher is a pure builder — same uuid in, identical Cypher out, no side effects
-      ui/src/utils/conceptCounts.js must export conceptCountsCypher(uuid) returning Cypher that yields elementCount and setCount — not implemented yet (ADR graph-curation-ui/0003, decision 1).
-  ✗ U2 (ADR d1): the module is dependency-free — no React, no fetch, so the runner can execute it
-  ✗ L1 (AC1): the builder returns exactly one row carrying elementCount and setCount
-  ✗ L2 (AC1): the builder agrees with an independently written derivation, across every concept in the graph
-  ✗ L3 (AC2): concepts whose elements are themselves concepts are counted — the :ListItem blind spot is gone
-  ✗ L4 (AC3+AC4): elements nested under sets are counted — the reversed-traversal blind spot is gone
-  ✗ L5 (AC5 regression guard): concepts that are already counted correctly do not move
-  ✗ L6 (ADR d3): setCount counts the whole superset walk, not just the superset itself
-  ✗ S1 (ADR d1): ConceptDetail sources its counts from the shared builder, not an inline :ListItem match
-      ConceptDetail.jsx must import conceptCountsCypher from ui/src/utils/conceptCounts.js.
-  ✗ S2 (ADR d2): ConceptOverview no longer counts anything — it cannot disagree with a number it does not compute
-      ConceptOverview.jsx must not contain a REVERSED IS_A_SUPERSET_OF traversal. Placement edges are parent-first (ADR relationship-primitives/0001); the reversed arrow is why this page reported 0 elements for `word`.
-  ✗ S3 (ADR d2): the counts reach the Overview through the outlet context the detail page already renders
-      ConceptDetail.jsx must carry both counts so they can be passed down.
+✓ U1 (ADR d1 + A1): conceptCountsCypher is pure and PARAMETERIZED — one query text serves every concept
+  ✓ U3 (A1, the whole point): the builder's Cypher does not trip the server's write-keyword guard
+  ✗ U4 (A1): useCypher forwards params AND serializes them into its effect deps
+      useCypher must forward params to cypher(query, params) — ui/src/api/cypher.js has accepted them all along; the hook never passed them.
+  ✓ U2 (ADR d1): the module is dependency-free — no React, no fetch, so the runner can execute it
+  ✓ L1 (AC1): the builder returns exactly one row carrying elementCount and setCount
+  ✓ L2 (AC1): the builder agrees with an independently written derivation, across every concept in the graph
+  ✓ L3 (AC2): concepts whose elements are themselves concepts are counted — the :ListItem blind spot is gone
+  ✓ L4 (AC3+AC4): elements nested under sets are counted — the reversed-traversal blind spot is gone
+  ✓ L5 (AC5 regression guard): concepts that are already counted correctly do not move
+  ✓ L6 (ADR d3): setCount counts the whole superset walk, not just the superset itself
+  ✓ L7 (A1 payoff): the three concepts whose handles trip the write guard now count fine UNAUTHENTICATED
+  ✓ S1 (ADR d1): ConceptDetail sources its counts from the shared builder, not an inline :ListItem match
+  ✓ S2 (ADR d2): ConceptOverview no longer counts anything — it cannot disagree with a number it does not compute
+  ✓ S3 (ADR d2): the counts reach the Overview through the outlet context the detail page already renders
+  ✗ S5 (A1): both remaining page queries pass the concept as a parameter, not interpolated text
+      ConceptDetail must not interpolate the concept uuid into Cypher text — Amendment 1 covers all three queries on this page, so that logged-out visitors can read the set / properties-set / goal-set concepts at all.
   ✓ S4 (AC1): the Overview still renders both figures — deleting the query must not delete the display
   ✓ R1: the Overview keeps its other fields (names, description, created, properties)
   ✓ R2: ConceptDetail still resolves the concept header and its superset
   ✓ R3: ConceptList keeps its own (correct) counting — this story does not touch it
 
-concept-count-canonical: 4 passed, 11 failed, 0 skipped
+concept-count-canonical: 17 passed, 2 failed, 0 skipped
 ```
