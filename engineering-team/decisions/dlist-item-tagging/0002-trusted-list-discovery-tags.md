@@ -200,7 +200,7 @@ Unchanged by this amendment: Options B, C, D and the `b` non-option, and their r
 
 ## Consequences
 
-**Firmware reinstall required?** **Yes.** `trusted-list-for-tag` is a **new concept definition**: add `firmware/versions/v1.0.0/concepts (the live version — `firmware/active` symlinks it; verified 2026-09-10)/trusted-list-for-tag/{concept-header.json,json-schema.json}` mirroring `tagging-with-specific-tag/` (including its `headerTags` `["recommended","a"] / ["allowed","e"]` pair) and a matching `manifest.json` entry. After that, `POST /api/firmware/install` must be run on every deployment before the TL publisher is enabled — a TL whose header joins a type header that does not exist locally is unanchored in the graph. This **reverses the previous "No firmware reinstall" line.**
+**Firmware reinstall required?** **Yes.** `trusted-list-for-tag` is a **new concept definition**: add `firmware/versions/v1.0.0/concepts/trusted-list-for-tag/{concept-header.json,json-schema.json}` mirroring `tagging-with-specific-tag/` (including its `headerTags` `["recommended","a"] / ["allowed","e"]` pair) and a matching `manifest.json` entry. (`v1.0.0` is the live version — `firmware/active` symlinks it; verified 2026-09-10.) After that, `POST /api/firmware/install` must be run on every deployment before the TL publisher is enabled — a TL whose header joins a type header that does not exist locally is unanchored in the graph. This **reverses the previous "No firmware reinstall" line.**
 
 **Irreversibility trigger.** The firmware change trips the irreversibility trigger (new permanent concept handle + permanent `tl:<slug>-tls` d-form once published). Already satisfied: Story 5 runs **Standard** governed by this ADR.
 
