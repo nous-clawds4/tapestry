@@ -14,8 +14,9 @@ const ENTRY = /^(\d{5})(?::(.+))?$/;
  *
  * @param {Array} tag  raw nostr tag, e.g. ["30382:rank", <pubkey>, <relay>]
  * @returns {{raw: string, kind: number|null, name: string|null,
- *            cls: 'ta'|'tl'|'other', pubkey: string|null, relay: string|null}}
- *   `cls`: 30380–30389 → 'ta', 30390–30399 → 'tl', anything else → 'other'.
+ *            cls: 'ta'|'tl'|'dlist'|'designation'|'other', pubkey: string|null, relay: string|null}}
+ *   `cls`: 30380–30389 → 'ta', 30390–30399 → 'tl', named 39998/39999 → 'dlist' (or 'designation'
+ *   for `39998:dlist-header`, ADR dlist-curation/0006), anything else → 'other'.
  *   A delegation entry without a valid delegate is no delegation: rows whose
  *   second element is not 64-hex classify 'other' regardless of kind (AC-6).
  *   `pubkey`: lowercased 64-hex second element, or null when absent/non-hex.
@@ -28,7 +29,12 @@ export function classifyEntry(tag) {
   const kind = m ? Number(m[1]) : null;
   const name = m && m[2] !== undefined ? m[2] : null;
   const pubkey = typeof t[1] === 'string' && HEX64.test(t[1]) ? t[1].toLowerCase() : null;
+  // dlist-curation #6 (ADR 0006): a named 39998/39999 entry with a valid delegate is a per-DList
+  // curation entry — except the reserved blanket word, which is the TA designation. A bare kind
+  // (no d-tag) stays `other`, as the story-2 pins require.
   const cls = pubkey === null ? 'other'
+    : (kind === 39998 || kind === 39999) && name !== null && name !== ''
+      ? (kind === 39998 && name === 'dlist-header' ? 'designation' : 'dlist')
     : kind !== null && kind >= 30380 && kind <= 30389 ? 'ta'
     : kind !== null && kind >= 30390 && kind <= 30399 ? 'tl'
     : 'other';
@@ -204,6 +210,52 @@ export function describeDListCuration(entries) {
   const count = Array.isArray(entries) ? entries.length : 0;
   const label = count === 0 ? 'None yet' : count === 1 ? '1 DList curated' : `${count} DLists curated`;
   return { count, label };
+}
+
+/* ── Map Entries for per-DList entries (dlist-curation #6, ADR 0006) ────────── */
+
+const A_TAG_FORM = /^\d+:[0-9a-f]{64}:.+$/;
+
+/**
+ * First occurrence wins (ADR 0002 §5): every Curated DList row whose raw first element already
+ * appeared on an earlier Curated DList row is marked `duplicate: true`; other classes are never
+ * marked. Returns new row objects in the same order; never throws.
+ */
+export function markDuplicateEntries(rows) {
+  const seen = new Set();
+  return (Array.isArray(rows) ? rows : []).map((r) => {
+    if (!r || r.cls !== 'dlist') return { ...(r || {}), duplicate: false };
+    const duplicate = seen.has(r.raw);
+    seen.add(r.raw);
+    return { ...r, duplicate };
+  });
+}
+
+/**
+ * The community header a curation header inherits from: the first `b` tag whose value is an
+ * a-tag (the reserved sentinel and event-id values derive nothing — Inherit-From § reserved value);
+ * `type` is element 3, `pointer` when absent. Null when there is none.
+ */
+export function communityPointerOf(header) {
+  for (const t of (header && Array.isArray(header.tags) ? header.tags : [])) {
+    if (!Array.isArray(t) || t[0] !== 'b' || typeof t[1] !== 'string' || !A_TAG_FORM.test(t[1])) continue;
+    return { coord: t[1], type: typeof t[2] === 'string' && t[2] !== '' ? t[2] : 'pointer' };
+  }
+  return null;
+}
+
+/**
+ * The details-line verdict for a Curated DList row after the two-step lookup (local strfry, then
+ * the row's relay hint only when missing locally): where the header was found, or a warning that
+ * names where it was looked for.
+ */
+export function describeHeaderLookup(row, found, checkedRelay) {
+  if (found) return { status: 'found', where: checkedRelay ? 'relay' : 'local' };
+  const hint = row && typeof row.relay === 'string' && row.relay !== '' ? row.relay : null;
+  return {
+    status: 'missing',
+    text: hint ? `Header not found locally or on ${hint}` : 'Header not found locally; no relay hint',
+  };
 }
 
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */

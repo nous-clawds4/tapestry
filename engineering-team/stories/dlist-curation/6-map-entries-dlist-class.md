@@ -74,6 +74,25 @@ None the PO holds. Decision points for the ADR: whether `classifyEntry` grows th
 sibling classifier does; how the kind-39999 link resolves (extend the detail route's id parser vs
 omit the link for 39999); how the two-step lookup is batched.
 
+## Deviations
+- **The route condition is a prefix list, not the ADR's regex literal.** ADR 0006 §Impl 3 wrote the
+  four prefixes as one regex; the suite's S4 reads the prefixes as strings (`39999:`, `9999:`), which
+  a regex alternation does not contain textually. The list form (`['39998:', '39999:', '9998:',
+  '9999:'].some(startsWith)`) is the same rule, reads as clearly, and matches the test as written —
+  no test was touched.
+- **Live verification via the fetch-stub remount** (no signer needed for these render paths): seven
+  rows — Trusted Assertion and Trusted List unchanged; `39998:dogs` (mine) → "Curated DList · dogs",
+  "Your assistant", the `dog` link, "inherits from 39998:01234567…cdef:dogs (inherit-items) · found
+  locally"; the second `39998:dogs` → "duplicate — ignored", no lookup; `39998:cats` (another
+  assistant, hint) → "external · 01234567…cdef" and, after a real relay round-trip to
+  `wss://dcosl.brainstorm.world`, "⚠️ Header not found locally or on wss://dcosl.brainstorm.world";
+  `39999:birds` (no hint) → "⚠️ Header not found locally; no relay hint"; `39998:dlist-header` →
+  "TA designation". Console: only the stub's 401s.
+- **Observed, not fixed (story 5's lane):** the DList Curation panel's collapsed count includes the
+  duplicate entry ("4 DLists curated" for four rows of which one is a duplicate), while Map Entries
+  now marks the duplicate ignored. `describeDListCuration` could count effective entries; a small
+  consistency follow-up for the book close, not this story.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0006-map-entries-dlist-class.md`
 - Test plan: `engineering-team/stories/dlist-curation/6-map-entries-dlist-class.test-plan.md` (suite: `test/dlist-curation-map-entries.test.js`)
