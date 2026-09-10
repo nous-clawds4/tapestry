@@ -110,6 +110,8 @@ test('E2: applyEventTagging (new-tag sequence) builds a tag-element carrying the
       sign: async (u) => { signedInputs.push(u); return { ...u, id: 'f'.repeat(64), sig: '0'.repeat(128) }; },
       publish: async () => {},
       now: () => 1_700_000_000,
+      // dlist-item-tagging #2: applyEventTagging requires deps.hash8 (SHA-256 first-8-hex).
+      hash8: (str) => require('node:crypto').createHash('sha256').update(str, 'utf8').digest('hex').slice(0, 8),
     },
   });
   const tagEl = signedInputs.find(u => u.kind === 39999 && (u.tags || []).some(t => t[0] === 'd'));

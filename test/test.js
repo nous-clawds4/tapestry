@@ -250,6 +250,8 @@ const tlTreasureMapPanel = require('./tl-treasure-map-panel.test.js');
 const tlTreasureMapOptin = require('./tl-treasure-map-optin-publish.test.js');
 // epic: dlist-item-tagging — Story 1 (Browse a DList with header-driven fields).
 const dlistBrowse = require('./dlist-browse.test.js');
+// epic: dlist-item-tagging — Story 2 (addressable-target assertion d-tag collision).
+const eventTaggingATargetDtag = require('./event-tagging-a-target-dtag.test.js');
 // epic: neo4j-sizing — Story 1 (entrypoint memory override).
 const neo4jSizingOverride = require('./neo4j-sizing-override.test.js');
 // epic: shared-concepts-seeding — Story 1 (honest broadcast reporting).
@@ -644,6 +646,9 @@ async function main() {
 
   console.log('\ndlist-browse suite:');
   const dlistBrowseResult = await dlistBrowse.run();
+
+  console.log('\nevent-tagging-a-target-dtag suite:');
+  const eventTaggingATargetDtagResult = await eventTaggingATargetDtag.run();
 
   console.log('\nneo4j-sizing-override suite:');
   const neo4jSizingOverrideResult = await neo4jSizingOverride.run();
@@ -1156,6 +1161,7 @@ async function main() {
   console.log(`tl-treasure-map-panel suite:                     ${tlTreasureMapPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapPanelResult.pass} passed, ${tlTreasureMapPanelResult.fail} failed, ${tlTreasureMapPanelResult.skipped} skipped)`);
   console.log(`tl-treasure-map-optin-publish suite:             ${tlTreasureMapOptinResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapOptinResult.pass} passed, ${tlTreasureMapOptinResult.fail} failed, ${tlTreasureMapOptinResult.skipped} skipped)`);
   console.log(`dlist-browse suite:                              ${dlistBrowseResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistBrowseResult.pass} passed, ${dlistBrowseResult.fail} failed, ${dlistBrowseResult.skipped} skipped)`);
+  console.log(`event-tagging-a-target-dtag suite:               ${eventTaggingATargetDtagResult.fail === 0 ? 'PASS' : 'FAIL'} (${eventTaggingATargetDtagResult.pass} passed, ${eventTaggingATargetDtagResult.fail} failed, ${eventTaggingATargetDtagResult.skipped} skipped)`);
   console.log(`neo4j-sizing-override suite:                     ${neo4jSizingOverrideResult.fail === 0 ? 'PASS' : 'FAIL'} (${neo4jSizingOverrideResult.pass} passed, ${neo4jSizingOverrideResult.fail} failed, ${neo4jSizingOverrideResult.skipped} skipped)`);
   console.log(`relay-scan-bounds suite:                         ${relayScanBoundsResult.fail === 0 ? 'PASS' : 'FAIL'} (${relayScanBoundsResult.pass} passed, ${relayScanBoundsResult.fail} failed, ${relayScanBoundsResult.skipped} skipped)`);
   console.log(`honest-broadcast-reporting suite:                ${honestBroadcastReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestBroadcastReportingResult.pass} passed, ${honestBroadcastReportingResult.fail} failed, ${honestBroadcastReportingResult.skipped} skipped)`);
@@ -1386,6 +1392,8 @@ async function main() {
     tlTreasureMapOptinResult.fail === 0 &&
     // dlist-item-tagging #1 — Browse a DList with header-driven fields
     dlistBrowseResult.fail === 0 &&
+    // dlist-item-tagging #2 — addressable-target assertion d-tag collision
+    eventTaggingATargetDtagResult.fail === 0 &&
     // neo4j-sizing #1 — entrypoint memory override
     neo4jSizingOverrideResult.fail === 0 &&
     relayScanBoundsResult.fail === 0 &&
@@ -1452,7 +1460,7 @@ async function main() {
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult, tlCertaintyMethodResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
-    relayScanBoundsResult, dlistBrowseResult,
+    relayScanBoundsResult, dlistBrowseResult, eventTaggingATargetDtagResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

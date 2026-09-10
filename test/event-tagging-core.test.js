@@ -114,14 +114,21 @@ t('buildEventTaggingAssertion: kind-1 note target uses e, dual z, polarity, d-ta
 });
 
 // ─── AC-4: assertion, addressable target ({address} → a) ───
-t('buildEventTaggingAssertion: addressable target uses a, target8 from coord pubkey', () => {
+// dlist-item-tagging #2 (ADR dlist-item-tagging/0001): the a-target d is
+//   event-tag-<slug>-<author8>-<d16>-<hash8>-<asserter8>
+// where hash8 = first 8 hex of SHA-256 over the full coordinate, INJECTED by the
+// caller (the core ships no hashing). The old author-segment-only rule collided
+// across one author's addressables and is superseded (2026-09-10).
+t('buildEventTaggingAssertion: addressable target uses a; d = author8-d16-hash8 with hash8 injected', () => {
   const c = load();
+  const { createHash } = require('node:crypto');
+  const hash8 = (str) => createHash('sha256').update(str, 'utf8').digest('hex').slice(0, 8);
   const address = `39999:${CHARLIE}:good-tag-tag`;
   const ev = c.buildEventTaggingAssertion({
-    headerAuthorPubkey: JACK, slug: SLUG, target: { address }, polarity: -1, asserterPubkey: ALICE, taPubkeys: [TA, LOCAL],
+    headerAuthorPubkey: JACK, slug: SLUG, target: { address }, polarity: -1, asserterPubkey: ALICE, taPubkeys: [TA, LOCAL], hash8,
   });
   jsonEq(ev.tags, [
-    ['d', 'event-tag-awesome-tag-33333333-22222222'], // target8 = CHARLIE.slice(0,8), NOT "39999:"
+    ['d', `event-tag-awesome-tag-33333333-good-tag-tag-${hash8(address)}-22222222`], // author8 = CHARLIE[0:8]; d16 = "good-tag-tag" (12 chars, verbatim); hash8 over the full coord
     ['a', address],
     ['z', `39998:${TA}:nostr-event-tag`],
     ['z', `39998:${LOCAL}:nostr-event-tag`],
