@@ -61,6 +61,17 @@ asking me to opt in — so that the page stays scannable and the opt-in decision
 None — both kickoff questions (AC-1's fourth sentence; AC-3's labels) were settled by the
 operator at the story gate, 2026-09-10.
 
+## Deviations
+- **Test S5's anchor was amended during Phase 4, in the Tester's lane** (commit `8d8e2027`, before any
+  implementation commit). As written it took the *first occurrence* of the title text, which under
+  ADR 0001 §2 is the control's `aria-label`, not the heading; the amended S5 anchors on the `<h4>`
+  element itself — stricter, and what AC-2/AC-4 mean. The implementation follows the ADR verbatim.
+- **Live keyboard check.** The automated browser's key action reaches neither this control nor the
+  shipped relay-presence one (control experiment), so AC-4's keyboard path was verified by
+  dispatching real `keydown` events at the control: Space folds, Enter unfolds, both with the
+  default prevented. Mouse toggle, all three collapsed labels, and the expanded body's copy were
+  verified on screen via the fetch-stub remount (no NIP-07 in the automated browser).
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0001-tl-panel-disclosure-and-copy.md`
 - Test plan: `engineering-team/stories/dlist-curation/1-tl-panel-copy-and-collapse.test-plan.md` (suite: `test/dlist-curation-tl-panel.test.js`)

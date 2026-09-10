@@ -50,6 +50,22 @@ export function findGenericTlDelegation(tags, kind = 30392) {
 }
 
 /**
+ * The collapsed-line verdict for the pubkey-TL delegation (dlist-curation #1, ADR 0001 §1):
+ * `{ status: 'absent'|'external'|'local', label, tone }`, where `label` is the exact text the
+ * Trusted Lists panel shows beside its title and `tone` is the colour key (`ok` | `warn` | `none`).
+ * Null when there is no baseline to judge against (the signed-in user's assistant has not
+ * resolved) — the caller renders nothing, never a guess. Never throws: a delegate-less row or
+ * garbage input reads as `absent`, consistent with findGenericTlDelegation.
+ */
+export function describeTlDelegation(delegation, assistantPubkey) {
+  if (typeof assistantPubkey !== 'string' || assistantPubkey === '') return null;
+  const pk = delegation && typeof delegation.pubkey === 'string' ? delegation.pubkey : null;
+  if (!pk) return { status: 'absent', label: '○ Not set', tone: 'none' };
+  if (pk === assistantPubkey) return { status: 'local', label: '✅ Your Tapestry Assistant', tone: 'ok' };
+  return { status: 'external', label: `⚠️ Another publisher · ${pk.slice(0, 8)}…${pk.slice(-4)}`, tone: 'warn' };
+}
+
+/**
  * Parse a hand-edited Treasure-Map JSON text into the unsigned replacement —
  * the manual-editor path (story 4, re-stamp policy). Honors the edit's
  * kind/tags/content exactly (kind defaults to 10040 when absent; content to
