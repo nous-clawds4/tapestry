@@ -200,7 +200,7 @@ d = event-tag-<descriptor>-<target8>-<asserter8>
   - **`a` target** — the segment `<author8>-<d16>-<hash8>`, i.e. `d = event-tag-<slug>-<author8>-<d16>-<hash8>-<asserter8>`, where:
     - `<hash8>` — the first 8 lowercase hex characters of the SHA-256 digest of the UTF-8 bytes of the **full coordinate** string `<kind>:<author>:<d>`, exactly as carried in the `a` tag (no trimming, normalization, or reordering). **This is the only segment that carries uniqueness.**
     - `<author8>` — the first 8 hex characters of the coordinate's author-pubkey segment. Readable decoration only.
-    - `<d16>` — the first 16 characters of the coordinate's `d` segment (everything after the second colon), verbatim, truncated. Readable decoration only; a shorter `d` yields a shorter `d16`, an empty `d` yields `…-<author8>--<hash8>-…`.
+    - `<d16>` — the first 16 characters (UTF-16 code units, as JavaScript `String.prototype.slice` counts them) of the coordinate's `d` segment (everything after the second colon), verbatim, truncated. Readable decoration only; a shorter `d` yields a shorter `d16`, an empty `d` yields `…-<author8>--<hash8>-…`.
 - `<asserter8>` — the first 8 characters of the asserting pubkey.
 
 Readers MUST NOT parse `d` back into its fields: `<d16>` is user-influenced text (it may contain hyphens, colons, slashes, spaces, non-ASCII), so the string is irreversible by construction. The `a` (or `e`) tag is authoritative for the target; `d` is only the replaceability key.

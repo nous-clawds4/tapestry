@@ -1,6 +1,6 @@
 # Story 2: Addressable-target assertion `d`-tag collision (spec fix)
 
-**Status:** In Progress
+**Status:** Done
 **Created:** 2026-09-09
 **Type:** Feature — protocol/spec fix *(escalated to **Standard** — all phases, Test Design
 included: the wire-format irreversibility trigger fires and the deliverable adds a core source
@@ -82,4 +82,4 @@ Link by path only — never record verdicts or round history in this file.
 
 ## Deviations
 - `apply.js` resolves `deps.hash8` only when the target is an `a` target **and has no `id`** (`typeof target.id !== 'string'`), mirroring the builder's documented "if both are supplied, `id` takes precedence" rule; the ADR's sketch checked `address` alone, which would have called the supplier for a target the builder then treats as `e`.
-- Test-fixture defect surfaced (not fixed — Tester's lane): `fail loud: an a target with NO hash8 throws` passes `h: undefined` into a helper whose parameter defaults to the real `hash8`, so the guard is never exercised; the builder does throw when the option is genuinely absent (verified directly).
+- Test-fixture defect surfaced (fixed in the implementation commit `2417b807`: the test now calls the core with the option genuinely absent): `fail loud: an a target with NO hash8 throws` passes `h: undefined` into a helper whose parameter defaults to the real `hash8`, so the guard is never exercised; the builder does throw when the option is genuinely absent (verified directly).
