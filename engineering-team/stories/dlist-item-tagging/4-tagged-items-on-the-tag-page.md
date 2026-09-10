@@ -370,3 +370,28 @@ class of message: the new field/file/copy does not exist yet.)
 - Review: `engineering-team/reviews/dlist-item-tagging/4-tagged-items-on-the-tag-page.md`
 
 Link by path only — never record verdicts or round history in this file.
+
+## Implementation obligations surfaced at Test Design (2026-09-10)
+
+The Tester found six points the Design note leaves under-specified. Recorded here so the
+Implementer decides them deliberately and the Reviewer can check them; none reopens the design.
+
+1. **`for-tag` must degrade, not 500, when a relay read throws.** `handleForTag` awaits
+   `realQuerySync` unguarded today, so a throw yields a 500. E11's sentinel (U17) requires a
+   try/catch that still returns 200 with the notes half. This is a new obligation, not a
+   sentinel on existing behavior — add it to the blast radius when implementing.
+2. **The kind-9999 classification scan needs a stated failure rule.** On scan failure: degrade
+   to address-only items, notes untouched, still 200 (U18).
+3. **Coordinate case is undecided.** A tagging may carry an uppercase-pubkey `a` coordinate while
+   strfry filters are lowercase. Decide whether `itemMembers[].address` stores the raw or the
+   normalized coordinate and say so — **story 5 publishes this value into a kind-30394 `a` member
+   tag**, so it is wire-visible there. Recommendation: normalize to lowercase at ingest.
+4. **E4's "zero declared fields" branch is not server-observable** — there is no difference
+   between "header absent" and "header present with no field declarations" on the wire, so its
+   sentinel (S5) pins UI copy, not behavior. Honest home is a Playwright spec; out of scope here.
+5. **E5's "first ref" tie-break is undefined** for an item carrying multiple `z`/`e` parents.
+   State the rule (tag order, or sorted) before it can be pinned; the suite uses single-parent
+   fixtures deliberately.
+6. **AC-2's count-before-click is pinned structurally** (`hidden={notesMode !== 'items'}` plus
+   `onCount=`), which constrains the Implementer to that idiom. Loosen the sentinel if a
+   different shape is preferred.
