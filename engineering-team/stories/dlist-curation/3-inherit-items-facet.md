@@ -102,10 +102,19 @@ derived-edge form (AC-6), the affiliation/stamping standing (AC-5), and the 3999
 (AC-9).
 
 ## Deviations
-- **Two sentences beyond the ADR's edit list, same claims.** The derived-relationship
-  "Direction" paragraph said "for either type" — now "for every type"; and the multi-parent
-  paragraph gained the clause that `"inherit-items"` parents union order-free (the ADR listed the
-  multi-parent edit but not the direction one). Both follow from Decision §§3 and 7.
+- **One sentence beyond the ADR's edit list, plus one companion edit, same claims.** The
+  derived-relationship "Direction" paragraph said "for either type" — now "for every type"
+  (Decision §7); and the family table's lead-in ("two types span two rows") became "three", a
+  companion to the table row the ADR did list. (Phase-4 first wrote "two sentences" and
+  miscounted — review #3 NB-7.)
+- **Review round 1 fixes (2026-09-10).** Seven stale "two types / both types" enumerations in
+  the amended documents brought to three / "every type" (the blocking item: inherit-from `:12`,
+  `:60`, `:126`; shared-concepts `:53`, `:58`, `:70`; BIBLE `:1635`); folded in NB-1 (type list),
+  NB-2 (metadata status clause), NB-3 (zero-weight sentence), NB-4 (BIBLE §22 and worksheet W1
+  "both types"), NB-5 (stamping standing stated by name: "anchors no stamps"; handoff D10
+  softened to match), NB-6 (an `own_items` "not yet formalized" note), NB-8 (epic: distinct
+  relationship, registry count) and NB-10 (epic story-4 caution). The docs-mode
+  consistency-sweep gap is a ledger row at the review commit.
 - **BIBLE header bumped in the same commit** (lesson from story 2, OPEN.md row 238): same date,
   chained note.
 - **Regression scope.** Docs-mode; the nine suites that read the changed documents were run and

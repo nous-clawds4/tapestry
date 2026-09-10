@@ -36,7 +36,10 @@ duplicating items into the community list.
 4. *(planned)* `4-assistant-curation-header-endpoint` — server: author/refresh the signed-in
    user's assistant header for a chosen community header (snapshot + `inherit-items` `b`), sign
    with the user's assistant key, publish local + community relay, no Neo4j write, idempotent,
-   never-clobber. Feature.
+   never-clobber. Feature. *Carry-forward (review #3, NB-10):* keep the assistant header off every
+   `buildImportCypher` lane (`/api/neo4j/event-update`, the `io.js` import, `pullClassThread`,
+   firmware install) — publishing to local strfry alone imports nothing, which is what the
+   no-Neo4j-write decision below relies on.
 5. *(planned)* `5-dlist-curation-panel` — the collapsible panel: community-header search with
    self/assistant exclusion, add (header first, then sign the Map), revoke. Feature.
 6. *(planned)* `6-map-entries-dlist-class` — Map Entries: classify `<kind>:<d-tag>` entries,
@@ -79,13 +82,12 @@ duplicating items into the community list.
   source, `useCommunitySharedConcepts`), keyword-filtered client-side, excluding headers authored
   by the user or the user's assistant; already-curated headers shown but not addable.
 - **Revoke** removes the Map entry only; the header and its `b` remain.
-- **`inherit-items`.** First facet in the `b` type registry (closed at two values today; new
+- **`inherit-items`.** First facet in the `b` type registry (closed at two values at kickoff, three since ADR 0003; new
   values require an ADR): live, parent-authoritative deference over items — neither today's
   `inherit` (definition fields) nor the family table's IMPORT (snapshot, importer-authoritative).
   v1 algebra additive: union of the parent's items and the child's own, both trust-filtered at
   read time; removals/replacements deferred. No aggregation weight (content composition, not
-  definition endorsement). Derived edge records the facet (property on INHERITS_FROM, least
-  invasive). Unknown types keep reading as `pointer` — the fail-safe that makes facets safe to
+  definition endorsement). Derived edge records the facet — ADR 0003 chose a **distinct relationship `INHERITS_ITEMS_FROM`** over the kickoff lean toward a property on INHERITS_FROM, so a bare `INHERITS_FROM` match keeps meaning definition deference. Unknown types keep reading as `pointer` — the fail-safe that makes facets safe to
   add one at a time. No `inherit-all` (its meaning would vary by reader); `inherit-header`,
   `inherit-subsets`, `inherit-json-schema` wait for a consumer, the rule W6 used. `inherit`
   keeps its meaning.

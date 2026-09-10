@@ -1,7 +1,7 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
-> **Implementation (reference deployment):** the **`b` write-primitive** (firmware emitter, `pointer`-typed seed) and the **type-gated edge derivation** (`pointer`/absent → `REFERENCES {source:'b-tag'}`, `inherit` → `INHERITS_FROM`) are **implemented** — `community-reference` ADR 0034 (emitter in `pass_communityReferences`, derivation in `buildImportCypher`) and applied to the tag concepts via `tag-federation` ADR 0002. The **resolved-definition read primitive** (the live inherit-typed merge/closure walk, §"Resolution") is **not** implemented (firmware seeds only `pointer`, which doesn't participate in resolution).
+> **Implementation (reference deployment):** the **`b` write-primitive** (firmware emitter, `pointer`-typed seed) and the **type-gated edge derivation** (`pointer`/absent → `REFERENCES {source:'b-tag'}`, `inherit` → `INHERITS_FROM`) are **implemented** — `community-reference` ADR 0034 (emitter in `pass_communityReferences`, derivation in `buildImportCypher`) and applied to the tag concepts via `tag-federation` ADR 0002. The **resolved-definition read primitive** (the live inherit-typed merge/closure walk, §"Resolution") is **not** implemented (firmware seeds only `pointer`, which doesn't participate in resolution). The `inherit-items` type (`dlist-curation` ADR 0003) derives the pointer form until the derivation is updated, and no item-set resolver exists (intake entry 2026-09-10).
 > **Sources:** BIBLE.md §25/§26 (extracted per protocols-directory story 5, `protocols-directory` ADR 0003) and ADRs 0027/0028, as amended by `community-reference` ADR 0029 (the element-3 type registry); extraction pattern: `protocols-directory` ADR 0001
 
 ---
@@ -9,11 +9,11 @@
 Inherit-From & Resolved Definition (`b`)
 =====
 
-This NIP defines a general definitional-relationship primitive in two halves: the **`b` tag** (the write primitive — a typed, child-claims-parent pointer at another addressable object) and the **resolved definition** (the read primitive — the live, deterministic merge that computes what a node's definition actually resolves to). The `b` tag carries one of two **types**: `"pointer"` (correspondence — "this is the shared definition my object corresponds to," with no deference) and `"inherit"` (definitional deference — "my definition is this parent's, unless I state otherwise"). Only inherit-typed tags participate in resolution.
+This NIP defines a general definitional-relationship primitive in two halves: the **`b` tag** (the write primitive — a typed, child-claims-parent pointer at another addressable object) and the **resolved definition** (the read primitive — the live, deterministic merge that computes what a node's definition actually resolves to). The `b` tag carries one of three **types**: `"pointer"` (correspondence — "this is the shared definition my object corresponds to," with no deference), `"inherit"` (definitional deference — "my definition is this parent's, unless I state otherwise"), and `"inherit-items"` (item inheritance — "my list's items are this parent's, plus my own"). Only `"inherit"`-typed tags participate in definition resolution; only `"inherit-items"`-typed tags in item resolution.
 
 ## Relationship to other specs
 
-The `b` tag rides on the addressable kinds defined by [Decentralized Lists](../nips/decentralized-lists.md) and [Tapestry Concepts](./tapestry-concepts.md). It is the single-char, child-claims-parent sibling of the [class-thread tags](./class-thread-relationships.md) — but where `n`/`s` express *structure* (containment), `b` expresses an *editorial relation* whose meaning is selected by its type: correspondence (`"pointer"`) or definitional deference (`"inherit"`). It lets any addressable DList object bookmark, or declare deference to, another's definition.
+The `b` tag rides on the addressable kinds defined by [Decentralized Lists](../nips/decentralized-lists.md) and [Tapestry Concepts](./tapestry-concepts.md). It is the single-char, child-claims-parent sibling of the [class-thread tags](./class-thread-relationships.md) — but where `n`/`s` express *structure* (containment), `b` expresses an *editorial relation* whose meaning is selected by its type: correspondence (`"pointer"`), definitional deference (`"inherit"`), or item inheritance (`"inherit-items"`). It lets any addressable DList object bookmark, or declare deference to, another's definition.
 
 ## The `b` tag
 
@@ -57,7 +57,7 @@ A node's **resolved definition** — what its definition actually resolves to af
 
 The **deference closure** — the set of all nodes a node transitively defers to, following unbroken chains of inherit-typed `b` tags — is likewise computed on read, never stored. A pointer-typed tag **breaks the chain**: it contributes nothing to the closure, and a node carrying only pointer-typed `b` tags has a closure of itself alone. **Affiliation rides the closure:** "is this node affiliated with definition X" = "does X appear in the node's deference closure" — transitive through deference (a deliberate, documented consequence of declaring `"inherit"`), never through mere correspondence. Closure membership is a set; `b`-tag order is irrelevant to it (order matters only for field resolution). The closure is **not guaranteed acyclic**: mutual deference (Alice `b`→Bob, Bob `b`→Alice) creates cycles, which the resolution rule's visited-set handles.
 
-The **any-type** counterpart — *reach*, the closure over both `b` types — is a distinct construct defined in [Shared Concepts](./shared-concepts.md) § Reach; it feeds stamp selection, never resolution.
+The **any-type** counterpart — *reach*, the closure over every `b` type — is a distinct construct defined in [Shared Concepts](./shared-concepts.md) § Reach; it feeds stamp selection, never resolution.
 
 **Resolution rule:**
 
@@ -109,6 +109,8 @@ items_walk(node, visited):
   return result
 ```
 
+`own_items(node)` is the set of items filed under the node — for a kind-39998 header, the kind-39999 events whose `z` names it ([Decentralized Lists](../nips/decentralized-lists.md)). What "its items" means for a kind-39999 carrier is **not yet formalized**, mirroring the definition walk's payload-binding note above; the resolver follow-up settles it.
+
 **A candidate set, not a trusted one.** The resolved item set says which items a reader *considers*; it says nothing about whether any of them is trusted. Every contributing item is still filtered at read time by the observer's point of view — by its own author's standing, under the observer-relative rule of [Shared Concepts](./shared-concepts.md) — exactly as the node's own items are. Item inheritance therefore never launders trust: an item inherited from a parent is judged by the same observer, on the same terms, as if it had been found under the parent.
 
 `"inherit-items"` inherits no definition fields and `"inherit"` inherits no items; a node may carry both, to the same target or to different ones, and each walk reads only its own type.
@@ -123,7 +125,7 @@ The type registry is **closed at three values** (`"pointer"`, `"inherit"`, `"inh
 
 ## Aggregation: who defers to a definition
 
-The policy reading of a target's incoming `b`-derived edges — deference aggregation vs. discovery walks, observer weighting, and the cloud model built on them — is specified in [Shared Concepts](./shared-concepts.md). One mechanical fact belongs with the primitive: because the type element is non-indexed, a relay-side `#b` filter returns both types; aggregators fetch, then filter by type locally.
+The policy reading of a target's incoming `b`-derived edges — deference aggregation vs. discovery walks, observer weighting, and the cloud model built on them — is specified in [Shared Concepts](./shared-concepts.md). One mechanical fact belongs with the primitive: because the type element is non-indexed, a relay-side `#b` filter returns every type; aggregators fetch, then filter by type locally.
 
 ## Place in the editorial-relationship family
 
