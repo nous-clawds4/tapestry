@@ -42,7 +42,7 @@ duplicating items into the community list.
    no-Neo4j-write decision below relies on.
 5. `5-dlist-curation-panel.md` (Done, review PASS 2026-09-10) — the collapsible panel: community-header search with
    self/assistant exclusion, add (header first, then sign the Map), revoke. Feature.
-6. *(planned)* `6-map-entries-dlist-class` — Map Entries: classify `<kind>:<d-tag>` entries,
+6. `6-map-entries-dlist-class.md` (Done, review PASS 2026-09-10) — Map Entries: classify `<kind>:<d-tag>` entries,
    show name + community pointer, link to the DList page, missing-header warning. Feature.
    *Carry-forward (review #2, NB-5):* seven in-repo readers of 10040 first elements, not three —
    also `TrustedAssertionsList.jsx`, `BrainstormSearch.jsx`, `useTrustWeights.js`,
@@ -58,6 +58,16 @@ duplicating items into the community list.
    rebuild-from-config generators, `src/api/export/nip85/commands/create-unsigned-kind10040.js`
    and `bin/brainstorm-create-kind10040.js` (handoff D8) — the fix covers both.
 
+## Close-out follow-ups (harvested at the story gates; for `/close-book`)
+- **Count vs duplicates (story 5 lane):** `describeDListCuration` counts every per-DList entry
+  including duplicates ("4 DLists curated" beside a "duplicate — ignored" row in Map Entries), and
+  the panel's "already empowered" index is last-wins; both should follow first-occurrence-wins
+  (ADR 0002 §5; review #5 NB-1, review #6 NB-4). One helper + one map; a small follow-up story.
+- **The shared-disclosure / header-lookup chore is earned:** six hand-rolled disclosures and two
+  header lookups on one page family (ADR 0001 Option B, ADR 0005 Option C, ADR 0006 Option C).
+- **`inherit-items` derivation + resolver** — intake entry 2026-09-10 (outside this book).
+- **Merge-preserve (story 7)** — the operator's include-or-drop call at the close.
+
 ## Decisions
 `decisions/dlist-curation/`:
 - `0001-tl-panel-disclosure-and-copy.md` — story 1: fold the Trusted Lists card in place with the page's
@@ -70,6 +80,8 @@ duplicating items into the community list.
   `community-reference` ADR 0004's no-server-publisher posture for its own directory.
 - `0005-dlist-curation-panel.md` — story 5: the panel over four pure Map-entry helpers, the story-4
   endpoint, and the page's sign-and-publish chain; body mounts on first open.
+- `0006-map-entries-dlist-class.md` — story 6: `classifyEntry` gains `dlist`/`designation`; Map
+  Entries' batched two-step header lookup and details line; the DList detail route accepts 39999 ids.
 
 ## Settled at kickoff (2026-09-09/10 session)
 - **Entry shape.** `["<kind>:<d-tag>", <assistant pubkey>, <relay>]`, kind ∈ {39998, 39999}

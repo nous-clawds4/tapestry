@@ -1,6 +1,6 @@
 # Story 6: Map Entries — classify, label, verify, and link per-DList curation entries
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-10
 **Type:** Feature
 
@@ -96,6 +96,6 @@ omit the link for 39999); how the two-step lookup is batched.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0006-map-entries-dlist-class.md`
 - Test plan: `engineering-team/stories/dlist-curation/6-map-entries-dlist-class.test-plan.md` (suite: `test/dlist-curation-map-entries.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/dlist-curation/6-map-entries-dlist-class.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
