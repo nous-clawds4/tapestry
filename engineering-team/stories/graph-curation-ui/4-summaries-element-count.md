@@ -2,6 +2,11 @@
 
 **Status:** Approved
 **Created:** 2026-09-09
+**Revised:** 2026-09-09 at the Architecture gate — `setCount` folded into scope by operator
+decision. AC-5 originally pinned it as unchanged; the Architect's measurement showed the
+endpoint's `setCount` counts a single `IS_A_SUPERSET_OF` hop while the concept page counts the
+whole walk, so leaving it would have closed the `elementCount` gap and knowingly kept a
+`setCount` gap of the same species.
 **Type:** Bug
 
 ## Background
@@ -60,9 +65,17 @@ test should derive them from the graph rather than hard-code them.
 - [ ] Given a concept whose elements are all direct — `nostr relay` (12), `firmware concept`
       (37) — when the endpoint is queried, then `elementCount` is unchanged from today.
       **Regression guard.**
-- [ ] Given the endpoint, when it is queried, then every other documented field
-      (`handle`, `name`, `description`, `setCount`, `labels`) is unchanged in name, shape, and
-      value, and response time remains acceptable for an orientation call on the full graph.
+- [ ] Given a concept with nested sets — `word`, `nostr relay`, `graph` — when the endpoint is
+      queried, then its `setCount` counts the whole superset walk (48, 14, 5 respectively as
+      measured 2026-09-09), matching what the concept page reports, **not** the single-hop
+      subtotal (17, 3, 4).
+- [ ] Given the endpoint, when it is queried, then every remaining documented field
+      (`handle`, `name`, `description`, `labels`) is unchanged in name, shape, and value.
+- [ ] Given the endpoint, when it is queried over the full graph, then response time stays
+      acceptable for a once-per-session orientation call. Measured baseline 2026-09-09 (median of
+      five warm runs): **6.1 ms** today, **27.5 ms** with both counts corrected. The cost is
+      real — roughly 4.5× — and accepted; the guard is that it must not regress by an order of
+      magnitude beyond that.
 - [ ] Given a concept page and the endpoint, when both are consulted for the same concept, then
       they report the same element count. *(Requires #3; if #3 has not shipped, this criterion
       is checked against #3's expected values rather than the live page.)*
@@ -96,6 +109,6 @@ at runtime in code (CLAUDE.md), never copied from this file.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/graph-curation-ui/0004-summaries-element-count.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
