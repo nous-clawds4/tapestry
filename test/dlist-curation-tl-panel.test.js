@@ -165,10 +165,12 @@ test('S5: one title, in the header, with the disclosure glyph beside it', () => 
   const card = safeRead(CARD);
   const h4s = (card.match(/<h4\b/g) || []).length;
   assert(h4s === 1, `AC-2: exactly one <h4> (the header owns the title); found ${h4s}`);
-  const at = card.indexOf(TITLE);
-  assert(at > 0, 'AC-2: the title "Trusted Lists for Pubkeys" is present');
-  const before = card.slice(Math.max(0, at - 120), at);
-  assert(before.includes('▾') && before.includes('▸'), 'AC-2/AC-4: the title line shows ▾ when open and ▸ when closed');
+  // Anchor on the <h4> ELEMENT, not the first occurrence of the title text: the ADR puts the
+  // title into the control's aria-label too, and that attribute precedes the heading in the file
+  // (Tester amendment during Phase 4 — the original anchor contradicted ADR 0001 §2 step 1).
+  const h4 = card.match(/<h4\b[^>]*>([\s\S]*?)<\/h4>/);
+  assert(h4 && h4[1].includes(TITLE), 'AC-2: the single <h4> carries the title "Trusted Lists for Pubkeys"');
+  assert(h4[1].includes('▾') && h4[1].includes('▸'), 'AC-2/AC-4: the title line shows ▾ when open and ▸ when closed');
   assert(/aria-label=/.test(card), 'AC-3: the control names the panel and its state for assistive tech');
 });
 
