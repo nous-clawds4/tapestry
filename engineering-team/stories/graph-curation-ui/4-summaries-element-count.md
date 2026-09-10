@@ -113,5 +113,5 @@ reading the endpoint, for whom the present value is simply wrong.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/graph-curation-ui/0004-summaries-element-count.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/graph-curation-ui/4-summaries-element-count.test-plan.md`
 - Review: (filled in after Review phase)
