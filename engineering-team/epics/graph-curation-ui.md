@@ -25,6 +25,12 @@ top-level superset.
    placements from the set detail page, the element detail page, and the Organization (Sets)
    overview; both placement kinds (element, subset). **Done** (review PASS 2026-07-22; live on
    staging, tapestry.brainstorm.world, and tags.brainstorm.world as of 2026-07-23).
+2. `stories/graph-curation-ui/2-restore-add-node-as-element-page.md` — restore the "Add Node as
+   Element" page, which currently fails to render at all, and rename its breadcrumb to match
+   the button that leads there. **Approved** (2026-09-09; `OPEN.md` row 222).
+3. `stories/graph-curation-ui/3-count-concepts-as-elements.md` — make the concept detail
+   header's element count include elements that are themselves concepts, so it agrees with the
+   Overview and the summaries API. **Approved** (2026-09-09; `OPEN.md` row 224).
 
 ## Key facts / guardrails
 
