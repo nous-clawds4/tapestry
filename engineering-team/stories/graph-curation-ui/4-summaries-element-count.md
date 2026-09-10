@@ -96,16 +96,19 @@ at runtime in code (CLAUDE.md), never copied from this file.
 - **Adding a separate "direct elements" figure.** The operator ruled direct-only is a bug, not a
   second metric worth surfacing. If a distinct direct-member count is ever wanted, it is a new
   field with its own name, not this one.
-- **Any other field of the summaries response**, and any other concept-graph endpoint
-  (`/neighbors`, `/node/:handle`) unless the same defect is found there.
+- **~~`setCount`~~ — folded INTO scope** at the Architecture gate; see the Revised note above.
+- **Any other field of the summaries response.** `/neighbors` and `/node/:handle` were checked,
+  not merely deferred: `elementCount` appears nowhere outside the summaries handler, so neither
+  carries this defect.
 - **AGENTS.md prose**, except a factual correction if the endpoint's documented description of
   `elementCount` turns out to state the narrower meaning.
 
 ## Open questions
 
-- Does anything downstream consume `elementCount` in a way that depends on the narrower meaning?
-  The Architect should check before widening it. Nothing is known to; the field's documented
-  description does not promise direct-only.
+None. The one open question — whether anything downstream depends on the narrower meaning — was
+answered at Architecture: **nothing in the codebase reads this field.** Every other
+`elementCount` in the tree is a page computing its own. The consumers are agents and operators
+reading the endpoint, for whom the present value is simply wrong.
 
 ## Linked artifacts
 
