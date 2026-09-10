@@ -232,17 +232,27 @@ Gate-A classification superseded: this story now runs **Standard** and is govern
 `engineering-team/decisions/dlist-item-tagging/0002-trusted-list-discovery-tags.md`.
 
 The earlier discovery-tag choice in the Design note — `['e', tag.eventId]` — is **withdrawn**.
-Trusted Lists instead carry `['z', '39999:<TA>:tl:<slug>-tls']`, a membership claim on the tag's
-per-tag **Trusted-List header** (TA-authored, runtime-resolved, lazily created on first publish, and
-itself an item on the new firmware-seeded type header `39998:<TA>:trusted-list-for-tag`). Family-wide
-across 30392/30393/30394/30395; members keep the kind's lowercase letter.
+Trusted Lists instead carry **two** `z` tags, mirroring how an event-tagging carries one concept `z`
+plus one per-tag `z`:
 
-Two corrections to the first version of this amendment: the `z` does **not** point at the per-tag
-*tagging* header (a Trusted List is not a tagging — that `z` was a false membership claim), and the
-`pickHeader`-based header-author rule is withdrawn with it (a TA-authored header has no plurality).
+1. `['z', '39998:<TA>:trusted-list']` — the concept `z`: "I am a Trusted List." Gives a
+   deployment-wide discovery filter across all tags, and is the seam where cross-deployment
+   federation attaches (per `protocols/drafts/event-taggings.md` § "Concept namespaces & federation").
+2. `['z', '39999:<TA>:tl:<slug>-tls']` — a membership claim on the tag's per-tag **Trusted-List
+   header** (TA-authored, runtime-resolved, lazily created on first publish, and itself an item on
+   the new firmware-seeded type header `39998:<TA>:trusted-list-for-tag`).
 
-**Firmware change is now in scope**, and therefore a reinstall (`POST /api/firmware/install`): the
-`trusted-list-for-tag` type header is a new concept definition. This reverses the "no firmware
+Family-wide across 30392/30393/30394/30395; members keep the kind's lowercase letter.
+
+Corrections carried in from earlier versions of this amendment: the per-tag `z` does **not** point at
+the per-tag *tagging* header (a Trusted List is not a tagging — that `z` was a false membership
+claim), and the `pickHeader`-based header-author rule is withdrawn with it (a TA-authored header has
+no plurality).
+
+**Firmware change is now in scope**, and therefore a reinstall (`POST /api/firmware/install`):
+**two** new concept definitions — `trusted-list-for-tag` (the type header) and `trusted-list` (the
+concept-`z` target; existing `list` / `curated-dlist` / `web-of-trust` were each checked and none
+fits — see ADR 0002 Decision 5). Two concept dirs, one reinstall. This reverses the "no firmware
 reinstall required" line in the Gate-A notes above.
 
 See ADR 0002 for the rationale, the worked example, and the 30393 dual-emit migration posture.
