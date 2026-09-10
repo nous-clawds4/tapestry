@@ -30,7 +30,8 @@ top-level superset.
    the button that leads there. **Done** (review PASS 2026-09-09; local only, not yet on staging).
 3. `stories/graph-curation-ui/3-count-concepts-as-elements.md` — make the concept detail page
    report one correct element count on both its surfaces (header + Overview): everything
-   reachable through the set tree. **Approved, rewritten 2026-09-09** after an Architecture
+   reachable through the set tree. **Done** (review PASS 2026-09-09; local only, not yet on
+   staging). Rewritten mid-flight after an Architecture
    kick-back — the first draft required the header to match the Overview, but measurement showed
    the Overview is the *more* broken surface (it reads 0 for `word`, which has 582 elements).
    (`OPEN.md` row 224.)

@@ -1,6 +1,6 @@
 # Story 3: Report a concept's element count correctly on the concept page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-09
 **Revised:** 2026-09-09 — rewritten after an Architecture-phase kick-back. The first draft
 asserted that the page header was the lone outlier and required it to match the Overview and
@@ -119,4 +119,4 @@ None. The correct semantics is settled by operator ruling; the expected values a
 
 - ADR: `engineering-team/decisions/graph-curation-ui/0003-one-canonical-concept-count.md`
 - Test plan: `engineering-team/stories/graph-curation-ui/3-count-concepts-as-elements.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/graph-curation-ui/3-count-concepts-as-elements.md`
