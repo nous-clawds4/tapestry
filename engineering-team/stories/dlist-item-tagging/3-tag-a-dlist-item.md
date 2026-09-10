@@ -225,6 +225,20 @@ note §1)`; S1 `first argument is named target`; S2 `NoteTags accepts a target p
 `DListItemTags.jsx must exist`; S4 `List.jsx imports the wrapper`; S5 `modal imports parseItemRef`;
 S6 `destinationLinks must carry { key: "lists" }`; S7 `DListItemTags.jsx must exist`. R1–R6 pass.
 
+## Deviations *(Implementer, 2026-09-10 — judgment calls too small for an ADR)*
+- **Modal copy parameterised by subject.** The Design note named only the two `NoteTags` aria-labels; the modal's own
+  "Apply … to this note:" / "… on this note" strings also read "list item" on an item hit (a `subject` local). The note
+  default renders byte-identically.
+- **Modal path exclusivity + refresh.** A `parseItemRef` hit clears `resolveArg` and a miss clears `itemRef`, so the note
+  and item branches never both render; the one-row table is re-keyed by `refreshNonce` (same trick as the `NoteCard`
+  remount) so the row's chips refetch after the modal's own Apply/Dispute. Apply/Dispute are gated on the resolved item (E6).
+- **Header resolve accepts both `z` forms.** `parseListRef` returns `{ id }` for a 64-hex `z` value; the modal queries
+  `ids:` in that case and the coordinate filter otherwise — still best-effort, `fieldDecls = []` on any miss (E7).
+- **Hook empty-state guard.** `useEventTags` short-circuits on `!target.id && !target.address` (was `!eventId`) — same
+  behaviour for the note convention, and an empty `{}` target reads nothing rather than `eventId=undefined`.
+- **Pre-existing lint warning left alone.** `react-hooks/exhaustive-deps` on `povParams` in `useEventTags.js` is present at
+  HEAD (line 112 before, 118 after); fixing it is outside the story.
+
 ## Linked artifacts
 - ADR: none expected (story 2 carries the wire change)
 - Review: `engineering-team/reviews/dlist-item-tagging/3-tag-a-dlist-item.md`

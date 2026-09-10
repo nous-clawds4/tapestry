@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import Avatar from '../components/Avatar';
 import DListItemsTable from '../components/dlist/DListItemsTable';
+import DListItemTags from '../components/dlist/DListItemTags';
 import useProfiles from '../hooks/useProfiles';
 import { queryRelay, queryRelayBounded } from '../api/relay';
 import { headerCoord, headerNames, parseFieldDecls, parseListRef, reactionPolarity } from '../utils/dlistFields';
@@ -165,6 +166,7 @@ export default function List() {
                 fieldDecls={fieldDecls}
                 profiles={profiles}
                 voteCounts={votesFailed ? {} : voteCounts}
+                renderExtra={(it) => <DListItemTags item={it} />}
               />
             )}
 

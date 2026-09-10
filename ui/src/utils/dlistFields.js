@@ -147,3 +147,38 @@ export function reactionPolarity(content) {
   if (c === '-' || c === '👎') return -1;
   return 0;
 }
+
+/** `39999:<pubkey>:<d>` for a kind-39999 item with a `d` tag; null otherwise (kind-9999 items are non-addressable). */
+export function itemCoord(item) {
+  if (item?.kind !== 39999 || typeof item.pubkey !== 'string') return null;
+  const d = tagValue(item, 'd');
+  return d ? `${item.kind}:${item.pubkey}:${d}` : null;
+}
+
+/** The event-tagging target for an item: `{ address }` when addressable, else `{ id }` (dlist-item-tagging #3). */
+export function itemTarget(item) {
+  const address = itemCoord(item);
+  return address ? { address } : { id: item?.id };
+}
+
+/** `39999:<64hex>:<d>` / `naddr1…` of kind 39999 → {kind,pubkey,d,address}; anything else (headers, notes, npubs) → null. */
+export function parseItemRef(input) {
+  if (typeof input !== 'string') return null;
+  const s = input.trim();
+  if (!s) return null;
+  if (s.startsWith('naddr1')) {
+    try {
+      const { type, data } = nip19.decode(s);
+      if (type !== 'naddr' || data.kind !== 39999 || !HEX64.test(data.pubkey || '')) return null;
+      return { kind: 39999, pubkey: data.pubkey, d: data.identifier, address: `39999:${data.pubkey}:${data.identifier}` };
+    } catch {
+      return null;
+    }
+  }
+  const parts = s.split(':');
+  if (parts.length < 3 || Number(parts[0]) !== 39999) return null;
+  const pubkey = parts[1];
+  if (!HEX64.test(pubkey)) return null;
+  const d = parts.slice(2).join(':'); // d may contain colons
+  return { kind: 39999, pubkey, d, address: `39999:${pubkey}:${d}` };
+}

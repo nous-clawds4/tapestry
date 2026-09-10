@@ -19,10 +19,13 @@ import RawTaggingEvents from './RawTaggingEvents';
  * the viewer applied shows (and is highlighted as theirs) even when the POV doesn't
  * count them — distinct from the POV-counted applications/disputes shown in the chip.
  */
-export default function NoteTags({ item, showScores = false }) {
+export default function NoteTags({ item, showScores = false, target: targetProp, subject = 'note' }) {
   const { user } = useAuth();
   const viewerPubkey = user?.pubkey || null;
-  const { tags, mine, rawEvents, availableTags, povResolution, error, refetch } = useEventTags(item?.id, viewerPubkey);
+  // The assertion target: `{ id }` for a note (default), `{ address }` for an
+  // addressable list item (dlist-item-tagging #3) — read and writes share it.
+  const target = targetProp || { id: item?.id };
+  const { tags, mine, rawEvents, availableTags, povResolution, error, refetch } = useEventTags(target, viewerPubkey);
   // Type-aware picker (tag-applicability #2): event-context applicable tags, viewer-inclusive.
   const { applicableKeys, contextsByKey } = useTagApplicability('event', viewerPubkey);
   const { applyTag, disputeTag } = useEventTagging();
@@ -135,7 +138,6 @@ export default function NoteTags({ item, showScores = false }) {
     }
   }, [busy, refetch]);
 
-  const target = { id: item?.id };
   // Chip popover handlers swallow the re-thrown rejection — the section banner is
   // the single error surface (mirrors ProfileTagsSection).
   const handleApply = (tag) => run(() => applyTag({ authorPubkey: tag.authorPubkey, slug: tag.slug }, target)).catch(() => {});
@@ -151,7 +153,7 @@ export default function NoteTags({ item, showScores = false }) {
   if (!hasTags && !viewerPubkey) return null; // nothing to show and nothing to add → no chrome
 
   return (
-    <div className="bsp-note-tags" aria-label="Tags on this note">
+    <div className="bsp-note-tags" aria-label={`Tags on this ${subject}`}>
       {error && <div className="bsp-note-tags-error">⚠️ {error}</div>}
       {actionError && <div className="bsp-note-tags-error">⚠️ {actionError}</div>}
 
@@ -213,7 +215,7 @@ export default function NoteTags({ item, showScores = false }) {
             className="bsp-note-tags-add"
             onClick={() => setDialogOpen(true)}
             disabled={busy}
-            aria-label="Add a tag to this note"
+            aria-label={`Add a tag to this ${subject}`}
           >
             +
           </button>

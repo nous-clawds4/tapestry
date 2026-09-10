@@ -36,8 +36,14 @@ function fetchAvailableTags() {
   return _availTags.promise;
 }
 
-export function useEventTags(eventId, viewerPubkey) {
+/**
+ * @param {string|{id?:string, address?:string}} targetInput — a hex event id (the
+ *   note convention, normalised to `{ id }`) or `{ id } | { address }`; an
+ *   `address` (`kind:pubkey:d`) reads `for-event?address=` (dlist-item-tagging #3).
+ */
+export function useEventTags(targetInput, viewerPubkey) {
   const { povParams } = usePov();
+  const target = typeof targetInput === 'string' ? { id: targetInput } : (targetInput || {});
   const [tags, setTags] = useState([]);
   const [mine, setMine] = useState([]);
   // The as-signed bytes behind the channels — { [eventId]: 7-field projection }
@@ -52,14 +58,14 @@ export function useEventTags(eventId, viewerPubkey) {
   const refetch = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    if (!eventId) { setTags([]); setMine([]); setRawEvents({}); return undefined; }
+    if (!target.id && !target.address) { setTags([]); setMine([]); setRawEvents({}); return undefined; }
     let cancelled = false;
     setLoading(true);
     setError(null);
 
     (async () => {
       try {
-        const params = new URLSearchParams({ eventId });
+        const params = new URLSearchParams(target.address ? { address: target.address } : { eventId: target.id });
         // Selected-POV read params (ADR pov-selectable-tag-surfaces/0001).
         Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
         // viewerPubkey drives the durable, trust-unfiltered `mine` channel.
@@ -109,7 +115,7 @@ export function useEventTags(eventId, viewerPubkey) {
     })();
 
     return () => { cancelled = true; };
-  }, [eventId, viewerPubkey, nonce, povParams.wotPov, povParams.userPubkey]);
+  }, [target.id, target.address, viewerPubkey, nonce, povParams.wotPov, povParams.userPubkey]);
 
   return { tags, mine, rawEvents, availableTags, povResolution, loading, error, refetch };
 }
