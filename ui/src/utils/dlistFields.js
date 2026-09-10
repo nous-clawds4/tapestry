@@ -53,7 +53,10 @@ export function parseListRef(param) {
   if (parts.length < 3) return null;
   const kind = Number(parts[0]);
   if (!HEADER_KINDS.has(kind)) return null;
-  const pubkey = parts[1];
+  // Pubkeys are lowercase hex on the wire; HEX64 accepts either case so a pasted
+  // uppercase coordinate still resolves, but normalize before it becomes an address
+  // (the server's isACoord and strfry authors: are lowercase-only).
+  const pubkey = (parts[1] || '').toLowerCase();
   if (!HEX64.test(pubkey)) return null;
   return coordRef(kind, pubkey, parts.slice(2).join(':')); // d may contain colons
 }
@@ -177,7 +180,10 @@ export function parseItemRef(input) {
   }
   const parts = s.split(':');
   if (parts.length < 3 || Number(parts[0]) !== 39999) return null;
-  const pubkey = parts[1];
+  // Pubkeys are lowercase hex on the wire; HEX64 accepts either case so a pasted uppercase
+  // coordinate still resolves, but normalize before it becomes an address (the server's
+  // isACoord and strfry authors: are lowercase-only).
+  const pubkey = (parts[1] || '').toLowerCase();
   if (!HEX64.test(pubkey)) return null;
   const d = parts.slice(2).join(':'); // d may contain colons
   return { kind: 39999, pubkey, d, address: `39999:${pubkey}:${d}` };

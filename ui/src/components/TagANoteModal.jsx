@@ -192,7 +192,7 @@ export default function TagANoteModal({ open, onClose, tag, viewerPubkey, onTagg
               placeholder="nevent1… · note1… · 64-hex id · naddr1… / 39999:…:d (list item)"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              aria-label="Paste a note identifier to tag"
+              aria-label="Paste a note or list-item identifier to tag"
             />
             <button type="submit" className="tan-resolve-btn">Find</button>
           </form>

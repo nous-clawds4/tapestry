@@ -1,6 +1,6 @@
 # Story 3: Tag a DList item
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-09
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-10 — inline in the row slot, Design note not ADR, scoped gate `test/dlist-item-tagging.test.js` + the strfry write-assertion guard suite; depends on story 2)*
 
