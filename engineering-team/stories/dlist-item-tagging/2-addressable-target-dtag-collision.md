@@ -1,6 +1,6 @@
 # Story 2: Addressable-target assertion `d`-tag collision (spec fix)
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-09
 **Type:** Feature — protocol/spec fix *(escalated to **Standard** — all phases, Test Design
 included: the wire-format irreversibility trigger fires and the deliverable adds a core source
@@ -59,10 +59,12 @@ the first.
 - Any UI (story 3). Any change to `e`-target derivation. Migration of already-published
   `a`-target assertions (state the posture; do not build a migrator).
 
-## Open questions *(for the Gate)*
-1. **Derivation.** Recommendation: `target8 = sha256(<full a-coordinate>)` first 8 hex — fixed
-   length, no `d`-length risk, unambiguous, and the same shape as the `e` case (8 hex of an
-   identifier). Alternative `author8-<d>` is human-readable but unbounded in length.
+## Open questions *(resolved at the story gate, 2026-09-10)*
+1. **Derivation — decided:** `d = event-tag-<slug>-<author8>-<d16>-<hash8>-<asserter8>` — `author8` and
+   the first 16 chars of the target's `d` are readable decoration; `hash8` = first 8 hex of
+   SHA-256 over the full coordinate carries uniqueness (the house `hash8` convention); the hash is
+   injected into the dependency-free core, not shipped by it. Bounded at every depth of
+   tagging-of-taggings. Full rationale + rejected forms: ADR 0001.
 2. **Compatibility posture.** Recommendation: no migration; readers already key on `#a` (verify
    at Architecture), so old-rule assertions stay readable; a user who re-asserts under the new
    rule leaves one orphan old-rule event that the interpretation buckets identically. Record
