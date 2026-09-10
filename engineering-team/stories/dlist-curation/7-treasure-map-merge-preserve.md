@@ -1,6 +1,6 @@
 # Story 7: Regenerating a Treasure Map preserves every entry the generator does not own
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-10
 **Type:** Bug
 
@@ -103,6 +103,6 @@ story gate, 2026-09-10; the design note below is ratified by the Reviewer.
 ## Linked artifacts
 - ADR: — (Bug lane; Architecture skipped if the operator agrees — design note above)
 - Test plan: `engineering-team/stories/dlist-curation/7-treasure-map-merge-preserve.test-plan.md` (suite: `test/dlist-curation-merge-preserve.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/dlist-curation/7-treasure-map-merge-preserve.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

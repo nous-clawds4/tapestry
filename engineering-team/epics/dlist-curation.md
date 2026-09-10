@@ -53,7 +53,7 @@ duplicating items into the community list.
    header links into `DListDetail.jsx`, which parses only `39998:`/`9998:` ids — extend the route's
    parser or omit the link for 39999. The Replace control shows the other assistant only in a
    tooltip; Map Entries' badge should carry the short pubkey inline.
-7. *(planned, operator to confirm)* `7-treasure-map-merge-preserve` — the NIP-85 export
+7. `7-treasure-map-merge-preserve.md` (Done, review PASS 2026-09-11; Bug lane, design note in lieu of an ADR) — the NIP-85 export
    generator preserves non-30382 entries. Bug. *Carry-forward (review #2, NB-4):* two
    rebuild-from-config generators, `src/api/export/nip85/commands/create-unsigned-kind10040.js`
    and `bin/brainstorm-create-kind10040.js` (handoff D8) — the fix covers both.
@@ -66,7 +66,13 @@ duplicating items into the community list.
 - **The shared-disclosure / header-lookup chore is earned:** six hand-rolled disclosures and two
   header lookups on one page family (ADR 0001 Option B, ADR 0005 Option C, ADR 0006 Option C).
 - **`inherit-items` derivation + resolver** — intake entry 2026-09-10 (outside this book).
-- **Merge-preserve (story 7)** — the operator's include-or-drop call at the close.
+- **Merge-preserve (story 7)** — included by the operator and shipped; two product notes for the
+  prd-seed from its review: ownership is by the `30382:` prefix, so a row delegating one metric to
+  a *different* provider is dropped on regeneration (spec-conformant, pre-existing); and the legacy
+  NIP-85 control panel's Publish reads a file no generator has ever written (OPEN row 246).
+- **Story 4's seams read some failures as "nothing there"** (relay connection refusals; a non-zero
+  `strfry scan` exit) — OPEN row 245; the double-fault "all relays unreachable → none" is the
+  hazard for story 7's refusal rule.
 
 ## Decisions
 `decisions/dlist-curation/`:
