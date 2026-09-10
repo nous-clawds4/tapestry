@@ -62,19 +62,21 @@ its list, so that a tag like "white hat hacker" reads as a curated set of GitHub
   is not a corner. `core.groupTaggingsByTarget` (`src/lib/event-tagging/classify.js:130`) already
   yields both; `aggregateNotesTagged` (`src/api/event-tags/index.js:247`) drops the address ones at its
   step-4 `t.target.id` keying and silently files the kind-9999 ones into the notes track, where
-  `handleForTag` resolves ids as `realScanStrfry({ kinds: [1], ids })` (:389) and they vanish. Fix
-  both halves inside the one aggregation, reusing the same `targets`/`mine`/`isAsserterTrusted`
+  `handleForTag` resolves ids as `realScanStrfry({ kinds: [1], ids })` (:389) and they render nowhere.
+  Surface both halves in a NEW group built alongside the existing notes track — nothing is removed
+  from it — inside the one aggregation, reusing the same `targets`/`mine`/`isAsserterTrusted`
   results (never a second header/tagging scan, never a re-implemented trust predicate —
   `trustPredicateFor`, :104–140, stays the only one):
   - **Address track.** `countByAddress` / `mineByAddress` / `latestByAddress` over the `{address}`
     targets.
-  - **Id track (the split).** Before any ranking or membership is built, partition the id space with
-    one bounded LOCAL scan — `realScanStrfry({ kinds: [9999], ids: allTargetIds })`. Ids that come
-    back are **item** ids; every other id (including a kind-1 that lives only on an external relay)
-    stays in the notes track, so today's external-note behavior is unchanged. The partition happens
-    *before* `latestByNote`/ranking/`memberOf`, which is precisely what keeps `members` and
-    `fullMembers` note-only by construction (E1) rather than by a later filter that a future edit
-    could drop.
+  - **Id track (classification only — nothing is removed).** One bounded LOCAL scan,
+    `realScanStrfry({ kinds: [9999], ids: allTargetIds })`, tells us which tagged ids are DList items.
+    Its result is used ONLY to BUILD the items group. The notes track — `countByTarget`,
+    `latestByNote`, the ranking, `memberOf`, `members`, `fullMembers`, `total` — is left exactly as it
+    is today, kind-9999 ids included. A kind-9999 item tagging therefore appears in **both**
+    `members` (as it already does today) and `itemMembers`; an integrator reading both fields will see
+    it twice. That double presence is the deliberate price of a purely additive change, and it is
+    preferable to narrowing a field this repo documents to external client authors.
   - **Item member objects** (what the Tester asserts): address-keyed
     `{ address, applications, disputes, createdAt, mine }`; id-keyed
     `{ id, applications, disputes, createdAt, mine }` — an id-keyed member has **no** `address` field
@@ -85,18 +87,19 @@ its list, so that a tag like "white hat hacker" reads as a curated set of GitHub
     reports `itemTotal` / `itemTruncated` for its own clipping.
   - `handleForTag` (:343) resolves the capped item members local-first: coordinates via
     `realScanStrfry({ kinds: [39999], authors: […], '#d': […] })` per distinct author (matched back on
-    the exact coordinate), ids via the kind-9999 events the partition scan already returned. Response
+    the exact coordinate), ids via the kind-9999 events the kind-9999 classification scan already returned. Response
     gains `items: [{ address|null, id, kind, pubkey, created_at, tags, content, listCoord,
     applications, disputes, mine }]`, `itemTotal`, `itemTruncated`.
-  - **Field-by-field effect on the HTTP body at :433.** *No shape change*: `notes`, `mine`,
-    `truncated`, `sort`, `limit`, `povSuffix`, `minRank`, `povResolution`, `authorities`, and the cache
-    key. *Narrowed (subtractive — see the dedicated bullet below)*: `members` and `total` lose the
-    kind-9999 item ids they carry today and become notes-only. `fullMembers` is **not** an HTTP field —
-    it is an `aggregateNotesTagged` **return** consumed only by `refreshPinnedTags.js:351`; it narrows
-    the same way. The envelope-hygiene sentinel
-    `test/note-tagging-raw-events-inspector-http.test.js:312` (R-http-1) is narrower than "policing
-    additive growth" — it asserts only `!('rawEvents' in json)`, i.e. that the byte channel stays out of
-    `for-tag`; it says nothing about `items`, and adding `items` keeps it green.
+  - **Field-by-field effect on the HTTP body at :433 — purely additive.** `notes`, `members`,
+    `mine`, `total`, `truncated`, `sort`, `limit`, `povSuffix`, `minRank`, `povResolution`,
+    `authorities` and the cache key keep **exactly** today's contents and semantics; the body only
+    GAINS `items`, `itemTotal`, `itemTruncated`. `fullMembers` is **not** an HTTP field — it is an
+    `aggregateNotesTagged` **return** consumed only by `refreshPinnedTags.js:351` — and it too is
+    unchanged, so `runOneNotePin` sheds nothing and publishes the same kind-30393 membership as
+    before. The envelope-hygiene sentinel `test/note-tagging-raw-events-inspector-http.test.js:312`
+    (R-http-1) is narrower than "policing additive growth" — it asserts only `!('rawEvents' in json)`,
+    i.e. that the byte channel stays out of `for-tag`; it says nothing about `items`, and adding
+    `items` keeps it green.
 - **`listCoord` derivation mirrors `/list/:ref`'s own membership rule** (`ui/src/pages/List.jsx:19–21`):
   a kind-39999 item belongs via its `z` tag naming a `39998:<pk>:<d>` header coordinate; a kind-9999
   item belongs via its `e` tag naming the **event id** of a kind-9998 header. `listCoord` therefore
@@ -143,73 +146,71 @@ its list, so that a tag like "white hat hacker" reads as a curated set of GitHub
   non-addressable and MUST be excluded there — pinning them into an `e`-member list is a separate
   decision story 5 does not inherit. Story 5 can rely on `fullItemMembers` existing and on that
   discriminator being the presence of `address`.
-- **This change is NOT purely additive — it SUBTRACTS from `members`/`fullMembers`/`total`.** Today a
-  kind-9999 item tagging emits an `e` target (`ui/src/utils/dlistFields.js:162–165`), so its id already
-  flows through `countByTarget`/`latestByNote` into `members`, `fullMembers` and `total`
-  (`src/api/event-tags/index.js:279–325`). The pre-ranking `kinds:[9999]` partition removes exactly
-  those ids. **My read:** a kind-9999 DList item was never a note, so its presence in a note Trusted
-  List is a **pre-existing defect this story fixes**, not a regression it causes — `members`/`total`
-  narrow to their true meaning (note ids). No migration is needed: kind-30393 TLs are **replaceable**
-  and re-derive on the next `runOneNotePin` refresh, which will simply shed those members.
-  **Measured, cheaply:** the local relay holds 560 kind-30393 events carrying 66 distinct `e` members,
-  and none of those ids resolve to any event on the local relay (spot-checked + batch-scanned), so no
-  local 30393 is observably carrying a kind-9999 member today. Remote deployments
-  (tags/staging/tapestry.brainstorm.world) are **unmeasured**.
-- **Blast radius.** Changed: `src/api/event-tags/index.js` (`aggregateNotesTagged`, `handleForTag`),
-  `src/api/trustedList/refreshPinnedTags.js` — **behavior-affected consumer, not a non-consumer**:
-  `runOneNotePin` (:351) reads `fullMembers`, so after this change its TA-signed kind-30393 note TL
-  sheds any kind-9999 item ids on the next refresh (intended, per the bullet above; the file itself may
-  need no code edit, but the behavior change is inside the declared radius and must be asserted, not
-  discovered) —, `ui/src/hooks/useNotesForTag.js` (additive returns), `ui/src/pages/Tag.jsx` (third
+- **Out of scope: note-TL pollution is a pre-existing defect, not this story's.** A kind-9999 DList
+  item tagging emits an `e` target today (`ui/src/utils/dlistFields.js:162–165`), so its id already
+  flows through `countByTarget`/`latestByNote` into `members`/`fullMembers`/`total`
+  (`src/api/event-tags/index.js:279–325`) and thence into the TA-signed kind-30393 note Trusted List.
+  An earlier draft of this note proposed removing those ids. **Decided: it does not, because that
+  subtraction would break `members`/`total` as documented to external client authors in
+  `docs/INTEGRATION_GUIDE_event-tagging-for-external-clients.md` — a "cross-repo contract", which is a
+  CATEGORICAL Light trigger** that reversibility and "no known dependent" arguments do not clear
+  (remote deployments were never measured). Removing the subtraction dissolves the trigger honestly
+  instead of arguing with it. A DList item sitting in a note TL predates this work, is named in no AC
+  here, and wants its own story (ledger row to be filed by the coordinator).
+- **Blast radius.** Changed: `src/api/event-tags/index.js` (`aggregateNotesTagged`, `handleForTag` —
+  additive only), `ui/src/hooks/useNotesForTag.js` (additive returns), `ui/src/pages/Tag.jsx` (third
   switch + eager hidden mount), new `ui/src/components/TagItemsView.jsx`, CSS for the group headings,
-  and `docs/INTEGRATION_GUIDE_event-tagging-for-external-clients.md:156–164` — the external contract
-  (Option B publishes the `for-tag` envelope `{ notes, members, total, truncated, limit }` to
-  third-party integrators). That guide edit must say **both** things: (a) the additive
-  `items`/`itemTotal`/`itemTruncated` fields, and (b) that `members`/`total` **narrow to note ids
-  only** — an integrator who was counting DList items through `total` will see those move to
-  `itemTotal`.
-  Consumers that read the response/return and must keep working unchanged:
-  `ui/src/components/TagNotesView.jsx`, `ui/src/utils/publishTagPin.js:352` (`data.members || data.notes`),
-  `ui/src/hooks/usePinnedNotes.js:76-77`, `ui/src/components/ExportModal.jsx:151`,
-  `ui/src/components/PinnedListPanel.jsx:529` — each keeps working, but each now sees a notes-only
-  `members`, which is the corrected meaning.
+  and `docs/INTEGRATION_GUIDE_event-tagging-for-external-clients.md` — the external contract
+  (Option B publishes the `for-tag` envelope `{ notes, members, total, truncated, limit }` at
+  :156–164). That edit is now **purely additive**: document `items`/`itemTotal`/`itemTruncated` beside
+  the existing fields, with no narrowing disclosure because nothing narrows. While there, fix the
+  stale checklist line at :259 — "`for-tag` caps at 50 most-recent notes per tag" — to say that the
+  notes cap and the new items cap are separate, each with its own `truncated`/`itemTruncated` signal,
+  so an integrator doesn't read one cap as covering both groups.
+  Consumers that read the response/return and keep working **byte-identically** (nothing they read
+  changes): `ui/src/components/TagNotesView.jsx`, `ui/src/utils/publishTagPin.js:352`
+  (`data.members || data.notes`), `ui/src/hooks/usePinnedNotes.js:76-77`,
+  `ui/src/components/ExportModal.jsx:151`, `ui/src/components/PinnedListPanel.jsx:529`.
   **Grep-verified non-consumers** (no change; a diff touching them is out of radius):
-  `src/lib/event-tagging/classify.js` needs **no** edit (`grep -n "target.id" src/lib/event-tagging/classify.js`
-  → no hits; the `a`-branch at :134 already exists); `ui/src/pages/List.jsx` is untouched — the new
-  view reuses `DListItemsTable`/`DListItemTags`, not the page.
+  `src/api/trustedList/refreshPinnedTags.js:351` destructures only `{ fullMembers, scanTruncated, total }`
+  — all unchanged, so `runOneNotePin` and its kind-30393 note TL are untouched and can see neither
+  `itemMembers` nor `fullItemMembers`; `src/lib/event-tagging/classify.js` needs **no** edit
+  (`grep -n "target.id" src/lib/event-tagging/classify.js` → no hits; the `a`-branch at :134 already
+  exists); `ui/src/pages/List.jsx` is untouched — the new view reuses `DListItemsTable`/`DListItemTags`,
+  not the page.
 - **Implementation notes the "same comparators" claim hides.** `appliedOf` / `disputedOf` / `recencyOf`
   (`src/api/event-tags/index.js:279–305`) close over the id-keyed maps; they must be generalized to
   take a key and consult `countByAddress`/`mineByAddress`/`latestByAddress` for `a:` keys, so the item
-  track genuinely reuses one ranking rather than a copied one. Client-side, the header batch needs
-  `authors`/`#d` selectors per distinct 39998 coordinate (one filter per author, matched back on the
-  exact coord) alongside the `ids` filter for 9998 header ids.
-- **Irreversibility walk, re-run against the corrected (subtractive) description.** Wire format / event
-  shape: **no** — kind 30393 keeps its shape, only its membership narrows; no new kind, no new tag.
-  Auth/trust default: **no** — the POV predicate is untouched. Schema / firmware / concept definition:
-  **no**; no `POST /api/firmware/install` needed. New dependency: **no**. Request routing / middleware
-  order / response headers: **no**. Cross-repo contract: the integration guide's documented envelope is
-  the only one, and the affected values live in **replaceable** signed events that re-derive on the next
-  refresh, with no reader outside this repo known to depend on kind-9999 ids appearing in a note TL.
-  Value existing in more than one repo: **no**. **Verdict: still a Design note, not an ADR** — a
-  subtractive correction to a documented field whose consumers all re-derive is reversible by reverting
-  the partition; the guide edit and the E1/E9 sentinels carry the disclosure. Concept handles could not
-  be re-checked against the Concept Graph API (control panel not reachable on this host during design);
-  `39998:<TA>:nostr-event-tag`, `tagging-with-specific-tag`, `list` are used here as documentation, not
-  as code constants.
+  track genuinely reuses one ranking rather than a copied one — while leaving the notes track's own
+  use of them behaviorally identical. Client-side, the header batch needs `authors`/`#d` selectors per
+  distinct 39998 coordinate (one filter per author, matched back on the exact coord) alongside the
+  `ids` filter for 9998 header ids.
+- **Irreversibility walk, re-run against this now-genuinely-additive description.** Wire format /
+  event shape: **no** — no new kind, no new tag, and no published event's membership changes
+  (`fullMembers` is untouched, so kind-30393 output is bit-for-bit what it is today). Auth / trust
+  default: **no** — one POV predicate, unchanged. Schema / firmware / concept definition: **no**; no
+  `POST /api/firmware/install` required. New dependency: **no**. Request routing, middleware order,
+  response headers / content-type: **no** — same route, same handler, same JSON envelope. **Cross-repo
+  contract: no longer tripped** — every field the integration guide publishes keeps its exact meaning;
+  the guide only gains documentation of new optional fields, which an existing integrator ignores.
+  Value existing in more than one repo: **no**. **Verdict: Design note, re-affirmed** — there is now
+  nothing to be irreversible about; the only durable artifacts are additive response fields and an
+  additive doc edit. Concept handles could not be re-checked against the Concept Graph API (control
+  panel not reachable on this host during design); `39998:<TA>:nostr-event-tag`,
+  `tagging-with-specific-tag`, `list` are used here as documentation, not as code constants.
 
 ## Edge cases & not-covered
 
-- **E1 — (not derivable from any AC) `members`/`fullMembers` must stay note-only, now that ids are a
-  SHARED key space.** A kind-9999 item id (or an `a` coordinate) leaking there would be published as
-  an `e` member of the TA-signed kind-30393 note Trusted List (`refreshPinnedTags.runOneNotePin`) and
-  into pin exports (`publishTagPin.js`) — signed-event corruption invisible on the tag page. The
-  mechanism that prevents it is the *pre-ranking* partition scan, not a post-filter. Sentinel:
-  aggregate a fixture mixing kind-1 `e` taggings, kind-9999 `e` taggings and kind-39999 `a` taggings,
-  then assert (a) no `members`/`fullMembers` id belongs to the kind-9999 fixture set, (b) no member id
-  contains `:`, and (c) `members.length` equals the notes-only baseline. Note the flip side: those
-  kind-9999 ids USED to be in `members`/`fullMembers`/`total` and are now removed — a
-  `runOneNotePin` refresh after this change legitimately sheds them from the published kind-30393
-  (intended correction, no migration; see the blast-radius bullet).
+- **E1 — (not derivable from any AC) the new items track must never WRITE INTO the old notes track.**
+  `members`, `fullMembers` and `total` feed the TA-signed kind-30393 note Trusted List
+  (`refreshPinnedTags.runOneNotePin`) and the pin exports (`publishTagPin.js`) — signed artifacts whose
+  drift is invisible on the tag page. The guarantee this story owes is **additivity**: building the
+  items group changes none of them. Sentinel: run the aggregation on a fixture mixing kind-1 `e`
+  taggings, kind-9999 `e` taggings and kind-39999 `a` taggings, and assert `members`, `fullMembers`
+  and `total` are byte-identical to the same fixture aggregated by the pre-change code (kind-9999 ids
+  still present — that pollution is a pre-existing defect deliberately left alone here), while
+  `itemMembers` carries no `a` coordinate in `members` and no member of `members` is mutated. The
+  no-`a`-in-`members` half also holds: an address-keyed member must never leak into the id-keyed set.
 - **E2 (corrected) — an id or coordinate that is not a list item.** A tagging can point at any event:
   a kind-1 note, a `30023:` long-form, a `39999:<pk>:<slug>` tag element. Routing is by *resolved
   kind*, not by wishful classification: an id found locally as kind 9999 → items; any other id →
@@ -217,10 +218,10 @@ its list, so that a tag like "white hat hacker" reads as a curated set of GitHub
   non-39999 event, or to nothing, → an items row that degrades per E3 rather than being rendered with
   another list's columns. Nothing crashes, and nothing is silently dropped from both tracks.
 - **E2b — a tagged id that resolves to NEITHER kind 1 nor kind 9999** (e.g. a kind-7 reaction id, or an
-  id present on no reachable relay). It stays in the notes track by the partition rule, the kind-1
-  fetch returns nothing for it, and it therefore appears in `members`/`total` but not in the rendered
-  `notes` — exactly today's behavior for an unresolvable note. Assert it does not leak into `items`
-  and does not throw.
+  id present on no reachable relay). The kind-9999 classification scan doesn't claim it, the kind-1
+  fetch returns nothing for it, so it appears in `members`/`total` but in neither the rendered `notes`
+  nor `items` — exactly today's behavior for an unresolvable note, unchanged. Assert it does not leak
+  into `items` and does not throw.
 - **E3 — target tagged but the event itself is on no reachable relay.** The row still renders from the
   coordinate (author + `d`) or bare id, with empty field cells; the group is not suppressed.
 - **E4 — header unreachable (AC-4) *and* header present but declaring zero fields.** Both render the
@@ -237,14 +238,13 @@ its list, so that a tag like "white hat hacker" reads as a curated set of GitHub
 - **E8 — `mine` durability + disputes.** An item the viewer tagged with zero trusted backers stays
   visible in the curated (collapsed) view; a net-disputed item hides in curated and appears when
   expanded — same rule as notes, for both key spaces.
-- **E9 — empty and regression states, with AC-6 read precisely.** Zero item-taggings → the Items switch
-  reads `(0)` with the empty copy. AC-6's "unchanged" holds for the **views and the note rendering
-  path**: Profiles and Notes render byte-identically, `TagNotesView`/`NoteCard` output is unchanged, and
-  `notes`, `truncated`, `limit`, `sort`, `povSuffix`, `povResolution` are unchanged. It does **not** hold
-  for `members` and `total` on a tag carrying kind-9999 item taggings: those **narrow to notes-only, by
-  design** (see E1 and the blast-radius bullet). The regression sentinel must therefore be written
-  against a tag with no kind-9999 taggings (where `members`/`total` are byte-identical) plus an explicit
-  narrowing assertion on a tag that has them — not a blanket "unchanged".
+- **E9 — empty and regression states (AC-6, strong form).** Zero item-taggings → the Items switch reads
+  `(0)` with the empty copy. AC-6 holds in full: the Profiles and Notes views, the note rendering path
+  (`TagNotesView`/`NoteCard`), and **every existing response field** — `notes`, `members`, `mine`,
+  `total`, `truncated`, `limit`, `sort`, `povSuffix`, `minRank`, `povResolution`, `authorities` — are
+  unchanged, full stop, on every tag including one carrying kind-9999 item taggings. R-http-1 stays
+  green. The regression sentinel can therefore be a blanket byte-comparison of the pre-change envelope
+  minus the new keys.
 - **E10 — cap and truncation across the mixed group.** The combined address+id item set is ranked as
   one list and capped at the `NOTES_CAP` value on its own track; when `itemTotal` exceeds it the view
   shows "Showing the top N of M tagged items". A cap that clipped all of one key space while the other
@@ -254,9 +254,11 @@ its list, so that a tag like "white hat hacker" reads as a curated set of GitHub
 - **Not covered:** pagination past the caps (out of scope, as for notes); kind-7 vote counts in the Items
   groups (the Votes column renders "—"; `/list/:ref`'s reaction scan is not reused); pins/Trusted Lists
   for items (story 5 — this story only promises the `fullItemMembers` accessor and the
-  addressable-only eligibility rule); pinning non-addressable kind-9999 items anywhere; server-side
-  header enrichment or list-name search; any measurement of the added `for-tag` call and the extra id
-  partition scan at tag-page load beyond "does not error".
+  addressable-only eligibility rule); pinning non-addressable kind-9999 items anywhere; **the
+  pre-existing note-TL pollution** — kind-9999 item ids sitting in `members`/`fullMembers`/`total` and
+  hence in published kind-30393 note TLs — which this story deliberately leaves exactly as it is and
+  which wants its own story; server-side header enrichment or list-name search; any measurement of the
+  added `for-tag` call and the extra id classification scan at tag-page load beyond "does not error".
 
 ## AC→handle lines
 —
