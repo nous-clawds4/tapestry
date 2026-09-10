@@ -94,6 +94,17 @@ are the Architect's to confirm in the ADR: that the section's home is the assist
 draft (owner of the 39998 family on the Map) rather than the trusted-lists draft (owner of the
 parse rule), and where in BIBLE § Assistant Keys the status sentence lands.
 
+## Deviations
+- **One sentence beyond the ADR's edit list.** The draft's "Relationship to NIP-85" section ends
+  "ignores a `39998:*` row; it breaks nothing" — with the intro now claiming both families, that
+  sentence was amended to "`39998:*` or `39999:*`" so the compatibility claim covers the new
+  entries. Accuracy touch, same claim; no other text outside the ADR's list was changed.
+- **Regression check scope.** Docs-mode; the only suites that read the changed documents
+  (`tag-applicability`, `event-tagging-spec`, `open-ranking-stats`) were run and pass, and
+  harness-lint is clean. The full `npm test` was not re-run at this phase — no code or test file
+  changed and the changed markdown is read by nothing else in `test/`; the Reviewer runs it at
+  their discretion.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0002-per-dlist-map-entry-convention.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)

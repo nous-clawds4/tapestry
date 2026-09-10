@@ -145,6 +145,16 @@ The user's kind 10040 (NIP-85 "Trusted Assertions" / TA Treasure Map) gains an e
 - **Backward compatible:** all existing consumers either prefix-filter on `"30382:"` or exact-match the `"30382:rank"` tag; in both cases unknown tags are ignored, so a new entry breaks nothing.
 - **Two known costs:** (a) the two 10040 generators (`bin/brainstorm-create-kind10040.js` and the `/api/create-unsigned-kind10040` handler; a third API command wraps the former) rebuild the full tag list from config and would **clobber** a new entry — merge-preserve logic is a required implementation story; (b) **NIP-85 is upstream** (Vitor Pamplona's spec, not in our `protocols/` index) — so the entry is specced as a **local companion pre-NIP** in `protocols/drafts/` (the established pattern), optionally proposed upstream later.
 
+### D9 — Per-DList curation entries on the 10040 (added 2026-09-10, `dlist-curation` ADR 0002)
+
+D8's blanket entry answers "who authors my headers"; the DList Curation surface needs "which of my assistant's headers stands in for *this* community list, by my say-so". Ratified as a second entry family in the same companion pre-NIP (`protocols/drafts/assistant-designation.md` § "Per-DList curation entries"):
+
+- **Shape** `["<kind>:<d-tag>", <assistant pubkey>, <relay>]`, kind 39998 or 39999; the curated header is reconstructed as `<kind>:<assistant>:<d-tag>`. Two segments, so ADR `tl-treasure-map/0001`'s parse rule stands; readers split at the **first** colon (d-tags may contain colons). `dlist-header` is **reserved** for D8's blanket entry — the collision ADR 0031's "finer-grained keys" remark had to avoid.
+- **Header contract:** assistant-authored, same d-tag as the community header, `b` → the community header (type per the D2 registry; the item-inheritance facet is a separate decision — `dlist-curation` story 3), names/description/schema copied at creation; header published *before* the Map entry; never silently re-pointed.
+- **Authorization vs composition:** the Map (user-signed) says "my assistant is empowered for this header"; the header (assistant-signed) says how the list composes. Revocation = republish the Map without the entry; the header stays.
+- **Rejected:** `["39999:<a-tag of the community header>", …]` (four segments; pubkey twice; fixes on the Map what is the header's own `b`); blanket-only with the empowerment carried elsewhere (the empowerment must be user-signed and npub-rooted, which is exactly what the 10040 already is).
+- **D8 cost (a) grows:** the rebuild-from-config generators clobber these entries too — the merge-preserve fix is the `dlist-curation` book's optional story 7.
+
 ---
 
 ## 2. Hazards documented (previously recorded nowhere)
@@ -173,7 +183,7 @@ The user's kind 10040 (NIP-85 "Trusted Assertions" / TA Treasure Map) gains an e
 ## 4. Open questions
 
 - **O1 — `b`-tag ordering with seeds.** First-listed-wins matters only among `"inherit"` tags (reference tags are excluded from resolution, so this question *shrank* under D2) — but the amending ADR should still state where a later-added `"inherit"` sits relative to an existing seeded `"reference"` (recommended: ordering is free; only inherit-typed relative order is load-bearing).
-- **O2 — The 10040 entry's assertion-type string** and the companion pre-NIP's exact scope (per-kind? blanket "DList headers"? expiry?); local-only vs upstream proposal. *Resolved at the story-35 gate (`community-reference` ADR 0031): blanket `39998:dlist-header` entry; no expiry (revoke via republish); 📝 pre-NIP internal, upstream NIP-85 proposal optional/deferred.*
+- **O2 — The 10040 entry's assertion-type string** and the companion pre-NIP's exact scope (per-kind? blanket "DList headers"? expiry?); local-only vs upstream proposal. *Resolved at the story-35 gate (`community-reference` ADR 0031): blanket `39998:dlist-header` entry; no expiry (revoke via republish); 📝 pre-NIP internal, upstream NIP-85 proposal optional/deferred.* *Extended 2026-09-10 (`dlist-curation` ADR 0002, D9): per-DList curation entries `<kind>:<d-tag>` in the same families; `dlist-header` reserved.*
 - **O3 — Which spec owns the dual-author lookup/precedence rule (D7)** — `tapestry-concepts.md`, the new companion pre-NIP, or a section of `inherit-from.md`. *Resolved (ADR 0031): the new companion pre-NIP (`protocols/drafts/assistant-designation.md`) owns the full rule; `tapestry-concepts.md` carries a pointer.*
 - **O4 — Graded weighting of `"reference"` edges in aggregation** (v1 = zero) — deferred to the registry ADR.
 - **O5 — The election surface** (item-level community acceptance; `dlist-tag` design) — explicitly out of scope here; W10 + ADRs 0010/0011 own it.
