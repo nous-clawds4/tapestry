@@ -1,8 +1,11 @@
 # Story 4: Tagged items on the tag page
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-10
-**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A pending; depends on story 3)*
+**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-10 — extend
+`for-tag` with an `items` group (one call, one POV filter); group by list header; Design note, not
+ADR; scoped gate `test/dlist-tagged-items.test.js` + `test/event-tagging-for-tag.test.js` + the
+strfry write-assertion guard suite; depends on story 3)*
 
 ## Background
 After story 3, users can tag DList items, but nothing shows the reverse direction: "which items
@@ -41,12 +44,12 @@ its list, so that a tag like "white hat hacker" reads as a curated set of GitHub
 - Pins / Trusted Lists for items (story 5). Any change to the wire shape. Pagination beyond what
   the Notes view already does.
 
-## Open questions *(resolve at Gate A)*
-1. **Read API shape.** Extend `for-tag` with an `items` group alongside `notes` (recommendation —
-   one call, one POV filter), vs. a new `for-tag-items` endpoint. Server change, read-only; no
+## Open questions *(resolved at Gate A, 2026-09-10)*
+1. **Read API shape — decided:** extend `for-tag` with an `items` group alongside `notes` (one call, one POV filter); a
+   separate `for-tag-items` endpoint was rejected. Server change, read-only; no
    irreversibility trigger (no wire/event shape, no routing-order change) — confirm at Gate A.
-2. **Grouping.** By list header (recommendation) vs. a flat table with a "List" column.
-3. Scoped gate: `test/dlist-tagged-items.test.js` + the strfry write-assertion guard suite;
+2. **Grouping — decided:** by list header (not a flat table with a "List" column).
+3. **Scoped gate — decided:** `test/dlist-tagged-items.test.js` + the strfry write-assertion guard suite;
    plus `test/event-tagging-for-tag.test.js` since the API changes.
 
 ## Design note *(Light — after Gate A)*
