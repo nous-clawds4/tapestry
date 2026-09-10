@@ -1,6 +1,6 @@
 # Story 2: Per-DList curation entries on the Treasure Map — wire convention
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-10
 **Type:** Doc *(wire-format irreversibility trigger → full ADR + Standard docs-mode phases; Test
 Design skipped per workflows/protocol-spec-workflow.md)*
@@ -115,6 +115,6 @@ parse rule), and where in BIBLE § Assistant Keys the status sentence lands.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0002-per-dlist-map-entry-convention.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/dlist-curation/2-per-dlist-map-entry-convention.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

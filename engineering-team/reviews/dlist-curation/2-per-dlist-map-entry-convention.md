@@ -154,3 +154,75 @@ and pointers are otherwise accurate and ADR-conformant, and every non-blocking n
 - Completion detection deferred to the passing round. For the record: book `dlist-curation`, frame
   bullet 4 (empowerment convention) would be met by this story; bullets 3 and 5–9 stay open (stories
   3–7). The book is not complete.
+
+## Round 2 (2026-09-10)
+
+**Diff under re-review:** `git diff 744f14b9..HEAD` (commit `b621281b`, the Implementer's round-1 fixes) —
+five files: `BIBLE.md` (:8 header, :1079 paragraph), `protocols/README.md:61`,
+`protocols/drafts/assistant-designation.md:120`, `engineering-team/epics/dlist-curation.md:41–47`, and the
+story's `## Deviations`. Round 1 above is kept verbatim. The spec section itself (`git diff 66190a9f..744f14b9`)
+is byte-identical since round 1; its claims table stands and was re-checked only where the reworded lines touch it.
+
+### Quality gates (re-run on HEAD `b621281b`)
+- [x] `bash scripts/harness-lint.sh` — **clean (0 violations)**. The L9 violation is gone: BIBLE.md:8 reads
+      2026-09-10 and `git log -1 -- BIBLE.md` is `b621281b` (2026-09-10) → 0 days. Remaining output is the
+      pre-existing waivers/INFO, unchanged from round 1.
+- [x] `test/harness-lint.test.js` — **41 passed / 0 failed** (`✓ the real repo lints clean` now passes).
+- [x] Doc-reading suites (same invocation pattern as round 1): `tag-applicability` 19/0 ·
+      `event-tagging-spec` 5/0 · `open-ranking-stats` 29/0 · `treasure-maps-router-preset` 5/0 ·
+      `b-tag-primitive` 16/0 · `b-coverage-audit-and-disposition` 26/0 ·
+      `task-queue-semaphore-protection-audit` 6/0 · `scheduled-search-and-house-scores-refresh` 12/0. All green.
+- [x] Links/anchors — every `[..](..)` on the diff-touched lines re-resolved mechanically (scratchpad script;
+      round 1's set plus the handoff D9/O2 lines): **9 resolved, 0 broken** — BIBLE:1079 → draft; README:61 →
+      draft; draft :50 `#per-dlist-curation-entries`, :60 `../nips/decentralized-lists.md`, :71/:102/:112
+      `./inherit-from.md`, :78 `./trusted-lists.md#treasure-map-advertisement-kind-10040`; trusted-lists :105 →
+      draft. The §953 edits replaced plain text, not links — confirmed rather than assumed.
+- [x] `git diff --check 744f14b9..HEAD` clean; no 64-hex literal on any added line (checked over
+      `744f14b9..HEAD` and the whole story range `66190a9f..HEAD`).
+- [ ] Full `npm test` — not run, same reasoning as round 1 (markdown-only diff; OPEN.md row 191). The one
+      regression round 1 identified — the harness-lint suite — is re-run above and passes.
+
+### Header bump (BIBLE.md:8)
+- **Format.** `**Last updated:** 2026-09-10 (content: § Assistant Keys — <what> — dlist-curation #2; prior: §3
+  "The wider estate" …)` — the established `content: … — <origin>; prior: …` chain; the full prior chain is
+  preserved verbatim (diffed against `66190a9f:BIBLE.md:8`).
+- **Accuracy.** The note names the paragraph ("TA designation on kind 10040", BIBLE.md:1079), the addition
+  (per-DList curation entries, `dlist-curation` ADR 0002), the shape `["<kind>:<d-tag>", <assistant>, <relay>]`,
+  the reserved word, and "wiring status" — each is present in the paragraph as it now reads. The unnumbered
+  `§ Assistant Keys` form (an h3 under §14 Configuration) is the same phrase the README row and the draft now
+  use, so the three surfaces agree.
+
+### Disposition of round-1 findings
+| Round-1 item | Disposition | Evidence |
+|---|---|---|
+| Blocking 1 — BIBLE.md:8 not bumped (L9) | **Fixed.** | Header now 2026-09-10 with the chained content note; lint clean; harness-lint suite 41/0. |
+| NB-1 — em-dash clause attached to "fix" | **Applied** (Implementer's own wording rather than the suggested one — fine). | BIBLE.md:1079 now reads "(they rebuild the full tag list from config; a merge-preserve fix is required; the rebuild clobbers per-DList entries too)" — the subject of "clobbers" is the rebuild; consistent with ADR 0002 Consequences ("rebuild-from-config clobbers every non-30382 entry"). |
+| NB-2 — "are wired" read as shipped | **Applied.** | BIBLE.md:1079 "per-DList entries are being wired by the `dlist-curation` book (stories 4–6 …)" — same tense as draft :120. |
+| NB-3 — draft :84 `<kind>` vs :96–102 written for 39998 | **Untouched; still correctly classed** (story-3 / next-revision candidate). | `git diff 744f14b9..HEAD -- protocols/drafts/assistant-designation.md` touches only :120; :84 and :94–102 read as in round 1. 39999-header semantics beyond reconstruction are out of this story's scope. |
+| NB-4 — ADR names one export generator | **Carried into the epic** (story 7 note); the accepted ADR left as is. | `engineering-team/epics/dlist-curation.md:44–47` names both `src/api/export/nip85/commands/create-unsigned-kind10040.js` and `bin/brainstorm-create-kind10040.js`; re-verified `bin/…:41–43` builds a literal `tags:` array beginning `["30382:rank", relayPubkey, nip85HomeRelay]`. Right home — a future story's blast radius, not an amendment to a ratified decision. |
+| NB-5 — ADR undercounts first-element readers | **Carried into the epic** (story 6 note). | `epics/dlist-curation.md:41–43` lists the four extra readers; re-verified `TrustedAssertionsList.jsx:46,53`, `BrainstormSearch.jsx:332,335`, `useTrustWeights.js:78`, `TrustDetermination.jsx:485` — all `30382:`-scoped. |
+| NB-6 — stale "BIBLE §953" | **Applied on the two lines this diff re-touches**; the handoff's occurrence remains. | Draft :120 and README :61 now say "BIBLE § Assistant Keys". `git grep '§953'` still finds `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:206` — the P3 row of the ratification-plan table, a dated (2026-06-13) record of what P3 touched — plus ADR 0031 / story 35 / review 35, all historical. None was in this diff; leaving them is correct. Classification unchanged (non-blocking). |
+| NB-7 — handoff :153 "D2 registry" vs ratified `pointer`/`inherit` | **Untouched; still pre-existing drift.** | Handoff not in the round-1 fix diff; :153 reads as in round 1. |
+| Harness friction 1 — L9 is commit-dated | **Unchanged; still a candidate OPEN.md `meta` row** (not filed by this review — outside its write scope; surfaced in the chat). | No OPEN.md change in the diff; the story's Deviations restates the cause accurately ("harness-lint L9 is commit-dated, so the Phase-4 pre-commit lint could not see it"). |
+
+### Round-2 walk of the fix diff
+- `engineering-team/epics/dlist-curation.md:41–47` — two carry-forward notes, factual (verified above), no
+  verdict tokens (L14 silent; lint clean). Not scope creep: the epic file is the planning artifact for stories
+  6/7, and the story's Deviations discloses the edit.
+- `engineering-team/stories/dlist-curation/2-per-dlist-map-entry-convention.md:107–113` — the Deviations
+  entry describes exactly the five-file diff; it claims the two §953 fixes it made and not the handoff's.
+- Draft :120 / README :61 — plain-text replacement only; the README row's status cell (📝 pre-NIP) and
+  story-refs cell are unchanged.
+- **No new findings, blocking or non-blocking.** Round 1's claims 1–18 and 20 stand; claim 19 ("harness-lint
+  is clean") is now true on the committed tree.
+
+### Verdict (round 2)
+**PASS** — the one blocking item is fixed and verified by both the lint and its test suite; every non-blocking
+note is applied, correctly carried forward, or correctly left as pre-existing; all gates green; no new findings.
+
+### On PASS (round 2, same commit)
+- [x] Story `**Status:**` flipped to `Done` in place
+      (`stories/dlist-curation/2-per-dlist-map-entry-convention.md:3`); the story's `Review:` link filled with
+      this file's path (`:118`). No spec, BIBLE, README, handoff, source, or test file edited by the Reviewer.
+- [x] Completion detection performed — the book (`audits/dlist-curation/book.md`) is not complete; the
+      arithmetic is reported in the chat, not here.

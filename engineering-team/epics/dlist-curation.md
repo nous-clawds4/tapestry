@@ -30,6 +30,9 @@ duplicating items into the community list.
 3. *(planned)* `3-inherit-items-facet` — register `inherit-items` in the `b` type registry;
    additive v1 item algebra; aggregation weight; derived-edge facet; W6. Docs-mode
    (`inherit-from.md` + worksheet + ADR).
+   *Carry-forward (review #2, NB-3):* the per-DList section generalizes `<kind>` to 39998/39999 while
+   the dual-author lookup rule is 39998-only — a 39999-declared header has no lookup rule yet; decide
+   in story 3's ADR (extend the rule, or scope the per-DList precedence sentence to 39998).
 4. *(planned)* `4-assistant-curation-header-endpoint` — server: author/refresh the signed-in
    user's assistant header for a chosen community header (snapshot + `inherit-items` `b`), sign
    with the user's assistant key, publish local + community relay, no Neo4j write, idempotent,
