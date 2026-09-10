@@ -73,26 +73,44 @@ function fakeReq(over = {}) {
   return { method: 'POST', path: '/api/dlist-curation/header', session: { authenticated: true, pubkey: PK_USER }, body: { target: T }, ...over };
 }
 
-/** Recording stubs for every injected seam; `over` replaces any of them. */
+/**
+ * Stubs for every injected seam; `over` replaces any of them. Recording is applied UNIFORMLY on
+ * top of whichever implementation is in effect (default or override), so a test that overrides a
+ * seam can still assert how the handler called it. (Tester amendment during Phase 4: the first
+ * cut recorded inside the defaults only, so H4's override made its own assertion unsatisfiable.)
+ */
 function makeDeps(over = {}) {
   const calls = { scanLocal: [], fetchFromRelays: [], publishLocal: [], publishToRelays: [], sign: [], getAssistantKeys: [] };
-  const deps = {
+  const base = {
     requireAuth: (req, res) => {
       const pk = req.session && req.session.authenticated === true ? req.session.pubkey : null;
       if (!pk) { res.status(401).json({ success: false, error: 'authentication required' }); return null; }
       return pk;
     },
-    getAssistantKeys: async (pk) => { calls.getAssistantKeys.push(pk); return pk === PK_USER ? { privkey: PRIV, pubkey: PK_ASSISTANT } : null; },
-    fetchFromRelays: async (filter, urls) => { calls.fetchFromRelays.push({ filter, urls }); return [communityHeader()]; },
-    scanLocal: async (filter) => { calls.scanLocal.push(filter); return []; },
-    publishLocal: async (ev) => { calls.publishLocal.push(ev); return 'ok'; },
-    publishToRelays: async (ev, urls) => { calls.publishToRelays.push({ ev, urls }); return urls.map((url) => ({ url, status: 'ok' })); },
+    getAssistantKeys: async (pk) => (pk === PK_USER ? { privkey: PRIV, pubkey: PK_ASSISTANT } : null),
+    fetchFromRelays: async () => [communityHeader()],
+    scanLocal: async () => [],
+    publishLocal: async () => 'ok',
+    publishToRelays: async (ev, urls) => urls.map((url) => ({ url, status: 'ok' })),
     isLocalOnly: () => false,
     getDListRelays: () => [RELAY],
-    sign: (template, privkeyHex) => { calls.sign.push({ template, privkeyHex }); return { ...template, id: 'f'.repeat(64), pubkey: PK_ASSISTANT, sig: 'a'.repeat(128) }; },
+    sign: (template) => ({ ...template, id: 'f'.repeat(64), pubkey: PK_ASSISTANT, sig: 'a'.repeat(128) }),
     now: () => NOW,
     ...over,
   };
+  const record = {
+    getAssistantKeys: (pk) => pk,
+    fetchFromRelays: (filter, urls) => ({ filter, urls }),
+    scanLocal: (filter) => filter,
+    publishLocal: (ev) => ev,
+    publishToRelays: (ev, urls) => ({ ev, urls }),
+    sign: (template, privkeyHex) => ({ template, privkeyHex }),
+  };
+  const deps = { ...base };
+  for (const name of Object.keys(record)) {
+    const impl = base[name];
+    deps[name] = (...args) => { calls[name].push(record[name](...args)); return impl(...args); };
+  }
   return { deps, calls };
 }
 async function run(over = {}, reqOver = {}) {
