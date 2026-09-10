@@ -68,7 +68,7 @@ A second entry family lets the Map's owner empower their Tapestry Assistant to *
 **The header contract.** The addressed header:
 
 - is authored by the assistant, with `d` equal to the d-tag of the community header it curates;
-- carries `["b", "<community header a-tag>", "<type>"]`, `<type>` per the [Inherit-From](./inherit-from.md) type registry *(the item-inheritance facet the reference deployment uses is ratified separately; see that spec's registry)*;
+- carries `["b", "<community header a-tag>", "inherit-items"]` — the item-inheritance type of the [Inherit-From](./inherit-from.md) registry (`dlist-curation` ADR 0003): the header's list is the community list's items plus the assistant's own. A writer MAY add a `"pointer"`-typed `b` to the same target for declared affiliation; `"inherit-items"` alone affiliates nothing ([Shared Concepts](./shared-concepts.md) § "Declared affiliation");
 - SHOULD copy the community header's names, description, and schema at creation.
 
 A writer MUST publish the header before the Map entry that addresses it, so the Map never points at a header that does not exist. A writer MUST NOT silently re-point an existing header's `b`; an existing header carrying a different `b` is surfaced to the owner.
@@ -81,7 +81,7 @@ A writer MUST publish the header before the Map entry that addresses it, so the 
 
 **Revocation.** Republishing the Map without the entry revokes the empowerment. The header and its `b` remain on relays; there is no expiry field.
 
-**Precedence.** The dual-author precedence rule below is unchanged: a personally-signed `<kind>:<owner>:<d-tag>` governs over the assistant's; the per-DList entry names which assistant header stands in when the owner has none.
+**Precedence.** For kind-39998 headers the dual-author precedence rule below is unchanged: a personally-signed `39998:<owner>:<d-tag>` governs over the assistant's; the per-DList entry names which assistant header stands in when the owner has none. For a 39999-declared header the entry names the assistant's header directly — no lookup is needed to find it — and personal-versus-assistant precedence is **not yet defined** (open until the Decentralized Lists NIP settles 39999-declared headers; `dlist-curation` ADR 0003).
 
 **Worked example.** Alice's Map carries
 
@@ -89,7 +89,7 @@ A writer MUST publish the header before the Map entry that addresses it, so the 
 ["39998:dogs", "<alice's assistant pubkey>", "wss://dcosl.brainstorm.world"]
 ```
 
-so her assistant's header `39998:<alice's assistant pubkey>:dogs` exists, authored by the assistant, carrying `["b", "39998:<community curator pubkey>:dogs", "<type>"]` and the community header's names and description as copied at creation. Removing the entry from her Map withdraws the empowerment; the header stays.
+so her assistant's header `39998:<alice's assistant pubkey>:dogs` exists, authored by the assistant, carrying `["b", "39998:<community curator pubkey>:dogs", "inherit-items"]` and the community header's names and description as copied at creation. Removing the entry from her Map withdraws the empowerment; the header stays.
 
 ## Dual-author lookup and precedence
 

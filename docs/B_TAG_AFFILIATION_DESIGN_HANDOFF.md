@@ -155,6 +155,17 @@ D8's blanket entry answers "who authors my headers"; the DList Curation surface 
 - **Rejected:** `["39999:<a-tag of the community header>", …]` (four segments; pubkey twice; fixes on the Map what is the header's own `b`); blanket-only with the empowerment carried elsewhere (the empowerment must be user-signed and npub-rooted, which is exactly what the 10040 already is).
 - **D8 cost (a) grows:** the rebuild-from-config generators clobber these entries too — the merge-preserve fix is the `dlist-curation` book's optional story 7.
 
+### D10 — The `inherit-items` facet (added 2026-09-10, `dlist-curation` ADR 0003)
+
+D9's header contract needs "my list's items are the community list's items, plus my own" — live and parent-authoritative like `"inherit"`, but over *items*, which `"inherit"` (fields) does not cover and IMPORT (snapshot) does not mean. W6's "first consumer" has arrived.
+
+- **Registry:** a third type, `"inherit-items"` (`inherit-<facet>` is the family's namespace; no `inherit-all`). Fail-safe restated: absent *or unknown* type reads as `"pointer"`; readers gate on the explicit strings — which is what makes a facet addable without any old reader granting deference it was not told about.
+- **Algebra (v1):** union over an items-deference closure (`"inherit-items"` tags only; visited-set; order-free); a *candidate* set, trust-filtered per item at read time (observer-relative rule); no subtraction — removal/replacement stays W6.
+- **Standing:** zero deference-aggregation weight (composition, not endorsement); counts in discovery walks and reach ("every type"); **not** an affiliation and does not stamp — an author wanting affiliation adds a `"pointer"` `b` alongside.
+- **Derived:** `(child)-[:INHERITS_ITEMS_FROM]->(parent)` — a distinct type, so a bare `INHERITS_FROM` match keeps meaning definition deference. Deployment status: the derivation still gates on `inherit`; updating it (+ an item-set resolver) is a code follow-up outside the book (intake 2026-09-10).
+- **Rejected:** a facet list in element 4 (fail-unsafe: old readers read `"inherit"` and over-defer); `inherit-all` (meaning drifts with reader version); a new letter (spends W2 on a type of an existing relationship).
+- **39999 gap (review #2 NB-3):** the per-DList precedence sentence is scoped to 39998; 39999-declared-header precedence recorded as undefined pending the DList NIP.
+
 ---
 
 ## 2. Hazards documented (previously recorded nowhere)
@@ -174,7 +185,7 @@ D8's blanket entry answers "who authors my headers"; the DList Curation surface 
 | **W1** (cross-deployment concept identity) | Advanced substantially: operationalizes candidates 1 (firmware-blessed, widened as cold-start tier) and 3 (`b`-edge aggregation, now with honest signal provenance per D2/D3). Not resolved: the cold-start chooser is still the firmware author, by design, per the D5 trajectory. |
 | **W2** (single-char registry) | Untouched — no new letters; `REFERENCES`-as-own-letter assumption revised in favor of riding `b`'s type element (a letter saved). |
 | **W5** (`REFERENCES` publishing semantics) | **Closes via option (a)**: `b` with type `"reference"` *is* the consumer-owned tag on the consumer's own header. The closing ADR must settle the edge-materialization + `source`-contract point (D3) and update the §22 deferred list. |
-| **W6** (set-valued override algebra) | Pressure drops (inheritance is now opt-in and rarer) but still **fires with the first list-bearing `"inherit"` consumer** — design lands in `inherit-from.md` §Scope per the existing deferral. |
+| **W6** (set-valued override algebra) | **Fired 2026-09-10** (D10): the additive case is specified as `"inherit-items"` (`dlist-curation` ADR 0003; inherit-from § "Resolution: the resolved item set"); removal/replacement remains the open part. |
 | **W7** (item-kind interplay) | The carrier question (manifest field vs on-wire header tag) is answered: *both, layered* — manifest seeds, wire expresses (D4). item-kind/foreign-kind questions remain open. |
 | **W10** (taggings family) | Named as the routing target for item-level community assertion (`dlist-tag`) — the election surface's most plausible vehicle (D1). |
 

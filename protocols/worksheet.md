@@ -56,9 +56,11 @@ The concept-level `REFERENCES` relationship (a non-committal "may pull later" bo
 
 ## W6 — Set-valued override algebra for Resolved Definition
 
-**Status:** Open · raised 2026-06-09
+**Status:** Open — narrowed 2026-09-10 (additive case specified; removal/replacement remains) · raised 2026-06-09
 
 Resolved Definition ([inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)", ex-BIBLE §26) is field-level in v1: a child's stated field replaces the inherited one wholesale. **How a child adds/removes/replaces individual *elements* of an inherited set** (e.g. "Alice's `dogs` minus Fido plus Rex") is explicitly deferred — by ADRs 0027/0028, unchanged by 0029 — to the first consumer that needs it. When that consumer appears, the algebra belongs in the [inherit-from spec](./drafts/inherit-from.md)'s Scope section and operates over the inherit-typed deference closure only (pointer-typed `b` tags never participate). Note: ADR 0029's pointer-by-default reduces this entry's pressure — inheritance is now opt-in and rarer.
+
+**Update 2026-09-10 (`dlist-curation` ADR 0003):** the first list-bearing consumer arrived — the assistant-authored curation header. The **additive** case is now specified in the [inherit-from spec](./drafts/inherit-from.md) § "Resolution: the resolved item set" as the `"inherit-items"` type (union over an items-deference closure; a candidate set trust-filtered per item at read time). What remains open here is **removal and replacement** of inherited items; when designed it operates over the items-deference closure, not the definition closure.
 
 **Refs:** [inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)" (ex-BIBLE §25/§26); ADRs 0027/0028/0029 (community-reference).
 

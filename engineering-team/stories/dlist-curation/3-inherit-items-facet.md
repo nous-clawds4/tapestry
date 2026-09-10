@@ -101,6 +101,16 @@ None the PO holds — the settled points are in the epic. Decision points reserv
 derived-edge form (AC-6), the affiliation/stamping standing (AC-5), and the 39999 lookup rule
 (AC-9).
 
+## Deviations
+- **Two sentences beyond the ADR's edit list, same claims.** The derived-relationship
+  "Direction" paragraph said "for either type" — now "for every type"; and the multi-parent
+  paragraph gained the clause that `"inherit-items"` parents union order-free (the ADR listed the
+  multi-parent edit but not the direction one). Both follow from Decision §§3 and 7.
+- **BIBLE header bumped in the same commit** (lesson from story 2, OPEN.md row 238): same date,
+  chained note.
+- **Regression scope.** Docs-mode; the nine suites that read the changed documents were run and
+  pass; harness-lint clean. Full `npm test` not re-run (no code or test change; row 191).
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0003-inherit-items-facet.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)

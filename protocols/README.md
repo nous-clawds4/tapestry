@@ -54,7 +54,7 @@ The initial migration (protocols-directory epic, stories 1–7) is **complete** 
 | DList Cross-NIP Compatibility (companion) | [drafts/decentralized-lists-compat.md](./drafts/decentralized-lists-compat.md) | 🧪 pre-NIP (publish-ready) | **Working copy here** | story 2 ✅ |
 | Tapestry Concepts (DList extensions) | [drafts/tapestry-concepts.md](./drafts/tapestry-concepts.md) | 📝 pre-NIP | **Working copy here** (BIBLE §5/§8/§9 hold implementation detail + pointers) | story 3 ✅ |
 | Class Thread Relationships (`n`, `s`) | [drafts/class-thread-relationships.md](./drafts/class-thread-relationships.md) | 📝 pre-NIP | **Working copy here** (BIBLE §23 holds implementation + pointer) | story 4 ✅ |
-| Inherit-From & Resolved Definition (`b`) | [drafts/inherit-from.md](./drafts/inherit-from.md) | 📝 pre-NIP | **Working copy here** (BIBLE §25/§26 hold implementation + pointers) | story 5 ✅ |
+| Inherit-From & Resolved Definition (`b`; type registry incl. `inherit-items`) | [drafts/inherit-from.md](./drafts/inherit-from.md) | 📝 pre-NIP | **Working copy here** (BIBLE §25/§26 hold implementation + pointers) | story 5 ✅ · `dlist-curation` #3 |
 | Communities | [drafts/communities.md](./drafts/communities.md) | 📝 pre-NIP | **Working copy here** (in-flight feature; BIBLE §22 untouched — see ADR 0004; `COMMUNITY_ENDORSEMENTS_DLIST.md` superseded for membership per ADR 0004 D1) | story 6 ✅ |
 | Tags & Taggings | [drafts/tags.md](./drafts/tags.md) | 📝 pre-NIP | **Working copy here** (in-flight feature on `feat/pubkey-tagging-target`) | story 7 ✅ |
 | Event Taggings (`nostr-event-tag`) | [drafts/event-taggings.md](./drafts/event-taggings.md) | 📝 pre-NIP | **Working copy here** (in-flight `event-tagging` epic; reference impl `src/lib/event-tagging/`) | `event-tagging` #1 |

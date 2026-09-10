@@ -32,7 +32,7 @@ Three terms, one per referent — signal, process, outcome:
 
 ## Declared affiliation
 
-An author affiliates their own header with a shared definition by carrying a **pointer-typed `b` tag** on it, naming the shared header's a-tag — wire format specified once, in [Inherit-From](./inherit-from.md) § "The `b` tag".
+An author affiliates their own header with a shared definition by carrying a **pointer-typed `b` tag** on it, naming the shared header's a-tag — wire format specified once, in [Inherit-From](./inherit-from.md) § "The `b` tag". The inherit-family types (`"inherit"`, `"inherit-items"`) never affiliate: deference and item inheritance are claims of a different kind, and an author who wants both carries a pointer-typed `b` alongside.
 
 Affiliation is **navigation, not agreement**: it says "my concept corresponds to that one," names the community the author has chosen, and gives consumers a path to walk — while carrying no deference, no trust-coupling, and **zero aggregation weight** (v1 — § "Aggregated deference"). Affiliation is the author's own declaration; no third party can affiliate a header the author didn't sign. Affiliation is the **single hop**; the transitive candidate set it opens is defined in § "Reach".
 
@@ -52,8 +52,8 @@ This NIP adds nothing to the per-node semantics; it defines only what the *aggre
 
 Because `b`-derived relationships point child→target, a target's **incoming** edges enumerate its relationships — but the two `b` types feed **different questions**:
 
-- **Deference aggregation** counts **inherit-typed edges only**: a target's incoming `INHERITS_FROM` edges enumerate exactly "everyone who defers to this definition" — a signal the observer weighs (in the reference deployment, by each deferring author's GrapeRank influence from the observer's point of view) and ranks. Pointer-typed edges carry **zero weight** (v1): a bookmark is not agreement, and counting it would let seeded or casual correspondence masquerade as deference.
-- **Discovery walks** include **both types**: "enumerate the headers that point at this definition" (e.g. to union their items' `#z` indexes) wants every correspondence claim, pointer and inherit alike.
+- **Deference aggregation** counts **`"inherit"`-typed edges only**: a target's incoming `INHERITS_FROM` edges enumerate exactly "everyone who defers to this definition" — a signal the observer weighs (in the reference deployment, by each deferring author's GrapeRank influence from the observer's point of view) and ranks. Pointer-typed edges carry **zero weight** (v1): a bookmark is not agreement, and counting it would let seeded or casual correspondence masquerade as deference. `"inherit-items"` edges (`INHERITS_ITEMS_FROM`) likewise carry **zero** deference weight: inheriting a list's items is composition, not endorsement of its definition (`dlist-curation` ADR 0003).
+- **Discovery walks** include **every type**: "enumerate the headers that point at this definition" (e.g. to union their items' `#z` indexes) wants every correspondence claim — pointer, inherit, and inherit-items alike.
 
 Relay-side mechanics (the `#b` filter returns both types; consumers filter locally) are specified with the primitive — [Inherit-From](./inherit-from.md) § "Aggregation".
 
@@ -64,8 +64,8 @@ Three constructs read the `b` graph, one per relation:
 | Construct | Edges | Transitive? | Feeds |
 |---|---|---|---|
 | **Affiliation** | the author's own pointer-typed `b` (§ "Declared affiliation") | no — one declared hop | navigation; cloud anchoring |
-| **Deference closure** | inherit-typed only ([Inherit-From](./inherit-from.md) § "Resolution: the resolved definition") | yes — pointer breaks the chain | resolution; deference aggregation |
-| **Reach** | **both** types | yes | stamp selection ([Stamping](./stamping.md)) |
+| **Deference closure** | `"inherit"`-typed only — not `"inherit-items"` ([Inherit-From](./inherit-from.md) § "Resolution: the resolved definition") | yes — pointer breaks the chain | resolution; deference aggregation |
+| **Reach** | **every** type | yes | stamp selection ([Stamping](./stamping.md)) |
 
 An author's **reach** is the set of headers connected to the author's own header through `b` edges of *either* type, followed transitively — the author's own edges and third parties' alike. Like the other closures it is computed on read, never stored; membership is a set (cycles are benign; order carries no meaning).
 
