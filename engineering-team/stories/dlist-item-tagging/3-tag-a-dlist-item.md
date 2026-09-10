@@ -1,8 +1,8 @@
 # Story 3: Tag a DList item
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-09
-**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A pending; depends on story 2)*
+**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-10 — inline in the row slot, Design note not ADR, scoped gate `test/dlist-item-tagging.test.js` + the strfry write-assertion guard suite; depends on story 2)*
 
 ## Background
 Story 1 renders a list's items; story 2 makes `a`-target assertions safe. This story puts the

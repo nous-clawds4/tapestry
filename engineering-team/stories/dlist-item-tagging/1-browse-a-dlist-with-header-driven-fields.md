@@ -1,6 +1,6 @@
 # Story 1: Browse a DList with header-driven item fields
 
-**Status:** In Progress
+**Status:** Done
 **Created:** 2026-09-09
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-09 —
 user-facing surface (not the operator browser); vote publishing out of the book; the
