@@ -104,7 +104,7 @@ Map records that you empowered it."); the AC-1 labels are "N DLists curated" / "
 "1 DList curated"); the add is two-step (Add → outcome and preview → Sign & publish).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/dlist-curation/0005-dlist-curation-panel.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
