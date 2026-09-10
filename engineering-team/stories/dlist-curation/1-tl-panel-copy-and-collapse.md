@@ -1,6 +1,6 @@
 # Story 1: Trusted Lists panel — new prompt copy, collapsed-by-default status line
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-10
 **Type:** Feature
 
@@ -75,6 +75,6 @@ operator at the story gate, 2026-09-10.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0001-tl-panel-disclosure-and-copy.md`
 - Test plan: `engineering-team/stories/dlist-curation/1-tl-panel-copy-and-collapse.test-plan.md` (suite: `test/dlist-curation-tl-panel.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/dlist-curation/1-tl-panel-copy-and-collapse.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

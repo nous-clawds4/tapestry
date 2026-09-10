@@ -42,7 +42,9 @@ duplicating items into the community list.
    generator preserves non-30382 entries. Bug.
 
 ## Decisions
-`decisions/dlist-curation/`: (none yet)
+`decisions/dlist-curation/`:
+- `0001-tl-panel-disclosure-and-copy.md` — story 1: fold the Trusted Lists card in place with the page's
+  settled disclosure idiom; the three-state verdict + labels as a pure helper (`describeTlDelegation`).
 
 ## Settled at kickoff (2026-09-09/10 session)
 - **Entry shape.** `["<kind>:<d-tag>", <assistant pubkey>, <relay>]`, kind ∈ {39998, 39999}
