@@ -84,6 +84,6 @@ documented behavior.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/graph-curation-ui/0002-shared-author-display-util.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
