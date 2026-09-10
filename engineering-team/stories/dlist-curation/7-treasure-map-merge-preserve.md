@@ -84,6 +84,22 @@ story gate, 2026-09-10; the design note below is ratified by the Reviewer.
   publish path, no readers. The eleven `30382:*` rows move into a shared constant so both generators
   and the tests agree on them.
 
+## Deviations
+- **One additive option on story 4's shipped seam.** `fetchFromRelays` in
+  `src/api/dlist-curation/index.js` deliberately reads a relay failure as "nothing there" (local is
+  its caller's fallback). AC-5 requires the *relay* leg of this lookup to refuse rather than fall
+  through to "no Map", so the function gained an optional third argument `{ strict: true }` that
+  rethrows; the default behavior and story 4's suite are unchanged.
+- **The CLI template now carries `pubkey`** (the customer's when given, else the configured owner's)
+  where it previously carried none; NIP-07 signers accept a template with `pubkey` and the API
+  generator already set it. Harmless, and it lets the current-Map lookup know whose Map to read.
+- **Live verification.** The server was restarted with the new modules; the API route answers 401
+  unauthenticated (a real session would be needed for more). The CLI generator ran in the container
+  for the owner's real Map: found in local strfry, carrying only two old `30382:*` rows (rank,
+  followers) and no foreign tags → "Preserved 0 … regenerated 11 … current Map found: local", and
+  the written template holds exactly the eleven fresh rows — the rule applied to real data. A Map
+  with foreign tags is exercised by the suite (U3–U6), not live, since none exists here yet.
+
 ## Linked artifacts
 - ADR: — (Bug lane; Architecture skipped if the operator agrees — design note above)
 - Test plan: `engineering-team/stories/dlist-curation/7-treasure-map-merge-preserve.test-plan.md` (suite: `test/dlist-curation-merge-preserve.test.js`)

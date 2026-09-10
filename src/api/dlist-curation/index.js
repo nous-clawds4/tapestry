@@ -143,8 +143,12 @@ function scanLocal(filter) {
   });
 }
 
-/** querySync over the DList relays, bounded; a failure reads as "not there" (local is the fallback). */
-async function fetchFromRelays(filter, urls) {
+/**
+ * querySync over the given relays, bounded. By default a failure reads as "not there" (local is
+ * the fallback); `opts.strict` rethrows it instead — for callers that must not proceed blind
+ * (dlist-curation #7's current-Map fetch).
+ */
+async function fetchFromRelays(filter, urls, opts = {}) {
   const relays = wsOnly(urls);
   if (relays.length === 0) return [];
   const { SimplePool } = nt();
@@ -156,6 +160,7 @@ async function fetchFromRelays(filter, urls) {
     ]);
     return Array.isArray(events) ? events : [];
   } catch (err) {
+    if (opts && opts.strict) throw err;
     console.warn(`[dlist-curation] relay fetch failed (${relays.join(',')}): ${err.message}`);
     return [];
   } finally {
