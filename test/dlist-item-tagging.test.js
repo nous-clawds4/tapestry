@@ -353,7 +353,10 @@ test('R4 (AC-1, E9, E10, E11): the write hook keeps its guards — assertSignerM
   const src = safeRead(WRITE_HOOK);
   assert(/assertSignerMatches\(asserterPubkey, user\?\.pubkey\)/.test(src), 'E11: signer/session mismatch throws before any publish');
   assert(/publish:\s*publishOrThrow/.test(src), 'AC-1: publishes through the guarded publishOrThrow (local strfry only during the build)');
-  assert(/import \{ hash8 \} from '\.\.\/utils\/dtag'/.test(src) && /hash8,/.test(src), 'story 2: hash8 injected for the a-target d');
+  // The hash may be imported under either spelling — `hash8` or `hash8Sync as hash8`
+  // (the SubtleCrypto→@noble switch, Gate B operator report). What matters is that a
+  // hash8 from utils/dtag is injected into the core, not how the binding is spelled.
+  assert(/import \{ hash8(Sync as hash8)? \} from '\.\.\/utils\/dtag'/.test(src) && /hash8,/.test(src), 'story 2: hash8 injected for the a-target d');
   assert(/const applyTag = useCallback\(async \(tagInput, target\)/.test(src) && /const disputeTag = useCallback\(\(tagInput, target\) => run\(tagInput, target, -1\)/.test(src),
     'E9: applyTag/disputeTag take (tagInput, target) — target { id } | { address } passes straight to the core');
   assert(!/publishEverywhere|PUBLISH_RELAYS/.test(src), 'local-only publish path retained');
