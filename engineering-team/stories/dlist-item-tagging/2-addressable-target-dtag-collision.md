@@ -1,6 +1,6 @@
 # Story 2: Addressable-target assertion `d`-tag collision (spec fix)
 
-**Status:** Approved
+**Status:** In Progress
 **Created:** 2026-09-09
 **Type:** Feature — protocol/spec fix *(escalated to **Standard** — all phases, Test Design
 included: the wire-format irreversibility trigger fires and the deliverable adds a core source
@@ -65,16 +65,21 @@ the first.
    SHA-256 over the full coordinate carries uniqueness (the house `hash8` convention); the hash is
    injected into the dependency-free core, not shipped by it. Bounded at every depth of
    tagging-of-taggings. Full rationale + rejected forms: ADR 0001.
-2. **Compatibility posture.** Recommendation: no migration; readers already key on `#a` (verify
-   at Architecture), so old-rule assertions stay readable; a user who re-asserts under the new
-   rule leaves one orphan old-rule event that the interpretation buckets identically. Record
-   how many old-rule `a`-target assertions exist on the reference relays at Architecture time.
+2. **Compatibility posture — decided:** no migration, no reader dedupe. Readers key on `#a`
+   (verified at Architecture — ADR 0001, Constraint 1), so old-rule assertions stay
+   discoverable; a re-assert under the new rule lands at a new address and leaves the old-rule
+   event in place. Operator-accepted: the census found 7 old-rule events, one asserter, zero
+   collisions, all on one non-production relay (ADR 0001 § Compatibility evidence).
 3. **Upstream.** The protocol author (David) owns the draft — this story amends the working copy
    here and the ADR names the upstream notification as a follow-up.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/dlist-item-tagging/0001-addressable-target-dtag.md` (Proposed)
-- Test plan: (pending)
+- ADR: `engineering-team/decisions/dlist-item-tagging/0001-addressable-target-dtag.md` (Accepted)
+- Test plan: `engineering-team/stories/dlist-item-tagging/2-addressable-target-dtag-collision.test-plan.md`
 - Review: `engineering-team/reviews/dlist-item-tagging/2-addressable-target-dtag-collision.md`
 
 Link by path only — never record verdicts or round history in this file.
+
+## Deviations
+- `apply.js` resolves `deps.hash8` only when the target is an `a` target **and has no `id`** (`typeof target.id !== 'string'`), mirroring the builder's documented "if both are supplied, `id` takes precedence" rule; the ADR's sketch checked `address` alone, which would have called the supplier for a target the builder then treats as `e`.
+- Test-fixture defect surfaced (not fixed — Tester's lane): `fail loud: an a target with NO hash8 throws` passes `h: undefined` into a helper whose parameter defaults to the real `hash8`, so the guard is never exercised; the builder does throw when the option is genuinely absent (verified directly).

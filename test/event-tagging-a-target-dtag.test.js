@@ -244,7 +244,14 @@ t('recursion: tagging a tagging — d16 is event-tag-white- (16 chars, trailing 
 
 t('fail loud: an a target with NO hash8 throws (never silently mints a collidable address)', () => {
   let err = null;
-  try { buildA({ address: ITEM_VCAVALLO, h: undefined }); } catch (e) { err = e; }
+  // Call the core directly with the option genuinely absent — passing h: undefined to buildA
+  // would trigger its default parameter and supply the real hash8 (fixture defect, fixed at
+  // implementation time).
+  try {
+    load().buildEventTaggingAssertion({
+      headerAuthorPubkey: JACK, slug: SLUG, target: { address: ITEM_VCAVALLO }, polarity: 1, asserterPubkey: ALICE, taPubkeys: [TA, LOCAL],
+    });
+  } catch (e) { err = e; }
   assert(err, 'must throw');
   assert(/hash8/.test(err.message), `error must name the missing dep (hash8), got: ${err.message}`);
 });

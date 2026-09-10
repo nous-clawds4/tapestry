@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { assertSignerMatches } from '../utils/signerGuard';
 import { publishOrThrow } from '../utils/publishProfileTag';
 import notifyTagApplicability from '../utils/notifyTagApplicability';
+// The house hash8 (async SubtleCrypto SHA-256) — injected into the core for the
+// a-target assertion d (ADR dlist-item-tagging/0001); the core ships no hashing.
+import { hash8 } from '../utils/dtag';
 // Single source of truth for the event-tagging wire shape + publish sequence:
 // the dependency-free CJS core, imported through the Vite alias (see
 // ui/vite.config.js). The hook never re-inlines the wire shape — it only
@@ -63,6 +66,7 @@ export function useEventTagging() {
         sign: (unsigned) => window.nostr.signEvent(unsigned),
         publish: publishOrThrow,
         now: () => Math.floor(Date.now() / 1000),
+        hash8,
       },
     });
   }, [taPubkey, user?.pubkey]);

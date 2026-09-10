@@ -195,8 +195,33 @@ d = event-tag-<descriptor>-<target8>-<asserter8>
 ```
 
 - `<descriptor>` — the applied tag's slug (e.g. `awesome-tag`).
-- `<target8>` — the first 8 characters of the target's identifier: the **event id** for an `e` target, or the **author-pubkey segment of the coordinate** (`<coord>.split(":")[1][0:8]`) for an `a` target.
+- `<target8>` — a fixed-length fingerprint of the target's canonical identifier. It takes one of two forms depending on how the target is identified:
+  - **`e` target** — the first 8 hex characters of the **event id**: `d = event-tag-<slug>-<id8>-<asserter8>`.
+  - **`a` target** — the segment `<author8>-<d16>-<hash8>`, i.e. `d = event-tag-<slug>-<author8>-<d16>-<hash8>-<asserter8>`, where:
+    - `<hash8>` — the first 8 lowercase hex characters of the SHA-256 digest of the UTF-8 bytes of the **full coordinate** string `<kind>:<author>:<d>`, exactly as carried in the `a` tag (no trimming, normalization, or reordering). **This is the only segment that carries uniqueness.**
+    - `<author8>` — the first 8 hex characters of the coordinate's author-pubkey segment. Readable decoration only.
+    - `<d16>` — the first 16 characters of the coordinate's `d` segment (everything after the second colon), verbatim, truncated. Readable decoration only; a shorter `d` yields a shorter `d16`, an empty `d` yields `…-<author8>--<hash8>-…`.
 - `<asserter8>` — the first 8 characters of the asserting pubkey.
+
+Readers MUST NOT parse `d` back into its fields: `<d16>` is user-influenced text (it may contain hyphens, colons, slashes, spaces, non-ASCII), so the string is irreversible by construction. The `a` (or `e`) tag is authoritative for the target; `d` is only the replaceability key.
+
+Worked example — one asserter tagging two items of a Decentralized List that share an author (`b83a28b7…`) as `white-hat-hacker`:
+
+| `a` coordinate | `hash8` | assertion `d` |
+|---|---|---|
+| `39999:b83a28b7…:vcavallo-1i6dn0p` | `086cb8ff` | `event-tag-white-hat-hacker-b83a28b7-vcavallo-1i6dn0p-086cb8ff-<asserter8>` |
+| `39999:b83a28b7…:aburra16-io3q45` | `878ce18a` | `event-tag-white-hat-hacker-b83a28b7-aburra16-io3q45-878ce18a-<asserter8>` |
+
+Same `author8`, distinct `hash8` → distinct addresses. Assertions are themselves kind-39999 addressables, so they are valid `a` targets; the rule recurses unchanged and the length stays flat at every depth. Bob disputing Alice's first assertion above (Alice = `aaaaaaaa…`):
+
+```
+target a = 39999:<alice>:event-tag-white-hat-hacker-b83a28b7-vcavallo-1i6dn0p-086cb8ff-aaaaaaaa
+d        = event-tag-disputed-claim-aaaaaaaa-event-tag-white--<hash8 of that full coordinate>-<bob8>
+```
+
+(`d16` = `event-tag-white-`, 16 characters, trailing hyphen included — hence the `--`. From depth 2 on the decoration says only "this targets a tagging"; that is accepted — no prefix-stripping rule.)
+
+*Superseded 2026-09-10:* the `a`-target rule previously used only the author-pubkey segment of the coordinate (`<coord>.split(":")[1][0:8]`) as `<target8>`, which collides across an author's addressable events. Assertions published under that rule remain valid — readers discover assertions by `#a`/`#e`, never by parsing `d` — but they are not migrated, and readers do not dedupe them: a re-assertion of the same (descriptor, target) under the current rule lands at a new address; the old-rule event is orphaned in place, not replaced.
 
 The per-tag tagging header's `d` is likewise deterministic: `tagging:<slug>-tagging`.
 
