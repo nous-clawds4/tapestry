@@ -1,6 +1,6 @@
 # Story 2: Restore the "Add Node as Element" page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-09
 **Type:** Bug
 
@@ -86,4 +86,4 @@ documented behavior.
 
 - ADR: `engineering-team/decisions/graph-curation-ui/0002-shared-author-display-util.md`
 - Test plan: `engineering-team/stories/graph-curation-ui/2-restore-add-node-as-element-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/graph-curation-ui/2-restore-add-node-as-element-page.md`

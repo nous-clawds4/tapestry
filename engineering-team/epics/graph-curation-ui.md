@@ -27,7 +27,7 @@ top-level superset.
    staging, tapestry.brainstorm.world, and tags.brainstorm.world as of 2026-07-23).
 2. `stories/graph-curation-ui/2-restore-add-node-as-element-page.md` — restore the "Add Node as
    Element" page, which currently fails to render at all, and rename its breadcrumb to match
-   the button that leads there. **Approved** (2026-09-09; `OPEN.md` row 222).
+   the button that leads there. **Done** (review PASS 2026-09-09; local only, not yet on staging).
 3. `stories/graph-curation-ui/3-count-concepts-as-elements.md` — make the concept detail
    header's element count include elements that are themselves concepts, so it agrees with the
    Overview and the summaries API. **Approved** (2026-09-09; `OPEN.md` row 224).
