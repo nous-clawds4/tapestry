@@ -180,8 +180,9 @@ We chose **Option A** with the sub-decisions above.
    the chain `getActiveSignerOrThrow` → `signEvent` → `publishOrThrow`; the page mounts it between
    the two panels. **R** — story 1's card and suite untouched; `useCommunitySharedConcepts` and
    `nostrPublish` untouched; page order sentinel. **B** (optional) — Playwright with `page.route`
-   mocks for auth, the Map scan, the community fetch (WebSocket — may need the hook mocked at the
-   relay level or the endpoint stubbed), and the endpoint; the reviewer's story-1 method.
+   mocks for auth, the Map scan, the community fetch (an HTTP `GET /api/relay/external` through
+   `nostrPublish.js` `fetchFromRelays` — mockable with `page.route`; *corrected at review #5, which
+   first read it as a WebSocket*), and the endpoint; the reviewer's story-1 method.
 
 ## Out of scope
 

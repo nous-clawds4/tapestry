@@ -48,8 +48,8 @@ Not derivable from any single criterion:
 - [ ] **Not covered — the live flow in a browser** (search, Add, the 409 rendering, Sign & publish,
       Revoke): needs a NIP-07 signer and a real session. The reviewer's Playwright-with-`page.route`
       method (story 1) can exercise render paths with the endpoint and the Map scan mocked; the
-      community fetch is a WebSocket and may need the hook's relay mocked or the body driven with a
-      stubbed relay. The signing step itself stays with the operator.
+      community fetch is an HTTP `GET /api/relay/external` (via `nostrPublish.js`), mockable with
+      `page.route` — *corrected at review #5; the plan first called it a WebSocket*. The signing step itself stays with the operator.
 - [ ] **Not covered — the endpoint** (story 4's suite) and the publish primitives (their own lanes).
 - [ ] **Not applicable — Concept Graph API:** no concept behaviour changes.
 

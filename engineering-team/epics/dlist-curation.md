@@ -40,13 +40,19 @@ duplicating items into the community list.
    `buildImportCypher` lane (`/api/neo4j/event-update`, the `io.js` import, `pullClassThread`,
    firmware install) — publishing to local strfry alone imports nothing, which is what the
    no-Neo4j-write decision below relies on.
-5. *(planned)* `5-dlist-curation-panel` — the collapsible panel: community-header search with
+5. `5-dlist-curation-panel.md` (Done, review PASS 2026-09-10) — the collapsible panel: community-header search with
    self/assistant exclusion, add (header first, then sign the Map), revoke. Feature.
 6. *(planned)* `6-map-entries-dlist-class` — Map Entries: classify `<kind>:<d-tag>` entries,
    show name + community pointer, link to the DList page, missing-header warning. Feature.
    *Carry-forward (review #2, NB-5):* seven in-repo readers of 10040 first elements, not three —
    also `TrustedAssertionsList.jsx`, `BrainstormSearch.jsx`, `useTrustWeights.js`,
    `TrustDetermination.jsx` (all filter on `30382:`); the Architect's blast radius uses the full list.
+   *Carry-forward (review #5, NB-1/NB-2/NB-3):* the panel's "already empowered" index is last-wins on
+   duplicate `39998:<d>` rows — ADR 0002 §5 says first occurrence wins; Map Entries should use
+   `findDListEntries` + first-occurrence, and the panel's `byD` can follow. A found kind-39999
+   header links into `DListDetail.jsx`, which parses only `39998:`/`9998:` ids — extend the route's
+   parser or omit the link for 39999. The Replace control shows the other assistant only in a
+   tooltip; Map Entries' badge should carry the short pubkey inline.
 7. *(planned, operator to confirm)* `7-treasure-map-merge-preserve` — the NIP-85 export
    generator preserves non-30382 entries. Bug. *Carry-forward (review #2, NB-4):* two
    rebuild-from-config generators, `src/api/export/nip85/commands/create-unsigned-kind10040.js`
@@ -62,6 +68,8 @@ duplicating items into the community list.
   `INHERITS_ITEMS_FROM`; deference-family only; 39999 precedence scoped out.
 - `0004-assistant-curation-header-endpoint.md` — story 4: the DI'd endpoint; amended to supersede
   `community-reference` ADR 0004's no-server-publisher posture for its own directory.
+- `0005-dlist-curation-panel.md` — story 5: the panel over four pure Map-entry helpers, the story-4
+  endpoint, and the page's sign-and-publish chain; body mounts on first open.
 
 ## Settled at kickoff (2026-09-09/10 session)
 - **Entry shape.** `["<kind>:<d-tag>", <assistant pubkey>, <relay>]`, kind ∈ {39998, 39999}
