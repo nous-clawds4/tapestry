@@ -62,7 +62,7 @@ None — both kickoff questions (AC-1's fourth sentence; AC-3's labels) were set
 operator at the story gate, 2026-09-10.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/dlist-curation/0001-tl-panel-disclosure-and-copy.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
