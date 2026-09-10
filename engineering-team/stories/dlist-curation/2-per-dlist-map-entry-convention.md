@@ -95,7 +95,7 @@ draft (owner of the 39998 family on the Map) rather than the trusted-lists draft
 parse rule), and where in BIBLE § Assistant Keys the status sentence lands.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/dlist-curation/0002-per-dlist-map-entry-convention.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)
 - Review: (filled in after Review phase)
 
