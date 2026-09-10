@@ -85,5 +85,5 @@ documented behavior.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/graph-curation-ui/0002-shared-author-display-util.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/graph-curation-ui/2-restore-add-node-as-element-page.test-plan.md`
 - Review: (filled in after Review phase)
