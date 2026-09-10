@@ -117,6 +117,6 @@ None. The correct semantics is settled by operator ruling; the expected values a
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/graph-curation-ui/0003-one-canonical-concept-count.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
