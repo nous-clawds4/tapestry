@@ -232,6 +232,17 @@ Gate-A classification superseded: this story now runs **Standard** and is govern
 `engineering-team/decisions/dlist-item-tagging/0002-trusted-list-discovery-tags.md`.
 
 The earlier discovery-tag choice in the Design note — `['e', tag.eventId]` — is **withdrawn**.
-Trusted Lists instead carry `['z', '39999:<headerAuthor>:tagging:<slug>-tagging']` naming what the
-list is about, family-wide across 30392/30393/30394/30395; members keep the kind's lowercase letter.
-See ADR 0002 for the rationale, the header-pick rule, and the 30393 dual-emit migration posture.
+Trusted Lists instead carry `['z', '39999:<TA>:tl:<slug>-tls']`, a membership claim on the tag's
+per-tag **Trusted-List header** (TA-authored, runtime-resolved, lazily created on first publish, and
+itself an item on the new firmware-seeded type header `39998:<TA>:trusted-list-for-tag`). Family-wide
+across 30392/30393/30394/30395; members keep the kind's lowercase letter.
+
+Two corrections to the first version of this amendment: the `z` does **not** point at the per-tag
+*tagging* header (a Trusted List is not a tagging — that `z` was a false membership claim), and the
+`pickHeader`-based header-author rule is withdrawn with it (a TA-authored header has no plurality).
+
+**Firmware change is now in scope**, and therefore a reinstall (`POST /api/firmware/install`): the
+`trusted-list-for-tag` type header is a new concept definition. This reverses the "no firmware
+reinstall required" line in the Gate-A notes above.
+
+See ADR 0002 for the rationale, the worked example, and the 30393 dual-emit migration posture.

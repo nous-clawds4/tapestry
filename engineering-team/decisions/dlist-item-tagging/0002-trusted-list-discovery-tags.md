@@ -1,6 +1,6 @@
 # ADR 0002: Trusted-List discovery tags — `z` names what the list is about
 
-**Status:** Accepted
+**Status:** Accepted (amended 2026-09-10 — see "Amendment" below)
 **Date:** 2026-09-10
 **Story:** `engineering-team/stories/dlist-item-tagging/5-pins-and-trusted-lists-for-items.md`
 
@@ -15,32 +15,50 @@ Story 5 adds pins and Trusted Lists for **DList items** (addressable targets), i
 - For 30392 the observer axis wants `p` — already the member letter. Consequently **30392 carries no relay-filterable discovery tag today at all**: `runOnePin` (`src/api/trustedList/refreshPinnedTags.js` ~:209–226) emits only `observer` / `source-tag` / `cutoff` / `min-rank`, all multi-letter and therefore unfilterable. Cross-observer discovery of pubkey TLs is currently impossible without scanning every 30392.
 - 30393 escapes the collision by luck (members are `e`, metadata is `a` + `p`) and `runOneNotePin` (~:364–378) emits exactly that pair; `protocols/drafts/trusted-lists.md` ~:66–70 documents it as the convention.
 
-This is **the same collision** `protocols/drafts/event-taggings.md` already solved. Its problem statement: "we would be using the `e`/`a` tag to refer to two different things — the event being tagged and the event that defines the tag being applied." It rejected **Solution 1** (positional `target`/`descriptor` fields on the `a` tag — "relays index single-letter tags by value, not by a third positional field") and **Solution 2** (custom `target`/`descriptor` tag names — "only single-letter tags are indexed"), landing on **indirect tagging**: the descriptor moves to a `z` pointing at a per-tag **tagging header**, `39999:<headerAuthor>:tagging:<slug>-tagging` (`taggingHeaderAddr`, `src/lib/event-tagging/handles.js:27-29`). Event-tagging assertions already z-tag exactly that anchor.
+This is **the same collision** `protocols/drafts/event-taggings.md` already solved. Its problem statement: "we would be using the `e`/`a` tag to refer to two different things — the event being tagged and the event that defines the tag being applied." It rejected **Solution 1** (positional `target`/`descriptor` fields on the `a` tag — "relays index single-letter tags by value, not by a third positional field") and **Solution 2** (custom `target`/`descriptor` tag names — "only single-letter tags are indexed"), landing on **indirect tagging**: the descriptor moves to a `z` pointing at a per-tag **tagging header** (`39999:<author>:tagging:<slug>-tagging`), which is itself an item on the firmware-seeded **type header** `39998:<TA>:tagging-with-specific-tag`.
 
-Two facts that make the reuse safe (verified in-session):
+**The structural lesson we take from that spec is its two-level anatomy, not its anchor.** `event-taggings.md` § "Tag references: `z` is membership; `a`/`e` name a specific thing" is explicit that a `z` means *membership* and nothing else: "this event is an element of that list/concept. It never means 'which tag.'" It even names the exact mistake — putting a `z` on a tagging *header* "would be wrong — it would assert the header is itself *a thing tagged X*, instead of the machinery *for* tagging things as X."
+
+Two facts that make the `z` mechanism safe here (verified in-session):
 
 - A `z` tag on a kind-3039x event is **inert for the graph**. `src/api/neo4j/eventSync.js` `kindToLabel` (~:154–158) returns null for any kind outside 9998/39998/9999/39999/7, and `src/api/strfry/tapestryBrainWrite.js:37` returns false unless `kind === 39999`. No TL is imported as a DList item or as a tagging, no matter what it z-tags.
-- The kind itself disambiguates lists from the taggings that share the anchor: `{kinds:[30394], "#z":[headerCoord]}` returns lists; `{kinds:[39999], "#z":[headerCoord]}` returns taggings.
+- `#z` filters are relay-native (single-letter, value-indexed), and a `#z` filter takes an array, so multi-namespace reads are one query.
 
-Concepts touched: none. This ADR changes *tag layout on published 3039x list events*, not any 39998/39999 concept definition.
+Concepts touched: **one new firmware concept** (`trusted-list-for-tag`) — see Consequences; the 3039x list events themselves are not concept definitions.
 
 ## Options considered
 
-### Option A — `z` → the per-tag tagging header (chosen)
+### Option A — `z` → a per-tag **Trusted-List header**, itself an item on a firmware-seeded type header (chosen)
 
-Every TL in the family carries `["z", "39999:<headerAuthor>:tagging:<slug>-tagging"]` naming what the list is about; members keep the kind's lowercase letter untouched.
+Mirror the taggings anatomy exactly one level up. A type header names the *kind of list*; a per-tag header names *this tag's* Trusted Lists; the TLs are its members:
+
+```
+39998:<TA>:trusted-list-for-tag              type header (firmware-seeded), the analog of
+                                             39998:<TA>:tagging-with-specific-tag
+  └─ 39999:<TA>:tl:<slug>-tls                per-tag TL header; z → the type header;
+                                             carries names/description + an a-tag naming
+                                             the tag-element it is for
+       ├─ kind 30392 pubkey TL   z → 39999:<TA>:tl:<slug>-tls
+       ├─ kind 30393 note TL     z → same
+       └─ kind 30394 item TL     z → same
+```
+
+Members keep the kind's lowercase letter (`p`/`e`/`a`/`i`), untouched.
 
 Pros:
-- Corpus-native. It is the indirection this project already ratified for the identical collision, so there is one answer to "how do I name a descriptor when the natural letter is taken."
-- Same anchor as the taggings themselves: a consumer holding a tag's header coordinate can fetch both the assertions and the lists derived from them with two filters that differ only in `kinds`.
+- **The `z` is a true membership claim.** A Trusted List genuinely *is* an item on "the Trusted Lists for tag X." That is exactly what `event-taggings.md` says a `z` models, and it is the property the withdrawn variant lacked (see Amendment).
+- **No kind filter is needed for correctness.** `{"#z":["39999:<TA>:tl:<slug>-tls"]}` returns Trusted Lists and nothing else. Adding `kinds:[30394]` narrows by *member type* — a different question, asked because the consumer wants item lists, not because the filter would otherwise be wrong.
+- Corpus-native: the same two-level header/type anatomy the project already ratified for taggings, with the same naming style.
 - Uniform family-wide (30392/30393/30394/30395) — the rule does not depend on which letter the kind claims for members.
 - Gives 30392 the discovery axis it silently lacks.
 - Inert for the graph (verified above), so it cannot be mistaken for a DList membership assertion.
+- The per-tag TL header is a normal DList header, so it carries human-readable `names`/`description` and an `a` pointer to the tag-element — a consumer that discovers the header learns what the lists are about without resolving anything else.
 
 Cons:
-- Indirect: the pointer is to a *tagging header*, not to the tag element, so a consumer must resolve the header coordinate before querying. (It is derivable from author + slug — no signed id lookup.)
-- Inherits **header plurality** from event-taggings: a tag may have several headers, one per author (`pickHeader` / `findHeaders`, `src/lib/event-tagging/apply.js:63-73`). See Consequences.
-- The observer axis is not covered by `z`; observers stay on the multi-letter `observer` tag for 30392/30394 (`p` is the member letter on 30392). Cross-observer discovery is `#z` + client-side observer split.
+- One more event class to create and keep alive (mitigated by lazy creation on first publish — see Consequences).
+- Indirect: the pointer is to a header, not to the tag-element. Derivable from author + slug, so no signed-id lookup.
+- Authoring the header under the deployment TA makes the coordinate **per-deployment**; a cross-deployment consumer must union namespaces (see Consequences).
+- The observer axis is still not covered by `z`; observers stay on the multi-letter `observer` tag for 30392/30394 (`p` is the member letter on 30392). Cross-observer discovery is `#z` + client-side observer split.
 
 ### Option B — uppercase single-letter tags (`A` = tag coordinate, `P` = observer)
 
@@ -71,45 +89,143 @@ Rejected: a tag element is an **addressable, replaceable** event. Its id churns 
 
 ## Decision
 
-We chose **Option A**. Trusted Lists carry a `z` tag naming what the list is about, pointing at the tag's per-tag tagging header `39999:<headerAuthor>:tagging:<slug>-tagging`; members keep the kind's lowercase letter. The rule applies **family-wide** to 30392/30393/30394/30395.
+We chose **Option A**. Trusted Lists carry `["z", "39999:<TA>:tl:<slug>-tls"]` — a genuine membership claim on the tag's **Trusted-List header** — and members keep the kind's lowercase letter. The rule applies **family-wide** to 30392/30393/30394/30395.
 
-Cross-observer discovery becomes:
+The four sub-decisions, made here and not deferred:
+
+**1. The `d` of the per-tag TL header: `tl:<slug>-tls`.** It mirrors `tagging:<slug>-tagging` structurally — a `<role>:` namespace prefix, the tag slug, a role suffix that pluralizes what the header collects ("the TLs for white-hat-hacker"). `tl:` and the `-tls` suffix are already this codebase's vocabulary for the object (`tl-pin-`, `tl-pin-notes-`, `tl-pin-items-` d-prefixes in `refreshPinnedTags.js`; `buildAndPublishTL`). Rejected alternatives: `trusted-list:<slug>-trusted-lists` (accurate but three times the length, and diverges from the in-repo `tl` shorthand) and `tl:<slug>` (no role suffix — collides in spirit with a tag slug that happens to start with `tl:`, and loses the "these are lists *of* something" reading). Compose it with a new `tlHeaderAddr(authorPubkey, slug)` in `src/lib/event-tagging/handles.js` next to `taggingHeaderAddr` — never hand-format the string.
+
+**2. Author of the per-tag TL header: the deployment TA, resolved at runtime.** `getOwnerAssistantPubkey()` (`src/utils/assistantKeys.js`) server-side; never a literal (CLAUDE.md "Per-deployment TA pubkey — NEVER hardcode"). Rationale: the TA already signs *every* Trusted List in this deployment (`runOnePin`, `runOneNotePin`, and Story 5's item publisher are all TA-signed server-side jobs), so anchoring the header under the same key introduces **no new signing identity and no header plurality** — there is exactly one TL header per (deployment, tag slug), and the publisher can derive its coordinate from inputs it already has. The tag author was the alternative; it was rejected because the tag author is a stranger to this pipeline (they never sign a TL, may not exist as a local key, and a tag with several author-headers would reintroduce exactly the plurality that made the old header-pick rule necessary).
+
+The honest cost: **the coordinate is per-deployment.** Deployment X's TL header for `white-hat-hacker` is not deployment Y's. A cross-deployment consumer does what `event-taggings.md` § "Concept namespaces & federation" already prescribes for the TA-rooted concepts: treat each deployment's coordinate as one **authority namespace**, and either scan the namespace it honors or union several in one query (`"#z": [<X's coord>, <Y's coord>]` — a `#z` filter takes an array), merging at read time under its own POV. Federation stays **opt-in and unenforced**; nothing here fixes a canonical authority, and the open cross-deployment-identity question (worksheet W1) is untouched.
+
+**3. Lazy creation.** The per-tag TL header is created **on first publish if absent**, exactly as `applyEventTagging` (`src/lib/event-tagging/apply.js`) already mints a missing tagging header inside its 1/2/3-publish sequence: build and sign everything up front, then publish in dependency order (header before the event that `z`-references it) — safe because every reference is an addressable coordinate, known before signing. Landing spot: a single `ensureTLHeader({ slug, tagAuthorPubkey, taPubkey })` helper in `src/api/trustedList/refreshPinnedTags.js`, called by `runOnePin` (~:130), `runOneNotePin` (~:315) and Story 5's item publisher *before* they hand off to `buildAndPublishTL`, and memoized per refresh cycle so `refreshAllPinnedTags` does not re-check the same slug three times. Absent-header detection is a strfry scan for the coordinate; on a publish failure for the header, publish the TL **without** the `z` and log — an unanchored list is still valid, just undiscoverable by axis.
+
+**4. Migration.** 30393 **dual-emits**: add the new `z`, keep the legacy `a`/`p` pair through a transition window, drop it in a follow-up story. 30392 and 30394 get the `z` outright (30392 has no discovery tag to preserve; 30394 is new). **No migration job**: TLs are replaceable and re-derive on the next refresh cycle, so the fleet converges on its own.
+
+Discovery becomes:
 
 ```json
-{"kinds": [30394], "#z": ["39999:<headerAuthor>:tagging:<slug>-tagging"]}
+{"kinds": [30394], "#z": ["39999:<TA>:tl:white-hat-hacker-tls"]}
 ```
-
-and the kind disambiguates lists from the taggings that share the anchor.
 
 Ratified by the operator in session on 2026-09-10.
 
+## Worked example
+
+Tag slug `white-hat-hacker`; tag-element authored by Charlie; deployment TA elided as `<TA>` (this ADR keeps the `protocols/` convention of never writing a literal 64-hex pubkey). Only load-bearing tags are shown.
+
+**The type header** — new firmware concept, TA-authored, the analog of `tagging-with-specific-tag`:
+
+```json
+{
+  "kind": 39998,
+  "pubkey": "<TA>",
+  "tags": [
+    ["d", "trusted-list-for-tag"],
+    ["names", "trusted list for tag", "trusted lists for tags"],
+    ["description", "A DList header for Trusted Lists derived from a specific Tag. Each item points to the Tag it is derived from via an a-tag (preferred) or e-tag."],
+    ["recommended", "a"],
+    ["allowed", "e"]
+  ]
+}
+```
+
+**The per-tag TL header** — TA-authored, lazily created; simultaneously a DList header (it has `d`/`names`/`description`) and a DList item (kind-39999 with a `z` joining the type header), exactly as the per-tag tagging header is:
+
+```json
+{
+  "kind": 39999,
+  "pubkey": "<TA>",
+  "tags": [
+    ["d", "tl:white-hat-hacker-tls"],
+    ["names", "Trusted List for White Hat Hacker", "Trusted Lists for White Hat Hacker"],
+    ["description", "Trusted Lists derived from the White Hat Hacker tag."],
+    ["z", "39998:<TA>:trusted-list-for-tag"],
+    ["a", "39999:<pubkey_charlie>:white-hat-hacker"]
+  ]
+}
+```
+
+**The three Trusted Lists** — members keep the kind's lowercase letter; the `z` is identical across all three:
+
+```json
+{
+  "kind": 30392,
+  "tags": [
+    ["d", "tl-pin-white-hat-hacker-<observer8>"],
+    ["p", "<pubkey_member>"],
+    ["z", "39999:<TA>:tl:white-hat-hacker-tls"]
+  ]
+}
+```
+
+```json
+{
+  "kind": 30393,
+  "tags": [
+    ["d", "tl-pin-notes-white-hat-hacker-<observer8>"],
+    ["e", "<note_event_id>"],
+    ["z", "39999:<TA>:tl:white-hat-hacker-tls"],
+    ["a", "39999:<pubkey_charlie>:white-hat-hacker"],
+    ["p", "<observer_pubkey>"]
+  ]
+}
+```
+
+(The trailing `a`/`p` on the 30393 are the **legacy** pair, retained only for the dual-emit window.)
+
+```json
+{
+  "kind": 30394,
+  "tags": [
+    ["d", "tl-pin-items-white-hat-hacker-<observer8>"],
+    ["a", "39999:<pubkey_author>:<item_slug>"],
+    ["z", "39999:<TA>:tl:white-hat-hacker-tls"]
+  ]
+}
+```
+
+Every `a` on the 30394 is a member address — the tag's own coordinate never appears there (Story 5 edge case E1 holds).
+
+## Amendment (2026-09-10)
+
+**Superseded:** the originally-accepted form of Option A pointed the TL's `z` at the **per-tag tagging header** (`39999:<headerAuthor>:tagging:<slug>-tagging`) and relied on a `kinds` filter to separate lists from taggings sharing that anchor. The operator withdrew it in session on 2026-09-10.
+
+Why: it was a **false membership claim**. A `z` asserts "I am an item on that list"; the tagging header's list is "taggings that use tag X"; **a Trusted List is not a tagging**. The query only appeared to work because the kind filter papered over the error — any consumer who queried that header's `#z` without a kind filter would get taggings and Trusted Lists mixed in one result set. That is precisely the incoherence this ADR exists to remove, and it contradicts `event-taggings.md` § "Tag references: `z` is membership", which states the rule and even names this class of mistake.
+
+Also withdrawn with it: **the `pickHeader`-based header-author rule**. It existed only to disambiguate the plural, user-authored tagging headers; with a TA-authored TL header there is exactly one coordinate per (deployment, slug) and nothing to pick. Implementations must not carry `pickHeader` into the TL publisher.
+
+Unchanged by this amendment: Options B, C, D and the `b` non-option, and their rejections; the family-wide scope; the 30393 dual-emit posture; and the Status (**Accepted**).
+
 ## Consequences
 
-**Header plurality — the wrinkle, and the rule.** Tagging headers are per author, so a tag may have several. The TL publisher **must reuse the existing `pickHeader` rule** (`src/lib/event-tagging/apply.js:63-73`): prefer a header authored by the canonical TA pubkey (`taPubkeys[0]`, resolved at runtime — never hardcoded, per CLAUDE.md), otherwise the valid header with the lowest lexicographic author. Justification: this is *by construction* the same header the observer's own taggings anchored on, because those taggings were applied through this very function with the same inputs. Reusing it makes the TL's `z` and its source assertions agree without any extra bookkeeping, and it is deterministic across refreshes (so a replaceable list keeps a stable `z` and does not thrash its discovery axis). A "most-used header" heuristic was considered and rejected: it is non-deterministic under a moving corpus and would let a burst of assertions re-anchor existing lists.
+**Firmware reinstall required?** **Yes.** `trusted-list-for-tag` is a **new concept definition**: add `firmware/versions/v1.0.0/concepts (the live version — `firmware/active` symlinks it; verified 2026-09-10)/trusted-list-for-tag/{concept-header.json,json-schema.json}` mirroring `tagging-with-specific-tag/` (including its `headerTags` `["recommended","a"] / ["allowed","e"]` pair) and a matching `manifest.json` entry. After that, `POST /api/firmware/install` must be run on every deployment before the TL publisher is enabled — a TL whose header joins a type header that does not exist locally is unanchored in the graph. This **reverses the previous "No firmware reinstall" line.**
 
-Consumers that hold a *different* header for the same tag: resolve the tag's header set with `findHeaders` and query `#z` with **all** header coordinates (a `#z` filter takes an array), then merge. This plurality is **inherited from event-taggings, not invented here** — a consumer of assertions already faces it and already has the tool.
+**Irreversibility trigger.** The firmware change trips the irreversibility trigger (new permanent concept handle + permanent `tl:<slug>-tls` d-form once published). Already satisfied: Story 5 runs **Standard** governed by this ADR.
 
-**Migration for the note TL (30393).** It carries lowercase `a` + `p` today. Posture: **dual-emit** — add `z`, keep `a`/`p` — for a transition window, then drop the lowercase pair in a follow-up. No migration job is needed: TLs are replaceable and re-derive on the next refresh cycle, so the fleet converges on its own. The pubkey TL (30392) has nothing to migrate; it gains `z` outright.
+**Per-deployment coordinate.** See Decision 2. Cross-deployment consumers union namespaces in one `#z` filter, per `event-taggings.md` § "Concept namespaces & federation". No canonical authority is fixed here.
 
-**Spec updates required** (name only; writing them is a separate task): `protocols/drafts/trusted-lists.md` — the "optional relay-filterable discovery tags" bullet (~:66–70) is superseded and becomes the `z` convention stated family-wide, with the 30393 `a`/`p` pair recorded as legacy-during-transition. `protocols/drafts/event-taggings.md` may gain a cross-reference noting the shared anchor.
+**Migration for the note TL (30393).** Dual-emit — add `z`, keep `a`/`p` — for a transition window, then drop the lowercase pair in a follow-up. No migration job; replaceable lists re-derive on the next refresh cycle. The pubkey TL (30392) has nothing to migrate and gains `z` outright.
 
-**What breaks:** nothing published. `z` is additive; existing 30393 consumers keep working through the dual-emit window. Anything relying on 30393's `a`/`p` must move to `#z` before the pair is dropped.
+**Spec updates required** (name only; writing them is a separate task): `protocols/drafts/trusted-lists.md` — the "optional relay-filterable discovery tags" bullet (~:66–70) is superseded and becomes the family-wide `z` → per-tag TL header convention, documenting the two-level anatomy, the TA-authored header, and the 30393 `a`/`p` pair as legacy-during-transition. `protocols/drafts/event-taggings.md` — **yes, a cross-reference is warranted but small**: one line in or near § "Tag references: `z` is membership" noting that Trusted Lists reuse this two-level header pattern with their own type header, and that the tagging header is *not* their anchor. No change to any tagging wire shape.
 
-**What this enables:** cross-observer discovery for 30394, the first filterable discovery axis for 30392, and one uniform rule across the family instead of per-kind luck.
+**What breaks:** nothing published. `z` is additive; existing 30393 consumers keep working through the dual-emit window. Anything relying on 30393's `a`/`p` must move to `#z` before the pair is dropped. Deployments that install the code without reinstalling firmware publish valid-but-unanchored headers.
 
-**New debt:** the observer axis remains multi-letter (`observer`) and unfilterable on 30392/30394; if cross-observer-by-observer discovery becomes a real query, that needs its own decision (Option B is the candidate, pending the index proof).
+**What this enables:** cross-observer discovery for 30394, the first filterable discovery axis for 30392, one uniform rule across the family instead of per-kind luck, and a discovery filter that is correct without a kind filter.
 
-**Scope:** Story 5 (`engineering-team/stories/dlist-item-tagging/5-pins-and-trusted-lists-for-items.md`) now runs **Standard** — this ADR escalated it.
+**New debt:** the observer axis remains multi-letter (`observer`) and unfilterable on 30392/30394; if cross-observer-by-observer discovery becomes a real query, that needs its own decision (Option B is the candidate, pending the index proof). Lazy header creation adds one strfry existence check per (cycle, slug) — memoize it.
 
-**Firmware reinstall required?** **No.** No concept definition changes; only tag layout on published 3039x list events.
+**Scope:** Story 5 (`engineering-team/stories/dlist-item-tagging/5-pins-and-trusted-lists-for-items.md`) runs **Standard** — this ADR escalated it, and the firmware change is now in its scope.
 
 ## Implementation notes
 
-- File: `src/api/trustedList/refreshPinnedTags.js` — `runOnePin` (~:209–226, kind 30392): add `['z', taggingHeaderAddr(headerAuthor, slug)]` to the emitted tags. `runOneNotePin` (~:364–378, kind 30393): add the same `z`, **keep** the existing `['a', ...]` and `['p', observer]` during the transition window.
-- Story 5's new item-TL publisher (kind 30394): emit `['z', taggingHeaderAddr(headerAuthor, slug)]`; members stay lowercase `a`. Do **not** emit a metadata `a`.
-- Header author resolution: reuse `pickHeader` from `src/lib/event-tagging/apply.js` (export it if not already exported) fed by `findHeaders` and the runtime TA pubkey list from `getOwnerAssistantPubkey()` (`src/utils/assistantKeys.js`). No literal pubkeys.
-- Coordinate construction: use `taggingHeaderAddr(author, slug)` from `src/lib/event-tagging/handles.js` — do not hand-format the string.
-- If no header exists for the tag (`pickHeader` returns null), publish the TL **without** the `z` rather than inventing a coordinate, and log it; a list with no anchor is still valid, just undiscoverable by axis.
+- `src/lib/event-tagging/handles.js` — add `conceptTrustedListForTag(taPubkey)` → `39998:<TA>:trusted-list-for-tag` and `tlHeaderAddr(authorPubkey, slug)` → `39999:<author>:tl:<slug>-tls`, alongside the existing composers. Pure string composition, pubkey as a parameter.
+- `src/api/trustedList/refreshPinnedTags.js` — add `ensureTLHeader({ slug, tagAuthorPubkey })`: scan for `tlHeaderAddr(taPubkey, slug)`; if absent, build/sign/publish the kind-39999 header (with `z` → type header and `a` → tag-element) *before* the list. Memoize per refresh cycle. Call it from `runOnePin` (~:130), `runOneNotePin` (~:315), and Story 5's item publisher.
+- `runOnePin` (~:209–226, kind 30392): add `['z', tlHeaderAddr(taPubkey, slug)]`. `runOneNotePin` (~:364–378, kind 30393): add the same `z`, **keep** the existing `['a', ...]` and `['p', observer]` during the transition window.
+- Story 5's item-TL publisher (kind 30394): emit `['z', tlHeaderAddr(taPubkey, slug)]`; members stay lowercase `a`. Do **not** emit a metadata `a`.
+- TA pubkey via `getOwnerAssistantPubkey()` (`src/utils/assistantKeys.js`) at module init. No literal pubkeys. Do **not** import `pickHeader` here — it is withdrawn for this path (see Amendment).
+- Firmware: new `trusted-list-for-tag` concept dir + manifest entry modeled on `tagging-with-specific-tag`; then `POST /api/firmware/install`.
 
 ## Out of scope
 
@@ -117,3 +233,4 @@ Consumers that hold a *different* header for the same tag: resolve the tag's hea
 - A filterable **observer** axis for 30392/30394.
 - The timing of dropping 30393's legacy `a`/`p` pair (a follow-up story).
 - Any change to how taggings themselves are published or imported.
+- Choosing a canonical cross-deployment authority namespace for `trusted-list-for-tag` (worksheet W1).
