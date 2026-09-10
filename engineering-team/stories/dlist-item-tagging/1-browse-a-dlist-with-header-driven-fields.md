@@ -1,6 +1,6 @@
 # Story 1: Browse a DList with header-driven item fields
 
-**Status:** Approved
+**Status:** In Progress
 **Created:** 2026-09-09
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-09 —
 user-facing surface (not the operator browser); vote publishing out of the book; the
@@ -43,9 +43,11 @@ that I can see what is on the list (and who put it there) before deciding what t
       when items are rendered, then there is one column per declared field, in header order,
       required fields visibly distinguished from optional/recommended ones, and an item missing a
       required field shows an explicit "missing" mark rather than a blank.
-- [ ] AC-4: Given a header that declares a field whose `field-type` is unknown or absent, the
-      field still renders as text; a field named `github-username` (or whose `field-type` is a
-      GitHub-username type) renders as a link to `https://github.com/<value>`.
+- [ ] AC-4: Rendering of a declared field is driven only by the header's `field-type` for that
+      name, using a generic vocabulary: `text` (the default, and any unknown or absent type)
+      renders as plain text; `url` renders as a link (`target=_blank rel=noreferrer`) only when
+      the value parses as an http(s) URL, else as text. No rule is keyed on a field's *name* or
+      on aliases of a semantic type. *(Rewritten at Gate B, 2026-09-09 — see Deviations.)*
 - [ ] AC-5: Given a list with more items than one page shows, the page shows a bounded first
       page with a "showing N of M" count and a way to reach the next page; the total is stated as
       unknown (not zero) when the relay scan was bounded.
@@ -55,6 +57,17 @@ that I can see what is on the list (and who put it there) before deciding what t
 - [ ] AC-7: Given a coordinate whose header is not on local strfry, the page says so plainly and
       does not crash.
 - [ ] AC-8: Existing up/down (kind-7) counts on items remain visible where they were.
+- [ ] AC-9: Given an item carrying tags the header did not declare, those tags still render —
+      after the declared columns, in one collapsed cell per row ("N other fields" toggle →
+      expands to `name: value` lines). Single-letter tags (`d`, `z`, `e`, `p`, `a`, … any 1-char
+      name) and tags already rendered as declared columns are excluded. The NIP-level optional
+      item tags `name`/`title`/`slug`/`description`/`comments` need no special treatment — they
+      are simply undeclared and land here. *(Added at Gate B, 2026-09-09.)*
+- [ ] AC-10: Given the list index, a filter input at its top narrows the index live — case-
+      insensitive substring over each header's singular and plural names and description,
+      client-side over the already-loaded headers; when nothing matches the page says
+      "No lists match"; clearing the input restores the full index. *(Added at Gate B,
+      2026-09-09.)*
 
 ## Concepts touched
 *(Handles composed from the runtime TA pubkey — never hardcoded.)*
@@ -99,29 +112,37 @@ that I can see what is on the list (and who put it there) before deciding what t
   `parseFieldDecls(header)` → ordered `[{ name, requirement:'required'|'recommended'|'optional',
   type, description }]` — order is required → recommended → optional, each group in header
   order (mirrors `NewDListItem.jsx:36-42`; `allowed` counts as optional per the DCoSL spec),
-  `type` read from `["field-type", <name>, <type>]` and defaulting to `'text'`; a `field-type`
-  for an undeclared name adds no column; `fieldCellModel(item, decl)` → `{ value, extra,
-  missing, href }` where `value` is the first top-level tag `[<name>, v]`, `extra` counts
+  `description` from the declaration tag's optional third element (NIP line 35; `null` when
+  absent), `type` read from `["field-type", <name>, <type>]` and defaulting to `'text'`; a
+  `field-type` for an undeclared name adds no column; `fieldCellModel(item, decl)` → `{ value,
+  extra, missing, href }` where `value` is the first top-level tag `[<name>, v]`, `extra` counts
   further same-name tags, `missing = requirement==='required' && value==null`, and `href` is
-  `githubProfileUrl(value)` when `decl.name === 'github-username'` or `decl.type` is one of
-  `github-username|github-user|github` — `githubProfileUrl` returns
-  `https://github.com/<value>` only for values matching `^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`
-  (optional leading `@` stripped), else `null` so the cell degrades to text; and
-  `reactionPolarity(content)` → `+1|-1|0` (same `+`/`-`/emoji rules as `DListItems.jsx:32-40`,
-  duplicated rather than exported from the operator page so that page stays untouched).
+  `httpUrl(value)` when `decl.type === 'url'` — `httpUrl` returns the trimmed value only when it
+  parses (`new URL`) with an `http:`/`https:` protocol, else `null` so the cell degrades to text
+  *(Gate B: the earlier `githubProfileUrl` / name- and alias-keyed link rule was removed — see
+  Deviations)*; `undeclaredFields(item, fieldDecls)` → `[{ name, value }]` in tag order for
+  every item tag whose name is longer than one character, is not a declared column, and has a
+  non-empty value (AC-9); `matchesListQuery(header, query)` → boolean, case-insensitive
+  substring of the trimmed query over `headerNames(header)`'s singular/plural/description, `true`
+  for a blank query (AC-10); and `reactionPolarity(content)` → `+1|-1|0` (same `+`/`-`/emoji
+  rules as `DListItems.jsx:32-40`, duplicated rather than exported from the operator page so that
+  page stays untouched).
   New `ui/src/components/dlist/DListItemsTable.jsx` — props `{ items, fieldDecls, profiles,
   voteCounts, renderExtra }` — renders `<thead>` from `fieldDecls` (required headers carry
   class `is-required` and a `*`), then one `DListItemRow` per item (same folder): author
   (`components/Avatar` + display name from `useProfiles`, linked to `/user/<pubkey>`), age,
   one `<td>` per decl (missing → `<span class="bs-dlist-missing">missing</span>`, href → `<a
-  target=_blank rel=noreferrer>`, `extra` → "+N more"), a read-only up/down cell, and a
-  trailing `renderExtra(item)` slot — story 2 mounts its tagging affordance there and story 3
+  target=_blank rel=noreferrer>`, `extra` → "+N more"), an "Other fields" `<td>` holding a
+  `<details><summary>N other fields</summary>` toggle over `undeclaredFields()` (empty → no
+  toggle), a read-only up/down cell, and a trailing `renderExtra(item)` slot — story 2 mounts its tagging affordance there and story 3
   mounts the whole table on the tag page with its own item set, so nothing here knows about
   routes or fetching. Pages: `ui/src/pages/Lists.jsx` at `/lists` (TopBar + `bsp-page`
   layout like `Tags.jsx`): `queryRelay({ kinds: [9998, 39998] })` + `/api/dlists/item-counts`
   (`counts[headerRef]`, `—` when absent), one row per header (names, author, count) linking to
-  `/list/<encodeURIComponent(coord|id)>`, plus a paste box that runs `parseListRef` and
-  navigates. `ui/src/pages/List.jsx` at `/list/:ref`: resolves the header with
+  `/list/<encodeURIComponent(coord|id)>`, a filter `<input aria-label="Filter lists">` whose
+  value narrows the rendered rows through `matchesListQuery` (a `useMemo` over the loaded
+  headers — no refetch; "No lists match" when the result is empty), plus a paste box that runs
+  `parseListRef` and navigates. `ui/src/pages/List.jsx` at `/list/:ref`: resolves the header with
   `queryRelay({ kinds:[kind], authors:[pubkey], '#d':[d] })` or `{ ids:[id] }` (the
   `DListDetail.jsx:32-42` pattern; empty result → the AC-7 "not on this relay" state),
   fetches the page with `queryRelayBounded({ kinds:[9999,39999], '#z':[coord], limit: 50 })`
@@ -173,9 +194,9 @@ that I can see what is on the list (and who put it there) before deciding what t
   (`required` and `optional`) → one column, `required` wins; no duplicate column.
 - **E3** *(not derivable)*: an item carrying two `["github-username", …]` tags → the first
   value is the cell, with "+1 more"; the row is not duplicated.
-- E4: a `github-username` value that is not a valid handle (`vcavallo/repo`,
-  `https://github.com/x`, empty string) → plain text, no link; a leading `@` is stripped
-  before linking.
+- E4: a `url`-typed field whose value is not an http(s) URL (`vinneycavallo.com`,
+  `ftp://…`, `javascript:…`, `mailto:…`, empty string) → plain text, no link; surrounding
+  whitespace is trimmed before parsing. *(Rewritten at Gate B with AC-4.)*
 - E5: `names` tag with only a singular element → plural = singular; no `names` at all →
   `name`, then the `d` tag, never "(unnamed)" for a list that has any of them.
 - E6: next page uses `until = oldest created_at seen`; items sharing that timestamp arrive
@@ -187,6 +208,12 @@ that I can see what is on the list (and who put it there) before deciding what t
 - E8: `/api/dlists/item-counts` fails or lacks a header → count cell shows `—`, not `0`; the
   index still lists the header.
 - E9: the batched kind-7 scan fails → vote cells show `—`; the item rows still render.
+- E10: an item whose only tags are single-letter or declared columns → the other-fields cell
+  is empty (no toggle at all, not "0 other fields").
+- E11: an item repeating an undeclared tag name (`["comments","first"]`, `["comments","second"]`)
+  → every value is listed, in tag order; nothing is collapsed to "first + N more" here.
+- E12: a next page whose ids are all already seen (more than one page sharing one
+  `created_at`) → paging ends; "Next page" disappears instead of looping (N-3).
 - **Not covered:** visual layout and link-click behavior (browser verification at Gate B);
   profile-fetch failure and picture fallback (`useProfiles` / Avatar's own tested behavior);
   `/api/dlists/item-counts` freshness after a fresh import (its own validator cache);
@@ -215,9 +242,21 @@ regression sentinel on untouched files (passes now and after; fails only on coll
   `allowed` = optional), U7 (`missing` only when required and absent; optional absent ≠
   missing), U12 (bare `["required"]` declares no nameless column), S1 (`is-required` + `*`
   headers from `fieldDecls`), S2 (`bs-dlist-missing` "missing" span), S6 (styles present).
-- AC-4 → U4 (type from `field-type`, default `text`), U9 (`githubProfileUrl` link shape), U10
-  (unknown/absent type → text, github-* type links by type under any name), U7 (href on the
-  `github-username` cell), S2 (`target=_blank rel=noreferrer`).
+- AC-4 → U4 (type from `field-type`, default `text`), U9 (`httpUrl` accepts only http(s)
+  URLs), U10 (unknown/absent type → text; `url` type links only for an http(s) value; no
+  name- or alias-based rule — `github-username` as a name or a type is plain text), U7 (no
+  href on the text-typed `github-username` cell), S2 (`target=_blank rel=noreferrer`; no
+  GitHub special case in the row).
+- AC-9 → U13 (`undeclaredFields`: excludes 1-char tags and declared columns, includes
+  `description`, `{name,value}` shape), S1 ("Other fields" column header), S2
+  (`undeclaredFields` + `<details>/<summary>` "N other field(s)" + `bs-dlist-other`), S6 style.
+- AC-10 → U14 (`matchesListQuery`: singular/plural/description, case-insensitive substring,
+  blank → all), S3 (`matchesListQuery`, `aria-label="Filter lists"` input, "No lists match",
+  no relay/API call keyed on the query), S6 style.
+- N-1 → U4 (`description` from the declaration tag's third element), S1 (`<th title>` uses
+  `decl.description`).
+- N-3 / E12 → S4 (`fresh.length === 0` → exhausted). N-4 → S4 (`loadVotes(…, token)` +
+  `setVotesFailed(false)`). N-6 → S4 ("Each item is a").
 - AC-5 → S4 (`queryRelayBounded`, `limit: 50`, "showing N of M" from `{count,total,truncated}`,
   `total === null` → "unknown", `until` paging), R4 (`relay.js` still returns `total` null-when-
   unknown — the contract AC-5 leans on).
@@ -231,7 +270,9 @@ regression sentinel on untouched files (passes now and after; fails only on coll
 - E1 *(not derivable from any AC)* → U5 (+ U4, which forces `field-type` to be read at all).
 - E2 *(not derivable)* → U6.
 - E3 *(not derivable)* → U8, S2 ("+N more").
-- E4 → U9, U7 (empty string → no href).
+- E4 → U9, U10 (`url` type with a non-URL value → text), U7 (empty string → no href).
+- E10 → U13 (`[]` for an item with no undeclared tags), S2 (no toggle on empty).
+- E11 → U13 (repeated `comments` → both values in order).
 - E5 → U3.
 - E6 → S4 (`until` = oldest `created_at`, id de-dupe). *Behavioral paging is not unit-testable
   without React; browser verification at Gate B.*
@@ -272,6 +313,24 @@ regression sentinel on untouched files (passes now and after; fails only on coll
   is `:8778`, so the scoped gate must set that env var — without it: 4 pass / 2 fail on
   "could not resolve the runtime TA pubkey via GET /api/assistant/pubkey").
 
+**Change-request round (Gate B, 2026-09-09)** — three operator change requests (generic
+`field-type` vocabulary only; "other fields" collapsed cell; `/lists` filter) plus reviewer
+findings N-1, N-3, N-4, N-6, handled in one pass (tests first, then code):
+- New handles: **U13** (AC-9 / E10 / E11, `undeclaredFields`), **U14** (AC-10,
+  `matchesListQuery`).
+- Changed handles: **U7**, **U8** (no href on a text-typed field), **U9** (now `httpUrl`,
+  replacing `githubProfileUrl`), **U10** (generic vocabulary: unknown → text, `url` + non-URL
+  → text, no name/alias rule), **U4** (+ `description` third element), **S1** (+ `<th title>`
+  from `decl.description`, "Other fields" header), **S2** (+ other-fields cell, no GitHub
+  special case), **S3** (+ filter input, "No lists match", client-side only), **S4** (+ N-3
+  stall guard, N-4 token + `setVotesFailed(false)`, N-6 phrasing), **S6** (+ `.bs-dlist-other`,
+  `.bs-dlist-filter`); the util export guard now requires `httpUrl`, `undeclaredFields`,
+  `matchesListQuery` and no longer `githubProfileUrl`. R1–R5 untouched.
+- Pre-change run of the extended suite: **6 pass / 19 fail** — every U handle fails on the
+  export guard (`httpUrl` missing), S1–S4 and S6 on their new sentinels; S5 + R1–R5 pass.
+- Post-change: `dlist-browse` **25 pass / 0 fail**, guard suite **6 pass / 0 fail** (both
+  EXIT=0 with `BRAINSTORM_BASE_URL=http://localhost:8778`).
+
 ## Linked artifacts
 - ADR: none expected (no irreversibility trigger; a Design note suffices)
 - Test suite: `test/dlist-browse.test.js` (the story's scoped gate — proposed)
@@ -287,9 +346,27 @@ Link by path only — never record verdicts or round history in this file.
   radius (`avatarMenuLinks.js` / `BrainstormUserMenu.jsx` / `TopBar.jsx`), so it is left for the
   reviewer to decide — `/lists` is reachable by URL and from every `/list/:ref` page's
   "← All lists" breadcrumb.
-- **`parseFieldDecls` returns `{ name, requirement, type }`** — the Design note's `description`
-  key is omitted because no header tag defines a per-field description; adding a `null` key
-  would have been invention.
+- **`parseFieldDecls` returns `{ name, requirement, description, type }`.** *(Corrected at
+  Gate B, N-1.)* The first round omitted `description` on the mistaken premise that no header
+  tag defines one — `protocols/nips/decentralized-lists.md:35` defines the optional third
+  element of `required`/`allowed`/`recommended`/`disallowed` tags as exactly that. It is now
+  read (`null` when absent) and shown as the column's `<th title>`, falling back to
+  `requirement · type`. The `github-accounts` header carries none, so nothing changes on
+  screen for the target list.
+- **GitHub link rule removed at Gate B (operator decision, 2026-09-09).** The first round
+  linked `github-username` cells to `https://github.com/<value>` by field *name* and by a set
+  of `field-type` aliases. Both rules are gone: rendering is driven only by the header's
+  `field-type` under a generic vocabulary (`text` default, `url` link). Semantic types such
+  as "a GitHub username" belong in the concept graph (epic candidate 6), not in a client-side
+  name match. Consequence, intended: the `github-accounts` header says `field-type … text`, so
+  its usernames now render as plain text.
+- **"Other fields" cell is a native `<details>`** (no React state) — the cheapest collapsed
+  toggle; it also keeps the row component free of hooks so story 2's affordance slot has
+  nothing to coordinate with.
+- **Paging stall guard (N-3)** is a page-local `exhausted` flag set when a next page yields
+  zero fresh ids; it resets with the header. **Vote-scan guard (N-4)** is a `useRef` request
+  token bumped per header load; `loadMore` passes the current token, so a stale rejection can
+  no longer latch `votesFailed`, and a successful scan clears it.
 - **Page size is the literal `limit: 50`** in `List.jsx` (twice) rather than a named constant:
   sentinel S4 matches the literal.
 - **"Showing N of M" appends "(scan was bounded)"** when `truncated && total === null`, so

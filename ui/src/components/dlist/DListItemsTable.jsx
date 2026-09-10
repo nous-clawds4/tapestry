@@ -18,11 +18,12 @@ export default function DListItemsTable({ items, fieldDecls, profiles = {}, vote
               <th
                 key={decl.name}
                 className={decl.requirement === 'required' ? 'is-required' : `is-${decl.requirement}`}
-                title={`${decl.requirement} · ${decl.type}`}
+                title={decl.description || `${decl.requirement} · ${decl.type}`}
               >
                 {decl.name}{decl.requirement === 'required' && ' *'}
               </th>
             ))}
+            <th className="is-other" title="Item tags the list header did not declare">Other fields</th>
             <th>Votes</th>
             {renderExtra && <th />}
           </tr>

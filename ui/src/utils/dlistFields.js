@@ -7,15 +7,17 @@
  * than re-reading tags in JSX.
  *
  * Header field declarations are `required` / `recommended` / `optional`
- * (`allowed` counts as optional) tags; a `["field-type", <name>, <type>]` tag
- * adds a type to an already-declared name and never invents a column.
+ * (`allowed` counts as optional) tags, with an optional third element as the
+ * field description (NIP line 35); a `["field-type", <name>, <type>]` tag adds
+ * a type to an already-declared name and never invents a column. Rendering is
+ * driven by the type alone: `url` links when the value is an http(s) URL,
+ * everything else (`text`, unknown, absent) is text. Semantic types belong in
+ * the concept graph (epic candidate 6), not here.
  */
 import { nip19 } from 'nostr-tools';
 
 const HEX64 = /^[0-9a-f]{64}$/i;
 const HEADER_KINDS = new Set([9998, 39998]);
-const GITHUB_TYPES = new Set(['github-username', 'github-user', 'github']);
-const GITHUB_HANDLE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const LEVEL_RANK = { required: 0, recommended: 1, optional: 2 };
 const LEVEL_OF_TAG = { required: 'required', recommended: 'recommended', optional: 'optional', allowed: 'optional' };
 
@@ -81,7 +83,8 @@ export function parseFieldDecls(header) {
     if (!level || typeof name !== 'string' || !name) return;
     const prev = byName.get(name);
     if (!prev || LEVEL_RANK[level] < LEVEL_RANK[prev.requirement]) {
-      byName.set(name, { name, requirement: level, index });
+      const description = typeof t[2] === 'string' && t[2] ? t[2] : null;
+      byName.set(name, { name, requirement: level, description, index });
     }
   });
   const types = new Map();
@@ -92,18 +95,20 @@ export function parseFieldDecls(header) {
   }
   return [...byName.values()]
     .sort((a, b) => LEVEL_RANK[a.requirement] - LEVEL_RANK[b.requirement] || a.index - b.index)
-    .map(({ name, requirement }) => ({ name, requirement, type: types.get(name) || 'text' }));
+    .map(({ name, requirement, description }) => ({ name, requirement, description, type: types.get(name) || 'text' }));
 }
 
-/** `https://github.com/<handle>` for a valid handle (leading `@` stripped), else null. */
-export function githubProfileUrl(value) {
+/** The trimmed value when it parses as an http(s) URL, else null. */
+export function httpUrl(value) {
   if (typeof value !== 'string') return null;
-  const handle = value.startsWith('@') ? value.slice(1) : value;
-  return GITHUB_HANDLE.test(handle) ? `https://github.com/${handle}` : null;
-}
-
-function linksToGithub(decl) {
-  return decl?.name === 'github-username' || GITHUB_TYPES.has(decl?.type);
+  const s = value.trim();
+  if (!s) return null;
+  try {
+    const { protocol } = new URL(s);
+    return protocol === 'http:' || protocol === 'https:' ? s : null;
+  } catch {
+    return null;
+  }
 }
 
 /** One cell: first top-level `[<name>, v]` tag, count of further same-name tags, missing flag, link. */
@@ -114,8 +119,25 @@ export function fieldCellModel(item, decl) {
     value,
     extra: Math.max(0, hits.length - 1),
     missing: decl?.requirement === 'required' && value == null,
-    href: value != null && linksToGithub(decl) ? githubProfileUrl(value) : null,
+    href: value != null && decl?.type === 'url' ? httpUrl(value) : null,
   };
+}
+
+/** Item tags the header did not declare — `[{ name, value }]` in tag order; 1-char tags and empty values skipped. */
+export function undeclaredFields(item, fieldDecls) {
+  const declared = new Set((fieldDecls || []).map((d) => d?.name));
+  return tagsOf(item)
+    .filter((t) => typeof t[0] === 'string' && t[0].length > 1 && !declared.has(t[0])
+      && t.length > 1 && t[1] != null && String(t[1]) !== '')
+    .map((t) => ({ name: t[0], value: String(t[1]) }));
+}
+
+/** Case-insensitive substring match over singular, plural and description; a blank query matches everything. */
+export function matchesListQuery(header, query) {
+  const q = typeof query === 'string' ? query.trim().toLowerCase() : '';
+  if (!q) return true;
+  const { singular, plural, description } = headerNames(header);
+  return [singular, plural, description].some((s) => typeof s === 'string' && s.toLowerCase().includes(q));
 }
 
 /** Kind-7 content → +1 / -1 / 0. Same rules as the operator browser (DListItems.jsx). */

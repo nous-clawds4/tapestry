@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import Avatar from '../Avatar';
-import { fieldCellModel } from '../../utils/dlistFields';
+import { fieldCellModel, undeclaredFields } from '../../utils/dlistFields';
 
 function formatAge(ts) {
   if (!ts) return '—';
@@ -28,12 +28,28 @@ function FieldCell({ cell }) {
   );
 }
 
+/** Undeclared item tags, collapsed behind an "N other fields" toggle (AC-9); nothing when there are none (E10). */
+function OtherFieldsCell({ fields }) {
+  if (fields.length === 0) return null;
+  return (
+    <details className="bs-dlist-other-details">
+      <summary>{fields.length} other field{fields.length === 1 ? '' : 's'}</summary>
+      <ul className="bs-dlist-other-list">
+        {fields.map((f, i) => (
+          <li key={`${f.name}-${i}`}><span className="bs-dlist-other-name">{f.name}</span>: {f.value}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 /**
  * One DList item. Votes are read-only counts handed in by the page; the trailing
  * slot is where later stories mount their affordance.
  */
 export default function DListItemRow({ item, fieldDecls, profile, votes, renderExtra }) {
   const name = profile?.display_name || profile?.name || shortPubkey(item.pubkey);
+  const others = undeclaredFields(item, fieldDecls);
   return (
     <tr className="bs-dlist-row">
       <td className="bs-dlist-author">
@@ -48,6 +64,7 @@ export default function DListItemRow({ item, fieldDecls, profile, votes, renderE
           <FieldCell cell={fieldCellModel(item, decl)} />
         </td>
       ))}
+      <td className="bs-dlist-other"><OtherFieldsCell fields={others} /></td>
       <td className="bs-dlist-votes">
         {votes ? `▲${votes.up} ▼${votes.down}` : '—'}
       </td>

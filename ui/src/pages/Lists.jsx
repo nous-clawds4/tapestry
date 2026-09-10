@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import useProfiles from '../hooks/useProfiles';
 import { queryRelay } from '../api/relay';
-import { headerCoord, headerNames, parseListRef } from '../utils/dlistFields';
+import { headerCoord, headerNames, matchesListQuery, parseListRef } from '../utils/dlistFields';
 
 function shortPubkey(pk) {
   return pk ? `${pk.slice(0, 8)}…` : '—';
@@ -21,6 +21,7 @@ export default function Lists() {
   const [error, setError] = useState(null);
   const [ref, setRef] = useState('');
   const [refError, setRefError] = useState(null);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +45,8 @@ export default function Lists() {
 
   const authorKeys = useMemo(() => headers.map((h) => h.pubkey), [headers]);
   const profiles = useProfiles(authorKeys);
+  // AC-10: client-side filter over the already-loaded headers (names + description).
+  const visible = useMemo(() => headers.filter((h) => matchesListQuery(h, query)), [headers, query]);
 
   function openRef(e) {
     e.preventDefault();
@@ -81,8 +84,20 @@ export default function Lists() {
         {!loading && !error && headers.length === 0 && <p className="bs-dlist-empty">No lists on this relay yet.</p>}
 
         {headers.length > 0 && (
+          <input
+            type="search"
+            className="bs-dlist-filter"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter lists by name or description…"
+            aria-label="Filter lists"
+          />
+        )}
+        {headers.length > 0 && visible.length === 0 && <p className="bs-dlist-empty">No lists match.</p>}
+
+        {visible.length > 0 && (
           <ul className="bs-dlist-index">
-            {headers.map((h) => {
+            {visible.map((h) => {
               const coord = headerCoord(h);
               const names = headerNames(h);
               const profile = profiles[h.pubkey];

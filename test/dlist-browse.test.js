@@ -89,7 +89,7 @@ function assert(cond, msg) { if (!cond) throw new Error(msg); }
 async function util() {
   const mod = await loadEsm(UTIL);
   assert(mod, 'ui/src/utils/dlistFields.js must exist and be importable as ESM (Design note)');
-  for (const fn of ['parseListRef', 'headerCoord', 'headerNames', 'parseFieldDecls', 'fieldCellModel', 'githubProfileUrl', 'reactionPolarity']) {
+  for (const fn of ['parseListRef', 'headerCoord', 'headerNames', 'parseFieldDecls', 'fieldCellModel', 'httpUrl', 'undeclaredFields', 'matchesListQuery', 'reactionPolarity']) {
     assert(typeof mod[fn] === 'function', `dlistFields.js must export ${fn}() (Design note)`);
   }
   return mod;
@@ -152,13 +152,16 @@ test('U4: parseFieldDecls orders required → recommended → optional (header o
     ['required', 'p'],
     ['allowed', 'avatar-url'],
     ['field-type', 'website', 'url'],
-    ['optional', 'bio'],
+    ['optional', 'bio', 'A short self-description'],
   ]);
   const decls = parseFieldDecls(h);
   const names = decls.map(d => d.name);
   assert(JSON.stringify(names) === JSON.stringify(['github-username', 'p', 'nickname', 'website', 'avatar-url', 'bio']),
     `AC-3: columns are required→recommended→optional in header order, got ${JSON.stringify(names)}`);
   const by = Object.fromEntries(decls.map(d => [d.name, d]));
+  assert(by.bio.description === 'A short self-description',
+    'N-1 (NIP line 35): the optional third element of a declaration tag is the field description');
+  assert(by['github-username'].description === null, 'N-1: no third element → description null');
   assert(by['github-username'].requirement === 'required' && by.p.requirement === 'required', 'AC-3: required fields carry requirement=required');
   assert(by.nickname.requirement === 'recommended', 'AC-3: recommended fields carry requirement=recommended');
   assert(by.website.requirement === 'optional' && by.bio.requirement === 'optional', 'AC-3: optional fields carry requirement=optional');
@@ -187,7 +190,7 @@ test('U6 (E2, not derivable): a name declared at two levels yields one column an
     `E2: optional-then-required collapses to one required column in required order, got ${JSON.stringify(declsRev)}`);
 });
 
-test('U7: fieldCellModel — value from the first top-level tag, missing only for required, href for github-username', async () => {
+test('U7: fieldCellModel — value from the first top-level tag, missing only for required, text-typed github-username has no href', async () => {
   const { parseFieldDecls, fieldCellModel } = await util();
   const decls = parseFieldDecls(header([['optional', 'website']]));
   const gh = decls.find(d => d.name === 'github-username');
@@ -196,7 +199,7 @@ test('U7: fieldCellModel — value from the first top-level tag, missing only fo
   assert(ok.value === 'vcavallo', `AC-3: value read from ["github-username","vcavallo"], got ${JSON.stringify(ok)}`);
   assert(ok.missing === false, 'AC-3: present required field is not missing');
   assert(ok.extra === 0, 'E3: single tag → extra = 0');
-  assert(ok.href === 'https://github.com/vcavallo', 'AC-4: github-username renders as a link to https://github.com/<value>');
+  assert(ok.href === null, 'AC-4 (Gate B): the github-accounts header says field-type text, so the username is plain text — no link');
   const gone = fieldCellModel(item(null), gh);
   assert(gone.missing === true, 'AC-3: an item lacking a required field is flagged missing, not blank');
   assert(gone.value == null && gone.href == null, 'AC-3: missing cell has no value and no href');
@@ -213,36 +216,87 @@ test('U8 (E3, not derivable): two same-name tags → first value is the cell wit
   const cell = fieldCellModel(item('vcavallo', ITEM_PK_A, [['github-username', 'second']]), gh);
   assert(cell.value === 'vcavallo', `E3: first same-name tag is the cell value, got ${cell.value}`);
   assert(cell.extra === 1, `E3: further same-name tags are counted as extra (+1 more), got ${cell.extra}`);
-  assert(cell.href === 'https://github.com/vcavallo', 'E3: the link follows the first value');
+  assert(cell.href === null, 'E3: no href for a text-typed field');
 });
 
-test('U9 (E4): githubProfileUrl validates handles, strips a leading @, refuses paths/urls/empty', async () => {
-  const { githubProfileUrl } = await util();
-  assert(githubProfileUrl('vcavallo') === 'https://github.com/vcavallo', 'AC-4: plain handle links');
-  assert(githubProfileUrl('@vcavallo') === 'https://github.com/vcavallo', 'E4: leading @ stripped before linking');
-  assert(githubProfileUrl('a-b-9') === 'https://github.com/a-b-9', 'E4: hyphens inside a handle are valid');
-  for (const bad of ['vcavallo/repo', 'https://github.com/x', '', ' ', '-leading', 'a'.repeat(40), 'has space', null, undefined, 42]) {
-    assert(githubProfileUrl(bad) === null, `E4: githubProfileUrl(${JSON.stringify(bad)}) must be null (plain text, no link)`);
+test('U9 (E4): httpUrl accepts only values that parse as http(s) URLs', async () => {
+  const { httpUrl } = await util();
+  assert(httpUrl('https://github.com/vcavallo') === 'https://github.com/vcavallo', 'AC-4: https URL accepted verbatim');
+  assert(httpUrl('http://example.org/a?b=c') === 'http://example.org/a?b=c', 'AC-4: http URL accepted');
+  assert(httpUrl('  https://example.org  ') === 'https://example.org', 'E4: surrounding whitespace trimmed');
+  for (const bad of ['vcavallo', 'github.com/vcavallo', 'ftp://example.org', 'javascript:alert(1)', 'mailto:a@b.c', '', ' ', null, undefined, 42]) {
+    assert(httpUrl(bad) === null, `E4: httpUrl(${JSON.stringify(bad)}) must be null (plain text, no link)`);
   }
 });
 
-test('U10 (AC-4): unknown/absent field-type renders as text; github-* field-types link by type even under another name', async () => {
+test('U10 (AC-4): rendering is driven by field-type alone — text/unknown/absent → text; url → link only when the value is an http(s) URL', async () => {
   const { parseFieldDecls, fieldCellModel } = await util();
   const h = header([
-    ['optional', 'gh'], ['field-type', 'gh', 'github-user'],
+    ['optional', 'website'], ['field-type', 'website', 'url'],
     ['optional', 'weird'], ['field-type', 'weird', 'hologram'],
     ['optional', 'plain'],
+    ['optional', 'gh'], ['field-type', 'gh', 'github-username'],
   ]);
   const decls = parseFieldDecls(h);
   const by = Object.fromEntries(decls.map(d => [d.name, d]));
   assert(by.weird.type === 'hologram', 'AC-4: unknown type is carried through unchanged');
-  const it = item('vcavallo', ITEM_PK_A, [['gh', 'octocat'], ['weird', 'zzz'], ['plain', 'ppp']]);
+  const it = item('vcavallo', ITEM_PK_A, [
+    ['website', 'https://vinneycavallo.com'], ['weird', 'zzz'], ['plain', 'ppp'], ['gh', 'octocat'],
+  ]);
   const weird = fieldCellModel(it, by.weird);
-  assert(weird.value === 'zzz' && weird.href === null, 'AC-4: unknown field-type still renders as text (no href)');
+  assert(weird.value === 'zzz' && weird.href === null, 'AC-4: unknown field-type renders as text (no href)');
   const plain = fieldCellModel(it, by.plain);
   assert(plain.value === 'ppp' && plain.href === null, 'AC-4: absent field-type renders as text');
+  const site = fieldCellModel(it, by.website);
+  assert(site.href === 'https://vinneycavallo.com', `AC-4: url field-type with an http(s) value links, got ${JSON.stringify(site)}`);
+  const notUrl = fieldCellModel(item('vcavallo', ITEM_PK_A, [['website', 'vinneycavallo.com']]), by.website);
+  assert(notUrl.value === 'vinneycavallo.com' && notUrl.href === null, 'AC-4: url field-type with a non-URL value degrades to text');
   const gh = fieldCellModel(it, by.gh);
-  assert(gh.href === 'https://github.com/octocat', 'AC-4: a GitHub-username field-type links regardless of the field name');
+  assert(gh.value === 'octocat' && gh.href === null,
+    'AC-4 (Gate B): no name- or alias-based rules — a github-username type is just an unknown type → text');
+  const named = fieldCellModel(it, { name: 'github-username', requirement: 'required', type: 'text' });
+  assert(named.href === null, 'AC-4 (Gate B): the field NAME github-username carries no link rule either');
+});
+
+test('U13 (AC-9): undeclaredFields lists item tags the header did not declare, skipping 1-char tags and declared columns', async () => {
+  const { parseFieldDecls, undeclaredFields } = await util();
+  const decls = parseFieldDecls(header([['optional', 'website']]));
+  const it = item('vcavallo', ITEM_PK_A, [
+    ['website', 'https://x.example'], ['comments', 'first'], ['a', '39998:x:y'], ['t', 'topic'], ['comments', 'second'], ['q'], ['nickname', ''],
+  ]);
+  const fields = undeclaredFields(it, decls);
+  assert(Array.isArray(fields), 'AC-9: returns an array');
+  const names = fields.map(f => f.name);
+  assert(!names.some(n => n.length === 1), `AC-9: single-letter tags (d, z, e, p, a, t, q…) are excluded, got ${JSON.stringify(names)}`);
+  assert(!names.includes('github-username') && !names.includes('website'), 'AC-9: declared columns are not repeated in the other-fields cell');
+  assert(names.includes('description'), 'AC-9 / N-5: the NIP-level optional item tag `description` is simply an undeclared field and appears here');
+  assert(JSON.stringify(fields.find(f => f.name === 'description')) === JSON.stringify({ name: 'description', value: 'Vinney Cavallo' }),
+    'AC-9: entries are { name, value }');
+  const comments = fields.filter(f => f.name === 'comments').map(f => f.value);
+  assert(JSON.stringify(comments) === JSON.stringify(['first', 'second']), `E11: repeated undeclared names keep every value in tag order, got ${JSON.stringify(comments)}`);
+  assert(!names.includes('nickname'), 'AC-9: a tag with an empty value is not listed');
+  const bare = undeclaredFields(item('vcavallo', ITEM_PK_A, [], { tags: [['d', 'x'], ['z', HEADER_COORD], ['github-username', 'vcavallo']] }), decls);
+  assert(bare.length === 0, `E10: an item with no undeclared tags yields [] (no toggle), got ${JSON.stringify(bare)}`);
+  for (const bad of [{}, { tags: null }, { tags: [[], [null], ['x']] }]) {
+    assert(Array.isArray(undeclaredFields(bad, decls)) && undeclaredFields(bad, decls).length === 0, `E7: undeclaredFields(${JSON.stringify(bad)}) → [] never throws`);
+  }
+});
+
+test('U14 (AC-10): matchesListQuery — case-insensitive substring over singular, plural and description; empty query matches all', async () => {
+  const { matchesListQuery } = await util();
+  const h = header();
+  assert(matchesListQuery(h, '') === true && matchesListQuery(h, '   ') === true && matchesListQuery(h, null) === true && matchesListQuery(h, undefined) === true,
+    'AC-10: an empty/blank/absent query matches every header (clearing the input restores the full index)');
+  assert(matchesListQuery(h, 'github') === true, 'AC-10: matches the singular name, case-insensitively');
+  assert(matchesListQuery(h, 'ACCOUNTS') === true, 'AC-10: matches the plural name, case-insensitively');
+  assert(matchesListQuery(h, 'nostr dev') === true, 'AC-10: matches the description');
+  assert(matchesListQuery(h, 'hub acc') === true, 'AC-10: plain substring, not word-anchored');
+  assert(matchesListQuery(h, 'bitcoin') === false, 'AC-10: no hit → false');
+  assert(matchesListQuery(header([], { tags: [['d', 'just-a-d']] }), 'just-a') === true, 'AC-10: falls through headerNames (d-tag fallback) when names is absent');
+  assert(matchesListQuery(header([], { tags: [['d', 'x'], ['names', 'Thing']] }), 'nostr') === false, 'AC-10: a header without a description does not throw and does not match');
+  for (const bad of [{}, { tags: null }, null]) {
+    assert(matchesListQuery(bad, 'x') === false && matchesListQuery(bad, '') === true, `E7: matchesListQuery(${JSON.stringify(bad)}) never throws`);
+  }
 });
 
 test('U11 (AC-8): reactionPolarity mirrors the operator page\'s +/-/emoji rules and is null-safe', async () => {
@@ -281,6 +335,8 @@ test('S1: DListItemsTable exists, builds its thead from fieldDecls, marks requir
   assert(/DListItemRow/.test(src) && /from\s+'\.\/DListItemRow'/.test(src), 'Design note: one DListItemRow per item from the same folder');
   assert(/profiles/.test(src) && /voteCounts/.test(src), 'Design note: profiles and voteCounts are props, not fetched here');
   assert(!/queryRelay|fetch\(|useNavigate|useParams/.test(src), 'Design note: the table knows nothing about routes or fetching');
+  assert(/title=\{[^}]*decl\.description/.test(src), 'N-1: the <th title> carries the declaration\'s description (NIP line 35)');
+  assert(/[Oo]ther fields/.test(src), 'AC-9: a trailing "Other fields" column header follows the declared columns');
 });
 
 test('S2: DListItemRow renders author (Avatar + /user link), age, missing mark, external link, "+N more", and a read-only vote cell', () => {
@@ -294,6 +350,12 @@ test('S2: DListItemRow renders author (Avatar + /user link), age, missing mark, 
   assert(/more/.test(src) && /extra/.test(src), 'E3: extra same-name tags render as "+N more"');
   assert(/fieldCellModel/.test(src), 'Design note: cells are computed by the shared util, not re-derived in JSX');
   assert(!/(publish|signEvent|kind:\s*7\b)/.test(src), 'AC-8 / Gate A: votes are read-only — no publish path in the row');
+  assert(/undeclaredFields/.test(src), 'AC-9: the other-fields cell is computed by the shared util');
+  assert(/<details/.test(src) && /<summary/.test(src), 'AC-9: other fields are collapsed behind a details/summary toggle');
+  assert(/other field/.test(src), 'AC-9: the toggle reads "N other field(s)"');
+  assert(/bs-dlist-other/.test(src), 'AC-9: the cell carries the bs-dlist-other class');
+  assert(/length\s*(===|>)\s*0|\.length\s*\?/.test(src), 'E10: no toggle when the item has no undeclared tags');
+  assert(!/githubProfileUrl|github\.com/.test(src), 'AC-4 (Gate B): no GitHub special case in the row');
 });
 
 test('S3: Lists.jsx (/lists index) scans both header kinds, joins item-counts with a — fallback, links each header, and has a paste box', () => {
@@ -308,6 +370,10 @@ test('S3: Lists.jsx (/lists index) scans both header kinds, joins item-counts wi
   assert(/headerNames/.test(src), 'AC-6: names via the shared util');
   assert(/TopBar/.test(src) && /bsp-page/.test(src), 'Gate A: user-facing surface with the Tags.jsx layout');
   assert(!/useOutletContext|Breadcrumbs/.test(src), 'Design note: not wired into the operator Layout chain');
+  assert(/matchesListQuery/.test(src), 'AC-10: the index filters through the shared matchesListQuery util');
+  assert(/bs-dlist-filter/.test(src) && /aria-label=["']Filter lists["']/.test(src), 'AC-10: a filter input at the top of the index');
+  assert(/No lists match/.test(src), 'AC-10: "No lists match" empty state when the query excludes every header');
+  assert(!/(queryRelay|fetch)\s*\([^)]*query/.test(src), 'AC-10: filtering is client-side over the already-loaded headers, not a new relay/API call');
 });
 
 test('S4: List.jsx (/list/:ref) resolves the header, pages items with a bounded #z scan of 50, prints unknown totals, de-dupes, and batches kind-7', () => {
@@ -330,6 +396,10 @@ test('S4: List.jsx (/list/:ref) resolves the header, pages items with a bounded 
   assert(/DListItemsTable/.test(src), 'AC-2: page mounts the shared table');
   assert(/useProfiles/.test(src), 'AC-2: profiles via useProfiles for author names/avatars');
   assert(/TopBar/.test(src) && /bsp-page/.test(src), 'Gate A: user-facing surface with the Tags.jsx layout');
+  assert(/fresh\.length\s*===\s*0/.test(src), 'N-3: a next page with zero fresh ids marks the list exhausted (no paging stall)');
+  assert(/setVotesFailed\(false\)/.test(src), 'N-4: a successful kind-7 scan resets votesFailed');
+  assert(/voteToken|votesToken|cancelled/.test(src) && /loadVotes\([^)]*(token|cancelled)/i.test(src), 'N-4: loadVotes honors a request token / cancelled flag');
+  assert(/Each item is a/.test(src) && !/One item is a/.test(src), 'N-6: subtitle reads "Each item is a <singular> — <description>"');
 });
 
 test('S5: App.jsx registers /lists and /list/:ref next to /tags and /pins', () => {
@@ -349,6 +419,8 @@ test('S6: bs-dlist-* styles appended and no 64-hex literal in any new UI file', 
   const css = safeRead(STYLES);
   assert(/\.bs-dlist-missing/.test(css), 'AC-3: .bs-dlist-missing style exists');
   assert(/\.is-required/.test(css), 'AC-3: required header styling exists');
+  assert(/\.bs-dlist-other/.test(css), 'AC-9: other-fields cell style exists');
+  assert(/\.bs-dlist-filter/.test(css), 'AC-10: filter input style exists');
   for (const [name, p] of [['dlistFields.js', UTIL], ['DListItemsTable.jsx', TABLE], ['DListItemRow.jsx', ROW], ['Lists.jsx', LISTS_PAGE], ['List.jsx', LIST_PAGE]]) {
     const src = safeRead(p);
     assert(src.length > 0, `${name} must exist`);

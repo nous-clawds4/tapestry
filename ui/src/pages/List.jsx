@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import Avatar from '../components/Avatar';
@@ -32,15 +32,17 @@ export default function List() {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(null);
   const [truncated, setTruncated] = useState(false);
+  const [exhausted, setExhausted] = useState(false); // N-3: a page with no fresh ids ends paging
   const [voteCounts, setVoteCounts] = useState({});
   const [votesFailed, setVotesFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [paging, setPaging] = useState(false);
   const [error, setError] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const voteToken = useRef(0); // N-4: bumped per header load so a stale scan cannot land on a newer page
 
   // Votes: one batched kind-7 scan per page, folded through reactionPolarity (E9: '—' on failure).
-  const loadVotes = useCallback(async (pageItems) => {
+  const loadVotes = useCallback(async (pageItems, token) => {
     if (pageItems.length === 0) return;
     try {
       const reactions = await queryRelay({ kinds: [7], '#e': pageItems.map((it) => it.id) });
@@ -53,15 +55,19 @@ export default function List() {
           if (t[0] === 'e' && next[t[1]]) next[t[1]][polarity > 0 ? 'up' : 'down'] += 1;
         }
       }
+      if (token !== voteToken.current) return;
       setVoteCounts((prev) => ({ ...prev, ...next }));
+      setVotesFailed(false);
     } catch {
-      setVotesFailed(true);
+      if (token === voteToken.current) setVotesFailed(true);
     }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setHeader(null); setItems([]); setTotal(null); setTruncated(false);
+    voteToken.current += 1;
+    const token = voteToken.current;
+    setHeader(null); setItems([]); setTotal(null); setTruncated(false); setExhausted(false);
     setVoteCounts({}); setVotesFailed(false); setError(null); setNotFound(false);
     if (!parsed) { setNotFound(true); setLoading(false); return undefined; }
     setLoading(true);
@@ -79,7 +85,7 @@ export default function List() {
         setItems(page.events);
         setTotal(page.total);
         setTruncated(page.truncated);
-        loadVotes(page.events);
+        loadVotes(page.events, token);
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -98,9 +104,10 @@ export default function List() {
       const page = await queryRelayBounded({ ...itemsFilter(header), until, limit: 50 });
       const seen = new Set(items.map((it) => it.id));
       const fresh = page.events.filter((it) => !seen.has(it.id));
+      if (fresh.length === 0) setExhausted(true); // N-3: nothing new under `until` → no more pages
       setItems((prev) => [...prev, ...fresh]);
       setTruncated(page.truncated);
-      loadVotes(fresh);
+      loadVotes(fresh, voteToken.current);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -117,7 +124,7 @@ export default function List() {
   const profiles = useProfiles(pubkeys);
   const authorProfile = header ? profiles[header.pubkey] : null;
   const totalLabel = total === null ? 'unknown' : total;
-  const hasMore = truncated || (total !== null && items.length < total);
+  const hasMore = !exhausted && (truncated || (total !== null && items.length < total));
 
   return (
     <div className="bsp-page">
@@ -139,7 +146,7 @@ export default function List() {
             <header className="bs-dlist-header">
               <h1 className="bs-dlist-title">{names.plural}</h1>
               <p className="bs-dlist-sub">
-                One item is a <strong>{names.singular}</strong>
+                Each item is a <strong>{names.singular}</strong>
                 {names.description && <> — {names.description}</>}
               </p>
               <p className="bs-dlist-list-author">

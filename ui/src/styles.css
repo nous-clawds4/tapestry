@@ -8453,3 +8453,10 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-dlist-age, .bs-dlist-votes { white-space: nowrap; color: var(--text-muted); }
 .bs-dlist-footer { display: flex; align-items: center; gap: 1rem; margin-top: 0.75rem; color: var(--text-muted); font-size: 0.9em; }
 .bs-dlist-loadmore { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-tertiary); color: var(--text); cursor: pointer; }
+.bs-dlist-filter { display: block; width: 100%; max-width: 640px; margin: 0 0 0.75rem; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text); }
+.bs-dlist-table th.is-other { font-weight: 500; }
+.bs-dlist-other { font-size: 0.9em; color: var(--text-muted); }
+.bs-dlist-other-details summary { cursor: pointer; white-space: nowrap; }
+.bs-dlist-other-list { list-style: none; margin: 0.35rem 0 0; padding: 0; }
+.bs-dlist-other-list li { word-break: break-word; }
+.bs-dlist-other-name { font-weight: 600; color: var(--text); }
