@@ -2,9 +2,9 @@
 
 **Status:** Draft
 **Created:** 2026-09-09
-**Type:** Feature — protocol/spec fix *(escalated to **Standard**, docs-mode + core change: the
-wire-format irreversibility trigger fires; a full ADR is required — workflows/light-profile.md
-§ Gate A)*
+**Type:** Feature — protocol/spec fix *(escalated to **Standard** — all phases, Test Design
+included: the wire-format irreversibility trigger fires and the deliverable adds a core source
+file; a full ADR is required — workflows/light-profile.md § Gate A)*
 
 ## Background
 [Event Taggings](../../../protocols/drafts/event-taggings.md) § "The assertion d-tag (normative)"
@@ -71,7 +71,7 @@ the first.
    here and the ADR names the upstream notification as a follow-up.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/dlist-item-tagging/0001-addressable-target-dtag.md` (pending)
+- ADR: `engineering-team/decisions/dlist-item-tagging/0001-addressable-target-dtag.md` (Proposed)
 - Test plan: (pending)
 - Review: `engineering-team/reviews/dlist-item-tagging/2-addressable-target-dtag-collision.md`
 
