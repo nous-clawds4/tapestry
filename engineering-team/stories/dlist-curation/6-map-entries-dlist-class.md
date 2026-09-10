@@ -75,7 +75,7 @@ sibling classifier does; how the kind-39999 link resolves (extend the detail rou
 omit the link for 39999); how the two-step lookup is batched.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/dlist-curation/0006-map-entries-dlist-class.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
