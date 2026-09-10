@@ -1,6 +1,6 @@
 # ADR 0003: One canonical element/set count for the concept page, computed once
 
-**Status:** Accepted
+**Status:** Accepted (Amendment 1 appended 2026-09-09 — query parameters, after an Implementer kick-back)
 **Date:** 2026-09-09
 **Story:** `engineering-team/stories/graph-curation-ui/3-count-concepts-as-elements.md`
 
@@ -182,3 +182,84 @@ rule being executable by a test runner that cannot mount React.
 - **The summaries endpoint** — story #4.
 - **Adding a separate "direct members" figure.** The operator ruled direct-only counting a bug,
   not a second metric.
+
+---
+
+## Amendment 1 — parameterize this page's queries (2026-09-09)
+
+**Raised by:** an Implementer kick-back, with the failing tests as evidence.
+
+### What the tests exposed
+
+The "Out of scope" section above declined query parameters, judging the interpolation hazard
+"a latent hazard for unauthenticated readers, **not** a break in the owner flow." Two things
+were wrong with that.
+
+**First, it contradicted this ADR's own central argument.** Option C was chosen *because* it
+makes the counting rule executable by the Node test runner. The test runner is an
+unauthenticated reader. Ruling the unauthenticated path out of scope ruled out the very thing
+the option was selected to enable. `L2` (sweep every concept) and `L4` (set-nested fixtures)
+fail with `HTTP 403: Write queries require owner authentication` — 13 of 15 tests pass; the two
+that do not are the two that touch a concept whose handle trips the guard.
+
+**Second, "latent" understated the blast radius.** The guard is
+`src/api/neo4j/queryPost.js:17`:
+
+```js
+const WRITE_KEYWORDS = /\b(CREATE|MERGE|DELETE|SET|REMOVE|DETACH|DROP|CALL\s*\{)\b/i;
+```
+
+tested against the query **text** (`:28`). Kebab-case slugs put a word boundary before `set`, so
+**three** concepts match, not one: `set`, `properties-set`, `goal-set`. Unauthenticated reads
+otherwise succeed — this endpoint is deliberately the open read backbone of the browsing UI
+(ADR `security-auth-exposure/0001`) — so a **logged-out visitor viewing any of those three
+concept pages gets a failed query today.** That is a live user-facing defect, not a test
+nuisance. It predates this story; this ADR simply has no business stepping over it while
+touching the exact queries that cause it.
+
+### Revised decision
+
+Parameterize the uuid in **all three queries on the concept detail page** — the counts builder,
+`ConceptDetail`'s header query, and `ConceptOverview`'s remaining query. Concretely:
+
+1. **`conceptCountsCypher()` emits `$conceptUuid`** rather than interpolating, and returns the
+   query only. Callers supply `{ conceptUuid }`. The escaping helper the interpolating version
+   needed disappears with it — the right amount of escaping is none.
+2. **`useCypher` gains a third argument**: `useCypher(query, deps = [], params = {})`, passing
+   `params` through to `cypher(query, params)` (`ui/src/api/cypher.js:17` has accepted them all
+   along; only the hook never forwarded them). Additive and backward-compatible — all 67
+   existing call sites pass one or two arguments and are untouched.
+3. **The effect dependency list becomes `[query, JSON.stringify(params), ...deps]`**
+   (`ui/src/hooks/useCypher.js:23-25`). This is not incidental. Once the uuid moves out of the
+   query text, the query string is **constant across concepts**, so the existing
+   `[query, ...deps]` would not refetch when the user navigates from one concept to another —
+   the page would show the previous concept's counts. A naive params passthrough introduces
+   exactly that bug; serializing params into the deps is what prevents it.
+
+### Consequences of the amendment
+
+- **Unblocks the test tier** this ADR exists to enable: `L2` can sweep every concept, including
+  the three the guard rejects.
+- **Fixes the three concept pages for logged-out visitors** as a direct consequence, because all
+  three of the page's queries stop carrying the handle in their text.
+- **Does not fix the class.** Every other page still interpolates handles —
+  `ConceptElements.jsx`, `ConceptList.jsx`, `SetDetail.jsx` and others — so a logged-out visitor
+  can still hit a 403 on those surfaces for the same three concepts. Fixing the class means
+  either migrating ~67 call sites or making the server's guard ignore keywords inside quoted
+  string literals. **The server-side fix is the better remedy** — one change, covers every
+  present and future handle — but it touches a security gate and belongs in its own story with
+  its own review, not appended to a counting bug. Recorded here, and it warrants an OPEN.md row.
+- **Blast radius of the hook change:** the signature is additive; no existing caller changes
+  behavior. `JSON.stringify({})` is a stable constant, so the dependency list is unchanged for
+  every current call site.
+
+### Implementation notes (supersede the corresponding lines above)
+
+- **`ui/src/utils/conceptCounts.js`** — `conceptCountsCypher()` takes no uuid and returns Cypher
+  matching `{uuid: $conceptUuid}`; drop the `esc()` helper.
+- **`ui/src/hooks/useCypher.js:10, 20, 23-25`** — third `params` argument, forwarded to
+  `cypher()`, and serialized into the effect deps.
+- **`ui/src/pages/concepts/ConceptDetail.jsx`** — both queries take `$conceptUuid` and pass
+  `{ conceptUuid: decodedUuid }`.
+- **`ui/src/pages/concepts/ConceptOverview.jsx`** — same for its remaining query.
+- No server-side change. No concept definitions change; **still no firmware reinstall.**
