@@ -1,7 +1,7 @@
 # Epic: dlist-curation
 
 **Created:** 2026-09-10
-**Status:** Open
+**Status:** Complete — all seven stories Done (reviews PASS, 2026-09-10); **retirement held** until `feat/dlist-curation` merges to `staging` (workflow 6 step 9; OPEN.md row 250; harness-lint L2 waiver). Book closed 2026-09-10.
 **Book:** `engineering-team/audits/dlist-curation/book.md` (acceptance-frame)
 **Provenance:** Operator request, 2026-09-09/10 in-session, on the TA Treasure Map page. No
 `_intake.md` entry — the request went straight into the book and story 1. Design settled in the
@@ -53,7 +53,7 @@ duplicating items into the community list.
    header links into `DListDetail.jsx`, which parses only `39998:`/`9998:` ids — extend the route's
    parser or omit the link for 39999. The Replace control shows the other assistant only in a
    tooltip; Map Entries' badge should carry the short pubkey inline.
-7. `7-treasure-map-merge-preserve.md` (Done, review PASS 2026-09-11; Bug lane, design note in lieu of an ADR) — the NIP-85 export
+7. `7-treasure-map-merge-preserve.md` (Done, review PASS 2026-09-10; Bug lane, design note in lieu of an ADR) — the NIP-85 export
    generator preserves non-30382 entries. Bug. *Carry-forward (review #2, NB-4):* two
    rebuild-from-config generators, `src/api/export/nip85/commands/create-unsigned-kind10040.js`
    and `bin/brainstorm-create-kind10040.js` (handoff D8) — the fix covers both.
