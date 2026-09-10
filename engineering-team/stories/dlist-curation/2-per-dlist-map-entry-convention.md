@@ -104,6 +104,13 @@ parse rule), and where in BIBLE § Assistant Keys the status sentence lands.
   harness-lint is clean. The full `npm test` was not re-run at this phase — no code or test file
   changed and the changed markdown is read by nothing else in `test/`; the Reviewer runs it at
   their discretion.
+- **Review round 1 fixes (2026-09-10).** BIBLE.md's `Last updated` header bumped with a chained
+  content note (the blocking item — harness-lint L9 is commit-dated, so the Phase-4 pre-commit lint
+  could not see it); BIBLE § Assistant Keys reworded per NB-1/NB-2 ("the rebuild clobbers…", "are
+  being wired"); the stale "BIBLE §953" line references in the draft's deployment-status note and
+  the README row replaced with "BIBLE § Assistant Keys" (NB-6, pre-existing, re-touched here).
+  NB-4/NB-5 (a second 10040 generator; seven first-element readers) carried into the epic's
+  story 6/7 notes rather than amending the accepted ADR.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0002-per-dlist-map-entry-convention.md`

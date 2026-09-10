@@ -38,8 +38,13 @@ duplicating items into the community list.
    self/assistant exclusion, add (header first, then sign the Map), revoke. Feature.
 6. *(planned)* `6-map-entries-dlist-class` — Map Entries: classify `<kind>:<d-tag>` entries,
    show name + community pointer, link to the DList page, missing-header warning. Feature.
+   *Carry-forward (review #2, NB-5):* seven in-repo readers of 10040 first elements, not three —
+   also `TrustedAssertionsList.jsx`, `BrainstormSearch.jsx`, `useTrustWeights.js`,
+   `TrustDetermination.jsx` (all filter on `30382:`); the Architect's blast radius uses the full list.
 7. *(planned, operator to confirm)* `7-treasure-map-merge-preserve` — the NIP-85 export
-   generator preserves non-30382 entries. Bug.
+   generator preserves non-30382 entries. Bug. *Carry-forward (review #2, NB-4):* two
+   rebuild-from-config generators, `src/api/export/nip85/commands/create-unsigned-kind10040.js`
+   and `bin/brainstorm-create-kind10040.js` (handoff D8) — the fix covers both.
 
 ## Decisions
 `decisions/dlist-curation/`:
