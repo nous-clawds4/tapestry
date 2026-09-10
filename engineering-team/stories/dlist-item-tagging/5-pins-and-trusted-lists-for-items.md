@@ -225,3 +225,13 @@ GitHub accounts my POV considers white-hat hackers" as a signed, addressable lis
 - Review: `engineering-team/reviews/dlist-item-tagging/5-pins-and-trusted-lists-for-items.md`
 
 Link by path only — never record verdicts or round history in this file.
+
+## Amendment (2026-09-10)
+
+Gate-A classification superseded: this story now runs **Standard** and is governed by
+`engineering-team/decisions/dlist-item-tagging/0002-trusted-list-discovery-tags.md`.
+
+The earlier discovery-tag choice in the Design note — `['e', tag.eventId]` — is **withdrawn**.
+Trusted Lists instead carry `['z', '39999:<headerAuthor>:tagging:<slug>-tagging']` naming what the
+list is about, family-wide across 30392/30393/30394/30395; members keep the kind's lowercase letter.
+See ADR 0002 for the rationale, the header-pick rule, and the 30393 dual-emit migration posture.
