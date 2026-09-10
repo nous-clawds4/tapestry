@@ -7,6 +7,7 @@ import AuthorCell from '../../components/AuthorCell';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import useSharingState from '../../hooks/useSharingState';
 import { publishEverywhere, publishToRelays } from '../../utils/nostrPublish';
+import { conceptCountsCypher } from '../../utils/conceptCounts';
 
 /**
  * The sharing-state chips (story shared-concepts-legibility #1). "Shared"
@@ -46,18 +47,31 @@ export default function ConceptDetail() {
   const { uuid } = useParams();
   const decodedUuid = decodeURIComponent(uuid);
 
-  const { data, loading, error } = useCypher(`
-    MATCH (h:ListHeader {uuid: '${decodedUuid}'})
-    OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s:Superset)
-    OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s)-[:IS_A_SUPERSET_OF*0..5]->(ss)-[:HAS_ELEMENT]->(elem:ListItem)
-    WITH h, s, count(DISTINCT elem) AS elementCount
-    RETURN h.uuid AS uuid, h.name AS name, h.pubkey AS author,
-           s.uuid AS supersetUuid, s.name AS supersetName,
-           elementCount
-    LIMIT 1
-  `);
+  // The concept uuid travels as a PARAMETER, never interpolated: the server
+  // classifies read-vs-write by regex over the query text, so an inlined handle
+  // like `…:set` reads as a write and 403s every unauthenticated visitor
+  // (ADR graph-curation-ui/0003 Amendment 1).
+  const countParams = useMemo(() => ({ conceptUuid: decodedUuid }), [decodedUuid]);
 
-  const concept = data?.[0];
+  const { data, loading, error } = useCypher(`
+    MATCH (h:ListHeader {uuid: $conceptUuid})
+    OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s:Superset)
+    RETURN h.uuid AS uuid, h.name AS name, h.pubkey AS author,
+           s.uuid AS supersetUuid, s.name AS supersetName
+    LIMIT 1
+  `, [], countParams);
+
+  // The canonical element/set count (ADR graph-curation-ui/0003). Computed once,
+  // here, and handed to the child tabs through the outlet context below — so no
+  // other surface on this page can arrive at a different number.
+  const { data: countData } = useCypher(conceptCountsCypher(), [], countParams);
+  const counts = countData?.[0];
+
+  const concept = data?.[0] && {
+    ...data[0],
+    elementCount: counts?.elementCount,
+    setCount: counts?.setCount,
+  };
   const authorPubkeys = useMemo(
     () => concept?.author ? [concept.author] : [],
     [concept?.author]
