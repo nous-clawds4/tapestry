@@ -1,6 +1,6 @@
 # Story 4: Author the assistant's curation header for a chosen community DList
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-10
 **Type:** Feature
 
@@ -117,6 +117,6 @@ tag is omitted or recomputed for the assistant's namespace; reuse of the Trusted
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0004-assistant-curation-header-endpoint.md`
 - Test plan: `engineering-team/stories/dlist-curation/4-assistant-curation-header-endpoint.test-plan.md` (suite: `test/dlist-curation-header-endpoint.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/dlist-curation/4-assistant-curation-header-endpoint.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

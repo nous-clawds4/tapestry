@@ -33,7 +33,7 @@ duplicating items into the community list.
    *Carry-forward (review #2, NB-3):* the per-DList section generalizes `<kind>` to 39998/39999 while
    the dual-author lookup rule is 39998-only — a 39999-declared header has no lookup rule yet; decide
    in story 3's ADR (extend the rule, or scope the per-DList precedence sentence to 39998).
-4. *(planned)* `4-assistant-curation-header-endpoint` — server: author/refresh the signed-in
+4. `4-assistant-curation-header-endpoint.md` (Done, review PASS 2026-09-10) — server: author/refresh the signed-in
    user's assistant header for a chosen community header (snapshot + `inherit-items` `b`), sign
    with the user's assistant key, publish local + community relay, no Neo4j write, idempotent,
    never-clobber. Feature. *Carry-forward (review #3, NB-10):* keep the assistant header off every
@@ -56,6 +56,12 @@ duplicating items into the community list.
 `decisions/dlist-curation/`:
 - `0001-tl-panel-disclosure-and-copy.md` — story 1: fold the Trusted Lists card in place with the page's
   settled disclosure idiom; the three-state verdict + labels as a pure helper (`describeTlDelegation`).
+- `0002-per-dlist-map-entry-convention.md` — story 2: the per-DList Map entry, homed in the
+  assistant-designation draft; `dlist-header` reserved.
+- `0003-inherit-items-facet.md` — story 3: `inherit-items` as a registry type; distinct
+  `INHERITS_ITEMS_FROM`; deference-family only; 39999 precedence scoped out.
+- `0004-assistant-curation-header-endpoint.md` — story 4: the DI'd endpoint; amended to supersede
+  `community-reference` ADR 0004's no-server-publisher posture for its own directory.
 
 ## Settled at kickoff (2026-09-09/10 session)
 - **Entry shape.** `["<kind>:<d-tag>", <assistant pubkey>, <relay>]`, kind ∈ {39998, 39999}
