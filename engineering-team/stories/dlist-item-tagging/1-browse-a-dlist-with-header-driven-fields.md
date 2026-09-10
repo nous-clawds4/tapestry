@@ -90,10 +90,108 @@ that I can see what is on the list (and who put it there) before deciding what t
    schema path joins when/if the `github-account` firmware concept (epic candidate 6) lands.
 
 ## Design note *(Light profile — written after Gate A, ratified at Gate B)*
-—
+- **Chosen approach: a pure header/item util + a reusable items table + two thin user-facing
+  pages.** New `ui/src/utils/dlistFields.js` (no React, dynamically importable by the test
+  suite) exporting: `parseListRef(param)` → `{ kind, pubkey, d, coord }` for `39998:<pk>:<d>` /
+  `9998:<pk>:<d>` (and `naddr1…` via `nip19.decode`) or `{ id }` for a 64-hex event id, else
+  `null`; `headerCoord(header)`; `headerNames(header)` → `{ singular, plural, description }`
+  from the `names` tag (plural falls back to singular; no `names` → `name` → `d`);
+  `parseFieldDecls(header)` → ordered `[{ name, requirement:'required'|'recommended'|'optional',
+  type, description }]` — order is required → recommended → optional, each group in header
+  order (mirrors `NewDListItem.jsx:36-42`; `allowed` counts as optional per the DCoSL spec),
+  `type` read from `["field-type", <name>, <type>]` and defaulting to `'text'`; a `field-type`
+  for an undeclared name adds no column; `fieldCellModel(item, decl)` → `{ value, extra,
+  missing, href }` where `value` is the first top-level tag `[<name>, v]`, `extra` counts
+  further same-name tags, `missing = requirement==='required' && value==null`, and `href` is
+  `githubProfileUrl(value)` when `decl.name === 'github-username'` or `decl.type` is one of
+  `github-username|github-user|github` — `githubProfileUrl` returns
+  `https://github.com/<value>` only for values matching `^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`
+  (optional leading `@` stripped), else `null` so the cell degrades to text; and
+  `reactionPolarity(content)` → `+1|-1|0` (same `+`/`-`/emoji rules as `DListItems.jsx:32-40`,
+  duplicated rather than exported from the operator page so that page stays untouched).
+  New `ui/src/components/dlist/DListItemsTable.jsx` — props `{ items, fieldDecls, profiles,
+  voteCounts, renderExtra }` — renders `<thead>` from `fieldDecls` (required headers carry
+  class `is-required` and a `*`), then one `DListItemRow` per item (same folder): author
+  (`components/Avatar` + display name from `useProfiles`, linked to `/user/<pubkey>`), age,
+  one `<td>` per decl (missing → `<span class="bs-dlist-missing">missing</span>`, href → `<a
+  target=_blank rel=noreferrer>`, `extra` → "+N more"), a read-only up/down cell, and a
+  trailing `renderExtra(item)` slot — story 2 mounts its tagging affordance there and story 3
+  mounts the whole table on the tag page with its own item set, so nothing here knows about
+  routes or fetching. Pages: `ui/src/pages/Lists.jsx` at `/lists` (TopBar + `bsp-page`
+  layout like `Tags.jsx`): `queryRelay({ kinds: [9998, 39998] })` + `/api/dlists/item-counts`
+  (`counts[headerRef]`, `—` when absent), one row per header (names, author, count) linking to
+  `/list/<encodeURIComponent(coord|id)>`, plus a paste box that runs `parseListRef` and
+  navigates. `ui/src/pages/List.jsx` at `/list/:ref`: resolves the header with
+  `queryRelay({ kinds:[kind], authors:[pubkey], '#d':[d] })` or `{ ids:[id] }` (the
+  `DListDetail.jsx:32-42` pattern; empty result → the AC-7 "not on this relay" state),
+  fetches the page with `queryRelayBounded({ kinds:[9999,39999], '#z':[coord], limit: 50 })`
+  (kind-9998 headers use `'#e':[id]`), renders the "showing N of M" line from
+  `{count,total,truncated}` with `total === null` printed as "unknown", and pages with
+  `until = oldest created_at on the page` + client-side id de-dupe; vote counts come from one
+  batched `queryRelay({ kinds:[7], '#e': pageItemIds })` per page folded through
+  `reactionPolarity`. Two routes added to `ui/src/App.jsx` next to `/tags` and `/pins`;
+  `bs-dlist-*` classes appended to `ui/src/styles.css`. No server change, no new dependency.
+- **Rejected alternative: promote the operator browser.** Mount `pages/lists/DListItems.jsx`
+  under a user-facing route and teach its fixed column set to read the header's declarations.
+  Rejected because (a) Gate A placed the surface on the Brainstorm side and that page is
+  wired to the operator `Layout`/`Breadcrumbs`/`useOutletContext` chain, Neo4j import actions
+  and a per-item `queryRelay({kinds:[7],'#e':[id]})` fan-out (`DListItems.jsx:154`, one scan per
+  item — 50 scans per page), and (b) stories 2–3 need the row rendering as a standalone
+  component with an affordance slot, which a page-bound table cannot offer without the split
+  anyway. The operator page is left byte-identical (AC-8 sentinel).
+- **Second rejected alternative: a server endpoint `/api/dlists/:coord/items` that joins
+  header, items, profiles and votes.** Rejected: it would be a fourth reader of the same
+  strfry filters with its own bounding/total semantics, when `queryRelayBounded` already
+  returns `{events,count,total,truncated,limit}` with `total` null-when-unknown — exactly the
+  AC-5 contract — and the story's source is local strfry only.
+- **Blast radius.** Modified: `ui/src/App.jsx` (two route entries + two imports),
+  `ui/src/styles.css` (append-only), `test/test.js` (register `dlist-browse`). New:
+  `ui/src/utils/dlistFields.js`, `ui/src/components/dlist/DListItemsTable.jsx`,
+  `ui/src/components/dlist/DListItemRow.jsx`, `ui/src/pages/Lists.jsx`,
+  `ui/src/pages/List.jsx`, `test/dlist-browse.test.js`. Consumers reused unchanged:
+  `ui/src/api/relay.js` (`queryRelay`, `queryRelayBounded`), `ui/src/hooks/useProfiles.js`,
+  `ui/src/components/Avatar.jsx`, `ui/src/components/TopBar.jsx`, `src/api/dlists/itemCounts.js`,
+  `src/api/strfry/queries/scan.js`. Grep-verified non-consumers left untouched:
+  `ui/src/pages/lists/DListItems.jsx`, `DListDetail.jsx`, `Index.jsx`, `NewDListItem.jsx`
+  (keeps its own `required/optional/recommended` reader — not refactored onto the util this
+  story), and — `grep -rn "field-type" ui/src src protocols` returns no code hits (only protocols/worksheet.md W17, logged for this story) — no existing code
+  or spec reads the `field-type` tag, so the util is its first and only consumer.
+- **Invariants / spec note.** Rendering is POV-agnostic by design: every kind-39999 with a
+  matching `z` tag is shown with its author visible (principle 2); trust filtering of items is
+  story 2+'s concern at read time. No TA-pubkey literal anywhere (`useConfig().taPubkey` is
+  Avatar's own concern). The `field-type` header tag is a `github-accounts` convention that
+  `protocols/nips/decentralized-lists.md` does not define — this story only *reads* it (not an
+  irreversibility trigger); the PO should log it in `protocols/worksheet.md` so the convention
+  gets a home before anything in this repo *writes* it. Origin-drift preflight: the branch is 2
+  commits behind `origin/staging` (both harness/OPEN.md housekeeping, no `ui/` files) — safe.
 
 ## Edge cases & not-covered
-—
+- **E1** *(not derivable from any AC)*: a `["field-type", "avatar", "url"]` whose name is not
+  declared `required`/`optional`/`recommended`/`allowed` → no column appears; the type
+  declaration is ignored rather than inventing a field.
+- **E2** *(not derivable)*: a name declared twice with different requirement levels
+  (`required` and `optional`) → one column, `required` wins; no duplicate column.
+- **E3** *(not derivable)*: an item carrying two `["github-username", …]` tags → the first
+  value is the cell, with "+1 more"; the row is not duplicated.
+- E4: a `github-username` value that is not a valid handle (`vcavallo/repo`,
+  `https://github.com/x`, empty string) → plain text, no link; a leading `@` is stripped
+  before linking.
+- E5: `names` tag with only a singular element → plural = singular; no `names` at all →
+  `name`, then the `d` tag, never "(unnamed)" for a list that has any of them.
+- E6: next page uses `until = oldest created_at seen`; items sharing that timestamp arrive
+  again and are de-duped by id, so no item is skipped or shown twice; the "showing N of M"
+  line counts the accumulated distinct items.
+- E7: `:ref` is a kind-9998 event id, an `naddr1…`, or a malformed coordinate (`39998:abc`)
+  → the first two resolve; the third and any zero-result lookup render the AC-7 message —
+  `parseListRef` returns `null` and the page never throws.
+- E8: `/api/dlists/item-counts` fails or lacks a header → count cell shows `—`, not `0`; the
+  index still lists the header.
+- E9: the batched kind-7 scan fails → vote cells show `—`; the item rows still render.
+- **Not covered:** visual layout and link-click behavior (browser verification at Gate B);
+  profile-fetch failure and picture fallback (`useProfiles` / Avatar's own tested behavior);
+  `/api/dlists/item-counts` freshness after a fresh import (its own validator cache);
+  `naddr` relay hints (ignored — local strfry only); items imported from external relays
+  (out of scope); the operator browser's own column set (sentinel only: file unchanged).
 
 ## AC→handle lines
 —
