@@ -102,7 +102,7 @@ derived-edge form (AC-6), the affiliation/stamping standing (AC-5), and the 3999
 (AC-9).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/dlist-curation/0003-inherit-items-facet.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)
 - Review: (filled in after Review phase)
 
