@@ -96,7 +96,7 @@ tag is omitted or recomputed for the assistant's namespace; reuse of the Trusted
 `publishToStrfry` and `requireAuth` vs a shared helper.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/dlist-curation/0004-assistant-curation-header-endpoint.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
