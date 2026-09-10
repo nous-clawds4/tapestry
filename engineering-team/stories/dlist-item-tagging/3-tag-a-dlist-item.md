@@ -189,7 +189,41 @@ items — starting with tagging GitHub accounts as, e.g., "white hat hacker".
   `test/event-tagging-a-target-dtag.test.js`).
 
 ## AC→handle lines
-—
+Suite: `test/dlist-item-tagging.test.js` (registered in `test/test.js` beside `dlistBrowse`).
+**Legend:** `U*` behavioral — `dlistFields.js`'s three new pure exports via dynamic `import()`
+against the github-accounts item fixture (`kind 39999`, `pubkey b83a28b7…`, `d vcavallo-1i6dn0p`,
+`z 39998:b83a…:github-accounts`, `github-username vcavallo`), a `d`-less kind-9999 item, and an
+`nip19.naddrEncode` kind-39999 coordinate; `S*` source sentinels on the new wiring (fail until
+implemented); `R*` regression sentinels that pass today and fail only on collateral damage.
+
+- AC-1 → U1, U2, S1, S2, S3, S4, R4
+- AC-2 → S1, S2, S3
+- AC-3 → S2 (all four writes pass `target`; `run()`/`refetch()` unchanged), R4
+- AC-4 → S2 (signed-out branches kept)
+- AC-5 → U6, U7, S5
+- AC-6 → R1, R2, R3, S5 (note branch / REASON_COPY / placeholder prefix byte-identical)
+- AC-7 → S6, R5 (`/lists` route precondition), R6
+- E1 → U3 · E2 → U4 · E3 → U5 · E4 → U2, S1 · E5 → U7, S5 · E6 → S5 · E7 → S5
+- E8 → S1 (`mine` channel unchanged for `address`) · E9 → S2, R4 · E10 → R4 · E11 → R4 · E12 → S6, R6
+- Not derivable from any AC: U3 (E1), U4 (E2), U5 (E3), S7 (no 64-hex literal in new/changed UI files).
+
+**External-dependency error paths:**
+
+| Dependency | Covered / not | Where / why |
+|---|---|---|
+| `GET /api/event-tags/for-event?address=` | param choice + channels covered (S1); server-side validation **not covered here** | validation lives in `test/event-tagging-read-api.test.js` (`isACoord`, 400s); the hook's existing `.catch(() => ({}))` degrades to empty — behaviour unchanged, sentinelled by R2 |
+| `GET /api/profile-tags/available-tags` | **not covered** | reused verbatim through the 60 s shared cache; failure path (`.catch(() => ({}))` → names fall back to slug) is pre-existing and not changed by this story |
+| strfry scan for the modal's item resolve (`queryRelay({kinds:[39999], authors, '#d'})`) | covered (S5) | empty result → "Couldn't load that list item", nothing published (E6); header missing → `fieldDecls = []` (E7); relay throw surfaces via the modal's existing error copy — the throw path is not separately asserted (same `queryRelay` contract sentinelled by story-1 R4) |
+| Publish path (`useEventTagging` → `publishOrThrow`) | covered (R4) | signer mismatch throws before publish (E11); partial failure `failedAt` banner + refetch (E10) is the existing `run()` in `NoteTags` (R2 `failedAt`); local-only gate is the strfry write-assertion guard suite |
+
+**Guard-suite carve-out:** the scoped gate pairs this suite with
+`test/strfry-write-assertion-bracket.test.js`; Phase 4 may not edit that guard suite.
+
+**Pre-implementation run** (2026-09-10, `direnv exec . node -e "require('./test/dlist-item-tagging.test.js').run()…"`):
+`{ pass: 6, fail: 14, skipped: 0 }` — U1–U7 fail `dlistFields.js must export itemCoord() (Design
+note §1)`; S1 `first argument is named target`; S2 `NoteTags accepts a target prop`; S3
+`DListItemTags.jsx must exist`; S4 `List.jsx imports the wrapper`; S5 `modal imports parseItemRef`;
+S6 `destinationLinks must carry { key: "lists" }`; S7 `DListItemTags.jsx must exist`. R1–R6 pass.
 
 ## Linked artifacts
 - ADR: none expected (story 2 carries the wire change)
