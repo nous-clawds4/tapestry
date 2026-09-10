@@ -2336,3 +2336,28 @@ is wider than the two explicit routes — `:150` mounts the **entire `public/` t
 **Suggested path:** Bug/hardening, Standard — audit what `public/*.html` actually exposes, then
 decide gate-or-retire. Retirement may be the right answer: the legacy dashboard is superseded by
 `/tapestry/`.
+
+---
+
+## 2026-09-09 — DList-item tagging: tag the items of a Decentralized List (proximal: the `github-accounts` list)
+
+**PICKED UP** → book `engineering-team/audits/dlist-item-tagging/book.md`, epic `engineering-team/epics/dlist-item-tagging.md`, story 1 `engineering-team/stories/dlist-item-tagging/1-browse-a-dlist-with-header-driven-fields.md`.
+
+**Raw request (verbatim):**
+
+> We'd like to move on to prototyping tagging dlist items. this should basically be the same as tagging nostr events (same wire shape as that; distinct from the pubkey tagging wire shape), so i think this feature is mostly about UI/UX in the app. where to find dlists, how to render them, how to paginate through the items, if we're going to support upvotes/downvotes (like curate-psi.vercel.app), flexibly rendering list item fields by looking at the list header for field names and required/optional parameters), and then extending trusted lists and pins to support tagged dlist items.
+> the proximal purpose is we want to tag the accounts on this list of github accounts: https://curate-psi.vercel.app/list/39998%3Ab83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450%3Agithub-accounts . we want to experiment with tagging github accounts (like "white hat hacker", "scammer", etc.) and then updating our Vespa-backed search platform to index and return github accounts from this dlist, complete with github urls and other niceties to render inline in the search results. that whole vespa search thing is a different repo, but i'm telling you that so you understand the goal.
+> please make a new branch off main first, then let's start the Light version of the engineering team on this feature. eventually, we'll push it to the feat/tags branch, which auto-deploys to tags.brainstorm.world, which will act as a staging environment for this feature.
+
+**Orientation facts captured before planning (live relay probes, 2026-09-09):**
+
+- The target list header `39998:b83a28b7…:github-accounts` is on `wss://tags.brainstorm.world/relay` (and dcosl). Header tags: `names` ("GitHub Account"/"GitHub Accounts"), `description`, `["required","github-username"]`, `["field-type","github-username","text"]`. Empty content.
+- 7 items (kind 39999) z-tagged to it, by 4 distinct authors; fields ride as **top-level tags** (`["github-username","vcavallo"]`, `["description","Vinney Cavallo"]`), content empty. One duplicate username across two authors' items.
+- curate-psi's up/down votes are plain NIP-25 kind-7 reactions (`+`/`-`) carrying `e` + `a` (item coordinate) + `k`=39999 + the list's `a`. 25 found. This repo **reads** kind-7 for DList items already (`DListItems.jsx`, `DListRatings.jsx`) but has **no** kind-7 publish path.
+- The event-tagging core (`src/lib/event-tagging/builders.js`) already picks `e` vs `a` by target shape, and `protocols/drafts/event-taggings.md` § Targets already specifies addressable targets — so tagging a kind-39999 item is an `a`-target assertion with **no new wire format**. Trusted Lists for addressable members are already the specified `30394`/`a` kind (`protocols/drafts/trusted-lists.md`); the pin-refresh publisher has `p` and `e` runners only.
+- The app has a raw DList browser under `/tapestry/lists` (local strfry only; columns not header-driven) and a header-driven item **authoring** form (`NewDListItem.jsx`) — the read side never consults the header's field definitions.
+
+**Classification:** Feature (book of 4 stories; a 5th — publishing votes — is a Gate-A decision, see the book).
+**Strictness:** Light (trial) — workflows/light-profile.md. Escalation watch: story 4's pin curation-method `targetTypes` value is a wire-visible enum; if extending it trips the event-shape trigger, that story escalates to Standard with an ADR.
+**Phase path:** per story — Gate A (human) → J1 → J2 → J3 → Gate B (human).
+**Branch:** `feat/dlist-item-tagging` off `main`; lands on `feat/tags` (→ tags.brainstorm.world) as the feature's staging.
