@@ -113,6 +113,8 @@ import DevelopersRelayTools from './pages/developers/RelayTools';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
+import Lists from './pages/Lists';
+import List from './pages/List';
 import PinRedirect from './components/PinRedirect';
 import BrainstormFeed from './pages/BrainstormFeed';
 import BrainstormEvent from './pages/BrainstormEvent';
@@ -141,6 +143,14 @@ const router = createBrowserRouter([
   {
     path: '/pins',
     element: <Pins />,
+  },
+  {
+    path: '/lists',
+    element: <Lists />,
+  },
+  {
+    path: '/list/:ref',
+    element: <List />,
   },
   {
     path: '/pin/:dTag',

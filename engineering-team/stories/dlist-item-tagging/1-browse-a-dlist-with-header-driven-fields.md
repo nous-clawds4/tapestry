@@ -278,3 +278,25 @@ regression sentinel on untouched files (passes now and after; fails only on coll
 - Review: `engineering-team/reviews/dlist-item-tagging/1-browse-a-dlist-with-header-driven-fields.md`
 
 Link by path only — never record verdicts or round history in this file.
+
+## Deviations *(Implementer, 2026-09-09 — small judgment calls; none breaks the Design note)*
+- **No nav link added for `/lists`.** There is no shared user-facing nav list that carries
+  `/tags` and `/pins` together: `TopBar`'s default nav is `About` only; `/tags` is reached from
+  `Pins.jsx` ("Browse tags →") and `Tag.jsx`'s breadcrumb; `/pins` from `BrainstormUserMenu`'s
+  footer and `BrainstormSettings`. Adding a link would mean editing a file outside the blast
+  radius (`avatarMenuLinks.js` / `BrainstormUserMenu.jsx` / `TopBar.jsx`), so it is left for the
+  reviewer to decide — `/lists` is reachable by URL and from every `/list/:ref` page's
+  "← All lists" breadcrumb.
+- **`parseFieldDecls` returns `{ name, requirement, type }`** — the Design note's `description`
+  key is omitted because no header tag defines a per-field description; adding a `null` key
+  would have been invention.
+- **Page size is the literal `limit: 50`** in `List.jsx` (twice) rather than a named constant:
+  sentinel S4 matches the literal.
+- **"Showing N of M" appends "(scan was bounded)"** when `truncated && total === null`, so
+  "unknown" is explained rather than bare. `hasMore` = `truncated || items.length < total`.
+- **Vote cell** shows `▲up ▼down` counts (read-only); on a failed kind-7 scan every cell shows
+  `—` (E9) — the table receives an empty `voteCounts` map in that case.
+- **`headerCoord` for a malformed 39998 header** (no `d` tag) returns `39998:<pk>:` rather than
+  `null`, so the U12 null/string contract holds and a page never throws on it.
+- Build output goes to the repo-root `dist/` (Vite `outDir`), which is what
+  `bin/control-panel.js` serves; `dist/` is not part of the diff.
