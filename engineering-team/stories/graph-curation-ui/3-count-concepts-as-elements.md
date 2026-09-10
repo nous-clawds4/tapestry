@@ -118,5 +118,5 @@ None. The correct semantics is settled by operator ruling; the expected values a
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/graph-curation-ui/0003-one-canonical-concept-count.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/graph-curation-ui/3-count-concepts-as-elements.test-plan.md`
 - Review: (filled in after Review phase)
