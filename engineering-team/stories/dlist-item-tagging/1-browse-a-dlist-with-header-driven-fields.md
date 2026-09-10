@@ -194,7 +194,83 @@ that I can see what is on the list (and who put it there) before deciding what t
   (out of scope); the operator browser's own column set (sentinel only: file unchanged).
 
 ## AC→handle lines
-—
+*(Light profile — the test plan lives here. Suite: `test/dlist-browse.test.js`, CJS `run()` →
+`{pass,fail,skipped}`, registered in `test/test.js` as `dlist-browse`. No stack dependency:
+U* exercise `ui/src/utils/dlistFields.js` via dynamic ESM `import()` against inline fixture
+events mirroring the live `github-accounts` header + items; S* are source-structure sentinels
+on the new components/pages/routes/styles; R* are regression sentinels on files the Design
+note promises not to touch.)*
+
+**Legend.** U = behavioral unit test of the pure util (fails now: module missing → counted as
+fail, not skip). S = structure sentinel on new UI source (fails now: file missing). R =
+regression sentinel on untouched files (passes now and after; fails only on collateral damage).
+
+- AC-1 → U1 (`parseListRef` coord/id/naddr), U3 (`headerNames` singular/plural/description),
+  S3 (paste box → `parseListRef` → navigate), S4 (header resolved by `kind`+`authors`+`#d` /
+  `ids`), S5 (`/list/:ref` route). Author display is the Avatar/useProfiles path (S4).
+- AC-2 → U2 (`headerCoord` = the `#z` key), S1 (one `DListItemRow` per item; `profiles`/
+  `voteCounts` are props), S2 (Avatar + `/user/<pubkey>` link + `created_at` age), S4 (`#z`
+  scan of kinds 9999/39999, `useProfiles`, mounts `DListItemsTable`).
+- AC-3 → U4 (one column per declared field, required→recommended→optional in header order,
+  `allowed` = optional), U7 (`missing` only when required and absent; optional absent ≠
+  missing), U12 (bare `["required"]` declares no nameless column), S1 (`is-required` + `*`
+  headers from `fieldDecls`), S2 (`bs-dlist-missing` "missing" span), S6 (styles present).
+- AC-4 → U4 (type from `field-type`, default `text`), U9 (`githubProfileUrl` link shape), U10
+  (unknown/absent type → text, github-* type links by type under any name), U7 (href on the
+  `github-username` cell), S2 (`target=_blank rel=noreferrer`).
+- AC-5 → S4 (`queryRelayBounded`, `limit: 50`, "showing N of M" from `{count,total,truncated}`,
+  `total === null` → "unknown", `until` paging), R4 (`relay.js` still returns `total` null-when-
+  unknown — the contract AC-5 leans on).
+- AC-6 → S3 (`queryRelay` over kinds 9998 + 39998, `/api/dlists/item-counts`, per-header link to
+  `/list/<encodeURIComponent(ref)>`, `headerNames`), S5 (`/lists` route beside `/tags`,`/pins`).
+- AC-7 → U1 (malformed / non-list refs → `null`, never throw), U12 (tagless/short-tag events
+  never throw), S4 ("not on this relay" message + a catch around the header/items lookup).
+- AC-8 → U11 (`reactionPolarity` mirrors `DListItems.jsx:32-40`), S2 (read-only vote cell, no
+  publish path), S4 (one batched `kinds:[7]` + `#e` scan per page), R1 (operator page's own
+  `isUpvote`/`isDownvote` and per-item fan-out untouched).
+- E1 *(not derivable from any AC)* → U5 (+ U4, which forces `field-type` to be read at all).
+- E2 *(not derivable)* → U6.
+- E3 *(not derivable)* → U8, S2 ("+N more").
+- E4 → U9, U7 (empty string → no href).
+- E5 → U3.
+- E6 → S4 (`until` = oldest `created_at`, id de-dupe). *Behavioral paging is not unit-testable
+  without React; browser verification at Gate B.*
+- E7 → U1, U2 (9998 header → `id`), S4 (`useParams` + `parseListRef`; empty result → AC-7 state).
+- E8 → S3 (catch on item-counts; `—` not `0`; index still lists headers). R3 (operator index's
+  own item-counts read unchanged).
+- E9 → S4 (≥ 2 catch sites: header/items scan and the kind-7 scan; rows still render).
+- Design-note structure → S1 (table knows no routes/fetching; `renderExtra` slot), S3/S4
+  (`TopBar` + `bsp-page`, no operator `Layout` chain), S6 (no 64-hex literal in new files),
+  R2 (`NewDListItem` keeps its own reader), R5 (`/tags`, `/pins` intact).
+
+**External-dependency error paths** (J2 rule 2):
+- `/api/strfry/scan` via `queryRelay` (header lookup, index scan, kind-7 batch) → covered: S4
+  catch sites + AC-7 message; S3 catch. Empty result vs thrown error both land in the AC-7 state.
+- `/api/strfry/scan` via `queryRelayBounded` (items page) → covered: S4 (`truncated`/`total`
+  null handling + catch); R4 pins the contract.
+- `/api/dlists/item-counts` → covered: S3 (E8).
+- kind-7 scan → covered: S4 (E9).
+- `/api/profiles` (through `useProfiles`) → **not covered**: the hook's own failure/fallback
+  behavior is tested where it lives and the page only consumes its result (story file
+  "Not covered").
+
+**Guard-suite carve-out:** the story's scoped gate also runs
+`test/strfry-write-assertion-bracket.test.js`; Phase 4 must not edit that suite.
+
+**Pre-implementation run (2026-09-09):**
+- `dlist-browse`: **5 pass / 18 fail / 0 skipped** — R1–R5 pass; U1–U12 fail on
+  "`ui/src/utils/dlistFields.js` must exist and be importable as ESM"; S1–S4 fail on the
+  component/page file missing; S5 fails on "Lists page imported"; S6 on ".bs-dlist-missing
+  style exists". All failures are the intended reason (missing implementation), none are
+  import/typo errors.
+- Assertion spot-check against a naive scratch stub (header-order decls, no grouping, no
+  github link, no `missing`, `(unnamed)` fallback): **11 of 12 U tests still fail** (U4 on
+  ordering, U7 on href/missing, U3 on description/fallbacks, U1 on naddr, …); only U5 passes
+  vacuously because the stub ignores `field-type` — U4 closes that gap.
+- Guard suite `strfry-write-assertion-bracket`: **6 pass / 0 fail** with
+  `BRAINSTORM_BASE_URL=http://localhost:8778` (its default is `:7778`; on this host the panel
+  is `:8778`, so the scoped gate must set that env var — without it: 4 pass / 2 fail on
+  "could not resolve the runtime TA pubkey via GET /api/assistant/pubkey").
 
 ## Linked artifacts
 - ADR: none expected (no irreversibility trigger; a Design note suffices)
