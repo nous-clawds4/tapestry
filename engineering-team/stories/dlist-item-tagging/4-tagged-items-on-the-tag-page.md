@@ -261,7 +261,109 @@ its list, so that a tag like "white hat hacker" reads as a curated set of GitHub
   added `for-tag` call and the extra id classification scan at tag-page load beyond "does not error".
 
 ## AC→handle lines
-—
+
+**Suite:** `test/dlist-tagged-items.test.js` (registered in `test/test.js` at all five `dlistBrowse`-style
+sites). **Legend:** `U*` = behavioral — `aggregateNotesTagged` / `handleForTag` are called for real with
+every I/O boundary injected (`child_process.exec` patched = the module-local `strfryScan` seam;
+`_shared/relaySource`, `_shared/povStatus`, `_shared/noteEnrichment` replaced in the require cache).
+No stack, no Meili, no neo4j, no relay — the suite is stack-free by construction.
+`S*` = source-contract (the UI half is ESM/JSX and is not requirable from the Node runner — documented gap
+below). `R*` = regression sentinel: green TODAY and must stay green.
+
+**Fixture (shared, hand-built):** one tag `39999:<JACK>:white-hat`, one honored header, and taggings of —
+two kind-1 notes (`NOTE1` 2 applies, `NOTE2` 1 apply + 1 dispute), one **kind-9999** DList item (`ITEM9`,
+`e`-target), two **kind-39999** items (`ADDR_A` in list `39998:<OWNER>:hackers`, `ADDR_B` in
+`…:legends`, `a`-targets), and one id that resolves to nothing (`ORPHAN`).
+
+| AC | Handles |
+|---|---|
+| AC-1 — `a` targets returned as a distinct items group, counted under the POV, not dropped, not mixed into notes | U1, U2, U3, U4, U13, R8 |
+| AC-2 — third **Items** switch beside Profiles/Notes, with a count | S1, S2 |
+| AC-3 — header-driven rendering, story-3 tag affordance on the row, grouped per list, group links to `/list/<coord>` | U14, U15, S3, S4 |
+| AC-4 — list header not on local strfry → item still shown with coordinate + author, "list not on this relay", no crash | U16, S5 |
+| AC-5 — same sort/recency controls + POV disclosure as Notes; disputes bucket as on notes | U2, U8, S6 |
+| AC-6 — Notes and Profiles unchanged (regression sentinels) | R1, R2, R3, R4, R5, R6, R7, R8, U7, S7 |
+
+| Edge case | Handles |
+|---|---|
+| E1 — the items track never writes into the notes track (`members`/`fullMembers`/`total` byte-identical; no `a` in `members`) | **R8** (byte-compare vs the hand-written pre-change expectation), R1, R2, U7 |
+| E2 — routing by *resolved kind*, one bounded local `kinds:[9999]` id scan | U4, U18 |
+| E2b — id resolving to neither kind 1 nor kind 9999 stays in `members`, never leaks into `items` | R7 |
+| E3 — target event on no reachable relay → row still renders from coordinate/id | U16 |
+| E4 — header unreachable vs header with zero field decls | S5 (both branches: `list not on this relay` copy vs empty `fieldDecls`) |
+| E5 — one item, several parent refs / same field names in two groups | U15 (per-group `listCoord`), S3 (`fieldDecls` derived per group) |
+| E6 — coordinate normalization (uppercase pubkey, `d` with colons) | U12 |
+| E7 — POV switch mid-view; one POV's items never served to another | R5 (cache key still carries `wotPov`/`userPubkey`/`authorities`/`sort`/`viewerPubkey`) |
+| E8 — `mine` durability + disputes across both key spaces | U2 |
+| E9 — empty state; every existing response field unchanged | U19, R6 |
+| E10 — combined cap + `itemTruncated` on its own track | U9 |
+| E11 — external relay throws during resolution → notes half still 200 | U17 |
+| Story-5 contract — `fullItemMembers` uncapped; only address-keyed members eligible for kind-30394 | U10, U11 |
+| Doc / cross-repo surface — integration guide gains the new fields, two-cap line corrected | S8 |
+
+**Not derivable from any AC** (J2.1): **R8** — the byte-identity of `members`/`fullMembers`/`total` against
+a *hand-written* pre-change expectation (`EXPECTED_MEMBERS_RECENT`, built literally, not by re-running the
+new code), including the deliberate retention of the kind-9999 id pollution (OPEN 223). Also not
+AC-derivable: U10/U11 (story-5's `fullItemMembers` + addressable-only eligibility), U18/U17 (dependency
+error paths), R3 (the note-TL destructure staying a three-key non-consumer).
+
+### External-dependency error paths
+
+| Dependency | Where | Covered by | Expected behavior |
+|---|---|---|---|
+| local strfry — header + tagging scans (`strfryScan` → `exec`) | `aggregateNotesTagged` steps 1–2 | not covered — **reason:** unchanged code path, already rejects/500s today; this story adds no new call there | unchanged |
+| local strfry — NEW `kinds:[9999]` id classification scan | `aggregateNotesTagged` (new) | **U18** | degrade: 200, empty/address-only `items`, notes track untouched |
+| local strfry — `kinds:[39999] authors/#d` item resolution | `handleForTag` (new) | **U16** (no matching event) | row still rendered from the coordinate + author (E3) |
+| external relays (`realQuerySync`) | `handleForTag` note fetch | **U17** | 200, items survive, notes degrade (E11) |
+| neo4j (`resolveGeneralPurposeRelays`) | `handleForTag` | injected via the relaySource stub; not asserted — **reason:** unchanged path, no new call | unchanged |
+| Meili (`trustPredicateFor`) | POV trust | not covered — **reason:** the POV path is unchanged and is owned by `test/pov-resolution-status.test.js`; this suite runs POV-unfiltered (`povSuffix: null`) so the predicate is `() => true` | unchanged |
+
+### Guard-suite carve-out
+
+This is **not** a test-deliverable story, so no guard suite is being authored here. The story's Gate-A
+scoped gate includes the standing guard suite `test/strfry-write-assertion-bracket.test.js`: **Phase 4 must
+not edit it**, nor edit the assertions in `test/dlist-tagged-items.test.js` or
+`test/event-tagging-for-tag.test.js` to make them pass. Fixture/harness bugs found by the Implementer are
+reported back, not silently rewritten.
+
+### Known gap
+
+The Items view (`TagItemsView.jsx`, `Tag.jsx`, `useNotesForTag.js`) is ESM/JSX and cannot be required by the
+Node runner, so AC-2/-3/-4 rendering is pinned by **source contract** (S1–S7), not by execution. The
+underlying data — `listCoord` for both parent forms, per-list distinguishability, degraded rows — *is*
+exercised behaviorally through `handleForTag` (U14–U16), so the untested residue is the JSX wiring only.
+The precedent is Story 8 (`test/event-tagging-for-tag.test.js`), where the operator likewise excluded the
+Tag.jsx view from auto-testing. No Playwright spec is added.
+
+### Pre-implementation run (recorded 2026-09-10)
+
+Command (operator-scoped: this suite only, no full `npm test`):
+
+```
+direnv exec . node -e "require('./test/dlist-tagged-items.test.js').run().then(r=>{console.log(r);process.exit(r.fail?1:0)})"
+```
+
+Result: **`{ pass: 9, fail: 24, skipped: 0 }`** — exit 1.
+
+- **Green pre-impl (9), by design:** R1–R8 (the additivity / non-consumer / envelope sentinels) and U7 (the
+  comparator generalization must leave note ordering identical — it is a "still true afterwards" assertion).
+- **Red pre-impl (24), each for the right reason** (feature absent, not an import or typo):
+
+```
+  ✗ U1 … aggregateNotesTagged must return an `itemMembers` array (AC-1).
+  ✗ U4 … the kind-9999 DList item id must appear in itemMembers; got []
+  ✗ U9 … itemTotal must count the whole item universe (…= 63); got undefined
+  ✗ U10 … aggregateNotesTagged must return `fullItemMembers` (story-5 contract).
+  ✗ U13 … the for-tag response must carry an `items` array.
+  ✗ U14 … the kind-39999 item 39999:…:gh-torvalds must be resolved into items; got []
+  ✗ U17 … for-tag must degrade, not 500, when the external relay fetch throws; got 500 (relay exploded)
+  ✗ S3 … ui/src/components/TagItemsView.jsx does not exist yet — the Items view component.
+  ✗ S7 … useNotesForTag must additionally return `items` (extend, don't fork the hook).
+  ✗ S8 … the integration guide must document the new `items` field (cross-repo readers).
+```
+
+(the remaining reds — U2, U3, U8, U11, U12, U15, U16, U18, U19, S1, S2, S4, S5, S6 — fail with the same
+class of message: the new field/file/copy does not exist yet.)
 
 ## Linked artifacts
 - ADR: none expected
