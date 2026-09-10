@@ -1,11 +1,13 @@
 # Story 5: Pins and Trusted Lists for tagged items
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-10
-**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A pending; depends on story 4.
-**Escalation watch:** the curation-method `targetTypes` enum is wire-visible — see Open questions
-#1; if Gate A judges the added value a wire-format change, this story escalates to Standard with
-an ADR.)*
+**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-10 —
+`targetTypes` gains `'item'` (additive, backward-compatible: absent reads as the pre-existing
+default, unknown values ignored by older readers), so a Design note suffices, not an ADR;
+`d`-prefix `tl-pin-items-`; scoped gate `test/item-trusted-list.test.js` +
+`test/generalized-tag-pinning.test.js` + the strfry write-assertion guard suite; depends on
+story 4)*
 
 ## Background
 Pinning a tag opts it into the viewer's curated set, and the scheduled publisher then emits
@@ -51,15 +53,14 @@ GitHub accounts my POV considers white-hat hackers" as a signed, addressable lis
 - Applicability lists (already 30394 for a different purpose — keep the `d`-prefix namespaces
   distinct and say so in the Design note).
 
-## Open questions *(resolve at Gate A)*
+## Open questions *(resolved at Gate A, 2026-09-10)*
 1. **`targetTypes` value.** Adding `'item'` (or `'dlist-item'`) to the enum changes a value that
-   rides inside published `curation-method` JSON. Recommendation: it is **additive and
+   rides inside published `curation-method` JSON. **Decided:** it is **additive and
    backward-compatible** (absent = today's default `['profile','note']`, and unknown values are
-   ignored by older readers), so a Design note suffices — but this is the Gate-A call, and the
-   name is permanent once published. Recommendation: `'item'`.
-2. **`d`-tag prefix** for the new lists: `tl-pin-items-` (mirrors `tl-pin-notes-`), distinct from
-   the applicability lists' prefix. Confirm no collision.
-3. Scoped gate: `test/item-trusted-list.test.js` + `test/generalized-tag-pinning.test.js` +
+   ignored by older readers), so a Design note suffices. The value is **`'item'`** — permanent once published.
+2. **`d`-tag prefix — decided:** `tl-pin-items-` (mirrors `tl-pin-notes-`), distinct from the
+   applicability lists' prefix; the Design note confirms no collision.
+3. **Scoped gate — decided:** `test/item-trusted-list.test.js` + `test/generalized-tag-pinning.test.js` +
    the strfry write-assertion guard suite.
 
 ## Design note *(Light — after Gate A)*
