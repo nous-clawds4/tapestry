@@ -29,8 +29,18 @@ async function handleSummaries(req, res) {
   try {
     const rows = await runCypher(`
       MATCH (n:ConceptHeader)
-      OPTIONAL MATCH (n)-[:IS_THE_CONCEPT_FOR]->(:Superset)-[:HAS_ELEMENT]->(e)
-      OPTIONAL MATCH (n)-[:IS_THE_CONCEPT_FOR]->(:Superset)-[:IS_A_SUPERSET_OF]->(s)
+      // Both counts walk IS_A_SUPERSET_OF *forward* (parent-first, per ADR
+      // relationship-primitives/0001) so elements and sets nested under the
+      // superset are seen. Counting only direct members reported "word" — 582
+      // elements under 47 sets — as EMPTY from the endpoint AGENTS.md makes the
+      // first call of the orientation ladder. (ADR graph-curation-ui/0004 + A1.)
+      //
+      // This rule is duplicated in ui/src/utils/conceptCounts.js, deliberately:
+      // ADR 0004 rejected a cross-tree CJS/ESM import and pinned the two together
+      // with an equality test instead. If you change one, test/summaries-element-count.test.js
+      // L2 will tell you the other no longer matches. Change both.
+      OPTIONAL MATCH (n)-[:IS_THE_CONCEPT_FOR]->(:Superset)-[:IS_A_SUPERSET_OF*0..5]->(ss)-[:HAS_ELEMENT]->(e:NostrEvent)
+      OPTIONAL MATCH (n)-[:IS_THE_CONCEPT_FOR]->(:Superset)-[:IS_A_SUPERSET_OF*0..5]->(s)
       WITH n, count(distinct e) AS elementCount, count(distinct s) AS setCount
       OPTIONAL MATCH (p:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(n)
       WITH n, elementCount, setCount, count(distinct p) AS propertyCount

@@ -251,7 +251,7 @@ const router = createBrowserRouter([
               { path: 'health', element: <ConceptHealth />, handle: { crumb: 'Health Audit' } },
               { path: 'elements', element: <ConceptElements />, handle: { crumb: 'Elements' } },
               { path: 'elements/new', element: <NewElement />, handle: { crumb: 'New Element' } },
-              { path: 'elements/add-node', element: <AddNodeAsElement />, handle: { crumb: 'Add Node' } },
+              { path: 'elements/add-node', element: <AddNodeAsElement />, handle: { crumb: 'Add Node as Element' } },
               { path: 'elements/add-node/review', element: <AddNodeReview />, handle: { crumb: 'Review' } },
               { path: 'elements/:elemUuid', element: <ElementDetail />, handle: { crumb: 'Element' } },
               { path: 'properties', element: <ConceptProperties />, handle: { crumb: 'Properties' } },
