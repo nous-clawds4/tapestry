@@ -95,6 +95,19 @@ pool) vs router-only, and how each destination's outcome is captured; whether th
 tag is omitted or recomputed for the assistant's namespace; reuse of the Trusted-List module's
 `publishToStrfry` and `requireAuth` vs a shared helper.
 
+## Deviations
+- **Test fixture amended during Phase 4, in the Tester's lane** (its own commit before the
+  implementation): the suite's `makeDeps` recorded calls inside its default stubs only, so H4 —
+  which overrides the relay fetch to return nothing and then asserts the relays were asked — could
+  not be satisfied by any implementation. Recording now wraps whichever seam is in effect. Stricter;
+  the implementation follows ADR 0004 verbatim.
+- **Live verification limited to wiring.** The endpoint's behavior is proven by the injected suite;
+  live, the server was restarted with the module and the route answers 401 to an unauthenticated
+  request (the default-deny middleware first, the handler's own guard behind it). A live happy path
+  needs a NIP-07-verified session the automated tools cannot create, and would publish a real
+  header under the dev assistant's key to the public community relay — not done without the
+  operator; row 191's posture.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0004-assistant-curation-header-endpoint.md`
 - Test plan: `engineering-team/stories/dlist-curation/4-assistant-curation-header-endpoint.test-plan.md` (suite: `test/dlist-curation-header-endpoint.test.js`)

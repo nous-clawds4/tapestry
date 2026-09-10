@@ -486,4 +486,6 @@ module.exports = {
   // Exported for tests (ADR tag-stack-merge-hardening/0001 testability):
   requireAuth,
   isLoopbackRequest,
+  // dlist-curation #4 (ADR 0004): the local strfry import, reused by the curation-header endpoint.
+  publishToStrfry,
 };
