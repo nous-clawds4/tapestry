@@ -28,9 +28,16 @@ top-level superset.
 2. `stories/graph-curation-ui/2-restore-add-node-as-element-page.md` — restore the "Add Node as
    Element" page, which currently fails to render at all, and rename its breadcrumb to match
    the button that leads there. **Done** (review PASS 2026-09-09; local only, not yet on staging).
-3. `stories/graph-curation-ui/3-count-concepts-as-elements.md` — make the concept detail
-   header's element count include elements that are themselves concepts, so it agrees with the
-   Overview and the summaries API. **Approved** (2026-09-09; `OPEN.md` row 224).
+3. `stories/graph-curation-ui/3-count-concepts-as-elements.md` — make the concept detail page
+   report one correct element count on both its surfaces (header + Overview): everything
+   reachable through the set tree. **Approved, rewritten 2026-09-09** after an Architecture
+   kick-back — the first draft required the header to match the Overview, but measurement showed
+   the Overview is the *more* broken surface (it reads 0 for `word`, which has 582 elements).
+   (`OPEN.md` row 224.)
+4. `stories/graph-curation-ui/4-summaries-element-count.md` — fix the same direct-only defect in
+   `GET /api/concept-graph/summaries`, the endpoint AGENTS.md makes the first call of the
+   orientation ladder. Split from #3 because it is a documented public read contract.
+   **Approved** (2026-09-09).
 
 ## Key facts / guardrails
 
