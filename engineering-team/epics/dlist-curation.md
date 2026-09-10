@@ -24,10 +24,10 @@ duplicating items into the community list.
 `stories/dlist-curation/`:
 1. `1-tl-panel-copy-and-collapse.md` — the new prompt copy; the Trusted Lists panel collapsed by
    default with a three-state status line. Feature.
-2. *(planned)* `2-per-dlist-map-entry-convention` — the per-DList kind-10040 entry: shape,
+2. `2-per-dlist-map-entry-convention.md` (Done, review PASS 2026-09-10) — the per-DList kind-10040 entry: shape,
    reconstruction rule, first-colon split, `dlist-header` reservation, relay hint, revoke
    semantics, dual-author precedence pointer. Docs-mode (`assistant-designation.md` + ADR).
-3. *(planned)* `3-inherit-items-facet` — register `inherit-items` in the `b` type registry;
+3. `3-inherit-items-facet.md` (Done, review PASS 2026-09-10) — register `inherit-items` in the `b` type registry;
    additive v1 item algebra; aggregation weight; derived-edge facet; W6. Docs-mode
    (`inherit-from.md` + worksheet + ADR).
    *Carry-forward (review #2, NB-3):* the per-DList section generalizes `<kind>` to 39998/39999 while

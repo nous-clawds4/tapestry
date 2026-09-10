@@ -175,3 +175,127 @@ entry, and every pointer are otherwise accurate and ADR-conformant, and every no
 - Completion detection deferred to the passing round. For the record: book `dlist-curation`, frame bullets 1–2
   (story 1) and 4 (story 2) are met; bullet 6 (the facet) would be met by this story; bullets 3, 5, 7 stay open
   (stories 5, 4, 6); bullet 8 holds so far; bullet 9 is the operator's call (story 7). The book is not complete.
+
+## Round 2 (2026-09-10)
+
+**Reviewer:** Claude (acting as Reviewer) — re-review of the round-1 fixes. Round 1 above is kept intact; this
+section supersedes its verdict.
+**Diff:** `git diff f7d07e67..HEAD` — one commit, `3b493213`, markdown-only (`BIBLE.md`,
+`docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md`, `engineering-team/epics/dlist-curation.md`, the story,
+`protocols/drafts/inherit-from.md`, `protocols/drafts/shared-concepts.md`, `protocols/worksheet.md`; 35 insertions,
+22 deletions). Line numbers below are post-fix: the NB-6 insert at `inherit-from.md:112` shifts everything under it
+by two (round 1's `:126` is now `:128`, `:118` → `:120`, `:132` → `:134`).
+
+### Quality gates (re-run by the reviewer on HEAD `3b493213`, not trusted)
+- [x] `bash scripts/harness-lint.sh` — **clean (0 violations)**; only the pre-existing waivers/INFO print. L9 holds
+      without a second header bump: `BIBLE.md:8` says 2026-09-10 and the last commit touching BIBLE.md is
+      `3b493213` (2026-09-10) → 0 days.
+- [x] The nine doc-reading suites, each via `node -e "require('./test/<f>.test.js').run()"` (node v24.18.0):
+      `tag-applicability` 19/0 · `event-tagging-spec` 5/0 · `open-ranking-stats` 29/0 ·
+      `treasure-maps-router-preset` 5/0 · `b-tag-primitive` 16/0 · `b-coverage-audit-and-disposition` 26/0 ·
+      `task-queue-semaphore-protection-audit` 6/0 · `scheduled-search-and-house-scores-refresh` 12/0 ·
+      `harness-lint` 41/0. All green — the same counts as round 1.
+- [x] Links on the fix diff's added lines, resolved mechanically (scratchpad script, same method as round 1):
+      **10 links, 10 resolve; no anchors on these lines.** New this round: `inherit-from.md:112` →
+      `../nips/decentralized-lists.md` (exists) and `shared-concepts.md:35` → `./stamping.md` (exists); the other
+      eight are pre-existing links re-emitted on re-touched lines.
+- [x] `git diff --check f7d07e67..HEAD` clean; no 64-hex literal on any added line; no `src/`, `ui/`, or `test/`
+      change.
+- [ ] Full `npm test` — not run, same reasoning as round 1 (markdown-only diff; OPEN.md row 191).
+
+### Disposition of round-1 findings
+| Round-1 item | Disposition | Evidence (new wording quoted from HEAD) |
+|---|---|---|
+| Blocking 1 — `inherit-from.md:12` | **Fixed.** | "The `b` tag carries one of three **types**: `"pointer"` (correspondence …), `"inherit"` (definitional deference …), and `"inherit-items"` (item inheritance — "my list's items are this parent's, plus my own"). Only `"inherit"`-typed tags participate in definition resolution; only `"inherit-items"`-typed tags in item resolution." — the asked change; agrees with `:26` and `:120`. |
+| Blocking 1 — `inherit-from.md:60` | **Fixed.** | "*reach*, the closure over every `b` type" — agrees with `shared-concepts.md:68` and Decision §6. |
+| Blocking 1 — `inherit-from.md:128` (was `:126`) | **Fixed.** | "a relay-side `#b` filter returns every type; aggregators fetch, then filter by type locally." |
+| Blocking 1 — `shared-concepts.md:53` | **Fixed.** | "but the types feed **different questions**:" — the lead-in now matches the three-type bullets under it (`:55–56`). |
+| Blocking 1 — `shared-concepts.md:58` | **Fixed.** | "the `#b` filter returns every type; consumers filter locally". |
+| Blocking 1 — `shared-concepts.md:70` | **Fixed.** | "through `b` edges of *every* type, followed transitively" — reach is now defined one way (table row `:68` and prose `:70` agree). |
+| Blocking 1 — `BIBLE.md:1635` | **Fixed.** | "discovery walks include every type (ADR 0029, extended by `dlist-curation` ADR 0003)". |
+| NB-1 — `inherit-from.md:16` | **Applied.** | "correspondence (`"pointer"`), definitional deference (`"inherit"`), or item inheritance (`"inherit-items"`)". |
+| NB-2 — `inherit-from.md:4` | **Applied.** | "The `inherit-items` type (`dlist-curation` ADR 0003) derives the pointer form until the derivation is updated, and no item-set resolver exists (intake entry 2026-09-10)." True against `src/api/neo4j/eventSync.js:271` (`tag[2] === 'inherit'`; the else-branch derives `REFERENCES {source:'b-tag'}`), re-read this round; the same claim as BIBLE `:1630`. |
+| NB-3 — `shared-concepts.md:103` | **Applied.** | "absent, pointer, or `inherit-items` types carry zero weight (v1)" — agrees with `:55`. |
+| NB-4 — BIBLE §22 `:1567`; worksheet W1 `:19` | **Applied.** | BIBLE: "discovery walks (enumerating correspondents, not deferrers) include every type (`dlist-curation` ADR 0003 added `inherit-items`)"; worksheet: "discovery walks include every type (`inherit-items` too — `dlist-curation` ADR 0003)". |
+| NB-5 — stamping standing by name | **Applied; consistent with Stamping's tiers and the ADR.** | `shared-concepts.md:35`: "Inherit-family tags anchor no stamps (the affiliation-anchored tier of [Stamping](./stamping.md) is pointer-only); an `inherit-items` target is reachable, and so at most a demand-selected extra." Checked against `stamping.md:23` (tier 2 is "affiliation-anchored … reached via the author's own pointer-`b`" — pointer-only, so "anchor no stamps" is exact), `:25` (tier 3, "demand-selected extras … within the author's **reach**", author-selected, SHOULD-level) and `shared-concepts.md:74` ("Reach is permission-shaped, never action-shaped"). "At most a demand-selected extra" is a correct upper bound and says what ADR Decision §6's "does not select stamp targets" says: the tag enables reach; the author selects. Handoff D10 `:164` softened from "does not stamp" to "anchors no stamps (reachable, so at most a demand-selected extra)" — the two surfaces agree. |
+| NB-6 — `own_items(node)` undefined | **Applied; adds no rule the ADR did not decide.** | `inherit-from.md:112`: the kind-39998 case is a definition by reference to an already-normative binding — `protocols/nips/decentralized-lists.md:43` (an item's `z` is `39998:<header author>:<d-tag>` of its parent header); the kind-39999 case is left "**not yet formalized**", mirroring the definition walk's payload-binding note `:85`, with the resolver follow-up named as the settling place. Reading "own items" as the header's `#z` index (any author) is what `shared-concepts.md:56` and ADR Decision §4 ("the item author's trust") already assume. Nothing normative added. |
+| NB-7 — story Deviations miscount | **Corrected; now accurate.** | Story `:105–109`: "One sentence beyond the ADR's edit list, plus one companion edit" — the Direction paragraph (`inherit-from.md:52`, "for every type") and the family-table lead-in (`:134`, "Its three types span three rows of the family") — exactly round 1's row 17. The new "Review round 1 fixes" bullet (`:110–117`) lists the seven lines and the folded NB items correctly against the diff (verified line by line in this table). |
+| NB-8 — epic stale form | **Applied.** | Epic `:85` "closed at two values at kickoff, three since ADR 0003"; `:90` "ADR 0003 chose a **distinct relationship `INHERITS_ITEMS_FROM`** over the kickoff lean toward a property on INHERITS_FROM, so a bare `INHERITS_FROM` match keeps meaning definition deference." Story 4's Implementer no longer reads the superseded form. |
+| NB-9 — ADR `:223` draft-relative link | **Left, as classified (cosmetic).** | ADR untouched this round; `engineering-team/decisions/dlist-curation/inherit-from.md` does not exist; the quoted text resolves where it lives (`assistant-designation.md:71`). |
+| NB-10 — story-4 caution | **Applied.** | Epic `:39–42`: keep the assistant header off every `buildImportCypher` lane (`/api/neo4j/event-update`, the `io.js` import, `pullClassThread`, firmware install) — the four lanes round 1's claims row 10 enumerated. |
+| Harness friction 1 — docs-mode has no consistency-sweep step | **Not yet filed; pending at the review commit.** | No OPEN.md change at HEAD (outside the Implementer's and the Reviewer's write scope). The story's Deviations `:116–117` says it "is a ledger row at the review commit" — the session lead's row, added with this review's commit. |
+
+### Corpus sweep for stale enumerations (run by the reviewer)
+`/usr/bin/grep -rniE` for `two types`, `both types`, `either type`, `two-value`, `two values`, `two \`b\` types`,
+`both \`b\` types`, `either \`b\` type` over all of `protocols/` (every draft — `inherit-from`, `shared-concepts`,
+`assistant-designation`, `communities`, `stamping`, `tapestry-concepts`, `tags`, … — plus `nips/`, `README.md`,
+`worksheet.md`), `BIBLE.md`, the handoff, and the epic/story/ADR; then a second pass for the named-pair form
+(`pointer … inherit` with no count) and a third for `both`/`either` within 40 characters of `type(s)`:
+- **`inherit-from.md`, `shared-concepts.md`, `assistant-designation.md`, and BIBLE §25 (all of BIBLE): zero hits.**
+  No "two types", "both types", "either type", or "two-value" survives. The only "both" left in `inherit-from.md`
+  is `:52` ("deference and correspondence both read naturally child→target") — two verbs, in the sentence that
+  says "for every type"; not an enumeration.
+- **Every other `protocols/` file: zero hits.** `communities.md` (`:18`, `:19`, `:30`, `:33`, `:47`, `:50`, `:56`,
+  `:104`) speaks only of what `inherit` does and never sizes the registry — round 1's row 6 stands (unchanged
+  since `7fccbf25`). `tapestry-concepts.md` and `tags.md` name no `b` type at all. Worksheet W1 `:19` is fixed
+  (NB-4); W6 `:59`/`:63` were already three-value.
+- **Named-pair form: one hit** — `protocols/drafts/stamping.md:49`, "walk the correspondence graph (pointer- and
+  inherit-typed `b`, [Shared Concepts] § Aggregated deference)". New NB-1 below.
+- **Historical, outside the diff:** `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:49`, `:75`, `:84`, `:92` — all inside
+  D1–D3 (dated 2026-06-12, still in the pre-ADR-0029 vocabulary `"reference"`/`"inherit"`); ledger entries
+  superseded in the same document by D10 (`:158–167`). New NB-2 below.
+- **`engineering-team/` hits are all before-state descriptions:** story `:10` (Background), ADR `:20`/`:38`/`:193`
+  (Context; the edit list's "→ three-value"), epic `:85` ("at kickoff, three since ADR 0003"). Correct as written.
+
+### Round-2 walk of the fix diff — new findings
+**Blocking: none.**
+
+Non-blocking (none is an ask on this story):
+1. **`protocols/drafts/stamping.md:49`** — the read-contract gloss "the correspondence graph (pointer- and
+   inherit-typed `b`, …)" under-enumerates now that discovery walks include every type (`shared-concepts.md:56`,
+   the very section it points to). Same class as round 1's NB-1 — a non-exhaustive list deferring to a correct
+   definition — in a document this story did not amend and its ADR did not list. Optional, when `stamping.md` is
+   next touched: "(`b` of every type — [Shared Concepts] § Aggregated deference)".
+2. **`docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:49/:75/:84/:92`** — D1–D3's "both `b` types count for direct
+   affiliation", "two-value registry", "Why two types", "both-types inclusion" are dated June-2026 decisions in
+   `"reference"` vocabulary that D10 supersedes in-document; the file's own header says "nothing ratified yet".
+   Pre-existing (review #2's NB-7 recorded the same handoff drift at `:153`); rewriting them would falsify the
+   record. Leave as history, or add a one-line "superseded by ADR 0029 / D10" pointer at D2's head when the
+   handoff is next touched.
+3. **Pre-existing polysemy, not introduced here — "affiliation" carries two senses in ratified text.**
+   `inherit-from.md:58` ("**Affiliation rides the closure** … a deliberate, documented consequence of declaring
+   `"inherit"`") and BIBLE `:1633` ("Affiliation = membership in the inherit-only deference closure", ADR 0029)
+   use the Communities sense — participant affiliation, inherit-typed, transitive; `shared-concepts.md:35`
+   (including the clause this round added) and the reach table `:66` use the `w14-settlement` three-term split
+   (worksheet `:144`: *affiliation* = one declared pointer hop). ADR 0003 mirrors the latter (Context: "an
+   inherit-typed tag has never implied affiliation") while its Decision §5 acknowledges the former
+   ("affiliation-via-closure … unchanged"). Each document is internally consistent, `shared-concepts.md` scopes the
+   term under its own "Declared affiliation" heading, and this story's AC-4 leaves affiliation semantics
+   unchanged — so it is not this diff's to settle. But the corpus says two things under one word, and the
+   sentence added this round makes that more visible. Candidate for a worksheet entry or an intake line (name the
+   Communities sense "community affiliation" in `inherit-from.md:58` / BIBLE `:1633`, or the reverse). Not
+   blocking.
+4. **Cosmetic.** `engineering-team/epics/dlist-curation.md:27–32` still marks stories 2 and 3 "*(planned)*" (story
+   2 has been Done since `bf5846ba`); the epic's story list is not per-story bookkeeping (5-review.md updates the
+   epic at close-out), so this is a note for whoever next edits the epic, not an ask. The re-touched epic lines
+   `:85`/`:90` run past the file's wrap width — style only.
+
+Everything else in the fix diff is a plain-text replacement on the lines round 1 named. No scope creep: the epic
+edits are the NB-8/NB-10 carry-forwards the story's Deviations discloses; no code, no dependencies, no `test/`
+change.
+
+### Verdict (round 2)
+**PASS** — all seven blocking sentences are fixed and verified line by line; no "two types" / "both types" /
+"either type" phrasing survives in `inherit-from.md`, `shared-concepts.md`, `assistant-designation.md`, or BIBLE;
+every non-blocking note is applied (NB-1–6, NB-8, NB-10), corrected (NB-7), or correctly left (NB-9); all gates
+green with round 1's counts; the four new observations are non-blocking and, bar the `stamping.md` gloss,
+pre-existing.
+
+### On PASS (round 2, same commit)
+- [x] Story `**Status:**` flipped to `Done` in place (`stories/dlist-curation/3-inherit-items-facet.md:3`); the
+      story's `Review:` line filled with this file's path (`:126`). No spec, BIBLE, README, handoff, worksheet,
+      intake, epic, source, or test file edited by the Reviewer.
+- [x] Completion detection performed against `audits/dlist-curation/book.md` — the book is not complete (frame
+      bullets 3, 5, 7 open; 9 is the operator's call); the arithmetic is reported in the chat, not here. No
+      `/close-book` offer.
+- [ ] Harness friction 1 → OPEN.md `meta` row: the session lead's, with this review's commit.

@@ -1,6 +1,6 @@
 # Story 3: The `inherit-items` facet — item inheritance in the `b` type registry
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-10
 **Type:** Doc *(wire-format irreversibility trigger → full ADR + Standard docs-mode phases; Test
 Design skipped per workflows/protocol-spec-workflow.md)*
@@ -123,6 +123,6 @@ derived-edge form (AC-6), the affiliation/stamping standing (AC-5), and the 3999
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0003-inherit-items-facet.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/dlist-curation/3-inherit-items-facet.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
