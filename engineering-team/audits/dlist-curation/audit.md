@@ -2,7 +2,7 @@
 
 **Book:** `engineering-team/audits/dlist-curation/book.md`
 **Date:** 2026-09-10
-**Branch / commit range:** `f850b07d..c797e037` on `feat/dlist-curation` (41 commits, 58 files; **unpushed and unmerged at close** — see §8)
+**Branch / commit range:** `f850b07d..c797e037` on `feat/dlist-curation` (41 commits, 58 files; **unmerged at close** — pushed at close-out, see §8)
 **Provenance:** Acceptance-frame *(no PRD)* — confirmed by the operator at kickoff 2026-09-10
 **Confidence:** high for the as-built (every story reviewed PASS by an independent reviewer, six of seven with a live reproduction on the local stack); **medium for "works end to end with a real signer"** — no story could sign a Map or publish a header under a real session, so the add → sign → publish chain has been exercised only up to the signer, never through it
 
