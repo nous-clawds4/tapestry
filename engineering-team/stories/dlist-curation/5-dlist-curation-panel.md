@@ -103,6 +103,23 @@ header for the list — inheriting the community's items, never duplicating them
 Map records that you empowered it."); the AC-1 labels are "N DLists curated" / "None yet" (singular
 "1 DList curated"); the add is two-step (Add → outcome and preview → Sign & publish).
 
+## Deviations
+- **The Map update is composed at sign time, not at Add time.** The ADR's note stored the composed
+  event in the pending state; the panel instead derives it from the event on screen whenever the
+  preview or the signer needs it (`useMemo` over pending + event), so a page re-search between Add
+  and Sign never signs a stale Map. Same rules, fresher input.
+- **Rows on the Map whose d-tag matches no community row show no "Replace" control** — only rows
+  the search can offer do; the empowered list is where every entry (including another assistant's)
+  is visible and revocable. AC-4's "Replace" applies to community rows whose d-tag is on the Map
+  via another assistant.
+- **Live verification via the fetch-stub remount** (no NIP-07 in the automated browser): folded on
+  load with "2 DLists curated"; expanded: the approved copy, nine real community headers from
+  `wss://dcosl.brainstorm.world` with Add, search "cat" → three rows, the empowered list linking the
+  assistant's `dogs` header and reading "header not found locally" for another assistant's `cats`;
+  Revoke → prompt, "stays on relays" copy, preview of the Map without the entry with a bumped
+  `created_at`; "Sign & publish" → "No NIP-07 extension detected." inline; Add → the endpoint's 401
+  inline; console: only the stub's 401s. A signed, published add stays with the operator.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/dlist-curation/0005-dlist-curation-panel.md`
 - Test plan: `engineering-team/stories/dlist-curation/5-dlist-curation-panel.test-plan.md` (suite: `test/dlist-curation-panel.test.js`)
