@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-10
+**Amends:** `community-reference` ADR 0004 (publish-export-a-concept) — its Option-B rejection ("no server-side external-relay publisher") is superseded **for this endpoint only**; operator decision 2026-09-10 at the Phase-4 escalation.
 **Story:** `engineering-team/stories/dlist-curation/4-assistant-curation-header-endpoint.md`
 
 ## Context
@@ -71,6 +72,19 @@ is the later curation feature's call).
 
 **Concept orientation.** `39998:<TA>:shared-concept` and `39998:<TA>:tapestry-assistant` carry the
 standard scaffolding; no definition changes.
+
+**A standing decision this ADR supersedes, narrowly.** `community-reference` ADR 0004
+(publish-export-a-concept) recorded "no server-side external publisher exists" and rejected adding
+one for that stub as "not justified yet" — the export had an owner's browser session to sign and
+publish with. Its sentinel RE1 (`test/publish-export-a-concept.test.js`) sweeps every file under
+`src/api/` for `SimplePool` + `.publish(`, which Option A below introduces. This endpoint is the
+justification that ADR left room for: the signer is a server-held assistant key no browser can use;
+the acceptance frame requires the header on the community relay; the router's community stream is
+disabled on this very instance (`/api/strfry/router-status`: `dcosl` `enabled:false`), so router-only
+propagation would leave the header local; and per-destination honesty (OPEN.md row 200) needs a send
+that settles per relay. Surfaced at the Phase-4 gate (the Architect's conflict check missed it);
+the operator chose to keep the direct send. RE1 is re-scoped in the Tester's lane to exclude
+`src/api/dlist-curation/` and keeps guarding every other module.
 
 ## Options considered
 
@@ -172,6 +186,9 @@ installer; it cannot write the graph (AC-7 by construction, pinned by a source s
   by the same policy.
 - **One shipped module touched:** `src/api/trustedList/index.js` gains `publishToStrfry` in its
   exports (one line; no behavior change).
+- **Supersedes, narrowly.** The "no server-side external publisher" posture of `community-reference`
+  ADR 0004 no longer holds for `src/api/dlist-curation/`; it holds everywhere else, and RE1 still
+  enforces it there. Any second server-side publisher needs its own ADR and its own exclusion.
 - **Debt / follow-ups.** `scanLocal` and `publishToRelays` are the second implementations of things
   the HTTP handlers do inline; a later chore may lift both to `src/lib/`. The router-only fallback
   when all direct sends fail is honest (rows say `failed`) but the panel should say "the router may

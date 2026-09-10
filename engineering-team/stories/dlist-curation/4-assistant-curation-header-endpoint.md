@@ -101,6 +101,12 @@ tag is omitted or recomputed for the assistant's namespace; reuse of the Trusted
   which overrides the relay fetch to return nothing and then asserts the relays were asked — could
   not be satisfied by any implementation. Recording now wraps whichever seam is in effect. Stricter;
   the implementation follows ADR 0004 verbatim.
+- **Escalated at the Phase-4 gate: a standing ADR conflicted with ADR 0004.** The full run tripped
+  `publish-export-a-concept` RE1 — `community-reference` ADR 0004's sentinel against any server-side
+  relay publisher under `src/api/`. Surfaced with two options; the operator chose to keep the direct
+  per-relay send (Option 1, 2026-09-10): ADR 0004 amended to state what it supersedes and why, RE1
+  re-scoped in the Tester's lane (commit before the amendment) to exclude this endpoint's directory.
+  The Architect's conflict check (workflow 2 step 6) missed it — a ledger row at the review commit.
 - **Live verification limited to wiring.** The endpoint's behavior is proven by the injected suite;
   live, the server was restarted with the module and the route answers 401 to an unauthenticated
   request (the default-deny middleware first, the handler's own guard behind it). A live happy path
