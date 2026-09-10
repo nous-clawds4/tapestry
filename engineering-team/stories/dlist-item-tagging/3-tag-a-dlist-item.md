@@ -97,8 +97,10 @@ items — starting with tagging GitHub accounts as, e.g., "white hat hacker".
   Item kind-9999 (non-addressable) pastes are NOT recognised by the paste box — a bare
   64-hex is a note id by precedence and stays so. (6) AC-7: one edit —
   `ui/src/config/avatarMenuLinks.js` `destinationLinks` gains `{ key: 'lists', icon: '📋',
-  label: 'Lists', to: '/lists' }`, which both avatar menus (`BrainstormUserMenu.jsx`,
-  `Header.jsx`) already render; `/lists` is a router route (`App.jsx:148`) so no `external`.
+  label: 'Lists', to: '/lists' }`, which all three renderers of `destinationLinks` already map over —
+  `BrainstormUserMenu.jsx`, `Header.jsx`, and the search page's inline user menu
+  (`ui/src/pages/BrainstormSearch.jsx:568`) — so the search page gains the link too, which is
+  intended (one nav, three surfaces; navigation-scaffolding #2 unified them); `/lists` is a router route (`App.jsx:148`) so no `external`.
   No server change, no new dependency, no TA-pubkey literal (the `LEGACY_TA_PUBKEY` z is the
   ADR-0015 exception inside the untouched hook), no concept/firmware change (the
   `nostr-event-tag` concept already names "e or a" targets — no reinstall).
@@ -107,7 +109,7 @@ items — starting with tagging GitHub accounts as, e.g., "white hat hacker".
   because the component is not just chips: it carries the `mine`-union display rule, the
   raw-events inspector (ADR tag-event-inspector 0003 D3/D4 — all-or-nothing blocks, per-coord
   open state), the compact `PovStatusNotice` disclosure rule and the partial-failure
-  (`failedAt`) banner — all of which six existing suites sentinel on `NoteTags.jsx` by source
+  (`failedAt`) banner — all of which five existing suites sentinel on `NoteTags.jsx` by source
   text. A fork would need its own copy of every sentinel and would drift the first time any of
   those rules changes; the `target` prop is a one-line generalisation of the only note-specific
   fact in the file (`{ id: item?.id }`). A second rejected option — `parseItemRef` inside
