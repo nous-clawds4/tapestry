@@ -2,7 +2,8 @@
 
 **Created:** 2026-09-10
 **Status:** Open
-**Book:** `engineering-team/audits/my-curated-dlists/book.md` (acceptance-frame)
+**Book:** `engineering-team/audits/my-curated-dlists/book.md` (acceptance-frame; **closed 2026-09-11**
+— all three stories Done; the epic retires at the staging merge, OPEN.md row 259)
 **Provenance:** Operator request, 2026-09-10 in-session — the follow-on to the `dlist-curation`
 book (closed and in production the same day). No `_intake.md` entry: the request went straight
 into the book and story 1.

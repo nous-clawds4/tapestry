@@ -1,9 +1,9 @@
 # Book of Work: My Curated DLists
 
 **Slug:** my-curated-dlists
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-10
-**Closed:** —
+**Closed:** 2026-09-11
 **Strictness:** Standard (project default, proposed at kickoff 2026-09-10; no Light profile).
 
 ## Intent anchor
@@ -15,23 +15,23 @@ import-when-absent path (bullet 4), and no test-data publishing to the community
 
 ### Acceptance frame
 
-- [ ] **My Curated DLists page.** A "My Curated DLists" menu item, directly below "TA Treasure
+- [x] **My Curated DLists page.** A "My Curated DLists" menu item, directly below "TA Treasure
       Map" under 🍇 My Grapevine, opens a page listing every DList empowered on my Treasure Map
       (every per-DList entry, kind 39998 or 39999), whichever pubkey each entry names.
-- [ ] **My assistant's lists open.** An entry naming my own Tapestry Assistant — the signed-in
+- [x] **My assistant's lists open.** An entry naming my own Tapestry Assistant — the signed-in
       user's assistant on this instance — is clickable and opens that list's detail page; entries
       naming any other pubkey are listed but do not open.
-- [ ] **My assistant's header.** The detail page shows the raw DList header event behind a toggle
+- [x] **My assistant's header.** The detail page shows the raw DList header event behind a toggle
       (hidden by default), with a link to the list's entry under Simple Lists
       (`/tapestry/lists/<encoded a-tag>`). The header is expected to be authored by my assistant
       and to carry a `b` tag pointing at the shared DList header; the page says so when it does not.
-- [ ] **The shared header.** The raw event of the shared DList header that `b` tag points to,
+- [x] **The shared header.** The raw event of the shared DList header that `b` tag points to,
       behind a toggle (closed by default), with a link to its entry under Simple Lists. When it is
       not in local strfry, the page fetches it from the community relay and offers to import it
       into local strfry, after which the Simple Lists link works.
-- [ ] **Curation method (placeholder).** A panel for editing the method used to curate this list,
+- [x] **Curation method (placeholder).** A panel for editing the method used to curate this list,
       toggled closed by default; placeholder content only in this book.
-- [ ] **Items table.** The items on my local DList (my assistant's header for the list), in a
+- [x] **Items table.** The items on my local DList (my assistant's header for the list), in a
       table. By default, only items authored by my assistant to my local DList. "Also show" items
       authored to my local DList by anyone else (off by default). "Also show" **candidates to be
       inherited** — items on the shared community DList that my assistant has not yet copied to my
@@ -41,16 +41,18 @@ import-when-absent path (bullet 4), and no test-data publishing to the community
       my local DList; a **candidate** is an item on the shared community list not yet copied —
       "candidate" because it might not be inherited under certain scenarios, e.g. when it has more
       downvotes than upvotes (the curation method decides).
-- [ ] **Update list (placeholder).** A button to have the list items updated; present but not yet
+- [x] **Update list (placeholder).** A button to have the list items updated; present but not yet
       functional in this book.
-- [ ] **Nothing else moves.** The TA Treasure Map page (its DList Curation panel included) and the
+- [x] **Nothing else moves.** The TA Treasure Map page (its DList Curation panel included) and the
       Simple Lists pages are unchanged. The only write the book adds is the explicit import of a
       shared header into local strfry — nothing is signed, nothing is published to an external
       relay, and the hosting instance's Neo4j is not written.
 
 ## Epics in this book
 - `my-curated-dlists` — the page and its menu item, the detail page's two headers, the items table
-  with its three views, and the two placeholders (the curation-method panel, Update list).
+  with its three views, and the two placeholders (the curation-method panel, Update list). *(All three
+  stories Done 2026-09-11; retirement held until `feat/my-curated-dlists` merges to `staging` — OPEN.md
+  row 259.)*
 
 ## Known constraints acknowledged at kickoff
 - **What `inherit-items` means is changing — deferred to the book that builds Update.** The
@@ -80,7 +82,9 @@ import-when-absent path (bullet 4), and no test-data publishing to the community
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high for the as-built (every story independently reviewed and verified live
+  on the local stack, one real import); medium for end-to-end with a real signer — the operator's
+  staging check follows the close (audit header, §8)
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/my-curated-dlists/audit.md`
