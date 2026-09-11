@@ -200,3 +200,19 @@ handler, the gated link, `timeAgo`, the page's placement, and that the new files
 - Votes, ratings, trust scores; importing items into local strfry; reading more than the first
   community relay.
 - Row 249's shared-primitive chore and row 255's documentation fix.
+
+## Amendment 1 — the empty-view sentence is a pure function (2026-09-11)
+
+**Why.** The first review found the empty view adding "The shared list offers no candidates to
+inherit." even when the shared list's read had failed on both sources — beside the "Couldn't check
+the shared list" note, contradicting sub-decision 7 and AC-1 ("a failed lookup reads 'couldn't
+check', never 'empty'"). The sentence was composed inline in JSX, where only presence could be pinned.
+
+**Change.** `ui/src/utils/treasureMap.js` gains `itemsEmptySentence({ showOthers, shared })` →
+string, and `ItemsSection` renders its return value instead of composing the sentence:
+- always "Your assistant hasn't added any items to this list yet.";
+- plus " No one else has either." when `showOthers`;
+- plus " The shared list offers no candidates to inherit." **only** when `shared` (the shared list's
+  lookup record, passed only while it is in view) was read and did not fail on both sources.
+Partial reads keep today's behaviour (the source note beside the sentence; review round 1 NB-2 stays a
+follow-up). Never throws; garbage yields the first sentence. No other part of this ADR changes.
