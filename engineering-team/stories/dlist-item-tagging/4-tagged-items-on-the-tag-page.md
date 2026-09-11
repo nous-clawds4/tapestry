@@ -1,6 +1,6 @@
 # Story 4: Tagged items on the tag page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-10
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-10 — extend
 `for-tag` with an `items` group (one call, one POV filter); group by list header; Design note, not

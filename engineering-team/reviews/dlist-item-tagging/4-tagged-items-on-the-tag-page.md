@@ -184,3 +184,99 @@ scoped suites are green at the expected counts.
 ## On PASS (not applicable this round)
 - [ ] Story `**Status:**` → `Done` (withheld — verdict is CHANGES_REQUESTED).
 - [ ] Completion detection — not run; book bullet 4 cannot be marked satisfied until the fix lands.
+
+---
+
+## Re-review — 2026-09-11 (narrow, Blocking 1 only)
+
+**Diff under re-review:** `git show f03aa3c9` — "fix(tags): an a-target keeps its own kind".
+Four code/test files (`src/api/event-tags/index.js`, `ui/src/utils/dlistFields.js`,
+`ui/src/components/TagItemsView.jsx`, `test/dlist-tagged-items.test.js`) plus this review file.
+`git status` clean apart from the pre-existing out-of-scope untracked files (`.envrc`,
+`docs/SHARED_CONCEPTS_*`). Nothing outside the fix changed. The original review body above is
+unmodified.
+
+### Gates (re-run by the reviewer, individually, foreground, `direnv exec .`, no full `npm test`)
+
+| Suite | Result | Exit | Expected |
+|---|---|---|---|
+| `test/dlist-tagged-items.test.js` | `{ pass: 34, fail: 0, skipped: 0 }` | 0 | 34 (33 + U20) ✓ |
+| `test/event-tagging-for-tag.test.js` | `{ pass: 15, fail: 0, failures: [], skipped: 0 }` | 0 | 15 ✓ |
+| `test/strfry-write-assertion-bracket.test.js` | `{ pass: 6, fail: 0, failures: [], skipped: 0 }` | 0 | 6 ✓ |
+| `test/dlist-item-tagging.test.js` (story-3 regression on `itemCoord`) | `{ pass: 20, fail: 0, skipped: 0 }` | 0 | 20 ✓ |
+
+### Blocking 1 — resolved
+
+1. **Server kind derivation** (`src/api/event-tags/index.js:557`) — now
+   `kind: ev ? ev.kind : (m.address ? (Number(m.address.split(':')[0]) || null) : null)`. The
+   coordinate's own kind prefix is the source of truth; a non-numeric prefix (possible, since
+   `normalizeAddress` `:299–302` passes a non-matching string through verbatim) yields `null` via
+   the `|| null`, not `NaN`. The guide-documented `items[].kind` can no longer state a falsehood.
+2. **`itemCoord` short-circuit** (`ui/src/utils/dlistFields.js:155–160`) — returns an explicit
+   `item.address` verbatim before the kind-39999 re-derivation. I checked this against story 3
+   rather than taking the claim: the only `itemTarget`/`itemCoord` consumers are
+   `DListItemTags` (`ui/src/components/dlist/DListItemTags.jsx:12`), mounted from
+   `ui/src/pages/List.jsx:169` and `ui/src/components/TagANoteModal.jsx:272`. Both feed it raw
+   relay events — `queryRelayBounded(itemsFilter(header))` (`List.jsx:84,105`) and
+   `queryRelay({kinds:[39999],…})` (`TagANoteModal.jsx:74`) — and `ui/src/api/relay.js` adds no
+   `address` key (grep: zero hits). So the short-circuit is unreachable on every story-3 path;
+   the story-3 suite's 20/20 confirms it. On the story-4 path the field is the coordinate the row
+   is keyed by, which for a *resolved* 39999 item is byte-identical to the old derivation (the
+   resolution map is keyed by that same `39999:<pk>:<d>` string), so no resolved row changes either.
+   **Approach judged right, not a papering-over:** the defect was re-deriving a coordinate that the
+   caller already holds authoritatively. Preferring the carried coordinate removes the whole class
+   of mint-a-different-address bugs, rather than special-casing 30023. The kind fix (1) and this are
+   independent belts — either alone would close the write hazard; together the row's affordance
+   provably publishes at the address the row is keyed by.
+3. **`d` synthesis gated** (`ui/src/components/TagItemsView.jsx:46`) — `item.kind === 39999` added,
+   so a degraded non-39999 row no longer gets a fabricated `d` tag. E2/E3 rendering is unaffected
+   (U16 + S5 still green; U16's fixture is a 39999 coordinate).
+4. **U20** (`test/dlist-tagged-items.test.js:533–549`) pins a `30023:<owner>:my-article` target's
+   `kind === 30023` and re-asserts a real 39999 row still reports 39999. **It would have failed
+   before the fix**: the coordinate is never in `itemEventByAddress` (the resolution scan is
+   `kinds:[39999]` and the map is keyed `39999:<pk>:<d>`, so even a same-author same-`d` 39999
+   event keys under a different string), so `ev` is undefined and the old expression returned the
+   literal `39999` — `row.kind === 30023` fails. It is a genuine regression pin, not a tautology.
+5. **Non-blocking finding 2 (silent catches)** — all three now `console.warn` with the error
+   message (`:335`, `:496`, `:536`); U17/U18 show the lines emitting under fault injection. Closed.
+
+### New findings (both non-blocking, neither gating)
+
+1. **`ui/src/components/TagItemsView.jsx:38–43`** — the `toTableItem` doc comment still says the
+   re-derived `d` "keeps `itemTarget` pointing at the same `a` address the row is keyed by." After
+   change 2 that is no longer the mechanism — `itemCoord` uses `address` directly, and the `d`
+   synthesis is now purely for `DListItemsTable` display. Stale rationale in a comment; worth a
+   one-line edit whenever this file is next touched.
+2. **Malformed-coordinate behavior changed shape (not severity).** A junk `a` value (e.g. `"foo"`)
+   survives `normalizeAddress` verbatim, now reports `kind: null`, and `itemCoord` returns `"foo"`
+   as the target address — where previously it produced `39999:<pk>:foo`. Both are garbage; the new
+   one at least echoes exactly what the tagger published rather than inventing a coordinate.
+   No new hazard, recorded for completeness.
+
+Findings 3–6 and non-blocking 2–5 from the original round are unchanged and remain non-gating;
+finding 4 (story-5 eligibility discriminator "`address` is present" admitting a `30023:`) is now
+*more* visible, since `items[].kind` makes the non-39999 case detectable — story 5 should use it.
+
+### Re-checked, unchanged
+- No secrets, debug `console.log`, TODO/FIXME, or TA-pubkey literal in the fix
+  (`grep -nE '^\+.*(console\.log|TODO|FIXME|nsec|api[_-]?key|82b75e47)'` over `f03aa3c9` → clean;
+  the three `console.warn`s are the asked-for change).
+- No new lint/typecheck/build tooling. No concept definition changed → no firmware reinstall.
+- Response shape still additive; `members`/`fullMembers`/`total`/`truncated` untouched (R8 green).
+- Operator's browser check of the Items switch on `localhost:7778` remains the outstanding Gate-B
+  step, as recorded above — the JSX half is pinned by source contract only.
+
+## Final verdict
+**PASS**
+
+Blocking 1 is closed at both loci, with the right fix (authoritative-coordinate preference plus
+coordinate-derived kind) rather than a symptom patch, pinned by a new handle that provably fails
+against the old code. All four scoped suites green at 34 / 15 / 6 / 20, including story 3's suite as
+the regression guard on the `itemCoord` change.
+
+## On PASS
+- [x] Story `**Status:**` → `Done` (set in `engineering-team/stories/dlist-item-tagging/4-tagged-items-on-the-tag-page.md`).
+- [ ] Story file NOT moved — retirement is per-epic; the `dlist-item-tagging` folder moves under
+      `done/` only at epic close-out.
+- [ ] Completion detection: book bullet 4 ("Find tagged items from the tag") is now satisfied;
+      story 5 (kind-30394 item TL) is still open, so the book is not complete.

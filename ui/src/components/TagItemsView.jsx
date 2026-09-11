@@ -38,8 +38,9 @@ const NOT_HERE = 'list not on this relay';
 /**
  * A server item row as DListItemsTable/DListItemTags want it. An item whose event
  * is on no reachable relay (E3) arrives with empty tags; re-deriving its `d` from
- * the coordinate keeps `itemTarget` pointing at the same `a` address the row is
- * keyed by, so the row's tag affordance still aims at the right target.
+ * the coordinate gives the row something to display. Targeting no longer depends
+ * on it — `itemCoord` uses the carried `address` verbatim (Gate B finding 1), so
+ * this `d` is display-only and is synthesized for kind-39999 rows alone.
  */
 function toTableItem(item) {
   const hasD = (item.tags || []).some((t) => t[0] === 'd');
