@@ -111,10 +111,10 @@ The run can appear **up to ~2 minutes after the merge** (Actions queue lag — O
 
 ```bash
 SHA=<mergeCommit oid>; RUN=""
-for i in $(seq 1 60); do   # up to 5 minutes
+for i in $(seq 1 30); do   # up to 5 minutes
   RUN=$(gh run list --repo nous-clawds4/tapestry --workflow=deploy-tapestry.yml --limit 5 \
         --json databaseId,headSha --jq ".[] | select(.headSha==\"$SHA\") | .databaseId" | head -1)
-  [ -n "$RUN" ] && break; sleep 5
+  [ -n "$RUN" ] && break; sleep 10
 done
 [ -n "$RUN" ] || { echo "no deploy-tapestry.yml run for $SHA after 5 min — stop and surface"; exit 1; }
 gh run watch "$RUN" --repo nous-clawds4/tapestry --exit-status
