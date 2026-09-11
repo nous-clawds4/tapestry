@@ -246,6 +246,29 @@ test('U8: sharedListUnavailable — why there is no shared list to draw candidat
   assert(sharedListUnavailable({ event: good, where: 'relay' }, describe(good, ME)) === null, 'AC-3: a followed pointer → null (candidates available)');
 });
 
+test('U9: itemsEmptySentence — "no candidates" only after a shared-list read that did not fail on both sources (ADR 0003 Amendment 1; review round 1, blocking 1)', async () => {
+  const itemsEmptySentence = await fn('itemsEmptySentence');
+  const BASE = new RegExp(`^Your assistant hasn${APOS}t added any items to this list yet\\.`);
+  const NONE = 'The shared list offers no candidates to inherit.';
+  const OTHERS = 'No one else has either.';
+  let s = itemsEmptySentence({ showOthers: false, shared: undefined });
+  assert(BASE.test(s) && !s.includes(OTHERS) && !s.includes(NONE), `Amendment 1: shared list not read → the base sentence only; got "${s}"`);
+  s = itemsEmptySentence({ showOthers: true, shared: null });
+  assert(BASE.test(s) && s.includes(OTHERS) && !s.includes(NONE), `Amendment 1: others shown, shared not read → base + "${OTHERS}"; got "${s}"`);
+  s = itemsEmptySentence({ showOthers: false, shared: { items: [], local: 'ok', relay: 'ok', truncated: false, total: 0 } });
+  assert(BASE.test(s) && s.includes(NONE), `Amendment 1: the shared list read cleanly → "${NONE}"; got "${s}"`);
+  s = itemsEmptySentence({ showOthers: true, shared: { items: [], local: 'failed', relay: 'failed', truncated: false, total: null } });
+  assert(BASE.test(s) && s.includes(OTHERS) && !s.includes(NONE),
+    `AC-1 / sub-decision 7 / Amendment 1: a shared-list read that FAILED on both sources is "couldn't check", never "no candidates"; got "${s}"`);
+  s = itemsEmptySentence({ showOthers: false, shared: { items: [], local: 'ok', relay: 'failed', truncated: false, total: 0 } });
+  assert(s.includes(NONE), `Amendment 1: a partial read keeps today's behaviour (the source note sits beside it; NB-2 is a follow-up); got "${s}"`);
+  for (const g of [undefined, null, {}, 42, { shared: 'x' }]) {
+    let out;
+    try { out = itemsEmptySentence(g); } catch (e) { throw new Error(`never throws — threw on ${JSON.stringify(g)}: ${e.message}`); }
+    assert(typeof out === 'string' && BASE.test(out) && !out.includes(NONE), `Amendment 1: garbage → the base sentence; got ${JSON.stringify(out)} for ${JSON.stringify(g)}`);
+  }
+});
+
 /* ── S: structure ──────────────────────────────────────────── */
 
 test('S1: the items module — the method panel, the items section, the Update button, and their titles and checkbox labels', () => {
@@ -292,7 +315,14 @@ test('S5: the states — loading, couldn\'t check, the local cap, and the empty 
   assert(/Loading items/i.test(s), 'sub-decision 7: "⏳ Loading items…"');
   assert(new RegExp(`Couldn${APOS}t check`).test(s), 'AC-1 / sub-decision 7: a failed lookup reads "couldn\'t check"');
   assert(/Showing the first/.test(s) && /truncated/.test(s), 'sub-decision 7: the local cap is reported');
-  assert(new RegExp(`Your assistant hasn${APOS}t added any items to this list yet`).test(s), 'AC-1: the empty default view');
+  // Re-aimed in round 2 (ADR 0003 Amendment 1): the empty sentence may live in the util.
+  assert(new RegExp(`Your assistant hasn${APOS}t added any items to this list yet`).test(s + safeRead(UTIL)), 'AC-1: the empty default view');
+});
+
+test('S10: the section renders itemsEmptySentence and composes no "no candidates" clause of its own (ADR 0003 Amendment 1)', () => {
+  const s = src(ITEMS, 'AC-1');
+  assert(/itemsEmptySentence\(/.test(s), 'Amendment 1: ItemsSection renders itemsEmptySentence(…)');
+  assert(!/offers no candidates/.test(s), 'Amendment 1: the "no candidates" clause lives only in the util, where U9 pins its failure rule');
 });
 
 test('S6: the data flow — two useListItems calls in the section (the shared one gated on "candidates"), curatedItemRows, and the disabled candidates box', () => {

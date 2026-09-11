@@ -121,3 +121,29 @@ dlist-curation-panel → 18/0 · dlist-curation-tl-panel → 19/0 · tl-treasure
 dlist-curation-map-entries → 14/0 · treasure-map-relay-presence → 35/0 · treasure-map-relay-sync → 22/0 ·
 b-coverage-audit-and-disposition → 26/0
 ```
+
+## Round 2 — review round 1's blocking finding (ADR 0003 Amendment 1), 2026-09-11
+
+The first review found the empty view claiming "The shared list offers no candidates to inherit."
+after a shared-list read that failed on both sources — beside "Couldn't check the shared list" — which
+the suite could not see (S5 pinned the strings' presence, not their exclusion). Amendment 1 moves the
+sentence into a pure `itemsEmptySentence({ showOthers, shared })`.
+
+| Criterion | Test name | Level |
+|---|---|---|
+| AC-1 (a failed lookup never reads as empty) | **U9** `itemsEmptySentence`: not read → the base sentence only; others shown → + "No one else has either."; read cleanly → + "The shared list offers no candidates to inherit."; **failed on both sources → no "no candidates" clause** (the regression); a partial read keeps today's behaviour (NB-2 stays a follow-up); garbage → the base sentence, never throws | unit |
+| AC-1 | **S10** `ItemsSection` renders `itemsEmptySentence(…)` and contains no "offers no candidates" text of its own — the rule has one home, pinned by U9 | structure |
+| AC-1 | **S5 re-aimed** — the empty default sentence may live in the util or the module | structure |
+
+**Verification (round 2).** Before the fix, at commit e216207e plus these tests: U9 fails (`must export
+itemsEmptySentence`), S10 fails (`ItemsSection renders itemsEmptySentence(…)`), every other test in the
+suite passes (21), including the re-aimed S5. Satisfiability: U9 passes against a throwaway reference
+of the function (scratchpad only).
+
+```
+  ✗ U9: itemsEmptySentence — "no candidates" only after a shared-list read that did not fail on both sources (ADR 0003 Amendment 1; review round 1, blocking 1)
+      ui/src/utils/treasureMap.js must export itemsEmptySentence (ADR 0003 §Implementation 1)
+  ✗ S10: the section renders itemsEmptySentence and composes no "no candidates" clause of its own (ADR 0003 Amendment 1)
+      Amendment 1: ItemsSection renders itemsEmptySentence(…)
+RESULT {"pass":21,"fail":2,"skipped":0}
+```
