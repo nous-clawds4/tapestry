@@ -71,3 +71,7 @@ Defaults proposed at kickoff and not objected to:
   (effective rows, route id, front-door decision, two-step header lookup in `treasureMap.js`;
   `useTreasureMap`, `useCurationHeaders`), consumed only by the two new pages; shipped pages
   untouched (Option C).
+- `0002-the-two-headers.md` — story 2: pure pointer checks (`describeCurationHeader`), the shared
+  header resolved through the story-1 lookup at the community relay, `refresh()` on
+  `useCurationHeaders`, and the page's one write (Import to local strfry) isolated in
+  `CuratedDListHeaders.jsx` (Option A).

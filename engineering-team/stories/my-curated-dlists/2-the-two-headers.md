@@ -89,7 +89,7 @@ local already, so this covers the edge case); the pointer problems AC-2 flags ar
 listed, with `b-tag-deferred` as its own non-error state.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/my-curated-dlists/0002-the-two-headers.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
