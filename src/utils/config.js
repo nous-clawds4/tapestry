@@ -43,7 +43,12 @@ function getConfigFromFile(varName, defaultValue = null) {
             // If not found with regex, try the source command as fallback
             try {
                 console.log(`Trying source command for ${varName}`);
-                const result = execSync(`source ${confFile} && echo $${varName}`).toString().trim();
+                const result = execSync(`source ${confFile} && echo $${varName}`, {
+                    // `source` is a bash builtin; execSync defaults to /bin/sh,
+                    // which is dash on Debian/Ubuntu and fails with
+                    // "source: not found". Match the other call sites and use bash.
+                    shell: '/bin/bash'
+                }).toString().trim();
                 console.log(`Source command result for ${varName}: '${result}'`);
                 if (result) {
                     return result;

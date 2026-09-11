@@ -1,7 +1,7 @@
 # Epic: security-auth-exposure
 
 **Created:** 2026-07-19
-**Status:** Done (epic retired 2026-07-20 at book close — both stories Done + live on all three instances; audit + prd-seed under `audits/security-auth-exposure/`)
+**Status:** Done (stories 1–2 retired 2026-07-20 at first book close. Story 3 added 2026-09-11 — a distinct auth-exposure root cause found live on staging + prod; reviewed PASS and shipping under the new open book `audits/auth-signature-verification/`, which carries the active-work signal. The original book `audits/security-auth-exposure/` stays Closed, so this epic stays Done — the new book, not a reopened epic, tracks story 3's deployment.)
 
 ## Goal
 
@@ -18,6 +18,8 @@ The write surface signs events **as the instance's Tapestry Assistant** and can 
 1. `stories/security-auth-exposure/1-close-unauthenticated-write-surface.md` — reject unauthenticated callers on the `/api/normalize/*` writes and `POST /api/neo4j/query`, resistant to the `X-Forwarded-For: 127.0.0.1` spoof, without breaking the owner UI, the public read endpoints (including the deploy-safety curl the cycle skills depend on), or firmware install. Ships to staging → prod → feat/tags. **Done** (review PASS 2026-07-19; code verified local — deploy to the three instances pending).
 
 2. `stories/security-auth-exposure/2-default-deny-mutating-endpoints.md` — flip the central auth middleware from default-open to **default-deny for mutations**: `POST/PUT/PATCH/DELETE` (and `?action=`-style state changes) require auth unless a route is on an explicit, documented public-mutation allowlist. Closes the known unauthenticated-callable `POST /api/firmware/install` gap by construction. Ships to staging → prod → feat/tags. **Done** (review PASS 2026-07-20; code verified local — deploy pending).
+
+3. `stories/security-auth-exposure/3-login-signature-verification.md` — the login endpoints (`POST /api/auth/login`, `POST /api/auth/login-user`) grant an authenticated (owner/admin) session on an event whose **signature is never verified** — only `pubkey` + a challenge tag are checked. Anyone who knows an owner/admin *public* key can obtain an owner session with an unsigned event. Require a valid `verifyEvent` signature, correct kind, fresh `created_at`, single-use challenge; regenerate the session on login; stop storing client-supplied `nsec`. Live and identical on staging + prod (2026-09-11). Book: `audits/auth-signature-verification/`. **Done** (review PASS 2026-09-11; shipped to staging, prod promotion in progress).
 
 *(Further stories drawn at Planning as the work proceeds.)*
 
