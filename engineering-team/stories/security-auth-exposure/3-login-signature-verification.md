@@ -67,6 +67,6 @@ None. This is control-panel auth-middleware behavior, not a concept-graph concep
 Repo is PUBLIC and SECURITY.md routes reports to private GitHub advisories. Keep the commit message, PR title/body, and any OPEN.md / issue text **minimal and non-exploit** until prod is patched. The login-bug detail in this story ships with its fix (the fix diff reveals it anyway — standard for a public-repo security fix, acceptable because the fix lands at the same time). The **deferred** follow-ups (F1–F5 from the audit) are the opposite case — unpatched — so their specifics are held out-of-band in a private advisory, not in any committed file, until each is patched.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/security-auth-exposure/0003-verify-signed-login-challenge.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
