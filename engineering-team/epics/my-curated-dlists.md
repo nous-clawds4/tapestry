@@ -52,6 +52,19 @@ Defaults proposed at kickoff and not objected to:
 - The DList Curation panel on the TA Treasure Map page is left as it is (its rows keep linking to
   Simple Lists).
 
+## Close-out follow-ups (harvested at the story gates; for `/close-book`)
+- **Story 1 review NB-5 — for stories 2–3, which reuse the detail route:** a d-tag containing the
+  literal characters `%2F` does not round-trip (React Router 7 turns `%2F` back into `/` inside a
+  param); every other shape does. Unrealistic for real d-tags.
+- **Story 1 review NB-4 — for story 3 or the row-249 migration:** `lookupCurationHeaders` awaits
+  each scan and hint fetch in turn (as Map Entries does); run each step's calls concurrently when
+  lists grow.
+- **Story 1 review NB-2 — before row 249 moves the Treasure Map page onto `useTreasureMap`:** key the
+  hook's state to the pubkey it belongs to (a direct A→B account switch shows A's Map for one
+  render; the shipped UI cannot reach it today).
+- **Story 1 review NB-1/NB-3 (cosmetic):** an `https://` hint reads "no relay hint" beside the hint
+  it names; the detail page says "Checking your Treasure Map…" while auth resolves.
+
 ## Decisions
 `decisions/my-curated-dlists/`:
 - `0001-my-curated-dlists-page.md` — story 1: new lookup primitives shaped to be the shared ones
