@@ -3,7 +3,7 @@
 **Mode:** reconstructed from as-built *(no prior PRD)*
 **Build audit:** `engineering-team/audits/dlist-curation/audit.md`
 **Anchor:** acceptance frame in `book.md` (confirmed by the operator at kickoff, 2026-09-10)
-**Confidence:** medium — the as-built is high-confidence, and the frame came from a long design conversation with the operator, but the product framing below is inferred from one operator's intent (Bob on Alice's instance preparing his own firmware) and has never been tested with a second user or a real signer
+**Confidence:** medium — the as-built is high-confidence, and the frame came from a long design conversation with the operator, but the product framing below is inferred from one operator's intent (Bob on Alice's instance preparing his own firmware) and has been exercised by two accounts on one instance — the operator's and a second user's real-signer Adds of `dog-breed` on staging, 2026-09-10 (audit §5); the personas below are still inferred from one operator's intent
 **Date:** 2026-09-10
 
 > A reverse-engineered baseline in the product-team PRD shape. A strawman for `/discover`, not a ratified spec. Sections tagged `[FROM FRAME]`, `[INFERRED]`, `[UNKNOWN — product input needed]`.

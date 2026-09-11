@@ -75,7 +75,7 @@ TA Treasure Map page (`/tapestry/grapevine/treasure-map`), restated here and con
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** high for the as-built; medium for end-to-end with a real signer (audit header)
+- **Confidence at close:** high for the as-built; medium for end-to-end with a real signer (audit header) — raised to high post-close: the operator's first real Add on staging verified from relay data (audit §5)
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/dlist-curation/audit.md`
