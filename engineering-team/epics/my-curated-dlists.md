@@ -23,11 +23,11 @@ and two placeholders for what comes next: the curation-method panel and the Upda
 2. `2-the-two-headers.md` — the assistant's header (raw toggle, Simple Lists link, the authorship
    and `b`-tag expectations) and the shared header (raw toggle, Simple Lists link, community-relay
    fetch); Import to local strfry for either header when found only on a relay. Feature.
-3. *(planned)* The items table (default: the assistant's own items on the local DList — the
-   inherited ones; "also show" others' items on the local DList; "also show" candidates to be
-   inherited — community items not yet copied), the curation-method placeholder panel, and the
-   placeholder Update list button. Feature. Open at its gate: what makes a community item "already
-   copied".
+3. `3-items-method-and-update.md` — the items table (default: the assistant's own items on the
+   local DList; "also show" others' items; "also show" candidates to inherit — shared items not yet
+   copied, "copied" meaning one of the assistant's items points back at it), the curation-method
+   placeholder panel, the placeholder Update list button, and story 2's review fix (a real pointer
+   wins over `b-tag-deferred`). Feature.
 
 ## Settled at kickoff (2026-09-10)
 Operator answers:
