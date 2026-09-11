@@ -38,6 +38,8 @@ import NodeNeo4j from './pages/nodes/NodeNeo4j';
 import RelationshipsIndex from './pages/relationships/Index';
 import TrustedListsIndex from './pages/trustedLists/Index';
 import TrustedAssertions from './pages/grapevine/TrustedAssertions';
+import MyCuratedDLists from './pages/grapevine/MyCuratedDLists';
+import CuratedDListDetail from './pages/grapevine/CuratedDListDetail';
 import TrustedAssertionsList from './pages/grapevine/TrustedAssertionsList';
 import TrustDetermination from './pages/grapevine/TrustDetermination';
 import SearchPreferences from './pages/grapevine/SearchPreferences';
@@ -352,6 +354,15 @@ const router = createBrowserRouter([
         handle: { crumb: 'My Grapevine' },
         children: [
           { path: 'treasure-map', element: <TrustedAssertions />, handle: { crumb: 'TA Treasure Map' } },
+          // my-curated-dlists #1 (ADR 0001): nested so the detail breadcrumb reads … › My Curated DLists › Detail.
+          {
+            path: 'curated-dlists',
+            handle: { crumb: 'My Curated DLists' },
+            children: [
+              { index: true, element: <MyCuratedDLists /> },
+              { path: ':id', element: <CuratedDListDetail />, handle: { crumb: 'Detail' } },
+            ],
+          },
           { path: 'assertions', element: <TrustedAssertionsList />, handle: { crumb: 'Trusted Assertions' } },
           { path: 'trust-determination', element: <TrustDetermination />, handle: { crumb: 'Trust Determination' } },
           { path: 'trusted-lists', element: <TrustedLists />, handle: { crumb: 'Trusted Lists' } },

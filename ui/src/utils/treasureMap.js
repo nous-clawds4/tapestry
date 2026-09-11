@@ -258,6 +258,140 @@ export function describeHeaderLookup(row, found, checkedRelay) {
   };
 }
 
+/* ── My Curated DLists (my-curated-dlists #1, ADR 0001) ─────────────────── */
+
+const CURATED_DLIST_ID = /^(39998|39999):(.+)$/;
+const CURATED_DLISTS_BASE = '/tapestry/grapevine/curated-dlists/';
+
+/**
+ * The DLists a Map empowers, one row per list: the FIRST entry per raw first element counts (ADR
+ * dlist-curation/0002 §5), later repeats are counted into its `ignoredDuplicates`. `mine` is the
+ * signed-in user's own assistant — the caller passes `user.assistantPubkey`, never the instance
+ * owner's (OPEN.md row 188); with no assistant, nothing is mine. Map order; never throws.
+ *
+ * @returns {Array<{kind:number, d:string, pubkey:string, relay:string|null, coord:string,
+ *                  routeId:string, mine:boolean, ignoredDuplicates:number}>}
+ */
+export function curatedDListRows(tags, assistantPubkey) {
+  const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
+  const rows = [];
+  const byRaw = new Map();
+  for (const e of findDListEntries(tags)) {
+    const first = byRaw.get(e.raw);
+    if (first) { first.ignoredDuplicates += 1; continue; }
+    const row = {
+      kind: e.kind, d: e.d, pubkey: e.pubkey, relay: e.relay,
+      coord: `${e.kind}:${e.pubkey}:${e.d}`, routeId: e.raw,
+      mine: me !== null && e.pubkey === me, ignoredDuplicates: 0,
+    };
+    byRaw.set(e.raw, row);
+    rows.push(row);
+  }
+  return rows;
+}
+
+/**
+ * A detail-page route id — the Map entry's own first element, `<kind>:<d>` (split at the FIRST
+ * colon; kinds 39998/39999; the reserved blanket word excluded) — or null. The router has already
+ * decoded it (ADR 0001 fact 6). Never throws.
+ */
+export function parseCuratedDListRouteId(id) {
+  if (typeof id !== 'string') return null;
+  const m = id.match(CURATED_DLIST_ID);
+  if (!m || m[2] === RESERVED_DLIST_D) return null;
+  return { kind: Number(m[1]), d: m[2] };
+}
+
+/** The detail page for a route id: one encoded path segment (colons, slashes, `%` included). */
+export function curatedDListPath(routeId) {
+  return CURATED_DLISTS_BASE + encodeURIComponent(routeId);
+}
+
+/**
+ * The detail page's front door (ADR 0001 sub-decision 4): `{ status, row }`. Nothing is decided
+ * while auth is still resolving (`checking`, never `signed-out`); then signed-out → no-assistant →
+ * bad-id → checking (Map not settled) → map-error → no-map → not-on-map → other-pubkey → ok. `row`
+ * is the effective row for the id (so `other-pubkey` can name its pubkey), else null. The list is
+ * looked up on the VIEWER's own Map, so a shared URL can never show someone else's curation as
+ * theirs. Never throws.
+ */
+export function curatedDListAccess(input) {
+  const { signedIn, authLoading, assistantPubkey, mapStatus, tags, id } = input || {};
+  const verdict = (status, row = null) => ({ status, row });
+  if (authLoading) return verdict('checking');
+  if (!signedIn) return verdict('signed-out');
+  if (typeof assistantPubkey !== 'string' || assistantPubkey === '') return verdict('no-assistant');
+  const parsed = parseCuratedDListRouteId(id);
+  if (!parsed) return verdict('bad-id');
+  if (mapStatus === 'error') return verdict('map-error');
+  if (mapStatus === 'none') return verdict('no-map');
+  if (mapStatus !== 'found') return verdict('checking');
+  const routeId = `${parsed.kind}:${parsed.d}`;
+  const row = curatedDListRows(tags, assistantPubkey).find((r) => r.routeId === routeId) || null;
+  if (!row) return verdict('not-on-map');
+  return verdict(row.mine ? 'ok' : 'other-pubkey', row);
+}
+
+/**
+ * The two-step header lookup (ADR dlist-curation/0006's rule, ADR my-curated-dlists/0001
+ * sub-decision 6): local strfry, one `scanLocal` per (kind, pubkey) group, newest per coordinate;
+ * then, only for what is still missing, the row's ws/wss relay hint via `fetchRelay(filter, url)`
+ * (→ `{ success, events }`), keeping events with the row's kind, author, and d-tag, newest wins.
+ * A step that throws or answers without `success` marks the rows it covered `failed: true` — a
+ * failed step is never read as "absent". Dependency-injected so it runs without a network; the
+ * shape the row-249 chore migrates the Treasure Map page family onto. Never rejects.
+ *
+ * @returns {Promise<Object<string, {event:Object, where:'local'|'relay', checkedRelay:string|null}
+ *                                 | {missing:true, checkedRelay:string|null, failed:boolean}>>}
+ */
+export async function lookupCurationHeaders(rows, { scanLocal, fetchRelay } = {}) {
+  const list = (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r.coord === 'string');
+  const out = {};
+  const failed = new Set();
+  const dOf = (ev) => ev?.tags?.find((t) => Array.isArray(t) && t[0] === 'd')?.[1];
+
+  const groups = new Map();
+  for (const r of list) {
+    const key = `${r.kind}:${r.pubkey}`;
+    if (!groups.has(key)) groups.set(key, { kind: r.kind, pubkey: r.pubkey, rows: [] });
+    groups.get(key).rows.push(r);
+  }
+  for (const g of groups.values()) {
+    try {
+      const events = await scanLocal({ kinds: [g.kind], authors: [g.pubkey], '#d': g.rows.map((r) => r.d) });
+      for (const ev of Array.isArray(events) ? events : []) {
+        const d = dOf(ev);
+        if (d == null) continue;
+        const coord = `${ev.kind}:${ev.pubkey}:${d}`;
+        if (!out[coord] || (ev.created_at || 0) > (out[coord].event.created_at || 0)) {
+          out[coord] = { event: ev, where: 'local', checkedRelay: null };
+        }
+      }
+    } catch {
+      for (const r of g.rows) failed.add(r.coord);
+    }
+  }
+
+  for (const r of list) {
+    if (out[r.coord]) continue;
+    const hint = typeof r.relay === 'string' && /^wss?:\/\//i.test(r.relay) ? r.relay : null;
+    if (!hint) { out[r.coord] = { missing: true, checkedRelay: null, failed: failed.has(r.coord) }; continue; }
+    try {
+      const data = await fetchRelay({ kinds: [r.kind], authors: [r.pubkey], '#d': [r.d] }, hint);
+      if (!data || !data.success) { out[r.coord] = { missing: true, checkedRelay: hint, failed: true }; continue; }
+      const ev = (Array.isArray(data.events) ? data.events : [])
+        .filter((e) => e && e.kind === r.kind && e.pubkey === r.pubkey && dOf(e) === r.d)
+        .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
+      out[r.coord] = ev
+        ? { event: ev, where: 'relay', checkedRelay: hint }
+        : { missing: true, checkedRelay: hint, failed: failed.has(r.coord) };
+    } catch {
+      out[r.coord] = { missing: true, checkedRelay: hint, failed: true };
+    }
+  }
+  return out;
+}
+
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */
 
 /**

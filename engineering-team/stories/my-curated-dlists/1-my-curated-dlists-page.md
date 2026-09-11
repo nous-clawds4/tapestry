@@ -94,6 +94,36 @@ me.
 None. (The book's one open question — what makes a community item "already on my local DList" —
 belongs to story 3's gate.)
 
+## Deviations
+- **The not-found text names only a relay that was actually checked.** Both pages build it with
+  `describeHeaderLookup({ relay: lookup.checkedRelay }, …)`, so an entry whose hint is not ws/wss
+  reads "Header not found locally; no relay hint" rather than naming an `https://` hint the lookup
+  never fetched (Map Entries passes the row and names it).
+- **The per-row "Only lists your own assistant curates open here." shows only when the viewer has an
+  assistant.** With no assistant, every row is closed and the page-level line ("You don't have a
+  Tapestry Assistant on this instance…") says why once (AC-4's second sentence).
+- **`useTreasureMap` keeps only kind-10040 events authored by the viewer from the relay step.** The
+  Treasure Map page takes the relay answer as-is; the order and stop rule are unchanged (ADR
+  sub-decision 5) — this only stops a misbehaving relay from handing over someone else's Map.
+- **Live verification via the fetch-stub remount** (no NIP-07 in the automated browser; memory note
+  "Verifying signed-in UI"), local stack, bundle `index-BXfRYMA9.js`. Stubbed: sign-in (a customer
+  whose assistant is `253d40c4…`) and the kind-10040 scan (a synthetic Map pointing at real headers);
+  everything else was real. Seen: the menu item directly below TA Treasure Map, highlighted on both
+  pages; signed out → the sign-in prompt (unstubbed); three rows — `dog breed` (the header fetched
+  from dcosl through the entry's hint), the TA's `list` (found locally; another pubkey; closed; "Only
+  lists…"), `missing-list` (39999; "Header not found locally or on wss://dcosl…"; still a link) —
+  with the duplicate note on dog-breed; links only on my assistant's rows; relay fetches only for the
+  two headers missing locally. Detail: `dog breed` opens (breadcrumb … › My Curated DLists › Detail,
+  "curated by your assistant · 253d40c4…6ec0", "Header found on wss://dcosl…"); direct visits read
+  "39998:list is empowered for another pubkey · 11f23fe4…3767 — …", "39998:unknown is not on your
+  Treasure Map.", "“garbage” is not a curated-DList address.", the no-assistant sentence (and the
+  list with no links plus its line), "No Treasure Map found — searched local strfry and wss://…" (four
+  relays; the relay step ran with the full list after the local miss), and the lookup error (list and
+  detail) — none showing list content. Console: only `GET /api/user-prefs` 401s from the app shell
+  (the stubbed session has no server session); every request the new pages made returned 200. Not
+  done: a narrow-viewport screenshot (the Browser pane was not displayed), and nothing under a real
+  signer (nothing here writes).
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-curated-dlists/0001-my-curated-dlists-page.md`
 - Test plan: `engineering-team/stories/my-curated-dlists/1-my-curated-dlists-page.test-plan.md` (suite: `test/my-curated-dlists-page.test.js`)
