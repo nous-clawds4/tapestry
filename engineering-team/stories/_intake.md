@@ -2362,3 +2362,18 @@ own future instance).
 
 **Classification:** Feature. **Strictness:** Standard; ADR likely (a new relationship type in the
 graph schema).
+
+## 2026-09-11 — Auth-surface follow-ups from the story-3 audit (security)
+
+**Surfaced by:** the read-only audit run while planning `security-auth-exposure` story 3 (login
+signature verification). The audit found several *other* control-panel paths that trust
+client-supplied identity/events without verification — an unauthenticated graph-write path, an
+unauthenticated identity-read path, and some post-auth import/publish/owner-gate gaps.
+
+**Operator decision (2026-09-11):** ship **story 3 first**; these are **deferred** follow-ups, not
+yet promoted to stories. Because the repo is PUBLIC and shipping story 3 pushes this file, the
+technical detail (file:line, mechanism, severity) is deliberately **held out-of-band**, not here —
+a couple of the items are live and unpatched, so their specifics stay private until each is patched
+(SECURITY.md → private advisory). When picked up, these become the next stories in the reopened
+`security-auth-exposure` epic (Standard, human-gated); one of them overlaps the 2026-07-21
+authenticated-non-owner item above.
