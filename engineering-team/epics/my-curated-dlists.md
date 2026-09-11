@@ -77,6 +77,13 @@ Defaults proposed at kickoff and not objected to:
   shows the shortened coordinate where ADR note 3 says the coordinate; a fifth, unpinned copy of the
   `b-tag-deferred` literal (`treasureMap.js`) — import it from the house owner or pin it with the
   other four (`test/b-coverage-audit-and-disposition.test.js`).
+- **Story 3 review NB-1 — an item on both lists is listed twice:** an item my assistant wrote that
+  also carries the shared list's `z` shows as "your assistant" and again as a "candidate". Nothing
+  writes such items today; if Update's copies carry the shared `z`, every copy reappears as a
+  candidate (OPEN.md row 252).
+- **Story 3 review NB-2/NB-3 (small):** after a partial read (one source failed) the empty sentence
+  still states "none" beside the failure note; the newest version of an item wins its name while the
+  Simple Lists link opens the local (possibly older) copy.
 - **Story 2 review NB-6 — AC-4's scope, for the record:** the no-graph/no-external-publish claims
   hold for everything this feature can import; outside it, an owned kind-39999 tapestry letter would
   trigger the publish endpoint's brain-write hook, and the opt-in `dcosl` router preset (off by

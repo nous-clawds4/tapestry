@@ -120,6 +120,6 @@ review fix is folded in as AC-7.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-curated-dlists/0003-items-method-and-update.md`
 - Test plan: `engineering-team/stories/my-curated-dlists/3-items-method-and-update.test-plan.md` (suite: `test/my-curated-dlists-items.test.js`; re-aims story 2's U4)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/my-curated-dlists/3-items-method-and-update.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
