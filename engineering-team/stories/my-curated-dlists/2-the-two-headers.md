@@ -90,7 +90,7 @@ listed, with `b-tag-deferred` as its own non-error state.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-curated-dlists/0002-the-two-headers.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/my-curated-dlists/2-the-two-headers.test-plan.md` (suite: `test/my-curated-dlists-headers.test.js`)
 - Review: (filled in after Review phase)
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

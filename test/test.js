@@ -284,6 +284,8 @@ const dlistCurationMapEntries = require('./dlist-curation-map-entries.test.js');
 const dlistCurationMergePreserve = require('./dlist-curation-merge-preserve.test.js');
 // epic: my-curated-dlists — Story 1 (the My Curated DLists page and the detail page's front door).
 const myCuratedDListsPage = require('./my-curated-dlists-page.test.js');
+// epic: my-curated-dlists — Story 2 (the two headers on the detail page).
+const myCuratedDListsHeaders = require('./my-curated-dlists-headers.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -706,6 +708,9 @@ async function main() {
 
   console.log('\nmy-curated-dlists-page suite:');
   const myCuratedDListsPageResult = await myCuratedDListsPage.run();
+
+  console.log('\nmy-curated-dlists-headers suite:');
+  const myCuratedDListsHeadersResult = await myCuratedDListsHeaders.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1220,6 +1225,7 @@ async function main() {
   console.log(`dlist-curation-map-entries suite:                ${dlistCurationMapEntriesResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationMapEntriesResult.pass} passed, ${dlistCurationMapEntriesResult.fail} failed)`);
   console.log(`dlist-curation-merge-preserve suite:             ${dlistCurationMergePreserveResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationMergePreserveResult.pass} passed, ${dlistCurationMergePreserveResult.fail} failed)`);
   console.log(`my-curated-dlists-page suite:                    ${myCuratedDListsPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${myCuratedDListsPageResult.pass} passed, ${myCuratedDListsPageResult.fail} failed)`);
+  console.log(`my-curated-dlists-headers suite:                 ${myCuratedDListsHeadersResult.fail === 0 ? 'PASS' : 'FAIL'} (${myCuratedDListsHeadersResult.pass} passed, ${myCuratedDListsHeadersResult.fail} failed)`);
 
   const overallOk =
     configOk &&
@@ -1465,7 +1471,8 @@ async function main() {
     dlistCurationPanelResult.fail === 0 &&
     dlistCurationMapEntriesResult.fail === 0 &&
     dlistCurationMergePreserveResult.fail === 0 &&
-    myCuratedDListsPageResult.fail === 0;
+    myCuratedDListsPageResult.fail === 0 &&
+    myCuratedDListsHeadersResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -1509,7 +1516,7 @@ async function main() {
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
     relayScanBoundsResult, addNodeAsElementRestoreResult, conceptCountCanonicalResult, summariesElementCountResult,
     dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult, dlistCurationPanelResult, dlistCurationMapEntriesResult,
-    dlistCurationMergePreserveResult, myCuratedDListsPageResult,
+    dlistCurationMergePreserveResult, myCuratedDListsPageResult, myCuratedDListsHeadersResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
