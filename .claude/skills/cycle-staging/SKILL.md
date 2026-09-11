@@ -105,14 +105,20 @@ gh pr view <PR#> --repo nous-clawds4/tapestry --json state,mergedAt,mergeCommit
 
 ### 6. Locate and watch the deploy
 
+The run can appear **up to ~2 minutes after the merge** (Actions queue lag — OPEN.md row 251, 2026-09-10). A `--limit 1` lookup seconds after the merge returns the *previous* run, and a smoke test that runs without a watched run tests the **old** container — tiers 1–2 pass against it and only the served bundle hash exposes the mistake. So: poll for the run whose `headSha` is the merge commit, and never fall through to step 7 without one.
+
 ```bash
-sleep 3
-gh run list --repo nous-clawds4/tapestry --workflow=deploy-staging.yml --limit 1 --json databaseId,status,headSha
-# Pick the run with the matching mergeCommit SHA. Then:
-gh run watch <run-id> --repo nous-clawds4/tapestry --exit-status
+SHA=<mergeCommit oid>; RUN=""
+for i in $(seq 1 60); do   # up to 5 minutes
+  RUN=$(gh run list --repo nous-clawds4/tapestry --workflow=deploy-staging.yml --limit 5 \
+        --json databaseId,headSha --jq ".[] | select(.headSha==\"$SHA\") | .databaseId" | head -1)
+  [ -n "$RUN" ] && break; sleep 5
+done
+[ -n "$RUN" ] || { echo "no deploy-staging.yml run for $SHA after 5 min — stop and surface"; exit 1; }
+gh run watch "$RUN" --repo nous-clawds4/tapestry --exit-status
 ```
 
-Typical staging deploy is ~80s on warm Docker layer cache, ~2m+ when `package.json` or other invalidating files change. If the run fails, surface the failure and stop.
+Typical staging deploy is ~80s on warm Docker layer cache, ~2m+ when `package.json` or other invalidating files change. If the run fails, surface the failure and stop. If no run appears within the bound, stop and surface — do not smoke-test.
 
 ### 7. Smoke test
 
