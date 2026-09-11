@@ -128,7 +128,7 @@ function mixedFixture() {
 // The PRE-CHANGE notes track, written out by hand (NOT re-derived from the code under
 // test). sort='recent' → rank by latest tagging time desc.
 //   ITEM9 (120) > NOTE1 (110) > NOTE2 (95) > ORPHAN (70)
-// The kind-9999 item id is STILL in the notes track — that pollution is OPEN 223, a
+// The kind-9999 item id is STILL in the notes track — that pollution is OPEN 256, a
 // pre-existing defect this story deliberately leaves alone (Design note, E1).
 const EXPECTED_MEMBERS_RECENT = [
   { id: ITEM9,  applications: 1, disputes: 0, createdAt: 120, mine: null },
@@ -370,7 +370,7 @@ test('R8 (E1, additivity): building the items track leaves members / fullMembers
   const { out } = await aggregate();
   eq(out.members, EXPECTED_MEMBERS_RECENT, 'members must be byte-identical to the pre-change expectation (feeds the kind-30393 note TL).');
   eq(out.fullMembers, EXPECTED_MEMBERS_RECENT, 'fullMembers must be byte-identical to the pre-change expectation.');
-  assert(out.total === 4, `total must still be 4 (kind-9999 ids still present — OPEN 223 left alone); got ${out.total}`);
+  assert(out.total === 4, `total must still be 4 (kind-9999 ids still present — OPEN 256 left alone); got ${out.total}`);
   assert(out.truncated === false, 'truncated must still be false.');
   for (const m of out.members) {
     assert(!('address' in m), `no a-coordinate may leak into members: ${JSON.stringify(m)}`);
