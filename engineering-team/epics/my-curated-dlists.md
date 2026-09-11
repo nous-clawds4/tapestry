@@ -64,6 +64,23 @@ Defaults proposed at kickoff and not objected to:
   render; the shipped UI cannot reach it today).
 - **Story 1 review NB-1/NB-3 (cosmetic):** an `https://` hint reads "no relay hint" beside the hint
   it names; the detail page says "Checking your Treasure Map…" while auth resolves.
+- **Story 2 review NB-1 — needs an ADR 0002 amendment (sub-decision 2, test U4, the section):**
+  the page shows "marked deliberately unaffiliated" beside a live pointer, but the house rule is that
+  a real pointer supersedes the sentinel (`dispositionOf` in `src/lib/bValueForms.js` /
+  `ui/src/utils/bDisposition.js`; `protocols/drafts/shared-concepts.md:43`). No house tool writes such
+  a header; the harness cause is OPEN.md row 255.
+- **Story 2 review NB-2:** when the local scan fails but the relay finds a header, the section says
+  "not in this instance's strfry" without having verified it (`lookupCurationHeaders` drops the local
+  failure on a relay hit — `treasureMap.js` step 2).
+- **Story 2 review NB-3/NB-4/NB-5 (small):** the import control is re-enabled during its re-check (a
+  second click re-sends — harmless) and its "re-checking…" note could in theory stick; "Points to"
+  shows the shortened coordinate where ADR note 3 says the coordinate; a fifth, unpinned copy of the
+  `b-tag-deferred` literal (`treasureMap.js`) — import it from the house owner or pin it with the
+  other four (`test/b-coverage-audit-and-disposition.test.js`).
+- **Story 2 review NB-6 — AC-4's scope, for the record:** the no-graph/no-external-publish claims
+  hold for everything this feature can import; outside it, an owned kind-39999 tapestry letter would
+  trigger the publish endpoint's brain-write hook, and the opt-in `dcosl` router preset (off by
+  default, off here) would mirror an imported header to the DCoSL relays.
 
 ## Decisions
 `decisions/my-curated-dlists/`:

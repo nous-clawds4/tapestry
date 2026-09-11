@@ -1,6 +1,6 @@
 # Story 2: The two headers — my assistant's DList header and the shared header it points to
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Feature
 
@@ -117,6 +117,6 @@ listed, with `b-tag-deferred` as its own non-error state.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-curated-dlists/0002-the-two-headers.md`
 - Test plan: `engineering-team/stories/my-curated-dlists/2-the-two-headers.test-plan.md` (suite: `test/my-curated-dlists-headers.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/my-curated-dlists/2-the-two-headers.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
