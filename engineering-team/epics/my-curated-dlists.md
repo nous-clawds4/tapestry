@@ -20,9 +20,9 @@ and two placeholders for what comes next: the curation-method panel and the Upda
 1. `1-my-curated-dlists-page.md` — the menu item, the list of empowered DLists, and the detail
    page's front door (identity, and the guard against showing a list that is not the viewer's
    own). Feature.
-2. *(planned)* The two headers — the assistant's header (raw toggle, Simple Lists link, the
-   authorship and `b`-tag expectations) and the shared header (raw toggle, Simple Lists link,
-   community-relay fetch plus Import to local strfry when absent). Feature.
+2. `2-the-two-headers.md` — the assistant's header (raw toggle, Simple Lists link, the authorship
+   and `b`-tag expectations) and the shared header (raw toggle, Simple Lists link, community-relay
+   fetch); Import to local strfry for either header when found only on a relay. Feature.
 3. *(planned)* The items table (default: the assistant's own items on the local DList — the
    inherited ones; "also show" others' items on the local DList; "also show" candidates to be
    inherited — community items not yet copied), the curation-method placeholder panel, and the
