@@ -37,6 +37,10 @@ accounts can feed a downstream search index.
    code (the name-based link rule was stripped from story 1 at Gate B). **Firmware change =
    irreversibility trigger:** Standard with an ADR.
 
+8. `8-derived-columns-for-undeclared-fields.md` — a table-level "show all fields" toggle that
+   promotes undeclared item tags to real columns, with horizontal scrolling; fixes the unhelpful
+   rendering of lists whose headers declare little or are absent. Light, rendering only.
+
 ## Decisions
 `decisions/dlist-item-tagging/` — none yet (Light: Design notes live in the story files unless an
 irreversibility trigger fires).
