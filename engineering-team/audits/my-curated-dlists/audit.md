@@ -182,5 +182,5 @@ The close lands on `feat/my-curated-dlists` **before** any merge; the operator a
 - The epic `my-curated-dlists` is **complete but not retired** (all three stories Done; the workflow
   retires an epic only once its branch has merged to the shared line). A harness-lint **L2 waiver**
   cites OPEN.md row 266; retirement (folders under `done/`, epic `Status: Done`, waiver removed) is the
-  first act after the staging merge.
+  first act after the staging merge. **Done 2026-09-11:** PR #637 merged; retired on `close/my-curated-dlists`.
 - Production promotion is **not** part of this close.

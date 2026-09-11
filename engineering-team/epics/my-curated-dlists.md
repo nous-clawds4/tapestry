@@ -1,7 +1,8 @@
 # Epic: my-curated-dlists
 
 **Created:** 2026-09-10
-**Status:** Open
+**Status:** Done
+**Retired:** 2026-09-11 — after PR #637 merged `feat/my-curated-dlists` into `staging`; folders under `done/my-curated-dlists/` (book closed 2026-09-11; OPEN.md row 266).
 **Book:** `engineering-team/audits/my-curated-dlists/book.md` (acceptance-frame; **closed 2026-09-11**
 — all three stories Done; the epic retires at the staging merge, OPEN.md row 266)
 **Provenance:** Operator request, 2026-09-10 in-session — the follow-on to the `dlist-curation`
