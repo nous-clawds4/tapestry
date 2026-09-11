@@ -174,3 +174,65 @@ The b-coverage discipline (intake 2026-08-05, F5) wants every concept header dis
 The curate client (curate-psi.vercel.app) emits a `["field-type", "<field-name>", "<type>"]` tag on kind-39998 list headers alongside the NIP's `required`/`optional`/`recommended` declarations — observed live on `39998:b83a28b7…:github-accounts` (`["field-type","github-username","text"]`). [Decentralized Lists](./nips/decentralized-lists.md) declares the requirement tags but says nothing about a per-field type, and no code in this repo read `field-type` before story 1 (grep-verified). Story 1 **reads** it — `text` default, unknown types render as text, a `field-type` for an undeclared field name adds no column — which is consumption, not a wire ruling. Open questions for the spec: is `field-type` a NIP addition or a client convention; what is the type vocabulary (`text`, `url`, `pubkey`, …); does a typed-but-undeclared field imply `optional`; and who owns the GitHub-username-as-link rendering that story 1 keys off the field *name* today. Graduation target: a short section in [decentralized-lists-compat](./drafts/decentralized-lists-compat.md) (additive, like `item-kind`) or a note that it stays client-side.
 
 **Refs:** `engineering-team/stories/dlist-item-tagging/1-browse-a-dlist-with-header-driven-fields.md` (Design note + E1); `ui/src/utils/dlistFields.js` (the first reader, once it lands); [decentralized-lists-compat](./drafts/decentralized-lists-compat.md) § `item-kind` (the precedent for additive header tags).
+
+## W18 — Field types as a DList: portable *actions*, not portable rendering
+
+**Status:** Open · raised 2026-09-11 (operator, `dlist-item-tagging` session) · extends [W17](#w17--field-type-header-tag-in-the-wild-not-in-the-nip)
+
+W17 asks whether `field-type` belongs in the NIP and what its vocabulary is. This entry asks the
+harder follow-on: **who defines a type, and what does a definition carry?** The proposal is that
+the vocabulary is itself a DList — one element per type, each carrying a hint for what a client can
+*do* with a value of that type — so that `url` is simply the first element rather than a keyword
+baked into every client.
+
+**The distinction that makes it tractable.** "How to render" is per surface: a table cell, a search
+result card, a phone, a terminal, a voice assistant all differ, and a render DSL that satisfies all
+of them is a minefield. **What action a value affords** is far more portable. "This value resolves
+to a resource you can visit" survives translation to every surface; only the presentation differs.
+So a type definition should declare an *affordance* plus enough structure to construct it, not a
+layout.
+
+**Why `url` is the tractable first case, and possibly the only easy one.** A URL template with named
+parameters (`https://github.com/{username}`) is trivially fillable, and every client already knows
+what "visit" means. The list header binds its declared field names to the template's parameter
+names, which is also the UX the operator describes for the list-building form: *this type takes
+these parameters; assign each to one of your fields.* Multi-parameter templates follow for free.
+Candidates beyond it (a nostr entity → open profile, a geo pair → map, an email → compose, a digest
+→ verify) each need a **resolver**, not just substitution, so v1 should ship one affordance kind
+(`url-template`) and let unknown kinds degrade to text, mirroring the fail-safe posture of the `b`
+type registry and of `field-type` itself.
+
+**Trust is the load-bearing part, and it is already the house mechanism.** A template supplied by an
+untrusted publisher decides where a user's "visit" button points, which is an open-redirect and
+phishing surface. The answer is not a canonical registry but the POV resolution this project is
+built on: a client resolves a type definition through its own web of trust, exactly as it resolves
+whether a tagging counts. Day one an implementer uses its own definitions (firmware, unexciting but
+safe). Others may adopt those same definitions and inherit both the behavior and the assurance that
+it will not silently turn malicious, because the definitions are signed, versioned, and rankable.
+Later, communities curate their own shapes. The operator's own example is the one that proves the
+design: a community that *deliberately* wants a referrer parameter in its template is not abusing
+the system, it is expressing a legitimate local preference that no canonical registry could encode.
+There is no single correct rendering, only a per-POV one — the same conclusion [shared-concepts](./drafts/shared-concepts.md) reaches for definitions, and the same "registry-as-DList" exit the
+BIBLE records for the firmware-baked community pointer.
+
+**The payoff, stated plainly.** A search engine that trusts a field-type ecosystem can present an
+action button for a result type it has never seen and shipped no code for. Indexing a DList of
+GitHub accounts then yields working profile links "for free", and so does the next list of a kind
+nobody anticipated. That is the strongest argument for doing this at all, and it is why the
+downstream indexer (Vespa, separate repo) is the natural first consumer.
+
+**Open problems.** Template safety (scheme allowlist, percent-encoding of substituted values, and an
+explicit ban on `javascript:`/`data:`); whether a type's parameters are positional or named; how a
+client signals "I do not trust this definition" versus "I do not understand it"; whether the binding
+from field name to parameter lives on the list header or on the type element; and what, if anything,
+the second affordance kind should be — the operator notes it is genuinely hard to imagine one as
+clean as URL.
+
+**Refs:** [W17](#w17--field-type-header-tag-in-the-wild-not-in-the-nip) (the tag itself);
+[shared-concepts](./drafts/shared-concepts.md) (POV-resolved definitions, the deference model);
+[decentralized-lists](./nips/decentralized-lists.md) (header field declarations);
+`engineering-team/stories/dlist-item-tagging/1-browse-a-dlist-with-header-driven-fields.md` (where
+`field-type` is first read, and where the name-based GitHub link rule was deliberately removed at
+Gate B precisely because semantic types belong in the graph, not in code);
+`engineering-team/epics/dlist-item-tagging.md` story 7 (the `github-account` firmware concept, the
+first place a type definition could live).
