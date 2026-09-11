@@ -51,8 +51,7 @@ import-when-absent path (bullet 4), and no test-data publishing to the community
 ## Epics in this book
 - `my-curated-dlists` — the page and its menu item, the detail page's two headers, the items table
   with its three views, and the two placeholders (the curation-method panel, Update list). *(All three
-  stories Done 2026-09-11; retirement held until `feat/my-curated-dlists` merges to `staging` — OPEN.md
-  row 266.)*
+  stories Done 2026-09-11; retired 2026-09-11 after PR #637 merged to `staging` — OPEN.md row 266.)*
 
 ## Known constraints acknowledged at kickoff
 - **What `inherit-items` means is changing — deferred to the book that builds Update.** The
