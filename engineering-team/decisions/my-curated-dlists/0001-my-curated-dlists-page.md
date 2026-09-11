@@ -37,7 +37,7 @@ Facts from the code (read this session):
    page mounts with auth already resolved (SPA navigation), `search()` runs before the cypher
    returns, `relayUrls` is `[]`, the relay step is skipped, and `searched` then stays true — a Map
    that lives only on relays reads as "not found". Suspected from reading, not reproduced; the new
-   page must not copy it (OPEN.md row 253).
+   page must not copy it (OPEN.md row 260).
 2. **Per-DList entries** are parsed by `findDListEntries` (`ui/src/utils/treasureMap.js:149–162`):
    `<kind>:<d>` split at the first colon, kinds 39998/39999, the reserved `dlist-header` excluded, a
    64-hex delegate required and lowercased, Map order kept. First occurrence wins (ADR
@@ -161,7 +161,7 @@ page — into pure functions the Tester can exercise directly.
   the row-249 chore migrates `TrustedAssertions.jsx` and `TreasureMapTagsPanel.jsx` (and, for the
   local-only case, `DListCurationPanel.jsx`) onto `useTreasureMap` / `lookupCurationHeaders`. Row 249
   now names these as its targets.
-- **The Treasure Map page's race** (fact 1) is logged as OPEN.md row 253 and not fixed here (AC-6).
+- **The Treasure Map page's race** (fact 1) is logged as OPEN.md row 260 and not fixed here (AC-6).
 - **Inherited limit** (fact 8): an unreachable relay reads as "not there", as on the Treasure Map
   page; the page's copy names where it looked instead of claiming absence everywhere.
 - Adds five exports to a util eight suites import; existing exports unchanged.
@@ -248,6 +248,6 @@ are unchanged. Registering the suite in `test/test.js` is Phase 3's.
 - Story 2's header sections (raw toggles, Simple Lists links, `b`-tag expectations, the import) and
   story 3's items table, method panel, and Update button.
 - Migrating the shipped pages onto the new primitives (row 249) and fixing the Treasure Map page's
-  race (row 253).
+  race (row 260).
 - A per-relay probe that separates unreachable from absent (fact 8).
 - An avatar-menu link to the new page.

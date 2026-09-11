@@ -3,7 +3,7 @@
 **Created:** 2026-09-10
 **Status:** Open
 **Book:** `engineering-team/audits/my-curated-dlists/book.md` (acceptance-frame; **closed 2026-09-11**
-— all three stories Done; the epic retires at the staging merge, OPEN.md row 259)
+— all three stories Done; the epic retires at the staging merge, OPEN.md row 266)
 **Provenance:** Operator request, 2026-09-10 in-session — the follow-on to the `dlist-curation`
 book (closed and in production the same day). No `_intake.md` entry: the request went straight
 into the book and story 1.
@@ -41,7 +41,7 @@ Operator answers:
   has copied to the local DList; a **candidate** is an item on the shared community list not yet
   copied — possibly never, e.g. when it has more downvotes than upvotes (the curation method
   decides). Reconciling that with the ratified facet and the DList Curation panel's copy is
-  deferred to the book that builds Update (book § Known constraints; OPEN.md row 252).
+  deferred to the book that builds Update (book § Known constraints; OPEN.md row 259).
 
 Defaults proposed at kickoff and not objected to:
 - The menu item is a sibling directly below TA Treasure Map in 🍇 My Grapevine, not a nested
@@ -69,7 +69,7 @@ Defaults proposed at kickoff and not objected to:
   the page shows "marked deliberately unaffiliated" beside a live pointer, but the house rule is that
   a real pointer supersedes the sentinel (`dispositionOf` in `src/lib/bValueForms.js` /
   `ui/src/utils/bDisposition.js`; `protocols/drafts/shared-concepts.md:43`). No house tool writes such
-  a header; the harness cause is OPEN.md row 255.
+  a header; the harness cause is OPEN.md row 262.
 - **Story 2 review NB-2:** when the local scan fails but the relay finds a header, the section says
   "not in this instance's strfry" without having verified it (`lookupCurationHeaders` drops the local
   failure on a relay hit — `treasureMap.js` step 2).
@@ -81,7 +81,7 @@ Defaults proposed at kickoff and not objected to:
 - **Story 3 review NB-1 — an item on both lists is listed twice:** an item my assistant wrote that
   also carries the shared list's `z` shows as "your assistant" and again as a "candidate". Nothing
   writes such items today; if Update's copies carry the shared `z`, every copy reappears as a
-  candidate (OPEN.md row 252).
+  candidate (OPEN.md row 259).
 - **Story 3 review NB-2/NB-3 (small):** after a partial read (one source failed) the empty sentence
   still states "none" beside the failure note; the newest version of an item wins its name while the
   Simple Lists link opens the local (possibly older) copy.

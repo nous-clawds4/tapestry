@@ -52,7 +52,7 @@ import-when-absent path (bullet 4), and no test-data publishing to the community
 - `my-curated-dlists` — the page and its menu item, the detail page's two headers, the items table
   with its three views, and the two placeholders (the curation-method panel, Update list). *(All three
   stories Done 2026-09-11; retirement held until `feat/my-curated-dlists` merges to `staging` — OPEN.md
-  row 259.)*
+  row 266.)*
 
 ## Known constraints acknowledged at kickoff
 - **What `inherit-items` means is changing — deferred to the book that builds Update.** The
@@ -65,7 +65,7 @@ import-when-absent path (bullet 4), and no test-data publishing to the community
   community's items, never duplicating them". Nothing in this book depends on the resolution — the
   Update list button is a placeholder — and bullet 6's labels follow the operator's meaning and
   vocabulary (inherited = copied by my assistant; candidate = on the shared list, not yet copied,
-  possibly never). OPEN.md row 252.
+  possibly never). OPEN.md row 259.
 - **"My assistant" is the signed-in user's own** — the instance TA for the owner, a per-user key for
   everyone else; never the instance owner's assistant for everyone (OPEN.md row 188 pin; the
   escaped defect of the `treasure-map-user-assistant` book).

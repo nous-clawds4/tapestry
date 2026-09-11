@@ -20,7 +20,7 @@ Branch commits audited (oldest first): `c092f827` story · `e3c0c387` ADR · `c4
 - [x] **The suite failed before the implementation.** I extracted the tree at `c4964278` into the scratchpad (`git archive` of `test/`, `ui/src` and the package files) and ran the suite there: 3 pass / 13 fail. U1–U7 and S1–S6 are red (the three exports and the headers module don't exist yet); R1–R3 are green. This matches the test plan's recorded run line for line.
 - [x] **Full `npm test`**, run in the background into a scratchpad log (OPEN.md row 83; about 45 minutes). Result: exit 1, `Overall: FAIL`, 163 suites pass and 3 fail, 4 failing tests, 56 skipped.
   - **The four failures are OPEN.md row 191's:** the L0 publish-policy guards in `tl-membership-method-selector`, `tl-weighted-sum-method` and `tl-certainty-method` (this container answers `allowExternalPublish:true`), plus `tl-certainty-method` LP (the prune script refuses under the same posture).
-  - **Both row-254 LB matrices skipped** ("meili indexing did not settle in budget").
+  - **Both row-261 LB matrices skipped** ("meili indexing did not settle in budget").
   - **Same as the Implementer's run.** The per-suite summary (173 lines, including the skip total) is identical to the Implementer's log, which has the same four failures and the same two skips.
   - **This story's suites:** `my-curated-dlists-headers` 16/0 and `my-curated-dlists-page` 19/0 in the full run.
   - **Unrelated to this diff.** None of the red suites can be affected by it: they test the server's publish-policy guard and the prune script, and story 2 changes only `ui/src`, `test/` and docs.
@@ -237,10 +237,10 @@ None.
    - `docker inspect tapestry` shows four named volumes and no repo mount. The served bundle is a `docker cp`'d copy: the container's `dist/assets` holds 190 files, the repo's 17.
    - It didn't mislead this review, because I compared the served bytes with a fresh build and the seven AC-4 server files with the container's copies.
    - Existing rows 198 and 226; no new row.
-3. **OPEN.md rows 83, 191, 254 and 232 recurred.**
+3. **OPEN.md rows 83, 191, 261 and 232 recurred.**
    - The full suite ran about 45 minutes in the background, dominated by the live pin suites' container-side TL refreshes.
    - It is red by default on this machine (row 191).
-   - The row-254 LB pair skipped again, in both my run and the Implementer's.
+   - The row-261 LB pair skipped again, in both my run and the Implementer's.
    - `test:playwright` still needs the `executablePath` workaround.
    - Existing rows; no new rows.
 

@@ -86,7 +86,7 @@ me.
 - Adding, replacing, or revoking empowerments — they stay on the TA Treasure Map page's DList
   Curation panel.
 - Any change to the Map convention, the assistant-header endpoint, or the `inherit-items` facet
-  (its meaning is changing — OPEN.md row 252 — but not in this book).
+  (its meaning is changing — OPEN.md row 259 — but not in this book).
 - Linking the DList Curation panel's rows to the new page (the panel is unchanged).
 - Opening lists curated by any pubkey other than the viewer's own assistant (listed only).
 

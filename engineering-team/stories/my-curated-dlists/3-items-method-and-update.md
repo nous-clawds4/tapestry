@@ -12,7 +12,7 @@ This story finishes the page the operator asked for (book frame bullets 5–7,
 operator's three views, and placeholders for the curation method and the Update list button. It
 also takes in one fix from story 2's review.
 
-The operator's vocabulary (book § Acceptance frame; OPEN.md row 252): an **inherited** item is one
+The operator's vocabulary (book § Acceptance frame; OPEN.md row 259): an **inherited** item is one
 the assistant has copied to the local DList; a **candidate** is an item on the shared community list
 not yet copied — possibly never, e.g. when it has more downvotes than upvotes (the curation method,
 not built in this book, decides).
@@ -23,7 +23,7 @@ Facts the story rests on (read this session):
 - "My local DList" is the assistant's header `<kind>:<assistant>:<d-tag>`; "the shared list" is the
   header its pointer names (story 2).
 - Nothing copies items yet, so today every shared-list item is a candidate. The copy convention is
-  deferred to the book that builds Update (OPEN.md row 252).
+  deferred to the book that builds Update (OPEN.md row 259).
 - On this Mac Studio the shared `dog-breed` list has two items (sheep dog, golden retriever) in local
   strfry; neither is on the community relay, so staging will show the candidates view empty until
   items reach it.
@@ -78,7 +78,7 @@ what my list holds today and what it could draw on.
 - Votes, ratings, and trust scores in the table (the method's inputs, later).
 - Importing items into local strfry.
 - Any change to the Map convention, the `inherit-items` facet, or the protocol drafts — the copy
-  convention stays deferred (OPEN.md row 252), which now also records that a copy must point back
+  convention stays deferred (OPEN.md row 259), which now also records that a copy must point back
   at its original (AC-3's rule).
 
 ## Open questions

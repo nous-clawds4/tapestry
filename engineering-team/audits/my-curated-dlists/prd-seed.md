@@ -102,7 +102,7 @@ Promoted from audit §6:
   decision on whether copies point only at the local list (else they reappear as candidates).
 - **The curation method** — its inputs (votes? trust per POV? both?), its controls, and when it runs
   (on click only, or on a schedule?).
-- **Reconciling `inherit-items`** with the operator's "copy" meaning (OPEN.md row 252).
+- **Reconciling `inherit-items`** with the operator's "copy" meaning (OPEN.md row 259).
 - **Relay-only items** — no Simple Lists link today; import items, or teach Simple Lists to read relays?
 - **Candidates on staging** — the shared lists' items must reach the community relay for anyone but the
   list's author to see candidates.

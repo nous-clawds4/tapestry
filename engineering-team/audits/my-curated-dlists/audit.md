@@ -100,17 +100,17 @@ node created, verified).
 
 | # | Specified (anchor) | Built | Type | Rationale (source) | Product impact | Carry-forward |
 |---|---|---|---|---|---|---|
-| 1 | Frame bullet 6: "candidates … where inherited means duplicated by my assistant" | The candidates view and the "already copied" rule (an explicit back-reference) — but the **copy convention itself** is not specified, and the ratified `inherit-items` facet and the DList Curation panel's copy still say "never duplicating" | deferred | Operator, 2026-09-10: reconcile when Update is built (book § Known constraints; OPEN.md row 252) | Today nothing copies items, so every shared item is a candidate; the protocol text and the operator's intent disagree until reconciled | OPEN.md row 252 |
+| 1 | Frame bullet 6: "candidates … where inherited means duplicated by my assistant" | The candidates view and the "already copied" rule (an explicit back-reference) — but the **copy convention itself** is not specified, and the ratified `inherit-items` facet and the DList Curation panel's copy still say "never duplicating" | deferred | Operator, 2026-09-10: reconcile when Update is built (book § Known constraints; OPEN.md row 259) | Today nothing copies items, so every shared item is a candidate; the protocol text and the operator's intent disagree until reconciled | OPEN.md row 259 |
 | 2 | Frame bullet 4: import "when it is not in local strfry" (shared header) | Import offered for **either** header found only on a relay | interpretation | Settled at story 2's gate (story 2 § Open questions) | One more (rare) path: the assistant's header is normally local | — |
 | 3 | Frame bullets 3–4: a Simple Lists link for each header | The link appears only when the header (or item) is in local strfry; relay-only → the import control (headers) or "on <relay> only" (items) | constraint-discovered | Simple Lists reads local strfry only (ADR 0002 fact 5; ADR 0003 fact 1) | A relay-only item cannot be opened in Simple Lists (item import is out of scope) | seed §6 |
 | 4 | Frame bullet 6: the items table | Columns Name · Author · From · Added, no votes; the local read capped at 500 with the cap reported; the relay read's cap undetectable | interpretation / constraint-discovered | Story 3 gate; ADR 0003 sub-decisions 3, 7 | Votes are the curation method's inputs, later | seed §6 |
 | 5 | Frame bullet 2: "an entry naming my own Tapestry Assistant" opens | "Mine" = the signed-in user's own assistant (`user.assistantPubkey`); the route resolves against the viewer's own Map | interpretation | ADR 0001 sub-decisions 2–3; OPEN.md row 188 | A shared or bookmarked link never shows someone else's curation as the viewer's | — |
-| 6 | (not in the frame) | AC-7: the page follows the house b-value rule (a real pointer beats `b-tag-deferred`) | added-beyond-scope | Story 2 review NB-1 folded into story 3 at its gate (ADR 0003 sub-decision 9 amends ADR 0002) | A header with both reads as affiliated, as everywhere else in the house | OPEN.md row 255 (why it diverged) |
+| 6 | (not in the frame) | AC-7: the page follows the house b-value rule (a real pointer beats `b-tag-deferred`) | added-beyond-scope | Story 2 review NB-1 folded into story 3 at its gate (ADR 0003 sub-decision 9 amends ADR 0002) | A header with both reads as affiliated, as everywhere else in the house | OPEN.md row 262 (why it diverged) |
 | 7 | Frame bullet 8: "nothing else moves" | Held: no shipped page, server file, or Simple Lists file changed; the only write is the explicit import | — | Stories' AC-6; every review checked the shipped files byte-unchanged vs base | none | — |
 | 8 | Frame bullet 1: the list's names | Names come from each header's `names[1]` (singular), as Map Entries and the DList Curation panel read them | interpretation | ADR 0001 sub-decision 7 | — | — |
 
 **Undocumented work:** none. Every file in the diff traces to a story, an ADR, a review, a ledger row
-(252–256 raised during the book), or a Tester-lane change named in a test plan (story 2's U4 re-aim).
+(259–263 raised during the book), or a Tester-lane change named in a test plan (story 2's U4 re-aim).
 
 ## 5. Quality state at close
 
@@ -118,16 +118,16 @@ node created, verified).
   (the three epic suites, the eight Treasure Map guards, `b-coverage-audit-and-disposition`). Full
   `npm test` at the final code (`58c5fd48`, the round-2 reviewer's run): **164 suites PASS, 3 FAIL** —
   the four failing tests are exactly OPEN.md row 191's (three `trusted-lists` L0 guards + the refused
-  prune); row 254's two LB matrices skipped. **Close-time full run** (2026-09-11, on the close
+  prune); row 261's two LB matrices skipped. **Close-time full run** (2026-09-11, on the close
   artifacts — book Closed, the L2 waiver in place; code byte-identical to `58c5fd48`): **164 suites
-  PASS, 3 FAIL** — again exactly row 191's four failing tests; row 254's two LB matrices skipped
+  PASS, 3 FAIL** — again exactly row 191's four failing tests; row 261's two LB matrices skipped
   ("meili indexing did not settle"); the three epic suites 19 / 16 / 23; `harness-lint` 41/0 over the
   closed book; `tl-publication-from-pins` 10/0 (the stopped run's "500" was the empty-output artifact
-  of row 256, not a server error).
-- **Known open issues** (ledger, raised by this book): **252** (inherit = copy vs the ratified facet —
-  the operator's deferred decision), **253** (the TA Treasure Map page can skip its relay step on SPA
-  navigation — suspected from reading), **254** (two `trusted-lists` LB matrices flip fail/skip with
-  Meili load), **255** (no orientation doc names the b-value code owner — `meta`), **256** (a stopped full
+  of row 263, not a server error).
+- **Known open issues** (ledger, raised by this book): **259** (inherit = copy vs the ratified facet —
+  the operator's deferred decision), **260** (the TA Treasure Map page can skip its relay step on SPA
+  navigation — suspected from reading), **261** (two `trusted-lists` LB matrices flip fail/skip with
+  Meili load), **262** (no orientation doc names the b-value code owner — `meta`), **263** (a stopped full
   run ends on a phantom 500 — `meta`).
 - **Debt logged by ADRs.** Row 249's shared-primitive chore now has a third lookup shape to migrate onto
   (`useTreasureMap`, `lookupCurationHeaders`, `lookupListItems`) and two hardening notes (story 1 NB-2:
@@ -138,14 +138,14 @@ node created, verified).
 ## 6. Carry-forward register
 
 - [ ] **The Update feature** — have the assistant actually curate: copy candidates the method accepts,
-      remove, rank. Needs the copy convention (row 252), including the back-reference the candidates
+      remove, rank. Needs the copy convention (row 259), including the back-reference the candidates
       rule reads, and a decision on whether copies may carry the shared list's `z` (story 3 NB-1: they
       would be listed twice).
 - [ ] **The curation method** — its inputs (votes, trust scores per POV), controls, and where it runs.
 - [ ] **Reconcile `inherit-items`** — the ratified live/copy-free facet, ADR `dlist-curation/0003`, the
-      BIBLE glossary, the handoff D10, and the DList Curation panel's copy vs the operator's meaning (row 252).
+      BIBLE glossary, the handoff D10, and the DList Curation panel's copy vs the operator's meaning (row 259).
 - [ ] **Row 249's chore** — migrate the Treasure Map page family onto `useTreasureMap` /
-      `lookupCurationHeaders` after the story-1 hardening notes; fixes row 253 on the way.
+      `lookupCurationHeaders` after the story-1 hardening notes; fixes row 260 on the way.
 - [ ] **Item import / relay-only items in Simple Lists** — today a relay-only item has no link.
 - [ ] **Candidates on staging** — the shared `dog-breed` items live only in the Mac Studio's local
       strfry; the community relay has none, so staging's candidates view is empty until items reach it.
@@ -155,25 +155,25 @@ node created, verified).
 ## 7. Process findings (harness)
 
 Inputs: the three reviews' "Harness friction" sections (four review rounds), the stories' process-shaped
-Deviations, the book's `meta` rows (255, 256), and `scripts/harness-stats.sh` at close (epic: 19 phase
+Deviations, the book's `meta` rows (262, 263), and `scripts/harness-stats.sh` at close (epic: 19 phase
 commits; corpus: story 206 · adr 185 · test 194 · impl 194 · review 247). "Ports" = whether the lesson
 applies to the other flow (Direction ↔ human-gated).
 
 | Finding | Source | Terminal state |
 |---|---|---|
-| No orientation surface names the b-value code owner, so ADR 0002 re-derived the sentinel rule and diverged (ports: yes) | story 2 review, harness friction 1 | OPEN.md row 255 |
-| A stopped full `npm test` ends its log on a phantom "got 500" (empty `docker exec` output); full runs are not concurrency-safe on one stack, which is why it was stopped (ports: yes) | story 3 review round 2, friction 1; story 3 implementation | OPEN.md row 256 |
+| No orientation surface names the b-value code owner, so ADR 0002 re-derived the sentinel rule and diverged (ports: yes) | story 2 review, harness friction 1 | OPEN.md row 262 |
+| A stopped full `npm test` ends its log on a phantom "got 500" (empty `docker exec` output); full runs are not concurrency-safe on one stack, which is why it was stopped (ports: yes) | story 3 review round 2, friction 1; story 3 implementation | OPEN.md row 263 |
 | The verdict parser's post-Verdict "On PASS" edge nearly fired again; the reviewer renamed the heading (ports: yes) | story 3 review round 1, friction 1 | OPEN.md row 28 (recurrence noted) |
 | Presence-only structural pins could not see mutually exclusive copy — the round-1 blocking defect (ports: yes) | story 3 review round 1 | OPEN.md row 236 (a text pin that does not discriminate — recurrence noted) |
-| Running a new suite against a throwaway ADR-faithful sketch before committing caught five over-constraining pins across stories 1–3 (ports: yes) | story 2 and 3 test plans ("Relaxed during the satisfiability check") | OPEN.md row 257 (propose it for the Tester workflow) |
-| Gate messages must name contradictions with shipped copy/ratified protocol explicitly — the operator approves without reading every artifact ("never duplicating them" vs inherit = copy) (ports: yes) | kickoff, 2026-09-10 | OPEN.md row 258 |
+| Running a new suite against a throwaway ADR-faithful sketch before committing caught five over-constraining pins across stories 1–3 (ports: yes) | story 2 and 3 test plans ("Relaxed during the satisfiability check") | OPEN.md row 264 (propose it for the Tester workflow) |
+| Gate messages must name contradictions with shipped copy/ratified protocol explicitly — the operator approves without reading every artifact ("never duplicating them" vs inherit = copy) (ports: yes) | kickoff, 2026-09-10 | OPEN.md row 265 |
 | CLAUDE.md's stale bind-mount claim recurred in an ADR and two reviewer briefs | story 2 review, friction 2 | OPEN.md rows 198 / 226 (pre-existing; restated) |
 | CLAUDE.md's stale local TA pubkey | story 1 review | OPEN.md rows 44 / 71 / 127 / 168 / 223 (pre-existing; restated) |
 | Playwright's pinned Chromium missing (reviewers used `executablePath`) | every review | OPEN.md row 232 (pre-existing; restated) |
 | The full suite outruns the foreground ceiling and is red by default here | every review | OPEN.md rows 83 / 191 (pre-existing; restated) |
-| Row 254's LB matrices flip between fail and skip with Meili load | stories 1–3 full runs | OPEN.md row 254 |
+| Row 261's LB matrices flip between fail and skip with Meili load | stories 1–3 full runs | OPEN.md row 261 |
 | Independent reviewer subagents caught the one real defect self-review missed | story 3 review round 1 | **declined** — already the house practice (every story here and in `dlist-curation` used them); nothing to change |
-| The session-start META ESCALATION (91 open lessons) asked for a grouped harness-story proposal | session-start digest | **declined for this book** — it belongs to the `/whats-open` triage step, as `dlist-curation` recorded; this book **added four `meta` rows (255, 256, 257, 258)**, raising that pressure |
+| The session-start META ESCALATION (91 open lessons) asked for a grouped harness-story proposal | session-start digest | **declined for this book** — it belongs to the `/whats-open` triage step, as `dlist-curation` recorded; this book **added four `meta` rows (262, 263, 264, 265)**, raising that pressure |
 
 ## 8. Note on the state of the branch at close
 
@@ -181,6 +181,6 @@ The close lands on `feat/my-curated-dlists` **before** any merge; the operator a
 `/cycle-staging`. Consequences recorded here so a future reader does not misattribute them:
 - The epic `my-curated-dlists` is **complete but not retired** (all three stories Done; the workflow
   retires an epic only once its branch has merged to the shared line). A harness-lint **L2 waiver**
-  cites OPEN.md row 259; retirement (folders under `done/`, epic `Status: Done`, waiver removed) is the
+  cites OPEN.md row 266; retirement (folders under `done/`, epic `Status: Done`, waiver removed) is the
   first act after the staging merge.
 - Production promotion is **not** part of this close.

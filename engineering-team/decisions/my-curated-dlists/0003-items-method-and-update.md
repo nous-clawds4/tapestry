@@ -40,7 +40,7 @@ Facts from the code (read this session):
    `sentinel && !real`: a real `b` (a-tag *or* event id) beats the sentinel
    (`protocols/drafts/shared-concepts.md:43`). ADR 0002's `describeCurationHeader` set `deferred`
    whenever the sentinel was present (story 2 review NB-1) and kept a fifth, unpinned copy of the
-   literal (NB-5); story 2's suite U4 pins that behaviour; OPEN.md row 255 records why it diverged.
+   literal (NB-5); story 2's suite U4 pins that behaviour; OPEN.md row 262 records why it diverged.
 4. **The page after story 2.** `CuratedDListDetail.jsx` already computes `info =
    describeCurationHeader(…)` and the shared row (pointer + `COMMUNITY_RELAYS[0]`), renders the two
    header sections, and carries a "Story 3 inserts here" comment. Stories 1–2's suites pin the page,
@@ -85,7 +85,7 @@ this story writes nothing.
   checkbox would only filter. Rejected on traffic; the lazy read is one conditional.
 
 ### Option D — For AC-7, special-case "sentinel beside a pointer" inside `describeCurationHeader`
-- **Cons.** Re-derives the house rule a second time — exactly the divergence OPEN.md row 255 names;
+- **Cons.** Re-derives the house rule a second time — exactly the divergence OPEN.md row 262 names;
   would still miss "event-id `b` beside the sentinel", which the house also treats as real.
 
 ## Decision
@@ -131,7 +131,7 @@ the sentinel rule stops diverging from its owner.
     section with the Update button in its header row.
 
 ## Consequences
-- Closes story 2 review NB-1 and NB-5; OPEN.md row 255's harness gap stays open (the orientation
+- Closes story 2 review NB-1 and NB-5; OPEN.md row 262's harness gap stays open (the orientation
   docs still don't name the owner) — this ADR only follows the rule.
 - `treasureMap.js` gains its first import (`./bDisposition.js`, itself zero-import, with the `.js`
   extension so Node-loaded suites still resolve it).
@@ -199,7 +199,7 @@ handler, the gated link, `timeAgo`, the page's placement, and that the new files
 - The curation method's controls and logic; Update doing anything.
 - Votes, ratings, trust scores; importing items into local strfry; reading more than the first
   community relay.
-- Row 249's shared-primitive chore and row 255's documentation fix.
+- Row 249's shared-primitive chore and row 262's documentation fix.
 
 ## Amendment 1 — the empty-view sentence is a pure function (2026-09-11)
 

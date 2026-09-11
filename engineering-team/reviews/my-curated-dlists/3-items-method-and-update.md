@@ -8,7 +8,7 @@
 **Test plan:** `engineering-team/stories/my-curated-dlists/3-items-method-and-update.test-plan.md`
 
 Branch commits audited (oldest first):
-- `96b5cd3e` story, plus OPEN.md row 252's settled back-reference rule and the epic entry.
+- `96b5cd3e` story, plus OPEN.md row 259's settled back-reference rule and the epic entry.
 - `68504103` ADR 0003, plus ADR 0002's "Amended by" line and the epic entry.
 - `36331860` failing tests: the new suite, its `test/test.js` registration, story 2's re-aimed U4, and a "Later change" note in story 2's test plan.
 - `cdd01bc1` implementation.
@@ -30,7 +30,7 @@ The implementation changes four `ui/src` files: `useListItems.js` (new), `Curate
   - This matches the test plan's recorded run line for line.
 - [x] **Full `npm test`**, run in the background at `cdd01bc1` (13:38:56 to 14:25:13, about 46 minutes; OPEN.md row 83). Exit 1, `Overall: FAIL`: 164 suites green, 3 red, 4 failing tests, 56 skipped.
   - **The four failures are OPEN.md row 191's:** the `L0 GUARD` in `tl-membership-method-selector`, `tl-weighted-sum-method` and `tl-certainty-method` (the container answers `allowExternalPublish:true`), plus `tl-certainty-method` LP (the prune refuses under the same posture).
-  - **Both row-254 LB matrices skipped** ("meili indexing did not settle in budget").
+  - **Both row-261 LB matrices skipped** ("meili indexing did not settle in budget").
   - **This story's suites in the full run:** 21/0, 16/0, 19/0.
   - **Same as the Implementer's run.** The whole `Test Results` summary block is identical to the Implementer's log (`diff` reports no difference).
   - I did not change the machine's publish posture.
@@ -223,7 +223,7 @@ The implementation changes four `ui/src` files: `useListItems.js` (new), `Curate
    - **What happens.** An item my assistant authored that also carries the shared list's `z` (a multi-`z` stamp) appears as "your assistant" **and** as a "candidate" whose Author is my own assistant's short pubkey. Seen live (scenario G).
    - **Why it's allowed today.** `protocols/drafts/shared-concepts.md:35` makes an `inherit-items` target "at most a demand-selected extra" stamp, and `protocols/drafts/stamping.md:25` (write rule 3) permits those extras. The code follows the ratified back-reference rule to the letter, and the case is unreachable today, because no assistant authors items and nothing stamps them.
    - **Why it matters later.** If Update's copies are stamped with the shared `z`, every copy would reappear as a candidate.
-   - **Optional:** skip a shared item whose identity is already among my assistant's items on my list, and add a line to OPEN.md row 252 so the copy convention accounts for multi-`z`.
+   - **Optional:** skip a shared item whose identity is already among my assistant's items on my list, and add a line to OPEN.md row 259 so the copy convention accounts for multi-`z`.
 2. **ui/src/pages/grapevine/CuratedDListItems.jsx:111-116** — a partial read is followed by an unqualified empty sentence.
    - **What happens.** When one source failed, the note ("Couldn’t check this instance’s strfry for items — showing what wss://… returned.", or the same "for candidates") is followed by "Your assistant hasn't added any items to this list yet." or "The shared list offers no candidates to inherit." Seen live (D1, D7).
    - **Why it isn't blocking.** ADR sub-decision 7 sanctions "rows plus a note", and the note says what was read.
@@ -232,7 +232,7 @@ The implementation changes four `ui/src` files: `useListItems.js` (new), `Curate
 3. **ui/src/utils/treasureMap.js:518-519** — dedupe, as ADR sub-decision 3 specifies: the newest version is shown, marked `local` if any copy is here.
    - **The consequence.** A kind-39999 item whose newer version exists only on the relay shows the relay's name, but its link (by coordinate) opens Simple Lists on the older local version. Seen live (C).
    - Harmless. Noted for whoever builds Update.
-4. **OPEN.md row 252 (no code ask)** — two consequences of the "any tag" rule the copy convention should know:
+4. **OPEN.md row 259 (no code ask)** — two consequences of the "any tag" rule the copy convention should know:
    - **(a) Deliberate references count.** Any reference to a shared item, such as a reply- or dispute-shaped tag carrying its id, also retires it as a candidate. Accidental collisions are not a risk: 64-hex ids and `kind:pubkey:d` coordinates only match on purpose (the 3,000-trial property check).
    - **(b) An id-only back-reference goes stale.** It stops matching a kind-39999 original once its author replaces it with a new id, so the new version reappears as a candidate unless the copy also carries the coordinate.
 
@@ -241,7 +241,7 @@ The implementation changes four `ui/src` files: `useListItems.js` (new), `Curate
 2. **Existing rows recurred:**
    - Row 83: the full suite took about 46 minutes, backgrounded.
    - Row 191: the suite is red by default under external publishing.
-   - Row 254: both LB matrices skipped.
+   - Row 261: both LB matrices skipped.
    - Row 232: Playwright needs `executablePath`.
    - Rows 198/226: no bind mount. The brief already knew; the served bundle was compared by bytes.
    - Rows 44/71/127/168/223: CLAUDE.md's stale TA pubkey. No cost here, since I queried `/api/assistant/pubkey`.
@@ -311,7 +311,7 @@ The whole branch still touches no server file, manifest, setup or script.
   - **The four failures are OPEN.md row 191's:**
     - the `L0 GUARD` in `tl-membership-method-selector`, `tl-weighted-sum-method` and `tl-certainty-method` (the container answers `allowExternalPublish:true`);
     - `tl-certainty-method` LP, whose prune refuses under the same posture.
-  - **Both row-254 LB matrices skipped** (`tl-weighted-sum-method`, `tl-certainty-method`): "meili indexing did not settle in budget". `tl-weighted-sum-method` LA also skipped, because the stack already has a POV filter.
+  - **Both row-261 LB matrices skipped** (`tl-weighted-sum-method`, `tl-certainty-method`): "meili indexing did not settle in budget". `tl-weighted-sum-method` LA also skipped, because the stack already has a POV filter.
   - **This story's suites:** items 23/0, headers 16/0, page 19/0.
   - **Compared with round 1's run:** the `Test Results` block is identical except `my-curated-dlists-items`, which goes from 21 to 23 passed.
   - I did not change the machine's publish posture.
@@ -441,7 +441,7 @@ None.
 2. **Existing rows recurred:**
    - Row 83: 46 minutes, backgrounded.
    - Row 191: the four failures.
-   - Row 254: both LB matrices skipped.
+   - Row 261: both LB matrices skipped.
    - Row 232: Playwright needs `executablePath`.
    - Rows 198/226: no bind mount, so the bundle was compared by bytes.
    - Row 28: the lines after this round's verdict are worded around it.

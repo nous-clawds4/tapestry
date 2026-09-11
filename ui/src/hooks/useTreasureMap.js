@@ -20,7 +20,7 @@ const LOADING = { status: 'loading', event: null, where: null, error: null, loca
  * Deliberately the TA Treasure Map page's order and stop rule — local strfry first (`limit: 1`),
  * then the general-purpose relays, newest wins — so both pages show the same Map. Two differences:
  * the relay step WAITS for the relay list to settle (the page's own effect can run before it
- * arrives and skip the relays — OPEN.md row 253), and every failure is `error`, never `none`.
+ * arrives and skip the relays — OPEN.md row 260), and every failure is `error`, never `none`.
  * OPEN.md row 249's chore is to move the Treasure Map page onto this hook.
  *
  * @param {string|null} pubkey  the signed-in user's pubkey (null → idle)
