@@ -332,7 +332,7 @@ async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, m
   if (taggedIds.length) {
     try {
       for (const ev of (realScanStrfry({ kinds: [9999], ids: taggedIds }) || [])) itemEventsById.set(ev.id, ev);
-    } catch { /* local strfry unavailable → address-only items */ }
+    } catch (e) { console.warn('[event-tags] item id-classification scan failed; items degrade to address-only:', e.message); }
   }
 
   // Rank ALL tagged notes by the requested sort, THEN cap — so the top-N
@@ -493,7 +493,7 @@ async function handleForTag(req, res) {
           const fetchRelays = Array.from(new Set([...relays, ...hintRelays]));
           externalNotes = (await realQuerySync(fetchRelays, { kinds: [1], ids: missing })) || [];
         }
-      } catch { externalNotes = []; }
+      } catch (e) { console.warn('[event-tags] external note fetch failed; returning local notes only:', e.message); externalNotes = []; }
       const rawNotes = [...localNotes, ...externalNotes];
       const enriched = await enrichNotes(rawNotes, realScanStrfry);
       notes = enriched
@@ -533,7 +533,7 @@ async function handleForTag(req, res) {
     const itemEventByAddress = new Map();
     for (const [author, ds] of itemsByAuthor) {
       let found = [];
-      try { found = realScanStrfry({ kinds: [39999], authors: [author], '#d': Array.from(new Set(ds)) }) || []; } catch { found = []; }
+      try { found = realScanStrfry({ kinds: [39999], authors: [author], '#d': Array.from(new Set(ds)) }) || []; } catch (e) { console.warn('[event-tags] item resolution scan failed for author', author, '-', e.message); found = []; }
       for (const ev of dedupeReplaceable(found)) {
         const d = dTagOf(ev);
         if (d) itemEventByAddress.set(`39999:${ev.pubkey}:${d}`, ev);
@@ -554,7 +554,12 @@ async function handleForTag(req, res) {
       return {
         address: m.address || null,
         id: ev ? ev.id : (m.id || null),
-        kind: ev ? ev.kind : (m.address ? 39999 : null),
+        // Derive the kind from the coordinate itself. An `a` target may be ANY
+        // addressable kind (classify.js admits any coordinate), and the resolution
+        // scan only looks for 39999 — so assuming 39999 for every unresolved
+        // address mislabels e.g. a 30023 long-form target, and that label reaches
+        // external clients through the guide-documented items[].kind.
+        kind: ev ? ev.kind : (m.address ? (Number(m.address.split(':')[0]) || null) : null),
         pubkey: ev ? ev.pubkey : coordAuthor,
         created_at: ev ? ev.created_at : null,
         tags: ev ? (ev.tags || []) : [],

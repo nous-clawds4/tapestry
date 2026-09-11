@@ -153,6 +153,11 @@ export function reactionPolarity(content) {
 
 /** `39999:<pubkey>:<d>` for a kind-39999 item with a `d` tag; null otherwise (kind-9999 items are non-addressable). */
 export function itemCoord(item) {
+  // When a caller already carries the authoritative coordinate (the tag page's
+  // items group supplies `address`), use it verbatim rather than re-deriving one
+  // from kind+pubkey+d — re-derivation assumes kind 39999 and would mint a
+  // different, non-existent coordinate for any other addressable kind.
+  if (typeof item?.address === 'string' && item.address) return item.address;
   if (item?.kind !== 39999 || typeof item.pubkey !== 'string') return null;
   const d = tagValue(item, 'd');
   return d ? `${item.kind}:${item.pubkey}:${d}` : null;

@@ -43,7 +43,7 @@ const NOT_HERE = 'list not on this relay';
  */
 function toTableItem(item) {
   const hasD = (item.tags || []).some((t) => t[0] === 'd');
-  const d = !hasD && item.address ? item.address.split(':').slice(2).join(':') : null;
+  const d = !hasD && item.address && item.kind === 39999 ? item.address.split(':').slice(2).join(':') : null;
   return {
     ...item,
     id: item.id || item.address,

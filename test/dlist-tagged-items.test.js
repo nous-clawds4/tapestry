@@ -530,6 +530,24 @@ test('U19 (E9): a tag with zero item taggings returns an empty items group and a
   assert(res.body.total === 3, `the notes track is unaffected (NOTE1, NOTE2, ORPHAN); got ${res.body.total}`);
 });
 
+test('U20 (Gate B finding 1): a non-39999 `a` target keeps its own kind — never relabelled 39999', async () => {
+  // classify.js admits ANY a-coordinate, but the resolution scan only looks for
+  // kind 39999. An unresolved long-form (30023) target must therefore report the
+  // kind from its own coordinate; assuming 39999 both mislabels it on the
+  // guide-documented items[].kind and, client-side, would make itemCoord mint a
+  // 39999 coordinate that does not exist — so the row's tag affordance would
+  // target the wrong event.
+  const LONGFORM = `30023:${OWNER}:my-article`;
+  const db = mixedFixture();
+  db.push(tagging({ target: { address: LONGFORM }, pubkey: ALICE, created_at: 500 }));
+  const { res } = await callForTag({ db });
+  const row = res.body.items.find((m) => m.address === LONGFORM);
+  assert(row, 'the long-form a-target must appear in the items group');
+  assert(row.kind === 30023, `kind must come from the coordinate, got ${row.kind}`);
+  const nine = res.body.items.find((m) => m.address === ADDR_A);
+  assert(!nine || nine.kind === 39999, 'a real 39999 item still reports 39999');
+});
+
 // ===========================================================================
 // S* — source contract (the ESM/JSX half, not requirable from the Node runner)
 // ===========================================================================
