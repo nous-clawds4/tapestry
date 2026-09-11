@@ -448,7 +448,12 @@ test('R2: NewDListItem.jsx keeps its own required/recommended/optional reader', 
 
 test('R3: DListDetail.jsx and lists/Index.jsx keep their coordinate and item-counts patterns', () => {
   const detail = safeRead(OP_DETAIL);
-  assert(detail.includes("decodedId.startsWith('39998:') || decodedId.startsWith('9998:')"), 'Design note: DListDetail coordinate branch intact');
+  // The intent is that DListDetail still branches coordinate-vs-event-id before scanning.
+  // staging's dlist-curation #6 widened the literal from a two-prefix || chain to a
+  // four-prefix .some() (adding 39999:/9999: item coordinates), so pin the behavior,
+  // not the spelling.
+  assert(/39998:/.test(detail) && /9998:/.test(detail) && /decodedId\.startsWith\(/.test(detail),
+    'Design note: DListDetail coordinate branch intact (any spelling)');
   assert(detail.includes("setError('Event not found')"), 'Design note: DListDetail not-found path intact');
   const index = safeRead(OP_INDEX);
   assert(index.includes("fetch('/api/dlists/item-counts')"), 'Design note: operator index still reads item-counts');
