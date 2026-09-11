@@ -5,6 +5,7 @@ import { useCypher } from '../../hooks/useCypher';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import TreasureMapTagsPanel from './TreasureMapTagsPanel';
 import TlOptInCard from './TlOptInCard';
+import DListCurationPanel from './DListCurationPanel';
 import TreasureMapManualEdit from './TreasureMapManualEdit';
 import TreasureMapRelayPresence from './TreasureMapRelayPresence';
 
@@ -236,6 +237,10 @@ export default function TrustedAssertions() {
           <div style={{ marginTop: '1rem' }}>
             <TlOptInCard event={event} onPublished={search} />
           </div>
+
+          {/* DList Curation — empower the assistant to curate community DLists (dlist-curation #5).
+              Between the Trusted Lists panel and the hand-edit panel, keeping the page's order pin. */}
+          <DListCurationPanel event={event} onPublished={search} />
 
           {/* Hand-edit escape hatch (tl-treasure-map #4), mounted here rather
               than inside the card (treasure-map-user-assistant #2): it needs

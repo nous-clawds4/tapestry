@@ -563,6 +563,8 @@ async function register(app) {
     // ── Trusted List API ──
     const trustedList = require('./trustedList');
     trustedList.register(app);
+    // epic: dlist-curation — Story 4 (the assistant curation-header endpoint, ADR 0004).
+    require('./dlist-curation').register(app);
 
     // ── Profile Tags API (nostr-user-tag read + per-POV WoT scoring) ──
     const { registerProfileTagsRoutes } = require('./profile-tags');
