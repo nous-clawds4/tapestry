@@ -116,6 +116,12 @@ review fix is folded in as AC-7.
   sentinel alone still says "deliberately unaffiliated" and disables candidates with that reason; no
   `b` → "names no shared list"; the header missing → "was not found". Console: no errors besides the
   stub's `/api/user-prefs` 401s.
+- **Round 2 (ADR 0003 Amendment 1):** the empty sentence now comes from `itemsEmptySentence`, which
+  claims "no candidates" only after a shared-list read that did not fail on both sources. Its base
+  sentence keeps the straight apostrophe the page rendered before. Live (bundle `index-BOgUwrwR.js`):
+  with both shared reads failing, the section reads "⚠️ Couldn't check the shared list — looked in this
+  instance's strfry and on wss://dcosl.brainstorm.world." then "Your assistant hasn't added any items to
+  this list yet." — no "no candidates"; with a clean read, the two candidates as before.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-curated-dlists/0003-items-method-and-update.md`

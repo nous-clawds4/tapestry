@@ -584,6 +584,21 @@ export function sharedListUnavailable(assistantLookup, info) {
   return null;
 }
 
+/**
+ * The sentence the items table shows when it has no rows (ADR 0003 Amendment 1). "No candidates"
+ * is claimed only when the shared list — its lookup record, passed only while it is in view — was
+ * read and did not fail on both sources: a failed read is "couldn't check" (its own note), never
+ * "empty". Never throws.
+ */
+export function itemsEmptySentence(input) {
+  const { showOthers, shared } = input && typeof input === 'object' ? input : {};
+  let sentence = "Your assistant hasn't added any items to this list yet.";
+  if (showOthers) sentence += ' No one else has either.';
+  const readCleanlyEnough = !!(shared && typeof shared === 'object' && !(shared.local === 'failed' && shared.relay === 'failed'));
+  if (readCleanlyEnough) sentence += ' The shared list offers no candidates to inherit.';
+  return sentence;
+}
+
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */
 
 /**

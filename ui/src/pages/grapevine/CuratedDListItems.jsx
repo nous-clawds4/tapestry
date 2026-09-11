@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import useListItems from '../../hooks/useListItems';
-import { curatedItemRows, LIST_ITEMS_LIMIT } from '../../utils/treasureMap';
+import { curatedItemRows, itemsEmptySentence, LIST_ITEMS_LIMIT } from '../../utils/treasureMap';
 import { timeAgo } from '../../utils/timeAgo';
 
 /*
@@ -109,11 +109,7 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
           <SourceNotes list={sharedList} communityRelay={communityRelay} what="candidates" />
         )}
         {rows.length === 0 ? (
-          <div style={{ ...muted, marginTop: '0.6rem' }}>
-            Your assistant hasn&apos;t added any items to this list yet.
-            {showOthers ? ' No one else has either.' : ''}
-            {sharedList ? ' The shared list offers no candidates to inherit.' : ''}
-          </div>
+          <div style={{ ...muted, marginTop: '0.6rem' }}>{itemsEmptySentence({ showOthers, shared: sharedList })}</div>
         ) : (
           <div style={{ overflowX: 'auto', marginTop: '0.6rem' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
