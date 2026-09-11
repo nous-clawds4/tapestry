@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { queryRelay } from '../api/relay';
 import { lookupCurationHeaders } from '../utils/treasureMap';
 
@@ -9,17 +9,20 @@ async function fetchRelay(filter, url) {
 }
 
 /**
- * The assistant headers behind curated-DList rows — my-curated-dlists #1, ADR 0001 note 3: the
- * pure `lookupCurationHeaders` bound to local strfry and the row's relay hint. Keyed on the rows'
+ * The DList headers behind curated-DList rows — my-curated-dlists #1, ADR 0001 note 3: the pure
+ * `lookupCurationHeaders` bound to local strfry and the row's relay hint. Keyed on the rows'
  * coordinates and hints, not on the array's identity, so a re-render does not re-fetch.
+ * `refresh()` re-runs the lookup on demand — the re-check after an import (ADR 0002 note 2).
  *
  * @param {Array<{coord:string, kind:number, pubkey:string, d:string, relay:string|null}>} rows
- * @returns {{ headers: Object, loading: boolean }}  `headers[coord]` is undefined until checked
+ * @returns {{ headers: Object, loading: boolean, refresh: Function }}  `headers[coord]` is undefined until checked
  */
 export default function useCurationHeaders(rows) {
   const list = Array.isArray(rows) ? rows : [];
   const key = list.map((r) => `${r.coord}@${r.relay || ''}`).join('|');
   const [state, setState] = useState({ headers: {}, loading: false });
+  const [nonce, setNonce] = useState(0);
+  const refresh = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
     if (list.length === 0) { setState({ headers: {}, loading: false }); return undefined; }
@@ -28,7 +31,7 @@ export default function useCurationHeaders(rows) {
     lookupCurationHeaders(list, { scanLocal: queryRelay, fetchRelay })
       .then((headers) => { if (!cancelled) setState({ headers, loading: false }); });
     return () => { cancelled = true; };
-  }, [key]); // the coordinates and hints are the identity (see above)
+  }, [key, nonce]); // the coordinates and hints are the identity (see above); nonce = refresh()
 
-  return state;
+  return { ...state, refresh };
 }

@@ -88,6 +88,32 @@ one is found only on a relay (the frame named the shared header; the assistant's
 local already, so this covers the edge case); the pointer problems AC-2 flags are exactly the five
 listed, with `b-tag-deferred` as its own non-error state.
 
+## Deviations
+- **The sections take `info` and `checking` instead of `assistantPubkey`.** The page computes
+  `describeCurationHeader` once (it needs the pointer for the shared lookup anyway) and passes it
+  down; each section also gets its lookup's `loading` as `checking`, which is how the import control
+  tells "re-checking…" from "the re-check finished and it is still not local" — ADR sub-decision 6's
+  "if the re-check still does not find it locally, the section says so" (ADR note 3's signatures
+  otherwise unchanged).
+- **The shared section also names the shared header** (its `names[1]`, falling back to the d-tag)
+  beside the short coordinate, so "dog breed · 39998:11f23fe4…:dog-breed" reads as a list, not a hash.
+- **Live verification via the fetch-stub remount** (local stack, bundle `index-C4lzGt9g.js`): the
+  real `dog-breed` detail — your assistant's header found only on dcosl with "Import to local
+  strfry", "Authored by your assistant · 253d40c4…6ec0", "Points to 39998:11f23fe4…:dog-breed
+  (inherit-items)", no problems; the shared header "dog breed" in this instance's strfry with "Open in
+  Simple Lists →", which opened Simple Lists' "a list of dog breeds". Raw toggle: closed on load, opens
+  to the full signed event, closes. Import (the publish endpoint stubbed — nothing written): a refusal
+  reads "Import failed: stubbed refusal" and nothing else changes; a stubbed success re-checks and,
+  since nothing landed, reads "Imported, but the re-check did not find it in this instance's strfry";
+  the request carried the event as received (`adcc9abc…`, `signAs: client`). Synthetic headers (stub-
+  injected into the local scan): three problems at once in order with the first coordinate followed
+  and its shared header shown; `b-tag-deferred` as "deliberately unaffiliated" with "Can't tell which
+  shared header: … is marked deliberately unaffiliated"; no `b` → "names no shared header"; a pointer
+  to a nonexistent header → "Header not found locally or on wss://dcosl…"; the assistant's header
+  missing → "… was not found". Console: only the app shell's `/api/user-prefs` 401s (stub artifact).
+  Not done here: a **real** import — left for the reviewer (it would make `dog-breed`'s header local
+  and remove the relay-only case from this machine).
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-curated-dlists/0002-the-two-headers.md`
 - Test plan: `engineering-team/stories/my-curated-dlists/2-the-two-headers.test-plan.md` (suite: `test/my-curated-dlists-headers.test.js`)

@@ -392,6 +392,58 @@ export async function lookupCurationHeaders(rows, { scanLocal, fetchRelay } = {}
   return out;
 }
 
+/* ── The two headers (my-curated-dlists #2, ADR 0002) ───────────────────── */
+
+// The reserved "deliberately unaffiliated" `b` value (inherit-from § reserved value): a state, never a pointer.
+const B_TAG_DEFERRED = 'b-tag-deferred';
+
+/**
+ * `<kind>:<64-hex pubkey>:<d-tag>` → `{ kind, pubkey, d }` (the d-tag is everything after the second
+ * colon), or null — exactly the form `communityPointerOf` accepts (`A_TAG_FORM`). Never throws.
+ */
+export function parseCoordinate(coord) {
+  if (typeof coord !== 'string' || !A_TAG_FORM.test(coord)) return null;
+  const i = coord.indexOf(':');
+  const j = coord.indexOf(':', i + 1);
+  return { kind: Number(coord.slice(0, i)), pubkey: coord.slice(i + 1, j), d: coord.slice(j + 1) };
+}
+
+/**
+ * What an assistant's curation header says about itself (ADR 0002 sub-decisions 1–3): whether the
+ * viewer's assistant authored it (checked, not assumed); the pointer it carries — `communityPointerOf`'s,
+ * so Map Entries and this page follow the same one; whether it carries `b-tag-deferred`; and the
+ * problems, in order `no-b` · `not-a-coordinate` · `wrong-type` · `multiple`. Reported, never
+ * fixed. Never throws.
+ *
+ * @returns {{ authoredByAssistant: boolean, pointer: {coord, type, kind, pubkey, d}|null,
+ *             deferred: boolean, problems: string[] }}
+ */
+export function describeCurationHeader(event, assistantPubkey) {
+  const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
+  const tags = event && Array.isArray(event.tags) ? event.tags : [];
+  const bs = tags.filter((t) => Array.isArray(t) && t[0] === 'b');
+  const isCoord = (v) => typeof v === 'string' && A_TAG_FORM.test(v);
+  const followed = communityPointerOf(event);
+  const pointer = followed ? { coord: followed.coord, type: followed.type, ...parseCoordinate(followed.coord) } : null;
+  const problems = [];
+  if (bs.length === 0) problems.push('no-b');
+  if (bs.some((t) => !isCoord(t[1]) && t[1] !== B_TAG_DEFERRED)) problems.push('not-a-coordinate');
+  if (pointer && pointer.type !== 'inherit-items') problems.push('wrong-type');
+  if (bs.filter((t) => isCoord(t[1])).length > 1) problems.push('multiple');
+  return {
+    authoredByAssistant: !!(me && event && typeof event.pubkey === 'string' && event.pubkey.toLowerCase() === me),
+    pointer,
+    deferred: bs.some((t) => t[1] === B_TAG_DEFERRED),
+    problems,
+  };
+}
+
+/** The row `lookupCurationHeaders` takes to find the shared header a pointer names, at `relay`. */
+export function curationPointerRow(pointer, relay) {
+  if (!pointer) return null;
+  return { kind: pointer.kind, pubkey: pointer.pubkey, d: pointer.d, relay, coord: pointer.coord };
+}
+
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */
 
 /**
