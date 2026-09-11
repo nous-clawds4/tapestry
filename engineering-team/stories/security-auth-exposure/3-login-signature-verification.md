@@ -1,6 +1,6 @@
 # Story 3: Login endpoints must verify the signed challenge (auth bypass)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Bug (security / authentication)
 **Epic:** `security-auth-exposure`
@@ -69,4 +69,4 @@ Repo is PUBLIC and SECURITY.md routes reports to private GitHub advisories. Keep
 ## Linked artifacts
 - ADR: `engineering-team/decisions/security-auth-exposure/0003-verify-signed-login-challenge.md`
 - Test plan: `engineering-team/stories/security-auth-exposure/3-login-signature-verification.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/security-auth-exposure/3-login-signature-verification.md` (PASS 2026-09-11)
