@@ -6,6 +6,7 @@ import TagPinAffordance from '../components/TagPinAffordance';
 import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
 import TagNotesView from '../components/TagNotesView';
+import TagItemsView from '../components/TagItemsView';
 import TagActionsMenu from '../components/TagActionsMenu';
 import PinnedListPanel from '../components/PinnedListPanel';
 import PovStatusNotice from '../components/PovStatusNotice';
@@ -64,6 +65,10 @@ export default function Tag() {
   // keeps the Notes view mounted after first open so toggling back doesn't re-fetch.
   const [notesMode, setNotesMode] = useState('profiles');
   const [notesOpened, setNotesOpened] = useState(false);
+  // dlist-item-tagging #4 — a THIRD value on the same switch (not a new tab). The
+  // Items view is mounted eagerly-hidden and reports its total up, because the
+  // switch must show the count before it is clicked (AC-2).
+  const [itemCount, setItemCount] = useState(0);
   const [tagSomeoneOpen, setTagSomeoneOpen] = useState(false);
   // tag-event-inspector #1 / ADR 0001 D4 — the raw-event panel's visibility. The
   // menu (in the header) and the panel (page-level) are siblings, so this page is
@@ -335,6 +340,21 @@ export default function Tag() {
                 >
                   Notes
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={notesMode === 'items'}
+                  className={`bs-tag-view-switch-btn${notesMode === 'items' ? ' is-active' : ''}`}
+                  onClick={() => setNotesMode('items')}
+                >
+                  Items ({itemCount})
+                </button>
+              </div>
+
+              {/* Items view (dlist-item-tagging #4) — eagerly mounted, merely
+                  hidden, so its count is available before the first click. */}
+              <div hidden={notesMode !== 'items'}>
+                <TagItemsView tag={tag} viewerPubkey={user?.pubkey} onCount={setItemCount} />
               </div>
 
               {/* Notes view — lazily mounted on first open, then kept mounted

@@ -288,13 +288,66 @@ async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, m
   }
   for (const m of mine) bump(m.target.id, m.createdAt);
 
+  // 4b. dlist-item-tagging #4 — the ITEM track, built ALONGSIDE the notes track above.
+  //     Nothing is removed from, reordered in, or re-keyed out of the notes track: a
+  //     kind-9999 item id deliberately stays in members/fullMembers/total (a pre-existing
+  //     defect, OPEN 256, left alone here). Two key spaces:
+  //       - address: the `a`-target taggings the notes track drops at its `t.target.id` keying;
+  //       - id:      the tagged ids that resolve LOCALLY as kind-9999 (non-addressable DList items).
+  //     `a`-coordinate pubkeys are normalized to lowercase at ingest (strfry `authors:` filters
+  //     are lowercase-only, and story 5 publishes this value into a kind-30394 `a` member tag).
+  const normalizeAddress = (addr) => {
+    const m = /^(\d+):([0-9a-fA-F]{64}):(.+)$/.exec(addr || '');
+    return m ? `${m[1]}:${m[2].toLowerCase()}:${m[3]}` : addr;
+  };
+  const countByAddress = new Map();
+  const mineByAddress = new Map();
+  const latestByAddress = new Map();
+  const bumpAddr = (addr, ts) => { if (addr) latestByAddress.set(addr, Math.max(latestByAddress.get(addr) || 0, ts || 0)); };
+  for (const t of targets) {
+    if (!t.target.address) continue;
+    const addr = normalizeAddress(t.target.address);
+    // Two case-variant coordinates normalize to one key; merge into a FRESH entry
+    // rather than mutating the grouping result.
+    const existing = countByAddress.get(addr) || { applications: [], disputes: [] };
+    countByAddress.set(addr, {
+      applications: [...existing.applications, ...t.applications],
+      disputes: [...existing.disputes, ...t.disputes],
+    });
+    for (const e of t.applications) bumpAddr(addr, e.createdAt);
+    for (const e of t.disputes) bumpAddr(addr, e.createdAt);
+  }
+  for (const m of mine) {
+    if (!m.target.address) continue;
+    const addr = normalizeAddress(m.target.address);
+    const existing = mineByAddress.get(addr);
+    if (!existing || m.createdAt > existing.createdAt) mineByAddress.set(addr, m);
+    bumpAddr(addr, m.createdAt);
+  }
+  // ONE bounded local classification scan over the tagged ids: which of them are DList
+  // items? Used ONLY to build the items group. A failing scan degrades to an address-only
+  // items group (the notes track and the response's other halves are unaffected).
+  const itemEventsById = new Map();
+  const taggedIds = Array.from(latestByNote.keys());
+  if (taggedIds.length) {
+    try {
+      for (const ev of (realScanStrfry({ kinds: [9999], ids: taggedIds }) || [])) itemEventsById.set(ev.id, ev);
+    } catch { /* local strfry unavailable → address-only items */ }
+  }
+
   // Rank ALL tagged notes by the requested sort, THEN cap — so the top-N
   // reflects the whole set (Story 15). Per-note trusted counts already exist
   // in countByTarget (mine-only notes have no trusted backers → 0/0). recency
   // is the universal tiebreak (and the whole key for 'recent').
-  const appliedOf  = (id) => (countByTarget.get(id)?.applications || []).length;
-  const disputedOf = (id) => (countByTarget.get(id)?.disputes || []).length;
-  const recencyOf  = (id) => latestByNote.get(id) || 0;
+  // dlist-item-tagging #4 — the comparators are generalized to take a KEY so the new
+  // item track reuses this one ranking instead of a copied one. A key is either a bare
+  // 64-hex event id (the notes track, unchanged — ':' is not a hex character, so an id
+  // can never look like an address key) or `a:<a-coordinate>` (the item address track).
+  const ADDR_KEY = 'a:';
+  const countOf    = (key) => (key.startsWith(ADDR_KEY) ? countByAddress.get(key.slice(2)) : countByTarget.get(key));
+  const appliedOf  = (key) => (countOf(key)?.applications || []).length;
+  const disputedOf = (key) => (countOf(key)?.disputes || []).length;
+  const recencyOf  = (key) => (key.startsWith(ADDR_KEY) ? latestByAddress.get(key.slice(2)) : latestByNote.get(key)) || 0;
   const idComparators = {
     recent:   (a, b) => recencyOf(b) - recencyOf(a),
     applied:  (a, b) => (appliedOf(b) - appliedOf(a)) || (recencyOf(b) - recencyOf(a)),
@@ -324,10 +377,38 @@ async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, m
   // Bounded only by the explicit tagging-scan limit above (→ scanTruncated when hit).
   const fullMembers = rankedIds.map(memberOf);
 
+  // The item membership: the two key spaces ranked TOGETHER by the same comparators and
+  // capped by the same NOTES_CAP value on their OWN track (the notes cap above is untouched,
+  // and this group reports its own itemTotal / itemTruncated). An address-keyed member carries
+  // no `id` and an id-keyed member no `address` — that presence of `address` is also story 5's
+  // kind-30394 eligibility discriminator.
+  const itemKeys = [
+    ...Array.from(latestByAddress.keys()).map((a) => `${ADDR_KEY}${a}`),
+    ...Array.from(itemEventsById.keys()),
+  ].sort(idComparators[sort] || idComparators.recent);
+  const itemMemberOf = (key) => {
+    const isAddr = key.startsWith(ADDR_KEY);
+    const bare = isAddr ? key.slice(2) : key;
+    return {
+      ...(isAddr ? { address: bare } : { id: bare }),
+      applications: appliedOf(key),
+      disputes: disputedOf(key),
+      createdAt: recencyOf(key),
+      mine: isAddr
+        ? (mineByAddress.has(bare) ? mineByAddress.get(bare).stance : null)
+        : (mineByTarget.has(bare) ? mineByTarget.get(bare).stance : null),
+    };
+  };
+  const fullItemMembers = itemKeys.map(itemMemberOf);
+  const itemMembers = fullItemMembers.slice(0, NOTES_CAP);
+  const itemTotal = fullItemMembers.length;
+  const itemTruncated = itemTotal > itemMembers.length;
+
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
   return {
     members, fullMembers, scanTruncated, mine, candidates, countByTarget, mineByTarget, latestByNote,
     noteIds, total, truncated, povSuffix: povSuffix || null, minRank: wotFiltering ? minRank : null,
+    itemMembers, fullItemMembers, itemTotal, itemTruncated, countByAddress, mineByAddress, itemEventsById,
   };
 }
 
@@ -378,7 +459,7 @@ async function handleForTag(req, res) {
     });
     const {
       members, mine, candidates, countByTarget, mineByTarget, latestByNote, noteIds, total, truncated,
-      povSuffix, minRank,
+      povSuffix, minRank, itemMembers, itemTotal, itemTruncated, itemEventsById,
     } = await aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix: rawPovSuffix, minRank: rawMinRank, viewerPubkey, sort });
 
     let notes = [];
@@ -390,24 +471,29 @@ async function handleForTag(req, res) {
       const haveIds = new Set(localNotes.map((n) => n.id));
       const missing = noteIds.filter((id) => !haveIds.has(id));
       let externalNotes = [];
-      if (missing.length) {
-        const { relays } = await resolveGeneralPurposeRelays(realRunCypher);
-        // NIP-01 relay hints: an external target note (e.g. a fiatjaf post) won't
-        // be on our general-purpose relays. Collect the `["e", id, relay]` hints
-        // the taggings carry and fetch the missing notes from THERE too — a
-        // view-time fetch, nothing persisted (Story 12 follow-up).
-        const hintRelays = new Set();
-        const missingSet = new Set(missing);
-        for (const c of candidates) {
-          for (const t of (c.tags || [])) {
-            if (t[0] === 'e' && missingSet.has(t[1]) && typeof t[2] === 'string' && /^wss?:\/\//.test(t[2])) {
-              hintRelays.add(t[2]);
+      // dlist-item-tagging #4 / E11 — the external round-trip is the one dependency that
+      // can throw here. It must degrade (the notes it could not fetch simply don't render)
+      // rather than 500 the whole read, which would take the items group down with it.
+      try {
+        if (missing.length) {
+          const { relays } = await resolveGeneralPurposeRelays(realRunCypher);
+          // NIP-01 relay hints: an external target note (e.g. a fiatjaf post) won't
+          // be on our general-purpose relays. Collect the `["e", id, relay]` hints
+          // the taggings carry and fetch the missing notes from THERE too — a
+          // view-time fetch, nothing persisted (Story 12 follow-up).
+          const hintRelays = new Set();
+          const missingSet = new Set(missing);
+          for (const c of candidates) {
+            for (const t of (c.tags || [])) {
+              if (t[0] === 'e' && missingSet.has(t[1]) && typeof t[2] === 'string' && /^wss?:\/\//.test(t[2])) {
+                hintRelays.add(t[2]);
+              }
             }
           }
+          const fetchRelays = Array.from(new Set([...relays, ...hintRelays]));
+          externalNotes = (await realQuerySync(fetchRelays, { kinds: [1], ids: missing })) || [];
         }
-        const fetchRelays = Array.from(new Set([...relays, ...hintRelays]));
-        externalNotes = (await realQuerySync(fetchRelays, { kinds: [1], ids: missing })) || [];
-      }
+      } catch { externalNotes = []; }
       const rawNotes = [...localNotes, ...externalNotes];
       const enriched = await enrichNotes(rawNotes, realScanStrfry);
       notes = enriched
@@ -430,7 +516,57 @@ async function handleForTag(req, res) {
         });
     }
 
-    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, povResolution, sort, notes, members, mine, total, truncated, limit: NOTES_CAP };
+    // dlist-item-tagging #4 — resolve the capped item members LOCAL-FIRST, preserving the
+    // ranked order. Coordinates: one kind-39999 scan per distinct author (`#d` batched),
+    // matched back on the exact coordinate; ids: the kind-9999 events the classification
+    // scan already returned, so no second scan. An item that resolves to nothing still
+    // renders as a row from its coordinate (author + `d`) — E3.
+    const itemsByAuthor = new Map();
+    for (const m of itemMembers) {
+      if (!m.address) continue;
+      const parts = m.address.split(':');
+      const author = (parts[1] || '').toLowerCase();
+      if (!isHexPubkey(author)) continue;
+      if (!itemsByAuthor.has(author)) itemsByAuthor.set(author, []);
+      itemsByAuthor.get(author).push(parts.slice(2).join(':'));
+    }
+    const itemEventByAddress = new Map();
+    for (const [author, ds] of itemsByAuthor) {
+      let found = [];
+      try { found = realScanStrfry({ kinds: [39999], authors: [author], '#d': Array.from(new Set(ds)) }) || []; } catch { found = []; }
+      for (const ev of dedupeReplaceable(found)) {
+        const d = dTagOf(ev);
+        if (d) itemEventByAddress.set(`39999:${ev.pubkey}:${d}`, ev);
+      }
+    }
+    // The item's parent list, by the SAME membership rule /list/:ref uses: a kind-39999
+    // item belongs via its `z` header coordinate, a kind-9999 item via its `e` header
+    // event id. An item naming several parents is grouped under its FIRST such tag (E5).
+    const listCoordOf = (ev) => {
+      if (!ev) return null;
+      const name = ev.kind === 39999 ? 'z' : 'e';
+      const t = (ev.tags || []).find((x) => x[0] === name && x[1]);
+      return t ? t[1] : null;
+    };
+    const items = itemMembers.map((m) => {
+      const ev = m.address ? itemEventByAddress.get(m.address) : itemEventsById.get(m.id);
+      const coordAuthor = m.address ? (m.address.split(':')[1] || null) : null;
+      return {
+        address: m.address || null,
+        id: ev ? ev.id : (m.id || null),
+        kind: ev ? ev.kind : (m.address ? 39999 : null),
+        pubkey: ev ? ev.pubkey : coordAuthor,
+        created_at: ev ? ev.created_at : null,
+        tags: ev ? (ev.tags || []) : [],
+        content: ev ? (ev.content || '') : '',
+        listCoord: listCoordOf(ev),
+        applications: m.applications,
+        disputes: m.disputes,
+        mine: m.mine,
+      };
+    });
+
+    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, povResolution, sort, notes, members, mine, total, truncated, limit: NOTES_CAP, items, itemTotal, itemTruncated };
     if (forTagCache.size >= FOR_TAG_CACHE_MAX) forTagCache.clear();
     forTagCache.set(cacheKey, { body, expires: Date.now() + FOR_TAG_TTL_MS });
     return res.json(body);

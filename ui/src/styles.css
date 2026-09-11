@@ -8460,3 +8460,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-dlist-other-list { list-style: none; margin: 0.35rem 0 0; padding: 0; }
 .bs-dlist-other-list li { word-break: break-word; }
 .bs-dlist-other-name { font-weight: 600; color: var(--text); }
+
+/* Tagged-items view on the tag page (dlist-item-tagging #4) — one group per list
+   header, each heading linking to that list. Tokens only, so both themes follow. */
+.bs-tag-items-group { margin: 0 0 1.5rem; }
+.bs-tag-items-group-heading { display: flex; align-items: baseline; gap: 0.5rem; margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; color: var(--text); }
+.bs-tag-items-group-heading a { color: var(--link, var(--text)); text-decoration: none; }
+.bs-tag-items-group-heading a:hover { text-decoration: underline; }
+.bs-tag-items-group-missing { font-size: 0.9em; font-weight: 400; color: var(--text-muted); }

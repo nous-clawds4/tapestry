@@ -188,3 +188,25 @@ This rule applies anywhere the TA pubkey is used as: an `authors:` filter on a s
 Reference incident: the Pin/TL stack (Stories 10–12) hardcoded the literal in `ui/src/utils/publishTagPin.js` and `src/api/profile-tags/index.js`. The local instance kept working by coincidence (same TA pubkey); `tags.brainstorm.world` reported "No TL yet" forever because TLs were signed under its real TA but searched for under the hardcoded one. Fix: replace literals with the runtime helpers above. See `engineering-team/stories/_intake.md` entry dated 2026-05-20.
 
 **Named exception (ADR 0015):** the z-tag composition for the `tag`, `nostr-user-tag`, and `tag-pinning` concept handles is intentionally bound to a literal pubkey — `LEGACY_Z_TAG_PUBKEY` in `src/api/profile-tags/index.js`, `LEGACY_TA_PUBKEY` in `ui/src/utils/publishTagPin.js`, plus the existing literal hardcodes in `ui/src/hooks/useProfileTags.js` and `ui/src/utils/publishProfileTag.js`. This preserves visibility of historical user activity (tags, applies, disputes, pins) across non-dev deployments where wholesale runtime-migration would orphan all existing events. Every OTHER use of the TA pubkey — author filtering, signer reads, signing operations — must use the runtime helper. Future re-parenting of these concepts under a non-literal pubkey is a separate epic (out of Story 16; sketched in ADR 0015's "Eventual full retirement" section). A reviewer who sees a diff removing `LEGACY_*` constants without an accompanying re-parenting migration MUST reject. See `engineering-team/decisions/0015-restore-historical-data-and-fix-tl-author-filter.md`.
+
+## Dev environment (NixOS)
+
+This project's toolchain comes from the Nix dev shell in `shell.nix`, loaded
+automatically by direnv on `cd`. There is deliberately no system-wide
+interpreter or runtime on this host — "not installed on the host" is the
+expected state, not a problem to work around.
+
+Do **not** use `nix-shell -p`, do **not** install tools globally, and do **not**
+shell into a Docker container just to get a runtime. Instead run every command
+through the dev shell:
+
+    direnv exec . <command>
+
+Examples:
+
+    direnv exec . npm install
+    direnv exec . npm run test:playwright
+
+`direnv exec .` works from a non-interactive shell, which the plain direnv
+hook does not — that is why agents must use it explicitly rather than assuming
+the environment is already loaded.

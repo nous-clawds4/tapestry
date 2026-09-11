@@ -19,6 +19,11 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
   const [notes, setNotes] = useState([]);
   const [total, setTotal] = useState(0);
   const [truncated, setTruncated] = useState(false);
+  // dlist-item-tagging #4 — the same response's items group (additive; the notes
+  // return keys above are untouched, so TagNotesView compiles unchanged).
+  const [items, setItems] = useState([]);
+  const [itemTotal, setItemTotal] = useState(0);
+  const [itemTruncated, setItemTruncated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   // Story 16 — bump to force a re-fetch (e.g. after "+ Tag a Note" publishes,
@@ -28,7 +33,7 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
   const bustNextRef = useRef(false);
 
   useEffect(() => {
-    if (!HEX64.test(tagAuthorPubkey || '') || !slug) { setNotes([]); return undefined; }
+    if (!HEX64.test(tagAuthorPubkey || '') || !slug) { setNotes([]); setItems([]); return undefined; }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -52,6 +57,9 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
         setNotes(Array.isArray(j.notes) ? j.notes : []);
         setTotal(typeof j.total === 'number' ? j.total : (j.notes || []).length);
         setTruncated(!!j.truncated);
+        setItems(Array.isArray(j.items) ? j.items : []);
+        setItemTotal(typeof j.itemTotal === 'number' ? j.itemTotal : (j.items || []).length);
+        setItemTruncated(!!j.itemTruncated);
       } catch (e) {
         if (!cancelled) setError(e?.message || String(e));
       } finally {
@@ -63,7 +71,7 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
   }, [tagAuthorPubkey, slug, viewerPubkey, sort, nonce, povParams.wotPov, povParams.userPubkey]);
 
   const refetch = () => { bustNextRef.current = true; setNonce((n) => n + 1); };
-  return { notes, total, truncated, loading, error, refetch };
+  return { notes, total, truncated, items, itemTotal, itemTruncated, loading, error, refetch };
 }
 
 export default useNotesForTag;

@@ -395,3 +395,44 @@ Implementer decides them deliberately and the Reviewer can check them; none reop
 6. **AC-2's count-before-click is pinned structurally** (`hidden={notesMode !== 'items'}` plus
    `onCount=`), which constrains the Implementer to that idiom. Loosen the sentinel if a
    different shape is preferred.
+
+## Deviations *(Implementation, 2026-09-11)*
+
+Resolutions of the six obligations above, plus the small judgment calls the Design note left open:
+
+1. **Relay degradation (obligation 1).** The external-note fetch in `handleForTag` (the
+   `resolveGeneralPurposeRelays` + `realQuerySync` block) is wrapped in one try/catch that sets
+   `externalNotes = []`. Local notes, the items group and every other field still answer 200. Only
+   that block is guarded — the local scans and the aggregation keep today's failure behavior.
+2. **Classification-scan failure (obligation 2).** The new `realScanStrfry({ kinds:[9999], ids })` is
+   wrapped in try/catch inside `aggregateNotesTagged`; on failure `itemEventsById` stays empty, so the
+   items group degrades to address-only and the notes track is untouched. Still 200.
+3. **Coordinate case (obligation 3).** `a` coordinates are **normalized to a lowercase pubkey at
+   ingest** (`normalizeAddress`, kind and `d` preserved verbatim) before they become
+   `itemMembers[].address` / `fullItemMembers[].address`. Two case-variant coordinates merge into one
+   member (counts concatenated into a fresh entry — the grouping result is never mutated). Story 5
+   therefore publishes a lowercase-pubkey coordinate into its kind-30394 `a` tag, matching strfry's
+   lowercase `authors:` filters.
+4. **E4's zero-field branch (obligation 4).** Left as the Tester described: not server-observable, so
+   only the UI copy is pinned. `TagItemsView` marks a group "list not on this relay" *only* when the
+   header query returned nothing; a header that resolves with zero declarations renders the degraded
+   table with no such marker. No Playwright spec added.
+5. **E5 tie-break (obligation 5).** Stated and implemented as **first matching parent tag in the
+   event's own tag order** — the first `z` tag for a kind-39999 item, the first `e` tag for a
+   kind-9999 item (`listCoordOf`). Deterministic given the signed event; no sorting.
+6. **AC-2 count-before-click (obligation 6).** Implemented in the pinned idiom —
+   `hidden={notesMode !== 'items'}` around an eagerly-mounted `<TagItemsView … onCount={setItemCount}>`,
+   with the switch button reading `Items ({itemCount})`. No loosening requested.
+
+Smaller calls:
+
+- **Comparator generalization.** `appliedOf`/`disputedOf`/`recencyOf` now take a *key*: a bare 64-hex
+  id (notes, unchanged — `:` is not a hex character, so an id can never collide with the address
+  prefix) or `a:<coordinate>`. The notes track passes bare ids exactly as before; U7 pins that the
+  ordering is unchanged under all four sorts.
+- **Degraded item rows (E3) get a synthesized `d` tag client-side** (`toTableItem`) derived from their
+  coordinate, so the row's story-3 tag affordance (`DListItemTags` → `itemTarget`) still aims at the
+  item's `a` address instead of falling back to a non-event id. Server rows are unchanged.
+- **Items with a null `listCoord`** (an item event that names no parent) are grouped into one trailing
+  "Items with no list" group rather than being dropped.
+- Row `id` for the table/React key falls back to the coordinate when the item event did not resolve.
