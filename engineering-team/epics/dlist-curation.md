@@ -1,7 +1,8 @@
 # Epic: dlist-curation
 
 **Created:** 2026-09-10
-**Status:** Complete — all seven stories Done (reviews PASS, 2026-09-10); **retirement held** until `feat/dlist-curation` merges to `staging` (workflow 6 step 9; OPEN.md row 250; harness-lint L2 waiver). Book closed 2026-09-10.
+**Status:** Done
+**Retired:** 2026-09-10 — after PR #620 merged `feat/dlist-curation` into `staging`; folders under `done/dlist-curation/` (book closed 2026-09-10; OPEN.md row 250).
 **Book:** `engineering-team/audits/dlist-curation/book.md` (acceptance-frame)
 **Provenance:** Operator request, 2026-09-09/10 in-session, on the TA Treasure Map page. No
 `_intake.md` entry — the request went straight into the book and story 1. Design settled in the
