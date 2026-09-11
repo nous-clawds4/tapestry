@@ -1,8 +1,13 @@
 # Story 8: Derived columns for undeclared item fields
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-11
-**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A pending)*
+**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-11 — derived
+columns ordered most-common-first with ties by first appearance; control reads "Show all fields" and
+derived headers are marked as **derived** (not "assumed"/"implied" — the list does not vouch for
+them); `overflow-x: auto` wrapper, no sticky columns in v1; scoped gate
+`test/dlist-derived-columns.test.js` + `test/dlist-browse.test.js` + the strfry write-assertion
+guard suite; the three exclusions stand)*
 
 ## Background
 Stories 1 and 4 render items from the **list header's** field declarations, which is right: it
@@ -50,17 +55,17 @@ can scan and compare items instead of expanding a dropdown on every row.
 - Deriving columns from items beyond the current page.
 - Any change to what the header declares or how declarations are parsed.
 
-## Open questions *(resolve at Gate A)*
-1. **Column order among derived fields.** Recommendation: most-common first (count of items
+## Open questions *(resolved at Gate A, 2026-09-11)*
+1. **Column order — decided:** most-common first (count of items
    carrying that tag, descending), ties broken by first appearance — so the fields most items share
    are leftmost and readable without scrolling.
-2. **The control's wording.** Recommendation: **"Show all fields"** for the control, with derived
+2. **Wording — decided:** **"Show all fields"** for the control, with derived
    column headers marked (e.g. a muted suffix or icon) and a tooltip reading "not declared by this
    list's header — derived from its items". "Derived" is the honest word; "assumed"/"implied"
    overclaim.
-3. **Scroll affordance.** Recommendation: an `overflow-x: auto` wrapper around the table only,
+3. **Scroll affordance — decided:** an `overflow-x: auto` wrapper around the table only,
    no sticky columns in v1 (AC-6 as written).
-4. Scoped gate: `test/dlist-derived-columns.test.js` + `test/dlist-browse.test.js` (the shared
+4. **Scoped gate — decided:** `test/dlist-derived-columns.test.js` + `test/dlist-browse.test.js` (the shared
    table's existing sentinels) + the strfry write-assertion guard suite.
 
 ## Design note *(Light — after Gate A)*
