@@ -95,7 +95,7 @@ None. (The book's one open question — what makes a community item "already on 
 belongs to story 3's gate.)
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/my-curated-dlists/0001-my-curated-dlists-page.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 

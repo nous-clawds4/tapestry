@@ -53,4 +53,8 @@ Defaults proposed at kickoff and not objected to:
   Simple Lists).
 
 ## Decisions
-`decisions/my-curated-dlists/`: *(none yet)*
+`decisions/my-curated-dlists/`:
+- `0001-my-curated-dlists-page.md` — story 1: new lookup primitives shaped to be the shared ones
+  (effective rows, route id, front-door decision, two-step header lookup in `treasureMap.js`;
+  `useTreasureMap`, `useCurationHeaders`), consumed only by the two new pages; shipped pages
+  untouched (Option C).
