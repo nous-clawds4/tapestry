@@ -89,7 +89,60 @@ can scan and compare items instead of expanding a dropdown on every row.
 - **Not covered:** persisting or URL-sharing the toggle; sorting or filtering by a derived column; a sticky first column; deriving from items beyond the current page; any change to header parsing or to what counts as a declaration; any cap on, or POV/trust-weighted selection of, which derived fields surface.
 
 ## AC→handle lines
-—
+**Suite:** `test/dlist-derived-columns.test.js` (registered in `test/test.js` at all five sites).
+**Legend:** **U\*** = behavioral, the new pure export `derivedFieldDecls()` dynamically imported from
+`ui/src/utils/dlistFields.js` and run against inline fixture events. **S\*** = structure/source
+sentinels over `DListItemsTable.jsx`, `DListItemRow.jsx` and `styles.css` — the React/CSS wiring the
+pure function cannot reach. **R\*** = regression sentinels that pass today and fail only on collateral
+damage.
+
+- AC-1 (control offered, off by default) → S1
+- AC-2 (union of undeclared names, after declared columns, single-letters never promoted) → U1, U2, S2
+- AC-3 (derived columns visibly distinguished) → S3
+- AC-4 (other-fields cell gone; empty cell, never "missing") → U7, S2
+- AC-5 (off-state renders exactly as today) → R1, S2
+- AC-6 (table scrolls in its own region; page never scrolls sideways) → S4
+- AC-7 (both surfaces, no per-surface code) → R2
+- AC-8 (nothing to derive → no control) → U9, S1
+- Gate-A order decision (most-common first, ties by first appearance) → U3, U4
+- Design-note shape contract (`parseFieldDecls` shape, `requirement: 'derived'`, `derived: true`) → U6
+
+**Edge cases:**
+- E1 (same tag twice on one item) → U5 (counts once, so a 2-item name outranks it), U8 (`+N more`)
+- E2 (whitespace-only value still promotes a blank column) → U10 *(not derivable from any AC)*
+- E3 (derived name collides with a built-in heading) → **not covered by an automated test.** No
+  de-duplication logic exists to assert and React keys are unaffected (static `<th>`s are keyless
+  literals); it is a cosmetic outcome only visible in the browser. Gate-B visual check.
+- E4 ("Next page" while the toggle is on) → **not covered.** Requires a mounted React component with
+  changing props; there is no jsdom/RTL harness in this repo (house rule: no new test infra). Gate-B
+  browser check on `/list/:ref` paging.
+- E5 (header absent / declares nothing) → U9 (`derivedFieldDecls(items, null)` still derives)
+- E6 (dozens of undeclared tags; no cap) → U1/U3 imply no cap; the `overflow-x` mitigation → S4
+- E7 (single-item table in `TagANoteModal`) → R2 (same shared component, no per-surface code)
+- E8 (item whose event body never resolved, no `tags`) → U9 (contributes nothing, never throws)
+
+**External-dependency error paths:** none — this story is rendering only. Every input is a prop
+(`items`, `fieldDecls`) or module-local state; `derivedFieldDecls` is pure and synchronous, the
+components fetch nothing, and no server route, relay call, or concept-graph endpoint is touched
+(Design note blast radius; grep-confirmed nothing under `src/` imports `dlistFields`). The only
+failure modes are malformed inputs, covered by U9/U10. Hence no error-path table.
+
+**Guard-suite carve-out:** the scoped gate includes the strfry write-assertion guard suite
+(`test/strfry-write-assertion-bracket.test.js`). This story publishes nothing and touches no server
+route, so Phase 4 is **barred from editing that suite** — it must stay green byte-identical.
+`test/dlist-browse.test.js` is likewise a guard here: it pins the off-state "Other fields" header
+(line 339) and the row's collapsed `details/summary` cell, which AC-5 says must not change. Phase 4
+may not relax either assertion; if the implementation needs them changed, that is a kick-back, not an
+edit.
+
+**Pre-implementation run** (`direnv exec . node -e "require('./test/dlist-derived-columns.test.js').run()…"`, 2026-09-11):
+`{ pass: 3, fail: 14, skipped: 0 }` — the 3 passing are the R\* sentinels (as designed); all 10 U\*
+fail on `Design note: dlistFields.js must export derivedFieldDecls(items, fieldDecls)` (the export
+does not exist — a real absence, not an import error: the module itself imports fine, as the R/S
+reads and the existing dlist-browse suite show), and the 4 S\* fail on the missing wiring:
+S1 `the table computes columns via derivedFieldDecls()`, S2 `columns = showAll ? [...fieldDecls,
+...derived] : fieldDecls`, S3 `styles.css carries a .bs-dlist-table th.is-derived rule`, S4
+`.bs-dlist-table gets width: max-content`.
 
 ## Linked artifacts
 - ADR: none expected (rendering only; no irreversibility trigger)
