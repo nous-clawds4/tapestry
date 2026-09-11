@@ -92,3 +92,8 @@ Defaults proposed at kickoff and not objected to:
   header resolved through the story-1 lookup at the community relay, `refresh()` on
   `useCurationHeaders`, and the page's one write (Import to local strfry) isolated in
   `CuratedDListHeaders.jsx` (Option A).
+- `0003-items-method-and-update.md` — story 3: pure item logic (`lookupListItems`,
+  `curatedItemRows`, `itemRouteId`, `sharedListUnavailable`), `useListItems`, a new
+  `CuratedDListItems.jsx` (method panel, items section, Update placeholder), the shared list read
+  only while "candidates" is on; amends ADR 0002 sub-decision 2 to the house `b`-value rule
+  (`bDisposition.js`) for AC-7 (Option A).

@@ -3,6 +3,8 @@
 **Status:** Accepted
 **Date:** 2026-09-11
 **Story:** `engineering-team/stories/my-curated-dlists/2-the-two-headers.md`
+**Amended by:** ADR `my-curated-dlists/0003` sub-decision 9 — `deferred` now follows the house rule
+(`ui/src/utils/bDisposition.js` `dispositionOf`: a real `b` beats `b-tag-deferred`); story 2 review NB-1.
 
 ## Context
 
