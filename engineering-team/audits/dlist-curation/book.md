@@ -57,8 +57,7 @@ TA Treasure Map page (`/tapestry/grapevine/treasure-map`), restated here and con
 
 ## Epics in this book
 - `dlist-curation` — the two panels, the Map convention, the assistant-authored header, the
-  `inherit-items` facet, the Map Entries class, the merge-preserve fix. *(All seven stories Done;
-  retirement held until `feat/dlist-curation` merges to `staging` — OPEN.md row 250, audit §8.)*
+  `inherit-items` facet, the Map Entries class, the merge-preserve fix. *(All seven stories Done; retired 2026-09-10 after PR #620 merged to `staging`.)*
 
 ## Known constraints acknowledged at kickoff
 - `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (🔴 OPEN) O7 sequences the b-tag affiliation

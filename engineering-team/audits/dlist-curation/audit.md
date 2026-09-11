@@ -127,5 +127,5 @@ Inputs: the seven reviews' "Harness friction" sections, the stories' process-sha
 ## 8. Note on the state of the branch at close
 
 The close lands on `feat/dlist-curation` **before** any merge: the operator chose to finish the book rather than ship story by story, so no staging deploy has happened and no story has faced a real signer. Consequences recorded here so a future reader does not misattribute:
-- The epic `dlist-curation` is **complete but not retired** (all seven stories Done; the workflow retires an epic only once its branch has merged to the shared line). A harness-lint L2 waiver cites OPEN.md row 250; retirement (folders under `done/`, epic `Status: Done`, waiver removed) is the first act after the staging merge.
+- The epic `dlist-curation` is **complete but not retired** (all seven stories Done; the workflow retires an epic only once its branch has merged to the shared line). A harness-lint L2 waiver cites OPEN.md row 250; retirement (folders under `done/`, epic `Status: Done`, waiver removed) is the first act after the staging merge. **Done 2026-09-10:** PR #620 merged; retired on `close/dlist-curation`.
 - Production promotion is **not** part of this close.
