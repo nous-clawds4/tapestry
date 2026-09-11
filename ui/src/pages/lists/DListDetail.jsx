@@ -30,7 +30,8 @@ export default function DListDetail() {
         let events;
 
         // Determine if this is an a-tag reference (39998:pubkey:d-tag) or event id
-        if (decodedId.startsWith('39998:') || decodedId.startsWith('9998:')) {
+        // dlist-curation #6 (ADR 0006): kind-39999 / 9999-declared headers resolve here too.
+        if (['39998:', '39999:', '9998:', '9999:'].some((prefix) => decodedId.startsWith(prefix))) {
           // a-tag format: kind:pubkey:d-tag
           const parts = decodedId.split(':');
           const kind = parseInt(parts[0], 10);

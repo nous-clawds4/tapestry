@@ -274,6 +274,22 @@ const treasureMapRelaySync = require('./treasure-map-relay-sync.test.js');
 const treasureMapPanelSummary = require('./treasure-map-panel-summary.test.js');
 // epic: relay-scan-bounds — Story 1 (bound the Simple Lists relay scans).
 const relayScanBounds = require('./relay-scan-bounds.test.js');
+// epic: graph-curation-ui — Story 2 (restore the Add Node as Element page).
+const addNodeAsElementRestore = require('./add-node-as-element-restore.test.js');
+// epic: graph-curation-ui — Story 3 (one canonical element/set count on the concept page).
+const conceptCountCanonical = require('./concept-count-canonical.test.js');
+// epic: graph-curation-ui — Story 4 (summaries endpoint element/set counts).
+const summariesElementCount = require('./summaries-element-count.test.js');
+// epic: dlist-curation — Story 1 (Trusted Lists panel: new copy + collapsed status line).
+const dlistCurationTlPanel = require('./dlist-curation-tl-panel.test.js');
+// epic: dlist-curation — Story 4 (the assistant curation-header endpoint).
+const dlistCurationHeaderEndpoint = require('./dlist-curation-header-endpoint.test.js');
+// epic: dlist-curation — Story 5 (the DList Curation panel).
+const dlistCurationPanel = require('./dlist-curation-panel.test.js');
+// epic: dlist-curation — Story 6 (Map Entries: the Curated DList class).
+const dlistCurationMapEntries = require('./dlist-curation-map-entries.test.js');
+// epic: dlist-curation — Story 7 (Treasure Map regeneration preserves foreign entries).
+const dlistCurationMergePreserve = require('./dlist-curation-merge-preserve.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -681,6 +697,30 @@ async function main() {
 
   console.log('\ntreasure-map-panel-summary suite:');
   const treasureMapPanelSummaryResult = await treasureMapPanelSummary.run();
+
+  console.log('\nadd-node-as-element-restore suite:');
+  const addNodeAsElementRestoreResult = await addNodeAsElementRestore.run();
+
+  console.log('\nconcept-count-canonical suite:');
+  const conceptCountCanonicalResult = await conceptCountCanonical.run();
+
+  console.log('\nsummaries-element-count suite:');
+  const summariesElementCountResult = await summariesElementCount.run();
+
+  console.log('\ndlist-curation-tl-panel suite:');
+  const dlistCurationTlPanelResult = await dlistCurationTlPanel.run();
+
+  console.log('\ndlist-curation-header-endpoint suite:');
+  const dlistCurationHeaderEndpointResult = await dlistCurationHeaderEndpoint.run();
+
+  console.log('\ndlist-curation-panel suite:');
+  const dlistCurationPanelResult = await dlistCurationPanel.run();
+
+  console.log('\ndlist-curation-map-entries suite:');
+  const dlistCurationMapEntriesResult = await dlistCurationMapEntries.run();
+
+  console.log('\ndlist-curation-merge-preserve suite:');
+  const dlistCurationMergePreserveResult = await dlistCurationMergePreserve.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1190,6 +1230,14 @@ async function main() {
   console.log(`treasure-map-relay-presence suite:               ${treasureMapRelayPresenceResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapRelayPresenceResult.pass} passed, ${treasureMapRelayPresenceResult.fail} failed)`);
   console.log(`treasure-map-relay-sync suite:                   ${treasureMapRelaySyncResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapRelaySyncResult.pass} passed, ${treasureMapRelaySyncResult.fail} failed)`);
   console.log(`treasure-map-panel-summary suite:                ${treasureMapPanelSummaryResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapPanelSummaryResult.pass} passed, ${treasureMapPanelSummaryResult.fail} failed)`);
+  console.log(`add-node-as-element-restore suite:               ${addNodeAsElementRestoreResult.fail === 0 ? 'PASS' : 'FAIL'} (${addNodeAsElementRestoreResult.pass} passed, ${addNodeAsElementRestoreResult.fail} failed)`);
+  console.log(`concept-count-canonical suite:                   ${conceptCountCanonicalResult.fail === 0 ? 'PASS' : 'FAIL'} (${conceptCountCanonicalResult.pass} passed, ${conceptCountCanonicalResult.fail} failed)`);
+  console.log(`summaries-element-count suite:                   ${summariesElementCountResult.fail === 0 ? 'PASS' : 'FAIL'} (${summariesElementCountResult.pass} passed, ${summariesElementCountResult.fail} failed)`);
+  console.log(`dlist-curation-tl-panel suite:                   ${dlistCurationTlPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationTlPanelResult.pass} passed, ${dlistCurationTlPanelResult.fail} failed)`);
+  console.log(`dlist-curation-header-endpoint suite:            ${dlistCurationHeaderEndpointResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationHeaderEndpointResult.pass} passed, ${dlistCurationHeaderEndpointResult.fail} failed)`);
+  console.log(`dlist-curation-panel suite:                      ${dlistCurationPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationPanelResult.pass} passed, ${dlistCurationPanelResult.fail} failed)`);
+  console.log(`dlist-curation-map-entries suite:                ${dlistCurationMapEntriesResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationMapEntriesResult.pass} passed, ${dlistCurationMapEntriesResult.fail} failed)`);
+  console.log(`dlist-curation-merge-preserve suite:             ${dlistCurationMergePreserveResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistCurationMergePreserveResult.pass} passed, ${dlistCurationMergePreserveResult.fail} failed)`);
 
   const overallOk =
     configOk &&
@@ -1434,7 +1482,15 @@ async function main() {
     // note-trusted-list + tag-applicability republish — declared but never wired
     // into the gate before harness-gate-integrity #1 (OPEN.md #43); added here.
     noteTrustedListResult.fail === 0 &&
-    applicabilityRepublishResult.fail === 0;
+    applicabilityRepublishResult.fail === 0 &&
+    addNodeAsElementRestoreResult.fail === 0 &&
+    conceptCountCanonicalResult.fail === 0 &&
+    summariesElementCountResult.fail === 0 &&
+    dlistCurationTlPanelResult.fail === 0 &&
+    dlistCurationHeaderEndpointResult.fail === 0 &&
+    dlistCurationPanelResult.fail === 0 &&
+    dlistCurationMapEntriesResult.fail === 0 &&
+    dlistCurationMergePreserveResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -1476,7 +1532,10 @@ async function main() {
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult, tlCertaintyMethodResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
-    relayScanBoundsResult, dlistBrowseResult, eventTaggingATargetDtagResult, dlistItemTaggingResult, dlistTaggedItemsResult,
+    dlistBrowseResult, eventTaggingATargetDtagResult, dlistItemTaggingResult, dlistTaggedItemsResult,
+    relayScanBoundsResult, addNodeAsElementRestoreResult, conceptCountCanonicalResult, summariesElementCountResult,
+    dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult, dlistCurationPanelResult, dlistCurationMapEntriesResult,
+    dlistCurationMergePreserveResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

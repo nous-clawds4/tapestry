@@ -16,7 +16,7 @@ Known candidate directions, none ratified:
 
 - **Firmware-blessed pointer** — the current cold-start compromise (BIBLE §22, "Flaw A"): centralized editorial choice, accepted temporarily.
 - **Registry-as-DList** — the per-concept pointer becomes a community-curated, Grapevine-ranked DList (BIBLE §22's named exit from Flaw A).
-- **`b`-edge aggregation** — a concept's incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV, yield "which definition my web of trust agrees on" (ADR 0027; [inherit-from spec](./drafts/inherit-from.md)). Candidate mechanism for the registry exit. Scoped by `community-reference` ADR 0029: the consensus signal counts **inherit-typed** edges only — pointer-typed `b` derives `REFERENCES` and carries zero consensus weight in v1; discovery walks include both types.
+- **`b`-edge aggregation** — a concept's incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV, yield "which definition my web of trust agrees on" (ADR 0027; [inherit-from spec](./drafts/inherit-from.md)). Candidate mechanism for the registry exit. Scoped by `community-reference` ADR 0029: the consensus signal counts **inherit-typed** edges only — pointer-typed `b` derives `REFERENCES` and carries zero consensus weight in v1; discovery walks include every type (`inherit-items` too — `dlist-curation` ADR 0003).
 
 **Refs:** BIBLE §22 (community-reference model, Flaw A + exit); [inherit-from spec](./drafts/inherit-from.md) (`b` tag; ex-BIBLE §25); ADRs 0027/0028/0029 (community-reference); tags-branch ADR 0015 (the legacy-literal incident that exposed the problem); handoff doc §2; `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D5: dev fiat → registry → grapevine trajectory); [shared-concepts spec](./drafts/shared-concepts.md) (aggregation-policy home; § Cross-deployment identity states the trajectory).
 
@@ -56,9 +56,11 @@ The concept-level `REFERENCES` relationship (a non-committal "may pull later" bo
 
 ## W6 — Set-valued override algebra for Resolved Definition
 
-**Status:** Open · raised 2026-06-09
+**Status:** Open — narrowed 2026-09-10 (additive case specified; removal/replacement remains) · raised 2026-06-09
 
 Resolved Definition ([inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)", ex-BIBLE §26) is field-level in v1: a child's stated field replaces the inherited one wholesale. **How a child adds/removes/replaces individual *elements* of an inherited set** (e.g. "Alice's `dogs` minus Fido plus Rex") is explicitly deferred — by ADRs 0027/0028, unchanged by 0029 — to the first consumer that needs it. When that consumer appears, the algebra belongs in the [inherit-from spec](./drafts/inherit-from.md)'s Scope section and operates over the inherit-typed deference closure only (pointer-typed `b` tags never participate). Note: ADR 0029's pointer-by-default reduces this entry's pressure — inheritance is now opt-in and rarer.
+
+**Update 2026-09-10 (`dlist-curation` ADR 0003):** the first list-bearing consumer arrived — the assistant-authored curation header. The **additive** case is now specified in the [inherit-from spec](./drafts/inherit-from.md) § "Resolution: the resolved item set" as the `"inherit-items"` type (union over an items-deference closure; a candidate set trust-filtered per item at read time). What remains open here is **removal and replacement** of inherited items; when designed it operates over the items-deference closure, not the definition closure.
 
 **Refs:** [inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)" (ex-BIBLE §25/§26); ADRs 0027/0028/0029 (community-reference).
 

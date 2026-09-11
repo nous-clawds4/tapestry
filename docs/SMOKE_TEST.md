@@ -4,13 +4,15 @@
 >
 > **Purpose:** A single canonical definition of "smoke-tested clean" so the four `/cycle-*` slash commands don't each carry their own variant. When a new gotcha is discovered, update this file and every cycle inherits.
 
-**Last updated:** 2026-07-24
+**Last updated:** 2026-09-10
 
 ---
 
 ## What the smoke test consists of
 
 The smoke test runs after a deploy completes (or after a local rebuild) to confirm the change shipped correctly and didn't regress something nearby. It's organized in five tiers — earlier tiers always run, later tiers depend on what the change touched.
+
+**Precondition for staging and production:** the deploy run *for the merge commit* was located by SHA and watched to completion (cycle skills step 6). A smoke test started without a watched run tests whatever container is up — usually the previous one — and tiers 1–2 pass against it (OPEN.md row 251, 2026-09-10).
 
 ### Tier 1 — Pipeline readiness (always)
 
@@ -33,7 +35,7 @@ echo "Stable after ${attempts}x2s polls"
 sleep 5
 ```
 
-If a request right after stability returns 502, retry once before treating it as a real failure.
+If a request right after stability returns 502, retry once before treating it as a real failure. **The cycle can also come later:** on the 2026-09-10 production deploy the poll saw 3×200, Tier 2 ran clean, and a 502 window opened ~20–30 s after the settle, mid-Tier 3. If any later tier returns a 502, treat it as the same flicker — re-run the Tier 1 poll and repeat that tier from the top, rather than a single per-request retry (OPEN.md row 251).
 
 Likewise, **HTTP readiness ≠ Neo4j readiness**: Neo4j inside the container binds slower than the Express upstream, so a Cypher-backed endpoint can return JSON `{success:false}` with `ECONNREFUSED …:7687` for up to ~90s *after* the poll's 200s (the poll endpoint answers `followingCount` from strfry, so it 200s before Neo4j is up). Retry Neo4j-backed Tier-3 checks once after a short wait before treating it as a real failure (observed during the profile-hops-path deploy, 2026-06-17).
 
@@ -61,6 +63,7 @@ These are the checks that prove the actual change shipped, not just that the sys
   curl -s "$H/assets/$JS" | grep -oc 'expected-new-string'  # should match
   curl -s "$H/assets/$JS" | grep -oc 'expected-removed-string'  # should be 0
   ```
+  Also assert the bundle **changed**: the `index-<hash>.js` name served before the merge (or by the previous deploy) must differ after it. A UI change served under the pre-merge hash means the old container is still answering — the deploy hasn't landed, or the wrong run was watched (OPEN.md row 251). Docs-only merges rebuild the same bundle; there the hash staying the same is the expected result.
 - **Server config changed?** If the change is a Cypher query, env var, or conf file, hit an endpoint that exercises it and verify the value resolved correctly (we've done this for threshold consolidation by checking the description text returned).
 
 ### Tier 4 — Chrome visual (whenever a UI page changed)

@@ -1,6 +1,7 @@
 # ADR 0004: Publish/export a concept — Concept-Graph-rooted
 
 **Status:** Accepted (revised 2026-05-18 — see Revision 1)
+**Amended by:** `dlist-curation` ADR 0004 (2026-09-10) — the Option-B rejection ("no server-side external-relay publisher") is superseded **for `src/api/dlist-curation/` only**; the posture and its sentinel (RE1) hold for every other module.
 **Date:** 2026-05-17
 **Story:** `engineering-team/stories/9-publish-export-a-concept.md`
 

@@ -2361,3 +2361,28 @@ decide gate-or-retire. Retirement may be the right answer: the legacy dashboard 
 **Strictness:** Light (trial) — workflows/light-profile.md. Escalation watch: story 4's pin curation-method `targetTypes` value is a wire-visible enum; if extending it trips the event-shape trigger, that story escalates to Standard with an ADR.
 **Phase path:** per story — Gate A (human) → J1 → J2 → J3 → Gate B (human).
 **Branch:** `feat/dlist-item-tagging` off `main`; lands on `feat/tags` (→ tags.brainstorm.world) as the feature's staging.
+## 2026-09-10 — `inherit-items`: derivation + item-set resolver (code follow-up)
+
+**Surfaced by:** `dlist-curation` #3 / ADR 0003 (docs-mode). The `b` type registry gained
+`"inherit-items"` (item inheritance, additive) with the derived relationship
+`(child)-[:INHERITS_ITEMS_FROM]->(parent)` as the **target**. The reference deployment does not
+yet realize it:
+
+- `src/api/neo4j/eventSync.js` `buildImportCypher` type-gates on the literal `inherit`, so an
+  `inherit-items` tag derives the pointer form (`REFERENCES {source:'b-tag'}`) today — the intended
+  fail-safe, but not the target.
+- No resolver computes a node's resolved item set (union over the items-deference closure,
+  POV-filtered per item — inherit-from § "Resolution: the resolved item set").
+
+**Ask:** (1) derive `INHERITS_ITEMS_FROM` for the explicit `inherit-items` string, keeping the
+`inherit` → `INHERITS_FROM` gate byte-identical; (2) an item-set resolver on the read side (the
+concept-graph API); (3) decide whether the resolved-definition cache (`community-reference` ADR
+0032) watches the facet.
+
+**Not in the `dlist-curation` book** — the book's assistant headers are letters in the hosting
+relay, never imported into the hosting instance's graph (epic § "Settled at kickoff"), so nothing
+in the book exercises the derivation. Picks up when an instance ingests such a header (a user's
+own future instance).
+
+**Classification:** Feature. **Strictness:** Standard; ADR likely (a new relationship type in the
+graph schema).

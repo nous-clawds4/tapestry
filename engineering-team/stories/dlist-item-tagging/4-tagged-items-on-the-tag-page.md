@@ -303,7 +303,7 @@ two kind-1 notes (`NOTE1` 2 applies, `NOTE2` 1 apply + 1 dispute), one **kind-99
 
 **Not derivable from any AC** (J2.1): **R8** — the byte-identity of `members`/`fullMembers`/`total` against
 a *hand-written* pre-change expectation (`EXPECTED_MEMBERS_RECENT`, built literally, not by re-running the
-new code), including the deliberate retention of the kind-9999 id pollution (OPEN 223). Also not
+new code), including the deliberate retention of the kind-9999 id pollution (OPEN 256). Also not
 AC-derivable: U10/U11 (story-5's `fullItemMembers` + addressable-only eligibility), U18/U17 (dependency
 error paths), R3 (the note-TL destructure staying a three-key non-consumer).
 

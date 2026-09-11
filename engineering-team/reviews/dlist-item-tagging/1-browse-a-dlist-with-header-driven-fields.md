@@ -66,7 +66,7 @@ Per Light, the full suite is not this story's judge gate; it is recorded here as
 - [x] No behavior added that isn't in the story — with two small exceptions logged under Deviations by the Implementer ("(scan was bounded)" suffix; `hasMore` rule) that are refinements of AC-5, not new features. One out-of-story file is in the diff (N-2).
 
 ## ADR / Design-note adherence
-- [x] Files changed match the note's blast radius — `App.jsx`, `styles.css` (append-only, verified), `test/test.js`, plus the six new files. Extra: `.envrc` (N-2), `OPEN.md` row 219 and `protocols/worksheet.md` W17 (both harness/spec bookkeeping the note itself calls for).
+- [x] Files changed match the note's blast radius — `App.jsx`, `styles.css` (append-only, verified), `test/test.js`, plus the six new files. Extra: `.envrc` (N-2), `OPEN.md` row 252 (renumbered at the staging sync) and `protocols/worksheet.md` W17 (both harness/spec bookkeeping the note itself calls for).
 - [x] Layering respected: `DListItemsTable`/`DListItemRow` have no fetch/route knowledge (S1 asserts it and the source confirms); pages own fetching; util is React-free ESM.
 - [x] No new dependencies.
 - [~] `parseFieldDecls` omits the note's `description` key — Implementer deviation; the stated justification is wrong (N-1) but the omission has no AC impact.

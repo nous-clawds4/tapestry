@@ -9,6 +9,7 @@ import AuthorCell from '../../components/AuthorCell';
 // Known authors pinned at top of Author selector
 import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
+import { authorDisplayName } from '../../utils/authorDisplay';
 
 export default function AddNodeAsElement() {
   const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
@@ -52,14 +53,14 @@ export default function AddNodeAsElement() {
   // Resolve author profiles for the dropdown labels
   const authorDropdownProfiles = useProfiles(authorOptions);
 
-  function authorDisplayName(pk) {
-    const p = authorDropdownProfiles?.get(pk);
-    const name = p?.name || p?.display_name;
-    const short = pk.slice(0, 8) + '…';
-    if (pk === ownerPubkey) return name ? `👑 ${name}` : `👑 Owner (${short})`;
-    if (pk === DAVE_PUBKEY) return name ? `🧑‍💻 ${name}` : `🧑‍💻 Dave (${short})`;
-    if (pk === TA_PUBKEY) return name ? `🤖 ${name}` : `🤖 Assistant (${short})`;
-    return name ? `${name} (${short})` : short;
+  function authorLabel(pk) {
+    return authorDisplayName({
+      profiles: authorDropdownProfiles,
+      pubkey: pk,
+      ownerPubkey,
+      taPubkey: TA_PUBKEY,
+      davePubkey: DAVE_PUBKEY,
+    });
   }
 
   // Fetch existing elements of this concept (to mark duplicates)
@@ -227,7 +228,7 @@ export default function AddNodeAsElement() {
           >
             <option value="">All authors</option>
             {authorOptions.map(pk => (
-              <option key={pk} value={pk}>{authorDisplayName(pk)}</option>
+              <option key={pk} value={pk}>{authorLabel(pk)}</option>
             ))}
           </select>
         </div>
