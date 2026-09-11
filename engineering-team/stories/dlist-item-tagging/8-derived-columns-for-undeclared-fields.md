@@ -1,6 +1,6 @@
 # Story 8: Derived columns for undeclared item fields
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-11 — derived
 columns ordered most-common-first with ties by first appearance; control reads "Show all fields" and

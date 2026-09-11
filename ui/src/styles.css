@@ -8445,6 +8445,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-dlist-table-wrap { overflow-x: auto; max-width: 100%; min-width: 0; margin-top: 1rem; }
 .bs-dlist-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 0.92em; }
 .bs-dlist-table th, .bs-dlist-table td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+/* The table sizes to max-content so many columns scroll rather than squish, but
+   an unbounded cell would then refuse to soft-wrap and push a LONG single value
+   into a scroll it never used to need (Gate B finding 1, dlist-item-tagging #8).
+   Bounding the cell restores wrapping for long text while leaving column COUNT
+   as the thing that triggers the scroll. */
+.bs-dlist-table td { max-width: 32ch; overflow-wrap: anywhere; }
 .bs-dlist-table th { font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 .bs-dlist-table th.is-required { color: var(--text); }
 .bs-dlist-table th.is-optional, .bs-dlist-table th.is-recommended { font-weight: 500; }
