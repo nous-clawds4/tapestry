@@ -165,6 +165,8 @@ const safeToMergeCheck = require('./safe-to-merge-check.test.js');
 const nextTaskCountdown = require('./next-task-countdown.test.js');
 const closeUnauthWriteSurface = require('./close-unauth-write-surface.test.js');
 const defaultDenyMutations = require('./default-deny-mutations.test.js');
+// security-auth-exposure #3 — login endpoints must verify the signed challenge.
+const loginSignatureVerification = require('./login-signature-verification.test.js');
 // bug: users page called the removed run-query endpoint (regression guard).
 const usersPageNeo4jEndpoint = require('./users-page-neo4j-endpoint.test.js');
 // security follow-up: strfry/wipe owner-gate (audit 2026-07-21).
@@ -578,6 +580,7 @@ async function main() {
   const nextTaskCountdownResult = await nextTaskCountdown.run();
   const closeUnauthWriteSurfaceResult = await closeUnauthWriteSurface.run();
   const defaultDenyMutationsResult = await defaultDenyMutations.run();
+  const loginSignatureVerificationResult = await loginSignatureVerification.run();
   const usersPageNeo4jEndpointResult = await usersPageNeo4jEndpoint.run();
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
@@ -1342,6 +1345,8 @@ async function main() {
     closeUnauthWriteSurfaceResult.fail === 0 &&
     // security-auth-exposure #2 — default-deny for unauthenticated mutations.
     defaultDenyMutationsResult.fail === 0 &&
+    // security-auth-exposure #3 — login endpoints verify the signed challenge.
+    loginSignatureVerificationResult.fail === 0 &&
     // bug — users page called the removed run-query endpoint (regression guard).
     usersPageNeo4jEndpointResult.fail === 0 &&
     // security follow-up — strfry/wipe owner-gate (audit 2026-07-21).
@@ -1487,7 +1492,7 @@ async function main() {
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
-    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
+    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, loginSignatureVerificationResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,

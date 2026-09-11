@@ -68,5 +68,5 @@ Repo is PUBLIC and SECURITY.md routes reports to private GitHub advisories. Keep
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/security-auth-exposure/0003-verify-signed-login-challenge.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/security-auth-exposure/3-login-signature-verification.test-plan.md`
 - Review: (filled in after Review phase)
