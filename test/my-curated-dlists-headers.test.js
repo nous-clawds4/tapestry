@@ -122,14 +122,16 @@ test('U3: describeCurationHeader — each pointer problem alone: no b tag, not a
     `AC-2: two pointers → ['multiple'], the first is followed; got ${JSON.stringify(info)}`);
 });
 
-test('U4: describeCurationHeader — b-tag-deferred is its own state (never a problem), beside a pointer too; problems accumulate in a fixed order', async () => {
+test('U4: describeCurationHeader — b-tag-deferred alone is its own state (never a problem); beside a real pointer the pointer wins (ADR 0003); problems accumulate in a fixed order', async () => {
   const describe = await fn('describeCurationHeader');
   let info = describe(header([['b', 'b-tag-deferred']]), ME);
   assert(info.deferred === true && info.pointer === null && info.problems.length === 0,
     `AC-2: the sentinel alone is "deliberately unaffiliated" — not no-b, not not-a-coordinate; got ${JSON.stringify(info)}`);
+  // Re-aimed by my-curated-dlists #3 (ADR 0003 sub-decision 9, amending ADR 0002 sub-decision 2): the
+  // house rule — a real b beats a stale sentinel (ui/src/utils/bDisposition.js dispositionOf).
   info = describe(header([['b', 'b-tag-deferred'], ['b', SHARED, 'inherit-items']]), ME);
-  assert(info.deferred === true && info.pointer && info.pointer.coord === SHARED && info.problems.length === 0,
-    `AC-2: the sentinel beside a pointer is reported, and the pointer is followed (the sentinel is not a pointer, so not "multiple"); got ${JSON.stringify(info)}`);
+  assert(info.deferred === false && info.pointer && info.pointer.coord === SHARED && info.problems.length === 0,
+    `AC-2 as amended by ADR 0003 sub-decision 9 (story 3 AC-7): beside a real pointer the sentinel is superseded — not deferred, the pointer followed, not "multiple"; got ${JSON.stringify(info)}`);
   info = describe(header([['b', EVENT_ID], ['b', SHARED, 'pointer'], ['b', SHARED_2, 'inherit-items']]), ME);
   assert(deepEq(info.problems, ['not-a-coordinate', 'wrong-type', 'multiple']) && info.pointer.coord === SHARED && info.pointer.type === 'pointer',
     `AC-2 / sub-decision 2: every problem is reported, in the order no-b · not-a-coordinate · wrong-type · multiple, and the first coordinate is followed; got ${JSON.stringify(info)}`);

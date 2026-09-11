@@ -126,3 +126,9 @@ dlist-curation-map-entries → {"pass":14,"fail":0,"skipped":0}
 treasure-map-relay-presence → {"pass":35,"fail":0,"skipped":0}
 treasure-map-relay-sync → {"pass":22,"fail":0,"skipped":0}
 ```
+
+## Later change
+- **2026-09-11 — U4 re-aimed by story 3** (`engineering-team/stories/my-curated-dlists/3-items-method-and-update.md`
+  AC-7; ADR `my-curated-dlists/0003` sub-decision 9, amending ADR 0002 sub-decision 2): "the sentinel
+  beside a pointer" now expects `deferred: false` — the house rule that a real `b` beats
+  `b-tag-deferred` (`ui/src/utils/bDisposition.js`). The sentinel-alone case is unchanged.
