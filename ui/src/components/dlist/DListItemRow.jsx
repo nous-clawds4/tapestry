@@ -47,7 +47,7 @@ function OtherFieldsCell({ fields }) {
  * One DList item. Votes are read-only counts handed in by the page; the trailing
  * slot is where later stories mount their affordance.
  */
-export default function DListItemRow({ item, fieldDecls, profile, votes, renderExtra }) {
+export default function DListItemRow({ item, fieldDecls, profile, votes, renderExtra, showOther = true }) {
   const name = profile?.display_name || profile?.name || shortPubkey(item.pubkey);
   const others = undeclaredFields(item, fieldDecls);
   return (
@@ -64,7 +64,7 @@ export default function DListItemRow({ item, fieldDecls, profile, votes, renderE
           <FieldCell cell={fieldCellModel(item, decl)} />
         </td>
       ))}
-      <td className="bs-dlist-other"><OtherFieldsCell fields={others} /></td>
+      {showOther && <td className="bs-dlist-other"><OtherFieldsCell fields={others} /></td>}
       <td className="bs-dlist-votes">
         {votes ? `▲${votes.up} ▼${votes.down}` : '—'}
       </td>

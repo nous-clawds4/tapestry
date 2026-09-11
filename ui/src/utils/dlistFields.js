@@ -135,6 +135,29 @@ export function undeclaredFields(item, fieldDecls) {
     .map((t) => ({ name: t[0], value: String(t[1]) }));
 }
 
+/**
+ * Columns for the tags the header never declared, derived from the items on the page
+ * (dlist-item-tagging #8). Built on `undeclaredFields`, so the single-letter, empty-value
+ * and already-declared exclusions are inherited rather than re-derived. Ordered
+ * most-common first — counted by *items carrying* the name, not by tag occurrences —
+ * with ties broken by first appearance. Shape matches `parseFieldDecls`; `requirement:
+ * 'derived'` is the marker that keeps `fieldCellModel` from ever flagging these missing.
+ */
+export function derivedFieldDecls(items, fieldDecls) {
+  const seen = new Map(); // name → { count, first }
+  let order = 0;
+  for (const item of Array.isArray(items) ? items : []) {
+    for (const name of new Set(undeclaredFields(item, fieldDecls).map((f) => f.name))) {
+      const prev = seen.get(name);
+      if (prev) prev.count += 1;
+      else seen.set(name, { count: 1, first: order++ });
+    }
+  }
+  return [...seen.entries()]
+    .sort((a, b) => b[1].count - a[1].count || a[1].first - b[1].first)
+    .map(([name]) => ({ name, requirement: 'derived', description: null, type: 'text', derived: true }));
+}
+
 /** Case-insensitive substring match over singular, plural and description; a blank query matches everything. */
 export function matchesListQuery(header, query) {
   const q = typeof query === 'string' ? query.trim().toLowerCase() : '';
