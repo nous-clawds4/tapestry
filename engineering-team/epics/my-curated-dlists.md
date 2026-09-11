@@ -84,6 +84,11 @@ Defaults proposed at kickoff and not objected to:
 - **Story 3 review NB-2/NB-3 (small):** after a partial read (one source failed) the empty sentence
   still states "none" beside the failure note; the newest version of an item wins its name while the
   Simple Lists link opens the local (possibly older) copy.
+- **Story 3 review round 2 (small, Tester's lane):** S10 pins that `itemsEmptySentence(…)` is
+  rendered but not its argument — passing the hook's raw `shared` instead of `sharedList` would keep
+  every test green; U9 accepts a curly apostrophe. The predicate is "not failed on both sources", so a
+  `failed`/`skipped` record would still claim "no candidates" (unreachable here: the relay is the
+  constant dcosl).
 - **Story 2 review NB-6 — AC-4's scope, for the record:** the no-graph/no-external-publish claims
   hold for everything this feature can import; outside it, an owned kind-39999 tapestry letter would
   trigger the publish endpoint's brain-write hook, and the opt-in `dcosl` router preset (off by

@@ -1,6 +1,6 @@
 # Story 3: Items, the curation-method panel, and Update list
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Feature
 

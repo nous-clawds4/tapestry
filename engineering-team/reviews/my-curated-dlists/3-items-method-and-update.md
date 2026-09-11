@@ -252,3 +252,203 @@ The implementation changes four `ui/src` files: `useListItems.js` (new), `Curate
 ## Close-out (same commit)
 - [ ] Not applicable: the verdict is not a pass, so the story keeps its `Approved` status.
 - [ ] Completion detection: reported in the chat, not recorded here.
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer; independent of round 1)
+**Date:** 2026-09-11
+**Diff:** `git diff 30a33602..58c5fd48` — from round 1's review commit to HEAD `58c5fd48` (branch `feat/my-curated-dlists`, base `551bbe4a`)
+
+Round-2 commits (oldest first):
+- `e216207e` ADR 0003 "Amendment 1", appended. Nothing above it changed.
+- `e8177bbb` tests:
+  - new U9 and S10;
+  - S5 re-aimed (one assertion);
+  - a "Round 2" section appended to the test plan.
+- `58c5fd48` implementation:
+  - `itemsEmptySentence` in `treasureMap.js`;
+  - `CuratedDListItems.jsx` renders it (the import, plus one line);
+  - one Deviations bullet in the story.
+
+The diff is exactly the amendment, the tests and the fix.
+
+Each commit stays in its phase:
+- the ADR commit touches only the ADR;
+- the test commit touches only the suite and its plan;
+- the implementation commit touches only the two `ui/src` files and the story's Deviations, and no test file.
+
+The whole branch still touches no server file, manifest, setup or script.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **Story-scoped gate** (the brief's command): `TOTAL_FAIL=0`, exit 0, 251 tests. The eleven network-free suites were each also run on their own; b-coverage's count is from the gate run.
+  - `my-curated-dlists-items` 23/0 (round 1's 21, plus U9 and S10) · `my-curated-dlists-headers` 16/0 · `my-curated-dlists-page` 19/0
+  - `tl-treasure-map-panel` 18/0 · `treasure-map-panel-summary` 18/0 · `dlist-curation-panel` 18/0 · `dlist-curation-tl-panel` 19/0
+  - `tl-treasure-map-optin-publish` 23/0 · `dlist-curation-map-entries` 14/0 · `treasure-map-relay-presence` 35/0 · `treasure-map-relay-sync` 22/0
+  - `b-coverage-audit-and-disposition` 26/0
+- [x] **Red before green at `e8177bbb`.** I extracted the tree with `git archive` into scratch, so the repo got no worktree metadata. Its `ui/` is identical to round 1's (`git diff 30a33602..e8177bbb -- ui` is empty).
+  - Items suite: 21/2. U9 is red ("must export itemsEmptySentence"), and so is S10 ("ItemsSection renders itemsEmptySentence(…)"). Everything else is green, including the re-aimed S5.
+  - Story 1's suite 19/0; story 2's 16/0.
+  - This matches the test plan's recorded run line for line.
+- [x] **Mutation check.** At `e8177bbb`, U9 is red only because the export is missing. So I checked that it pins the rule itself: eleven single-edit mutants of HEAD, each run against the suite.
+  - **Round 1's gate (`!!shared`):** U9 goes red on exactly its "FAILED on both sources" assertion. An object-only gate fails the same way.
+  - **Also caught by U9:**
+    - the clause added only when both sources are ok (caught by the partial-read assertion);
+    - `showOthers` ignored;
+    - an unguarded destructure, which throws on `undefined`;
+    - the clause never added.
+  - **Caught by S10:** the section composing the sentence inline again, even with the fixed predicate.
+  - **Survivors (non-blocking; see Non-blocking 1–2):**
+    - the clause keyed on `local` alone. It differs only when local failed and the relay answered, which leans toward NB-2's fix and never gives a false "empty";
+    - a curly apostrophe;
+    - the section passing no shared record;
+    - the section passing the hook's `shared` result instead of `sharedList`.
+- [x] **Rendered-text parity with round 1.** I server-rendered two versions with react-dom/server 19.2.4 and esbuild 0.27.3: round 1's JSX (`CuratedDListItems.jsx:112-116` at `30a33602`, verbatim) and HEAD's `:112`. The states covered: others off or on, crossed with the shared list not in view, read cleanly, relay failed, local failed, or both failed.
+  - The text is identical in all eight states where the shared read did not fail on both sources.
+  - It differs only in the two both-failed states, where HEAD drops " The shared list offers no candidates to inherit."
+  - The base sentence's apostrophe is byte `0x27` (`treasureMap.js:595`), the same character round 1's `&apos;` rendered.
+- [x] **Full `npm test`**, run in the background at `58c5fd48` (15:06:18 to 15:52:42, about 46 minutes; OPEN.md row 83). Exit 1, `Overall: FAIL`: 164 suites green, 3 red, 4 failing tests, 56 skipped.
+  - **The four failures are OPEN.md row 191's:**
+    - the `L0 GUARD` in `tl-membership-method-selector`, `tl-weighted-sum-method` and `tl-certainty-method` (the container answers `allowExternalPublish:true`);
+    - `tl-certainty-method` LP, whose prune refuses under the same posture.
+  - **Both row-254 LB matrices skipped** (`tl-weighted-sum-method`, `tl-certainty-method`): "meili indexing did not settle in budget". `tl-weighted-sum-method` LA also skipped, because the stack already has a POV filter.
+  - **This story's suites:** items 23/0, headers 16/0, page 19/0.
+  - **Compared with round 1's run:** the `Test Results` block is identical except `my-curated-dlists-items`, which goes from 21 to 23 passed.
+  - I did not change the machine's publish posture.
+- [x] **`tl-publication-from-pins` does not reproduce.** It went 10/0 in this run, including the `refresh-all-pinned-tags` test (that call took about 3.5 minutes). `tl-publication-from-pins-publish` went 7/0.
+  - **Nothing on this branch can cause it.**
+    - The branch changes no server file.
+    - The container has no repo bind mount. It runs its own copy of the code: `src/api/trustedList/index.js` is identical to the repo's, and `refreshPinnedTags.js` is an older copy dated 2026-08-12.
+    - The endpoint does not involve the UI bundle.
+  - **The implementer's "500" was not a server error.**
+    - The helper (`test/tl-publication-from-pins.test.js:32-43`) reports any curl output that isn't `{success:true}` JSON as 500, and a thrown `execSync` as 0.
+    - The control panel's stderr log (`/var/log/supervisor/brainstorm-error.log`, never rotated) has no `refresh-all-pinned-tags error` line at any point, and it did not grow during this run's call.
+  - **The mechanism, reproduced.** I ran the helper's exact `execSync` pattern against a harmless `docker exec tapestry sleep 22.5` and sent SIGTERM to that docker CLI process only.
+    - It exited 0 with empty output, giving `{threw:false, out:"", status:500}`, which the suite prints as "got 500, expected 200".
+    - So a run stopped while this 3.5-minute call is in flight ends on exactly the line the partial log ends on. See Harness friction 1.
+- [x] **Served bundle = HEAD.** The stack serves `index-BOgUwrwR.js`, the bundle named in the round-2 Deviations.
+  - A Vite build of HEAD into scratch (`--outDir`, so the repo's `dist/` was untouched) is byte-identical to it.
+  - The fresh build, the bytes curl fetched, and the container's file all have sha256 `2bce7da1…`.
+  - No rebuild or `docker cp` was needed.
+- [x] `bash scripts/harness-lint.sh`: `harness-lint: clean (0 violations)` before this section. I re-ran it after writing.
+- [x] **Live browser check (mocked auth; 9 scenarios, my own harness).**
+  - **Setup.** Headless Chromium 1228 via `executablePath` (Playwright 1.56.1; OPEN.md row 232). `page.route` mocked:
+    - `/api/auth/status`: a synthetic customer;
+    - `/api/auth/user-classification`: assistant `253d40c4…6ec0`;
+    - the kind-10040 scan: a synthetic Map, `["39998:dog-breed", 253d40c4…, wss://dcosl.brainstorm.world]`.
+
+    The only injected responses were the shared list's reads (`#z` = `39998:11f23fe4…3767:dog-breed`), set per scenario. Everything else hit the real stack, and a guard answered any `/api/strfry/publish`.
+  - **Real data, checked through the API first** (as in round 1):
+    - My list has 0 items, locally and on dcosl.
+    - The shared list has sheep dog `02f68097…` and golden retriever `a1d88492…` locally, and nothing on dcosl.
+    - `/api/assistant/pubkey` answers `11f23fe4…3767`.
+  - **Round 1's D6, with "Also show candidates to inherit" ticked.** My list read fine and is empty; both shared reads answer `success:false`.
+    - The section shows "⚠️ Couldn't check the shared list — looked in this instance's strfry and on wss://dcosl.brainstorm.world."
+    - Then "Your assistant hasn't added any items to this list yet.", with no "offers no candidates".
+    - With others ticked: "…yet. No one else has either.", still with no clause.
+  - **The same state with HTML 502s on both shared reads** (round 1's deploy-restart example): identical.
+  - **Recovery.** After a failed shared read, untick and re-tick with the real read. The note goes, and golden retriever and sheep dog appear as candidates by `11f23fe4…3767`.
+  - **A clean shared read on real data:** the two candidates, "5mo ago", in name order. No empty sentence, with others off or on.
+  - **A clean shared read that finds nothing** (both sources `success:true`, no events):
+    - candidates ticked: "…yet. The shared list offers no candidates to inherit.";
+    - with others: "…yet. No one else has either. The shared list offers no candidates to inherit.";
+    - candidates unticked, others still on: "…yet. No one else has either.".
+  - **Candidates off (real data):** "Your assistant hasn't added any items to this list yet.", and with others "…No one else has either.". The shared coordinate was not requested at load.
+  - **Partial reads, unchanged from round 1 (as Amendment 1 says):**
+    - Shared local failed: "⚠️ Couldn’t check this instance’s strfry for candidates — showing what wss://dcosl.brainstorm.world returned." plus the sentence with the clause (NB-2, as round 1's D7).
+    - Shared relay failed: the relay note, plus the two local candidates.
+  - **My list failed on both sources:** "⚠️ Couldn't check — looked in this instance's strfry and on wss://dcosl.brainstorm.world." No empty sentence, even with both boxes ticked.
+  - **Across all runs:**
+    - Every run loaded `index-BOgUwrwR.js`.
+    - Zero publish attempts, zero page errors.
+    - The only non-GET request was story 1's read-only relay-list Cypher `MATCH`.
+    - The only 4xx was the app shell's `GET /api/user-prefs` → 401 (the mocked session). The only 5xx were the 502s I injected.
+    - The live observation in the round-2 Deviations reproduced.
+- [ ] `npm run test:playwright`: N/A, as in round 1. The test plan has no Playwright half, and the driver still needs `executablePath` (row 232). The live check stands in for it.
+- [ ] _Lint not configured — skipped._
+- [ ] _Typecheck not configured — skipped._
+- [ ] _Build not configured — skipped._ (The scratch build was used only to compare bundle bytes.)
+
+### Round 1's Blocking 1 — resolved
+
+- **The rule now has one home:** `ui/src/utils/treasureMap.js:593-600`, `itemsEmptySentence(input)`.
+  - It always returns the base sentence (`:595`).
+  - It adds " No one else has either." when `showOthers` (`:596`).
+  - It adds " The shared list offers no candidates to inherit." only when `readCleanlyEnough` (`:597-598`).
+  - `readCleanlyEnough` is false when the record is absent, is not an object, or failed on both sources. That is the same both-failed predicate the section already uses for the warning and the rows (`CuratedDListItems.jsx:91`, `:105`, `:108`).
+  - Input that isn't an object falls back to `{}`, so it never throws.
+- **The section renders it:** `CuratedDListItems.jsx:112` renders `itemsEmptySentence({ showOthers, shared: sharedList })`.
+  - `sharedList` (`:88`) is the shared lookup record only while "candidates" is ticked and a shared coordinate exists.
+  - While that read is pending it is `undefined`, and the section shows "⏳ Loading candidates…" (`:104`).
+  - The inline composition is gone. In the diff that is the import, plus one line.
+- **The tests pin it.**
+  - U9 (`test/my-curated-dlists-items.test.js:249-270`): its both-failed assertion (`:260-262`) is exactly the regression (mutant A above).
+  - S10 (`:322-326`) pins that the section calls the function and composes no clause of its own.
+  - S5's re-aim (`:318-319`) only widens where its empty-sentence check looks: now the module plus the util. That loses nothing, because U9 pins the util's output and S10 pins that the section calls it.
+- **Nothing else moved** (see the rendered-text parity check above).
+  - Partial reads keep round 1's wording, as Amendment 1 says.
+  - Round 1's NB-2 stays a follow-up. It is already harvested in the epic's close-out list (`engineering-team/epics/my-curated-dlists.md:84-86`).
+  - For whoever takes NB-2: U9's partial-read assertion (`test/my-curated-dlists-items.test.js:263-264`) pins today's wording, so that fix will need to re-aim U9 on purpose.
+- **The documents match what was built.**
+  - Amendment 1 describes the function, the call, and the partial-read carve-out as built. In-ADR amendment sections have house precedent (12 in `engineering-team/decisions/`).
+  - The test plan's "Round 2" table and verification block match what I ran.
+  - The story's one new Deviations bullet is accurate.
+
+### Spec, ADR and house-rule deltas
+
+- **AC-1's rule now covers the shared list.** "A failed lookup reads 'couldn't check', never 'empty'" holds for the shared list as it already did for mine. Round 1's other items are unchanged, so every AC has a passing test and has been seen live (round 1's table, plus this round's D6 scenarios).
+- **ADR 0003:**
+  - sub-decision 7's both-failed state now makes no emptiness claim for the shared list;
+  - no new dependency (`package.json` and the lockfiles are untouched);
+  - no new hook;
+  - the page stays write-free.
+- **Concept graph:** no concept, handle or firmware change. No firmware reinstall is needed.
+- **Things tests can't catch:**
+  - A `/usr/bin/grep` sweep of the 96 added lines found no key material, no 64-hex literal, no `console.*`/`debugger`/TODO, and no publish, sign, POST or storage call.
+  - The change is a pure function plus one render expression, so there is no new state, no new effect, and no race.
+- **House rules:**
+  - No new tooling, and no TA pubkey literal.
+  - "Mine" is still `useAuth().user.assistantPubkey`, passed down from the page.
+  - POV-first, decentralized-first and filter-at-view-time are unchanged.
+  - Principle 4: nothing is written (0 publish attempts in 9 live runs).
+
+### Findings
+
+#### Blocking
+None.
+
+#### Non-blocking
+1. **test/my-curated-dlists-items.test.js:322-326 (S10)** — the call's argument is not pinned.
+   - **What slips through.** The section could call `itemsEmptySentence({ showOthers, shared })` and all 23 tests would pass. Here `shared` is the hook's `{ lists, loading }` result, always truthy and without statuses, in place of `sharedList`.
+   - That would bring Blocking 1 back in a stronger form: "no candidates" on every empty view, even with candidates off or both reads failed.
+   - Dropping the argument also passes, and would silently lose the clause.
+   - U9's `APOS` accepts a curly apostrophe, so the source and the parity check hold the sentence's apostrophe, not the suite.
+   - The code is right today (`CuratedDListItems.jsx:112`, read and seen live).
+   - **Optional (Tester's lane):** anchor S10 on `shared: sharedList`, or render-test the section.
+2. **ui/src/utils/treasureMap.js:597** — "did not fail on both sources" is a negative test.
+   - **What it misses.** A record with `local: 'failed'` and `relay: 'skipped'` would still claim "no candidates", although nothing was read. So would a record with no statuses at all.
+   - **Why it can't happen here.** This page's relay is the constant `wss://dcosl.brainstorm.world` (`CuratedDListDetail.jsx:13`, from `ui/src/hooks/useCommunitySharedConcepts.js:9`), so `relay` is never `'skipped'`. `lookupListItems` always sets both statuses (`treasureMap.js:523`).
+   - It matches the section's existing predicate and sub-decision 7's wording.
+   - **Optional, if the community relay ever becomes configurable:** test for a source that answered, `shared.local === 'ok' || shared.relay === 'ok'`.
+
+#### Harness friction *(anything the process itself got wrong this story; each becomes an OPEN.md row, type `meta` — recommended here, not written)*
+1. **A stopped full run ends on a phantom "got 500".**
+   - **The mechanism.** The live refresh helper maps empty curl output to a 500. If a run is stopped while its `docker exec … curl …/refresh-all-pinned-tags` is in flight, the docker CLI exits 0 with no output.
+   - The suite then prints "refresh-all-pinned-tags status — got 500, expected 200", which reads as a server fault.
+   - That happened in this cycle, and diagnosing it took a cross-agent question.
+   - **Where it lives.** Five suites share the `json && json.success ? 200 : 500` mapping: `tl-publication-from-pins`, `tl-publication-from-pins-publish`, `customize-pin-curation-publish`, `tag-detail-curated-view-and-pin-polish-publish`, and `tl-membership-method-selector`.
+   - **Proposed row:** report empty output as its own status (e.g. "no output — the exec was interrupted"). Also note beside row 83's backgrounding advice that the last FAIL of a stopped run is not evidence.
+2. **Existing rows recurred:**
+   - Row 83: 46 minutes, backgrounded.
+   - Row 191: the four failures.
+   - Row 254: both LB matrices skipped.
+   - Row 232: Playwright needs `executablePath`.
+   - Rows 198/226: no bind mount, so the bundle was compared by bytes.
+   - Row 28: the lines after this round's verdict are worded around it.
+
+### Verdict (round 2)
+**PASS**
+
+### Close-out (round 2)
+- [x] The story's `**Status:**` flipped from `Approved` to `Done` in place, for the same commit as this section. No file moved: the epic is still in flight.
+- [ ] Completion detection: reported in the chat, not recorded here.
