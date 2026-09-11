@@ -4,8 +4,9 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import useTreasureMap from '../../hooks/useTreasureMap';
 import useCurationHeaders from '../../hooks/useCurationHeaders';
 import { COMMUNITY_RELAYS } from '../../hooks/useCommunitySharedConcepts';
-import { curatedDListAccess, describeCurationHeader, curationPointerRow } from '../../utils/treasureMap';
+import { curatedDListAccess, describeCurationHeader, curationPointerRow, sharedListUnavailable } from '../../utils/treasureMap';
 import { AssistantHeaderSection, SharedHeaderSection } from './CuratedDListHeaders';
+import { CurationMethodPanel, ItemsSection } from './CuratedDListItems';
 
 const LIST_PATH = '/tapestry/grapevine/curated-dlists';
 // The shared header is looked up where the DList Curation panel searches (ADR 0002 sub-decision 4).
@@ -79,7 +80,15 @@ export default function CuratedDListDetail() {
         onImported={shared.refresh}
         checking={shared.loading}
       />
-      {/* ── Story 3 inserts here: the items table, the curation-method panel, and Update list. ── */}
+      {/* Story 3 (ADR 0003 sub-decision 10): the curation method, then the items with Update list. */}
+      <CurationMethodPanel />
+      <ItemsSection
+        myCoord={row.coord}
+        sharedCoord={info?.pointer?.coord || null}
+        sharedUnavailable={sharedListUnavailable(lookup, info)}
+        assistantPubkey={assistantPubkey}
+        communityRelay={COMMUNITY_RELAY}
+      />
     </div>
   );
 }

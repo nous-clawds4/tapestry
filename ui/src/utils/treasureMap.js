@@ -6,6 +6,10 @@
  * named-list override for 3039x, recognized but inert today).
  */
 
+// The house owner of the `b`-value rules (the UI mirror of src/lib/bValueForms.js; ADR
+// my-curated-dlists/0003 sub-decision 9). The `.js` extension keeps Node-loaded suites resolving it.
+import { classifyBValue, dispositionOf } from './bDisposition.js';
+
 const HEX64 = /^[0-9a-fA-F]{64}$/;
 const ENTRY = /^(\d{5})(?::(.+))?$/;
 
@@ -392,10 +396,7 @@ export async function lookupCurationHeaders(rows, { scanLocal, fetchRelay } = {}
   return out;
 }
 
-/* ── The two headers (my-curated-dlists #2, ADR 0002) ───────────────────── */
-
-// The reserved "deliberately unaffiliated" `b` value (inherit-from § reserved value): a state, never a pointer.
-const B_TAG_DEFERRED = 'b-tag-deferred';
+/* ── The two headers (my-curated-dlists #2, ADR 0002; `deferred` per ADR 0003) ── */
 
 /**
  * `<kind>:<64-hex pubkey>:<d-tag>` → `{ kind, pubkey, d }` (the d-tag is everything after the second
@@ -411,9 +412,13 @@ export function parseCoordinate(coord) {
 /**
  * What an assistant's curation header says about itself (ADR 0002 sub-decisions 1–3): whether the
  * viewer's assistant authored it (checked, not assumed); the pointer it carries — `communityPointerOf`'s,
- * so Map Entries and this page follow the same one; whether it carries `b-tag-deferred`; and the
+ * so Map Entries and this page follow the same one; whether it is deliberately unaffiliated; and the
  * problems, in order `no-b` · `not-a-coordinate` · `wrong-type` · `multiple`. Reported, never
  * fixed. Never throws.
+ *
+ * `deferred` and the value forms come from the house owner (`bDisposition.js`; ADR 0003 sub-decision
+ * 9): `b-tag-deferred` counts only when it stands alone — a real `b` (a coordinate or an event id)
+ * supersedes it.
  *
  * @returns {{ authoredByAssistant: boolean, pointer: {coord, type, kind, pubkey, d}|null,
  *             deferred: boolean, problems: string[] }}
@@ -421,19 +426,19 @@ export function parseCoordinate(coord) {
 export function describeCurationHeader(event, assistantPubkey) {
   const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
   const tags = event && Array.isArray(event.tags) ? event.tags : [];
-  const bs = tags.filter((t) => Array.isArray(t) && t[0] === 'b');
-  const isCoord = (v) => typeof v === 'string' && A_TAG_FORM.test(v);
+  const values = tags.filter((t) => Array.isArray(t) && t[0] === 'b').map((t) => t[1]);
+  const forms = values.map(classifyBValue);
   const followed = communityPointerOf(event);
   const pointer = followed ? { coord: followed.coord, type: followed.type, ...parseCoordinate(followed.coord) } : null;
   const problems = [];
-  if (bs.length === 0) problems.push('no-b');
-  if (bs.some((t) => !isCoord(t[1]) && t[1] !== B_TAG_DEFERRED)) problems.push('not-a-coordinate');
+  if (values.length === 0) problems.push('no-b');
+  if (forms.some((f) => f === 'event-id' || f === 'malformed')) problems.push('not-a-coordinate');
   if (pointer && pointer.type !== 'inherit-items') problems.push('wrong-type');
-  if (bs.filter((t) => isCoord(t[1])).length > 1) problems.push('multiple');
+  if (forms.filter((f) => f === 'a-tag').length > 1) problems.push('multiple');
   return {
     authoredByAssistant: !!(me && event && typeof event.pubkey === 'string' && event.pubkey.toLowerCase() === me),
     pointer,
-    deferred: bs.some((t) => t[1] === B_TAG_DEFERRED),
+    deferred: dispositionOf(values).deferred,
     problems,
   };
 }
@@ -442,6 +447,141 @@ export function describeCurationHeader(event, assistantPubkey) {
 export function curationPointerRow(pointer, relay) {
   if (!pointer) return null;
   return { kind: pointer.kind, pubkey: pointer.pubkey, d: pointer.d, relay, coord: pointer.coord };
+}
+
+/* ── Items (my-curated-dlists #3, ADR 0003) ─────────────────────────────── */
+
+/** How many items one read asks each source for; the local scan reports when it stopped short. */
+export const LIST_ITEMS_LIMIT = 500;
+const ITEM_KINDS = [9999, 39999];
+const tagValue = (event, name) => (Array.isArray(event?.tags) ? event.tags : []).find((t) => Array.isArray(t) && t[0] === name)?.[1];
+
+/**
+ * The id Simple Lists opens an item by (`DListItems.jsx`): `39999:<pubkey>:<d>` for an addressable
+ * item, the event id otherwise; null for garbage. Never throws.
+ */
+export function itemRouteId(event) {
+  if (!event || typeof event !== 'object' || typeof event.id !== 'string' || event.id === '') return null;
+  const d = tagValue(event, 'd');
+  if (event.kind === 39999 && typeof d === 'string' && d !== '' && typeof event.pubkey === 'string') {
+    return `39999:${event.pubkey}:${d}`;
+  }
+  return event.id;
+}
+
+/**
+ * The items of each list coordinate (ADR 0003 sub-decision 3): this instance's strfry through the
+ * bounded scan, and the community relay, asked the same filter at once. Only kind 9999/39999 items
+ * whose `z` is the coordinate are kept; each item appears once (newest version per coordinate, one per
+ * id), `local` when any copy came from this instance. Per source: `local` 'ok' | 'failed' (with the
+ * scan's `truncated` / `total`), `relay` 'ok' | 'failed' | 'skipped' (not a ws/wss relay).
+ * Dependency-injected; never rejects.
+ *
+ * @param {string[]} coords
+ * @param {{ scanLocal: Function, fetchRelay: Function }} deps  scanLocal(filter) → { events, truncated, total };
+ *   fetchRelay(filter, url) → { success, events }
+ * @param {string} relay
+ */
+export async function lookupListItems(coords, { scanLocal, fetchRelay } = {}, relay) {
+  const out = {};
+  const hint = typeof relay === 'string' && /^wss?:\/\//i.test(relay) ? relay : null;
+  const list = (Array.isArray(coords) ? coords : []).filter((c) => typeof c === 'string' && c !== '');
+  await Promise.all(list.map(async (coord) => {
+    const filter = { kinds: ITEM_KINDS, '#z': [coord], limit: LIST_ITEMS_LIMIT };
+    const [local, remote] = await Promise.all([
+      (async () => {
+        try {
+          const env = await scanLocal(filter);
+          return { status: 'ok', events: Array.isArray(env?.events) ? env.events : [], truncated: !!env?.truncated, total: env?.total === undefined ? null : env.total };
+        } catch {
+          return { status: 'failed', events: [], truncated: false, total: null };
+        }
+      })(),
+      (async () => {
+        if (!hint) return { status: 'skipped', events: [] };
+        try {
+          const data = await fetchRelay(filter, hint);
+          if (!data || !data.success) return { status: 'failed', events: [] };
+          return { status: 'ok', events: Array.isArray(data.events) ? data.events : [] };
+        } catch {
+          return { status: 'failed', events: [] };
+        }
+      })(),
+    ]);
+    const byKey = new Map();
+    const take = (event, isLocal) => {
+      if (!event || !ITEM_KINDS.includes(event.kind) || typeof event.id !== 'string') return;
+      if (!(Array.isArray(event.tags) && event.tags.some((t) => Array.isArray(t) && t[0] === 'z' && t[1] === coord))) return;
+      const key = itemRouteId(event);
+      const prev = byKey.get(key);
+      if (!prev) { byKey.set(key, { event, local: isLocal }); return; }
+      const newer = (event.created_at || 0) > (prev.event.created_at || 0) ? event : prev.event;
+      byKey.set(key, { event: newer, local: prev.local || isLocal });
+    };
+    for (const e of local.events) take(e, true);
+    for (const e of remote.events) take(e, false);
+    out[coord] = { items: [...byKey.values()], local: local.status, truncated: local.truncated, total: local.total, relay: remote.status };
+  }));
+  return out;
+}
+
+const FROM_ORDER = { assistant: 0, other: 1, candidate: 2 };
+
+/**
+ * The table's rows (ADR 0003 sub-decisions 1, 2, 5). `mine` are the items pointing at my local DList,
+ * `shared` the shared list's (null when not read). By default only my assistant's items; `showOthers`
+ * adds everyone else's on my list; `showCandidates` adds shared items my assistant has not copied —
+ * "copied" meaning one of MY ASSISTANT'S items carries the shared item's id or coordinate in any tag,
+ * at any position. Grouped assistant → other → candidate; by name (case-insensitive), newest first on
+ * ties. Never throws.
+ *
+ * @returns {Array<{ key, from: 'assistant'|'other'|'candidate', name, author, createdAt, routeId, local }>}
+ */
+export function curatedItemRows(input) {
+  const { mine, shared, assistantPubkey, showOthers, showCandidates } = input || {};
+  const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
+  const valid = (x) => !!(x && x.event && typeof x.event === 'object' && itemRouteId(x.event));
+  const mineItems = (Array.isArray(mine) ? mine : []).filter(valid);
+  const byMe = (x) => me !== null && typeof x.event.pubkey === 'string' && x.event.pubkey.toLowerCase() === me;
+  const toRow = (x, from) => {
+    const name = tagValue(x.event, 'name');
+    const routeId = itemRouteId(x.event);
+    return {
+      key: `${from}:${routeId}`, from,
+      name: typeof name === 'string' && name.trim() !== '' ? name : '(unnamed)',
+      author: x.event.pubkey, createdAt: x.event.created_at || 0, routeId, local: !!x.local,
+    };
+  };
+  const rows = mineItems.filter(byMe).map((x) => toRow(x, 'assistant'));
+  if (showOthers) rows.push(...mineItems.filter((x) => !byMe(x)).map((x) => toRow(x, 'other')));
+  if (showCandidates && Array.isArray(shared)) {
+    const referenced = new Set();
+    for (const x of mineItems.filter(byMe)) {
+      for (const t of Array.isArray(x.event.tags) ? x.event.tags : []) {
+        if (Array.isArray(t)) for (const v of t.slice(1)) if (typeof v === 'string') referenced.add(v);
+      }
+    }
+    for (const x of shared.filter(valid)) {
+      const coord = x.event.kind === 39999 ? itemRouteId(x.event) : null;
+      if (referenced.has(x.event.id) || (coord && coord !== x.event.id && referenced.has(coord))) continue;
+      rows.push(toRow(x, 'candidate'));
+    }
+  }
+  return rows.sort((a, b) => FROM_ORDER[a.from] - FROM_ORDER[b.from]
+    || a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    || b.createdAt - a.createdAt);
+}
+
+/**
+ * Why there is no shared list to draw candidates from — or null when there is one (ADR 0003 note 1):
+ * `checking` (the assistant's header not looked up yet) · `failed` · `missing` · `deferred`
+ * (deliberately unaffiliated) · `no-pointer`.
+ */
+export function sharedListUnavailable(assistantLookup, info) {
+  if (!assistantLookup) return 'checking';
+  if (!assistantLookup.event) return assistantLookup.failed ? 'failed' : 'missing';
+  if (!info || !info.pointer) return info && info.deferred ? 'deferred' : 'no-pointer';
+  return null;
 }
 
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */

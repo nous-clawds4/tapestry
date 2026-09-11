@@ -87,6 +87,36 @@ copied" is an explicit back-reference (the original's event id or coordinate in 
 assistant's item); the columns are Name · Author · From · Added with a link, no votes; story 2's
 review fix is folded in as AC-7.
 
+## Deviations
+- **The util imports `classifyBValue` and `dispositionOf` only** — not `SENTINEL`: once `deferred`
+  comes from the house rule, nothing in `treasureMap.js` needs the literal (ADR note 1 listed all
+  three; the no-copy pin holds either way).
+- **`LIST_ITEMS_LIMIT` (500) is exported from the util** so the lookup and the "Showing the first N of
+  M" note share one number.
+- **The empty sentence is composed per view**: "Your assistant hasn't added any items to this list
+  yet." plus " No one else has either." when others are shown, plus " The shared list offers no
+  candidates to inherit." once the shared list has been read; a failed or partial shared-list read gets
+  its own note ("Couldn't check the shared list — …"), mirroring sub-decision 7 for my list.
+- **The disabled candidates box names its reason inline** ("— unavailable: your assistant's header is
+  marked deliberately unaffiliated" / "names no shared list" / "was not found" / "couldn't be
+  checked"), keyed by `sharedListUnavailable`.
+- **Live verification via the fetch-stub remount** (local stack, bundle `index-BeAS6lUP.js`; auth and
+  the Map stubbed, items injected per mode for my list only — everything else real). `dog-breed`
+  (your assistant's header now local after story 2's review import): default view "Your assistant
+  hasn't added any items to this list yet.", Update disabled, the method panel closed; only my list
+  read (local + dcosl) until "candidates" was ticked, then the shared list read (local + dcosl) and
+  **golden retriever** and **sheep dog** appeared as candidates by `11f23fe4…3767`, linked to their
+  Simple Lists item pages; the method panel opened to its text. With my assistant's item copying
+  sheep dog (an `a` tag with its coordinate) and someone else's corgi injected: default → sheep dog
+  (your assistant); + others → corgi (someone else); + candidates → golden retriever only; both boxes
+  back off after a reload. The 500 cap → "Showing the first 500 of 812 items found in this instance's
+  strfry."; a failed local scan → "Couldn't check this instance's strfry for items — showing what
+  wss://dcosl.brainstorm.world returned." AC-7: a header with `b-tag-deferred` beside a pointer shows
+  the pointer, no "deliberately unaffiliated", the shared header followed, candidates enabled; the
+  sentinel alone still says "deliberately unaffiliated" and disables candidates with that reason; no
+  `b` → "names no shared list"; the header missing → "was not found". Console: no errors besides the
+  stub's `/api/user-prefs` 401s.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-curated-dlists/0003-items-method-and-update.md`
 - Test plan: `engineering-team/stories/my-curated-dlists/3-items-method-and-update.test-plan.md` (suite: `test/my-curated-dlists-items.test.js`; re-aims story 2's U4)
