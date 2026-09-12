@@ -290,6 +290,10 @@ const myCuratedDListsPage = require('./my-curated-dlists-page.test.js');
 const myCuratedDListsHeaders = require('./my-curated-dlists-headers.test.js');
 // epic: my-curated-dlists — Story 3 (items, the curation-method panel, Update list).
 const myCuratedDListsItems = require('./my-curated-dlists-items.test.js');
+// epic: assistant-profile — Story 1 (the setup prompt tells the truth). U/S/D/R are stack-free;
+// H is live (GET only); the ACs a viewer sees are settled by the browser class,
+// tests/brainstorm/assistant-setup-prompt.spec.js (npm run test:playwright).
+const assistantSetupState = require('./assistant-setup-state.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -719,6 +723,9 @@ async function main() {
 
   console.log('\nmy-curated-dlists-items suite:');
   const myCuratedDListsItemsResult = await myCuratedDListsItems.run();
+
+  console.log('\nassistant-setup-state suite:');
+  const assistantSetupStateResult = await assistantSetupState.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1235,6 +1242,9 @@ async function main() {
   console.log(`my-curated-dlists-page suite:                    ${myCuratedDListsPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${myCuratedDListsPageResult.pass} passed, ${myCuratedDListsPageResult.fail} failed)`);
   console.log(`my-curated-dlists-headers suite:                 ${myCuratedDListsHeadersResult.fail === 0 ? 'PASS' : 'FAIL'} (${myCuratedDListsHeadersResult.pass} passed, ${myCuratedDListsHeadersResult.fail} failed)`);
   console.log(`my-curated-dlists-items suite:                   ${myCuratedDListsItemsResult.fail === 0 ? 'PASS' : 'FAIL'} (${myCuratedDListsItemsResult.pass} passed, ${myCuratedDListsItemsResult.fail} failed)`);
+  console.log(`assistant-setup-state suite:                     ${assistantSetupStateResult.fail === 0 ? 'PASS' : 'FAIL'} (${assistantSetupStateResult.pass} passed, ${assistantSetupStateResult.fail} failed${assistantSetupStateResult.skipped ? `, ${assistantSetupStateResult.skipped} skipped` : ''})`);
+  console.log(`assistant-setup-state H-class:                   ${assistantSetupStateResult.hExecuted} executed / ${assistantSetupStateResult.hSkipped} skipped`);
+  console.log(`assistant-setup-state B-class:                   browser only — tests/brainstorm/assistant-setup-prompt.spec.js (npm run test:playwright)`);
 
   const overallOk =
     configOk &&
@@ -1484,7 +1494,8 @@ async function main() {
     dlistCurationMergePreserveResult.fail === 0 &&
     myCuratedDListsPageResult.fail === 0 &&
     myCuratedDListsHeadersResult.fail === 0 &&
-    myCuratedDListsItemsResult.fail === 0;
+    myCuratedDListsItemsResult.fail === 0 &&
+    assistantSetupStateResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -1529,6 +1540,7 @@ async function main() {
     relayScanBoundsResult, addNodeAsElementRestoreResult, conceptCountCanonicalResult, summariesElementCountResult,
     dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult, dlistCurationPanelResult, dlistCurationMapEntriesResult,
     dlistCurationMergePreserveResult, myCuratedDListsPageResult, myCuratedDListsHeadersResult, myCuratedDListsItemsResult,
+    assistantSetupStateResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
