@@ -22,7 +22,7 @@ Two files, two halves:
 | Criterion | Test name | Test file | Level |
 |---|---|---|---|
 | AC1 | `U1: a kind 0 on the local relay answers "has a profile" from the local relay alone — no relay query and no import, even when relays are allowed and would fail` | `test/assistant-setup-state.test.js` | unit |
-| AC1 | `U6: a publish relay that never answers cannot hold the check — it returns "no profile" within the relay budget` | node | unit |
+| AC1 | `U6: a relay helper that never returns cannot hold the check — "no profile" comes back just after the relay budget` | node | unit |
 | AC1 | `D1: the dashboard no longer asks /api/profiles about the instance TA — the pubkeys=null race has nothing left to fire` | node | source |
 | AC1 | `D2: the setup check waits for sign-in to resolve, and re-runs when the signed-in user changes` | node | source |
 | AC1 | `D5: the dashboard shows the welcome prompt only for a definite "needs setup"` | node | source |
@@ -31,6 +31,7 @@ Two files, two halves:
 | AC1 (edge) | `B7: when the status check fails, no prompt appears — an error is never "no profile"` | spec | e2e |
 | AC2 | `U2: no local profile, but a publish relay has one → "has a profile" (source relay), and exactly the newest valid event is copied to the local relay` | node | unit |
 | AC2 (edge) | `U3: if copying home fails, the answer is still "has a profile" …, and the next check tries the copy again` | node | unit |
+| AC2 (Amendment 1) | `U12: through the real relay helper, a relay that connects and never answers cannot hide a profile another relay returned (Amendment 1)` | node | unit — the real helper against local relays |
 | AC3 | `U4: no kind 0 by this assistant on the local relay or any publish relay → "no profile", the prompt's trigger` | node | unit |
 | AC3 (resolved open question) | `U5: when the publish relays fail, the local relay's answer stands — "no profile", never an error` | node | unit |
 | AC3 | `D6: the prompt sends each viewer where they can publish their own assistant's profile — Owner/Admin to /tapestry/settings/assistant, everyone else to /settings` | node | source |
@@ -43,6 +44,8 @@ Two files, two halves:
 | AC4 | `D4: the check tells "no assistant" (no request) and "unknown" (an error) apart from "needs setup"` | node | source |
 | AC4 | `H1: the live status endpoint reports where its answer came from, and an anonymous call is answered from the local relay alone` | node | live |
 | AC4 | `B6: a signed-in user with no assistant sees no prompt and no assistant checklist item, and no status request is made` | spec | e2e |
+| AC4 (Amendment 1) | `D7: a status reply saying the user has no assistant key means "no assistant", never "needs setup" (Amendment 1)` | node | source |
+| AC4 (Amendment 1) | `B9: when the status check says the signed-in user has no assistant key, no prompt and no assistant checklist item appear` | spec | e2e |
 | AC5 | `U8: a "no profile" answer is never sticky — once the profile lands on the local relay (a publish), the very next check says "has a profile"` | node | unit |
 | AC5 | `S1: the status endpoint decides hasProfile through the resolver — no kind-0 scan of its own remains` | node | source |
 | AC5 | `R1: the editor still reads the same endpoint and field, so the editor and the dashboard share one answer` | node | regression |
@@ -57,6 +60,9 @@ Two files, two halves:
 - [x] Several copies on the relays — the newest by `created_at` is the one copied home (U2).
 - [x] Copying home fails (U3) — the profile still counts, and the repair is retried.
 - [x] The publish relays throw (U5) or never answer (U6).
+- [x] One publish relay connects and never answers while another returns the profile, run through
+      the real relay helper (U12).
+- [x] The status reply says there is no assistant key although sign-in reported one (D7, B9).
 - [x] An anonymous caller (U7, S2, H1) — no relay traffic, no write.
 - [x] The negative memo expires, and is per assistant (U9); it never masks a fresh local profile (U8).
 - [x] The status endpoint fails (B7).
@@ -71,6 +77,10 @@ Two files, two halves:
 
 - **Node runner:** `node test/test.js`; the new suite is registered alongside `my-curated-dlists-items`
   (require, run, summary lines including an H-class and a B-class pointer, `overallOk`, skip total).
+- **Local relays (U12):** two throwaway NIP-01 relays on 127.0.0.1, on ephemeral ports, built with `ws`
+  (an existing dependency). Stack-free and CI-safe, with no public relay traffic. U12 is the only test
+  that runs the real relay helper, because a relay that connects and never answers cannot be expressed
+  at the injected seam.
 - **Live H-class:** `BRAINSTORM_BASE_URL`, default `http://localhost:7778`. GET only. **The local
   Docker stack serves the shared checkout, not this worktree**, so H1 stays red until the code runs
   there (deployed to staging, or the local stack refreshed from the merged branch). H2 is a guard.
@@ -168,3 +178,20 @@ blanks every panel. Fixed in the spec by answering unmocked endpoints `success: 
   full spec passed 27 of 27 across three repeats.
 - **Not a page defect:** no real user can go back within that gap, and nothing can be published in
   it. This was a race in the test.
+
+**Amendment 1 tests (2026-09-12), confirmed failing against the implementation at `8d7690ec`.** The
+review found that one silent publish relay voids the relay fallback, and ADR 0001 Amendment 1 changed
+three things. U12 pins the first two through the real relay helper; D7 and B9 pin the third.
+
+```
+FAIL  U12  AC2 / ADR 0001 Amendment 1: one publish relay that connects and never answers must not
+           hide the profile another relay returned — got hasProfile=false, source=null after 4001 ms
+FAIL  D7   ADR 0001 Amendment 1, item 3: a successful status reply with hasRelayKey: false must map
+           to 'no-assistant'
+FAIL  H1   environmental, as before
+assistant-setup-state: 25 passed, 3 failed, 0 skipped
+B9    FAIL a reply with hasRelayKey: false still showed the prompt
+```
+
+U6 was renamed, and its messages reworded for the backstop. It passes against both the old and the
+amended design.

@@ -10,7 +10,10 @@
  *   U — resolveAssistantProfileState executed with injected fakes (the feedReadPath seam the
  *       ADR names). Stack-free: no strfry, no relays, no network. Every branch of the ratified
  *       rule — local hit, relay hit + copy home, relay miss, relay failure or hang, fallback not
- *       allowed, the negative memo.
+ *       allowed, the negative memo. U12 alone runs the REAL relay helper, against two throwaway
+ *       relays on 127.0.0.1 (ephemeral ports, `ws` — no stack, no public relay traffic), because a
+ *       relay that connects and never answers is invisible at the injected seam (ADR 0001
+ *       Amendment 1).
  *   S — source sentinels on the server for what U cannot reach without a key store: the status
  *       handler asks the resolver, anonymous calls stay local-only, one publish-relay list, lazy
  *       requires.
@@ -216,16 +219,17 @@ test('U5: when the publish relays fail, the local relay\'s answer stands — "no
     `with an empty local relay and failing publish relays the answer is "no profile", got ${JSON.stringify(r)}`);
 });
 
-test('U6: a publish relay that never answers cannot hold the check — it returns "no profile" within the relay budget', async () => {
+test('U6: a relay helper that never returns cannot hold the check — "no profile" comes back just after the relay budget', async () => {
   const resolve = getResolver();
   const { deps } = fakes({ local: null, relayEvents: () => new Promise(() => {}) });
   const started = Date.now();
   const r = await within(resolve({ assistantPubkey: PK, allowRelayFallback: true, deps }), RELAY_BUDGET_MS + 4000);
   assert(r !== 'HUNG',
-    `the resolver did not return within ${RELAY_BUDGET_MS + 4000} ms of a hanging relay query — ADR 0001 races the query against an outer timeout of ${RELAY_BUDGET_MS} ms, so a hung socket cannot hold a page`);
+    `the resolver did not return within ${RELAY_BUDGET_MS + 4000} ms of a hanging relay helper — ADR 0001 (Amendment 1) bounds the check with a backstop just past the ${RELAY_BUDGET_MS} ms relay budget, so a hung socket cannot hold a page`);
   assert(r.hasProfile === false, `a relay that never answers leaves the local answer standing, got ${JSON.stringify(r)}`);
   const elapsed = Date.now() - started;
-  assert(elapsed < RELAY_BUDGET_MS + 2000, `the check took ${elapsed} ms; the budget is ${RELAY_BUDGET_MS} ms`);
+  assert(elapsed < RELAY_BUDGET_MS + 2000,
+    `the check took ${elapsed} ms; the relay budget is ${RELAY_BUDGET_MS} ms and the backstop ${RELAY_BUDGET_MS + 1000} ms`);
 });
 
 test('U7: when the relay fallback is not allowed (an anonymous caller), the answer is the local relay\'s alone — no relay query, nothing written', async () => {
@@ -294,6 +298,72 @@ test('U11: index.js exports getAssistantPublishRelays() — a non-empty list of 
   const list = mod.getAssistantPublishRelays();
   assert(Array.isArray(list) && list.length > 0, `getAssistantPublishRelays() must return a non-empty array, got ${JSON.stringify(list)}`);
   assert(list.every((u) => typeof u === 'string' && /^wss?:\/\//.test(u)), `every publish relay must be a ws(s):// URL: ${JSON.stringify(list)}`);
+});
+
+/**
+ * A throwaway NIP-01 relay on 127.0.0.1, on an ephemeral port. `onReq(ws, subId)` answers each REQ;
+ * an `onReq` that does nothing makes a relay that accepts the connection and never answers.
+ */
+function localRelay(onReq) {
+  const { WebSocketServer } = require('ws');
+  return new Promise((resolve, reject) => {
+    const wss = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+    wss.on('error', reject);
+    wss.on('listening', () => {
+      wss.on('connection', (ws) => {
+        ws.on('message', (raw) => {
+          let msg;
+          try { msg = JSON.parse(raw.toString()); } catch { return; }
+          if (Array.isArray(msg) && msg[0] === 'REQ') onReq(ws, msg[1]);
+        });
+      });
+      resolve({
+        url: `ws://127.0.0.1:${wss.address().port}`,
+        close: () => { for (const client of wss.clients) client.terminate(); wss.close(); },
+      });
+    });
+  });
+}
+
+test('U12: through the real relay helper, a relay that connects and never answers cannot hide a profile another relay returned (Amendment 1)', async () => {
+  const resolve = getResolver();
+  const nt = require('nostr-tools');
+  const sk = nt.generateSecretKey();
+  const pk = nt.getPublicKey(sk);
+  const signed = nt.finalizeEvent({
+    kind: 0, created_at: Math.floor(Date.now() / 1000), tags: [], content: JSON.stringify({ name: 'on a publish relay' }),
+  }, sk);
+  const good = await localRelay((ws, sub) => {
+    ws.send(JSON.stringify(['EVENT', sub, signed]));
+    ws.send(JSON.stringify(['EOSE', sub]));
+  });
+  const silent = await localRelay(() => { /* accepts the connection and the REQ; never answers */ });
+  try {
+    const imports = [];
+    const started = Date.now();
+    const r = await within(resolve({
+      assistantPubkey: pk,
+      allowRelayFallback: true,
+      deps: {
+        scanLocalKind0: async () => null,                  // an empty local relay
+        importEvent: async (e) => { imports.push(e); },    // record the copy home; write nothing
+        getPublishRelays: () => [good.url, silent.url],
+        memo: new Map(),
+        // queryRelaysKind0 is deliberately NOT injected: this is the real helper
+      },
+    }), RELAY_BUDGET_MS + 4000);
+    const elapsed = Date.now() - started;
+    assert(r !== 'HUNG', `the check never returned (${elapsed} ms)`);
+    assert(r.hasProfile === true && r.source === 'relay',
+      'AC2 / ADR 0001 Amendment 1: one publish relay that connects and never answers must not hide the profile another relay returned — ' +
+      `got hasProfile=${r.hasProfile}, source=${JSON.stringify(r.source)} after ${elapsed} ms`);
+    assert(imports.length === 1 && imports[0].id === signed.id,
+      `AC2: the returned profile must be copied to the local relay exactly once, imported ${imports.length}×`);
+    assert(elapsed < RELAY_BUDGET_MS + 1500, `the check took ${elapsed} ms; the relay budget is ${RELAY_BUDGET_MS} ms`);
+  } finally {
+    good.close();
+    silent.close();
+  }
 });
 
 /* ───────────────────────── S — the server, by source ───────────────────────── */
@@ -389,6 +459,14 @@ test('D6: the prompt sends each viewer where they can publish their own assistan
   assert(src.includes('/tapestry/settings/assistant'), 'the Owner/Admin destination /tapestry/settings/assistant is missing');
   assert(/['"`]\/settings['"`]/.test(src),
     'AC3: no /settings destination — the Tapestry settings page is Owner/Admin-only, so a Customer\'s prompt leads to a dead end today');
+});
+
+test('D7: a status reply saying the user has no assistant key means "no assistant", never "needs setup" (Amendment 1)', () => {
+  const src = safeRead(HOOK);
+  assert(src, 'ui/src/hooks/useAssistantSetupState.js does not exist (see D2).');
+  assert(/hasRelayKey[\s\S]{0,160}['"]no-assistant['"]|['"]no-assistant['"][\s\S]{0,160}hasRelayKey/.test(src),
+    'ADR 0001 Amendment 1, item 3: a successful status reply with hasRelayKey: false must map to \'no-assistant\' — ' +
+    'a prompt there would lead to an editor that cannot publish');
 });
 
 /* ───────────────────────── R — regressions (pass before and after) ───────────────────────── */

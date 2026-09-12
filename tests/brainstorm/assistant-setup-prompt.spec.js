@@ -24,6 +24,7 @@ const { test, expect } = require('@playwright/test');
  *   B6 — a signed-in user with no assistant: no prompt, no item, no status call. [AC4]
  *   B7 — the status check fails: no prompt — an error is never "no profile".      [AC1, edge]
  *   B8 — publish, come back: the prompt is gone without a reload.                 [AC5]
+ *   B9 — the status check says there is no assistant key: no prompt, no item.    [AC4, Amendment 1]
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked: a catch-all answers emptily, and the routes that matter answer
@@ -116,6 +117,10 @@ async function mock(page, { who = null, status = { hasProfile: false }, authDela
     log.statusCalls.push(customerPubkey);
     const current = typeof status === 'function' ? status() : status;
     if (current === 'error') return r.fulfill(json({ success: false, error: 'fixture failure' }, 500));
+    if (current.hasRelayKey === false) {
+      // The server found no assistant key behind this user (e.g. the key store failed after sign-in).
+      return r.fulfill(json({ success: true, hasRelayKey: false, hasProfile: false, profileSource: null, defaults: {} }));
+    }
     const assistantPubkey = who && who.pubkey === customerPubkey ? who.assistantPubkey : null;
     return r.fulfill(json({
       success: true,
@@ -283,5 +288,15 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     await expect(page.getByRole('button', { name: PROMPT_BUTTON }),
       'AC5: the dashboard still prompts after the assistant\'s profile was published ' +
       `(the page asked /api/profiles for ${JSON.stringify(log.profiles)} and /api/assistant/status for ${JSON.stringify(log.statusCalls)})`).toHaveCount(0);
+  });
+
+  /* ───────── B9 — no key behind the reply means no assistant ───────── */
+  test('B9: when the status check says the signed-in user has no assistant key, no prompt and no assistant checklist item appear', async ({ page }) => {
+    // Sign-in reported an assistant, but the status check finds no key behind it.
+    await mock(page, { who: OWNER_USER, status: { hasRelayKey: false } });
+    await openDashboard(page);
+    await expect(page.getByRole('button', { name: PROMPT_BUTTON }),
+      'ADR 0001 Amendment 1: a reply with hasRelayKey: false means "no assistant" — a prompt would lead to an editor that cannot publish').toHaveCount(0);
+    await expect(page.getByText(CHECKLIST_ITEM), 'no "Give your Assistant a profile" item without an assistant key').toHaveCount(0);
   });
 });
