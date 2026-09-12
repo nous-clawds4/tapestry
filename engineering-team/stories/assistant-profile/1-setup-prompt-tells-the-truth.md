@@ -1,6 +1,6 @@
 # Story 1: The setup prompt tells the truth
 
-**Status:** Approved
+**Status:** In Progress
 **Created:** 2026-09-11
 **Type:** Bug
 **Epic:** `assistant-profile`
@@ -90,6 +90,6 @@ told to set up, and a wiped *and* offline instance is rare. Recorded in the rule
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-profile/0001-one-setup-state-answer-local-first.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
