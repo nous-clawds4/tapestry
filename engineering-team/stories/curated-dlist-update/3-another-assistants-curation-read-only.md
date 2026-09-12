@@ -118,7 +118,7 @@ areas. The merge waits for the staging PR, where this book's OPEN.md rows are re
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.test-plan.md`
 - Review: (filled in after Review phase)
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

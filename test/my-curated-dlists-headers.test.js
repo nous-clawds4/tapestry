@@ -288,8 +288,9 @@ test('S6: identity and isolation — the headers module carries no pubkey litera
 test('R1: story 1\'s front door is intact on the detail page', () => {
   const s = safeRead(DETAIL);
   assert(/useParams\(/.test(s) && !/decodeURIComponent/.test(s) && /curatedDListAccess\(/.test(s), 'AC-6: the route id, undecoded, into curatedDListAccess');
-  for (const status of ['signed-out', 'no-assistant', 'bad-id', 'checking', 'map-error', 'no-map', 'not-on-map', 'other-pubkey']) {
-    assert(new RegExp(`['"]${status}['"]`).test(s), `AC-6: the "${status}" sentence remains`);
+  // Re-aimed by curated-dlist-update #3 (ADR 0003 §1): read-only replaces no-assistant and other-pubkey.
+  for (const status of ['signed-out', 'bad-id', 'checking', 'map-error', 'no-map', 'not-on-map', 'read-only']) {
+    assert(new RegExp(`['"]${status}['"]`).test(s), `AC-6: the "${status}" case remains`);
   }
   assert(/curated by your assistant/i.test(s) && /['"`]\/tapestry\/grapevine\/curated-dlists['"`]/.test(s), 'AC-6: the heading line and the back link remain');
 });
