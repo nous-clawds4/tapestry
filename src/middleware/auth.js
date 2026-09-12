@@ -8,6 +8,55 @@ const fs = require('fs');
 const { getConfigFromFile, getAdminPubkeys } = require('../utils/config');
 const CustomerManager = require('../utils/customerManager');
 
+// ── Signed-challenge verification (ADR security-auth-exposure/0003) ──
+// Resilient require, mirroring src/api/event/eventReadPath.js:38-40.
+let _verifyEvent = null;
+try { _verifyEvent = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools').verifyEvent; }
+catch { try { _verifyEvent = require('nostr-tools').verifyEvent; } catch { _verifyEvent = null; } }
+
+// Auth-handshake event kinds accepted at login. The React app signs kind 22242; the legacy
+// static sign-in pages sign kind 27235. Both are accepted; any other kind is rejected.
+const AUTH_EVENT_KINDS = new Set([22242, 27235]);
+// Freshness bound on the signed event's created_at — secondary to the single-use, session-
+// bound challenge; it only rejects absurdly old / future timestamps.
+const AUTH_EVENT_MAX_AGE_S = 600; // ±10 min
+
+/**
+ * Verify a signed login challenge. Returns { ok, reason }.
+ * The security property is the conjunction of (a) event.pubkey === the pubkey the challenge was
+ * issued for and (b) a valid signature for event.pubkey — together they prove the caller controls
+ * the key the challenge was addressed to. verifyEvent runs on a JSON round-trip so a client-attached
+ * `verifiedSymbol` cache / getters cannot be trusted.
+ */
+function verifyLoginEvent(event, { challenge, expectedPubkey }) {
+    if (!_verifyEvent) return { ok: false, reason: 'verifier unavailable' };
+    if (!event || typeof event !== 'object') return { ok: false, reason: 'no event' };
+    if (!AUTH_EVENT_KINDS.has(event.kind)) return { ok: false, reason: 'bad kind' };
+    if (event.pubkey !== expectedPubkey) return { ok: false, reason: 'pubkey mismatch' };
+    const tag = Array.isArray(event.tags) && event.tags.find(t => t[0] === 'challenge');
+    if (!tag || tag[1] !== challenge) return { ok: false, reason: 'bad challenge' };
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - Number(event.created_at)) > AUTH_EVENT_MAX_AGE_S) return { ok: false, reason: 'stale' };
+    let verified = false;
+    try { verified = _verifyEvent(JSON.parse(JSON.stringify(event))) === true; } catch { verified = false; }
+    return verified ? { ok: true } : { ok: false, reason: 'bad signature' };
+}
+
+/**
+ * On a verified login, regenerate the session (defeat fixation), then set the minimal
+ * authenticated shape. Identity (session.pubkey) is established ONLY here.
+ */
+function finalizeAuthenticatedSession(req, pubkey) {
+    return new Promise((resolve, reject) => {
+        req.session.regenerate(err => {
+            if (err) return reject(err);
+            req.session.authenticated = true;
+            req.session.pubkey = pubkey;
+            req.session.save(saveErr => (saveErr ? reject(saveErr) : resolve()));
+        });
+    });
+}
+
 /**
  * Verify if a pubkey belongs to the system owner
  */
@@ -72,11 +121,11 @@ function handleAuthVerify(req, res) {
         console.log(`Authorization result: ${authorized} (${pubkey} === ${ownerPubkey})`);
         
         if (authorized) {
-            // Generate a random challenge for the client to sign
+            // Generate a random challenge for the client to sign. Stash a PENDING claim —
+            // never establish session identity (session.pubkey) before a verified login.
             const challenge = crypto.randomBytes(32).toString('hex');
-            req.session.challenge = challenge;
-            req.session.pubkey = pubkey;
-            
+            req.session.pendingAuth = { pubkey, challenge };
+
             return res.json({ authorized, challenge });
         } else {
             // Return detailed info about why auth failed
@@ -105,72 +154,49 @@ function handleAuthVerify(req, res) {
 /**
  * Process login request with signed challenge
  */
-function handleAuthLogin(req, res) {
+async function handleAuthLogin(req, res) {
     try {
-        const { event, nsec } = req.body;
-        
+        const { event } = req.body;
+
         if (!event) {
             return res.status(400).json({ error: 'Missing event parameter' });
         }
-        
-        // Verify that the event has a signature
-        // In a production environment, you would want to use a proper Nostr library for verification
-        // For this example, we'll just check that the pubkey matches and the challenge is included
-        
-        const sessionPubkey = req.session.pubkey;
-        const sessionChallenge = req.session.challenge;
-        
-        if (!sessionPubkey || !sessionChallenge) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'No active authentication session' 
+
+        // A challenge must have been issued for this session. The claimed pubkey lives on the
+        // PENDING claim — never as session identity, which is established only on a verified login.
+        const pending = req.session.pendingAuth;
+        if (!pending || !pending.pubkey || !pending.challenge) {
+            return res.status(400).json({
+                success: false,
+                message: 'No active authentication session'
             });
         }
-        
-        // Check pubkey matches
-        if (event.pubkey !== sessionPubkey) {
-            return res.json({ 
-                success: false, 
-                message: 'Public key mismatch' 
+
+        // Single-use: consume the challenge on EVERY path (success or failure), so a replay of
+        // the same challenge finds nothing pending.
+        delete req.session.pendingAuth;
+        delete req.session.challenge; // legacy field, if any
+
+        const result = verifyLoginEvent(event, { challenge: pending.challenge, expectedPubkey: pending.pubkey });
+        if (!result.ok) {
+            return res.json({
+                success: false,
+                message: 'Challenge verification failed'
             });
         }
-        
-        // Check challenge is included in tags
-        let challengeFound = false;
-        if (event.tags && Array.isArray(event.tags)) {
-            for (const tag of event.tags) {
-                if (tag[0] === 'challenge' && tag[1] === sessionChallenge) {
-                    challengeFound = true;
-                    break;
-                }
-            }
-        }
-        
-        if (!challengeFound) {
-            return res.json({ 
-                success: false, 
-                message: 'Challenge verification failed' 
-            });
-        }
-        
-        // Set session as authenticated
-        req.session.authenticated = true;
-        
-        // Store nsec in session if provided
-        if (nsec) {
-            req.session.nsec = nsec;
-            console.log('Private key stored in session for signing events');
-        }
-        
-        return res.json({ 
-            success: true, 
-            message: 'Authentication successful' 
+
+        // Verified. Regenerate the session (fixation defense), then set identity.
+        await finalizeAuthenticatedSession(req, pending.pubkey);
+
+        return res.json({
+            success: true,
+            message: 'Authentication successful'
         });
     } catch (error) {
         console.error('Error during login:', error);
-        return res.status(500).json({ 
-            success: false, 
-            message: error.message 
+        return res.status(500).json({
+            success: false,
+            message: error.message
         });
     }
 }
@@ -497,11 +523,11 @@ function handleAuthVerifyUser(req, res) {
             });
         }
         
-        // For general user authentication, we accept any valid pubkey
-        // Generate a random challenge for the client to sign
+        // For general user authentication, we accept any valid pubkey.
+        // Generate a random challenge for the client to sign, and stash a PENDING claim —
+        // identity (session.pubkey) is never established before a verified login.
         const challenge = crypto.randomBytes(32).toString('hex');
-        req.session.challenge = challenge;
-        req.session.pubkey = pubkey;
+        req.session.pendingAuth = { pubkey, challenge };
         
         // Check if this user is the owner or admin for role information
         const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
@@ -526,61 +552,49 @@ function handleAuthVerifyUser(req, res) {
  * Login endpoint for general users (not just owner)
  * Processes the signed challenge from any authenticated user
  */
-function handleAuthLoginUser(req, res) {
+async function handleAuthLoginUser(req, res) {
     try {
         const { event } = req.body;
-        
+
         if (!event) {
             return res.status(400).json({ success: false, message: 'Missing signed event' });
         }
-        
-        // Verify the event signature and challenge
-        const sessionChallenge = req.session.challenge;
-        const sessionPubkey = req.session.pubkey;
-        
-        if (!sessionChallenge || !sessionPubkey) {
+
+        const pending = req.session.pendingAuth;
+        if (!pending || !pending.pubkey || !pending.challenge) {
             return res.status(400).json({ success: false, message: 'No active authentication session' });
         }
-        
-        // Verify the event pubkey matches session
-        if (event.pubkey !== sessionPubkey) {
-            return res.status(400).json({ success: false, message: 'Event pubkey does not match session' });
-        }
-        
-        // Verify the challenge tag
-        const challengeTag = event.tags.find(tag => tag[0] === 'challenge');
-        if (!challengeTag || challengeTag[1] !== sessionChallenge) {
-            return res.status(400).json({ success: false, message: 'Invalid challenge in signed event' });
-        }
-        
-        // If we get here, authentication is successful
-        req.session.authenticated = true;
-        req.session.userPubkey = sessionPubkey;
-        
-        // Check if user is owner or admin
-        const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
-        const isOwnerUser = sessionPubkey === ownerPubkey;
-        const adminPubkeys = getAdminPubkeys();
-        const isAdminUser = adminPubkeys.includes(sessionPubkey);
-        req.session.isOwner = isOwnerUser || isAdminUser;
 
-        // Check if user is customer
+        // Single-use: consume the challenge on EVERY path (success or failure).
+        delete req.session.pendingAuth;
+        delete req.session.challenge; // legacy field, if any
+
+        const result = verifyLoginEvent(event, { challenge: pending.challenge, expectedPubkey: pending.pubkey });
+        if (!result.ok) {
+            return res.status(400).json({ success: false, message: 'Invalid signed event' });
+        }
+
+        const pubkey = pending.pubkey;
+
+        // Role for the response body only (config-derived; not stored on the session).
+        const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
+        const adminPubkeys = getAdminPubkeys();
+        const isOwnerUser = pubkey === ownerPubkey || adminPubkeys.includes(pubkey);
         const isCustomerUser = false;
-        req.session.isCustomer = isCustomerUser;
-        
-        // Clear the challenge
-        delete req.session.challenge;
-        
-        console.log(`User authentication successful for pubkey: ${sessionPubkey} (owner: ${isOwnerUser})`);
-        
-        return res.json({ 
-            success: true, 
+
+        // Verified. Regenerate the session (fixation defense), then set identity.
+        await finalizeAuthenticatedSession(req, pubkey);
+
+        console.log(`User authentication successful for pubkey: ${pubkey} (owner: ${isOwnerUser})`);
+
+        return res.json({
+            success: true,
             message: 'Authentication successful',
             isOwner: isOwnerUser,
             isCustomer: isCustomerUser,
-            pubkey: sessionPubkey
+            pubkey
         });
-        
+
     } catch (error) {
         console.error('Error in handleAuthLoginUser:', error);
         return res.status(500).json({ success: false, message: 'Internal server error during login' });

@@ -9,11 +9,14 @@ const { exec } = require('child_process');
 const { getOwnerAssistantKeys } = require('../../../utils/assistantKeys');
 const { isOwner } = require('../../../middleware/auth');
 
-// Lazy-load nostr-tools (ESM-friendly path inside Docker)
+// Lazy-load nostr-tools resiliently: the absolute path resolves inside the Docker
+// container (prod/staging); the bare require resolves everywhere else (CI's stack-free
+// runner installs node_modules at the repo root). Mirrors src/api/event/eventReadPath.js.
 let _nt = null;
 function getNostrTools() {
   if (!_nt) {
-    _nt = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools');
+    try { _nt = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools'); }
+    catch { _nt = require('nostr-tools'); }
   }
   return _nt;
 }
@@ -58,6 +61,18 @@ async function handlePublishEvent(req, res) {
       // Event should already be signed by the client (NIP-07)
       if (!event.sig || !event.id || !event.pubkey) {
         return res.status(400).json({ success: false, error: 'Client-signed event must include id, sig, and pubkey' });
+      }
+      // Authenticity, not authorization: the signature must be valid for the CLAIMED
+      // pubkey. Any validly-signed event from any author still publishes (permissionless);
+      // a forged one is rejected HERE, before strfry import, which cannot be relied on to
+      // reject it (strfry import exits 0 even when it drops a bad-sig event). Verify a JSON
+      // round-trip so a client-attached verifiedSymbol cache cannot be trusted.
+      // (ADR event-authenticity/0001.)
+      const nt = getNostrTools();
+      let verified = false;
+      try { verified = nt.verifyEvent(JSON.parse(JSON.stringify(event))) === true; } catch { verified = false; }
+      if (!verified) {
+        return res.status(400).json({ success: false, error: 'Event signature verification failed' });
       }
       signedEvent = event;
     } else {

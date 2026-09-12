@@ -167,6 +167,9 @@ const defaultDenyMutations = require('./default-deny-mutations.test.js');
 const usersPageNeo4jEndpoint = require('./users-page-neo4j-endpoint.test.js');
 // security follow-up: strfry/wipe owner-gate (audit 2026-07-21).
 const strfryWipeOwnerGate = require('./strfry-wipe-owner-gate.test.js');
+// epic: sandbox-security — Story 2 (port prod's Sept security fixes to feat/tags).
+const loginSignatureVerification = require('./login-signature-verification.test.js');
+const publishEventSignatureVerification = require('./publish-event-signature-verification.test.js');
 // epic: relationship-primitives — Story 1 (strfry-free relationship add/delete primitives).
 const relationshipPrimitives = require('./relationship-primitives.test.js');
 // epic: relationship-primitives — Story 2 (read-only deployment probe).
@@ -468,6 +471,8 @@ async function main() {
   const defaultDenyMutationsResult = await defaultDenyMutations.run();
   const usersPageNeo4jEndpointResult = await usersPageNeo4jEndpoint.run();
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
+  const loginSignatureVerificationResult = await loginSignatureVerification.run();
+  const publishEventSignatureVerificationResult = await publishEventSignatureVerification.run();
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
@@ -596,6 +601,8 @@ async function main() {
   console.log(`collapse-into-export-concept suite:              ${collapseIntoExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${collapseIntoExportResult.pass} passed, ${collapseIntoExportResult.fail} failed)`);
   console.log(`login-failure-and-tag-collapse suite:            ${loginFailureAndTagCollapseResult.fail === 0 ? 'PASS' : 'FAIL'} (${loginFailureAndTagCollapseResult.pass} passed, ${loginFailureAndTagCollapseResult.fail} failed)`);
   console.log(`site-trust-signals suite:                        ${siteTrustSignalsResult.fail === 0 ? 'PASS' : 'FAIL'} (${siteTrustSignalsResult.pass} passed, ${siteTrustSignalsResult.fail} failed, ${siteTrustSignalsResult.skipped} skipped)`);
+  console.log(`login-signature-verification suite:              ${loginSignatureVerificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${loginSignatureVerificationResult.pass} passed, ${loginSignatureVerificationResult.fail} failed, ${loginSignatureVerificationResult.skipped} skipped)`);
+  console.log(`publish-event-signature-verification suite:      ${publishEventSignatureVerificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishEventSignatureVerificationResult.pass} passed, ${publishEventSignatureVerificationResult.fail} failed, ${publishEventSignatureVerificationResult.skipped} skipped)`);
   console.log(
     `header-conceptgraph-tag suite:                   ${headerConceptGraphTagResult.fail === 0 ? 'PASS' : 'FAIL'} (${headerConceptGraphTagResult.pass} passed, ${headerConceptGraphTagResult.fail} failed)`
   );
@@ -946,6 +953,10 @@ async function main() {
     usersPageNeo4jEndpointResult.fail === 0 &&
     // security follow-up — strfry/wipe owner-gate (audit 2026-07-21).
     strfryWipeOwnerGateResult.fail === 0 &&
+    // sandbox-security #2 — port prod's Sept login + publish-authenticity fixes.
+    // (LIVE chain — before the severed terminator at moveNodesBetweenSetsUiResult; OPEN.md #43/#55.)
+    loginSignatureVerificationResult.fail === 0 &&
+    publishEventSignatureVerificationResult.fail === 0 &&
     // relationship-primitives #1 — strfry-free add/delete primitives
     // (LIVE chain — before the severed terminator; OPEN.md #43).
     relationshipPrimitivesResult.fail === 0 &&
