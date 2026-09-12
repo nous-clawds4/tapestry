@@ -10,7 +10,8 @@ import { useAuth } from '../context/AuthContext';
  *
  * status:
  *   'loading'      sign-in or the check has not resolved yet — render nothing
- *   'no-assistant' not signed in, or no assistant provisioned — no request is made
+ *   'no-assistant' not signed in or no assistant provisioned (no request is made), or the check
+ *                  found no assistant key behind the user
  *   'set-up'       a kind 0 by the assistant exists
  *   'needs-setup'  there is none on the local relay or on any publish relay
  *   'unknown'      the check failed — render nothing: an error is never "no profile"
@@ -39,6 +40,12 @@ export default function useAssistantSetupState() {
         if (cancelled) return;
         if (!data || data.success !== true) {
           setStatus('unknown');
+          return;
+        }
+        // No assistant key behind this user means nothing to set up (ADR 0001 Amendment 1). Sign-in
+        // and this check disagree only if the key store failed between them.
+        if (data.hasRelayKey === false) {
+          setStatus('no-assistant');
           return;
         }
         setStatus(data.hasProfile ? 'set-up' : 'needs-setup');

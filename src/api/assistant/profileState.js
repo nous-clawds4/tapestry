@@ -18,6 +18,13 @@ const { exec } = require('child_process');
 /** How long the publish relays get to answer before the local answer stands. */
 const RELAY_BUDGET_MS = 4000;
 
+/**
+ * The resolver's outer limit. The relay helper owns RELAY_BUDGET_MS itself; this backstop, a second
+ * later, only catches a helper that hangs. At equal length it would race the helper and could
+ * discard what responsive relays had delivered (ADR 0001 Amendment 1).
+ */
+const BACKSTOP_MS = RELAY_BUDGET_MS + 1000;
+
 /** How long a relay miss is remembered, so every page load does not re-query every relay. */
 const NEGATIVE_MEMO_MS = 5 * 60 * 1000;
 
@@ -60,7 +67,11 @@ function importToLocalRelay(event) {
   });
 }
 
-/** Every kind 0 by `pubkey` the relays return within `maxWait`. The pool verifies signatures. */
+/**
+ * Every kind 0 by `pubkey` that any relay delivers within `maxWait` of the call. Each relay is asked
+ * on its own against one shared deadline (ADR 0001 Amendment 1), so a relay that errors, never
+ * connects, or connects and never answers costs only its own answer. The pool verifies signatures.
+ */
 async function realQueryRelaysKind0(relays, pubkey, { maxWait = RELAY_BUDGET_MS } = {}) {
   if (!Array.isArray(relays) || relays.length === 0) return [];
   // Node has no WebSocket global, and nostr-tools' SimplePool needs one.
@@ -69,8 +80,15 @@ async function realQueryRelaysKind0(relays, pubkey, { maxWait = RELAY_BUDGET_MS 
   }
   const { SimplePool } = require('nostr-tools');
   const pool = new SimplePool();
+  const filter = { kinds: [0], authors: [pubkey] };
+  const deadline = Date.now() + maxWait;
   try {
-    return await pool.querySync(relays, { kinds: [0], authors: [pubkey] }, { maxWait });
+    const perRelay = await Promise.all(relays.map((relay) => withinBudget(
+      Promise.resolve().then(() => pool.querySync([relay], filter, { maxWait })).catch(() => []),
+      Math.max(0, deadline - Date.now()),
+      [],
+    )));
+    return perRelay.flat();
   } finally {
     try { pool.close(relays); } catch { /* ignore */ }
   }
@@ -131,12 +149,14 @@ async function resolveAssistantProfileState(options = {}) {
   const missedAt = memo.get(assistantPubkey);
   if (missedAt !== undefined && now() - missedAt < NEGATIVE_MEMO_MS) return none;
 
-  // 4. The publish relays, within the budget. A failure or a timeout is "not found".
+  // 4. The publish relays. The helper owns the RELAY_BUDGET_MS deadline and returns whatever any
+  //    relay delivered by then; the backstop only catches a helper that itself hangs (ADR 0001
+  //    Amendment 1). A failure or a timeout is "not found".
   let events = [];
   try {
     const found = await withinBudget(
       Promise.resolve().then(() => queryRelaysKind0(getPublishRelays(), assistantPubkey, { maxWait: RELAY_BUDGET_MS })),
-      RELAY_BUDGET_MS,
+      BACKSTOP_MS,
       [],
     );
     events = Array.isArray(found) ? found : [];
