@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCypher } from '../hooks/useCypher';
 import useProfiles from '../hooks/useProfiles';
+import useAssistantSetupState from '../hooks/useAssistantSetupState';
 import AuthorCell from '../components/AuthorCell';
 import { useConfig } from '../context/ConfigContext';
 
@@ -19,12 +20,11 @@ function formatAge(createdAt) {
 
 /* ─── Onboarding ──────────────────────────────────────────── */
 
-function WelcomeCard({ taProfile, onSetupProfile, onSurpriseMe }) {
+function WelcomeCard({ onSetupProfile, onSurpriseMe }) {
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
-  const hasProfile = taProfile && (taProfile.name || taProfile.picture);
-
-  if (hasProfile) return null;
+  // "Surprise me" signs as the instance Tapestry Assistant — the Owner's assistant
+  // and nobody else's — so only the Owner is offered it (ADR assistant-profile/0001).
+  const canSurprise = user?.classification === 'owner';
 
   return (
     <div className="dashboard-card welcome-card">
@@ -46,7 +46,7 @@ function WelcomeCard({ taProfile, onSetupProfile, onSurpriseMe }) {
             <button className="btn btn-primary" onClick={onSetupProfile}>
               🎨 Set up my Assistant's profile
             </button>
-            {isOwner && (
+            {canSurprise && (
               <button className="btn" onClick={onSurpriseMe}>
                 🎲 Surprise me
               </button>
@@ -58,16 +58,20 @@ function WelcomeCard({ taProfile, onSetupProfile, onSurpriseMe }) {
   );
 }
 
-function OnboardingChecklist({ user, taProfile, conceptCount, constraintsOk, onAction }) {
+function OnboardingChecklist({ user, assistantStatus, conceptCount, constraintsOk, onAction }) {
   const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
-  const hasTA = taProfile && (taProfile.name || taProfile.picture);
   const hasBios = conceptCount > 0;
+  // Only a viewer whose own assistant's state is known gets the assistant item —
+  // not a visitor, not someone with no assistant, not a failed check.
+  const showAssistantItem = assistantStatus === 'set-up' || assistantStatus === 'needs-setup';
 
   const items = [
     { key: 'running', label: 'Tapestry is running', done: true },
     { key: 'signed-in', label: user?.classification === 'admin' ? 'Signed in as Admin' : 'Signed in as Owner', done: isOwner },
     { key: 'constraints', label: 'Install Neo4j constraints & indexes', done: constraintsOk },
-    { key: 'ta-profile', label: 'Give your Assistant a profile', done: hasTA, action: () => onAction('ta-profile'), actionLabel: 'Set up profile →' },
+    ...(showAssistantItem
+      ? [{ key: 'ta-profile', label: 'Give your Assistant a profile', done: assistantStatus === 'set-up', action: () => onAction('ta-profile'), actionLabel: 'Set up profile →' }]
+      : []),
     { key: 'bios', label: 'Install Tapestry firmware', done: hasBios, action: () => onAction('bios'), actionLabel: 'Install firmware →' },
   ];
 
@@ -714,18 +718,18 @@ function TapestryKeyStatus() {
 /* ─── Dashboard ───────────────────────────────────────────── */
 
 export default function Dashboard() {
-  const { taPubkey: TA_PUBKEY } = useConfig();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Check TA profile
-  const [taProfile, setTaProfile] = useState(undefined); // undefined = loading
-  useEffect(() => {
-    fetch(`/api/profiles?pubkeys=${TA_PUBKEY}`)
-      .then(r => r.json())
-      .then(d => setTaProfile(d.profiles?.[TA_PUBKEY] || null))
-      .catch(() => setTaProfile(null));
-  }, []);
+  // Whether the signed-in user's own assistant has a profile — the answer every
+  // setup surface shares (/api/assistant/status, ADR assistant-profile/0001).
+  const { status: assistantStatus, refresh: refreshAssistantStatus } = useAssistantSetupState();
+  // Where this viewer can publish their own assistant's profile. The Tapestry
+  // settings tab is Owner/Admin-only, so everyone else is sent to /settings
+  // (story assistant-profile #4 replaces both with one page).
+  const assistantSetupPath = user?.classification === 'owner' || user?.classification === 'admin'
+    ? '/tapestry/settings/assistant'
+    : '/settings';
 
   // Check constraints status
   const [constraintsOk, setConstraintsOk] = useState(null); // null=loading, true/false
@@ -740,7 +744,7 @@ export default function Dashboard() {
   function handleOnboardingAction(key) {
     switch (key) {
       case 'ta-profile':
-        navigate('/tapestry/settings/assistant');
+        navigate(assistantSetupPath);
         break;
       case 'bios':
         navigate('/tapestry/settings/firmware');
@@ -749,12 +753,12 @@ export default function Dashboard() {
   }
 
   async function handleSurpriseMe() {
-    // Publish a fun default profile for the TA
+    // Publish a fun default profile for the Owner's assistant — the instance TA
     try {
       const profile = {
         name: 'Tapestry Assistant',
         about: 'Your friendly knowledge graph assistant. I sign events, manage concepts, and keep things tidy. 🧠',
-        picture: `https://robohash.org/${TA_PUBKEY}.png?set=set3&size=200x200`,
+        picture: `https://robohash.org/${user?.assistantPubkey}.png?set=set3&size=200x200`,
       };
       const event = {
         kind: 0,
@@ -769,7 +773,7 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        setTaProfile(profile);
+        refreshAssistantStatus();
       } else {
         alert('Failed to publish profile: ' + (data.error || 'unknown error'));
       }
@@ -778,20 +782,21 @@ export default function Dashboard() {
     }
   }
 
-  const isLoading = taProfile === undefined;
+  const isLoading = assistantStatus === 'loading';
 
   return (
     <div className="page dashboard">
       {!isLoading && (
         <>
-          <WelcomeCard
-            taProfile={taProfile}
-            onSetupProfile={() => navigate('/tapestry/settings/assistant')}
-            onSurpriseMe={handleSurpriseMe}
-          />
+          {assistantStatus === 'needs-setup' && (
+            <WelcomeCard
+              onSetupProfile={() => navigate(assistantSetupPath)}
+              onSurpriseMe={handleSurpriseMe}
+            />
+          )}
           <OnboardingChecklist
             user={user}
-            taProfile={taProfile}
+            assistantStatus={assistantStatus}
             conceptCount={conceptCount}
             constraintsOk={constraintsOk === true}
             onAction={handleOnboardingAction}

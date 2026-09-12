@@ -7,8 +7,9 @@
  *   - For a customer: their Customer Relay Key.
  *
  * The key is selected by getAssistantKeys(pubkey). The kind 0 event is signed
- * server-side with that key and published to local strfry plus the external
- * relays in EXTERNAL_RELAYS.
+ * server-side with that key and published to local strfry plus the relays
+ * getAssistantPublishRelays() names — the same list /api/assistant/status
+ * consults when the local relay has no profile (ADR assistant-profile/0001).
  *
  * POST /api/assistant/publish-profile accepts an optional `content` object so
  * the caller can pass user-edited fields; when omitted, instance-branded
@@ -22,14 +23,23 @@ const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
 const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
 const { getSettings, updateOverrides, resetOverride } = require('../../config/settings');
 const WebSocket = require('ws');
+const { resolveAssistantProfileState, importToLocalRelay } = require('./profileState');
 
-const EXTERNAL_RELAYS = [
-  'wss://relay.primal.net',
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://wot.grapevine.network',
-  'wss://purplepag.es',
-];
+/**
+ * The relays an assistant's kind 0 is published to. It is also the list
+ * /api/assistant/status asks when the local relay has no profile, so the check
+ * can never consult a relay the publisher skipped (ADR assistant-profile/0001).
+ * Story assistant-profile #2 makes it configuration-driven.
+ */
+function getAssistantPublishRelays() {
+  return [
+    'wss://relay.primal.net',
+    'wss://relay.damus.io',
+    'wss://nos.lol',
+    'wss://wot.grapevine.network',
+    'wss://purplepag.es',
+  ];
+}
 
 /**
  * Publish a signed event to an external relay via WebSocket.
@@ -328,14 +338,7 @@ async function handlePublishProfile(req, res) {
     console.log(`[assistant] Kind 0 event signed: ${signedEvent.id.slice(0, 16)}...`);
 
     // 5. Publish to local strfry
-    await new Promise((resolve, reject) => {
-      const child = exec('strfry import', { timeout: 10000 }, (error) => {
-        if (error) reject(error);
-        else resolve();
-      });
-      child.stdin.write(JSON.stringify(signedEvent) + '\n');
-      child.stdin.end();
-    });
+    await importToLocalRelay(signedEvent);
 
     console.log(`[assistant] Kind 0 published to strfry for ${assistantPubkey.slice(0, 8)}`);
 
@@ -350,11 +353,12 @@ async function handlePublishProfile(req, res) {
     }
 
     // 6. Publish to external relays (in parallel, non-blocking)
+    const publishRelays = getAssistantPublishRelays();
     const relayResults = await Promise.all(
-      EXTERNAL_RELAYS.map(relay => publishToRelay(relay, signedEvent))
+      publishRelays.map(relay => publishToRelay(relay, signedEvent))
     );
     const relaySuccesses = relayResults.filter(r => r.success).length;
-    console.log(`[assistant] Published to ${relaySuccesses}/${EXTERNAL_RELAYS.length} external relays`);
+    console.log(`[assistant] Published to ${relaySuccesses}/${publishRelays.length} external relays`);
     for (const r of relayResults) {
       if (!r.success) console.warn(`[assistant] Failed: ${r.relay} — ${r.error || r.message || 'unknown'}`);
     }
@@ -365,8 +369,8 @@ async function handlePublishProfile(req, res) {
       assistantPubkey,
       assistantName,
       nip05: { localPart, domain, address: `${localPart}@${domain}` },
-      relays: { total: EXTERNAL_RELAYS.length, success: relaySuccesses, results: relayResults },
-      message: `Tapestry Assistant profile published to strfry + ${relaySuccesses}/${EXTERNAL_RELAYS.length} external relays`,
+      relays: { total: publishRelays.length, success: relaySuccesses, results: relayResults },
+      message: `Tapestry Assistant profile published to strfry + ${relaySuccesses}/${publishRelays.length} external relays`,
     });
 
   } catch (err) {
@@ -397,7 +401,7 @@ async function handleAssistantStatus(req, res) {
     const defaults = await buildDefaultProfileContent(customerPubkey, isOwner);
 
     if (!relayKeys || !relayKeys.pubkey) {
-      return res.json({ success: true, hasRelayKey: false, hasProfile: false, defaults });
+      return res.json({ success: true, hasRelayKey: false, hasProfile: false, profileSource: null, defaults });
     }
 
     // Compute the deterministic NIP-05 for this Assistant. Returned for the
@@ -408,39 +412,36 @@ async function handleAssistantStatus(req, res) {
     const domain = getInstanceDomain();
     const computedNip05 = { localPart, domain, address: `${localPart}@${domain}` };
 
-    // Check if kind 0 exists for the assistant pubkey
-    const filter = JSON.stringify({ kinds: [0], authors: [relayKeys.pubkey], limit: 1 });
-    const result = await new Promise((resolve) => {
-      exec(`strfry scan '${filter.replace(/'/g, "'\\''")}' 2>/dev/null`, {
-        encoding: 'utf8',
-        timeout: 10000,
-      }, (error, stdout) => {
-        if (error || !stdout.trim()) {
-          resolve(null);
-        } else {
-          try {
-            resolve(JSON.parse(stdout.trim().split('\n')[0]));
-          } catch {
-            resolve(null);
-          }
-        }
-      });
+    // Whether this assistant has a profile — the one rule every setup surface
+    // shares (ADR assistant-profile/0001): the local relay first, then the
+    // publish relays, copying a profile found only there back home. That
+    // fallback runs only for the assistant's own signed-in user, the owner or an
+    // admin, or the in-container operator; an anonymous GET is answered from the
+    // local relay alone, so a public read never writes.
+    const session = req.session || {};
+    const sessionPubkey = session.authenticated ? session.pubkey : null;
+    const allowRelayFallback = Boolean(
+      (sessionPubkey && (
+        sessionPubkey === customerPubkey
+        || sessionPubkey === ownerPubkey
+        || getAdminPubkeys().includes(sessionPubkey)
+      ))
+      || req.localTrusted === true
+    );
+    const state = await resolveAssistantProfileState({
+      assistantPubkey: relayKeys.pubkey,
+      allowRelayFallback,
+      getPublishRelays: getAssistantPublishRelays,
     });
-
-    let profile = null;
-    if (result) {
-      try {
-        profile = JSON.parse(result.content);
-      } catch {}
-    }
 
     return res.json({
       success: true,
       hasRelayKey: true,
       assistantPubkey: relayKeys.pubkey,
       assistantNpub: relayKeys.npub,
-      hasProfile: !!result,
-      profile,
+      hasProfile: state.hasProfile,
+      profile: state.profile,
+      profileSource: state.source,
       defaults,
       isOwner,
       computedNip05,
@@ -542,5 +543,5 @@ async function handleProvisionAssistantKey(req, res) {
 // of "could a stranger fetch this", not two (ADR ta-avatar/0003 D4).
 module.exports = {
   handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey,
-  buildDefaultProfileContent, getInstanceWebsite, isPubliclyReachable,
+  buildDefaultProfileContent, getInstanceWebsite, isPubliclyReachable, getAssistantPublishRelays,
 };
