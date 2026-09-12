@@ -119,6 +119,15 @@ curation entries" (AC-2); how the superseded parts of `dlist-curation` ADRs 0002
   commit. The full `npm test` was not run (rows 191 and 261). Harness friction: six of the 13 suites —
   and 91 of the repo's 198 — have no `require.main` block, so `node test/<suite>.test.js` exits 0
   without running anything; OPEN.md row 271.
+- **Round 2 (review round 1, Blocking 1; ADR 0001 Amendment 1).** The emitter's timing: every
+  sentence that said the reference deployment "no longer emits" `inherit-items`, or that curated lists
+  hold copies as a current fact, now says the header endpoint stops emitting it with story 2 —
+  `inherit-from.md:4`, BIBLE `:8`, `:1079`, `:1546` and `:1630`, the intake closing line, the ADR 0003
+  annotation and handoff D11 (the review's list), plus OPEN.md row 259's note and the epic's settled
+  bullet (the same claim, beyond the list). AC-7's "no longer emits" is met by the timed wording
+  (Amendment 1). Also the operator's four optional fixes: the "edited" case scoped to kind-39999
+  originals, "the way an empowered assistant does" in `inherit-from.md:32`, BIBLE `:1079`'s endpoint
+  note, and the `copy-` reservation.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`

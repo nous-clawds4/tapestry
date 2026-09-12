@@ -4,7 +4,7 @@
 **Date:** 2026-09-10
 **Story:** `engineering-team/stories/dlist-curation/3-inherit-items-facet.md`
 
-> **Superseded in part (2026-09-12):** the consequence "Enables story 4" — the curated header now links with `"pointer"` and holds curation copies; the facet itself stands, with no emitter — `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`.
+> **Superseded in part (2026-09-12):** the consequence "Enables story 4" — the spec's curated header links with `"pointer"` and holds curation copies; the facet itself stands, and the header endpoint stops emitting it in `curated-dlist-update` story 2 — `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`.
 
 ## Context
 

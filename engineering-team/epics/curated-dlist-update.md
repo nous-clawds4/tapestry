@@ -51,7 +51,8 @@ Operator decisions in `/discuss` and at the Planning gate:
 - **When the original changes:** edited → the copy stays and Update offers a refresh; downvoted or
   disputed → the method decides again; not found → the copy stays, flagged. Readers merging lists
   collapse a copy into its original by `q`; copies are never stamped into the source list.
-- **`inherit-items` stays registered**, with no emitter in this deployment.
+- **`inherit-items` stays registered**; this deployment stops emitting it when story 2 switches the
+  header endpoint to `pointer`.
 - **Row 267:** one curating assistant per list, network-wide — no protocol change; other instances
   show the curation read-only and offer to curate it here instead.
 - **"Copy", not "inherit",** in everything user-facing.
