@@ -333,7 +333,7 @@ The real helper settles at its own deadline, about 4.0 s, a full second before t
 **The whole branch** (`git diff f0a5df3b..afbe9095`) touches 12 files.
 - Round 2 changed code only in `profileState.js` and the hook.
 - `index.js` and `Dashboard.jsx` are as reviewed in round 1, so the caller-gate and security findings stand.
-- Everything outside the ADR's file list is a harness record: this review, the story's Review link (47b9cb00), the test plan, and OPEN.md rows #271–#273.
+- Everything outside the ADR's file list is a harness record: this review, the story's Review link (47b9cb00), the test plan, and OPEN.md rows #272–#274 (numbered #271–#273 until the staging merge renumbered them).
 - The story is still In Progress.
 
 ### Findings (round 2)
@@ -357,7 +357,7 @@ None.
    - **Note 2:** a failed check can let the checklist read "Setup complete" (`ui/src/pages/Dashboard.jsx:66`, `:78`).
    - **Note 3:** the caller gate rests on the S2 regex and on the live H1 (`test/assistant-setup-state.test.js:380`, `:482`). **Run H1 against staging after deploy.**
    - **Note 4:** BIBLE has no API row for `/api/assistant/status`, and the handler's JSDoc omits the write (`src/api/assistant/index.js:382-388`).
-   - Note 5 is resolved as OPEN.md #272. The round-1 harness-friction item is filed as OPEN.md #271.
+   - Note 5 is resolved as OPEN.md #273. The round-1 harness-friction item is filed as OPEN.md #272. (Both were one lower until the staging merge renumbered them.)
 
 ### On approval (same commit, by the committing session)
 
