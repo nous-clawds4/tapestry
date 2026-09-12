@@ -1,6 +1,6 @@
 # Story 1: The setup prompt tells the truth
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Bug
 **Epic:** `assistant-profile`
@@ -88,8 +88,24 @@ None. Resolved at approval (2026-09-11): with an empty local relay and unreachab
 local relay's answer stands and the prompt appears — a fresh instance that is offline must still be
 told to set up, and a wiped *and* offline instance is rare. Recorded in the rule above.
 
+## Deviations
+
+1. **The status handler's owner/admin check is written inline, not as `isOwnerOrAdmin(req)`.** ADR 0001
+   lists `isOwnerOrAdmin(req)` among the callers allowed the relay fallback. `index.js` already imports
+   `getAdminPubkeys` and computes the owner pubkey, so the handler checks the authenticated session
+   against the assistant's own user, the owner and the admin list directly. That is the same test
+   `isOwnerOrAdmin` makes (`src/middleware/auth.js:276`), without making the API module depend on the
+   auth middleware module.
+2. **The no-key response also carries `profileSource: null`,** so `/api/assistant/status` has one shape
+   whether or not an assistant key exists.
+3. **The resolver looks up the publish relays lazily.** `index.js` requires `profileState.js`, so
+   `profileState.js` reaches `getAssistantPublishRelays` through a `require('./index')` inside a
+   function, which avoids a circular require at load time. The status handler passes
+   `getPublishRelays` explicitly anyway.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/assistant-profile/0001-one-setup-state-answer-local-first.md`
+- Test plan: `engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.test-plan.md`
+  (tests: `test/assistant-setup-state.test.js`, `tests/brainstorm/assistant-setup-prompt.spec.js`)
+- Review: `engineering-team/reviews/assistant-profile/1-setup-prompt-tells-the-truth.md`
