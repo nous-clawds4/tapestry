@@ -118,7 +118,7 @@ curation entries" (AC-2); how the superseded parts of `dlist-curation` ADRs 0002
   documents pass through their `run()` exports (243 tests, 0 failures); harness-lint clean after the
   commit. The full `npm test` was not run (rows 191 and 261). Harness friction: six of the 13 suites —
   and 91 of the repo's 198 — have no `require.main` block, so `node test/<suite>.test.js` exits 0
-  without running anything; OPEN.md row 271.
+  without running anything; OPEN.md row 276 (filed as 271, renumbered at the origin/staging merge).
 - **Round 2 (review round 1, Blocking 1; ADR 0001 Amendment 1).** The emitter's timing: every
   sentence that said the reference deployment "no longer emits" `inherit-items`, or that curated lists
   hold copies as a current fact, now says the header endpoint stops emitting it with story 2 —

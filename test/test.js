@@ -167,6 +167,8 @@ const closeUnauthWriteSurface = require('./close-unauth-write-surface.test.js');
 const defaultDenyMutations = require('./default-deny-mutations.test.js');
 // security-auth-exposure #3 — login endpoints must verify the signed challenge.
 const loginSignatureVerification = require('./login-signature-verification.test.js');
+// event-authenticity #1 — verify client-published event signatures.
+const publishEventSignatureVerification = require('./publish-event-signature-verification.test.js');
 // bug: users page called the removed run-query endpoint (regression guard).
 const usersPageNeo4jEndpoint = require('./users-page-neo4j-endpoint.test.js');
 // security follow-up: strfry/wipe owner-gate (audit 2026-07-21).
@@ -290,6 +292,10 @@ const myCuratedDListsPage = require('./my-curated-dlists-page.test.js');
 const myCuratedDListsHeaders = require('./my-curated-dlists-headers.test.js');
 // epic: my-curated-dlists — Story 3 (items, the curation-method panel, Update list).
 const myCuratedDListsItems = require('./my-curated-dlists-items.test.js');
+// epic: assistant-profile — Story 1 (the setup prompt tells the truth). U/S/D/R are stack-free;
+// H is live (GET only); the ACs a viewer sees are settled by the browser class,
+// tests/brainstorm/assistant-setup-prompt.spec.js (npm run test:playwright).
+const assistantSetupState = require('./assistant-setup-state.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -587,6 +593,7 @@ async function main() {
   const closeUnauthWriteSurfaceResult = await closeUnauthWriteSurface.run();
   const defaultDenyMutationsResult = await defaultDenyMutations.run();
   const loginSignatureVerificationResult = await loginSignatureVerification.run();
+  const publishEventSignatureVerificationResult = await publishEventSignatureVerification.run();
   const usersPageNeo4jEndpointResult = await usersPageNeo4jEndpoint.run();
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
@@ -719,6 +726,9 @@ async function main() {
 
   console.log('\nmy-curated-dlists-items suite:');
   const myCuratedDListsItemsResult = await myCuratedDListsItems.run();
+
+  console.log('\nassistant-setup-state suite:');
+  const assistantSetupStateResult = await assistantSetupState.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1235,6 +1245,9 @@ async function main() {
   console.log(`my-curated-dlists-page suite:                    ${myCuratedDListsPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${myCuratedDListsPageResult.pass} passed, ${myCuratedDListsPageResult.fail} failed)`);
   console.log(`my-curated-dlists-headers suite:                 ${myCuratedDListsHeadersResult.fail === 0 ? 'PASS' : 'FAIL'} (${myCuratedDListsHeadersResult.pass} passed, ${myCuratedDListsHeadersResult.fail} failed)`);
   console.log(`my-curated-dlists-items suite:                   ${myCuratedDListsItemsResult.fail === 0 ? 'PASS' : 'FAIL'} (${myCuratedDListsItemsResult.pass} passed, ${myCuratedDListsItemsResult.fail} failed)`);
+  console.log(`assistant-setup-state suite:                     ${assistantSetupStateResult.fail === 0 ? 'PASS' : 'FAIL'} (${assistantSetupStateResult.pass} passed, ${assistantSetupStateResult.fail} failed${assistantSetupStateResult.skipped ? `, ${assistantSetupStateResult.skipped} skipped` : ''})`);
+  console.log(`assistant-setup-state H-class:                   ${assistantSetupStateResult.hExecuted} executed / ${assistantSetupStateResult.hSkipped} skipped`);
+  console.log(`assistant-setup-state B-class:                   browser only — tests/brainstorm/assistant-setup-prompt.spec.js (npm run test:playwright)`);
 
   const overallOk =
     configOk &&
@@ -1365,6 +1378,8 @@ async function main() {
     defaultDenyMutationsResult.fail === 0 &&
     // security-auth-exposure #3 — login endpoints verify the signed challenge.
     loginSignatureVerificationResult.fail === 0 &&
+    // event-authenticity #1 — verify client-published event signatures.
+    publishEventSignatureVerificationResult.fail === 0 &&
     // bug — users page called the removed run-query endpoint (regression guard).
     usersPageNeo4jEndpointResult.fail === 0 &&
     // security follow-up — strfry/wipe owner-gate (audit 2026-07-21).
@@ -1484,7 +1499,8 @@ async function main() {
     dlistCurationMergePreserveResult.fail === 0 &&
     myCuratedDListsPageResult.fail === 0 &&
     myCuratedDListsHeadersResult.fail === 0 &&
-    myCuratedDListsItemsResult.fail === 0;
+    myCuratedDListsItemsResult.fail === 0 &&
+    assistantSetupStateResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -1513,7 +1529,7 @@ async function main() {
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
-    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, loginSignatureVerificationResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
+    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, loginSignatureVerificationResult, publishEventSignatureVerificationResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
@@ -1529,6 +1545,7 @@ async function main() {
     relayScanBoundsResult, addNodeAsElementRestoreResult, conceptCountCanonicalResult, summariesElementCountResult,
     dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult, dlistCurationPanelResult, dlistCurationMapEntriesResult,
     dlistCurationMergePreserveResult, myCuratedDListsPageResult, myCuratedDListsHeadersResult, myCuratedDListsItemsResult,
+    assistantSetupStateResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
