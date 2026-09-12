@@ -227,3 +227,98 @@ the book).
 `assistant-designation.md:173`. Everything else checks out: AC-1…AC-9; the new spec text against NIP-18, NIP-09,
 NIP-01 and the DList NIP; links, tables, JSON; the ledger, intake and annotation edits; and the 13-suite regression
 (243/0).
+
+## Round 2
+
+**Date:** 2026-09-12
+**Diff:** `git diff 9378eca7 3a7fba43` — `ae0d2c7f` (ADR 0001 Amendment 1) and `3a7fba43` (the Implementer, applying it).
+Round 1's text above is unchanged (`git log` on this file shows `9378eca7` only). Context, not under review: `9378eca7`
+also added OPEN.md rows 272–274 (round 1's harness friction) and the epic's `## Decisions` entry (round 1 NB 8).
+
+### Quality gates (re-run by the reviewer)
+- [x] Doc-reading regression suites — 13/13 green, **243 tests, 0 failures**, each through its exported `run()` (node
+      v24.18.0); per-suite counts identical to round 1: 26 · 16 · 14 · 29 · 5 · 41 · 12 · 6 · 5 · 9 · 32 · 30 · 18.
+- [x] `bash scripts/harness-lint.sh` at `3a7fba43` — `harness-lint: clean (0 violations)` (L9 included).
+- [ ] Full `npm test` — not run, same reason as round 1: nothing under `src/`, `ui/` or `test/` has changed since
+      `6a3f031a` (`git diff --name-only 6a3f031a HEAD -- src ui test` is empty), and rows 191 and 261 still apply.
+- [x] Links, tables, fences, JSON over the round-2 range (round 1's checker, parameterized): 4 relative links on added
+      lines, 0 broken; both changed table rows (BIBLE `:1546`, OPEN.md `:315`) keep their column counts;
+      `assistant-designation.md` fences balanced and both JSON blocks parse.
+- [x] `git diff --check 9378eca7 3a7fba43` clean; no `nsec`, private-key text or 64-hex literal on any added line.
+
+### Blocking 1 — resolved
+Every sentence round 1 named now times the change to story 2 and says the endpoint still writes `inherit-items` until
+then. Checked against `src/api/dlist-curation/index.js:24`/`:82` at `3a7fba43` (still `inherit-items`) and
+`src/api/neo4j/eventSync.js:271`:
+
+| Location | Now reads (substance) | True at `3a7fba43`? |
+|---|---|---|
+| `protocols/drafts/inherit-from.md:4` | "loses its emitter in the reference deployment with `curated-dlist-update` story 2 … until then the header endpoint (`src/api/dlist-curation/index.js`) still writes it"; "would still derive" became "derives the pointer form (the derivation gates on the literal `inherit`)" | Yes |
+| `BIBLE.md:1630` (§25) | "Status today for the facet: the header endpoint (`POST /api/dlist-curation/header`) still writes it until `curated-dlist-update` story 2; from then on …, and the facet has no emitter" | Yes |
+| `BIBLE.md:1546` (glossary) | "stops emitting it with `curated-dlist-update` story 2 … until then its header endpoint still writes it" | Yes (citation nit: NB 2 below) |
+| `engineering-team/stories/_intake.md:2342` | "ADR 0001 moves curated lists to `pointer` headers and copied items, and the header endpoint stops writing `inherit-items` in that book's story 2"; the `**RESOLVED**` marker form is unchanged | Yes |
+| `BIBLE.md:8` (`Last updated`) | "… `"inherit-items"` stays registered, and the header endpoint stops emitting it with curated-dlist-update story 2" | Yes |
+| `BIBLE.md:1079` (§ Assistant Keys; round 1 NB 4) | the status sentence ends "that endpoint still writes the earlier `inherit-items` link until `curated-dlist-update` story 2, and nothing copies items yet" | Yes |
+| `engineering-team/decisions/done/dlist-curation/0003-inherit-items-facet.md:7` | "the spec's curated header links with `"pointer"` and holds curation copies; the facet itself stands, and the header endpoint stops emitting it in `curated-dlist-update` story 2" | Yes |
+| `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:173` (D11) | "`"inherit-items"` stays registered; the reference deployment stops emitting it with `curated-dlist-update` story 2" | Yes |
+| `OPEN.md:315` (row 259), `engineering-team/epics/curated-dlist-update.md:54–55` | the same qualifier — beyond the Amendment's list, logged | Yes |
+
+A fresh sweep (`no emitter|no longer emit|stops emitting|hold(s) … copies|copy items|moved to copying|withdrew|still
+writes`) over `protocols/`, BIBLE, AGENTS.md, the handoff, the intake, `decisions/done/dlist-curation/`, the epic, the
+book and OPEN.md finds no sentence stating as present fact that the deployment no longer emits `inherit-items` or that
+curated lists already hold copies. What remains is the timed wording above, or spec-level text about the protocol's
+consumer — worksheet W6 (`:59`, `:65`), the handoff's W6 row (`:198`), `inherit-from.md:120` — which says what the spec
+now prescribes, not what the deployment does. `assistant-designation.md:173` (Deployment status) is unchanged and
+agrees with all of it.
+
+### Amendment 1 and its application
+- **Sound.** No decision changes. Item 1 re-times Decision §9 and notes 2/4/10 (and the note-4/5/9 restatements) to
+  "stops emitting with story 2; until then the endpoint still writes it", and its reading of AC-7 — ratified now,
+  effective in story 2 — is reasonable. Items 2–5 are the operator's pick of round 1's NB 2, 3, 4 and 6; NB 1 is
+  declined with a reason, which is the operator's call on a non-blocking, pathological case.
+- **Applied as written.** Item 2 → `assistant-designation.md:110` (the "edited" case scoped to kind-39999 originals;
+  the other-kind sentence matches the Amendment and agrees with "already copied" at `:106`, which matches other kinds
+  by event id). Item 3 → `inherit-from.md:32`, verbatim. Item 4 → `BIBLE.md:1079`. Item 5 → `assistant-designation.md:104`
+  ("An assistant's kind-`39999` d-tags that begin with `copy-` are reserved for curation copies"). Item 1 → the table
+  above.
+- **Nothing else changed** beyond the story's § Deviations Round-2 entry, which is accurate: `3a7fba43` touches exactly
+  the nine files it accounts for, the story included. The two edits beyond the Amendment's list — OPEN.md row 259's
+  note and the epic's "Settled at kickoff" bullet — carry the same claim, keep the operator's decision intact (they now
+  say when it takes effect), and are logged; accepted. `assistant-designation.md:173` and every other round-1 file are
+  untouched.
+
+### New findings (round 2)
+
+#### Blocking
+None.
+
+#### Non-blocking
+1. **The timed qualifier dates the copies to story 2; they arrive with story 5.** `protocols/drafts/inherit-from.md:4`
+   ("with `curated-dlist-update` story 2 — curated lists then link with `pointer` and hold curation copies"),
+   `BIBLE.md:1630` ("from then on curated lists link with `pointer` and hold curation copies") and `BIBLE.md:1546`
+   ("then link with `"pointer"` and copy items") follow the wording ADR 0001 Amendment 1 item 1 prescribes — although
+   the Amendment's own "Why" says nothing copies items until story 5. The sentences are future-tense, so nothing is
+   false at this commit. But the Amendment also says "Story 2 drops the qualifier when it ships"; dropped wholesale,
+   these sentences would state copies as present fact from story 2 until story 5 lands. For story 2's Architect and
+   Reviewer: when the qualifier goes, keep "hold curation copies" tied to story 5, or phrase it as the model ("their
+   items are curation copies").
+2. **`BIBLE.md:1546`** — the glossary row's citation shrank from "`curated-dlist-update` ADR 0001" to a bare
+   "(ADR 0001)". In BIBLE a bare ADR number reads as the old community-reference series (the same row cites a bare
+   "ADR 0027"), and `:1843` cites a different epic's ADR 0001. Optional: restore the epic qualifier.
+
+#### Harness friction (round 2)
+- No new row. Non-blocking 1 is a live instance of row 272's class (status wording true only after a later story),
+  moved one story out — worth a note on row 272 itself so story 2's cycle picks it up.
+
+### Story bookkeeping (round 2)
+- The story's `Status:` line is set to `Done` in place (`stories/curated-dlist-update/1-curation-copy-convention.md:3`);
+  its `Review:` line already carries this file's path. No verdict words are written into the story (L14). The Reviewer
+  edited nothing else.
+- Completion detection performed against `audits/curated-dlist-update/book.md`; the result is reported in the chat, not
+  here.
+
+### Verdict (round 2)
+**PASS** — Blocking 1 is resolved at every location, and the corrected wording agrees with `assistant-designation.md:173`
+and with `src/api/dlist-curation/index.js` as it stands today. Amendment 1 is sound, its items 2–5 are applied as
+written, and the two extra edits are logged. Regression: 13/13 suites, 243/0; harness-lint clean. Two non-blocking
+notes, both for story 2.

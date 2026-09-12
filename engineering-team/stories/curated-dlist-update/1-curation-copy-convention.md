@@ -1,6 +1,6 @@
 # Story 1: The curation copy convention — how an assistant copies, points back, and removes
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Doc *(wire-format irreversibility trigger → full ADR + Standard docs-mode phases; Test
 Design skipped per workflows/protocol-spec-workflow.md)*
