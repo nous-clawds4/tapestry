@@ -67,4 +67,8 @@ Operator decisions in `/discuss` and at the Planning gate:
   event id).
 
 ## Decisions
-`decisions/curated-dlist-update/` — none yet.
+`decisions/curated-dlist-update/`:
+- `0001-curation-copy-convention.md` — story 1: the curation copy convention — a `pointer` header,
+  assistant-authored kind-39999 copies with one `z`, a `copy-` d-tag and NIP-18 `q` back-references,
+  removal by NIP-09, one curating assistant per list; `inherit-items` stays registered, and the header
+  endpoint stops emitting it in story 2 (Option A on every axis).

@@ -123,6 +123,6 @@ curation entries" (AC-2); how the superseded parts of `dlist-curation` ADRs 0002
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/curated-dlist-update/1-curation-copy-convention.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
