@@ -1,6 +1,6 @@
 # Story 2: Publish the assistant's profile to the right relays, and say what happened
 
-**Status:** Approved
+**Status:** In Progress
 **Created:** 2026-09-11
 **Type:** Bug
 **Epic:** `assistant-profile`
@@ -77,6 +77,6 @@ sibling Tapestry instance relays (tapestry, staging, tags) is deliberately left 
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-profile/0002-publish-to-configured-relays-report-each.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
