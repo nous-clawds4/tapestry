@@ -152,27 +152,44 @@ const configTest = testConfigLoading();
 const bountyFieldsTest = testBountyFieldValidation();
 const bountyPolicyTest = testBountyPaymentPolicy();
 
-// site-trust-signals (epic site-trust-signals, Story 1). This branch's runner
-// predates the multi-suite registration pattern used on staging — there is no
-// suite list to append to — so the suite is awaited here instead. Its H-class
-// tests SKIP cleanly when no stack is running, so this stays CI-safe.
-const siteTrustSignals = require('./site-trust-signals.test.js');
+// Security-parity + site-trust suites (epic sandbox-security, Story 1). This branch's runner
+// predates staging's multi-suite registration list, so the suites are awaited here. Each is a
+// stack-free port of a ratified prod suite (security-auth-exposure 0001-0003, event-authenticity
+// 0001) or the existing site-trust suite (with the decommissioned-sandbox ESTATE trim). Their
+// H-class / nostr-tools cases SKIP cleanly when the stack or deps are absent, so this stays
+// CI-safe; a few default-deny behavioral cases only resolve their in-container require paths
+// when run inside the container (they fail-for-the-right-reason there and in CI).
+const securitySuites = [
+  ['close-unauth-write-surface',           require('./close-unauth-write-surface.test.js')],
+  ['default-deny-mutations',               require('./default-deny-mutations.test.js')],
+  ['login-signature-verification',         require('./login-signature-verification.test.js')],
+  ['publish-event-signature-verification', require('./publish-event-signature-verification.test.js')],
+  ['strfry-wipe-owner-gate',               require('./strfry-wipe-owner-gate.test.js')],
+  ['users-page-neo4j-endpoint',            require('./users-page-neo4j-endpoint.test.js')],
+  ['site-trust-signals',                   require('./site-trust-signals.test.js')],
+];
 
-siteTrustSignals.run().then(({ pass, fail, skipped }) => {
-  const siteTrustTest = fail === 0;
-  const overall = configTest && bountyFieldsTest && bountyPolicyTest && siteTrustTest;
+(async () => {
+  let overall = configTest && bountyFieldsTest && bountyPolicyTest;
 
   console.log('\nTest Results:');
   console.log('-------------');
   console.log(`Configuration Loading: ${configTest ? 'PASS' : 'FAIL'}`);
   console.log(`Bounty Field Validation: ${bountyFieldsTest ? 'PASS' : 'FAIL'}`);
   console.log(`Bounty Payment Policy: ${bountyPolicyTest ? 'PASS' : 'FAIL'}`);
-  console.log(`Site Trust Signals: ${siteTrustTest ? 'PASS' : 'FAIL'} (${pass} passed, ${fail} failed, ${skipped} skipped)`);
-  console.log(`Overall: ${overall ? 'PASS' : 'FAIL'}`);
 
-  // Exit with appropriate code
+  for (const [label, suite] of securitySuites) {
+    try {
+      const { pass, fail, skipped } = await suite.run();
+      const ok = fail === 0;
+      overall = overall && ok;
+      console.log(`${label}: ${ok ? 'PASS' : 'FAIL'} (${pass} passed, ${fail} failed, ${skipped} skipped)`);
+    } catch (err) {
+      overall = false;
+      console.log(`${label}: FAIL (suite crashed: ${err && err.message})`);
+    }
+  }
+
+  console.log(`Overall: ${overall ? 'PASS' : 'FAIL'}`);
   process.exit(overall ? 0 : 1);
-}).catch((err) => {
-  console.error('site-trust-signals suite crashed:', err);
-  process.exit(1);
-});
+})();

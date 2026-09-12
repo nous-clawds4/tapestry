@@ -8,22 +8,53 @@ const fs = require('fs');
 const { getConfigFromFile, getAdminPubkeys } = require('../utils/config');
 const CustomerManager = require('../utils/customerManager');
 
-// Schnorr signature verification for the kind-22242 login challenge. Without it,
-// the challenge handshake only echoes the pubkey + challenge the caller already
-// holds, so any pubkey (incl. owner/admin) could be impersonated unsigned.
-// Resolve nostr-tools defensively (bare in dev/most contexts; absolute fallback
-// for the container layout some scripts hit), lazily, and fail CLOSED.
-let _verifyEvent;
-function verifyLoginEvent(event) {
-  try {
-    if (!_verifyEvent) {
-      try { _verifyEvent = require('nostr-tools').verifyEvent; }
-      catch { _verifyEvent = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools').verifyEvent; }
-    }
-    return _verifyEvent(event) === true;
-  } catch {
-    return false;
-  }
+// ── Signed-challenge verification (ADR security-auth-exposure/0003) ──
+// Resilient require, mirroring src/api/event/eventReadPath.js:38-40.
+let _verifyEvent = null;
+try { _verifyEvent = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools').verifyEvent; }
+catch { try { _verifyEvent = require('nostr-tools').verifyEvent; } catch { _verifyEvent = null; } }
+
+// Auth-handshake event kinds accepted at login. The React app signs kind 22242; the legacy
+// static sign-in pages sign kind 27235. Both are accepted; any other kind is rejected.
+const AUTH_EVENT_KINDS = new Set([22242, 27235]);
+// Freshness bound on the signed event's created_at — secondary to the single-use, session-
+// bound challenge; it only rejects absurdly old / future timestamps.
+const AUTH_EVENT_MAX_AGE_S = 600; // ±10 min
+
+/**
+ * Verify a signed login challenge. Returns { ok, reason }.
+ * The security property is the conjunction of (a) event.pubkey === the pubkey the challenge was
+ * issued for and (b) a valid signature for event.pubkey — together they prove the caller controls
+ * the key the challenge was addressed to. verifyEvent runs on a JSON round-trip so a client-attached
+ * `verifiedSymbol` cache / getters cannot be trusted.
+ */
+function verifyLoginEvent(event, { challenge, expectedPubkey }) {
+    if (!_verifyEvent) return { ok: false, reason: 'verifier unavailable' };
+    if (!event || typeof event !== 'object') return { ok: false, reason: 'no event' };
+    if (!AUTH_EVENT_KINDS.has(event.kind)) return { ok: false, reason: 'bad kind' };
+    if (event.pubkey !== expectedPubkey) return { ok: false, reason: 'pubkey mismatch' };
+    const tag = Array.isArray(event.tags) && event.tags.find(t => t[0] === 'challenge');
+    if (!tag || tag[1] !== challenge) return { ok: false, reason: 'bad challenge' };
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - Number(event.created_at)) > AUTH_EVENT_MAX_AGE_S) return { ok: false, reason: 'stale' };
+    let verified = false;
+    try { verified = _verifyEvent(JSON.parse(JSON.stringify(event))) === true; } catch { verified = false; }
+    return verified ? { ok: true } : { ok: false, reason: 'bad signature' };
+}
+
+/**
+ * On a verified login, regenerate the session (defeat fixation), then set the minimal
+ * authenticated shape. Identity (session.pubkey) is established ONLY here.
+ */
+function finalizeAuthenticatedSession(req, pubkey) {
+    return new Promise((resolve, reject) => {
+        req.session.regenerate(err => {
+            if (err) return reject(err);
+            req.session.authenticated = true;
+            req.session.pubkey = pubkey;
+            req.session.save(saveErr => (saveErr ? reject(saveErr) : resolve()));
+        });
+    });
 }
 
 /**
@@ -90,11 +121,11 @@ function handleAuthVerify(req, res) {
         console.log(`Authorization result: ${authorized} (${pubkey} === ${ownerPubkey})`);
         
         if (authorized) {
-            // Generate a random challenge for the client to sign
+            // Generate a random challenge for the client to sign. Stash a PENDING claim —
+            // never establish session identity (session.pubkey) before a verified login.
             const challenge = crypto.randomBytes(32).toString('hex');
-            req.session.challenge = challenge;
-            req.session.pubkey = pubkey;
-            
+            req.session.pendingAuth = { pubkey, challenge };
+
             return res.json({ authorized, challenge });
         } else {
             // Return detailed info about why auth failed
@@ -123,77 +154,49 @@ function handleAuthVerify(req, res) {
 /**
  * Process login request with signed challenge
  */
-function handleAuthLogin(req, res) {
+async function handleAuthLogin(req, res) {
     try {
-        const { event, nsec } = req.body;
-        
+        const { event } = req.body;
+
         if (!event) {
             return res.status(400).json({ error: 'Missing event parameter' });
         }
-        
-        // Verify that the event has a signature
-        // In a production environment, you would want to use a proper Nostr library for verification
-        // For this example, we'll just check that the pubkey matches and the challenge is included
-        
-        const sessionPubkey = req.session.pubkey;
-        const sessionChallenge = req.session.challenge;
-        
-        if (!sessionPubkey || !sessionChallenge) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'No active authentication session' 
+
+        // A challenge must have been issued for this session. The claimed pubkey lives on the
+        // PENDING claim — never as session identity, which is established only on a verified login.
+        const pending = req.session.pendingAuth;
+        if (!pending || !pending.pubkey || !pending.challenge) {
+            return res.status(400).json({
+                success: false,
+                message: 'No active authentication session'
             });
         }
-        
-        // Check pubkey matches
-        if (event.pubkey !== sessionPubkey) {
-            return res.json({ 
-                success: false, 
-                message: 'Public key mismatch' 
-            });
-        }
-        
-        // Check challenge is included in tags
-        let challengeFound = false;
-        if (event.tags && Array.isArray(event.tags)) {
-            for (const tag of event.tags) {
-                if (tag[0] === 'challenge' && tag[1] === sessionChallenge) {
-                    challengeFound = true;
-                    break;
-                }
-            }
-        }
-        
-        if (!challengeFound) {
+
+        // Single-use: consume the challenge on EVERY path (success or failure), so a replay of
+        // the same challenge finds nothing pending.
+        delete req.session.pendingAuth;
+        delete req.session.challenge; // legacy field, if any
+
+        const result = verifyLoginEvent(event, { challenge: pending.challenge, expectedPubkey: pending.pubkey });
+        if (!result.ok) {
             return res.json({
                 success: false,
                 message: 'Challenge verification failed'
             });
         }
 
-        // Cryptographically verify the event is actually signed by event.pubkey.
-        if (!verifyLoginEvent(event)) {
-            return res.json({ success: false, message: 'Invalid event signature' });
-        }
+        // Verified. Regenerate the session (fixation defense), then set identity.
+        await finalizeAuthenticatedSession(req, pending.pubkey);
 
-        // Set session as authenticated
-        req.session.authenticated = true;
-
-        // Store nsec in session if provided
-        if (nsec) {
-            req.session.nsec = nsec;
-            console.log('Private key stored in session for signing events');
-        }
-        
-        return res.json({ 
-            success: true, 
-            message: 'Authentication successful' 
+        return res.json({
+            success: true,
+            message: 'Authentication successful'
         });
     } catch (error) {
         console.error('Error during login:', error);
-        return res.status(500).json({ 
-            success: false, 
-            message: error.message 
+        return res.status(500).json({
+            success: false,
+            message: error.message
         });
     }
 }
@@ -337,12 +340,26 @@ async function authMiddleware(req, res, next) {
         return next();
     }
     
-    // Allow localhost/Docker-host CLI access to normalize endpoints (trusted local operator)
-    // Guard against missing connection (e.g., internal HTTP requests from firmware install)
+    // Allow GENUINELY-DIRECT local access to normalize/neo4j (the trusted local
+    // operator and the in-process firmware-install bridge). "Local" means the socket
+    // peer is loopback AND the request carries no proxy-forwarding header: every nginx
+    // hop in front of the app sets X-Forwarded-For ($proxy_add_x_forwarded_for), so a
+    // proxied/external request always has one — a spoofed `X-Forwarded-For: 127.0.0.1`
+    // is still a *present* header and is therefore treated as remote. `trust proxy`
+    // stays OFF so req.ip is the real socket peer. (ADR security-auth-exposure/0001.)
     let remoteAddr = '';
     try { remoteAddr = req.ip || req.connection?.remoteAddress || ''; } catch { }
-    const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1', '172.18.0.1', '::ffff:172.18.0.1'].includes(remoteAddr);
-    if (isLocal && (req.path.startsWith('/api/normalize') || req.path.startsWith('/api/neo4j'))) {
+    const isLoopbackPeer = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remoteAddr);
+    const viaProxy = !!(req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip']));
+    const isDirectLocal = isLoopbackPeer && !viaProxy;
+    // Broadened to all /api paths (ADR security-auth-exposure/0002): a genuinely-
+    // direct-local call (loopback + no proxy header) is the operator, the
+    // in-process firmware-install bridge, or a server-side loopback cron (e.g. the
+    // trusted-list refreshers, which curl 127.0.0.1 directly) — all trusted. The
+    // signal is externally unspoofable (nginx always sets X-Forwarded-For; a direct
+    // hit to the app port has a non-loopback peer), so this never trusts remote traffic.
+    if (isDirectLocal && req.path.startsWith('/api/')) {
+        req.localTrusted = true;
         return next();
     }
 
@@ -365,7 +382,6 @@ async function authMiddleware(req, res, next) {
 
         const customerOrOwnerEndpoints = [
             '/get-customer',
-            '/neo4j/run-query',
             '/neo4j/query',
         ]
         // Define owner-only endpoints (administrative actions)
@@ -449,66 +465,38 @@ async function authMiddleware(req, res, next) {
         // User is authenticated and has appropriate permissions
         return next();
     } else {
-        // For API calls that modify data, return unauthorized status
-        const writeEndpoints = [
-            '/post-graperank-config',
-            '/api/post-blacklist-config',
-            '/post-whitelist-config',
-            '/generate-blacklist',
-            '/export-whitelist',
-            '/generate-graperank',
-            '/generate-pagerank',
-            '/personalized-pagerank',
-            '/generate-verified-followers',
-            '/generate-reports',
-            '/generate-nip85',
-            '/systemd-services',
-            '/brainstorm-control',
-            '/toggle-strfry-filteredContent',  // New endpoint for enabling/disabling
-            '/delete-all-relationships',
-            '/batch-transfer',
-            '/reconciliation',
-            '/calculate-hops',
-            '/neo4j-setup-constraints-and-indexes',
-            '/run-script',
-            '/process-all-active-customers',
-            '/create-all-customer-relays',
-            '/sign-up-new-customer',
-            '/delete-customer',
-            '/change-customer-status',
-            '/service-management/control',
-            '/add-new-customer',
-            '/update-customer-display-name',
-            '/backup-customers',
-            '/backups',
-            '/backups/download',
-            '/restore/upload',
-            '/restore/sets',
-            '/restore/customer',
-            '/api/normalize'
-        ];
-        
-        // Check if the current path is a write endpoint
-        const isWriteEndpoint = writeEndpoints.some(endpoint => 
-            req.path.includes(endpoint) && (req.method === 'POST' || req.path.includes('?action=enable') || req.path.includes('?action=disable'))
-        );
+        // Default-DENY for mutations (ADR security-auth-exposure/0002): any
+        // state-changing request from an unauthenticated caller is rejected unless
+        // its path is explicitly public. This replaces the old hand-maintained
+        // `writeEndpoints` allowlist, which was POST-only (so PUT/PATCH/DELETE
+        // mutations like `DELETE .../meili/wipe` slipped through) and left every
+        // unlisted mutation — e.g. `/api/firmware/install` — reachable by anyone.
+        const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
+        // Mutations that must stay reachable without a session. Each defers its own
+        // finer gate to the handler: `/api/neo4j/query` gates write-Cypher (ADR 0001);
+        // `/api/strfry/publish` gates signAs:'assistant' (ADR 0002); client-signed
+        // publishing is permissionless by design. Exact-match — an allowlist must
+        // never over-match a private path.
+        const PUBLIC_MUTATIONS = ['/api/neo4j/query', '/api/strfry/publish'];
+        if (MUTATING.includes(req.method) && !PUBLIC_MUTATIONS.includes(req.path)) {
+            return res.status(401).json({ error: 'Authentication required for this action' });
+        }
 
-        // Sensitive GET endpoints that also require authentication
+        // Sensitive GET reads that also require authentication.
         const protectedGetEndpoints = [
             '/backups',
             '/backups/download',
             '/restore/sets',
             '/get-customer-relay-keys'
         ];
-        const isProtectedGetEndpoint = protectedGetEndpoints.some(endpoint => 
+        const isProtectedGetEndpoint = protectedGetEndpoints.some(endpoint =>
             req.path.includes(endpoint) && req.method === 'GET'
         );
-        
-        if (isWriteEndpoint || isProtectedGetEndpoint) {
+        if (isProtectedGetEndpoint) {
             return res.status(401).json({ error: 'Authentication required for this action' });
         }
-        
-        // Allow read-only API access
+
+        // Public read-only API access.
         return next();
     }
 }
@@ -535,11 +523,11 @@ function handleAuthVerifyUser(req, res) {
             });
         }
         
-        // For general user authentication, we accept any valid pubkey
-        // Generate a random challenge for the client to sign
+        // For general user authentication, we accept any valid pubkey.
+        // Generate a random challenge for the client to sign, and stash a PENDING claim —
+        // identity (session.pubkey) is never established before a verified login.
         const challenge = crypto.randomBytes(32).toString('hex');
-        req.session.challenge = challenge;
-        req.session.pubkey = pubkey;
+        req.session.pendingAuth = { pubkey, challenge };
         
         // Check if this user is the owner or admin for role information
         const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
@@ -564,67 +552,49 @@ function handleAuthVerifyUser(req, res) {
  * Login endpoint for general users (not just owner)
  * Processes the signed challenge from any authenticated user
  */
-function handleAuthLoginUser(req, res) {
+async function handleAuthLoginUser(req, res) {
     try {
         const { event } = req.body;
-        
+
         if (!event) {
             return res.status(400).json({ success: false, message: 'Missing signed event' });
         }
-        
-        // Verify the event signature and challenge
-        const sessionChallenge = req.session.challenge;
-        const sessionPubkey = req.session.pubkey;
-        
-        if (!sessionChallenge || !sessionPubkey) {
+
+        const pending = req.session.pendingAuth;
+        if (!pending || !pending.pubkey || !pending.challenge) {
             return res.status(400).json({ success: false, message: 'No active authentication session' });
         }
-        
-        // Verify the event pubkey matches session
-        if (event.pubkey !== sessionPubkey) {
-            return res.status(400).json({ success: false, message: 'Event pubkey does not match session' });
-        }
-        
-        // Verify the challenge tag
-        const challengeTag = event.tags.find(tag => tag[0] === 'challenge');
-        if (!challengeTag || challengeTag[1] !== sessionChallenge) {
-            return res.status(400).json({ success: false, message: 'Invalid challenge in signed event' });
+
+        // Single-use: consume the challenge on EVERY path (success or failure).
+        delete req.session.pendingAuth;
+        delete req.session.challenge; // legacy field, if any
+
+        const result = verifyLoginEvent(event, { challenge: pending.challenge, expectedPubkey: pending.pubkey });
+        if (!result.ok) {
+            return res.status(400).json({ success: false, message: 'Invalid signed event' });
         }
 
-        // Cryptographically verify the event is actually signed by event.pubkey
-        // (the pubkey + challenge checks above are caller-controlled without this).
-        if (!verifyLoginEvent(event)) {
-            return res.status(400).json({ success: false, message: 'Invalid event signature' });
-        }
+        const pubkey = pending.pubkey;
 
-        // If we get here, authentication is successful
-        req.session.authenticated = true;
-        req.session.userPubkey = sessionPubkey;
-        
-        // Check if user is owner or admin
+        // Role for the response body only (config-derived; not stored on the session).
         const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
-        const isOwnerUser = sessionPubkey === ownerPubkey;
         const adminPubkeys = getAdminPubkeys();
-        const isAdminUser = adminPubkeys.includes(sessionPubkey);
-        req.session.isOwner = isOwnerUser || isAdminUser;
-
-        // Check if user is customer
+        const isOwnerUser = pubkey === ownerPubkey || adminPubkeys.includes(pubkey);
         const isCustomerUser = false;
-        req.session.isCustomer = isCustomerUser;
-        
-        // Clear the challenge
-        delete req.session.challenge;
-        
-        console.log(`User authentication successful for pubkey: ${sessionPubkey} (owner: ${isOwnerUser})`);
-        
-        return res.json({ 
-            success: true, 
+
+        // Verified. Regenerate the session (fixation defense), then set identity.
+        await finalizeAuthenticatedSession(req, pubkey);
+
+        console.log(`User authentication successful for pubkey: ${pubkey} (owner: ${isOwnerUser})`);
+
+        return res.json({
+            success: true,
             message: 'Authentication successful',
             isOwner: isOwnerUser,
             isCustomer: isCustomerUser,
-            pubkey: sessionPubkey
+            pubkey
         });
-        
+
     } catch (error) {
         console.error('Error in handleAuthLoginUser:', error);
         return res.status(500).json({ success: false, message: 'Internal server error during login' });

@@ -76,15 +76,15 @@ async function apiGet(endpoint, params = {}) {
 }
 
 /**
- * Run a Cypher query via the POST endpoint (avoids URL length limits).
- * Returns the same shape as the GET run-query endpoint for backward compat.
+ * Run a Cypher query via the POST /api/neo4j/query endpoint (avoids URL length limits).
+ * Returns { success, cypherCommand, cypherResults } — cypherResults is CSV-style text.
  */
 async function runCypherApi(cypher, params = {}) {
   return apiPost('/api/neo4j/query', { cypher, params });
 }
 
 /**
- * Parse CSV-style results from the Neo4j run-query API.
+ * Parse CSV-style results from the Neo4j query API.
  * First line is headers, subsequent lines are values (quoted strings stripped).
  */
 function parseCsvRows(csvText) {
@@ -1092,11 +1092,13 @@ function createInternalBridge(app) {
         query: Object.fromEntries(url.searchParams),
         params: {},
         body: method === 'POST' ? bodyOrParams : {},
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': '127.0.0.1' },
+        // No proxy-forwarding header here: this is an in-process trusted call,
+        // not a proxied request. Its absence makes it honestly direct-local so
+        // the auth middleware stamps req.localTrusted. (ADR security-auth-exposure/0001.)
+        headers: { 'content-type': 'application/json' },
         get: (h) => {
           const key = h.toLowerCase();
           if (key === 'content-type') return 'application/json';
-          if (key === 'x-forwarded-for') return '127.0.0.1';
           return undefined;
         },
         connection: { remoteAddress: '127.0.0.1' },
