@@ -255,3 +255,122 @@ Everything else holds up:
 - Publishing, the editor and the legacy pages behave as before.
 
 The requested fix is contained: `profileState.js`, one hermetic test with local relays, and a note on ADR step 4. The re-review should be quick.
+
+## Round 2 (2026-09-12)
+
+**Diff:** `git diff 47b9cb00..afbe9095`. Three commits:
+- `ed2328ee`: ADR 0001 Amendment 1.
+- `be4a0868`: tests U12, D7 and B9; U6 reworded.
+- `afbe9095`: the implementation.
+
+I also sanity-checked the whole branch, `git diff f0a5df3b..afbe9095`.
+
+### Gate results (run by reviewer, not trusted)
+
+- [x] **`assistant-setup-state`**, run standalone on the amended code: 27 passed, 1 failed, 0 skipped. H-class: 2 executed, 0 skipped.
+  - The one failure is H1 again, for the same environmental reason as round 1: the local stack still serves the shared checkout, and its live response still lacks `profileSource`.
+  - U12, D7 and the reworded U6 all pass.
+- [x] **Regressions**, all 0 skipped and at the pre-change baseline:
+  - `admin-tools-dashboard-panel`: 9 passed, 0 failed.
+  - `recognizable-published-ta-profile`: 13 passed, 0 failed.
+  - `stamped-composite-avatar`: 15 passed, 0 failed.
+  - `create-tapestry`: 22 passed, 0 failed.
+- [x] **Browser class.**
+  - I rebuilt the UI first: `cd ui && npm run build`, exit 0. The new bundle `dist/assets/index-D1gyzMwX.js` contains `needs-setup` and the `hasRelayKey` mapping.
+  - Then I ran the same Playwright config with `--repeat-each 3`: **30 passed in 24.3 s, 0 failed, 0 flaky** (B0–B9).
+- [x] **`bash scripts/harness-lint.sh`**, run before this section was appended: clean (0 violations), exit 0.
+- [x] **The round-2 tests fail on the round-1 code**, so they pin the change.
+  - I built a scratch tree from `8d7690ec`'s `src`, `test`, `ui/src` and `lib`, and dropped in `be4a0868`'s test file.
+  - Result: 25 passed, 3 failed (U12, D7, H1). U12 reported `hasProfile=false, source=null after 4002 ms`.
+  - That matches the test plan's record.
+
+### Blocking 1, re-checked against the amended helper
+
+I ran the real helper (`src/api/assistant/profileState.js:75-95`) against local relays on 127.0.0.1, with the local scan and the import faked. This was a scratch harness, not committed.
+
+| Relays | Result |
+|---|---|
+| good + silent (connects, never answers) | found, 1 import, 4006 ms |
+| good + empty relay that sends EOSE at 3.5 s | found, 1 import, 3519 ms |
+| good + empty relay that sends EOSE at 6 s (past the deadline) | found, 1 import, 4003 ms |
+| good + TCP blackhole | found, 1 import, 3208 ms |
+| good + dead port | found, 1 import, 15 ms |
+| silent alone | not found, 0 imports, 4002 ms |
+| one relay with a valid event, a newer valid one, a forged newest, and another author's | the newer valid event imported once, 21 ms |
+| a forged newest on one relay, an older valid event on another | the valid event imported once, 8 ms |
+| five relays: silent, silent, TCP blackhole, dead port, good | found, 1 import, 4004 ms |
+| the good relay listed twice | found, 1 import, 16 ms |
+
+- A silent relay now costs only its own answer.
+- A profile returned by any relay that finishes always counts and is copied home exactly once. The slowest case took 4.01 s.
+- Nothing was left running once the test relays closed (0 active handles).
+- **Blocking 1 is resolved.**
+
+**The backstop.** I injected fake helpers into the same harness:
+- a helper that answers at 4500 ms is counted (found, 4503 ms);
+- a helper that answers at 5200 ms loses to the backstop (not found, 5002 ms);
+- a helper that never returns gives "not found" at 5002 ms. That is U6's case, bounded at about 5 s.
+
+The real helper settles at its own deadline, about 4.0 s, a full second before the 5 s backstop (`profileState.js:26`, `:157-161`). So the outer timer can no longer throw away a merged result. The helper takes its deadline after `require('nostr-tools')`, but `index.js` already loads that module at startup, so the require costs nothing.
+
+**U12** (`test/assistant-setup-state.test.js:328`; relay helper at `:307`) fails on the round-1 code and passes now, so it pins the defect.
+- It injects the local scan, the import, the relay list and the memo, but deliberately not `queryRelaysKind0`, so it runs the real helper.
+- It uses ephemeral ports on 127.0.0.1 and needs only `ws` and `nostr-tools`: no stack, safe in CI. It adds about 4 s.
+
+**Amendment 1 records the change adequately** (`decisions/assistant-profile/0001-one-setup-state-answer-local-first.md:230-297`; in-place pointer at `:159-160`; Status line at `:3`).
+- It explains the mechanism, with nostr-tools line references.
+- It weighs options A and B, and records the choice and how it was validated.
+- It lists the three changes: step 4 asks each relay on its own, the backstop at `RELAY_BUDGET_MS + 1000`, and the `hasRelayKey` mapping.
+- Its consequences include the Phase-3 obligation to test the real helper, which U12 meets.
+- The original step 4 is kept, with a pointer to the amendment, not rewritten.
+- There is one wording slip: Non-blocking R2-1.
+
+**Round-1 Non-blocking 1 is resolved.**
+- The hook now maps a successful reply with `hasRelayKey === false` to `'no-assistant'` (`ui/src/hooks/useAssistantSetupState.js:47-50`). The check comes after the `success` test and before `hasProfile`.
+- D7 (`test/assistant-setup-state.test.js:464`) fails on the round-1 code and passes now. It is only a loose source check: an inverted condition would still match its regex.
+- The browser test B9 (`tests/brainstorm/assistant-setup-prompt.spec.js:294`, mock at `:120`) pins the behaviour. An inverted mapping would also fail B3–B5, whose replies carry `hasRelayKey: true`.
+
+**The whole branch** (`git diff f0a5df3b..afbe9095`) touches 12 files.
+- Round 2 changed code only in `profileState.js` and the hook.
+- `index.js` and `Dashboard.jsx` are as reviewed in round 1, so the caller-gate and security findings stand.
+- Everything outside the ADR's file list is a harness record: this review, the story's Review link (47b9cb00), the test plan, and OPEN.md rows #271–#273.
+- The story is still In Progress.
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **R2-1: each relay still counts only if it finishes in time.** Code: `src/api/assistant/profileState.js:71-73`, `:86-90`. ADR 0001: `:259-261`, `:274-276`.
+   - A relay's events count only if that relay finishes (sends EOSE or closes) by the deadline.
+   - In my harness, when the *only* relay holding the profile sends it at once but withholds EOSE past 4 s, the check reports "not found" (4002 ms). With a second holder it is found (4002 ms). With EOSE at 3.5 s it is found (3508 ms).
+   - This is rare in practice: relays following NIP-01 send EOSE right after their stored events, and the profile normally sits on several publish relays. So it does not block.
+   - But three places overstate it:
+     - the JSDoc says "every kind 0 … that any relay delivers within `maxWait`";
+     - Amendment 1 item 1 says "returns every event any relay delivered within `maxWait`";
+     - Option B's "for no gain over A" is inaccurate, because counting delivered events is exactly B's gain.
+   - Optional improvement: reword both to "every event from each relay that finishes by the deadline", or collect events per relay with `onevent` so delivered events always count.
+2. **Carried from round 1, unchanged and still optional:**
+   - **Note 2:** a failed check can let the checklist read "Setup complete" (`ui/src/pages/Dashboard.jsx:66`, `:78`).
+   - **Note 3:** the caller gate rests on the S2 regex and on the live H1 (`test/assistant-setup-state.test.js:380`, `:482`). **Run H1 against staging after deploy.**
+   - **Note 4:** BIBLE has no API row for `/api/assistant/status`, and the handler's JSDoc omits the write (`src/api/assistant/index.js:382-388`).
+   - Note 5 is resolved as OPEN.md #272. The round-1 harness-friction item is filed as OPEN.md #271.
+
+### On approval (same commit, by the committing session)
+
+- [ ] Set the story's `**Status:**` to `Done` in place (`engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.md:3`), in the same commit as this section. That pairs it with the verdict below for harness-lint L1. Until then, lint reports one expected L1 for this story.
+- [ ] Completion detection was done by the reviewer. The result is in the chat, as the template requires.
+- [ ] After deploying to staging, run H1 there (`BRAINSTORM_BASE_URL=<staging>`). The test plan names it the decisive live check.
+
+### Verdict (round 2)
+
+Blocking 1 is fixed at its cause, and a test that fails on the round-1 code pins it.
+- AC1 through AC5 now hold.
+- The amended design is recorded.
+- Every gate is at its expected level. The lone H1 failure is environmental, and I confirmed why.
+- The remaining notes are optional.
+
+**PASS** — Blocking 1 is resolved, and no blocking issue remains.

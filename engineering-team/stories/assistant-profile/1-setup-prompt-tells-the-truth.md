@@ -1,6 +1,6 @@
 # Story 1: The setup prompt tells the truth
 
-**Status:** In Progress
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Bug
 **Epic:** `assistant-profile`
