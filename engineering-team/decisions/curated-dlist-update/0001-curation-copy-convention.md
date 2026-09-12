@@ -363,3 +363,39 @@ are rows 191 and 261).
 - Removal and replacement for `inherit-items` (W6); the item-set resolver and derivation.
 - Verifying that relays honor kind-5 deletions (story 5).
 - Proposing any of this upstream.
+
+## Amendment 1 — the emitter's timing, and four clarifications (2026-09-12)
+
+**Why.** Review round 1 (`engineering-team/reviews/curated-dlist-update/1-curation-copy-convention.md`,
+Blocking 1) found that four sentences this ADR prescribed — Decision §9's "the reference deployment no
+longer emits it" and Implementation notes 2 (the `inherit-from.md` status block), 4 (BIBLE `:1546`,
+`:1630`) and 10 (the intake closing line) — state as present fact what only a later story makes true.
+The header endpoint (`src/api/dlist-curation/index.js:24`, `:82`) writes `inherit-items` until story 2
+replaces it, and nothing copies items until story 5. Implementation note 1 (Deployment status) had the
+timing right, so the drafts contradicted each other. At the review gate the operator also chose to fold
+in four of the review's non-blocking findings (2, 3, 4 and 6).
+
+**Change.** The decision is unchanged; its wording and timing are corrected.
+1. **Timing.** Wherever this ADR says the reference deployment "no longer emits" `inherit-items`, or
+   states as current fact that curated lists hold copies (Decision §9; notes 2, 4 and 10), read: *the
+   reference deployment stops emitting it with `curated-dlist-update` story 2 — curated lists then link
+   with `pointer` and hold curation copies; until then its header endpoint still writes it.* The same
+   qualifier applies to BIBLE's `Last updated` note (note 4), the ADR 0003 annotation (note 9) and
+   handoff D11 (note 5). Story 2 drops the qualifier when it ships, together with
+   `assistant-designation.md`'s Deployment status. AC-7's "no longer emits" is met by the timed wording:
+   the decision is ratified here and takes effect in story 2.
+2. **Edited originals (review NB 2).** Decision §6's "edited" case applies to kind-39999 originals: the
+   copy's `d` derives from the original's address, which an edit keeps. An original of any other kind is
+   referenced by its event id, so an edited version is a new event and, to the curation method, a new
+   original.
+3. **Who copies (review NB 3).** Note 2's "Choosing the type" sentence ends "…copy the items you choose,
+   the way an empowered assistant does (§ "Curation copies")" — the spec defines copies only for an
+   empowered assistant (Option 6B still defers a hand-copying consumer).
+4. **The endpoint today (review NB 4).** Note 4's § Assistant Keys (`:1079`) edit also says, in that
+   paragraph's status sentence, that the endpoint still writes `inherit-items` until story 2 and that
+   nothing copies items yet.
+5. **The `copy-` namespace (review NB 6).** Decision §4 gains: an assistant's kind-39999 d-tags that
+   begin with `copy-` are reserved for curation copies — the Consequences' namespace, stated in the spec.
+
+Not taken: review NB 1 (the line-feed separator in the `d` input is not injective only for two crafted
+d-tags — pathological; revisit if the draft is revised).
