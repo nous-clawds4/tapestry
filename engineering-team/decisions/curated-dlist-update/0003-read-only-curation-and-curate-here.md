@@ -5,7 +5,9 @@
 **Story:** `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.md`
 **Supersedes in part:** `my-curated-dlists` ADR 0001 (sub-decision 4's `no-assistant` and `other-pubkey`
 front-door statuses, and the closed list rows) and `dlist-curation` ADR 0005 (the Replace confirmation's
-words) — Decision §8.
+words) — Decision §8; by Amendment 1, also `my-curated-dlists` ADR 0002 (the page's single write).
+**Amended by:** Amendment 1 (2026-09-12, at the end) — §5's offer checks its target; §8 adds
+`my-curated-dlists` ADR 0002; the Security bullet counts the offer's writes.
 
 ## Context
 
@@ -395,3 +397,55 @@ Regression is the full `npm test`. Known reds: OPEN.md rows 191 and 261. Run sin
 - Telling whether another pubkey is the viewer's assistant on another instance.
 - Curating kind-39999 lists here; any endpoint change.
 - Offering the move from the list page.
+
+## Amendment 1 — the offer checks its target, and the page's writes are counted (2026-09-12)
+
+**Why.** Story 3's review (`engineering-team/reviews/curated-dlist-update/3-another-assistants-curation-read-only.md`,
+Non-blocking 1 and 2) found two gaps. The operator chose to close both before the book merges.
+- **§5 checks that the curating header names *a* pointer, but not *which*.**
+  - The endpoint authors the viewer's assistant's header under the pointer's d-tag
+    (`src/api/dlist-curation/index.js:107–109`). The Map update, though, addresses
+    `39998:<my assistant>:<row.d>` (§5, step 4).
+  - Take a curating header that breaks the spec's "`d` equal to the d-tag of the community header it
+    curates" (`protocols/drafts/assistant-designation.md:70`). The user would sign a Map entry addressing a
+    header that does not exist — against "A writer MUST publish the header before the Map entry that
+    addresses it" (`:74`).
+  - A pointer at any kind but 39998 is offered, then refused by the endpoint's kind check
+    (`index.js:256–258`) after the words.
+  - Every header Tapestry writes conforms, but the page reads signed events from anyone.
+- **The page's writes were miscounted.** `my-curated-dlists` ADR 0002 still says the detail page performs
+  one write (`:107`, `:142`), and §8 did not list that ADR. This ADR's own Consequences say "the read-only
+  page writes nothing except the existing import", which §5 contradicts.
+
+**Change.**
+1. **§5 — availability gains a target check.** After the header's states, `curateHereOffer` returns
+   `{ status: 'unavailable', reason: 'target' }` unless `info.pointer.kind === 39998 && info.pointer.d ===
+   row.d`.
+   - The precedence becomes `no-assistant` → `kind` → the header's states (`checking`, then `failed` /
+     `missing` / `no-pointer` / `deferred`) → `target` → `available`.
+   - A conforming header is unaffected — every one Tapestry writes, and the live `dog-breed` curation.
+2. **§5 — the new reason's sentence**, in the house form: "You can't curate it here: its assistant's header
+   doesn't point at a kind-39998 list with the same d-tag."
+3. **§8 — one more superseded-in-part note:** `my-curated-dlists` ADR 0002, for its "single write" (`:107`,
+   `:142`). On a read-only list the offer adds two writes, each on an explicit click: the viewer's
+   assistant's header on Continue, and the viewer's Map on Sign & publish.
+4. **Consequences, Security — read the third bullet as** "the read-only page writes only on explicit clicks:
+   the existing import, and the offer's two writes (§5)".
+
+**Implementation notes (Amendment 1).**
+- `ui/src/utils/treasureMap.js` `curateHereOffer`: the target check after `sharedListUnavailable`, and its
+  JSDoc's precedence.
+- `ui/src/pages/grapevine/CurateHereOffer.jsx`: `REASON_TAILS.target`.
+- `engineering-team/decisions/done/my-curated-dlists/0002-the-two-headers.md`: extend the Status parenthetical
+  ("…; the page's single write by `curated-dlist-update` ADR 0003"), and add a one-line "Superseded in part
+  (2026-09-12)" note citing `curated-dlist-update` ADR 0003 by short name.
+- The story's § Deviations records the follow-up.
+
+**Testable seams (Amendment 1).**
+- `curateHereOffer`:
+  - a pointer of another kind (`39999:<author>:dog-breed`) → `target`;
+  - a kind-39998 pointer with another d-tag (`39998:<author>:dogs`) → `target`;
+  - a header state still outranks `target`;
+  - a conforming pointer is still `available`.
+- Structural: the `target` sentence in `CurateHereOffer.jsx`.
+- Docs: `my-curated-dlists` ADR 0002's note, citing ADR 0003 by short name.

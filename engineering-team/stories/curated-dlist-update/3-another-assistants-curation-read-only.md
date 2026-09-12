@@ -153,7 +153,7 @@ areas. The merge waits for the staging PR, where this book's OPEN.md rows are re
   failed.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
+- ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md` (with Amendment 1)
 - Test plan: `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.test-plan.md`
 - Review: `engineering-team/reviews/curated-dlist-update/3-another-assistants-curation-read-only.md`
 
