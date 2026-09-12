@@ -1,10 +1,12 @@
 # ADR 0002: The two headers — pure pointer checks, the shared header through the story-1 lookup, and one isolated import control
 
-**Status:** Accepted
+**Status:** Accepted (`wrong-type`'s expected type superseded by `curated-dlist-update` ADR 0002)
 **Date:** 2026-09-11
 **Story:** `engineering-team/stories/my-curated-dlists/2-the-two-headers.md`
 **Amended by:** ADR `my-curated-dlists/0003` sub-decision 9 — `deferred` now follows the house rule
 (`ui/src/utils/bDisposition.js` `dispositionOf`: a real `b` beats `b-tag-deferred`); story 2 review NB-1.
+
+> **Superseded in part (2026-09-12):** the expected link type is `pointer`; the older `inherit-items` link is a plain note (`older-link` — Update upgrades it), not `wrong-type`, which now means any other type — `curated-dlist-update` ADR 0002.
 
 ## Context
 

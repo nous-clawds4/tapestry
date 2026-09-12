@@ -11,8 +11,8 @@ import { getActiveSignerOrThrow } from '../../utils/signerGuard';
 import { publishOrThrow } from '../../utils/publishProfileTag';
 
 const ENDPOINT = '/api/dlist-curation/header';
-// Operator-approved copy (story 5 gate, 2026-09-10).
-const COPY = "Empower your Tapestry Assistant to curate a community DList on your behalf. Your assistant authors its own header for the list — inheriting the community's items, never duplicating them — and your Treasure Map records that you empowered it.";
+// Operator-approved copy (curated-dlist-update /discuss, 2026-09-11; ADR curated-dlist-update/0002 Decision §5).
+const COPY = "Empower your Tapestry Assistant to curate a community DList on your behalf. Your assistant authors its own version of the list and copies in the community items its curation method accepts, adding and removing them each time you press Update list. Your Treasure Map records that you empowered it.";
 
 const short = (pk) => `${pk.slice(0, 8)}…${pk.slice(-4)}`;
 /** The d-tag of an a-tag coordinate — split at the first two colons only (d-tags may contain colons). */

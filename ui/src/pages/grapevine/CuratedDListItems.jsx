@@ -44,7 +44,7 @@ export function CurationMethodPanel() {
         <div style={{ marginTop: '0.6rem', fontSize: '0.9rem' }}>
           <p style={{ margin: '0 0 0.4rem' }}>The curation method isn&apos;t built yet.</p>
           <p style={{ ...muted, margin: 0 }}>
-            It will set how your assistant decides which candidates to inherit — for example, skipping an
+            It will set how your assistant decides which candidates to copy — for example, skipping an
             item that has more downvotes than upvotes.
           </p>
         </div>
@@ -155,7 +155,7 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: sharedUnavailable ? 0.6 : 1 }}>
           <input type="checkbox" checked={showCandidates} disabled={!!sharedUnavailable} onChange={(e) => setShowCandidates(e.target.checked)} />
-          Also show candidates to inherit
+          Also show candidates to copy
           {sharedUnavailable && <span style={muted}>— unavailable: {UNAVAILABLE_REASON[sharedUnavailable] || sharedUnavailable}</span>}
         </label>
       </div>

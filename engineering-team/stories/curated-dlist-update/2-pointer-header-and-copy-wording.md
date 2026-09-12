@@ -88,6 +88,39 @@ and upgraded in story 5's Update preview, as the epic planned (option A).
 Known constraint: the panel's new description mentions "Update list", which works from story 5. That is
 fine while the branch ships as one book; if it ships sooner, that sentence needs a placeholder.
 
+## Deviations
+- **Beyond the ADR's edit lists — a comment and bookkeeping.** `TreasureMapTagsPanel.jsx`'s file
+  comment said the panel shows "the community header it inherits from"; it now says "copies from",
+  like the line it describes (Decision §6, "comments follow the code" — its list does not name this
+  comment). The epic's § Decisions gains the ADR 0002 bullet.
+- **BIBLE §25 keeps its link.** Implementation note 7's replacement for the "**Status today for the
+  facet:**" sentence drops the existing link to `assistant-designation.md` § "Curation copies"; the
+  new sentence keeps it, after "curation copies". The words are otherwise the ADR's.
+- **Carry-forwards checked and left as they are.** Handoff D11, the `dlist-curation` ADR 0003
+  annotation, the intake closing line, OPEN.md row 259's note and the epic's settled bullet say the
+  endpoint stops emitting `inherit-items` in (or with) story 2 — true at this commit.
+- **Local check (cycle-local).** The local container was behind the branch — seven server files
+  older and two missing, all from the `origin/staging` merge — so all of `src/` was synced to the
+  branch (the container's copies backed up first) along with the new UI build; drift afterwards: none.
+  Signed-in pages were checked through the fetch stub, as staging's customer whose assistant is
+  `253d40c4…`; the Treasure Map page found that user's real Map on a general-purpose relay.
+  - The Map entry reads "copies from 39998:11f23fe4…3767:dog-breed (older link)".
+  - The DList Curation panel shows the new description verbatim.
+  - The detail page shows "Points to … (older link)" and the plain note, with no warning.
+  - The method panel and the option say "candidates to copy"; the candidates view lists the shared
+    list's two local items.
+  - On dcosl, the two older-link headers (`253d40c4…`, `8e901369…`) classify as `older` with no
+    problems and the `older-link` note; the community header's self-declaration classifies as `exact`.
+  - Not exercised: a real Add (the endpoint needs a genuine NIP-07 session); H15 covers the older
+    path.
+  - The served bundle's only "inherits from" strings are in the TypeScript editor worker
+    (`ts.worker-*.js`), not app text.
+- **Regression.** The six suites this story touches: 112 passed, 0 failed, through their `run()`
+  exports; harness-lint clean. Full `npm test` against the synced container: 168 suites green, 3 red
+  with 4 failing tests — exactly OPEN.md row 191's (three L0 GUARD refusals and the refused prune;
+  this machine publishes externally by the operator's choice). Row 261's two LB matrices were skipped
+  this run (Meili did not settle), not failed.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0002-pointer-switch-and-copy-wording.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/2-pointer-header-and-copy-wording.test-plan.md`

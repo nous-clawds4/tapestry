@@ -235,8 +235,25 @@ export function markDuplicateEntries(rows) {
   });
 }
 
+// A curated header's link to its community list (curated-dlist-update ADR 0002): `pointer` is the
+// contract; `inherit-items` is the older link written before that story, recognized and upgraded by
+// Update. Mirrored in src/api/dlist-curation/index.js (CONTRACT_TYPE / OLDER_TYPE).
+export const CURATION_LINK_TYPE = 'pointer';
+export const OLDER_LINK_TYPE = 'inherit-items';
+
 /**
- * The community header a curation header inherits from: the first `b` tag whose value is an
+ * How a curated header's link type is labeled beside the list it links to (ADR 0002 Decision §3):
+ * nothing for the expected `pointer` (or an absent/empty type), "older link" for `inherit-items`, and
+ * any other value in curly quotes — shown as data, the way the raw event shows it. Never throws.
+ */
+export function linkTypeLabel(type) {
+  if (typeof type !== 'string' || type === '' || type === CURATION_LINK_TYPE) return null;
+  if (type === OLDER_LINK_TYPE) return 'older link';
+  return `“${type}”`;
+}
+
+/**
+ * The community header a curation header links to: the first `b` tag whose value is an
  * a-tag (the reserved sentinel and event-id values derive nothing — Inherit-From § reserved value);
  * `type` is element 3, `pointer` when absent. Null when there is none.
  */
@@ -414,14 +431,16 @@ export function parseCoordinate(coord) {
  * viewer's assistant authored it (checked, not assumed); the pointer it carries — `communityPointerOf`'s,
  * so Map Entries and this page follow the same one; whether it is deliberately unaffiliated; and the
  * problems, in order `no-b` · `not-a-coordinate` · `wrong-type` · `multiple`. Reported, never
- * fixed. Never throws.
+ * fixed. Never throws. The expected link type is `pointer` (curated-dlist-update ADR 0002):
+ * `wrong-type` is any other type except the older `inherit-items`, which is a note (`older-link` —
+ * Update upgrades it), not a problem.
  *
  * `deferred` and the value forms come from the house owner (`bDisposition.js`; ADR 0003 sub-decision
  * 9): `b-tag-deferred` counts only when it stands alone — a real `b` (a coordinate or an event id)
  * supersedes it.
  *
  * @returns {{ authoredByAssistant: boolean, pointer: {coord, type, kind, pubkey, d}|null,
- *             deferred: boolean, problems: string[] }}
+ *             deferred: boolean, problems: string[], notes: string[] }}
  */
 export function describeCurationHeader(event, assistantPubkey) {
   const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
@@ -433,13 +452,15 @@ export function describeCurationHeader(event, assistantPubkey) {
   const problems = [];
   if (values.length === 0) problems.push('no-b');
   if (forms.some((f) => f === 'event-id' || f === 'malformed')) problems.push('not-a-coordinate');
-  if (pointer && pointer.type !== 'inherit-items') problems.push('wrong-type');
+  if (pointer && pointer.type !== CURATION_LINK_TYPE && pointer.type !== OLDER_LINK_TYPE) problems.push('wrong-type');
   if (forms.filter((f) => f === 'a-tag').length > 1) problems.push('multiple');
+  const notes = pointer && pointer.type === OLDER_LINK_TYPE ? ['older-link'] : [];
   return {
     authoredByAssistant: !!(me && event && typeof event.pubkey === 'string' && event.pubkey.toLowerCase() === me),
     pointer,
     deferred: dispositionOf(values).deferred,
     problems,
+    notes,
   };
 }
 
@@ -531,9 +552,9 @@ const FROM_ORDER = { assistant: 0, other: 1, candidate: 2 };
  * The table's rows (ADR 0003 sub-decisions 1, 2, 5). `mine` are the items pointing at my local DList,
  * `shared` the shared list's (null when not read). By default only my assistant's items; `showOthers`
  * adds everyone else's on my list; `showCandidates` adds shared items my assistant has not copied —
- * "copied" meaning one of MY ASSISTANT'S items carries the shared item's id or coordinate in any tag,
- * at any position. Grouped assistant → other → candidate; by name (case-insensitive), newest first on
- * ties. Never throws.
+ * "copied" meaning one of MY ASSISTANT'S items carries a `q` tag naming the shared item's id or its
+ * coordinate (curated-dlist-update ADR 0002 — a mention in any other tag does not count). Grouped
+ * assistant → other → candidate; by name (case-insensitive), newest first on ties. Never throws.
  *
  * @returns {Array<{ key, from: 'assistant'|'other'|'candidate', name, author, createdAt, routeId, local }>}
  */
@@ -558,7 +579,7 @@ export function curatedItemRows(input) {
     const referenced = new Set();
     for (const x of mineItems.filter(byMe)) {
       for (const t of Array.isArray(x.event.tags) ? x.event.tags : []) {
-        if (Array.isArray(t)) for (const v of t.slice(1)) if (typeof v === 'string') referenced.add(v);
+        if (Array.isArray(t) && t[0] === 'q' && typeof t[1] === 'string') referenced.add(t[1]);
       }
     }
     for (const x of shared.filter(valid)) {
@@ -595,7 +616,7 @@ export function itemsEmptySentence(input) {
   let sentence = "Your assistant hasn't added any items to this list yet.";
   if (showOthers) sentence += ' No one else has either.';
   const readCleanlyEnough = !!(shared && typeof shared === 'object' && !(shared.local === 'failed' && shared.relay === 'failed'));
-  if (readCleanlyEnough) sentence += ' The shared list offers no candidates to inherit.';
+  if (readCleanlyEnough) sentence += ' The shared list offers no candidates to copy.';
   return sentence;
 }
 

@@ -1,9 +1,11 @@
 # ADR 0004: The assistant curation-header endpoint — a dependency-injected server module that fetches, composes, signs, and publishes without touching the graph
 
-**Status:** Accepted
+**Status:** Accepted (the contract `b` type and the exact rule superseded by `curated-dlist-update` ADR 0002)
 **Date:** 2026-09-10
 **Amends:** `community-reference` ADR 0004 (publish-export-a-concept) — its Option-B rejection ("no server-side external-relay publisher") is superseded **for this endpoint only**; operator decision 2026-09-10 at the Phase-4 escalation.
 **Story:** `engineering-team/stories/dlist-curation/4-assistant-curation-header-endpoint.md`
+
+> **Superseded in part (2026-09-12):** the contract `b` is `["b", <target>, "pointer"]`; an existing header whose one `b` names the target is left untouched whether it is `pointer`-typed (or untyped) or carries the older `inherit-items` link, which Update upgrades — `curated-dlist-update` ADR 0002.
 
 ## Context
 

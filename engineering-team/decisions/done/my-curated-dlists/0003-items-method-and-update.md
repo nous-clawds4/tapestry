@@ -1,9 +1,11 @@
 # ADR 0003: Items, the curation-method panel, and Update list — pure item logic, a lazy shared-list read, and the house b-value rule
 
-**Status:** Accepted
+**Status:** Accepted (sub-decision 2 and Amendment 1's wording superseded by `curated-dlist-update` ADR 0002)
 **Date:** 2026-09-11
 **Story:** `engineering-team/stories/my-curated-dlists/3-items-method-and-update.md`
 **Amends:** ADR `my-curated-dlists/0002` sub-decision 2 (the `deferred` rule) — see sub-decision 9.
+
+> **Superseded in part (2026-09-12):** "already copied" now means one of my assistant's items carries a `q` tag naming the shared item (any-tag matching is retired), and the empty view says "no candidates to copy" — `curated-dlist-update` ADR 0002.
 
 ## Context
 

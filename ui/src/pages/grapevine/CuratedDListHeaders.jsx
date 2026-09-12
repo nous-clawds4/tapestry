@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { describeHeaderLookup } from '../../utils/treasureMap';
+import { describeHeaderLookup, linkTypeLabel } from '../../utils/treasureMap';
 
 /*
  * The two headers on a curated DList's detail page (my-curated-dlists #2, ADR 0002): the header the
@@ -33,8 +33,13 @@ const sectionTitle = { margin: '0 0 0.5rem', fontSize: '0.95rem' };
 const PROBLEM_SENTENCES = {
   'no-b': () => '⚠️ It has no b tag, so it points at no shared header.',
   'not-a-coordinate': () => '⚠️ One of its b tags is not a list coordinate.',
-  'wrong-type': (info) => `⚠️ Its pointer type is “${info.pointer.type}”, not inherit-items.`,
+  'wrong-type': (info) => `⚠️ Its link to the shared header is typed “${info.pointer.type}”, not “pointer”.`,
   'multiple': () => '⚠️ It has more than one pointer — this page follows the first.',
+};
+
+// One plain sentence per note (curated-dlist-update ADR 0002) — not a problem; Update list acts on it.
+const NOTE_SENTENCES = {
+  'older-link': () => 'It uses the older link type; Update list will upgrade it to “pointer”.',
 };
 
 /** The complete event as formatted JSON, behind a toggle that is closed on every load (never persisted). */
@@ -145,9 +150,12 @@ export function AssistantHeaderSection({ row, lookup, info, onImported, checking
             : <span style={warn}>⚠️ Not authored by your assistant ({short(lookup.event.pubkey)}).</span>}
         </div>
         {info?.pointer && (
-          <div style={line}>Points to <code>{shortCoord(info.pointer.coord)}</code> ({info.pointer.type})</div>
+          <div style={line}>Points to <code>{shortCoord(info.pointer.coord)}</code>{linkTypeLabel(info.pointer.type) ? ` (${linkTypeLabel(info.pointer.type)})` : ''}</div>
         )}
         {info?.deferred && <div style={{ ...line, opacity: 0.75 }}>It is marked deliberately unaffiliated (b-tag-deferred).</div>}
+        {(info?.notes || []).map((n) => (
+          <div key={n} style={line}>{NOTE_SENTENCES[n](info)}</div>
+        ))}
         {(info?.problems || []).map((p) => (
           <div key={p} style={{ ...warn, marginTop: '0.35rem' }}>{PROBLEM_SENTENCES[p](info)}</div>
         ))}

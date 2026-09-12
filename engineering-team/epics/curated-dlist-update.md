@@ -73,3 +73,7 @@ Operator decisions in `/discuss` and at the Planning gate:
   assistant-authored kind-39999 copies with one `z`, a `copy-` d-tag and NIP-18 `q` back-references,
   removal by NIP-09, one curating assistant per list; `inherit-items` stays registered, and the header
   endpoint stops emitting it in story 2 (Option A on every axis).
+- `0002-pointer-switch-and-copy-wording.md` — story 2: the endpoint writes `pointer` and accepts the
+  older `inherit-items` link as existing ("older"); `describeCurationHeader` gains `notes`; one
+  `linkTypeLabel` for both raw-type displays; "already copied" by `q`; "copy" in the curation screens'
+  words (Option A).

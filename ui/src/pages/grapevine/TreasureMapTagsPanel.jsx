@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Avatar from '../../components/Avatar';
 import { queryRelay } from '../../api/relay';
-import { classifyEntry, markDuplicateEntries, communityPointerOf, describeHeaderLookup } from '../../utils/treasureMap';
+import { classifyEntry, markDuplicateEntries, communityPointerOf, describeHeaderLookup, linkTypeLabel } from '../../utils/treasureMap';
 
 const CLS_LABEL = { ta: 'Trusted Assertion', tl: 'Trusted List', dlist: 'Curated DList', designation: 'TA designation', other: 'other' };
 const CLS_COLOR = { ta: '#58a6ff', tl: '#d2a8ff', dlist: '#f0883e', designation: '#8b949e', other: '#8b949e' };
@@ -23,7 +23,7 @@ function shortCoord(coord) {
  * Curated DList and TA designation classes), the delegate's avatar linked to their profile, and
  * whether the delegate is this instance's Tapestry Assistant. For Curated DList rows the panel
  * also verifies the header the entry addresses — local strfry first, the row's relay hint only
- * when missing locally — and shows its name, a link, and the community header it inherits from,
+ * when missing locally — and shows its name, a link, and the community header it copies from,
  * or a warning naming where it looked. Display-only — the opt-in/publish flows are the panels'.
  */
 export default function TreasureMapTagsPanel({ tags }) {
@@ -218,9 +218,9 @@ function DListRowDetails({ row, lookup }) {
       <Link to={`/tapestry/lists/${encodeURIComponent(coord)}`} style={{ color: '#58a6ff', fontWeight: 600 }}>{name}</Link>
       {pointer ? (
         <span>
-          inherits from{' '}
+          copies from{' '}
           <Link to={`/tapestry/lists/${encodeURIComponent(pointer.coord)}`} style={{ color: '#58a6ff', fontFamily: 'monospace', fontSize: '0.75rem' }}>{shortCoord(pointer.coord)}</Link>
-          <span style={{ opacity: 0.6 }}> ({pointer.type})</span>
+          {linkTypeLabel(pointer.type) && <span style={{ opacity: 0.6 }}> ({linkTypeLabel(pointer.type)})</span>}
         </span>
       ) : (
         <span style={{ opacity: 0.6 }}>no community pointer</span>
