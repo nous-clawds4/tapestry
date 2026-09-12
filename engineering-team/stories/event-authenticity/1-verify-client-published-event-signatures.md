@@ -1,6 +1,6 @@
 # Story 1: Verify the signature of client-published events before they mutate the graph
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Bug (security / event authenticity)
 **Epic:** `event-authenticity`
@@ -48,4 +48,4 @@ The events being protected are tag-elements (kind 39999) published under tag con
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-authenticity/0001-verify-client-published-event-signatures.md`
 - Test plan: `engineering-team/stories/event-authenticity/1-verify-client-published-event-signatures.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/event-authenticity/1-verify-client-published-event-signatures.md`
