@@ -46,6 +46,6 @@ The events being protected are tag-elements (kind 39999) published under tag con
 - Exactly where the verification belongs so that **both** the relay publish and the derived Neo4j/LMDB writes are gated by it (Architecture).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-authenticity/0001-verify-client-published-event-signatures.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
