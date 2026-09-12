@@ -47,5 +47,5 @@ The events being protected are tag-elements (kind 39999) published under tag con
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-authenticity/0001-verify-client-published-event-signatures.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/event-authenticity/1-verify-client-published-event-signatures.test-plan.md`
 - Review: (filled in after Review phase)
