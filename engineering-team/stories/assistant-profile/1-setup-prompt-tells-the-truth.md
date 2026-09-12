@@ -108,4 +108,4 @@ told to set up, and a wiped *and* offline instance is rare. Recorded in the rule
 - ADR: `engineering-team/decisions/assistant-profile/0001-one-setup-state-answer-local-first.md`
 - Test plan: `engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.test-plan.md`
   (tests: `test/assistant-setup-state.test.js`, `tests/brainstorm/assistant-setup-prompt.spec.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-profile/1-setup-prompt-tells-the-truth.md`
