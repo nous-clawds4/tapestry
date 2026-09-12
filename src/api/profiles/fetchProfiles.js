@@ -13,12 +13,20 @@
 const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';
 const WS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/ws';
 
-// Inject WebSocket global for nostr-tools SimplePool (Node has no native WebSocket)
-if (typeof globalThis.WebSocket === 'undefined') {
-  globalThis.WebSocket = require(WS_PATH);
+// Resolve inside the Docker container via the absolute path; fall back to the bare
+// module name everywhere else (CI's stack-free runner + host node_modules live at the
+// repo root). Load-only resilience — no behavior change. (Same pattern the auth and
+// publish paths use, ADR event-authenticity/0001.)
+function _resilientRequire(absPath, bareName) {
+  try { return require(absPath); } catch { return require(bareName); }
 }
 
-const { SimplePool } = require(NOSTR_TOOLS_PATH);
+// Inject WebSocket global for nostr-tools SimplePool (Node has no native WebSocket)
+if (typeof globalThis.WebSocket === 'undefined') {
+  globalThis.WebSocket = _resilientRequire(WS_PATH, 'ws');
+}
+
+const { SimplePool } = _resilientRequire(NOSTR_TOOLS_PATH, 'nostr-tools');
 const { getSettings } = require('../../config/settings');
 const { mergeNewestByPubkey } = require('../../lib/receiving/newest');
 
