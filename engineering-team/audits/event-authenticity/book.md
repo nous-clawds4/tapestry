@@ -1,9 +1,9 @@
 # Book of Work: Event authenticity — verify client-published event signatures
 
 **Slug:** event-authenticity
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-11
-**Closed:** —
+**Closed:** 2026-09-11
 
 ## Intent anchor
 
@@ -11,11 +11,11 @@ Acceptance frame (no PRD). The bounded ask: close audit finding **F1** — the c
 
 ### Acceptance frame
 
-- [ ] A client-published event whose signature is **not valid for its claimed author** is rejected and never reaches the relay, the Neo4j graph, or the tapestry LMDB store.
-- [ ] A validly-signed event from **any** pubkey still publishes — permissionless publishing is preserved (the gate is authenticity, not authorization).
-- [ ] A forged event that reuses an existing element's `d`-tag cannot delete or overwrite the genuine element.
-- [ ] The `signAs:'assistant'` owner gate is unchanged; app-level verification does not rely solely on the relay's import behavior.
-- [ ] Shipped through `staging` → `main`/prod (the exposure is live on both); public-facing text kept minimal until prod is patched.
+- [x] A client-published event whose signature is **not valid for its claimed author** is rejected and never reaches the relay, the Neo4j graph, or the tapestry LMDB store.
+- [x] A validly-signed event from **any** pubkey still publishes — permissionless publishing is preserved (the gate is authenticity, not authorization).
+- [x] A forged event that reuses an existing element's `d`-tag cannot delete or overwrite the genuine element.
+- [x] The `signAs:'assistant'` owner gate is unchanged; app-level verification does not rely solely on the relay's import behavior.
+- [x] Shipped through `staging` → `main`/prod (the exposure is live on both); public-facing text kept minimal until prod is patched.
 
 ## Epics in this book
 - `event-authenticity` — story 1 closes F1. (F3 — the io-import no-verify path — is anticipated future scope, a separate book.)
@@ -25,7 +25,7 @@ Acceptance frame (no PRD). The bounded ask: close audit finding **F1** — the c
 
 ## Provenance
 - **Mode:** Acceptance-frame *(no PRD; frame confirmed at kickoff 2026-09-11)*
-- **Confidence at close:** —
+- **Confidence at close:** high — F1 shipped and verified end-to-end on staging + prod (live forged-rejected / valid-published round-trip).
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/event-authenticity/audit.md`

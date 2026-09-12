@@ -1,7 +1,7 @@
 # Epic: event-authenticity
 
 **Created:** 2026-09-11
-**Status:** Open
+**Status:** Done (story 1 shipped to staging + prod 2026-09-11, branch merged; book `audits/event-authenticity/` Closed. F3/F4/F5 are a SEPARATE future epic/book — not a reopening of this Done epic, which would trip harness-lint L2 per OPEN.md row 268.)
 
 ## Goal
 
@@ -15,9 +15,9 @@ Publishing is permissionless by design (anyone may publish their own signed even
 
 ## Stories
 
-1. `stories/event-authenticity/1-verify-client-published-event-signatures.md` — verify the signature of client-published events (`POST /api/strfry/publish`, `signAs:'client'`) before they reach the relay/graph/store (audit finding **F1**, Critical, live). **Draft.**
+1. `stories/event-authenticity/1-verify-client-published-event-signatures.md` — verify the signature of client-published events (`POST /api/strfry/publish`, `signAs:'client'`) before they reach the relay/graph/store (audit finding **F1**, Critical, live). **Done** (review PASS 2026-09-11; shipped staging→prod, verified live).
 
-*(Anticipated future stories in this epic, from the same audit: **F3** — the io-import path ingesting events with `--no-verify` (+ its Cypher-injection). **F4/F5** are authorization gaps, not authenticity — they belong to the authenticated-non-owner track, not here.)*
+*(Related audit findings are each a **separate future epic/book** — NOT reopened under this Done epic (harness-lint L2, OPEN.md row 268): **F3** — the io-import path ingesting events with `--no-verify` (+ its Cypher-injection), an authenticity sibling that would get its own epic. **F4/F5** are authorization gaps, not authenticity — the authenticated-non-owner track.)*
 
 ## Key facts / guardrails
 
