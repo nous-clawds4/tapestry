@@ -272,6 +272,11 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     published = true;   // the publish happens in the editor; from here on the one answer says so
     await page.getByRole('button', { name: PROMPT_BUTTON }).click();
     await expect(page).toHaveURL(/\/tapestry\/settings\/assistant$/);
+    // React Router 7 applies a navigation as a React transition: the URL changes before the new
+    // route renders. Going back inside that gap lands on the same, never-unmounted dashboard,
+    // which never asks again — a race in this test, not in the page (seen in 2 of 3 full-spec
+    // runs). So wait until the dashboard has really gone.
+    await page.locator('.dashboard').first().waitFor({ state: 'detached', timeout: 20000 });
     await page.goBack();
     await page.locator('.dashboard').first().waitFor({ timeout: 20000 });
     await page.waitForTimeout(2000);

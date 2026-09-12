@@ -147,7 +147,7 @@ B5  pass  (coincidence: the old build prompts every Owner, which is the right ou
 B6  FAIL  AC4: a user with no assistant must not be prompted — the prompt showed
 B7  FAIL  a failed check must render nothing — the prompt showed
 B8  —     depends on timing against the old build (failed in the full parallel run, passed alone);
-          it guards the new hook, which re-asks on every mount, so it is deterministic once implemented
+          it guards the new hook, which re-asks on every mount (see the amendment below)
 ```
 
 **Harness note, for the next browser spec that touches the dashboard.** The first run crashed the
@@ -156,3 +156,15 @@ The catch-all mock answered `success: true` with an array, and the key-status pa
 `derived` counts from it. The dashboard has no error boundary, so one panel's unexpected payload
 blanks every panel. Fixed in the spec by answering unmocked endpoints `success: false` and giving
 `/api/neo4j/query` the shape `cypher()` parses.
+
+**Amended in a Phase-3 kick-back (2026-09-11), before the implementation was committed.**
+- **What failed:** against the implemented build, B8 failed in 2 of 3 full-spec runs. It passed when
+  run alone, and 6 of 6 times when run on its own across parallel workers.
+- **Why:** the failing runs made only one status request, because the dashboard never remounted.
+  React Router 7 applies a navigation as a React transition, so the URL changes before the new route
+  renders. The test's immediate `goBack()` could land inside that gap, on the same dashboard, which
+  had never unmounted.
+- **The fix:** B8 now waits for the dashboard to detach before going back. With that one line the
+  full spec passed 27 of 27 across three repeats.
+- **Not a page defect:** no real user can go back within that gap, and nothing can be published in
+  it. This was a race in the test.
