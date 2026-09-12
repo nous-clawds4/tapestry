@@ -10,11 +10,14 @@ const { getOwnerAssistantKeys } = require('../../../utils/assistantKeys');
 const { isOwner } = require('../../../middleware/auth');
 const { maybeBrainWriteTapestry } = require('../tapestryBrainWrite');
 
-// Lazy-load nostr-tools (ESM-friendly path inside Docker)
+// Lazy-load nostr-tools resiliently: the absolute path resolves inside the Docker
+// container (prod/staging); the bare require resolves everywhere else (CI's stack-free
+// runner installs node_modules at the repo root). Mirrors src/api/event/eventReadPath.js:38-40.
 let _nt = null;
 function getNostrTools() {
   if (!_nt) {
-    _nt = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools');
+    try { _nt = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools'); }
+    catch { _nt = require('nostr-tools'); }
   }
   return _nt;
 }

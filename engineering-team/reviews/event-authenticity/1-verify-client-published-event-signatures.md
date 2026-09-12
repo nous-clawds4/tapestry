@@ -50,6 +50,10 @@ _None._
 ## Verdict
 **PASS** — the diff is mergeable as-is. The forgery (and the destructive `d`-tag-reuse overwrite) is closed at the publish boundary by an app-level signature check that gates both the relay import and the brain-write; permissionless publishing and the shipped auth surface are preserved; all gate suites and harness-lint are green.
 
+## Post-review addendum (CI-surfaced fix)
+
+At `/cycle-staging` the PR's **`stack-free` CI job failed**: `getNostrTools()` (`publishEvent.js:14-20`) required **only** the absolute in-container path `/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools`, which exists in the container (prod/staging) but **not** in CI's stack-free runner (`npm ci` at the repo root) — so verification threw and every client publish 500'd there (my suite's AC2 failed, 4/1). **My in-container review run masked it** — the absolute path resolves in the container. Fixed by making `getNostrTools()` resilient (absolute → bare `require('nostr-tools')` fallback, mirroring `eventReadPath.js:38-40`); in-container still 5/0; CI re-verified green before merge. **Process lesson (→ OPEN.md `meta` at book close):** the Reviewer must run the **stack-free** gate (`npm test` with Docker down / the CI job), not only the in-container suite, or container-only absolute-path assumptions slip through. Verdict stands as PASS with this fix folded in.
+
 ## On PASS (same commit)
 - [x] Story `**Status:**` flipped to `Done`.
 - [x] Completion detection performed — see the chat: the `event-authenticity` book's acceptance frame is met **except** the "shipped through staging → prod" bullet (still local only), so the book is **not yet complete**; `/close-book` is **not** offered until prod ships. Feature is ready for `cycle-staging`.
