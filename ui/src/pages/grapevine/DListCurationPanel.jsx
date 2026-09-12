@@ -6,7 +6,7 @@ import useCommunitySharedConcepts from '../../hooks/useCommunitySharedConcepts';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 import { queryRelay } from '../../api/relay';
-import { findDListEntries, upsertDListEntry, removeDListEntry, describeDListCuration } from '../../utils/treasureMap';
+import { findDListEntries, upsertDListEntry, removeDListEntry, describeDListCuration, replacementSentences } from '../../utils/treasureMap';
 import { getActiveSignerOrThrow } from '../../utils/signerGuard';
 import { publishOrThrow } from '../../utils/publishProfileTag';
 
@@ -95,7 +95,7 @@ function DListCurationBody({ event, entries, userPubkey, assistantPubkey, relayH
   // The same source and dedupe as the Shared Concepts pages; fetched now, on first open.
   const { rows } = useCommunitySharedConcepts();
   const [query, setQuery] = useState('');
-  const [pending, setPending] = useState(null); // { mode: 'add' | 'revoke', kind, d, name, outcome }
+  const [pending, setPending] = useState(null); // { mode: 'add' | 'revoke', kind, d, name, outcome, replaces }
   const [busy, setBusy] = useState(null);       // a row coordinate, or 'sign'
   const [error, setError] = useState(null);     // { kind: 'conflict' | 'endpoint' | 'publish', message, b? }
   const [showPreview, setShowPreview] = useState(false);
@@ -172,7 +172,10 @@ function DListCurationBody({ event, entries, userPubkey, assistantPubkey, relayH
         setError({ kind: 'endpoint', message: data.error || `Request failed (${res.status}).` });
         return;
       }
-      setPending({ mode: 'add', kind: 39998, d, name: row.name || d, outcome: data });
+      // A Replace says so, and whose entry it replaces (curated-dlist-update ADR 0003 §7).
+      const existing = byD.get(d);
+      const replaces = existing && existing.pubkey !== assistantPubkey ? existing.pubkey : null;
+      setPending({ mode: 'add', kind: 39998, d, name: row.name || d, outcome: data, replaces });
     } catch (err) {
       setError({ kind: 'endpoint', message: err?.message || 'Request failed.' });
     } finally {
@@ -280,7 +283,14 @@ function DListCurationBody({ event, entries, userPubkey, assistantPubkey, relayH
                   ))}
                 </div>
               )}
-              <div style={{ marginTop: '0.5rem' }}>Map update: adds <span style={mono}>39998:{pending.d}</span> → your assistant{relayHint ? <> @ <span style={mono}>{relayHint}</span></> : ' (no relay hint configured)'}.</div>
+              {pending.replaces ? (
+                <>
+                  <div style={{ marginTop: '0.5rem' }}>Map update: replaces <span style={mono}>{short(pending.replaces)}</span>&apos;s entry for <span style={mono}>39998:{pending.d}</span> with your assistant{relayHint ? <> @ <span style={mono}>{relayHint}</span></> : ' (no relay hint configured)'}.</div>
+                  {replacementSentences(short(pending.replaces)).map((t) => <div key={t} style={{ marginTop: '0.25rem' }}>{t}</div>)}
+                </>
+              ) : (
+                <div style={{ marginTop: '0.5rem' }}>Map update: adds <span style={mono}>39998:{pending.d}</span> → your assistant{relayHint ? <> @ <span style={mono}>{relayHint}</span></> : ' (no relay hint configured)'}.</div>
+              )}
             </>
           ) : (
             <>

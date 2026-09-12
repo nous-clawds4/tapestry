@@ -329,19 +329,19 @@ export function curatedDListPath(routeId) {
 }
 
 /**
- * The detail page's front door (ADR 0001 sub-decision 4): `{ status, row }`. Nothing is decided
- * while auth is still resolving (`checking`, never `signed-out`); then signed-out → no-assistant →
- * bad-id → checking (Map not settled) → map-error → no-map → not-on-map → other-pubkey → ok. `row`
- * is the effective row for the id (so `other-pubkey` can name its pubkey), else null. The list is
- * looked up on the VIEWER's own Map, so a shared URL can never show someone else's curation as
- * theirs. Never throws.
+ * The detail page's front door (ADR 0001 sub-decision 4, as curated-dlist-update ADR 0003 §1 amends
+ * it): `{ status, row }`. Nothing is decided while auth is still resolving (`checking`, never
+ * `signed-out`); then signed-out → bad-id → map-error → no-map → checking (Map not settled) →
+ * not-on-map → ok | read-only. A list on the viewer's Map opens — `ok` when it names the viewer's own
+ * assistant, `read-only` otherwise, including when the viewer has no assistant here (nothing is mine
+ * then). `row` is the effective row for both, else null. The list is looked up on the VIEWER's own
+ * Map, so a shared URL can never show someone else's curation as theirs. Never throws.
  */
 export function curatedDListAccess(input) {
   const { signedIn, authLoading, assistantPubkey, mapStatus, tags, id } = input || {};
   const verdict = (status, row = null) => ({ status, row });
   if (authLoading) return verdict('checking');
   if (!signedIn) return verdict('signed-out');
-  if (typeof assistantPubkey !== 'string' || assistantPubkey === '') return verdict('no-assistant');
   const parsed = parseCuratedDListRouteId(id);
   if (!parsed) return verdict('bad-id');
   if (mapStatus === 'error') return verdict('map-error');
@@ -350,7 +350,7 @@ export function curatedDListAccess(input) {
   const routeId = `${parsed.kind}:${parsed.d}`;
   const row = curatedDListRows(tags, assistantPubkey).find((r) => r.routeId === routeId) || null;
   if (!row) return verdict('not-on-map');
-  return verdict(row.mine ? 'ok' : 'other-pubkey', row);
+  return verdict(row.mine ? 'ok' : 'read-only', row);
 }
 
 /**
@@ -606,14 +606,49 @@ export function sharedListUnavailable(assistantLookup, info) {
 }
 
 /**
+ * Whether a read-only list offers "curate it here instead" (curated-dlist-update ADR 0003 §5): only with
+ * an assistant here, for a kind-39998 list, whose curating assistant's header names a shared header —
+ * the target the offer curates. Precedence: `no-assistant` → `kind` → the header's states, as
+ * `sharedListUnavailable` reads them (`checking`, then `failed` / `missing` / `no-pointer` / `deferred`).
+ * Never throws.
+ *
+ * @returns {{status:'available', target:string} | {status:'checking'} | {status:'unavailable', reason:string}}
+ */
+export function curateHereOffer(input) {
+  const { assistantPubkey, row, assistantLookup, info } = input && typeof input === 'object' ? input : {};
+  if (typeof assistantPubkey !== 'string' || assistantPubkey === '') return { status: 'unavailable', reason: 'no-assistant' };
+  if (!row || typeof row !== 'object' || row.kind !== 39998) return { status: 'unavailable', reason: 'kind' };
+  const why = sharedListUnavailable(assistantLookup, info);
+  if (why === 'checking') return { status: 'checking' };
+  if (why) return { status: 'unavailable', reason: why };
+  return { status: 'available', target: info.pointer.coord };
+}
+
+/**
+ * The words said before a list's curation moves to this instance's assistant (curated-dlist-update
+ * ADR 0003 §6) — by the read-only page's offer and by the DList Curation panel's Replace: the Map names
+ * one curating assistant per list, and the other assistant's header and copies stay. Never throws.
+ */
+export function replacementSentences(curatorShort) {
+  const who = typeof curatorShort === 'string' ? curatorShort : String(curatorShort ?? '');
+  return [
+    `Your Treasure Map names one curating assistant per list: after this, your assistant here curates it, and ${who} no longer does.`,
+    "That assistant's header and copies stay where they are.",
+  ];
+}
+
+/**
  * The sentence the items table shows when it has no rows (ADR 0003 Amendment 1). "No candidates"
  * is claimed only when the shared list — its lookup record, passed only while it is in view — was
  * read and did not fail on both sources: a failed read is "couldn't check" (its own note), never
  * "empty". Never throws.
  */
 export function itemsEmptySentence(input) {
-  const { showOthers, shared } = input && typeof input === 'object' ? input : {};
-  let sentence = "Your assistant hasn't added any items to this list yet.";
+  const { showOthers, shared, curator } = input && typeof input === 'object' ? input : {};
+  // Seen from another assistant's side on a read-only list (curated-dlist-update ADR 0003 §3).
+  let sentence = curator === 'other'
+    ? "Its assistant hasn't added any items to this list yet."
+    : "Your assistant hasn't added any items to this list yet.";
   if (showOthers) sentence += ' No one else has either.';
   const readCleanlyEnough = !!(shared && typeof shared === 'object' && !(shared.local === 'failed' && shared.relay === 'failed'));
   if (readCleanlyEnough) sentence += ' The shared list offers no candidates to copy.';

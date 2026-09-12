@@ -8,6 +8,9 @@ import { timeAgo } from '../../utils/timeAgo';
  * The rest of a curated DList's detail page (my-curated-dlists #3, ADR 0003): the curation-method
  * panel and the Update list button — placeholders that act on nothing — and the list's items in a
  * table with the operator's three views. Read-only: nothing here signs, publishes, or imports.
+ * On another assistant's list (`curator` 'other' — curated-dlist-update ADR 0003 §3–§4) the items are
+ * judged from that assistant's side, its list is read at the Map entry's relay (`listRelay`), and
+ * Update says where it runs.
  */
 
 const short = (pk) => (typeof pk === 'string' && pk.length > 12 ? `${pk.slice(0, 8)}…${pk.slice(-4)}` : String(pk || ''));
@@ -21,6 +24,8 @@ const sectionTitle = { margin: 0, fontSize: '0.95rem' };
 const cell = { padding: '0.4rem 0.6rem', borderBottom: '1px solid var(--border, #333)', textAlign: 'left', fontSize: '0.85rem' };
 
 const FROM_LABEL = { assistant: 'your assistant', other: 'someone else', candidate: 'candidate' };
+// Another assistant's list, seen read-only (curated-dlist-update ADR 0003 §3).
+const FROM_LABEL_OTHER = { ...FROM_LABEL, assistant: 'its assistant' };
 const FROM_COLOR = { assistant: '#3fb950', other: '#8b949e', candidate: '#58a6ff' };
 
 // Why the candidates box is off-limits, by `sharedListUnavailable`'s answer (ADR 0003 note 1).
@@ -30,6 +35,14 @@ const UNAVAILABLE_REASON = {
   missing: 'your assistant’s header was not found',
   'no-pointer': 'your assistant’s header names no shared list',
   deferred: 'your assistant’s header is marked deliberately unaffiliated',
+};
+// The same reasons on another assistant's list (curated-dlist-update ADR 0003 §3).
+const UNAVAILABLE_REASON_OTHER = {
+  checking: 'checking its assistant’s header…',
+  failed: 'its assistant’s header couldn’t be checked',
+  missing: 'its assistant’s header was not found',
+  'no-pointer': 'its assistant’s header names no shared list',
+  deferred: 'its assistant’s header is marked deliberately unaffiliated',
 };
 
 /** Placeholder — how the assistant will curate this list. Closed on every load; text only. */
@@ -53,12 +66,17 @@ export function CurationMethodPanel() {
   );
 }
 
-/** Placeholder — present, disabled, and wired to nothing. */
-export function UpdateListButton() {
+/**
+ * Placeholder — present, disabled, and wired to nothing. On another assistant's list it says where
+ * Update runs, and mentions curating here when that is offered (curated-dlist-update ADR 0003 §3).
+ */
+export function UpdateListButton({ curator = 'mine', canCurateHere = false } = {}) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
       <button type="button" className="btn btn-sm" disabled>Update list</button>
-      <span style={muted}>Update list isn&apos;t built yet.</span>
+      {curator === 'other'
+        ? <span style={muted}>Update list runs only on the instance where this list&apos;s assistant lives.{canCurateHere ? ' You can curate it here instead.' : ''}</span>
+        : <span style={muted}>Update list isn&apos;t built yet.</span>}
     </span>
   );
 }
@@ -77,13 +95,20 @@ function SourceNotes({ list, communityRelay, what }) {
   return notes.map((n) => <div key={n} style={{ ...warn, marginTop: '0.35rem' }}>⚠️ {n}</div>);
 }
 
-/** The items on my local DList, with the two "also show" views, in a table. */
-export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistantPubkey, communityRelay }) {
+/**
+ * The items on the curated list, with the two "also show" views, in a table — judged from its
+ * curator's side (`assistantPubkey`: my assistant, or — read-only — the assistant my Map names).
+ */
+export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistantPubkey, communityRelay, curator = 'mine', listRelay = communityRelay, canCurateHere = false }) {
   const [showOthers, setShowOthers] = useState(false);
   const [showCandidates, setShowCandidates] = useState(false);
-  // My list is read on mount; the shared list only while "candidates" is on (ADR 0003 sub-decision 4).
-  const mine = useListItems([myCoord], communityRelay);
+  // The curated list is read on mount at listRelay — for another assistant's list, its Map entry's relay
+  // (curated-dlist-update ADR 0003 §4); the shared list only while "candidates" is on (ADR 0003
+  // sub-decision 4), at the community relay.
+  const mine = useListItems([myCoord], listRelay);
   const shared = useListItems(showCandidates && sharedCoord ? [sharedCoord] : [], communityRelay);
+  const labels = curator === 'other' ? FROM_LABEL_OTHER : FROM_LABEL;
+  const reasons = curator === 'other' ? UNAVAILABLE_REASON_OTHER : UNAVAILABLE_REASON;
   const myList = mine.lists[myCoord];
   const sharedList = showCandidates && sharedCoord ? shared.lists[sharedCoord] : undefined;
   const rows = curatedItemRows({
@@ -96,11 +121,11 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
   if (!myList) {
     body = <div style={{ ...muted, marginTop: '0.6rem' }}>⏳ Loading items…</div>;
   } else if (myList.local === 'failed' && myList.relay === 'failed') {
-    body = <div style={{ ...warn, marginTop: '0.6rem' }}>⚠️ Couldn&apos;t check — looked in this instance&apos;s strfry and on {communityRelay}.</div>;
+    body = <div style={{ ...warn, marginTop: '0.6rem' }}>⚠️ Couldn&apos;t check — looked in this instance&apos;s strfry and on {listRelay}.</div>;
   } else {
     body = (
       <>
-        <SourceNotes list={myList} communityRelay={communityRelay} what="items" />
+        <SourceNotes list={myList} communityRelay={listRelay} what="items" />
         {showCandidates && sharedCoord && !sharedList && <div style={{ ...muted, marginTop: '0.35rem' }}>⏳ Loading candidates…</div>}
         {sharedList && sharedList.local === 'failed' && sharedList.relay === 'failed' && (
           <div style={{ ...warn, marginTop: '0.35rem' }}>⚠️ Couldn&apos;t check the shared list — looked in this instance&apos;s strfry and on {communityRelay}.</div>
@@ -109,7 +134,7 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
           <SourceNotes list={sharedList} communityRelay={communityRelay} what="candidates" />
         )}
         {rows.length === 0 ? (
-          <div style={{ ...muted, marginTop: '0.6rem' }}>{itemsEmptySentence({ showOthers, shared: sharedList })}</div>
+          <div style={{ ...muted, marginTop: '0.6rem' }}>{itemsEmptySentence({ showOthers, shared: sharedList, curator })}</div>
         ) : (
           <div style={{ overflowX: 'auto', marginTop: '0.6rem' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -127,10 +152,10 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
                     <td style={cell}>
                       {r.local
                         ? <Link to={`/tapestry/lists/items/${encodeURIComponent(r.routeId)}`} style={{ color: '#58a6ff' }}>{r.name}</Link>
-                        : <>{r.name} <span style={muted}>(on {communityRelay} only)</span></>}
+                        : <>{r.name} <span style={muted}>(on {r.from === 'candidate' ? communityRelay : listRelay} only)</span></>}
                     </td>
-                    <td style={cell}>{r.from === 'assistant' ? 'your assistant' : <code>{short(r.author)}</code>}</td>
-                    <td style={{ ...cell, color: FROM_COLOR[r.from], fontWeight: 600 }}>{FROM_LABEL[r.from]}</td>
+                    <td style={cell}>{r.from === 'assistant' ? labels.assistant : <code>{short(r.author)}</code>}</td>
+                    <td style={{ ...cell, color: FROM_COLOR[r.from], fontWeight: 600 }}>{labels[r.from]}</td>
                     <td style={{ ...cell, opacity: 0.75 }}>{timeAgo(r.createdAt)}</td>
                   </tr>
                 ))}
@@ -146,7 +171,7 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
     <section style={sectionBox}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
         <h3 style={sectionTitle}>Items</h3>
-        <UpdateListButton />
+        <UpdateListButton curator={curator} canCurateHere={canCurateHere} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.6rem', fontSize: '0.85rem' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -156,7 +181,7 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: sharedUnavailable ? 0.6 : 1 }}>
           <input type="checkbox" checked={showCandidates} disabled={!!sharedUnavailable} onChange={(e) => setShowCandidates(e.target.checked)} />
           Also show candidates to copy
-          {sharedUnavailable && <span style={muted}>— unavailable: {UNAVAILABLE_REASON[sharedUnavailable] || sharedUnavailable}</span>}
+          {sharedUnavailable && <span style={muted}>— unavailable: {reasons[sharedUnavailable] || sharedUnavailable}</span>}
         </label>
       </div>
       {body}

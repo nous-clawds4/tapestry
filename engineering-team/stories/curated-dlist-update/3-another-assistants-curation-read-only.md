@@ -116,6 +116,42 @@ None. Resolved at the Planning gate (2026-09-12), each as proposed:
 Origin drift at planning: the branch is 2 commits behind `origin/staging`, neither in this story's
 areas. The merge waits for the staging PR, where this book's OPEN.md rows are renumbered once.
 
+## Deviations
+- **Starting point.** The implementation is the Test Design phase's sketch, copied in unchanged from its
+  throwaway worktree (base `8c48e83f`). Every story suite and seven neighbouring suites had passed
+  against it.
+- **Small choices the ADR does not spell out.**
+  - The list page's row prop `explainClosed` is renamed `explainReadOnly`, because its meaning changed.
+  - The offer shows nothing while the curating assistant's header is still being checked (`checking` is
+    not a reason); after that it shows the button or the reason.
+  - The headers module's opening comment now says the import is *this module's* only write, since the
+    offer writes from `CurateHereOffer.jsx`.
+- **Local check (cycle-local).** This was a UI-only change: the build was copied into the container (it is
+  not bind-mounted), with no restart. The served bundle is the new one, carrying the new strings and none of
+  the retired ones. Signed-in pages were checked through the fetch stub, as staging's customer, whose real
+  Map names `253d40c4…` for `dog-breed`:
+  - **Another assistant key:** the list row links, with "Opens read-only here." The detail page shows the
+    read-only line, "Its assistant's DList header", "Authored by the curating assistant", "(older link)"
+    with "only its own assistant can upgrade it", the method line, and Update's read-only line with the
+    offer.
+  - **The offer:** its words appear with no request sent. Continue against the real server was refused
+    with "Authentication required for this action", so nothing was signed. With the endpoint stubbed in
+    the page, the review read "Map update: replaces 253d40c4…6ec0's entry for 39998:dog-breed with your
+    assistant @ wss://dcosl.brainstorm.world." Cancel cleared it.
+  - **No assistant:** the no-assistant read-only line, the reason "You can't curate it here: you don't have
+    a Tapestry Assistant on this instance.", and the list page's line.
+  - **As the curating assistant itself:** the list opens as mine, exactly as in story 2.
+  - **The DList Curation panel's Replace:** the confirmation says "replaces", followed by the two
+    sentences. The TA Treasure Map page's own Map search hit OPEN.md row 260's relay-list race (it
+    searched before its relay list arrived), so the real staging Map event was served to its local lookup
+    by the stub.
+  - **Never done:** Sign & publish was never pressed. A real replacement needs a NIP-07 signer.
+- **Regression.** The story's suites and seven neighbouring suites: 231 passed, 0 failed, through their
+  `run()` exports; harness-lint clean. Full `npm test`: 169 suites green, 4 skipped, and 3 red with 4
+  failing tests — exactly OPEN.md row 191's (three L0 GUARD refusals and the refused prune; this machine
+  publishes externally by the operator's choice). Row 261's two LB matrices were skipped this run, not
+  failed.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.test-plan.md`
