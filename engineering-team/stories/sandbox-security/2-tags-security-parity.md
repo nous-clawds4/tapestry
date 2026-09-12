@@ -1,6 +1,6 @@
 # Story 2: tags runs production's September security hardening
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-09-12
 **Type:** Bug
 
@@ -46,6 +46,6 @@ None. This story concerns the instance's login and publish boundaries, not domai
 ## Linked artifacts
 - ADR: `engineering-team/decisions/sandbox-security/0001-port-production-security-fixes-to-sandboxes.md`
 - Test plan: `engineering-team/stories/sandbox-security/2-tags-security-parity.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/sandbox-security/2-tags-security-parity.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
