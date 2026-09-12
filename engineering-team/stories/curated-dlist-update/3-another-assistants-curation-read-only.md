@@ -1,6 +1,6 @@
 # Story 3: Another assistant's curation opens read-only, with an offer to curate it here
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-12
 **Type:** Feature
 
@@ -155,6 +155,6 @@ areas. The merge waits for the staging PR, where this book's OPEN.md rows are re
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/curated-dlist-update/3-another-assistants-curation-read-only.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
