@@ -1,6 +1,6 @@
 # ADR 0001: One answer to "does my assistant have a profile?" — local relay first, then the publish relays
 
-**Status:** Accepted
+**Status:** Accepted (Amendment 1 appended 2026-09-12 — each publish relay counts on its own)
 **Date:** 2026-09-11
 **Story:** `engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.md`
 
@@ -156,7 +156,8 @@ de-duplicates by event id), and it is unreachable to anonymous callers.
      `{ hasProfile: false, source: null }`.
   4. `queryRelaysKind0(getPublishRelays(), pk, { maxWait: RELAY_BUDGET_MS })` with
      `RELAY_BUDGET_MS = 4000`, also raced against an outer timeout of the same length so a hung socket
-     cannot hold the request. Keep only events with `kind === 0 && pubkey === pk`; take the newest by
+     cannot hold the request. *(Amended 2026-09-12 — see Amendment 1: each relay counts on its own, and
+     the outer timeout becomes a backstop.)* Keep only events with `kind === 0 && pubkey === pk`; take the newest by
      `created_at`. Any error or timeout is **not found** (the local answer stands).
   5. Found → `await importEvent(newest)`; on import failure log it and still return
      `{ hasProfile: true, source: 'relay' }` (the profile exists; the next check retries the repair).
@@ -225,3 +226,72 @@ seen gone.
 - Removing "Surprise me" and the other writers — story 5.
 - Whether a published-but-stale profile should prompt ("needs attention") — epic, Deferred.
 - The `/api/profiles` timeout gap on display surfaces — named above as a follow-up.
+
+## Amendment 1 (2026-09-12) — each publish relay counts on its own
+
+### Why
+
+The story-1 review found that **one publish relay that accepts the connection but never answers voids
+the whole relay fallback**. The orchestrating session reproduced it with the real helper against two
+local relays:
+
+- the good relay alone → found in 21 ms;
+- the good relay plus a silent one → "no profile", nothing copied home, after 4001 ms.
+
+The cause is step 4 as written above:
+
+- `realQueryRelaysKind0` asks every relay through one `pool.querySync`, which resolves only after
+  *every* relay has finished (`nostr-tools/lib/cjs/abstract-pool.js:592-610`).
+- Each relay's `maxWait` starts only when that relay has connected (`:567`, `:578`).
+- The resolver's outer timeout has the same length but starts earlier, so it always wins — and it
+  discards whatever the responsive relays had already delivered.
+
+The false "no profile" is then remembered for five minutes. It is latent today: all five publish relays
+answered a dev host in under 700 ms. But on nostr an overloaded relay that simply never answers is
+routine, and this is the fallback that exists for the wiped-or-restored local relay.
+
+### Options
+
+- **A — ask each relay on its own, against one deadline.** The real helper runs one
+  `querySync([relay], …)` per relay, races each against a single deadline measured from the start of
+  the check, and merges what arrived. A silent relay costs only its own answer. It sends the same
+  number of REQs as today (one per relay) and needs no new dependency.
+- **B — collect events as they arrive.** One `subscribeManyEose` with an `onevent` collector, settled
+  at the deadline. One subscription, but it leans on the pool's close handling and per-relay EOSE
+  bookkeeping for no gain over A.
+
+**Chosen: A.** Validated before this amendment with a scratch harness that ran option A's helper
+against local relays on 127.0.0.1:
+
+- the good relay alone → the profile, in 19 ms;
+- the good relay plus a silent one → **the profile**, in 4003 ms (the defect case, which returned
+  "no profile" before);
+- a silent relay alone → nothing, in 4003 ms;
+- the good relay plus a dead port → the profile, in 14 ms.
+
+### What changes
+
+1. **Step 4.** `realQueryRelaysKind0(relays, pubkey, { maxWait })` asks each relay separately and
+   returns every event any relay delivered within `maxWait` of the call. A relay that errors, never
+   connects, or connects and never answers contributes nothing, and delays nothing past the deadline.
+2. **The resolver's outer timeout becomes a backstop** at `RELAY_BUDGET_MS + 1000`. Now that the helper
+   owns the deadline, an outer timer of equal length would still race it and could discard its merged
+   result; the backstop only catches a helper that itself hangs.
+3. **The hook: a status reply with `hasRelayKey: false` means `'no-assistant'`, not `'needs-setup'`.**
+   (Review, non-blocking note 1; the owner approved including it.) The sign-in lookup and the status
+   call both resolve the key through `getAssistantKeys`, so they disagree only if the key store fails
+   between them — and a prompt then would lead to an editor that cannot publish.
+
+### Consequences
+
+- **AC2 now holds when a relay hangs:** a profile on any responsive relay counts and is copied home.
+- **The worst case is unchanged in practice:** about 4 s when any relay is silent, bounded by the 5 s
+  backstop.
+- **The injected seam is unchanged.** `queryRelaysKind0(relays, pubkey, { maxWait })` keeps its
+  signature, so the existing U-class tests keep their meaning. U6's failure message names the old outer
+  timeout and should be reworded in Phase 3.
+- **Phase 3 must pin the real helper**, which the fakes cannot reach: a stack-free test through two
+  local websocket relays on 127.0.0.1, one serving a signed kind 0 and one that accepts the connection
+  and never answers. Expect "has a profile", `source: 'relay'`, exactly one import, within the budget.
+  Also pin item 3: a reply with `hasRelayKey: false` shows no prompt.
+- **Firmware reinstall required?** No.
