@@ -25,4 +25,4 @@ Production's July 2026 (`security-auth-exposure` #1–#2) and September 2026 (`s
 - **Out of this epic:** the retired `feat/communities` / `feat/curate` sandboxes (droplets deleted early September 2026; doc-lane pass); F3–F5 and the private advisory (OPEN.md row 276); the authenticated-non-owner admin-mutation gap (`_intake.md` 2026-07-21 — production has it too); the backend-port firewall (OPEN.md row 66).
 
 ## Decisions
-- (none yet)
+- `decisions/sandbox-security/0001-port-production-security-fixes-to-sandboxes.md` — port the ratified prod security fixes onto each in-use sandbox (tests-first), record on a staging-based branch, code on per-sandbox fix branches. Covers stories 1 and 2.

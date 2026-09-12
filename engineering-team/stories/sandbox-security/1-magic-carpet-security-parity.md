@@ -53,7 +53,7 @@ None. This story concerns the instance's authentication, authorization and publi
 2. ~~Ownership list~~ — resolved 2026-09-12: yes, fold it in (now criterion 7).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/sandbox-security/0001-port-production-security-fixes-to-sandboxes.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
