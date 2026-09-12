@@ -59,7 +59,10 @@ function communityHeader(over = {}) {
     ...over,
   };
 }
-const CONTRACT_B = ['b', T, 'inherit-items'];
+// Re-aimed by curated-dlist-update #2 (ADR 0002): the contract b is `pointer`; a header carrying the
+// older `inherit-items` link is recognized as existing ("older") and never re-pointed.
+const CONTRACT_B = ['b', T, 'pointer'];
+const OLDER_B = ['b', T, 'inherit-items'];
 const bTags = (ev) => (ev.tags || []).filter((t) => t[0] === 'b');
 const tag = (ev, name) => (ev.tags || []).find((t) => t[0] === name);
 
@@ -143,19 +146,25 @@ test('U2: parseATag — kind/pubkey/d, colons inside the d-tag preserved, garbag
   }
 });
 
-test('U3: classifyExisting — none / exact / conflict (other target, other type, untyped) / unpointed', () => {
+test('U3: classifyExisting — none / exact (pointer, or no type) / older (inherit-items) / conflict (other target, other type, extra b) / unpointed — re-aimed by curated-dlist-update #2', () => {
   const { classifyExisting } = loadModule();
   const ev = (tags) => ({ kind: 39998, pubkey: PK_ASSISTANT, tags });
+  const OTHER_T = `39998:${'9'.repeat(64)}:${D}`;
   assert(classifyExisting(null, T) === 'none', 'AC-5: no existing header → none');
-  assert(classifyExisting(ev([['d', D], CONTRACT_B]), T) === 'exact', 'AC-5(a): the contract b → exact');
-  assert(classifyExisting(ev([['d', D], ['b', T, 'pointer']]), T) === 'conflict', 'AC-5(b): same target, different type → conflict');
-  assert(classifyExisting(ev([['d', D], ['b', T]]), T) === 'conflict', 'AC-5(b): untyped (= pointer) → conflict');
-  assert(classifyExisting(ev([['d', D], ['b', `39998:${'9'.repeat(64)}:${D}`, 'inherit-items']]), T) === 'conflict', 'AC-5(b): other target → conflict');
+  assert(classifyExisting(ev([['d', D], CONTRACT_B]), T) === 'exact', 'curated-dlist-update #2 AC-2 / ADR 0002 Decision §1: the pointer contract b → exact');
+  assert(classifyExisting(ev([['d', D], ['b', T]]), T) === 'exact', 'ADR 0002 Decision §1: an untyped b reads as pointer (the registry fail-safe) → exact');
+  assert(classifyExisting(ev([['d', D], ['b', T, '']]), T) === 'exact', 'ADR 0002 Decision §1: an empty type reads as pointer → exact');
+  assert(classifyExisting(ev([['d', D], OLDER_B]), T) === 'older', 'curated-dlist-update #2 AC-2 / ADR 0002 Decision §1: the older inherit-items link to the same target → older (recognized, never re-pointed)');
+  assert(classifyExisting(ev([['d', D], ['b', T, 'inherit']]), T) === 'conflict', 'AC-5(b): same target, another type → conflict');
+  assert(classifyExisting(ev([['d', D], ['b', T, 'curates']]), T) === 'conflict', 'ADR 0002 Decision §1: an unknown type string → conflict');
+  assert(classifyExisting(ev([['d', D], ['b', OTHER_T, 'pointer']]), T) === 'conflict', 'AC-5(b): other target → conflict');
+  assert(classifyExisting(ev([['d', D], ['b', OTHER_T, 'inherit-items']]), T) === 'conflict', 'AC-5(b): the older link to another target → conflict');
   assert(classifyExisting(ev([['d', D], CONTRACT_B, ['b', `39998:${'9'.repeat(64)}:x`, 'pointer']]), T) === 'conflict', 'AC-5(b): exact plus another b → conflict (never silently re-point)');
+  assert(classifyExisting(ev([['d', D], ['b', 'b-tag-deferred'], CONTRACT_B]), T) === 'conflict', 'ADR 0002 Decision §1: the sentinel beside the pointer is still a second b → conflict');
   assert(classifyExisting(ev([['d', D], ['names', 'dog', 'dogs']]), T) === 'unpointed', 'AC-5(c): no b → unpointed');
 });
 
-test('U4: composeCurationHeader — copies names/slug/json verbatim, one inherit-items b, nothing from the community namespace', () => {
+test('U4: composeCurationHeader — copies names/slug/json verbatim, one pointer b (curated-dlist-update #2), nothing from the community namespace', () => {
   const { composeCurationHeader } = loadModule();
   const c = communityHeader();
   const t = composeCurationHeader(c, T, null, { now: () => NOW });
@@ -164,7 +173,7 @@ test('U4: composeCurationHeader — copies names/slug/json verbatim, one inherit
   assert(deepEq(tag(t, 'names'), tag(c, 'names')), 'AC-4: names verbatim');
   assert(deepEq(tag(t, 'slug'), tag(c, 'slug')), 'AC-4: slug verbatim');
   assert(deepEq(tag(t, 'json'), tag(c, 'json')), 'AC-4: json verbatim');
-  assert(deepEq(bTags(t), [CONTRACT_B]), 'AC-4: exactly one b — ["b", <target>, "inherit-items"]');
+  assert(deepEq(bTags(t), [CONTRACT_B]), 'AC-4 as re-aimed by curated-dlist-update #2 (ADR 0002 Decision §1): exactly one b — ["b", <target>, "pointer"]');
   assert(!tag(t, 'concept-graph'), 'AC-4 / ADR sub-decision 2: the community concept-graph coordinate is not copied');
   assert(t.content === '', 'AC-4: empty content');
   assert(t.created_at === NOW, 'AC-4: fresh created_at');
@@ -247,12 +256,21 @@ test('H6: case (a) — the exact contract b already exists → existing:true, no
 });
 
 test('H7: case (b) — an existing header with a different b → 409 with the existing pointer, nothing published', async () => {
-  const existing = { id: '3'.repeat(64), kind: 39998, pubkey: PK_ASSISTANT, created_at: 1750000000, content: '', sig: '4'.repeat(128), tags: [['d', D], ['b', T, 'pointer']] };
+  // Re-aimed by curated-dlist-update #2: `pointer` is now the contract, so "a different b" is another type.
+  const existing = { id: '3'.repeat(64), kind: 39998, pubkey: PK_ASSISTANT, created_at: 1750000000, content: '', sig: '4'.repeat(128), tags: [['d', D], ['b', T, 'inherit']] };
   const { res, calls } = await run({ scanLocal: async (f) => (deepEq(f.authors, [PK_ASSISTANT]) ? [existing] : []) });
   assert(res._status === 409 && res._json.success === false, `AC-5(b): 409, got ${res._status}`);
-  assert(deepEq(res._json.existing && res._json.existing.b, [['b', T, 'pointer']]), 'AC-5(b)/ADR sub-decision 4: the existing b tag(s) returned verbatim');
+  assert(deepEq(res._json.existing && res._json.existing.b, [['b', T, 'inherit']]), 'AC-5(b)/ADR sub-decision 4: the existing b tag(s) returned verbatim');
   assert(deepEq(res._json.existing.event, existing), 'AC-5(b): the existing event returned for the panel');
   assert(calls.sign.length === 0 && calls.publishLocal.length === 0 && calls.publishToRelays.length === 0, 'AC-5(b): never silently re-pointed — nothing published');
+});
+
+test('H15: curated-dlist-update #2 — an existing header with the older inherit-items link → existing:true, left exactly as it is (its upgrade is Update\'s, story 5)', async () => {
+  const existing = { id: '5'.repeat(64), kind: 39998, pubkey: PK_ASSISTANT, created_at: 1750000000, content: '', sig: '6'.repeat(128), tags: [['d', D], ['names', 'dog', 'dogs'], OLDER_B] };
+  const { res, calls } = await run({ scanLocal: async (f) => (deepEq(f.authors, [PK_ASSISTANT]) ? [existing] : []) });
+  assert(res._status === 200 && res._json.success === true && res._json.existing === true, `curated-dlist-update #2 AC-2 / ADR 0002 Decision §1: 200 existing:true — no conflict error; got ${res._status} ${JSON.stringify(res._json)}`);
+  assert(deepEq(res._json.header, existing) && res._json.published === null, 'AC-2: the existing header is returned unchanged; published:null');
+  assert(calls.sign.length === 0 && calls.publishLocal.length === 0 && calls.publishToRelays.length === 0, 'AC-2: never re-pointed — nothing signed or published');
 });
 
 test('H8: case (d) — absent → composed, signed with the caller\'s assistant key, imported locally, sent to the DList relays, reported', async () => {

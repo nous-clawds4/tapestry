@@ -184,10 +184,12 @@ const S3 = item({ pubkey: AUTHOR, d: 'akita-s', name: 'akita', z: SHARED });
 const S4 = item({ kind: 9999, pubkey: AUTHOR, name: 'beagle', z: SHARED });
 const S5 = item({ pubkey: AUTHOR, d: 'shiba', name: 'shiba inu', z: SHARED, createdAt: 50 });
 const S6 = item({ kind: 9999, pubkey: AUTHOR, name: 'golden retriever', z: SHARED, createdAt: 60 });
-const M1 = item({ d: 'm-poodle', name: 'poodle', createdAt: 300, tags: [['e', S1.id]] });                      // copies S1 by id
-const M2 = item({ kind: 9999, name: 'Beagle', createdAt: 200, tags: [['a', coordOf(S2)]] });                  // copies S2 by coordinate
-const M3 = item({ d: 'm-akita', name: 'akita', createdAt: 100, tags: [['b', coordOf(S3), 'inherit'], ['x', 'foo', S4.id]] }); // S3 at index 1, S4's id at index 2
-const O1 = item({ pubkey: OTHER, d: 'o-corgi-1', name: 'corgi', createdAt: 250, tags: [['e', S5.id]] });     // someone else "copying" S5 — does not count
+// Re-aimed by curated-dlist-update #2 (ADR 0002 Decision §4): only a `q` tag's value (index 1) marks a
+// shared item "already copied"; mentions in e / a / b / made-up tags no longer count.
+const M1 = item({ d: 'm-poodle', name: 'poodle', createdAt: 300, tags: [['q', S1.id, RELAY, AUTHOR]] });       // copies S1 by id (q)
+const M2 = item({ kind: 9999, name: 'Beagle', createdAt: 200, tags: [['q', coordOf(S2), RELAY]] });           // copies S2 by address (q)
+const M3 = item({ d: 'm-akita', name: 'akita', createdAt: 100, tags: [['b', coordOf(S3), 'inherit'], ['e', S4.id], ['a', coordOf(S3)], ['x', 'foo', S4.id]] }); // mentions S3/S4 outside a q — they stay candidates
+const O1 = item({ pubkey: OTHER, d: 'o-corgi-1', name: 'corgi', createdAt: 250, tags: [['q', S5.id, RELAY, AUTHOR]] }); // someone else's copy of S5 — does not count
 const O2 = item({ pubkey: OTHER, d: 'o-corgi-2', name: 'Corgi', createdAt: 260 });
 const MINE_LIST = [...wrap([M1, M3], true), ...wrap([M2], false), ...wrap([O1, O2], true)];
 const SHARED_LIST = wrap([S1, S2, S3, S4, S5, S6], true);
@@ -200,11 +202,11 @@ test('U5: curatedItemRows — by default only my assistant\'s items, marked "ass
   assert(upper.length === 3 && upper.every((r) => r.from === 'assistant'), 'sub-decision 1: the assistant pubkey compares lowercased');
 });
 
-test('U6: curatedItemRows — "someone else" and candidates; "already copied" = my assistant\'s item carries the shared item\'s id or coordinate in any tag', async () => {
+test('U6: curatedItemRows — "someone else" and candidates; "already copied" = my assistant\'s item carries a q naming the shared item (its id, or its coordinate) — re-aimed by curated-dlist-update #2', async () => {
   const rows = (await fn('curatedItemRows'))({ mine: MINE_LIST, shared: SHARED_LIST, assistantPubkey: ME, showOthers: true, showCandidates: true });
   const pairs = rows.map((r) => `${r.from}:${r.name}`);
-  assert(deepEq(pairs, ['assistant:akita', 'assistant:Beagle', 'assistant:poodle', 'other:Corgi', 'other:corgi', 'candidate:golden retriever', 'candidate:shiba inu']),
-    `AC-2 / AC-3 / sub-decisions 2 and 5: groups assistant → someone else → candidate; S1–S4 copied (by id in "e", by coordinate in "a", by coordinate in a "b" at index 1, by id at index 2 of any tag); S5 still a candidate (only someone else referenced it); S6 a candidate; got ${JSON.stringify(pairs)}`);
+  assert(deepEq(pairs, ['assistant:akita', 'assistant:Beagle', 'assistant:poodle', 'other:Corgi', 'other:corgi', 'candidate:akita', 'candidate:beagle', 'candidate:golden retriever', 'candidate:shiba inu']),
+    `AC-2 / AC-3 / sub-decision 5, with ADR curated-dlist-update/0002 Decision §4: groups assistant → someone else → candidate; S1 copied by id in a q, S2 by coordinate in a q; S3 and S4 stay candidates (mentioned only in b / e / a / a made-up tag); S5 still a candidate (only someone else's q); S6 a candidate; got ${JSON.stringify(pairs)}`);
   const onlyOthers = (await fn('curatedItemRows'))({ mine: MINE_LIST, shared: SHARED_LIST, assistantPubkey: ME, showOthers: true, showCandidates: false });
   assert(!onlyOthers.some((r) => r.from === 'candidate') && onlyOthers.filter((r) => r.from === 'other').length === 2, 'AC-2: others without candidates');
   const noShared = (await fn('curatedItemRows'))({ mine: MINE_LIST, shared: null, assistantPubkey: ME, showOthers: false, showCandidates: true });
@@ -249,7 +251,7 @@ test('U8: sharedListUnavailable — why there is no shared list to draw candidat
 test('U9: itemsEmptySentence — "no candidates" only after a shared-list read that did not fail on both sources (ADR 0003 Amendment 1; review round 1, blocking 1)', async () => {
   const itemsEmptySentence = await fn('itemsEmptySentence');
   const BASE = new RegExp(`^Your assistant hasn${APOS}t added any items to this list yet\\.`);
-  const NONE = 'The shared list offers no candidates to inherit.';
+  const NONE = 'The shared list offers no candidates to copy.'; // re-aimed by curated-dlist-update #2 (ADR 0002 Decision §5)
   const OTHERS = 'No one else has either.';
   let s = itemsEmptySentence({ showOthers: false, shared: undefined });
   assert(BASE.test(s) && !s.includes(OTHERS) && !s.includes(NONE), `Amendment 1: shared list not read → the base sentence only; got "${s}"`);
@@ -277,7 +279,7 @@ test('S1: the items module — the method panel, the items section, the Update b
     assert(new RegExp(`export\\s+(function|const)\\s+${name}\\b`).test(s), `ADR note 3: named export ${name}`);
   }
   assert(/Curation method/.test(s) && /['">]\s*Items\s*['"<]/.test(s), 'AC-1 / AC-4: the "Curation method" and "Items" titles');
-  assert(/Also show items others added to this list/.test(s) && /Also show candidates to inherit/.test(s), 'AC-2 / AC-3: the two checkbox labels');
+  assert(/Also show items others added to this list/.test(s) && /Also show candidates to copy/.test(s), 'AC-2 / AC-3 (the second label re-aimed by curated-dlist-update #2): the two checkbox labels');
 });
 
 test('S2: off/closed on every load — the panel and both checkboxes start false and nothing is persisted', () => {

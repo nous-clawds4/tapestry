@@ -36,7 +36,8 @@ const PK_A = 'a'.repeat(64);       // my assistant
 const PK_B = '0123456789abcdef'.repeat(4); // another assistant
 const PK_UP = PK_B.toUpperCase();
 const RELAY = 'wss://dcosl.brainstorm.world';
-const COPY = 'Empower your Tapestry Assistant to curate a community DList on your behalf. Your assistant authors its own header for the list — inheriting the community\'s items, never duplicating them — and your Treasure Map records that you empowered it.';
+// Re-aimed by curated-dlist-update #2 (ADR 0002 Decision §5): the operator's text of 2026-09-11.
+const COPY = 'Empower your Tapestry Assistant to curate a community DList on your behalf. Your assistant authors its own version of the list and copies in the community items its curation method accepts, adding and removing them each time you press Update list. Your Treasure Map records that you empowered it.';
 
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
 async function loadEsm(absPath) { try { return await import(pathToFileURL(absPath).href); } catch { return null; } }
