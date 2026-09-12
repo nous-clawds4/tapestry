@@ -45,7 +45,7 @@ None. This story concerns the instance's login and publish boundaries, not domai
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/sandbox-security/0001-port-production-security-fixes-to-sandboxes.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/sandbox-security/2-tags-security-parity.test-plan.md`
 - Review: (filled in after Review phase)
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
