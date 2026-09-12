@@ -166,6 +166,16 @@ D9's header contract needs "my list's items are the community list's items, plus
 - **Rejected:** a facet list in element 4 (fail-unsafe: old readers read `"inherit"` and over-defer); `inherit-all` (meaning drifts with reader version); a new letter (spends W2 on a type of an existing relationship).
 - **39999 gap (review #2 NB-3):** the per-DList precedence sentence is scoped to 39998; 39999-declared-header precedence recorded as undefined pending the DList NIP.
 
+### D11 — Curated lists copy (added 2026-09-12, `curated-dlist-update` ADR 0001)
+
+D10's facet made the curated header a live, additive union of the community list's items — which leaves the curation method nothing to decide: a reader implementing the resolver sees every community item, rejected candidates included, and v1 cannot subtract. The operator's model is copying (OPEN.md row 259), ratified as:
+
+- **Header:** `["b", <community header>, "pointer"]` — a declared affiliation; the curated list is exactly the items filed under it. Headers carrying the earlier `"inherit-items"` link are upgraded in place, shown to the owner before signing. `"inherit-items"` stays registered, with no emitter in the reference deployment.
+- **Copy:** a kind-39999 item by the assistant with one `z` (the curated header) and a `d` of `copy-` + SHA-256 of (curated header address, original reference); it carries `name`/`title`/`slug`/`description`/`comments`, the item tags and `content` — not `json`, `n`, `s` or `b` — and is never stamped into the source list.
+- **Back-reference and removal:** NIP-18 `q` — the original's address (39999 originals) and the exact version's id; "already copied" is judged by `q`; merging readers treat a copy and its original as one item. Removal is a NIP-09 deletion request (`a`, `e`, `k`); no rejection is recorded.
+- **H1 reversed for items, on purpose:** the curator, not the community, is authoritative over a curated list's items. H1's hazard — synced fields indistinguishable from overrides — does not arise: a copy declares itself (`q`).
+- **Rejected:** keeping `"inherit-items"` (defeats curation); a new non-affiliating type (grows the registry for what `"pointer"` already says); `e`/`a` back-references (they are a DList item's item tags); an item-level `b` (a-tag only, and an affiliation drags stamping in); removal by republishing without `z` (leaves a non-item).
+
 ---
 
 ## 2. Hazards documented (previously recorded nowhere)
@@ -185,7 +195,7 @@ D9's header contract needs "my list's items are the community list's items, plus
 | **W1** (cross-deployment concept identity) | Advanced substantially: operationalizes candidates 1 (firmware-blessed, widened as cold-start tier) and 3 (`b`-edge aggregation, now with honest signal provenance per D2/D3). Not resolved: the cold-start chooser is still the firmware author, by design, per the D5 trajectory. |
 | **W2** (single-char registry) | Untouched — no new letters; `REFERENCES`-as-own-letter assumption revised in favor of riding `b`'s type element (a letter saved). |
 | **W5** (`REFERENCES` publishing semantics) | **Closes via option (a)**: `b` with type `"reference"` *is* the consumer-owned tag on the consumer's own header. The closing ADR must settle the edge-materialization + `source`-contract point (D3) and update the §22 deferred list. |
-| **W6** (set-valued override algebra) | **Fired 2026-09-10** (D10): the additive case is specified as `"inherit-items"` (`dlist-curation` ADR 0003; inherit-from § "Resolution: the resolved item set"); removal/replacement remains the open part. |
+| **W6** (set-valued override algebra) | **Fired 2026-09-10** (D10): the additive case is specified as `"inherit-items"` (`dlist-curation` ADR 0003; inherit-from § "Resolution: the resolved item set"); removal/replacement remains the open part. 2026-09-12: its first consumer withdrew — curated lists copy (D11; `curated-dlist-update` ADR 0001). |
 | **W7** (item-kind interplay) | The carrier question (manifest field vs on-wire header tag) is answered: *both, layered* — manifest seeds, wire expresses (D4). item-kind/foreign-kind questions remain open. |
 | **W10** (taggings family) | Named as the routing target for item-level community assertion (`dlist-tag`) — the election surface's most plausible vehicle (D1). |
 

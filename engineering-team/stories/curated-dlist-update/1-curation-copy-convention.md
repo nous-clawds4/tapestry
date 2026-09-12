@@ -104,6 +104,22 @@ copy's `d` is derived (AC-2); where the "Curation copies" part lives if not insi
 curation entries" (AC-2); how the superseded parts of `dlist-curation` ADRs 0002 and 0003 are recorded
 (AC-7); and whether the family-table row extends `IMPORT`'s or stands on its own (AC-7).
 
+## Deviations
+- **One clause beyond the ADR's edit list, found by the consistency sweep.** `inherit-from.md`
+  § "Scope (v1)" named `dlist-curation` ADR 0003 "the first consumer" of the additive algebra, as if
+  that consumer still existed; it now says the curated header has since moved to copying
+  (`curated-dlist-update` ADR 0001). Every other `inherit-items` mention in the protocol drafts, BIBLE,
+  worksheet and handoff was checked and is either updated, generic registry text, or dated history.
+- **Shape.** § "Curation copies" opens with a two-sentence lead — what curating by copying means, and
+  that the method is outside the spec (Decision §6's last sentence, moved there) — before Decision
+  §§2–7; §6 is rendered as two paragraphs ("Removal", "When the original changes"). Handoff D11 opens
+  with one context sentence before its four bullets and the rejected options.
+- **Regression scope.** Docs-mode; no code or test change. The 13 suites that read the changed
+  documents pass through their `run()` exports (243 tests, 0 failures); harness-lint clean after the
+  commit. The full `npm test` was not run (rows 191 and 261). Harness friction: six of the 13 suites —
+  and 91 of the repo's 198 — have no `require.main` block, so `node test/<suite>.test.js` exits 0
+  without running anything; OPEN.md row 271.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)

@@ -1,8 +1,10 @@
 # ADR 0003: The `inherit-items` facet — a third `b` type for item inheritance
 
-**Status:** Accepted
+**Status:** Accepted (the facet stands; its consumer moved to `pointer` and copies — `curated-dlist-update` ADR 0001)
 **Date:** 2026-09-10
 **Story:** `engineering-team/stories/dlist-curation/3-inherit-items-facet.md`
+
+> **Superseded in part (2026-09-12):** the consequence "Enables story 4" — the curated header now links with `"pointer"` and holds curation copies; the facet itself stands, with no emitter — `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`.
 
 ## Context
 
