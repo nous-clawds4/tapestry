@@ -23,7 +23,7 @@ states the copy convention first; the shipped surfaces then follow it.
 2. `2-pointer-header-and-copy-wording.md` — pointer header and "copy" wording: new headers link with `pointer`; a header with the older
    `inherit-items` link reads as the older form, not a problem; "copy" replaces "inherit" in the panel
    and page text; "already copied" is judged by the back-reference alone. Feature.
-3. **Another assistant's curation, read-only** — lists empowered for an assistant that is not the
+3. `3-another-assistants-curation-read-only.md` — another assistant's curation, read-only: lists empowered for an assistant that is not the
    viewer's assistant on this instance open read-only, with Update disabled and "curate here instead".
    Amends `my-curated-dlists` #1 AC-4/AC-5. Feature.
 4. **The curation method panel** — the Scoring Method and point of view from Trust Determination, an
