@@ -105,7 +105,7 @@ curation entries" (AC-2); how the superseded parts of `dlist-curation` ADRs 0002
 (AC-7); and whether the family-table row extends `IMPORT`'s or stands on its own (AC-7).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)
 - Review: (filled in after Review phase)
 
