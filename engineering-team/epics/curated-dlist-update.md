@@ -20,7 +20,7 @@ states the copy convention first; the shipped surfaces then follow it.
 1. `1-curation-copy-convention.md` — the copy convention in the protocol: the header's `pointer`
    link, what a copy is and carries, how it points back, how it is removed, one curating assistant per
    list; settles rows 259 and 267. Doc (docs-mode, protocol).
-2. **Pointer header and "copy" wording** — new headers link with `pointer`; a header with the older
+2. `2-pointer-header-and-copy-wording.md` — pointer header and "copy" wording: new headers link with `pointer`; a header with the older
    `inherit-items` link reads as the older form, not a problem; "copy" replaces "inherit" in the panel
    and page text; "already copied" is judged by the back-reference alone. Feature.
 3. **Another assistant's curation, read-only** — lists empowered for an assistant that is not the
