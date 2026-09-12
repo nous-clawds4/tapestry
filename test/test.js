@@ -167,6 +167,8 @@ const closeUnauthWriteSurface = require('./close-unauth-write-surface.test.js');
 const defaultDenyMutations = require('./default-deny-mutations.test.js');
 // security-auth-exposure #3 — login endpoints must verify the signed challenge.
 const loginSignatureVerification = require('./login-signature-verification.test.js');
+// event-authenticity #1 — verify client-published event signatures.
+const publishEventSignatureVerification = require('./publish-event-signature-verification.test.js');
 // bug: users page called the removed run-query endpoint (regression guard).
 const usersPageNeo4jEndpoint = require('./users-page-neo4j-endpoint.test.js');
 // security follow-up: strfry/wipe owner-gate (audit 2026-07-21).
@@ -591,6 +593,7 @@ async function main() {
   const closeUnauthWriteSurfaceResult = await closeUnauthWriteSurface.run();
   const defaultDenyMutationsResult = await defaultDenyMutations.run();
   const loginSignatureVerificationResult = await loginSignatureVerification.run();
+  const publishEventSignatureVerificationResult = await publishEventSignatureVerification.run();
   const usersPageNeo4jEndpointResult = await usersPageNeo4jEndpoint.run();
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
@@ -1375,6 +1378,8 @@ async function main() {
     defaultDenyMutationsResult.fail === 0 &&
     // security-auth-exposure #3 — login endpoints verify the signed challenge.
     loginSignatureVerificationResult.fail === 0 &&
+    // event-authenticity #1 — verify client-published event signatures.
+    publishEventSignatureVerificationResult.fail === 0 &&
     // bug — users page called the removed run-query endpoint (regression guard).
     usersPageNeo4jEndpointResult.fail === 0 &&
     // security follow-up — strfry/wipe owner-gate (audit 2026-07-21).
@@ -1524,7 +1529,7 @@ async function main() {
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
-    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, loginSignatureVerificationResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
+    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, loginSignatureVerificationResult, publishEventSignatureVerificationResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
