@@ -89,7 +89,7 @@ Known constraint: the panel's new description mentions "Update list", which work
 fine while the branch ships as one book; if it ships sooner, that sentence needs a placeholder.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/curated-dlist-update/0002-pointer-switch-and-copy-wording.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
