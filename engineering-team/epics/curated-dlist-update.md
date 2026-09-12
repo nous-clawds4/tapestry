@@ -77,3 +77,8 @@ Operator decisions in `/discuss` and at the Planning gate:
   older `inherit-items` link as existing ("older"); `describeCurationHeader` gains `notes`; one
   `linkTypeLabel` for both raw-type displays; "already copied" by `q`; "copy" in the curation screens'
   words (Option A).
+- `0003-read-only-curation-and-curate-here.md` — story 3: a read-only mode of the same detail page,
+  seen through the curator's pubkey (`curatedDListAccess` → `read-only`, retiring `no-assistant` and
+  `other-pubkey`); a read-only list's items read at the Map entry's relay hint; an inline "curate it
+  here instead" offer, words first, reusing the panel's endpoint call and signing helpers; the panel's
+  Replace confirmation says "replaces" (Option A).

@@ -117,7 +117,7 @@ Origin drift at planning: the branch is 2 commits behind `origin/staging`, neith
 areas. The merge waits for the staging PR, where this book's OPEN.md rows are renumbered once.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
