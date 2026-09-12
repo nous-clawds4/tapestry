@@ -52,6 +52,10 @@ None. This story concerns the instance's authentication, authorization and publi
 1. **How far does magic-carpet's login go?** — resolved 2026-09-12: **full production parity.** Matthias's fix rejects forged signatures but guards only the login step itself; production's login fix (`security-auth-exposure` #3) also (a) confers no identity until a verified login completes, (b) makes each challenge single-use and time-bound, and (c) stops accepting or storing a pasted private key and retires the paste-your-key sign-in page. All of (a)–(c) are in scope; the Architect ports them onto this branch's diverged middleware (the exact call-site detail is in the planning-session analysis, kept out of committed text per the book's push discipline).
 2. ~~Ownership list~~ — resolved 2026-09-12: yes, fold it in (now criterion 7).
 
+## Deviations
+- **`src/api/profiles/fetchProfiles.js` requires made resilient** (absolute in-container path → bare `require` fallback), because `feature-magic-carpet`'s `publishEvent.js` imports it (for its relay fan-out, which staging's `publishEvent` no longer has) and the ported `default-deny` behavioral cases could not load it off-container otherwise. Load-only change, no behavior change; slightly beyond the auth/publish boundary — flagged for the Reviewer. It applies the same resilient-require pattern the ADR mandates for `publishEvent`.
+- **Kept magic-carpet's relay fan-out** (`invalidateProfileCache` + `publishToRelays`) in `publishEvent.js` rather than adopting staging's brain-write shape — magic-carpet has no `tapestryBrainWrite.js` (it predates it), and dropping the fan-out would change behavior (out of scope). The event-authenticity guard was added ahead of that existing path.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/sandbox-security/0001-port-production-security-fixes-to-sandboxes.md`
 - Test plan: `engineering-team/stories/sandbox-security/1-magic-carpet-security-parity.test-plan.md`
