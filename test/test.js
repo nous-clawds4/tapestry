@@ -177,6 +177,8 @@ const strfryWipeOwnerGate = require('./strfry-wipe-owner-gate.test.js');
 const relationshipPrimitives = require('./relationship-primitives.test.js');
 // epic: relationship-primitives — Story 2 (read-only deployment probe).
 const relationshipPrimitivesProbe = require('./relationship-primitives-probe.test.js');
+// epic: node-primitives — Story 1 (event-less add-subset primitive).
+const eventLessCreateSet = require('./event-less-create-set.test.js');
 // epic: test-suite-hermeticity — Story 1 (author-scoped strfry write-assertion brackets).
 const strfryWriteAssertionBracket = require('./strfry-write-assertion-bracket.test.js');
 // epic: graph-curation-ui — Story 1 (place/move nodes between sets from the concept pages).
@@ -598,6 +600,7 @@ async function main() {
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
+  const eventLessCreateSetResult = await eventLessCreateSet.run();
   const strfryWriteAssertionBracketResult = await strfryWriteAssertionBracket.run();
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
   const captureAGoalAndSeeItResult = await captureAGoalAndSeeIt.run();
@@ -1092,6 +1095,13 @@ async function main() {
       ? `SKIP (${relationshipPrimitivesProbeResult.skipped} tests; preconditions not met)`
       : `${relationshipPrimitivesProbeResult.fail === 0 ? 'PASS' : 'FAIL'} (${relationshipPrimitivesProbeResult.pass} passed, ${relationshipPrimitivesProbeResult.fail} failed${relationshipPrimitivesProbeResult.skipped ? `, ${relationshipPrimitivesProbeResult.skipped} skipped` : ''})`;
   console.log(`relationship-primitives-probe suite:             ${relationshipPrimitivesProbeLine}`);
+  // Skip-aware: H-class live tests skip unless the target container serves the
+  // node-primitives probe (the shared stack may run other code); U/S always run and gate.
+  const eventLessCreateSetLine =
+    (eventLessCreateSetResult.pass + eventLessCreateSetResult.fail) === 0 && eventLessCreateSetResult.skipped
+      ? `SKIP (${eventLessCreateSetResult.skipped} tests; preconditions not met)`
+      : `${eventLessCreateSetResult.fail === 0 ? 'PASS' : 'FAIL'} (${eventLessCreateSetResult.pass} passed, ${eventLessCreateSetResult.fail} failed${eventLessCreateSetResult.skipped ? `, ${eventLessCreateSetResult.skipped} skipped` : ''})`;
+  console.log(`event-less-create-set suite:                     ${eventLessCreateSetLine}`);
   // Skip-aware: H-class teeth tests skip when the local stack is absent (CI's
   // stack-free job); the S-class bracket audit always runs and gates.
   const strfryWriteAssertionBracketLine =
@@ -1388,6 +1398,8 @@ async function main() {
     relationshipPrimitivesResult.fail === 0 &&
     // relationship-primitives #2 — read-only deployment probe
     relationshipPrimitivesProbeResult.fail === 0 &&
+    // node-primitives #1 — event-less add-subset primitive
+    eventLessCreateSetResult.fail === 0 &&
     // test-suite-hermeticity #1 — author-scoped strfry write-assertion brackets
     strfryWriteAssertionBracketResult.fail === 0 &&
     // graph-curation-ui #1 — place/move nodes between sets UI
@@ -1530,7 +1542,7 @@ async function main() {
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, loginSignatureVerificationResult, publishEventSignatureVerificationResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
-    relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
+    relationshipPrimitivesResult, relationshipPrimitivesProbeResult, eventLessCreateSetResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
     operationalDirectionResult, storeTheFourResult, returnTheFourResult, showTheFourResult,
