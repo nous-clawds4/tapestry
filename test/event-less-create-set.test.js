@@ -765,6 +765,17 @@ t('H2 (AC-2): repeating the identical create is idempotent — already-existed, 
     `the identical repeat must answer 200 result:'already-existed' (story criterion 2); got ${r.status} ${short(r.json || r.raw)}.`);
   assert(r.json.set && r.json.set.uuid === f.alpha && r.json.set.hasEvent === false,
     `the answer must name the existing event-less set with hasEvent:false (ADR decision 6a); got ${short(r.json.set)}.`);
+  // ADR decision 9: already-existed has created's shape — set {uuid, name, description?, labels, hasEvent},
+  // parent, and registeredUnder when the existing set really is registered under `set`.
+  const setSup = setSupersetFor(f.ta);
+  assert(r.json.set.name === f.alphaName && Array.isArray(r.json.set.labels) && r.json.set.labels.includes('Set'),
+    `already-existed must carry the set's name and labels, as created does (ADR decision 9); got ${short(r.json.set)}.`);
+  assert(r.json.set.description === 'nodeprim fixture description',
+    `already-existed must report the existing set's description (ADR decision 9); got ${short(r.json.set.description)}.`);
+  assert(r.json.parent && r.json.parent.uuid === f.sup, `the answer must echo the parent; got ${short(r.json.parent)}.`);
+  assert(r.json.registeredUnder === setSup,
+    `the event-less set is registered under \`set\`, so already-existed must say so (ADR decision 9); ` +
+    `expected ${setSup}, got ${short(r.json.registeredUnder)}.`);
   assert(r.json.note === undefined, `no durability note when nothing changed; got ${short(r.json.note)}.`);
   assert(nodeState(f.alpha).count === 1, 'still exactly one node at the address.');
   assert(edgeCount('IS_A_SUPERSET_OF', f.sup, f.alpha) === 1, 'still exactly one parent edge.');
@@ -796,6 +807,13 @@ t('H4 (AC-2): a LETTERED set of the same name under the same parent is reported 
     `got ${r.status} ${short(r.json || r.raw)}.`);
   assert(r.json.set && r.json.set.uuid === f.lettered && r.json.set.hasEvent === true,
     `the answer must name the lettered set itself (${f.lettered}) with hasEvent:true; got ${short(r.json.set)}.`);
+  assert(r.json.set.name === f.letteredName && Array.isArray(r.json.set.labels) && r.json.set.labels.includes('Set'),
+    `already-existed must carry the lettered set's own name and labels (ADR decision 9); got ${short(r.json.set)}.`);
+  assert(r.json.registeredUnder === undefined,
+    'the lettered fixture is NOT registered under `set`, so already-existed must not claim it is — registeredUnder ' +
+    `is reported only when true of the existing set (ADR decision 9); got ${short(r.json.registeredUnder)}.`);
+  assert(r.json.set.description === undefined,
+    `the lettered fixture has no description tag, so none may be reported; got ${short(r.json.set.description)}.`);
   assert(!nodeState(would).exists, `no event-less twin may appear at ${would}.`);
 });
 

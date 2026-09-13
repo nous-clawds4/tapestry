@@ -19,9 +19,9 @@ container serves this feature's probe.
 | AC-1 | U8, U9 — `buildSubsetTags`: order d, name, z, s (then description); tag uuids by importEventDirect's formula | U |
 | AC-1 | S1 — `nodes.js` requires exactly crypto, neo4j-driver, ./firmware, middleware/auth, lib/dtag; no signing or strfry names | structural (S) |
 | AC-1 | S4 — the module header states the event-less contract and the durability note | S |
-| AC-2 No duplicates | H2 — identical repeat → `already-existed`, `hasEvent:false`, no `note`; still one node, one parent edge, five tags | H |
+| AC-2 No duplicates | H2 — identical repeat → `already-existed`, `hasEvent:false`, no `note`; the answer has created's shape (name, labels, the set's description, parent, `registeredUnder`); still one node, one parent edge, five tags | H |
 | AC-2 | H3 — the name with other case and padding → the same set | H |
-| AC-2 | H4 — a lettered set of that name under the parent → `already-existed` naming it, `hasEvent:true`; no twin created | H |
+| AC-2 | H4 — a lettered set of that name under the parent → `already-existed` naming it, `hasEvent:true`, its own name and labels; no `registeredUnder` (that set isn't registered under `set`) and no description; no twin created | H |
 | AC-3 Guards | U1 — authenticated non-owner → 403 before any Cypher | U |
 | AC-3 | U2 — unauthenticated-shaped caller → 403 before any Cypher | U |
 | AC-3 | U3 — a trusted local operator passes the gate and reaches the graph checks | U |
