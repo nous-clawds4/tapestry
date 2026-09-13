@@ -29,14 +29,10 @@ states the copy convention first; the shipped surfaces then follow it.
 4. `4-curation-method-panel.md` — the curation method panel: the Scoring Method and point of view from Trust Determination, an
    editable cutoff, and each candidate's verdict with its reason; the qualifying rule shared with
    Simple Lists' Generate Trusted List panel, whose behavior does not change. Read-only. Feature.
-5. **Update list** — the preview (copy / refresh / delete, and the older header's upgrade), then the
-   user's assistant signs and publishes; deletions by NIP-09; the book's guardrails. Feature.
-   **Carry-forward from story 3's review, round 2 (R2-2; the operator's call, 2026-09-12):** the
-   "curate it here instead" offer is still made for a pointer at a header by the viewer's own assistant
-   here (or the viewer's own key), and it dead-ends at the endpoint's "cannot curate your own header". When
-   story 5 consolidates the offer's sign-and-publish flow (ADR 0003 Option C), decide the rule. Either add a
-   check with its own reason, or let "curate it here" name that self-declared header directly — a product
-   question.
+5. `5-update-list-preview.md` — Update list's preview, built only from reads it could complete: what my
+   assistant would copy, refresh, delete and upgrade, and why each candidate was skipped. Any failed or incomplete
+   read proposes nothing, and nothing is signed. Feature. (The planned "Update list" was split in two at story 5's
+   Planning gate, 2026-09-13.)
    **Carry-forward from story 4's Test Design gate (the operator's call, 2026-09-12):** `/api/relay/external`
    answers a relay that refuses the connection as an empty success (OPEN.md row 280; the cause is row 245's).
    So an unreachable community relay reads as "no votes", and an unreachable rank provider as "nobody is
@@ -56,7 +52,26 @@ states the copy convention first; the shipped surfaces then follow it.
    - every candidate id goes into one GET, so past about 110 candidates (nginx's 8 KB request line) every read
      fails, honestly, as "couldn't check". Batch the ids, or record the ceiling.
 
-Dependencies: 1 first (it ratifies what 2–5 build). 2 and 4 before 5. 3 needs only 1.
+6. **Update list publishes** — after I approve the preview, my assistant signs and publishes what it showed: the
+   copies, the refreshes, NIP-09 deletion requests and the older header's upgrade; the book's guardrails. Feature.
+   **Carry-forward from story 3's review, round 2 (R2-2; the operator's call, 2026-09-12):** the
+   "curate it here instead" offer is still made for a pointer at a header by the viewer's own assistant
+   here (or the viewer's own key), and it dead-ends at the endpoint's "cannot curate your own header". When
+   story 6 consolidates the offer's sign-and-publish flow (ADR 0003 Option C), decide the rule. Either add a
+   check with its own reason, or let "curate it here" name that self-declared header directly — a product
+   question.
+   **Carry-forward from story 2's review:**
+   - decide which rule gates the older-link upgrade. The header endpoint counts the `b-tag-deferred` sentinel as
+     a `b` (a conflict, answered 409), while the page lets a real `b` beat it. Also say whether the upgrade keeps
+     the sentinel; no live header has this shape;
+   - reword the DList Curation panel's 409 sentence: "pointing elsewhere" is wrong for a same-list header with
+     another link type.
+
+   **Before Update relies on deletions:** check that the relays holding copies accept and honor kind-5 deletion
+   requests, the `a` form included (the book's known constraints).
+   **The signer** is the signed-in user's own assistant (OPEN.md row 188), not the Simple Lists panel's signer.
+
+Dependencies: 1 first (it ratifies what 2–6 build). 2 and 4 before 5; 5 before 6. 3 needs only 1.
 
 ## Settled at kickoff (2026-09-11)
 Operator decisions in `/discuss` and at the Planning gate:
