@@ -121,7 +121,7 @@ The judge applies these; you confirm the judge actually applied them. Items mark
 - Environment prerequisites documented (e.g. `TASK_QUEUE_ENABLED=true`, graph or queue state).
 
 ### Gate 4 — Implementation (mechanical — you verify, no judge)
-- The full suite is clean — the **identical full-suite command used for the Stage-0 baseline** (`npm test`, no filters; plus Playwright where relevant). Run it yourself.
+- The full suite is clean — the **identical full-suite command used for the Stage-0 baseline** (`npm test`, no filters; plus Playwright where relevant). Run it yourself, read the verdict from its run record (`npm run gate:status`) — never a background notice or a piped exit status — and journal the run id with the recorded verdict ([Running and reading the test gate](../README.md#running-and-reading-the-test-gate)).
 - `git diff <Gate-3 commit>..HEAD -- test/` (and any other test paths) is empty — no test was weakened in *any* intermediate commit.
 - ⚙ If concept definitions changed: firmware reinstall performed (`POST /api/firmware/install`) — run or verify it yourself.
 - Commit message per convention: `impl: <slug> (story #<n>, ADR <NNNN>)`.

@@ -44,7 +44,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const cp = require('child_process');
 const { pathToFileURL } = require('url');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -56,6 +55,7 @@ const ELEMENT_DETAIL = path.join(ROOT, 'ui/src/pages/concepts/ElementDetail.jsx'
 const CONCEPT_DAG = path.join(ROOT, 'ui/src/pages/concepts/ConceptDag.jsx');
 
 const CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
 const CONTAINER_BASE = `http://127.0.0.1:${process.env.TAPESTRY_CONTAINER_PORT || '7778'}`;
 
 const tests = [];
@@ -325,32 +325,15 @@ test('S5 (AC5/AC6): ConceptDag — owner-gated per-row Place/move affordance in 
 
 /* ── H-class: live query-semantics SENTINELS (SKIP when stack absent) ──── */
 
-function dockerCurl(args) {
-  return cp.execFileSync('docker', ['exec', CONTAINER, 'curl', ...args], {
-    encoding: 'utf8',
-    timeout: 60000,
-  });
-}
-
 function loopbackPost(pathname, body) {
-  const out = dockerCurl([
-    '-s', '-m', '30', '-X', 'POST', `${CONTAINER_BASE}${pathname}`,
-    '-H', 'Content-Type: application/json',
-    '-d', JSON.stringify(body),
-    '-w', '\n__STATUS__%{http_code}',
-  ]);
-  const idx = out.lastIndexOf('\n__STATUS__');
-  const status = idx === -1 ? 0 : parseInt(out.slice(idx + 11), 10);
-  const raw = idx === -1 ? out : out.slice(0, idx);
-  let json = null;
-  try { json = JSON.parse(raw); } catch {}
-  return { status, json, raw };
+  return loopbackRequest({ container: CONTAINER, method: 'POST', url: `${CONTAINER_BASE}${pathname}`, body, timeoutS: 30 });
 }
 
 function loopbackCypher(cypher, params = {}) {
-  const { status, json, raw } = loopbackPost('/api/neo4j/query', { cypher, params });
+  const res = loopbackPost('/api/neo4j/query', { cypher, params });
+  const { status, json, raw } = res;
   if (status !== 200 || !json || json.success !== true) {
-    throw new Error(`fixture Cypher via loopback /api/neo4j/query failed: status=${status} body=${short(json || raw)}`);
+    throw new Error(`fixture Cypher via loopback /api/neo4j/query failed: ${describeResponse(res)} body=${short(json || raw)}`);
   }
   return json.data || [];
 }
