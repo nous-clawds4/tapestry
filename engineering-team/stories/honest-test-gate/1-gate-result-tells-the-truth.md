@@ -145,4 +145,4 @@ None. Test and harness infrastructure only — no concept-graph handle is read, 
 - Book: `engineering-team/audits/honest-test-gate/book.md`
 - ADR: `engineering-team/decisions/honest-test-gate/0001-registry-runner-and-run-record.md`
 - Test plan: `engineering-team/stories/honest-test-gate/1-gate-result-tells-the-truth.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/honest-test-gate/1-gate-result-tells-the-truth.md`
