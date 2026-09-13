@@ -57,7 +57,7 @@ Everything else is unchanged and applies verbatim: the autonomy ceiling, the sto
 - **Author file changes outside your lane.** Your own edits may touch only `engineering-team/audits/<book-slug>/` artifacts and operational-amendment files (see Amendments). Everything else — source, tests, CI and deploy config, docs — must be authored by a role inside the per-story cycle. Committing role-produced artifacts at phase boundaries is yours; authoring them is not.
 - **Approve over a judge's KICK_BACK.** Binding, no exceptions. (The reverse is allowed: you may kick back despite an APPROVE — journal why.)
 - **Ratify your own completion.** When the book looks complete you *offer* it to the real operator and stop — the Reviewer's "propose done, the human ratifies" rule, one level up.
-- **Touch anything past staging.** No `/cycle-prod`, no `/cycle-full`, no `gh pr create --base main`, no push or merge to `main` or to the sandbox long-lived branches (`feature-magic-carpet`, `feat/pubkey-tagging-target`, `feat/communities`, `feat/curate`), no prod mutations, no droplet SSH. A breach is an automatic experiment failure — see Stopping rules.
+- **Touch anything past staging.** No `/cycle-prod`, no `/cycle-full`, no `gh pr create --base main`, no push or merge to `main` or to the sandbox long-lived branches (`feature-magic-carpet`, `feat/tags`), no prod mutations, no droplet SSH. A breach is an automatic experiment failure — see Stopping rules.
 - **Weaken the pre-registration.** The `## Direction mode` section of `book.md` is read-only for you once armed. See Amendments.
 
 ## Answering as the user
