@@ -238,3 +238,126 @@ What has to change:
   contained.
 
 Kick back to `/implement-feature`. Under the carve-out, the Tester adds the guards first.
+
+## Round 2 (2026-09-13)
+
+**Diff:** `git diff c6ed2b35..HEAD` — the Tester's guards `36aba757`, the Implementer's fix `4f06e85b`
+(reviewed at `4f06e85b`). A fresh read-only Reviewer subagent audited the round-2 diff again;
+every finding below was reproduced or checked before it was kept.
+
+### Gate results (run by reviewer, not trusted)
+
+- [x] `npm test`, Node 16.17.0 — `20260913T054043Z-45160-908c [review2-honest-test-gate-1-node16]
+  started 2026-09-13T05:40:43.501Z on 4f06e85b — FAIL, exit 1, 2681 passed, 9 failed, 504 skipped,
+  198/198 suites; failed: honest-publish-reporting`
+- [x] `npm test`, Node 22.23.2 — `20260913T054404Z-78393-e8ad [review2-honest-test-gate-1-node22]
+  started 2026-09-13T05:44:04.411Z on 4f06e85b — FAIL, exit 1, 3015 passed, 51 failed, 128 skipped,
+  198/198 suites`, failing the same 15 live suites as the round-1 run (`tag-detail`, the eleven goal
+  and brain suites, `recognizable-published-ta-profile`, `not-yet-shared-filter`,
+  `concept-count-canonical` and `summaries-element-count`)
+- The story's guards, in both runs: `gate-result-record` 34/0/0 (C11–C15 included);
+  `stack-free-npm-test` 6/0/1 on Node 16 and 7/0/0 on Node 22; `harness-lint` 41/0/0. Both records
+  name the clean commit they tested (`4f06e85b`) and hold no stray errors.
+- Against both the round-1 review runs and the Implementer's post-fix runs, no suite newly fails in
+  either run, and none fails on the new strictness (malformed counts, the whole-run exit trap). What
+  fails is what AC-6's recorded deviation already covers.
+
+### Blocking 1 and 2, re-checked
+
+- **Carve-out.** `36aba757` touches only `test/gate-result-record.test.js`,
+  `test/helpers/gateFixtures.js` and the test plan; `4f06e85b` touches none of the three guard
+  files.
+- **The guards.** C11–C15 failed against the round-1 engine (29 passed, 5 failed; reproduced by the
+  Reviewer at `36aba757`) and pass at `4f06e85b` (34 of 34). Each checks the observable outcome — the
+  exit status, the final `Overall:` line and the record — and C11 first proves its injected
+  record-write fault fired (a marker file). The second audit repeated C11, C13 and C14 ten times on
+  each Node version without a failure.
+- **The Reviewer's own probes at HEAD**, each a two- or three-entry fixture registry:
+
+  | Route | Round 1 | Now |
+  |---|---|---|
+  | the engine's own failure (record directory deleted mid-run) | exit 0, no verdict | exit 1, `Overall: FAIL — the gate engine failed: …` |
+  | a `run()` that never settles | exit 0, no verdict | exit 1, `Overall: FAIL — the run ended before its verdict …`, record FAIL |
+  | `process.exit(0)` at module load | exit 0, no verdict | that suite FAILs, the others run, exit 1 |
+  | a deferred `process.exit(0)` from the last suite | exit 0, no verdict | a stray-error FAIL, exit 1 |
+  | `fail: NaN`, `fail: -1`, `skipped: '4'` | read as passing | FAIL `returned no result counts`, exit 1 |
+
+  Every probe printed exactly one `Overall:` line. Three adversarial probes found nothing new:
+  - A SIGTERM raised from a timer during the engine's final wait lands after the run is recorded, so
+    the run ends PASS with exit 0 and one verdict line.
+  - A passing suite that sets `process.exitCode = 5` still exits 0, because the recorded verdict
+    decides the exit.
+  - A suite that stubs and then restores `process.exit` restores the trap.
+
+  Integer-valued floats such as `2.0` are accepted as counts.
+- **The whole-run trap breaks no registered suite.** Every `process.exit` in a registered suite (129
+  calls in 109 files) sits in a `require.main === module` block, which never runs under the engine.
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **R2-1 — a suite's own `exit` listener still has the last word on the exit code**
+   (`test/helpers/gateRunner.js:144–149, 221–224`).
+   - Node reads `process.exitCode` again after emitting `exit`, and the engine's listener runs first.
+     So a suite that registers `process.on('exit', () => { process.exitCode = 0; })` turns a failing
+     run's exit into 0. The verdict line and the record still read FAIL.
+   - Reproduced. Latent: no registered suite registers an `exit` listener, and the old runner had the
+     same exposure.
+   - Optional improvement: have the engine re-assert its exit code last.
+2. **R2-2 — a suite's `exit` listener that calls `process.exit` prints a second verdict line**
+   (`gateRunner.js:131–139, 221–230`).
+   - The trap now outlives the suites, so that call throws out of `realExit` into the engine's
+     catch-all.
+   - Reproduced: `Overall: PASS`, then `Overall: FAIL — the gate engine failed: …`, exit 1. The final
+     state is consistent (FAIL/1).
+   - On the signal path the same throw leaves `INTERRUPTED` printed, and the run ends FAIL.
+   - Latent, as R2-1. Optional improvement: let the engine's own exits step around the trap.
+3. **R2-3 — two further routes past the verdict, both contrived.**
+   - A timer that throws a value that can't be turned into a string (`throw Object.create(null)`)
+     makes the stray-error listener itself throw (`test/helpers/gateRecord.js:95` via
+     `gateRunner.js:114`). The result is exit 7, no verdict, and the record left `running`. The exit is
+     non-zero, so AC-2 holds.
+   - `process.reallyExit(0)`, an undocumented internal that nothing in `test/` or `src/` uses, exits 0
+     with no verdict.
+   - Both reproduced. Optional improvement: guard the stray listener's own formatting.
+4. **R2-4 — two doc sentences slightly over-claim.**
+   - The story's round-2 Deviations bullet (`…/1-gate-result-tells-the-truth.md:147`) says the
+     engine's own failure "records FAIL". But when the record write is what failed, as in C11, the
+     record stays `running` and the reader shows UNFINISHED "(killed?)".
+     `engineering-team/README.md:64` defines UNFINISHED only as "killed outright". The test plan's
+     amendment states this correctly.
+   - A deferred `process.exit` fails the run as a stray error while the calling suite's own line reads
+     PASS, so the README's "that suite's FAIL" is loose for that case.
+   - Optional improvement: one clause in each at book close.
+5. **R2-5 — `OPEN.md` row 284** omits the round-1 note that prune leaves 31 records (it keeps 30, then
+   adds the new one). This commit adds it, together with R2-1 to R2-4.
+6. **R2-6 — process.** The kick-back commit `4f06e85b` quotes two gate runs whose records name
+   `36aba757` with `dirty: true`, so they tested the uncommitted tree. The Reviewer's two runs above, on
+   the committed `4f06e85b`, are the evidence for this change.
+
+### On PASS (same commit)
+
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection performed — the result is in the chat, not in this file.
+
+### Verdict (round 2)
+
+Both round-1 blocking findings are fixed at their causes, and guards that fail on the round-1
+engine and pass now pin them:
+- No route a registered suite can take now ends a run with exit 0 and no verdict. The engine's own
+  failure, a load-time or deferred `process.exit`, and a `run()` that never settles all end with
+  `Overall: FAIL` and a non-zero exit (C11–C14).
+- Malformed counts fail the suite, and the old runner's strict `fail === 0` is back (C15).
+- The full gates on the committed tree show no regression on either Node version, and the story's
+  guards pass 34 of 34 in both.
+- What remains is latent — routes that need a suite to register its own `exit` listener, throw a
+  value that can't be stringified, or call an undocumented internal — plus two doc nits. All are
+  recorded as optional and tracked in `OPEN.md` row 284 for story 2.
+- The round-1 reading of AC-6 stands.
+
+**PASS** — both blocking findings are resolved, and no blocking issue remains.

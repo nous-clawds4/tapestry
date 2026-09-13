@@ -1,6 +1,6 @@
 # Story 1: A gate run's result tells the truth, however it was run
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-12
 **Type:** Feature
 
