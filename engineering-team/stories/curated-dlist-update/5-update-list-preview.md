@@ -118,7 +118,7 @@ auth-hardening follow-ups (its OPEN.md row 276) and `SECURITY.md`.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/curated-dlist-update/5-update-list-preview.test-plan.md`
 - Review: (filled in after Review phase)
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

@@ -291,18 +291,20 @@ test('S2: off/closed on every load — the panel and both checkboxes start false
 });
 
 // Re-aimed by curated-dlist-update #4 (ADR 0004): the method panel is no longer text only — it shows the method, the
-// cutoff and the verdicts (that suite pins them); Update is still the placeholder story 5 replaces.
-test('S3: Update acts on nothing — disabled, with a "not built yet" line; the method panel names the rule\'s upvotes and downvotes', () => {
+// cutoff and the verdicts (that suite pins them). Re-aimed again by #5 (ADR 0005 §8): on my own lists Update list
+// opens a preview, which writes nothing; publishing is story 6.
+test('S3: Update list opens the preview on my own lists — enabled, with a handler; the preview says publishing isn\'t built yet; the method panel names the rule\'s upvotes and downvotes', () => {
   const s = src(ITEMS, 'AC-4/5');
   // The UpdateListButton declaration, up to the next top-level declaration (or the end of the file).
   const start = s.search(/export\s+(function|const)\s+UpdateListButton\b/);
   const rest = start >= 0 ? s.slice(start + 1) : '';
   const next = rest.search(/\n(?:export\s+)?(?:async\s+)?(?:function|const|let|class)\s/);
   const upd = start >= 0 ? s.slice(start, next >= 0 ? start + 1 + next : undefined) : '';
-  assert(/<button\b[^>]*\bdisabled\b[^>]*>\s*Update list\s*</.test(upd), 'AC-5 / sub-decision 8: <button … disabled>Update list</button>');
-  assert(!/onClick/.test(upd), 'AC-5: the Update button has no handler');
-  assert(new RegExp(`isn${APOS}t built yet|not built yet`, 'i').test(s), 'AC-4 / AC-5: says it isn\'t built yet');
-  assert(/downvotes/i.test(s) && /upvotes/i.test(s), 'AC-4: the method panel names what it will decide (the downvotes/upvotes example)');
+  assert(/<button\b/.test(upd) && /Update list/.test(upd), 'the Update list button is still there');
+  assert(/onClick=\{/.test(upd), 'curated-dlist-update #5 (ADR 0005 §8): on my own lists Update list has a handler — it opens the preview');
+  const preview = safeRead(path.join(UI, 'pages/grapevine/UpdatePreview.jsx'));
+  assert(new RegExp(`publishing isn${APOS}t built yet`).test(preview.replace(/\s+/g, ' ')), 'curated-dlist-update #5 (ADR 0005 §8): the preview says publishing isn\'t built yet (story 6)');
+  assert(/downvotes/i.test(s) && /upvotes/i.test(s), 'AC-4 (story 4): the method panel names the rule\'s upvotes and downvotes');
 });
 
 test('S4: the table — Name · Author · From · Added, the three "From" values, ages via timeAgo, the Simple Lists item link gated on local, the relay-only marker', () => {

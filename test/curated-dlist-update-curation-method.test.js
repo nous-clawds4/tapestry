@@ -753,13 +753,16 @@ test('S7: the two hooks — useItemVotes binds lookupItemVotes as useListItems b
   assert(/!\s*(?:listCoord|coord)\b|\b(?:listCoord|coord)\s*(?:\?|&&)/.test(c), 'ADR §5: with no coordinate (not my own list) it keeps the default and never touches storage');
 });
 
-test('S8: nothing is written — the items module, the two hooks and the shared rule sign and publish nothing and carry no identity literal; Update list stays disabled', () => {
+// Re-aimed by curated-dlist-update #5 (ADR 0005 §8): Update list is enabled on my own lists and opens a preview. That
+// suite pins the preview; what stays true here is that nothing is written.
+test('S8: nothing is written — the items module, the two hooks and the shared rule sign and publish nothing and carry no identity literal; neither does Update\'s preview', () => {
   for (const f of [ITEMS, VOTES_HOOK, CUTOFF_HOOK, SCORE]) {
     const s = src(f);
     assert(!/\/api\/strfry\/publish|method:\s*['"]POST['"]|signEvent|window\.nostr|publishOrThrow|publishEverywhere|publishToRelays/.test(s), `AC-5: ${rel(f)} writes nothing`);
     assert(!/taPubkey/.test(s) && !/[0-9a-fA-F]{64}/.test(s), `OPEN.md row 188 / CLAUDE.md: ${rel(f)} carries no taPubkey and no 64-hex literal`);
   }
-  assert(/<button\b[^>]*\bdisabled\b[^>]*>\s*Update list\s*</.test(src(ITEMS)), 'AC-5: Update list stays disabled (story 5)');
+  const preview = safeRead(path.join(UI, 'pages/grapevine/UpdatePreview.jsx'));
+  assert(!/\/api\/strfry\/publish|method:\s*['"]POST['"]|signEvent|window\.nostr|publishOrThrow/.test(preview), 'AC-5, re-aimed by curated-dlist-update #5: Update\'s preview writes nothing (publishing is story 6)');
 });
 
 /* ── D: the superseded-in-part note (ADR §8) ──────────────── */

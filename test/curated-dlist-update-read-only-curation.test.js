@@ -259,7 +259,8 @@ test('S4: the items module — ItemsSection and UpdateListButton take curator; a
   assert(new RegExp(`its assistant${APOS}s header`).test(f), 'ADR §3: the candidates box\'s reasons, read-only');
   assert(new RegExp(`Update list runs only on the instance where this list${APOS}s assistant lives\\.`).test(f), 'AC-3 / ADR §3: Update\'s read-only line, exact');
   assert(/You can curate it here instead\./.test(f), 'AC-3 / ADR §3: the Update line mentions the offer when it applies');
-  assert(new RegExp(`Update list isn${APOS}t built yet\\.`).test(f), 'AC-5: my own Update placeholder unchanged');
+  // Re-aimed by curated-dlist-update #5 (ADR 0005 §8): on my own lists Update list now opens the preview.
+  assert(!new RegExp(`Update list isn${APOS}t built yet`).test(f), 'Re-aimed by curated-dlist-update #5: on my own lists Update list opens the preview — the "isn\'t built yet" line is gone; the read-only line above is unchanged');
 });
 
 test('S5: CurateHereOffer — words first, then the panel\'s endpoint call, the Map composed for kind 39998, and the drift-guarded sign-and-publish; the reasons and the 409 sentence', () => {
@@ -316,11 +317,13 @@ test('D1: my-curated-dlists ADRs 0001 and 0002 and dlist-curation ADR 0005 each 
 
 /* ── R: sentinels (pass before and after) ──────────────────── */
 
-test('R1: my own lists keep their words — the header section, my older-link note, the Update placeholder, the subtitle', () => {
+// Re-aimed by curated-dlist-update #5 (ADR 0005 §8): the Update placeholder line left when Update list began opening the
+// preview; my labels and the Update list button stay.
+test('R1: my own lists keep their words — the header section, my older-link note, my labels, the subtitle', () => {
   const h = flat(safeRead(HEADERS)); const i = flat(safeRead(ITEMS)); const d = flat(safeRead(DETAIL));
   assert(new RegExp(`Your assistant${APOS}s DList header`).test(h) && /Authored by your assistant/.test(h), 'AC-5: my header section\'s title and authorship');
   assert(/Update list will upgrade it to “pointer”/.test(h), 'AC-5 / curated-dlist-update ADR 0002 §5: my older-link note');
-  assert(new RegExp(`Update list isn${APOS}t built yet`).test(i) && /your assistant/.test(i), 'AC-5: my Update placeholder and labels');
+  assert(/your assistant/.test(i) && /Update list/.test(i), 'AC-5: my labels, and the Update list button');
   assert(/curated by your assistant/.test(d), 'AC-5: my subtitle');
 });
 

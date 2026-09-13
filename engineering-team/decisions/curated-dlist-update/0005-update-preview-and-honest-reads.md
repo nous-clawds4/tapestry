@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-09-13
 **Story:** `engineering-team/stories/curated-dlist-update/5-update-list-preview.md`
+**Amended by:** Amendment 1 (2026-09-13): §7's precedence — the header's own states decide before pending reads.
 **Supersedes in part:** `curated-dlist-update` ADR 0004 (§2, one vote filter per source; §3, `useTrustWeights`
 unchanged; §7's reading of "the shared list read cleanly") and `my-curated-dlists` ADR 0003 (sub-decision 8, the
 Update list button as a disabled placeholder). See Decision §9.
@@ -345,3 +346,30 @@ subsets). Run single suites through `require('./test/<name>.test.js').run()`.
 - Batching the rank read.
 - The Trusted List's author (a separate task).
 - A schedule; the method on the header.
+
+## Amendment 1 (2026-09-13, from Test Design, approved at its gate)
+
+Found while writing story 5's tests. §7 lists "checking while anything is pending" before "blocked". A header in one of
+these states leaves no shared list to read:
+- `failed`;
+- `missing`;
+- `no-pointer`;
+- `deferred`.
+
+The shared list is then never read. Under §7's order, the preview would say "Checking…" forever instead of saying why it
+proposes nothing, which breaks AC-4.
+
+The same holds for a list read that failed or was cut off: the verdicts depend on it, so they never complete.
+
+The corrected order:
+1. **The header decides first.** A header in one of those states, or with a problem other than the older link, makes
+   the plan `blocked` at once, with its reason, whatever else is still pending. A header still `checking` makes it
+   `checking`.
+2. **Then the two list reads.**
+   - Either still in flight → `checking`.
+   - Either failed on a source, or cut off → `blocked`, without waiting for the verdicts. If the verdicts are also
+     incomplete, their reason joins.
+3. **Then the verdicts.** Pending → `checking`; incomplete → `blocked`.
+4. **Then `ready`.**
+
+Nothing else in §7 changes.
