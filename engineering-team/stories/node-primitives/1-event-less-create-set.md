@@ -96,3 +96,11 @@ concept (yes — part of creating the set), and delivery (production plus one re
 - ADR: `engineering-team/decisions/node-primitives/0001-event-less-add-subset-primitive.md`
 - Test plan: `engineering-team/stories/node-primitives/1-event-less-create-set.test-plan.md`
 - Review: (filled in after Review phase)
+
+## Deviations
+
+- `scripts/scratch-stack.sh` mounts this checkout's `src/` read-only into the scratch container (`brain-drill.sh`'s pattern) rather than copying it in and restarting the control panel, as the ADR's Implementation notes put it — same effect, no restart.
+- The scratch instance also runs with `BRAINSTORM_PUBLISH_LOCAL_ONLY=true` — an egress guard the ADR did not ask for.
+- `nodes.js` resolves the three class-thread relationship types through `firmware.relAlias` (the `relationships.js` pattern) where the ADR's sketch wrote the alias names as literals.
+- An empty-string `description` is treated as absent (no description tag), mirroring `create-set`'s `if (description)`.
+- `scripts/scratch-stack.sh` sizes the scratch's Neo4j with the `BRAINSTORM_NEO4J_*` override (OPEN.md row 186) instead of `brain-drill.sh`'s shrink-after-boot `sed` + restart. The entrypoint regenerates the sizing from the whole Docker VM at every container start, and a first boot at that size never came up beside the shared stack (2026-09-12).
