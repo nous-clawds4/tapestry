@@ -1,7 +1,7 @@
 # Epic: sandbox-security
 
 **Created:** 2026-09-12
-**Status:** Active
+**Status:** Done (both stories Done + reviewed PASS; ported fixes deployed and live-verified on `magic-carpet.brainstorm.world` (PR #653) and `tags.brainstorm.world` (PR #654); book closed 2026-09-12. The `stories`/`decisions`/`reviews` folders retire to `done/` on next-phase ingestion — OPEN.md row — deferred here because their content lives on the `staging` record line while the code shipped to the sandbox branches.)
 
 ## Goal
 

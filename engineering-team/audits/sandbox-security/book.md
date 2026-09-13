@@ -1,9 +1,9 @@
 # Book of Work: Sandbox security parity
 
 **Slug:** sandbox-security
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-12
-**Closed:** —
+**Closed:** 2026-09-12
 
 ## Intent anchor
 
@@ -33,7 +33,7 @@ Operator decisions recorded at kickoff:
 
 ## Provenance
 - **Mode:** Acceptance-frame *(no PRD; frame confirmed in conversation 2026-09-12)*
-- **Confidence at close:** —
+- **Confidence at close:** high — every acceptance-frame bullet met and live-verified on both hosts (magic-carpet PR #653, tags PR #654); the password rotation confirmed durable. The one soft spot — "sandbox features still work" — was verified indirectly (host health + no-regression suites); the operator will exercise a real authed flow later (audit §4 #3).
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/sandbox-security/audit.md`
