@@ -301,13 +301,12 @@ Not applicable: the book is an acceptance frame, with no PRD.
 2. **Guard 1 compares host names, so it admits the same host on another port** (`update.js:97–105`; Deviation 1).
    - Against a foreign site the check is sound. A port-sensitive check would refuse every local publish through
      `127.0.0.1:8080`, where nginx forwards `Host` without the port.
-   - **The residual.** An origin on the same host name with another port is same-site, so the session cookie goes with
-     its requests: the cookie sets no `sameSite`. And the global CORS reflects any origin with credentials (ADR 0006
-     § Context, `bin/control-panel.js`). So content served from another port on the same host passes guard 1 with the
-     user's session. On a local stack, that means any localhost service. In some browsers, another scheme on the same
-     host behaves the same way.
-   - **Ask:** carry this point into the separate CORS and cookie hardening task (row 276's follow-ups). Keep it
+   - **The residual** lies in the control panel's CORS and cookie posture (ADR 0006 § Context), not in this endpoint.
+   - **Ask:** carry this point into the separate CORS and cookie hardening task (staging's row 276 follow-ups). Keep it
      pointer-level.
+
+   *Trimmed to pointer-level by the orchestrator on 2026-09-13, under the standing rule for security detail in committed
+   text. The full point went to the CORS and cookie hardening task.*
 3. **The server reads the list's relay from settings, and the browser reads it from a constant.** The server uses
    `aDListRelays[0]` (`update.js:331–333`). The browser uses `COMMUNITY_RELAYS[0]` (`ui/src/pages/grapevine/CuratedDListDetail.jsx:16`;
    `ui/src/hooks/useCommunitySharedConcepts.js:9`).
