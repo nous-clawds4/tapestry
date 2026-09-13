@@ -118,6 +118,6 @@ None. Test and harness infrastructure only — no concept-graph handle is read, 
 
 ## Linked artifacts
 - Book: `engineering-team/audits/honest-test-gate/book.md`
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/honest-test-gate/0001-registry-runner-and-run-record.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

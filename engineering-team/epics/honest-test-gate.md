@@ -47,4 +47,6 @@ The assertion sweep (rows 59, 60, 108, 109, 126) is `test-suite-hermeticity` #2,
 
 ## Decisions
 
-(none yet)
+- `decisions/honest-test-gate/0001-registry-runner-and-run-record.md` — the gate runs from one ordered
+  registry through an isolating engine that writes a per-run record; `npm run gate:status` reads it
+  back. Story 1.
