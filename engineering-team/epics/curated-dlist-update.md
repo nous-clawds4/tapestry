@@ -52,8 +52,14 @@ states the copy convention first; the shipped surfaces then follow it.
    - every candidate id goes into one GET, so past about 110 candidates (nginx's 8 KB request line) every read
      fails, honestly, as "couldn't check". Batch the ids, or record the ceiling.
 
-6. **Update list publishes** — after I approve the preview, my assistant signs and publishes what it showed: the
-   copies, the refreshes, NIP-09 deletion requests and the older header's upgrade; the book's guardrails. Feature.
+6. `6-update-list-publishes.md` — Update list publishes what I approved. After I approve the preview, my assistant
+   signs and publishes what it showed: the copies, the refreshes, NIP-09 deletion requests and the older header's
+   upgrade. It then reports what landed where. The book's guardrails apply. Feature.
+   Settled at the Planning gate, 2026-09-13:
+   - one approval covers the whole preview;
+   - a header with the sentinel beside its older link becomes a plain pointer, and the preview says so;
+   - no dead-end "curate it here" offer;
+   - honest results per item and per place.
    **Carry-forward from story 3's review, round 2 (R2-2; the operator's call, 2026-09-12):** the
    "curate it here instead" offer is still made for a pointer at a header by the viewer's own assistant
    here (or the viewer's own key), and it dead-ends at the endpoint's "cannot curate your own header". When
