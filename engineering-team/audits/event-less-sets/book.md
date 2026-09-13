@@ -1,9 +1,9 @@
 # Book of Work: Event-less Sets
 
 **Slug:** event-less-sets
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-12
-**Closed:** —
+**Closed:** 2026-09-13
 **Strictness:** Standard (project default, proposed at kickoff 2026-09-12; no Light profile).
 
 ## Intent anchor
@@ -44,7 +44,7 @@ registered as an element of the `set` concept; "done" means production plus one 
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high — every frame bullet is met. A set is created with no letter and registered under `set` (in production, and used here). It behaves like any other set: Organization (Sets) and the counts were checked in the local UI, and the firmware-reinstall check passed on the scratch instance. It stays private (H8: the publish traversal leaves it out). It shipped local → staging (PR #658) → production (PR #659) and was used on this Mac Studio to create `firmware concepts for tags and tagging` (2026-09-13). The operator chose not to create the other seven subsets for now (audit §4 #8).
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/event-less-sets/audit.md`

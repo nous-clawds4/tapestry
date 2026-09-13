@@ -1,7 +1,7 @@
 # Epic: node-primitives
 
 **Created:** 2026-09-12
-**Status:** Active
+**Status:** Done
 
 ## Goal
 
@@ -24,7 +24,7 @@ edges; this epic does the same for nodes, starting with sets.
 
 ## Stories
 
-1. `stories/node-primitives/1-event-less-create-set.md` — create a set under an existing superset or set
+1. `stories/done/node-primitives/1-event-less-create-set.md` — create a set under an existing superset or set
    with no event signed or stored, registered as an element of the `set` concept.
 
 ## Key facts / guardrails
