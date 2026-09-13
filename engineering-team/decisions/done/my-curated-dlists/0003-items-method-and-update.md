@@ -1,11 +1,13 @@
 # ADR 0003: Items, the curation-method panel, and Update list — pure item logic, a lazy shared-list read, and the house b-value rule
 
-**Status:** Accepted (sub-decision 2, Amendment 1's wording and the candidates checkbox label superseded by `curated-dlist-update` ADR 0002)
+**Status:** Accepted (sub-decision 2, Amendment 1's wording and the candidates checkbox label superseded by `curated-dlist-update` ADR 0002; the page's single write by `curated-dlist-update` ADR 0003)
 **Date:** 2026-09-11
 **Story:** `engineering-team/stories/my-curated-dlists/3-items-method-and-update.md`
 **Amends:** ADR `my-curated-dlists/0002` sub-decision 2 (the `deferred` rule) — see sub-decision 9.
 
 > **Superseded in part (2026-09-12):** "already copied" now means one of my assistant's items carries a `q` tag naming the shared item (any-tag matching is retired); the empty view says "no candidates to copy", and the checkbox "Also show candidates to copy" — `curated-dlist-update` ADR 0002.
+
+> **Superseded in part (2026-09-12):** story 2's import is no longer the page's only write (AC-6, the Decision) — on a read-only list, "curate it here instead" writes the viewer's assistant's header (on Continue) and the viewer's Map (on Sign & publish), each on an explicit click — `curated-dlist-update` ADR 0003.
 
 ## Context
 

@@ -31,6 +31,12 @@ states the copy convention first; the shipped surfaces then follow it.
    Simple Lists' Generate Trusted List panel, whose behavior does not change. Read-only. Feature.
 5. **Update list** — the preview (copy / refresh / delete, and the older header's upgrade), then the
    user's assistant signs and publishes; deletions by NIP-09; the book's guardrails. Feature.
+   **Carry-forward from story 3's review, round 2 (R2-2; the operator's call, 2026-09-12):** the
+   "curate it here instead" offer is still made for a pointer at a header by the viewer's own assistant
+   here (or the viewer's own key), and it dead-ends at the endpoint's "cannot curate your own header". When
+   story 5 consolidates the offer's sign-and-publish flow (ADR 0003 Option C), decide the rule. Either add a
+   check with its own reason, or let "curate it here" name that self-declared header directly — a product
+   question.
 
 Dependencies: 1 first (it ratifies what 2–5 build). 2 and 4 before 5. 3 needs only 1.
 

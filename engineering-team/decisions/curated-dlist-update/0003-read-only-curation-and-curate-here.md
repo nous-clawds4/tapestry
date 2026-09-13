@@ -5,9 +5,9 @@
 **Story:** `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.md`
 **Supersedes in part:** `my-curated-dlists` ADR 0001 (sub-decision 4's `no-assistant` and `other-pubkey`
 front-door statuses, and the closed list rows) and `dlist-curation` ADR 0005 (the Replace confirmation's
-words) — Decision §8; by Amendment 1, also `my-curated-dlists` ADR 0002 (the page's single write).
+words) — Decision §8; by Amendment 1, also `my-curated-dlists` ADRs 0002 and 0003 (the page's single write).
 **Amended by:** Amendment 1 (2026-09-12, at the end) — §5's offer checks its target; §8 adds
-`my-curated-dlists` ADR 0002; the Security bullet counts the offer's writes.
+`my-curated-dlists` ADRs 0002 and 0003; the Security bullet counts the offer's writes.
 
 ## Context
 
@@ -414,7 +414,7 @@ Non-blocking 1 and 2) found two gaps. The operator chose to close both before th
     (`index.js:256–258`) after the words.
   - Every header Tapestry writes conforms, but the page reads signed events from anyone.
 - **The page's writes were miscounted.** `my-curated-dlists` ADR 0002 still says the detail page performs
-  one write (`:107`, `:142`), and §8 did not list that ADR. This ADR's own Consequences say "the read-only
+  one write (`:109`, `:144` today), and §8 did not list that ADR. This ADR's own Consequences say "the read-only
   page writes nothing except the existing import", which §5 contradicts.
 
 **Change.**
@@ -426,8 +426,9 @@ Non-blocking 1 and 2) found two gaps. The operator chose to close both before th
    - A conforming header is unaffected — every one Tapestry writes, and the live `dog-breed` curation.
 2. **§5 — the new reason's sentence**, in the house form: "You can't curate it here: its assistant's header
    doesn't point at a kind-39998 list with the same d-tag."
-3. **§8 — one more superseded-in-part note:** `my-curated-dlists` ADR 0002, for its "single write" (`:107`,
-   `:142`). On a read-only list the offer adds two writes, each on an explicit click: the viewer's
+3. **§8 — two more superseded-in-part notes,** for the page's "single write": `my-curated-dlists` ADR 0002
+   (`:109`, `:144`) and ADR 0003 (its AC-6 and Decision, `:24`, `:96` — added after story 3's review round
+   2, R2-1). On a read-only list the offer adds two writes, each on an explicit click: the viewer's
    assistant's header on Continue, and the viewer's Map on Sign & publish.
 4. **Consequences, Security — read the third bullet as** "the read-only page writes only on explicit clicks:
    the existing import, and the offer's two writes (§5)".
@@ -439,6 +440,8 @@ Non-blocking 1 and 2) found two gaps. The operator chose to close both before th
 - `engineering-team/decisions/done/my-curated-dlists/0002-the-two-headers.md`: extend the Status parenthetical
   ("…; the page's single write by `curated-dlist-update` ADR 0003"), and add a one-line "Superseded in part
   (2026-09-12)" note citing `curated-dlist-update` ADR 0003 by short name.
+- `engineering-team/decisions/done/my-curated-dlists/0003-items-method-and-update.md` (R2-1): the same Status
+  parenthetical and note.
 - The story's § Deviations records the follow-up.
 
 **Testable seams (Amendment 1).**

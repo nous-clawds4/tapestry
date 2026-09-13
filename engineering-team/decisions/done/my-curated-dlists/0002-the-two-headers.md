@@ -8,7 +8,7 @@
 
 > **Superseded in part (2026-09-12):** the expected link type is `pointer`; the older `inherit-items` link is a plain note (`older-link` — Update upgrades it), not `wrong-type`, which now means any other type — `curated-dlist-update` ADR 0002.
 
-> **Superseded in part (2026-09-12):** the import is no longer the detail page's only write — on a read-only list, "curate it here instead" writes the viewer's assistant's header (on Continue) and the viewer's Map (on Sign & publish), each on an explicit click — `curated-dlist-update` ADR 0003.
+> **Superseded in part (2026-09-12):** the import is no longer the detail page's only write — on a read-only list, "curate it here instead" writes the viewer's assistant's header (on Continue) and the viewer's Map (on Sign & publish), each on an explicit click and each published beyond this instance's strfry under the publish policy — `curated-dlist-update` ADR 0003.
 
 ## Context
 

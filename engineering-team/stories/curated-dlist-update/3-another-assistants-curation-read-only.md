@@ -156,7 +156,9 @@ areas. The merge waits for the staging PR, where this book's OPEN.md rows are re
   Harness friction 1):
   - `curateHereOffer`'s target check (`ui/src/utils/treasureMap.js`), and its reason sentence
     (`CurateHereOffer.jsx` `REASON_TAILS.target`);
-  - `my-curated-dlists` ADR 0002's superseded-in-part note.
+  - `my-curated-dlists` ADR 0002's superseded-in-part note;
+  - after review round 2 (R2-1, docs only): `my-curated-dlists` ADR 0003's note, and the amendment's lists
+    and cites. R2-2 went to story 5, by the operator's choice (the epic's story 5 entry).
 
   The story's six suites and the seven neighbouring suites: 231 passed, 0 failed; harness-lint clean. The
   local check used the fetch stub against the new build in the container:
