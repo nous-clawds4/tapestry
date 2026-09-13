@@ -1,12 +1,12 @@
 # ADR 0004: The curation method — Simple Lists' scoring rule as one shared pure module, candidates' votes from both sources, verdicts on the candidate rows
 
-**Status:** Accepted (§2's one filter per source, §3's "`useTrustWeights` unchanged" and §7's reading of "the shared list read cleanly" superseded by `curated-dlist-update` ADR 0005)
+**Status:** Accepted (§2's one filter per source, §3's "`useTrustWeights` unchanged", §4's words for a failed vote source and §7's reading of "the shared list read cleanly" superseded by `curated-dlist-update` ADR 0005)
 **Date:** 2026-09-12
 **Story:** `engineering-team/stories/curated-dlist-update/4-curation-method-panel.md`
 **Supersedes in part:** `my-curated-dlists` ADR 0003 (AC-4 and sub-decision 8: the Curation method panel as a
 text-only placeholder) — Decision §8.
 
-> **Superseded in part (2026-09-13):** the votes are read in chunks of 50 ids, and a relay answer at the vote limit counts as capped (§2); `useTrustWeights` reports an unsuccessful rank read, and a point of view with no follow list here, as errors (§3); and a shared list read from only one source, or cut off, makes the verdicts' summary incomplete (§7) — `curated-dlist-update` ADR 0005.
+> **Superseded in part (2026-09-13):** the votes are read in chunks of 50 ids, and a relay answer at the vote limit counts as capped (§2); `useTrustWeights` reports an unsuccessful rank read, and a point of view with no follow list here, as errors (§3); a failed vote source reads "the votes on this instance's strfry" or "the votes on the community relay", not "this instance's strfry" or "the community relay" (§4, Amendment 2); and a shared list read from only one source, or cut off, makes the verdicts' summary incomplete (§7) — `curated-dlist-update` ADR 0005.
 
 ## Context
 

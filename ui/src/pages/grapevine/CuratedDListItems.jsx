@@ -232,7 +232,9 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
   const sharedRead = wanted || planning ? shared.lists[sharedCoord] : undefined;
   const sharedFailed = !!sharedRead && sharedRead.local === 'failed' && sharedRead.relay === 'failed';
   const reading = (wanted || planning) && !!sharedRead && !sharedFailed;
-  const judging = wanted && reading;
+  // The panel's verdicts also wait for my list: which shared items are candidates depends on my copies (ADR 0005
+  // Amendment 2).
+  const judging = wanted && reading && !!myList;
   const sharedEvents = reading ? sharedRead.items.map((x) => x.event) : [];
   const candidateRoutes = new Set(rows.filter((r) => r.from === 'candidate').map((r) => r.routeId));
   const candidates = judging ? sharedEvents.filter((e) => candidateRoutes.has(itemRouteId(e))) : [];
@@ -245,9 +247,11 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
   const pubkeys = useMemo(() => (pubkeyKey ? pubkeyKey.split(',') : []), [pubkeyKey]);
   const trust = useTrustWeights(pubkeys);
   const weights = { state: weightsState({ ...trust, pubkeys }), values: trust.weights, error: trust.error };
-  // A partial read of the shared list is named in both summaries (ADR 0005 §6).
+  // A partial read of the shared list is named in both summaries (ADR 0005 §6). The panel's also names my list's
+  // gaps, after the shared list's (Amendment 2); the planner names them itself (§7).
   const incomplete = reading ? listReadGaps(sharedRead, 'the shared list') : [];
-  const verdicts = candidateVerdicts({ candidates, votes: judging ? votes : null, weights, cutoff, incomplete });
+  const panelIncomplete = [...incomplete, ...listReadGaps(myList, 'your list')];
+  const verdicts = candidateVerdicts({ candidates, votes: judging ? votes : null, weights, cutoff, incomplete: panelIncomplete });
   const planVerdicts = candidateVerdicts({ candidates: sharedEvents, votes: reading ? votes : null, weights, cutoff, incomplete });
   // The panel's summary (ADR 0004 §7): hidden while candidates are off, and "couldn't check" when the shared list
   // couldn't be read. Reported up when its content changes, not on every render.

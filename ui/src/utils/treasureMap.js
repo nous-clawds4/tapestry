@@ -795,8 +795,9 @@ export function candidateVerdicts(input) {
     return { byRouteId: every({ verdict: 'checking', score: null, breakdown: [], reason: null }), summary: summary('checking', 0, null) };
   }
   const missed = [];
-  if (votes.local === 'failed') missed.push('this instance’s strfry');
-  if (votes.relay === 'failed') missed.push('the community relay');
+  // A failed vote source is named as the votes (curated-dlist-update ADR 0005 Amendment 2).
+  if (votes.local === 'failed') missed.push('the votes on this instance’s strfry');
+  if (votes.relay === 'failed') missed.push('the votes on the community relay');
   if (votes.truncated) missed.push('every vote (there are more votes than one read returns)');
   if (wState === 'failed') {
     missed.push(typeof weights.error === 'string' && weights.error !== '' ? `the trust weights (${weights.error})` : 'the trust weights');
