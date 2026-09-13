@@ -65,6 +65,9 @@ up() {
   docker image inspect "$IMAGE" >/dev/null 2>&1 \
     || { log "image '$IMAGE' not found — build the local stack once first."; exit 1; }
   trap 'log "bring-up failed — removing the scratch instance"; down' ERR
+  # An interrupted boot must not leave a second instance running beside the
+  # shared stack (the memory-pressure hazard brain-drill.sh documents).
+  trap 'log "interrupted — removing the scratch instance"; down; exit 130' INT TERM
 
   log "booting '$SCRATCH' from '$IMAGE' (fresh volumes, no published ports, src/ from $ROOT)"
   docker network create "$NET" >/dev/null
@@ -95,7 +98,7 @@ up() {
     exit 1
   fi
   docker exec "$SCRATCH" supervisorctl stop strfry-router >/dev/null 2>&1 || true
-  trap - ERR
+  trap - ERR INT TERM
   log "ready — remove it with: $0 down"
   echo "$SCRATCH"
 }

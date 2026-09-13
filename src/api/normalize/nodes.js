@@ -84,6 +84,23 @@ function fail(res, status, error, extra = {}) {
 }
 
 /**
+ * The `already-existed` answer, in created's shape (ADR decision 9): the existing
+ * set's uuid, name, description (when it has one) and labels, plus hasEvent; and
+ * registeredUnder only when that set really is an element of the `set` concept.
+ */
+function alreadyExisted(existing, parent, setSupersetUuid) {
+  const set = { uuid: existing.uuid, name: existing.name };
+  if (typeof existing.description === 'string' && existing.description.length > 0) {
+    set.description = existing.description;
+  }
+  set.labels = existing.labels || [];
+  set.hasEvent = existing.hasEvent === true;
+  const answer = { success: true, operation: 'add', result: 'already-existed', set, parent };
+  if (existing.registered === true) answer.registeredUnder = setSupersetUuid;
+  return answer;
+}
+
+/**
  * POST /api/normalize/add-subset
  * Body: { parentUuid, name, description? }
  * Answers 200 created | already-existed; 400 / 403 / 404 / 409 / 500 otherwise
@@ -127,6 +144,7 @@ async function handleAddSubset(req, res) {
     if (supRows.length === 0) {
       return fail(res, 500, 'The `set` concept has no superset in Neo4j — run firmware install');
     }
+    const setSupersetUuid = supRows[0].uuid;
 
     // (4) The parent must exist and be a Superset or a Set.
     const parentRows = await runCypher(
@@ -151,18 +169,15 @@ async function handleAddSubset(req, res) {
     const same = await runCypher(
       `MATCH (:NostrEvent {uuid: $p})-[:${REL.PROPAGATION}]->(s:Set)
        WHERE toLower(trim(s.name)) = toLower($name)
-       RETURN s.uuid AS uuid, s.name AS name, s.id IS NOT NULL AS hasEvent
+       OPTIONAL MATCH (s)-[:HAS_TAG]->(dt:NostrEventTag {type: 'description'})
+       RETURN s.uuid AS uuid, s.name AS name, labels(s) AS labels, s.id IS NOT NULL AS hasEvent,
+              exists { (:NostrEvent {uuid: $setSup})-[:${REL.TERMINATION}]->(s) } AS registered,
+              head(collect(dt.value)) AS description
        LIMIT 1`,
-      { p: parentUuid, name: setName }
+      { p: parentUuid, name: setName, setSup: setSupersetUuid }
     );
     if (same.length > 0) {
-      return res.json({
-        success: true,
-        operation: 'add',
-        result: 'already-existed',
-        set: { uuid: same[0].uuid, name: same[0].name, hasEvent: same[0].hasEvent === true },
-        parent,
-      });
+      return res.json(alreadyExisted(same[0], parent, setSupersetUuid));
     }
 
     // (6b) The address is held by something else: loud, never re-linked.
@@ -176,29 +191,35 @@ async function handleAddSubset(req, res) {
         { uuid, labels: held[0].labels || [] });
     }
 
-    // (7) The write — one statement, idempotent by construction: MERGE by
-    // address, would-be tag nodes by their deterministic uuids, both edges.
+    // (7) The write — one statement. MERGE by address; a marker set ON CREATE
+    // (and removed in the same statement) tells this call whether it created the
+    // node, even under concurrency. The would-be tags are written only on create.
+    // A node that appeared at the address since the checks is refused unless it is
+    // this same-name set, so an interloper is never adopted (zero rows → 500).
     const tags = buildSubsetTags(uuid, setName, parentUuid, setConceptUuid, description);
     const rows = await writeCypher(
       `MATCH (p:NostrEvent {uuid: $parentUuid})
-       MATCH (:NostrEvent {uuid: $setConceptUuid})-[:${REL.INITIATION}]->(setSup:Superset)
-       OPTIONAL MATCH (pre:NostrEvent {uuid: $uuid})
-       WITH p, setSup, pre IS NULL AS created
+       MATCH (setSup:NostrEvent {uuid: $setSupersetUuid})
        MERGE (s:NostrEvent {uuid: $uuid})
          ON CREATE SET s:ListItem:Set, s.name = $name, s.kind = $kind,
-                       s.pubkey = $pubkey, s.created_at = $createdAt
+                       s.pubkey = $pubkey, s.created_at = $createdAt, s.addSubsetCreated = true
+       WITH p, setSup, s, s.addSubsetCreated IS NOT NULL AS created
+       REMOVE s.addSubsetCreated
        WITH p, setSup, s, created
-       UNWIND $tags AS t
-       MERGE (tn:NostrEventTag {uuid: t.uuid})
-         ON CREATE SET tn.type = t.type, tn.value = t.value
-       MERGE (s)-[:HAS_TAG]->(tn)
-       WITH DISTINCT p, setSup, s, created
+       WHERE created OR (s:Set AND toLower(trim(s.name)) = toLower($name))
+       FOREACH (t IN CASE WHEN created THEN $tags ELSE [] END |
+         MERGE (tn:NostrEventTag {uuid: t.uuid})
+           ON CREATE SET tn.type = t.type, tn.value = t.value
+         MERGE (s)-[:HAS_TAG]->(tn))
        MERGE (p)-[:${REL.PROPAGATION}]->(s)
        MERGE (setSup)-[:${REL.TERMINATION}]->(s)
-       RETURN created, labels(s) AS labels, setSup.uuid AS setSupersetUuid, s.id IS NOT NULL AS hasEvent`,
+       WITH s, created
+       OPTIONAL MATCH (s)-[:HAS_TAG]->(dt:NostrEventTag {type: 'description'})
+       RETURN created, s.name AS name, labels(s) AS labels, s.id IS NOT NULL AS hasEvent,
+              head(collect(dt.value)) AS description`,
       {
         parentUuid,
-        setConceptUuid,
+        setSupersetUuid,
         uuid,
         name: setName,
         kind: SET_KIND,
@@ -208,25 +229,30 @@ async function handleAddSubset(req, res) {
       }
     );
     if (rows.length === 0) {
-      // A node checked above vanished before the write. Never report success
-      // for a write that did not happen.
-      return fail(res, 500, 'The set was not written: a node checked above disappeared before the write');
+      // A node checked above vanished, or something other than this set took the
+      // address, between the checks and the write. Never report success for a
+      // write that did not happen.
+      return fail(res, 500, 'The set was not written: the graph changed between the checks and the write');
     }
 
     const row = rows[0];
-    const set = { uuid, name: setName, labels: row.labels || [] };
-    if (typeof description === 'string' && description.length > 0) set.description = description;
     if (!row.created) {
-      set.hasEvent = row.hasEvent === true;
-      return res.json({ success: true, operation: 'add', result: 'already-existed', set, parent });
+      // Created concurrently by an identical call: the write above just ensured
+      // its registration, so it is registered.
+      return res.json(alreadyExisted(
+        { uuid, name: row.name, labels: row.labels, hasEvent: row.hasEvent, description: row.description, registered: true },
+        parent, setSupersetUuid));
     }
+    const set = { uuid, name: setName };
+    if (typeof description === 'string' && description.length > 0) set.description = description;
+    set.labels = row.labels || [];
     return res.json({
       success: true,
       operation: 'add',
       result: 'created',
       set,
       parent,
-      registeredUnder: row.setSupersetUuid,
+      registeredUnder: setSupersetUuid,
       note: EVENT_LESS_NOTE,
     });
   } catch (err) {
