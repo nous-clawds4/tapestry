@@ -94,6 +94,8 @@ const nostrUserTagHybridEaWriter = require('./nostr-user-tag-hybrid-ea-writer.te
 const reputationInfoPopup = require('./reputation-info-popup.test.js');
 const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const stackFreeNpmTest = require('./stack-free-npm-test.test.js');
+// honest-test-gate #1 — the gate's own run record (Phase-3 guard; ADR honest-test-gate/0001)
+const gateResultRecord = require('./gate-result-record.test.js');
 const ciTestJob = require('./ci-test-job.test.js');
 const syncPanelTagFilters = require('./sync-panel-tag-filters.test.js');
 const routerStreamTagFilters = require('./router-stream-tag-filters.test.js');
@@ -729,10 +731,14 @@ async function main() {
 
   console.log('\nassistant-setup-state suite:');
   const assistantSetupStateResult = await assistantSetupState.run();
+  const gateResultRecordResult = await gateResultRecord.run();
 
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
+  console.log(
+    `gate-result-record suite:                        ${gateResultRecordResult.fail === 0 ? 'PASS' : 'FAIL'} (${gateResultRecordResult.pass} passed, ${gateResultRecordResult.fail} failed${gateResultRecordResult.skipped ? `, ${gateResultRecordResult.skipped} skipped` : ''})`
+  );
   console.log(`profile-tags suite:                              ${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`);
   console.log(`note-trusted-list suite:                         ${noteTrustedListResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteTrustedListResult.pass} passed, ${noteTrustedListResult.fail} failed)`);
   console.log(`profile-tag-consume-by-a-coordinate suite:       ${profileTagConsumeByAResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagConsumeByAResult.pass} passed, ${profileTagConsumeByAResult.fail} failed)`);
@@ -1500,6 +1506,7 @@ async function main() {
     myCuratedDListsPageResult.fail === 0 &&
     myCuratedDListsHeadersResult.fail === 0 &&
     myCuratedDListsItemsResult.fail === 0 &&
+    gateResultRecordResult.fail === 0 &&
     assistantSetupStateResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
@@ -1545,7 +1552,7 @@ async function main() {
     relayScanBoundsResult, addNodeAsElementRestoreResult, conceptCountCanonicalResult, summariesElementCountResult,
     dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult, dlistCurationPanelResult, dlistCurationMapEntriesResult,
     dlistCurationMergePreserveResult, myCuratedDListsPageResult, myCuratedDListsHeadersResult, myCuratedDListsItemsResult,
-    assistantSetupStateResult,
+    assistantSetupStateResult, gateResultRecordResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
