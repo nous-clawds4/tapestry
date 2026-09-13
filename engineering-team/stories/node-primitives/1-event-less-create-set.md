@@ -93,6 +93,6 @@ concept (yes — part of creating the set), and delivery (production plus one re
 
 ## Linked artifacts
 - Book: `engineering-team/audits/event-less-sets/book.md`
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/node-primitives/0001-event-less-add-subset-primitive.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
