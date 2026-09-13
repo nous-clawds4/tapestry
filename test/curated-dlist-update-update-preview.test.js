@@ -2,7 +2,7 @@
  * curated-dlist-update #5: Update list shows what my assistant would do, built only from reads it could complete.
  *
  * Story: engineering-team/stories/curated-dlist-update/5-update-list-preview.md
- * ADR:   engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md (with Amendment 1)
+ * ADR:   engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md (with Amendments 1 and 2)
  *
  * Classes (house pattern; the server half follows test/treasure-map-relay-presence.test.js):
  *   V (behavioral, server) — readRelayEvents(relayUrl, filter, { connect, verify, … }), driven through an injected
@@ -27,6 +27,12 @@
  *
  * Re-aimed in their own suites (the test plan lists each), for the disabled Update placeholder this story replaces:
  * curated-dlist-update-curation-method S8, curated-dlist-update-read-only-curation S4 and R1, my-curated-dlists-items S3.
+ *
+ * Amendment 2 (from the Implementation gate) adds:
+ *   - U10–U11: listReadGaps' words for my list, and the votes named when a vote source failed;
+ *   - S9: the panel's verdicts wait for my list and carry its gaps;
+ *   - D3: ADR 0004's §4 note.
+ * U10 passes before and after: it pins the words the panel will show.
  *
  * Not covered here: the rendered preview in a browser, and a live refused connection (the Implementer's local check,
  * ADR note 10). Publishing is story 6.
@@ -531,7 +537,50 @@ test('U9: updatePlan — up to date when there is nothing to do (skipped candida
   }
 });
 
-/* ── S: structure ──────────────────────────────────────────── */
+test('U10: listReadGaps words my list\'s gaps for the panel — "your list on this instance’s strfry", "your list on the community relay", "every item on your list (more than one read returns)"; a clean read and garbage give none (Amendment 2)', async () => {
+  const listReadGaps = await fn('listReadGaps');
+  assert(same(listReadGaps(record([]), 'your list'), []), `a clean read has no gaps; got ${brief(listReadGaps(record([]), 'your list'))}`);
+  const CUT = 'every item on your list \\(more than one read returns\\)';
+  const CASES = [
+    [{ local: 'failed' }, [`your list on this instance${APOS}s strfry`]],
+    [{ relay: 'failed' }, ['your list on the community relay']],
+    [{ truncated: true }, [CUT]],
+    [{ relayTruncated: true }, [CUT]],
+    [{ truncated: true, relayTruncated: true }, [CUT]],
+    [{ local: 'failed', relay: 'failed' }, [`your list on this instance${APOS}s strfry`, 'your list on the community relay']],
+  ];
+  for (const [over, patterns] of CASES) {
+    const gaps = listReadGaps(record([], over), 'your list');
+    assert(Array.isArray(gaps) && gaps.length === patterns.length && patterns.every((p, i) => new RegExp(`^${p}$`).test(gaps[i])),
+      `ADR 0005 Amendment 2: my list read with ${brief(over)} → ${patterns.map((p) => `/${p}/`).join(', ')}; got ${brief(gaps)}`);
+  }
+  for (const g of [undefined, null, 'x', 7, []]) {
+    let out;
+    try { out = listReadGaps(g, 'your list'); } catch (e) { throw new Error(`never throws — threw on ${brief(g)}: ${e.message}`); }
+    assert(Array.isArray(out) && out.length === 0, `garbage gives no gap; got ${brief(out)} for ${brief(g)}`);
+  }
+});
+
+test('U11: candidateVerdicts names a failed vote source as the votes — "the votes on this instance’s strfry", "the votes on the community relay", and both joined with "and" — in the summary and on each candidate (Amendment 2)', async () => {
+  const candidateVerdicts = await fn('candidateVerdicts');
+  const LOCAL = `the votes on this instance${APOS}s strfry`;
+  const ON_RELAY = 'the votes on the community relay';
+  const CASES = [
+    [{ local: 'failed' }, `^${LOCAL}$`],
+    [{ relay: 'failed' }, `^${ON_RELAY}$`],
+    [{ local: 'failed', relay: 'failed' }, `^${LOCAL} and ${ON_RELAY}$`],
+  ];
+  for (const [over, re] of CASES) {
+    const out = candidateVerdicts({ candidates: [K1, K2], votes: { events: [], ...OKV, ...over }, weights: WEIGHTS, cutoff: 2 });
+    assert(out && out.summary && out.summary.state === 'incomplete' && new RegExp(re).test(out.summary.reason || ''),
+      `ADR 0005 Amendment 2: votes with ${brief(over)} → the summary's reason matches /${re}/; got ${brief(out && out.summary)}`);
+    const reasons = Object.values((out && out.byRouteId) || {}).map((v) => v.reason);
+    assert(reasons.length === 2 && reasons.every((r) => new RegExp(re).test(r || '')),
+      `ADR 0005 Amendment 2: each candidate's "couldn't check" names the votes too; got ${brief(reasons)}`);
+  }
+});
+
+/* ── S: structure──────────────────────────────────────────── */
 
 test('S1: the curation reads opt into the strict relay read — useListItems\' and useItemVotes\' relay fetches carry strict=1', () => {
   for (const f of [LIST_HOOK, VOTES_HOOK]) {
@@ -608,7 +657,35 @@ test('S8: nothing is written — the items module, the preview and the two hooks
   }
 });
 
-/* ── D: docs ──────────────────────────────────────────────── */
+test('S9: ItemsSection — the panel\'s verdicts wait for my list (their votes input depends on it) and carry its gaps, listReadGaps(<my list>, \'your list\') (Amendment 2)', () => {
+  const f = flat(declaration(src(ITEMS), 'ItemsSection'));
+  assert(f, 'ItemsSection is declared in the items module');
+  const STOP = new Set(['votes', 'null', 'undefined', 'true', 'false']);
+  const defOf = (name) => { const m = f.match(new RegExp(`\\bconst\\s+${esc(name)}\\s*=\\s*([^;]*);`)); return m ? m[1] : ''; };
+  // An expression, with the definitions (`const name = …;` in the section) of the names it uses, followed three steps.
+  const expand = (expr) => {
+    let out = expr;
+    let frontier = expr;
+    for (let step = 0; step < 3 && frontier; step++) {
+      const names = [...new Set(frontier.match(/[A-Za-z_$][\w$]*/g) || [])].filter((n) => !STOP.has(n));
+      frontier = names.map(defOf).filter(Boolean).join(' ');
+      out += ` ${frontier}`;
+    }
+    return out;
+  };
+  const calls = [...f.matchAll(/candidateVerdicts\(\{([^}]*)\}\)/g)].map((m) => m[1]);
+  const candidatesOf = (body) => { const m = body.match(/\bcandidates\s*:\s*([^,]*)/); return m ? m[1].trim() : (/\bcandidates\b/.test(body) ? 'candidates' : ''); };
+  // The panel's call judges the candidates; the preview's judges every shared item (sharedEvents).
+  const panel = calls.find((b) => candidatesOf(b) && !/\bsharedEvents\b/.test(candidatesOf(b)));
+  assert(panel, `ADR 0005 Amendment 2: the panel's candidateVerdicts({ candidates, … }) call is in ItemsSection; found ${calls.length} candidateVerdicts({…}) call(s)`);
+  const votesIn = (panel.match(/\bvotes\s*:\s*([^,]*)/) || [])[1] || '';
+  assert(/\bmyList\b|\bmine\.lists\[/.test(expand(votesIn)),
+    `ADR 0005 Amendment 2: the panel's verdicts wait for my list — their votes input (${votesIn.trim() || 'none'}) must depend on my list's read, so they read "checking" until it is in`);
+  assert(/listReadGaps\(\s*[^,()]+,\s*['"`]your list['"`]\s*\)/.test(expand(panel)),
+    'ADR 0005 Amendment 2: the panel\'s incomplete list carries my list\'s gaps, listReadGaps(<my list>, \'your list\')');
+});
+
+/* ── D: docs──────────────────────────────────────────────── */
 
 test('D1: curated-dlist-update ADR 0004 and my-curated-dlists ADR 0003 each carry a Status parenthetical and a one-line note citing curated-dlist-update ADR 0005 by short name', () => {
   for (const p of [CDU_ADR_4, MCD_ADR_3]) {
@@ -627,7 +704,16 @@ test('D2: OPEN.md row 280 says strict mode exists and which reads opt in, and st
   assert(/\| OPEN \|/.test(row), 'ADR 0005 §9: row 280 stays OPEN for the other callers');
 });
 
-/* ── R: sentinels (pass before and after) ──────────────────── */
+test('D3: curated-dlist-update ADR 0004 records that its §4 words for a failed vote source are superseded, in its Status line and its one-line note (ADR 0005 Amendment 2)', () => {
+  const s = src(CDU_ADR_4);
+  const status = (s.match(/^\*\*Status:\*\*[^\n]*/m) || [''])[0];
+  const note = (s.match(/^> \*\*Superseded in part \(\d{4}-\d{2}-\d{2}\):\*\*[^\n]*/m) || [''])[0];
+  assert(/§4/.test(status), `ADR 0005 Amendment 2: ADR 0004's Status parenthetical names §4; got ${JSON.stringify(status)}`);
+  assert(/§4/.test(note) && /vote source|the votes on/i.test(note),
+    `ADR 0005 Amendment 2: ADR 0004's note names §4's words for a failed vote source; got …${note.slice(-260)}`);
+});
+
+/* ── R: sentinels(pass before and after) ──────────────────── */
 
 test('R1: the presence probe is unchanged — probeRelayForEvent still answers "present" for a relay holding the event', async () => {
   let mod;

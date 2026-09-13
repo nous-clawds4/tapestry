@@ -1,12 +1,13 @@
 # Test Plan: Story 5 — Update list shows what my assistant would do, built only from reads it could complete
 
 **Story:** `engineering-team/stories/curated-dlist-update/5-update-list-preview.md`
-**ADR:** `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md` (with Amendment 1)
+**ADR:** `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md` (with Amendments 1 and 2)
 **Date:** 2026-09-13
 
 ## Coverage map
 
-**New suite:** `test/curated-dlist-update-update-preview.test.js`, 30 tests in six classes.
+**New suite:** `test/curated-dlist-update-update-preview.test.js`, 30 tests in six classes, and four more from Amendment 2
+(§ Amendment 2 below).
 - **V (server, behavioral):** `readRelayEvents`, through an injected `connect` / `verify`. Its fake relay follows the
   presence suite's pattern, and a refused connection throws the bare string that nostr-tools throws.
 - **F (API, behavioral):** `handleFetchExternalEvents` with an injected `readRelay`. The module must load without the
@@ -42,7 +43,7 @@ skip aggregate. It carries the `require.main` block (OPEN.md row 276).
 | AC-2 what the preview is based on | **S5:** "Scoring Method:", "Point of view:", "Cutoff (≥)", and "These apply in this browser and are not written onto the list." | structure |
 | AC-3 what it proposes | **U6:** ready — copy, skipped (named, with scores), refresh, delete, keep-flagged (with `why`), unchanged, upgrade. **U9:** up to date, even with skipped and kept items. **S5:** the six headings and their words. | unit + structure |
 | AC-4 a failed or incomplete read proposes nothing | **V1–V4:** the strict reader. **F1–F5:** the strict endpoint. **S1:** the curation reads opt in. **S2:** the weights' two new errors. **U1–U3:** chunks, caps, `relayTruncated`. **U4:** the `incomplete` list. **U7:** every blocked reason, alone and together. **U8:** checking, and Amendment 1's precedence. | unit + structure |
-| AC-5 the same verdicts as the panel | **U5:** a candidate's verdict is the same judged alone or with every shared item (true today; it guards the new two-verdict-set design). **U4:** the panel's summary for a partial read. **S6:** two verdict sets from one set of reads. | unit + structure |
+| AC-5 the same verdicts as the panel | **U5:** a candidate's verdict is the same judged alone or with every shared item (true today; it guards the new two-verdict-set design). **U4:** the panel's summary for a partial read. **S6:** two verdict sets from one set of reads. **Amendment 2:** **S9:** the panel's verdicts wait for my list and carry its gaps; **U10:** those gaps' words; **U11:** a failed vote source named as the votes; **D3:** ADR 0004's §4 note. | unit + structure |
 | AC-6 nothing else moves | **S2:** Follow List weights stay 1 or 0. **R2:** Simple Lists' footnote renders `trustError`, so the new errors reach it. **R1:** the presence probe. **D1–D2:** the notes and the row. **S8:** nothing signed. | regression + structure |
 
 ## Edge cases
@@ -185,3 +186,71 @@ process. Each was caught:
 
 The sketch worktree was removed after the check. As in story 4, a separate Implementer agent writes the code from the
 ADR, not from the sketch.
+
+## Amendment 2 (2026-09-13, from the Implementation gate)
+
+The Implementation gate found that AC-5's second bullet wasn't met when my own list's read fails. The preview proposed
+nothing, but the panel could still show a complete-looking "N of M", because candidacy is computed against my copies.
+ADR 0005 Amendment 2 closes the gap, and four tests are added to the same suite:
+
+| Test | What it pins | Level |
+|---|---|---|
+| **U10** | `listReadGaps(record, 'your list')`: "your list on this instance’s strfry", "your list on the community relay", "every item on your list (more than one read returns)". A clean read and garbage give none. It passes before and after: it pins the words the panel will show. | unit |
+| **U11** | `candidateVerdicts` names a failed vote source as the votes: "the votes on this instance’s strfry", "the votes on the community relay", both joined with "and", in the summary and on each candidate. | unit |
+| **S9** | In `ItemsSection`, the panel's `candidateVerdicts` call waits for my list and carries `listReadGaps(<my list>, 'your list')`. "Waits" means its votes input depends on `myList`, followed through the section's `const` definitions. | structure |
+| **D3** | ADR 0004's Status parenthetical and its superseded-in-part note name §4's words for a failed vote source. | docs |
+
+No test is re-aimed:
+- story 4 matches the reasons with `/community relay/` and `/strfry/`, which the new words still satisfy;
+- this suite's only exact "the community relay" strings are fixture inputs to `updatePlan` (U7).
+
+**Verification.** On today's code (`68eefaff`, with the four tests applied), through `run()`:
+
+```
+curated-dlist-update-update-preview: 31 passed, 3 failed — U11, S9, D3
+```
+
+Each failure names what is missing:
+- **U11:** the summary's reason should be "the votes on this instance’s strfry", and is "this instance’s strfry".
+- **S9:** the panel's votes input, `judging ? votes : null`, doesn't depend on my list's read.
+- **D3:** ADR 0004's Status parenthetical doesn't name §4.
+
+**Satisfiability.** An ADR-faithful sketch was applied to a throwaway `git worktree` at `68eefaff` holding the extended
+suite. A script patched it, asserting every anchor. The session's working directory never moved into the worktree.
+- The suite: 34 passed, 0 failed.
+- 15 neighbouring suites, all green. Every suite that reads the changed files was among them.
+
+  | Suite | Result |
+  |---|---|
+  | curation-method | 24/0 |
+  | items | 23/0 |
+  | read-only | 13/0 |
+  | pointer switch | 12/0 |
+  | page | 19/0 |
+  | headers | 16/0 |
+  | DList Curation panel | 18/0 |
+  | map entries | 14/0 |
+  | TL panel | 19/0 |
+  | merge-preserve | 16/0 |
+  | TL Treasure Map panel | 18/0 |
+  | opt-in publish | 23/0 |
+  | panel summary | 18/0 |
+  | relay presence | 35/0 |
+  | relay sync | 22/0 |
+- esbuild transforms both changed UI files.
+
+**Mutation check.** Five wrong implementations were applied one at a time, each run in a fresh process, and each was
+caught:
+
+| Mutation | Caught by |
+|---|---|
+| the panel's verdicts don't wait for my list | S9 |
+| the panel drops my list's gaps | S9 |
+| only the community relay's source is renamed | U11 |
+| ADR 0004's note leaves out §4's words | D3 |
+| the wait is done by emptying the candidates only, while the votes still flow (the panel would read "0 of 0") | S9 |
+
+The sketch worktree and script were discarded. The Implementer writes the change from the amendment.
+
+**Not covered:** the rendered panel with only my list's read failing. That is the local check in the amendment's
+implementation notes.
