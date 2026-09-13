@@ -117,7 +117,7 @@ merge before the staging PR renumbers them. Before designing story 6's signing, 
 auth-hardening follow-ups (its OPEN.md row 276) and `SECURITY.md`.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 

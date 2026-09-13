@@ -126,3 +126,7 @@ Operator decisions in `/discuss` and at the Planning gate:
   strfry and the community relay, merged by id; a weights-readiness rule so a failed read is "couldn't
   check"; verdicts on the candidate rows; the cutoff remembered per list in this browser; the summary in
   the panel (Option A).
+- `0005-update-preview-and-honest-reads.md` — story 5: an opt-in strict mode for `/api/relay/external`, backed by a
+  connect-observing reader, used by the curation reads and the rank read; vote reads batched, and capped answers
+  reported; weights that fail instead of reading as "nobody"; a pure `updatePlan` over the panel's verdicts; the
+  preview shares the items section's reads (Option A).
