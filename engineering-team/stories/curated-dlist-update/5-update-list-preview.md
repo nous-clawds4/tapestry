@@ -130,6 +130,19 @@ auth-hardening follow-ups (its OPEN.md row 276) and `SECURITY.md`.
 - **Implementation (2026-09-13):** while candidates or the preview show, the items section reads the votes on every shared item (§8), so the panel alone now reads the copied originals' votes too; its Verdict column still shows only while candidates are shown. On read-only lists the detail page passes `headerState` as null.
 - **Implementation (2026-09-13):** §6 is read as written: the panel's `incomplete` comes from the shared list's record only. So when my own list's read fails, the preview proposes nothing, but the panel can still show "N of M candidates qualify", beside the list's source note. AC-5's second bullet may want that read in the panel's summary too; left for the Reviewer.
 - **Authorship.** A separate Implementer agent wrote the code in its own git worktree, from the ADR (with Amendment 1) and the tests (`85fbdddf`). No reference implementation was used; the Test Design sketch was discarded.
+- **Local check (2026-09-13, the orchestrator, ADR note 10).** `relaySource.js`, `fetchEvents.js` and the UI build were deployed to the local container, and `brainstorm` was restarted after the other local sessions were warned.
+  - The endpoint's strict mode:
+    - a refusing relay (`ws://127.0.0.1:9`) answers `success: false`, lists it as unreachable, and says "Could not read ws://127.0.0.1:9: Received network error or non-101 status code.";
+    - the community relay answers `success: true` with 3 events;
+    - the two together answer `success: true` with the community relay's events, and list the refusing relay under `unreachable`;
+    - the non-strict path still answers `success: true` with no events (OPEN.md row 280, unchanged).
+  - Signed in through the fetch stub as staging's customer (assistant `253d40c4…`) on `dog-breed`, under Trust Everyone:
+    - cutoff 2 gives "Skipped (2)" (golden retriever · 1 < 2, sheep dog · 1 < 2) and the upgrade;
+    - cutoff 1 gives "Copy (2)" and the upgrade;
+    - with every strict read answered `success: false`, the preview says "Nothing to propose — couldn’t check your list on the community relay; the shared list on the community relay; the community relay.", the panel says "Verdicts incomplete — couldn’t check the community relay.", and each candidate says "couldn’t check".
+  - The stub blocked no write, and the three curation reads (my list, the shared list, the votes) carried `strict=1`.
+  - Simple Lists is unchanged: 1.000 for both items under Trust Everyone and 0.000 under the default method, as in story 4. The browser's settings were restored afterwards.
+- **Regression (2026-09-13).** Full `npm test` at `85fbdddf` and again at `a50e7f70`. Nothing new fails, and the 29 intended failures now pass. What still fails is the known set: OPEN.md row 191's four and `summaries-element-count` L5. Publish suites whose preconditions weren't met were skipped, as usual.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md`
