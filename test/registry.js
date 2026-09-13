@@ -167,6 +167,7 @@ const suites = [
   { file: 'strfry-wipe-owner-gate.test.js' },
   { file: 'relationship-primitives.test.js', skipNote: 'preconditions not met' },
   { file: 'relationship-primitives-probe.test.js', skipNote: 'preconditions not met' },
+  { file: 'event-less-create-set.test.js', skipNote: 'preconditions not met' },
   { file: 'strfry-write-assertion-bracket.test.js', skipNote: 'preconditions not met' },
   { file: 'move-nodes-between-sets-ui.test.js', skipNote: 'preconditions not met' },
   { file: 'capture-a-goal-and-see-it.test.js', skipNote: 'preconditions not met' },

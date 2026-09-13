@@ -45,7 +45,7 @@ housekeeping `d210b5ff` (reviewed at `d210b5ff`)
       DONE, and rows 104, 106 and 192 carry the runner-half note.
 - [x] **No behavior added that isn't in the story.** The `{ name, run }` config pseudo-entry and the
       "exports no run() function" failure are logged deviations inside ADR §1/§3's intent. OPEN.md
-      rows 280–282 are evidence, not behavior. `d210b5ff` (row 283; rows 75 and 141 flipped) is a
+      rows 280, 288 and 289 are evidence, not behavior. `d210b5ff` (row 290; rows 75 and 141 flipped) is a
       separate, operator-approved housekeeping commit, outside the story's delivery by design. One
       behavior was removed without a log line — non-blocking 7.
 - **Test-deliverable carve-out:** verified. `test/gate-result-record.test.js`,
@@ -205,16 +205,16 @@ housekeeping `d210b5ff` (reviewed at `d210b5ff`)
 8. **ADR §1 and §5 against the build.** The unbuilt `out` parameter and the reader's line format are
    not in the story's § Deviations. Optional improvement: add one line there.
 9. **Process.** The implementation's first full run came after the code was written;
-   `4-implementation.md` step 1 asks for a baseline run first, which would have surfaced rows 280–282
+   `4-implementation.md` step 1 asks for a baseline run first, which would have surfaced rows 280, 288 and 289
    before any code changed.
 
 ### Harness friction
 
 1. Recorded in the implementation commit, so no new rows:
    - row 280: the host checkout's empty `node_modules`;
-   - row 281: the host's default Node 16, on which the full gate is falsely red and silently
+   - row 288: the host's default Node 16, on which the full gate is falsely red and silently
      stack-free;
-   - row 282: the live suites that are red against this instance once they actually run — 16 in the
+   - row 289: the live suites that are red against this instance once they actually run — 16 in the
      implementation's Node-22 run and 15 in the Reviewer's. This commit adds the re-run to the row.
 
 ## Verdict
@@ -334,7 +334,7 @@ None.
    - A deferred `process.exit` fails the run as a stray error while the calling suite's own line reads
      PASS, so the README's "that suite's FAIL" is loose for that case.
    - Optional improvement: one clause in each at book close.
-5. **R2-5 — `OPEN.md` row 284** omits the round-1 note that prune leaves 31 records (it keeps 30, then
+5. **R2-5 — `OPEN.md` row 291** omits the round-1 note that prune leaves 31 records (it keeps 30, then
    adds the new one). This commit adds it, together with R2-1 to R2-4.
 6. **R2-6 — process.** The kick-back commit `4f06e85b` quotes two gate runs whose records name
    `36aba757` with `dirty: true`, so they tested the uncommitted tree. The Reviewer's two runs above, on
@@ -357,7 +357,9 @@ engine and pass now pin them:
   guards pass 34 of 34 in both.
 - What remains is latent — routes that need a suite to register its own `exit` listener, throw a
   value that can't be stringified, or call an undocumented internal — plus two doc nits. All are
-  recorded as optional and tracked in `OPEN.md` row 284 for story 2.
+  recorded as optional and tracked in `OPEN.md` row 291 for story 2.
 - The round-1 reading of AC-6 stands.
 
 **PASS** — both blocking findings are resolved, and no blocking issue remains.
+
+Row numbers: this branch's OPEN.md rows 281–284 became 288–291 when origin/staging was merged in (staging had already taken 281–287). The references above use the new numbers; this branch's earlier commit messages use the old ones.

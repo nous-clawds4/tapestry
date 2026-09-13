@@ -134,9 +134,9 @@ None. Test and harness infrastructure only — no concept-graph handle is read, 
   run: `gate-result-record` 29/29 and `stack-free-npm-test`. The host's `node_modules` first had to
   be installed (OPEN.md row 280). On the host's default Node, 16.17.0, the full gate recorded FAIL
   on `honest-publish-reporting` alone, which needs Node 22.12+ (run `20260913T040449Z-80634-2042`),
-  and that Node silently skips 376 live tests whose probes call the global `fetch` (row 281). On
+  and that Node silently skips 376 live tests whose probes call the global `fetch` (row 288). On
   Node 22.23.2, CI's version, it recorded FAIL on 16 live suites (75 tests), all checks against
-  this instance's data (run `20260913T040914Z-14580-57d2`, row 282). This story changes none of
+  this instance's data (run `20260913T040914Z-14580-57d2`, row 289). This story changes none of
   those 17 suite files, and `honest-publish-reporting`, `concept-count-canonical` and
   `summaries-element-count`, re-run directly outside the engine, fail identically. None is a
   regression from this change, and the gate reported each one truthfully.
@@ -153,7 +153,7 @@ None. Test and harness infrastructure only — no concept-graph handle is read, 
   which reads `— <verdict>[ by <signal>], exit <n>, <p> passed, <f> failed, <s> skipped,
   <k>/<N> suites` rather than `— <STATE>: <verdict>, …`; and the old runner's "H-class: n executed /
   n skipped" lines and B-class browser-only pointers, which are not carried over (skips are still
-  counted per suite). The review's other non-blocking engine notes are OPEN.md row 284.
+  counted per suite). The review's other non-blocking engine notes are OPEN.md row 291.
 
 ## Linked artifacts
 - Book: `engineering-team/audits/honest-test-gate/book.md`
