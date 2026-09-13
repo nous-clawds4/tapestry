@@ -141,7 +141,7 @@ Origin drift at planning: the branch is 40 commits behind `origin/staging`, whic
 The merge before the staging PR renumbers this book's colliding rows (276–279). Rows 280 and 292–294 are clear.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
