@@ -35,9 +35,7 @@ const ESTATE_ATTESTATION = `# --------------------------------------------------
 #   tapestry.brainstorm.world
 #   staging.brainstorm.world
 #   tags.brainstorm.world
-#   communities.brainstorm.world
 #   magic-carpet.brainstorm.world
-#   curate.brainstorm.world
 #
 # Backend APIs - github.com/NosFabrica/brainstorm_server
 #   api.brainstorm.world
