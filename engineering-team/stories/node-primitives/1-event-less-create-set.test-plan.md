@@ -62,8 +62,9 @@ container serves this feature's probe.
 - **Firmware state:** the target must have had firmware installed (the `set` and `nostr-kind` concepts must
   exist). H10 installs it again.
 - **Fixtures:** throwaway nodes prefixed `test-nodeprim-<stamp>` — a concept header and superset, three
-  members, a lettered set, and an unplaced node holding one address — plus every set the suite creates
-  (H10's included), all removed in `run()`'s `finally`.
+  members, a lettered set, and an unplaced node holding one address — plus every set the suite creates,
+  and H10's two throwaway members (placed under the target's `nostr-kind` superset, because a fresh
+  instance has no `nostr-kind` elements of its own), all removed in `run()`'s `finally`.
 - **No-event bracket:** author-scoped to the target's own TA (ADR test-suite-hermeticity/0001).
 
 ## How to run

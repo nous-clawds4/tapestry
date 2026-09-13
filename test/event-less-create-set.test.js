@@ -914,10 +914,19 @@ t('H10 (AC-5): after a firmware reinstall the set, its parent link, its membersh
     { h: `39998:${ta}:nostr-kind` });
   assert(sup[0] && sup[0].uuid, `the nostr-kind concept's superset is missing on '${CONTAINER}' — was firmware installed?`);
   const supUuid = sup[0].uuid;
-  const members = loopbackCypher(
-    'MATCH (:NostrEvent {uuid: $s})-[:HAS_ELEMENT]->(e:NostrEvent) RETURN e.uuid AS uuid ORDER BY e.uuid LIMIT 2',
-    { s: supUuid }).map((x) => x.uuid);
-  assert(members.length === 2, `need two nostr-kind elements to wire; found ${members.length}.`);
+  // Two throwaway members, placed as direct elements of the manifest superset
+  // so the reinstall's prune pass has something to act on. A fresh instance
+  // has no nostr-kind elements of its own (they arrive by relay ingestion), so
+  // the test brings its own. Teardown removes every uuid in createdSetUuids.
+  const stamp = Date.now().toString(36);
+  const members = [`test-nodeprim-reinstall-${stamp}-m1`, `test-nodeprim-reinstall-${stamp}-m2`];
+  members.forEach((m) => createdSetUuids.add(m));
+  loopbackCypher(
+    `MATCH (s:NostrEvent {uuid: $sup})
+     UNWIND $members AS m
+     CREATE (e:NostrEvent:ListItem {uuid: m, name: m, pubkey: $ta, kind: 39999})
+     CREATE (s)-[:HAS_ELEMENT]->(e)`,
+    { sup: supUuid, members, ta });
   const name = `Nodeprim Reinstall ${Date.now().toString(36)}`;
   const addr = addressFor(ta, name, supUuid);
   createdSetUuids.add(addr);
