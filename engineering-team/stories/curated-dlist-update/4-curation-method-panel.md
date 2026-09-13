@@ -109,7 +109,7 @@ Origin drift at planning: the branch is 13 commits behind `origin/staging` (sand
 rows that collide with this book's), none of them in this story's areas. The merge waits for the staging PR.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/curated-dlist-update/0004-curation-method-and-verdicts.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 

@@ -88,3 +88,8 @@ Operator decisions in `/discuss` and at the Planning gate:
   `other-pubkey`); a read-only list's items read at the Map entry's relay hint; an inline "curate it
   here instead" offer, words first, reusing the panel's endpoint call and signing helpers; the panel's
   Replace confirmation says "replaces" (Option A).
+- `0004-curation-method-and-verdicts.md` — story 4: Simple Lists' scoring rule moved verbatim into one
+  shared pure module (`dlistScore.js`) that both pages call; candidates' votes read from this instance's
+  strfry and the community relay, merged by id; a weights-readiness rule so a failed read is "couldn't
+  check"; verdicts on the candidate rows; the cutoff remembered per list in this browser; the summary in
+  the panel (Option A).
