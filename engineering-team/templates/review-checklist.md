@@ -6,7 +6,7 @@
 
 ## Quality gates (run by reviewer, not trusted)
 
-- [ ] `npm test` — pass / fail / output
+- [ ] `npm test` — pass / fail / output: quote the run's `npm run gate:status` line (run id + verdict) — [Running and reading the test gate](../README.md#running-and-reading-the-test-gate)
 - [ ] `npm run test:playwright` (if applicable) — pass / fail / output
 - [ ] _Lint not configured — skipped._
 - [ ] _Typecheck not configured — skipped._

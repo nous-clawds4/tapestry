@@ -2147,7 +2147,9 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 
 ## 2026-08-18 — Make the test gate fast and honest (umbrella: the instrument cluster)
 
-**NOT PICKED UP.** Filed from the 2026-08-18 harness review (four-analyst corpus study; findings doc: the "Harness Review & the Light Profile" artifact), whose top-ranked friction was not the gates but **the instruments behind them**: ~20 of OPEN.md's 81 `meta` rows are the test gate being slow, flaky, or wrong about its own result. This entry consolidates that cluster into one queued objective so it competes for scheduling as a unit instead of as scattered lessons.
+**PICKED UP** 2026-09-12 → book `engineering-team/audits/honest-test-gate/book.md` (epics `honest-test-gate` #1–#3 + `test-suite-hermeticity` #2; branch `feat/honest-test-gate`). Scope note at pickup: rows 75/141 are already fixed by `test-suite-hermeticity` #1 (row 150) and row 43 is DONE (`harness-gate-integrity` #1), so neither is carried.
+
+Filed from the 2026-08-18 harness review (four-analyst corpus study; findings doc: the "Harness Review & the Light Profile" artifact), whose top-ranked friction was not the gates but **the instruments behind them**: ~20 of OPEN.md's 81 `meta` rows are the test gate being slow, flaky, or wrong about its own result. This entry consolidates that cluster into one queued objective so it competes for scheduling as a unit instead of as scattered lessons.
 
 **The objective, in one sentence:** the gate finishes inside tool timeouts, its exit code is always true, and a red result always means signal — so that nobody is ever again trained to expect red and shrug.
 

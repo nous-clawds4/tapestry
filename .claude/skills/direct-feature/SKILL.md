@@ -50,7 +50,7 @@ This skill orchestrates Phases 1–5 per story, then `/cycle-local` → `/cycle-
 3. `git status` clean; `git fetch`; check drift vs `origin/staging`. Cleanly rebasable → rebase; anything else → halt (role file, Stopping rule 6).
 4. Scan [docs/](../../../docs/) `*HANDOFF*.md` for `🔴 OPEN` handoffs and `engineering-team/` for in-flight epics touching the same files. Overlap → halt and surface; never entangle.
 5. Branch: work on `feat/<book-slug>` off `origin/staging` (create on first session).
-6. Baseline: `npm test` green before any new work — record the exact command; Gate 4 reruns it identically. Red baseline → halt; that's not yours to fix silently.
+6. Baseline: `npm test` green before any new work — record the exact command; Gate 4 reruns it identically. Read each run's verdict from its record (`npm run gate:status`; engineering-team/README.md — "Running and reading the test gate") and journal the run id. Red baseline → halt; that's not yours to fix silently.
 
 ### Stage 1 — per-story cycle (repeat for each story)
 

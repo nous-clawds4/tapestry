@@ -35,7 +35,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const cp = require('child_process');
 const { pathToFileURL } = require('url');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -45,6 +44,7 @@ const CMV = path.join(ROOT, 'ui/src/pages/settings/ConceptMembersView.jsx');
 const FE = path.join(ROOT, 'ui/src/pages/settings/FirmwareExplorer.jsx');
 
 const CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
 const CONTAINER_BASE = `http://127.0.0.1:${process.env.TAPESTRY_CONTAINER_PORT || '7778'}`;
 
 const tests = [];
@@ -252,25 +252,14 @@ test('S3 (AC: not-installed degrade): the members branch sits behind the existin
 
 /* ── H-class: integration sentinels (SKIP when stack absent OR core missing) ── */
 
-function dockerCurl(args) {
-  return cp.execFileSync('docker', ['exec', CONTAINER, 'curl', ...args], { encoding: 'utf8', timeout: 60000 });
-}
 function loopbackPost(pathname, body) {
-  const out = dockerCurl([
-    '-s', '-m', '30', '-X', 'POST', `${CONTAINER_BASE}${pathname}`,
-    '-H', 'Content-Type: application/json', '-d', JSON.stringify(body),
-    '-w', '\n__STATUS__%{http_code}',
-  ]);
-  const idx = out.lastIndexOf('\n__STATUS__');
-  const status = idx === -1 ? 0 : parseInt(out.slice(idx + 11), 10);
-  const raw = idx === -1 ? out : out.slice(0, idx);
-  let json = null; try { json = JSON.parse(raw); } catch {}
-  return { status, json, raw };
+  return loopbackRequest({ container: CONTAINER, method: 'POST', url: `${CONTAINER_BASE}${pathname}`, body, timeoutS: 30 });
 }
 function loopbackCypher(cypher, params = {}) {
-  const { status, json, raw } = loopbackPost('/api/neo4j/query', { cypher, params });
+  const res = loopbackPost('/api/neo4j/query', { cypher, params });
+  const { status, json, raw } = res;
   if (status !== 200 || !json || json.success !== true) {
-    throw new Error(`fixture Cypher via loopback failed: status=${status} body=${short(json || raw)}`);
+    throw new Error(`fixture Cypher via loopback failed: ${describeResponse(res)} body=${short(json || raw)}`);
   }
   return json.data || [];
 }

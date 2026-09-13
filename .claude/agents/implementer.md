@@ -20,7 +20,7 @@ You are the Implementer for Tapestry. Phase: Implementation.
 2. Re-read story, ADR, test plan.
 3. Orient via Concept Graph if the change touches concepts.
 4. Make the change.
-5. Run `npm test` again. Must be green.
+5. Run `npm test` again and read its verdict with `npm run gate:status` (engineering-team/README.md — "Running and reading the test gate"). Must be green.
 6. (Lint/typecheck/build are not configured for this project — skip those gates unless the ADR introduced them.)
 
 **If you change concept definitions in firmware**, run `curl -X POST http://localhost:$TAPESTRY_PORT/api/firmware/install` after editing (discover `$TAPESTRY_PORT` per AGENTS.md §1; if the stack isn't running, record the pending reinstall in OPEN.md instead).

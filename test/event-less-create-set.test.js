@@ -51,6 +51,7 @@ const cp = require('child_process');
 const crypto = require('crypto');
 const Module = require('module');
 const { pathToFileURL } = require('url');
+const { loopbackRequest: stackRequest, describeResponse } = require('./helpers/stackHttp');
 
 const ROOT = path.resolve(__dirname, '..');
 const NODES_MODULE = path.join(ROOT, 'src/api/normalize/nodes.js');
@@ -275,35 +276,21 @@ function requireProbe() {
 
 /* ── H-class plumbing (container loopback only) ────────────────────────── */
 
-function dockerCurl(args, timeoutMs) {
-  return cp.execFileSync('docker', ['exec', CONTAINER, 'curl', ...args], {
-    encoding: 'utf8',
-    timeout: timeoutMs,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-}
-
-// One request over container loopback — the local-operator path
-// (req.localTrusted). Answers { status, json, raw }.
+// One request over container loopback — the local-operator path (req.localTrusted),
+// through the shared helper: { status, json, raw, noResponse } with the real HTTP status,
+// or noResponse — never a status made up when nothing answered (honest-test-gate #1,
+// ADR honest-test-gate/0001 §6; guard C9).
 function loopbackRequest(method, pathname, body, { maxSeconds = 60 } = {}) {
-  const args = ['-s', '-m', String(maxSeconds), '-X', method, `${CONTAINER_BASE}${pathname}`,
-    '-w', '\n__STATUS__%{http_code}'];
-  if (body !== undefined) args.push('-H', 'Content-Type: application/json', '-d', JSON.stringify(body));
-  const out = dockerCurl(args, (maxSeconds + 30) * 1000);
-  const idx = out.lastIndexOf('\n__STATUS__');
-  const status = idx === -1 ? 0 : parseInt(out.slice(idx + 11), 10);
-  const raw = idx === -1 ? out : out.slice(0, idx);
-  let json = null;
-  try { json = JSON.parse(raw); } catch {}
-  return { status, json, raw };
+  return stackRequest({ container: CONTAINER, method, url: `${CONTAINER_BASE}${pathname}`, body, timeoutS: maxSeconds });
 }
 
 // Fixture and read-back Cypher through POST /api/neo4j/query on the same
 // loopback (localTrusted passes its write gate).
 function loopbackCypher(cypher, params = {}) {
-  const { status, json, raw } = loopbackRequest('POST', '/api/neo4j/query', { cypher, params });
+  const res = loopbackRequest('POST', '/api/neo4j/query', { cypher, params });
+  const { status, json, raw } = res;
   if (status !== 200 || !json || json.success !== true) {
-    throw new Error(`Cypher via loopback /api/neo4j/query failed: status=${status} body=${short(json || raw)}`);
+    throw new Error(`Cypher via loopback /api/neo4j/query failed: ${describeResponse(res)} body=${short(json || raw)}`);
   }
   return json.data || [];
 }
@@ -346,14 +333,14 @@ function liveReady() {
   try {
     const cls = loopbackRequest('GET', '/api/auth/user-classification', undefined, { maxSeconds: 5 });
     if (cls.status !== 200) {
-      ready = { ok: false, reason: `container '${CONTAINER}' did not answer over loopback (status ${cls.status})` };
+      ready = { ok: false, reason: `container '${CONTAINER}' did not answer over loopback (${describeResponse(cls)})` };
       return ready;
     }
     const probe = loopbackRequest('GET', PROBE_ROUTE, undefined, { maxSeconds: 5 });
     if (probe.status !== 200 || !probe.json || probe.json.surface !== 'node-primitives') {
       ready = {
         ok: false,
-        reason: `container '${CONTAINER}' does not serve GET ${PROBE_ROUTE} (status ${probe.status}) — ` +
+        reason: `container '${CONTAINER}' does not serve GET ${PROBE_ROUTE} (${describeResponse(probe)}) — ` +
           'it runs code without this feature',
       };
       return ready;
@@ -705,7 +692,7 @@ t('H0 (book frame "shipped"): the probe answers the exact static evidence body o
   if (!skipUnlessLive()) return 'SKIP';
   const r = loopbackRequest('GET', PROBE_ROUTE);
   assert(r.status === 200 && r.json && sameBody(r.json, EXPECTED_PROBE),
-    `GET ${PROBE_ROUTE} must answer 200 ${JSON.stringify(EXPECTED_PROBE)}; got ${r.status} ${short(r.json || r.raw)}.`);
+    `GET ${PROBE_ROUTE} must answer 200 ${JSON.stringify(EXPECTED_PROBE)}; got ${describeResponse(r)} ${short(r.json || r.raw)}.`);
 });
 
 t('H1 (AC-1): add-subset creates the set under its parent — 200 created at the lettered address, registered under `set`, the durability note, no event id, would-be tags stored, and NO TA-authored event in strfry', async () => {
@@ -718,7 +705,7 @@ t('H1 (AC-1): add-subset creates the set under its parent — 200 created at the
   const r = loopbackRequest('POST', ROUTE, { parentUuid: f.sup, name: f.alphaName, description });
   const after = strfryTaCount(f.ta);
   assert(r.status === 200 && r.json && r.json.success === true,
-    `POST ${ROUTE} must answer 200 {success:true}; got ${r.status} ${short(r.json || r.raw)}.`);
+    `POST ${ROUTE} must answer 200 {success:true}; got ${describeResponse(r)} ${short(r.json || r.raw)}.`);
   const b = r.json;
   assert(b.operation === 'add' && b.result === 'created',
     `a fresh set must report {operation:'add', result:'created'} (ADR decision 9); got ${short(b)}.`);
@@ -762,7 +749,7 @@ t('H2 (AC-2): repeating the identical create is idempotent — already-existed, 
   assert(nodeState(f.alpha).exists, 'H2 needs the set H1 created — H1 failed.');
   const r = loopbackRequest('POST', ROUTE, { parentUuid: f.sup, name: f.alphaName, description: 'nodeprim fixture description' });
   assert(r.status === 200 && r.json && r.json.success === true && r.json.result === 'already-existed',
-    `the identical repeat must answer 200 result:'already-existed' (story criterion 2); got ${r.status} ${short(r.json || r.raw)}.`);
+    `the identical repeat must answer 200 result:'already-existed' (story criterion 2); got ${describeResponse(r)} ${short(r.json || r.raw)}.`);
   assert(r.json.set && r.json.set.uuid === f.alpha && r.json.set.hasEvent === false,
     `the answer must name the existing event-less set with hasEvent:false (ADR decision 6a); got ${short(r.json.set)}.`);
   // ADR decision 9: already-existed has created's shape — set {uuid, name, description?, labels, hasEvent},
@@ -788,7 +775,7 @@ t('H3 (AC-2): the same name in another case and with padding is the same set —
   const variant = `   ${f.alphaName.toUpperCase()}  `;
   const r = loopbackRequest('POST', ROUTE, { parentUuid: f.sup, name: variant });
   assert(r.status === 200 && r.json && r.json.result === 'already-existed' && r.json.set && r.json.set.uuid === f.alpha,
-    `"${variant}" must match "${f.alphaName}" (trimmed, case-insensitive — ADR decision 6a); got ${r.status} ${short(r.json || r.raw)}.`);
+    `"${variant}" must match "${f.alphaName}" (trimmed, case-insensitive — ADR decision 6a); got ${describeResponse(r)} ${short(r.json || r.raw)}.`);
   const rows = loopbackCypher(
     'MATCH (:NostrEvent {uuid: $sup})-[:IS_A_SUPERSET_OF]->(s:Set) WHERE toLower(trim(s.name)) = toLower($n) RETURN count(s) AS c',
     { sup: f.sup, n: f.alphaName });
@@ -804,7 +791,7 @@ t('H4 (AC-2): a LETTERED set of the same name under the same parent is reported 
   const r = loopbackRequest('POST', ROUTE, { parentUuid: f.sup, name });
   assert(r.status === 200 && r.json && r.json.result === 'already-existed',
     `a lettered set named "${f.letteredName}" already sits under the parent — expected already-existed (story criterion 2); ` +
-    `got ${r.status} ${short(r.json || r.raw)}.`);
+    `got ${describeResponse(r)} ${short(r.json || r.raw)}.`);
   assert(r.json.set && r.json.set.uuid === f.lettered && r.json.set.hasEvent === true,
     `the answer must name the lettered set itself (${f.lettered}) with hasEvent:true; got ${short(r.json.set)}.`);
   assert(r.json.set.name === f.letteredName && Array.isArray(r.json.set.labels) && r.json.set.labels.includes('Set'),
@@ -823,7 +810,7 @@ t('H5 (ADR 6b): a name whose address is already held by a node not placed under 
   const r = loopbackRequest('POST', ROUTE, { parentUuid: f.sup, name: f.heldName });
   assert(r.status === 409,
     `the address ${f.held} is taken by an unplaced node — expected a loud 409, never a silent re-link (ADR decision 6b); ` +
-    `got ${r.status} ${short(r.json || r.raw)}.`);
+    `got ${describeResponse(r)} ${short(r.json || r.raw)}.`);
   assert(r.json && r.json.success === false && String(r.json.error || '').includes(f.held),
     `the 409 must name the held address; got ${short(r.json)}.`);
   assert(edgeCount('IS_A_SUPERSET_OF', f.sup, f.held) === 0, 'the 409 path must not link the holder under the parent.');
@@ -838,17 +825,17 @@ t('H6 (AC-3): a missing parent answers 404 naming it, a blank name 400, and a pa
   const orphan = `Nodeprim Orphan ${f.stamp}`;
   const r404 = loopbackRequest('POST', ROUTE, { parentUuid: f.missing, name: orphan });
   assert(r404.status === 404 && r404.json && Array.isArray(r404.json.missing) && r404.json.missing.includes(f.missing),
-    `a parent absent from Neo4j must answer 404 with missing:[${f.missing}] (story criterion 3); got ${r404.status} ${short(r404.json || r404.raw)}.`);
+    `a parent absent from Neo4j must answer 404 with missing:[${f.missing}] (story criterion 3); got ${describeResponse(r404)} ${short(r404.json || r404.raw)}.`);
   assert(!nodeState(addressFor(f.ta, orphan, f.missing)).exists, 'the 404 path must create nothing.');
 
   const r400 = loopbackRequest('POST', ROUTE, { parentUuid: f.sup, name: '   ' });
   assert(r400.status === 400 && r400.json && /name/.test(String(r400.json.error || '')),
-    `a blank name must answer 400 naming it (story criterion 3); got ${r400.status} ${short(r400.json || r400.raw)}.`);
+    `a blank name must answer 400 naming it (story criterion 3); got ${describeResponse(r400)} ${short(r400.json || r400.raw)}.`);
 
   const underHeader = `Nodeprim Misplaced ${f.stamp}`;
   const rLbl = loopbackRequest('POST', ROUTE, { parentUuid: f.header, name: underHeader });
   assert(rLbl.status === 400 && rLbl.json && /Superset|Set/.test(String(rLbl.json.error || '')),
-    `a parent that is neither a Superset nor a Set must answer 400 naming the rule (ADR decision 4); got ${rLbl.status} ${short(rLbl.json || rLbl.raw)}.`);
+    `a parent that is neither a Superset nor a Set must answer 400 naming the rule (ADR decision 4); got ${describeResponse(rLbl)} ${short(rLbl.json || rLbl.raw)}.`);
   assert(!nodeState(addressFor(f.ta, underHeader, f.header)).exists, 'the label-rejection path must create nothing.');
 });
 
@@ -874,7 +861,7 @@ t('H8 (AC-4): with members wired by add-relationship, Organization (Sets) lists 
   for (const m of [f.m1, f.m2, f.m3]) {
     const r = loopbackRequest('POST', ADD_REL_ROUTE, { fromUuid: f.alpha, toUuid: m, relType: 'HAS_ELEMENT' });
     assert(r.status === 200 && r.json && r.json.success === true,
-      `wiring ${m} into the set with add-relationship failed: ${r.status} ${short(r.json || r.raw)}.`);
+      `wiring ${m} into the set with add-relationship failed: ${describeResponse(r)} ${short(r.json || r.raw)}.`);
   }
 
   // (i) The Organization (Sets) view's own query (ConceptDag.jsx).
@@ -950,7 +937,7 @@ t('H10 (AC-5): after a firmware reinstall the set, its parent link, its membersh
   createdSetUuids.add(addr);
   const r = loopbackRequest('POST', ROUTE, { parentUuid: supUuid, name });
   assert(r.status === 200 && r.json && r.json.result === 'created',
-    `creating the set under nostr-kind failed: ${r.status} ${short(r.json || r.raw)}.`);
+    `creating the set under nostr-kind failed: ${describeResponse(r)} ${short(r.json || r.raw)}.`);
   for (const m of members) {
     const w = loopbackRequest('POST', ADD_REL_ROUTE, { fromUuid: addr, toUuid: m, relType: 'HAS_ELEMENT' });
     assert(w.status === 200 && w.json && w.json.success === true, `wiring ${m} failed: ${w.status} ${short(w.json || w.raw)}.`);

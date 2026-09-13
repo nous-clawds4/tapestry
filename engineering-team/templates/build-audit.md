@@ -37,7 +37,7 @@ The heart of the audit. Every place the built product differs from the anchor (P
 - <item> — `<file>` — no story/ADR provenance.
 
 ## 5. Quality state at close
-- Test gate: `npm test` result at close.
+- Test gate: `npm test` result at close — the run's `npm run gate:status` line (run id + verdict; [Running and reading the test gate](../README.md#running-and-reading-the-test-gate)).
 - Known open issues / accepted bugs (linked).
 - Debt logged by ADRs (`Consequences → new debt`), rolled up.
 

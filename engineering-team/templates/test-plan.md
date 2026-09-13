@@ -21,7 +21,7 @@ Things not in the acceptance criteria but still worth covering.
 - [ ] Concept handle not found.
 
 ## Test infrastructure
-- Test framework: Node built-in runner (`node test/test.js`) and/or Playwright.
+- Test framework: Node built-in runner (`node test/test.js`) and/or Playwright. A run's result is read per [Running and reading the test gate](../README.md#running-and-reading-the-test-gate).
 - Concept Graph API: `localhost:$TAPESTRY_PORT` (port per AGENTS.md §1), if the plan includes live-API tests. If the stack isn't running, note which suites were skipped.
 - Firmware state: <list any required `POST /api/firmware/install` precondition>.
 - Fixtures: <list>

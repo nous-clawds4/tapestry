@@ -63,6 +63,7 @@ const DRIVER_PATH = path.join(ROOT, 'src/lib/neo4j-driver.js');
 
 const HOST_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 const CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
 const CONTAINER_BASE = `http://127.0.0.1:${process.env.TAPESTRY_CONTAINER_PORT || '7778'}`;
 
 // The ratified initial whitelist (ADR decision 2): the two class-thread
@@ -214,26 +215,16 @@ function dockerCurl(args) {
 // POST via container loopback — the genuine local-operator path (host->:7778
 // is remote by design; ADR security-auth-exposure/0001).
 function loopbackPost(pathname, body) {
-  const out = dockerCurl([
-    '-s', '-m', '30', '-X', 'POST', `${CONTAINER_BASE}${pathname}`,
-    '-H', 'Content-Type: application/json',
-    '-d', JSON.stringify(body),
-    '-w', '\n__STATUS__%{http_code}',
-  ]);
-  const idx = out.lastIndexOf('\n__STATUS__');
-  const status = idx === -1 ? 0 : parseInt(out.slice(idx + 11), 10);
-  const raw = idx === -1 ? out : out.slice(0, idx);
-  let json = null;
-  try { json = JSON.parse(raw); } catch {}
-  return { status, json, raw };
+  return loopbackRequest({ container: CONTAINER, method: 'POST', url: `${CONTAINER_BASE}${pathname}`, body, timeoutS: 30 });
 }
 
 // Fixture Cypher rides the same loopback through the already-gated
 // POST /api/neo4j/query (localTrusted passes its write gate).
 function loopbackCypher(cypher, params = {}) {
-  const { status, json, raw } = loopbackPost('/api/neo4j/query', { cypher, params });
+  const res = loopbackPost('/api/neo4j/query', { cypher, params });
+  const { status, json, raw } = res;
   if (status !== 200 || !json || json.success !== true) {
-    throw new Error(`fixture Cypher via loopback /api/neo4j/query failed: status=${status} body=${short(json || raw)}`);
+    throw new Error(`fixture Cypher via loopback /api/neo4j/query failed: ${describeResponse(res)} body=${short(json || raw)}`);
   }
   return json.data || [];
 }
@@ -596,7 +587,7 @@ t('H1 (AC-1): ADD creates the relationship — 200 result:created, labels echoed
   const { uuidA, uuidB } = ensureFixtures();
   const r = loopbackPost(ADD_ROUTE, { fromUuid: uuidA, toUuid: uuidB, relType: 'HAS_ELEMENT' });
   assert(r.status === 200 && r.json && r.json.success === true,
-    `POST ${ADD_ROUTE} (container loopback) must answer 200 {success:true} — got status=${r.status}, ` +
+    `POST ${ADD_ROUTE} (container loopback) must answer 200 {success:true} — got ${describeResponse(r)}, ` +
     `body=${short(r.json || r.raw, 120)} — the add primitive is not implemented.`);
   assert(r.json.result === 'created',
     `first add between fresh nodes must report result:'created' (got ${short(r.json.result)}).`);
@@ -613,7 +604,7 @@ t('H2 (AC-1): repeating the identical ADD is idempotent — 200 result:already-e
   const { uuidA, uuidB } = ensureFixtures();
   const r = loopbackPost(ADD_ROUTE, { fromUuid: uuidA, toUuid: uuidB, relType: 'HAS_ELEMENT' });
   assert(r.status === 200 && r.json && r.json.success === true,
-    `repeat POST ${ADD_ROUTE} must answer 200 {success:true} — got status=${r.status}, ` +
+    `repeat POST ${ADD_ROUTE} must answer 200 {success:true} — got ${describeResponse(r)}, ` +
     `body=${short(r.json || r.raw, 120)} — the add primitive is not implemented.`);
   assert(r.json.result === 'already-existed',
     `the identical repeated add must report result:'already-existed' (AC-1); got ${short(r.json.result)}.`);
@@ -633,7 +624,7 @@ t('H3 (AC-2): DELETE removes ONLY the named type+direction between the pair — 
   );
   const r = loopbackPost(DELETE_ROUTE, { fromUuid: uuidA, toUuid: uuidB, relType: 'HAS_ELEMENT' });
   assert(r.status === 200 && r.json && r.json.success === true,
-    `POST ${DELETE_ROUTE} (container loopback) must answer 200 {success:true} — got status=${r.status}, ` +
+    `POST ${DELETE_ROUTE} (container loopback) must answer 200 {success:true} — got ${describeResponse(r)}, ` +
     `body=${short(r.json || r.raw, 120)} — the delete primitive is not implemented.`);
   assert(r.json.result === 'deleted' && r.json.deletedCount === 1,
     `delete-existing must report {result:'deleted', deletedCount:1} (got ${short(r.json)}).`);
@@ -652,7 +643,7 @@ t('H4 (AC-2): repeating the DELETE — the relationship no longer exists — rep
   const { uuidA, uuidB } = ensureFixtures();
   const r = loopbackPost(DELETE_ROUTE, { fromUuid: uuidA, toUuid: uuidB, relType: 'HAS_ELEMENT' });
   assert(r.status === 200 && r.json && r.json.success === true,
-    `repeat POST ${DELETE_ROUTE} must answer 200 {success:true} — got status=${r.status}, ` +
+    `repeat POST ${DELETE_ROUTE} must answer 200 {success:true} — got ${describeResponse(r)}, ` +
     `body=${short(r.json || r.raw, 120)} — the delete primitive is not implemented.`);
   assert(r.json.result === 'not-found' && r.json.deletedCount === 0,
     `repeat delete must report {result:'not-found', deletedCount:0} — an achieved end state, not an error (AC-2); got ${short(r.json)}.`);
@@ -665,9 +656,9 @@ t('H5 (AC-3): a nonexistent endpoint node yields 404 naming the missing uuid, an
   const { uuidA, missingUuid } = ensureFixtures();
   const r = loopbackPost(ADD_ROUTE, { fromUuid: uuidA, toUuid: missingUuid, relType: 'HAS_ELEMENT' });
   assert(r.json !== null,
-    `POST ${ADD_ROUTE} answered no JSON (status=${r.status}, body=${short(r.raw, 80)}) — the route is not implemented.`);
+    `POST ${ADD_ROUTE} answered no JSON (${describeResponse(r)}, body=${short(r.raw, 80)}) — the route is not implemented.`);
   assert(r.status === 404,
-    `an add against a uuid absent from Neo4j must answer 404 — got status=${r.status}, ` +
+    `an add against a uuid absent from Neo4j must answer 404 — got ${describeResponse(r)}, ` +
     `body=${short(r.json, 120)} — the existence check is not implemented.`);
   assert(r.json && r.json.success === false && Array.isArray(r.json.missing)
       && r.json.missing.includes(missingUuid) && !r.json.missing.includes(uuidA),
@@ -681,7 +672,7 @@ t('H6 (AC-3): a non-whitelisted relType is rejected 400 with the allowed list, f
   for (const [route, relType] of cases) {
     const r = loopbackPost(route, { fromUuid: uuidA, toUuid: uuidB, relType });
     assert(r.status === 400,
-      `POST ${route} with relType ${relType} must answer 400 — got status=${r.status}, ` +
+      `POST ${route} with relType ${relType} must answer 400 — got ${describeResponse(r)}, ` +
       `body=${short(r.json || r.raw, 120)} — the whitelist is not implemented.`);
     assert(r.json && r.json.success === false && Array.isArray(r.json.allowed)
         && ALLOWED_ALIASES.every((a) => r.json.allowed.includes(a)),
@@ -712,11 +703,11 @@ t('H8 (AC-5): a full add+delete cycle writes NO event to strfry — scan counts 
   const before = await strfryEventCount();
   const add = loopbackPost(ADD_ROUTE, { fromUuid: uuidA, toUuid: uuidB, relType: 'HAS_ELEMENT' });
   assert(add.status === 200 && add.json && add.json.result === 'created',
-    `bracketed add must succeed with result:'created' — got status=${add.status}, ` +
+    `bracketed add must succeed with result:'created' — got ${describeResponse(add)}, ` +
     `body=${short(add.json || add.raw, 120)} — the add primitive is not implemented.`);
   const del = loopbackPost(DELETE_ROUTE, { fromUuid: uuidA, toUuid: uuidB, relType: 'HAS_ELEMENT' });
   assert(del.status === 200 && del.json && del.json.result === 'deleted',
-    `bracketed delete must succeed with result:'deleted' — got status=${del.status}, body=${short(del.json || del.raw, 120)}.`);
+    `bracketed delete must succeed with result:'deleted' — got ${describeResponse(del)}, body=${short(del.json || del.raw, 120)}.`);
   const after = await strfryEventCount();
   assert(before === after,
     `NEITHER operation may write any event to strfry (AC-5): TA-authored scan count went ${before} -> ${after}. ` +
