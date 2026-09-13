@@ -18,6 +18,9 @@
  *   C7/C8 the shared stack-HTTP helper, through a fake `docker` on PATH.
  *   C9/C10, F  source contracts: the nine suites use the shared helper; the docs point
  *        at one recipe.
+ *   C11–C15 engine behaviour, added at the review kick-back (2026-09-13, review c6ed2b35):
+ *        the routes by which a run could still end with exit 0 and no verdict, and
+ *        malformed result counts.
  *
  * Pre-implementation every test fails with a message naming the missing piece and the
  * ADR section that defines it — never with an import crash. Nothing here requires the
@@ -431,6 +434,134 @@ test('C10 (AC-3): operational-direction H1 fails when nothing answers, instead o
   assert(/noResponse|describeResponse/.test(body),
     `H1 must fail when the stack gives no response. Today it asserts \`out.trim() !== '404'\`, which curl's 000 satisfies, so nothing answering PASSES. H1: ${short(body, 300)}`);
   assert(!/%\{http_code\}/.test(body), "H1 must not parse curl's status itself (ADR §6)");
+});
+
+/* ─── Added at the review kick-back, 2026-09-13 (review c6ed2b35, Blocking 1 and 2) ───
+ * Blocking 1: four reproduced routes by which a run still ended with exit 0 and no
+ * verdict — and the exit status is what CI and every launcher read. Blocking 2: a
+ * malformed count read PASS. Why each fixture is shaped as it is: gateFixtures.js. */
+
+/** What the one record in sc's record directory says, for failure messages. */
+function recordNote(sc) {
+  const recs = F.readRecords(sc.recordDir);
+  if (recs.length !== 1 || !recs[0].rec) {
+    return `the record directory holds ${recs.length} record(s)${recs.length === 1 ? ', unreadable' : ''}`;
+  }
+  const { rec } = recs[0];
+  const p = rec.progress || {};
+  return `the record reads state ${rec.state}, verdict ${rec.verdict}, exit ${rec.exitCode}, ${p.completed}/${p.total} suites finished`;
+}
+
+/** The run must end with exit `exit` (a number, or 'non-zero') and its verdict, Overall: FAIL, as the last line. */
+function endsFail(sc, r, why, { exit = 1, timeoutMs } = {}) {
+  const last = F.lastLine(r.stdout);
+  const timedOut = !!(r.error && r.error.code === 'ETIMEDOUT');
+  const exitOk = exit === 'non-zero' ? Number.isInteger(r.status) && r.status !== 0 : r.status === exit;
+  const ended = timedOut
+    ? `it was still going after ${timeoutMs / 1000} s and was killed (exit ${r.status}, signal ${r.signal})`
+    : `it exited ${r.status}${r.signal ? ` (signal ${r.signal})` : ''}`;
+  assert(!timedOut && exitOk && /^Overall: FAIL\b/.test(last),
+    `${why}: the run must end with ${exit === 'non-zero' ? 'a non-zero exit' : `exit ${exit}`} and with its verdict as the last line (Overall: FAIL …); ` +
+    `${ended}, its last line was ${JSON.stringify(last)}, and ${recordNote(sc)}. stderr: ${short(r.stderr)}`);
+}
+
+/** The record must hold the verdict and the exit status the run ended with. */
+function recordedFail(sc, r, why) {
+  const { rec } = onlyRecord(sc, why);
+  assert(rec.verdict === 'FAIL' && rec.exitCode === r.status,
+    `${why}: the record must hold what the run ended with — FAIL / exit ${r.status}; got ${rec.verdict} / exit ${rec.exitCode} (state ${rec.state})`);
+  return rec;
+}
+
+test('C11 (AC-3): when the engine itself fails — its run-record write throws mid-run — the run still ends with Overall: FAIL and a non-zero exit, never with exit 0 and no verdict', () => {
+  F.need('runner');
+  const sc = F.scenario();
+  try {
+    const marker = path.join(sc.dir, 'fault-fired');
+    const r = F.runEngineSync(sc,
+      [sc.suite('pass.test.js'), sc.suite('record-write-fault.test.js'), sc.suite('second-pass.test.js')],
+      { extraEnv: { GATE_FIXTURE_MARKER: marker } });
+    assert(F.readSafe(marker) !== null,
+      `precondition: the injected fault must fire — once record-write-fault has returned, the engine's next write into GATE_RECORD_DIR is refused; no write was (exit ${r.status}, last line ${JSON.stringify(F.lastLine(r.stdout))}). ` +
+      'If the engine now writes its record some other way, re-aim record-write-fault in test/helpers/gateFixtures.js');
+    endsFail(sc, r, "the engine's own failure (a run-record write that throws)", { exit: 'non-zero' });
+  } finally { sc.cleanup(); }
+});
+
+test('C12 (AC-3): a suite that calls process.exit while its module loads cannot end the run — it is that suite\'s FAIL, the suites around it still run and pass, and the exit is 1, not the 0 it asked for', () => {
+  F.need('runner');
+  const sc = F.scenario();
+  try {
+    const r = F.runEngineSync(sc, [sc.suite('pass.test.js'), sc.suite('exits-at-load.test.js'), sc.suite('second-pass.test.js')]);
+    const why = 'a process.exit(0) while loading';
+    endsFail(sc, r, why);
+    const byFile = F.entryMap(recordedFail(sc, r, why));
+    const bad = byFile['exits-at-load.test.js'];
+    assert(bad && bad.verdict === 'FAIL' && /process\.exit/.test(JSON.stringify(bad)),
+      `the suite that called process.exit while loading must be recorded FAIL with an error naming process.exit; got ${JSON.stringify(bad)}`);
+    const first = byFile['pass.test.js'];
+    const later = byFile['second-pass.test.js'];
+    assert(first && first.verdict === 'PASS' && first.pass === 2 && later && later.verdict === 'PASS' && later.pass === 1,
+      `the suites before and after it must still run and pass; their record entries are ${JSON.stringify(first)} and ${JSON.stringify(later)}`);
+  } finally { sc.cleanup(); }
+});
+
+test('C13 (AC-3): a process.exit(0) that the last suite leaves on a timer cannot end the run — it is recorded as a stray error, and the run ends Overall: FAIL with exit 1', () => {
+  F.need('runner');
+  const sc = F.scenario();
+  try {
+    const r = F.runEngineSync(sc, [sc.suite('pass.test.js'), sc.suite('deferred-exit.test.js')]);
+    const why = "the last suite's deferred process.exit(0)";
+    endsFail(sc, r, why);
+    const rec = recordedFail(sc, r, why);
+    const stray = JSON.stringify(rec.strayErrors || []);
+    assert(Array.isArray(rec.strayErrors) && rec.strayErrors.length >= 1 && /process\.exit/.test(stray),
+      `the deferred process.exit must be recorded in strayErrors (ADR §1); got ${short(stray)}`);
+  } finally { sc.cleanup(); }
+});
+
+test('C14 (AC-2): a suite whose run() never settles, holding nothing open, cannot end the run with exit 0 — the run ends Overall: FAIL with a non-zero exit, and its record reads FAIL, never PASS', () => {
+  F.need('runner');
+  const sc = F.scenario();
+  try {
+    const timeoutMs = 20000;
+    const r = F.runEngineSync(sc, [sc.suite('pass.test.js'), sc.suite('never-settles.test.js')], { timeoutMs });
+    const why = 'a run() that never settles';
+    endsFail(sc, r, why, { exit: 'non-zero', timeoutMs });
+    recordedFail(sc, r, why);
+  } finally { sc.cleanup(); }
+});
+
+test('C15 (AC-3): a suite reporting malformed counts — fail: NaN, a negative fail, a non-numeric skipped — is that suite\'s FAIL ("returned no result counts"), the next suite still runs, and the run exits 1', () => {
+  F.need('runner');
+  const problems = [];
+  for (const [name, returns] of [
+    ['nan-fail', '{ pass: 1, fail: NaN }'],
+    ['negative-fail', '{ pass: 1, fail: -1 }'],
+    ['string-skipped', "{ pass: 1, fail: 0, skipped: '4' }"],
+  ]) {
+    const sc = F.scenario();
+    try {
+      const r = F.runEngineSync(sc, [sc.suite(`${name}.test.js`), sc.suite('pass.test.js')]);
+      const recs = F.readRecords(sc.recordDir);
+      const byFile = F.entryMap(recs.length === 1 ? recs[0].rec : null);
+      const bad = byFile[`${name}.test.js`];
+      const later = byFile['pass.test.js'];
+      const got = [];
+      if (r.status !== 1) got.push(`the run exited ${r.status}`);
+      if (!/^Overall: FAIL\b/.test(F.lastLine(r.stdout))) got.push(`its last line was ${JSON.stringify(F.lastLine(r.stdout))}`);
+      if (!(bad && bad.verdict === 'FAIL' && /result counts/.test(JSON.stringify(bad)))) {
+        got.push(bad
+          ? `the suite is recorded ${bad.verdict} (pass ${JSON.stringify(bad.pass)}, fail ${JSON.stringify(bad.fail)}, skipped ${JSON.stringify(bad.skipped)}, error ${JSON.stringify(bad.error)})`
+          : 'the suite has no record entry');
+      }
+      if (!(later && later.verdict === 'PASS' && later.pass === 2)) got.push(`the suite after it is recorded ${JSON.stringify(later)}`);
+      if (got.length) problems.push(`run() returning ${returns}: ${got.join('; ')}`);
+    } finally { sc.cleanup(); }
+  }
+  assert(problems.length === 0,
+    'a count that is not a non-negative integer must make that suite FAIL with "returned no result counts" (ADR §1; review c6ed2b35, Blocking 2), ' +
+    `the next suite must still run, and the run must end Overall: FAIL with exit 1; got:\n      - ${problems.join('\n      - ')}`);
 });
 
 /* ═══ AC-4 — the numbers add up, and skips are visible ═════════════════════════ */

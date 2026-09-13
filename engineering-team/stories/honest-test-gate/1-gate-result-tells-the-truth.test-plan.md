@@ -3,6 +3,8 @@
 **Story:** `engineering-team/stories/honest-test-gate/1-gate-result-tells-the-truth.md`
 **ADR:** `engineering-team/decisions/honest-test-gate/0001-registry-runner-and-run-record.md`
 **Date:** 2026-09-12
+**Amended:** 2026-09-13 — `C11`–`C15` added at the review kick-back (review `c6ed2b35`); see
+§ "Amendment, 2026-09-13".
 
 ## The shape of this story, and who edits what
 
@@ -85,6 +87,11 @@ record it leaves.
 | AC-3 | `C8` the helper passes real statuses through: a 200 with `success:false` stays 200, a real 500 stays 500 | GRR | unit (fake docker) |
 | AC-3 | `C9` no suite derives a status from a body (`? 200 : 500`) or parses curl's status marker; the nine suites use the helper | GRR | source |
 | AC-3 | `C10` `operational-direction` H1 fails when nothing answers (today `000` passes) | GRR | source, region-scoped |
+| AC-3 | `C11` the engine's own failure (its run-record write throws mid-run) still ends `Overall: FAIL` with a non-zero exit; a precondition confirms the injected fault fired | GRR | engine, fault-injected |
+| AC-3 | `C12` a `process.exit(0)` at module load cannot end the run: that suite FAILs naming `process.exit`, the suites before and after it pass, exit 1, and the record reads FAIL/1 | GRR | engine |
+| AC-3 | `C13` a `process.exit(0)` the last suite leaves on a timer is a stray error (`strayErrors` names `process.exit`): `Overall: FAIL`, exit 1, and the record reads FAIL/1 | GRR | engine |
+| AC-2 | `C14` a `run()` that never settles and holds nothing open ends `Overall: FAIL` with a non-zero exit, and the record reads FAIL with that exit, never PASS; the spawn is bounded at 20 s | GRR | engine, bounded |
+| AC-3 | `C15` `fail: NaN`, `fail: -1` and `skipped: '4'` each make that suite FAIL with `returned no result counts`; the next suite still runs; `Overall: FAIL`, exit 1 | GRR | engine |
 | AC-4 | `D1` totals equal the per-suite sums, and every result line shows passed/failed/skipped | GRR | engine |
 | AC-4 | `D2` the verdict line states the skipped total (0 vs 3), plus `Total skipped:` | GRR | engine |
 | AC-4 | `D3` a skip-only suite reads SKIP and leaves the verdict PASS; a failing suite with skips reads FAIL with its count | GRR | engine |
@@ -111,6 +118,10 @@ record it leaves.
       records at all (`A8`).
 - [x] A green run with skips vs a green run without (`D2`); a failure hiding among skips (`D3`, `G7`).
 - [x] A failure at every position in the registry (`G6`); a suite file nobody registered (`G5`).
+- [x] *Added 2026-09-13:* each way the review found that a run could still end with exit 0 and no
+      verdict: the engine's own exception (`C11`), `process.exit` while loading (`C12`), a deferred
+      `process.exit` from the last suite (`C13`), and a `run()` that never settles and holds nothing
+      open (`C14`). Also counts that are not non-negative integers (`C15`).
 
 ## Deliberately not automated — the Reviewer verifies
 
@@ -127,6 +138,13 @@ record it leaves.
   writes cover every handle type, and the Reviewer eyeballs one terminal run.
 - **Doc wording.** `F1`/`F2` pin the pointer and the absence of `PIPESTATUS`. Whether each doc's
   prose is right is a Reviewer read.
+- **How `test/test.js` handles a rejected `runGate`** *(added 2026-09-13)*. The guards drive the
+  engine through the fixture driver. When `runGate` rejects, that driver falls back to exiting 99, so
+  the guards cannot see that `test/test.js` has no such fallback: through it, the review's route 1
+  exits 0. Instead, `C11` requires the engine itself to end with a verdict and a non-zero exit, which
+  leaves the entry point nothing to catch. The Reviewer confirms that `test/test.js` cannot end 0
+  without a verdict, e.g. by driving `runGate` over `record-write-fault` the way `test/test.js` does,
+  with no `.catch`.
 
 ## Satisfiability check — the suite was run against a throwaway, ADR-faithful sketch
 
@@ -252,3 +270,111 @@ stack-free-npm-test (re-aimed):
   ✗ G6 / G7 — test/helpers/gateRunner.js does not exist yet — the engine … (… §1).
   RESULT {"pass":2,"fail":4,"skipped":1}
 ```
+
+## Amendment, 2026-09-13 — guards added at the review kick-back (review `c6ed2b35`)
+
+The review (`engineering-team/reviews/honest-test-gate/1-gate-result-tells-the-truth.md`, § Findings,
+Blocking) sent the story back to implementation with two blocking edges, and the operator approved
+the kick-back. Under the ADR's carve-out, the Tester adds the failing guards first. The Implementer
+then fixes the engine, and still must not modify `test/gate-result-record.test.js` or
+`test/helpers/gateFixtures.js`.
+
+- **Blocking 1:** the review reproduced four routes by which a run still ends with exit status 0
+  and no verdict. That breaks AC-2 ("any exit status it returns is non-zero") and AC-3 ("the final
+  verdict and exit status are still produced"). `C11`–`C14` cover the four.
+- **Blocking 2:** a malformed count reads PASS, where the old runner failed it. `C15` covers it.
+
+The suite now has 34 tests, and seven fixtures were added to `FIXTURE_SOURCES`. Every new test:
+- spawns the engine through the existing driver;
+- runs stack-free;
+- judges only what a launcher or a reader sees: the exit status, the last output line, per-suite
+  verdicts and record fields.
+
+| Test | Registry | Asserts | At `c6ed2b35` |
+|---|---|---|---|
+| `C11` | `pass`, `record-write-fault`, `second-pass` | a non-zero exit; the last line is `Overall: FAIL` | exit 99, the driver's fallback for a rejected `runGate` (0 through `test/test.js`, per the review); no verdict line |
+| `C12` | `pass`, `exits-at-load`, `second-pass` | exit 1; `Overall: FAIL`; the record reads FAIL/1; that entry is FAIL, naming `process.exit`; the other two PASS | exit 0 while loading; the last line is the run's first |
+| `C13` | `pass`, `deferred-exit` (last) | exit 1; `Overall: FAIL`; the record reads FAIL/1; `strayErrors` names `process.exit` | exit 0; no verdict line |
+| `C14` | `pass`, `never-settles` | a non-zero exit within 20 s; `Overall: FAIL`; the record reads FAIL with that exit | exit 0 once the event loop drains; the record is left `running` |
+| `C15` | `nan-fail`, `negative-fail`, `string-skipped`, each followed by `pass` | that entry is FAIL with `result counts`; `pass` is PASS; `Overall: FAIL`; exit 1 | each reads PASS; exit 0 |
+
+Fixture notes:
+- **`record-write-fault`** refuses every write under `GATE_RECORD_DIR`, by its given path and its real
+  path. It does this through every `fs` write entry point (sync, callback and promise), so the guard
+  does not depend on how the engine writes its record. It marks `GATE_FIXTURE_MARKER` on its first
+  refusal, and `C11` fails with a re-aim message if the fault never fired.
+- **`C11` does not read the record.** The fault leaves the record unwritable, so the reader reports the
+  run UNFINISHED.
+- **`C14`'s spawn is bounded at 20 s**, so a regression that keeps the run alive fails instead of
+  hanging the suite.
+
+### Pre-fix verification — Node 16.17.0, `c6ed2b35` plus these guards
+
+The run used `node -e "require('./test/gate-result-record.test.js').run()…"` from the repo root. The
+existing 29 pass and the five new tests fail, each for its stated reason. The 29 PASS lines are
+collapsed, and temp paths are shortened to `$TMPDIR/`:
+
+```
+--- gate result record tests (epic honest-test-gate, Story 1) ---
+  [22 PASS lines: A1–A8, B1–B4, C1–C10]
+  FAIL  C11 (AC-3): when the engine itself fails — its run-record write throws mid-run — the run still ends with Overall: FAIL and a non-zero exit, never with exit 0 and no verdict
+        the engine's own failure (a run-record write that throws): the run must end with a non-zero exit and with its verdict as the last line (Overall: FAIL …); it exited 99, its last line was "[2/3] record-write-fault: PASS (1 passed, 0 failed, 0 skipped) 1ms", and the record reads state running, verdict null, exit null, 1/3 suites finished. stderr: driver: runGate rejected: Error: injected record-write failure (fixture: record-write-fault)
+    at Object.api.<computed> [as writeFileSync] ($TMPDIR/g…
+  FAIL  C12 (AC-3): a suite that calls process.exit while its module loads cannot end the run — it is that suite's FAIL, the suites around it still run and pass, and the exit is 1, not the 0 it asked for
+        a process.exit(0) while loading: the run must end with exit 1 and with its verdict as the last line (Overall: FAIL …); it exited 0, its last line was "Gate run 20260913T051214Z-49476-d557 — record: $TMPDIR/gate-guard-vxLG2T/records/20260913T051214Z-49476-d557.json", and the record reads state running, verdict null, exit null, 0/3 suites finished. stderr: 
+  FAIL  C13 (AC-3): a process.exit(0) that the last suite leaves on a timer cannot end the run — it is recorded as a stray error, and the run ends Overall: FAIL with exit 1
+        the last suite's deferred process.exit(0): the run must end with exit 1 and with its verdict as the last line (Overall: FAIL …); it exited 0, its last line was "[2/2] deferred-exit: PASS (1 passed, 0 failed, 0 skipped) 1ms", and the record reads state running, verdict null, exit null, 2/2 suites finished. stderr: 
+  FAIL  C14 (AC-2): a suite whose run() never settles, holding nothing open, cannot end the run with exit 0 — the run ends Overall: FAIL with a non-zero exit, and its record reads FAIL, never PASS
+        a run() that never settles: the run must end with a non-zero exit and with its verdict as the last line (Overall: FAIL …); it exited 0, its last line was "▶ [2/2] never-settles", and the record reads state running, verdict null, exit null, 1/2 suites finished. stderr: 
+  FAIL  C15 (AC-3): a suite reporting malformed counts — fail: NaN, a negative fail, a non-numeric skipped — is that suite's FAIL ("returned no result counts"), the next suite still runs, and the run exits 1
+        a count that is not a non-negative integer must make that suite FAIL with "returned no result counts" (ADR §1; review c6ed2b35, Blocking 2), the next suite must still run, and the run must end Overall: FAIL with exit 1; got:
+      - run() returning { pass: 1, fail: NaN }: the run exited 0; its last line was "Overall: PASS — 3 passed, NaN failed, 0 skipped across 2 suites · record $TMPDIR/gate-guard-JCZR9G/records/20260913T051214Z-49488-2508.json"; the suite is recorded PASS (pass 1, fail null, skipped 0, error null)
+      - run() returning { pass: 1, fail: -1 }: the run exited 0; its last line was "Overall: PASS — 3 passed, -1 failed, 0 skipped across 2 suites · record $TMPDIR/gate-guard-puzfnl/records/20260913T051214Z-49492-652f.json"; the suite is recorded PASS (pass 1, fail -1, skipped 0, error null)
+      - run() returning { pass: 1, fail: 0, skipped: '4' }: the run exited 0; its last line was "Overall: PASS — 3 passed, 0 failed, 0 skipped across 2 suites · record $TMPDIR/gate-guard-4G8dVQ/records/20260913T051214Z-49496-684e.json"; the suite is recorded PASS (pass 1, fail 0, skipped 0, error null)
+  [7 PASS lines: D1–D3, E1, E2, F1, F2]
+
+gate-result-record: 29 passed, 5 failed, 0 skipped
+{"pass":29,"fail":5,"skipped":0}
+```
+
+On Node 22.23.2, CI's version, the same run gave the same counts: 29 passed, 5 failed, 0 skipped.
+The same five tests failed for the same reasons, and `C11` again exited 99.
+
+### Satisfiability and mutation check
+
+As in Phase 3, the guards were run against a throwaway sketch in a scratch git worktree. The
+worktree was removed afterwards, and nothing from it is committed. The sketch is `c6ed2b35`'s engine
+with the review's asked changes:
+- every engine path ends through the real exit, with a verdict (a catch-all around the run);
+- `process.exit` is trapped from the load phase until the engine's own exit;
+- an `'exit'` guard, while the run is unsettled, forces exit 1, marks the record FAIL synchronously
+  and prints the verdict line;
+- counts are accepted only as non-negative integers, and `fail === 0` is the pass check.
+
+Against the sketch, the suite gave **34 passed / 0 failed / 0 skipped** on Node 16.17.0. With one
+change turned off at a time:
+
+| Turned off | Tests that went red |
+|---|---|
+| count validation | `C15` |
+| the trap from load to exit (trapped only while `run()` runs, as at `c6ed2b35`) | `C12`: the run ends during load, so no suite runs. `C13`: `strayErrors` stays empty |
+| the `'exit'` guard | `C14` |
+| the catch-all | none: the `'exit'` guard alone still ends route 1 with FAIL/1 |
+| the catch-all and the `'exit'` guard | `C11` (exit 0), `C14` |
+
+### Findings the Implementer should know
+
+These are facts about the asked changes, not extra requirements.
+
+1. **A trap kept until the engine's own exit also traps a caller's fallback.** In the last row above,
+   `runGate` rejected, and the driver's `.catch(() => process.exit(99))` hit the trap. The exit threw,
+   and the engine's own `unhandledRejection` listener swallowed the rejection. The run ended 0. A
+   `.catch` added to `test/test.js` would be swallowed the same way, so every engine path must end
+   through the real exit itself.
+2. **`C11` pins the outcome, not the mechanism.** Either a catch-all inside `runGate` or an `'exit'`
+   guard satisfies it.
+3. **An `'exit'` guard alone does not satisfy `C12` or `C13`.** It turns both routes into exit 1,
+   but a load-time exit still ends the run before any suite runs, and a deferred exit leaves no stray
+   error. The trap has to cover the load phase and the tail of the run.
+4. **Setting `process.exitCode` inside an `'exit'` listener changes the exit status.** That is how the
+   sketch's guard turned route 4's drained event loop into exit 1.

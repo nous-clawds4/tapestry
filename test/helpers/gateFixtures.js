@@ -111,6 +111,62 @@ const FIXTURE_SOURCES = {
   'env-reader.test.js':
     'const SEEN_AT_LOAD = process.env.GATE_FIXTURE_ENV_PROBE;\n' +
     'module.exports = { run: async () => (SEEN_AT_LOAD === undefined ? { pass: 1, fail: 0 } : { pass: 0, fail: 1 }) };\n',
+
+  /* ── Added at the review kick-back, 2026-09-13 (review c6ed2b35, Blocking 1 and 2) ── */
+
+  // Blocking 1, route 1 — the engine's own failure. From its run() on, every write into the
+  // run's record directory throws, whichever fs entry point it goes through (sync, callback
+  // or promise; both the given and the real path of the directory). Then it passes, so the
+  // engine's next record write is the one that fails. The first refused write is marked in
+  // GATE_FIXTURE_MARKER, so the guard can tell that the fault fired.
+  'record-write-fault.test.js':
+    "const fs = require('fs');\n" +
+    "const path = require('path');\n" +
+    "if (!process.env.GATE_RECORD_DIR) throw new Error('record-write-fault needs GATE_RECORD_DIR');\n" +
+    'const DIRS = [path.resolve(process.env.GATE_RECORD_DIR), fs.realpathSync(process.env.GATE_RECORD_DIR)].map((d) => d + path.sep);\n' +
+    "const inDir = (p) => typeof p === 'string' && DIRS.some((d) => path.resolve(p).startsWith(d));\n" +
+    "const writes = (f) => (typeof f === 'number' ? (f & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) !== 0 : typeof f === 'string' && /[wa+]/.test(f));\n" +
+    'const one = (a) => inDir(a[0]);\n' +
+    'const opening = (a) => inDir(a[0]) && writes(a[1]);\n' +
+    'const either = (a) => inDir(a[0]) || inDir(a[1]);\n' +
+    'const mark = fs.writeFileSync;\n' +
+    'let fired = false;\n' +
+    'function trap(api, names, refused, promised) {\n' +
+    '  for (const n of names) {\n' +
+    '    const real = api[n];\n' +
+    "    if (typeof real !== 'function') continue;\n" +
+    '    api[n] = function (...args) {\n' +
+    '      if (!refused(args)) return real.apply(this, args);\n' +
+    '      if (!fired && process.env.GATE_FIXTURE_MARKER) { fired = true; mark(process.env.GATE_FIXTURE_MARKER, String(Date.now())); }\n' +
+    "      const e = new Error('injected record-write failure (fixture: record-write-fault)');\n" +
+    '      if (promised) return Promise.reject(e);\n' +
+    '      throw e;\n' +
+    '    };\n' +
+    '  }\n' +
+    '}\n' +
+    'module.exports = { run: async () => {\n' +
+    "  trap(fs, ['writeFileSync', 'appendFileSync', 'writeFile', 'appendFile'], one, false);\n" +
+    "  trap(fs, ['openSync', 'open'], opening, false);\n" +
+    "  trap(fs, ['renameSync', 'copyFileSync', 'rename', 'copyFile'], either, false);\n" +
+    "  trap(fs.promises, ['writeFile', 'appendFile'], one, true);\n" +
+    "  trap(fs.promises, ['open'], opening, true);\n" +
+    "  trap(fs.promises, ['rename', 'copyFile'], either, true);\n" +
+    '  return { pass: 1, fail: 0 };\n' +
+    '} };\n',
+  // Blocking 1, route 2 — ends the process while the engine is still loading suites.
+  'exits-at-load.test.js':
+    'process.exit(0); // (fixture: exits-at-load) runs while the engine loads suites, before any has run\n' +
+    'module.exports = { run: async () => ({ pass: 1, fail: 0 }) };\n',
+  // Blocking 1, route 3 — passes, leaving a process.exit(0) behind on a timer. Registered
+  // last, the timer fires after this suite's run() has returned.
+  'deferred-exit.test.js':
+    'module.exports = { run: async () => { setTimeout(() => process.exit(0), 0); return { pass: 1, fail: 0 }; } };\n',
+  // Blocking 1, route 4 — a run() that never settles and holds no timer or handle open.
+  'never-settles.test.js': 'module.exports = { run: () => new Promise(() => {}) };\n',
+  // Blocking 2 — counts that are not non-negative integers.
+  'nan-fail.test.js': 'module.exports = { run: async () => ({ pass: 1, fail: NaN }) };\n',
+  'negative-fail.test.js': 'module.exports = { run: async () => ({ pass: 1, fail: -1 }) };\n',
+  'string-skipped.test.js': "module.exports = { run: async () => ({ pass: 1, fail: 0, skipped: '4' }) };\n",
 };
 
 const DRIVER_SOURCE =
