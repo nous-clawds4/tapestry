@@ -140,6 +140,56 @@ Origin drift at planning: the branch is 40 commits behind `origin/staging`, whic
 
 The merge before the staging PR renumbers this book's colliding rows (276–279). Rows 280 and 292–294 are clear.
 
+## Deviations
+A separate Implementer agent wrote the code from ADR 0006 (with Amendment 1) and the tests at `126f3f8a`, not from the
+Tester's sketch. These are the calls it made where the ADR or the tests left room:
+1. **The Origin guard compares host names, not host and port** (§1, guard 1). nginx forwards `Host $host`, without the
+   port, and the UI's dev proxy rewrites Host (`changeOrigin: true`). A port-sensitive check would refuse every browser
+   publish behind nginx on a non-default port. An Origin that doesn't parse, `null` included, is refused.
+2. **Guard 4's order.** A malformed body gets 400, then another user's list 403, then more than 50 intents 413. The
+   upgrade counts toward the 50; the browser sends it alone anyway. `validateUpdateBody` returns the validated body with
+   its 413, so the handler can check the list's owner first.
+3. **A header that names no one shared list gets 409 `{ stale }`** (§2 says "refused"). That covers none in either
+   place, the marker alone, two real links, and a real link that isn't a kind-39998 coordinate. The browser then shows
+   the fresh preview, which names the header's problem.
+4. **Two stale checks beside §2's.**
+   - A copy whose derived address already holds an item that isn't a copy (no `q`) is stale, as well as one that holds a
+     copy of that version. This is Amendment 1's "Update never touches a hand-added item", applied to the copy's address.
+   - A refresh whose copy already carries that version's `q` is stale: the refresh is already done (AC-4).
+5. **Publishing.**
+   - The relays still get an event whose local import failed (the test plan leaves this open); each place is reported
+     on its own.
+   - A relay gets one connection per call (`Relay.connect`, then `publish`), at most 4 in flight. So a dead relay in
+     `aDListRelays` costs one connection attempt, not one per event, and a call stays inside nginx's 60 seconds.
+   - The real `scan` rejects on a non-zero exit, where the header endpoint's `scanLocal` ignores it.
+6. **Read-back** (§4).
+   - A place that took an event but couldn't be read back is `failed`, "sent, but couldn't read it back: <reason>". §4's
+     statuses have no word for "unconfirmed".
+   - A deletion's copy is re-read once per place, by the deleted copies' d-tags. A version still counts as there if its
+     id was named or it is no newer than the request. If that read fails, `copy` is left unset.
+7. **Limits.** Only Amendment 1's three reads carry `limit: 500`. The header read (one address) and the by-id
+   read-backs carry none.
+8. **The re-check waits for fresh reads** (§7, steps 1–2).
+   - `useListItems` now reports `loading` until the current key's read is in. Before, it kept the old lists and said
+     "not loading" in the render right after a key change.
+   - The plan is fed only reads that are in for the current epoch.
+   - The detail page's `headerState.state` is `checking` while the header lookup re-reads.
+
+   Without these, the fresh plan could settle on answers read before the press.
+9. **The deletion-request read** is a local hook in the items module (note 4 places it there).
+   - A failed or capped source shows "⚠️ Couldn't check …" above the table, so a missing flag never reads as "no
+     deletion requested". The ADR names no such line.
+   - A copy is flagged when a request names its id, or its address with the request's `created_at` at or after the
+     copy's (NIP-09). So a copy re-made after an old deletion isn't flagged.
+   - The flag's place is "this instance" when any version came from this instance's strfry, else the list's relay.
+     `lookupListItems` records only `local`, so a copy that both places still show names this instance.
+10. **The browser's words beyond §7's.** A whole call refused other than by 409 reads "⚠️ Publishing stopped: <reason>",
+    and a 503 reads "⚠️ Publishing stopped — couldn't check …". The upgrade's result is named "your assistant's header".
+    Closing the preview clears a run that isn't sending, so reopening it never sends an old approval.
+11. **The panel keeps its second sentence**, "Revoke or hand-edit before adding this one.", after the new 409 sentence
+    (§9). AC-10 keeps the panel as it is otherwise.
+12. **Not done:** §10's optional scratch-stack check of the local `a` form. The brief ruled out Docker.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/6-update-list-publishes.test-plan.md`

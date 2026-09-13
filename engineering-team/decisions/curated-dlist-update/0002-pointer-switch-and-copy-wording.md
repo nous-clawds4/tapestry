@@ -1,12 +1,14 @@
 # ADR 0002: The pointer switch — the endpoint writes `pointer` and accepts the older link as existing; one link-type rule for the UI; "already copied" by `q`; "copy" in the words
 
-**Status:** Accepted
+**Status:** Accepted (its Consequences' "which headers the upgrade takes" superseded by `curated-dlist-update` ADR 0006)
 **Date:** 2026-09-12
 **Story:** `engineering-team/stories/curated-dlist-update/2-pointer-header-and-copy-wording.md`
 **Supersedes in part:** `dlist-curation` ADR 0004 (the contract `b` type and its "exact" rule),
 `dlist-curation` ADR 0006 (the "inherits from" line), `my-curated-dlists` ADR 0002 (the `wrong-type`
 rule) and `my-curated-dlists` ADR 0003 (sub-decision 2's any-tag "already copied" rule, and Amendment 1's
 sentence wording) — Decision §8.
+
+> **Superseded in part (2026-09-13):** its Consequences say Update upgrades exactly the headers `classifyExisting` and `describeCurationHeader` mark as `older`; the house rule gates the upgrade now (a real `b` beats the `b-tag-deferred` sentinel, so a header carrying both is upgraded too), and the upgrade drops the sentinel — `curated-dlist-update` ADR 0006.
 
 ## Context
 

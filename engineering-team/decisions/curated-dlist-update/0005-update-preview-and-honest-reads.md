@@ -1,6 +1,6 @@
 # ADR 0005: The Update preview — honest reads, and one planner over the panel's verdicts
 
-**Status:** Accepted
+**Status:** Accepted (§7's entries and §8's closing line superseded by `curated-dlist-update` ADR 0006)
 **Date:** 2026-09-13
 **Story:** `engineering-team/stories/curated-dlist-update/5-update-list-preview.md`
 **Amended by:** Amendment 1 (2026-09-13): §7's precedence — the header's own states decide before pending reads.
@@ -8,6 +8,8 @@ Amendment 2 (2026-09-13): the panel waits for my list and names its gaps (§6); 
 **Supersedes in part:** `curated-dlist-update` ADR 0004 (§2, one vote filter per source; §3, `useTrustWeights`
 unchanged; §4's words for a failed vote source, by Amendment 2; §7's reading of "the shared list read cleanly") and
 `my-curated-dlists` ADR 0003 (sub-decision 8, the Update list button as a disabled placeholder). See Decision §9.
+
+> **Superseded in part (2026-09-13):** §7's entries gain their pins — copy and refresh entries carry `version`, the original's current id; delete entries carry `copyId`; and the upgrade is `{ dropsMarker }`, not `true` — and §8's closing line, "Nothing is signed: publishing isn't built yet.", goes — `curated-dlist-update` ADR 0006.
 
 ## Context
 

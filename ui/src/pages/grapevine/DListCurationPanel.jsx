@@ -260,7 +260,7 @@ function DListCurationBody({ event, entries, userPubkey, assistantPubkey, relayH
         <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', border: '1px solid #f85149', borderRadius: '6px', backgroundColor: 'rgba(248, 81, 73, 0.08)', color: '#f85149', fontSize: '0.85rem' }}>
           {error.kind === 'conflict' ? (
             <>
-              <div>Your assistant already has a header for this list pointing elsewhere; it was not re-pointed. Revoke or hand-edit before adding this one.</div>
+              <div>Your assistant already has a header for this list with a different link; it was not changed. Revoke or hand-edit before adding this one.</div>
               {(error.b || []).map((t, i) => <div key={i} style={{ ...mono, marginTop: '0.25rem' }}>{JSON.stringify(t)}</div>)}
             </>
           ) : (

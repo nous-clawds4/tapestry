@@ -312,6 +312,9 @@ function createAuthorCurationHeaderHandler(deps = {}) {
 
 function register(app) {
   app.post(ROUTE, createAuthorCurationHeaderHandler());
+  // curated-dlist-update #6 (ADR 0006 §1): Update list's publish, beside the header route and inside test RE1's
+  // exclusion (test/publish-export-a-concept.test.js). Its own module: ./update.js.
+  app.post('/api/dlist-curation/update', require('./update').createUpdateHandler());
 }
 
 module.exports = {

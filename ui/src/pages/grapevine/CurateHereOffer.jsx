@@ -23,6 +23,8 @@ const REASON_TAILS = {
   deferred: ": its assistant's header is marked deliberately unaffiliated.",
   // ADR 0003 Amendment 1: the header points at a list that cannot be curated under this entry.
   target: ": its assistant's header doesn't point at a kind-39998 list with the same d-tag.",
+  // curated-dlist-update ADR 0006 §8 (R2-2): the header endpoint refuses to curate a shared list by the viewer or their assistant.
+  own: ": the shared list it curates is yours, or your assistant's.",
 };
 
 /**

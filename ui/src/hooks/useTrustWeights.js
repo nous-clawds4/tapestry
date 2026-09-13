@@ -8,6 +8,8 @@
  * For "trusted-assertions-rank": weight = rank/100 from kind 30382 events
  * For "trusted-list": weight = 1 if pubkey is in selected kind 30392 Trusted List, else 0
  * For "trust-everyone": weight = 1 for all pubkeys
+ *
+ * `epoch` (optional; curated-dlist-update ADR 0006 §7): a caller bumps it to have the weights read again.
  */
 import { useState, useEffect, useRef } from 'react';
 import { useTrust } from '../context/TrustContext';
@@ -15,7 +17,7 @@ import { queryRelay } from '../api/relay';
 
 const FETCH_TIMEOUT_MS = 8000;
 
-export default function useTrustWeights(pubkeys) {
+export default function useTrustWeights(pubkeys, epoch) {
   const { povPubkey, scoringMethod, trustedListId } = useTrust();
   const [weights, setWeights] = useState({});
   const [loading, setLoading] = useState(false);
@@ -226,7 +228,7 @@ export default function useTrustWeights(pubkeys) {
 
     resolve();
     return () => { cancelled = true; };
-  }, [pubkeys, povPubkey, scoringMethod, trustedListId]);
+  }, [pubkeys, povPubkey, scoringMethod, trustedListId, epoch]);
 
   return { weights, loading, error, povPubkey, scoringMethod };
 }

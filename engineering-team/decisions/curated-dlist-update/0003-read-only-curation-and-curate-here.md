@@ -1,6 +1,6 @@
 # ADR 0003: Another assistant's curation — a read-only mode of the same detail page, seen through the curator's pubkey, with an inline offer to curate it here
 
-**Status:** Accepted
+**Status:** Accepted (Option C's follow-up closed, and §5's availability gaining `own`, by `curated-dlist-update` ADR 0006)
 **Date:** 2026-09-12
 **Story:** `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.md`
 **Supersedes in part:** `my-curated-dlists` ADR 0001 (sub-decision 4's `no-assistant` and `other-pubkey`
@@ -8,6 +8,8 @@ front-door statuses, and the closed list rows) and `dlist-curation` ADR 0005 (th
 words) — Decision §8; by Amendment 1, also `my-curated-dlists` ADRs 0002 and 0003 (the page's single write).
 **Amended by:** Amendment 1 (2026-09-12, at the end) — §5's offer checks its target; §8 adds
 `my-curated-dlists` ADRs 0002 and 0003; the Security bullet counts the offer's writes.
+
+> **Superseded in part (2026-09-13):** Option C's recorded follow-up is closed — Update signs on the server, so it isn't a third caller of the panel's sequence; and §5's availability gains `own`, after `target`: a curating header that points at a header by the viewer's own key, or by their assistant here, gets "You can't curate it here: the shared list it curates is yours, or your assistant's." — `curated-dlist-update` ADR 0006.
 
 ## Context
 

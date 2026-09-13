@@ -14,25 +14,28 @@ async function fetchRelay(filter, url) {
 /**
  * The items of DList coordinates — my-curated-dlists #3, ADR 0003 note 2: the pure `lookupListItems`
  * bound to this instance's bounded strfry scan (so a capped read is reported) and the community
- * relay. Keyed on the coordinates and the relay, not the array's identity. Read-only.
+ * relay. Keyed on the coordinates and the relay, not the array's identity, and on `epoch`: each bump
+ * re-reads (curated-dlist-update ADR 0006 §7). Until a key's read is in, `loading` is true and the lists
+ * are the previous key's. Read-only.
  *
  * @param {string[]} coords
  * @param {string} relay  the community relay
+ * @param {number} [epoch]  bumped to read again
  * @returns {{ lists: Object, loading: boolean }}  `lists[coord]` is undefined until read
  */
-export default function useListItems(coords, relay) {
+export default function useListItems(coords, relay, epoch = 0) {
   const list = Array.isArray(coords) ? coords.filter(Boolean) : [];
-  const key = `${list.join('|')}@${relay || ''}`;
-  const [state, setState] = useState({ lists: {}, loading: false });
+  const key = `${list.join('|')}@${relay || ''}#${epoch}`;
+  const [state, setState] = useState({ lists: {}, loading: false, key: null });
 
   useEffect(() => {
-    if (list.length === 0) { setState({ lists: {}, loading: false }); return undefined; }
+    if (list.length === 0) { setState({ lists: {}, loading: false, key }); return undefined; }
     let cancelled = false;
-    setState((s) => ({ lists: s.lists, loading: true }));
+    setState((s) => ({ ...s, loading: true }));
     lookupListItems(list, { scanLocal: queryRelayBounded, fetchRelay }, relay)
-      .then((lists) => { if (!cancelled) setState({ lists, loading: false }); });
+      .then((lists) => { if (!cancelled) setState({ lists, loading: false, key }); });
     return () => { cancelled = true; };
-  }, [key]); // the coordinates and the relay are the identity (see above)
+  }, [key]); // the coordinates, the relay and the epoch are the identity (see above)
 
-  return state;
+  return { lists: state.lists, loading: state.loading || state.key !== key };
 }

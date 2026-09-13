@@ -439,10 +439,11 @@ export function parseCoordinate(coord) {
  *
  * `deferred` and the value forms come from the house owner (`bDisposition.js`; ADR 0003 sub-decision
  * 9): `b-tag-deferred` counts only when it stands alone — a real `b` (a coordinate or an event id)
- * supersedes it.
+ * supersedes it. `marker` (curated-dlist-update ADR 0006 §7) is that sentinel beside a real `b`: the real
+ * link still wins, and Update's upgrade drops the marker.
  *
  * @returns {{ authoredByAssistant: boolean, pointer: {coord, type, kind, pubkey, d}|null,
- *             deferred: boolean, problems: string[], notes: string[] }}
+ *             deferred: boolean, problems: string[], notes: string[], marker: boolean }}
  */
 export function describeCurationHeader(event, assistantPubkey) {
   const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
@@ -463,6 +464,7 @@ export function describeCurationHeader(event, assistantPubkey) {
     deferred: dispositionOf(values).deferred,
     problems,
     notes,
+    marker: forms.includes('sentinel') && forms.some((f) => f === 'a-tag' || f === 'event-id'),
   };
 }
 
@@ -614,14 +616,16 @@ export function sharedListUnavailable(assistantLookup, info) {
 /**
  * Whether a read-only list offers "curate it here instead" (curated-dlist-update ADR 0003 §5): only with
  * an assistant here, for a kind-39998 list, whose curating assistant's header points at a kind-39998
- * header with the list's own d-tag — the target the offer curates (Amendment 1). Precedence:
- * `no-assistant` → `kind` → the header's states, as `sharedListUnavailable` reads them (`checking`, then
- * `failed` / `missing` / `no-pointer` / `deferred`) → `target`. Never throws.
+ * header with the list's own d-tag — the target the offer curates (Amendment 1) — that is neither the
+ * viewer's own (`viewerPubkey`) nor my assistant's here: the header endpoint refuses those, so the offer
+ * would dead-end (curated-dlist-update ADR 0006 §8, R2-2). Precedence: `no-assistant` → `kind` → the
+ * header's states, as `sharedListUnavailable` reads them (`checking`, then `failed` / `missing` /
+ * `no-pointer` / `deferred`) → `target` → `own`. Never throws.
  *
  * @returns {{status:'available', target:string} | {status:'checking'} | {status:'unavailable', reason:string}}
  */
 export function curateHereOffer(input) {
-  const { assistantPubkey, row, assistantLookup, info } = input && typeof input === 'object' ? input : {};
+  const { assistantPubkey, viewerPubkey, row, assistantLookup, info } = input && typeof input === 'object' ? input : {};
   if (typeof assistantPubkey !== 'string' || assistantPubkey === '') return { status: 'unavailable', reason: 'no-assistant' };
   if (!row || typeof row !== 'object' || row.kind !== 39998) return { status: 'unavailable', reason: 'kind' };
   const why = sharedListUnavailable(assistantLookup, info);
@@ -632,6 +636,9 @@ export function curateHereOffer(input) {
   // not exist (assistant-designation.md "The header contract"; Amendment 1).
   const { kind, d } = info.pointer;
   if (kind !== 39998 || d !== row.d) return { status: 'unavailable', reason: 'target' };
+  // The endpoint refuses to curate a shared list by the viewer or by my assistant (ADR 0006 §8), so it isn't offered.
+  const selves = [assistantPubkey, viewerPubkey].filter((pk) => typeof pk === 'string' && pk !== '').map((pk) => pk.toLowerCase());
+  if (selves.includes(String(info.pointer.pubkey).toLowerCase())) return { status: 'unavailable', reason: 'own' };
   return { status: 'available', target: info.pointer.coord };
 }
 
@@ -869,8 +876,8 @@ const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 /**
  * What Update would do with my curated list (ADR 0005 §7, in Amendment 1's order). Pure; never throws.
  *
- * `input` is `{ assistantPubkey, header, mine, shared, verdicts }`: `header` is `{ state, olderLink, problems }`
- * (`sharedListUnavailable`'s state, and `describeCurationHeader`'s older-link note and problems); `mine` and
+ * `input` is `{ assistantPubkey, header, mine, shared, verdicts }`: `header` is `{ state, olderLink, problems, marker }`
+ * (`sharedListUnavailable`'s state, and `describeCurationHeader`'s older-link note, problems and marker); `mine` and
  * `shared` are `lookupListItems` records, undefined while unread; `verdicts` is `candidateVerdicts`' answer over
  * every shared item.
  *
@@ -890,9 +897,11 @@ const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
  * or upgrade.
  *
  * @returns {{ state: 'checking'|'blocked'|'ready', reasons: string[], copy: Object[], refresh: Object[],
- *   delete: Object[], keepFlagged: Object[], unchanged: number, upgrade: boolean, skipped: Object[],
- *   upToDate: boolean }}  each entry is `{ name, routeId, score }` (`routeId` the original's), with the copy's own
- *   `copyRouteId` for a copy already on my list, and `why` ('not-found' | 'edited-not-qualifying') for a kept one
+ *   delete: Object[], keepFlagged: Object[], unchanged: number, upgrade: false|{dropsMarker: boolean},
+ *   skipped: Object[], upToDate: boolean }}  each entry is `{ name, routeId, score }` (`routeId` the original's), with
+ *   the copy's own `copyRouteId` for a copy already on my list, and `why` ('not-found' | 'edited-not-qualifying') for
+ *   a kept one. The entries Publish sends carry their pins (curated-dlist-update ADR 0006 §7): `version` on a copy or
+ *   refresh entry (the original's current id), and `copyId` on a delete entry (the copy's current id).
  */
 export function updatePlan(input) {
   const { assistantPubkey, header, mine, shared, verdicts } = input && typeof input === 'object' ? input : {};
@@ -957,7 +966,10 @@ export function updatePlan(input) {
     if (referenced.has(e.id) || (coord && coord !== e.id && referenced.has(coord))) continue;
     const v = verdictOf(e);
     if (!v) { undecided = true; continue; }
-    (v.verdict === 'qualifies' ? out.copy : out.skipped).push({ name: nameOf(e), routeId: itemRouteId(e), score: v.score });
+    const entry = { name: nameOf(e), routeId: itemRouteId(e), score: v.score };
+    // A copy is pinned to the version judged, the original's current id (curated-dlist-update ADR 0006 §7).
+    if (v.verdict === 'qualifies') out.copy.push({ ...entry, version: e.id });
+    else out.skipped.push(entry);
   }
   for (const { event: copy, qs } of copies) {
     const address = qs.find((q) => parseCoordinate(q)?.kind === 39999) || null;
@@ -972,17 +984,47 @@ export function updatePlan(input) {
     if (!v) { undecided = true; continue; }
     const entry = { name: nameOf(copy), routeId: itemRouteId(original), score: v.score, copyRouteId };
     const edited = original.kind === 39999 && original.id !== version;
-    if (edited && v.verdict === 'qualifies') out.refresh.push(entry);
+    // Pinned (ADR 0006 §7): a refresh to the edited original's current id, a deletion to the copy's current id.
+    if (edited && v.verdict === 'qualifies') out.refresh.push({ ...entry, version: original.id });
     else if (edited) out.keepFlagged.push({ ...entry, why: 'edited-not-qualifying' });
     else if (v.verdict === 'qualifies') out.unchanged += 1;
-    else out.delete.push(entry);
+    else out.delete.push({ ...entry, copyId: copy.id });
   }
   // Every item the plan acts on needs its own decided verdict; a verdict set that misses one is incomplete.
   if (undecided) return plan('blocked', ['a verdict for every item on the shared list']);
   const byName = (a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase());
   for (const group of [out.copy, out.refresh, out.delete, out.keepFlagged, out.skipped]) group.sort(byName);
-  out.upgrade = !!h.olderLink;
+  // The upgrade says whether it also drops the "deliberately unaffiliated" marker (ADR 0006 §7; Planning decision 2).
+  out.upgrade = h.olderLink ? { dropsMarker: !!h.marker } : false;
   out.upToDate = out.copy.length + out.refresh.length + out.delete.length === 0 && !out.upgrade;
+  return out;
+}
+
+/**
+ * The canonical intents of a plan (curated-dlist-update ADR 0006 §1, §7): what Publish sends, and what the fresh plan is
+ * compared by. References and version pins only, sorted, with no names or scores. A plan that isn't `ready` has none.
+ * Pure; never throws.
+ *
+ * @returns {{ copy: {original, version}[], refresh: {copy, original, version}[], delete: {copy, id}[],
+ *   upgrade: {dropsMarker: boolean}|null }}
+ */
+export function planIntents(plan) {
+  const out = { copy: [], refresh: [], delete: [], upgrade: null };
+  if (!plan || typeof plan !== 'object' || plan.state !== 'ready') return out;
+  const entries = (v) => (Array.isArray(v) ? v.filter((e) => e && typeof e === 'object') : []);
+  const by = (...keys) => (a, b) => {
+    for (const k of keys) {
+      const x = String(a[k]);
+      const y = String(b[k]);
+      if (x !== y) return x < y ? -1 : 1;
+    }
+    return 0;
+  };
+  out.copy = entries(plan.copy).map((e) => ({ original: e.routeId, version: e.version })).sort(by('original', 'version'));
+  out.refresh = entries(plan.refresh).map((e) => ({ copy: e.copyRouteId, original: e.routeId, version: e.version }))
+    .sort(by('copy', 'original', 'version'));
+  out.delete = entries(plan.delete).map((e) => ({ copy: e.copyRouteId, id: e.copyId })).sort(by('copy', 'id'));
+  out.upgrade = plan.upgrade ? { dropsMarker: !!(typeof plan.upgrade === 'object' && plan.upgrade.dropsMarker) } : null;
   return out;
 }
 

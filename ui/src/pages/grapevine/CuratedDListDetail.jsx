@@ -79,14 +79,18 @@ export default function CuratedDListDetail() {
   const row = access.row;
   const curator = readOnly ? 'other' : 'mine';
   const name = lookup?.event?.tags?.find((t) => t[0] === 'names')?.[1] || null;
-  const offer = readOnly ? curateHereOffer({ assistantPubkey, row, assistantLookup: lookup, info }) : null;
+  // The offer knows who is looking, so it never leads to the endpoint's refusal (curated-dlist-update ADR 0006 §8, R2-2).
+  const offer = readOnly ? curateHereOffer({ assistantPubkey, viewerPubkey: user?.pubkey || null, row, assistantLookup: lookup, info }) : null;
   const listRelay = readOnly && typeof row.relay === 'string' && WS_RELAY.test(row.relay) ? row.relay : COMMUNITY_RELAY;
   // My own list's header, as Update's preview reads it (curated-dlist-update ADR 0005 §8): why there is no shared
-  // list, or null; whether it uses the older link; and its problems.
+  // list, or null; whether it uses the older link; and its problems. Also whether it carries the "deliberately
+  // unaffiliated" marker beside its link, and "checking" while it is being looked up again: Publish re-reads it
+  // (curated-dlist-update ADR 0006 §7).
   const headerState = readOnly ? null : {
-    state: sharedListUnavailable(lookup, info),
+    state: mine.loading ? 'checking' : sharedListUnavailable(lookup, info),
     olderLink: !!info && Array.isArray(info.notes) && info.notes.includes('older-link'),
     problems: info && Array.isArray(info.problems) ? info.problems : [],
+    marker: !!info && info.marker === true,
   };
 
   return (
@@ -134,6 +138,7 @@ export default function CuratedDListDetail() {
         cutoff={cutoff}
         onVerdictSummary={setVerdictSummary}
         headerState={headerState}
+        onHeaderRefresh={mine.refresh}
       />
     </div>
   );
