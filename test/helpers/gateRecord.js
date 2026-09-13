@@ -49,7 +49,9 @@ function newRunId(now = new Date()) {
 function gitIdentity() {
   try {
     const git = (args) => cp.execFileSync('git', args, { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    const porcelain = git(['status', '--porcelain']);
+    // --no-optional-locks: same output, without taking the index lock that a co-tenant
+    // session's concurrent git commit would trip over.
+    const porcelain = git(['--no-optional-locks', 'status', '--porcelain']);
     const dirtyCount = porcelain ? porcelain.split('\n').length : 0;
     return { commit: git(['rev-parse', 'HEAD']), branch: git(['rev-parse', '--abbrev-ref', 'HEAD']), dirty: dirtyCount > 0, dirtyCount };
   } catch (e) {

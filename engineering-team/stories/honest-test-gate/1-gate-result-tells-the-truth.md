@@ -140,6 +140,20 @@ None. Test and harness infrastructure only — no concept-graph handle is read, 
   those 17 suite files, and `honest-publish-reporting`, `concept-count-canonical` and
   `summaries-element-count`, re-run directly outside the engine, fail identically. None is a
   regression from this change, and the gate reported each one truthfully.
+- **Review kick-back (2026-09-13, review `c6ed2b35`; guards C11–C15).** `process.exit` is trapped
+  from the first load until the engine's own exit — wider than ADR §1's "while the suite runs" — so
+  a call made at load time is that suite's FAIL and one deferred past a suite's `run()` is a stray
+  FAIL, never the end of the run. A run that ends before its verdict any other way — the engine's own
+  failure, or a `run()` that never settles while nothing else is pending — records FAIL with the
+  reason in `strayErrors`, prints a FAIL verdict line and exits non-zero; `test/test.js` catches a
+  failure before the record exists. Counts must be non-negative integers (`skipped` when present),
+  else `returned no result counts`, and a suite gates the run unless its `fail` is exactly 0, as in
+  the old runner.
+- **Not built as ADR §1 and §5 word it:** the `out` option (nothing needs it); the reader's line,
+  which reads `— <verdict>[ by <signal>], exit <n>, <p> passed, <f> failed, <s> skipped,
+  <k>/<N> suites` rather than `— <STATE>: <verdict>, …`; and the old runner's "H-class: n executed /
+  n skipped" lines and B-class browser-only pointers, which are not carried over (skips are still
+  counted per suite). The review's other non-blocking engine notes are OPEN.md row 284.
 
 ## Linked artifacts
 - Book: `engineering-team/audits/honest-test-gate/book.md`

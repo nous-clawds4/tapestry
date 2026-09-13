@@ -16,4 +16,10 @@ process.env.BRAINSTORM_RELAY_PUBKEY = 'test-pubkey';
 
 const { runGate } = require('./helpers/gateRunner');
 
-runGate({ suites: require('./registry').suites, label: process.env.GATE_LABEL });
+runGate({ suites: require('./registry').suites, label: process.env.GATE_LABEL }).catch((err) => {
+  // runGate ends every run it starts through the real exit; only a failure before its
+  // record exists (e.g. an unwritable tmp/gate-runs/) lands here, and it must not exit 0.
+  // process.exitCode, not process.exit: the engine may already have trapped the latter.
+  process.stderr.write(`Test gate could not start: ${(err && err.stack) || err}\n`);
+  process.exitCode = 1;
+});

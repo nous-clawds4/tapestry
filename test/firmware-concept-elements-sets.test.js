@@ -35,7 +35,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const cp = require('child_process');
 const { pathToFileURL } = require('url');
 
 const ROOT = path.resolve(__dirname, '..');

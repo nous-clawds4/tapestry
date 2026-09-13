@@ -27,7 +27,6 @@ const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:
 // is loopback-only — it can only be triggered from INSIDE the container, the
 // way the cron (refreshPinnedTagTLs.sh) does. A host HTTP call now correctly
 // 403s, so these live-integration suites drive it via docker exec.
-const { execSync: _execSync } = require('child_process');
 const _TAPESTRY_CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
 const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
 // The real HTTP status, or noResponse — never a status derived from the body
