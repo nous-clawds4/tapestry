@@ -26,7 +26,7 @@ states the copy convention first; the shipped surfaces then follow it.
 3. `3-another-assistants-curation-read-only.md` — another assistant's curation, read-only: lists empowered for an assistant that is not the
    viewer's assistant on this instance open read-only, with Update disabled and "curate here instead".
    Amends `my-curated-dlists` #1 AC-4/AC-5. Feature.
-4. **The curation method panel** — the Scoring Method and point of view from Trust Determination, an
+4. `4-curation-method-panel.md` — the curation method panel: the Scoring Method and point of view from Trust Determination, an
    editable cutoff, and each candidate's verdict with its reason; the qualifying rule shared with
    Simple Lists' Generate Trusted List panel, whose behavior does not change. Read-only. Feature.
 5. **Update list** — the preview (copy / refresh / delete, and the older header's upgrade), then the
