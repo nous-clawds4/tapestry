@@ -105,9 +105,10 @@ export default function SharedConceptsIndex() {
           most entries here will be machine-written rather than hand-added, and
           that sentence (only that sentence) will need updating. */}
       <p className="subtitle" style={{ maxWidth: '52rem' }}>
-        <strong>This page is the stored list.</strong> The other Shared Concepts pages work out
-        their answer fresh every time you load them. This one shows what was written down, and
-        when.
+        <strong>This page lists the registry entries themselves</strong> — the shared-concept
+        records published to the relay as signed events. The other Shared Concepts pages recompute
+        their answer from raw events every time you load them; this one just shows those published
+        entries as they were written, and when. Note: the data is pulled from nostr, not from neo4j.
       </p>
       <p className="subtitle" style={{ maxWidth: '52rem', marginBottom: '1.25rem' }}>
         <em>Right now, everything here was added by hand</em> — with “Recognize in registry” on
