@@ -42,6 +42,19 @@ states the copy convention first; the shipped surfaces then follow it.
    So an unreachable community relay reads as "no votes", and an unreachable rank provider as "nobody is
    ranked". The verdicts then say "skipped", not "couldn't check". Story 4 accepted this because its page only
    reads. Settle it before Update proposes a deletion: the book's guardrail says a failed read proposes nothing.
+   **Carry-forward from story 4's review (Non-blocking 1–4, 2026-09-13):** four more ways a read can come back
+   incomplete without saying so. Each is harmless on story 4's read-only page; settle each before Update acts on
+   its verdicts:
+   - a partly read shared list (one source failed, or the local read capped) still gives an "N of M" that looks
+     complete;
+   - Follow List with no kind 3 for the point of view on this instance reads as "follows nobody": every weight 0,
+     and no error;
+   - the Trusted List is read by d-tag from any author, so anyone's newer kind 30392 with that d-tag replaces the
+     trusted set. Simple Lists shares this, so it went out as a separate task;
+   - a relay answer holding `VOTES_LIMIT` votes is not reported as capped (the community relay advertises
+     `max_limit` 10000);
+   - every candidate id goes into one GET, so past about 110 candidates (nginx's 8 KB request line) every read
+     fails, honestly, as "couldn't check". Batch the ids, or record the ceiling.
 
 Dependencies: 1 first (it ratifies what 2–5 build). 2 and 4 before 5. 3 needs only 1.
 

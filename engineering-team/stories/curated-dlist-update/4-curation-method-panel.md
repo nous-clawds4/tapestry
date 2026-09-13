@@ -1,6 +1,6 @@
 # Story 4: The curation method panel shows my method, a cutoff, and each candidate's verdict
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-12
 **Type:** Feature
 
@@ -158,6 +158,6 @@ rows that collide with this book's), none of them in this story's areas. The mer
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0004-curation-method-and-verdicts.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/4-curation-method-panel.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/curated-dlist-update/4-curation-method-panel.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
