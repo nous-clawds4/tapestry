@@ -28,7 +28,7 @@ Implementer. See `engineering-team/roles/implementer.md`.
    - Concept Graph API at `localhost:$TAPESTRY_PORT` is authoritative (port per AGENTS.md §1).
    - Run `curl -X POST http://localhost:$TAPESTRY_PORT/api/firmware/install` after changing concept definitions (if the stack isn't running, record the pending reinstall in OPEN.md).
    - No new lint/typecheck/build tooling without an ADR.
-7. **Run the gate:** `npm test`. Must be clean. If not, fix it before claiming done.
+7. **Run the gate:** `npm test`, and read its verdict from the run record (`npm run gate:status`; [Running and reading the test gate](../README.md#running-and-reading-the-test-gate)). Must be clean. If not, fix it before claiming done.
 8. **If forced outside the ADR,** stop and escalate. The ADR needs amending before you continue.
 9. **Hand off:** `/review-changes`.
 

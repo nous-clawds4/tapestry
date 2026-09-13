@@ -41,17 +41,16 @@ const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:
 // 403s, so these live-integration suites drive it via docker exec.
 const { execSync: _execSync } = require('child_process');
 const _TAPESTRY_CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
+// The real HTTP status, or noResponse — never a status derived from the body
+// (honest-test-gate #1, ADR honest-test-gate/0001 §6; OPEN.md row 263).
 async function refreshAllViaLoopback() {
-  try {
-    const out = _execSync(
-      `docker exec ${_TAPESTRY_CONTAINER} curl -s -X POST http://127.0.0.1:7778/api/trusted-list/refresh-all-pinned-tags`,
-      { encoding: 'utf8', timeout: 300000 }
-    );
-    let json = null; try { json = JSON.parse(out); } catch (_e) {}
-    return { status: json && json.success ? 200 : 500, json };
-  } catch (e) {
-    return { status: 0, json: null, error: e.message };
-  }
+  return loopbackRequest({
+    container: _TAPESTRY_CONTAINER,
+    method: 'POST',
+    url: 'http://127.0.0.1:7778/api/trusted-list/refresh-all-pinned-tags',
+    timeoutS: 300,
+  });
 }
 const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
@@ -338,8 +337,8 @@ async function findLatestTL(dTag) {
 
 tBasic('refresh-all-pinned-tags publishes a kind-30392 TL for the supported pin (AC-1)', async () => {
   const { tag, viewerPk } = basicCtx;
-  const { status, json } = await refreshAllViaLoopback();
-  assert(status === 200, `refresh-all-pinned-tags status ${status} body=${JSON.stringify(json)}`);
+  const { status, json, noResponse } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200, `refresh-all-pinned-tags ${describeResponse({ status, noResponse })} body=${JSON.stringify(json)}`);
   assert(json?.success === true, `refresh-all-pinned-tags success; got ${JSON.stringify(json)}`);
   await sleep(PROPAGATION_MS);
 
@@ -411,8 +410,9 @@ tBasic('refreshing the same pin twice replaces the TL in place — same d-tag, l
 
   // Sleep so created_at changes deterministically.
   await sleep(1100);
-  const { status } = await refreshAllViaLoopback();
-  assert(status === 200, `second refresh status ${status}`);
+  const { status, noResponse, json: refreshJson } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200 && refreshJson?.success === true,
+    `second refresh ${describeResponse({ status, noResponse })} body=${JSON.stringify(refreshJson)}`);
   await sleep(PROPAGATION_MS);
 
   const after = await findLatestTL(dTag);
@@ -480,8 +480,9 @@ tBasic('unpinning + refresh-all produces an empty-membership replacement with [s
 
   // Cron tick (manual trigger of the refresh-all endpoint).
   await sleep(1100); // ensure created_at advances past prior TL
-  const { status } = await refreshAllViaLoopback();
-  assert(status === 200, `refresh-all status ${status}`);
+  const { status, noResponse, json: refreshJson } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200 && refreshJson?.success === true,
+    `refresh-all ${describeResponse({ status, noResponse })} body=${JSON.stringify(refreshJson)}`);
   await sleep(PROPAGATION_MS);
 
   const tl = await findLatestTL(dTag);
@@ -626,8 +627,9 @@ async function teardownPovSuite() {
 tPov('AC-5 disputes function: target with 2 WoT-trusted endorsements / 0 disputes makes the TL under cutoff=2', async () => {
   const { tag, viewerPk, targetClearMember } = povCtx;
   // Trigger a refresh now that the POV is configured.
-  const { status } = await refreshAllViaLoopback();
-  assert(status === 200, `refresh-all status ${status}`);
+  const { status, noResponse, json: refreshJson } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200 && refreshJson?.success === true,
+    `refresh-all ${describeResponse({ status, noResponse })} body=${JSON.stringify(refreshJson)}`);
   await sleep(PROPAGATION_MS);
 
   const dTag = expectedTLDTag({ observerPk: viewerPk, tagAuthorPk: tag.authorPubkey, tagSlug: tag.slug });

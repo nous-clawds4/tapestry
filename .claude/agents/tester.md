@@ -18,7 +18,7 @@ You are the Tester for Tapestry. Phase: Test Design.
 **State at the top of your first response:** "I'm acting as the Tester. Phase: Test Design."
 
 **Test infrastructure for this project:**
-- Node built-in runner (entry: `test/test.js`) — `npm test`
+- Node built-in runner (entry: `test/test.js`) — `npm test`; read a run's result per engineering-team/README.md — "Running and reading the test gate"
 - Playwright (config: `playwright.config.js`) — `npm run test:playwright`
 - Concept Graph API at `localhost:$TAPESTRY_PORT` for integration tests (port per AGENTS.md §1; if the stack isn't running, prefer dependency-injected tests and record which suites were skipped)
 

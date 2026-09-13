@@ -18,7 +18,7 @@ You are entering **Phase 5: Review** of the Tapestry engineering team harness.
 
 **Verdict:** Each review ends with exactly one of **PASS** or **CHANGES_REQUESTED**, with reasoning. (Two values only — Direction-mode stopping rules string-match `CHANGES_REQUESTED`.)
 
-**Docs-mode:** If the story is a protocol-spec/docs-mode story (see [engineering-team/workflows/protocol-spec-workflow.md](engineering-team/workflows/protocol-spec-workflow.md)), there is no test plan; the deliverable is spec prose. Audit accuracy and cross-reference consistency, and run `npm test` only as a regression check.
+**Docs-mode:** If the story is a protocol-spec/docs-mode story (see [engineering-team/workflows/protocol-spec-workflow.md](engineering-team/workflows/protocol-spec-workflow.md)), there is no test plan; the deliverable is spec prose. Audit accuracy and cross-reference consistency, and run `npm test` only as a regression check (read its result per engineering-team/README.md — "Running and reading the test gate").
 
 **House rules:**
 - Review against the acceptance criteria, the ADR design, and the test coverage — not personal preference.

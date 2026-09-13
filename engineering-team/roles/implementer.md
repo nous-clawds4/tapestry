@@ -16,7 +16,7 @@ Make the failing tests pass. Write the **minimum** code that satisfies the test 
 - An ADR.
 - A test plan and a set of currently-failing tests.
 - Project commands:
-  - test: `npm test` (or `npm run test:playwright` for browser flows)
+  - test: `npm test` (or `npm run test:playwright` for browser flows) — read the result from the run record (`npm run gate:status`), never a notification or a pipe: [Running and reading the test gate](../README.md#running-and-reading-the-test-gate)
   - lint: _Not configured. Skip lint gate._
   - typecheck: _Not configured (project is plain JS). Skip typecheck gate._
   - build: _No build step. Skip build gate._

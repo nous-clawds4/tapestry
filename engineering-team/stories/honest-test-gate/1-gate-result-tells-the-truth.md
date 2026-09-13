@@ -116,6 +116,31 @@ None. Test and harness infrastructure only — no concept-graph handle is read, 
 - Where the record lives, its format, and how a run killed outright is recognised are the
   Architect's calls, constrained by AC-1 and AC-2.
 
+## Deviations
+
+- The config smoke check is a registry pseudo-entry `{ name: 'config-loading', run }` defined in
+  `test/registry.js`; the engine accepts `{ name, run }` entries beside `{ file }` (ADR §3 names the
+  pseudo-entry, not its shape).
+- The engine also fails a suite that exports no `run()` function — the same class as "returned no
+  result counts" (ADR §1), which it would otherwise crash on.
+- The five `refreshAllViaLoopback` call sites now require `json.success === true` beside HTTP 200:
+  the old synthesized 200 *meant* success, so a bare `status === 200` would have silently weakened
+  them.
+- In `firmware-concept-elements-sets` and `move-nodes-between-sets-ui`, `dockerCurl` was removed
+  once nothing used it; `relationship-primitives` keeps it for its stack probe. Every loopback
+  failure message in the three now reads `describeResponse(…)` instead of a raw status.
+- **AC-6's full run could not be Overall PASS on this host, so the evidence is recorded instead**
+  (decided with the operator at the Phase-4 gate, 2026-09-13). The story's own guards pass in every
+  run: `gate-result-record` 29/29 and `stack-free-npm-test`. The host's `node_modules` first had to
+  be installed (OPEN.md row 280). On the host's default Node, 16.17.0, the full gate recorded FAIL
+  on `honest-publish-reporting` alone, which needs Node 22.12+ (run `20260913T040449Z-80634-2042`),
+  and that Node silently skips 376 live tests whose probes call the global `fetch` (row 281). On
+  Node 22.23.2, CI's version, it recorded FAIL on 16 live suites (75 tests), all checks against
+  this instance's data (run `20260913T040914Z-14580-57d2`, row 282). This story changes none of
+  those 17 suite files, and `honest-publish-reporting`, `concept-count-canonical` and
+  `summaries-element-count`, re-run directly outside the engine, fail identically. None is a
+  regression from this change, and the gate reported each one truthfully.
+
 ## Linked artifacts
 - Book: `engineering-team/audits/honest-test-gate/book.md`
 - ADR: `engineering-team/decisions/honest-test-gate/0001-registry-runner-and-run-record.md`
