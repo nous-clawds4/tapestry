@@ -5,15 +5,16 @@ import useItemVotes from '../../hooks/useItemVotes';
 import useTrustWeights from '../../hooks/useTrustWeights';
 import useProfiles from '../../hooks/useProfiles';
 import { useTrust, SCORING_METHODS } from '../../context/TrustContext';
-import { curatedItemRows, itemsEmptySentence, itemRouteId, weightsState, candidateVerdicts, LIST_ITEMS_LIMIT } from '../../utils/treasureMap';
+import { curatedItemRows, itemsEmptySentence, itemRouteId, weightsState, candidateVerdicts, listReadGaps, updatePlan, LIST_ITEMS_LIMIT } from '../../utils/treasureMap';
 import { timeAgo } from '../../utils/timeAgo';
+import UpdatePreview from './UpdatePreview';
 
 /*
  * The rest of a curated DList's detail page (my-curated-dlists #3, ADR 0003): the curation-method
- * panel, the Update list button — a placeholder that acts on nothing — and the list's items in a
- * table with the operator's three views. On my own lists the panel shows the method and the cutoff,
- * and each candidate carries its verdict (curated-dlist-update ADR 0004 §7). Read-only: nothing here
- * signs, publishes, or imports.
+ * panel, the Update list button, and the list's items in a table with the operator's three views. On
+ * my own lists the panel shows the method and the cutoff, each candidate carries its verdict
+ * (curated-dlist-update ADR 0004 §7), and Update list opens a preview of what my assistant would do
+ * (curated-dlist-update ADR 0005 §8). Read-only: nothing here signs, publishes, or imports.
  * On another assistant's list (`curator` 'other' — curated-dlist-update ADR 0003 §3–§4) the items are
  * judged from that assistant's side, its list is read at the Map entry's relay (`listRelay`), and
  * Update says where it runs.
@@ -109,21 +110,29 @@ export function CurationMethodPanel({ cutoff, onCutoffChange, summary }) {
 }
 
 /**
- * Placeholder — present, disabled, and wired to nothing. On another assistant's list it says where
- * Update runs, and mentions curating here when that is offered (curated-dlist-update ADR 0003 §3).
+ * Update list (curated-dlist-update ADR 0005 §8). On my own lists it opens and closes the preview of what my
+ * assistant would do (`onToggle`; `open` while it shows). On another assistant's list it stays disabled, says
+ * where Update runs, and mentions curating here when that is offered (curated-dlist-update ADR 0003 §3).
  */
-export function UpdateListButton({ curator = 'mine', canCurateHere = false } = {}) {
+export function UpdateListButton({ curator = 'mine', canCurateHere = false, open = false, onToggle } = {}) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-      <button type="button" className="btn btn-sm" disabled>Update list</button>
-      {curator === 'other'
-        ? <span style={muted}>Update list runs only on the instance where this list&apos;s assistant lives.{canCurateHere ? ' You can curate it here instead.' : ''}</span>
-        : <span style={muted}>Update list isn&apos;t built yet.</span>}
+      {curator === 'other' ? (
+        <>
+          <button type="button" className="btn btn-sm" disabled>Update list</button>
+          <span style={muted}>Update list runs only on the instance where this list&apos;s assistant lives.{canCurateHere ? ' You can curate it here instead.' : ''}</span>
+        </>
+      ) : (
+        <button type="button" className="btn btn-sm" aria-expanded={open} onClick={onToggle}>Update list</button>
+      )}
     </span>
   );
 }
 
-/** Source notes for one list read: a failed source, or the local cap (ADR 0003 sub-decision 7). */
+/**
+ * Source notes for one list read: a failed source, or a cap — the local scan's (ADR 0003 sub-decision 7) or the
+ * relay's (curated-dlist-update ADR 0005 §4).
+ */
 function SourceNotes({ list, communityRelay, what }) {
   if (!list) return null;
   const notes = [];
@@ -134,6 +143,7 @@ function SourceNotes({ list, communityRelay, what }) {
       ? `Showing the first ${LIST_ITEMS_LIMIT} of ${list.total} ${what} found in this instance’s strfry.`
       : `Showing the first ${LIST_ITEMS_LIMIT} ${what} in this instance’s strfry — there are more.`);
   }
+  if (list.relayTruncated) notes.push(`Showing the first ${LIST_ITEMS_LIMIT} ${what} from ${communityRelay} — there may be more.`);
   return notes.map((n) => <div key={n} style={{ ...warn, marginTop: '0.35rem' }}>⚠️ {n}</div>);
 }
 
@@ -189,17 +199,19 @@ function VerdictReason({ verdict }) {
  * The items on the curated list, with the two "also show" views, in a table — judged from its
  * curator's side (`assistantPubkey`: my assistant, or — read-only — the assistant my Map names). On my
  * own lists each candidate carries its verdict against `cutoff`, and the summary goes up through
- * `onVerdictSummary` (curated-dlist-update ADR 0004 §7).
+ * `onVerdictSummary` (curated-dlist-update ADR 0004 §7); and Update list opens a preview of what my assistant
+ * would do, planned from the same reads and my header's state, `headerState` (curated-dlist-update ADR 0005 §8).
  */
-export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistantPubkey, communityRelay, curator = 'mine', listRelay = communityRelay, canCurateHere = false, cutoff, onVerdictSummary }) {
+export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistantPubkey, communityRelay, curator = 'mine', listRelay = communityRelay, canCurateHere = false, cutoff, onVerdictSummary, headerState }) {
   const [showOthers, setShowOthers] = useState(false);
   const [showCandidates, setShowCandidates] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false); // Update list's preview (curated-dlist-update ADR 0005 §8)
   const [openReason, setOpenReason] = useState(null); // the candidate row whose reason is open
   // The curated list is read on mount at listRelay — for another assistant's list, its Map entry's relay
   // (curated-dlist-update ADR 0003 §4); the shared list only while "candidates" is on (ADR 0003
-  // sub-decision 4), at the community relay.
+  // sub-decision 4) or Update's preview is open (ADR 0005 §8), at the community relay.
   const mine = useListItems([myCoord], listRelay);
-  const shared = useListItems(showCandidates && sharedCoord ? [sharedCoord] : [], communityRelay);
+  const shared = useListItems((showCandidates || previewOpen) && sharedCoord ? [sharedCoord] : [], communityRelay);
   const labels = curator === 'other' ? FROM_LABEL_OTHER : FROM_LABEL;
   const reasons = curator === 'other' ? UNAVAILABLE_REASON_OTHER : UNAVAILABLE_REASON;
   const myList = mine.lists[myCoord];
@@ -210,35 +222,44 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
     assistantPubkey, showOthers, showCandidates,
   });
 
-  // The candidates' verdicts — my own lists only (curated-dlist-update ADR 0004 §7). While candidates are shown
-  // and the shared list was read, their votes (both sources) and the trust weights of their authors and voters
-  // are read and judged against the cutoff; a read-only list reads neither.
+  // The verdicts — my own lists only (curated-dlist-update ADR 0004 §7). While candidates are shown or Update's
+  // preview is open (ADR 0005 §8), and the shared list was read, the votes on every shared item (both sources) and
+  // the trust weights of their authors and voters are read once, and judged against the cutoff twice: the panel's
+  // verdicts over the candidates, and the preview's over every shared item. A read-only list reads neither.
   const wanted = curator === 'mine' && showCandidates && !!sharedCoord;
-  const sharedFailed = !!sharedList && sharedList.local === 'failed' && sharedList.relay === 'failed';
-  const judging = wanted && !!sharedList && !sharedFailed;
+  const previewing = curator === 'mine' && previewOpen;
+  const planning = previewing && !!sharedCoord;
+  const sharedRead = wanted || planning ? shared.lists[sharedCoord] : undefined;
+  const sharedFailed = !!sharedRead && sharedRead.local === 'failed' && sharedRead.relay === 'failed';
+  const reading = (wanted || planning) && !!sharedRead && !sharedFailed;
+  const judging = wanted && reading;
+  const sharedEvents = reading ? sharedRead.items.map((x) => x.event) : [];
   const candidateRoutes = new Set(rows.filter((r) => r.from === 'candidate').map((r) => r.routeId));
-  const candidates = judging ? sharedList.items.map((x) => x.event).filter((e) => candidateRoutes.has(itemRouteId(e))) : [];
-  const votes = useItemVotes(judging ? candidates.map((e) => e.id) : [], communityRelay);
+  const candidates = judging ? sharedEvents.filter((e) => candidateRoutes.has(itemRouteId(e))) : [];
+  const votes = useItemVotes(sharedEvents.map((e) => e.id), communityRelay);
   // The weights are read once the votes are in. useTrustWeights re-reads whenever its array changes identity,
-  // so the array is keyed on its content (ADR §3).
-  const pubkeyKey = judging && votes
-    ? [...new Set([...candidates, ...votes.events].map((e) => e.pubkey).filter((pk) => typeof pk === 'string' && pk !== ''))].sort().join(',')
+  // so the array is keyed on its content (ADR 0004 §3).
+  const pubkeyKey = reading && votes
+    ? [...new Set([...sharedEvents, ...votes.events].map((e) => e.pubkey).filter((pk) => typeof pk === 'string' && pk !== ''))].sort().join(',')
     : '';
   const pubkeys = useMemo(() => (pubkeyKey ? pubkeyKey.split(',') : []), [pubkeyKey]);
   const trust = useTrustWeights(pubkeys);
-  const verdicts = candidateVerdicts({
-    candidates,
-    votes: judging ? votes : null,
-    weights: { state: weightsState({ ...trust, pubkeys }), values: trust.weights, error: trust.error },
-    cutoff,
-  });
-  // The panel's summary (ADR §7): hidden while candidates are off, and "couldn't check" when the shared list
+  const weights = { state: weightsState({ ...trust, pubkeys }), values: trust.weights, error: trust.error };
+  // A partial read of the shared list is named in both summaries (ADR 0005 §6).
+  const incomplete = reading ? listReadGaps(sharedRead, 'the shared list') : [];
+  const verdicts = candidateVerdicts({ candidates, votes: judging ? votes : null, weights, cutoff, incomplete });
+  const planVerdicts = candidateVerdicts({ candidates: sharedEvents, votes: reading ? votes : null, weights, cutoff, incomplete });
+  // The panel's summary (ADR 0004 §7): hidden while candidates are off, and "couldn't check" when the shared list
   // couldn't be read. Reported up when its content changes, not on every render.
   const summary = !wanted ? { state: 'hidden' }
     : sharedFailed ? { state: 'incomplete', qualifying: 0, total: 0, reason: 'the shared list' }
       : verdicts.summary;
   const summaryKey = JSON.stringify(summary);
   useEffect(() => { if (onVerdictSummary) onVerdictSummary(summary); }, [summaryKey]); // its content is its identity
+  // Update's preview (ADR 0005 §7–§8): the plan, from the same reads and verdicts, and my header's state.
+  const plan = previewing
+    ? updatePlan({ assistantPubkey, header: headerState, mine: myList, shared: sharedRead, verdicts: planVerdicts })
+    : null;
 
   let body;
   if (!myList) {
@@ -308,8 +329,9 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
     <section style={sectionBox}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
         <h3 style={sectionTitle}>Items</h3>
-        <UpdateListButton curator={curator} canCurateHere={canCurateHere} />
+        <UpdateListButton curator={curator} canCurateHere={canCurateHere} open={previewOpen} onToggle={() => setPreviewOpen((v) => !v)} />
       </div>
+      {previewing && <UpdatePreview plan={plan} cutoff={cutoff} />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.6rem', fontSize: '0.85rem' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <input type="checkbox" checked={showOthers} onChange={(e) => setShowOthers(e.target.checked)} />

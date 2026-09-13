@@ -497,7 +497,9 @@ export function itemRouteId(event) {
  * bounded scan, and the community relay, asked the same filter at once. Only kind 9999/39999 items
  * whose `z` is the coordinate are kept; each item appears once (newest version per coordinate, one per
  * id), `local` when any copy came from this instance. Per source: `local` 'ok' | 'failed' (with the
- * scan's `truncated` / `total`), `relay` 'ok' | 'failed' | 'skipped' (not a ws/wss relay).
+ * scan's `truncated` / `total`), `relay` 'ok' | 'failed' | 'skipped' (not a ws/wss relay), and
+ * `relayTruncated` when the relay answered with `LIST_ITEMS_LIMIT` items or more, so may have stopped short
+ * (curated-dlist-update ADR 0005 §4).
  * Dependency-injected; never rejects.
  *
  * @param {string[]} coords
@@ -525,7 +527,9 @@ export async function lookupListItems(coords, { scanLocal, fetchRelay } = {}, re
         try {
           const data = await fetchRelay(filter, hint);
           if (!data || !data.success) return { status: 'failed', events: [] };
-          return { status: 'ok', events: Array.isArray(data.events) ? data.events : [] };
+          const events = Array.isArray(data.events) ? data.events : [];
+          // An answer at the read limit may have stopped short (curated-dlist-update ADR 0005 §4).
+          return { status: 'ok', events, capped: events.length >= LIST_ITEMS_LIMIT };
         } catch {
           return { status: 'failed', events: [] };
         }
@@ -543,7 +547,7 @@ export async function lookupListItems(coords, { scanLocal, fetchRelay } = {}, re
     };
     for (const e of local.events) take(e, true);
     for (const e of remote.events) take(e, false);
-    out[coord] = { items: [...byKey.values()], local: local.status, truncated: local.truncated, total: local.total, relay: remote.status };
+    out[coord] = { items: [...byKey.values()], local: local.status, truncated: local.truncated, total: local.total, relay: remote.status, relayTruncated: !!remote.capped };
   }));
   return out;
 }
@@ -664,16 +668,24 @@ export function itemsEmptySentence(input) {
 
 /* ── The curation method (curated-dlist-update #4, ADR 0004) ──────────────── */
 
-/** How many votes one read asks each source for; a capped local read is an incomplete read (ADR 0004 §2). */
+/**
+ * How many votes one read asks each source for. A read that answers this many or more may have stopped
+ * short, so it is an incomplete read: the local scan's (ADR 0004 §2) and, since ADR 0005 §3, the relay's.
+ */
 export const VOTES_LIMIT = 5000;
 
+/** How many item ids one vote read names (ADR 0005 §3): an id costs ~73 URL characters, and a request line 8 KB. */
+export const VOTES_IDS_PER_READ = 50;
+
 /**
- * The votes on items (ADR 0004 §2): one filter, `{ kinds: [7], '#e': ids, limit: VOTES_LIMIT }`, sent at
- * once to this instance's strfry through the bounded scan and to the community relay. Kind-7 events are
- * merged by id — local first, then the relay's additions — so each vote counts once. Per source: `local`
- * 'ok' | 'failed' (and `truncated` when the local scan stopped short), `relay` 'ok' | 'failed' | 'skipped'
- * (not a ws/wss relay). No ids asks nothing and fails nothing: an empty `#e` filter could match every
- * vote. Dependency-injected, like `lookupListItems`; never rejects.
+ * The votes on items (ADR 0004 §2; chunked by ADR 0005 §3): the ids go in chunks of `VOTES_IDS_PER_READ`,
+ * each chunk one filter, `{ kinds: [7], '#e': chunk, limit: VOTES_LIMIT }`, sent at once to this instance's
+ * strfry through the bounded scan and to the community relay. Kind-7 events are merged by id — local first,
+ * then the relay's additions — so each vote counts once. Per source: `local` 'ok' | 'failed', `relay` 'ok' |
+ * 'failed' | 'skipped' (not a ws/wss relay); a source is `failed` when any of its chunks failed. `truncated`
+ * is set when the local scan stopped short for any chunk, or a relay chunk answered with `VOTES_LIMIT` votes
+ * or more. No ids asks nothing and fails nothing: an empty `#e` filter could match every vote.
+ * Dependency-injected, like `lookupListItems`; never rejects.
  *
  * @param {string[]} ids  the items' event ids
  * @param {{ scanLocal: Function, fetchRelay: Function }} readers  scanLocal(filter) → { events, truncated };
@@ -686,32 +698,44 @@ export async function lookupItemVotes(ids, readers, relay) {
   const hint = typeof relay === 'string' && /^wss?:\/\//i.test(relay) ? relay : null;
   const list = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && id !== '');
   if (list.length === 0) return { events: [], local: 'ok', relay: hint ? 'ok' : 'skipped', truncated: false };
-  const filter = { kinds: [7], '#e': list, limit: VOTES_LIMIT };
-  const [local, remote] = await Promise.all([
-    (async () => {
-      try {
-        const env = await scanLocal(filter);
-        return { status: 'ok', events: Array.isArray(env?.events) ? env.events : [], truncated: !!env?.truncated };
-      } catch {
-        return { status: 'failed', events: [], truncated: false };
-      }
-    })(),
-    (async () => {
-      if (!hint) return { status: 'skipped', events: [] };
-      try {
-        const data = await fetchRelay(filter, hint);
-        if (!data || !data.success) return { status: 'failed', events: [] };
-        return { status: 'ok', events: Array.isArray(data.events) ? data.events : [] };
-      } catch {
-        return { status: 'failed', events: [] };
-      }
-    })(),
-  ]);
+  const chunks = [];
+  for (let i = 0; i < list.length; i += VOTES_IDS_PER_READ) chunks.push(list.slice(i, i + VOTES_IDS_PER_READ));
+  const answers = await Promise.all(chunks.map(async (chunk) => {
+    const filter = { kinds: [7], '#e': chunk, limit: VOTES_LIMIT };
+    const [local, remote] = await Promise.all([
+      (async () => {
+        try {
+          const env = await scanLocal(filter);
+          return { status: 'ok', events: Array.isArray(env?.events) ? env.events : [], truncated: !!env?.truncated };
+        } catch {
+          return { status: 'failed', events: [], truncated: false };
+        }
+      })(),
+      (async () => {
+        if (!hint) return { status: 'skipped', events: [], truncated: false };
+        try {
+          const data = await fetchRelay(filter, hint);
+          if (!data || !data.success) return { status: 'failed', events: [], truncated: false };
+          const events = Array.isArray(data.events) ? data.events : [];
+          return { status: 'ok', events, truncated: events.length >= VOTES_LIMIT };
+        } catch {
+          return { status: 'failed', events: [], truncated: false };
+        }
+      })(),
+    ]);
+    return { local, remote };
+  }));
   const byId = new Map();
-  for (const e of [...local.events, ...remote.events]) {
-    if (e && e.kind === 7 && typeof e.id === 'string' && !byId.has(e.id)) byId.set(e.id, e);
-  }
-  return { events: [...byId.values()], local: local.status, relay: remote.status, truncated: local.truncated };
+  const take = (e) => { if (e && e.kind === 7 && typeof e.id === 'string' && !byId.has(e.id)) byId.set(e.id, e); };
+  for (const a of answers) a.local.events.forEach(take);
+  for (const a of answers) a.remote.events.forEach(take);
+  const status = (side) => (answers.some((a) => a[side].status === 'failed') ? 'failed' : answers[0][side].status);
+  return {
+    events: [...byId.values()],
+    local: status('local'),
+    relay: status('remote'),
+    truncated: answers.some((a) => a.local.truncated || a.remote.truncated),
+  };
 }
 
 /**
@@ -737,10 +761,12 @@ export function weightsState(input) {
  * `lookupItemVotes`' answer, or null while it is pending; `weights` is `{ state, values, error }`
  * (`weightsState`, and the hook's weights and error). In order:
  * - votes pending, or weights `checking` → every candidate `checking`;
- * - a source failed, the local read was capped, or the weights `failed` → every candidate `unchecked`,
- *   its `reason` naming what couldn't be read — never `skipped`;
+ * - a source failed, a read was capped, or the weights `failed` → every candidate `unchecked`, its `reason`
+ *   naming what couldn't be read — never `skipped`;
  * - otherwise each candidate is scored on the votes aimed at its current event id (gate decision 2), and
- *   `qualifies` at score ≥ cutoff, or is `skipped`.
+ *   `qualifies` at score ≥ cutoff, or is `skipped`. When `incomplete` (curated-dlist-update ADR 0005 §6)
+ *   lists other reads that came back incomplete — a partial read of the shared list — those verdicts stay,
+ *   honest for the candidates that were read, but the summary is `incomplete` and its reason names the reads.
  * Keyed by `itemRouteId`, the id the table's rows carry. `reason` is null except for `unchecked`: for a
  * decided verdict the score, the cutoff and the breakdown are the reason. Never throws: it runs on every
  * render.
@@ -749,7 +775,9 @@ export function weightsState(input) {
  *             summary: { state: 'checking'|'incomplete'|'complete', qualifying: number, total: number, reason: string|null } }}
  */
 export function candidateVerdicts(input) {
-  const { candidates, votes, weights, cutoff } = input && typeof input === 'object' ? input : {};
+  const { candidates, votes, weights, cutoff, incomplete } = input && typeof input === 'object' ? input : {};
+  // Other reads that came back incomplete, each as "couldn't check …" completes it (ADR 0005 §6).
+  const partial = (Array.isArray(incomplete) ? incomplete : []).filter((r) => typeof r === 'string' && r !== '');
   const list = [];
   const seen = new Set();
   for (const event of Array.isArray(candidates) ? candidates : []) {
@@ -783,7 +811,11 @@ export function candidateVerdicts(input) {
     return [routeId, { verdict: qualifies(score, cutoff) ? 'qualifies' : 'skipped', score, breakdown, reason: null }];
   });
   const qualifying = entries.filter(([, v]) => v.verdict === 'qualifies').length;
-  return { byRouteId: Object.fromEntries(entries), summary: summary('complete', qualifying, null) };
+  // A partial read keeps the verdicts it decided, but the summary says it is incomplete (ADR 0005 §6).
+  return {
+    byRouteId: Object.fromEntries(entries),
+    summary: partial.length > 0 ? summary('incomplete', qualifying, partial.join(' and ')) : summary('complete', qualifying, null),
+  };
 }
 
 /** The cutoff a curated list starts at — Simple Lists' Generate Trusted List panel's (ADR 0004 §5). */
@@ -799,6 +831,158 @@ export function readStoredCutoff(raw) {
   if (typeof raw !== 'string' || raw.trim() === '') return CUTOFF_DEFAULT;
   const n = Number(raw);
   return Number.isFinite(n) ? n : CUTOFF_DEFAULT;
+}
+
+/* ── Update's preview (curated-dlist-update #5, ADR 0005) ─────────────────── */
+
+/**
+ * What one list read couldn't cover (ADR 0005 §6–§7), each as "couldn't check …" completes it: a source that
+ * failed, or a read cut off at its limit — locally, or on the relay. `what` names the list ("the shared list",
+ * "your list"), so the Curation method panel and Update's preview say the same words. Never throws.
+ */
+export function listReadGaps(record, what) {
+  const r = record && typeof record === 'object' ? record : {};
+  const gaps = [];
+  if (r.local === 'failed') gaps.push(`${what} on this instance’s strfry`);
+  if (r.relay === 'failed') gaps.push(`${what} on the community relay`);
+  if (r.truncated || r.relayTruncated) gaps.push(`every item on ${what} (more than one read returns)`);
+  return gaps;
+}
+
+// Why my header leaves nothing to plan (ADR 0005 §7), each as "couldn't check …" completes it: the states
+// `sharedListUnavailable` gives, and `describeCurationHeader`'s problems (the older link is a note, not one).
+const PLAN_HEADER_STATES = {
+  failed: 'your assistant’s header',
+  missing: 'your assistant’s header (it wasn’t found)',
+  'no-pointer': 'the shared list (your assistant’s header names none)',
+  deferred: 'the shared list (your assistant’s header is marked deliberately unaffiliated)',
+};
+const PLAN_HEADER_PROBLEMS = {
+  'no-b': 'your assistant’s header (it has no b tag)',
+  'not-a-coordinate': 'your assistant’s header (one of its b tags is not a list coordinate)',
+  'wrong-type': 'your assistant’s header (its link to the shared header isn’t “pointer”)',
+  multiple: 'your assistant’s header (it has more than one pointer)',
+};
+const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+/**
+ * What Update would do with my curated list (ADR 0005 §7, in Amendment 1's order). Pure; never throws.
+ *
+ * `input` is `{ assistantPubkey, header, mine, shared, verdicts }`: `header` is `{ state, olderLink, problems }`
+ * (`sharedListUnavailable`'s state, and `describeCurationHeader`'s older-link note and problems); `mine` and
+ * `shared` are `lookupListItems` records, undefined while unread; `verdicts` is `candidateVerdicts`' answer over
+ * every shared item.
+ *
+ * Copies are my assistant's items on my list that carry a `q` (curated-dlist-update ADR 0001 §5). A copy's
+ * original is the shared item at its address `q` (the current version), or else the shared item with its version
+ * `q`; it is edited when it is kind 39999 and its current id is not the copy's version `q`. Candidates are the
+ * shared items no copy references, by `curatedItemRows`' rule.
+ *
+ * In order: the header decides first — `blocked` when it leaves no shared list to read or has a problem other
+ * than the older link, `checking` while it is looked up; then the two list reads — `checking` while either is
+ * unread, `blocked` when either failed on a source or was cut off; then the verdicts — `checking` while pending,
+ * `blocked` when incomplete. A blocked plan names every reason it knows, and a plan that isn't `ready` proposes
+ * nothing. When `ready`: copy the qualifying candidates and skip the rest; refresh a copy whose edited original
+ * qualifies, and keep it, flagged, when the new version doesn't — a copy is never deleted for an edit; delete a
+ * copy whose unedited original doesn't qualify; keep, flagged, a copy whose original is gone; count the copies
+ * that stay unchanged; and upgrade a header that uses the older link. `upToDate` means no copy, refresh, delete
+ * or upgrade.
+ *
+ * @returns {{ state: 'checking'|'blocked'|'ready', reasons: string[], copy: Object[], refresh: Object[],
+ *   delete: Object[], keepFlagged: Object[], unchanged: number, upgrade: boolean, skipped: Object[],
+ *   upToDate: boolean }}  each entry is `{ name, routeId, score }` (`routeId` the original's), with the copy's own
+ *   `copyRouteId` for a copy already on my list, and `why` ('not-found' | 'edited-not-qualifying') for a kept one
+ */
+export function updatePlan(input) {
+  const { assistantPubkey, header, mine, shared, verdicts } = input && typeof input === 'object' ? input : {};
+  const plan = (state, reasons = []) => ({
+    state, reasons, copy: [], refresh: [], delete: [], keepFlagged: [], unchanged: 0, upgrade: false, skipped: [], upToDate: false,
+  });
+  const isObject = (v) => !!v && typeof v === 'object';
+  const h = isObject(header) ? header : null;
+
+  // Every reason already known — the header's, the two lists', the verdicts' — so a blocked plan names them all.
+  const headerReasons = [];
+  if (h && own(PLAN_HEADER_STATES, h.state)) headerReasons.push(PLAN_HEADER_STATES[h.state]);
+  for (const p of h && Array.isArray(h.problems) ? h.problems : []) {
+    if (p !== 'older-link') headerReasons.push(own(PLAN_HEADER_PROBLEMS, p) ? PLAN_HEADER_PROBLEMS[p] : `your assistant’s header (${String(p)})`);
+  }
+  const listReasons = [
+    ...(isObject(mine) ? listReadGaps(mine, 'your list') : []),
+    ...(isObject(shared) ? listReadGaps(shared, 'the shared list') : []),
+  ];
+  const summary = isObject(verdicts) && isObject(verdicts.summary) ? verdicts.summary : null;
+  const verdictReasons = summary && summary.state === 'incomplete'
+    ? [typeof summary.reason === 'string' && summary.reason !== '' ? summary.reason : 'the votes and trust weights']
+    : [];
+  const reasons = [...new Set([...headerReasons, ...listReasons, ...verdictReasons])];
+
+  // 1. The header decides first: one that leaves no shared list to read would keep the rest pending forever.
+  if (headerReasons.length > 0) return plan('blocked', reasons);
+  if (!h || h.state != null) return plan('checking');
+  // 2. Then the two list reads.
+  if (!isObject(mine) || !isObject(shared)) return plan('checking');
+  if (listReasons.length > 0) return plan('blocked', reasons);
+  // 3. Then the verdicts.
+  if (verdictReasons.length > 0) return plan('blocked', reasons);
+  if (!summary || summary.state !== 'complete') return plan('checking');
+
+  // 4. Ready.
+  const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
+  const eventsOf = (record) => (Array.isArray(record.items) ? record.items : [])
+    .map((x) => (isObject(x) ? x.event : null))
+    .filter((e) => isObject(e) && itemRouteId(e) !== null);
+  const byRoute = new Map();
+  const byId = new Map();
+  for (const e of eventsOf(shared)) { byRoute.set(itemRouteId(e), e); byId.set(e.id, e); }
+  const qValues = (e) => (Array.isArray(e.tags) ? e.tags : [])
+    .filter((t) => Array.isArray(t) && t[0] === 'q' && typeof t[1] === 'string').map((t) => t[1]);
+  const copies = me === null ? [] : eventsOf(mine)
+    .filter((e) => typeof e.pubkey === 'string' && e.pubkey.toLowerCase() === me)
+    .map((event) => ({ event, qs: qValues(event) }))
+    .filter((c) => c.qs.length > 0);
+  const referenced = new Set(copies.flatMap((c) => c.qs));
+  const nameOf = (e) => { const n = tagValue(e, 'name'); return typeof n === 'string' && n.trim() !== '' ? n : '(unnamed)'; };
+  const judged = isObject(verdicts.byRouteId) ? verdicts.byRouteId : {};
+  const verdictOf = (e) => {
+    const v = own(judged, itemRouteId(e)) ? judged[itemRouteId(e)] : null;
+    return isObject(v) && (v.verdict === 'qualifies' || v.verdict === 'skipped') ? v : null;
+  };
+
+  const out = plan('ready');
+  let undecided = false;
+  for (const e of byRoute.values()) {
+    const coord = e.kind === 39999 ? itemRouteId(e) : null;
+    if (referenced.has(e.id) || (coord && coord !== e.id && referenced.has(coord))) continue;
+    const v = verdictOf(e);
+    if (!v) { undecided = true; continue; }
+    (v.verdict === 'qualifies' ? out.copy : out.skipped).push({ name: nameOf(e), routeId: itemRouteId(e), score: v.score });
+  }
+  for (const { event: copy, qs } of copies) {
+    const address = qs.find((q) => parseCoordinate(q)?.kind === 39999) || null;
+    const version = qs.find((q) => HEX64.test(q)) || null;
+    const original = (address && byRoute.get(address)) || (version && byId.get(version)) || null;
+    const copyRouteId = itemRouteId(copy);
+    if (!original) {
+      out.keepFlagged.push({ name: nameOf(copy), routeId: address || version, score: null, copyRouteId, why: 'not-found' });
+      continue;
+    }
+    const v = verdictOf(original);
+    if (!v) { undecided = true; continue; }
+    const entry = { name: nameOf(copy), routeId: itemRouteId(original), score: v.score, copyRouteId };
+    const edited = original.kind === 39999 && original.id !== version;
+    if (edited && v.verdict === 'qualifies') out.refresh.push(entry);
+    else if (edited) out.keepFlagged.push({ ...entry, why: 'edited-not-qualifying' });
+    else if (v.verdict === 'qualifies') out.unchanged += 1;
+    else out.delete.push(entry);
+  }
+  // Every item the plan acts on needs its own decided verdict; a verdict set that misses one is incomplete.
+  if (undecided) return plan('blocked', ['a verdict for every item on the shared list']);
+  const byName = (a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  for (const group of [out.copy, out.refresh, out.delete, out.keepFlagged, out.skipped]) group.sort(byName);
+  out.upgrade = !!h.olderLink;
+  out.upToDate = out.copy.length + out.refresh.length + out.delete.length === 0 && !out.upgrade;
+  return out;
 }
 
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */

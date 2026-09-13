@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { queryRelayBounded } from '../api/relay';
 import { lookupListItems } from '../utils/treasureMap';
 
-/** One community-relay read through the server's external-relay endpoint (→ `{ success, events }`). */
+/**
+ * One community-relay read through the server's external-relay endpoint (→ `{ success, events }`), in its strict
+ * mode (curated-dlist-update ADR 0005 §2): an unreachable relay answers `success: false`, never an empty list.
+ */
 async function fetchRelay(filter, url) {
-  const res = await fetch(`/api/relay/external?filter=${encodeURIComponent(JSON.stringify(filter))}&relays=${encodeURIComponent(url)}`);
+  const res = await fetch(`/api/relay/external?filter=${encodeURIComponent(JSON.stringify(filter))}&relays=${encodeURIComponent(url)}&strict=1`);
   return res.json();
 }
 

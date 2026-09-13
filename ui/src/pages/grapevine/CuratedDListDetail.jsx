@@ -81,6 +81,13 @@ export default function CuratedDListDetail() {
   const name = lookup?.event?.tags?.find((t) => t[0] === 'names')?.[1] || null;
   const offer = readOnly ? curateHereOffer({ assistantPubkey, row, assistantLookup: lookup, info }) : null;
   const listRelay = readOnly && typeof row.relay === 'string' && WS_RELAY.test(row.relay) ? row.relay : COMMUNITY_RELAY;
+  // My own list's header, as Update's preview reads it (curated-dlist-update ADR 0005 §8): why there is no shared
+  // list, or null; whether it uses the older link; and its problems.
+  const headerState = readOnly ? null : {
+    state: sharedListUnavailable(lookup, info),
+    olderLink: !!info && Array.isArray(info.notes) && info.notes.includes('older-link'),
+    problems: info && Array.isArray(info.problems) ? info.problems : [],
+  };
 
   return (
     <div className="page">
@@ -126,6 +133,7 @@ export default function CuratedDListDetail() {
         canCurateHere={offer?.status === 'available'}
         cutoff={cutoff}
         onVerdictSummary={setVerdictSummary}
+        headerState={headerState}
       />
     </div>
   );
