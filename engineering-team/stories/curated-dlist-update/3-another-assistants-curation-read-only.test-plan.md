@@ -40,6 +40,14 @@ and the skip aggregate. It carries the `require.main` block (OPEN.md's silent-su
 | AC-4 the offer to curate it here instead | **U2:** `curateHereOffer` — available, with the shared header as its target; the reasons in precedence (`no-assistant` → `kind` → `checking` / `failed` / `missing` / `deferred` / `no-pointer`); garbage is never available. **U3:** `replacementSentences`, exact. **S5:** `CurateHereOffer` — its imports; no endpoint call inside an effect (words first); POST `/api/dlist-curation/header` `{ target }`; `upsertDListEntry(…, 39998, …)`; `getActiveSignerOrThrow` → `window.nostr.signEvent` → `publishOrThrow` → `onPublished`; the labels; the third sentence; the 409 sentence; "Map update: replaces"; the six reasons. **S2:** the page passes `mapEvent={map.event}` and `onPublished={map.refresh}`. **S6:** the panel's Replace confirmation (ADR §7). | new suite | unit + structure |
 | AC-5 nothing else moves | **R1:** my own words — the header section's title and authorship, my older-link note, the Update placeholder, the subtitle. **R2:** the endpoint's exports. **S6:** a plain Add still says "adds". **D1:** the two ADR notes. Every other test in the re-aimed suites, and the items, panel and story-2 suites, unchanged and passing. | all | regression |
 
+**Amendment 1** (ADR 0003; story 3's review, Non-blocking 1 and 2), in the same suite:
+- **U2** — the offer checks its target. A pointer at another kind of header (`39999:<author>:dog-breed`) or
+  at another d-tag (`39998:<author>:dogs`) gives `unavailable` with reason `target`. The header's own states
+  still come first. A conforming pointer is still offered. U2's fixture pointer now carries the parsed kind,
+  pubkey and d-tag, as `describeCurationHeader` reports it.
+- **S5** — the `target` reason's sentence.
+- **D1** — `my-curated-dlists` ADR 0002's superseded-in-part note, citing ADR 0003 by short name.
+
 ## Edge cases
 
 - [x] **E1 — no assistant here.** Every list on my Map opens read-only, and every other case still decides
@@ -53,6 +61,9 @@ and the skip aggregate. It carries the `require.main` block (OPEN.md's silent-su
       naming no shared header: no offer, and the reason is given (U2; S5).
 - [x] **E6 — garbage input.** `curateHereOffer` never throws and is never available; `replacementSentences`
       always returns two strings (U2; U3).
+- [x] **E7 — a non-conforming curating header (Amendment 1).** Its pointer is another kind of header, or
+      another d-tag: no offer, with reason `target`. Otherwise the Map entry would address a header that does
+      not exist, or the endpoint would refuse the target after the words (U2; S5).
 - [ ] **Not covered — the rendered pages and a real "curate it here instead".** A real replacement signs a
       header and the Map, so it needs a NIP-07 signer and belongs to the operator. The rendered pages are the
       Implementer's local check with the fetch stub (ADR note 9).
@@ -121,3 +132,10 @@ Results against the sketch:
 - all seven sketch files transform cleanly with the UI's esbuild.
 
 No test needed relaxing. The worktree is kept, uncommitted, for the Implementation phase, which starts from the sketch; it is removed after that.
+
+**Amendment 1.** The extended suite was run on `6c67e50b`, with the amendment committed and the code unchanged: 10 passed, 3 failed.
+- U2: a pointer at another kind of header is still offered.
+- S5: the `target` sentence is missing.
+- D1: `my-curated-dlists` ADR 0002's Status has no ADR 0003 parenthetical.
+
+Against a throwaway sketch of the amendment (the target check, the sentence, the note), in a disposable worktree, the six story suites gave 13/0, 19/0, 16/0, 23/0, 18/0 and 12/0. That worktree was removed at once. Unlike round 1's, it is not Implementation's starting point: the fix is written independently of the tests (story 3's review, Harness friction 1).

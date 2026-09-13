@@ -15,6 +15,10 @@
  *   D (docs)       — the two superseded-in-part annotations (ADR §8). FAIL now.
  *   R (sentinel)   — my own lists' words and the header endpoint's exports. PASS before and after.
  *
+ * Amendment 1 (ADR 0003; story 3's review, Non-blocking 1 and 2): U2 adds the offer's target check — the
+ * curating header must point at a kind-39998 header with the Map entry's own d-tag; S5 its sentence; D1
+ * my-curated-dlists ADR 0002's note.
+ *
  * Re-aimed in their own suites (the test plan lists each): the front-door statuses and the list page's
  * links (test/my-curated-dlists-page.test.js U6, S3, S4), and story 1's front door as story 2 pinned it
  * (test/my-curated-dlists-headers.test.js R1).
@@ -39,6 +43,7 @@ const PANEL = path.join(UI, 'pages/grapevine/DListCurationPanel.jsx');
 const ENDPOINT = path.join(ROOT, 'src/api/dlist-curation/index.js');
 const MCD_ADR_1 = path.join(ROOT, 'engineering-team/decisions/done/my-curated-dlists/0001-my-curated-dlists-page.md');
 const DC_ADR_5 = path.join(ROOT, 'engineering-team/decisions/done/dlist-curation/0005-dlist-curation-panel.md');
+const MCD_ADR_2 = path.join(ROOT, 'engineering-team/decisions/done/my-curated-dlists/0002-the-two-headers.md');
 
 const ME = 'a'.repeat(64);                    // my assistant on this instance
 const OTHER = '0123456789abcdef'.repeat(4);   // the assistant my Map names — elsewhere
@@ -118,12 +123,13 @@ test('U1: curatedDListAccess — a list on my Map opens as mine when it names my
   assert(!seen.has('no-assistant') && !seen.has('other-pubkey'), `ADR §1: no-assistant and other-pubkey are retired; saw ${JSON.stringify([...seen])}`);
 });
 
-test('U2: curateHereOffer — offered when I have an assistant here, the list is kind 39998, and its assistant\'s header names a shared header; otherwise the reason, in precedence order', async () => {
+test('U2: curateHereOffer — offered when I have an assistant here, the list is kind 39998, and its assistant\'s header points at a kind-39998 header with the same d-tag (Amendment 1); otherwise the reason, in precedence order', async () => {
   const offer = await fn('curateHereOffer');
   const row = { kind: 39998, d: 'dog-breed', pubkey: OTHER, relay: OTHER_RELAY, coord: `39998:${OTHER}:dog-breed`, routeId: '39998:dog-breed', mine: false };
   const header = { id: 'h'.repeat(64), kind: 39998, pubkey: OTHER, created_at: 1, content: '', tags: [['d', 'dog-breed'], ['b', SHARED, 'pointer']] };
   const found = { event: header, where: 'relay', checkedRelay: OTHER_RELAY };
-  const info = { authoredByAssistant: true, pointer: { coord: SHARED, type: 'pointer' }, deferred: false, problems: [], notes: [] };
+  // The pointer as describeCurationHeader reports it: the coordinate, its type, and its parsed parts.
+  const info = { authoredByAssistant: true, pointer: { coord: SHARED, type: 'pointer', kind: 39998, pubkey: AUTHOR, d: 'dog-breed' }, deferred: false, problems: [], notes: [] };
   const o = (over) => offer({ assistantPubkey: ME, row, assistantLookup: found, info, ...over });
   assert(deepEq(o({}), { status: 'available', target: SHARED }),
     `AC-4 / ADR §5: available, targeting the shared header this curation follows; got ${JSON.stringify(o({}))}`);
@@ -140,6 +146,16 @@ test('U2: curateHereOffer — offered when I have an assistant here, the list is
     'ADR §5: its header was not found → missing');
   assert(deepEq(o({ info: { ...info, pointer: null, deferred: true } }), { status: 'unavailable', reason: 'deferred' }), 'ADR §5: deliberately unaffiliated → deferred');
   assert(deepEq(o({ info: { ...info, pointer: null, deferred: false } }), { status: 'unavailable', reason: 'no-pointer' }), 'ADR §5: names no shared header → no-pointer');
+  // Amendment 1 (review NB1): the target must be a kind-39998 header with the Map entry's own d-tag.
+  const ptr = (coord, kind, d) => ({ ...info, pointer: { coord, type: 'pointer', kind, pubkey: AUTHOR, d } });
+  assert(deepEq(o({ info: ptr(`39999:${AUTHOR}:dog-breed`, 39999, 'dog-breed') }), { status: 'unavailable', reason: 'target' }),
+    'ADR 0003 Amendment 1: a pointer at another kind of header is not offered (the endpoint takes kind-39998 targets only)');
+  assert(deepEq(o({ info: ptr(`39998:${AUTHOR}:dogs`, 39998, 'dogs') }), { status: 'unavailable', reason: 'target' }),
+    'ADR 0003 Amendment 1: a pointer at another d-tag is not offered (the Map entry would address a header that does not exist)');
+  assert(deepEq(o({ assistantLookup: { missing: true, failed: false, checkedRelay: OTHER_RELAY }, info: ptr(`39998:${AUTHOR}:dogs`, 39998, 'dogs') }), { status: 'unavailable', reason: 'missing' }),
+    'ADR 0003 Amendment 1: the header\'s own states still come before the target check');
+  assert(deepEq(o({ info: ptr(SHARED, 39998, 'dog-breed') }), { status: 'available', target: SHARED }),
+    'ADR 0003 Amendment 1: a conforming pointer — a kind-39998 header with the same d-tag — is still offered');
   for (const g of [undefined, null, {}, { row: null }, { assistantPubkey: ME, row: 'x' }]) {
     let out;
     try { out = offer(g); } catch (e) { throw new Error(`ADR §5: never throws — threw on ${JSON.stringify(g)}: ${e.message}`); }
@@ -270,7 +286,8 @@ test('S5: CurateHereOffer — words first, then the panel\'s endpoint call, the 
   assert(new RegExp(`You can${APOS}t curate it here`).test(f), 'ADR §5: the reasons begin "You can\'t curate it here"');
   for (const tail of [`: you don${APOS}t have a Tapestry Assistant on this instance\\.`, ': this instance curates only kind-39998 lists\\.',
     ` yet: its assistant${APOS}s header couldn${APOS}t be checked\\.`, `: its assistant${APOS}s header was not found, so the shared list it curates is unknown\\.`,
-    `: its assistant${APOS}s header names no shared list\\.`, `: its assistant${APOS}s header is marked deliberately unaffiliated\\.`]) {
+    `: its assistant${APOS}s header names no shared list\\.`, `: its assistant${APOS}s header is marked deliberately unaffiliated\\.`,
+    `: its assistant${APOS}s header doesn${APOS}t point at a kind-39998 list with the same d-tag\\.`]) {
     assert(new RegExp(tail).test(f), `ADR §5: a reason ends "${tail.replace(/\\\./g, '.').replace(/\(\?:[^)]*\)/g, "'")}"`);
   }
   assert(!/\/api\/strfry\/publish/.test(s) && !/taPubkey/.test(s) && !/[0-9a-fA-F]{64}/.test(s), 'ADR note 6: publishes only through publishOrThrow; no taPubkey, no pubkey literal');
@@ -287,8 +304,8 @@ test('S6: the DList Curation panel — a Replace confirmation says "replaces", w
 
 /* ── D: the superseded-in-part notes (ADR §8) ─────────────── */
 
-test('D1: my-curated-dlists ADR 0001 and dlist-curation ADR 0005 each carry a Status parenthetical and a one-line note citing curated-dlist-update ADR 0003 by short name', () => {
-  for (const p of [MCD_ADR_1, DC_ADR_5]) {
+test('D1: my-curated-dlists ADRs 0001 and 0002 and dlist-curation ADR 0005 each carry a Status parenthetical and a one-line note citing curated-dlist-update ADR 0003 by short name (0002 by Amendment 1)', () => {
+  for (const p of [MCD_ADR_1, DC_ADR_5, MCD_ADR_2]) {
     const s = src(p);
     const status = (s.match(/^\*\*Status:\*\*[^\n]*/m) || [''])[0];
     assert(/^\*\*Status:\*\* Accepted \(.+`curated-dlist-update` ADR 0003\)/.test(status), `ADR §8: ${rel(p)}'s Status line carries the parenthetical; got ${JSON.stringify(status)}`);
