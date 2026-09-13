@@ -290,7 +290,9 @@ test('S2: off/closed on every load — the panel and both checkboxes start false
   assert(!/localStorage|sessionStorage/.test(s), 'AC-2 / AC-3 / AC-4: "on every load" — nothing persisted');
 });
 
-test('S3: the placeholders act on nothing — Update is disabled with a "not built yet" line; the method panel is text only', () => {
+// Re-aimed by curated-dlist-update #4 (ADR 0004): the method panel is no longer text only — it shows the method, the
+// cutoff and the verdicts (that suite pins them); Update is still the placeholder story 5 replaces.
+test('S3: Update acts on nothing — disabled, with a "not built yet" line; the method panel names the rule\'s upvotes and downvotes', () => {
   const s = src(ITEMS, 'AC-4/5');
   // The UpdateListButton declaration, up to the next top-level declaration (or the end of the file).
   const start = s.search(/export\s+(function|const)\s+UpdateListButton\b/);

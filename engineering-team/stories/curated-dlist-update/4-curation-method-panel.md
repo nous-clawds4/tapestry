@@ -105,12 +105,23 @@ None. Resolved at the Planning gate (2026-09-12), each as proposed:
 3. **The verdicts** appear on each candidate row in the items table's candidates view. The panel holds the
    method, the cutoff and the "N of M qualify" summary.
 
+Resolved at the Test Design gate (2026-09-12), each as recommended:
+
+4. **An unreachable relay.** `/api/relay/external` answers a relay that refuses the connection as an empty
+   success, so the page cannot tell it from "no votes" or "nobody is ranked" (OPEN.md row 245's cause).
+   - AC-4's "couldn't check" covers every failure the page can see.
+   - This one is accepted here, because the page only reads.
+   - It is filed as OPEN.md row 280, for story 5 to settle before Update proposes a deletion.
+5. **Simple Lists' one change.** A vote whose first `e` tag names an inherited property (such as `constructor`
+   or `__proto__`) crashes Simple Lists' items page today. With the shared rule, the vote is ignored instead
+   (AC-5).
+
 Origin drift at planning: the branch is 13 commits behind `origin/staging` (sandbox-security work, and OPEN.md
 rows that collide with this book's), none of them in this story's areas. The merge waits for the staging PR.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0004-curation-method-and-verdicts.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/curated-dlist-update/4-curation-method-panel.test-plan.md`
 - Review: (filled in after Review phase)
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

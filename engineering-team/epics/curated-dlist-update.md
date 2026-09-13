@@ -37,6 +37,11 @@ states the copy convention first; the shipped surfaces then follow it.
    story 5 consolidates the offer's sign-and-publish flow (ADR 0003 Option C), decide the rule. Either add a
    check with its own reason, or let "curate it here" name that self-declared header directly — a product
    question.
+   **Carry-forward from story 4's Test Design gate (the operator's call, 2026-09-12):** `/api/relay/external`
+   answers a relay that refuses the connection as an empty success (OPEN.md row 280; the cause is row 245's).
+   So an unreachable community relay reads as "no votes", and an unreachable rank provider as "nobody is
+   ranked". The verdicts then say "skipped", not "couldn't check". Story 4 accepted this because its page only
+   reads. Settle it before Update proposes a deletion: the book's guardrail says a failed read proposes nothing.
 
 Dependencies: 1 first (it ratifies what 2–5 build). 2 and 4 before 5. 3 needs only 1.
 
