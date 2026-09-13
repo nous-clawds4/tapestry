@@ -160,7 +160,8 @@ Tester's sketch. These are the calls it made where the ADR or the tests left roo
    - The relays still get an event whose local import failed (the test plan leaves this open); each place is reported
      on its own.
    - A relay gets one connection per call (`Relay.connect`, then `publish`), at most 4 in flight. So a dead relay in
-     `aDListRelays` costs one connection attempt, not one per event, and a call stays inside nginx's 60 seconds.
+     `aDListRelays` costs one connection attempt, not one per event. *(Corrected after review round 1: that alone doesn't
+     keep a call inside nginx's 60 seconds; ADR 0006 Amendment 2 adds the deadline that does.)*
    - The real `scan` rejects on a non-zero exit, where the header endpoint's `scanLocal` ignores it.
 6. **Read-back** (§4).
    - A place that took an event but couldn't be read back is `failed`, "sent, but couldn't read it back: <reason>". §4's

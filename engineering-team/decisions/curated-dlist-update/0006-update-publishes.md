@@ -3,6 +3,8 @@
 **Status:** Accepted
 **Amended by:** Amendment 1 (2026-09-13): deletes and refreshes target only my assistant's copies; each server read
 carries a limit of 500.
+Amendment 2 (2026-09-13): each call answers within 45 seconds; an unknown outcome is never reported as "nothing"; the
+server reads only the deletion requests for each call's copies.
 **Date:** 2026-09-13
 **Story:** `engineering-team/stories/curated-dlist-update/6-update-list-publishes.md`
 **Supersedes in part:** these ADRs in `curated-dlist-update`:
@@ -158,7 +160,8 @@ We chose **Option A**.
      - **The shared list:** the items filed under the shared header (`#z`, kinds 9999 and 39999), from both places.
      - **My list:** my assistant's kind-39999 items filed under my header, from both places.
      - **My assistant's deletion requests** for its copies (`{ kinds: [5], authors: [assistant], "#k": ["39999"] }`),
-       from both places. §3's timing and §7's flag use them.
+       from both places. §3's timing and §7's flag use them. *(Amendment 2: the server reads only the requests that
+       name this call's copies; §7's read is unchanged.)*
    - **Checks, per intent:**
      - A copy's or refresh's original must be on the shared list at `original`. For a 39999 original, the newest
        version at that address must be `version`; for a 9999, it must be the event with that id.
@@ -220,7 +223,8 @@ We chose **Option A**.
    - Each call re-reads and re-checks (§2), so a later call is judged against what the earlier ones wrote.
    - The first refused call stops the run. What was already published is reported, and the browser re-reads.
    - A call stays well inside nginx's default 60-second proxy timeout. `docker/nginx.conf` gives 600 seconds only to
-     three long routes (`:9–36`), and this route isn't one of them.
+     three long routes (`:9–36`), and this route isn't one of them. *(Replaced by Amendment 2: the steps' own timeouts
+     don't bound a call; a 45-second deadline does.)*
 7. **The browser** (`ui/src`).
    - **`updatePlan`'s entries gain their pins** (ADR 0005 §7):
      - copy and refresh entries carry `version`, the original's current id;
@@ -249,6 +253,9 @@ We chose **Option A**.
         - "sent, but <place> didn't keep it";
         - "not sent: this instance publishes locally only";
         - for a deletion, "<place> still shows it".
+
+        *(Amendment 2 adds the unknown outcome: an answer that isn't the endpoint's own never reads as "Nothing was
+        published.")*
      4. It bumps the `epoch` again, so the next preview proposes only what is still missing (AC-8).
    - **Deletions that aren't honored (AC-9).** The items section also reads my assistant's deletion requests
      (`{ kinds: [5], authors: [assistant], "#k": ["39999"] }`, both places, strict). A copy on my list that one of them
@@ -396,3 +403,98 @@ The corrections:
    - An answer below 500 is complete.
 
 Nothing else in §2 changes.
+
+## Amendment 2 (2026-09-13, from Review round 1, approved at its Architecture gate)
+
+Story 6's first review found that a call can outlast the proxy's timeout, and that the page then misreports it (its
+Blocking 1). It also found a read that only grows (its Non-blocking 1).
+- **§6 claims a bound the code doesn't have.** It says a call "stays well inside nginx's default 60-second proxy
+  timeout". But each step is bounded only by its own timeouts:
+  - my header, my list and the deletion requests are read together, in up to 15 seconds: a relay read is two 5-second
+    connection attempts and a 5-second query. The shared list's read then takes up to 15 more;
+  - this instance's imports run one after another, at up to 5 seconds each;
+  - a relay gets one connection, allowed 5 seconds, and at most 4 sends at once, each allowed 5 seconds;
+  - the read-back takes up to 30 seconds per place.
+
+  So a 50-intent call runs for about two minutes when the community relay is slow, or when a second DList relay accepts
+  connections and never answers.
+- **The page then says the opposite of what happened.** nginx answers 504 while the server goes on publishing.
+  `publishIntents` reads any answer it doesn't expect as a refusal, so the page shows "Nothing was published." AC-8
+  says a partial failure is shown, never hidden.
+- **§2's deletion-request read only grows.** It reads every deletion request my assistant ever sent for a kind-39999
+  item, on any list. None is removed, and each Update deletion adds one. From 500, Amendment 1's limit makes every call
+  a 503, for good. The server uses these requests only for §3's timing, which needs only those that name this call's
+  copies.
+
+The changes:
+1. **Each call answers within 45 seconds of the handler's start.** This replaces §6's last point. nginx's default is 60
+   seconds. Neither the container's nginx nor the droplets' host nginx, as OPERATIONS.md sets it up, gives this route a
+   longer one; the rest is margin for the trip.
+   - **The reads are unchanged.** Their own timeouts bound them at about 30 seconds, and a failed read still gets §2's
+     503.
+   - **A send starts only while there is time for it.** A send is an import into this instance or a publish to a relay.
+     One starts only in the first 25 seconds: the deadline, less 10 seconds kept for the read-back and 10 for one send's
+     worst case (a connection, then a publish).
+   - **What wasn't sent is reported per place:** `failed`, "not sent: out of time". A place that took the event keeps
+     its own status.
+   - **The read-back gets the time that is left.** A place not read back by the deadline is `failed`, "sent, but
+     couldn't read it back: out of time", the words story 6's Deviation 6 gives any failed read-back.
+   - **Nothing new in the answer.** The statuses are §4's and the answer is §5's 200. The next Update proposes again
+     whatever wasn't sent (Planning decision 4).
+   - **The run is unchanged.** A call that ran out of time isn't a refusal, so the browser goes on to the next call,
+     which re-reads first (§6).
+   - **The clock.** The handler reads the time through a new injected `nowMs` (milliseconds; `Date.now` by default), so
+     tests can move it. `now` stays the `created_at` clock.
+2. **An unknown outcome is never reported as "nothing"** (§7, step 3). The browser sorts each call's answer:
+   - **a 200 with the endpoint's body** (`success: true` and `results`): its results;
+   - **one of the endpoint's own refusals,** all made before anything is signed: a 400, 401, 403, 409, 413 or 503 with
+     the endpoint's body (`success: false`). The call published nothing, and the run stops with today's words;
+   - **anything else is unknown:** no answer, a dropped connection, a 500, a 502 or 504, or a body that isn't the
+     endpoint's. The run stops, and the page says: "⚠️ Publishing stopped without an answer (<reason>); some changes
+     may have been published. Your list has been read again, so the preview above proposes only what is still to do."
+     `<reason>` is "the server answered <status>", "the answer couldn't be read", or "no answer arrived".
+   - **"Nothing was published."** shows only when no call's outcome is unknown.
+   - **The sorting is pure:** `updateAnswer(status, data)` in `ui/src/utils/treasureMap.js`, beside `planIntents`. A
+     failed fetch is `updateAnswer(null, null)`.
+   - With the deadline, the server has finished before nginx would answer 504, so the re-read after a 504 shows what
+     landed.
+3. **The server reads only the deletion requests for this call's copies** (§2's fourth read). The filter becomes
+   `{ kinds: [5], authors: [assistant], "#a": [...], limit: 500 }`, over this call's copy addresses: each copy intent's
+   derived address (§3's `d`) and each refresh's `copy`. That is at most 50 addresses.
+   - A call with no copies or refreshes skips the read.
+   - Amendment 1's limit and its 503 still apply, but the count no longer grows with every Update.
+   - §3's timing is unchanged, and so is §7's read, for the page's flag (below).
+
+**Consequences.**
+- **Debt, recorded:**
+  - §7's read, for the page's flag, still reads every deletion request. From 500 it names a gap, and its flags may be
+    incomplete; it never stops Update. It can't be narrowed the same way: a list's copies can number 500, too many
+    addresses for one GET (OPEN.md row 299).
+  - The server takes the list's relay from settings (`aDListRelays[0]`), and the page from a constant
+    (`COMMUNITY_RELAYS[0]`). Both are the community relay by default. An operator who changes the setting makes Publish
+    come back 409, which fails safe (OPEN.md row 300).
+- **Story 6's Deviation 5 is corrected:** one connection per relay doesn't by itself keep a call inside 60 seconds.
+
+**Implementation notes.**
+1. `src/api/dlist-curation/update.js`: the deadline and the send cutoff; `nowMs` among the injected dependencies; the
+   cutoff checked before each import and each relay send; the read-back bounded by the time left; the narrowed read.
+2. `ui/src/utils/treasureMap.js`: `updateAnswer`.
+3. `CuratedDListItems.jsx`: `publishIntents` sorts each answer with `updateAnswer`.
+4. `UpdatePreview.jsx`: the unknown sentence, and "Nothing was published." only when no outcome is unknown.
+5. **Local check:** the fetch stub also answers 504, and fails a fetch once. The page shows the unknown sentence, not
+   "Nothing was published." Handler tests cover the deadline itself.
+
+**Testable seams (the Tester's call).**
+- **The handler:**
+  - with a `nowMs` that sends move forward, no send starts after the cutoff, and each item not sent is `failed`, "not
+    sent: out of time", at that place;
+  - with a read-back that doesn't answer and no time left: "sent, but couldn't read it back: out of time";
+  - the handler answers in both cases;
+  - the deletion-request filter is `#a` over exactly this call's copy and refresh addresses, and a call with neither
+    makes no such read;
+  - a re-copy is still timed after a request the narrowed read finds.
+- **The UI:** `updateAnswer` for a 200, each own refusal, a refusal status without the endpoint's body, a 500, a 502, a
+  504 and a failed fetch. Structurally: the unknown sentence, and when "Nothing was published." shows.
+- **Docs:** the pointers in §2, §6 and §7; Deviation 5's correction; OPEN.md rows 299 and 300.
+
+Nothing else changes.
