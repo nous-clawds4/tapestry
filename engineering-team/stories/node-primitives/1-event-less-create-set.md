@@ -1,6 +1,6 @@
 # Story 1: Create a set with no event behind it (strfry-free create-set)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-12
 **Type:** Feature
 

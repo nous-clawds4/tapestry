@@ -248,3 +248,215 @@ The implementation is otherwise sound and matches ADR decisions 1–8 and its Im
 - The read, publish, install and auth paths behind criteria 3–5.
 
 The one block is contractual. The `already-existed` answer diverges from ADR decision 9's shape, and the story's Deviations section does not record it — the section exists precisely so that the operator accepts or rejects such differences at the gate. Clearing it takes either a few lines in `nodes.js` (remedy a) or one journaled line in the story (remedy b). The live-evidence caveat (non-blocking finding 1) is not blocking, but the operator gate should know that criteria 2, 4 and 5 are evidenced by the Implementer's scratch run, not reproduced by this review.
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer, round 2 — an independent context, under round 1's safety limits)
+**Date:** 2026-09-13
+**Diff:** `git diff 76b0f6dd..HEAD` on `chore/concept-graph-curation` (HEAD = `fa4fb3f0`)
+
+At the round-1 gate the operator chose to:
+- clear B1 by conforming to the ADR, with the Tester pinning the shape first;
+- fold in non-blocking findings 2 and 4, plus the OPEN.md rows;
+- journal non-blocking finding 5 in any case;
+- allow a live re-run on a scratch instance.
+
+Range — three commits after the round-1 review commit `76b0f6dd`:
+- `7ddbf17d` (2026-09-12 23:31:28, Tester): H2/H4 pin decision 9's `already-existed` shape, plus two test-plan rows. It touches only `test/event-less-create-set.test.js` and the test plan.
+- `602ded76` (23:32:49): OPEN.md rows 281–284. It touches only `OPEN.md`.
+- `fa4fb3f0` (23:37:40, Implementer): `src/api/normalize/nodes.js`, `scripts/scratch-stack.sh`, and two story `## Deviations` lines. It touches no test file.
+
+The pin comes before the fix, as the operator asked. No `package*.json` changed, and nothing in `src/` changed beyond `nodes.js`.
+
+### At a glance (for the gate)
+
+- No blocking items remain. B1 is cleared the way the operator chose, and everything folded in is present and accurate.
+- The operator's decision points:
+  - The Phase-4 H10 amendment is described as "an operator-approved kick-back to the Tester". Nothing in the repo records that approval, so only the operator can confirm it — or drop the wording (N4).
+  - The end-to-end live class still rests on the Implementer's scratch run, as in round 1. Run it, H7 included, against the default container once the feature is deployed there, and before the book's real use.
+  - Optional: two one-line test pins (N1, N2), and a ledger row for one pre-existing endpoint quirk (N5).
+- On commit, set the story to Done (see Close-out).
+
+### Quality gates (run by reviewer, not trusted)
+
+Round 1's limits still apply: no full `npm test`, no scratch instance, no writes to the shared graph.
+
+- [x] `node -e "require('./test/event-less-create-set.test.js').run()"` against the default container — 14 passed, 0 failed, 11 skipped.
+  - U1–U10 and S1–S4 pass on the round-2 code.
+  - H0–H10 skip, because the shared `tapestry` answers 404 on `GET /api/normalize/node-primitives`. I confirmed that with a read-only GET first.
+  - Every fixture write, and the teardown's delete, runs only after that probe answers 200 (`test/event-less-create-set.test.js:344-366`, `:492-495`).
+- [x] The 18 stack-free suites from round 1 — one process, each via `require(...).run()`, round 1's env. Result: 286 passed, 0 failed, 103 skipped, the same as round 1.
+  - Re-run in one process after `event-less-create-set`: every per-suite count is unchanged. The total is 300/0/114 including the event-less suite's 14/0/11.
+  - The `child_process` functions are the originals afterwards.
+- [x] Stub isolation, checked directly:
+  - After `event-less-create-set` alone, none of `src/lib/neo4j-driver.js`, `src/api/normalize/firmware.js` or `nodes.js` is left in `require.cache`, and a fresh require of the driver is the real module.
+  - The 18-suite runs do end with both real modules cached. So does the baseline, because the neighbouring suites load them. That is not a leak.
+- [x] `bash scripts/harness-lint.sh` — clean (0 violations) before this append.
+- [x] `node --check` on `nodes.js`, `nodePrimitivesProbe.js`, the suite and `test/test.js`; `bash -n scripts/scratch-stack.sh`; `git diff --check 76b0f6dd..HEAD` — all clean.
+- [x] Reviewer probe 1 — the answer shapes (a session-scratchpad script, not committed).
+  - Method: it loads the real `nodes.js` behind a stubbed driver and firmware layer (the suite's own pattern), then drives every branch:
+    - 6a on a registered set;
+    - 6a on an unregistered set with no description;
+    - `created`;
+    - the write's not-created path, for an event-less set and for a lettered one;
+    - zero rows;
+    - 409.
+  - Result: 31 of 31 checks hold, including the two race-only branches that no test reaches.
+    - Both `already-existed` answers have `created`'s shape, plus `hasEvent` and minus `note`.
+    - Their `name` and `description` are the existing set's, not the request's.
+    - `registeredUnder` appears only when the set is registered.
+    - The write receives `setSupersetUuid` and five tags, never sets an `id`, and sets and removes the marker exactly once each.
+- [x] Reviewer probe 2 — the round-2 Cypher (also a scratchpad script).
+  - Method: the exact query text from `nodes.js`, run against the shared stack's real Neo4j (5.26.10 Community). Read-only, plus one `EXPLAIN`.
+  - Result: 16 of 16 checks hold.
+  - **6a on the real lettered set `firmware concepts for nostr`, asked in upper case.** One row, carrying:
+    - its own uuid, name and labels (`NostrEvent, ListItem, Set`);
+    - `hasEvent: true`;
+    - `registered: true`, which matches an independent `HAS_ELEMENT` count of 1;
+    - its stored description.
+  - **6a with an absent name.** Zero rows, not one all-null row: the aggregate has grouping keys, so `same.length === 0` still falls through to 6b.
+  - **6a with a superset that holds no edge to the set.** `registered: false`.
+  - **`EXPLAIN` of the exact write statement.** It compiles on this Neo4j.
+    - EXPLAIN plans without executing, and every uuid it named matched no node.
+    - Afterwards the graph holds no `addSubsetCreated` marker and no node at the probe uuid.
+  - **Shared-graph sanity.** No `test-nodeprim` fixture and no marker, so the fix round's live runs stayed on the scratch instance.
+- [x] Read-only: both uuid uniqueness constraints that the race fix relies on (`nostrEvent_uuid`, `nostrEventTag_uuid`) exist on the shared stack. `setup/neo4jConstraintsAndIndexes.sh:45,48` creates them on every instance.
+- [x] No `tapestry-scratch*` container or network remains (`docker ps -a`, `docker network ls`).
+- [ ] Not run: the full `npm test`, and the live class H0–H10. This review's limits allow no scratch instance.
+- [x] `npm run test:playwright` — not applicable (no UI change).
+
+### Live evidence (Implementer-supplied), weighed
+
+- **Post-fix run** — `…/tasks/b0eurh8o7.output`: 24 passed, 0 failed, 1 skipped. H7 skips by design off the default container; H10's firmware reinstall passes.
+  - The file was last written at 23:37:04 — after the Tester's pin (23:31:28) and 36 s before the implementation commit (23:37:40).
+  - It opens with a control-panel restart. The scratch mounts this checkout's `src/` read-only, so the restart loads the edited code.
+  - The scratch boot log (`…/tasks/b8amkm1ik.output`) reports ready at 23:32:19.
+  - The sequence is consistent.
+- **Failing confirmation** — 21/2/2 against `a5c90134`. The only record is `fa4fb3f0`'s commit message.
+  - It is consistent by construction. The pre-fix 6a answer was `set: {uuid, name, hasEvent}`, exactly the `got` printed by both reported failures.
+  - That shape has no `labels`, so it fails the first new assertion in both H2 and H4.
+- **Weight** — credible, as in round 1. The JS and Cypher layers of the new paths are now reviewer-verified too, by probes 1 and 2. What rests on the scratch run alone is the end-to-end live class, H10's reinstall above all.
+
+### Round-1 findings — where they stand
+
+| Round-1 finding | Operator's choice | Now |
+|---|---|---|
+| B1 — `already-existed` shape (blocking) | conform; Tester pins first | cleared |
+| NB1 — live evidence Implementer-supplied | a scratch re-run | re-run done, still Implementer-run; H7 never live |
+| NB2 — check-then-write window | fold in | addressed |
+| NB3 — slug collisions | a ledger row | filed as row 282, which corrects round 1 |
+| NB4 — signals not trapped | fold in | addressed (`scripts/scratch-stack.sh:68-70`, cleared at `:101`) |
+| NB5 — journal the H10 amendment | in any case | addressed (story `:107`; see N4) |
+| NB6 — nested-set reinstall | not taken up | stands as recorded (parity by construction) |
+| NB7 — backup coverage | a ledger row | filed as row 281 |
+| Harness friction 1 and 2 | ledger rows | filed as rows 283 and 284 |
+
+- **B1 — cleared.**
+  - **The 6a lookup** (`src/api/normalize/nodes.js:169-178`) now returns three new fields:
+    - `labels(s)`;
+    - the stored description tag (`:172`, `:175`);
+    - `registered` — an `EXISTS` over the `set` superset's `HAS_ELEMENT` edge (`:174`), not an echo of the superset uuid.
+  - **The helper.** `alreadyExisted()` (`:91-101`) builds `set: {uuid, name, description?, labels, hasEvent}` and `parent`, and adds `registeredUnder` only when `registered` is true.
+  - **The write's not-created path** (`:238-245`) gives the same shape with `registered: true`. That is true: the same statement has just MERGEd the `HAS_ELEMENT` edge (`:215`).
+  - **`created`** is unchanged in substance (`:246-257`); only its key order moved.
+  - **The pins.**
+    - H2 (`test/event-less-create-set.test.js:768-778`) checks the name, labels, description, parent and `registeredUnder`.
+    - H4 (`:810-816`) checks the lettered set's own name and labels, and that neither `registeredUnder` nor a description is reported.
+    - H4's premise holds: the lettered fixture has no `HAS_ELEMENT` from the `set` superset and no tags (`:475-476`).
+- **NB2 — addressed.** I verified it by reading and with both probes.
+  - **The marker.** It is set ON CREATE (`nodes.js:204-205`), read into `created` (`:206`) and removed (`:207`). The REMOVE runs on the MERGE's only row, before any filter, in the same transaction, so no committed node can keep it.
+  - **Two concurrent identical calls.** The second call blocks on the `nostrEvent_uuid` uniqueness lock until the first commits. It then matches the committed, marker-free node and answers `already-existed`, not `created`.
+  - **Tags only on create** (`:210-213`). The old statement would MERGE a second `description` tag onto an existing set whenever a repeat carried a different description.
+  - **An interloper at the address** fails `WHERE created OR (s:Set AND same name)` (`:209`).
+    - The result is zero rows and a 500 (`:231-236`).
+    - Nothing is linked, tagged or registered. The interloper's only touch is a no-op REMOVE of a property it does not have.
+- **NB3 — filed as row 282, accurately.**
+  - Row 282 also corrects round 1's finding 3, which said lettered `create-set` would "silently replace".
+  - In fact, on an address collision `handleCreateSet` (`src/api/normalize/index.js:4290-4302`) answers `alreadyExisted: true`, under the requested name and with the other set's uuid.
+- **OPEN.md rows 281–284** (`OPEN.md:336-339`).
+  - All four are in the ledger's seven-column format, dated and sourced.
+  - They are numbered after row 280, which `feat/curated-dlist-update` has already committed.
+  - Their claims check out:
+    - ADR `second-brain/0008` names the brain export's five families.
+    - `BIBLE.md:1829-1830` records the serialization mode as unbuilt.
+    - `slug()` is at `src/lib/dtag.js:23`.
+    - Rows 283 and 284 restate round 1's friction faithfully.
+  - Row 281's type, `enhancement`, is not one of the six types `OPEN.md:21` lists, but rows 33–35 set the precedent. Cosmetic.
+
+### The round-2 `## Deviations` lines, judged
+
+1. **Story `:107` — the H10 fixture amendment, journaled.** Accepted. It closes non-blocking finding 5; its "operator-approved" wording is N4.
+2. **Story `:108` — the round-2 write.** Accepted. The write learns whether it created the node from a same-statement marker, writes tags only on create, and refuses anything at the address except the same-name Set.
+   - It departs from the ADR's sketch, not from a decision. Decision 7's single idempotent statement stands, and decision 6b's "never silently re-linked" now holds in the race window too.
+   - Also accepted, and needing no line: the write now matches the `set` superset by the uuid resolved at step 3 (`nodes.js:202`), instead of re-walking `IS_THE_CONCEPT_FOR`. It is the same node, resolved moments earlier in the same request.
+   - One nuance, also accepted. Inside the race window, a same-name Set that appears at the address is adopted under the parent; outside the window, 6b would answer 409. In practice only a concurrent identical call puts one there, and that call links it under the same parent.
+
+### Checklist deltas since round 1
+
+- **Spec.** Every criterion keeps its tests, and none is dropped. The race guard sits inside decisions 6b and 7, so no behavior falls outside the story.
+- **ADR.** Changed files are `nodes.js` and `scripts/scratch-stack.sh` only. The import surface is unchanged, and S1 still enforces it. No new dependency.
+- **Injection boundary.** The only new interpolation is `${REL.TERMINATION}` inside the 6a `EXISTS` (`nodes.js:174`), a firmware alias. Every caller value, and both superset uuids, travel as parameters.
+- **Concept graph.** No concept definition changed, so no firmware reinstall is needed. No TA literal was added.
+- **Tests can't catch.** No secrets, no new console output, no commented-out code, no TODOs.
+- **House rules.** No new tooling.
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **`test/event-less-create-set.test.js:763,773`** (N1) — no test tells the existing set's description apart from the request's.
+   - H2 repeats with the same description it stored. H3 and H4 send no description, and H3 asserts nothing about it.
+   - The code reads the stored tag (`nodes.js:172,175,217-219`), and probes 1 and 2 confirm this. Only a test pin is missing.
+   - Optional, in the Tester's lane: in H3, whose repeat carries no description, assert `set.description === 'nodeprim fixture description'`.
+2. **`test/event-less-create-set.test.js:738-745`** (N2) — H1 checks the node's id, labels, name and pubkey, not its full property set.
+   - So two claims rest on reading `nodes.js:204-209` and on the probes, not on a test: that no marker persists, and ADR decision 7's "property-for-property except `id`".
+   - Optional: one `keys(n)` assertion in H1 would pin both.
+3. **`engineering-team/stories/node-primitives/1-event-less-create-set.test-plan.md`, Verification section** (N3) — the round-2 failing confirmation is recorded only in `fa4fb3f0`'s commit message, and the implementing session ran it, not the Tester.
+   - `7ddbf17d` calls the new pins "Expected to fail", while `engineering-team/roles/tester.md:33` asks the Tester to run them and confirm the failure.
+   - The Verification section still shows only the Phase-3 run.
+   - This is row 283's friction again: the live class's environment is still built in Phase 4.
+   - Optional: a short Verification note recording the 21/2/2 run.
+4. **`engineering-team/stories/node-primitives/1-event-less-create-set.md:107` and `OPEN.md:338`** (N4) — both call the Phase-4 H10 amendment "an operator-approved kick-back to the Tester".
+   - `8b77d448`'s message says nothing of it, and round 1 described the amendment as made by the implementing session.
+   - The approval claimed is the operator's own, so only the operator can confirm it. If it wasn't given, drop the wording in both places.
+5. **`src/api/neo4j/queryPost.js:17`** (N5) — pre-existing, and outside this diff.
+   - The endpoint's `WRITE_KEYWORDS` heuristic matches the `:Set` label. A pure read such as `MATCH (s:Set) RETURN s.name` is therefore classed as a write: it runs in a WRITE session, and remote non-owner callers get 403 (`:35-37`).
+   - No UI query uses that label today; I checked the endpoint's 11 UI callers. So the quirk is latent.
+   - It surfaced when reviewer probe 2's own guard refused such a read.
+   - Suggest an OPEN.md row (`bug`) for the main session. It is not this story's to fix.
+
+#### Harness friction
+
+1. Rows 283 and 284 both recurred in this round. N3 is row 283's friction: a Phase-4-built environment. And this review again had to weigh the live class from Implementer output, which is row 284's gap. No new row is needed; count this round as their second occurrence when they are dispositioned.
+
+### Close-out (same commit)
+
+- Per this review's instructions, nothing was committed, and no story, code or test file was edited.
+- The story's status line still reads `Approved`. Given the verdict below, the committing session should set the story to Done in the same commit (`engineering-team/roles/reviewer.md` step 9). Otherwise harness-lint L1 flags a review whose final verdict is a pass while its story is not Done.
+- Completion detection belongs in the chat, not in this file (review template).
+
+### Verdict
+
+**PASS**
+
+The one blocking item from round 1 is cleared the way the operator chose. The Tester pinned decision 9's shape first (`7ddbf17d`). Both `already-existed` answers now carry it, with `registeredUnder` only when it is true of the existing set. The folded-in race guard, the signal trap, the ledger rows and the journal lines are all in place and accurate.
+
+Nothing the ADR pins has regressed:
+- the `created` answer;
+- the registration and both edges;
+- the no-event guarantee — no `id` is set anywhere, and the import surface is unchanged and enforced by S1;
+- the order of the checks.
+
+Everything this review could reach held:
+- the U and S classes;
+- the 18 neighbouring suites, with no stub leakage;
+- harness-lint;
+- both reviewer probes — 31 of 31 on the answer shapes, race-only branches included, and 16 of 16 on the exact Cypher against real Neo4j 5.26.10, including an `EXPLAIN` of the new write.
+
+The five non-blocking items are: two optional test pins, a process note, a claim only the operator can confirm, and a pre-existing quirk outside this diff.
+
+The caveat carried from round 1 stands. The end-to-end live class, H10's reinstall above all, is evidenced by the Implementer's scratch run, not reproduced here. Run it, H7 included, against the default container once the feature is deployed there, and before the book's real use.
