@@ -70,6 +70,17 @@ states the copy convention first; the shipped surfaces then follow it.
    **Before Update relies on deletions:** check that the relays holding copies accept and honor kind-5 deletion
    requests, the `a` form included (the book's known constraints).
    **The signer** is the signed-in user's own assistant (OPEN.md row 188), not the Simple Lists panel's signer.
+   **Carry-forward from story 5's review (Non-blocking 3–4, 2026-09-13):**
+   - read my assistant's header strictly, or re-read it, before signing the upgrade. The preview's header state
+     comes from the non-strict `useCurationHeaders` read: safe for a preview, not for a signature;
+   - on a large list the preview fans out, to about 13 connections at once at 500 items. If large lists appear,
+     send the vote chunks two or three at a time.
+
+   **For the book's audit** (story 5's review, Non-blocking 1–2; not story 6 work):
+   - a rank provider slower than 5 seconds now reads as failed, so Simple Lists shows the warning, with every
+     weight null, where before it took a silently partial answer. ADR 0005 §5's "scores don't move" holds only for
+     its two named cases;
+   - the weights warnings now also reach Simple Lists' `DListRatings.jsx` and `DListItemRatings.jsx`.
 
 Dependencies: 1 first (it ratifies what 2–6 build). 2 and 4 before 5; 5 before 6. 3 needs only 1.
 

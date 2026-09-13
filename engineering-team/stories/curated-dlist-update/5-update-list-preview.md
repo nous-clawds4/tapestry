@@ -1,6 +1,6 @@
 # Story 5: Update list shows what my assistant would do, built only from reads it could complete
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-13
 **Type:** Feature
 
@@ -166,6 +166,6 @@ auth-hardening follow-ups (its OPEN.md row 276) and `SECURITY.md`.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/5-update-list-preview.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/curated-dlist-update/5-update-list-preview.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
