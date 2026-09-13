@@ -148,6 +148,20 @@ auth-hardening follow-ups (its OPEN.md row 276) and `SECURITY.md`.
   - The panel's list is its own `panelIncomplete`: §6's shared-list gaps, then `listReadGaps(myList, 'your list')`. The preview's call keeps §6's list, as the amendment says.
   - When both shared sources failed, the panel still says "couldn’t check the shared list" alone (story 4's branch, unchanged), without my list's gaps. Amendment 2 §3 lets the panel and the preview name different reads, and the preview names both.
   - ADR 0004's Status parenthetical and note quote §4's new words beside the old ones, and cite Amendment 2.
+- **Local check, Amendment 2 (2026-09-13, the orchestrator).** The UI build was copied into the local container. Nothing on the server changed, so there was no restart. Signed in through the fetch stub on `dog-breed`, under Trust Everyone at cutoff 2:
+  - with only my list's strict read failing:
+    - the panel says "Verdicts incomplete — couldn’t check your list on the community relay.";
+    - the preview says "Nothing to propose — couldn’t check your list on the community relay.";
+    - the candidates keep their verdicts ("skipped · 1 < 2");
+  - with every strict read failing:
+    - the preview says "Nothing to propose — couldn’t check your list on the community relay; the shared list on the community relay; the votes on the community relay.";
+    - the panel says "Verdicts incomplete — couldn’t check the votes on the community relay.";
+    - each candidate says "couldn’t check";
+  - the stub blocked no write, and the browser's settings were restored.
+- **Regression, Amendment 2 (2026-09-13).** Full `npm test` at `733f0a49`:
+  - This story's four suites pass (34, 24, 23 and 13 tests), and the known reds remain (OPEN.md row 191's four, `summaries-element-count` L5).
+  - One stack suite, `most-pinned-tag-index-publish`, failed 4 of 7 after passing in both earlier runs today. It touches none of this story's code, and the server didn't change between those runs.
+  - The cause is fixture build-up in that suite itself. Each run publishes two pinned fixture tags and never removes them, so 183 of them now fill the tag index's 200-row page, and this run's one-pin fixture tag sorted off it. It is unrelated to row 191, whose prune covers only the trusted-lists fixtures. Filed as OPEN.md row 293.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md`
