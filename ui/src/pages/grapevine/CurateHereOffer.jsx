@@ -21,6 +21,8 @@ const REASON_TAILS = {
   missing: ": its assistant's header was not found, so the shared list it curates is unknown.",
   'no-pointer': ": its assistant's header names no shared list.",
   deferred: ": its assistant's header is marked deliberately unaffiliated.",
+  // ADR 0003 Amendment 1: the header points at a list that cannot be curated under this entry.
+  target: ": its assistant's header doesn't point at a kind-39998 list with the same d-tag.",
 };
 
 /**

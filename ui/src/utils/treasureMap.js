@@ -607,10 +607,10 @@ export function sharedListUnavailable(assistantLookup, info) {
 
 /**
  * Whether a read-only list offers "curate it here instead" (curated-dlist-update ADR 0003 §5): only with
- * an assistant here, for a kind-39998 list, whose curating assistant's header names a shared header —
- * the target the offer curates. Precedence: `no-assistant` → `kind` → the header's states, as
- * `sharedListUnavailable` reads them (`checking`, then `failed` / `missing` / `no-pointer` / `deferred`).
- * Never throws.
+ * an assistant here, for a kind-39998 list, whose curating assistant's header points at a kind-39998
+ * header with the list's own d-tag — the target the offer curates (Amendment 1). Precedence:
+ * `no-assistant` → `kind` → the header's states, as `sharedListUnavailable` reads them (`checking`, then
+ * `failed` / `missing` / `no-pointer` / `deferred`) → `target`. Never throws.
  *
  * @returns {{status:'available', target:string} | {status:'checking'} | {status:'unavailable', reason:string}}
  */
@@ -621,6 +621,11 @@ export function curateHereOffer(input) {
   const why = sharedListUnavailable(assistantLookup, info);
   if (why === 'checking') return { status: 'checking' };
   if (why) return { status: 'unavailable', reason: why };
+  // The endpoint authors my assistant's header under the target's d-tag, and the Map entry keeps the
+  // list's own d-tag: they must be the same kind-39998 list, or the Map would address a header that does
+  // not exist (assistant-designation.md "The header contract"; Amendment 1).
+  const { kind, d } = info.pointer;
+  if (kind !== 39998 || d !== row.d) return { status: 'unavailable', reason: 'target' };
   return { status: 'available', target: info.pointer.coord };
 }
 

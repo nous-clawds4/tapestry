@@ -151,6 +151,21 @@ areas. The merge waits for the staging PR, where this book's OPEN.md rows are re
   failing tests — exactly OPEN.md row 191's (three L0 GUARD refusals and the refused prune; this machine
   publishes externally by the operator's choice). Row 261's two LB matrices were skipped this run, not
   failed.
+- **Follow-up: ADR 0003 Amendment 1** (story 3's review, Non-blocking 1 and 2; the operator chose to fix both
+  before the book merges). Written from the amendment itself, not from the Test Design sketch (the review's
+  Harness friction 1):
+  - `curateHereOffer`'s target check (`ui/src/utils/treasureMap.js`), and its reason sentence
+    (`CurateHereOffer.jsx` `REASON_TAILS.target`);
+  - `my-curated-dlists` ADR 0002's superseded-in-part note.
+
+  The story's six suites and the seven neighbouring suites: 231 passed, 0 failed; harness-lint clean. The
+  local check used the fetch stub against the new build in the container:
+  - the real `dog-breed` curation still offers "Curate it here instead";
+  - a synthetic curating header pointing at `…:dogs`, served by the stub, shows "You can't curate it here:
+    its assistant's header doesn't point at a kind-39998 list with the same d-tag." and no offer.
+
+  Full `npm test`: 169 suites green, 4 skipped, and 3 red with exactly OPEN.md row 191's four known
+  failures. Row 261's two LB matrices were skipped.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md` (with Amendment 1)
