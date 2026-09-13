@@ -441,7 +441,8 @@ function planInput(over = {}) {
     ...over,
   };
 }
-const proposes = (p) => !!p && ((p.copy || []).length + (p.refresh || []).length + (p.delete || []).length > 0 || p.upgrade === true);
+// Re-aimed by curated-dlist-update #6 (ADR 0006 §7): the upgrade now carries dropsMarker, so it is an object, not `true`.
+const proposes = (p) => !!p && ((p.copy || []).length + (p.refresh || []).length + (p.delete || []).length > 0 || !!p.upgrade);
 
 test('U6: updatePlan — ready: copy the qualifying candidates, skip the rest with their scores; refresh an edited copy whose new version qualifies; delete an unedited copy that no longer qualifies; keep, flagged, an edited copy that doesn\'t qualify and one whose original is gone; count the unchanged; the older header upgrades', async () => {
   const updatePlan = await fn('updatePlan');
@@ -459,7 +460,7 @@ test('U6: updatePlan — ready: copy the qualifying candidates, skip the rest wi
   assert(same(kept, { [route(M5)]: 'edited-not-qualifying', [route(M7)]: 'not-found' }),
     `AC-3 / gate decision 3: keep, flagged — the edited copy whose new version doesn't qualify (never deleted for an edit), and the copy whose original is gone; got ${brief(p.keepFlagged)}`);
   assert(p.unchanged === 1, `ADR 0005 §7: the kind-9999 copy whose original qualifies stays unchanged (never "edited"); got ${brief(p.unchanged)}`);
-  assert(p.upgrade === true, 'AC-3: my header uses the older link → upgrade');
+  assert(!!p.upgrade, 'AC-3: my header uses the older link → upgrade (re-aimed by curated-dlist-update #6: it now carries dropsMarker, ADR 0006 §7)');
   assert(p.upToDate === false, 'AC-3: there is something to do');
   assert(!(p.delete || []).some((e) => e.copyRouteId === route(M8)) && !(p.keepFlagged || []).some((e) => e.copyRouteId === route(M8)),
     'ADR 0005 §7: an item of my assistant\'s with no q is not a copy — the plan leaves it alone');
@@ -614,16 +615,19 @@ test('S4: UpdateListButton — on my own lists an enabled button that opens the 
   assert(!new RegExp(`Update list isn${APOS}t built yet`).test(f), 'ADR 0005 §8: the placeholder line is gone from the items module');
 });
 
-test('S5: UpdatePreview — the method line, the states, the six groups and their words, "up to date", and "Nothing is signed: publishing isn\'t built yet."', () => {
+// Re-aimed by curated-dlist-update #6 (ADR 0006 §7): story 5's closing line goes, and the upgrade line may continue with the
+// marker clause, so its full stop is no longer pinned right after “pointer”. That suite pins what replaces them.
+test('S5: UpdatePreview — the method line, the states, the six groups and their words, and "up to date"; the closing line "Nothing is signed: publishing isn\'t built yet." is gone (story 6)', () => {
   const s = src(PREVIEW); const f = flat(s);
   assert(/export\s+default\s+function\s+UpdatePreview\b/.test(s), 'ADR 0005 §8: export default function UpdatePreview');
   for (const phrase of ['Scoring Method:', 'Point of view:', 'Cutoff (≥)', 'These apply in this browser and are not written onto the list.', '⏳ Checking…', 'Your list is up to date.']) {
     assert(f.includes(phrase), `AC-2 / AC-3 / ADR 0005 §8: "${phrase}"`);
   }
   for (const re of [`Nothing to propose — couldn${APOS}t check`, `its original can${APOS}t be found`, `its original was edited; the new version doesn${APOS}t qualify yet`,
-    `Your assistant${APOS}s header uses the older link; Update will switch it to (?:“|&ldquo;)pointer(?:”|&rdquo;)\\.`, `Nothing is signed: publishing isn${APOS}t built yet\\.`]) {
+    `Your assistant${APOS}s header uses the older link; Update will switch it to (?:“|&ldquo;)pointer(?:”|&rdquo;)`]) {
     assert(new RegExp(re).test(f), `AC-3 / AC-4 / ADR 0005 §8: a phrase matching /${re}/`);
   }
+  assert(!new RegExp(`Nothing is signed: publishing isn${APOS}t built yet`).test(f), 'curated-dlist-update #6 (ADR 0006 §7): the closing line is gone');
   for (const heading of ['Copy', 'Refresh', 'Delete', 'Keep, flagged', 'Upgrade', 'Skipped']) {
     assert(new RegExp(`(?:>|['"\`])\\s*${esc(heading)}\\b`).test(s), `AC-3 / ADR 0005 §8: a "${heading}" group heading`);
   }
@@ -649,11 +653,18 @@ test('S7: the detail page passes the header\'s state to the items section', () =
   assert(/sharedListUnavailable\(/.test(s), 'ADR 0005 §8: the header state comes from sharedListUnavailable(…) and the header description');
 });
 
-test('S8: nothing is written — the items module, the preview and the two hooks sign and publish nothing, and carry no identity literal', () => {
+// Re-aimed by curated-dlist-update #6 (ADR 0006 §7): Publish posts the approved intents to /api/dlist-curation/update, and
+// the server signs. The browser still signs nothing, and the two hooks still write nothing.
+test('S8: the browser signs nothing — the items module and the preview post only to /api/dlist-curation/update, the two hooks write nothing, and none carries an identity literal', () => {
   for (const f of [ITEMS, PREVIEW, LIST_HOOK, VOTES_HOOK]) {
     const s = src(f);
-    assert(!/\/api\/strfry\/publish|method:\s*['"]POST['"]|signEvent|window\.nostr|publishOrThrow|publishEverywhere|publishToRelays/.test(s), `AC-1 / AC-6: ${rel(f)} writes nothing (publishing is story 6)`);
+    assert(!/\/api\/strfry\/publish|signEvent|window\.nostr|publishOrThrow|publishEverywhere|publishToRelays/.test(s), `AC-1 / AC-6 / ADR 0006 Option B rejected: ${rel(f)} signs nothing`);
     assert(!/taPubkey/.test(s) && !/[0-9a-fA-F]{64}/.test(s), `OPEN.md row 188 / CLAUDE.md: ${rel(f)} carries no taPubkey and no 64-hex literal`);
+  }
+  for (const f of [LIST_HOOK, VOTES_HOOK]) assert(!/method:\s*['"]POST['"]/.test(src(f)), `${rel(f)} writes nothing`);
+  for (const f of [ITEMS, PREVIEW]) {
+    const s = src(f);
+    if (/method:\s*['"]POST['"]/.test(s)) assert(/\/api\/dlist-curation\/update/.test(s), `ADR 0006 §7: ${rel(f)} posts only to /api/dlist-curation/update`);
   }
 });
 

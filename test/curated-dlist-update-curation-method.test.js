@@ -720,8 +720,9 @@ test('S6: the items section — cutoff and onVerdictSummary; votes via useItemVo
   const s = src(ITEMS); const f = flat(s);
   const sig = (s.match(/export\s+function\s+ItemsSection\s*\(\s*\{([^}]*)\}/) || [])[1] || '';
   assert(/\bcutoff\b/.test(sig) && /\bonVerdictSummary\b/.test(sig), `ADR §7: ItemsSection({ …, cutoff, onVerdictSummary }); got {${sig}}`);
-  assert(/import\s+useItemVotes\s+from\s*['"]\.\.\/\.\.\/hooks\/useItemVotes['"]/.test(s) && /useItemVotes\([^;]*,\s*communityRelay\s*\)/.test(s),
-    'AC-4 / ADR §7: the candidates\' votes via useItemVotes(…, communityRelay)');
+  // Re-aimed by curated-dlist-update #6 (ADR 0006 §7): the hook may also take the section's epoch after the relay.
+  assert(/import\s+useItemVotes\s+from\s*['"]\.\.\/\.\.\/hooks\/useItemVotes['"]/.test(s) && /useItemVotes\([^;]*,\s*communityRelay\s*(?:,\s*[\w.]+\s*)?\)/.test(s),
+    'AC-4 / ADR §7: the candidates\' votes via useItemVotes(…, communityRelay), with story 6\'s epoch after it');
   assert(/import\s+useTrustWeights\s+from\s*['"]\.\.\/\.\.\/hooks\/useTrustWeights['"]/.test(s) && /useTrustWeights\(/.test(s), 'ADR §3: the weights via useTrustWeights, unchanged');
   const fromUtil = (n) => new RegExp(`import\\s*\\{[^}]*\\b${n}\\b[^}]*\\}\\s*from\\s*['"]\\.\\.\\/\\.\\.\\/utils\\/treasureMap['"]`).test(s);
   assert(fromUtil('weightsState') && fromUtil('candidateVerdicts') && /weightsState\(/.test(s), 'ADR §3–§4: weightsState and candidateVerdicts from the util');
@@ -753,16 +754,21 @@ test('S7: the two hooks — useItemVotes binds lookupItemVotes as useListItems b
   assert(/!\s*(?:listCoord|coord)\b|\b(?:listCoord|coord)\s*(?:\?|&&)/.test(c), 'ADR §5: with no coordinate (not my own list) it keeps the default and never touches storage');
 });
 
-// Re-aimed by curated-dlist-update #5 (ADR 0005 §8): Update list is enabled on my own lists and opens a preview. That
-// suite pins the preview; what stays true here is that nothing is written.
-test('S8: nothing is written — the items module, the two hooks and the shared rule sign and publish nothing and carry no identity literal; neither does Update\'s preview', () => {
+// Re-aimed by curated-dlist-update #5 (ADR 0005 §8): Update list is enabled on my own lists and opens a preview. Re-aimed
+// again by #6 (ADR 0006 §7): Publish posts the approved intents to /api/dlist-curation/update, and the server signs. What
+// stays true here is that the browser signs nothing, and that the hooks and the shared rule write nothing.
+test('S8: the browser signs nothing — the items module, the two hooks and the shared rule sign and publish nothing and carry no identity literal; the items module and Update\'s preview post only to /api/dlist-curation/update', () => {
   for (const f of [ITEMS, VOTES_HOOK, CUTOFF_HOOK, SCORE]) {
     const s = src(f);
-    assert(!/\/api\/strfry\/publish|method:\s*['"]POST['"]|signEvent|window\.nostr|publishOrThrow|publishEverywhere|publishToRelays/.test(s), `AC-5: ${rel(f)} writes nothing`);
+    assert(!/\/api\/strfry\/publish|signEvent|window\.nostr|publishOrThrow|publishEverywhere|publishToRelays/.test(s), `AC-5: ${rel(f)} signs and publishes nothing`);
     assert(!/taPubkey/.test(s) && !/[0-9a-fA-F]{64}/.test(s), `OPEN.md row 188 / CLAUDE.md: ${rel(f)} carries no taPubkey and no 64-hex literal`);
   }
+  for (const f of [VOTES_HOOK, CUTOFF_HOOK, SCORE]) assert(!/method:\s*['"]POST['"]/.test(src(f)), `AC-5: ${rel(f)} writes nothing`);
   const preview = safeRead(path.join(UI, 'pages/grapevine/UpdatePreview.jsx'));
-  assert(!/\/api\/strfry\/publish|method:\s*['"]POST['"]|signEvent|window\.nostr|publishOrThrow/.test(preview), 'AC-5, re-aimed by curated-dlist-update #5: Update\'s preview writes nothing (publishing is story 6)');
+  assert(!/\/api\/strfry\/publish|signEvent|window\.nostr|publishOrThrow/.test(preview), 'AC-5, re-aimed by curated-dlist-update #6: Update\'s preview signs nothing');
+  for (const s of [src(ITEMS), preview]) {
+    if (/method:\s*['"]POST['"]/.test(s)) assert(/\/api\/dlist-curation\/update/.test(s), 'curated-dlist-update #6 (ADR 0006 §7): the one POST goes to /api/dlist-curation/update');
+  }
 });
 
 /* ── D: the superseded-in-part note (ADR §8) ──────────────── */
@@ -803,8 +809,9 @@ test('R2: Trust Determination\'s settings are only read — TrustContext and use
   }
   assert(/export function useTrust\b/.test(t) && /export \{ SCORING_METHODS \}/.test(t) && /export function TrustProvider\b/.test(t), 'AC-5: useTrust, SCORING_METHODS and TrustProvider are still exported');
   const w = src(WEIGHTS_HOOK);
-  assert(/export default function useTrustWeights\(pubkeys\)/.test(w), 'ADR §3: useTrustWeights(pubkeys), unchanged');
-  assert(/\}, \[pubkeys, povPubkey, scoringMethod, trustedListId\]\);/.test(w), 'ADR §3: its effect is keyed on the pubkeys array (why callers memoize it)');
+  // Re-aimed by curated-dlist-update #6 (ADR 0006 §7): the hook also takes an optional epoch, into its effect's keys.
+  assert(/export default function useTrustWeights\(pubkeys(?:\s*,\s*epoch\b[^)]*)?\)/.test(w), 'ADR §3: useTrustWeights(pubkeys), unchanged apart from story 6\'s optional epoch');
+  assert(/\}, \[pubkeys, povPubkey, scoringMethod, trustedListId(?:, epoch)?\]\);/.test(w), 'ADR §3: its effect is keyed on the pubkeys array (why callers memoize it), and on story 6\'s epoch');
   assert(/return \{ weights, loading, error, povPubkey, scoringMethod \};/.test(w), 'ADR §3: it returns { weights, loading, error, povPubkey, scoringMethod }');
 });
 

@@ -292,8 +292,8 @@ test('S2: off/closed on every load — the panel and both checkboxes start false
 
 // Re-aimed by curated-dlist-update #4 (ADR 0004): the method panel is no longer text only — it shows the method, the
 // cutoff and the verdicts (that suite pins them). Re-aimed again by #5 (ADR 0005 §8): on my own lists Update list
-// opens a preview, which writes nothing; publishing is story 6.
-test('S3: Update list opens the preview on my own lists — enabled, with a handler; the preview says publishing isn\'t built yet; the method panel names the rule\'s upvotes and downvotes', () => {
+// opens a preview. Re-aimed a third time by #6 (ADR 0006 §7): the preview publishes what it shows.
+test('S3: Update list opens the preview on my own lists — enabled, with a handler; the preview offers "Publish these changes"; the method panel names the rule\'s upvotes and downvotes', () => {
   const s = src(ITEMS, 'AC-4/5');
   // The UpdateListButton declaration, up to the next top-level declaration (or the end of the file).
   const start = s.search(/export\s+(function|const)\s+UpdateListButton\b/);
@@ -303,7 +303,7 @@ test('S3: Update list opens the preview on my own lists — enabled, with a hand
   assert(/<button\b/.test(upd) && /Update list/.test(upd), 'the Update list button is still there');
   assert(/onClick=\{/.test(upd), 'curated-dlist-update #5 (ADR 0005 §8): on my own lists Update list has a handler — it opens the preview');
   const preview = safeRead(path.join(UI, 'pages/grapevine/UpdatePreview.jsx'));
-  assert(new RegExp(`publishing isn${APOS}t built yet`).test(preview.replace(/\s+/g, ' ')), 'curated-dlist-update #5 (ADR 0005 §8): the preview says publishing isn\'t built yet (story 6)');
+  assert(preview.replace(/\s+/g, ' ').includes('Publish these changes'), 'curated-dlist-update #6 (ADR 0006 §7): the preview offers "Publish these changes"');
   assert(/downvotes/i.test(s) && /upvotes/i.test(s), 'AC-4 (story 4): the method panel names the rule\'s upvotes and downvotes');
 });
 
@@ -359,11 +359,16 @@ test('S8: AC-7 at the source — the util takes the sentinel and the rule from t
   assert(!/['"]b-tag-deferred['"]/.test(s), 'sub-decision 9 / story 2 review NB-5: no string copy of the sentinel in treasureMap.js');
 });
 
-test('S9: the new files write nothing and carry no identity literal', () => {
+// Re-aimed by curated-dlist-update #6 (ADR 0006 §7): the items module posts Update's approved intents to
+// /api/dlist-curation/update, where the server signs. The browser still signs nothing, and the hook writes nothing.
+test('S9: the new files sign nothing and carry no identity literal — the hook writes nothing, and the items module posts only to /api/dlist-curation/update', () => {
   for (const f of NEW_FILES) {
     const s = src(f, 'AC-6');
-    assert(!/\/api\/strfry\/publish|method:\s*['"]POST['"]|signEvent|window\.nostr|publishOrThrow|publishEverywhere|publishToRelays/.test(s), `AC-5 / AC-6: ${rel(f)} writes nothing`);
+    assert(!/\/api\/strfry\/publish|signEvent|window\.nostr|publishOrThrow|publishEverywhere|publishToRelays/.test(s), `AC-5 / AC-6: ${rel(f)} signs and publishes nothing`);
     assert(!/taPubkey/.test(s) && !/[0-9a-fA-F]{64}/.test(s), `OPEN.md row 188 / CLAUDE.md: ${rel(f)} carries no taPubkey and no 64-hex literal`);
+    if (/method:\s*['"]POST['"]/.test(s)) {
+      assert(f === ITEMS && /\/api\/dlist-curation\/update/.test(s), `curated-dlist-update #6 (ADR 0006 §7): ${rel(f)} posts only Update's intents, to /api/dlist-curation/update`);
+    }
   }
 });
 

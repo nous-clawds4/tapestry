@@ -300,6 +300,8 @@ const curatedDListUpdateReadOnly = require('./curated-dlist-update-read-only-cur
 const curatedDListUpdateCurationMethod = require('./curated-dlist-update-curation-method.test.js');
 // epic: curated-dlist-update — Story 5 (Update list shows what my assistant would do, from reads it could complete).
 const curatedDListUpdateUpdatePreview = require('./curated-dlist-update-update-preview.test.js');
+// epic: curated-dlist-update — Story 6 (Update list publishes what I approved: one endpoint re-reads, signs and reads back).
+const curatedDListUpdatePublish = require('./curated-dlist-update-publish.test.js');
 // epic: assistant-profile — Story 1 (the setup prompt tells the truth). U/S/D/R are stack-free;
 // H is live (GET only); the ACs a viewer sees are settled by the browser class,
 // tests/brainstorm/assistant-setup-prompt.spec.js (npm run test:playwright).
@@ -746,6 +748,9 @@ async function main() {
 
   console.log('\ncurated-dlist-update-update-preview suite:');
   const curatedDListUpdateUpdatePreviewResult = await curatedDListUpdateUpdatePreview.run();
+
+  console.log('\ncurated-dlist-update-publish suite:');
+  const curatedDListUpdatePublishResult = await curatedDListUpdatePublish.run();
 
   console.log('\nassistant-setup-state suite:');
   const assistantSetupStateResult = await assistantSetupState.run();
@@ -1269,6 +1274,7 @@ async function main() {
   console.log(`curated-dlist-update-read-only-curation suite:   ${curatedDListUpdateReadOnlyResult.fail === 0 ? 'PASS' : 'FAIL'} (${curatedDListUpdateReadOnlyResult.pass} passed, ${curatedDListUpdateReadOnlyResult.fail} failed)`);
   console.log(`curated-dlist-update-curation-method suite:      ${curatedDListUpdateCurationMethodResult.fail === 0 ? 'PASS' : 'FAIL'} (${curatedDListUpdateCurationMethodResult.pass} passed, ${curatedDListUpdateCurationMethodResult.fail} failed)`);
   console.log(`curated-dlist-update-update-preview suite:       ${curatedDListUpdateUpdatePreviewResult.fail === 0 ? 'PASS' : 'FAIL'} (${curatedDListUpdateUpdatePreviewResult.pass} passed, ${curatedDListUpdateUpdatePreviewResult.fail} failed)`);
+  console.log(`curated-dlist-update-publish suite:              ${curatedDListUpdatePublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${curatedDListUpdatePublishResult.pass} passed, ${curatedDListUpdatePublishResult.fail} failed)`);
   console.log(`assistant-setup-state suite:                     ${assistantSetupStateResult.fail === 0 ? 'PASS' : 'FAIL'} (${assistantSetupStateResult.pass} passed, ${assistantSetupStateResult.fail} failed${assistantSetupStateResult.skipped ? `, ${assistantSetupStateResult.skipped} skipped` : ''})`);
   console.log(`assistant-setup-state H-class:                   ${assistantSetupStateResult.hExecuted} executed / ${assistantSetupStateResult.hSkipped} skipped`);
   console.log(`assistant-setup-state B-class:                   browser only — tests/brainstorm/assistant-setup-prompt.spec.js (npm run test:playwright)`);
@@ -1528,6 +1534,7 @@ async function main() {
     curatedDListUpdateReadOnlyResult.fail === 0 &&
     curatedDListUpdateCurationMethodResult.fail === 0 &&
     curatedDListUpdateUpdatePreviewResult.fail === 0 &&
+    curatedDListUpdatePublishResult.fail === 0 &&
     assistantSetupStateResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
@@ -1573,7 +1580,7 @@ async function main() {
     relayScanBoundsResult, addNodeAsElementRestoreResult, conceptCountCanonicalResult, summariesElementCountResult,
     dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult, dlistCurationPanelResult, dlistCurationMapEntriesResult,
     dlistCurationMergePreserveResult, myCuratedDListsPageResult, myCuratedDListsHeadersResult, myCuratedDListsItemsResult,
-    curatedDListUpdatePointerSwitchResult, curatedDListUpdateReadOnlyResult, curatedDListUpdateCurationMethodResult, curatedDListUpdateUpdatePreviewResult, assistantSetupStateResult,
+    curatedDListUpdatePointerSwitchResult, curatedDListUpdateReadOnlyResult, curatedDListUpdateCurationMethodResult, curatedDListUpdateUpdatePreviewResult, curatedDListUpdatePublishResult, assistantSetupStateResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

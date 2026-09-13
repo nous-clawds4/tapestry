@@ -1,6 +1,8 @@
 # ADR 0006: Update list publishes — the browser re-checks, one endpoint re-reads, signs and reads back
 
 **Status:** Accepted
+**Amended by:** Amendment 1 (2026-09-13): deletes and refreshes target only my assistant's copies; each server read
+carries a limit of 500.
 **Date:** 2026-09-13
 **Story:** `engineering-team/stories/curated-dlist-update/6-update-list-publishes.md`
 **Supersedes in part:** these ADRs in `curated-dlist-update`:
@@ -369,3 +371,28 @@ We chose **Option A**.
 - The Trusted List's author gap (a separate task).
 - Rate limiting, and the inactive-customer check (both recorded).
 - The endpoint's other non-strict callers (row 280), and the presence probe's EOSE gap (row 292).
+
+## Amendment 1 (2026-09-13, from Test Design, approved at its gate)
+
+Found while writing story 6's tests. §2 contradicts the Security constraints in one place, and leaves one value unset.
+- §2's check says a refresh's or a delete's copy "must be my assistant's item at `copy`". That admits my assistant's own
+  items that aren't copies, such as an item added by hand, which carries no `q`. The Security constraints say deletions
+  are limited to "my assistant's own copies".
+- A read can only be seen to come back capped if it carries a limit, and §2 names none.
+
+The corrections:
+1. **A delete's or a refresh's target is one of my assistant's copies:** its kind-39999 item filed under my header that
+   carries a `q` (ADR 0001 §5), the same rule by which `updatePlan` finds copies.
+   - An intent that names anything else no longer matches a copy. That includes another author's item, and my
+     assistant's own item with no `q`.
+   - Such an intent gets §2's 409, listed under `stale`, and nothing is signed.
+   - Update never deletes or refreshes an item that was added by hand.
+   - As in the preview, the newest version at the target's address decides. If that version carries no `q`, it isn't a
+     copy.
+2. **Each server read carries a limit of 500,** the preview's `LIST_ITEMS_LIMIT` (ADR 0005 §4). That covers the shared
+   list, my list and my assistant's deletion requests, in both places.
+   - An answer of 500 events or more counts as capped, and gets §2's 503. A relay that ignores the limit and answers
+     more is capped too.
+   - An answer below 500 is complete.
+
+Nothing else in §2 changes.
