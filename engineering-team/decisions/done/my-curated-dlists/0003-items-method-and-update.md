@@ -1,6 +1,6 @@
 # ADR 0003: Items, the curation-method panel, and Update list — pure item logic, a lazy shared-list read, and the house b-value rule
 
-**Status:** Accepted (sub-decision 2, Amendment 1's wording and the candidates checkbox label superseded by `curated-dlist-update` ADR 0002; the page's single write by `curated-dlist-update` ADR 0003)
+**Status:** Accepted (sub-decision 2, Amendment 1's wording and the candidates checkbox label superseded by `curated-dlist-update` ADR 0002; the page's single write by `curated-dlist-update` ADR 0003; AC-4 and sub-decision 8, the curation method placeholder, by `curated-dlist-update` ADR 0004)
 **Date:** 2026-09-11
 **Story:** `engineering-team/stories/my-curated-dlists/3-items-method-and-update.md`
 **Amends:** ADR `my-curated-dlists/0002` sub-decision 2 (the `deferred` rule) — see sub-decision 9.
@@ -8,6 +8,8 @@
 > **Superseded in part (2026-09-12):** "already copied" now means one of my assistant's items carries a `q` tag naming the shared item (any-tag matching is retired); the empty view says "no candidates to copy", and the checkbox "Also show candidates to copy" — `curated-dlist-update` ADR 0002.
 
 > **Superseded in part (2026-09-12):** story 2's import is no longer the page's only write (AC-6, the Decision) — on a read-only list, "curate it here instead" writes the viewer's assistant's header (on Continue) and the viewer's Map (on Sign & publish), each on an explicit click — `curated-dlist-update` ADR 0003.
+
+> **Superseded in part (2026-09-12):** the Curation method panel is no longer a text-only placeholder (AC-4, sub-decision 8) — it shows the Scoring Method and point of view chosen on Trust Determination, an editable cutoff and the "N of M qualify" summary, and each candidate carries its verdict — `curated-dlist-update` ADR 0004.
 
 ## Context
 

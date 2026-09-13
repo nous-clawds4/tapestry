@@ -1,13 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useListItems from '../../hooks/useListItems';
-import { curatedItemRows, itemsEmptySentence, LIST_ITEMS_LIMIT } from '../../utils/treasureMap';
+import useItemVotes from '../../hooks/useItemVotes';
+import useTrustWeights from '../../hooks/useTrustWeights';
+import useProfiles from '../../hooks/useProfiles';
+import { useTrust, SCORING_METHODS } from '../../context/TrustContext';
+import { curatedItemRows, itemsEmptySentence, itemRouteId, weightsState, candidateVerdicts, LIST_ITEMS_LIMIT } from '../../utils/treasureMap';
 import { timeAgo } from '../../utils/timeAgo';
 
 /*
  * The rest of a curated DList's detail page (my-curated-dlists #3, ADR 0003): the curation-method
- * panel and the Update list button — placeholders that act on nothing — and the list's items in a
- * table with the operator's three views. Read-only: nothing here signs, publishes, or imports.
+ * panel, the Update list button — a placeholder that acts on nothing — and the list's items in a
+ * table with the operator's three views. On my own lists the panel shows the method and the cutoff,
+ * and each candidate carries its verdict (curated-dlist-update ADR 0004 §7). Read-only: nothing here
+ * signs, publishes, or imports.
  * On another assistant's list (`curator` 'other' — curated-dlist-update ADR 0003 §3–§4) the items are
  * judged from that assistant's side, its list is read at the Map entry's relay (`listRelay`), and
  * Update says where it runs.
@@ -45,21 +51,57 @@ const UNAVAILABLE_REASON_OTHER = {
   deferred: 'its assistant’s header is marked deliberately unaffiliated',
 };
 
-/** Placeholder — how the assistant will curate this list. Closed on every load; text only. */
-export function CurationMethodPanel() {
+// The method panel's link, a vote's words in a candidate's reason, and a number as a verdict shows it
+// (curated-dlist-update ADR 0004 §7).
+const TRUST_DETERMINATION_PATH = '/tapestry/grapevine/trust-determination';
+const VOTE_LABEL = {
+  'implicit-upvote': 'implicit upvote', 'implicit-upvote-cancelled': 'implicit upvote, cancelled',
+  'explicit-downvote': 'downvote (author)', upvote: 'upvote', downvote: 'downvote', other: 'other',
+};
+const num = (n) => (typeof n === 'number' && Number.isFinite(n) ? String(Math.round(n * 1000) / 1000) : '—');
+
+/** The panel's last line: the verdicts' summary, as the items section reports it (ADR 0004 §7). */
+function summaryLine(summary) {
+  if (!summary || summary.state === 'hidden') return 'Turn on “Also show candidates to copy” to see which qualify.';
+  if (summary.state === 'checking') return '⏳ Checking…';
+  if (summary.state === 'incomplete') return `Verdicts incomplete — couldn’t check ${summary.reason}.`;
+  return `${summary.qualifying} of ${summary.total} candidates qualify`;
+}
+
+/**
+ * How my assistant decides which candidates to copy (curated-dlist-update ADR 0004 §7): the Scoring Method
+ * and point of view chosen on Trust Determination — only read here — and the cutoff, with the verdicts'
+ * summary. Closed on every load; none of it is written onto the list.
+ */
+export function CurationMethodPanel({ cutoff, onCutoffChange, summary }) {
   const [open, setOpen] = useState(false);
+  const { povPubkey, scoringMethod, trustedListId } = useTrust();
+  const profiles = useProfiles(povPubkey ? [povPubkey] : []);
+  const methodLabel = SCORING_METHODS.find((m) => m.id === scoringMethod)?.label || scoringMethod;
+  const povName = (povPubkey && (profiles[povPubkey]?.name || profiles[povPubkey]?.display_name)) || null;
   return (
     <section style={sectionBox}>
       <button type="button" className="btn btn-sm" aria-expanded={open} onClick={() => setOpen((v) => !v)} style={{ fontSize: '0.85rem' }}>
         {open ? '▾' : '▸'} Curation method
       </button>
       {open && (
-        <div style={{ marginTop: '0.6rem', fontSize: '0.9rem' }}>
-          <p style={{ margin: '0 0 0.4rem' }}>The curation method isn&apos;t built yet.</p>
+        <div style={{ marginTop: '0.6rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <div>
+            Scoring Method: <strong>{methodLabel}</strong>
+            {scoringMethod === 'trusted-list' && <> · {trustedListId ? <code>{trustedListId}</code> : 'no list chosen'}</>}
+          </div>
+          <div>Point of view: {povPubkey ? <>{povName ? `${povName} · ` : ''}<code>{short(povPubkey)}</code></> : '—'}</div>
+          <div><Link to={TRUST_DETERMINATION_PATH} style={{ color: '#58a6ff' }}>Change them on Trust Determination →</Link></div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            Cutoff (≥)
+            <input type="number" value={cutoff} step="0.1" onChange={(e) => onCutoffChange(parseFloat(e.target.value) || 0)} style={{ width: '80px' }} />
+          </label>
           <p style={{ ...muted, margin: 0 }}>
-            It will set how your assistant decides which candidates to copy — for example, skipping an
-            item that has more downvotes than upvotes.
+            A candidate qualifies when its score reaches the cutoff: its author&apos;s implicit upvote plus the
+            trust-weighted upvotes, minus the trust-weighted downvotes.
           </p>
+          <p style={{ ...muted, margin: 0 }}>These apply in this browser and are not written onto the list.</p>
+          <div>{summaryLine(summary)}</div>
         </div>
       )}
     </section>
@@ -95,13 +137,64 @@ function SourceNotes({ list, communityRelay, what }) {
   return notes.map((n) => <div key={n} style={{ ...warn, marginTop: '0.35rem' }}>⚠️ {n}</div>);
 }
 
+/** A candidate's verdict; a decided or unchecked one opens its reason (curated-dlist-update ADR 0004 §7). */
+function VerdictCell({ verdict, cutoff, open, onToggle }) {
+  const v = verdict && typeof verdict === 'object' ? verdict : { verdict: 'checking' };
+  if (v.verdict === 'checking') return <span style={muted}>⏳ checking…</span>;
+  const text = v.verdict === 'unchecked' ? '⚠️ couldn’t check'
+    : v.verdict === 'qualifies' ? `✓ qualifies · ${num(v.score)} ≥ ${num(cutoff)}`
+      : `✗ skipped · ${num(v.score)} < ${num(cutoff)}`;
+  const color = v.verdict === 'qualifies' ? '#3fb950' : v.verdict === 'unchecked' ? '#f59e0b' : '#8b949e';
+  return (
+    <button type="button" aria-expanded={open} onClick={onToggle}
+      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color, fontSize: '0.85rem', fontWeight: 600, textAlign: 'left' }}>
+      {open ? '▾' : '▸'} {text}
+    </button>
+  );
+}
+
+/** Why a candidate got its verdict: what couldn't be read, or the votes that made its score (the breakdown). */
+function VerdictReason({ verdict }) {
+  if (!verdict || typeof verdict !== 'object') return null;
+  if (verdict.verdict === 'checking') return <div style={muted}>⏳ checking…</div>;
+  if (verdict.verdict === 'unchecked') return <div style={warn}>Couldn’t check {verdict.reason}.</div>;
+  const head = { ...cell, fontWeight: 500, opacity: 0.7 };
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr>
+          <th style={head}>Voter</th>
+          <th style={head}>Vote</th>
+          <th style={head}>Weight</th>
+          <th style={head}>Contribution</th>
+          <th style={head}>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(Array.isArray(verdict.breakdown) ? verdict.breakdown : []).map((b, i) => (
+          <tr key={i}>
+            <td style={cell}><code>{short(b.pubkey)}</code>{b.role === 'author' ? ' (author)' : ''}</td>
+            <td style={cell}>{VOTE_LABEL[b.type] || b.type}</td>
+            <td style={cell}>{num(b.weight)}</td>
+            <td style={cell}>{b.contribution > 0 ? `+${num(b.contribution)}` : num(b.contribution)}</td>
+            <td style={{ ...cell, opacity: 0.7 }}>{b.note || ''}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 /**
  * The items on the curated list, with the two "also show" views, in a table — judged from its
- * curator's side (`assistantPubkey`: my assistant, or — read-only — the assistant my Map names).
+ * curator's side (`assistantPubkey`: my assistant, or — read-only — the assistant my Map names). On my
+ * own lists each candidate carries its verdict against `cutoff`, and the summary goes up through
+ * `onVerdictSummary` (curated-dlist-update ADR 0004 §7).
  */
-export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistantPubkey, communityRelay, curator = 'mine', listRelay = communityRelay, canCurateHere = false }) {
+export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistantPubkey, communityRelay, curator = 'mine', listRelay = communityRelay, canCurateHere = false, cutoff, onVerdictSummary }) {
   const [showOthers, setShowOthers] = useState(false);
   const [showCandidates, setShowCandidates] = useState(false);
+  const [openReason, setOpenReason] = useState(null); // the candidate row whose reason is open
   // The curated list is read on mount at listRelay — for another assistant's list, its Map entry's relay
   // (curated-dlist-update ADR 0003 §4); the shared list only while "candidates" is on (ADR 0003
   // sub-decision 4), at the community relay.
@@ -116,6 +209,36 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
     shared: sharedList && !(sharedList.local === 'failed' && sharedList.relay === 'failed') ? sharedList.items : null,
     assistantPubkey, showOthers, showCandidates,
   });
+
+  // The candidates' verdicts — my own lists only (curated-dlist-update ADR 0004 §7). While candidates are shown
+  // and the shared list was read, their votes (both sources) and the trust weights of their authors and voters
+  // are read and judged against the cutoff; a read-only list reads neither.
+  const wanted = curator === 'mine' && showCandidates && !!sharedCoord;
+  const sharedFailed = !!sharedList && sharedList.local === 'failed' && sharedList.relay === 'failed';
+  const judging = wanted && !!sharedList && !sharedFailed;
+  const candidateRoutes = new Set(rows.filter((r) => r.from === 'candidate').map((r) => r.routeId));
+  const candidates = judging ? sharedList.items.map((x) => x.event).filter((e) => candidateRoutes.has(itemRouteId(e))) : [];
+  const votes = useItemVotes(judging ? candidates.map((e) => e.id) : [], communityRelay);
+  // The weights are read once the votes are in. useTrustWeights re-reads whenever its array changes identity,
+  // so the array is keyed on its content (ADR §3).
+  const pubkeyKey = judging && votes
+    ? [...new Set([...candidates, ...votes.events].map((e) => e.pubkey).filter((pk) => typeof pk === 'string' && pk !== ''))].sort().join(',')
+    : '';
+  const pubkeys = useMemo(() => (pubkeyKey ? pubkeyKey.split(',') : []), [pubkeyKey]);
+  const trust = useTrustWeights(pubkeys);
+  const verdicts = candidateVerdicts({
+    candidates,
+    votes: judging ? votes : null,
+    weights: { state: weightsState({ ...trust, pubkeys }), values: trust.weights, error: trust.error },
+    cutoff,
+  });
+  // The panel's summary (ADR §7): hidden while candidates are off, and "couldn't check" when the shared list
+  // couldn't be read. Reported up when its content changes, not on every render.
+  const summary = !wanted ? { state: 'hidden' }
+    : sharedFailed ? { state: 'incomplete', qualifying: 0, total: 0, reason: 'the shared list' }
+      : verdicts.summary;
+  const summaryKey = JSON.stringify(summary);
+  useEffect(() => { if (onVerdictSummary) onVerdictSummary(summary); }, [summaryKey]); // its content is its identity
 
   let body;
   if (!myList) {
@@ -144,10 +267,11 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
                   <th style={cell}>Author</th>
                   <th style={cell}>From</th>
                   <th style={cell}>Added</th>
+                  {judging && <th style={cell}>Verdict</th>}
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {rows.flatMap((r) => [
                   <tr key={r.key}>
                     <td style={cell}>
                       {r.local
@@ -157,8 +281,21 @@ export function ItemsSection({ myCoord, sharedCoord, sharedUnavailable, assistan
                     <td style={cell}>{r.from === 'assistant' ? labels.assistant : <code>{short(r.author)}</code>}</td>
                     <td style={{ ...cell, color: FROM_COLOR[r.from], fontWeight: 600 }}>{labels[r.from]}</td>
                     <td style={{ ...cell, opacity: 0.75 }}>{timeAgo(r.createdAt)}</td>
-                  </tr>
-                ))}
+                    {judging && (
+                      <td style={cell}>
+                        {r.from === 'candidate' && (
+                          <VerdictCell verdict={verdicts.byRouteId[r.routeId]} cutoff={cutoff} open={openReason === r.key}
+                            onToggle={() => setOpenReason((k) => (k === r.key ? null : r.key))} />
+                        )}
+                      </td>
+                    )}
+                  </tr>,
+                  judging && r.from === 'candidate' && openReason === r.key && (
+                    <tr key={`${r.key}:reason`}>
+                      <td colSpan={5} style={cell}><VerdictReason verdict={verdicts.byRouteId[r.routeId]} /></td>
+                    </tr>
+                  ),
+                ])}
               </tbody>
             </table>
           </div>

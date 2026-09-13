@@ -119,6 +119,42 @@ Resolved at the Test Design gate (2026-09-12), each as recommended:
 Origin drift at planning: the branch is 13 commits behind `origin/staging` (sandbox-security work, and OPEN.md
 rows that collide with this book's), none of them in this story's areas. The merge waits for the staging PR.
 
+## Deviations
+
+- **Implementation (2026-09-13):** `DListItems.jsx` imports three of the shared functions, not the ADR's four: once its reactions map comes from `reactionsByItem`, `classifyReaction` has no call site there, and an unused import would be dead code.
+- **Implementation (2026-09-13):** the shared rule's never-throws guards read a non-string reaction content as "other", a missing or non-array reactions list, tag list or weights as empty, and skip a tag that isn't an array when finding the first `e`. None changes a well-formed input's result (U5's 500 cases pin that); the one behaviour change is the crafted `e` naming an inherited property, now ignored (Open question 5).
+- **Implementation (2026-09-13):** "the shared list read cleanly" (ADR §7) is read as the items section's existing test for showing candidates — not failed on both sources — so a partial read, shown with its source note, still judges the candidates it found.
+- **Implementation (2026-09-13):** two summary cases the ADR doesn't name: while the shared list is loading the panel says "⏳ Checking…", and when it couldn't be read on either source it says "Verdicts incomplete — couldn’t check the shared list." The "Turn on …" hint would be wrong with the box on.
+- **Implementation (2026-09-13):** the trust weights are read once the votes are in, for the candidates' authors and every voter; reading the authors' weights first would mean a second read when the votes arrive. `useItemVotes` returns an answer only for the exact ids it read (null otherwise), so a new candidate is never judged on votes read for other ids.
+- **Implementation (2026-09-13):** `lookupItemVotes` with no ids answers `local: 'ok'` and `relay: 'ok'` (`'skipped'` for a non-ws relay) — nothing was asked and nothing failed; the ADR names only the no-read.
+- **Implementation (2026-09-13):** the reasons complete "couldn’t check …": "this instance’s strfry", "the community relay", "every vote (there are more votes than one read returns)" and "the trust weights (<error>)", joined with "and". A decided verdict's `reason` is null — its score, the cutoff and the breakdown are the reason.
+- **Implementation (2026-09-13):** display choices the ADR leaves open: numbers show at most three decimals; the reason names voters by short pubkey; the Trusted List method with no list chosen reads "no list chosen"; the Verdict column appears only while candidates are being judged.
+- **Authorship.** A separate Implementer agent wrote the code in its own git worktree, from the ADR and the story. The tests (`b0fdea2e`) are the Tester's. The Test Design sketch was deleted before Implementation started (story 3's review, Harness friction 1).
+- **Local check (cycle-local), 2026-09-13.** This was a UI-only change: the build (`index-B_BqLgJw.js`) was copied into the container, which is not bind-mounted, with no restart. The served bundle carries the panel's new lines and not the placeholder's.
+
+  I signed in through the fetch stub as staging's customer `0f6c8526…`. Their assistant is `253d40c4…`, and their real Map names it for `dog-breed`. The stub let through only the read-only Cypher POST and blocked every other write. None was attempted.
+  - **My own list, the default method** (Trusted Assertions (rank), point of view Nous `15f7dafc…7270`):
+    - Both local candidates, sheep dog and golden retriever, read "✗ skipped · 0 < 2", and the summary "0 of 2 candidates qualify".
+    - A candidate's reason shows the author's implicit upvote with "Trust weight unknown".
+    - The votes were read once from each source, local strfry and `wss://dcosl.brainstorm.world`, with one filter carrying both ids and limit 5000. The weights were read for the author.
+  - **Cutoff 0:** "✓ qualifies · 0 ≥ 0" and "2 of 2", at once. The value is stored under `tapestry_curation_cutoff:<my header's coordinate>`, and it is still 0 after a reload.
+  - **Trust Everyone:** each score is 1. At cutoff 2 both read "✗ skipped · 1 < 2" ("0 of 2"); at cutoff 1, "✓ qualifies · 1 ≥ 1" ("2 of 2").
+  - **Simple Lists' items page** for the same list, before and after the build:
+    - under the default method, 0.000 both times;
+    - under Trust Everyone, 1.000 both times;
+    - "Items qualifying: 0 of 2 (score ≥ 2)" both times.
+  - **Read-only** (no assistant on this instance): no method panel. With candidates on there is no Verdict column, and no vote or weight read.
+  - The browser's Trust Determination setting and the check's cutoff were removed afterwards.
+- **Regression (2026-09-13).** The full `npm test` was run from the worktree: 167 suites passed, 4 failed and 4 were skipped.
+  - **Five failing tests, none new:**
+    - four are exactly OPEN.md row 191's: three L0 GUARD refusals and the refused prune. This machine publishes externally, by the operator's choice;
+    - the fifth is `summaries-element-count` L5, already red in the baseline taken before any code change. Its control concept, `firmware concept`, gained a subset from another session on 2026-09-12, and that session is re-aiming the control.
+  - **Compared with the baseline,** only three things changed:
+    - this story's suite: 22 failing → all 24 passing;
+    - two publish-flow suites, `tag-detail-publish` and `tag-index-publish`, were skipped because Meilisearch's task queue was busy when they set up;
+    - one more of row 261's LB-matrix tests was skipped.
+  - harness-lint is clean.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0004-curation-method-and-verdicts.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/4-curation-method-panel.test-plan.md`

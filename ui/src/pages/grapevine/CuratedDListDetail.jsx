@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useTreasureMap from '../../hooks/useTreasureMap';
 import useCurationHeaders from '../../hooks/useCurationHeaders';
+import useCurationCutoff from '../../hooks/useCurationCutoff';
 import { COMMUNITY_RELAYS } from '../../hooks/useCommunitySharedConcepts';
 import { curatedDListAccess, describeCurationHeader, curationPointerRow, sharedListUnavailable, curateHereOffer } from '../../utils/treasureMap';
 import { AssistantHeaderSection, SharedHeaderSection } from './CuratedDListHeaders';
@@ -57,6 +59,10 @@ export default function CuratedDListDetail() {
   const info = lookup?.event ? describeCurationHeader(lookup.event, curatorPubkey) : null;
   const sharedRow = curationPointerRow(info?.pointer, COMMUNITY_RELAY);
   const shared = useCurationHeaders(sharedRow ? [sharedRow] : []);
+  // My own list's cutoff, remembered in this browser, and the verdicts' summary the items section reports up
+  // to the method panel (curated-dlist-update ADR 0004 §6) — hooks too, so they run before the exit as well.
+  const [cutoff, setCutoff] = useCurationCutoff(open && !readOnly ? access.row.coord : null);
+  const [verdictSummary, setVerdictSummary] = useState(null);
   const backLink = <p style={{ margin: '0 0 0.75rem' }}><Link to={LIST_PATH} style={{ color: '#58a6ff' }}>← My Curated DLists</Link></p>;
 
   if (!open) {
@@ -108,7 +114,7 @@ export default function CuratedDListDetail() {
           assistant's list the method is set where that assistant lives (curated-dlist-update ADR 0003 §3). */}
       {readOnly
         ? <p style={{ fontSize: '0.85rem', opacity: 0.75, marginTop: '1rem' }}>The curation method is set where this list&apos;s assistant lives.</p>
-        : <CurationMethodPanel />}
+        : <CurationMethodPanel cutoff={cutoff} onCutoffChange={setCutoff} summary={verdictSummary} />}
       <ItemsSection
         myCoord={row.coord}
         sharedCoord={info?.pointer?.coord || null}
@@ -118,6 +124,8 @@ export default function CuratedDListDetail() {
         curator={curator}
         listRelay={listRelay}
         canCurateHere={offer?.status === 'available'}
+        cutoff={cutoff}
+        onVerdictSummary={setVerdictSummary}
       />
     </div>
   );

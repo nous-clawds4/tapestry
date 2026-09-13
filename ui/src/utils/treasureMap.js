@@ -9,6 +9,8 @@
 // The house owner of the `b`-value rules (the UI mirror of src/lib/bValueForms.js; ADR
 // my-curated-dlists/0003 sub-decision 9). The `.js` extension keeps Node-loaded suites resolving it.
 import { classifyBValue, dispositionOf } from './bDisposition.js';
+// Simple Lists' scoring rule, one owner for both pages (curated-dlist-update ADR 0004 §1); `.js` for the same reason.
+import { reactionsByItem, scoreItem, qualifies } from './dlistScore.js';
 
 const HEX64 = /^[0-9a-fA-F]{64}$/;
 const ENTRY = /^(\d{5})(?::(.+))?$/;
@@ -658,6 +660,145 @@ export function itemsEmptySentence(input) {
   const readCleanlyEnough = !!(shared && typeof shared === 'object' && !(shared.local === 'failed' && shared.relay === 'failed'));
   if (readCleanlyEnough) sentence += ' The shared list offers no candidates to copy.';
   return sentence;
+}
+
+/* ── The curation method (curated-dlist-update #4, ADR 0004) ──────────────── */
+
+/** How many votes one read asks each source for; a capped local read is an incomplete read (ADR 0004 §2). */
+export const VOTES_LIMIT = 5000;
+
+/**
+ * The votes on items (ADR 0004 §2): one filter, `{ kinds: [7], '#e': ids, limit: VOTES_LIMIT }`, sent at
+ * once to this instance's strfry through the bounded scan and to the community relay. Kind-7 events are
+ * merged by id — local first, then the relay's additions — so each vote counts once. Per source: `local`
+ * 'ok' | 'failed' (and `truncated` when the local scan stopped short), `relay` 'ok' | 'failed' | 'skipped'
+ * (not a ws/wss relay). No ids asks nothing and fails nothing: an empty `#e` filter could match every
+ * vote. Dependency-injected, like `lookupListItems`; never rejects.
+ *
+ * @param {string[]} ids  the items' event ids
+ * @param {{ scanLocal: Function, fetchRelay: Function }} readers  scanLocal(filter) → { events, truncated };
+ *   fetchRelay(filter, url) → { success, events }
+ * @param {string} relay  the community relay
+ * @returns {Promise<{ events: Object[], local: string, relay: string, truncated: boolean }>}
+ */
+export async function lookupItemVotes(ids, readers, relay) {
+  const { scanLocal, fetchRelay } = readers || {};
+  const hint = typeof relay === 'string' && /^wss?:\/\//i.test(relay) ? relay : null;
+  const list = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && id !== '');
+  if (list.length === 0) return { events: [], local: 'ok', relay: hint ? 'ok' : 'skipped', truncated: false };
+  const filter = { kinds: [7], '#e': list, limit: VOTES_LIMIT };
+  const [local, remote] = await Promise.all([
+    (async () => {
+      try {
+        const env = await scanLocal(filter);
+        return { status: 'ok', events: Array.isArray(env?.events) ? env.events : [], truncated: !!env?.truncated };
+      } catch {
+        return { status: 'failed', events: [], truncated: false };
+      }
+    })(),
+    (async () => {
+      if (!hint) return { status: 'skipped', events: [] };
+      try {
+        const data = await fetchRelay(filter, hint);
+        if (!data || !data.success) return { status: 'failed', events: [] };
+        return { status: 'ok', events: Array.isArray(data.events) ? data.events : [] };
+      } catch {
+        return { status: 'failed', events: [] };
+      }
+    })(),
+  ]);
+  const byId = new Map();
+  for (const e of [...local.events, ...remote.events]) {
+    if (e && e.kind === 7 && typeof e.id === 'string' && !byId.has(e.id)) byId.set(e.id, e);
+  }
+  return { events: [...byId.values()], local: local.status, relay: remote.status, truncated: local.truncated };
+}
+
+/**
+ * Whether the trust weights can decide yet (ADR 0004 §3), read from what `useTrustWeights` returns for
+ * `pubkeys`: `failed` when its whole read failed (`error` set); `ready` once it is not loading and every
+ * pubkey has its own key in `weights` — a null there is a real "unknown", and inherited keys are not
+ * answers; otherwise `checking`, which covers no point of view yet and the render before the hook's first
+ * answer, so nothing is skipped by accident. Never throws.
+ */
+export function weightsState(input) {
+  const { weights, loading, error, pubkeys } = input && typeof input === 'object' ? input : {};
+  if (error) return 'failed';
+  if (loading) return 'checking';
+  const list = Array.isArray(pubkeys) ? pubkeys : [];
+  if (list.length === 0) return 'ready';
+  if (!weights || typeof weights !== 'object') return 'checking';
+  return list.every((pk) => Object.prototype.hasOwnProperty.call(weights, pk)) ? 'ready' : 'checking';
+}
+
+/**
+ * Each candidate's verdict and its reason (ADR 0004 §4), decided by Simple Lists' rule (`dlistScore.js`)
+ * and the cutoff. `candidates` are the shared items shown as candidates (events); `votes` is
+ * `lookupItemVotes`' answer, or null while it is pending; `weights` is `{ state, values, error }`
+ * (`weightsState`, and the hook's weights and error). In order:
+ * - votes pending, or weights `checking` → every candidate `checking`;
+ * - a source failed, the local read was capped, or the weights `failed` → every candidate `unchecked`,
+ *   its `reason` naming what couldn't be read — never `skipped`;
+ * - otherwise each candidate is scored on the votes aimed at its current event id (gate decision 2), and
+ *   `qualifies` at score ≥ cutoff, or is `skipped`.
+ * Keyed by `itemRouteId`, the id the table's rows carry. `reason` is null except for `unchecked`: for a
+ * decided verdict the score, the cutoff and the breakdown are the reason. Never throws: it runs on every
+ * render.
+ *
+ * @returns {{ byRouteId: Object<string, { verdict: string, score: number|null, breakdown: Object[], reason: string|null }>,
+ *             summary: { state: 'checking'|'incomplete'|'complete', qualifying: number, total: number, reason: string|null } }}
+ */
+export function candidateVerdicts(input) {
+  const { candidates, votes, weights, cutoff } = input && typeof input === 'object' ? input : {};
+  const list = [];
+  const seen = new Set();
+  for (const event of Array.isArray(candidates) ? candidates : []) {
+    const routeId = itemRouteId(event);
+    if (routeId === null || seen.has(routeId)) continue;
+    seen.add(routeId);
+    list.push({ routeId, event });
+  }
+  const every = (entry) => Object.fromEntries(list.map(({ routeId }) => [routeId, { ...entry }]));
+  const summary = (state, qualifying, reason) => ({ state, qualifying, total: list.length, reason });
+
+  const wState = weights && typeof weights === 'object' && (weights.state === 'ready' || weights.state === 'failed')
+    ? weights.state : 'checking';
+  if (!votes || typeof votes !== 'object' || wState === 'checking') {
+    return { byRouteId: every({ verdict: 'checking', score: null, breakdown: [], reason: null }), summary: summary('checking', 0, null) };
+  }
+  const missed = [];
+  if (votes.local === 'failed') missed.push('this instance’s strfry');
+  if (votes.relay === 'failed') missed.push('the community relay');
+  if (votes.truncated) missed.push('every vote (there are more votes than one read returns)');
+  if (wState === 'failed') {
+    missed.push(typeof weights.error === 'string' && weights.error !== '' ? `the trust weights (${weights.error})` : 'the trust weights');
+  }
+  if (missed.length > 0) {
+    const reason = missed.join(' and ');
+    return { byRouteId: every({ verdict: 'unchecked', score: null, breakdown: [], reason }), summary: summary('incomplete', 0, reason) };
+  }
+  const reactions = reactionsByItem(votes.events, list.map(({ event }) => event.id));
+  const entries = list.map(({ routeId, event }) => {
+    const { score, breakdown } = scoreItem(event.pubkey, reactions[event.id] || [], weights.values);
+    return [routeId, { verdict: qualifies(score, cutoff) ? 'qualifies' : 'skipped', score, breakdown, reason: null }];
+  });
+  const qualifying = entries.filter(([, v]) => v.verdict === 'qualifies').length;
+  return { byRouteId: Object.fromEntries(entries), summary: summary('complete', qualifying, null) };
+}
+
+/** The cutoff a curated list starts at — Simple Lists' Generate Trusted List panel's (ADR 0004 §5). */
+export const CUTOFF_DEFAULT = 2;
+
+/** Where this browser keeps one curated list's cutoff: keyed by my curated header's coordinate (ADR 0004 §5). */
+export function cutoffStorageKey(coord) {
+  return `tapestry_curation_cutoff:${String(coord)}`;
+}
+
+/** A stored cutoff as its number (0 included), or the default when it is missing or not a number. Never throws. */
+export function readStoredCutoff(raw) {
+  if (typeof raw !== 'string' || raw.trim() === '') return CUTOFF_DEFAULT;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : CUTOFF_DEFAULT;
 }
 
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */
