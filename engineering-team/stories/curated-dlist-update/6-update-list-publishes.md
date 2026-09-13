@@ -225,6 +225,6 @@ Tester's sketch. These are the calls it made where the ADR or the tests left roo
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/6-update-list-publishes.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/curated-dlist-update/6-update-list-publishes.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
