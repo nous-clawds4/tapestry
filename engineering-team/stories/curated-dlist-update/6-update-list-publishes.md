@@ -189,6 +189,38 @@ Tester's sketch. These are the calls it made where the ADR or the tests left roo
 11. **The panel keeps its second sentence**, "Revoke or hand-edit before adding this one.", after the new 409 sentence
     (§9). AC-10 keeps the panel as it is otherwise.
 12. **Not done:** §10's optional scratch-stack check of the local `a` form. The brief ruled out Docker.
+13. **Local check (2026-09-13, the orchestrator, ADR note 6).** The three server files and the UI build were deployed to
+    the local container. `brainstorm` was restarted after the other local sessions were warned.
+    - **The route, live.** From inside the container, past the global middleware:
+      - a foreign `Origin` gets 403, "a request from another site is refused";
+      - no session gets 401.
+
+      From the host, an unauthenticated POST gets the middleware's 401 first. Nothing was signed.
+    - **The UI, through the fetch stub.** Signed in as staging's customer (assistant `253d40c4…`), on `dog-breed`, under
+      Trust Everyone at cutoff 1. The stub answered the update endpoint itself.
+      - The preview proposes Copy (2) and the upgrade, and offers "Publish these changes". Story 5's closing line is gone.
+      - Pressing it sent two calls, references only: the two copies with their version ids, then the upgrade alone
+        (`dropsMarker: false`).
+      - Each answer rendered as §7 says:
+        - published;
+        - partial: "failed: connection failure: …" and "sent, but … didn't keep it";
+        - stale: "The list changed since you pressed Publish; here is the new preview.";
+        - couldn't-check: "⚠️ Publishing stopped — couldn't check the shared list on the community relay."
+      - A refused first call stopped the run: the upgrade's call was never sent.
+      - Nothing else was posted, and the browser's settings were restored afterwards.
+    - **Not checked live:** a real publish. It writes to the public community relay, so it is the operator's call (§10).
+14. **Regression (2026-09-13).** Full `npm test` at `24a4c447`.
+    - This story's suites pass:
+      - publish 50/0;
+      - update-preview 34/0;
+      - curation-method 24/0;
+      - items 23/0;
+      - read-only 13/0;
+      - the header endpoint 29/0;
+      - the DList Curation panel 18/0.
+    - What still fails is the known set: OPEN.md row 191's four and `summaries-element-count` L5.
+    - `most-pinned-tag-index-publish` passed this time (row 293 is flaky).
+    - Publish suites whose preconditions weren't met were skipped, as usual.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md`
