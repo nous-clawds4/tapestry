@@ -4,9 +4,10 @@
 **Date:** 2026-09-13
 **Story:** `engineering-team/stories/curated-dlist-update/5-update-list-preview.md`
 **Amended by:** Amendment 1 (2026-09-13): §7's precedence — the header's own states decide before pending reads.
+Amendment 2 (2026-09-13): the panel waits for my list and names its gaps (§6); a failed vote source names the votes.
 **Supersedes in part:** `curated-dlist-update` ADR 0004 (§2, one vote filter per source; §3, `useTrustWeights`
-unchanged; §7's reading of "the shared list read cleanly") and `my-curated-dlists` ADR 0003 (sub-decision 8, the
-Update list button as a disabled placeholder). See Decision §9.
+unchanged; §4's words for a failed vote source, by Amendment 2; §7's reading of "the shared list read cleanly") and
+`my-curated-dlists` ADR 0003 (sub-decision 8, the Update list button as a disabled placeholder). See Decision §9.
 
 ## Context
 
@@ -373,3 +374,58 @@ The corrected order:
 4. **Then `ready`.**
 
 Nothing else in §7 changes.
+
+## Amendment 2 (2026-09-13, from the Implementation gate, approved at its Architecture gate)
+
+The Implementer found this (story 5's Deviations), and the operator chose at the Implementation gate to close it before
+Review.
+
+AC-5's second bullet says: where the preview proposes nothing because a read failed, the panel shows the same
+"couldn't check". §6 gives the panel only the shared list's gaps, but which shared items are candidates depends on my
+list. `curatedItemRows` drops the ones my assistant's copies reference (`ui/src/utils/treasureMap.js:584–595`). So:
+- when my list's read fails or is cut off, originals already copied can come back as candidates;
+- the panel then shows a complete-looking "N of M" while the preview proposes nothing;
+- the same happens, briefly, while my list is still being read.
+
+1. **The panel waits for my list and names its gaps.** On my own lists, while candidates are shown:
+   - until my list's read is in, the panel's verdicts are `checking`;
+   - its `incomplete` list carries my list's gaps after the shared list's (§6), in `listReadGaps`' words:
+     - "your list on this instance's strfry" (`local: 'failed'`);
+     - "your list on the community relay" (`relay: 'failed'`);
+     - "every item on your list (more than one read returns)" (`truncated` or `relayTruncated`).
+   - As in §6, the decided verdicts stay, and the summary is `incomplete`, naming the gaps.
+   - The preview's verdicts keep §6's list. The planner already waits for my list and blocks on its gaps, naming them
+     itself (§7, Amendment 1).
+2. **A failed vote source names the votes.** `candidateVerdicts` words a failed vote source as "the votes on this
+   instance's strfry" or "the votes on the community relay". ADR 0004 §4 had "this instance's strfry" and "the community
+   relay".
+   - The preview's reasons then end "…; the votes on the community relay", not a bare "the community relay" after two
+     list reasons.
+   - The panel reads "Verdicts incomplete — couldn't check the votes on the community relay."
+   - Two failed sources still join with "and".
+3. **How AC-5's second bullet is met.** Whenever the preview proposes nothing because a read failed, the panel's summary
+   is incomplete too. The two can name different reads:
+   - the preview names every read it depends on;
+   - the panel names the reads its own verdicts depend on. When the votes or the weights failed, it names those alone,
+     as in story 4.
+
+   The header's states are not reads the panel depends on. With no shared list to read, the candidates box already says
+   why (ADR 0003 note 1). A header problem blocks the preview, but it is not a failed read.
+
+**Implementation notes.**
+- `ItemsSection` (`ui/src/pages/grapevine/CuratedDListItems.jsx`): the panel's `candidateVerdicts` call waits for
+  `myList` and receives my list's gaps. The preview's call is unchanged.
+- `candidateVerdicts` (`ui/src/utils/treasureMap.js`): the two words for a failed vote source.
+- ADR 0004: its Status parenthetical and its superseded-in-part note gain §4's words for a failed vote source.
+- Local check:
+  - with the stub failing only the strict read of my list, the preview proposes nothing and names "your list on the
+    community relay"; the panel says "Verdicts incomplete — couldn't check your list on the community relay.", and the
+    candidates still show;
+  - with every strict read failing, the preview's last reason reads "the votes on the community relay".
+
+**Testable seams (the Tester's call).**
+- `listReadGaps(record, 'your list')`: its three phrases, and no phrase for garbage.
+- `candidateVerdicts`' words for each failed vote source, and for both.
+- In `ItemsSection`: the panel's verdicts wait for my list and receive its gaps, while the preview's keep §6's list.
+
+Nothing else changes, and no concept is touched.
