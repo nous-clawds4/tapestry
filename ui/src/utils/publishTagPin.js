@@ -76,6 +76,16 @@ export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
 }
 
 /**
+ * Note-TL (kind-30393) d-tag, mirroring src/api/trustedList/refreshPinnedTags.js
+ * runOneNotePin. Interim form (feat-tags-modernization step 1): no context suffix —
+ * story 2 appends pinVariantKey({ contextSlug }) here and in the server runner
+ * together, so the two never disagree.
+ */
+export function computeNoteTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
+  return `tl-pin-notes-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+}
+
+/**
  * Default curation-method payload.
  *
  * Story 17 flipped cutoff 2→1 (WYSIWYG with Curated view) and
