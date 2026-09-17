@@ -67,3 +67,29 @@ book must either restore the policy or replace it with one the team will actuall
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/feat-tags-modernization/audit.md`
 - Product feedback: `engineering-team/audits/feat-tags-modernization/prd-seed.md`
+
+## Decision log *(operator rulings, in session, 2026-09-17)*
+
+1. **Contextual pins → promote to staging** (not tags-only). Census finding: of the 54
+   feat/tags-only commits, contextual pins is the only substantively unique feature; security
+   hardening, site-trust, relay-scan bounds, the About page and developers link all exist on
+   staging in substance. One cosmetic straggler (Firmware Explorer JSON-viewer toggle) is carried
+   mechanically if staging's refactor lacks it.
+   - **Composition rule for the pin stack:** contextual pins decide *which pin produces which
+     list* (identity/partitioning); membership methods decide *how a list's members are scored*
+     (computation). Orthogonal; the runner resolves context, then applies the method. The
+     integration ADR states this so it is never re-derived. Operator note: `certainty` is the
+     method that will be used in practice, so membership methods is the load-bearing side.
+   - **Context becomes a third `z` on a contextual Trusted List.** Today the context rides only
+     as a `d`-tag suffix (`-in-<context>`), which the TL-discovery convention
+     (`dlist-item-tagging` ADR 0002) forbids readers from parsing. Stamping the context concept
+     as a `z` — the convention the pin already uses — makes "TLs about X in LFO" a plain filter.
+     Low usage makes the republish a refresh, not a migration.
+   - The contextual-pins ADR is still marked *Proposed* though it shipped; the integration ADR
+     accepts it.
+2. **Pinned tab "update the note list" → server recompute** (feat/tags' choice), not the client
+   bookmark publish. The button refreshes the assistant-signed list the tab displays; the
+   `refresh-pinned-tag` endpoint already exists on both branches (Story 11); the client-signed
+   bookmark export stays a separate action in the Export modal on both. Operator rationale: a
+   `brainstorm_server` PR adds a "publish/update all TLs for this observer" button using the
+   assistant key, so this normalizes the UX across apps.
