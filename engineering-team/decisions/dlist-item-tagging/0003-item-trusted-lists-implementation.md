@@ -216,7 +216,7 @@ letter and therefore unavailable.
 
 **Wiring:**
 - `refreshAllPinnedTags` (`:456`): `const itemResult = await runOneItemPin(pin);`, row gains
-  `itemTL: { status, dTag, memberCount }`; `if (itemResult.dTag && itemResult.status === 'ok') currentItemDTags.push(itemResult.dTag);`
+  `itemTL: { status, dTag, memberCount }`; `if (itemResult.dTag) currentItemDTags.push(itemResult.dTag);` — a failed publish keeps its d-tag on the roster (story Ruling 1, unified failure policy; the same guard change is applied to `currentNoteDTags` at :467).`
   (E11, and it mirrors the note line at `:467` exactly); then a third sweep
   `await retractStaleTLs(currentItemDTags, { kind: 30394, dPrefix: 'tl-pin-items-' })`.
 - `refreshPinnedTagsForViewer` (`:478`): same call and row field, **no** retraction (E10).
@@ -456,7 +456,7 @@ Invariants for the Tester (each maps to a story edge case):
   publishes exactly **one** retraction; both applicability lists keep their event ids.
 - **E6** — `truncated` present ⇔ `partial` ⇔ (`scanTruncated` or `curated.length > 500`); **absence
   means complete**, and a wrongly-present tag is as harmful as a wrongly-absent one.
-- **E11** — a `d`-tag from a failed item publish never enters `currentItemDTags`, and an item-publish
+- **E11 (as ruled 2026-09-17)** — a `d`-tag from a failed item publish DOES enter `currentItemDTags` (`{status:'error', dTag}`), so a transient failure never retracts the live list; identical for notes and profiles. An item-publish
   failure leaves `runOnePin`/`runOneNotePin` results and their `currentDTags` untouched.
 - **New (address filter)** — an id-keyed `fullItemMembers` entry (no `address`) never becomes a member.
 - **New (`z` set)** — a neutral TL carries exactly the two ADR-0002 `z`; a contextual TL carries those
