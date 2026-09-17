@@ -3,7 +3,7 @@
 > **Audience:** the active team running this fork at `tapestry.brainstorm.world`.
 > **Prerequisite reading:** [BIBLE.md](./BIBLE.md) — what tapestry *is* and how it works. This file documents the specifics of *our* deployment that aren't useful to other operators forking the codebase.
 
-**Last updated:** 2026-07-06
+**Last updated:** 2026-09-12
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## 1. Deploy targets
 
-Six long-lived branches, six Digital Ocean droplets, six CI/CD workflows:
+Four long-lived branches, four Digital Ocean droplets, four CI/CD workflows:
 
 | Branch | Workflow | Target | Purpose |
 |--------|----------|--------|---------|
@@ -37,10 +37,10 @@ Six long-lived branches, six Digital Ocean droplets, six CI/CD workflows:
 | `staging` | `deploy-staging.yml` | `staging.brainstorm.world` | Pre-production verification. PRs from feature branches land here first. |
 | `feature-magic-carpet` | `deploy-magic-carpet.yml` | `magic-carpet.brainstorm.world` | Long-lived sandbox for Matthias's bounty-system work. |
 | `feat/tags` | `deploy-tags.yml` | `tags.brainstorm.world` | Long-lived sandbox for the tagging feature work (NIP-85 profile-tagging UX). Succeeds the retired `feat/pubkey-tagging-target` (re-forked from `staging` 2026-06-19). |
-| `feat/communities` | `deploy-communities.yml` | `communities.brainstorm.world` | Long-lived sandbox for the communities / decentralized-lists feature work (brainstorm-community concept, DList NIP-aware tag schema). |
-| `feat/curate` | `deploy-curate.yml` | `curate.brainstorm.world` | Long-lived sandbox for Avi's feature work; scope TBD by Avi. |
 
-Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `TAPESTRY`, `STAGING`, `MAGIC_CARPET`, `TAGS`, `COMMUNITIES`, or `CURATE`. (The `TAPESTRY` secrets superseded `BRAINSTORM` in the 2026-07-10 cutover; they carry the same `159.203.150.156` host/user/key.)
+> **Decommissioned September 2026:** the `feat/communities` (`communities.brainstorm.world`) and `feat/curate` (`curate.brainstorm.world`) sandboxes were retired — their Digital Ocean droplets were deleted (expensive to maintain, unused). The **branches are retained as archives** (Avi's communities work; the Curate app) — see [§2 Retired branches](#2-branches). `deploy-communities.yml` is removed (`deploy-curate.yml` was never merged past its own branch), and the `DEPLOY_*_COMMUNITIES` / `DEPLOY_*_CURATE` repo secrets are removed.
+
+Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `TAPESTRY`, `STAGING`, `MAGIC_CARPET`, or `TAGS`. (The `TAPESTRY` secrets superseded `BRAINSTORM` in the 2026-07-10 cutover; they carry the same `159.203.150.156` host/user/key.)
 
 ### Standard branch promotion flow
 
@@ -52,7 +52,7 @@ feat/foo (off staging)
     → source feature branch auto-deleted
 ```
 
-**Long-lived sandbox branches** (currently `feature-magic-carpet`, `feat/tags`, `feat/communities`, and `feat/curate`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
+**Long-lived sandbox branches** (currently `feature-magic-carpet` and `feat/tags`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
 
 For Matthias's sandbox: he PRs from his fork's `magic-carpet` branch into our `feature-magic-carpet`. Merging deploys to `magic-carpet.brainstorm.world`. Code on `feature-magic-carpet` is **not** intended for production until promoted via the standard `feature-magic-carpet → staging → main` path.
 
@@ -73,6 +73,11 @@ In addition to the four deploy-target branches:
 - `brainstorm-search` — was the dev/prod branch for the retired `nous-clawds4.tapestry.ninja` instance. Deleted.
 - `feat/pubkey-tagging-target` — original sandbox branch for the tagging feature, deployed to `tags.brainstorm.world`. Retired 2026-06-19 in favor of `feat/tags` (re-forked clean from `staging`); fully merged into `staging` at retirement (0 unique commits), so nothing was lost. `deploy-tags.yml` was repointed to `feat/tags`.
 - `develop` — Vinney's pre-reorg integration branch. Deleted 2026-04-26 after confirming with Vinney; its only unique content vs `main` was a redundant `.pi/` gitignore entry that `main` already had. The role it once served (integration branch) is now filled by `staging`.
+
+**Decommissioned sandboxes (droplet deleted, branch retained as an archive — NOT deleted):**
+
+- `feat/communities` — communities / decentralized-lists sandbox (Avi), was deployed to `communities.brainstorm.world`. **Decommissioned September 2026:** the Digital Ocean droplet was deleted (expensive to maintain, unused). The **branch is kept as an archive** (~156 unique commits of Avi's work, cited by the `protocols/` drafts), so it is *not* in the "candidate cleanup" list — see `scripts/long-lived-branches.txt`. `deploy-communities.yml` and the `DEPLOY_*_COMMUNITIES` secrets are removed.
+- `feat/curate` — Avi's Curate-app sandbox, was deployed to `curate.brainstorm.world`. **Decommissioned September 2026:** droplet deleted. **Branch kept as an archive.** Its `deploy-curate.yml` never merged past the sandbox branch; the `DEPLOY_*_CURATE` secrets are removed.
 
 ---
 
@@ -126,17 +131,13 @@ Short-lived feature branches (`feat/*`, `fix/*`, `chore/*`) are NOT protected; t
 - Stood up 2026-05-12; first CI/CD deploy via `deploy-tags.yml` ran successfully against PR #119.
 - 2026-06-19: deploy source repointed from `feat/pubkey-tagging-target` to `feat/tags` (re-forked from `staging`). Same droplet/secrets; `deploy-tags.yml` gained a `git fetch origin` so the existing `/opt/tapestry` checkout could switch to the never-before-fetched branch under `set -e`.
 
-### Sandbox: `communities.brainstorm.world`
+### Sandbox: `communities.brainstorm.world` — DECOMMISSIONED (September 2026)
 
-- (specs to be filled in — entrypoint dynamic-config reports 32 GB RAM, 8 vCPU)
-- Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
-- Stood up 2026-05-14; first CI/CD attempt failed at the SSH handshake due to brute-force saturation of `MaxStartups` (see §9.9), succeeded on retry after fail2ban + `PasswordAuthentication no` were applied 2026-05-15.
+- **Droplet deleted** (expensive to maintain, unused). Branch `feat/communities` retained as an archive; `deploy-communities.yml` + `DEPLOY_*_COMMUNITIES` secrets removed (see §2). Was stood up 2026-05-14 — the reference walk-through for §6, and where the §9.9 SSH brute-force incident was first hit.
 
-### Sandbox: `curate.brainstorm.world`
+### Sandbox: `curate.brainstorm.world` — DECOMMISSIONED (September 2026)
 
-- (specs to be filled in)
-- Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
-- Stood up 2026-05-15; first CI/CD deploy via `deploy-curate.yml` ran successfully on first push ([run 25901626052](https://github.com/nous-clawds4/tapestry/actions/runs/25901626052), 1m8s) — droplet was hardened per §6.3 step 2 before the deploy SSH key was generated, so §9.9's first-deploy failure didn't recur.
+- **Droplet deleted.** Branch `feat/curate` retained as an archive; `DEPLOY_*_CURATE` secrets removed (see §2). Was stood up 2026-05-15.
 
 ### Empirical RAM/disk on production (April 2026)
 
@@ -159,7 +160,7 @@ The dynamic allocation formula in `docker/entrypoint.sh` is universal — see [B
 
 ## 6. Spinning up a new sandbox droplet
 
-End-to-end procedure for adding a new long-lived sandbox to the deploy fleet. The reference walk-through is `feat/communities` → `communities.brainstorm.world` on 2026-05-14; sub-sections call out gotchas hit during that run.
+End-to-end procedure for adding a new long-lived sandbox to the deploy fleet. The reference walk-through is `feat/communities` → `communities.brainstorm.world` on 2026-05-14; sub-sections call out gotchas hit during that run. (That sandbox has since been decommissioned — §2 — but the procedure below is unchanged and still current.)
 
 ### 6.1. Pre-flight (off-droplet)
 

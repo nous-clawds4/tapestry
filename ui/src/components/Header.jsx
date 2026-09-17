@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
+import { personalLinks, destinationLinks } from '../config/avatarMenuLinks';
 
 function shortPubkey(pk) {
   if (!pk) return '';
@@ -16,6 +17,32 @@ function classificationBadge(classification) {
     case 'guest': return { label: 'Guest', className: 'badge-guest' };
     default: return null;
   }
+}
+
+/**
+ * One row in the personal / destinations sections of the Tapestry avatar menu
+ * (navigation-scaffolding #2). A link with no target — the assistant profile,
+ * for a caller with no provisioned assistant key — renders disabled rather than
+ * vanishing, so the menu reads the same for every signed-in user.
+ */
+function MenuItem({ link, onGo }) {
+  // The tooltip lives on a wrapping span, not on the disabled button: Firefox
+  // suppresses pointer events on disabled form controls, so a `title` there can
+  // silently never appear — and the tooltip is the whole point of this state.
+  if (!link.to) {
+    return (
+      <span className="dropdown-item-wrap" title={link.disabledReason}>
+        <button className="dropdown-item" disabled aria-disabled="true">
+          {link.icon} {link.label}
+        </button>
+      </span>
+    );
+  }
+  return (
+    <button className="dropdown-item" onClick={() => onGo(link)}>
+      {link.icon} {link.label}
+    </button>
+  );
 }
 
 export default function Header({ onToggleSidebar }) {
@@ -56,6 +83,27 @@ export default function Header({ onToggleSidebar }) {
   const displayName = user?.profile?.display_name || user?.profile?.name || shortPubkey(user?.pubkey);
   const avatar = user?.profile?.picture;
   const badge = user ? classificationBadge(user.classification) : null;
+
+  // The Tapestry menu keeps its profile links on the control-panel user pages
+  // (navigation-scaffolding #2).
+  const myLinks = user
+    ? personalLinks({
+        pubkey: user.pubkey,
+        assistantPubkey: user.assistantPubkey,
+        profileBase: '/tapestry/users',
+      })
+    : [];
+
+  // `/legacy/` is served by Express, outside the React router — handing it to
+  // navigate() would 404 into NotFound.
+  function go(link) {
+    setMenuOpen(false);
+    if (link.external) {
+      window.location.href = link.to;
+    } else {
+      navigate(link.to);
+    }
+  }
 
   return (
     <header className="app-header">
@@ -99,19 +147,18 @@ export default function Header({ onToggleSidebar }) {
                   </span>
                 </div>
                 <hr className="dropdown-divider" />
-                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/tapestry/users/${user.pubkey}`); }}>
-                  👤 My Profile
-                </button>
-                {user.assistantPubkey && (
-                  <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/tapestry/users/${user.assistantPubkey}`); }}>
-                    🤖 My Assistant's Profile
-                  </button>
-                )}
+                {myLinks.map(link => (
+                  <MenuItem key={link.key} link={link} onGo={go} />
+                ))}
                 {(user.classification === 'owner' || user.classification === 'admin') && (
                   <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/tapestry/settings'); }}>
                     ⚙️ Settings
                   </button>
                 )}
+                <hr className="dropdown-divider" />
+                {destinationLinks.map(link => (
+                  <MenuItem key={link.key} link={link} onGo={go} />
+                ))}
                 <hr className="dropdown-divider" />
                 <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/tapestry/about'); }}>
                   ℹ️ About

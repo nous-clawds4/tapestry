@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "node test/test.js",
+    "gate:status": "node test/gate-status.js",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "test:playwright:headed": "playwright test --headed",
@@ -86,7 +87,8 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1"
+    "@playwright/test": "^1.56.1",
+    "open-ranking": "0.1.1"
   },
   "engines": {
     "node": ">=18.0.0"

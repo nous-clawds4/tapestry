@@ -93,7 +93,13 @@ async function buildStats(input, deps) {
     const provisioned = await deps.isPovProvisioned(pov);
     if (!provisioned) {
       // POV invariant: do NOT serve the house/owner view under the caller's label.
-      return errorTriple(422, 'pov not provisioned');
+      // The refusal must also inform (ADR ore-pov-availability/0001): derive the
+      // suggested alternative from the registry default so the guidance can never
+      // drift from the capability document.
+      const defaultAlgo = resolveAlgorithm('/stats/pubkey');
+      return errorTriple(422,
+        'pov not provisioned: personalized scores are not available for this pov on this instance; ' +
+        `request the default global algorithm '${defaultAlgo.id}' instead`);
     }
     observerPubkey = (pov === deps.ownerPubkey) ? 'owner' : pov;
   }

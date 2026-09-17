@@ -24,6 +24,15 @@ git show fix/launch-child-task-protection-audit:engineering-team/stories/26-task
 git show fix/launch-child-task-protection-audit:engineering-team/reviews/26-task-queue-semaphore-protection-audit.md
 ```
 
+## Consequences
+
+This ADR is a **stub** — its substantive decision and consequences were carried forward elsewhere when the audit was fast-tracked (see History): the entry-point-tagging convention and its protection-model reasoning live in [ADR 0013's amendment](0013-task-queue-neo4j-resource-class.md#protection-model--entry-point-tagging-is-load-bearing-amended-2026-05-24-adr-0023), the operator-facing summary in [BIBLE.md §24](../../BIBLE.md), and the deliverables are pinned by [`test/task-queue-semaphore-protection-audit.test.js`](../../test/task-queue-semaphore-protection-audit.test.js).
+
+- **What this enables.** Every entry-point in a `neo4j-heavy` task's invocation chain is tagged, so ADR 0013's semaphore actually bounds concurrent Neo4j load.
+- **What this constrains.** New parent scripts that invoke tagged children must themselves be tagged (the convention this audit closes).
+- **New debt / follow-ups.** Enumerated in `## Out of scope` below; this stub introduces none of its own.
+- **Firmware reinstall required?** No.
+
 ## Out of scope
 
 - **JS-driven `child_process.exec` from legacy API handlers** — 5 endpoints that bypass `launchChildTask.sh` entirely. Filed as a separate 2026-05-24 intake in `engineering-team/stories/_intake.md`. Different mitigation shape (refactor handler to enqueue via BullMQ, deprecate endpoint, or accept) than the subshell pattern this audit addresses.

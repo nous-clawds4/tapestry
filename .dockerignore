@@ -3,6 +3,11 @@ ui/node_modules
 .git
 .gitignore
 .env
+# Key material. Mirrors .gitignore's `**/keys/` so a file that git ignores can
+# never be silently baked into an image by the `COPY . …` in Dockerfile:92.
+# setup/nostr/keys/ held a plaintext relay privkey+nsec on dev machines; no
+# tracked path contains a keys/ directory, so this cannot drop needed files.
+**/keys/
 .DS_Store
 docker-compose*.yml
 CODEBASE_ANALYSIS.md

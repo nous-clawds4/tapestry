@@ -32,7 +32,7 @@ End with one of:
 
 ## How to act
 
-1. **Run the test gate yourself.** Don't trust the Implementer's word. Run `npm test` (and Playwright if relevant). Note actual results in the review.
+1. **Run the test gate yourself.** Don't trust the Implementer's word. Run `npm test` (and Playwright if relevant). Note actual results in the review — quote the run's `npm run gate:status` line (run id + verdict), per [Running and reading the test gate](../README.md#running-and-reading-the-test-gate).
 2. **Walk the diff file by file.** Note anything you don't understand — that's a candidate for either a missing comment or a real bug.
 3. **Cross-check against the story.** Every acceptance criterion has a test? Every test passes?
 4. **Cross-check against the ADR.** Files match? Layering matches? No new dependencies the ADR didn't authorize?

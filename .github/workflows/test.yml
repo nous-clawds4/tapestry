@@ -25,11 +25,11 @@ jobs:
       # stay ENABLED overall — lmdb/msgpackr prebuild downloads need them.
       SCARF_ANALYTICS: "false"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Full history so harness-lint L9/L10 (git-log-based) stay live in CI.
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'   # production Dockerfile parity (nodesource 22.x)
           cache: npm

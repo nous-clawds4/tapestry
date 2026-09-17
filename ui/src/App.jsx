@@ -38,6 +38,8 @@ import NodeNeo4j from './pages/nodes/NodeNeo4j';
 import RelationshipsIndex from './pages/relationships/Index';
 import TrustedListsIndex from './pages/trustedLists/Index';
 import TrustedAssertions from './pages/grapevine/TrustedAssertions';
+import MyCuratedDLists from './pages/grapevine/MyCuratedDLists';
+import CuratedDListDetail from './pages/grapevine/CuratedDListDetail';
 import TrustedAssertionsList from './pages/grapevine/TrustedAssertionsList';
 import TrustDetermination from './pages/grapevine/TrustDetermination';
 import SearchPreferences from './pages/grapevine/SearchPreferences';
@@ -47,6 +49,28 @@ import TrustedListDetail from './pages/grapevine/TrustedListDetail';
 import UsersIndex from './pages/users/Index';
 import UserSearch from './pages/users/Search';
 import UserDetail from './pages/users/UserDetail';
+import TapestriesIndex from './pages/tapestries/Index';
+import NewTapestry from './pages/tapestries/NewTapestry';
+import TapestryDetail from './pages/tapestries/TapestryDetail';
+import SharedConceptsIndex from './pages/shared-concepts/Index';
+import SharedConceptDetail from './pages/shared-concepts/Detail';
+import NewSharedConcept from './pages/shared-concepts/New';
+import ActiveBTags from './pages/shared-concepts/ActiveBTags';
+import BTagDetail from './pages/shared-concepts/BTagDetail';
+import ActiveZTags from './pages/shared-concepts/ActiveZTags';
+import SelfDeclaredSharedConcepts from './pages/shared-concepts/SelfDeclaredSharedConcepts';
+import SharedByMe from './pages/shared-concepts/SharedByMe';
+import SelfDeclaredDetail from './pages/shared-concepts/SelfDeclaredDetail';
+import AdoptionQueue from './pages/shared-concepts/AdoptionQueue';
+import TrustedDictionary from './pages/shared-concepts/TrustedDictionary';
+import HeaderEvent from './pages/shared-concepts/HeaderEvent';
+import {
+  DictionariesIndex,
+  DictionaryTags,
+  DictionaryDLists,
+  DictionaryConcepts,
+} from './pages/dictionaries/Placeholders';
+import { MyTrustedAgents, AllTrustedAgents, TrustedAgentSetup } from './pages/trusted-agents/Placeholders';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
 
@@ -63,6 +87,12 @@ import StrfryOverview from './pages/databases/StrfryOverview';
 import ExportPage from './pages/io/ExportPage';
 import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
+import Goals from './pages/brain/Goals';
+import GoalDetail from './pages/brain/GoalDetail';
+import { GoalsGraph, GoalRelationshipTypes } from './pages/brain/GoalPlaceholders';
+import Rationale from './pages/brain/Rationale';
+import GoalSets from './pages/brain/GoalSets';
+import Proposals from './pages/brain/Proposals';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormFollows from './pages/BrainstormFollows';
@@ -200,6 +230,13 @@ const router = createBrowserRouter([
     handle: { crumb: 'Home' },
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'goals', element: <Goals />, handle: { crumb: 'Goals' } },
+      { path: 'goals/graph', element: <GoalsGraph />, handle: { crumb: 'Goals (graph)' } },
+      { path: 'goals/rationale', element: <Rationale />, handle: { crumb: 'Rationale' } },
+      { path: 'goals/sets', element: <GoalSets />, handle: { crumb: 'Goal Sets' } },
+      { path: 'goals/relationship-types', element: <GoalRelationshipTypes />, handle: { crumb: 'Goal Relationship Types' } },
+      { path: 'goals/:slug', element: <GoalDetail />, handle: { crumb: 'Detail' } },
+      { path: 'proposals', element: <Proposals />, handle: { crumb: 'Proposals' } },
       {
         path: 'concepts',
         handle: { crumb: 'Concepts' },
@@ -216,7 +253,7 @@ const router = createBrowserRouter([
               { path: 'health', element: <ConceptHealth />, handle: { crumb: 'Health Audit' } },
               { path: 'elements', element: <ConceptElements />, handle: { crumb: 'Elements' } },
               { path: 'elements/new', element: <NewElement />, handle: { crumb: 'New Element' } },
-              { path: 'elements/add-node', element: <AddNodeAsElement />, handle: { crumb: 'Add Node' } },
+              { path: 'elements/add-node', element: <AddNodeAsElement />, handle: { crumb: 'Add Node as Element' } },
               { path: 'elements/add-node/review', element: <AddNodeReview />, handle: { crumb: 'Review' } },
               { path: 'elements/:elemUuid', element: <ElementDetail />, handle: { crumb: 'Element' } },
               { path: 'properties', element: <ConceptProperties />, handle: { crumb: 'Properties' } },
@@ -316,7 +353,16 @@ const router = createBrowserRouter([
         path: 'grapevine',
         handle: { crumb: 'My Grapevine' },
         children: [
-          { path: 'trusted-assertions', element: <TrustedAssertions />, handle: { crumb: 'TA Treasure Map' } },
+          { path: 'treasure-map', element: <TrustedAssertions />, handle: { crumb: 'TA Treasure Map' } },
+          // my-curated-dlists #1 (ADR 0001): nested so the detail breadcrumb reads … › My Curated DLists › Detail.
+          {
+            path: 'curated-dlists',
+            handle: { crumb: 'My Curated DLists' },
+            children: [
+              { index: true, element: <MyCuratedDLists /> },
+              { path: ':id', element: <CuratedDListDetail />, handle: { crumb: 'Detail' } },
+            ],
+          },
           { path: 'assertions', element: <TrustedAssertionsList />, handle: { crumb: 'Trusted Assertions' } },
           { path: 'trust-determination', element: <TrustDetermination />, handle: { crumb: 'Trust Determination' } },
           { path: 'trusted-lists', element: <TrustedLists />, handle: { crumb: 'Trusted Lists' } },
@@ -332,6 +378,54 @@ const router = createBrowserRouter([
           { index: true, element: <UsersIndex /> },
           { path: 'search', element: <UserSearch />, handle: { crumb: 'Search' } },
           { path: ':pubkey', element: <UserDetail />, handle: { crumb: 'Profile' } },
+        ],
+      },
+      {
+        path: 'tapestries',
+        handle: { crumb: 'Tapestries' },
+        children: [
+          { index: true, element: <TapestriesIndex />, handle: { crumb: 'View Tapestries' } },
+          { path: 'new', element: <NewTapestry />, handle: { crumb: 'New Tapestry' } },
+          { path: ':uuid', element: <TapestryDetail />, handle: { crumb: 'Detail' } },
+        ],
+      },
+      {
+        path: 'shared-concepts',
+        handle: { crumb: 'Shared Concepts' },
+        children: [
+          { index: true, element: <SharedConceptsIndex />, handle: { crumb: 'Shared Concepts Registry' } },
+          { path: 'new', element: <NewSharedConcept />, handle: { crumb: 'Add to Registry' } },
+          { path: 'b-tags', element: <ActiveBTags />, handle: { crumb: 'Active b-tags' } },
+          { path: 'b-tags/:uuid', element: <BTagDetail />, handle: { crumb: 'b-tag Detail' } },
+          { path: 'z-tags', element: <ActiveZTags />, handle: { crumb: 'Active z-tags' } },
+          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Shared with the community' } },
+          { path: 'mine', element: <SharedByMe />, handle: { crumb: 'Shared by me' } },
+          { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
+          { path: 'adoption-queue', element: <AdoptionQueue />, handle: { crumb: 'Adoption Queue' } },
+          { path: 'dictionary', element: <TrustedDictionary />, handle: { crumb: 'Trusted Dictionary' } },
+          { path: 'header/:coord', element: <HeaderEvent />, handle: { crumb: 'Header Event' } },
+          { path: ':uuid', element: <SharedConceptDetail />, handle: { crumb: 'Detail' } },
+        ],
+      },
+      {
+        path: 'dictionaries',
+        handle: { crumb: 'Dictionaries' },
+        children: [
+          { index: true, element: <DictionariesIndex /> },
+          { path: 'tags', element: <DictionaryTags />, handle: { crumb: 'Tags' } },
+          { path: 'dlists', element: <DictionaryDLists />, handle: { crumb: 'DLists' } },
+          { path: 'concepts', element: <DictionaryConcepts />, handle: { crumb: 'Concepts' } },
+        ],
+      },
+      {
+        path: 'trusted-agents',
+        handle: { crumb: 'Trusted Agents' },
+        children: [
+          // No index page was asked for; a bare prefix is better redirected than 404'd.
+          { index: true, element: <Navigate to="/tapestry/trusted-agents/mine" replace /> },
+          { path: 'mine', element: <MyTrustedAgents />, handle: { crumb: 'Mine' } },
+          { path: 'all', element: <AllTrustedAgents />, handle: { crumb: 'All' } },
+          { path: 'setup', element: <TrustedAgentSetup />, handle: { crumb: 'Set Up' } },
         ],
       },
       { path: 'relationships', element: <RelationshipsIndex />, handle: { crumb: 'Relationships' } },

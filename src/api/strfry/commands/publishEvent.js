@@ -8,10 +8,11 @@
 const { exec } = require('child_process');
 const { getOwnerAssistantKeys } = require('../../../utils/assistantKeys');
 const { isOwner } = require('../../../middleware/auth');
+const { maybeBrainWriteTapestry } = require('../tapestryBrainWrite');
 
 // Lazy-load nostr-tools resiliently: the absolute path resolves inside the Docker
 // container (prod/staging); the bare require resolves everywhere else (CI's stack-free
-// runner installs node_modules at the repo root). Mirrors src/api/event/eventReadPath.js.
+// runner installs node_modules at the repo root). Mirrors src/api/event/eventReadPath.js:38-40.
 let _nt = null;
 function getNostrTools() {
   if (!_nt) {
@@ -62,11 +63,12 @@ async function handlePublishEvent(req, res) {
       if (!event.sig || !event.id || !event.pubkey) {
         return res.status(400).json({ success: false, error: 'Client-signed event must include id, sig, and pubkey' });
       }
-      // Authenticity, not authorization: the signature must be valid for the CLAIMED
-      // pubkey. Any validly-signed event from any author still publishes (permissionless);
-      // a forged one is rejected HERE, before strfry import, which cannot be relied on to
-      // reject it (strfry import exits 0 even when it drops a bad-sig event). Verify a JSON
-      // round-trip so a client-attached verifiedSymbol cache cannot be trusted.
+      // Authenticity, not authorization: the signature must be valid for the CLAIMED pubkey.
+      // Any validly-signed event from any author still publishes (permissionless — ADR
+      // security-auth-exposure/0002); a forged one is rejected HERE, before the relay import
+      // AND before maybeBrainWriteTapestry, so it reaches neither the relay, Neo4j, nor LMDB.
+      // Verify a JSON round-trip so a client-attached verifiedSymbol cache can't be trusted;
+      // strfry import cannot be relied on (it exits 0 even when it rejects a bad-sig event).
       // (ADR event-authenticity/0001.)
       const nt = getNostrTools();
       let verified = false;
@@ -81,18 +83,34 @@ async function handlePublishEvent(req, res) {
 
     // Publish to local strfry via stdin import
     const eventJson = JSON.stringify(signedEvent);
-    
-    const child = exec('strfry import', { timeout: 10000 }, (error, stdout, stderr) => {
-      if (error) {
-        console.error('strfry import error:', error.message, stderr);
-        return res.json({ success: false, error: `strfry import failed: ${error.message}` });
-      }
-      console.log('Published event to strfry:', signedEvent.id?.slice(0, 16));
-      return res.json({ success: true, event: signedEvent });
-    });
-    
-    child.stdin.write(eventJson + '\n');
-    child.stdin.end();
+
+    try {
+      await new Promise((resolve, reject) => {
+        const child = exec('strfry import', { timeout: 10000 }, (error, stdout, stderr) => {
+          if (error) {
+            console.error('strfry import error:', error.message, stderr);
+            reject(new Error(`strfry import failed: ${error.message}`));
+          } else {
+            resolve();
+          }
+        });
+        child.stdin.write(eventJson + '\n');
+        child.stdin.end();
+      });
+    } catch (importError) {
+      return res.json({ success: false, error: importError.message });
+    }
+
+    console.log('Published event to strfry:', signedEvent.id?.slice(0, 16));
+
+    // Brain-first authoring hook (ADR tapestries/0007): if this letter is one
+    // of the instance's own tapestry elements, the brain learns it BEFORE we
+    // respond (the story's flow-completion bar) — awaited on purpose. A hook
+    // failure is reported alongside publish success, never conflated with it:
+    // strfry has already accepted the letter and it cannot be unsent.
+    const brainWrite = await maybeBrainWriteTapestry(signedEvent);
+
+    return res.json({ success: true, event: signedEvent, ...(brainWrite ? { brainWrite } : {}) });
 
   } catch (error) {
     console.error('Publish event error:', error);

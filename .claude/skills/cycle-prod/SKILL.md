@@ -107,13 +107,20 @@ Verify state is `"MERGED"`.
 
 ### 6. Watch the production deploy
 
+The run can appear **up to ~2 minutes after the merge** (Actions queue lag — OPEN.md row 251, 2026-09-10). A `--limit 1` lookup seconds after the merge returns the *previous* run, and a smoke test that runs without a watched run tests the **old** container — tiers 1–2 pass against it and only the served bundle hash exposes the mistake. So: poll for the run whose `headSha` is the merge commit, and never fall through to step 7 without one.
+
 ```bash
-sleep 3
-gh run list --repo nous-clawds4/tapestry --workflow=deploy-tapestry.yml --limit 1 --json databaseId,status,headSha
-gh run watch <run-id> --repo nous-clawds4/tapestry --exit-status
+SHA=<mergeCommit oid>; RUN=""
+for i in $(seq 1 30); do   # up to 5 minutes
+  RUN=$(gh run list --repo nous-clawds4/tapestry --workflow=deploy-tapestry.yml --limit 5 \
+        --json databaseId,headSha --jq ".[] | select(.headSha==\"$SHA\") | .databaseId" | head -1)
+  [ -n "$RUN" ] && break; sleep 10
+done
+[ -n "$RUN" ] || { echo "no deploy-tapestry.yml run for $SHA after 5 min — stop and surface"; exit 1; }
+gh run watch "$RUN" --repo nous-clawds4/tapestry --exit-status
 ```
 
-Typical prod deploy is ~80s warm cache, ~2m+ on first build with new deps. If it fails, surface the failure and consider opening a revert. Do NOT auto-merge a revert; recommend it to the user and let them decide.
+Typical prod deploy is ~80s warm cache, ~2m+ on first build with new deps. If no run appears within the bound, stop and surface — do not smoke-test. If it fails, surface the failure and consider opening a revert. Do NOT auto-merge a revert; recommend it to the user and let them decide.
 
 ### 7. Stability poll + smoke test
 

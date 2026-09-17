@@ -147,6 +147,21 @@ NEO4J_HEAP_MB=$((AVAILABLE_MB * 40 / 100))
 NEO4J_CACHE_MB=$((AVAILABLE_MB * 40 / 100))
 NEO4J_TX_MAX_MB=$((NEO4J_HEAP_MB * 50 / 100))
 
+# Operator memory override (OPEN.md row 186). On a shared Docker VM, MemTotal
+# counts RAM that belongs to other containers, so the formula above
+# overprovisions there (six-week local OOM crash loop, rows 185/186). When a
+# BRAINSTORM_NEO4J_* var is set (via .env / docker-compose), it replaces the
+# computed value verbatim; unset or empty ⇒ the formula's result stands and the
+# written config is byte-identical to before this override existed. Vars are
+# independent — an overridden heap does NOT re-derive the tx ceiling above, so
+# set all three for a coherent profile.
+NEO4J_HEAP_MB="${BRAINSTORM_NEO4J_HEAP_MB:-$NEO4J_HEAP_MB}"
+NEO4J_CACHE_MB="${BRAINSTORM_NEO4J_CACHE_MB:-$NEO4J_CACHE_MB}"
+NEO4J_TX_MAX_MB="${BRAINSTORM_NEO4J_TX_MAX_MB:-$NEO4J_TX_MAX_MB}"
+if [ -n "${BRAINSTORM_NEO4J_HEAP_MB:-}${BRAINSTORM_NEO4J_CACHE_MB:-}${BRAINSTORM_NEO4J_TX_MAX_MB:-}" ]; then
+  echo "  BRAINSTORM_NEO4J_* override active (OPEN.md row 186): heap=${NEO4J_HEAP_MB}m cache=${NEO4J_CACHE_MB}m tx=${NEO4J_TX_MAX_MB}m"
+fi
+
 # Concurrent transaction limit: ~100 per CPU core
 NEO4J_CONCURRENT_MAX=$((NUM_CPUS * 100))
 

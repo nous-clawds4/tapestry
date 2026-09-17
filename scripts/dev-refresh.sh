@@ -85,8 +85,25 @@ fi
 
 # --- 4. backend restart -----------------------------------------------------
 if [ "$DO_SERVER" = 1 ]; then
-  say "Restarting backend (brainstorm, stream-consumer) …"
-  docker exec "$CONTAINER" supervisorctl restart brainstorm stream-consumer >/dev/null
+  # Restart only the programs this container actually defines. supervisorctl
+  # exits non-zero on an unknown program, and under `set -e` that aborts the
+  # script before the smoke test — which is what happens on an image built
+  # before stream-consumer was added to docker/supervisord.conf.
+  known=$(docker exec "$CONTAINER" supervisorctl status 2>/dev/null | awk '{print $1}')
+  targets=""
+  for prog in brainstorm stream-consumer; do
+    if printf '%s\n' "$known" | grep -qx "$prog"; then
+      targets="$targets $prog"
+    else
+      warn "supervisor program '$prog' not defined in this container — skipping."
+      warn "Its image predates docker/supervisord.conf; rebuild to pick it up."
+    fi
+  done
+  [ -n "$targets" ] || die "no known supervisor programs to restart (expected at least 'brainstorm')"
+
+  say "Restarting backend ($(echo $targets | tr ' ' ',')) …"
+  # shellcheck disable=SC2086 # word splitting is intended: one arg per program
+  docker exec "$CONTAINER" supervisorctl restart $targets >/dev/null
   # poll (inside the container) up to ~10s for a stable state
   status=$(docker exec "$CONTAINER" sh -c '
     for i in 1 2 3 4 5; do

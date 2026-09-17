@@ -6,7 +6,7 @@
 
 ## Quality gates (run by reviewer, not trusted)
 
-- [ ] `npm test` — pass / fail / output
+- [ ] `npm test` — pass / fail / output: quote the run's `npm run gate:status` line (run id + verdict) — [Running and reading the test gate](../README.md#running-and-reading-the-test-gate)
 - [ ] `npm run test:playwright` (if applicable) — pass / fail / output
 - [ ] _Lint not configured — skipped._
 - [ ] _Typecheck not configured — skipped._
@@ -16,6 +16,10 @@
 - [ ] Every acceptance criterion has a passing test.
 - [ ] No criterion is silently dropped.
 - [ ] No behavior added that isn't in the story.
+
+> **Docs-mode / doc-lane variant:** there are no ACs and no test surface — replace this section with a **claims-adherence table**: one row per substantive claim the document makes, with the evidence that verified it (file read, command run, source checked). The *Quality gates* section records the doc-facing checks actually performed (links resolve, cross-references accurate, index rows updated). File the review under the non-numbered form (0-intake §3).
+
+> **Test-deliverable stories** (the deliverable IS a test change): a non-empty Phase-4 `test/` diff is expected, not a violation — verify which case applies per the carve-out in `templates/adr.md`: Phase 4 may edit the suites under repair and MUST NOT touch the Tester's guard suite.
 
 ## ADR adherence
 - [ ] Files changed match the ADR's implementation notes.
@@ -59,4 +63,4 @@
 
 ## On PASS (same commit)
 - [ ] Story `**Status:**` flipped to `Done` in place.
-- [ ] Completion detection run: book checked; `/close-book` offered if the book looks complete.
+- [ ] Completion detection performed; the result and any book arithmetic recorded in the run journal (Direction) or the chat (human-gated) — never in this file. `/close-book` offered if the book looks complete.

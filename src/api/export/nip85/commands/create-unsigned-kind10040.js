@@ -9,6 +9,8 @@
 
 const { getConfigFromFile } = require('../../../../utils/config');
 const { getAssistantKeys } = require('../../../../utils/assistantKeys');
+const { trustAssertionRows, buildTreasureMapTemplate } = require('../../../../lib/treasureMapMerge');
+const { fetchCurrentMap } = require('../currentMap');
 
 /**
  * Create unsigned Kind 10040 event template
@@ -61,71 +63,26 @@ async function handleCreateUnsignedKind10040(req, res) {
         }
 
         const relayPubkey = relayKeys.pubkey;
-        
-        // Create the unsigned Kind 10040 event template
-        const unsignedEvent = {
-            kind: 10040,
+
+        // dlist-curation #7: never regenerate blind. Read the user's CURRENT Map (local strfry,
+        // then the relays) and preserve every tag this generator does not own — the 30392
+        // Trusted-Lists delegation, per-DList curation entries, the assistant designation, and
+        // anything another tool wrote. Only the 30382:* rows are regenerated.
+        let current;
+        try {
+            current = await fetchCurrentMap(customerPubkey);
+        } catch (err) {
+            return res.status(503).json({
+                success: false,
+                message: `Not regenerating blind: ${err.message}`
+            });
+        }
+        const freshRows = trustAssertionRows(relayPubkey, nip85HomeRelay);
+        const { template: unsignedEvent, preserved, regenerated } = buildTreasureMapTemplate({
             pubkey: customerPubkey, // This will be the customer's pubkey (user who signs)
-            created_at: Math.floor(Date.now() / 1000),
-            content: "",
-            tags: [
-                [
-                    "30382:rank",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:followers",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:personalizedGrapeRank_influence",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:personalizedGrapeRank_average",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:personalizedGrapeRank_confidence",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:personalizedGrapeRank_input",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:personalizedPageRank",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:verifiedFollowerCount",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:verifiedMuterCount",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:verifiedReporterCount",
-                    relayPubkey,
-                    nip85HomeRelay
-                ],
-                [
-                    "30382:hops",
-                    relayPubkey,
-                    nip85HomeRelay
-                ]
-            ]
-        };
+            existingEvent: current.event,
+            freshRows,
+        });
 
         res.json({
             success: true,
@@ -133,10 +90,10 @@ async function handleCreateUnsignedKind10040(req, res) {
                 unsignedEvent: unsignedEvent,
                 relayUrl: relayUrl,
                 relayPubkey: relayPubkey,
-                message: 'Unsigned Kind 10040 event created. Please sign with NIP-07 browser extension.'
+                merge: { preserved, regenerated, currentMap: current.where },
+                message: `Unsigned Kind 10040 event created (${preserved} existing tag(s) preserved, ${regenerated} Trust-Assertion row(s) regenerated; current Map: ${current.where}). Please sign with NIP-07 browser extension.`
             }
         });
-
     } catch (error) {
         console.error('Error creating unsigned Kind 10040 event:', error);
         res.status(500).json({

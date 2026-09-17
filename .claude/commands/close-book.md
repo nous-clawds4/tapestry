@@ -24,10 +24,12 @@ You are entering **Book Close** — a milestone phase of the Tapestry engineerin
 - Be honest about confidence. A reconstructed, no-anchor close is a low-confidence hypothesis — say so in the header, don't dress it up.
 - Engineering authors both artifacts under `engineering-team/`. Never write into `product-team/`.
 
-**Gate (mandatory):** After writing both artifacts, running the **post-mortem/harness retro** (workflow step 7 — every process lesson ends in exactly one of: operator-ratified harness commit · OPEN.md `meta` row · recorded decline; **no fourth state**; dispositions recorded in audit §7), flipping the book to Closed, and sweeping any small / cross-cutting loose ends into the root [`OPEN.md`](OPEN.md) ledger (workflow step 10), ask:
+**Gate (mandatory):** After writing both artifacts, running the **post-mortem/harness retro** (workflow step 7 — every process lesson ends in exactly one of: operator-ratified harness commit · OPEN.md `meta` row · recorded decline; **no fourth state**; dispositions recorded in audit §7), flipping the book to Closed, and sweeping any small / cross-cutting loose ends into the root [`OPEN.md`](OPEN.md) ledger (workflow step 11), ask:
 
 > Book closed. Audit + {addendum|seed} are ready for the product team to scope the next phase. Retro dispositions are in audit §7. Anything to correct before I commit?
 
 **Per-phase commit:** Commit audit + feedback doc + updated `book.md` + any `OPEN.md` rows together: `git add engineering-team/audits/<book-slug> OPEN.md && git commit -m "book-close: <book-slug>"`.
+
+**Close-out (workflow step 13) — after that commit, don't stop at it.** The close is the last moment the work is both finished and fresh, so it carries its own tidy-up instead of leaving one to be remembered. **Do:** refresh any durable note that still describes this book as open (agent memory, `docs/*HANDOFF*.md`) — a stale one hands the next session a false map that reads as authoritative; **push** the branch the close landed on, because `OPEN.md` row numbers are allocated off `origin` and local-only rows collide with a sibling machine's (row 151); and **fast-forward** any local ref that only trails, which is lossless and invisible. **Offer, never assume:** promoting to the production line (keeps the next promotion bundle equal to the next piece of work — but production still needs explicit per-promotion approval), and pruning local branches merged to `origin/main` (excluding `scripts/long-lived-branches.txt`) — deletion is the one irreversible act here.
 
 $ARGUMENTS

@@ -9,6 +9,7 @@
  */
 const { exec } = require('child_process');
 const { getConfigFromFile } = require('../../utils/config');
+const { classifyBValue } = require('../../lib/bValueForms');
 
 const NEO4J_USER = getConfigFromFile('NEO4J_USER', 'neo4j');
 const NEO4J_PASSWORD = getConfigFromFile('NEO4J_PASSWORD', '');
@@ -255,12 +256,17 @@ function buildImportCypher(event) {
           `MERGE (t)-[:REFERENCES]->(ref)`
         );
       }
-    } else if (tag[0] === 'b' && tag[1]) {
+    } else if (tag[0] === 'b' && tag[1]
+        && ['a-tag', 'event-id'].includes(classifyBValue(tag[1]))) {
       // "b" tag — the shared affiliation primitive (ADR 0034, epic community-reference).
       // CRITICAL: this edge is HEADER-LEVEL — `child` is the event's OWN node (its uuid),
       // NOT the t${i} tag node (the e/a branches above build tag-level edges; do NOT copy
       // that shape). Type-gate on the EXPLICIT 'inherit' string only; absent/'pointer'/
       // anything-else → REFERENCES{source:'b-tag'} (wire spec :41, ADR 0029 §2).
+      // Value-form guard (ADR shared-concepts-adoption/0001): only the two locatable
+      // forms derive an edge. The reserved sentinel `b-tag-deferred` and any malformed
+      // value keep their plain tag node above but MERGE no target — a sentinel-keyed
+      // phantom NostrEvent was the hazard this closes.
       const targetUuid = tag[1];
       const isInherit = tag[2] === 'inherit';
       if (isInherit) {

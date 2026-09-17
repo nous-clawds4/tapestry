@@ -21,6 +21,12 @@ services:
       # sandbox never competes with production in search results before anyone
       # remembers to configure it. Production sets ALLOW_INDEXING=true in .env.
       - ALLOW_INDEXING=${ALLOW_INDEXING:-false}
+      # Neo4j memory override (OPEN.md row 186) — set in .env on shared-VM dev
+      # machines where MemTotal overcounts what is actually available; leave
+      # unset on droplets, where the entrypoint formula stays authoritative.
+      - BRAINSTORM_NEO4J_HEAP_MB=${BRAINSTORM_NEO4J_HEAP_MB:-}
+      - BRAINSTORM_NEO4J_CACHE_MB=${BRAINSTORM_NEO4J_CACHE_MB:-}
+      - BRAINSTORM_NEO4J_TX_MAX_MB=${BRAINSTORM_NEO4J_TX_MAX_MB:-}
     volumes:
       - tapestry-neo4j:/var/lib/neo4j/data
       - tapestry-strfry:/var/lib/strfry

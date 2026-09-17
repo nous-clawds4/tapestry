@@ -1,0 +1,143 @@
+# Test Plan: Story 2 — Retire "offering"
+
+**Story:** `engineering-team/stories/shared-concepts-seeding/2-retire-the-offering-vocabulary.md`
+**ADR:** none — Architecture skipped by design (Refactor; names settled with the owner)
+**Date:** 2026-08-10
+**Suites:** `test/retire-offering-vocabulary.test.js` (new) and `test/shared-by-me.test.js`
+(re-aimed and renamed from `my-offerings.test.js`)
+
+## The division of labour
+
+A rename has two failure modes, and one suite cannot guard both:
+
+- **The words don't change** → the new suite, `retire-offering-vocabulary`, owns what things may be
+  *called*.
+- **Something quietly breaks while being renamed** → the existing behaviour suite owns that, and it
+  is story AC-9's guard.
+
+So the behaviour suite was **re-aimed to discover the names rather than hardcode them**. App.jsx
+names the component for the `mine` route; the page names the endpoint it fetches; `index.js` names
+the handler on the line that registers it. That means it passes *today*, will pass after the rename,
+and fails loudly if the rename changes what the page actually returns. It also keeps the Tester out
+of the business of choosing product names — the Implementer picks them, and only the *constraint* is
+pinned.
+
+## Coverage map
+
+| Criterion | Test | Suite |
+|---|---|---|
+| AC-1 — the "mine" page named for sharing | `V1` | vocabulary |
+| AC-2 — the "others" page named for sharing; the two pair | `V2` | vocabulary |
+| AC-3 — a reached concept reads as shared | `S6` | behaviour |
+| AC-4 — a concept that didn't reach reads as a failure with retry | `V3`, `S6` | both |
+| AC-5 — unconfirmed survives and stays distinct | `V4` | vocabulary |
+| AC-6 — no third noun for the local half | `V5` | vocabulary |
+| AC-7 — retired word absent from user-facing surfaces | `V6`, `V6b`, `V7` | vocabulary |
+| AC-8 — absent from endpoint, response field, filenames | `V8` | vocabulary |
+| AC-9 — **nothing about behavior changes** | the whole behaviour suite, `R1` | both |
+
+**AC-9 is guarded by construction, not by a new assertion.** `shared-by-me`'s `H2` recomputes the
+expected row set independently from `/api/strfry/scan`; `H3` grades `published` against the community
+relay directly. If the rename alters what the endpoint returns, those fail. `R1` additionally pins
+that the tri-state rule in `sharingState.js` is untouched — this story relabels the middle value, it
+does not touch how any of the three is computed.
+
+## A test-design decision worth recording
+
+**`V6` scans strings, not comments — deliberately.** The first draft scanned whole lines and
+produced **36 hits**, two of which were out of scope:
+
+- `AdoptionQueue.jsx:61` — a comment, "raw wire enumeration offered", about a picker.
+- `TrustedDictionary.jsx:15` — a comment about a snapshot being "the dated, TA-signed offering".
+
+Both use the word in ordinary English about other features. A test that forces those to be reworded
+would drag scope the story explicitly did not ask for, so `V6` strips comments before matching and
+now reports **26 hits**, all genuinely in scope.
+
+**But comments are not exempt from everything.** `V6b` catches the retired *page names*
+(`My Offerings`, `Community Offerings`, `MyOfferings`) **everywhere, comments included** — because a
+comment naming a page that no longer exists is precisely the rot the previous vocabulary pass had to
+sweep twice, once after a review kick-back. The two rules together are the distinction that matters:
+*ordinary English in a comment is fine; a dead proper noun is not.*
+
+## Edge cases
+
+- [x] The retired stem must not survive in the **nav or breadcrumbs**, scanned scoped to
+      shared-concepts lines so unrelated entries can't false-positive (`V7`).
+- [x] The **response field** must be renamed, not just the route (`V8`).
+- [x] **Test filenames** are in scope too — this plan renames one (`V8`).
+- [x] The three outcome messages must stay **mutually distinct** after rewording — inherited from
+      `honest-broadcast-reporting`'s `U5`/`U6`/`U7`, which assert distinctness rather than exact text
+      and therefore survive this story untouched.
+- [x] `U8` in that suite asserts kept-local carries no failure language and no community-reach claim,
+      and that not-delivered offers a retry — all still true of the new wording by construction.
+- [ ] **A screenshot-level check that the pages still render** — not covered by either suite;
+      belongs to the Implementer's browser verification, as with every previous UI story here.
+
+## Test infrastructure
+
+- **Framework:** the house runner — `node test/test.js`; both suites standalone-runnable.
+- **Registration:** five touches each in `test/test.js`; `my-offerings` deregistered as part of its
+  rename.
+- **Stack:** the behaviour suite's `H*` tests need it and `SKIP` when down; the vocabulary suite is
+  entirely static and needs nothing.
+- **Fixtures: none minted** in either suite.
+- **Firmware:** no reinstall; no concept definitions change.
+
+## How to run
+
+```bash
+node test/retire-offering-vocabulary.test.js
+```
+
+Full suite — redirect and grep, never pipe through `tail` (OPEN.md row 157):
+
+```bash
+npm test
+```
+
+## Verification
+
+### First pass — 2026-08-10, commit `19c71e88`
+
+**`retire-offering-vocabulary` — 8 failed, 2 passed.** **`shared-by-me` (re-aimed) — 13 passed, 1
+failed.** Exactly the intended shape: the discovery helpers resolved against the *old* names, so
+every behaviour test passed before the rename — which is the point, since they had to pass after it
+too. The single failure was `S6`, whose middle-state pin this phase deliberately re-aimed.
+
+### Kick-back from Implementation — 2026-08-10, product side at `e18fd020`
+
+Implementation completed all three tiers and then stopped at the gate: the two remaining failures
+were **defects in these test files, not in the product**, and editing tests is this phase's lane.
+Both were mine from the first pass, and both are the same mistake in different clothes — *a rule
+that did not account for itself*.
+
+**Gap 1 — `V8` flagged its own filename.** The rule "no test filename may carry the retired stem"
+matched `retire-offering-vocabulary.test.js`, which carries the word because it is *named for the
+retirement*. This is the third instance of the over-breadth `V6` already had to correct (which
+started by flagging ordinary English in unrelated comments). *Fix:* exempt by **exact basename**,
+not by pattern — so a genuinely stale test filename cannot hide behind the carve-out.
+
+**Gap 2 — the suite was agnostic about three names out of four.** `shared-by-me` was deliberately
+built to discover the page component, the endpoint and the handler, so a rename could not break it.
+It still hardcoded `json.offerings`, and `AC-8` required that field renamed — so the suite the
+rename was supposed to survive was broken by the rename anyway. *Fix at the root, not the symptom:*
+a fourth discovery helper, `rowsOf(json)`, takes the response's **sole array-valued property**.
+Ambiguity returns `null` and fails loudly rather than guessing.
+
+**The lesson worth carrying:** "make the test agnostic about the names" is only as good as the
+enumeration of names. Three of four is a suite that *looks* rename-proof and is not.
+
+### After the kick-back
+
+```
+retire-offering-vocabulary: 10 passed, 0 failed, 0 skipped
+shared-by-me:               14 passed, 0 failed, 0 skipped
+honest-broadcast-reporting: 15 passed, 0 failed, 0 skipped
+```
+
+Endpoint verified live: `/api/shared-by-me` → 200, `/api/my-offerings` → 404. `harness-lint` exit 0.
+
+Note the counts differ from a normal Test Design close: the tests **pass** here rather than failing,
+because the product change was already complete when the kick-back was raised. What this phase
+produced is two corrected rules, not a new red bar.

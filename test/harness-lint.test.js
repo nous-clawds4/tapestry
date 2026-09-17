@@ -242,6 +242,49 @@ test('L12: a def-path row naming a file that does not exist is a violation namin
     'the violation must name the missing path so the drift is actionable\n' + out);
 });
 
+test('L13: an active ADR missing the template-required ## Consequences section is a violation (harness-gate-integrity #1 / #46 — the build-audit §5 debt roll-up harvests that section)', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/decisions/foo/0001-thing.md':
+      '# ADR 0001: thing\n\n**Status:** Accepted\n\n## Context\nx\n\n## Decision\ny\n',
+  }));
+  assert.notStrictEqual(code, 0,
+    `an active ADR with no ## Consequences must FAIL the lint — templates/build-audit.md:42 harvests \`Consequences → new debt\`, so a missing section silently under-reports debt at book close\n${out}`);
+  assert.match(out, /VIOLATION L13 .*decisions\/foo\/0001-thing\.md/,
+    `the violation must name the offending ADR so it is actionable\n${out}`);
+});
+
+test('L13 scope A (active-only): an active ADR WITH ## Consequences is clean, and a retired ADR under decisions/done/ WITHOUT it does NOT fire (mirrors the check_reviews/check_L2 done/-skip)', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/decisions/foo/0001-thing.md':
+      '# ADR 0001: thing\n\n**Status:** Accepted\n\n## Decision\ny\n\n## Consequences\n- enables x.\n',
+    'engineering-team/decisions/done/bar/0001-old.md':
+      '# ADR 0001: old\n\n**Status:** Superseded\n\n## Decision\nz\n',
+  }));
+  assert.strictEqual(code, 0,
+    `L13 must pass when active ADRs carry ## Consequences and must NOT scan the retired done/ tree (scope A)\n${out}`);
+  assert(!/VIOLATION L13/.test(out),
+    `L13 must not fire on a done/ ADR — active-only scope, consistent with check_reviews (:94) and check_L2 (:130)\n${out}`);
+});
+
+test('L8/#21: check_L8 does not crash on a tree with zero wiring/link-doc files under bash 3.2 (empty `${files[@]}` under set -u)', () => {
+  // The empty-array-under-`set -u` error only occurs on bash < 4.4 (macOS ships
+  // /bin/bash 3.2); bash >= 4.4 tolerates it, so reproduce on the oldest bash.
+  const OLD_BASH = '/bin/bash';
+  let ver = '';
+  try { ver = execSync(`${OLD_BASH} -c 'echo "$BASH_VERSION"'`, { encoding: 'utf8' }).trim(); } catch { ver = ''; }
+  const [major, minor] = ver.split('.').map((n) => parseInt(n, 10));
+  const pre44 = ver && (major < 4 || (major === 4 && (minor || 0) < 4));
+  if (!pre44) {
+    console.log(`      (note) ${OLD_BASH} is ${ver || 'unavailable'} — the #21 crash only reproduces on bash <4.4; the length-guard is verified structurally here`);
+    return; // vacuously pass on modern bash (e.g. Linux CI)
+  }
+  const dir = makeFixture({ 'placeholder.txt': 'not a wiring or link-doc file\n' }); // zero wiring/link-doc files
+  const res = spawnSync(OLD_BASH, [SCRIPT], { cwd: dir, encoding: 'utf8' });
+  const out = `${res.stdout || ''}${res.stderr || ''}`;
+  assert(!/unbound variable/.test(out),
+    `check_L8 crashed on an empty wiring set under bash ${ver} (set -u + empty "\${files[@]}") — guard the expansion with the length-check precedent (violation():67, whats-open.sh:166):\n${out}`);
+});
+
 test('L9 is skipped silently when the tree has no git history', () => {
   const { code, out } = lint(withClean(
     { 'BIBLE.md': '# BIBLE\n\n**Last updated:** 2020-01-01\n' },
@@ -400,6 +443,101 @@ test('the script needs no network or stack: it succeeds with no env beyond PATH/
 test('the real repo lints clean (violations fixed or waived with citations)', () => {
   const { code, out } = lint(REPO_ROOT);
   assert.strictEqual(code, 0, `real repo not lint-clean:\n${out}`);
+});
+
+// ---------- L14: verdict-vocabulary hygiene (harness-gate-integrity #2, ADR 0002) ----------
+// Gate history must not live in judge-read artifacts. Active-path stories,
+// decisions, and epics may not carry the two known leak shapes — (i) a
+// `Supersedes` reference bearing a verdict token, (ii) gate/round history
+// bearing KICK_BACK/CHANGES_REQUESTED — with inline-code and fenced-code
+// MENTIONS exempt (an artifact about the mechanism names tokens in backticks),
+// and done/ + stories/_intake.md excluded (grandfather by location).
+// Calibration bar: the real repo is L14-silent with zero waivers.
+
+test('L14: a bare Supersedes+verdict line in an active story is a violation', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/stories/foo/2-beta.md':
+      '# Story 2: beta\n\n**Status:** Approved\n\n**Supersedes:** round 1 — KICK_BACK at Gate 1.\n',
+  }));
+  assert.strictEqual(code, 1, out);
+  assert.match(out, /VIOLATION L14 .*stories\/foo\/2-beta/, out);
+});
+
+test('L14: gate/round history with a verdict token in an active ADR is a violation', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/decisions/foo/0001-thing.md':
+      '# ADR 0001: thing\n\n**Status:** Accepted\n\n## Context\nThis epic already spent two rounds: Gate 2 KICK_BACK, then rework.\n\n## Decision\ny\n\n## Consequences\n- x.\n',
+  }));
+  assert.strictEqual(code, 1, out);
+  assert.match(out, /VIOLATION L14 .*decisions\/foo\/0001-thing/, out);
+});
+
+test('L14: an epic file accumulating verdict history is a violation (the Gate-1 channel)', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/epics/foo.md':
+      '# Epic: Foo\n\n**Status:** Done\n\n## Stories\n\n1. alpha — Round 2 after a KICK_BACK at Gate 3.\n',
+  }));
+  assert.strictEqual(code, 1, out);
+  assert.match(out, /VIOLATION L14 .*epics\/foo\.md/, out);
+});
+
+test('L14 mention-vs-use: backticked tokens and fenced blocks are exempt', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/stories/foo/2-beta.md':
+      '# Story 2: beta\n\n**Status:** Approved\n\nThe `Supersedes: … KICK_BACK` form is the leak shape this story bans.\n\n```\nSupersedes: round 1 — KICK_BACK (fenced example)\n```\n',
+  }));
+  assert.strictEqual(code, 0, out);
+  assert.doesNotMatch(out, /VIOLATION L14/, out);
+});
+
+test('L14 narrowness: a bare token outside both shapes does not fire — even beside substring-hazard words like "Background"', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/stories/foo/2-beta.md':
+      '# Story 2: beta\n\n**Status:** Approved\n\nBackground: the KICK_BACK vocabulary is discussed here in isolation.\n',
+  }));
+  assert.strictEqual(code, 0, out);
+  assert.doesNotMatch(out, /VIOLATION L14/,
+    '"Background" contains the substring "round" — shape (ii) must require a standalone gate/round word\n' + out);
+});
+
+test('L14 scope: done/ paths and stories/_intake.md are exempt (grandfather by location)', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/stories/done/old/1-x.md':
+      '# Story 1\n\n**Status:** Done\n\n**Supersedes:** round 1 — KICK_BACK.\n',
+    'engineering-team/stories/_intake.md':
+      '# Intake\n\nProposal about the Supersedes KICK_BACK leak shape, bare on purpose.\n',
+  }));
+  assert.strictEqual(code, 0, out);
+  assert.doesNotMatch(out, /VIOLATION L14/, out);
+});
+
+test('L14 waiver: routes through the standard waiver machinery', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/stories/foo/2-beta.md':
+      '# Story 2: beta\n\n**Status:** Approved\n\n**Supersedes:** round 1 — KICK_BACK at Gate 1.\n',
+    'scripts/harness-lint-waivers.txt':
+      'L14\tengineering-team/stories/foo/2-beta.md\tOPEN.md row 99 (test)\n',
+  }));
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /WAIVED L14 .*2-beta/, out);
+});
+
+test('L14 exists and the real repo is L14-silent with zero waivers (corpus-silence calibration bar)', () => {
+  const src = fs.readFileSync(SCRIPT, 'utf8');
+  assert.match(src, /check_L14/, 'check_L14 must exist in scripts/harness-lint.sh');
+  const { out } = lint(REPO_ROOT);
+  assert.doesNotMatch(out, /VIOLATION L14/, 'the shipped corpus must be L14-silent\n' + out);
+  assert.doesNotMatch(out, /WAIVED L14/, 'corpus silence must not be waiver-bought\n' + out);
+});
+
+// ---------- AC-4: partial-read instruction phrasing is extinct (ADR 0002) ----------
+
+test('the harness definition no longer instructs judges to read "the acceptance frame section only" — pinned commands instead', () => {
+  const director = fs.readFileSync(path.join(REPO_ROOT, 'engineering-team', 'roles', 'director.md'), 'utf8');
+  assert.doesNotMatch(director, /the instruction to read \*the acceptance frame section only\*/,
+    'director.md still carries the stop-at-a-section instruction phrasing (:83) — ADR 0002 replaces it with the pinned frame-read command');
+  assert.match(director, /pinned frame-read command/,
+    'director.md must name the pinned frame-read command in the every-gate spawn-prompt item');
 });
 
 // ---------- runner ----------

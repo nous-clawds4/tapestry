@@ -4,20 +4,23 @@
     "aPopularGeneralPurposeRelays": [
       "wss://relay.damus.io",
       "wss://relay.primal.net",
-      "wss://nos.lol",
-      "wss://relay.nostr.band"
+      "wss://nos.lol"
     ],
     "aDListRelays": [
       "wss://dcosl.brainstorm.world"
     ],
     "aTrustedAssertionRelays": [
-      "wss://nip85.nostr.band",
       "wss://nip85.brainstorm.world",
       "wss://nip85.nostr1.com"
     ],
     "aTrustedListRelays": [
       "wss://nip85.brainstorm.world",
       "wss://dcosl.brainstorm.world"
+    ],
+    "aTapestryInstanceRelays": [
+      "wss://tapestry.brainstorm.world/relay",
+      "wss://staging.brainstorm.world/relay",
+      "wss://tags.brainstorm.world/relay"
     ],
     "aWotRelays": [
       "wss://wot.grapevine.network"
@@ -50,6 +53,9 @@
   },
   "openRanking": {
     "personalizedStats": false
+  },
+  "trustedLists": {
+    "membershipMethod": "count"
   },
   "nip05": {
     "names": {},

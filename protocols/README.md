@@ -2,6 +2,8 @@
 
 The home for every protocol specification this project authors — published Custom NIPs, local pre-NIPs, and the worksheet of unsolved protocol problems. Created by the protocols-directory epic; design record: [docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md](../docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md). Process: specs are ratified through the [Protocol-Spec workflow](../engineering-team/workflows/protocol-spec-workflow.md) (docs-mode).
 
+**Where specs graduate.** This directory is the estate's drafting workshop. A spec that matures to estate-wide adoption (implemented on both the R&D and NosFabrica production sides, or ready for adoption beyond the estate) moves its working copy to [`NosFabrica/protocols`](https://github.com/NosFabrica/protocols) — the shared, stable publication tier — leaving a pointer behind; the maturity model and status ladder live in [its README](https://github.com/NosFabrica/protocols/blob/main/README.md), and the canonical estate map is [its `ECOSYSTEM.md`](https://github.com/NosFabrica/protocols/blob/main/ECOSYSTEM.md). Consumer-facing specs already living there: [trusted-assertions.md](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md), [graperank.md](https://github.com/NosFabrica/protocols/blob/main/specs/graperank.md).
+
 ## The boundary rule (what belongs here vs. the BIBLE)
 
 > **Does it leave the machine as signed nostr events that an independent implementation would need to parse or produce to interoperate?**
@@ -23,6 +25,7 @@ protocols/
   worksheet.md    # cross-cutting protocol problems & ideas not yet owned by one spec
   nips/           # published specs (NostrHub Custom NIPs / github NIPs) — working copies
   drafts/         # pre-NIPs: local drafts; may publish later, may stay internal
+  upstream/       # proposals to EXTERNAL protocols (e.g. ORE) — drafted here; submission is the author's act
 ```
 
 ## Status ladder
@@ -51,12 +54,12 @@ The initial migration (protocols-directory epic, stories 1–7) is **complete** 
 | DList Cross-NIP Compatibility (companion) | [drafts/decentralized-lists-compat.md](./drafts/decentralized-lists-compat.md) | 🧪 pre-NIP (publish-ready) | **Working copy here** | story 2 ✅ |
 | Tapestry Concepts (DList extensions) | [drafts/tapestry-concepts.md](./drafts/tapestry-concepts.md) | 📝 pre-NIP | **Working copy here** (BIBLE §5/§8/§9 hold implementation detail + pointers) | story 3 ✅ |
 | Class Thread Relationships (`n`, `s`) | [drafts/class-thread-relationships.md](./drafts/class-thread-relationships.md) | 📝 pre-NIP | **Working copy here** (BIBLE §23 holds implementation + pointer) | story 4 ✅ |
-| Inherit-From & Resolved Definition (`b`) | [drafts/inherit-from.md](./drafts/inherit-from.md) | 📝 pre-NIP | **Working copy here** (BIBLE §25/§26 hold implementation + pointers) | story 5 ✅ |
+| Inherit-From & Resolved Definition (`b`; type registry incl. `inherit-items`) | [drafts/inherit-from.md](./drafts/inherit-from.md) | 📝 pre-NIP | **Working copy here** (BIBLE §25/§26 hold implementation + pointers) | story 5 ✅ · `dlist-curation` #3 |
 | Communities | [drafts/communities.md](./drafts/communities.md) | 📝 pre-NIP | **Working copy here** (in-flight feature; BIBLE §22 untouched — see ADR 0004; `COMMUNITY_ENDORSEMENTS_DLIST.md` superseded for membership per ADR 0004 D1) | story 6 ✅ |
 | Tags & Taggings | [drafts/tags.md](./drafts/tags.md) | 📝 pre-NIP | **Working copy here** (in-flight feature on `feat/pubkey-tagging-target`) | story 7 ✅ |
 | Event Taggings (`nostr-event-tag`) | [drafts/event-taggings.md](./drafts/event-taggings.md) | 📝 pre-NIP | **Working copy here** (in-flight `event-tagging` epic; reference impl `src/lib/event-tagging/`) | `event-tagging` #1 |
-| Tapestry Assistant Designation & Dual-Author Header Resolution (companion to NIP-85) | [drafts/assistant-designation.md](./drafts/assistant-designation.md) | 📝 pre-NIP | **Working copy here** (BIBLE §953 Assistant Keys holds the pointer) | `community-reference` #35 |
-| Trusted Lists — kind family & member-type convention (list analog of NIP-85) | [drafts/trusted-lists.md](./drafts/trusted-lists.md) | 📝 pre-NIP | **Working copy here** (publishers in `src/api/trustedList/`; BIBLE holds the pipeline) | `event-tagging` #17 / applicability 30393→30394 |
+| Tapestry Assistant Designation & Dual-Author Header Resolution (companion to NIP-85) + per-DList curation entries | [drafts/assistant-designation.md](./drafts/assistant-designation.md) | 📝 pre-NIP | **Working copy here** (BIBLE § Assistant Keys holds the pointer) | `community-reference` #35 · `dlist-curation` #2 |
+| Trusted Lists — kind family, member-type convention & Treasure-Map advertisement (list analog of NIP-85) | [drafts/trusted-lists.md](./drafts/trusted-lists.md) | 📝 pre-NIP | **Working copy here** (publishers in `src/api/trustedList/`; BIBLE holds the pipeline) | `event-tagging` #17 / applicability 30393→30394 / `tl-treasure-map` ADR 0001 |
 | Shared Concepts (`b`-consuming policy) | [drafts/shared-concepts.md](./drafts/shared-concepts.md) | 📝 pre-NIP | **Working copy here** (policy layer over Inherit-From; extraction of its § Aggregation) | `nip-reorg` #1 ✅ |
 | Stamping: z-tag selection for published list items | [drafts/stamping.md](./drafts/stamping.md) | 📝 pre-NIP | **Working copy here** (extraction of tapestry-concepts § Multi-`z`; layer selection settled — W14 resolved) | `nip-reorg` #3 ✅ |
 

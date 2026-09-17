@@ -33,7 +33,9 @@
  *     the missing-route contrast pair — probe 200 JSON vs the named
  *     unregistered sibling 404 non-JSON (H2); unauthenticated POST to the
  *     probe path -> 401 (no capability added; H3); strfry scan-count
- *     equality bracketing repeated probes (H4).
+ *     equality bracketing repeated probes, scoped to this instance's own TA
+ *     identity so live router ingest cannot move it (H4; ADR
+ *     test-suite-hermeticity/0001).
  *
  * ALL U/S tests and (stack-present) H1/H2/H4 FAIL until the feature lands —
  * src/api/normalize/probe.js does not exist and no GET route is registered
@@ -163,9 +165,35 @@ async function hostPostJson(pathname, body) {
   return { status: r.status, json };
 }
 
+// This deployment's Tapestry Assistant pubkey, resolved at runtime — it is
+// created at first container startup and differs on every deployment, so it can
+// never be a literal here (CLAUDE.md).
+let taPubkey = null;
+async function resolveTaPubkey() {
+  if (taPubkey) return taPubkey;
+  const r = await fetch(`${HOST_BASE}/api/assistant/pubkey`, { signal: AbortSignal.timeout(5000) });
+  const j = await r.json().catch(() => null);
+  if (!j || j.success !== true || !/^[0-9a-f]{64}$/.test(j.pubkey || '')) {
+    throw new Error(
+      `GET /api/assistant/pubkey did not answer this deployment's TA pubkey (got ${short(j)}). ` +
+      'The write-assertion bracket counts only TA-authored events, so it cannot run without one — ' +
+      'and must not silently fall back to a whole-corpus count, which live strfry-router ingest ' +
+      'races (ADR test-suite-hermeticity/0001).');
+  }
+  taPubkey = j.pubkey;
+  return taPubkey;
+}
+
+// Counts ONLY events this instance could have authored. Server-side signing
+// resolves solely through getOwnerAssistantKeys (publishEvent.js:38-53), so the
+// TA identity is the only author these operations could produce — and it is the
+// one axis live strfry-router ingest cannot move. The whole-corpus count this
+// replaced drifted ~0.8 events/second and failed 5 runs in 6
+// (ADR test-suite-hermeticity/0001; OPEN.md row 150).
 async function strfryEventCount() {
-  const r = await fetch(`${HOST_BASE}/api/strfry/scan/count?filter=${encodeURIComponent('{}')}`, {
-    signal: AbortSignal.timeout(60000),
+  const filter = JSON.stringify({ authors: [await resolveTaPubkey()] });
+  const r = await fetch(`${HOST_BASE}/api/strfry/scan/count?filter=${encodeURIComponent(filter)}`, {
+    signal: AbortSignal.timeout(15000),
   });
   const j = await r.json().catch(() => null);
   if (!j || j.success !== true || typeof j.count !== 'number') {
@@ -318,9 +346,8 @@ t('H3 (AC-4): an unauthenticated host-side POST to the probe path stays 401 — 
 
 t('H4 (AC-4): repeated probes write NOTHING to strfry — scan counts bracket equal around three identically-answered GETs', async () => {
   if (!(await stackAvailable())) return 'SKIP';
-  // Tight bracket (story #1 H8 pattern): counts immediately before/after the
-  // probes minimize the concurrent-publish race window. Drift-sensitive when
-  // the router/scheduled tasks are syncing — see the failure message.
+  // Tight bracket (story #1 H8 pattern), scoped to this instance's own TA
+  // identity — router traffic is authored by other pubkeys and cannot move it.
   const before = await strfryEventCount();
   const bodies = [];
   for (let i = 0; i < 3; i++) {
@@ -335,8 +362,11 @@ t('H4 (AC-4): repeated probes write NOTHING to strfry — scan counts bracket eq
     `computed (AC-4 / ADR decision 3); got:\n  ${bodies.map((b) => short(b, 100)).join('\n  ')}`);
   const after = await strfryEventCount();
   assert(before === after,
-    `probing must write NO event to strfry (AC-4): scan count went ${before} -> ${after}. ` +
-    'If a concurrent publisher (scheduled task / sync) is suspected, quiesce it and re-run.');
+    `probing must write NO event to strfry (AC-4): TA-authored scan count went ${before} -> ${after}. ` +
+    'This count is scoped to this instance\'s own Tapestry Assistant identity, so it is NOT router ' +
+    'traffic — this instance authored an event. Either the probe wrote one (the defect this test ' +
+    'exists to catch) or another process on this machine published as the TA while the bracket was ' +
+    'open (e.g. a firmware reinstall). Check which before dismissing it.');
 });
 
 /* ─────────────── Run ─────────────── */

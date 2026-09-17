@@ -10,6 +10,11 @@ import { fileURLToPath, URL } from 'node:url'
 // transform the CJS tree (it lives outside node_modules). First cross-ui-boundary
 // CJS import — verify the build resolves it via cycle-local.
 const eventTaggingCore = fileURLToPath(new URL('../src/lib/event-tagging', import.meta.url))
+// The broadcast-outcome core (story shared-concepts-seeding/1) is the single
+// owner of what a publishToRelays result MEANS. Same cross-boundary CJS treatment
+// as the event-tagging tree above, for the same reason: it must be unit-testable
+// by the node runner, which cannot execute anything under ui/src.
+const broadcastOutcomeCore = fileURLToPath(new URL('../src/lib/broadcastOutcome.js', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
@@ -17,13 +22,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '@tapestry/event-tagging': eventTaggingCore,
+      '@tapestry/broadcast-outcome': broadcastOutcomeCore,
     },
   },
   build: {
     outDir: '../dist',
     emptyOutDir: true,
     commonjsOptions: {
-      include: [/src\/lib\/event-tagging/, /node_modules/],
+      include: [/src\/lib\/event-tagging/, /src\/lib\/broadcastOutcome/, /node_modules/],
     },
   },
   server: {

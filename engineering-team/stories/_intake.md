@@ -1827,3 +1827,555 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 **Strictness:** Standard. **Human-gated** (live auth-middleware/route change, like the parent book — not Direction mode).
 **Phase path:** Planning → Architecture (the route inventory + guard strategy is the real design work) → Test Design → Implementation → Review.
 **References:** `engineering-team/audits/security-auth-exposure/audit.md` §5–6 + `prd-seed.md` §7 Q4; this session's `src/api/strfry/wipe.js` (in-handler template) + `test/strfry-wipe-owner-gate.test.js`; `src/middleware/auth.js` (default-deny + `req.localTrusted`); the ~19 existing `requireOwner` routes as the pattern to extend; `src/api/admin/index.js` (`requireOwnerOnly` vs `requireOwnerOrAdmin` distinction).
+
+## 2026-07-28 — Harness story proposal: Direction-mode blinding rebuild (OPEN.md #117, #119)
+
+**PICKED UP** 2026-08-04 → book `engineering-team/audits/blinding-rebuild/book.md` (epic `harness-gate-integrity` reactivation, story #2; branch `harness/blinding-rebuild`; book opened eagerly at intake per OPEN.md #29/#78/#110). Scope note at pickup: the "frame-only reads" bullet is partially delivered by the 2026-08-04 ratification of pinned line-range judge reads (OPEN.md #133, rows 132/133 commit `e189d471`) — Architecture decides whether that closes the channel or a generated frame excerpt is still warranted.
+
+**Proposed story:** `harness-gate-integrity` epic, next story number — **"move gate history out of judge-read surfaces."** Prompt-level blinding is structurally dead: four independent leak channels defeat it — three catalogued at the store-and-show close (OPEN.md #117: artifacts carry `Supersedes: … KICK_BACK` text; Director commit subjects name gate outcomes in `git log`; the Gate-1 rubric *requires* the epic file, which accumulates verdicts by design) and a fourth at the add-a-concept close (audit §7 F3: run meta-state reaches judged artifacts through unblinded roles). **Ratified direction (operator, 2026-07-28): gate history moves somewhere no rubric requires a judge to read; the blinding contract becomes artifact hygiene enforced by construction, not prompt discipline.** One bounded pass:
+
+- **Epic files stop accumulating verdicts** — kick-back counts and prior-verdict summaries live in the run journal (already forbidden to judges); Gate 1's epic check becomes a derived existence/`Status:` assertion so no judge is handed the file (#117 channel c — the structural one).
+- **Story/ADR hygiene** — `Supersedes:` lines and ADR prose carry no verdict words; a template line + lint-shaped check pins it (#117 channel a).
+- **Commit-subject discipline** — journal commits stop naming gate outcomes (`journal: gate decision (story #n)`, outcome inside the body a judge never reads) (#117 channel b).
+- **Frame-only reads made structural** — the judge receives a generated frame excerpt (or the book gains a frame-only sibling file) instead of an instruction to read part of `book.md`; three consecutive judges disclosed the instruction is unenforceable at the tool layer (#117, fourth instance).
+- **Role scoping** — unblinded roles stop receiving run meta-state they don't need: the PO read the story cap despite a scoping instruction; a review's mandated On-PASS section carried a cap remark the Gate-5 judge then met (add-a-concept §7 F3).
+- **#119 rides along** — `scripts/harness-stats.sh` learns Direction-mode outcomes (parse `journal.md` for gate kick-backs and halts) so the retro's instrument stops scoring an 8-kick-back run at "kick-back rate 0".
+
+**Classification:** Harness infrastructure (docs / templates / lint / script; no product surface).
+**Strictness:** Standard (expect: Tests only for the stats/lint pieces).
+**Phase path:** Planning → Architecture (the Gate-1 rubric change wants a real design pass) → Implementation → Review.
+**References:** OPEN.md #117, #119 (both stay OPEN until this story closes them); `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md` §7 P1/P2/P8 + §7a; `engineering-team/audits/add-a-concept-to-a-tapestry/audit.md` §7 F3; `engineering-team/CHANGELOG.md` 2026-07-28 rows (the postmortem's ratified siblings).
+
+## 2026-07-28 — Harness story proposal: OPEN.md file-per-row migration (kill the last flat counter)
+
+**NOT PICKED UP** — filed at the store-and-show postmortem, sibling to the blinding-rebuild proposal above; motivated by the same two-session collision that stranded that close's §7a drafts for a day (store-and-show audit §7a preamble: "held by a concurrent session"; add-a-concept audit §7 F8: "the previous close's retro dispositions never landed").
+
+**Proposed story:** `harness-self-improvement` epic (reactivate, per the tapestries precedent), next story number — **"one file per row: the ledger becomes a directory."** OPEN.md's dense sequential row numbers are the repo's **last flat global counter**, and it has now produced the same collision class the 2026-06-04 epic-folders migration was ratified to kill for stories and ADRs ("three real numbering collisions"): a live row-number collision at second-brain story 5 (renumbered by hand + numbering note), and the §7a stranding above. Two distinct races: the **counter** (an ID mint requiring global state) and the **tail** (two sessions appending to the same end-of-file region conflict textually even with unique IDs). The fix kills both by making additions file-creations, which git merges perfectly:
+
+- **`engineering-team/open/` holds one file per row.** Legacy rows keep their numbers frozen forever (`0075-strfry-router-scan-flake.md`) so every existing citation — waiver file, commit messages, audits, CHANGELOG origins — stays resolvable; numbers are never reclaimed. New rows mint **date+slug** IDs (`2026-07-28-judge-blinding-channels.md`) — no global state needed, no two sessions can mint the same ID for different findings.
+- **Status, type, and dates live inside the row file.** A DONE-flip touches one file; concurrent flips of different rows cannot conflict, and a conflict on the *same* row is a real disagreement that *should* surface.
+- **OPEN.md becomes a generated index** (or a pointer stub) — the table everyone reads is derived at view time from append-only facts, per architecture invariant #3 and the `/whats-open` precedent.
+- **Consumers re-pointed:** `scripts/whats-open.sh`, `scripts/lib/collect-meta.sh` (aging + meta-escalation thresholds), `scripts/harness-lint.sh` + `harness-lint-waivers.txt` (waivers cite rows by ID), `scripts/session-start.sh` digest, and the CLAUDE.md/OPEN.md "How to use this ledger" prose.
+- **One-time migration:** split the ~125 existing rows into files; delete nothing; the numbering note added after the story-5 collision retires with the mechanism that made it necessary.
+
+**Classification:** Harness infrastructure (scripts + docs migration; no product surface).
+**Strictness:** Standard (Tests for the parser scripts — lint fixtures exist; the migration itself is verified by diffing the generated index against the pre-migration table).
+**Phase path:** Planning → Architecture (ID scheme + index generation + citation freezing want a real design pass) → Test Design → Implementation → Review.
+**References:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md` §7a preamble; `engineering-team/audits/add-a-concept-to-a-tapestry/audit.md` §7 F8; `engineering-team/CHANGELOG.md` 2026-06-04 epic-folders row (the ratified precedent for exactly this collision class); OPEN.md § "How to use this ledger" (the post-collision numbering note this retires).
+
+## 2026-08-05 — Shared-concepts adoption suite: S-subset taxonomy, adoption queues, coverage audit, stamping defaults
+
+**NOT PICKED UP** — laid out at the end of the session that built the Shared Concepts area (PRs #491–#494); recorded here so a fresh session can pick features off one at a time. The owner's S-subset taxonomy and rationale, verbatim:
+
+> * S1: author-promoted shared concepts (auto b-tag)
+> * S2: user-promoted shared concepts (b-tag but not by the author of the concept header)
+> * S2a: Same as S2 but where I am the user
+> * S2b: Same as S2 but where the user is in my trust network
+> * S3: user-used shared concepts (z-tag but where user is not the author of the concept header)
+> * S3a: Same as S3 but where I am the user
+> * S3b: Same as S3 but where the user is in my trust network
+>
+> * an element of S3, S3a, or S3b that is not in S2a would be a candidate element of S2a, which would prompt me to update my local concept header accordingly
+> * I can use this to create a "dictionary" of concepts: concepts that are in S3b, perhaps with added qualifications, such as needs to be used by some minimum threshold number of trusted users
+> * I might identify events authored by me that I should auto-b-tag, because others are using it
+> * This will help me select z-tags when I publish events: my default behaviour should be to use the z-tag for my personal concept header + the z-tag for my shared concept header of choice
+
+**Analysis captured in-session:** the taxonomy formalizes surfaces that already exist — S1 = the Self-declared page's population; S2-evidence = the "used (b-tag)" indicator (self-pointers already excluded, which IS the S1/S2 boundary); S3 = Active z-tags' default view (the carrier≠header-author rule, PR #494). The a/b refinements are the same queries with one author filter swapped (me / my WoT). S1/S2/S3 are objective observables — keep them computed, never stored; S2b/S3b are (concept, POV, time) properties — if materialized (the dictionary), store as dated, attributed derivations per house style. "Me" is defined by W15's doctrine (below).
+
+**Feature list, dependency-ordered:**
+
+- **F0 (prerequisite, docs-mode ADR): instance identity = the TA** — ratify the owner-stated doctrine (see worksheet W15): the Tapestry instance's "me" is the TA pubkey, distinct from the Tapestry Owner; owner-authored content is absorbed by TA re-mint (the restore-brain precedent, second-brain ADR 0008) or by a TA-authored pointer event. Simplifies every S*a definition to `authors:[TA]`; resolves the tapestries-#7 client-signed-path question against a doctrine.
+- **F1: adoption-candidates queue** — S3 (∪ S3a/S3b) ∖ S2a → a review surface prompting the owner per concept: adopt via pointer-b on the local twin header (needs a generalized b-append endpoint — `selfDeclare` with an arbitrary target instead of self) and/or create the registry record. Proposal-loop shape: the system nominates, the owner ratifies; never auto-acts.
+- **F2: inverse queue (self-declare candidates)** — my headers with cross-author z/b usage but no self-pointing b → prompt "Submit as a Shared Concept" (the existing button is the action). Query = Active z-tags with the foreign-target filter inverted.
+- **F3: trusted dictionary** — S3b with a minimum-trusted-users threshold; a dated derived artifact (GrapeRank/WoT machinery scores the carriers); explicitly NOT the W1 inherit-consensus signal (ADR 0029 keeps pointer/usage at zero weight there) — this is a separate, usage-based aggregate.
+- **F4: publish-time default stamping** — implement the ratified stamping floor (personal `z` + the joined shared concept's handles) in the authoring flows; the registry element (Concept for Shared Concepts) records the "shared header of choice" that supplies the second stamp. NOT protocol-blocked: the floor is ratified in protocols/drafts/stamping.md (W11 graduated; W14 settled extras), and tag events already dual-stamp (tag-federation ADR 0003). Gap = the resolver + the remaining single-z writers.
+- **F5: concept-header b-coverage audit + guided disposition** — owner's ask, verbatim:
+
+> within the list of concept headers, we should keep track of which ones have a b-tag to a shared concept and which ones do not. The goal should be to prompt users to iterate through all of the ones that do not, and take one of the following actions:
+> * find an external shared concept and wire to it using a standard b-tag
+> * create an auto b-tag and publish it so the community can use it
+> * create an auto b-tag, but don't publish it (questionable whether this option should exist)
+> * decide to keep the concept completely private and label the event in some manner as not needing a b-tag; perhaps a modified b-tag that instead of an a-tag or event-id, there is a string saying something like "b-tag-deferred"
+
+  In-session notes: coverage column/filter on Concept Headers is cheap (b-tags are already scanned); actions 1–2 map to F1's adopt endpoint and the existing self-declare button. Action 3 (unpublished auto-b) is a half-state — the b lives ON the header event, so it persists in local strfry and silently rides any later publish; recommend dropping it or reframing as "declare now, broadcast later." Action 4's marker form is a wire-format question — worksheet W16 (sentinel b-value vs local disposition record); the b-tag surfaces should skip sentinel values whichever lands. Intended effect (owner): "prompting users to auto publish lots of shared concepts, the result being an ever-growing community dictionary."
+
+**Classification:** Feature suite (F0 = protocol-spec docs-mode; F1–F5 = Standard features, one story each; F3 depends on WoT scoring plumbing; F4 depends on F0 only for whose "personal" stamps — the floor itself is ratified).
+**Strictness:** Standard.
+**Phase path:** per story — F0 via the Protocol-Spec workflow; F1/F2/F5 Planning → Architecture → Test Design → Implementation → Review; F3/F4 likely warrant `/discuss` first (scoring semantics; authoring-flow reach).
+**References:** protocols/worksheet.md W15 + W16 (new, this date) and W1/W13/W14; protocols/drafts/stamping.md (floor + read contract) + drafts/shared-concepts.md (§ Reach; resolver); community-reference ADR 0029 (b-type registry; consensus scoping); second-brain ADR 0008 (re-mint precedent); ui/src/pages/shared-concepts/* (the S1/S2/S3 observation instruments, PRs #491–#494); src/api/concept/selfDeclare.js (the F1/F2 action primitive); OPEN.md row 142 (primitive consolidation — touch F1's endpoint work with it in view).
+
+---
+
+## 2026-08-09 — Shared Concepts Registry: read from Neo4j, become a materialization target, and the `membersUpdatedAt` question
+
+**NOT PICKED UP** — laid out in a walkthrough session where the owner drove the Shared Concepts feature as a naive user (the "cat breed" scenario: four instances, one of whom — the staging owner — is the domain expert seeding a concept the others lack). Two label changes shipped in-session (below); everything else is recorded here.
+
+**Shipped in-session (no story — string-only rename, doc lane):** `View Shared Concepts` → **`Shared Concepts Registry`** (h1 `ui/src/pages/shared-concepts/Index.jsx:93`, breadcrumb `ui/src/App.jsx:377`) and the left-nav label → **`Registry`** (`ui/src/components/Layout.jsx:77`, short form because it sits inside the Shared Concepts section). Rationale: the page was the most confusable name in the feature — it reads as the master list of shared concepts, but it is the owner's own curated/materialized record. Not yet built or deployed locally.
+
+### The owner's plan, verbatim
+
+> My plan for the Concept of Shared Concepts is to create multiple sets, some of which do not yet exist. And on each (or most of) of the other pages, there will be a button to take the data that is compiled fresh and to store it in the Concept Graph. Later, we may automate this process. The end result is that each page will have the option to show fresh data or data from the registry; maybe decide on the fly, depending on how quickly fresh data can be processed. The implications are that most of the elements of the Concept for Shared Concepts will not be hand-picked by the Owner. Indeed, most of them will not be.
+
+> I would prefer for the Shared Concepts Registry to read from neo4j, not directly from strfry. This is consistent with the "neo4j is me" ontology. If any given node in neo4j points to a strfry event, then pulling data from that event becomes fair game, to be handled on a case by case basis. In some cases, it might make more sense to pull data from the Tapestry LMDB entry for that node instead.
+
+And on the distinguishing property of the page (the framing that motivated the rename):
+
+> it is reading data from the local Tapestry concept graph … and is therefore precomputed data, whereas the other pages are calculating using raw data. The tradeoff is that calculating from raw data yields fresh results, with precomputed results potentially being stale, but retrieval from precomputed results will be faster if the amount of raw data becomes sufficiently vast.
+
+**Framing settled in-session:** the distinguishing axis is **as-of-when**, not authored-vs-derived. The registry holds *dated* answers; the live pages (Self-declared, Active z-tags/b-tags, Adoption Queue, Trusted Dictionary) compute *now* answers. This survives the owner's plan, where most registry elements become machine-materialized rather than hand-picked; "you chose these one at a time" would not. An explainer for the page top was drafted and **deliberately deferred** until the shape below is settled — it would be written against the wrong model today.
+
+### In-session findings (verified against source and the live staging instance)
+
+- **The registry read is a strfry scan** — `queryRelay({kinds:[39999], '#z':['39998:<TA>:shared-concept']})`, `Index.jsx:55` → `/api/strfry/scan`. The element *does* land in Neo4j (create-element imports and wires `HAS_ELEMENT`), but this page never looks there.
+- **Set membership exists only as graph edges** (`Superset -[:IS_A_SUPERSET_OF*]-> Set -[:HAS_ELEMENT]-> element`). Nothing on the element event encodes which subset it belongs to. **Therefore the Neo4j read is a hard prerequisite for the multi-set plan, not a parallel cleanup** — the current strfry read cannot express "show me set X."
+- **The read pattern already exists**: `ui/src/pages/concepts/ConceptElements.jsx:33–40` reads a concept's elements from Neo4j *with a set-filter dropdown*, using exactly that traversal. Adoptable near-wholesale.
+- **`create-element` has no target-set parameter** — it always wires `HAS_ELEMENT` from the concept's superset (`src/api/normalize/index.js:1883`). A general edge-wiring endpoint does exist (`~:5528`, `relType: 'HAS_ELEMENT' | 'IS_A_SUPERSET_OF'`), so subset placement is a second call today.
+- **Staging currently holds zero registry elements** (`kind 39999` z-tagged to its shared-concept header). The read swap carries no migration risk there; also means Recognize has never been used on that instance.
+- **The materialization precedent is already shipped**: the Trusted Dictionary Snapshot (`src/api/normalize/index.js:5350`) is a dated derived artifact carried as *one element of its own concept*, with its own JSON Schema — `required: [name, slug, derivation, pov, cutoff, threshold, computedAt, memberCount, members]`. Members are inline JSON; no set node involved; no universal schema touched.
+
+### The open fork: how a materialization is shaped
+
+| | **A — snapshot-as-element** (shipped precedent) | **B — snapshot-as-set** (the owner's multi-set instinct) |
+|---|---|---|
+| Shape | one element, members inline as JSON | a Set node, `HAS_ELEMENT` → real element nodes |
+| Timestamp home | `computedAt` field in its own schema | unresolved — see below |
+| Traversable in Cypher | ✗ members opaque | ✓ graph-native |
+| History | mint another, keep both | must decide: overwrite or version |
+| Universal-schema impact | none | none *if* the timestamp question resolves |
+
+Under B, **the sets are themselves the provenance** — if each set is "the materialization of page X," set membership carries the derivation label structurally and each element needs only an as-of stamp. Worth weighing against A's portability (one event = one complete, self-describing dated answer).
+
+### The timestamp question — `membersUpdatedAt` (owner UNDECIDED on punting)
+
+The owner's correction of an in-session wrong turn (the analyst had proposed reusing the set node's event `created_at`), verbatim:
+
+> There is a big difference between "when was this Set node published to strfry?" versus "when were the elements of this Set node last updated?" It is the latter that we are interested in, not the former. And as I think about it, a timestamp field that corresponds to the latter might in fact be of general utility throughout the entirety of the concept graph. In particular, it might be used as a tool to keep track of whether the Tapestry LMDB for any given Set node needs to be recalculated. (In the future, the Tapestry LMDB JSON will contain a list of all elements of the set, the digestion of which might be more performant than a cypher path query.)
+
+And the reservation that motivates the possible punt:
+
+> the JSON Schema for set nodes does not currently have a timestamp field, and if it did, then what would the timestamp indicate? It might mean one thing for our use case (the Concept for Shared Concepts) but something completely different for other Concepts. So there is a possibility we may decide to punt on the timestamp feature altogether, for now. I'm not convinced that is the case, but it might be.
+
+**Why `created_at` cannot serve.** Adding an element writes a Cypher edge and never touches the set's own event (`:1883`), so the set node's `created_at` tracks its own event lifecycle and is decoupled from membership. Confirmed wrong turn; recorded so it isn't re-proposed.
+
+**Why the value is not derivable today either.** Membership mutation has **no complete record**:
+- `add-to-set` *does* emit a descriptor event per edge (`:4441` — kind 39999, `nodeFrom`/`nodeTo`/`relationshipType`), so `max(created_at)` over those is derivable in principle;
+- but `create-element` emits none (bare Cypher, `:1883`) — two writers, one records;
+- and removals emit none (`:3744` unwires with bare Cypher), so a `max()` never decreases and cannot see a deletion;
+- and the descriptor is **slated for deprecation** — ADR 0011 dual-emit policy, "remains during the back-compat cycle; the cutover ADR will eventually deprecate it."
+
+So an LMDB cache cannot be safely invalidated from any signal the graph currently produces. That is the strongest argument for an explicit field, and it is independent of the Shared Concepts use case.
+
+**On the "means different things for different concepts" reservation.** The analyst initially argued for a subtype (a `derived set` concept with its own schema) over a field on the universal `set` schema, on the grounds that the meaning was use-case-specific. **The owner's generalization inverts that**: "when did this set's membership last change" means the same thing for every set in the graph — it is a structural property of sets as such, not a Shared-Concepts-specific one. If that holds, the universal type is the correct home after all, and the subtyping argument does not apply.
+
+**Sub-fork — where the field physically lives** (unresolved):
+1. **Neo4j node property** (`n.membersUpdatedAt`) — cheapest; but it is locally-authored graph state with no event behind it, which BIBLE §30 / CLAUDE.md invariant 4 explicitly permits *and* explicitly protects: no import, normalization, firmware reinstall, or dev wipe may destroy it. Must be added to whatever guards that invariant.
+2. **In the set event's JSON** — portable and verifiable, but forces a republish of the set node on every membership change; floods the relay and re-couples the two timestamps the owner just distinguished.
+3. **Derived from complete membership-descriptor events** — no new state, but requires closing all three gaps above *and* reversing the ADR 0011 deprecation. Probably the most expensive path.
+
+Option 1 aligns with "neo4j is the definitive me, LMDB is a subordinate cache": the cache-invalidation signal belongs to the authority, and the cache compares against it.
+
+**Owner status: undecided whether to punt.** Punting is currently cheap for the Shared Concepts work specifically — the read swap (registry-reads-graph) is timestamp-agnostic, and the writers that would need the stamp do not exist yet. It is *not* cheap for the LMDB-cache trajectory, which is blocked on it.
+
+### Feature list
+
+**Owner-set order (2026-08-09, supersedes the dependency sketch below): the legibility gaps in the companion entry come FIRST, then the Registry description, then registry-reads-graph → materialization-writers → registry-sets-and-provenance.** The owner is using the cat-breed user story as the prioritization instrument — architecture that the story can't feel waits behind the pain the story surfaces. Two consequences worth carrying:
+
+- **materialization-writers before registry-sets-and-provenance is deliberate and sound.** `create-element` already wires everything to the concept's superset (`:1883`), so materialization-writers's writers have somewhere to land without any set structure. Partition from evidence afterward rather than designing the taxonomy in the abstract — the same way the S1/S2/S3 taxonomy in the 2026-08-05 entry above formalized surfaces that already existed. The owner also expects the user story to surface further pain points before registry-sets-and-provenance is worth specifying.
+- **The condition that makes it safe:** materialization-writers MUST stamp provenance on each element as it writes (which page produced it, plus `computedAt`), even with no sets to file it under. With the stamp, registry-sets-and-provenance partitions retroactively by reading it — mechanical. Without it, registry-sets-and-provenance inherits a pile of indistinguishable elements and its only option is delete-and-re-materialize.
+- **Bonus: the A/B fork stops blocking.** If materialization-writers follows the shipped Trusted Dictionary Snapshot precedent (one element per materialization, members inline, own schema) it *is* option A, and it leaves option B available — registry-sets-and-provenance decides later whether to additionally explode those into set structure. Low-regret either way.
+
+- **registry-reads-graph** — the Registry page reads Neo4j instead of scanning strfry. Swap `queryRelay` for a Cypher read modeled on `ConceptElements.jsx`, keeping today's flat list and columns. Small (~30 lines), timestamp-agnostic, zero data at risk on staging. Queued behind the legibility gaps + the page description.
+- **registry-sets-and-provenance — the sets + provenance shape.** Resolve the A/B fork; define the sets under the Concept for Shared Concepts; decide whether set membership *is* the derivation label; teach `create-element` a target set (or standardize on the second wiring call). **Last, not second** — see the owner-set order above.
+- **materialization-writers** — the writers, plus the fresh/stored toggle. "Store this to the registry" on the live pages; per-page as-of display; the on-the-fly fresh-vs-stored decision the owner describes. The actual epic. Wants the timestamp resolved, or an explicit decision to ship without it.
+- **members-updated-timestamp (cross-cutting, may be punted) — `membersUpdatedAt` on sets.** Per above. Independent of the three registry items in the short run; blocking for the LMDB-cache trajectory. Warrants `/discuss` then likely a docs-mode ADR, since it touches a universal schema and the local-first invariant.
+
+**Classification:** Feature suite (registry-reads-graph = Feature — small, but the visible row set can change, see below; registry-sets-and-provenance = feature, wants `/discuss` first; materialization-writers = feature epic; members-updated-timestamp = protocol/architecture, `/discuss` → ADR).
+**Strictness:** Standard.
+**Phase path:** **all five phases for the three registry items** per the normative table in `workflows/0-intake.md` step 3 — under Standard, only *Bugs* skip Architecture and only *Refactors* skip Tests. (An earlier draft of this entry claimed registry-reads-graph could skip Architecture; corrected 2026-08-09. registry-reads-graph is not a pure refactor: the strfry scan and the Neo4j traversal can return **different sets** — a relay event never imported would disappear, and locally-authored graph state with no event behind it would newly appear. That divergence is precisely what BIBLE §30 / invariant 4 protects, so it wants an ADR and a test, not a fast lane.) members-updated-timestamp via `/discuss` then Protocol-Spec docs-mode.
+**References:** `ui/src/pages/shared-concepts/Index.jsx` (the read to replace); `ui/src/pages/concepts/ConceptElements.jsx:33–40` (the Neo4j+set-filter pattern to adopt); `src/api/normalize/index.js:1883` (superset-only wiring, no descriptor), `:3744` (removals unrecorded), `:4441` (add-to-set descriptor, ADR 0011 deprecation), `:5350` (Trusted Dictionary Snapshot schema — the materialization precedent), `~:5528` (general edge-wiring endpoint); BIBLE §30 + CLAUDE.md invariant 4 (local-first; protected locally-authored graph state); the 2026-08-05 intake entry above (S-subset taxonomy — the live pages materialization-writers would materialize from); `engineering-team/audits/shared-concepts-adoption/audit.md` §6 (carry-forward: snapshot lifecycle, recognized-by-event-id staleness).
+
+---
+
+## 2026-08-09 — Shared Concepts legibility: can a user tell what they've already done, and find their own offerings?
+
+**NOT PICKED UP** — surfaced in the same 2026-08-09 walkthrough as the entry above, but a distinct thread: that entry is the registry's *architecture*, this one is whether the feature is *legible to the person using it*. The owner's stated goals for the walkthrough: "understand which required features and abilities are in place and which are missing," and "ensure that the features and abilities are described well enough for a new user to understand what the features do and how to use them." Framing constraint, verbatim:
+
+> some of the features confuse me to the point that I'm not sure how to navigate them, and I am the builder! So we're not going to jump to a slick and polished UX quite yet. But at the least, the descriptions of the features need to be done well enough so that I don't get them confused in my own head!
+
+### The driving scenario (owner's, condensed)
+
+Four instances. **Stacie** (staging) is a veterinarian and the only one whose graph holds a cat-breed concept. **Nous** (local), **Tom** (production), and **Ark** (a fourth local instance) want to benefit from her expertise. Stacie wants to offer her concept to the community. The walkthrough question: *how does she determine whether she has already done that, and can she see a list of shared concepts her own TA has authored?*
+
+### Live state at the time of the walkthrough (verified, not inferred)
+
+- Staging TA = `8e901369…e5fb1`. Its `cat-breed` header carries **no b-tag at all** — undispositioned, never submitted.
+- Its `bengal-cat` header **is** self-declared (`["b","39998:8e9013…:bengal-cat","pointer"]`) and is live on `wss://dcosl.brainstorm.world`. So the instance has submitted exactly one thing, and it is not the one the owner meant.
+- The community relay holds **7 self-declared headers across 4 TAs**; instance `11f23fe4…` has already declared `dog`, `dog breed`, and `tapestry` — the exact structural analog of the target scenario.
+- Staging's `/api/adoption-queue` returns `publishCandidates: 0`.
+
+### Gaps
+
+- **state-on-concept-page — the concept detail page shows no disposition state.** `ui/src/pages/concepts/ConceptDetail.jsx:189` renders **"Submit as a Shared Concept"** with identical text whether or not the header is already self-declared. The only way to learn the answer is to click and read a transient string (`dispositionActions.js:28` — "Already self-declared — re-broadcast to the community relay."). It is idempotent and safe, but it is discovery-by-side-effect, and it is the page a user actually lands on. **This is the direct answer to the walkthrough question, and it is "no."** Fix shape: a state badge next to the button (undispositioned / self-declared / wired to X / kept private), with the button relabeling to "Re-broadcast" once declared. Related minor: the button renders on every concept detail page regardless of author or role, though the server rejects both non-own headers (`src/api/concept/selfDeclare.js:75`) and non-owners.
+
+- **seeding-path — nothing ever *suggests* offering a concept nobody else uses; "Mine to publish" is gated on demand the seeding case by definition lacks.** **Correction 2026-08-10 (owner `/discuss`):** an earlier draft of this line said there was *no way* to offer a concept nobody else uses. **That was wrong** — the capability has always existed in two places: the concept page's `Submit as a Shared Concept` button, and the same button inside the Concepts-list disposition panel. Both run `declareAndBroadcast` → `POST /api/concept/:handle/self-declare`, which appends the self-pointing b, publishes to local strfry and imports to Neo4j (`selfDeclare.js:97,105`), after which the browser broadcasts to `wss://dcosl.brainstorm.world`. What is demand-gated is only the Adoption Queue's *nomination* view — so nothing ever **suggests** an unused concept. The gap is discovery, not capability, and the two must not be conflated again.
+
+  The original finding, which stands: `computePublishCandidates` (`src/lib/adoptionQueue.js:148–176`) builds a row only for coords appearing in *another author's* z- or b-tag (own-author events skipped at `:149`/`:155`). A concept nobody else uses yet can never appear. That view answers *"which of my concepts are already in demand?"* — the opposite of the expert-seeding case that motivates the whole scenario. Confirmed empirically: `publishCandidates: 0` on staging while `cat-breed` sits undispositioned. Fix shape: either a third Adoption Queue view listing the owner's headers **by disposition state** rather than by demand, or an explicit decision that the concept page (state-on-concept-page) is the only seeding entry point — in which case state-on-concept-page becomes load-bearing rather than a nicety.
+
+- **mine-only-self-declared — no "mine only" view of self-declared concepts.** `SelfDeclaredSharedConcepts.jsx` lists every author's, with an Author column but no filter. Nearest surface to "what has my TA offered?", and the one the owner asked for. Note it reads the **community relay**, so it answers "did my declaration reach the community?" — worth distinguishing in the UI from "did I declare it locally?", since the two can diverge (`dispositionActions.js:32` — "Self-declared locally — community broadcast failed").
+
+- **disposition-filter-on-concepts — the Concepts list can't compose author + disposition.** The author filter exists (`ConceptList.jsx:238–251`) and disposition chips render (`:169–190`), but the coverage filter is a single checkbox, "Undispositioned (mine)" (`:257–264`). There is no "self-declared" / "wired" / "private" filter, so "show me everything my TA has offered" is not expressible. Cheapest of the four: the data is already on every row (`row._disp`).
+
+- **shared-concept-vocabulary — "shared concept" names four different wire facts.** The vocabulary problem underneath the other four:
+
+  | Wire fact | Meaning | Verb | Surface |
+  |---|---|---|---|
+  | b-tag → **itself** | "I offer this" | Submit | Concept detail / Disposition panel |
+  | b-tag → **another's header** | "mine corresponds to theirs" | Adopt | Adoption Queue |
+  | kind-39999 registry element | "I catalogue this" | Recognize | Registry / Create New |
+  | ≥N trusted authors z-use it | derived, no action | — | Trusted Dictionary |
+
+  All four sit under one nav section and all four say "shared concept." **One rename shipped 2026-08-09** (`View Shared Concepts` → `Shared Concepts Registry`, nav `Registry`) on the principle that names should be verb-anchored to the button that produces the data. The remaining surfaces are unreviewed against that principle — in particular `Create New Shared Concept` (creates a *registry element*, i.e. the manual form of Recognize — arguably the next most misleading label) and `Active b-tags` / `Active z-tags` (raw-wire views whose names describe the mechanism rather than the question they answer).
+
+**Sequencing (owner-set, 2026-08-09): this entry goes FIRST — ahead of the registry work in the companion entry.** The owner is prioritizing off the cat-breed user story, and the story's blocking question is Stacie not knowing what she has already shared. That is state-on-concept-page / mine-only-self-declared / disposition-filter-on-concepts. Architecture the story can't feel (registry-reads-graph) waits.
+
+Within this entry: **shared-concept-vocabulary's registry rename + description first** (shipped rename 2026-08-09; description still open — the owner's bar is "descriptions good enough that I don't get them confused in my own head"). Then **state-on-concept-page** — the concept detail page is where a user actually lands, and identical button text is actively misleading, so it is both the highest-value fix and the direct answer to the walkthrough question. Then **disposition-filter-on-concepts** (cheapest — `row._disp` is already on every row), then **mine-only-self-declared**. **seeding-path waits**: its fix shape depends on a product decision (is the concept page the seeding entry point, or does the Adoption Queue get a third view?) that is worth a `/discuss`, and the owner expects continuing to walk the user story to reshape it.
+
+**Registry description — drafted, ready to take.** Deferred once on 2026-08-09 because the first draft ("you chose them, one at a time") is falsified by materialization-writers. The **as-of-when** framing settled later is durable; the shape agreed in-session is a durable frame plus one honestly-dated sentence, so only the italic line expires:
+
+> **This page is the stored list.** The other Shared Concepts pages work out their answer fresh every time you load them. This one shows what was written down, and when.
+>
+> *Right now, everything here was added by hand* — with "Recognize in registry" on the Adoption Queue, or "Create New Shared Concept."
+
+**Relationship to the entry above:** independent. the three registry items change where the registry's data comes from and what it holds; the legibility gaps change whether a user can tell what they have done. Neither blocks the other, though disposition-filter-on-concepts's disposition filter and registry-reads-graph's Neo4j read touch adjacent queries.
+
+**Classification:** state-on-concept-page / mine-only-self-declared / disposition-filter-on-concepts = small features, Standard. seeding-path = feature, wants `/discuss` first (product decision on the seeding entry point). shared-concept-vocabulary = doc/label lane per the strictness table, but the *taxonomy* decision behind it may warrant `/discuss`.
+**Strictness:** Standard.
+**Phase path:** shared-concept-vocabulary — label and prose changes only — takes the doc lane (Implementer + Reviewer) once the naming is agreed. **Everything else here is a Feature under Standard, so all five phases** per the normative table in `workflows/0-intake.md` step 3 — only *Bugs* skip Architecture. (An earlier draft of this entry called state-on-concept-page / mine-only-self-declared / disposition-filter-on-concepts "Architecture skippable"; corrected 2026-08-09, same error as the companion entry. state-on-concept-page in particular sounds cosmetic but is not: `ConceptDetail.jsx:13` fetches only name/author/element-count and never reads b-tags, so a state badge needs a new read plus the `bValues` collection shape `ConceptList.jsx:26` uses.) seeding-path: `/discuss` first, then all five.
+**References:** `ui/src/pages/concepts/ConceptDetail.jsx:189` (state-on-concept-page); `src/lib/adoptionQueue.js:148–176` (seeding-path); `ui/src/hooks/useCommunitySharedConcepts.js` + `ui/src/pages/shared-concepts/SelfDeclaredSharedConcepts.jsx` (mine-only-self-declared); `ui/src/pages/concepts/ConceptList.jsx:169–264` (disposition-filter-on-concepts); `ui/src/utils/bDisposition.js` (the disposition vocabulary all of these share); `ui/src/utils/dispositionActions.js` (the action primitives and their outcome strings); `engineering-team/audits/shared-concepts-adoption/audit.md` §6 (carry-forward: adoption-queue polish seeds).
+
+---
+
+## 2026-08-09 — TA ↔ owner two-way handshake (park; do not pull into current work)
+
+**NOT PICKED UP — parked deliberately.** Surfaced while landing the Shared Concepts Registry description: the page's Author column reads "Tapestry Assistant" for every row, and the owner named the general problem behind it. The owner's framing, verbatim:
+
+> The issue of getting confused between Alice and Alice's Tapestry Assistant is a big one, that I think is beyond the scope of what we're doing right now. At some point we may want the Tapestry Assistant profile to "claim" its owner using a p-tag; and we may want Alice to "claim" her Tapestry Assistant(s) using a Tagging. In other words, a two-way handshake so it will always be easy to map a TA to its owner. Maybe that could be filed away as something to do later. But I don't want to get too distracted from the tasks at hand.
+
+**Shape as described:** TA profile claims its owner via a `p` tag; the owner claims her TA(s) via a Tagging. Note the asymmetry is deliberate — one owner may run several TAs (see the `two-parallel-dev-machines` situation), so the owner→TA direction is one-to-many while TA→owner is one-to-one.
+
+**Why it matters beyond cosmetics:** BIBLE §31 ratified instance identity as the TA pubkey, distinct from the Tapestry Owner. Every first-person query answers `authors:[TA]`. But nothing on the wire connects a TA back to the human it acts for, so any surface showing "who did this" must either display a robot the viewer can't attribute, or hardcode the mapping. `ConceptList.jsx:134–142` already hand-maps owner / Dave / Assistant to display names using config-supplied pubkeys — a local workaround for exactly this missing wire fact, and one that cannot work for *other people's* TAs.
+
+**Likely home when picked up:** wire-format question → `protocols/worksheet.md` item first (claim event shapes, verification rules, what a one-sided claim means), then the usual cycle. Check `protocols/README.md` before any work per the house rule.
+
+**Explicitly NOT blocking:** the shared-concepts legibility work, or anything in the two companion 2026-08-09 entries. Filed to stop it from being rediscovered, not to schedule it.
+
+**Classification:** Feature (protocol-touching).
+**Strictness:** Standard.
+**Phase path:** `/discuss` → protocols worksheet item → Protocol-Spec docs-mode for the wire format, then Standard for the surfaces that consume it.
+**References:** BIBLE §31 (instance identity = the TA); `ui/src/pages/concepts/ConceptList.jsx:134–142` (the hand-mapped display-name workaround); `ui/src/pages/shared-concepts/Index.jsx:34` (the Author column that surfaced it); `src/utils/assistantKeys.js` (runtime TA resolution).
+
+---
+
+## 2026-08-10 — Assistant-key lifecycle: provision admins automatically, deprovision on role change, re-key the owner slot
+
+**NOT PICKED UP.** Surfaced by the TA key exposure audit (`docs/TA_KEY_EXPOSURE_AUDIT_2026-08-10.md` §4), which was scoped to "is there a hardcoded TA nsec?" (answer: **no**). These gaps were found while establishing the as-built identity model and are filed so they are not rediscovered.
+
+**The good news first — this is a gap-filling job, not a build.** The per-principal design is already ~80% built and is the documented intent at `BIBLE.md:1046`: *"Every owner, admin, and customer has an assistant."* `SecureKeyStorage` is a flat store where the slot is only ever used as a filename (the parameter is spelled `customerPubkey` but is never validated as one), so **no storage-layer redesign is needed** — `'tapestry-assistant'` is already just one slot among many.
+
+**All four provisioning sites (exhaustive, verified via `storeRelayKeys` grep):** owner → `'tapestry-assistant'` at `setup/create_nostr_identity.sh:127` (automatic, first container start); customer → their hex pubkey at `src/utils/customerRelayKeys.js:66` (automatic, on signup / owner-add); admin and everyone-else fallback → their hex pubkey at `src/api/assistant/index.js:522` (**manual only** — a UI button at `ui/src/components/AssistantProfileEditor.jsx:158`); restore → `src/utils/customerManager.js:1080`. Guests get none and cannot provision (403) — correct.
+
+**Gap 1 — admins get nothing automatically.** Promotion to admin (`src/api/admin/index.js`) creates no identity; an admin has an assistant only if someone clicks the button.
+
+**Gap 2 — deprovisioning covers only customer hard-delete.** `deleteRelayKeys` has exactly one caller: `customerManager.removeCustomerSecureKeys` (`:666`), reached only from the delete path (`:524`). Customer *deactivation* (`:295`/`:370`) and admin *demotion* (`api/admin/index.js:221`) leave a fully working signing identity in place. **Gaps 1 and 2 are one story, not two** — shipping auto-provisioning without deprovisioning means every admin ever appointed accumulates a permanent signing identity that survives demotion.
+
+**Gap 3 — the owner's slot is name-keyed while everyone else's is pubkey-keyed.** Visible directly in this instance's secure-keys dir: `6086b083….json` (a customer, keyed by *who they are*) alongside `tapestry-assistant.json` (the owner, keyed by *a role name*). The resolver is `if (pubkey === BRAINSTORM_OWNER_PUBKEY) → 'tapestry-assistant'` (`src/utils/assistantKeys.js:22`), so **the owner's assistant is bound to the role, not the person**: if `BRAINSTORM_OWNER_PUBKEY` ever changes (ownership transfer, or the owner rotating their key) the new owner silently inherits the previous owner's assistant nsec *and its entire published history*, while the outgoing owner is left with none. No key is stolen — the pointer moves underneath it. Second-order: the filename records no owner, so nothing on the filesystem distinguishes the current owner's assistant from a predecessor's. **This is a one-way door — it gets harder the longer it runs.** Fix shape: key the owner by pubkey too, keep `'tapestry-assistant'` as a compatibility alias, plus a one-time migration.
+
+**Gap 4 — no test coverage** for any of the above.
+
+**Owner's stated priority (2026-08-10):** if only one gap were filled, admin auto-provisioning — with the caveat above that it should carry deprovisioning with it.
+
+**Related, deliberately separate:** the `2026-08-09 — TA ↔ owner two-way handshake` entry above is the *wire-format* question (how does anyone learn which human a TA acts for). This entry is the *lifecycle* question (who gets a key, when, and when is it taken away). They touch the same subsystem and would sequence well together, but neither blocks the other. Also related: memory note `multi_role_user_concern` — the backend classifies a user as one of {owner, admin, customer, guest} and does not model multi-role state, which this work would have to confront when a customer is promoted to admin.
+
+**Explicitly NOT a security incident.** No hardcoded TA nsec exists; key material at rest is AES-256-GCM encrypted with a per-install master key; the one HTTP route returning nsec/privkey is owner-gated in the auth middleware. These are unbuilt features, not exposures.
+
+**Classification:** Feature (identity lifecycle; touches auth + customer management).
+**Strictness:** Standard.
+**Phase path:** `/plan-feature` — likely two stories (1: auto-provision on role grant + deprovision on role loss; 2: owner slot re-key + migration). Consider whether the retired `security-auth-exposure` epic's successor should host them or a new `assistant-key-lifecycle` epic is warranted.
+**References:** `docs/TA_KEY_EXPOSURE_AUDIT_2026-08-10.md` §4; `BIBLE.md:1046` (Assistant Keys); `src/utils/assistantKeys.js:20-39`; `src/utils/customerRelayKeys.js:66`; `src/api/assistant/index.js:486-522`; `src/utils/customerManager.js:524,666,295,370`; `src/api/admin/index.js:221`; `setup/create_nostr_identity.sh:127`.
+
+---
+
+## 2026-08-18 — Converge the kind-30382 TA tag set to the normative short names (protocols#3)
+
+**NOT PICKED UP.** Filed from the estate documentation program so it is not rediscovered; tracked estate-wide as [NosFabrica/protocols#3](https://github.com/NosFabrica/protocols/issues/3). The Trusted Assertions consumer spec — now the normative wire-format home, at [NosFabrica/protocols `specs/trusted-assertions.md`](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md) — declares the short tag names `rank` / `followers` / `reporters` / `muters` / `hops` normative (they are the assertion keys enumerated in kind-10040 designation rows, and the production producer already emits exactly that set). This repo's producer diverges.
+
+**The divergence (verified 2026-08-17 against `src/algos/customers/nip85/publish_kind30382.js:144-170`):** emits `d`/`rank`/`followers`/`hops` from the normative set but **not `muters`/`reporters`**; instead publishes long-form `verifiedFollowerCount` / `verifiedMuterCount` / `verifiedReporterCount` (the first duplicating `followers`) plus algorithm diagnostics (`personalizedGrapeRank_influence`/`_average`/`_confidence`/`_input`, `personalizedPageRank`).
+
+**Convergence target (from protocols#3):**
+
+1. Emit the normative five — `muters` and `reporters` added, values from the verified counts already computed.
+2. Long-form count tags: drop after a deprecation window, or keep temporarily as duplicates — producer's choice. The diagnostics may stay indefinitely as extensions; the spec requires consumers to ignore unknown tags.
+3. Verify `hops` omission at the unreachable sentinel. The current Neo4j selection filter (`hops < 100`) means no sentinel row is ever selected, so this is likely already conformant — confirm rather than assume.
+
+**Local-consumer caution:** any in-repo readers of the long-form tags must migrate in the same story — grep `verifiedFollowerCount|verifiedMuterCount|verifiedReporterCount|personalizedGrapeRank` across `src/` and `ui/` before deleting emissions (`src/algos/customers/nip85/loadScoresIntoMeilisearch.js` is a candidate).
+
+**Acceptance (from protocols#3):** a TA published by this repo validates against the spec's tag table with no consumer special-casing — the five normative tags present with the specified semantics, unknown tags ignorable.
+
+**Classification:** Refactor/feature (protocol conformance; wire-touching).
+**Strictness:** Standard.
+**Phase path:** check `protocols/README.md` per the house rule — note the normative spec has *graduated* to NosFabrica/protocols, so this story implements conformance rather than drafting spec (no Protocol-Spec docs-mode needed); then `/plan-feature`, likely one story.
+**References:** [NosFabrica/protocols#3](https://github.com/NosFabrica/protocols/issues/3); [`specs/trusted-assertions.md` § Implementation variance](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md); `src/algos/customers/nip85/publish_kind30382.js:144-170`; `src/algos/customers/nip85/loadScoresIntoMeilisearch.js`.
+
+---
+
+## 2026-08-18 — Serve llms.txt on the tapestry fleet (protocols#6)
+
+**NOT PICKED UP.** Estate-wide tracking: [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6). Add [llms.txt](https://llmstxt.org/) — a root-level curated markdown map of key documents for visiting AI agents — to all six tapestry-fleet hosts, as one more exact-match document through the site-trust plumbing this repo already ships.
+
+**Why (from the estate issue):** the adoption path for the estate's trust scores increasingly runs through developers' AI assistants; an agent fetching `<host>/llms.txt` should be routed on the first hop to the normative specs ([trusted-assertions](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md), [graperank](https://github.com/NosFabrica/protocols/blob/main/specs/graperank.md)), [CONCEPTS.md](https://github.com/NosFabrica/protocols/blob/main/CONCEPTS.md), and [ECOSYSTEM.md](https://github.com/NosFabrica/protocols/blob/main/ECOSYSTEM.md). Honest caveat carried from the issue: no major crawler commits to consuming it — this is cheap insurance plus a deliberate-agent affordance, not SEO.
+
+**Why it's small here:** `src/utils/siteTrust.js` already renders security.txt and robots.txt as a pure module with a shape-based rule ahead of the SPA catch-all (site-trust-signals book; ADR `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`). llms.txt is a third document through the same module: static pointer manifest, per-deployment canonical hostname supplied the way security.txt's values are, served `text/plain` or `text/markdown`, honest 404s untouched. Content is **pointers only** (mostly into NosFabrica/protocols) so the file almost never changes; the estate discrepancy rule applies — ECOSYSTEM.md is canonical, llms.txt only points.
+
+**Test shape:** follow the existing siteTrust suite — assert 200 + content type + link inventory on `/llms.txt`, and fold "do the links resolve" into the same renewal ritual that owns the security.txt `Expires` check (test U1's family).
+
+**Classification:** Feature (small; serving-layer only, no wire format).
+**Strictness:** Standard.
+**Phase path:** `/plan-feature`, one story. Coordinate timing with the Brainstorm-UI (nginx) and brainstorm-k8s (edge) portions via protocols#6 — no ordering dependency, but shipping all fleets near-together keeps the estate's root-document story consistent.
+**References:** [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6); `src/utils/siteTrust.js`; `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`; [llmstxt.org](https://llmstxt.org/).
+
+---
+
+## 2026-08-18 — Make the test gate fast and honest (umbrella: the instrument cluster)
+
+**PICKED UP** 2026-09-12 → book `engineering-team/audits/honest-test-gate/book.md` (epics `honest-test-gate` #1–#3 + `test-suite-hermeticity` #2; branch `feat/honest-test-gate`). Scope note at pickup: rows 75/141 are already fixed by `test-suite-hermeticity` #1 (row 150) and row 43 is DONE (`harness-gate-integrity` #1), so neither is carried.
+
+Filed from the 2026-08-18 harness review (four-analyst corpus study; findings doc: the "Harness Review & the Light Profile" artifact), whose top-ranked friction was not the gates but **the instruments behind them**: ~20 of OPEN.md's 81 `meta` rows are the test gate being slow, flaky, or wrong about its own result. This entry consolidates that cluster into one queued objective so it competes for scheduling as a unit instead of as scattered lessons.
+
+**The objective, in one sentence:** the gate finishes inside tool timeouts, its exit code is always true, and a red result always means signal — so that nobody is ever again trained to expect red and shrug.
+
+**The cluster (by OPEN.md row):**
+
+- **Runtime:** the full `npm test` cannot finish inside the 10-minute Bash tool cap (#83; the CHANGELOG's 2026-07-28 row records a ~32-minute full run dying verdict-less when backgrounded). Fix shape to evaluate: a story-scoped default gate (changed-area suites + the guard suites) with the full sweep as a scheduled/nightly and pre-close gate, and/or suite parallelization.
+- **Exit-code integrity:** background notifications reporting exit 0 for failing runs, three times in one story (#103/#105); the documented mitigation itself broken under zsh (#111); piping the gate through `tail` destroying the diagnosis and masking the code — third sighting, still unratified as a standing rule (#157). Fix shape: ratify the brace-redirect capture pattern and the never-pipe-the-gate rule into the workflow/role docs, and consider a harness-lint check for gate invocations in scripts.
+- **Assertion classes that lie:** vacuous passes over not-yet-produced collections (#108); byte-offset assertions that fail on correct code and pass on broken code (#109); presence assertions that decay as fixtures accumulate (#126); env-skips masking zombies (#59, #60); H-class silently flipping EXECUTED/SKIPPED while reporting PASS (#104/#106). Fix shape: a sweep story auditing the suite for these five patterns, converting each to the author-scoped/guard-suite idiom.
+
+**The model to follow — this cluster is provably fixable:** row #150 (the strfry write-assertion bracket) was the worst flake in the corpus — re-measured at **83% spurious red** before fixing — and `test-suite-hermeticity` #1 fixed it properly: author-scoped brackets, a guard suite with teeth, and the "re-run/quiesce" folklore withdrawn. That story also ratified the test-deliverable phase split now stated in `templates/adr.md` (OPEN #167, closed 2026-08-18) — so the lane these stories need already exists.
+
+**Why this outranks process changes:** the harness review measured the median story at ~1–1.5 h end-to-end with gates costing minutes; the hours-class losses in the corpus all trace to instrument failures, and a gate whose instrument lies converts every downstream control (Reviewer re-runs included) into noise.
+
+**Classification:** Refactor/feature (test infrastructure; likely an epic of 2–3 stories: runtime, exit-code ratification, assertion sweep).
+**Strictness:** Standard (these are test-deliverable stories — the #167 carve-out applies).
+**Phase path:** `/plan-feature` per story; the runtime story likely wants an ADR (gate composition is a decision future sessions must honor).
+**References:** OPEN.md rows #43, #59, #60, #75, #83, #103/#105, #104/#106, #108, #109, #111, #126, #157 (the cluster), #150 + `engineering-team/stories/test-suite-hermeticity/1-*` (the model fix); the 2026-08-18 harness review, F1b/F7.
+
+## 2026-08-27 — Weighted member certainty for Trusted Lists (brainstorm_server D12, tapestry-first)
+
+**PICKED UP** → `engineering-team/stories/trusted-lists/1-weighted-member-certainty.md` (book `tl-weighted-certainty` opened eagerly).
+
+**Raw request:** Cross-session handoff from the brainstorm_server harness (operator-directed): implement the weighted-member-certainty change for Trusted Lists **in tapestry first**. Replace count-based TL membership (`applications >= cutoff && applications > disputes`, each gate-passing asserter = 1) with GrapeRank single-hop weighting (weight = asserter's POV influence, rating ±1 by polarity bucket), publish per-member integer 0–100 certainty scores in the p-tag's reserved third position plus a `["rigor","0.5"]` metadata tag. WoT floor (`minRank`, inclusive ≥ 3) stays as the spam gate. Self-contained spec: `/home/vcavallo/tl-weighted-certainty-spec-for-tapestry.md`; provenance: brainstorm_server `engineering-team/decisions/trusted-lists/0001` Amendment D12 (status Proposed at handoff — wire details to be confirmed with the operator before shipping beyond local).
+
+**Operator decisions at intake:** new branch `feat/tl-weighted-certainty` cut from `origin/staging` @ `106c5de0` (main lacks the TL stack — `src/api/trustedList/` and `src/api/profile-tags/` exist on staging only).
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases)
+
+## 2026-08-27 — Advertise TL provision in kind-10040 (follow-up to weighted certainty)
+
+**REASSIGNED (2026-08-27)** — David is implementing the kind-10040 TL-provider line separately; not built in this repo/book (operator direction at the rung-3 close).
+
+**Raw request (operator, at the Story-1 Planning gate):** "we want to update 10040s to include a `30392,<ta-pubkey>` line. but maybe that's a brainstorm thing?" — Resolved: it IS a tapestry thing. Tapestry owns the kind-10040 builders (`src/api/export/nip85/commands/create-unsigned-kind10040.js` and `commands/kind10040.js`), which currently emit only `30382:<metric>` provider lines. Adding a kind-30392 (Trusted List) provider designation makes the newly-scored TLs discoverable via NIP-85.
+
+**Open wire question for planning:** exact tag shape — existing lines are `["30382:<metric>", <provider-pubkey>, <relay>]`; is the TL line `["30392", <ta-pubkey>, <relay>]` or does it carry a metric/qualifier suffix? Confirm with the operator (and against the assistant-designation pre-NIP in `protocols/drafts/`) at Story-2 planning.
+
+**Classification:** Feature (small)
+**Strictness:** Standard
+
+## 2026-08-27 — Re-sequencing: TL weighted certainty delivered as a stepwise method ladder
+
+**PICKED UP** → `engineering-team/stories/trusted-lists/1-tl-method-selector.md`; original spec story renumbered to `4-weighted-member-certainty.md` (Draft again; re-approve at rung 4).
+
+**Operator direction (at the Story-1 Planning gate, verbatim gist):** unconvinced of the best way to crunch the numbers; deliver stepwise so each step proves the math. (1) Selector on the Trust Determination Methods page — pipeline-global, Count only — stop and test. (2) Add Input (weighted sum of tagger rank scores) — test. (3) Add Certainty (input → convertInputToConfidence) — test. Rung 4 (certainty × agreement, dispute discounting: 50/50 equal-rank → 0, off the list) confirmed as the desired end state during the same conversation. Scores always-on stands. D12 confirmed Approved.
+
+**Classification:** Feature (ladder of small features)
+**Strictness:** Standard, per story
+
+## 2026-09-07 — Operator-controllable publish policy (external fan-out on/off)
+
+**Raw request (operator, at the treasure-map-user-assistant close):** "there are situations where
+I would like the ability to create something locally and have it show up on public relays… My
+idea is to have a setting somewhere where Vinney and I could turn this behaviour on and off."
+
+**Why this surfaced now.** The book-close gate went red on three `trusted-lists` suites whose
+`L0 GUARD` refuses to run live-publish tests unless the deployment is in local-only mode. That
+led to a provenance check with a result worth carrying into planning:
+
+- The guard itself (`BRAINSTORM_PUBLISH_LOCAL_ONLY`, event-tagging **ADR 0002**) is **opt-in,
+  default OFF** — "the default is external publishing, so existing deployments are unaffected
+  with no config change." Today it is settable only as deployment env / `brainstorm.conf`
+  (a container recreate), or per-machine via `docker-compose.override.yml`.
+- The "keep dev publishes off the live network **(recommended)**" section of
+  `docs/DEVELOPMENT.md` arrived in the same commit as the feature — `a412b0d4`, 2026-06-26,
+  Vinney Cavallo. It is a **recommendation**, never a ratified rule, and the operator never
+  opted in on this machine.
+- What made it feel like a rule: on **2026-08-27** the three `trusted-lists` suites turned that
+  recommendation into a hard precondition for a green full `npm test` (OPEN.md row 191).
+
+**The ask, restated:** a place where the operator (and Vinney) can turn external publishing on
+and off without a container recreate — the posture becoming operator-controlled state rather
+than deploy-time configuration.
+
+**Open questions — must be settled at Gate A / Planning, not assumed:**
+1. **Where does the setting live?** Settings UI (owner/admin-gated, like the existing
+   `settings.json` surfaces) vs env-only vs both — and if both, the precedence rule against the
+   existing env → `brainstorm.conf` → default chain in `src/api/publish-policy/`.
+2. **What precisely is "this behaviour"?** All external fan-out, or per-surface (tags/pins vs
+   Treasure Maps vs concept exports)? Per-relay-set? Global-only is the simplest honest scope.
+3. **Who may flip it, and is it per-deployment or per-user?** A user-level toggle on a shared
+   instance means one person's setting changes what another person's publish does.
+4. **Does the client's fail-open behaviour still hold?** `isExternalPublishAllowed()` caches at
+   module scope and fails open by design — a runtime-flippable setting needs a story for
+   staleness (a page loaded before the flip keeps the old posture until reload).
+5. **Do the three `trusted-lists` suites keep hard-failing, or skip?** The repo has a SKIP
+   precedent for environment-conditional tests (`strfry-write-assertion-bracket` H-class). This
+   is arguably a separate small story, but it is the friction that surfaced the request.
+
+**Classification:** Feature — but the requirements are genuinely unsettled (Q1–Q3 are product
+decisions with a security/safety edge: this setting governs whether signed events reach the
+public network irreversibly). **Recommend starting with `/discuss` or Product-Team Discovery
+rather than jumping to `/plan-feature`.**
+**Strictness:** Standard. Likely an ADR (auth/trust default + config-precedence change are
+irreversibility triggers).
+**Related:** OPEN.md rows 191; ADR `engineering-team/decisions/event-tagging/0002-global-publish-gate.md`;
+`docs/CONFIGURATION.md` § Publish policy; `docs/DEVELOPMENT.md` § Keep dev publishes off the live network.
+
+## 2026-09-07 — `publishToRelays` reports every external publish as a success
+
+**Surfaced during:** treasure-map-relay-presence #2 live verification, at the operator's request
+to try a real sync against a real relay. Filed as **OPEN.md row 200** at the book close; not
+fixed there because it is shared code on five shipped paths and well outside that story's scope.
+
+**The defect.** `ui/src/utils/nostrPublish.js:107-112`:
+
+```js
+await Promise.race([
+  pool.publish([relay], signedEvent),   // <- an ARRAY of promises, not a promise
+  new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)),
+]);
+successes.push(relay);
+```
+
+`SimplePool.publish()` returns `Promise<string>[]`. Verified in-container 2026-09-07:
+`Array.isArray(r) === true`, `typeof r.then === 'undefined'`. `Promise.race` resolves a
+non-thenable member immediately, so the race always wins on the first tick, `successes.push()`
+runs unconditionally, and the 5s timeout can never fire. **The relay's own OK/failure is never
+awaited.**
+
+**Consequence.** Every caller branching on `successes` / `failures` is branching on a constant.
+`publishOrThrow` (`ui/src/utils/publishProfileTag.js:24`) can never throw on external failure.
+The profile-tag, tag-detail, pin, TL opt-in and manual-editor publish paths all report success
+for a relay that rejected the event or never received it. All five are in production.
+
+**Fix shape.** `await Promise.allSettled(pool.publish(...))` — or await the single element for a
+one-relay call — and classify per relay from the settled results.
+
+**Measure the blast radius before writing the fix.** This is the part that makes it a book rather
+than a one-liner: the fix *creates* failure reports where there are none today.
+
+- `publishOrThrow` only throws when **both** local and external fail, and tolerates external
+  failure when local succeeds — so the user-visible impact may be much smaller than the defect
+  sounds. **Verify that rather than assuming it**; the tolerance is by design (its docstring says
+  the strfry router redistributes later), but it has never been exercised with a truthful signal.
+- Enumerate every consumer of `successes` / `failures` / `skippedByGate` first. `skippedByGate`
+  is a separate, working path — do not disturb it.
+- Expect previously-silent failures to surface in the tag/TL publish suites; those move in the
+  same change.
+
+**Precedent worth reading first.** `ui/src/pages/grapevine/TreasureMapRelayPresence.jsx` `runSync`
+already routes around this by judging the outcome from **what the relay actually serves** after
+the publish, rather than from the publish call's verdict. That is the only honest signal available
+today, and it is a reasonable pattern for any caller that needs certainty — but it costs an extra
+round trip and is not a substitute for fixing the primitive.
+
+**Related, same family.** **OPEN.md row 201** — a relay acknowledges a publish before the event is
+queryable, so an immediate post-publish read can report a successful write as a failure (measured
+against `tags.brainstorm.world`: publish landed, instant re-probe said "Not here", fresh load said
+"Has this version"). Any fix that verifies a publish by re-reading needs the bounded second look
+that `confirmSync` uses. Worth doing in the same book.
+
+**Classification:** Bug — but with a blast radius that needs measuring before the code changes, so
+not the "skip Architecture if obvious" lane. **Recommend `/plan-feature` with an explicit
+investigation step, or `/discuss` first if the consumer sweep turns up surprises.**
+**Strictness:** Standard. An ADR is likely: changing what "publish succeeded" means across five
+shipped paths is a contract change, and the ADR should record whether partial-failure tolerance
+stays as-is.
+**Related:** OPEN.md rows 200, 201; `ui/src/utils/nostrPublish.js`;
+`ui/src/utils/publishProfileTag.js`; `audits/treasure-map-relay-presence/audit.md` §4 #2 and §6.
+
+---
+
+### 2026-09-08 — Security note: `/legacy/*.html` is served with no auth check
+
+**Type:** Security / hardening. **Classification:** not yet triaged.
+
+Surfaced (not caused) by `navigation-scaffolding` Story 2, which un-gated the Legacy Dashboard
+link so every signed-in user sees it. The reviewer checked the server side and found that
+`bin/control-panel.js:207–266` serves `/legacy` and `/legacy/:filename.html` with no
+authentication or classification check at all — the owner/admin gate was only ever on the *link*,
+which was never a control. Un-gating changed discoverability, not reachability: any unauthenticated
+visitor could already request those pages directly.
+
+**Not a regression from that story** — the story is correct as specified, and hiding a link is not
+a security boundary. But the operator surfaces are now one click away for every `guest`, so the
+question of whether the legacy pages should be gated server-side (and what they expose) is worth
+answering deliberately rather than by omission.
+
+Confirmed live during the Story-3 review: `curl /legacy/sign-in.html` returns 200 unauthenticated.
+`app.use(authMiddleware)` sits at `bin/control-panel.js:286`, *after* all of these. Note the reach
+is wider than the two explicit routes — `:150` mounts the **entire `public/` tree** under
+`/legacy/`, also above the middleware.
+
+**Suggested path:** Bug/hardening, Standard — audit what `public/*.html` actually exposes, then
+decide gate-or-retire. Retirement may be the right answer: the legacy dashboard is superseded by
+`/tapestry/`.
+
+## 2026-09-10 — `inherit-items`: derivation + item-set resolver (code follow-up)
+
+**Surfaced by:** `dlist-curation` #3 / ADR 0003 (docs-mode). The `b` type registry gained
+`"inherit-items"` (item inheritance, additive) with the derived relationship
+`(child)-[:INHERITS_ITEMS_FROM]->(parent)` as the **target**. The reference deployment does not
+yet realize it:
+
+- `src/api/neo4j/eventSync.js` `buildImportCypher` type-gates on the literal `inherit`, so an
+  `inherit-items` tag derives the pointer form (`REFERENCES {source:'b-tag'}`) today — the intended
+  fail-safe, but not the target.
+- No resolver computes a node's resolved item set (union over the items-deference closure,
+  POV-filtered per item — inherit-from § "Resolution: the resolved item set").
+
+**Ask:** (1) derive `INHERITS_ITEMS_FROM` for the explicit `inherit-items` string, keeping the
+`inherit` → `INHERITS_FROM` gate byte-identical; (2) an item-set resolver on the read side (the
+concept-graph API); (3) decide whether the resolved-definition cache (`community-reference` ADR
+0032) watches the facet.
+
+**Not in the `dlist-curation` book** — the book's assistant headers are letters in the hosting
+relay, never imported into the hosting instance's graph (epic § "Settled at kickoff"), so nothing
+in the book exercises the derivation. Picks up when an instance ingests such a header (a user's
+own future instance).
+
+**Classification:** Feature. **Strictness:** Standard; ADR likely (a new relationship type in the
+graph schema).
+
+## 2026-09-11 — Auth-surface follow-ups from the story-3 audit (security)
+
+**Surfaced by:** the read-only audit run while planning `security-auth-exposure` story 3 (login
+signature verification). The audit found several *other* control-panel paths that trust
+client-supplied identity/events without verification — an unauthenticated graph-write path, an
+unauthenticated identity-read path, and some post-auth import/publish/owner-gate gaps.
+
+**Operator decision (2026-09-11):** ship **story 3 first**; these are **deferred** follow-ups, not
+yet promoted to stories. Because the repo is PUBLIC and shipping story 3 pushes this file, the
+technical detail (file:line, mechanism, severity) is deliberately **held out-of-band**, not here —
+a couple of the items are live and unpatched, so their specifics stay private until each is patched
+(SECURITY.md → private advisory). When picked up, these become the next stories in the reopened
+`security-auth-exposure` epic (Standard, human-gated); one of them overlaps the 2026-07-21
+authenticated-non-owner item above.

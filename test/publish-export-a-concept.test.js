@@ -118,7 +118,12 @@ test('RE1: publish primitive reused unchanged; no ADR-Option-B server-side exter
       '`PUBLISH_RELAYS` (ADR 0004 Option A: reuse as-is, "No change to nostrPublish.js"). ' +
       'Sentinel failing ⇒ the out-of-scope publish primitive was altered.'
   );
-  const optionB = API_FILES.find((f) => {
+  // dlist-curation #4 (ADR dlist-curation/0004; operator decision 2026-09-10): the assistant
+  // curation-header endpoint is the justification this ADR's "not justified yet" left room for —
+  // its signer is a server-held assistant key no browser can use, and the router's community
+  // stream may be off. The posture stands for every OTHER module; that one directory is excluded.
+  const SUPERSEDED_BY_ADR = [path.join(ROOT, 'src/api/dlist-curation') + path.sep];
+  const optionB = API_FILES.filter((f) => !SUPERSEDED_BY_ADR.some((dir) => f.startsWith(dir))).find((f) => {
     const s = fs.readFileSync(f, 'utf8');
     return /SimplePool/.test(s) && /\.publish\s*\(/.test(s);
   });

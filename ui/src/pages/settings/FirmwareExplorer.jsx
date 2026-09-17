@@ -3,19 +3,19 @@ import {
   fetchFirmwareManifest, fetchFirmwareConcept,
   fetchFirmwareVersions, fetchInstallStatus, installFirmware,
 } from '../../api/firmware';
-import JsonView from '../../components/JsonView';
+import ConceptMembersView from './ConceptMembersView';
+// Per-concept core-node views, shared with the Tapestry Exploration page (ADR tapestries/0004).
+import { CORE_NODES, ConceptOverview as FirmwareOverview, ConceptNodeJson as FirmwareNodeJson } from '../../components/concept/CoreNodeViews';
 
-const CORE_NODES = [
-  { key: 'overview',        label: 'Overview' },
-  { key: 'header',          label: 'Concept Header' },
-  { key: 'superset',        label: 'Superset' },
-  { key: 'schema',          label: 'JSON Schema' },
-  { key: 'primaryProperty', label: 'Primary Property' },
-  { key: 'properties',      label: 'Properties Set' },
-  { key: 'ptGraph',         label: 'Property Tree Graph' },
-  { key: 'coreGraph',       label: 'Core Nodes Graph' },
-  { key: 'conceptGraph',    label: 'Concept Graph' },
+// Per-concept membership views — the concept's live elements and sets, rendered
+// as a list → JSON-detail drill-down (distinct from the manifest-level
+// Integrations section in the sidebar).
+const MEMBER_VIEWS = [
+  { key: 'elements', label: 'Elements' },
+  { key: 'sets',     label: 'Sets' },
 ];
+
+// CORE_NODES is imported from components/concept/CoreNodeViews (shared with the Tapestry page).
 
 const INTEGRATION_TYPES = [
   { key: 'enumerations', label: 'Enumerations', icon: '🔢' },
@@ -340,9 +340,19 @@ export default function FirmwareExplorer() {
                 />
               ) : (
                 <>
-                  {/* Top: node selector tabs */}
+                  {/* Top: node selector tabs (core class-thread nodes + membership views) */}
                   <div className="firmware-node-tabs">
                     {CORE_NODES.map(n => (
+                      <button
+                        key={n.key}
+                        className={`firmware-node-tab ${selectedNode === n.key ? 'active' : ''}`}
+                        onClick={() => setSelectedNode(n.key)}
+                      >
+                        {n.label}
+                      </button>
+                    ))}
+                    <span className="firmware-node-tab-divider" aria-hidden="true" />
+                    {MEMBER_VIEWS.map(n => (
                       <button
                         key={n.key}
                         className={`firmware-node-tab ${selectedNode === n.key ? 'active' : ''}`}
@@ -373,6 +383,12 @@ export default function FirmwareExplorer() {
                       </div>
                     ) : selectedNode === 'overview' ? (
                       <FirmwareOverview data={conceptData} />
+                    ) : selectedNode === 'elements' || selectedNode === 'sets' ? (
+                      <ConceptMembersView
+                        key={`${conceptData.nodes?.header?.uuid}:${selectedNode}`}
+                        conceptData={conceptData}
+                        kind={selectedNode}
+                      />
                     ) : (
                       <FirmwareNodeJson data={conceptData} nodeKey={selectedNode} />
                     )}
@@ -543,54 +559,7 @@ function InstallStatusBanner({ installStatus, versions, activeDir, manifest, ins
   );
 }
 
-/* ── Firmware Overview ── */
-
-function FirmwareOverview({ data }) {
-  const nodeEntries = Object.entries(data.nodes || {});
-  const existCount = nodeEntries.filter(([, v]) => v.uuid).length;
-  const jsonCount = nodeEntries.filter(([, v]) => v.json).length;
-
-  return (
-    <div className="firmware-overview">
-      <h2>{data.title || data.name}</h2>
-      <p className="firmware-description">{data.description}</p>
-
-      <table className="data-table" style={{ marginTop: '1.5rem' }}>
-        <thead>
-          <tr>
-            <th>Core Node</th>
-            <th>Exists</th>
-            <th>JSON</th>
-            <th>Name</th>
-            <th>UUID</th>
-          </tr>
-        </thead>
-        <tbody>
-          {CORE_NODES.filter(n => n.key !== 'overview').map(n => {
-            const node = data.nodes[n.key];
-            return (
-              <tr key={n.key}>
-                <td><strong>{n.label}</strong></td>
-                <td>{node?.uuid ? '✅' : '❌'}</td>
-                <td>{node?.json ? '✅' : node?.uuid ? '❌' : '—'}</td>
-                <td>{node?.name || '—'}</td>
-                <td>
-                  <code className="uuid-short" title={node?.uuid}>
-                    {node?.uuid?.slice(-12) || '—'}
-                  </code>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      <div className="firmware-overview-stats" style={{ marginTop: '1rem', opacity: 0.7 }}>
-        {existCount}/8 nodes exist · {jsonCount}/8 have JSON
-      </div>
-    </div>
-  );
-}
+/* ── Firmware Overview → ConceptOverview, imported from components/concept/CoreNodeViews ── */
 
 /* ── Integration Panel ── */
 
@@ -875,64 +844,7 @@ function IntegrationDetail({ type, item, manifest }) {
   return <div className="empty">Unknown integration type.</div>;
 }
 
-/* ── Firmware Node JSON ── */
-
-function FirmwareNodeJson({ data, nodeKey }) {
-  const nodeInfo = CORE_NODES.find(n => n.key === nodeKey);
-  const node = data.nodes[nodeKey];
-  const [viewMode, setViewMode] = useState('viewer'); // 'viewer' | 'raw'
-
-  if (!node?.uuid) {
-    return (
-      <div className="firmware-missing-node">
-        <h3>{nodeInfo?.label || nodeKey}</h3>
-        <p>This core node does not exist for <strong>{data.name}</strong>.</p>
-      </div>
-    );
-  }
-
-  if (!node.json) {
-    return (
-      <div className="firmware-missing-json">
-        <h3>{nodeInfo?.label || nodeKey}</h3>
-        <p>Node exists but has no JSON tag.</p>
-        <p><code className="uuid-short">{node.uuid}</code></p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="firmware-json-view">
-      <div className="firmware-json-header">
-        <h3>{nodeInfo?.label || nodeKey}</h3>
-        <span className="firmware-json-meta">
-          {node.name} · <code className="uuid-short" title={node.uuid}>{node.uuid?.slice(-16)}</code>
-        </span>
-        <div className="firmware-view-toggle">
-          {[
-            { key: 'viewer', label: 'Viewer' },
-            { key: 'raw', label: 'Raw JSON' },
-          ].map(opt => (
-            <button
-              key={opt.key}
-              className={`firmware-view-btn ${viewMode === opt.key ? 'active' : ''}`}
-              onClick={() => setViewMode(opt.key)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {viewMode === 'viewer' ? (
-        <JsonView data={node.json} />
-      ) : (
-        <pre className="firmware-json-pre">
-          {JSON.stringify(node.json, null, 2)}
-        </pre>
-      )}
-    </div>
-  );
-}
+/* ── Firmware Node JSON → ConceptNodeJson, imported from components/concept/CoreNodeViews ── */
 
 /* ══════════════════════════════════════════════════════════
    Integration Graph — vis-network visualization of all

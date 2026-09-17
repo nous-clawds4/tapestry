@@ -175,7 +175,7 @@ async function handlePut(req, res) {
 
     // Write to LMDB
     const meta = rebuiltFrom ? { rebuiltFrom } : {};
-    const envelope = store.put(key, data, meta);
+    const envelope = await store.put(key, data, meta);
 
     // Update Neo4j timestamp
     await writeCypher(`

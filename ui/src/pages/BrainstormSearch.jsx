@@ -5,6 +5,8 @@ import { usePov } from '../context/PovContext';
 import { resolvePovReadParams } from '../utils/povReadParams';
 import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
+import AvatarMenuLink from '../components/AvatarMenuLink';
+import { personalLinks, destinationLinks } from '../config/avatarMenuLinks';
 import TopBar from '../components/TopBar';
 import SearchInput from '../components/SearchInput';
 import TagResultRow from '../components/TagResultRow';
@@ -500,6 +502,14 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
 
   const isOwnerOrAdmin = user.classification === 'owner' || user.classification === 'admin';
 
+  // Same list the other two avatar menus render; profile links go to /user/<pubkey>
+  // like the Main menu (navigation-scaffolding #2).
+  const myLinks = personalLinks({
+    pubkey: user.pubkey,
+    assistantPubkey: user.assistantPubkey,
+    profileBase: '/user',
+  });
+
   return (
     <div className="bs-usermenu" ref={menuRef}>
       <button
@@ -521,7 +531,16 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
           <div className="bs-usermenu-welcome">
             {picture && <img src={picture} alt="" className="bs-usermenu-dropdown-pic" onError={e => { e.target.style.display = 'none'; }} />}
             <div>
-              <div className="bs-usermenu-dropdown-name">{displayName}</div>
+              <div className="bs-usermenu-dropdown-name">
+                {displayName}
+                {/* Moved up from the admin panel, which the destinations section
+                    below replaced (navigation-scaffolding #2). */}
+                {isOwnerOrAdmin && (
+                  <span className="bs-usermenu-role-badge">
+                    {user.classification === 'owner' ? 'Owner' : 'Admin'}
+                  </span>
+                )}
+              </div>
               <div className="bs-usermenu-dropdown-pubkey">{user.pubkey.slice(0, 12)}…{user.pubkey.slice(-6)}</div>
             </div>
           </div>
@@ -538,6 +557,19 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
             </div>
           </div>
 
+          {/* My things, then the three front doors (navigation-scaffolding #2) */}
+          <div className="bs-usermenu-section bs-usermenu-links">
+            {myLinks.map(link => (
+              <AvatarMenuLink key={link.key} link={link} onNavigate={() => setOpen(false)} />
+            ))}
+          </div>
+
+          <div className="bs-usermenu-section bs-usermenu-links">
+            {destinationLinks.map(link => (
+              <AvatarMenuLink key={link.key} link={link} onNavigate={() => setOpen(false)} />
+            ))}
+          </div>
+
           {/* Settings + Sign out */}
           <div className="bs-usermenu-footer">
             <a
@@ -551,29 +583,6 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
               Sign out
             </button>
           </div>
-
-          {isOwnerOrAdmin && (
-            <div className="bs-usermenu-admin-panel">
-              <div className="bs-usermenu-admin-label">
-                <span className="bs-usermenu-admin-dot" />
-                {user.classification === 'owner' ? 'Owner' : 'Admin'}
-              </div>
-              <a
-                href="/tapestry/"
-                className="bs-usermenu-admin-btn"
-                onClick={() => setOpen(false)}
-              >
-                Tapestry Dashboard
-              </a>
-              <a
-                href="/legacy/"
-                className="bs-usermenu-admin-btn"
-                onClick={() => setOpen(false)}
-              >
-                Legacy Dashboard
-              </a>
-            </div>
-          )}
         </div>
       )}
     </div>

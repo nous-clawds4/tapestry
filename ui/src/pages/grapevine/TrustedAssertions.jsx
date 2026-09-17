@@ -3,6 +3,11 @@ import { useAuth } from '../../context/AuthContext';
 import { queryRelay } from '../../api/relay';
 import { useCypher } from '../../hooks/useCypher';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import TreasureMapTagsPanel from './TreasureMapTagsPanel';
+import TlOptInCard from './TlOptInCard';
+import DListCurationPanel from './DListCurationPanel';
+import TreasureMapManualEdit from './TreasureMapManualEdit';
+import TreasureMapRelayPresence from './TreasureMapRelayPresence';
 
 const KIND_TRUSTED_ASSERTIONS = 10040;
 
@@ -184,57 +189,22 @@ export default function TrustedAssertions() {
             </div>
           </div>
 
-          {/* Local strfry status */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '0.75rem 1rem',
-            backgroundColor: 'var(--bg-primary, #0f0f23)',
-            border: '1px solid var(--border, #444)',
-            borderRadius: '6px',
-            marginBottom: '1rem',
-          }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Local Strfry:</span>
-            {inLocal ? (
-              <span style={{ color: '#3fb950' }}>● Present</span>
-            ) : (
-              <>
-                <span style={{ opacity: 0.6 }}>○ Not present</span>
-                <button
-                  className="btn btn-sm btn-primary"
-                  onClick={importToLocal}
-                  disabled={importingLocal}
-                  style={{ fontSize: '0.75rem', marginLeft: '0.5rem' }}
-                >
-                  {importingLocal ? '⏳ Importing…' : '📥 Import to local strfry'}
-                </button>
-              </>
-            )}
-          </div>
+          {/* Relay presence — local strfry plus every configured relay a reader might check
+              (treasure-map-relay-presence #1). Owns its own state and its own requests, so a
+              slow or failing check cannot delay or block anything below it. */}
+          <TreasureMapRelayPresence
+            event={event}
+            inLocal={inLocal}
+            onImportLocal={importToLocal}
+            importing={importingLocal}
+            onMapReplaced={search}
+          />
 
-          {/* Summary info */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '0.75rem',
-            marginBottom: '1rem',
-          }}>
-            <InfoCard label="Event ID" value={event.id?.slice(0, 16) + '…'} mono />
-            <InfoCard label="Tags" value={`${event.tags?.length || 0} tags`} />
-            <InfoCard
-              label="Content"
-              value={event.content ? `${event.content.length} chars` : '(empty)'}
-            />
+          {/* Map entries — one row per tag (tl-treasure-map #2) */}
+          <div style={{ marginBottom: '1rem' }}>
+            <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', opacity: 0.7 }}>Map Entries</h4>
+            <TreasureMapTagsPanel tags={event.tags || []} />
           </div>
-
-          {/* Tag summary */}
-          {event.tags?.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
-              <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', opacity: 0.7 }}>Tag Summary</h4>
-              <TagSummary tags={event.tags} />
-            </div>
-          )}
 
           {/* Raw event toggle */}
           <button
@@ -260,6 +230,23 @@ export default function TrustedAssertions() {
               {JSON.stringify(event, null, 2)}
             </pre>
           )}
+
+          {/* Pubkey Trusted Lists — the salient question + opt-in (tl-treasure-map #3).
+              Placed last deliberately: the blocks above show the Map as it IS;
+              this panel is what you can DO about it. */}
+          <div style={{ marginTop: '1rem' }}>
+            <TlOptInCard event={event} onPublished={search} />
+          </div>
+
+          {/* DList Curation — empower the assistant to curate community DLists (dlist-curation #5).
+              Between the Trusted Lists panel and the hand-edit panel, keeping the page's order pin. */}
+          <DListCurationPanel event={event} onPublished={search} />
+
+          {/* Hand-edit escape hatch (tl-treasure-map #4), mounted here rather
+              than inside the card (treasure-map-user-assistant #2): it needs
+              only a found event, so no state of the delegation panel — including
+              the card withholding itself entirely — can make it unreachable. */}
+          <TreasureMapManualEdit key={event.id} event={event} onPublished={search} />
         </div>
       )}
 
@@ -313,61 +300,6 @@ export default function TrustedAssertions() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/* ─── Helper Components ─────────────────────────────────── */
-
-function InfoCard({ label, value, mono }) {
-  return (
-    <div style={{
-      padding: '0.5rem 0.75rem',
-      backgroundColor: 'var(--bg-primary, #0f0f23)',
-      border: '1px solid var(--border, #444)',
-      borderRadius: '6px',
-    }}>
-      <div style={{ fontSize: '0.7rem', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: '0.9rem',
-        fontWeight: 600,
-        marginTop: '0.15rem',
-        fontFamily: mono ? 'monospace' : 'inherit',
-      }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function TagSummary({ tags }) {
-  // Group tags by type and count
-  const groups = {};
-  for (const tag of tags) {
-    const type = tag[0] || '(empty)';
-    groups[type] = (groups[type] || 0) + 1;
-  }
-
-  return (
-    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-      {Object.entries(groups)
-        .sort((a, b) => b[1] - a[1])
-        .map(([type, count]) => (
-          <span
-            key={type}
-            style={{
-              padding: '0.2rem 0.5rem',
-              fontSize: '0.75rem',
-              backgroundColor: 'var(--bg-primary, #0f0f23)',
-              border: '1px solid var(--border, #444)',
-              borderRadius: '4px',
-            }}
-          >
-            <strong>{type}</strong>: {count}
-          </span>
-        ))}
     </div>
   );
 }

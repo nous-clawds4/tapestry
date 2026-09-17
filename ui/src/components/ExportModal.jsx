@@ -6,6 +6,7 @@ import {
   WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
 import { timeAgo } from '../utils/timeAgo';
+import { useConfig } from '../context/ConfigContext';
 
 /**
  * Story 21 / ADR 0019 — the single "Export" affordance.
@@ -44,6 +45,7 @@ export default function ExportModal({
   // note Bookmark Set (kind-30003). noteExport = { tag, viewerPubkey, noteMethod }.
   noteExport = null, onNoteExported,
 }) {
+  const { taPubkey } = useConfig();
   const [open, setOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState(currentTitle || defaultTitle);
   // Follow Set + Trusted List default-checked (AC-3); Follow Pack opt-in.
@@ -149,6 +151,7 @@ export default function ExportModal({
       //    is recomputed from for-tag, so it reflects fresh taggings.
       if (bookmarkAvailable && exportBookmarkSet) {
         await publishNoteBookmarkSetForPin({
+          localTaPubkey: taPubkey,
           tag: noteExport.tag,
           viewerPubkey: noteExport.viewerPubkey,
           noteMethod: noteExport.noteMethod,

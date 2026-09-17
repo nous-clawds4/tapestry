@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCypher } from '../../hooks/useCypher';
 import { queryRelay } from '../../api/relay';
 import AuthorCell from '../../components/AuthorCell';
+import Avatar from '../../components/Avatar';
 
 function shortPubkey(pk) {
   if (!pk) return '—';
@@ -50,7 +51,7 @@ export default function UserDetail() {
   const { pubkey } = useParams();
   const navigate = useNavigate();
   const { povPubkey, setPovPubkey } = useTrust();
-  const { aRelays } = useConfig();
+  const { aRelays, taPubkey } = useConfig();
   const { user } = useAuth();
   const isCurrentPov = povPubkey === pubkey;
   const isMyAssistant = !!user?.assistantPubkey && user.assistantPubkey === pubkey;
@@ -59,7 +60,10 @@ export default function UserDetail() {
   const profile = profiles?.[pubkey];
   const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
 
-  const displayName = profile?.display_name || profile?.name || shortPubkey(pubkey);
+  // Same reason as AuthorCell: an assistant that has published no kind-0 would
+  // otherwise title its own page with a truncated pubkey.
+  const displayName = profile?.display_name || profile?.name
+    || (pubkey === taPubkey ? 'Tapestry Assistant' : shortPubkey(pubkey));
 
   const npub = useMemo(() => {
     try { return nip19.npubEncode(pubkey); } catch { return null; }
@@ -105,13 +109,7 @@ export default function UserDetail() {
         </div>
       )}
       <div className="user-detail-header">
-        {profile?.picture ? (
-          <img src={profile.picture} alt="" className="user-detail-avatar" />
-        ) : (
-          <div className="user-detail-avatar-placeholder">
-            {(displayName || '?')[0].toUpperCase()}
-          </div>
-        )}
+        <Avatar pubkey={pubkey} profile={profile} size={64} />
         <div>
           <h1>{displayName}</h1>
           {profile?.nip05 && <p className="user-nip05">{nip05Verified && '✅ '}{profile.nip05}</p>}

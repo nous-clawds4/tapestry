@@ -7,13 +7,18 @@ const API_BASE = '/api';
 /**
  * Run a Cypher query and return parsed rows.
  * @param {string} query - Cypher query string
+ * @param {Object} [params] - Cypher parameters ($-placeholders). Passing dynamic
+ *   values here (rather than interpolating them into `query`) keeps a read a read:
+ *   the server's write-keyword guard scans the query TEXT, so an interpolated handle
+ *   like `…:set` would trip `\bSET\b` and 403. Params sidestep that and are
+ *   injection-safe. Backward-compatible: omit for the existing single-arg callers.
  * @returns {Promise<Array<Object>>} Array of row objects with column keys
  */
-export async function cypher(query) {
+export async function cypher(query, params = {}) {
   const res = await fetch(`${API_BASE}/neo4j/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cypher: query }),
+    body: JSON.stringify({ cypher: query, params }),
   });
   const json = await res.json();
 

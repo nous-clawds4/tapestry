@@ -94,6 +94,34 @@ echo "  kick-back rate: $KB_RATE (CR-final ÷ decided)"
 echo "  reviews with kick-back history (any CHANGES_REQUESTED mention): $KB_HIST"
 echo "  re-review churn (story numbers with >1 review file): $CHURN"
 
+# ---------- (b2) Direction-mode gate outcomes ----------
+# Journals are the sole store of gate history (ADR harness-gate-integrity/0002
+# — the blinding rebuild), so the instrument reads them or Direction rework
+# stays invisible: store-and-show's journal holds 8 KICK_BACKs while its
+# review-verdict kick-back rate above is 0. One line per journal-bearing book
+# (active + done/); journalless books are absent by construction; a journal
+# with no Decision lines prints zeros.
+hr "Direction-mode gate outcomes (audits/*/journal.md Decision lines)"
+DG_A=0; DG_K=0; DG_ANS=0; DG_H=0; DG_I=0; DG_BOOKS=0
+for jf in engineering-team/audits/*/journal.md engineering-team/audits/done/*/journal.md; do
+  [ -e "$jf" ] || continue
+  jslug=$(basename "$(dirname "$jf")")
+  ja=$(grep -c '^\*\*Decision:\*\* APPROVE' "$jf") || true
+  jk=$(grep -c '^\*\*Decision:\*\* KICK_BACK' "$jf") || true
+  jn=$(grep -c '^\*\*Decision:\*\* ANSWER' "$jf") || true
+  jh=$(grep -c '^\*\*Decision:\*\* HALT' "$jf") || true
+  ji=$(grep -c '^\*\*Decision:\*\* INFO' "$jf") || true
+  printf '  %s: APPROVE %s · KICK_BACK %s · ANSWER %s · HALT %s · INFO %s\n' \
+    "$jslug" "$ja" "$jk" "$jn" "$jh" "$ji"
+  DG_BOOKS=$((DG_BOOKS + 1)); DG_A=$((DG_A + ja)); DG_K=$((DG_K + jk))
+  DG_ANS=$((DG_ANS + jn)); DG_H=$((DG_H + jh)); DG_I=$((DG_I + ji))
+done
+if [ "$DG_BOOKS" -eq 0 ]; then
+  echo "  (no journals found)"
+else
+  echo "  totals across $DG_BOOKS journaled book(s): APPROVE $DG_A · KICK_BACK $DG_K · ANSWER $DG_ANS · HALT $DG_H · INFO $DG_I"
+fi
+
 # ---------- (c) books ----------
 hr "Books (audits/*/book.md, incl. done/)"
 B_OPEN=0; B_CLOSED=0
@@ -161,6 +189,7 @@ echo "  matched $MATCHED of $TOTAL_S stories (unmatched are counted, not dropped
 hr "──── summary ────"
 echo "  phase commits: $TOTAL_PHASE"
 echo "  reviews decided: $TOTAL_R · kick-back rate: $KB_RATE · churn: $CHURN"
+echo "  direction gates — approve: $DG_A · kick-back: $DG_K · halt: $DG_H"
 echo "  books — open: $B_OPEN · closed: $B_CLOSED"
 echo "  cycle time median: $MEDIAN (0d = same-day) · matched $MATCHED of $TOTAL_S stories"
 echo "  (instrument, not gate — thresholds and judgment belong to the retro)"

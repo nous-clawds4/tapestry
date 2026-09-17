@@ -63,8 +63,12 @@ function publishToStrfry(event) {
 
 async function importEventDirect(event, uuid) {
   const dTag = (event.tags.find(t => t[0] === 'd') || [])[1] || '';
+  // Elements carry a `name` tag; concept HEADERS carry `names` (plural,
+  // singular-first). Fall back so a header re-import never wipes the node's
+  // name — same extraction as importEventDirect's sibling in ./index.js.
   const nameTag = event.tags.find(t => t[0] === 'name');
-  const name = nameTag ? nameTag[1] : '';
+  const namesTag = event.tags.find(t => t[0] === 'names');
+  const name = nameTag?.[1] || namesTag?.[1] || '';
 
   // Merge the main event node
   await writeCypher(`

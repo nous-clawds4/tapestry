@@ -5,8 +5,9 @@ const clientCache = new Map();
 
 /**
  * Hook: fetch nostr kind:0 profiles for a list of pubkeys.
- * Returns Map<pubkey, { name, picture, display_name, ... } | null>.
- * Loads asynchronously — returns empty map initially, then updates.
+ * Returns a plain object keyed by pubkey: { [pubkey]: { name, picture, display_name, ... } | null }.
+ * NOT a Map — read it with `profiles?.[pubkey]`, never `.get()` (ADR graph-curation-ui/0002).
+ * Loads asynchronously — returns an empty object initially, then updates.
  */
 export default function useProfiles(pubkeys = []) {
   const [profiles, setProfiles] = useState({});

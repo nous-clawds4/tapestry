@@ -34,6 +34,33 @@ export default function DevelopersOpenRanking() {
   -H 'Content-Type: application/json' \\
   -d '{"query":"jack","limit":20}'`;
 
+  const rankReq = `curl -s -X POST ${base}/rank/pubkeys \\
+  -H 'Content-Type: application/json' \\
+  -d '{"pubkeys":["<64-hex-pubkey>","<64-hex-pubkey>"]}'`;
+
+  const rankResp = `{
+  "results": [
+    { "pubkey": "<hex>", "rank": 93 },
+    { "pubkey": "<hex>", "rank": 0 }
+  ]
+}`;
+
+  const followersReq = `curl -s -X POST ${base}/followers \\
+  -H 'Content-Type: application/json' \\
+  -d '{"pubkey":"<64-hex-pubkey>","limit":50}'`;
+
+  const mutersReq = `curl -s -X POST ${base}/muters \\
+  -H 'Content-Type: application/json' \\
+  -d '{"pubkey":"<64-hex-pubkey>","limit":50}'`;
+
+  const inboundResp = `{
+  "results": [
+    { "pubkey": "<hex>", "rank": 96 },
+    { "pubkey": "<hex>", "rank": 88 }
+  ],
+  "total": 19470
+}`;
+
   const searchResp = `{
   "results": [
     { "pubkey": "<hex>", "rank": 100 },
@@ -57,8 +84,9 @@ export default function DevelopersOpenRanking() {
       <h2 style={S.h2}>2. Web-of-trust stats — <code style={S.code}>POST /stats/pubkey</code></h2>
       <p style={S.p}>
         Returns this instance's web-of-trust metrics for one pubkey. Algorithms: <code style={S.code}>graperank</code> (global, the default)
-        and <code style={S.code}>graperank-personalized</code> (requires a provisioned <code style={S.code}>pov</code>; an unprovisioned
-        one returns <code style={S.code}>422</code>).
+        and <code style={S.code}>graperank-personalized</code> (requires a provisioned <code style={S.code}>pov</code>; advertised in the
+        capability document only when this instance serves it — check there first). An unprovisioned <code style={S.code}>pov</code> returns{' '}
+        <code style={S.code}>422</code> whose <code style={S.code}>X-Reason</code> explains the unavailability and says what to do instead.
       </p>
       <pre style={S.pre}>{statsReq}</pre>
       <p style={{ ...S.p, marginTop: '0.5rem' }}>Response:</p>
@@ -87,18 +115,52 @@ export default function DevelopersOpenRanking() {
       <p style={{ ...S.p, marginTop: '0.5rem' }}>Response:</p>
       <pre style={S.pre}>{searchResp}</pre>
 
+      <h2 style={S.h2}>4. Batch rank — <code style={S.code}>POST /rank/pubkeys</code></h2>
+      <p style={S.p}>
+        Ranks a set of pubkeys (up to 1000 per request; duplicates collapse) by this instance's global GrapeRank in one call —
+        the batch counterpart of <code style={S.code}>/stats/pubkey</code>, reading the same scores, so the two endpoints agree.
+        Every requested pubkey comes back ranked, highest first; pubkeys unknown to this instance rank 0. An optional{' '}
+        <code style={S.code}>limit</code> keeps only the top-ranked (default: the batch size; a larger value is silently clamped).
+      </p>
+      <pre style={S.pre}>{rankReq}</pre>
+      <p style={{ ...S.p, marginTop: '0.5rem' }}>Response:</p>
+      <pre style={S.pre}>{rankResp}</pre>
+
+      <h2 style={S.h2}>5. Top followers & muters — <code style={S.code}>POST /followers</code> / <code style={S.code}>POST /muters</code></h2>
+      <p style={S.p}>
+        The top-ranked <em>verified</em> followers (or muters) of a target pubkey — inbound follow/mute edges whose author clears
+        this instance's web-of-trust verification cutoff — each ranked by <em>their own</em> global GrapeRank, highest first.
+        <code style={S.code}> total</code> is the live size of the whole verified set, independent of <code style={S.code}>limit</code>{' '}
+        (default 50, max 1000; a larger <code style={S.code}>limit</code> is refused with <code style={S.code}>422</code>). A pubkey
+        unknown to this instance gets an honest empty answer (<code style={S.code}>200</code>, <code style={S.code}>total: 0</code>) —
+        never a 404. Because <code style={S.code}>total</code> is counted live while <code style={S.code}>/stats/pubkey</code>'s
+        follower/muter counts are batch-recomputed, the two can differ slightly between recomputes.
+      </p>
+      <pre style={S.pre}>{followersReq}</pre>
+      <pre style={S.pre}>{mutersReq}</pre>
+      <p style={{ ...S.p, marginTop: '0.5rem' }}>Response (both endpoints):</p>
+      <pre style={S.pre}>{inboundResp}</pre>
+
       <h2 style={S.h2}>Conventions</h2>
       <p style={S.p}>
         All endpoints are JSON over HTTP with <code style={S.code}>Access-Control-Allow-Origin: *</code>. Pubkeys are 64-character
-        lowercase hex. Errors are signalled by HTTP status — <code style={S.code}>400</code> (malformed JSON),
+        lowercase hex. Errors are signalled by HTTP status — <code style={S.code}>400</code> (malformed JSON),{' '}
+        <code style={S.code}>413</code> (more than 1000 pubkeys in one <code style={S.code}>/rank/pubkeys</code> request),{' '}
         <code style={S.code}>422</code> (invalid input / unsupported algorithm / missing or unprovisioned <code style={S.code}>pov</code>) —
         with a human-readable <code style={S.code}>X-Reason</code> header.
+      </p>
+      <p style={S.p}>
+        Point-of-view honesty: a personalized request for a <code style={S.code}>pov</code> this instance cannot serve is refused —
+        results are never silently computed from another point of view (such as the global house view) and presented as personalized.
+        On that <code style={S.code}>422</code>, fall back explicitly: re-request the default global algorithm. The same contract is
+        proposed upstream for all Open Ranking providers (see Reference).
       </p>
 
       <h2 style={S.h2}>Reference</h2>
       <ul style={{ ...S.p }}>
-        <li><a href="https://github.com/Open-Ranking/protocol" target="_blank" rel="noreferrer">Open Ranking protocol spec</a> — ORE-01 (discovery), ORE-02 (stats), ORE-05 (search)</li>
+        <li><a href="https://github.com/Open-Ranking/protocol" target="_blank" rel="noreferrer">Open Ranking protocol spec</a> — ORE-01 (discovery), ORE-02 (stats), ORE-03 (batch rank), ORE-05 (search), ORE-06 (followers), ORE-07 (muters)</li>
         <li><a href="https://github.com/nous-clawds4/tapestry" target="_blank" rel="noreferrer">Brainstorm Search repo</a> — this provider's implementation</li>
+        <li><a href="https://github.com/Open-Ranking/protocol/issues/8" target="_blank" rel="noreferrer">Open-Ranking/protocol#8</a> — personalization honesty: the upstream proposal behind this provider's never-substitute rule (draft: <code style={S.code}>protocols/upstream/ore-01-pov-unavailable.md</code>)</li>
       </ul>
     </DevPage>
   );

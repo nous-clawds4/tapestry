@@ -11,6 +11,22 @@ const dashboardItem = { to: '/tapestry/', label: '📊 Dashboard', end: true };
 
 const mainNavItems = [
   dashboardItem,
+  // Owner-gated: the second-brain goal surfaces (second-brain #1, ADR 0001).
+  // Only Goals (table) is a real view today; the rest are placeholder pages.
+  {
+    label: '🧠 Goals',
+    prefix: '/tapestry/goals',
+    ownerOnly: true,
+    children: [
+      { to: '/tapestry/goals', label: 'Goals (table)', end: true },
+      { to: '/tapestry/goals/graph', label: 'Goals (graph)' },
+      { to: '/tapestry/goals/rationale', label: 'Rationale' },
+      { to: '/tapestry/goals/sets', label: 'Goal Sets' },
+      { to: '/tapestry/goals/relationship-types', label: 'Goal Relationship Types' },
+    ],
+  },
+  // Owner-gated: the second-brain Proposal queue (second-brain #6, ADR 0006).
+  { to: '/tapestry/proposals', label: '🗳️ Proposals', ownerOnly: true },
   {
     label: '📋 Simple Lists',
     prefix: '/tapestry/lists',
@@ -30,7 +46,8 @@ const mainNavItems = [
     label: '🍇 My Grapevine',
     prefix: '/tapestry/grapevine',
     children: [
-      { to: '/tapestry/grapevine/trusted-assertions', label: 'TA Treasure Map' },
+      { to: '/tapestry/grapevine/treasure-map', label: 'TA Treasure Map' },
+      { to: '/tapestry/grapevine/curated-dlists', label: 'My Curated DLists' },
       { to: '/tapestry/grapevine/assertions', label: 'Trusted Assertions' },
       { to: '/tapestry/grapevine/trusted-lists', label: 'Trusted Lists' },
       { to: '/tapestry/grapevine/trust-determination', label: 'Trust Determination' },
@@ -44,6 +61,50 @@ const mainNavItems = [
     children: [
       { to: '/tapestry/users', label: 'Directory', end: true },
       { to: '/tapestry/users/search', label: 'Search' },
+    ],
+  },
+  {
+    label: '🧵 Tapestries',
+    prefix: '/tapestry/tapestries',
+    children: [
+      { to: '/tapestry/tapestries', label: 'View Tapestries', end: true },
+      { to: '/tapestry/tapestries/new', label: 'Create New Tapestry' },
+    ],
+  },
+  {
+    label: '🤝 Shared Concepts',
+    prefix: '/tapestry/shared-concepts',
+    children: [
+      { to: '/tapestry/shared-concepts', label: 'Registry', end: true },
+      { to: '/tapestry/shared-concepts/new', label: 'Add to Registry' },
+      { to: '/tapestry/shared-concepts/b-tags', label: 'Active b-tags' },
+      { to: '/tapestry/shared-concepts/z-tags', label: 'Active z-tags' },
+      { to: '/tapestry/shared-concepts/mine', label: 'Shared by me' },
+      { to: '/tapestry/shared-concepts/self-declared', label: 'Shared with the community' },
+      { to: '/tapestry/shared-concepts/adoption-queue', label: 'Adoption Queue' },
+      { to: '/tapestry/shared-concepts/dictionary', label: 'Trusted Dictionary' },
+    ],
+  },
+  // Placeholder sections — the shape of two upcoming areas, in the nav ahead of
+  // the pages themselves (navigation-scaffolding #1). Not owner-gated, matching
+  // the Shared Concepts group above.
+  {
+    label: '📖 Dictionaries',
+    prefix: '/tapestry/dictionaries',
+    children: [
+      { to: '/tapestry/dictionaries', label: 'Dictionaries', end: true },
+      { to: '/tapestry/dictionaries/tags', label: 'Tags' },
+      { to: '/tapestry/dictionaries/dlists', label: 'DLists' },
+      { to: '/tapestry/dictionaries/concepts', label: 'Concepts' },
+    ],
+  },
+  {
+    label: '🕵️ Trusted Agents',
+    prefix: '/tapestry/trusted-agents',
+    children: [
+      { to: '/tapestry/trusted-agents/mine', label: 'Mine' },
+      { to: '/tapestry/trusted-agents/all', label: 'All' },
+      { to: '/tapestry/trusted-agents/setup', label: 'Set Up' },
     ],
   },
 ];

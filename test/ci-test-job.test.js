@@ -43,6 +43,20 @@ function workflow() {
 /** Collapse YAML to a whitespace-normalized haystack for tolerant contains-checks. */
 function flat(src) { return src.replace(/\s+/g, ' '); }
 
+/**
+ * Whether `npm ci` precedes `npm test` WITHIN the steps: region. Scoping to
+ * steps: is what keeps a comment above it (e.g. "# runs npm test after npm ci")
+ * from fooling the ordering — the old whole-file indexOf did (#22).
+ */
+function ciBeforeTest(src) {
+  const f = flat(src);
+  const stepsAt = f.indexOf('steps:');
+  const region = stepsAt === -1 ? f : f.slice(stepsAt);
+  const ciAt = region.indexOf('npm ci');
+  const testAt = region.indexOf('npm test');
+  return { ciAt, testAt, ok: ciAt !== -1 && testAt !== -1 && ciAt < testAt };
+}
+
 // ===========================================================================
 // W* — the workflow YAML contract (ADR 0001 Decision table + Implementation notes)
 // ===========================================================================
@@ -72,8 +86,11 @@ test('W2 (AC-1): triggered by pull_request targeting staging AND main (pre-merge
 test('W3 (AC-1): checks out with full history (fetch-depth: 0) so lint L9/L10 stay live in CI', () => {
   const src = workflow();
   const f = flat(src);
-  assert(/uses:\s*actions\/checkout@v4/.test(f),
-    'must use actions/checkout@v4 (ADR 0001 Implementation notes).');
+  // v4 → v5 (2026-08-06, chore/ci-green, operator-approved): GitHub deprecated
+  // the Node 20 runtime and force-runs node20-targeting actions on Node 24;
+  // v5 targets Node 24 natively. Supersedes ADR 0001's @v4 implementation note.
+  assert(/uses:\s*actions\/checkout@v5/.test(f),
+    'must use actions/checkout@v5 (Node-24-native; chore/ci-green 2026-08-06, superseding ADR 0001 Implementation notes).');
   assert(/fetch-depth:\s*0/.test(f),
     'checkout must set fetch-depth: 0 — a shallow clone silently disables harness-lint L9/L10 in the CI real-repo pass (ADR 0001 Decision table).');
 });
@@ -81,8 +98,8 @@ test('W3 (AC-1): checks out with full history (fetch-depth: 0) so lint L9/L10 st
 test('W4 (AC-1): sets up Node 22 (production Dockerfile parity) with npm cache', () => {
   const src = workflow();
   const f = flat(src);
-  assert(/uses:\s*actions\/setup-node@v4/.test(f),
-    'must use actions/setup-node@v4 (ADR 0001 Implementation notes).');
+  assert(/uses:\s*actions\/setup-node@v5/.test(f),
+    'must use actions/setup-node@v5 (Node-24-native; chore/ci-green 2026-08-06, superseding ADR 0001 Implementation notes).');
   assert(/node-version:\s*['"]?22['"]?/.test(f),
     'node-version must be 22 to match the production Dockerfile (nodesource 22.x); ADR 0001 Decision table.');
   assert(/cache:\s*['"]?npm['"]?/.test(f),
@@ -96,10 +113,23 @@ test('W5 (AC-1): installs from the lockfile and runs the test gate — npm ci th
     'the job must install with `npm ci` (lockfile fidelity on a clean runner) — ADR 0001 Decision table.');
   assert(/run:\s*npm test\b/.test(f),
     'the job must run the gate with `npm test` — the SAME command contributors run locally (ADR 0001 Decision: no test:ci fork).');
-  const ciAt = f.indexOf('npm ci');
-  const testAt = f.indexOf('npm test');
-  assert(ciAt !== -1 && testAt !== -1 && ciAt < testAt,
-    'npm ci must precede npm test (install before gate).');
+  const { ciAt, testAt, ok } = ciBeforeTest(src);
+  assert(ciAt !== -1 && testAt !== -1 && ok,
+    'npm ci must precede npm test (install before gate), scoped to the steps: region (#22).');
+});
+
+test('W5b (#22): the ci-before-test ordering is scoped to the steps: region — a comment naming a command above steps: does not false-fail, and a genuine gate-before-install still fails', () => {
+  // The #22 bug: the unscoped indexOf found `npm test` inside a comment above
+  // steps: and read it as "before npm ci". A pre-steps comment must NOT fool it.
+  const commentedAbove =
+    'name: test\n# the gate runs npm test after npm ci\njobs:\n  t:\n    steps:\n      - run: npm ci\n      - run: npm test\n';
+  assert(ciBeforeTest(commentedAbove).ok,
+    'a comment above steps: naming npm test must NOT false-fail the ordering check — it must be scoped to the steps: region (#22).');
+  // The real guard must survive: a workflow whose STEPS run the gate before install must still fail.
+  const misordered =
+    'name: test\njobs:\n  t:\n    steps:\n      - run: npm test\n      - run: npm ci\n';
+  assert(!ciBeforeTest(misordered).ok,
+    'a workflow that runs npm test before npm ci within steps must still FAIL the ordering check — #22 must not weaken the real guard.');
 });
 
 test('W6 (AC-1): scarf phone-home suppressed and install scripts NOT globally disabled (prebuilds need them)', () => {

@@ -84,10 +84,46 @@ export async function isExternalPublishAllowed() {
 }
 
 /**
+ * What one relay actually did with the event.
+ *
+ * nostr-tools reports failure in two different shapes, and one of them looks like
+ * success: a relay that answers `OK: false` REJECTS, but a relay we could not connect
+ * to RESOLVES with a `"connection failure: …"` string, because `pool.publish` catches
+ * the connect error itself. So the fulfilled VALUE has to be read — classifying on
+ * settled status alone would call an unreachable relay a success.
+ *
+ * @param {{status: string, value?: unknown, reason?: unknown}} settled - one entry from
+ *   Promise.allSettled over the promises SimplePool.publish() returns
+ * @returns {{status: 'accepted'|'refused'|'unreachable'|'timeout', reason: string}}
+ */
+function classifyRelayOutcome(settled) {
+  // No result at all: we cannot claim the relay took it. Fail toward honesty.
+  if (!settled) return { status: 'unreachable', reason: 'no publish result' };
+
+  if (settled.status === 'rejected') {
+    const reason = String(settled.reason?.message ?? settled.reason ?? '');
+    return reason === 'publish timed out'
+      ? { status: 'timeout', reason }
+      : { status: 'refused', reason };
+  }
+
+  const value = typeof settled.value === 'string' ? settled.value : '';
+  return value.startsWith('connection failure:')
+    ? { status: 'unreachable', reason: value }
+    : { status: 'accepted', reason: value };
+}
+
+/**
  * Publish a signed event to external relays via nostr-tools SimplePool (browser-side).
+ *
+ * `details` carries the per-relay verdict (ADR honest-publish-reporting/0001) so a caller
+ * — or whoever is watching a deploy — can tell "the relay said no" from "we never reached
+ * it". It is derived from the same settled results as `successes`/`failures`, never a
+ * second source of truth.
+ *
  * @param {object} signedEvent - A fully signed nostr event
  * @param {string[]} relays - Array of relay URLs
- * @returns {Promise<{successes: string[], failures: string[], skippedByGate?: boolean}>}
+ * @returns {Promise<{successes: string[], failures: string[], details?: Object<string, {status: string, reason: string}>, skippedByGate?: boolean}>}
  */
 export async function publishToRelays(signedEvent, relays = PUBLISH_RELAYS) {
   // Opt-in LOCAL-ONLY guard (ADR 0002): when on, do not open any socket to an
@@ -101,26 +137,38 @@ export async function publishToRelays(signedEvent, relays = PUBLISH_RELAYS) {
   const pool = new SimplePool();
   const successes = [];
   const failures = [];
+  const details = {};
 
   try {
-    const results = await Promise.allSettled(
+    // One publish per relay, all in flight together. SimplePool.publish() returns an
+    // ARRAY of promises rather than a promise, so the settled entries are what carry the
+    // relay's answer — awaiting the array itself resolves immediately and proves nothing.
+    // Publishing per relay (rather than one pool.publish(relays, …)) also sidesteps the
+    // library's post-normalizeURL duplicate rejection; see ADR 0001.
+    const outcomes = await Promise.all(
       relays.map(async (relay) => {
         try {
-          await Promise.race([
-            pool.publish([relay], signedEvent),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)),
-          ]);
-          successes.push(relay);
-        } catch {
-          failures.push(relay);
+          const [settled] = await Promise.allSettled(pool.publish([relay], signedEvent));
+          return classifyRelayOutcome(settled);
+        } catch (err) {
+          // pool.publish throws SYNCHRONOUSLY on a malformed relay URL (normalizeURL →
+          // new URL). Relay lists come from the user's own kind-10002, so one bad entry
+          // is reachable and must not take the publish to every other relay down with it.
+          return { status: 'unreachable', reason: String(err?.message ?? err) };
         }
       })
     );
+    // Deterministic: successes/failures follow the caller's relay order.
+    relays.forEach((relay, i) => {
+      const outcome = outcomes[i];
+      details[relay] = outcome;
+      (outcome.status === 'accepted' ? successes : failures).push(relay);
+    });
   } finally {
     try { pool.close(relays); } catch {}
   }
 
-  return { successes, failures };
+  return { successes, failures, details };
 }
 
 /**

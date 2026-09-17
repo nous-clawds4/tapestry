@@ -24,7 +24,8 @@ const { exec } = require('child_process');
 const profileTags = require('../profile-tags');
 const { buildAndPublishTL } = require('./index');
 const { resolvePov } = require('../_shared/pov');
-const { curateNotes, pinVariantKey, contextSlugOfPin } = require('../../lib/event-tagging');
+const { curateNotes } = require('../../lib/event-tagging');
+const { resolveMembershipMethod } = require('./membershipMethods');
 
 const TA_PUBKEY = profileTags.TA_PUBKEY;
 const TAG_PINNING_Z_TAG = profileTags.TAG_PINNING_Z_TAG;
@@ -68,8 +69,12 @@ function dedupeReplaceable(events) {
   return Array.from(byKey.values());
 }
 
-function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
-  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+// ADR trusted-lists/0002: 6-decimal rounding for published weighted scores —
+// full precision for hand validation, without binary-float noise.
+function round6(x) { return Number(x.toFixed(6)); }
+
+function computeTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
+  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
 }
 
 async function enumeratePinnedTags() {
@@ -141,12 +146,6 @@ async function runOnePin(pinEvent) {
     return { status: 'error', errorReason: 'referenced tag event missing from local strfry' };
   }
 
-  // contextual-pins ADR 0001 — recover the context from the pin's z STAMP (not
-  // the d-tag). null for a neutral pin ⇒ pinVariantKey('') ⇒ unchanged d-tag.
-  // A contextual pin gets its own discriminated TL, coexisting with the neutral
-  // pin's TL — the set-based retractStaleTLs keeps both alive.
-  const contextSlug = contextSlugOfPin(pinEvent, TA_PUBKEY);
-
   // POV resolution: pass observer through the same cascade
   // handleProfilesTagged uses. When no POV is configured (no
   // povSuffix or no minRank), the aggregation falls back to "all
@@ -159,36 +158,50 @@ async function runOnePin(pinEvent) {
   const cutoff = Number.isFinite(curation.cutoff) ? curation.cutoff : 1;
   const minRankForTag = Number.isFinite(minRank) ? minRank : 0;
 
-  const { byTarget } = await profileTags.aggregateProfilesTagged({
+  const { byTarget, wotFiltering } = await profileTags.aggregateProfilesTagged({
     tagEventId, povSuffix, minRank,
   });
-  const members = applyDisputesFunction(byTarget, cutoff);
-
-  // Story 12 / ADR 0011 AC-7: enrich members with their wot_rank score
-  // when the pin requested includeScoreInTL AND the observer's POV is
-  // resolvable. AC-8: degrade silently when POV is unresolvable
-  // (povSuffix null) — members still publish without scores.
-  if (curation.includeScoreInTL === true && povSuffix) {
-    try {
-      const memberPubkeys = members.map((m) => m.pubkey);
-      if (memberPubkeys.length > 0) {
-        const memberDocs = await profileTags.meiliFetchProfilesByPubkey(memberPubkeys);
-        const rankField = `wot_rank_${povSuffix}`;
-        for (const m of members) {
-          const doc = memberDocs.get(m.pubkey);
-          if (doc && typeof doc[rankField] === 'number') {
-            m.score = doc[rankField];
-          }
-        }
-      }
-    } catch {
-      // Meili unreachable / lookup failed → degrade silently; members
-      // still publish without scores.
-    }
-  }
+  // ADR trusted-lists/0001: the pipeline-wide membership method, resolved
+  // fresh per refresh (fail-safe: always an implemented id). Dispatch is a
+  // map so rungs 2-4 add branches without touching the count path.
+  // ADR trusted-lists/0002: weighted methods need the WoT filter's ranks;
+  // without them the fold degrades to count and the wire tag records the
+  // math that actually ran.
+  const requestedMethod = resolveMembershipMethod();
+  const membershipMethod =
+    (requestedMethod !== 'count' && !wotFiltering) ? 'count' : requestedMethod;
+  const membershipFolds = {
+    count: () => applyDisputesFunction(byTarget, cutoff),
+    // Rung 2: membership/order unchanged (same fold), plus the signed
+    // trust-weighted sum as the per-member score. round6 kills float noise
+    // for hand validation (ADR 0002 point 4).
+    input: () => applyDisputesFunction(byTarget, cutoff).map((m) => ({
+      ...m,
+      score: round6(byTarget.get(m.pubkey)?.weightedSum ?? 0),
+    })),
+    // Story 4 (formalized contract, D12): integer score
+    // round(max(agreement x certainty, 0) x 100); membership predicate v2
+    // (applications >= cutoff AND score >= 1 — net-zero/negative members
+    // drop off the list); ordered score desc, pubkey asc.
+    certainty: () => applyDisputesFunction(byTarget, cutoff)
+      .map((m) => {
+        const entry = byTarget.get(m.pubkey);
+        const input = entry?.weightedInput ?? 0;
+        const score = input === 0 ? 0
+          : Math.round(Math.max((entry.weightedSum / input) * (1 - Math.pow(0.5, input)), 0) * 100);
+        return { ...m, score };
+      })
+      .filter((m) => m.score >= 1)
+      .sort((a, b) => (b.score - a.score) || a.pubkey.localeCompare(b.pubkey)),
+  };
+  const members = membershipFolds[membershipMethod]();
+  // Story 4: the legacy Story-12 includeScoreInTL enrichment (member's raw
+  // wot_rank in the score slot) is retired — the slot's meaning is singular:
+  // the active method's score. Old pins carrying the flag are accepted and
+  // the flag ignored.
 
   const dTag = computeTLDTag({
-    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug,
+    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug,
   });
 
   try {
@@ -207,6 +220,10 @@ async function runOnePin(pinEvent) {
         ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
         ['cutoff', String(cutoff)],
         ['min-rank', String(minRankForTag)],
+        // Story 4: the ladder's membership-method tag is stripped (never
+        // spec'd); rigor rides certainty TLs so consumers can reproduce
+        // scores (D12: constant, not a knob).
+        ...(membershipMethod === 'certainty' ? [['rigor', '0.5']] : []),
       ],
       content: JSON.stringify({
         members: members.map((m) => ({
@@ -248,14 +265,7 @@ async function refreshOnePinnedTagById({ pinEventId, sessionPubkey }) {
   if (sessionPubkey && pin.pubkey !== sessionPubkey) {
     return { status: 'error', error: 'forbidden' };
   }
-  // Recompute BOTH the profile TL (kind-30392) and the note TL (kind-30393) for
-  // this pin. Previously only runOnePin (profiles) ran here, so a single-pin
-  // refresh — e.g. the "Update pinned notes" button or a context-pin curation
-  // edit — never recomputed the note list, leaving its drift stuck. The note
-  // twin no-ops for profile-only pins (returns 'skipped').
-  const profileResult = await runOnePin(pin);
-  const noteResult = await runOneNotePin(pin);
-  return { ...profileResult, noteStatus: noteResult && noteResult.status };
+  return await runOnePin(pin);
 }
 
 /**
@@ -342,19 +352,12 @@ async function runOneNotePin(pinEvent, options = {}) {
     tagAuthor: tag.authorPubkey, slug: tag.slug, authorities: [TA_PUBKEY],
     povSuffix, minRank, viewerPubkey: undefined, sort,
   });
-  // Honor the pin's cutoff for notes too (mirrors the profile side). Default 1
-  // (same fallback runOnePin uses) so a single self-tagging counts, but cutoff ≥ 2
-  // requires that many trusted taggings — contextual-pins note-curation fix.
-  const noteCutoff = Number.isFinite(curation.cutoff) ? curation.cutoff : 1;
-  const curated = curateNotes(fullMembers || [], noteMethod, noteCutoff);
+  const curated = curateNotes(fullMembers || [], noteMethod);
   const published = curated.slice(0, NOTE_TL_MEMBER_CAP);
   const totalTrusted = Number.isFinite(total) ? total : curated.length;
   // Partial when the taggings scan was bounded, or the curated set exceeds what one event can carry.
   const partial = !!scanTruncated || curated.length > NOTE_TL_MEMBER_CAP;
-  // contextual-pins ADR 0001 — same context discriminator as the profile TL,
-  // so a contextual note-pin's TL coexists with the neutral one's.
-  const contextSlug = contextSlugOfPin(pinEvent, TA_PUBKEY);
-  const dTag = `tl-pin-notes-${observer.slice(0, 8)}-${tag.authorPubkey.slice(0, 8)}-${tag.slug}${pinVariantKey({ contextSlug })}`;
+  const dTag = `tl-pin-notes-${observer.slice(0, 8)}-${tag.authorPubkey.slice(0, 8)}-${tag.slug}`;
 
   try {
     const { event, uuid } = await publishTL({

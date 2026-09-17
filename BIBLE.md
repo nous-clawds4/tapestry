@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `tapestry.brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-07-02 (header refresh; content last changed 2026-06-20 — preferences audit §6.1 + §6.2; session persistence; user-counts; cycle-* skills)
+**Last updated:** 2026-09-12 (content: §6 — the `NostrEvent` label also marks event-less nodes (an event-form address with no `id`); §11 — `POST /api/normalize/add-subset` + `GET /api/normalize/node-primitives` — node-primitives #1 / ADR 0001; prior: § Assistant Keys — the "TA designation on kind 10040" status paragraph refreshed at the book close: merge-preserve shipped (#7), per-DList entries wired (#4–#6), resolver still future — dlist-curation close; prior: §25 + glossary — the `b` type registry gains `"inherit-items"` (item inheritance, additive; `INHERITS_ITEMS_FROM` as the target relationship; derivation not yet updated) — dlist-curation #3; prior: § Assistant Keys — the "TA designation on kind 10040" paragraph now also covers **per-DList curation entries** (`dlist-curation` ADR 0002: `["<kind>:<d-tag>", <assistant>, <relay>]`, `dlist-header` reserved, wiring status) — dlist-curation #2; prior: §3 "The wider estate" — names the NosFabrica production repos and the shared `NosFabrica/protocols` spec repo (whose `ECOSYSTEM.md` is the canonical estate inventory); closes the gap where the sanctioned onboarding path never mentioned the production half of the estate — estate-wiring; prior: §31 The Self and Its Keys — ratifies the instance-identity doctrine (the TA pubkey is the instance's "me"; the Owner a distinct correspondent; absorption explicit, chosen per feature) + §30 cross-ref + §16 changelog row — self-ontology #2 / ADR 0002, F0 of the shared-concepts-adoption book; prior: §6 tapestry elements author `word` + brain-first authoring note (misdiagnosis corrected), §16 changelog row — brain-first-tapestry-authoring book / ADR tapestries/0007; prior: §30 The Self and Its Stores — ratifies the self ontology (Neo4j = the definitive "me"; LMDB = subordinate cache; events = "letters") plus the binding obligations it creates — self-ontology #1 / ADR 0001; prior: §29 Derived-JSON Store — documents the standalone tapestry-store LMDB layer (`tapestryKey` + `lmdb:` pointers), alongside a `handlePut` await fix; §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
 
 ---
 
@@ -38,6 +38,10 @@
 25. [The Inherit-From Tag (`b`)](#25-the-inherit-from-tag-b)
 26. [Resolved Definition](#26-resolved-definition)
 27. [Point of View (PoV) Resolution](#27-point-of-view-pov-resolution)
+28. [Open Ranking (ORE) Provider](#28-open-ranking-ore-provider)
+29. [Derived-JSON Store: tapestryKey and the tapestry-store LMDB](#29-derived-json-store-tapestrykey-and-the-tapestry-store-lmdb)
+30. [The Self and Its Stores](#30-the-self-and-its-stores)
+31. [The Self and Its Keys](#31-the-self-and-its-keys)
 
 ---
 
@@ -80,6 +84,18 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 |------|-----|----------------|-------------|
 | **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `main` | Docker stack: strfry + Neo4j + Express + React UI + Meilisearch + NIP-50 proxy + firmware |
 | **tapestry-cli** | `github.com/nous-clawds4/tapestry-cli` | `main` | CLI tool for graph operations |
+
+### The wider estate
+
+Tapestry is the **R&D half of a two-organization estate operated by one team**; the production half lives under [NosFabrica](https://github.com/NosFabrica) (flagship deployment: `brainstorm.world`). Features and protocols are proven here first, then adopted by the production repos. The canonical inventory of the whole estate — every repository, deployment hostname, and role — is [ECOSYSTEM.md in `NosFabrica/protocols`](https://github.com/NosFabrica/protocols/blob/main/ECOSYSTEM.md). The immediate siblings:
+
+| Repo | Role |
+|------|------|
+| [`NosFabrica/protocols`](https://github.com/NosFabrica/protocols) | Shared protocol specifications — the estate-wide publication tier that specs graduate to from [`protocols/`](./protocols/README.md) here — plus the canonical estate map |
+| [`NosFabrica/Brainstorm-UI`](https://github.com/NosFabrica/Brainstorm-UI) | Production web UI |
+| [`NosFabrica/brainstorm_server`](https://github.com/NosFabrica/brainstorm_server) | Production backend: event ingest, GrapeRank runs, Trusted Assertion publishing, Vespa profile search |
+| [`NosFabrica/brainstorm_graperank_algorithm`](https://github.com/NosFabrica/brainstorm_graperank_algorithm) | The GrapeRank computation (Java worker) |
+| [`nous-clawds4/brainstorm-cli`](https://github.com/nous-clawds4/brainstorm-cli) | CLI for LLM agents against the production Brainstorm backend |
 
 ### Recommended branch strategy
 
@@ -160,6 +176,8 @@ For the specific branches and deploy targets configured in the reference deploym
 | `tapestry-logs` | `/var/log/brainstorm` | Logs |
 | `nostr-search-meili` | `/meili_data` | Meilisearch index data |
 
+**Not a Docker volume — the derived-JSON store.** Separate from strfry's LMDB above, the control panel keeps its own application-level LMDB (the `lmdb` npm package) at `~/.tapestry/lmdb` inside the container, holding derived per-node JSON keyed by each node's `tapestryKey`. It is **not** mapped to a named volume — a rebuildable cache, not a source of truth — so don't confuse it with strfry's event store. See §29.
+
 ### Data Flow
 
 ```
@@ -203,7 +221,7 @@ Client ──wss://relay──→ nginx ──→ nip50-proxy ──search──
 
 | Label | Source | Description |
 |-------|--------|-------------|
-| `NostrEvent` | All events | Base label for any imported nostr event |
+| `NostrEvent` | All events; event-less nodes | Base label for any imported nostr event — and for an **event-less node**: one that holds an event-form `uuid` (a-tag address) with no event behind it, i.e. no `id` property (e.g. a set made by `add-subset`, node-primitives ADR 0001). "No `id`" is a fact about the node, not §30's provenance marking, which remains open |
 | `ListHeader` | kind 9998/39998 | DList header |
 | `ListItem` | kind 9999/39999 | DList item |
 | `ClassThreadHeader` | Derived | A node that initiates a class thread (concept definition) |
@@ -290,6 +308,17 @@ ConceptHeader ──IS_THE_CONCEPT_FOR──→ Superset ──IS_A_SUPERSET_OF�
 (animal)──→(allAnimals:Superset)──→(allDogs:Superset)──→(allSheepDogs:Superset)──→(rover:ListItem)
 ```
 
+### Graph-embedding convention (Tapestries)
+
+A **Tapestry** (`39998:<TA>:tapestry`) is a subset of Graph — "a graph of concept graphs." Its elements are self-describing: a tapestry element (kind-39999) carries a top-level **`graph`** block alongside `tapestry` — and, since tapestries #7 (ADR 0007), newly authored elements also carry a top-level **`word`** section (`{slug, name, wordTypes}`, mirroring the word deriver's defaults). Legacy elements may lack `word`; readers must tolerate both shapes, and the republish builders pass unknown top-level sections through without retrofitting:
+
+- `nodes` — the member concepts / supersets / synthetic property nodes (`{slug, uuid?, name?}`)
+- `relationshipTypes` — `{slug (semantic, e.g. CLASS_THREAD_PROPAGATION), alias (Neo4j edge label, e.g. IS_A_SUPERSET_OF)}`
+- `relationships` — the asserted integrations `{nodeFrom, relationshipType, nodeTo}` (referenced by slug)
+- `imports` — the member concepts' `*-concept-graph` core nodes, resolved at read time
+
+The Tapestries UI (§13) renders this **as-authored**: it reads the element — and resolves its `imports` — from **strfry** (the shipped read-side convention, ADR tapestries/0001). Authoring, however, is **brain-first** since tapestries #7 (ADR 0007, per §30): the shared publish endpoint imports the instance's *own* tapestry letters into Neo4j in the same request — ListItem label, `HAS_ELEMENT` placement, `tapestryKey`, derived LMDB doc — so owner-authored elements exist in the brain from creation. (The earlier "a reconcile drops tapestry elements" reading, `OPEN.md` #88, was a misdiagnosis — no pruning mechanism ever existed; elements were simply never written to Neo4j. See #136.) Flipping the *read* source to the brain awaits the general letter ingest (#136 stage 2); third-party letters still publish permissionlessly and are not brain-imported until that ingest defines provenance. The curator-facing authoring UX remains an open product question — see `engineering-team/audits/tapestries/prd-seed.md`.
+
 ---
 
 ## 7. Firmware
@@ -346,6 +375,8 @@ Triggered via the Dashboard "Install Tapestry firmware" button or `POST /api/fir
 ## 8. Word-Wrapper JSON Format
 
 **The format is specified in [protocols/drafts/tapestry-concepts.md](protocols/drafts/tapestry-concepts.md) → "The word-wrapper format" — normative** (structure, the `word` block, type-specific keys, worked examples). In this codebase, all core nodes and firmware concepts carry word-wrapper JSON in their `json` tag; firmware schemas validate it at install time (§7).
+
+A node's `json`-tag value may be held **inline** (as above) or **offloaded** to the derived-JSON LMDB store as an `lmdb:<tapestryKey>` pointer, resolved transparently on read (§29). That is a local storage detail; the wire format is unchanged.
 
 ---
 
@@ -409,6 +440,11 @@ Base URL: `http://localhost:8080`
 | POST | `/api/normalize/create-property` | Create a property for a concept |
 | POST | `/api/normalize/generate-property-tree` | Generate property tree from JSON Schema (idempotent) |
 | POST | `/api/normalize/prune-superset-edges` | Prune redundant direct Superset edges |
+| POST | `/api/normalize/add-relationship` | Add ONE typed edge `(fromUuid)-[relType]->(toUuid)` between two existing nodes — strfry-free reference-graph edit; owner-gated; relType whitelist `HAS_ELEMENT`/`IS_A_SUPERSET_OF` (either spelling); idempotent (`created`/`already-existed`); graph-changing success carries a firmware-install-overwrite hazard `note` |
+| POST | `/api/normalize/delete-relationship` | Delete that same single typed, directed edge — same gate/whitelist/idempotency (`deleted`/`not-found`), same hazard `note` |
+| GET | `/api/normalize/relationship-primitives` | Read-only, credential-free deployment probe advertising the two primitives (registration evidence, not health) |
+| POST | `/api/normalize/add-subset` | Create an **event-less** Set under an existing Superset or Set — Neo4j only: nothing signed, nothing stored in strfry (node-primitives ADR 0001); owner-gated; body `{parentUuid, name, description?}`; registers the set under the `set` concept; idempotent by name under the parent, lettered sets included (`created`/`already-existed`); 404 missing parent, 400 parent neither Superset nor Set, 409 address already held; `created` carries a durability `note` (only a Neo4j backup preserves the set) |
+| GET | `/api/normalize/node-primitives` | Read-only, credential-free deployment probe advertising the node primitives (`add-subset`) |
 | POST | `/api/normalize/add-node-as-element` | Wire an existing node as element of a concept |
 | POST | `/api/normalize/link-concepts` | Create IS_A_SUPERSET_OF between concepts |
 | POST | `/api/normalize/enumerate` | Create ENUMERATES relationship |
@@ -682,11 +718,12 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 │       ├── elements/             Element list
 │       │   ├── new               Create element
 │       │   ├── add-node          Add existing node as element
-│       │   └── :elemUuid         Element detail
+│       │   └── :elemUuid         Element detail (owner: Placements panel — move/add/remove)
 │       ├── properties/           Property list
 │       │   └── new               Create property
-│       ├── dag/                  Organization (Sets) view
-│       │   └── new-set           Create set
+│       ├── dag/                  Organization (Sets) view (owner: per-row Place/move…)
+│       │   ├── new-set           Create set
+│       │   └── :setUuid          Set detail — supersets/subsets/elements (owner: add to set, remove direct placements)
 │       ├── visualization         Graph visualization (placeholder)
 │       └── schema                JSON Schema editor
 ├── lists/                        Simple Lists (raw DList browser)
@@ -708,6 +745,9 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 ├── users/                        Nostr user directory
 │   ├── search                    Profile search (admin, backend)
 │   └── :pubkey                   User profile
+├── tapestries/                   Tapestries — View Tapestries directory (elements of the tapestry concept, read from strfry)
+│   ├── new                       Create New Tapestry (inert placeholder; create/edit authoring deferred)
+│   └── :uuid                     Tapestry Exploration — concept sidebar + integration graph + enum/element/subset tables + JSON (as-authored: element graph block + resolved imports)
 ├── io/
 │   ├── import                    Import tools
 │   └── export                    Export tools
@@ -1038,7 +1078,7 @@ Every owner, admin, and customer has an **assistant** — a server-side nostr id
 - Uses the same NIP-07 publish flow as `customer.html`: `POST /api/create-unsigned-kind10040` → NIP-07 sign → `POST /api/publish-signed-kind10040`.
 - The `create-unsigned-kind10040` endpoint defaults to the session pubkey when no explicit pubkey is provided, so the owner doesn't need to pass one.
 
-**TA designation on kind 10040 (target — `community-reference` ADR 0031; not yet wired).** A user's kind-10040 event MAY carry a `["39998:dlist-header", "<TA-pubkey>", "<relayURL>"]` entry designating their Tapestry Assistant as the authoring provider for their kind-39998 DList/concept headers — the npub-rooted way to discover a user's TA pubkey. The normative wire form, backward-compat, and the **dual-author header precedence rule** (personal-authored header wins; else the TA-authored header; never recency; freshness via an inherit-typed `b` delegation) are specified in [protocols/drafts/assistant-designation.md](protocols/drafts/assistant-designation.md). **Status today:** the 10040 generators do not yet emit this entry (they rebuild the full tag list from config; a merge-preserve fix is required) and no resolver applies the precedence rule — both are future engineering stories.
+**TA designation on kind 10040 (target — `community-reference` ADR 0031; not yet wired).** A user's kind-10040 event MAY carry a `["39998:dlist-header", "<TA-pubkey>", "<relayURL>"]` entry designating their Tapestry Assistant as the authoring provider for their kind-39998 DList/concept headers — the npub-rooted way to discover a user's TA pubkey. The normative wire form, backward-compat, and the **dual-author header precedence rule** (personal-authored header wins; else the TA-authored header; never recency; freshness via an inherit-typed `b` delegation) are specified in [protocols/drafts/assistant-designation.md](protocols/drafts/assistant-designation.md). The same draft specifies **per-DList curation entries** (`dlist-curation` ADR 0002): `["<kind>:<d-tag>", "<assistant-pubkey>", "<relayURL>"]`, kind 39998 or 39999, addressing the assistant-authored header `<kind>:<assistant>:<d-tag>` that curates a community DList via its `b` tag; `dlist-header` is reserved for the blanket entry. **Status today:** the 10040 generators do not yet emit the blanket entry, and no resolver applies the precedence rule — the resolver is a future engineering story; the generators now **merge-preserve** (`dlist-curation` #7, 2026-09-10 — `src/lib/treasureMapMerge.js`: every non-`30382:*` tag survives regeneration), so an entry, once on the Map, is no longer clobbered; per-DList entries are wired (`dlist-curation` #4–#6, 2026-09-10: `POST /api/dlist-curation/header`, the DList Curation panel, the Map Entries class).
 
 ### Router Presets
 
@@ -1378,6 +1418,9 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Follows-hops **path page** + HOPS link activation (2026-06-17, staging) — the HOPS stat becomes a link to a new **`/user/:pubkey/follows-hops`** page showing one shortest follow-path as a vertical chain of profile cards (picture, name, Owner-PoV rank = `round(influence×100)`), ordered source→target, with a **re-roll** button that swaps in a random one of the equally-short paths (shown only when >1 exists). Backed by new public `GET /api/get-follows-hops-paths` (`allShortestPaths`, cap 20, `LIMIT 25`, returning up to 25 ordered `[{pubkey,influence}]` paths + a `truncated` flag); the client re-rolls client-side over the returned set. profile #39, ADR `profile/0035`. On staging; held with #38.
 - ✅ Note surfaces — profile "Content" section + per-user `/user/:pubkey/notes` (2026-06-19, staging) — two read-only surfaces showing a *viewed user's own* kind-1 notes (no follow list, no PoV), reusing the shared `NoteCard` + `enrichNotes` seam (§13): a **"Content"** section at the bottom of `/user/:pubkey` showing the single most-recent note (empty state when none located) + a link, and a **`/user/:pubkey/notes`** page showing the 50 most-recent. New by-author read path **`GET /api/user/:pubkey/notes?limit=`** (`src/api/notes/userNotesReadPath.js`; `status` OK/EMPTY/INVALID; notes from the general-purpose relays, enriched from local kind-0). Additive; no firmware/ranking/search change. epic `note-surfaces`, ADRs `note-surfaces/0001` (read path) + `0002` (surfaces). Staging only; prod promotion not yet done.
 - ✅ Event page — working `/event` single-event view (2026-06-19, staging) — replaces the placeholder. Resolves **kind-1** from six identifier formats (**nevent, id, naddr, pubkey, npub, nprofile**; precedence in that order), with a search-field fallback when no valid param. `nevent`/`id` → fetch the event (non-kind-1 → "kind N not yet supported"; fails verification → "does not validate"; valid → render like `/feed`); `pubkey`/`npub`/`nprofile` → the author's most-recent kind-1; `naddr` → "kind N not yet supported" from the coordinate (no fetch). New **`GET /api/event`** (`src/api/event/eventReadPath.js`): relay **union** = embedded hints + the author's NIP-65 (kind-10002) **outbox** write relays + well-known set/fallback; on-fetch `verifyEvent` (via a no-verify pool so the distinct does-not-validate outcome is reachable) + kind-gate; reuses `enrichNotes`. Introduced `src/api/_shared/relaySource.js` (extracted relay-sourcing; feed/user-notes re-point deferred — `follow-ups.md`). Additive; no firmware change. epic `event-page`, ADRs `event-page/0001` (read path) + `0002` (page UI). Staging only; prod promotion not yet done.
+- ✅ Tapestries — browse & explore (2026-07-24, prod) — a public, read-only surface for **Tapestries** (curated collections of concepts; a Tapestry is a subset of Graph — "a graph of concept graphs"). A "🧵 Tapestries" nav group under Nostr Users → **View Tapestries** (directory of every element of the `tapestry` concept) + **Create New Tapestry** (inert placeholder; create/edit authoring deferred). Each row opens a per-tapestry **Exploration page** (`/tapestry/tapestries/:uuid`) modeled on the Firmware Explorer's read-only views — concept sidebar + vis-network integration graph + enumerations/elements/subsets tables + JSON viewer — rendered **as-authored** from the element's own `graph` block plus one-level-resolved `imports` (see §6 "Graph-embedding convention"). Reads tapestry elements from **strfry** via the existing `GET /api/strfry/scan` (not Neo4j — a reconcile drops tapestry elements; `OPEN.md` #88); additive, **no new backend/endpoints, no new deps** (vis-network already bundled); route by uuid (a-tag coordinate). epic `tapestries` (stories #1–#2), ADRs `tapestries/0001` (strfry read) + `0002` (as-authored render). Shipped staging (#438) + prod (#440).
+- ✅ Brain-first tapestry authoring (2026-08-05, staging) — tapestry authoring writes the brain, per §30: a scoped post-import hook in `POST /api/strfry/publish` imports the instance's **own** tapestry letters (kind-39999, z-tagged to this instance's `tapestry` concept, authored by the TA or owner — both runtime-resolved) into Neo4j in the same request — event node + tags, `ListItem` label, `HAS_ELEMENT` placement under the tapestry Superset, `tapestryKey` (assigned once, §29), and the derived LMDB doc (cache invalidated pre-derive so republishes re-derive from the brain's fresh json). Response gains an additive `brainWrite` field; a hook failure is reported alongside publish success, never conflated (the letter cannot be unsent). Create drafts now author **`word`** alongside `tapestry`+`graph` (§6); republish builders pass it through and never retrofit legacy letters. Third-party client-signed publishing stays permissionless with **no** brain import (stage-2 ingest's lane, OPEN.md #136). Ends the split-brain where View Tapestries (strfry) listed tapestries the concept's Elements view (Neo4j) said didn't exist. epic `tapestries` story #7, ADR `tapestries/0007`. Staging via PR #489; prod held with the #131 batch.
+- ✅ The Self and Its Keys — BIBLE §31 (2026-08-05, staging) — ratifies the instance-identity doctrine (worksheet W15, graduated): the instance is its own person and the **TA pubkey is its key**; the Owner is a distinct, maximally-trusted **correspondent** whose letters enter the brain only by explicit absorption (re-mint or TA-authored pointer, chosen per feature); every first-person query answers `authors:[TA]`. External readers resolving a *human's* headers keep assistant-designation's personal-wins rule byte-unchanged (ratified as a custody-asymmetry security posture); the tapestries-#7 owner lane is ruled an eager near-term absorption, with stage-2 ingest (OPEN.md #136) inheriting the general provenance lane — no permanent "counts as me" carve-out. Docs-only: no code, no wire format, no firmware change. epic `self-ontology` story #2, ADR `self-ontology/0002`. F0 of the `shared-concepts-adoption` book.
 
 ### CLI (tapestry-cli repo)
 
@@ -1502,7 +1545,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **Trust Assertions (TAs)** | Kind 30382 nostr events published by a `rankAuthor` that assign trust scores (rank, followers, etc.) to other pubkeys. Synced via negentropy and loaded into Meilisearch for WoT-powered search. |
 | **Warm Start** | An opt-in GrapeRank initialization mode that seeds scorecards from previously-computed scores instead of `[0,0,0,0]`. Three sources in tiered fallback: `self` (customer's own prior scores), `owner` (owner's `NostrUser` scores when the owner is within 3 directed FOLLOWS hops downstream of the customer), and `cold` (no seed available; legacy behavior). Typically cuts customer GrapeRank runtime from ~20 min to ~5 min. |
 | **Word-wrapper** | The canonical JSON format where every node's data includes a `word` section plus type-specific sections. |
-| **b tag** | Single-char **typed** pointer on a kind-39998/39999 event: `["b","<target-a-tag>","<type>"]`, type registry `"pointer"` \| `"inherit"` (absent type = `"pointer"`, fail-safe). Child-claims-parent. `"inherit"` — "my definition is the parent's, unless I override" → `(child)-[:INHERITS_FROM]->(parent)`; `"pointer"` — correspondence only, no deference → `REFERENCES {source:'b-tag'}`. ADR 0027 as amended by `community-reference` ADR 0029. See §25. |
+| **b tag** | Single-char **typed** pointer on a kind-39998/39999 event: `["b","<target-a-tag>","<type>"]`, type registry `"pointer"` \| `"inherit"` \| `"inherit-items"` (absent or unknown type = `"pointer"`, fail-safe). Child-claims-parent. `"inherit"` — "my definition is the parent's, unless I override" → `(child)-[:INHERITS_FROM]->(parent)`; `"pointer"` — correspondence only, no deference → `REFERENCES {source:'b-tag'}`; `"inherit-items"` — "my list's items are the parent's, plus my own" (additive, v1) → `(child)-[:INHERITS_ITEMS_FROM]->(parent)` (target; derivation not yet updated — `dlist-curation` ADR 0003). ADR 0027 as amended by `community-reference` ADR 0029 and `dlist-curation` ADR 0003. See §25. |
 | **z-tag** | The `z` tag on a ListItem that points to its parent concept's a-tag. Fundamental parent pointer. Deliberately-published items MAY carry multiple `z` stamps (Tapestry-layer position vs the base NIP's one-`z` recommendation — `community-reference` ADR 0029; see §5 and the tapestry-concepts spec). |
 
 ---
@@ -1523,7 +1566,7 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 
 **Accepted compromise (Flaw A) and its exit.** A firmware-baked pointer is a *centralized* editorial choice (the dev team picks the blessed curator pubkey — currently the reference deployment's TA). Accepted **temporarily**; the exit is the **registry-as-DList**: the per-concept pointer itself becomes a community-curated, Grapevine-ranked DList, retiring the hardcoded choice. `community-reference` ADR 0030 consciously **widens** the compromise as the cold-start tier only: every **manifest** firmware concept MAY carry a `communityReference` (per-concept explicit `headerATag` entries; mixed curators per concept possible; runtime-created concepts deferred — no blessing path exists). The widening does not strengthen the tier: seeds are `"pointer"`-typed (ADR 0029), so they carry **zero consensus weight** — the grapevine tier's ability to supersede the firmware tier is unimpaired and measurable.
 
-**Candidate exit mechanism — the `b` / `INHERITS_FROM` tag (ADR 0027).** A `b` tag (§25) is a published, `#b`-queryable, per-pubkey pointer naming a preferred definition. Aggregating a concept's **incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV**, yields "which definition my web of trust loosely agrees on" — exactly the `grapevine-resolved` selector above. This makes `b`-edges a **candidate mechanism** for the registry-as-DList exit. Recorded as candidate only; the registry design is not ratified here (a future ADR in the 0006 line). Per `community-reference` ADR 0029, this consensus aggregation counts **inherit-typed** edges only — pointer-typed `b` tags derive `REFERENCES`, not `INHERITS_FROM`, and carry zero consensus weight in v1; discovery walks (enumerating correspondents, not deferrers) include both types.
+**Candidate exit mechanism — the `b` / `INHERITS_FROM` tag (ADR 0027).** A `b` tag (§25) is a published, `#b`-queryable, per-pubkey pointer naming a preferred definition. Aggregating a concept's **incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV**, yields "which definition my web of trust loosely agrees on" — exactly the `grapevine-resolved` selector above. This makes `b`-edges a **candidate mechanism** for the registry-as-DList exit. Recorded as candidate only; the registry design is not ratified here (a future ADR in the 0006 line). Per `community-reference` ADR 0029, this consensus aggregation counts **inherit-typed** edges only — pointer-typed `b` tags derive `REFERENCES`, not `INHERITS_FROM`, and carry zero consensus weight in v1; discovery walks (enumerating correspondents, not deferrers) include every type (`dlist-curation` ADR 0003 added `inherit-items`).
 
 **Invariants & principles.**
 1. *Relay invariant:* concept export and `communityReference.relayHints` must target the same relay set (the purpose-built DList relay, not general-purpose relays) or the round-trip cannot close.
@@ -1586,12 +1629,12 @@ The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) tr
 
 ## 25. The Inherit-From Tag (`b`)
 
-**The wire format and resolution semantics are specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) — normative:** the `b` tag (three-element form, kinds 39998/39999), the element-3 **type registry** (`"pointer"` \| `"inherit"`; absent type reads as `"pointer"`, fail-safe), type-gated derivation, multi-parent semantics, the `INHERITS_FROM` derived relationship and its no-flip direction, the resolution algorithm, trust-coupling, and the editorial-relationship family contrast. Established by ADR 0027 (ADR 0006/0011 lineage), as amended by `community-reference` ADR 0029 (type registry). This section covers how this codebase implements it.
+**The wire format and resolution semantics are specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) — normative:** the `b` tag (three-element form, kinds 39998/39999), the element-3 **type registry** (`"pointer"` \| `"inherit"` \| `"inherit-items"`; absent or unknown type reads as `"pointer"`, fail-safe), type-gated derivation, multi-parent semantics, the `INHERITS_FROM` / `INHERITS_ITEMS_FROM` derived relationships and their no-flip direction, the resolution algorithms (definition fields; item set — additive, v1), trust-coupling, and the editorial-relationship family contrast. Established by ADR 0027 (ADR 0006/0011 lineage), as amended by `community-reference` ADR 0029 (type registry) and `dlist-curation` ADR 0003 (the `inherit-items` facet). This section covers how this codebase implements it. **Status today for the facet:** `buildImportCypher` gates on the literal `inherit` (`src/api/neo4j/eventSync.js`), so an `inherit-items` tag derives the pointer form until the derivation is updated (intake entry 2026-09-10); no item-set resolver exists yet.
 
 - **Neo4j edges (type-gated, ADR 0029; implemented — `community-reference` ADR 0034):** an explicitly **inherit-typed** `b` tag derives `(child)-[:INHERITS_FROM]->(parent)` — a canonical, asserted relationship: unlike the concept-level `REFERENCES` variants and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**. A **pointer-typed** (or untyped) `b` tag derives `(child)-[:REFERENCES {source:'b-tag'}]->(target)` instead — asserted and wire-derived, subject to §22's collision contract. Both are materialized in `buildImportCypher` (the strfry→Neo4j import chokepoint, so derivation runs on install *and* ongoing sync); the type-gate keys on the explicit string `"inherit"` (never "not pointer"). See §6 for the editorial-relationship family in the data model.
 - **First consumer:** the Communities Protocol's participant-affiliation pointer (`affiliation` → `b` with type `inherit`); the primitive is **not** community-specific. The explicit `inherit` type is **load-bearing** — an absent type reads as `"pointer"` and confers no deference. Affiliation = membership in the inherit-only deference closure; a pointer-typed link breaks the chain (ADR 0029).
 - **Trust gating:** PoV/GrapeRank re-gate visibility on every resolution.
-- **Walk mechanics:** the bounded-walk pattern (maxDepth, visited-set) reuses ADR 0010/0011; resolution walks traverse inherit-typed `b` tags only, while discovery walks include both types (ADR 0029). See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
+- **Walk mechanics:** the bounded-walk pattern (maxDepth, visited-set) reuses ADR 0010/0011; resolution walks traverse inherit-typed `b` tags only, while discovery walks include every type (ADR 0029, extended by `dlist-curation` ADR 0003). See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
 
 ---
 
@@ -1671,7 +1714,7 @@ See ADR 0033 for the ratification decision (the normative/aspirational split) an
 
 ## 28. Open Ranking (ORE) Provider
 
-Brainstorm exposes its web of trust over **[Open Ranking](https://github.com/Open-Ranking/protocol)** (ORE) — an external, MIT-licensed HTTP/JSON protocol for reputation/ranking/discovery on nostr. ORE is a **second, complementary export** alongside the NIP-85 (kind 30382/10040) publication: the *same* underlying GrapeRank / Neo4j / Meili data, but a **pull, request/response HTTP interface** for clients that don't speak the nostr relay protocol. It does **not** replace NIP-85 (which stays the signed, relay-native, independently-verifiable channel); ORE adds ad-hoc query patterns NIP-85 structurally can't serve (search by text; stats for an arbitrary pubkey). ORE is an external spec we *consume*, so it's documented here (per `protocols/README.md`'s boundary rule), not as a `protocols/` pre-NIP. Established by ADRs `open-ranking/0001` (provider + stats) and `open-ranking/0002` (search); book `engineering-team/audits/open-ranking/`.
+Brainstorm exposes its web of trust over **[Open Ranking](https://github.com/Open-Ranking/protocol)** (ORE) — an external, MIT-licensed HTTP/JSON protocol for reputation/ranking/discovery on nostr. ORE is a **second, complementary export** alongside the NIP-85 (kind 30382/10040) publication: the *same* underlying GrapeRank / Neo4j / Meili data, but a **pull, request/response HTTP interface** for clients that don't speak the nostr relay protocol. It does **not** replace NIP-85 (which stays the signed, relay-native, independently-verifiable channel); ORE adds ad-hoc query patterns NIP-85 structurally can't serve (search by text; stats for an arbitrary pubkey). ORE is an external spec we *consume*, so it's documented here (per `protocols/README.md`'s boundary rule), not as a `protocols/` pre-NIP. Established by ADRs `open-ranking/0001` (provider + stats) and `open-ranking/0002` (search), book `engineering-team/audits/open-ranking/`; batch rank added by ADR `ore-parity/0001` and followers/muters by ADR `ore-parity/0002`, book `engineering-team/audits/ore-parity/`.
 
 ### Surface (as-built)
 
@@ -1681,7 +1724,10 @@ Public, read-only, **unauthenticated, unsigned**. All routes live **off the `/ap
 |---|---|---|---|
 | GET | `/.well-known/open-ranking.json` | ORE-01 | Capability document — a JSON object keyed by endpoint path → arrays of Algorithm Objects (first element = default). |
 | POST | `/stats/pubkey` | ORE-02 | `{ pubkey, rank, hops, followers, muters, reporters, follows, mutes, reporting, pagerank }` — inbound (followers/muters/reporters) **verified**; outbound (follows/mutes/`reporting`) exact totals; `pagerank` raw; no `ttl`. |
+| POST | `/rank/pubkeys` | ORE-03 | `{ results: [{ pubkey, rank }] }` — batch rank of the supplied pubkeys (≤1000, duplicates collapsed), ranked desc, capped at `limit` (default = batch size, over-size silently clamped); every requested pubkey ranked, unknown → 0; no `ttl`. |
 | POST | `/search/pubkeys` | ORE-05 | `{ results: [{ pubkey, rank }] }` — free-text profile search, ranked desc, capped at `limit` (no `ttl`). |
+| POST | `/followers` | ORE-06 | `{ results: [{ pubkey, rank }], total }` — the target's **verified** followers ranked by their own global GrapeRank, desc; ≤`limit` (default 50, max 1000 → over `422`); `total` = live verified-set cardinality; unknown target → `200` empty (no 404); no `ttl`. |
+| POST | `/muters` | ORE-07 | Same contract as `/followers` over the mute graph (verified muters). |
 
 Each endpoint advertises a **global** algorithm `graperank` (`pov:false`, the default); `/stats/pubkey` additionally advertises a **personalized** `graperank-personalized` (`pov:true`). Personalized *search* is deferred (below). (Algorithm ids were renamed `grapevine`→`graperank` by ADR 0003, to match the GrapeRank algorithm and the kind-30382 metric vocabulary.)
 
@@ -1690,15 +1736,17 @@ Each endpoint advertises a **global** algorithm `graperank` (`pov:false`, the de
 ORE's `pov` is §27's PoV machinery. The **global `graperank`** is the instance's **owner-anchored** view, but it is read from a different store per endpoint:
 
 - **Stats** → **Neo4j**: `fetchProfileScores(pubkey, observerPubkey:'owner')` reads the `NostrUser` node — the **Owner PoV** (§27) — with `rank = round(influence × 100)`. The response also carries `hops`, raw `pagerank` (personalizedPageRank under the active POV), the **verified** inbound counts (`followers`=verifiedFollowerCount, `muters`=verifiedMuterCount, `reporters`=verifiedReporterCount, mirroring kind-30382), and the exact **outbound** totals `follows`/`mutes`/`reporting` (ADR 0003/0004 — "total" inbound is unknowable, so verified is the line; the outbound report count is named `reporting`, not ORE's *inbound* `reports`).
+- **Batch rank** → **Neo4j**: one `UNWIND` over the same owner-baseline `NostrUser.influence` that stats reads (`rank = round(influence × 100)` — the two endpoints agree by construction); `OPTIONAL MATCH` + `COALESCE` ranks unknown pubkeys 0 (ORE-03's every-pubkey rule). One round trip per batch (`fetchInfluences`, `src/api/open-ranking/rank.js`).
+- **Followers / muters** → **Neo4j**: live top-N + live count over the inbound `FOLLOWS`/`MUTES` edges filtered by the per-edge verified cutoffs (`VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF` / `VERIFIED_MUTERS_INFLUENCE_CUTOFF`, bound as `$cutoff`), each row ranked by the *follower's/muter's own* influence, ties broken `pubkey ASC`; both statements under the `NEO4J_QUERY_TIMEOUT_MS` deadline (`fetchVerifiedInbound`, `src/api/open-ranking/inbound.js`). `total` is the live count from the same scan — it can drift from `/stats/pubkey`'s batch-written `verified*Count` properties between recomputes (ADR ore-parity/0002 Option C, deliberate).
 - **Search** → **Meili**: ranks by the owner's `wot_rank_<ownerSuffix>` column (`ownerSuffix = getOwnerAssistantPubkey().slice(0,8)` — the runtime TA helper, never hardcoded) via `nostr-search-api` with `sort=wot_rank_<ownerSuffix>:desc`; `rank` floors to 0 for unscored profiles. This is the kind-30382 → Meili read of §27, keyed to the owner's own delegated suffix.
 
 The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's **main pubkey** (`observer_pubkey`), Meili columns by the **delegated-key suffix** — which is the open seam recorded in worksheet **W13**.
 
-**Personalized `graperank-personalized`** (stats only): the request `pov` is used directly as the Neo4j `observer_pubkey`, served **only for a provisioned PoV** — `isPovProvisioned(pov)` = (`pov === owner`) OR a `NostrUserWotMetricsCard {observer_pubkey: pov}` exists. An unprovisioned `pov` returns **`422` + `X-Reason: pov not provisioned`**, never a silent fallback to the owner view (the architecture-invariant rule: a global answer must not be presented as the caller's personal one).
+**Personalized `graperank-personalized`** (stats only): the request `pov` is used directly as the Neo4j `observer_pubkey`, served **only for a provisioned PoV** — `isPovProvisioned(pov)` = (`pov === owner`) OR a `NostrUserWotMetricsCard {observer_pubkey: pov}` exists. An unprovisioned `pov` returns **`422`** with an `X-Reason` that explains the unavailability and names the endpoint's default global algorithm (the `pov not provisioned:` prefix is kept for log continuity), never a silent fallback to the owner view (the architecture-invariant rule: a global answer must not be presented as the caller's personal one). Upstream contract draft: `protocols/upstream/ore-01-pov-unavailable.md`.
 
 ### Conventions (ORE-00, as-built)
 
-64-char-lowercase-hex pubkeys (npub rejected → `422`); `application/json` in/out; `Access-Control-Allow-Origin: *` on every response incl. errors; errors via HTTP status (`400` malformed JSON, `422` validation/algorithm/pov) + a human-readable `X-Reason` header; no `ttl` (dropped, ADR 0004); a `pov` sent to a global algorithm is **ignored**. Reads are synchronous → success is always `200` (no `202`/`Retry-After`). **`OPTIONS` preflight returns a `2xx` (204) via the platform's global CORS**, not a strict ORE-00 `200` — a documented cosmetic deviation (a strict-200 shim is a deferred follow-up). The outbound search call is bounded by `AbortSignal.timeout(5000)`.
+64-char-lowercase-hex pubkeys (npub rejected → `422`); `application/json` in/out; `Access-Control-Allow-Origin: *` on every response incl. errors; errors via HTTP status (`400` malformed JSON, `413` batch over the `/rank/pubkeys` 1000-pubkey provider max, `422` validation/algorithm/pov) + a human-readable `X-Reason` header; no `ttl` (dropped, ADR 0004); a `pov` sent to a global algorithm is **ignored**. Reads are synchronous → success is always `200` (no `202`/`Retry-After`). **`OPTIONS` preflight returns a `2xx` (204) via the platform's global CORS**, not a strict ORE-00 `200` — a documented cosmetic deviation (a strict-200 shim is a deferred follow-up). The outbound search call is bounded by `AbortSignal.timeout(5000)`.
 
 ### Security — personalized-stats enumeration oracle
 
@@ -1707,11 +1755,133 @@ The `graperank-personalized` **stats** path is an **unauthenticated provisioning
 ### Deferred
 
 - **Personalized search** (`graperank-personalized` on `/search/pubkeys`) — needs a server-side **main→delegated PoV resolver** to bridge the two stores (worksheet **W13**); planned as `open-ranking` Story 3.
-- **ORE-A / Nostr Web Token (kind 27519) auth**; the other ORE endpoints (`/rank/pubkeys`, `/recommend/pubkeys`, `/followers`, `/muters`, `/compromised/pubkeys`); a standard PoV-availability mechanism / upstream ORE proposal (W12).
+- **ORE-A / Nostr Web Token (kind 27519) auth**; the remaining ORE endpoints (`/recommend/pubkeys`, `/compromised/pubkeys` — unplanned); a standard PoV-availability mechanism / upstream ORE proposal (W12).
 
 ### Deployment
 
-Live on **`staging.brainstorm.world`**: ORE-01 + ORE-02 via [apps#318](https://github.com/nous-clawds4/tapestry/pull/318) (2026-06-18); ORE-05 via [apps#322](https://github.com/nous-clawds4/tapestry/pull/322) (2026-06-19). **Not on production** (the personalized-stats gate above must be resolved first). Sources: ADRs `engineering-team/decisions/open-ranking/0001`–`0002`; book `engineering-team/audits/open-ranking/`; worksheet W12/W13.
+Live on **`staging.brainstorm.world`**: ORE-01 + ORE-02 via [apps#318](https://github.com/nous-clawds4/tapestry/pull/318) (2026-06-18); ORE-05 via [apps#322](https://github.com/nous-clawds4/tapestry/pull/322) (2026-06-19). **Also live on production (`tapestry.brainstorm.world`)** — the earlier "not on production" hold was resolved when ADR `open-ranking/0005` shipped the personalized-stats gate OFF by default (W12 gates *opening personalization*, not the global surface); both instances verified serving the ORE surface 2026-08-15. Sources: ADRs `engineering-team/decisions/open-ranking/0001`–`0002`; book `engineering-team/audits/open-ranking/`; worksheet W12/W13.
+
+---
+
+## 29. Derived-JSON Store: tapestryKey and the tapestry-store LMDB
+
+> **Status: in progress.** This layer is scaffolded and wired, but the migration into it is **not** complete — most node JSON is still stored inline in the `json` tag (§8). Read this section as describing an in-flight subsystem, not a settled state.
+
+Separate from strfry's internal LMDB event store (§4), the control panel keeps its **own** application-level LMDB key-value store — the [`lmdb`](https://www.npmjs.com/package/lmdb) npm package — for **serialized / derived per-node representations**. This is the "tapestry-store". It is unrelated to strfry's LMDB beyond both happening to use the LMDB library.
+
+**Where it lives.** `src/lib/tapestry-store.js` opens a singleton LMDB at `process.env.TAPESTRY_LMDB_PATH || ~/.tapestry/lmdb` (compression on, 256 MB map). Inside the container that resolves under `/root/.tapestry/`, which is **not** mapped to a named Docker volume (§4) — so it is a **rebuildable cache**: lost on container *recreation* and repopulated by the derive engine, never a source of truth.
+
+**Keying — the `tapestryKey` node property.** Each Neo4j node carries a `tapestryKey` (a v4 UUID, assigned once and never changed) that **is** the LMDB key. `POST /api/tapestry-key/initialize` stamps `SET n.tapestryKey` on every node lacking one, and the firmware install does the same (`src/firmware/install.js`, "assign tapestryKeys to all nodes"). Stored values are envelopes: `{ updatedAt, rebuiltFrom?, data }`. A companion `tapestryJsonUpdatedAt` timestamp is written back onto the node whenever the LMDB entry is (re)written.
+
+**The `lmdb:` pointer convention.** Any string property value may hold either the inline value **or** a pointer of the form `lmdb:<tapestryKey>`. `src/lib/tapestry-resolve.js` (`isLmdbRef` / `toLmdbRef` / `resolveValue` / `resolveDeep`) resolves these transparently server-side; the client does the same via `ui/src/utils/lmdb.js`, which fetches `/api/tapestry-key/:key`. A reader gets the data whether it is inline or offloaded — so **resolve through this layer rather than reading a raw property**, since you cannot assume which form a given node uses.
+
+**Write / derive path.** `src/lib/tapestry-derive.js` computes derived JSON per node and calls `store.put(node.tapestryKey, data, …)`, then stamps `tapestryJsonUpdatedAt`. The "offload" endpoints (`POST /api/tapestry-key/offload`, `/offload-all`) take an inline `json`-tag value, write it into LMDB under the parent event's `tapestryKey`, and replace the tag value with the `lmdb:` pointer. The full API surface (`status` / `initialize` / `get` / `put` / `offload` / `resolve` / `derive`) lives in `src/api/tapestry-key/index.js`. All async `store.put` writes must be awaited before the node timestamp is written or the response is sent (regression-guarded by `test/tapestry-key-put-await.test.js`).
+
+**Relationship to the protocol (§5, §8).** Node content is still *specified* in the event's `json` tag (word-wrapper format); the tapestry-store is a **local storage optimization** over that content, not a wire-format change. a-tag addressing and the `json`-tag spec are unaffected.
+
+**Migration status (as of 2026-07).** Per the post-install dashboard (`README.md`), a minority of nodes still need a `tapestryKey` and most `json` tags remain inline in Neo4j — reported there as "harmless and expected for now". The offload is incremental and ongoing.
+
+---
+
+## 30. The Self and Its Stores
+
+**Tapestry is, first and foremost, a local-first personal knowledge graph.** The same data may live in several stores at once — Neo4j, the tapestry LMDB, local strfry, and external homes such as nostr relays or the filesystem. This section defines **which store holds the self**, and what each of the others is for. It governs the *identity* axis; it does not change any wire format. Which *key* speaks for the self is **§31**'s subject.
+
+### The ontology (ratified)
+
+| Store | Role | Notes |
+|---|---|---|
+| **Neo4j** | **The definitive "me."** | Complete, and mortal. A Neo4j backup restores the self in full. |
+| **tapestry LMDB** | **"Me," but a subordinate cache** — never a co-equal seat of self. | Derivable from Neo4j; see §29. |
+| **Signed nostr events** | **"Letters"** — authored by me, or received from peers. | The proof / communication / durability axis, **not** the identity substrate. |
+
+**Derivability ≠ identity.** Events sit at the bottom of the *derivation* stack (events → graph → cache), but that does not make them the seat of self. A letter is derivable from me; a letter is not me. The derivation axis and the identity axis are different axes.
+
+**Publishing is optional to selfhood.** A Neo4j write that is never published is a private thought; signing and publishing an event is writing and mailing a letter. A Tapestry instance may in principle operate without ever signing a single event. Consequently, unpublished state is **mortal and box-bound** — durability is provided deliberately (backup), never assumed.
+
+**The asserted core.** The minimal full representation of the self is **"me minus everything recomputable."** Recomputable material includes (non-exhaustively):
+
+- derived / implicit relationships, re-materializable from event structure and the normalization rules (§5–§6, §10);
+- WoT scores (GrapeRank / influence / verified counts), recomputable from the follow / mute / report graph;
+- JSON Schema documents, recomputable from a full property tree;
+- all tapestry-LMDB derived JSON, by definition (§29).
+
+This boundary is load-bearing: it scopes what a backup must preserve losslessly, and it bounds what a rebuild may legitimately touch.
+
+### How this relates to principles 1–3
+
+The architecture invariants in `CLAUDE.md` — POV-first, decentralized-first, filter-at-view-time — are **not repealed**. They continue to govern the **event and social axis unchanged**:
+
+- Accept **all** signed events. Publication is never gated at write time, and this section grants no license to reject events from unknown or untrusted authors.
+- Trust filtering stays at **read time, per POV**. There is still no global "the view."
+- A trusted peer's incoming event is often more authoritative than the local graph's current belief — that is what learning from peers *is*. It **updates** the brain; it does not replace the brain as the seat of self.
+
+On a multi-tenant instance, "me" is the **owner-POV slice**, not the whole database (§27). The ontology as stated targets the single-owner personal deployment.
+
+### Obligations this creates (binding; not yet enforced)
+
+**These are requirements the system must grow into. None of them is enforced today.** Each carries its current status; as the `self-ontology` epic lands, these statuses change.
+
+- **Provenance taxonomy.** Every node and edge is exactly one of: **asserted / locally-authored** (precious — survives every rebuild), **event-projection** (disposable — re-derivable from the local event archive), or **peer-received** (recorded, trust-weighted per POV).
+  *Status: no provenance marking exists. Representation, migration, and writer discipline are deferred.*
+- **Non-destructive rebuild invariant.** No pipeline — strfry→Neo4j import, the stream-consumer ETL, normalization, firmware reinstall (including `tapestryKey` re-initialization), reconciliation, or dev tooling — may destroy locally-authored state. **Interim rule until provenance exists: treat any state a rebuild cannot reproduce as precious by default.**
+  *Status: not enforced; the risk surfaces above are unaudited.*
+- **LMDB dual role.** One store, two non-overlapping purposes: **primary / ongoing** — a compact low-latency cache, lossy and partial *by right*; **secondary / intermittent** — a full lossless serialization produced for backup. The two modes must be **distinguishable**, so a cache entry is never mistaken for backup-grade data (§29).
+  *Status: only the cache mode exists; live instances report `derived: 0`. The serialization mode is unbuilt.*
+- **Coverage.** A set of derived documents **covers** the graph iff every node and edge is losslessly represented in at least one document and the set reassembles the graph exactly. **Coverage is distinct from normalization:** the normalization rules (§10) guarantee the graph's internal consistency, not the completeness of the deriver set.
+  *Status: today's derivers cover only concept-graph labels (Set, Superset, ListItem, ListHeader, ConceptHeader, JSONSchema, Property) — not the NostrUser / FOLLOWS / MUTES / REPORTS social graph.*
+
+### Deliberately open
+
+Not yet decided. These are this epic's deferred work, not omissions:
+
+- **Provenance representation** — property, label, or separate ledger — plus migration of the existing graph and per-write-path writer discipline.
+- **Backup mechanics** — encryption scheme; **key custody** (the key protecting the self's backup must survive *outside* the self); chunking against relay event-size limits; manifest and reassembly design; relay choice; retention and rotation.
+- **Serialization-mode marking and run manifests** — the *requirement* that modes be distinguishable is ratified above; the design is not.
+- **The "normalization ⇒ covering" conjecture** — that error-free normalization makes a concept-graph covering achievable is considered plausible and is **deliberately deferred, not assumed**.
+
+The **shape** of the backup pipeline is ratified — a lossless serialization, encrypted and chunked into nostr events, stashed on a mirror relay — while none of its mechanics are. Note the asymmetry this ontology forces: publishing the graph as its constituent *semantic* events is nostr-native and verifiable, but **necessarily lossy for the definitive-me**, because asserted state has no event form. "I can always reconstruct myself from my published events" is false here.
+
+See ADR 0001 (`self-ontology`) for the ratification decision; working notes and the reasoning that produced this section live in `docs/SELF_ONTOLOGY_DESIGN_HANDOFF.md`.
+
+---
+
+## 31. The Self and Its Keys
+
+**The Tapestry instance is its own person, and the Tapestry Assistant (TA) pubkey is that person's key.** §30 defined which *store* holds the self; this section defines which *key* speaks for it. It governs the key axis of identity only — it defines no new tag, kind, or reader rule, and changes no wire format.
+
+### The doctrine (ratified)
+
+| Key | Role | Custody |
+|---|---|---|
+| **TA pubkey** | **The instance's "me."** Signs the instance's own headers, brain writes, and letters; every first-person query answers `authors:[TA]`. | Hot — created at first container startup, lives on the server. |
+| **Owner main pubkey** | **The principal correspondent.** Maximally trusted, distinct in identity; letters absorbed only by explicit act (below). | Cold — interactive signing (NIP-07 / external signer); never held server-side. |
+| **Customer relay keys** (multi-tenant) | Stated direction only, not normative — see Scope. | Server-side, per customer. |
+
+- **The first-person rule.** Every "which events are mine?" question the instance asks — its own concept headers, its brain content, its first-person activity filters — is answered by author identity: `authors:[TA]`. (The Owner is Tony Stark; the TA is Jarvis.)
+- **The Owner is a correspondent, not an alias.** Owner-authored events are letters *from* the Owner — privileged in trust, never conflated in identity. An owner-signed item filed under a TA-authored header is a correspondent using the instance's concept, and it is counted as exactly that.
+- **Identity attaches to the instance, not the key custodian.** In the default deployment one human holds both nsecs — "the same person" in the everyday sense. But the custodians can differ: a non-technical owner may pay an administrator — human or LLM — to run the server, and then the TA nsec is handled by someone who is not the Owner at all. The doctrine holds unchanged in that world, which is precisely why the TA is not "the owner's second key": it is the instance's own name.
+
+### The external layer (unchanged)
+
+"What does this *human* think?" is a different question from "what is in the instance's filing system?", and it keeps its own rule. External readers resolving a human's concept/DList headers follow [protocols/drafts/assistant-designation.md](protocols/drafts/assistant-designation.md): the personally-signed header governs; the TA-authored header is the designated fallback. That specification's wire format and precedence are **byte-unchanged** by this section, and its personal-wins rule is ratified here as a **security posture**: the TA nsec is a hot server key, the Owner nsec is cold and interactive, and a compromised server must never be able to shadow the owner's deliberate personal statements. (Assistant-designation is itself specified-not-yet-wired; its own deployment-status note governs that.) External callers name humans by their main pubkey throughout — the instance's TA selfhood is never how the outside world addresses the human.
+
+### Absorption (explicit, two modes)
+
+Owner-authored letters enter the instance's brain only by an **explicit, auditable act** — never a silent identity merge. Two modes, both legitimate:
+
+- **Re-mint** — the TA re-signs the content as its own: first-class owned state the TA can evolve and re-sign later (the restore-brain precedent, second-brain ADR 0008).
+- **Pointer** — a TA-authored pointer event references the original: provenance preserved, no copy drift.
+
+The choice between them — and whether a re-mint carries a provenance link back to its source event — is made **per feature, in that feature's ADR**; this section supplies the vocabulary only.
+
+**Ruling (tapestries #7; binds future work).** The brain-first publish hook (ADR `tapestries/0007`) imports the instance's own tapestry letters where "own" includes *owner-signed* — an eager absorption of a maximally-trusted correspondent's letters, acceptable near-term. Stage-2 letter ingest (OPEN.md #136) inherits the correction: owner letters route through the general provenance-carrying ingest lane like any correspondent's, with **no permanent "counts as me" carve-out**. Stage-2 does not exist yet; this is a ruling about future work, not a description of present behavior.
+
+### Scope
+
+Normative for the **single-owner personal deployment**, like §30. On a multi-tenant instance the stated *direction* — not yet built, not yet normative — is that each provisioned persona's instance-side identity is its **delegated key**: the owner's is the TA; a customer's is their relay key (worksheet W13's resolver direction).
+
+See ADR 0002 (`self-ontology`) for the ratification decision; the scoping that produced this section is preserved in `docs/INSTANCE_IDENTITY_DESIGN_HANDOFF.md` (superseded).
 
 ---
 

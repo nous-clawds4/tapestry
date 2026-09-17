@@ -5,6 +5,9 @@
  * exemption; nginx forwards .well-known/* and bare paths to the app):
  *   GET  /.well-known/open-ranking.json   ORE-01 capability document
  *   POST /stats/pubkey                     ORE-02 web-of-trust stats for a pubkey
+ *   POST /rank/pubkeys                     ORE-03 batch rank for a set of pubkeys
+ *   POST /followers                        ORE-06 top-ranked verified followers of a pubkey
+ *   POST /muters                           ORE-07 top-ranked verified muters of a pubkey
  *
  * index.js re-exports the pure builders so the test suite can drive behavior
  * hermetically (no live Neo4j) — see the testability seam in ADR 0001.
@@ -12,11 +15,13 @@
 
 const { buildCapabilityDocument, buildCapabilityResponse, isPersonalizedStatsEnabled } = require('./capabilities');
 const { buildStats, handleStatsPubkey } = require('./stats');
+const { buildRank, handleRankPubkeys } = require('./rank');
 const { buildSearch, handleSearchPubkeys } = require('./search');
+const { buildFollowers, buildMuters, handleFollowers, handleMuters } = require('./inbound');
 const { isValidHexPubkey, oreHeaders, applyTriple } = require('./shared');
 
 // The bare paths this provider owns (used by the error handler below).
-const ORE_PATHS = new Set(['/stats/pubkey', '/search/pubkeys', '/.well-known/open-ranking.json']);
+const ORE_PATHS = new Set(['/stats/pubkey', '/rank/pubkeys', '/search/pubkeys', '/followers', '/muters', '/.well-known/open-ranking.json']);
 
 function handleCapabilityDoc(req, res) {
   // Advertise only what is actually served — the personalized-stats gate (ADR
@@ -42,7 +47,10 @@ function oreJsonErrorHandler(err, req, res, next) {
 function registerOpenRankingRoutes(app) {
   app.get('/.well-known/open-ranking.json', handleCapabilityDoc);
   app.post('/stats/pubkey', handleStatsPubkey);
+  app.post('/rank/pubkeys', handleRankPubkeys);
   app.post('/search/pubkeys', handleSearchPubkeys);
+  app.post('/followers', handleFollowers);
+  app.post('/muters', handleMuters);
   app.use(oreJsonErrorHandler);
 }
 
@@ -54,7 +62,13 @@ module.exports = {
   buildCapabilityDocument,
   buildCapabilityResponse,
   buildStats,
+  buildRank,
+  handleRankPubkeys,
   buildSearch,
   handleSearchPubkeys,
+  buildFollowers,
+  buildMuters,
+  handleFollowers,
+  handleMuters,
   isValidHexPubkey,
 };

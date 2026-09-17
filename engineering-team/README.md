@@ -54,6 +54,15 @@ The Claude Code wiring lives elsewhere:
 
 For **big-picture protocol/spec changes** — evolving `BIBLE.md` + ADRs rather than code — use the lightweight **Protocol-Spec Workflow** (`/discuss` to scope → a living design doc to capture → the per-story cycle in *docs-mode* to ratify). See [workflows/protocol-spec-workflow.md](./workflows/protocol-spec-workflow.md).
 
+## Running and reading the test gate
+
+`npm test` runs every registered suite (`test/registry.js`) through the gate engine (`test/helpers/gateRunner.js`), and every run writes a **run record** — `tmp/gate-runs/<run-id>.json` (gitignored): created before the first suite, updated after each one, and finished with the verdict and exit code the run exits with. **The record is the gate's answer** (honest-test-gate #1, ADR `honest-test-gate/0001`).
+
+- **Run it however suits the session** — foreground, backgrounded, redirected to a file, or piped. The run's own first line (right after npm's banner) and its last line name the record. When other sessions may run the gate on the same checkout, tag yours: `GATE_LABEL=<who-or-what> npm test`.
+- **Read the answer with `npm run gate:status`** — the newest run by default; `-- --list` (newest 10), `-- --run <run-id>` or `-- --label <text>` when runs overlap; `-- --json` for the raw record. Its exit status is the run's recorded exit code (0 PASS, 1 FAIL, 128+n INTERRUPTED), 3 when the run never finished and its process is gone, 4 while it is still running, 2 when there is no record.
+- **Never take a verdict from** a background-completion notice (it reports the launcher's exit, not the suite's), a piped `$?` or `PIPESTATUS` (a pipe replaces the exit status, and `PIPESTATUS` is empty in zsh), or the tail of captured output. Wherever a verdict is recorded — a review, an audit, a Direction journal — quote the `gate:status` line: run id and verdict.
+- **What the record distinguishes:** INTERRUPTED — stopped by a signal (Ctrl-C, a tool time limit), with how far it got; UNFINISHED — killed outright, so nothing after the last recorded suite is known. A suite that throws, fails to load, or calls `process.exit` is that suite's FAIL, never the end of the run. Skips are counted per suite and on the verdict line, and never fail a run.
+
 ## How the phases connect
 
 ```

@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
@@ -7,6 +7,9 @@ import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
+import DispositionPanel from '../../components/DispositionPanel';
+import { dispositionOf } from '../../utils/bDisposition';
+import { STATES, matchesState, needsPublication, unconfirmedCount, normalizeState } from '../../utils/conceptStateFilter';
 
 const QUERY = `
   MATCH (h:NostrEvent)
@@ -21,7 +24,9 @@ const QUERY = `
   OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s)-[:IS_A_SUPERSET_OF*0..5]->(ss)-[:HAS_ELEMENT]->(explicitElem:NostrEvent)
   OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s)-[:IS_A_SUPERSET_OF*0..5]->(setNode)
   OPTIONAL MATCH (p:Property)-[:IS_A_PROPERTY_OF]->(js)
+  OPTIONAL MATCH (h)-[:HAS_TAG]->(bt:NostrEventTag {type: 'b'})
   WITH h,
+    collect(DISTINCT bt.value) AS bValues,
     count(DISTINCT s) AS supersetCount,
     count(DISTINCT js) AS schemaCount,
     count(DISTINCT pp) AS ppCount,
@@ -33,12 +38,13 @@ const QUERY = `
     collect(DISTINCT explicitElem.uuid) AS explicitUuids,
     count(DISTINCT p) AS propertyCount
   OPTIONAL MATCH (implicitElem:NostrEvent)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z', value: h.uuid})
-  WITH h, supersetCount, schemaCount, ppCount, propsSetCount, coreGraphCount, conceptGraphCount, propTreeGraphCount, setCount,
+  WITH h, bValues, supersetCount, schemaCount, ppCount, propsSetCount, coreGraphCount, conceptGraphCount, propTreeGraphCount, setCount,
     explicitUuids, propertyCount,
     collect(DISTINCT implicitElem.uuid) AS implicitUuids
-  WITH h, supersetCount, schemaCount, ppCount, propsSetCount, coreGraphCount, conceptGraphCount, propTreeGraphCount, setCount, propertyCount,
+  WITH h, bValues, supersetCount, schemaCount, ppCount, propsSetCount, coreGraphCount, conceptGraphCount, propTreeGraphCount, setCount, propertyCount,
     size(explicitUuids) + size([u IN implicitUuids WHERE NOT u IN explicitUuids]) AS elementCount
   RETURN h.uuid AS uuid,
+    bValues,
     h.name AS name,
     h.pubkey AS author,
     CASE WHEN 'ConceptHeader' IN labels(h) THEN 1 ELSE 0 END AS hasConceptHeader,
@@ -61,6 +67,31 @@ export default function ConceptList() {
   const navigate = useNavigate();
   const [healthMap, setHealthMap] = useState({});
   const [authorFilter, setAuthorFilter] = useState('');
+  // The address is the source of truth for the state filter, so another page can
+  // link straight to a narrowed list and a reload keeps it (ADR
+  // shared-concepts-seeding/0002). normalizeState turns anything unrecognised
+  // back into All — a stale bookmark must not render an empty table.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const stateFilter = normalizeState(searchParams.get('state'));
+  const setStateFilter = (next) => {
+    const clean = normalizeState(next);
+    const params = new URLSearchParams(searchParams);
+    if (clean) params.set('state', clean); else params.delete('state');
+    // replace: selecting from a dropdown is not a navigation the back button
+    // should have to replay one step at a time.
+    setSearchParams(params, { replace: true });
+  };
+  // Publication, as /api/shared-by-me resolved it — the SAME source the Shared
+  // by me page renders, so the two pages cannot disagree about a concept
+  // (ADR shared-concepts-seeding/0001). Fetched lazily: only the two
+  // publication-bearing states need it, so an ordinary page load never pays for
+  // the relay round trip.
+  //   null = not fetched | {loading} | {ok:true, map, relayOk} | {ok:false, error}
+  const [sharing, setSharing] = useState(null);
+  const [panelRow, setPanelRow] = useState(null); // { uuid, name } | null
+  // Headers acted on this session leave the undispositioned set IMMEDIATELY
+  // (AC-2) — the Cypher rows refresh only on reload, so overlay locally.
+  const [actedUuids, setActedUuids] = useState(() => new Set());
 
   // Fetch audit summary for all concepts
   useEffect(() => {
@@ -78,6 +109,39 @@ export default function ConceptList() {
       .catch(() => {}); // silently fail
   }, []);
 
+  // Publication is fetched only when a state actually needs it. A failure here
+  // must NOT degrade quietly the way the health fetch above does: answering
+  // "not shared" from a check that did not run is the defect the legibility
+  // book removed, so the error is recorded and the state is surfaced.
+  // The in-flight guard is a ref, NOT the `sharing` state: making `sharing` a
+  // dependency re-runs this effect the moment it is set to {loading}, and the
+  // re-run's cleanup cancels the very fetch that is still in flight — the page
+  // then shows "Checking…" forever while the 200 is discarded. Only unmount
+  // may cancel; switching states must not.
+  const sharingRequested = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+
+  useEffect(() => {
+    if (!needsPublication(stateFilter) || sharingRequested.current) return;
+    sharingRequested.current = true;
+    setSharing({ loading: true });
+    fetch('/api/shared-by-me')
+      .then(async (resp) => {
+        const json = await resp.json().catch(() => null);
+        if (!mounted.current) return;
+        if (!resp.ok || !json?.success) {
+          // The row set itself is unknown — never fall back to the local chip.
+          setSharing({ ok: false, error: json?.error || `HTTP ${resp.status}` });
+          return;
+        }
+        const map = new Map();
+        for (const c of json.concepts || []) map.set(c.coord, c.published);
+        setSharing({ ok: true, map, relayOk: json.relayOk !== false });
+      })
+      .catch((err) => { if (mounted.current) setSharing({ ok: false, error: err.message }); });
+  }, [stateFilter]);
+
   const authorPubkeys = useMemo(
     () => [...new Set((data || []).map(r => r.author).filter(Boolean))],
     [data]
@@ -88,15 +152,26 @@ export default function ConceptList() {
   const num = (val) => parseInt(val) || '—';
   const iconHeader = (icon, tooltip) => <span title={tooltip} style={{ cursor: 'help' }}>{icon}</span>;
 
-  // Merge health status into row data for sorting
+  // Merge health status + b-disposition into row data for sorting/filtering.
+  // Disposition (ADR shared-concepts-adoption/0001): derived per row from the
+  // header's b-tag values; "undispositioned (mine)" = TA-authored with no b —
+  // the BIBLE §31 first-person prompt set.
   const enrichedData = useMemo(() => {
     if (!data) return [];
     return data.map(row => {
       const h = healthMap[row.uuid];
       const healthSort = h ? (h.status === 'pass' ? 0 : h.status === 'warn' ? 1 : 2) : 3;
-      return { ...row, _healthSort: healthSort, _healthSummary: h?.summary || '' };
+      const disp = dispositionOf(row.bValues, row.uuid);
+      const acted = actedUuids.has(row.uuid);
+      const undispositioned = !disp.wired && !disp.selfDeclared && !disp.deferred && !acted;
+      return {
+        ...row,
+        _healthSort: healthSort, _healthSummary: h?.summary || '',
+        _disp: disp, _acted: acted,
+        _undispositionedMine: undispositioned && row.author === TA_PUBKEY,
+      };
     });
-  }, [data, healthMap]);
+  }, [data, healthMap, TA_PUBKEY, actedUuids]);
 
   // Author filter options
   const authorOptions = useMemo(() => {
@@ -126,6 +201,38 @@ export default function ConceptList() {
     return enrichedData.filter(r => r.author === authorFilter);
   }, [enrichedData, authorFilter]);
 
+  // The state stage runs after the author stage, so the two narrow together.
+  const stateCtx = useMemo(() => ({
+    taPubkey: TA_PUBKEY,
+    publishedByCoord: sharing?.ok ? sharing.map : null,
+    relayOk: sharing?.ok ? sharing.relayOk : undefined,
+  }), [TA_PUBKEY, sharing]);
+
+  // Publication-bearing states cannot answer until the fetch resolves, and must
+  // not answer at all if it failed — showing rows either way would present a
+  // guess as fact.
+  const stateAnswerable = !needsPublication(stateFilter) || Boolean(sharing?.ok);
+
+  const visibleData = useMemo(() => {
+    if (!stateFilter) return filteredData;
+    if (!stateAnswerable) return [];
+    return filteredData.filter(r => matchesState(r, stateFilter, stateCtx));
+  }, [filteredData, stateFilter, stateAnswerable, stateCtx]);
+
+  // How many of my concepts the unreachable relay is hiding from this answer.
+  // BOTH publication-bearing states need this: with the relay unreachable a
+  // "Shared (mine)" list shrinks to nothing, and an unexplained empty list
+  // asserts "you have shared nothing" (sharedByMe.js:12-21).
+  const withheld = useMemo(() => (
+    needsPublication(stateFilter) && sharing?.ok && sharing.relayOk === false
+      ? unconfirmedCount(filteredData, stateCtx, stateFilter)
+      : 0
+  ), [stateFilter, sharing, filteredData, stateCtx]);
+
+  // "Save & next" iterates the undispositioned-mine set in table order.
+  const nextUndispositioned = (afterUuid) =>
+    enrichedData.find(r => r._undispositionedMine && r.uuid !== afterUuid) || null;
+
   const healthIcon = (val, row) => {
     const h = healthMap[row?.uuid];
     if (!h) return <span style={{ opacity: 0.3 }}>…</span>;
@@ -133,8 +240,35 @@ export default function ConceptList() {
     return <span title={h.summary} style={{ cursor: 'help' }}>{icon}</span>;
   };
 
+  // Disposition chips (ADR shared-concepts-adoption/0001): wired /
+  // self-declared / deliberately private / undispositioned. The sentinel
+  // renders as its own state — never as a lookup error.
+  const dispositionCell = (val, row) => {
+    if (row._acted) return <span title="dispositioned this session — reload for detail">✓</span>;
+    const d = row._disp || {};
+    const chips = [];
+    if (d.wired) chips.push(<span key="w" title="wired to an external shared concept">🔗</span>);
+    if (d.selfDeclared) chips.push(<span key="s" title="self-declared shared concept">🤝</span>);
+    if (d.deferred) chips.push(<span key="p" title="deliberately private (no shared affiliation)">🔒</span>);
+    if (chips.length === 0) {
+      return row.author === TA_PUBKEY
+        ? (
+          <button
+            className="btn" style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem' }}
+            title="undispositioned — choose: wire external / submit as shared / keep private"
+            onClick={(e) => { e.stopPropagation(); setPanelRow({ uuid: row.uuid, name: row.name, disp: row._disp }); }}
+          >
+            Disposition…
+          </button>
+        )
+        : <span className="text-muted">—</span>;
+    }
+    return <span style={{ display: 'inline-flex', gap: '0.2rem' }}>{chips}</span>;
+  };
+
   const columns = [
     { key: 'name', label: 'Name' },
+    { key: '_undispositionedMine', label: iconHeader('🧭', 'b-disposition (wired / self-declared / private)'), render: dispositionCell },
     { key: '_healthSort', label: iconHeader('🩺', 'Audit Health'), render: healthIcon },
     { key: 'elementCount', label: iconHeader('📝', 'Elements'), render: num },
     { key: 'setCount', label: iconHeader('🗂️', 'Sets (incl. superset)'), render: num },
@@ -193,20 +327,76 @@ export default function ConceptList() {
             ))}
           </select>
         </div>
+        <div>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+            🧭 Coverage
+          </label>
+          <select
+            value={stateFilter || 'all'}
+            onChange={e => setStateFilter(e.target.value)}
+            style={{
+              width: '100%', padding: '0.4rem 0.6rem', fontSize: '0.85rem',
+              backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',
+              border: '1px solid var(--border, #444)', borderRadius: '4px', cursor: 'pointer',
+            }}
+          >
+            {STATES.map(s => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {panelRow && (
+        <DispositionPanel
+          handle={panelRow.uuid}
+          name={panelRow.name}
+          disposition={panelRow.disp}
+          onActed={() => setActedUuids(prev => new Set(prev).add(panelRow.uuid))}
+          hasNext={!!nextUndispositioned(panelRow.uuid)}
+          onNext={() => {
+            const next = nextUndispositioned(panelRow.uuid);
+            setPanelRow(next ? { uuid: next.uuid, name: next.name, disp: next._disp } : null);
+          }}
+          onClose={() => setPanelRow(null)}
+        />
+      )}
+
+      {/* Publication state: pending, unavailable, or partial. Each says which,
+          because "no rows" and "we could not check" are different answers. */}
+      {needsPublication(stateFilter) && sharing?.loading && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
+          ⏳ Checking the community relay…
+        </p>
+      )}
+      {needsPublication(stateFilter) && sharing?.ok === false && (
+        <div className="error" style={{ marginBottom: '0.5rem' }}>
+          Could not read what this instance has shared ({sharing.error}), so “{STATES.find(s => s.id === stateFilter)?.label}”
+          cannot be answered. Nothing is listed rather than guessing from local state alone.
+        </div>
+      )}
+      {withheld > 0 && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
+          ⏳ The community relay could not be reached, so {withheld} declared concept{withheld === 1 ? '' : 's'} could
+          not be confirmed and {withheld === 1 ? 'is' : 'are'} not listed here.{' '}
+          {stateFilter === 'shared'
+            ? 'This list is incomplete — it is not a claim that you have shared nothing more.'
+            : 'Only concepts that were never declared are shown — those are known not to be shared without asking the relay.'}
+        </p>
+      )}
 
       {loading && <div className="loading">Loading concepts…</div>}
       {error && <div className="error">Error: {error.message}</div>}
       {!loading && !error && (
         <>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
-            {filteredData.length === enrichedData.length
+            {visibleData.length === enrichedData.length
               ? `${enrichedData.length} concepts`
-              : `${filteredData.length} of ${enrichedData.length} concepts`}
+              : `${visibleData.length} of ${enrichedData.length} concepts`}
           </p>
           <DataTable
             columns={columns}
-            data={filteredData}
+            data={visibleData}
             onRowClick={(row) => navigate(`/tapestry/concepts/${encodeURIComponent(row.uuid)}`)}
             emptyMessage="No concepts match your filters"
           />

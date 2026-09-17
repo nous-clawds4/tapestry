@@ -7,8 +7,9 @@
  *   - For a customer: their Customer Relay Key.
  *
  * The key is selected by getAssistantKeys(pubkey). The kind 0 event is signed
- * server-side with that key and published to local strfry plus the external
- * relays in EXTERNAL_RELAYS.
+ * server-side with that key and published to local strfry plus the relays
+ * getAssistantPublishRelays() names — the same list /api/assistant/status
+ * consults when the local relay has no profile (ADR assistant-profile/0001).
  *
  * POST /api/assistant/publish-profile accepts an optional `content` object so
  * the caller can pass user-edited fields; when omitted, instance-branded
@@ -22,14 +23,23 @@ const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
 const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
 const { getSettings, updateOverrides, resetOverride } = require('../../config/settings');
 const WebSocket = require('ws');
+const { resolveAssistantProfileState, importToLocalRelay } = require('./profileState');
 
-const EXTERNAL_RELAYS = [
-  'wss://relay.primal.net',
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://wot.grapevine.network',
-  'wss://purplepag.es',
-];
+/**
+ * The relays an assistant's kind 0 is published to. It is also the list
+ * /api/assistant/status asks when the local relay has no profile, so the check
+ * can never consult a relay the publisher skipped (ADR assistant-profile/0001).
+ * Story assistant-profile #2 makes it configuration-driven.
+ */
+function getAssistantPublishRelays() {
+  return [
+    'wss://relay.primal.net',
+    'wss://relay.damus.io',
+    'wss://nos.lol',
+    'wss://wot.grapevine.network',
+    'wss://purplepag.es',
+  ];
+}
 
 /**
  * Publish a signed event to an external relay via WebSocket.
@@ -126,6 +136,28 @@ function getInstanceWebsite() {
 }
 
 /**
+ * Could a stranger's nostr client actually fetch something from `website`?
+ *
+ * This is deliberately stricter than "is it set". getInstanceDomain falls back to
+ * BRAINSTORM_RELAY_URL's host, so a dev instance reports `https://localhost:7777`
+ * — truthy, and not equal to the string 'localhost', so an emptiness check lets it
+ * through. Publishing a loopback URL in a kind 0 is worse than publishing nothing:
+ * every client that fetched it would resolve it against **its own** machine.
+ */
+function isPubliclyReachable(website) {
+  if (!website) return false;
+  let hostname;
+  try { hostname = new URL(website).hostname; } catch { return false; }
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host === '::1' || host === '0.0.0.0') return false;
+  if (host.endsWith('.local') || host.endsWith('.localhost')) return false;
+  if (/^127\./.test(host)) return false;
+  // A bare hostname resolves only inside someone's own network, never from outside.
+  if (!host.includes('.')) return false;
+  return true;
+}
+
+/**
  * Compute a deterministic NIP-05 local-part for an Assistant.
  *
  * Format: `<sanitized-name>-tapestry-assistant-<6-char-suffix>`
@@ -177,13 +209,23 @@ function updateNip05Mapping(localPart, assistantPubkey) {
  */
 async function buildDefaultProfileContent(pubkey, isOwner) {
   const website = getInstanceWebsite();
+  // The branded avatar is committed at ui/public/ta-avatar.png and copied into
+  // dist/ by the Vite build, so it is served at this instance's site root. Offer
+  // it only when the instance is somewhere a third party could fetch it from;
+  // otherwise offer none and let handlePublishProfile's empty-string pass drop
+  // the field rather than publish a link nobody can follow.
+  const hostedFrom = isPubliclyReachable(website) ? website : '';
   if (isOwner) {
-    const ownerName = await getKind0DisplayName(pubkey, 'the owner');
+    // Empty fallback, not a readable one: a placeholder like 'the owner' is
+    // indistinguishable from a real name, which would make the generic branch
+    // below unreachable.
+    const ownerName = await getKind0DisplayName(pubkey, '');
+    const assistantName = ownerName ? `${ownerName}'s Tapestry Assistant` : 'Tapestry Assistant';
     return {
-      name: 'Tapestry Assistant',
-      display_name: 'Tapestry Assistant',
-      about: `Server-side Tapestry Assistant for ${ownerName}. Signs firmware events, concept graph nodes, kind 30382 Trust Assertions, and other automated events on behalf of this Tapestry instance.`,
-      picture: '',
+      name: assistantName,
+      display_name: assistantName,
+      about: `Server-side Tapestry Assistant for ${ownerName || 'the owner'}. Signs firmware events, concept graph nodes, kind 30382 Trust Assertions, and other automated events on behalf of this Tapestry instance.`,
+      picture: hostedFrom ? `${hostedFrom}/ta-avatar.png` : '',
       banner: '',
       website,
       nip05: '',
@@ -195,7 +237,7 @@ async function buildDefaultProfileContent(pubkey, isOwner) {
     name: `${customerName}'s Tapestry Assistant`,
     display_name: `${customerName}'s Tapestry Assistant`,
     about: `I am the Tapestry Assistant for ${customerName}. My primary task is to publish kind 30382 Trusted Assertions so that ${customerName}'s personalized web of trust metrics are available to be utilized by any nostr client that supports NIP-85.`,
-    picture: '',
+    picture: hostedFrom ? `${hostedFrom}/ta-avatar.png` : '',
     banner: '',
     website,
     nip05: '',
@@ -296,14 +338,7 @@ async function handlePublishProfile(req, res) {
     console.log(`[assistant] Kind 0 event signed: ${signedEvent.id.slice(0, 16)}...`);
 
     // 5. Publish to local strfry
-    await new Promise((resolve, reject) => {
-      const child = exec('strfry import', { timeout: 10000 }, (error) => {
-        if (error) reject(error);
-        else resolve();
-      });
-      child.stdin.write(JSON.stringify(signedEvent) + '\n');
-      child.stdin.end();
-    });
+    await importToLocalRelay(signedEvent);
 
     console.log(`[assistant] Kind 0 published to strfry for ${assistantPubkey.slice(0, 8)}`);
 
@@ -318,11 +353,12 @@ async function handlePublishProfile(req, res) {
     }
 
     // 6. Publish to external relays (in parallel, non-blocking)
+    const publishRelays = getAssistantPublishRelays();
     const relayResults = await Promise.all(
-      EXTERNAL_RELAYS.map(relay => publishToRelay(relay, signedEvent))
+      publishRelays.map(relay => publishToRelay(relay, signedEvent))
     );
     const relaySuccesses = relayResults.filter(r => r.success).length;
-    console.log(`[assistant] Published to ${relaySuccesses}/${EXTERNAL_RELAYS.length} external relays`);
+    console.log(`[assistant] Published to ${relaySuccesses}/${publishRelays.length} external relays`);
     for (const r of relayResults) {
       if (!r.success) console.warn(`[assistant] Failed: ${r.relay} — ${r.error || r.message || 'unknown'}`);
     }
@@ -333,8 +369,8 @@ async function handlePublishProfile(req, res) {
       assistantPubkey,
       assistantName,
       nip05: { localPart, domain, address: `${localPart}@${domain}` },
-      relays: { total: EXTERNAL_RELAYS.length, success: relaySuccesses, results: relayResults },
-      message: `Tapestry Assistant profile published to strfry + ${relaySuccesses}/${EXTERNAL_RELAYS.length} external relays`,
+      relays: { total: publishRelays.length, success: relaySuccesses, results: relayResults },
+      message: `Tapestry Assistant profile published to strfry + ${relaySuccesses}/${publishRelays.length} external relays`,
     });
 
   } catch (err) {
@@ -365,7 +401,7 @@ async function handleAssistantStatus(req, res) {
     const defaults = await buildDefaultProfileContent(customerPubkey, isOwner);
 
     if (!relayKeys || !relayKeys.pubkey) {
-      return res.json({ success: true, hasRelayKey: false, hasProfile: false, defaults });
+      return res.json({ success: true, hasRelayKey: false, hasProfile: false, profileSource: null, defaults });
     }
 
     // Compute the deterministic NIP-05 for this Assistant. Returned for the
@@ -376,39 +412,36 @@ async function handleAssistantStatus(req, res) {
     const domain = getInstanceDomain();
     const computedNip05 = { localPart, domain, address: `${localPart}@${domain}` };
 
-    // Check if kind 0 exists for the assistant pubkey
-    const filter = JSON.stringify({ kinds: [0], authors: [relayKeys.pubkey], limit: 1 });
-    const result = await new Promise((resolve) => {
-      exec(`strfry scan '${filter.replace(/'/g, "'\\''")}' 2>/dev/null`, {
-        encoding: 'utf8',
-        timeout: 10000,
-      }, (error, stdout) => {
-        if (error || !stdout.trim()) {
-          resolve(null);
-        } else {
-          try {
-            resolve(JSON.parse(stdout.trim().split('\n')[0]));
-          } catch {
-            resolve(null);
-          }
-        }
-      });
+    // Whether this assistant has a profile — the one rule every setup surface
+    // shares (ADR assistant-profile/0001): the local relay first, then the
+    // publish relays, copying a profile found only there back home. That
+    // fallback runs only for the assistant's own signed-in user, the owner or an
+    // admin, or the in-container operator; an anonymous GET is answered from the
+    // local relay alone, so a public read never writes.
+    const session = req.session || {};
+    const sessionPubkey = session.authenticated ? session.pubkey : null;
+    const allowRelayFallback = Boolean(
+      (sessionPubkey && (
+        sessionPubkey === customerPubkey
+        || sessionPubkey === ownerPubkey
+        || getAdminPubkeys().includes(sessionPubkey)
+      ))
+      || req.localTrusted === true
+    );
+    const state = await resolveAssistantProfileState({
+      assistantPubkey: relayKeys.pubkey,
+      allowRelayFallback,
+      getPublishRelays: getAssistantPublishRelays,
     });
-
-    let profile = null;
-    if (result) {
-      try {
-        profile = JSON.parse(result.content);
-      } catch {}
-    }
 
     return res.json({
       success: true,
       hasRelayKey: true,
       assistantPubkey: relayKeys.pubkey,
       assistantNpub: relayKeys.npub,
-      hasProfile: !!result,
-      profile,
+      hasProfile: state.hasProfile,
+      profile: state.profile,
+      profileSource: state.source,
       defaults,
       isOwner,
       computedNip05,
@@ -502,4 +535,13 @@ async function handleProvisionAssistantKey(req, res) {
   }
 }
 
-module.exports = { handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey };
+// buildDefaultProfileContent is exported for tests: it is the sole producer of the
+// defaults the editor offers and a content-less publish signs, so asserting on it
+// directly is the only stack-free handle on that contract.
+// getInstanceWebsite + isPubliclyReachable are exported so ./avatar.js can gate the
+// composite's publishable URL on the SAME rule as the branded default — one notion
+// of "could a stranger fetch this", not two (ADR ta-avatar/0003 D4).
+module.exports = {
+  handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey,
+  buildDefaultProfileContent, getInstanceWebsite, isPubliclyReachable, getAssistantPublishRelays,
+};

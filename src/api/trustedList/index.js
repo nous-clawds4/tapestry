@@ -440,6 +440,13 @@ async function handlePrepareNip51Export(req, res) {
     //      same d-tag, title, description, and `p` membership; only the
     //      kind differs, so the two are addressable in parallel.
     const zTagHandle = profileTags.TAG_PINNING_Z_TAG;
+    // Personal (runtime-TA) handle beside the canonical one — the stamping
+    // floor's required personal z (ADR shared-concepts-adoption/0004; W11
+    // parity, mirroring the profile-tag dual shape). Legacy handle unchanged
+    // (ADR 0015).
+    const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
+    const localTa = getOwnerAssistantPubkey();
+    const personalZ = /^[0-9a-f]{64}$/.test(localTa || '') ? [['z', `39998:${localTa}:tag-pinning`]] : [];
     const unsigned = {
       kind: exportKind,
       pubkey: sessionPubkey,
@@ -447,6 +454,7 @@ async function handlePrepareNip51Export(req, res) {
       tags: [
         ['d', dTag],
         ['z', zTagHandle],
+        ...personalZ,
         ['title', title],
         ['description', exportKind === 39089 ? FOLLOW_PACK_DESCRIPTION : BRAINSTORM_EXPORT_DESCRIPTION],
         ...memberPubkeys.map((pk) => ['p', pk]),
@@ -482,4 +490,6 @@ module.exports = {
   // Exported for tests (ADR tag-stack-merge-hardening/0001 testability):
   requireAuth,
   isLoopbackRequest,
+  // dlist-curation #4 (ADR 0004): the local strfry import, reused by the curation-header endpoint.
+  publishToStrfry,
 };
