@@ -106,3 +106,17 @@ book must either restore the policy or replace it with one the team will actuall
      skipped step is exactly the one that produced the 943-commit gap.
    - **Graduate `feat/tags` → staging by book close**, not commit by commit.
    Recorded 2026-09-17; supersedes the 2026-07-16 note wherever it is quoted.
+4. **Pinned-panel server-recompute switch folded into story 2** (ruling A). One AC-1 assertion
+   already bundles it and the change is ~10 lines; the planned story 3 is absorbed. Story numbering
+   in the epic: 1 census (Done), 2 pin-stack + panel, then bulk merge (done as step 1, commit
+   `1f4fa6f7`), policy (D3), land `dlist-item-tagging`.
+5. **Option D deferred** (ruling B). Correction on the record: several values under one `#z`
+   filter key are a NIP-01 *union*, so "TLs about X in <context>" is `#z:[<contextConcept>]` plus
+   local narrowing by per-tag header, not one conjunctive filter. A context-scoped per-tag TL
+   header would make it one filter; not worth a layer at current usage.
+   - Interim hazard, contained (ADR 0001 § Consequences): on the merged branch before story 2,
+     a contextual pin and its neutral twin publish at the same `d` (mutual overwrite) and the stale
+     sweep would retract existing `-in-<context>` lists. Never run the pin refresh from this branch
+     against real data before story 2 lands; nothing is pushed.
+   - The two-`z` TL convention (`dlist-item-tagging` ADR 0002) is implemented on no branch yet
+     (that was its story 5); a contextual TL carries its context `z` alone until then. Composes.
