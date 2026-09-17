@@ -1,6 +1,6 @@
 # ADR 0003: Item Trusted Lists — implementation architecture (third runner, family-wide `z`, lazy TL header, two firmware concepts)
 
-**Status:** Proposed
+**Status:** Accepted (Gate A 2026-09-17; see story § Rulings — failure policy F-unified supersedes this ADR's E11 reading: a failed publish keeps its d-tag on the roster for all three kinds, and `runOneNotePin` is aligned here)
 **Date:** 2026-09-17
 **Story:** `engineering-team/stories/dlist-item-tagging/5-pins-and-trusted-lists-for-items.md`
 

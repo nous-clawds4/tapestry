@@ -265,3 +265,18 @@ The design record is ADR 0003 (`decisions/dlist-item-tagging/0003-item-trusted-l
 which supersedes the 2026-09-10 Design note wherever they differ (stale line citations, the
 Pins.jsx status line that no longer has a surface, the `fullItemMembers` address filter, the
 three-`z` contextual composition). Interior gates J1–J3 apply; scoped gate as at Gate A.
+
+## Rulings (Gate A on ADR 0003, operator, 2026-09-17)
+
+1. **One failure policy for every TL kind.** A failed publish keeps its d-tag on the cycle's
+   roster so the retraction sweep never retracts a live list over a transient error — the
+   existing 30392 behaviour (ADR tag-stack-merge-hardening/0001 B4a) becomes the family rule.
+   **E11 is inverted:** `runOneItemPin` returns `{status:'error', dTag}` and the d-tag *does* enter
+   `currentItemDTags`; **`runOneNotePin` is aligned in this story** (its error path at
+   `refreshPinnedTags.js` ~:467 returns `dTag` too, and `currentNoteDTags` collects it).
+   `test/note-trusted-list.test.js` is amended only where it asserts the old inverse.
+2. **AC-5 amended:** the item list's naddr, status and member count are shown on the tag page's
+   Pinned tab only (`PinnedListPanel.jsx`). The Pins index has no status surface (Story 20 /
+   ADR 0018) and gets none.
+3. **Applicability lists stay outside the `z` convention.** They are a picker lookup table, not a
+   curated trust list; `refreshApplicabilityLists.js` is out of radius.
