@@ -33,8 +33,10 @@ usable regardless of how many lists (or how much junk) the relay holds.
 - [ ] AC-4: The filter box (story 8) narrows the **loaded** headers; with pagination, it narrows the
       current page and says so ("matches on this page"), not silently across pages.
 - [ ] AC-5: A counts request that fails or times out leaves the page rendered with "—" counts, never
-      blank and never an error page; a malformed coordinate in the request is rejected with 400 and
-      does not abort the others.
+      blank and never an error page. Malformed coordinates are reported **per coordinate** in an
+      `invalid` list while the rest are still counted; HTTP 400 is reserved for `coords` missing or
+      empty, or every coordinate malformed. *(Wording amended at J1 2026-09-17: the original "400 and
+      does not abort the others" was self-contradictory.)*
 - [ ] AC-6: The list page (`/list/:ref`) and its pagination are untouched (regression sentinels).
 
 ## Concepts touched
@@ -57,6 +59,9 @@ usable regardless of how many lists (or how much junk) the relay holds.
   Per coordinate the handler runs `strfry scan --count` with `{kinds:[9999,39999], '#z':[coord]}`
   when the key looks like `39998:<64hex>:<d>`, and `{kinds:[9999,39999], '#e':[id]}` when it is a
   bare 64-hex event id — the same key convention `itemCounts.js:headerRef()` produces and that
+  *(J1 caveat: the two diverge for a header with no `d` — `itemCounts.js` yields `39998:<pk>:undefined`,
+  `dlistFields.js` `headerCoord` yields `39998:<pk>:`. The new endpoint is fed by the client, so the
+  client's form is the contract; the validator accepts an empty `d` segment — E4.)*
   `Lists.jsx` already looks up, so the client's `counts[coord]` lookup is unchanged.
   **Named bounds:** `MAX_COORDS = 50` (extras rejected, not counted), `CONCURRENCY = 8` spawns in
   flight, `DEADLINE_MS = 10000` per request — coords unresolved at the deadline are omitted from
@@ -92,6 +97,11 @@ usable regardless of how many lists (or how much junk) the relay holds.
   E1–E3 asserts the endpoint's four figures live. Gate A pinned it untouched; a separate route keeps the
   old contract literally untouched and lets the new one be deleted when OPEN 301 is finally fixed.
 - **Blast radius.** *Touched:* `ui/src/pages/Lists.jsx` (the only `/lists` consumer of the old endpoint),
+  **Also touched (J1 finding):** `test/dlist-browse.test.js` — its S3 sentinel (`:365-366`) asserts
+  `Lists.jsx` fetches `/api/dlists/item-counts` with a `.catch`, the very call AC-3 removes. That
+  suite is in this story's scoped gate, so the sentinel is re-aimed **in this story** to assert the
+  new `fetchPageCounts` call (non-blocking, with its catch) — a re-aim to the ruled behaviour, not a
+  loosening; `:459` (the operator page still calls `item-counts`) stays as is.
   new `ui/src/api/dlists.js`, new `src/api/dlists/pageCounts.js`, `src/api/dlists/index.js` (one export),
   `src/api/index.js` (one mount line), optionally `src/api/openapi.yaml` (doc entry). *Grep-verified
   non-consumers* (`grep -rn "item-counts" src ui test`): `ui/src/pages/lists/Index.jsx:69` — the operator
