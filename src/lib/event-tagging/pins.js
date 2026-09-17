@@ -46,6 +46,25 @@ function contextHandle(taPubkey, contextSlug) {
 }
 
 /**
+ * The Trusted List `d`-tags a pin materializes — the SINGLE source of both
+ * strings (ADR feat-tags-modernization/0001 §2/§5). The server runner
+ * (`refreshPinnedTags.js`) and the client publisher (`publishTagPin.js`) both
+ * delegate here, so the two cannot drift apart again (they did, across the
+ * step-1 merge).
+ *
+ * `contextSlug` is an OPTIONAL trailing member: omitting it (a neutral pin)
+ * reproduces the pre-context string byte-for-byte.
+ */
+function tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
+  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+}
+
+/** The note twin of `tlDTag` (kind-30393 note Trusted List). Same rules. */
+function noteTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
+  return `tl-pin-notes-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+}
+
+/**
  * Recover a pin's context slug from its `z` STAMP (never by parsing the d-tag —
  * d-tags stay opaque). Matches a `39998:<taPubkey>:<slug>` z whose slug is a known
  * context. Matching against the known set is what disambiguates the context stamp
@@ -100,6 +119,8 @@ module.exports = {
   KNOWN_CONTEXTS,
   pinVariantKey,
   contextHandle,
+  tlDTag,
+  noteTlDTag,
   contextSlugOfPin,
   contextPinsToTags,
 };

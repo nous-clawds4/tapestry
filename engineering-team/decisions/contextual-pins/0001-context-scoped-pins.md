@@ -1,6 +1,7 @@
 # ADR 0001: Context-scoped pins — firmware context anchors, stamp-based discovery, discriminated first-class identity
 
-**Status:** Proposed
+**Status:** Accepted
+*Accepted 2026-09-17 — it shipped and passed review; ratified by ADR `feat-tags-modernization/0001` (story `feat-tags-modernization/2-pin-stack-integration.md`, AC-5), which composes onto its Option B + Amendment I.*
 **Date:** 2026-07-16
 **Story:** `engineering-team/stories/contextual-pins/1-pin-a-tag-within-a-community-context.md`
 **Also realizes (batched — see Amendment I):**

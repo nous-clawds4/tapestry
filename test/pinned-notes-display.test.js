@@ -16,7 +16,10 @@ const t = (n, f) => tests.push([n, f]);
 t('U: usePinnedNotes reads the viewer\'s kind-30003 snapshot + computes drift', () => {
   assert(ex(HOOK), 'ui/src/hooks/usePinnedNotes.js must exist');
   const s = rd(HOOK);
-  assert(/computeNoteBookmarkDTag/.test(s), 'must address the note bookmark set by its notes-pin d-tag');
+  // contextual-pins story 2 (accepted via feat-tags-modernization #2): the hook reads the
+  // assistant-signed kind-30393 note TL by its d-tag (context-aware), and the kind-30003
+  // bookmark set only as the drift baseline. This assertion was already red on feat/tags.
+  assert(/computeNoteTLDTag/.test(s), 'must address the assistant-signed note TL by its context-aware d-tag');
   assert(/30003/.test(s), 'must scan the kind-30003 bookmark set');
   assert(/curateNotes/.test(s), 'must curate the live set to compute drift');
   assert(/added|removed|drift/.test(s), 'must expose the added/removed drift vs the snapshot');
@@ -27,7 +30,10 @@ t('U: PinnedListPanel renders a "Pinned notes" section with drift + update + Not
   assert(/usePinnedNotes/.test(s), 'panel must consume usePinnedNotes');
   assert(/Pinned notes/.test(s), 'panel must render a "Pinned notes" section');
   assert(/NoteCard/.test(s), 'panel must render the pinned notes via NoteCard');
-  assert(/publishNoteBookmarkSetForPin/.test(s), 'the Update affordance must re-publish the bookmark set');
+  // D2 (feat-tags-modernization, 2026-09-17): the Update affordance asks the server to recompute
+  // the assistant-signed note TL; the client bookmark export lives in the Export modal instead.
+  assert(/refresh-pinned-tag/.test(s), 'the Update affordance must POST /api/trusted-list/refresh-pinned-tag (server recompute, D2)');
+  assert(!/publishNoteBookmarkSetForPin\(/.test(s.replace(/\/\/[^\n]*/g, '')), 'the panel no longer publishes the bookmark set itself');
   assert(/Up to date|since you pinned/.test(s), 'must show a drift indicator (up-to-date / N since you pinned)');
 });
 

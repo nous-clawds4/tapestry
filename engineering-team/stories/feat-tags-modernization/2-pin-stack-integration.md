@@ -70,3 +70,47 @@ preserved and discoverable.
   `engineering-team/decisions/trusted-lists/0001-…`, `0002-…`;
   `engineering-team/decisions/dlist-item-tagging/0002-trusted-list-discovery-tags.md`.
 - Review: `engineering-team/reviews/feat-tags-modernization/2-pin-stack-integration.md`
+
+## Deviations
+
+- **`runOnePin` deps seam shape.** The injected `resolveMembershipMethod` / `resolvePov` are read
+  at their call sites (`deps.resolveMembershipMethod ? deps.resolveMembershipMethod() : resolveMembershipMethod()`)
+  rather than hoisted into the deps preamble like `lookupTag`/`publishTL`. Reason: hoisting would
+  need a differently-named local (a `const` cannot shadow the module import it falls back to), and
+  the ADR §1 ordering sentinel greps for the literal `resolveMembershipMethod(` *after*
+  `contextSlugOfPin(` inside `runOnePin`'s body. Behavior is identical; defaults unchanged.
+- **Grep-satisfaction-by-comment (as the test plan's carve-out predicted).** The wire-binding
+  `tl-pin-…` / `tl-pin-notes-…` shapes now live only in `src/lib/event-tagging/pins.js`, so the
+  composed form is kept as a **doc comment** beside each thin delegating wrapper in
+  `refreshPinnedTags.js` (`computeTLDTag`, for the frozen `R-2` sentinel) and `publishTagPin.js`
+  (`computeTLDTag` / `computeNoteTLDTag`, for the two `context-scoped-pins` sentinels). The
+  executable coverage of those strings is the new suite's composer + parity tests.
+- **`pinned-notes-display.test.js` regresses 1/1 → 0/2 (superseded guard, not in the blast radius).**
+  Its panel assertion requires `publishNoteBookmarkSetForPin` in `PinnedListPanel.jsx` — "the
+  Update affordance must re-publish the bookmark set" — which is exactly the behavior AC-7 / D2
+  replaces with the server recompute. Its sibling assertion (the hook must read kind-30003) was
+  already red on this branch for the same generational reason. Both assertions are red on
+  `origin/feat/tags` too, so this brings the branch to the source branch's state rather than
+  introducing a new defect. Not edited (test edits are the Tester's lane; only the Ruling-C
+  re-aim was authorized).
+- **Panel context banner NOT restored.** `feat/tags`' `<p className="bs-pindetail-context">Pinned in
+  …</p>` line is user-facing per-context labelling, which the ADR assigns to story 3. Only the
+  threading the ADR's blast radius names was restored; `contextName` is used by `handleEditSubmit`.
+- **`initialCuration={viewerPin.curationMethod}` → `activePin?.curationMethod`.** Required by the
+  `activePin` selection (a context pin's Edit dialog must seed from the *selected* pin); also
+  removes the last `viewerPin`-direct dereference that would crash when only `pin` is passed.
+
+## Blocked (needs the Tester / PO)
+
+- **AC-2 cannot reach 22/0.** After the authorized Ruling-C re-aim, the caller guard passes, but a
+  **second** assertion in the same suite goes red — `AC-6: pinTag() signature no longer accepts a
+  taPubkey parameter` (`test/restore-historical-data-and-fix-tl-author-filter.test.js:237`). It
+  bans `taPubkey` from `pinTag`'s destructured parameter list outright, which the ratified ADR §2/§4
+  signature (`pinTag({ tag, curationMethod, localTaPubkey, context, taPubkey })`) requires. It was
+  green pre-change only because the parameter did not exist yet; the test plan's R1 carve-out
+  caught the caller half of this ban but not the signature half. Its sibling
+  (`pinTag() body no longer throws when taPubkey is missing`, :254) IS satisfied — the guard reads
+  `if (context && !taPubkey)`, exactly as ADR §4 prescribed. Recommended one-line re-aim, mirroring
+  Ruling C (not applied — only the caller re-aim was authorized):
+  `!/\btaPubkey\b/.test(paramList) || /\bcontext\b/.test(paramList)`.
+  Suite stands at **21 pass / 1 fail**.

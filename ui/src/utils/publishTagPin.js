@@ -1,5 +1,5 @@
 import { nip19 } from 'nostr-tools';
-import { projectionFor, curateNotes } from '@tapestry/event-tagging';
+import { projectionFor, curateNotes, pinVariantKey, contextHandle, tlDTag, noteTlDTag } from '@tapestry/event-tagging';
 import { publishOrThrow } from './publishProfileTag';
 import { getActiveSignerOrThrow } from './signerGuard';
 import { publishEverywhere, fetchFromRelays, PUBLISH_RELAYS } from './nostrPublish';
@@ -55,8 +55,8 @@ const TAG_PINNING_HANDLE = `39998:${LEGACY_TA_PUBKEY}:tag-pinning`;
  * NOT the URL slug — see `computeTLDTag()` for the kind-30392 TL
  * identifier the `/pin/:dTag` route navigates to.
  */
-export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey }) {
-  return `tag-pin-${tagSlug}-${tagAuthorPubkey.slice(0, 8)}-${viewerPubkey.slice(0, 8)}`;
+export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey, contextSlug }) {
+  return `tag-pin-${tagSlug}-${tagAuthorPubkey.slice(0, 8)}-${viewerPubkey.slice(0, 8)}${pinVariantKey({ contextSlug })}`;
 }
 
 /**
@@ -71,18 +71,22 @@ export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey }) 
  * `observer` is the curation-method's observer pubkey (defaults to
  * the viewer's own pubkey via `defaultCurationMethod()`).
  */
-export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
-  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
+  // Composed shape: tl-pin-<observer8>-<tagAuthor8>-<tagSlug> + pinVariantKey({ contextSlug })
+  // — built by the shared composer tlDTag in src/lib/event-tagging/pins.js, which
+  // the server runner delegates to as well (ADR feat-tags-modernization/0001 §5).
+  return tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug });
 }
 
 /**
- * Note-TL (kind-30393) d-tag, mirroring src/api/trustedList/refreshPinnedTags.js
- * runOneNotePin. Interim form (feat-tags-modernization step 1): no context suffix —
- * story 2 appends pinVariantKey({ contextSlug }) here and in the server runner
- * together, so the two never disagree.
+ * Note-TL (kind-30393) d-tag — the list the Pinned tab's Notes view displays.
+ * Mirrors the server's runOneNotePin by DELEGATING to the same composer, so the
+ * two can never disagree (ADR feat-tags-modernization/0001 §5 / AC-6).
  */
-export function computeNoteTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
-  return `tl-pin-notes-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+export function computeNoteTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
+  // Composed shape: tl-pin-notes-<obs8>-<author8>-<slug> + pinVariantKey({ contextSlug })
+  // — built by noteTlDTag in src/lib/event-tagging/pins.js.
+  return noteTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug });
 }
 
 /**
@@ -116,18 +120,33 @@ export function defaultCurationMethod(viewerPubkey) {
  *   (used in the d-tag and a-tag).
  * @param {object} [args.curationMethod] — optional override; defaults to
  *   `defaultCurationMethod(viewerPubkey)`.
+ * @param {string} [args.localTaPubkey] — ADR shared-concepts-adoption/0004: the
+ *   deployment's runtime TA, carried as a VALUE to emit the second (personal)
+ *   `39998:<localTA>:tag-pinning` stamp. Distinct from `taPubkey` below.
+ * @param {{slug: string, name?: string}} [args.context] — optional community
+ *   context to pin within (contextual-pins ADR 0001). When present the pin gets
+ *   a discriminated d-tag AND a `z` STAMP naming the context concept.
+ * @param {string} [args.taPubkey] — the deployment's runtime TA, required when
+ *   `context` is set: the context stamp composes from the runtime TA, NOT the
+ *   legacy literal (contexts are greenfield; the ADR 0015 legacy exception
+ *   covers `tag-pinning` only). See ADR feat-tags-modernization/0001 §4.
  * @returns {Promise<object>} the signed Pin event.
  */
-export async function pinTag({ tag, curationMethod, localTaPubkey }) {
+export async function pinTag({ tag, curationMethod, localTaPubkey, context, taPubkey }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to pin tags.');
   }
+  if (context && !taPubkey) {
+    throw new Error('pinTag: taPubkey (runtime TA) is required to stamp a context.');
+  }
   const authorPk = await getActiveSignerOrThrow(); // issue #335 — guard drifted signer
   const curation = curationMethod || defaultCurationMethod(authorPk);
+  const contextSlug = context ? context.slug : undefined;
   const dTag = computePinEventDTag({
     tagSlug: tag.slug,
     tagAuthorPubkey: tag.authorPubkey,
     viewerPubkey: authorPk,
+    contextSlug,
   });
   const unsigned = {
     kind: 39999,
@@ -139,6 +158,9 @@ export async function pinTag({ tag, curationMethod, localTaPubkey }) {
       ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
       ['z', TAG_PINNING_HANDLE],                       // canonical (ADR-0015 literal) — unchanged
       ...(/^[0-9a-f]{64}$/.test(localTaPubkey || '') ? [['z', `39998:${localTaPubkey}:tag-pinning`]] : []), // local (runtime TA) — W11 parity, ADR 0004
+      // contextual-pins ADR 0001 — runtime-TA context stamp (Stamping convention,
+      // containment side). Additive: both tag-pinning z tags stay.
+      ...(context ? [['z', contextHandle(taPubkey, context.slug)]] : []),
       ['curation-method', JSON.stringify(curation)],
     ],
     content: JSON.stringify({
@@ -323,16 +345,19 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays,
  * Target-type-qualified (`notes-pin-…`) so a tag's note export never collides
  * with its profile follow-set export (`tl-pin-…`).
  */
-export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug }) {
-  return `notes-pin-${viewerPubkey.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug, contextSlug }) {
+  return `notes-pin-${viewerPubkey.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
 }
 
 /**
  * Story 12 / ADR 0015 — the NOTE analog of publishNip51ExportForPin: materialize
  * a note-tag's curated members into a user-signed **kind-30003 bookmark set**
- * (elements are `e` tags, per the registry projection). Export-only depth (v1):
+ * (elements are `e` tags, per the registry projection). This is the cross-client
+ * EXPORT artifact (the note analog of the kind-30000 follow-set export):
  * membership is computed client-side from `/api/event-tags/for-tag` at pin time
- * (a point-in-time snapshot); there is no TA-signed note-TL yet (issue #336).
+ * (a point-in-time snapshot). The Pinned tab DISPLAYS the TA-signed kind-30393
+ * note TL instead (contextual-pins Story 2); this export stays a separate,
+ * on-demand action in the Export modal.
  *
  * @param {object} args
  * @param {{authorPubkey:string, slug:string, name?:string}} args.tag

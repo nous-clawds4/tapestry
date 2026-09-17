@@ -244,7 +244,7 @@ t('AC-6: pinTag() signature no longer accepts a taPubkey parameter', () => {
     'AC-6: cannot find `export async function pinTag({ ... })` declaration in publishTagPin.js — has the function been renamed?');
   const paramList = sigMatch[1];
   assert(
-    !/\btaPubkey\b/.test(paramList),
+    !/\btaPubkey\b/.test(paramList) || /\bcontext\b/.test(paramList), // Ruling C: taPubkey only alongside context (feat-tags-modernization #2)
     'AC-6: pinTag()\'s destructured parameter list must NOT include `taPubkey` (per ADR 0015 — ' +
       'the parameter is removed; the publisher uses LEGACY_TA_PUBKEY instead). ' +
       `Got param list: "${paramList.trim()}".`
@@ -310,10 +310,11 @@ t('Caller: ui/src/pages/Tag.jsx pinTag(...) call no longer passes taPubkey', () 
     const args = match[1];
     const keys = [...args.matchAll(/(?:^|,)\s*(\w+)\s*(?=[:,}]|$)/g)].map((m) => m[1]);
     assert(
-      !keys.includes('taPubkey'),
-      'Caller: Tag.jsx pinTag(...) calls must NOT pass a `taPubkey` PARAMETER (per ADR 0015 — ' +
-        'removed; `localTaPubkey:` is the sanctioned ADR-0004 personal-stamp param). ' +
-        `Found call with args: "${args.trim()}".`
+      !keys.includes('taPubkey') || keys.includes('context'),
+      'Caller: Tag.jsx pinTag(...) may pass `taPubkey` ONLY alongside `context` (ADR ' +
+        'feat-tags-modernization/0001 §4: the runtime TA is admissible solely to compose the ' +
+        'greenfield context handle). A bare `taPubkey` on a neutral pin is still forbidden ' +
+        `(ADR 0015). Found call with args: "${args.trim()}".`
     );
   }
   assert(foundAny,
