@@ -267,6 +267,7 @@ async function register(app) {
     // Simple Lists (DList) aggregates. Per-list item counts + the union total,
     // computed server-side so the page does not fetch every item to count them.
     app.get('/api/dlists/item-counts', dlists.handleListItemCounts);  // Public, read-only
+    app.get('/api/dlists/page-counts', dlists.handleListPageCounts);  // Public, read-only — counts one page of coordinates
     app.post('/api/strfry/publish', strfry.handlePublishEvent);  // Sign and publish events to strfry
     app.get('/api/get-strfry-filteredContent', strfry.handleGetFilteredContentStatus);  // Status query (public)
     app.post('/api/toggle-strfry-filteredContent', strfry.handleToggleStrfryPlugin);  // Toggle command (owner only)

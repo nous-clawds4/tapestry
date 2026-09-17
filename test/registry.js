@@ -217,6 +217,7 @@ const suites = [
   { file: 'event-tagging-a-target-dtag.test.js' },
   { file: 'dlist-item-tagging.test.js' },
   { file: 'dlist-tagged-items.test.js' },
+  { file: 'dlist-index-page-counts.test.js' },
   { file: 'pin-stack-composition.test.js' },
   { file: 'honest-broadcast-reporting.test.js' },
   { file: 'honest-publish-reporting.test.js' },

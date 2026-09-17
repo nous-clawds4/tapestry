@@ -41,6 +41,9 @@ accounts can feed a downstream search index.
    promotes undeclared item tags to real columns, with horizontal scrolling; fixes the unhelpful
    rendering of lists whose headers declare little or are absent. Light, rendering only.
 
+9. `9-paginate-the-lists-index.md` — **Done** (review PASS) — page the index at 50 and count only the visible page via a
+   new bounded endpoint (the whole-relay item-counts walk took 39 s on tags.b.w — OPEN 301). Light.
+
 ## Decisions
 `decisions/dlist-item-tagging/` — none yet (Light: Design notes live in the story files unless an
 irreversibility trigger fires).
