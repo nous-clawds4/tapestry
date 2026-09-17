@@ -258,6 +258,43 @@ For ADR 0006 Amendments 2 and 3, the same separate Implementer agent wrote the c
 22. **The unknown sentence** follows the other refusal lines, under the heading "What was published" and any results the
     earlier calls returned. "Nothing was published." shows only when no call returned results and the outcome isn't
     unknown.
+23. **Local check for Amendments 2 and 3 (2026-09-17, the orchestrator).** `update.js` and the UI build were deployed
+    to the local container, and `brainstorm` was restarted; no other local sessions were active.
+    - **The route, live.**
+      - From the host, an unauthenticated POST gets the auth middleware's
+        `401 { error: "Authentication required for this action" }`, with no `success: false`. That is the case
+        Amendment 3 covers.
+      - From inside the container, past that middleware, a foreign `Origin` still gets 403, and no session gets the
+        handler's 401. Nothing was signed.
+    - **The UI, through the fetch stub.** Signed in as staging's customer (assistant `253d40c4…`), on `dog-breed`, under
+      Trust Everyone at cutoff 1, the preview proposed Copy (2) and the upgrade. The stub answered each update call
+      itself:
+      - **a 504 on the first call:** "⚠️ Publishing stopped without an answer (the server answered 504); some changes
+        may have been published. Your list has been read again, so the preview above proposes only what is still to
+        do." There was no "Nothing was published.", and the upgrade's call was never sent;
+      - **the copies published, then a 504 on the upgrade's call:** the two copies were listed, then the same sentence,
+        with no "Nothing was published.";
+      - **a failed fetch:** the same sentence, with "(no answer arrived)";
+      - **the middleware's 401:** "Nothing was published." and "⚠️ Publishing stopped: Authentication required for this
+        action";
+      - **results out of time:** "failed: not sent: out of time" and "failed: sent, but couldn't read it back: out of
+        time" at the relay, and the run went on to the upgrade's call;
+      - **round 1's published and stale answers** rendered as before.
+    - Every call carried references only. Nothing else was posted, and the browser's settings were restored afterwards.
+    - **Setup notes.**
+      - The detail page's route is the Map entry's `39998:dog-breed`, not the header's coordinate.
+      - The page's Map read was answered with the customer's real Map event, fetched from the general-purpose relays
+        just before.
+24. **Regression (2026-09-17).** Full `npm test` at `f0abfb3c`.
+    - **This story's suites pass:** publish 69/0; update-preview 34/0; curation-method 24/0; pointer-switch 12/0;
+      read-only 13/0.
+    - **So do the neighbouring suites:**
+      - the header endpoint 29/0, the DList Curation panel 18/0, map entries 14/0, merge-preserve 16/0, and the TL panel
+        19/0;
+      - My Curated DLists' page 19/0, headers 16/0 and items 23/0.
+    - **What still fails** is the known set, the same as round 1's run: OPEN.md row 191's four, and
+      `summaries-element-count` L5.
+    - `most-pinned-tag-index-publish` passed (row 293 is flaky). 56 tests were skipped, as in round 1.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md`
