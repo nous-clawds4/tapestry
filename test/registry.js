@@ -218,6 +218,7 @@ const suites = [
   { file: 'dlist-item-tagging.test.js' },
   { file: 'dlist-tagged-items.test.js' },
   { file: 'dlist-index-page-counts.test.js' },
+  { file: 'item-trusted-list.test.js' },
   { file: 'pin-stack-composition.test.js' },
   { file: 'honest-broadcast-reporting.test.js' },
   { file: 'honest-publish-reporting.test.js' },

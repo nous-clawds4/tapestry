@@ -218,7 +218,26 @@ GitHub accounts my POV considers white-hat hackers" as a signed, addressable lis
   "does not error"; per-item scores or relay hints in the `a` member tags (bare coordinates only in v1).
 
 ## AC→handle lines
-—
+
+Suite: `test/item-trusted-list.test.js` (51 handles). Plan:
+`engineering-team/test-plans/dlist-item-tagging/5-pins-and-trusted-lists-for-items.md`.
+
+- AC-1 → U6, U7, U8
+- AC-2 → U9, U10, S7
+- AC-3 → S6
+- AC-4 → U28, U29, S2
+- AC-5 → S8, S9, R5
+- AC-6 → U11, U12
+- AC-7 → R1, R2, R4 (+ `test/note-trusted-list.test.js` green: 15/15)
+- E1 → U8 · E2 → U28, R3 · E3 → U9, U10, S7 · E4 → U12, U28 · E5 → U14 · E6 → U16, U17
+- E7 → U2 · E8 → U22 · E9 → U29, U28 · E10 → S3 · E11 *(inverted, Rulings 1)* → U23, S2 · E12 → S9
+- ADR 0003 invariants: address filter → U13; `z` set-not-order → U18, U19; single `z` composer →
+  U3, S5; handle composers → U4; `itemTlDTag` ± context → U1, U2; `buildTLHeader` → U5;
+  `ensureTagTLHeader` lazy/idempotent/memo → U21, U25, U26; failure policy F1 → U20, U27;
+  retraction `z` carry-over → U30; no 64-hex literals → S10; `pickHeader` barred → S5;
+  story-4 prerequisite → S11; method/observer guards → U24; curation over address rows → U15
+- Firmware fixtures (filesystem only, never a live reinstall) → FS1 (×2), FS2, FS3, FS4
+- Exports/wiring sentinels → S1, S2, S3, S4, S5
 
 ## Linked artifacts
 - ADR: none expected unless Open question #1 escalates
