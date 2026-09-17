@@ -2386,3 +2386,62 @@ own future instance).
 
 **Classification:** Feature. **Strictness:** Standard; ADR likely (a new relationship type in the
 graph schema).
+
+---
+
+## 2026-09-17 — Modernize `feat/tags` against `staging` (the drift is now the dominant cost)
+
+**PICKED UP** → book `engineering-team/audits/feat-tags-modernization/book.md`, epic
+`engineering-team/epics/feat-tags-modernization.md`.
+
+**Raw request (verbatim, operator, mid-session):**
+
+> is this decision you made in #1 wise? it seems like a future headache waiting to happen handling
+> it this way… it's starting to sound like getting feat/tags back up to speed with staging might be
+> the most important work. and then we integrate our work here with that…
+
+and then:
+
+> let's open it now, yes.
+
+**What prompted it.** The operator asked to get the `dlist-item-tagging` epic onto `feat/tags` so
+tags.brainstorm.world could serve it. Merging the feature branch directly was rejected: that branch
+had already merged `origin/staging`, so the merge would have carried ~943 staging commits into
+`feat/tags` and tangled with `contextual-pins`. A replay of just the epic (34 files, single squashed
+commit) succeeded on branch `tags/dlist-item-tagging` — all epic suites green, UI builds — **but
+only by**: (a) implementing the story-3 nav link a second time in `feat/tags`' hardcoded idiom
+because staging's links-config refactor is absent there, and (b) adapting four test sentinels that
+pinned staging-era structure. The operator judged that debt unacceptable and re-prioritized.
+
+**Measured at kickoff (after a full fetch):**
+
+| Fact | Value |
+|---|---|
+| `feat/tags` behind `staging` | 943 commits |
+| `feat/tags` ahead of `staging` | 54 commits |
+| Merge base | `39822c9d`, 2026-07-22 |
+| Trial merge | 10 conflicted files, 21 hunks |
+| One-sided features | `contextual-pins` (tags) vs membership-methods/weighted-certainty (staging) |
+
+**The two symptoms that make this urgent.** David hand-ported the September production security
+fixes onto `feat/tags` (`sandbox-security` #2) because the branch cannot simply take staging — a
+recurring cost paid in security-sensitive code. And the epic replay above could not be done without
+creating a divergent second implementation. Both are the same root cause.
+
+**Policy note.** A decision recorded 2026-07-16 made `feat/tags` a **deploy branch, strictly
+downstream of staging**, never originating feature work, to end exactly this drift after an earlier
+painful integration. It has since drifted: `contextual-pins` and parts of `security-auth-exposure`
+originated on `feat/tags`. The book must restore, amend, or replace that policy explicitly.
+
+**Verified non-issue.** Security parity is not at risk: `src/middleware/auth.js` and
+`src/utils/siteTrust.js` are byte-identical between the two branches, the nsec sign-in page is
+removed on both, and on the one differing file (`publishEvent.js`) staging is the superset — it
+additionally carries the brain-write hook.
+
+**Classification:** Feature — integration book with a wire-adjacent core (the pin stack).
+**Strictness:** Standard. At least one ADR expected for the `contextual-pins` × membership-methods
+resolution; the operator co-drives that story, as in the July integration.
+**Phase path:** per story — Planning → Architecture → Test Design → Implementation → Review.
+**Related:** the parked branch `tags/dlist-item-tagging` (pushed, deliberately unmerged — merging
+it would cement the divergence this book removes); `engineering-team/audits/dlist-item-tagging/book.md`
+(story 5 will touch the same pin stack, so that integration lands here or blocks there).
