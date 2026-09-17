@@ -143,6 +143,21 @@ Use the standard report template (see [docs/SMOKE_TEST.md](../../../docs/SMOKE_T
 - Tier results
 - Any caveats or noted gaps
 
+### 8b. Sync `feat/tags` (mandatory follow-on — do not skip)
+
+`feat/tags` is the **upstream** branch where tagging features are built and tested on
+tags.brainstorm.world before they graduate to staging; it only stays mergeable if staging is
+pulled into it after **every** promotion — including promotions from feature branches it has never
+seen. Skipping this step is exactly what produced a 943-commit gap (feat-tags-modernization book,
+D3, 2026-09-17).
+
+1. `git fetch origin staging feat/tags`
+2. Open a PR `staging → feat/tags` (branch `sync/staging-into-tags-<YYYY-MM-DD>` off
+   `origin/feat/tags`, `git merge origin/staging`; resolve by superset, staging wins on
+   shared files unless the conflict is inside a tags-only feature).
+3. **Do not push or merge it yourself.** Pushing `feat/tags` auto-deploys tags.brainstorm.world;
+   the operator pushes. Report the PR and the conflict count instead.
+
 ### 9. Pause
 
 After reporting, stop. **Do not promote to main without explicit user approval.** The standard prompt: "Promote #<PR#> to main?"
