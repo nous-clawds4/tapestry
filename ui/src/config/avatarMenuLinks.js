@@ -75,5 +75,6 @@ export function personalLinks({ pubkey, assistantPubkey, profileBase }) {
 export const destinationLinks = [
   { key: 'brainstorm-landing', icon: '🔍', label: 'Brainstorm Landing Page', to: '/' },
   { key: 'tapestry-dashboard', icon: '📊', label: 'Tapestry Dashboard', to: '/tapestry/' },
+  { key: 'lists', icon: '📋', label: 'Lists', to: '/lists' },
   { key: 'legacy-dashboard', icon: '🗂️', label: 'Legacy Dashboard', to: '/legacy/', external: true },
 ];

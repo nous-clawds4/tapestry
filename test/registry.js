@@ -211,6 +211,12 @@ const suites = [
   { file: 'relay-scan-bounds.test.js' },
   // feat/tags-only until the feat-tags-modernization book (2026-09-17): contextual pins.
   { file: 'context-scoped-pins.test.js' },
+  // dlist-item-tagging epic (landed on the modernized branch 2026-09-17).
+  { file: 'dlist-browse.test.js' },
+  { file: 'dlist-derived-columns.test.js' },
+  { file: 'event-tagging-a-target-dtag.test.js' },
+  { file: 'dlist-item-tagging.test.js' },
+  { file: 'dlist-tagged-items.test.js' },
   { file: 'pin-stack-composition.test.js' },
   { file: 'honest-broadcast-reporting.test.js' },
   { file: 'honest-publish-reporting.test.js' },

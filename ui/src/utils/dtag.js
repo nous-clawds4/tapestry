@@ -3,6 +3,8 @@
  *
  * Mirrors src/lib/dtag.js on the server. Must produce identical output.
  */
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 
 /**
  * Canonical slug derivation. Must match the server-side version exactly.
@@ -16,14 +18,26 @@ export function slug(name) {
 }
 
 /**
- * 8-character hash of a string using SubtleCrypto (SHA-256).
- * Returns a Promise.
+ * 8-character hash of a string (first 8 hex of SHA-256). Byte-identical to the
+ * server's `src/lib/dtag.js` hash8.
+ *
+ * Uses @noble/hashes rather than SubtleCrypto **on purpose**: `crypto.subtle` is
+ * only defined in a secure context, so a plain-HTTP origin (a LAN or Tailscale IP
+ * on the dev box, e.g. http://100.x.x.x:8778) has it undefined and every caller
+ * threw 'undefined is not an object (evaluating crypto.subtle.digest)'. localhost
+ * is a secure context, which is why this only ever failed off-box. @noble/hashes
+ * is already in the bundle (nostr-tools depends on it), so this adds no dependency
+ * and works in every context.
+ */
+export function hash8Sync(str) {
+  return bytesToHex(sha256(new TextEncoder().encode(str))).slice(0, 8);
+}
+
+/**
+ * Async wrapper kept for call sites that already await it (signature unchanged).
  */
 export async function hash8(str) {
-  const data = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return hex.slice(0, 8);
+  return hash8Sync(str);
 }
 
 /**

@@ -25,6 +25,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { createHash } = require('node:crypto');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const CORE_REQUIRE = '../src/lib/event-tagging';
@@ -92,6 +93,9 @@ function makeDeps({ headers = [], failPublishAt = 0, failSignAt = 0 } = {}) {
       return { local: { success: true }, external: { successes: [] } };
     },
     now: () => 1700000000,
+    // dlist-item-tagging #2: the a-target d needs hash8 (SHA-256 first-8-hex over
+    // the full coordinate), injected like the signer. Sync node:crypto here.
+    hash8: (str) => createHash('sha256').update(str, 'utf8').digest('hex').slice(0, 8),
   };
   return { deps, rec };
 }
@@ -329,6 +333,9 @@ t('addressable target ({address}): the assertion references it via a, not e', as
   const ev = rec.published[0];
   assert(tagVal(ev, 'a') === ADDR_TARGET, `addressable target must land in a, got ${JSON.stringify(tagVal(ev, 'a'))}`);
   assert(tagVal(ev, 'e') === null, 'addressable target must NOT emit an e tag');
+  // dlist-item-tagging #2: d = event-tag-<slug>-<author8>-<d16>-<hash8>-<asserter8> (hash8 via deps.hash8).
+  const expectedD = `event-tag-${EXISTING_SLUG}-33333333-some-addressable-${deps.hash8(ADDR_TARGET)}-22222222`;
+  assert(dOf(ev) === expectedD, `a-target assertion d must follow the five-segment rule, expected ${expectedD}, got ${dOf(ev)}`);
 });
 
 // Return shape: published[] entries are { kind, address, id }

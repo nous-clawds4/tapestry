@@ -155,12 +155,22 @@ One call per tag returns the tagged notes, already resolved and enriched:
 ```
 GET https://tags.brainstorm.world/api/event-tags/for-tag?tagAuthor=<hex>&slug=<slug>
     [&viewerPubkey=<hex>] [&wotPov=house|user&userPubkey=<hex>] [&sort=recent|applied|disputed|divisive]
-→ { success, notes:[…NoteCard-ready…], members:[{id, applications, disputes, createdAt}], total, truncated, limit }
+→ { success, notes:[…NoteCard-ready…], members:[{id, applications, disputes, createdAt}], total, truncated, limit,
+    items:[…tagged Decentralized-List items…], itemTotal, itemTruncated }
 ```
 - `notes` = resolved kind-1 notes for the tag; `members` = the deterministic id+counts set (use this if
   you want a stable list independent of flaky external note-fetches).
-- **Caveats:** it's POV-filtered (§6) and **capped at the 50 most-recent** tagged notes per tag
-  (`limit`/`truncated` tell you when it's clipped — pagination is not yet exposed). Because our API
+- `items` (additive; ignore it if you only want notes) = the **Decentralized-List items** tagged with
+  this tag, each `{ address|null, id, kind, pubkey, created_at, tags, content, listCoord, applications,
+  disputes, mine }`. `address` is the `39999:<author>:<d>` coordinate for an addressable item and
+  `null` for a non-addressable kind-9999 item; `listCoord` is the item's parent list — a
+  `39998:<author>:<d>` coordinate or a kind-9998 header event id — so you can group items per list.
+  `itemTotal` / `itemTruncated` describe this group. Nothing was removed from `notes`, `members`,
+  `total` or `truncated` to add it: a kind-9999 item id that appears in `members` today still does.
+- **Caveats:** it's POV-filtered (§6). Notes and items have **separate caps**, each with its own
+  truncation signal: notes are **capped at the 50 most-recent** tagged notes (`limit`/`truncated`) and
+  items are capped independently at the same value (`itemTruncated`) — one group can be clipped while
+  the other is not, and pagination is not yet exposed for either. Because our API
   isn't CORS-open, call it from *your* server (proxy), not directly from a browser on your origin.
 
 Merge the per-tag results to build "all events carrying *any* of my tags."
@@ -256,7 +266,9 @@ For discovery you can also use `GET /api/tags/index` and `GET /api/tags/applicab
 - [ ] **Publish + refresh your member TL from an LFO House Assistant** (server-side nsec) so it stays live
       when you're offline; it must sit on tags.b.w's relay (§7).
 - [ ] **API is same-origin (no CORS)** — from a browser, read the relay directly or proxy the API (§5).
-- [ ] **`for-tag` caps at 50 most-recent** notes per tag — for a fuller feed, aggregate from the relay (§5A).
+- [ ] **`for-tag` caps notes and items separately** — 50 most-recent tagged notes (`truncated`) and, on its
+      own track, 50 most-recent tagged list items (`itemTruncated`); one cap does not cover both groups.
+      For a fuller feed, aggregate from the relay (§5A).
 - [ ] **Tagging is indirect** (assertion → header → tag) — use the SDK so you don't mis-shape the wire (§2–3).
 - [ ] **Share tag a-coordinates** (`39999:<author>:<slug>`) with colleagues, or let them discover via §8.
 
