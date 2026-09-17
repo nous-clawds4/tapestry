@@ -256,3 +256,12 @@ fits — see ADR 0002 Decision 5). Two concept dirs, one reinstall. This reverse
 reinstall required" line in the Gate-A notes above.
 
 See ADR 0002 for the rationale, the worked example, and the 30393 dual-emit migration posture.
+
+## Amendment (2026-09-17) — lane
+
+Back to **Light** (operator, 2026-09-17): the wire-format trigger that escalated this story is
+settled and Accepted in ADR 0002, so the remaining work is implementation against a fixed spec.
+The design record is ADR 0003 (`decisions/dlist-item-tagging/0003-item-trusted-lists-implementation.md`),
+which supersedes the 2026-09-10 Design note wherever they differ (stale line citations, the
+Pins.jsx status line that no longer has a surface, the `fullItemMembers` address filter, the
+three-`z` contextual composition). Interior gates J1–J3 apply; scoped gate as at Gate A.
