@@ -20,7 +20,7 @@ t('U: usePinnedNotes reads the viewer\'s kind-30003 snapshot + computes drift', 
   // assistant-signed kind-30393 note TL by its d-tag (context-aware), and the kind-30003
   // bookmark set only as the drift baseline. This assertion was already red on feat/tags.
   assert(/computeNoteTLDTag/.test(s), 'must address the assistant-signed note TL by its context-aware d-tag');
-  assert(/30003/.test(s), 'must scan the kind-30003 bookmark set');
+  assert(/30393/.test(s), 'must read the assistant-signed kind-30393 note TL (the 30003 bookmark set is no longer the source)');
   assert(/curateNotes/.test(s), 'must curate the live set to compute drift');
   assert(/added|removed|drift/.test(s), 'must expose the added/removed drift vs the snapshot');
 });

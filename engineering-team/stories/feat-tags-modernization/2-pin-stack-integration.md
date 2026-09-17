@@ -1,6 +1,6 @@
 # Story 2: Pin-stack integration — contextual pins composed onto membership methods
 
-**Status:** Approved *(the consequential decisions were made by the operator in session — book
+**Status:** Done *(the consequential decisions were made by the operator in session — book
 Decision log D1; this story transcribes them into ACs)*
 **Created:** 2026-09-17
 **Type:** Feature — **Standard**, full ADR required (touches published event shape: a new `z`
@@ -100,17 +100,9 @@ preserved and discoverable.
   `activePin` selection (a context pin's Edit dialog must seed from the *selected* pin); also
   removes the last `viewerPin`-direct dereference that would crash when only `pin` is passed.
 
-## Blocked (needs the Tester / PO)
+## Resolution of the former "Blocked" section
 
-- **AC-2 cannot reach 22/0.** After the authorized Ruling-C re-aim, the caller guard passes, but a
-  **second** assertion in the same suite goes red — `AC-6: pinTag() signature no longer accepts a
-  taPubkey parameter` (`test/restore-historical-data-and-fix-tl-author-filter.test.js:237`). It
-  bans `taPubkey` from `pinTag`'s destructured parameter list outright, which the ratified ADR §2/§4
-  signature (`pinTag({ tag, curationMethod, localTaPubkey, context, taPubkey })`) requires. It was
-  green pre-change only because the parameter did not exist yet; the test plan's R1 carve-out
-  caught the caller half of this ban but not the signature half. Its sibling
-  (`pinTag() body no longer throws when taPubkey is missing`, :254) IS satisfied — the guard reads
-  `if (context && !taPubkey)`, exactly as ADR §4 prescribed. Recommended one-line re-aim, mirroring
-  Ruling C (not applied — only the caller re-aim was authorized):
-  `!/\btaPubkey\b/.test(paramList) || /\bcontext\b/.test(paramList)`.
-  Suite stands at **21 pass / 1 fail**.
+Superseded at close-out (2026-09-17): the signature-site re-aim WAS applied under Ruling C
+(same rule as the caller guard), and `pinned-notes-display` was re-aimed to D2 and to the
+accepted contextual-pins hook. Measured at `ccbb8189`: `restore-historical` **22 / 0**,
+`pinned-notes-display` **2 / 0**. Review: `engineering-team/reviews/feat-tags-modernization/2-pin-stack-integration.md` (PASS).
