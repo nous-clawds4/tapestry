@@ -53,7 +53,7 @@ usable regardless of how many lists (or how much junk) the relay holds.
   `src/api/dlists/index.js`; mounted one line below the existing counts route in
   `src/api/index.js:269` as `app.get('/api/dlists/page-counts', dlists.handleListPageCounts)` —
   public, read-only, no auth, no TA pubkey, no publish (mirrors `item-counts`'s mounting).
-  Shape: `GET /api/dlists/page-counts?coords=<comma-separated, ≤50>` →
+  Shape: `GET /api/dlists/page-counts?coords=<c1>&coords=<c2>… (repeated query params, ≤50 — ruling 2)` →
   `{ success: true, counts: { [coord]: number }, invalid: [coord…], partial: bool }`.
   **GET, not POST**: the neighbouring dlists route is GET, it is a pure read, and GET is cacheable.
   Per coordinate the handler runs `strfry scan --count` with `{kinds:[9999,39999], '#z':[coord]}`
