@@ -32,9 +32,9 @@ book must either restore the policy or replace it with one the team will actuall
 
 ### Acceptance frame
 
-- [ ] **The gap is closed.** `feat/tags` contains staging's content, and `git rev-list --count
+- [x] **The gap is closed.** `feat/tags` contains staging's content, and `git rev-list --count
       feat/tags..staging` is 0 at close.
-- [ ] **No shipped behavior is silently lost, in either direction.** Every feature that exists on
+- [x] **No shipped behavior is silently lost, in either direction.** Every feature that exists on
       one side only is either carried across or explicitly declared dropped, with the reason
       recorded. Specifically resolved, not merged-by-luck:
       - `contextual-pins` (feat/tags only: `pinVariantKey`, `contextSlugOfPin`, `contextHandle`,
@@ -45,17 +45,18 @@ book must either restore the policy or replace it with one the team will actuall
         recompute (feat/tags) — a behavioral choice, not a textual merge
       - `relay-scan-bounds`, `site-trust-signals`, the Firmware Explorer fork, the JSON-viewer
         toggle
-- [ ] **The 54 feat/tags-only commits have a declared destination** — each either promoted toward
+- [x] **The 54 feat/tags-only commits have a declared destination** — each either promoted toward
       staging or marked tags-only. This is the decision that determines whether the pin-stack
       tangle is resolved once or twice.
-- [ ] **Security parity is verified, not assumed.** The September fixes end up present and
+- [x] **Security parity is verified, not assumed.** The September fixes end up present and
       equivalent; `publishEvent.js` keeps staging's brain-write hook (verified superset at kickoff).
 - [ ] **The branch is deployable.** UI builds; the full suite runs with every failure attributed to
       a pre-existing cause; tags.brainstorm.world serves the merged branch.
 - [x] **A branch policy is written down and agreed** (Decision 3: bidirectional, cadence-driven) — so the next
       session does not re-derive it.
-- [ ] **`dlist-item-tagging` then lands by ordinary merge**, and the parked replay branch is
-      retired rather than merged.
+- [~] **`dlist-item-tagging` then lands by ordinary merge** — landed (`ffe74a75`, zero code
+      conflicts); the parked replay `tags/dlist-item-tagging` is to be deleted from origin at
+      the operator's push (deleting a remote branch is a push).
 
 ## Epics in this book
 - `feat-tags-modernization` — the integration itself, its per-file decisions, and the branch policy.
@@ -128,3 +129,10 @@ book must either restore the policy or replace it with one the team will actuall
    this rule; `test/pinned-notes-display.test.js` was re-aimed to D2 (server recompute) and to the
    accepted contextual-pins hook (reads the 30393 TL). Recorded here because the review found the
    ruling cited in tests and story but nowhere durable.
+
+
+## Status at the end of the 2026-09-17 session
+Integration branch `integrate/staging-into-tags-2026-09` (worktree `~/src/tapestry-tags`), head
+`433c8141`: 0 behind staging; story 2 PASS; epic landed; full suite running (capped). **Not pushed** —
+remaining frame bullets (deployable + verified on tags.brainstorm.world) wait on the operator's
+push of `feat/tags`.
