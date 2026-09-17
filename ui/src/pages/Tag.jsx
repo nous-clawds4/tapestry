@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
 import { pinTag, defaultCurationMethod, publishNip51ExportForPin, publishNoteBookmarkSetForPin, syncPinnedExportsForTag } from '../utils/publishTagPin';
+import { queryRelay } from '../api/relay';
 import useTagDetail from '../hooks/useTagDetail';
 
 /**
@@ -27,6 +28,21 @@ import useTagDetail from '../hooks/useTagDetail';
  * "Tag someone" replaces the old inline page-search with a clearly-
  * separated modal (TagSomeoneModal).
  */
+
+/**
+ * OPEN 302 — the `:tagId` segment may be an `<authorPubkey>:<slug>` coordinate
+ * rather than a 64-hex event id. `useEventTags` mints that coordinate as a
+ * chip's `eventId` while a brand-new tag is still missing from the cached
+ * available-tags index, and the coordinate is the tag's stable identity anyway
+ * (ADR 0022: hybrid e+a reference, `a` is the stable half). The page resolves
+ * it to the current definition event and then behaves exactly as the hex path.
+ *
+ * Not reusing `parseListRef` / `parseItemRef` (utils/dlistFields.js): those
+ * parse full `kind:pubkey:d` coordinates for the DCoSL list/item kinds
+ * (9998/39998 headers, 39999 items) and reject a kind-less two-part string,
+ * which is precisely the shape minted here.
+ */
+const TAG_COORD_RE = /^([0-9a-f]{64}):(.+)$/;
 
 function rowMatchesFilter(row, text) {
   if (!text) return true;
@@ -46,11 +62,47 @@ export default function Tag() {
   const { user, login } = useAuth();
   // W11 / tag-federation ADR 0003 — the runtime instance TA for the local z.
   const { taPubkey } = useConfig();
+
+  // OPEN 302 — coordinate param (`<authorPubkey>:<slug>`) → the tag's current
+  // kind-39999 definition event id. A hex param skips this entirely.
+  const tagCoord = useMemo(() => {
+    const m = TAG_COORD_RE.exec(tagId || '');
+    return m ? { authorPubkey: m[1], slug: m[2] } : null;
+  }, [tagId]);
+  const [coordEventId, setCoordEventId] = useState(null);
+  const [coordUnresolved, setCoordUnresolved] = useState(false);
+
+  useEffect(() => {
+    if (!tagCoord) { setCoordEventId(null); setCoordUnresolved(false); return undefined; }
+    let cancelled = false;
+    setCoordEventId(null); setCoordUnresolved(false);
+    queryRelay({ kinds: [39999], authors: [tagCoord.authorPubkey], '#d': [tagCoord.slug] })
+      .then((events) => {
+        if (cancelled) return;
+        // Replaceable: newest wins.
+        const newest = (events || []).reduce(
+          (best, ev) => (!best || (ev.created_at || 0) > (best.created_at || 0) ? ev : best), null,
+        );
+        if (newest?.id) setCoordEventId(newest.id);
+        else setCoordUnresolved(true);
+      })
+      .catch(() => { if (!cancelled) setCoordUnresolved(true); });
+    return () => { cancelled = true; };
+  }, [tagCoord]); // memoised on tagId — a stable identity per param
+
+  // Null while a coordinate is still resolving — the hook no-ops on a falsy id,
+  // so the "tagEventId is required (64-char lowercase hex)" server error is
+  // never reachable from a coordinate route.
+  const effectiveTagId = tagCoord ? coordEventId : tagId;
+
   const {
     tag, viewerPin, rows, viewerAssertions, povSuffix, povResolution, sort, setSort,
-    headerLoading, rowsLoading, headerError, rowsError,
+    headerLoading, rowsLoading, headerError: headerErrorRaw, rowsError,
     refetchRows, refetchHeader,
-  } = useTagDetail(tagId);
+  } = useTagDetail(effectiveTagId);
+
+  // A coordinate that resolves to nothing is an unknown tag, not an error.
+  const headerError = coordUnresolved ? 'not-found' : headerErrorRaw;
 
   const [pinning, setPinning] = useState(false);
   const [pinError, setPinError] = useState(null);

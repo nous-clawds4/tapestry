@@ -48,6 +48,8 @@ const TABLE = path.join(UI, 'components/dlist/DListItemsTable.jsx');
 const ROW = path.join(UI, 'components/dlist/DListItemRow.jsx');
 const LISTS_PAGE = path.join(UI, 'pages/Lists.jsx');
 const RELAY_API = path.join(UI, 'api/relay.js');
+// OPEN 302 — the tag-detail page's param parse (S8).
+const TAG_PAGE = path.join(UI, 'pages/Tag.jsx');
 
 /* ── Fixtures: the live github-accounts item shape (relay probe 2026-09-09) ── */
 
@@ -298,6 +300,32 @@ test('S7 (CLAUDE.md § TA pubkey): no 64-hex literal in the new/changed UI files
     assert(src.length > 0, `${name} must exist`);
     assert(!/[0-9a-fA-F]{64}/.test(src), `${name} must not carry a 64-hex literal`);
   }
+});
+
+test('S8 (OPEN 302): Tag.jsx accepts an <authorPubkey>:<slug> coordinate param and resolves it via queryRelay({kinds:[39999], authors, "#d"}) instead of handing it to the hex-only API', () => {
+  const raw = safeRead(TAG_PAGE);
+  const src = stripComments(raw);
+  assert(src.length > 0, 'ui/src/pages/Tag.jsx present');
+  // The branch: a 64-hex-colon-rest param is recognised as a coordinate.
+  assert(/\[0-9a-f\]\{64\}\)?:/.test(src),
+    'OPEN 302: Tag.jsx must branch on a `<64-hex>:<slug>` coordinate param');
+  // The resolve: the existing relay client, filtered to the tag definition kind.
+  assert(/from\s+['"]\.\.\/api\/relay['"]/.test(src) && /queryRelay\s*\(/.test(src),
+    'OPEN 302: the coordinate is resolved with the existing queryRelay client');
+  assert(/kinds:\s*\[\s*39999\s*\]/.test(src) && /authors:/.test(src) && /['"]#d['"]/.test(src),
+    'OPEN 302: the filter is { kinds:[39999], authors:[author], "#d":[slug] }');
+  assert(/created_at/.test(src),
+    'OPEN 302: replaceable dedupe — newest created_at wins');
+  // The hex path is unchanged: the raw param still flows to useTagDetail when it is not a coordinate.
+  assert(/useTagDetail\(/.test(src),
+    'OPEN 302: the resolved id still flows through useTagDetail (hex path unchanged)');
+  // The failure mode: a coordinate that resolves to nothing shows the page's
+  // existing not-found state, so the hex-only server error is unreachable.
+  assert(/'not-found'/.test(src),
+    'OPEN 302: an unresolved coordinate falls back to the existing not-found state');
+  // (checked on the comment-stripped source — the fix's own prose names the old error)
+  assert(!/tagEventId is required/.test(src),
+    'OPEN 302: the "tagEventId is required (64-char lowercase hex)" error is not reachable from the page');
 });
 
 /* ── R: regression sentinels (pass before and after) ───────── */
