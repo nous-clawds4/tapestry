@@ -1,6 +1,6 @@
 # Story 9: Paginate the lists index and count only the visible page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-17
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-17 in
 session — page size 50; a NEW bounded counts endpoint taking the page's coordinates, the
