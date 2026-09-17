@@ -52,7 +52,7 @@ book must either restore the policy or replace it with one the team will actuall
       equivalent; `publishEvent.js` keeps staging's brain-write hook (verified superset at kickoff).
 - [ ] **The branch is deployable.** UI builds; the full suite runs with every failure attributed to
       a pre-existing cause; tags.brainstorm.world serves the merged branch.
-- [ ] **A branch policy is written down and agreed** — restored, amended, or replaced — so the next
+- [x] **A branch policy is written down and agreed** (Decision 3: bidirectional, cadence-driven) — so the next
       session does not re-derive it.
 - [ ] **`dlist-item-tagging` then lands by ordinary merge**, and the parked replay branch is
       retired rather than merged.
@@ -93,3 +93,16 @@ book must either restore the policy or replace it with one the team will actuall
    bookmark export stays a separate action in the Export modal on both. Operator rationale: a
    `brainstorm_server` PR adds a "publish/update all TLs for this observer" button using the
    assistant key, so this normalizes the UX across apps.
+3. **Branch policy → bidirectional with a written cadence.** Correction to the record: a July
+   note called `feat/tags` a deploy-only branch strictly downstream of staging. Actual usage
+   since then — including how the `dlist-item-tagging` epic was framed on day one — is the
+   reverse: `feat/tags` is where tagging features are built and tested **before** they
+   graduate to staging. That note was stale; the drift is the natural consequence of an
+   upstream feature line that is never re-synced. The rule is therefore about **cadence, not
+   direction**:
+   - **Pull staging into `feat/tags` after every staging promotion** — including promotions
+     that land from other feature branches `feat/tags` has never seen. This book is the first
+     such pull. The trigger must be a checklist line in the promotion skill, not a memory: the
+     skipped step is exactly the one that produced the 943-commit gap.
+   - **Graduate `feat/tags` → staging by book close**, not commit by commit.
+   Recorded 2026-09-17; supersedes the 2026-07-16 note wherever it is quoted.
