@@ -6,7 +6,7 @@ import useTrustWeights from '../../hooks/useTrustWeights';
 import useProfiles from '../../hooks/useProfiles';
 import { useTrust, SCORING_METHODS } from '../../context/TrustContext';
 import { queryRelayBounded } from '../../api/relay';
-import { curatedItemRows, itemsEmptySentence, itemRouteId, weightsState, candidateVerdicts, listReadGaps, updatePlan, planIntents, LIST_ITEMS_LIMIT } from '../../utils/treasureMap';
+import { curatedItemRows, itemsEmptySentence, itemRouteId, weightsState, candidateVerdicts, listReadGaps, updatePlan, planIntents, updateAnswer, LIST_ITEMS_LIMIT } from '../../utils/treasureMap';
 import { timeAgo } from '../../utils/timeAgo';
 import UpdatePreview from './UpdatePreview';
 
@@ -221,24 +221,25 @@ function intentCalls(list, intents) {
 }
 
 /**
- * Sends the calls one after another and stops at the first refused one (ADR 0006 §6) → `{ results, refusal }`. What the
- * earlier calls published is always kept. Nothing is retried (Planning decision 4).
+ * Sends the calls one after another and stops at the first that doesn't answer with its results (ADR 0006 §6) →
+ * `{ results, refusal }`. `updateAnswer` sorts each answer (Amendment 2): its results, one of the refusals made before
+ * anything is signed, or an unknown outcome, which is never reported as "nothing". What the earlier calls published is
+ * always kept. Nothing is retried (Planning decision 4).
  */
 async function publishIntents(list, intents) {
   const results = [];
   for (const body of intentCalls(list, intents)) {
-    let res;
-    let data;
+    let answer;
     try {
-      res = await fetch(UPDATE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      data = (await res.json().catch(() => null)) || {};
-    } catch (err) {
-      return { results, refusal: { kind: 'error', message: err?.message || 'the request failed' } };
+      const res = await fetch(UPDATE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      // A body that can't be read as JSON, or a connection dropped while reading it, gives no body.
+      const data = await res.json().catch(() => null);
+      answer = updateAnswer(res.status, data);
+    } catch {
+      answer = updateAnswer(null, null);
     }
-    if (res.status === 409) return { results, refusal: { kind: 'stale' } };
-    if (res.status === 503) return { results, refusal: { kind: 'couldnt-check', reasons: Array.isArray(data.couldntCheck) ? data.couldntCheck : [] } };
-    if (!res.ok || !data.success) return { results, refusal: { kind: 'error', message: data.error || `the server answered ${res.status}` } };
-    results.push(...(Array.isArray(data.results) ? data.results : []));
+    if (answer.refusal) return { results, refusal: answer.refusal };
+    results.push(...answer.results);
   }
   return { results, refusal: null };
 }

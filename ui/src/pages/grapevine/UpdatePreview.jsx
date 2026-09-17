@@ -43,14 +43,20 @@ function placeWords(key, place) {
 }
 const ACTION_WORD = { copy: 'Copy', refresh: 'Refresh', delete: 'Delete', upgrade: 'Upgrade' };
 
-/** What Publish did, per item and per place (ADR 0006 §7, step 3), and why it stopped, if it did. */
+/**
+ * What Publish did, per item and per place (ADR 0006 §7, step 3), and why it stopped, if it did. A call whose answer
+ * wasn't the endpoint's own left its outcome unknown, so the page never says that nothing was published then
+ * (Amendment 2, change 2).
+ */
 function PublishResults({ run }) {
   const results = list(run.results);
   const refusal = run.refusal && typeof run.refusal === 'object' ? run.refusal : null;
+  const unknown = !!refusal && refusal.kind === 'unknown';
   return (
     <div>
       <div style={{ fontWeight: 600 }}>What was published</div>
-      {results.length === 0 ? <div style={muted}>Nothing was published.</div> : (
+      {results.length === 0 && !unknown && <div style={muted}>Nothing was published.</div>}
+      {results.length > 0 && (
         <ul style={{ margin: '0.2rem 0 0', paddingLeft: '1.2rem' }}>
           {results.map((r, i) => (
             <li key={`${r.action}:${r.ref}:${i}`}>
@@ -62,6 +68,12 @@ function PublishResults({ run }) {
       {refusal && refusal.kind === 'stale' && <div style={warn}>The list changed since you pressed Publish; here is the new preview.</div>}
       {refusal && refusal.kind === 'couldnt-check' && <div style={warn}>⚠️ Publishing stopped — couldn’t check {list(refusal.reasons).join('; ')}.</div>}
       {refusal && refusal.kind === 'error' && <div style={warn}>⚠️ Publishing stopped: {refusal.message}</div>}
+      {unknown && (
+        <div style={warn}>
+          ⚠️ Publishing stopped without an answer ({refusal.reason}); some changes may have been published. Your list has been
+          read again, so the preview above proposes only what is still to do.
+        </div>
+      )}
     </div>
   );
 }

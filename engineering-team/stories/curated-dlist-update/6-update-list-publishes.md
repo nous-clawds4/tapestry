@@ -223,6 +223,42 @@ Tester's sketch. These are the calls it made where the ADR or the tests left roo
     - `most-pinned-tag-index-publish` passed this time (row 293 is flaky).
     - Publish suites whose preconditions weren't met were skipped, as usual.
 
+For ADR 0006 Amendments 2 and 3, the same separate Implementer agent wrote the code from the amendments and the tests at
+`5bc766b1`. These are its calls where they leave room:
+
+15. **With no time left, a read-back isn't started** (Amendment 2 allows skipping it or racing it). The place is "sent,
+    but couldn't read it back: out of time".
+    - With time left, each read-back read is raced against a timer for the time left when it starts. That covers the
+      read by ids and a deletion's copy re-read.
+    - A read that loses is abandoned. It runs on to its own timeout, and its answer is dropped.
+16. **A deletion's copy re-read that runs out of time** leaves the place as the read by ids found it, `published`, with
+    no `copy`. This is Deviation 6's rule for a failed re-read.
+17. **Signing.** Every write is still signed before the first send, even when the reads have already used up the time.
+    An event that is never sent stays in memory, and the answer carries only its id. So the results keep one row per
+    write.
+18. **Where the cutoff is checked.** It is checked before each import here and each relay send, when that send's turn
+    comes. That includes a send queued behind the 4 in flight.
+    - A send starts only while less than 25 000 ms have passed since the handler started.
+    - Imports here still run one after another, and the groups keep their order. So once the cutoff passes, every later
+      send is "not sent", and the header upgrade never goes out ahead of copies that didn't.
+    - Under the local-only policy, the relay rows stay `skipped`.
+19. **The narrowed read** is one `#a` read per place, beside the reads of my header and my list. Its addresses are the
+    copies', then the refreshes', de-duplicated. Its gap words are unchanged, so a capped answer still reads "every
+    deletion request by your assistant (more than one read returns)", although it now counts only the requests for this
+    call's copies.
+20. **`updateAnswer`.**
+    - A body counts as the endpoint's only when it is an object.
+    - An `error` that is empty, or isn't a string, gives "the server answered <status>".
+    - A 503's `reasons` are its `couldntCheck` as sent.
+21. **`publishIntents`.**
+    - A body that isn't JSON, or a connection dropped while the body is read, counts as no body. A 200 then reads "the
+      answer couldn’t be read".
+    - The run stops at the first answer that isn't results, whatever its kind, and keeps the earlier calls' results.
+    - The list is read again after every run, as before.
+22. **The unknown sentence** follows the other refusal lines, under the heading "What was published" and any results the
+    earlier calls returned. "Nothing was published." shows only when no call returned results and the outcome isn't
+    unknown.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md`
 - Test plan: `engineering-team/stories/curated-dlist-update/6-update-list-publishes.test-plan.md`

@@ -1028,6 +1028,35 @@ export function planIntents(plan) {
   return out;
 }
 
+/**
+ * How one call of Update's publish ended (curated-dlist-update ADR 0006 Amendment 2, change 2, as Amendment 3 amends
+ * it), from its HTTP `status` and its parsed body `data`: `{ results }`, or `{ refusal }`. A failed fetch is
+ * `updateAnswer(null, null)`. Pure; never throws.
+ * - A 200 with the endpoint's body (`success: true` and a list of `results`) gives its results.
+ * - Refusals, all made before anything is signed, so the call published nothing: the endpoint's 409 is `stale`; its 503
+ *   is `couldnt-check`, with its `couldntCheck`; and any other 4xx, whatever its body, is an `error`, with the body's
+ *   `error` or "the server answered <status>".
+ * - Everything else is `unknown`, and some changes may have been published: no answer, a 200 whose body isn't the
+ *   endpoint's, a 5xx other than the endpoint's 503, or any other status.
+ */
+export function updateAnswer(status, data) {
+  const body = data && typeof data === 'object' ? data : null;
+  const unknown = (reason) => ({ refusal: { kind: 'unknown', reason } });
+  if (status == null) return unknown('no answer arrived');
+  if (status === 200) {
+    return body && body.success === true && Array.isArray(body.results) ? { results: body.results } : unknown('the answer couldn’t be read');
+  }
+  if (status === 409 && body && body.success === false) return { refusal: { kind: 'stale' } };
+  if (status === 503 && body && body.success === false) {
+    return { refusal: { kind: 'couldnt-check', reasons: Array.isArray(body.couldntCheck) ? body.couldntCheck : [] } };
+  }
+  if (status >= 400 && status <= 499) {
+    const message = body && typeof body.error === 'string' && body.error !== '' ? body.error : `the server answered ${status}`;
+    return { refusal: { kind: 'error', message } };
+  }
+  return unknown(`the server answered ${status}`);
+}
+
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */
 
 /**

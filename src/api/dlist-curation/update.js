@@ -2,8 +2,8 @@
 
 /**
  * curated-dlist-update #6 — POST /api/dlist-curation/update: Update list publishes what I approved (ADR
- * engineering-team/decisions/curated-dlist-update/0006-update-publishes.md, with its Amendment 1; the copy convention,
- * ADR 0001).
+ * engineering-team/decisions/curated-dlist-update/0006-update-publishes.md, with its Amendments 1 and 2; the copy
+ * convention, ADR 0001).
  *
  *   body: { list: "39998:<my assistant>:<d>", copy: [{ original, version }], refresh: [{ copy, original, version }],
  *           delete: [{ copy, id }], upgrade: { dropsMarker } | null }: references with version pins, never events.
@@ -11,12 +11,14 @@
  * Flow:
  * - guards, in order: Origin → verified session → the CALLER's assistant key → the body (400 / 403 / 413);
  * - strict reads in both places, this instance's strfry and the list's relay: my header, my list and my assistant's
- *   deletion requests, then the shared list my header names. A failed or capped read → 503 { couldntCheck };
+ *   deletion requests for this call's copies, then the shared list my header names. A failed or capped read → 503
+ *   { couldntCheck };
  * - every intent is checked against those reads before anything is signed → 409 { stale };
  * - each event is built from what was read (./updateEvents.js), and signed;
  * - published in order, copies and refreshes, then deletions, then the upgrade: this instance first, then each DList
- *   relay, at most 4 in flight per relay;
- * - each place is read back → 200 { success, results }, per item and per place. Nothing is retried.
+ *   relay, at most 4 in flight per relay. A send starts only in a call's first 25 seconds (Amendment 2);
+ * - each place is read back, in the time left before the call's 45-second deadline → 200 { success, results }, per item
+ *   and per place. Nothing is retried.
  * The events are letters in the relay: nothing here touches the graph.
  *
  * Every side effect is injected through createUpdateHandler(deps) (test/curated-dlist-update-publish.test.js).
@@ -34,6 +36,14 @@ const IN_FLIGHT_PER_RELAY = 4;
 const SCAN_TIMEOUT_MS = 10000;
 const CONNECT_TIMEOUT_MS = 5000;
 const PUBLISH_TIMEOUT_MS = 5000;
+// Amendment 2: each call answers within 45 seconds of the handler's start, inside nginx's 60-second proxy default.
+const DEADLINE_MS = 45000;
+/** Kept at the end of a call for the read-back. */
+const READBACK_RESERVE_MS = 10000;
+/** A send starts only before this: the deadline, less the read-back's reserve and one send's worst case (a connection, then a publish). */
+const SEND_CUTOFF_MS = DEADLINE_MS - READBACK_RESERVE_MS - (CONNECT_TIMEOUT_MS + PUBLISH_TIMEOUT_MS);
+const NOT_SENT = 'not sent: out of time';
+const READBACK_OUT_OF_TIME = "sent, but couldn't read it back: out of time";
 const SHARED_HEADER = /^39998:[0-9a-f]{64}:.+$/;
 // A newer nostr library fulfills a failed connection with this text instead of rejecting (ADR honest-publish-reporting/0001).
 const CONNECTION_FAILURE = /^connection failure/i;
@@ -159,6 +169,26 @@ async function readPlace(d, place, filter) {
 const readPlaces = (d, places, filter) => Promise.all(places.map((place) => readPlace(d, place, filter)));
 
 /**
+ * One read that gets only the time left before `deadline` (Amendment 2): raced against a timer for that time, and not
+ * started when none is left. A read that runs out → `{ ok: false, outOfTime: true }`; the read itself goes on to its own
+ * timeout, and its answer is dropped. The clock is read once, so a clock that moves only as steps finish can't hold it.
+ */
+async function readBefore(d, place, filter, deadline) {
+  const left = deadline - d.nowMs();
+  const outOfTime = { place, ok: false, events: [], outOfTime: true };
+  if (!(left > 0)) return outOfTime;
+  let timer;
+  try {
+    return await Promise.race([
+      readPlace(d, place, filter),
+      new Promise((resolve) => { timer = setTimeout(() => resolve(outOfTime), left); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * What a read couldn't cover, in the preview's words (listReadGaps; ADR 0006 §2): each place that failed and, for a
  * limited read, an answer at the limit, which may have stopped short (Amendment 1).
  */
@@ -264,6 +294,8 @@ function defaultDeps() {
     publishRelay: null, // by default, relaySessions(): one connection per relay for each call
     sign: (template, privkeyHex) => nt().finalizeEvent(template, Uint8Array.from(Buffer.from(privkeyHex, 'hex'))),
     now: () => Math.floor(Date.now() / 1000),
+    // Amendment 2: the call's clock, in milliseconds, read at call time. `now` stays the created_at clock.
+    nowMs: () => Date.now(),
     localOnly: () => require('./index').isLocalOnly(),
     relays: () => {
       const settings = require('../../config/settings').getSettings();
@@ -275,23 +307,26 @@ function defaultDeps() {
 /* ── publish and read back ───────────────────────────────────────────────── */
 
 /**
- * §4's read-back for one place. Every event sent there is re-read by id: `published` when it is there, `not-stored` when
- * it isn't (strfry import exits 0 even when it rejects an event). For a deletion that is stored, the copy is re-read
- * too: `gone`, or `still-there` (AC-9).
+ * §4's read-back for one place, in the time left before `deadline` (Amendment 2). Every event sent there is re-read by
+ * id: `published` when it is there, `not-stored` when it isn't (strfry import exits 0 even when it rejects an event). For
+ * a deletion that is stored, the copy is re-read too: `gone`, or `still-there` (AC-9). A read that fails or runs out of
+ * time claims nothing: the events are `failed`, "sent, but couldn't read it back: …", and a copy re-read leaves `copy`
+ * unset.
  */
-async function readBack(d, place, signed, assistant) {
+async function readBack(d, place, signed, assistant, deadline) {
   const sent = signed.filter((s) => s.places[place] && s.places[place].sent);
   if (sent.length === 0) return;
-  const got = await readPlace(d, place, { ids: sent.map((s) => s.event.id) });
+  const got = await readBefore(d, place, { ids: sent.map((s) => s.event.id) }, deadline);
   if (!got.ok) {
-    for (const s of sent) s.places[place] = { status: 'failed', error: `sent, but couldn't read it back: ${got.error}` };
+    const error = got.outOfTime ? READBACK_OUT_OF_TIME : `sent, but couldn't read it back: ${got.error}`;
+    for (const s of sent) s.places[place] = { status: 'failed', error };
     return;
   }
   const present = new Set(got.events.map((e) => e && e.id));
   for (const s of sent) s.places[place] = { status: present.has(s.event.id) ? 'published' : 'not-stored' };
   const deletions = sent.filter((s) => s.action === 'delete' && s.places[place].status === 'published');
   if (deletions.length === 0) return;
-  const copies = await readPlace(d, place, { kinds: [39999], authors: [assistant], '#d': deletions.map((s) => s.copyD) });
+  const copies = await readBefore(d, place, { kinds: [39999], authors: [assistant], '#d': deletions.map((s) => s.copyD) }, deadline);
   if (!copies.ok) return;
   for (const s of deletions) {
     const named = new Set(s.versionIds);
@@ -311,6 +346,12 @@ const staleAnswer = (res, stale) => res.status(409).json({
 /* ── the handler ─────────────────────────────────────────────────────────── */
 
 async function update(req, res, d) {
+  // Amendment 2: the call's clock starts here, before the guards and the reads.
+  const started = d.nowMs();
+  const deadline = started + DEADLINE_MS;
+  const sendCutoff = started + SEND_CUTOFF_MS;
+  // Checked before each send starts, never once for a batch: a send not started by the cutoff isn't started.
+  const canSend = () => d.nowMs() < sendCutoff;
   // Guard 1: the Origin.
   if (!sameHost(req)) return res.status(403).json({ success: false, error: 'a request from another site is refused' });
   // Guard 2: a verified session. Its pubkey is the only identity; nobody named in the body is ever used.
@@ -331,12 +372,19 @@ async function update(req, res, d) {
   const relays = wsOnly(d.relays());
   const listRelay = relays[0] || null;
   const places = listRelay ? ['local', listRelay] : ['local'];
+  const addressFor = (originalRef) => `39999:${assistant}:${copyD(myAddress, originalRef)}`;
+  // Amendment 2, change 3: only the deletion requests that name this call's copies — each copy intent's derived address
+  // and each refresh's copy, never a delete's. §3's timing needs no others.
+  const copyAddresses = [...new Set([...body.copy.map((x) => addressFor(x.original)), ...body.refresh.map((x) => x.copy)])];
 
-  // §2: re-read everything, strictly, in both places — my header, my list and the deletion requests first.
+  // §2: re-read everything, strictly, in both places — my header, my list and the deletion requests first. A call with no
+  // copies or refreshes reads no deletion requests.
   const [headerReads, mineReads, deletionReads] = await Promise.all([
     readPlaces(d, places, { kinds: [39998], authors: [assistant], '#d': [body.list.d] }),
     readPlaces(d, places, { kinds: [39999], authors: [assistant], '#z': [myAddress], limit: READ_LIMIT }),
-    readPlaces(d, places, { kinds: [5], authors: [assistant], '#k': ['39999'], limit: READ_LIMIT }),
+    copyAddresses.length > 0
+      ? readPlaces(d, places, { kinds: [5], authors: [assistant], '#a': copyAddresses, limit: READ_LIMIT })
+      : [],
   ]);
   const gaps = [
     ...gapsOf(headerReads, 'your assistant’s header'),
@@ -368,7 +416,6 @@ async function update(req, res, d) {
   const shared = mergeItems(sharedReads, link.coord, { kinds: ITEM_KINDS });
   const mine = mergeItems(mineReads, myAddress, { kinds: [39999], author: assistant });
   const requests = deletionReads.flatMap((r) => r.events).filter((e) => e && e.kind === 5 && e.pubkey === assistant);
-  const addressFor = (originalRef) => `39999:${assistant}:${copyD(myAddress, originalRef)}`;
   const nameOf = (e) => tagValue(e, 'name') || '(unnamed)';
 
   // §2's checks, for every intent before anything is signed (with Amendment 1: a target must be one of my assistant's copies).
@@ -456,12 +503,14 @@ async function update(req, res, d) {
   });
 
   // §4: copies and refreshes, then deletions, then the upgrade — so my list's items are in place before its header
-  // changes what the list means. This instance first, then each DList relay, at most 4 in flight per relay.
+  // changes what the list means. This instance first, then each DList relay, at most 4 in flight per relay. A send whose
+  // turn comes after the cutoff isn't started: "not sent: out of time" at that place (Amendment 2).
   const localOnly = !!d.localOnly();
   for (const group of [['copy', 'refresh'], ['delete'], ['upgrade']]) {
     const batch = signed.filter((s) => group.includes(s.action));
     if (batch.length === 0) continue;
     for (const s of batch) {
+      if (!canSend()) { s.places.local = { status: 'failed', error: NOT_SENT }; continue; }
       try { await d.publishLocal(s.event); s.places.local = { sent: true }; }
       catch (err) { s.places.local = { status: 'failed', error: normalizeError(err) }; }
     }
@@ -470,6 +519,7 @@ async function update(req, res, d) {
       continue;
     }
     await Promise.all(relays.map((url) => eachInFlight(batch, IN_FLIGHT_PER_RELAY, async (s) => {
+      if (!canSend()) { s.places[url] = { status: 'failed', error: NOT_SENT }; return; }
       try {
         const said = await d.publishRelay(s.event, url);
         // The settled value is read as well as the status, so a fulfilled "connection failure: …" can't read as sent.
@@ -479,7 +529,8 @@ async function update(req, res, d) {
       }
     })));
   }
-  await Promise.all((localOnly ? ['local'] : ['local', ...relays]).map((place) => readBack(d, place, signed, assistant)));
+  // Each place is read back in the time left before the deadline, so the call answers within 45 seconds (Amendment 2).
+  await Promise.all((localOnly ? ['local'] : ['local', ...relays]).map((place) => readBack(d, place, signed, assistant, deadline)));
 
   // §5: per item and per place.
   const results = signed.map((s) => ({
