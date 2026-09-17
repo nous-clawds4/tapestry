@@ -264,26 +264,33 @@ test('H2: an empty coords param (or one made only of separators) is a request-le
   }
 });
 
-test('H3: every coordinate malformed is a request-level 400; one bad among good is NOT (AC-5)', async () => {
+test('H3: coords are repeated query params (an array) or one bare string; all-malformed is a request-level 400, one bad among good is NOT (AC-5, ruling 2)', async () => {
   const { handleListPageCounts } = loadPageCounts();
 
+  // Express parses ?coords=a&coords=b to an array — no delimiter, no splitting.
   const allBad = fakeRes();
-  await handleListPageCounts({ query: { coords: 'junk,also-junk' } }, allBad, { countFilter: async () => 1 });
+  await handleListPageCounts({ query: { coords: ['junk', 'also-junk'] } }, allBad, { countFilter: async () => 1 });
   assert(allBad.rec.statusCode === 400, `AC-5: every coordinate malformed → HTTP 400 (got ${allBad.rec.statusCode})`);
 
   const mixed = fakeRes();
-  await handleListPageCounts({ query: { coords: `junk,${COORD_A}` } }, mixed, { countFilter: async () => 3 });
+  await handleListPageCounts({ query: { coords: ['junk', COORD_A] } }, mixed, { countFilter: async () => 3 });
   assert(mixed.rec.statusCode === 200, `AC-5: one malformed coordinate among good ones is NOT a 400 (got ${mixed.rec.statusCode})`);
   assert(mixed.rec.body.success === true, 'AC-5: the mixed request succeeds');
   assert(mixed.rec.body.counts[COORD_A] === 3, 'AC-5: the good coordinate is counted');
   assert(mixed.rec.body.invalid.includes('junk'), 'AC-5: the malformed coordinate is reported per-coordinate');
+
+  // A single ?coords= value arrives as a bare string — the one-element case (ruling 2).
+  const single = fakeRes();
+  await handleListPageCounts({ query: { coords: COORD_A } }, single, { countFilter: async () => 5 });
+  assert(single.rec.statusCode === 200 && single.rec.body.counts[COORD_A] === 5,
+    `AC-2: a single bare coords value is accepted as a one-element array (got ${single.rec.statusCode} / ${JSON.stringify(single.rec.body.counts)})`);
 });
 
 test('H4: the happy path returns { success, counts, invalid, partial } and nothing else', async () => {
   const { handleListPageCounts } = loadPageCounts();
   const res = fakeRes();
   await handleListPageCounts(
-    { query: { coords: `${COORD_A},${EVID}` } },
+    { query: { coords: [COORD_A, EVID] } },
     res,
     { countFilter: async (f) => ((f['#z'] && f['#z'][0]) === COORD_A ? 4 : 8) },
   );
@@ -296,31 +303,31 @@ test('H4: the happy path returns { success, counts, invalid, partial } and nothi
   assert(body.totalItems === undefined, 'E10: page-counts deliberately returns no union total');
 });
 
-test('H5: more than 50 coordinates in one request is rejected, not silently counted (AC-2)', async () => {
+test('H5: more than 50 coordinates in one request is rejected outright — 400, zero scans (AC-2, ruling 1)', async () => {
   const { handleListPageCounts } = loadPageCounts();
   let scans = 0;
   const res = fakeRes();
-  const coords = Array.from({ length: 51 }, (_, i) => `39998:${PK1}:list-${i}`).join(',');
+  const coords = Array.from({ length: 51 }, (_, i) => `39998:${PK1}:list-${i}`);   // 51 well-formed
   await handleListPageCounts({ query: { coords } }, res, { countFilter: async () => { scans++; return 1; } });
-  assert(res.rec.statusCode === 400, `AC-2: 51 coordinates → HTTP 400 (got ${res.rec.statusCode})`);
+  assert(res.rec.statusCode === 400, `AC-2: 51 coordinates → HTTP 400, not silent truncation (got ${res.rec.statusCode})`);
   assert(scans === 0, `AC-2: an over-cap request spawns no scans at all (got ${scans})`);
 });
 
-test('H6: a comma inside a d tag degrades to invalid fragments, never a crash or a wrong count (E5)', async () => {
+test('H6: a comma inside a d tag survives intact — coordinates are never delimiter-joined (E5, not derivable from any AC)', async () => {
   const { handleListPageCounts } = loadPageCounts();
   const res = fakeRes();
-  const commaCoord = `39998:${PK1}:my,list`;   // the client CSV splits this in two
+  const commaCoord = `39998:${PK1}:my,list`;   // a legal d; under repeated params a comma is just a character
   await handleListPageCounts(
-    { query: { coords: `${commaCoord},${COORD_B}` } },
+    { query: { coords: [commaCoord, COORD_B] } },
     res,
-    { countFilter: async (f) => ((f['#z'] && f['#z'][0]) === COORD_B ? 9 : 0) },
+    { countFilter: async (f) => ((f['#z'] && f['#z'][0]) === commaCoord ? 2 : ((f['#z'] && f['#z'][0]) === COORD_B ? 9 : 0)) },
   );
   assert(res.rec.statusCode === 200, `E5: a comma in a d tag does not fail the batch (got ${res.rec.statusCode})`);
-  assert(res.rec.body.counts[commaCoord] === undefined,
-    'E5: the comma-bearing coordinate gets no count key — its row reads — on the page');
-  assert(res.rec.body.invalid.includes('list'),
-    `E5: the trailing fragment is reported as invalid (got ${JSON.stringify(res.rec.body.invalid)})`);
+  assert(res.rec.body.counts[commaCoord] === 2,
+    `E5: the comma-bearing coordinate is counted under its verbatim key (got ${JSON.stringify(res.rec.body.counts)})`);
   assert(res.rec.body.counts[COORD_B] === 9, 'E5: the rest of the page counts normally');
+  assert(Array.isArray(res.rec.body.invalid) && res.rec.body.invalid.length === 0,
+    `E5: nothing is reported invalid (got ${JSON.stringify(res.rec.body.invalid)})`);
 });
 
 test('H7: an unexpected internal failure answers with a JSON error, never an unhandled rejection', async () => {

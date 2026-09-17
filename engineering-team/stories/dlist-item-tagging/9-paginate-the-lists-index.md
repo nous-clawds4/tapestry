@@ -126,7 +126,9 @@ usable regardless of how many lists (or how much junk) the relay holds.
 - **E4** *(not derivable from any AC)* A kind-39998 header with an **empty or missing `d` tag** yields
   the coordinate `39998:<pk>:` — legal nostr and legal here. The validator must accept an empty final
   segment, or every such list silently loses its count.
-- **E5** *(not derivable from any AC)* A `d` tag containing a **comma** breaks the CSV `coords` param:
+- **E5 (not derivable from any AC):** a `d` containing a comma (`39998:<pk>:my,list`) survives intact
+  and counts under its verbatim key, because coordinates are repeated query params, never delimiter-joined
+  (ruling 2). Handle: H6.
   the fragments fail validation and land in `invalid`, so that one row reads `—` while the rest of the
   page counts normally. A documented limitation of the GET-CSV shape, not a crash.
 - **E6** *(not derivable from any AC)* 50 coordinates with long `d` tags push the encoded query past
@@ -296,7 +298,6 @@ Link by path only — never record verdicts or round history in this file.
 2. **Coordinates travel as repeated query params** (`?coords=<c1>&coords=<c2>…`), which Express
    parses to an array with no delimiter — the comma-in-`d` case (E5) cannot arise on the wire. A
    single `coords=` value is still accepted as a one-element array. The CSV form in the Design note
-   is superseded by this line; H6's assertions (tail fragment in `invalid`, full coordinate absent
-   from `counts`, the rest still counted) hold under both.
+   is superseded by this line; H3–H6 were rewritten to the array shape at Test Design (J2 kickback).
 3. `handleListPageCounts(req, res, deps)` forwards `deps` to `countsForCoords`; `deps.deadlineMs`
    overrides `DEADLINE_MS`; the three bounds are exported constants. (Tester additions, ratified.)
