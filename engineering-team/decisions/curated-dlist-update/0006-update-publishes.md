@@ -5,6 +5,7 @@
 carries a limit of 500.
 Amendment 2 (2026-09-13): each call answers within 45 seconds; an unknown outcome is never reported as "nothing"; the
 server reads only the deletion requests for each call's copies.
+Amendment 3 (2026-09-13): any 4xx is a refusal made before anything is signed, whatever its body.
 **Date:** 2026-09-13
 **Story:** `engineering-team/stories/curated-dlist-update/6-update-list-publishes.md`
 **Supersedes in part:** these ADRs in `curated-dlist-update`:
@@ -448,7 +449,8 @@ The changes:
 2. **An unknown outcome is never reported as "nothing"** (§7, step 3). The browser sorts each call's answer:
    - **a 200 with the endpoint's body** (`success: true` and `results`): its results;
    - **one of the endpoint's own refusals,** all made before anything is signed: a 400, 401, 403, 409, 413 or 503 with
-     the endpoint's body (`success: false`). The call published nothing, and the run stops with today's words;
+     the endpoint's body (`success: false`). The call published nothing, and the run stops with today's words
+     *(Amendment 3: any 4xx is a refusal, whatever its body)*;
    - **anything else is unknown:** no answer, a dropped connection, a 500, a 502 or 504, or a body that isn't the
      endpoint's. The run stops, and the page says: "⚠️ Publishing stopped without an answer (<reason>); some changes
      may have been published. Your list has been read again, so the preview above proposes only what is still to do."
@@ -496,5 +498,36 @@ The changes:
 - **The UI:** `updateAnswer` for a 200, each own refusal, a refusal status without the endpoint's body, a 500, a 502, a
   504 and a failed fetch. Structurally: the unknown sentence, and when "Nothing was published." shows.
 - **Docs:** the pointers in §2, §6 and §7; Deviation 5's correction; OPEN.md rows 299 and 300.
+
+Nothing else changes.
+
+## Amendment 3 (2026-09-13, from Test Design round 2, approved at its gate)
+
+Found while writing round 2's tests. Amendment 2 counts a 400, 401, 403 or 413 as a refusal only with the endpoint's
+body. But the auth middleware answers a session that has expired with `401 { error }`, with no `success: false`
+(`src/middleware/auth.js:482`, `:496`), before the handler runs. Under Amendment 2 the page would then say "some
+changes may have been published" when nothing was.
+
+Every 4xx is answered before anything is signed: by the endpoint's guards, the auth middleware, the body parser or
+nginx. The endpoint signs only after all of its refusals, and once it has signed it answers only 200, or 500 from its
+catch.
+
+The change, to Amendment 2's change 2:
+- **Any 4xx is a refusal, whatever its body.** The call published nothing. The page says "⚠️ Publishing stopped:
+  <message>". `<message>` is the body's `error` when it has one, else "the server answered <status>".
+- **A 409 or a 503 with the endpoint's body** keeps its own words: the list changed (409), or couldn't check, with its
+  `couldntCheck` (503).
+- **Everything else is unknown,** as Amendment 2 says:
+  - a 5xx other than the endpoint's 503, including a 500 with `success: false`;
+  - a 2xx or 3xx that isn't the endpoint's 200;
+  - no answer.
+- **The endpoint keeps this true:** it answers every 4xx before it signs anything. §2's refusals already do. A later
+  change that refuses after signing must answer with a 5xx, or change this rule.
+
+**Testable seams (the Tester's call).**
+- `updateAnswer` for 4xx answers without the endpoint's body: the middleware's `401 { error }`, a bare 403, 404 and 413,
+  and a 409 without its body. Each is a refusal with its message.
+- 5xx answers without the endpoint's body stay unknown, as do a 204 and a 3xx.
+- A docs check for this amendment.
 
 Nothing else changes.

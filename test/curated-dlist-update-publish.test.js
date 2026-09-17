@@ -18,7 +18,8 @@
  *                        The seams follow the header endpoint's: every dep is a function.
  *                        - scan(filter) → events; readRelay(url, filter) → { status, events, error };
  *                        - publishLocal(event); publishRelay(event, url) → the relay's message (either argument order);
- *                        - getKeys(pubkey); requireAuth(req, res); sign(template, privkey); now(); localOnly(); relays().
+ *                        - getKeys(pubkey); requireAuth(req, res); sign(template, privkey); now(); localOnly(); relays();
+ *                        - Amendment 2's nowMs(), in milliseconds, injected only where a test moves the clock.
  *                        FAIL now.
  *   U (behavioral, UI) — ui/src/utils/treasureMap.js:
  *                        - planIntents;
@@ -43,6 +44,19 @@
  * - H9: a delete's or a refresh's target is one of my assistant's copies (a q), or it gets §2's 409 under `stale`;
  * - H24: the shared list, my list and the deletion requests are read with limit 500 — 500 events is capped, 499 complete;
  * - H7's capped case answers 500 events.
+ *
+ * ADR 0006 Amendment 2 (from review round 1) adds:
+ * - H25–H30: each call answers within 45 seconds. No send starts once 25 s have passed since the handler started ("not
+ *   sent: out of time"), the read-back gets the time that is left ("sent, but couldn't read it back: out of time"), and
+ *   nowMs defaults to Date.now. The handler's clock is the tests' own, moved by the fake reads and sends;
+ * - H31–H33: the narrowed deletion-request read, #a over this call's copies; H7, H16 and H24 re-aimed to it;
+ * - U6–U8: updateAnswer(status, data), the sorting of each call's answer;
+ * - S11–S13: the unknown sentence, "Nothing was published." only when no outcome is unknown, and publishIntents through
+ *   updateAnswer; S2 re-aimed;
+ * - D3–D5: the amendment's pointers, Deviation 5's correction and OPEN.md rows 299–300. They pass before and after.
+ *
+ * ADR 0006 Amendment 3 (from Test Design round 2): every 4xx is a refusal, whatever its body. U7 and U8 are re-aimed to
+ * it, D6 checks the amendment, and D5 matches its rows by what they say, not by number.
  *
  * Not covered here:
  * - the browser's publish run (its calls of at most 50, and its stop at a refused call);
@@ -77,6 +91,8 @@ const ADR_DIR = path.join(ROOT, 'engineering-team/decisions/curated-dlist-update
 const CDU_ADR_2 = path.join(ADR_DIR, '0002-pointer-switch-and-copy-wording.md');
 const CDU_ADR_3 = path.join(ADR_DIR, '0003-read-only-curation-and-curate-here.md');
 const CDU_ADR_5 = path.join(ADR_DIR, '0005-update-preview-and-honest-reads.md');
+const CDU_ADR_6 = path.join(ADR_DIR, '0006-update-publishes.md');
+const STORY_6 = path.join(ROOT, 'engineering-team/stories/curated-dlist-update/6-update-list-publishes.md');
 const OPEN = path.join(ROOT, 'OPEN.md');
 
 const A = 'a'.repeat(64);                     // my assistant (the signed-in user's own)
@@ -363,9 +379,9 @@ test('P7: validateUpdateBody — accepts a well-formed body, 50 intents and a 25
     [{ ...b(), list: `39998:${'g'.repeat(64)}:${D}` }, 'a list pubkey that is not hex'],
     [{ ...b(), list: `39998:${A}:` }, 'an empty d-tag'],
     [{ ...b(), list: `39998:${A}:${'x'.repeat(257)}` }, 'a d-tag over 256 characters'],
-    [{ ...b(), list: `39998:${A}:dog breed` }, 'a d-tag holding NUL'],
+    [{ ...b(), list: `39998:${A}:dog${String.fromCharCode(0)}breed` }, 'a d-tag holding NUL'],
     [{ ...b(), list: `39998:${A}:dog\nbreed` }, 'a d-tag holding a line feed'],
-    [{ ...b(), list: `39998:${A}:dogbreed` }, 'a d-tag holding U+001F'],
+    [{ ...b(), list: `39998:${A}:dog${String.fromCharCode(31)}breed` }, 'a d-tag holding U+001F'],
     [{ ...b(), copy: [{ original: 'xyz', version: hex(1) }] }, 'a copy whose original is neither a 39999 address nor an id'],
     [{ ...b(), copy: [{ original: `39998:${AUTHOR}:akita`, version: hex(1) }] }, 'a copy whose original is a kind-39998 address'],
     [{ ...b(), copy: [{ original: `39999:${AUTHOR}:${'y'.repeat(257)}`, version: hex(1) }] }, 'an original whose d-tag is over 256 characters'],
@@ -478,12 +494,32 @@ const answerOf = (real, filter, n) => [...real, ...fill(filter, n - real.length)
  *   events, or null for the real answer;
  * - localPublish(event) and relayPublish(event, url) answer 'store', 'drop' (says ok, keeps nothing), 'reject', or, for
  *   a relay, 'connection-failure' (fulfilled, as nostr-tools 2.23 does).
+ * ADR 0006 Amendment 2's clock (the tests' own, in milliseconds; never real time):
+ * - clock, `{ t }`: the handler's injected nowMs reads it, unless injectNowMs is false (nowMs's default is then in play);
+ * - readMs(place, filter), localMs(event) and relayMs(event, url): how long that step takes. A step moves the clock to
+ *   (when it started + its time) once it is done, so steps that overlap move it once, as real time would. The clock
+ *   moves only when a step is done: it doesn't run on while the handler waits on a timer;
+ * - hangs(place, filter, calls): that read never answers.
+ * Every send is recorded in `calls.sends` as { place, event, at }, `at` being the clock when it started.
  * `over` replaces a seam outright.
  */
 function makeDeps(world, knobs = {}, over = {}) {
-  const k = { scanFails: () => false, relayFails: () => false, answerSize: () => null, localPublish: () => 'store', relayPublish: () => 'store', ...knobs };
-  const calls = { requireAuth: 0, getKeys: [], scan: [], readRelay: [], publishLocal: [], publishRelay: [], sign: [] };
+  const k = {
+    scanFails: () => false, relayFails: () => false, answerSize: () => null, localPublish: () => 'store', relayPublish: () => 'store',
+    clock: null, injectNowMs: true, readMs: () => 0, localMs: () => 0, relayMs: () => 0, hangs: () => false, ...knobs,
+  };
+  const calls = { requireAuth: 0, getKeys: [], scan: [], readRelay: [], publishLocal: [], publishRelay: [], sign: [], sends: [] };
   const flight = { now: {}, max: {} };
+  const clk = k.clock;
+  const clockNow = () => (clk ? clk.t : null);
+  // A step that started at `at` and takes `ms` moves the clock once it is done (after a turn of the event loop, so the
+  // steps started beside it have all read the same start).
+  const takes = async (at, ms) => {
+    if (!clk || !(ms > 0)) return;
+    await new Promise((r) => setImmediate(r));
+    clk.t = Math.max(clk.t, at + ms);
+  };
+  const never = () => new Promise(() => {});
   const deps = {
     requireAuth: (req, res) => {
       calls.requireAuth += 1;
@@ -499,6 +535,8 @@ function makeDeps(world, knobs = {}, over = {}) {
     },
     scan: async (filter) => {
       calls.scan.push(filter);
+      if (k.hangs('local', filter, calls)) return never();
+      await takes(clockNow(), k.readMs('local', filter));
       if (k.scanFails(filter)) throw new Error('strfry scan exited 1');
       const real = query(world.local.events, filter);
       const n = k.answerSize('local', filter);
@@ -506,6 +544,8 @@ function makeDeps(world, knobs = {}, over = {}) {
     },
     readRelay: async (url, filter) => {
       calls.readRelay.push({ url, filter });
+      if (k.hangs(url, filter, calls)) return never();
+      await takes(clockNow(), k.readMs(url, filter));
       if (k.relayFails(url, filter)) return { status: 'unreachable', events: [], error: 'Received network error or non-101 status code.' };
       const place = world[url];
       if (!place) return { status: 'unreachable', events: [], error: 'not a relay here' };
@@ -515,6 +555,9 @@ function makeDeps(world, knobs = {}, over = {}) {
     },
     publishLocal: async (event) => {
       calls.publishLocal.push(event);
+      const at = clockNow();
+      calls.sends.push({ place: 'local', event, at });
+      await takes(at, k.localMs(event));
       const how = k.localPublish(event);
       if (how === 'reject') throw new Error('strfry import exited 1: boom');
       if (how === 'store') world.local.store(event);
@@ -525,10 +568,13 @@ function makeDeps(world, knobs = {}, over = {}) {
       const target = args.find((x) => typeof x === 'string' || Array.isArray(x));
       const url = Array.isArray(target) ? target[0] : target;
       calls.publishRelay.push({ event, url });
+      const at = clockNow();
+      calls.sends.push({ place: url, event, at });
       flight.now[url] = (flight.now[url] || 0) + 1;
       flight.max[url] = Math.max(flight.max[url] || 0, flight.now[url]);
       await new Promise((r) => setImmediate(r));
       flight.now[url] -= 1;
+      if (clk && k.relayMs(event, url) > 0) clk.t = Math.max(clk.t, at + k.relayMs(event, url));
       const how = k.relayPublish(event, url);
       if (how === 'reject') throw new Error('blocked: not today');
       if (how === 'connection-failure') return 'connection failure: Received network error or non-101 status code.';
@@ -544,6 +590,8 @@ function makeDeps(world, knobs = {}, over = {}) {
     now: () => NOW,
     localOnly: () => false,
     relays: () => [RELAY],
+    // Amendment 2: the handler's millisecond clock is the tests' own where one is given; elsewhere nowMs's default runs.
+    ...(clk && k.injectNowMs !== false ? { nowMs: () => clk.t } : {}),
     ...over,
   };
   return { deps, calls, flight };
@@ -597,7 +645,13 @@ const read = (calls) => calls.scan.length + calls.readRelay.length > 0;
 const isHeaderRead = (f) => !!f && Array.isArray(f.kinds) && f.kinds.includes(39998);
 const isSharedRead = (f) => !!f && Array.isArray(f['#z']) && f['#z'].includes(SHARED);
 const isMineRead = (f) => !!f && Array.isArray(f['#z']) && f['#z'].includes(MY);
-const isDeletionRead = (f) => !!f && Array.isArray(f.kinds) && f.kinds.includes(5);
+/** Any read of my assistant's deletion requests (kind 5), as opposed to a read-back by id. */
+const isKind5Read = (f) => !!f && Array.isArray(f.kinds) && f.kinds.includes(5) && !Array.isArray(f.ids);
+/**
+ * The server's deletion-request read, narrowed by ADR 0006 Amendment 2 (change 3) to this call's copy addresses: a kind-5
+ * read by #a. H7 and H24 fail and cap this read.
+ */
+const isDeletionRead = (f) => isKind5Read(f) && Array.isArray(f['#a']);
 /** The result reporting `action` (a pattern), found by any of `refs` it mentions. */
 function resultFor(body, action, refs = []) {
   const rs = body && Array.isArray(body.results) ? body.results : [];
@@ -664,23 +718,27 @@ test('H6: more than 50 intents in one call → 413 before anything is read or si
   assert(fifty.res.statusCode !== 413, `ADR 0006 §6: 50 intents are not refused for their number (these originals aren't on the list, so the call is stale); got ${fifty.res.statusCode}`);
 });
 
-test('H7: a read that failed or came back capped → 503 { couldntCheck } in the preview\'s words, and nothing signed — my header, the shared list, my list or my assistant\'s deletion requests, in either place (ADR 0006 §2; AC-2, AC-10)', async () => {
+test('H7: a read that failed or came back capped → 503 { couldntCheck } in the preview\'s words, and nothing signed — my header, the shared list, my list or my assistant\'s deletion requests (their #a read, Amendment 2), in either place (ADR 0006 §2, Amendment 2; AC-2, AC-10)', async () => {
   const CASES = [
     [{ scanFails: isHeaderRead }, 'my header on this instance\'s strfry', null],
     [{ scanFails: isSharedRead }, 'the shared list on this instance\'s strfry', /shared list/],
     [{ scanFails: isMineRead }, 'my list on this instance\'s strfry', /your list/],
-    [{ scanFails: isDeletionRead }, 'my assistant\'s deletion requests on this instance\'s strfry', null],
+    [{ scanFails: isDeletionRead }, 'my assistant\'s deletion requests (the #a read, Amendment 2) on this instance\'s strfry', null],
     [{ relayFails: (url, f) => isHeaderRead(f) }, 'my header on the list\'s relay', null],
     [{ relayFails: (url, f) => isSharedRead(f) }, 'the shared list on the list\'s relay', /shared list/],
     [{ relayFails: (url, f) => isMineRead(f) }, 'my list on the list\'s relay', /your list/],
-    [{ relayFails: (url, f) => isDeletionRead(f) }, 'my assistant\'s deletion requests on the list\'s relay', null],
+    [{ relayFails: (url, f) => isDeletionRead(f) }, 'my assistant\'s deletion requests (the #a read, Amendment 2) on the list\'s relay', null],
     [{ answerSize: (place, f) => (place === RELAY && isSharedRead(f) ? 500 : null) }, 'the shared list on the list\'s relay answering 500 events, capped (Amendment 1)', /shared list/],
+    [{ answerSize: (place, f) => (place === 'local' && isDeletionRead(f) ? 500 : null) }, 'my assistant\'s deletion requests (the #a read, Amendment 2) on this instance\'s strfry answering 500 events, capped (Amendment 1)', null],
   ];
   for (const [knobs, why, words] of CASES) {
     const r = await runUpdate({ knobs });
     const b = r.res.body || {};
     const asked = (r.calls.readRelay.find((c) => isSharedRead(c.filter)) || {}).filter;
-    const hint = knobs.answerSize ? ` (the shared list's relay read asked for limit ${brief(asked && asked.limit)}; Amendment 1: 500)` : '';
+    const kind5 = [...r.calls.scan, ...r.calls.readRelay.map((c) => c.filter)].filter(isKind5Read);
+    const hint = /deletion requests/.test(why)
+      ? ` (the deletion-request reads asked for ${brief(kind5)}; Amendment 2: { kinds: [5], authors: [assistant], "#a": [...], limit: 500 })`
+      : knobs.answerSize ? ` (the shared list's relay read asked for limit ${brief(asked && asked.limit)}; Amendment 1: 500)` : '';
     assert(r.res.statusCode === 503, `ADR 0006 §2: ${why} → 503; got ${r.res.statusCode} ${brief(b)}${hint}`);
     assert(Array.isArray(b.couldntCheck) && b.couldntCheck.length >= 1 && b.couldntCheck.every((x) => typeof x === 'string' && x !== ''),
       `ADR 0006 §2: 503 { couldntCheck: [...] } names what couldn't be read (${why}); got ${brief(b)}`);
@@ -849,16 +907,25 @@ test('H15: a deletion names every version of the copy the server read, in either
   assert(placeOf(row, RELAY).copy === 'gone', `ADR 0006 §10: the relay honors only e, and its version was named → gone; got ${brief(row && row.places)}`);
 });
 
-test('H16: a re-copy is timed after my assistant\'s newest deletion request for that address, so this instance doesn\'t refuse it (ADR 0006 §3, §10)', async () => {
+test('H16: a re-copy is timed after my assistant\'s newest deletion request for that address, which the narrowed read finds by #a — alone, or among 520 requests for other addresses — so this instance doesn\'t refuse it (ADR 0006 §3, §10; Amendment 2, change 3)', async () => {
   const asked = deletionRequest({ address: copyAddress(H_S1), ids: [hex(0x6901)], createdAt: NOW + 100 });
-  const r = await runUpdate({
-    world: baseWorld({ local: [...H_EVENTS, asked], relay: [...H_EVENTS, asked] }),
-    body: fullBody({ refresh: [], delete: [], upgrade: null }),
-  });
-  const t = r.calls.sign.map((c) => c.template).find((x) => x.kind === 39999 && dOf(x) === dFor(MY, route(H_S1)));
-  assert(r.res.statusCode === 200 && t, `got ${r.res.statusCode} ${brief(r.res.body)}`);
-  assert(Number(t.created_at) > NOW + 100, `ADR 0006 §3: created_at is later than the deletion request's (${NOW + 100}); got ${brief(t.created_at)}`);
-  assert(placeOf(resultFor(r.res.body, 'copy', COPY_REFS), 'local').status === 'published', 'ADR 0006 §10: so this instance keeps the re-copy');
+  const others = otherDeletions(520);
+  const found = query([...H_EVENTS, asked, ...others], { kinds: [5], authors: [A], '#a': [copyAddress(H_S1)], limit: 500 });
+  assert(found.length === 1 && found[0].id === asked.id, `test premise: the fake world answers the #a read with that request alone; got ${found.length} events`);
+  for (const [extra, why] of [[[], 'alone'], [others, 'among 520 requests for other addresses']]) {
+    const events = [...H_EVENTS, asked, ...extra];
+    const r = await runUpdate({ world: makeWorld({ local: events, relay: events }), body: fullBody({ refresh: [], delete: [], upgrade: null }) });
+    const reads = kind5Reads(r.calls);
+    for (const [where, fs] of [['this instance\'s strfry', reads.local], ['the list\'s relay', reads.relay]]) {
+      assert(fs.some((f) => isDeletionRead(f) && f['#a'].includes(copyAddress(H_S1))),
+        `Amendment 2: the deletion requests (${why}) are read by #a naming the copy's address on ${where}; got ${brief(fs)}`);
+    }
+    const t = r.calls.sign.map((c) => c.template).find((x) => x.kind === 39999 && dOf(x) === dFor(MY, route(H_S1)));
+    assert(r.res.statusCode === 200 && t, `the re-copy (${why}) is signed; got ${r.res.statusCode} ${brief(r.res.body)}`);
+    assert(Number(t.created_at) > NOW + 100,
+      `ADR 0006 §3: created_at is later than the deletion request's (${NOW + 100}), which the narrowed read found ${why}; got ${brief(t.created_at)}`);
+    assert(placeOf(resultFor(r.res.body, 'copy', COPY_REFS), 'local').status === 'published', `ADR 0006 §10: so this instance keeps the re-copy (${why})`);
+  }
 });
 
 test('H17: no request body is ever signed — an event, tags, content, a name, a created_at, a method, a point of view or a cutoff smuggled into the body never reach sign; only what the server built from its own reads is signed (ADR 0006 § Context, security; Option B rejected; AC-10)', async () => {
@@ -952,8 +1019,8 @@ test('H23: a refresh whose copy\'s d isn\'t the one derived from its original is
   assert(r.res.statusCode >= 400 && r.res.statusCode < 500 && !wrote(r.calls), `ADR 0006 §3: refused, nothing signed; got ${r.res.statusCode} ${brief(r.res.body)}`);
 });
 
-test('H24: the shared list, my list and my assistant\'s deletion requests are each read with limit 500, in both places; an answer of 500 events is capped → 503 { couldntCheck }, nothing signed; one of 499 is complete, and the call proceeds (ADR 0006 Amendment 1, rule 2)', async () => {
-  const READS = [[isSharedRead, 'the shared list', /shared list/], [isMineRead, 'my list', /your list/], [isDeletionRead, 'my assistant\'s deletion requests', null]];
+test('H24: the shared list, my list and my assistant\'s deletion requests (their #a read, Amendment 2) are each read with limit 500, in both places; an answer of 500 events is capped → 503 { couldntCheck }, nothing signed; one of 499 is complete, and the call proceeds (ADR 0006 Amendment 1, rule 2; Amendment 2, change 3)', async () => {
+  const READS = [[isSharedRead, 'the shared list', /shared list/], [isMineRead, 'my list', /your list/], [isDeletionRead, 'my assistant\'s deletion requests (the #a read, Amendment 2)', null]];
   const PLACES = [['local', 'this instance\'s strfry'], [RELAY, 'the list\'s relay']];
   const plain = await runUpdate();
   assert(plain.res.statusCode === 200, `the fixture's call succeeds; got ${plain.res.statusCode} ${brief(plain.res.body)}`);
@@ -978,6 +1045,218 @@ test('H24: the shared list, my list and my assistant\'s deletion requests are ea
         `Amendment 1: ${what} on ${where} answering 499 events is complete, so the call proceeds; got ${under.res.statusCode} ${brief(under.res.body)}`);
     }
   }
+});
+
+/* ── H, ADR 0006 Amendment 2: the deadline, the send cutoff and the narrowed deletion read ── */
+
+const T0 = 1000000;                                   // the tests' clock when the handler starts, in ms (never real time)
+const OUT_OF_TIME = 'not sent: out of time';
+const READBACK_OUT_OF_TIME = "sent, but couldn't read it back: out of time"; // story 6, Deviation 6's words: a straight apostrophe
+const notSent = (p) => !!p && p.status === 'failed' && p.error === OUT_OF_TIME;
+const readBackOutOfTime = (p) => !!p && p.status === 'failed' && p.error === READBACK_OUT_OF_TIME;
+/** `p`, or a failure once `ms` of real time pass: a handler that never answers fails its test instead of stalling the suite. */
+function within(p, ms, message) {
+  let timer;
+  return Promise.race([p, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); })])
+    .finally(() => clearTimeout(timer));
+}
+const READBACK_BOUND_MS = 4000;
+const HUNG = (what) => `Amendment 2: the handler never answered within ${READBACK_BOUND_MS / 1000} s of real time — ${what} must get only the time that is left, never wait on a read that doesn't answer (the tests' clock moves only when a fake step is done, so the wait needs a timer for the time left)`;
+/** Each send as [place, kind, ms after the handler started]. */
+const sendTimes = (calls, start = T0) => calls.sends.map((s) => [s.place === 'local' ? 'local' : 'relay', s.event && s.event.kind, s.at - start]);
+/** `n` more shared-list items, to copy. */
+const extraItems = (n, base) => Array.from({ length: n }, (_, i) => sharedItem(`breed-${base.toString(16)}-${i}`, { id: hex(base + i) }));
+/** `n` deletion requests by my assistant, for copy addresses no call here names. */
+const otherDeletions = (n) => Array.from({ length: n }, (_, i) => deletionRequest({
+  address: `39999:${A}:gone-${i}`, ids: [sha256(`gone:${i}`)], createdAt: 100 + i, id: sha256(`gone-request:${i}`),
+}));
+/** The kind-5 reads each place was asked for: any deletion-request read, narrowed or not. */
+const kind5Reads = (calls) => ({
+  local: calls.scan.filter(isKind5Read),
+  relay: calls.readRelay.filter((c) => c.url === RELAY).map((c) => c.filter).filter(isKind5Read),
+});
+const isCopyOfS1 = (e) => !!e && e.kind === 39999 && dOf(e) === dFor(MY, route(H_S1));
+
+test('H25: the reads used up the time — once 25 s have passed since the handler started, no send starts: nothing is imported here or sent to a relay, every item is "failed", "not sent: out of time", at every place, and the call still answers §5\'s 200 (ADR 0006 Amendment 2, change 1)', async () => {
+  const r = await runUpdate({ knobs: { clock: { t: T0 }, readMs: (place, f) => (isSharedRead(f) ? 26000 : 0) } });
+  const b = r.res.body || {};
+  assert(r.res.statusCode === 200 && b.success === true && Array.isArray(b.results),
+    `Amendment 2: nothing new in the answer — §5's 200 { success: true, results }; got ${r.res.statusCode} ${brief(b)}`);
+  assert(r.calls.sends.length === 0,
+    `Amendment 2: the reads took 26 000 ms, past the 25-second cutoff, so no send starts; got sends [place, kind, ms after the start] ${brief(sendTimes(r.calls))}`);
+  assert(b.results.length === 4, `a result for each of the four items; got ${brief(b.results)}`);
+  for (const row of b.results) {
+    for (const key of ['local', RELAY]) {
+      assert(notSent(placeOf(row, key)), `Amendment 2: ${row.action} at ${key} is { status: 'failed', error: '${OUT_OF_TIME}' }; got ${brief(row.places)}`);
+    }
+  }
+});
+
+test('H26: a slow relay — no relay send starts after the cutoff: the first sends (at most 4 in flight, started at once) finish and are "published", the rest are "failed", "not sent: out of time", at the relay, and this instance keeps its own status, "published" (ADR 0006 Amendment 2, change 1; §4)', async () => {
+  const six = extraItems(6, 0x5600);
+  const events = [...H_EVENTS, ...six];
+  const r = await runUpdate({
+    world: makeWorld({ local: events, relay: events }),
+    body: { list: MY, copy: six.map((e) => ({ original: route(e), version: e.id })), refresh: [], delete: [], upgrade: null },
+    knobs: { clock: { t: T0 }, relayMs: () => 26000 },
+  });
+  const b = r.res.body || {};
+  assert(r.res.statusCode === 200 && Array.isArray(b.results) && b.results.length === 6, `§5's 200, a result per copy; got ${r.res.statusCode} ${brief(b)}`);
+  const relaySends = r.calls.sends.filter((s) => s.place === RELAY);
+  assert(relaySends.every((s) => s.at - T0 < 25000),
+    `Amendment 2: no relay send starts once 25 000 ms have passed; got sends [place, kind, ms after the start] ${brief(sendTimes(r.calls))}`);
+  assert(relaySends.length >= 1 && relaySends.length <= 4, `ADR 0006 §4: the first sends start at once, at most 4 in flight; got ${relaySends.length}`);
+  const sent = new Set(relaySends.map((s) => dOf(s.event)));
+  for (const e of six) {
+    const row = resultFor(b, 'copy', [route(e), copyAddress(e)]);
+    assert(row, `a result for the copy of ${dOf(e)}; got ${brief(b.results)}`);
+    assert(placeOf(row, 'local').status === 'published',
+      `Amendment 2: a place that took the event keeps its own status — ${dOf(e)} is "published" on this instance; got ${brief(row.places)}`);
+    if (sent.has(dFor(MY, route(e)))) {
+      assert(placeOf(row, RELAY).status === 'published', `the copy of ${dOf(e)} started in time and landed: "published" at the relay; got ${brief(row.places)}`);
+    } else {
+      assert(notSent(placeOf(row, RELAY)),
+        `Amendment 2: the copy of ${dOf(e)} never started to the relay → { status: 'failed', error: '${OUT_OF_TIME}' }; got ${brief(row.places)}`);
+    }
+  }
+});
+
+test('H27: the cutoff sits at 25 s — a send whose turn comes at 24 000 ms still starts; once 26 000 ms have passed, no later import here starts (the deletion\'s, the upgrade\'s), the copy already imported keeps "published", and every relay place is "not sent: out of time" (ADR 0006 Amendment 2, change 1)', async () => {
+  // Clearly before the cutoff: the copy's import here takes 24 000 ms, and every send after it still starts.
+  const early = await runUpdate({ knobs: { clock: { t: T0 }, localMs: (e) => (isCopyOfS1(e) ? 24000 : 0) } });
+  const eb = early.res.body || {};
+  assert(early.res.statusCode === 200 && Array.isArray(eb.results) && eb.results.length === 4, `§5's 200; got ${early.res.statusCode} ${brief(eb)}`);
+  assert(early.calls.sends.length === 8,
+    `Amendment 2: every send's turn comes by 24 000 ms, before the 25-second cutoff, so all four imports and all four relay sends start; got [place, kind, ms after the start] ${brief(sendTimes(early.calls))}`);
+  for (const row of eb.results) {
+    for (const key of ['local', RELAY]) assert(placeOf(row, key).status === 'published', `${row.action} is "published" at ${key}; got ${brief(row.places)}`);
+  }
+  // Clearly after it: the copy's import here takes 26 000 ms.
+  const late = await runUpdate({ knobs: { clock: { t: T0 }, localMs: (e) => (isCopyOfS1(e) ? 26000 : 0) } });
+  const lb = late.res.body || {};
+  assert(late.res.statusCode === 200 && Array.isArray(lb.results) && lb.results.length === 4, `§5's 200; got ${late.res.statusCode} ${brief(lb)}`);
+  const afterCutoff = sendTimes(late.calls).filter(([, , ms]) => ms >= 25000);
+  assert(afterCutoff.length === 0, `Amendment 2: no send starts once 25 000 ms have passed; got [place, kind, ms after the start] ${brief(afterCutoff)}`);
+  const copyRow = resultFor(lb, 'copy', COPY_REFS);
+  const refreshRow = resultFor(lb, 'refresh', REFRESH_REFS);
+  const deleteRow = resultFor(lb, 'delete', DELETE_REFS);
+  const upgradeRow = resultFor(lb, 'upgrade');
+  assert(placeOf(copyRow, 'local').status === 'published',
+    `Amendment 2: a place that took the event keeps its own status — the copy is "published" on this instance; got ${brief(copyRow && copyRow.places)}`);
+  for (const [row, what] of [[copyRow, 'the copy'], [refreshRow, 'the refresh'], [deleteRow, 'the deletion'], [upgradeRow, 'the upgrade']]) {
+    assert(notSent(placeOf(row, RELAY)), `Amendment 2: ${what} never started to the relay → { status: 'failed', error: '${OUT_OF_TIME}' }; got ${brief(row && row.places)}`);
+  }
+  for (const [row, what] of [[deleteRow, 'the deletion'], [upgradeRow, 'the upgrade']]) {
+    assert(notSent(placeOf(row, 'local')), `Amendment 2: ${what}'s import here never started → { status: 'failed', error: '${OUT_OF_TIME}' }; got ${brief(row && row.places)}`);
+  }
+  const refreshHere = placeOf(refreshRow, 'local');
+  assert(refreshHere.status === 'published' || notSent(refreshHere),
+    `the refresh's import here started beside the copy's ("published") or after it ("${OUT_OF_TIME}"); got ${brief(refreshHere)}`);
+});
+
+test('H28: the read-back gets only the time that is left — a place whose read-back never answers is "failed", "sent, but couldn\'t read it back: out of time", with no time left before the 45-second deadline or with 100 ms left, and the call still answers 200 (ADR 0006 Amendment 2, change 1; story 6, Deviation 6)', async () => {
+  for (const [sendMs, why] of [[50000, 'no time left'], [44900, '100 ms left']]) {
+    const r = await within(runUpdate({
+      body: fullBody({ refresh: [], delete: [], upgrade: null }),
+      knobs: { clock: { t: T0 }, relayMs: () => sendMs, hangs: (place, f) => place === RELAY && Array.isArray(f.ids) },
+    }), READBACK_BOUND_MS, HUNG(`the read-back (${why})`));
+    const b = r.res.body || {};
+    assert(r.res.statusCode === 200 && b.success === true && Array.isArray(b.results),
+      `Amendment 2 (${why}): §5's 200 { success: true, results }; got ${r.res.statusCode} ${brief(b)}`);
+    assert(r.calls.publishRelay.length === 1, `test premise (${why}): the copy was sent to the relay in the first 25 s; got ${r.calls.publishRelay.length} sends`);
+    const row = resultFor(b, 'copy', COPY_REFS);
+    assert(readBackOutOfTime(placeOf(row, RELAY)),
+      `Amendment 2 (${why}): the relay took the copy and its read-back never answered → { status: 'failed', error: "${READBACK_OUT_OF_TIME}" }; got ${brief(row && row.places)}`);
+    const here = placeOf(row, 'local');
+    assert(here.status === 'published' || readBackOutOfTime(here),
+      `Amendment 2 (${why}): this instance's read-back, raced against the time left or skipped, is "published" or "${READBACK_OUT_OF_TIME}", never a guess such as not-stored; got ${brief(here)}`);
+  }
+});
+
+test('H29: the whole read-back is bounded — a deletion\'s copy re-read that never answers, with 100 ms left, doesn\'t hold the call: it answers 200, and that place claims nothing about the copy it couldn\'t re-read (ADR 0006 Amendment 2, change 1; §4)', async () => {
+  const r = await within(runUpdate({
+    body: fullBody({ copy: [], refresh: [], upgrade: null }),
+    knobs: {
+      clock: { t: T0 }, relayMs: () => 44900,
+      // Once the deletion is sent, the relay answers the read-back by id and never answers the copy's re-read.
+      hangs: (place, f, calls) => place === RELAY && !Array.isArray(f.ids) && calls.publishRelay.length > 0,
+    },
+  }), READBACK_BOUND_MS, HUNG('the deletion\'s copy re-read'));
+  const b = r.res.body || {};
+  assert(r.res.statusCode === 200 && b.success === true, `Amendment 2: §5's 200; got ${r.res.statusCode} ${brief(b)}`);
+  const there = placeOf(resultFor(b, 'delete', DELETE_REFS), RELAY);
+  assert((there.status === 'published' && there.copy !== 'gone' && there.copy !== 'still-there') || readBackOutOfTime(there),
+    `Amendment 2: the copy wasn't re-read at the relay, so its place says neither "gone" nor "still-there" (or the read-back there is "${READBACK_OUT_OF_TIME}"); got ${brief(there)}`);
+});
+
+test('H30: nowMs defaults to Date.now, in milliseconds — with no nowMs injected, reads that take 26 000 ms of Date.now leave no time to send (ADR 0006 Amendment 2, change 1: "a new injected nowMs (milliseconds; Date.now by default)")', async () => {
+  const realNow = Date.now;
+  const clock = { t: realNow() };
+  const start = clock.t;
+  Date.now = () => clock.t;
+  let r;
+  try {
+    r = await runUpdate({ knobs: { clock, injectNowMs: false, readMs: (place, f) => (isSharedRead(f) ? 26000 : 0) } });
+  } finally {
+    Date.now = realNow;
+  }
+  const b = r.res.body || {};
+  assert(r.res.statusCode === 200 && b.success === true && Array.isArray(b.results) && b.results.length === 4, `§5's 200; got ${r.res.statusCode} ${brief(b)}`);
+  assert(r.calls.sends.length === 0,
+    `Amendment 2: by default the handler's clock is Date.now, in milliseconds, so 26 000 ms of reads leave no time to send; got [place, kind, ms after the start] ${brief(sendTimes(r.calls, start))}`);
+  for (const row of b.results) {
+    for (const key of ['local', RELAY]) assert(notSent(placeOf(row, key)), `${row.action} at ${key} is "${OUT_OF_TIME}"; got ${brief(row.places)}`);
+  }
+});
+
+test('H31: the server reads only the deletion requests for this call\'s copies — { kinds: [5], authors: [my assistant], "#a": [...], limit: 500 } in both places, its #a exactly each copy intent\'s derived address and each refresh\'s copy, never a delete\'s; no "#k"-wide read remains (ADR 0006 Amendment 2, change 3; Amendment 1, rule 2)', async () => {
+  const eskimo = sharedItem('eskimo', { id: hex(0x5701) });
+  const greyhound = sharedItem(null, { kind: 9999, id: hex(0x5702), name: 'greyhound' });
+  const events = [...H_EVENTS, eskimo, greyhound];
+  const r = await runUpdate({
+    world: makeWorld({ local: events, relay: events }),
+    body: fullBody({ copy: [H_S1, eskimo, greyhound].map((e) => ({ original: route(e), version: e.id })) }),
+  });
+  assert(r.res.statusCode === 200, `test premise: the call succeeds; got ${r.res.statusCode} ${brief(r.res.body)}`);
+  const want = [copyAddress(H_S1), copyAddress(eskimo), copyAddress(greyhound), route(H_M3)];
+  const reads = kind5Reads(r.calls);
+  for (const [where, fs] of [['this instance\'s strfry', reads.local], ['the list\'s relay', reads.relay]]) {
+    assert(fs.length >= 1, `Amendment 2 / §2: my assistant's deletion requests are still read on ${where}, as in the other place; got none`);
+    for (const f of fs) {
+      assert(sameSet(Object.keys(f), ['kinds', 'authors', '#a', 'limit']) && same(f.kinds, [5]) && same(f.authors, [A]) && f.limit === 500 && Array.isArray(f['#a']),
+        `Amendment 2: the read is { kinds: [5], authors: [my assistant], "#a": [...], limit: 500 } — no "#k"-wide read remains; got ${brief(f)} on ${where}`);
+    }
+    const asked = [...new Set(fs.flatMap((f) => f['#a']))];
+    assert(sameSet(asked, want),
+      `Amendment 2: #a is exactly this call's copy addresses — each copy intent's derived address (three) and the refresh's copy, not the delete's; got ${brief(asked)} on ${where}, want ${brief(want)}`);
+  }
+});
+
+test('H32: a call with no copies or refreshes — deletions only, the upgrade only, or both — makes no deletion-request read at all (ADR 0006 Amendment 2, change 3)', async () => {
+  for (const [body, why] of [
+    [fullBody({ copy: [], refresh: [], upgrade: null }), 'deletions only'],
+    [fullBody({ copy: [], refresh: [], delete: [] }), 'the upgrade only'],
+    [fullBody({ copy: [], refresh: [] }), 'a deletion and the upgrade'],
+  ]) {
+    const r = await runUpdate({ body });
+    assert(r.res.statusCode === 200, `test premise: ${why} → 200; got ${r.res.statusCode} ${brief(r.res.body)}`);
+    const reads = kind5Reads(r.calls);
+    assert(reads.local.length === 0 && reads.relay.length === 0,
+      `Amendment 2: a call with ${why} skips the deletion-request read; got ${brief([...reads.local, ...reads.relay])}`);
+  }
+});
+
+test('H33: 500 or more deletion requests by my assistant, all for addresses this call doesn\'t name, no longer make the call a 503 — the narrowed read comes back with none of them (ADR 0006 Amendment 2, change 3; review round 1, Non-blocking 1)', async () => {
+  const others = otherDeletions(520);
+  const events = [...H_EVENTS, ...others];
+  const broad = query(events, { kinds: [5], authors: [A], '#k': ['39999'], limit: 500 }).length;
+  const narrow = query(events, { kinds: [5], authors: [A], '#a': [copyAddress(H_S1), route(H_M3)], limit: 500 }).length;
+  assert(broad === 500 && narrow === 0,
+    `test premise: the fake world matches #k and #a as a relay does — the old "#k"-wide read comes back capped, the narrowed one empty; got ${broad} and ${narrow}`);
+  const r = await runUpdate({ world: makeWorld({ local: events, relay: events }) });
+  const b = r.res.body || {};
+  assert(r.res.statusCode === 200 && b.success === true && r.calls.sign.length > 0,
+    `Amendment 2: 520 deletion requests for other addresses, in both places, no longer stop Update; got ${r.res.statusCode} ${brief(b)}`);
 });
 
 /* ── U: the curation util (UI, ESM) ────────────────────────── */
@@ -1132,6 +1411,102 @@ test('U5: what the server composes, the next preview doesn\'t propose again — 
   }
 });
 
+/* ── U, ADR 0006 Amendment 2: sorting each call's answer ────── */
+
+async function answerFn() {
+  const mod = await util();
+  assert(typeof mod.updateAnswer === 'function', 'ui/src/utils/treasureMap.js must export updateAnswer(status, data) (ADR 0006 Amendment 2, change 2 and note 2)');
+  return mod.updateAnswer;
+}
+const ANSWER_RESULTS = [{
+  action: 'copy', ref: `39999:${AUTHOR}:akita`, name: 'akita', id: hex(0xf001),
+  places: { local: { status: 'published' }, [RELAY]: { status: 'failed', error: OUT_OF_TIME } },
+}];
+const COULDNT_READ = 'the answer couldn’t be read'; // the typographic apostrophe, as the UI's other strings have it
+/** An unknown outcome with `reason`, carrying no results. */
+const isUnknown = (o, reason) => !!o && !!o.refusal && o.refusal.kind === 'unknown' && o.refusal.reason === reason
+  && !(Array.isArray(o.results) && o.results.length > 0);
+/** One of the endpoint's own refusals, of `kind`, carrying no results. */
+const isRefusal = (o, kind) => !!o && !!o.refusal && o.refusal.kind === kind && !(Array.isArray(o.results) && o.results.length > 0);
+
+test('U6: updateAnswer — a 200 with the endpoint\'s body ({ success: true, results: [...] }) gives { results }; a 200 whose body isn\'t the endpoint\'s is unknown, "the answer couldn’t be read" (ADR 0006 Amendment 2, change 2)', async () => {
+  const updateAnswer = await answerFn();
+  const ok = updateAnswer(200, { success: true, results: ANSWER_RESULTS });
+  assert(ok && same(ok.results, ANSWER_RESULTS) && ok.refusal == null, `Amendment 2: a 200 with the endpoint's body → { results }; got ${brief(ok)}`);
+  const none = updateAnswer(200, { success: true, results: [] });
+  assert(none && same(none.results, []) && none.refusal == null, `Amendment 2: a 200 whose results are empty is still the endpoint's answer; got ${brief(none)}`);
+  for (const [data, why] of [
+    [null, 'no body (the answer wasn\'t JSON)'],
+    [{ success: true }, 'no results'],
+    [{ success: true, results: 'published' }, 'results that aren\'t a list'],
+    [{ success: true, results: { 0: ANSWER_RESULTS[0] } }, 'results that are an object'],
+    [{ results: ANSWER_RESULTS }, 'no success'],
+    [{ success: 'true', results: ANSWER_RESULTS }, 'success that is the string "true"'],
+    [{ success: false, results: ANSWER_RESULTS }, 'success false'],
+    ['<html>OK</html>', 'a page, not the endpoint\'s JSON'],
+  ]) {
+    const o = updateAnswer(200, data);
+    assert(isUnknown(o, COULDNT_READ), `Amendment 2: a 200 with ${why} is unknown, "${COULDNT_READ}"; got ${brief(o)}`);
+  }
+});
+
+test('U7: updateAnswer — the refusals, all made before anything is signed: the endpoint\'s 409 (success: false) → { kind: "stale" }; its 503 → { kind: "couldnt-check", reasons } from couldntCheck; any other 4xx, whatever its body (the endpoint\'s own 400, 401, 403 and 413, the auth middleware\'s 401, a bare 403, a proxy\'s 413 page, a 404, a 429, a 409 without the endpoint\'s body) → { kind: "error", message }, the body\'s error or "the server answered <status>" (ADR 0006 Amendment 2, change 2; Amendment 3)', async () => {
+  const updateAnswer = await answerFn();
+  const stale = updateAnswer(409, {
+    success: false, error: 'the list changed since the preview; nothing was signed',
+    stale: [{ action: 'copy', ref: `39999:${AUTHOR}:akita`, reason: 'its original is no longer on the shared list at that version' }],
+  });
+  assert(isRefusal(stale, 'stale'), `Amendment 2: the endpoint's 409 → { refusal: { kind: 'stale' } }; got ${brief(stale)}`);
+  const gaps = ['the shared list on the community relay', 'your list on this instance’s strfry'];
+  const cc = updateAnswer(503, { success: false, error: `couldn't check ${gaps.join('; ')}; nothing was signed`, couldntCheck: gaps });
+  assert(isRefusal(cc, 'couldnt-check') && same(cc.refusal.reasons, gaps),
+    `Amendment 2: the endpoint's 503 → { refusal: { kind: 'couldnt-check', reasons: <its couldntCheck> } }; got ${brief(cc)}`);
+  for (const [status, data, message, why] of [
+    [400, { success: false, error: 'list must be a kind-39998 coordinate' }, 'list must be a kind-39998 coordinate', 'the endpoint\'s 400'],
+    [401, { success: false, error: 'authentication required' }, 'authentication required', 'the endpoint\'s 401'],
+    [403, { success: false, error: 'a request from another site is refused' }, 'a request from another site is refused', 'the endpoint\'s 403'],
+    [413, { success: false, error: 'at most 50 intents per call' }, 'at most 50 intents per call', 'the endpoint\'s 413'],
+    [401, { error: 'Authentication required for this action' }, 'Authentication required for this action', 'the auth middleware\'s 401, which carries no success: false'],
+    [400, { error: 'Bad Request' }, 'Bad Request', 'a 400 without success: false'],
+    [403, null, 'the server answered 403', 'a bare 403'],
+    [413, '<html>413 Request Entity Too Large</html>', 'the server answered 413', 'a proxy\'s 413 page'],
+    [404, { success: false, error: 'not found' }, 'not found', 'a 404 with an error'],
+    [404, null, 'the server answered 404', 'a bare 404'],
+    [429, null, 'the server answered 429', 'a 429, which no rule names'],
+    [409, null, 'the server answered 409', 'a 409 with no body — an error, not stale'],
+    [409, {}, 'the server answered 409', 'a 409 with an empty body'],
+    [409, { error: 'Conflict' }, 'Conflict', 'a 409 whose body has no success: false'],
+    [409, { success: true, results: [] }, 'the server answered 409', 'a 409 whose body claims success'],
+    [400, { error: 42 }, 'the server answered 400', 'a 4xx whose error isn\'t a string'],
+  ]) {
+    const o = updateAnswer(status, data);
+    assert(isRefusal(o, 'error') && o.refusal.message === message,
+      `Amendment 3: ${why} is a refusal made before anything is signed → { refusal: { kind: 'error', message: "${message}" } }; got ${brief(o)}`);
+  }
+});
+
+test('U8: updateAnswer — everything else is unknown, "the server answered <status>": a 5xx other than the endpoint\'s 503 (a 500 even with success: false, since the handler\'s 500 can come after publishing; a 503 without the endpoint\'s body; a 502; a 504), and a 2xx or 3xx that isn\'t the endpoint\'s 200 (a 204; a 302, even one whose body looks like results); a failed fetch, updateAnswer(null, null), is "no answer arrived" (ADR 0006 Amendment 2, change 2; Amendment 3)', async () => {
+  const updateAnswer = await answerFn();
+  for (const [status, data, why] of [
+    [503, null, 'a 503 with no body'],
+    [503, { error: 'Service Unavailable', couldntCheck: ['the shared list on the community relay'] }, 'a 503 whose body has no success: false'],
+    [500, { success: false, error: 'boom' }, 'a 500, even with success: false'],
+    [500, null, 'a 500 with no body'],
+    [502, null, 'a 502'],
+    [502, '<html>502 Bad Gateway</html>', 'a proxy\'s 502 page'],
+    [504, null, 'a 504'],
+    [504, '<html>504 Gateway Time-out</html>', 'a proxy\'s 504 page'],
+    [204, null, 'a 204'],
+    [302, null, 'a 302'],
+    [302, { success: true, results: ANSWER_RESULTS }, 'a 302 whose body looks like the endpoint\'s 200'],
+  ]) {
+    const o = updateAnswer(status, data);
+    assert(isUnknown(o, `the server answered ${status}`), `Amendment 2: ${why} is unknown, "the server answered ${status}"; got ${brief(o)}`);
+  }
+  const lost = updateAnswer(null, null);
+  assert(isUnknown(lost, 'no answer arrived'), `Amendment 2: a failed fetch, updateAnswer(null, null), is unknown, "no answer arrived"; got ${brief(lost)}`);
+});
+
 /* ── S: structure ──────────────────────────────────────────── */
 
 test('S1: UpdatePreview — "Publish these changes" on a ready plan that isn\'t up to date, and nothing to press otherwise; the marker clause when the upgrade drops the marker; story 5\'s closing line gone (ADR 0006 §7; AC-1, AC-6)', () => {
@@ -1144,7 +1519,7 @@ test('S1: UpdatePreview — "Publish these changes" on a ready plan that isn\'t 
   assert(!new RegExp(`Nothing is signed: publishing isn${APOS}t built yet`).test(f), 'ADR 0006 §7: story 5\'s closing line goes');
 });
 
-test('S2: the publish run\'s words — the results per item and per place, "The list changed since you pressed Publish; here is the new preview.", and the server\'s refusals; the fresh plan compared through planIntents (ADR 0006 §2, §7; AC-2, AC-8, AC-9)', () => {
+test('S2: the publish run\'s words — the results per item and per place, "The list changed since you pressed Publish; here is the new preview.", and the server\'s refusals, sorted by updateAnswer in the util and rendered by kind; the fresh plan compared through planIntents (ADR 0006 §2, §7, Amendment 2; AC-2, AC-8, AC-9)', () => {
   const both = flat(`${src(PREVIEW)}\n${src(ITEMS)}`);
   for (const [re, what] of [
     [/(?:['"`>]|:\s)\s*published\b/, '"published"'],
@@ -1156,7 +1531,10 @@ test('S2: the publish run\'s words — the results per item and per place, "The 
   ]) assert(re.test(both), `ADR 0006 §7: the preview or the items section says ${what}`);
   assert(/planIntents\(/.test(both) && /import\s*\{[^}]*\bplanIntents\b[^}]*\}\s*from\s*['"]\.\.\/\.\.\/utils\/treasureMap['"]/.test(both),
     'ADR 0006 §7: the fresh plan is compared with the approved one through planIntents, from the util');
-  assert(/\bcouldntCheck\b/.test(both) && /\b409\b|\.stale\b/.test(both), 'ADR 0006 §2: a 409 shows the fresh preview, and a 503 names what couldn\'t be checked');
+  // Re-aimed for Amendment 2 (change 2): each answer is sorted by updateAnswer, in the util, and the preview renders the kinds.
+  const preview = src(PREVIEW);
+  assert(/['"]stale['"]/.test(preview) && /['"]couldnt-check['"]/.test(preview) && /\bcouldntCheck\b/.test(safeRead(UTIL)),
+    'ADR 0006 §2 / Amendment 2: a 409 shows the fresh preview and a 503 names what couldn\'t be checked — the preview renders the "stale" and "couldnt-check" refusals, and updateAnswer, in the util, reads the endpoint\'s couldntCheck');
 });
 
 // The send may run from an effect once the fresh plan settles (ADR 0006 §7, step 2), so what is pinned is that the press
@@ -1250,6 +1628,85 @@ test('S10: POST /api/dlist-curation/update is registered from src/api/dlist-cura
   assert(caught.length === 0, `ADR 0006 § Context: no owner-only substring catches the route; caught by ${brief(caught)}`);
 });
 
+/* ── S, ADR 0006 Amendment 2: an unknown outcome is never "nothing" ── */
+
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const FE0F = String.fromCharCode(0xfe0f); // the emoji selector after ⚠, built rather than written
+const UNKNOWN_HEAD = 'Publishing stopped without an answer (';
+const UNKNOWN_TAIL = '); some changes may have been published. Your list has been read again, so the preview above proposes only what is still to do.';
+/** The text of the JSX expression `{ … }` enclosing position `at` of `s`, up to `at`. */
+function enclosingExpression(s, at) {
+  let depth = 0;
+  for (let i = at - 1; i >= 0; i -= 1) {
+    if (s[i] === '}') depth += 1;
+    else if (s[i] === '{') {
+      if (depth === 0) return s.slice(i, at);
+      depth -= 1;
+    }
+  }
+  return '';
+}
+/** Whether `text` reads the unknown outcome, directly or through a local of `s` that it names (up to two levels). */
+function readsUnknown(text, s, level = 0) {
+  if (/unknown/i.test(text)) return true;
+  if (level >= 2) return false;
+  for (const id of new Set(text.match(/[A-Za-z_$][\w$]*/g) || [])) {
+    const def = s.match(new RegExp(`\\b(?:const|let|var)\\s+${esc(id)}\\s*=\\s*([^;]*);`));
+    if (def && readsUnknown(def[1], s, level + 1)) return true;
+  }
+  return false;
+}
+/** `s` without its comments: block comments, and line comments that aren't part of a URL. Good enough for these sources. */
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:\\])\/\/[^\n]*/g, '$1');
+/** Where `phrase` is rendered in `code`: where it appears, or, when a local constant holds it, where that constant is used. */
+function renderedAt(code, phrase) {
+  const out = [];
+  for (let i = code.indexOf(phrase); i >= 0; i = code.indexOf(phrase, i + phrase.length)) {
+    const def = code.slice(0, i).match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^;]*$/);
+    if (!def) { out.push(i); continue; }
+    const named = i - def[0].length + def[0].match(/^(?:const|let|var)\s+/)[0].length;
+    for (const m of code.matchAll(new RegExp(`\\b${esc(def[1])}\\b`, 'g'))) if (m.index !== named) out.push(m.index);
+  }
+  return out;
+}
+/** The condition a phrase at `at` renders under: its enclosing `{ … }`, stepping out of one that holds only the phrase. */
+function conditionAt(code, at) {
+  let p = at;
+  let cond = enclosingExpression(code, p);
+  while (/^\{\s*['"`]?$/.test(cond)) {
+    p -= cond.length;
+    cond = enclosingExpression(code, p);
+  }
+  return cond;
+}
+
+test('S11: UpdatePreview — an unknown outcome reads "⚠️ Publishing stopped without an answer (<reason>); some changes may have been published. Your list has been read again, so the preview above proposes only what is still to do." (ADR 0006 Amendment 2, change 2)', () => {
+  const s = stripComments(src(PREVIEW)); const f = flat(s);
+  assert(new RegExp(`⚠${FE0F}? ?${esc(UNKNOWN_HEAD)}.{1,80}?${esc(UNKNOWN_TAIL)}`).test(f),
+    `Amendment 2: the unknown sentence, its fixed parts exact ("⚠️ ${UNKNOWN_HEAD}" … "${UNKNOWN_TAIL}"), with the reason between the brackets`);
+  assert(/['"]unknown['"]/.test(s), 'Amendment 2: the preview tells the unknown outcome apart by its kind, "unknown"');
+});
+
+test('S12: UpdatePreview — "Nothing was published." shows only when no call\'s outcome is unknown: the condition it renders under reads the unknown kind (ADR 0006 Amendment 2, change 2; review round 1, Blocking 1)', () => {
+  const f = flat(stripComments(src(PREVIEW)));
+  const conds = renderedAt(f, 'Nothing was published.').map((p) => conditionAt(f, p));
+  assert(conds.length >= 1, 'the preview still says "Nothing was published." when no call published anything and none is unknown');
+  assert(conds.every((c) => c !== '' && readsUnknown(c, f)),
+    `Amendment 2: "Nothing was published." shows only when no outcome is unknown, so the condition it renders under reads the unknown kind; got ${brief(conds)}`);
+});
+
+test('S13: the items section sorts each answer with updateAnswer, from the util — a thrown fetch is updateAnswer(null, null), and the blanket "!res.ok || !data.success" → error mapping is gone (ADR 0006 Amendment 2, change 2 and note 3; review round 1, Blocking 1)', () => {
+  const s = stripComments(src(ITEMS));
+  assert(/import\s*\{[^}]*\bupdateAnswer\b[^}]*\}\s*from\s*['"]\.\.\/\.\.\/utils\/treasureMap['"]/.test(s), 'Amendment 2 note 3: the items section imports updateAnswer from the util');
+  const body = (s.match(/(?:async\s+)?function\s+publishIntents\s*\([\s\S]*?\n\}\n/) || [''])[0];
+  assert(body !== '', 'the items section still has publishIntents (ADR 0006 §6–§7)');
+  assert(/updateAnswer\(\s*[^,()]*\bstatus\b/.test(body), `Amendment 2: publishIntents sorts each answer with updateAnswer(<its status>, <its body>); got ${brief(flat(body))}`);
+  assert(/updateAnswer\(\s*null\s*,\s*null\s*\)/.test(body), 'Amendment 2: a failed fetch is updateAnswer(null, null)');
+  assert(!/!\s*res\.ok\s*\|\|\s*!\s*data\.success/.test(body), 'Amendment 2: the blanket "!res.ok || !data.success" → error mapping is gone');
+  assert(!/\bkind\s*:\s*['"]/.test(body) && !/status\s*===?\s*(?:409|503)\b/.test(body),
+    'Amendment 2: publishIntents assigns no refusal kind itself — every answer is sorted by updateAnswer');
+});
+
 /* ── D: docs ───────────────────────────────────────────────── */
 
 const SUPERSEDED_NOTE = /^> \*\*Superseded in part \(\d{4}-\d{2}-\d{2}\):\*\*[^\n]*`curated-dlist-update` ADR 0006[^\n]*/m;
@@ -1281,6 +1738,54 @@ test('D2: OPEN.md carries the three rows ADR 0006 records, each OPEN, matched by
     assert(hits.length >= 1, `ADR 0006 § Consequences: OPEN.md has a row for ${what}`);
     assert(hits.some((l) => /\| OPEN \|/.test(l)), `ADR 0006 § Consequences: the row for ${what} is OPEN`);
   }
+});
+
+/** A `## <heading>` section of markdown `md`, up to the next `## `. */
+function sectionOf(md, heading) {
+  const parts = md.split(new RegExp(`^## ${esc(heading)}\\s*$`, 'm'));
+  return parts.length > 1 ? parts[1].split(/^## /m)[0] : '';
+}
+/** The numbered items of a section, by number, each from "<n>. **" at the start of a line to the next. */
+function numberedItems(section) {
+  const out = {};
+  for (const part of section.split(/^(?=\d+\. \*\*)/m)) {
+    const m = part.match(/^(\d+)\. \*\*/);
+    if (m) out[m[1]] = part;
+  }
+  return out;
+}
+
+test('D3: ADR 0006 carries Amendment 2, "approved at its Architecture gate", and its pointers in Decision §2, §6 and §7 (ADR 0006 Amendment 2)', () => {
+  const adr = src(CDU_ADR_6);
+  assert(/^## Amendment 2 \([^)\n]*approved at its Architecture gate\)\s*$/m.test(adr), 'Amendment 2\'s heading carries "approved at its Architecture gate"');
+  const items = numberedItems(sectionOf(adr, 'Decision'));
+  for (const n of ['2', '6', '7']) assert(items[n] && /Amendment 2/.test(items[n]), `ADR 0006 Decision §${n} points to Amendment 2`);
+});
+
+test('D4: story 6\'s Deviation 5 carries its correction, "Corrected after review round 1", pointing to ADR 0006 Amendment 2 (Amendment 2 § Consequences)', () => {
+  const five = numberedItems(sectionOf(src(STORY_6), 'Deviations'))['5'] || '';
+  assert(/Corrected after review round 1/.test(five) && /Amendment 2/.test(five), `Deviation 5 carries its correction; got ${brief(flat(five).slice(0, 300))}`);
+});
+
+test('D5: OPEN.md carries the two rows ADR 0006 Amendment 2 records, matched by what they say and not by number (the staging merge renumbers them) — the page\'s own deletion-request read, which reads every request its assistant ever sent; and the list\'s relay, read from different places by the server and the page (Amendment 2 § Consequences)', () => {
+  const rows = src(OPEN).split('\n').filter((l) => /^\| \d+ \|/.test(l));
+  for (const [tests, what] of [
+    [[/reads every deletion request its assistant ever sent/, /useDeletionRequests/, /\b500\b/], 'the page\'s own deletion-request read, which stops at 500'],
+    [[new RegExp(`read the list${APOS}s relay from different places`), /aDListRelays/, /COMMUNITY_RELAYS/], 'the list\'s relay, read from settings by the server and from a constant by the page'],
+  ]) {
+    assert(rows.some((l) => tests.every((re) => re.test(l))), `Amendment 2 § Consequences: OPEN.md has a row for ${what}`);
+  }
+});
+
+/** The `## <prefix>…` section of markdown `md`, its heading included, up to the next `## `. */
+const sectionStartingWith = (md, prefix) => md.split(/^(?=## )/m).find((part) => part.startsWith(`## ${prefix}`)) || '';
+
+test('D6: ADR 0006 carries Amendment 3 — its heading starts "## Amendment 3 (2026-09-13, from Test Design round 2" — and Amendment 2\'s change 2 points to it, "(Amendment 3: any 4xx is a refusal" (ADR 0006 Amendment 3)', () => {
+  const adr = src(CDU_ADR_6);
+  assert(/^## Amendment 3 \(2026-09-13, from Test Design round 2\b/m.test(adr), 'Amendment 3\'s heading starts "## Amendment 3 (2026-09-13, from Test Design round 2"');
+  const change2 = numberedItems(sectionStartingWith(adr, 'Amendment 2 '))['2'] || '';
+  assert(/\(Amendment 3: any 4xx is a refusal/.test(change2),
+    `Amendment 2's change 2 carries the pointer "(Amendment 3: any 4xx is a refusal"; got …${brief(flat(change2).slice(-240))}`);
 });
 
 /* ── R: sentinels (pass before and after) ─────────────────── */
