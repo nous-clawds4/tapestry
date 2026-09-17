@@ -50,15 +50,22 @@ preserved and discoverable.
       stack, or records the hang as pre-existing with evidence).
 - [ ] AC-5: The `contextual-pins/0001` ADR is flipped from *Proposed* to *Accepted* (it shipped and
       passed review); this story's ADR records the composition rule and the context-`z` rule.
+- [ ] AC-7 *(Ruling A, 2026-09-17 — folded in from the planned story 3 / D2)*: the Pinned tab's
+      "update the note list" action calls `POST /api/trusted-list/refresh-pinned-tag` (server
+      recompute of the assistant-signed 30393, context-aware via the pin event id) instead of the
+      client-signed bookmark publish; the client bookmark export remains a separate action in the
+      Export modal. (`context-scoped-pins` "Story 2: the Pinned panel … updates via server
+      refresh" is the pinning assertion.)
 - [ ] AC-6: The `computeNoteTLDTag` client helper and the server `runOneNotePin` compose the same
       string for the same inputs, context included (a shared-fixture test pins parity).
 
 ## Out of scope
-- The Pinned panel's *update* action → server recompute (story 3, D2).
+- **Option D** (a context-scoped per-tag TL header making "TLs about X in <context>" a single
+  relay filter) — deferred by ruling B, 2026-09-17; the union-plus-local-narrowing query stands.
 - Republishing existing contextual lists with the new `z` — they re-derive on the next refresh.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/feat-tags-modernization/0001-pin-stack-composition.md` (pending)
+- ADR: `engineering-team/decisions/feat-tags-modernization/0001-pin-stack-composition.md` (Accepted)
 - Prior: `engineering-team/decisions/contextual-pins/0001-context-scoped-pins.md`;
   `engineering-team/decisions/trusted-lists/0001-…`, `0002-…`;
   `engineering-team/decisions/dlist-item-tagging/0002-trusted-list-discovery-tags.md`.
