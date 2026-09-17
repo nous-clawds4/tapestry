@@ -27,13 +27,18 @@ export default function Lists() {
     let cancelled = false;
     (async () => {
       try {
-        const [events, countsRes] = await Promise.all([
-          queryRelay({ kinds: [9998, 39998] }),
-          fetch('/api/dlists/item-counts').then((r) => r.json()).catch(() => null),
-        ]);
+        // Headers first — they are one bounded scan and render immediately. The item
+        // counts endpoint walks EVERY list item on the relay (39s on tags.brainstorm.world
+        // with 455k items), so it must never gate the index: fetch it after the headers
+        // are on screen and fill the counts in when (if) it arrives. OPEN 301.
+        const events = await queryRelay({ kinds: [9998, 39998] });
         if (cancelled) return;
         setHeaders([...events].sort((a, b) => b.created_at - a.created_at));
-        setCounts(countsRes && countsRes.success ? countsRes.counts : null);
+        setLoading(false);
+        fetch('/api/dlists/item-counts')
+          .then((r) => r.json())
+          .then((countsRes) => { if (!cancelled) setCounts(countsRes && countsRes.success ? countsRes.counts : null); })
+          .catch(() => { if (!cancelled) setCounts(null); });
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
