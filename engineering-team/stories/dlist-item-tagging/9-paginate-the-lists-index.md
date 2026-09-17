@@ -129,8 +129,6 @@ usable regardless of how many lists (or how much junk) the relay holds.
 - **E5 (not derivable from any AC):** a `d` containing a comma (`39998:<pk>:my,list`) survives intact
   and counts under its verbatim key, because coordinates are repeated query params, never delimiter-joined
   (ruling 2). Handle: H6.
-  the fragments fail validation and land in `invalid`, so that one row reads `—` while the rest of the
-  page counts normally. A documented limitation of the GET-CSV shape, not a crash.
 - **E6** *(not derivable from any AC)* 50 coordinates with long `d` tags push the encoded query past
   nginx's 8 KB header buffer → 414/400 for the whole batch → every row reads `—` (the AC-5 fallback
   covers it). The 50-coord cap keeps the typical worst case near 6 KB.
@@ -183,7 +181,7 @@ notion of which lists or items "count" — this endpoint reports raw relay membe
 | E2 shared `created_at` at the page boundary; `until` + id de-dupe; `exhausted` guard | S3 |
 | E3 header republished between pages → React key stays `h.id` | S3 (key sentinel only — see gaps) |
 | E4 empty `d` → coordinate `39998:<pk>:` accepted and counted | **U6** *(not derivable from any AC)* |
-| E5 comma inside a `d` → invalid fragments, one row reads "—", rest of page counts | **H6** *(not derivable from any AC)* |
+| E5 comma inside a `d` → counted under its verbatim key, nothing invalid (repeated params, no delimiter) | **H6** *(not derivable from any AC)* |
 | E6 50 long coords exceed nginx's header buffer → whole batch fails → every row "—" | **NOT COVERED** (out-of-process proxy limit); the client-side consequence is the S4/AC-5 "—" path |
 | E7 one scan hangs → `DEADLINE_MS` → resolved coords return with `partial: true` | U8 |
 | E8 duplicate coordinates → one scan, one key | U9 |
@@ -262,13 +260,9 @@ Representative failures (verbatim) — each fails for the *ruled* reason, not an
    with zero scans spawned.** `U3` pins only the weaker invariant (never more than `MAX_COORDS`
    scans) so the module-level contract survives either reading. If the Implementer prefers
    truncation, that is a Design-note amendment, not a silent choice.
-2. **E5 is self-inconsistent as written.** It says "the fragments fail validation", but the note's own
-   shape check (`^39998:[0-9a-f]{64}:` with *any* remainder) **accepts** the head fragment
-   `39998:<pk>:my` of a split `39998:<pk>:my,list`. H6 therefore pins only what both readings agree
-   on: the full comma-bearing coordinate gets no `counts` key, the tail fragment `list` lands in
-   `invalid`, and the rest of the page counts normally. Whether the head fragment appears in `counts`
-   under a truncated key is **unspecified** — the Implementer should either drop it or accept it
-   knowingly, and say which.
+2. ~~E5 is self-inconsistent as written~~ — **superseded by ruling 2** (repeated query params, no
+   comma splitting): there are no fragments; H6 now asserts the comma-bearing coordinate is counted
+   under its verbatim key with `invalid` empty.
 3. **The handler needs the same test seam as `countsForCoords`.** The note gives `deps` only to
    `countsForCoords`; the H\* cases require `handleListPageCounts(req, res, deps)` to accept an
    optional third argument forwarded to `countsForCoords` (defaulting to the real spawn counter).
