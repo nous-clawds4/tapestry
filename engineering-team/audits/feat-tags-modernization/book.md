@@ -120,3 +120,11 @@ book must either restore the policy or replace it with one the team will actuall
      against real data before story 2 lands; nothing is pushed.
    - The two-`z` TL convention (`dlist-item-tagging` ADR 0002) is implemented on no branch yet
      (that was its story 5); a contextual TL carries its context `z` alone until then. Composes.
+6. **Ruling C — the `taPubkey` guards** (2026-09-17). `pinTag(...)` may carry `taPubkey` **only
+   alongside `context`** — at the caller site (Tag.jsx) and the signature site alike. A bare
+   `taPubkey` on a neutral pin still fails, and the ADR-0015 invariant (the pin's canonical `z`
+   composes from the legacy literal, never the runtime TA) is still asserted directly. Both guard
+   assertions in `test/restore-historical-data-and-fix-tl-author-filter.test.js` were re-aimed to
+   this rule; `test/pinned-notes-display.test.js` was re-aimed to D2 (server recompute) and to the
+   accepted contextual-pins hook (reads the 30393 TL). Recorded here because the review found the
+   ruling cited in tests and story but nowhere durable.
