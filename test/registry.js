@@ -211,6 +211,7 @@ const suites = [
   { file: 'relay-scan-bounds.test.js' },
   // feat/tags-only until the feat-tags-modernization book (2026-09-17): contextual pins.
   { file: 'context-scoped-pins.test.js' },
+  { file: 'pin-stack-composition.test.js' },
   { file: 'honest-broadcast-reporting.test.js' },
   { file: 'honest-publish-reporting.test.js' },
   { file: 'honest-publish-reporting-ci-guard.test.js' },
