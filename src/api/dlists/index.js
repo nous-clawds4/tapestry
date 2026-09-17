@@ -4,8 +4,11 @@
  */
 
 const { handleListItemCounts, createTally } = require('./itemCounts');
+const { handleListPageCounts, countsForCoords } = require('./pageCounts');
 
 module.exports = {
     handleListItemCounts,
     createTally,
+    handleListPageCounts,
+    countsForCoords,
 };

@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import useProfiles from '../hooks/useProfiles';
-import { queryRelay } from '../api/relay';
+import { queryRelayBounded } from '../api/relay';
+import { fetchPageCounts } from '../api/dlists';
 import { headerCoord, headerNames, matchesListQuery, parseListRef } from '../utils/dlistFields';
 
 function shortPubkey(pk) {
@@ -10,35 +11,44 @@ function shortPubkey(pk) {
 }
 
 /**
- * /lists — every DList header on local strfry, with its item count, plus a
- * paste box for a coordinate / naddr / event id (dlist-item-tagging #1).
+ * /lists — DList headers on local strfry, 50 per page, with the item counts for
+ * the visible page only (dlist-item-tagging #1, paginated in #9).
  */
 export default function Lists() {
   const navigate = useNavigate();
   const [headers, setHeaders] = useState([]);
-  const [counts, setCounts] = useState(null); // null = item-counts unavailable
+  const [counts, setCounts] = useState({});   // coord → count; an absent key renders —
+  const [total, setTotal] = useState(null);   // null = the header scan was bounded: unknown, not zero
+  const [truncated, setTruncated] = useState(false);
+  const [exhausted, setExhausted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [paging, setPaging] = useState(false);
   const [error, setError] = useState(null);
   const [ref, setRef] = useState('');
   const [refError, setRefError] = useState(null);
   const [query, setQuery] = useState('');
 
+  // Counts for just this page's coordinates, never awaited: the 50 rows paint
+  // first and the numbers fill in. A failure leaves the rows reading — (AC-5).
+  function loadCounts(page) {
+    const coords = page.map((h) => headerCoord(h));
+    if (coords.length === 0) return;
+    fetchPageCounts(coords)
+      .then((next) => setCounts((prev) => ({ ...prev, ...next })))
+      .catch(() => { /* rows keep their — */ });
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        // Headers first — they are one bounded scan and render immediately. The item
-        // counts endpoint walks EVERY list item on the relay (39s on tags.brainstorm.world
-        // with 455k items), so it must never gate the index: fetch it after the headers
-        // are on screen and fill the counts in when (if) it arrives. OPEN 301.
-        const events = await queryRelay({ kinds: [9998, 39998] });
+        const page = await queryRelayBounded({ kinds: [9998, 39998], limit: 50 });
         if (cancelled) return;
-        setHeaders([...events].sort((a, b) => b.created_at - a.created_at));
-        setLoading(false);
-        fetch('/api/dlists/item-counts')
-          .then((r) => r.json())
-          .then((countsRes) => { if (!cancelled) setCounts(countsRes && countsRes.success ? countsRes.counts : null); })
-          .catch(() => { if (!cancelled) setCounts(null); });
+        const sorted = [...page.events].sort((a, b) => b.created_at - a.created_at);
+        setHeaders(sorted);
+        setTotal(page.total);
+        setTruncated(page.truncated);
+        loadCounts(sorted);
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -48,10 +58,34 @@ export default function Lists() {
     return () => { cancelled = true; };
   }, []);
 
+  // Next page = until the oldest created_at seen; de-dupe by id so a shared
+  // timestamp at the boundary neither skips nor repeats a header (E2).
+  async function loadMore() {
+    if (headers.length === 0) return;
+    setPaging(true);
+    try {
+      const until = Math.min(...headers.map((h) => h.created_at));
+      const page = await queryRelayBounded({ kinds: [9998, 39998], until, limit: 50 });
+      const seen = new Set(headers.map((h) => h.id));
+      const fresh = page.events.filter((h) => !seen.has(h.id));
+      if (fresh.length === 0) setExhausted(true);
+      const sorted = [...fresh].sort((a, b) => b.created_at - a.created_at);
+      setHeaders((prev) => [...prev, ...sorted]);
+      setTruncated(page.truncated);
+      loadCounts(sorted);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPaging(false);
+    }
+  }
+
   const authorKeys = useMemo(() => headers.map((h) => h.pubkey), [headers]);
   const profiles = useProfiles(authorKeys);
-  // AC-10: client-side filter over the already-loaded headers (names + description).
+  // AC-10 / AC-4: client-side filter over the already-loaded headers (names + description).
   const visible = useMemo(() => headers.filter((h) => matchesListQuery(h, query)), [headers, query]);
+  const totalLabel = total === null ? 'unknown' : total;
+  const hasMore = !exhausted && (truncated || (total !== null && headers.length < total));
 
   function openRef(e) {
     e.preventDefault();
@@ -98,7 +132,10 @@ export default function Lists() {
             aria-label="Filter lists"
           />
         )}
-        {headers.length > 0 && visible.length === 0 && <p className="bs-dlist-empty">No lists match.</p>}
+        {headers.length > 0 && (
+          <p className="bs-dlist-filter-summary">{visible.length} matching of {headers.length} loaded</p>
+        )}
+        {headers.length > 0 && visible.length === 0 && <p className="bs-dlist-empty">No lists match on this page.</p>}
 
         {visible.length > 0 && (
           <ul className="bs-dlist-index">
@@ -106,7 +143,7 @@ export default function Lists() {
               const coord = headerCoord(h);
               const names = headerNames(h);
               const profile = profiles[h.pubkey];
-              const count = counts && counts[coord] != null ? counts[coord] : '—';
+              const count = counts[coord] != null ? counts[coord] : '—';
               return (
                 <li key={h.id} className="bs-dlist-index-row">
                   <Link to={`/list/${encodeURIComponent(coord)}`} className="bs-dlist-index-link">
@@ -121,6 +158,19 @@ export default function Lists() {
               );
             })}
           </ul>
+        )}
+
+        {headers.length > 0 && (
+          <div className="bs-dlist-footer">
+            <span className="bs-dlist-count-summary">
+              Showing {headers.length} of {totalLabel}{truncated && total === null ? ' (scan was bounded)' : ''}
+            </span>
+            {hasMore && (
+              <button type="button" className="bs-dlist-loadmore" onClick={loadMore} disabled={paging}>
+                {paging ? 'Loading…' : 'Next page'}
+              </button>
+            )}
+          </div>
         )}
       </main>
     </div>
