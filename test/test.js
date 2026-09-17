@@ -252,6 +252,8 @@ const tlTreasureMapOptin = require('./tl-treasure-map-optin-publish.test.js');
 const dlistBrowse = require('./dlist-browse.test.js');
 // epic: dlist-item-tagging — Story 8 (Derived columns for undeclared item fields).
 const dlistDerivedColumns = require('./dlist-derived-columns.test.js');
+// epic: dlist-item-tagging — Story 9 (Paginate the lists index, count only the visible page).
+const dlistIndexPageCounts = require('./dlist-index-page-counts.test.js');
 // epic: dlist-item-tagging — Story 2 (addressable-target assertion d-tag collision).
 const eventTaggingATargetDtag = require('./event-tagging-a-target-dtag.test.js');
 // epic: dlist-item-tagging — Story 3 (Tag a DList item).
@@ -671,6 +673,9 @@ async function main() {
 
   console.log('\ndlist-derived-columns suite:');
   const dlistDerivedColumnsResult = await dlistDerivedColumns.run();
+
+  console.log('\ndlist-index-page-counts suite:');
+  const dlistIndexPageCountsResult = await dlistIndexPageCounts.run();
 
   console.log('\nevent-tagging-a-target-dtag suite:');
   const eventTaggingATargetDtagResult = await eventTaggingATargetDtag.run();
@@ -1217,6 +1222,7 @@ async function main() {
   console.log(`tl-treasure-map-optin-publish suite:             ${tlTreasureMapOptinResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlTreasureMapOptinResult.pass} passed, ${tlTreasureMapOptinResult.fail} failed, ${tlTreasureMapOptinResult.skipped} skipped)`);
   console.log(`dlist-browse suite:                              ${dlistBrowseResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistBrowseResult.pass} passed, ${dlistBrowseResult.fail} failed, ${dlistBrowseResult.skipped} skipped)`);
   console.log(`dlist-derived-columns suite:                     ${dlistDerivedColumnsResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistDerivedColumnsResult.pass} passed, ${dlistDerivedColumnsResult.fail} failed, ${dlistDerivedColumnsResult.skipped} skipped)`);
+  console.log(`dlist-index-page-counts suite:                   ${dlistIndexPageCountsResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistIndexPageCountsResult.pass} passed, ${dlistIndexPageCountsResult.fail} failed, ${dlistIndexPageCountsResult.skipped} skipped)`);
   console.log(`event-tagging-a-target-dtag suite:               ${eventTaggingATargetDtagResult.fail === 0 ? 'PASS' : 'FAIL'} (${eventTaggingATargetDtagResult.pass} passed, ${eventTaggingATargetDtagResult.fail} failed, ${eventTaggingATargetDtagResult.skipped} skipped)`);
   console.log(`dlist-item-tagging suite:                        ${dlistItemTaggingResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistItemTaggingResult.pass} passed, ${dlistItemTaggingResult.fail} failed, ${dlistItemTaggingResult.skipped} skipped)`);
   console.log(`dlist-tagged-items suite:                        ${dlistTaggedItemsResult.fail === 0 ? 'PASS' : 'FAIL'} (${dlistTaggedItemsResult.pass} passed, ${dlistTaggedItemsResult.fail} failed, ${dlistTaggedItemsResult.skipped} skipped)`);
@@ -1460,6 +1466,8 @@ async function main() {
     dlistBrowseResult.fail === 0 &&
     // dlist-item-tagging #8 — Derived columns for undeclared item fields
     dlistDerivedColumnsResult.fail === 0 &&
+    // dlist-item-tagging #9 — Paginate the lists index, count only the visible page
+    dlistIndexPageCountsResult.fail === 0 &&
     // dlist-item-tagging #2 — addressable-target assertion d-tag collision
     eventTaggingATargetDtagResult.fail === 0 &&
     // dlist-item-tagging #3 — Tag a DList item
@@ -1540,7 +1548,7 @@ async function main() {
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlMembershipMethodSelectorResult, tlWeightedSumMethodResult, tlCertaintyMethodResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult,
     retireOfferingVocabularyResult, siteTrustSignalsResult, tlTreasureMapPanelResult, tlTreasureMapOptinResult, neo4jSizingOverrideResult,
-    dlistBrowseResult, dlistDerivedColumnsResult, eventTaggingATargetDtagResult, dlistItemTaggingResult, dlistTaggedItemsResult,
+    dlistBrowseResult, dlistDerivedColumnsResult, dlistIndexPageCountsResult, eventTaggingATargetDtagResult, dlistItemTaggingResult, dlistTaggedItemsResult,
     relayScanBoundsResult, addNodeAsElementRestoreResult, conceptCountCanonicalResult, summariesElementCountResult,
     dlistCurationTlPanelResult, dlistCurationHeaderEndpointResult, dlistCurationPanelResult, dlistCurationMapEntriesResult,
     dlistCurationMergePreserveResult,

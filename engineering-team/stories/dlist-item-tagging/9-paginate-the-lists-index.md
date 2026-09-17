@@ -151,10 +151,152 @@ coordinates); counts for lists the user has not paged to; sorting options on the
 notion of which lists or items "count" — this endpoint reports raw relay membership for everyone alike.
 
 ## AC→handle lines
-—
+
+**Suites:** `test/dlist-index-page-counts.test.js` (new, this story) and `test/dlist-browse.test.js`
+(S3 re-aimed here — see "Guard-suite carve-out" below).
+
+**Legend** *(mirrors `test/dlist-tagged-items.test.js`)*
+- **U\*** — BEHAVIORAL, server. `countsForCoords(coords, deps)` is required for real and driven with
+  an injected counter (`deps.countFilter`) — no strfry binary, no relay, no stack, no Docker. This is
+  where the story's value lives: bounds, concurrency, deadline, per-coordinate validation, failure
+  isolation.
+- **H\*** — BEHAVIORAL, HTTP boundary. `handleListPageCounts(req, res, deps)` driven with a fake
+  `req`/`res`: query parsing, the three request-level 400s, and the exact JSON shape.
+- **S\*** — SOURCE-CONTRACT. The client half is ESM/JSX and is not requirable from the Node runner,
+  so those ACs are pinned by reading the source. Documented level gap, same as story 1's S-tests.
+- **R\*** — REGRESSION SENTINEL. Passes TODAY and must keep passing (AC-3 / AC-6).
+
+| AC | Handles |
+|---|---|
+| AC-1 — first 50 headers, newest first, "showing N of M", next-page control, unknown total | S2, S3 |
+| AC-2 — new bounded endpoint taking the page's coordinates, `#z`/`#e`, never walks the relay | U1, U2, U3, U4, U10, H4, H5, S1, S4, S6 |
+| AC-3 — `item-counts` unchanged; `/lists` no longer calls it | S1, S4, R2, R3, R4, `dlist-browse` S3 (re-aimed) |
+| AC-4 — the filter narrows the loaded page and says so | S5 |
+| AC-5 — failure/timeout leaves "—"; per-coordinate `invalid`; 400 only for missing/empty/all-malformed | U5, U7, U8, H1, H2, H3, H7, S4 |
+| AC-6 — `/list/:ref` and its pagination untouched | R1 |
+
+| Edge case | Handles |
+|---|---|
+| E1 bounded header scan → `total === null` → "unknown", never "of 0" | S2 |
+| E2 shared `created_at` at the page boundary; `until` + id de-dupe; `exhausted` guard | S3 |
+| E3 header republished between pages → React key stays `h.id` | S3 (key sentinel only — see gaps) |
+| E4 empty `d` → coordinate `39998:<pk>:` accepted and counted | **U6** *(not derivable from any AC)* |
+| E5 comma inside a `d` → invalid fragments, one row reads "—", rest of page counts | **H6** *(not derivable from any AC)* |
+| E6 50 long coords exceed nginx's header buffer → whole batch fails → every row "—" | **NOT COVERED** (out-of-process proxy limit); the client-side consequence is the S4/AC-5 "—" path |
+| E7 one scan hangs → `DEADLINE_MS` → resolved coords return with `partial: true` | U8 |
+| E8 duplicate coordinates → one scan, one key | U9 |
+| E9 zero headers → no counts call at all (empty `coords` is a 400) | H2 |
+| E10 an item in two lists counts in both; no union total in the response | H4 (shape is exactly `{success,counts,invalid,partial}`; `totalItems === undefined`) |
+| E11 filter then "next page" → the "matching of loaded" label recomputes | S5 (label derived from live `visible.length`/`headers.length`) |
+
+### External-dependency error paths (J2 rubric 2)
+
+| Dependency | Error path | Handle |
+|---|---|---|
+| `strfry scan --count` spawn | one coordinate's count rejects (ENOENT, non-zero exit, unparsable output) → sibling coordinates still count; the failed coordinate carries no number | **U7** |
+| `strfry scan --count` spawn | one child hangs past `DEADLINE_MS` → omitted from `counts`, `partial: true`, request returns promptly | **U8** |
+| `strfry scan --count` spawn | the counter throws synchronously → the handler still answers exactly once, with JSON | **H7** |
+| client `fetch` of `/api/dlists/page-counts` | network/500/timeout → caught, page stays rendered, rows read "—" | **S1** (fallback to `{}`), **S4** (`.catch`, non-blocking, "—") |
+| nginx query-length ceiling (E6) | 414/400 for the whole batch | **explicitly not covered** — out-of-process; same client fallback as above |
+| the old `/api/dlists/item-counts` | unchanged; its O(relay) cost stays OPEN 301 | not this story (Out of scope) |
+
+### Guard-suite carve-out
+
+`test/dlist-browse.test.js` is a **guard suite** for stories 1/8 and is in this story's scoped gate.
+Phase 4 (Implementation) is **barred from editing it**. Its S3 case is re-aimed **here, in Test
+Design**, and only there — three assertions at the old `:364-366`:
+
+- `queryRelay(` → `queryRelayBounded(`
+- `src.includes('/api/dlists/item-counts')` → `fetchPageCounts` present **and** `item-counts` absent
+- the `.catch` assertion re-worded from "item-counts failure" to "a counts failure"
+
+`:459` (`R3` — the operator page still fetches `item-counts`) is deliberately **untouched**. Any
+further edit to that file during Phase 4 is a review finding.
+
+### Pre-implementation run record
+
+Command (repo root, no system node):
+
+```
+timeout 120 env BRAINSTORM_BASE_URL=http://localhost:8778 direnv exec . node -e \
+  "require('./test/<suite>.test.js').run().then(r=>{console.log(r);process.exit(r.fail?1:0)})"
+```
+
+| Suite | Result | Notes |
+|---|---|---|
+| `test/dlist-index-page-counts.test.js` | **`{ pass: 4, fail: 23, skipped: 0 }`** — exit 1 | Red: U1–U10, H1–H7, S1–S6. Green: R1–R4 (the sentinels that must stay green). |
+| `test/dlist-browse.test.js` | **`{ pass: 24, fail: 1, skipped: 0 }`** — exit 1 | The single failure is the re-aimed S3. Every other case unchanged and green. |
+
+Representative failures (verbatim) — each fails for the *ruled* reason, not an import typo:
+
+```
+✗ U1: a 39998 coordinate is counted with a #z filter on kinds 9999/39999, a bare 64-hex id with #e
+    Design note: src/api/dlists/pageCounts.js must exist and be requirable —
+    Cannot find module '/home/vcavallo/src/tapestry/src/api/dlists/pageCounts.js'
+✗ S1: ui/src/api/dlists.js exports fetchPageCounts(coords) hitting /api/dlists/page-counts …
+    Design note: new client module ui/src/api/dlists.js must exist
+✗ S2: Lists.jsx pages 50 headers at a time with queryRelayBounded …
+    AC-1: the header scan is bounded via queryRelayBounded
+✗ S5: the filter label counts matches within the loaded page and says so (AC-4/E11)
+    AC-4: the label reads "{N} matching of {M} loaded"
+✗ S6: the server route is mounted next to item-counts and re-exported from the dlists module (AC-2)
+    Design note: GET route mounted in src/api/index.js
+✓ R1: List.jsx (/list/:ref) pagination idiom is untouched (AC-6)
+✓ R3: the existing /api/dlists/item-counts route is still mounted (AC-3)
+```
+
+`test/dlist-browse.test.js`:
+
+```
+✗ S3: Lists.jsx (/lists index) scans both header kinds, joins page-counts with a — fallback, …
+    AC-6 (story 9 re-aim): index scans kinds 9998 and 39998 through the bounded reader
+{ pass: 24, fail: 1, skipped: 0 }
+```
+
+### Open questions the Design note does not settle (for the Implementer / Gate B)
+
+1. **`MAX_COORDS` over-cap behaviour is ambiguous.** The note says "extras rejected, not counted",
+   which reads as *truncate to 50*; Gate A's direction is *reject the request*. **H5 pins HTTP 400
+   with zero scans spawned.** `U3` pins only the weaker invariant (never more than `MAX_COORDS`
+   scans) so the module-level contract survives either reading. If the Implementer prefers
+   truncation, that is a Design-note amendment, not a silent choice.
+2. **E5 is self-inconsistent as written.** It says "the fragments fail validation", but the note's own
+   shape check (`^39998:[0-9a-f]{64}:` with *any* remainder) **accepts** the head fragment
+   `39998:<pk>:my` of a split `39998:<pk>:my,list`. H6 therefore pins only what both readings agree
+   on: the full comma-bearing coordinate gets no `counts` key, the tail fragment `list` lands in
+   `invalid`, and the rest of the page counts normally. Whether the head fragment appears in `counts`
+   under a truncated key is **unspecified** — the Implementer should either drop it or accept it
+   knowingly, and say which.
+3. **The handler needs the same test seam as `countsForCoords`.** The note gives `deps` only to
+   `countsForCoords`; the H\* cases require `handleListPageCounts(req, res, deps)` to accept an
+   optional third argument forwarded to `countsForCoords` (defaulting to the real spawn counter).
+   Treat this as a Design-note addition made at Test Design.
+4. **`DEADLINE_MS` needs an override for tests** — U8 passes `deps.deadlineMs: 80`. Without it the
+   deadline case costs 10 s of wall clock per run.
+5. **Named bounds are asserted as exported constants** (U2: `MAX_COORDS`, `CONCURRENCY`,
+   `DEADLINE_MS`). The note calls them "named bounds"; exporting them is the testable form.
+
+### Known level gaps (not defects, recorded for Gate B)
+
+- AC-1's "newest first" ordering, AC-4's rendered label, and E3's cross-page duplicate row are pinned
+  by **source sentinels only** — there is no DOM runner in this suite set and this story adds none.
+  A Playwright case would need a relay with >50 headers; out of scope.
+- E6 (nginx buffer) is not automatable in-process; recorded as not-covered with its reason.
 
 ## Linked artifacts
 - ADR: none expected (rendering + one additive read endpoint; no wire format, no schema)
 - Review: `engineering-team/reviews/dlist-item-tagging/9-paginate-the-lists-index.md`
 
 Link by path only — never record verdicts or round history in this file.
+
+## Rulings on the Test-Design open questions (harness driver, 2026-09-17)
+1. **Over-cap → HTTP 400 for the whole request**, no truncation. The client never sends more than
+   a page; a >50 request is a caller bug, and silently counting 50 of 51 would misreport.
+   `countsForCoords` keeps the weaker module contract ("never more than `MAX_COORDS` scans").
+2. **Coordinates travel as repeated query params** (`?coords=<c1>&coords=<c2>…`), which Express
+   parses to an array with no delimiter — the comma-in-`d` case (E5) cannot arise on the wire. A
+   single `coords=` value is still accepted as a one-element array. The CSV form in the Design note
+   is superseded by this line; H6's assertions (tail fragment in `invalid`, full coordinate absent
+   from `counts`, the rest still counted) hold under both.
+3. `handleListPageCounts(req, res, deps)` forwards `deps` to `countsForCoords`; `deps.deadlineMs`
+   overrides `DEADLINE_MS`; the three bounds are exported constants. (Tester additions, ratified.)

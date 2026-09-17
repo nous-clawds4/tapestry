@@ -358,12 +358,17 @@ test('S2: DListItemRow renders author (Avatar + /user link), age, missing mark, 
   assert(!/githubProfileUrl|github\.com/.test(src), 'AC-4 (Gate B): no GitHub special case in the row');
 });
 
-test('S3: Lists.jsx (/lists index) scans both header kinds, joins item-counts with a — fallback, links each header, and has a paste box', () => {
+test('S3: Lists.jsx (/lists index) scans both header kinds, joins page-counts with a — fallback, links each header, and has a paste box', () => {
   const src = safeRead(LISTS_PAGE);
   assert(src.length > 0, 'ui/src/pages/Lists.jsx must exist (Design note)');
-  assert(/queryRelay\s*\(/.test(src) && /9998/.test(src) && /39998/.test(src), 'AC-6: index scans kinds 9998 and 39998');
-  assert(src.includes('/api/dlists/item-counts'), 'AC-6: item counts from /api/dlists/item-counts');
-  assert(/\.catch\s*\(/.test(src) || /catch\s*[\({]/.test(src), 'E8: item-counts failure is caught — the index still lists headers');
+  // dlist-item-tagging #9 re-aim: the index now pages headers (queryRelayBounded) and counts
+  // only the visible page via fetchPageCounts / GET /api/dlists/page-counts. The old whole-relay
+  // /api/dlists/item-counts call was removed from THIS page (AC-3); the R3 sentinel below still
+  // pins it for the operator page, which keeps it.
+  assert(/queryRelayBounded\s*\(/.test(src) && /9998/.test(src) && /39998/.test(src), 'AC-6 (story 9 re-aim): index scans kinds 9998 and 39998 through the bounded reader');
+  assert(/fetchPageCounts/.test(src), 'AC-6 (story 9 re-aim): item counts come from fetchPageCounts (ui/src/api/dlists.js)');
+  assert(!src.includes('/api/dlists/item-counts'), 'AC-3 (story 9 re-aim): the whole-relay item-counts call is gone from the user-facing index');
+  assert(/\.catch\s*\(/.test(src) || /catch\s*[\({]/.test(src), 'E8: a counts failure is caught — the index still lists headers');
   assert(/—/.test(src), 'E8: absent count renders — not 0');
   assert(/\/list\//.test(src) && /encodeURIComponent/.test(src), 'AC-6: each header links to /list/<encodeURIComponent(ref)>');
   assert(/parseListRef/.test(src) && /useNavigate/.test(src), 'AC-1: paste box runs parseListRef and navigates');
