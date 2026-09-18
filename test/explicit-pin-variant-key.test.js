@@ -907,6 +907,25 @@ t('S20: the tag-pinning firmware schema documents the variant (ADR §8)', () => 
     'the variant property must be DESCRIBED (what it is, that it mirrors the event tag, and that a community pin carries a z instead) — ADR §8.');
 });
 
+t('S22 (review finding): a viewer who already holds a neutral pin can still REACH the create dialog to make a recipe', () => {
+  // TagPinAffordance only renders the Pin button while viewerPin is falsy, so the neutral-pin
+  // holder — the very user this story is for — had no door to the "Save as a separate
+  // curation" field. The Pinned tab must offer a second door that opens the same dialog in
+  // variant-ONLY mode (a name required, so it can never publish a second neutral pin).
+  const page = rd(UI('pages/Tag.jsx'));
+  const dialog = rd(UI('components/CurationMethodDialog.jsx'));
+  assert(/hasAnyPin && user && \(/.test(page) && /New curation/.test(page),
+    'the Pinned tab must render a "New curation" entry point whenever the viewer holds any pin');
+  assert(/setPinDialog\(\{ open: true, context: null, variantOnly: true \}\)/.test(page),
+    'that door opens the create dialog in variant-only mode (no context)');
+  assert(/requireVariant=\{!!pinDialog\.variantOnly\}/.test(page),
+    'the mount forwards variantOnly as requireVariant');
+  assert(/requireVariant && !variantName\.trim\(\)/.test(dialog) && /would replace/.test(dialog),
+    'in variant-only mode the dialog refuses to submit without a name, naming the stomp it prevents');
+  const affordance = rd(UI('components/TagPinAffordance.jsx'));
+  assert(/viewerPin/.test(affordance), 'premise: the Pin affordance is gated on viewerPin (so a second door is needed)');
+});
+
 t('S21: no TA-pubkey literal is introduced anywhere this story touches (CLAUDE.md house rule)', () => {
   const files = [PINS_LIB, REFRESH_PATH, PROFILE_TAGS, TRUSTED_LIST, PUBLISH_TAG_PIN, DIALOG, TAG_PAGE, PANEL, PINS_PAGE, USE_PINNED_NOTES, USE_TAG_MEMBER_SETS];
   const ALLOWED = new Set([LEGACY_TA]); // ADR-0015 named exception, pre-existing

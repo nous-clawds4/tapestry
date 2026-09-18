@@ -651,6 +651,23 @@ export default function Tag() {
                     })}
                   </div>
                 )}
+                {/* search-index-selection #5 (review finding): the Pin button disappears
+                    once the viewer holds a neutral pin, so the create dialog — the only
+                    home of the "Save as a separate curation" field — was unreachable
+                    for exactly the user this story serves. This is the second door:
+                    it opens the same dialog in variant-ONLY mode (a name is required,
+                    so it can never publish a second neutral pin and stomp the first). */}
+                {hasAnyPin && user && (
+                  <div className="bs-pin-switcher-actions">
+                    <button
+                      type="button"
+                      className="bs-pin-switcher-chip bs-pin-switcher-new"
+                      onClick={() => { setPinError(null); setPinDialog({ open: true, context: null, variantOnly: true }); }}
+                    >
+                      ＋ New curation
+                    </button>
+                  </div>
+                )}
                 <PinnedListPanel
                   key={selectedPin?.pinEventId || 'none'}
                   tag={tag}
@@ -702,13 +719,14 @@ export default function Tag() {
                 context={pinDialog.context?.slug || null}
                 contextName={pinDialog.context?.name || pinDialog.context?.slug || null}
                 offerVariant={!pinDialog.context && hasAnyPin}
+                requireVariant={!!pinDialog.variantOnly}
                 existingVariants={existingVariants}
                 onSubmit={(curation, variant) => (pinDialog.context
                   ? publishContextPin(curation, pinDialog.context)
                   : (variant?.slug
                     ? publishVariantPin(curation, variant)
                     : publishWithCuration(curation)))}
-                onCancel={() => setPinDialog({ open: false, context: null })}
+                onCancel={() => setPinDialog({ open: false, context: null, variantOnly: false })}
               />
             )}
           </>

@@ -50,6 +50,10 @@ export default function CurationMethodDialog({
   // viewer's other pins of this tag as variantOfPin outputs, for the
   // pre-signature uniqueness refusal (ADR §3).
   offerVariant = false,
+  // search-index-selection #5 — opened from the Pinned tab's "New curation" door: a name
+  // is REQUIRED, because without one this dialog would publish a second neutral pin at
+  // the viewer's existing address and replace it (the Uniqueness invariant).
+  requireVariant = false,
   existingVariants = [],
   viewerPubkey,
   onSubmit,
@@ -151,6 +155,10 @@ export default function CurationMethodDialog({
     // variant rides BESIDE the curation blob, never inside it (it is identity,
     // not scoring — ADR §2).
     let variant = null;
+    if (showVariantField && requireVariant && !variantName.trim()) {
+      setVariantError('Name this curation — a second personal pin would replace the one you already have.');
+      return;
+    }
     if (showVariantField && variantName.trim()) {
       const check = validateVariantSlug({ name: variantName, existing: existingVariants });
       if (!check.ok) { setVariantError(check.error); return; }

@@ -8676,3 +8676,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 /* search-index-selection #4 AC-5 — the fixed community line in the create-mode interstitial. */
 .pcd-create-context { margin: 0.35rem 0 0; font-size: 0.9rem; }
 .pcd-create-context-note { opacity: 0.6; font-size: 0.82rem; }
+
+/* search-index-selection #5 — the Pinned tab's "New curation" door (a second way into the
+   create dialog once the Pin button has gone). */
+.bs-pin-switcher-actions { margin: 0 0 0.9rem; }
+.bs-pin-switcher-new { border-style: dashed; opacity: 0.85; }
+.bs-pin-switcher-new:hover { opacity: 1; }
