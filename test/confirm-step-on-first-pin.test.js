@@ -483,6 +483,23 @@ t('R1 AC-2: the pin refresh is still AWAITED before the NIP-51 exports fire', ()
     `AC-2: the awaited refresh must still come BEFORE both exports (refresh@${iRefresh}, follow-set@${iFollowSet}, bookmarks@${iBookmarks}).`);
 });
 
+t('R4 AC-5 (J2 finding): publishContextPin keeps the AWAITED, best-effort refresh the inline body had', () => {
+  // The Design note factors handlePinToContext's inline body (pinTag + awaited refresh with a
+  // swallowing .catch) into publishContextPin. A factoring that drops the await races the
+  // panel against a not-yet-created list; one that drops the .catch turns a best-effort
+  // refresh 500 into a "Pin failed" AFTER a successful publish — both violate AC-5's
+  // "exactly as today". Pre-implementation this asserts the same properties on the inline body.
+  const src = rd(TAG_PAGE);
+  const m = src.match(/const publishContextPin\s*=\s*async\s*\([^)]*\)\s*=>\s*\{([\s\S]*?)\n\s{2}\};/)
+    || src.match(/const handlePinToContext\s*=\s*async\s*\([^)]*\)\s*=>\s*\{([\s\S]*?)\n\s{2}\};/);
+  assert(m, 'could not locate publishContextPin (or, pre-implementation, handlePinToContext) in Tag.jsx.');
+  const body = m[1];
+  assert(/await\s+fetch\(\s*'\/api\/trusted-list\/refresh-pinned-tag'[\s\S]*?\)\s*\.catch\(/.test(body),
+    'the context-pin refresh must stay AWAITED and best-effort (an awaited fetch followed by a swallowing .catch), exactly as the inline body is today.');
+  assert(body.indexOf('pinTag(') > -1 && body.indexOf('pinTag(') < body.indexOf("'/api/trusted-list/refresh-pinned-tag'"),
+    'the context pin must be signed and published BEFORE its refresh is requested.');
+});
+
 t('R2 AC-6: the Pinned-tab "Edit curation" path still mounts the dialog in edit mode, with its Unpin affordance', () => {
   const src = rd(PANEL);
   assert(src, 'ui/src/components/PinnedListPanel.jsx must be readable.');

@@ -316,8 +316,12 @@ Scoped gate: `test/confirm-step-on-first-pin.test.js` (new) + guards `generalize
 - **Rejected:** a new interstitial component (the create branch already exists and is wired for
   every field); merging `{ …defaults, …custom }` at submit (could resurrect stripped fields —
   the sentinel is stricter and simpler); a member-count preview (ruling 4).
-- **Blast radius.** `ui/src/pages/Tag.jsx`, `ui/src/components/CurationMethodDialog.jsx`
-  (create-mode copy + expander only), `ui/src/styles.css`. **Not touched:**
+- **Blast radius** *(amended at J2, 2026-09-18)*. `ui/src/pages/Tag.jsx`;
+  `ui/src/components/CurationMethodDialog.jsx` (create-mode copy + expander, AND its
+  `handleSubmit` rewired to call `buildCuration(state)` with `normalizeCutoff` /
+  `normalizeObserver` moved out — behaviour-preserving); **new** `ui/src/utils/curationDialogBuild.js`
+  (the pure build rule the plan introduced so AC-2's byte-identity is assertable in node — a
+  testability extraction, not a design change); `ui/src/styles.css`. **Not touched:**
   `ui/src/utils/publishTagPin.js` (`defaultCurationMethod`, `pinTag`), `TagPinAffordance.jsx`
   (it only calls `onPin`), `PinToContextModal.jsx` (its `onPick` still fires; the dialog opens
   after), any server file, any test other than the new suite.
@@ -332,6 +336,9 @@ Scoped gate: `test/confirm-step-on-first-pin.test.js` (new) + guards `generalize
 - **E4 — two dialogs.** The community picker closes before the curation dialog opens; never both.
 - **E5 — story 3's field present.** The create dialog shows "Instance default" and emits nothing
   for it unless chosen (absent stays absent).
+- **E7 — the factored context-pin path (J2 finding).** `publishContextPin` keeps the awaited,
+  best-effort refresh the inline body has today (R4); a dropped `await` races the panel, a
+  dropped `.catch` surfaces a refresh failure as "Pin failed" after a successful publish.
 - **E6 — cancel after an edit.** Nothing signed; reopening re-seeds from the default, not the
   abandoned edit.
 - **Not covered:** the lists index / other pin entry points (none exist today besides the tag
