@@ -32,7 +32,7 @@ certainty — see the design doc's rejected alternatives).
 4. `4-confirm-step-on-first-pin.md` — **Done** (review PASS, 3 rounds) — a **confirm step on first pin**, so the default curation that quietly publishes
    a Trusted List becomes visible and editable before it does. Shapes the same switcher
    surface as story 5; lands before or with it.
-5. `5-explicit-pin-variant-key.md` — **Draft**. An explicit pin **variant key** generalising
+5. `5-explicit-pin-variant-key.md` — **Done** (review PASS, 2 rounds; ADR 0003 Accepted after 5 J1 rounds). An explicit pin **variant key** generalising
    community context so one tag can carry several curations without the pin having to be about
    a community. Needs a deliberate UX round: a context is a *place*, a curation variant is a
    *saved recipe*, and the Pinned tab already carries Profiles/Notes/Items leaves on a
