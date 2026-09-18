@@ -323,3 +323,197 @@ this HEAD. The local full gate, re-run here, is red for the recorded Node 16 rea
 skipped; that is accepted for a diff with no source and no test, and it is not a green gate. CI's Node
 22 job on the PR is the binding run. This lane has no book to close; the status flip under review was
 the Implementer's, ratified by the operator, and the commit is the orchestrator's.
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-09-18
+**Diff:** `b2e71921`, the Implementer's fix-up, and `5187e081`, a merge of `origin/staging` (`6c24e128`,
+PR #675) into the branch — both on top of `e9130f6b` (round 1 of this file, committed as written: the
+same blob, 325 lines). The fix-up touches `OPEN.md` (rows 290, 307 and 325), the intake entry, and one
+line of the story; the merge's only hand-made change is its `OPEN.md` resolution. Everything above this
+heading is round 1, byte-for-byte; this section was appended to the end of the file, not edited in.
+
+Same constraints as round 1: this reviewer edited this file and nothing else — no commit, no add, no
+push, no status flip.
+
+Seven pieces of the text under review began as this reviewer's words. Three are short phrases taken as
+offered — "within about the first minute", "apparently", "(it has stages, not steps)". Four are the
+Implementer's own sentences built on round 1's notes: "falls back to C without a word" (Non-blocking
+5), "caught it only because it ran late" (Harness friction 1), the "retry once" paragraph (Harness
+friction 2), and the count of files citing the old section number (the heading of Non-blocking 4:
+"there are four"). Step 10 says to check all of them as claims, and each was re-derived below from
+commands. Five hold. One holds but is a place short, and the omission was mine. One is wrong, and it is
+this round's only blocking finding: there are three, not four, and the count was mine before it was the
+Implementer's.
+
+### Quality gates (round 2)
+
+- [x] `bash scripts/harness-lint.sh` on `b2e71921` → **clean (0 violations)**, exit 0, 35 lines. Run
+      again on `origin/staging` (`6c24e128`) in a throwaway worktree and diffed: the outputs differ by
+      exactly one line, the `INFO non-numbered-review` line for this file. L14 is still silent on the
+      story, whose Linked-artifacts line now names this file. Worktree removed afterwards.
+- [x] **What #675 brought, and whether any suite reads it.** `git diff --name-status 9dfe89f5 6c24e128`:
+      `OPEN.md` and `engineering-team/audits/curated-dlist-update/audit.md`, nothing else — no suite
+      added or changed, no source, no harness-definition path. No suite's code names that audit file
+      or this review (the grep's hits are fixtures and a template); the two suites that walk the real
+      `audits/` and `reviews/` trees are among the nine below. `git diff --name-status 6c24e128
+      5187e081` lists only this branch's four files, and the audit at HEAD is identical to staging's.
+- [x] **The same nine suites, each through `run()`, in the foreground, Node v16.17.0, on `b2e71921`:**
+      `harness-lint` 41 passed / 0 failed (56 s), `harness-stats` 12 / 0 (71 s), `session-start`
+      10 / 0 (26 s), `operational-direction` 76 / 0 (10 skipped),
+      `curated-dlist-update-update-preview` 34 / 0, `curated-dlist-update-publish` 69 / 0,
+      `gate-result-record` 34 / 0 (20 s), `kill-timeout-orphans-by-default` 9 / 0,
+      `note-tagging-raw-events-inspector-ui` 32 / 0. Counts identical to round 1.
+- [x] **The real parser over the four rows** (the awk from `scripts/lib/collect-meta.sh:34`): rows
+      290, 307, 321 and 325 each read `NF=9`, Type in `$3` (`meta`, `meta`, `cleanup`, `ops`), Status
+      in `$6`; line 26 takes `2026-09-12`, `2026-09-17`, `2026-09-18`, `2026-09-18` from `$5`. The
+      open-meta selection is the same 106 row numbers on `6c24e128` and here.
+- [x] **The roll-up** (redirected, exit 0, 912 lines): the intake entry is still listed as unmarked;
+      rows 323, 324 and 325 all appear in the ledger section and 321 does not; still exactly one invalid
+      UTF-8 position, row 193's.
+- [x] **Mergeability.** At 2026-09-18T23:46:23Z `git ls-remote origin refs/heads/staging` is
+      `6c24e128`, which is an ancestor of HEAD (`git merge-base --is-ancestor`), so the merge into
+      `staging` cannot conflict as things stand. Its highest ledger row, read through the API rather
+      than the local ref, is 324. No open PR targets `staging`. This is true of that minute and no
+      longer — Non-blocking 3.
+- [ ] **Full gate: re-run on the merged tree; red on this host, and not a green gate.** #675 touched no
+      source and no test, so round 1's record would have stood; it was re-run anyway so that a record
+      covers what would actually land. `GATE_LABEL=closeout-review-r2 npm test`, foreground, 3 m 21 s,
+      exit 1. `npm run -s gate:status` (exit 1) prints:
+      `20260918T234011Z-65036-a1a9 [closeout-review-r2] started 2026-09-18T23:40:11.499Z on b2e71921 —
+      FAIL, exit 1, 2848 passed, 9 failed, 515 skipped, 204/204 suites; failed:
+      honest-publish-reporting`. From its JSON record: commit `b2e71921`, `dirty: false`, Node
+      `v16.17.0`, 178 suites green / 25 skipped / 1 red, `strayErrors` empty; the red suite's nine
+      failures are the one row-288 cause (`require()` of the ES module in `nostr-tools`). Compared
+      suite by suite with round 1's record: all 204 agree on passed, failed, skipped and verdict.
+      515 of 3372 cases (15.3%) did not execute. **The binding run is CI's Node 22 `stack-free` job on
+      the PR.**
+
+### Claims adherence (round 2)
+
+| Claim in the fix-up or the merge | Evidence | Result |
+|---|---|---|
+| Blocking 1. Versus `origin/staging`, `OPEN.md` differs in rows 290, 307, 321 and a new last row 325 only | own script over `6c24e128:OPEN.md` and `HEAD:OPEN.md`: 385 → 386 lines, 323 → 324 rows, highest 324 → 325, no duplicate number on either side, the gap at 257 on both, common rows in the same order, every non-row line identical. Changed: 290, 307, 321. Added: 325, last (`:386`). #675's own rows 297, 323 and 324 are byte-identical to staging's. Each of 290, 307, 321, 325 has 7 cells, 8 raw pipes, 0 escaped, balanced backticks and bold; for 290, 307 and 321 staging's Item cell is a verbatim prefix of HEAD's (1408 → 2621, 1563 → 2169, 1350 → 1926 characters) and 307's other six cells are byte-identical | holds |
+| The merge is what its message says | at `5187e081` rows 290 and 321 equal round 1's text exactly, and row 325 equals round 1's row 323 but for the number; versus staging the merge differs only in this branch's four files. The fix-up then changed rows 290, 307 and 325 and no other | holds |
+| The intake's two references say 325; no "row 323" survives in the branch's own text | whitespace-flattened search of the three files for a standalone 323: `_intake.md` and the story, none; `OPEN.md`, four — row 307's note ("minted row 323", "its own 323 and 324"), #675's row itself, and row 325's "it was 323 on this branch until PR #675 took that number". All four are history, correctly told. `_intake.md:2414` and `:2442` say 325 | holds |
+| Row 325 records where it came from | "Renumbered 325 at the 2026-09-18 staging merge; it was 323 on this branch until PR #675 took that number." The merge is dated 23:26:41Z that day | holds |
+| Blocking 2. "like for like only for the second pair — #673 on staging and #674 on production ran one and the same script — while the first pair (#671, #672) was typed by hand in the same tier order" | evidence file: #673 "same scripted smoke as production deploy 2"; #671 "typed by hand (not the script), in the same tier order"; production's first is two hand-run passes. `stat` on the scratchpad `smoke.sh`: born and last modified 22:11:15Z — after #673's deploy run finished (22:10:49Z), before #674's (22:15:58Z), and hours after #671 and #672 — so it is one unmodified file across both runs. "The weaker half" is a judgement, and a fair one | holds |
+| Blocking 3. "and carries the larger data set" is gone | replaced by "nothing else about the two instances was compared". True of the session that wrote the row; round 1 of this review did look at three public signals and found them mixed | holds — Non-blocking 1 |
+| Blocking 4. `.claude/skills` is a harness-definition path; "nine named entries" under `scripts/`; `check-safe-to-merge.sh` not among them | `scripts/harness-def-paths.txt` at HEAD, unchanged since `9dfe89f5`: `.claude/skills` listed once; 9 lines begin `scripts/`; `check-safe-to-merge` occurs 0 times | holds |
+| NB1. Row 325 quotes §9.5's paragraph | flattened search of `OPERATIONS.md`: "observed once" and "can briefly cycle once more after first appearing stable" are both exact; "the advice to retry once" paraphrases "retry once before treating it as a real failure". The hypothesis is now credited to the doc ("That reading fits what was seen here") and is still followed by the bold "Not diagnosed" | holds |
+| NB2, NB3, NB9 — three phrases taken as offered | "within about the first minute": 47 s by clock on the first deploy, inferred on the second, and "about" covers the 2026-09-10 occurrence. "apparently get 502s … on each release": a hedge on two of two. "(it has stages, not steps)": `cycle-full/SKILL.md` is organised as `### Stage 1` … `### Stage 5`, each with a numbered list | holds |
+| NB4. "which four files still cite by its old number" (`OPEN.md:386`, the pointer), and "four files cite that section by its old number" (`_intake.md:2441-2442`) | every file, line and number the pointer itemises is right. The relation is not. `git grep` for an `OPERATIONS` citation of §8.5: **three** files — `docs/SMOKE_TEST.md:19`, `cycle-staging/SKILL.md:157`, `BIBLE.md:1407` (with §8.6). `cycle-staging/SKILL.md:164` cites the parent, §8. `cycle-prod/SKILL.md:162` reads `OPERATIONS.md §8.2 "auto-delete-head-branches deleted staging"` — today's §9.2 (`OPERATIONS.md:319`), a different section; that skill cites the 502 section nowhere. Before the renumbering (`44975ffc^`) §8.2 was the auto-delete incident, §8.5 the flicker, §8.6 `SESSION_SECRET` | **wrong count — Blocking 1 (round 2)** |
+| NB5. The container has only `C.UTF-8` as a UTF-8 locale; `en_US.UTF-8` "is absent and glibc falls back to C without a word" | `docker exec tapestry locale -a`: `C C.utf8 POSIX`. Under `LC_ALL=en_US.UTF-8` there, `cut` and `wc` each write 0 bytes to stderr, under dash and under bash, and `wc -m` counts 4; only the `locale` utility itself complains. Under `C.UTF-8`: charmap `UTF-8`, `wc -m` 3, `cut -c1-2` still `61 c3`; coreutils 8.32. This Mac: `61 c3 a9`. "Counts bytes even under a UTF-8 locale" now claims exactly what was shown | holds |
+| NB7. The story names this review; L14 still quiet | the added sentence carries no verdict word and the path sits in backticks; lint clean (gates, above) | holds |
+| NB10. "a copy is kept in the session-closeout PR's description" | no PR exists for this branch yet (`gh pr list --head …`: 0). A promise. The script it promises is intact: 28 lines, unmodified since 22:11:15Z, no secret-shaped content; its one 64-hex string is the smoke pubkey that `docs/SMOKE_TEST.md` already publishes | owed — Non-blocking 3 |
+| HF2 / HF3, the entry's "While there" | `cycle-staging/SKILL.md:157` and `cycle-prod/SKILL.md:155` say "retry once"; `cycle-full/SKILL.md:112` says "the post-stability retry", quoted as such. `docs/SMOKE_TEST.md:38` has carried the re-poll rule since `c63879e2` (2026-09-10). But that commit **kept** the line's first sentence — "If a request right after stability returns 502, retry once before treating it as a real failure" — so the canonical doc still says both. §9.5's "observed once": exact | holds, a place short — Non-blocking 2 |
+| New: row 307's fourth occurrence | `8c683441`'s committer time is 22:37:02Z; `gh pr view 675`: created 22:52:33Z, merged 22:56:02Z; #675's one commit has parent `9dfe89f5` (highest row 322) and added 323 and 324, so "both sessions were right when they looked"; the branch has never been on origin. "Hours later": the third occurrence was the #671 landing at 18:21Z. "Caught it only because it ran late in the review; run at the start it would have found a quiet remote" — from scratch-file birth times: this review was under way by 22:46:32Z, the PR did not exist until 22:52:33Z (its commit was authored 22:52:18Z), and the collision check ran at 23:12:49Z | holds — Non-blocking 5 |
+| The fix-up's commit message | every statement checked above holds, with one exception it shares with the rows: "four files cite the old section number, not two". Its forward corrections to `8c683441`, `529d6b29` and `760e7bb1` are accurate | one loose phrase — see Blocking 1 |
+
+### Findings (round 2)
+
+**Blocking.**
+
+1. **`OPEN.md:386` (row 325's pointer) and `engineering-team/stories/_intake.md:2441-2442` — three
+   files cite §9.5 by its old number, not four.** The pointer says `OPERATIONS.md` §9.5 is what "four
+   files still cite by its old number", and the intake entry says "four files cite that section by its
+   old number". Three do: `docs/SMOKE_TEST.md:19`, `cycle-staging/SKILL.md:157` and `BIBLE.md:1407`.
+   The fourth, `cycle-prod/SKILL.md:162`, cites §8.2 — the auto-delete incident, today's §9.2 — and
+   never mentions the 502 section. The pointer's own itemisation gives it away ("as §8.2": §9.5 was
+   never §8.2), and a fixer who opens the line will see the incident's title and do the right thing, so
+   the practical risk is small. But it is a wrong count in two tracked files, the intake sentence
+   carries the bare count and sends its reader to the pointer for the list, and the verdict rule names
+   wrong counts. **It was my count first:** round 1's Non-blocking 4 was headed "there are four", over
+   a body that said, correctly, "the same staleness from the same renumbering". Asked change, and again
+   a claim to check rather than text to adopt: say what is true of each — for instance, that the
+   renumbering left four files citing `OPERATIONS.md` §9's subsections by their old §8 numbers, three
+   of them this section (as §8.5) and `cycle-prod/SKILL.md:162` citing today's §9.2 as §8.2 — in both
+   places. The evidence for each half is in the table row above.
+
+**Non-blocking.**
+
+1. **Row 325 — "nothing else about the two instances was compared."** True of the session. Round 1 of
+   this review did compare three public signals and found them mixed (its claims table). The row
+   under-claims rather than over-claims, so nobody is led wrong. Optional: "by this session".
+2. **The intake's "While there" is right about the three skills and one place short, and the shortfall
+   was mine.** Round 1's Harness friction 2 said the skills "carry the mistake". `c63879e2` added the
+   re-poll rule to `docs/SMOKE_TEST.md:38` beside the older sentence, not instead of it, so the
+   canonical recipe itself still says "retry once" for "a request right after stability" and re-poll
+   for "any later tier" — and never says which of those Tier 2 is. The clean-up has four places, and
+   its first job is to decide that. Optional, since the entry is being touched anyway: add
+   `docs/SMOKE_TEST.md:38`'s own first sentence to the list.
+3. **Two promises are now written into tracked files, and both are the orchestrator's to keep.**
+   `_intake.md:2409` says a copy of the script "is kept in the session-closeout PR's description"; row
+   321's Done cell still reads `(session-closeout PR)`. Neither is false yet and neither is true yet.
+   The first becomes false on `staging` the moment the PR merges without the script in its body. And
+   the number 325 is only as good as the last look: staging's highest row was 324 at 23:46:23Z, another
+   session has been landing ledger rows today, and the look has to be repeated immediately before the
+   push and again before the merge.
+4. **Merging instead of rebasing, and correcting forward instead of rewording, is the right call — and
+   better than what round 1 asked for.** Round 1 said rewording "orphans nothing" because no tracked
+   file cited the branch's hashes. That was true when written and stopped being true the moment this
+   file was committed: it cites all four. The previous review in this folder
+   (`stranded-close-followups-2026-09-18.md`, Non-blocking 2) warned of exactly that trap — a reworded
+   commit moving a hash a row cites — and round 1 walked into it from the other side. The repo's
+   precedent is as the brief says: `e9fc3f99` (a renumber commit) and `493d9faf` (the staging merge),
+   `curated-dlist-update`, 2026-09-17; and a correction carried forward in a later message is how that
+   previous review's loose commit message was handled too. The cost is that three subjects in `git log`
+   will always say "row 323"; rows 325 and 307 both say in their own text what happened to that number,
+   which is where a reader of the ledger will look. One consequence: the PR has to land as a merge
+   commit. A squash would orphan every hash this file quotes.
+5. **The row 307 append is warranted and accurate.** It is the row this hazard belongs to, the
+   occurrence is new in kind (two sessions, fifteen minutes apart, neither at fault), it adds a
+   candidate the row did not have, and appending mints no number — the row's own subject. The original
+   text is a verbatim prefix. It is not isolated in a commit of its own, but the fix-up's message
+   declares it in its first paragraph. The sentence that was my observation was re-derived from
+   timestamps, not remembered.
+6. **On what was deliberately left alone, I agree in every case.** Round 1's Non-blocking 6 asked
+   nothing. Its Non-blocking 8 (the story's dead Background link) and 12 (the Type enum) are older than
+   this branch. Its Harness friction 4 — whether `scripts/check-safe-to-merge.sh` should be a registered
+   definition path — is a question about what the harness polices; the brief sends it to the operator
+   as a proposal, which is where it belongs. Its Harness friction 6 is a caution for reviewers, and it
+   is on record here. None is wrong to leave.
+
+**Harness friction.**
+
+1. **Step 10 caught its author a second time, and this time it blocked.** A reviewer's heading is as
+   quotable as its asked changes. "There are four" sat above a body that was right, and the heading is
+   what travelled. The habit that would have prevented it: write the count only after writing the list
+   it counts, and make the heading say what the list shows.
+2. **A reviewer that asks for a history rewrite should remember its own review becomes a citing file.**
+   See Non-blocking 4.
+3. **Every push to `main` redeploys production; there is no path filter** (`deploy-tapestry.yml`: `on:
+   push: branches: [main]`). Today's two promotions carried no runtime change — records, a role file, a
+   lint waiver list — and each recreated the container: 24 s and 25 s between `Container tapestry
+   Recreate` and `Started` in the run logs, before the pre-bind gap and the late window that row 325
+   exists to track. Promoting this branch would be the third such restart today. Not a defect in this
+   diff; a cost the operator may want in view, and perhaps an intake line of its own (a path filter for
+   records-only pushes, or batching such promotions with the next real release).
+4. Row 316 recurred again: the wiring says commit and flip, the brief reserves both, and the brief was
+   followed.
+
+### Verdict (round 2)
+
+**CHANGES_REQUESTED**
+
+All four of round 1's blocking findings are answered, and answered well. The collision is resolved the
+right way — a merge that keeps staging's rows byte-for-byte and lands this branch's row after them as
+325, with every reference repointed and the history told in the rows themselves. The sentence about the
+script now says which pair ran it; the unmeasured clause is gone; the intake entry describes the
+definition file as it is. Eight of round 1's non-blocking notes and two of its friction notes were taken
+as well, re-checked rather than pasted, and row 307's new note is accurate to the minute.
+
+One statement in the fix-up is false, in two places, and it is small: four files are said to cite
+`OPERATIONS.md` §9.5 by its old number, and three do. It came from a loose heading of mine in round 1,
+which is the failure step 10 was written for, and it would have been easy to wave through for that
+reason. The verdict rule names wrong counts, a passing round here leads to a merge and a promotion with
+no further look, and round 1 held the Implementer's sentences to the same standard. So it is asked for,
+with the evidence beside it. The fix is two phrases in one records-only commit; a third round can be
+narrow — those two sentences, the ledger check against whatever `staging` is by then, and lint — and
+this round's gate record, taken on the merged tree, stays applicable to it.
+
+Lint is clean and differs from staging's by this file's one line, the nine suites that read a changed
+file are green on `b2e71921`, and the full gate, re-run on the merged tree, is red for the recorded Node
+16 reason with 15.3% of cases skipped — not a green gate. CI's Node 22 job on the PR is the binding run.
+This lane has no book to close, and the commit is the orchestrator's.
