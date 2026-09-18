@@ -1,6 +1,6 @@
 # Story 1: Tag a list header
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-18
 **Type:** Feature *(Light lane expected — no wire-format change; the tagging of an
 addressable target already ships. Gate A to confirm.)*
@@ -96,3 +96,80 @@ in the deferred parts of the design doc.
 
 - Design target: `docs/SEARCH_INDEX_DLIST_SELECTION.md`
 - Ledger: OPEN 306 (header targets do not resolve for display)
+
+## Gate A rulings (operator, 2026-09-18 — "approved!")
+
+Light lane confirmed. Scoped gate: `test/tag-a-list-header.test.js` (new) + guards
+`test/dlist-tagged-items.test.js`, `test/dlist-browse.test.js`, `test/trusted-list-raw-view.test.js`.
+
+1. **Affordance on the list page header block only.** Index rows and concept pages are a
+   follow-on.
+2. **Tagged headers get their own group, "Lists".** Never the orphan bucket. Headers carrying
+   a parent `z` is out of scope.
+3. **The caller passes `{ address: headerCoord(header) }`.** `itemCoord`'s 39999 guard is
+   untouched.
+4. **Applicability is agnostic — resolved at design.** `NoteTags` calls
+   `useTagApplicability('event', …)` for every target shape (`ui/src/components/NoteTags.jsx:30`),
+   so a header gets the same event-context tag list as an item or a note. No entry needed.
+   (`applicability.js` `A_COORD_RE` parses *tag-element* coordinates, not targets.)
+
+## Design note *(Light — after Gate A)*
+
+- **Affordance.** `ui/src/pages/List.jsx` header block gains
+  `<NoteTags item={header} target={{ address: headerCoord(header) }} subject="list" />`
+  beside the coordinate line. `NoteTags` already takes an explicit `target` and a `subject`
+  (`ui/src/components/NoteTags.jsx:22`) and gates writes on `useAuth` itself, so a signed-out
+  viewer sees stances and no affordance with no new code. `headerCoord`
+  (`ui/src/utils/dlistFields.js:65`) already returns `39998:<pubkey>:<d>` for a header, so the
+  published assertion targets the coordinate (AC-2) and the ADR `dlist-item-tagging/0001`
+  d-tag composes over it unchanged — `hash8` is over the full coordinate, so tagging a header
+  and tagging an item whose `d` shares the first 16 chars cannot collide (E7).
+- **Grouping — one shared rule.** `groupItemsByList` (`ui/src/utils/dlistHeaders.js`) emits a
+  **leading** group `{ headers: true, listCoord: null, items }` for rows with
+  `kind === 39998`, before the per-list groups. Both consumers — the tag page's
+  `TagItemsView` and the Pinned tab's Items leaf (`PinnedListPanel`) — render a
+  `group.headers` group as **link cards** (name via `headerNames`, description, coordinate,
+  linking to `/list/<coord>`), never through `DListItemsTable` (a header has no item fields to
+  tabulate). `listCoordOf` and `toTableItem` are untouched: a 39998 has no parent, and never
+  reaches the table. One new CSS class for the card.
+- **Resolution — derive the kind from the coordinate.** `src/api/event-tags/index.js`
+  `handleForTag`'s item-resolution loop currently buckets by author and scans
+  `kinds: [39999]`, keying the map with a literal `39999:` prefix. It buckets by
+  `(kind, author)` instead, scans `kinds: [kind]`, and keys by the event's real
+  `${kind}:${pubkey}:${d}` — so a 39998 target resolves to its header event and reaches the
+  client with `tags` (names, description) populated (AC-3, closes OPEN 306). The server's
+  `listCoordOf` gets an explicit `kind === 39998 → null`. `usePinnedItems` already buckets by
+  `(kind, author)` and needs no change. Response shape unchanged.
+- **Rejected:** putting the 39998 rule inside `itemCoord` (its guard is deliberate and the
+  carried-address path already serves this case — ruling 3); rendering headers as table rows
+  (no field declarations to drive columns, and the "Show all fields" toggle would show
+  `names`/`required` as data); a separate Items-view fetch for headers (the membership path
+  already carries them — only resolution was blind).
+- **Blast radius.** `ui/src/pages/List.jsx`, `ui/src/components/TagItemsView.jsx`,
+  `ui/src/components/PinnedListPanel.jsx` (headers-group card render only),
+  `ui/src/utils/dlistHeaders.js` (`groupItemsByList`), `ui/src/styles.css`,
+  `src/api/event-tags/index.js` (resolution loop + `listCoordOf`). **Not touched:**
+  `ui/src/utils/dlistFields.js` (`itemCoord`, `headerCoord`), `ui/src/components/NoteTags.jsx`,
+  `src/lib/event-tagging/*`, `src/api/trustedList/*`.
+
+## Edge cases & not-covered
+
+- **E1 — header edited after tagging.** The target is the coordinate, so the tagging follows
+  the replaceable event; the resolved header is the newest.
+- **E2 — a header that does carry a parent `z` (future).** The kind rule wins: it still
+  renders in "Lists", never under its parent as if it were an item.
+- **E3 — tagged header not on this relay.** Card shows the coordinate and "list not on this
+  relay"; no name; the link still works.
+- **E4 — a 30394 whose member is a header coordinate.** The Pinned Items leaf shows it under
+  "Lists" — parity with the tag page (and exactly the search-index list's shape).
+- **E5 — a tag applied to both headers and items.** Both groups render; "Lists" first.
+- **E6 — signed-out viewer.** Stances visible, no affordance (existing `NoteTags` behaviour).
+- **E7 — d-tag collision between a header and an item.** `hash8` over the full coordinate
+  distinguishes `39998:…:x` from `39999:…:x…`; sentinel asserts distinct d-tags.
+- **E8 — `groupItemsByList` with no headers.** Emits no headers group (existing callers see
+  byte-identical output).
+- **Not covered:** the affordance on the lists index or concept pages; headers declaring a
+  parent concept; per-header applicability; the `worth-indexing-for-search` tag's naming.
+
+## AC→handle lines
+—
