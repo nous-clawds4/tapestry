@@ -42,7 +42,7 @@ export default function ExportModal({
   pinEventId, currentTitle, defaultTitle = '', followPackStatus = null,
   variant = 'full', onExported,
   // Story 12 — when the tag was pinned with notes, the modal also offers the
-  // note Bookmark Set (kind-30003). noteExport = { tag, viewerPubkey, noteMethod }.
+  // note Bookmark Set (kind-30003). noteExport = { tag, viewerPubkey, noteMethod, variant }.
   noteExport = null, onNoteExported,
 }) {
   const { taPubkey } = useConfig();
@@ -155,6 +155,9 @@ export default function ExportModal({
           tag: noteExport.tag,
           viewerPubkey: noteExport.viewerPubkey,
           noteMethod: noteExport.noteMethod,
+          // search-index-selection ADR 0003 E5 — the export lands at the ACTIVE
+          // pin's address, never the neutral one.
+          variant: noteExport.variant,
           title: (titleDraft || '').trim() || undefined,
           writeRelays: Array.isArray(writeRelays) ? writeRelays : undefined,
         });

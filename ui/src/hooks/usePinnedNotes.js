@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { curateNotes } from '@tapestry/event-tagging';
+import { curateNotes, variantKeyArgs } from '@tapestry/event-tagging';
 import { computeNoteTLDTag } from '../utils/publishTagPin';
 import { useConfig } from '../context/ConfigContext';
 import { usePov } from '../context/PovContext';
@@ -19,7 +19,9 @@ import { usePov } from '../context/PovContext';
  * @param tag        — { authorPubkey, slug, name }
  * @param observer   — the pin's curation observer (its POV; == viewer for own pins)
  * @param noteMethod — 'notes:net-endorsed' | 'notes:most-applied'
- * @param contextSlug— the pin's community context, or undefined for a neutral pin
+ * @param variant    — the pin's VARIANT ({kind:'context'|'recipe'|null, slug}) — search-index-
+ *                  selection ADR 0003 §4. A recipe pin reads its OWN `-v-<slug>` note
+ *                  list, never the neutral one; a place keeps its `-in-<ctx>` address.
  *
  * @returns {{ pinned, notes, drift, loading, error, refetch }}
  *   pinned = { eventId, createdAt, ids:[] } | null   (null → no note TL / retracted)
@@ -28,7 +30,11 @@ import { usePov } from '../context/PovContext';
  */
 const HEX64 = /^[0-9a-f]{64}$/;
 
-export default function usePinnedNotes(tag, observer, noteMethod = 'notes:net-endorsed', contextSlug = undefined, cutoff = 1) {
+export default function usePinnedNotes(tag, observer, noteMethod = 'notes:net-endorsed', variant = null, cutoff = 1) {
+  // Primitives, so the effect does not re-run on every render of the caller
+  // (the variant is a fresh object each time).
+  const variantKind = variant?.kind ?? null;
+  const variantSlug = variant?.slug ?? null;
   const { taPubkey } = useConfig();
   const { povParams } = usePov();
   const [pinned, setPinned] = useState(null);
@@ -51,7 +57,7 @@ export default function usePinnedNotes(tag, observer, noteMethod = 'notes:net-en
 
     (async () => {
       try {
-        const dTag = computeNoteTLDTag({ observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug });
+        const dTag = computeNoteTLDTag({ observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, ...variantKeyArgs({ kind: variantKind, slug: variantSlug }) });
 
         // 1. The TA-signed kind-30393 note TL. FAST (a strfry scan) and
         //    determines whether the Notes sub-tab exists — so surface `pinned`
@@ -101,7 +107,7 @@ export default function usePinnedNotes(tag, observer, noteMethod = 'notes:net-en
     })();
 
     return () => { cancelled = true; };
-  }, [tag?.authorPubkey, tag?.slug, observer, taPubkey, noteMethod, contextSlug, cutoff, reloadKey, povParams.wotPov, povParams.userPubkey]);
+  }, [tag?.authorPubkey, tag?.slug, observer, taPubkey, noteMethod, variantKind, variantSlug, cutoff, reloadKey, povParams.wotPov, povParams.userPubkey]);
 
   return { pinned, notes, drift, loading, error, refetch };
 }

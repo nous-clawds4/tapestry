@@ -25,7 +25,8 @@ const profileTags = require('../profile-tags');
 const { buildAndPublishTL } = require('./index');
 const { resolvePov } = require('../_shared/pov');
 const {
-  curateNotes, contextSlugOfPin, contextHandle, tlDTag, noteTlDTag, itemTlDTag,
+  curateNotes, variantOfPin, variantKeyArgs,
+  contextHandle, tlDTag, noteTlDTag, itemTlDTag,
   trustedListZTags, conceptTrustedList, tlHeaderDTag, tlHeaderAddr, buildTLHeader,
   isKnownAuthorConstraint,
 } = require('../../lib/event-tagging');
@@ -124,8 +125,46 @@ function round6(x) { return Number(x.toFixed(6)); }
  * (`ui/src/utils/publishTagPin.js`) also delegates to — one composer, two thin
  * wrappers, so client and server cannot disagree.
  */
-function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
-  return tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug });
+function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug }) {
+  return tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug });
+}
+
+/**
+ * search-index-selection ADR 0003 §3 layer 1 (C3, operator ruling 2026-09-18) —
+ * a pin counts for an observer only if the pin's AUTHOR is that observer.
+ *
+ * The TL address keys on `curationMethod.observer` (an editable field) while the
+ * pin address keys on the pin's author, so a stranger who names your pubkey as
+ * observer otherwise publishes at your permanent address and overwrites your
+ * list every cycle. This applies at write time the same check a subscriber
+ * applies at read time: a pin about your point of view must be yours.
+ *
+ * A skipped pin claims NO d-tag — it never owned the address — so the sweep is
+ * untouched, and any list it previously published is retracted (ADR
+ * Consequences: that is the intended outcome). Honouring a pin signed by the
+ * observer's 10040-designated assistant is a named follow-up, not built here.
+ */
+/**
+ * search-index-selection ADR 0003 §2 — the published list's disclosure of a
+ * RECIPE variant. Recipes only: a contextual list discloses through its context
+ * `z` and a neutral list discloses nothing, so both keep byte-identical tag
+ * arrays (AC-2). Purely additive.
+ */
+function variantDisclosureTags(variant) {
+  return (variant && variant.kind === 'recipe' && variant.slug)
+    ? [['variant', variant.slug]]
+    : [];
+}
+
+const warnedAuthorObserverMismatch = new Set();
+function authorObserverMismatch(pinEvent, observer) {
+  if (!pinEvent || pinEvent.pubkey === observer) return null;
+  if (!warnedAuthorObserverMismatch.has(pinEvent.id)) {
+    warnedAuthorObserverMismatch.add(pinEvent.id);
+    console.warn(`[refreshPinnedTags] pin ${pinEvent.id} names observer ${observer} but is signed by ${pinEvent.pubkey} — skipped (author-observer-mismatch)`);
+  }
+  // The house skip shape is `errorReason` (test plan §"ADR ambiguities", item 1).
+  return { status: 'skipped', errorReason: 'author-observer-mismatch' };
 }
 
 async function enumeratePinnedTags() {
@@ -274,6 +313,9 @@ async function runOnePin(pinEvent, options = {}) {
   if (!isHexPubkey(observer)) {
     return { status: 'error', errorReason: 'observer pubkey missing or malformed' };
   }
+  // search-index-selection ADR 0003 §3 (C3) — right after the observer bail.
+  const mismatch = authorObserverMismatch(pinEvent, observer);
+  if (mismatch) return mismatch;
   // search-index-selection ADR 0001 — read AFTER the observer bail (E2: a
   // constrained pin with no valid observer is an error, never "trust nobody"
   // and never "trust everyone"). Absent ⇒ unconstrained; an unknown value fails
@@ -298,7 +340,11 @@ async function runOnePin(pinEvent, options = {}) {
   // (never the d-tag) and feeds ONLY the d-tag composer and the discovery `z`;
   // it never reaches POV resolution, aggregation, or the membership fold.
   // null for a neutral pin ⇒ no suffix, no context z ⇒ output unchanged.
-  const contextSlug = contextSlugOfPin(pinEvent, TA_PUBKEY);
+  // search-index-selection ADR 0003 §1 — generalised: the context is now one of
+  // two variant kinds. A RECIPE keys the address on `-v-<slug>` and stamps NO
+  // community z; a PLACE is byte-identical to today (AC-2).
+  const variant = variantOfPin(pinEvent, TA_PUBKEY);
+  const contextSlug = variant.kind === 'context' ? variant.slug : null;
 
   // POV resolution: pass observer through the same cascade
   // handleProfilesTagged uses. When no POV is configured (no
@@ -363,7 +409,8 @@ async function runOnePin(pinEvent, options = {}) {
   // the flag ignored.
 
   const dTag = computeTLDTag({
-    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug,
+    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug,
+    ...variantKeyArgs(variant),
   });
 
   // ADR dlist-item-tagging/0002 — every Trusted List carries the concept z plus a
@@ -405,6 +452,13 @@ async function runOnePin(pinEvent, options = {}) {
         // rigor rides certainty TLs so consumers can reproduce scores (D12:
         // constant, not a knob) — it qualifies the method, so it reads after it.
         ...(membershipMethod === 'certainty' ? [['rigor', '0.5']] : []),
+        // search-index-selection ADR 0003 §2 — a RECIPE's list discloses its
+        // variant. The variant is already in the d-tag, but no reader parses the
+        // suffix (standing rule), so without this tag a consumer has no
+        // supported way to read it. Contextual lists need nothing new — their
+        // context z below IS the disclosure — and neutral lists gain nothing, so
+        // both keep byte-identical tag arrays (AC-2).
+        ...variantDisclosureTags(variant),
         // ADR dlist-item-tagging/0002 — the family-wide Trusted-List z pair. The
         // 30392 gains its FIRST relay-filterable discovery axis here.
         ...tlZTags,
@@ -535,6 +589,9 @@ async function runOneNotePin(pinEvent, options = {}) {
   if (!isHexPubkey(observer)) {
     return { status: 'error', errorReason: 'observer pubkey missing or malformed' };
   }
+  // search-index-selection ADR 0003 §3 (C3) — same terms as runOnePin.
+  const mismatch = authorObserverMismatch(pinEvent, observer);
+  if (mismatch) return mismatch;
   // search-index-selection ADR 0001 — after the observer bail (E2), as in runOnePin.
   const authorConstraint = curation.authorConstraint;
   // Note-targeting gate: build a note TL only when the pin targets notes. Absent
@@ -555,7 +612,9 @@ async function runOneNotePin(pinEvent, options = {}) {
   // ADR feat-tags-modernization/0001 §1 — context first (identity), then the
   // curation (scoring): the same discriminator as the profile TL, so a
   // contextual note-pin's list coexists with the neutral one's.
-  const contextSlug = contextSlugOfPin(pinEvent, TA_PUBKEY);
+  // search-index-selection ADR 0003 §1 — generalised to the full variant.
+  const variant = variantOfPin(pinEvent, TA_PUBKEY);
+  const contextSlug = variant.kind === 'context' ? variant.slug : null;
 
   // Observer POV (same cascade as runOnePin) → the aggregation's trust filter.
   const { povSuffix, minRank } = resolvePov({ wotPov: 'user', userPubkey: observer });
@@ -581,7 +640,8 @@ async function runOneNotePin(pinEvent, options = {}) {
   // ADR §5: the shared composer — the client's computeNoteTLDTag delegates to
   // the same function, so the note-TL d-tag cannot drift across the seam.
   const dTag = noteTlDTag({
-    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug,
+    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug,
+    ...variantKeyArgs(variant),
   });
 
   // ADR dlist-item-tagging/0002 — the same family-wide z pair, same F1 fallback.
@@ -611,6 +671,8 @@ async function runOneNotePin(pinEvent, options = {}) {
         // ADR search-index-selection/0001 §4 — the disclosure, immediately after
         // the observer axis on the note list.
         ...authorConstraintTags(authorConstraint),
+        // search-index-selection ADR 0003 §2 — the recipe disclosure (see runOnePin).
+        ...variantDisclosureTags(variant),
         // ADR dlist-item-tagging/0002 — the family-wide Trusted-List z pair. The
         // legacy a/p pair above stays through the dual-emit window (Decision 4).
         ...tlZTags,
@@ -653,6 +715,9 @@ async function runOneItemPin(pinEvent, options = {}) {
   if (!isHexPubkey(observer)) {
     return { status: 'error', errorReason: 'observer pubkey missing or malformed' };
   }
+  // search-index-selection ADR 0003 §3 (C3) — same terms as runOnePin.
+  const mismatch = authorObserverMismatch(pinEvent, observer);
+  if (mismatch) return mismatch;
   // search-index-selection ADR 0001 — after the observer bail (E2), as in runOnePin.
   const authorConstraint = curation.authorConstraint;
   // Item-targeting gate (AC-2): absent targetTypes reads as the PRE-EXISTING default
@@ -671,7 +736,9 @@ async function runOneItemPin(pinEvent, options = {}) {
   }
 
   // ADR feat-tags-modernization/0001 §1 — context first (identity), then scoring.
-  const contextSlug = contextSlugOfPin(pinEvent, TA_PUBKEY);
+  // search-index-selection ADR 0003 §1 — generalised to the full variant.
+  const variant = variantOfPin(pinEvent, TA_PUBKEY);
+  const contextSlug = variant.kind === 'context' ? variant.slug : null;
 
   const { povSuffix, minRank } = (deps.resolvePov || resolvePov)({ wotPov: 'user', userPubkey: observer });
   const noteMethod = curation.noteMethod || 'notes:net-endorsed';
@@ -698,7 +765,8 @@ async function runOneItemPin(pinEvent, options = {}) {
   }
 
   const dTag = itemTlDTag({
-    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug,
+    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug,
+    ...variantKeyArgs(variant),
   });
 
   // ADR dlist-item-tagging/0002 — the family-wide z pair, same F1 fallback.
@@ -728,6 +796,8 @@ async function runOneItemPin(pinEvent, options = {}) {
         // ADR search-index-selection/0001 §4 — the disclosure, immediately after
         // the observer axis on the item list.
         ...authorConstraintTags(authorConstraint),
+        // search-index-selection ADR 0003 §2 — the recipe disclosure (see runOnePin).
+        ...variantDisclosureTags(variant),
         ...tlZTags,
         ...(contextSlug ? [['z', contextHandle(TA_PUBKEY, contextSlug)]] : []),
         // Partial signal: present ⇒ NOT exhaustive, value is the true total. Absent ⇒ complete.
@@ -747,21 +817,98 @@ async function runOneItemPin(pinEvent, options = {}) {
 }
 
 /**
+ * search-index-selection ADR 0003 §3 layer 2 — the three Trusted-List addresses a
+ * pin WOULD claim, computed without publishing anything, for the collision
+ * pre-pass. Returns null for a pin that claims no address at all: one the
+ * runners will reject anyway (no observer, no tag) or one C3 already skips
+ * (author ≠ observer — it never owned the address, so it can collide with
+ * nobody). Because all three `d`-tags derive from the same inputs, a collision
+ * fires simultaneously across the 30392/30393/30394 family — one detector on the
+ * 30392 address suffices.
+ */
+async function pinClaimedAddresses(pin, deps = {}) {
+  const lookupTag = deps.lookupTag || lookupTagEvent;
+  const curation = profileTags.parseCurationMethod(pin);
+  const observer = curation && curation.observer;
+  if (!curation || curation.method !== 'nip85:rank') return null;
+  if (!isHexPubkey(observer)) return null;
+  if (pin.pubkey !== observer) return null;
+  const tagEventId = profileTags.parsePinTagEventId(pin);
+  if (!tagEventId) return null;
+  let tag = null;
+  try { tag = await lookupTag(tagEventId); } catch { return null; }
+  if (!tag) return null;
+  const args = {
+    observer,
+    tagAuthorPubkey: tag.authorPubkey,
+    tagSlug: tag.slug,
+    ...variantKeyArgs(variantOfPin(pin, TA_PUBKEY)),
+  };
+  return { dTag: tlDTag(args), noteDTag: noteTlDTag(args), itemDTag: itemTlDTag(args) };
+}
+
+/**
  * Refresh every pin event in local strfry (cron path).
  * Returns { pins: [{ pinEventId, status, ... }] }
+ *
+ * search-index-selection ADR 0003 — SEAM 2: injectable deps
+ * ({ enumeratePinnedTags, lookupTag, … }) in the house `options.deps || options`
+ * shape, forwarded verbatim to the runners and to all three sweeps. Defaults
+ * stay the real implementations, so every production call path is unchanged.
  */
-async function refreshAllPinnedTags() {
-  const pins = await enumeratePinnedTags();
+async function refreshAllPinnedTags(options = {}) {
+  const deps = options.deps || options;
+  const enumerate = deps.enumeratePinnedTags || enumeratePinnedTags;
+  const pins = await enumerate();
   const results = [];
   const currentDTags = [];
   const currentNoteDTags = [];
   const currentItemDTags = [];
+
+  // ADR 0003 §3 layer 2 — the collision pre-pass. After layer 1 (C3, applied in
+  // every runner) the only collisions left are RESIDUAL ones between two of the
+  // observer's OWN pins: suffix ambiguity (a neutral pin on the tag `foo-v-bar`
+  // vs a recipe `bar` on the tag `foo`) or an 8-char prefix collision. Between
+  // two of your own pins there is no principled winner, so both are skipped and
+  // logged loudly — and their `d` stays on the roster, so a list already
+  // published there is NOT retracted while the ambiguity is unresolved.
+  const addressesByPin = new Map();
+  const pinIdsByDTag = new Map();
   for (const pin of pins) {
-    const result = await runOnePin(pin);
+    const addresses = await pinClaimedAddresses(pin, deps);
+    addressesByPin.set(pin.id, addresses);
+    if (!addresses) continue;
+    if (!pinIdsByDTag.has(addresses.dTag)) pinIdsByDTag.set(addresses.dTag, []);
+    pinIdsByDTag.get(addresses.dTag).push(pin.id);
+  }
+  const collidedPinIds = new Set();
+  for (const [dTag, pinIds] of pinIdsByDTag) {
+    if (pinIds.length < 2) continue;
+    console.error(`[refreshPinnedTags] pin-variant-collision: ${pinIds.length} of this observer's own pins resolve to the Trusted List address ${dTag} (pins ${pinIds.join(', ')}) — all skipped, nothing published at that address, and the address is kept on the roster so the list already there is not retracted`);
+    for (const id of pinIds) collidedPinIds.add(id);
+  }
+
+  for (const pin of pins) {
+    if (collidedPinIds.has(pin.id)) {
+      const addresses = addressesByPin.get(pin.id);
+      results.push({
+        pinEventId: pin.id,
+        status: 'collision',
+        errorReason: 'pin-variant-collision',
+        dTag: addresses.dTag,
+        noteTL: { status: 'collision', dTag: addresses.noteDTag, memberCount: undefined },
+        itemTL: { status: 'collision', dTag: addresses.itemDTag, memberCount: undefined },
+      });
+      currentDTags.push(addresses.dTag);
+      currentNoteDTags.push(addresses.noteDTag);
+      currentItemDTags.push(addresses.itemDTag);
+      continue;
+    }
+    const result = await runOnePin(pin, { deps });
     // event-tagging #17: the note TL is refreshed alongside the pubkey TL for every note-targeting pin.
-    const noteResult = await runOneNotePin(pin);
+    const noteResult = await runOneNotePin(pin, { deps });
     // dlist-item-tagging #5: and the item TL for every item-targeting pin.
-    const itemResult = await runOneItemPin(pin);
+    const itemResult = await runOneItemPin(pin, { deps });
     results.push({
       pinEventId: pin.id,
       ...result,
@@ -775,9 +922,9 @@ async function refreshAllPinnedTags() {
     if (noteResult.dTag) currentNoteDTags.push(noteResult.dTag);
     if (itemResult.dTag) currentItemDTags.push(itemResult.dTag);
   }
-  await retractStaleTLs(currentDTags);
-  await retractStaleTLs(currentNoteDTags, { kind: 30393, dPrefix: 'tl-pin-notes-' });
-  await retractStaleTLs(currentItemDTags, { kind: 30394, dPrefix: 'tl-pin-items-' });
+  await retractStaleTLs(currentDTags, { deps });
+  await retractStaleTLs(currentNoteDTags, { kind: 30393, dPrefix: 'tl-pin-notes-', deps });
+  await retractStaleTLs(currentItemDTags, { kind: 30394, dPrefix: 'tl-pin-items-', deps });
   return { pins: results };
 }
 

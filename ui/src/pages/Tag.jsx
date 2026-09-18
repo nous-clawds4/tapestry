@@ -162,7 +162,11 @@ export default function Tag() {
     if (!viewerPins || viewerPins.length === 0) { setSelectedPinId(null); return; }
     setSelectedPinId((cur) => {
       if (cur && viewerPins.some((p) => p.pinEventId === cur)) return cur;
-      const neutral = viewerPins.find((p) => !p.context);
+      // search-index-selection ADR 0003 §4 — the default is the pin with
+      // NEITHER a context NOR a variant. `!p.variant` would always be false:
+      // every row carries a {kind, slug} object, so a recipe (which has no
+      // context) would otherwise be picked as the neutral default.
+      const neutral = viewerPins.find((p) => !p.context && (p.variant?.kind ?? null) === null);
       return (neutral || viewerPins[0]).pinEventId;
     });
   }, [viewerPins]);
@@ -171,14 +175,31 @@ export default function Tag() {
   // Stable display order for the pin switcher: Personal (neutral) always first,
   // then contexts alphabetically by name. NOT by recency — re-pinning on a
   // curation edit bumps created_at, which would make the chips jump around.
+  // search-index-selection ADR 0003 §5 — three bands, not two: neutral
+  // ("Personal") → places (communities, alphabetical by context name) → recipes
+  // (the viewer's own named curations, alphabetical by name). A recipe is never
+  // rendered as a place: it keeps its own name and its own glyph.
+  const variantKindOf = (p) => (p.variant?.kind ?? (p.context ? 'context' : null));
   const contextNameOf = (p) => (p.context
     ? (KNOWN_CONTEXTS.find((c) => c.slug === p.context)?.name || p.context)
     : '');
+  const variantNameOf = (p) => (variantKindOf(p) === 'recipe'
+    ? (p.variant?.slug || '')
+    : '');
+  const bandOf = (p) => (variantKindOf(p) === 'recipe' ? 2 : (variantKindOf(p) === 'context' ? 1 : 0));
+  const labelOf = (p) => (bandOf(p) === 2 ? variantNameOf(p) : (bandOf(p) === 1 ? contextNameOf(p) : 'Personal'));
   const orderedViewerPins = [...(viewerPins || [])].sort((a, b) => {
-    if (!a.context && b.context) return -1;
-    if (a.context && !b.context) return 1;
-    return contextNameOf(a).localeCompare(contextNameOf(b));
+    // Three bands: neutral, then places (alphabetical by contextNameOf), then
+    // recipes (alphabetical by variantNameOf). NOT by recency — re-pinning on a
+    // curation edit bumps created_at, which would make the chips jump around.
+    if (bandOf(a) !== bandOf(b)) return bandOf(a) - bandOf(b);
+    return (bandOf(a) === 2 ? variantNameOf(a) : contextNameOf(a))
+      .localeCompare(bandOf(b) === 2 ? variantNameOf(b) : contextNameOf(b));
   });
+  const firstRecipeId = orderedViewerPins.find((p) => bandOf(p) === 2)?.pinEventId || null;
+  // The variants already in use for this tag, as validateVariantSlug expects
+  // them — the pre-signature uniqueness check's second input (ADR §3).
+  const existingVariants = orderedViewerPins.map((p) => ({ kind: variantKindOf(p), slug: p.variant?.slug ?? p.context ?? null }));
 
   const switchTab = (t) => {
     setActiveTab(t);
@@ -320,6 +341,38 @@ export default function Tag() {
       setPinError(e.message || 'Pin failed');
       // E1 — rethrow so the interstitial surfaces the failure inline and stays
       // open with the user's edits (same contract as publishWithCuration).
+      throw e;
+    } finally {
+      setPinning(false);
+    }
+  };
+
+  // search-index-selection ADR 0003 §5 — the RECIPE sibling of publishContextPin:
+  // same await-refresh-then-select shape, but the pin carries a `variant` tag and
+  // NO community z, so nothing on the wire claims this curation is a place. The
+  // variant is `{ name, slug }` from the dialog's name field — validated
+  // pre-signature by validateVariantSlug, so nothing is signed on a refusal.
+  const publishVariantPin = async (curation, variant) => {
+    if (!tag || !user || !variant?.slug) return;
+    setPinning(true); setPinError(null);
+    try {
+      const signed = await pinTag({
+        tag, curationMethod: curation, variant, localTaPubkey: taPubkey,
+      });
+      if (signed?.id) {
+        await fetch('/api/trusted-list/refresh-pinned-tag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pinEventId: signed.id }),
+        }).catch(() => { /* best-effort; user can refresh from the Pinned tab */ });
+      }
+      await refetchHeader();
+      if (signed?.id) setSelectedPinId(signed.id);
+      switchTab('pinned');
+    } catch (e) {
+      setPinError(e.message || 'Pin failed');
+      // E1 — rethrow so the interstitial surfaces the failure inline and stays
+      // open with the user's edits.
       throw e;
     } finally {
       setPinning(false);
@@ -573,19 +626,27 @@ export default function Tag() {
                 {orderedViewerPins.length > 1 && (
                   <div className="bs-pin-switcher" role="tablist" aria-label="Your pins of this tag">
                     {orderedViewerPins.map((p) => {
-                      const label = p.context ? contextNameOf(p) : 'Personal';
+                      const isRecipe = bandOf(p) === 2;
                       const active = p.pinEventId === selectedPinId;
                       return (
-                        <button
-                          key={p.pinEventId}
-                          type="button"
-                          role="tab"
-                          aria-selected={active}
-                          className={`bs-pin-switcher-chip${active ? ' is-active' : ''}`}
-                          onClick={() => setSelectedPinId(p.pinEventId)}
-                        >
-                          📌 {label}
-                        </button>
+                        <React.Fragment key={p.pinEventId}>
+                          {/* search-index-selection ADR 0003 §5 — a recipe is a
+                              saved curation, not a place: a non-interactive
+                              divider separates the last place from the first
+                              recipe, and recipes carry their own glyph. */}
+                          {p.pinEventId === firstRecipeId && (
+                            <span className="bs-pin-switcher-divider">Your curations</span>
+                          )}
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            className={`bs-pin-switcher-chip${active ? ' is-active' : ''}`}
+                            onClick={() => setSelectedPinId(p.pinEventId)}
+                          >
+                            {isRecipe ? '🧪' : '📌'} {labelOf(p)}
+                          </button>
+                        </React.Fragment>
                       );
                     })}
                   </div>
@@ -626,7 +687,12 @@ export default function Tag() {
                 publishes, and it publishes exactly once. pinDialog.context is the
                 picker's { slug, name } OBJECT (PinToContextModal onPick(c); pinTag reads
                 context.slug) — the dialog is given the slug and the display name, never
-                the object. */}
+                the object.
+                search-index-selection ADR 0003 §5 — `offerVariant` exposes the optional
+                "Save as a separate curation" name field: only when the viewer already
+                holds a pin of this tag (the first pin is the neutral one), and never for
+                a community pin — a recipe is not a place, and is never created from
+                "Pin to a community". */}
             {pinDialog.open && user && (
               <CurationMethodDialog
                 tag={tag}
@@ -635,9 +701,13 @@ export default function Tag() {
                 viewerPubkey={user.pubkey}
                 context={pinDialog.context?.slug || null}
                 contextName={pinDialog.context?.name || pinDialog.context?.slug || null}
-                onSubmit={(curation) => (pinDialog.context
+                offerVariant={!pinDialog.context && hasAnyPin}
+                existingVariants={existingVariants}
+                onSubmit={(curation, variant) => (pinDialog.context
                   ? publishContextPin(curation, pinDialog.context)
-                  : publishWithCuration(curation))}
+                  : (variant?.slug
+                    ? publishVariantPin(curation, variant)
+                    : publishWithCuration(curation)))}
                 onCancel={() => setPinDialog({ open: false, context: null })}
               />
             )}

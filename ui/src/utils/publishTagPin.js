@@ -1,5 +1,5 @@
 import { nip19 } from 'nostr-tools';
-import { projectionFor, curateNotes, pinVariantKey, contextHandle, tlDTag, noteTlDTag } from '@tapestry/event-tagging';
+import { projectionFor, curateNotes, pinVariantKey, variantKeyArgs, contextHandle, tlDTag, noteTlDTag } from '@tapestry/event-tagging';
 import { publishOrThrow } from './publishProfileTag';
 import { getActiveSignerOrThrow } from './signerGuard';
 import { publishEverywhere, fetchFromRelays, PUBLISH_RELAYS } from './nostrPublish';
@@ -55,8 +55,8 @@ const TAG_PINNING_HANDLE = `39998:${LEGACY_TA_PUBKEY}:tag-pinning`;
  * NOT the URL slug — see `computeTLDTag()` for the kind-30392 TL
  * identifier the `/pin/:dTag` route navigates to.
  */
-export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey, contextSlug }) {
-  return `tag-pin-${tagSlug}-${tagAuthorPubkey.slice(0, 8)}-${viewerPubkey.slice(0, 8)}${pinVariantKey({ contextSlug })}`;
+export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey, contextSlug, variantSlug }) {
+  return `tag-pin-${tagSlug}-${tagAuthorPubkey.slice(0, 8)}-${viewerPubkey.slice(0, 8)}${pinVariantKey({ contextSlug, variantSlug })}`;
 }
 
 /**
@@ -71,11 +71,11 @@ export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey, co
  * `observer` is the curation-method's observer pubkey (defaults to
  * the viewer's own pubkey via `defaultCurationMethod()`).
  */
-export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
-  // Composed shape: tl-pin-<observer8>-<tagAuthor8>-<tagSlug> + pinVariantKey({ contextSlug })
+export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug }) {
+  // Composed shape: tl-pin-<observer8>-<tagAuthor8>-<tagSlug> + pinVariantKey({ contextSlug, variantSlug })
   // — built by the shared composer tlDTag in src/lib/event-tagging/pins.js, which
   // the server runner delegates to as well (ADR feat-tags-modernization/0001 §5).
-  return tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug });
+  return tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug });
 }
 
 /**
@@ -83,10 +83,10 @@ export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug 
  * Mirrors the server's runOneNotePin by DELEGATING to the same composer, so the
  * two can never disagree (ADR feat-tags-modernization/0001 §5 / AC-6).
  */
-export function computeNoteTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
-  // Composed shape: tl-pin-notes-<obs8>-<author8>-<slug> + pinVariantKey({ contextSlug })
+export function computeNoteTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug }) {
+  // Composed shape: tl-pin-notes-<obs8>-<author8>-<slug> + pinVariantKey({ contextSlug, variantSlug })
   // — built by noteTlDTag in src/lib/event-tagging/pins.js.
-  return noteTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug });
+  return noteTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug });
 }
 
 /**
@@ -138,23 +138,36 @@ export function defaultCurationMethod(viewerPubkey) {
  *   `context` is set: the context stamp composes from the runtime TA, NOT the
  *   legacy literal (contexts are greenfield; the ADR 0015 legacy exception
  *   covers `tag-pinning` only). See ADR feat-tags-modernization/0001 §4.
+ * @param {{slug: string, name?: string}} [args.variant] — search-index-selection
+ *   ADR 0003 §2: an arbitrary named curation ("recipe") to pin under. The pin
+ *   gets a discriminated `-v-<slug>` d-tag AND a `['variant','<slug>']` tag, and
+ *   NO community `z` — nothing on the wire claims a recipe is about a place.
+ *   A pin is a place OR a recipe, never both; passing both is rejected.
  * @returns {Promise<object>} the signed Pin event.
  */
-export async function pinTag({ tag, curationMethod, localTaPubkey, context, taPubkey }) {
+export async function pinTag({ tag, curationMethod, localTaPubkey, context, taPubkey, variant }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to pin tags.');
   }
   if (context && !taPubkey) {
     throw new Error('pinTag: taPubkey (runtime TA) is required to stamp a context.');
   }
+  // ADR 0003 §2 — a context and a variant are mutually exclusive: never both. A
+  // place is a community claim, a recipe is not, and the two key the address on
+  // different prefixes, so a pin carrying both would be ambiguous on the wire.
+  if (context && variant) {
+    throw new Error('pinTag: a pin is a community context OR a named curation variant, never both.');
+  }
   const authorPk = await getActiveSignerOrThrow(); // issue #335 — guard drifted signer
   const curation = curationMethod || defaultCurationMethod(authorPk);
   const contextSlug = context ? context.slug : undefined;
+  const variantSlug = variant ? variant.slug : undefined;
   const dTag = computePinEventDTag({
     tagSlug: tag.slug,
     tagAuthorPubkey: tag.authorPubkey,
     viewerPubkey: authorPk,
     contextSlug,
+    variantSlug,
   });
   const unsigned = {
     kind: 39999,
@@ -169,6 +182,11 @@ export async function pinTag({ tag, curationMethod, localTaPubkey, context, taPu
       // contextual-pins ADR 0001 — runtime-TA context stamp (Stamping convention,
       // containment side). Additive: both tag-pinning z tags stay.
       ...(context ? [['z', contextHandle(taPubkey, context.slug)]] : []),
+      // search-index-selection ADR 0003 §2 — the RECIPE's identity tag. Readable
+      // without parsing JSON, relay-filterable (#variant), and never collapsible
+      // by an unparseable curation blob. Mutually exclusive with the context z
+      // above (guarded at the top of this function).
+      ...(variantSlug ? [['variant', variantSlug]] : []),
       ['curation-method', JSON.stringify(curation)],
     ],
     content: JSON.stringify({
@@ -353,8 +371,8 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays,
  * Target-type-qualified (`notes-pin-…`) so a tag's note export never collides
  * with its profile follow-set export (`tl-pin-…`).
  */
-export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug, contextSlug }) {
-  return `notes-pin-${viewerPubkey.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug, contextSlug, variantSlug }) {
+  return `notes-pin-${viewerPubkey.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug, variantSlug })}`;
 }
 
 /**
@@ -375,7 +393,7 @@ export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug
  * @param {string[]} [args.writeRelays]
  * @returns {Promise<{signed, naddr, dTag, memberCount} | {skipped:true, memberCount:0, dTag}>}
  */
-export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMethod = 'notes:net-endorsed', title, writeRelays, localTaPubkey } = {}) {
+export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMethod = 'notes:net-endorsed', title, writeRelays, localTaPubkey, variant } = {}) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to export lists.');
   }
@@ -393,7 +411,14 @@ export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMeth
   // Curate the DETERMINISTIC membership (ids + counts), not the resolved notes —
   // so the pinned set matches what the drift diff computes (both use `members`).
   const curated = curateNotes(data.members || data.notes || [], noteMethod);
-  const dTag = computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug });
+  // search-index-selection ADR 0003 §4 / E5 — the export is written at the
+  // ACTIVE pin's address. Previously this omitted the discriminator entirely
+  // while PinnedListPanel already LINKED to the discriminated address, so a
+  // contextual export landed at the neutral address and was unreachable.
+  const dTag = computeNoteBookmarkDTag({
+    viewerPubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug,
+    ...variantKeyArgs(variant || null),
+  });
 
   // Never publish an empty bookmark set (mirrors the follow-set empty-guard).
   if (curated.length === 0) {

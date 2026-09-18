@@ -44,18 +44,36 @@ function PinsMemberCountHint() {
 // contextual-pins ADR 0001 — the viewer may hold several coexisting pins of one
 // tag (neutral + one per community context). The index shows each TAG once; the
 // per-pin management lives on the tag's Pinned tab. A badge line names the pins.
+// search-index-selection ADR 0003 §4 — a pin is neutral, a PLACE (community
+// context) or a RECIPE (an arbitrary named curation). A recipe is labelled by
+// its own name and never routed through KNOWN_CONTEXTS: it is not a place.
+/** A PLACE's display name. Places only — a recipe never reaches this. */
 function contextLabel(context) {
   if (!context) return 'Personal';
   return KNOWN_CONTEXTS.find((c) => c.slug === context)?.name || context;
 }
 
+function variantOf(p) {
+  return p.variant || (p.context ? { kind: 'context', slug: p.context } : { kind: null, slug: null });
+}
+
+function pinLabel(p) {
+  const v = variantOf(p);
+  // A recipe is named by the curator; it is NOT looked up in KNOWN_CONTEXTS.
+  if (v.kind === 'recipe') return v.slug;
+  return contextLabel(v.kind === 'context' ? v.slug : null);
+}
+
+/** Neutral → places → recipes, alphabetical within each band (ADR §5). */
+const BAND = { null: 0, context: 1, recipe: 2 };
+
 function PinRow({ group }) {
   const { tag, pins } = group;
-  // Neutral first, then contexts alphabetically — stable regardless of pin order.
+  // Stable regardless of pin order — never by recency.
   const ordered = [...pins].sort((a, b) => {
-    if (!a.context && b.context) return -1;
-    if (a.context && !b.context) return 1;
-    return contextLabel(a.context).localeCompare(contextLabel(b.context));
+    const band = BAND[String(variantOf(a).kind)] - BAND[String(variantOf(b).kind)];
+    if (band !== 0) return band;
+    return pinLabel(a).localeCompare(pinLabel(b));
   });
   return (
     <li className="bs-pins-row">
@@ -69,11 +87,17 @@ function PinRow({ group }) {
             <span className="bs-pins-row-desc">{tag.description}</span>
           )}
           <span className="bs-pins-row-contexts">
-            {ordered.map((p) => (
-              <span key={p.pinEventId} className={`bs-pins-context-badge${p.context ? ' is-community' : ''}`}>
-                📌 {contextLabel(p.context)}
-              </span>
-            ))}
+            {ordered.map((p) => {
+              const kind = variantOf(p).kind;
+              return (
+                <span
+                  key={p.pinEventId}
+                  className={`bs-pins-context-badge${kind === 'context' ? ' is-community' : ''}${kind === 'recipe' ? ' is-recipe' : ''}`}
+                >
+                  {kind === 'recipe' ? '🧪' : '📌'} {pinLabel(p)}
+                </span>
+              );
+            })}
           </span>
         </span>
         <span className="bs-pins-row-chevron" aria-hidden="true">›</span>

@@ -304,6 +304,49 @@ the search backend's permanent subscription key). Scoped gate as proposed (new
 
 Pre-implementation (at `e467846e`): 13 green (U1, U9, H4, H7, A2, S15, S19, S21, R1–R5) / 37 red, each naming the missing piece. Guards all green.
 
+## Deviations (Phase 4)
+
+Two files were touched that the ADR's Implementation-notes blast radius does not name, plus
+three guard-suite sentinels that could not be satisfied. Nothing else left the radius.
+
+1. **`ui/src/components/ExportModal.jsx` (2 lines) — outside the named radius, required to make
+   ADR §4's `publishTagPin.js:396` row do anything.** The ADR threads `variant` into
+   `publishNoteBookmarkSetForPin`, but the Export-modal path is one of its two callers and it
+   builds the argument object from the `noteExport` prop. Without forwarding `noteExport.variant`
+   (which `PinnedListPanel` now supplies — in-radius) the 30003 export from a contextual or
+   recipe pin would still land at the neutral address, i.e. E5 would be fixed in the composer and
+   unfixed in practice. The change is a single added property plus a comment; no logic moved.
+2. **`ui/src/components/PinnedListPanel.jsx` — `handleEditSubmit` re-pins WITH the recipe
+   variant, and routes a recipe's post-edit refresh through the server like a context pin.**
+   In-radius file, but a behaviour the ADR does not spell out. The existing code already guards
+   the identical hazard for contexts ("else editing a context pin's curation would silently
+   re-pin it as neutral"); a recipe has exactly the same exposure, and leaving it would let a
+   curation edit **stomp the viewer's neutral pin** — the replaceable-event failure this whole
+   story exists to prevent. Two small edits: pass `variant` to `pinTag`, and widen `if (ctx)` to
+   `if (ctx || rec)` so a recipe's TL is recomputed server-side rather than through the
+   neutral-only `syncPinnedExportsForTag`.
+3. **Three guard-suite sentinels assert the pre-ADR source shape and cannot be satisfied — left
+   UNCHANGED, kicked back to Phase 3.** Each contradicts a specific row of ADR §4 that this
+   story is required to change. They are source sentinels, not behavioural assertions; every
+   behavioural assertion in all six guard suites is green, and `pin-stack-composition` AC-4 /
+   `context-scoped-pins`' byte-identity fixtures (the actual AC-2 owners) all pass.
+   - `test/pin-stack-composition.test.js:472-474` — requires `contextSlugOfPin(` inside
+     `runOnePin`'s body. ADR §4 row `refreshPinnedTags.js:301` replaces it with `variantOfPin`.
+     (The assertion's real subject — identity resolved before method dispatch — still holds:
+     `variantOfPin` is called before `resolveMembershipMethod`.)
+   - `test/context-scoped-pins.test.js:184` — requires `/contextSlugOfPin/` anywhere in
+     `refreshPinnedTags.js`. Same ADR row; the symbol is no longer used there, and keeping a dead
+     import solely to satisfy the regex would be gaming the sentinel.
+   - `test/context-scoped-pins.test.js:242` — requires literally
+     `usePinnedNotes(tag, observer, noteMethod, contextSlug`. ADR §4's `usePinnedNotes.js:54` row
+     requires the panel to pass the pin's full variant, and this story's own **S9** asserts
+     `usePinnedNotes\([^)]*variant`. The two suites are mutually exclusive; the Accepted ADR and
+     the story's own suite win, and the stale sentinel needs a Phase-3 re-aim.
+
+   Per the test plan's guard-suite carve-out ("If Phase 4 finds a re-aim is needed after all,
+   that is a kick-back to Phase 3, not an edit to a guard suite"), no guard suite was edited —
+   **R1 is green**.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/search-index-selection/0003-explicit-pin-variant-key.md`
 - Test plan: `engineering-team/test-plans/search-index-selection/5-explicit-pin-variant-key.md`

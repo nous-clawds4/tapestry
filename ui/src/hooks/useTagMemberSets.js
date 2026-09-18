@@ -1,5 +1,23 @@
 import { useState, useEffect } from 'react';
+import { tlDTag, variantKeyArgs } from '@tapestry/event-tagging';
 import { useConfig } from '../context/ConfigContext';
+
+/**
+ * search-index-selection ADR 0003 §4 (closes OPEN 298) — one pin's Trusted-List
+ * address, from the SHARED composer and keyed on the pin's VARIANT. This used to
+ * be hand-composed with no suffix at all, which silently pointed every
+ * contextual pin — and would have pointed every recipe — at the neutral address.
+ */
+function tlDTagOfPinRow(p) {
+  const observer = p.curationMethod?.observer;
+  if (!observer) return null;
+  return tlDTag({
+    observer,
+    tagAuthorPubkey: p.tag.authorPubkey,
+    tagSlug: p.tag.slug,
+    ...variantKeyArgs(p.variant),
+  });
+}
 
 /**
  * Story 11 follow-up — for each of the viewer's pinned tags, fetch its
@@ -51,9 +69,8 @@ export default function useTagMemberSets(viewerPubkey) {
         const dTagsToFetch = [];
         for (const p of pins) {
           if (p.tlStatus?.status !== 'ok') continue;
-          const observer = p.curationMethod?.observer;
-          if (!observer) continue;
-          const dTag = `tl-pin-${observer.slice(0, 8)}-${p.tag.authorPubkey.slice(0, 8)}-${p.tag.slug}`;
+          const dTag = tlDTagOfPinRow(p);
+          if (!dTag) continue;
           dTagsToFetch.push(dTag);
         }
 
@@ -88,10 +105,7 @@ export default function useTagMemberSets(viewerPubkey) {
 
         const result = [];
         for (const p of pins) {
-          const observer = p.curationMethod?.observer;
-          const dTag = observer
-            ? `tl-pin-${observer.slice(0, 8)}-${p.tag.authorPubkey.slice(0, 8)}-${p.tag.slug}`
-            : null;
+          const dTag = tlDTagOfPinRow(p);
           const memberPubkeys = dTag ? (membersByDTag.get(dTag) || new Set()) : new Set();
           result.push({
             pinEventId: p.pinEventId,

@@ -16,7 +16,7 @@ import {
   pinTag, unpinTag, computeTLDTag, computeNoteBookmarkDTag,
   syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
-import { KNOWN_CONTEXTS, itemTlDTag } from '@tapestry/event-tagging';
+import { KNOWN_CONTEXTS, itemTlDTag, variantKeyArgs } from '@tapestry/event-tagging';
 import { copyText } from '../utils/clipboard';
 
 /**
@@ -131,10 +131,23 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
   const activePin = pin || viewerPin;
   const observer = activePin?.curationMethod?.observer || user?.pubkey || null;
   const pinEventId = activePin?.pinEventId || null;
-  const contextSlug = activePin?.context || undefined;
-  const contextName = contextSlug
-    ? (KNOWN_CONTEXTS.find((c) => c.slug === contextSlug)?.name || contextSlug)
-    : null;
+  // search-index-selection ADR 0003 §4 — the pin's VARIANT is what every address
+  // on this panel keys off: a PLACE (community context) keeps `-in-<ctx>`, a
+  // RECIPE takes `-v-<slug>`. `activePin.context` remains for pre-variant rows.
+  const variant = activePin?.variant
+    || (activePin?.context ? { kind: 'context', slug: activePin.context } : { kind: null, slug: null });
+  const variantKind = variant.kind;
+  const variantSlug = variant.slug;
+  const variantArgs = useMemo(
+    () => variantKeyArgs({ kind: variantKind, slug: variantSlug }),
+    [variantKind, variantSlug],
+  );
+  const contextSlug = variant.kind === 'context' ? variant.slug : undefined;
+  // A recipe is labelled by its OWN name — never through the community-label
+  // logic, which would render a recipe as a place (ADR §4 / §5).
+  const contextName = variant.kind === 'context'
+    ? (KNOWN_CONTEXTS.find((c) => c.slug === variant.slug)?.name || variant.slug)
+    : (variant.kind === 'recipe' ? variant.slug : null);
 
   const dTag = useMemo(() => {
     if (!tag || !observer) return null;
@@ -143,10 +156,10 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
         observer,
         tagAuthorPubkey: tag.authorPubkey,
         tagSlug: tag.slug,
-        contextSlug,
+        ...variantArgs,
       });
     } catch { return null; }
-  }, [tag, observer, contextSlug]);
+  }, [tag, observer, variantArgs]);
 
   // Story dlist-item-tagging #5 (AC-5) — the kind-30394 item TL identity, from the
   // SHARED composer (never hand-formatted), same inputs as the 30392 d-tag.
@@ -157,10 +170,10 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
         observer,
         tagAuthorPubkey: tag.authorPubkey,
         tagSlug: tag.slug,
-        contextSlug,
+        ...variantArgs,
       });
     } catch { return null; }
-  }, [tag, observer, contextSlug]);
+  }, [tag, observer, variantArgs]);
 
   const { tl, members, loading, error, refetch } = useTLDetail(dTag);
 
@@ -197,7 +210,7 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
   const {
     pinned: pinnedNotes, notes: pinnedNoteItems, drift: noteDrift,
     loading: pinnedNotesLoading, refetch: refetchPinnedNotes,
-  } = usePinnedNotes(tag, observer, noteMethod, contextSlug, noteCutoff);
+  } = usePinnedNotes(tag, observer, noteMethod, variant, noteCutoff);
   const [repinningNotes, setRepinningNotes] = useState(false);
   // Issue #2 — Profiles|Notes sub-switch inside the Pinned tab (mirrors the
   // tag-detail default tab), so a big profile list and the note list don't stack.
@@ -290,9 +303,9 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
   // note bookmark set has been published (pinnedNotes).
   const noteBookmarkDTag = useMemo(() => {
     if (!tag || !user?.pubkey) return null;
-    try { return computeNoteBookmarkDTag({ viewerPubkey: user.pubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug }); }
+    try { return computeNoteBookmarkDTag({ viewerPubkey: user.pubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, ...variantArgs }); }
     catch { return null; }
-  }, [tag, user?.pubkey, contextSlug]);
+  }, [tag, user?.pubkey, variantArgs]);
   const naddr30003 = useMemo(() => {
     if (!noteBookmarkDTag || !user?.pubkey) return null;
     try {
@@ -336,17 +349,23 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
     // context pin's curation would silently re-pin it as neutral (dropping the
     // context and orphaning its TL).
     const ctx = contextSlug ? { slug: contextSlug, name: contextName } : undefined;
+    // search-index-selection ADR 0003 — the same rule for a RECIPE pin: re-pin
+    // WITH its variant, else the edit would re-pin it as neutral and stomp the
+    // viewer's neutral pin at that address.
+    const rec = variant.kind === 'recipe' ? { slug: variant.slug, name: variant.slug } : undefined;
     const signed = await pinTag({
       tag, curationMethod: customCuration, localTaPubkey: taPubkey,
       ...(ctx ? { context: ctx, taPubkey } : {}),
+      ...(rec ? { variant: rec } : {}),
     });
     await refetch();
     onChanged?.();
     // AC-13 — a curation reconfig recomputes the kind-30392 and re-exports
     // the kind-30000 footprint, just like an Apply/Dispute does.
-    if (ctx) {
-      // Context pins: recompute the TA-signed TL via the server (runOnePin reads
-      // the context from the pin's z stamp — the correct, context-aware d-tag).
+    if (ctx || rec) {
+      // Context AND recipe pins: recompute the TA-signed TL via the server
+      // (the runners read the variant off the pin itself — the correct,
+      // variant-aware d-tag; `syncPinnedExportsForTag` below is neutral-only).
       // The client-signed kind-30000/30003 re-export stays neutral-only for now
       // (a context pin's export is available on demand via the Export button).
       fetch('/api/trusted-list/refresh-pinned-tag', {
@@ -430,7 +449,7 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
               followPackStatus={followPack}
               variant="full"
               onExported={handleExported}
-              noteExport={pinnedNotes ? { tag, viewerPubkey: user?.pubkey, noteMethod } : null}
+              noteExport={pinnedNotes ? { tag, viewerPubkey: user?.pubkey, noteMethod, variant } : null}
               onNoteExported={refetchPinnedNotes}
             />
           )}

@@ -25,7 +25,7 @@
 const { exec } = require('child_process');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const {
-  contextSlugOfPin, pinVariantKey, itemTlDTag,
+  contextSlugOfPin, variantOfPin, variantKeyArgs, tlDTag, itemTlDTag,
   isKnownAuthorConstraint, authorPredicateFor, authorWeightFor,
 } = require('../../lib/event-tagging');
 
@@ -898,11 +898,19 @@ async function handleTagById(req, res) {
         // pins have distinct d-tags, so all survive as separate entries.
         viewerPins = dedupeReplaceable(pinEvents).map((ev2) => ({
           context: contextSlugOfPin(ev2, TA_PUBKEY),
+          // search-index-selection ADR 0003 §4 — the pin's full VARIANT
+          // ({kind:'context'|'recipe'|null, slug}) beside the back-compat
+          // `context`. Every derived-d-tag reader keys off this; `context` stays
+          // for readers not yet variant-aware (a recipe reads as no context).
+          variant: variantOfPin(ev2, TA_PUBKEY),
           pinEventId: ev2.id,
           createdAt: ev2.created_at,
           curationMethod: parseCurationMethod(ev2),
         }));
-        viewerPin = viewerPins.find((p) => p.context === null) || null;
+        // The neutral pin is the one with NEITHER a context NOR a variant: a
+        // recipe carries no context by design and would otherwise be picked as
+        // the neutral default, order-dependent on the scan.
+        viewerPin = viewerPins.find((p) => p.context === null && p.variant.kind === null) || null;
       } catch { /* strfry failure on the pin scan must not break the read */ }
     }
 
@@ -1649,6 +1657,9 @@ async function handlePins(req, res) {
         // contextual-pins ADR 0001 — the pin's community context (or null for a
         // neutral pin), recovered from its z stamp. Drives per-pin TL d-tags.
         context: contextSlugOfPin(pin, TA_PUBKEY),
+        // search-index-selection ADR 0003 §4 — the full variant (context OR
+        // recipe); the two status enrichers below key their d-tags off it.
+        variant: variantOfPin(pin, TA_PUBKEY),
         tag: {
           eventId: tagEv.id,
           slug: tagPayload.slug,
@@ -1712,7 +1723,16 @@ async function enrichRowsWithTLStatus(pins) {
       row._tlDTag = null;
       continue;
     }
-    const dTag = `tl-pin-${observer.slice(0, 8)}-${row.tag.authorPubkey.slice(0, 8)}-${row.tag.slug}${pinVariantKey({ contextSlug: row.context })}`;
+    // search-index-selection ADR 0003 §4 — the d MUST come from the shared
+    // composer (a second copy of the address rule is how client and server
+    // drift), and it takes the row's full variant so a recipe's TL status is
+    // read at its own `-v-<slug>` address, never the neutral one.
+    const dTag = tlDTag({
+      observer,
+      tagAuthorPubkey: row.tag.authorPubkey,
+      tagSlug: row.tag.slug,
+      ...variantKeyArgs(row.variant),
+    });
     row._tlDTag = dTag;
     wantedDTags.push(dTag);
   }
@@ -1789,11 +1809,14 @@ async function enrichRowsWithItemTLStatus(pins) {
       continue;
     }
     // The d-tag MUST come from the shared composer (ADR feat-tags-modernization/0001 §5).
+    // search-index-selection ADR 0003 §4 — the row's full VARIANT (context OR
+    // recipe), not `row.context` alone: else a recipe pin's item list is read at
+    // the neutral address.
     const dTag = itemTlDTag({
       observer,
       tagAuthorPubkey: row.tag.authorPubkey,
       tagSlug: row.tag.slug,
-      contextSlug: row.context,
+      ...variantKeyArgs(row.variant),
     });
     dTagByRow.set(row, dTag);
     wantedItemDTags.push(dTag);

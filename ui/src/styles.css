@@ -6314,6 +6314,19 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-color: rgba(99, 102, 241, 0.6);
   color: #e0e7ff;
 }
+/* search-index-selection ADR 0003 §5 — a non-interactive label separating the
+   last place (a community) from the first recipe (a saved curation). A recipe
+   is not a place; the row stays one row, but never one undifferentiated list. */
+.bs-pin-switcher-divider {
+  align-self: center;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  padding: 0 0.3rem 0 0.5rem;
+  border-left: 1px solid rgba(148, 163, 184, 0.3);
+  margin-left: 0.25rem;
+}
 /* Pins index — per-tag context badges (one tag row, its pins named). */
 .bs-pins-row-contexts {
   display: flex;

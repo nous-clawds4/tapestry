@@ -33,6 +33,13 @@
             "slug": "tag-event-id",
             "description": "The event ID of the kind 39999 tag element being pinned. Mirrors the event's `e` tag."
           },
+          "variant": {
+            "type": "string",
+            "name": "variant",
+            "title": "Variant",
+            "slug": "variant",
+            "description": "The optional curation-variant slug (lowercase [a-z0-9-], at most 40 characters). Mirrors the event's `variant` tag. Present only for a named curation ('recipe'); a community-scoped pin instead carries a 39998:<TA>:<contextSlug> z tag, and an ordinary pin carries neither. The variant discriminates the pin's own d tag and every Trusted List address it produces, so a user may hold several pins of one tag at coexisting, permanent addresses."
+          },
           "curationMethod": {
             "type": "object",
             "name": "curationMethod",

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TL_MEMBERSHIP_METHODS } from '../config/tlMembershipMethods';
 import { buildCuration } from '../utils/curationDialogBuild';
+import { slug, validateVariantSlug } from '@tapestry/event-tagging';
 
 /**
  * Story 12 / ADR 0011 — Curation-method editor.
@@ -43,6 +44,13 @@ export default function CurationMethodDialog({
   // shown, fixed (not editable here); null for a neutral pin.
   context = null,
   contextName = null,
+  // search-index-selection ADR 0003 §5 — the optional "Save as a separate
+  // curation" (recipe) name field. Create mode only, and mutually exclusive with
+  // `context`: a community pin never shows it. `existingVariants` is the
+  // viewer's other pins of this tag as variantOfPin outputs, for the
+  // pre-signature uniqueness refusal (ADR §3).
+  offerVariant = false,
+  existingVariants = [],
   viewerPubkey,
   onSubmit,
   onCancel,
@@ -89,6 +97,12 @@ export default function CurationMethodDialog({
   const [advancedOpen, setAdvancedOpen] = useState(
     !!(init.observer && init.observer !== viewerPubkey)
   );
+  // search-index-selection ADR 0003 §5 — the recipe name the viewer typed (a
+  // display name; the stored identity is its canonical slug), plus the inline
+  // refusal. Empty name ⇒ this is an ordinary pin, no variant.
+  const [variantName, setVariantName] = useState('');
+  const [variantError, setVariantError] = useState(null);
+  const variantSlugPreview = slug(variantName);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -132,9 +146,21 @@ export default function CurationMethodDialog({
     if (!result.ok) return;
     const custom = result.curation;
 
+    // search-index-selection ADR 0003 §3 — the ONLY guard that prevents the
+    // replaceable-event stomp: refuse INLINE, before anything is signed. The
+    // variant rides BESIDE the curation blob, never inside it (it is identity,
+    // not scoring — ADR §2).
+    let variant = null;
+    if (showVariantField && variantName.trim()) {
+      const check = validateVariantSlug({ name: variantName, existing: existingVariants });
+      if (!check.ok) { setVariantError(check.error); return; }
+      setVariantError(null);
+      variant = { name: variantName.trim(), slug: check.slug };
+    }
+
     setSubmitting(true);
     try {
-      await onSubmit(custom);
+      await onSubmit(custom, variant);
       onCancel(); // close on success
     } catch (err) {
       setError(err.message || 'Save failed');
@@ -144,6 +170,10 @@ export default function CurationMethodDialog({
   };
 
   const submitLabel = mode === 'edit' ? 'Save changes' : 'Pin with these settings';
+  // Create mode only, and never for a community pin (ADR §5): a place and a
+  // recipe are not the same act, which is how "not in the same row" is enforced
+  // at the source.
+  const showVariantField = offerVariant && !context && mode === 'create';
 
   // The v1-disabled "Advanced" block below keeps its open/onToggle wiring here so the
   // only `<details>` that renders in this dialog — the create-mode "What's a Trusted
@@ -225,6 +255,28 @@ export default function CurationMethodDialog({
                 Community: <strong>{contextName || context}</strong>
                 <span className="pcd-create-context-note"> — this pin and its lists are scoped to this community</span>
               </p>
+            )}
+            {showVariantField && (
+              <div className="pcd-variant">
+                <label htmlFor="pcd-variant-name" className="pcd-label">
+                  Save as a separate curation <span className="pcd-optional">(optional)</span>
+                </label>
+                <input
+                  id="pcd-variant-name"
+                  type="text"
+                  className="pcd-input"
+                  placeholder="e.g. Search index"
+                  value={variantName}
+                  onChange={(e) => { setVariantName(e.target.value); setVariantError(null); }}
+                  disabled={submitting}
+                />
+                <p className="pcd-help">
+                  {variantName.trim()
+                    ? <>This pin and its lists get their own permanent address: <code>-v-{variantSlugPreview || '…'}</code></>
+                    : 'Leave blank to update your ordinary pin of this tag. Name it to keep a second, separately-curated list beside it.'}
+                </p>
+                {variantError && <p className="pcd-field-error">{variantError}</p>}
+              </div>
             )}
             <details className="pcd-tl-explainer">
               <summary>{"What's a Trusted List?"}</summary>

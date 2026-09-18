@@ -19,6 +19,7 @@
  * concept handle (`contextHandle`), never by a copied event id.
  */
 const { conceptTrustedList, tlHeaderAddr } = require('./handles');
+const { slug: canonicalSlug } = require('./slug');
 
 const KNOWN_CONTEXTS = [
   { slug: 'lfo', name: 'LFO' },
@@ -28,16 +29,30 @@ const KNOWN_CONTEXTS = [
 const KNOWN_CONTEXT_SLUGS = new Set(KNOWN_CONTEXTS.map((c) => c.slug));
 
 /**
+ * search-index-selection ADR 0003 §1 — the variant slug bound. The pin `d`
+ * already carries the tag slug plus two 8-char prefixes; 40 keeps the worst
+ * realistic address comfortably under ~120 bytes while leaving room for a
+ * memorable name. Enforced client-side, PRE-SIGNATURE (`validateVariantSlug`).
+ */
+const VARIANT_SLUG_MAX = 40;
+
+/**
  * The single d-tag discriminator. Threaded (as a suffix) through all five pin/TL/
  * export d-tag schemes so a contextual pin gets a DISTINCT replaceable identity
  * from a neutral pin of the same (tag, author, viewer) — letting them coexist.
  *
  * Bare pins ⇒ empty string ⇒ their d-tags are byte-identical to today (no
- * migration). Context is the first — and, for v1, only — discriminator value;
- * future "other ways to pin the same tag" extend this one helper.
+ * migration). search-index-selection ADR 0003 §1 generalises the helper the
+ * contextual-pins ADR wrote it to be: a PLACE (a community context) keys on
+ * `-in-<ctx>`, exactly as before; a RECIPE (an arbitrary named curation) keys on
+ * `-v-<slug>`. The two members are MUTUALLY EXCLUSIVE and the variant wins when
+ * both are somehow present, matching `variantOfPin`'s precedence — so a reader
+ * can never compute an address the publisher did not (E3).
  */
-function pinVariantKey({ contextSlug } = {}) {
-  return contextSlug ? `-in-${contextSlug}` : '';
+function pinVariantKey({ contextSlug, variantSlug } = {}) {
+  if (variantSlug) return `-v-${variantSlug}`;   // a recipe
+  if (contextSlug) return `-in-${contextSlug}`;  // a place — byte-identical to today
+  return '';                                     // neutral — byte-identical to today
 }
 
 /**
@@ -58,18 +73,18 @@ function contextHandle(taPubkey, contextSlug) {
  * `contextSlug` is an OPTIONAL trailing member: omitting it (a neutral pin)
  * reproduces the pre-context string byte-for-byte.
  */
-function tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
-  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+function tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug }) {
+  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug, variantSlug })}`;
 }
 
 /** The note twin of `tlDTag` (kind-30393 note Trusted List). Same rules. */
-function noteTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
-  return `tl-pin-notes-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+function noteTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug }) {
+  return `tl-pin-notes-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug, variantSlug })}`;
 }
 
 /** The item twin of `tlDTag` (kind-30394 addressable-item Trusted List). Same rules. */
-function itemTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
-  return `tl-pin-items-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+function itemTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug, variantSlug }) {
+  return `tl-pin-items-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug, variantSlug })}`;
 }
 
 /**
@@ -105,6 +120,97 @@ function contextSlugOfPin(pinEvent, taPubkey) {
     if (KNOWN_CONTEXT_SLUGS.has(slug)) return slug;
   }
   return null;
+}
+
+/**
+ * search-index-selection ADR 0003 §1 — the pin's VARIANT: the generalisation of
+ * the context, and the single reader every address composer keys off.
+ *
+ * A pin is a PLACE (a community context, stamped as a `z`) or a RECIPE (an
+ * arbitrary named curation, carried in its own `['variant', '<slug>']` tag) or
+ * neither — never both. The CARRIER decides the kind, not membership in a
+ * deployment-local set, so extending `KNOWN_CONTEXTS` tomorrow can never move an
+ * already-published recipe's address or start emitting a community claim it did
+ * not make (E2). The variant tag wins over a stray context `z` (E3), matching
+ * `pinVariantKey`'s precedence.
+ *
+ * Legacy pins carry no `variant` tag and derive through `contextSlugOfPin`
+ * exactly as before — no back-fill, no address moves (ADR §7).
+ *
+ * @returns {{kind: 'context'|'recipe'|null, slug: string|null}}
+ */
+function variantOfPin(pinEvent, taPubkey) {
+  const v = ((pinEvent && pinEvent.tags) || [])
+    .find((t) => t[0] === 'variant' && typeof t[1] === 'string' && t[1]);
+  if (v) return { kind: 'recipe', slug: v[1] };
+  const ctx = contextSlugOfPin(pinEvent, taPubkey);
+  if (ctx) return { kind: 'context', slug: ctx };
+  return { kind: null, slug: null };
+}
+
+/**
+ * Adapter: a `variantOfPin` result → the members `pinVariantKey` (and therefore
+ * every composer) takes. Exported so no call site re-writes the ternary.
+ */
+function variantKeyArgs(variant) {
+  const kind = variant && variant.kind;
+  const slug = (variant && variant.slug) || null;
+  return {
+    contextSlug: kind === 'context' ? slug : null,
+    variantSlug: kind === 'recipe' ? slug : null,
+  };
+}
+
+/**
+ * search-index-selection ADR 0003 §3 — the PRE-SIGNATURE house rule for naming a
+ * recipe. This is the only guard that prevents the replaceable-event stomp: two
+ * pins sharing a variant slug share an address, so the second silently REPLACES
+ * the first (pin and derived lists together) and no server check can see it.
+ *
+ * Pure and shared so the rule has exactly one home: the create dialog renders
+ * `error` inline and signs nothing on `ok: false`.
+ *
+ * @param {{name: string, existing?: Array<{kind: string|null, slug: string|null}>}} args
+ *   `existing` is the viewer's other pins of THIS tag, as `variantOfPin` outputs.
+ * @returns {{ok: true, slug: string}
+ *          |{ok: false, reason: 'empty'|'too-long'|'known-context'|'in-use', error: string}}
+ */
+function validateVariantSlug({ name, existing = [] } = {}) {
+  const candidate = canonicalSlug(name == null ? '' : name);
+  if (!candidate) {
+    return {
+      ok: false,
+      reason: 'empty',
+      error: 'Enter a name that contains at least one letter or number.',
+    };
+  }
+  if (candidate.length > VARIANT_SLUG_MAX) {
+    return {
+      ok: false,
+      reason: 'too-long',
+      error: `That name is too long: "${candidate}" is ${candidate.length} characters and the limit is ${VARIANT_SLUG_MAX}.`,
+    };
+  }
+  if (KNOWN_CONTEXT_SLUGS.has(candidate)) {
+    // Refused, never silently promoted to a context — that would publish a
+    // community claim the curator did not make (ADR §1).
+    return {
+      ok: false,
+      reason: 'known-context',
+      error: `"${candidate}" names a community. Pin to a community from "Pin to a community" instead, or choose another name.`,
+    };
+  }
+  const clash = (existing || []).find((v) => v && v.slug && v.slug === candidate);
+  if (clash) {
+    return {
+      ok: false,
+      reason: 'in-use',
+      error: clash.kind === 'context'
+        ? `You already have a pin of this tag in "${clash.slug}". Choose another name.`
+        : `You already have a curation named "${clash.slug}" for this tag. Choose another name.`,
+    };
+  }
+  return { ok: true, slug: candidate };
 }
 
 /**
@@ -205,6 +311,10 @@ module.exports = {
   authorPredicateFor,
   authorWeightFor,
   pinVariantKey,
+  VARIANT_SLUG_MAX,
+  variantOfPin,
+  variantKeyArgs,
+  validateVariantSlug,
   contextHandle,
   tlDTag,
   noteTlDTag,
