@@ -515,7 +515,14 @@ test('S2 (AC-5, E3-discipline): the dialog seeds from init, keeps the raw value,
     'future-rung value this build does not recognise is never silently downgraded.');
   assert(!/membershipMethod:\s*undefined/.test(src),
     'AC-5 / ADR §3: never emit `membershipMethod: undefined` — a conditional spread keeps a pre-story pin\'s blob byte-identical.');
-  const submit = src.slice(src.indexOf('const custom = {'), src.indexOf('setSubmitting(true)'));
+  // Re-aimed 2026-09-18 (search-index-selection #4): the submit build moved verbatim out of the
+  // JSX into the pure module ui/src/utils/curationDialogBuild.js (buildCuration). The RULE is
+  // unchanged — the field rides the blob only by conditional spread — and is asserted where the
+  // build now lives; the dialog's seeding/raw/touched assertions above stay on the dialog.
+  const buildSrc = stripComments(rd(require('path').join(require('path').dirname(DIALOG), '../utils/curationDialogBuild.js')));
+  const submit = buildSrc.indexOf('export function buildCuration') > -1
+    ? buildSrc.slice(buildSrc.indexOf('export function buildCuration'))          // the pure module owns the build now
+    : src.slice(src.indexOf('const custom = {'), src.indexOf('setSubmitting(true)')); // pre-extraction shape
   assert(/\.\.\.\(/.test(submit) && /membershipMethod/.test(submit),
     `ADR §3: the field must be included by conditional spread in the submitted blob; got: ${submit.trim().slice(0, 500)}`);
 });
