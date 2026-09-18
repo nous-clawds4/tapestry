@@ -280,3 +280,113 @@ row's attribution is accurate and properly marked; row 322 is a correct and warr
 is clean and provably evaluated the new book. The fix is three short edits inside rows this packet
 authored, then lint and the six suites again. It does not need a fresh full-gate run on this host;
 the binding gate remains CI's Node 22 job on the PR.
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-09-18
+**Diff:** `12f7fba9`, the Implementer's fix-up, on top of `8f4a068d` (round 1 of this file, committed as
+written). It touches `OPEN.md` and `engineering-team/audits/about-brainstorm-search/book.md` and nothing
+else: three rows (72, 73, 321), the parenthetical on the 2026-07-22 numbering note, and the two bullets
+of the book manifest. Everything above this heading is round 1, byte-for-byte; this section was appended
+to the end of the file, not edited in.
+
+Same constraints as round 1: this reviewer edited this file and nothing else — no commit, no add, no
+push, no status flip.
+
+### Quality gates (round 2)
+
+- [x] `bash scripts/harness-lint.sh` on `12f7fba9` → **clean (0 violations)**, exit 0, output
+      byte-identical (`diff`) to the run that closed round 1.
+- [x] **L2 still evaluates the re-edited manifest.** The extractor over the new `book.md` yields
+      `about-brainstorm-search` and `developers-pages` from two bullets. One combined control in a
+      throwaway worktree at `12f7fba9` — epic file reverted to `origin/staging`'s and the
+      `developers-pages` waiver line removed — gives exactly two `VIOLATION L2` lines, one per epic,
+      exit 1. Worktree removed; `git worktree list` shows the main tree only.
+- [x] **The same six suites, each through `run()`, in the foreground, Node v16.17.0, on `12f7fba9`:**
+      `harness-lint` 41 passed / 0 failed (52 s), `harness-stats` 12 / 0 (68 s), `session-start`
+      10 / 0 (24 s), `operational-direction` 76 / 0 (10 skipped),
+      `curated-dlist-update-update-preview` 34 / 0, `curated-dlist-update-publish` 69 / 0. Counts
+      identical to round 1.
+- [x] The real parser over the eight rows (the awk from `scripts/lib/collect-meta.sh:34`): `NF=9` in
+      each, Status in `$6`; open-meta count 102 on staging → 106 here, unchanged from round 1.
+- [ ] **Full gate: not re-run, and still not green.** `npm run -s gate:status` (exit 1) still reports
+      run `20260918T062621Z-3957-e563`, which ran on `da759e57`: red, 2848 passed, 9 failed, 515
+      skipped, the one red suite being `honest-publish-reporting` for the row-288 host reason. Since
+      that commit the branch gained `8f4a068d` (this review file) and `12f7fba9` (`OPEN.md` and
+      `book.md`): three records files, no source, no test, no harness-definition path. No file under
+      `test/` references this book, and every suite that reads the ledger, the reviews folder or a
+      book manifest is among the six re-run above on the new HEAD. So the record is still applicable
+      — as exactly the evidence it was in round 1 and no more: a red local gate, on a host that cannot
+      execute 15.3% of the cases, showing that a records-only diff broke nothing it could reach. It is
+      not a green gate. The binding run remains CI's Node 22 `stack-free` job on the PR.
+
+### Claims adherence (round 2)
+
+Each statement the fix-up wrote was checked with a fresh command, not against round 1's notes.
+
+| Claim in the fix-up | Evidence | Result |
+|---|---|---|
+| Blocking 1. The numbering note now gives the true order: rows 74–77 already on origin, pushed 2026-07-22T03:48Z–04:13Z, against the note's 18:21Z commit; the reservation covered only the two rows the branch's name advertises | GitHub activity API re-run: `branch_creation` 03:23:20Z (`e3aa871a`, rows 72–73), `push` 03:48:32Z, `force_push` 04:13:07Z (`8a9ef91e`, rows 72–76), `push` 04:13:24Z (`d42715a4`, rows 72–77); row content read from each tip that exists in this clone (the 03:48Z tip `fd2d3f83` was force-replaced; its amended successor is author-dated 03:48:23Z). `355bef13` is 2026-07-22T18:21:32Z and reserves "rows 72–73" for a branch named `…open72-73-…`. The wording states what the reservation covered, which is true however the 2026-07-22 session arrived at it; the closing sentence is advice for the next reservation, not a claim about that session | holds |
+| Same line: the original staging text survives | `str.startswith`: staging's line (288 characters) is a verbatim prefix of the HEAD line (783). It is the only staging non-row line that is not present verbatim at HEAD | holds |
+| The lesson was not appended to row 307 | rows changed since `da759e57`: 72, 73, 321 only; row 307 is byte-identical to staging. Agreed, and better than round 1's suggestion, which asked for an edit to another session's row: the lesson now lives in the note this packet already owns, and the row-307 append goes to the operator as a proposal | holds |
+| Blocking 2. The shared line dropped `deploy-communities.yml` in `3b84677d` (2026-09-12) and never carried `deploy-curate.yml`; surviving copies trigger only on pushes to the two archived branches | own script over all 27 `origin/*` refs: 16 copies of `deploy-communities.yml`, every one with the identical trigger block `on: push: branches: [feat/communities]`; 1 copy of `deploy-curate.yml`, on `origin/feat/curate`, with `branches: [feat/curate]`; no other trigger key in any of the 17 (no manual dispatch, no pull-request trigger). `git log --diff-filter=D` names `3b84677d` as the deleting commit on both `origin/staging` and `origin/main`; git dates it 2026-09-12 (author-local; 00:33Z on the 13th). `git log -- .github/workflows/deploy-curate.yml` is empty on both shared refs. None of the 14 non-archived carriers contains `3b84677d`; one of them, `feat/dlist-item-tagging`, has a newer tip but was cut before the removal, so "older" holds in the sense that matters. That phrase came from this reviewer's round-1 suggested wording and was checked here like any other claim | holds |
+| Blocking 3. Row 321 now reads "(L2 waiver; row 322)" | read at `OPEN.md:382`. Citation sweep over the eight rows and both numbering notes: 29, 38, 39, 43, 47, 78, 317, 319, 322 each resolve to the intended row; 321 → 322, 319 → 322 and 322 → 47, 319 are now mutually consistent with the CHANGELOG row and the waiver line | holds |
+| Row 73: the check no longer exits 2 — it exited 1 at 05:36Z and 0 on the reviewer's later run; which depends on the schedule | the Implementer's saved endpoint response in the session scratchpad (`checkedAt` 2026-09-18T05:35:57.667Z): `unsafe`, `NEXT_FIRE_WITHIN_BUFFER`, next fire 05:41:41.767Z — 5 m 44 s away, inside the 600 000 ms buffer — on which a one-attempt run exits 1. The same task shows next fire 15:41:41.767Z in this reviewer's reads at 14:54Z and 15:22Z, so it fires hourly at :41:41 and the 05:36Z answer is what the schedule predicts. Script runs here at 14:54:28Z and 15:22:47Z: exit 0 both times. Nobody saw 2. Corroborated rather than re-observed | holds |
+| Row 73: `30e4ff68` landed "about 21 hours after this row was written" | `e3aa871a` 2026-07-22T03:23:19Z → `30e4ff68` 2026-07-23T00:36:01Z = 21 h 12 m 42 s. The Done cell still reads 2026-07-22, which is how git dates `30e4ff68` (author-local); the prose now carries the clock-free figure, so nothing in the row depends on which clock the reader uses | holds |
+| Row 321: title softened; the Background sentence named as the builder's self-report | story line 8: "Operator-approved design (2026-06-19), built lightweight (no ADR/failing-tests; browser-verified)". Five criteria still unchecked, Review placeholder still in place, no review folder | holds |
+| `book.md:48`: the replaced words were committed text, `8a9ef91e` | `git show 8a9ef91e:…/book.md` line 48 contains "retired to `epics/done/` at this close"; `d42715a4` did not touch the file | holds |
+| `book.md:49`: the `tag-event-inspector` waiver had been retired on 2026-07-18, four days before this was written; this one's retirement is tracked by row 322 | the waiver line was removed by `a9929df9` ("chore: retire epic tag-event-inspector"), 2026-07-18 on both clocks (11:36 −04:00, 15:36Z). Against the book's own `Closed: 2026-07-22` — also the UTC date of `8a9ef91e` — 22 − 18 = 4. On a stopwatch it is 3 d 12 h 12 m. Row 322 is the row that says "Retire the waiver with this fix" | holds (see Non-blocking 2) |
+| Ledger integrity, re-run because `OPEN.md` changed again | 313 of 313 staging rows present, byte-identical, in order; 321 rows, no duplicate numbers, only gap 257; rows 72, 73, 317–322 each 8 raw pipes, 0 escaped, 7 cells; the original stranded Item text a verbatim prefix in all six landed rows; Type, Opened and Pointer as in round 1 (only 319's pointer differs from the stranded branch) | holds |
+| Nothing else | `git show --name-status 12f7fba9`: two files. Branch against staging: the nine files of round 1 plus this review. Added lines scanned for key material: no hit. No edit residue in the three rows (balanced `*( … )*`, even backticks, no doubled words, no double spaces). `git ls-remote origin refs/heads/staging` is still `4585e1e1`, so 317–322 are still the next free numbers. The fix-up's own commit message was read against all of the above and is accurate, including its correction of `da759e57`'s "four citations" to five lines and seven numbers | holds |
+
+### Findings (round 2)
+
+**Blocking.** None. The three round-1 items are fixed, each fix was verified independently, and
+nothing the fix-up added is false.
+
+**Non-blocking.**
+
+1. **The substitution follow-up needs a narrower grep now.** Round 1 suggested
+   `git grep -n 'stranded-close PR'` to find the placeholders. That command now also matches this
+   review file, which quotes the string in both rounds. The four to substitute are in the records only:
+   `OPEN.md:106`, `OPEN.md:378`, `OPEN.md:381` and
+   `engineering-team/audits/about-brainstorm-search/audit.md:9`. Restrict the search to `OPEN.md` and
+   `engineering-team/audits/`, and leave this file as it is.
+2. **"Four days" is right against the book's date and is not clock-proof.** Elapsed time is three and
+   a half days, and on the author's local calendar the book text was committed late on 2026-07-21. The
+   book itself says 2026-07-22, which is the frame a reader of that file has, and the note's material
+   point — the waiver was already gone when the book cited it as live — is true on any clock by a wide
+   margin. No change asked.
+3. **Still owed after this merges, unchanged from round 1 and the operator's to carry:** the PR
+   number into the four placeholders; the CHANGELOG row's Date cell if the merge is not same-day; the
+   stranded branch's deletion; and the proposal to append the reserve-from-content lesson to row 307.
+   The PR body drafted in the session scratchpad was checked by pattern only, not reviewed as a
+   document: it carries the renumbering map, "five lines" and "seven numbers", the placeholder note,
+   the merge-date note, the Node 22 note and the branch deletion.
+
+**Harness friction.**
+
+1. **A reviewer's suggested wording needs the same verification as an Implementer's claim.** Both
+   blocking fixes adopted round 1's suggested sentences nearly verbatim. That is efficient, and it is
+   also how an unverified reviewer phrase could enter a record with two roles' apparent endorsement.
+   Round 2 therefore re-derived both sentences from commands rather than recognising them as its own;
+   "older branches" is the one phrase that needed a second look. Worth a line in the reviewer role: a
+   suggested replacement is a claim, and the next round checks it as one.
+2. Row 316 recurred a second time in this packet: the wiring says commit and flip, the brief reserves
+   both, and the brief was followed.
+
+### Verdict (round 2)
+
+**PASS**
+
+Round 1 asked for three changes and all three are made, verified from fresh commands: the numbering
+note now gives the true order of events and the lesson that follows from it, row 72's premise is true
+of all seventeen surviving workflow copies, and row 321 points at the row that governs the waiver. The
+four optional items the Implementer also took are accurate. No staging row moved, every cross-reference
+resolves to the row it means, lint is clean, the six suites that read a changed file are green on the
+new HEAD, and L2 demonstrably still evaluates the re-edited manifest.
+
+The local full gate remains red on this host for the recorded Node 16 reason and was not re-run; that
+is accepted for a records-only diff and is not a green gate. CI's Node 22 job on the PR is the binding
+run. This lane has no story to flip and no book to close, and the commit is the orchestrator's.
