@@ -1,6 +1,6 @@
 # ADR 0002: `membershipMethod` — a per-pin membership method, disclosed on every 30392
 
-**Status:** Accepted (J1 design gate 2026-09-18)
+**Status:** Accepted (J1 design gate 2026-09-18; re-aim table amended at Review — the three live suites' S1 source contracts also follow the vocabulary into `ui/src/config/tlMembershipMethods.js`)
 **Date:** 2026-09-18
 **Story:** `engineering-team/stories/search-index-selection/3-per-pin-membership-method.md`
 

@@ -172,8 +172,13 @@ t('U2 resolver: settings "certainty" → "certainty"', async () => {
 });
 
 t('S1 UI: certainty option enabled with 0–100 blurb', async () => {
+  // Re-aimed 2026-09-18 (search-index-selection #3, ADR 0002 §3): the method vocabulary
+  // (TL_MEMBERSHIP_METHODS) moved out of the page into ui/src/config/tlMembershipMethods.js,
+  // which the page imports. The contract is unchanged — the page renders exactly this
+  // vocabulary — so the source under test is the page PLUS its vocabulary module.
   const src = fs.readFileSync(
-    path.join(REPO_ROOT, 'ui', 'src', 'pages', 'grapevine', 'TrustDetermination.jsx'), 'utf-8');
+    path.join(REPO_ROOT, 'ui', 'src', 'pages', 'grapevine', 'TrustDetermination.jsx'), 'utf-8')
+    + '\n' + (() => { try { return fs.readFileSync(path.join(REPO_ROOT, 'ui', 'src', 'config', 'tlMembershipMethods.js'), 'utf-8'); } catch { return ''; } })();
   const entry = src.match(/\{ id: 'certainty'[\s\S]*?\}/);
   assert(entry, 'certainty entry must exist');
   assert(/available: true/.test(entry[0]), 'certainty must be available: true at rung 3');

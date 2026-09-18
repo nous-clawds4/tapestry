@@ -222,8 +222,13 @@ t('U7 resolver: override "count" honored on a fresh per-call disk read (AC-2)', 
 /* Source contract */
 
 t('S1 TrustDetermination.jsx renders the TL membership-method panel: 3 methods, unimplemented disabled (AC-1)', async () => {
+  // Re-aimed 2026-09-18 (search-index-selection #3, ADR 0002 §3): the method vocabulary
+  // (TL_MEMBERSHIP_METHODS) moved out of the page into ui/src/config/tlMembershipMethods.js,
+  // which the page imports. The contract is unchanged — the page renders exactly this
+  // vocabulary — so the source under test is the page PLUS its vocabulary module.
   const src = fs.readFileSync(
-    path.join(REPO_ROOT, 'ui', 'src', 'pages', 'grapevine', 'TrustDetermination.jsx'), 'utf-8');
+    path.join(REPO_ROOT, 'ui', 'src', 'pages', 'grapevine', 'TrustDetermination.jsx'), 'utf-8')
+    + '\n' + (() => { try { return fs.readFileSync(path.join(REPO_ROOT, 'ui', 'src', 'config', 'tlMembershipMethods.js'), 'utf-8'); } catch { return ''; } })();
   for (const id of ['count', 'input', 'certainty']) {
     assert(new RegExp(`['"\`]${id}['"\`]`).test(src),
       `TrustDetermination.jsx must reference membership-method id "${id}"`);

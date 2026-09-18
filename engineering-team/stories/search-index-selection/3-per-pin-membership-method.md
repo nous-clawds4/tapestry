@@ -215,6 +215,25 @@ Approved as proposed. The rulings below are settled, not open questions.
   cap. It is nonetheless the closest guard to this story — the **operator runs it against a
   running stack at Gate B**, and its `membership-method`-tag expectations change under AC-4.
 
+## Deviations
+
+Both reported by the Implementer at the Phase-4 gate and confirmed in review (`048f5b76`); both are
+in-radius and benign.
+
+- **ADR §1's hoisted dial alias was inlined.** The ADR wrote
+  `const resolveDial = deps.resolveMembershipMethod || resolveMembershipMethod;` and then
+  `… : (warn(…), resolveDial())`. The shipped code keeps the original ternary inline
+  (`refreshPinnedTags.js:318-323`). Forced by the untouched guard
+  `test/pin-stack-composition.test.js:473-475`, which requires the literal `resolveMembershipMethod(`
+  to appear inside `runOnePin`'s body (an alias assignment reads `resolveMembershipMethod;`, without
+  the paren, and the guard would fail). Semantics are identical: the injected `deps` seam still wins,
+  still zero-arg, still pin-blind (asserted by H13 and by `pin-stack-composition` AC-4's
+  context test).
+- **The comment-only edit to `ui/src/utils/publishTagPin.js` was omitted.** ADR §3 asked for a
+  comment in `defaultCurationMethod` noting that new pins deliberately carry no `membershipMethod`.
+  No code consequence: the function's behaviour is unchanged and S8 asserts it still leaves new pins
+  on the instance default.
+
 ## Linked artifacts
 
 - Design target: `docs/SEARCH_INDEX_DLIST_SELECTION.md` (rev 3), § "Design note: per-pin
@@ -276,3 +295,12 @@ new tag.
 `tl-weighted-sum-method:324` to `'input'` (the dial its setup writes), but that test runs with **no
 POV filter**, so the weighted fold degrades to `count` (E2) — its own next assertion proves it. AC-4
 requires the post-downgrade fold, so the plan re-aims it to `'count'`.
+
+## Amendment (2026-09-18, at Review) — three more re-aim targets
+
+The ADR §3 vocabulary move broke three source-contract assertions the re-aim table missed —
+`test/tl-weighted-sum-method.test.js` S1, `test/tl-certainty-method.test.js` S1,
+`test/tl-membership-method-selector.test.js` S1 — each reading `TrustDetermination.jsx` for the
+method-entry literals that now live in `ui/src/config/tlMembershipMethods.js`. Re-aimed (not by
+the Implementer): the source under test is the page plus its vocabulary module; every assertion
+is otherwise unchanged. Verified: all three S1 handles pass in the pre-live phase.
