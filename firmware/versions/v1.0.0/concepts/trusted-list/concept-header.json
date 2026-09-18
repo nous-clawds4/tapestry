@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-trusted-lists",
+    "name": "concept header for the concept of trusted lists",
+    "title": "Concept Header for the Concept of Trusted Lists",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A replaceable DList (kind 30392/30393/30394/30395) whose members were derived from a Web-of-Trust computation performed from a specific observer's point of view.",
+    "oNames": { "singular": "trusted list", "plural": "trusted lists" },
+    "oSlugs": { "singular": "trusted-list", "plural": "trusted-lists" },
+    "oKeys": { "singular": "trustedList", "plural": "trustedLists" },
+    "oTitles": { "singular": "Trusted List", "plural": "Trusted Lists" },
+    "oLabels": { "singular": "TrustedList", "plural": "TrustedLists" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

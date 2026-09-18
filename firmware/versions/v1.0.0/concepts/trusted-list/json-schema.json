@@ -1,0 +1,25 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-trusted-lists",
+    "name": "JSON schema for the concept of trusted lists",
+    "title": "JSON Schema for the Concept of Trusted Lists",
+    "description": "the json schema for the concept of trusted lists",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-trusted-lists",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "trusted list",
+    "title": "Trusted List",
+    "description": "JSON Schema for the concept of trusted lists. Permissive: a Trusted List is a kind-3039x event whose membership and provenance live in tags, so no content payload is required.",
+    "required": [],
+    "definitions": {},
+    "properties": {}
+  }
+}

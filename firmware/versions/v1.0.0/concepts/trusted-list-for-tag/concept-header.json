@@ -1,0 +1,25 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-trusted-lists-for-tags",
+    "name": "concept header for the concept of trusted lists for tags",
+    "title": "Concept Header for the Concept of Trusted Lists for Tags",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A DList header for Trusted Lists derived from a specific Tag. Each item points to the Tag it is derived from via an a-tag (preferred) or e-tag.",
+    "oNames": { "singular": "trusted list for tag", "plural": "trusted lists for tags" },
+    "oSlugs": { "singular": "trusted-list-for-tag", "plural": "trusted-lists-for-tags" },
+    "oKeys": { "singular": "trustedListForTag", "plural": "trustedListsForTags" },
+    "oTitles": { "singular": "Trusted List For Tag", "plural": "Trusted Lists For Tags" },
+    "oLabels": { "singular": "TrustedListForTag", "plural": "TrustedListsForTags" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    },
+    "headerTags": [
+      ["recommended", "a"],
+      ["allowed", "e"]
+    ]
+  }
+}

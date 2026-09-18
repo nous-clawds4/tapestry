@@ -395,6 +395,26 @@
                     "wss://dcosl.brainstorm.world"
                 ]
             }
+        },
+        {
+            "slug": "trusted-list",
+            "dir": "./concepts/trusted-list/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag",
+                "nostr"
+            ]
+        },
+        {
+            "slug": "trusted-list-for-tag",
+            "dir": "./concepts/trusted-list-for-tag/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag",
+                "nostr"
+            ]
         }
     ],
     "enumerations": {

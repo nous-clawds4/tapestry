@@ -25,7 +25,8 @@ const profileTags = require('../profile-tags');
 const { buildAndPublishTL } = require('./index');
 const { resolvePov } = require('../_shared/pov');
 const {
-  curateNotes, contextSlugOfPin, contextHandle, tlDTag, noteTlDTag,
+  curateNotes, contextSlugOfPin, contextHandle, tlDTag, noteTlDTag, itemTlDTag,
+  trustedListZTags, conceptTrustedList, tlHeaderDTag, tlHeaderAddr, buildTLHeader,
 } = require('../../lib/event-tagging');
 const { resolveMembershipMethod } = require('./membershipMethods');
 
@@ -35,6 +36,13 @@ const TAG_PINNING_Z_TAG = profileTags.TAG_PINNING_Z_TAG;
 // ~1000 e-tags ≈ 75KB, under typical strfry max-event-size limits. Exceeding it publishes the top N
 // and marks the TL partial (a SIGNALED bound, never a silent small cap). Operator-tunable per relay.
 const NOTE_TL_MEMBER_CAP = 1000;
+// Max item members carried in a single kind-30394 item TL (ADR dlist-item-tagging/0003 §1.9).
+// Half NOTE_TL_MEMBER_CAP: an `a` coordinate (~80–120 bytes) is roughly double a 64-hex `e` id,
+// so 500 keeps one event inside the same ~75KB budget. Overflow is SIGNALED, never silent.
+const ITEM_TL_MEMBER_CAP = 500;
+// A relay round-trip for the lazy TL header must never stall a refresh cycle: the header is
+// best-effort (failure policy F1 — publish the TL without the per-tag z), so bound it.
+const TL_HEADER_RELAY_TIMEOUT_MS = 5000;
 
 function isHexPubkey(v) {
   return typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
@@ -134,6 +142,82 @@ function applyDisputesFunction(byTarget, cutoff) {
   members.sort((a, b) =>
     (b.endorsements - a.endorsements) || a.pubkey.localeCompare(b.pubkey));
   return members;
+}
+
+/**
+ * Positive-only memo of per-tag TL-header `d`-tags known to exist (confirmed by a
+ * scan hit or a successful publish). A header is never deleted, so a positive cache
+ * is sound across cycles; a NEGATIVE cache would wedge a failed mint until restart.
+ */
+const tlHeaderMemo = new Set();
+
+function withRelayTimeout(promise, ms) {
+  let timer = null;
+  const bounded = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`TL header relay call timed out after ${ms}ms`)), ms);
+    if (timer.unref) timer.unref();
+  });
+  return Promise.race([Promise.resolve(promise), bounded])
+    .finally(() => { if (timer) clearTimeout(timer); });
+}
+
+/** Default header publisher: sign as the TA and write to local strfry (+ best-effort graph import). */
+async function publishTLHeaderEvent(unsigned) {
+  const {
+    loadTAKey, signAndFinalize, publishToStrfry, importEventDirect,
+  } = require('../normalize/helpers');
+  await loadTAKey();
+  const event = signAndFinalize(unsigned);
+  await publishToStrfry(event);
+  const dTag = (event.tags || []).find((t) => t[0] === 'd');
+  try {
+    await importEventDirect(event, `39999:${event.pubkey}:${dTag ? dTag[1] : ''}`);
+  } catch {
+    // The relay copy is what discovery reads; the graph row is a convenience.
+  }
+  return event;
+}
+
+/**
+ * ADR dlist-item-tagging/0002 + 0003 §3 — ensure the tag's per-tag Trusted-List
+ * header (TA-signed kind-39999 at `d = tl:<slug>-tls`) exists. Lazy, idempotent,
+ * memoized positively. NEVER throws: failure policy F1 wants the Trusted List
+ * published anyway, minus only the per-tag `z` membership claim.
+ *
+ * Injectable deps ({ strfryScan | scan, publishHeader | publish | publishEvent })
+ * so the header path is exercisable without a relay.
+ */
+async function ensureTagTLHeader({ tag }, deps = {}) {
+  const slug = tag && tag.slug;
+  if (!slug) return { status: 'error', errorReason: 'tag has no slug' };
+  const dTag = tlHeaderDTag(slug);
+  const addr = tlHeaderAddr(TA_PUBKEY, slug);
+  if (tlHeaderMemo.has(dTag)) return { status: 'exists', addr };
+
+  const scan = deps.strfryScan || deps.scan || strfryScan;
+  const publishHeader = deps.publishHeader || deps.publish || deps.publishEvent || publishTLHeaderEvent;
+  try {
+    const existing = await withRelayTimeout(
+      scan({ kinds: [39999], authors: [TA_PUBKEY], '#d': [dTag] }), TL_HEADER_RELAY_TIMEOUT_MS,
+    );
+    if (Array.isArray(existing) && existing.length > 0) {
+      tlHeaderMemo.add(dTag);
+      return { status: 'exists', addr };
+    }
+    const name = tag.name || slug;
+    await withRelayTimeout(publishHeader(buildTLHeader({
+      tagAuthorPubkey: tag.authorPubkey,
+      slug,
+      names: [`Trusted List for ${name}`, `Trusted Lists for ${name}`],
+      description: `Trusted Lists derived from the ${name} tag.`,
+      taPubkeys: [TA_PUBKEY],
+    })), TL_HEADER_RELAY_TIMEOUT_MS);
+    tlHeaderMemo.add(dTag);
+    return { status: 'created', addr };
+  } catch (err) {
+    // F1: no memo on failure — the next refresh retries the mint.
+    return { status: 'error', addr, errorReason: err.message };
+  }
 }
 
 /**
@@ -237,6 +321,17 @@ async function runOnePin(pinEvent, options = {}) {
     observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug,
   });
 
+  // ADR dlist-item-tagging/0002 — every Trusted List carries the concept z plus a
+  // membership claim on the tag's (lazily minted) per-tag TL header. F1: if the
+  // header cannot be minted, keep the concept axis and drop only the claim.
+  const ensureHeaderDep = deps.ensureTagTLHeader || deps.ensureHeader;
+  const headerResult = ensureHeaderDep
+    ? await ensureHeaderDep({ tag }, deps)
+    : await ensureTagTLHeader({ tag }, deps);
+  const tlZTags = (headerResult && headerResult.status !== 'error')
+    ? trustedListZTags({ taPubkey: TA_PUBKEY, tagSlug: tag.slug })
+    : [['z', conceptTrustedList(TA_PUBKEY)]];
+
   try {
     const { event } = await publishTL({
       kind: 30392,
@@ -257,6 +352,9 @@ async function runOnePin(pinEvent, options = {}) {
         // spec'd); rigor rides certainty TLs so consumers can reproduce
         // scores (D12: constant, not a knob).
         ...(membershipMethod === 'certainty' ? [['rigor', '0.5']] : []),
+        // ADR dlist-item-tagging/0002 — the family-wide Trusted-List z pair. The
+        // 30392 gains its FIRST relay-filterable discovery axis here.
+        ...tlZTags,
         // ADR feat-tags-modernization/0001 §3 — a CONTEXTUAL list carries the
         // context concept as an additional `z`, so a plain relay filter
         // ({kinds:[30392], "#z":[<context>]}) finds "every TL in <context>".
@@ -310,7 +408,12 @@ async function refreshOnePinnedTagById({ pinEventId, sessionPubkey }) {
   // profile-only pins (returns 'skipped').
   const profileResult = await runOnePin(pin);
   const noteResult = await runOneNotePin(pin);
-  return { ...profileResult, noteStatus: noteResult && noteResult.status };
+  const itemResult = await runOneItemPin(pin);
+  return {
+    ...profileResult,
+    noteStatus: noteResult && noteResult.status,
+    itemStatus: itemResult && itemResult.status,
+  };
 }
 
 /**
@@ -319,9 +422,14 @@ async function refreshOnePinnedTagById({ pinEventId, sessionPubkey }) {
  * retracted via an empty-membership replacement. Idempotent — already-
  * retracted slots are skipped via the marker check.
  */
-async function retractStaleTLs(currentDTags, { kind = 30392, dPrefix = 'tl-pin-' } = {}) {
+async function retractStaleTLs(currentDTags, options = {}) {
+  const { kind = 30392, dPrefix = 'tl-pin-' } = options;
+  // Same injectable-deps shape as the runners, so the sweep is testable without a relay.
+  const deps = options.deps || options;
+  const scan = deps.strfryScan || deps.scan || strfryScan;
+  const publish = deps.publishTL || deps.publish || buildAndPublishTL;
   const wanted = new Set(currentDTags);
-  const tls = await strfryScan({ kinds: [kind], authors: [TA_PUBKEY] });
+  const tls = await scan({ kinds: [kind], authors: [TA_PUBKEY] });
   for (const tl of tls) {
     const dTag = dTagOf(tl);
     if (!dTag || !dTag.startsWith(dPrefix)) continue;
@@ -332,11 +440,14 @@ async function retractStaleTLs(currentDTags, { kind = 30392, dPrefix = 'tl-pin-'
     if (alreadyRetracted) continue;
     // Find the title/observer/source-tag from the prior TL to carry forward
     // (consumers reading the retracted event can still tell which TL it was).
+    // ADR dlist-item-tagging/0003 §1: `z` rides along too, so a #z consumer sees the
+    // list marked `retracted` rather than watch it vanish off the discovery axis.
     const carryOver = (tl.tags || []).filter((t) =>
       t[0] === 'title' || t[0] === 'metric' || t[0] === 'observer' || t[0] === 'source-tag'
+      || t[0] === 'z'
     );
     try {
-      await buildAndPublishTL({
+      await publish({
         kind,
         dTag,
         items: [],
@@ -417,6 +528,15 @@ async function runOneNotePin(pinEvent, options = {}) {
     observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug,
   });
 
+  // ADR dlist-item-tagging/0002 — the same family-wide z pair, same F1 fallback.
+  const ensureHeaderDep = deps.ensureTagTLHeader || deps.ensureHeader;
+  const headerResult = ensureHeaderDep
+    ? await ensureHeaderDep({ tag }, deps)
+    : await ensureTagTLHeader({ tag }, deps);
+  const tlZTags = (headerResult && headerResult.status !== 'error')
+    ? trustedListZTags({ taPubkey: TA_PUBKEY, tagSlug: tag.slug })
+    : [['z', conceptTrustedList(TA_PUBKEY)]];
+
   try {
     const { event, uuid } = await publishTL({
       kind: 30393,
@@ -432,6 +552,9 @@ async function runOneNotePin(pinEvent, options = {}) {
         //   #a → find every note TL for a tag across observers;  #p → find every note TL for an observer.
         ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
         ['p', observer],
+        // ADR dlist-item-tagging/0002 — the family-wide Trusted-List z pair. The
+        // legacy a/p pair above stays through the dual-emit window (Decision 4).
+        ...tlZTags,
         // Partial signal: present ⇒ the list is NOT exhaustive; the value is the true total. Absent ⇒ complete.
         ...(partial ? [['truncated', String(totalTrusted)]] : []),
         // ADR feat-tags-modernization/0001 §3 — the context z rides the NOTE
@@ -450,6 +573,115 @@ async function runOneNotePin(pinEvent, options = {}) {
 }
 
 /**
+ * Story dlist-item-tagging #5 / ADR 0003 — the ITEM twin of `runOneNotePin`. For a pin whose
+ * curation method targets ITEMS, publish a TA-signed **kind-30394** Trusted List of the
+ * trusted-tagged addressable items (`a`-coordinate members) under the observer POV.
+ * `d`-tag `tl-pin-items-<obs8>-<tagAuthor8>-<slug>`, metric `pinned-tag-items`. An empty
+ * curated set publishes NOTHING (AC-6). Injectable deps
+ * ({ lookupTag, aggregateNotesTagged, publishTL, ensureTagTLHeader }) for hermetic tests.
+ */
+async function runOneItemPin(pinEvent, options = {}) {
+  const deps = options.deps || options;
+  const lookupTag = deps.lookupTag || lookupTagEvent;
+  const aggregateNotesTagged = deps.aggregateNotesTagged || ((args) => require('../event-tags').aggregateNotesTagged(args));
+  const publishTL = deps.publishTL || buildAndPublishTL;
+
+  const curation = profileTags.parseCurationMethod(pinEvent);
+  if (!curation || curation.method !== 'nip85:rank') {
+    return { status: 'unsupported', errorReason: 'curation method not supported in v1' };
+  }
+  const observer = curation.observer;
+  if (!isHexPubkey(observer)) {
+    return { status: 'error', errorReason: 'observer pubkey missing or malformed' };
+  }
+  // Item-targeting gate (AC-2): absent targetTypes reads as the PRE-EXISTING default
+  // (['profile','note']), so a pin authored before this story publishes no item list.
+  const targetTypes = Array.isArray(curation.targetTypes) ? curation.targetTypes : ['profile', 'note'];
+  if (!targetTypes.includes('item')) {
+    return { status: 'skipped', errorReason: 'pin does not target items' };
+  }
+  const tagEventId = profileTags.parsePinTagEventId(pinEvent);
+  if (!tagEventId) {
+    return { status: 'error', errorReason: 'pin event has no referenced tag event id' };
+  }
+  const tag = await lookupTag(tagEventId);
+  if (!tag) {
+    return { status: 'error', errorReason: 'referenced tag event missing from local strfry' };
+  }
+
+  // ADR feat-tags-modernization/0001 §1 — context first (identity), then scoring.
+  const contextSlug = contextSlugOfPin(pinEvent, TA_PUBKEY);
+
+  const { povSuffix, minRank } = (deps.resolvePov || resolvePov)({ wotPov: 'user', userPubkey: observer });
+  const noteMethod = curation.noteMethod || 'notes:net-endorsed';
+  const sort = noteMethod === 'notes:most-applied' ? 'applied' : 'recent';
+  const { fullItemMembers, itemTotal, scanTruncated } = await aggregateNotesTagged({
+    tagAuthor: tag.authorPubkey, slug: tag.slug, authorities: [TA_PUBKEY],
+    povSuffix, minRank, viewerPubkey: undefined, sort,
+  });
+  // ADR 0003 §1.7: `fullItemMembers` mixes address-keyed and id-keyed members. An id-keyed
+  // member has NO coordinate and therefore cannot be an `a` member. This story adds no other
+  // filter — whatever coordinate kinds the aggregation admits are what get signed (E5).
+  const addressable = (fullItemMembers || []).filter((m) => typeof m.address === 'string' && m.address);
+  const noteCutoff = Number.isFinite(curation.cutoff) ? curation.cutoff : 1;
+  // `curateNotes` is pure over {applications, disputes, createdAt} and never reads `id`,
+  // so address rows curate identically — reused verbatim, no itemMethod enum.
+  const curated = curateNotes(addressable, noteMethod, noteCutoff);
+  const published = curated.slice(0, ITEM_TL_MEMBER_CAP);
+  const totalTrusted = Number.isFinite(itemTotal) ? itemTotal : curated.length;
+  const partial = !!scanTruncated || curated.length > ITEM_TL_MEMBER_CAP;
+  // AC-6: never an empty 30394 — nothing published at all when nothing qualifies.
+  if (published.length === 0) {
+    return { status: 'skipped', errorReason: 'no trusted item taggings' };
+  }
+
+  const dTag = itemTlDTag({
+    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug,
+  });
+
+  // ADR dlist-item-tagging/0002 — the family-wide z pair, same F1 fallback.
+  const ensureHeaderDep = deps.ensureTagTLHeader || deps.ensureHeader;
+  const headerResult = ensureHeaderDep
+    ? await ensureHeaderDep({ tag }, deps)
+    : await ensureTagTLHeader({ tag }, deps);
+  const tlZTags = (headerResult && headerResult.status !== 'error')
+    ? trustedListZTags({ taPubkey: TA_PUBKEY, tagSlug: tag.slug })
+    : [['z', conceptTrustedList(TA_PUBKEY)]];
+
+  try {
+    const { event, uuid } = await publishTL({
+      kind: 30394,
+      dTag,
+      title: tag.name,
+      metric: 'pinned-tag-items',
+      items: published.map((m) => ({ tag: 'a', value: m.address })),
+      extraTags: [
+        ['observer', observer],
+        ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
+        ['curation-method', noteMethod],
+        // E1: NO `a` back-ref here — on a 30394 `a` IS the member letter, so a tag
+        // coordinate would be read as a curated item. `p` is a non-member letter, so
+        // {kinds:[30394], "#p":[observer]} stays an unambiguous observer axis.
+        ['p', observer],
+        ...tlZTags,
+        ...(contextSlug ? [['z', contextHandle(TA_PUBKEY, contextSlug)]] : []),
+        // Partial signal: present ⇒ NOT exhaustive, value is the true total. Absent ⇒ complete.
+        ...(partial ? [['truncated', String(totalTrusted)]] : []),
+      ],
+      content: JSON.stringify({
+        items: published.map((m) => ({ address: m.address, applications: m.applications, disputes: m.disputes })),
+        ...(partial ? { partial: true, total: totalTrusted } : {}),
+      }),
+    });
+    return { status: 'ok', dTag, memberCount: published.length, partial, uuid: uuid || (event && event.id) };
+  } catch (err) {
+    // Story § Rulings 1 (unified failure policy): return the d-tag so the cycle roster
+    // keeps it and a transient publish failure never retracts a live list.
+    return { status: 'error', dTag, errorReason: err.message };
+  }
+}
+
+/**
  * Refresh every pin event in local strfry (cron path).
  * Returns { pins: [{ pinEventId, status, ... }] }
  */
@@ -458,16 +690,29 @@ async function refreshAllPinnedTags() {
   const results = [];
   const currentDTags = [];
   const currentNoteDTags = [];
+  const currentItemDTags = [];
   for (const pin of pins) {
     const result = await runOnePin(pin);
     // event-tagging #17: the note TL is refreshed alongside the pubkey TL for every note-targeting pin.
     const noteResult = await runOneNotePin(pin);
-    results.push({ pinEventId: pin.id, ...result, noteTL: { status: noteResult.status, dTag: noteResult.dTag, memberCount: noteResult.memberCount } });
+    // dlist-item-tagging #5: and the item TL for every item-targeting pin.
+    const itemResult = await runOneItemPin(pin);
+    results.push({
+      pinEventId: pin.id,
+      ...result,
+      noteTL: { status: noteResult.status, dTag: noteResult.dTag, memberCount: noteResult.memberCount },
+      itemTL: { status: itemResult.status, dTag: itemResult.dTag, memberCount: itemResult.memberCount },
+    });
+    // Story dlist-item-tagging #5 § Rulings 1 — ONE failure policy for every TL kind: a
+    // d-tag from a FAILED publish still joins the roster, so the sweep below can never
+    // retract a live list over a transient error.
     if (result.dTag) currentDTags.push(result.dTag);
-    if (noteResult.dTag && noteResult.status === 'ok') currentNoteDTags.push(noteResult.dTag);
+    if (noteResult.dTag) currentNoteDTags.push(noteResult.dTag);
+    if (itemResult.dTag) currentItemDTags.push(itemResult.dTag);
   }
   await retractStaleTLs(currentDTags);
   await retractStaleTLs(currentNoteDTags, { kind: 30393, dPrefix: 'tl-pin-notes-' });
+  await retractStaleTLs(currentItemDTags, { kind: 30394, dPrefix: 'tl-pin-items-' });
   return { pins: results };
 }
 
@@ -482,7 +727,13 @@ async function refreshPinnedTagsForViewer(viewerPubkey) {
   for (const pin of pins) {
     const result = await runOnePin(pin);
     const noteResult = await runOneNotePin(pin);
-    results.push({ pinEventId: pin.id, ...result, noteTL: { status: noteResult.status, dTag: noteResult.dTag, memberCount: noteResult.memberCount } });
+    const itemResult = await runOneItemPin(pin);
+    results.push({
+      pinEventId: pin.id,
+      ...result,
+      noteTL: { status: noteResult.status, dTag: noteResult.dTag, memberCount: noteResult.memberCount },
+      itemTL: { status: itemResult.status, dTag: itemResult.dTag, memberCount: itemResult.memberCount },
+    });
   }
   return { pins: results };
 }
@@ -494,7 +745,11 @@ module.exports = {
   // Exported for tests:
   runOnePin,
   runOneNotePin,
+  runOneItemPin,
+  ensureTagTLHeader,
+  retractStaleTLs,
   NOTE_TL_MEMBER_CAP,
+  ITEM_TL_MEMBER_CAP,
   computeTLDTag,
   applyDisputesFunction,
 };

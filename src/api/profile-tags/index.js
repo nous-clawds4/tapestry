@@ -24,7 +24,7 @@
 
 const { exec } = require('child_process');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
-const { contextSlugOfPin, pinVariantKey } = require('../../lib/event-tagging');
+const { contextSlugOfPin, pinVariantKey, itemTlDTag } = require('../../lib/event-tagging');
 
 /**
  * Legacy z-tag-composition pubkey — see ADR 0015.
@@ -1648,6 +1648,9 @@ async function enrichRowsWithTLStatus(pins) {
   // failure the rows carry the field — the read contract stays uniform).
   for (const row of pins) {
     row.tlStatus = { status: 'never', lastRefreshAt: null, tlEventId: null, memberCount: null };
+    // Story dlist-item-tagging #5 (AC-5): the kind-30394 ITEM TL status, same shape,
+    // same derive-on-read discipline, defaulted before any scan (E12).
+    row.itemTlStatus = { status: 'never', lastRefreshAt: null, tlEventId: null, memberCount: null };
   }
 
   // Mark unsupported method rows; collect d-tags for the rest.
@@ -1711,7 +1714,81 @@ async function enrichRowsWithTLStatus(pins) {
     };
   }
 
+  await enrichRowsWithItemTLStatus(pins);
   return { tlByDTag, wantedDTags };
+}
+
+/**
+ * Story dlist-item-tagging #5 / ADR 0003 §5 — per-pin kind-30394 (item Trusted List)
+ * status, derived live from strfry exactly like `tlStatus`. Its scan is INDEPENDENTLY
+ * guarded: a failure leaves every row at the default 'never' and never disturbs
+ * `tlStatus` / `nip51ExportStatus`, so GET /api/profile-tags/pins still returns 200 (E12).
+ *
+ * A pin whose curation method omits 'item' (or predates `targetTypes` entirely) gets
+ * status 'unsupported' and contributes no d-tag — it publishes no item list at all.
+ */
+async function enrichRowsWithItemTLStatus(pins) {
+  const wantedItemDTags = [];
+  // Scratch d-tags live in a local map, never on the row — the response shape is unchanged.
+  const dTagByRow = new Map();
+  for (const row of pins) {
+    const method = row.curationMethod?.method;
+    const targetTypes = Array.isArray(row.curationMethod?.targetTypes)
+      ? row.curationMethod.targetTypes
+      : ['profile', 'note'];
+    if (method !== 'nip85:rank' || !targetTypes.includes('item')) {
+      row.itemTlStatus = { status: 'unsupported', lastRefreshAt: null, tlEventId: null, memberCount: null };
+      continue;
+    }
+    const observer = row.curationMethod?.observer;
+    if (!observer || !isHexPubkey(observer)) {
+      continue;
+    }
+    // The d-tag MUST come from the shared composer (ADR feat-tags-modernization/0001 §5).
+    const dTag = itemTlDTag({
+      observer,
+      tagAuthorPubkey: row.tag.authorPubkey,
+      tagSlug: row.tag.slug,
+      contextSlug: row.context,
+    });
+    dTagByRow.set(row, dTag);
+    wantedItemDTags.push(dTag);
+  }
+  if (wantedItemDTags.length === 0) return;
+
+  let itemTLs = [];
+  try {
+    itemTLs = await strfryScan({
+      kinds: [30394],
+      authors: [TA_PUBKEY],
+      '#d': wantedItemDTags,
+    });
+  } catch {
+    // Item scan failed — every row keeps its default 'never'; the response stays 200.
+    return;
+  }
+
+  const byDTag = new Map();
+  for (const ev of itemTLs) {
+    const d = (ev.tags || []).find((t) => t[0] === 'd')?.[1];
+    if (!d) continue;
+    const cur = byDTag.get(d);
+    if (!cur || ev.created_at > cur.created_at) byDTag.set(d, ev);
+  }
+  for (const row of pins) {
+    const dTag = dTagByRow.get(row);
+    if (!dTag) continue;
+    const tl = byDTag.get(dTag);
+    if (!tl) continue; // leave 'never'
+    const retracted = (tl.tags || []).some((t) => t[0] === 'status' && t[1] === 'retracted');
+    row.itemTlStatus = {
+      status: retracted ? 'retracted' : 'ok',
+      lastRefreshAt: tl.created_at,
+      tlEventId: tl.id,
+      // On a 30394 the `a` tags ARE the members.
+      memberCount: (tl.tags || []).filter((t) => t[0] === 'a').length,
+    };
+  }
 }
 
 /**

@@ -25,6 +25,8 @@ const {
   conceptTag,
   conceptNostrEventTag,
   conceptTaggingWithSpecificTag,
+  conceptTrustedListForTag,
+  tlHeaderDTag,
   tagElementAddr,
   taggingHeaderAddr,
 } = require('./handles');
@@ -118,6 +120,35 @@ function buildTaggingHeader({ tagAuthorPubkey, slug, names, description, taPubke
 }
 
 /**
+ * Build a per-tag "trusted-list-for-tag" header (ADR dlist-item-tagging/0002) —
+ * the TA-authored kind-39999 the tag's Trusted Lists z-stamp as their per-tag
+ * discovery axis. Structural mirror of `buildTaggingHeader`: simultaneously a
+ * DList header (names/description/d) and a DList item (z + a).
+ *
+ * @param {string}   tagAuthorPubkey  64-hex author of the tag-element this header is for.
+ * @param {string}   slug             the resolved tag-element's slug (NOT re-slugged here).
+ * @param {string[]} names            display names, e.g. [singular, plural].
+ * @param {string}   description
+ * @param {string[]} taPubkeys        concept namespaces to join (e.g. [canonical, local]).
+ */
+function buildTLHeader({ tagAuthorPubkey, slug, names, description, taPubkeys }) {
+  // Same reasoning as buildTaggingHeader: the `a` coordinate is permanent once
+  // signed, so a malformed author must fail loud rather than mint an orphan.
+  requireHex64(tagAuthorPubkey, 'tagAuthorPubkey');
+  return {
+    kind: 39999,
+    tags: [
+      ['d', tlHeaderDTag(slug)],
+      ['names', ...names],
+      ['description', description],
+      ...conceptZTags(taPubkeys, conceptTrustedListForTag, 'taPubkeys'),
+      ['a', tagElementAddr(tagAuthorPubkey, slug)],
+    ],
+    content: '',
+  };
+}
+
+/**
  * Build an event-tagging assertion (apply/dispute a tag on an event).
  *
  * @param {string}   headerAuthorPubkey  64-hex author of the per-tag tagging header.
@@ -198,5 +229,6 @@ function buildEventTaggingAssertion({ headerAuthorPubkey, slug, target, polarity
 module.exports = {
   buildTagElement,
   buildTaggingHeader,
+  buildTLHeader,
   buildEventTaggingAssertion,
 };

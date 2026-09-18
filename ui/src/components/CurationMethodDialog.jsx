@@ -75,6 +75,10 @@ export default function CurationMethodDialog({
   const initTypes = init.targetTypes || ['profile', 'note'];
   const [includeProfiles, setIncludeProfiles] = useState(initTypes.includes('profile'));
   const [includeNotes, setIncludeNotes] = useState(initTypes.includes('note'));
+  // Story dlist-item-tagging #5 — item targets (kind-30394). The initTypes fallback
+  // above deliberately stays ['profile','note']: editing a pre-existing pin must not
+  // silently add items.
+  const [includeItems, setIncludeItems] = useState(initTypes.includes('item'));
   const [noteMethod, setNoteMethod] = useState(init.noteMethod || 'notes:net-endorsed');
   const [observer, setObserver] = useState(
     init.observer && init.observer !== viewerPubkey ? init.observer : ''
@@ -114,7 +118,8 @@ export default function CurationMethodDialog({
     const targetTypes = [];
     if (includeProfiles) targetTypes.push('profile');
     if (includeNotes) targetTypes.push('note');
-    if (targetTypes.length === 0) errs.targetTypes = 'Select at least one: profiles or notes.';
+    if (includeItems) targetTypes.push('item');
+    if (targetTypes.length === 0) errs.targetTypes = 'Select at least one: profiles, notes, or items.';
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -287,6 +292,15 @@ export default function CurationMethodDialog({
                 disabled={submitting}
               />
               <span>Notes → bookmark set (kind-30003)</span>
+            </label>
+            <label className="pcd-toggle">
+              <input
+                type="checkbox"
+                checked={includeItems}
+                onChange={(e) => setIncludeItems(e.target.checked)}
+                disabled={submitting}
+              />
+              <span>Items → item Trusted List (kind-30394)</span>
             </label>
             {fieldErrors.targetTypes && (
               <p className="pcd-error" role="alert">{fieldErrors.targetTypes}</p>

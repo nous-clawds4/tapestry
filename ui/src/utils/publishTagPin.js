@@ -106,7 +106,10 @@ export function defaultCurationMethod(viewerPubkey) {
     // is the note-list curation (`notes:net-endorsed` | `notes:most-applied`).
     // Profiles project to a kind-30000 follow set (unchanged); notes to a
     // kind-30003 bookmark set.
-    targetTypes: ['profile', 'note'],
+    // Story dlist-item-tagging #5 — NEW pins also opt into items (kind-30394 item
+    // Trusted List). The runner's legacy default stays ['profile','note'], so nothing
+    // already published changes meaning.
+    targetTypes: ['profile', 'note', 'item'],
     noteMethod: 'notes:net-endorsed',
   };
 }

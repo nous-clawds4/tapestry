@@ -1,7 +1,8 @@
 /**
  * Context-scoped pins — the portable spine (contextual-pins ADR 0001).
  *
- * Pure string/array composition, no imports, no I/O — the stack-agnostic core
+ * Pure string/array composition, no I/O (the only import is the equally pure
+ * sibling `handles.js`) — the stack-agnostic core
  * a third-party client (e.g. the LFO team) can build its community feed against.
  * All relay scanning and POV/trust lookup is the caller's, injected via
  * `trustFilter`.
@@ -17,6 +18,8 @@
  * or override this. Slugs only — contexts are addressed by a runtime-derived
  * concept handle (`contextHandle`), never by a copied event id.
  */
+const { conceptTrustedList, tlHeaderAddr } = require('./handles');
+
 const KNOWN_CONTEXTS = [
   { slug: 'lfo', name: 'LFO' },
   { slug: 'tapestry-web-of-trust', name: 'Tapestry & Web of Trust' },
@@ -62,6 +65,25 @@ function tlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
 /** The note twin of `tlDTag` (kind-30393 note Trusted List). Same rules. */
 function noteTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
   return `tl-pin-notes-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+}
+
+/** The item twin of `tlDTag` (kind-30394 addressable-item Trusted List). Same rules. */
+function itemTlDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
+  return `tl-pin-items-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+}
+
+/**
+ * ADR dlist-item-tagging/0002 — the two `z` tags EVERY Trusted List in the 3039x
+ * family carries: the concept `z` ("I am a Trusted List", a deployment-wide
+ * discovery axis and the federation seam) and a membership claim on the tag's
+ * per-tag Trusted-List header. One composer for all three runners, so the pair
+ * cannot drift across call sites.
+ */
+function trustedListZTags({ taPubkey, tagSlug }) {
+  return [
+    ['z', conceptTrustedList(taPubkey)],
+    ['z', tlHeaderAddr(taPubkey, tagSlug)],
+  ];
 }
 
 /**
@@ -121,6 +143,8 @@ module.exports = {
   contextHandle,
   tlDTag,
   noteTlDTag,
+  itemTlDTag,
+  trustedListZTags,
   contextSlugOfPin,
   contextPinsToTags,
 };

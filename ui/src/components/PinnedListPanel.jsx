@@ -11,7 +11,7 @@ import {
   pinTag, unpinTag, computeTLDTag, computeNoteBookmarkDTag,
   syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
-import { KNOWN_CONTEXTS } from '@tapestry/event-tagging';
+import { KNOWN_CONTEXTS, itemTlDTag } from '@tapestry/event-tagging';
 import { copyText } from '../utils/clipboard';
 
 /**
@@ -143,6 +143,20 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
     } catch { return null; }
   }, [tag, observer, contextSlug]);
 
+  // Story dlist-item-tagging #5 (AC-5) — the kind-30394 item TL identity, from the
+  // SHARED composer (never hand-formatted), same inputs as the 30392 d-tag.
+  const itemDTag = useMemo(() => {
+    if (!tag || !observer) return null;
+    try {
+      return itemTlDTag({
+        observer,
+        tagAuthorPubkey: tag.authorPubkey,
+        tagSlug: tag.slug,
+        contextSlug,
+      });
+    } catch { return null; }
+  }, [tag, observer, contextSlug]);
+
   const { tl, members, loading, error, refetch } = useTLDetail(dTag);
 
   const [editing, setEditing] = useState(false);
@@ -229,6 +243,16 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
     } catch { return null; }
   }, [dTag, taPubkey]);
 
+  // kind-30394 naddr (TA-signed item Trusted List). Available once the item TL exists.
+  const naddr30394 = useMemo(() => {
+    if (!itemDTag || !taPubkey) return null;
+    try {
+      return nip19.naddrEncode({
+        kind: 30394, pubkey: taPubkey, identifier: itemDTag, relays: [],
+      });
+    } catch { return null; }
+  }, [itemDTag, taPubkey]);
+
   // kind-30000 naddr (user-signed). Composed against the well-known
   // fallback relays so it resolves in other clients without an async
   // write-relay fetch on render.
@@ -273,6 +297,7 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
   }, [noteBookmarkDTag, user?.pubkey]);
 
   const canManage = !!user && !!pinEventId;
+  const itemTlStatus = pinRow?.itemTlStatus;
   const nip51 = pinRow?.nip51ExportStatus;
   const hasFollowSet = !!nip51 && nip51.status !== 'never-exported';
   // Follow Pack (kind-39089) export status — shown only once exported.
@@ -447,6 +472,27 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
             label="Trusted List (naddr)"
             naddr={naddr30392}
             help="The Trusted List includes ranks; useful in curation pipelines."
+          />
+        )}
+        {/* Story dlist-item-tagging #5 (AC-5) — the item Trusted List's status and
+            member count, and its naddr once the list has actually been published. */}
+        {itemTlStatus && (
+          <>
+            <dt>Item Trusted List</dt>
+            <dd>
+              {itemTlStatus.status === 'ok'
+                ? `Published — ${itemTlStatus.memberCount ?? 0} item${itemTlStatus.memberCount === 1 ? '' : 's'}`
+                : itemTlStatus.status === 'retracted' ? 'Retracted'
+                  : itemTlStatus.status === 'unsupported' ? 'Not pinned for items'
+                    : 'No item list yet'}
+            </dd>
+          </>
+        )}
+        {itemTlStatus?.status === 'ok' && naddr30394 && (
+          <NaddrRow
+            label="Item Trusted List (naddr)"
+            naddr={naddr30394}
+            help="A signed list of the DList items your point of view trusts for this tag."
           />
         )}
         {hasFollowSet && naddr30000 && (

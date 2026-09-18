@@ -1,0 +1,25 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-trusted-lists-for-tags",
+    "name": "JSON schema for the concept of trusted lists for tags",
+    "title": "JSON Schema for the Concept of Trusted Lists for Tags",
+    "description": "the json schema for the concept of trusted lists for tags",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-trusted-lists-for-tags",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "trusted list for tag",
+    "title": "Trusted List For Tag",
+    "description": "JSON Schema for the concept of trusted lists for tags. Permissive: members are per-tag Trusted-List headers whose payload is empty (the rule and the Tag reference live in tags).",
+    "required": [],
+    "definitions": {},
+    "properties": {}
+  }
+}
