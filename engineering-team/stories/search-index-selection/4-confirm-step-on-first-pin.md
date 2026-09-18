@@ -262,7 +262,7 @@ under my name is one I chose, not one that quietly happened.
 
 ## Linked artifacts
 - ADR: (none expected — Design note above; filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/test-plans/search-index-selection/4-confirm-step-on-first-pin.md` (suite `test/confirm-step-on-first-pin.test.js`)
 - Review: (filled in after Review phase)
 
 ## Gate A rulings (operator, 2026-09-18 — "approved as proposed")
@@ -338,4 +338,27 @@ Scoped gate: `test/confirm-step-on-first-pin.test.js` (new) + guards `generalize
   page); a preview of membership; copy tuning.
 
 ## AC→handle lines
-—
+
+Suite: `test/confirm-step-on-first-pin.test.js` — plan:
+`engineering-team/test-plans/search-index-selection/4-confirm-step-on-first-pin.md`
+(9 green / 16 red before implementation; stack-free).
+
+- **AC-1** the first pin opens an interstitial, nothing published first → **S1, S3**
+- **AC-2** confirming untouched is byte-identical to today → **U3** (the sentinel), **U1, U2, U4, S9, R1**
+- **AC-3** cancelling publishes nothing → **S5, U10**
+- **AC-4** edits land in the first pin, in one publish → **S4, U5**
+- **AC-5** "Pin to community" goes through the same interstitial → **S2, S4, S10**
+- **AC-6** existing pins untouched → **R2, R3, S7, U6, U7**
+- **AC-7** a returning viewer sees no interstitial → **S10**
+- **E1** signer refusal mid-flow → **S12** · **E1b** refusal on the second prompt → **R1**
+- **E2** the day-one search pin → **U5** · **E3** no WoT computed → **U8, U9**
+- **E4** double-click / in-flight → **S3, U10** · **E5** not signed in → **S10**
+- **E6** second context → **S2, S3** · story-3/5 field collision → **U1, U4**
+- House rule (no TA literal) → **S11**
+
+**Testability contract the plan introduces** (Implementer must land it): the dialog's inline
+submit build moves, behaviour-preserving, into a new pure ESM module
+`ui/src/utils/curationDialogBuild.js` exporting `buildCuration(state)` →
+`{ ok:true, curation } | { ok:false, fieldErrors }`, plus `normalizeCutoff` /
+`normalizeObserver`. JSX does not import in node, so this is what makes AC-2's sentinel
+checkable. `defaultCurationMethod` is NOT touched (S9 byte-compares it against HEAD).
