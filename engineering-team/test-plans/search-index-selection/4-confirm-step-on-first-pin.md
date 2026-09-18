@@ -174,7 +174,7 @@ S12 and R1/R2/R3 (regressions). The 16 red split into "the pure module does not 
   ✓ R2 AC-6: the Pinned-tab "Edit curation" path still mounts the dialog in edit mode, with its Unpin affordance
   ✓ R3 AC-6: the edit-path targetTypes fallback ["profile","note"] survives the refactor
 
-confirm-step-on-first-pin: 9 passed, 16 failed, 0 skipped
+confirm-step-on-first-pin: 10 passed, 16 failed, 0 skipped
 EXIT=1
 ```
 
