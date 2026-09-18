@@ -1,6 +1,6 @@
 # Story 5: An explicit pin variant key
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-18
 **Type:** Feature *(Light book; **wire-visible** — the variant rides the `d` tag, which is the
 search backend's permanent subscription key. The irreversibility trigger "a wire format or

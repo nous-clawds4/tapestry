@@ -34,7 +34,7 @@ point-of-view threshold.
 - [x] **Per-pin curation** *(story 3 Done; story 4 confirm-step Done; the variant key is story 5)*. The membership method and the new constraint live on the pin,
       not the instance-wide dial; a viewer can hold more than one pin of a tag, each with its
       own curation and its own list, without the pin having to be about a community.
-- [ ] **The published list is the contract.** Pinning `worth-indexing-for-search` (or its
+- [x] **The published list is the contract** *(story 5 Done; the end-to-end is the operator's Gate B test)*. Pinning `worth-indexing-for-search` (or its
       final name) with "Only me" on a curator who has tagged the `github-accounts` header
       yields a TA-signed kind-30394 whose sole `a` member is that header's coordinate — the
       event the search backend subscribes to.
