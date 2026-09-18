@@ -287,3 +287,24 @@ the search backend's permanent subscription key). Scoped gate as proposed (new
 4. (Invariant, amended 2026-09-18) client refuses a used slug pre-signature; the runner skips a
    pin whose author ≠ observer (C3 — ADR 0003 §3) and logs + skips both on a residual own-pin
    collision. Designated-assistant pins (10040) are a follow-up.
+
+## AC→handle lines
+
+*(From the test plan's coverage map; the plan is the source of truth for handle semantics.)*
+
+- **AC-1** a non-community variant gets its own pin `d` and list `d`s, no context `z` → U2, U8, **H1**, H2, H3, A1
+- **AC-2** contextual and neutral pins byte-identical across all five schemes → U1, **U9**, **H4**, R5, A1 (+ guards `pin-stack-composition` AC-4, `context-scoped-pins`)
+- **AC-3** variant uniqueness per (observer, tag), refused pre-signature → **U10**, S17, H8
+- **AC-4** slug rules (canonical `slug()`, ≤40, empty refused, name display-only) → **U10**, U4, S17
+- **AC-5** every derived-`d` reader keys off the stored variant → S1, S2, S3, **S4**, **S5**, S6, S9, S10, S11
+- **AC-6** the minimum switcher UX (recipes distinct, "Personal" first) → S12, **S13**, **S14**, S16, S18, S19
+- **E1** → H4, U6, R3 · **E2** → H11, U5 · **E3** → U3, U5 · **E4** → U4, U10 · **E5** → A1, S8 · **E6** → H10
+- **C3** author ≠ observer publishes nothing, claims no address → H5, H6; its earlier list IS retracted, the owner's untouched → H7
+- Residual own-pin collision ⇒ skip both, roster kept → H8 · OPEN 298 closes → S11 · no TA literal → S21 · `Tag.jsx:142` non-consumer → S15 · `PinToContextModal` untouched → S19, S14 · firmware schema → S20
+
+Pre-implementation (at `e467846e`): 13 green (U1, U9, H4, H7, A2, S15, S19, S21, R1–R5) / 37 red, each naming the missing piece. Guards all green.
+
+## Linked artifacts
+- ADR: `engineering-team/decisions/search-index-selection/0003-explicit-pin-variant-key.md`
+- Test plan: `engineering-team/test-plans/search-index-selection/5-explicit-pin-variant-key.md`
+- Review: `engineering-team/reviews/search-index-selection/5-explicit-pin-variant-key.md`

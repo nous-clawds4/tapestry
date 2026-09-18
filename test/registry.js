@@ -224,6 +224,7 @@ const suites = [
   { file: 'only-me-curation.test.js' },
   { file: 'per-pin-membership-method.test.js' },
   { file: 'confirm-step-on-first-pin.test.js' },
+  { file: 'explicit-pin-variant-key.test.js' },
   { file: 'tag-index-performance.test.js' },
   { file: 'item-trusted-list.test.js' },
   { file: 'pin-stack-composition.test.js' },
