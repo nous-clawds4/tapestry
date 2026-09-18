@@ -1,6 +1,6 @@
 # Story 4: A confirm step on first pin — make the default curation visible before it publishes
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-18
 **Type:** Feature *(Light book — **no wire change**: this story reorders *when* the same pin
 event and the same curation blob are published, not what is in them. The irreversibility
@@ -264,3 +264,78 @@ under my name is one I chose, not one that quietly happened.
 - ADR: (none expected — Design note above; filled in after Architecture phase)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
+
+## Gate A rulings (operator, 2026-09-18 — "approved as proposed")
+
+Light lane, Design note (no ADR): the story reorders WHEN the same pin event and curation blob
+publish; it must not change the DEFAULT blob (that would be wire-visible — AC-2 is the sentinel).
+Scoped gate: `test/confirm-step-on-first-pin.test.js` (new) + guards `generalized-tag-pinning`,
+`only-me-curation`, `pin-stack-composition`, `context-scoped-pins`.
+
+1. **Reuse `CurationMethodDialog` in `mode='create'`** (the dormant branch), not a new component.
+2. **A collapsed "What's a Trusted List?" expander** in create mode; copy is the operator's.
+3. **No "don't show again."** AC-7 already spares returning pinners.
+4. **No member-count preview** — deferred; needs a dry-run aggregation, its own story after 3 and 5.
+5. **Story 4 lands before story 5**, so the variant name has a creation-time home.
+6. **"First pin" = any new pin** (tag × observer × context), not first-ever for the account.
+
+## Design note *(Light — after Gate A)*
+
+- **Where the interstitial hooks in.** `ui/src/pages/Tag.jsx` `handlePin` (`:268-274`) today
+  calls `publishWithCuration(defaultCurationMethod(user.pubkey))` directly; it instead opens the
+  dialog: `setPinDialog({ open: true, context: null })`. `handlePinToContext(context)`
+  (`:281-300`) likewise closes the picker and opens the same dialog with `context` set, instead of
+  calling `pinTag` inline. One `<CurationMethodDialog mode="create" initial={defaultCurationMethod(user.pubkey)}
+  viewerPubkey={user.pubkey} onSubmit={…} onCancel={…} />` is mounted in `Tag.jsx`; `onSubmit(curation)`
+  routes to the existing `publishWithCuration(curation)` (`:216-266`, untouched — it already
+  awaits the refresh and fires the two exports) or, with a context, to a new
+  `publishContextPin(curation, context)` that is the current inline body of `handlePinToContext`
+  (`pinTag({ tag, curationMethod: curation, context, taPubkey })` + the awaited refresh) factored
+  out so both paths share it. `onCancel` closes the dialog and publishes nothing (AC-3).
+- **Byte-identity (AC-2) is decided by the sentinel, reconciled by the Implementer.** The dialog's
+  submit build (`ui/src/components/CurationMethodDialog.jsx:139-152`) emits
+  `{ observer, method:'nip85:rank', cutoff, includeScoreInTL, targetTypes, noteMethod,
+  …authorConstraint-only-when-set }`; `defaultCurationMethod` (`ui/src/utils/publishTagPin.js:100-118`)
+  emits the same keys with `cutoff 1`, `includeScoreInTL true`, `targetTypes ['profile','note','item']`,
+  `noteMethod 'notes:net-endorsed'`, no `authorConstraint`. An untouched submit must deep-equal
+  the default (key-order-insensitive); if any key differs the Implementer aligns the dialog's
+  *seeding* (never `defaultCurationMethod`) — the default is the wire contract and stays
+  byte-identical. Story 3's `membershipMethod` follows the same rule: absent stays absent.
+- **Create-mode copy** (`CurationMethodDialog.jsx`): the existing title `Pin curation method`
+  (`:201`) and submit label `Pin with these settings` (`:166`) stand; create mode adds one
+  explanation line above the fields — *"Pinning publishes a Trusted List under your point of view
+  with this curation."* — and a collapsed `<details>` "What's a Trusted List?" whose body is the
+  Pin tooltip's copy (`ui/src/components/TagPinAffordance.jsx:48`). Edit mode is untouched.
+- **Signer refusal / failure mid-flow.** `pinTag` throws → the dialog's existing `setError`
+  path (`:157-160`) shows it and the dialog stays open; nothing was signed, so nothing published.
+  A refusal on the *export* prompts after the pin is the existing, recoverable behaviour.
+- **Returning viewer (AC-7).** Identity is the pin's (tag, observer, context): if `viewerPin`
+  exists the affordance already renders the pinned state and never calls `handlePin`; a viewer
+  with a neutral pin who picks a *new* community still gets the interstitial for that new pin
+  (ruling 6).
+- **Rejected:** a new interstitial component (the create branch already exists and is wired for
+  every field); merging `{ …defaults, …custom }` at submit (could resurrect stripped fields —
+  the sentinel is stricter and simpler); a member-count preview (ruling 4).
+- **Blast radius.** `ui/src/pages/Tag.jsx`, `ui/src/components/CurationMethodDialog.jsx`
+  (create-mode copy + expander only), `ui/src/styles.css`. **Not touched:**
+  `ui/src/utils/publishTagPin.js` (`defaultCurationMethod`, `pinTag`), `TagPinAffordance.jsx`
+  (it only calls `onPin`), `PinToContextModal.jsx` (its `onPick` still fires; the dialog opens
+  after), any server file, any test other than the new suite.
+
+## Edge cases & not-covered
+
+- **E1 — signer refusal.** Dialog error, dialog stays open, nothing published.
+- **E2 — the day-one search pin.** Items target + "Only me" are both reachable in create mode
+  (the worked example the book's bullet 4 needs).
+- **E3 — no WoT computed for the viewer.** The dialog works; the POV disclosure is the existing
+  `povResolution` behaviour, unchanged.
+- **E4 — two dialogs.** The community picker closes before the curation dialog opens; never both.
+- **E5 — story 3's field present.** The create dialog shows "Instance default" and emits nothing
+  for it unless chosen (absent stays absent).
+- **E6 — cancel after an edit.** Nothing signed; reopening re-seeds from the default, not the
+  abandoned edit.
+- **Not covered:** the lists index / other pin entry points (none exist today besides the tag
+  page); a preview of membership; copy tuning.
+
+## AC→handle lines
+—
