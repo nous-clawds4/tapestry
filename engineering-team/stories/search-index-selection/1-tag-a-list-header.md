@@ -31,7 +31,7 @@ This blocks step 3 of the near-term plan in the design doc ("tag the `github-acc
 header"), which otherwise has to happen out of band.
 
 **Membership already works.** The classifier passes an `a` value through verbatim with no
-kind restriction (`src/lib/event-tagging/classify.js` `targetOf`), and `fullItemMembers` is
+kind restriction (`src/lib/event-tagging/classify.js` `targetOfCandidate`), and `fullItemMembers` is
 built from the assertions' address keys with no kind filter, so a tagged header already
 reaches a published kind-30394. Only the *authoring* and the *display* are missing.
 
