@@ -17,9 +17,10 @@ const box = (color) => ({
 
 /**
  * My Curated DLists (my-curated-dlists #1, ADR 0001): every DList the signed-in user's Treasure Map
- * empowers — whichever pubkey each entry names — one row per list (the first entry counts). Rows
- * naming the user's OWN assistant open the list's detail page; "mine" is `user.assistantPubkey`,
- * never the instance owner's (OPEN.md row 188). Read-only: nothing is signed, published, or imported.
+ * empowers — whichever pubkey each entry names — one row per list (the first entry counts). Every
+ * row opens the list's detail page: as mine when it names the user's OWN assistant, read-only
+ * otherwise (curated-dlist-update ADR 0003 §2); "mine" is `user.assistantPubkey`, never the instance
+ * owner's (OPEN.md row 188). Read-only: nothing is signed, published, or imported.
  */
 export default function MyCuratedDLists() {
   const { user, loading: authLoading } = useAuth();
@@ -63,11 +64,11 @@ export default function MyCuratedDLists() {
     body = (
       <>
         {!assistantPubkey && (
-          <div style={box('#8b949e')}>You don&apos;t have a Tapestry Assistant on this instance, so none of these lists open here.</div>
+          <div style={box('#8b949e')}>You don&apos;t have a Tapestry Assistant on this instance, so you can view these lists here but not curate them.</div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {rows.map((row) => (
-            <CuratedDListRow key={row.routeId} row={row} lookup={headers[row.coord]} explainClosed={!!assistantPubkey} />
+            <CuratedDListRow key={row.routeId} row={row} lookup={headers[row.coord]} explainReadOnly={!!assistantPubkey} />
           ))}
         </div>
       </>
@@ -84,8 +85,8 @@ export default function MyCuratedDLists() {
   );
 }
 
-/** One empowered DList: name (a link only when my assistant curates it), address, who, hint, notes. */
-function CuratedDListRow({ row, lookup, explainClosed }) {
+/** One empowered DList: name (a link — read-only when another assistant curates it), address, who, hint, notes. */
+function CuratedDListRow({ row, lookup, explainReadOnly }) {
   const name = lookup?.event?.tags?.find((t) => t[0] === 'names')?.[1] || null;
   const label = name || row.d;
   let note = null;
@@ -100,9 +101,7 @@ function CuratedDListRow({ row, lookup, explainClosed }) {
       padding: '0.6rem 0.8rem', border: '1px solid var(--border, #444)', borderRadius: '6px',
       backgroundColor: 'var(--bg-secondary, #1a1a2e)',
     }}>
-      {row.mine
-        ? <Link to={curatedDListPath(row.routeId)} style={{ color: '#58a6ff', fontWeight: 600 }}>{label}</Link>
-        : <span style={{ fontWeight: 600 }}>{label}</span>}
+      <Link to={curatedDListPath(row.routeId)} style={{ color: '#58a6ff', fontWeight: 600 }}>{label}</Link>
       <code style={{ fontSize: '0.8rem', opacity: 0.8 }}>{row.kind}:{row.d}</code>
       <span style={{
         fontSize: '0.7rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '999px', whiteSpace: 'nowrap',
@@ -112,7 +111,7 @@ function CuratedDListRow({ row, lookup, explainClosed }) {
         {row.mine ? 'your assistant' : `another pubkey · ${short(row.pubkey)}`}
       </span>
       {row.relay && <span style={{ ...mono, opacity: 0.55, marginLeft: 'auto' }}>{row.relay}</span>}
-      {(note || row.ignoredDuplicates > 0 || (!row.mine && explainClosed)) && (
+      {(note || row.ignoredDuplicates > 0 || (!row.mine && explainReadOnly)) && (
         <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: '0.15rem', fontSize: '0.8rem' }}>
           {note && <span style={{ color: lookup?.missing ? '#f59e0b' : undefined, opacity: lookup ? 1 : 0.6 }}>{note}</span>}
           {row.ignoredDuplicates > 0 && (
@@ -120,7 +119,7 @@ function CuratedDListRow({ row, lookup, explainClosed }) {
               {row.ignoredDuplicates === 1 ? 'A duplicate entry' : `${row.ignoredDuplicates} duplicate entries`} for this list ignored — the first entry counts.
             </span>
           )}
-          {!row.mine && explainClosed && <span style={{ opacity: 0.6 }}>Only lists your own assistant curates open here.</span>}
+          {!row.mine && explainReadOnly && <span style={{ opacity: 0.6 }}>Opens read-only here.</span>}
         </div>
       )}
     </div>

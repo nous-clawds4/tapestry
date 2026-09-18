@@ -691,6 +691,8 @@ Surfaced shipping the verified-followers count (#33) + followers table (#34) to 
 
 ## 2026-06-08 — Owner scoring batch is not deploy-safe (ops bug)
 
+**PICKED UP** (partial) → the guard shipped as book `engineering-team/audits/deploy-safety-gate/`. **Drain-on-deploy / graceful shutdown remains open** — `closeTaskQueue()` is still unwired to SIGTERM, tracked as the first unchecked item in that book's `audit.md` §6 Carry-forward register. *(marker added 2026-09-13, ledger closeout)*
+
 **Guard branch → `deploy-safety-gate` (2026-07-18):** the "at minimum a guard" option is being realized by book `engineering-team/audits/deploy-safety-gate/book.md`, starting with story `engineering-team/stories/deploy-safety-gate/1-deploy-safety-status-endpoint.md`. The **resumable-checkpointing** and **drain-on-deploy** branches remain open here — this entry is deliberately left unmarked so it stays on the open-intake radar.
 
 Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9, now BIBLE §27). A redeploy can interrupt a running `updateAllScoresForOwner` mid-`processOwnerFollowsMutesReports`, leaving Owner `influence` partial — which made staging Owner numbers unreliable until a full re-run (hours-long at prod scale, ~32M FOLLOWS). The operator is currently mitigating **manually** (disable scheduled tasks before promoting to staging/main), so this does not block, but the manual step is easy to forget and the failure is silent + expensive.
@@ -1225,6 +1227,8 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 
 ## 2026-06-30 — Feature: tag detail page — "Notes tagged with this tag" (event-tagging Story 8)
 
+**RESOLVED** — shipped: `GET /api/event-tags/for-tag` (`src/api/index.js:577` → `eventTags.handleForTag`) and the Profiles|Notes content switch on the tag page (`ui/src/pages/Tag.jsx:63-66`, `TagNotesView`). *(marker added 2026-09-13, ledger closeout)*
+
 **Raw request (verbatim):**
 
 > when i click the tag to go to the tag page, it seems like it's still configured to show only profiles with that tag. maybe we need to add view options to this page to show taggings for profiles vs taggings for kind-1?
@@ -1261,6 +1265,8 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 ---
 
 ## 2026-07-06 — POV-selectable tag surfaces (event-tags/taggings/applicability are house-POV-only)
+
+**RESOLVED** — the `pov-selectable-tag-surfaces` epic is complete: stories 1–3 all reviewed PASS 2026-07-09 (`dedb0551`, `839a91ba`, `f14fa54d`), ADR `engineering-team/decisions/pov-selectable-tag-surfaces/0001-shared-selected-pov-resolver-for-tag-surfaces.md`. Carried on the ledger as **OPEN.md row 35** (Status `DONE-LOCAL` — epic complete + reviewed, awaiting operator test → deploy). Row **#38** carries only the harness-side residue, not the feature: the epic *file* was never created on `feat/tags`, waived at `scripts/harness-lint-waivers.txt:10` (L3, "write it or retire the (complete) epic"). *(marker added 2026-09-13, ledger closeout)*
 
 **Raw request (verbatim, operator, paraphrasing a design discussion):**
 
@@ -1508,7 +1514,9 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 
 ## 2026-07-15 — Harness story proposal: meta-ledger sweep (OPEN.md #16, #21, #22, #28, #29; +#40, #41 added 2026-07-16)
 
-**NOT PICKED UP** — proposal filed at triage per the meta-escalation rule (session-start digest 2026-07-15: 5 open `meta` rows ≥ the ≥3 threshold; OPEN.md § "How to use this ledger").
+**PICKED UP** (partial) — of the rows this proposal names: **#21, #22 and #41 are closed** (DONE 2026-07-25/26); **#16, #28, #29 and #40 remain open** and are carried by other packets, not by this entry. *(marker added 2026-09-13, ledger closeout)*
+
+Originally filed **NOT PICKED UP** — proposal filed at triage per the meta-escalation rule (session-start digest 2026-07-15: 5 open `meta` rows ≥ the ≥3 threshold; OPEN.md § "How to use this ledger").
 
 **Proposed story:** `harness-self-improvement` epic, next story number — **"meta-ledger sweep #2"**. One bounded pass closing the five open harness lessons:
 
@@ -1548,6 +1556,8 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 ---
 
 ## 2026-07-16 — Cleanup: extract a shared `<RawEventPanel>` (do it at the THIRD inspection surface)
+
+**RESOLVED** — 2026-07-17, per this entry's own body below: discharged by tag-event-inspector ADR 0003 D5, `TagRowRawEvents.jsx` promoted to `ui/src/components/RawTaggingEvents.jsx`. The body's bold `**DONE**` is not a marker `whats-open.sh` recognises; this line is the conversion. *(marker added 2026-09-13, ledger closeout)*
 
 **DONE** 2026-07-17 — discharged by tag-event-inspector ADR 0003 D5 (Story 3, the third inspection surface, exactly as the trigger predicted): `TagRowRawEvents.jsx` promoted to the shared `ui/src/components/RawTaggingEvents.jsx` — a rename, not an abstraction (identical export/props/markup/class names); consumed by `TagPageRow` (Story 2) and `NoteTags` (Story 3); both surfaces' source suites re-aimed, not dropped. Story 1's definition panel is deliberately EXCLUDED — the revealed outlier (one POV-invariant event, no envelope, no polarity captions); its genuinely shared parts are `toRawEvent` (now exported from profile-tags) and `.bs-tag-raw-pre`, not the blocks renderer.
 
@@ -1657,6 +1667,8 @@ The local concept `39998:<local-TA>:shared-concept` catalogs 5 elements, each ca
 ---
 
 ## 2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)
+
+**RESOLVED** — built and closed as book `engineering-team/audits/relationship-primitives/` (`book.md` **Status: Closed**). *(marker added 2026-09-13, ledger closeout)*
 
 **Raw request (verbatim):**
 
@@ -1865,7 +1877,9 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 
 ## 2026-08-05 — Shared-concepts adoption suite: S-subset taxonomy, adoption queues, coverage audit, stamping defaults
 
-**NOT PICKED UP** — laid out at the end of the session that built the Shared Concepts area (PRs #491–#494); recorded here so a fresh session can pick features off one at a time. The owner's S-subset taxonomy and rationale, verbatim:
+**RESOLVED** — picked up and closed as book `engineering-team/audits/shared-concepts-adoption/` (`book.md` **Status: Closed**, 2026-08-07). *(marker added 2026-09-13, ledger closeout)*
+
+Originally filed **NOT PICKED UP** — laid out at the end of the session that built the Shared Concepts area (PRs #491–#494); recorded here so a fresh session can pick features off one at a time. The owner's S-subset taxonomy and rationale, verbatim:
 
 > * S1: author-promoted shared concepts (auto b-tag)
 > * S2: user-promoted shared concepts (b-tag but not by the author of the concept header)
@@ -1998,7 +2012,9 @@ Option 1 aligns with "neo4j is the definitive me, LMDB is a subordinate cache": 
 
 ## 2026-08-09 — Shared Concepts legibility: can a user tell what they've already done, and find their own offerings?
 
-**NOT PICKED UP** — surfaced in the same 2026-08-09 walkthrough as the entry above, but a distinct thread: that entry is the registry's *architecture*, this one is whether the feature is *legible to the person using it*. The owner's stated goals for the walkthrough: "understand which required features and abilities are in place and which are missing," and "ensure that the features and abilities are described well enough for a new user to understand what the features do and how to use them." Framing constraint, verbatim:
+**RESOLVED** — picked up and closed as book `engineering-team/audits/shared-concepts-legibility/` (`book.md` **Status: Closed**, 2026-08-10). *(marker added 2026-09-13, ledger closeout)*
+
+Originally filed **NOT PICKED UP** — surfaced in the same 2026-08-09 walkthrough as the entry above, but a distinct thread: that entry is the registry's *architecture*, this one is whether the feature is *legible to the person using it*. The owner's stated goals for the walkthrough: "understand which required features and abilities are in place and which are missing," and "ensure that the features and abilities are described well enough for a new user to understand what the features do and how to use them." Framing constraint, verbatim:
 
 > some of the features confuse me to the point that I'm not sure how to navigate them, and I am the builder! So we're not going to jump to a slick and polished UX quite yet. But at the least, the descriptions of the features need to be done well enough so that I don't get them confused in my own head!
 
@@ -2182,6 +2198,8 @@ Filed from the 2026-08-18 harness review (four-analyst corpus study; findings do
 
 ## 2026-08-27 — Advertise TL provision in kind-10040 (follow-up to weighted certainty)
 
+**RESOLVED** — reassigned, not built here: David is implementing the kind-10040 TL-provider line separately (operator direction at the rung-3 close). See the `**REASSIGNED (2026-08-27)**` line below — that wording is not a marker `whats-open.sh` recognises, which is why this entry kept surfacing as open. *(marker added 2026-09-13, ledger closeout)*
+
 **REASSIGNED (2026-08-27)** — David is implementing the kind-10040 TL-provider line separately; not built in this repo/book (operator direction at the rung-3 close).
 
 **Raw request (operator, at the Story-1 Planning gate):** "we want to update 10040s to include a `30392,<ta-pubkey>` line. but maybe that's a brainstorm thing?" — Resolved: it IS a tapestry thing. Tapestry owns the kind-10040 builders (`src/api/export/nip85/commands/create-unsigned-kind10040.js` and `commands/kind10040.js`), which currently emit only `30382:<metric>` provider lines. Adding a kind-30392 (Trusted List) provider designation makes the newly-scored TLs discoverable via NIP-85.
@@ -2251,6 +2269,8 @@ irreversibility triggers).
 
 ## 2026-09-07 — `publishToRelays` reports every external publish as a success
 
+**RESOLVED** — became the `honest-publish-reporting` work; tracked and closed on the ledger as **OPEN.md row 200** (DONE 2026-09-08). The `/legacy/*.html` security note that was nested under this entry as a `###` block is now its own `## 2026-09-08` entry below, so it stays visible to `whats-open.sh`. *(marker added 2026-09-13, ledger closeout)*
+
 **Surfaced during:** treasure-map-relay-presence #2 live verification, at the operator's request
 to try a real sync against a real relay. Filed as **OPEN.md row 200** at the book close; not
 fixed there because it is shared code on five shipped paths and well outside that story's scope.
@@ -2314,7 +2334,7 @@ stays as-is.
 
 ---
 
-### 2026-09-08 — Security note: `/legacy/*.html` is served with no auth check
+## 2026-09-08 — Security note: `/legacy/*.html` is served with no auth check
 
 **Type:** Security / hardening. **Classification:** not yet triaged.
 
@@ -2340,6 +2360,8 @@ decide gate-or-retire. Retirement may be the right answer: the legacy dashboard 
 `/tapestry/`.
 
 ## 2026-09-10 — `inherit-items`: derivation + item-set resolver (code follow-up)
+
+**RESOLVED** 2026-09-12 — no consumer: `curated-dlist-update` ADR 0001 moves curated lists to `pointer` headers and copied items, and the header endpoint stops writing `inherit-items` in that book's story 2. Reopen if a list that takes every parent item live is wanted.
 
 **Surfaced by:** `dlist-curation` #3 / ADR 0003 (docs-mode). The `b` type registry gained
 `"inherit-items"` (item inheritance, additive) with the derived relationship

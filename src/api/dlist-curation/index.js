@@ -9,7 +9,7 @@
  *
  * Flow: verified session → the CALLER's assistant keys (never the owner's TA as a fallback) →
  * validate the target → fetch the community header (DList relays first, local strfry second) →
- * self-declared check → existing-header scan (exact / conflict / unpointed / none) → compose →
+ * self-declared check → existing-header scan (exact / older / conflict / unpointed / none) → compose →
  * sign → local strfry import → DList relays under the publish-policy gate → honest per-destination
  * report. The header is a letter in this relay: nothing here touches the graph.
  *
@@ -21,7 +21,12 @@ const { A_TAG_RE, dispositionOf } = require('../../lib/bValueForms');
 
 const ROUTE = '/api/dlist-curation/header';
 const HEADER_KIND = 39998;
-const INHERIT_ITEMS = 'inherit-items';
+// The header's link to the community list (curated-dlist-update ADR 0002): the Inherit-From registry's
+// `pointer` — correspondence; the curated list holds its assistant's copies. A header written before that
+// story carries the older `inherit-items` link: recognized as existing and never re-pointed here (Update
+// upgrades it, story 5). Mirrored in ui/src/utils/treasureMap.js (CURATION_LINK_TYPE / OLDER_LINK_TYPE).
+const CONTRACT_TYPE = 'pointer';
+const OLDER_TYPE = 'inherit-items';
 const COPIED_TAGS = ['names', 'slug', 'json']; // ADR 0004 sub-decision 2; never `b`, never `concept-graph`
 const RELAY_TIMEOUT_MS = 5000;
 const FETCH_TIMEOUT_MS = 8000;
@@ -57,29 +62,37 @@ function bTagsOf(ev) {
 }
 
 /**
- * What an existing assistant header for this d-tag means for the request:
+ * What an existing assistant header for this d-tag means for the request (curated-dlist-update ADR 0002):
  *   'none'      — no header
- *   'exact'     — exactly one b, and it is ["b", <target>, "inherit-items"]
- *   'conflict'  — any other b (other target, other type, untyped, or extra b tags): never re-point silently
+ *   'exact'     — exactly one b: ["b", <target>, "pointer"], or untyped (an absent type reads as pointer)
+ *   'older'     — exactly one b: ["b", <target>, "inherit-items"], the link written before
+ *                 curated-dlist-update story 2 — answered like 'exact', left for Update to upgrade
+ *   'conflict'  — any other b (other target, any other type, or extra b tags — the sentinel counts):
+ *                 never re-point silently
  *   'unpointed' — a header with no b at all: append the contract b (the firmware seed rule)
  */
 function classifyExisting(existing, target) {
   if (!existing) return 'none';
   const bs = bTagsOf(existing);
   if (bs.length === 0) return 'unpointed';
-  if (bs.length === 1 && bs[0][1] === target && bs[0][2] === INHERIT_ITEMS) return 'exact';
+  if (bs.length === 1 && bs[0][1] === target) {
+    const type = bs[0][2];
+    if (type === undefined || type === '' || type === CONTRACT_TYPE) return 'exact';
+    if (type === OLDER_TYPE) return 'older';
+  }
   return 'conflict';
 }
 
 /**
- * The unsigned template. With `existing` (the unpointed case) every existing tag is preserved in
- * order and the contract b appended, content kept, created_at skew-proof; otherwise a fresh header:
- * d, then names / slug / json copied verbatim from the community header (slug synthesized when
- * absent), then the contract b. Nothing that points into the community author's namespace is copied.
+ * The unsigned template; the contract b is ["b", <target>, "pointer"] (curated-dlist-update ADR 0002).
+ * With `existing` (the unpointed case) every existing tag is preserved in order and the contract b
+ * appended, content kept, created_at skew-proof; otherwise a fresh header: d, then names / slug / json
+ * copied verbatim from the community header (slug synthesized when absent), then the contract b.
+ * Nothing that points into the community author's namespace is copied.
  */
 function composeCurationHeader(community, target, existing, opts = {}) {
   const now = typeof opts.now === 'function' ? opts.now : () => Math.floor(Date.now() / 1000);
-  const contractB = ['b', target, INHERIT_ITEMS];
+  const contractB = ['b', target, CONTRACT_TYPE];
   if (existing) {
     const tags = (Array.isArray(existing.tags) ? existing.tags : []).map((t) => [...t]);
     tags.push(contractB);
@@ -263,7 +276,7 @@ function createAuthorCurationHeaderHandler(deps = {}) {
       // Never-clobber: the assistant's own header for this d-tag decides what happens next.
       const existing = newest(await d.scanLocal({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [parsed.d] }));
       const state = classifyExisting(existing, target);
-      if (state === 'exact') {
+      if (state === 'exact' || state === 'older') {
         return res.json({ success: true, existing: true, header: existing, published: null });
       }
       if (state === 'conflict') {
@@ -299,6 +312,9 @@ function createAuthorCurationHeaderHandler(deps = {}) {
 
 function register(app) {
   app.post(ROUTE, createAuthorCurationHeaderHandler());
+  // curated-dlist-update #6 (ADR 0006 §1): Update list's publish, beside the header route and inside test RE1's
+  // exclusion (test/publish-export-a-concept.test.js). Its own module: ./update.js.
+  app.post('/api/dlist-curation/update', require('./update').createUpdateHandler());
 }
 
 module.exports = {

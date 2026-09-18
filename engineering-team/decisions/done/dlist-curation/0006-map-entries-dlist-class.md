@@ -1,8 +1,10 @@
 # ADR 0006: Map Entries — two new classes in the one classifier, a batched two-step header lookup, and a two-prefix extension of the DList detail route
 
-**Status:** Accepted
+**Status:** Accepted (the "inherits from" line superseded by `curated-dlist-update` ADR 0002)
 **Date:** 2026-09-10
 **Story:** `engineering-team/stories/dlist-curation/6-map-entries-dlist-class.md`
+
+> **Superseded in part (2026-09-12):** a Curated DList row says it "copies from" the community header, and shows the link type only when it is not `pointer` (the older `inherit-items` as "older link") — `curated-dlist-update` ADR 0002.
 
 ## Context
 

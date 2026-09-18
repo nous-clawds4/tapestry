@@ -1,8 +1,10 @@
 # ADR 0005: The DList Curation panel — a new page-level panel over pure Map-entry helpers, the story-4 endpoint, and the page's existing sign-and-publish chain
 
-**Status:** Accepted
+**Status:** Accepted (the Replace confirmation's words superseded by `curated-dlist-update` ADR 0003)
 **Date:** 2026-09-10
 **Story:** `engineering-team/stories/dlist-curation/5-dlist-curation-panel.md`
+
+> **Superseded in part (2026-09-12):** when Add replaces an entry that names another assistant, the confirmation says "replaces", and that the Map names one curating assistant per list while the other assistant's header and copies stay where they are — `curated-dlist-update` ADR 0003.
 
 ## Context
 
