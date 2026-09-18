@@ -48,6 +48,7 @@ Readers of the derived `d`-tag that this story touches:
 |---|---|---|
 | `enrichRowsWithTLStatus` | `src/api/profile-tags/index.js:1690`, d-tag at `:1715` | Derives each pin's TL `d`-tag to look up publish status. Reads the *variant* (`row.context` → `pinVariantKey`). |
 | `enrichRowsWithItemTLStatus` | `src/api/profile-tags/index.js:1774`, d-tag at `:1792` | Derives each pin's kind-30394 item-TL `d` from `row.context` — must take the pin's variant (recipe or context) or a recipe pin's item-list status is read at the neutral address (found at J1 round 3). |
+| Pinned-tab default pin | `ui/src/pages/Tag.jsx:161-168` (`:165`) | `viewerPins.find((p) => !p.context)` picks the default; a recipe pin has no context, so it must become "no context AND no variant" (found at J1 round 4). |
 | TL status endpoint | `src/api/trustedList/index.js:409-411` | Hand-composes the same `tl-pin-…` string via `pinVariantKey`. Variant only. |
 
 ### The UX constraint is binding, and it is a modelling problem
