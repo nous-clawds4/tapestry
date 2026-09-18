@@ -129,10 +129,10 @@ Principle 4: there is no graph write.
   - A strict read of a dead relay takes up to the connect budget, with one retry, before it answers.
 
 ### Option B — Make the endpoint honest for every caller
-- **Pros:** closes row 280 at once.
+- **Pros:** closes row 314 at once.
 - **Cons:** it changes the behaviour of 13 UI surfaces and two server paths. Firmware install and the class-thread pull
   would start failing where they now proceed on "not found". That is a wider change than this story's ACs, with no
-  tests of its own. Rejected; row 280 keeps it.
+  tests of its own. Rejected; row 314 keeps it.
 
 ### Option C — Probe each relay with `/api/relay/presence` before reading
 - **Cons:** an extra request per read, and a race (a relay can drop between the probe and the read). The probe also
@@ -268,7 +268,7 @@ We chose **Option A**.
      "read cleanly");
    - `my-curated-dlists` ADR 0003 (sub-decision 8, the disabled Update placeholder).
 
-   OPEN.md row 280 is updated to say that strict mode exists and which reads opt in. It stays open for the rest.
+   OPEN.md row 314 is updated to say that strict mode exists and which reads opt in. It stays open for the rest.
 
 ## Consequences
 - **Enables** story 6. The plan is the list of writes, and the preview's groups become its confirmation.
@@ -276,7 +276,7 @@ We chose **Option A**.
   - Strict reads answer slower when a relay is down: the connect budget, one retry, then "couldn't check".
   - The preview needs the shared list read, so opening it reads what "Also show candidates to copy" reads.
 - **Debt, recorded:**
-  - the endpoint's non-strict callers (row 280);
+  - the endpoint's non-strict callers (row 314);
   - a relay whose own limit is below ours still answers a capped read as complete;
   - the rank read carries every pubkey in one GET, so past about 110 pubkeys it fails honestly;
   - two copies of one original are each judged on their own;
@@ -301,7 +301,7 @@ We chose **Option A**.
    sets, the `relayTruncated` source note (§4, §8).
 7. **`ui/src/pages/grapevine/UpdatePreview.jsx`** (new) — §8.
 8. **`ui/src/pages/grapevine/CuratedDListDetail.jsx`** — `headerState` to `ItemsSection` (§8).
-9. **Docs** — the §9 notes and OPEN.md row 280.
+9. **Docs** — the §9 notes and OPEN.md row 314.
 10. **Local check (cycle-local).**
     - **Deploy.** The server and UI both change, so copy `src/api/_shared/relaySource.js` and
       `src/api/relay/fetchEvents.js` into the container and restart `brainstorm`, then copy the UI build.
@@ -345,7 +345,7 @@ subsets). Run single suites through `require('./test/<name>.test.js').run()`.
 ## Out of scope
 - Signing and publishing the plan (story 6): copies, refreshes, deletion requests, the header upgrade.
 - Story 6's carry-forwards: R2-2, the 409 sentence, and whether relays honor kind-5 deletions.
-- The endpoint's other callers (row 280), and the header endpoint's `fetchFromRelays` (row 245).
+- The endpoint's other callers (row 314), and the header endpoint's `fetchFromRelays` (row 245).
 - Batching the rank read.
 - The Trusted List's author (a separate task).
 - A schedule; the method on the header.

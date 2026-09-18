@@ -378,7 +378,7 @@ We chose **Option A**.
 - The control panel's CORS and cookie hardening, and the strfry scan quoting: separate tasks.
 - The Trusted List's author gap (a separate task).
 - Rate limiting, and the inactive-customer check (both recorded).
-- The endpoint's other non-strict callers (row 280), and the presence probe's EOSE gap (row 292).
+- The endpoint's other non-strict callers (row 314), and the presence probe's EOSE gap (row 292).
 
 ## Amendment 1 (2026-09-13, from Test Design, approved at its gate)
 

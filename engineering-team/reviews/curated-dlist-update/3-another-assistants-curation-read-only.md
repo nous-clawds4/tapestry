@@ -25,7 +25,7 @@ implementation commit touches no test.
 
 ## Quality gates (run by reviewer, not trusted)
 
-- [x] **The six story suites**, each through its exported `run()` (node v24.18.0; OPEN.md row 276's method): **101
+- [x] **The six story suites**, each through its exported `run()` (node v24.18.0; OPEN.md row 310's method): **101
       passed, 0 failed**:
       - `curated-dlist-update-read-only-curation` 13/0
       - `my-curated-dlists-page` 19/0
@@ -721,7 +721,7 @@ None.
 2. **Corroborations, no new row.**
    - This brief again reserved the story edit and the commit, against the Reviewer wiring (round 1's Harness friction
      2). This subagent's own instructions also repeat the wiring's "commit" and "flip the status".
-   - Row 232 (chromium-1228), row 276 (`run()` only) and row 191 (the four reds, in the Implementer's log).
+   - Row 232 (chromium-1228), row 310 (`run()` only) and row 191 (the four reds, in the Implementer's log).
 3. **Informational: the full run's summary prints two suites on one line.**
    - `test/test.js:1065–1066` put `tag-actions-menu-ui` and `tagging-raw-event-inspector-ui` on one output line
      (`npm-test-4.log:4861`). A per-line count therefore reads 167 where 168 suites passed.

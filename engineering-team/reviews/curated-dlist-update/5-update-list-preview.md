@@ -39,7 +39,7 @@ Neither implementation commit touches a test file (`git show --name-only … -- 
 
 ## Quality gates (run by reviewer, not trusted)
 
-- [x] **The story's six suites**, each through its exported `run()` (the test plan's gate; OPEN.md row 276): **152
+- [x] **The story's six suites**, each through its exported `run()` (the test plan's gate; OPEN.md row 310): **152
       passed, 0 failed**:
       - `curated-dlist-update-update-preview` 34/0
       - `curated-dlist-update-curation-method` 24/0
@@ -93,7 +93,7 @@ Neither implementation commit touches a test file (`git show --name-only … -- 
         network error or non-101 status code.".
       - The community relay answers `success: true`, with 2 events.
       - The two together answer `success: true`, with the refusing relay under `unreachable`.
-      - Without `strict`, the refusing relay still answers `success: true` with no events (row 280, unchanged for the
+      - Without `strict`, the refusing relay still answers `success: true` with no events (row 314, unchanged for the
         other callers).
 - [x] **The UI build.** `vite build` (7.3.1) of `6bd1a46d` into the scratchpad produced `index-DQ3Z7m9F.js`. That is
       the bundle the container serves on `:7778` and through nginx. So the recorded local checks ran on this exact
@@ -161,7 +161,7 @@ Neither implementation commit touches a test file (`git show --name-only … -- 
   - The button; `previewOpen`; the shared read while candidates or the preview show (`CuratedDListItems.jsx:214`);
   - votes on every shared item (`:241`); two verdict sets (`:254–255`); the preview rendered (`:338`);
   - the detail page's `headerState` (`CuratedDListDetail.jsx:86–90`, `:136`).
-- **§9.** Both superseded notes, and row 280.
+- **§9.** Both superseded notes, and row 314.
 - **Amendment 2.**
   - The panel's verdicts wait on `judging` (`CuratedDListItems.jsx:237`), carry my list's gaps (`:253`), and name a
     failed vote source as the votes (`treasureMap.js:799–800`).

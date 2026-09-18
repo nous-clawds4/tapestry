@@ -4,7 +4,7 @@
 **Date:** 2026-09-13
 **Diff:** `git diff b0fdea2e e1484040` (implementation, commit `e1484040`, 9 files). The implementation commit touches
 no test file. Also read, not under review: `bc434d58` story, `502badc4` ADR 0004, and `git diff 502badc4 b0fdea2e` (the
-Tester's suite, the S3 re-aim, the `test/test.js` registration, the test plan, OPEN.md row 280 and the epic's story 5
+Tester's suite, the S3 re-aim, the `test/test.js` registration, the test plan, OPEN.md row 314 and the epic's story 5
 note).
 
 - Story: `engineering-team/stories/curated-dlist-update/4-curation-method-panel.md`
@@ -13,15 +13,15 @@ note).
 - Epic and book: `engineering-team/epics/curated-dlist-update.md` (§ "Settled at kickoff", story 5's entry);
   `engineering-team/audits/curated-dlist-update/book.md`.
 
-OPEN.md row numbers below are as on this branch. At `origin/staging` `f5015a5f`, rows 276–279 are different items
-(Harness friction 3).
+OPEN.md row numbers below are as on this branch, after the 2026-09-17 staging merge renumbered this book's rows
+276–280 to 310–314. At `origin/staging`, rows 276–279 are different items (Harness friction 3).
 
 > **At a glance.** No blocking items. The code does what ADR 0004 says, and every deviation it takes is recorded
 > and fair. Simple Lists computes as before: 500 differential cases, the characterization table, and my own headless
 > render of its items page all agree.
 >
 > What matters is for **story 5**, because Update will act on these verdicts. Four ways a read can come back
-> incomplete without saying so reach beyond row 280:
+> incomplete without saying so reach beyond row 314:
 > - a partly read shared list (Non-blocking 1);
 > - Follow List with no follow list here (Non-blocking 2a);
 > - a Trusted List read by d-tag from any author (Non-blocking 2b);
@@ -33,7 +33,7 @@ OPEN.md row numbers below are as on this branch. At `origin/staging` `f5015a5f`,
 
 ## Quality gates (run by reviewer, not trusted)
 
-- [x] **The six story suites**, each through its exported `run()` (OPEN.md row 276's method): **107 passed, 0
+- [x] **The six story suites**, each through its exported `run()` (OPEN.md row 310's method): **107 passed, 0
       failed**:
       - `curated-dlist-update-curation-method` 24/0
       - `my-curated-dlists-items` 23/0
@@ -219,7 +219,7 @@ None.
      - story 5 treats a partial candidate read as incomplete before Update proposes anything;
      - optionally now, the summary adds "(of the candidates that could be read)" when the shared list's `local` or
        `relay` failed or it was truncated.
-2. **Two blind spots of `useTrustWeights` reach the verdicts, beyond row 280.**
+2. **Two blind spots of `useTrustWeights` reach the verdicts, beyond row 314.**
    - **(a) Follow List with no follow list here reads as "follows nobody."** When this instance's strfry holds no kind
      3 for the point of view, every weight is 0 and no error is set (`ui/src/hooks/useTrustWeights.js:43–57`). Every
      candidate is then "✗ skipped · 0 < 2", not "couldn't check". A missing Treasure Map, by contrast, is an error
@@ -232,7 +232,7 @@ None.
    - **Why it doesn't block.** Both predate this story and are shared with Simple Lists, so AC-3 holds. ADR §3 keeps
      the hook unchanged. Both are harmless on a page that only reads.
    - **Ask:** before Update acts on these weights, record both for story 5:
-     - (a) extends row 280's family: an absent answer read as a real one. Update could delete every copy on it;
+     - (a) extends row 314's family: an absent answer read as a real one. Update could delete every copy on it;
      - (b) needs its own row, with the fix direction: bind the Trusted List by its coordinate (author and d-tag).
 3. **A capped relay answer can be seen, for this relay — the brief's minor point 3** (`ui/src/utils/treasureMap.js:698–714`).
    - **What the relay advertises.** The community relay's NIP-11 document (`wss://dcosl.brainstorm.world`, strfry
@@ -244,7 +244,7 @@ None.
      capped read as complete.
    - **Why it doesn't block.** No candidate is near 5,000 votes, and the page only reads.
    - **Ask:** story 5 adds "relay answer of `VOTES_LIMIT` or more → incomplete" (one line). Record the lower-cap case
-     with row 280.
+     with row 314.
 4. **Large lists always read "couldn't check": an honest ceiling** (`ui/src/hooks/useItemVotes.js:7`, `ui/src/api/relay.js` `queryRelayBounded`).
    - **What happens.** Both vote reads send the whole `#e` list in a GET query string. I probed the local stack with
      read-only GETs to `/api/strfry/scan`, at about 73 URL characters per id:
@@ -287,9 +287,9 @@ None.
 **The docs** (the brief's item 6) are accurate.
 - **ADR 0003.** `my-curated-dlists` ADR 0003 has its Status parenthetical and a one-line note citing `curated-dlist-update`
   ADR 0004 by short name, saying what changed (D1 pins this).
-- **OPEN.md row 280.** It matches the code: `src/api/relay/fetchEvents.js:48–63` answers `success: true` with
+- **OPEN.md row 314.** It matches the code: `src/api/relay/fetchEvents.js:48–63` answers `success: true` with
   whatever `querySync` resolved, and `useTrustWeights.js:113` drops a `success: false` answer.
-- **The epic's story 5 note.** It carries row 280 forward. Non-blocking 1–4 belong beside it.
+- **The epic's story 5 note.** It carries row 314 forward. Non-blocking 1–4 belong beside it.
 
 ### Harness friction *(anything the process itself got wrong this story — stale doc, wrong port/path, contradictory instruction; each becomes an OPEN.md row, type `meta`)*
 1. **Story 3's Harness friction 1 is fixed by habit, not by a rule.**
@@ -312,12 +312,12 @@ None.
 3. **This book's OPEN.md rows collide with staging's.**
    - **The collision.** The book's Ledger line reserved rows from 271 onward at kickoff. Yet at `origin/staging`
      `f5015a5f`, rows 276–279 are four different items (the auth-hardening follow-ups, the deploy-skill gap, the
-     public-branch disclosure and the sandbox-security retirement). This branch's 276–279 are the run-a-suite gotcha
-     and three reviews' meta rows.
-   - **Row 280.** It is free on staging today, but staging already holds 281–284, and other branches reportedly reach
-     285.
+     public-branch disclosure and the sandbox-security retirement). This branch's 276–279 were the run-a-suite gotcha
+     and three reviews' meta rows; the 2026-09-17 merge renumbered them to 310–313.
+   - **Row 280.** It was free on staging when this review ran, but staging already held 281–284, and other branches
+     reportedly reached 285. It is this book's unreachable-relay row, renumbered to 314 at that merge.
    - **What the merge must do.** Renumber the rows, and repoint every citation of them in this book's artifacts,
-     OPEN.md's own cross-row citations included (row 207). This review and the test plan cite row 276 as the
+     OPEN.md's own cross-row citations included (row 207). This review and the test plan cite row 310 as the
      run-a-suite gotcha; on staging, row 276 is the auth row.
    - **Related:** row 151 is the cross-machine case, and the 2026-08-10 numbering note sets out the current
      heuristic. A per-book reservation on this branch did not reach the sessions minting on staging.

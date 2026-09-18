@@ -22,7 +22,7 @@ The operator settled the convention at kickoff (the epic, § "Settled at kickoff
 
 **Reads that come back incomplete today without saying so.** Story 4's page only reads, so these were accepted there and
 carried here (the epic's story 5 entry):
-- an unreachable relay answers as "nothing there" (OPEN.md row 280), which reads as "no votes" or "nobody ranked";
+- an unreachable relay answers as "nothing there" (OPEN.md row 314), which reads as "no votes" or "nobody ranked";
 - a shared list read from only one of its two sources still gives an "N of M" that looks complete;
 - with the Follow List method, a point of view with no follow list on this instance reads as "follows nobody";
 - a relay answer cut off at the read limit isn't reported as cut off;
@@ -112,9 +112,9 @@ None. Resolved at the Planning gate (2026-09-13), each as proposed:
    - A copy is never deleted because its original was edited.
 
 Origin drift at planning: the branch is 28 commits behind `origin/staging` (the sandbox-security and event-less-sets
-books), and none of them touches this story's areas. OPEN.md rows 276–279 and 281–287 collide with this book's rows; the
-merge before the staging PR renumbers them. Before designing story 6's signing, the Architect should read staging's
-auth-hardening follow-ups (its OPEN.md row 276) and `SECURITY.md`.
+books), and none of them touches this story's areas. Staging's OPEN.md rows 276–279 and 281–287 collided with this
+book's rows; the 2026-09-17 merge renumbered this book's to 310–316. Before designing story 6's signing, the Architect
+should read staging's auth-hardening follow-ups (its OPEN.md row 276) and `SECURITY.md`.
 
 ## Deviations
 
@@ -135,7 +135,7 @@ auth-hardening follow-ups (its OPEN.md row 276) and `SECURITY.md`.
     - a refusing relay (`ws://127.0.0.1:9`) answers `success: false`, lists it as unreachable, and says "Could not read ws://127.0.0.1:9: Received network error or non-101 status code.";
     - the community relay answers `success: true` with 3 events;
     - the two together answer `success: true` with the community relay's events, and list the refusing relay under `unreachable`;
-    - the non-strict path still answers `success: true` with no events (OPEN.md row 280, unchanged).
+    - the non-strict path still answers `success: true` with no events (OPEN.md row 314, unchanged).
   - Signed in through the fetch stub as staging's customer (assistant `253d40c4…`) on `dog-breed`, under Trust Everyone:
     - cutoff 2 gives "Skipped (2)" (golden retriever · 1 < 2, sheep dog · 1 < 2) and the upgrade;
     - cutoff 1 gives "Copy (2)" and the upgrade;

@@ -22,7 +22,7 @@
  *                            preview's phrases; the items section's reads, its two verdict sets and the preview; the
  *                            detail page's headerState; nothing written. User-facing phrases are pinned as literals,
  *                            on whitespace-flattened source. FAIL now.
- *   D (docs)               — ADR 0005 §9's notes and OPEN.md row 280. FAIL now.
+ *   D (docs)               — ADR 0005 §9's notes and OPEN.md row 314. FAIL now.
  *   R (sentinel)           — the presence probe, and Simple Lists' weights warning. PASS before and after.
  *
  * Re-aimed in their own suites (the test plan lists each), for the disabled Update placeholder this story replaces:
@@ -217,7 +217,7 @@ test('V2: readRelayEvents — a refused connection is "unreachable", with a read
   const read = loadReader();
   const dead = flakyConnect(99, null);
   const out = await read(DEAD, { kinds: [7], '#e': [nid()] }, { connect: dead.connect, verify: () => true });
-  assert(out && out.status === 'unreachable', `ADR 0005 §1 / row 280: a refused connection is "unreachable", never an empty "ok"; got ${brief(out)}`);
+  assert(out && out.status === 'unreachable', `ADR 0005 §1 / row 314: a refused connection is "unreachable", never an empty "ok"; got ${brief(out)}`);
   assert(Array.isArray(out.events) && out.events.length === 0, 'ADR 0005 §1: no events when unreachable');
   assert(typeof out.error === 'string' && out.error.length > 0 && !/^undefined$/i.test(out.error), `the bare-string throw is normalized into a readable error; got ${brief(out.error)}`);
   assert(dead.calls === 2, `ADR 0005 §1: one bounded retry — expected 2 connect attempts, got ${dead.calls}`);
@@ -268,7 +268,7 @@ test('F2: strict mode — when every relay is unreachable the answer is success:
   const res = fakeRes();
   await handler(strictReq([RELAY, DEAD]), res, { readRelay: async (url) => ({ status: 'unreachable', events: [], error: `refused ${url}` }) });
   const b = res.body || {};
-  assert(b.success === false, `ADR 0005 §1 / row 280: every relay unreachable → success: false, never "success, no events"; got ${brief(b)}`);
+  assert(b.success === false, `ADR 0005 §1 / row 314: every relay unreachable → success: false, never "success, no events"; got ${brief(b)}`);
   assert(Array.isArray(b.events) && b.events.length === 0, 'ADR 0005 §1: no events');
   assert(typeof b.error === 'string' && /Could not read/.test(b.error), `ADR 0005 §1: the error says "Could not read <relay>: <reason>"; got ${brief(b.error)}`);
   assert(Array.isArray(b.unreachable) && b.unreachable.includes(RELAY) && b.unreachable.includes(DEAD), `ADR 0005 §1: both relays listed as unreachable; got ${brief(b.unreachable)}`);
@@ -708,11 +708,11 @@ test('D1: curated-dlist-update ADR 0004 and my-curated-dlists ADR 0003 each carr
   }
 });
 
-test('D2: OPEN.md row 280 says strict mode exists and which reads opt in, and stays OPEN for the endpoint\'s other callers', () => {
-  const row = (src(OPEN).match(/^\| 280 \|[^\n]*/m) || [''])[0];
-  assert(row, 'OPEN.md must still carry row 280');
-  assert(/strict mode/i.test(row) && /opt(?:s|ed)?[ -]in/i.test(row), `ADR 0005 §9: row 280 says the strict mode exists and which reads opt in; got …${row.slice(-300)}`);
-  assert(/\| OPEN \|/.test(row), 'ADR 0005 §9: row 280 stays OPEN for the other callers');
+test('D2: OPEN.md row 314 says strict mode exists and which reads opt in, and stays OPEN for the endpoint\'s other callers', () => {
+  const row = (src(OPEN).match(/^\| 314 \|[^\n]*/m) || [''])[0];
+  assert(row, 'OPEN.md must still carry row 314');
+  assert(/strict mode/i.test(row) && /opt(?:s|ed)?[ -]in/i.test(row), `ADR 0005 §9: row 314 says the strict mode exists and which reads opt in; got …${row.slice(-300)}`);
+  assert(/\| OPEN \|/.test(row), 'ADR 0005 §9: row 314 stays OPEN for the other callers');
 });
 
 test('D3: curated-dlist-update ADR 0004 records that its §4 words for a failed vote source are superseded, in its Status line and its one-line note (ADR 0005 Amendment 2)', () => {

@@ -21,11 +21,11 @@
 - **S (structure):** source reads. User-facing phrases are pinned as literals, on whitespace-flattened source.
   - An apostrophe may be `'`, `’`, `&apos;` or `&#39;`, but not a backslash-escaped `\'`. So a string with an apostrophe
     goes in double quotes or a template literal, or uses `’`.
-- **D (docs):** ADR 0005 §9's notes, and OPEN.md row 280.
+- **D (docs):** ADR 0005 §9's notes, and OPEN.md row 314.
 - **R (sentinels):** the presence probe, and Simple Lists' weights warning. They pass before and after.
 
 It is registered in `test/test.js` in five places: the require, the run, the results line, the overall verdict and the
-skip aggregate. It carries the `require.main` block (OPEN.md row 276).
+skip aggregate. It carries the `require.main` block (OPEN.md row 310).
 
 **Re-aimed in place.** Each pinned the disabled Update placeholder that this story replaces:
 - **`curated-dlist-update-curation-method` S8.** The disabled-Update assertion becomes "Update's preview writes nothing".
@@ -72,7 +72,7 @@ skip aggregate. It carries the `require.main` block (OPEN.md row 276).
 - [x] **E9 — garbage never throws:** `candidateVerdicts`' `incomplete` (U4) and `updatePlan` (U9).
 - [ ] **Not covered — the rendered preview in a browser, and a live refused connection.** These are the Implementer's
       local check (ADR note 10), including the fetch stub forcing a failed strict read.
-- [ ] **Not covered — publishing** (story 6), and the endpoint's non-strict callers (OPEN.md row 280).
+- [ ] **Not covered — publishing** (story 6), and the endpoint's non-strict callers (OPEN.md row 314).
 - [ ] **Not applicable — the Concept Graph API:** no concept changes.
 
 ## Test infrastructure
@@ -95,7 +95,7 @@ Full suite:
 npm test
 ```
 
-Story-scoped gate. Always go through `run()`, never `node test/<file>` (OPEN.md row 276):
+Story-scoped gate. Always go through `run()`, never `node test/<file>` (OPEN.md row 310):
 ```
 node -e "Promise.all(['./test/curated-dlist-update-update-preview.test.js','./test/curated-dlist-update-curation-method.test.js','./test/my-curated-dlists-items.test.js','./test/curated-dlist-update-read-only-curation.test.js','./test/treasure-map-relay-presence.test.js','./test/event-page-read-path.test.js'].map(p=>require(p).run())).then(rs=>{const f=rs.reduce((s,r)=>s+(r.fail||0),0);console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})"
 ```
@@ -119,7 +119,7 @@ Each failure names what is missing. Samples:
   Cannot find module '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools'". Neither path exists on this
   machine.
 - U6–U9: "ui/src/utils/treasureMap.js must export updatePlan".
-- D2: row 280 does not yet say "strict mode" and "opt in". A first version of this test passed by accident, because the
+- D2: row 314 does not yet say "strict mode" and "opt in". A first version of this test passed by accident, because the
   row already said "the strict fetch"; it was tightened before the gate.
 
 `node --check` is clean on the new suite, the three re-aimed suites and `test/test.js`.

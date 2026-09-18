@@ -11,7 +11,7 @@ storied; claims-adherence table per the review template's docs-mode variant. Con
 ## Quality gates (run by reviewer, not trusted)
 
 - [x] Doc-reading regression suites — **13/13 green, 243 tests, 0 failures**, each through its exported `run()`
-      (node v24.18.0; the ADR's "Regression (Reviewer)" list; OPEN.md row 276's method):
+      (node v24.18.0; the ADR's "Regression (Reviewer)" list; OPEN.md row 310's method):
       `b-coverage-audit-and-disposition` 26/0 · `b-tag-primitive` 16/0 · `publish-time-default-stamping` 14/0 ·
       `open-ranking-stats` 29/0 · `event-tagging-spec` 5/0 · `harness-lint` 41/0 ·
       `scheduled-search-and-house-scores-refresh` 12/0 · `task-queue-semaphore-protection-audit` 6/0 ·
@@ -62,7 +62,7 @@ AC-1 … AC-9 first, then the spec-accuracy claims the brief named (S1–S13).
 | S8 | The copy `d` is unambiguous and implementable | Computed from the spec text alone (node `crypto`): `copy-` + SHA-256 of `39998:<assistant>:dogs` + U+000A + `39999:<bob>:fido` → a 69-character `d`; the same original under a second curated list gets a distinct `d` (the "one copy in each" sentence, `:104`). One theoretical non-injectivity — Non-blocking 1 | Implementable |
 | S9 | Header contract, Curation copies, Deployment status, `stamping.md` and `inherit-from.md` agree | Header contract `:71` ↔ Curation copies `:100` (one `z`) ↔ `stamping.md:27` (only that list's `z`) ↔ `stamping.md:51` (collapse by `q`) ↔ `inherit-from.md:32`/`:132`/`:140` — consistent. **`inherit-from.md:4` contradicts `assistant-designation.md:173`** | Contradiction — Blocking 1 |
 | S10 | No stale claim that the curated/assistant header carries `inherit-items` | `grep -rn inherit-items` over `protocols/`, BIBLE.md, the handoff, AGENTS.md, CLAUDE.md, OPERATIONS.md, ROADMAP.md, plus a paraphrase sweep (`curat… inherit`): what remains is generic registry text (`inherit-from.md:12–120`, `shared-concepts.md:35`/`:55–56`/`:67`), dated history (`worksheet.md:63`; handoff D9 `:153`, D10 `:158–167`), or this diff's updated lines | None stale |
-| S11 | OPEN.md row 276 is accurate and well-formed | 198 suites; 91 lack an `if (require.main === module)` block (strict regex); the six named suites each exit 0 with 0 bytes of output under `node test/<suite>.test.js` (`scheduled-search…`'s only `require.main` is inside an assertion string, `test/scheduled-search-and-house-scores-refresh.test.js:149`). 7 cells, `meta`, OPEN, pointer to the story's Deviations | Accurate |
+| S11 | OPEN.md row 310 is accurate and well-formed | 198 suites; 91 lack an `if (require.main === module)` block (strict regex); the six named suites each exit 0 with 0 bytes of output under `node test/<suite>.test.js` (`scheduled-search…`'s only `require.main` is inside an assertion string, `test/scheduled-search-and-house-scores-refresh.test.js:149`). 7 cells, `meta`, OPEN, pointer to the story's Deviations | Accurate |
 | S12 | The intake closing line follows 0-intake step 1's form, and whats-open honors it | `**RESOLVED** 2026-09-12 — …` at the top of the block (`_intake.md:2342`); `workflows/0-intake.md:12`; `scripts/whats-open.sh:94` anchors `^\*\*RESOLVED` | Form correct (content — Blocking 1) |
 | S13 | The two superseded-in-part annotations are accurate and in the house form | ADR 0002 §3 is the header contract whose `<type>` story 3 named `inherit-items`; ADR 0003 Consequences `:175–176` is "Enables story 4 … `inherit-items` exactly"; precedent `decisions/community-reference/0010-community-class-thread-pull.md:3` ("Accepted (mechanism superseded by ADR 0011)") and `:7` | Accurate |
 
@@ -83,7 +83,7 @@ AC-1 … AC-9 first, then the spec-accuracy claims the brief named (S1–S13).
 | 11 | OPEN.md rows 259/267 | Yes |
 
 **Outside the list:** (a) `inherit-from.md:120` "Scope (v1)" clause — logged deviation, and necessary (the sentence
-otherwise names a withdrawn consumer as current); accepted. (b) OPEN.md row 276 — named in the story's Deviations and
+otherwise names a withdrawn consumer as current); accepted. (b) OPEN.md row 310 — named in the story's Deviations and
 required by OPEN.md's write discipline for harness defects; accepted. (c) The story's § Deviations — the Implementer's
 log. Nothing else changed: `git diff --stat` shows exactly the 12 files, and the ADR's "Not edited" files
 (`shared-concepts.md`, `communities.md`, the DList NIP, `dlist-curation` ADRs 0004–0006, the `my-curated-dlists`
@@ -91,7 +91,7 @@ records) are untouched. No code, no dependencies.
 
 **Logged deviations judged:** the `:120` clause — accepted (above); the Shape deviation (the Curation-copies lead, §6
 as two paragraphs, D11's context sentence) — accepted, it adds no normative content and every Decision §§2–7 sentence
-is present; the Regression-scope note — verified (243/0; row 276 accurate).
+is present; the Regression-scope note — verified (243/0; row 310 accurate).
 
 ## Concept-graph integrity
 - [x] No concept, schema or property change; no handle introduced. Firmware reinstall not required (ADR
@@ -202,22 +202,22 @@ Not applicable — no PRD, and no user-facing copy in this diff.
    "implementation" or "no longer" sentence is true at *this* story's merge. Candidate fix: one line in the
    Architect's docs-mode guidance (and the ADR template's Implementation-notes section) — in a multi-story epic, a
    status sentence prescribed for a docs-mode story must be true at that story's commit or carry "until story N".
-   Same family as row 240 (no consistency-sweep step in docs-mode). Proposed row 277.
+   Same family as row 240 (no consistency-sweep step in docs-mode). Proposed row 311.
 2. **Epic retirement breaks full-path ADR citations made from outside the epic's folder.** Workflow 5's "Epic
    close-out" moves `decisions/<epic>/` under `done/` and notes only that paths *inside* the folder stay intact;
    protocol drafts, other epics' ADRs and supersession notes cite the full path. Live instance:
    `protocols/drafts/assistant-designation.md:56`. This story adds three more that break at this epic's close
    (`assistant-designation.md:98` and the ADR 0002/0003 annotations at `:7`). Candidate fix: cite ADRs in the
    `<epic>/<nnnn>` short form outside `engineering-team/` (OPEN.md already does), or add a close-out step that greps
-   for `decisions/<epic-slug>/` outside the folder and rewrites it to `done/`. Proposed row 278.
+   for `decisions/<epic-slug>/` outside the folder and rewrites it to `done/`. Proposed row 312.
 3. **The review template's docs-mode note conflicts with 0-intake §3 for storied docs-mode reviews.**
    `templates/review-checklist.md` says the docs-mode / doc-lane variant has "no ACs" and files under "the
    non-numbered form (0-intake §3)"; 0-intake §3 reserves the non-numbered form for *doc-lane* reviews with no story,
    and a storied docs-mode review has ACs and must be numbered for L4 (this review, and
    `reviews/done/dlist-curation/3-inherit-items-facet.md`, which had to say "numbered form because the story is
    storied"). Candidate fix: split the note — doc-lane (no story) → non-numbered, no ACs; storied docs-mode →
-   numbered, claims table plus the ACs. Related: row 16 (second cause), whose fix added the note. Proposed row 279 (or fold into 277's harness edit).
-4. Corroborations, no new row: row 234 (Non-blocking 8); row 276 verified exactly (S11).
+   numbered, claims table plus the ACs. Related: row 16 (second cause), whose fix added the note. Proposed row 313 (or fold into 277's harness edit).
+4. Corroborations, no new row: row 234 (Non-blocking 8); row 310 verified exactly (S11).
 
 ## Story bookkeeping
 The story's `Review:` line now carries this file's path; its `**Status:**` stays `Approved`, because the verdict is
@@ -235,7 +235,7 @@ NIP-01 and the DList NIP; links, tables, JSON; the ledger, intake and annotation
 **Date:** 2026-09-12
 **Diff:** `git diff 9378eca7 3a7fba43` — `ae0d2c7f` (ADR 0001 Amendment 1) and `3a7fba43` (the Implementer, applying it).
 Round 1's text above is unchanged (`git log` on this file shows `9378eca7` only). Context, not under review: `9378eca7`
-also added OPEN.md rows 277–279 (round 1's harness friction) and the epic's `## Decisions` entry (round 1 NB 8).
+also added OPEN.md rows 311–313 (round 1's harness friction; filed as 277–279, renumbered at the 2026-09-17 merge) and the epic's `## Decisions` entry (round 1 NB 8).
 
 ### Quality gates (re-run by the reviewer)
 - [x] Doc-reading regression suites — 13/13 green, **243 tests, 0 failures**, each through its exported `run()` (node
@@ -309,8 +309,8 @@ None.
    "ADR 0027"), and `:1843` cites a different epic's ADR 0001. Optional: restore the epic qualifier.
 
 #### Harness friction (round 2)
-- No new row. Non-blocking 1 is a live instance of row 277's class (status wording true only after a later story),
-  moved one story out — worth a note on row 277 itself so story 2's cycle picks it up.
+- No new row. Non-blocking 1 is a live instance of row 311's class (status wording true only after a later story),
+  moved one story out — worth a note on row 311 itself so story 2's cycle picks it up.
 
 ### Story bookkeeping (round 2)
 - The story's `Status:` line is set to `Done` in place (`stories/curated-dlist-update/1-curation-copy-convention.md:3`);

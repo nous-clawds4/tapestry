@@ -18,7 +18,7 @@ story, `36a3c0dc` ADR 0002, `537f8001` failing tests; the story's cycle starts a
 
 ## Quality gates (run by reviewer, not trusted)
 
-- [x] **The six story suites**, each through its exported `run()` (node v24.18.0; OPEN.md row 276's method): **112
+- [x] **The six story suites**, each through its exported `run()` (node v24.18.0; OPEN.md row 310's method): **112
       passed, 0 failed**:
       - `curated-dlist-update-pointer-switch` 12/0
       - `dlist-curation-header-endpoint` 29/0
@@ -180,7 +180,7 @@ the panel reads is unchanged. No new dependency was added. Option B was not take
 
 **Annotations (Decision §8).**
 - Each carries a Status parenthetical and a one-line "Superseded in part (2026-09-12)" note under its header block.
-  Each cites `curated-dlist-update` ADR 0002 by short name, not by path (row 278's lesson):
+  Each cites `curated-dlist-update` ADR 0002 by short name, not by path (row 312's lesson):
   - `decisions/done/dlist-curation/0004-…:3` and `:8`;
   - `decisions/done/dlist-curation/0006-…:3` and `:7`;
   - `decisions/done/my-curated-dlists/0002-…:3` and `:9`;
@@ -188,7 +188,7 @@ the panel reads is unchanged. No new dependency was added. Option B was not take
 - Each note is accurate against the code.
 - Every done/ ADR that mentions `inherit-items` now carries an annotation.
 - Story 1's two annotations (`done/dlist-curation/0002` and `0003`) still cite ADR 0001 by full path. That belongs to
-  row 278, not to this story.
+  row 312, not to this story.
 
 **Logged deviations judged.**
 1. The `TreasureMapTagsPanel.jsx:26` file comment ("copies from") and the epic's § Decisions bullet

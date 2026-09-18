@@ -106,7 +106,7 @@ The TA pubkey is resolved at runtime per deployment. Both handles exist in this 
 - Undoing a publish, or deleting copies anywhere but where my list is read from.
 - The Trusted List being read by d-tag from any author (a separate task).
 - A copy's `json`, which is derived from the author's graph.
-- The endpoint's other non-strict callers (OPEN.md row 280), and the presence probe's EOSE gap (row 292).
+- The endpoint's other non-strict callers (OPEN.md row 314), and the presence probe's EOSE gap (row 292).
 
 ## Open questions
 None. Resolved at the Planning gate (2026-09-13), each as proposed:

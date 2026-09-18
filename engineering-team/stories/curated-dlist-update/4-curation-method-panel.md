@@ -111,7 +111,7 @@ Resolved at the Test Design gate (2026-09-12), each as recommended:
    success, so the page cannot tell it from "no votes" or "nobody is ranked" (OPEN.md row 245's cause).
    - AC-4's "couldn't check" covers every failure the page can see.
    - This one is accepted here, because the page only reads.
-   - It is filed as OPEN.md row 280, for story 5 to settle before Update proposes a deletion.
+   - It is filed as OPEN.md row 314, for story 5 to settle before Update proposes a deletion.
 5. **Simple Lists' one change.** A vote whose first `e` tag names an inherited property (such as `constructor`
    or `__proto__`) crashes Simple Lists' items page today. With the shared rule, the vote is ignored instead
    (AC-5).

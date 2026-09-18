@@ -12,7 +12,7 @@
 - ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md` (with Amendment 1)
 - Test plan: `engineering-team/stories/curated-dlist-update/6-update-list-publishes.test-plan.md`
 - Context: ADRs 0001 and 0005 in the same folder; `engineering-team/epics/curated-dlist-update.md`; staging's OPEN.md
-  row 276, read pointer-level only.
+  row 310, read pointer-level only.
 
 > **At a glance.** One blocking item, and it is small. The server half holds where it matters most:
 > - only the signed-in user can make their assistant sign;
@@ -35,7 +35,7 @@
 ## Quality gates (run by reviewer, not trusted)
 
 - [x] **The story's suites.** Each ran in its own process through its exported `run()` (the test plan's gate; OPEN.md
-      row 276), never as `node test/<file>`. 156 passed, 0 failed:
+      row 310), never as `node test/<file>`. 156 passed, 0 failed:
       - `curated-dlist-update-publish` 50/0 (new)
       - `curated-dlist-update-update-preview` 34/0 (re-aimed)
       - `curated-dlist-update-curation-method` 24/0 (re-aimed)
@@ -385,7 +385,7 @@ The story's status stays as it is, and completion detection waits for a passing 
 
 ### Quality gates (round 2) — run by reviewer, not trusted
 
-- [x] **The 13 suites that read a changed file.** Each in its own process through its exported `run()` (OPEN.md row 276),
+- [x] **The 13 suites that read a changed file.** Each in its own process through its exported `run()` (OPEN.md row 310),
       never as `node test/<file>`. **306 passed, 0 failed:**
       - `curated-dlist-update-publish` 69/0 · `-update-preview` 34/0 · `-curation-method` 24/0 · `-pointer-switch` 12/0 ·
         `-read-only-curation` 13/0 (152);

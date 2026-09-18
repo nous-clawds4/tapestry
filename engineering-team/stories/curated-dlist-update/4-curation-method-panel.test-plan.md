@@ -31,7 +31,7 @@
   - `TrustContext` and `useTrustWeights`.
 
 It is registered in `test/test.js` in five places: the require, the run, the results line, the overall verdict and the
-skip aggregate. It carries the `require.main` block (OPEN.md row 276).
+skip aggregate. It carries the `require.main` block (OPEN.md row 310).
 
 **Re-aimed in place:** `test/my-curated-dlists-items.test.js` S3 — its title, with a comment, because the method panel
 is no longer text only. Its assertions still hold before and after:
@@ -78,7 +78,7 @@ is no longer text only. Its assertions still hold before and after:
 - [x] **E9 — garbage never throws:** every new pure function, and `candidateVerdicts`, which runs on every render (U1–U4,
       U7–U9, U13).
 - [ ] **Not covered — an unreachable relay answered as "success, no events."** Accepted for this story at the Test
-      Design gate (the operator's call, 2026-09-12), because the page only reads. It is filed as OPEN.md row 280, which
+      Design gate (the operator's call, 2026-09-12), because the page only reads. It is filed as OPEN.md row 314, which
       story 5 must settle before Update proposes a deletion (the epic's story 5 entry).
       - `/api/relay/external` (`src/api/relay/fetchEvents.js`) runs nostr-tools' `querySync`, which resolves empty when
         a relay refuses the connection. That is OPEN.md row 245's root cause, recorded there for the dlist-curation
@@ -114,7 +114,7 @@ Full suite:
 npm test
 ```
 
-Story-scoped gate. Always go through `run()`, never `node test/<file>` (OPEN.md row 276):
+Story-scoped gate. Always go through `run()`, never `node test/<file>` (OPEN.md row 310):
 ```
 node -e "Promise.all(['./test/curated-dlist-update-curation-method.test.js','./test/my-curated-dlists-items.test.js','./test/curated-dlist-update-read-only-curation.test.js','./test/curated-dlist-update-pointer-switch.test.js','./test/my-curated-dlists-page.test.js','./test/my-curated-dlists-headers.test.js'].map(p=>require(p).run())).then(rs=>{const f=rs.reduce((s,r)=>s+(r.fail||0),0);console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})"
 ```

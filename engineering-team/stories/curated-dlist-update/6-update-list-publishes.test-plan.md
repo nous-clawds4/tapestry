@@ -38,7 +38,7 @@ three of the new ones. See § "Round 2 — ADR 0006 Amendment 2" at the end.
 - **R (sentinels):** the header endpoint's 409, and Simple Lists untouched. They pass before and after.
 
 It is registered in `test/test.js` in five places: the require, the run, the results line, the overall verdict and the
-skip aggregate. It carries the `require.main` block (OPEN.md row 276).
+skip aggregate. It carries the `require.main` block (OPEN.md row 310).
 
 **Re-aimed in place.** Each pinned something this story makes false:
 - **`curated-dlist-update-update-preview`:**
@@ -141,7 +141,7 @@ Full suite:
 npm test
 ```
 
-Story-scoped gate. Always go through `run()`, never `node test/<file>` (OPEN.md row 276):
+Story-scoped gate. Always go through `run()`, never `node test/<file>` (OPEN.md row 310):
 ```
 node -e "Promise.all(['./test/curated-dlist-update-publish.test.js','./test/curated-dlist-update-update-preview.test.js','./test/curated-dlist-update-curation-method.test.js','./test/my-curated-dlists-items.test.js','./test/curated-dlist-update-read-only-curation.test.js','./test/dlist-curation-header-endpoint.test.js','./test/dlist-curation-panel.test.js'].map(p=>require(p).run())).then(rs=>{const f=rs.reduce((s,r)=>s+(r.fail||0),0);console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})"
 ```
