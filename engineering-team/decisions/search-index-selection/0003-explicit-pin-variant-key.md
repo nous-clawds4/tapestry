@@ -197,7 +197,7 @@ disclosure. Purely additive, and it leaves contextual/neutral list tag arrays by
 chosen slug against the viewer's existing pins of this tag. The data is already on the page:
 `GET /api/profile-tags/by-id` returns `viewerPins` with `context` per pin
 (`src/api/profile-tags/index.js:888-906`), consumed as `orderedViewerPins`
-(`ui/src/pages/Tag.jsx:173-177`). Story 5 extends that row with `variant` (§4) and the dialog
+(`ui/src/pages/Tag.jsx:177-181`). Story 5 extends that row with `variant` (§4) and the dialog
 refuses, inline, without signing anything, when the slug: (a) equals an existing pin's variant
 slug; (b) equals an existing pin's context slug or any `KNOWN_CONTEXTS` slug; (c) is empty after
 slugify; (d) exceeds 40 chars. The error names the conflicting pin.
@@ -270,6 +270,7 @@ runner does not read 10040s today and the operator's day-one case is author === 
 | `:396` | `computeNoteBookmarkDTag(… no contextSlug)` | pass the active pin's variant (E5) — see Consequences, this also fixes a pre-existing contextual mismatch |
 | `ui/src/components/PinnedListPanel.jsx:135-163`, `:293` | `contextSlug` → `computeTLDTag` / `itemTlDTag` / `computeNoteBookmarkDTag` | read `pin.variant`; label a recipe by its name, never with the community label logic at `:136-138` |
 | `ui/src/pages/Tag.jsx:174-181`, `:573-590` | `contextNameOf`, `orderedViewerPins`, chip row | §5 |
+| `ui/src/hooks/usePinnedNotes.js:54` (fed `contextSlug` by `ui/src/components/PinnedListPanel.jsx:134`, `:200`) | composes the kind-30393 note-TL `d` via `computeNoteTLDTag({…, contextSlug})` for the Pinned tab | the panel passes the pin's full variant (`variantOfPin(activePin)` → context OR recipe slug) so a recipe pin's Pinned tab reads its own `-v-<slug>` note list, not the neutral one — the same OPEN-298 class as the row below; `computeNoteTLDTag` takes the generalised key like every other composer (§1) |
 | `ui/src/hooks/useTagMemberSets.js:56`, `:93` | hand-composed `tl-pin-…`, **no suffix at all** (OPEN 298) | **fixed here**: delegate to `tlDTag` with the pin's variant |
 | `ui/src/pages/Pins.jsx:47-58` | `contextLabel` + ordering | show a recipe by name with the recipe glyph; do not route it through `KNOWN_CONTEXTS` |
 
@@ -414,10 +415,12 @@ Blast radius, in dependency order:
   refusal; it reports the chosen `{name, slug}` to the caller *beside* the curation blob, never
   inside it.
 - `ui/src/pages/Tag.jsx` — `publishVariantPin`; `variantNameOf` beside `contextNameOf`
-  (`:170-172`); three-band `orderedViewerPins` (`:173-177`); divider + glyph in the chip row
-  (`:556-575`); pass the dialog the viewer's existing variant slugs.
+  (`:174-176`); three-band `orderedViewerPins` (`:177-181`); divider + glyph in the chip row
+  (`:573-590`); pass the dialog the viewer's existing variant slugs.
 - `ui/src/components/PinnedListPanel.jsx`, `ui/src/pages/Pins.jsx`,
   `ui/src/hooks/useTagMemberSets.js` — read `pin.variant`; label recipes by name.
+  `ui/src/hooks/usePinnedNotes.js:54` + `ui/src/components/PinnedListPanel.jsx:134,200` — the note-TL
+  address for the Pinned tab takes the pin's variant (context or recipe), not `contextSlug` alone.
 - `ui/src/styles.css` — one `.bs-pin-switcher-divider` rule inside the block at `:6291-6316`.
 - `firmware/versions/v1.0.0/concepts/tag-pinning/json-schema.json` — §8.
 
