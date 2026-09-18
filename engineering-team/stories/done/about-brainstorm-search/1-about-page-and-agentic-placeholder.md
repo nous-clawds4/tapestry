@@ -6,7 +6,7 @@
 
 ## Background
 
-The search home page ([ui/src/pages/BrainstormSearch.jsx:1307-1311](../../../ui/src/pages/BrainstormSearch.jsx)) has a three-link footer: `Developers · How search works · Settings`. The only explanatory link, `How search works`, goes to a *mechanism* page (Meilisearch, GrapeRank verification scoring). Nothing on the site tells a visitor **what they can do** with Brainstorm Search — and in particular, nothing signals that it is reachable other than by typing into the search bar.
+The search home page ([ui/src/pages/BrainstormSearch.jsx:1307-1311](../../../../ui/src/pages/BrainstormSearch.jsx)) has a three-link footer: `Developers · How search works · Settings`. The only explanatory link, `How search works`, goes to a *mechanism* page (Meilisearch, GrapeRank verification scoring). Nothing on the site tells a visitor **what they can do** with Brainstorm Search — and in particular, nothing signals that it is reachable other than by typing into the search bar.
 
 Operator request 2026-07-21: add an overview page organized around the ways search can be used, and make it the footer entry point. Built lightweight (no ADR / failing tests; browser-verified), matching the precedent set by `developers-pages` story 1.
 
