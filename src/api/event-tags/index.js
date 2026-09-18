@@ -54,9 +54,46 @@ const FOR_TAG_SORTS = ['recent', 'applied', 'disputed', 'divisive'];
 const FOR_TAG_TTL_MS = 30000;
 const FOR_TAG_CACHE_MAX = 200;
 const forTagCache = new Map(); // key -> { body, expires }
+// Short-TTL cache for the tag INDEX aggregate. `handleTagIndex` walks every tagging
+// assertion in the corpus, resolves headers, applies the POV predicate and joins the pin
+// aggregate — a fixed whole-corpus cost that does NOT shrink with limit/offset (measured
+// 2026-09-17 on tags.brainstorm.world: ~5-6 s per request, and an empty offset=50 page
+// cost the same 5.3 s as the first page). Paging therefore cannot fix it; caching the
+// aggregate can. Keyed on the POV inputs ONLY — sort, q, authoredBy, pinnedByMe, offset
+// and limit are applied in memory afterwards, so one entry serves every sort and page
+// and a sort toggle becomes instant. Same staleness contract as the for-tag cache: a new
+// tag or tagging may not appear for TAG_INDEX_TTL_MS, and `nocache=1` skips the read.
+const TAG_INDEX_TTL_MS = 30000;
+const TAG_INDEX_CACHE_MAX = 50;
+const tagIndexCache = new Map(); // key -> { agg, expires }
 const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 const DESCRIPTOR_RE = /^39999:[0-9a-f]{64}:tagging:.+-tagging$/;
+
+/**
+ * Resolve a set of `39999:<author>:<d>` tagging-header coordinates to their events,
+ * batched ONE scan per distinct author instead of one scan per coordinate.
+ *
+ * The per-coordinate loop this replaces was an N+1 against strfry: a corpus with N
+ * distinct tagging headers cost N scans on every request, and they are overwhelmingly
+ * authored by the same handful of pubkeys. Behaviour is unchanged — `dedupeReplaceable`
+ * still picks the newest per address, and a coordinate whose header is absent simply
+ * contributes nothing.
+ */
+async function resolveTaggingHeaders(descriptors) {
+  const byAuthor = new Map(); // author -> Set(dTag)
+  for (const coord of descriptors) {
+    const m = /^39999:([0-9a-f]{64}):(.+)$/.exec(coord);
+    if (!m) continue;
+    if (!byAuthor.has(m[1])) byAuthor.set(m[1], new Set());
+    byAuthor.get(m[1]).add(m[2]);
+  }
+  const found = [];
+  for (const [author, ds] of byAuthor) {
+    found.push(...await strfryScan({ kinds: [39999], authors: [author], '#d': Array.from(ds) }));
+  }
+  return dedupeReplaceable(found);
+}
 
 function isHexPubkey(v) { return typeof v === 'string' && /^[0-9a-f]{64}$/.test(v); }
 function isACoord(v) { return typeof v === 'string' && /^\d+:[0-9a-f]{64}:.+$/.test(v); }
@@ -165,13 +202,7 @@ async function handleForEvent(req, res) {
     for (const c of candidates) {
       for (const t of c.tags || []) if (t[0] === 'z' && DESCRIPTOR_RE.test(t[1] || '')) descriptors.add(t[1]);
     }
-    const headers = [];
-    for (const coord of descriptors) {
-      const m = /^39999:([0-9a-f]{64}):(.+)$/.exec(coord);
-      if (!m) continue;
-      headers.push(...await strfryScan({ kinds: [39999], authors: [m[1]], '#d': [m[2]] }));
-    }
-    const dedupedHeaders = dedupeReplaceable(headers);
+    const dedupedHeaders = await resolveTaggingHeaders(descriptors);
 
     // 3. POV trust predicate, then classify. `viewerPubkey` (hex-validated;
     //    malformed → absent) surfaces the viewer's OWN stance in `mine`,
@@ -606,12 +637,7 @@ async function computeTagUsageRows({ wotPov = 'house', userPubkey = null, alsoTr
   const assertions = dedupeReplaceable(await strfryScan({ kinds: [39999], '#z': memberZs }));
   const descriptors = new Set();
   for (const c of assertions) for (const t of (c.tags || [])) if (t[0] === 'z' && DESCRIPTOR_RE.test(t[1] || '')) descriptors.add(t[1]);
-  const headerEvents = [];
-  for (const coord of descriptors) {
-    const m = /^39999:([0-9a-f]{64}):(.+)$/.exec(coord);
-    if (m) headerEvents.push(...await strfryScan({ kinds: [39999], authors: [m[1]], '#d': [m[2]] }));
-  }
-  const headers = dedupeReplaceable(headerEvents);
+  const headers = await resolveTaggingHeaders(descriptors);
   const { isAsserterTrusted } = await buildTrustPredicate(req, assertions.map((c) => c.pubkey));
   // Viewer-inclusive (tag-applicability/0002): the viewer's OWN taggings always count, so a tag
   // they just applied graduates into that context's picker immediately, regardless of WoT rank.
@@ -658,48 +684,67 @@ async function handleTagIndex(req, res) {
     const authoredBy = isHexPubkey(req.query.authoredBy) ? req.query.authoredBy : null;
     const pinnedByMe = req.query.pinnedByMe === 'true' && !!viewerPubkey;
 
-    // 1. Scan every family member's assertions under the honored authorities.
-    const memberZs = [];
-    for (const a of authorities) for (const m of core.taggingMembers) memberZs.push(m.conceptZ(a));
-    const assertions = dedupeReplaceable(await strfryScan({ kinds: [39999], '#z': memberZs }));
+    // The whole-corpus aggregate is cached per POV; sort/filter/page are applied to it
+    // below. `nocache=1` skips the read (use right after publishing a tag) but still
+    // writes back, so the next normal read is warm.
+    const noCache = req.query.nocache === '1' || req.query.nocache === 'true';
+    // POV params MUST be in the key so a cached povResolution can never describe another
+    // POV's read (same rule as the for-tag cache).
+    const wotPov = req.query.wotPov || 'house';
+    const userPubkey = req.query.userPubkey || '';
+    const cacheKey = `${authorities.join(',')}|${viewerPubkey || ''}|${wotPov}|${userPubkey}`;
+    const hit = tagIndexCache.get(cacheKey);
+    let agg = (!noCache && hit && hit.expires > Date.now()) ? hit.agg : null;
 
-    // 2. Resolve the tagging headers the event-tag members need.
-    const descriptors = new Set();
-    for (const c of assertions) for (const t of (c.tags || [])) if (t[0] === 'z' && DESCRIPTOR_RE.test(t[1] || '')) descriptors.add(t[1]);
-    const headerEvents = [];
-    for (const coord of descriptors) {
-      const m = /^39999:([0-9a-f]{64}):(.+)$/.exec(coord);
-      if (m) headerEvents.push(...await strfryScan({ kinds: [39999], authors: [m[1]], '#d': [m[2]] }));
+    if (!agg) {
+      // 1. Scan every family member's assertions under the honored authorities.
+      const memberZs = [];
+      for (const a of authorities) for (const m of core.taggingMembers) memberZs.push(m.conceptZ(a));
+      const assertions = dedupeReplaceable(await strfryScan({ kinds: [39999], '#z': memberZs }));
+
+      // 2. Resolve the tagging headers the event-tag members need (one scan per author).
+      const descriptors = new Set();
+      for (const c of assertions) for (const t of (c.tags || [])) if (t[0] === 'z' && DESCRIPTOR_RE.test(t[1] || '')) descriptors.add(t[1]);
+      const headers = await resolveTaggingHeaders(descriptors);
+
+      // 3. Normalize → POV predicate → index by tag coordinate.
+      const { isAsserterTrusted, povSuffix, minRank, povResolution } = await buildTrustPredicate(req, assertions.map((c) => c.pubkey));
+      const taggings = core.normalizeTaggings({ assertions, headers, honoredAuthorities: authorities });
+      let { rows } = core.indexByTag(taggings, { isAsserterTrusted, viewerPubkey });
+
+      // 4. Enrich tag display (name/description/eventId) from the shared tag-elements.
+      const tagEls = dedupeReplaceable(await strfryScan({ kinds: [39999], '#z': authorities.map((a) => core.conceptTag(a)) }));
+      const meta = new Map();
+      for (const el of tagEls) {
+        const d = dTagOf(el);
+        if (!d) continue;
+        let name = d; let description = '';
+        try { const c = JSON.parse(el.content || '{}'); if (c.tag) { name = c.tag.name || d; description = c.tag.description || ''; } } catch { /* slug fallback */ }
+        meta.set(`${el.pubkey}:${d}`, { name, description, eventId: el.id });
+      }
+      rows = rows.map((r) => {
+        const md = meta.get(`${r.tag.authorPubkey}:${r.tag.slug}`) || {};
+        return { ...r, authorPubkey: r.tag.authorPubkey, slug: r.tag.slug, name: md.name || r.tag.slug, description: md.description || '', tagEventId: md.eventId || null };
+      });
+
+      // Pins (Story 13 / ADR 0012) — reuse the profile-curation aggregate, joined on
+      // tagEventId. Read-only; a note-pin affordance is Story 12.
+      try {
+        const { aggregateTagPins } = require('../profile-tags');
+        const { pinCountByTagEventId, viewerPinnedSet } = await aggregateTagPins({ povSuffix, minRank, viewerPubkey });
+        rows = rows.map((r) => ({ ...r, pinnedCount: r.tagEventId ? (pinCountByTagEventId.get(r.tagEventId) || 0) : 0, viewerPinned: r.tagEventId ? viewerPinnedSet.has(r.tagEventId) : false }));
+      } catch { rows = rows.map((r) => ({ ...r, pinnedCount: 0, viewerPinned: false })); }
+
+      agg = { rows, povSuffix, minRank, povResolution };
+      // Bounded: evict everything rather than track an LRU (the for-tag cache's rule).
+      if (tagIndexCache.size >= TAG_INDEX_CACHE_MAX) tagIndexCache.clear();
+      tagIndexCache.set(cacheKey, { agg, expires: Date.now() + TAG_INDEX_TTL_MS });
     }
-    const headers = dedupeReplaceable(headerEvents);
 
-    // 3. Normalize → POV predicate → index by tag coordinate.
-    const { isAsserterTrusted, povSuffix, minRank, povResolution } = await buildTrustPredicate(req, assertions.map((c) => c.pubkey));
-    const taggings = core.normalizeTaggings({ assertions, headers, honoredAuthorities: authorities });
-    let { rows } = core.indexByTag(taggings, { isAsserterTrusted, viewerPubkey });
-
-    // 4. Enrich tag display (name/description/eventId) from the shared tag-elements; optional q filter.
-    const tagEls = dedupeReplaceable(await strfryScan({ kinds: [39999], '#z': authorities.map((a) => core.conceptTag(a)) }));
-    const meta = new Map();
-    for (const el of tagEls) {
-      const d = dTagOf(el);
-      if (!d) continue;
-      let name = d; let description = '';
-      try { const c = JSON.parse(el.content || '{}'); if (c.tag) { name = c.tag.name || d; description = c.tag.description || ''; } } catch { /* slug fallback */ }
-      meta.set(`${el.pubkey}:${d}`, { name, description, eventId: el.id });
-    }
-    rows = rows.map((r) => {
-      const md = meta.get(`${r.tag.authorPubkey}:${r.tag.slug}`) || {};
-      return { ...r, authorPubkey: r.tag.authorPubkey, slug: r.tag.slug, name: md.name || r.tag.slug, description: md.description || '', tagEventId: md.eventId || null };
-    });
-
-    // Pins (Story 13 / ADR 0012) — reuse the profile-curation aggregate, joined on
-    // tagEventId. Read-only; a note-pin affordance is Story 12.
-    try {
-      const { aggregateTagPins } = require('../profile-tags');
-      const { pinCountByTagEventId, viewerPinnedSet } = await aggregateTagPins({ povSuffix, minRank, viewerPubkey });
-      rows = rows.map((r) => ({ ...r, pinnedCount: r.tagEventId ? (pinCountByTagEventId.get(r.tagEventId) || 0) : 0, viewerPinned: r.tagEventId ? viewerPinnedSet.has(r.tagEventId) : false }));
-    } catch { rows = rows.map((r) => ({ ...r, pinnedCount: 0, viewerPinned: false })); }
+    const { povSuffix, minRank, povResolution } = agg;
+    // Never sort `agg.rows` in place — it is shared with every other request on this
+    // cache entry. `slice()` makes the per-request copy the sorters below mutate.
+    let rows = agg.rows.slice();
 
     if (q) rows = rows.filter((r) => (r.name || '').toLowerCase().includes(q) || r.slug.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q));
     if (authoredBy) rows = rows.filter((r) => r.authorPubkey === authoredBy);
@@ -741,9 +786,7 @@ async function handleNotesByAuthor(req, res) {
     const assertions = dedupeReplaceable(await strfryScan({ kinds: [39999], authors: [authorPubkey], '#z': memberZs }));
     const descriptors = new Set();
     for (const c of assertions) for (const tg of (c.tags || [])) if (tg[0] === 'z' && DESCRIPTOR_RE.test(tg[1] || '')) descriptors.add(tg[1]);
-    const headerEvents = [];
-    for (const coord of descriptors) { const m = /^39999:([0-9a-f]{64}):(.+)$/.exec(coord); if (m) headerEvents.push(...await strfryScan({ kinds: [39999], authors: [m[1]], '#d': [m[2]] })); }
-    const headers = dedupeReplaceable(headerEvents);
+    const headers = await resolveTaggingHeaders(descriptors);
 
     const mine = core.taggingsByAsserter(core.normalizeTaggings({ assertions, headers, honoredAuthorities: authorities }), authorPubkey)
       .filter((tg) => tg.target.type === 'event');
