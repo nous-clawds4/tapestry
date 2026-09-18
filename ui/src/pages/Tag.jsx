@@ -630,6 +630,10 @@ export default function Tag() {
                 mode="create"
                 initialCuration={defaultCurationMethod(user.pubkey)}
                 viewerPubkey={user.pubkey}
+                context={pinDialog.context}
+                contextName={pinDialog.context
+                  ? (KNOWN_CONTEXTS.find((c) => c.slug === pinDialog.context)?.name || pinDialog.context)
+                  : null}
                 onSubmit={(curation) => (pinDialog.context
                   ? publishContextPin(curation, pinDialog.context)
                   : publishWithCuration(curation))}

@@ -468,6 +468,19 @@ t('S12 E1: a failed publish surfaces inline and leaves the dialog open with the 
 //     (these are green BEFORE the implementation and must stay green after)
 // ===========================================================================
 
+t('S13 AC-5 (review finding): the community-pin interstitial shows the chosen context, fixed', () => {
+  const page = rd(TAG_PAGE);
+  const dialog = rd(UI('components/CurationMethodDialog.jsx'));
+  const mount = page.slice(page.indexOf('<CurationMethodDialog'), page.indexOf('/>', page.indexOf('<CurationMethodDialog')));
+  assert(/context=\{pinDialog\.context\}/.test(mount),
+    'AC-5: the create-mode mount must pass the chosen context into the dialog.');
+  assert(/contextName=/.test(mount), 'AC-5: and its display name (KNOWN_CONTEXTS lookup, slug fallback).');
+  const create = dialog.slice(dialog.indexOf("mode === 'create' &&"), dialog.indexOf("mode === 'create' &&") + 2500);
+  assert(/\{context && \(/.test(create) && /Community:/.test(create) && /contextName \|\| context/.test(create),
+    'AC-5: create mode must render a fixed "Community: <name>" line when a context is set, and nothing when neutral.');
+  assert(!/onChange=[^\n]*context/i.test(create), 'AC-5: the context is shown, not editable, in the interstitial.');
+});
+
 t('R1 AC-2: the pin refresh is still AWAITED before the NIP-51 exports fire', () => {
   const src = rd(TAG_PAGE);
   const m = src.match(/const publishWithCuration\s*=\s*async\s*\([^)]*\)\s*=>\s*\{([\s\S]*?)\n\s{2}\};/);

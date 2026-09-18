@@ -39,6 +39,10 @@ export default function CurationMethodDialog({
   tag,
   initialCuration,
   mode = 'create',
+  // search-index-selection #4 AC-5 — for a "Pin to community" flow the chosen context is
+  // shown, fixed (not editable here); null for a neutral pin.
+  context = null,
+  contextName = null,
   viewerPubkey,
   onSubmit,
   onCancel,
@@ -216,6 +220,12 @@ export default function CurationMethodDialog({
             <p className="pcd-create-line">
               Pinning publishes a Trusted List under your point of view with this curation.
             </p>
+            {context && (
+              <p className="pcd-create-context">
+                Community: <strong>{contextName || context}</strong>
+                <span className="pcd-create-context-note"> — this pin and its lists are scoped to this community</span>
+              </p>
+            )}
             <details className="pcd-tl-explainer">
               <summary>{"What's a Trusted List?"}</summary>
               <p>

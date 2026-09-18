@@ -8659,3 +8659,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   opacity: 0.6;
   word-break: break-all;
 }
+
+/* search-index-selection #4 AC-5 — the fixed community line in the create-mode interstitial. */
+.pcd-create-context { margin: 0.35rem 0 0; font-size: 0.9rem; }
+.pcd-create-context-note { opacity: 0.6; font-size: 0.82rem; }
