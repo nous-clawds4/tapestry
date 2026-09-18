@@ -230,3 +230,20 @@ Approved as proposed. The rulings below are settled, not open questions.
 - ADR: (filled in after Architecture phase — expected: `decisions/search-index-selection/0002-…`)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
+
+## Amendment (2026-09-18, at ADR 0002) — scoped gate corrected
+
+The Architect found three assertions the story's gate list mislabelled. Corrected list:
+
+- **New:** `test/per-pin-membership-method.test.js`.
+- **Guards (Phase 4 must not edit):** `pin-stack-composition` *except* its two 30392 AC-4
+  fixtures (`:296-312`, `:315-333`), which gain one `membership-method` tag each —
+  Tester re-aims those two only; `item-trusted-list`; `note-trusted-list`;
+  `only-me-curation` *except* H3 (`:386-392`, deep-equals the 30392 `extraTags`) — Tester re-aims.
+- **Re-aim targets (Tester, Phase 3):** `test/tl-weighted-sum-method.test.js` `:324`, `:387`,
+  `:426`; `test/tl-certainty-method.test.js` `:288-289`; `test/tl-membership-method-selector.test.js`
+  `:370-374` — all assert the absence of `membership-method`, which AC-4 reverses. The last two
+  are live-stack suites outside the judge gate; the operator runs them at Gate B.
+- **Vocabulary ruling (taken on the Architect's recommendation):** one hand-kept client mirror
+  (`ui/src/config/tlMembershipMethods.js`, shared by the dialog and the Trust Determination page);
+  moving `METHOD_IDS` into the shipped SDK is OPEN 310, not this story.
