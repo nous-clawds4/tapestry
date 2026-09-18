@@ -45,7 +45,7 @@ keys on `(pubkey, d)`, so a stomped pin is not even visible to the server as a s
 variant is a **saved recipe** … Putting recipes in the same chip row as places is what would
 make it incomprehensible" (`docs/SEARCH_INDEX_DLIST_SELECTION.md:220-225`). Today that row is
 one flat chip list, `📌 {label}` per pin, neutral first then contexts alphabetically
-(`ui/src/pages/Tag.jsx:170-177`, `:556-575`).
+(`ui/src/pages/Tag.jsx:174-181`, `:573-590`).
 
 **Story 4 lands first and owns the surface being extended.** On HEAD `4da04bdf`, `handlePin`
 already opens the interstitial rather than publishing (`ui/src/pages/Tag.jsx:275-281`), the
@@ -233,8 +233,9 @@ slugify; (d) exceeds 40 chars. The error names the conflicting pin.
    instance, ever. `refreshOnePinnedTagById` inherits the check for free (it calls the runners).
    The skipped pin's `d`-tag is **not** pushed onto the rosters — it never owned the address —
    so the legitimate owner's list is the only claimant and the sweep is untouched.
-2. **The pre-pass sweep stays, narrowed.** `refreshAllPinnedTags` (`:753-780`) still groups
-   the deduped pins by computed `tlDTag`; after layer 1 the only collisions left are the
+2. **The pre-pass sweep stays, narrowed.** `refreshAllPinnedTags` (`:753-780`, today a plain
+   per-pin loop plus three `retractStaleTLs` calls — the grouping is NEW code) groups the
+   deduped pins by computed `tlDTag`; after layer 1 the only collisions left are the
    residual ones (suffix ambiguity `foo-v-bar` vs `foo`+`bar`, and 8-char prefix collisions
    between two of the observer's OWN pins — both vanishingly rare and both the observer's own
    doing). For those, skip-both + keep-on-roster + loud `pin-variant-collision` log, as the C1
@@ -255,6 +256,7 @@ runner does not read 10040s today and the operator's day-one case is author === 
 | `src/lib/event-tagging/pins.js:39-41` | `pinVariantKey({contextSlug})` | gains `variantSlug` (§1) |
 | `:61-73` | three TL composers | thread both members |
 | `:99-108` | `contextSlugOfPin` | **unchanged**; joined by `variantOfPin` |
+| `src/api/trustedList/refreshPinnedTags.js:478-513` | `retractStaleTLs` — retracts every `tl-pin-` list whose `d` is off the cycle's roster | **no code change**, but its behaviour under C3 is load-bearing: a skipped (author ≠ observer) pin's list is retracted on the next cycle — see Consequences; the Tester pins it (a stranger's pin ⇒ list retracted; the owner's pin present ⇒ list republished untouched) |
 | `src/api/trustedList/refreshPinnedTags.js:301`, `:558`, `:674` | `contextSlugOfPin` in the three runners | `variantOfPin`; feed composer + conditional `z` (`:415`, `:621`, `:732`) — the `z` is emitted only for `kind === 'context'`; add the recipe disclosure tag (§2) |
 | `:127-129` | `computeTLDTag` wrapper | widen the destructure (name and shape preserved — `test/restore-historical-data-and-fix-tl-author-filter.test.js:384-394` pins it) |
 | `:445-470` | `refreshOnePinnedTagById` | no logic change; inherits variant-aware runners |
@@ -267,7 +269,7 @@ runner does not read 10040s today and the operator's day-one case is author === 
 | `:153-176` (`pinTag`) | `context` → d-tag + `z` | accept `variant` (a `{name, slug}` recipe); emit `['variant', slug]`; **never** both a context and a variant |
 | `:396` | `computeNoteBookmarkDTag(… no contextSlug)` | pass the active pin's variant (E5) — see Consequences, this also fixes a pre-existing contextual mismatch |
 | `ui/src/components/PinnedListPanel.jsx:135-163`, `:293` | `contextSlug` → `computeTLDTag` / `itemTlDTag` / `computeNoteBookmarkDTag` | read `pin.variant`; label a recipe by its name, never with the community label logic at `:136-138` |
-| `ui/src/pages/Tag.jsx:170-177`, `:556-575` | `contextNameOf`, `orderedViewerPins`, chip row | §5 |
+| `ui/src/pages/Tag.jsx:174-181`, `:573-590` | `contextNameOf`, `orderedViewerPins`, chip row | §5 |
 | `ui/src/hooks/useTagMemberSets.js:56`, `:93` | hand-composed `tl-pin-…`, **no suffix at all** (OPEN 298) | **fixed here**: delegate to `tlDTag` with the pin's variant |
 | `ui/src/pages/Pins.jsx:47-58` | `contextLabel` + ordering | show a recipe by name with the recipe glyph; do not route it through `KNOWN_CONTEXTS` |
 
@@ -286,13 +288,13 @@ contextual pins.
   `PinToContextModal` ("Pin to a community", `ui/src/components/PinToContextModal.jsx:21-22`,
   `:64`) is **untouched**. Submission routes to a new `publishVariantPin(curation, variant)` in
   `Tag.jsx`, a sibling of `publishContextPin` (`:298-325`) — same await-refresh-then-select shape.
-- **The switcher** (`Tag.jsx:556-575`) keeps one row and one ordering rule extended to three
+- **The switcher** (`Tag.jsx:573-590`) keeps one row and one ordering rule extended to three
   bands: neutral ("Personal") → places (alphabetical by `contextNameOf`) → recipes (alphabetical
   by name). A non-interactive `<span className="bs-pin-switcher-divider">Your curations</span>`
   separates the last place from the first recipe; recipes render with a distinct glyph (🧪) in
   place of 📌. Existing CSS is reused as-is — `.bs-pin-switcher`, `.bs-pin-switcher-chip`,
   `:hover`, `.is-active` (`ui/src/styles.css:6291-6316`) — plus one new `-divider` rule in that
-  same block. The row still hides below two pins (`Tag.jsx:556`).
+  same block. The row still hides below two pins (`Tag.jsx:573`).
 - Nothing else in the Pinned tab's information architecture moves; the deliberate places-vs-recipes
   design round stays deferred (story § Out of scope).
 
@@ -363,9 +365,16 @@ introduced; the context `z` keeps composing from the runtime TA (`pins.js:47-49`
   reader/writer disagreement in a path this story is already editing.
 - **A pin about someone else's point of view is skipped, not published** (§3, C3) — a change to
   who may publish at an address, ruled in by the operator. Existing pins where author ≠ observer
-  (if any exist on an instance) stop publishing on the next cycle; their lists are not retracted
-  (never on the roster, never swept — the owner's own pin is the only claimant). **Follow-up worth
-  an `OPEN.md` row:** honour a pin signed by the observer's 10040-designated assistant.
+  (if any exist on an instance) stop publishing on the next cycle **and any list they previously
+  published is RETRACTED by the sweep** — `retractStaleTLs` (`refreshPinnedTags.js:478-513`)
+  republishes every TA-signed `tl-pin-`-prefixed list whose `d` is *not* on the cycle's roster
+  as `['status','retracted']` with empty membership (`:484`, `:488`, `:501-508`), and a skipped
+  pin contributes no `d`. That is the intended outcome: an illegitimate list at an observer's
+  address is withdrawn, at that permanent subscription address, with a visible status. If the
+  observer holds their own pin of the tag, their pin is the sole claimant and their list is
+  simply republished — nothing at the address changes. (J1 corrected the draft, which claimed the
+  opposite.) **Follow-up worth an `OPEN.md` row:** honour a pin signed by the observer's
+  10040-designated assistant.
 - **A residual collision between two of the observer's OWN pins freezes both** (§3 layer 2) —
   loggable, never silent, and only reachable by suffix ambiguity or an 8-char prefix collision.
 - **OPEN 298 (`OPEN.md:354`) closes here.**
@@ -412,10 +421,14 @@ Blast radius, in dependency order:
 - `ui/src/styles.css` — one `.bs-pin-switcher-divider` rule inside the block at `:6291-6316`.
 - `firmware/versions/v1.0.0/concepts/tag-pinning/json-schema.json` — §8.
 
+**Also hand-composes both forms, neutral-only, outside the test lane:** `scripts/tl-ladder-validate.js:226,236` — unaffected by a neutral address, note it for the operator's kit.
+
 **For the Tester (Phase 3 — not the Implementer's lane).** The new suite is
 `test/explicit-pin-variant-key.test.js`. Suites that hand-compose a pin/TL `d`-tag and will need
 re-aiming or an explicit unchanged-by-design assertion:
 `test/context-scoped-pins.test.js`, `test/pin-stack-composition.test.js`,
+`test/tl-weighted-sum-method.test.js` (`:219`, `:228` — hand-composes both a `tag-pin-` and a
+`tl-pin-` d-tag; live-stack suite, operator-run),
 `test/item-trusted-list.test.js`, `test/note-trusted-list.test.js`,
 `test/per-pin-membership-method.test.js`, `test/restore-historical-data-and-fix-tl-author-filter.test.js`,
 `test/customize-pin-curation-publish.test.js`, `test/pin-a-tag-publish.test.js`,
