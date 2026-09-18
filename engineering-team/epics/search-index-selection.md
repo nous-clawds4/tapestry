@@ -26,7 +26,7 @@ certainty — see the design doc's rejected alternatives).
 2. `2-only-me-curation.md` — **Done** (review PASS; ADR 0001 Accepted). An `author` curation constraint on the pin, value `== observer`, surfaced as
    an "Only me" trust scope. The certainty guard. Slots into the existing
    `isAsserterTrusted` seam; `alsoTrust` is precedent for an identity predicate there.
-3. `3-per-pin-membership-method.md` — **Approved** (Gate A ruled 2026-09-18; ADR expected).
+3. `3-per-pin-membership-method.md` — **Done** (review PASS, 2 rounds; ADR 0002 Accepted).
    A `membershipMethod` field on the pin's `curationMethod` blob instead of the instance-wide
    dial (OPEN 307); absent means the dial. The published kind-30392 records the fold that ran.
 4. `4-confirm-step-on-first-pin.md` — **Done** (review PASS, 3 rounds) — a **confirm step on first pin**, so the default curation that quietly publishes
