@@ -305,6 +305,9 @@ t('AC-4: a neutral pin under the count method publishes exactly the pre-change 3
       ['source-tag', TAG_EVENT_ID, TAGAUTHOR, 'funny'],
       ['cutoff', '1'],
       ['min-rank', '0.25'],
+      // search-index-selection #3 AC-4 (Tester re-aim, Phase 3): every 30392 now discloses
+      // the fold that actually ran.
+      ['membership-method', 'count'],
       ...tlZPair(),
     ],
     content: `{"members":[{"pubkey":"${M1}","endorsements":3,"disputes":0},{"pubkey":"${M2}","endorsements":2,"disputes":1}]}`,
@@ -324,6 +327,9 @@ t('AC-4: a neutral pin under the certainty method publishes exactly the pre-chan
       ['source-tag', TAG_EVENT_ID, TAGAUTHOR, 'funny'],
       ['cutoff', '1'],
       ['min-rank', '0.25'],
+      // search-index-selection #3 AC-4 (Tester re-aim, Phase 3): the disclosure precedes rigor,
+      // which is a parameter OF certainty.
+      ['membership-method', 'certainty'],
       ['rigor', '0.5'],
       ...tlZPair(),
     ],

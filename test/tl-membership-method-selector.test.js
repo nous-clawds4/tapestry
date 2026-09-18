@@ -367,11 +367,11 @@ async function runL1L2CountModeBody() {
       `TL must keep its existing ['${tagName}', …] tag (shape unchanged)`);
   }
 
-  // Story 4 amendment: the ladder's membership-method tag was STRIPPED
-  // (operator decision — never spec'd). Count TLs are now byte-identical
-  // to the pre-ladder shape; assert the tag's absence.
-  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
-    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
+  // search-index-selection #3 AC-4 (Tester re-aim, Phase 3): the Story-4 strip is REVERSED —
+  // every 30392 discloses the fold that actually ran, so a consumer can tell a certainty list
+  // from a count one without fetching the pin. The dial is 'count' for this body.
+  assert(tl.tags.some((x) => x[0] === 'membership-method' && x[1] === 'count'),
+    'published TLs must carry ["membership-method","count"] (AC-4 restores the disclosure tag)');
 }
 
 t('L3 unauthenticated PUT /api/settings is rejected (settings auth gate)', async () => {

@@ -319,10 +319,12 @@ t('LA no-POV fallback: method "input" on an unfiltered stack publishes as count'
   const ta = await fetchTaPubkey();
   const tl = await findLatestTL(ta, dTag);
   assert(tl, `expected TL at ${dTag}`);
-  // Story 4: method tag stripped; fallback-to-count is observable as
-  // score-less plain p tags.
-  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
-    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
+  // search-index-selection #3 AC-4 / E2 (Tester re-aim, Phase 3): the tag is RESTORED and
+  // names the POST-DOWNGRADE fold. The dial is 'input' here, but with no POV filter the
+  // weighted fold degrades to count — so the honest disclosure is 'count', which the
+  // score-less p tags below independently confirm.
+  assertEqual(tl.tags.find((x) => x[0] === 'membership-method')?.[1], 'count',
+    'published TLs must carry ["membership-method","count"] when a weighted dial degrades for want of WoT ranks');
   const p = pTagFor(tl, targetPk);
   assert(p && p.length <= 2,
     `fallback TL must carry plain p tags (no score); got ${JSON.stringify(p)}`);
@@ -383,9 +385,10 @@ t('LB seeded-POV known-value matrix (scores on the TL, membership/order/counts u
   const tl = await findLatestTL(ta, dTag);
   assert(tl, `expected TL at ${dTag}`);
 
-  // Story 4: method tag stripped; input mode is observable by its scores.
-  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
-    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
+  // search-index-selection #3 AC-4 (Tester re-aim, Phase 3): the tag is RESTORED and names
+  // the fold that ran — here the dial's 'input', corroborated by the scores below.
+  assertEqual(tl.tags.find((x) => x[0] === 'membership-method')?.[1], 'input',
+    'published TLs must carry ["membership-method","input"] under the input dial');
 
   for (const [key, sc] of Object.entries(scenarios)) {
     const pk = targets[key];
@@ -423,8 +426,9 @@ t('LC switching back to count restores Story-1 output shape', async () => {
   tls.sort((a, b) => b.created_at - a.created_at);
   const tl = tls[0];
   assert(tl, 'expected the known-value TL to have re-published under count');
-  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
-    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
+  // search-index-selection #3 AC-4 (Tester re-aim, Phase 3).
+  assertEqual(tl.tags.find((x) => x[0] === 'membership-method')?.[1], 'count',
+    'published TLs must carry ["membership-method","count"] after switching the dial back to count');
   const scored = tl.tags.filter((x) => x[0] === 'p' && x.length > 2);
   assertEqual(scored.length, 0, 'count TLs must carry plain p tags again (no scores)');
 });

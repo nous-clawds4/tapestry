@@ -284,9 +284,10 @@ t('LB certainty known-value matrix (0–100 scores; membership/order/counts unch
   tls.sort((a, b) => b.created_at - a.created_at);
   const tl = tls[0];
   assert(tl, `expected TL at ${dTag}`);
-  // Story 4: method tag stripped; rigor rides certainty TLs (D12).
-  assert(!tl.tags.some((x) => x[0] === 'membership-method'),
-    'published TLs must NOT carry a membership-method tag (stripped at Story 4)');
+  // search-index-selection #3 AC-4 (Tester re-aim, Phase 3): the tag is RESTORED and names the
+  // fold that ran ('certainty' here, per pinEnvironment above); rigor still rides it (D12).
+  assertEqual(tl.tags.find((x) => x[0] === 'membership-method')?.[1], 'certainty',
+    'published TLs must carry ["membership-method","certainty"] under the certainty dial');
   assertEqual(tl.tags.find((x) => x[0] === 'rigor')?.[1], '0.5',
     'certainty TLs must carry ["rigor","0.5"] (D12 reproducibility)');
 

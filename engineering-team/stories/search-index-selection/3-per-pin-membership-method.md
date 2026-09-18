@@ -227,8 +227,8 @@ Approved as proposed. The rulings below are settled, not open questions.
   (additive field on the blob); `engineering-team/decisions/contextual-pins/0001-context-scoped-pins.md`
   (the pin/TL identity model); `engineering-team/decisions/feat-tags-modernization/0001-pin-stack-composition.md`
   (the variant-key mechanism story 5 generalises)
-- ADR: (filled in after Architecture phase — expected: `decisions/search-index-selection/0002-…`)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/search-index-selection/0002-per-pin-membership-method.md` (Accepted)
+- Test plan: `engineering-team/test-plans/search-index-selection/3-per-pin-membership-method.md`
 - Review: (filled in after Review phase)
 
 ## Amendment (2026-09-18, at ADR 0002) — scoped gate corrected
@@ -247,3 +247,32 @@ The Architect found three assertions the story's gate list mislabelled. Correcte
 - **Vocabulary ruling (taken on the Architect's recommendation):** one hand-kept client mirror
   (`ui/src/config/tlMembershipMethods.js`, shared by the dialog and the Trust Determination page);
   moving `METHOD_IDS` into the shipped SDK is OPEN 310, not this story.
+
+## AC→handle lines
+
+Test plan: `engineering-team/test-plans/search-index-selection/3-per-pin-membership-method.md`
+Suite: `test/per-pin-membership-method.test.js` (31 handles; pre-implementation: 9 passed, 22 failed, 0 skipped).
+
+- AC-1 → H1, H2, H12, U1
+- AC-2 → H3, H4, H12, R3, S8 (the two published blob copies agreeing is structural — `pinTag` stringifies one variable into both; not covered by a handle)
+- AC-3 → U2, H5, H6, H7
+- AC-4 → H2, H3, H5, H7, H8, H10, S9
+- AC-5 → S1, S2, S3
+- AC-6 → S4, S3
+- E1 → H9, R4
+- E2 → H7
+- E3 → H11
+- E4 → H12, H10
+- Not derivable from any AC (J2 rubric 1) → U3, H6, H13, S9, R1, R2, S10
+
+Re-aimed in Phase 3 (Tester's lane; Phase 4 must not edit any test file): `only-me-curation` H3;
+`pin-stack-composition` AC-4's two 30392 fixtures; and — live-stack, operator-run at Gate B —
+`tl-weighted-sum-method` ×3, `tl-certainty-method` ×1, `tl-membership-method-selector` ×1. Every
+changed line is itemised in the plan's § "Re-aims made in Phase 3". Post-re-aim pre-implementation
+state: `pin-stack-composition` 18/2/0, `only-me-curation` 34/1/0 — failing only on the expected
+new tag.
+
+**One deviation from the ADR's re-aim table, flagged for the Reviewer:** the ADR maps
+`tl-weighted-sum-method:324` to `'input'` (the dial its setup writes), but that test runs with **no
+POV filter**, so the weighted fold degrades to `count` (E2) — its own next assertion proves it. AC-4
+requires the post-downgrade fold, so the plan re-aims it to `'count'`.

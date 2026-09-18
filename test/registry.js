@@ -222,6 +222,7 @@ const suites = [
   { file: 'tag-a-list-header.test.js' },
   // search-index-selection epic (2026-09-18).
   { file: 'only-me-curation.test.js' },
+  { file: 'per-pin-membership-method.test.js' },
   { file: 'tag-index-performance.test.js' },
   { file: 'item-trusted-list.test.js' },
   { file: 'pin-stack-composition.test.js' },

@@ -388,6 +388,9 @@ test('H3 (AC-3, profiles): an UNCONSTRAINED pin publishes the same 30392 metadat
     ['source-tag', TAG_EVENT_ID, TAGAUTHOR, 'funny'],
     ['cutoff', '1'],
     ['min-rank', '0.25'],
+    // search-index-selection #3 AC-4 (re-aimed by the Tester, Phase 3): the fold that ran is
+    // now disclosed on EVERY 30392 (the deps stub's dial is 'count').
+    ['membership-method', 'count'],
     ...tlZPair(),
   ]), `AC-3: the unconstrained 30392 tag array must be byte-identical to today's; got ${JSON.stringify(call.extraTags)}. ` +
      '(Full-event byte identity is guarded by test/pin-stack-composition.test.js AC-4, not duplicated here.)');
