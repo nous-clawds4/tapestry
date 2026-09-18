@@ -162,9 +162,9 @@ We chose **Option A**.
    blob through untouched into both copies (`:169`, `:171`) — no change beyond a doc comment.
 3. **The dialog.** `ui/src/components/CurationMethodDialog.jsx` gains a **separate two-option
    control**, not a value in the `method` enum. Reason: `method` is gated everywhere as
-   `method !== 'nip85:rank' ⇒ unsupported` (`refreshPinnedTags.js:240`, `:478`, `:590`;
+   `method !== 'nip85:rank' ⇒ unsupported` (`refreshPinnedTags.js:240`, `:477`, `:589`;
    `enrichRowsWithTLStatus`, `profile-tags/index.js:1660`) and the dialog itself validates it
-   (`CurationMethodDialog.jsx:115`), so an `only-me` method value would make every existing runner
+   (`CurationMethodDialog.jsx:117`), so an `only-me` method value would make every existing runner
    mark the pin unsupported; and `authorConstraint` is orthogonal to *how* trust is computed — it
    is *whose assertions are eligible*. Shape: a radio group labelled **"Trust scope"** placed
    directly under the Method select (`:250-270`), options "My web of trust" (value `''`) and
@@ -236,7 +236,7 @@ gives AC-6 (the observer's own taggings count regardless of their own rank).
   `score >= 1` predicate (`refreshPinnedTags.js:303-312`) drops every member — a degenerate empty
   list — under the exact method the operator intends to run. **Ruling:** under the constraint the
   observer's own weight is 1.0 ("I am certain about my own taggings"). This is not method
-  special-casing (AC-7 still holds — `count` / `input` / `certainty` are untouched); it is the
+  special-casing (AC-7, as amended 2026-09-18, states exactly this carve-out — `count` / `input` / `certainty` are untouched; only the weight the constrained observer carries changes); it is the
   weight the author predicate already implies, composed at the same site as the predicate
   (`profile-tags/index.js:679-682`). Only the profile aggregation weights by rank; the note and
   item aggregations fold raw counts through `curateNotes` and need no change. The Tester pins:

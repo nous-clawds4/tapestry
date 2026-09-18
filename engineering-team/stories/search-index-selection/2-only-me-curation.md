@@ -88,16 +88,20 @@ search backend can safely index it.
       filtering is active at all (including the no-POV "everyone counts" path).
 - [ ] **AC-7 — the membership methods compose.** All three methods (`count`, `input`,
       `certainty`, `src/api/trustedList/membershipMethods.js:20-23`) fold over the
-      already-trust-filtered set, so each produces the same answer over the constrained
-      set as it does over an unconstrained set containing only the observer's assertions.
-      No method is special-cased.
+      already-trust-filtered set and none is special-cased. Under `count`, membership over
+      the constrained set equals membership over an unconstrained set containing only the
+      observer's assertions. Under the weighted methods (`input` / `certainty`) the
+      **observer's own weight is 1.0 when the constraint is set** (operator ruling,
+      2026-09-18 — otherwise an observer with no `wot_rank` doc would publish an empty
+      list under the very method intended for use), so a constrained pin scores its members
+      as fully certain; the unconstrained weight function is byte-identical to today's.
 - [ ] **AC-8 — regression sentinels.** Unconstrained pins, contextual pins, target-type
       selection, d-tag composition, cutoff and dispute handling, and the `min-rank` /
       `observer` / `cutoff` tags on the published list are all unchanged.
 
 ## Concepts touched
 
-- `39999:<TA>:tag-pinning` — the pin element carrying `curationMethod` (ADR-0015 legacy
+- `39998:<TA>:tag-pinning` — the concept the pin element belongs to (the pin carries `curationMethod`; (ADR-0015 legacy
   literal exception applies to the handle only; no new literal).
 - `39998:<TA>:trusted-list` — the published list family (30392 / 30393 / 30394).
 - `39998:b83a28b7…:github-accounts` — the day-one target header (story 1 made it taggable).
