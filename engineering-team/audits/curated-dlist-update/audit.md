@@ -203,7 +203,7 @@ below is from this machine and this branch.
   choice) and `summaries-element-count` L5 (red in the pre-change baseline; its ledger row is staging's
   285, which arrives with the merge — this branch has no row for it). `most-pinned-tag-index-publish` is
   flaky here by fixture build-up (row 293).
-- **This branch has no gate recorder.** `npm run gate:status` and `engineering-team/README.md` §
+- **This branch had no gate recorder at the close** (the 2026-09-17 staging merge brought it, hours later). `npm run gate:status` and `engineering-team/README.md` §
   "Running and reading the test gate" exist on `origin/staging`, 42 commits ahead; no run on this branch
   can quote a `gate:status` line, so the records above are prose (OPEN.md row 298).
 - **Close-time gate:** full `npm test` over the closed tree (`30b76593` plus this close's docs), 2026-09-17,
