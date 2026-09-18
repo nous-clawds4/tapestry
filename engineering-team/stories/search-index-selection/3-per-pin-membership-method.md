@@ -1,6 +1,6 @@
 # Story 3: Per-pin membership method
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-18
 **Type:** Feature *(Light book, **with an ADR**: the method rides the published
 `curationMethod` JSON and — per Gate A ruling 3 — the published 30392 records the fold that

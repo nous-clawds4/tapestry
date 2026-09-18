@@ -557,7 +557,11 @@ test('S5: all three runners emit the trustedListZTags pair and ensure the header
 });
 
 test('S6 (AC-3): the curation dialog offers items and its validation names all three target types', () => {
-  const src = safeRead(DIALOG_SRC);
+  // Re-aimed 2026-09-18 (search-index-selection #4): the submit build — including the targetTypes
+  // push and the validation message — moved verbatim from the dialog into
+  // ui/src/utils/curationDialogBuild.js. The rule is unchanged; the source under test is the
+  // dialog PLUS the build module (the includeItems state/checkbox stays on the dialog).
+  const src = safeRead(DIALOG_SRC) + '\n' + safeRead(DIALOG_SRC.replace(/components[\\/]CurationMethodDialog\.jsx$/, 'utils/curationDialogBuild.js'));
   assert(/includeItems/.test(src), 'CurationMethodDialog must carry an includeItems state + checkbox.');
   assert(/targetTypes\.push\(\s*'item'\s*\)/.test(src), "the build must push 'item' when items are selected.");
   assert(/Select at least one:\s*profiles,\s*notes,\s*or items\./.test(src),

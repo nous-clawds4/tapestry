@@ -1,6 +1,125 @@
 # Review: Story 3 — Per-pin membership method
 
 **Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-09-18 (round 1), 2026-09-18 (round 2, final)
+**Diff:** implementation `git show 048f5b76`; Phase-3 re-aims `git show 991f75b0 -- test/`;
+change round `git show 71121919`
+**Lane:** Light profile **with an Accepted ADR** (`decisions/search-index-selection/0002-per-pin-membership-method.md`)
+**Story:** `stories/search-index-selection/3-per-pin-membership-method.md`
+**Test plan:** `test-plans/search-index-selection/3-per-pin-membership-method.md`
+
+Round 1 returned **CHANGES_REQUESTED** on three broken source-contract assertions. Round 2 judges
+the fix commit `71121919`, for story-3 files only; HEAD (`250a5f79`) carries concurrent story-4
+work, which was read for attribution but is not judged here, and no UI build was run.
+
+---
+
+## Round 2 (final) — re-review at `71121919`
+
+### The change round is exactly what was asked
+
+`git show 71121919 --stat` touches six files: the three test files, the ADR, the story, and this
+review. `git show 71121919 -- test/` is **only** the three S1 re-aims — each adds a four-line
+rationale comment and appends `ui/src/config/tlMembershipMethods.js` (guarded read, `''` on
+failure) to the page source before matching. **Every other assertion in the three files is
+byte-identical**, including the `membershipMethod` settings-key and `disabled` assertions
+(`test/tl-membership-method-selector.test.js:236-239`) that genuinely belong to the page; S2 in all
+three files still reads the page alone. No implementation file moved in this round:
+`git diff --stat 048f5b76 71121919 --` over `src/api/trustedList/*`,
+`ui/src/config/tlMembershipMethods.js`, `ui/src/pages/grapevine/TrustDetermination.jsx`,
+`ui/src/components/PinnedListPanel.jsx`, `ui/src/hooks/useTLDetail.js` and `firmware/` is empty.
+
+The re-aim is honest about what it now proves: the contract is "the page renders exactly this
+vocabulary," so the source under test is the page **plus** its vocabulary module. That is weaker
+than before the move (a literal could now satisfy it from either file), but it is the *correct*
+weakening — ADR §3 deliberately made one file the sole definition, and the new suite's S3 asserts
+the mirror count is 1, so the two guards together still pin the vocabulary to one place.
+
+Record-keeping is complete: the story gained an **Amendment (2026-09-18, at Review)** naming all
+three suites, and ADR 0002's Status line records the amended re-aim table.
+
+### Gates re-run by the reviewer
+
+The three live suites, 90 s cap, `BRAINSTORM_BASE_URL=http://localhost:8778`, `direnv exec .`:
+
+| Suite | Pre-live phase | Live phase |
+|---|---|---|
+| `tl-weighted-sum-method` | U1–U3 ✓, **S1 ✓**, S2 ✓, L0 ✓ | hangs to the cap (EXIT=124) |
+| `tl-certainty-method` | U1–U2 ✓, **S1 ✓**, S2 ✓, L0 ✓, LP ✗ (`spawnSync /bin/sh ENOBUFS`) | hangs to the cap (EXIT=124) |
+| `tl-membership-method-selector` | U1–U7 ✓, **S1 ✓**, S2 ✓, L0 ✓ | hangs to the cap (EXIT=124) |
+
+All three round-1 blockers are **cleared**. The hang and the `ENOBUFS` prune failure are
+**pre-existing environmental friction** — the same symptom observed in round 1, before this change
+round, in suite bodies this diff does not touch.
+
+Hermetic gate (180 s cap each, same env), run at the working tree:
+
+| Suite | Result |
+|---|---|
+| `per-pin-membership-method` | **31 passed, 0 failed, 0 skipped** (EXIT=0) |
+| `pin-stack-composition` | **20 passed, 0 failed, 0 skipped** (EXIT=0) |
+| `only-me-curation` | **35 passed, 0 failed, 0 skipped** (EXIT=0) |
+| `item-trusted-list` | **50 passed, 1 failed** (EXIT=1) — see below, story 4's |
+| `note-trusted-list` | **15 passed, 0 failed** (EXIT=0) |
+| `context-scoped-pins` | **32 passed, 0 failed** (EXIT=0) |
+| `generalized-tag-pinning` | **12 passed, 0 failed** (EXIT=0) |
+
+No `npm run gate:status` line is quoted: the full gate was deliberately not run (scoped, capped run
+per the review brief), as in round 1.
+
+**`item-trusted-list` S6 — not story 3.** S6 (`test/item-trusted-list.test.js:559-567`) asserts
+`/targetTypes\.push\(\s*'item'\s*\)/` against `ui/src/components/CurationMethodDialog.jsx`. It was
+green at `048f5b76` (round 1 recorded 51/0) and is red now because **story 4** (`fb689943`)
+extracted the build out of the dialog into `ui/src/utils/curationDialogBuild.js:76-78`, where the
+push now lives. Confirmed by `git diff --stat 048f5b76 71121919 -- ui/src/components/CurationMethodDialog.jsx ui/src/utils/curationDialogBuild.js`;
+story 3 changed no line of that build. **This is a story-4 finding** — the same re-aim blind spot
+as round 1's blocker, one story later — and belongs to the story-4 review, not this one. Recorded
+here so it is not lost.
+
+### Round-1 substantive findings re-confirmed at `71121919`
+
+Every implementation file is byte-identical to `048f5b76`, so the round-1 evidence stands; each was
+nonetheless re-checked rather than assumed:
+
+- **Precedence (AC-1/AC-2)** — `src/api/trustedList/refreshPinnedTags.js:318-323`: the pin's value
+  wins, absent falls through to the untouched zero-arg dial; H1–H4/H12 green.
+- **Post-downgrade disclosure at the exact position (AC-4)** — `refreshPinnedTags.js:399-405`
+  emits the post-downgrade variable unconditionally, after `min-rank`/`author-constraint` and
+  before `rigor`; H8 green, matching the relay scan recorded in round 1 against unchanged bytes.
+- **Firmware in the graph** — the `membershipMethod` clause was verified live through the Concept
+  Graph API in round 1 against a schema node this round does not touch; `firmware/` unchanged.
+- **Single vocabulary definition (ADR §3)** — still exactly one `TL_MEMBERSHIP_METHODS`, in
+  `ui/src/config/tlMembershipMethods.js`; the re-aims reinforce that rather than reintroducing a
+  second source.
+- **Dialog discipline (AC-5)** — story 4's refactor moved the build but preserved story-3
+  semantics verbatim: `ui/src/utils/curationDialogBuild.js:85-86` keeps the touched/untouched
+  split and `:106` keeps the conditional spread (absent stays absent).
+  `per-pin-membership-method` S1–S3 are green at HEAD, i.e. through the refactor.
+- **Copy true (AC-6)** — `ui/src/pages/grapevine/TrustDetermination.jsx:79-85` unchanged; S4 green.
+- **Invariants 1–4** — unchanged: read-time-only fold, nothing gated at write time, POV cascade
+  untouched, no storage/rebuild/wipe path implicated.
+- **Secrets / debug / TA literals** — S10 green; no pubkey literal in any touched file; ADR-0015
+  `LEGACY_*` constants untouched.
+
+Round-1 **non-blocking** items 1 and 2 (unbounded warn `Set`; dialog seeding off the UI mirror) and
+the **harness friction** row all still stand as written and are still not blocking. Non-blocking 3
+is superseded by the round-2 results above: the S1 failures are fixed; the cap and the `ENOBUFS`
+prune failure remain.
+
+### Carried to Gate B
+
+The three re-aimed `membership-method` presence assertions in the live phase
+(`tl-weighted-sum-method` LA/LB/LC, `tl-certainty-method:288`,
+`tl-membership-method-selector:370-374`) **have still never been executed** — every attempt across
+both rounds hit the live-phase hang. They remain **operator-run at Gate B**. This is a known,
+accepted gap rather than a hidden one: the story already defers these suites to the operator, and
+the hermetic `per-pin-membership-method` H8 independently proves the tag's presence and position.
+
+---
+
+## Round 1 (2026-09-18) — CHANGES_REQUESTED, kept as history
+
+**Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-09-18
 **Diff:** `git show 048f5b76` (implementation) + `git show 991f75b0 -- test/` (Phase-3 re-aims)
 **Lane:** Light profile **with an Accepted ADR** (`decisions/search-index-selection/0002-per-pin-membership-method.md`)
@@ -10,7 +129,7 @@
 Reviewed at commit `048f5b76` as instructed; the working tree was clean of story-4 edits at review
 time (`git status --porcelain` showed only pre-existing untracked docs), and no UI build was run.
 
-## Quality gates (run by reviewer, not trusted)
+### Quality gates (run by reviewer, not trusted)
 
 Scoped gate (hermetic suites, `BRAINSTORM_BASE_URL=http://localhost:8778`, `direnv exec .`, 180 s cap each):
 
@@ -46,7 +165,7 @@ per the review brief). The three S1 failures above are the blocking finding — 
 - _Typecheck not configured — skipped._
 - _Build not configured — skipped (UI build deliberately not run; story-4 work is concurrent)._
 
-### Live verification
+#### Live verification
 
 - **Firmware reinstall confirmed in the graph, not just the file.** `GET /api/concept-graph/node/
   39999:<TA>:tag-pinning-schema` returns the new clause verbatim:
@@ -59,7 +178,7 @@ per the review brief). The three S1 failures above are the blocking finding — 
   `author-constraint` present on those pins. Position matches ADR §2 and the hermetic H8 assertion
   (after `min-rank`/`author-constraint`, immediately before `rigor`).
 
-## Spec adherence
+### Spec adherence
 
 | AC | Verdict | Evidence |
 |---|---|---|
@@ -84,7 +203,7 @@ not the plan.
 No behavior found in the diff that the story does not ask for. No scope creep into stories 4/5: no
 second pin, no chip, no `d`-tag change.
 
-## ADR adherence
+### ADR adherence
 
 - Files changed match ADR "Implementation notes" **except** the comment-only edit to
   `ui/src/utils/publishTagPin.js`, which was omitted (benign; recorded as a deviation — S8 still
@@ -109,7 +228,7 @@ second pin, no chip, no `d`-tag change.
 - §7 firmware: schema clause added **and** reinstalled (verified in the graph above).
 - No new dependencies; no new lint/typecheck/build tooling.
 
-## Concept-graph integrity
+### Concept-graph integrity
 
 - Handles remain `kind:pubkey:slug`; no new concept, no re-parenting.
 - Firmware reinstall performed and verified through the Concept Graph API (not by reading
@@ -117,7 +236,7 @@ second pin, no chip, no `d`-tag change.
 - Orientation for this review was done via `/summaries` → `/neighbors` → `/node/:handle`, per
   AGENTS.md §3.
 
-## Things tests can't catch
+### Things tests can't catch
 
 - No secrets; no TA-pubkey literal introduced in any touched file (S10 asserts; I re-grepped the
   diff independently). The ADR-0015 `LEGACY_*` constants are untouched.
@@ -135,15 +254,15 @@ second pin, no chip, no `d`-tag change.
   read/refresh time over already-trust-filtered assertions per the pin's observer (invariants 1 and
   3); POV cascade untouched. Invariant 4 not implicated (no storage/rebuild/wipe path touched).
 
-## House rules check
+### House rules check
 
 - Concept Graph API authority respected.
 - No new lint/typecheck/build tooling.
 - Firmware reinstall performed, not merely promised.
 
-## Findings
+### Findings
 
-### Blocking
+#### Blocking
 
 1. **`test/tl-weighted-sum-method.test.js:261-270` (S1), `test/tl-certainty-method.test.js:174-181`
    (S1), `test/tl-membership-method-selector.test.js:224-235` (S1)** — three previously-green
@@ -168,7 +287,7 @@ second pin, no chip, no `d`-tag change.
    pointed at the page. Correct the ADR's re-aim table in the same round so the record matches
    what actually moved. Re-run all three suites afterwards and report how far each gets.
 
-### Non-blocking
+#### Non-blocking
 
 1. **`src/api/trustedList/refreshPinnedTags.js:60-68`** — `warnedPinMembershipMethods` grows one
    entry per distinct unknown value, and the values come off third-party pins. Optional improvement:
@@ -186,7 +305,7 @@ second pin, no chip, no `d`-tag change.
    this diff, but it means the three re-aimed `membership-method` assertions were never actually
    executed by anyone yet. Worth reaching in the re-run round above.
 
-### Harness friction
+#### Harness friction
 
 1. The ADR's Phase-3 re-aim table was treated by both the Tester and the Implementer as the complete
    blast radius for tests, but it only enumerated assertions about the *wire tag*, not assertions
@@ -195,5 +314,13 @@ second pin, no chip, no `d`-tag change.
    `meta`: "ADR re-aim tables must list source-path/source-literal assertions, not just
    behavioral ones, when the decision moves a file."
 
+
+---
+
 ## Verdict
-**CHANGES_REQUESTED**
+
+**PASS**
+
+The three round-1 blockers are fixed by the narrowest change that could fix them; the record (story
+Amendment + ADR Status line) matches what actually moved; no implementation byte changed. The one
+red hermetic assertion (`item-trusted-list` S6) belongs to story 4, not story 3.

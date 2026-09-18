@@ -31,7 +31,7 @@ point-of-view threshold.
 - [x] **"Only me" curation.** A pin can curate on the viewer's own assertions alone
       (`author == observer`), surfaced as a trust scope in the curation dialog, yielding a
       Trusted List whose membership is certain because only the viewer can sign as the viewer.
-- [ ] **Per-pin curation** *(story 3 at re-review; story 4 confirm-step Done)*. The membership method and the new constraint live on the pin,
+- [x] **Per-pin curation** *(story 3 Done; story 4 confirm-step Done; the variant key is story 5)*. The membership method and the new constraint live on the pin,
       not the instance-wide dial; a viewer can hold more than one pin of a tag, each with its
       own curation and its own list, without the pin having to be about a community.
 - [ ] **The published list is the contract.** Pinning `worth-indexing-for-search` (or its
