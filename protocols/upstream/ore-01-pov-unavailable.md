@@ -1,8 +1,8 @@
 # Upstream proposal: ORE-01 "Unavailable pov" — error, never substitute
 
-**Target:** [`Open-Ranking/protocol`](https://github.com/Open-Ranking/protocol) → `01.md` § "Point of View (Pov)" (the normative subsection below), plus one restating row in the Error Codes table of each of `02.md`–`07.md`
+**Target:** [`Open-Ranking/protocol`](https://github.com/Open-Ranking/protocol) → `01.md` § "Point of View (Pov)" (the normative subsection below), plus one restating row in the Error Codes table of each of `02.md`–`07.md`, plus ORE-08 pov parity (request field + delegation sentence + both rows — added at the maintainer's request)
 **Issue:** [Open-Ranking/protocol#8](https://github.com/Open-Ranking/protocol/issues/8) — *confirm successful personalization of scores via optional param in the response*
-**Status:** ⏳ submission-ready — awaiting the author's submission (**wds4**); repo work ends here, mirroring the protocols/README publishing rule
+**Status:** 🚀 submitted 2026-08-13 as [Open-Ranking/protocol#9](https://github.com/Open-Ranking/protocol/pull/9); maintainer review 2026-08-28 approved and asked for the ORE-08 fix in the same PR — § "Proposed spec text (08.md)" added 2026-09-17 for the author to apply; awaiting merge
 **Date drafted:** 2026-08-12
 **Sources:** ADR `engineering-team/decisions/ore-pov-availability/0001-pov-unavailable-semantics-and-upstream-proposal.md`; worksheet W12; reference implementation `src/api/open-ranking/stats.js`
 
@@ -10,8 +10,9 @@
 
 1. Fork `Open-Ranking/protocol` under **wds4**; branch, e.g. `pov-unavailable-error`.
 2. In `01.md`, append everything in § "Proposed spec text (01.md)" at the end of § "Point of View (Pov)", after the "Clients MUST NOT send a `pov` …" paragraph.
-3. In each of `02.md`, `03.md`, `04.md`, `05.md`, `06.md`, `07.md`, insert the row from § "Proposed spec text (endpoint error tables)" into the **Error Codes** table, directly beneath the existing row *"The requested algorithm requires a `pov` but none was provided."* (`08.md` stays untouched — see the aside in the PR description.)
-4. Open a PR with the title and description below, verbatim.
+3. In each of `02.md`, `03.md`, `04.md`, `05.md`, `06.md`, `07.md`, insert the row from § "Proposed spec text (endpoint error tables)" into the **Error Codes** table, directly beneath the existing row *"The requested algorithm requires a `pov` but none was provided."*
+4. In `08.md`, apply the three insertions in § "Proposed spec text (08.md — pov parity)". *(Originally left untouched, with an aside in the PR description; the maintainer's 2026-08-28 review asked for it in this same PR.)*
+5. Open a PR with the title and description below, verbatim.
 
 ## Proposed spec text (01.md — append to § Point of View (Pov))
 
@@ -36,6 +37,31 @@ One row per file, inserted directly beneath the existing missing-`pov` row:
 ```
 
 These rows are informative restatements — the normative rule lives in ORE-01, which every endpoint ORE already defers to for pov validation — exactly like the existing missing-`pov` rows they sit beside.
+
+## Proposed spec text (08.md — pov parity, added 2026-09-17 at the maintainer's request)
+
+ORE-08's prose ("Probabilistic algorithms MAY require a `pov` pubkey…") and its capability-document example (`heuristic-wot-v1`, `"pov": true`) already contemplate personalized algorithms, but its Request table defines no `pov` field and its Error Codes section carries neither the ORE-01 delegation sentence nor any `pov` row — so a spec-literal client has no defined way to send a `pov`, and a per-endpoint reader can't see either `pov` error. Three insertions bring it to parity with `02.md`–`07.md`:
+
+**1. Request table** — insert directly beneath the `algorithm` row:
+
+```markdown
+| `pov` | string | no | A point-of-view pubkey for personalised algorithms. MUST be provided if the requested algorithm requires it, as declared in the capability document. |
+```
+
+**2. Error Codes section** — insert immediately after the `## Error Codes` heading, before the table:
+
+```markdown
+Algorithm selection, pov validation, and their associated error codes follow the rules defined in [ORE-01](01.md).
+```
+
+**3. Error Codes table** — append beneath the existing last row (*"The requested algorithm is not supported by this endpoint."*):
+
+```markdown
+| `422` | The requested algorithm requires a `pov` but none was provided. |
+| `422` | The requested algorithm cannot be served for the supplied `pov`. |
+```
+
+(Wording is verbatim from the other endpoint OREs: the request-field and missing-`pov` texts match `02.md`/`05.md`–`07.md`, the delegation sentence matches `03.md`/`05.md`/`06.md`, and the cannot-serve row is this PR's row from § above.)
 
 ## PR title
 
@@ -76,3 +102,5 @@ Those tables already restate ORE-01's pov rules (every one lists "requires a `po
 
 Closes #8
 ```
+
+> **Resolution of the aside (2026-09-17):** the maintainer's review (2026-08-28) took it up — *"The gap in ORE-08 is real, so if you could add the clarification there as well we can merge this!"* — so the ORE-08 changes in § "Proposed spec text (08.md — pov parity)" were added to PR #9. The description above is preserved exactly as posted.
