@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { nip19 } from 'nostr-tools';
+import { TL_MEMBERSHIP_METHODS } from '../config/tlMembershipMethods';
 
 /**
  * Story 12 / ADR 0011 — Curation-method editor.
@@ -91,6 +92,16 @@ export default function CurationMethodDialog({
     rawAuthorConstraint === 'observer' ? 'observer' : ''
   );
   const [authorConstraintTouched, setAuthorConstraintTouched] = useState(false);
+  // search-index-selection ADR 0002 §3 — the pin's own membership method.
+  // Empty string = "Instance default" (the field stays ABSENT from the blob, so
+  // the deployment dial supplies the fold). Same discipline as authorConstraint
+  // above: the RAW initial value is kept and only a touched control overrides
+  // it, so an edit never silently downgrades a value this build cannot render.
+  const rawMembershipMethod = init.membershipMethod;
+  const [membershipMethod, setMembershipMethod] = useState(
+    TL_MEMBERSHIP_METHODS.some((m) => m.id === rawMembershipMethod) ? rawMembershipMethod : ''
+  );
+  const [membershipMethodTouched, setMembershipMethodTouched] = useState(false);
   const [observer, setObserver] = useState(
     init.observer && init.observer !== viewerPubkey ? init.observer : ''
   );
@@ -137,6 +148,9 @@ export default function CurationMethodDialog({
     const effectiveAuthorConstraint = authorConstraintTouched
       ? authorConstraint
       : (rawAuthorConstraint || '');
+    const effectiveMembershipMethod = membershipMethodTouched
+      ? membershipMethod
+      : (rawMembershipMethod || '');
 
     const custom = {
       observer: observerR.value,
@@ -150,6 +164,10 @@ export default function CurationMethodDialog({
       // narrowed, so editing a pre-story pin reproduces today's blob exactly
       // (E3). An untouched control re-emits whatever the pin already carried.
       ...(effectiveAuthorConstraint ? { authorConstraint: effectiveAuthorConstraint } : {}),
+      // search-index-selection ADR 0002 §3 — included ONLY when the pin names a
+      // method; absent stays absent, so a pre-story pin's blob round-trips
+      // byte-identically and keeps following the instance dial.
+      ...(effectiveMembershipMethod ? { membershipMethod: effectiveMembershipMethod } : {}),
     };
 
     setSubmitting(true);
@@ -287,6 +305,33 @@ export default function CurationMethodDialog({
             {fieldErrors.method && (
               <p className="pcd-error" role="alert">{fieldErrors.method}</p>
             )}
+          </div>
+
+          {/* search-index-selection ADR 0002 §3 — how THIS pin's already-trust-filtered
+              assertions are folded into members. Absent ⇒ the instance-wide dial, which
+              is why the leading option is a real, selectable empty value. The dialog
+              deliberately does not name the current dial: the only endpoint carrying it
+              is owner-gated. */}
+          <div className="pcd-field">
+            <label htmlFor="pcd-membership-method" className="pcd-label">Membership method</label>
+            <select
+              id="pcd-membership-method"
+              className="pcd-select"
+              value={membershipMethod}
+              onChange={(e) => { setMembershipMethodTouched(true); setMembershipMethod(e.target.value); }}
+              disabled={submitting}
+            >
+              <option value="">Instance default</option>
+              {TL_MEMBERSHIP_METHODS.map((m) => (
+                <option key={m.id} value={m.id} disabled={!m.available}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <p className="pcd-helper">
+              Instance default means whatever this instance&apos;s operator has selected; the
+              published list records the method that actually ran.
+            </p>
           </div>
 
           {/* search-index-selection ADR 0001 §3 — whose assertions count. Not a

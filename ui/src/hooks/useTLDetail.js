@@ -69,6 +69,9 @@ export default function useTLDetail(dTag) {
         // LIST, so a reader can tell a self-curated set from a WoT threshold
         // without fetching the pin. Absent on every list published to date.
         const authorConstraint = findTag('author-constraint')?.[1] || null;
+        // search-index-selection ADR 0002 §5 — the fold that actually ran, disclosed
+        // on every list published since that story. Absent on older lists.
+        const membershipMethod = findTag('membership-method')?.[1] || null;
         const retracted = (ev.tags || []).some(
           (t) => t[0] === 'status' && t[1] === 'retracted'
         );
@@ -102,6 +105,7 @@ export default function useTLDetail(dTag) {
           cutoff: cutoff != null ? parseInt(cutoff, 10) : null,
           minRank: minRank != null ? parseInt(minRank, 10) : null,
           authorConstraint,
+          membershipMethod,
           retracted,
         });
 

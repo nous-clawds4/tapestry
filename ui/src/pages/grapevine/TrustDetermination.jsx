@@ -4,22 +4,12 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import { useTrust, SCORING_METHODS } from '../../context/TrustContext';
 import useProfiles from '../../hooks/useProfiles';
 import { queryRelay } from '../../api/relay';
+import { TL_MEMBERSHIP_METHODS } from '../../config/tlMembershipMethods';
 
 function shortPubkey(pk) {
   if (!pk) return '—';
   return pk.slice(0, 12) + '…' + pk.slice(-6);
 }
-
-// TL membership-method ladder (ADR trusted-lists/0001). Mirrors the server
-// constant in src/api/trustedList/membershipMethods.js — keep in sync.
-const TL_MEMBERSHIP_METHODS = [
-  { id: 'count', label: 'Count — verified taggers (current)', available: true,
-    blurb: 'A member joins when enough gate-passing taggers applied the tag and applies outnumber disputes. Every tagger counts as 1.' },
-  { id: 'input', label: 'Weighted sum — trust-weighted applies − disputes', available: true,
-    blurb: 'One score per member: each tagger counts by their trust weight (WoT rank ÷ 100), applies add, disputes subtract. An equal-weight split nets to 0; dispute-heavy goes negative. Membership and order still follow Count at this rung.' },
-  { id: 'certainty', label: 'Certainty — saturating input × agreement (0–100)', available: true,
-    blurb: 'The full formula, 0–100. Agreement = the trust-weighted balance of votes: applies (+1) vs disputes (−1), so all-applies → 1, an even split → 0, dispute-heavy → negative. Certainty = how much total trust weighed in, saturating toward 1. Score = agreement × certainty × 100: one rank-100 apply → 50; an equal-weight split → 0.' },
-];
 
 /**
  * Server-side, pipeline-wide TL membership-method selector (ADR
@@ -88,9 +78,11 @@ function TLMembershipMethodCard() {
       <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem' }}>TL Membership Method</h3>
       <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', opacity: 0.6, lineHeight: 1.5 }}>
         How this instance&apos;s refresh pipeline computes <strong>Trusted-List membership</strong> from
-        pinned-tag assertions. One setting for the whole pipeline, stored server-side — unlike the
-        viewer-side Scoring Method above, which only affects what this browser displays. Published
-        TLs record the active method in a <code>membership-method</code> tag.
+        pinned-tag assertions. Stored server-side — unlike the viewer-side Scoring Method above,
+        which only affects what this browser displays. This is the
+        default for pins that don&apos;t choose — a pin can set its own membership method in
+        its curation dialog, and that choice wins. Every published Trusted List
+        records the method that actually ran in a <code>membership-method</code> tag.
       </p>
       {method === null ? (
         <div style={{ opacity: 0.5, fontSize: '0.85rem' }}>Loading…</div>

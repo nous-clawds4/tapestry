@@ -10,6 +10,7 @@ import usePinnedItems from '../hooks/usePinnedItems';
 import NoteCard from './NoteCard';
 import DListItemsTable from './dlist/DListItemsTable';
 import { parseFieldDecls, headerNames } from '../utils/dlistFields';
+import { TL_MEMBERSHIP_METHODS } from '../config/tlMembershipMethods';
 import { toTableItem } from '../utils/dlistHeaders';
 import {
   pinTag, unpinTag, computeTLDTag, computeNoteBookmarkDTag,
@@ -476,6 +477,18 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
           <>
             <dt>Curation scope</dt>
             <dd>Only me (only the observer's taggings counted)</dd>
+          </>
+        )}
+        {/* search-index-selection ADR 0002 §5 — the fold that actually ran, read
+            off the list itself. Known ids get their ladder label; an id from a
+            future rung still displays raw. Absent on pre-story lists. */}
+        {tl.membershipMethod && (
+          <>
+            <dt>Membership method</dt>
+            <dd>
+              {(TL_MEMBERSHIP_METHODS.find((m) => m.id === tl.membershipMethod) || {}).label
+                || tl.membershipMethod}
+            </dd>
           </>
         )}
         {tl.minRank > 0 && (

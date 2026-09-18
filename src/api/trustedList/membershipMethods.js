@@ -3,9 +3,12 @@
  *
  * The pipeline-wide membership method is operator configuration stored in
  * the two-layer settings store (src/config/settings.js) under
- * `trustedLists.membershipMethod`. This module is the single source of
- * truth for the method ids (mirrored as a UI constant in
- * ui/src/pages/grapevine/TrustDetermination.jsx — no shared module system
+ * `trustedLists.membershipMethod`. Since search-index-selection ADR 0002 it
+ * is the *fallback* dial: a pin whose curationMethod blob carries an
+ * implemented `membershipMethod` folds by that instead, and only a pin
+ * carrying no (or an unimplemented) value falls back to this setting. This
+ * module is the single source of truth for the method ids (mirrored as a UI
+ * constant in ui/src/config/tlMembershipMethods.js — no shared module system
  * in this no-build project).
  *
  * METHOD_IDS is the full four-rung ladder, wire-stable; rungs 2–4 move
@@ -41,4 +44,21 @@ function resolveMembershipMethod() {
   return 'count';
 }
 
-module.exports = { METHOD_IDS, IMPLEMENTED_METHOD_IDS, resolveMembershipMethod };
+/**
+ * search-index-selection ADR 0002 §1 — the pure vocabulary check.
+ *
+ * Answers only "is this one of the folds the pipeline can execute today?" —
+ * never "what is this deployment set to?" and never anything about a pin. The
+ * call site (refreshPinnedTags.js) composes precedence and does the logging;
+ * this stays pure so the registry has no opinion about pins.
+ */
+function isImplementedMembershipMethod(value) {
+  return IMPLEMENTED_METHOD_IDS.includes(value);
+}
+
+module.exports = {
+  METHOD_IDS,
+  IMPLEMENTED_METHOD_IDS,
+  resolveMembershipMethod,
+  isImplementedMembershipMethod,
+};

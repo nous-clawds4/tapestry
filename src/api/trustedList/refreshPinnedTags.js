@@ -29,7 +29,7 @@ const {
   trustedListZTags, conceptTrustedList, tlHeaderDTag, tlHeaderAddr, buildTLHeader,
   isKnownAuthorConstraint,
 } = require('../../lib/event-tagging');
-const { resolveMembershipMethod } = require('./membershipMethods');
+const { resolveMembershipMethod, isImplementedMembershipMethod } = require('./membershipMethods');
 
 const TA_PUBKEY = profileTags.TA_PUBKEY;
 const TAG_PINNING_Z_TAG = profileTags.TAG_PINNING_Z_TAG;
@@ -48,6 +48,23 @@ const NOTE_TL_MEMBER_CAP = 1000;
  */
 function authorConstraintTags(authorConstraint) {
   return isKnownAuthorConstraint(authorConstraint) ? [['author-constraint', authorConstraint]] : [];
+}
+/**
+ * search-index-selection ADR 0002 §1 — the one-time "unknown pin membership
+ * method ignored" notice. The registry stays pure (no logging), so the notice
+ * lives here at the call site, modelled on warnUnknownAuthorConstraint.
+ *
+ * SILENT on absence: every pin published before that story omits the field, so
+ * warning on absence would log once per pin per refresh cycle forever. Keyed by
+ * the offending value so one bad pin cannot flood the log.
+ */
+const warnedPinMembershipMethods = new Set();
+function warnUnknownPinMembershipMethod(value) {
+  if (value === undefined || value === null || value === '') return;
+  if (isImplementedMembershipMethod(value)) return;
+  if (warnedPinMembershipMethods.has(value)) return;
+  warnedPinMembershipMethods.add(value);
+  console.warn(`[refreshPinnedTags] unknown pin membershipMethod ${JSON.stringify(value)} ignored (falling back to the instance default)`);
 }
 // Max item members carried in a single kind-30394 item TL (ADR dlist-item-tagging/0003 §1.9).
 // Half NOTE_TL_MEMBER_CAP: an `a` coordinate (~80–120 bytes) is roughly double a 64-hex `e` id,
@@ -262,6 +279,10 @@ async function runOnePin(pinEvent, options = {}) {
   // and never "trust everyone"). Absent ⇒ unconstrained; an unknown value fails
   // open inside the aggregation and is NOT disclosed on the published list.
   const authorConstraint = curation.authorConstraint;
+  // search-index-selection ADR 0002 §1 — the pin's own fold wins; absent ⇒ the
+  // instance dial (AC-2). An unknown / future-rung / malformed value FAILS OPEN
+  // to the dial, matching the registry's own posture.
+  const pinMembershipMethod = curation.membershipMethod;
   const tagEventId = profileTags.parsePinTagEventId(pinEvent);
   if (!tagEventId) {
     return { status: 'error', errorReason: 'pin event has no referenced tag event id' };
@@ -294,15 +315,21 @@ async function runOnePin(pinEvent, options = {}) {
   const { byTarget, wotFiltering } = await aggregateProfilesTagged({
     tagEventId, povSuffix, minRank, authorConstraint, observer,
   });
-  // ADR trusted-lists/0001: the pipeline-wide membership method, resolved
-  // fresh per refresh (fail-safe: always an implemented id). Dispatch is a
-  // map so rungs 2-4 add branches without touching the count path.
+  // ADR trusted-lists/0001: the membership method, resolved fresh per refresh
+  // (fail-safe: always an implemented id). Dispatch is a map so rungs 2-4 add
+  // branches without touching the count path.
+  // search-index-selection ADR 0002 §1: the PIN's method wins; only a pin that
+  // carries none — or one this build cannot execute — falls back to the
+  // deployment-wide dial (which keeps its zero-arg signature and meaning).
   // ADR trusted-lists/0002: weighted methods need the WoT filter's ranks;
   // without them the fold degrades to count and the wire tag records the
   // math that actually ran.
-  const requestedMethod = deps.resolveMembershipMethod
-    ? deps.resolveMembershipMethod()
-    : resolveMembershipMethod();
+  const requestedMethod = isImplementedMembershipMethod(pinMembershipMethod)
+    ? pinMembershipMethod
+    : (warnUnknownPinMembershipMethod(pinMembershipMethod),
+      deps.resolveMembershipMethod
+        ? deps.resolveMembershipMethod()
+        : resolveMembershipMethod());
   const membershipMethod =
     (requestedMethod !== 'count' && !wotFiltering) ? 'count' : requestedMethod;
   const membershipFolds = {
@@ -369,9 +396,14 @@ async function runOnePin(pinEvent, options = {}) {
         // ADR search-index-selection/0001 §4 — the disclosure rides immediately
         // after min-rank, which stays an honest record of what ran.
         ...authorConstraintTags(authorConstraint),
-        // Story 4: the ladder's membership-method tag is stripped (never
-        // spec'd); rigor rides certainty TLs so consumers can reproduce
-        // scores (D12: constant, not a knob).
+        // search-index-selection ADR 0002 §2 — EVERY 30392 discloses the fold
+        // that actually ran (post-downgrade, post-fail-open), so a consumer can
+        // tell a certainty list from a count one without fetching the pin.
+        // Once the method is per-pin, "look up the deployment setting" stops
+        // being an answer. Restores the tag Story 4 dropped.
+        ['membership-method', membershipMethod],
+        // rigor rides certainty TLs so consumers can reproduce scores (D12:
+        // constant, not a knob) — it qualifies the method, so it reads after it.
         ...(membershipMethod === 'certainty' ? [['rigor', '0.5']] : []),
         // ADR dlist-item-tagging/0002 — the family-wide Trusted-List z pair. The
         // 30392 gains its FIRST relay-filterable discovery axis here.
