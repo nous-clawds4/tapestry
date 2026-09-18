@@ -2,8 +2,7 @@
 
 **Status:** Approved
 **Created:** 2026-09-18
-**Type:** Feature *(Light lane expected — no wire-format change; the tagging of an
-addressable target already ships. Gate A to confirm.)*
+**Type:** Feature *(Light lane — Gate A 2026-09-18; no wire-format change)*
 **Epic:** `engineering-team/epics/search-index-selection.md`
 **Design target:** `docs/SEARCH_INDEX_DLIST_SELECTION.md` (rev 3)
 
