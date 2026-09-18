@@ -1,6 +1,6 @@
 # ADR 0002: `membershipMethod` — a per-pin membership method, disclosed on every 30392
 
-**Status:** Proposed
+**Status:** Accepted (J1 design gate 2026-09-18)
 **Date:** 2026-09-18
 **Story:** `engineering-team/stories/search-index-selection/3-per-pin-membership-method.md`
 
@@ -272,7 +272,7 @@ free.
 *identity* (d-tag + discovery `z` only, `:262`), the constraint is *eligibility* (applied inside
 the aggregation, before the fold), the method is *scoring* (the fold itself). They compose without
 interaction. In particular ADR 0001's carve-out — **under `authorConstraint: 'observer'` the
-observer's own weight is 1.0** (`src/api/profile-tags/index.js:679-682`) — is a property of the
+observer's own weight is 1.0** (`src/lib/event-tagging/pins.js:186-199`) — is a property of the
 weight function, not of any method, so it applies whichever fold runs, whether the fold came from
 the pin or the dial (E3). The day-one search-index pin is exactly
 `{ authorConstraint: 'observer', membershipMethod: 'certainty' }` on a `count` deployment, and
