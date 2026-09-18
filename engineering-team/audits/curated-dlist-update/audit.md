@@ -279,9 +279,24 @@ below is from this machine and this branch.
       `-curation-method`, `-read-only-curation` and `-pointer-switch` each carry docs tests too, and
       `harness-lint`'s own suite walks `engineering-team/`. This is the concrete instance of OPEN.md row
       312 (full-path ADR citations break at retirement).
-- [ ] **The first real Update** — the live test of the whole book, and specifically of kind-5 deletion
-      handling on the community relay. Needs the operator's OK; a `still-there` read-back is flagged, not
-      trusted (ADR 0006 §10).
+- [x] **The first real Update** — **done 2026-09-18**, on staging, with the operator's OK. Six synthetic
+      accounts ran a user story on a new shared concept (`dog-tricks`): one expert declared it and authored
+      five items, two co-experts upvoted four, and two adopters pressed Update. At the shipped default cutoff
+      of 2 the first adopter copied four of five; at cutoff 1 the second copied all five. Four Updates were
+      published in all — copies, a deletion and a refresh — each to this instance and to the community relay.
+      What it settled: **kind-5 deletion works** — a copy the method stopped accepting was gone from dcosl
+      (strfry 1.0.4, so the `e` form) and from staging's strfry on an independent relay read, not merely
+      reported gone (row 297 now carries the evidence; that relay's upgrade closes the replay gap, it does not
+      unblock removal). Copies match ADR 0001 exactly (one `z`, `q` = address + version id, a `copy-` d-tag,
+      no `json`); a refresh replaces in place at the same address with the new version pinned; a deleted
+      copy's original returns to the candidate pool and is re-judged; a repeat Update is idempotent; and a Map
+      entry whose relay hint is unreachable **blocked the whole plan**, with the verdicts `incomplete` rather
+      than "skipped", though the items were readable locally. The read-only path and "curate it here instead"
+      were confirmed for a list whose Map names another assistant, and a real `inherit-items` header plans as
+      exactly one `upgrade` intent. **Not covered:** the rendered preview — the run drove the shipped planner
+      (`lookupListItems` → `candidateVerdicts` → `updatePlan` → `planIntents`) and the endpoint directly, not
+      the page. New rows: 323 (votes sum rather than supersede), 324 (the panel offers an Add that can only
+      409).
 - [ ] **Non-strict callers of `/api/relay/external`** still read an unreachable relay as empty (row 314),
       and the Treasure Map presence probe still reads a silent relay as "absent" (row 292).
 - [ ] **The two remaining silent-incompleteness paths**: the Trusted List read by d-tag from any author (a
