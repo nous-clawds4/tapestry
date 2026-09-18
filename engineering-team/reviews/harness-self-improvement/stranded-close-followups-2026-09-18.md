@@ -286,3 +286,152 @@ suites that read a changed file are green on this HEAD. The local full gate, re-
 the recorded Node 16 reason with 15.3% of cases skipped; that is accepted for a diff with no source and
 no test, and it is not a green gate. CI's Node 22 job on the PR is the binding run. This lane has no
 story to flip and no book to close, and the commit is the orchestrator's.
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-09-18
+**Diff:** `77d9437b`, the Implementer's fix-up, on top of `941299e0` (round 1 of this file, committed as
+written: the same blob, 288 lines). It touches `engineering-team/CHANGELOG.md` and `OPEN.md` and nothing
+else, one line in each: the step-10 CHANGELOG row and ledger row 290. Everything above this heading is
+round 1, byte-for-byte; this section was appended to the end of the file, not edited in.
+
+Same constraints as round 1: this reviewer edited this file and nothing else — no commit, no add, no
+push, no status flip.
+
+Two of the statements under review began as this reviewer's own words. The CHANGELOG's new sentence is
+round 1's suggested wording, and row 290's append is built from round 1's Harness friction 3. Step 10 of
+the role, which this same branch adds, says to check such text as a claim rather than recognise it. Each
+was re-derived below from its sources, not from round 1's notes. The exercise paid: two phrases of mine
+say slightly more than I had observed (Non-blocking 1 and 3).
+
+### Quality gates (round 2)
+
+- [x] `bash scripts/harness-lint.sh` on `77d9437b` → **clean (0 violations)**, exit 0. Run again on
+      `origin/staging` in a throwaway worktree and diffed: the outputs differ by exactly one line, the
+      `INFO non-numbered-review` line for this file. Worktree removed afterwards.
+- [x] **L10 holds.** `check_L10`'s own query, replayed by hand, now returns `77d9437b`, and that commit
+      touches `engineering-team/CHANGELOG.md` — itself a definition path.
+- [x] **The same seven suites, each through `run()`, in the foreground, Node v16.17.0, on `77d9437b`:**
+      `harness-lint` 41 passed / 0 failed (54 s, including "the real repo lints clean"), `harness-stats`
+      12 / 0 (69 s), `session-start` 10 / 0 (25 s), `operational-direction` 76 / 0 (10 skipped),
+      `curated-dlist-update-update-preview` 34 / 0, `curated-dlist-update-publish` 69 / 0,
+      `gate-result-record` 34 / 0 (20 s). Counts identical to round 1.
+- [x] **The real parser over the three amended rows** (the awk from `scripts/lib/collect-meta.sh:34`):
+      rows 290, 307 and 312 each read `NF=9`, Type in `$3`, Status in `$6`; line 26 still takes
+      `2026-09-12` from row 290's `$5`. The open-meta selection is the same 106 row numbers on
+      `origin/staging` and here. Row 290 is the row about pipes breaking this parser, and its append
+      carries none.
+- [ ] **Full gate: not re-run, and still not green.** `npm run -s gate:status` (exit 1) still reports
+      this reviewer's round-1 run, `20260918T213029Z-34377-aa1c`, which ran on `c6997b07`: red, 2848
+      passed, 9 failed, 515 skipped, the one red suite being `honest-publish-reporting` for the row-288
+      host reason. Since that commit the branch gained `941299e0` (this file) and `77d9437b`
+      (one CHANGELOG line, one ledger line): three records files, no source, no test, and no
+      harness-definition path other than the CHANGELOG. Nothing under `test/` names this file or its
+      folder; the suites that reach the ledger, the CHANGELOG and the reviews folder are among the seven
+      re-run above on the new HEAD. So the record is still applicable — as exactly the evidence it was in
+      round 1 and no more: a red local gate, on a host that cannot execute 15.3% of the cases, showing
+      that a records-only diff broke nothing it could reach. It is not a green gate. The binding run
+      remains CI's Node 22 `stack-free` job on the PR.
+
+### Claims adherence (round 2)
+
+| Claim in the fix-up | Evidence | Result |
+|---|---|---|
+| CHANGELOG: "all three blocking fixes adopted round 1's suggested wording — two sentences nearly verbatim, one cross-reference exactly" | not taken from round 1 of this file: the merged review on `origin/staging` was parsed — its round-1 Blocking section has three numbered findings and three "Asked change" passages — and each quoted suggestion was compared with the four lines `12f7fba9` changed in `OPEN.md` (rows 72, 73, 321 and the 2026-07-22 numbering note). Suggestion 1 (271 characters) landed with one insertion, `'s`; suggestion 2 (239) with `;` → `, and`; suggestion 3, `(L2 waiver; row 322)`, is present exactly and was absent before the fix. On "sentences": the first is one; the second is what round 1 of that review calls "the clause" — two independent clauses, landing as the tail of a sentence in row 72. The word is the merged review's, and was mine in round 1; it is fair, not exact | holds |
+| CHANGELOG: "Both" was the merged review's own word (commit message) | a whitespace-flattened search, because the sentence wraps across lines there: "Both blocking fixes adopted round 1's suggested sentences nearly verbatim." sits in its Round 2 section, which also says "The three round-1 items are fixed" | holds |
+| CHANGELOG row still 4 cells, still last, tail chronological | one line changed (`:87`): three word-level edits, nothing else. 5 raw pipes, 0 escaped, 4 cells; line 87 of 87; the last six dates run 09-12, 09-12, 09-17, 09-18, 09-18, 09-18; the only out-of-order pair is still lines 70–71, already on staging. Backticks and bold markers balanced. The rest of the row reads correctly with the new subject: "re-derived them" now covers three items, and the merged review's round-2 table did check all three with fresh commands | holds |
+| Row 290: original text survives; note in the Item cell; structure and other cells unchanged | 7 cells, 8 raw pipes and 0 escaped on both sides; number, Type, Opened, Status, Done and Pointer byte-identical; staging's Item cell is a verbatim `str.startswith` prefix of HEAD's (617 → 1410 characters); still `OPEN`. The append has no pipe, balanced backticks and bold. The row's first 150 bytes are unchanged, so its own trimmed echo in the roll-up is unchanged | holds |
+| Row 290: `collect-meta.sh:33` trims with `cut -c1-150`; "one line above"; "the same function" | `sed -n '22p;33p;34p;52p'`: `collect_meta() {` at 22, the `cut -c1-150` at 33, the awk that row 290 is about at 34, the closing brace at 52. Same blob on `origin/staging` and HEAD (`c43fc017`) | holds |
+| Row 290: `cut -c` "counts bytes when no UTF-8 locale is set" | probe on this host (BSD `cut`): `a`, `é`, `b` through `cut -c1-2` gives `61 c3` under `LC_ALL=C` and `61 c3 a9` under `en_US.UTF-8`. True here. The same probe in the `tapestry` container (GNU coreutils 8.32, Ubuntu 22.04): `61 c3` under `C`, `C.UTF-8` and `en_US.UTF-8` alike | holds on this host — Non-blocking 3 |
+| Row 290: "agent and hook shells here run with `LANG` and `LC_ALL` unset" | this agent shell: both unset, `locale` reports `LC_CTYPE="C"`. The `claude` process that spawns agent shells and hooks alike carries no `LANG` or `LC_*` in its environment (`ps eww`, only those names printed), nor do its two ancestors; `.claude/settings.json` sets none; the SessionStart hook is a plain `bash …/scripts/session-start.sh`, so it inherits. No hook shell was itself observed | agent half observed, hook half inferred — Non-blocking 1 |
+| Row 290: row 193 alone among the meta rows; `LC_ALL=C` → invalid at byte 149, a stray `0xe2`; `en_US.UTF-8` → valid | the brief asked whether slicing raw row bytes matches what the script feeds to `cut`. It does: the script's own grep-then-awk selection yields 106 rows, each byte-identical to its line in `OPEN.md` (awk prints `$0` unchanged; `read -r` with `IFS=` and `printf '%s'` preserve bytes), and the `[…d]` prefix is added outside the cut. Then the real `cut` binary, per row: under `LC_ALL=C`, invalid UTF-8 for row 193 only — among the 106 listed and among all 148 rows whose Type is `meta` (the Implementer's count, confirmed) — at offset 149, byte `e2`, the lead byte of an em-dash (`e2 80 94`); under `en_US.UTF-8`, none. Slicing at 150 bytes agrees with the real `cut` on every row | holds (see Non-blocking 2) |
+| Row 290: it comes out of `/whats-open`; "on `origin/staging` as well as here" | `scripts/whats-open.sh` run on a throwaway `origin/staging` worktree and on HEAD with no locale set: exactly one invalid UTF-8 position in each output, on row 193's line, byte `0xe2`; on HEAD under `LC_ALL=en_US.UTF-8`: none. Row 193 is byte-identical on both refs. `scripts/session-start.sh` never prints the trimmed rows, only `whats-open.sh:38` does, and the row rightly names `/whats-open` alone | holds |
+| "unledgered until now" (commit message) | a wider search than round 1's over `origin/staging:OPEN.md` — `cut -c`, multibyte, UTF-8, unicode, locale, `LC_ALL`, `LC_CTYPE`, `LANG`, `0xe2`, decode, codec, and truncate/split near byte/character: the only hits are row 135 (an HTML-entity-mangled npub) and row 290's own "splits … on every pipe character". Only rows 19 (done) and 290 mention `collect-meta` at all. The intake file: 0 hits | holds |
+| Ledger integrity overall: versus `origin/staging` only rows 290, 307 and 312 differ; line count identical | 383 lines on staging, before the fix-up and at HEAD. `77d9437b` changed line 348 only. Against staging, lines 348, 365 and 370 differ and nothing else; keyed on row number: 321 rows on both sides in the same order, no duplicate, exactly three whose text differs; every non-row line identical | holds |
+| Commit message, forward correction: the move broke 32 of the 40 dead `../`-relative links, 8 never resolved, three `./` links between sibling ADRs resolve; `59281ce7` is left alone | recomputed rather than recalled — nothing under the three `done/` trees changed since round 1 (`git diff c6997b07 HEAD`: empty), and the whole-file extraction with git history gives the same: 41 links, 40 dead and 1 live, 7 / 12 / 21, 32 valid at the parent of their move with targets present and link text already there, 8 that never resolved. A separate pass over `./` links outside code spans: 3 resolve (`decisions/done/protocols-directory/0002-…:7` once, `0003-…:7` twice), 6 do not. The paraphrase of `59281ce7`'s sentence is fair (its message lines 10–13). `59281ce7` is an ancestor of HEAD and row 312 still cites it | holds |
+| Commit message, the rest | "Reproduced here before writing it down" is the Implementer's attestation, consistent with a 148-row check whose count matches mine. "Row 290's original text is untouched": above. The branch is still unpushed, `origin/staging` is still `580bce5c`, and the highest ledger number is still 322 on both sides | holds |
+
+### Findings (round 2)
+
+**Blocking.** None. Both notes were acted on accurately, nothing the fix-up wrote is false, no ledger row
+other than 290, 307 and 312 differs from staging, every cross-reference resolves, and lint is clean.
+
+**Non-blocking.**
+
+1. **`OPEN.md:348` — "agent and hook shells here": the hook half was inferred, and the phrase is mine.**
+   Round 1's Harness friction 3 said it after observing one agent shell. This round found good support
+   — the `claude` process that starts the hooks has no locale variable to pass on, and the settings
+   file adds none — but no hook shell has been looked at, and the whole claim belongs to sessions
+   launched the way this one was (a session started from a terminal that exports `LANG` would inherit
+   it). It is
+   also beside the point of the defect, since the hook's script never prints the trimmed rows. Optional:
+   "agent shells here run with `LANG` and `LC_ALL` unset, and hooks inherit the same environment".
+2. **`OPEN.md:348` — "whose 150th byte" and "invalid at byte 149" are the same byte.** The first counts
+   from one; the second is the zero-based offset Python reported, copied from round 1 of this file. Each
+   is right in its own convention, and side by side they read as two different bytes. Optional: "invalid
+   at offset 149 (the 150th byte)". Strictly, the cut is invalid when a character straddles the
+   150-byte boundary, which excludes a character that ends exactly there; no meta row sits on that edge
+   today, so the row's looser wording has no counterexample.
+3. **`OPEN.md:348` — the first candidate works only where `cut` is BSD.** "Counts bytes when no UTF-8
+   locale is set" is true, and on this Mac setting one does cure it (the roll-up is valid UTF-8 under
+   `LC_ALL=en_US.UTF-8`). GNU `cut -c` counted bytes under every locale I could give it — coreutils 8.32
+   in the container, above — so there, and by the same token on CI's `ubuntu-latest` runner, "set a
+   UTF-8 locale inside the script" changes nothing; only the second candidate, a multibyte-aware trim,
+   is portable. Row 19 was this
+   same script's GNU/BSD split over `date`, in the other direction. Round 1's friction note generalised
+   from one `cut`; that was my omission before it was the row's. Optional: a clause saying so, for
+   whoever takes the row.
+4. **A second `cut -c1-150` sits at `scripts/whats-open.sh:50`,** trimming HANDOFF status lines, which
+   carry emoji and em-dashes. It is not firing today — the roll-up has exactly one invalid sequence, row
+   193's — but it is the same hazard, and the same fix should cover it.
+5. **On what was deliberately not acted on, I agree with all three.** Round 1's Non-blocking 4 asked
+   nothing: "Blocking 1" occurs once in the cited review and settles which "harness friction 1" is
+   meant. Its Harness friction 4 is about how briefs paraphrase the verdict parser, whose own header
+   already states the rule; this round's brief states it correctly ("every other line that carries bold
+   or is a heading"), so the lesson has reached the place it was needed. Its Harness friction 5 is a tip
+   for whoever builds row 312's close-out step; L8's extractor is already immune, and the tip is on
+   record here. None is a harness defect that the write discipline would want a row for. Findings 3 and
+   4 of this round are different in kind — facts about the defect row 290 now records — and are cheap to
+   fold into that row whenever it is next touched; the operator's call.
+6. **Still owed, unchanged from round 1:** land the PR as a merge commit, since row 312 cites
+   `59281ce7` and the fix-up's message now leans on that hash staying; say in the PR body that the local
+   gate is red on Node 16 for the row-288 reason and that CI's Node 22 job is the binding run.
+
+**Harness friction.**
+
+1. **Step 10 met its author on its first outing.** Within the hour, two phrases from round 1 of this
+   file were in records: "agent and hook shells", of which only the first half had been observed, and a
+   byte-counting rule that is true of one `cut` and silent about the other. Neither is false, and both
+   were caught only because the new rule says to re-derive rather than recognise. The corollary, not
+   asking for a change: a reviewer's friction notes are as quotable as its asked changes, and deserve the
+   same care when they are written — say what was observed, and on which host.
+2. **A line-based search misses a wrapped sentence.** Looking for the merged review's "Both blocking
+   fixes" with `grep` found nothing, because the sentence breaks after "Both"; only a
+   whitespace-flattened search found it. The same trap as round 1's Harness friction 5, in prose rather
+   than links: when checking whether a record says something, flatten it first.
+3. Row 316 recurred again: the wiring says commit and flip, the brief reserves both, and the brief was
+   followed.
+
+### Verdict (round 2)
+
+**PASS**
+
+Round 1 asked for nothing and offered notes; the fix-up took two of them, and both are made accurately.
+The CHANGELOG row now counts the three blocking fixes it describes, checked here against the merged
+review's own asked changes and the commit that answered them rather than against my suggestion. Row 290
+now records the byte-counting trim one line above the defect it already described, and every measured
+statement in the append reproduces: the line, the function, row 193 alone among 148 meta rows under the
+script's real pipeline, the stray `0xe2` at the 150th byte, staging and this branch alike, and no earlier
+row that knew of it. The forward correction in the commit message is right in every number, and leaving
+`59281ce7` unreworded keeps the hash that row 312 and round 1 cite.
+
+What this round adds is refinement, not correction: the hook half of the locale sentence is inference,
+two byte figures use two conventions, the first fix candidate is a BSD-only cure, and a sibling `cut`
+waits in `whats-open.sh`. None makes the record wrong as written.
+
+Only rows 290, 307 and 312 differ from staging, lint is clean, and the seven suites that read the
+ledger or the CHANGELOG are green on the new HEAD. The local full gate was not re-run; the round-1
+record remains applicable as what it was — red on this host for the recorded Node 16 reason, 15.3% of
+cases skipped, not a green gate. CI's Node 22 job on the PR is the binding run. This lane has no story
+to flip and no book to close, and the commit is the orchestrator's.
