@@ -220,6 +220,8 @@ const suites = [
   { file: 'dlist-index-page-counts.test.js' },
   { file: 'trusted-list-raw-view.test.js' },
   { file: 'tag-a-list-header.test.js' },
+  // search-index-selection epic (2026-09-18).
+  { file: 'only-me-curation.test.js' },
   { file: 'tag-index-performance.test.js' },
   { file: 'item-trusted-list.test.js' },
   { file: 'pin-stack-composition.test.js' },

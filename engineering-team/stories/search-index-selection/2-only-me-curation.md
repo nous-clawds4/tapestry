@@ -203,8 +203,8 @@ search backend can safely index it.
 - Design target: `docs/SEARCH_INDEX_DLIST_SELECTION.md` (rev 3)
 - Precedent story: `engineering-team/stories/search-index-selection/1-tag-a-list-header.md`
 - Additive-field precedent: `dlist-item-tagging` #5 (`targetTypes`)
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/search-index-selection/0001-author-constraint.md` (Accepted)
+- Test plan: `engineering-team/test-plans/search-index-selection/2-only-me-curation.md`
 - Review: (filled in after Review phase)
 
 ## Gate A rulings (operator, 2026-09-18 — "let's move on to Story 2"; the four recommendations adopted as proposed, overridable at the ADR gate)
@@ -228,3 +228,31 @@ JSON and the disclosure tag rides the published Trusted List). Scoped gate:
 
 Gate B for story 1 is **held** (operator tested header tagging locally: "works well"); the
 operator will test story 2 locally too, and the two may ship to `feat/tags` together.
+
+## AC→handle lines
+
+Test plan: `engineering-team/test-plans/search-index-selection/2-only-me-curation.md`
+Suite: `test/only-me-curation.test.js` (pre-implementation: 12 passed, 23 failed, 0 skipped).
+
+- AC-1 → S1, S2, U1
+- AC-2 → S2, H1, H4, H6 (the two blob copies agreeing is structural — `pinTag` stringifies one variable into both; not covered by a handle)
+- AC-3 → H3, H5, H7, U4, A3, S4 (whole-event byte identity: guard `pin-stack-composition` AC-4, cited by R5)
+- AC-4 → U2, H1, H4, H6, A1, A4, A5
+- AC-5 → H2, H4, H6, S5, S6
+- AC-6 → U3, A1
+- AC-7 (as amended) → A2 (self-weight 1.0), A3 (unconstrained weight unchanged), R3, R4
+- AC-8 → R1, R2, R3, R4, R5, H3, H5, H7, H9
+- E1 → R4 (proxy — the fold is unchanged; the relay round-trip is not covered)
+- E2 → H10 (runner ordering), U6 (the unreachable deny corner)
+- E3 → S2, S4, H3/H5/H7
+- E4 → H9
+- E5 → no new handle (no runner behaviour changes; owned by the `item-trusted-list` / `note-trusted-list` guards)
+- E6 → U3
+- E7 → U1, U5, H8, A3
+- E8 → U2, A1
+
+Seam specified for the Implementer: `composeAuthorPredicates({ authorConstraint, observer,
+authorAllowed, authorWeight })` exported from `src/api/profile-tags/index.js` — or,
+equivalently, `authorWeightFor` beside `authorPredicateFor` in `src/lib/event-tagging/pins.js`.
+Neither aggregation has an injectable Meili/strfry seam, so the AC-7 weight carve-out is
+otherwise untestable. See the plan § "The seam specified for the Implementer".
