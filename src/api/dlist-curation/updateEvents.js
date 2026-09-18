@@ -2,7 +2,7 @@
 
 /**
  * curated-dlist-update #6 — the events Update list signs, and the request it takes (ADR
- * engineering-team/decisions/curated-dlist-update/0006-update-publishes.md §1 and §3; the copy convention, ADR 0001
+ * engineering-team/decisions/done/curated-dlist-update/0006-update-publishes.md §1 and §3; the copy convention, ADR 0001
  * §1–§6).
  *
  * Pure: each event is a function of events the server read, never of the request's body, and nothing here reads a

@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — Curated headers link with `pointer`, and the curation screens say "copy"
 
-**Story:** `engineering-team/stories/curated-dlist-update/2-pointer-header-and-copy-wording.md`
-**ADR:** `engineering-team/decisions/curated-dlist-update/0002-pointer-switch-and-copy-wording.md`
+**Story:** `engineering-team/stories/done/curated-dlist-update/2-pointer-header-and-copy-wording.md`
+**ADR:** `engineering-team/decisions/done/curated-dlist-update/0002-pointer-switch-and-copy-wording.md`
 **Date:** 2026-09-12
 
 ## Coverage map

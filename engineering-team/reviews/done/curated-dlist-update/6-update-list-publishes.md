@@ -8,9 +8,9 @@
   24a4c447 -- test/` is empty);
 - `4e64b5b6`, docs: the story's entries 13 and 14, nothing else.
 
-- Story: `engineering-team/stories/curated-dlist-update/6-update-list-publishes.md`
-- ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md` (with Amendment 1)
-- Test plan: `engineering-team/stories/curated-dlist-update/6-update-list-publishes.test-plan.md`
+- Story: `engineering-team/stories/done/curated-dlist-update/6-update-list-publishes.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0006-update-publishes.md` (with Amendment 1)
+- Test plan: `engineering-team/stories/done/curated-dlist-update/6-update-list-publishes.test-plan.md`
 - Context: ADRs 0001 and 0005 in the same folder; `engineering-team/epics/curated-dlist-update.md`; staging's OPEN.md
   row 310, read pointer-level only.
 

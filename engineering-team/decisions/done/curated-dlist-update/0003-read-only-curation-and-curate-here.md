@@ -2,7 +2,7 @@
 
 **Status:** Accepted (Option C's follow-up closed, and §5's availability gaining `own`, by `curated-dlist-update` ADR 0006)
 **Date:** 2026-09-12
-**Story:** `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.md`
+**Story:** `engineering-team/stories/done/curated-dlist-update/3-another-assistants-curation-read-only.md`
 **Supersedes in part:** `my-curated-dlists` ADR 0001 (sub-decision 4's `no-assistant` and `other-pubkey`
 front-door statuses, and the closed list rows) and `dlist-curation` ADR 0005 (the Replace confirmation's
 words) — Decision §8; by Amendment 1, also `my-curated-dlists` ADRs 0002 and 0003 (the page's single write).
@@ -402,7 +402,7 @@ Regression is the full `npm test`. Known reds: OPEN.md rows 191 and 261. Run sin
 
 ## Amendment 1 — the offer checks its target, and the page's writes are counted (2026-09-12)
 
-**Why.** Story 3's review (`engineering-team/reviews/curated-dlist-update/3-another-assistants-curation-read-only.md`,
+**Why.** Story 3's review (`engineering-team/reviews/done/curated-dlist-update/3-another-assistants-curation-read-only.md`,
 Non-blocking 1 and 2) found two gaps. The operator chose to close both before the book merges.
 - **§5 checks that the curating header names *a* pointer, but not *which*.**
   - The endpoint authors the viewer's assistant's header under the pointer's d-tag

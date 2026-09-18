@@ -1,7 +1,7 @@
 # Test Plan: Story 5 — Update list shows what my assistant would do, built only from reads it could complete
 
-**Story:** `engineering-team/stories/curated-dlist-update/5-update-list-preview.md`
-**ADR:** `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md` (with Amendments 1 and 2)
+**Story:** `engineering-team/stories/done/curated-dlist-update/5-update-list-preview.md`
+**ADR:** `engineering-team/decisions/done/curated-dlist-update/0005-update-preview-and-honest-reads.md` (with Amendments 1 and 2)
 **Date:** 2026-09-13
 
 ## Coverage map

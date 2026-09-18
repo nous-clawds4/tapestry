@@ -4,7 +4,7 @@
 **Date:** 2026-09-10
 **Story:** `engineering-team/stories/dlist-curation/2-per-dlist-map-entry-convention.md`
 
-> **Superseded in part (2026-09-12):** the curated header's `b` type — now `"pointer"`, with curation copies — `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`.
+> **Superseded in part (2026-09-12):** the curated header's `b` type — now `"pointer"`, with curation copies — `engineering-team/decisions/done/curated-dlist-update/0001-curation-copy-convention.md`.
 
 ## Context
 

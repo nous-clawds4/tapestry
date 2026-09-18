@@ -122,8 +122,8 @@ fine while the branch ships as one book; if it ships sooner, that sentence needs
   this run (Meili did not settle), not failed.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/curated-dlist-update/0002-pointer-switch-and-copy-wording.md`
-- Test plan: `engineering-team/stories/curated-dlist-update/2-pointer-header-and-copy-wording.test-plan.md`
-- Review: `engineering-team/reviews/curated-dlist-update/2-pointer-header-and-copy-wording.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0002-pointer-switch-and-copy-wording.md`
+- Test plan: `engineering-team/stories/done/curated-dlist-update/2-pointer-header-and-copy-wording.test-plan.md`
+- Review: `engineering-team/reviews/done/curated-dlist-update/2-pointer-header-and-copy-wording.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

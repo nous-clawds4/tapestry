@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-12
-**Story:** `engineering-team/stories/curated-dlist-update/1-curation-copy-convention.md`
+**Story:** `engineering-team/stories/done/curated-dlist-update/1-curation-copy-convention.md`
 **Supersedes in part:** `dlist-curation` ADR 0002 §3 (the curated header's `b` type) and ADR 0003's
 consequence "Enables story 4" (the facet's consumer) — Decision §9.
 
@@ -329,7 +329,7 @@ Docs-mode. Exactly these edits, mirroring the Decision in spec voice, with ratio
 8. **`engineering-team/decisions/done/dlist-curation/0002-per-dlist-map-entry-convention.md`** — Status:
    "Accepted (§3's header type superseded by `curated-dlist-update` ADR 0001)"; under the Story line:
    "> **Superseded in part (`<date>`):** the curated header's `b` type — now `pointer`, with curation
-   copies — `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`."
+   copies — `engineering-team/decisions/done/curated-dlist-update/0001-curation-copy-convention.md`."
 9. **`engineering-team/decisions/done/dlist-curation/0003-inherit-items-facet.md`** — Status: "Accepted
    (the facet stands; its consumer moved to `pointer` and copies — `curated-dlist-update` ADR 0001)";
    the same one-line note, naming the "Enables story 4" consequence.
@@ -366,7 +366,7 @@ are rows 191 and 261).
 
 ## Amendment 1 — the emitter's timing, and four clarifications (2026-09-12)
 
-**Why.** Review round 1 (`engineering-team/reviews/curated-dlist-update/1-curation-copy-convention.md`,
+**Why.** Review round 1 (`engineering-team/reviews/done/curated-dlist-update/1-curation-copy-convention.md`,
 Blocking 1) found that four sentences this ADR prescribed — Decision §9's "the reference deployment no
 longer emits it" and Implementation notes 2 (the `inherit-from.md` status block), 4 (BIBLE `:1546`,
 `:1630`) and 10 (the intake closing line) — state as present fact what only a later story makes true.

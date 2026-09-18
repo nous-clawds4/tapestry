@@ -1,7 +1,7 @@
 # Test Plan: Story 6 — Update list publishes what I approved
 
-**Story:** `engineering-team/stories/curated-dlist-update/6-update-list-publishes.md`
-**ADR:** `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md` (with ADR 0001 Decision §1–§6, the copy
+**Story:** `engineering-team/stories/done/curated-dlist-update/6-update-list-publishes.md`
+**ADR:** `engineering-team/decisions/done/curated-dlist-update/0006-update-publishes.md` (with ADR 0001 Decision §1–§6, the copy
 convention, and ADR 0005 §7–§8 with its amendments, the planner)
 **Date:** 2026-09-13
 

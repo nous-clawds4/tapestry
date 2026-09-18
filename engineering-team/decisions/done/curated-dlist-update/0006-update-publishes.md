@@ -7,7 +7,7 @@ Amendment 2 (2026-09-13): each call answers within 45 seconds; an unknown outcom
 server reads only the deletion requests for each call's copies.
 Amendment 3 (2026-09-13): any 4xx is a refusal made before anything is signed, whatever its body.
 **Date:** 2026-09-13
-**Story:** `engineering-team/stories/curated-dlist-update/6-update-list-publishes.md`
+**Story:** `engineering-team/stories/done/curated-dlist-update/6-update-list-publishes.md`
 **Supersedes in part:** these ADRs in `curated-dlist-update`:
 - ADR 0002 (its Consequences: which headers the upgrade takes);
 - ADR 0003 (Option C's follow-up; §5's availability);

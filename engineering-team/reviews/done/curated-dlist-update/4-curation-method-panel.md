@@ -7,9 +7,9 @@ no test file. Also read, not under review: `bc434d58` story, `502badc4` ADR 0004
 Tester's suite, the S3 re-aim, the `test/test.js` registration, the test plan, OPEN.md row 314 and the epic's story 5
 note).
 
-- Story: `engineering-team/stories/curated-dlist-update/4-curation-method-panel.md`
-- ADR: `engineering-team/decisions/curated-dlist-update/0004-curation-method-and-verdicts.md`
-- Test plan: `engineering-team/stories/curated-dlist-update/4-curation-method-panel.test-plan.md`
+- Story: `engineering-team/stories/done/curated-dlist-update/4-curation-method-panel.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0004-curation-method-and-verdicts.md`
+- Test plan: `engineering-team/stories/done/curated-dlist-update/4-curation-method-panel.test-plan.md`
 - Epic and book: `engineering-team/epics/curated-dlist-update.md` (§ "Settled at kickoff", story 5's entry);
   `engineering-team/audits/curated-dlist-update/book.md`.
 

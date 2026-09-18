@@ -2,7 +2,7 @@
 
 **Status:** Accepted (§7's entries and §8's closing line superseded by `curated-dlist-update` ADR 0006)
 **Date:** 2026-09-13
-**Story:** `engineering-team/stories/curated-dlist-update/5-update-list-preview.md`
+**Story:** `engineering-team/stories/done/curated-dlist-update/5-update-list-preview.md`
 **Amended by:** Amendment 1 (2026-09-13): §7's precedence — the header's own states decide before pending reads.
 Amendment 2 (2026-09-13): the panel waits for my list and names its gaps (§6); a failed vote source names the votes.
 **Supersedes in part:** `curated-dlist-update` ADR 0004 (§2, one vote filter per source; §3, `useTrustWeights`
