@@ -1,6 +1,6 @@
 # Story 5: Pins and Trusted Lists for tagged items
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-10
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-09-10 —
 `targetTypes` gains `'item'` (additive, backward-compatible: absent reads as the pre-existing
