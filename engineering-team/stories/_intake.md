@@ -2438,5 +2438,8 @@ confirm.
 **While there:** three cycle skills still tell the agent to "retry once" on a post-stability 502
 (`cycle-staging/SKILL.md:157`, `cycle-prod/SKILL.md:155`, and `cycle-full/SKILL.md:112`'s "the
 post-stability retry"), where `docs/SMOKE_TEST.md` has said since 2026-09-10 to re-run the poll and
-repeat the tier; `OPERATIONS.md` §9.5 still says the late window was "observed once"; and four files
-cite that section by its old number (OPEN.md row 325's pointer lists them).
+repeat the tier — and line 38 of that doc itself keeps "retry once" for a 502 right after stability,
+beside the newer rule for one that comes later, so decide whether both are meant; `OPERATIONS.md`
+§9.5 still says the late window was "observed once"; and the renumbering of `OPERATIONS.md` §8 to
+§9 left old §8 numbers in four files, three of them citing this section as §8.5 (OPEN.md row 325's
+pointer lists all five lines).
