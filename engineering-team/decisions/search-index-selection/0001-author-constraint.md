@@ -1,6 +1,6 @@
 # ADR 0001: `authorConstraint` — an author-scope filter on a pin's Trusted List
 
-**Status:** Proposed
+**Status:** Accepted (J1 design gate 2026-09-18, two rounds)
 **Date:** 2026-09-18
 **Story:** `engineering-team/stories/search-index-selection/2-only-me-curation.md`
 

@@ -101,7 +101,7 @@ search backend can safely index it.
 
 ## Concepts touched
 
-- `39998:<TA>:tag-pinning` — the concept the pin element belongs to (the pin carries `curationMethod`; (ADR-0015 legacy
+- `39998:<TA>:tag-pinning` — the concept the pin element belongs to (the pin carries `curationMethod`; ADR-0015 legacy
   literal exception applies to the handle only; no new literal).
 - `39998:<TA>:trusted-list` — the published list family (30392 / 30393 / 30394).
 - `39998:b83a28b7…:github-accounts` — the day-one target header (story 1 made it taggable).
