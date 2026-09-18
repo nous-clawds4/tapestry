@@ -54,3 +54,19 @@ point-of-view threshold.
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/search-index-selection/audit.md`
 - Product feedback: `engineering-team/audits/search-index-selection/prd-seed.md`
+
+## Decision log
+- **2026-09-18 — Gate B (stories 1–2): HOLD.** Operator: "no reason to deploy yet, let's get this
+  whole epic done; then feat/tags will be dlist item tagging, header tagging and the TL updates
+  that include the author-constraint." The epic branch merges to `feat/tags` once, at the end.
+- **2026-09-18 — Gate A (story 3): approved as proposed.** Split into Part A (per-pin membership
+  method, story 3) and Part B (explicit pin variant key, story 5); field `membershipMethod` on the
+  pin blob, absent ⇒ the instance dial; the published profile list records the method that ran
+  (the one non-additive wire change — restores a tag Story 4 stripped); the instance dial stays
+  as the default for pins that don't choose, with its misleading page copy fixed.
+- **2026-09-18 — Uniqueness invariant** (operator: "we're not going to accidentally overwrite
+  stuff by stomping out d-tags, right?"): binding on story 5 — variant in both pin and list
+  addresses by construction; client refuses a used slug before signing; runner logs + skips a
+  detected collision. Recorded in story 3's draft, carried into story 5.
+- **2026-09-18 — New story 4 (operator):** a confirm step on first pin, so the default curation
+  that quietly publishes a list becomes visible and editable; sequenced with/before story 5.
