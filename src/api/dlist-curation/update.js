@@ -2,7 +2,7 @@
 
 /**
  * curated-dlist-update #6 — POST /api/dlist-curation/update: Update list publishes what I approved (ADR
- * engineering-team/decisions/curated-dlist-update/0006-update-publishes.md, with its Amendments 1 and 2; the copy
+ * engineering-team/decisions/done/curated-dlist-update/0006-update-publishes.md, with its Amendments 1 and 2; the copy
  * convention, ADR 0001).
  *
  *   body: { list: "39998:<my assistant>:<d>", copy: [{ original, version }], refresh: [{ copy, original, version }],

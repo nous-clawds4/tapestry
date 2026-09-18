@@ -13,9 +13,9 @@
 
 Neither implementation commit touches a test file (`git show --name-only … -- test/` is empty for both).
 
-- Story: `engineering-team/stories/curated-dlist-update/5-update-list-preview.md`
-- ADR: `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md` (Amendments 1 and 2)
-- Test plan: `engineering-team/stories/curated-dlist-update/5-update-list-preview.test-plan.md` (with § Amendment 2)
+- Story: `engineering-team/stories/done/curated-dlist-update/5-update-list-preview.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0005-update-preview-and-honest-reads.md` (Amendments 1 and 2)
+- Test plan: `engineering-team/stories/done/curated-dlist-update/5-update-list-preview.test-plan.md` (with § Amendment 2)
 - Context: `engineering-team/epics/curated-dlist-update.md` (story 5's entry and its carry-forwards); ADR 0001 (the copy
   convention).
 

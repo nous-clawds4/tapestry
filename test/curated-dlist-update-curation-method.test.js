@@ -1,8 +1,8 @@
 /**
  * curated-dlist-update #4: the curation method panel shows my method, a cutoff, and each candidate's verdict.
  *
- * Story: engineering-team/stories/curated-dlist-update/4-curation-method-panel.md
- * ADR:   engineering-team/decisions/curated-dlist-update/0004-curation-method-and-verdicts.md
+ * Story: engineering-team/stories/done/curated-dlist-update/4-curation-method-panel.md
+ * ADR:   engineering-team/decisions/done/curated-dlist-update/0004-curation-method-and-verdicts.md
  *
  * Four classes (house pattern; ESM behavioral import per test/my-curated-dlists-headers.test.js):
  *   U (behavioral) — the shared rule, ui/src/utils/dlistScore.js (new): classifyReaction, reactionsByItem,

@@ -95,7 +95,7 @@ so her assistant's header `39998:<alice's assistant pubkey>:dogs` exists, author
 
 ### Curation copies
 
-An empowered assistant curates by **copying**: it files its own copies of the community items its curation method accepts under the curated header, and deletes the copies it no longer accepts. Which items it copies is the curation method's decision; this spec does not define the method. Ratified by `curated-dlist-update` ADR 0001 (`engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`).
+An empowered assistant curates by **copying**: it files its own copies of the community items its curation method accepts under the curated header, and deletes the copies it no longer accepts. Which items it copies is the curation method's decision; this spec does not define the method. Ratified by `curated-dlist-update` ADR 0001 (`engineering-team/decisions/done/curated-dlist-update/0001-curation-copy-convention.md`).
 
 **What a copy is.** A kind-`39999` event authored by the curating assistant — the pubkey the Map entry names — whatever the original's kind, published where the header is published (at least on the relay the Map entry names). Its tags are exactly: its `d` (below); one `z`, the curated header's address; its `q` tags (below); and the tags it carries from its original.
 

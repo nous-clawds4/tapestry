@@ -170,8 +170,8 @@ areas. The merge waits for the staging PR, where this book's OPEN.md rows are re
   failures. Row 261's two LB matrices were skipped.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md` (with Amendment 1)
-- Test plan: `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.test-plan.md`
-- Review: `engineering-team/reviews/curated-dlist-update/3-another-assistants-curation-read-only.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0003-read-only-curation-and-curate-here.md` (with Amendment 1)
+- Test plan: `engineering-team/stories/done/curated-dlist-update/3-another-assistants-curation-read-only.test-plan.md`
+- Review: `engineering-team/reviews/done/curated-dlist-update/3-another-assistants-curation-read-only.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

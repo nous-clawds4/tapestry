@@ -1,7 +1,7 @@
 # Test Plan: Story 3 — Another assistant's curation opens read-only, with an offer to curate it here
 
-**Story:** `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.md`
-**ADR:** `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
+**Story:** `engineering-team/stories/done/curated-dlist-update/3-another-assistants-curation-read-only.md`
+**ADR:** `engineering-team/decisions/done/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
 **Date:** 2026-09-12
 
 ## Coverage map

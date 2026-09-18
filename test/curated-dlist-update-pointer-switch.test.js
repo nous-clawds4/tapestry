@@ -1,8 +1,8 @@
 /**
  * curated-dlist-update #2: curated headers link with `pointer`, and the curation screens say "copy".
  *
- * Story: engineering-team/stories/curated-dlist-update/2-pointer-header-and-copy-wording.md
- * ADR:   engineering-team/decisions/curated-dlist-update/0002-pointer-switch-and-copy-wording.md
+ * Story: engineering-team/stories/done/curated-dlist-update/2-pointer-header-and-copy-wording.md
+ * ADR:   engineering-team/decisions/done/curated-dlist-update/0002-pointer-switch-and-copy-wording.md
  *
  * Four classes (house pattern; ESM behavioral import per test/my-curated-dlists-headers.test.js):
  *   U (behavioral) — the new pure export linkTypeLabel; describeCurationHeader's new `notes` beside

@@ -1,8 +1,8 @@
 /**
  * curated-dlist-update #6: Update list publishes what I approved.
  *
- * Story: engineering-team/stories/curated-dlist-update/6-update-list-publishes.md
- * ADR:   engineering-team/decisions/curated-dlist-update/0006-update-publishes.md
+ * Story: engineering-team/stories/done/curated-dlist-update/6-update-list-publishes.md
+ * ADR:   engineering-team/decisions/done/curated-dlist-update/0006-update-publishes.md
  *        (the copy convention: ADR 0001 Decision §1–§6; the planner: ADR 0005 §7–§8, with its amendments)
  *
  * Classes (house pattern; the handler half follows test/dlist-curation-header-endpoint.test.js):
@@ -87,12 +87,12 @@ const LIST_HOOK = path.join(HOOKS, 'useListItems.js');
 const VOTES_HOOK = path.join(HOOKS, 'useItemVotes.js');
 const WEIGHTS_HOOK = path.join(HOOKS, 'useTrustWeights.js');
 const SIMPLE = path.join(UI, 'pages/lists/DListItems.jsx');
-const ADR_DIR = path.join(ROOT, 'engineering-team/decisions/curated-dlist-update');
+const ADR_DIR = path.join(ROOT, 'engineering-team/decisions/done/curated-dlist-update');
 const CDU_ADR_2 = path.join(ADR_DIR, '0002-pointer-switch-and-copy-wording.md');
 const CDU_ADR_3 = path.join(ADR_DIR, '0003-read-only-curation-and-curate-here.md');
 const CDU_ADR_5 = path.join(ADR_DIR, '0005-update-preview-and-honest-reads.md');
 const CDU_ADR_6 = path.join(ADR_DIR, '0006-update-publishes.md');
-const STORY_6 = path.join(ROOT, 'engineering-team/stories/curated-dlist-update/6-update-list-publishes.md');
+const STORY_6 = path.join(ROOT, 'engineering-team/stories/done/curated-dlist-update/6-update-list-publishes.md');
 const OPEN = path.join(ROOT, 'OPEN.md');
 
 const A = 'a'.repeat(64);                     // my assistant (the signed-in user's own)

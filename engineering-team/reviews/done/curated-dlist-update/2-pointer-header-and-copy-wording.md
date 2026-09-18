@@ -6,9 +6,9 @@
 story, `36a3c0dc` ADR 0002, `537f8001` failing tests; the story's cycle starts at `22fe7f28`.
 `git diff --stat 537f8001 8f8d5fd9 -- test/` is empty: the implementation commit touches no test.
 
-- Story: `engineering-team/stories/curated-dlist-update/2-pointer-header-and-copy-wording.md`
-- ADR: `engineering-team/decisions/curated-dlist-update/0002-pointer-switch-and-copy-wording.md`
-- Test plan: `engineering-team/stories/curated-dlist-update/2-pointer-header-and-copy-wording.test-plan.md`
+- Story: `engineering-team/stories/done/curated-dlist-update/2-pointer-header-and-copy-wording.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0002-pointer-switch-and-copy-wording.md`
+- Test plan: `engineering-team/stories/done/curated-dlist-update/2-pointer-header-and-copy-wording.test-plan.md`
 - Upstream contract: ADR `curated-dlist-update/0001` (with Amendment 1); `protocols/drafts/assistant-designation.md`
   § "Per-DList curation entries" / "Curation copies"; `engineering-team/epics/curated-dlist-update.md` § "Settled at kickoff".
 
@@ -257,7 +257,7 @@ None.
 
    Optional: "older ones keep it until Update upgrades them (story 5)". Similarly, `assistant-designation.md:173` ties
    copying to "(stories 3–5)", although only story 5 copies (also ADR text). Both are a mild instance of OPEN.md row
-   277's class.
+   311's class.
 2. **The endpoint and the detail page disagree when a header's link sits beside the `b-tag-deferred` sentinel.** The
    code is `src/api/dlist-curation/index.js:74–84` and `ui/src/utils/treasureMap.js:445–465`. Synthetic events run
    through the shipped functions:

@@ -297,8 +297,8 @@ For ADR 0006 Amendments 2 and 3, the same separate Implementer agent wrote the c
     - `most-pinned-tag-index-publish` passed (row 293 is flaky). 56 tests were skipped, as in round 1.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/curated-dlist-update/0006-update-publishes.md`
-- Test plan: `engineering-team/stories/curated-dlist-update/6-update-list-publishes.test-plan.md`
-- Review: `engineering-team/reviews/curated-dlist-update/6-update-list-publishes.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0006-update-publishes.md`
+- Test plan: `engineering-team/stories/done/curated-dlist-update/6-update-list-publishes.test-plan.md`
+- Review: `engineering-team/reviews/done/curated-dlist-update/6-update-list-publishes.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

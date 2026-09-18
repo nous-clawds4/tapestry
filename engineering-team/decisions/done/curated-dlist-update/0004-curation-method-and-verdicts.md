@@ -2,7 +2,7 @@
 
 **Status:** Accepted (§2's one filter per source, §3's "`useTrustWeights` unchanged", §4's words for a failed vote source and §7's reading of "the shared list read cleanly" superseded by `curated-dlist-update` ADR 0005)
 **Date:** 2026-09-12
-**Story:** `engineering-team/stories/curated-dlist-update/4-curation-method-panel.md`
+**Story:** `engineering-team/stories/done/curated-dlist-update/4-curation-method-panel.md`
 **Supersedes in part:** `my-curated-dlists` ADR 0003 (AC-4 and sub-decision 8: the Curation method panel as a
 text-only placeholder) — Decision §8.
 

@@ -1,8 +1,8 @@
 /**
  * curated-dlist-update #5: Update list shows what my assistant would do, built only from reads it could complete.
  *
- * Story: engineering-team/stories/curated-dlist-update/5-update-list-preview.md
- * ADR:   engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md (with Amendments 1 and 2)
+ * Story: engineering-team/stories/done/curated-dlist-update/5-update-list-preview.md
+ * ADR:   engineering-team/decisions/done/curated-dlist-update/0005-update-preview-and-honest-reads.md (with Amendments 1 and 2)
  *
  * Classes (house pattern; the server half follows test/treasure-map-relay-presence.test.js):
  *   V (behavioral, server) — readRelayEvents(relayUrl, filter, { connect, verify, … }), driven through an injected
@@ -54,7 +54,7 @@ const LIST_HOOK = path.join(UI, 'hooks/useListItems.js');
 const VOTES_HOOK = path.join(UI, 'hooks/useItemVotes.js');
 const WEIGHTS_HOOK = path.join(UI, 'hooks/useTrustWeights.js');
 const SIMPLE = path.join(UI, 'pages/lists/DListItems.jsx');
-const CDU_ADR_4 = path.join(ROOT, 'engineering-team/decisions/curated-dlist-update/0004-curation-method-and-verdicts.md');
+const CDU_ADR_4 = path.join(ROOT, 'engineering-team/decisions/done/curated-dlist-update/0004-curation-method-and-verdicts.md');
 const MCD_ADR_3 = path.join(ROOT, 'engineering-team/decisions/done/my-curated-dlists/0003-items-method-and-update.md');
 const OPEN = path.join(ROOT, 'OPEN.md');
 

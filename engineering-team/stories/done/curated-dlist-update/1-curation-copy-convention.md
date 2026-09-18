@@ -76,7 +76,7 @@ the originals.
       scope phrases change; and the 2026-09-10 intake entry for the `inherit-items` resolver, marked
       with a closing line.
 - [ ] **AC-8 (the ledger).** OPEN.md rows 259 and 267 flip to DONE, pointing at this story's ADR.
-- [ ] **AC-9 (ADR).** A full ADR, Accepted, at `engineering-team/decisions/curated-dlist-update/`,
+- [ ] **AC-9 (ADR).** A full ADR, Accepted, at `engineering-team/decisions/done/curated-dlist-update/`,
       recording at least: the header's link type (`pointer` vs keeping `inherit-items` vs a new type);
       the back-reference (`q` vs `e`/`a` vs an item-level `b` vs a named tag); removal (deletion vs
       republishing without the `z`); what a copy carries and drops; one assistant per list vs one entry
@@ -130,8 +130,8 @@ curation entries" (AC-2); how the superseded parts of `dlist-curation` ADRs 0002
   note, and the `copy-` reservation.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0001-curation-copy-convention.md`
 - Test plan: — (docs-mode; Test Design skipped per the protocol-spec variant)
-- Review: `engineering-team/reviews/curated-dlist-update/1-curation-copy-convention.md`
+- Review: `engineering-team/reviews/done/curated-dlist-update/1-curation-copy-convention.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

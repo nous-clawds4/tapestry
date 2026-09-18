@@ -164,8 +164,8 @@ should read staging's auth-hardening follow-ups (its OPEN.md row 276) and `SECUR
   - The cause is fixture build-up in that suite itself. Each run publishes two pinned fixture tags and never removes them, so 183 of them now fill the tag index's 200-row page, and this run's one-pin fixture tag sorted off it. It is unrelated to row 191, whose prune covers only the trusted-lists fixtures. Filed as OPEN.md row 293.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/curated-dlist-update/0005-update-preview-and-honest-reads.md`
-- Test plan: `engineering-team/stories/curated-dlist-update/5-update-list-preview.test-plan.md`
-- Review: `engineering-team/reviews/curated-dlist-update/5-update-list-preview.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0005-update-preview-and-honest-reads.md`
+- Test plan: `engineering-team/stories/done/curated-dlist-update/5-update-list-preview.test-plan.md`
+- Review: `engineering-team/reviews/done/curated-dlist-update/5-update-list-preview.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

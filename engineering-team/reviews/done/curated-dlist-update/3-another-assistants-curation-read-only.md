@@ -6,10 +6,10 @@
 story, `8c48e83f` ADR 0003, `ff2d8641` failing tests. `git diff --stat ff2d8641 85dc9d01 -- test/` is empty: the
 implementation commit touches no test.
 
-- Story: `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.md`
-- ADR: `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
-- Test plan: `engineering-team/stories/curated-dlist-update/3-another-assistants-curation-read-only.test-plan.md`
-- Upstream contract: `curated-dlist-update` ADR 0001 Decision §8 (`decisions/curated-dlist-update/0001-curation-copy-convention.md:43–46`);
+- Story: `engineering-team/stories/done/curated-dlist-update/3-another-assistants-curation-read-only.md`
+- ADR: `engineering-team/decisions/done/curated-dlist-update/0003-read-only-curation-and-curate-here.md`
+- Test plan: `engineering-team/stories/done/curated-dlist-update/3-another-assistants-curation-read-only.test-plan.md`
+- Upstream contract: `curated-dlist-update` ADR 0001 Decision §8 (`decisions/done/curated-dlist-update/0001-curation-copy-convention.md:43–46`);
   `protocols/drafts/assistant-designation.md` § "Across instances" (`:80`) and § "Per-DList curation entries",
   element 3 (`:62`); `engineering-team/epics/curated-dlist-update.md`.
 
@@ -318,7 +318,7 @@ None.
    - **Ask:** a one-line "Superseded in part (2026-09-12)" note and a Status parenthetical, citing
      `curated-dlist-update` ADR 0003 by short name, in the follow-up docs commit (as story 2's review notes landed in
      `294a2afc`).
-   - **Also:** ADR 0003's own Security bullet (`decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md:312`,
+   - **Also:** ADR 0003's own Security bullet (`decisions/done/curated-dlist-update/0003-read-only-curation-and-curate-here.md:312`,
      "the read-only page writes nothing except the existing import") contradicts §5, which puts the offer on that very
      page. Presumably it means "apart from the offer". Optional reword in the same commit.
    - The closed book's audit (`audits/my-curated-dlists/audit.md:52`, `:109`) is that book's as-built record and
@@ -403,7 +403,7 @@ Non-blocking 1 is the finding to settle before this book merges.
 **Reviewer:** Claude (independent reviewer subagent)
 **Date:** 2026-09-12
 **Diff:** `git diff ec8e90c0 07d8dbdf` (commit `07d8dbdf`, 4 files). Context, read and not under review: `6c67e50b`
-(Amendment 1, `engineering-team/decisions/curated-dlist-update/0003-read-only-curation-and-curate-here.md:401–451`, with
+(Amendment 1, `engineering-team/decisions/done/curated-dlist-update/0003-read-only-curation-and-curate-here.md:401–451`, with
 the header's "Supersedes in part" and "Amended by" lines, `:6–10`) and `ec8e90c0` (the failing tests, and the test plan's
 Amendment 1 section). `git diff --stat ec8e90c0 07d8dbdf -- test/` is empty: the implementation commit touches no test.
 

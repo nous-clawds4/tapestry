@@ -1,7 +1,8 @@
 # Epic: curated-dlist-update
 
 **Created:** 2026-09-11
-**Status:** Open
+**Status:** Done
+**Retired:** 2026-09-18 — after PR #668 merged `feat/curated-dlist-update` into `staging`; folders under `done/curated-dlist-update/` (book closed 2026-09-17; the five suites' docs-test paths were repointed in the same commit).
 **Book:** `engineering-team/audits/curated-dlist-update/book.md` (acceptance-frame)
 **Provenance:** Operator request, 2026-09-11 in-session — the book after `my-curated-dlists` (closed
 and in production 2026-09-11), whose Update list button is a placeholder. The protocol half was
@@ -16,7 +17,7 @@ changed, and deletes copies it no longer accepts — after a preview the user ap
 states the copy convention first; the shipped surfaces then follow it.
 
 ## Stories (planned at kickoff)
-`stories/curated-dlist-update/`, in dependency order:
+`stories/done/curated-dlist-update/`, in dependency order:
 1. `1-curation-copy-convention.md` — the copy convention in the protocol: the header's `pointer`
    link, what a copy is and carries, how it points back, how it is removed, one curating assistant per
    list; settles rows 259 and 267. Doc (docs-mode, protocol).
@@ -124,7 +125,7 @@ Operator decisions in `/discuss` and at the Planning gate:
   event id).
 
 ## Decisions
-`decisions/curated-dlist-update/`:
+`decisions/done/curated-dlist-update/`:
 - `0001-curation-copy-convention.md` — story 1: the curation copy convention — a `pointer` header,
   assistant-authored kind-39999 copies with one `z`, a `copy-` d-tag and NIP-18 `q` back-references,
   removal by NIP-09, one curating assistant per list; `inherit-items` stays registered, and the header

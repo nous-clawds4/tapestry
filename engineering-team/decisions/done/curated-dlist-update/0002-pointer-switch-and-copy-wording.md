@@ -2,7 +2,7 @@
 
 **Status:** Accepted (its Consequences' "which headers the upgrade takes" superseded by `curated-dlist-update` ADR 0006)
 **Date:** 2026-09-12
-**Story:** `engineering-team/stories/curated-dlist-update/2-pointer-header-and-copy-wording.md`
+**Story:** `engineering-team/stories/done/curated-dlist-update/2-pointer-header-and-copy-wording.md`
 **Supersedes in part:** `dlist-curation` ADR 0004 (the contract `b` type and its "exact" rule),
 `dlist-curation` ADR 0006 (the "inherits from" line), `my-curated-dlists` ADR 0002 (the `wrong-type`
 rule) and `my-curated-dlists` ADR 0003 (sub-decision 2's any-tag "already copied" rule, and Amendment 1's
