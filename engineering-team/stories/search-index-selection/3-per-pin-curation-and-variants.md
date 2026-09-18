@@ -363,3 +363,21 @@ deployment and without pretending my curation is a place.
 - ADR: (filled in after Architecture phase — expected, two wire-visible triggers)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
+
+## Uniqueness invariant (operator, 2026-09-18 — binding on Part B, not an open question)
+
+A pin's own address is `tag-pin-<slug>-<tagAuthor8>-<viewer8>` plus the variant key, and every
+Trusted List it produces derives its address from the same inputs. Replaceable-event semantics
+mean a second pin at the same address **silently replaces** the first — pin and lists together.
+That is the protection today (a viewer cannot hold two colliding neutral pins) and the trap
+for variants. Part B must therefore:
+
+1. put the variant into **both** the pin's address and its lists' addresses by construction
+   (as `contextSlug` already is — `pinVariantKey`, `computeTLDTag`, `itemTlDTag`);
+2. have the **client refuse** a variant slug already in use for that (observer, tag) **before
+   anything is signed** — the only enforcement point that prevents the stomp;
+3. have the runner **detect** a collision (two live pin events resolving to one list address)
+   and log + skip rather than publish over the earlier list.
+
+Stories 1–2 and Part A touch no address (the author constraint and the membership method ride
+the `curationMethod` blob).
