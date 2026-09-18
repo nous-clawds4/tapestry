@@ -353,3 +353,278 @@ Not applicable: the book is an acceptance frame, with no PRD.
   suites that read them (the lists above) and `harness-lint`.
 
 The story's status stays as it is, and completion detection waits for a passing round.
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer; independent reviewer subagent)
+**Date:** 2026-09-17
+**Diff:** `git diff c1c2d079 8dd2d79b` (9 files, +1151 / −58), in four commits:
+- `08dafb5b`, ADR 0006 Amendment 2, OPEN.md rows 299 and 300, and the story's Deviation 5 correction;
+- `5bc766b1`, the round-2 tests, the plan's round-2 section, and Amendment 3. It touches no source file;
+- `f0abfb3c`, the implementation, by the same separate Implementer agent as round 1. It touches no test file
+  (`git show --name-only f0abfb3c -- test/` is empty), and it carries the story's Deviations 15–22;
+- `8dd2d79b`, docs: the story's Deviations 23 and 24, nothing else.
+
+> **At a glance.** Round 1's Blocking 1 is fixed, both halves, and nothing else was disturbed.
+> - **The honesty half.** "Nothing was published." now renders only when no call's outcome is unknown
+>   (`UpdatePreview.jsx:58`), and an answer that isn't the endpoint's own is sorted into `unknown` by a pure function
+>   (`treasureMap.js:1041–1057`). A 504, a 502, a 500, a 3xx, a body that can't be read and a dropped connection all
+>   reach the unknown sentence instead.
+> - **The timing half.** A call is now bounded: no send starts after 25 s, the read-back is raced against what is left
+>   of 45 s, and the clock starts before the guards. The composition answers inside nginx's 60 seconds on every path I
+>   could construct.
+> - **Amendment 3 is right about this endpoint.** Every 4xx it can answer is answered before `d.sign` is ever called;
+>   after signing it answers only 200, or 500 from its catch. The auth middleware's body-less `401 { error }` is the
+>   case it was written for, and that string is real (`src/middleware/auth.js:482`).
+>
+> The four flags the Implementer raised at its gate are all non-blocking; each is honest in what the page says, and
+> three are recorded in the ADR or the Deviations already. I add one of my own: the read phase sits *outside* the
+> deadline, so "45 seconds" holds only in composition with `relaySource.js`'s own timeouts.
+>
+> **PASS.**
+
+### Quality gates (round 2) — run by reviewer, not trusted
+
+- [x] **The 13 suites that read a changed file.** Each in its own process through its exported `run()` (OPEN.md row 276),
+      never as `node test/<file>`. **306 passed, 0 failed:**
+      - `curated-dlist-update-publish` 69/0 · `-update-preview` 34/0 · `-curation-method` 24/0 · `-pointer-switch` 12/0 ·
+        `-read-only-curation` 13/0 (152);
+      - `dlist-curation-header-endpoint` 29/0 · `-map-entries` 14/0 · `-merge-preserve` 16/0 · `-panel` 18/0 ·
+        `-tl-panel` 19/0 · `my-curated-dlists-headers` 16/0 · `-items` 23/0 · `-page` 19/0 (154).
+- [x] **The tests catch a regression of Blocking 1.** Four mutations, each applied in a *throwaway* worktree at
+      `8dd2d79b` (baseline 69/0), one at a time, restored and syntax-checked after each. The worktree was removed
+      afterwards (`git worktree remove --force`; it is gone from `git worktree list`):
+      1. `UpdatePreview.jsx:58` back to round 1's unguarded `{results.length === 0 && …}` → **S12 fails**, naming the
+         condition it found. That is round 1's Blocking 1 exactly;
+      2. the relay send's `if (!canSend())` guard (`update.js:522`) deleted → **H25, H26, H27, H30 fail** (65/4);
+      3. `updateAnswer`'s final `unknown(...)` turned into an `error` refusal, so a 504 reads as a refusal →
+         **U8 fails**;
+      4. the by-id read-back un-bounded (`readBefore` → `readPlace`, `update.js:319`) → **H28 fails** inside its
+         4-second real-time bound, with the plan's `HUNG` message. It fails the test rather than stalling the suite,
+         which is what `within()` is for.
+- [x] **`harness-lint`:** clean, 0 violations (waivers only).
+- [x] **Control bytes.** All nine changed files swept for bytes 00–08, 0B, 0C, 0E–1F and 7F: **0 in every file**,
+      the suite included. (Round 1's raw NUL and U+001F in P7 are now `String.fromCharCode(0)` / `(31)`.)
+- [x] **No gate line to quote.** This branch has no gate recorder — neither `npm run gate:status` nor the README
+      section the instructions point at (OPEN.md row 298, filed from round 1's Harness friction 1). This review says
+      the recorder is absent rather than quoting a line that cannot exist.
+- [x] **Full `npm test`: not re-run, and the recorded run is at the reviewed code.**
+      - `f0abfb3c` → `8dd2d79b` is docs-only: `git diff --stat` shows the story file alone (37 lines). So Deviation
+        24's run at `f0abfb3c` ran exactly this code.
+      - I read the run's own log rather than the prose: `curated-dlist-update-publish` **69/0**, and every neighbouring
+        suite at the counts Deviation 24 gives (header endpoint 29, panel 18, map entries 14, merge-preserve 16, TL
+        panel 19, page 19, headers 16, items 23). Its reds are the known set — row 191's four failures across
+        `tl-membership-method-selector`, `tl-weighted-sum-method` and `tl-certainty-method`, plus
+        `summaries-element-count` L5 — and 56 skipped. `most-pinned-tag-index-publish` passed (row 293 is flaky).
+      - Every suite that reads a changed file passes in my own run above. A re-run would cover no code my run doesn't,
+        and each one leaves fixtures on the shared local stack (rows 293–294). I do not think one is needed.
+- [x] **The deployed endpoint, read-only.** The container's `update.js`, `updateEvents.js` and `index.js` are
+      byte-identical to the worktree's (md5), and the served bundle
+      (`dist/assets/index-DKVp6eWS.js`) carries the unknown sentence. I changed nothing, restarted nothing and
+      published nothing.
+- [ ] `npm run test:playwright`: not applicable — the plan has no browser class. The browser evidence is the
+      orchestrator's fetch-stub check (Deviation 23).
+- [ ] _Lint not configured — skipped._ _Typecheck not configured — skipped._ _Build not configured — skipped._
+
+### Spec adherence (round 2)
+
+Round 1's per-criterion findings stand. Only **AC-8** changes, and it is now met on both halves:
+
+- **AC-8, "A partial failure is shown, never hidden."** The browser half is fixed. `publishIntents`
+  (`CuratedDListItems.jsx:229–245`) no longer maps every unexpected answer to a refusal; it hands `(status, body)` to
+  `updateAnswer` and stops at the first answer that isn't results, keeping the earlier calls' results. `PublishResults`
+  (`UpdatePreview.jsx:51–79`) prints the results first, then the refusal line by kind, and prints "Nothing was
+  published." only when `results.length === 0 && !unknown`. Pinned by U6–U8 (the sorting), S11 (the sentence, its fixed
+  parts exact), S12 (the condition reads the unknown kind) and S13 (the blanket mapping is gone).
+- **AC-8, "Nothing is retried on its own."** Still true. An out-of-time call is a 200, not a refusal, so the run
+  continues to the next call, which re-reads first (§6). The next preview proposes what is still missing — the list is
+  re-read after every run (`CuratedDListItems.jsx:379`).
+- **AC-9** is unchanged; a deletion's copy re-read that runs out of time claims neither `gone` nor `still-there`
+  (`update.js:330`; H29).
+
+No criterion is dropped, and I found no behavior beyond the story and the two amendments.
+
+### ADR adherence (round 2)
+
+- [x] **Amendment 2, change 1 (the deadline).** `DEADLINE_MS = 45000`, `READBACK_RESERVE_MS = 10000`,
+      `SEND_CUTOFF_MS = 45000 − 10000 − (5000 + 5000) = 25000` (`update.js:39–46`) — derived exactly as the amendment
+      words it. The clock starts at `update()`'s first line, before the guards (`:350`). `canSend()` is evaluated
+      before *each* import (`:513`) and before *each* relay send at its turn, including one queued behind the four in
+      flight (`:522`). `nowMs` is injected, `Date.now` by default (`:298`), and `now` is still the `created_at` clock.
+- [x] **The arithmetic closes.** I walked every await between the handler's start and its answer:
+      - **reads:** `Promise.all` over my header, my list and the deletion requests (≤15 s: `readRelayEvents` is two
+        5-second connects plus a 5-second query, `relaySource.js:243–255`, `:268–280`; a local scan is capped at 10 s,
+        `update.js:36`), then the shared list (≤15 s). ≤30 s, plus signature verification of what comes back;
+      - **sends:** `publishToStrfry` is killed at 5 s (`src/api/trustedList/index.js:85–88`), and one relay send is
+        `withTimeout(connect, 5000)` then `withTimeout(publish, 5000)` (`update.js:266–273`). Only a send that started
+        before 25 s can still be running, so the send phase ends by 25 + 10 = 35 s — and the local loop's 5-second
+        overshoot and the relay's 10-second one cannot both happen, because the first pushes `canSend()` false for the
+        second;
+      - **read-back:** raced against `deadline − nowMs()` (`:176–189`), so it ends at the deadline. With ≥10 s left by
+        construction.
+      The two live paths round 1 named both close: a slow-but-reachable community relay, and a second `aDListRelays`
+      entry that accepts connections and never answers (it is published to, never read first) — both are send-side, and
+      both are cut at 25 s.
+- [x] **The read-back race is correct.** Timers are cleared in a `finally` (`:186–188`); `readPlace` catches everything
+      and never rejects, so there is no unhandled rejection; the loser's answer is dropped and cannot write into
+      `s.places` after the answer, because `readBack` only ever reads the raced value. `left ≤ 0` (or `NaN`) returns
+      out-of-time without starting a timer.
+- [x] **Amendment 2, change 3 (the narrowed read).** `{ kinds: [5], authors: [assistant], '#a': copyAddresses,
+      limit: 500 }` over each copy intent's derived address and each refresh's `copy`, de-duplicated, and skipped
+      entirely when there are none (`:376–388`). The addresses are exactly the ones `deletedAt` is later asked for
+      (`:492`, against `w.copy`), so §3's timing loses nothing. H31 pins the filter's shape and its `#a` as a set,
+      H32 the skip, H33 that 520 unrelated requests no longer 503.
+      - **A deletion that names the address only in `e`.** §3's timing exists because strfry 1.1.0 refuses a version at
+        an `a`-deleted address that isn't newer than the deletion. An `e`-only request blocks only the exact ids it
+        names, and a re-copy carries a new id — so the narrowed read misses nothing the timing needs. Every deletion
+        this system composes carries the `a` anyway (`composeDeletion`, P5).
+      - **An address deleted more than once:** `deletedAt` takes the newest match (`:129–137`); the read returns all of
+        them.
+      - **The capped rule** still applies to the narrowed read (Amendment 1), and now needs 500 requests naming this
+        call's ≤50 addresses rather than every request the assistant ever sent. Its *words* still say "every deletion
+        request by your assistant" — non-blocking 4 below.
+- [x] **Amendment 3 is true of this endpoint as written.** Every 4xx it answers is at `:356` (Origin), `:358` (the
+      injected `requireAuth`), `:362` (no key), `:365`/`:367`/`:368` (the body and the list's owner), `:394`/`:414`
+      (503) and `:405`/`:480` (409). The first `d.sign` is at `:500`. After it, the only exits are `res.json({ success:
+      true, results })` at `:544` and the catch's 500 at `:555`. Everything in front — the auth middleware
+      (`auth.js:482`, `:496`), the body parser, nginx — answers before the handler runs at all. The rule holds, and the
+      ADR records the obligation on any later change.
+- [x] **`updateAnswer` follows Amendment 3, not Amendment 2 alone** (`treasureMap.js:1041–1057`): the endpoint's 409 and
+      503 keep their own words, *any* other 4xx is a refusal with the body's `error` or "the server answered <status>",
+      and everything else is unknown. A 503 without the endpoint's body stays unknown, which is the safe direction.
+- [x] **Files match the implementation notes:** `update.js`, `treasureMap.js` (`updateAnswer`, beside `planIntents`),
+      `CuratedDListItems.jsx` (`publishIntents`), `UpdatePreview.jsx` (the sentence and the guard). Nothing else.
+- [x] **No new dependencies**, no new tooling, no shell, no graph access, no pubkey literal, no `console.log`,
+      `debugger`, TODO or commented-out code in the four changed source files.
+
+**The Implementer's Deviations 15–22, judged.** Each is a fair reading of room the amendments left, and each matches
+what the code does:
+- **15 and 16 (the read-back's races, and a copy re-read that runs out):** sound, and the plan explicitly leaves both
+  the "skipped or raced" choice and the copy re-read's two acceptable answers open. Deviation 15's last line — an
+  abandoned read runs on to its own timeout — is true and harmless; see Non-blocking 7.
+- **17 (everything is signed before the first send):** true, and the results keep one row per write, which is why an
+  all-out-of-time call still reports per item. Non-blocking 6.
+- **18 (where the cutoff is checked):** matches `:513` and `:522` exactly, the local-only branch included.
+- **19 (the narrowed read's shape and its unchanged gap words):** accurate; the second half is Non-blocking 4.
+- **20 and 21 (`updateAnswer`'s and `publishIntents`' edges):** accurate, and each is pinned. The one that matters most
+  — a connection dropped while the body is read counts as no body, so a 200 reads "the answer couldn't be read"
+  rather than as results — is right.
+- **22 (where the unknown sentence sits):** accurate.
+- **23 and 24 (the orchestrator's local check and regression):** I verified 24 against the run's own log, and 23's
+  server half against `auth.js:482`; its browser half is consistent with the code I read, and the container's files
+  are the reviewed ones.
+
+### Security (round 2)
+
+Pointer-level only, per staging's row 276. **The round-2 server diff is surgical, and none of round 1's guarantees
+moved.** I re-read the whole diff for `update.js` line by line:
+- **The guards' order is untouched** (`:356–368`): Origin, then `requireAuth`, then `getAssistantKeys(session pubkey)`,
+  then the body with the list's owner before the 413. The two new lines above them only read the clock.
+- **The key choice is untouched:** no `isOwner`, no `getOwnerAssistantKeys`, and nobody named in the body is used
+  (H4, S9 still pass).
+- **Nothing client-sent is signed.** The signing block (`:486–503`) is unchanged; H17 still passes.
+- **Deletions and refreshes are still confined to my assistant's own copies** (`:438–470`, Amendment 1's rule 1,
+  unchanged; H9).
+- **The reads are no less strict.** The narrowed read keeps `authors: [assistant]` and `limit: 500`, and a failure or a
+  cap still 503s before anything is signed. Its `#a` values come from `validateUpdateBody`, which requires each
+  `refresh.copy` to be a kind-39999 coordinate with a 64-hex pubkey and a d-tag of 1–256 characters with no control
+  character (`updateEvents.js:168–173`), and from `copyD`, which the server derives itself. At most 50 addresses, so no
+  new argv- or filter-size hazard, and the local scan still uses `spawn` with an argument list.
+- **The new failure modes are honest.** "not sent: out of time" and "sent, but couldn't read it back: out of time" both
+  say what happened; neither claims a publish, and neither hides one.
+- **Nothing is answered twice.** `requireAuth` writing its own 401 returns `undefined` from the handler, `readBack`
+  cannot throw, and the catch's 500 can only fire before `res.json` is reached.
+- **Concurrency:** unchanged from round 1. A second tab converges; an abandoned read cannot write into a finished
+  answer.
+
+### Concept-graph integrity (round 2)
+- [x] No concept handle is composed, no pubkey literal appears, no concept definition changes — so no firmware
+      reinstall, and nothing to orient via `/summaries`.
+
+### House rules check (round 2)
+- [x] Concept Graph API authority respected: nothing here reads or changes a concept.
+- [x] No new lint, typecheck or build tooling.
+
+### Findings (round 2)
+
+#### Blocking
+None.
+
+#### Non-blocking
+1. **The read phase sits outside the deadline, so "45 seconds" is a composition, not an enforced bound.**
+   `src/api/dlist-curation/update.js:382–388` and `:412` are plain `await`s; only the sends (`:513`, `:522`) and the
+   read-back (`:533`) consult the clock.
+   - Today it closes: the reads are bounded at about 30 s by `relaySource.js`'s own `CONNECT_TIMEOUT_MS` and
+     `QUERY_TIMEOUT_MS` (5 s each, one bounded connect retry) and by `SCAN_TIMEOUT_MS`, and 30 s is past the 25-second
+     cutoff, so a call that slow sends nothing and answers at once. ADR 0006 Amendment 2 says this in as many words.
+   - But nothing in `update.js` *enforces* it. Those constants are module-level in `relaySource.js` and shared with the
+     presence probe; raising them would silently stretch this endpoint's answer, and the 45-second claim would go quiet.
+   - **Optional, for the Architect:** bound the two read phases by the same deadline (they already have `readBefore`),
+     or name the dependency where the constants are defined. A reviewer of a future `relaySource` change has nothing
+     pointing here today.
+   - Second-order, worth knowing: a call against an unreachable list relay spends about 30 s in the reads before its
+     503. Honest, but slow.
+2. **A run whose calls can send nothing keeps going** (the Implementer's gate flag a). When the reads alone pass the
+   cutoff, the call answers 200 with every place "not sent: out of time", which is not a refusal, so
+   `CuratedDListItems.jsx:241` goes on to the next call — which re-reads and will usually time out the same way. Two
+   calls on a two-item list means about a minute of "Publishing…" for a result that published nothing.
+   - This is exactly what Amendment 2 chose ("A call that ran out of time isn't a refusal, so the browser goes on to
+     the next call"), and what the page says is true throughout. **Not blocking.**
+   - **Optional:** stop the run when a whole call was out of time, the way a refusal stops it.
+3. **The 10-second read-back reserve is shorter than one strict relay read** (flag b). A relay read-back is up to two
+   5-second connects plus a 5-second query, so in the worst case it is cut short and the place reads "failed: sent, but
+   couldn't read it back: out of time" although the event landed.
+   - The words say "sent", so nobody is told nothing was published, and the fresh preview immediately afterwards shows
+     the truth. The floor only binds when the sends ran to the cutoff; in the ordinary case the read-back gets nearer
+     40 s. **Not blocking.**
+4. **The capped-read words still say "every deletion request by your assistant"** (`update.js:392`; flag c), though the
+   read now covers only this call's copy and refresh addresses. The 503 therefore overstates what couldn't be checked.
+   Cosmetic, on a path that now needs 500 requests against ≤50 addresses. Deviation 19 records it.
+   - **Optional:** "every deletion request for the copies in this batch".
+5. **"Your list has been read again" shows while the re-read is still running** (flag d). `CuratedDListItems.jsx:379`
+   sets `phase: 'done'` and bumps the epoch in the same commit, so the unknown sentence renders beside the preview's
+   "⏳ Checking…" for as long as the reads take. It is a beat early, never wrong, and self-corrects. Cosmetic.
+6. **An all-out-of-time call still signs every event** (Deviation 17). Up to 50 signatures are made for events that are
+   never sent. No key material leaves the server and the caller is already the owner of that assistant, so there is no
+   privilege gain — only wasted work, and one result row per write, which is what makes the per-item report possible.
+   Worth knowing, not worth changing.
+7. **An abandoned read outlives the answer** (Deviation 15). A read-back that loses its race runs on to its own timeout
+   (≤15 s for a relay), holding a websocket that `readRelayEvents` closes in its `finally`. Its answer is dropped and
+   cannot touch the response. Bounded and harmless.
+8. **Round 1's Non-blocking 1 and 3 are now recorded, not fixed where they couldn't be.** Non-blocking 1 is fixed on
+   the server (Amendment 2, change 3; H33) and filed as OPEN.md row 299 for the page's own read, which cannot be
+   narrowed the same way — a list's copies can number 500, too many addresses for one GET. Non-blocking 3 is OPEN.md
+   row 300. Both rows read accurately against the code. Round 1's Non-blocking 2 stays with the CORS and cookie
+   hardening task, and Non-blocking 4's biggest gaps now have pins (S11–S13).
+
+#### Harness friction *(each becomes an OPEN.md row, type `meta`)*
+1. **Nothing new this round.** The two standing items both already have rows, so no new row is needed:
+   - the absent gate recorder on this branch — OPEN.md row 298, filed from round 1's Harness friction 1. This review
+     says the recorder is absent instead of quoting a `gate:status` line;
+   - the Reviewer role's full-`npm test` requirement against the shared local stack — OPEN.md row 294 (with rows 293
+     and 294 on the fixtures a run leaves). This review rests on the recorded run at `f0abfb3c`, which I verified is
+     the reviewed code, plus the 13 suites I ran myself.
+
+### Verdict (round 2)
+**PASS**
+
+**Why.**
+- **Blocking 1 is fixed, and fixed at the right layer.** The honesty half is a pure function with its own tests, not a
+  patch at the render site; the timing half is a deadline in the handler with the clock started before the guards, not
+  a promise in prose. Mutating either back makes the suite red (S12; H25–H27, H30; U8; H28).
+- **Amendment 3 is a genuine find, not a rubber stamp.** The auth middleware really does answer a body-less
+  `401 { error }` before the handler, and under Amendment 2 alone the page would have claimed "some changes may have
+  been published" when nothing was. The rule it lands on — any 4xx is a refusal — is true of this endpoint as written,
+  and the ADR states the obligation it puts on later changes.
+- **Nothing else moved.** The round-2 server diff touches the clock, the two send guards, the read-back's bound and one
+  filter. The guards' order, the key choice, the refusal to sign anything the browser sent, and the confinement of
+  deletions and refreshes to my assistant's own copies are byte-for-byte what round 1 passed on.
+- **The evidence.** 306 tests in the 13 suites that read a changed file, 0 failures, each run through `run()`. Four
+  mutations caught. `harness-lint` clean. No control byte in any changed file. The deployed files are the reviewed
+  ones, and the recorded full run is at the reviewed code.
+- **What is left** is eight non-blocking notes. Five are the Implementer's own flags and Deviations, honest on the page
+  and recorded; two are debt already filed as rows 299 and 300; one is mine — that the read phase is bounded by
+  another module's constants rather than by this handler — and it is a hardening suggestion, not a defect today.
+
+The story's status flip and completion detection are the orchestrator's, per this round's brief; this file records
+neither.

@@ -1,6 +1,6 @@
 # Story 6: Update list publishes what I approved
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-13
 **Type:** Feature
 
