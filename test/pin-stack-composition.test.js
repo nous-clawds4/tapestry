@@ -104,6 +104,7 @@ function profileDeps({ membershipMethod = 'count', wotFiltering = true } = {}) {
       aggregateProfilesTagged: async () => ({ byTarget: byTargetMap(), wotFiltering }),
       resolvePov: () => POV,
       resolveMembershipMethod: () => membershipMethod,
+      ensureTagTLHeader: async () => ({ status: 'exists' }),
       publishTL: async (args) => { publishCalls.push(args); return { event: { id: 'tl-30392' }, uuid: 'u1' }; },
     },
   };
@@ -121,6 +122,7 @@ function noteDeps({ notes } = {}) {
       lookupTag: async () => TAG,
       aggregateNotesTagged: async () => ({ members: full, fullMembers: full, scanTruncated: false, total: full.length }),
       resolvePov: () => POV,
+      ensureTagTLHeader: async () => ({ status: 'exists' }),
       publishTL: async (args) => { publishCalls.push(args); return { event: { id: 'tl-30393' }, uuid: 'u2' }; },
     },
   };
@@ -164,6 +166,13 @@ async function runNotePin(pin, opts) {
 }
 
 function zTags(call) { return (call.extraTags || []).filter((x) => x[0] === 'z').map((x) => x[1]); }
+
+// ADR dlist-item-tagging/0002 — every TL now carries the family-wide z pair (concept + per-tag
+// TL header). The header helper is injected so no test reaches a relay; the pair is deterministic.
+function tlZPair(slug = 'funny') { const ta = runnerTaPubkey(); return [['z', `39998:${ta}:trusted-list`], ['z', `39999:${ta}:tl:${slug}-tls`]]; }
+const TL_Z_RE = /^39998:[0-9a-f]{64}:trusted-list$|^39999:[0-9a-f]{64}:tl:.+-tls$/;
+/** z tags that are NOT the Trusted-List discovery pair — i.e. the context stamp, if any. */
+function contextZTags(call) { return zTags(call).filter((z) => !TL_Z_RE.test(z)); }
 
 /** Deep equality: arrays order-sensitive, object keys order-insensitive. */
 function deepEq(a, b) {
@@ -247,10 +256,10 @@ t('AC-3: the context z handle is exactly 39998:<runtime TA>:<contextSlug> — ne
 
 t('AC-3: a neutral pin publishes no context z on either list (the asymmetry is the feature)', async () => {
   const { call: profile } = await runProfilePin(makePin());
-  assert(zTags(profile).length === 0,
+  assert(contextZTags(profile).length === 0,
     `a neutral profile TL must carry no context z; got ${JSON.stringify(zTags(profile))}.`);
   const { call: note } = await runNotePin(makePin({ targetTypes: ['profile', 'note'] }));
-  assert(zTags(note).length === 0,
+  assert(contextZTags(note).length === 0,
     `a neutral note TL must carry no context z; got ${JSON.stringify(zTags(note))}.`);
 });
 
@@ -276,7 +285,7 @@ t('AC-3: the runner recovers the context from the pin z stamp, not from an unsta
   const { call } = await runProfilePin(pin);
   assert(call.dTag === 'tl-pin-aaaaaaaa-bbbbbbbb-funny',
     `an unstamped/malformed pin must resolve to the NEUTRAL identity (no suffix); got ${call.dTag}.`);
-  assert(zTags(call).length === 0, 'an unstamped/malformed pin must publish no context z.');
+  assert(contextZTags(call).length === 0, 'an unstamped/malformed pin must publish no context z.');
 });
 
 // ===========================================================================
@@ -296,6 +305,7 @@ t('AC-4: a neutral pin under the count method publishes exactly the pre-change 3
       ['source-tag', TAG_EVENT_ID, TAGAUTHOR, 'funny'],
       ['cutoff', '1'],
       ['min-rank', '0.25'],
+      ...tlZPair(),
     ],
     content: `{"members":[{"pubkey":"${M1}","endorsements":3,"disputes":0},{"pubkey":"${M2}","endorsements":2,"disputes":1}]}`,
   }, 'neutral / count');
@@ -315,6 +325,7 @@ t('AC-4: a neutral pin under the certainty method publishes exactly the pre-chan
       ['cutoff', '1'],
       ['min-rank', '0.25'],
       ['rigor', '0.5'],
+      ...tlZPair(),
     ],
     content: `{"members":[{"pubkey":"${M2}","endorsements":2,"disputes":1,"score":75},{"pubkey":"${M1}","endorsements":3,"disputes":0,"score":50}]}`,
   }, 'neutral / certainty');
@@ -334,6 +345,7 @@ t('AC-4: a neutral pin publishes exactly the pre-change 30393 note event', async
       ['curation-method', 'notes:net-endorsed'],
       ['a', `39999:${TAGAUTHOR}:funny`],
       ['p', OBS],
+      ...tlZPair(),
     ],
     content: `{"notes":[{"id":"${N2}","applications":2,"disputes":0},{"id":"${N1}","applications":3,"disputes":0}]}`,
   }, 'neutral / note TL');

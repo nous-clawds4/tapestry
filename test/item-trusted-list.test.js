@@ -64,6 +64,9 @@ const HEX = (c) => c.repeat(64);
 const TA = HEX('f');             // runtime TA pubkey stand-in — never a literal from any deployment
 const OBSERVER = HEX('a');
 const OBSERVER2 = HEX('d');
+// The runner composes every z from the RUNTIME TA (`profileTags.TA_PUBKEY`, env-backed);
+// provision the fixture stand-in before any source module loads (as pin-stack-composition does).
+if (!process.env.TA_PUBKEY) process.env.TA_PUBKEY = TA;
 const TAGAUTHOR = HEX('b');
 const TAG_EVENT_ID = HEX('c');
 const SLUG = 'white-hat';
@@ -73,9 +76,10 @@ const TAG_ELEMENT_ADDR = `39999:${TAGAUTHOR}:${SLUG}`;
 const CONCEPT_TL_Z = `39998:${TA}:trusted-list`;
 const PERTAG_TL_Z = `39999:${TA}:tl:${SLUG}-tls`;
 
+// `targetTypes: null` = the field is ABSENT from the published curation-method (a pre-story pin).
 function makeItemPin({ observer = OBSERVER, targetTypes = ['item'], noteMethod = 'notes:net-endorsed', contextSlug } = {}) {
   const cm = { method: 'nip85:rank', observer, cutoff: 1, noteMethod };
-  if (targetTypes !== undefined) cm.targetTypes = targetTypes;
+  if (targetTypes !== null) cm.targetTypes = targetTypes;
   const tags = [['e', TAG_EVENT_ID], ['curation-method', JSON.stringify(cm)]];
   if (contextSlug) tags.push(['z', `39998:${TA}:${contextSlug}`]);
   return { id: 'pin-' + observer.slice(0, 6), kind: 39999, pubkey: observer, created_at: 1, tags, content: '{}' };
@@ -237,7 +241,7 @@ test('U8 (E1): no a-tag is the tag element itself, and no e-tag back-ref is emit
 
 test('U9 (AC-2 / E3): a pin with no targetTypes reads as the pre-existing default and publishes NO item TL', async () => {
   const mod = loadRefresh();
-  const { r, publishCalls } = await runItem(mod, makeItemPin({ targetTypes: undefined }), { fullItemMembers: [item(ADDR(1), 1, 0, 1)] });
+  const { r, publishCalls } = await runItem(mod, makeItemPin({ targetTypes: null }), { fullItemMembers: [item(ADDR(1), 1, 0, 1)] });
   assert(publishCalls.length === 0, 'an absent targetTypes must read as ["profile","note"] — no silent item inclusion.');
   assert(r && r.status === 'skipped', `must return {status:"skipped"}; got ${JSON.stringify(r)}.`);
 });
