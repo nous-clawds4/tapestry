@@ -26,20 +26,28 @@ certainty — see the design doc's rejected alternatives).
 2. `2-only-me-curation.md` — **Done** (review PASS; ADR 0001 Accepted). An `author` curation constraint on the pin, value `== observer`, surfaced as
    an "Only me" trust scope. The certainty guard. Slots into the existing
    `isAsserterTrusted` seam; `alsoTrust` is precedent for an identity predicate there.
-3. *(planned)* per-pin curation method instead of the instance-wide dial (OPEN 307), plus an
-   explicit pin **variant key** generalising community context so one tag can carry several
-   curations. Needs a deliberate UX round: a context is a *place*, a curation variant is a
+3. `3-per-pin-membership-method.md` — **Approved** (Gate A ruled 2026-09-18; ADR expected).
+   A `membershipMethod` field on the pin's `curationMethod` blob instead of the instance-wide
+   dial (OPEN 307); absent means the dial. The published kind-30392 records the fold that ran.
+4. *(planned)* a **confirm step on first pin**, so the default curation that quietly publishes
+   a Trusted List becomes visible and editable before it does. Shapes the same switcher
+   surface as story 5; lands before or with it.
+5. `5-explicit-pin-variant-key.md` — **Draft**. An explicit pin **variant key** generalising
+   community context so one tag can carry several curations without the pin having to be about
+   a community. Needs a deliberate UX round: a context is a *place*, a curation variant is a
    *saved recipe*, and the Pinned tab already carries Profiles/Notes/Items leaves on a
-   layout that predates all of it.
+   layout that predates all of it. Carries the binding uniqueness invariant (no d-tag stomps).
 
 Deferred, tracked in the design doc rather than here: the `author ∈ <list>` value (rung 2)
 with its filter-list picker; self-attested curator sets with GrapeRank (rung 3); extrinsic
 per-list config joined by a `b` tag; field types as a DList with url-template affordances.
 
 ## Decisions
-`decisions/search-index-selection/0001-author-constraint.md` — Accepted (story 2). Story 3's variant key is wire-visible
-(the value rides published `curationMethod` JSON; the variant rides the `d` tag), so each
-expects an ADR.
+`decisions/search-index-selection/0001-author-constraint.md` — Accepted (story 2). Both halves
+of the old story 3 are wire-visible, so each expects its own ADR: **0002** for story 3 (the
+method rides the published `curationMethod` JSON, and the published 30392 discloses the fold
+that ran) and **0003** for story 5 (the variant rides the `d` tag, the search backend's
+permanent subscription key).
 
 ## Reviews
 None yet.
