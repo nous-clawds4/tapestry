@@ -1,6 +1,6 @@
 # ADR 0003: An explicit pin variant key — recipes beside places
 
-**Status:** Proposed
+**Status:** Accepted (J1 design gate 2026-09-18, five rounds — each found one more address composer; the readers table is now the exhaustive list)
 **Date:** 2026-09-18
 **Story:** `engineering-team/stories/search-index-selection/5-explicit-pin-variant-key.md`
 
@@ -271,7 +271,7 @@ runner does not read 10040s today and the operator's day-one case is author === 
 | `ui/src/components/PinnedListPanel.jsx:135-163`, `:293` | `contextSlug` → `computeTLDTag` / `itemTlDTag` / `computeNoteBookmarkDTag` | read `pin.variant`; label a recipe by its name, never with the community label logic at `:136-138` |
 | `ui/src/pages/Tag.jsx:174-181`, `:573-590` | `contextNameOf`, `orderedViewerPins`, chip row | §5 |
 | `src/api/profile-tags/index.js:1774-1793` | `enrichRowsWithItemTLStatus` — composes the kind-30394 item-TL `d` at `:1792` via `itemTlDTag({…, contextSlug: row.context})` for each `/pins` row | takes the row's full variant (`row.variant` from `variantOfPin`, context OR recipe) so a recipe pin's item-TL status is read at its own `-v-<slug>` address, never the neutral one — the same class as `usePinnedNotes`; its `nip85:rank` + `targetTypes` gate (`:1780-1785`) is variant-agnostic and unchanged |
-| `ui/src/pages/Tag.jsx:161-168` (`:165`) | the Pinned tab's default-pin selection: `viewerPins.find((p) => !p.context)` — the client twin of `src/api/profile-tags/index.js:906` | becomes "the pin with neither context nor variant" (`!p.context && !p.variant`, via `variantOfPin(p).kind === null`), else a recipe pin — which carries no context by design — can be picked as the neutral default, order-dependent on `/by-id` |
+| `ui/src/pages/Tag.jsx:161-168` (`:165`) | the Pinned tab's default-pin selection: `viewerPins.find((p) => !p.context)` — the client twin of `src/api/profile-tags/index.js:906` | becomes "the pin with neither context nor variant" (`variantOfPin(p).kind === null` — NOT `!p.variant`, since `variant: { kind, slug }` is an always-truthy object on every row per the `viewerPin` row above), else a recipe pin — which carries no context by design — can be picked as the neutral default, order-dependent on `/by-id` |
 | `ui/src/pages/Tag.jsx:142` | `pinnedContextSlugs` filters `p.context` | **unchanged, verified non-consumer** — a recipe is never a community, and the client refuses a slug colliding with `KNOWN_CONTEXTS` (§1) |
 | `ui/src/hooks/usePinnedNotes.js:54` (fed `contextSlug` by `ui/src/components/PinnedListPanel.jsx:134`, `:200`) | composes the kind-30393 note-TL `d` via `computeNoteTLDTag({…, contextSlug})` for the Pinned tab | the panel passes the pin's full variant (`variantOfPin(activePin)` → context OR recipe slug) so a recipe pin's Pinned tab reads its own `-v-<slug>` note list, not the neutral one — the same OPEN-298 class as the row below; `computeNoteTLDTag` takes the generalised key like every other composer (§1) |
 | `ui/src/hooks/useTagMemberSets.js:56`, `:93` | hand-composed `tl-pin-…`, **no suffix at all** (OPEN 298) | **fixed here**: delegate to `tlDTag` with the pin's variant |
