@@ -94,6 +94,11 @@ export function computeNoteTLDTag({ observer, tagAuthorPubkey, tagSlug, contextS
  *
  * Story 17 flipped cutoff 2→1 (WYSIWYG with Curated view) and
  * includeScoreInTL false→true (richer TLs by default).
+ *
+ * search-index-selection ADR 0001 §2 — deliberately NO `authorConstraint`: a new
+ * pin is unconstrained. Narrowing whose assertions count is the opposite of the
+ * permissionless default the rest of the stack assumes, so the dialog is where a
+ * curator opts in, with the consequence in front of them.
  */
 export function defaultCurationMethod(viewerPubkey) {
   return {

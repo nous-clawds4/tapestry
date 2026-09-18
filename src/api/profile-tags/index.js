@@ -24,7 +24,10 @@
 
 const { exec } = require('child_process');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
-const { contextSlugOfPin, pinVariantKey, itemTlDTag } = require('../../lib/event-tagging');
+const {
+  contextSlugOfPin, pinVariantKey, itemTlDTag,
+  isKnownAuthorConstraint, authorPredicateFor, authorWeightFor,
+} = require('../../lib/event-tagging');
 
 /**
  * Legacy z-tag-composition pubkey — see ADR 0015.
@@ -618,6 +621,35 @@ function parsePinTagEventId(ev) {
 }
 
 /**
+ * search-index-selection ADR 0001 §1 — compose a pin's author constraint into
+ * this POV's verdict AND its weight twin, at the one site both are built.
+ *
+ * Absent / unknown constraint ⇒ both returned unchanged (fail open).
+ * `'observer'` ⇒ `authorAllowed = (pk) => pk === observer` and, per the
+ * operator ruling of 2026-09-18, `authorWeight(observer) = 1` ("I am certain
+ * about my own taggings"). The rule itself lives in the dependency-free SDK
+ * (`src/lib/event-tagging/pins.js`), so a third-party client reading a
+ * published pin resolves it exactly as the server does.
+ */
+function composeAuthorPredicates({ authorConstraint, observer, authorAllowed, authorWeight }) {
+  return {
+    authorAllowed: authorPredicateFor({ authorConstraint, observer, isAsserterTrusted: authorAllowed }),
+    authorWeight: authorWeightFor({ authorConstraint, observer, authorWeight }),
+  };
+}
+
+// The SDK helper stays pure (no logging); the one-time "unknown constraint
+// ignored" notice lives here, at the call site (ADR §1).
+const warnedAuthorConstraints = new Set();
+function warnUnknownAuthorConstraint(authorConstraint, where) {
+  if (authorConstraint == null || authorConstraint === '') return;
+  if (isKnownAuthorConstraint(authorConstraint)) return;
+  if (warnedAuthorConstraints.has(authorConstraint)) return;
+  warnedAuthorConstraints.add(authorConstraint);
+  console.warn(`[${where}] unknown authorConstraint ${JSON.stringify(authorConstraint)} ignored (unconstrained)`);
+}
+
+/**
  * ADR 0010: pure aggregator for per-target endorsement/dispute counts on a
  * tag, under an active POV's WoT-author filter. Shared by handleProfilesTagged
  * (Story 3) and Story-11's refreshPinnedTags membership compute.
@@ -637,8 +669,12 @@ function parsePinTagEventId(ev) {
  * No response-shape enrichment (no displayName/picture, no sort, no viewer-union)
  * — that's the caller's job. `authorAllowed` is handed out so the caller can do
  * that job (row.assertions) without re-doing this one.
+ *
+ * search-index-selection ADR 0001: the optional `{ authorConstraint, observer }`
+ * pair narrows WHOSE assertions count (`'observer'` ⇒ only the observer's).
+ * Absent or unknown ⇒ unconstrained, byte-identical to today.
  */
-async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
+async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank, authorConstraint, observer }) {
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
   // Consume-by-#a (ADR profile-tag-hardening/0001): union the applied-version
@@ -681,6 +717,14 @@ async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
       return typeof r === 'number' ? r / 100 : null;
     };
   }
+
+  // search-index-selection ADR 0001 §1 — the pin's author constraint, composed
+  // at the ONE site the verdict and its weight twin are built, and BEFORE the
+  // fold below, so count / input / certainty see a set that differs only in
+  // membership and no method is special-cased (AC-7).
+  warnUnknownAuthorConstraint(authorConstraint, 'aggregateProfilesTagged');
+  ({ authorAllowed, authorWeight } =
+    composeAuthorPredicates({ authorConstraint, observer, authorAllowed, authorWeight }));
 
   const byTarget = new Map();
   for (const ev of deduped) {
@@ -1934,6 +1978,9 @@ module.exports = {
   findTagsByNameSubstring,
   meiliFetchProfilesByPubkey,
   aggregateProfilesTagged,
+  // search-index-selection ADR 0001 §1 — the author-constraint composition, as a
+  // pure seam (neither aggregation has an injectable Meili/strfry seam):
+  composeAuthorPredicates,
   aggregateTagPins,
   // The 7-field "as signed" projection — one definition across both inspection
   // APIs (tag-event-inspector ADR 0003 D2; event-tags requires it for the

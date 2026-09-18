@@ -469,6 +469,15 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
         </dd>
         <dt>Cutoff</dt>
         <dd>{tl.cutoff} (members need ≥ {tl.cutoff} WoT-trusted endorsements)</dd>
+        {/* search-index-selection ADR 0001 §5 — the published list's own
+            disclosure. Sits above Min rank, which it explains: rank was not the
+            binding filter on a self-curated list. */}
+        {tl.authorConstraint === 'observer' && (
+          <>
+            <dt>Curation scope</dt>
+            <dd>Only me (only the observer's taggings counted)</dd>
+          </>
+        )}
         {tl.minRank > 0 && (
           <>
             <dt>Min rank</dt>

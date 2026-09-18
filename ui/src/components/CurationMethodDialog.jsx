@@ -80,6 +80,17 @@ export default function CurationMethodDialog({
   // silently add items.
   const [includeItems, setIncludeItems] = useState(initTypes.includes('item'));
   const [noteMethod, setNoteMethod] = useState(init.noteMethod || 'notes:net-endorsed');
+  // search-index-selection ADR 0001 §3 — trust scope. A separate two-option
+  // control, NOT a value in the method enum (every runner gates on
+  // method === 'nip85:rank'). Anything that is not 'observer' renders as "My web
+  // of trust", and the RAW initial value is kept so an edit that does not touch
+  // the control re-emits it verbatim — a value this build does not recognise is
+  // never silently downgraded. Same initTypes discipline as targetTypes above.
+  const rawAuthorConstraint = init.authorConstraint;
+  const [authorConstraint, setAuthorConstraint] = useState(
+    rawAuthorConstraint === 'observer' ? 'observer' : ''
+  );
+  const [authorConstraintTouched, setAuthorConstraintTouched] = useState(false);
   const [observer, setObserver] = useState(
     init.observer && init.observer !== viewerPubkey ? init.observer : ''
   );
@@ -123,6 +134,10 @@ export default function CurationMethodDialog({
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
+    const effectiveAuthorConstraint = authorConstraintTouched
+      ? authorConstraint
+      : (rawAuthorConstraint || '');
+
     const custom = {
       observer: observerR.value,
       method: 'nip85:rank',
@@ -131,6 +146,10 @@ export default function CurationMethodDialog({
       // Story 12 / ADR 0015
       targetTypes,
       noteMethod,
+      // search-index-selection ADR 0001 §3 — included ONLY when the scope is
+      // narrowed, so editing a pre-story pin reproduces today's blob exactly
+      // (E3). An untouched control re-emits whatever the pin already carried.
+      ...(effectiveAuthorConstraint ? { authorConstraint: effectiveAuthorConstraint } : {}),
     };
 
     setSubmitting(true);
@@ -268,6 +287,40 @@ export default function CurationMethodDialog({
             {fieldErrors.method && (
               <p className="pcd-error" role="alert">{fieldErrors.method}</p>
             )}
+          </div>
+
+          {/* search-index-selection ADR 0001 §3 — whose assertions count. Not a
+              method (that is HOW trust is computed); this is WHOSE assertions are
+              eligible. "Only me" is what makes a list certain enough to index. */}
+          <div className="pcd-field">
+            <span className="pcd-label">Trust scope</span>
+            <label className="pcd-toggle">
+              <input
+                type="radio"
+                name="pcd-author-constraint"
+                value=""
+                checked={authorConstraint !== 'observer'}
+                onChange={() => { setAuthorConstraint(''); setAuthorConstraintTouched(true); }}
+                disabled={submitting}
+              />
+              <span>My web of trust</span>
+            </label>
+            <label className="pcd-toggle">
+              <input
+                type="radio"
+                name="pcd-author-constraint"
+                value="observer"
+                checked={authorConstraint === 'observer'}
+                onChange={() => { setAuthorConstraint('observer'); setAuthorConstraintTouched(true); }}
+                disabled={submitting}
+              />
+              <span>Only me</span>
+            </label>
+            <p className="pcd-helper">
+              "Only me" counts only the observer's own taggings — certain, because
+              only they can sign as themselves. "My web of trust" counts every
+              trusted author's taggings, as today.
+            </p>
           </div>
 
           {/* Story 12 / ADR 0015 — target-type selection. A tag can span both

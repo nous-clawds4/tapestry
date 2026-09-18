@@ -27,6 +27,7 @@ const { resolvePov } = require('../_shared/pov');
 const {
   curateNotes, contextSlugOfPin, contextHandle, tlDTag, noteTlDTag, itemTlDTag,
   trustedListZTags, conceptTrustedList, tlHeaderDTag, tlHeaderAddr, buildTLHeader,
+  isKnownAuthorConstraint,
 } = require('../../lib/event-tagging');
 const { resolveMembershipMethod } = require('./membershipMethods');
 
@@ -36,6 +37,18 @@ const TAG_PINNING_Z_TAG = profileTags.TAG_PINNING_Z_TAG;
 // ~1000 e-tags ≈ 75KB, under typical strfry max-event-size limits. Exceeding it publishes the top N
 // and marks the TL partial (a SIGNALED bound, never a silent small cap). Operator-tunable per relay.
 const NOTE_TL_MEMBER_CAP = 1000;
+/**
+ * search-index-selection ADR 0001 §4 — the published list's disclosure of the
+ * pin's author constraint, so a consumer can tell "this set is self-curated and
+ * certain" from "this set is a WoT threshold" WITHOUT fetching the pin.
+ *
+ * The value is the RESOLVED constraint (gated on the shared vocabulary), so an
+ * unknown — fail-open — value emits NO tag: the list is honestly undisclosed
+ * rather than falsely disclosed. Absent ⇒ [] ⇒ byte-identical tag arrays.
+ */
+function authorConstraintTags(authorConstraint) {
+  return isKnownAuthorConstraint(authorConstraint) ? [['author-constraint', authorConstraint]] : [];
+}
 // Max item members carried in a single kind-30394 item TL (ADR dlist-item-tagging/0003 §1.9).
 // Half NOTE_TL_MEMBER_CAP: an `a` coordinate (~80–120 bytes) is roughly double a 64-hex `e` id,
 // so 500 keeps one event inside the same ~75KB budget. Overflow is SIGNALED, never silent.
@@ -244,6 +257,11 @@ async function runOnePin(pinEvent, options = {}) {
   if (!isHexPubkey(observer)) {
     return { status: 'error', errorReason: 'observer pubkey missing or malformed' };
   }
+  // search-index-selection ADR 0001 — read AFTER the observer bail (E2: a
+  // constrained pin with no valid observer is an error, never "trust nobody"
+  // and never "trust everyone"). Absent ⇒ unconstrained; an unknown value fails
+  // open inside the aggregation and is NOT disclosed on the published list.
+  const authorConstraint = curation.authorConstraint;
   const tagEventId = profileTags.parsePinTagEventId(pinEvent);
   if (!tagEventId) {
     return { status: 'error', errorReason: 'pin event has no referenced tag event id' };
@@ -274,7 +292,7 @@ async function runOnePin(pinEvent, options = {}) {
   const minRankForTag = Number.isFinite(minRank) ? minRank : 0;
 
   const { byTarget, wotFiltering } = await aggregateProfilesTagged({
-    tagEventId, povSuffix, minRank,
+    tagEventId, povSuffix, minRank, authorConstraint, observer,
   });
   // ADR trusted-lists/0001: the pipeline-wide membership method, resolved
   // fresh per refresh (fail-safe: always an implemented id). Dispatch is a
@@ -348,6 +366,9 @@ async function runOnePin(pinEvent, options = {}) {
         ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
         ['cutoff', String(cutoff)],
         ['min-rank', String(minRankForTag)],
+        // ADR search-index-selection/0001 §4 — the disclosure rides immediately
+        // after min-rank, which stays an honest record of what ran.
+        ...authorConstraintTags(authorConstraint),
         // Story 4: the ladder's membership-method tag is stripped (never
         // spec'd); rigor rides certainty TLs so consumers can reproduce
         // scores (D12: constant, not a knob).
@@ -482,6 +503,8 @@ async function runOneNotePin(pinEvent, options = {}) {
   if (!isHexPubkey(observer)) {
     return { status: 'error', errorReason: 'observer pubkey missing or malformed' };
   }
+  // search-index-selection ADR 0001 — after the observer bail (E2), as in runOnePin.
+  const authorConstraint = curation.authorConstraint;
   // Note-targeting gate: build a note TL only when the pin targets notes. Absent
   // targetTypes ⇒ ADR-0015 default (['profile','note']) ⇒ include notes.
   const targetTypes = Array.isArray(curation.targetTypes) ? curation.targetTypes : ['profile', 'note'];
@@ -512,6 +535,7 @@ async function runOneNotePin(pinEvent, options = {}) {
   const { fullMembers, scanTruncated, total } = await aggregateNotesTagged({
     tagAuthor: tag.authorPubkey, slug: tag.slug, authorities: [TA_PUBKEY],
     povSuffix, minRank, viewerPubkey: undefined, sort,
+    authorConstraint, observer,
   });
   // The pin's cutoff applies to notes too (mirrors the profile rule in
   // applyDisputesFunction), defaulting to 1 like runOnePin — so a lone
@@ -552,6 +576,9 @@ async function runOneNotePin(pinEvent, options = {}) {
         //   #a → find every note TL for a tag across observers;  #p → find every note TL for an observer.
         ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
         ['p', observer],
+        // ADR search-index-selection/0001 §4 — the disclosure, immediately after
+        // the observer axis on the note list.
+        ...authorConstraintTags(authorConstraint),
         // ADR dlist-item-tagging/0002 — the family-wide Trusted-List z pair. The
         // legacy a/p pair above stays through the dual-emit window (Decision 4).
         ...tlZTags,
@@ -594,6 +621,8 @@ async function runOneItemPin(pinEvent, options = {}) {
   if (!isHexPubkey(observer)) {
     return { status: 'error', errorReason: 'observer pubkey missing or malformed' };
   }
+  // search-index-selection ADR 0001 — after the observer bail (E2), as in runOnePin.
+  const authorConstraint = curation.authorConstraint;
   // Item-targeting gate (AC-2): absent targetTypes reads as the PRE-EXISTING default
   // (['profile','note']), so a pin authored before this story publishes no item list.
   const targetTypes = Array.isArray(curation.targetTypes) ? curation.targetTypes : ['profile', 'note'];
@@ -618,6 +647,7 @@ async function runOneItemPin(pinEvent, options = {}) {
   const { fullItemMembers, itemTotal, scanTruncated } = await aggregateNotesTagged({
     tagAuthor: tag.authorPubkey, slug: tag.slug, authorities: [TA_PUBKEY],
     povSuffix, minRank, viewerPubkey: undefined, sort,
+    authorConstraint, observer,
   });
   // ADR 0003 §1.7: `fullItemMembers` mixes address-keyed and id-keyed members. An id-keyed
   // member has NO coordinate and therefore cannot be an `a` member. This story adds no other
@@ -663,6 +693,9 @@ async function runOneItemPin(pinEvent, options = {}) {
         // coordinate would be read as a curated item. `p` is a non-member letter, so
         // {kinds:[30394], "#p":[observer]} stays an unambiguous observer axis.
         ['p', observer],
+        // ADR search-index-selection/0001 §4 — the disclosure, immediately after
+        // the observer axis on the item list.
+        ...authorConstraintTags(authorConstraint),
         ...tlZTags,
         ...(contextSlug ? [['z', contextHandle(TA_PUBKEY, contextSlug)]] : []),
         // Partial signal: present ⇒ NOT exhaustive, value is the true total. Absent ⇒ complete.

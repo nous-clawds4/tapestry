@@ -199,6 +199,17 @@ async function trustPredicateFor(povSuffix, minRank, candidatePubkeys) {
   };
 }
 
+// search-index-selection ADR 0001 §1 — the SDK composer stays pure, so the one-time
+// "unknown constraint ignored" notice lives here, at the call site.
+const warnedAuthorConstraints = new Set();
+function warnUnknownAuthorConstraint(authorConstraint, where) {
+  if (authorConstraint == null || authorConstraint === '') return;
+  if (core.isKnownAuthorConstraint(authorConstraint)) return;
+  if (warnedAuthorConstraints.has(authorConstraint)) return;
+  warnedAuthorConstraints.add(authorConstraint);
+  console.warn(`[${where}] unknown authorConstraint ${JSON.stringify(authorConstraint)} ignored (unconstrained)`);
+}
+
 async function buildTrustPredicate(req, candidatePubkeys) {
   const { povSuffix, minRank, povResolution } = await resolvePovWithStatus({
     wotPov: req.query.wotPov || 'house',
@@ -307,8 +318,11 @@ async function handleHeadersForTag(req, res) {
  * @param {number|null} o.minRank    resolved POV min-rank (raw resolvePov output)
  * @param {string} [o.viewerPubkey]  the viewer, for the trust-unfiltered `mine` channel
  * @param {'recent'|'applied'|'disputed'|'divisive'} [o.sort='recent']  cap ranking
+ * @param {string} [o.authorConstraint]  search-index-selection ADR 0001 — narrows WHOSE
+ *        assertions count ('observer' ⇒ only `o.observer`'s). Absent/unknown ⇒ unconstrained.
+ * @param {string} [o.observer]  the pin's observer, compared against under the constraint
  */
-async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, minRank, viewerPubkey, sort = 'recent' }) {
+async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, minRank, viewerPubkey, sort = 'recent', authorConstraint, observer }) {
   // 1. Discover the tag's legitimate headers (any author, per honored authority).
   const foundHeaders = [];
   for (const authority of authorities) {
@@ -330,7 +344,14 @@ async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, m
   const candidates = dedupeReplaceable(candidateEvents);
 
   // 3. Group by target note: POV-filtered counted set + trust-unfiltered `mine`.
-  const isAsserterTrusted = await trustPredicateFor(povSuffix, minRank, candidates.map((c) => c.pubkey));
+  const povTrusted = await trustPredicateFor(povSuffix, minRank, candidates.map((c) => c.pubkey));
+  // search-index-selection ADR 0001 §1 — the pin's author constraint composes into the POV
+  // verdict here, BEFORE the fold, so `curateNotes` and the item/note membership see a set
+  // that differs only in membership. Absent/unknown ⇒ `povTrusted` untouched (fail open).
+  warnUnknownAuthorConstraint(authorConstraint, 'aggregateNotesTagged');
+  const isAsserterTrusted = core.authorPredicateFor({
+    authorConstraint, observer, isAsserterTrusted: povTrusted,
+  });
   const { targets, mine } = core.groupTaggingsByTarget({
     candidates, headers, honoredAuthorities: authorities, isAsserterTrusted, viewerPubkey,
     tag: { authorPubkey: tagAuthor, slug },

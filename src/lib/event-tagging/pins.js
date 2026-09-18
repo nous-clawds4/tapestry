@@ -137,8 +137,73 @@ function contextPinsToTags(pinEvents, { trustFilter = () => true } = {}) {
   return Array.from(byACoord.values());
 }
 
+/**
+ * search-index-selection ADR 0001 — the pin's author constraint.
+ *
+ * A pin's `curationMethod` may carry `authorConstraint`, narrowing WHOSE
+ * assertions its Trusted List folds in. The vocabulary is CLOSED and
+ * case-exact; absent means unconstrained (today's POV behaviour, byte for
+ * byte), and an unknown value fails OPEN to unconstrained — an old reader
+ * meeting a rung-2 value reads today's list rather than silently publishing a
+ * narrower one under a guarantee it did not compute.
+ *
+ * Rung 2 (`author ∈ <list>`) extends this constant and `authorPredicateFor`;
+ * nothing else moves.
+ */
+const AUTHOR_CONSTRAINTS = ['observer'];
+
+/** Is `v` a constraint value THIS build knows how to apply? (Closed, case-exact.) */
+function isKnownAuthorConstraint(v) {
+  return typeof v === 'string' && AUTHOR_CONSTRAINTS.includes(v);
+}
+
+/** A 64-char lowercase-hex pubkey — the only observer we will compare against. */
+function isHexPubkey(v) {
+  return typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
+}
+
+/**
+ * Compose the pin's author constraint into this POV's trust verdict.
+ *
+ * - `'observer'` + a hex observer ⇒ `(pk) => pk === observer`. The constraint
+ *   REPLACES the POV predicate rather than intersecting it, so the observer's
+ *   own taggings count regardless of their own rank, and a GrapeRank-trusted
+ *   third party is excluded.
+ * - `'observer'` + a non-hex observer ⇒ deny everyone. Unreachable through the
+ *   runners (they bail on a malformed observer first), but "deny" is the safe
+ *   corner — never "everyone".
+ * - absent or unknown ⇒ `isAsserterTrusted` unchanged (`() => true` when none
+ *   was given: the existing no-POV "everyone counts" semantic).
+ */
+function authorPredicateFor({ authorConstraint, observer, isAsserterTrusted } = {}) {
+  const base = typeof isAsserterTrusted === 'function' ? isAsserterTrusted : () => true;
+  if (!isKnownAuthorConstraint(authorConstraint)) return base;
+  if (!isHexPubkey(observer)) return () => false;
+  return (pk) => pk === observer;
+}
+
+/**
+ * The weight twin of `authorPredicateFor` (operator ruling 2026-09-18, AC-7).
+ *
+ * Under the constraint the observer's own weight is 1.0 — "I am certain about
+ * my own taggings" — so the weighted membership methods (`input` / `certainty`)
+ * do not publish an empty list for want of a `wot_rank_<suffix>` doc. Absent or
+ * unknown constraint ⇒ today's weight function, untouched (no carve-out for a
+ * constraint that was not applied).
+ */
+function authorWeightFor({ authorConstraint, observer, authorWeight } = {}) {
+  const base = typeof authorWeight === 'function' ? authorWeight : () => null;
+  if (!isKnownAuthorConstraint(authorConstraint)) return base;
+  if (!isHexPubkey(observer)) return () => null;
+  return (pk) => (pk === observer ? 1 : base(pk));
+}
+
 module.exports = {
   KNOWN_CONTEXTS,
+  AUTHOR_CONSTRAINTS,
+  isKnownAuthorConstraint,
+  authorPredicateFor,
+  authorWeightFor,
   pinVariantKey,
   contextHandle,
   tlDTag,
