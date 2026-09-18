@@ -6,7 +6,8 @@ import TagViewControls from './TagViewControls';
 import DListItemsTable from './dlist/DListItemsTable';
 import DListItemTags from './dlist/DListItemTags';
 import { queryRelay } from '../api/relay';
-import { headerNames, parseFieldDecls, parseListRef } from '../utils/dlistFields';
+import { headerNames, parseFieldDecls } from '../utils/dlistFields';
+import { fetchListHeaders, groupItemsByList, toTableItem } from '../utils/dlistHeaders';
 
 /**
  * dlist-item-tagging #4 — the "Items" view of a tag's detail page: the
@@ -35,67 +36,11 @@ const ITEM_SORT_OPTIONS = [
 
 const NOT_HERE = 'list not on this relay';
 
-/**
- * A server item row as DListItemsTable/DListItemTags want it. An item whose event
- * is on no reachable relay (E3) arrives with empty tags; re-deriving its `d` from
- * the coordinate gives the row something to display. Targeting no longer depends
- * on it — `itemCoord` uses the carried `address` verbatim (Gate B finding 1), so
- * this `d` is display-only and is synthesized for kind-39999 rows alone.
- */
-function toTableItem(item) {
-  const hasD = (item.tags || []).some((t) => t[0] === 'd');
-  const d = !hasD && item.address && item.kind === 39999 ? item.address.split(':').slice(2).join(':') : null;
-  return {
-    ...item,
-    id: item.id || item.address,
-    tags: d ? [['d', d], ...(item.tags || [])] : (item.tags || []),
-  };
-}
-
 function itemMatchesFilter(item, text) {
   const needle = (text || '').trim().toLowerCase();
   if (!needle) return true;
   if ((item.address || '').toLowerCase().includes(needle)) return true;
   return (item.tags || []).some((t) => t.length > 1 && String(t[1]).toLowerCase().includes(needle));
-}
-
-/**
- * Batch-fetch the headers for the distinct `listCoord`s the server handed back.
- * Both parent forms are covered: a kind-39998 coordinate (one filter per author,
- * matched back on the exact coordinate) and a kind-9998 header EVENT ID.
- */
-async function fetchHeaders(listCoords) {
-  const byCoord = new Map();
-  const ids = [];
-  const byAuthor = new Map(); // `${kind}|${pubkey}` -> [d, …]
-  for (const coord of listCoords) {
-    const parsed = parseListRef(coord);
-    if (!parsed) continue;
-    if (parsed.id) { ids.push(parsed.id); continue; }
-    const key = `${parsed.kind}|${parsed.pubkey}`;
-    if (!byAuthor.has(key)) byAuthor.set(key, []);
-    byAuthor.get(key).push(parsed.d);
-  }
-  const found = [];
-  if (ids.length) {
-    try { found.push(...await queryRelay({ ids })); } catch { /* degrade to NOT_HERE */ }
-  }
-  for (const [key, ds] of byAuthor) {
-    const [kind, pubkey] = key.split('|');
-    try {
-      found.push(...await queryRelay({ kinds: [Number(kind)], authors: [pubkey], '#d': Array.from(new Set(ds)) }));
-    } catch { /* degrade to NOT_HERE */ }
-  }
-  for (const coord of listCoords) {
-    const parsed = parseListRef(coord);
-    if (!parsed) continue;
-    const header = parsed.id
-      ? found.find((h) => h.id === parsed.id)
-      : found.find((h) => h.kind === parsed.kind && h.pubkey === parsed.pubkey
-        && (h.tags || []).some((t) => t[0] === 'd' && t[1] === parsed.d));
-    if (header) byCoord.set(coord, header);
-  }
-  return byCoord;
 }
 
 export default function TagItemsView({ tag, viewerPubkey, onCount }) {
@@ -120,7 +65,7 @@ export default function TagItemsView({ tag, viewerPubkey, onCount }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const found = listCoords.length ? await fetchHeaders(listCoords) : new Map();
+      const found = listCoords.length ? await fetchListHeaders(listCoords, queryRelay) : new Map();
       if (!cancelled) setHeaders(found);
     })();
     return () => { cancelled = true; };
@@ -134,14 +79,7 @@ export default function TagItemsView({ tag, viewerPubkey, onCount }) {
     const shown = expanded
       ? byText
       : byText.filter((i) => ((i.applications || 0) - (i.disputes || 0)) >= 1 || !!i.mine);
-    const out = [];
-    const index = new Map();
-    for (const item of shown) {
-      const key = item.listCoord || '';
-      if (!index.has(key)) { index.set(key, out.length); out.push({ listCoord: item.listCoord || null, items: [] }); }
-      out[index.get(key)].items.push(item);
-    }
-    return out;
+    return groupItemsByList(shown);
   }, [items, filterText, expanded]);
 
   return (

@@ -6,7 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import useTLDetail from '../hooks/useTLDetail';
 import usePinnedNotes from '../hooks/usePinnedNotes';
+import usePinnedItems from '../hooks/usePinnedItems';
 import NoteCard from './NoteCard';
+import DListItemsTable from './dlist/DListItemsTable';
+import { parseFieldDecls, headerNames } from '../utils/dlistFields';
+import { toTableItem } from '../utils/dlistHeaders';
 import {
   pinTag, unpinTag, computeTLDTag, computeNoteBookmarkDTag,
   syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
@@ -196,6 +200,8 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
   const [repinningNotes, setRepinningNotes] = useState(false);
   // Issue #2 — Profiles|Notes sub-switch inside the Pinned tab (mirrors the
   // tag-detail default tab), so a big profile list and the note list don't stack.
+  // dlist-item-tagging #5 adds Items as a third leaf, sourced from the PUBLISHED
+  // kind-30394 list rather than the live aggregation.
   const [pinnedView, setPinnedView] = useState('profiles');
   // Recompute the note drift each time the Notes sub-tab is opened, so a note
   // tagged since mount is reflected without a full page refresh.
@@ -298,6 +304,16 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
 
   const canManage = !!user && !!pinEventId;
   const itemTlStatus = pinRow?.itemTlStatus;
+  // dlist-item-tagging #5 — the published kind-30394's members, for the Items leaf.
+  const {
+    items: pinnedItems, groups: pinnedItemGroups, headers: pinnedItemHeaders,
+    loading: pinnedItemsLoading, refetch: refetchPinnedItems,
+  } = usePinnedItems(itemDTag, taPubkey);
+  const hasItemList = pinnedItems.length > 0 || itemTlStatus?.status === 'ok';
+  const showPinnedSwitch = !!pinnedNotes || hasItemList;
+  // A refresh that republished the 30394 since mount is reflected when the leaf is
+  // opened, without a full page reload (mirrors the Notes leaf).
+  useEffect(() => { if (pinnedView === 'items') refetchPinnedItems(); }, [pinnedView, refetchPinnedItems]);
   const nip51 = pinRow?.nip51ExportStatus;
   const hasFollowSet = !!nip51 && nip51.status !== 'never-exported';
   // Follow Pack (kind-39089) export status — shown only once exported.
@@ -533,9 +549,10 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
         </p>
       )}
 
-      {/* Issue #2 — Profiles|Notes sub-switch. Only shown once a note bookmark
-          set exists; otherwise the panel is profiles-only as before. */}
-      {pinnedNotes && (
+      {/* Issue #2 — Profiles|Notes sub-switch. Shown once a note bookmark set OR a
+          published item list exists; otherwise the panel is profiles-only as before.
+          dlist-item-tagging #5 adds the Items leaf. */}
+      {showPinnedSwitch && (
         <div className="bs-tag-view-switch" role="tablist" aria-label="Pinned content">
           <button
             type="button" role="tab"
@@ -545,18 +562,30 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
           >
             Profiles ({members.length})
           </button>
-          <button
-            type="button" role="tab"
-            aria-selected={pinnedView === 'notes'}
-            className={`bs-tag-view-switch-btn${pinnedView === 'notes' ? ' is-active' : ''}`}
-            onClick={() => setPinnedView('notes')}
-          >
-            Notes ({pinnedNoteItems.length})
-          </button>
+          {pinnedNotes && (
+            <button
+              type="button" role="tab"
+              aria-selected={pinnedView === 'notes'}
+              className={`bs-tag-view-switch-btn${pinnedView === 'notes' ? ' is-active' : ''}`}
+              onClick={() => setPinnedView('notes')}
+            >
+              Notes ({pinnedNoteItems.length})
+            </button>
+          )}
+          {hasItemList && (
+            <button
+              type="button" role="tab"
+              aria-selected={pinnedView === 'items'}
+              className={`bs-tag-view-switch-btn${pinnedView === 'items' ? ' is-active' : ''}`}
+              onClick={() => setPinnedView('items')}
+            >
+              Items ({pinnedItems.length})
+            </button>
+          )}
         </div>
       )}
 
-      <div hidden={!!pinnedNotes && pinnedView !== 'profiles'}>
+      <div hidden={showPinnedSwitch && pinnedView !== 'profiles'}>
       <h3 className="bs-pindetail-members-heading">
         Members ({members.length})
       </h3>
@@ -656,6 +685,55 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
             <p className="bs-pinned-notes-empty">
               The notes in this pin are on relays we couldn’t reach this load — try again shortly.
             </p>
+          )}
+        </section>
+      )}
+
+      {/* dlist-item-tagging #5 (AC-5) — the Items sub-tab: the members of the PUBLISHED
+          kind-30394 item Trusted List, grouped by their parent list and rendered by that
+          list's own field declarations. This is the signed snapshot a downstream indexer
+          reads, so it can lag the tag page's live Items view until the next refresh. */}
+      {hasItemList && (
+        <section className="bs-pinned-items" hidden={pinnedView !== 'items'}>
+          <div className="bs-pinned-notes-head">
+            <h4 className="bs-pinned-notes-title">Pinned items</h4>
+            {pinnedItemsLoading && (
+              <span className="bs-pinned-notes-drift is-loading">Loading…</span>
+            )}
+          </div>
+
+          {pinnedItems.length === 0 ? (
+            <p className="bs-pinned-notes-empty">
+              {pinnedItemsLoading
+                ? 'Loading pinned items…'
+                : itemTlStatus?.status === 'ok'
+                  ? 'The item list is published, but its items are on relays we couldn’t reach this load — try again shortly.'
+                  : 'No item list has been published for this pin yet.'}
+            </p>
+          ) : (
+            pinnedItemGroups.map((group) => {
+              const header = group.listCoord ? pinnedItemHeaders.get(group.listCoord) : null;
+              const fieldDecls = header ? parseFieldDecls(header) : [];
+              const { plural } = header ? headerNames(header) : { plural: '' };
+              return (
+                <section className="bs-tag-items-group" key={group.listCoord || 'no-list'}>
+                  <h3 className="bs-tag-items-group-heading">
+                    {group.listCoord ? (
+                      <a href={`/list/${group.listCoord}`}>{plural || group.listCoord}</a>
+                    ) : (
+                      <span>Items with no list</span>
+                    )}
+                    {group.listCoord && !header && (
+                      <span className="bs-tag-items-group-missing"> — list not on this relay</span>
+                    )}
+                  </h3>
+                  <DListItemsTable
+                    items={group.items.map(toTableItem)}
+                    fieldDecls={fieldDecls}
+                  />
+                </section>
+              );
+            })
           )}
         </section>
       )}

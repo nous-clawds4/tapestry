@@ -28,6 +28,7 @@ const UI = path.join(REPO, 'ui/src');
 const UTIL = path.join(UI, 'utils/trustedListView.js');
 const DETAIL = path.join(UI, 'pages/grapevine/TrustedListDetail.jsx');
 const INDEX = path.join(UI, 'pages/grapevine/TrustedLists.jsx');
+const PANEL = path.join(UI, 'components/PinnedListPanel.jsx');
 
 const TA = 'f'.repeat(64);
 const OBS = 'a'.repeat(64);
@@ -260,6 +261,75 @@ test('R3: the util is read-only — it publishes nothing and holds no pubkey lit
   const src = read(UTIL);
   assert(!/publish|signEvent|nostr\.sign/i.test(src), 'a view model must never publish or sign.');
   assert(!/[0-9a-f]{64}/.test(src), 'no 64-hex literal belongs in shared code (CLAUDE.md).');
+});
+
+
+// ── Pinned tab Items leaf (operator report 2026-09-17: list published, no tab) ──
+
+test('U12: the shared header util groups items by their parent list, first-seen order', async () => {
+  const m = await import(pathToFileURL(path.join(UI, 'utils/dlistHeaders.js')).href);
+  const groups = m.groupItemsByList([
+    { address: 'a1', listCoord: 'L1' },
+    { address: 'a2', listCoord: 'L2' },
+    { address: 'a3', listCoord: 'L1' },
+    { address: 'a4', listCoord: null },
+  ]);
+  assert(groups.length === 3, `three groups (L1, L2, orphans); got ${groups.length}.`);
+  assert(groups[0].listCoord === 'L1' && groups[0].items.length === 2, 'L1 comes first and keeps both items.');
+  assert(groups[2].listCoord === null, 'an item with no parent groups under null, never dropped.');
+});
+
+test('U13: a kind-39999 item names its list with z, a kind-9999 item with e', async () => {
+  const m = await import(pathToFileURL(path.join(UI, 'utils/dlistHeaders.js')).href);
+  assert(m.listCoordOf({ kind: 39999, tags: [['z', 'L1'], ['e', 'nope']] }) === 'L1', 'a 39999 uses its z.');
+  assert(m.listCoordOf({ kind: 9999, tags: [['e', 'H1'], ['z', 'nope']] }) === 'H1', 'a 9999 uses its e.');
+  assert(m.listCoordOf({ kind: 39999, tags: [['z', 'first'], ['z', 'second']] }) === 'first', 'the FIRST parent wins (E5).');
+  assert(m.listCoordOf(null) === null, 'an unresolved item has no parent.');
+});
+
+test('U14: an unresolved item still renders — its d is re-derived from the coordinate', async () => {
+  const m = await import(pathToFileURL(path.join(UI, 'utils/dlistHeaders.js')).href);
+  const row = m.toTableItem({ address: '39999:' + AUTHOR + ':github-account-1', kind: 39999, tags: [] });
+  assert(row.tags[0][0] === 'd' && row.tags[0][1] === 'github-account-1', `the d is synthesized for display; got ${JSON.stringify(row.tags)}.`);
+  assert(row.id === '39999:' + AUTHOR + ':github-account-1', 'the address stands in for a missing event id.');
+  const resolved = m.toTableItem({ address: 'x', kind: 39999, tags: [['d', 'real']] });
+  assert(resolved.tags.length === 1, 'an item that already has a d is left alone.');
+});
+
+test('U15: the Items leaf reads a 30394 through the member letter, not every a tag', async () => {
+  const m = await import(pathToFileURL(UTIL).href);
+  // The published list carries member a-tags AND z discovery tags; only the members
+  // may become item rows, or the tab would list the concept header as an item.
+  const addresses = m.splitTLTags(itemTL()).members.map((x) => x.value);
+  assert(addresses.length === 2, `two item coordinates; got ${addresses.length}.`);
+  assert(!addresses.some((a) => a.includes('trusted-list')), 'a z target must never become an item row.');
+});
+
+test('S5: the Pinned panel has an Items leaf fed by the published list', async () => {
+  const src = read(PANEL);
+  assert(src.includes('usePinnedItems'), 'the panel must read the published 30394 through the hook.');
+  assert(/pinnedView === 'items'/.test(src), 'an items leaf must exist in the sub-switch.');
+  assert(/Items \(\{pinnedItems\.length\}\)/.test(src), 'the leaf must be labelled with its count.');
+  assert(src.includes('DListItemsTable'), 'items must render through the house table.');
+  assert(/showPinnedSwitch/.test(src), 'the switch must appear for an item list even with no note set.');
+});
+
+test('S6: the hook reads the PUBLISHED list, and never publishes', async () => {
+  const src = read(path.join(UI, 'hooks/usePinnedItems.js'));
+  assert(/kinds: \[30394\]/.test(src), 'it must query the 30394 by kind.');
+  assert(src.includes("'#d': [itemDTag]"), 'it must address the list by its d-tag.');
+  // Match real write paths, not the word "published" in prose.
+  assert(!/signEvent|publishToStrfry|method:\s*'POST'/.test(src), 'a read hook must never publish or sign.');
+  assert(!/[0-9a-f]{64}/.test(src), 'no pubkey literal belongs in the hook.');
+});
+
+test('R4: the tag page Items view keeps its behavior on the shared helpers', async () => {
+  const src = read(path.join(UI, 'components/TagItemsView.jsx'));
+  assert(src.includes('fetchListHeaders'), 'it must use the shared header fetcher.');
+  assert(src.includes('groupItemsByList') && src.includes('toTableItem'), 'and the shared grouping/row helpers.');
+  assert(!/^function fetchHeaders/m.test(src) && !/^function toTableItem/m.test(src),
+    'the local copies must be gone — one implementation only.');
+  assert(src.includes('useNotesForTag'), 'its live aggregation source is unchanged.');
 });
 
 async function run() {

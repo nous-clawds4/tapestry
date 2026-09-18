@@ -578,10 +578,18 @@ test('S3 (AC-3): TagItemsView exists, renders one DListItemsTable per list group
   assert(/DListItemsTable/.test(src), 'TagItemsView must reuse the story-1 DListItemsTable (header-driven columns), not a new table.');
   assert(/renderExtra=/.test(src) && /DListItemTags/.test(src),
     'each row must carry the story-3 tag affordance via renderExtra={(item) => <DListItemTags … />}.');
-  assert(/parseFieldDecls/.test(src) && /parseListRef/.test(src),
+  assert(/parseFieldDecls/.test(src),
     'field declarations must be derived with the EXISTING pure parsers from utils/dlistFields (no server-side fork).');
   assert(/queryRelay/.test(src), 'headers must be batch-fetched client-side via ui/src/api/relay.js queryRelay.');
-  assert(/9998/.test(src) && /39998/.test(src), 'the header batch must cover both parent forms: kind-9998 ids and kind-39998 coordinates.');
+  // 2026-09-17: the header batch moved to ui/src/utils/dlistHeaders.js so the Pinned tab's
+  // Items leaf reads headers the same way (one implementation). The RULE is unchanged and
+  // is asserted where the code now lives; TagItemsView must delegate rather than re-fork.
+  assert(/fetchListHeaders/.test(src), 'TagItemsView must delegate the header batch to the shared fetcher.');
+  const headerUtil = safeRead(path.join(REPO, 'ui/src/utils/dlistHeaders.js'));
+  assert(/parseListRef/.test(headerUtil),
+    'the shared header fetcher must parse parents with the EXISTING parseListRef (no fork).');
+  assert(/parsed\.id/.test(headerUtil) && /'#d'/.test(headerUtil),
+    'the header batch must cover both parent forms: kind-9998 header EVENT IDs and kind-39998 coordinates.');
 });
 
 test('S4 (AC-3): each list group heading links to /list/<listCoord>', () => {
