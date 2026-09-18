@@ -20,7 +20,7 @@ certainty — see the design doc's rejected alternatives).
 
 ## Stories
 `stories/search-index-selection/`:
-1. `1-tag-a-list-header.md` — **Planned.** A tagging affordance on a list header, and the
+1. `1-tag-a-list-header.md` — **Done** (review PASS, 2 rounds). A tagging affordance on a list header, and the
    read path that makes a tagged header resolve for display. Prerequisite for everything
    else: today no UI surface can tag a kind-39998 at all.
 2. *(planned)* an `author` curation constraint on the pin, value `== observer`, surfaced as

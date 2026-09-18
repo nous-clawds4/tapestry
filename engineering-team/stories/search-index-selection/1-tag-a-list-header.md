@@ -1,6 +1,6 @@
 # Story 1: Tag a list header
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-18
 **Type:** Feature *(Light lane — Gate A 2026-09-18; no wire-format change)*
 **Epic:** `engineering-team/epics/search-index-selection.md`
@@ -192,22 +192,22 @@ Suite: `test/tag-a-list-header.test.js` (pre-implementation: 11 passed, 16 faile
 
 ## Deviations
 
-- **The "list not on this relay" notice is written as a literal in both headers branches**
-  rather than reusing `TagItemsView`'s `NOT_HERE` constant. S5 slices the source from the
-  first `group.headers` occurrence and requires the literal string inside that slice, so a
-  constant reference would not satisfy it. `PinnedListPanel` already used the literal.
+*(As resolved at review, 2026-09-18.)*
+
 - **Unresolved-header detection is `(h.tags || []).length > 0`.** The server returns
   `tags: []` for a member whose event did not resolve, and the row carries no other
-  resolution flag, so emptiness is the only available signal (E3).
+  resolution flag, so emptiness is the only available signal (E3). Accepted.
 - **Four CSS classes, not one** (`bs-tag-header-cards`, `bs-tag-header-card`,
-  `-card-name`, `-card-desc`). The Design note said "one new CSS class for the card"; a
-  card with a name, a description and a coordinate needs the child hooks. Same file, same
-  token vocabulary, no existing rule changed.
-- **BLOCKING — not a deviation, surfaced unfixed.** `test/dlist-item-tagging.test.js` **S4**
-  asserts `!/<NoteTags\b/.test(src)` over `ui/src/pages/List.jsx` ("Design note §4: the page
-  does not bypass the wrapper"). This story's Gate-A-ruled Design note requires exactly that
-  mount on the header block, so the two are in direct contradiction and the suite went
-  21/0 → 20/1. The older sentinel's *intent* — that per-ITEM tagging goes through
-  `DListItemTags` — is still honoured (the `renderExtra` slot is byte-identical, and that
-  suite's other two S4 assertions pass). `dlist-item-tagging` is **not** in this story's
-  Gate A scoped gate. The assertion is left unmodified for the Tester to re-scope.
+  `-card-name`, `-card-desc`). A card with a name, a description and a coordinate needs
+  the child hooks. Same file, additive, no existing rule changed. Accepted.
+- **Resolved at implementation:** the headers card first wrote "list not on this relay" as
+  a literal because sentinel S5 sliced the source below the constant; S5 was loosened and
+  the card reuses `NOT_HERE` (`04d2bb95`).
+- **Resolved at implementation:** `test/dlist-item-tagging.test.js` S4 forbade any
+  `<NoteTags>` on `List.jsx`, a proxy for "per-item tagging goes through the wrapper"
+  written before a header target existed. Re-aimed to the item-table region plus an
+  every-mount-is-the-header-mount assertion — net tighter (`f12c62bc`).
+- **Found at review, fixed:** the mount was unconditional, but `/list/:ref` also serves
+  legacy kind-9998 headers, for which `headerCoord` returns the event id — an `a` tag
+  carrying an id is unresolvable and violates AC-2. Gated on `kind === 39998`, pinned by
+  R8; whether a non-addressable list should be taggable by `{ id }` is OPEN 308 (`04d2bb95`).

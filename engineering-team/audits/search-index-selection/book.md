@@ -25,7 +25,7 @@ point-of-view threshold.
 
 ### Acceptance frame
 
-- [ ] **Tag a list header.** A signed-in curator can tag a Decentralized List *itself* from
+- [x] **Tag a list header.** A signed-in curator can tag a Decentralized List *itself* from
       the app; the assertion targets the header's coordinate; the tagged header renders with
       its name wherever tagged targets are listed (not as a bare coordinate).
 - [ ] **"Only me" curation.** A pin can curate on the viewer's own assertions alone
