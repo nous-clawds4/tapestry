@@ -1,10 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import DataTable from '../../components/DataTable';
 import AuthorCell from '../../components/AuthorCell';
+import JsonView from '../../components/JsonView';
 import useProfiles from '../../hooks/useProfiles';
 import { queryRelay } from '../../api/relay';
+import {
+  splitTLTags, memberDetail, describeMembership, zHeaderFilter, indexHeaders,
+} from '../../utils/trustedListView';
 
 function shortHex(hex) {
   if (!hex) return '—';
@@ -16,11 +20,36 @@ function formatDate(ts) {
   return new Date(ts * 1000).toLocaleString();
 }
 
+/** JsonView with a Viewer / Raw toggle (mirrors the Firmware Explorer's node JSON view). */
+function JsonPanel({ data }) {
+  const [mode, setMode] = useState('viewer');
+  return (
+    <div className="firmware-json-view">
+      <div className="firmware-json-header">
+        {[{ key: 'viewer', label: 'Viewer' }, { key: 'raw', label: 'Raw JSON' }].map((opt) => (
+          <button
+            key={opt.key}
+            className={`firmware-view-btn ${mode === opt.key ? 'active' : ''}`}
+            onClick={() => setMode(opt.key)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {mode === 'viewer'
+        ? <JsonView data={data} />
+        : <pre className="firmware-json-pre">{JSON.stringify(data, null, 2)}</pre>}
+    </div>
+  );
+}
+
 export default function TrustedListDetail() {
   const { dTag } = useParams();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [zHeaders, setZHeaders] = useState({});
+  const [showRaw, setShowRaw] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,35 +76,32 @@ export default function TrustedListDetail() {
     return () => { cancelled = true; };
   }, [dTag]);
 
-  // Extract items from tags
-  const items = useMemo(() => {
-    if (!event) return [];
-    const result = [];
-    let idx = 0;
-    for (const tag of event.tags || []) {
-      if (tag[0] === 'p') {
-        idx++;
-        result.push({
-          idx,
-          type: 'p',
-          value: tag[1],
-          relay: tag[2] || '',
-          score: tag[3] || null,
-        });
-      } else if (tag[0] === 'e') {
-        idx++;
-        result.push({
-          idx,
-          type: 'e',
-          value: tag[1],
-          relay: tag[2] || '',
-          author: tag[3] || '',
-          score: tag[4] || null,
-        });
-      }
-    }
-    return result;
-  }, [event]);
+  // Member / membership / metadata split — the member letter is a function of the kind
+  // (30392 p, 30393 e, 30394 a, 30395 i), so a 30393's `p` observer and `a` back-ref are
+  // discovery pointers, not members.
+  const { members, memberships, otherRefs, metadata } = useMemo(() => splitTLTags(event), [event]);
+
+  const items = useMemo(
+    () => members.map((m) => ({ ...m, ...memberDetail(m) })),
+    [members]
+  );
+
+  // Name each `z` target. One bounded query for the whole set of distinct coordinates,
+  // fired after the list itself is on screen — the names are an enrichment, never a gate.
+  useEffect(() => {
+    let cancelled = false;
+    const filter = zHeaderFilter(memberships);
+    if (!filter) { setZHeaders({}); return undefined; }
+    queryRelay({ ...filter, limit: 100 })
+      .then((evts) => { if (!cancelled) setZHeaders(indexHeaders(evts)); })
+      .catch(() => { if (!cancelled) setZHeaders({}); });
+    return () => { cancelled = true; };
+  }, [memberships]);
+
+  const membershipRows = useMemo(
+    () => memberships.map((z) => describeMembership(z, zHeaders)),
+    [memberships, zHeaders]
+  );
 
   // Collect all pubkeys for profile lookup
   const allPubkeys = useMemo(() => {
@@ -94,35 +120,28 @@ export default function TrustedListDetail() {
   const metric = event?.tags?.find(t => t[0] === 'metric')?.[1];
   const hasScores = items.some(i => i.score != null);
 
-  // Table columns
+  // Table columns — one member column, labelled for the kind's member type.
   const columns = useMemo(() => {
     const cols = [
       { key: 'idx', label: '#', render: (val) => <span style={{ opacity: 0.4 }}>{val}</span> },
     ];
 
-    // For p-tags, show profile; for e-tags show event ID
-    const hasPTags = items.some(i => i.type === 'p');
-    const hasETags = items.some(i => i.type === 'e');
+    const letter = items[0]?.type;
+    const label = letter === 'p' ? 'Pubkey'
+      : letter === 'e' ? 'Event ID'
+        : letter === 'a' ? 'Coordinate'
+          : letter === 'i' ? 'Identity'
+            : 'Member';
 
-    if (hasPTags) {
-      cols.push({
-        key: 'value',
-        label: 'Pubkey',
-        render: (val, row) => row.type === 'p'
-          ? <AuthorCell pubkey={val} profiles={profiles} />
-          : <code style={{ fontSize: '0.75rem' }}>{shortHex(val)}</code>,
-      });
-    }
-
-    if (hasETags) {
-      cols.push({
-        key: 'value',
-        label: 'Event ID',
-        render: (val, row) => row.type === 'e'
+    cols.push({
+      key: 'value',
+      label,
+      render: (val, row) => (row.type === 'p'
+        ? <AuthorCell pubkey={val} profiles={profiles} />
+        : row.type === 'e'
           ? <code style={{ fontSize: '0.75rem' }}>{shortHex(val)}</code>
-          : null,
-      });
-    }
+          : <code style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>{val}</code>),
+    });
 
     cols.push({
       key: 'type',
@@ -141,7 +160,7 @@ export default function TrustedListDetail() {
     }
 
     return cols;
-  }, [items, profiles]);
+  }, [items, profiles, hasScores]);
 
   if (loading) {
     return (
@@ -205,13 +224,66 @@ export default function TrustedListDetail() {
         <code style={{ fontSize: '0.75rem', opacity: 0.6 }}>{event.id}</code>
       </div>
 
+      {/* Memberships — the `z` tags. A `z` means "this event is an element of that
+          list/concept", so each row reads as a membership of this list itself. */}
+      <h3 style={{ marginBottom: '0.5rem' }}>Memberships ({membershipRows.length})</h3>
+      {membershipRows.length === 0 ? (
+        <p style={{ opacity: 0.5, fontSize: '0.85rem', marginTop: 0 }}>
+          No <code>z</code> tags — this list carries no discovery axis. Lists published before
+          ADR dlist-item-tagging/0002 look like this until their next refresh.
+        </p>
+      ) : (
+        <ul className="bs-tl-memberships">
+          {membershipRows.map((m) => (
+            <li key={m.coord}>
+              {m.malformed ? (
+                <>
+                  <span style={{ color: '#d29922' }}>malformed z tag</span>{' '}
+                  <code>{m.coord}</code>
+                </>
+              ) : (
+                <>
+                  is a member of{' '}
+                  <strong>{m.name || <span style={{ opacity: 0.55 }}>(header not found locally)</span>}</strong>
+                  <br />
+                  <code>{m.coord}</code>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* Items table */}
-      <h3 style={{ marginBottom: '0.75rem' }}>Items ({items.length})</h3>
+      <h3 style={{ marginBottom: '0.75rem', marginTop: '1.5rem' }}>Items ({items.length})</h3>
       <DataTable
         columns={columns}
         data={items}
         emptyMessage="No items in this Trusted List"
       />
+
+      {/* Raw event — the ground truth for validating the wire shape. */}
+      <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+        Raw event{' '}
+        <button
+          type="button"
+          className="firmware-view-btn"
+          onClick={() => setShowRaw((v) => !v)}
+          aria-expanded={showRaw}
+        >
+          {showRaw ? 'Hide' : 'Show'}
+        </button>
+      </h3>
+      {showRaw && (
+        <>
+          <p style={{ opacity: 0.55, fontSize: '0.8rem', marginTop: 0 }}>
+            {members.length} member {members.length === 1 ? 'tag' : 'tags'} ·{' '}
+            {memberships.length} <code>z</code> · {otherRefs.length} other single-letter ·{' '}
+            {metadata.length} metadata
+          </p>
+          <JsonPanel data={event} />
+        </>
+      )}
     </div>
   );
 }

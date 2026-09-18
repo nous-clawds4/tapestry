@@ -5,6 +5,7 @@ import DataTable from '../../components/DataTable';
 import { queryRelay } from '../../api/relay';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
+import { splitTLTags, memberLetterOf } from '../../utils/trustedListView';
 
 function formatAge(ts) {
   if (!ts) return '—';
@@ -48,10 +49,13 @@ export default function TrustedLists() {
       if (!byUuid[uuid] || ev.created_at > byUuid[uuid].created_at) {
         const titleTag = ev.tags?.find(t => t[0] === 'title')?.[1];
         const metricTag = ev.tags?.find(t => t[0] === 'metric')?.[1];
-        const pCount = ev.tags?.filter(t => t[0] === 'p').length;
-        const eCount = ev.tags?.filter(t => t[0] === 'e').length;
-        const itemCount = pCount + eCount;
-        const tagType = pCount > 0 ? 'p' : eCount > 0 ? 'e' : '—';
+        // Members are the tags of THIS kind's member letter (30392 p / 30393 e / 30394 a /
+        // 30395 i). Counting every p and e instead overstates a 30393 by its `p` observer
+        // discovery tag and reports a 30394's `a` members as zero.
+        const { members, memberships } = splitTLTags(ev);
+        const itemCount = members.length;
+        const tagType = memberLetterOf(ev.kind) || '—';
+        const zCount = memberships.length;
 
         byUuid[uuid] = {
           id: ev.id,
@@ -65,6 +69,7 @@ export default function TrustedLists() {
           age: formatAge(ev.created_at),
           itemCount,
           tagType,
+          zCount,
         };
       }
     }
@@ -94,12 +99,23 @@ export default function TrustedLists() {
     {
       key: 'tagType',
       label: 'Tags',
-      render: (val) => val === 'p' ? '👤 p-tags' : val === 'e' ? '📄 e-tags' : '—',
+      render: (val) => val === 'p' ? '👤 p-tags'
+        : val === 'e' ? '📄 e-tags'
+          : val === 'a' ? '🔗 a-tags'
+            : val === 'i' ? '🪪 i-tags'
+              : '—',
     },
     {
       key: 'itemCount',
       label: 'Items',
       render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>,
+    },
+    {
+      key: 'zCount',
+      label: 'z',
+      render: (val) => (val > 0
+        ? <span title={`${val} z tag${val === 1 ? '' : 's'} — discoverable`} style={{ color: '#3fb950', fontWeight: 600 }}>✓ {val}</span>
+        : <span title="no z tags — not discoverable by concept or tag" style={{ opacity: 0.3 }}>—</span>),
     },
     {
       key: 'metric',

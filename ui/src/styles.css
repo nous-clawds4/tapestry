@@ -8603,3 +8603,26 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-tag-items-group-heading a { color: var(--link, var(--text)); text-decoration: none; }
 .bs-tag-items-group-heading a:hover { text-decoration: underline; }
 .bs-tag-items-group-missing { font-size: 0.9em; font-weight: 400; color: var(--text-muted); }
+
+/* Trusted List detail — the `z` membership list (ADR dlist-item-tagging/0002). Each row
+   reads "is a member of <name>" over the raw coordinate, so the wire shape stays visible. */
+.bs-tl-memberships {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.bs-tl-memberships li {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.06);
+  font-size: 0.85rem;
+}
+.bs-tl-memberships code {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  word-break: break-all;
+}
