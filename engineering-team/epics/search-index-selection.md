@@ -29,7 +29,7 @@ certainty — see the design doc's rejected alternatives).
 3. `3-per-pin-membership-method.md` — **Approved** (Gate A ruled 2026-09-18; ADR expected).
    A `membershipMethod` field on the pin's `curationMethod` blob instead of the instance-wide
    dial (OPEN 307); absent means the dial. The published kind-30392 records the fold that ran.
-4. *(planned)* a **confirm step on first pin**, so the default curation that quietly publishes
+4. `4-confirm-step-on-first-pin.md` — **Done** (review PASS, 3 rounds) — a **confirm step on first pin**, so the default curation that quietly publishes
    a Trusted List becomes visible and editable before it does. Shapes the same switcher
    surface as story 5; lands before or with it.
 5. `5-explicit-pin-variant-key.md` — **Draft**. An explicit pin **variant key** generalising
