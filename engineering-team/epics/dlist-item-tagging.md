@@ -26,7 +26,7 @@ accounts can feed a downstream search index.
    viewer's stance, `a`-coordinate target; plus the `/lists` nav link. Light.
 4. *(planned)* tagged items on the tag page — an Items view rendering each item with its list's
    fields. Light.
-5. *(planned)* pins & Trusted Lists for items — `30394` `a`-member lists from pinned tags; Pins
+5. `5-pins-and-trusted-lists-for-items.md` — **Done** (review PASS; ADRs 0002 + 0003) — pins & Trusted Lists for items — `30394` `a`-member lists from pinned tags; Pins
    page coverage. Escalation watch: curation-method `targetTypes` is wire-visible.
 6. ~~publish up/down votes~~ — **out of the book** (Gate A 2026-09-09: votes are orthogonal).
 7. *(in the book after story 3 — Gate A 2026-09-09)* a `github-account` firmware concept whose
