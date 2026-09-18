@@ -49,8 +49,8 @@ once. Every subsequent loosening of who gets to influence the index is a change 
 ```
   ┌──────────────────────────────────────────────┐
   │              anything at all                 │
-  │  hand-authored · one pubkey · filter list ·  │
-  │  self-tag guard · GrapeRank · many curators  │
+  │  hand-authored · author == me · author ∈     │
+  │  list · self-attested curators · GrapeRank   │
   └───────────────────┬──────────────────────────┘
                       │   (opaque to the consumer)
                       ▼
@@ -99,61 +99,73 @@ curating and unknown lists enter the set, the engine breaks. So the strictness i
 artificial timidity, it is a **capability-matched guard**: the pipeline must not hand the
 engine anything it cannot render.
 
-The mechanism is a self-tag plus an identity predicate:
+The mechanism is **one curation field constraining the tagging's author**. Its value type
+is the only thing that changes as the guard loosens, which is why rung 2 is not a new
+mechanism but a wider value on the field that rung 1 already introduced.
 
-- A pubkey **self-tags** — publishes a tagging whose target is itself. Only that pubkey can
-  ever do this, so it is unforgeable. It is protocol activity, not code to write or config
-  to deploy.
-- The pipeline curates with **`asserter == target == observer`**, which yields exactly that
-  one pubkey. Certainty here is cryptographic, not a score clearing a threshold.
-- That one-pubkey list is then the **author filter** on the "worth indexing" taggings.
+| Rung | `author` constraint | Members | Certainty | Unlocked by |
+|---|---|---|---|---|
+| 1 | `== observer` (me) | what I tagged | cryptographic — only I sign as me | **today** |
+| 2 | `∈ <input list>` | what my curators tagged | cryptographic per member | generic presentation |
+| 3 | unconstrained; GrapeRank decides | what the trusted crowd tagged | ranked, not certain | generic presentation + budgets |
 
-Relaxation is a ladder, not a switch, and each rung is a pipeline change only:
+Rung 1 needs no self-tagging and no input list. I tag the GitHub Accounts header with
+"worth indexing", the pin curates with `author == me`, and the published list contains
+exactly what I tagged. One pin, one tag, one signed list.
 
-| Rung | Filter | Unlocked by |
-|---|---|---|
-| 1 | `asserter == target == observer` (just me) | today |
-| 2 | taggers in my curators Trusted List | generic presentation |
-| 3 | anyone GrapeRank-trusted above a threshold | generic presentation + budgets |
+It is also not a special case. In the code the trust predicate is a function
+`isAsserterTrusted(pk)`; "only me" is `pk => pk === observer`, occupying the same slot as
+the GrapeRank threshold version, and `alsoTrust` is existing precedent for an identity
+predicate in that slot. In the UI it is the zero point of an axis that already exists: a
+trust scope of "Only me" sitting below "My web of trust", not a bespoke mode.
+
+**Self-attestation is a different predicate, kept for rung 3.** A pubkey can **self-tag**,
+publishing a tagging whose target is itself. Only that pubkey can do so, which makes it
+unforgeable *as a claim*, and it is protocol activity rather than code to write. That makes
+"everyone who has self-identified as a search curator" an open, permissionless, growing set
+that nobody has to grant membership to — the natural input list at rung 3. But it is
+worthless as a *credential*, since anyone can self-tag anything, so it only means something
+composed with GrapeRank. It is orthogonal to certainty, not a means to it, and conflating
+the two is what made an earlier draft of this document reach for `asserter == target ==
+observer` when `author == observer` was sufficient and simpler.
 
 **The unlock is generic presentation, and it lives in Part 1b below.** An engine that reads
 `names` and the field declarations off a target header can render a list it has never seen.
 That is the precondition for accepting strangers' lists. Part 1b is therefore not polish
 ahead of the deferred work — it is what buys permission to loosen the guard at all.
 
-Note also what self-tagging is and is not. It is unforgeable as a *claim* ("I say I am a
-search curator") and worthless as a *credential*, since anyone can self-tag anything. At
-rung 3 the open set of self-identified curators is a spam magnet, which is exactly the job
-GrapeRank is good at: ranking people, not manufacturing certainty.
-
 ---
 
 ## Build progression
 
-Three steps, of which the third is protocol activity rather than engineering.
+**The near-term build is one field and one dialog option.** The filter-by-input-list
+pipeline is *not* on the critical path — it is rung 2.
 
-**1. Basic Trusted List pipelines — one filter step.**
-The primitive: `event author must be a member of <input list>`. Single step, no chaining
-required for this use case. Input list is NIP-51 today (trivial to author); later it is a
-Trusted List produced by the self-tag guard, which keeps the whole chain inside this
-protocol with no NIP-51 fallback.
-Recompute on a schedule or on demand. That deliberately skips the dependency-graph problem
-by converting correctness into latency. Two disciplines keep it that way: decide explicitly
-that a dependent list reads **last cycle's** value, and cap chain depth so one cycle cannot
-grow unbounded. Cycles then degrade to oscillation rather than deadlock.
+**1. An `author` curation constraint on the pin, with the value `== observer`.**
+A curation field constraining which taggings count by their author, exposed as an "Only me"
+trust scope. Implementation slots into the existing `isAsserterTrusted` seam rather than
+adding a stage. This alone produces the certain, pipeline-produced list.
 
-**2. Per-pin curation method (not the global dial).**
-Today `resolveMembershipMethod` (`src/api/trustedList/membershipMethods.js`) reads one
+**2. Per-pin curation (not the global dial).**
+`resolveMembershipMethod` (`src/api/trustedList/membershipMethods.js`) reads one
 instance-wide operator setting, so tightening the indexing list would retune every Trusted
-List on the deployment. The method belongs on the pin. See the design note below — this is
-mostly finishing something rather than starting it.
+List on the deployment. Curation belongs on the pin, which already carries a
+`curationMethod` blob. See the design note below — mostly finishing something rather than
+starting it. Step 1's field lives here.
 
 **3. Publish the tag and the taggings.**
-Author the `worth-indexing-for-search` tag element, self-tag as curator, tag the
-`github-accounts` header. No code. Naming caveats below.
+Author the `worth-indexing-for-search` tag element and tag the `github-accounts` header. No
+code. Naming caveats below.
 
 Once 1 and 2 land, the Brainstorm-curated "Worth Indexing" Trusted List is supplied to the
 Vespa backend and GitHub Accounts (its only member) becomes a search tab.
+
+**Deferred to rung 2: the filter-by-input-list pipeline.** The same `author` field taking a
+list instead of a pubkey. Input is a NIP-51 list or a Trusted List produced by the self-tag
+route. Recompute on a schedule or on demand, which deliberately skips the dependency-graph
+problem by converting correctness into latency. Two disciplines keep it that way: decide
+explicitly that a dependent list reads **last cycle's** value, and cap chain depth so one
+cycle cannot grow unbounded. Cycles then degrade to oscillation rather than deadlock.
 
 ### Prerequisites and gaps found while verifying
 
@@ -263,7 +275,7 @@ Both reviewed and accepted by the operator (2026-09-18) rather than designed aro
   `wot_rank_<suffix> >= minRank`, a threshold on a propagated GrapeRank score, and rank flows
   through the follow graph with attenuation. "Follows one account" is not "trusts one
   account". The only adjacent knob, `alsoTrust`, widens rather than narrows. Certainty comes
-  from the `asserter == target == observer` predicate instead.
+  from an `author == observer` constraint instead.
 - **Strict curation via the existing membership methods.** `count`, `input` and `certainty`
   are all folds over an already-trust-filtered set; they differ in weighting, never in who
   counts as trusted. None can express an author constraint.
@@ -412,10 +424,12 @@ rather than a specified tag (W17).
 |---|---|---|---|
 | Contract | Consumer reads one Trusted List, forever | **Settled** | nothing |
 | Day one | Hand-author that list | **Now** | nothing |
-| 1 | One-step TL filter pipeline (author ∈ input list) | **Next** | build |
-| 2 | Per-pin curation method + explicit pin variants | **Next** | build + UX round |
-| 3 | Publish tag, self-tag, tag the header | **Next** | naming decision |
+| 1 | `author` curation constraint, value `== observer` ("Only me") | **Next** | build |
+| 2 | Per-pin curation + explicit pin variants | **Next** | build + UX round |
+| 3 | Publish tag, tag the header | **Next** | naming decision |
 | 1b | Read tab label + schema off the target header | **Now** | nothing — unlocks relaxation |
+| Rung 2 | Same `author` field taking a list; filter-list picker UX | Later | generic presentation |
+| Rung 3 | Self-attested curator set + GrapeRank | Later | budgets, tab selection |
 | Later 2 | Extrinsic config in a settings DList joined by `b` | Later | a second engine |
 | Later 3 | Field types as a DList with url-templates | Later | W17/W18 spec work |
 

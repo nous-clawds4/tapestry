@@ -2473,15 +2473,24 @@ answer is that it reads **one Trusted List, forever**, and every later loosening
 influences that set happens in the pipeline behind it, never at the consumer. Day one the
 list is hand-authored, so nothing below blocks the search integration.
 
-Two buildable stories, in order.
+Two buildable stories, in order. The near-term ask is **much smaller than an input-list
+filter pipeline**, which is rung 2 and explicitly deferred.
 
-**A. One-step Trusted-List filter pipeline.** A curation parameter meaning *the tagging's
-author must be a member of `<input list>`*. Single step; chaining is explicitly out. Input
-is a NIP-51 list initially, later a Trusted List produced by the self-tag guard
-(`asserter == target == observer`), which keeps the chain inside this protocol. Recompute on
-a schedule or on demand — that deliberately trades correctness for latency and skips the
-dependency-graph problem. Two disciplines: a dependent list reads **last cycle's** value by
-explicit decision, and chain depth is capped.
+**A. An `author` curation constraint on the pin, with the value `== observer`.** One field
+constraining which taggings count by their author, surfaced as an "Only me" trust scope in
+the curation dialog. It is the certainty guard: I tag the `github-accounts` header with
+"worth indexing", the pin curates with `author == me`, and the published list is exactly
+what I tagged, certain because only I can sign as me. **Not a special case** — the trust
+predicate is already a function `isAsserterTrusted(pk)`, so this is `pk => pk === observer`
+in the same slot, with `alsoTrust` as existing precedent for an identity predicate there;
+in the UI it is the zero point of an axis that already exists.
+
+The same field later takes a **list** instead of a pubkey (`author ∈ <input list>`), which
+is rung 2 and needs a filter-list picker plus a schedule-or-on-demand recompute. Rung 2 is
+therefore a wider value on this field, not a new mechanism — which is why building A first
+costs nothing later. Self-attestation (`asserter == target`) is a **different** predicate,
+kept for rung 3 open discovery where GrapeRank does the filtering; it is not a means to
+certainty and must not be conflated with A.
 
 **B. Per-pin curation method, and an explicit pin variant key.** `resolveMembershipMethod`
 (`src/api/trustedList/membershipMethods.js`) reads one instance-wide operator setting, so
