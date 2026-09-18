@@ -171,4 +171,21 @@ Light lane confirmed. Scoped gate: `test/tag-a-list-header.test.js` (new) + guar
   parent concept; per-header applicability; the `worth-indexing-for-search` tag's naming.
 
 ## AC→handle lines
-—
+
+Test plan: `engineering-team/test-plans/search-index-selection/1-tag-a-list-header.md`
+Suite: `test/tag-a-list-header.test.js` (pre-implementation: 11 passed, 16 failed).
+
+- AC-1 → S1, S2
+- AC-2 → S1, U10
+- AC-3 → U7, U8, U9, S3, S4, S6, S7
+- AC-4 → S9
+- AC-5 → R1, R2, R3, R4, R5, R6, R7
+- AC-6 → U1, U2, U3
+- E1 → U10 (proxy — the coordinate target; the replace round-trip is not covered)
+- E2 → U4 (client), S8 (server)
+- E3 → S5
+- E4 → S6
+- E5 → U2, S3
+- E6 → R2 (an unchanged `NoteTags` is what makes it true; no new handle)
+- E7 → U11
+- E8 → U5, U6 (plus guard `trusted-list-raw-view` U12, which must stay green)
