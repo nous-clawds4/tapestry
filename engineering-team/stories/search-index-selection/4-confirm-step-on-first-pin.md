@@ -284,8 +284,8 @@ Scoped gate: `test/confirm-step-on-first-pin.test.js` (new) + guards `generalize
 - **Where the interstitial hooks in.** `ui/src/pages/Tag.jsx` `handlePin` (`:268-274`) today
   calls `publishWithCuration(defaultCurationMethod(user.pubkey))` directly; it instead opens the
   dialog: `setPinDialog({ open: true, context: null })`. `handlePinToContext(context)`
-  (`:281-300`) likewise closes the picker and opens the same dialog with `context` set, instead of
-  calling `pinTag` inline. One `<CurationMethodDialog mode="create" initial={defaultCurationMethod(user.pubkey)}
+  (`:281-311`) likewise closes the picker and opens the same dialog with `context` set, instead of
+  calling `pinTag` inline. One `<CurationMethodDialog mode="create" initialCuration={defaultCurationMethod(user.pubkey)}
   viewerPubkey={user.pubkey} onSubmit={…} onCancel={…} />` is mounted in `Tag.jsx`; `onSubmit(curation)`
   routes to the existing `publishWithCuration(curation)` (`:216-266`, untouched — it already
   awaits the refresh and fires the two exports) or, with a context, to a new
