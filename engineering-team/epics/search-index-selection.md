@@ -23,7 +23,7 @@ certainty — see the design doc's rejected alternatives).
 1. `1-tag-a-list-header.md` — **Done** (review PASS, 2 rounds). A tagging affordance on a list header, and the
    read path that makes a tagged header resolve for display. Prerequisite for everything
    else: today no UI surface can tag a kind-39998 at all.
-2. *(planned)* an `author` curation constraint on the pin, value `== observer`, surfaced as
+2. `2-only-me-curation.md` — **Done** (review PASS; ADR 0001 Accepted). An `author` curation constraint on the pin, value `== observer`, surfaced as
    an "Only me" trust scope. The certainty guard. Slots into the existing
    `isAsserterTrusted` seam; `alsoTrust` is precedent for an identity predicate there.
 3. *(planned)* per-pin curation method instead of the instance-wide dial (OPEN 307), plus an
@@ -37,7 +37,7 @@ with its filter-list picker; self-attested curator sets with GrapeRank (rung 3);
 per-list config joined by a `b` tag; field types as a DList with url-template affordances.
 
 ## Decisions
-None yet. Story 2's curation-field value and story 3's variant key are both wire-visible
+`decisions/search-index-selection/0001-author-constraint.md` — Accepted (story 2). Story 3's variant key is wire-visible
 (the value rides published `curationMethod` JSON; the variant rides the `d` tag), so each
 expects an ADR.
 

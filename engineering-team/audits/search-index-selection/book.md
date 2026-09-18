@@ -28,7 +28,7 @@ point-of-view threshold.
 - [x] **Tag a list header.** A signed-in curator can tag a Decentralized List *itself* from
       the app; the assertion targets the header's coordinate; the tagged header renders with
       its name wherever tagged targets are listed (not as a bare coordinate).
-- [ ] **"Only me" curation.** A pin can curate on the viewer's own assertions alone
+- [x] **"Only me" curation.** A pin can curate on the viewer's own assertions alone
       (`author == observer`), surfaced as a trust scope in the curation dialog, yielding a
       Trusted List whose membership is certain because only the viewer can sign as the viewer.
 - [ ] **Per-pin curation.** The membership method and the new constraint live on the pin,

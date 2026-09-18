@@ -1,6 +1,6 @@
 # Story 2: "Only me" curation — an `author` constraint on the pin
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-18
 **Type:** Feature *(Light book; **wire-visible** — the constraint rides the published
 `curationMethod` JSON and is permanent once signed, so the irreversibility trigger "a wire
@@ -205,7 +205,7 @@ search backend can safely index it.
 - Additive-field precedent: `dlist-item-tagging` #5 (`targetTypes`)
 - ADR: `engineering-team/decisions/search-index-selection/0001-author-constraint.md` (Accepted)
 - Test plan: `engineering-team/test-plans/search-index-selection/2-only-me-curation.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/search-index-selection/2-only-me-curation.md` (PASS, 2026-09-18)
 
 ## Gate A rulings (operator, 2026-09-18 — "let's move on to Story 2"; the four recommendations adopted as proposed, overridable at the ADR gate)
 
