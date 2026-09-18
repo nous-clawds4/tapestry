@@ -245,8 +245,17 @@ test('S4 (AC-1): List.jsx mounts DListItemTags in the story-1 renderExtra slot o
     'Design note §4: List.jsx imports the wrapper');
   assert(/<DListItemsTable[\s\S]*?renderExtra=\{\s*\(\s*\w+\s*\)\s*=>\s*<DListItemTags\s+item=\{\s*\w+\s*\}/.test(src),
     'AC-1: renderExtra={(it) => <DListItemTags item={it} />} passed to DListItemsTable (DListItemRow renders it in .bs-dlist-extra-slot)');
-  assert(!/<NoteTags\b/.test(src) && !/useEventTags/.test(src),
-    'Design note §4: the page does not bypass the wrapper');
+  // Re-aimed 2026-09-18 (search-index-selection #1): the page now mounts ONE <NoteTags> on
+  // the list HEADER block (subject="list", an address target) — that is a different target
+  // than the per-item rows this sentinel guards. The rule stays: per-ITEM tagging must go
+  // through the DListItemTags wrapper, never a raw <NoteTags> inside the table's renderExtra.
+  const tableRegion = src.slice(src.indexOf('<DListItemsTable'));
+  assert(!/<NoteTags\b/.test(tableRegion) && !/useEventTags/.test(src),
+    'Design note §4: the page does not bypass the wrapper for items (no raw <NoteTags> at or after the table; no useEventTags)');
+  const headerMounts = (src.match(/<NoteTags\b[^>]*subject="list"/g) || []).length;
+  const allMounts = (src.match(/<NoteTags\b/g) || []).length;
+  assert(allMounts === headerMounts,
+    `every <NoteTags> on this page must be the header mount (subject="list"); found ${allMounts} mounts, ${headerMounts} with subject="list"`);
 });
 
 test('S5 (AC-5, E5, E6, E7): TagANoteModal runs parseItemRef BEFORE classifyEventInput, resolves the item via queryRelay, tags it as { address }, and keeps the note path', () => {
