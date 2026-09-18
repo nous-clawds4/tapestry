@@ -147,3 +147,11 @@ Operator decisions in `/discuss` and at the Planning gate:
   connect-observing reader, used by the curation reads and the rank read; vote reads batched, and capped answers
   reported; weights that fail instead of reading as "nobody"; a pure `updatePlan` over the panel's verdicts; the
   preview shares the items section's reads (Option A).
+- `0006-update-publishes.md` — story 6: the browser re-reads on Publish and sends the approved plan as references
+  only; `POST /api/dlist-curation/update` checks Origin, the session and the caller's own assistant key, re-reads
+  strictly, refuses anything stale, builds every event from its own reads (ADR 0001), publishes here and to the
+  DList relays, reads each place back, and reports per item and per place (Option A). Amendment 1: a delete's or
+  refresh's target must be one of my assistant's copies, and every server read carries a limit. Amendment 2: each
+  call answers within a deadline, what wasn't sent says so, an unknown outcome is never reported as "nothing", and
+  the deletion-request read covers only the call's own copies. Amendment 3: any 4xx is a refusal made before
+  anything is signed.
