@@ -2,7 +2,7 @@
 
 **Created:** 2026-09-18
 **Status:** Planned (no story started)
-**Book:** none yet — opens when the first story is picked up.
+**Book:** `engineering-team/audits/search-index-selection/book.md` (opened 2026-09-18)
 **Design target:** [`docs/SEARCH_INDEX_DLIST_SELECTION.md`](../../docs/SEARCH_INDEX_DLIST_SELECTION.md)
 (rev 3). Read it before any story here; it carries the settled consumer contract, the
 rejected alternatives with their reasons, and the deferred parts.
