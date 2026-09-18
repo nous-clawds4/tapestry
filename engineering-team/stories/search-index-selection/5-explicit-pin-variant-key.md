@@ -1,6 +1,6 @@
 # Story 5: An explicit pin variant key
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-18
 **Type:** Feature *(Light book; **wire-visible** — the variant rides the `d` tag, which is the
 search backend's permanent subscription key. The irreversibility trigger "a wire format or
@@ -255,3 +255,28 @@ Stories 1–3 touch no address (the author constraint and the membership method 
 - ADR: (filled in after Architecture phase — expected: `decisions/search-index-selection/0003-…`)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
+
+## Gate A rulings (operator, 2026-09-18)
+
+Light lane **with an ADR** (the variant rides the pin's `d` tag and every derived list address —
+the search backend's permanent subscription key). Scoped gate as proposed (new
+`test/explicit-pin-variant-key.test.js` + guards `pin-stack-composition`, `context-scoped-pins`,
+`only-me-curation`, `per-pin-membership-method`, `item-trusted-list`, `note-trusted-list`;
+`tl-membership-method-selector` operator-run at Gate B). Sequenced after story 4 (lands first).
+
+1. **The variant lives in a pin tag** `['variant', '<slug>']`, not the `curationMethod` blob —
+   identity readable without JSON parsing, never collapsible by a malformed blob. **Operator's
+   question, answered:** the `d` tag stays unique *by construction* — the variant becomes one
+   more input to the same address composers (pin d-tag AND `tlDTag` / `noteTlDTag` /
+   `itemTlDTag`), so pins differing only by variant get distinct addresses; two pins sharing a
+   variant slug would share an address and REPLACE each other, which is exactly what the
+   Uniqueness invariant's client-side refusal prevents before signing.
+2. **Address form:** the community suffix `-in-<ctx>` stays byte-identical for `KNOWN_CONTEXTS`;
+   recipes take a distinct prefix (`-v-<slug>`) via one generalised `pinVariantKey`, so promoting
+   a recipe to a community can never move an address.
+3. **Minimum switcher UX:** one chip row, recipes visually and semantically separated from places
+   (own glyph + a "Your curations" divider, ordered neutral → places → recipes); a recipe is
+   created from the curation dialog (story 4's create mode gains a "Save as a separate curation"
+   name field), never from `PinToContextModal`. The full IA round is deferred.
+4. (Invariant, already binding) client refuses a used slug pre-signature; runner logs + skips a
+   detected collision.
