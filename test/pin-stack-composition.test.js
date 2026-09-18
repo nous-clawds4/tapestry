@@ -469,9 +469,14 @@ t('ADR ordering rule: runOnePin resolves the context before it dispatches the me
   const start = src.indexOf('async function runOnePin');
   assert(start !== -1, 'refreshPinnedTags.js must define runOnePin.');
   const body = src.slice(start, src.indexOf('\n}\n', start) + 1);
-  const ctx = body.indexOf('contextSlugOfPin(');
+  // Re-aimed 2026-09-18 (search-index-selection #5, ADR 0003 §4): identity is now recovered by
+  // variantOfPin( (which itself falls back to contextSlugOfPin for legacy pins). The RULE this
+  // sentinel guards — identity resolved BEFORE the membership method dispatches — is unchanged.
+  const ctxA = body.indexOf('variantOfPin(');
+  const ctxB = body.indexOf('contextSlugOfPin(');
+  const ctx = ctxA !== -1 ? ctxA : ctxB;
   const method = body.indexOf('resolveMembershipMethod(');
-  assert(ctx !== -1, 'runOnePin must recover the context with contextSlugOfPin( (ADR §1).');
+  assert(ctx !== -1, 'runOnePin must recover the pin identity with variantOfPin( (or, pre-#5, contextSlugOfPin() (ADR §1).');
   assert(method !== -1, 'runOnePin must still dispatch the membership method with resolveMembershipMethod(.');
   assert(ctx < method,
     'ADR §1: context resolution (identity) must come BEFORE method dispatch (scoring) in runOnePin — never the reverse.');

@@ -181,7 +181,10 @@ t('publishTagPin: pinTag stamps the context via contextHandle (runtime TA), not 
 t('refreshPinnedTags: TL d-tags thread pinVariantKey and context is recovered from the pin', () => {
   const s = rd(SRC('api/trustedList/refreshPinnedTags.js'));
   assert(/pinVariantKey/.test(s), 'server TL d-tag builders must thread pinVariantKey');
-  assert(/contextSlugOfPin/.test(s), 'runOnePin must recover the context from the pin z stamp');
+  // Re-aimed 2026-09-18 (search-index-selection #5): the runners recover identity via variantOfPin(,
+  // whose context branch IS contextSlugOfPin (pins.js). The rule — the context comes from the pin's
+  // z stamp, never from an unstamped pin — is unchanged.
+  assert(/variantOfPin|contextSlugOfPin/.test(s), 'runOnePin must recover the context from the pin z stamp (variantOfPin → contextSlugOfPin)');
 });
 
 t('refreshPinnedTags: retraction stays SET-BASED on full d-tags (invariant — no (obs,author,slug) collapse)', () => {
@@ -239,8 +242,11 @@ t('Story 2: usePinnedNotes reads the TA-signed kind-30393 (authors=TA), not the 
 
 t('Story 2: the Pinned panel reads notes under the pin\'s observer + context, and updates via server refresh', () => {
   const s = rd(UI('components/PinnedListPanel.jsx'));
-  assert(/usePinnedNotes\(\s*tag,\s*observer,\s*noteMethod,\s*contextSlug\b/.test(s),
-    'PinnedListPanel must call usePinnedNotes with the pin observer + contextSlug (its own note list)');
+  // Re-aimed 2026-09-18 (search-index-selection #5, ADR 0003 §4 usePinnedNotes row): the 4th argument
+  // is now the pin's full variant (context OR recipe), of which contextSlug is the legacy special case.
+  // The rule — the panel reads the pin's OWN note list, never the neutral one — is unchanged.
+  assert(/usePinnedNotes\(\s*tag,\s*observer,\s*noteMethod,\s*(contextSlug|variant)\b/.test(s),
+    'PinnedListPanel must call usePinnedNotes with the pin observer + its variant/contextSlug (its own note list)');
   assert(/refresh-pinned-tag[\s\S]{0,200}refetchPinnedNotes/.test(s),
     'the "update pinned notes" action must recompute the TA note TL via the server refresh (no client re-export)');
 });
