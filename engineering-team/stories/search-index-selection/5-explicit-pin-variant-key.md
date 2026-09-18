@@ -235,8 +235,12 @@ for variants. This story must therefore:
    (as `contextSlug` already is — `pinVariantKey`, `computeTLDTag`, `itemTlDTag`);
 2. have the **client refuse** a variant slug already in use for that (observer, tag) **before
    anything is signed** — the only enforcement point that prevents the stomp;
-3. have the runner **detect** a collision (two live pin events resolving to one list address)
-   and log + skip rather than publish over the earlier list.
+3. have the runner **skip any pin whose author is not the observer** (operator ruling
+   2026-09-18, superseding the earlier "detect and skip both": a pin about your point of view must
+   be yours — the write-time twin of the read-time rule that a list's signer must be the
+   observer's designated assistant), logging once; and, for the residual case of two of the
+   observer's OWN pins resolving to one address, detect + log + skip both rather than publish
+   over the earlier list.
 
 Stories 1–3 touch no address (the author constraint and the membership method ride the
 `curationMethod` blob).
@@ -278,5 +282,6 @@ the search backend's permanent subscription key). Scoped gate as proposed (new
    (own glyph + a "Your curations" divider, ordered neutral → places → recipes); a recipe is
    created from the curation dialog (story 4's create mode gains a "Save as a separate curation"
    name field), never from `PinToContextModal`. The full IA round is deferred.
-4. (Invariant, already binding) client refuses a used slug pre-signature; runner logs + skips a
-   detected collision.
+4. (Invariant, amended 2026-09-18) client refuses a used slug pre-signature; the runner skips a
+   pin whose author ≠ observer (C3 — ADR 0003 §3) and logs + skips both on a residual own-pin
+   collision. Designated-assistant pins (10040) are a follow-up.

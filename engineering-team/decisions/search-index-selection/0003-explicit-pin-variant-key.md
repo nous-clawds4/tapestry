@@ -109,13 +109,16 @@ mutually-exclusive member and yields `-in-<ctx>` / `-v-<slug>` / `''`.
 - **C2 — publish the newest claimant.** Two claimants then alternate overwriting each other's
   list every cron cycle, and a stranger who names your pubkey as `observer` controls the
   *content* at your address.
-- **C3 — tie-break on `pin.pubkey === observer` (self-pin wins).** Strictly better than C1 for
-  the realistic case, but it invents publication policy this story did not scope.
+- **C3 — a pin counts for an observer only if `pin.pubkey === observer` (self-pin wins; others
+  are skipped and logged).** Resolves the realistic case outright. It IS publication policy, and the
+  operator ruled it in (2026-09-18): "only you may publish lists in your own name" is the rule the
+  address scheme already implies, and freezing (C1) punishes the victim.
 
 ## Decision
 
-We chose **Option A**, with **C1** as the server policy — both as ruled at the story's Gate A
-(rulings 1, 2 and 4). Eight decisions follow.
+We chose **Option A**, with **C3** as the server policy — Option A per the story's Gate A
+(rulings 1, 2), C3 per the operator's ruling of 2026-09-18 that supersedes the draft's C1 (the
+story's invariant clause 3 is amended to match). Eight decisions follow.
 
 ### 1. The variant key, generalised
 
@@ -221,21 +224,29 @@ slugify; (d) exceeds 40 chars. The error names the conflicting pin.
   Because all three list `d`-tags derive from the same inputs, a collision fires simultaneously
   across the 30392/30393/30394 family — one detector suffices.
 
-**The check (C1).** `refreshAllPinnedTags` (`refreshPinnedTags.js:753-780`) gains a **pre-pass**
-over the deduped pin set: resolve each pin's tag (memoized by `tagEventId`, so the number of
-strfry lookups does not grow), compute `tlDTag({observer, tagAuthorPubkey, tagSlug, …variant})`,
-and group. Any `d` claimed by **two or more distinct pin event ids** is a collision: log
-`pin-variant-collision` with the d-tag and every claimant pin id + author, **run none of the
-three runners for those pins**, record `status: 'collision'` in the results, and **still push the
-`d`-tag into `currentDTags` / `currentNoteDTags` / `currentItemDTags`** so `retractStaleTLs`
-(`:478-493`) does not retract the live list — the same failure policy a failed publish already
-gets (`:771-776`, dlist-item-tagging #5 Ruling 1).
+**The check (C3, operator ruling 2026-09-18).** Two layers, both in `refreshPinnedTags.js`:
 
-Skip-both over keep-newest because with two claimants there is no principled winner: publishing
-either makes the two alternate on every cycle, and — via (1) above — lets a stranger control the
-*content* at your address. Freezing the last good list plus a loud log is the safe corner: an
-attacker can at worst stall a list, never author it. `refreshOnePinnedTagById`
-(`:445-470`) has no global view and is **deliberately not** a detector; the sweep is.
+1. **Author-must-match, per pin, in every runner.** Right after the existing observer bail, each
+   of `runOnePin` / `runOneNotePin` / `runOneItemPin` returns `{ status: 'skipped', reason:
+   'author-observer-mismatch' }` when `pinEvent.pubkey !== observer`, logging once per pin id.
+   A pin about someone else's point of view publishes nothing under that address, on this
+   instance, ever. `refreshOnePinnedTagById` inherits the check for free (it calls the runners).
+   The skipped pin's `d`-tag is **not** pushed onto the rosters — it never owned the address —
+   so the legitimate owner's list is the only claimant and the sweep is untouched.
+2. **The pre-pass sweep stays, narrowed.** `refreshAllPinnedTags` (`:753-780`) still groups
+   the deduped pins by computed `tlDTag`; after layer 1 the only collisions left are the
+   residual ones (suffix ambiguity `foo-v-bar` vs `foo`+`bar`, and 8-char prefix collisions
+   between two of the observer's OWN pins — both vanishingly rare and both the observer's own
+   doing). For those, skip-both + keep-on-roster + loud `pin-variant-collision` log, as the C1
+   draft specified, because between two of your own pins there is no principled winner.
+
+Why C3 over the draft's C1: with C1 a stranger who names your pubkey as observer freezes your
+list on your own instance for the cost of one signed pin — the victim pays. With C3 the
+instance applies at write time the same check a subscriber applies at read time (the signer
+must be the observer, or — cross-instance — the observer's 10040-designated assistant): a pin
+about your point of view must be yours. **Designated-assistant extension** (a pin signed by a
+key the observer's 10040 names) is noted as a follow-up (OPEN row), not built here — the
+runner does not read 10040s today and the operator's day-one case is author === observer.
 
 ### 4. Readers — every derived-variant site, and what changes
 
@@ -350,10 +361,13 @@ introduced; the context `z` keeps composing from the runtime TA (`pins.js:47-49`
   address, orphaned but untouched. Neutral pins' exports are unchanged. Alternative considered:
   thread only recipes and file the contextual half — rejected, since it leaves a known
   reader/writer disagreement in a path this story is already editing.
-- **A collision freezes a list** rather than updating it. That is an availability tradeoff chosen
-  over content-hijack (§3, C1 vs C2), and it is loggable, not silent. **Follow-up worth an
-  `OPEN.md` row:** C3's `pin.pubkey === observer` tie-break would resolve the realistic case
-  outright; it is out of this story's lane.
+- **A pin about someone else's point of view is skipped, not published** (§3, C3) — a change to
+  who may publish at an address, ruled in by the operator. Existing pins where author ≠ observer
+  (if any exist on an instance) stop publishing on the next cycle; their lists are not retracted
+  (never on the roster, never swept — the owner's own pin is the only claimant). **Follow-up worth
+  an `OPEN.md` row:** honour a pin signed by the observer's 10040-designated assistant.
+- **A residual collision between two of the observer's OWN pins freezes both** (§3 layer 2) —
+  loggable, never silent, and only reachable by suffix ambiguity or an 8-char prefix collision.
 - **OPEN 298 (`OPEN.md:354`) closes here.**
 - **New debt.** The places-vs-recipes information-architecture round is still owed
   (`docs/SEARCH_INDEX_DLIST_SELECTION.md:220-225`); this ADR ships one divider and one glyph and
@@ -416,7 +430,7 @@ outside the judge gate, `test/tl-certainty-method.test.js` and
 - The places-vs-recipes information-architecture round; the Pins page and `PinnedListPanel` get
   the minimum (a name and a glyph), not a redesign.
 - Back-filling a `variant` tag onto existing contextual pins.
-- The `pin.pubkey === observer` collision tie-break (C3) and any other change to who may publish.
+- Honouring a pin signed by the observer's 10040-designated assistant (the C3 extension; OPEN row).
 - Rung 2 (`author ∈ <list>`), the filter-list picker, naming the `worth-indexing-for-search` tag,
   and what the search backend does with the list.
 - Composite `context × recipe` variants (reserved, §1).
