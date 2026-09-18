@@ -597,9 +597,14 @@ test('S2 (E3, AC-3): the dialog defaults to web-of-trust and emits authorConstra
   // unchanged — the field rides the blob only by conditional spread — and is asserted where the
   // build now lives; the dialog's seeding/raw/touched assertions above stay on the dialog.
   const buildSrc = stripComments(rd(require('path').join(require('path').dirname(DIALOG), '../utils/curationDialogBuild.js')));
-  const submit = buildSrc.indexOf('export function buildCuration') > -1
-    ? buildSrc.slice(buildSrc.indexOf('export function buildCuration'))          // the pure module owns the build now
-    : src.slice(src.indexOf('const custom = {'), src.indexOf('setSubmitting(true)')); // pre-extraction shape
+  const inModule = buildSrc.indexOf('curation: {') > -1;
+  const submit = inModule
+    ? buildSrc.slice(buildSrc.indexOf('curation: {'), buildSrc.indexOf('},', buildSrc.indexOf('curation: {')))  // the returned blob, in the pure module
+    : src.slice(src.indexOf('const custom = {'), src.indexOf('setSubmitting(true)'));                          // pre-extraction shape
+  // 2. the negative "never emit <field>: undefined" rule must be checked where the blob is BUILT
+  //    (the module once it exists), not only in the JSX that no longer builds it.
+  assert(!new RegExp(`authorConstraint:\\s*undefined`).test(inModule ? buildSrc : src),
+    'the build must never emit `authorConstraint: undefined` — a conditional spread keeps a pre-story pin\'s blob byte-identical.');
   assert(/\.\.\.\(/.test(submit) && /authorConstraint/.test(submit),
     `ADR §3: the field must be included by conditional spread in the submitted blob; got: ${submit.trim().slice(0, 400)}`);
 });

@@ -324,7 +324,9 @@ Scoped gate: `test/confirm-step-on-first-pin.test.js` (new) + guards `generalize
   testability extraction, not a design change); `ui/src/styles.css`. **Not touched:**
   `ui/src/utils/publishTagPin.js` (`defaultCurationMethod`, `pinTag`), `TagPinAffordance.jsx`
   (it only calls `onPin`), `PinToContextModal.jsx` (its `onPick` still fires; the dialog opens
-  after), any server file, any test other than the new suite.
+  after), any server file. **Tests touched beyond the new suite (amended at J3):** the S2
+  sentinels of `test/only-me-curation.test.js` and `test/per-pin-membership-method.test.js`,
+  re-aimed to follow the build rule into the pure module — see Deviations.
 
 ## Edge cases & not-covered
 
@@ -383,11 +385,16 @@ checkable. `defaultCurationMethod` is NOT touched (S9 byte-compares it against H
   pair moved to a props object spread into that dead element; zero behaviour change, no unused
   vars, and the only `<details>` that can render (the create-mode explainer) is unambiguously
   collapsed.
-- **UNRESOLVED — plan vs. guard conflict (escalated, not worked around).** The plan's testability
-  contract (move the blob build out of the JSX; new-suite S8 forbids a second copy) collides with
-  two pre-existing sentinels that scan `CurationMethodDialog.jsx` for the window
-  `const custom = {` … `setSubmitting(true)` and require a conditional spread there:
-  `only-me-curation` S2 (a listed guard the plan says must stay green) and
-  `per-pin-membership-method` S2 (story 3's suite). Both now fail. Resolving it inside Phase 4
-  would mean either editing a guard suite (forbidden) or restating the optional-field rule in the
-  JSX (forbidden by S8, and the drift the extraction exists to prevent). Kicked back to the Tester.
+- **RESOLVED at J3 (2026-09-18) — plan vs. guard conflict, re-aimed in a separate `test:` commit.**
+  The plan's testability contract (move the blob build out of the JSX; new-suite S8 forbids a
+  second copy) collided with two pre-existing sentinels that sliced `CurationMethodDialog.jsx`
+  between `const custom = {` and `setSubmitting(true)` for the conditional-spread rule:
+  `only-me-curation` S2 (a listed guard) and `per-pin-membership-method` S2. The Implementer
+  stopped rather than edit a guard or restate the rule in the JSX. Resolution (not by the
+  Implementer): both sentinels now read the rule where the build lives —
+  `ui/src/utils/curationDialogBuild.js`'s returned `curation: { … }` object — for BOTH the
+  positive conditional-spread check and the negative "never emit `<field>: undefined`" check,
+  falling back to the old dialog slice when the module is absent. The rule is unchanged and was
+  proven to bite: injecting `authorConstraint: undefined` into the module turns `only-me-curation`
+  red. Commits `d01e34e1` (first re-aim) and the follow-up that tightened the slice and moved the
+  negative assertion after J3 round 1 found it vacuous.
