@@ -47,6 +47,7 @@ Readers of the derived `d`-tag that this story touches:
 | Reader | `file:line` | What it does |
 |---|---|---|
 | `enrichRowsWithTLStatus` | `src/api/profile-tags/index.js:1690`, d-tag at `:1715` | Derives each pin's TL `d`-tag to look up publish status. Reads the *variant* (`row.context` → `pinVariantKey`). |
+| `enrichRowsWithItemTLStatus` | `src/api/profile-tags/index.js:1774`, d-tag at `:1792` | Derives each pin's kind-30394 item-TL `d` from `row.context` — must take the pin's variant (recipe or context) or a recipe pin's item-list status is read at the neutral address (found at J1 round 3). |
 | TL status endpoint | `src/api/trustedList/index.js:409-411` | Hand-composes the same `tl-pin-…` string via `pinVariantKey`. Variant only. |
 
 ### The UX constraint is binding, and it is a modelling problem
@@ -98,7 +99,7 @@ place.
       string is refused; the stored variant is the slug, and any human-readable name is
       display-only.
 - [ ] **AC-5 — the reader path resolves variants.** Every derived-`d`-tag reader keys off the
-      stored variant rather than the derived context: `enrichRowsWithTLStatus`
+      stored variant rather than the derived context: `enrichRowsWithTLStatus`, `enrichRowsWithItemTLStatus`
       (`src/api/profile-tags/index.js:1690`, `:1715`), the TL status endpoint
       (`src/api/trustedList/index.js:409-411`), and the pin list the Tag page reads
       (`src/api/profile-tags/index.js:900`, `:905`). A non-community variant's TL publish

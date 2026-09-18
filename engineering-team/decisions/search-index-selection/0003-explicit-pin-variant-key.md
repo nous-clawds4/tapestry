@@ -270,6 +270,7 @@ runner does not read 10040s today and the operator's day-one case is author === 
 | `:396` | `computeNoteBookmarkDTag(… no contextSlug)` | pass the active pin's variant (E5) — see Consequences, this also fixes a pre-existing contextual mismatch |
 | `ui/src/components/PinnedListPanel.jsx:135-163`, `:293` | `contextSlug` → `computeTLDTag` / `itemTlDTag` / `computeNoteBookmarkDTag` | read `pin.variant`; label a recipe by its name, never with the community label logic at `:136-138` |
 | `ui/src/pages/Tag.jsx:174-181`, `:573-590` | `contextNameOf`, `orderedViewerPins`, chip row | §5 |
+| `src/api/profile-tags/index.js:1774-1793` | `enrichRowsWithItemTLStatus` — composes the kind-30394 item-TL `d` at `:1792` via `itemTlDTag({…, contextSlug: row.context})` for each `/pins` row | takes the row's full variant (`row.variant` from `variantOfPin`, context OR recipe) so a recipe pin's item-TL status is read at its own `-v-<slug>` address, never the neutral one — the same class as `usePinnedNotes`; its `nip85:rank` + `targetTypes` gate (`:1780-1785`) is variant-agnostic and unchanged |
 | `ui/src/hooks/usePinnedNotes.js:54` (fed `contextSlug` by `ui/src/components/PinnedListPanel.jsx:134`, `:200`) | composes the kind-30393 note-TL `d` via `computeNoteTLDTag({…, contextSlug})` for the Pinned tab | the panel passes the pin's full variant (`variantOfPin(activePin)` → context OR recipe slug) so a recipe pin's Pinned tab reads its own `-v-<slug>` note list, not the neutral one — the same OPEN-298 class as the row below; `computeNoteTLDTag` takes the generalised key like every other composer (§1) |
 | `ui/src/hooks/useTagMemberSets.js:56`, `:93` | hand-composed `tl-pin-…`, **no suffix at all** (OPEN 298) | **fixed here**: delegate to `tlDTag` with the pin's variant |
 | `ui/src/pages/Pins.jsx:47-58` | `contextLabel` + ordering | show a recipe by name with the recipe glyph; do not route it through `KNOWN_CONTEXTS` |
@@ -419,6 +420,8 @@ Blast radius, in dependency order:
   (`:573-590`); pass the dialog the viewer's existing variant slugs.
 - `ui/src/components/PinnedListPanel.jsx`, `ui/src/pages/Pins.jsx`,
   `ui/src/hooks/useTagMemberSets.js` — read `pin.variant`; label recipes by name.
+  `src/api/profile-tags/index.js:1774-1793` (`enrichRowsWithItemTLStatus`) — the item-TL status `d` takes
+  the row's variant, like its sibling `enrichRowsWithTLStatus` at `:1715`.
   `ui/src/hooks/usePinnedNotes.js:54` + `ui/src/components/PinnedListPanel.jsx:134,200` — the note-TL
   address for the Pinned tab takes the pin's variant (context or recipe), not `contextSlug` alone.
 - `ui/src/styles.css` — one `.bs-pin-switcher-divider` rule inside the block at `:6291-6316`.
