@@ -160,8 +160,13 @@ export default function List() {
               </p>
               {/* search-index-selection #1 (AC-1/AC-2) — tag the LIST itself. The caller
                   passes the header's coordinate explicitly, so `itemCoord`'s deliberate
-                  39999 guard is untouched, and a header edit cannot orphan the tagging. */}
-              <NoteTags item={header} target={{ address: headerCoord(header) }} subject="list" />
+                  39999 guard is untouched, and a header edit cannot orphan the tagging.
+                  Kind-39998 only: a legacy kind-9998 header has no coordinate (headerCoord
+                  returns its event id), and an `a` tag carrying an id is unresolvable —
+                  AC-2 forbids it. Tagging 9998 headers by id is out of scope (OPEN 308). */}
+              {header.kind === 39998 && (
+                <NoteTags item={header} target={{ address: headerCoord(header) }} subject="list" />
+              )}
             </header>
 
             {!loading && items.length === 0 && <p className="bs-dlist-empty">No items on this relay yet.</p>}

@@ -310,7 +310,8 @@ test('S5 (E3): a tagged header that is not on this relay still renders, with a l
   const src = stripComments(read(TAG_ITEMS));
   assert(/not on this relay/.test(src), 'E3: the unresolved-header case keeps its "list not on this relay" notice');
   const branch = src.slice(src.indexOf('group.headers'));
-  assert(/not on this relay/.test(branch),
+  // The notice may be the literal or the file's NOT_HERE constant (which holds that literal).
+  assert(/not on this relay|\{NOT_HERE\}/.test(branch),
     'E3: the notice must be reachable from the headers branch — an unresolved header shows its coordinate and a working link, not a blank card');
 });
 
@@ -411,6 +412,19 @@ test('R5 (AC-5): the note-card and DList item-row tagging call sites are untouch
 test('R6 (AC-5): profile tagging composes its d-tag exactly as before', async () => {
   const src = stripComments(read(PROFILE_TAG));
   assert(/profile-tag-/.test(src), 'AC-5: profile tagging is out of this story\'s blast radius entirely');
+});
+
+test('R8 (AC-2, review finding): the header mount is gated to kind-39998 — a kind-9998 header has no coordinate', async () => {
+  const src = stripComments(read(LIST_PAGE));
+  // /list/:ref also serves legacy kind-9998 headers, for which headerCoord returns the event
+  // id. An `a` tag carrying an id is unresolvable and violates AC-2, so the mount must be
+  // gated on a real coordinate. Tagging 9998 headers by id is a separate design decision.
+  assert(/header\.kind === 39998 && \(\s*<NoteTags\b/.test(src),
+    'the NoteTags header mount must be gated on header.kind === 39998');
+  const m = await import(pathToFileURL(path.join(UI, 'utils/dlistFields.js')).href);
+  const legacy = { kind: 9998, id: 'a'.repeat(64), pubkey: 'b'.repeat(64), tags: [] };
+  assert(m.headerCoord(legacy) === 'a'.repeat(64),
+    'sanity: headerCoord returns the event id for a kind-9998 header — which is exactly why the mount is gated');
 });
 
 test('R7 (AC-5): the /for-tag response keys are unchanged', async () => {

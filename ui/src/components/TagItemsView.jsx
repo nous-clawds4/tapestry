@@ -144,7 +144,7 @@ export default function TagItemsView({ tag, viewerPubkey, onCount }) {
                             )}
                             <code className="bs-dlist-coord">{h.address}</code>
                             {!resolved && (
-                              <span className="bs-tag-items-group-missing"> — list not on this relay</span>
+                              <span className="bs-tag-items-group-missing"> — {NOT_HERE}</span>
                             )}
                           </article>
                         );
