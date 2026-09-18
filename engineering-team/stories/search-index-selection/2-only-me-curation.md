@@ -1,6 +1,6 @@
 # Story 2: "Only me" curation — an `author` constraint on the pin
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-18
 **Type:** Feature *(Light book; **wire-visible** — the constraint rides the published
 `curationMethod` JSON and is permanent once signed, so the irreversibility trigger "a wire
@@ -202,3 +202,25 @@ search backend can safely index it.
 - ADR: (filled in after Architecture phase)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
+
+## Gate A rulings (operator, 2026-09-18 — "let's move on to Story 2"; the four recommendations adopted as proposed, overridable at the ADR gate)
+
+Light lane with an ADR (wire-visible trigger: the value rides the published `curationMethod`
+JSON and the disclosure tag rides the published Trusted List). Scoped gate:
+`test/only-me-curation.test.js` (new) + guards `test/pin-stack-composition.test.js`,
+`test/item-trusted-list.test.js`, `test/note-trusted-list.test.js`,
+`test/generalized-tag-pinning.test.js`.
+
+1. **Field:** `authorConstraint: "observer"`, a string; absent = unconstrained (today's
+   behaviour, byte-identical for every existing pin); an unknown value **fails open** to
+   unconstrained, matching `resolveMembershipMethod`'s posture. The vocabulary is closed to
+   `observer` for now; a list value is reserved for rung 2 and is not implemented here.
+2. **Dialog:** a two-option trust scope — "My web of trust" / "Only me" — not a checkbox.
+   Where it sits relative to the existing `method` enum is the Architect's call.
+3. **Disclosure:** the published TL carries `['author-constraint', 'observer']` beside the
+   existing `observer` / `min-rank` / `cutoff` tags. Additive; absent on every TL to date.
+4. **`min-rank` / `cutoff` under "Only me":** left as-is. They record what ran; `cutoff`
+   still binds; the disclosure tag is what tells a consumer rank was not the binding filter.
+
+Gate B for story 1 is **held** (operator tested header tagging locally: "works well"); the
+operator will test story 2 locally too, and the two may ship to `feat/tags` together.
