@@ -2461,3 +2461,47 @@ resolution; the operator co-drives that story, as in the July integration.
 **Related:** the parked branch `tags/dlist-item-tagging` (pushed, deliberately unmerged — merging
 it would cement the divergence this book removes); `engineering-team/audits/dlist-item-tagging/book.md`
 (story 5 will touch the same pin stack, so that integration lands here or blocks there).
+
+---
+
+## 2026-09-18 — Trusted-List curation pipelines, so a search backend can be told what to index
+
+**Origin:** operator discussion 2026-09-18 (design captured in
+[`docs/SEARCH_INDEX_DLIST_SELECTION.md`](../../docs/SEARCH_INDEX_DLIST_SELECTION.md), rev 2).
+A separate Vespa-backed search engine needs to know which DLists to index. The settled
+answer is that it reads **one Trusted List, forever**, and every later loosening of who
+influences that set happens in the pipeline behind it, never at the consumer. Day one the
+list is hand-authored, so nothing below blocks the search integration.
+
+Two buildable stories, in order.
+
+**A. One-step Trusted-List filter pipeline.** A curation parameter meaning *the tagging's
+author must be a member of `<input list>`*. Single step; chaining is explicitly out. Input
+is a NIP-51 list initially, later a Trusted List produced by the self-tag guard
+(`asserter == target == observer`), which keeps the chain inside this protocol. Recompute on
+a schedule or on demand — that deliberately trades correctness for latency and skips the
+dependency-graph problem. Two disciplines: a dependent list reads **last cycle's** value by
+explicit decision, and chain depth is capped.
+
+**B. Per-pin curation method, and an explicit pin variant key.** `resolveMembershipMethod`
+(`src/api/trustedList/membershipMethods.js`) reads one instance-wide operator setting, so
+tightening one list retunes every Trusted List on the deployment. Move the method into the
+pin's `curationMethod` blob, with the instance setting as the fallback when the field is
+absent — the same additive pattern `targetTypes` used in `dlist-item-tagging` #5.
+
+B implies **multiple pins of one tag**, which today is only expressible as *community
+context*: the variant key is derived from a context `z` tag (`contextSlugOfPin`) and the
+address takes an `-in-<ctx>` suffix. Generalise it — store the variant key explicitly on the
+pin, and stamp the context `z` only when the variant genuinely names a community. Existing
+contextual pins stay valid as variants that happen to name one. Needs a uniqueness guard on
+the variant slug, and a deliberate **UX round**: a context is a *place*, an arbitrary
+curation variant is a *saved recipe*, and rendering recipes in the same chip row as places
+on a layout that predates Profiles/Notes/Items leaves is how this becomes incomprehensible.
+
+**Classification:** Feature. **Strictness:** Standard for A (new curation parameter that
+rides published events); B is Standard too — the variant key is wire-visible in the `d` tag.
+**Phase path:** per story — Planning → Architecture → Test Design → Implementation → Review.
+**Not blocked on:** the search backend. **Blocks:** nothing currently shipping.
+**Related:** OPEN rows 306–307 (two gaps found while verifying); ADRs
+`contextual-pins/0001` and `feat-tags-modernization/0001` (pin composition);
+`dlist-item-tagging/0003` (the item Trusted List this rides on).

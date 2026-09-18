@@ -1,50 +1,297 @@
 # Indexing DLists for search — target state
 
-**Status:** 🟡 DESIGN TARGET — Part 1 is proximate and buildable on today's protocol;
-Parts 2 and 3 are deliberately deferred. Nothing here is ratified.
-**Created:** 2026-09-18
-**Audience:** the Vespa-backed search backend (separate repo) and anyone else who wants to
+**Status:** 🟡 DESIGN TARGET — the consumer contract is settled; the pipeline that
+produces it is not built. Nothing here is ratified.
+**Created:** 2026-09-18 · **Revised:** 2026-09-18 (rev 2, after the design debate)
+**Audience:** the Vespa-backed search backend (separate repo), and anyone else who wants to
 subscribe to "which Decentralized Lists are worth indexing".
-**Related:** [`protocols/worksheet.md`](../protocols/worksheet.md) W17 (`field-type` in the
-wild) and W18 (field types as a DList); ADRs `dlist-item-tagging/0001`–`0003`;
+**Related:** [`protocols/worksheet.md`](../protocols/worksheet.md) W17 / W18; ADRs
+`dlist-item-tagging/0001`–`0003`; `feat-tags-modernization/0001` and
+`contextual-pins/0001` (pin composition);
 [`protocols/drafts/trusted-lists.md`](../protocols/drafts/trusted-lists.md);
 [`protocols/drafts/event-taggings.md`](../protocols/drafts/event-taggings.md);
 BIBLE §22 / §25 (`b` tags, `REFERENCES`).
+
+> **What rev 2 changed.** Rev 1 had the search backend read tagging assertions directly
+> with an author filter, and treated the Trusted List as something to graduate to. That was
+> wrong: it put a change at the consumer. Rev 2 makes **a Trusted List the sole consumer
+> interface, permanently**, and moves every loosening into the pipeline behind it. Rev 1's
+> author-filter approach survives only as the fallback if the pipeline work never happens.
 
 ---
 
 ## The problem
 
-A search engine indexing nostr needs to decide, out of every Decentralized List in the
+A search engine indexing nostr must decide, out of every Decentralized List in the
 universe, which ones it cares about. "GitHub Accounts"
 (`39998:b83a28b7…:github-accounts`) becomes a search tab the way `[shopping | images |
-videos]` are tabs. On day one there is exactly one such list and one engine.
+videos]` are tabs. On day one there is one such list and one engine.
 
-The design goal is to answer that question **in protocol rather than in backend
-configuration**, so that (a) a second engine can adopt the same convention, (b) the answer
-can later become point-of-view dependent rather than operator-dependent, and (c) the
-artifacts produced are useful to others.
-
-The rejected framing is an allowlist. "Only the special account's picks count" is naturally
-expressed as a *point of view whose web of trust contains one pubkey*, not as a curation
-rule that filters by author. Same day-one behaviour, but every later loosening is a
-configuration change instead of a rewrite. See "Why a POV, not an allowlist" below.
+The obvious answer is a config file listing coordinates. The objection to it is not that it
+fails today; it works fine today. It is that it can only ever encode one operator's opinion,
+and it has no path to becoming anyone else's.
 
 ---
 
-## Vocabulary — the pieces that already exist
+## The consumer contract (settled)
 
-| Piece | Kind | Shape |
+**The search backend reads exactly one thing: a Trusted List. Its members are the DList
+header coordinates to index. That never changes.**
+
+Everything about how the set was derived sits behind that interface: whether one pubkey
+chose it or a thousand did, whether trust was cryptographic or ranked, whether a filter list
+was involved. The consumer cannot tell and must not care.
+
+This is the property that makes the whole design worth the trouble. The backend is written
+once. Every subsequent loosening of who gets to influence the index is a change to the
+**pipeline that produces the list**, not to the thing that reads it.
+
+```
+  ┌──────────────────────────────────────────────┐
+  │              anything at all                 │
+  │  hand-authored · one pubkey · filter list ·  │
+  │  self-tag guard · GrapeRank · many curators  │
+  └───────────────────┬──────────────────────────┘
+                      │   (opaque to the consumer)
+                      ▼
+       ┌──────────────────────────────────┐
+       │  kind 30394 Trusted List         │   ← the ONLY integration point
+       │  a: 39998:b83a28b7…:github-…     │
+       │  a: …                            │
+       └───────────────┬──────────────────┘
+                       ▼
+                 Vespa backend
+```
+
+### Day one: hand-author it
+
+Because the production method is opaque, **you can publish the list by hand or by script on
+day one** with exactly the members you want. The contract is honest and final; only the
+producer is a stub. This unblocks the search integration immediately and puts none of the
+pipeline work on the critical path.
+
+### What the backend subscribes to
+
+```json
+{ "kinds": [30394], "authors": ["<TA>"], "#d": ["<the published set's address>"] }
+```
+
+Then, per member coordinate, fetch the header for its label and schema:
+
+```json
+{ "kinds": [39998], "authors": ["b83a28b7…"], "#d": ["github-accounts"] }
+```
+
+and the items themselves:
+
+```json
+{ "kinds": [39999], "#z": ["39998:b83a28b7…:github-accounts"] }
+```
+
+---
+
+## The guard principle
+
+> **Curation strictness should track the consumer's tolerance for surprise.**
+
+Today the engine has hardcoded presentation for one list. If a second person starts
+curating and unknown lists enter the set, the engine breaks. So the strictness is not
+artificial timidity, it is a **capability-matched guard**: the pipeline must not hand the
+engine anything it cannot render.
+
+The mechanism is a self-tag plus an identity predicate:
+
+- A pubkey **self-tags** — publishes a tagging whose target is itself. Only that pubkey can
+  ever do this, so it is unforgeable. It is protocol activity, not code to write or config
+  to deploy.
+- The pipeline curates with **`asserter == target == observer`**, which yields exactly that
+  one pubkey. Certainty here is cryptographic, not a score clearing a threshold.
+- That one-pubkey list is then the **author filter** on the "worth indexing" taggings.
+
+Relaxation is a ladder, not a switch, and each rung is a pipeline change only:
+
+| Rung | Filter | Unlocked by |
 |---|---|---|
-| DList header | 39998 | `['d', <slug>]`, `['names', <sing>, <plur>]`, `['required'/'optional', <field>]`, `['field-type', <field>, <type>]` |
-| DList item | 39999 | `['d', <slug>]`, `['z', <parent header coord>]`, field tags |
-| Tag element | 39999 | `['d', <slug>]`, `['z', '39998:<TA>:tag']`, content carries name/description |
-| Per-tag tagging header | 39999 | `['d', 'tagging:<slug>-tagging']`, `['z', '39998:<TA>:tagging-with-specific-tag']`, `['a', '39999:<tagAuthor>:<slug>']` |
-| Tagging assertion | 39999 | target + dual `z` + `['polarity', '1'\|'-1']` |
-| Trusted List | 30392–30395 | `p` / `e` / `a` / `i` members by kind; TA-signed; per observer |
-| `b` tag | on 39998/39999 | `['b', <target a-tag>, 'pointer'\|'inherit'\|'inherit-items']` |
+| 1 | `asserter == target == observer` (just me) | today |
+| 2 | taggers in my curators Trusted List | generic presentation |
+| 3 | anyone GrapeRank-trusted above a threshold | generic presentation + budgets |
 
-The live `github-accounts` header, verbatim, is the worked example throughout:
+**The unlock is generic presentation, and it lives in Part 1b below.** An engine that reads
+`names` and the field declarations off a target header can render a list it has never seen.
+That is the precondition for accepting strangers' lists. Part 1b is therefore not polish
+ahead of the deferred work — it is what buys permission to loosen the guard at all.
+
+Note also what self-tagging is and is not. It is unforgeable as a *claim* ("I say I am a
+search curator") and worthless as a *credential*, since anyone can self-tag anything. At
+rung 3 the open set of self-identified curators is a spam magnet, which is exactly the job
+GrapeRank is good at: ranking people, not manufacturing certainty.
+
+---
+
+## Build progression
+
+Three steps, of which the third is protocol activity rather than engineering.
+
+**1. Basic Trusted List pipelines — one filter step.**
+The primitive: `event author must be a member of <input list>`. Single step, no chaining
+required for this use case. Input list is NIP-51 today (trivial to author); later it is a
+Trusted List produced by the self-tag guard, which keeps the whole chain inside this
+protocol with no NIP-51 fallback.
+Recompute on a schedule or on demand. That deliberately skips the dependency-graph problem
+by converting correctness into latency. Two disciplines keep it that way: decide explicitly
+that a dependent list reads **last cycle's** value, and cap chain depth so one cycle cannot
+grow unbounded. Cycles then degrade to oscillation rather than deadlock.
+
+**2. Per-pin curation method (not the global dial).**
+Today `resolveMembershipMethod` (`src/api/trustedList/membershipMethods.js`) reads one
+instance-wide operator setting, so tightening the indexing list would retune every Trusted
+List on the deployment. The method belongs on the pin. See the design note below — this is
+mostly finishing something rather than starting it.
+
+**3. Publish the tag and the taggings.**
+Author the `worth-indexing-for-search` tag element, self-tag as curator, tag the
+`github-accounts` header. No code. Naming caveats below.
+
+Once 1 and 2 land, the Brainstorm-curated "Worth Indexing" Trusted List is supplied to the
+Vespa backend and GitHub Accounts (its only member) becomes a search tab.
+
+### Prerequisites and gaps found while verifying
+
+- **A kind-39998 target already flows through membership.** The tagging classifier passes an
+  `a` value through verbatim with no kind restriction (`src/lib/event-tagging/classify.js`
+  `targetOf`), and `fullItemMembers` is built from the assertions' address keys with no kind
+  filter (`src/api/event-tags/index.js`). So tagging a list *header* needs no protocol change
+  and the coordinate reaches the published 30394. **No work required.**
+- **But header targets will not resolve for display.** The item-resolution scan is hardcoded
+  to `kinds: [39999]` and keys its map as `39999:<pubkey>:<d>`
+  (`src/api/event-tags/index.js`). A tagged kind-39998 header therefore renders as an
+  unresolved address in the tag UI. Cosmetic for the indexer, real for a human verifying the
+  work. Small fix; not a blocker.
+- **Decide whose assistant signs the list.** The signer is whichever instance runs the
+  refresh, so the backend subscribes to one deployment's output and trusts its pipeline.
+
+---
+
+## Design note: per-pin curation implies multiple pins per tag
+
+Step 2 implies a viewer can hold **more than one pin of the same tag**, each with its own
+curation, producing its own Trusted List. That capability already exists, but only in a
+community-shaped form.
+
+**Today.** The variant key is `contextSlug`. The address is
+`tl-pin-items-<obs8>-<tagAuthor8>-<slug>[-in-<ctx>]`, and the context is recovered by
+reading a `z` tag off the pin (`contextSlugOfPin`). So a second pin of the same tag is
+possible, but only by asserting it is *about a community*.
+
+**The problem.** "Context" bundles two separate things: a **variant key** that lets pins
+coexist and take distinct addresses, and a **semantic claim** that the pin is scoped to a
+community. An indexing-curation pin wants the first and not the second.
+
+**The shape to aim at.** Make the variant key an **explicit field on the pin**, with
+community context being one thing that can populate it, rather than the only thing that
+can. Today the key is *derived* from the context `z`; it should be stored, and the context
+`z` stamped only when the variant genuinely is a community.
+
+That inverts the dependency and makes arbitrary named curations natural. Existing contextual
+pins remain valid: they are variants whose slug happens to name a community and which
+therefore also carry the `z`.
+
+Three things that fall out:
+
+- **Uniqueness.** Two pins sharing a variant slug collide on the address. The publish path
+  needs a guard, and the UI needs to refuse or disambiguate.
+- **Precedent for the migration.** The pin's `curationMethod` JSON already carries `method`,
+  `cutoff`, `observer`, `noteMethod` and `targetTypes`. Adding `membershipMethod` and a
+  filter-list reference is additive, and "field absent means fall back to the instance
+  default" is exactly how `targetTypes` was added without touching a single existing pin
+  (`dlist-item-tagging` #5).
+- **The UX is the hard part, and it is a modelling problem before it is a layout problem.**
+  A community context is a **place**. An arbitrary curation variant is a **saved recipe**.
+  The Pinned tab currently renders contexts as chips in one row, alongside Profiles / Notes
+  / Items leaves, an export flow and a curation dialog, on a layout that predates all of it.
+  Putting recipes in the same chip row as places is what would make it incomprehensible.
+  Worth a deliberate design round before building.
+
+---
+
+## Why the address encodes identity and not method
+
+The `d` tag carries observer, tag author, tag slug and variant. It does **not** carry the
+membership method or cutoff, which ride as separate tags on the event.
+
+That split is deliberate and load-bearing. Loosening a threshold, switching the membership
+method or adding a filter list all keep the same address, because it is still the same
+person's opinion about the same thing. Changing the curator or the defining tag changes the
+address, because it is a different opinion. "What Vinney says search indexes" and "what
+Claude says search indexes" *should* be different subscriptions that a consumer chooses
+between, not the same address quietly changing meaning.
+
+One leak: the tag **slug** is in the address. Renaming `worth-indexing-for-search` to
+`worth-indexing` changes the address without changing whose opinion it is. So the naming
+decision is load-bearing in a way it otherwise would not be.
+
+### Naming, because this becomes a de facto standard
+
+The per-tag tagging header is keyed by the tag element's author, so **whoever authors the
+tag owns the namespace every participant's taggings land in**. If the convention is meant to
+be shared, author it under a well-known pubkey and publish the concept; re-parenting later
+is an epic. The honored authorities are already a request parameter, which is the federation
+seam. `worth-indexing-for-search` is also narrow — an archiver or a mirror wants the same
+signal — so something like `worth-indexing` with the human name carrying the nuance may age
+better.
+
+## Accepted risks
+
+Both reviewed and accepted by the operator (2026-09-18) rather than designed around:
+
+- **Resource bounds.** A trusted curator can point at a legitimate ten-million-item list.
+  GrapeRank says they are not a spammer and the index still falls over. Relaxing past rung 1
+  wants a per-list and per-curator budget, which trust scoring does not provide.
+- **Tab proliferation.** Forty curators contributing lists gives a search UI with two hundred
+  tabs. That is a ranking and selection problem at the presentation layer that no trust
+  filter answers, and in practice it is likely to gate relaxation harder than spam does.
+
+## Rejected alternatives
+
+- **A config file of coordinates.** Works today, encodes only one operator's opinion forever,
+  and requires a deploy to add a list. Retrofitting trust onto it later means designing the
+  wire format under pressure and backfilling.
+- **An author allowlist in the curation rule.** "Include only what this pubkey signed" is a
+  write-time permission check wearing a read-time costume, and it is the thing that would
+  have to be torn out at rung 2.
+- **A point of view narrowed to one account, for certainty.** Does not work. The predicate is
+  `wot_rank_<suffix> >= minRank`, a threshold on a propagated GrapeRank score, and rank flows
+  through the follow graph with attenuation. "Follows one account" is not "trusts one
+  account". The only adjacent knob, `alsoTrust`, widens rather than narrows. Certainty comes
+  from the `asserter == target == observer` predicate instead.
+- **Strict curation via the existing membership methods.** `count`, `input` and `certainty`
+  are all folds over an already-trust-filtered set; they differ in weighting, never in who
+  counts as trusted. None can express an author constraint.
+- **Configuration inside the tagging assertion.** A tagging is a bare claim with a polarity
+  that dedupes latest-wins per asserter and target. Config there would make every tagger
+  implicitly publish configuration, and disputing the claim would take the config with it.
+
+---
+
+# ═══════════════════════════════════════════════════════
+# ▼▼▼  DIVISION: everything above is the near-term plan. ▼▼▼
+# ▼▼▼  Everything below is a target, not a commitment.   ▼▼▼
+# ═══════════════════════════════════════════════════════
+
+Parts 2 and 3 become worth building when a **second independent engine** appears, because
+that is the first moment these conventions must be shared rather than merely consistent.
+
+Two exceptions to "defer":
+
+- **Part 1b is not deferred.** Reading the tab label and field schema off the target header
+  costs nothing, and it is the unlock for relaxing the guard (see above).
+- **Fix the join key now.** Use the DList header coordinate as the identity of a list
+  everywhere, so moving configuration into protocol later is a data migration and not a
+  redesign.
+
+## Part 1b — NOW. Read presentation off the target header.
+
+The live header already carries everything an indexer needs to stay generic:
 
 ```json
 {
@@ -60,188 +307,9 @@ The live `github-accounts` header, verbatim, is the worked example throughout:
 }
 ```
 
-Note what is already there and costs nothing to consume: **the tab label**
-(`names[2]` = "GitHub Accounts") and **the result schema** (`required github-username`,
-typed `text`). An indexer that reads these is generic across lists on day one. An indexer
-that hardcodes them has to be unwound later.
-
----
-
-# ═══════════════════════════════════════════════════════
-# PART 1 — NOW. Membership: which lists get indexed.
-# Buildable on today's protocol. No new wire format.
-# ═══════════════════════════════════════════════════════
-
-## The mechanism
-
-A curator tags **the DList header itself** with a tag meaning "worth indexing for search".
-The tagging machinery already accepts any addressable coordinate as a target
-(`classify.js` `targetOf` passes the `a` value through verbatim, with no kind restriction),
-so tagging a kind-39998 header needs no protocol change.
-
-Aggregating those taggings under a point of view yields a **kind-30394 Trusted List whose
-`a` members are DList header coordinates**. That is the artifact the indexer subscribes to:
-one replaceable event, fetched once, re-fetched on replacement.
-
-```
-  tag element                    per-tag tagging header
-  39999:<tagAuthor>:worth-       39999:<TA>:tagging:worth-indexing-for-search-tagging
-        indexing-for-search              │
-        │                                │ (a → tag element)
-        └────────────────────────────────┘
-                     ▲
-                     │ z  (membership: "this is a tagging with THAT tag")
-                     │
-          ┌──────────┴───────────┐
-          │  tagging assertion   │  kind 39999, authored by the curator
-          │  a → 39998:b83a…:github-accounts   ← the TARGET is the list header
-          │  polarity 1                        ← disputable: -1 says "no, spam"
-          └──────────┬───────────┘
-                     │
-                     │  aggregate under a POV (count / input / certainty)
-                     ▼
-          ┌──────────────────────────────────────────┐
-          │  kind 30394  Trusted List                │  TA-signed
-          │  d: tl-pin-items-<obs8>-<auth8>-worth-…  │
-          │  a: 39998:b83a…:github-accounts          │  ← THE INDEX SET
-          │  a: 39998:…:<next list>                  │
-          │  z: 39998:<TA>:trusted-list              │  ← discovery
-          │  z: 39999:<TA>:tl:worth-…-tls            │  ← per-tag discovery
-          │  observer / source-tag / curation-method │
-          └──────────────────────────────────────────┘
-                     │
-                     ▼
-              search backend
-```
-
-## Wire shapes
-
-**The tagging assertion** (kind 39999, authored by the curator):
-
-```json
-{
-  "kind": 39999,
-  "tags": [
-    ["d", "event-tag-worth-indexing-for-search-<auth8>-<d16>-<hash8>-<asserter8>"],
-    ["a", "39998:b83a28b7…:github-accounts"],
-    ["z", "39998:<taPubkey>:nostr-event-tag"],
-    ["z", "39999:<headerAuthor>:tagging:worth-indexing-for-search-tagging"],
-    ["polarity", "1"]
-  ],
-  "content": ""
-}
-```
-
-The `d` is deterministic so a re-assertion replaces rather than duplicates
-(ADR `dlist-item-tagging/0001`). `polarity` is `1` to apply, `-1` to dispute.
-
-**The resulting Trusted List** (kind 30394, TA-signed, one per observer):
-
-```json
-{
-  "kind": 30394,
-  "tags": [
-    ["d", "tl-pin-items-<obs8>-<tagAuthor8>-worth-indexing-for-search"],
-    ["title", "Worth Indexing for Search"],
-    ["metric", "pinned-tag-items"],
-    ["a", "39998:b83a28b7…:github-accounts"],
-    ["observer", "<observer pubkey>"],
-    ["source-tag", "<tagEventId>", "<tagAuthor>", "worth-indexing-for-search"],
-    ["curation-method", "<method>"],
-    ["p", "<observer pubkey>"],
-    ["z", "39998:<TA>:trusted-list"],
-    ["z", "39999:<TA>:tl:worth-indexing-for-search-tls"]
-  ]
-}
-```
-
-A `truncated` tag appears only when the list is partial; its absence means complete.
-
-## What the indexer subscribes to
-
-Preferred, because it survives a `d`-tag change:
-
-```json
-{ "kinds": [30394], "authors": ["<TA>"], "#z": ["39999:<TA>:tl:worth-indexing-for-search-tls"] }
-```
-
-Then, for each `a` member, fetch the header to get the tab label and the field schema:
-
-```json
-{ "kinds": [39998], "authors": ["b83a28b7…"], "#d": ["github-accounts"] }
-```
-
-And for the items themselves:
-
-```json
-{ "kinds": [39999], "#z": ["39998:b83a28b7…:github-accounts"] }
-```
-
-## Why a POV, not an allowlist
-
-Day one behaviour ("only the special account's picks count") is obtained by running the
-aggregation under a point of view whose web of trust contains only that account, with the
-existing `count` method at cutoff 1. No bespoke curation code.
-
-Every expansion then becomes configuration, not a rewrite:
-
-- **More contributors** — the special account follows them; the list widens on next refresh.
-- **Looser strictness** — raise the cutoff, or switch to `certainty`.
-- **Someone brings their own POV** — already free. The list is computed per POV and its
-  address is keyed by observer, so a different observer yields a different index set. The
-  backend need not expose this to benefit from not having foreclosed it.
-
-## The escape hatch: skip the Trusted List
-
-The Trusted List is a **cache of one POV's answer**, not the mechanism. The mechanism is
-taggings plus a trust filter. An engine that wants its own view filters the raw assertions
-directly and scores them itself:
-
-```json
-{ "kinds": [39999], "#z": ["39999:<TA>:tagging:worth-indexing-for-search-tagging"] }
-```
-
-Start by consuming the signed list, because it is one fetch. Moving to a self-computed view
-later is not a change of mechanism, only of who does the scoring.
-
-## Naming, because this is the part that becomes a standard
-
-The per-tag tagging header is keyed by the tag element's author, so **whoever authors the
-tag owns the namespace every other participant's taggings land in**. If this convention is
-meant to be shared, author the tag under a well-known pubkey and publish the concept.
-Re-parenting later is an epic; choosing correctly now is a line of config. The honored
-authorities are already a request parameter, which is the federation seam.
-
-The slug is wire-visible and permanent once published. `worth-indexing-for-search` is
-narrow (an archiver or a mirror wants the same signal); something like `worth-indexing`
-with the human name carrying the nuance may age better.
-
-## Open items for Part 1
-
-1. **Verify a kind-39998 target reads cleanly end to end.** The classifier accepts it, but
-   the item-facing read paths were built expecting kind-39999 targets, and
-   `dlist-item-tagging` #4 edge case E5 explicitly flagged non-item coordinates. Tag a
-   header on a dev instance and walk the tag page and the item Trusted List.
-2. **Decide whose assistant signs the list.** The signer is the instance that runs the
-   refresh, so the indexer subscribes to one deployment's output.
-3. **`applicability.js` matches tags to targets with `A_COORD_RE = /^39999:…/`.** Confirm
-   whether a 39998 target needs an applicability entry, or whether applicability is
-   irrelevant on this path.
-
----
-
-# ═══════════════════════════════════════════════════════
-# ▼▼▼  DIVISION: everything above is buildable now.      ▼▼▼
-# ▼▼▼  Everything below is a target, not a commitment.   ▼▼▼
-# ═══════════════════════════════════════════════════════
-
-Parts 2 and 3 exist to be aimed at, not built yet. With one search engine they buy nothing
-that backend configuration does not already buy. They become worth building when a **second
-independent engine** appears, because that is the first moment the conventions have to be
-shared rather than merely consistent.
-
-The one thing worth doing early is **fixing the join key as the DList header coordinate**,
-so that moving configuration into protocol later is a data migration rather than a redesign.
+`names[2]` is the tab label. `required` and `field-type` are the result schema. An indexer
+reading these is generic across lists on day one; one that hardcodes them has to be unwound
+before the guard can ever be relaxed.
 
 ---
 
@@ -249,7 +317,7 @@ so that moving configuration into protocol later is a data migration rather than
 
 ## Intrinsic vs extrinsic
 
-The split that makes this tractable is authorship, not storage:
+The split is authorship, not storage:
 
 | | Intrinsic | Extrinsic |
 |---|---|---|
@@ -257,24 +325,14 @@ The split that makes this tractable is authorship, not storage:
 | **Authored by** | the list's curator | the engine operator |
 | **Examples** | display names, field declarations, field types | priority, refresh cadence, cache TTL, ranking boost, tab order |
 | **Lives on** | the target header (already does) | a settings list you author |
-| **Defer?** | no — consume it today, it is free | yes — backend config loses nothing |
-
-Configuration does **not** belong in the tagging assertion. A tagging is a bare claim with
-a polarity that dedupes latest-wins per asserter and target. Hanging config off it would
-make every tagger implicitly publish configuration, and disputing the claim would take the
-configuration with it.
+| **Defer?** | no — see Part 1b | yes — backend config loses nothing |
 
 ## The join primitive already exists
 
 A `b` tag is a typed pointer carried on kinds 39998 and 39999:
-`['b', '<target a-tag>', '<type>']`, with the closed registry `pointer` | `inherit` |
-`inherit-items` (absent or unknown reads as `pointer`, fail-safe). It is child-claims-parent,
-and the graph derives an edge from it automatically
-(`REFERENCES {source:'b-tag'}` for a pointer). BIBLE §25.
-
-That is exactly the "join a DList to a metadata record" primitive, already ratified.
-
-## Shape
+`['b', '<target a-tag>', '<type>']`, registry `pointer` | `inherit` | `inherit-items`
+(absent or unknown reads as `pointer`, fail-safe). Child-claims-parent, and the graph derives
+`REFERENCES {source:'b-tag'}` automatically. BIBLE §25.
 
 ```
   search-index-settings                      github-accounts
@@ -282,11 +340,9 @@ That is exactly the "join a DList to a metadata record" primitive, already ratif
     ['names','Search Index Setting', …]                    ▲
     ['required','priority']                                │
     ['optional','refresh-seconds']                         │ b (pointer)
-    ['optional','tab-order']                               │
     ['field-type','priority','integer']                    │
             ▲                                              │
             │ z (membership)                               │
-            │                                              │
   ┌─────────┴──────────────────────────────────────────────┴───┐
   │  settings item — kind 39999, authored by the engine        │
   │  ['d','github-accounts-settings']                          │
@@ -297,49 +353,34 @@ That is exactly the "join a DList to a metadata record" primitive, already ratif
   └────────────────────────────────────────────────────────────┘
 ```
 
-## Why this shape and not another
+Why this shape: the settings **schema** is itself in protocol, so a second engine reads it
+rather than your source; `inherit-items` lets a second engine inherit your settings list and
+override selectively, which is the multi-engine story already ratified (`dlist-curation`
+ADR 0003); and membership stays separable from configuration, so a list can be indexed with
+no settings item (defaults apply) and a settings item can outlive its list's membership.
 
-- **The settings schema is itself in protocol.** The settings header declares its own
-  required and optional fields, so a second engine reads the schema instead of your source.
-- **Forking is built in.** `inherit-items` means "my list's items are the parent's, plus my
-  own", so a second engine can inherit your settings list and override selectively. That is
-  the multi-engine story, already ratified (`dlist-curation` ADR 0003).
-- **Membership and configuration stay separable.** A list can be worth indexing with no
-  settings item (defaults apply), and a settings item can exist for a list that later falls
-  out of the index set. Neither breaks the other.
-
-## Caveat
-
-Firmware-seeded `b` tags are rebuilt on reinstall — never-clobber is within-run only, so a
-reinstall restores firmware defaults. Hand-authored settings items are ordinary published
-events and are unaffected, but do not rely on firmware to maintain them.
+**Caveat.** Firmware-seeded `b` tags are rebuilt on reinstall — never-clobber is within-run
+only. Hand-authored settings items are ordinary published events and unaffected, but do not
+rely on firmware to maintain them.
 
 ---
 
 # PART 3 — LATER. Field types as a DList (W18). Portable actions, not portable rendering.
 
-## The rejected option, stated plainly
-
 Shipping HTML snippets or templates over nostr for an engine to render is an **injection
-surface**: whoever authors the template controls markup in the viewer's browser, and the
-trust model is the same permissionless publishing model the rest of this design depends on.
-It also couples every engine to one markup and CSS convention, which defeats the interop
-goal that motivated putting configuration in protocol at all.
+surface**: whoever authors the template controls markup in the viewer's browser, under the
+same permissionless publishing model the rest of this design depends on. It also couples
+every engine to one markup convention, defeating the interop goal that motivated putting
+configuration in protocol at all.
 
-Worksheet W18 already reached the better answer, and its title is the rule: **portable
-actions, not portable rendering**.
-
-## The shape
-
-The `field-type` vocabulary becomes a DList in its own right. A type is an item; its
-declared fields say what an engine may *do* with a value, not how to draw it.
+W18 already reached the better answer, and its title is the rule: **portable actions, not
+portable rendering**.
 
 ```
   field-types                                github-accounts
   39998:<TA>:field-types                     ['field-type','github-username','url']
     ['required','type-name']                                  │
-    ['optional','url-template']                               │ (type-name lookup)
-    ['optional','description']                                ▼
+    ['optional','url-template']                               ▼
             ▲                            ┌─────────────────────────────────┐
             │ z                          │ type item: kind 39999           │
             └────────────────────────────│ ['d','url']                     │
@@ -350,38 +391,32 @@ declared fields say what an engine may *do* with a value, not how to draw it.
                                          └─────────────────────────────────┘
 ```
 
-A type an engine does not recognize **degrades to text**. That is the property that makes
-the vocabulary extensible without coordination.
+A type an engine does not recognise **degrades to text**, which is what makes the vocabulary
+extensible without coordination. Markup, CSS, layout and ranking stay local to each engine:
+the meaning travels, the rendering does not.
 
-Note that the url-template belongs with the *field declaration on the list header*, not
-with the generic type, when the template is list-specific: `github-username` on
-`github-accounts` resolves to `https://github.com/{value}`, but a `url`-typed field on some
-other list resolves differently. The type says "this is a link"; the list says "here is how
-to build it". Exact placement is the open question W18 tracks.
+**Open question W18 tracks.** A url-template may be list-specific rather than type-generic:
+`github-username` on `github-accounts` resolves to `https://github.com/{value}`, but a
+`url`-typed field elsewhere resolves differently. The type may say "this is a link" while the
+list says "here is how to build it". Placement is unsettled.
 
-## What each engine keeps local
-
-Markup, CSS, layout, result-card design, ranking. The meaning travels; the rendering does
-not. Two engines reading the same list produce visually different results from identical
-protocol data, which is the correct outcome.
-
-## Dependency
-
-Part 3 is independent of Part 2 and could land first. It is also the part most likely to
-need a real NIP conversation, since `field-type` is currently a client convention observed
-in the wild rather than a specified tag (W17).
+Part 3 is independent of Part 2 and could land first. It is also the part most likely to need
+a real NIP conversation, since `field-type` is a client convention observed in the wild
+rather than a specified tag (W17).
 
 ---
 
-## Summary of the division
+## Summary
 
 | Part | What | When | Blocked on |
 |---|---|---|---|
-| 1 | Membership by tagging the header; consume the 30394 | **Now** | nothing — verify the 39998 target read path |
-| 1b | Read tab label + schema from the target header | **Now** | nothing |
-| 2 | Extrinsic config in a settings DList joined by `b` | Later | a second engine existing |
-| 3 | Field types as a DList with url-template affordances | Later | W17/W18 spec work |
+| Contract | Consumer reads one Trusted List, forever | **Settled** | nothing |
+| Day one | Hand-author that list | **Now** | nothing |
+| 1 | One-step TL filter pipeline (author ∈ input list) | **Next** | build |
+| 2 | Per-pin curation method + explicit pin variants | **Next** | build + UX round |
+| 3 | Publish tag, self-tag, tag the header | **Next** | naming decision |
+| 1b | Read tab label + schema off the target header | **Now** | nothing — unlocks relaxation |
+| Later 2 | Extrinsic config in a settings DList joined by `b` | Later | a second engine |
+| Later 3 | Field types as a DList with url-templates | Later | W17/W18 spec work |
 
-The near-term commitment is small: tag one header, aggregate under a one-pubkey POV,
-subscribe to one replaceable event, and read the target header for labels and schema.
-Everything else is deliberately deferred, and nothing in Part 1 forecloses it.
+The near-term commitment is small, and the interface is the part that is already final.
