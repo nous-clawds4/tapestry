@@ -133,9 +133,10 @@ function defaultVerify(event) {
  * (measured 2026-09-07 — ADR § M1). `Relay.connect()` throws on all four, which is the entire
  * reason this variant exists.
  *
- * There are now THREE querySync-shaped helpers in the codebase (verifying SimplePool here,
- * the event path's no-verify SimplePool, and this connect-observing probe). Do NOT unify them —
- * follow-ups.md:139 applies with equal force: each exists for a distinct outcome.
+ * There are now FOUR querySync-shaped helpers in the codebase (verifying SimplePool here,
+ * the event path's no-verify SimplePool, this connect-observing probe, and readRelayEvents
+ * below — every event, from a relay proven reachable). Do NOT unify them — follow-ups.md:139
+ * applies with equal force: each exists for a distinct outcome.
  *
  * @param {string} relayUrl
  * @param {Object} filter  nostr filter; `kinds` and `authors` are re-checked against what
@@ -211,12 +212,95 @@ async function probeRelayForEvent(relayUrl, filter, opts = {}) {
   }
 }
 
+/* ── Every event from one relay proven reachable (curated-dlist-update ADR 0005 §1) ────────── */
+
+/**
+ * Read EVERY event matching `filter` from ONE relay — the strict read behind
+ * `/api/relay/external?…&strict=1`.
+ *
+ * It follows probeRelayForEvent's steps — the connect with one bounded retry, a subscription
+ * until EOSE, the kind / author / signature re-check — but keeps every valid event, not only the
+ * newest. A relay that refuses the connection, closes the subscription before EOSE, or sends no
+ * EOSE inside the budget is `unreachable`, never an empty `ok`: that empty answer is what
+ * SimplePool.querySync gives for a relay it could not reach (OPEN.md row 280).
+ *
+ * nostr-tools fires an EOSE of its own when a subscription's `eoseTimeout` runs out (4.4 s by
+ * default in 2.10), inside QUERY_TIMEOUT_MS. The subscription is opened with a longer one, so a
+ * relay that never sends EOSE meets this function's budget and reads as unreachable, not as a
+ * complete answer.
+ *
+ * @param {string} relayUrl
+ * @param {Object} filter  nostr filter; `kinds` and `authors` are re-checked as the probe does.
+ * @param {Object} [opts]  { connect, verify, connectTimeoutMs, queryTimeoutMs } — injectable for
+ *                         tests, in this module's DI-by-parameter idiom.
+ * @returns {Promise<{status:'ok'|'unreachable', events:Object[], error:string|null}>}
+ */
+async function readRelayEvents(relayUrl, filter, opts = {}) {
+  const connect = opts.connect || defaultConnect;
+  const verify = opts.verify || defaultVerify;
+  const connectTimeoutMs = opts.connectTimeoutMs || CONNECT_TIMEOUT_MS;
+  const queryTimeoutMs = opts.queryTimeoutMs || QUERY_TIMEOUT_MS;
+
+  // One retry, bounded — as the probe.
+  let relay = null;
+  let lastErr = null;
+  for (let attempt = 0; attempt < 2 && relay === null; attempt++) {
+    try {
+      relay = await withTimeout(connect(relayUrl), connectTimeoutMs, 'connection timed out');
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  if (relay === null) {
+    return { status: 'unreachable', events: [], error: normalizeThrown(lastErr) };
+  }
+
+  let sub = null;
+  try {
+    const events = await withTimeout(new Promise((resolve, reject) => {
+      const collected = [];
+      let settled = false;
+      const finish = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
+      sub = relay.subscribe([filter], {
+        onevent(e) { if (!settled) collected.push(e); },
+        oneose() { finish(resolve, collected); },
+        onclose(reason) { finish(reject, new Error(`subscription closed: ${normalizeThrown(reason)}`)); },
+        eoseTimeout: queryTimeoutMs + 1000,
+      });
+    }), queryTimeoutMs, 'query timed out');
+
+    // Only what we asked for, validly signed — the probe's re-check.
+    const wantKinds = Array.isArray(filter && filter.kinds) ? filter.kinds : null;
+    const wantAuthors = Array.isArray(filter && filter.authors)
+      ? filter.authors.map(a => String(a).toLowerCase())
+      : null;
+
+    const valid = [];
+    for (const e of events) {
+      if (!e || typeof e.id !== 'string') continue;
+      if (wantKinds && !wantKinds.includes(e.kind)) continue;
+      if (wantAuthors && !wantAuthors.includes(String(e.pubkey || '').toLowerCase())) continue;
+      let ok = false;
+      try { ok = !!verify(e); } catch { ok = false; }
+      if (ok) valid.push(e);
+    }
+    return { status: 'ok', events: valid, error: null };
+  } catch (err) {
+    // Connected, but no complete answer (an early close, or no EOSE inside the budget).
+    return { status: 'unreachable', events: [], error: normalizeThrown(err) };
+  } finally {
+    try { if (sub) sub.close(); } catch { /* ignore */ }
+    try { relay.close(); } catch { /* ignore */ }
+  }
+}
+
 module.exports = {
   resolveGeneralPurposeRelays,
   realQuerySync,
   realScanStrfry,
   realRunCypher,
   probeRelayForEvent,
+  readRelayEvents,
   FALLBACK_RELAYS,
   RELAY_SET_SLUG,
   FETCH_TIMEOUT_MS,

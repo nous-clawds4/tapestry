@@ -92,18 +92,20 @@ test('U1: parseCoordinate — "<kind>:<64-hex pubkey>:<d-tag>" (the d-tag keeps 
   }
 });
 
-test('U2: describeCurationHeader — a well-formed assistant header: authored by my assistant, one inherit-items pointer, no problems', async () => {
+// Re-aimed by curated-dlist-update #2 (ADR 0002): the endpoint writes `pointer`, so that is the
+// well-formed header; the older `inherit-items` link is a note, not a problem (that story's suite, U2).
+test('U2: describeCurationHeader — a well-formed assistant header: authored by my assistant, one pointer link, no problems', async () => {
   const describe = await fn('describeCurationHeader');
-  const info = describe(header([['b', SHARED, 'inherit-items']]), ME);
+  const info = describe(header([['b', SHARED, 'pointer']]), ME);
   assert(info && info.authoredByAssistant === true, `AC-1: authored by my assistant; got ${JSON.stringify(info)}`);
-  assert(info.pointer && info.pointer.coord === SHARED && info.pointer.type === 'inherit-items'
+  assert(info.pointer && info.pointer.coord === SHARED && info.pointer.type === 'pointer'
     && info.pointer.kind === 39998 && info.pointer.pubkey === AUTHOR && info.pointer.d === 'dog-breed',
   `AC-2 / ADR note 1: the pointer carries coord, type, kind, pubkey, d; got ${JSON.stringify(info.pointer)}`);
   assert(info.deferred === false && Array.isArray(info.problems) && info.problems.length === 0,
     `AC-2: no problems on the header the DList Curation endpoint writes; got ${JSON.stringify(info)}`);
 });
 
-test('U3: describeCurationHeader — each pointer problem alone: no b tag, not a coordinate, wrong type (incl. the pointer default), more than one pointer', async () => {
+test('U3: describeCurationHeader — each pointer problem alone: no b tag, not a coordinate, wrong type (anything but pointer or the older link — curated-dlist-update #2), more than one pointer', async () => {
   const describe = await fn('describeCurationHeader');
   let info = describe(header([]), ME);
   assert(deepEq(info.problems, ['no-b']) && info.pointer === null && info.deferred === false, `AC-2: no b tag → ['no-b']; got ${JSON.stringify(info)}`);
@@ -112,10 +114,17 @@ test('U3: describeCurationHeader — each pointer problem alone: no b tag, not a
     assert(deepEq(info.problems, ['not-a-coordinate']) && info.pointer === null,
       `AC-2: ${JSON.stringify(bad)} is not a list coordinate → ['not-a-coordinate'], no pointer; got ${JSON.stringify(info)}`);
   }
-  for (const [tag, type] of [[['b', SHARED, 'pointer'], 'pointer'], [['b', SHARED], 'pointer'], [['b', SHARED, 'inherit'], 'inherit']]) {
+  // Re-aimed by curated-dlist-update #2 (ADR 0002 Decision §2): wrong-type now means neither `pointer`
+  // (an absent type reads as pointer) nor the older `inherit-items`; those carry no problem.
+  for (const [tag, type] of [[['b', SHARED, 'inherit'], 'inherit'], [['b', SHARED, 'curates'], 'curates']]) {
     info = describe(header([tag]), ME);
     assert(deepEq(info.problems, ['wrong-type']) && info.pointer && info.pointer.coord === SHARED && info.pointer.type === type,
-      `AC-2 / sub-decision 1: ${JSON.stringify(tag)} → ['wrong-type'], type "${type}" (absent → pointer); got ${JSON.stringify(info)}`);
+      `AC-2 as re-aimed by curated-dlist-update #2: ${JSON.stringify(tag)} → ['wrong-type'], type "${type}"; got ${JSON.stringify(info)}`);
+  }
+  for (const tag of [['b', SHARED, 'pointer'], ['b', SHARED], ['b', SHARED, 'inherit-items']]) {
+    info = describe(header([tag]), ME);
+    assert(info.problems.length === 0 && info.pointer && info.pointer.coord === SHARED,
+      `curated-dlist-update #2 AC-3: ${JSON.stringify(tag)} is not a problem (pointer is expected; the older link is a note); got ${JSON.stringify(info)}`);
   }
   info = describe(header([['b', SHARED, 'inherit-items'], ['b', SHARED_2, 'inherit-items']]), ME);
   assert(deepEq(info.problems, ['multiple']) && info.pointer && info.pointer.coord === SHARED,
@@ -132,8 +141,9 @@ test('U4: describeCurationHeader — b-tag-deferred alone is its own state (neve
   info = describe(header([['b', 'b-tag-deferred'], ['b', SHARED, 'inherit-items']]), ME);
   assert(info.deferred === false && info.pointer && info.pointer.coord === SHARED && info.problems.length === 0,
     `AC-2 as amended by ADR 0003 sub-decision 9 (story 3 AC-7): beside a real pointer the sentinel is superseded — not deferred, the pointer followed, not "multiple"; got ${JSON.stringify(info)}`);
-  info = describe(header([['b', EVENT_ID], ['b', SHARED, 'pointer'], ['b', SHARED_2, 'inherit-items']]), ME);
-  assert(deepEq(info.problems, ['not-a-coordinate', 'wrong-type', 'multiple']) && info.pointer.coord === SHARED && info.pointer.type === 'pointer',
+  // Re-aimed by curated-dlist-update #2: `pointer` is no longer a wrong type, so the ordering case uses `inherit`.
+  info = describe(header([['b', EVENT_ID], ['b', SHARED, 'inherit'], ['b', SHARED_2, 'inherit-items']]), ME);
+  assert(deepEq(info.problems, ['not-a-coordinate', 'wrong-type', 'multiple']) && info.pointer.coord === SHARED && info.pointer.type === 'inherit',
     `AC-2 / sub-decision 2: every problem is reported, in the order no-b · not-a-coordinate · wrong-type · multiple, and the first coordinate is followed; got ${JSON.stringify(info)}`);
 });
 
@@ -278,8 +288,9 @@ test('S6: identity and isolation — the headers module carries no pubkey litera
 test('R1: story 1\'s front door is intact on the detail page', () => {
   const s = safeRead(DETAIL);
   assert(/useParams\(/.test(s) && !/decodeURIComponent/.test(s) && /curatedDListAccess\(/.test(s), 'AC-6: the route id, undecoded, into curatedDListAccess');
-  for (const status of ['signed-out', 'no-assistant', 'bad-id', 'checking', 'map-error', 'no-map', 'not-on-map', 'other-pubkey']) {
-    assert(new RegExp(`['"]${status}['"]`).test(s), `AC-6: the "${status}" sentence remains`);
+  // Re-aimed by curated-dlist-update #3 (ADR 0003 §1): read-only replaces no-assistant and other-pubkey.
+  for (const status of ['signed-out', 'bad-id', 'checking', 'map-error', 'no-map', 'not-on-map', 'read-only']) {
+    assert(new RegExp(`['"]${status}['"]`).test(s), `AC-6: the "${status}" case remains`);
   }
   assert(/curated by your assistant/i.test(s) && /['"`]\/tapestry\/grapevine\/curated-dlists['"`]/.test(s), 'AC-6: the heading line and the back link remain');
 });

@@ -8,6 +8,8 @@
  * For "trusted-assertions-rank": weight = rank/100 from kind 30382 events
  * For "trusted-list": weight = 1 if pubkey is in selected kind 30392 Trusted List, else 0
  * For "trust-everyone": weight = 1 for all pubkeys
+ *
+ * `epoch` (optional; curated-dlist-update ADR 0006 §7): a caller bumps it to have the weights read again.
  */
 import { useState, useEffect, useRef } from 'react';
 import { useTrust } from '../context/TrustContext';
@@ -15,7 +17,7 @@ import { queryRelay } from '../api/relay';
 
 const FETCH_TIMEOUT_MS = 8000;
 
-export default function useTrustWeights(pubkeys) {
+export default function useTrustWeights(pubkeys, epoch) {
   const { povPubkey, scoringMethod, trustedListId } = useTrust();
   const [weights, setWeights] = useState({});
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,12 @@ export default function useTrustWeights(pubkeys) {
           for (const pk of pubkeys) {
             w[pk] = followSet.has(pk) ? 1 : 0;
           }
-          if (gen === genRef.current) setWeights(w);
+          if (gen === genRef.current) {
+            setWeights(w);
+            // curated-dlist-update ADR 0005 §5: no follow list here is a failed read, not "follows nobody". The
+            // weights stay 0, so Simple Lists' scores don't move; its footnote shows the warning.
+            if (events.length === 0) setError("No follow list for the point of view in this instance's strfry");
+          }
 
         } else if (scoringMethod === 'trusted-assertions-rank') {
           // 1. Get PoV's Treasure Map (kind 10040) from local strfry
@@ -102,15 +109,26 @@ export default function useTrustWeights(pubkeys) {
               '#d': pubkeys,  // only fetch assertions for the pubkeys we care about
             });
             console.log('[useTrustWeights] Querying', pubkeys.length, 'assertions from', taRelay);
+            // Strict (curated-dlist-update ADR 0005 §5): an unreachable rank provider answers success: false.
             const res = await fetch(
-              `/api/relay/external?filter=${encodeURIComponent(filter)}&relays=${encodeURIComponent(taRelay)}`,
+              `/api/relay/external?filter=${encodeURIComponent(filter)}&relays=${encodeURIComponent(taRelay)}&strict=1`,
               { signal: controller.signal }
             );
             clearTimeout(timeout);
             if (cancelled) return;
 
             const data = await res.json();
-            const assertions = data.success ? (data.events || []) : [];
+            if (!data.success) {
+              // An unsuccessful answer is a failed read, as the catch below treats one — not "nobody is ranked".
+              if (!cancelled && gen === genRef.current) {
+                setError(`Couldn't read the rank provider ${taRelay}: ${data.error || 'no answer'}`);
+                const w = {};
+                for (const pk of pubkeys) w[pk] = null;
+                setWeights(w);
+              }
+              return;
+            }
+            const assertions = data.events || [];
             console.log('[useTrustWeights] Got', assertions.length, 'assertions');
 
             // Build a map: pubkey → rank score
@@ -210,7 +228,7 @@ export default function useTrustWeights(pubkeys) {
 
     resolve();
     return () => { cancelled = true; };
-  }, [pubkeys, povPubkey, scoringMethod, trustedListId]);
+  }, [pubkeys, povPubkey, scoringMethod, trustedListId, epoch]);
 
   return { weights, loading, error, povPubkey, scoringMethod };
 }

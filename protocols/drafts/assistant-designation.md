@@ -1,14 +1,14 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
-> **Sources:** `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D7, D8); `community-reference` ADRs 0029 (the `b` type registry — the inherit-typed delegation path), 0030 (TA-authored header seeding), 0031 (this spec). Companion to upstream **NIP-85** (Trusted Assertions, kind 10040 — Vitor Pamplona), which this spec does not modify.
+> **Sources:** `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D7, D8); `community-reference` ADRs 0029 (the `b` type registry — the inherit-typed delegation path), 0030 (TA-authored header seeding), 0031 (this spec); `curated-dlist-update` ADR 0001 (the curated header's `pointer` link and curation copies). Companion to upstream **NIP-85** (Trusted Assertions, kind 10040 — Vitor Pamplona), which this spec does not modify.
 
 ---
 
 Tapestry Assistant Designation & Dual-Author Header Resolution
 =====
 
-This NIP is a companion to [NIP-85: Trusted Assertions](https://github.com/nostr-protocol/nips) (kind `10040`). It adds two conventions on a user's kind-10040 event — a blanket **Tapestry Assistant designation entry** and **per-DList curation entries** — and the **dual-author resolution rule** that consumes them: how a reader decides which of a user's two possible concept/DList-header authors (the user's own key, or their server-side **Tapestry Assistant**) governs.
+This NIP is a companion to [NIP-85: Trusted Assertions](https://github.com/nostr-protocol/nips) (kind `10040`). It adds two conventions on a user's kind-10040 event — a blanket **Tapestry Assistant designation entry** and **per-DList curation entries** — and the **dual-author resolution rule** that consumes them: how a reader decides which of a user's two possible concept/DList-header authors (the user's own key, or their server-side **Tapestry Assistant**) governs. For each list a user empowers, it also defines the **curation copies** the assistant files under its header.
 
 It is **additive**: it claims the `39998:*` and `39999:*` assertion-key families on the kind-10040 tag map and changes no NIP-85 wire format or behavior. A reader who understands only NIP-85 ignores the entries.
 
@@ -68,14 +68,16 @@ A second entry family lets the Map's owner empower their Tapestry Assistant to *
 **The header contract.** The addressed header:
 
 - is authored by the assistant, with `d` equal to the d-tag of the community header it curates;
-- carries `["b", "<community header a-tag>", "inherit-items"]` — the item-inheritance type of the [Inherit-From](./inherit-from.md) registry (`dlist-curation` ADR 0003): the header's list is the community list's items plus the assistant's own. A writer MAY add a `"pointer"`-typed `b` to the same target for declared affiliation; `"inherit-items"` alone affiliates nothing ([Shared Concepts](./shared-concepts.md) § "Declared affiliation");
+- carries `["b", "<community header a-tag>", "pointer"]` — a declared affiliation with the community list ([Shared Concepts](./shared-concepts.md) § "Declared affiliation"; the `"pointer"` type of the [Inherit-From](./inherit-from.md) registry). The curated list's items are exactly the items filed under the header by `z` — among them the assistant's [curation copies](#curation-copies); nothing is inherited live (`curated-dlist-update` ADR 0001);
 - SHOULD copy the community header's names, description, and schema at creation.
 
-A writer MUST publish the header before the Map entry that addresses it, so the Map never points at a header that does not exist. A writer MUST NOT silently re-point an existing header's `b`; an existing header carrying a different `b` is surfaced to the owner.
+A writer MUST publish the header before the Map entry that addresses it, so the Map never points at a header that does not exist. A writer MUST NOT silently re-point an existing header's `b`; an existing header carrying a different `b` is surfaced to the owner. A header that carries the earlier `["b", <target>, "inherit-items"]` is upgraded by its assistant republishing it with `["b", <same target>, "pointer"]` — the same target, a new type — and the owner is shown the change before the assistant signs. Until then, such a header means what its tag says ([Inherit-From](./inherit-from.md) § "Resolution: the resolved item set").
 
 **Reserved word.** `dlist-header` is reserved for the blanket designation entry above. A per-DList entry MUST NOT use it as its d-tag, and readers MUST read `39998:dlist-header` as the blanket entry.
 
 **Multiplicity; writer and reader rules.** Any number of per-DList entries may coexist, at most one per (kind, d-tag). Adding a list replaces the existing entry for that (kind, d-tag) in place, or appends when none exists; every other tag is preserved verbatim; the update carries a fresh `created_at` (`10040` is replaceable). On duplicate entries for one (kind, d-tag), the first occurrence wins. Readers unaware of this convention ignore the entries — the same compatibility posture as the blanket entry. These are the rules the Trusted Lists spec ratified for its generic Map entry ([trusted-lists.md § Treasure-Map advertisement](./trusted-lists.md#treasure-map-advertisement-kind-10040)), restated for this family.
+
+**Across instances.** Because the Map is one replaceable event, read by every instance the owner signs in to, a list has at most one curating assistant across all of them — the one-entry-per-(kind, d-tag) rule above, unchanged. An instance whose own assistant is not the one named MAY show that curation read-only, and MAY offer to replace the entry with one naming its own assistant.
 
 **Relay hint.** A Tapestry instance writing the entry fills element 3 from `settings.aRelays.aDListRelays[0]` (runtime-resolved via `/api/relays`; default `wss://dcosl.brainstorm.world`), the empty string when unconfigured — the three-element shape is preserved.
 
@@ -89,7 +91,58 @@ A writer MUST publish the header before the Map entry that addresses it, so the 
 ["39998:dogs", "<alice's assistant pubkey>", "wss://dcosl.brainstorm.world"]
 ```
 
-so her assistant's header `39998:<alice's assistant pubkey>:dogs` exists, authored by the assistant, carrying `["b", "39998:<community curator pubkey>:dogs", "inherit-items"]` and the community header's names and description as copied at creation. Removing the entry from her Map withdraws the empowerment; the header stays.
+so her assistant's header `39998:<alice's assistant pubkey>:dogs` exists, authored by the assistant, carrying `["b", "39998:<community curator pubkey>:dogs", "pointer"]` and the community header's names and description as copied at creation. Each item her assistant copies from the community list is filed under that header and names its original with `q` tags ([Curation copies](#curation-copies)). Removing the entry from her Map withdraws the empowerment; the header stays.
+
+### Curation copies
+
+An empowered assistant curates by **copying**: it files its own copies of the community items its curation method accepts under the curated header, and deletes the copies it no longer accepts. Which items it copies is the curation method's decision; this spec does not define the method. Ratified by `curated-dlist-update` ADR 0001 (`engineering-team/decisions/curated-dlist-update/0001-curation-copy-convention.md`).
+
+**What a copy is.** A kind-`39999` event authored by the curating assistant — the pubkey the Map entry names — whatever the original's kind, published where the header is published (at least on the relay the Map entry names). Its tags are exactly: its `d` (below); one `z`, the curated header's address; its `q` tags (below); and the tags it carries from its original.
+
+**What it carries.** From its original, a copy carries the `name`, `title`, `slug`, `description` and `comments` tags and every item tag (`p`, `e`, `t`, `a` — [Decentralized Lists](../nips/decentralized-lists.md) § Item declaration), verbatim, and the original's `content`. It carries no other tag of the original's — in particular not `json` (derived from its author's graph), `n` or `s` (its place in its author's class threads — [Class Thread Relationships](./class-thread-relationships.md)), `b`, or the original's own `d`, `z` or `q`.
+
+**Its `d`.** `copy-` followed by the lowercase hexadecimal SHA-256 digest of the UTF-8 string formed by the curated header's address, a line feed (U+000A), and the original's reference — its address `39999:<author>:<d>` for a kind-`39999` original, otherwise its event id. Copying the same original into the same list again therefore replaces the copy instead of adding a second, and an original filed under two lists that one assistant curates gets one copy in each. An assistant's kind-`39999` d-tags that begin with `copy-` are reserved for curation copies.
+
+**Pointing back.** A copy of a kind-`39999` original carries `["q", "39999:<author>:<d>", "<relay>"]` — the original's address, which survives its author's edits. Every copy carries `["q", "<id of the version copied>", "<relay>", "<author>"]` — the exact version it copied, in the [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md) `q` form. The original's author is named in that fourth element, never by an added `p` tag: in a DList item, a `p` names an item. An original is **already copied** into a curated list when an item filed under that list's header by the header's author carries a `q` whose value is the original's address (kind-`39999` originals) or its event id (other kinds). A reader merging items across related lists — discovery walks, [Stamping](./stamping.md)'s exhaustive query strategy — treats a copy and its original as one item. *(Non-normative: because `q` is relay-indexed, "which curated lists hold a copy of this item" is a single `#q` query.)*
+
+**Removal.** A copy is removed by a [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) deletion request from its assistant, naming the copy by address, by event id and by kind: `["a", "39999:<assistant>:<copy d>"]`, `["e", "<copy event id>"]`, `["k", "39999"]`. The original becomes a candidate again. No reason for the removal is recorded anywhere; whether the original is copied again is decided afresh.
+
+**When the original changes.** When a kind-`39999` original is **edited**, the copy is unchanged; its assistant may refresh it at the same address — the copy's `d` derives from the original's address, which an edit keeps — re-copying the carried tags and `content` and replacing the version `q`. An original of any other kind is referenced by its event id, so an edited version is a new event and, to the curation method, a new original. When the original is **downvoted or disputed**, the curation method decides again. When the original **cannot be found**, the copy stays.
+
+**Stamping.** A copy carries only its curated list's `z`; it is never stamped with the handles of the list its original came from, which the original already occupies ([Stamping](./stamping.md) § "The write rule").
+
+**Worked copy.** Continuing the example, the community list holds Bob's item `39999:<bob>:fido`, and Alice's assistant copies it:
+
+```json
+{
+  "kind": 39999,
+  "pubkey": "<alice's assistant pubkey>",
+  "tags": [
+    ["d", "copy-<SHA-256 hex of the header address, a line feed, and 39999:<bob>:fido>"],
+    ["z", "39998:<alice's assistant pubkey>:dogs"],
+    ["name", "Fido"],
+    ["t", "Fido"],
+    ["q", "39999:<bob>:fido", "wss://dcosl.brainstorm.world"],
+    ["q", "<id of the version copied>", "wss://dcosl.brainstorm.world", "<bob>"]
+  ],
+  "content": ""
+}
+```
+
+When the curation method no longer accepts it, her assistant deletes the copy:
+
+```json
+{
+  "kind": 5,
+  "pubkey": "<alice's assistant pubkey>",
+  "tags": [
+    ["a", "39999:<alice's assistant pubkey>:copy-<…>"],
+    ["e", "<the copy's event id>"],
+    ["k", "39999"]
+  ],
+  "content": ""
+}
+```
 
 ## Dual-author lookup and precedence
 
@@ -117,4 +170,4 @@ This specification is the **external layer**: it tells a reader resolving a *hum
 
 ## Deployment status (not normative)
 
-As of ratification this is **specified, not yet wired**: the deployment's kind-10040 generators do not yet emit the `39998:dlist-header` entry, and no resolver applies the precedence rule. Of the two follow-on engineering changes, the **merge-preserve** fix has shipped (`dlist-curation` story 7, 2026-09-10: the generators now keep every 10040 tag they do not own, so the entry survives regeneration once present) and the **resolver** that applies the precedence rule remains. See BIBLE § Assistant Keys for the deployment-side pointer. Per-DList curation entries (`dlist-curation` ADR 0002) are wired — `dlist-curation` stories 4–6 (2026-09-10): the assistant-header endpoint, the DList Curation panel, and the Map Entries class; the blanket entry's status is unchanged by that work.
+As of ratification this is **specified, not yet wired**: the deployment's kind-10040 generators do not yet emit the `39998:dlist-header` entry, and no resolver applies the precedence rule. Of the two follow-on engineering changes, the **merge-preserve** fix has shipped (`dlist-curation` story 7, 2026-09-10: the generators now keep every 10040 tag they do not own, so the entry survives regeneration once present) and the **resolver** that applies the precedence rule remains. See BIBLE § Assistant Keys for the deployment-side pointer. Per-DList curation entries (`dlist-curation` ADR 0002) are wired — `dlist-curation` stories 4–6 (2026-09-10): the assistant-header endpoint, the DList Curation panel, and the Map Entries class; the blanket entry's status is unchanged by that work. Curation copies (`curated-dlist-update` ADR 0001) are partly wired: since `curated-dlist-update` story 2 the header endpoint writes the `pointer` link and treats a header with the earlier `inherit-items` link as existing (Update upgrades it, story 5); nothing copies items yet (stories 3–5).

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { describeHeaderLookup } from '../../utils/treasureMap';
+import { describeHeaderLookup, linkTypeLabel } from '../../utils/treasureMap';
 
 /*
  * The two headers on a curated DList's detail page (my-curated-dlists #2, ADR 0002): the header the
- * viewer's assistant authored, and the shared header it points to — each as a raw event with a link
- * to its Simple Lists entry, and an import when a header was found only on a relay. The import is
- * the page's ONLY write and lives here alone (ADR 0002 fact 6): it stores the event exactly as its
- * author signed it, in this instance's strfry, and nothing else.
+ * list's curating assistant authored (the viewer's own, or read-only another's — curated-dlist-update
+ * ADR 0003), and the shared header it points to — each as a raw event with a link to its Simple Lists
+ * entry, and an import when a header was found only on a relay. The import is this module's ONLY
+ * write (ADR 0002 fact 6; the offer to curate here writes from CurateHereOffer.jsx): it stores the
+ * event exactly as its author signed it, in this instance's strfry, and nothing else.
  */
 
 const short = (pk) => `${pk.slice(0, 8)}…${pk.slice(-4)}`;
@@ -33,8 +34,16 @@ const sectionTitle = { margin: '0 0 0.5rem', fontSize: '0.95rem' };
 const PROBLEM_SENTENCES = {
   'no-b': () => '⚠️ It has no b tag, so it points at no shared header.',
   'not-a-coordinate': () => '⚠️ One of its b tags is not a list coordinate.',
-  'wrong-type': (info) => `⚠️ Its pointer type is “${info.pointer.type}”, not inherit-items.`,
+  'wrong-type': (info) => `⚠️ Its link to the shared header is typed “${info.pointer.type}”, not “pointer”.`,
   'multiple': () => '⚠️ It has more than one pointer — this page follows the first.',
+};
+
+// One plain sentence per note (curated-dlist-update ADR 0002) — not a problem; Update list acts on it.
+// On another assistant's list the note promises nothing this page cannot do (ADR 0003 §3).
+const NOTE_SENTENCES = {
+  'older-link': (info, curator) => (curator === 'other'
+    ? 'It uses the older link type; only its own assistant can upgrade it.'
+    : 'It uses the older link type; Update list will upgrade it to “pointer”.'),
 };
 
 /** The complete event as formatted JSON, behind a toggle that is closed on every load (never persisted). */
@@ -130,8 +139,13 @@ function LookupMiss({ lookup }) {
   return <div style={warn}>⚠️ {describeHeaderLookup({ relay: lookup.checkedRelay }, null, lookup.checkedRelay).text}.</div>;
 }
 
-/** Section 1 — the header the viewer's assistant authored for this list, and the pointer it carries. */
-export function AssistantHeaderSection({ row, lookup, info, onImported, checking }) {
+/**
+ * Section 1 — the header the list's curating assistant authored, and the pointer it carries: the
+ * viewer's own assistant (`curator` 'mine'), or — read-only — the assistant the viewer's Map names
+ * ('other', curated-dlist-update ADR 0003 §3).
+ */
+export function AssistantHeaderSection({ row, lookup, info, onImported, checking, curator = 'mine' }) {
+  const other = curator === 'other';
   let body;
   if (!lookup) body = <div style={muted}>⏳ checking…</div>;
   else if (!lookup.event) body = <LookupMiss lookup={lookup} />;
@@ -141,13 +155,18 @@ export function AssistantHeaderSection({ row, lookup, info, onImported, checking
         <FoundHeader lookup={lookup} coord={row.coord} onImported={onImported} checking={checking} />
         <div style={line}>
           {info?.authoredByAssistant
-            ? <>Authored by your assistant · <code>{short(lookup.event.pubkey)}</code></>
-            : <span style={warn}>⚠️ Not authored by your assistant ({short(lookup.event.pubkey)}).</span>}
+            ? (other
+              ? <>Authored by the curating assistant · <code>{short(lookup.event.pubkey)}</code></>
+              : <>Authored by your assistant · <code>{short(lookup.event.pubkey)}</code></>)
+            : <span style={warn}>⚠️ {other ? 'Not authored by the curating assistant' : 'Not authored by your assistant'} ({short(lookup.event.pubkey)}).</span>}
         </div>
         {info?.pointer && (
-          <div style={line}>Points to <code>{shortCoord(info.pointer.coord)}</code> ({info.pointer.type})</div>
+          <div style={line}>Points to <code>{shortCoord(info.pointer.coord)}</code>{linkTypeLabel(info.pointer.type) ? ` (${linkTypeLabel(info.pointer.type)})` : ''}</div>
         )}
         {info?.deferred && <div style={{ ...line, opacity: 0.75 }}>It is marked deliberately unaffiliated (b-tag-deferred).</div>}
+        {(info?.notes || []).map((n) => (
+          <div key={n} style={line}>{NOTE_SENTENCES[n](info, curator)}</div>
+        ))}
         {(info?.problems || []).map((p) => (
           <div key={p} style={{ ...warn, marginTop: '0.35rem' }}>{PROBLEM_SENTENCES[p](info)}</div>
         ))}
@@ -157,26 +176,27 @@ export function AssistantHeaderSection({ row, lookup, info, onImported, checking
   }
   return (
     <section style={sectionBox}>
-      <h3 style={sectionTitle}>Your assistant&apos;s DList header</h3>
+      <h3 style={sectionTitle}>{other ? <>Its assistant&apos;s DList header</> : <>Your assistant&apos;s DList header</>}</h3>
       {body}
     </section>
   );
 }
 
 /** Section 2 — the shared header the pointer names, looked up here first, then on the community relay. */
-export function SharedHeaderSection({ info, lookup, assistantLookup, communityRelay, onImported, checking }) {
+export function SharedHeaderSection({ info, lookup, assistantLookup, communityRelay, onImported, checking, curator = 'mine' }) {
+  const whose = curator === 'other' ? <>its assistant&apos;s header</> : <>your assistant&apos;s header</>;
   let body;
   if (!assistantLookup) body = <div style={muted}>⏳ checking…</div>;
   else if (!assistantLookup.event) {
     body = (
       <div style={muted}>
-        Can&apos;t tell which shared header: your assistant&apos;s header {assistantLookup.failed ? "couldn't be checked" : 'was not found'}.
+        Can&apos;t tell which shared header: {whose} {assistantLookup.failed ? "couldn't be checked" : 'was not found'}.
       </div>
     );
   } else if (!info?.pointer) {
     body = (
       <div style={muted}>
-        Can&apos;t tell which shared header: your assistant&apos;s header {info?.deferred ? 'is marked deliberately unaffiliated' : 'names no shared header'}.
+        Can&apos;t tell which shared header: {whose} {info?.deferred ? 'is marked deliberately unaffiliated' : 'names no shared header'}.
       </div>
     );
   } else if (!lookup) {

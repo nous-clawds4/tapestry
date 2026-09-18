@@ -9,6 +9,8 @@
 // The house owner of the `b`-value rules (the UI mirror of src/lib/bValueForms.js; ADR
 // my-curated-dlists/0003 sub-decision 9). The `.js` extension keeps Node-loaded suites resolving it.
 import { classifyBValue, dispositionOf } from './bDisposition.js';
+// Simple Lists' scoring rule, one owner for both pages (curated-dlist-update ADR 0004 §1); `.js` for the same reason.
+import { reactionsByItem, scoreItem, qualifies } from './dlistScore.js';
 
 const HEX64 = /^[0-9a-fA-F]{64}$/;
 const ENTRY = /^(\d{5})(?::(.+))?$/;
@@ -235,8 +237,25 @@ export function markDuplicateEntries(rows) {
   });
 }
 
+// A curated header's link to its community list (curated-dlist-update ADR 0002): `pointer` is the
+// contract; `inherit-items` is the older link written before that story, recognized and upgraded by
+// Update. Mirrored in src/api/dlist-curation/index.js (CONTRACT_TYPE / OLDER_TYPE).
+export const CURATION_LINK_TYPE = 'pointer';
+export const OLDER_LINK_TYPE = 'inherit-items';
+
 /**
- * The community header a curation header inherits from: the first `b` tag whose value is an
+ * How a curated header's link type is labeled beside the list it links to (ADR 0002 Decision §3):
+ * nothing for the expected `pointer` (or an absent/empty type), "older link" for `inherit-items`, and
+ * any other value in curly quotes — shown as data, the way the raw event shows it. Never throws.
+ */
+export function linkTypeLabel(type) {
+  if (typeof type !== 'string' || type === '' || type === CURATION_LINK_TYPE) return null;
+  if (type === OLDER_LINK_TYPE) return 'older link';
+  return `“${type}”`;
+}
+
+/**
+ * The community header a curation header links to: the first `b` tag whose value is an
  * a-tag (the reserved sentinel and event-id values derive nothing — Inherit-From § reserved value);
  * `type` is element 3, `pointer` when absent. Null when there is none.
  */
@@ -312,19 +331,19 @@ export function curatedDListPath(routeId) {
 }
 
 /**
- * The detail page's front door (ADR 0001 sub-decision 4): `{ status, row }`. Nothing is decided
- * while auth is still resolving (`checking`, never `signed-out`); then signed-out → no-assistant →
- * bad-id → checking (Map not settled) → map-error → no-map → not-on-map → other-pubkey → ok. `row`
- * is the effective row for the id (so `other-pubkey` can name its pubkey), else null. The list is
- * looked up on the VIEWER's own Map, so a shared URL can never show someone else's curation as
- * theirs. Never throws.
+ * The detail page's front door (ADR 0001 sub-decision 4, as curated-dlist-update ADR 0003 §1 amends
+ * it): `{ status, row }`. Nothing is decided while auth is still resolving (`checking`, never
+ * `signed-out`); then signed-out → bad-id → map-error → no-map → checking (Map not settled) →
+ * not-on-map → ok | read-only. A list on the viewer's Map opens — `ok` when it names the viewer's own
+ * assistant, `read-only` otherwise, including when the viewer has no assistant here (nothing is mine
+ * then). `row` is the effective row for both, else null. The list is looked up on the VIEWER's own
+ * Map, so a shared URL can never show someone else's curation as theirs. Never throws.
  */
 export function curatedDListAccess(input) {
   const { signedIn, authLoading, assistantPubkey, mapStatus, tags, id } = input || {};
   const verdict = (status, row = null) => ({ status, row });
   if (authLoading) return verdict('checking');
   if (!signedIn) return verdict('signed-out');
-  if (typeof assistantPubkey !== 'string' || assistantPubkey === '') return verdict('no-assistant');
   const parsed = parseCuratedDListRouteId(id);
   if (!parsed) return verdict('bad-id');
   if (mapStatus === 'error') return verdict('map-error');
@@ -333,7 +352,7 @@ export function curatedDListAccess(input) {
   const routeId = `${parsed.kind}:${parsed.d}`;
   const row = curatedDListRows(tags, assistantPubkey).find((r) => r.routeId === routeId) || null;
   if (!row) return verdict('not-on-map');
-  return verdict(row.mine ? 'ok' : 'other-pubkey', row);
+  return verdict(row.mine ? 'ok' : 'read-only', row);
 }
 
 /**
@@ -414,14 +433,17 @@ export function parseCoordinate(coord) {
  * viewer's assistant authored it (checked, not assumed); the pointer it carries — `communityPointerOf`'s,
  * so Map Entries and this page follow the same one; whether it is deliberately unaffiliated; and the
  * problems, in order `no-b` · `not-a-coordinate` · `wrong-type` · `multiple`. Reported, never
- * fixed. Never throws.
+ * fixed. Never throws. The expected link type is `pointer` (curated-dlist-update ADR 0002):
+ * `wrong-type` is any other type except the older `inherit-items`, which is a note (`older-link` —
+ * Update upgrades it), not a problem.
  *
  * `deferred` and the value forms come from the house owner (`bDisposition.js`; ADR 0003 sub-decision
  * 9): `b-tag-deferred` counts only when it stands alone — a real `b` (a coordinate or an event id)
- * supersedes it.
+ * supersedes it. `marker` (curated-dlist-update ADR 0006 §7) is that sentinel beside a real `b`: the real
+ * link still wins, and Update's upgrade drops the marker.
  *
  * @returns {{ authoredByAssistant: boolean, pointer: {coord, type, kind, pubkey, d}|null,
- *             deferred: boolean, problems: string[] }}
+ *             deferred: boolean, problems: string[], notes: string[], marker: boolean }}
  */
 export function describeCurationHeader(event, assistantPubkey) {
   const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
@@ -433,13 +455,16 @@ export function describeCurationHeader(event, assistantPubkey) {
   const problems = [];
   if (values.length === 0) problems.push('no-b');
   if (forms.some((f) => f === 'event-id' || f === 'malformed')) problems.push('not-a-coordinate');
-  if (pointer && pointer.type !== 'inherit-items') problems.push('wrong-type');
+  if (pointer && pointer.type !== CURATION_LINK_TYPE && pointer.type !== OLDER_LINK_TYPE) problems.push('wrong-type');
   if (forms.filter((f) => f === 'a-tag').length > 1) problems.push('multiple');
+  const notes = pointer && pointer.type === OLDER_LINK_TYPE ? ['older-link'] : [];
   return {
     authoredByAssistant: !!(me && event && typeof event.pubkey === 'string' && event.pubkey.toLowerCase() === me),
     pointer,
     deferred: dispositionOf(values).deferred,
     problems,
+    notes,
+    marker: forms.includes('sentinel') && forms.some((f) => f === 'a-tag' || f === 'event-id'),
   };
 }
 
@@ -474,7 +499,9 @@ export function itemRouteId(event) {
  * bounded scan, and the community relay, asked the same filter at once. Only kind 9999/39999 items
  * whose `z` is the coordinate are kept; each item appears once (newest version per coordinate, one per
  * id), `local` when any copy came from this instance. Per source: `local` 'ok' | 'failed' (with the
- * scan's `truncated` / `total`), `relay` 'ok' | 'failed' | 'skipped' (not a ws/wss relay).
+ * scan's `truncated` / `total`), `relay` 'ok' | 'failed' | 'skipped' (not a ws/wss relay), and
+ * `relayTruncated` when the relay answered with `LIST_ITEMS_LIMIT` items or more, so may have stopped short
+ * (curated-dlist-update ADR 0005 §4).
  * Dependency-injected; never rejects.
  *
  * @param {string[]} coords
@@ -502,7 +529,9 @@ export async function lookupListItems(coords, { scanLocal, fetchRelay } = {}, re
         try {
           const data = await fetchRelay(filter, hint);
           if (!data || !data.success) return { status: 'failed', events: [] };
-          return { status: 'ok', events: Array.isArray(data.events) ? data.events : [] };
+          const events = Array.isArray(data.events) ? data.events : [];
+          // An answer at the read limit may have stopped short (curated-dlist-update ADR 0005 §4).
+          return { status: 'ok', events, capped: events.length >= LIST_ITEMS_LIMIT };
         } catch {
           return { status: 'failed', events: [] };
         }
@@ -520,7 +549,7 @@ export async function lookupListItems(coords, { scanLocal, fetchRelay } = {}, re
     };
     for (const e of local.events) take(e, true);
     for (const e of remote.events) take(e, false);
-    out[coord] = { items: [...byKey.values()], local: local.status, truncated: local.truncated, total: local.total, relay: remote.status };
+    out[coord] = { items: [...byKey.values()], local: local.status, truncated: local.truncated, total: local.total, relay: remote.status, relayTruncated: !!remote.capped };
   }));
   return out;
 }
@@ -531,9 +560,9 @@ const FROM_ORDER = { assistant: 0, other: 1, candidate: 2 };
  * The table's rows (ADR 0003 sub-decisions 1, 2, 5). `mine` are the items pointing at my local DList,
  * `shared` the shared list's (null when not read). By default only my assistant's items; `showOthers`
  * adds everyone else's on my list; `showCandidates` adds shared items my assistant has not copied —
- * "copied" meaning one of MY ASSISTANT'S items carries the shared item's id or coordinate in any tag,
- * at any position. Grouped assistant → other → candidate; by name (case-insensitive), newest first on
- * ties. Never throws.
+ * "copied" meaning one of MY ASSISTANT'S items carries a `q` tag naming the shared item's id or its
+ * coordinate (curated-dlist-update ADR 0002 — a mention in any other tag does not count). Grouped
+ * assistant → other → candidate; by name (case-insensitive), newest first on ties. Never throws.
  *
  * @returns {Array<{ key, from: 'assistant'|'other'|'candidate', name, author, createdAt, routeId, local }>}
  */
@@ -558,7 +587,7 @@ export function curatedItemRows(input) {
     const referenced = new Set();
     for (const x of mineItems.filter(byMe)) {
       for (const t of Array.isArray(x.event.tags) ? x.event.tags : []) {
-        if (Array.isArray(t)) for (const v of t.slice(1)) if (typeof v === 'string') referenced.add(v);
+        if (Array.isArray(t) && t[0] === 'q' && typeof t[1] === 'string') referenced.add(t[1]);
       }
     }
     for (const x of shared.filter(valid)) {
@@ -585,18 +614,447 @@ export function sharedListUnavailable(assistantLookup, info) {
 }
 
 /**
+ * Whether a read-only list offers "curate it here instead" (curated-dlist-update ADR 0003 §5): only with
+ * an assistant here, for a kind-39998 list, whose curating assistant's header points at a kind-39998
+ * header with the list's own d-tag — the target the offer curates (Amendment 1) — that is neither the
+ * viewer's own (`viewerPubkey`) nor my assistant's here: the header endpoint refuses those, so the offer
+ * would dead-end (curated-dlist-update ADR 0006 §8, R2-2). Precedence: `no-assistant` → `kind` → the
+ * header's states, as `sharedListUnavailable` reads them (`checking`, then `failed` / `missing` /
+ * `no-pointer` / `deferred`) → `target` → `own`. Never throws.
+ *
+ * @returns {{status:'available', target:string} | {status:'checking'} | {status:'unavailable', reason:string}}
+ */
+export function curateHereOffer(input) {
+  const { assistantPubkey, viewerPubkey, row, assistantLookup, info } = input && typeof input === 'object' ? input : {};
+  if (typeof assistantPubkey !== 'string' || assistantPubkey === '') return { status: 'unavailable', reason: 'no-assistant' };
+  if (!row || typeof row !== 'object' || row.kind !== 39998) return { status: 'unavailable', reason: 'kind' };
+  const why = sharedListUnavailable(assistantLookup, info);
+  if (why === 'checking') return { status: 'checking' };
+  if (why) return { status: 'unavailable', reason: why };
+  // The endpoint authors my assistant's header under the target's d-tag, and the Map entry keeps the
+  // list's own d-tag: they must be the same kind-39998 list, or the Map would address a header that does
+  // not exist (assistant-designation.md "The header contract"; Amendment 1).
+  const { kind, d } = info.pointer;
+  if (kind !== 39998 || d !== row.d) return { status: 'unavailable', reason: 'target' };
+  // The endpoint refuses to curate a shared list by the viewer or by my assistant (ADR 0006 §8), so it isn't offered.
+  const selves = [assistantPubkey, viewerPubkey].filter((pk) => typeof pk === 'string' && pk !== '').map((pk) => pk.toLowerCase());
+  if (selves.includes(String(info.pointer.pubkey).toLowerCase())) return { status: 'unavailable', reason: 'own' };
+  return { status: 'available', target: info.pointer.coord };
+}
+
+/**
+ * The words said before a list's curation moves to this instance's assistant (curated-dlist-update
+ * ADR 0003 §6) — by the read-only page's offer and by the DList Curation panel's Replace: the Map names
+ * one curating assistant per list, and the other assistant's header and copies stay. Never throws.
+ */
+export function replacementSentences(curatorShort) {
+  const who = typeof curatorShort === 'string' ? curatorShort : String(curatorShort ?? '');
+  return [
+    `Your Treasure Map names one curating assistant per list: after this, your assistant here curates it, and ${who} no longer does.`,
+    "That assistant's header and copies stay where they are.",
+  ];
+}
+
+/**
  * The sentence the items table shows when it has no rows (ADR 0003 Amendment 1). "No candidates"
  * is claimed only when the shared list — its lookup record, passed only while it is in view — was
  * read and did not fail on both sources: a failed read is "couldn't check" (its own note), never
  * "empty". Never throws.
  */
 export function itemsEmptySentence(input) {
-  const { showOthers, shared } = input && typeof input === 'object' ? input : {};
-  let sentence = "Your assistant hasn't added any items to this list yet.";
+  const { showOthers, shared, curator } = input && typeof input === 'object' ? input : {};
+  // Seen from another assistant's side on a read-only list (curated-dlist-update ADR 0003 §3).
+  let sentence = curator === 'other'
+    ? "Its assistant hasn't added any items to this list yet."
+    : "Your assistant hasn't added any items to this list yet.";
   if (showOthers) sentence += ' No one else has either.';
   const readCleanlyEnough = !!(shared && typeof shared === 'object' && !(shared.local === 'failed' && shared.relay === 'failed'));
-  if (readCleanlyEnough) sentence += ' The shared list offers no candidates to inherit.';
+  if (readCleanlyEnough) sentence += ' The shared list offers no candidates to copy.';
   return sentence;
+}
+
+/* ── The curation method (curated-dlist-update #4, ADR 0004) ──────────────── */
+
+/**
+ * How many votes one read asks each source for. A read that answers this many or more may have stopped
+ * short, so it is an incomplete read: the local scan's (ADR 0004 §2) and, since ADR 0005 §3, the relay's.
+ */
+export const VOTES_LIMIT = 5000;
+
+/** How many item ids one vote read names (ADR 0005 §3): an id costs ~73 URL characters, and a request line 8 KB. */
+export const VOTES_IDS_PER_READ = 50;
+
+/**
+ * The votes on items (ADR 0004 §2; chunked by ADR 0005 §3): the ids go in chunks of `VOTES_IDS_PER_READ`,
+ * each chunk one filter, `{ kinds: [7], '#e': chunk, limit: VOTES_LIMIT }`, sent at once to this instance's
+ * strfry through the bounded scan and to the community relay. Kind-7 events are merged by id — local first,
+ * then the relay's additions — so each vote counts once. Per source: `local` 'ok' | 'failed', `relay` 'ok' |
+ * 'failed' | 'skipped' (not a ws/wss relay); a source is `failed` when any of its chunks failed. `truncated`
+ * is set when the local scan stopped short for any chunk, or a relay chunk answered with `VOTES_LIMIT` votes
+ * or more. No ids asks nothing and fails nothing: an empty `#e` filter could match every vote.
+ * Dependency-injected, like `lookupListItems`; never rejects.
+ *
+ * @param {string[]} ids  the items' event ids
+ * @param {{ scanLocal: Function, fetchRelay: Function }} readers  scanLocal(filter) → { events, truncated };
+ *   fetchRelay(filter, url) → { success, events }
+ * @param {string} relay  the community relay
+ * @returns {Promise<{ events: Object[], local: string, relay: string, truncated: boolean }>}
+ */
+export async function lookupItemVotes(ids, readers, relay) {
+  const { scanLocal, fetchRelay } = readers || {};
+  const hint = typeof relay === 'string' && /^wss?:\/\//i.test(relay) ? relay : null;
+  const list = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && id !== '');
+  if (list.length === 0) return { events: [], local: 'ok', relay: hint ? 'ok' : 'skipped', truncated: false };
+  const chunks = [];
+  for (let i = 0; i < list.length; i += VOTES_IDS_PER_READ) chunks.push(list.slice(i, i + VOTES_IDS_PER_READ));
+  const answers = await Promise.all(chunks.map(async (chunk) => {
+    const filter = { kinds: [7], '#e': chunk, limit: VOTES_LIMIT };
+    const [local, remote] = await Promise.all([
+      (async () => {
+        try {
+          const env = await scanLocal(filter);
+          return { status: 'ok', events: Array.isArray(env?.events) ? env.events : [], truncated: !!env?.truncated };
+        } catch {
+          return { status: 'failed', events: [], truncated: false };
+        }
+      })(),
+      (async () => {
+        if (!hint) return { status: 'skipped', events: [], truncated: false };
+        try {
+          const data = await fetchRelay(filter, hint);
+          if (!data || !data.success) return { status: 'failed', events: [], truncated: false };
+          const events = Array.isArray(data.events) ? data.events : [];
+          return { status: 'ok', events, truncated: events.length >= VOTES_LIMIT };
+        } catch {
+          return { status: 'failed', events: [], truncated: false };
+        }
+      })(),
+    ]);
+    return { local, remote };
+  }));
+  const byId = new Map();
+  const take = (e) => { if (e && e.kind === 7 && typeof e.id === 'string' && !byId.has(e.id)) byId.set(e.id, e); };
+  for (const a of answers) a.local.events.forEach(take);
+  for (const a of answers) a.remote.events.forEach(take);
+  const status = (side) => (answers.some((a) => a[side].status === 'failed') ? 'failed' : answers[0][side].status);
+  return {
+    events: [...byId.values()],
+    local: status('local'),
+    relay: status('remote'),
+    truncated: answers.some((a) => a.local.truncated || a.remote.truncated),
+  };
+}
+
+/**
+ * Whether the trust weights can decide yet (ADR 0004 §3), read from what `useTrustWeights` returns for
+ * `pubkeys`: `failed` when its whole read failed (`error` set); `ready` once it is not loading and every
+ * pubkey has its own key in `weights` — a null there is a real "unknown", and inherited keys are not
+ * answers; otherwise `checking`, which covers no point of view yet and the render before the hook's first
+ * answer, so nothing is skipped by accident. Never throws.
+ */
+export function weightsState(input) {
+  const { weights, loading, error, pubkeys } = input && typeof input === 'object' ? input : {};
+  if (error) return 'failed';
+  if (loading) return 'checking';
+  const list = Array.isArray(pubkeys) ? pubkeys : [];
+  if (list.length === 0) return 'ready';
+  if (!weights || typeof weights !== 'object') return 'checking';
+  return list.every((pk) => Object.prototype.hasOwnProperty.call(weights, pk)) ? 'ready' : 'checking';
+}
+
+/**
+ * Each candidate's verdict and its reason (ADR 0004 §4), decided by Simple Lists' rule (`dlistScore.js`)
+ * and the cutoff. `candidates` are the shared items shown as candidates (events); `votes` is
+ * `lookupItemVotes`' answer, or null while it is pending; `weights` is `{ state, values, error }`
+ * (`weightsState`, and the hook's weights and error). In order:
+ * - votes pending, or weights `checking` → every candidate `checking`;
+ * - a source failed, a read was capped, or the weights `failed` → every candidate `unchecked`, its `reason`
+ *   naming what couldn't be read — never `skipped`;
+ * - otherwise each candidate is scored on the votes aimed at its current event id (gate decision 2), and
+ *   `qualifies` at score ≥ cutoff, or is `skipped`. When `incomplete` (curated-dlist-update ADR 0005 §6)
+ *   lists other reads that came back incomplete — a partial read of the shared list — those verdicts stay,
+ *   honest for the candidates that were read, but the summary is `incomplete` and its reason names the reads.
+ * Keyed by `itemRouteId`, the id the table's rows carry. `reason` is null except for `unchecked`: for a
+ * decided verdict the score, the cutoff and the breakdown are the reason. Never throws: it runs on every
+ * render.
+ *
+ * @returns {{ byRouteId: Object<string, { verdict: string, score: number|null, breakdown: Object[], reason: string|null }>,
+ *             summary: { state: 'checking'|'incomplete'|'complete', qualifying: number, total: number, reason: string|null } }}
+ */
+export function candidateVerdicts(input) {
+  const { candidates, votes, weights, cutoff, incomplete } = input && typeof input === 'object' ? input : {};
+  // Other reads that came back incomplete, each as "couldn't check …" completes it (ADR 0005 §6).
+  const partial = (Array.isArray(incomplete) ? incomplete : []).filter((r) => typeof r === 'string' && r !== '');
+  const list = [];
+  const seen = new Set();
+  for (const event of Array.isArray(candidates) ? candidates : []) {
+    const routeId = itemRouteId(event);
+    if (routeId === null || seen.has(routeId)) continue;
+    seen.add(routeId);
+    list.push({ routeId, event });
+  }
+  const every = (entry) => Object.fromEntries(list.map(({ routeId }) => [routeId, { ...entry }]));
+  const summary = (state, qualifying, reason) => ({ state, qualifying, total: list.length, reason });
+
+  const wState = weights && typeof weights === 'object' && (weights.state === 'ready' || weights.state === 'failed')
+    ? weights.state : 'checking';
+  if (!votes || typeof votes !== 'object' || wState === 'checking') {
+    return { byRouteId: every({ verdict: 'checking', score: null, breakdown: [], reason: null }), summary: summary('checking', 0, null) };
+  }
+  const missed = [];
+  // A failed vote source is named as the votes (curated-dlist-update ADR 0005 Amendment 2).
+  if (votes.local === 'failed') missed.push('the votes on this instance’s strfry');
+  if (votes.relay === 'failed') missed.push('the votes on the community relay');
+  if (votes.truncated) missed.push('every vote (there are more votes than one read returns)');
+  if (wState === 'failed') {
+    missed.push(typeof weights.error === 'string' && weights.error !== '' ? `the trust weights (${weights.error})` : 'the trust weights');
+  }
+  if (missed.length > 0) {
+    const reason = missed.join(' and ');
+    return { byRouteId: every({ verdict: 'unchecked', score: null, breakdown: [], reason }), summary: summary('incomplete', 0, reason) };
+  }
+  const reactions = reactionsByItem(votes.events, list.map(({ event }) => event.id));
+  const entries = list.map(({ routeId, event }) => {
+    const { score, breakdown } = scoreItem(event.pubkey, reactions[event.id] || [], weights.values);
+    return [routeId, { verdict: qualifies(score, cutoff) ? 'qualifies' : 'skipped', score, breakdown, reason: null }];
+  });
+  const qualifying = entries.filter(([, v]) => v.verdict === 'qualifies').length;
+  // A partial read keeps the verdicts it decided, but the summary says it is incomplete (ADR 0005 §6).
+  return {
+    byRouteId: Object.fromEntries(entries),
+    summary: partial.length > 0 ? summary('incomplete', qualifying, partial.join(' and ')) : summary('complete', qualifying, null),
+  };
+}
+
+/** The cutoff a curated list starts at — Simple Lists' Generate Trusted List panel's (ADR 0004 §5). */
+export const CUTOFF_DEFAULT = 2;
+
+/** Where this browser keeps one curated list's cutoff: keyed by my curated header's coordinate (ADR 0004 §5). */
+export function cutoffStorageKey(coord) {
+  return `tapestry_curation_cutoff:${String(coord)}`;
+}
+
+/** A stored cutoff as its number (0 included), or the default when it is missing or not a number. Never throws. */
+export function readStoredCutoff(raw) {
+  if (typeof raw !== 'string' || raw.trim() === '') return CUTOFF_DEFAULT;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : CUTOFF_DEFAULT;
+}
+
+/* ── Update's preview (curated-dlist-update #5, ADR 0005) ─────────────────── */
+
+/**
+ * What one list read couldn't cover (ADR 0005 §6–§7), each as "couldn't check …" completes it: a source that
+ * failed, or a read cut off at its limit — locally, or on the relay. `what` names the list ("the shared list",
+ * "your list"), so the Curation method panel and Update's preview say the same words. Never throws.
+ */
+export function listReadGaps(record, what) {
+  const r = record && typeof record === 'object' ? record : {};
+  const gaps = [];
+  if (r.local === 'failed') gaps.push(`${what} on this instance’s strfry`);
+  if (r.relay === 'failed') gaps.push(`${what} on the community relay`);
+  if (r.truncated || r.relayTruncated) gaps.push(`every item on ${what} (more than one read returns)`);
+  return gaps;
+}
+
+// Why my header leaves nothing to plan (ADR 0005 §7), each as "couldn't check …" completes it: the states
+// `sharedListUnavailable` gives, and `describeCurationHeader`'s problems (the older link is a note, not one).
+const PLAN_HEADER_STATES = {
+  failed: 'your assistant’s header',
+  missing: 'your assistant’s header (it wasn’t found)',
+  'no-pointer': 'the shared list (your assistant’s header names none)',
+  deferred: 'the shared list (your assistant’s header is marked deliberately unaffiliated)',
+};
+const PLAN_HEADER_PROBLEMS = {
+  'no-b': 'your assistant’s header (it has no b tag)',
+  'not-a-coordinate': 'your assistant’s header (one of its b tags is not a list coordinate)',
+  'wrong-type': 'your assistant’s header (its link to the shared header isn’t “pointer”)',
+  multiple: 'your assistant’s header (it has more than one pointer)',
+};
+const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+/**
+ * What Update would do with my curated list (ADR 0005 §7, in Amendment 1's order). Pure; never throws.
+ *
+ * `input` is `{ assistantPubkey, header, mine, shared, verdicts }`: `header` is `{ state, olderLink, problems, marker }`
+ * (`sharedListUnavailable`'s state, and `describeCurationHeader`'s older-link note, problems and marker); `mine` and
+ * `shared` are `lookupListItems` records, undefined while unread; `verdicts` is `candidateVerdicts`' answer over
+ * every shared item.
+ *
+ * Copies are my assistant's items on my list that carry a `q` (curated-dlist-update ADR 0001 §5). A copy's
+ * original is the shared item at its address `q` (the current version), or else the shared item with its version
+ * `q`; it is edited when it is kind 39999 and its current id is not the copy's version `q`. Candidates are the
+ * shared items no copy references, by `curatedItemRows`' rule.
+ *
+ * In order: the header decides first — `blocked` when it leaves no shared list to read or has a problem other
+ * than the older link, `checking` while it is looked up; then the two list reads — `checking` while either is
+ * unread, `blocked` when either failed on a source or was cut off; then the verdicts — `checking` while pending,
+ * `blocked` when incomplete. A blocked plan names every reason it knows, and a plan that isn't `ready` proposes
+ * nothing. When `ready`: copy the qualifying candidates and skip the rest; refresh a copy whose edited original
+ * qualifies, and keep it, flagged, when the new version doesn't — a copy is never deleted for an edit; delete a
+ * copy whose unedited original doesn't qualify; keep, flagged, a copy whose original is gone; count the copies
+ * that stay unchanged; and upgrade a header that uses the older link. `upToDate` means no copy, refresh, delete
+ * or upgrade.
+ *
+ * @returns {{ state: 'checking'|'blocked'|'ready', reasons: string[], copy: Object[], refresh: Object[],
+ *   delete: Object[], keepFlagged: Object[], unchanged: number, upgrade: false|{dropsMarker: boolean},
+ *   skipped: Object[], upToDate: boolean }}  each entry is `{ name, routeId, score }` (`routeId` the original's), with
+ *   the copy's own `copyRouteId` for a copy already on my list, and `why` ('not-found' | 'edited-not-qualifying') for
+ *   a kept one. The entries Publish sends carry their pins (curated-dlist-update ADR 0006 §7): `version` on a copy or
+ *   refresh entry (the original's current id), and `copyId` on a delete entry (the copy's current id).
+ */
+export function updatePlan(input) {
+  const { assistantPubkey, header, mine, shared, verdicts } = input && typeof input === 'object' ? input : {};
+  const plan = (state, reasons = []) => ({
+    state, reasons, copy: [], refresh: [], delete: [], keepFlagged: [], unchanged: 0, upgrade: false, skipped: [], upToDate: false,
+  });
+  const isObject = (v) => !!v && typeof v === 'object';
+  const h = isObject(header) ? header : null;
+
+  // Every reason already known — the header's, the two lists', the verdicts' — so a blocked plan names them all.
+  const headerReasons = [];
+  if (h && own(PLAN_HEADER_STATES, h.state)) headerReasons.push(PLAN_HEADER_STATES[h.state]);
+  for (const p of h && Array.isArray(h.problems) ? h.problems : []) {
+    if (p !== 'older-link') headerReasons.push(own(PLAN_HEADER_PROBLEMS, p) ? PLAN_HEADER_PROBLEMS[p] : `your assistant’s header (${String(p)})`);
+  }
+  const listReasons = [
+    ...(isObject(mine) ? listReadGaps(mine, 'your list') : []),
+    ...(isObject(shared) ? listReadGaps(shared, 'the shared list') : []),
+  ];
+  const summary = isObject(verdicts) && isObject(verdicts.summary) ? verdicts.summary : null;
+  const verdictReasons = summary && summary.state === 'incomplete'
+    ? [typeof summary.reason === 'string' && summary.reason !== '' ? summary.reason : 'the votes and trust weights']
+    : [];
+  const reasons = [...new Set([...headerReasons, ...listReasons, ...verdictReasons])];
+
+  // 1. The header decides first: one that leaves no shared list to read would keep the rest pending forever.
+  if (headerReasons.length > 0) return plan('blocked', reasons);
+  if (!h || h.state != null) return plan('checking');
+  // 2. Then the two list reads.
+  if (!isObject(mine) || !isObject(shared)) return plan('checking');
+  if (listReasons.length > 0) return plan('blocked', reasons);
+  // 3. Then the verdicts.
+  if (verdictReasons.length > 0) return plan('blocked', reasons);
+  if (!summary || summary.state !== 'complete') return plan('checking');
+
+  // 4. Ready.
+  const me = typeof assistantPubkey === 'string' && assistantPubkey !== '' ? assistantPubkey.toLowerCase() : null;
+  const eventsOf = (record) => (Array.isArray(record.items) ? record.items : [])
+    .map((x) => (isObject(x) ? x.event : null))
+    .filter((e) => isObject(e) && itemRouteId(e) !== null);
+  const byRoute = new Map();
+  const byId = new Map();
+  for (const e of eventsOf(shared)) { byRoute.set(itemRouteId(e), e); byId.set(e.id, e); }
+  const qValues = (e) => (Array.isArray(e.tags) ? e.tags : [])
+    .filter((t) => Array.isArray(t) && t[0] === 'q' && typeof t[1] === 'string').map((t) => t[1]);
+  const copies = me === null ? [] : eventsOf(mine)
+    .filter((e) => typeof e.pubkey === 'string' && e.pubkey.toLowerCase() === me)
+    .map((event) => ({ event, qs: qValues(event) }))
+    .filter((c) => c.qs.length > 0);
+  const referenced = new Set(copies.flatMap((c) => c.qs));
+  const nameOf = (e) => { const n = tagValue(e, 'name'); return typeof n === 'string' && n.trim() !== '' ? n : '(unnamed)'; };
+  const judged = isObject(verdicts.byRouteId) ? verdicts.byRouteId : {};
+  const verdictOf = (e) => {
+    const v = own(judged, itemRouteId(e)) ? judged[itemRouteId(e)] : null;
+    return isObject(v) && (v.verdict === 'qualifies' || v.verdict === 'skipped') ? v : null;
+  };
+
+  const out = plan('ready');
+  let undecided = false;
+  for (const e of byRoute.values()) {
+    const coord = e.kind === 39999 ? itemRouteId(e) : null;
+    if (referenced.has(e.id) || (coord && coord !== e.id && referenced.has(coord))) continue;
+    const v = verdictOf(e);
+    if (!v) { undecided = true; continue; }
+    const entry = { name: nameOf(e), routeId: itemRouteId(e), score: v.score };
+    // A copy is pinned to the version judged, the original's current id (curated-dlist-update ADR 0006 §7).
+    if (v.verdict === 'qualifies') out.copy.push({ ...entry, version: e.id });
+    else out.skipped.push(entry);
+  }
+  for (const { event: copy, qs } of copies) {
+    const address = qs.find((q) => parseCoordinate(q)?.kind === 39999) || null;
+    const version = qs.find((q) => HEX64.test(q)) || null;
+    const original = (address && byRoute.get(address)) || (version && byId.get(version)) || null;
+    const copyRouteId = itemRouteId(copy);
+    if (!original) {
+      out.keepFlagged.push({ name: nameOf(copy), routeId: address || version, score: null, copyRouteId, why: 'not-found' });
+      continue;
+    }
+    const v = verdictOf(original);
+    if (!v) { undecided = true; continue; }
+    const entry = { name: nameOf(copy), routeId: itemRouteId(original), score: v.score, copyRouteId };
+    const edited = original.kind === 39999 && original.id !== version;
+    // Pinned (ADR 0006 §7): a refresh to the edited original's current id, a deletion to the copy's current id.
+    if (edited && v.verdict === 'qualifies') out.refresh.push({ ...entry, version: original.id });
+    else if (edited) out.keepFlagged.push({ ...entry, why: 'edited-not-qualifying' });
+    else if (v.verdict === 'qualifies') out.unchanged += 1;
+    else out.delete.push({ ...entry, copyId: copy.id });
+  }
+  // Every item the plan acts on needs its own decided verdict; a verdict set that misses one is incomplete.
+  if (undecided) return plan('blocked', ['a verdict for every item on the shared list']);
+  const byName = (a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  for (const group of [out.copy, out.refresh, out.delete, out.keepFlagged, out.skipped]) group.sort(byName);
+  // The upgrade says whether it also drops the "deliberately unaffiliated" marker (ADR 0006 §7; Planning decision 2).
+  out.upgrade = h.olderLink ? { dropsMarker: !!h.marker } : false;
+  out.upToDate = out.copy.length + out.refresh.length + out.delete.length === 0 && !out.upgrade;
+  return out;
+}
+
+/**
+ * The canonical intents of a plan (curated-dlist-update ADR 0006 §1, §7): what Publish sends, and what the fresh plan is
+ * compared by. References and version pins only, sorted, with no names or scores. A plan that isn't `ready` has none.
+ * Pure; never throws.
+ *
+ * @returns {{ copy: {original, version}[], refresh: {copy, original, version}[], delete: {copy, id}[],
+ *   upgrade: {dropsMarker: boolean}|null }}
+ */
+export function planIntents(plan) {
+  const out = { copy: [], refresh: [], delete: [], upgrade: null };
+  if (!plan || typeof plan !== 'object' || plan.state !== 'ready') return out;
+  const entries = (v) => (Array.isArray(v) ? v.filter((e) => e && typeof e === 'object') : []);
+  const by = (...keys) => (a, b) => {
+    for (const k of keys) {
+      const x = String(a[k]);
+      const y = String(b[k]);
+      if (x !== y) return x < y ? -1 : 1;
+    }
+    return 0;
+  };
+  out.copy = entries(plan.copy).map((e) => ({ original: e.routeId, version: e.version })).sort(by('original', 'version'));
+  out.refresh = entries(plan.refresh).map((e) => ({ copy: e.copyRouteId, original: e.routeId, version: e.version }))
+    .sort(by('copy', 'original', 'version'));
+  out.delete = entries(plan.delete).map((e) => ({ copy: e.copyRouteId, id: e.copyId })).sort(by('copy', 'id'));
+  out.upgrade = plan.upgrade ? { dropsMarker: !!(typeof plan.upgrade === 'object' && plan.upgrade.dropsMarker) } : null;
+  return out;
+}
+
+/**
+ * How one call of Update's publish ended (curated-dlist-update ADR 0006 Amendment 2, change 2, as Amendment 3 amends
+ * it), from its HTTP `status` and its parsed body `data`: `{ results }`, or `{ refusal }`. A failed fetch is
+ * `updateAnswer(null, null)`. Pure; never throws.
+ * - A 200 with the endpoint's body (`success: true` and a list of `results`) gives its results.
+ * - Refusals, all made before anything is signed, so the call published nothing: the endpoint's 409 is `stale`; its 503
+ *   is `couldnt-check`, with its `couldntCheck`; and any other 4xx, whatever its body, is an `error`, with the body's
+ *   `error` or "the server answered <status>".
+ * - Everything else is `unknown`, and some changes may have been published: no answer, a 200 whose body isn't the
+ *   endpoint's, a 5xx other than the endpoint's 503, or any other status.
+ */
+export function updateAnswer(status, data) {
+  const body = data && typeof data === 'object' ? data : null;
+  const unknown = (reason) => ({ refusal: { kind: 'unknown', reason } });
+  if (status == null) return unknown('no answer arrived');
+  if (status === 200) {
+    return body && body.success === true && Array.isArray(body.results) ? { results: body.results } : unknown('the answer couldn’t be read');
+  }
+  if (status === 409 && body && body.success === false) return { refusal: { kind: 'stale' } };
+  if (status === 503 && body && body.success === false) {
+    return { refusal: { kind: 'couldnt-check', reasons: Array.isArray(body.couldntCheck) ? body.couldntCheck : [] } };
+  }
+  if (status >= 400 && status <= 499) {
+    const message = body && typeof body.error === 'string' && body.error !== '' ? body.error : `the server answered ${status}`;
+    return { refusal: { kind: 'error', message } };
+  }
+  return unknown(`the server answered ${status}`);
 }
 
 /* ── Relay presence (ADR treasure-map-relay-presence/0001) ───────────────── */

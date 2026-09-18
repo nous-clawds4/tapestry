@@ -228,6 +228,11 @@ const suites = [
   { file: 'my-curated-dlists-page.test.js' },
   { file: 'my-curated-dlists-headers.test.js' },
   { file: 'my-curated-dlists-items.test.js' },
+  { file: 'curated-dlist-update-pointer-switch.test.js' },
+  { file: 'curated-dlist-update-read-only-curation.test.js' },
+  { file: 'curated-dlist-update-curation-method.test.js' },
+  { file: 'curated-dlist-update-update-preview.test.js' },
+  { file: 'curated-dlist-update-publish.test.js' },
   { file: 'assistant-setup-state.test.js' },
   { file: 'gate-result-record.test.js' },
 ];

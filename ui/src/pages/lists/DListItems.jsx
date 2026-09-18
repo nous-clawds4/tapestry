@@ -8,6 +8,7 @@ import AuthorCell from '../../components/AuthorCell';
 import { useAuth } from '../../context/AuthContext';
 import useTrustWeights from '../../hooks/useTrustWeights';
 import { useTrust, SCORING_METHODS } from '../../context/TrustContext';
+import { reactionsByItem, scoreItem, qualifies } from '../../utils/dlistScore';
 
 function getTag(event, name, index = 1) {
   const tag = event.tags?.find(t => t[0] === name);
@@ -27,16 +28,6 @@ function formatAge(ts) {
 function shortPubkey(pk) {
   if (!pk) return '—';
   return pk.slice(0, 8) + '…';
-}
-
-function isUpvote(content) {
-  const c = (content || '').trim();
-  return c === '+' || c === '👍' || c === '🤙';
-}
-
-function isDownvote(content) {
-  const c = (content || '').trim();
-  return c === '-' || c === '👎';
 }
 
 const SOURCE_LOCAL = '__local__';
@@ -196,22 +187,8 @@ export default function DListItems() {
 
   const sourceChanged = pendingSource !== activeSource;
 
-  // Build reactions-per-item map: { itemId: [{ pubkey, type, id }] }
-  const reactionsPerItem = useMemo(() => {
-    const map = {};
-    for (const id of itemIds) map[id] = [];
-    for (const ev of reactions) {
-      const eTag = ev.tags?.find(t => t[0] === 'e');
-      const targetId = eTag?.[1];
-      if (targetId && map[targetId]) {
-        let type = 'other';
-        if (isUpvote(ev.content)) type = 'upvote';
-        else if (isDownvote(ev.content)) type = 'downvote';
-        map[targetId].push({ pubkey: ev.pubkey, type, id: ev.id, content: ev.content });
-      }
-    }
-    return map;
-  }, [reactions, itemIds]);
+  // Build reactions-per-item map: { itemId: [{ pubkey, type, id }] } — the shared rule (curated-dlist-update ADR 0004 §1)
+  const reactionsPerItem = useMemo(() => reactionsByItem(reactions, itemIds), [reactions, itemIds]);
 
   // Collect all pubkeys: item authors + reaction authors + PoV
   const { povPubkey } = useTrust();
@@ -245,103 +222,11 @@ export default function DListItems() {
     [trustMethod]
   );
 
-  // Compute trust-weighted score for each item
+  // Compute trust-weighted score for each item — the shared rule (curated-dlist-update ADR 0004 §1)
   const trustScores = useMemo(() => {
     const scores = {};
     for (const item of items) {
-      const itemAuthor = item.pubkey;
-      const itemReactions = reactionsPerItem[item.id] || [];
-      const authorTW = trustWeights[itemAuthor];
-
-      // Check if the item author has any kind 7 reaction on this item
-      const authorReaction = itemReactions.find(r => r.pubkey === itemAuthor);
-      const authorSelfDownvoted = authorReaction?.type === 'downvote';
-      const authorHasExplicitUpvote = authorReaction?.type === 'upvote';
-
-      // Build the breakdown
-      const breakdown = [];
-      let score = 0;
-
-      // 1. Implicit author upvote
-      if (authorTW != null) {
-        if (authorSelfDownvoted) {
-          // Author downvoted their own item → cancels implicit upvote → net 0
-          breakdown.push({
-            pubkey: itemAuthor,
-            role: 'author',
-            type: 'implicit-upvote-cancelled',
-            weight: authorTW,
-            contribution: 0,
-            note: 'Implicit upvote cancelled by author\'s kind 7 downvote',
-          });
-        } else {
-          // Normal implicit upvote
-          breakdown.push({
-            pubkey: itemAuthor,
-            role: 'author',
-            type: 'implicit-upvote',
-            weight: authorTW,
-            contribution: authorTW,
-            note: authorHasExplicitUpvote
-              ? 'Implicit upvote (explicit kind 7 + ignored as duplicate)'
-              : 'Implicit upvote (authored the item)',
-          });
-          score += authorTW;
-        }
-      } else {
-        breakdown.push({
-          pubkey: itemAuthor,
-          role: 'author',
-          type: 'implicit-upvote',
-          weight: null,
-          contribution: null,
-          note: 'Trust weight unknown',
-        });
-      }
-
-      // 2. Process each reaction from OTHER authors
-      for (const r of itemReactions) {
-        if (r.pubkey === itemAuthor) {
-          // Already handled above — skip explicit reactions from item author
-          if (authorSelfDownvoted) {
-            breakdown.push({
-              pubkey: r.pubkey,
-              role: 'author',
-              type: 'explicit-downvote',
-              weight: authorTW,
-              contribution: 0,
-              note: 'Author\'s explicit downvote (cancels implicit upvote)',
-            });
-          }
-          // If author has explicit upvote, it was already noted above
-          continue;
-        }
-
-        const tw = trustWeights[r.pubkey];
-        if (tw != null) {
-          const contrib = r.type === 'upvote' ? tw : r.type === 'downvote' ? -tw : 0;
-          score += contrib;
-          breakdown.push({
-            pubkey: r.pubkey,
-            role: 'reactor',
-            type: r.type,
-            weight: tw,
-            contribution: contrib,
-            note: null,
-          });
-        } else {
-          breakdown.push({
-            pubkey: r.pubkey,
-            role: 'reactor',
-            type: r.type,
-            weight: null,
-            contribution: null,
-            note: 'Trust weight unknown',
-          });
-        }
-      }
-
-      scores[item.id] = { score, breakdown };
+      scores[item.id] = scoreItem(item.pubkey, reactionsPerItem[item.id] || [], trustWeights);
     }
     return scores;
   }, [items, reactionsPerItem, trustWeights]);
@@ -849,7 +734,7 @@ function TrustedListPanel({ items, trustScores, trustMethod, povPubkey, listName
           itemAuthor: item.pubkey,
         };
       })
-      .filter(item => item.score != null && item.score >= cutoff)
+      .filter(item => qualifies(item.score, cutoff))
       .sort((a, b) => b.score - a.score);
   }, [items, trustScores, cutoff]);
 

@@ -19,6 +19,10 @@
  * Not covered here: the rendered pages in a browser (the reviewer's Playwright-with-page.route
  * method covers them — the auth stubs, the kind-10040 scan, the header scans, /api/relay/external),
  * and the real strfry scan and relay fetch (their own lanes).
+ *
+ * Re-aimed by curated-dlist-update #3 (ADR curated-dlist-update/0003 §1–§2): U6 — read-only replaces
+ * no-assistant and other-pubkey; S3 — every row links, and another pubkey's row opens read-only;
+ * S4 — the front door's cases.
  */
 
 const fs = require('fs');
@@ -173,7 +177,7 @@ test('U5: curatedDListPath — one encoded path segment that the router decodes 
   }
 });
 
-test('U6: curatedDListAccess — the detail page opens only a list on the viewer\'s own Map that names the viewer\'s own assistant, and otherwise names the case', async () => {
+test('U6: curatedDListAccess — a list on the viewer\'s own Map opens: as theirs when it names their own assistant, read-only otherwise (curated-dlist-update #3); every other case is named', async () => {
   const access = await fn('curatedDListAccess');
   const base = { signedIn: true, authLoading: false, assistantPubkey: ME, mapStatus: 'found', tags: TAGS, id: '39998:dog-breed' };
   const acc = (over) => access({ ...base, ...over });
@@ -186,11 +190,14 @@ test('U6: curatedDListAccess — the detail page opens only a list on the viewer
   assert(acc({ signedIn: false }).status === 'signed-out', 'AC-5: signed out');
   assert(acc({ signedIn: false, assistantPubkey: null, id: 'garbage', mapStatus: 'error' }).status === 'signed-out',
     'ADR sub-decision 4: signed-out outranks every later case');
+  // Re-aimed by curated-dlist-update #3 (ADR 0003 §1): with no assistant here a list on my Map opens read-only.
   for (const none of [null, undefined, '']) {
-    assert(acc({ assistantPubkey: none }).status === 'no-assistant', `AC-5: no assistant on this instance (${JSON.stringify(none)})`);
+    const r0 = acc({ assistantPubkey: none });
+    assert(r0.status === 'read-only' && r0.row && r0.row.routeId === '39998:dog-breed',
+      `curated-dlist-update #3 AC-1: no assistant on this instance (${JSON.stringify(none)}) → read-only, with the row; got ${JSON.stringify(r0)}`);
   }
-  assert(acc({ assistantPubkey: null, id: 'garbage', mapStatus: 'loading' }).status === 'no-assistant',
-    'ADR sub-decision 4: no-assistant outranks a bad id and the Map states');
+  assert(acc({ assistantPubkey: null, id: 'garbage', mapStatus: 'loading' }).status === 'bad-id',
+    'curated-dlist-update ADR 0003 §1: no-assistant is retired — with no assistant, a bad id is still bad-id');
   for (const id of ['garbage', '39998:dlist-header', '30392:x', '', undefined]) {
     assert(acc({ id }).status === 'bad-id', `ADR sub-decision 4: ${JSON.stringify(id)} is not a curated-DList address → bad-id`);
   }
@@ -206,10 +213,10 @@ test('U6: curatedDListAccess — the detail page opens only a list on the viewer
   assert(acc({ id: '39998:Dog-Breed' }).status === 'not-on-map', 'AC-5: d-tags match exactly (case matters)');
   assert(acc({ id: '39999:dog-breed' }).status === 'not-on-map', 'AC-5: the kind is part of the list address');
   r = acc({ id: '39998:cats' });
-  assert(r.status === 'other-pubkey' && r.row && r.row.pubkey === OTHER,
-    `AC-5: empowered for another pubkey — the row is returned so the page can name it; got ${JSON.stringify(r)}`);
-  assert(acc({ tags: [['39998:x', OTHER, RELAY], ['39998:x', ME, RELAY]], id: '39998:x' }).status === 'other-pubkey',
-    'AC-5 / ADR sub-decision 1: the first entry decides — a later entry naming me does not open it');
+  assert(r.status === 'read-only' && r.row && r.row.pubkey === OTHER,
+    `curated-dlist-update #3 AC-2: empowered for another pubkey → read-only, the row returned so the page can name it; got ${JSON.stringify(r)}`);
+  assert(acc({ tags: [['39998:x', OTHER, RELAY], ['39998:x', ME, RELAY]], id: '39998:x' }).status === 'read-only',
+    'AC-5 / ADR sub-decision 1: the first entry decides — a later entry naming me does not make it mine (read-only since curated-dlist-update #3)');
   assert(acc({ tags: [['39998:x', ME, RELAY], ['39998:x', OTHER, RELAY]], id: '39998:x' }).status === 'ok',
     'AC-5 / ADR sub-decision 1: first entry mine, later duplicate someone else → ok');
   assert(acc({ tags: null, id: '39998:x' }).status === 'not-on-map', 'ADR note 1: a Map with no tags has no lists');
@@ -344,7 +351,7 @@ test('S2: the routes — a nested curated-dlists block after treasure-map: the l
   assert(/crumb:\s*['"]Detail['"]/.test(block), 'ADR sub-decision 8: the detail crumb "Detail"');
 });
 
-test('S3: the list page — my own Map and my own assistant, honest states, one row per list, links only on my assistant\'s rows', () => {
+test('S3: the list page — my own Map and my own assistant, honest states, one row per list, every row a link (curated-dlist-update #3)', () => {
   const s = src(LIST_PAGE, 'AC-2/3/4');
   assert(/export\s+default\s+function\s+MyCuratedDLists\b/.test(s), 'ADR note 4: default export MyCuratedDLists');
   assert(/<Breadcrumbs\b/.test(s) && /My Curated DLists/.test(s), 'AC-1: the page titles itself and renders the breadcrumb');
@@ -360,9 +367,8 @@ test('S3: the list page — my own Map and my own assistant, honest states, one 
   assert(/describeHeaderLookup\(/.test(s) && /couldn.?t check/i.test(s), 'AC-3 / ADR note 4: "header not found" with where it looked; "couldn\'t check" when failed');
   assert(/your assistant/i.test(s) && /another pubkey/i.test(s), 'AC-3: who is empowered — your assistant / another pubkey');
   assert(/\.relay\b/.test(s) && /ignoredDuplicates/.test(s) && /duplicate/i.test(s), 'AC-3: the relay hint and the ignored-duplicate note');
-  assert(/curatedDListPath\([^)]*routeId/.test(s) && /\bmine\b[\s\S]{0,400}curatedDListPath\(/.test(s),
-    'AC-4 / ADR note 4: rows link to curatedDListPath(row.routeId) only when mine');
-  assert(/own assistant curates open here/i.test(s), 'AC-4: non-mine rows say why they do not open');
+  assert(/curatedDListPath\([^)]*routeId/.test(s), 'AC-4 / ADR note 4: rows link to curatedDListPath(row.routeId) — every row since curated-dlist-update #3');
+  assert(/Opens read-only here/.test(s), 'curated-dlist-update #3 AC-1: a row naming another pubkey says it opens read-only');
   assert(/Tapestry Assistant on this instance/i.test(s), 'AC-4: a user with no assistant sees a line saying so');
 });
 
@@ -373,11 +379,12 @@ test('S4: the detail page — the route id as the router decoded it, one front-d
   assert(/curatedDListAccess\(/.test(s) && /useTreasureMap\(/.test(s), 'AC-5 / ADR note 5: useTreasureMap + curatedDListAccess');
   assert(/\{[^}]*\bloading\b[^}]*\}\s*=\s*useAuth\(\)/.test(s), 'ADR note 5: reads useAuth().loading');
   assert(/assistantPubkey/.test(s) && !/taPubkey/.test(s), 'AC-5 / ADR sub-decision 2: the viewer\'s own assistant, never taPubkey');
-  for (const status of ['signed-out', 'no-assistant', 'bad-id', 'checking', 'map-error', 'no-map', 'not-on-map', 'other-pubkey']) {
+  for (const status of ['signed-out', 'bad-id', 'checking', 'map-error', 'no-map', 'not-on-map']) {
     assert(new RegExp(`['"]${status}['"]`).test(s), `AC-5 / ADR note 5: a sentence for the "${status}" case`);
   }
-  assert(/sign in/i.test(s) && /Tapestry Assistant on this instance/i.test(s) && /not on your Treasure Map/i.test(s) && /another pubkey/i.test(s) && /No Treasure Map found/i.test(s),
-    'AC-5: the case sentences — signed out · no assistant · not on your Map · another pubkey · no Map');
+  assert(/['"]read-only['"]/.test(s), 'curated-dlist-update #3 (ADR 0003 §1): another pubkey\'s list, or any list with no assistant here, opens read-only');
+  assert(/sign in/i.test(s) && /Tapestry Assistant on this instance/i.test(s) && /not on your Treasure Map/i.test(s) && /another assistant/i.test(s) && /No Treasure Map found/i.test(s),
+    'AC-5 (re-aimed by curated-dlist-update #3): signed out · not on your Map · no Map; the read-only lines name another assistant, and no assistant on this instance');
   assert(/curated by your assistant/i.test(s) && /useCurationHeaders\(/.test(s) && /['"]names['"]/.test(s),
     'AC-5 / ADR note 5: the open list is identified — name from the header, curated by your assistant');
   assert(/['"`]\/tapestry\/grapevine\/curated-dlists['"`]/.test(s) && /<Breadcrumbs\b/.test(s), 'AC-5: the link back to My Curated DLists');

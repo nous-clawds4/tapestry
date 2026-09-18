@@ -151,7 +151,7 @@ test('S2: the batched two-step lookup — local strfry first, the row\'s relay h
 test('S3: the details line — name linked by coordinate, the community pointer, the warning, the duplicate pill, the inline short pubkey', () => {
   const src = safeRead(PANEL);
   assert(/\/tapestry\/lists\//.test(src) && /encodeURIComponent/.test(src), 'AC-3: link to the DList page by encoded coordinate');
-  assert(/inherits from/i.test(src), 'AC-3: the community pointer is labeled');
+  assert(/copies from/.test(src), 'AC-3 as re-aimed by curated-dlist-update #2 (ADR 0002 Decision §5): the community pointer is labeled "copies from" (no user-facing "inherit" is the story-2 suite\'s S1, on comment-stripped source)');
   assert(src.includes('duplicate — ignored'), 'AC-4: later duplicates carry the pill');
   assert(/row\.duplicate/.test(src), 'AC-4: effective rows are the ones looked up');
   assert(/external · /.test(src), 'AC-2 / review #5 NB-3: the external badge on curated rows carries the short pubkey inline ("external · <8>…<4>")');

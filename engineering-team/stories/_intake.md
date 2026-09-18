@@ -2361,6 +2361,8 @@ decide gate-or-retire. Retirement may be the right answer: the legacy dashboard 
 
 ## 2026-09-10 — `inherit-items`: derivation + item-set resolver (code follow-up)
 
+**RESOLVED** 2026-09-12 — no consumer: `curated-dlist-update` ADR 0001 moves curated lists to `pointer` headers and copied items, and the header endpoint stops writing `inherit-items` in that book's story 2. Reopen if a list that takes every parent item live is wanted.
+
 **Surfaced by:** `dlist-curation` #3 / ADR 0003 (docs-mode). The `b` type registry gained
 `"inherit-items"` (item inheritance, additive) with the derived relationship
 `(child)-[:INHERITS_ITEMS_FROM]->(parent)` as the **target**. The reference deployment does not
