@@ -623,17 +623,18 @@ export default function Tag() {
 
             {/* search-index-selection #4 — the confirm step. One mount, create mode,
                 pre-filled with today's defaults; onSubmit is the only thing that
-                publishes, and it publishes exactly once. */}
+                publishes, and it publishes exactly once. pinDialog.context is the
+                picker's { slug, name } OBJECT (PinToContextModal onPick(c); pinTag reads
+                context.slug) — the dialog is given the slug and the display name, never
+                the object. */}
             {pinDialog.open && user && (
               <CurationMethodDialog
                 tag={tag}
                 mode="create"
                 initialCuration={defaultCurationMethod(user.pubkey)}
                 viewerPubkey={user.pubkey}
-                context={pinDialog.context}
-                contextName={pinDialog.context
-                  ? (KNOWN_CONTEXTS.find((c) => c.slug === pinDialog.context)?.name || pinDialog.context)
-                  : null}
+                context={pinDialog.context?.slug || null}
+                contextName={pinDialog.context?.name || pinDialog.context?.slug || null}
                 onSubmit={(curation) => (pinDialog.context
                   ? publishContextPin(curation, pinDialog.context)
                   : publishWithCuration(curation))}

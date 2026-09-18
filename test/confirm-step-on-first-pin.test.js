@@ -472,9 +472,16 @@ t('S13 AC-5 (review finding): the community-pin interstitial shows the chosen co
   const page = rd(TAG_PAGE);
   const dialog = rd(UI('components/CurationMethodDialog.jsx'));
   const mount = page.slice(page.indexOf('<CurationMethodDialog'), page.indexOf('/>', page.indexOf('<CurationMethodDialog')));
-  assert(/context=\{pinDialog\.context\}/.test(mount),
-    'AC-5: the create-mode mount must pass the chosen context into the dialog.');
-  assert(/contextName=/.test(mount), 'AC-5: and its display name (KNOWN_CONTEXTS lookup, slug fallback).');
+  // SHAPE contract (review round 2 found a crash here): the picker's onPick hands an OBJECT
+  // { slug, name } (PinToContextModal) and pinTag reads context.slug — so the dialog must be
+  // given the slug and the name, never the object (an object rendered as a React child throws).
+  const picker = rd(UI('components/PinToContextModal.jsx'));
+  assert(/onPick\(c\)/.test(picker), 'premise: PinToContextModal.onPick passes the whole context object.');
+  assert(/context=\{pinDialog\.context\?\.slug \|\| null\}/.test(mount),
+    'AC-5: the create-mode mount must pass the chosen context SLUG (pinDialog.context is the { slug, name } object).');
+  assert(/contextName=\{pinDialog\.context\?\.name \|\| pinDialog\.context\?\.slug \|\| null\}/.test(mount),
+    'AC-5: and its display NAME from the same object (slug fallback) — never the object itself.');
+  assert(!/context=\{pinDialog\.context\}/.test(mount), 'the object must not be passed as the context prop.');
   const create = dialog.slice(dialog.indexOf("mode === 'create' &&"), dialog.indexOf("mode === 'create' &&") + 2500);
   assert(/\{context && \(/.test(create) && /Community:/.test(create) && /contextName \|\| context/.test(create),
     'AC-5: create mode must render a fixed "Community: <name>" line when a context is set, and nothing when neutral.');
