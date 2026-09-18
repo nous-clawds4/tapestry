@@ -35,19 +35,17 @@ const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:
 // is loopback-only — it can only be triggered from INSIDE the container, the
 // way the cron (refreshPinnedTagTLs.sh) does. A host HTTP call now correctly
 // 403s, so these live-integration suites drive it via docker exec.
-const { execSync: _execSync } = require('child_process');
 const _TAPESTRY_CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
+// The real HTTP status, or noResponse — never a status derived from the body
+// (honest-test-gate #1, ADR honest-test-gate/0001 §6; OPEN.md row 263).
 async function refreshAllViaLoopback() {
-  try {
-    const out = _execSync(
-      `docker exec ${_TAPESTRY_CONTAINER} curl -s -X POST http://127.0.0.1:7778/api/trusted-list/refresh-all-pinned-tags`,
-      { encoding: 'utf8', timeout: 300000 }
-    );
-    let json = null; try { json = JSON.parse(out); } catch (_e) {}
-    return { status: json && json.success ? 200 : 500, json };
-  } catch (e) {
-    return { status: 0, json: null, error: e.message };
-  }
+  return loopbackRequest({
+    container: _TAPESTRY_CONTAINER,
+    method: 'POST',
+    url: 'http://127.0.0.1:7778/api/trusted-list/refresh-all-pinned-tags',
+    timeoutS: 300,
+  });
 }
 const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
@@ -282,8 +280,9 @@ async function setupBasicSuite() {
 /* AC-2 — customized curation lands in strfry + TL reflects it. */
 tBasic('pin event with cutoff=1 produces a TL whose [cutoff,1] event-tag matches the pin\'s curation', async () => {
   const { tag, viewerPk } = basicCtx;
-  const { status } = await refreshAllViaLoopback();
-  assert(status === 200, `refresh-all-pinned-tags status ${status}`);
+  const { status, noResponse, json: refreshJson } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200 && refreshJson?.success === true,
+    `refresh-all-pinned-tags ${describeResponse({ status, noResponse })} body=${JSON.stringify(refreshJson)}`);
   await sleep(PROPAGATION_MS);
 
   const dTag = expectedTLDTag({ observerPk: viewerPk, tagAuthorPk: tag.authorPubkey, tagSlug: tag.slug });
@@ -319,8 +318,9 @@ tBasic('editing a pin (re-publish kind-39999 with same d-tag, new cutoff) lands 
 
   // Trigger refresh again.
   await sleep(1100); // ensure TL created_at advances past prior TL
-  const { status } = await refreshAllViaLoopback();
-  assert(status === 200, `refresh-all-pinned-tags status ${status}`);
+  const { status, noResponse, json: refreshJson } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200 && refreshJson?.success === true,
+    `refresh-all-pinned-tags ${describeResponse({ status, noResponse })} body=${JSON.stringify(refreshJson)}`);
   await sleep(PROPAGATION_MS);
 
   const dTag = expectedTLDTag({ observerPk: viewerPk, tagAuthorPk: tag.authorPubkey, tagSlug: tag.slug });
@@ -353,8 +353,9 @@ tBasic('pin with includeScoreInTL=true + no resolvable POV still publishes a kin
   await sleep(PROPAGATION_MS);
 
   await sleep(1100);
-  const { status } = await refreshAllViaLoopback();
-  assert(status === 200, `refresh-all-pinned-tags status ${status}`);
+  const { status, noResponse, json: refreshJson } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200 && refreshJson?.success === true,
+    `refresh-all-pinned-tags ${describeResponse({ status, noResponse })} body=${JSON.stringify(refreshJson)}`);
   await sleep(PROPAGATION_MS);
 
   const dTag = expectedTLDTag({ observerPk: viewerPk, tagAuthorPk: tag.authorPubkey, tagSlug: tag.slug });
@@ -462,8 +463,9 @@ async function teardownPovSuite() {
 
 tPov('AC-7: pin with includeScoreInTL=true + resolvable POV produces a kind-30392 whose p tags carry [pubkey, \'\', <score>] triples', async () => {
   const { tag, viewerPk, targetPk } = povCtx;
-  const { status } = await refreshAllViaLoopback();
-  assert(status === 200, `refresh-all-pinned-tags status ${status}`);
+  const { status, noResponse, json: refreshJson } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200 && refreshJson?.success === true,
+    `refresh-all-pinned-tags ${describeResponse({ status, noResponse })} body=${JSON.stringify(refreshJson)}`);
   await sleep(PROPAGATION_MS);
 
   const dTag = expectedTLDTag({ observerPk: viewerPk, tagAuthorPk: tag.authorPubkey, tagSlug: tag.slug });

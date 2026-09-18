@@ -25,7 +25,7 @@ Staging is the hard ceiling, and it does not move. Forbidden, no exceptions:
 
 - `/cycle-prod`, and `/cycle-full` (it chains into prod).
 - `gh pr create --base main`, merging any PR based on `main`, any push to `main` — including revert PRs against `main`.
-- Push or merge to the sandbox long-lived branches (`feature-magic-carpet`, `feat/pubkey-tagging-target`, `feat/communities`, `feat/curate`) — each auto-deploys to a teammate's live droplet.
+- Push or merge to the sandbox long-lived branches (`feature-magic-carpet`, `feat/tags`) — each auto-deploys to a teammate's live droplet.
 - Any mutation on `https://tapestry.brainstorm.world`, droplet SSH, in-container config edits on deployed droplets, BullBoard retry/remove/pause actions on deployed droplets, and triggering heavy tasks on staging as "verification" (forbidden set: any `taskRegistry.json` task with `resourceClass: "neo4j-heavy"`, plus `reconcileAll`).
 
 Auto mode does NOT extend the ceiling. A breach — however small — is an automatic experiment failure (Stopping rule 5 in the role file). The cost of stopping to ask is low; the cost of an unauthorized prod-side action is high.
@@ -50,7 +50,7 @@ This skill orchestrates Phases 1–5 per story, then `/cycle-local` → `/cycle-
 3. `git status` clean; `git fetch`; check drift vs `origin/staging`. Cleanly rebasable → rebase; anything else → halt (role file, Stopping rule 6).
 4. Scan [docs/](../../../docs/) `*HANDOFF*.md` for `🔴 OPEN` handoffs and `engineering-team/` for in-flight epics touching the same files. Overlap → halt and surface; never entangle.
 5. Branch: work on `feat/<book-slug>` off `origin/staging` (create on first session).
-6. Baseline: `npm test` green before any new work — record the exact command; Gate 4 reruns it identically. Red baseline → halt; that's not yours to fix silently.
+6. Baseline: `npm test` green before any new work — record the exact command; Gate 4 reruns it identically. Read each run's verdict from its record (`npm run gate:status`; engineering-team/README.md — "Running and reading the test gate") and journal the run id. Red baseline → halt; that's not yours to fix silently.
 
 ### Stage 1 — per-story cycle (repeat for each story)
 

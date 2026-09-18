@@ -122,6 +122,8 @@ Open questions: **(1)** Is a non-ORE, Tapestry-namespaced **availability probe**
 
 **2026-08-12 update (`ore-pov-availability` #1):** open question **(2)** is resolved — we proposed upstream. A submission-ready ORE-01 "Unavailable pov" subsection (error + MUST-NOT-substitute + `X-Reason` guidance + the `202`/`Retry-After` split for still-computing POVs) is drafted per the maintainer-endorsed solution 1 of [Open-Ranking/protocol#8](https://github.com/Open-Ranking/protocol/issues/8): `protocols/upstream/ore-01-pov-unavailable.md`, **submitted 2026-08-13 as [Open-Ranking/protocol#9](https://github.com/Open-Ranking/protocol/pull/9)** (if it merges with edited wording, a cosmetic `X-Reason` re-phrase follow-up applies — ADR `ore-pov-availability/0001` §Consequences). Local alignment (informative refusal, never-substitute test pins, `/developers/open-ranking` docs): ADR `ore-pov-availability/0001`. Open question **(1)** — the enumeration-oracle / auth half (the ADR `open-ranking/0005` gate) — remains open and untouched.
 
+**2026-09-17 update:** maintainer review on [PR #9](https://github.com/Open-Ranking/protocol/pull/9) (2026-08-28): approved — *"The PR is perfect"* — and asked for the ORE-08 gap (flagged as an aside in the PR description) to be fixed in the same PR. The ORE-08 pov-parity text (request-table `pov` field + ORE-01 delegation sentence + missing-`pov` and cannot-serve error rows) is now in the artifact's § "Proposed spec text (08.md)", applied to the PR by the author; awaiting merge. OPEN.md row 304 watches the merge (successor to row 176).
+
 ## W13 — Cross-store POV identity: main pubkey (Neo4j cards) vs delegated-key suffix (Meili columns)
 
 **Status:** Open · raised 2026-06-19

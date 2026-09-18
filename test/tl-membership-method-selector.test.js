@@ -28,6 +28,7 @@ const path = require('path');
 const REPO_ROOT = path.join(__dirname, '..');
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 const TAPESTRY_CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
 
 // ADR 0015 legacy z-tag pubkey — concept handles for tag/pin z-tags are
 // intentionally literal (see CLAUDE.md § Named exception).
@@ -108,17 +109,15 @@ async function publish(signedEvent) {
   return signedEvent;
 }
 
+// The real HTTP status, or noResponse — never a status derived from the body
+// (honest-test-gate #1, ADR honest-test-gate/0001 §6; OPEN.md row 263).
 async function refreshAllViaLoopback() {
-  try {
-    const out = execSync(
-      `docker exec ${TAPESTRY_CONTAINER} curl -s -X POST http://127.0.0.1:7778/api/trusted-list/refresh-all-pinned-tags`,
-      { encoding: 'utf8', timeout: 300000 }
-    );
-    let json = null; try { json = JSON.parse(out); } catch (_e) {}
-    return { status: json && json.success ? 200 : 500, json };
-  } catch (e) {
-    return { status: 0, json: null, error: e.message };
-  }
+  return loopbackRequest({
+    container: TAPESTRY_CONTAINER,
+    method: 'POST',
+    url: 'http://127.0.0.1:7778/api/trusted-list/refresh-all-pinned-tags',
+    timeoutS: 300,
+  });
 }
 
 async function strfryScan(filter) {
@@ -345,9 +344,9 @@ async function runL1L2CountModeBody() {
   }));
 
   await sleep(PROPAGATION_MS);
-  const { status, json } = await refreshAllViaLoopback();
-  assert(status === 200 && json?.success === true,
-    `refresh-all-pinned-tags failed: status ${status} body=${JSON.stringify(json)}`);
+  const { status, json, noResponse } = await refreshAllViaLoopback();
+  assert(!noResponse && status === 200 && json?.success === true,
+    `refresh-all-pinned-tags failed: ${describeResponse({ status, noResponse })} body=${JSON.stringify(json)}`);
   await sleep(PROPAGATION_MS);
 
   const dTag = `tl-pin-${viewerPk.slice(0, 8)}-${tagAuthorPk.slice(0, 8)}-${slug}`;

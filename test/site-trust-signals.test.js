@@ -55,9 +55,7 @@ const ESTATE_HOSTS = [
   'tapestry.brainstorm.world',
   'staging.brainstorm.world',
   'tags.brainstorm.world',
-  'communities.brainstorm.world',
   'magic-carpet.brainstorm.world',
-  'curate.brainstorm.world',
   // Backend APIs — NosFabrica/brainstorm_server
   'api.brainstorm.world',
   'search.brainstorm.world',
@@ -187,7 +185,7 @@ test('U3 Expires is no more than one year out', () => {
 
 test('U4 Canonical names the requesting host when a domain is configured', () => {
   const { buildSecurityTxt } = loadSiteTrust();
-  for (const host of ['staging.brainstorm.world', 'curate.brainstorm.world', 'fork.example.org']) {
+  for (const host of ['staging.brainstorm.world', 'tags.brainstorm.world', 'fork.example.org']) {
     const fields = parseSecurityTxt(buildSecurityTxt({ domain: host }));
     assert(fields.canonical, `Canonical must be emitted when domain="${host}".`);
     const expected = `https://${host}/.well-known/security.txt`;
@@ -217,6 +215,15 @@ test('U6 security.txt names every official host in the estate attestation', () =
   assert(missing.length === 0,
     `The attestation must name every official host; missing: ${missing.join(', ')}. ` +
     'This list is the substantive answer to "these domains look like clones of each other."');
+});
+
+test('U6c the attestation no longer names the decommissioned sandboxes', () => {
+  const { buildSecurityTxt } = loadSiteTrust();
+  const body = buildSecurityTxt({ domain: 'tapestry.brainstorm.world' });
+  const gone = ['communities.brainstorm.world', 'curate.brainstorm.world'];
+  const stillNamed = gone.filter((h) => body.includes(h));
+  assert(stillNamed.length === 0,
+    `The estate attestation must not name hosts whose droplets are decommissioned; still named: ${stillNamed.join(', ')}.`);
 });
 
 test('U6b the attestation claims our own domains rather than disclaiming them', () => {

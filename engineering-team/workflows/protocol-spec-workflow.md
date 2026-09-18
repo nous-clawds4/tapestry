@@ -33,7 +33,7 @@ When a piece is settled, run it through the Engineering Team flow **in docs-mode
 - **Test Design: skipped** — no executable behavior; flag it in the story's open questions.
 - **Implementer authors the spec under `protocols/` plus the BIBLE pointer section**, not code. "Smallest change consistent with the ADR" = exactly the spec edits the ADR specifies. Mirror the working-doc spec; don't duplicate ADR rationale (point to the ADR).
 - **Reviewer audits accuracy + consistency**, not coverage: are the claims true? do cross-references resolve (TOC anchors, §-links)? internally consistent + ADR-conformant? — *and* run `npm test` to confirm the docs change caused **no regression**.
-- **Quality gate:** BIBLE/docs only; `npm test` stays green; no new tooling.
+- **Quality gate:** BIBLE/docs only; `npm test` stays green (read per [Running and reading the test gate](../README.md#running-and-reading-the-test-gate)); no new tooling.
 
 Artifacts land in the normal homes: ADRs in `engineering-team/decisions/<epic>/`, the canonical spec in `BIBLE.md`, the review in `engineering-team/reviews/<epic>/`.
 

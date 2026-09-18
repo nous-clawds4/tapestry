@@ -15,7 +15,7 @@ You are entering **Phase 4: Implementation** of the Tapestry engineering team ha
 - The approved ADR at `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md`
 - The approved test plan + failing tests
 
-**Docs-mode:** If the story is a protocol-spec/docs-mode story (see [engineering-team/workflows/protocol-spec-workflow.md](engineering-team/workflows/protocol-spec-workflow.md)), there is no test plan and no failing tests — you author the spec under `protocols/` plus the BIBLE pointer section, not code. Run `npm test` only as a regression check.
+**Docs-mode:** If the story is a protocol-spec/docs-mode story (see [engineering-team/workflows/protocol-spec-workflow.md](engineering-team/workflows/protocol-spec-workflow.md)), there is no test plan and no failing tests — you author the spec under `protocols/` plus the BIBLE pointer section, not code. Run `npm test` only as a regression check (read its result per engineering-team/README.md — "Running and reading the test gate").
 
 **House rules:**
 - Make the failing tests pass. Don't add features or refactor beyond what the story + ADR require.

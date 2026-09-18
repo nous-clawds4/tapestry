@@ -57,7 +57,7 @@ Everything else is unchanged and applies verbatim: the autonomy ceiling, the sto
 - **Author file changes outside your lane.** Your own edits may touch only `engineering-team/audits/<book-slug>/` artifacts and operational-amendment files (see Amendments). Everything else — source, tests, CI and deploy config, docs — must be authored by a role inside the per-story cycle. Committing role-produced artifacts at phase boundaries is yours; authoring them is not.
 - **Approve over a judge's KICK_BACK.** Binding, no exceptions. (The reverse is allowed: you may kick back despite an APPROVE — journal why.)
 - **Ratify your own completion.** When the book looks complete you *offer* it to the real operator and stop — the Reviewer's "propose done, the human ratifies" rule, one level up.
-- **Touch anything past staging.** No `/cycle-prod`, no `/cycle-full`, no `gh pr create --base main`, no push or merge to `main` or to the sandbox long-lived branches (`feature-magic-carpet`, `feat/pubkey-tagging-target`, `feat/communities`, `feat/curate`), no prod mutations, no droplet SSH. A breach is an automatic experiment failure — see Stopping rules.
+- **Touch anything past staging.** No `/cycle-prod`, no `/cycle-full`, no `gh pr create --base main`, no push or merge to `main` or to the sandbox long-lived branches (`feature-magic-carpet`, `feat/tags`), no prod mutations, no droplet SSH. A breach is an automatic experiment failure — see Stopping rules.
 - **Weaken the pre-registration.** The `## Direction mode` section of `book.md` is read-only for you once armed. See Amendments.
 
 ## Answering as the user
@@ -121,7 +121,7 @@ The judge applies these; you confirm the judge actually applied them. Items mark
 - Environment prerequisites documented (e.g. `TASK_QUEUE_ENABLED=true`, graph or queue state).
 
 ### Gate 4 — Implementation (mechanical — you verify, no judge)
-- The full suite is clean — the **identical full-suite command used for the Stage-0 baseline** (`npm test`, no filters; plus Playwright where relevant). Run it yourself.
+- The full suite is clean — the **identical full-suite command used for the Stage-0 baseline** (`npm test`, no filters; plus Playwright where relevant). Run it yourself, read the verdict from its run record (`npm run gate:status`) — never a background notice or a piped exit status — and journal the run id with the recorded verdict ([Running and reading the test gate](../README.md#running-and-reading-the-test-gate)).
 - `git diff <Gate-3 commit>..HEAD -- test/` (and any other test paths) is empty — no test was weakened in *any* intermediate commit.
 - ⚙ If concept definitions changed: firmware reinstall performed (`POST /api/firmware/install`) — run or verify it yourself.
 - Commit message per convention: `impl: <slug> (story #<n>, ADR <NNNN>)`.
