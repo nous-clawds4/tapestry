@@ -354,7 +354,7 @@ Suite: `test/confirm-step-on-first-pin.test.js` — plan:
 - **AC-2** confirming untouched is byte-identical to today → **U3** (the sentinel), **U1, U2, U4, S9, R1**
 - **AC-3** cancelling publishes nothing → **S5, U10**
 - **AC-4** edits land in the first pin, in one publish → **S4, U5**
-- **AC-5** "Pin to community" goes through the same interstitial → **S2, S4, S10**
+- **AC-5** "Pin to community" goes through the same interstitial → **S2, S4, S10, R4**
 - **AC-6** existing pins untouched → **R2, R3, S7, U6, U7**
 - **AC-7** a returning viewer sees no interstitial → **S10**
 - **E1** signer refusal mid-flow → **S12** · **E1b** refusal on the second prompt → **R1**
