@@ -1,6 +1,6 @@
 # Story 4: A confirm step on first pin — make the default curation visible before it publishes
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-18
 **Type:** Feature *(Light book — **no wire change**: this story reorders *when* the same pin
 event and the same curation blob are published, not what is in them. The irreversibility
