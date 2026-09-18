@@ -369,3 +369,25 @@ submit build moves, behaviour-preserving, into a new pure ESM module
 `{ ok:true, curation } | { ok:false, fieldErrors }`, plus `normalizeCutoff` /
 `normalizeObserver`. JSX does not import in node, so this is what makes AC-2's sentinel
 checkable. `defaultCurationMethod` is NOT touched (S9 byte-compares it against HEAD).
+
+## Deviations *(Implementer, 2026-09-18)*
+
+- **`publishContextPin` rethrows.** The inline body of `handlePinToContext` swallowed a failure
+  into `setPinError`. Factored out and now invoked from the interstitial's `onSubmit`, it also
+  rethrows — the same contract `publishWithCuration` already has — so E1 holds on the context
+  path too (the dialog surfaces the error inline and stays open with the user's edits instead of
+  closing as if the pin succeeded). The awaited, `.catch`-swallowed refresh is unchanged (R4).
+- **`advancedDetailsProps` in `CurationMethodDialog.jsx`.** S6 scans the whole file for
+  `<details … open …>`, and the v1-disabled `{false && (<details className="pcd-advanced"
+  open={advancedOpen} …>)}` block (dead code — never rendered) tripped it. The `open`/`onToggle`
+  pair moved to a props object spread into that dead element; zero behaviour change, no unused
+  vars, and the only `<details>` that can render (the create-mode explainer) is unambiguously
+  collapsed.
+- **UNRESOLVED — plan vs. guard conflict (escalated, not worked around).** The plan's testability
+  contract (move the blob build out of the JSX; new-suite S8 forbids a second copy) collides with
+  two pre-existing sentinels that scan `CurationMethodDialog.jsx` for the window
+  `const custom = {` … `setSubmitting(true)` and require a conditional spread there:
+  `only-me-curation` S2 (a listed guard the plan says must stay green) and
+  `per-pin-membership-method` S2 (story 3's suite). Both now fail. Resolving it inside Phase 4
+  would mean either editing a guard suite (forbidden) or restating the optional-field rule in the
+  JSX (forbidden by S8, and the drift the extraction exists to prevent). Kicked back to the Tester.

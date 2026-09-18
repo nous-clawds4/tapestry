@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { nip19 } from 'nostr-tools';
 import { TL_MEMBERSHIP_METHODS } from '../config/tlMembershipMethods';
+import { buildCuration } from '../utils/curationDialogBuild';
 
 /**
  * Story 12 / ADR 0011 — Curation-method editor.
@@ -30,33 +30,10 @@ const SUPPORTED_METHODS = [
   { value: 'trusted-list',    label: 'trusted-list',    enabled: false },
 ];
 
-function normalizeObserver(raw, viewerPubkey) {
-  const trimmed = (raw || '').trim();
-  if (trimmed === '') return { ok: true, value: viewerPubkey };
-  if (/^[0-9a-f]{64}$/.test(trimmed)) return { ok: true, value: trimmed };
-  if (trimmed.startsWith('npub1')) {
-    try {
-      const decoded = nip19.decode(trimmed);
-      if (decoded.type === 'npub' && typeof decoded.data === 'string') {
-        return { ok: true, value: decoded.data };
-      }
-    } catch { /* fall through */ }
-  }
-  return { ok: false, error: 'Must be a 64-char hex pubkey or a valid npub.' };
-}
-
-function normalizeCutoff(raw) {
-  const trimmed = (raw || '').trim();
-  if (trimmed === '') return { ok: false, error: 'Cutoff must be a positive integer.' };
-  if (!/^-?\d+$/.test(trimmed)) {
-    return { ok: false, error: 'Cutoff must be a positive integer.' };
-  }
-  const n = parseInt(trimmed, 10);
-  if (!Number.isInteger(n) || n < 1) {
-    return { ok: false, error: 'Cutoff must be a positive integer.' };
-  }
-  return { ok: true, value: n };
-}
+// search-index-selection #4 — `normalizeObserver` / `normalizeCutoff` and the blob
+// build MOVED to ../utils/curationDialogBuild.js (pure, node-importable) so the
+// confirm step's byte-identity with `defaultCurationMethod` is assertable. There is
+// no second copy of the rule here.
 
 export default function CurationMethodDialog({
   tag,
@@ -130,45 +107,26 @@ export default function CurationMethodDialog({
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     setError(null);
-    const errs = {};
-    const cutoffR = normalizeCutoff(cutoff);
-    if (!cutoffR.ok) errs.cutoff = cutoffR.error;
-    const observerR = normalizeObserver(observer, viewerPubkey);
-    if (!observerR.ok) errs.observer = observerR.error;
-    // Method enum check (defensive; the picker prevents bad values).
-    if (method !== 'nip85:rank') errs.method = 'Only nip85:rank is supported in v1.';
-    const targetTypes = [];
-    if (includeProfiles) targetTypes.push('profile');
-    if (includeNotes) targetTypes.push('note');
-    if (includeItems) targetTypes.push('item');
-    if (targetTypes.length === 0) errs.targetTypes = 'Select at least one: profiles, notes, or items.';
-    setFieldErrors(errs);
-    if (Object.keys(errs).length > 0) return;
-
-    const effectiveAuthorConstraint = authorConstraintTouched
-      ? authorConstraint
-      : (rawAuthorConstraint || '');
-    const effectiveMembershipMethod = membershipMethodTouched
-      ? membershipMethod
-      : (rawMembershipMethod || '');
-
-    const custom = {
-      observer: observerR.value,
-      method: 'nip85:rank',
-      cutoff: cutoffR.value,
-      includeScoreInTL: !!includeScoreInTL,
-      // Story 12 / ADR 0015
-      targetTypes,
+    const result = buildCuration({
+      observer,
+      viewerPubkey,
+      cutoff,
+      includeScoreInTL,
+      method,
+      includeProfiles,
+      includeNotes,
+      includeItems,
       noteMethod,
-      // search-index-selection ADR 0001 §3 — included ONLY when the scope is
-      // narrowed, so editing a pre-story pin reproduces today's blob exactly
-      // (E3). An untouched control re-emits whatever the pin already carried.
-      ...(effectiveAuthorConstraint ? { authorConstraint: effectiveAuthorConstraint } : {}),
-      // search-index-selection ADR 0002 §3 — included ONLY when the pin names a
-      // method; absent stays absent, so a pre-story pin's blob round-trips
-      // byte-identically and keeps following the instance dial.
-      ...(effectiveMembershipMethod ? { membershipMethod: effectiveMembershipMethod } : {}),
-    };
+      authorConstraint,
+      rawAuthorConstraint,
+      authorConstraintTouched,
+      membershipMethod,
+      rawMembershipMethod,
+      membershipMethodTouched,
+    });
+    setFieldErrors(result.ok ? {} : result.fieldErrors);
+    if (!result.ok) return;
+    const custom = result.curation;
 
     setSubmitting(true);
     try {
@@ -182,6 +140,14 @@ export default function CurationMethodDialog({
   };
 
   const submitLabel = mode === 'edit' ? 'Save changes' : 'Pin with these settings';
+
+  // The v1-disabled "Advanced" block below keeps its open/onToggle wiring here so the
+  // only `<details>` that renders in this dialog — the create-mode "What's a Trusted
+  // List?" explainer — is unambiguously collapsed by default. Behaviour unchanged.
+  const advancedDetailsProps = {
+    open: advancedOpen,
+    onToggle: (e) => setAdvancedOpen(e.target.open),
+  };
 
   const handleUnpinClick = async () => {
     if (!onUnpin || unpinning || submitting) return;
@@ -241,6 +207,25 @@ export default function CurationMethodDialog({
             list curation, and trust-weighted ranking.
           </p>
         </div>
+
+        {/* search-index-selection #4 / Gate A ruling 2 — the confirm step says what
+            the primary action is about to do, and offers a collapsed explainer.
+            Create mode only: an edit of an existing pin sees neither. */}
+        {mode === 'create' && (
+          <div className="pcd-create-note">
+            <p className="pcd-create-line">
+              Pinning publishes a Trusted List under your point of view with this curation.
+            </p>
+            <details className="pcd-tl-explainer">
+              <summary>{"What's a Trusted List?"}</summary>
+              <p>
+                Pin this tag to publish a Trusted List (kind-30392) curated to your
+                preferences. Other Nostr apps can read it for content discovery and
+                trust-weighted ranking.
+              </p>
+            </details>
+          </div>
+        )}
 
         <form className="pcd-body" onSubmit={handleSubmit}>
           <div className="pcd-field">
@@ -430,8 +415,7 @@ export default function CurationMethodDialog({
           {false && (
             <details
               className="pcd-advanced"
-              open={advancedOpen}
-              onToggle={(e) => setAdvancedOpen(e.target.open)}
+              {...advancedDetailsProps}
             >
               <summary>Advanced</summary>
               <div className="pcd-field">

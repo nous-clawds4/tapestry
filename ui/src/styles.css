@@ -7337,6 +7337,31 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .pcd-intro strong { color: inherit; }
 
+/* search-index-selection #4 — the confirm step's create-mode copy: one
+   explanation line plus a collapsed "What's a Trusted List?" expander. */
+.pcd-create-note {
+  margin: 0 1rem 0.75rem;
+}
+.pcd-create-line {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-primary, #e2e8f0);
+}
+.pcd-tl-explainer {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.pcd-tl-explainer > summary {
+  cursor: pointer;
+  user-select: none;
+}
+.pcd-tl-explainer > p {
+  margin: 0.4rem 0 0;
+  line-height: 1.45;
+}
+
 /* ── Story 18 / ADR 0016 — global affordances ───────────────────────
 
    1. `.bs-sr-only`: visually-hidden text that remains in the

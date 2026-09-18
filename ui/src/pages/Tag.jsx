@@ -11,6 +11,7 @@ import TagActionsMenu from '../components/TagActionsMenu';
 import PinnedListPanel from '../components/PinnedListPanel';
 import PinToContextModal from '../components/PinToContextModal';
 import PovStatusNotice from '../components/PovStatusNotice';
+import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
@@ -141,6 +142,9 @@ export default function Tag() {
     (viewerPins || []).filter((p) => p && p.context).map((p) => p.context)
   );
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
+  // search-index-selection #4 — the confirm step in front of a NEW pin.
+  // `context` is null for a neutral pin, or the community the picker chose.
+  const [pinDialog, setPinDialog] = useState({ open: false, context: null });
   // Which pin the Pinned tab is currently showing (by pin event id).
   const [selectedPinId, setSelectedPinId] = useState(null);
   const tabParam = searchParams.get('tab');
@@ -267,25 +271,35 @@ export default function Tag() {
     }
   };
 
+  // search-index-selection #4 — the confirm step. Clicking Pin publishes nothing:
+  // it opens the curation dialog pre-filled with today's defaults. The dialog's
+  // primary action is what signs and publishes (AC-1); cancelling publishes
+  // nothing at all (AC-3).
   const handlePin = async () => {
     if (!tag || !user) return;
     setPinError(null);
-    try {
-      await publishWithCuration(defaultCurationMethod(user.pubkey));
-    } catch { /* error already surfaced via setPinError */ }
+    setPinDialog({ open: true, context: null });
   };
 
   // contextual-pins ADR 0001 — pin this tag WITHIN a community context. Publishes
   // a distinct, first-class pin (its own d-tag + trusted list) that coexists with
   // the neutral pin; stamps the runtime-TA context concept (explicit affiliation).
+  // search-index-selection #4 — the picker closes and the SAME interstitial opens
+  // with the chosen context (AC-5 / E4: never two dialogs at once).
   const handlePinToContext = async (context) => {
+    if (!tag || !user || !context) return;
+    setPinError(null);
+    setContextPickerOpen(false);
+    setPinDialog({ open: true, context });
+  };
+
+  const publishContextPin = async (curation, context) => {
     if (!tag || !user || !context) return;
     setPinning(true); setPinError(null);
     try {
       const signed = await pinTag({
-        tag, curationMethod: defaultCurationMethod(user.pubkey), context, taPubkey,
+        tag, curationMethod: curation, context, taPubkey,
       });
-      setContextPickerOpen(false);
       // Materialize this pin's TA-signed kind-30392 so the Pinned tab has a
       // Trusted List to show. The server refresh is context-aware (runOnePin
       // reads the context from the pin's z stamp). AWAITed (per ADR
@@ -304,6 +318,9 @@ export default function Tag() {
       switchTab('pinned');
     } catch (e) {
       setPinError(e.message || 'Pin failed');
+      // E1 — rethrow so the interstitial surfaces the failure inline and stays
+      // open with the user's edits (same contract as publishWithCuration).
+      throw e;
     } finally {
       setPinning(false);
     }
@@ -603,6 +620,22 @@ export default function Tag() {
               onPick={handlePinToContext}
               busy={pinning}
             />
+
+            {/* search-index-selection #4 — the confirm step. One mount, create mode,
+                pre-filled with today's defaults; onSubmit is the only thing that
+                publishes, and it publishes exactly once. */}
+            {pinDialog.open && user && (
+              <CurationMethodDialog
+                tag={tag}
+                mode="create"
+                initialCuration={defaultCurationMethod(user.pubkey)}
+                viewerPubkey={user.pubkey}
+                onSubmit={(curation) => (pinDialog.context
+                  ? publishContextPin(curation, pinDialog.context)
+                  : publishWithCuration(curation))}
+                onCancel={() => setPinDialog({ open: false, context: null })}
+              />
+            )}
           </>
         )}
       </div>
