@@ -99,6 +99,39 @@ function isHexPubkey(v) { return typeof v === 'string' && /^[0-9a-f]{64}$/.test(
 function isACoord(v) { return typeof v === 'string' && /^\d+:[0-9a-f]{64}:.+$/.test(v); }
 function dTagOf(ev) { const t = (ev.tags || []).find((x) => x[0] === 'd'); return t ? t[1] : null; }
 
+/**
+ * search-index-selection #1 — the /for-tag item-resolution bucketing, extracted pure.
+ *
+ * "Header" and "item" are roles, not kinds: an `a` target may be ANY addressable kind, so
+ * the scan kind must come from the coordinate rather than a literal 39999 (OPEN 306).
+ * Members with no `address`, a malformed coordinate or a non-hex author contribute
+ * nothing. `d` is everything after the SECOND colon, verbatim — it may contain colons.
+ *
+ * @returns {Map<string, Set<string>>} keyed `${kind}|${author}` — one scan per entry.
+ */
+function bucketMembersByKindAndAuthor(members) {
+  const out = new Map();
+  for (const m of members || []) {
+    if (!m || !m.address) continue;
+    const parts = String(m.address).split(':');
+    const kind = parts[0];
+    const author = (parts[1] || '').toLowerCase();
+    const d = parts.slice(2).join(':');
+    if (!/^\d+$/.test(kind) || !isHexPubkey(author) || !d) continue;
+    const key = `${kind}|${author}`;
+    if (!out.has(key)) out.set(key, new Set());
+    out.get(key).add(d);
+  }
+  return out;
+}
+
+/** A resolved event's own coordinate — the map key replacing the literal `39999:` prefix. */
+function addressOf(event) {
+  if (!event) return null;
+  const d = dTagOf(event);
+  return d ? `${event.kind}:${event.pubkey}:${d}` : null;
+}
+
 function strfryScan(filter) {
   return new Promise((resolve, reject) => {
     const safeFilter = JSON.stringify(filter).replace(/'/g, "'\\''");
@@ -552,22 +585,14 @@ async function handleForTag(req, res) {
     // matched back on the exact coordinate; ids: the kind-9999 events the classification
     // scan already returned, so no second scan. An item that resolves to nothing still
     // renders as a row from its coordinate (author + `d`) — E3.
-    const itemsByAuthor = new Map();
-    for (const m of itemMembers) {
-      if (!m.address) continue;
-      const parts = m.address.split(':');
-      const author = (parts[1] || '').toLowerCase();
-      if (!isHexPubkey(author)) continue;
-      if (!itemsByAuthor.has(author)) itemsByAuthor.set(author, []);
-      itemsByAuthor.get(author).push(parts.slice(2).join(':'));
-    }
     const itemEventByAddress = new Map();
-    for (const [author, ds] of itemsByAuthor) {
+    for (const [bucket, ds] of bucketMembersByKindAndAuthor(itemMembers)) {
+      const [kind, author] = bucket.split('|');
       let found = [];
-      try { found = realScanStrfry({ kinds: [39999], authors: [author], '#d': Array.from(new Set(ds)) }) || []; } catch (e) { console.warn('[event-tags] item resolution scan failed for author', author, '-', e.message); found = []; }
+      try { found = realScanStrfry({ kinds: [Number(kind)], authors: [author], '#d': Array.from(ds) }) || []; } catch (e) { console.warn('[event-tags] item resolution scan failed for bucket', bucket, '-', e.message); found = []; }
       for (const ev of dedupeReplaceable(found)) {
-        const d = dTagOf(ev);
-        if (d) itemEventByAddress.set(`39999:${ev.pubkey}:${d}`, ev);
+        const addr = addressOf(ev);
+        if (addr) itemEventByAddress.set(addr, ev);
       }
     }
     // The item's parent list, by the SAME membership rule /list/:ref uses: a kind-39999
@@ -575,6 +600,9 @@ async function handleForTag(req, res) {
     // event id. An item naming several parents is grouped under its FIRST such tag (E5).
     const listCoordOf = (ev) => {
       if (!ev) return null;
+      // A kind-39998 list header has no parent list, so it can never be grouped under one
+      // — even if it carries a `z` of its own (E2). The kind rule wins.
+      if (ev.kind === 39998) return null;
       const name = ev.kind === 39999 ? 'z' : 'e';
       const t = (ev.tags || []).find((x) => x[0] === name && x[1]);
       return t ? t[1] : null;
@@ -837,4 +865,4 @@ async function handleNotesByAuthor(req, res) {
   }
 }
 
-module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor, computeTagUsageRows, handleTagApplicability, aggregateNotesTagged };
+module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor, computeTagUsageRows, handleTagApplicability, aggregateNotesTagged, bucketMembersByKindAndAuthor, addressOf };

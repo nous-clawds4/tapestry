@@ -8604,6 +8604,14 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-tag-items-group-heading a:hover { text-decoration: underline; }
 .bs-tag-items-group-missing { font-size: 0.9em; font-weight: 400; color: var(--text-muted); }
 
+/* Tagged LIST HEADERS (search-index-selection #1) — a header is not a table row; it is a
+   card naming the list and linking to it. Tokens only, so both themes follow. */
+.bs-tag-header-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+.bs-tag-header-card { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border, #d0d0d0); border-radius: 6px; background: var(--surface, transparent); }
+.bs-tag-header-card-name { font-weight: 600; color: var(--link, var(--text)); text-decoration: none; }
+.bs-tag-header-card-name:hover { text-decoration: underline; }
+.bs-tag-header-card-desc { margin: 0; font-size: 0.9em; color: var(--text-muted); }
+
 /* Trusted List detail — the `z` membership list (ADR dlist-item-tagging/0002). Each row
    reads "is a member of <name>" over the raw coordinate, so the wire shape stays visible. */
 .bs-tl-memberships {

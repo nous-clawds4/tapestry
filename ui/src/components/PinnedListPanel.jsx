@@ -712,6 +712,36 @@ export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, export
             </p>
           ) : (
             pinnedItemGroups.map((group) => {
+              // search-index-selection #1 (E4, AC-3) — parity with the tag page's Items
+              // view: a pinned kind-39998 list header renders as a link card, never as a
+              // table row (it has no item fields to tabulate).
+              if (group.headers) {
+                return (
+                  <section className="bs-tag-items-group" key="list-headers">
+                    <h3 className="bs-tag-items-group-heading"><span>Lists</span></h3>
+                    <div className="bs-tag-header-cards">
+                      {group.items.map((h) => {
+                        const resolved = (h.tags || []).length > 0;
+                        const hn = headerNames(h);
+                        return (
+                          <article className="bs-tag-header-card" key={h.address}>
+                            <a href={`/list/${h.address}`} className="bs-tag-header-card-name">
+                              {resolved ? (hn.plural || h.address) : h.address}
+                            </a>
+                            {resolved && hn.description && (
+                              <p className="bs-tag-header-card-desc">{hn.description}</p>
+                            )}
+                            <code className="bs-dlist-coord">{h.address}</code>
+                            {!resolved && (
+                              <span className="bs-tag-items-group-missing"> — list not on this relay</span>
+                            )}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              }
               const header = group.listCoord ? pinnedItemHeaders.get(group.listCoord) : null;
               const fieldDecls = header ? parseFieldDecls(header) : [];
               const { plural } = header ? headerNames(header) : { plural: '' };

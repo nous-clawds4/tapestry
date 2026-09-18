@@ -189,3 +189,25 @@ Suite: `test/tag-a-list-header.test.js` (pre-implementation: 11 passed, 16 faile
 - E6 → R2 (an unchanged `NoteTags` is what makes it true; no new handle)
 - E7 → U11
 - E8 → U5, U6 (plus guard `trusted-list-raw-view` U12, which must stay green)
+
+## Deviations
+
+- **The "list not on this relay" notice is written as a literal in both headers branches**
+  rather than reusing `TagItemsView`'s `NOT_HERE` constant. S5 slices the source from the
+  first `group.headers` occurrence and requires the literal string inside that slice, so a
+  constant reference would not satisfy it. `PinnedListPanel` already used the literal.
+- **Unresolved-header detection is `(h.tags || []).length > 0`.** The server returns
+  `tags: []` for a member whose event did not resolve, and the row carries no other
+  resolution flag, so emptiness is the only available signal (E3).
+- **Four CSS classes, not one** (`bs-tag-header-cards`, `bs-tag-header-card`,
+  `-card-name`, `-card-desc`). The Design note said "one new CSS class for the card"; a
+  card with a name, a description and a coordinate needs the child hooks. Same file, same
+  token vocabulary, no existing rule changed.
+- **BLOCKING — not a deviation, surfaced unfixed.** `test/dlist-item-tagging.test.js` **S4**
+  asserts `!/<NoteTags\b/.test(src)` over `ui/src/pages/List.jsx` ("Design note §4: the page
+  does not bypass the wrapper"). This story's Gate-A-ruled Design note requires exactly that
+  mount on the header block, so the two are in direct contradiction and the suite went
+  21/0 → 20/1. The older sentinel's *intent* — that per-ITEM tagging goes through
+  `DListItemTags` — is still honoured (the `renderExtra` slot is byte-identical, and that
+  suite's other two S4 assertions pass). `dlist-item-tagging` is **not** in this story's
+  Gate A scoped gate. The assertion is left unmodified for the Tester to re-scope.

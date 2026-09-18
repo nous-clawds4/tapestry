@@ -123,6 +123,36 @@ export default function TagItemsView({ tag, viewerPubkey, onCount }) {
             </p>
           ) : (
             groups.map((group) => {
+              // search-index-selection #1 (AC-3, AC-6) — tagged LIST HEADERS get their own
+              // leading group, rendered as link cards. A header has no item fields to
+              // tabulate, so it never goes through DListItemsTable.
+              if (group.headers) {
+                return (
+                  <section className="bs-tag-items-group" key="list-headers">
+                    <h3 className="bs-tag-items-group-heading"><span>Lists</span></h3>
+                    <div className="bs-tag-header-cards">
+                      {group.items.map((h) => {
+                        const resolved = (h.tags || []).length > 0;
+                        const hn = headerNames(h);
+                        return (
+                          <article className="bs-tag-header-card" key={h.address}>
+                            <Link to={`/list/${h.address}`} className="bs-tag-header-card-name">
+                              {resolved ? (hn.plural || h.address) : h.address}
+                            </Link>
+                            {resolved && hn.description && (
+                              <p className="bs-tag-header-card-desc">{hn.description}</p>
+                            )}
+                            <code className="bs-dlist-coord">{h.address}</code>
+                            {!resolved && (
+                              <span className="bs-tag-items-group-missing"> — list not on this relay</span>
+                            )}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              }
               const header = group.listCoord ? headers.get(group.listCoord) : null;
               const fieldDecls = header ? parseFieldDecls(header) : [];
               const { plural } = header ? headerNames(header) : { plural: '' };

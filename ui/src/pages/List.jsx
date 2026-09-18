@@ -4,6 +4,7 @@ import TopBar from '../components/TopBar';
 import Avatar from '../components/Avatar';
 import DListItemsTable from '../components/dlist/DListItemsTable';
 import DListItemTags from '../components/dlist/DListItemTags';
+import NoteTags from '../components/NoteTags';
 import useProfiles from '../hooks/useProfiles';
 import { queryRelay, queryRelayBounded } from '../api/relay';
 import { headerCoord, headerNames, parseFieldDecls, parseListRef, reactionPolarity } from '../utils/dlistFields';
@@ -157,6 +158,10 @@ export default function List() {
                 </Link>
                 {' · '}<code className="bs-dlist-coord">{headerCoord(header)}</code>
               </p>
+              {/* search-index-selection #1 (AC-1/AC-2) — tag the LIST itself. The caller
+                  passes the header's coordinate explicitly, so `itemCoord`'s deliberate
+                  39999 guard is untouched, and a header edit cannot orphan the tagging. */}
+              <NoteTags item={header} target={{ address: headerCoord(header) }} subject="list" />
             </header>
 
             {!loading && items.length === 0 && <p className="bs-dlist-empty">No items on this relay yet.</p>}

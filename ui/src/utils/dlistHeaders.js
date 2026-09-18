@@ -64,15 +64,24 @@ export function listCoordOf(event) {
 /**
  * Group item events by their parent list, preserving first-seen order so the published
  * order of a Trusted List survives into the rendering.
+ *
+ * search-index-selection #1 — a tagged kind-39998 list HEADER is not an item of anything
+ * (no field declarations to tabulate, and no parent), so headers are pulled out into one
+ * leading `{ headers: true, listCoord: null, items }` group rendered as link cards. The
+ * kind rule wins over a present `listCoord` (E2). With no headers in the input the output
+ * is byte-identical to the legacy two-key grouping (E8).
  */
 export function groupItemsByList(items) {
   const out = [];
   const index = new Map();
+  const headers = [];
   for (const item of items || []) {
+    if (item && item.kind === 39998) { headers.push(item); continue; }
     const key = item.listCoord || '';
     if (!index.has(key)) { index.set(key, out.length); out.push({ listCoord: item.listCoord || null, items: [] }); }
     out[index.get(key)].items.push(item);
   }
+  if (headers.length) out.unshift({ headers: true, listCoord: null, items: headers });
   return out;
 }
 
