@@ -229,6 +229,9 @@ the second affordance kind should be — the operator notes it is genuinely hard
 clean as URL.
 
 **Refs:** [W17](#w17--field-type-header-tag-in-the-wild-not-in-the-nip) (the tag itself);
+[`docs/SEARCH_INDEX_DLIST_SELECTION.md`](../docs/SEARCH_INDEX_DLIST_SELECTION.md) Part 3 — a
+concrete consumer for this idea (a search engine rendering a typed field as a link) and the
+argument for why the payload is a url-template affordance and never an HTML snippet;
 [shared-concepts](./drafts/shared-concepts.md) (POV-resolved definitions, the deference model);
 [decentralized-lists](./nips/decentralized-lists.md) (header field declarations);
 `engineering-team/stories/dlist-item-tagging/1-browse-a-dlist-with-header-driven-fields.md` (where
