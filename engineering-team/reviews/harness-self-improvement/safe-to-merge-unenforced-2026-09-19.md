@@ -1,11 +1,21 @@
-# Review: row 333 — a deploy-triggering merge can skip the safe-to-merge check unnoticed (one new `meta` row)
+# Review: row 333 — a deploy-triggering merge can skip the safe-to-merge check unnoticed (one new `meta` row; row 334 joined it in round 2)
 
 **Reviewer:** Claude (acting as Reviewer)
-**Date:** 2026-09-19 (UTC, from `date -u`; the review ran from 21:31Z to about 22:05Z)
-**Diff:** one commit, `8328f9ea` (branch `docs/open-row-unenforced-safe-to-merge`, unpushed at review
-time), on `7a06da12` — PR #691's merge, which is `origin/staging` after a fresh
-`git fetch origin staging` (merge-base = `7a06da12`). `git show 8328f9ea` is the whole surface:
-`OPEN.md`, 1 insertion, 0 deletions, line 395 (row 333, 3,948 bytes).
+**Date:** 2026-09-19 (UTC, from `date -u`). Round 1 ran from 21:31Z to about 22:05Z; round 2 from 22:18Z
+to about 22:40Z.
+**Diff:** branch `docs/open-row-unenforced-safe-to-merge`, unpushed in both rounds, merge-base
+`7a06da12` (PR #691's merge).
+- *Round 1:* one commit, `8328f9ea`, on `7a06da12`, which was `origin/staging` after a fresh
+  `git fetch origin staging`. `git show 8328f9ea` is the whole surface: `OPEN.md`, 1 insertion,
+  0 deletions, line 395 (row 333, 3,948 bytes).
+- *Round 2:* one more commit, `6863db1d`, on `398ced60` (round 1 of this file, committed unchanged).
+  `git show 6863db1d` is the whole new surface: `OPEN.md`, 2 insertions and 1 deletion — row 333
+  rewritten in place (4,884 bytes) and a new row 334 (2,104 bytes). `origin/staging` moved to
+  `4f98cdb4` (PR #692) during the fix round; see round 2, Blocking 1.
+
+**Rounds:** round 1 is kept as written at the time. The only edits to it are in this header (the
+title's closing parenthesis, the Date line, this Diff block) and its verdict heading, retitled
+"Round 1 verdict". Round 2 is appended below it and carries the file's final verdict.
 **File:** non-numbered by convention — this lane has no story to match (`workflows/0-intake.md` §3).
 **Lane:** doc / one-liner (Implementer + Reviewer, Standard strictness). No story, no ADR, no test plan
 and no book, by design. The lane's record is this review.
@@ -307,9 +317,265 @@ existing row covers them.
 Not reached. For the record, were the verdict otherwise: this lane has no story, so there is no
 `**Status:**` line to flip, and no book, so completion detection has nothing to compute.
 
-## Verdict
+## Round 1 verdict
 **CHANGES_REQUESTED**
 
 One passage needs rewording (Blocking 1 and 2, one edit); the replacement text is given above. Every
 other claim in the row was verified, and the conclusion that the PR #691 deploy harmed nothing on
 staging holds.
+
+## Round 2 — 2026-09-19, 22:18Z to about 22:40Z (UTC, from `date -u`)
+
+**Surface.** One new commit, `6863db1d` ("answer the row-333 review (round 1) and add row 334",
+committed 22:18:03Z), on `398ced60` (round 1 of this review, committed unchanged by the orchestrator)
+and `8328f9ea`. `git show 6863db1d` is the whole new surface: `OPEN.md`, 2 insertions and 1 deletion —
+row 333 rewritten in place and a new row 334. Every other line of `OPEN.md` is byte-identical between
+`8328f9ea` and `6863db1d`.
+
+**What the brief for this round changed.** The operator approved three additions beyond the original
+brief: this review's path in row 333's Pointer cell, a fourth fix shape (d), and round 1's friction
+item 1 filed as its own row. The original brief's "one new row", "three fix shapes" and exact Pointer
+cell are therefore exceeded knowingly; the additions are judged here on accuracy, not on the count.
+Round 1's friction item 2 (transcripts) is deliberately not filed.
+
+**What this reviewer touched.** This file only. Round 1 above is left as written at the time: the only
+edits to it are in the header (the title's closing parenthesis, the Date line, the Diff block) and the
+old verdict heading, retitled "Round 1 verdict" so that the parser's last token is this round's. No `git add`, commit, push, branch switch or
+stash; no edit to `OPEN.md` or any other tracked file; no worktree this round. Two side effects, stated
+for completeness: `git fetch` updated the remote-tracking refs (the brief asked for the fetch), and the
+in-memory trial merge (`git merge-tree --write-tree`) left one unreferenced tree object in the object
+database — no ref, index or working-tree change. Scratch files lived under the session scratchpad and
+were removed. Live hosts: two unauthenticated `GET`s at 22:31:03Z (staging's list and status), nothing
+else. No session transcript was opened this round; the 502 timestamps now in row 333 are this
+reviewer's round-1 observation (see claim R2 below).
+
+**Short version.** Both blocking findings were answered correctly, and every changed passage in row 333
+and every clause of row 334 survived a fresh attempt to falsify it — including the clauses that are
+this reviewer's own round-1 wording, two of which turn out loose and are corrected below as
+non-blocking. One thing stops the branch: `origin/staging` moved at 22:15:23Z, two minutes forty
+seconds before the fix commit, and took ledger numbers 333 to 339. This change's two rows now carry
+numbers that belong to unrelated rows on the shared line, the branch conflicts in `OPEN.md`, and four
+cross-references inside the rows would point at the wrong rows after a merge. The fix is mechanical.
+
+### Quality gates (round 2)
+
+- [x] **`bash scripts/harness-lint.sh` at HEAD (`6863db1d`)** — exit 0, 39 lines, last line
+  `harness-lint: clean (0 violations)` (22:26:23Z). The extra line against round 1's 38 is the expected
+  `INFO non-numbered-review` for this file, now tracked.
+- [x] **The same five suites, same Node v22.23.2 x64, at `6863db1d`** (they read the real ledger, and
+  it changed): `harness-lint` 41 pass, `session-start` 22 pass, `operational-direction` 86 pass / 0
+  skipped, `curated-dlist-update-publish` 69 pass / 0 skipped, `curated-dlist-update-update-preview`
+  34 pass / 0 skipped; 0 failures. Identical to round 1 on both trees, so no baseline run was needed.
+- [ ] **Full `npm test` — again deliberately not run locally**, for the reason given in round 1 (row
+  289); no `npm run gate:status` line to quote. The branch is still unpushed, so no CI run exists.
+- [x] `git diff --check 7a06da12 HEAD`: clean.
+- [x] **With this file as now written** (checked after writing): `awk -f scripts/lib/review-verdict.awk`
+  prints `CR`; the last heading-or-bold line carrying a verdict token is this round's verdict line.
+  `bash scripts/harness-lint.sh` exits 0 with the same last line and the same 39 lines.
+
+**Row mechanics, both rows** (bash script; this host's `awk` counts bytes):
+
+| | Row 333 | Row 334 |
+|---|---|---|
+| Lines matching `^\| N \|` | 1 | 1 |
+| Bytes | 4,884 (round 1: 3,948) | 2,104 |
+| Pipe characters / escaped pipes / `awk` NF | 8 / 0 / 9 | 8 / 0 / 9 |
+| Cells: Item / Opened / Status / Done / Pointer (bytes) | 4,498 / 74 / `OPEN` / empty / 280 | 1,683 / 49 / `OPEN` / empty / 340 |
+| `OPEN` as whole word / as substring | 1 / 1 | 1 / 1 |
+| `DONE` as whole word / as substring | 0 / 0 | 0 / 0 |
+| Status found by value | one cell, field 6 | one cell, field 6 |
+| Reader's awk block (`collect-meta.sh:41-46`) | emits it, age 0d | emits it, age 0d |
+
+(The first column's pattern is written with escaped pipes only so that this table renders.)
+
+- **Meta count**, same reader, same clock: merge-base `7a06da12` **111**, HEAD `6863db1d` **113**; the
+  two lines present at HEAD and not at the merge-base are rows 333 and 334. The new `origin/staging`
+  (`4f98cdb4`) reads 115 on its own: four of its seven new rows are `meta` (its 333, 334, 338, 339).
+- **`bash scripts/whats-open.sh`** (exit 0, 400,268 bytes): both rows close the ledger section (lines
+  242-243) and appear under "Meta items" as `[0d]` (lines 357-358); the banner reads 113. The script
+  left the tree clean.
+- **Fresh fetch and competing rows:** see Blocking 1. No open PR into `staging` (`gh pr list` → `[]`).
+- **Method note — a vacuous negative, caught.** This reviewer's first run of row 334's universal
+  negative put the two paths in one unquoted variable. The Bash tool's shell is zsh, which does not
+  word-split an unquoted parameter, so `git grep … -- $FILES` searched one nonexistent pathspec and
+  "found nothing" for the wrong reason. The positive control (`cycle-staging` must match in both
+  files) printed nothing and exposed it; the search was re-run under `bash -c` with the control
+  first (3 and 2 matches). Round 1's searches used literal paths or command substitution, which zsh
+  does split; they are unaffected. Plain `grep` in this environment is a wrapper that honors
+  `.gitignore` (row 165); every negative here rests on `git grep` with a control or on real `grep`
+  inside `bash -c`.
+
+### What changed in row 333 (token-level diff, `8328f9ea` → `6863db1d`)
+
+Seven hunks, each one an announced change; the rest of the row is byte-identical, so everything
+round 1 verified still reads as it did.
+
+1. "ruled CI-side enforcement" → "records that CI-side enforcement was ruled" (non-blocking 1).
+2. "502 for about a minute, then healthy" → "a 502 at 21:06:36Z and 200s from 21:07:17Z" (non-blocking 3).
+3. "disabled;" → "disabled, each with `timer.lastRunAt` on 2026-06-07;" (blocking 2).
+4. The persisted-versus-live passage, replaced with round 1's wording (blocking 1 and 2).
+5. The line-cap caveat made conditional, and "(four; the doc covers three of their instances)" added
+   to fix (b) (non-blocking 2 and 4).
+6. Fix shape (d) appended (non-blocking 6, operator-approved).
+7. Pointer cell: "277." → "277 and 334; `engineering-team/reviews/…/safe-to-merge-unenforced-2026-09-19.md`
+   (the evidence, claim by claim)." (non-blocking 5, operator-approved).
+
+### Claims adherence (round 2) — row 333's changed passages
+
+Checked as claims, not recognised as this reviewer's wording (`roles/reviewer.md` step 10).
+
+| # | Passage | Evidence gathered this round | Result |
+|---|---|---|---|
+| R1 | ADR 0002 "records that CI-side enforcement was ruled out of scope at intake, adding" the quoted sentence | ADR `0002:95` still reads "CI-side enforcement is explicitly out of scope at intake; if procedure proves insufficient, that is the escalation path."; the ruling's origin is `_intake.md:1616` | holds |
+| R2 | "the merging session saw a 502 at 21:06:36Z and 200s from 21:07:17Z" | **Whose observation:** this reviewer's, from round 1's targeted scan of the merging session's transcript (claim 8 above). The Implementer did not re-read the transcript; the row repeats the two timestamps round 1 recorded, and they match that record exactly. The run log, fetched again this round, still brackets them: `Container tapestry Recreate` 21:06:16Z, `Started` 21:06:43Z. "From" is fair: round 1's scan found no later 502 in the window it covered (21:05Z-21:16Z); the reads after 21:07:17Z were 200s, apart from application-level 400s ("pubkey is required") from customer-schedule endpoints called without a pubkey | holds, on round 1's evidence; not re-observed this round, by design |
+| R3 | "each with `timer.lastRunAt` on 2026-06-07" | The saved 21:15Z response, re-read: four entries, all `enabled: false`, `lastRunAt` 2026-06-07T21:15:47, 22:08:20, 21:52:23 and 22:05:42 (+00:00), no `lastError`. A `GET` at 22:31:03Z — after a **second** recreate (run 35472800880 on `4f98cdb4`, 22:15:26Z-22:16:51Z) — is byte-identical to it (`cmp`) | holds |
+| R4a | "the list and timeline readings reach back before the recreate" | Round 1's 10a-10c; and the persisted record has now outlived two recreates (R3) | holds |
+| R4b | "the timeline tracks only 21 hard-coded task names (not `refreshSearchIndex` or `reconcileAll`, for which `lastRunAt` is the evidence)" | Recounted from `src/api/neo4j-health/getTaskTimeline.js` at HEAD: 22 literals, 21 unique; neither name among them. `lastRunAt` comes from `getRecentRuns`, which reads the whole events file (`src/api/scheduled-tasks/index.js:206-209,296,304`) | holds |
+| R4c | "the legacy one is in-process memory; the queue's is held in Redis, which this deploy left running" | `src/api/deploy-safety/index.js:160-162` and `:124`; run 35469346027's log, fetched again: `Container tapestry-redis Running` beside `Container tapestry Recreate`, both 21:06:16Z | holds |
+| R4d | "Neither records what was active at the kill." | Follows from R4c and ADR `deploy-safety-gate/0001:129` | holds |
+| R5a | "a new line has to be paid for by freeing one, though rewording the existing `Deploying / ops` row adds none" | `wc -l CLAUDE.md` = 190 and cap 190 at HEAD **and** on the new `origin/staging`; L11 counts lines. PR #692 is an existence proof: it reworded the "Product direction" row in place (1 insertion, 1 deletion) and the count stayed 190 | holds |
+| R5b | "the deploy workflows (four; the doc covers three of their instances)" | Four `deploy-*.yml` files; `.github` is identical at `7a06da12` and `4f98cdb4`; the doc's branch map has three rows and calls `feature-magic-carpet` "not covered today" (`:41`) | holds |
+| R6a | (d): the trigger description is at `.claude/skills/cycle-staging/SKILL.md:3` and "offers" the four quoted phrases | Line 3 is the `description:` line. Each phrase matches as a fixed string on line 3, once; they are exactly the four quoted phrases that line carries (the source writes them with the comma inside the quotation marks) | holds |
+| R6b | (d): "its procedure starts at push and open-PR" | The numbered steps are `1. Verify preconditions` (`:32`), `2. Push branch` (`:42`), `3. Open PR` (`:50`), `4. Safe-to-merge check` (`:79`). The procedure starts at a read-only precondition check; push and open-PR are steps 2 and 3. **This is this reviewer's round-1 wording**, adopted verbatim, and it is loose | the inference it carries holds (R6c); the clause itself is imprecise — non-blocking 4 |
+| R6c | (d): "so nothing covers 'the PR is already open, merge it', which was this incident's trigger" | No text in the skill matches `already open`, `already exists`, `existing PR` or `skip to step`; its three "When to use" and three "When NOT to use" entries have no such case. PR #691 was opened at 20:28:22Z and the operator's `merge it` came at 21:04:07Z (round 1, claim 5) | holds |
+| R6d | (d): an entry "entering at step 4, is a smaller change than (a) to (c)" | Step 4 is the check. The comparison is an attributed judgement ("from this row's review"), and it holds by surfaces touched: (d) one skill file; (a) one repo file plus the board outside the repo; (b) four workflow files; (c) a new check plus a ruleset change. The skill file is identical on HEAD and `origin/staging` | holds as an attributed judgement |
+| R7 | Pointer cell: "related rows 209, 256, 277 and 334" plus this review's path | The path exists (committed in `398ced60`). On this branch's tree 334 is the Director row. **On the shared line 334 is a different row** | true on the branch, wrong on the merge target — Blocking 1 |
+
+### Claims adherence (round 2) — row 334
+
+| # | Claim in row 334 | Evidence gathered this round | Result |
+|---|---|---|---|
+| D1 | `.claude/skills/direct-feature/SKILL.md:68` says to follow `/cycle-staging` and restates it inline as the quoted list | Line 68 read in full. The quotation matches as one fixed string, once; it stops before "on `staging.brainstorm.world`", a truncation at the end, not an alteration | holds; verbatim |
+| D2 | `engineering-team/roles/director.md:140` gives "`/cycle-staging` semantics" with the same list | The quoted phrase is on `:140` (and `:51`). The list on `:140` is "PR to `staging`, plain merge, watch `deploy-staging.yml`, full five-tier smoke": no push item, and "full". The SKILL.md string does not occur in director.md (fixed-string count 0) | the phrase is verbatim; "the same list" is not exact — non-blocking 1 |
+| D3 | "Neither file names the check or `docs/SAFE_TO_MERGE.md` anywhere", with a `git grep -i` for three patterns | Under `bash -c`, control first (`cycle-staging`: 3 and 2 matches). The row's three patterns: exit 1 each. Widened pattern adding `safe_to_merge` and the spaced and camel-case spellings: exit 1. Other names for the step (`precursor`, `pre-merge`, `in-flight`, `scheduled task`): one unrelated hit ("in-flight epics", `SKILL.md:51`). The row's three patterns cannot match the doc's filename: applied to the literal `SAFE_TO_MERGE.md` strings in `cycle-staging/SKILL.md`, each matches 0 times | the claim is true; its stated evidence covers only half of it — non-blocking 2 |
+| D4 | "Both lines date from 2026-06-10 (`3a2657b2`)" | `git blame -L 68,68` and `-L 140,140`: both `3a2657b2`, 2026-06-10, "chore: Direction-mode harness …". Stronger than round 1's `-S` search, which could not see a later edit elsewhere on the line | holds |
+| D5 | "the gate shipped on 2026-07-18 (`ffcf0f8a`)" | `ffcf0f8a` is "impl: cycle-safe-to-merge-check (story #2, ADR 0002)", 2026-07-18T22:08:41Z; it adds `docs/SAFE_TO_MERGE.md`, the script and step 4 in both cycle skills. First merge on `staging`'s ancestry containing it: PR #385, 2026-07-18T22:45:01Z | holds, on either the local or the UTC date |
+| D6 | "and nothing went back to them" | "Them" is "both lines", and blame (D4) shows no later commit touched either. Seven later commits did touch the two *files* (2026-07-26 to 2026-09-13), for other reasons | holds as worded |
+| D7 | A Director following `/cycle-staging` reaches step 4; one working from the inline summary reaches the merge with no check named on its path | Step 4 is the check (`cycle-staging/SKILL.md:79`); D1-D3 | holds |
+| D8 | ADR 0002 "judged the same structure in `/cycle-full`", with the quoted sentence | Fixed-string match, once, at `0002:25`, in the "Consumers today" bullet under "### Verified facts (checked against the tree 2026-07-18)" — where the Pointer cell says. "Same structure" is fair: a delegating skill that restates its delegate's steps inline | holds; verbatim |
+| D9 | "Its sub-decision 4 added a line naming the check to each of `/cycle-full`'s inline lists (no recipe text)" | `0002:78`: "add one summary line to each stage list … and one entry in Halt-on-failure semantics", carrying "**no** URL, no numbers, no script name, no doc link". `ffcf0f8a` inserted exactly those three lines (`cycle-full/SKILL.md:50,75,108`) | holds (the ADR decided it; `ffcf0f8a` made the insertions) |
+| D10 | "`test/safe-to-merge-check.test.js` C6 pins that for `/cycle-full` only" | C6 is at `:492`. The suite opens five files (`:48-52`): the script, the doc and the three cycle skills. It never mentions `direct-feature` or `director` (0 matches; control `cycle-full` 16). The three test files that do mention them carry no gate string. No test pins the text "plain merge" | holds |
+| D11 | "found by reading, not by incident: whether any Direction-mode merge has skipped the check was not examined" | Accurate: neither round of this review examined it, and the Implementer claims nothing here. A lead for whoever takes the row, not checked for completeness: four Direction-mode journals name the check (`deploy-safety-gate`, `relationship-primitives`, `add-a-concept-to-a-tapestry`, `note-tagging-inspector`) | holds |
+| D12 | "both files are harness-definition paths, so the change owes a CHANGELOG row" | `scripts/harness-def-paths.txt:17` (`engineering-team/roles`) and `:28` (`.claude/skills`); L10 | holds |
+| D13 | Headline, second clause: "Direction mode is where a merge into `staging` happens with no human at the gate" | **Fair to `director.md`, and better supported than the row shows.** The Director "answer[s] the phase gates they normally ask the human, supervise[s] the deploy chain through staging" (`:3`); gates are "never skipped — they are *answered*, by you" (`:23`); only two decisions stay with the operator, ratifying completion and anything past staging (`:25`). And the cited line sits under the heading "Deploy gates (you run these — operational, not judged; the completion report that summarizes them IS judged)" (`:138`): by the role file's own vocabulary the staging merge is a gate, and it is the one kind the Director runs with neither a human nor a judge. The clause is this reviewer's round-1 wording; the row's body gives no support for it | holds; support missing from the row — non-blocking 3 |
+| D14 | Type, Opened, Status, Done, Pointer | `meta` fits. Opened is an ISO date plus what raised it. Status is exactly `OPEN`; Done is empty. Every pointer resolves: both file:line citations, the ADR section and sub-decision, C6, and this review's "Harness friction" section (item 1 stays in round 1's) | holds; "row 333" appears three times and must follow the renumbering — Blocking 1 |
+| D15 | Not a duplicate | Ledger and `_intake.md` searched on **both** `HEAD` and the new `origin/staging` for `direct-feature`, `director.md` or Direction mode together with the gate, the staging chain or an inline summary: rows 92 and 140 match the keywords and concern other things (`curl` in subshells; phase commits landing on local `staging`). Nothing in `_intake.md` | holds |
+
+### Round-1 claims re-run against the moved merge target (`4f98cdb4`)
+
+PR #692 changed `CLAUDE.md` and added a `design-philosophies/` tree, so the repo-wide claims were run
+again on that tree (`git grep … origin/staging -- …`, control first: `staging` matches 38 times in
+`OPERATIONS.md` there). Scope S: still no match. Files naming the gate that exist on `4f98cdb4` and did
+not on `7a06da12`: none; `design-philosophies/` and the changed `CLAUDE.md` row carry no gate string.
+`.github` is identical on both tips. `gh api …/rules/branches/staging` → still `deletion` and
+`non_fast_forward` only. `CLAUDE.md:10` still reads as the row quotes it. Staging's new row 336 reports,
+independently and on the same day, that "staging lists four entries". Nothing round 1 verified was
+broken by the edit or by the move.
+
+### Things tests can't catch (round 2)
+
+- [x] **No secrets, machine paths or `localhost` literals** in the lines `6863db1d` adds (control: the
+  64-hex pattern matches a test string).
+- [x] **No scope creep beyond what the operator approved.** Two ledger lines; nothing else.
+- [x] **The additions beyond the brief are accurate.** (d) and the Pointer addition are checked as R6
+  and R7; row 334 as D1-D15.
+- [x] **Attestation, where it remains.** Unchanged from round 1 (the live board page; the 21:15Z
+  readings as received), plus R2: the 502 timestamps are this reviewer's round-1 observation, carried
+  into the row without a second pair of eyes on the transcript. That is a deliberate choice of the
+  brief, and the run log bounds the two timestamps independently.
+
+### Findings (round 2)
+
+#### Blocking
+
+1. **`OPEN.md:395-396` — rows 333 and 334 carry numbers that now belong to other rows on
+   `origin/staging`, and the branch does not merge as it stands.**
+   - `git fetch origin staging` at 22:18:54Z moved the ref `7a06da12..4f98cdb4`. PR #692
+     (`docs/design-philosophies`) merged at 22:15:23Z and added rows 333 to 339; its 333 is
+     the row about `protocols/README.md` pointing at a BIBLE section that does not exist, and its 334
+     the row about `scripts/harness-budgets.txt` saying AGENTS.md is loaded into every session.
+   - `git merge-tree --write-tree HEAD origin/staging` → `CONFLICT (content): Merge conflict in
+     OPEN.md` (both sides append after row 332).
+   - The fix commit is stamped 22:18:03Z, two minutes forty seconds after that merge: row 334 was
+     minted against a stale `origin/staging`. Row 333's number was right when it was minted, in round 1.
+   - Left as they are, the numbers would duplicate two unrelated rows, and four cross-references inside
+     the rows would send a reader to the wrong place — "related rows 209, 256, 277 and 334" would point
+     at the AGENTS.md row. That is the kind of error a reader acts on, and `workflows/5-review.md`
+     defines the other verdict as "mergeable as-is", which this is not.
+
+   **Asked change.** Follow the precedent PR #692's own branch set an hour earlier (`8ccd69aa`): merge
+   `origin/staging` into the branch, keep staging's rows first and this change's after, and renumber
+   this change's rows to the highest number on `origin/staging` plus one and plus two after a fresh
+   fetch — **340 and 341** as of 22:31Z (highest is 339; no open PR into `staging`; no remote ref
+   carries a 340 or 341). Six places change:
+
+   | Where | Now | Becomes |
+   |---|---|---|
+   | row 333, id cell | `333` | `340` |
+   | row 333, Pointer cell | "related rows 209, 256, 277 and 334" | "related rows 209, 256, 277 and 341" |
+   | row 334, id cell | `334` | `341` |
+   | row 334, Item cell | "This is row 333's gap found by reading" | "This is row 340's gap found by reading" |
+   | row 334, Opened cell | "2026-09-19 (row 333's review, harness friction 1)" | "2026-09-19 (row 340's review, harness friction 1)" |
+   | row 334, Pointer cell | "related row 333" | "related row 340" |
+
+   This review keeps its rounds as written, as the precedent did; this reviewer will add the
+   renumbering note in round 3 rather than have another role edit the file. Round 3 needs only: the six
+   places above, the merged `OPEN.md` (staging's seven rows intact, no duplicate of any number this
+   change touches), the meta count on the merged tree (115 becomes 117 if nothing else lands), lint,
+   and the five suites once more, because the ledger they read changes again.
+
+#### Non-blocking
+
+Worth taking in the same edit, since the rows are being touched anyway; none changes what a reader
+would do.
+
+1. **Row 334, "`engineering-team/roles/director.md:140` gives "`/cycle-staging` semantics" with the
+   same list"** — director.md's list has no push item and says "full five-tier smoke". Replace "with
+   the same list" with "with the same list minus the push".
+2. **Row 334, "(2026-09-19: `git grep -i` for `safe-to-merge`, `check-safe` and `deploy-safety` finds
+   nothing in either)"** — those three patterns cannot match `SAFE_TO_MERGE.md` (underscores), yet the
+   sentence they support says neither file names that doc. The claim is true; a reader re-running the
+   stated command would be checking only half of it. Round 1 named this trap when it defined Pattern
+   W. Replace with "(2026-09-19: `git grep -i` for `safe-to-merge`, `safe_to_merge`, `check-safe` and
+   `deploy-safety` finds nothing in either)" — this reviewer ran exactly that, with a control.
+3. **Row 334, headline, "Direction mode is where a merge into `staging` happens with no human at the
+   gate"** — fair (D13), but asserted only in the headline. Optional, after the director.md sentence:
+   "That list sits under the heading "Deploy gates (you run these — operational, not judged; the
+   completion report that summarizes them IS judged)" (`director.md:138`)." If the headline is touched
+   too, "and in Direction mode the Director runs that merge itself, with no human and no judge at the
+   deploy gate" says the same thing without the "is where", which can be read as "the only place".
+4. **Row 333, fix (d), "and its procedure starts at push and open-PR"** — step 1 is "Verify
+   preconditions". This reviewer's wording, and loose. Replace with "and its procedure runs
+   preconditions, push and open-PR before the check".
+5. **Length, for the record.** Row 333 is now 4,884 bytes, the third-longest of 334 (after rows 325
+   and 290); row 334 is 2,104, rank 36. Not a codified limit, and the Pointer cell now links the detail.
+
+#### Harness friction (round 2)
+
+1. **No new row for the collision — it is one more instance of row 307, which is open, and the open
+   book `ledger-row-identity` owns the class.** Worth recording on that row when it is next edited:
+   two collisions on the shared line in one afternoon (`8ccd69aa` renumbered PR #692's rows after PR
+   #691 took 331-332; this branch after PR #692 took 333-339), and the second happened inside a
+   three-minute window between a merge and a commit, with fetch-then-mint already the stated rule. A
+   fetch immediately before the commit would have caught this one; only collision-free ids close the
+   window between minting a number and merging it, which is that book's subject.
+2. **Proposed `meta` row (or an addition to row 237's family; the operator's call): a negative search
+   over paths held in one unquoted variable is vacuous under zsh.** The Bash tool's shell is zsh, which
+   does not word-split `$FILES`; `git grep … -- $FILES` then searches one nonexistent pathspec, exits
+   1, and reads as "no match". Reviews in this repo lean on negative searches. It happened in this
+   round and was caught only because the positive control ran against the same variable. The durable
+   form of the lesson: run the control through the same pathspec as the search, and put multi-path
+   searches under `bash -c` or spell the paths out. Rows 111, 165 and 237 are siblings (shell
+   behaviour that silently changes a check's meaning); none covers this one.
+
+### On PASS (round 2)
+
+Not reached. As in round 1: this lane has no story, so there is no `**Status:**` line to flip, and no
+book, so completion detection has nothing to compute.
+
+## Verdict
+**CHANGES_REQUESTED**
+
+One blocking item, and it is mechanical: the two rows must be renumbered onto the moved shared line
+(340 and 341 as things stand), with the four cross-references inside them. Every claim in both rows
+was verified; the four small wording corrections above are optional and fit the same edit.
