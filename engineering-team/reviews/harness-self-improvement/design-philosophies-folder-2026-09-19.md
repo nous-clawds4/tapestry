@@ -5,7 +5,7 @@
 **Diff:** `git show 1dba05af` on `docs/design-philosophies` (one commit ahead of `main`; the branch is local only — `git branch -a --contains 1dba05af` lists no remote)
 **Lane:** doc lane (`engineering-team/workflows/0-intake.md` step 3 — Implementer + Reviewer, non-numbered review, no story, no ADR, no test plan, no book). This file is the lane's record.
 **Intent audited against:** the owner's two typed messages of 2026-09-19 (session transcript entries at 19:11:50Z and 20:14:13Z). The second is a refinement and wins where they differ.
-**Round:** 1
+**Round:** 2 (round 1: CHANGES_REQUESTED, fixes in 51a71e0e)
 
 Four lens reviewers and a set of skeptic verifiers worked the diff before me. I treated their output as input. Everything listed under Findings I re-derived from the files, the code, the owner's typed messages in the session transcript, the article mirror, and `gh`. Where I disagree with them I say so.
 
@@ -229,8 +229,120 @@ No README change for the review cost: line 41 already names it and links the sin
 
 Per `roles/reviewer.md` step 10, every replacement above is a claim, mine included. I derived each from a command or a file this round, but round 2 re-derives whatever lands: every owner quotation against the typed messages in the transcript; B2's paragraph against `TagPinAffordance.jsx`, `Tag.jsx`, `PinnedListPanel.jsx`, `styles.css` and `publishTagPin.js`; S12 against `AddTagDialog.jsx` and `handleAvailableTags`; S14 against `refreshPinnedTags.js`, `refreshApplicabilityLists.js` and `scheduled-tasks/index.js`; every ID renumbered in S10 and S12 (no `P` IDs and no U+2212 left in the folder or in `_intake.md`); CLAUDE.md still 190 lines; harness-lint clean.
 
+## Round 2
+
+**Date:** 2026-09-19
+**Diff:** `git diff 1dba05af 51a71e0e` (the fix commit; 8 files, 96 insertions, 69 deletions). Round 1's outcome was changes requested: four blocking items, twenty should-fix.
+
+Two verifiers re-derived the fix commit before me — one on owner quotations and attribution, one on facts and mechanics. I treated their output as input and re-ran what I rely on. Per `roles/reviewer.md` step 10, every replacement I suggested in round 1 was checked as a claim. Three of mine failed on a detail (R2-B1, R2-S1, R2-S4) and one went stale when a row was added (R2-S3). They are listed as findings against the text that landed, with the round-1 origin named.
+
+### Gates re-run
+
+- [x] `bash scripts/harness-lint.sh` — last line `harness-lint: clean (0 violations)`.
+- [x] `wc -l CLAUDE.md AGENTS.md` — 190 and 102, the caps in `scripts/harness-budgets.txt` (lines 16–17). The CLAUDE.md row is still the single line 11.
+- [x] L10 — `git show --stat 51a71e0e` touches both `CLAUDE.md` and `engineering-team/CHANGELOG.md`.
+- [x] Suites through their `run()` exports: `harness-lint` {pass 41, fail 0}; `operational-direction` {pass 86, fail 0, skipped 0}; `session-start` {pass 10, fail 0}; `harness-stats` 12/0; `curated-dlist-update-publish` 69/0; `curated-dlist-update-update-preview` 34/0; `kill-timeout-orphans-by-default` 9/0; `note-tagging-raw-events-inspector-ui` 32/0; `restore-historical-data-and-fix-tl-author-filter` 22/0.
+- [ ] Full `npm test` — not run, for round 1's reason: the diff holds no code and no test file. `npm run gate:status` still prints `no gate run records in …/tmp/gate-runs`.
+- [x] Owner quotations, against the transcript file itself (parsed with node; exactly two owner-typed messages, 19:11:50Z and 20:14:13Z): the six blockquotes (lines 10, 14, 40, 46, 105, 118) and thirteen inline quotations are exact after the typographic tidying README line 40 now allows. The three intake blockquotes (`_intake.md:2487`, `:2503`, `:2519`) are byte-exact substrings of message 1. The one inexact fragment is T-2's (nit R2-N2).
+- [x] 2024 article: 18 quoted strings checked against the mirror (pubkey `e5272de9…a102f`, created 2024-08-22); all present.
+- [x] Issue #150, `gh issue view 150 --repo nous-clawds4/tapestry`: title, both headings, the "secondary method" sentence and the new encryption sentence are verbatim. Its context is R2-S2.
+- [x] Relative links: 28 across the four folder files, none dead; `<a id="show-and-tell">` present; all 23 backticked repo paths in `show-and-tell.md` exist.
+- [x] No U+2212, no `P1`–`P3`, no control bytes in the folder or the three intake entries. OPEN rows 331–337 have 7 cells each; `bash scripts/whats-open.sh` exits 0. (The duplicate row 329 predates this change.)
+- [x] Working tree clean before I wrote this file.
+
+### Disposition of round 1
+
+| Item | Disposition | Evidence re-derived this round |
+|---|---|---|
+| B1 | fixed | `show-and-tell.md:4` reads "not yet — drafted 2026-09-19 …"; `_template.md:4` and the README bullet landed. Still true: no owner message follows 20:14:13Z. |
+| B2 | fixed; item 3 (my Q3 text) overreaches — **R2-S1** | Tooltip string matches `TagPinAffordance.jsx:47` character for character; `styles.css:7282–7284` switches `[data-bs-tooltip]::after` off under `(hover: none)`; `Tag.jsx` `handlePin` → `publishWithCuration(defaultCurationMethod(…))`; one `<CurationMethodDialog` mount (`PinnedListPanel.jsx:582`), one `<PinnedListPanel` mount (`Tag.jsx:411`); both exports signed by `window.nostr.signEvent`, sent to `[...userWriteRelays, ...WELL_KNOWN_FALLBACK_RELAYS]`, `{ skipped: true }` when empty. The worked-case paragraph holds. |
+| B3 | fixed | `_intake.md:2487` is a byte-exact substring of message 1 ("which still allowing"); the note sits on line 2489, outside the blockquote. |
+| B4 | fixed | E10 quotes "to communicate this idea explicitly" (exact, message 2) with "than" outside the marks. README line 40 carries the tidying rule. |
+| S1 | fixed, slightly differently | The ratification quote, both supersessions, the "first statement" / "refinement" labels and the "How to use the Tell Me method effectively" label all landed and are exact. Line 12 says "usage and acceptance by the community" (the Placeholders page's words) and "E14 is the nearest thing that ships". Line 50 says "of something closer to the Tell end", nearer the owner's words than my "of Tell". Hedges: nit R2-N3. |
+| S2 | fixed | S+2, S-3, S-4, S-5, H1, E2, line 44, line 122 and README line 37 as asked. S-5's three conditions match message 2. |
+| S3 | fixed, plus "(the owner's placing, 2026-09-19)" | True: the owner wrote "then it is a Tell, not a Show". |
+| S4 | fixed | The quotation is at `audits/curated-dlist-update/prd-seed.md:85`, under "## 4. Domain model"; "Curation method" is in `CuratedDListItems.jsx:94`; `curation-method` is under `tags.md` "## Pins". |
+| S5 | fixed | BIBLE "## 21. Glossary" has DList, GrapeRank and POV rows; `protocols/drafts/trusted-lists.md` exists. |
+| S6 | fixed | Line 6, line 18, README line 30, `bibliography.md:11`. BIBLE "## 20. People" and "## 27. Point of View (PoV) Resolution" exist. |
+| S7 | fixed | Article line 16 carries the whole spectrum passage, word for word; the reconciliation is marked as drafting. |
+| S8 | fixed | Heading renamed; T-2 now points at it by name, not by position. "Tell-grade" is gone. |
+| S9 | fixed | `tags.md:64` ("operative applicability source is derived"), `:60` ("Hint, never gate"); `buildMembers` sets hint-only coordinates to 0 and sorts by applications descending. |
+| S10 | fixed | perl sweep for U+2212 over the folder and `_intake.md`: nothing. |
+| S11 | fixed differently | E8's closing note drops "Placement by drafting" because the Examples header now says it for every row. Q6 appended last. Spec line 18 has "explicit, signed, revocable, and costly" and "claim"; line 55 has "a bookmark is not agreement". |
+| S12 | fixed; one clause of my text is imprecise — **R2-S4** | IDs E11–E13 in the doc, README, template and intake. "matches are not ordered by usage" is true and sturdier than my "alphabetical order" (`handleAvailableTags` sorts by name; the dialog applies no sort to a typed query). The "*other* target type" clause does not match the filter. |
+| S13 | fixed | `Placeholders.jsx:47–49` ("added by hand … will override community-based criteria"); `audits/navigation-scaffolding/prd-seed.md:109–111`. |
+| S14 | landed, but my text is false for kind 30393 — **R2-B1**; the count "three" no longer holds — **R2-S3** | See the findings. |
+| S15 | fixed | Text as asked; it classifies by motive, consistent with Terms. |
+| S16 | fixed | `decisions/0009-pin-a-tag.md:98` ("leaving the unqualified slug free"); both files now name the file. |
+| S17 | fixed | `CLAUDE.md:11`; 190 lines; CHANGELOG touched in the same commit. |
+| S18 | fixed | `ROADMAP.md:15` "## Product Principles", `:17` "Non-negotiable."; `product-team/guardrails/` holds `design.md` and `language.md` and is line 25 of `harness-def-paths.txt`. |
+| S19 | fixed | OPEN row 336; `6-book-close.md` step 7 and `7-story-decomposition.md` "Product retro at the gate" exist and neither mentions the folder. |
+| S20 | satisfied | This file was committed on the branch as f6185164. The round-2 edit to it also needs committing before the PR merges. |
+| N1–N7, N9, N10, N12 | taken | N8: the first half taken as E14. N11 was not this change's defect. |
+
+### Implementer changes round 1 did not dictate
+
+| Change | Judgment |
+|---|---|
+| "Using this in a design", five steps (line 22) | Accept. It is round 1's N2. Step 5 repeats README line 5 ("say in your own artifact … which way you went and why"), so it adds no obligation the advisory standing lacks. Unattributed, and nothing in it is credited to the owner. |
+| E14, the Trusted Dictionary | Accept the row. ADR 0005 has "≥ N distinct trusted authors", "computed at read time" and "Hard boundary: usage-derived only"; the page is routed (`App.jsx:405`); the Placeholders quote is exact. Two consequences: the same feature also stores a snapshot, which the invariants bullet now miscounts (R2-S3), and "the Show counterpart to E8" is stale (nit R2-N5). |
+| Q3's sentence quoting issue #150 on encryption | The quote is exact; its referent is wrong — **R2-S2**. |
+| Closing italic note on the invariants section | Accept. True: neither owner message mentions the invariants or a point of view. |
+| "matches are not ordered by usage" in place of "alphabetical order" | Accept; better than my wording. Mine depended on a server-side sort the dialog does not own. |
+| OPEN.md row 337 | Accept. `harness-lint.sh` L8 scans `WIRING_DIRS` and `LINK_DOCS_EXTRA` (`CLAUDE.md`, `AGENTS.md`, the two team READMEs) and inline `](…)` links only; `stranded-close-2026-09-18.md` is cited in the CHANGELOG as the precedent. 7 cells, unique ID. |
+| Examples header: "Placements on the axis were made in drafting unless the cell credits the owner." | Accept. Consistent with every cell: E1, E2, E9, E10 and E11 credit the owner for the placing; the rest do not. |
+| Template slot for a philosophy's own sections | Accept (round 1's N9). |
+
+### New findings
+
+All locations are in `design-philosophies/show-and-tell.md` unless a file is named. Where several findings touch one passage, one final text is given.
+
+#### Blocking
+
+**R2-B1. The note Trusted List is not built on pin.** (My round-1 S14 text; it fails re-derivation.)
+§ "Relation to the architecture invariants", Filter-at-view-time bullet — "the Trusted Lists a pin commissions (E2 — kinds 30392 and 30393, rebuilt on pin, on manual refresh, and daily where the operator has enabled that task)".
+Evidence: `ui/src/pages/Tag.jsx` `publishWithCuration` POSTs `/api/trusted-list/refresh-pinned-tag`; `src/api/trustedList/index.js:240` routes that to `refreshOnePinnedTagById`, which ends `return await runOnePin(pin);` (`refreshPinnedTags.js:268`), and `runOnePin` publishes `kind: 30392` only (`:209`). `runOneNotePin` (`kind: 30393`, `:364`) has two callers: `refreshAllPinnedTags` (`:403`, the loopback-only scheduled task) and `refreshPinnedTagsForViewer` (`:423`, reached from `useRefreshPin` `refreshAll`, the "🔄 Refresh all" button in `ui/src/pages/Pins.jsx`). `refreshOne` in that hook has no caller in `ui/src`. So on a deployment where the daily task is off — a fresh install, or staging per OPEN.md row 334 — no kind-30393 list exists until someone presses Refresh all. The list of kind-30392 triggers is also short: the list is recomputed when the pinner applies or disputes the pinned Tag on a profile (`Tag.jsx` `reexportAfterAssertion`; `useProfileTags.js` `applyTag` / `disputeTag`), edits the pin's curation (`PinnedListPanel.jsx`, "a curation reconfig recomputes the kind-30392"), or exports (`ExportModal.jsx` step 1) — each through `runReexportForPin` or a direct POST to the same endpoint.
+Asked change: see the single replacement under R2-S3.
+
+#### Should-fix (required this round)
+
+**R2-S3. "Three things in the table are stored" undercounts.** The count was right for round 1's table. E14 is now listed among the counts "derived on read", and its live view is — but the same feature stores a per-point-of-view result too: ADR 0005's "owner-gated action that publishes the current view as a dated, TA-signed, self-describing snapshot" (`TrustedDictionary.jsx`, "📸 Publish snapshot" → `POST /api/normalize/trusted-dictionary-snapshot`, `src/api/normalize/index.js:5489`). The NIP-51 lists the pin click exports, which this document now describes in the worked case, are another: `publishNoteBookmarkSetForPin` says "Membership: the tag's curated notes at pin time (POV = the viewer)", and `Pins.jsx` reports a drifted follow set as "Exported … · N changes since last export".
+Asked change — replace the whole bullet with (settles R2-B1, R2-S3 and the short trigger list):
+`- **Filter at view time.** Count signals when the view is computed. A stored "popular Tags" list is wrong the moment the point of view changes or a new signal arrives. The counts the app itself shows — E1, E3, E4, E6, the Trusted Dictionary's live view (E14), and the in-app Tag picker in E5 — are derived on read. Other things in the table are stored, each computed under one named point of view: the Trusted Lists a pin commissions (E2 — kind 30392, rebuilt on pin, when the pinner applies or disputes the pinned Tag on a profile, edits the pin's curation or exports, on the /pins page's "Refresh all", and daily where the operator has enabled that task; and kind 30393, the note list, which is not built on pin — only "Refresh all" and that daily task build it); the NIP-51 lists the pin click exports under the pinner's own key (E2 — kinds 30000 and 30003; the /pins page reports a follow set that has drifted as "N changes since last export"); the applicability lists published for other clients (E5 — kind 30394, house point of view, republished when their membership changes); GrapeRank scores (E7 — the `wot_rank_<suffix>` columns that E1 and E3 filter by); and the Trusted Dictionary's optional snapshot (E14 — dated, signed by the instance's assistant, published only when the instance owner presses "Publish snapshot"). Each is a snapshot that can lag its signals. Invariant 3 in [CLAUDE.md](../CLAUDE.md) says when storing a per-point-of-view result is justified: only when the read-time cost has been measured and is too high.`
+
+**R2-S1. Q3 says the post-pin copy does not mention the NIP-51 lists; it does.** (My round-1 B2 item 3 text.)
+Q3 — "Neither the tooltip nor the /pins and Edit-curation copy mentions that pins are counted in "Most pinned", or that the click also publishes NIP-51 lists under the pinner's own key to public relays."
+Evidence: the first half holds — `/usr/bin/grep -rn -i "most pinned\|pins by" ui/src` hits only `ui/src/pages/Tags.jsx`. The second half misleads. `CurationMethodDialog.jsx:280` and `:289` render "Profiles → follow set (kind-30000)" and "Notes → bookmark set (kind-30003)"; its unpin hint (`:354`) says "your published cross-client list (NIP-51 kind 30000) will not be automatically retracted". `Pins.jsx` rows render "Exported … · in sync" or "Not yet exported for other clients". The Pinned tab, which the first pin switches to (`setActiveTab('pinned')`), shows "Last exported …" and mounts `ExportModal`, whose disclosure says "**Follow Set** (kind-30000) — a portable list other nostr clients can subscribe to, signed by you." and lists "Your write relays". What is missing is any notice *before* the click. The worked-case paragraph is accurate as it stands ("The tooltip mentions neither"); only Q3 overreaches, in the section the owner asked us to understand "in great detail".
+
+**R2-S2. The issue #150 quotation is exact and attached to the wrong list.** (Implementer's addition.)
+Q3, last sentence — `Issue #150 anticipated part of this: "Users may have the option to encrypt the NIP-51 list or not".` It directly follows "the click also publishes NIP-51 lists under the pinner's own key", so "the NIP-51 list" reads as the kind-30000 and kind-30003 exports. In the issue the only NIP-51 list is under "### Alternative methods to keep track of Alice's Pinned Tags" — "(likely to deprecate these, but worthy of consideration)" — "a user's list of Pinned Tags could be stored as a NIP-51 list"; the quoted sentence sits under "## Encryption". The issue mentions no follow-set or bookmark-set export. The quotation supports the private-pin half of Q3, not the exports. (The issue's author is `ark-clawds4`; the doc rightly does not credit it to the owner.)
+Asked change — replace the Q3 row with (settles R2-S1 and R2-S2):
+`| Q3 | **What should a pinner be told, and should there be a private pin?** Today every pin is a published event; pinning is one click, and the only notice beforehand is a tooltip that touch screens never show. No copy in the pin flow — the tooltip, the Pinned tab, the Edit-curation dialog, the /pins page — says that pins are counted in "Most pinned". Nothing shown before the click says that it also publishes NIP-51 lists under the pinner's own key to public relays; the pinner meets those lists only afterwards — the Pinned tab's "Last exported" line and its Export dialog ("signed by you", with the relays listed), the Edit-curation dialog's Include checkboxes ("follow set (kind-30000)", "bookmark set (kind-30003)"), and the /pins rows ("Exported … · in sync"). Issue #150 anticipated the private-pin half: where it considers keeping a user's list of Pinned Tags as a NIP-51 list, it adds "Users may have the option to encrypt the NIP-51 list or not". That is the list of pins, not the follow-set and bookmark-set exports above. | drafting, 2026-09-19, from the owner's statement of the reuse hazard |`
+
+**R2-S4. "Show other results" does not test for the other target type.** (My round-1 S12 text, in two files; round 1's claims row 10 said "other target type only", which was wrong.)
+E11, and `engineering-team/stories/_intake.md` § "2026-09-19 — Nudge people toward the more-used of two duplicate Tags", "What exists today" — "it lists matching Tags from the *other* target type (a profile Tag while tagging a note), exact-slug first".
+Evidence: `ui/src/components/AddTagDialog.jsx:30` — `const inScope = (t) => !scoped || applicableKeys.includes(keyOf(t));` — and `:80` — `.filter((t) => !isApplied(t) && !inScope(t) && matchesQuery(t, q))`. `contextsByKey`, the only place the other type's list is consulted, feeds the row label alone. `handleAvailableTags` returns every Tag, so the expander holds every matching Tag outside the current type's applicability list (`buildMembers`: hint ∪ trusted usage). That includes a Tag on neither list — one with no hint that no trusted account has used. Such a duplicate is already pushed behind the expander, which is a small usage-based nudge and bears on E11's "nothing nudges".
+Asked change, both files — replace the clause with:
+`it lists matching Tags that are outside the current target type's list — typically a Tag from the *other* target type (a profile Tag while tagging a note), but also a Tag with no hint and no trusted usage for either type — exact-slug first`
+and in E11 replace "Duplicates within one target type are not handled: two same-slug Tags by different authors appear side by side, and nothing nudges toward the more used one." with
+`Duplicates within one target type are not handled as such: two same-slug Tags by different authors that are both on the current type's list appear side by side, and nothing nudges toward the more used one.`
+
+#### Nits (optional)
+
+- **R2-N1.** Owner quotations inside tables carry only the date, while the doc says "Where the two statements differ, the refinement wins". H1 and E11 are from the first statement; S-5, E2, E9 and E10 are from the refinement. Nothing is mislabelled; some labels are missing. Cheap fix: one sentence under "## The ledger" — `In any table below, "owner, 2026-09-19" means the owner's first statement unless the cell says "refinement".` — and mark the four refinement cells.
+- **R2-N2.** T-2 quotes `"the community will benefit"`; the owner typed `“The community will benefit from your curation”`. No word is changed, but README line 40 allows a capital where a lead-in is dropped, not a lower-case initial. S-2 and T+4 do the same to the article. Either restore the capital in T-2 or widen line 40: `…a capital where a lead-in clause is dropped, or a lower-case initial where a sentence is quoted mid-sentence.`
+- **R2-N3.** Two drafting sentences state the owner's hedged placings firmly (both from my S1 text). Line 107, "classes the Pin it describes as a hybrid, not a Tell": the owner wrote "might best be considered a hybrid". Line 50, "names a five-star product review as "a better example"": the owner wrote "Perhaps a better example". Suggested: line 107 → `The refinement says the Pin it describes "might best be considered a hybrid" (see Terms, and consequence 1 below).`; line 50 → `The refinement suggests a five-star product review as perhaps "a better example" of something closer to the Tell end (E9) and adds the ontology edge (E10).`
+- **R2-N4.** Line 12, E14 and the Decentralized-first bullet credit the Dictionaries model to "the owner" and point at `Placeholders.jsx`, whose header says "the operator's own statement"; story `navigation-scaffolding/3` says "the operator's message, exactly as sent". The README defines "the owner" but never says the harness's "operator" is the same person. I believe it is (the sessions run on the owner's machine); the repo alone does not prove it. Suggested sentence for README line 30, once the owner confirms: `Harness records of the owner's own sessions call the same person "the operator".`
+- **R2-N5.** E14, "and the Show counterpart to E8" — my N8 phrase, written when E8 was classed as a Tell. E8's placement is now open (Q6). Suggested: `and the usage-derived counterpart to E8 — its ADR rules the inherit signal out ("never the W1 inherit-consensus signal")`.
+
+### Harness friction (round 2)
+
+1. **Step 10 earned its keep.** Four of this round's five required changes are in sentences I wrote in round 1. Each was derived from a command then, and each was still wrong or stale on a detail: I read `!inScope` as "the other type", listed kind 30393 beside 30392 without tracing `runOneNotePin`'s callers, and my "Neither … mentions" did not account for the dialog's Include checkboxes or the Export dialog. A suggested replacement that enumerates ("three things", a trigger list) is the kind most likely to fail.
+2. **An added row can falsify a sentence elsewhere.** E14 was a good addition, and it made "Three things in the table are stored" wrong. Counts in prose about an append-only table will rot; the replacement above says "Other things" for that reason.
+3. As in round 1, the role file says to commit the review and this run's task said not to. I did not commit; the orchestrator owns that step.
+
 ## Verdict
 
 **CHANGES_REQUESTED**
 
-Four blocking items (B1–B4) and twenty should-fix items (S1–S20). The folder's shape, its advisory standing, the terminology, the status column, the intake entries, the bibliography and the wiring all match what the owner asked for, and the gates are clean. The blocking items are about truthfulness in a folder whose whole mechanism is provenance: an owner review that did not happen, a shipped flow described wrongly in the section the owner singled out, and two owner quotations changed by a word.
+Round 2: one blocking item (R2-B1) and four should-fix items (R2-S1 to R2-S4), in three passages: the Filter-at-view-time bullet, the Q3 row, and one clause of E11 that the intake entry repeats. Exact replacement text is given for each. All four of round 1's blocking items and its twenty should-fix items landed; every owner quotation is now word-exact against the transcript, the header no longer claims an owner review, and the gates are clean. What remains is about the shipped behaviour the document describes, and the Q3 items bear on the reuse hazard the owner asked us to understand in great detail: the note Trusted List is not built on pin, the count of stored per-point-of-view results is short by two, Q3 understates what the pinner is shown after the click, the issue #150 quotation is about the list of pins and not the exports, and the "Show other results" expander is not limited to the other target type. Four of the five sit in sentences this Reviewer suggested in round 1. Five nits are optional.
