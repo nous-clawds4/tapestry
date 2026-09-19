@@ -24,7 +24,7 @@ by-value reader from going wrong in a new way.
 | AC-3 | a DONE meta row is never counted or listed, even when pipes in its Item put a mention of `OPEN.md` where the Status used to be read | script, fixture | red |
 | AC-3 | a DONE meta row stays closed when a later cell holds a fragment that is exactly OPEN: the first status cell is the row's Status | script, fixture | guard (fixture strengthened after the review, finding 5: it now reads 1 open under a reader that takes the last status cell) |
 | AC-3 | an open row of another type is not a meta row, whatever its Item says | script, fixture | guard |
-| — (story § Deviations) | an open meta row whose Item begins with the word DONE is still open: the Item cell is never read as a Status | script, fixture | guard, added at Implementation; on the old reader it is red for the pipe in its second row |
+| — (story § Deviations) | an open meta row whose Item begins with the word DONE is still open: the Item cell is never read as a Status | script, fixture | added at Implementation to pin the deviation. Not a guard in this table's sense: on the old reader it is red, because its second row has a pipe |
 | AC-4 | a malformed DONE row (a second row's tail fused on, as in row 157) is not counted and does not stop the reader: the open rows after it are all counted and listed | script, fixture | red |
 | AC-5 | on this repo's real ledger the meta list holds exactly the meta rows that have an OPEN cell: none dropped, none extra | real tree | red |
 | AC-5 | the three existing meta tests (age trigger, count trigger, quiet inbox) pass **unmodified** | script, fixture | green, and must stay so |
@@ -56,23 +56,38 @@ and what to do. It names no row numbers, so closing rows 70 and 244 later cannot
 - [x] A cell that is exactly `OPEN` to the right of the real Status (a fused or quoted row): the
       first status cell wins.
 - [x] A non-meta row with pipes and the word "meta" in its Item.
-- [ ] Not covered, by design. Stated in full after the review (finding 7), each case measured
-      against the old reader, the new one and the roll-up's ledger section: **any piece of Item
-      text that follows the Item's second or later pipe and reads exactly `OPEN`, or starts with
-      `DONE`, is taken for the Status.** A pipe table that carries free text cannot tell such text
-      from real cells, and no row does any of this today.
-      - An open row read as closed — an Item that says `` `OPEN|DONE|DONE-LOCAL` ``, or one that
-        quotes a DONE table row. The old reader dropped these rows too. This is the harmful
-        direction, and the standing real-ledger test catches it by id ("dropped").
-      - A DONE row read as open — an Item with `` `a|b` `` and then a quoted `` `| OPEN |` `` (the
-        old reader counted it as well), or an Item that quotes a whole OPEN table row, such as
-        `` `| 9 | meta | x | 2026-06-01 | OPEN | | |` ``. **That last case is the one place where
-        the old reader was right and the new one is wrong:** the old reader never looked past the
-        sixth field, so it was right by luck. The ledger section lists such a row as open too, so
-        the two read surfaces agree and the standing test cannot notice. The effect is an
-        over-count that shows in "Meta items" as a row whose own text says DONE.
-      - After a single pipe the new reader is safe: `` `a|DONE-LOCAL` `` in an open row reads as
-        open (the old reader dropped it). That is what starting the scan at the sixth field buys.
+- [ ] Not covered, by design. Stated in full after the review (round 1 finding 7, corrected by
+      round 2 finding R2-1): **any piece of Item text that follows the Item's second or later pipe
+      and reads exactly `OPEN`, or starts with `DONE`, is taken for the Status.** A pipe table that
+      carries free text cannot tell such text from real cells, and no row does any of this today.
+      - The two readers differ in one thing. The old one asked whether the sixth field contains the
+        letters OPEN and looked nowhere else; the new one reads from the sixth field rightwards to
+        the first status-like cell. On a row with stray status-like text they can disagree either
+        way. Eight one-row fixtures, measured; counts are old reader / new reader / the roll-up's
+        ledger section, with the true count in brackets:
+        - open row, Item says `` `OPEN|DONE|DONE-LOCAL` `` [1]: 0 / 0 / 1
+        - open row, Item quotes a whole DONE table row [1]: 0 / 0 / 1
+        - open row, Item is `p|q|see OPEN.md|DONE rows were miscounted` [1]: 1 / 0 / 1
+        - DONE row, Item has `` `a|b` `` and then a quoted `` `| OPEN |` `` [0]: 1 / 1 / 1
+        - DONE row, Item has `` `a|b|c` `` and then a quoted `` `| OPEN |` `` [0]: 0 / 1 / 1
+        - DONE row, Item holds `` `a|b|c|OPEN|d` `` [0]: 0 / 1 / 1
+        - DONE row, Item quotes a whole OPEN table row, such as
+          `` `| 9 | meta | x | 2026-06-01 | OPEN | | |` `` [0]: 0 / 1 / 1
+        - open row, Item has `` `a|DONE-LOCAL` ``, a single pipe [1]: 0 / 1 / 1
+      - **Four of the eight are wrong only under the new reader. That is a small family of
+        regressions against the old reader, not an edge the two share.** The old reader was right
+        on them by luck: the stray text lands to the right of the sixth field, where it never
+        looked. Three are wrong under both, and one only under the old reader.
+      - What notices. An open row read as closed is the harmful direction, and the standing
+        real-ledger test turns red on it with the row's id ("dropped") — the third fixture, the
+        regression in that direction, included. A DONE row read as open is noticed by nothing: the
+        ledger section lists such a row as open too, so the two read surfaces agree and the standing
+        test passes. In "Meta items" it is one more line among the open ones: the list cuts each row
+        at 150 bytes, and on today's 111 open meta rows the Status cell never starts before byte
+        310, so the line does not show that the row is DONE. Its age comes from the cell before the
+        stray text.
+      - After a single pipe the new reader is safe (the last fixture): the scan starts at the sixth
+        field, so the Item's first two pieces are never read as a Status.
       - Story #1 removes the problem for new rows, which become files.
 - [ ] Not covered: the intake "Meta:" source. It is out of scope and unchanged.
 
