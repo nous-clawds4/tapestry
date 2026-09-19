@@ -119,6 +119,21 @@ None open. Three choices made at Planning, all ratified by the operator at the P
 3. **Six acceptance criteria stay in one story.** That is one more than the usual ceiling; they are
    small and all concern one reader.
 
+## Deviations
+
+- **The scan for the Status cell starts at the sixth field, not directly after Type.** Row 290 and
+  Open question 2 word the rule as "the first cell after Type that is exactly `OPEN` or starts with
+  `DONE`". Type is the third field, and an Item cell and an Opened cell always sit between it and
+  the Status, so the sixth field is the earliest place a Status can be. Starting earlier would let
+  an Item that begins with the word DONE ("DONE rows are…", "DONE-LOCAL is…") read as a closed row.
+  The old reader did not have that false negative, since it only ever looked at the sixth field;
+  the fix must not introduce it. For a row without pipes the new reader looks at exactly the cell
+  the old one did. Measured on `d37cd575`: both starting points give the same Status on all 330
+  rows, and no Item begins with DONE or OPEN, so the choice only affects future rows. One guard
+  test was added at Implementation for this (its fixture reads as 0 open when scanned from the
+  fourth field and 2 open from the sixth); it is marked as such in the test file. The eleven
+  Tester-designed tests are unchanged.
+
 ## Linked artifacts
 
 - ADR: none — Architecture skipped as obvious. Design record: `OPEN.md` row 290; ADR

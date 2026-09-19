@@ -250,6 +250,19 @@ test('an open row of another type is not a meta row, whatever its Item says (led
     `got "${metaLine(out)}" — the row's Type cell reads bug; only the Type cell decides whether a row is a meta row\n${out}`);
 });
 
+// Added at Implementation, not by the Tester — it pins the one judgment call logged in the
+// story's § Deviations: the scan for the Status cell starts at the sixth field.
+test('an open meta row whose Item begins with the word DONE is still open: the Item cell is never read as a Status (ledger-row-identity #2, story § Deviations)', () => {
+  const dir = metaFixture([
+    '| 1 | meta | DONE rows with pipes were counted as open | 2020-01-01 | OPEN | | |',
+    '| 2 | meta | DONE-LOCAL is not a status `a|b` the counter knows | 2020-01-01 | OPEN | | |',
+  ]);
+  const { code, out } = digest(dir);
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /META ESCALATION — 2 open harness lesson/,
+    `got "${metaLine(out)}" — both rows are open; a Status can sit no earlier than the sixth field (Type, then at least an Item cell and an Opened cell), so text at the start of the Item must never be taken for one\n${out}`);
+});
+
 test('a malformed DONE row (a second row\'s tail fused on, as in OPEN.md row 157) is not counted and does not stop the reader: the open rows after it are all counted and listed (ledger-row-identity #2 AC-4)', () => {
   const fused = '| 1 | meta | **Piping a run through `tail` hides its verdict.** `npm test | tail -35` reported FAIL | 2020-01-01 (fixture review) | DONE | 2020-02-01 (fixed) | `audits/x/audit.md`; and `npm test | tail -1 && git commit` took the exit status of tail | 2020-01-01 (fixture review) | DONE (see above) | |';
   const dir = metaFixture([
