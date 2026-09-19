@@ -19,7 +19,7 @@
 - [ ] Three further undeclared-identifier tidies in the same area, found in the same read-only sweep, are corrected with no behaviour change on any reachable path.
 - [ ] Whether the server entry point should adopt a global unhandled-rejection / uncaught-exception policy is *raised* to the operator with options; the decision is the operator's and is recorded, not made inside this book.
 - [ ] Shipped through the normal cycle: PR into `staging`, staging smoke, then — on operator approval — promotion to `main` and production smoke.
-- [ ] After the fix is live on production, the out-of-band specifics are written into the records that need them (row 325 closed with the plain cause; `docs/SMOKE_TEST.md`, `OPERATIONS.md` §9.5, and the 2026-09-18 smoke-test intake entry corrected), through a separate doc-lane review.
+- [ ] After the fix is live on production, the out-of-band specifics are written into the records that need them (the corresponding OPEN.md ledger row closed with the plain cause, and the related smoke-test / operations docs corrected — all identified out-of-band), through a separate doc-lane review.
 
 ## Epics in this book
 - `user-data-error-path` — harden the error path, tidy the neighbouring identifiers, raise the process-level policy question.

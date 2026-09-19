@@ -28,5 +28,6 @@ entry point should adopt a global unhandled-rejection / uncaught-exception polic
 - **Branch stays local until the ship gate.** OPEN.md row 278: an open fix PR on a public repo is
   itself a disclosure window. Push → merge → staging smoke → promote → production smoke run back to
   back once the operator approves.
-- **Follow-on doc lane.** Closing row 325 and correcting `docs/SMOKE_TEST.md` / `OPERATIONS.md` §9.5
-  / the 2026-09-18 intake entry happens only after the fix is live, through its own doc-lane review.
+- **Follow-on doc lane.** Closing the corresponding OPEN.md ledger row and correcting the related
+  smoke-test / operations docs (all identified out-of-band) happens only after the fix is live,
+  through its own doc-lane review.

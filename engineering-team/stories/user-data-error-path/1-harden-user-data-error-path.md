@@ -1,6 +1,6 @@
 # Story 1: Harden an error path in a user-data handler
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-09-18
 **Type:** Bug
 
@@ -50,8 +50,8 @@ firmware definition.
   Open questions). Adopting one is a separate change once the operator chooses.
 - The remaining out-of-scope undeclared identifiers found outside the handler's area
   (`src/manage/…`, `bin/…`, and a parse error in `src/pipeline/…`): one OPEN.md row after deploy.
-- Closing OPEN.md row 325 and correcting `docs/SMOKE_TEST.md` / `OPERATIONS.md` §9.5 / the
-  2026-09-18 intake entry: a follow-on **doc-lane** task after the fix is live.
+- Closing the corresponding OPEN.md ledger row and correcting the related smoke-test / operations
+  docs (all identified out-of-band): a follow-on **doc-lane** task after the fix is live.
 
 ## Open questions
 - **For the operator (raise, don't decide):** should `bin/control-panel.js` (the server entry) adopt
