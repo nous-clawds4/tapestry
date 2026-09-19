@@ -37,7 +37,7 @@ this file. Same choice as `honest-test-gate` (2026-09-12).
    **Approved.** Design: ADR 0001 (date+slug ids; new rows are files under `ledger/`; the numbered
    table frozen in place), accepted 2026-09-19. Implementation is a later packet.
 2. **meta-count-pipes** — open meta rows whose text contains a pipe are counted, listed and aged
-   like any other (rows 70 and 244 are missing today). Bug; the first half of row 290. **Approved.**
+   like any other (rows 70 and 244 are missing today). Bug; the first half of row 290. **Done.**
    Lands before #1 is implemented, so that #1's before-and-after check starts from a correct count
    (ADR 0001 § Consequences, follow-up 1).
 

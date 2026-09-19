@@ -1,6 +1,6 @@
 # Story 2: Count the open meta rows whose text contains a pipe
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-19
 **Type:** Bug
 
@@ -141,4 +141,4 @@ None open. Three choices made at Planning, all ratified by the operator at the P
   § Consequences, follow-up 1; the collector's spec is ADR
   `engineering-team/decisions/harness-self-improvement/0004-meta-escalation.md` § Implementation notes.
 - Test plan: `engineering-team/stories/ledger-row-identity/2-meta-count-pipes.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/ledger-row-identity/2-meta-count-pipes.md`
