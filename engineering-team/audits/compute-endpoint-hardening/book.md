@@ -1,9 +1,9 @@
 # Book of Work: Harden and restrict an admin computation endpoint
 
 **Slug:** compute-endpoint-hardening
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-19
-**Closed:** —
+**Closed:** 2026-09-19 — fix live on all four public hosts (prod/staging #684→#685; tags/magic-carpet backported e8ca6597/ebb941b3), unauth → 401 verified on each; no exploitation found in operator log-checks. Operator-ratified close. Audit + prd-seed under this dir.
 **Gating:** **Human-gated, expedited.** A live remotely-exploitable defect on public deployments; the operator answers the ship gates. Build phases run continuously (frame pre-approved); the outward-facing merges stop for approval.
 
 ## Intent anchor
@@ -37,7 +37,7 @@
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/compute-endpoint-hardening/audit.md`

@@ -1,7 +1,8 @@
 # Epic: compute-endpoint-hardening
 
 **Created:** 2026-09-19
-**Status:** Open
+**Status:** Done
+**Retired:** 2026-09-19 — fix live on all four public hosts (#684→#685; tags/magic-carpet backports); story + review folders moved under `done/compute-endpoint-hardening/`. Book closed same day.
 **Book:** `engineering-team/audits/compute-endpoint-hardening/book.md` (acceptance-frame)
 **Provenance:** Operator request, 2026-09-19 in-session ("item 2"), following the `user-data-error-path`
 fix. A read-only sweep surfaced an admin computation endpoint that trusts client input; the specifics
