@@ -20,10 +20,17 @@ META_LINES=""
 META_COUNT=0
 META_MAX_AGE=0
 collect_meta() {
-  local row opened age heading ep
+  local row cell opened age heading ep
   if [ -f OPEN.md ]; then
-    while IFS= read -r row; do
-      opened=$(printf '%s' "$row" | awk -F'|' '{print $5}' | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
+    # Status is found BY VALUE, never by position: a literal pipe inside the Item
+    # cell (code span or escaped) shifts every later field, so `$6` is only
+    # sometimes the Status (OPEN.md row 290; story ledger-row-identity #2). It is
+    # the first cell, from field 6 on (Type is $3; an Item and an Opened cell
+    # always sit between), that reads exactly OPEN or starts with DONE; Opened is
+    # the cell before it. awk prints two lines per open meta row: that Opened
+    # cell, then the row.
+    while IFS= read -r cell && IFS= read -r row; do
+      opened=$(printf '%s' "$cell" | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
       age="?"
       if [ -n "$opened" ] && ep=$(date_to_epoch "$opened"); then
         age=$(( ( $(date +%s) - ep ) / 86400 ))
@@ -31,7 +38,12 @@ collect_meta() {
       fi
       META_COUNT=$((META_COUNT + 1))
       META_LINES="${META_LINES}  [${age}d] $(printf '%s' "$row" | cut -c1-150)"$'\n'
-    done < <(grep -E '^\|' OPEN.md | awk -F'|' '$3 ~ /meta/ && $6 ~ /OPEN/')
+    done < <(grep -E '^\|' OPEN.md | awk -F'|' '$3 ~ /meta/ {
+      for (i = 6; i <= NF; i++) {
+        c = $i; gsub(/^[ \t]+|[ \t]+$/, "", c)
+        if (c == "OPEN" || c ~ /^DONE/) { if (c == "OPEN") { print $(i-1); print $0 }; break }
+      }
+    }')
   fi
   # Un-marked intake "Meta:" entries count too (the 5-week origin-sync item is
   # the motivating casualty); age from the ISO date in the heading itself.
