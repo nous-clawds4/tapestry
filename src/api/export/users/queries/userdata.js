@@ -189,7 +189,7 @@ function handleGetUserData(req, res) {
           isUserInNeo4j = false;
           userData = {
             pubkey: pubkey,
-            npub: npub,
+            npub: npub1,
             followerCount: null,
             muterCount: null,
             reporterCount: null,
@@ -281,7 +281,7 @@ function handleGetUserData(req, res) {
         console.error('Error fetching user data:', error);
         res.status(500).json({
           success: false,
-          query,
+          query: cypherQuery,
           message: `Error fetching user data: ${error.message}`
         });
       })
