@@ -53,5 +53,5 @@ None. Server-side endpoint hardening; no concept-graph concept, handle, or firmw
 
 ## Linked artifacts
 - ADR: none — Architecture skipped as obvious (Bug lane, Standard; `workflows/0-intake.md` step 3).
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/compute-endpoint-hardening/1-harden-and-restrict-compute-endpoint.test-plan.md`
 - Review: (filled in after Review phase)
