@@ -1,9 +1,9 @@
 # Book of Work: Harden an error path in a user-data handler
 
 **Slug:** user-data-error-path
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-18
-**Closed:** —
+**Closed:** 2026-09-19 — fix live on production (#681→#682) and the row-325 doc lane on main (#683 via #685); every acceptance-frame bullet met. Operator-ratified close. Audit + prd-seed under this dir.
 **Gating:** **Human-gated.** Every phase gate is answered by the operator. This book is deliberately **not** run in Direction mode: it hardens a live error path on a public deployment, which is where a human belongs at each gate. There is no `## Direction mode` section by design.
 
 ## Intent anchor
@@ -26,7 +26,7 @@
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/user-data-error-path/audit.md`
