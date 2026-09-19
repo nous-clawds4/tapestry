@@ -109,6 +109,6 @@ None open. Two choices made at Planning, both ratified by the operator at the Pl
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
