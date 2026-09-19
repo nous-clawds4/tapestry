@@ -1,7 +1,7 @@
 # {Name of the philosophy}
 
 > **Status:** living document — advisory (see the [README](./README.md))
-> **Opened:** {YYYY-MM-DD} · **Last reviewed by the owner:** {YYYY-MM-DD}
+> **Opened:** {YYYY-MM-DD} · **Last reviewed by the owner:** {the date the owner said they had read this file, or "not yet"}
 > **The question:** {the recurring choice, as one question a designer would actually ask}
 > **Sources:** {who stated the idea and when; articles, with a link into [bibliography](./bibliography.md); issues, ADRs or specs where it first showed up}
 
@@ -25,7 +25,7 @@ What each alternative is good and bad at. Append at the end of a table; never re
 
 | ID | Disadvantage | Provenance |
 |---|---|---|
-| A−1 | | |
+| A-1 | | |
 
 ### {Alternative B}
 
@@ -35,7 +35,7 @@ What each alternative is good and bad at. Append at the end of a table; never re
 
 | ID | Disadvantage | Provenance |
 |---|---|---|
-| B−1 | | |
+| B-1 | | |
 
 ## When to lean which way
 
@@ -47,9 +47,13 @@ Heuristics, not rules. Each says where it came from.
 
 ## Examples
 
+Append at the end of the table; never renumber. A proposed example is an ordinary `E` row — the Status column says it is proposed.
+
 | ID | Example | What is being decided | Which way, and why | Status | Where to look |
 |---|---|---|---|---|---|
 | E1 | | | | shipped / partly shipped / designed / proposed / illustrative | files and named sections, not line numbers |
+
+{Sections of your own go here — a philosophy often needs one or two that no other has. Show and Tell has "Getting explicit signals" and "The reuse hazard".}
 
 ## Relation to the architecture invariants
 

@@ -8,7 +8,7 @@ The writing that the design philosophies draw on, with links that work. Most of 
 
 A nostr long-form article is an addressable event, so its durable identifier is its **coordinate**, `30023:<author pubkey>:<d-tag>`. Links are conveniences that can rot; the coordinate cannot. Every entry below gives both.
 
-- **Author:** straycat — `e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f` (npub1u5njm6g5h5cpw4wy8xugu62e5s7f6fnysv0sj0z3a8rengt2zqhsxrldq3)
+- **Author:** straycat (the owner — see the [README](./README.md)) — `e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f` (npub1u5njm6g5h5cpw4wy8xugu62e5s7f6fnysv0sj0z3a8rengt2zqhsxrldq3)
 - **Kind:** 30023
 - **Link form:** `https://njump.me/<naddr>`, where the naddr encodes kind + author + d-tag with no relay hints. Any nostr client will resolve the same naddr if the gateway is gone.
 - To build a link for an article that is not listed yet: `nip19.naddrEncode({ kind: 30023, pubkey, identifier: dTag })` with the repo’s own `nostr-tools`, then open it and check the title before citing it.
