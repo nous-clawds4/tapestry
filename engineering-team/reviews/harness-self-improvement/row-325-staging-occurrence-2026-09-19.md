@@ -249,3 +249,174 @@ which reach the ledger — are green on this commit. The local full gate, re-run
 of cases skipped; that is accepted for a one-line ledger edit and it is not a green gate. CI's Node
 22 job on the PR is the binding run. This lane has no story to flip and no book to close; the commit
 is the orchestrator's.
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-09-19 (UTC)
+**Diff:** `79f2d483`, the Implementer's fix, on `27b1432e` (round 1 of this file, committed as written:
+the same blob, `f665f714`, 251 lines), on `be9dea25`. `git show 79f2d483` is the whole round-2
+surface: `OPEN.md`, 1 insertion and 1 deletion, line 386 again. Everything above this heading is
+round 1, byte for byte; this section was appended to the end of the file, not edited in.
+
+Same constraints as round 1: this reviewer edited this file and nothing else — no commit, no add, no
+push, no branch switch.
+
+The Implementer did not take the wording round 1 offered for Blocking 1; it re-ran the counts and
+wrote its own sentence, which is checked below as written. Two figures in the new text did begin as
+this reviewer's — "about 30 s" and "roughly 20–35 s", from round 1's Non-blocking 2 — and role step 10
+says to re-derive those rather than recognise them. Both hold. What did not survive its own re-check
+is a statement of mine that the new sentence leans on: that `stat` shows when the script first
+existed. It cannot show that (Non-blocking 2). The row's conclusion stands anyway, on grounds given
+there. A second round-1 statement of mine was also wrong, and it is why Blocking 2 was answered the
+way it was (Non-blocking 1).
+
+### Quality gates (round 2)
+
+- [x] `bash scripts/harness-lint.sh` on `79f2d483` → **clean (0 violations)**, exit 0, 36 lines —
+      byte-identical to round 1's output with this file present.
+- [x] **Mergeability against the real `staging`: clean.** At 01:44:12Z, and again at 01:52:06Z,
+      `git ls-remote` gives `staging` as `5ab7e776`, where round 1 left it, and `main` as `cf3afd66`;
+      #677 is still the newest PR and none is open against `staging`. Its `OPEN.md` is byte-identical
+      to `d0bf447d`'s; its highest row is 325 (324 rows).
+      `git merge-tree --write-tree 5ab7e776 79f2d483` exits 0 with no conflict; the merged tree
+      differs from `5ab7e776` in `OPEN.md` and this file alone, and its `OPEN.md` is this branch's
+      blob.
+- [x] **Six suites**, each through its `run()` export, in the foreground, on `79f2d483` with a clean
+      tree, host Node v16.17.0. The five that reach the ledger: `harness-lint` 41 passed / 0 failed
+      (56 s), `session-start` 10 / 0 (23 s), `operational-direction` 76 / 0 (10 skipped),
+      `curated-dlist-update-update-preview` 34 / 0, `curated-dlist-update-publish` 69 / 0. And
+      `harness-stats` 12 / 0 (73 s), because this file is tracked now and that suite tallies review
+      files; a grep of `test/` for code that walks the reviews tree finds it and `harness-lint`, no
+      other. Those two were run again with this section appended: the same counts.
+- [x] **The real parser over the row** (the awk from `scripts/lib/collect-meta.sh:34`): `NF=9`,
+      ` ops `, `2026-09-18`, ` OPEN `. The open-meta selection is the same 106 numbers as the base's
+      and row 325 is not among them. The pipeline at `scripts/whats-open.sh:31`, run directly,
+      prints the row whole: 4,775 bytes.
+- [ ] **Full gate: not re-run this round, and I agree it need not be.** `npm run -s gate:status`
+      (exit 1) still prints round 1's run:
+      `20260919T012002Z-54605-799e [row325-review] started 2026-09-19T01:20:02.259Z on be9dea25 —
+      FAIL, exit 1, 2848 passed, 9 failed, 515 skipped, 204/204 suites; failed:
+      honest-publish-reporting`. That record is on `be9dea25`, not on this HEAD. Since it,
+      `git diff --name-status be9dea25 79f2d483` lists two files: one ledger line and this file.
+      Neither is a harness-definition path, and every suite whose code reads either was run above on
+      this HEAD. A re-run would be red again for the row-288 reason and would say nothing about this
+      diff. It is red on this host, and it is not a green gate.
+      **The binding run is CI's Node 22 `stack-free` job on the PR.**
+- [x] Checked after appending: `awk -f scripts/lib/review-verdict.awk` on this file prints the
+      verdict of this round's final section; within round 2 no other line that is a heading or
+      carries bold contains a verdict token; `bash scripts/harness-lint.sh` is still clean, exit 0,
+      its output unchanged; and the first 24,326 bytes of this file still hash to round 1's blob.
+
+### Claims adherence (round 2)
+
+| Claim | Evidence | Result |
+|---|---|---|
+| Scope: row 325's line only, and one sentence in it | against `d0bf447d` and against `be9dea25`: 386 lines each, line 386 the only difference; 324 rows, max 325, none twice, the gap at 257. Row 325: 7 cells, 8 raw pipes, 0 escaped; the six non-Item cells equal the base's and round 1's. In the Item cell one 145-character sentence ("That staging's two deploys … weak evidence of absence") gave way to a 690-character passage; the 3,390 characters before it — title, retitle note, old body, the rest of the fifth-occurrence note — are round 1's exactly. Backticks, bold markers, single asterisks, parentheses and double quotes balance (26, 6, 6, 13/13, 12). `OPEN.md` 436,017 → 436,568 bytes. The replaced sentence never reached `staging`; it survives in `be9dea25`, which this file quotes | holds |
+| "staging was deployed seven times on 2026-09-18 and production three" | the two API calls the brief names, run afresh: `total_count` 7 (#666, #667, #668, #669, #671, #673, #675) and 3 (#670, #672, #674). Every run is attempt 1, so no re-run hides a second deploy; every log has `Container tapestry Started` (round 1). `deploy-staging.yml` is the only workflow that uses `DEPLOY_HOST_STAGING` and `deploy-tapestry.yml` the only one that uses `DEPLOY_HOST_TAPESTRY`; neither has `workflow_dispatch`; the two sibling deploy workflows serve other hosts from other branches. UTC, which is the row's frame throughout | holds |
+| "this row's author watched two of each (#671 and #673 on staging, #672 and #674 on production)" | the evidence file holds four smoke transcripts dated 2026-09-18, for exactly those four. Attestation, and nothing contradicts it | holds |
+| The two quoted phrases "really occur" above | "both production deploys": once, in "Seen on both production deploys of 2026-09-18". The other: once, as the sentence-initial "Neither staging deploy that day showed it"; the quotation lowercases the N to sit mid-sentence, the words are exact | holds |
+| This scoping discharges round 1's Non-blocking 1 | it does. Production's three are stated, "both production deploys" is scoped to the two watched, and the body is left as written with the correction in the dated note, which is the ledger's way | discharged |
+| "The scripted one (#673) cannot have begun until about 30 s after its container started" | run `35400245333`'s log: `Container tapestry Started` at 22:10:45.22Z. The script's three timestamps: 22:11:15Z. 29.8 s. As a bound it holds on grounds that do not depend on `stat`'s meaning — Non-blocking 2 | holds |
+| "because the script did not exist before then" | the Implementer's first-hand account of its own session. `stat` is consistent with it and cannot show it | holds as attestation — Non-blocking 2 |
+| "by the smoke's own pacing this occurrence fell roughly 20–35 s after its container started (no clock was kept)" | container started 00:11:17.48Z, run completed 00:11:22Z, so the watch returned 4.5 s or more after the start. The script then spends three requests with 2 s sleeps, a 5 s settle and eleven requests before the call that got the 502. With no lag anywhere and 0.1 s a request: +17 s. With 1.5 s of watch lag, 5 s to launch and 0.2 s a request: +25 s. With 3 s, 12 s and 0.4 s: +36 s. The band is fair for ordinary conditions, slightly wider at both ends than stated, and "roughly" with "no clock was kept" says as much | fair, honestly hedged |
+| "so that pass probably arrived once the window had closed" | follows if #673 had a window timed like this one, whose re-poll read `502 200 200 200`: gone within about three seconds of first being seen. "probably" is the right word, and the sentence after it keeps the point from resting on this | fair inference |
+| "The two clean staging passes say little" | true of #673 by the timing argument. #671 has no timing argument, because nothing about its timing was recorded; for it the claim rests on the body's "with a window only seconds wide, that is the weaker half" and on the passage's last sentence. The text scopes the timing argument to "The scripted one" and does not lend it to #671 | fair — Non-blocking 3 |
+| `79f2d483`'s message, statement by statement | the old phrase, quoted exactly; the counts and PR lists, as above; "born at 22:11:15Z, the container at 22:10:45Z", as above; "an estimate from the smoke's pacing, and the note says no clock was kept", it does; "whose hash the round-1 review cites": nine times; "collect-meta.sh trims only open meta rows; row 325 is ops and is printed whole": re-derived on this HEAD (gates); row 71's precedent is `b415d354` (round 1); "was 37 minutes": 00:09:44Z to 00:46:37Z is 36.9 | holds |
+| "no TRACKED file ever carried the false reason" | `git grep` for it across the tree: this file only, where it is quoted as a finding. Neither version of the row mentions 150 characters | holds |
+| Forward correction is acceptable here | Non-blocking 1 | acceptable |
+
+### Findings (round 2)
+
+**Blocking.** None. The one false number is gone, the sentence that replaced it says what was counted
+and what was watched, and everything it adds was either verified or is marked as an estimate.
+
+**Non-blocking.**
+
+1. **Blocking 2 was answered by a forward correction, not by the reword round 1 asked for — and the
+   Implementer was right, because the premise of the ask was wrong and the premise was mine.** Round 1
+   said the message "can be edited now: the branch is unpushed and no tracked file cites the hash".
+   This file cites `be9dea25` nine times, and under per-phase commits it was always going to be
+   tracked one commit later; two gate records, the Implementer's and mine, are keyed to that commit
+   as well. Rewording it would have orphaned all of them to tidy one sentence. What round 1 wanted was
+   that the record not mislead, and that is met: the correction is in the next commit to touch the
+   same line, so `git blame` on row 325 lands on the message that carries it; each of its statements
+   checks out; this file records the fault in both rounds; and no tracked file ever held the false
+   reason. It depends on both commits surviving as commits, so: land the PR as a merge commit, not a
+   squash — which this file's own citations need anyway.
+
+2. **`stat` cannot show that "the script did not exist before then", and round 1 wrote as though it
+   could.** The Write tool replaces a file rather than rewriting it. Probe, this session: a file
+   written twice with that tool came back with a new inode and a birth time reset to the second write
+   (birth = mtime), where a shell redirect kept both. So birth = mtime = ctime on a tool-written file
+   means "this content has been in place since then", which is what "unmodified" needed; it does not
+   mean no earlier version existed, and nothing records which way `smoke.sh` was written. The clause
+   is therefore the Implementer's account of its own
+   session, not something the file proves, and it is the Implementer's to give. The bound survives
+   without it. The recorded #673 pass holds a 16.12 s `get-user-data` and 11 s of sleeps, 27.1 s
+   before counting any of its fourteen quick requests, and only 26 s separate the deploy finishing
+   (22:10:49Z) from the write (22:11:15Z). A pass begun after the deploy finished cannot have ended
+   before the write; an agent's tool calls run one after another; so the pass began at or after the
+   write, 29.8 s or more after its container started. Optional: "because the script was not written
+   until then".
+
+3. **"The two clean staging passes say little" gives its reason for one of the two.** That is not an
+   overclaim — the timing argument is scoped to "The scripted one", and the closing sentence covers
+   the other — but a reader may look for #671's half. Optional: "the hand-typed one (#671) kept no
+   timing at all".
+
+4. **What the #673 pass does show**, offered for whoever chases this, and a reviewer's inference.
+   During its `get-user-data` call — 16.12 s, beginning about 43 s after that container started at
+   the earliest — the app probably did not cycle: the call came back as a 504 at the application's
+   own documented timeout of about 16 s (`docs/SMOKE_TEST.md:52`), where a process that restarted
+   mid-request would have produced nginx's instant 502. The evidence gives that pass's status and
+   time, not its body. Outside that call the pass only sampled the app at points, with about 7 s of
+   silence at the settle — room enough to hide a window like this one. So the pass argues against a
+   window during that quarter-minute on #673 and cannot speak to the first half-minute, which is
+   where this occurrence fell.
+
+5. **The counts are UTC**, like every other time in the row. In this machine's local time (UTC−4)
+   the numbers happen to be the same, seven and three, with different members (#676 and #677 in place
+   of #666 and #667), and "watched two of each" would then be wrong for staging. Optional: "(UTC)"
+   after the date.
+
+**Harness friction.**
+
+1. **A birth time on a tool-written file is the time of its last write.** The previous review and
+   round 1 of this one both read `stat`'s birth time as first creation. Both conclusions had other
+   support, so nothing falls; the reading should not be used again without the probe above. Wants a
+   `meta` row.
+
+2. **"Reword it, nothing cites the hash" is self-defeating under per-phase commits:** the review
+   that asks is committed next and cites the hash. A reviewer who wants a message changed has two
+   honest options — ask for a forward correction, or say that the ask expires when the review is
+   committed. Worth a line in `roles/reviewer.md`; that is a harness-definition path, so not this
+   lane's.
+
+3. **Row 316 recurred:** the wiring says commit and flip, the brief reserves both, and the brief was
+   followed.
+
+### Verdict (round 2)
+
+**PASS**
+
+Both of round 1's blocking findings are answered. The note no longer says staging had two deploys
+that day: it gives the day's real counts, seven and three, says which two of each this row's author
+watched, and scopes the body's "both" and "neither" to those without touching the body. The counts
+reproduce from the Actions record, every run a single attempt and no other workflow able to deploy
+either host. The commit message's false reason is corrected in the next commit on the same line, in
+words that each check out, and leaving the old hash alone was the better call for a reason round 1
+should have seen: this file cites it.
+
+The new timing argument is a fair one, honestly hedged. Thirty seconds is 29.8 by the run log and the
+file's timestamps, and holds as a bound even though `stat` cannot prove the clause that explains it;
+the twenty to thirty-five is an estimate, is called one, and sits a second or two inside what the
+script's pacing gives at either end.
+Nothing else in the ledger moved, the row still parses, and the branch still merges cleanly into
+`staging` as it stands, which has not moved since round 1.
+
+Lint is clean and unchanged, and the six suites that read either changed file are green on this
+HEAD. The full gate was not re-run; its last record, on `be9dea25`, two commits back, is red on this
+host for the recorded Node 16 reason with 15.3% of cases skipped, and it is not a green gate. CI's Node 22 job
+on the PR is the binding run. This lane has no story to flip and no book to close; the commit is the
+orchestrator's, and what rides to `main` with it is the operator's to decide.
