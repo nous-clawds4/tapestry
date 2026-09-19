@@ -1860,7 +1860,9 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 
 ## 2026-07-28 — Harness story proposal: OPEN.md file-per-row migration (kill the last flat counter)
 
-**NOT PICKED UP** — filed at the store-and-show postmortem, sibling to the blinding-rebuild proposal above; motivated by the same two-session collision that stranded that close's §7a drafts for a day (store-and-show audit §7a preamble: "held by a concurrent session"; add-a-concept audit §7 F8: "the previous close's retro dispositions never landed").
+**PICKED UP** 2026-09-19 → book `engineering-team/audits/ledger-row-identity/` (story `ledger-row-identity` #1; ADR `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md`, accepted). The ADR keeps this proposal's date+slug ids and drops its migration: new rows become files under a top-level `ledger/`, and the numbered table stays in `OPEN.md`, frozen where it stands. Implementation is a later packet.
+
+Originally filed **NOT PICKED UP** — filed at the store-and-show postmortem, sibling to the blinding-rebuild proposal above; motivated by the same two-session collision that stranded that close's §7a drafts for a day (store-and-show audit §7a preamble: "held by a concurrent session"; add-a-concept audit §7 F8: "the previous close's retro dispositions never landed").
 
 **Proposed story:** `harness-self-improvement` epic (reactivate, per the tapestries precedent), next story number — **"one file per row: the ledger becomes a directory."** OPEN.md's dense sequential row numbers are the repo's **last flat global counter**, and it has now produced the same collision class the 2026-06-04 epic-folders migration was ratified to kill for stories and ADRs ("three real numbering collisions"): a live row-number collision at second-brain story 5 (renumbered by hand + numbering note), and the §7a stranding above. Two distinct races: the **counter** (an ID mint requiring global state) and the **tail** (two sessions appending to the same end-of-file region conflict textually even with unique IDs). The fix kills both by making additions file-creations, which git merges perfectly:
 
