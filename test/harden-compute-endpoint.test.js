@@ -25,19 +25,29 @@
 const path = require('path');
 const REPO = path.resolve(__dirname, '..');
 
-// --- child_process interception (stable spies; reset by emptying the array) ---
+// --- child_process interception, scoped to the handler only ---
+// The gate's registry loads EVERY suite module up front (before any runs), so a
+// permanent monkeypatch of the shared child_process module would clobber it for
+// every other suite. Instead: install stable spies, require the handler so its
+// load-time destructure captures them, then immediately restore the real module
+// for everyone else. The handler keeps its captured spies; nothing else is touched.
 const cp = require('child_process');
 const spawnCalls = [];
 function fakeChild() { return { on() {}, kill() {}, stdout: { on() {}, pipe() {} }, stderr: { on() {} } }; }
+const _real = { exec: cp.exec, execFile: cp.execFile, execSync: cp.execSync, spawn: cp.spawn };
 cp.exec = function (...a) { spawnCalls.push({ fn: 'exec', a }); return fakeChild(); };
 cp.execFile = function (...a) { spawnCalls.push({ fn: 'execFile', a }); return fakeChild(); };
 cp.execSync = function (...a) { spawnCalls.push({ fn: 'execSync', a }); return Buffer.from(''); };
 cp.spawn = function (...a) { spawnCalls.push({ fn: 'spawn', a }); return fakeChild(); };
 
-// Require AFTER installing spies so the handler's load-time destructure captures them.
+// Require the handler NOW (captures the spies via its load-time destructure)…
 const handlerMod = require(path.join(REPO, 'src/api/algos/pagerank/commands/generateForApi.js'));
 const handle = handlerMod.handleGenerateForApiPageRank;
-// Auth middleware is independent; safe to load directly.
+
+// …then restore the real child_process before any other module loads.
+cp.exec = _real.exec; cp.execFile = _real.execFile; cp.execSync = _real.execSync; cp.spawn = _real.spawn;
+
+// Auth middleware loads with the real child_process (independent of the handler).
 const { authMiddleware } = require(path.join(REPO, 'src/middleware/auth.js'));
 
 const VALID_PK = 'a'.repeat(64);
