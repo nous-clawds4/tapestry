@@ -235,6 +235,7 @@ const suites = [
   { file: 'curated-dlist-update-publish.test.js' },
   { file: 'assistant-setup-state.test.js' },
   { file: 'gate-result-record.test.js' },
+  { file: 'harden-user-data-error-path.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so

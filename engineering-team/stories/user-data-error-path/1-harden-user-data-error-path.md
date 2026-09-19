@@ -63,5 +63,5 @@ firmware definition.
 
 ## Linked artifacts
 - ADR: none — Architecture skipped as obvious (Bug lane, Standard; `workflows/0-intake.md` step 3).
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/user-data-error-path/1-harden-user-data-error-path.test-plan.md`
 - Review: (filled in after Review phase)
