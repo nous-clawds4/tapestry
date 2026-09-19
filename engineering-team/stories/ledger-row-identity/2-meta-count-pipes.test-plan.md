@@ -22,8 +22,9 @@ by-value reader from going wrong in a new way.
 | AC-1 | a date inside the Item text is not the row's Opened date: a piped row opened 2 days ago stays quiet | script, fixture | red |
 | AC-2 | `/whats-open` lists a piped open meta row under "Meta items" with its age, and its banner agrees with the digest | script, fixture | red |
 | AC-3 | a DONE meta row is never counted or listed, even when pipes in its Item put a mention of `OPEN.md` where the Status used to be read | script, fixture | red |
-| AC-3 | a DONE meta row stays closed when a later cell holds a fragment that is exactly OPEN: the first status cell is the row's Status | script, fixture | guard |
+| AC-3 | a DONE meta row stays closed when a later cell holds a fragment that is exactly OPEN: the first status cell is the row's Status | script, fixture | guard (fixture strengthened after the review, finding 5: it now reads 1 open under a reader that takes the last status cell) |
 | AC-3 | an open row of another type is not a meta row, whatever its Item says | script, fixture | guard |
+| — (story § Deviations) | an open meta row whose Item begins with the word DONE is still open: the Item cell is never read as a Status | script, fixture | guard, added at Implementation; on the old reader it is red for the pipe in its second row |
 | AC-4 | a malformed DONE row (a second row's tail fused on, as in row 157) is not counted and does not stop the reader: the open rows after it are all counted and listed | script, fixture | red |
 | AC-5 | on this repo's real ledger the meta list holds exactly the meta rows that have an OPEN cell: none dropped, none extra | real tree | red |
 | AC-5 | the three existing meta tests (age trigger, count trigger, quiet inbox) pass **unmodified** | script, fixture | green, and must stay so |
@@ -55,10 +56,24 @@ and what to do. It names no row numbers, so closing rows 70 and 244 later cannot
 - [x] A cell that is exactly `OPEN` to the right of the real Status (a fused or quoted row): the
       first status cell wins.
 - [x] A non-meta row with pipes and the word "meta" in its Item.
-- [ ] Not covered, by design: an Item that quotes a whole table row, such as
-      `` `| 1 | meta | x | 2026-06-01 | OPEN | | |` ``. A pipe table that carries free text cannot
-      tell that from real cells, and neither can the ledger section. No row does this today. Story
-      #1 removes the problem for new rows, which become files.
+- [ ] Not covered, by design. Stated in full after the review (finding 7), each case measured
+      against the old reader, the new one and the roll-up's ledger section: **any piece of Item
+      text that follows the Item's second or later pipe and reads exactly `OPEN`, or starts with
+      `DONE`, is taken for the Status.** A pipe table that carries free text cannot tell such text
+      from real cells, and no row does any of this today.
+      - An open row read as closed — an Item that says `` `OPEN|DONE|DONE-LOCAL` ``, or one that
+        quotes a DONE table row. The old reader dropped these rows too. This is the harmful
+        direction, and the standing real-ledger test catches it by id ("dropped").
+      - A DONE row read as open — an Item with `` `a|b` `` and then a quoted `` `| OPEN |` `` (the
+        old reader counted it as well), or an Item that quotes a whole OPEN table row, such as
+        `` `| 9 | meta | x | 2026-06-01 | OPEN | | |` ``. **That last case is the one place where
+        the old reader was right and the new one is wrong:** the old reader never looked past the
+        sixth field, so it was right by luck. The ledger section lists such a row as open too, so
+        the two read surfaces agree and the standing test cannot notice. The effect is an
+        over-count that shows in "Meta items" as a row whose own text says DONE.
+      - After a single pipe the new reader is safe: `` `a|DONE-LOCAL` `` in an open row reads as
+        open (the old reader dropped it). That is what starting the scan at the sixth field buys.
+      - Story #1 removes the problem for new rows, which become files.
 - [ ] Not covered: the intake "Meta:" source. It is out of scope and unchanged.
 
 ## Test infrastructure

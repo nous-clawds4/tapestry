@@ -235,7 +235,9 @@ test('a DONE meta row is never counted or listed, even when pipes in its Item pu
 });
 
 test('a DONE meta row stays closed when a later cell holds a fragment that is exactly OPEN: the first status cell is the row\'s Status (ledger-row-identity #2 AC-3)', () => {
-  const dir = metaFixture(['| 1 | meta | plain lesson | 2020-01-01 | DONE | 2020-01-02 (the cell read `DONE | OPEN | DONE` for a day) | |']);
+  // The quoted fragment ENDS on the OPEN cell, so a reader that took the last status-like cell
+  // would read this row as open (review finding 5: with `DONE | OPEN | DONE` first and last agreed).
+  const dir = metaFixture(['| 1 | meta | plain lesson | 2020-01-01 | DONE | 2020-01-02 (the cell read `DONE | OPEN |` for a day) | |']);
   const { code, out } = digest(dir);
   assert.strictEqual(code, 0, out);
   assert.match(out, /meta inbox: 0 open \(clear\)/,
