@@ -2477,3 +2477,49 @@ process in an undefined state. It is a backstop, not a substitute for fixing the
 **Scope:** a small bug-lane story with its own test (assert an unhandled rejection is logged and the
 process exits non-zero). **Classification:** bug (hardening), Standard. Follow-up to the
 `user-data-error-path` book.
+
+## 2026-09-19 — Nudge people toward the more-used of two duplicate Tags (feature)
+
+**Origin:** one of three unbuilt ideas the owner used to illustrate the Show and Tell design philosophy; filed here at the owner's direction so the philosophy doc is not their only tracker. Philosophy entry: [`design-philosophies/show-and-tell.md`](../../design-philosophies/show-and-tell.md) example **E11**.
+
+**Raw request (verbatim, 2026-09-19):**
+
+> According to the first method, we track usage of a given Tag by adding up each of the Taggings (authored by verified accounts, of course) that make use of that Tag. We then can create a list of Tags, ordered from top to bottom according to how much use they get. If the same Tag is defined twice, we can prompt users to use the more popular one, which still allowing them to find the alternatives if they do just a little digging. In this way, consensus can be achieved naturally.
+
+("which" is the owner's typing; read "while".)
+
+**What exists today:** the first half is shipped — the Tags directory's default "Most used" sort counts taggings by accounts the active point of view trusts. The nudge is not. Tags by different authors with the same slug are distinct by protocol (`protocols/drafts/tags.md` § Tag definitions). With nothing typed, the Add-a-tag picker lists the current target type's Tags by trusted usage; once a name is typed, matches are no longer ordered by usage (`ui/src/components/AddTagDialog.jsx`). Its "Show other results" expander covers a different case: it lists matching Tags that are outside the current target type's list — typically a Tag from the *other* target type (a profile Tag while tagging a note), but also a Tag with no hint and no trusted usage for either type — exact-slug first, so people adopt an existing Tag instead of minting a per-type copy. The standalone same-slug create-time warning was superseded and folded into that expander (`engineering-team/epics/tag-applicability.md`, story 3). Two same-slug Tags by different authors in the same target type appear side by side in the main list, and nothing marks them as duplicates or says "a more used version of this Tag exists — use that one".
+
+**Product questions underneath it:** what makes two Tags "the same" (same slug only, or similar names); whose usage decides "more popular" (the counts are per point of view, so two viewers can be nudged in opposite directions — is that acceptable, or the point?); where the nudge appears (picker, create flow, the Tag's own page); and how much digging "a little digging" is.
+
+**Classification:** feature. The requirements are not settled, so this leans **Product Team** first (Discovery), then Standard / all phases.
+
+## 2026-09-19 — Categories of pins (feature; touches the pin wire format)
+
+**Origin:** as above. Philosophy entry: `design-philosophies/show-and-tell.md` example **E12** and open question **Q4**.
+
+**Raw request (verbatim, 2026-09-19):**
+
+> There may be multiple categories of Pins: one category triggers maintenance of the Trusted List associated with that Tag; another category may trigger that Tag to be shown preferentially over other Tags on profile pages, where there will be a default maximum number of Tags that show up on the page.
+
+**What exists today:** one `tag-pinning` concept and one kind of pin. Every pin commissions a Trusted List; variation between pins lives in the pin's curation parameters (observer, method, cutoff, target types). Nothing in code, ADRs, specs or issues describes categories. `engineering-team/decisions/0009-pin-a-tag.md` (Option A, "Concept slug") left the unqualified "pinning" slug free for pinning things other than Tags, which is a different axis.
+
+**Why it matters beyond the feature:** the owner's reuse hazard (same doc, § "The reuse hazard") — a pin is taken for personal reasons and then counted for other people. A category is a way for the pinner to say which reading of their pin they endorse. The design should be checked against that section's three questions, and against open question Q3 (what a pinner is told; whether a pin can be private).
+
+**Product questions underneath it:** which categories, and whether one pin can carry several; what a category is structurally (a field in the curation parameters, a concept per category, or something else); what happens to existing pins.
+
+**Classification:** feature with a protocol change — check [`protocols/README.md`](../../protocols/README.md) and `protocols/drafts/tags.md` § Pins before any wire-format work. Leans **Product Team** first; the wire-format part then rides the Protocol-Spec docs-mode flow.
+
+## 2026-09-19 — Pinned Tags first on profile pages, under a default maximum (feature)
+
+**Origin:** as above. Philosophy entry: `design-philosophies/show-and-tell.md` example **E13**, and the owner's worked example of heuristic **H4** (give people a reason of their own).
+
+**Raw request (verbatim, 2026-09-19):**
+
+> Example: if a user has a special interest in some niche category that is not widely popular, and wants to see relevant Tags show up on the user profile page, the user will be prompted to Pin the relevant Tags to the list of Tags that will take priority when viewing user profile pages. The user is motivated to do so because of a clear reason and can see the effects of the Pinning action immediately.
+
+**What exists today:** the profile page's Tags section shows every Tag with at least one trusted application or dispute on that profile, alphabetically, with no cap, and does not consult pins (`ui/src/components/ProfileTagsSection.jsx`). The read is already filtered by point of view.
+
+**Product questions underneath it:** the priority list is the *viewer's* own pins (that is what makes the benefit immediate and personal) — confirm; what fills the remaining slots (most used from the active point of view?); the default maximum and how to see the rest; how and where the viewer is prompted to pin; and whether this waits for pin categories (the entry above) or ships on today's single kind of pin.
+
+**Classification:** feature. Leans **Product Team** first, then Standard / all phases. Related: the entry above.
