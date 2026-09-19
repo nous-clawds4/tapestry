@@ -2401,3 +2401,45 @@ a couple of the items are live and unpatched, so their specifics stay private un
 (SECURITY.md → private advisory). When picked up, these become the next stories in the reopened
 `security-auth-exposure` epic (Standard, human-gated); one of them overlaps the 2026-07-21
 authenticated-non-owner item above.
+
+## 2026-09-18 — Scripted smoke test: `docs/SMOKE_TEST.md` as tested code, not per-session transcription
+
+**Surfaced by:** the stranded-close session (2026-09-18) — four deploys in one day (#671 → #672, #673 →
+#674). Every `/cycle-*` run re-types the smoke recipe from prose. That session ended up writing a
+throwaway script for it in its scratchpad; a copy is kept in PR #676's description.
+
+**Why it matters:** the recipe now has a rule that is easy to get wrong by hand. When a later tier
+meets a 502, the right response is to re-run the Tier 1 poll and repeat that tier from the top
+(OPEN.md row 251); a single-request retry is the natural mistake. Production hit exactly that window
+on both of the day's deploys (OPEN.md row 325). `scripts/check-safe-to-merge.sh` already made this
+move for the pre-merge half — its CHANGELOG row (2026-07-18) says the mechanism "lives in tested
+code, not per-run transcription", and it has a suite (`test/safe-to-merge-check.test.js`). The
+post-deploy half is still prose.
+
+**Ask:** a `scripts/smoke-test.sh <base-url> [expected-bundle-hash]` that implements Tier 1 (the
+3×200 poll and settle), Tier 2 (the sanity pages and APIs, the documented 504-with-JSON expectation
+for a large-graph `get-user-data`, the search regression), Tier 3's bundle-hash assertion (changed or
+unchanged, as the caller says), and a Tier 5 hook for caller-supplied URLs. On a non-200 in a later
+tier: re-poll, repeat that tier once, then fail. Exit codes the cycle skills can branch on, and
+journaled output in the safe-to-merge script's style. Tier 3's PR-specific checks and Tier 4 (the
+browser pass) stay with the agent. Then wire it into the smoke step of each cycle skill — step 7 in
+cycle-staging and cycle-prod, the three smoke items in cycle-full's stage lists (it has stages, not
+steps), and cycle-local's — and have `docs/SMOKE_TEST.md` name it as the executable form.
+
+**Classification:** feature (harness tooling). It touches `.claude/skills/*`, which is a
+harness-definition path, so it owes a CHANGELOG row. A new file under `scripts/` is not one by
+default: `scripts/harness-def-paths.txt` lists nine named entries there, and
+`scripts/check-safe-to-merge.sh` is not among them — whether the new script should be registered is
+a question for the story. It wants a suite with a stub server, the way the safe-to-merge check has
+one. Standard path: all phases. It is a bash script, not new lint, typecheck
+or build tooling, so the house rule on tooling does not by itself force an ADR; the Architect can
+confirm.
+
+**While there:** three cycle skills still tell the agent to "retry once" on a post-stability 502
+(`cycle-staging/SKILL.md:157`, `cycle-prod/SKILL.md:155`, and `cycle-full/SKILL.md:112`'s "the
+post-stability retry"), where `docs/SMOKE_TEST.md` has said since 2026-09-10 to re-run the poll and
+repeat the tier — and line 38 of that doc itself keeps "retry once" for a 502 right after stability,
+beside the newer rule for one that comes later, so decide whether both are meant; `OPERATIONS.md`
+§9.5 still says the late window was "observed once"; and the renumbering of `OPERATIONS.md` §8 to
+§9 left old §8 numbers in four files, three of them citing this section as §8.5 (OPEN.md row 325's
+pointer lists all five lines).
