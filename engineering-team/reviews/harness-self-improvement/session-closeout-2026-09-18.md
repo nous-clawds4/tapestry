@@ -517,3 +517,128 @@ Lint is clean and differs from staging's by this file's one line, the nine suite
 file are green on `b2e71921`, and the full gate, re-run on the merged tree, is red for the recorded Node
 16 reason with 15.3% of cases skipped — not a green gate. CI's Node 22 job on the PR is the binding run.
 This lane has no book to close, and the commit is the orchestrator's.
+
+## Round 3
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-09-19 UTC (begun 23:53Z on 2026-09-18; still 2026-09-18 where the operator is)
+**Diff:** `b5b0940c`, one correction, on top of `dd8b9a38` (round 2 of this file, committed as written:
+the same blob, 194 lines added and none removed). It changes one line of `OPEN.md` — row 325, its Item
+and Pointer cells — and one paragraph of the intake entry. Everything above this heading is rounds 1
+and 2, byte-for-byte; this section was appended to the end of the file, not edited in.
+
+Same constraints as before: this reviewer edited this file and nothing else — no commit, no add, no
+push, no status flip.
+
+The text under review is the Implementer's own and not the wording round 2 offered; it was checked as
+written. Its last clause — "so four files carry old §8 numbers in all" — is a universal, and a
+universal is not verified by re-reading the five lines already known. It was tested by looking for a
+sixth.
+
+### Quality gates (round 3)
+
+- [x] `bash scripts/harness-lint.sh` on `b5b0940c` → **clean (0 violations)**, exit 0, 35 lines. Run
+      again on `origin/staging` (`6c24e128`) in a throwaway worktree and diffed: the outputs differ by
+      exactly one line, the `INFO non-numbered-review` line for this file. Worktree removed afterwards.
+- [x] **The same nine suites, each through `run()`, in the foreground, Node v16.17.0, on `b5b0940c`:**
+      `harness-lint` 41 passed / 0 failed (55 s), `harness-stats` 12 / 0 (72 s), `session-start`
+      10 / 0 (26 s), `operational-direction` 76 / 0 (10 skipped),
+      `curated-dlist-update-update-preview` 34 / 0, `curated-dlist-update-publish` 69 / 0,
+      `gate-result-record` 34 / 0 (20 s), `kill-timeout-orphans-by-default` 9 / 0,
+      `note-tagging-raw-events-inspector-ui` 32 / 0. Counts identical to rounds 1 and 2.
+- [x] **The real parser and the roll-up.** The awk from `scripts/lib/collect-meta.sh:34` reads rows
+      290, 307, 321 and 325 with `NF=9`, Type in `$3`, Status in `$6`; the open-meta selection is the
+      same 106 row numbers on `6c24e128` and here. `scripts/whats-open.sh` (redirected): exit 0, 912
+      lines, the intake entry still listed as unmarked, rows 323, 324 and 325 shown and 321 not, and
+      still exactly one invalid UTF-8 position, row 193's.
+- [x] **Mergeability.** At 2026-09-19T00:01:42Z `git ls-remote origin refs/heads/staging` is
+      `6c24e128`, an ancestor of HEAD; its highest ledger row, read through the API, is 324; no open PR
+      targets `staging`; this branch has never been pushed and has no PR. The six files whose line
+      numbers this branch cites (`docs/SMOKE_TEST.md`, the three cycle skills, `BIBLE.md`,
+      `OPERATIONS.md`) are identical to staging's. True of that minute and no longer.
+- [ ] **Full gate: not re-run, and still not green.** I agree it need not be. Round 2's run,
+      `20260918T234011Z-65036-a1a9`, was on `b2e71921`: red, 2848 passed, 9 failed, 515 skipped, the one
+      red suite being `honest-publish-reporting` for the row-288 host reason. `git diff --stat b2e71921
+      HEAD` is three records files — this review (+194), one line of `OPEN.md`, one paragraph of
+      `_intake.md` — with no source, no test and no harness-definition path, and every suite that reads
+      any of the three is among the nine re-run above on the new HEAD. So that record still applies, as
+      exactly the evidence it was and no more: a red local gate, on a host that cannot execute 15.3% of
+      the cases, showing that a records-only diff broke nothing it could reach. **The binding run is
+      CI's Node 22 `stack-free` job on the PR.**
+
+### Claims adherence (round 3)
+
+| Claim in `b5b0940c` | Evidence | Result |
+|---|---|---|
+| Three files cite `OPERATIONS.md` §9.5 by its old number, §8.5: `docs/SMOKE_TEST.md:19`, `cycle-staging/SKILL.md:157`, `BIBLE.md:1407` (as §8.5/§8.6) | each line read at HEAD, then traced: all three were written on 2026-05-04 (`48de7b57`, `96ae1922`), and in `OPERATIONS.md` at those commits §8.5 is "Post-deploy 502 flicker until brainstorm Express binds" — today's §9.5 (`:343`) — and §8.6 is the `SESSION_SECRET` incident, today's §9.6 (`:367`). The sentences around each citation say the same thing their numbers did | holds |
+| Two more stale citations, of other parts of §9: `cycle-staging/SKILL.md:164` (§9 as §8) and `cycle-prod/SKILL.md:162` (§9.2 as §8.2) | `:164` reads `OPERATIONS.md §8 "Operational gotchas"`; at `48de7b57` §8 is "Operational gotchas we've hit", today's §9 (`:298`). `:162` reads `§8.2 "auto-delete-head-branches deleted staging"`; then §8.2, today §9.2 (`:319`) | holds — Non-blocking 1 |
+| "so four files carry old §8 numbers in all" — the universal | two nets over every tracked text file (3,210 tracked, 3,193 readable as UTF-8), whitespace flattened, in Python rather than `git grep`. First: any section-8 reference (`§8`, `§ 8.x`, "section 8", a `#8…` anchor) within reach of the word OPERATIONS, in either direction. Second: every section-8 token anywhere — 271, in 93 files — kept if its context smells of the runbook (502, gotcha, deploy, droplet …): 25, of which 11 are rounds 1 and 2 of this review quoting the lines, 3 are row 325 describing them, 2 are ADRs citing their own §8, 2 cite a handoff doc and the BIBLE, 1 is `OPERATIONS.md:428` citing today's §8 correctly, and 6 are the citations themselves: six section numbers on five lines in four files. No `OPERATIONS.md#anchor` link exists anywhere. One false positive ("second-brain #8 review"). No fifth file, inside or outside `reviews/` and `audits/` | holds |
+| "stale since §8 became "Active tracking issues"" | heading lists at `44975ffc^`, `44975ffc` and HEAD: that commit (2026-05-14) inserted a new §6, "Spinning up a new sandbox droplet", moving "Active tracking issues" from §7 to §8 and "Operational gotchas we've hit" from §8 to §9. All five citing lines are ten days older | holds |
+| Row 325: "this session compared nothing else about the two instances" | the word-level diff shows that one sentence and the pointer are the row's only changes. True, and consistent with round 1 of this file, which did compare three public signals | holds |
+| The intake's "While there": line 38 of `docs/SMOKE_TEST.md` keeps "retry once" for a 502 right after stability beside the newer rule; §9.5 says "observed once"; four files, three citing this section as §8.5; the pointer lists "all five lines" | `docs/SMOKE_TEST.md:38` opens "If a request right after stability returns 502, retry once before treating it as a real failure" and ends "re-run the Tier 1 poll and repeat that tier from the top, rather than a single per-request retry"; `c63879e2` (2026-09-10) added the second beside the first. "observed once" is exact in §9.5. The counts are the ones established above. The pointer names `docs/SMOKE_TEST.md:19`, `cycle-staging/SKILL.md:157`, `BIBLE.md:1407`, `cycle-staging/SKILL.md:164` and `cycle-prod/SKILL.md:162`: five | holds |
+| Ledger integrity, again | own script over `6c24e128:OPEN.md` and `HEAD:OPEN.md`: 385 → 386 lines, 323 → 324 rows, highest 324 → 325, no duplicate, the gap at 257 on both, common rows in order, every non-row line identical; changed 290, 307, 321; added 325, last; #675's rows 297, 323 and 324 byte-identical to staging's. Since `b2e71921` only row 325 changed, in its Item and Pointer cells. Row 325: 7 cells, 8 raw pipes, 0 escaped, balanced backticks and bold | holds |
+| The commit message, with its forward correction | its two bullet lists and "four files … over five lines; three of those files cite this section" match the above. "Every file, line and number in the earlier text was right; the relation between them and the count were not" is round 2's finding, fairly put. `b2e71921`'s message does say "four files cite the old section number", and the correction reads it rightly | holds |
+
+### Findings (round 3)
+
+**Blocking.** None. The one statement round 2 found false is corrected in both places; every relation
+in the new text was traced to the commit that wrote the citation and to the heading it meant then; the
+counts three, four and five survive an exhaustive search; no ledger row other than 290, 307, 321 and
+325 differs from staging; lint is clean.
+
+**Non-blocking.**
+
+1. **"Of other parts of §9" stretches one word.** `cycle-staging/SKILL.md:164` cites §9 itself, under
+   its old number, not a part of it. The parenthesis beside it says exactly that — "(§9 as §8)" — and
+   the intake entry's version has no such stretch, so nothing is asked. For whoever makes the fix: the
+   five lines carry six numbers, because `BIBLE.md:1407` is one link naming two sections — §8.5 → §9.5
+   three times, §8.6 → §9.6, §8 → §9, §8.2 → §9.2.
+2. **What is still owed is unchanged, and the orchestrator has said it will be done:** the script in
+   the PR's body (or `_intake.md:2409` lands false); the PR number into row 321's Done cell; `staging`
+   looked at again immediately before the push and before the merge; a merge commit, not a squash. Two
+   small additions to that look. If `staging` has moved, also confirm it has not touched the six files
+   this branch cites by line — `git diff --quiet <new-staging> HEAD --` over them is enough. And the
+   promotion after this PR will not carry this PR alone: `git log origin/main..origin/staging` already
+   holds PR #675, another session's records-only change (`OPEN.md` and one audit file). It would ride
+   along with any next promotion in any case; the cycle's own "confirm the expected bundle" step is
+   where to see it.
+
+**Harness friction.**
+
+1. **Two different checks, and this count needed both.** The slip that cost a round was a relation
+   never tested: each line was confirmed to exist, not to cite this section — the Implementer's own
+   diagnosis in its commit message, and just as true of round 1's heading, where it began. The new
+   wording adds "in all", which is another kind of claim, only as good as a search that could have
+   found a fifth file. The brief asked for that search. It is cheap and is on record above: flatten,
+   search in Python rather than with `git grep -E`, set the known items aside, and read what is left.
+2. **The UTC date rolled over mid-round.** This file's name and its first two rounds say 2026-09-18;
+   this round is dated 2026-09-19 UTC. No script reads a review's Date line (`scripts/` was searched),
+   so nothing depends on it.
+3. Row 316 recurred again: the wiring says commit and flip, the brief reserves both, and the brief was
+   followed.
+
+### Verdict (round 3)
+
+**PASS**
+
+Round 2 asked for one thing and it is done, by the harder route. The Implementer did not take the
+offered sentence; it went back to the five lines, worked out what each one cites, and wrote that down —
+three files citing the 502 section as §8.5, two more lines citing its parent and a sibling, four files
+and five lines in all. Each relation was traced here to the commit that wrote the citation and to the
+heading that number meant on that day, and the total was tested the only way a total can be, by
+searching every tracked file for a sixth line. There is none. The two optional notes round 2 offered
+were taken as well, and both read true.
+
+Across three rounds every checkable statement this branch writes into a tracked file has been tested
+against a fresh command, and what could only be attested — a browser console, the operator's words — is
+marked as such. The record is now accurate as written: a production defect filed with its evidence
+and its limits, a row's refinements that reproduce, a story closed on criteria that hold against the
+commit, the source and the live site, an intake entry that describes the harness as it is, and a fourth
+collision recorded in the row that tracks them. What remains is the orchestrator's — a PR body, a PR
+number, and one more look at `staging` before each step.
+
+Lint is clean and differs from staging's by this file's one line, and the nine suites that read a
+changed file are green on `b5b0940c`. The local full gate was not re-run; round 2's record, taken on
+the merged tree, remains applicable as what it was — red on this host for the recorded Node 16 reason,
+15.3% of cases skipped, not a green gate. CI's Node 22 job on the PR is the binding run. This lane has
+no story to flip and no book to close, and the commit is the orchestrator's.
