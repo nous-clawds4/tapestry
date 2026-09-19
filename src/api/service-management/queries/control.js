@@ -28,8 +28,11 @@ class ServiceController {
 
     // Execute systemctl command
     executeSystemctl(action, service) {
+        // Declared outside the try so the catch below can reference it when a
+        // systemctl call throws (previously `commands` was try-scoped, so the
+        // catch's `commands ? …` reference was an undeclared identifier).
+        let commands = [];
         try {
-            let commands = [];
             let outputs = [];
             
             // Special handling for brainstorm-monitoring-scheduler
