@@ -6,6 +6,7 @@
 **Lane:** doc lane (`engineering-team/workflows/0-intake.md` step 3 — Implementer + Reviewer, non-numbered review, no story, no ADR, no test plan, no book). This file is the lane's record.
 **Intent audited against:** the owner's two typed messages of 2026-09-19 (session transcript entries at 19:11:50Z and 20:14:13Z). The second is a refinement and wins where they differ.
 **Round:** 3 (rounds 1 and 2: changes requested; fixes in 51a71e0e and 024a066a)
+**Renumbering note (added at the merge with `staging`, 2026-09-19):** while this review ran, PR #691 took `OPEN.md` rows 331 and 332 on `staging`. At the merge this change's rows moved up by two — 331–337 became **333–339** — and the one citation outside this file (`show-and-tell.md` E2: row 334, now 336) was updated. Every row number in the three rounds below is the pre-merge number; add two to find the row today.
 
 Four lens reviewers and a set of skeptic verifiers worked the diff before me. I treated their output as input. Everything listed under Findings I re-derived from the files, the code, the owner's typed messages in the session transcript, the article mirror, and `gh`. Where I disagree with them I say so.
 
