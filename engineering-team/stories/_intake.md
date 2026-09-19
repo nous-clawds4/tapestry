@@ -2426,6 +2426,16 @@ browser pass) stay with the agent. Then wire it into the smoke step of each cycl
 cycle-staging and cycle-prod, the three smoke items in cycle-full's stage lists (it has stages, not
 steps), and cycle-local's — and have `docs/SMOKE_TEST.md` name it as the executable form.
 
+**Readiness, not just reachability (added 2026-09-19; reason resolved same day).** Tier 1's 3×200
+poll proves Express is up, not Neo4j. The script must also wait until Neo4j answers before it runs any
+Cypher-backed check: `get-user-counts` returns `verifiedFollowerCount: null` until it does — about
+40 s after the container started on the production deploy where it was timed. This began as a
+workaround for OPEN.md row 325 (a `get-user-data` call into an unready Neo4j crashed the Express
+process); that defect was diagnosed and fixed the same day (PRs #681/#682), so the wait is no longer a
+crash-avoidance necessity — but it stays in the recipe because it also prevents false failures on
+every Neo4j-backed check. `docs/SMOKE_TEST.md` Tier 1 now carries the gate and its recipe (row 325,
+now DONE).
+
 **Classification:** feature (harness tooling). It touches `.claude/skills/*`, which is a
 harness-definition path, so it owes a CHANGELOG row. A new file under `scripts/` is not one by
 default: `scripts/harness-def-paths.txt` lists nine named entries there, and
@@ -2443,3 +2453,25 @@ beside the newer rule for one that comes later, so decide whether both are meant
 §9.5 still says the late window was "observed once"; and the renumbering of `OPERATIONS.md` §8 to
 §9 left old §8 numbers in four files, three of them citing this section as §8.5 (OPEN.md row 325's
 pointer lists all five lines).
+
+**Update 2026-09-19:** OPEN.md row 325 is now diagnosed, fixed (PRs #681/#682) and closed. As part of
+that doc lane, `docs/SMOKE_TEST.md` line 38's "retry once" and `OPERATIONS.md` §9.5's "observed once /
+can briefly cycle" reading were replaced with the Neo4j-readiness gate, and `SMOKE_TEST.md:19`'s stale
+§8.5 citation was fixed. Still open from the list above: the three cycle skills' "retry once" wording
+and the remaining stale §8 citations in `cycle-staging/SKILL.md`, `cycle-prod/SKILL.md` and
+`BIBLE.md` — a separate doc-hygiene pass (kept out of the row-325 lane to avoid CHANGELOG/budget
+obligations on those harness-definition paths).
+
+## 2026-09-19 — Global unhandled-rejection backstop for the server entry (bug / hardening)
+
+**Surfaced by** the `user-data-error-path` fix (OPEN.md row 325, now DONE): that fix hardened one
+handler's async error branch, but the server entry (`bin/control-panel.js`) installs no
+`unhandledRejection` / `uncaughtException` handler, so a future mishandled async rejection anywhere in
+the request path would again drop the whole process. **Operator decision (2026-09-19): adopt
+log-and-exit** — log the rejection with its stack, then exit so supervisor restarts cleanly (fail-fast
+preserved, with central diagnosis added); explicitly *not* log-and-continue, which can leave the
+process in an undefined state. It is a backstop, not a substitute for fixing the individual site.
+
+**Scope:** a small bug-lane story with its own test (assert an unhandled rejection is logged and the
+process exits non-zero). **Classification:** bug (hardening), Standard. Follow-up to the
+`user-data-error-path` book.

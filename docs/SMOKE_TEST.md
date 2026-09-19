@@ -4,7 +4,7 @@
 >
 > **Purpose:** A single canonical definition of "smoke-tested clean" so the four `/cycle-*` slash commands don't each carry their own variant. When a new gotcha is discovered, update this file and every cycle inherits.
 
-**Last updated:** 2026-09-10
+**Last updated:** 2026-09-19
 
 ---
 
@@ -16,9 +16,9 @@ The smoke test runs after a deploy completes (or after a local rebuild) to confi
 
 ### Tier 1 — Pipeline readiness (always)
 
-For staging and production deploys only — skip for local. The deploy workflow exits as soon as `docker compose up -d --build` returns the container, but the brainstorm Express process inside takes another 5–30 seconds to bind. nginx returns 502 in that window. See [OPERATIONS.md §8.5](../OPERATIONS.md) for the underlying mechanism.
+For staging and production deploys only — skip for local. The deploy workflow exits as soon as `docker compose up -d --build` returns the container, but the brainstorm Express process inside takes another 5–30 seconds to bind. nginx returns 502 in that window. See [OPERATIONS.md §9.5](../OPERATIONS.md) for the underlying mechanism.
 
-**Recipe:** poll a real upstream API endpoint (not just `/`, which can flicker between cached static-shell 200s and upstream 502s) until 3 consecutive 200s. Then settle 4–5 seconds — the brainstorm process can briefly cycle once more after first appearing stable, observed during the #88 production deploy.
+**Recipe:** poll a real upstream API endpoint (not just `/`, which can flicker between cached static-shell 200s and upstream 502s) until 3 consecutive 200s. Then settle 4–5 seconds. (Earlier revisions warned the process "can briefly cycle once more after first appearing stable"; that reading is withdrawn — the post-stability 502s seen on #88 and later were the OPEN.md row 325 crash, now fixed. The Neo4j-readiness gate below is what actually prevented them.)
 
 ```bash
 H=https://staging.brainstorm.world  # or https://tapestry.brainstorm.world
@@ -35,9 +35,21 @@ echo "Stable after ${attempts}x2s polls"
 sleep 5
 ```
 
-If a request right after stability returns 502, retry once before treating it as a real failure. **The cycle can also come later:** on the 2026-09-10 production deploy the poll saw 3×200, Tier 2 ran clean, and a 502 window opened ~20–30 s after the settle, mid-Tier 3. If any later tier returns a 502, treat it as the same flicker — re-run the Tier 1 poll and repeat that tier from the top, rather than a single per-request retry (OPEN.md row 251).
+If any later tier returns a 502, re-run the Tier 1 poll and repeat that tier from the top rather than a single per-request retry (OPEN.md row 251). Historically a 502 window could also open *after* the poll's 3×200 and mid-later-tier (the 2026-09-10 production deploy; #88); that was the row 325 crash — a `get-user-data` call into an unready Neo4j killing the Express process — diagnosed and fixed 2026-09-19. The Neo4j-readiness gate below is what closes that window; the repeat-the-tier rule stays as cheap defence against any other flicker.
 
-Likewise, **HTTP readiness ≠ Neo4j readiness**: Neo4j inside the container binds slower than the Express upstream, so a Cypher-backed endpoint can return JSON `{success:false}` with `ECONNREFUSED …:7687` for up to ~90s *after* the poll's 200s (the poll endpoint answers `followingCount` from strfry, so it 200s before Neo4j is up). Retry Neo4j-backed Tier-3 checks once after a short wait before treating it as a real failure (observed during the profile-hops-path deploy, 2026-06-17).
+**Neo4j-readiness gate — HTTP readiness ≠ Neo4j readiness.** Neo4j inside the container binds slower than the Express upstream (it was answering ~40 s after the container started on the production deploy where it was timed), and the Tier 1 poll endpoint answers `followingCount` from strfry, so it 200s before Neo4j is up. **Do not fire any Cypher-backed call until Neo4j is answering:** poll `get-user-counts` until `verifiedFollowerCount` is non-null on 3 consecutive polls — it returns `null` while Neo4j is down (timeout/`ECONNREFUSED …:7687`) and a number once it is up. This gate is not a nicety: before the row 325 fix, a `get-user-data` call into an unready Neo4j crashed the whole Express process. It stays after the fix because it also prevents false failures on every other Neo4j-backed check.
+
+```bash
+# after the 3×200 Tier 1 poll — hold until Neo4j answers
+streak=0; attempts=0
+until [ $streak -ge 3 ] || [ $attempts -ge 90 ]; do
+  attempts=$((attempts+1))
+  vfc=$(curl -s -m 20 "$H/api/get-user-counts?pubkey=$PK" | jq -r '.data.verifiedFollowerCount // "null"')
+  if [ "$vfc" != "null" ] && [ -n "$vfc" ]; then streak=$((streak+1)); else streak=0; fi
+  sleep 2
+done
+echo "Neo4j-ready after ${attempts}x2s polls (verifiedFollowerCount=$vfc)"
+```
 
 ### Tier 2 — Sanity reachability (always)
 
