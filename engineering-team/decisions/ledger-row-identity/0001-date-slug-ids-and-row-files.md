@@ -256,9 +256,9 @@ table's columns under the same names.
   disagreement when it is the same row), and the tails of `engineering-team/CHANGELOG.md` and
   `_intake.md`, which this ADR does not touch.
 - **Debt and follow-ups:** (1) the positional-parse bug that drops rows 70 and 244 from the meta
-  count (`OPEN.md` row 330, "The meta escalation count drops open rows whose text contains a pipe")
-  lands as its own small fix *before* this story's AC-5 baseline is taken, so "same before and
-  after" compares like with like; (2) the operator's packet preamble on the Loose Threads board
+  count (`OPEN.md` row 290; row 330 was a duplicate of it and is closed as one) lands as its own
+  small fix *before* this story's AC-5 baseline is taken, so "same before and after" compares like
+  with like; (2) the operator's packet preamble on the Loose Threads board
   teaches "highest number plus one, expect to renumber" and must be edited when this lands — it is
   outside the repo, so no commit can do it; (3) a flat `ledger/` directory will want a `done/`
   subfolder or month folders some day. Citations name the id and not the path precisely so that can
