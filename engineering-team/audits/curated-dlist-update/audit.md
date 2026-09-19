@@ -279,15 +279,47 @@ below is from this machine and this branch.
       `-curation-method`, `-read-only-curation` and `-pointer-switch` each carry docs tests too, and
       `harness-lint`'s own suite walks `engineering-team/`. This is the concrete instance of OPEN.md row
       312 (full-path ADR citations break at retirement).
-- [ ] **The first real Update** — the live test of the whole book, and specifically of kind-5 deletion
-      handling on the community relay. Needs the operator's OK; a `still-there` read-back is flagged, not
-      trusted (ADR 0006 §10).
+- [x] **The first real Update** — **done 2026-09-18**, on staging, with the operator's OK. Six synthetic
+      accounts ran a user story on a new shared concept (`dog-tricks`): one expert declared it and authored
+      five items, two co-experts upvoted four, and two adopters pressed Update. At the shipped default cutoff
+      of 2 the first adopter copied four of five; at cutoff 1 the second copied all five. Four Updates were
+      published in all — copies, a deletion and a refresh — each to this instance and to the community relay.
+      What it settled: **kind-5 deletion works** — a copy the method stopped accepting was gone from dcosl
+      (strfry 1.0.4, so the `e` form) and from staging's strfry on an independent relay read, not merely
+      reported gone (row 297 now carries the evidence; that relay's upgrade closes the replay gap, it does not
+      unblock removal). Copies match ADR 0001 exactly (one `z`, `q` = address + version id, a `copy-` d-tag,
+      no `json`); a refresh replaces in place at the same address with the new version pinned; a deleted
+      copy's original returns to the candidate pool and is re-judged; a repeat Update is idempotent; and a Map
+      entry whose relay hint is unreachable **blocked the whole plan**, with the verdicts `incomplete` rather
+      than "skipped", though the items were readable locally. The read-only path and "curate it here instead"
+      were confirmed for a list whose Map names another assistant. **All four publish actions are now proven
+      live:** the operator published the fourth from the page on 2026-09-18, upgrading a real `inherit-items`
+      header — `b` read `pointer` at both places afterwards, same event id, and the preview then said the list
+      was up to date. New rows: 323 (votes sum rather than supersede), 324 (the panel offers an Add that can
+      only 409).
+- [x] **First real-account adoption, 2026-09-19.** A real account (`0f6c8526…`) followed the three synthetic
+      experts, curated the same community list from the page, and published three copies at the default cutoff
+      — taking the items its experts still stood behind, skipping the one they had reversed on and the one
+      nobody but its author vouched for. Verified from both relays. It is the first time two curators have held
+      copies of the same community item: the `copy-` d-tag derives from (curated list, original), so their
+      addresses differ and never collide. **Not covered by any of this:** the rendered preview under a plan
+      with real work in it — every run above drove the shipped planner
+      (`lookupListItems` → `candidateVerdicts` → `updatePlan` → `planIntents`) and the endpoint directly, and
+      the one page-driven press carried a single upgrade line. An agent cannot close this gap: driving a
+      signing surface needs a NIP-07 signer in the browser, and injecting one is refused as a
+      security-weakening action even for a key the agent just generated.
 - [ ] **Non-strict callers of `/api/relay/external`** still read an unreachable relay as empty (row 314),
       and the Treasure Map presence probe still reads a silent relay as "absent" (row 292).
 - [ ] **The two remaining silent-incompleteness paths**: the Trusted List read by d-tag from any author (a
       separate task, shared with Simple Lists), and the rank read's single-GET ceiling near 110 pubkeys.
 - [ ] **Throttling for large lists** — at the 500-item ceiling one preview opens roughly 13 connections at
       once; send the vote chunks two or three at a time if large lists appear (story 5 review Non-blocking 3).
+- [ ] **Whose judgment is the plan?** The point of view defaults to the instance owner, not the signed-in
+      user (`ui/src/context/TrustContext.jsx`), so a user's first Update is scored from the house point of view
+      until they change it. The curation method panel does name the point of view it used, so the information
+      is on screen — but nothing marks the common case where it isn't you, and walking a real account through
+      its first curation (2026-09-19) needed that pointed out. A product question for the book that gives the
+      method a home, alongside "the method is per browser" above.
 - [ ] **A schedule for Update**, and **a Trust Determination Methods concept** the header can point at, so
       the method, point of view and cutoff stop being per-browser (both named as future work at kickoff).
 - [ ] **Docs bookkeeping** (§4 Undocumented work): the epic's § Decisions is missing its ADR 0006 bullet.
