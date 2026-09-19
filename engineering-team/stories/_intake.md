@@ -2406,7 +2406,7 @@ authenticated-non-owner item above.
 
 **Surfaced by:** the stranded-close session (2026-09-18) — four deploys in one day (#671 → #672, #673 →
 #674). Every `/cycle-*` run re-types the smoke recipe from prose. That session ended up writing a
-throwaway script for it in its scratchpad; a copy is kept in the session-closeout PR's description.
+throwaway script for it in its scratchpad; a copy is kept in PR #676's description.
 
 **Why it matters:** the recipe now has a rule that is easy to get wrong by hand. When a later tier
 meets a 502, the right response is to re-run the Tier 1 poll and repeat that tier from the top
