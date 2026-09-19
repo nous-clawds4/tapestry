@@ -1,7 +1,8 @@
 # Epic: user-data-error-path
 
 **Created:** 2026-09-18
-**Status:** Open
+**Status:** Done
+**Retired:** 2026-09-19 — fix live on production (#681→#682) and the row-325 doc lane on main (#685); story + review folders moved under `done/user-data-error-path/`. Book closed same day.
 **Book:** `engineering-team/audits/user-data-error-path/book.md` (acceptance-frame)
 **Provenance:** Operator request, 2026-09-18 in-session. A user-data handler mishandles one error
 path; the handler and three neighbouring identifiers were found in a single read-only
