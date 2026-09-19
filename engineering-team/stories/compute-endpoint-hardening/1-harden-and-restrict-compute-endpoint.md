@@ -1,6 +1,6 @@
 # Story 1: Harden and restrict an admin computation endpoint
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-09-19
 **Type:** Bug
 
@@ -43,9 +43,10 @@ Testable from the outside. Each criterion gets at least one test.
 None. Server-side endpoint hardening; no concept-graph concept, handle, or firmware definition.
 
 ## Out of scope
-- Any broadening of the shared auth middleware's endpoint matching (e.g. making the owner-list apply
-  to all methods) — that could change access for unrelated routes; this story gates the one endpoint
-  in-handler.
+- Any broadening of the shared auth middleware's endpoint *matching logic* (e.g. making the owner-list
+  apply to all methods) — that could change access for unrelated routes. The endpoint is gated by
+  adding its path to the middleware's existing GET-scoped owner-only lists (data-only; the matching
+  stays as-is, so no other route is affected).
 - Other findings from the same sweep, if any — separate stories.
 
 ## Open questions
@@ -54,4 +55,4 @@ None. Server-side endpoint hardening; no concept-graph concept, handle, or firmw
 ## Linked artifacts
 - ADR: none — Architecture skipped as obvious (Bug lane, Standard; `workflows/0-intake.md` step 3).
 - Test plan: `engineering-team/stories/compute-endpoint-hardening/1-harden-and-restrict-compute-endpoint.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/compute-endpoint-hardening/1-harden-and-restrict-compute-endpoint.md`

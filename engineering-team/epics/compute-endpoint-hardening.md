@@ -25,6 +25,6 @@ its command module. Pin the behaviour with a regression test.
   file or commit until the fix is live on production.
 - **Branch stays local until the ship gate** (OPEN.md row 278). Expedited: push → merge → staging →
   promote → prod back to back once approved.
-- **Targeted auth gate**, not a broad middleware change: gate this endpoint (in-handler
-  `isOwner || localTrusted`) rather than altering the shared owner-list matching, which could affect
-  other routes.
+- **Targeted auth gate**, not a broad middleware change: gate this endpoint by adding its path to the
+  middleware's existing GET-scoped owner-only lists (data-only) rather than altering the shared
+  owner-list *matching logic*, which could affect other routes.
