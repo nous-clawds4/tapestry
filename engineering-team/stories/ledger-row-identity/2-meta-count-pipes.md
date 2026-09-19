@@ -125,5 +125,5 @@ None open. Three choices made at Planning, all ratified by the operator at the P
   `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md`
   § Consequences, follow-up 1; the collector's spec is ADR
   `engineering-team/decisions/harness-self-improvement/0004-meta-escalation.md` § Implementation notes.
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/ledger-row-identity/2-meta-count-pipes.test-plan.md`
 - Review: (filled in after Review phase)

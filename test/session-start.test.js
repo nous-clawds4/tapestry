@@ -65,6 +65,48 @@ function metaFixture(rows) {
   return dir;
 }
 
+const ROLLUP = path.join(REPO_ROOT, 'scripts', 'whats-open.sh');
+let ghStubDir = null;
+
+/**
+ * Run the full /whats-open roll-up in a fixture repo, offline: a `gh` that fails at once
+ * shadows the real one on PATH (the script prints "(gh error)" and carries on), and a
+ * fixture has no `origin`, so its `git fetch` fails just as fast. Nothing leaves the machine.
+ */
+function rollup(cwd) {
+  if (!ghStubDir) {
+    ghStubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'session-start-gh-stub-'));
+    fs.writeFileSync(path.join(ghStubDir, 'gh'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  }
+  const env = { ...process.env, PATH: `${ghStubDir}${path.delimiter}${process.env.PATH}` };
+  const res = spawnSync('bash', [ROLLUP], { cwd, encoding: 'utf8', env });
+  return { code: res.status, out: `${res.stdout || ''}${res.stderr || ''}` };
+}
+
+/** The lines of the roll-up's "Meta items" section (between its rule and the next one). */
+function metaItems(out) {
+  const lines = out.split('\n');
+  const start = lines.findIndex((l) => l.includes('Meta items (harness lessons)'));
+  assert.ok(start >= 0, 'the roll-up printed no "Meta items" section\n' + out);
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => l.startsWith('────────'));
+  return rest.slice(0, end < 0 ? rest.length : end).filter((l) => l.trim() !== '');
+}
+
+/** The one line that carries the meta state (the banner, or the quiet "meta inbox" line). */
+function metaLine(out) {
+  const l = out.split('\n').find((x) => /META ESCALATION|meta inbox/.test(x)) || '(no meta line at all)';
+  return l.trim().replace(/ \(trigger:.*$/, '');
+}
+
+/** Ids of the ledger-table rows in a list of "Meta items" lines: `  [12d] | 70 | meta | …`. */
+function listedIds(lines) {
+  return lines
+    .map((l) => l.match(/^\s*\[[^\]]*\] \|\s*(\d+)\s*\|/))
+    .filter(Boolean)
+    .map((m) => m[1]);
+}
+
 // ---------- tests ----------
 
 const tests = [];
@@ -146,6 +188,121 @@ test('a quiet meta inbox (1 recent row) reports the count without the banner —
   assert.strictEqual(code, 0, out);
   assert.match(out, /meta inbox: 1 open/, out);
   assert.doesNotMatch(out, /META ESCALATION/, out);
+});
+
+// ---------- story ledger-row-identity #2: a pipe inside the Item cell (OPEN.md row 290) ----------
+// The meta reader found a row's Opened and Status cells by counting pipes from the left, so
+// a literal pipe in the Item cell pushed both out of reach: an open lesson vanished from the
+// count, the list and the age trigger, and a closed one could be counted. See
+// engineering-team/stories/ledger-row-identity/2-meta-count-pipes.test-plan.md
+
+const PIPED_ITEMS = [
+  ['inside a code span', 'lesson: `a|b` splits wrong'],
+  ['escaped with a backslash', 'lesson: a \\| b splits wrong'],
+  ['three times in one cell', 'lesson: `a|b` and `c|d|e` split wrong'],
+];
+for (const [how, item] of PIPED_ITEMS) {
+  test(`an open meta row with a pipe ${how} still counts: alone and >30d old, it fires the banner with its real age (ledger-row-identity #2 AC-1, OPEN.md row 290)`, () => {
+    const dir = metaFixture([`| 1 | meta | ${item} | 2020-01-01 | OPEN | | |`]);
+    const { code, out } = digest(dir);
+    assert.strictEqual(code, 0, out);
+    assert.match(out, /META ESCALATION — 1 open harness lesson/,
+      `got "${metaLine(out)}" — the only open lesson here has a pipe in its Item cell; a reader that finds Status by counting pipes never sees it, so the inbox reads clear and the age trigger is dead for it (OPEN.md row 290)\n${out}`);
+    assert.match(out, /oldest \d{4,}d/,
+      `got "${metaLine(out)}" — the age must come from the row's Opened cell (2020-01-01, >2000 days), wherever the pipes pushed that cell\n${out}`);
+  });
+}
+
+test('/whats-open lists a piped open meta row under "Meta items" with its age, and its banner agrees with the digest (ledger-row-identity #2 AC-2)', () => {
+  const dir = metaFixture(['| 1 | meta | lesson: `a|b` splits wrong | 2020-01-01 | OPEN | | |']);
+  const { code, out } = rollup(dir);
+  assert.strictEqual(code, 0, out);
+  const items = metaItems(out);
+  assert.ok(items.some((l) => /^\s*\[\d{4,}d\] \| 1 \| meta \|/.test(l)),
+    `"Meta items" must list row 1 with its age in days; got: ${JSON.stringify(items)}`);
+  assert.match(out, /META ESCALATION — 1 open harness lesson/,
+    `got "${metaLine(out)}" — the roll-up and the digest share one reader, so the roll-up's banner must count the row too`);
+});
+
+test('a DONE meta row is never counted or listed, even when pipes in its Item put a mention of OPEN.md where the Status used to be read (ledger-row-identity #2 AC-3)', () => {
+  const dir = metaFixture(['| 1 | meta | lesson: `x|y|z` in OPEN.md handling | 2020-01-01 | DONE | 2020-01-02 | |']);
+  const { code, out } = digest(dir);
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /meta inbox: 0 open \(clear\)/,
+    `got "${metaLine(out)}" — the row is DONE; testing a shifted cell for the substring "OPEN" counts it, because its Item names OPEN.md (OPEN.md row 290)\n${out}`);
+  const items = metaItems(rollup(dir).out);
+  assert.deepStrictEqual(listedIds(items), [], `a closed row must not be listed; got: ${JSON.stringify(items)}`);
+});
+
+test('a DONE meta row stays closed when a later cell holds a fragment that is exactly OPEN: the first status cell is the row\'s Status (ledger-row-identity #2 AC-3)', () => {
+  const dir = metaFixture(['| 1 | meta | plain lesson | 2020-01-01 | DONE | 2020-01-02 (the cell read `DONE | OPEN | DONE` for a day) | |']);
+  const { code, out } = digest(dir);
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /meta inbox: 0 open \(clear\)/,
+    `got "${metaLine(out)}" — the row's Status is the FIRST cell after Type that reads OPEN or starts with DONE; a later fragment must not reopen it\n${out}`);
+});
+
+test('an open row of another type is not a meta row, whatever its Item says (ledger-row-identity #2 AC-3)', () => {
+  const dir = metaFixture(['| 1 | bug | the meta counter splits `a|b` wrong | 2020-01-01 | OPEN | | |']);
+  const { code, out } = digest(dir);
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /meta inbox: 0 open \(clear\)/,
+    `got "${metaLine(out)}" — the row's Type cell reads bug; only the Type cell decides whether a row is a meta row\n${out}`);
+});
+
+test('a malformed DONE row (a second row\'s tail fused on, as in OPEN.md row 157) is not counted and does not stop the reader: the open rows after it are all counted and listed (ledger-row-identity #2 AC-4)', () => {
+  const fused = '| 1 | meta | **Piping a run through `tail` hides its verdict.** `npm test | tail -35` reported FAIL | 2020-01-01 (fixture review) | DONE | 2020-02-01 (fixed) | `audits/x/audit.md`; and `npm test | tail -1 && git commit` took the exit status of tail | 2020-01-01 (fixture review) | DONE (see above) | |';
+  const dir = metaFixture([
+    fused,
+    '| 2 | meta | plain lesson after the malformed row | 2026-06-01 | OPEN | | |',
+    '| 3 | meta | piped lesson `a|b` after the malformed row | 2026-06-02 | OPEN | | |',
+    '| 4 | meta | another plain lesson | 2026-06-03 | OPEN | | |',
+  ]);
+  const { code, out } = rollup(dir);
+  assert.strictEqual(code, 0, out);
+  const items = metaItems(out);
+  assert.deepStrictEqual(listedIds(items), ['2', '3', '4'],
+    `listed ${JSON.stringify(listedIds(items))}, want ["2","3","4"] — rows 2, 3 and 4 are open (3 has a pipe in its Item) and row 1 is DONE`);
+  assert.match(out, /META ESCALATION — 3 open harness lesson/, `got "${metaLine(out)}"`);
+});
+
+test('a piped open meta row whose Opened cell holds no date still counts, with its age unknown (ledger-row-identity #2, ADR harness-self-improvement/0004: "still count it")', () => {
+  const dir = metaFixture([
+    '| 1 | meta | lesson: `a|b` splits wrong | sometime in the summer | OPEN | | |',
+    '| 2 | meta | second fixture lesson | 2026-06-02 | OPEN | | |',
+    '| 3 | meta | third fixture lesson | 2026-06-03 | OPEN | | |',
+  ]);
+  const { code, out } = digest(dir);
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /META ESCALATION — 3 open harness lesson/,
+    `got "${metaLine(out)}" — three open lessons fire the count trigger; the undated, piped one must be among them\n${out}`);
+});
+
+test('a date inside the Item text is not the row\'s Opened date: a piped row opened 2 days ago stays quiet (ledger-row-identity #2 AC-1)', () => {
+  const recent = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  const dir = metaFixture([`| 1 | meta | lesson: \`a|b\` seen since 2019-01-01 | ${recent} | OPEN | | |`]);
+  const { code, out } = digest(dir);
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /meta inbox: 1 open, oldest \dd\b/,
+    `got "${metaLine(out)}" — the row is open and two days old; its age must come from the Opened cell, not from the 2019 date that the pipe pushed into the old Opened position\n${out}`);
+});
+
+test('on this repo\'s real ledger the meta list holds exactly the meta rows that have an OPEN cell: none dropped, none extra (ledger-row-identity #2 AC-5; rows 70 and 244 were dropped)', () => {
+  // Oracle, independent of the reader: the whole-line test the roll-up's ledger section
+  // uses (scripts/whats-open.sh, "OPEN.md ledger") — a meta row that has a cell reading OPEN.
+  const expected = fs.readFileSync(path.join(REPO_ROOT, 'OPEN.md'), 'utf8').split('\n')
+    .filter((l) => /^\|\s*\d+\s*\|\s*meta\s*\|/.test(l) && /\|\s*OPEN\s*\|/.test(l))
+    .map((l) => l.match(/^\|\s*(\d+)\s*\|/)[1]);
+  // The reader's documented interface (scripts/lib/collect-meta.sh header): META_LINES.
+  const res = spawnSync('bash', ['-c', '. scripts/lib/collect-meta.sh; collect_meta; printf "%s" "$META_LINES"'],
+    { cwd: REPO_ROOT, encoding: 'utf8' });
+  assert.strictEqual(res.status, 0, res.stderr);
+  const listed = listedIds(res.stdout.split('\n'));
+  const minus = (a, b) => { const pool = [...b]; return a.filter((x) => { const i = pool.indexOf(x); if (i < 0) return true; pool.splice(i, 1); return false; }); };
+  const dropped = minus(expected, listed);
+  const extra = minus(listed, expected);
+  assert.ok(dropped.length === 0 && extra.length === 0,
+    `dropped rows: [${dropped.join(', ')}]; extra rows: [${extra.join(', ')}] (the reader lists ${listed.length}, the ledger holds ${expected.length}) — the meta reader and the ledger section disagree about which meta rows are open. "dropped": open rows the escalation never sees (a pipe in a cell?). "extra": rows the reader counts although no cell of theirs reads OPEN. If a DONE row quotes a table cell \`| OPEN |\` in its text, it is the ledger section that misreads it: reword the row.`);
 });
 
 test('the six writing product agents carry allow-list-only Write/Edit scoping (product-team + OPEN.md, no ask/deny)', () => {
