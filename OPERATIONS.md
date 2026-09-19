@@ -3,7 +3,7 @@
 > **Audience:** the active team running this fork at `tapestry.brainstorm.world`.
 > **Prerequisite reading:** [BIBLE.md](./BIBLE.md) — what tapestry *is* and how it works. This file documents the specifics of *our* deployment that aren't useful to other operators forking the codebase.
 
-**Last updated:** 2026-09-12
+**Last updated:** 2026-09-19
 
 ---
 
@@ -360,7 +360,7 @@ done
 
 For human users hitting the site immediately after a deploy: refresh once or twice. The flicker resolves on its own.
 
-**Post-stability flicker:** observed once on the #88 production deploy — the 3-consecutive-200s threshold was reached, but the next request burst a few seconds later still got 502s before settling for good. The brainstorm process can briefly cycle once more after first appearing stable. If a smoke test fails right after a streak-based stability check, retry once before treating it as a real failure.
+**Post-stability 502s were the row 325 crash (diagnosed and fixed 2026-09-19).** For a long time this section read that "the brainstorm process can briefly cycle once more after first appearing stable" — first noted on #88, then seen again on later deploys where a 502 burst opened *after* the 3×200 poll, mid-smoke. That reading is **withdrawn**: it was not a spontaneous restart. `handleGetUserData` (`src/api/export/users/queries/userdata.js`) crashed the Express process whenever its first Cypher call hit a Neo4j that had not finished binding — an undefined identifier on its error branch turned a `ServiceUnavailable` into an unhandled `ReferenceError`, Node exited, supervisor restarted it, and nginx served 502s until it rebound. Fixed in PRs #681/#682 (OPEN.md row 325). **The durable guard is a Neo4j-readiness gate, not a retry:** after the 3×200 HTTP poll, do not fire any Cypher-backed call until Neo4j is answering — poll `get-user-counts` until `verifiedFollowerCount` is non-null on 3 consecutive polls (it returns `null` while Neo4j is down, a number once it is up; ~40 s after container start on the production deploy where it was timed). `docs/SMOKE_TEST.md` Tier 1 carries the gate and the exact recipe.
 
 **Long-term fix candidate:** the deploy script could `curl --retry` an API endpoint as a final step before exiting, so CI doesn't report success until brainstorm is actually serving. Not yet done — left as a separate operational improvement.
 
