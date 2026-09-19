@@ -161,7 +161,7 @@ numbers and its notes exactly where they are, and is closed to new rows. A new r
 Four variants, all rejected on the evidence:
 
 - **Fetch before minting** — the rule since 2026-08-07. Ten events followed it; row 307 records a
-  19-minute window in which both sessions were right when they looked; this morning's duplicate 329
+  19-minute window in which both sessions were right when they looked; today's duplicate 329
   was minted *on top of* the row it duplicates.
 - **A pre-push check or a lint for duplicates alone.** Worth having (it is AC-4, and it would have
   stopped PR #687), but it only detects. The repair is still a renumber, so problem 2 stays.
@@ -192,9 +192,9 @@ for three reasons:
    is uniformity, bought with the riskiest step on the table. Legacy rows can stay where 2,700
    citations say they are.
 
-**B is the fallback.** If the operator wants the minimum, B is a strict subset of C's rule — same
-ids, same lint — and C can follow later with no migration, because under C the table is simply
-"frozen as of the day C lands".
+**B was the named fallback, and the operator chose C at the Architecture gate.** B remains a strict
+subset of C's rule — same ids, same lint — so if implementation has to be cut short, stopping at B
+strands nothing: under C the table is simply "frozen as of the day C lands".
 
 This extends ADR `harness-self-improvement/0004`: `collect_meta()` gains a second source, and its
 thresholds, banner and advisory-only contract are untouched. It follows ADR
