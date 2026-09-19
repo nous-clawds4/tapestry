@@ -2426,6 +2426,12 @@ browser pass) stay with the agent. Then wire it into the smoke step of each cycl
 cycle-staging and cycle-prod, the three smoke items in cycle-full's stage lists (it has stages, not
 steps), and cycle-local's — and have `docs/SMOKE_TEST.md` name it as the executable form.
 
+**Readiness, not just reachability (added 2026-09-19).** Tier 1's 3×200 poll proves Express is up,
+not Neo4j. The script should also wait until Neo4j answers before it runs any tier: `get-user-counts`
+returns `verifiedFollowerCount: null` until it does — about 40 s after the container started on the
+production deploy where it was timed. OPEN.md row 325 has the reason, with its specifics held
+out-of-band until a fix ships; `docs/SMOKE_TEST.md` should gain the same wait.
+
 **Classification:** feature (harness tooling). It touches `.claude/skills/*`, which is a
 harness-definition path, so it owes a CHANGELOG row. A new file under `scripts/` is not one by
 default: `scripts/harness-def-paths.txt` lists nine named entries there, and
