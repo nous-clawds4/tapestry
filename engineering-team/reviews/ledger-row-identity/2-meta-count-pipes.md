@@ -4,6 +4,7 @@
 **Date:** 2026-09-19
 **Diff:** `git diff origin/staging...HEAD` on `fix/meta-count-pipes` — `8e36b40a` (story), `5a963767` (failing tests + test plan), `d37354e6` (implementation); base `d37cd575`. Nothing was pushed at review time.
 **Lane:** Bug, Standard strictness. There is no ADR: Architecture was skipped as obvious at the Planning gate. The design record checked in its place is `OPEN.md` row 290, ADR `ledger-row-identity/0001` § Consequences (follow-up 1) and § Out of scope, and ADR `harness-self-improvement/0004` § Implementation notes.
+**Rounds:** round 1 reviewed `d37354e6` and is everything below except § Round 2; round 2 reviewed the commits made after the verdict, `206915b4..62e7bfa3`, and is § Round 2. Round 1's text is kept as written; where round 2 found it wrong, § Round 2 says so.
 
 The reviewer had none of the implementing session's context. Every statement below was re-derived from a command run during this review; where something could not be checked, it says so.
 
@@ -152,6 +153,100 @@ None.
 - **Row C — `meta`.** **An acceptance criterion that asks a record to name "the PR" cannot be met when the Reviewer runs.** Review comes before the push, so the PR does not exist; the practice is a follow-up commit on the PR branch (`949b6f29` for PR #690; `ledger-row-identity` #2 AC-6), which lands after the verdict and is reviewed by nobody. Fix shapes: Planning words such criteria as "names the story"; or `workflows/5-review.md` names the PR-number commit as a sanctioned step after the verdict and says who checks it. Opened: 2026-09-19. Pointer: this review, harness friction 1.
 - **Amendment to row 289** (a suggested sentence is a claim — check it before writing it): on 2026-09-19 three Node 22.23.2 runs on this host (`20260919T191823Z-93037-b1b6`, `20260919T192940Z-82266-2dda`, `20260919T193955Z-27026-ef45`) failed the same 15 suites and the same 51 test names as run `20260913T062330Z-74080-b946`; in the first of the three, `adoption-candidates-queue` H1 also failed once ("not observed within 6s") and passed in the next two.
 
+## Round 2 — the commits made after the verdict
+
+**Date:** 2026-09-19
+**Diff:** `git diff 206915b4..HEAD` — `9562a041` (follow-ups to round 1's findings) and `62e7bfa3` (the PR number) — and the review commit `206915b4` itself. HEAD `62e7bfa3` equals `origin/fix/meta-count-pipes`. PR #691 is open into `staging`, merge state CLEAN.
+
+Round 1's "Outstanding before merge" item asked for this check. Every changed statement was re-derived from a command, wording that round 1 suggested included (`roles/reviewer.md` step 10). Two sentences of round 1 turned out to be wrong, and a third was an overstatement that a new ledger row inherited. R2-2 and R2-3 correct them; round 1's text above is left as written.
+
+### What was run, and what was not
+
+- `bash scripts/harness-lint.sh` at `62e7bfa3` → `harness-lint: clean (0 violations)`, exit 0. The output is identical to round 1's.
+- `test/session-start.test.js` at `62e7bfa3`: 22 pass / 0 fail on Node v22.23.2 and on Node v16.17.0. On Node v22.23.2, `harness-stats` is 12 / 0 and the `harness-lint` suite 41 / 0.
+- Two mutation runs of that suite in a scratch worktree of `62e7bfa3` (removed afterwards): against a reader that takes the last status-like cell, and against the old reader.
+- One-row fixtures of my own through the old reader (`origin/staging`'s), the shipped reader, the roll-up's ledger-section test, and a copy of the standing test's oracle.
+- **The full `npm test` was not run again on this host.** Since the round-1 gate run on `d37354e6` the branch changed one fixture string, the test plan, `OPEN.md` (row 290 and the new rows 331 and 332), this review, two lines of the story and one of the epic, and nothing under `scripts/`, `src/`, `ui/` or `firmware/`. A local run would be red again on the live suites of row 289; they were not re-run.
+- In its place, CI's run on the same head. This is a line from the CI log, not a `gate:status` line, because CI's run record is not on this host. Workflow Test, run 35467509094, event `pull_request`, head `62e7bfa3`, ubuntu-24.04, Node v22.23.2, conclusion success:
+
+  > `Overall: PASS — 2859 passed, 0 failed, 531 skipped across 206 suites` · `session-start: PASS (22 passed, 0 failed, 0 skipped)`
+
+  It is the stack-free signal round 1 said was missing, and the first run of the new awk program on CI's toolchain. Which awk the runner used was not identified.
+
+### The review commit `206915b4`
+
+The review file is what round 1 wrote: 164 lines, and `git diff 206915b4..HEAD` shows no change to it. The story got its Status flip and its Review link, which closes round 1's finding 9. The epic's line for story 2 now reads Done, matching the story.
+
+### Claims re-derived
+
+1. **The strengthened guard (finding 5) — true.** `git diff 206915b4..HEAD -- test/session-start.test.js` is +3 / −1: the fixture string and a two-line comment. No assertion changed. The fixture, taken from the file at HEAD and not retyped, has status-like cells at field 6 (`DONE`) and field 8 (`OPEN`). It reads 0 open under the old reader, 0 under the shipped reader and 1 under the last-wins reader. The whole suite against the last-wins reader is now 21 / 1, and the one failure is this guard; in round 1 the same mutant passed 22 / 0. Finding 5 is closed.
+2. **Row 290 — true, part by part.**
+   - Chronology: eight commits touch the row. `d210b5ff` (2026-09-13, the row then numbered 283) has no trim text; `77d9437b` (2026-09-18) is the first whose new side has it.
+   - Bold markers outside code spans: 24, even (23 in round 1).
+   - `origin/staging`'s whole Item cell, 3861 bytes, is a contiguous substring of the row at HEAD. Against `origin/staging` only the Item and Pointer cells differ.
+   - "PR #691" occurs twice, and PR #691 is this branch into `staging`.
+   - The row has 9 fields, one status-like cell (field 6, `OPEN`) and an empty Done cell, and one row is numbered 290.
+   - With locale variables unset, row 193 is still the only listed line that is invalid UTF-8 — at HEAD, on the Mac and in the container (111 lines; the two outputs are byte-identical, md5 `47785d8b…`).
+   - The sentence on where the packet name lives matches what the repo shows. The board itself was still not read.
+
+   AC-6's last clause is met, so round 1's "Outstanding before merge" item is closed.
+3. **The test plan — the measured cases are true; one sentence is not (R2-1).** One-row fixtures, counts given as old reader / shipped reader / ledger section, with the true count in brackets:
+   - An open row whose Item says `` `OPEN|DONE|DONE-LOCAL` `` [1]: 0 / 0 / 1.
+   - An open row whose Item quotes a DONE table row [1]: 0 / 0 / 1.
+   - A DONE row with `` `a|b` `` and then a quoted `` `| OPEN |` `` [0]: 1 / 1 / 1.
+   - A DONE row whose Item quotes a whole OPEN table row [0]: 0 / 1 / 1. The shipped reader lists it as `[110d]`, the age of the quoted row's date.
+   - An open row with `` `a|DONE-LOCAL` `` [1]: 0 / 1 / 1.
+
+   So the coordinator's counter-example is real. A copy of the standing test's oracle, run on the same fixtures, fails with `dropped=[1]` on both open rows read as closed and passes on both DONE rows read as open, as the bullet says. "No row does any of this today" holds on the 332 rows at HEAD: the oracle from round 1 finds one status-like cell in every row except 157, and 111 open meta rows by the shipped rule, by the whole-line test and by stripping code spans first. "After a single pipe the new reader is safe" holds by construction: fields 4 and 5 are never scanned.
+
+   The two new coverage-map lines are true. With the old reader under HEAD's test file the suite is 12 / 10: the nine red tests and the guard added at Implementation, which reports "1 open" — its first row, which has no pipe, is counted, and its second, which has one, is not. The strengthened guard still passes under the old reader.
+4. **Rows 331 and 332 — true, with one overstatement that is mine (R2-3).**
+   - Row 331's fixtures: `OPEN (blocked)`, `**OPEN**` and `REOPENED` each give 1 / 0 / 0 (old reader / shipped reader / ledger section); a plain `OPEN` gives 1 / 1 / 1.
+   - Its distribution on the 330 rows of `d37cd575` is exact: 235 `OPEN`, 91 `DONE`, 3 starting with `DONE (` (rows 37, 120, 251) and 1 `DONE-LOCAL` with a note (row 35).
+   - `scripts/lib/collect-meta.sh:44` is the status test, and `scripts/whats-open.sh:31` is the whole-cell test. The description of L15 matches ADR 0001, implementation note 8, parts (a) and (c).
+   - Row 332: `949b6f29` did name PR #690 in row 330, the AC-6 quotation is exact, and the per-story workflow files, the README and the Reviewer and Implementer role files say nothing about a commit after the verdict.
+   - Both rows have 9 fields, one status-like cell (field 6, `OPEN`), an empty Done cell and a unique id. `origin/staging` is still `d37cd575` with 330 as its highest id, and PR #691 is the only open PR that touches `OPEN.md`, so neither number collides today. The reader lists both as `[0d]`.
+   - Nothing on `origin/staging` covers either: thirteen search patterns hit only rows 290 and 330 (for the exact-`OPEN` wording, neither about a decorated Status) and unrelated rows; no intake heading matches. That the coordinator searched first cannot be checked; that there was nothing to find can.
+   - Row B was not filed because finding 5 was fixed instead, and row 289 was not amended; both are fine. The suggested sentence for row 289 stays a proposal.
+5. **The count — nothing in the repo says the branch reads 109 now.** The digest at HEAD reads "111 open harness lesson(s), oldest 79d": the old reader gives 109 there and the shipped one 111, and the difference is still rows 70 and 244. Every "109" in the files this branch touches is tied to a commit or a measurement: the story's table ("Measured on `origin/staging` `d37cd575`"), AC-5 ("107 → 109 on `d37cd575`"), the test plan's recipe ("before the row 290 edit") and its transcript from `8e36b40a`, the CHANGELOG row (the effect of the change), row 290's fix record (a past measurement) and round 1 of this review (`d37354e6`). The PR description states 111 and why.
+
+### Does the counter-example change the verdict or the calibration?
+
+The verdict, no. The calibration, yes, and round 1 stated it wrongly.
+
+Round 1 treated every wrong answer of the shipped reader as one the old reader shared, apart from finding 6 and two contrived cases. That is false. The old reader read field 6 and nothing else; the shipped one reads from field 6 rightwards to the first status-like cell. Whenever that first cell is a piece of text and not the row's Status, and says the opposite, the shipped reader is wrong — and the old reader was right on the same row whenever field 6 by itself gave the right answer. That is a small family of regressions, not a latent edge the two readers share.
+
+It does not block, for these reasons:
+
+- It is the case the test plan listed as not covered by design before any code was written, under a rule measured on every row and ratified at the Planning gate. The alternatives measured then fail on real rows (48 and 157); this one fails on none of the 332.
+- The harmful direction, an open row read as closed, turns the standing test red with the row's id. That holds for the regression cases too (P3 below).
+- The direction nothing notices is an over-count: a DONE row listed among 111 open ones, in an inbox whose banner fires at 3.
+- The numbered table is frozen when story #1 lands, so the exposure is the rows written until then and later edits to old ones.
+
+What nobody knew at either gate is that the old reader got some of these rows right. The operator should know it when merging; the PR description says so, too narrowly (R2-1).
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+R2-1. **Test plan lines 69–71 — "the one place where the old reader was right and the new one is wrong" is false.** The quoted whole row is one instance of a family. Measured, same notation as above:
+   - P1, a DONE row with `` `a|b|c` `` and then a quoted `` `| OPEN |` `` [0]: 0 / 1 / 1. No whole row is quoted; the stray `OPEN` lands on field 7.
+   - P2, a DONE row whose Item holds `` `a|b|c|OPEN|d` `` [0]: 0 / 1 / 1.
+   - P3, an open row whose Item is `p|q|see OPEN.md|DONE rows were miscounted` [1]: 1 / 0 / 1. The old reader was right by luck, the shipped one is wrong, and it is the harmful direction. The standing test's oracle catches it (`dropped=[1]`).
+   - Round 1's two cases outside the Item belong here as well: a Status of `PARKED` with a later cell reading exactly `OPEN`, and a row of another table.
+
+   The dividing line is the field the stray text lands on, not whether a whole row is quoted: on field 6 both readers are wrong (the `` `a|b` `` case); to the right of it only the shipped one is, as long as field 6 does not itself mention `OPEN`. The bold rule at the top of the bullet is complete and correct about the shipped reader; only this comparison with the old reader is too narrow. The PR description repeats it ("One case is new with this change"). It leads nobody to a wrong action, and the old reader stops existing at the merge, so it is held to the bar round 1 applied to findings 2 and 7. It is still a false sentence in the record that the book-close audit will harvest. Ask: reword it on this branch, and the PR description with it. A suggestion, which is a claim to check and not text to paste: "Where the stray `OPEN` lands on the sixth field (`` `a|b` `` and then `` `| OPEN |` ``) the old reader counted the row as well. Where it lands further right — a quoted whole row, or a quoted `` `| OPEN |` `` after three pipes — the old reader was right, by luck: it never looked past the sixth field. The mirror image exists for an open row (field 6 mentions `OPEN.md`, a later piece starts with `DONE`), and the standing test catches that one."
+R2-2. **Round 1 of this review — two sentences corrected.** § Attempts to break the reader said "Where the shipped reader gave a wrong answer, the old reader gave the same wrong answer or a worse one", with exceptions that left this family out. Finding 7 said "The old reader was wrong on the same rows"; that is true of its two examples and false of the class. My round-1 fixtures put a quoted DONE row inside an open row and a lone `` `| OPEN |` `` after two pipes, and never a stray `OPEN` to the right of field 6 in a DONE row. The coordinator found it.
+R2-3. **`OPEN.md`:394 (row 332) — "Per-phase commits put Review before the push" and "cannot be met when the Reviewer runs" overstate, and the wording is round 1's** (harness friction 1 and proposed Row C). No file orders the push and the Review: the per-story workflow files, the README and the two role files never say when a branch is pushed or a PR opened. What is true is what happened here: the review commit is from 20:22:36Z, the branch first reached `origin` at 20:27:59Z and PR #691 was created at 20:28:22Z (GitHub's activity API). Optional rewording: "Nothing in the per-story workflow says when a branch is pushed or a PR opened; in this story both came after the Review commit, so no PR existed at review time." A third fix shape follows from it: open a draft PR before Review.
+R2-4. **Test plan line 73 — "shows in "Meta items" as a row whose own text says DONE"**: in `OPEN.md`, yes; in the list, no. A listed line is cut at 150 bytes, and among the 111 open meta rows the Status cell never starts that early; the nearest is at byte 310. The list would show the row's id, the start of its Item and an age taken from the cell before the stray `OPEN` (`[110d]` for the quoted row's date, `[?d]` in P1). So this direction is quieter than the sentence suggests. For whoever takes row 331: on these fixtures an oracle that strips code spans before reading field 6 gets every backticked case right in both directions, and on today's 332 rows it agrees with the reader; it gets P3 wrong, whose pipes are not in a code span.
+R2-5. **Small.** `engineering-team/epics/ledger-row-identity.md`:40 now reads Done and still says "(rows 70 and 244 are missing today)". Row 331 calls a decorated `DONE` "common"; by its own numbers it is 4 of the 95 closed rows. Test plan line 27 calls the Implementation test a guard and says it is red on the old reader, while the plan's opening defines a guard as passing before and after; the line is honest about it.
+
+Any commit that answers R2-1 is again a commit after the verdict, which is row 332's subject. The check is small: the eight one-row fixtures above, through the two readers.
+
 ## On PASS (same commit)
 
 - [x] Story `**Status:**` flipped to `Done` in place; `git diff` shows that one line and nothing else in the story file.
@@ -162,3 +257,5 @@ None.
 **PASS**
 
 The diff does what the story asks and no more. The reader is correct on every real row and on every fixture that the old reader got right; the two missing rows appear, and nothing else moves. The one deviation is sound and better argued by the evidence than by its own log entry. The gate run is red, and it is red for reasons recorded six days before this branch, in suites and tests this diff does not reach. One clause of AC-6 — the PR number — waits for a PR to exist and must land before the merge.
+
+Round 2, 2026-09-19, on `62e7bfa3`: the verdict stands. The AC-6 clause named above is met by `62e7bfa3`. What round 2 found — one false sentence in the test plan, and two wrong sentences and one overstatement in round 1 of this review — is in § Round 2, and none of it blocks.
