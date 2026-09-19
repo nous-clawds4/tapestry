@@ -231,7 +231,7 @@ parse (`grep -m1 -E '^\*\*Status:\*\*'`), not YAML:
 
 **Id:** 2026-09-19-agent-worktrees-outlive-books
 **Type:** meta
-**Opened:** 2026-09-19 — docs/worktree-reaping, PR #687
+**Opened:** 2026-09-19 (session close; worktree sweep)
 **Status:** OPEN
 **Done:** —
 
@@ -256,7 +256,8 @@ table's columns under the same names.
   disagreement when it is the same row), and the tails of `engineering-team/CHANGELOG.md` and
   `_intake.md`, which this ADR does not touch.
 - **Debt and follow-ups:** (1) the positional-parse bug that drops rows 70 and 244 from the meta
-  count lands as its own small fix *before* this story's AC-5 baseline is taken, so "same before and
+  count (`OPEN.md` row 330, "The meta escalation count drops open rows whose text contains a pipe")
+  lands as its own small fix *before* this story's AC-5 baseline is taken, so "same before and
   after" compares like with like; (2) the operator's packet preamble on the Loose Threads board
   teaches "highest number plus one, expect to renumber" and must be edited when this lands — it is
   outside the repo, so no commit can do it; (3) a flat `ledger/` directory will want a `done/`
