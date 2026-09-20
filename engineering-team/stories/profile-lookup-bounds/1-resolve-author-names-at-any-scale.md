@@ -140,6 +140,6 @@ this dev instance resolved to `e00ed090…9df36` — per-deployment, never to be
   gets an interpretable refusal.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
