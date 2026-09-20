@@ -11,11 +11,12 @@ variant. The branch tip on origin (`gh api …/git/ref/heads/docs/open-md-one-ta
 `187df16199b88c66d1eb14c323e8346600e682e5`) equals the local HEAD; `origin/staging` is
 `2e500d6f4fd6a98c24e8fe78344a670c5b3b9e06`. No PR exists.
 
-**Rounds.** This file is one review in three rounds, each appended above the single `## Verdict`
-at the bottom, which is rewritten in place and always states the *current* verdict. Round 1
-(`187df161`) — CHANGES_REQUESTED, three blocking findings, recorded below as written. Round 2
-(`c5a92115`) — CHANGES_REQUESTED, one new blocking finding. Round 3 (`4328e0ab`) — the verdict at
-the bottom. What follows immediately is round 1, unedited.
+**Rounds.** This file is one review in five rounds, each appended above the single `## Verdict`
+at the bottom, which is rewritten in place and always states the *current* verdict for the whole
+branch. Rounds 1–3 review the documentation change (`187df161`, `c5a92115`, `4328e0ab`) and closed
+at pass in round 3. Rounds 4–5 review a later, separate behaviour change on the same branch —
+`harness-lint` L16 (`7151ce30`, `72589b33`, `14f3dcc9`, `723239e7`, `c175ba47`). The verdict at the
+bottom covers the branch as a whole. What follows immediately is round 1, unedited.
 
 ---
 
@@ -451,6 +452,309 @@ and a future reader reconstructing it from the sentence alone would guess one ad
 
 ---
 
+# Round 4 — `harness-lint` L16, a behaviour change
+
+**Date:** 2026-09-20
+**Diff:** `git diff f435cb19..14f3dcc9` — three commits, cleanly phase-split:
+`7151ce30` (tests + fixtures only, no script), `72589b33` (`scripts/harness-lint.sh` + CHANGELOG +
+the ledger row flipped DONE), `14f3dcc9` (the ledger row's as-built description). The Phase-4 commit
+touches no file under `test/` — the standing rule holds.
+**Scope:** the round-3 PASS on the documentation change (`187df161..4328e0ab`) stands and is not
+reopened. This round reviews the lint behaviour change only; the verdict at the bottom now covers the
+branch as a whole. PR #700, `docs/open-md-one-table` → `staging`, open, `mergeState=CLEAN`.
+**Head:** local `14f3dcc9` == `gh api …/git/ref/heads/docs/open-md-one-table`.
+`git diff f435cb19..14f3dcc9 -- OPEN.md` is **empty** — OPEN.md is untouched by this round.
+
+## Claims
+
+| # | Claim | Verified | Evidence |
+|---|---|---|---|
+| 1 | The tests gate the feature: 75/0 with the check, 66/9 without | ✅ | Suite at `14f3dcc9` → `{"pass":75,"fail":0}`. Suite at `7151ce30` (tests landed, script untouched — better than stashing, and it touches nothing) → `{"pass":66,"fail":9}`. All nine failures are feature-absence: six read `got exit 0: (no L16 line in the output)`, one `check_L16 must exist in scripts/harness-lint.sh`, one `and L16 must fire on the same tree`, one `STALE-WAIVER L16 … matches nothing` (the waiver test, failing because nothing fired to consume it). No import or fixture error. |
+| 2 | On the real historical break it names line 71 and "and 1 more" | ✅ | In a worktree at `14f3dcc9` (never the working tree), re-inserted a blank at line 71 and a merge note at 72 above row 38: `VIOLATION L16 OPEN.md — line 71 is inside the Items table but is not a row ("") … — and 1 more`, exit 1. Line 71 is exactly where the historical break sat. |
+| 3 | The boundaries | ✅ **all six proven independently** | See the boundary table below. |
+| 4 | It disturbs nothing | ✅ | `OPEN.md` untouched; 352 table lines unchanged by construction. Suites at `14f3dcc9` on Node 22.23.2: `harness-lint` 75/0 · `ledger-row-ids` 6/0 · `session-start` 32/0 · `harness-stats` 12/0 · `stack-free-npm-test` 7/0 · `ci-test-job` 14/0 · `operational-direction` 86/0 · `curated-dlist-update-update-preview` 34/0 · `curated-dlist-update-publish` 69/0. Real-tree `bash scripts/harness-lint.sh`: exit 0, clean, **zero** L16 lines. |
+| 5 | The fixture reshaping is sound | ⚠️ sound in coverage, **one test name is now false** | See "The fixture reshaping" below. |
+| 6 | The corrected line-number derivation is genuine | ✅ | `at = doc.split('\n').indexOf(REAL_SHAPE_ROWS[4])` returns a 0-based index, which equals the 1-based line number of the line *above* that row — i.e. the breaker. Computed for all four breakers: `at = 19`, and 1-based line 19 holds the breaker (blank / note / heading / prose respectively) with the next row at 20. The Tester's hard-coded 17 was wrong. **It can still fail:** mutation B (report `firstno + 1`) turns the suite red at 70/5 — the four breaker tests plus the no-marker test. Not vacuous. |
+| 7 | The records state only true things | ❌ | One wrong count — blocking finding 1. Everything else in both records checks out; see below. |
+
+### Boundaries — each proven, not taken from the description
+
+Probed in a worktree by mutating a copy of the real `OPEN.md`, resetting between cases, with the
+indices recomputed from the clean file each time (my first pass got this wrong — the worktree was
+still dirty from the claim-2 probe, so five cases mutated at the wrong offsets; everything below is
+the corrected run).
+
+| Case | Result | |
+|---|---|---|
+| Blank line inside the **preamble** table | exit 0, silent | ✅ out of scope |
+| Prose paragraph **above** the Items header | exit 0, silent | ✅ out of scope |
+| Extra prose between the **last row and the marker** | exit 0, silent | ✅ out of scope |
+| Note appended **below the marker** | exit 0, silent | ✅ out of scope |
+| Blank between rows, **marker deleted** | exit 1, `line 37` | ✅ a break with no marker still fires |
+| Contiguous table, **marker deleted** | exit 0, silent | ✅ marker absence alone is not a violation |
+| **No `OPEN.md` at all** | no L16 line, not even INFO | ✅ (also `[ -f OPEN.md ] \|\| return 0` by inspection) |
+| `OPEN.md` with **no `\| # \|` header**, non-row lines between pipe lines | no L16 line | ✅ silent, as claimed |
+
+### The edge cases you asked about
+
+| Case | Behaviour | Assessment |
+|---|---|---|
+| **Indented row, 1–3 spaces** | **fires** (`line 37 … ("   \| 4 \| cleanup \| …")`) | **False positive.** GitHub's `POST /markdown` renders a 3-space-indented row as a normal `<tr>` with the table unbroken — so the line does *not* end the rendered table, and the message's advice ("move it below the table, into Numbering notes") is wrong for it. Mitigating: such a row is invisible to every `^\|` reader (collect-meta, whats-open, L15), so flagging it is useful — for a different reason. **4-space** indentation genuinely breaks the table (renders as `<pre><code>`, next row becomes `<p>`) and is correctly caught. |
+| **Fenced block containing a pipe, between the last row and the marker** | **fires** (`line 376`, the blank after the last row) | **False positive** against the documented boundary: the `\| a \| b \|` inside the fence is a `^\|` line, so it *confirms* the closing-prose lines above it and drags the out-of-scope region back into scope. |
+| **Marker absent + any later table in the file** | **fires** (`line 376`) | Same mechanism. Cannot happen on the real file (it has a marker), but the no-marker path is a supported mode. |
+| **CRLF throughout, contiguous** | exit 0, silent | ✅ no false positive — but only incidentally. The marker regex ends `-->[ \t]*$`, which `-->\r` does not match, so `stop` never fires on a CRLF file; it is clean only because nothing pipe-shaped follows the marker. Genus of the open row `ledger/2026-09-20-crlf-row-file-invisible-to-readers.md` (different surface: that one is `ledger/*.md` header fields). |
+| **CRLF + a real break between rows** | **fires**, `line 37` | ✅ still caught |
+| **Second `\| # \|` header below the marker** (marker present) | L16 silent | ✅ out of scope (the exit-1 there is L15 reading the appended row's id — not L16) |
+
+### The fixture reshaping
+
+`REAL_SHAPE_ROWS` went from 9 entries (7 rows + a blank + a note) to 7 contiguous rows, and
+`ledgerDoc` gained `notes`, which renders a `## Numbering notes` section **below** the marker. Every
+L15 test was re-read against its name:
+
+- **The property that moved is still gated.** The old fixture proved incidentally that a note between
+  rows does not hide the rows below it from L15. Mutation A — make L15's awk stop at the first
+  non-row line after the header — turns the suite red at **73/2**, failing "L15 and L16 are
+  independent…" and "L15(b): a numbered row … below the marker". So the tolerance is still held by a
+  test, now an explicit one rather than a side effect. Net coverage is better, not weaker.
+- **No L15 test passes for a new, weaker reason.** The L15(a)/(b)/(c) tests assert on duplicate ids,
+  the frozen bound, and row-file shape; each still exercises exactly that against a document that
+  still has the second preamble table, out-of-order ids, a gap, a pipe inside a cell and an escaped
+  pipe. The only thing the fixture lost is the interior note, and mutation A shows that loss is
+  covered elsewhere.
+- **One test name is now false** — blocking finding 2.
+
+## Findings
+
+### Blocking
+
+**1. `engineering-team/CHANGELOG.md`, the new row — "`test/harness-lint.test.js` gains 9 tests" is
+wrong; it gains 12.** Measured: the suite is **63/0** at `f435cb19` and **75/0** at `14f3dcc9`. The
+diff adds twelve tests (1 contiguous-clean + 4 breakers + 1 counter + 1 out-of-scope + 1 no-marker +
+1 no-`OPEN.md` + 1 waiver + 1 L15/L16-independence + 1 exists-and-real-repo-silent). **Nine** is a
+different quantity — the number that fail without the implementation (66/9), which is the commit
+title's number, not the test count. This is the same class as round 1's "22 blank lines": a measured
+figure in the append-only harness record.
+**Ask:** "gains 12 tests, nine of which fail without the check", or just 12.
+
+**2. `test/harness-lint.test.js:565` (and the section comment at `:550`) — the fixture no longer has
+what the test name says it has.** The name still reads *"a ledger shaped like the real one is clean —
+a second table in the preamble, **notes between chunks of rows**, ids out of order…"*, and the
+comment at 550 still says the fixture has "notes between chunks of rows". After the reshaping the
+fixture is seven contiguous rows and its note is passed as `notes: [NOTE_LINE]`, landing **below the
+marker** — the opposite arrangement. You asked whether every L15 test still tests what its name says:
+this one does not, and it is the one test whose name is the fixture's own description.
+**Ask:** name it for what it now covers (notes *below the freeze marker*) and fix the `:550` comment.
+
+**3. `scripts/harness-lint.sh`, `check_L16`'s freeze-marker rule is load-bearing and completely
+untested.** Mutation D — delete the line
+`/^<!-- ledger-table-frozen: highest-number=[0-9]+ -->[ \t]*$/ { if (hdr) stop = 1 }` —
+leaves the suite at **75/0**. Nothing fails. But the rule is not redundant: with it removed, appending
+an ordinary markdown table below the notes section makes L16 fire spuriously (`VIOLATION L16 OPEN.md
+— line 376 …`), and with it present the same tree is silent. So the boundary that both records state
+as a designed property — the CHANGELOG's "notes below the marker are where notes belong", the ledger
+row's "Silent where…", your claim 3's "notes below the marker are out of scope" — is true today by
+inspection and by my probe, and by **no test**. In a check whose entire reason for existing is that a
+layout property went unguarded for 67 days, shipping its one guard untested is the wrong shape.
+**Ask:** one fixture that puts a `^|` line below the marker — `notes: [NOTE_LINE, '| a | b |']` is
+enough — asserting L16 stays silent. It must fail when the rule is removed; mutation D is the check
+on the check.
+
+### Non-blocking
+
+**8. One rule, four false-positive shapes: "a row confirms the pending lines above it" has no upper
+bound except `stop`.** Everything in the edge-case table above with "false positive" is the same
+mechanism — any `^|` line occurring after the table's last row re-activates every non-row line
+between. It is unreachable on today's `OPEN.md` (marker present, closing prose is two pipe-free
+lines), which is why this is not blocking. But the script comment and the CHANGELOG both state the
+boundary unconditionally — *"Lines after the last row and before the freeze marker are the closing
+prose and are not in the table"* — and that is conditional on those lines never being followed by a
+pipe before the marker. Cheapest hardening if it is ever taken up: stop at the first non-row line
+after the last row rather than relying on a later row never appearing, or anchor `stop` on
+`-->[ \t\r]*$`. Proposed row below.
+
+**9. A blank offender renders as `("")`.** The most common break is a blank line, and the message
+quotes it as an empty string: `line 71 is inside the Items table but is not a row ("")`. The line
+number carries the information, so this is cosmetic — but "(a blank line)" would read better for the
+single likeliest case.
+
+**10. The ledger row's as-built paragraph is accurate.** "about twenty lines of awk, not three" — the
+awk block is 16 lines (15 non-blank), the whole function 25; fair either way. "the region ends at the
+table's last row, not at the marker" — true, **and gated**: mutation E (count unconfirmed trailing
+pending lines, i.e. end the region at the marker) turns the suite red at 68/7, including "L16 ignores
+everything outside the table" and "the real repo lints clean". Good boundary, well tested. Everything
+else in both records checks out: the 67 days, 37/305, the 142 swallowed rows, `8786f131`'s mechanism,
+"waivable", "silent where there is no `OPEN.md` or no header" (both proven above).
+
+## Proposed ledger row (not filed)
+
+Searched `git grep -niE "false positive|fenced|indented row|contiguity" -- OPEN.md ledger/` — only
+the L16 row itself; the CRLF row is a different surface. Not a duplicate.
+
+**`2026-09-20-l16-region-reopens-on-pipe`** — type `meta`. *(Proposed here as
+`…-on-a-later-pipe`, which is seven slug words; the rule allows six. Filed under the shorter id
+in `c175ba47` — see round 5.)*
+> `harness-lint` L16 ends the table at its last row by treating a `^|` line as confirmation that the
+> non-row lines above it were inside the table. That is the right rule for the table itself, but it
+> has no upper bound other than the freeze-marker `stop`, so any `^|` line appearing later re-opens
+> the region: a fenced code block containing a pipe placed in the closing prose between the last row
+> and the marker makes L16 report that prose as "inside the Items table", and so does any later table
+> in a file whose marker is missing or CRLF-terminated (the `stop` regex ends `-->[ \t]*$`, which
+> `-->\r` does not match). Separately, a row indented by 1–3 spaces is a valid table row on GitHub
+> (verified via `POST /markdown`) but L16 flags it and tells the author to move it below the table —
+> useful to flag, since every `^\|` reader skips such a row, but for the opposite reason to the one
+> the message gives. None of this is reachable on today's `OPEN.md`. Fix shape: bound the region at
+> the last row directly, and/or anchor the marker regex with `[ \t\r]*$`, and give the indented-row
+> case its own message.
+
+## Not verified
+
+1. **The full `npm test` gate.** Unchanged reasoning, now with one new fact in its favour: the eight
+   neighbouring suites named above are green, and the change is confined to one shell function that
+   only ever prints. CI's stack-free job on PR #700 remains the outstanding gate; `mergeState=CLEAN`
+   is not a test result.
+2. **Non-GitHub markdown renderers.** All rendering claims here were measured against GitHub's own
+   `POST /markdown`. A different renderer may treat indented rows or lazy continuation differently;
+   `OPEN.md`'s audience is github.com.
+3. **awk portability.** The new awk uses only features the file already relies on (no `{n,m}`
+   intervals, no `gensub`), and it ran under macOS awk 20200816 here and under whatever CI uses for
+   the other checks — but I did not run it under mawk or busybox awk. The existing L15 comment shows
+   the project cares about this; nothing in L16 looks exposed.
+
+---
+
+# Round 5 — `723239e7` and `c175ba47`
+
+**Date:** 2026-09-20
+**Diff:** `git diff 14f3dcc9..c175ba47` — `test/harness-lint.test.js` (+19/−3), `CHANGELOG.md`
+(1 line), and the new row file `ledger/2026-09-20-l16-region-reopens-on-pipe.md`. `723239e7` is the
+fix; `c175ba47` is a pure `git mv` of the row file plus its `**Id:**` line.
+**Head:** local `c175ba47` == `gh api …/git/ref/heads/docs/open-md-one-table`.
+`git diff 4328e0ab..c175ba47 -- OPEN.md` is **empty** — rounds 4 and 5 never touched `OPEN.md`.
+
+## Round-4 findings — disposition, each re-derived
+
+| # | Round-4 finding | Now | Evidence |
+|---|---|---|---|
+| B1 | CHANGELOG said "gains 9 tests"; it gains 12 | ✅ **fixed, and the new figure is right for the new total** | Measured three points: **63/0** at `f435cb19`, **76/0** at `c175ba47`, **67/9** with `check_L16` cut out of the script entirely (function *and* call site removed — not stashed). 76 − 63 = **13**, and nine fail without the check. The row now reads "gains 13 tests, nine of which fail without the check". Both numbers check out. |
+| B2 | The test name and the `:550` comment claimed notes between chunks of rows | ✅ **fixed** | Name is now "…a numbering note below the freeze marker…"; the comment reads "its notes below the freeze marker". Both match the fixture, which passes `notes: [NOTE_LINE]`. |
+| B3 | The `stop` rule was load-bearing and untested | ✅ **fixed — my mutation is now the gate** | Deleting `/^<!-- ledger-table-frozen: …-->[ \t]*$/ { if (hdr) stop = 1 }` now yields **75/1**, and the single failure is the new test *"L16 stops at the freeze marker…"*, whose message names **line 22**. Round 4's mutation D went 75/0; it now goes red. |
+
+**The new test is sound, and its odd-looking fixture is the right call.** It puts two quoted rows
+inside a note below the marker, using ids **6 and 8** — the fixture's deliberate gap. That is
+necessary, not incidental: L15 reads ids from every `^|` line after the header with no stop, so a
+quoted row below the marker *is* a ledger row to L15. Ids 6 and 8 are absent from `REAL_SHAPE_ROWS`
+and below the frozen bound of 9, so L15 accepts them and the test turns on L16's boundary alone. The
+in-test comment says exactly this. I verified the underlying constraint rather than taking it: with a
+quoted `| 10 |` appended below the real marker, L15(a) fires — *"row id 10 appears 2 times in the
+table"*; with `| 9999 |`, L15(b) fires — *"row 9999 is above the frozen table (highest-number=343)"*.
+So the coordinator's first attempt failed for the reason given, and the correction is a fix rather
+than a workaround.
+
+## Item 4 — the red push, confirmed from CI
+
+| Claim | Verified |
+|---|---|
+| `723239e7` was pushed red | ✅ CI run **35514430338**, head `723239e7`, conclusion **failure**: `harness-lint: FAIL (74 passed, 2 failed, 0 skipped)`, `Overall: FAIL — 2929 passed, 2 failed, 531 skipped across 208 suites`. The two failures are `the real repo lints clean` and `L15 exists and the real repo is L15-silent…` — i.e. **L15(c) caught the malformed id**, exactly as designed. |
+| `c175ba47` is green | ✅ CI run **35514602167**, conclusion **success**: `harness-lint: PASS (76 passed, 0 failed, 0 skipped)`, `Overall: PASS — 2931 passed, 0 failed, 531 skipped across 208 suites · record tmp/gate-runs/20260920T134911Z-2191-61cb.json`. |
+| The row is well-formed now | ✅ `2026-09-20-l16-region-reopens-on-pipe` — 37 characters, **five** slug words, `**Id:**` matches the filename, `**Type:** meta`, `**Opened:**` with an ISO date, `**Status:** OPEN`, `**Done:** —`. Real-tree `harness-lint`: exit 0, clean, zero L15 and zero L16 lines. |
+| The rename took the `**Id:**` field with it | ✅ `c175ba47` is a `git mv` (similarity 97%) whose only content change is `**Id:**`. |
+| Nothing else cites the old id | ✅ `git grep l16-region-reopens-on-a-later-pipe` hits one file — this review, at the round-4 proposal. **Now updated** to name the filed id, with a parenthetical recording that the proposed one was a word too long. You read it as the proposal rather than the record; I would rather a reader grepping the filed id from here finds it, and the parenthetical keeps the history. |
+
+## The filed row — is anything overstated?
+
+You asked particularly about the two claims that were mine and that you did not re-derive. Both hold,
+and I have now derived the parts I had left open in round 4.
+
+| Claim in the row | Verified |
+|---|---|
+| Fenced pipe in the closing prose reopens the region | ✅ round 4, re-confirmed by the same mechanism below |
+| No marker + a later table does the same | ✅ round 4 |
+| **CRLF defeats the marker pattern, "the file is clean only by luck"; a genuine CRLF break is still caught** | ✅ **all three legs measured at `c175ba47`.** CRLF throughout + contiguous → clean. CRLF + a blank between two rows → `VIOLATION L16 … line 37`, so real breaks are still caught. **CRLF + one `^\|` line below the marker → `VIOLATION L16 … line 376`** — the `stop` rule silently did nothing, which is the direct demonstration the claim needs and which round 4 had only reasoned. "By luck" is fair: nothing below today's marker starts with a pipe (measured: zero such lines). |
+| **A row indented by one to three spaces is a valid table row on GitHub but L16 flags it with advice that does not fit** | ✅ **now derived for all four indents, not just three.** `POST /markdown`: 1, 2 and 3 spaces → 4 `<tr>`, no `<pre>`, table intact; 4 spaces → 2 `<tr>` and a `<pre>`, table broken. L16 fires identically on 1, 2, 3 and 4. So "one to three" is exactly the false-positive band, "four-space … is caught correctly" is exactly right, and the advice mismatch ("move it below the table" when the fix is to unindent) is real. |
+| **L15 has the wider version of the same gap: no stop at all, so a table quoted in a note below the marker is read as ledger rows** | ✅ demonstrated twice above (`\| 10 \|` → L15(a); `\| 9999 \|` → L15(b)). Note this is not purely a defect: the existing test "L15(b): a numbered row … added at the end of the file, below the marker, is a violation" *relies* on L15 reading below the marker, which is how it catches a row appended past the end. The fix shape the row proposes — one shared notion of where the table ends — has to preserve that, and the row is right to leave it for its own story. |
+| "Today's notes quote only fragments, so nothing fires" | ✅ in effect; see non-blocking 11 for the precise reason |
+
+Nothing in the row is overstated. The one thing it understates: the four shapes are "none of them
+reachable on `OPEN.md` as it stands" — true, and the CRLF leg is the one that could become reachable
+without anyone editing the table, since a line-ending change is invisible in review.
+
+## Re-run at `c175ba47`
+
+| Check | Result |
+|---|---|
+| `harness-lint` suite | **76/0** (63/0 at `f435cb19`; 67/9 with `check_L16` removed; 75/1 with only the `stop` rule removed) |
+| Eight neighbouring suites, Node 22.23.2 | `ledger-row-ids` 6/0 · `session-start` 32/0 · `harness-stats` 12/0 · `stack-free-npm-test` 7/0 · `ci-test-job` 14/0 · `operational-direction` 86/0 · `curated-dlist-update-update-preview` 34/0 · `curated-dlist-update-publish` 69/0 |
+| Real-tree `bash scripts/harness-lint.sh` | exit 0, clean, zero L15/L16 lines |
+| Read surfaces | `collect_meta` → `count=123 oldest=80` (122 at round 3, +1 for the new OPEN `meta` row; the L16 row it closed is DONE and correctly not counted). The new row surfaces in `/whats-open`. |
+| `OPEN.md` | untouched since `4328e0ab`; the round-3 evidence stands unchanged |
+| **Full CI gate on this head** | ✅ **`Overall: PASS — 2931 passed, 0 failed, 531 skipped across 208 suites`** (run 35514602167). This closes the item that stood in "Not verified" through rounds 1–4: the stack-free CI job has now run, on this exact head, green. |
+
+## Findings
+
+### Blocking
+
+None.
+
+### Non-blocking
+
+**11. The row's "Today's notes quote only fragments, so nothing fires" names the wrong reason — no
+change asked.** Nothing fires because no line below the marker *begins* with a pipe (measured: zero
+in `OPEN.md`). A note may quote a whole row inline and stay safe, because the line still begins with
+`>`. The substance — nothing fires today — is right, and this is an open working row rather than a
+ratified record, so precision here is a matter for whoever picks it up.
+
+**12. Fourth sighting of OPEN.md row 157's genus, on the one gate its remedy does not cover.** The
+red push came from gating a commit on `grep` finding lines in `harness-lint`'s stdout instead of on
+the script's exit code. Row 157 is *the same failure* — its own text records "`bash
+scripts/harness-lint.sh 2>&1 | tail -1 && git commit …` took *tail's* exit code, so a commit landed
+over an L4 violation" — and it is marked **DONE** (2026-09-12, honest-test-gate #1, ADR
+`honest-test-gate/0001`). But the ratified remedy is `engineering-team/README.md` §"Running and
+reading the test gate", which is built around `npm test`'s **run record** and `npm run gate:status`.
+`scripts/harness-lint.sh` writes no run record; its only answer is its exit code, and the section
+never names it. So the closed row's fix does not reach the lint, and the failure recurred within
+eight days. Proposed row below. *(Not a criticism of the round-5 handling: it was self-reported,
+caught by CI, and fixed in the next commit — which is the system working.)*
+
+## Proposed ledger row (not filed)
+
+Searched `git grep -niE "exit code|exit status|read as success" -- OPEN.md ledger/`: rows 103, 105,
+111, 157 are the genus; 157 is the closest and is DONE. Nothing covers `harness-lint` specifically.
+
+**`2026-09-20-lint-verdict-taken-from-stdout`** — type `meta`.
+> `scripts/harness-lint.sh` answers only with its exit code, and a session that decides "clean" by
+> grepping its stdout instead can push red. Happened 2026-09-20 on `docs/open-md-one-table`: a
+> command gated on `grep` finding lines in the output, `1 violation(s)` read as success, and
+> `723239e7` went to origin with a malformed ledger id — CI run 35514430338 caught it
+> (`harness-lint: FAIL (74 passed, 2 failed)`), fixed in `c175ba47`. This is the fourth sighting of
+> OPEN.md row 157's genus and the second on `harness-lint` specifically (157's own text records a
+> `| tail -1 && git commit` instance). Row 157 is DONE, but its remedy —
+> `engineering-team/README.md` § "Running and reading the test gate" — is built on `npm test`'s run
+> record and `gate:status`, and never names the lint, which has no run record at all. Fix shape: one
+> line in that section (or in `roles/implementer.md`) saying the lint's verdict is `$?` and nothing
+> else, never a grep over its output and never the tail of it; optionally give the lint a
+> one-line machine verdict so there is something to quote, as `gate:status` is for the gate.
+
+## Not verified
+
+1. **`npm test` on this host** — still not run by me, and now moot for this branch: CI's stack-free
+   job ran the full gate on this exact head and recorded `Overall: PASS — 2931 passed, 0 failed, 531
+   skipped`. That is the gate this review deferred to from round 1, and it has answered.
+2. **awk portability** — unchanged from round 4: L16 uses only constructs the file already relies on
+   and ran under macOS awk 20200816 here and under CI's awk, but not under mawk or busybox awk.
+3. **Non-GitHub markdown renderers** — all rendering claims measured against GitHub's own
+   `POST /markdown`.
+4. **The region logic itself**, deliberately not fixed this round. I agree with deferring it: it
+   changes both L15 and L16, it needs the shared "where does the table end" notion the row sketches,
+   and — verified — none of the four shapes is reachable on today's file. It has a row, and the row
+   is accurate.
+
+---
+
 ## Verdict
+
+Scope: the whole branch — the documentation change of rounds 1-3 and the `harness-lint` L16
+behaviour change of rounds 4-5. Every blocking finding raised across the five rounds is fixed and
+re-derived; the full CI gate has run green on this head (run 35514602167).
 
 **PASS**
