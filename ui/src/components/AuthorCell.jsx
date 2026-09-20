@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 import { useConfig } from '../context/ConfigContext';
+import { PROFILE_LOOKUP_FAILED } from '../utils/profileBatch';
 
 function shortPubkey(pk) {
   if (!pk) return '—';
@@ -14,6 +15,10 @@ function shortPubkey(pk) {
  * The avatar is delegated to <Avatar>, which badges the Tapestry Assistant and
  * handles picture failures (ADR ta-avatar/0001) — this component's props are
  * unchanged, so every call site gets both without editing.
+ *
+ * The same lever carries the failed-lookup state (ADR profile-lookup-bounds/0001): when the
+ * lookup could not be completed we say so, rather than showing a truncated pubkey as though
+ * it were the answer. That is distinct from an author who has simply published no profile.
  */
 export default function AuthorCell({ pubkey, profiles, size }) {
   const navigate = useNavigate();
@@ -21,7 +26,9 @@ export default function AuthorCell({ pubkey, profiles, size }) {
 
   if (!pubkey) return <span className="text-muted">—</span>;
 
-  const p = profiles?.[pubkey];
+  const raw = profiles?.[pubkey];
+  const lookupFailed = raw === PROFILE_LOOKUP_FAILED;
+  const p = lookupFailed ? null : raw;
   // A fresh instance's assistant has published no kind-0, so without this it
   // would be listed as a truncated pubkey — naming nothing to a reader.
   const unnamed = pubkey === taPubkey ? 'Tapestry Assistant' : shortPubkey(pubkey);
@@ -30,6 +37,20 @@ export default function AuthorCell({ pubkey, profiles, size }) {
   function handleClick(e) {
     e.stopPropagation();
     navigate(`/tapestry/users/${pubkey}`);
+  }
+
+  if (lookupFailed) {
+    return (
+      <span
+        className="author-cell author-cell-link author-cell-unresolved"
+        title={`${pubkey}\n\nCouldn't load this author's name — the profile lookup failed. Reload to try again.`}
+        onClick={handleClick}
+      >
+        <Avatar pubkey={pubkey} profile={null} size={size || 40} />
+        <span className="author-name">{shortPubkey(pubkey)}</span>
+        <span className="author-name-unresolved" aria-label="author name unavailable">⚠</span>
+      </span>
+    );
   }
 
   return (

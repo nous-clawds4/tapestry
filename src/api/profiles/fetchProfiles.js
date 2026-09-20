@@ -4,7 +4,11 @@
  * GET /api/profiles?pubkeys=hex1,hex2,...
  *
  * Fetches kind:0 profiles from PROFILE_RELAYS (defaults.conf),
- * caches in memory with 1-hour TTL.
+ * caches in memory with a 5-minute TTL (CACHE_TTL_MS).
+ *
+ * At most MAX_PUBKEYS_PER_REQUEST pubkeys per request. Callers with more must batch; the
+ * shared client seam (ui/src/utils/profileBatch.js) does this at the same constant.
+ * ADR: engineering-team/decisions/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md
  */
 
 const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';
@@ -21,6 +25,11 @@ const { getSettings } = require('../../config/settings');
 // --- Config ---
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const FETCH_TIMEOUT_MS = 6000;        // 6s per batch
+
+// The per-request cap. Abuse guard, and it keeps each relay query small enough to finish
+// inside FETCH_TIMEOUT_MS — a bigger batch times out more often, and a timeout skips the
+// local-relay fallback entirely (OPEN.md row 273). Mirrored by PROFILE_CHUNK client-side.
+const MAX_PUBKEYS_PER_REQUEST = 50;
 
 // --- In-memory cache: pubkey -> { profile, fetchedAt } ---
 const cache = new Map();
@@ -144,9 +153,15 @@ async function handleFetchProfiles(req, res) {
     return res.json({ success: true, profiles: {} });
   }
 
-  // Cap at 50 to avoid abuse
-  if (pubkeys.length > 50) {
-    return res.status(400).json({ success: false, error: 'max 50 pubkeys per request' });
+  if (pubkeys.length > MAX_PUBKEYS_PER_REQUEST) {
+    // Name the limit and the remedy: a caller that can read this can correct itself.
+    return res.status(400).json({
+      success: false,
+      error: `max ${MAX_PUBKEYS_PER_REQUEST} pubkeys per request`,
+      limit: MAX_PUBKEYS_PER_REQUEST,
+      received: pubkeys.length,
+      hint: `split into batches of ${MAX_PUBKEYS_PER_REQUEST}`,
+    });
   }
 
   try {
@@ -162,4 +177,4 @@ async function handleFetchProfiles(req, res) {
   }
 }
 
-module.exports = { handleFetchProfiles };
+module.exports = { handleFetchProfiles, MAX_PUBKEYS_PER_REQUEST };
