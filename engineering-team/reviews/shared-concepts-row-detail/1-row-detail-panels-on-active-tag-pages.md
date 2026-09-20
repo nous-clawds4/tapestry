@@ -16,15 +16,41 @@
       `b-coverage-audit-and-disposition` (the pre-existing sentinel guard on this page),
       `profile-follows-list` and `profile-followers-list` (the `DataTable` callers with the
       largest column surface), and `login-failure-and-tag-collapse`.
-- [ ] **Full `npm test` — NOT COMPLETED, and this review does not claim otherwise.** A full run
-      is 208 suites. The reviewer started one and it reached `[7/208]` with zero failures before
-      this review was written; an earlier run reached 18/208 in ~40 minutes before being stopped.
-      At that rate a full pass is multiple hours on this machine. **No `gate:status` line is quoted
-      because no run reached a verdict** — the template asks for one and there is none to give.
-      Cause is known and pre-existing: `OPEN.md` row 191 — three `trusted-lists` suites hard-FAIL
-      unless the container is in local-only publish mode, which this operator deliberately does not
-      use. This is a standing gap in this repo's local verifiability, not a property of this diff.
-      **Whoever promotes this change should let CI run the full gate.**
+- [x] **Full `npm test` — COMPLETED, 208/208 suites.** *(This bullet was written as NOT COMPLETED
+      while the run was in flight; the run finished afterwards and the real verdict is recorded
+      here. The earlier wording is superseded, not merely supplemented.)*
+
+      `npm run gate:status`:
+
+      > `20260920T060602Z-16829-80d9` started 2026-09-20T06:06:02.574Z on `b9efca93` — **FAIL**,
+      > exit 1, **3371 passed, 5 failed, 59 skipped, 208/208 suites**; failed:
+      > `tl-membership-method-selector`, `tl-weighted-sum-method`, `tl-certainty-method`,
+      > `summaries-element-count`
+
+      **The gate verdict is FAIL, and all four failing suites are pre-existing and already
+      ledgered — none is touched by this diff, whose files are entirely under `ui/src`.**
+
+      - `tl-membership-method-selector`, `tl-weighted-sum-method`, `tl-certainty-method` —
+        `OPEN.md` row 191. Their `L0 GUARD` refuses to run unless the deployment is in local-only
+        publish mode; this operator deliberately keeps external publishing on, so these are red by
+        default on this machine. Predicted before the run.
+      - `summaries-element-count` (L5 only; its other 12 tests pass) — `OPEN.md` row 285, a
+        **live-graph data-state** failure, *not* predicted by this reviewer and therefore
+        diagnosed rather than assumed. L5 uses `firmware-concept` as a control whose elements are
+        all direct. Since 2026-09-12 the operator has been organising that concept into subsets in
+        the pruned normal form, which removes each member's direct superset edge. Verified against
+        the live graph during this review: `/summaries` reports `elementCount: 37, setCount: 3`
+        while the direct-only count is 28. Row 285 anticipated exactly this — it recorded 33 after
+        the first subset and warned "each further subset widens the gap"; a second subset landed
+        2026-09-13 and the gap is now 9. The suite was last modified 2026-09-09, three days before
+        the first subset, and this branch's commits are all from 2026-09-20 and touch no test and
+        no graph. The operator deferred the test-only fix on 2026-09-13.
+
+      **`shared-concepts-row-detail` itself: `PASS (21 passed, 0 failed, 0 skipped)` inside the
+      full gate**, not only when run alone.
+
+      No new ledger row filed for any of the four — rows 191 and 285 already cover them, and a
+      duplicate would be noise.
 - [x] _Lint not configured — skipped._
 - [x] _Typecheck not configured — skipped._
 - [x] UI build: `npm --prefix ui run build` succeeded (11.21s); `dist/` is gitignored and correctly
@@ -169,5 +195,8 @@ specifies, and two of them (the muted error strings, the CLAUDE.md drift) are fi
 so they outlive this session (`2026-09-20-muted-class-dims-failure-messages`,
 `2026-09-20-claude-md-overstates-bind-mount`).
 
-The full 208-suite gate was not completed, for a documented pre-existing reason. That is the one
-soft spot in this review and is stated rather than papered over: CI should run it before promotion.
+The full 208-suite gate has since completed and is recorded above. Its verdict is FAIL, with four
+failing suites — three from `OPEN.md` row 191's publish-posture guard and one from row 285's
+stale graph control. All four pre-date this branch, none is reachable from a `ui/src` change, and
+this story's own suite passes inside the full run. The soft spot noted in the first draft of this
+review is therefore closed, and the verdict is unchanged.
