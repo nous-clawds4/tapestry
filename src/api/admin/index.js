@@ -9,11 +9,16 @@
 const { getConfigFromFile, getAdminPubkeys, isAdminPubkey } = require('../../utils/config');
 const { getSettings, updateOverrides } = require('../../config/settings');
 const { nip19 } = require('nostr-tools');
+const { guardedFetch } = require('../../utils/ssrfGuard');
 
 const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
 
 /**
  * Verify a NIP-05 identifier. Returns hex pubkey or null.
+ *
+ * The domain is user-supplied, so the request goes through guardedFetch
+ * (src/utils/ssrfGuard) — see src/api/nip05.js for the rationale. Owner-gating
+ * narrows who can reach this copy; it does not make the address safe.
  */
 async function verifyNip05(nip05Address) {
   const match = nip05Address.match(NIP05_REGEX);
@@ -23,12 +28,12 @@ async function verifyNip05(nip05Address) {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
-    const resp = await fetch(
+    const resp = await guardedFetch(
       `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`,
       { signal: controller.signal }
     );
     clearTimeout(timer);
-    if (!resp.ok) return null;
+    if (!resp || !resp.ok) return null;
     const json = await resp.json();
     const pubkey = json.names?.[name] || json.names?.[name.toLowerCase()];
     if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) return null;
@@ -242,6 +247,9 @@ async function handleRemoveAdmin(req, res) {
 }
 
 module.exports = {
+  // Exported so test/nip05-ssrf-guard.test.js can assert the guard on the real
+  // function; not routed directly.
+  verifyNip05,
   handleListAdmins,
   handleAddAdmin,
   handleRemoveAdmin,
