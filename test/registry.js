@@ -210,6 +210,7 @@ const suites = [
   { file: 'tl-treasure-map-optin-publish.test.js' },
   { file: 'neo4j-sizing-override.test.js' },
   { file: 'relay-scan-bounds.test.js' },
+  { file: 'profile-lookup-bounds.test.js' },
   { file: 'honest-broadcast-reporting.test.js' },
   { file: 'honest-publish-reporting.test.js' },
   { file: 'honest-publish-reporting-ci-guard.test.js' },
