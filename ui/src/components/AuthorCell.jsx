@@ -40,6 +40,9 @@ export default function AuthorCell({ pubkey, profiles, size }) {
   }
 
   if (lookupFailed) {
+    // `unnamed`, not the raw short pubkey: the TA's identity comes from config, so a failed
+    // lookup tells us nothing about WHO this is and we still know. The ⚠ carries the
+    // "couldn't check" signal without throwing away a name we already had.
     return (
       <span
         className="author-cell author-cell-link author-cell-unresolved"
@@ -47,7 +50,7 @@ export default function AuthorCell({ pubkey, profiles, size }) {
         onClick={handleClick}
       >
         <Avatar pubkey={pubkey} profile={null} size={size || 40} />
-        <span className="author-name">{shortPubkey(pubkey)}</span>
+        <span className="author-name">{unnamed}</span>
         <span className="author-name-unresolved" aria-label="author name unavailable">⚠</span>
       </span>
     );

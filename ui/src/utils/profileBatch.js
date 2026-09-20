@@ -73,8 +73,10 @@ export async function fetchProfilesChunked(pubkeys, opts = {}) {
           ? data.profiles[pk]
           : null;
       }
-    } catch {
-      // One bad batch costs only its own pubkeys — keep going.
+    } catch (err) {
+      // One bad batch costs only its own pubkeys — keep going. The sentinel is what the
+      // operator sees; this line is what a developer needs to know WHY.
+      console.warn(`useProfiles: batch of ${batch.length} failed —`, err && err.message ? err.message : err);
       for (const pk of batch) batchResult[pk] = PROFILE_LOOKUP_FAILED;
     }
 
