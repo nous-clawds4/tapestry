@@ -79,6 +79,6 @@ instead of assuming everyone wants the owner's view.
   mapping.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/author-scoped-inspection/0001-instance-assistant-roster-and-delegate-resolver.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

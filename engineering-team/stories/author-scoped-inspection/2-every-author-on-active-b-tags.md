@@ -67,6 +67,6 @@ each one, so that I can see what actually arrived instead of only what my own as
 None.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/author-scoped-inspection/0002-author-scoped-views-on-active-b-tags.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

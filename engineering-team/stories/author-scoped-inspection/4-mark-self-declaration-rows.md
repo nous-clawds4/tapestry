@@ -41,8 +41,13 @@ reading the coordinates.
       `* self-declaration` appears immediately to the right of the control that copies the b-tag.
 - [ ] Given a row that is not a self-declaration, when its detail panel is opened, then no such
       note appears and the panel is unchanged from what ships today.
-- [ ] Given the distinction is carried by color, when the page is viewed in both the light and the
-      dark theme, then it is visible in both.
+- [ ] Given the distinction is carried by color, when a self-declaration row is viewed **at rest**
+      and **under the pointer**, then it is visible in both states — neither the row's own tint nor
+      the table's hover feedback erases the other.
+      *(Amended at the Architecture gate. The original criterion said "in both the light and the
+      dark theme"; the app is dark-only — `ui/src/styles.css` defines one palette and contains no
+      `prefers-color-scheme` or `data-theme` rule. The hover interaction is the constraint that
+      actually bites. ADR 0002 § Context fact 4.)*
 
 ## Concepts touched
 
@@ -66,6 +71,6 @@ reading the coordinates.
 None. This story is independent of stories 1–3 and could be built in any order relative to them.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/author-scoped-inspection/0002-author-scoped-views-on-active-b-tags.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

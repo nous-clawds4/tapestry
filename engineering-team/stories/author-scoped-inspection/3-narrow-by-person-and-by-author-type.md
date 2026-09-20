@@ -91,11 +91,11 @@ came from outside this instance."
 
 ## Open questions
 
-- **The wording above.** The owner asked for succinct names for the author-type options and has not
-  yet seen this proposal. Resolve at the story gate; the Architect should not start until the
-  labels are settled, because the legend text is part of what gets built.
+- ~~**The wording above.**~~ **Settled at the story gate (2026-09-20):** the owner approved the
+  proposed labels unchanged. The one correction was elsewhere — story 4's panel note reads
+  `* self-declaration`, not `* self-referencing`.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/author-scoped-inspection/0002-author-scoped-views-on-active-b-tags.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
