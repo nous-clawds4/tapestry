@@ -22,6 +22,7 @@
  */
 
 const { getSettings } = require('../config/settings');
+const { guardedFetch } = require('../utils/ssrfGuard');
 
 // Per NIP-05 spec: local-part allows lowercase alphanumerics + `-`, `_`, `.`
 const NAME_RE = /^[a-z0-9._-]+$/;
@@ -121,6 +122,12 @@ function handleNip05Lookup(req, res) {
  * (Same shape as the verifyNip05 helpers in src/api/admin and the meili search
  * proxy — kept local rather than refactored across all three, which is out of
  * scope for story #6.)
+ *
+ * The domain comes from user-supplied input and this route is unauthenticated,
+ * so the request goes through guardedFetch (src/utils/ssrfGuard): a host that is
+ * or resolves to a non-public address is refused before anything leaves the
+ * process, and redirects are not followed. A refusal is indistinguishable from
+ * any other failed lookup — null, as before.
  */
 async function verifyNip05Identifier(nip05Address) {
   const match = String(nip05Address || '').match(NIP05_LOOKUP_RE);
@@ -130,12 +137,12 @@ async function verifyNip05Identifier(nip05Address) {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
-    const resp = await fetch(
+    const resp = await guardedFetch(
       `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`,
       { signal: controller.signal }
     );
     clearTimeout(timer);
-    if (!resp.ok) return null;
+    if (!resp || !resp.ok) return null;
     const json = await resp.json();
     const pubkey = json.names?.[name] || json.names?.[name.toLowerCase()];
     if (!pubkey || !HEX_PUBKEY_RE.test(pubkey)) return null;
