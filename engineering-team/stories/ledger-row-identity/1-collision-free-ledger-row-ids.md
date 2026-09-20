@@ -107,6 +107,54 @@ None open. Two choices made at Planning, both ratified by the operator at the Pl
 2. **Row 307 joins rows 151 and 207.** The packet named two rows; 307 is the same defect, and its
    four occurrences are the best evidence here.
 
+## Deviations
+
+Judgment calls made at Implementation, none of which changes the ADR's design.
+
+- **"The table" is the `|` lines after the `| # |` header, minus its `|---|` line.** ADR step 8
+  says "the `OPEN.md` table" and "the text between the first two pipes". `OPEN.md` has a second
+  table in its preamble ("Kind of open work") and numbering notes between chunks of rows, so taking
+  every `|` line would report `---` as a duplicate and the preamble's cells as rows above the
+  freeze. Only the first cell is ever read, as the ADR asks.
+- **The freeze marker counts only as a whole line.** A row or note that quotes the marker inside
+  its text cannot set, or lower, the frozen maximum.
+- **L15(b) has a second message, for an id that is not a number.** The ADR gives one message ("row
+  <id> is above the frozen table … move it to `ledger/<date>-<slug>.md`"). For a date+slug id
+  pasted into the table, "above" reads wrongly and the remedy is simpler — the id is already the
+  filename — so that case says "is not a number, and the table is frozen … move it to
+  `ledger/<id>.md`". A numbered row gets the ADR's message word for word.
+- **L15(c) enforces the 64-character cap.** Step 8(c) names only the pattern; the rule states the
+  cap in the same bullet, and an id cannot be changed once it is cited. Raised in the test plan and
+  approved at the Test Design gate. L15(c) also reports a row file that is empty, which no header
+  check would otherwise see.
+- **With no `OPEN.md` at all, L15(a) and (b) skip without a word.** The INFO line is printed when
+  `OPEN.md` exists and carries no marker, which is the case ADR step 8 names. The lint suite's
+  older fixture trees (about forty) have no ledger at all, and an INFO line on each would be noise.
+- **The id pattern is spelled without `{n,m}` in awk.** Interval expressions are not portable
+  across awk implementations (older mawk builds lack them), and the awk code already in these
+  scripts spells its digits out the same way (`scripts/whats-open.sh`:97). `(-[a-z0-9]+)` once and
+  then four times optional is the same language as `{1,5}`. This machine's awk does take intervals,
+  so the choice is untested caution, not a measured need.
+- **`.claude/commands/close-book.md`:33 is retired along with `workflows/6-book-close.md` step
+  13.2.** ADR step 10 names only the workflow; the command file taught the same "allocated off
+  `origin`" rationale (found by the packet, confirmed by step 10's own grep).
+- **Both close-commit lines now read `git add … OPEN.md ledger`** (`close-book.md`:31,
+  `6-book-close.md`:51). Not in step 10's list, but a consequence of the decision: a close that
+  files its loose ends under the new rule would otherwise leave them out of the close commit.
+- **In `OPEN.md` § "How to use this ledger" the rule replaces two bullets, not one.** The old
+  "Flip Status to DONE" bullet is the rule's "Close a row" bullet now. One bullet was added that
+  the ADR's rule text does not have: that `harness-lint` L15 holds the rule.
+- **The moved row's file keeps the whole Item text.** Its title is the ADR's example title (the
+  first clause of the row's bold lead sentence). Its body is the Item cell byte for byte, under one
+  italic line saying where it came from and that "row 329" means the other row. `**Opened:**` and
+  `**Pointer:**` are the row's own cells.
+- **Landing order for step 1, as measured.** `38a1488f` (the merge of PR #686, cleanup row) is an
+  ancestor of `86b2d9e7` (the merge of PR #687, meta row); `OPEN.md` at the first holds one row 329
+  and at the second two. `2a99d58d` is also an ancestor of `dab6ce5b`: the later row was minted on
+  top of the one it duplicates. The sweep by text found nothing to repoint: the two citations of
+  "OPEN.md row 329" (`audits/user-data-error-path/audit.md`:53 and `prd-seed.md`:36) both mean the
+  cleanup row, which keeps the number.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md`

@@ -31,7 +31,7 @@ product-team/
 The Claude Code wiring lives elsewhere:
 
 - `.claude/commands/<phase>.md` — slash-command entry points: `/discover`, `/model-users`, `/scope`, `/model-domain`, `/design-experience`, `/assemble-prd`, `/decompose-stories`, `/discuss-product`.
-- `.claude/agents/<role>.md` — subagents with role-appropriate tool whitelists. Writing roles carry permission rules scoping Write/Edit to `product-team/**` + root `OPEN.md` (out-of-tree writes require approval under default permission modes); the Product Advisor has no Write and no Bash.
+- `.claude/agents/<role>.md` — subagents with role-appropriate tool whitelists. Writing roles carry permission rules scoping Write/Edit to `product-team/**` + root `OPEN.md` + `ledger/**` (out-of-tree writes require approval under default permission modes); the Product Advisor has no Write and no Bash.
 - `CLAUDE.md` — auto-loaded; introduces Product Team Mode and links here.
 
 ## The product slug
@@ -83,7 +83,7 @@ The handoff is not one-way. When engineering finishes a book of work, it runs `/
 
 ## Role isolation
 
-Each phase has a corresponding subagent in `.claude/agents/`. Subagents run in isolated context with constrained tools — stated exactly: the writing roles carry per-agent permission rules scoping Write/Edit to `product-team/**` plus root `OPEN.md` (the product retro's ledger writes), so an in-tree write proceeds and an out-of-tree write requires explicit approval under default permission modes instead of silently succeeding (an operator-chosen auto-approve mode weakens this); their Bash is trust-based. The Product Advisor — and its engineering-side sibling, the Product Expert — has no Bash and no Write at all. The slash commands invoke role behavior in the main session for interactive phases; the subagents are useful when you want a role to run autonomously or in the background.
+Each phase has a corresponding subagent in `.claude/agents/`. Subagents run in isolated context with constrained tools — stated exactly: the writing roles carry per-agent permission rules scoping Write/Edit to `product-team/**` plus root `OPEN.md` and `ledger/**` (the product retro's ledger writes — a new ledger row is a file under `ledger/`), so an in-tree write proceeds and an out-of-tree write requires explicit approval under default permission modes instead of silently succeeding (an operator-chosen auto-approve mode weakens this); their Bash is trust-based. The Product Advisor — and its engineering-side sibling, the Product Expert — has no Bash and no Write at all. The slash commands invoke role behavior in the main session for interactive phases; the subagents are useful when you want a role to run autonomously or in the background.
 
 ## Tuning the team
 

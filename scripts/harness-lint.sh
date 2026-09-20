@@ -28,6 +28,10 @@
 #   L14 verdict-hygiene  active stories/decisions/epics record no gate verdicts
 #                        (two shapes; backtick/fenced mentions exempt; done/ and
 #                        stories/_intake.md exempt — ADR harness-gate-integrity/0002)
+#   L15 ledger-ids       OPEN.md's numbered table holds no id twice and nothing above
+#                        its freeze marker; every ledger/*.md is named by a well-formed
+#                        date+slug id and carries its header fields (ADR
+#                        ledger-row-identity/0001)
 #
 # Review verdicts (L1/L4): the LAST verdict-shaped token in the file wins —
 # a token is PASS or CHANGES_REQUESTED appearing on a heading line or inside
@@ -340,6 +344,93 @@ check_L14() {
   done
 }
 
+# ---------- L15: ledger ids — two homes, one id each, and the table stays frozen ----------
+# ADR ledger-row-identity/0001. A ledger row's id is either a number in OPEN.md's
+# table — frozen where it stands, because thousands of citations point into it —
+# or a date+slug id that IS the name of a file under ledger/. (a) No id twice in
+# the table. (b) With the freeze marker present, every table id is a number no
+# higher than the marker's: a row minted under the old "highest plus one" rule
+# fails here, and so in CI, with the remedy in the message. No marker: INFO and
+# skip, the way L10 and L11 degrade. (c) Every ledger/*.md is named by a
+# well-formed id, repeats it in **Id:**, and carries the header fields the readers
+# take (scripts/lib/collect-ledger.sh). Table rows are the `|` lines after the
+# "| # |" header, minus its |---| line — OPEN.md has a second table in its
+# preamble, and notes between chunks of rows. ONLY the first cell is read: nine
+# rows carry a literal pipe inside a later cell. The id pattern is spelled without
+# {n,m} intervals, as the other awk code here is (whats-open.sh's intake scan):
+# not every awk takes them (older mawk builds do not).
+check_L15() {
+  local ids id n frozen path problems files
+  if [ -f OPEN.md ]; then
+    ids=$(awk -F'|' '
+      !hdr { if ($0 ~ /^\|[ \t]*#[ \t]*\|/) hdr = 1; next }
+      /^\|/ { id = $2; gsub(/^[ \t]+|[ \t]+$/, "", id); if (id != "" && id !~ /^:?-+:?$/) print id }
+    ' OPEN.md)
+    while read -r n id; do
+      [ -n "$id" ] || continue
+      violation L15 OPEN.md "row id $id appears $n times in the table — if a merge kept two copies of one row, delete the stale copy; if they are two rows, the one that landed later moves to ledger/<date>-<slug>.md (never renumber); see OPEN.md § How to use this ledger"
+    done < <(printf '%s\n' "$ids" | sort | uniq -c | awk '$1 > 1 { n = $1; sub(/^[ \t]*[0-9]+[ \t]+/, ""); print n, $0 }')
+    frozen=$(grep -m1 -E '^<!-- ledger-table-frozen: highest-number=[0-9]+ -->[[:space:]]*$' OPEN.md | grep -oE '[0-9]+')
+    if [ -z "$frozen" ]; then
+      echo "INFO OPEN.md carries no ledger-table-frozen marker — L15(b) (frozen-table) skipped; the convention isn't adopted in this tree"
+    else
+      while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        if [[ "$id" =~ ^[0-9]+$ ]]; then
+          violation L15 OPEN.md "row $id is above the frozen table (highest-number=$frozen) — move it to ledger/<date>-<slug>.md; see OPEN.md § How to use this ledger"
+        else
+          violation L15 OPEN.md "row $id is not a number, and the table is frozen (highest-number=$frozen) — a date+slug row is a file: move it to ledger/<id>.md; see OPEN.md § How to use this ledger"
+        fi
+      done < <(printf '%s\n' "$ids" | awk -v max="$frozen" '$0 != "" && ($0 !~ /^[0-9]+$/ || $0 + 0 > max + 0)' | sort -u)
+    fi
+  fi
+  files=(ledger/*.md)
+  [ -e "${files[0]}" ] || return 0
+  while IFS=$'\t' read -r path problems; do
+    [ -n "$path" ] || continue
+    violation L15 "$path" "$problems — shape: engineering-team/templates/open-row.md; rule: OPEN.md § How to use this ledger"
+  done < <(awk '
+    function value(line, field,    v) {
+      v = line; sub("^\\*\\*" field ":\\*\\*[ \t]*", "", v); sub(/[ \t\r]+$/, "", v)
+      return v
+    }
+    function check(    base, p, word) {
+      if (file == "") return
+      base = file; sub(/^.*\//, "", base); sub(/\.md$/, "", base)
+      p = ""
+      if (base !~ /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[a-z0-9]+(-[a-z0-9]+)(-[a-z0-9]+)?(-[a-z0-9]+)?(-[a-z0-9]+)?(-[a-z0-9]+)?$/)
+        p = p "; the filename is not a YYYY-MM-DD-<slug> id (the UTC date, then two to six lowercase words joined by hyphens)"
+      else if (length(base) > 64)
+        p = p "; the id is " length(base) " characters long (64 at most)"
+      if (!got_id) p = p "; no **Id:** field"
+      else if (idf != base) p = p "; **Id:** reads \"" idf "\", not the filename"
+      if (type == "") p = p "; no **Type:**"
+      if (!got_opened) p = p "; no **Opened:** field"
+      else if (opened == "") p = p "; **Opened:** holds no ISO date"
+      word = status; sub(/[ \t].*$/, "", word)
+      if (!got_status) p = p "; no **Status:** field"
+      else if (word != "OPEN" && word != "DONE") p = p "; **Status:** must start with OPEN or DONE"
+      if (p != "") print file "\t" substr(p, 3)
+    }
+    FNR == 1 {
+      check()
+      file = FILENAME; seen[FILENAME] = 1
+      idf = type = opened = status = ""; got_id = got_type = got_opened = got_status = 0
+    }
+    !got_id && /^\*\*Id:\*\*/ { idf = value($0, "Id"); got_id = 1 }
+    !got_type && /^\*\*Type:\*\*/ { type = value($0, "Type"); got_type = 1 }
+    !got_status && /^\*\*Status:\*\*/ { status = value($0, "Status"); got_status = 1 }
+    !got_opened && /^\*\*Opened:\*\*/ {
+      got_opened = 1
+      if (match($0, /20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) opened = substr($0, RSTART, RLENGTH)
+    }
+    END {
+      check()
+      for (i = 1; i < ARGC; i++) if (!(ARGV[i] in seen)) print ARGV[i] "\tthe file is empty"
+    }
+  ' "${files[@]}")
+}
+
 # ---------- run ----------
 check_reviews
 check_L2
@@ -353,6 +444,7 @@ check_L11
 check_L12
 check_L13
 check_L14
+check_L15
 
 # stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
 if [ "${#W_IDS[@]}" -gt 0 ]; then

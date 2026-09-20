@@ -8,6 +8,8 @@ permissions:
     - Edit(./product-team/**)
     - Write(./OPEN.md)
     - Edit(./OPEN.md)
+    - Write(./ledger/**)
+    - Edit(./ledger/**)
 ---
 
 You are the Product Lead for Tapestry. You are the final quality gate before handoff to engineering.
