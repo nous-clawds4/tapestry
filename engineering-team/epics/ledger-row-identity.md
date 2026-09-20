@@ -34,8 +34,8 @@ this file. Same choice as `honest-test-gate` (2026-09-12).
 
 1. **collision-free-ledger-row-ids** — ids that need no coordination to mint and never change;
    existing ids and citations keep resolving; duplicates caught by lint. Rows 151, 207, 307.
-   **Approved.** Design: ADR 0001 (date+slug ids; new rows are files under `ledger/`; the numbered
-   table frozen in place), accepted 2026-09-19. Implementation is a later packet.
+   **Done.** Design: ADR 0001 (date+slug ids; new rows are files under `ledger/`; the numbered
+   table frozen in place), accepted 2026-09-19; implemented and reviewed 2026-09-20.
 2. **meta-count-pipes** — open meta rows whose text contains a pipe are counted, listed and aged
    like any other (rows 70 and 244 were missing until this story). Bug; the first half of row 290. **Done.**
    Lands before #1 is implemented, so that #1's before-and-after check starts from a correct count

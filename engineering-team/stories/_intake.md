@@ -1860,7 +1860,7 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 
 ## 2026-07-28 — Harness story proposal: OPEN.md file-per-row migration (kill the last flat counter)
 
-**PICKED UP** 2026-09-19 → book `engineering-team/audits/ledger-row-identity/` (story `ledger-row-identity` #1; ADR `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md`, accepted). The ADR keeps this proposal's date+slug ids and drops its migration: new rows become files under a top-level `ledger/`, and the numbered table stays in `OPEN.md`, frozen where it stands. Implementation is a later packet.
+**RESOLVED** 2026-09-20 — built as story `ledger-row-identity` #1 (book `engineering-team/audits/ledger-row-identity/`; ADR `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md`; review `engineering-team/reviews/ledger-row-identity/1-collision-free-ledger-row-ids.md`). What shipped keeps this proposal's date+slug ids and drops its migration: a new row is a file under a top-level `ledger/`, and the numbered table stays in `OPEN.md`, frozen where it stands (rows 1–343). Picked up 2026-09-19; `OPEN.md` rows 151, 207 and 307 closed with it.
 
 Originally filed **NOT PICKED UP** — filed at the store-and-show postmortem, sibling to the blinding-rebuild proposal above; motivated by the same two-session collision that stranded that close's §7a drafts for a day (store-and-show audit §7a preamble: "held by a concurrent session"; add-a-concept audit §7 F8: "the previous close's retro dispositions never landed").
 

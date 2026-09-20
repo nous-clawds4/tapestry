@@ -1,6 +1,6 @@
 # Story 1: Ledger row ids that cannot collide
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-19
 **Type:** Feature
 
@@ -54,23 +54,23 @@ author meant.
 
 ## Acceptance criteria
 
-- [ ] **AC-1 — Minting needs no coordination.** Given two checkouts that share a base and have
+- [x] **AC-1 — Minting needs no coordination.** Given two checkouts that share a base and have
       exchanged nothing since, when each adds a ledger row for a different finding by following the
       documented procedure, with the network unavailable, then the two rows carry different ids.
-- [ ] **AC-2 — Keeping both sides is always enough.** Given two branches that each added rows under
+- [x] **AC-2 — Keeping both sides is always enough.** Given two branches that each added rows under
       the new rule, when they merge in either order and any conflict in the ledger is resolved by
       keeping both sides, then the ledger is valid as it stands: no id appears twice, no id had to
       change, and `bash scripts/harness-lint.sh` is clean.
-- [ ] **AC-3 — Existing ids and citations hold.** For every row on `origin/staging` when the change
+- [x] **AC-3 — Existing ids and citations hold.** For every row on `origin/staging` when the change
       lands, following a citation of its existing number by the documented lookup finds a row whose
       Item text is unchanged. The change edits no existing citation anywhere in the repo.
-- [ ] **AC-4 — A duplicate id is a lint violation.** Given a ledger in which two rows carry the same
+- [x] **AC-4 — A duplicate id is a lint violation.** Given a ledger in which two rows carry the same
       id, when `bash scripts/harness-lint.sh` runs, then it exits nonzero and names the id. Given
       the ledger as the change leaves it, it reports none.
-- [ ] **AC-5 — The read surfaces agree with themselves.** The ledger section of `/whats-open`, the
+- [x] **AC-5 — The read surfaces agree with themselves.** The ledger section of `/whats-open`, the
       session-start digest's meta line and the meta-escalation count list the same open items, with
       the same ages, immediately before and after the change.
-- [ ] **AC-6 — One rule, written once; the interim rules retire.** `OPEN.md` § "How to use this
+- [x] **AC-6 — One rule, written once; the interim rules retire.** `OPEN.md` § "How to use this
       ledger" says how to mint an id and how to cite one. The "fetch first, expect to renumber"
       guidance is gone from where it lives today (row 151's interim rule; the rationale in
       `engineering-team/workflows/6-book-close.md` step 13). Rows 151, 207 and 307 are flipped DONE,
@@ -159,4 +159,4 @@ Judgment calls made at Implementation, none of which changes the ADR's design.
 
 - ADR: `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md`
 - Test plan: `engineering-team/stories/ledger-row-identity/1-collision-free-ledger-row-ids.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/ledger-row-identity/1-collision-free-ledger-row-ids.md`
