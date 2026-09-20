@@ -1,7 +1,8 @@
 # Epic: ledger-row-identity
 
 **Created:** 2026-09-19
-**Status:** Active
+**Status:** Done
+**Retired:** 2026-09-20 — both stories Done and merged to `staging` (PR #691, `7a06da12`; PR #697, `d79a0dab`); story, ADR and review folders moved under `done/ledger-row-identity/` at the book close the same day. Not promoted to `main` at retirement.
 **Book:** `engineering-team/audits/ledger-row-identity/book.md`
 **Provenance:** work packet `h-ledger-identity` (operator's 2026-09-13 `/whats-open` triage);
 `OPEN.md` rows 151, 207, 307; `engineering-team/stories/_intake.md` 2026-07-28 — "OPEN.md
@@ -30,7 +31,7 @@ this file. Same choice as `honest-test-gate` (2026-09-12).
 
 ## Stories
 
-`stories/ledger-row-identity/`:
+`stories/done/ledger-row-identity/`:
 
 1. **collision-free-ledger-row-ids** — ids that need no coordination to mint and never change;
    existing ids and citations keep resolving; duplicates caught by lint. Rows 151, 207, 307.

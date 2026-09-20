@@ -1,9 +1,9 @@
 # Book of Work: Ledger row ids that cannot collide
 
 **Slug:** ledger-row-identity
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-19 — eagerly, at intake, before the story is approved.
-**Closed:** —
+**Closed:** 2026-09-20 — both stories Done and live on `staging` (PR #691; PR #697, deploy run 35487312546); all six acceptance-frame bullets verified at close; operator-ratified close. Audit + PRD seed under this dir. Not promoted to `main` (the operator's decision, 2026-09-20).
 **Mode:** Human-gated. The operator holds every phase gate.
 
 ## Intent anchor
@@ -18,16 +18,21 @@ frame below at the Planning gate on 2026-09-19.
 
 ### Acceptance frame
 
-- [ ] Two sessions that cannot see each other's work can each add a ledger row, and the two rows
+- [x] Two sessions that cannot see each other's work can each add a ledger row, and the two rows
       never end up with the same id.
-- [ ] No merge ever has to change an id that was already written down, so a citation always means
+- [x] No merge ever has to change an id that was already written down, so a citation always means
       the row its author meant.
-- [ ] Every row id and every citation that exists today keeps resolving to the same row, without
+- [x] Every row id and every citation that exists today keeps resolving to the same row, without
       anyone editing the citation.
-- [ ] `/whats-open`, the session-start digest and the meta escalation report the same open items
+- [x] `/whats-open`, the session-start digest and the meta escalation report the same open items
       after the change as before it.
-- [ ] A duplicate id is caught by `harness-lint`, not by a late review round.
-- [ ] `OPEN.md` rows 151, 207 and 307 are flipped DONE, and the 2026-07-28 intake entry is marked.
+- [x] A duplicate id is caught by `harness-lint`, not by a late review round.
+- [x] `OPEN.md` rows 151, 207 and 307 are flipped DONE, and the 2026-07-28 intake entry is marked.
+
+*Ticked at close, 2026-09-20, each against a command (audit §4 lists what was run). Bullets 1 and 2
+hold as ADR 0001 reads them: an id is fixed once it is on `staging`, and two branches that mint the
+same id are stopped by git at the merge, where the one that has not landed renames its file — audit
+§4, deviation 1.*
 
 ## Epics in this book
 
@@ -37,7 +42,7 @@ frame below at the Planning gate on 2026-09-19.
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high — the frame was opened eagerly at intake (`9a318fb0`), never edited, and each bullet was re-derived from a command at close. What is thin is field time, not evidence: no two branches had yet minted rows in parallel on `staging` when the book closed (audit §5).
 
 ## Close artifacts *(filled by `/close-book`)*
 
