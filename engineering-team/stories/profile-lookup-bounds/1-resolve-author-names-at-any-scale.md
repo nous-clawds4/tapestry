@@ -1,6 +1,6 @@
 # Story 1: Author names must resolve on pages with many distinct authors
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-08
 **Type:** Bug
 

@@ -3,17 +3,25 @@
 **Story:** `engineering-team/stories/profile-lookup-bounds/1-resolve-author-names-at-any-scale.md`
 **ADR:** `engineering-team/decisions/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md`
 **Test plan:** `engineering-team/stories/profile-lookup-bounds/1-resolve-author-names-at-any-scale.test-plan.md`
-**Diff reviewed:** `origin/staging a55b9631` → `56ea6cf9`
+**Diff reviewed:** `origin/staging a55b9631` → `5b3af3b9`
 **Date:** 2026-09-20
 
 ## Verdict
 
-**CHANGES_REQUESTED** — one blocking regression, user-visible, in the exact path this story
-adds. Everything else in the change is sound and should stand.
+**PASS**
 
-## Blocking
+Round 1 raised one blocking regression (B1) and three non-blocking notes. B1 and N1 are fixed
+in `5b3af3b9`; B1's closure is verified structurally below, not just case-by-case. The change
+meets every acceptance criterion, conforms to ADR 0001, and introduces no regression in the
+suites that neighbour it.
 
-### B1 — The Tapestry Assistant loses its name on the failed-lookup path
+One carry-forward, recorded rather than blocking: **E2 must be confirmed green on staging after
+deploy.** It is the only AC-5 check that exercises the wire, and it cannot be read from this
+worktree.
+
+## Round 1 — Blocking (now resolved)
+
+### B1 — The Tapestry Assistant loses its name on the failed-lookup path — **FIXED**
 
 `ui/src/components/AuthorCell.jsx:42-54`. The new failed-lookup branch renders
 `shortPubkey(pubkey)` directly, bypassing the `unnamed` fallback two lines above it. For the
@@ -37,7 +45,20 @@ Not hypothetical: the TA authors most concept and list content, and `e00ed090…
 identity keeps its name and the ⚠ affordance carries the "we couldn't check" signal. The
 non-TA case is unaffected — `unnamed` already falls through to `shortPubkey` there.
 
-## Non-blocking
+**Resolution — verified structurally, which is stronger than the case list.** `AuthorCell.jsx:53`
+now renders `{unnamed}`. Two facts close this for *every* path, not only the cases someone
+thought to enumerate:
+
+1. `const unnamed` (`AuthorCell.jsx:34`) is **byte-identical** to the same line on
+   `origin/staging` (`:27` there) — the naming rule itself is untouched.
+2. `shortPubkey(pubkey)` now appears in **exactly one place** in the file — inside that rule.
+
+So every render path, failed or not, resolves a name through the identical rule that existed
+before this story. The only difference the story introduces to a cell is the added ⚠ affordance
+and its styling. Spot-checked across TA/non-TA × failed/absent/named: the displayed name matches
+pre-change behavior in all five.
+
+## Round 1 — Non-blocking
 
 ### N1 — The catch now discards all diagnostics
 
@@ -47,6 +68,9 @@ sentinel makes the failure visible *to the operator*, which is the AC-4 requirem
 satisfied — but a developer debugging why a batch failed now has nothing in the console. A
 one-line `console.warn` inside the catch would restore it without changing behavior. Left
 non-blocking because AC-4 is about the operator, not the console.
+
+**Resolution — fixed** in `profileBatch.js:76-79`: the catch now binds `err` and warns with the
+batch size and the underlying message. Public pubkeys only; nothing sensitive is logged.
 
 ### N2 — R3 passes while the behavior it names regresses
 
@@ -70,7 +94,7 @@ does this and the endpoint does not behave this way; noted for completeness, no 
 | AC-1 — 246 authors all resolve, no oversized request | **Met** | `C1` green; largest batch 50 |
 | AC-2 — ≥1,000 authors, past both ceilings | **Met** | `C2` (20 requests, none >50), `C12` (largest URL well under half the 16,384-byte ceiling) |
 | AC-3 — ≤50 unchanged | **Met** | `C3` (exactly one request at 50), `C4`, `E1` live |
-| AC-4 — failures visible, incl. bodiless | **Met for the general case; B1 regresses the TA case** | `C5`–`C8`, `S5` green; B1 above |
+| AC-4 — failures visible, incl. bodiless | **Met** | `C5`–`C8`, `S5` green; B1 resolved in `5b3af3b9` |
 | AC-5 — readable refusal | **Met** | `S6`, `S7`; handler verified in-container (below) |
 
 ## ADR conformance
@@ -118,8 +142,29 @@ deploy** — it is the only AC-5 check that exercises the wire, and it cannot be
 
 ## Phase discipline
 
-The implementation commit touches **0** files under `test/` — the Phase-3/Phase-4 boundary held.
-Harness-lint clean.
+Both implementation commits (`56ea6cf9`, `5b3af3b9`) touch **0** files under `test/` — the
+Phase-3/Phase-4 boundary held across the kick-back. Harness-lint clean.
+
+## A neighbouring suite that is red, and why it is not this story
+
+`concept-count-canonical` reports 15 passed, 4 failed. All four are `L` (live) tests and all
+four fail on the same cause — the local concept graph holds 0 concepts
+(`/api/concept-graph/summaries` → `{"count":0}`, the known local condition, `OPEN.md` #69):
+
+```
+L2: expected the graph to hold many concepts; got 0.
+L3: a count of 0 means the old :ListItem predicate is still in force
+L4: word: a count of 0 means set-nested elements are still being skipped.
+L6: expected at least one fixture concept to have nested sets.
+```
+
+Confirmed unrelated: this branch changes no file the suite exercises
+(`git diff origin/staging..HEAD -- test/concept-count-canonical.test.js ui/src/pages/concepts
+src/api/concept-graph` is empty), and the suite references none of
+`useProfiles`/`AuthorCell`/`profileBatch`/`api/profiles`. Worth naming because these are tests
+that **FAIL where they should SKIP** on an empty graph — the "local test gate lies" class the
+operator has already deferred to a future harness story. Reading them as this story's breakage
+would be a misread; so would letting them hide a real one.
 
 ## What was checked and found fine
 
