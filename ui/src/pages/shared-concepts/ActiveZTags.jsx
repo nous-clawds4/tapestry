@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import AuthorCell from '../../components/AuthorCell';
+import TagDetailPanel from '../../components/TagDetailPanel';
 import useProfiles from '../../hooks/useProfiles';
 import { useConfig } from '../../context/ConfigContext';
 import { queryRelay } from '../../api/relay';
@@ -34,6 +35,12 @@ function bestName(ev) {
   if (names && typeof names[1] === 'string' && names[1].trim() !== '') return names[1];
   const name = ev?.tags?.find((x) => x[0] === 'name');
   return name && typeof name[1] === 'string' && name[1].trim() !== '' ? name[1] : null;
+}
+
+/** The event's description tag value, if any. */
+function descriptionOf(ev) {
+  const t = ev?.tags?.find((x) => x[0] === 'description');
+  return t && typeof t[1] === 'string' && t[1].trim() !== '' ? t[1] : null;
 }
 
 /**
@@ -76,7 +83,14 @@ export default function ActiveZTags() {
           const coord = `${ev.kind}:${ev.pubkey}:${d}`;
           const prev = targets.get(coord);
           if (!prev || ev.created_at > prev.created_at) {
-            targets.set(coord, { name: bestName(ev), author: ev.pubkey, created_at: ev.created_at });
+            targets.set(coord, {
+              name: bestName(ev),
+              author: ev.pubkey,
+              created_at: ev.created_at,
+              // No local event stands behind a z-tag row — the row IS the foreign-authored
+              // header — so its own description is the only one there is (ADR 0001 § frame notes).
+              description: descriptionOf(ev),
+            });
           }
         }
         if (targets.size === 0) { setData([]); return; }
@@ -118,6 +132,7 @@ export default function ActiveZTags() {
             uuid: coord,
             name: target.name,
             author: target.author,
+            description: target.description,
             allEvents: u.allEvents.size,
             allAuthors: u.allAuthors.size,
             sharedEvents: u.sharedEvents.size,
@@ -157,11 +172,6 @@ export default function ActiveZTags() {
       render: (val) => val || <span className="text-muted">—</span>,
     },
     {
-      key: 'uuid',
-      label: 'z-tag',
-      render: (val) => <code style={{ overflowWrap: 'anywhere' }}>{val}</code>,
-    },
-    {
       key: 'author',
       label: 'author (shared)',
       render: (val) => <AuthorCell pubkey={val} profiles={profiles} />,
@@ -198,6 +208,10 @@ export default function ActiveZTags() {
           <DataTable
             columns={columns}
             data={rows}
+            filterKeys={['uuid', 'description']}
+            renderExpanded={(row) => (
+              <TagDetailPanel description={row.description} tagLabel="z-tag" tagValue={row.uuid} />
+            )}
             emptyMessage="No local events point at a foreign-authored concept via z-tag yet."
           />
         </>
