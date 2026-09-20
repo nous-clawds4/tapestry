@@ -18,12 +18,16 @@
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/date-epoch.sh"
 # The ledger's row files — sibling lib, single source (ADR ledger-row-identity/0001).
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/collect-ledger.sh"
+# The multibyte-aware trim and the _intake.md marker grammar — sibling libs, single
+# source each (ADR rollup-scanner-fidelity/0001, OPEN.md rows 290 and 208).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utf8-trim.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/collect-intake.sh"
 
 META_LINES=""
 META_COUNT=0
 META_MAX_AGE=0
 collect_meta() {
-  local row cell opened age heading ep label
+  local row cell opened age heading ep label state
   if [ -f OPEN.md ]; then
     # Status is found BY VALUE, never by position: a literal pipe inside the Item
     # cell (code span or escaped) shifts every later field, so `$6` is only
@@ -40,7 +44,7 @@ collect_meta() {
         if [ "$age" -gt "$META_MAX_AGE" ]; then META_MAX_AGE=$age; fi
       fi
       META_COUNT=$((META_COUNT + 1))
-      META_LINES="${META_LINES}  [${age}d] $(printf '%s' "$row" | cut -c1-150)"$'\n'
+      META_LINES="${META_LINES}  [${age}d] $(utf8_trim 150 "$row")"$'\n'
     done < <(grep -E '^\|' OPEN.md | awk -F'|' '$3 ~ /meta/ {
       for (i = 6; i <= NF; i++) {
         c = $i; gsub(/^[ \t]+|[ \t]+$/, "", c)
@@ -60,9 +64,15 @@ collect_meta() {
     META_COUNT=$((META_COUNT + 1))
     META_LINES="${META_LINES}  [${age}d] ${label}"$'\n'
   done < <(ledger_file_rows | awk -F'\t' '$2 ~ /meta/ && $4 == "OPEN" { print $3; print $1 " — " $5 }')
-  # Un-marked intake "Meta:" entries count too (the 5-week origin-sync item is
-  # the motivating casualty); age from the ISO date in the heading itself.
-  while IFS= read -r heading; do
+  # Intake "Meta:" entries that are not retired count too (the 5-week origin-sync item
+  # is the motivating casualty); age from the ISO date in the heading itself. The marker
+  # grammar is collect-intake.sh's, not a second copy: this loop used to test PICKED
+  # UP|RESOLVED unanchored, so `**NOT PICKED UP**` retired an entry — the bug
+  # whats-open.sh fixed on 2026-09-13 and this sibling kept (ADR
+  # rollup-scanner-fidelity/0001). A `partial` entry says in its own marker that work
+  # remains, so it counts, and its line says which it is. awk prints two lines per
+  # entry: its state, then its heading.
+  while IFS= read -r state && IFS= read -r heading; do
     opened=$(printf '%s' "$heading" | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
     age="?"
     if [ -n "$opened" ] && ep=$(date_to_epoch "$opened"); then
@@ -70,12 +80,10 @@ collect_meta() {
       if [ "$age" -gt "$META_MAX_AGE" ]; then META_MAX_AGE=$age; fi
     fi
     META_COUNT=$((META_COUNT + 1))
-    META_LINES="${META_LINES}  [${age}d] intake: ${heading#  }"$'\n'
-  done < <(awk '
-    /^## 20[0-9][0-9]-/ { if (h != "" && !d) print "  " h; h=$0; d=0 }
-    /PICKED UP|RESOLVED/ { d=1 }
-    END { if (h != "" && !d) print "  " h }
-  ' engineering-team/stories/_intake.md 2>/dev/null | grep '— Meta:')
+    label="intake"
+    [ "$state" = partial ] && label="intake (partly picked up)"
+    META_LINES="${META_LINES}  [${age}d] ${label}: ${heading}"$'\n'
+  done < <(intake_entries | awk -F'\t' '($1 == "open" || $1 == "partial") && $3 ~ /— Meta:/ { print $1; print $3 }')
 }
 
 meta_escalation_fires() {

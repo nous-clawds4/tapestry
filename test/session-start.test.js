@@ -28,6 +28,9 @@ const path = require('path');
 const assert = require('assert');
 
 const { rowFile } = require('./helpers/ledgerFixtures');
+// The roll-up/digest runners live in one place now (ADR rollup-scanner-fidelity/0001 —
+// two copies of a rule is how three of that story's six defects were born).
+const { runRollup: rollup, runDigest: digest } = require('./helpers/rollupFixtures');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const SETTINGS = path.join(REPO_ROOT, '.claude', 'settings.json');
@@ -41,11 +44,6 @@ const WRITING_PRODUCT_AGENTS = [
 const ADVISORY_AGENTS = ['product-advisor', 'product-expert'];
 
 // ---------- helpers ----------
-
-function digest(cwd) {
-  const res = spawnSync('bash', [SCRIPT], { cwd, encoding: 'utf8' });
-  return { code: res.status, out: `${res.stdout || ''}${res.stderr || ''}` };
-}
 
 /** Frontmatter block of an agent file (between the first two `---` lines). */
 function frontmatter(agentName) {
@@ -65,24 +63,6 @@ function metaFixture(rows) {
       rows.join('\n') + '\n'
   );
   return dir;
-}
-
-const ROLLUP = path.join(REPO_ROOT, 'scripts', 'whats-open.sh');
-let ghStubDir = null;
-
-/**
- * Run the full /whats-open roll-up in a fixture repo, offline: a `gh` that fails at once
- * shadows the real one on PATH (the script prints "(gh error)" and carries on), and a
- * fixture has no `origin`, so its `git fetch` fails just as fast. Nothing leaves the machine.
- */
-function rollup(cwd) {
-  if (!ghStubDir) {
-    ghStubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'session-start-gh-stub-'));
-    fs.writeFileSync(path.join(ghStubDir, 'gh'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-  }
-  const env = { ...process.env, PATH: `${ghStubDir}${path.delimiter}${process.env.PATH}` };
-  const res = spawnSync('bash', [ROLLUP], { cwd, encoding: 'utf8', env });
-  return { code: res.status, out: `${res.stdout || ''}${res.stderr || ''}` };
 }
 
 /** The lines of the roll-up's "Meta items" section (between its rule and the next one). */
