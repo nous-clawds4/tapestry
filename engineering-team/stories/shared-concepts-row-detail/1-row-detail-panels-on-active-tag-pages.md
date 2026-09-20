@@ -56,6 +56,12 @@ Active z-tags.
       the b-tag points at.
 - [ ] Given either page, when rows are rendered, then the reserved `b-tag-deferred` sentinel is still
       skipped exactly as it is today, and no panel presents it as a tag value.
+- [ ] Given any surface that marks text as muted — the new panel's "no description" fallback included
+      — when it renders, then that text's computed colour is the palette's muted colour and is
+      visibly distinct from ordinary body text. *(Added by the owner at the Architecture gate,
+      2026-09-20: the muted-text class is referenced app-wide but defined nowhere, so no muted string
+      in the app has ever rendered muted. Fixing it once is preferred to writing the new panel around
+      it — see ADR 0001 §Decision, "Scope amendment".)*
 
 ## Concepts touched
 
@@ -87,6 +93,6 @@ None. Two points settled at kickoff and recorded in the book's frame notes:
    there; on Active b-tags it must stay clear of the existing navigation.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/shared-concepts-row-detail/0001-row-detail-panels-on-active-tag-pages.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

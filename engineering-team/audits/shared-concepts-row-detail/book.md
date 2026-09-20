@@ -17,6 +17,8 @@
 - [ ] The b-tag column is gone from the table itself, and b-tags are still findable through the filter box.
 - [ ] The description is findable through the filter box too (added by the owner at the planning gate, 2026-09-20).
 - [ ] The same treatment on the Active z-tags page.
+- [ ] Muted text actually renders muted (added by the owner at the Architecture gate, 2026-09-20 —
+      the class is used app-wide and defined nowhere).
 
 ### Frame notes (confirmed in-session)
 
