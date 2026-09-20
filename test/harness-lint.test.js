@@ -547,7 +547,7 @@ test('the harness definition no longer instructs judges to read "the acceptance 
 // (a) no id twice in the table, (b) nothing in the table above the freeze marker, (c) every
 // row file is named by a well-formed id and carries its header fields. The OPEN.md these
 // fixtures use (helpers/ledgerFixtures.js) has the real file's shape — a second table in
-// the preamble, notes between chunks of rows, pipes inside cells — because a reader that
+// the preamble, its notes below the freeze marker, pipes inside cells — because a reader that
 // takes every `|` line for a row, or reads any cell but the first, fails on the real ledger.
 // See engineering-team/stories/ledger-row-identity/1-collision-free-ledger-row-ids.test-plan.md
 
@@ -562,7 +562,7 @@ const ID_OF_64 = `2026-09-01-boundary-${'x'.repeat(44)}`;
 const ID_OF_65 = `2026-09-01-boundary-${'x'.repeat(45)}`;
 const OLD_RULE_ROW = tableRow(10, 'minted under the old rule, from a prompt copied before the freeze', { type: 'meta', status: 'OPEN' });
 
-test('L15: a ledger shaped like the real one is clean — a second table in the preamble, notes between chunks of rows, ids out of order, a gap, a row that quotes another row\'s id cell, and three well-formed row files (one closed with a note after DONE, one with an id of exactly 64 characters)', () => {
+test('L15: a ledger shaped like the real one is clean — a second table in the preamble, a numbering note below the freeze marker, ids out of order, a gap, a row that quotes another row\'s id cell, and three well-formed row files (one closed with a note after DONE, one with an id of exactly 64 characters)', () => {
   const { code, out } = lint(withClean({
     'OPEN.md': ledgerDoc(REAL_SHAPE_ROWS, { frozenAt: 9, notes: [NOTE_LINE] }),
     [`ledger/${GOOD_ID}.md`]: rowFile(GOOD_ID),
@@ -727,6 +727,21 @@ test('L16 ignores everything outside the table: the preamble table, the prose ab
   assert.ok(doc.includes('## How to use this ledger') && doc.includes('| Kind of open work |'), 'the fixture must carry a preamble table and prose');
   const { code, out } = lint(withClean({ 'OPEN.md': doc }));
   assert.strictEqual(code, 0, `got: ${l16(out)} — only the lines between the Items header and the marker are the table\n${out}`);
+});
+
+test('L16 stops at the freeze marker: a table inside the notes below it is not the ledger table, and does not drag the prose between into scope', () => {
+  // Without the marker rule the later row would confirm the closing prose, the heading and
+  // the note above it as lines "inside the table", and L16 would fire on the wrong region.
+  const { code, out } = lint(withClean({
+    'OPEN.md': ledgerDoc(REAL_SHAPE_ROWS, {
+      frozenAt: 9,
+      // Ids 6 and 8 are the fixture's gap, so the quoted rows are well-formed for L15 and
+      // this test turns on L16's boundary alone. Notes quoting rows is what the real ones do.
+      notes: [NOTE_LINE, `${tableRow(6, 'a row quoted inside a note')}\n${tableRow(8, 'and another')}`],
+    }),
+  }));
+  assert.strictEqual(code, 0, `got: ${l16(out)} — everything below the marker is out of the table, tables included; the check must stop there rather than reopen on the next pipe\n${out}`);
+  assert.doesNotMatch(out, /L16/, `got: ${l16(out)}`);
 });
 
 test('L16 with no freeze marker: the table ends at its last row, and a break before it still fires', () => {
