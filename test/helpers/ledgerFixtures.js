@@ -35,11 +35,13 @@ function tableRow(id, item = 'fixture item', { type = 'cleanup', status = 'DONE'
 
 /**
  * An OPEN.md shaped like the real one: a small table of its own in the preamble (with
- * its own `|---|` line), then the Items table. `rows` are lines: table rows, and between
- * them the blank lines and `> **Numbering note …**` blockquotes the real table carries.
- * `frozenAt` adds the freeze marker after the last row, under one line of prose.
+ * its own `|---|` line), then the Items table, then — since 2026-09-20 — the numbering
+ * notes BELOW the table, because anything that is not a row ends the rendered table.
+ * `rows` are lines, normally all table rows; a test that wants a broken table puts a
+ * blank line, a note or a paragraph among them. `frozenAt` adds the freeze marker after
+ * the last row, under one line of prose; `notes` adds the section below it.
  */
-function ledgerDoc(rows, { frozenAt } = {}) {
+function ledgerDoc(rows, { frozenAt, notes } = {}) {
   const head =
     '# Open Items Ledger\n\n' +
     '| Kind of open work | Lives in |\n|---|---|\n' +
@@ -50,25 +52,29 @@ function ledgerDoc(rows, { frozenAt } = {}) {
   const marker = frozenAt === undefined
     ? ''
     : `\nThe table is closed; new rows are files in \`ledger/\`.\n<!-- ledger-table-frozen: highest-number=${frozenAt} -->\n`;
-  return `${head}${rows.join('\n')}\n${marker}`;
+  const below = notes && notes.length
+    ? `\n## Numbering notes\n\n${notes.join('\n\n')}\n`
+    : '';
+  return `${head}${rows.join('\n')}\n${marker}${below}`;
 }
 
 /**
- * What the real table looks like, in nine lines: ids out of order (as 7, 8, 6 are), a
- * gap (no 6 or 8 here; 257 there), a note between two chunks of rows, a row that quotes
- * another row's id cell and a regex with a pipe, and an escaped pipe. Highest id: 9.
+ * What the real table looks like, in seven contiguous rows: ids out of order (as 7, 8, 6
+ * are), a gap (no 6 or 8 here; 257 there), a row that quotes another row's id cell and a
+ * regex with a pipe, and an escaped pipe. Highest id: 9. Nothing but rows — the real
+ * table's notes moved below it on 2026-09-20, and NOTE_LINE is one of them.
  */
 const REAL_SHAPE_ROWS = [
   tableRow(1),
   tableRow(2),
   tableRow(4, 'out of order, as rows 7, 8 and 6 are in the real table'),
   tableRow(3),
-  '',
-  '> **Numbering note (fixture):** rows **5–7** were renumbered at a merge; "row 5" means the one below.',
-  '',
   tableRow(5, 'quotes another row, `| 7 | meta | something |`, and a regex `a|b`', { type: 'meta', status: 'OPEN' }),
   tableRow(7, 'plain'),
   tableRow(9, 'an escaped \\| pipe'),
 ];
 
-module.exports = { rowFile, tableRow, ledgerDoc, REAL_SHAPE_ROWS };
+/** A numbering note, as the real ones read. Below the table it is fine; among the rows it breaks the render. */
+const NOTE_LINE = '> **Numbering note (fixture):** rows **5–7** were renumbered at a merge; "row 5" means row 5.';
+
+module.exports = { rowFile, tableRow, ledgerDoc, REAL_SHAPE_ROWS, NOTE_LINE };

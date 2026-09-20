@@ -32,6 +32,9 @@
 #                        its freeze marker; every ledger/*.md is named by a well-formed
 #                        date+slug id and carries its header fields (ADR
 #                        ledger-row-identity/0001)
+#   L16 table-contiguity every line between OPEN.md's "| # |" header and its last table
+#                        row is a row — anything else ends the RENDERED table, which no
+#                        other check can see (ledger/2026-09-20-nothing-guards-table-contiguity.md)
 #
 # Review verdicts (L1/L4): the LAST verdict-shaped token in the file wins —
 # a token is PASS or CHANGES_REQUESTED appearing on a heading line or inside
@@ -355,7 +358,9 @@ check_L14() {
 # well-formed id, repeats it in **Id:**, and carries the header fields the readers
 # take (scripts/lib/collect-ledger.sh). Table rows are the `|` lines after the
 # "| # |" header, minus its |---| line — OPEN.md has a second table in its
-# preamble, and notes between chunks of rows. ONLY the first cell is read: nine
+# preamble, and until 2026-09-20 had notes between chunks of rows (they moved
+# under the table so that GitHub renders it; a stray note or blank line must
+# still never hide a row from this check). ONLY the first cell is read: nine
 # rows carry a literal pipe inside a later cell. The id pattern is spelled without
 # {n,m} intervals, as the other awk code here is (whats-open.sh's intake scan):
 # not every awk takes them (older mawk builds do not).
@@ -431,6 +436,45 @@ check_L15() {
   ' "${files[@]}")
 }
 
+# ---------- L16: the table stays a table ----------
+# Every other reader here filters to `^|` lines and is layout-blind by design, so none of
+# them can see the one thing a human sees first: OPEN.md's Items table rendered broken on
+# GitHub from 2026-07-15 to 2026-09-20 — 37 rows as a table, 305 as raw pipe-text —
+# because a blank line ends a markdown table and a chunk with no header row is not one.
+# (Worse, in fact: a blockquote swallows the rows after it by lazy continuation.) Freezing
+# the table did not close this; the break came from a row appended under a blank that was
+# already there, a shape no convention forbids. So: between the "| # |" header and the
+# table's last row, every line must start with `|`. Lines after the last row and before
+# the freeze marker are the closing prose and are not in the table; notes below the marker
+# are where notes belong. One violation per file, naming the first offender and counting
+# the rest, because they share one cause. Silent where there is no OPEN.md or no header:
+# most fixture trees have neither. See ledger/2026-09-20-nothing-guards-table-contiguity.md.
+check_L16() {
+  [ -f OPEN.md ] || return 0
+  local hit lineno count text
+  hit=$(awk '
+    /^<!-- ledger-table-frozen: highest-number=[0-9]+ -->[ \t]*$/ { if (hdr) stop = 1 }
+    !hdr { if ($0 ~ /^\|[ \t]*#[ \t]*\|/) hdr = 1; next }
+    stop { next }
+    # A row confirms every pending non-row line as sitting INSIDE the table.
+    /^\|/ {
+      for (i = 1; i <= np; i++) {
+        n++
+        if (n == 1) { firstno = pno[i]; firsttxt = ptxt[i] }
+      }
+      np = 0
+      next
+    }
+    { np++; pno[np] = NR; ptxt[np] = $0 }
+    END { if (n > 0) printf "%d\t%d\t%s\n", firstno, n, substr(firsttxt, 1, 60) }
+  ' OPEN.md)
+  [ -n "$hit" ] || return 0
+  lineno=${hit%%$'\t'*}
+  count=$(printf '%s' "$hit" | cut -f2)
+  text=$(printf '%s' "$hit" | cut -f3-)
+  violation L16 OPEN.md "line $lineno is inside the Items table but is not a row (\"$text\") — anything that is not a row ends the RENDERED table, so every row below it stops being a table row on GitHub; move it below the table, into OPEN.md § \"Numbering notes\"$([ "$count" -gt 1 ] && printf ' — and %d more' "$((count - 1))")"
+}
+
 # ---------- run ----------
 check_reviews
 check_L2
@@ -445,6 +489,7 @@ check_L12
 check_L13
 check_L14
 check_L15
+check_L16
 
 # stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
 if [ "${#W_IDS[@]}" -gt 0 ]; then
