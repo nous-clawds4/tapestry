@@ -1,6 +1,6 @@
 # L16's table region reopens on any later pipe line, and L15's never closes at all
 
-**Id:** 2026-09-20-l16-region-reopens-on-a-later-pipe
+**Id:** 2026-09-20-l16-region-reopens-on-pipe
 **Type:** meta
 **Opened:** 2026-09-20 (round-4 review of `harness-lint` L16, non-blocking; proposed by the Reviewer, filed by the caller under the row-80 sweep)
 **Status:** OPEN
