@@ -1,6 +1,6 @@
 # Story 1: One shared pre-fetch address guard for NIP-05 verification
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-20
 **Type:** Bug
 
@@ -58,13 +58,14 @@ Guard behaviour (`src/utils/ssrfGuard.js`):
 - [ ] Given an empty host, a DNS error, or an empty DNS answer, when the guard runs, then it
       rejects — the guard fails closed and never throws out to its caller's happy path.
 
-Redirect handling:
+Redirect handling *(ratified at the Planning gate: refuse all redirects)*:
 
-- [ ] Given a guarded fetch whose response is a 3xx to a non-public host, when the hop is followed,
-      then it is rejected before the second request is made.
-- [ ] Given a guarded fetch whose response is a 3xx to a non-`https` scheme, then it is rejected.
-- [ ] Given a guarded fetch to a public host that redirects to another public host, then the hop is
-      followed and the final response is returned (bounded hop count; exceeding it rejects).
+- [ ] Given a guarded fetch, when the request is made, then redirects are **not** followed —
+      `redirect: 'manual'`, so no second request can be aimed anywhere by the response.
+- [ ] Given a response with any 3xx status, when the guard returns, then the call site treats it as
+      a failed lookup (`null`), exactly as it treats a non-`ok` response today.
+- [ ] Given a public host that answers 2xx, when the guard returns, then the response is passed
+      through unchanged and the call site's parsing is untouched.
 
 Call sites:
 
@@ -90,7 +91,7 @@ or written by the guard.
 
 - **Consolidating the three `verifyNip05*` functions.** They stay where they are and each gains one
   call. The Story #6 review explicitly resisted the larger refactor.
-- **Rate limiting `GET /api/nip05/verify`** (intake ask #2) — **decided: not added, and the decision
+- **Rate limiting `GET /api/nip05/verify`** (intake ask #2) — **ratified at the Planning gate 2026-09-20: not added, and the decision
   is recorded rather than deferred silently.** No rate-limiting pattern exists anywhere in the repo
   to follow: no `express-rate-limit`, `express-slow-down`, `axios` or `got` dependency, and no
   `rate.?limit` / `429` / `throttl` reference under `src/`. Every other unauthenticated endpoint
@@ -110,15 +111,23 @@ or written by the guard.
 
 ## Open questions
 
-1. **Redirect following is an addition to the intake's Architect call.** That call specified a guard
-   that runs before the fetch; it did not mention redirects. But Node's global `fetch` follows them
-   by default, so a guard that only checks the first hop is bypassed by any attacker who controls a
-   public domain and answers `302 → <non-public host>` — the cheapest bypass there is, and cheaper
-   than the DNS-rebinding case the intake deliberately left open. Treating each hop as a fetch that
-   must be guarded is the same requirement applied consistently, not a new one. **Proposed:
-   in scope.** *(For the Planning gate.)*
-2. **Rate limiting** — the intake's Architect call recommends not adding it. Restated above so the
-   operator can ratify or redirect. *(For the Planning gate.)*
+Both were put to the operator at the Planning gate on 2026-09-20 and are now **resolved**.
+
+1. **Redirects — RESOLVED: refuse them all.** The intake's Architect call specified a guard that runs
+   before the fetch and did not mention redirects, but Node's global `fetch` follows them by
+   default, so a first-hop-only guard is bypassed by anyone who controls a public domain and answers
+   `302 → <non-public host>` — cheaper than the DNS-rebinding case the intake deliberately left
+   open. Three dispositions were offered (guard every hop / refuse all redirects / first hop only);
+   the operator chose **refuse all redirects**: `redirect: 'manual'`, any 3xx is a failed lookup.
+   **Known cost, accepted:** a domain that serves `/.well-known/nostr.json` via a redirect —
+   apex → `www`, or a CDN-level scheme/host canonicalisation — will stop verifying where it
+   verifies today. The NIP-05 spec does not require clients to follow redirects and the failure is
+   fail-closed (`verified: false`, never a false positive), but it is a real behaviour change for
+   legitimate domains, so it is called out here, in the review, and in a follow-up row rather than
+   discovered in the field.
+2. **Rate limiting — RESOLVED: not added, reason recorded.** The operator confirmed the intake's
+   Architect call. See Out of scope above; a follow-up row proposes org-wide public-endpoint
+   throttling as its own story.
 
 ## Linked artifacts
 - ADR: none — Architecture skipped per Standard/Bug; the Architect's call is recorded inline in
