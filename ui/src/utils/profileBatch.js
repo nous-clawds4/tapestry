@@ -1,6 +1,6 @@
 /**
  * Chunked profile lookups.
- * ADR: engineering-team/decisions/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md
+ * ADR: engineering-team/decisions/done/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md
  *
  * `/api/profiles` refuses more than PROFILE_CHUNK pubkeys per request, so a page with many
  * distinct authors has to ask in batches. Sending them all in one querystring is the defect

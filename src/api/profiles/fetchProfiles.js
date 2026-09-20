@@ -8,7 +8,7 @@
  *
  * At most MAX_PUBKEYS_PER_REQUEST pubkeys per request. Callers with more must batch; the
  * shared client seam (ui/src/utils/profileBatch.js) does this at the same constant.
- * ADR: engineering-team/decisions/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md
+ * ADR: engineering-team/decisions/done/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md
  */
 
 const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';

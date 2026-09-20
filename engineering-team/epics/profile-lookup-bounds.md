@@ -1,7 +1,7 @@
 # Epic: profile-lookup-bounds
 
 **Created:** 2026-09-08
-**Status:** Active
+**Status:** Done
 **Book:** `engineering-team/audits/profile-lookup-bounds/book.md` (acceptance-frame; Bug lane)
 **Provenance:** Found by `relay-scan-bounds` #1 and deliberately left unfixed — see that
 story's "Found, not fixed (out of scope)" section
@@ -38,7 +38,7 @@ unbounded row collection.
 
 ## Stories
 
-`stories/profile-lookup-bounds/`:
+`stories/done/profile-lookup-bounds/`:
 1. `1-resolve-author-names-at-any-scale.md` — the shared profile lookup + an interpretable
    endpoint refusal. Bug; all five phases.
 
