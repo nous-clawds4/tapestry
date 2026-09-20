@@ -30,5 +30,5 @@ inside the shared helper; no call site changes. `MAX_REDIRECTS` already exists i
 place that count would live.
 
 **Pointer:** `src/utils/ssrfGuard.js` (`guardedFetch`, `MAX_REDIRECTS`);
-`engineering-team/stories/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` § Open questions 1;
+`engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` § Open questions 1;
 tests `D1`/`D2` in `test/nip05-ssrf-guard.test.js`.

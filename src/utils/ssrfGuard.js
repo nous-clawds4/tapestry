@@ -7,7 +7,7 @@
  * hosts only the server can reach. This module is the one place that decides whether an
  * address is publicly routable, so the answer cannot drift between call sites.
  *
- * Story: engineering-team/stories/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md
+ * Story: engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md
  *
  * Three layers, smallest first:
  *

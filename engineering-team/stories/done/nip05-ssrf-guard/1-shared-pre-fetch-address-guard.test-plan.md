@@ -1,6 +1,6 @@
 # Test Plan: Story 1 — One shared pre-fetch address guard for NIP-05 verification
 
-**Story:** `engineering-team/stories/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md`
+**Story:** `engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md`
 **ADR:** none — Architecture skipped per Standard/Bug; the Architect's call is recorded inline in
 `engineering-team/stories/_intake.md` lines 77–146.
 **Date:** 2026-09-20

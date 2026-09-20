@@ -26,6 +26,6 @@ set it, and apply it once across the public surface rather than endpoint by endp
 Note what this row is *not*: a claim that any endpoint is currently being abused. It records a
 capability the codebase does not have, and the decision not to invent it inside an unrelated fix.
 
-**Pointer:** `engineering-team/stories/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md`
+**Pointer:** `engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md`
 § Out of scope; `engineering-team/stories/_intake.md` lines 77–146 (intake ask #2 and the
 Architect's call item 4).
