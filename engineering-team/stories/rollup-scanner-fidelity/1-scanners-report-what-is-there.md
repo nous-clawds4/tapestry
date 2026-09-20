@@ -1,6 +1,6 @@
 # Story 1: the roll-up's scanners report what is there
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-20
 **Type:** Bug
 
@@ -152,4 +152,4 @@ and the `**Status:** Closed (<date>)` fallback for the four books that carry no 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/rollup-scanner-fidelity/0001-shared-scanner-libs-and-marker-grammar.md`
 - Test plan: `engineering-team/stories/rollup-scanner-fidelity/1-scanners-report-what-is-there.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/rollup-scanner-fidelity/1-scanners-report-what-is-there.md`
