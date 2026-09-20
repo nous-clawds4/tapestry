@@ -44,9 +44,7 @@ another operated by different parties.** Every host below is operated by the sam
 | `tapestry.brainstorm.world` | Reference deployment |
 | `staging.brainstorm.world` | Pre-production |
 | `tags.brainstorm.world` | Feature sandbox |
-| `communities.brainstorm.world` | Feature sandbox |
 | `magic-carpet.brainstorm.world` | Feature sandbox |
-| `curate.brainstorm.world` | Feature sandbox |
 
 ### Backend APIs — [`NosFabrica/brainstorm_server`](https://github.com/NosFabrica/brainstorm_server)
 

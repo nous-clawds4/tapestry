@@ -12,7 +12,7 @@ A review file at `engineering-team/reviews/<epic-slug>/<n>-<slug>.md` (same epic
 
 ## Steps
 
-1. **Run the gate yourself:** `npm test` (and `npm run test:playwright` if applicable). Record actual results in the review.
+1. **Run the gate yourself:** `npm test` (and `npm run test:playwright` if applicable). Record actual results in the review — the run's `npm run gate:status` line (run id + verdict), per [Running and reading the test gate](../README.md#running-and-reading-the-test-gate).
 2. **Walk the diff file by file.** Note anything unclear.
 3. **Spec check.** Every acceptance criterion has a test? Every test passes?
 4. **ADR check.** Files match? Layering matches? No unauthorized new deps?

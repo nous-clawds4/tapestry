@@ -5,7 +5,7 @@
  * The 12 live-API contract suites must whole-suite SKIP — visibly, counted,
  * behind a bounded reachability probe — when the control panel is absent,
  * mirroring the *-publish precedent (test/most-pinned-tag-index-publish.test.js:48-53);
- * test/test.js must render SKIP (not PASS) per skipped suite and print an
+ * the runner must render SKIP (not PASS) per skipped suite and print an
  * aggregate `Total skipped:` line; skips must never mask real failures.
  *
  * Levels:
@@ -13,26 +13,29 @@
  *    BRAINSTORM_BASE_URL pointed at a dead port (127.0.0.1:9 — instant
  *    connection refusal), which simulates stack absence even on machines
  *    where the real stack is up. The suites already read this env var.
- *  - SOURCE CONTRACTS on test/test.js for the summary + exit shape (running
- *    the full aggregator from inside itself would recurse).
  *  - The stack-PRESENT no-coverage-loss check (G2) self-skips when the real
  *    control panel is unreachable — the same honesty rule this story ships.
  *
- * G1, G3, G4 FAIL pre-implementation; G2 is a standing regression guard.
+ * harness-gate-integrity #1 (ADR 0001) extended this suite with the
+ * anti-recurrence guard: every registered suite gates the exit code (G5), a
+ * planted failure flips the verdict (G6), and no summary line lets a skip mask
+ * a failure (G7).
  *
- * harness-gate-integrity #1 (ADR 0001) extends this suite — it already owns
- * test.js's exit-strictness contract. G5 is STRENGTHENED to assert every
- * `await <suite>.run()` result gates INSIDE the overallOk expression itself
- * (chain[1], not merely present somewhere in the file — the `src.includes`
- * gap is exactly why G5 missed #43). G6 (AC1, behavioral) evaluates the real
- * overallOk expression with a planted suite failure; G7 (AC3) forbids the
- * summary lines that branch on `.skipped` alone (#58). G5/G6/G7 FAIL until
- * #43's chain repair and #58's summary rewrite land.
+ * honest-test-gate #1 (ADR honest-test-gate/0001) RE-AIMS G3, G5, G6 and G7. The
+ * runner is no longer a hand-written overallOk chain but one ordered registry
+ * (test/registry.js) run by an engine (test/helpers/gateRunner.js, runGate()). The
+ * four guards keep their properties — skips visible and counted, every suite
+ * gates, a failure anywhere fails the gate, a skip never masks a failure — and now
+ * check them by behaviour (the engine run over fixture suites, through
+ * test/helpers/gateFixtures.js) plus registry completeness, instead of
+ * regex-reading test.js. For that story this file is Phase-3 owned (ADR 0001
+ * carve-out): the Implementer must not modify it.
  */
 
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const F = require('./helpers/gateFixtures');
 
 const REPO = path.resolve(__dirname, '..');
 const TEST_JS = path.join(REPO, 'test', 'test.js');
@@ -41,21 +44,29 @@ const LIVE_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 const CHILD_TIMEOUT_MS = 120000;
 const SKIP_DECISION_BUDGET_MS = 20000; // generous; a refused probe is instant, a firewalled one is timeout-bounded
 
-// The 12 unguarded live-API contract suites (story Background) and their
-// result variables in test/test.js's summary/exit sections.
+// The 12 unguarded live-API contract suites (story Background).
 const TARGETS = [
-  { file: 'profile-tags', resultVar: 'profileTagsResult' },
-  { file: 'tag-detail', resultVar: 'tagDetailResult' },
-  { file: 'tag-detail-write', resultVar: 'tagDetailWriteResult' },
-  { file: 'tag-index', resultVar: 'tagIndexResult' },
-  { file: 'authored-tagging', resultVar: 'authoredTaggingResult' },
-  { file: 'profile-tag-polish', resultVar: 'profileTagPolishResult' },
-  { file: 'pin-a-tag', resultVar: 'pinATagResult' },
-  { file: 'tl-publication-from-pins', resultVar: 'tlPubFromPinsResult' },
-  { file: 'most-pinned-tag-index', resultVar: 'mostPinnedTagIndexResult' },
-  { file: 'tag-detail-curated-view-and-pin-polish', resultVar: 'tagDetailCuratedResult' },
-  { file: 'restore-historical-data-and-fix-tl-author-filter', resultVar: 'restoreHistoricalDataAndTlFilterResult' },
-  { file: 'nip51-list-export-from-pins', resultVar: 'nip51ListExportResult' },
+  { file: 'profile-tags' },
+  { file: 'tag-detail' },
+  { file: 'tag-detail-write' },
+  { file: 'tag-index' },
+  { file: 'authored-tagging' },
+  { file: 'profile-tag-polish' },
+  { file: 'pin-a-tag' },
+  { file: 'tl-publication-from-pins' },
+  { file: 'most-pinned-tag-index' },
+  { file: 'tag-detail-curated-view-and-pin-polish' },
+  { file: 'restore-historical-data-and-fix-tl-author-filter' },
+  { file: 'nip51-list-export-from-pins' },
+];
+
+// The four suite files that had never been registered as of 2026-09-12 (ADR
+// honest-test-gate/0001 §3): excluded, with a reason, pending OPEN.md row 38.
+const KNOWN_EXCLUDED = [
+  'generalized-tag-pinning.test.js',
+  'pinned-notes-display.test.js',
+  'signer-guard-rollout.test.js',
+  'tag-a-note-modal.test.js',
 ];
 
 const tests = [];
@@ -64,18 +75,6 @@ function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed
 function skip(reason) { throw Object.assign(new Error(reason), { skipped: true }); }
 
 const RESULT_MARKER = '___SUITE_RESULT___';
-
-/**
- * The captured `overallOk` expression from test.js source. `//` line comments
- * are stripped FIRST: several comments inside the chain carry a literal ';'
- * ("before the terminator; …"), which would otherwise truncate the non-greedy
- * `([\s\S]*?);` capture at the comment rather than at the real code terminator.
- * Returns the expression text or null if not found. (harness-gate-integrity #1)
- */
-function overallOkExpr(src) {
-  const m = src.replace(/\/\/[^\n]*/g, '').match(/const overallOk =([\s\S]*?);/);
-  return m ? m[1] : null;
-}
 
 /** Spawn one suite module in a child node process; parse its run() result. */
 function runSuiteChild(file, envOverrides) {
@@ -103,6 +102,17 @@ async function controlPanelReachable(base) {
     const r = await fetch(`${base}/api/auth/user-classification`, { signal: AbortSignal.timeout(2000) });
     return r.ok;
   } catch { return false; }
+}
+
+/** test/registry.js, freshly loaded, shape-checked. */
+function freshRegistry() {
+  F.need('registry');
+  const p = F.modulePath('registry');
+  delete require.cache[require.resolve(p)];
+  const reg = require(p);
+  assert(reg && Array.isArray(reg.suites) && Array.isArray(reg.excluded),
+    `test/registry.js must export { suites: [...], excluded: [...] } (ADR honest-test-gate/0001 §3); got keys ${JSON.stringify(Object.keys(reg || {}))}`);
+  return reg;
 }
 
 test('G1 (AC-1/AC-4): with the control panel unreachable, each of the 12 live-API suites whole-suite SKIPs — zero failures, a counted skip, a visible SKIP line, decided within the probe budget', () => {
@@ -142,19 +152,28 @@ test('G2 (AC-2): with the real control panel reachable, a guarded suite still RU
     `with the panel reachable, tag-detail must not whole-suite skip; got skipped=${JSON.stringify(result.skipped)} (over-guarding loses live coverage). Output head: ${JSON.stringify(stdout.slice(0, 160))}`);
 });
 
-test('G3 (AC-3): test.js renders SKIP (not PASS) for each of the 12 when skipped, and prints an aggregate `Total skipped:` line in the final summary', () => {
-  const src = fs.readFileSync(TEST_JS, 'utf8');
+test('G3 (AC-3; re-aimed by honest-test-gate #1): the 12 live-API suites are registered with a skip note, and the engine renders a whole-suite skip as `SKIP (<n> tests; <note>)` and prints an aggregate `Total skipped:` line', () => {
+  F.need('registry', 'runner');
+  const reg = freshRegistry();
+  const byFile = new Map(reg.suites.filter((e) => e && typeof e.file === 'string').map((e) => [path.basename(e.file), e]));
   const offenders = [];
-  for (const { file, resultVar } of TARGETS) {
-    if (!new RegExp(`${resultVar}\\.skipped`).test(src)) {
-      offenders.push(`${file}: summary line never consults ${resultVar}.skipped — a skipped run would render as PASS/FAIL, hiding that nothing ran`);
+  for (const { file } of TARGETS) {
+    const e = byFile.get(`${file}.test.js`);
+    if (!e) offenders.push(`${file}.test.js is not in the registry`);
+    else if (!(typeof e.skipNote === 'string' && e.skipNote.trim())) {
+      offenders.push(`${file}.test.js has no skipNote — its SKIP line would lose the reason test.js used to print (e.g. "control panel not reachable")`);
     }
   }
-  if (!src.includes('Total skipped:')) {
-    offenders.push('no aggregate `Total skipped:` line in the final summary — the reviewer constraint requires the skipped total to be visible at a glance');
-  }
+  const sc = F.scenario();
+  try {
+    const r = F.runEngineSync(sc, [sc.suite('skip-only.test.js', 'control panel not reachable')]);
+    if (!/SKIP \(3 tests; control panel not reachable\)/.test(r.stdout)) {
+      offenders.push(`a whole-suite skip must render \`SKIP (3 tests; control panel not reachable)\`; output tail: ${JSON.stringify(r.stdout.slice(-300))}`);
+    }
+    if (!/^Total skipped:\s*3\s*$/m.test(r.stdout)) offenders.push('the summary must print an aggregate `Total skipped: 3` line');
+  } finally { sc.cleanup(); }
   assert(offenders.length === 0,
-    `test.js summary must surface skips per-suite and in aggregate (story AC-3); offenders:\n      - ${offenders.join('\n      - ')}`);
+    `skips must stay visible per suite and in aggregate (story AC-3); offenders:\n      - ${offenders.join('\n      - ')}`);
 });
 
 test('G4 (AC-4): each of the 12 suites carries a bounded reachability guard (probe function + AbortSignal.timeout ≤ 5000ms) in its source', () => {
@@ -172,85 +191,85 @@ test('G4 (AC-4): each of the 12 suites carries a bounded reachability guard (pro
     `every target suite needs the bounded-probe guard the *-publish suites already use (story AC-4); offenders:\n      - ${offenders.join('\n      - ')}`);
 });
 
-test('G5 (test-hermeticity-ci #2 AC-5 + harness-gate-integrity #1 AC2): skips never mask failures AND every registered suite gates — each `await <suite>.run()` result has `<var>.fail === 0` INSIDE the overallOk expression (chain[1], not merely present in the file), the chain never consults `.skipped`, and the exit code stays strict', () => {
-  const src = fs.readFileSync(TEST_JS, 'utf8');
-  const chainExpr = overallOkExpr(src);
-  assert(chainExpr !== null, 'test.js must compute overallOk (the aggregate exit expression) — not found.');
-  // Every gating suite: `const <var> = await <suite>.run()`. Verified 142/142 —
-  // there is no non-gating *Result var, so this cannot false-fire.
-  const suites = [...new Set(
-    [...src.matchAll(/const\s+(\w+Result)\s*=\s*await\s+\w+\.run\(\)/g)].map((m) => m[1]),
-  )];
-  assert(suites.length > 0, 'no `const <var> = await <suite>.run()` suite results found in test.js — the enumeration is broken.');
+test('G5 (test-hermeticity-ci #2 AC-5 + harness-gate-integrity #1 AC2; re-aimed by honest-test-gate #1): every suite file is registered or excluded with a reason, test.js runs the registry through the engine, and a failing suite fails the gate while a skip never does', () => {
+  F.need('registry', 'runner');
+  const reg = freshRegistry();
   const offenders = [];
-  for (const v of suites) {
-    // Membership is checked against the CAPTURED overallOk expression, not the
-    // whole file — a term sitting in a dead post-`;` block IS in the file yet
-    // does not gate. That whole-file `src.includes` blind spot is why G5 missed #43.
-    if (!new RegExp(`\\b${v}\\.fail === 0`).test(chainExpr)) {
-      offenders.push(`${v}.fail === 0 is not in the overallOk chain — the suite runs but does not gate the exit code (#43: severed chain, or a term never added)`);
+  const files = fs.readdirSync(path.join(REPO, 'test')).filter((n) => n.endsWith('.test.js')).sort();
+  const registered = reg.suites
+    .filter((e) => e && typeof e.file === 'string' && e.file.endsWith('.test.js'))
+    .map((e) => path.basename(e.file));
+  const dupes = [...new Set(registered.filter((f, i) => registered.indexOf(f) !== i))];
+  if (dupes.length) offenders.push(`registered more than once: ${dupes.join(', ')}`);
+  const excluded = reg.excluded.map((e) => (e && typeof e.file === 'string' ? path.basename(e.file) : JSON.stringify(e)));
+  for (const e of reg.excluded) {
+    if (!(e && typeof e.reason === 'string' && e.reason.trim())) offenders.push(`an excluded entry has no reason: ${JSON.stringify(e)}`);
+  }
+  const both = registered.filter((f) => excluded.includes(f));
+  if (both.length) offenders.push(`both registered and excluded: ${both.join(', ')}`);
+  const unaccounted = files.filter((f) => !registered.includes(f) && !excluded.includes(f));
+  if (unaccounted.length) offenders.push(`suite files neither registered nor excluded — they would silently never run: ${unaccounted.join(', ')}`);
+  const phantom = [...registered, ...excluded].filter((f) => !files.includes(f));
+  if (phantom.length) offenders.push(`the registry names files that do not exist: ${phantom.join(', ')}`);
+  if (JSON.stringify([...excluded].sort()) !== JSON.stringify(KNOWN_EXCLUDED)) {
+    offenders.push(`the exclusions must be exactly the four files that had never run as of 2026-09-12 (${KNOWN_EXCLUDED.join(', ')}); got ${JSON.stringify(excluded)}`);
+  }
+  const src = fs.readFileSync(TEST_JS, 'utf8');
+  if (!/\brunGate\s*\(/.test(src) || !/require\(\s*['"]\.\/registry(\.js)?['"]\s*\)/.test(src)) {
+    offenders.push("test/test.js must run the registry through the engine — require('./registry') and runGate(...) (ADR honest-test-gate/0001 §4)");
+  }
+  const sc = F.scenario();
+  try {
+    const failing = F.runEngineSync(sc, [sc.suite('pass.test.js'), sc.suite('fail.test.js'), sc.suite('second-pass.test.js')]);
+    if (failing.status !== 1 || !/^Overall: FAIL\b/.test(F.lastLine(failing.stdout))) {
+      offenders.push(`one failing suite must fail the gate (exit 1, Overall: FAIL); got exit ${failing.status}, last line ${JSON.stringify(F.lastLine(failing.stdout))}`);
     }
-  }
-  if (/\.skipped/.test(chainExpr)) {
-    offenders.push('the overallOk expression consults .skipped — skip state must never influence pass/fail semantics');
-  }
-  if (!/process\.exit\(overallOk \? 0 : 1\)/.test(src)) {
-    offenders.push('process.exit(overallOk ? 0 : 1) missing — the exit code must remain the strict verdict');
-  }
+    const skipping = F.runEngineSync(sc, [sc.suite('pass.test.js'), sc.suite('skip-only.test.js')]);
+    if (skipping.status !== 0 || !/^Overall: PASS\b/.test(F.lastLine(skipping.stdout))) {
+      offenders.push(`a skip must never fail the gate — pass + skip-only must exit 0 with Overall: PASS; got exit ${skipping.status}, last line ${JSON.stringify(F.lastLine(skipping.stdout))}`);
+    }
+  } finally { sc.cleanup(); }
   assert(offenders.length === 0,
-    `exit-code strictness / gate completeness regressed (test-hermeticity-ci #2 AC-5 + harness-gate-integrity #1 AC2); offenders:\n      - ${offenders.join('\n      - ')}`);
+    `gate completeness / exit strictness regressed; offenders:\n      - ${offenders.join('\n      - ')}`);
 });
 
-test('G6 (harness-gate-integrity #1 AC1): the exit gate fails on ANY suite failure — evaluating test.js\'s real overallOk expression with one suite failed yields false, for a re-attached AND for a never-wired suite', () => {
-  const src = fs.readFileSync(TEST_JS, 'utf8');
-  const expr = overallOkExpr(src);
-  assert(expr !== null, 'test.js must compute overallOk (the aggregate exit expression) — not found.');
-  const declared = [...new Set(
-    [...src.matchAll(/const\s+(\w+Result)\s*=\s*await\s+\w+\.run\(\)/g)].map((m) => m[1]),
-  )];
-  assert(declared.length > 0, 'no `const <var> = await <suite>.run()` suite results found in test.js — the enumeration is broken.');
-  // Every FREE identifier the expression references — the `*Result` vars AND any
-  // bare boolean term like `configOk` (line 896). A `.fail` after `.` is a
-  // property, not a free var, so the negative lookbehind excludes it.
-  const idents = [...new Set((expr.match(/(?<![.\w])[A-Za-z_$][\w$]*/g) || [])
-    .filter((t) => !['true', 'false', 'null'].includes(t)))];
-  // Evaluate the REAL captured overallOk expression with a synthetic result set:
-  // all suites pass except those in `failing`; bare terms (configOk) are true.
-  // No recursion, no full run.
-  function overallOkWith(failing) {
-    const values = idents.map((id) => {
-      if (failing.includes(id)) return { pass: 0, fail: 1, skipped: 0 };
-      if (declared.includes(id)) return { pass: 1, fail: 0, skipped: 0 };
-      return true; // bare boolean terms (e.g. configOk)
-    });
-    // eslint-disable-next-line no-new-func
-    const fn = new Function(...idents, `return (${expr});`);
-    return fn(...values);
-  }
+test('G6 (harness-gate-integrity #1 AC1; re-aimed by honest-test-gate #1): a failure anywhere in the registry — first, middle or last — fails the gate, and an all-pass registry passes it', () => {
+  F.need('runner');
+  const sc = F.scenario();
   const offenders = [];
-  if (overallOkWith([]) !== true) {
-    offenders.push('with every suite passing, overallOk does not evaluate true — the expression is malformed');
-  }
-  // harnessLintResult is a dead-block (re-attached) suite; noteTrustedList / applicabilityRepublish were never wired.
-  for (const v of ['harnessLintResult', 'noteTrustedListResult', 'applicabilityRepublishResult']) {
-    assert(declared.includes(v), `expected ${v} to be a declared suite result — test.js changed; update this guard`);
-    if (overallOkWith([v]) !== false) {
-      offenders.push(`${v} failing does NOT flip overallOk to false — the suite runs but is orphaned from the exit gate (#43: severed chain or never-added term)`);
+  try {
+    const P = ['pass.test.js', 'second-pass.test.js', 'third-pass.test.js', 'fourth-pass.test.js'];
+    const allPass = F.runEngineSync(sc, [...P, 'fifth-pass.test.js'].map((n) => sc.suite(n)));
+    if (allPass.status !== 0 || !/^Overall: PASS\b/.test(F.lastLine(allPass.stdout))) {
+      offenders.push(`an all-pass registry must exit 0 with Overall: PASS; got exit ${allPass.status}, last line ${JSON.stringify(F.lastLine(allPass.stdout))}`);
     }
-  }
-  if (!/process\.exit\(overallOk \? 0 : 1\)/.test(src)) {
-    offenders.push('process.exit(overallOk ? 0 : 1) missing — the exit code must be the strict verdict');
-  }
+    for (const [where, at] of [['first', 0], ['middle', 2], ['last', 4]]) {
+      const names = [...P];
+      names.splice(at, 0, 'fail.test.js');
+      const r = F.runEngineSync(sc, names.map((n) => sc.suite(n)));
+      if (r.status !== 1 || !/^Overall: FAIL\b/.test(F.lastLine(r.stdout))) {
+        offenders.push(`a failing suite in the ${where} position must fail the gate (exit 1, Overall: FAIL); got exit ${r.status}, last line ${JSON.stringify(F.lastLine(r.stdout))}`);
+      }
+    }
+  } finally { sc.cleanup(); }
   assert(offenders.length === 0,
-    `every registered suite must gate the exit code (story AC1); offenders:\n      - ${offenders.join('\n      - ')}`);
+    `every suite must gate the exit code (harness-gate-integrity #1 AC1); offenders:\n      - ${offenders.join('\n      - ')}`);
 });
 
-test('G7 (harness-gate-integrity #1 AC3): no per-suite summary line masks a real failure — every summary ternary guards on (pass+fail)===0, never on `.skipped` alone', () => {
-  const src = fs.readFileSync(TEST_JS, 'utf8');
-  const allLines = [...src.matchAll(/^\s*const\s+(\w+Line)\s*=/gm)].map((m) => m[1]);
-  const badForm = [...src.matchAll(/^[ \t]*const\s+\w+Line\s*=\s*\w+Result\.skipped[ \t]*$/gm)].map((m) => m[0].trim());
-  assert(badForm.length === 0,
-    `${badForm.length} of ${allLines.length} summary lines mask failures (story AC3): they branch on \`.skipped\` alone, so a {fail>=1, skipped>=1} run prints SKIP and hides the failure (#58). Rewrite each to the good-form guard \`(<r>.pass + <r>.fail) === 0 && <r>.skipped ? SKIP : …\` used by the 14 correct siblings (e.g. deploySafetyStatusLine):\n      - ${badForm.join('\n      - ')}`);
+test('G7 (harness-gate-integrity #1 AC3; re-aimed by honest-test-gate #1): a suite that failed while also skipping reads FAIL with its skip count — never SKIP', () => {
+  F.need('runner');
+  const sc = F.scenario();
+  try {
+    const r = F.runEngineSync(sc, [sc.suite('fail-with-skips.test.js')]);
+    const lines = F.lines(r.stdout).filter((l) => /fail-with-skips/.test(l) && /\b(PASS|FAIL|SKIP)\b/.test(l));
+    assert(lines.length > 0, `no result line for the fail-with-skips suite in the output; tail: ${JSON.stringify(r.stdout.slice(-300))}`);
+    const masked = lines.filter((l) => /\bSKIP\b/.test(l));
+    assert(masked.length === 0,
+      `a { fail: 1, skipped: 2 } result must never render SKIP (#58: a skip masking a real failure); got ${JSON.stringify(masked)}`);
+    assert(lines.some((l) => /\bFAIL\b/.test(l) && /\b2 skipped\b/.test(l)),
+      `it must render FAIL with its skip count ("2 skipped"); got ${JSON.stringify(lines)}`);
+    assert(r.status === 1, `and the gate must fail (exit 1); got ${r.status}`);
+  } finally { sc.cleanup(); }
 });
 
 async function run() {

@@ -51,7 +51,7 @@ One fresh gate-judge spawn per gate, against the rubrics below. APPROVE proceeds
 
 ## Gate B — review (human verdict)
 
-Full rigor, always; the floor is non-negotiable at every tier: gates re-run by the reviewer (the scoped gate at minimum; the full suite at the reviewer's discretion and always at book close), the AC verdict table (or the claims-adherence table for docs), the evidence table. The reviewer **ratifies the Gate-A classification** and probes adversarially beyond the plan — premise errors, collateral damage outside the diff, error paths — the classes this corpus shows only review catches. Narrative may be capped (~300 words) on small mechanical changes, tier assigned *after* the review is written. Docs/spec and security-adjacent stories always get full-depth prose.
+Full rigor, always; the floor is non-negotiable at every tier: gates re-run by the reviewer (the scoped gate at minimum; the full suite at the reviewer's discretion and always at book close; results read per [Running and reading the test gate](../README.md#running-and-reading-the-test-gate)), the AC verdict table (or the claims-adherence table for docs), the evidence table. The reviewer **ratifies the Gate-A classification** and probes adversarially beyond the plan — premise errors, collateral damage outside the diff, error paths — the classes this corpus shows only review catches. Narrative may be capped (~300 words) on small mechanical changes, tier assigned *after* the review is written. Docs/spec and security-adjacent stories always get full-depth prose.
 
 ## Artifacts
 

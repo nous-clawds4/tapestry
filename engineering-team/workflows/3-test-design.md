@@ -21,7 +21,7 @@ Tester. See `engineering-team/roles/tester.md`.
    - Browser/UI flows → Playwright tests via `playwright.config.js`.
 3. **Use the project's testing approach:** Node's built-in runner + Playwright. No new test frameworks without an ADR.
 4. **Write failing tests.** Test names should describe behavior in plain language.
-5. **Run `npm test`** (or relevant subset). Confirm the tests fail — and that they fail because the feature isn't implemented, not because of a typo or import error.
+5. **Run `npm test`** (or relevant subset). Confirm the tests fail — and that they fail because the feature isn't implemented, not because of a typo or import error. For a full run, read the result per [Running and reading the test gate](../README.md#running-and-reading-the-test-gate).
 6. **Show plan + diff.** Iterate to approval.
 7. **Gate:** "Test plan approved and tests fail correctly? Ready for Implementation?"
 8. Hand off to `/implement-feature`.

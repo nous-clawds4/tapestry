@@ -5516,6 +5516,17 @@ async function registerNormalizeRoutes(app) {
   const { handleRelationshipPrimitivesProbe } = require('./probe');
   app.get('/api/normalize/relationship-primitives', handleRelationshipPrimitivesProbe);
 
+  // Node primitives — strfry-free, event-less node creation (ADR
+  // node-primitives/0001; separate module so its import surface stays
+  // auditable, as with the relationship primitives above)
+  const { handleAddSubset } = require('./nodes');
+  app.post('/api/normalize/add-subset', handleAddSubset);
+
+  // Read-only deployment probe for the node-primitives surface
+  // (evidence-only — NOT a health endpoint)
+  const { handleNodePrimitivesProbe } = require('./nodePrimitivesProbe');
+  app.get('/api/normalize/node-primitives', handleNodePrimitivesProbe);
+
   // Firmware install
   const { handleFirmwareInstall } = require('../../firmware/install');
   app.post('/api/firmware/install', handleFirmwareInstall);

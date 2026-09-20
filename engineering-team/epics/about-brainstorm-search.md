@@ -1,6 +1,7 @@
 # Epic: About Brainstorm Search
 
-**Status:** Active
+**Status:** Done (epic retired 2026-07-22 at book close — story 1 Done + live on all three instances; audit + prd-seed under `audits/about-brainstorm-search/`)
+**Retired:** 2026-07-22 at the book close; the story folder moved under `stories/done/about-brainstorm-search/` on 2026-09-18, once that close had landed (PR #671) — the close itself never made the move. No `decisions/` or `reviews/` folder exists for this epic.
 **Provenance:** Operator request 2026-07-21. The search home page's only explanatory footer link was `How search works` — a *mechanism* page (Meilisearch + GrapeRank verification). Nothing told a visitor **what they could do** with Brainstorm Search, or that it can be reached other than through the search bar.
 
 ## What this is
@@ -19,7 +20,7 @@ Frontend-only: React routes + static components. No backend, API, data, or POV l
 
 ## Stories
 
-`stories/about-brainstorm-search/`:
+`stories/done/about-brainstorm-search/`:
 1. **about-page-and-agentic-placeholder** — the About page, the footer swap, and the `/brainstorm-skill` placeholder. *(this story)*
 
 ## Out of scope

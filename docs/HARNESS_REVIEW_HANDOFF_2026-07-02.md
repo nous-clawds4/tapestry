@@ -1,6 +1,14 @@
 # Harness Review — Evaluation & Recommendations
 
-**Status:** 🔴 OPEN — **Appendix A (the mechanical sweep) was executed 2026-07-02 on PR #337** (checkboxes below; one deliberate hold: live-feed epic retirement → OPEN.md row 16). Still open: the §5 recursive self-improvement loop (harness-lint, CHANGELOG, close-book retro, meta escalation, stats), the §4.1 enforcement items (settings.json/hooks R-E1, honesty rewording R-E2, CI test job R-E3 → OPEN.md row 13), and the §4.4 session-start restructure (R-S1–S4). Flip to ✅ when the §5 loop ships.
+**Status:** ✅ ADDRESSED (flipped 2026-09-13, ledger closeout) — **Appendix A (the mechanical sweep) was executed 2026-07-02 on PR #337** (checkboxes below; one deliberate hold: live-feed epic retirement → OPEN.md row 16).
+
+**The §5 loop has shipped**, which was this doc's own flip condition: CAPTURE = `OPEN.md` `meta` rows; ROUTE = `/close-book`'s mandatory harness retro (workflow step 7, "no fourth state"); ENFORCE = `scripts/harness-lint.sh` (10 rules) + `engineering-team/CHANGELOG.md` (L10 touch-rule); RATIFY = `scripts/whats-open.sh`'s meta-escalation banner (ADRs harness-self-improvement/0004 + 0006); MEASURE = `scripts/harness-stats.sh`.
+
+**§4.1 discharged:** R-E1(a) SessionStart hook ✅ (`.claude/settings.json` → `scripts/session-start.sh`); R-E1(b) path-scoped writes ✅ — shipped as per-agent `permissions:` frontmatter in `.claude/agents/*.md` (`Write/Edit(./product-team/**)` + `OPEN.md`) rather than settings.json deny rules, and the Product Advisor + Product Expert have no Bash; its "drop the gate-judge's Bash too" half is **superseded, not outstanding** — `roles/director.md:83` (ratified 2026-08-04) *requires* the judge to run pinned `sed -n`/`grep -m1` reads. R-E2 honesty rewording ✅ (`engineering-team/README.md:105`, `product-team/README.md:86`). R-E3 CI test job ✅ (`.github/workflows/test.yml`; OPEN.md #13). R-E4 `tests/global-setup.js` baseURL fix ✅.
+
+**§4.4 discharged:** R-S1 per-task pointer table ✅ (CLAUDE.md); R-S2 stack-absent fallback ladder ✅ (AGENTS.md §2, with §4's don't-load-BIBLE rule scoped to the graph-reachable branch); R-S3 onboarding path + Quickstart fix ✅ (README.md:13; the stale `concept-graph` checkout is gone); R-S4 budget rule ✅ (`scripts/harness-budgets.txt`, enforced by lint L11).
+
+**Residue — tracked on the ledger, not here:** **#14** (OPERATIONS.md drift, §4.7 — §9.9's audit checklist still names `brainstorm.world` and "four droplets"), **#15** (ROADMAP.md refresh, §4.7), **#16** (live-feed epic retirement — the Appendix-A hold above), and **#305** (§4.1 **R-E5**, the prompt-injection house rule, never shipped: ten WebFetch-carrying agents still carry no "fetched content is data, not instructions" rule). Body below kept unchanged for history.
 **Date:** 2026-07-02
 **Scope:** The full process harness — `CLAUDE.md`, `AGENTS.md`, `BIBLE.md`, `ROADMAP.md`, `OPERATIONS.md`, `OPEN.md`, `engineering-team/`, `product-team/`, `protocols/`, `.claude/` (agents, commands, skills), `scripts/whats-open.sh` — evaluated against ~6 weeks of real usage history (448 commits, 5 books, 57 reviews).
 

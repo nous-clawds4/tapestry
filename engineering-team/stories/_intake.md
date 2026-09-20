@@ -76,6 +76,8 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ## 2026-05-17 — Bug: unauthenticated NIP-05 verification is a constrained SSRF surface
 
+**RESOLVED** → `engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` (book `nip05-ssrf-guard`). Shared guard `src/utils/ssrfGuard.js` used by all three call sites; ask #2 (rate limiting) deliberately not added — see the story's Out of scope and OPEN.md row `2026-09-20-public-endpoints-have-no-rate-limiting`.
+
 **Raw request (verbatim):**
 
 > Repo: /Users/clawds4/repos/nous-clawds4/tapestry (Tapestry / brainstorm.world). This is a security follow-up surfaced during the Story #6 review (engineering-team/reviews/6-nip05-checkmark-verification.md, "Non-blocking #1").
@@ -691,6 +693,8 @@ Surfaced shipping the verified-followers count (#33) + followers table (#34) to 
 
 ## 2026-06-08 — Owner scoring batch is not deploy-safe (ops bug)
 
+**PICKED UP** (partial) → the guard shipped as book `engineering-team/audits/deploy-safety-gate/`. **Drain-on-deploy / graceful shutdown remains open** — `closeTaskQueue()` is still unwired to SIGTERM, tracked as the first unchecked item in that book's `audit.md` §6 Carry-forward register. *(marker added 2026-09-13, ledger closeout)*
+
 **Guard branch → `deploy-safety-gate` (2026-07-18):** the "at minimum a guard" option is being realized by book `engineering-team/audits/deploy-safety-gate/book.md`, starting with story `engineering-team/stories/deploy-safety-gate/1-deploy-safety-status-endpoint.md`. The **resumable-checkpointing** and **drain-on-deploy** branches remain open here — this entry is deliberately left unmarked so it stays on the open-intake radar.
 
 Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9, now BIBLE §27). A redeploy can interrupt a running `updateAllScoresForOwner` mid-`processOwnerFollowsMutesReports`, leaving Owner `influence` partial — which made staging Owner numbers unreliable until a full re-run (hours-long at prod scale, ~32M FOLLOWS). The operator is currently mitigating **manually** (disable scheduled tasks before promoting to staging/main), so this does not block, but the manual step is easy to forget and the failure is silent + expensive.
@@ -1225,6 +1229,8 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 
 ## 2026-06-30 — Feature: tag detail page — "Notes tagged with this tag" (event-tagging Story 8)
 
+**RESOLVED** — shipped: `GET /api/event-tags/for-tag` (`src/api/index.js:577` → `eventTags.handleForTag`) and the Profiles|Notes content switch on the tag page (`ui/src/pages/Tag.jsx:63-66`, `TagNotesView`). *(marker added 2026-09-13, ledger closeout)*
+
 **Raw request (verbatim):**
 
 > when i click the tag to go to the tag page, it seems like it's still configured to show only profiles with that tag. maybe we need to add view options to this page to show taggings for profiles vs taggings for kind-1?
@@ -1261,6 +1267,8 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 ---
 
 ## 2026-07-06 — POV-selectable tag surfaces (event-tags/taggings/applicability are house-POV-only)
+
+**RESOLVED** — the `pov-selectable-tag-surfaces` epic is complete: stories 1–3 all reviewed PASS 2026-07-09 (`dedb0551`, `839a91ba`, `f14fa54d`), ADR `engineering-team/decisions/pov-selectable-tag-surfaces/0001-shared-selected-pov-resolver-for-tag-surfaces.md`. Carried on the ledger as **OPEN.md row 35** (Status `DONE-LOCAL` — epic complete + reviewed, awaiting operator test → deploy). Row **#38** carries only the harness-side residue, not the feature: the epic *file* was never created on `feat/tags`, waived at `scripts/harness-lint-waivers.txt:10` (L3, "write it or retire the (complete) epic"). *(marker added 2026-09-13, ledger closeout)*
 
 **Raw request (verbatim, operator, paraphrasing a design discussion):**
 
@@ -1508,7 +1516,9 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 
 ## 2026-07-15 — Harness story proposal: meta-ledger sweep (OPEN.md #16, #21, #22, #28, #29; +#40, #41 added 2026-07-16)
 
-**NOT PICKED UP** — proposal filed at triage per the meta-escalation rule (session-start digest 2026-07-15: 5 open `meta` rows ≥ the ≥3 threshold; OPEN.md § "How to use this ledger").
+**PICKED UP** (partial) — of the rows this proposal names: **#21, #22 and #41 are closed** (DONE 2026-07-25/26); **#16, #28, #29 and #40 remain open** and are carried by other packets, not by this entry. *(marker added 2026-09-13, ledger closeout)*
+
+Originally filed **NOT PICKED UP** — proposal filed at triage per the meta-escalation rule (session-start digest 2026-07-15: 5 open `meta` rows ≥ the ≥3 threshold; OPEN.md § "How to use this ledger").
 
 **Proposed story:** `harness-self-improvement` epic, next story number — **"meta-ledger sweep #2"**. One bounded pass closing the five open harness lessons:
 
@@ -1548,6 +1558,8 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 ---
 
 ## 2026-07-16 — Cleanup: extract a shared `<RawEventPanel>` (do it at the THIRD inspection surface)
+
+**RESOLVED** — 2026-07-17, per this entry's own body below: discharged by tag-event-inspector ADR 0003 D5, `TagRowRawEvents.jsx` promoted to `ui/src/components/RawTaggingEvents.jsx`. The body's bold `**DONE**` is not a marker `whats-open.sh` recognises; this line is the conversion. *(marker added 2026-09-13, ledger closeout)*
 
 **DONE** 2026-07-17 — discharged by tag-event-inspector ADR 0003 D5 (Story 3, the third inspection surface, exactly as the trigger predicted): `TagRowRawEvents.jsx` promoted to the shared `ui/src/components/RawTaggingEvents.jsx` — a rename, not an abstraction (identical export/props/markup/class names); consumed by `TagPageRow` (Story 2) and `NoteTags` (Story 3); both surfaces' source suites re-aimed, not dropped. Story 1's definition panel is deliberately EXCLUDED — the revealed outlier (one POV-invariant event, no envelope, no polarity captions); its genuinely shared parts are `toRawEvent` (now exported from profile-tags) and `.bs-tag-raw-pre`, not the blocks renderer.
 
@@ -1657,6 +1669,8 @@ The local concept `39998:<local-TA>:shared-concept` catalogs 5 elements, each ca
 ---
 
 ## 2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)
+
+**RESOLVED** — built and closed as book `engineering-team/audits/relationship-primitives/` (`book.md` **Status: Closed**). *(marker added 2026-09-13, ledger closeout)*
 
 **Raw request (verbatim):**
 
@@ -1848,7 +1862,9 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 
 ## 2026-07-28 — Harness story proposal: OPEN.md file-per-row migration (kill the last flat counter)
 
-**NOT PICKED UP** — filed at the store-and-show postmortem, sibling to the blinding-rebuild proposal above; motivated by the same two-session collision that stranded that close's §7a drafts for a day (store-and-show audit §7a preamble: "held by a concurrent session"; add-a-concept audit §7 F8: "the previous close's retro dispositions never landed").
+**RESOLVED** 2026-09-20 — built as story `ledger-row-identity` #1 (book `engineering-team/audits/ledger-row-identity/`; ADR `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md`; review `engineering-team/reviews/ledger-row-identity/1-collision-free-ledger-row-ids.md`). What shipped keeps this proposal's date+slug ids and drops its migration: a new row is a file under a top-level `ledger/`, and the numbered table stays in `OPEN.md`, frozen where it stands (rows 1–343). Picked up 2026-09-19; `OPEN.md` rows 151, 207 and 307 closed with it.
+
+Originally filed **NOT PICKED UP** — filed at the store-and-show postmortem, sibling to the blinding-rebuild proposal above; motivated by the same two-session collision that stranded that close's §7a drafts for a day (store-and-show audit §7a preamble: "held by a concurrent session"; add-a-concept audit §7 F8: "the previous close's retro dispositions never landed").
 
 **Proposed story:** `harness-self-improvement` epic (reactivate, per the tapestries precedent), next story number — **"one file per row: the ledger becomes a directory."** OPEN.md's dense sequential row numbers are the repo's **last flat global counter**, and it has now produced the same collision class the 2026-06-04 epic-folders migration was ratified to kill for stories and ADRs ("three real numbering collisions"): a live row-number collision at second-brain story 5 (renumbered by hand + numbering note), and the §7a stranding above. Two distinct races: the **counter** (an ID mint requiring global state) and the **tail** (two sessions appending to the same end-of-file region conflict textually even with unique IDs). The fix kills both by making additions file-creations, which git merges perfectly:
 
@@ -1865,7 +1881,9 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 
 ## 2026-08-05 — Shared-concepts adoption suite: S-subset taxonomy, adoption queues, coverage audit, stamping defaults
 
-**NOT PICKED UP** — laid out at the end of the session that built the Shared Concepts area (PRs #491–#494); recorded here so a fresh session can pick features off one at a time. The owner's S-subset taxonomy and rationale, verbatim:
+**RESOLVED** — picked up and closed as book `engineering-team/audits/shared-concepts-adoption/` (`book.md` **Status: Closed**, 2026-08-07). *(marker added 2026-09-13, ledger closeout)*
+
+Originally filed **NOT PICKED UP** — laid out at the end of the session that built the Shared Concepts area (PRs #491–#494); recorded here so a fresh session can pick features off one at a time. The owner's S-subset taxonomy and rationale, verbatim:
 
 > * S1: author-promoted shared concepts (auto b-tag)
 > * S2: user-promoted shared concepts (b-tag but not by the author of the concept header)
@@ -1998,7 +2016,9 @@ Option 1 aligns with "neo4j is the definitive me, LMDB is a subordinate cache": 
 
 ## 2026-08-09 — Shared Concepts legibility: can a user tell what they've already done, and find their own offerings?
 
-**NOT PICKED UP** — surfaced in the same 2026-08-09 walkthrough as the entry above, but a distinct thread: that entry is the registry's *architecture*, this one is whether the feature is *legible to the person using it*. The owner's stated goals for the walkthrough: "understand which required features and abilities are in place and which are missing," and "ensure that the features and abilities are described well enough for a new user to understand what the features do and how to use them." Framing constraint, verbatim:
+**RESOLVED** — picked up and closed as book `engineering-team/audits/shared-concepts-legibility/` (`book.md` **Status: Closed**, 2026-08-10). *(marker added 2026-09-13, ledger closeout)*
+
+Originally filed **NOT PICKED UP** — surfaced in the same 2026-08-09 walkthrough as the entry above, but a distinct thread: that entry is the registry's *architecture*, this one is whether the feature is *legible to the person using it*. The owner's stated goals for the walkthrough: "understand which required features and abilities are in place and which are missing," and "ensure that the features and abilities are described well enough for a new user to understand what the features do and how to use them." Framing constraint, verbatim:
 
 > some of the features confuse me to the point that I'm not sure how to navigate them, and I am the builder! So we're not going to jump to a slick and polished UX quite yet. But at the least, the descriptions of the features need to be done well enough so that I don't get them confused in my own head!
 
@@ -2147,7 +2167,9 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 
 ## 2026-08-18 — Make the test gate fast and honest (umbrella: the instrument cluster)
 
-**NOT PICKED UP.** Filed from the 2026-08-18 harness review (four-analyst corpus study; findings doc: the "Harness Review & the Light Profile" artifact), whose top-ranked friction was not the gates but **the instruments behind them**: ~20 of OPEN.md's 81 `meta` rows are the test gate being slow, flaky, or wrong about its own result. This entry consolidates that cluster into one queued objective so it competes for scheduling as a unit instead of as scattered lessons.
+**PICKED UP** 2026-09-12 → book `engineering-team/audits/honest-test-gate/book.md` (epics `honest-test-gate` #1–#3 + `test-suite-hermeticity` #2; branch `feat/honest-test-gate`). Scope note at pickup: rows 75/141 are already fixed by `test-suite-hermeticity` #1 (row 150) and row 43 is DONE (`harness-gate-integrity` #1), so neither is carried.
+
+Filed from the 2026-08-18 harness review (four-analyst corpus study; findings doc: the "Harness Review & the Light Profile" artifact), whose top-ranked friction was not the gates but **the instruments behind them**: ~20 of OPEN.md's 81 `meta` rows are the test gate being slow, flaky, or wrong about its own result. This entry consolidates that cluster into one queued objective so it competes for scheduling as a unit instead of as scattered lessons.
 
 **The objective, in one sentence:** the gate finishes inside tool timeouts, its exit code is always true, and a red result always means signal — so that nobody is ever again trained to expect red and shrug.
 
@@ -2179,6 +2201,8 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases)
 
 ## 2026-08-27 — Advertise TL provision in kind-10040 (follow-up to weighted certainty)
+
+**RESOLVED** — reassigned, not built here: David is implementing the kind-10040 TL-provider line separately (operator direction at the rung-3 close). See the `**REASSIGNED (2026-08-27)**` line below — that wording is not a marker `whats-open.sh` recognises, which is why this entry kept surfacing as open. *(marker added 2026-09-13, ledger closeout)*
 
 **REASSIGNED (2026-08-27)** — David is implementing the kind-10040 TL-provider line separately; not built in this repo/book (operator direction at the rung-3 close).
 
@@ -2249,6 +2273,8 @@ irreversibility triggers).
 
 ## 2026-09-07 — `publishToRelays` reports every external publish as a success
 
+**RESOLVED** — became the `honest-publish-reporting` work; tracked and closed on the ledger as **OPEN.md row 200** (DONE 2026-09-08). The `/legacy/*.html` security note that was nested under this entry as a `###` block is now its own `## 2026-09-08` entry below, so it stays visible to `whats-open.sh`. *(marker added 2026-09-13, ledger closeout)*
+
 **Surfaced during:** treasure-map-relay-presence #2 live verification, at the operator's request
 to try a real sync against a real relay. Filed as **OPEN.md row 200** at the book close; not
 fixed there because it is shared code on five shipped paths and well outside that story's scope.
@@ -2312,7 +2338,7 @@ stays as-is.
 
 ---
 
-### 2026-09-08 — Security note: `/legacy/*.html` is served with no auth check
+## 2026-09-08 — Security note: `/legacy/*.html` is served with no auth check
 
 **Type:** Security / hardening. **Classification:** not yet triaged.
 
@@ -2338,6 +2364,8 @@ decide gate-or-retire. Retirement may be the right answer: the legacy dashboard 
 `/tapestry/`.
 
 ## 2026-09-10 — `inherit-items`: derivation + item-set resolver (code follow-up)
+
+**RESOLVED** 2026-09-12 — no consumer: `curated-dlist-update` ADR 0001 moves curated lists to `pointer` headers and copied items, and the header endpoint stops writing `inherit-items` in that book's story 2. Reopen if a list that takes every parent item live is wanted.
 
 **Surfaced by:** `dlist-curation` #3 / ADR 0003 (docs-mode). The `b` type registry gained
 `"inherit-items"` (item inheritance, additive) with the derived relationship
@@ -2377,3 +2405,189 @@ a couple of the items are live and unpatched, so their specifics stay private un
 (SECURITY.md → private advisory). When picked up, these become the next stories in the reopened
 `security-auth-exposure` epic (Standard, human-gated); one of them overlaps the 2026-07-21
 authenticated-non-owner item above.
+
+## 2026-09-18 — Scripted smoke test: `docs/SMOKE_TEST.md` as tested code, not per-session transcription
+
+**Surfaced by:** the stranded-close session (2026-09-18) — four deploys in one day (#671 → #672, #673 →
+#674). Every `/cycle-*` run re-types the smoke recipe from prose. That session ended up writing a
+throwaway script for it in its scratchpad; a copy is kept in PR #676's description.
+
+**Why it matters:** the recipe now has a rule that is easy to get wrong by hand. When a later tier
+meets a 502, the right response is to re-run the Tier 1 poll and repeat that tier from the top
+(OPEN.md row 251); a single-request retry is the natural mistake. Production hit exactly that window
+on both of the day's deploys (OPEN.md row 325). `scripts/check-safe-to-merge.sh` already made this
+move for the pre-merge half — its CHANGELOG row (2026-07-18) says the mechanism "lives in tested
+code, not per-run transcription", and it has a suite (`test/safe-to-merge-check.test.js`). The
+post-deploy half is still prose.
+
+**Ask:** a `scripts/smoke-test.sh <base-url> [expected-bundle-hash]` that implements Tier 1 (the
+3×200 poll and settle), Tier 2 (the sanity pages and APIs, the documented 504-with-JSON expectation
+for a large-graph `get-user-data`, the search regression), Tier 3's bundle-hash assertion (changed or
+unchanged, as the caller says), and a Tier 5 hook for caller-supplied URLs. On a non-200 in a later
+tier: re-poll, repeat that tier once, then fail. Exit codes the cycle skills can branch on, and
+journaled output in the safe-to-merge script's style. Tier 3's PR-specific checks and Tier 4 (the
+browser pass) stay with the agent. Then wire it into the smoke step of each cycle skill — step 7 in
+cycle-staging and cycle-prod, the three smoke items in cycle-full's stage lists (it has stages, not
+steps), and cycle-local's — and have `docs/SMOKE_TEST.md` name it as the executable form.
+
+**Readiness, not just reachability (added 2026-09-19; reason resolved same day).** Tier 1's 3×200
+poll proves Express is up, not Neo4j. The script must also wait until Neo4j answers before it runs any
+Cypher-backed check: `get-user-counts` returns `verifiedFollowerCount: null` until it does — about
+40 s after the container started on the production deploy where it was timed. This began as a
+workaround for OPEN.md row 325 (a `get-user-data` call into an unready Neo4j crashed the Express
+process); that defect was diagnosed and fixed the same day (PRs #681/#682), so the wait is no longer a
+crash-avoidance necessity — but it stays in the recipe because it also prevents false failures on
+every Neo4j-backed check. `docs/SMOKE_TEST.md` Tier 1 now carries the gate and its recipe (row 325,
+now DONE).
+
+**Classification:** feature (harness tooling). It touches `.claude/skills/*`, which is a
+harness-definition path, so it owes a CHANGELOG row. A new file under `scripts/` is not one by
+default: `scripts/harness-def-paths.txt` lists nine named entries there, and
+`scripts/check-safe-to-merge.sh` is not among them — whether the new script should be registered is
+a question for the story. It wants a suite with a stub server, the way the safe-to-merge check has
+one. Standard path: all phases. It is a bash script, not new lint, typecheck
+or build tooling, so the house rule on tooling does not by itself force an ADR; the Architect can
+confirm.
+
+**While there:** three cycle skills still tell the agent to "retry once" on a post-stability 502
+(`cycle-staging/SKILL.md:157`, `cycle-prod/SKILL.md:155`, and `cycle-full/SKILL.md:112`'s "the
+post-stability retry"), where `docs/SMOKE_TEST.md` has said since 2026-09-10 to re-run the poll and
+repeat the tier — and line 38 of that doc itself keeps "retry once" for a 502 right after stability,
+beside the newer rule for one that comes later, so decide whether both are meant; `OPERATIONS.md`
+§9.5 still says the late window was "observed once"; and the renumbering of `OPERATIONS.md` §8 to
+§9 left old §8 numbers in four files, three of them citing this section as §8.5 (OPEN.md row 325's
+pointer lists all five lines).
+
+**Update 2026-09-19:** OPEN.md row 325 is now diagnosed, fixed (PRs #681/#682) and closed. As part of
+that doc lane, `docs/SMOKE_TEST.md` line 38's "retry once" and `OPERATIONS.md` §9.5's "observed once /
+can briefly cycle" reading were replaced with the Neo4j-readiness gate, and `SMOKE_TEST.md:19`'s stale
+§8.5 citation was fixed. Still open from the list above: the three cycle skills' "retry once" wording
+and the remaining stale §8 citations in `cycle-staging/SKILL.md`, `cycle-prod/SKILL.md` and
+`BIBLE.md` — a separate doc-hygiene pass (kept out of the row-325 lane to avoid CHANGELOG/budget
+obligations on those harness-definition paths).
+
+## 2026-09-19 — Global unhandled-rejection backstop for the server entry (bug / hardening)
+
+**Surfaced by** the `user-data-error-path` fix (OPEN.md row 325, now DONE): that fix hardened one
+handler's async error branch, but the server entry (`bin/control-panel.js`) installs no
+`unhandledRejection` / `uncaughtException` handler, so a future mishandled async rejection anywhere in
+the request path would again drop the whole process. **Operator decision (2026-09-19): adopt
+log-and-exit** — log the rejection with its stack, then exit so supervisor restarts cleanly (fail-fast
+preserved, with central diagnosis added); explicitly *not* log-and-continue, which can leave the
+process in an undefined state. It is a backstop, not a substitute for fixing the individual site.
+
+**Scope:** a small bug-lane story with its own test (assert an unhandled rejection is logged and the
+process exits non-zero). **Classification:** bug (hardening), Standard. Follow-up to the
+`user-data-error-path` book.
+
+## 2026-09-19 — Nudge people toward the more-used of two duplicate Tags (feature)
+
+**Origin:** one of three unbuilt ideas the owner used to illustrate the Show and Tell design philosophy; filed here at the owner's direction so the philosophy doc is not their only tracker. Philosophy entry: [`design-philosophies/show-and-tell.md`](../../design-philosophies/show-and-tell.md) example **E11**.
+
+**Raw request (verbatim, 2026-09-19):**
+
+> According to the first method, we track usage of a given Tag by adding up each of the Taggings (authored by verified accounts, of course) that make use of that Tag. We then can create a list of Tags, ordered from top to bottom according to how much use they get. If the same Tag is defined twice, we can prompt users to use the more popular one, which still allowing them to find the alternatives if they do just a little digging. In this way, consensus can be achieved naturally.
+
+("which" is the owner's typing; read "while".)
+
+**What exists today:** the first half is shipped — the Tags directory's default "Most used" sort counts taggings by accounts the active point of view trusts. The nudge is not. Tags by different authors with the same slug are distinct by protocol (`protocols/drafts/tags.md` § Tag definitions). With nothing typed, the Add-a-tag picker lists the current target type's Tags by trusted usage; once a name is typed, matches are no longer ordered by usage (`ui/src/components/AddTagDialog.jsx`). Its "Show other results" expander covers a different case: it lists matching Tags that are outside the current target type's list — typically a Tag from the *other* target type (a profile Tag while tagging a note), but also a Tag with no hint and no trusted usage for either type — exact-slug first, so people adopt an existing Tag instead of minting a per-type copy. The standalone same-slug create-time warning was superseded and folded into that expander (`engineering-team/epics/tag-applicability.md`, story 3). Two same-slug Tags by different authors in the same target type appear side by side in the main list, and nothing marks them as duplicates or says "a more used version of this Tag exists — use that one".
+
+**Product questions underneath it:** what makes two Tags "the same" (same slug only, or similar names); whose usage decides "more popular" (the counts are per point of view, so two viewers can be nudged in opposite directions — is that acceptable, or the point?); where the nudge appears (picker, create flow, the Tag's own page); and how much digging "a little digging" is.
+
+**Classification:** feature. The requirements are not settled, so this leans **Product Team** first (Discovery), then Standard / all phases.
+
+## 2026-09-19 — Categories of pins (feature; touches the pin wire format)
+
+**Origin:** as above. Philosophy entry: `design-philosophies/show-and-tell.md` example **E12** and open question **Q4**.
+
+**Raw request (verbatim, 2026-09-19):**
+
+> There may be multiple categories of Pins: one category triggers maintenance of the Trusted List associated with that Tag; another category may trigger that Tag to be shown preferentially over other Tags on profile pages, where there will be a default maximum number of Tags that show up on the page.
+
+**What exists today:** one `tag-pinning` concept and one kind of pin. Every pin commissions a Trusted List; variation between pins lives in the pin's curation parameters (observer, method, cutoff, target types). Nothing in code, ADRs, specs or issues describes categories. `engineering-team/decisions/0009-pin-a-tag.md` (Option A, "Concept slug") left the unqualified "pinning" slug free for pinning things other than Tags, which is a different axis.
+
+**Why it matters beyond the feature:** the owner's reuse hazard (same doc, § "The reuse hazard") — a pin is taken for personal reasons and then counted for other people. A category is a way for the pinner to say which reading of their pin they endorse. The design should be checked against that section's three questions, and against open question Q3 (what a pinner is told; whether a pin can be private).
+
+**Product questions underneath it:** which categories, and whether one pin can carry several; what a category is structurally (a field in the curation parameters, a concept per category, or something else); what happens to existing pins.
+
+**Classification:** feature with a protocol change — check [`protocols/README.md`](../../protocols/README.md) and `protocols/drafts/tags.md` § Pins before any wire-format work. Leans **Product Team** first; the wire-format part then rides the Protocol-Spec docs-mode flow.
+
+## 2026-09-19 — Pinned Tags first on profile pages, under a default maximum (feature)
+
+**Origin:** as above. Philosophy entry: `design-philosophies/show-and-tell.md` example **E13**, and the owner's worked example of heuristic **H4** (give people a reason of their own).
+
+**Raw request (verbatim, 2026-09-19):**
+
+> Example: if a user has a special interest in some niche category that is not widely popular, and wants to see relevant Tags show up on the user profile page, the user will be prompted to Pin the relevant Tags to the list of Tags that will take priority when viewing user profile pages. The user is motivated to do so because of a clear reason and can see the effects of the Pinning action immediately.
+
+**What exists today:** the profile page's Tags section shows every Tag with at least one trusted application or dispute on that profile, alphabetically, with no cap, and does not consult pins (`ui/src/components/ProfileTagsSection.jsx`). The read is already filtered by point of view.
+
+**Product questions underneath it:** the priority list is the *viewer's* own pins (that is what makes the benefit immediate and personal) — confirm; what fills the remaining slots (most used from the active point of view?); the default maximum and how to see the rest; how and where the viewer is prompted to pin; and whether this waits for pin categories (the entry above) or ships on today's single kind of pin.
+
+**Classification:** feature. Leans **Product Team** first, then Standard / all phases. Related: the entry above.
+
+---
+
+## 2026-09-20 — Harness story proposal: the meta-ledger sweep, sized (supersedes the 2026-07-15 proposal)
+
+**NOT PICKED UP.** Drafted at the operator's request while closing work packet `h-rollup-scanner`. This is the proposal the meta-escalation banner has been asking for since it first fired: *"propose a harness story at triage — group related items, name the story, list what it closes."* The 2026-07-15 entry above (`_intake.md:1517`, "meta-ledger sweep", `**PICKED UP** (partial)`) named seven rows and closed three of them. It has been invisible to `/whats-open` ever since, because a partial marker retired the whole entry — the defect `rollup-scanner-fidelity` #1 fixed on 2026-09-20. This entry replaces it as the live proposal; that one stays as the record of what it closed.
+
+### The measurement (2026-09-20, `origin/staging` `8ca781db`)
+
+**131 open harness lessons, oldest 80 days.** Re-verified at `8ca781db` after a sibling session flagged five rows moving the same evening: the count is unchanged and all five are already grouped below (S8, S2, S4, S2, S7). A snapshot this entry is read against should still be re-counted before scoping — one row arrived while it was being drafted. Every figure below was computed by extracting each commit's own `scripts/lib` plus its `OPEN.md`, `ledger/` and `_intake.md`, and running *that tree's own* collector — so each is what a session would actually have read that day.
+
+| | |
+|---|---|
+| 2026-08-20 | 57 |
+| 2026-09-08 | 80 |
+| 2026-09-13 | 106 |
+| 2026-09-19 | 119 |
+| 2026-09-20 | 131 |
+
+Opened against closed, by month, for `meta` rows in both homes:
+
+| month | opened | closed | net |
+|---|---|---|---|
+| 2026-07 | 64 | 12 | **+52** |
+| 2026-08 | 24 | 9 | **+15** |
+| 2026-09 | 91 | 19 | **+72** |
+
+**179 opened in total, 40 closed — a 22% close rate.**
+
+### The argument: the arrival rate is the problem, not the backlog
+
+A sweep that only closes rows restores the banner to silence for about three weeks. September alone added 91. One row arrived while this entry was being drafted. So the proposal is **two-part and the second part is the load-bearing one**: close what is cheap and grouped (below), *and* change what happens at the moment a lesson is filed, so that filing is not the end of the story. Concretely, that second part means deciding — once, as a rule — which of these three a new `meta` row is:
+
+1. **a defect with a fix shape** → it is a bug row, not a lesson; it belongs in a story queue, not the meta inbox;
+2. **a rule the harness should enforce** → it owes a named lint check or workflow step, and stays open only until that exists;
+3. **an observation with no owner** → it should not be filed at all, or should be filed somewhere that does not escalate.
+
+Today all three land in one inbox with one threshold, which is why the threshold has been continuously tripped since July and no longer signals anything.
+
+### Candidate stories — every one of the 131 is assigned exactly once
+
+| # | Story | Closes | Note |
+|---|---|---|---|
+| **S1** | **Source-level assertions pin spelling, not behaviour** — a documented convention (assert the guard exists; never ban a substring; mutation-verify every static pin) plus a JSX-aware helper | 13 — rows 40, 65, 107, 108, 109, 112, 169, 174, 193, 244, 264, 303, `2026-09-20-source-assertions-pin-spelling` | The single most-repeated root cause in the ledger. Rows 109 and 193 each cost a story a false red; 108 and 169 are the vacuous-pass mirror |
+| **S2** | **The gate is not honest on a developer host** | 18 — rows 59, 60, 83, 104, 126, 191, 192, 211, 213, 271, 280, 283, 284, 288, 294, 310, `2026-09-20-backgrounded-gate-exit-code-masked`, `2026-09-20-live-tier-fails-on-stale-stack` | **Already has a home**: the `honest-test-gate` book is Open. This is scope for it, not a new epic |
+| **S3** | **Book and epic lifecycle: unenforced at open, destructive at close** | 13 — rows 29, 78, 99, 110, 225, 234, 268, 312, 319, 322, `2026-09-20-close-commit-line-omits-epic-file`, `2026-09-20-done-move-breaks-inbound-refs`, `2026-09-20-epic-retirement-breaks-suite-paths` | Nothing enforces the eager anchor (110), and the close silently breaks inbound references (312 and two row files). Both halves are lint-shaped |
+| **S4** | **The deploy chain's rules live in prose and nothing enforces them** | 12 — rows 72, 140, 177, 183, 209, 218, 256, 277, 278, 340, 341, `2026-09-20-promotion-bundle-body-goes-stale` | Rows 340/341 are the safe-to-merge gate carried by one doc; 209/256 are the cycle skills never reading CI |
+| **S5** | **A search or probe that finds nothing must not read as "nothing is there"** | 8 — rows 56, 92, 149, 165, 182, 203, 342, `2026-09-20-git-grep-word-boundary-vacuous` | The highest-severity group per row: 165 produced a false "no secrets found". These are false *negatives*, which no gate catches by construction |
+| **S6** | **The local dev loop and agent worktrees** | 8 — rows 54, 70, 71, 196, 199, 253, 306, `2026-09-19-agent-worktrees-outlive-books` | **Do not build the reaper as that row originally specified.** Its merge test — "HEAD is an ancestor of `origin/staging`" — fails for a worktree parked at `origin/main`, which is exactly the state a just-closed book leaves. `main` holds 27 commits staging does not and all 27 are promotion merges, so `main` is *never* an ancestor of staging. Corrected in the row 2026-09-20 |
+| **S7** | **Orientation docs assert things that are true on some machines and false on others** | 7 — rows 44, 181, 198, 262, 333, 334, `2026-09-20-claude-md-overstates-bind-mount` | Cheapest to close and the highest per-row cost to leave — every one is a false map a session trusts on arrival. **But the fix is usually a precondition, not a correction:** the bind-mount sentence is false on one machine here and measurably *true* on another (six mounts including the repo bind), so "correcting" it would break the other half. Scope this story as "say which state you are in and how to tell", not "fix the wrong sentences" |
+| **S8** | **Phase and role boundaries: who owns what, and what evaporates between them** | 23 — rows 16, 80, 98, 118, 158, 160, 197, 206, 212, 233, 240, 243, 247, 298, 302, 309, 311, 313, 316, 332, 343, `2026-09-20-human-gated-approvals-leave-no-record`, `2026-09-20-inplace-pass-erases-kickback-history` | **Largest and least coherent — split before building.** Row 343 is a decision owed by the operator, not work |
+| **S9** | **Direction-mode journalling and completion records** | 4 — rows 64, 74, 76, 122 | All from one book; may be stale. Verify before scoping |
+| **S10** | **The ledger's own machinery** | 7 — rows 331, 339, `2026-09-20-crlf-row-file-invisible-to-readers`, `2026-09-20-freeze-marker-can-be-bumped`, `2026-09-20-l16-region-reopens-on-pipe`, `2026-09-20-ledger-rule-omits-search-before-filing`, `2026-09-20-lint-verdict-taken-from-stdout` | The tail of `ledger-row-identity`; all filed 2026-09-19/20, so the context is fresh and the cost is lowest now |
+| — | **One-offs, no group** | 18 — rows 28, 38, 53, 94, 113, 114, 116, 128, 144, 175, 190, 238, 265, 305, 315, 318, 338, `2026-09-20-smoke-tier3-cannot-verify-a-negative` | Disposition individually at triage: several are likely already fixed or obsolete and just need closing |
+
+### Suggested sequencing
+
+1. **S7** first (7 rows, hours, and every session pays for these daily).
+2. **S10** next, while `ledger-row-identity`'s context is still warm.
+3. **S2** into the open `honest-test-gate` book rather than a new epic.
+4. **S1** and **S5** are the two that change outcomes rather than tidiness — S1 because it is the repeated cause of both false reds and vacuous passes, S5 because it is the only group whose failure mode is silent.
+5. **S8** split before scoping; **S3**, **S4**, **S6**, **S9** and the one-offs after.
+
+Nothing here should start before the triage rule in "The argument" is decided, because building S1–S10 against an inbox still arriving at ~90/month reproduces this entry in November.
+
+**Classification:** Harness story (several). Standard strictness. Books: S2 joins `audits/honest-test-gate/`; the rest want one new book, `meta-ledger-sweep`, with the stories above as its epics.

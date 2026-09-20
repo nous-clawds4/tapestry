@@ -2,6 +2,7 @@
 
 **Created:** 2026-08-10
 **Status:** In Progress
+**Book:** `engineering-team/audits/honest-test-gate/book.md` (joined 2026-09-12 with the assertion sweep, #2)
 
 ## Goal
 
@@ -33,6 +34,11 @@ trustworthy, and it is the one that had degraded furthest.
    `relationship-primitives` H8 and `relationship-primitives-probe` H4 measure the entire strfry
    corpus, so live `strfry-router` ingest inside the bracket window fails them. Closes OPEN.md
    row 150.
+2. *(anticipated, not yet planned)* **assertion sweep** — the assertion patterns that report the
+   wrong result: environmental skips masking zombie tests (row 59), same-second replaceable-event
+   ties (row 60), loops over collections the feature hasn't produced yet (row 108), byte-offset
+   source windows (row 109), and presence checks inside a capped page (row 126). Part of the
+   `honest-test-gate` book.
 
 ## Out of scope (whole epic, unless a later story says otherwise)
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import AuthorCell from '../../components/AuthorCell';
+import TagDetailPanel from '../../components/TagDetailPanel';
 import useProfiles from '../../hooks/useProfiles';
 import { useConfig } from '../../context/ConfigContext';
 import { queryRelay } from '../../api/relay';
@@ -25,6 +26,12 @@ const EVENT_ID_RE = /^[0-9a-f]{64}$/;
 /** The singular name: `names` tag = ["names", singular, plural, …]. */
 function singularName(ev) {
   const t = ev?.tags?.find((x) => x[0] === 'names');
+  return t && typeof t[1] === 'string' && t[1].trim() !== '' ? t[1] : null;
+}
+
+/** The event's description tag value, if any. */
+function descriptionOf(ev) {
+  const t = ev?.tags?.find((x) => x[0] === 'description');
   return t && typeof t[1] === 'string' && t[1].trim() !== '' ? t[1] : null;
 }
 
@@ -70,6 +77,9 @@ export default function ActiveBTags() {
                 uuid: `${ev.id}:${t[1]}`,
                 localName: singularName(ev),
                 bTag: t[1].trim(),
+                // The description of the LOCAL event carrying the b-tag — deliberately not
+                // the shared event's (story AC-8). It is already on `ev`; no extra fetch.
+                description: descriptionOf(ev),
                 // Detail-page coordinate of the local event; rows without a
                 // d-tag (non-addressable carriers) have no detail route.
                 coord: d != null ? `${ev.kind}:${ev.pubkey}:${d}` : null,
@@ -154,11 +164,6 @@ export default function ActiveBTags() {
       render: (val) => val || <span className="text-muted">—</span>,
     },
     {
-      key: 'bTag',
-      label: 'b-tag',
-      render: (val) => <code style={{ overflowWrap: 'anywhere' }}>{val}</code>,
-    },
-    {
       // Virtual column: no `sharedName` field exists on the row — the cell
       // resolves through the async lookup map via the row's bTag.
       key: 'sharedName',
@@ -197,6 +202,10 @@ export default function ActiveBTags() {
           <DataTable
             columns={columns}
             data={rows}
+            filterKeys={['bTag', 'description']}
+            renderExpanded={(row) => (
+              <TagDetailPanel description={row.description} tagLabel="b-tag" tagValue={row.bTag} />
+            )}
             onRowClick={(row) => {
               if (!row.coord) return;
               navigate(`/tapestry/shared-concepts/b-tags/${encodeURIComponent(row.coord)}?b=${encodeURIComponent(row.bTag)}`);

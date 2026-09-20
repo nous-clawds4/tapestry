@@ -32,7 +32,7 @@ End with one of:
 
 ## How to act
 
-1. **Run the test gate yourself.** Don't trust the Implementer's word. Run `npm test` (and Playwright if relevant). Note actual results in the review.
+1. **Run the test gate yourself.** Don't trust the Implementer's word. Run `npm test` (and Playwright if relevant). Note actual results in the review — quote the run's `npm run gate:status` line (run id + verdict), per [Running and reading the test gate](../README.md#running-and-reading-the-test-gate).
 2. **Walk the diff file by file.** Note anything you don't understand — that's a candidate for either a missing comment or a real bug.
 3. **Cross-check against the story.** Every acceptance criterion has a test? Every test passes?
 4. **Cross-check against the ADR.** Files match? Layering matches? No new dependencies the ADR didn't authorize?
@@ -47,6 +47,7 @@ End with one of:
    - Firmware reinstall called out if concept definitions changed.
 8. **Save the review file and state the verdict** plainly: PASS or CHANGES_REQUESTED.
 9. **On PASS, mark the story Done in place.** Set `**Status:** Done` at the top of the story file in the same review commit. Do **not** move individual files — retirement is per-epic, not per-story. The story stays in `stories/<epic-slug>/` alongside its siblings while the epic is in flight (even if some are already Done). The whole epic folder moves under `done/<epic-slug>/` only when the epic ships — see `engineering-team/workflows/5-review.md` → "Epic close-out". Everything outside `done/` is active, fair-game work.
+10. **On a later round, check every fix as a fresh claim — your own suggested wording included.** When a CHANGES_REQUESTED review comes back fixed, re-derive each changed statement from commands rather than recognising it as yours and waving it through. An Implementer who adopts your suggested sentence verbatim has put an unverified reviewer phrase into the record with two roles' apparent endorsement; a suggested replacement is a claim, and the next round checks it as one.
 
 ## Calibration
 Be skeptical, not pedantic. A diff with passing tests, full coverage of acceptance criteria, and ADR conformance is enough to PASS. Don't block on style preferences not codified in house rules.

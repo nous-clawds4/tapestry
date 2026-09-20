@@ -29,6 +29,7 @@ const assert = require('assert');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(REPO_ROOT, 'scripts', 'harness-lint.sh');
+const { rowFile, tableRow, ledgerDoc, REAL_SHAPE_ROWS, NOTE_LINE } = require('./helpers/ledgerFixtures');
 
 // ---------- fixture machinery ----------
 
@@ -538,6 +539,252 @@ test('the harness definition no longer instructs judges to read "the acceptance 
     'director.md still carries the stop-at-a-section instruction phrasing (:83) — ADR 0002 replaces it with the pinned frame-read command');
   assert.match(director, /pinned frame-read command/,
     'director.md must name the pinned frame-read command in the every-gate spawn-prompt item');
+});
+
+// ---------- L15: ledger ids (ledger-row-identity #1, ADR ledger-row-identity/0001) ----------
+// A ledger row's id has one of two homes: a number in OPEN.md's table, which is frozen
+// where it stands, or a date+slug id that is the name of a file under ledger/. L15 checks
+// (a) no id twice in the table, (b) nothing in the table above the freeze marker, (c) every
+// row file is named by a well-formed id and carries its header fields. The OPEN.md these
+// fixtures use (helpers/ledgerFixtures.js) has the real file's shape — a second table in
+// the preamble, its notes below the freeze marker, pipes inside cells — because a reader that
+// takes every `|` line for a row, or reads any cell but the first, fails on the real ledger.
+// See engineering-team/stories/ledger-row-identity/1-collision-free-ledger-row-ids.test-plan.md
+
+/** The L15 lines of a lint run. Failure messages lead with them: the runner prints a message's first line only. */
+function l15(out) {
+  const lines = out.split('\n').filter((l) => /\bL15\b/.test(l));
+  return lines.length ? lines.join(' ⏎ ') : '(no L15 line in the output)';
+}
+const GOOD_ID = '2026-09-01-agent-worktrees-outlive-books';
+// ADR 0001 § "The rule": "Whole id at most 64 characters." Two words, so only the length differs.
+const ID_OF_64 = `2026-09-01-boundary-${'x'.repeat(44)}`;
+const ID_OF_65 = `2026-09-01-boundary-${'x'.repeat(45)}`;
+const OLD_RULE_ROW = tableRow(10, 'minted under the old rule, from a prompt copied before the freeze', { type: 'meta', status: 'OPEN' });
+
+test('L15: a ledger shaped like the real one is clean — a second table in the preamble, a numbering note below the freeze marker, ids out of order, a gap, a row that quotes another row\'s id cell, and three well-formed row files (one closed with a note after DONE, one with an id of exactly 64 characters)', () => {
+  const { code, out } = lint(withClean({
+    'OPEN.md': ledgerDoc(REAL_SHAPE_ROWS, { frozenAt: 9, notes: [NOTE_LINE] }),
+    [`ledger/${GOOD_ID}.md`]: rowFile(GOOD_ID),
+    'ledger/2026-09-02-closed-with-a-note.md': rowFile('2026-09-02-closed-with-a-note', {
+      type: 'cleanup', status: 'DONE (2026-09-03, PR #1)', done: '2026-09-03 (PR #1)',
+    }),
+    [`ledger/${ID_OF_64}.md`]: rowFile(ID_OF_64),
+  }));
+  assert.strictEqual(ID_OF_64.length, 64);
+  assert.strictEqual(code, 0, `got: ${l15(out)} — nothing here breaks the rule: every id in the Items table is a number, used once, no higher than the marker's 9, and the three row files are well formed (one id is exactly 64 characters long)\n${out}`);
+  assert.doesNotMatch(out, /(VIOLATION|WAIVED) L15/, `got: ${l15(out)}`);
+  assert.doesNotMatch(out, /INFO .*L15/, `got: ${l15(out)} — the freeze marker is present, so L15(b) must run, not skip`);
+});
+
+test('L15(a): an id that appears more than once in the table is a violation that names the id — every such id (ledger-row-identity #1 AC-4)', () => {
+  const rows = [
+    ...REAL_SHAPE_ROWS,
+    tableRow(4242, 'a finding', { status: 'OPEN' }),
+    tableRow(4242, 'a different finding, minted in parallel from the same "highest plus one"', { type: 'meta', status: 'OPEN' }),
+    tableRow(5150, 'once'), tableRow(5150, 'twice'), tableRow(5150, 'three times'),
+  ];
+  const { code, out } = lint(withClean({ 'OPEN.md': ledgerDoc(rows, { frozenAt: 5150 }) }));
+  assert.strictEqual(code, 1, `got exit ${code}: ${l15(out)} — two rows are numbered 4242 and three are numbered 5150; a duplicated id must fail the lint\n${out}`);
+  for (const id of ['4242', '5150']) {
+    assert.match(out, new RegExp(`VIOLATION L15 OPEN\\.md .*\\b${id}\\b`), `got: ${l15(out)} — the violation must name the duplicated id ${id}`);
+  }
+});
+
+test('L15(a) needs no freeze marker: a duplicated id is a violation in a ledger that was never frozen', () => {
+  const rows = [...REAL_SHAPE_ROWS, tableRow(4242, 'a finding'), tableRow(4242, 'another')];
+  const { code, out } = lint(withClean({ 'OPEN.md': ledgerDoc(rows) }));
+  assert.strictEqual(code, 1, `got exit ${code}: ${l15(out)}\n${out}`);
+  assert.match(out, /VIOLATION L15 OPEN\.md .*\b4242\b/, `got: ${l15(out)}`);
+});
+
+for (const [where, doc] of [
+  ['as the last row of the table', ledgerDoc([...REAL_SHAPE_ROWS, OLD_RULE_ROW], { frozenAt: 9 })],
+  ['at the end of the file, below the marker', `${ledgerDoc(REAL_SHAPE_ROWS, { frozenAt: 9 })}${OLD_RULE_ROW}\n`],
+]) {
+  test(`L15(b): a numbered row above the frozen maximum, added ${where}, is a violation whose message says where a new row goes`, () => {
+    const { code, out } = lint(withClean({ 'OPEN.md': doc }));
+    assert.strictEqual(code, 1, `got exit ${code}: ${l15(out)} — row 10 was added to a table frozen at 9\n${out}`);
+    const line = out.split('\n').find((l) => /^VIOLATION L15 OPEN\.md /.test(l) && /\b10\b/.test(l)) || '';
+    assert.ok(line, `got: ${l15(out)} — the violation must name row 10`);
+    assert.match(line, /highest-number=9/, `got: ${line} — the message must say where the table is frozen`);
+    assert.match(line, /ledger\//, `got: ${line} — the message must send the session to ledger/, because a session working from an older prompt learns the rule from this line`);
+  });
+}
+
+test('L15(b): a date+slug id inside the frozen table is a violation — a new row is a file, not a table line', () => {
+  const rows = [...REAL_SHAPE_ROWS, tableRow(GOOD_ID, 'a new-style id, but appended to the table', { type: 'meta', status: 'OPEN' })];
+  const { code, out } = lint(withClean({ 'OPEN.md': ledgerDoc(rows, { frozenAt: 9 }) }));
+  assert.strictEqual(code, 1, `got exit ${code}: ${l15(out)}\n${out}`);
+  assert.match(out, new RegExp(`VIOLATION L15 OPEN\\.md .*${GOOD_ID}`), `got: ${l15(out)} — the violation must name the row`);
+});
+
+test('L15(b) reports INFO and skips when OPEN.md has no freeze marker, the way L10 and L11 degrade', () => {
+  const { code, out } = lint(withClean({ 'OPEN.md': ledgerDoc([...REAL_SHAPE_ROWS, OLD_RULE_ROW]) }));
+  assert.strictEqual(code, 0, `got exit ${code}: ${l15(out)} — with no marker there is no frozen maximum to hold row 10 to\n${out}`);
+  assert.match(out, /INFO .*L15\(b\).*skipped/, `got: ${l15(out)}`);
+  assert.doesNotMatch(out, /VIOLATION L15/, `got: ${l15(out)}`);
+});
+
+const BAD_ROW_FILES = [
+  ['a filename that is not a date+slug id', 'Row_One', {}],
+  ['a number for a filename (the old rule, carried into the new home)', '344', {}],
+  ['capital letters in the slug', '2026-09-01-Agent-Worktrees', {}],
+  ['a slug of one word', '2026-09-01-oops', {}],
+  ['a slug of seven words', '2026-09-01-one-two-three-four-five-six-seven', {}],
+  ['an id of 65 characters (the rule allows 64)', ID_OF_65, {}],
+  ['an Id field that names a different row', GOOD_ID, { id: '2026-09-01-some-other-finding' }],
+  ['no Id field', GOOD_ID, { id: null }],
+  ['no Type field', GOOD_ID, { type: null }],
+  ['no Opened field', GOOD_ID, { opened: null }],
+  ['an Opened field with no ISO date in it', GOOD_ID, { opened: 'sometime in the summer' }],
+  ['no Status field', GOOD_ID, { status: null }],
+  ['a Status that is neither OPEN nor DONE', GOOD_ID, { status: 'WIP' }],
+];
+for (const [what, name, over] of BAD_ROW_FILES) {
+  test(`L15(c): a row file with ${what} is a violation that names the file`, () => {
+    const rel = `ledger/${name}.md`;
+    const { code, out } = lint(withClean({
+      'OPEN.md': ledgerDoc(REAL_SHAPE_ROWS, { frozenAt: 9 }),
+      [rel]: rowFile(name, over),
+    }));
+    assert.strictEqual(code, 1, `got exit ${code}: ${l15(out)} — ${rel} has ${what}\n${out}`);
+    assert.ok(out.split('\n').some((l) => l.startsWith(`VIOLATION L15 ${rel} `)), `got: ${l15(out)} — want a line starting "VIOLATION L15 ${rel} "`);
+  });
+}
+
+test('L15 waiver: routes through the standard waiver machinery', () => {
+  const { code, out } = lint(withClean({
+    'OPEN.md': ledgerDoc(REAL_SHAPE_ROWS, { frozenAt: 9 }),
+    'ledger/2026-09-01-oops.md': rowFile('2026-09-01-oops'),
+    'scripts/harness-lint-waivers.txt': 'L15\tledger/2026-09-01-oops.md\tOPEN.md row 99 (test)\n',
+  }));
+  assert.strictEqual(code, 0, `got exit ${code}: ${l15(out)}\n${out}`);
+  assert.match(out, /WAIVED L15 ledger\/2026-09-01-oops\.md/, `got: ${l15(out)}`);
+});
+
+test('L15 exists and the real repo is L15-silent with zero waivers: no id twice, nothing above the freeze, every row file well formed (ledger-row-identity #1 AC-4)', () => {
+  const src = fs.readFileSync(SCRIPT, 'utf8');
+  assert.match(src, /check_L15/, 'check_L15 must exist in scripts/harness-lint.sh');
+  const { out } = lint(REPO_ROOT);
+  assert.doesNotMatch(out, /VIOLATION L15/, `got: ${l15(out)} — the real ledger must hold the rule as this change leaves it`);
+  assert.doesNotMatch(out, /WAIVED L15/, `got: ${l15(out)} — a duplicated id is settled, not waived`);
+  assert.doesNotMatch(out, /INFO .*L15/, `got: ${l15(out)} — the real OPEN.md carries the freeze marker, so L15(b) runs`);
+});
+
+// ---------- L16: the table stays a table (ledger-row-identity follow-up) ----------
+// OPEN.md's Items table rendered broken on GitHub for 67 days — 37 rows as a table, 305 as
+// raw text — and nothing saw it, because every reader filters to `^|` lines and is
+// deliberately layout-blind. L15 checks ids; L16 checks that the lines between the
+// "| # |" header and the freeze marker are ALL rows, because anything else ends the
+// rendered table. See ledger/2026-09-20-nothing-guards-table-contiguity.md.
+
+/** The L16 lines of a lint run, for failure messages. */
+function l16(out) {
+  const lines = out.split('\n').filter((l) => /\bL16\b/.test(l));
+  return lines.length ? lines.join(' ⏎ ') : '(no L16 line in the output)';
+}
+
+test('L16: a table whose rows are contiguous, with its notes below the freeze marker, is clean', () => {
+  const { code, out } = lint(withClean({
+    'OPEN.md': ledgerDoc(REAL_SHAPE_ROWS, { frozenAt: 9, notes: [NOTE_LINE, NOTE_LINE] }),
+  }));
+  assert.strictEqual(code, 0, `got: ${l16(out)} — every line between the header and the marker is a row here; the two notes sit below it, where the real ones now are\n${out}`);
+  assert.doesNotMatch(out, /(VIOLATION|WAIVED|INFO).*L16/, `got: ${l16(out)}`);
+});
+
+const BREAKERS = [
+  ['a blank line', ''],
+  ['a numbering note', NOTE_LINE],
+  ['a heading', '## Some heading'],
+  ['a line of plain prose', 'A sentence that wandered into the table.'],
+];
+for (const [what, line] of BREAKERS) {
+  test(`L16: ${what} between two rows is a violation that names the line number and says where it belongs`, () => {
+    const rows = [...REAL_SHAPE_ROWS.slice(0, 4), line, ...REAL_SHAPE_ROWS.slice(4)];
+    const doc = ledgerDoc(rows, { frozenAt: 9 });
+    // Derived, not hard-coded: the breaker sits one line above the row that follows it.
+    const at = doc.split('\n').indexOf(REAL_SHAPE_ROWS[4]);
+    const { code, out } = lint(withClean({ 'OPEN.md': doc }));
+    assert.strictEqual(code, 1, `got exit ${code}: ${l16(out)} — ${what} between rows ends the rendered table, and every row below it stops being a table row\n${out}`);
+    const v = out.split('\n').find((l) => l.startsWith('VIOLATION L16 OPEN.md ')) || '';
+    assert.ok(v, `got: ${l16(out)} — want a line starting "VIOLATION L16 OPEN.md "`);
+    assert.match(v, new RegExp(`line ${at}\\b`), `got: ${v} — the message must name the line number of the first offender (${at} here), because the reader cannot see the break itself`);
+    assert.match(v, /below the table|Numbering notes/, `got: ${v} — the message must say where such a line belongs`);
+  });
+}
+
+test('L16 counts every offender but names the first: three breaks report one violation saying "and 2 more"', () => {
+  const rows = [...REAL_SHAPE_ROWS.slice(0, 2), '', ...REAL_SHAPE_ROWS.slice(2, 4), NOTE_LINE, ...REAL_SHAPE_ROWS.slice(4, 5), '', ...REAL_SHAPE_ROWS.slice(5)];
+  const { code, out } = lint(withClean({ 'OPEN.md': ledgerDoc(rows, { frozenAt: 9 }) }));
+  assert.strictEqual(code, 1, `got exit ${code}: ${l16(out)}\n${out}`);
+  assert.strictEqual(out.split('\n').filter((l) => l.startsWith('VIOLATION L16')).length, 1, `one violation per file, not one per line\n${out}`);
+  assert.match(l16(out), /and 2 more/, `got: ${l16(out)} — the message must say how many other lines break it`);
+});
+
+test('L16 ignores everything outside the table: the preamble table, the prose above it, the freeze prose and the notes below the marker', () => {
+  const doc = ledgerDoc(REAL_SHAPE_ROWS, { frozenAt: 9, notes: [NOTE_LINE] });
+  assert.ok(doc.includes('## How to use this ledger') && doc.includes('| Kind of open work |'), 'the fixture must carry a preamble table and prose');
+  const { code, out } = lint(withClean({ 'OPEN.md': doc }));
+  assert.strictEqual(code, 0, `got: ${l16(out)} — only the lines between the Items header and the marker are the table\n${out}`);
+});
+
+test('L16 stops at the freeze marker: a table inside the notes below it is not the ledger table, and does not drag the prose between into scope', () => {
+  // Without the marker rule the later row would confirm the closing prose, the heading and
+  // the note above it as lines "inside the table", and L16 would fire on the wrong region.
+  const { code, out } = lint(withClean({
+    'OPEN.md': ledgerDoc(REAL_SHAPE_ROWS, {
+      frozenAt: 9,
+      // Ids 6 and 8 are the fixture's gap, so the quoted rows are well-formed for L15 and
+      // this test turns on L16's boundary alone. Notes quoting rows is what the real ones do.
+      notes: [NOTE_LINE, `${tableRow(6, 'a row quoted inside a note')}\n${tableRow(8, 'and another')}`],
+    }),
+  }));
+  assert.strictEqual(code, 0, `got: ${l16(out)} — everything below the marker is out of the table, tables included; the check must stop there rather than reopen on the next pipe\n${out}`);
+  assert.doesNotMatch(out, /L16/, `got: ${l16(out)}`);
+});
+
+test('L16 with no freeze marker: the table ends at its last row, and a break before it still fires', () => {
+  const clean = lint(withClean({ 'OPEN.md': ledgerDoc(REAL_SHAPE_ROWS) }));
+  assert.strictEqual(clean.code, 0, `an unfrozen but contiguous table is clean: ${l16(clean.out)}\n${clean.out}`);
+  const rows = [...REAL_SHAPE_ROWS.slice(0, 4), '', ...REAL_SHAPE_ROWS.slice(4)];
+  const doc = ledgerDoc(rows);
+  const at = doc.split('\n').indexOf(REAL_SHAPE_ROWS[4]);
+  const broken = lint(withClean({ 'OPEN.md': doc }));
+  assert.strictEqual(broken.code, 1, `got exit ${broken.code}: ${l16(broken.out)} — no marker is not a reason to stop checking; the table ends at its last row\n${broken.out}`);
+  assert.match(l16(broken.out), new RegExp(`line ${at}\\b`), `got: ${l16(broken.out)}`);
+});
+
+test('L16 says nothing about a tree with no OPEN.md at all', () => {
+  const { code, out } = lint(withClean({}));
+  assert.strictEqual(code, 0, out);
+  assert.doesNotMatch(out, /L16/, `got: ${l16(out)} — most fixture trees have no ledger; L16 must be silent there, not INFO-noisy`);
+});
+
+test('L16 waiver: routes through the standard waiver machinery', () => {
+  const rows = [...REAL_SHAPE_ROWS.slice(0, 4), '', ...REAL_SHAPE_ROWS.slice(4)];
+  const { code, out } = lint(withClean({
+    'OPEN.md': ledgerDoc(rows, { frozenAt: 9 }),
+    'scripts/harness-lint-waivers.txt': 'L16\tOPEN.md\tOPEN.md row 99 (test)\n',
+  }));
+  assert.strictEqual(code, 0, `got exit ${code}: ${l16(out)}\n${out}`);
+  assert.match(out, /WAIVED L16 OPEN\.md/, `got: ${l16(out)}`);
+});
+
+test('L15 and L16 are independent: a note between rows breaks the render but L15 still reads the ids correctly', () => {
+  const rows = [...REAL_SHAPE_ROWS.slice(0, 4), NOTE_LINE, ...REAL_SHAPE_ROWS.slice(4), tableRow(4242, 'once'), tableRow(4242, 'twice')];
+  const { out } = lint(withClean({ 'OPEN.md': ledgerDoc(rows, { frozenAt: 5150 }) }));
+  assert.match(out, /VIOLATION L15 OPEN\.md .*\b4242\b/, `L15 must still name the duplicated id: ${l16(out)}\n${out}`);
+  assert.doesNotMatch(out, /VIOLATION L15 OPEN\.md .*(Numbering note|renumbered)/, `the note is not a row, so L15 must not read an id out of it\n${out}`);
+  assert.match(out, /VIOLATION L16 OPEN\.md /, `and L16 must fire on the same tree\n${out}`);
+});
+
+test('L16 exists and the real repo is L16-silent with zero waivers: OPEN.md\'s table is one table', () => {
+  const src = fs.readFileSync(SCRIPT, 'utf8');
+  assert.match(src, /check_L16/, 'check_L16 must exist in scripts/harness-lint.sh');
+  const { out } = lint(REPO_ROOT);
+  assert.doesNotMatch(out, /VIOLATION L16/, `got: ${l16(out)} — the real table must be contiguous`);
+  assert.doesNotMatch(out, /WAIVED L16/, `got: ${l16(out)} — contiguity is not waiver-bought`);
 });
 
 // ---------- runner ----------

@@ -9,8 +9,8 @@
 main	default branch / production deploy target
 staging	shared integration branch / staging deploy target
 feature-magic-carpet	sandbox deploy target (OPERATIONS §1)
-feat/communities	sandbox deploy target (OPERATIONS §1)
-feat/curate	sandbox deploy target (OPERATIONS §1)
+feat/communities	archived — droplet decommissioned 2026-09 (OPERATIONS §2); branch retained for history (Avi's communities work)
+feat/curate	archived — droplet decommissioned 2026-09 (OPERATIONS §2); branch retained for history (Avi's Curate app)
 feat/tags	sandbox deploy target (OPERATIONS §1; renamed from feat/pubkey-tagging-target)
 feature-relay-discovery	parked — Vinney's relay-discovery rework (OPERATIONS §2)
 feature-tapestry-discovery	parked — stacked on feature-relay-discovery, PR #32 (OPERATIONS §2)

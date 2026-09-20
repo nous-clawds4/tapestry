@@ -38,7 +38,7 @@ The script is THE mechanism — do not hand-roll the loop, and do not improvise 
 
 cycle-full carries no check of its own — it inherits by delegating its staging and prod merges to cycle-staging and cycle-prod.
 
-Other deploy-triggering sandbox branches (`feat/communities`, `feature-magic-carpet`, `feat/curate`) may adopt the same row-and-URL pattern later; they are not covered today.
+The other deploy-triggering sandbox branch (`feature-magic-carpet`) may adopt the same row-and-URL pattern later; it is not covered today. (`feat/communities` / `feat/curate` were decommissioned September 2026 — OPERATIONS §2.)
 
 ## Verdict handling
 

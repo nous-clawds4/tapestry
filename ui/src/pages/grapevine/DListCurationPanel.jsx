@@ -6,13 +6,13 @@ import useCommunitySharedConcepts from '../../hooks/useCommunitySharedConcepts';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 import { queryRelay } from '../../api/relay';
-import { findDListEntries, upsertDListEntry, removeDListEntry, describeDListCuration } from '../../utils/treasureMap';
+import { findDListEntries, upsertDListEntry, removeDListEntry, describeDListCuration, replacementSentences } from '../../utils/treasureMap';
 import { getActiveSignerOrThrow } from '../../utils/signerGuard';
 import { publishOrThrow } from '../../utils/publishProfileTag';
 
 const ENDPOINT = '/api/dlist-curation/header';
-// Operator-approved copy (story 5 gate, 2026-09-10).
-const COPY = "Empower your Tapestry Assistant to curate a community DList on your behalf. Your assistant authors its own header for the list — inheriting the community's items, never duplicating them — and your Treasure Map records that you empowered it.";
+// Operator-approved copy (curated-dlist-update /discuss, 2026-09-11; ADR curated-dlist-update/0002 Decision §5).
+const COPY = "Empower your Tapestry Assistant to curate a community DList on your behalf. Your assistant authors its own version of the list and copies in the community items its curation method accepts, adding and removing them each time you press Update list. Your Treasure Map records that you empowered it.";
 
 const short = (pk) => `${pk.slice(0, 8)}…${pk.slice(-4)}`;
 /** The d-tag of an a-tag coordinate — split at the first two colons only (d-tags may contain colons). */
@@ -95,7 +95,7 @@ function DListCurationBody({ event, entries, userPubkey, assistantPubkey, relayH
   // The same source and dedupe as the Shared Concepts pages; fetched now, on first open.
   const { rows } = useCommunitySharedConcepts();
   const [query, setQuery] = useState('');
-  const [pending, setPending] = useState(null); // { mode: 'add' | 'revoke', kind, d, name, outcome }
+  const [pending, setPending] = useState(null); // { mode: 'add' | 'revoke', kind, d, name, outcome, replaces }
   const [busy, setBusy] = useState(null);       // a row coordinate, or 'sign'
   const [error, setError] = useState(null);     // { kind: 'conflict' | 'endpoint' | 'publish', message, b? }
   const [showPreview, setShowPreview] = useState(false);
@@ -172,7 +172,10 @@ function DListCurationBody({ event, entries, userPubkey, assistantPubkey, relayH
         setError({ kind: 'endpoint', message: data.error || `Request failed (${res.status}).` });
         return;
       }
-      setPending({ mode: 'add', kind: 39998, d, name: row.name || d, outcome: data });
+      // A Replace says so, and whose entry it replaces (curated-dlist-update ADR 0003 §7).
+      const existing = byD.get(d);
+      const replaces = existing && existing.pubkey !== assistantPubkey ? existing.pubkey : null;
+      setPending({ mode: 'add', kind: 39998, d, name: row.name || d, outcome: data, replaces });
     } catch (err) {
       setError({ kind: 'endpoint', message: err?.message || 'Request failed.' });
     } finally {
@@ -257,7 +260,7 @@ function DListCurationBody({ event, entries, userPubkey, assistantPubkey, relayH
         <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', border: '1px solid #f85149', borderRadius: '6px', backgroundColor: 'rgba(248, 81, 73, 0.08)', color: '#f85149', fontSize: '0.85rem' }}>
           {error.kind === 'conflict' ? (
             <>
-              <div>Your assistant already has a header for this list pointing elsewhere; it was not re-pointed. Revoke or hand-edit before adding this one.</div>
+              <div>Your assistant already has a header for this list with a different link; it was not changed. Revoke or hand-edit before adding this one.</div>
               {(error.b || []).map((t, i) => <div key={i} style={{ ...mono, marginTop: '0.25rem' }}>{JSON.stringify(t)}</div>)}
             </>
           ) : (
@@ -280,7 +283,14 @@ function DListCurationBody({ event, entries, userPubkey, assistantPubkey, relayH
                   ))}
                 </div>
               )}
-              <div style={{ marginTop: '0.5rem' }}>Map update: adds <span style={mono}>39998:{pending.d}</span> → your assistant{relayHint ? <> @ <span style={mono}>{relayHint}</span></> : ' (no relay hint configured)'}.</div>
+              {pending.replaces ? (
+                <>
+                  <div style={{ marginTop: '0.5rem' }}>Map update: replaces <span style={mono}>{short(pending.replaces)}</span>&apos;s entry for <span style={mono}>39998:{pending.d}</span> with your assistant{relayHint ? <> @ <span style={mono}>{relayHint}</span></> : ' (no relay hint configured)'}.</div>
+                  {replacementSentences(short(pending.replaces)).map((t) => <div key={t} style={{ marginTop: '0.25rem' }}>{t}</div>)}
+                </>
+              ) : (
+                <div style={{ marginTop: '0.5rem' }}>Map update: adds <span style={mono}>39998:{pending.d}</span> → your assistant{relayHint ? <> @ <span style={mono}>{relayHint}</span></> : ' (no relay hint configured)'}.</div>
+              )}
             </>
           ) : (
             <>

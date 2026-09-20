@@ -1,8 +1,10 @@
 # ADR 0001: My Curated DLists — a list page and a guarded detail route over the viewer's own Map, on new shared lookup primitives
 
-**Status:** Accepted
+**Status:** Accepted (sub-decision 4's `no-assistant` and `other-pubkey` statuses superseded by `curated-dlist-update` ADR 0003)
 **Date:** 2026-09-10
 **Story:** `engineering-team/stories/my-curated-dlists/1-my-curated-dlists-page.md`
+
+> **Superseded in part (2026-09-12):** a list on the viewer's Map that names another pubkey — or any list, when the viewer has no assistant on this instance — opens read-only instead of staying closed, and the list page links every row — `curated-dlist-update` ADR 0003.
 
 ## Context
 

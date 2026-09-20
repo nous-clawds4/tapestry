@@ -96,6 +96,7 @@ const OPEN_MD = path.join(ROOT, 'OPEN.md');
 const BUDGETS = path.join(ROOT, 'scripts/harness-budgets.txt');
 
 const CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
 const HOST_BASE = `http://localhost:${process.env.TAPESTRY_PORT || '7778'}`;
 const CONTAINER_BASE = `http://127.0.0.1:${process.env.TAPESTRY_CONTAINER_PORT || '7778'}`;
 
@@ -1113,9 +1114,11 @@ test('S20 (0002 d11): the skill treats boundary-unjudged as judge-then-re-ask, n
 
 test('H1: GET /api/brain/direction/:slug answers on loopback (not 404)', async () => {
   if (!(await stackAvailable())) return 'SKIP';
-  const out = dockerCurl(['-s', '-m', '8', '-o', '/dev/null', '-w', '%{http_code}',
-    `${CONTAINER_BASE}/api/brain/direction/hand-work-to-the-engineering-team-without-arming-a-book`]);
-  assert(out.trim() !== '404',
+  const r = loopbackRequest({ container: CONTAINER, method: 'GET',
+    url: `${CONTAINER_BASE}/api/brain/direction/hand-work-to-the-engineering-team-without-arming-a-book`, timeoutS: 8 });
+  assert(!r.noResponse,
+    `GET /api/brain/direction/:slug got ${describeResponse(r)} on loopback — H1 cannot pass when nothing answers (honest-test-gate #1).`);
+  assert(r.status !== 404,
     'GET /api/brain/direction/:slug is not registered — the endpoint 404s on loopback (ADR d1).');
 });
 
