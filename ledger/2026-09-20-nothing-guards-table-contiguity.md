@@ -3,8 +3,8 @@
 **Id:** 2026-09-20-nothing-guards-table-contiguity
 **Type:** meta
 **Opened:** 2026-09-20 (doc-lane review of the one-table fix, non-blocking finding; proposed by the Reviewer, filed by the caller under the row-80 sweep)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-09-20 (PR #700) — built as `harness-lint` L16 in the same PR that made the table contiguous again.
 
 `OPEN.md`'s Items table rendered broken on GitHub from 2026-07-15 to 2026-09-20 — 37 rows as a
 table, 305 as raw pipe-text — and no check could see it. Every mechanical reader is deliberately
@@ -23,7 +23,7 @@ note at 66). The break appeared when `8786f131` inserted a row at line 66 — be
 the note. A rule phrased "don't put blank lines in the table" would have permitted that diff, and a
 human reviewing two added lines at the end of a table would have been right to wave it through.
 
-**Fix shape:** one `harness-lint` check that every line between the `| # |` header and the
+**Fix shape (built — L16):** one `harness-lint` check that every line between the `| # |` header and the
 `<!-- ledger-table-frozen -->` marker starts with `|` — about three lines of awk beside L15, reusing
 the scan it already performs. Message names the first offending line. The cost of not doing it is
 another silent, months-long regression in the single ledger every session reads.
