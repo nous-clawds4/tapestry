@@ -153,6 +153,7 @@ const suites = [
   { file: 'harness-stats.test.js' },
   { file: 'session-start.test.js' },
   { file: 'ledger-row-ids.test.js' },
+  { file: 'rollup-scanners.test.js' },
   { file: 'stack-free-npm-test.test.js' },
   { file: 'ci-test-job.test.js' },
   { file: 'sync-panel-tag-filters.test.js' },

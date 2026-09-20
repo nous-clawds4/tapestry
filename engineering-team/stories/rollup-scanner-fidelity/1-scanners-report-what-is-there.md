@@ -126,5 +126,5 @@ Resolved with the operator at the intake gate on 2026-09-20:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/rollup-scanner-fidelity/0001-shared-scanner-libs-and-marker-grammar.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/rollup-scanner-fidelity/1-scanners-report-what-is-there.test-plan.md`
 - Review: (filled in after Review phase)
