@@ -30,8 +30,20 @@ const DATATABLE = path.join(UI, 'components/DataTable.jsx');
 const B_PAGE = path.join(UI, 'pages/shared-concepts/ActiveBTags.jsx');
 const Z_PAGE = path.join(UI, 'pages/shared-concepts/ActiveZTags.jsx');
 const STYLES = path.join(UI, 'styles.css');
-const ADR = path.join(ROOT, 'engineering-team/decisions/shared-concepts-row-detail/0001-row-detail-panels-on-active-tag-pages.md');
-const STORY = path.join(ROOT, 'engineering-team/stories/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.md');
+// The D-class docs live under engineering-team/<kind>/<epic>/ while the epic is in flight and move
+// to <kind>/done/<epic>/ at book close. These assertions are about what the documents SAY, not where
+// they sit, so resolve either location — otherwise closing the book breaks its own suite, which is
+// exactly what happened on the first attempt (book close 2026-09-20, step 10).
+function epicDoc(kind, file) {
+  for (const rel of [`engineering-team/${kind}/shared-concepts-row-detail/${file}`,
+                     `engineering-team/${kind}/done/shared-concepts-row-detail/${file}`]) {
+    const abs = path.join(ROOT, rel);
+    if (fs.existsSync(abs)) return abs;
+  }
+  return path.join(ROOT, `engineering-team/${kind}/shared-concepts-row-detail/${file}`); // for the error message
+}
+const ADR = epicDoc('decisions', '0001-row-detail-panels-on-active-tag-pages.md');
+const STORY = epicDoc('stories', '1-row-detail-panels-on-active-tag-pages.md');
 
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
 function assert(cond, msg) { if (!cond) throw new Error(msg); }

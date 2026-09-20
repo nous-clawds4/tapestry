@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-09-20
-**Story:** `engineering-team/stories/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.md`
+**Story:** `engineering-team/stories/done/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.md`
 
 ## Context
 

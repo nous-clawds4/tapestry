@@ -93,6 +93,6 @@ None. Two points settled at kickoff and recorded in the book's frame notes:
    there; on Active b-tags it must stay clear of the existing navigation.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/shared-concepts-row-detail/0001-row-detail-panels-on-active-tag-pages.md`
-- Test plan: `engineering-team/stories/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.test-plan.md`
-- Review: `engineering-team/reviews/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.md`
+- ADR: `engineering-team/decisions/done/shared-concepts-row-detail/0001-row-detail-panels-on-active-tag-pages.md`
+- Test plan: `engineering-team/stories/done/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.test-plan.md`
+- Review: `engineering-team/reviews/done/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.md`
