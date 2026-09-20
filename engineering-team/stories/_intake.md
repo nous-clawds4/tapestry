@@ -2525,3 +2525,69 @@ process exits non-zero). **Classification:** bug (hardening), Standard. Follow-u
 **Product questions underneath it:** the priority list is the *viewer's* own pins (that is what makes the benefit immediate and personal) — confirm; what fills the remaining slots (most used from the active point of view?); the default maximum and how to see the rest; how and where the viewer is prompted to pin; and whether this waits for pin categories (the entry above) or ships on today's single kind of pin.
 
 **Classification:** feature. Leans **Product Team** first, then Standard / all phases. Related: the entry above.
+
+---
+
+## 2026-09-20 — Harness story proposal: the meta-ledger sweep, sized (supersedes the 2026-07-15 proposal)
+
+**NOT PICKED UP.** Drafted at the operator's request while closing work packet `h-rollup-scanner`. This is the proposal the meta-escalation banner has been asking for since it first fired: *"propose a harness story at triage — group related items, name the story, list what it closes."* The 2026-07-15 entry above (`_intake.md:1517`, "meta-ledger sweep", `**PICKED UP** (partial)`) named seven rows and closed three of them. It has been invisible to `/whats-open` ever since, because a partial marker retired the whole entry — the defect `rollup-scanner-fidelity` #1 fixed on 2026-09-20. This entry replaces it as the live proposal; that one stays as the record of what it closed.
+
+### The measurement (2026-09-20, `origin/staging` `8ca781db`)
+
+**131 open harness lessons, oldest 80 days.** Every figure below was computed by extracting each commit's own `scripts/lib` plus its `OPEN.md`, `ledger/` and `_intake.md`, and running *that tree's own* collector — so each is what a session would actually have read that day.
+
+| | |
+|---|---|
+| 2026-08-20 | 57 |
+| 2026-09-08 | 80 |
+| 2026-09-13 | 106 |
+| 2026-09-19 | 119 |
+| 2026-09-20 | 131 |
+
+Opened against closed, by month, for `meta` rows in both homes:
+
+| month | opened | closed | net |
+|---|---|---|---|
+| 2026-07 | 64 | 12 | **+52** |
+| 2026-08 | 24 | 9 | **+15** |
+| 2026-09 | 91 | 19 | **+72** |
+
+**179 opened in total, 40 closed — a 22% close rate.**
+
+### The argument: the arrival rate is the problem, not the backlog
+
+A sweep that only closes rows restores the banner to silence for about three weeks. September alone added 91. One row arrived while this entry was being drafted. So the proposal is **two-part and the second part is the load-bearing one**: close what is cheap and grouped (below), *and* change what happens at the moment a lesson is filed, so that filing is not the end of the story. Concretely, that second part means deciding — once, as a rule — which of these three a new `meta` row is:
+
+1. **a defect with a fix shape** → it is a bug row, not a lesson; it belongs in a story queue, not the meta inbox;
+2. **a rule the harness should enforce** → it owes a named lint check or workflow step, and stays open only until that exists;
+3. **an observation with no owner** → it should not be filed at all, or should be filed somewhere that does not escalate.
+
+Today all three land in one inbox with one threshold, which is why the threshold has been continuously tripped since July and no longer signals anything.
+
+### Candidate stories — every one of the 131 is assigned exactly once
+
+| # | Story | Closes | Note |
+|---|---|---|---|
+| **S1** | **Source-level assertions pin spelling, not behaviour** — a documented convention (assert the guard exists; never ban a substring; mutation-verify every static pin) plus a JSX-aware helper | 13 — rows 40, 65, 107, 108, 109, 112, 169, 174, 193, 244, 264, 303, `2026-09-20-source-assertions-pin-spelling` | The single most-repeated root cause in the ledger. Rows 109 and 193 each cost a story a false red; 108 and 169 are the vacuous-pass mirror |
+| **S2** | **The gate is not honest on a developer host** | 18 — rows 59, 60, 83, 104, 126, 191, 192, 211, 213, 271, 280, 283, 284, 288, 294, 310, `2026-09-20-backgrounded-gate-exit-code-masked`, `2026-09-20-live-tier-fails-on-stale-stack` | **Already has a home**: the `honest-test-gate` book is Open. This is scope for it, not a new epic |
+| **S3** | **Book and epic lifecycle: unenforced at open, destructive at close** | 13 — rows 29, 78, 99, 110, 225, 234, 268, 312, 319, 322, `2026-09-20-close-commit-line-omits-epic-file`, `2026-09-20-done-move-breaks-inbound-refs`, `2026-09-20-epic-retirement-breaks-suite-paths` | Nothing enforces the eager anchor (110), and the close silently breaks inbound references (312 and two row files). Both halves are lint-shaped |
+| **S4** | **The deploy chain's rules live in prose and nothing enforces them** | 12 — rows 72, 140, 177, 183, 209, 218, 256, 277, 278, 340, 341, `2026-09-20-promotion-bundle-body-goes-stale` | Rows 340/341 are the safe-to-merge gate carried by one doc; 209/256 are the cycle skills never reading CI |
+| **S5** | **A search or probe that finds nothing must not read as "nothing is there"** | 8 — rows 56, 92, 149, 165, 182, 203, 342, `2026-09-20-git-grep-word-boundary-vacuous` | The highest-severity group per row: 165 produced a false "no secrets found". These are false *negatives*, which no gate catches by construction |
+| **S6** | **The local dev loop and agent worktrees** | 8 — rows 54, 70, 71, 196, 199, 253, 306, `2026-09-19-agent-worktrees-outlive-books` | |
+| **S7** | **Orientation docs assert false things about this machine** | 7 — rows 44, 181, 198, 262, 333, 334, `2026-09-20-claude-md-overstates-bind-mount` | Cheapest to close and the highest per-row cost to leave: every one of these is a false map a session trusts on arrival |
+| **S8** | **Phase and role boundaries: who owns what, and what evaporates between them** | 23 — rows 16, 80, 98, 118, 158, 160, 197, 206, 212, 233, 240, 243, 247, 298, 302, 309, 311, 313, 316, 332, 343, `2026-09-20-human-gated-approvals-leave-no-record`, `2026-09-20-inplace-pass-erases-kickback-history` | **Largest and least coherent — split before building.** Row 343 is a decision owed by the operator, not work |
+| **S9** | **Direction-mode journalling and completion records** | 4 — rows 64, 74, 76, 122 | All from one book; may be stale. Verify before scoping |
+| **S10** | **The ledger's own machinery** | 7 — rows 331, 339, `2026-09-20-crlf-row-file-invisible-to-readers`, `2026-09-20-freeze-marker-can-be-bumped`, `2026-09-20-l16-region-reopens-on-pipe`, `2026-09-20-ledger-rule-omits-search-before-filing`, `2026-09-20-lint-verdict-taken-from-stdout` | The tail of `ledger-row-identity`; all filed 2026-09-19/20, so the context is fresh and the cost is lowest now |
+| — | **One-offs, no group** | 18 — rows 28, 38, 53, 94, 113, 114, 116, 128, 144, 175, 190, 238, 265, 305, 315, 318, 338, `2026-09-20-smoke-tier3-cannot-verify-a-negative` | Disposition individually at triage: several are likely already fixed or obsolete and just need closing |
+
+### Suggested sequencing
+
+1. **S7** first (7 rows, hours, and every session pays for these daily).
+2. **S10** next, while `ledger-row-identity`'s context is still warm.
+3. **S2** into the open `honest-test-gate` book rather than a new epic.
+4. **S1** and **S5** are the two that change outcomes rather than tidiness — S1 because it is the repeated cause of both false reds and vacuous passes, S5 because it is the only group whose failure mode is silent.
+5. **S8** split before scoping; **S3**, **S4**, **S6**, **S9** and the one-offs after.
+
+Nothing here should start before the triage rule in "The argument" is decided, because building S1–S10 against an inbox still arriving at ~90/month reproduces this entry in November.
+
+**Classification:** Harness story (several). Standard strictness. Books: S2 joins `audits/honest-test-gate/`; the rest want one new book, `meta-ledger-sweep`, with the stories above as its epics.
