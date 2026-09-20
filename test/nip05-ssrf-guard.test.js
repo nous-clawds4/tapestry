@@ -215,6 +215,31 @@ test('B5: private host suffixes are rejected without a DNS round trip', async ()
   assert(looked === 0, `a private-suffix host must not be sent to the resolver; called ${looked} time(s)`);
 });
 
+test('B6: classification is done on the RESOLVED address, not on the spelling of the host', async () => {
+  needGuard();
+  // Alternate IPv4 encodings — octal, hex, short-form, decimal, and the nip.io
+  // style of embedding an address in a real DNS name — are what a string-matching
+  // guard misses. They are handled here by construction: the guard asks the SAME
+  // resolver fetch will ask, then classifies the answer. Verified against the real
+  // getaddrinfo on 2026-09-20: `0x7f.0.0.1`, `127.1`, `0xa.0.0.5`, `010.0.0.5` and
+  // `127.0.0.1.nip.io` all resolve to a private address and are all rejected.
+  //
+  // This test pins the INTENT with a stub, because which of those spellings a
+  // platform's getaddrinfo accepts differs between macOS and Linux — asserting the
+  // spellings themselves would be a CI flake. What must never change is that the
+  // answer, not the input string, is what gets classified.
+  const spellings = ['0x7f.0.0.1', '127.1', '010.0.0.5', '127.0.0.1.nip.io', 'sneaky.example.com'];
+  for (const host of spellings) {
+    const g = guardWithDns(answers('127.0.0.1'));
+    assert((await g.isPublicHostname(host)) === false,
+      `${host} resolves to 127.0.0.1 and must be rejected — a guard that pattern-matches the input string instead of classifying the answer is the bug this pins`);
+  }
+  // …and the converse: an odd-looking spelling that resolves somewhere public is fine.
+  const g = guardWithDns(answers('93.184.216.34'));
+  assert((await g.isPublicHostname('0177.0.0.1')) === true,
+    'a host whose resolver answer is public must be allowed however it is spelled — the guard follows the resolver, it does not second-guess it');
+});
+
 // ── C. the three call sites ─────────────────────────────────────────────────
 
 function withFetchSpy(impl) {

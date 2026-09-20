@@ -24,6 +24,7 @@ story's acceptance-criterion groups.
 | **Every** address in the answer inspected, not just the first (v4 and v6) | `B3` | unit + stub DNS |
 | IP literal host classified directly, no DNS round trip; bracketed IPv6 unbracketed | `B4` | unit + stub DNS |
 | Private host suffixes rejected, no DNS round trip | `B5` | unit + stub DNS |
+| Classification follows the resolver, not the spelling of the host | `B6` | unit + stub DNS |
 | Non-public domain → zero outbound requests at all three call sites, returns `null` | `C1` | integration |
 | Public domain still verifies, same URL, same return value | `C2` | integration |
 | `GET /api/nip05/verify` contract unchanged (`{ verified: false }`) | `C3` | integration |
@@ -48,6 +49,13 @@ story's acceptance-criterion groups.
       regex, but `assistant-profile` #3 will pass URLs through the same predicate.
 - [x] **Mixed DNS answers** — one public and one private address for the same name (B3). Checking
       only `addresses[0]` is the natural implementation bug.
+- [x] **Alternate IPv4 encodings** — octal, hex, short-form, decimal, `nip.io`-style DNS embedding
+      (B6). These are what a guard that pattern-matches the *input string* misses. Handled here by
+      construction: the guard asks the same resolver `fetch` will ask and classifies the answer.
+      Verified against the real `getaddrinfo` on 2026-09-20 — `0x7f.0.0.1`, `127.1`, `0xa.0.0.5`,
+      `010.0.0.5` and `127.0.0.1.nip.io` all resolve to a private address and are all rejected.
+      B6 pins the intent with a stub rather than those spellings, because which of them a
+      platform's `getaddrinfo` accepts differs between macOS and Linux.
 - [x] **Empty input** (E3), **resolver throws** (E4), **empty answer** (E2).
 - [ ] Concurrent calls — not covered; the guard holds no state.
 - [ ] Concept Graph API unavailable / concept handle not found — not applicable; the guard sits
