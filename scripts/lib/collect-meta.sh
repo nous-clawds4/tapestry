@@ -7,20 +7,23 @@
 #
 # THRESHOLDS LIVE HERE ONLY: escalation fires at ≥3 open items or >30d oldest.
 # collect_meta() fills META_LINES / META_COUNT / META_MAX_AGE from OPEN.md
-# `meta` rows plus un-marked intake "Meta:" entries (cwd-relative — callers cd
-# to the repo root first). meta_escalation_fires() is the canonical predicate;
+# `meta` rows, open `meta` row files under ledger/ (ADR ledger-row-identity/0001)
+# and un-marked intake "Meta:" entries (cwd-relative — callers cd to the repo
+# root first). meta_escalation_fires() is the canonical predicate;
 # meta_banner() the canonical wording. Callers decide WHEN to render.
 # Escalation is advisory by construction: it never affects an exit code.
 
 # Portable date→epoch (GNU + BSD) — sibling lib, single source (story
 # test-hermeticity-ci #3, OPEN.md row 19: the age trigger was dead on macOS).
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/date-epoch.sh"
+# The ledger's row files — sibling lib, single source (ADR ledger-row-identity/0001).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/collect-ledger.sh"
 
 META_LINES=""
 META_COUNT=0
 META_MAX_AGE=0
 collect_meta() {
-  local row cell opened age heading ep
+  local row cell opened age heading ep label
   if [ -f OPEN.md ]; then
     # Status is found BY VALUE, never by position: a literal pipe inside the Item
     # cell (code span or escaped) shifts every later field, so `$6` is only
@@ -45,6 +48,18 @@ collect_meta() {
       }
     }')
   fi
+  # Rows minted since the table was frozen are files (ADR ledger-row-identity/0001):
+  # same age arithmetic, same counters. awk prints two lines per open meta row
+  # file — its Opened date (empty when the field holds none), then "<id> — <title>".
+  while IFS= read -r opened && IFS= read -r label; do
+    age="?"
+    if [ -n "$opened" ] && ep=$(date_to_epoch "$opened"); then
+      age=$(( ( $(date +%s) - ep ) / 86400 ))
+      if [ "$age" -gt "$META_MAX_AGE" ]; then META_MAX_AGE=$age; fi
+    fi
+    META_COUNT=$((META_COUNT + 1))
+    META_LINES="${META_LINES}  [${age}d] ${label}"$'\n'
+  done < <(ledger_file_rows | awk -F'\t' '$2 ~ /meta/ && $4 == "OPEN" { print $3; print $1 " — " $5 }')
   # Un-marked intake "Meta:" entries count too (the 5-week origin-sync item is
   # the motivating casualty); age from the ISO date in the heading itself.
   while IFS= read -r heading; do

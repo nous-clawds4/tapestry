@@ -28,7 +28,14 @@ fi
 
 hr "OPEN.md ledger — small / cross-cutting items (the homeless ones)"
 if [ -f OPEN.md ]; then
-  grep -E '^\|' OPEN.md | grep -iE '\|[[:space:]]*OPEN[[:space:]]*\|' || echo "  (no OPEN rows in the ledger)"
+  ledger_open=0
+  grep -E '^\|' OPEN.md | grep -iE '\|[[:space:]]*OPEN[[:space:]]*\|' && ledger_open=1
+  # Rows minted since the table was frozen are files under ledger/ (ADR
+  # ledger-row-identity/0001): one summary line each, in the table's column order.
+  # ledger_file_rows comes in with collect-meta.sh, sourced above.
+  file_rows=$(ledger_file_rows | awk -F'\t' '$4 == "OPEN" { printf "| %s | %s | **%s** → ledger/%s.md | %s | OPEN | | |\n", $1, $2, $5, $1, $3 }')
+  if [ -n "$file_rows" ]; then ledger_open=1; printf '%s\n' "$file_rows"; fi
+  [ "$ledger_open" = 1 ] || echo "  (no OPEN rows in the ledger)"
 else
   echo "  (OPEN.md not found)"
 fi

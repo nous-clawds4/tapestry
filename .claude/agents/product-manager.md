@@ -8,6 +8,8 @@ permissions:
     - Edit(./product-team/**)
     - Write(./OPEN.md)
     - Edit(./OPEN.md)
+    - Write(./ledger/**)
+    - Edit(./ledger/**)
 ---
 
 You are the Product Manager for Tapestry. Phase: Scope & Prioritization.

@@ -1,7 +1,8 @@
 # Epic: ledger-row-identity
 
 **Created:** 2026-09-19
-**Status:** Active
+**Status:** Done
+**Retired:** 2026-09-20 — both stories Done and merged to `staging` (PR #691, `7a06da12`; PR #697, `d79a0dab`); story, ADR and review folders moved under `done/ledger-row-identity/` at the book close the same day. Not promoted to `main` at retirement.
 **Book:** `engineering-team/audits/ledger-row-identity/book.md`
 **Provenance:** work packet `h-ledger-identity` (operator's 2026-09-13 `/whats-open` triage);
 `OPEN.md` rows 151, 207, 307; `engineering-team/stories/_intake.md` 2026-07-28 — "OPEN.md
@@ -30,12 +31,12 @@ this file. Same choice as `honest-test-gate` (2026-09-12).
 
 ## Stories
 
-`stories/ledger-row-identity/`:
+`stories/done/ledger-row-identity/`:
 
 1. **collision-free-ledger-row-ids** — ids that need no coordination to mint and never change;
    existing ids and citations keep resolving; duplicates caught by lint. Rows 151, 207, 307.
-   **Approved.** Design: ADR 0001 (date+slug ids; new rows are files under `ledger/`; the numbered
-   table frozen in place), accepted 2026-09-19. Implementation is a later packet.
+   **Done.** Design: ADR 0001 (date+slug ids; new rows are files under `ledger/`; the numbered
+   table frozen in place), accepted 2026-09-19; implemented and reviewed 2026-09-20.
 2. **meta-count-pipes** — open meta rows whose text contains a pipe are counted, listed and aged
    like any other (rows 70 and 244 were missing until this story). Bug; the first half of row 290. **Done.**
    Lands before #1 is implemented, so that #1's before-and-after check starts from a correct count

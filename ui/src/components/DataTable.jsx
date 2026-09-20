@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Fragment } from 'react';
 
 /**
  * Reusable sortable data table.
@@ -13,28 +13,41 @@ import { useState, useMemo, useEffect } from 'react';
  * @param {string} props.emptyMessage
  * @param {number} [props.pageSize] - If set, paginate to this many rows per page.
  * @param {boolean} [props.showFilter=true] - Show the built-in text filter input.
+ * @param {string[]} [props.filterKeys=[]] - Extra row fields the text filter matches,
+ *   for values that have no column. Use it when a value is deliberately kept out of
+ *   the table but must stay findable (ADR shared-concepts-row-detail/0001).
+ * @param {Function} [props.renderExpanded] - `(row) => ReactNode`. When supplied, each
+ *   row gains a trailing disclosure control and the returned node renders in a panel
+ *   row beneath it, closed by default.
  *
- * `pageSize` and `showFilter` are additive/optional; callers that omit them get
- * the original behavior (no pagination, filter shown). Sorting always applies to
- * the full (filtered) set before pagination, so the default order and any
- * header re-sort are correct across all pages, not just the visible one.
+ * `pageSize`, `showFilter`, `filterKeys` and `renderExpanded` are additive/optional;
+ * callers that omit them get the original behavior (no pagination, filter shown, no
+ * disclosure column, no panel row). Sorting always applies to the full (filtered) set
+ * before pagination, so the default order and any header re-sort are correct across all
+ * pages, not just the visible one.
+ *
+ * `renderExpanded` keys panel state by `rowKey` below, which falls back to the row's
+ * index when a row carries no `uuid`/`id`/`pubkey`. Callers using it should supply a
+ * stable `uuid`, or an open panel will follow a *position* across a re-sort rather than
+ * its row.
  */
-export default function DataTable({ columns, data, onRowClick, emptyMessage = 'No data', pageSize, showFilter = true }) {
+export default function DataTable({ columns, data, onRowClick, emptyMessage = 'No data', pageSize, showFilter = true, filterKeys = [], renderExpanded }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(0);
+  // Open panels, by rowKey. Deliberately NOT cleared on sort/filter/page change: a row
+  // scrolled out of view and back keeps the state the user left it in.
+  const [expanded, setExpanded] = useState(() => new Set());
 
   const filtered = useMemo(() => {
     if (!filter) return data;
     const lower = filter.toLowerCase();
+    const matches = val => val && String(val).toLowerCase().includes(lower);
     return data.filter(row =>
-      columns.some(col => {
-        const val = row[col.key];
-        return val && String(val).toLowerCase().includes(lower);
-      })
+      columns.some(col => matches(row[col.key])) || filterKeys.some(key => matches(row[key]))
     );
-  }, [data, filter, columns]);
+  }, [data, filter, columns, filterKeys]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return filtered;
@@ -69,6 +82,19 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
     ? sorted.slice(safePage * pageSize, safePage * pageSize + pageSize)
     : sorted;
 
+  // One derivation of a row's identity, used for BOTH the React key and the panel state,
+  // so a row and its panel can never disagree. `||` (not `??`) preserves the original
+  // fallback exactly for the callers that do not use renderExpanded.
+  const rowKey = (row, i) => row.uuid || row.id || row.pubkey || i;
+
+  function toggleExpanded(key) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
   function handleSort(key) {
     if (sortKey === key) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -101,25 +127,55 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
                 {sortKey === col.key && (sortDir === 'asc' ? ' ▲' : ' ▼')}
               </th>
             ))}
+            {renderExpanded && <th aria-label="details" />}
           </tr>
         </thead>
         <tbody>
           {visibleRows.length === 0 ? (
-            <tr><td colSpan={columns.length} className="empty-row">{emptyMessage}</td></tr>
+            <tr><td colSpan={columns.length + (renderExpanded ? 1 : 0)} className="empty-row">{emptyMessage}</td></tr>
           ) : (
-            visibleRows.map((row, i) => (
-              <tr
-                key={row.uuid || row.id || row.pubkey || i}
-                onClick={() => onRowClick?.(row)}
-                className={onRowClick ? 'clickable' : ''}
-              >
-                {columns.map(col => (
-                  <td key={col.key}>
-                    {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
-                  </td>
-                ))}
-              </tr>
-            ))
+            visibleRows.map((row, i) => {
+              const isExpanded = renderExpanded && expanded.has(rowKey(row, i));
+              return (
+                <Fragment key={rowKey(row, i)}>
+                  <tr
+                    onClick={() => onRowClick?.(row)}
+                    className={onRowClick ? 'clickable' : ''}
+                  >
+                    {columns.map(col => (
+                      <td key={col.key}>
+                        {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
+                      </td>
+                    ))}
+                    {renderExpanded && (
+                      <td style={{ textAlign: 'center', width: '1%', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          aria-expanded={!!isExpanded}
+                          title={isExpanded ? 'Hide details' : 'Show details'}
+                          // stopPropagation, or expanding a row also fires onRowClick and
+                          // navigates away (cf. ui/src/pages/lists/DListItems.jsx:550).
+                          onClick={e => { e.stopPropagation(); toggleExpanded(rowKey(row, i)); }}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            color: 'var(--text)', fontSize: '0.85rem',
+                            padding: '0.2rem 0.4rem', borderRadius: '4px',
+                            opacity: isExpanded ? 1 : 0.4,
+                          }}
+                        >{isExpanded ? '▾' : '▸'}</button>
+                      </td>
+                    )}
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={columns.length + 1} style={{ padding: 0, border: 'none' }}>
+                        {renderExpanded(row)}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })
           )}
         </tbody>
       </table>

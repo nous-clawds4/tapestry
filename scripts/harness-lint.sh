@@ -28,6 +28,13 @@
 #   L14 verdict-hygiene  active stories/decisions/epics record no gate verdicts
 #                        (two shapes; backtick/fenced mentions exempt; done/ and
 #                        stories/_intake.md exempt — ADR harness-gate-integrity/0002)
+#   L15 ledger-ids       OPEN.md's numbered table holds no id twice and nothing above
+#                        its freeze marker; every ledger/*.md is named by a well-formed
+#                        date+slug id and carries its header fields (ADR
+#                        ledger-row-identity/0001)
+#   L16 table-contiguity every line between OPEN.md's "| # |" header and its last table
+#                        row is a row — anything else ends the RENDERED table, which no
+#                        other check can see (ledger/2026-09-20-nothing-guards-table-contiguity.md)
 #
 # Review verdicts (L1/L4): the LAST verdict-shaped token in the file wins —
 # a token is PASS or CHANGES_REQUESTED appearing on a heading line or inside
@@ -340,6 +347,134 @@ check_L14() {
   done
 }
 
+# ---------- L15: ledger ids — two homes, one id each, and the table stays frozen ----------
+# ADR ledger-row-identity/0001. A ledger row's id is either a number in OPEN.md's
+# table — frozen where it stands, because thousands of citations point into it —
+# or a date+slug id that IS the name of a file under ledger/. (a) No id twice in
+# the table. (b) With the freeze marker present, every table id is a number no
+# higher than the marker's: a row minted under the old "highest plus one" rule
+# fails here, and so in CI, with the remedy in the message. No marker: INFO and
+# skip, the way L10 and L11 degrade. (c) Every ledger/*.md is named by a
+# well-formed id, repeats it in **Id:**, and carries the header fields the readers
+# take (scripts/lib/collect-ledger.sh). Table rows are the `|` lines after the
+# "| # |" header, minus its |---| line — OPEN.md has a second table in its
+# preamble, and until 2026-09-20 had notes between chunks of rows (they moved
+# under the table so that GitHub renders it; a stray note or blank line must
+# still never hide a row from this check). ONLY the first cell is read: nine
+# rows carry a literal pipe inside a later cell. The id pattern is spelled without
+# {n,m} intervals, as the other awk code here is (whats-open.sh's intake scan):
+# not every awk takes them (older mawk builds do not).
+check_L15() {
+  local ids id n frozen path problems files
+  if [ -f OPEN.md ]; then
+    ids=$(awk -F'|' '
+      !hdr { if ($0 ~ /^\|[ \t]*#[ \t]*\|/) hdr = 1; next }
+      /^\|/ { id = $2; gsub(/^[ \t]+|[ \t]+$/, "", id); if (id != "" && id !~ /^:?-+:?$/) print id }
+    ' OPEN.md)
+    while read -r n id; do
+      [ -n "$id" ] || continue
+      violation L15 OPEN.md "row id $id appears $n times in the table — if a merge kept two copies of one row, delete the stale copy; if they are two rows, the one that landed later moves to ledger/<date>-<slug>.md (never renumber); see OPEN.md § How to use this ledger"
+    done < <(printf '%s\n' "$ids" | sort | uniq -c | awk '$1 > 1 { n = $1; sub(/^[ \t]*[0-9]+[ \t]+/, ""); print n, $0 }')
+    frozen=$(grep -m1 -E '^<!-- ledger-table-frozen: highest-number=[0-9]+ -->[[:space:]]*$' OPEN.md | grep -oE '[0-9]+')
+    if [ -z "$frozen" ]; then
+      echo "INFO OPEN.md carries no ledger-table-frozen marker — L15(b) (frozen-table) skipped; the convention isn't adopted in this tree"
+    else
+      while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        if [[ "$id" =~ ^[0-9]+$ ]]; then
+          violation L15 OPEN.md "row $id is above the frozen table (highest-number=$frozen) — move it to ledger/<date>-<slug>.md; see OPEN.md § How to use this ledger"
+        else
+          violation L15 OPEN.md "row $id is not a number, and the table is frozen (highest-number=$frozen) — a date+slug row is a file: move it to ledger/<id>.md; see OPEN.md § How to use this ledger"
+        fi
+      done < <(printf '%s\n' "$ids" | awk -v max="$frozen" '$0 != "" && ($0 !~ /^[0-9]+$/ || $0 + 0 > max + 0)' | sort -u)
+    fi
+  fi
+  files=(ledger/*.md)
+  [ -e "${files[0]}" ] || return 0
+  while IFS=$'\t' read -r path problems; do
+    [ -n "$path" ] || continue
+    violation L15 "$path" "$problems — shape: engineering-team/templates/open-row.md; rule: OPEN.md § How to use this ledger"
+  done < <(awk '
+    function value(line, field,    v) {
+      v = line; sub("^\\*\\*" field ":\\*\\*[ \t]*", "", v); sub(/[ \t\r]+$/, "", v)
+      return v
+    }
+    function check(    base, p, word) {
+      if (file == "") return
+      base = file; sub(/^.*\//, "", base); sub(/\.md$/, "", base)
+      p = ""
+      if (base !~ /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[a-z0-9]+(-[a-z0-9]+)(-[a-z0-9]+)?(-[a-z0-9]+)?(-[a-z0-9]+)?(-[a-z0-9]+)?$/)
+        p = p "; the filename is not a YYYY-MM-DD-<slug> id (the UTC date, then two to six lowercase words joined by hyphens)"
+      else if (length(base) > 64)
+        p = p "; the id is " length(base) " characters long (64 at most)"
+      if (!got_id) p = p "; no **Id:** field"
+      else if (idf != base) p = p "; **Id:** reads \"" idf "\", not the filename"
+      if (type == "") p = p "; no **Type:**"
+      if (!got_opened) p = p "; no **Opened:** field"
+      else if (opened == "") p = p "; **Opened:** holds no ISO date"
+      word = status; sub(/[ \t].*$/, "", word)
+      if (!got_status) p = p "; no **Status:** field"
+      else if (word != "OPEN" && word != "DONE") p = p "; **Status:** must start with OPEN or DONE"
+      if (p != "") print file "\t" substr(p, 3)
+    }
+    FNR == 1 {
+      check()
+      file = FILENAME; seen[FILENAME] = 1
+      idf = type = opened = status = ""; got_id = got_type = got_opened = got_status = 0
+    }
+    !got_id && /^\*\*Id:\*\*/ { idf = value($0, "Id"); got_id = 1 }
+    !got_type && /^\*\*Type:\*\*/ { type = value($0, "Type"); got_type = 1 }
+    !got_status && /^\*\*Status:\*\*/ { status = value($0, "Status"); got_status = 1 }
+    !got_opened && /^\*\*Opened:\*\*/ {
+      got_opened = 1
+      if (match($0, /20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) opened = substr($0, RSTART, RLENGTH)
+    }
+    END {
+      check()
+      for (i = 1; i < ARGC; i++) if (!(ARGV[i] in seen)) print ARGV[i] "\tthe file is empty"
+    }
+  ' "${files[@]}")
+}
+
+# ---------- L16: the table stays a table ----------
+# Every other reader here filters to `^|` lines and is layout-blind by design, so none of
+# them can see the one thing a human sees first: OPEN.md's Items table rendered broken on
+# GitHub from 2026-07-15 to 2026-09-20 — 37 rows as a table, 305 as raw pipe-text —
+# because a blank line ends a markdown table and a chunk with no header row is not one.
+# (Worse, in fact: a blockquote swallows the rows after it by lazy continuation.) Freezing
+# the table did not close this; the break came from a row appended under a blank that was
+# already there, a shape no convention forbids. So: between the "| # |" header and the
+# table's last row, every line must start with `|`. Lines after the last row and before
+# the freeze marker are the closing prose and are not in the table; notes below the marker
+# are where notes belong. One violation per file, naming the first offender and counting
+# the rest, because they share one cause. Silent where there is no OPEN.md or no header:
+# most fixture trees have neither. See ledger/2026-09-20-nothing-guards-table-contiguity.md.
+check_L16() {
+  [ -f OPEN.md ] || return 0
+  local hit lineno count text
+  hit=$(awk '
+    /^<!-- ledger-table-frozen: highest-number=[0-9]+ -->[ \t]*$/ { if (hdr) stop = 1 }
+    !hdr { if ($0 ~ /^\|[ \t]*#[ \t]*\|/) hdr = 1; next }
+    stop { next }
+    # A row confirms every pending non-row line as sitting INSIDE the table.
+    /^\|/ {
+      for (i = 1; i <= np; i++) {
+        n++
+        if (n == 1) { firstno = pno[i]; firsttxt = ptxt[i] }
+      }
+      np = 0
+      next
+    }
+    { np++; pno[np] = NR; ptxt[np] = $0 }
+    END { if (n > 0) printf "%d\t%d\t%s\n", firstno, n, substr(firsttxt, 1, 60) }
+  ' OPEN.md)
+  [ -n "$hit" ] || return 0
+  lineno=${hit%%$'\t'*}
+  count=$(printf '%s' "$hit" | cut -f2)
+  text=$(printf '%s' "$hit" | cut -f3-)
+  violation L16 OPEN.md "line $lineno is inside the Items table but is not a row (\"$text\") — anything that is not a row ends the RENDERED table, so every row below it stops being a table row on GitHub; move it below the table, into OPEN.md § \"Numbering notes\"$([ "$count" -gt 1 ] && printf ' — and %d more' "$((count - 1))")"
+}
+
 # ---------- run ----------
 check_reviews
 check_L2
@@ -353,6 +488,8 @@ check_L11
 check_L12
 check_L13
 check_L14
+check_L15
+check_L16
 
 # stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
 if [ "${#W_IDS[@]}" -gt 0 ]; then

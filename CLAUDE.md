@@ -67,7 +67,7 @@ The boundary is clean: **the product team produces markdown (PRD, guides, story 
 - **`product-team/`** — roles, workflows, templates, guardrails, and accumulating discoveries/personas/journeys/scope/domain/prd/guides. Source of truth for product behavior. Read [product-team/README.md](./product-team/README.md) for the layout.
 - **`.claude/`** — wiring only:
   - `.claude/commands/<phase>.md` — slash commands: `/discover`, `/model-users`, `/scope`, `/model-domain`, `/design-experience`, `/assemble-prd`, `/decompose-stories`, `/discuss-product`.
-  - `.claude/agents/<role>.md` — product subagents; writing roles' Write/Edit are permission-scoped to `product-team/**` + `OPEN.md` (out-of-tree writes need approval under default permission modes); the Product Advisor has no Write and no Bash.
+  - `.claude/agents/<role>.md` — product subagents; writing roles' Write/Edit are permission-scoped to `product-team/**` + `OPEN.md` + `ledger/**` (out-of-tree writes need approval under default permission modes); the Product Advisor has no Write and no Bash.
 
 The seven phases — **Discovery → User Modeling → Scope → Domain Modeling → Experience Design → PRD Assembly → Story Decomposition** — each have a human approval gate and write a durable artifact. The flow ends by emitting `product-team/stories-queue.md`, an epic-aware backlog. **The handoff is doc-driven and one-directional:** the engineering Product Owner reads that queue, creates the matching epics under `engineering-team/`, and promotes each brief via `/plan-feature`. The product flow never writes into `engineering-team/`. See [product-team/README.md](./product-team/README.md) → "Handoff to the engineering team".
 

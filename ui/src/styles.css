@@ -29,6 +29,11 @@ body {
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: var(--accent-hover); }
 code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
+.text-muted { color: var(--text-muted); }
+/* The rule above was referenced as a className in 43 files and, until it was added, defined
+   nowhere — so every "muted" string in the app rendered at full body colour. It lives in the
+   base section on purpose: a later section-specific rule that deliberately overrides a muted
+   colour still wins by source order. (ADR shared-concepts-row-detail/0001 § Scope amendment.) */
 
 /* ─── Layout ──────────────────────────────────────── */
 .app-layout {

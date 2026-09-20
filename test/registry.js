@@ -152,6 +152,7 @@ const suites = [
   { file: 'harness-lint.test.js' },
   { file: 'harness-stats.test.js' },
   { file: 'session-start.test.js' },
+  { file: 'ledger-row-ids.test.js' },
   { file: 'stack-free-npm-test.test.js' },
   { file: 'ci-test-job.test.js' },
   { file: 'sync-panel-tag-filters.test.js' },
@@ -237,6 +238,7 @@ const suites = [
   { file: 'gate-result-record.test.js' },
   { file: 'harden-user-data-error-path.test.js' },
   { file: 'harden-compute-endpoint.test.js' },
+  { file: 'shared-concepts-row-detail.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so
