@@ -132,5 +132,5 @@ Both were put to the operator at the Planning gate on 2026-09-20 and are now **r
 ## Linked artifacts
 - ADR: none — Architecture skipped per Standard/Bug; the Architect's call is recorded inline in
   `engineering-team/stories/_intake.md` lines 77–146.
-- Test plan: `engineering-team/stories/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.test-plan.md`
-- Review: `engineering-team/reviews/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md`
+- Test plan: `engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.test-plan.md`
+- Review: `engineering-team/reviews/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md`

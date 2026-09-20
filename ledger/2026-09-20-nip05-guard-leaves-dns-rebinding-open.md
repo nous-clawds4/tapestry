@@ -28,5 +28,5 @@ a dispatcher whose `connect` uses the address the guard already vetted, rather t
 Worth pairing with the redirect row above, since both live in `guardedFetch`.
 
 **Pointer:** `src/utils/ssrfGuard.js` (module header, "Known and accepted limit");
-`engineering-team/stories/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` § Out of scope;
+`engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` § Out of scope;
 `engineering-team/stories/_intake.md` lines 77–146, Architect's call item 3.

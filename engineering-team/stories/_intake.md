@@ -76,7 +76,7 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ## 2026-05-17 — Bug: unauthenticated NIP-05 verification is a constrained SSRF surface
 
-**RESOLVED** → `engineering-team/stories/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` (book `nip05-ssrf-guard`). Shared guard `src/utils/ssrfGuard.js` used by all three call sites; ask #2 (rate limiting) deliberately not added — see the story's Out of scope and OPEN.md row `2026-09-20-public-endpoints-have-no-rate-limiting`.
+**RESOLVED** → `engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` (book `nip05-ssrf-guard`). Shared guard `src/utils/ssrfGuard.js` used by all three call sites; ask #2 (rate limiting) deliberately not added — see the story's Out of scope and OPEN.md row `2026-09-20-public-endpoints-have-no-rate-limiting`.
 
 **Raw request (verbatim):**
 

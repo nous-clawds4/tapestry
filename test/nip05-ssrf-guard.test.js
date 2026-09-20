@@ -2,7 +2,7 @@
 /**
  * Regression: NIP-05 verification must classify a host before it talks to it.
  *
- * Story: engineering-team/stories/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md
+ * Story: engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md
  * Book:  engineering-team/audits/nip05-ssrf-guard/book.md
  *
  * NIP-05 verification takes a domain out of user-supplied input and fetches

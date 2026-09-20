@@ -1,11 +1,12 @@
 # Epic: nip05-ssrf-guard
 
 **Created:** 2026-09-20
-**Status:** Active
+**Status:** Done
+**Retired:** 2026-09-20 — story 1 Done and merged to staging (PR #703); story + review folders moved under `done/nip05-ssrf-guard/`. Book closed same day. Production promotion still pending.
 **Book:** `engineering-team/audits/nip05-ssrf-guard/book.md` (acceptance-frame)
 **Provenance:** `engineering-team/stories/_intake.md` § "2026-05-17 — Bug: unauthenticated NIP-05
 verification is a constrained SSRF surface", itself a security follow-up from the Story #6 review
-(`engineering-team/reviews/6-nip05-checkmark-verification.md`, "Non-blocking #1"). Open since
+(`engineering-team/reviews/search-and-router/6-nip05-checkmark-verification.md`, "Non-blocking #1"). Open since
 2026-05-17; picked up 2026-09-20.
 
 ## Goal
@@ -21,7 +22,7 @@ three call sites to it, and export its address predicate so the published-assist
 divergent copy.
 
 ## Stories (planned at kickoff)
-`stories/nip05-ssrf-guard/`:
+`stories/done/nip05-ssrf-guard/`:
 1. `1-shared-pre-fetch-address-guard.md` — `src/utils/ssrfGuard.js`, three call-site changes,
    stack-free behavioural test. Bug, Standard (Architecture skipped; the Architect's call is
    recorded inline in the intake entry).
