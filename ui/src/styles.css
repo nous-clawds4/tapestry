@@ -1473,6 +1473,19 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   text-decoration: underline;
 }
 
+/* Author whose profile lookup FAILED — distinct from one with no profile published.
+   ADR profile-lookup-bounds/0001: a degraded cell must not read as a resolved one. */
+.author-cell-unresolved .author-name {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.author-name-unresolved {
+  margin-left: 0.35em;
+  font-size: 0.85em;
+  opacity: 0.75;
+  cursor: help;
+}
+
 /* ─── Manage / Audit Page ─────────────────────────────────────── */
 
 .manage-page {

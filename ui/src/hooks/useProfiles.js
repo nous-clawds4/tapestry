@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { fetchProfilesChunked, PROFILE_LOOKUP_FAILED } from '../utils/profileBatch';
 
 // Client-side cache (survives across component mounts within the same page session)
 const clientCache = new Map();
@@ -8,6 +9,11 @@ const clientCache = new Map();
  * Returns a plain object keyed by pubkey: { [pubkey]: { name, picture, display_name, ... } | null }.
  * NOT a Map — read it with `profiles?.[pubkey]`, never `.get()` (ADR graph-curation-ui/0002).
  * Loads asynchronously — returns an empty object initially, then updates.
+ *
+ * A pubkey whose lookup FAILED reads as `PROFILE_LOOKUP_FAILED`, which is distinct from the
+ * `null` of a pubkey that simply has no profile published. `<AuthorCell>` renders the
+ * difference; consumers that ignore it fall through to their existing unnamed handling.
+ * The request is chunked at the endpoint's cap (ADR profile-lookup-bounds/0001).
  */
 export default function useProfiles(pubkeys = []) {
   const [profiles, setProfiles] = useState({});
@@ -45,27 +51,19 @@ export default function useProfiles(pubkeys = []) {
     let cancelled = false;
 
     async function fetchMissing() {
-      try {
-        const res = await fetch(`/api/profiles?pubkeys=${needed.join(',')}`);
-        const data = await res.json();
-        if (cancelled || !data.success) return;
-
-        for (const [pk, profile] of Object.entries(data.profiles)) {
-          clientCache.set(pk, profile);
-          result[pk] = profile;
-        }
-        // Cache nulls for pubkeys with no profile found
-        for (const pk of needed) {
-          if (!(pk in result)) {
-            clientCache.set(pk, null);
-            result[pk] = null;
+      await fetchProfilesChunked(needed, {
+        isCancelled: () => cancelled,
+        onBatch: (batch) => {
+          if (cancelled) return;
+          for (const [pk, profile] of Object.entries(batch)) {
+            // A failed lookup is transient — caching it would make it permanent, and the
+            // pubkey would never be retried for the life of the page session.
+            if (profile !== PROFILE_LOOKUP_FAILED) clientCache.set(pk, profile);
+            result[pk] = profile;
           }
-        }
-
-        setProfiles({ ...result });
-      } catch (err) {
-        console.warn('useProfiles fetch error:', err);
-      }
+          setProfiles({ ...result });
+        },
+      });
     }
 
     fetchMissing();
