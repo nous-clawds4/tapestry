@@ -72,5 +72,5 @@ None. This story is independent of stories 1–3 and could be built in any order
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/author-scoped-inspection/0002-author-scoped-views-on-active-b-tags.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/author-scoped-inspection/4-mark-self-declaration-rows.test-plan.md`
 - Review: (filled in after Review phase)

@@ -97,5 +97,5 @@ came from outside this instance."
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/author-scoped-inspection/0002-author-scoped-views-on-active-b-tags.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/author-scoped-inspection/3-narrow-by-person-and-by-author-type.test-plan.md`
 - Review: (filled in after Review phase)

@@ -68,5 +68,5 @@ None.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/author-scoped-inspection/0002-author-scoped-views-on-active-b-tags.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/author-scoped-inspection/2-every-author-on-active-b-tags.test-plan.md`
 - Review: (filled in after Review phase)

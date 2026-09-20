@@ -80,5 +80,5 @@ instead of assuming everyone wants the owner's view.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/author-scoped-inspection/0001-instance-assistant-roster-and-delegate-resolver.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/author-scoped-inspection/1-instance-assistant-roster.test-plan.md`
 - Review: (filled in after Review phase)
