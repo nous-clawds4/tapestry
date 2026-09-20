@@ -355,7 +355,9 @@ check_L14() {
 # well-formed id, repeats it in **Id:**, and carries the header fields the readers
 # take (scripts/lib/collect-ledger.sh). Table rows are the `|` lines after the
 # "| # |" header, minus its |---| line — OPEN.md has a second table in its
-# preamble, and notes between chunks of rows. ONLY the first cell is read: nine
+# preamble, and until 2026-09-20 had notes between chunks of rows (they moved
+# under the table so that GitHub renders it; a stray note or blank line must
+# still never hide a row from this check). ONLY the first cell is read: nine
 # rows carry a literal pipe inside a later cell. The id pattern is spelled without
 # {n,m} intervals, as the other awk code here is (whats-open.sh's intake scan):
 # not every awk takes them (older mawk builds do not).

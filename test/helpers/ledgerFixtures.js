@@ -36,7 +36,8 @@ function tableRow(id, item = 'fixture item', { type = 'cleanup', status = 'DONE'
 /**
  * An OPEN.md shaped like the real one: a small table of its own in the preamble (with
  * its own `|---|` line), then the Items table. `rows` are lines: table rows, and between
- * them the blank lines and `> **Numbering note …**` blockquotes the real table carries.
+ * them the blank lines and `> **Numbering note …**` blockquotes the real table carried
+ * until 2026-09-20 (they now sit under it; L15 must keep tolerating a stray one).
  * `frozenAt` adds the freeze marker after the last row, under one line of prose.
  */
 function ledgerDoc(rows, { frozenAt } = {}) {
@@ -54,8 +55,9 @@ function ledgerDoc(rows, { frozenAt } = {}) {
 }
 
 /**
- * What the real table looks like, in nine lines: ids out of order (as 7, 8, 6 are), a
- * gap (no 6 or 8 here; 257 there), a note between two chunks of rows, a row that quotes
+ * What the real table looks like — or looked like, for the note — in nine lines: ids out
+ * of order (as 7, 8, 6 are), a gap (no 6 or 8 here; 257 there), a note between two chunks
+ * of rows (the real ones moved under the table on 2026-09-20), a row that quotes
  * another row's id cell and a regex with a pipe, and an escaped pipe. Highest id: 9.
  */
 const REAL_SHAPE_ROWS = [
