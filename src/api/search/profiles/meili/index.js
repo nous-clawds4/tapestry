@@ -20,6 +20,7 @@ const TAG_HITS_LIMIT_DEFAULT = 5;
 const TAG_HITS_LIMIT_MAX = 50;
 const { resolvePovWithStatus } = require('../../../_shared/povStatus');
 const { getSettings } = require('../../../../config/settings');
+const { guardedFetch } = require('../../../../utils/ssrfGuard');
 
 /**
  * Per-result-type inclusion gate (epic search-api-result-controls, ADR 0001).
@@ -50,6 +51,9 @@ const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 /**
  * Verify a NIP-05 identifier by fetching the domain's .well-known/nostr.json.
  * Returns the hex pubkey if valid, null otherwise. 5-second timeout.
+ *
+ * The domain arrives on the public search path, so the request goes through
+ * guardedFetch (src/utils/ssrfGuard) — see src/api/nip05.js for the rationale.
  */
 async function verifyNip05(nip05Address) {
   const match = nip05Address.match(NIP05_REGEX);
@@ -59,12 +63,12 @@ async function verifyNip05(nip05Address) {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
-    const resp = await fetch(
+    const resp = await guardedFetch(
       `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`,
       { signal: controller.signal }
     );
     clearTimeout(timer);
-    if (!resp.ok) return null;
+    if (!resp || !resp.ok) return null;
     const json = await resp.json();
     const pubkey = json.names?.[name] || json.names?.[name.toLowerCase()];
     if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) return null;
@@ -893,6 +897,9 @@ async function handleMeiliBackfillProfiles(req, res) {
 }
 
 module.exports = {
+  // Exported so test/nip05-ssrf-guard.test.js can assert the guard on the real
+  // function; not routed directly.
+  verifyNip05,
   handleMeiliSearchProfiles,
   handleMeiliSearchStats,
   handleMeiliResync,

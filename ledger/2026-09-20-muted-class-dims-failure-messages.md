@@ -37,5 +37,5 @@ are placeholders and are almost certainly right as muted; the two genuine error 
 unmuted class. Small, and purely a judgement call about prominence — no mechanism to change.
 
 **Pointer:** `ui/src/styles.css:32`; review
-`engineering-team/reviews/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.md`,
+`engineering-team/reviews/done/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.md`,
 non-blocking finding 1; ADR `shared-concepts-row-detail/0001` § Decision, "Scope amendment".

@@ -1,6 +1,6 @@
 # Epic: Shared Concepts Row Detail
 
-**Status:** Active
+**Status:** Done *(book closed 2026-09-20; in production at `440600b3`, PR #701)*
 **Provenance:** Owner request in session 2026-09-20 (no intake entry — the request went straight into a story, per workflow 0-intake step 1). Book anchor at `engineering-team/audits/shared-concepts-row-detail/book.md` (acceptance-frame book, opened 2026-09-20).
 
 ## What this is
@@ -24,7 +24,7 @@ Like `shared-concepts-legibility` before it, the work is display and vocabulary,
 capability.
 
 ## Stories
-`stories/shared-concepts-row-detail/`:
+`stories/done/shared-concepts-row-detail/`:
 1. **row-detail-panels-on-active-tag-pages** — the per-row disclosure panel on both Active b-tags
    and Active z-tags: description + copyable tag value, tag column retired from both tables,
    both tag values still matched by the filter box. *(this story)*

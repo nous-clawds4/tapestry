@@ -76,6 +76,8 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ## 2026-05-17 — Bug: unauthenticated NIP-05 verification is a constrained SSRF surface
 
+**RESOLVED** → `engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` (book `nip05-ssrf-guard`). Shared guard `src/utils/ssrfGuard.js` used by all three call sites; ask #2 (rate limiting) deliberately not added — see the story's Out of scope and OPEN.md row `2026-09-20-public-endpoints-have-no-rate-limiting`.
+
 **Raw request (verbatim):**
 
 > Repo: /Users/clawds4/repos/nous-clawds4/tapestry (Tapestry / brainstorm.world). This is a security follow-up surfaced during the Story #6 review (engineering-team/reviews/6-nip05-checkmark-verification.md, "Non-blocking #1").
