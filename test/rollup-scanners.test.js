@@ -290,6 +290,14 @@ test('AC-12 the section lists at most WHATS_OPEN_CARRY_BOOKS books and says what
     `the section must be bounded at 8 books by default; it listed ${listed.length}: ${JSON.stringify(listed)}`);
   assert.ok(lines.some((l) => /\b12\b/.test(l) && /\b24\b/.test(l)),
     `one line must state the true totals — 12 books, 24 unticked items — so nothing is silently hidden; got: ${JSON.stringify(lines)}`);
+  // The two suppressors have different cures, so the reader must not have to subtract.
+  const notShown = lines.find((l) => /Not shown/.test(l));
+  assert.ok(notShown, `the section must name what it left out; got: ${JSON.stringify(lines)}`);
+  const m = notShown.match(/Not shown: (\d+) closed before the \d+-day window, (\d+) beyond/);
+  assert.ok(m, `the "Not shown" line must name each suppressor's count separately; got "${notShown}"`);
+  const [aged, budgeted] = [Number(m[1]), Number(m[2])];
+  assert.strictEqual(aged + budgeted + listed.length, 12,
+    `shown + aged-out + over-budget must account for all 12 books; got "${notShown}" with ${listed.length} shown`);
   assert.ok(listed[0] && listed[0].includes('book-00'),
     `the most recently closed book must come first; got: ${JSON.stringify(listed)}`);
 });

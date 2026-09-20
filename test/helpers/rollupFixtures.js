@@ -45,16 +45,22 @@ function runDigest(cwd) {
   return { code: res.status, out: `${res.stdout || ''}${res.stderr || ''}` };
 }
 
-/** Source a lib from scripts/lib and run one line of bash against it. Returns raw stdout. */
+/**
+ * Source a lib from this repo's scripts/lib and run one line of bash against it.
+ * The lib path is absolute and `cwd` is the directory the code runs IN — the libs read
+ * cwd-relative paths, so a fixture repo is a legitimate cwd. Returns raw stdout.
+ */
+function libPath(lib) { return path.join(REPO_ROOT, 'scripts', 'lib', lib); }
+
 function inLib(lib, script, { cwd = REPO_ROOT, env = {} } = {}) {
-  const res = spawnSync('bash', ['-c', `. scripts/lib/${lib}; ${script}`],
+  const res = spawnSync('bash', ['-c', `. "${libPath(lib)}"; ${script}`],
     { cwd, encoding: 'utf8', env: { ...process.env, ...env }, maxBuffer: 16 * 1024 * 1024 });
   return { code: res.status, out: res.stdout || '', err: res.stderr || '' };
 }
 
 /** As inLib, but keeps stdout as raw bytes — for asserting on UTF-8 validity. */
 function inLibBytes(lib, script, { cwd = REPO_ROOT, env = {} } = {}) {
-  const res = spawnSync('bash', ['-c', `. scripts/lib/${lib}; ${script}`],
+  const res = spawnSync('bash', ['-c', `. "${libPath(lib)}"; ${script}`],
     { cwd, env: { ...process.env, ...env }, maxBuffer: 16 * 1024 * 1024 });
   return { code: res.status, out: res.stdout || Buffer.alloc(0) };
 }
@@ -135,6 +141,6 @@ const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0
 
 module.exports = {
   REPO_ROOT, ROLLUP, DIGEST,
-  offlineEnv, runRollup, runDigest, inLib, inLibBytes,
+  offlineEnv, runRollup, runDigest, inLib, inLibBytes, libPath,
   makeRepo, bookDoc, auditDoc, section, entry, intakeDoc, daysAgo,
 };

@@ -124,6 +124,31 @@ Resolved with the operator at the intake gate on 2026-09-20:
 - Carry-forwards → **scope the section by recency, state the suppressed total, and add the tick rule
   to `6-book-close.md`.** Not retired: it is the only surface for deferred book scope.
 
+## Deviations
+
+One test-file change was made during Implementation rather than Test Design, and it is logged here
+because the standing rule is that Phase 4 leaves `test/` alone.
+
+- **`test/helpers/rollupFixtures.js` — `inLib`/`inLibBytes` sourced the lib by a cwd-relative path.**
+  Every test that runs a lib *inside a fixture repo* therefore failed with "No such file or
+  directory" instead of exercising the lib, and would have gone on failing after the lib existed.
+  The fix makes the lib path absolute (`libPath()`) while leaving `cwd` the fixture's, which is what
+  the libs need — they read cwd-relative repo paths. It weakens no assertion; it is what lets 15 of
+  them run at all. Caught by the first post-implementation run: 18 pass / 15 fail, with all 15
+  failing on the load rather than on the behaviour.
+
+Two findings of the review round were fixed before the verdict rather than deferred, and both are
+in `scripts/whats-open.sh`: the carry-forward summary named only the totals where ADR 0001 says it
+should name what *each* suppressor removed (it now reads "Not shown: 8 closed before the 90-day
+window, 39 beyond the 8-book budget"), and a non-numeric `WHATS_OPEN_CARRY_DAYS` /
+`WHATS_OPEN_CARRY_BOOKS` would have taken the whole roll-up down under `set -u` (both now fall back
+to their defaults). The first is pinned by an added assertion in the AC-12 test: shown plus aged-out
+plus over-budget must account for every book.
+
+Two shapes in the ADR came from measurements taken while building, and are recorded there rather
+than here: the carry-forward book budget (the recency window alone suppresses 8 of 55 books today),
+and the `**Status:** Closed (<date>)` fallback for the four books that carry no `**Closed:**` line.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/rollup-scanner-fidelity/0001-shared-scanner-libs-and-marker-grammar.md`
 - Test plan: `engineering-team/stories/rollup-scanner-fidelity/1-scanners-report-what-is-there.test-plan.md`
