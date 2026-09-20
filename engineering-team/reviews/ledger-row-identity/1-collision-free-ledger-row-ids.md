@@ -4,6 +4,7 @@
 **Date:** 2026-09-20
 **Diff:** `git diff 17e8c9c0...HEAD` on `feat/ledger-row-ids` — `64f2d787` (failing tests + test plan), `8e624eb5` (implementation). Base: `git merge-base origin/staging HEAD` = `17e8c9c0`. `origin/staging` moved to `f4fefd5f` during the review (PR #694, merged 2026-09-20T02:08:39Z: row 337 to DONE, one line); the review is against the merge base, and the moved tip was trial-merged (below). Nothing was pushed at review time: `git ls-remote --heads origin feat/ledger-row-ids` is empty, so no CI run exists for this branch.
 **Lane:** Feature, Standard strictness. Story `engineering-team/stories/ledger-row-identity/1-collision-free-ledger-row-ids.md`; ADR `engineering-team/decisions/ledger-row-identity/0001-date-slug-ids-and-row-files.md` (Accepted, Option C — not reopened here); test plan beside the story.
+**Rounds:** everything below except § "Post-verdict check" reviewed `64f2d787` and `8e624eb5` and was committed as `a5271347`. § "Post-verdict check — `f3965b50`" covers the one commit made after the verdict, and the push, PR and CI run that came with it. The first part is kept as written; where a later fact supersedes it, that section says so.
 
 The reviewer had none of the implementing session's context. Every statement below was re-derived from a command run during this review; where something could not be checked, § "Not verified" says so. Scratch worktrees and clones lived outside the repo and were removed.
 
@@ -136,6 +137,51 @@ None.
 - **The operator's approvals at the Test Design and Implementation gates.** Asserted by the orchestrating session and the `64f2d787` commit message; nothing in the repo records them.
 - **Citations outside the repo** (PR bodies, the Loose Threads board). Not read. The design leaves every number resolving, so none should need an edit.
 - **"Before the intake entries".** The file row is the last "Meta items" line and no intake `Meta:` entry is open today, so the position claim rests on the code's loop order, not on an observation.
+
+## Post-verdict check — `f3965b50`
+
+**Date:** 2026-09-20
+**Diff:** `git diff a5271347..f3965b50` — one commit, `docs(ledger): rows 151, 207, 307 — PR #697 into the Done cells`, whose single parent is this review's commit `a5271347`. HEAD `f3965b50` equals `origin/feat/ledger-row-ids` (`git ls-remote`) and the head of PR #697.
+
+The first item under "Outstanding at merge" asked for this commit. It was checked as a fresh claim (`roles/reviewer.md` step 10), not recognised as the follow-up this review had asked for and waved through. The text above is left as written. Three of its statements were true at `a5271347` and are superseded here: the header's "Nothing was pushed at review time … no CI run exists", the first "Outstanding at merge" item, and the "CI" item under "Not verified".
+
+### What the commit is
+
+- `git show --stat f3965b50`: one file, `OPEN.md`, 3 insertions and 3 deletions. Comparing `OPEN.md` at `a5271347` and at `f3965b50` byte for byte: 416 lines either side, and the lines that differ are 196, 244 and 370 — rows 151, 207 and 307.
+- In each of the three, split on the pipe character: nine parts either side, and the only part that differs is the seventh, the Done cell. Replacing the text `PR pending (branch `feat/ledger-row-ids`)` with `PR #697` in the old line reproduces the new line byte for byte; the old text occurred exactly once per line. Status reads `DONE` before and after.
+- `git grep -F 'PR pending'` finds nothing left in `OPEN.md`. What it still finds is this review's own sentence above and three older, unrelated documents.
+- The commit touches no harness-definition path: `OPEN.md` is not listed in `scripts/harness-def-paths.txt`, so no CHANGELOG row is owed, and the lint agrees.
+- The test plan's id-to-line map, merge base `17e8c9c0` against `f3965b50`, is what its "after the Review commit" paragraph expects: the moved row 329, and rows 151, 207 and 307 changed, with `cut -d'|' -f1-5` and the Pointer cell equal to the base for each. One whole-line freeze marker, at 343.
+
+### PR #697
+
+`gh pr view 697` at 03:25Z: open, not a draft, `feat/ledger-row-ids` into `staging`, head `f3965b50`, base `f4fefd5f`, not merged, mergeable; four commits (`64f2d787`, `8e624eb5`, `a5271347`, `f3965b50`). It was created at 2026-09-20T03:23:33Z, sixteen seconds before `f3965b50`'s commit time, which is the order the commit message gives: the number did not exist until the PR did.
+
+ADR 0001's Rollout asks the implementation PR to list the open PRs that touch `OPEN.md`. The body has that section and no placeholder is left anywhere in it. It says none, and `gh pr list` at 03:27Z agrees: of the four other open PRs (#583, #567, #232, #32), none touches `OPEN.md` or `ledger/`. The body's Evidence section quotes this review; every number in it was compared with what this review measured, and each matches.
+
+### What was run, and what was not
+
+- `bash scripts/harness-lint.sh` at `f3965b50`, clean tree → `harness-lint: clean (0 violations)`, exit 0. Its 41 lines of output are identical to the run at `a5271347`.
+- At `f3965b50` on Node v22.23.2, through the `run()` exports: `ledger-row-ids` 6/0, `harness-lint` 63/0, `session-start` 32/0, `harness-stats` 12/0. The first three hold every test this story added that reads the real tree: the freeze marker, the rule's text, "the real repo lints clean", L15's silence on the real repo, both real-ledger reader tests, and the digest in this repo.
+- The three older suites the test plan counts under AC-3 because they read rows out of the real table, same head, same Node: `operational-direction` 86/0, `curated-dlist-update-update-preview` 34/0, `curated-dlist-update-publish` 69/0 — the counts they had in the gate run on `8e624eb5`.
+- **The full `npm test` was not run again on this host.** Since the gate run on `8e624eb5` the branch changed eight files, all markdown — `OPEN.md`, this review, three row files, the story, the epic and `_intake.md` — and nothing under `scripts/`, `src/`, `ui/`, `test/`, `firmware/` or `.claude/`. A local run would be red again on the live suites of row 289; they were not re-run.
+- In its place, CI's run on the same head, which is the signal the first part of this review listed as not verified. These are lines from the CI log, not a `gate:status` line, because CI's run record is not on this host. Workflow Test, run 35486468050, job `stack-free`, event `pull_request`, head `f3965b50`, ubuntu-24.04, Node v22.23.2, conclusion success:
+
+  > `Overall: PASS — 2897 passed, 0 failed, 531 skipped across 207 suites · record tmp/gate-runs/20260920T032431Z-2221-3840.json`
+  >
+  > `harness-lint: PASS (63 passed, 0 failed, 0 skipped)` · `session-start: PASS (32 passed, 0 failed, 0 skipped)` · `ledger-row-ids: PASS (6 passed, 0 failed, 0 skipped)`
+
+  It is the stack-free gate. Its 531 skipped tests are 269 in 25 whole suites that report `SKIP` (13 "preconditions not met", 12 "control panel not reachable") and 262 inside 54 suites that otherwise ran: tests that need a stack, which CI does not have, so the run says nothing about them. This story's three suites skipped none. It is also the first run of this story's awk code on CI's own toolchain. Which `awk` the runner resolved to was not identified.
+
+### Findings
+
+None. The commit is what it says it is: three Done cells, nothing else. The verdict recorded below stands as written.
+
+### Not verified in this check
+
+- That the operator approved pushing the branch and opening the PR. The coordinating session says so; nothing in the repo or on the PR records it.
+- Which `awk` CI's runner used.
+- The live suites at `f3965b50` on this host: not re-run, for the reason given above.
 
 ## On PASS (same commit)
 
