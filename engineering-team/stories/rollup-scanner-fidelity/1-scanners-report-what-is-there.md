@@ -1,6 +1,6 @@
 # Story 1: the roll-up's scanners report what is there
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-09-20
 **Type:** Bug
 
@@ -125,6 +125,6 @@ Resolved with the operator at the intake gate on 2026-09-20:
   to `6-book-close.md`.** Not retired: it is the only surface for deferred book scope.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/rollup-scanner-fidelity/0001-shared-scanner-libs-and-marker-grammar.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
