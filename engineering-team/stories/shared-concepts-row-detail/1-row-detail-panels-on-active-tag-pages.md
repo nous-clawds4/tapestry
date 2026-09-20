@@ -94,5 +94,5 @@ None. Two points settled at kickoff and recorded in the book's frame notes:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-row-detail/0001-row-detail-panels-on-active-tag-pages.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.test-plan.md`
 - Review: (filled in after Review phase)
