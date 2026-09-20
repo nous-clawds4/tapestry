@@ -23,10 +23,17 @@ note at 66). The break appeared when `8786f131` inserted a row at line 66 — be
 the note. A rule phrased "don't put blank lines in the table" would have permitted that diff, and a
 human reviewing two added lines at the end of a table would have been right to wave it through.
 
-**Fix shape (built — L16):** one `harness-lint` check that every line between the `| # |` header and the
+**Proposed fix shape:** one `harness-lint` check that every line between the `| # |` header and the
 `<!-- ledger-table-frozen -->` marker starts with `|` — about three lines of awk beside L15, reusing
 the scan it already performs. Message names the first offending line. The cost of not doing it is
 another silent, months-long regression in the single ledger every session reads.
+
+**Built as L16, and it differs from the sketch in two ways.** It is about twenty lines of awk, not
+three; and the region ends at the table's **last row**, not at the marker, because the lines between
+them are the closing prose ("The table above is closed…") and flagging those would be wrong. A row
+confirms the pending non-row lines above it as being inside the table, which is what draws that
+line. The message names and quotes the first offender and counts the rest. Silent where there is no
+`OPEN.md` or no header, so fixture trees are unaffected.
 
 **Pointer:** `engineering-team/reviews/harness-self-improvement/open-md-one-table-2026-09-20.md`
 (rounds 1–3); commits `187df161`, `c5a92115`, `4328e0ab`; the numbering-notes section of `OPEN.md`.
