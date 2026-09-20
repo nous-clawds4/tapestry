@@ -1,6 +1,6 @@
 # Story 1: Row detail panels on the Active …-tags pages
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-20
 **Type:** Feature
 
@@ -95,4 +95,4 @@ None. Two points settled at kickoff and recorded in the book's frame notes:
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-row-detail/0001-row-detail-panels-on-active-tag-pages.md`
 - Test plan: `engineering-team/stories/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-row-detail/1-row-detail-panels-on-active-tag-pages.md`
