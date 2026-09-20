@@ -47,3 +47,38 @@ records a closely related trap, where documented `-f` flags make compose skip
 
 **Pointer:** `CLAUDE.md` § "House rules", final bullet; `.claude/skills/cycle-local/SKILL.md` § 1;
 related: `OPEN.md` row 252 (dev-overlay `-f` flags skip the override file).
+
+---
+
+**Update 2026-09-20 (`profile-lookup-bounds` book close, retro R2) — the row's own hypothesis is
+confirmed: this needs a precondition, not a correction.** The row asks to check "whether a
+dev-overlay compose file *does* bind-mount the repo and simply is not what is running here." Measured
+later the same day, on the same machine, the bind mount **is** present:
+
+```
+$ docker inspect tapestry --format '{{range .Mounts}}{{.Type}} | {{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+volume | …tapestry_tapestry-node-modules/_data -> /usr/local/lib/node_modules/brainstorm/node_modules
+volume | …tapestry_tapestry-data/_data         -> /var/lib/brainstorm
+volume | …tapestry_tapestry-neo4j/_data        -> /var/lib/neo4j/data
+volume | …tapestry_tapestry-strfry/_data       -> /var/lib/strfry
+volume | …tapestry_tapestry-logs/_data         -> /var/log/brainstorm
+bind   | /host_mnt/Users/clawds4/repos/nous-clawds4/tapestry -> /usr/local/lib/node_modules/brainstorm
+```
+
+Six mounts where the row recorded four, the sixth being the repo bind. So CLAUDE.md's sentence is
+**conditionally** true: it depends on how the stack was last brought up, and both states occur on one
+machine within a day. Editing the sentence to say source edits are *not* live would make it wrong in
+the other half of cases — the right change is a precondition plus "verify which state you are in,"
+with `docker inspect … .Mounts` as the one-line check.
+
+**A consequence this book hit, worth naming here because it shares the root cause.** The bind targets
+the **main checkout**, so a session working in a `.claude/worktrees/*` worktree is served the *other
+tree's* code. Any test with a live tier then silently exercises code the session did not write: this
+book's `E2` (an `/api/profiles` assertion) stayed red locally against a container running
+`origin/staging`, and `docker exec tapestry grep -c MAX_PUBKEYS_PER_REQUEST …/fetchProfiles.js`
+returned `0`, confirming the branch's server code was nowhere in the container. The workaround used
+was to place the candidate file at matching depth under the container's own `/tmp` with a read-only
+symlink to `src/config`, and require it there — leaving the shared checkout untouched. E2 passed on
+staging immediately after deploy.
+
+**Pointer (addendum):** audit `engineering-team/audits/profile-lookup-bounds/audit.md` §7 R2.

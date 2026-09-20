@@ -1,8 +1,8 @@
 /**
  * profile-lookup-bounds #1: author names must resolve on pages with many distinct authors.
  *
- * Story: engineering-team/stories/profile-lookup-bounds/1-resolve-author-names-at-any-scale.md
- * ADR:   engineering-team/decisions/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md
+ * Story: engineering-team/stories/done/profile-lookup-bounds/1-resolve-author-names-at-any-scale.md
+ * ADR:   engineering-team/decisions/done/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md
  *
  * The bug: useProfiles puts a page's whole pubkey set into one
  * GET /api/profiles?pubkeys=<csv>. The endpoint refuses more than 50, the hook

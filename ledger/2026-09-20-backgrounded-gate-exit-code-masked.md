@@ -50,3 +50,30 @@ false PASS into a gate verdict with an auditable journal entry that looks correc
 **Pointer:** `test/test.js` (header comment on exit semantics); `engineering-team/README.md` §
 "Running and reading the test gate"; `engineering-team/roles/reviewer.md` step 1; audit
 `engineering-team/audits/shared-concepts-row-detail/audit.md` §7.
+
+---
+
+**Second instance, 2026-09-20 (`profile-lookup-bounds` book close, retro R1) — wider than the gate,
+and wider than a trailing `echo`.** The same defeat happens through a **pipe**, which is the ordinary
+way a session trims a long command's output:
+
+```
+perl -e 'alarm 500; exec @ARGV' npx vite build 2>&1 | tail -14
+```
+
+A pipeline's status is its **last** command's, so this reports `tail`'s 0. The build had failed:
+`ui/node_modules` was absent in the worktree and vite exited with `ERR_MODULE_NOT_FOUND`. The task
+notification said *"completed (exit code 0)"* and the captured tail showed only npm's "New major
+version of npm available!" notice — no error text, because the failure was above the 14-line window.
+The Implementer had drafted "UI builds clean" on that basis and caught it only by grepping the log
+for `built in`, which was absent.
+
+So the row's fix 1 ("never end a backgrounded invocation with another command") is necessary but not
+sufficient — `| tail`, `| grep` and `| head` are the same hazard and are far more common than a
+trailing `echo`. The durable form of the rule is: **never read a verdict from the exit status of a
+pipeline or compound; read it from the tool's own record** (`npm run gate:status` for the gate) or
+assert on a positive success marker in the log (`built in`, `✓`) rather than on the absence of
+errors. Note the second instance was a *build*, not the gate, so a fix scoped to gate invocations
+alone would not have caught it.
+
+**Pointer (addendum):** audit `engineering-team/audits/profile-lookup-bounds/audit.md` §7 R1.
