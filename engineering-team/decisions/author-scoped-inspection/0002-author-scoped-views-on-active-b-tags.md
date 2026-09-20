@@ -13,8 +13,9 @@ components.
 
 **Fact 1 — the narrowing is one line of the existing fetch.** `ActiveBTags.jsx:66` calls
 `queryRelay({ authors: [taPubkey], kinds: B_CARRIER_KINDS })`. Dropping `authors` widens it. On
-this dev instance that moves the scan from 170 to 271 events and the table from **12 rows to 16**;
+this dev instance that moves the scan from 170 to 271 events and the table from **13 rows to 17**;
 the four new rows are authored by `253d40c4…`, `82b75e47…` (two) and `919ba08a…`.
+*(Re-measured at implementation; Planning recorded 12 -> 16. The delta of four is unchanged.)*
 
 **Fact 2 — the self-declaration rule is already written down, twice.** `dispositionOf(bValues,
 selfCoord)` in `src/lib/bValueForms.js:41` returns `selfDeclared` when a b value equals the

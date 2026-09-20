@@ -14,8 +14,9 @@ something else entirely: it is the **self-declaration** — *"I am offering this
 concept"* — the wire form the Community Offerings surface reads to build its directory, and the
 form the sharing-state rule keys on.
 
-Today they are indistinguishable in the table. 4 of 12 rows on this dev instance and 3 of 10 on
-staging are self-declarations sitting unmarked among correspondences. A reader scanning the page
+Today they are indistinguishable in the table. Measured 2026-09-20: on this dev instance 4 of the
+13 rows the page shows today are self-declarations (7 of the 17 the relay holds), and on staging
+3 of 10 (6 of 24). They sit unmarked among correspondences. A reader scanning the page
 for "what have I wired up to other people's concepts" is counting the instance's own offerings in
 that total.
 

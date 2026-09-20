@@ -1,21 +1,8 @@
 const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
 const CustomerManager = require('../../utils/customerManager');
-const { getAssistantKeys } = require('../../utils/assistantKeys');
-
-/**
- * Resolve the caller's Assistant pubkey, if one exists.
- * Returns null for users who don't have a key provisioned yet (e.g. admins
- * who haven't run provision-key, or unauthenticated callers).
- */
-async function resolveAssistantPubkey(userPubkey) {
-    if (!userPubkey) return null;
-    try {
-        const keys = await getAssistantKeys(userPubkey);
-        return keys && keys.pubkey ? keys.pubkey : null;
-    } catch {
-        return null;
-    }
-}
+// One main->delegate mapping for the whole instance (ADR author-scoped-inspection/0001).
+// This file used to carry its own narrowed copy of getAssistantKeys; it now calls the shared one.
+const { getAssistantPubkeyFor } = require('../../utils/assistantKeys');
 
 /**
  * Get user classification (owner/customer/regular user)
@@ -36,7 +23,7 @@ async function handleGetUserClassification(req, res) {
         }
 
         const userPubkey = req.session.pubkey;
-        const assistantPubkey = await resolveAssistantPubkey(userPubkey);
+        const assistantPubkey = await getAssistantPubkeyFor(userPubkey);
 
         // Get owner pubkey from brainstorm.conf
         let ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');

@@ -45,8 +45,51 @@ function src(p) {
 const flat = (s) => s.replace(/\s+/g, ' ');
 
 /** Strip line and block comments so a structural assertion cannot be satisfied by prose. */
+/**
+ * Source with comments blanked out, so a structural assertion cannot be satisfied by prose.
+ *
+ * A scanner, not a regex pair. The obvious `s.replace(/\/\*[\s\S]*?\*\//g, ' ')` cannot tell a
+ * comment from a STRING that happens to contain the same two characters, and this repo has one:
+ * `src/api/index.js` registers the Express wildcard route `app.delete('/api/settings/*', ...)`.
+ * That regex reads the `/*` inside those quotes as an opening comment, runs to the next real
+ * `*​/`, and blanks ~300 lines of route registrations — so an assertion that a route exists fails
+ * against a file where it plainly does. Strings are tracked here for that reason.
+ *
+ * Known limit: regex literals are not tracked, so a regex containing `/*` or `//` would still
+ * mislead it. None of the files these suites read contains one.
+ */
 function code(s) {
-  return s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+  let out = '';
+  let i = 0;
+  const n = s.length;
+  while (i < n) {
+    const c = s[i];
+    const d = s[i + 1];
+    if (c === '/' && d === '*') {            // block comment
+      const end = s.indexOf('*/', i + 2);
+      const stop = end === -1 ? n : end + 2;
+      for (let k = i; k < stop; k++) out += s[k] === '\n' ? '\n' : ' ';
+      i = stop;
+    } else if (c === '/' && d === '/') {     // line comment
+      let k = i;
+      while (k < n && s[k] !== '\n') { out += ' '; k++; }
+      i = k;
+    } else if (c === "'" || c === '"' || c === '`') {
+      const quote = c;
+      out += c;
+      i++;
+      while (i < n) {
+        if (s[i] === '\\') { out += s[i] + (s[i + 1] || ''); i += 2; continue; }
+        out += s[i];
+        if (s[i] === quote) { i++; break; }
+        i++;
+      }
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return out;
 }
 
 function loadKeys() {

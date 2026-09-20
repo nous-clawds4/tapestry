@@ -10,8 +10,8 @@ Active b-tags is a **wire inspector** — the page you open to see what the rela
 It currently shows only concept headers signed by this instance's own assistant, and it says so
 nowhere. A reader has no way to tell the page is narrow.
 
-The gap is not theoretical. On this dev instance the table shows **12** rows while the local relay
-holds **16** b-tag-carrying concept headers. The four it hides are signed by an upstream firmware
+The gap is not theoretical. On this dev instance the table shows **13** rows while the local relay
+holds **17** b-tag-carrying concept headers. The four it hides are signed by an upstream firmware
 author, by the production instance's assistant, and by a peer — which is precisely the federation
 evidence an operator opens this page to find.
 
@@ -42,9 +42,10 @@ each one, so that I can see what actually arrived instead of only what my own as
 - [ ] Given the row count shown above the table, when the page loads, then it reports the number of
       rows now listed, and the page's own description no longer claims the list is limited to
       locally-authored events.
-- [ ] Given the local dev instance today, when Active b-tags loads, then it lists 16 rows where it
-      previously listed 12, and the four newly-visible rows are the ones signed by `253d40c4…`,
+- [ ] Given the local dev instance today, when Active b-tags loads, then it lists 17 rows where it
+      previously listed 13, and the four newly-visible rows are the ones signed by `253d40c4…`,
       `82b75e47…` (two) and `919ba08a…`.
+      *(Re-measured 2026-09-20 at implementation. The figures first recorded at Planning were 12 -> 16; the relay gained one owner-assistant b-tag row in between. The **delta is unchanged** — the same four external rows become visible — so only the baseline moved.)*
 
 ## Concepts touched
 

@@ -25,8 +25,8 @@ instance controls, the people who control them, everyone else).
 
 ## Why it matters
 
-- **The page under-reports and never says so.** On this dev instance the table shows 12 rows while
-  the relay holds 16 b-tag-carrying concept headers. The missing four are signed by an upstream
+- **The page under-reports and never says so.** On this dev instance the table shows 13 rows while
+  the relay holds 17 b-tag-carrying concept headers. The missing four are signed by an upstream
   firmware author, by production's assistant, and by a peer — exactly the federation evidence an
   operator opens a wire inspector to find.
 - **It is the multi-tenant direction, being built.** BIBLE §31 § Scope states the direction — *"each

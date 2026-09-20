@@ -32,7 +32,7 @@ client-side filtering pass, while being wrong against a real relay.
 | E3 | the table has both author columns; a foreign row names its signer by pubkey | AC-2 |
 | E13 | the sentinel row reaches no row under any selection | AC-3 |
 
-**AC-5** (12 → 16 rows on this dev instance, naming the four newly-visible authors) is a **smoke
+**AC-5** (13 → 17 rows on this dev instance, naming the four newly-visible authors) is a **smoke
 step, not an automated assertion**: it is a claim about *this machine's relay contents today*,
 which no hermetic suite may depend on. It is verified by hand against `localhost:7778` at
 `/cycle-local` time and recorded in the review.
