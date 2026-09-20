@@ -142,4 +142,4 @@ this dev instance resolved to `e00ed090…9df36` — per-deployment, never to be
 ## Linked artifacts
 - ADR: `engineering-team/decisions/profile-lookup-bounds/0001-chunk-at-the-cap-in-the-shared-hook.md`
 - Test plan: `engineering-team/stories/profile-lookup-bounds/1-resolve-author-names-at-any-scale.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/profile-lookup-bounds/1-resolve-author-names-at-any-scale.md`
