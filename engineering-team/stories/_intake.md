@@ -2653,7 +2653,8 @@ pages. These three items were saved for a future session.
 **Product questions underneath it:** what "Create your account" means for each kind of visitor (a
 signed-out visitor, a signed-in guest with no assistant, a customer, an admin, the owner); when a
 follow list or a Treasure Map counts as done — which relays are read, and whether a kind 10040 that
-names another provider counts (Brainstorm says it does not); whether signed-out visitors keep seeing
+names another provider counts (Brainstorm's comment says it does not, but its code lets a local
+"activated" flag win: `useFinishSetup.ts` line 60 against lines 61–63); whether signed-out visitors keep seeing
 `/setup`; where the Setup Alert appears (Brainstorm Search pages, the `/tapestry` control panel, or
 both); and how `/setup` relates to the Dashboard's Getting-Started checklist. Every check is about
 the *viewer's own* follow list, Treasure Map and assistant, never the instance TA's.

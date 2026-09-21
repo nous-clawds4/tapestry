@@ -145,8 +145,11 @@ Small judgment calls made during implementation (Implementer role, step 9):
 - **The Implementer's gate was scoped, not the full suite.** The diff touches only `ui/src/`, and a
   full `npm test` takes about 53 minutes on this machine and is red by default on suites this diff
   cannot reach (OPEN.md row 191, and `summaries-element-count`). The Implementer ran the 36 suites
-  that read the touched UI files (by grep of `test/`), plus the UI build, eslint, and a live browser
-  pass. The full suite runs once, at review.
+  that name the touched files (found by grep of `test/`), plus the UI build, eslint, and a live
+  browser pass. That selection missed three suites that read every file under `ui/src` by walking
+  the directory: `collapse-into-export-concept`, `publish-export-a-concept` and
+  `users-page-neo4j-endpoint`. The Reviewer found them, and the full run at review covers them
+  (OPEN.md row `2026-09-21-abbreviated-path-names-no-gate`).
 
 ## Linked artifacts
 - ADR: none (abbreviated path — the only design choices, routes and copy, are recorded above)

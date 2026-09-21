@@ -29,7 +29,9 @@ Upstream `NosFabrica/Brainstorm-UI` at `741be6b6` (read 2026-09-20):
 - **`client/src/hooks/useFinishSetup.ts`** — the three-step model shared by every setup surface.
   Two kinds of "not done": an optimistic `*Done` for the page itself, and a relay-verified `*Pending`
   for the nagging surfaces, so nobody is told "2 steps left" while their kind 3 or kind 10040 is
-  still loading. A kind 10040 that names another provider counts as not activated.
+  still loading. A kind 10040 that names another provider counts as not activated, but only when
+  this browser has no local "activated" flag: `activateDone` (line 60) lets that flag win, although
+  the comment beneath it (lines 61–63) says a declared other provider should still count as pending.
 - **`client/src/components/FinishSetupBanner.tsx`** — the header pill, "Finish setting up your
   account · N steps left". Hidden when signed out, when nothing is left, and on `/setup*`.
 
