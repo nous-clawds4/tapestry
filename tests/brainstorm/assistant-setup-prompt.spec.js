@@ -3,8 +3,8 @@ const { test, expect } = require('@playwright/test');
 /**
  * assistant-profile #1: The setup prompt tells the truth — the browser class.
  *
- * Story: engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.md
- * ADR:   engineering-team/decisions/assistant-profile/0001-one-setup-state-answer-local-first.md
+ * Story: engineering-team/stories/done/assistant-profile/1-setup-prompt-tells-the-truth.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0001-one-setup-state-answer-local-first.md
  * Node half: test/assistant-setup-state.test.js (U/S/D/R/H).
  *
  * ── Why this file carries the acceptance criteria ────────────────────────

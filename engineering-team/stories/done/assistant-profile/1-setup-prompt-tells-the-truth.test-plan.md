@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — The setup prompt tells the truth
 
-**Story:** `engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.md`
-**ADR:** `engineering-team/decisions/assistant-profile/0001-one-setup-state-answer-local-first.md`
+**Story:** `engineering-team/stories/done/assistant-profile/1-setup-prompt-tells-the-truth.md`
+**ADR:** `engineering-team/decisions/done/assistant-profile/0001-one-setup-state-answer-local-first.md`
 **Date:** 2026-09-11
 
 Two files, two halves:

@@ -1,7 +1,7 @@
 # Test Plan: Story 4 — One place: the My Assistant page
 
-**Story:** `engineering-team/stories/assistant-profile/4-my-assistant-page.md`
-**ADR:** `engineering-team/decisions/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md`
+**Story:** `engineering-team/stories/done/assistant-profile/4-my-assistant-page.md`
+**ADR:** `engineering-team/decisions/done/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md`
 **Date:** 2026-09-21
 
 The tests are in two new files, plus re-aims of five existing ones.

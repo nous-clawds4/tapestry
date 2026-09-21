@@ -4,8 +4,8 @@ const { test, expect } = require('@playwright/test');
  * assistant-profile #2: Publish the assistant's profile to the right relays, and say what happened —
  * browser half (B-class: what the editor SHOWS after a publish).
  *
- * Story: engineering-team/stories/assistant-profile/2-publish-to-the-right-relays.md
- * ADR:   engineering-team/decisions/assistant-profile/0002-publish-to-configured-relays-report-each.md
+ * Story: engineering-team/stories/done/assistant-profile/2-publish-to-the-right-relays.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0002-publish-to-configured-relays-report-each.md
  * Node half: test/assistant-publish-relays.test.js (L/P/M/E/G/S).
  *
  * The server's answer is fixed by a route mock, so each test decides exactly what the relays said and

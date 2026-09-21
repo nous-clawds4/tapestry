@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — Publish the assistant's profile to the right relays, and say what happened
 
-**Story:** `engineering-team/stories/assistant-profile/2-publish-to-the-right-relays.md`
-**ADR:** `engineering-team/decisions/assistant-profile/0002-publish-to-configured-relays-report-each.md`
+**Story:** `engineering-team/stories/done/assistant-profile/2-publish-to-the-right-relays.md`
+**ADR:** `engineering-team/decisions/done/assistant-profile/0002-publish-to-configured-relays-report-each.md`
 **Date:** 2026-09-12
 
 The tests are in two files, plus one change to story 1's suite:

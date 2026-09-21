@@ -6,8 +6,8 @@ const path = require('path');
  * assistant-profile #5: One writer — nothing else can change an assistant's profile. Browser half (B-class:
  * what the dashboard and the two legacy pages DO).
  *
- * Story: engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.md
- * ADR:   engineering-team/decisions/assistant-profile/0005-one-writer-for-an-assistants-profile.md
+ * Story: engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0005-one-writer-for-an-assistants-profile.md
  * Node half: test/one-writer-assistant-profile.test.js (G/P/W — W is this class's CI backstop).
  *
  * Every /api route is mocked, so each test decides exactly what the server answers:

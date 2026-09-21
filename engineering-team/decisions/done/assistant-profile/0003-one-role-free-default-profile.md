@@ -2,7 +2,7 @@
 
 **Status:** Accepted (Amendment 1 appended 2026-09-21 — the status seam keeps story 2's literal publish list)
 **Date:** 2026-09-20
-**Story:** `engineering-team/stories/assistant-profile/3-one-default-assistant-profile.md`
+**Story:** `engineering-team/stories/done/assistant-profile/3-one-default-assistant-profile.md`
 
 ## Context
 

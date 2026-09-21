@@ -88,6 +88,6 @@ None.
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
-- Test plan: `engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.test-plan.md`
-- Review: `engineering-team/reviews/assistant-profile/5-one-writer-for-assistant-profiles.md`
+- ADR: `engineering-team/decisions/done/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
+- Test plan: `engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.test-plan.md`
+- Review: `engineering-team/reviews/done/assistant-profile/5-one-writer-for-assistant-profiles.md`

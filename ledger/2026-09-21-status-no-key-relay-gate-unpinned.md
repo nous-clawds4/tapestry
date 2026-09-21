@@ -38,6 +38,6 @@ W counterpart.**
 
 Fix shape: a W4 source check for both.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/3-one-default-assistant-profile.md`, non-blocking
+**Pointer:** `engineering-team/reviews/done/assistant-profile/3-one-default-assistant-profile.md`, non-blocking
 findings 1 and 5 (the mutation table lists the surviving mutants);
-`engineering-team/stories/assistant-profile/4-my-assistant-page.md`.
+`engineering-team/stories/done/assistant-profile/4-my-assistant-page.md`.
