@@ -22,6 +22,9 @@ const { test, expect } = require('@playwright/test');
  *   B7 — 375 px wide: no horizontal scroll, signed in and signed out.                [AC-4]
  *   B8 — the page only reads: no request other than GET, one status read per load.   [AC-5]
  *   B9 — an expired session (the server says signed out): nothing breaks.            [edge]
+ *   B10 — sign out, then back in as the same account: every step shows as not done
+ *         until the NEW answer arrives, never the one from before the sign-out.     [AC-4, ADR § 3]
+ *         (Added in review round 2 — the story's review, Blocking 1.)
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked. A catch-all answers `success: false`, and the routes that matter
@@ -119,6 +122,62 @@ async function mock(page, { who = null, status = ALL_DONE, authDelayMs = 0 } = {
     return r.fulfill(json(status));
   });
   return log;
+}
+
+const ONE_DONE = answerWith({
+  account: { done: true, pending: false, finished: true },
+  follow: { done: false, pending: true, finished: true, followCount: 0, source: null },
+  activate: { done: false, pending: true, finished: true, otherProvider: false, source: null },
+});
+
+/**
+ * A session that can change during a test, for B10. AuthContext's real login() and logout() run:
+ * a fake NIP-07 signer (page.addInitScript) answers getPublicKey and signEvent, and in-browser mocks
+ * answer verify-user, login-user and logout, so /api/auth/status follows the mocked session.
+ * `state.plan[pubkey]` queues /api/setup/status answers per account, as { delayMs, body }. This is
+ * the recipe the story's review used (OPEN.md row `2026-09-21-b-class-no-signin-recipe`).
+ */
+async function mockSession(page, { signedInAs = null } = {}) {
+  const state = { session: signedInAs, pending: null, plan: {}, statusCalls: [] };
+  await page.route('**/api/**', (r) => r.fulfill(json({ success: false, error: 'not mocked by setup-status.spec.js' })));
+  await page.route('**/api/assistant/pubkey', (r) => r.fulfill(json({ success: true, pubkey: TA })));
+  await page.route('**/api/owner/pubkey', (r) => r.fulfill(json({ success: true, pubkey: 'bb'.repeat(32) })));
+  await page.route('**/api/relays', (r) => r.fulfill(json({ success: true, aRelays: {} })));
+  await page.route('**/api/assistant/roster', (r) => r.fulfill(json({ success: true, assistants: [], viewer: null })));
+  await page.route('**/api/profiles**', (r) => r.fulfill(json({ success: true, profiles: {} })));
+  await page.route('**/api/auth/status', (r) => r.fulfill(json(state.session
+    ? { authenticated: true, pubkey: state.session }
+    : { authenticated: false, pubkey: null })));
+  await page.route('**/api/auth/user-classification', (r) => r.fulfill(json(state.session
+    ? { success: true, classification: 'customer', pubkey: state.session, assistantPubkey: ASSISTANT }
+    : { success: true, classification: 'unauthenticated', pubkey: null, assistantPubkey: null })));
+  await page.route('**/api/auth/verify-user', (r) => {
+    state.pending = JSON.parse(r.request().postData() || '{}').pubkey;
+    return r.fulfill(json({ authorized: true, challenge: 'c'.repeat(64) }));
+  });
+  await page.route('**/api/auth/login-user', (r) => {
+    state.session = state.pending;
+    return r.fulfill(json({ success: true, pubkey: state.session }));
+  });
+  await page.route('**/api/auth/logout', (r) => {
+    state.session = null;
+    return r.fulfill(json({ success: true }));
+  });
+  await page.route('**/api/setup/status**', async (r) => {
+    state.statusCalls.push(state.session);
+    const next = (state.plan[state.session] || []).shift() || { delayMs: 0, body: { success: true, signedIn: false } };
+    if (next.delayMs) await wait(next.delayMs);
+    try { await r.fulfill(json(next.body)); } catch { /* the page moved on */ }
+  });
+  await page.addInitScript(() => {
+    window.__signer = [];
+    window.__pk = null;
+    window.nostr = {
+      getPublicKey: async () => { window.__signer.push('getPublicKey'); return window.__pk; },
+      signEvent: async (e) => { window.__signer.push(`signEvent:${e.kind}`); return { ...e, id: '0'.repeat(64), sig: '0'.repeat(128) }; },
+    };
+  });
+  return state;
 }
 
 /** Hard-load /setup and let sign-in and the status read settle before judging the page. */
@@ -307,5 +366,45 @@ test.describe('/setup shows where you stand (setup-status-and-alert #1)', () => 
     await expect(main).toContainText('0 of 3 complete');
     for (const s of STEPS) await expect(main.locator(`a[href="${s.href}"]`)).toHaveCount(1);
     expect(errors, `page errors: ${errors.join(' | ')}`).toHaveLength(0);
+  });
+
+  /* ───────── B10 — sign out, then back in as the same account ───────── */
+  test('B10: after signing out and back in as the same account, every step shows as not done until the new answer arrives (AC-4, ADR § 3)', async ({ page }) => {
+    const state = await mockSession(page, { signedInAs: VIEWER });
+    state.plan[VIEWER] = [
+      { delayMs: 0, body: ALL_DONE },     // the read at page load
+      { delayMs: 3000, body: ONE_DONE },  // the read after signing back in, slow on purpose
+    ];
+    const main = await openSetup(page);
+    await expect(main).toContainText('3 of 3 complete');
+
+    // Sign out through the avatar menu (AuthContext.logout).
+    await page.locator('.bs-usermenu-avatar-btn').click();
+    await page.locator('.bs-usermenu-signout').click();
+    await expect(main.getByText(SIGNED_OUT_LINE, { exact: true })).toBeVisible();
+
+    // Sign back in as the same account with the page's own button (AuthContext.login → the fake signer).
+    await page.evaluate((pk) => { window.__pk = pk; }, VIEWER);
+    await main.getByRole('button', { name: SIGN_IN_BUTTON }).click();
+
+    // While the new answer is in flight, nothing from the answer before the sign-out may show.
+    const seen = [];
+    const until = Date.now() + 2000;
+    while (Date.now() < until) {
+      seen.push(await textOf(main));
+      await page.waitForTimeout(100);
+    }
+    const stale = seen.filter((t) => t.includes('3 of 3 complete') || t.includes('Done: ') || t.includes(ALL_SET));
+    expect(stale, 'the answer from before the sign-out was shown as current while the new check was still running').toHaveLength(0);
+    expect(seen.some((t) => t.includes('0 of 3 complete')), 'while the new check runs, the page shows 0 of 3 (every step not done)').toBe(true);
+
+    // Then the new answer lands.
+    await expect(main).toContainText('1 of 3 complete', { timeout: 5000 });
+
+    // The page's own button ran the real sign-in: the signer gave its pubkey and signed the kind 22242 challenge.
+    const signer = await page.evaluate(() => window.__signer);
+    expect(signer).toEqual(expect.arrayContaining(['getPublicKey', 'signEvent:22242']));
+    expect(state.statusCalls.length, 'a new status read after signing back in').toBeGreaterThanOrEqual(2);
+    expect(state.statusCalls.every((who) => who === VIEWER), `every status read was for the signed-in viewer: ${JSON.stringify(state.statusCalls)}`).toBe(true);
   });
 });

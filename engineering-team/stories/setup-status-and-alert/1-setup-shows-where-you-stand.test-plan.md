@@ -30,7 +30,7 @@ Two new files carry the tests:
 | **AC-1** signed out | **B1**: the three steps are links with no marks, no progress line or bar, the sign-in line and its button, and no status read. **B2**: the sign-in line never flashes while sign-in resolves. **B7**, **B8**: the signed-out variants. **U1**: a request with no authenticated session costs nothing and answers `signedIn: false`. | spec; `setup-status.test.js` | browser; unit |
 | **AC-2** each step follows the rules | **U3**: step 1 is "holds an assistant", and steps 2 and 3 are still checked without one. **U16**: the follow count and done rule. **U17**: the Map rules, including the Owner (assistant = TA) is done, a Customer whose Map names the TA is "another provider", no assistant, the first valid entry wins, and the invariants. **U2**: the viewer is the session, and the query is ignored. **B3**, **B4**, **B6**: the page renders those answers. | both | unit; browser |
 | **AC-3** where it looks | **U4**: a local hit, with no relay read. **U5**: newest wins, locally and across relays, including the `created_at` tie. **U6**: every relay unreachable leaves the check unfinished. **U7**: one relay answering "none" finishes it. **U8**: the 8 s budget. **U9**: a failed local scan is not a miss. **U10**: no relays configured. **U11**: other authors and kinds are ignored. **U12**: the scan filters. **U13**: the per-kind relay lists. **U14**, **U15**: this instance's own relay is never outside. **U20**: the two kinds are independent. **X1–X4**: the strict local scan. **H2** (opt-in): the real server path end to end. | `setup-status.test.js` | unit; live |
-| **AC-4** how it shows | **B3**: done cards, "Done", the sentences, not links, 3 of 3, "You're all set!", and the screen-reader "Done:". **B4**: a mix, and the another-provider sentence. **B5**: still checking, and failed. **B6**: no assistant. **B7**: 375 px. **B9**: an expired session. **C1–C3**: the counts. **C4**, **C5**: the copy. **D3**: the constant is gone. | both | browser; unit |
+| **AC-4** how it shows | **B3**: done cards, "Done", the sentences, not links, 3 of 3, "You're all set!", and the screen-reader "Done:". **B4**: a mix, and the another-provider sentence. **B5**: still checking, and failed. **B6**: no assistant. **B7**: 375 px. **B9**: an expired session. **B10** (round 2): sign out, then back in as the same account; every step is not done until the new answer arrives. **C1–C3**: the counts. **C4**, **C5**: the copy. **D3**: the constant is gone. | both | browser; unit |
 | **AC-5** read-only | **S2**: the module holds no import, publish, signing, key material or file write. **B8**: every request the page makes is a GET. **U1**: no session means no work. **H1**: the live route answers a GET. | both | unit; browser; live |
 | ADR structure | **S1**: the route is registered. **S4**: `openapi.yaml`. **D1**: the provider. **D2**: its mount, around the router and inside `AssistantRosterProvider`. **S3**: no 64-hex literals. **U18**: the response shape, including no pubkeys. **U19**: the 500. | `setup-status.test.js` | unit |
 | Regression | **R1**: the approved copy is byte-identical. **R2**: the four routes. **B5**, **B7**, **B8**, **B9** also pass on today's build (see Verification). | both | unit; browser |
@@ -103,7 +103,7 @@ SETUP_STATUS_LIVE_SIGN_IN=1 node -e "require('./test/setup-status.test.js').run(
 BRAINSTORM_BASE_URL=http://localhost:4173 npx playwright test tests/brainstorm/setup-status.spec.js --project=chromium
 ```
 
-**The story's gate** (book § Test gate). It is one gate-engine run over the 71 suites pinned below.
+**The story's gate** (book § Test gate). It is one gate-engine run over the 72 suites pinned below.
 Run it from the repo root; `GATE_LABEL` tags the run record:
 
 ```
@@ -117,7 +117,7 @@ const named = execSync("/usr/bin/grep -lE 'api/index\\.js|openapi\\.yaml|App\\.j
   .toString().trim().split('\n').filter(Boolean).map((p) => p.replace(/^test\//, ''));
 const walkers = ['collapse-into-export-concept', 'publish-export-a-concept', 'users-page-neo4j-endpoint', 'in-app-badged-ta-avatar',
   'note-tagging-raw-events-inspector-ui', 'curated-dlist-update-publish', 'close-unauth-write-surface', 'one-default-assistant-profile',
-  'stack-free-npm-test'].map((n) => `${n}.test.js`);
+  'stack-free-npm-test', 'gate-result-record'].map((n) => `${n}.test.js`);
 const want = new Set([...named, ...walkers, 'setup-status.test.js']);
 const missing = [...want].filter((f) => !suites.some((s) => s.file === f));
 if (missing.length) { console.error('not in test/registry.js:', missing.join(', ')); process.exit(2); }
@@ -140,16 +140,19 @@ suites no change here reaches (OPEN.md rows 191 and 285).
 
 ### Pinned gate list (computed 2026-09-21)
 
-The filename grep finds 64 suites. The walkers add 7 more that it cannot find. Two walkers,
+The filename grep finds 64 suites. The walkers add 8 more that it cannot find. Two walkers,
 `in-app-badged-ta-avatar` and `note-tagging-raw-events-inspector-ui`, also name `styles.css`, so
 the grep had already found them. The Tester re-ran `grep -rl readdirSync test/` at this phase:
 - six walkers read every `.js`/`.jsx` file under `ui/src` or `ui/src/hooks`;
 - `close-unauth-write-surface` and `one-default-assistant-profile` walk `src/`, which the new server
   module joins;
 - `stack-free-npm-test` walks `test/` and requires every suite to be registered;
+- `gate-result-record` (C9) also reads every `test/*.test.js`. It was missing from the first pinned
+  list: that list claimed "the rest walk trees this story does not touch", but a story that adds a
+  suite touches `test/`. The Reviewer found it (review § Harness friction 1), and round 2 added it;
 - the rest walk trees this story does not touch.
 
-The 71 suites:
+The 72 suites:
 
 add-node-as-element-restore, admin-tools-dashboard-panel, adoption-candidates-queue,
 adoption-raw-event-view, author-scoped-inspection-roster, author-scoped-inspection-views,
@@ -157,7 +160,7 @@ b-coverage-audit-and-disposition, break-a-goal-into-pieces, bullboard-admin-acce
 capture-a-goal-and-see-it, close-unauth-write-surface, collapse-into-export-concept,
 community-class-thread-pull, curated-dlist-update-publish, deploy-safety-status,
 dlist-curation-header-endpoint, dlist-curation-merge-preserve, event-page-read-path, event-page-ui,
-event-tagging-for-tag, event-tagging-notes-by-author, event-tagging-read-api,
+event-tagging-for-tag, event-tagging-notes-by-author, event-tagging-read-api, gate-result-record,
 generalized-task-scheduler, global-publish-gate, in-app-badged-ta-avatar,
 inverse-queue-publish-candidates, live-feed-feed-page, live-feed-read-path,
 login-failure-and-tag-collapse, my-curated-dlists-items, my-curated-dlists-page,
@@ -237,3 +240,26 @@ The four skips are all environmental or opt-in:
 - `deploy-safety-status`: 1;
 - `show-the-four-on-the-goal-screens-that-already-exist`: 2;
 - `setup-status` H2: 1, not opted in.
+
+### Round 2 (after the review asked for changes)
+
+The review's Blocking 1: after a sign-out, signing back in as the same account shows the answer
+from before the sign-out as current while the new check runs. **B10** pins it. It drives the real
+`login()` and `logout()` in `AuthContext`, with the recipe from OPEN.md row
+`2026-09-21-b-class-no-signin-recipe`:
+- a fake NIP-07 signer set through `page.addInitScript`;
+- stateful in-browser mocks for verify-user, login-user and logout;
+- `/api/setup/status` answers queued per account.
+
+It signs out through the avatar menu, then back in through the page's own "Sign in with nostr"
+button. That button click also closes the review's note that no test clicked it.
+
+Confirmed failing on 2026-09-21 against the build of `eff82667`, the review commit (the
+implementation `7fe27582` plus review docs):
+- **Browser class:** 14 passed, 1 failed.
+- **B10** failed with: "the answer from before the sign-out was shown as current while the new check
+  was still running". 18 of the samples taken while the second status read was in flight held
+  "3 of 3 complete ✓Done: Create your account …".
+- The other fourteen still pass. The new helper changed nothing for them.
+
+**The pinned gate grows to 72 suites.** `gate-result-record` was added (see § Pinned gate list).
