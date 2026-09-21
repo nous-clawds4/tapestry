@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCypher } from '../hooks/useCypher';
 import useProfiles from '../hooks/useProfiles';
 import useAssistantSetupState from '../hooks/useAssistantSetupState';
+import { MY_ASSISTANT_PATH } from '../config/avatarMenuLinks';
 import AuthorCell from '../components/AuthorCell';
 import { useConfig } from '../context/ConfigContext';
 
@@ -725,12 +726,6 @@ export default function Dashboard() {
   // Whether the signed-in user's own assistant has a profile — the answer every
   // setup surface shares (/api/assistant/status, ADR assistant-profile/0001).
   const { status: assistantStatus, refresh: refreshAssistantStatus } = useAssistantSetupState();
-  // Where this viewer can publish their own assistant's profile. The Tapestry
-  // settings tab is Owner/Admin-only, so everyone else is sent to /settings
-  // (story assistant-profile #4 replaces both with one page).
-  const assistantSetupPath = user?.classification === 'owner' || user?.classification === 'admin'
-    ? '/tapestry/settings/assistant'
-    : '/settings';
 
   // Check constraints status
   const [constraintsOk, setConstraintsOk] = useState(null); // null=loading, true/false
@@ -745,7 +740,8 @@ export default function Dashboard() {
   function handleOnboardingAction(key) {
     switch (key) {
       case 'ta-profile':
-        navigate(assistantSetupPath);
+        // Every role sets up their own assistant on the My Assistant page (assistant-profile #4).
+        navigate(MY_ASSISTANT_PATH);
         break;
       case 'bios':
         navigate('/tapestry/settings/firmware');
@@ -781,7 +777,7 @@ export default function Dashboard() {
         <>
           {assistantStatus === 'needs-setup' && (
             <WelcomeCard
-              onSetupProfile={() => navigate(assistantSetupPath)}
+              onSetupProfile={() => navigate(MY_ASSISTANT_PATH)}
               onUseDefault={handleUseDefaultProfile}
             />
           )}

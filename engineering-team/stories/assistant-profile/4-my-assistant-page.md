@@ -1,6 +1,6 @@
 # Story 4: One place — the My Assistant page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Feature
 **Epic:** `assistant-profile`
@@ -71,8 +71,22 @@ None. Resolved at approval (2026-09-11): "My Assistant's Profile" in both avatar
 Assistant page, which links on to the public profile view. This supersedes navigation-scaffolding #2's
 destination for that item (a read-only profile view).
 
+## Deviations
+
+- The doc comments on `MenuItem` (`ui/src/components/Header.jsx`) and `AvatarMenuLink` described the
+  disabled row as "a caller with no provisioned assistant key". They now say "no assistant and no way to
+  create one here". The markup is untouched, so OPEN.md row 216 stays open.
+- The page's column and heading have their own small CSS block (`.bs-assistant-main`,
+  `.bs-assistant-title`, `.bs-assistant-note`) that mirrors `/setup`'s, as the ADR allows. The sign-in
+  prompt and the explanation sit in the same `.bss-card` as the editor.
+- The editor's buttons (`settings-action-btn`) have no CSS anywhere in the app. They render as browser
+  defaults on the page, just as they did in both Settings areas. Left for the design pass the story
+  defers.
+- With no key and no way to create one — which the page's own gate normally prevents — the editor
+  keeps the "Your Tapestry Assistant Profile" heading above its one-line explanation.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md`
+- Test plan: `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`
+- Review: `engineering-team/reviews/assistant-profile/4-my-assistant-page.md`

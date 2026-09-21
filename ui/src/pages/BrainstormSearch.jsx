@@ -502,11 +502,12 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
 
   const isOwnerOrAdmin = user.classification === 'owner' || user.classification === 'admin';
 
-  // Same list the other two avatar menus render; profile links go to /user/<pubkey>
+  // Same list the other two avatar menus render; "My Profile" goes to /user/<pubkey>
   // like the Main menu (navigation-scaffolding #2).
   const myLinks = personalLinks({
     pubkey: user.pubkey,
     assistantPubkey: user.assistantPubkey,
+    classification: user.classification,
     profileBase: '/user',
   });
 

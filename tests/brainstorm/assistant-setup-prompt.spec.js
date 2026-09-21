@@ -17,12 +17,14 @@ const { test, expect } = require('@playwright/test');
  *   B2 — an Owner whose assistant has a profile never sees the prompt — not even
  *        for an instant while sign-in resolves.                                  [AC1]
  *   B3 — an Admin with no profile: the prompt concerns THEIR assistant, offers no
- *        "Use the default profile", and leads to the Tapestry assistant editor. [AC3, AC4]
- *   B4 — a Customer with no profile: the prompt leads to /settings.              [AC3]
+ *        "Use the default profile", and leads to the My Assistant page.         [AC3, AC4]
+ *   B4 — a Customer with no profile: the prompt leads to the My Assistant page.  [AC3]
  *   B5 — an Owner with no profile: the prompt (with "Use the default profile") leads
- *        to the Tapestry assistant editor.                                       [AC3]
+ *        to the My Assistant page.                                               [AC3]
  *   (assistant-profile #3, ADR 0003 sub-decision 6, renamed "Surprise me" to "Use the default
  *   profile": it now publishes the one default. B3 and B5 follow the new label.)
+ *   (assistant-profile #4, ADR 0004 sub-decision 3: every role's prompt now leads to /assistant, the
+ *   one My Assistant page — no longer the Tapestry Settings tab or /settings. B3, B4, B5 and B8 follow.)
  *   B6 — a signed-in user with no assistant: no prompt, no item, no status call. [AC4]
  *   B7 — the status check fails: no prompt — an error is never "no profile".      [AC1, edge]
  *   B8 — publish, come back: the prompt is gone without a reload.                 [AC5]
@@ -219,7 +221,7 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
   });
 
   /* ───────── B3 — whose assistant? ───────── */
-  test('B3: an Admin whose own assistant has no profile is prompted about THEIR assistant, is offered no "Use the default profile", and is sent to the Tapestry assistant editor', async ({ page }) => {
+  test('B3: an Admin whose own assistant has no profile is prompted about THEIR assistant, is offered no "Use the default profile", and is sent to the My Assistant page', async ({ page }) => {
     const log = await mock(page, { who: ADMIN_USER, status: { hasProfile: false } });
     await openDashboard(page);
     const prompt = page.getByRole('button', { name: PROMPT_BUTTON });
@@ -230,28 +232,29 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     await expect(page.getByRole('button', { name: USE_DEFAULT }),
       'AC4: the dashboard\'s one-click publish stays Owner-only (ADR 0001; ADR 0003 kept the gate) — it must not be offered to an Admin').toHaveCount(0);
     await prompt.click();
-    await expect(page, 'AC3: the button must lead to where an Admin publishes their own assistant\'s profile').toHaveURL(/\/tapestry\/settings\/assistant$/);
+    await expect.poll(() => new URL(page.url()).pathname,
+      'AC3: the button must lead to where an Admin publishes their own assistant\'s profile — the My Assistant page (ADR assistant-profile/0004)').toBe('/assistant');
   });
 
-  test('B4: a Customer whose own assistant has no profile is prompted, and the button leads to /settings — the editor a Customer can reach', async ({ page }) => {
+  test('B4: a Customer whose own assistant has no profile is prompted, and the button leads to the My Assistant page', async ({ page }) => {
     const log = await mock(page, { who: CUSTOMER_USER, status: { hasProfile: false } });
     await openDashboard(page);
     const prompt = page.getByRole('button', { name: PROMPT_BUTTON });
     await expect(prompt, 'AC3: a Customer whose assistant has no profile must be prompted').toHaveCount(1);
     await prompt.click();
     await expect.poll(() => new URL(page.url()).pathname,
-      'AC3: the Tapestry settings page is Owner/Admin-only, so a Customer must be sent to /settings').toBe('/settings');
+      'AC3: a Customer is sent to the My Assistant page, which every role can reach (ADR assistant-profile/0004)').toBe('/assistant');
     expect(log.statusCalls, 'AC4: the check must ask about the Customer\'s own pubkey').toContain(CUSTOMER);
   });
 
-  test('B5: an Owner whose assistant has no profile is prompted, is offered "Use the default profile", and is sent to the Tapestry assistant editor', async ({ page }) => {
+  test('B5: an Owner whose assistant has no profile is prompted, is offered "Use the default profile", and is sent to the My Assistant page', async ({ page }) => {
     await mock(page, { who: OWNER_USER, status: { hasProfile: false } });
     await openDashboard(page);
     const prompt = page.getByRole('button', { name: PROMPT_BUTTON });
     await expect(prompt, 'AC3: an Owner whose assistant has no profile must be prompted').toHaveCount(1);
     await expect(page.getByRole('button', { name: USE_DEFAULT }), 'the Owner keeps the one-click publish — now "Use the default profile" (ADR 0003) — until story 5 retires it').toHaveCount(1);
     await prompt.click();
-    await expect(page).toHaveURL(/\/tapestry\/settings\/assistant$/);
+    await expect.poll(() => new URL(page.url()).pathname, 'AC3: the Owner is sent to the My Assistant page (ADR assistant-profile/0004)').toBe('/assistant');
   });
 
   test('B6: a signed-in user with no assistant sees no prompt and no assistant checklist item, and no status request is made', async ({ page }) => {
@@ -278,7 +281,7 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     await expect(page.getByRole('button', { name: PROMPT_BUTTON }), 'precondition: the prompt shows before the publish').toHaveCount(1);
     published = true;   // the publish happens in the editor; from here on the one answer says so
     await page.getByRole('button', { name: PROMPT_BUTTON }).click();
-    await expect(page).toHaveURL(/\/tapestry\/settings\/assistant$/);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/assistant');
     // React Router 7 applies a navigation as a React transition: the URL changes before the new
     // route renders. Going back inside that gap lands on the same, never-unmounted dashboard,
     // which never asks again — a race in this test, not in the page (seen in 2 of 3 full-spec

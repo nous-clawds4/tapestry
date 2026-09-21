@@ -3,8 +3,8 @@
 **Id:** 2026-09-21-status-no-key-relay-gate-unpinned
 **Type:** cleanup
 **Opened:** 2026-09-21 (assistant-profile #3 review, non-blocking 1 and 5)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-09-21 (assistant-profile #4, `c0efdd84`; PR pending) — Q2 and Q3 in `test/my-assistant-page.test.js` pin the no-key branch's relay gate, Q3 through the real `getPersonName`; W15 and W16 are the CI-run counterparts of story 3's B7 and B3.
 
 Two test gaps. The code is correct in both cases today; the gaps are that nothing would catch a regression.
 

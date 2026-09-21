@@ -21,9 +21,9 @@ function classificationBadge(classification) {
 
 /**
  * One row in the personal / destinations / account sections of the Tapestry avatar menu
- * (navigation-scaffolding #2). A link with no target — the assistant profile,
- * for a caller with no provisioned assistant key — renders disabled rather than
- * vanishing, so the menu reads the same for every signed-in user.
+ * (navigation-scaffolding #2). A link with no target — "My Assistant's Profile",
+ * for a caller with no assistant and no way to create one here — renders disabled
+ * rather than vanishing, so the menu reads the same for every signed-in user.
  */
 function MenuItem({ link, onGo }) {
   // The tooltip lives on a wrapping span, not on the disabled button: Firefox
@@ -84,12 +84,14 @@ export default function Header({ onToggleSidebar }) {
   const avatar = user?.profile?.picture;
   const badge = user ? classificationBadge(user.classification) : null;
 
-  // The Tapestry menu keeps its profile links on the control-panel user pages
-  // (navigation-scaffolding #2).
+  // The Tapestry menu keeps "My Profile" on the control-panel user pages
+  // (navigation-scaffolding #2). The classification decides whether "My
+  // Assistant's Profile" has a page to open (assistant-profile #4).
   const myLinks = user
     ? personalLinks({
         pubkey: user.pubkey,
         assistantPubkey: user.assistantPubkey,
+        classification: user.classification,
         profileBase: '/tapestry/users',
       })
     : [];

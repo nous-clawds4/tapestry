@@ -7,14 +7,16 @@ import UuidSettings from './UuidSettings';
 import DatabaseSettings from './DatabaseSettings';
 import FirmwareExplorer from './FirmwareExplorer';
 import Audit from '../manage/Audit';
-import AssistantProfileEditor from '../../components/AssistantProfileEditor';
+import { MY_ASSISTANT_PATH } from '../../config/avatarMenuLinks';
 
+// A tab with `to` opens another page instead of a panel here. The assistant profile moved to the My
+// Assistant page (assistant-profile #4, ADR 0004); the tab stays so it can still be found from Settings.
 const TABS = [
   { key: 'relays', path: 'relays', label: '📡 Relays' },
   { key: 'databases', path: 'databases', label: '🗄️ Databases' },
   { key: 'uuids', path: 'uuids', label: '🔑 Concept UUIDs' },
   { key: 'firmware', path: 'firmware', label: '🔧 Firmware' },
-  { key: 'assistant', path: 'assistant', label: '🤖 Assistant Profile' },
+  { key: 'assistant', to: MY_ASSISTANT_PATH, label: '🤖 Assistant Profile' },
   { key: 'auditing', path: 'auditing', label: '🔍 Auditing Tools' },
 ];
 
@@ -103,7 +105,7 @@ export default function SettingsIndex() {
 
   function switchTab(tabKey) {
     const tab = TABS.find(t => t.key === tabKey);
-    if (tab) navigate(tab.path);
+    if (tab) navigate(tab.to || tab.path);
   }
 
   if (authLoading) {
@@ -207,9 +209,6 @@ export default function SettingsIndex() {
         )}
         {activeTab === 'firmware' && (
           <FirmwareExplorer />
-        )}
-        {activeTab === 'assistant' && (
-          <AssistantProfileEditor customerPubkey={user?.pubkey} />
         )}
         {activeTab === 'auditing' && (
           <Audit />

@@ -464,11 +464,16 @@ test('D5: the dashboard shows the welcome prompt only for a definite "needs setu
   assert(/['"]needs-setup['"]/.test(src), 'AC1/AC3: Dashboard.jsx must render the prompt only when the status is \'needs-setup\'');
 });
 
-test('D6: the prompt sends each viewer where they can publish their own assistant\'s profile — Owner/Admin to /tapestry/settings/assistant, everyone else to /settings', () => {
+// Re-aimed by assistant-profile #4 (ADR 0004 sub-decision 3): story 1 sent Owners and Admins to the Tapestry
+// settings tab and everyone else to /settings; both now hand the editor to the one My Assistant page.
+test('D6: the prompt sends every viewer to the My Assistant page — /assistant for every role; neither old destination remains', () => {
   const src = safeRead(DASHBOARD);
-  assert(src.includes('/tapestry/settings/assistant'), 'the Owner/Admin destination /tapestry/settings/assistant is missing');
-  assert(/['"`]\/settings['"`]/.test(src),
-    'AC3: no /settings destination — the Tapestry settings page is Owner/Admin-only, so a Customer\'s prompt leads to a dead end today');
+  assert(!src.includes('/tapestry/settings/assistant'),
+    'ADR assistant-profile/0004: /tapestry/settings/assistant is no longer a destination — the prompt leads to the My Assistant page');
+  assert(!/['"`]\/settings['"`]/.test(src),
+    'ADR assistant-profile/0004: /settings no longer holds the editor, so it is no longer the prompt\'s destination for anyone');
+  assert(/\bMY_ASSISTANT_PATH\b|['"`]\/assistant['"`]/.test(src),
+    'AC3 (story 1) + AC2 (story 4): the prompt and its checklist item must lead to MY_ASSISTANT_PATH ("/assistant")');
 });
 
 test('D7: a status reply saying the user has no assistant key means "no assistant", never "needs setup" (Amendment 1)', () => {

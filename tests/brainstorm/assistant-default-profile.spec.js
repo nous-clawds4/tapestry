@@ -33,6 +33,9 @@ const zlib = require('zlib');
  * editor writes the upload's relative path and the relative /ta-avatar.png into the picture field,
  * and it shows nothing where a non-public instance's NIP-05 would be. B4 and B6 pass before and
  * after — they guard behaviour this story must keep.
+ *
+ * Re-aimed by assistant-profile #4 (ADR 0004): the editor now lives on the My Assistant page, /assistant,
+ * and the proxy's "no picture" answer carries code: 'no-picture', which the 'missing' mock now sends.
  */
 
 // Fixtures, never live keys: the runtime lookups are mocked to return them.
@@ -145,8 +148,8 @@ async function openDashboard(page) {
  */
 async function mockEditor(page, { isPublic = true, picture, ownerAvatar = 'ok', uploadUrl = '' } = {}) {
   await mockCommon(page, OWNER_USER);
-  // The Settings page around the editor loads the settings first and shows an error instead of its tab
-  // if that fails.
+  // Kept for any visit to the Tapestry Settings page, which loads the settings before its tabs. The editor
+  // itself now lives on /assistant (assistant-profile #4).
   await page.route('**/api/settings', (r) => r.fulfill(json({ success: true, settings: {}, defaults: {}, overrides: {} })));
   await page.route('**/api/assistant/status**', (r) => r.fulfill(json({
     success: true, hasRelayKey: true, hasProfile: false, profile: null, profileSource: null,
@@ -156,7 +159,7 @@ async function mockEditor(page, { isPublic = true, picture, ownerAvatar = 'ok', 
   })));
   await page.route('**/api/assistant/owner-avatar', (r) => (ownerAvatar === 'ok'
     ? r.fulfill({ status: 200, contentType: 'image/png', body: solidPng(256, 256, SOURCE_RGB) })
-    : r.fulfill(json({ success: false, error: 'The owner has no profile picture' }, 404))));
+    : r.fulfill(json({ success: false, code: 'no-picture', error: 'The owner has no profile picture' }, 404))));
   await page.route('**/api/assistant/avatar', (r) => (r.request().method() === 'POST'
     ? r.fulfill(json({ success: true, filename: 'ta-avatar-deadbeef.png', path: HOSTED_PATH, url: uploadUrl }))
     : r.fulfill(json({ success: true }))));
@@ -166,9 +169,9 @@ async function mockEditor(page, { isPublic = true, picture, ownerAvatar = 'ok', 
 }
 
 async function openEditor(page) {
-  await page.goto('/tapestry/settings/assistant');
+  await page.goto('/assistant');
   await page.waitForLoadState('networkidle');
-  await expect(page.locator('.settings-group').first(), 'the Assistant Profile editor must render for a signed-in owner').toBeVisible({ timeout: 20000 });
+  await expect(page.locator('.settings-group').first(), 'the My Assistant page must show the editor to a signed-in owner').toBeVisible({ timeout: 20000 });
 }
 
 const editor = (page) => page.locator('.settings-group').first();
