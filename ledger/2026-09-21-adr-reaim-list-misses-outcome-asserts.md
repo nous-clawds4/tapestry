@@ -39,5 +39,14 @@ caught by `default-deny-mutations` AC3 and story 5's G4, so no behaviour is unpi
 sentinel does not only break on a layout change — **it can keep passing while measuring a different line.**
 Re-anchoring both R3s is ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`.
 
+**2026-09-21 — a fourth instance (assistant-management #1, caught in Phase 4 by the browser class).** ADR
+assistant-management/0001 moves the editor to `/assistant/profile/edit` and renames it "the Edit Assistant Profile
+page". Its re-aim list named `tests/brainstorm/one-writer.spec.js` for the address only. The Tester's Phase 3
+grep took the old address, `/assistant`, and not the old page name. So B2 and B3's
+`toContainText(/My Assistant/)` on the legacy link's words stayed. The Implementer's browser run failed them against
+the approved new copy, and the Tester re-aimed them in a separate commit. The fix shape above already says "every
+literal the ADR removes or renames (paths, labels, copy)". This instance adds that **a rename of a page's name is
+copy too**: the grep has to take the old name as well as the old address.
+
 **Pointer:** `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`, the opening
 "Re-aims" section (and the story 3 test plan's, `3-one-default-assistant-profile.test-plan.md:43-47`).

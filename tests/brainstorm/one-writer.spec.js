@@ -253,7 +253,8 @@ test.describe('One writer — nothing else can change an assistant\'s profile (a
         `ADR 0005 sub-decision 5: the panel asks about the signed-in person, with defaults=0 — asked ${JSON.stringify(statusAsks)}`).toBe(true);
       const link = pageLink(panel);
       await expect(link, 'AC2 ("…and a link to the My Assistant page")').toBeVisible();
-      await expect(link, 'the link names the page it leads to').toContainText(/My Assistant/);
+      // Re-aimed by assistant-management #1: the page is now "the Edit Assistant Profile page" (story 1 § Copy).
+      await expect(link, 'the link names the page it leads to').toContainText(/Edit Assistant Profile/);
       await link.click();
       await expect.poll(() => pathname(page), { message: 'the link leads to the My Assistant page' }).toBe(MY_ASSISTANT);
     });

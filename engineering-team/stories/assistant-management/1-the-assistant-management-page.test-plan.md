@@ -58,7 +58,7 @@ Each edit is marked in the file with a comment naming assistant-management #1.
 | `test/assistant-setup-state.test.js` | D6: the regex no longer accepts a literal `'/assistant'`; the words follow | passes | passes (guard) |
 | `tests/brainstorm/my-assistant-page.spec.js` | `MY_ASSISTANT`, plus `ASSISTANT_MANAGEMENT`. B2 heading "Edit Assistant Profile". B4, B5 and B11: the two menu items lead to different pages. | fails | passes |
 | `tests/brainstorm/assistant-setup-prompt.spec.js` | the prompt's destination is `EDITOR` (B3–B5, B8) | fails | passes |
-| `tests/brainstorm/one-writer.spec.js` | `MY_ASSISTANT` | fails | passes |
+| `tests/brainstorm/one-writer.spec.js` | `MY_ASSISTANT`. B2 and B3's check of the legacy link's words (`/My Assistant/` → `/Edit Assistant Profile/`). Phase 3 missed that assertion; the Implementer's browser run caught it, and it was re-aimed in its own test commit (ledger `2026-09-21-adr-reaim-list-misses-outcome-asserts`, fourth instance). | fails | passes |
 | `tests/brainstorm/assistant-default-profile.spec.js`, `assistant-publish-result.spec.js`, `ta-composite-avatar.spec.js` | `page.goto` to the editor's address | fail | pass |
 
 ## Edge cases
