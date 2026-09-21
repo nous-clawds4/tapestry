@@ -25,5 +25,5 @@ its instance relay (`nak req -k 0 -a ‹staging TA› wss://staging.brainstorm.w
 Resolve each TA pubkey at runtime (`GET /api/assistant/pubkey` on that instance); never hardcode it. Close this
 row with the results.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/5-one-writer-for-assistant-profiles.md`, § "Things tests
+**Pointer:** `engineering-team/reviews/done/assistant-profile/5-one-writer-for-assistant-profiles.md`, § "Things tests
 can't catch" (the baseline) and non-blocking finding 5; the test plan's "Passive post-deploy check".

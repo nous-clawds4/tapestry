@@ -273,7 +273,7 @@ None.
 1. **The two R3 window sentinels no longer see the owner gate's `403`, and Deviation 5 reads as if they do.**
    Files: `test/create-tapestry.test.js:291-294`, `test/add-a-concept-to-a-tapestry.test.js:420-424`,
    `src/api/strfry/commands/publishEvent.js:41-54`,
-   `engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.md:77-82`.
+   `engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.md:77-82`.
    - **What R3 checks.** Both suites slice 600 characters from the first `signAs === 'assistant'` and require
      `isOwner(req)`, `localTrusted` and `403` inside that window.
    - **On the base**, the window starts at the branch. Its only `403` is the owner gate's own (408 characters

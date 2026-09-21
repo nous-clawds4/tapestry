@@ -125,9 +125,9 @@ was touched.
 
 ## 6. Carry-forward register
 
-- [ ] **1. Assistant provisioning for non-owner users is unmodelled.** The menu now advertises "My
+- [x] **1. Assistant provisioning for non-owner users is unmodelled.** The menu now advertises "My
       Assistant's Profile" to everyone and tells a guest one is not provisioned — but there is no
-      path from that state to having one. (from §4 #2)
+      path from that state to having one. (from §4 #2) *Resolved 2026-09-21 by `assistant-profile` #4 (ADR 0004): an Admin or Customer with no assistant finds "My Assistant's Profile" enabled, reaches `/assistant` and creates one there; a guest, who may not, sees the item disabled and the page explains why.*
 - [ ] **2. Sponsor/Agent pairing is undefined.** "Trusted Agent" has no concept in the graph; the
       nearest is `tapestry assistant`, which is not the same thing. Three placeholder pages now
       promise Mine / All / Set Up. (from §4 #3, story #3 Out of scope)

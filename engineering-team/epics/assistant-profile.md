@@ -1,6 +1,6 @@
 # Epic: Assistant Profile — one page, one default, an honest setup check
 
-**Status:** Open
+**Status:** Done
 **Created:** 2026-09-11
 **Book:** `engineering-team/audits/assistant-profile/book.md` (no PRD — acceptance frame)
 **Provenance:** the Assistant Profile feature shipped outside the harness on 2026-05-24
@@ -22,7 +22,7 @@ check — and makes publishing reach the right relays with an honest result for 
 
 ## Stories
 
-`stories/assistant-profile/` — ordered by value and dependency. Phase path: all five phases for each
+`stories/done/assistant-profile/` — ordered by value and dependency. Phase path: all five phases for each
 (Standard; neither bug is an obvious fix).
 
 1. **setup-prompt-tells-the-truth** (Bug) — the "set up your Assistant" prompt appears only when the
@@ -207,4 +207,4 @@ should clear it (and `useProfiles` caches `null` for the page session).
 
 ## ADRs
 
-`decisions/assistant-profile/` — created per story at Architecture.
+`decisions/done/assistant-profile/` — created per story at Architecture.
