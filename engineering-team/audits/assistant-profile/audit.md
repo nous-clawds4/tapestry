@@ -146,7 +146,15 @@ none of that is this book's. **Changed from outside this book:** PR #722 (`navig
 - **`npm test` at close** — run after the book flip and the epic close-out, over the tree this close leaves behind
   (`+dirty` is this close, uncommitted): `20260921T211149Z-821-5af6 [book-close-assistant-profile] started
   2026-09-21T21:11:49.135Z on 383f99e5+dirty — FAIL, exit 1, 3564 passed, 97 failed, 46 skipped, 218/218 suites;
-  failed: profile-tags, … setup-status` (36 suites; the full list is in the run record).
+  failed: profile-tags, profile-tags-publish, tag-detail, tag-detail-publish, tag-detail-write-publish,
+  tag-index-publish, profile-tag-polish, pin-a-tag, tl-publication-from-pins, tl-publication-from-pins-publish,
+  customize-pin-curation-publish, most-pinned-tag-index-publish, deploy-safety-status, event-less-create-set,
+  capture-a-goal-and-see-it, tapestry-per-concept-detail-views, structures-the-brain-can-trust,
+  break-a-goal-into-pieces, attach-the-world, sessions-read-the-brain, the-proposal-loop, teach-it-what-matters,
+  the-brain-survives, return-the-four-on-every-read-surface, show-the-four-on-the-goal-screens-that-already-exist,
+  recognizable-published-ta-profile, brain-first-tapestry-authoring, tl-membership-method-selector,
+  tl-weighted-sum-method, tl-certainty-method, profile-lookup-bounds, not-yet-shared-filter,
+  concept-count-canonical, summaries-element-count, author-scoped-inspection-roster, setup-status` (36 suites).
   - **The failing set is the one story 5's review saw, suite for suite.** Every one is a live test against the
     local stack, which serves an older checkout (OPEN.md #27).
   - **Three counts moved, all from the stack.** `teach-it-what-matters` H6 and `the-brain-survives` H7 got
