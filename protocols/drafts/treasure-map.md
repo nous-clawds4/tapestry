@@ -48,3 +48,6 @@ The Assistant may manage items of decentralized lists on behalf of the user.
 ```json
   [39998:<d-tag>, <assistant_pubkey>, <relay>]
 ```
+
+Note that the proposed spec for Trusted Lists is consistent with the original NIP-85 spec for Trusted Assertions in the sense that the events being published by the assistant pubkeys are kind 30382 and 30392 events, as indicated in the tag. However, the proposed spec for Decentralized Lists deviates: it is kind 39999 events that are being published, not 39998. 
+
