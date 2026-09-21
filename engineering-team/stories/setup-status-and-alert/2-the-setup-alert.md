@@ -107,6 +107,6 @@ None changed. Same orientation handles as story 1: `39998:<TA>:tapestry-assistan
 None. The owner answered them at planning (2026-09-21), recorded in book § Decisions 2, 3, 5 and 7–9.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
