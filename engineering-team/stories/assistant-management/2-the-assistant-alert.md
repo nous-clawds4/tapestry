@@ -131,6 +131,6 @@ None open. Resolved when the owner approved this story (2026-09-21), all as prop
    shows nothing, so the Assistant pill has nothing to give way to.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
