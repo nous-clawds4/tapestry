@@ -1,6 +1,6 @@
 # Story 1: The /setup page and its three placeholder action pages
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-20
 **Type:** Feature
 
@@ -154,4 +154,4 @@ Small judgment calls made during implementation (Implementer role, step 9):
 ## Linked artifacts
 - ADR: none (abbreviated path — the only design choices, routes and copy, are recorded above)
 - Test plan: none (abbreviated path)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/setup-page-scaffold/1-setup-page-and-placeholders.md`
