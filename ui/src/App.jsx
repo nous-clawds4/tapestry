@@ -116,6 +116,7 @@ import DevelopersTrustedAssertions from './pages/developers/TrustedAssertions';
 import DevelopersRelayTools from './pages/developers/RelayTools';
 import SetupIndex from './pages/setup/Index';
 import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Placeholders';
+import MyAssistantPage from './pages/assistant/Index';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
@@ -243,6 +244,11 @@ const router = createBrowserRouter([
   {
     path: '/setup/activate',
     element: <SetupActivate />,
+  },
+  {
+    // The My Assistant page: the one place anyone manages their own assistant (assistant-profile #4).
+    path: '/assistant',
+    element: <MyAssistantPage />,
   },
   {
     path: '/tapestry',
@@ -454,6 +460,11 @@ const router = createBrowserRouter([
         path: 'manage/audit',
         element: <Navigate to="/tapestry/settings/auditing" replace />,
       },
+      // The assistant editor moved to the My Assistant page (assistant-profile #4, ADR 0004). Redirected
+      // here, not inside the Settings page, whose Owner-only gate would stop a Customer's old link. The
+      // Settings page has no `assistant` child of its own: one would score the same as this route, and
+      // which of them matched would then depend on array order.
+      { path: 'settings/assistant', element: <Navigate to="/assistant" replace /> },
       {
         path: 'io',
         handle: { crumb: 'I/O' },
@@ -473,7 +484,6 @@ const router = createBrowserRouter([
           { path: 'databases', handle: { crumb: 'Databases' } },
           { path: 'uuids', handle: { crumb: 'Concept UUIDs' } },
           { path: 'firmware', handle: { crumb: 'Firmware' } },
-          { path: 'assistant', handle: { crumb: 'Assistant Profile' } },
           { path: 'auditing', handle: { crumb: 'Auditing Tools' } },
           { path: '*', element: <Navigate to="/tapestry/settings/relays" replace /> },
         ],

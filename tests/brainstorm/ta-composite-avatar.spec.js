@@ -37,6 +37,9 @@ const zlib = require('zlib');
  *
  * These FAIL against current code: the editor has no generate action, no preview,
  * and no way to reach /api/assistant/owner-avatar.
+ *
+ * Re-aimed by assistant-profile #4 (ADR 0004): the editor now lives on the My Assistant page, /assistant,
+ * and the proxy's "no picture" answer carries code: 'no-picture', which B4's mock now sends.
  */
 
 const OWNER = 'bb'.repeat(32);
@@ -104,7 +107,7 @@ test.describe('The stamped composite avatar (ta-avatar #3)', () => {
     // The proxy (ADR D2). 'missing' is AC5's trigger and must not read as an error.
     await page.route('**/api/assistant/owner-avatar', (r) => (ownerAvatar === 'ok'
       ? r.fulfill({ status: 200, contentType: 'image/png', body: solidPng(256, 256, SOURCE_RGB) })
-      : r.fulfill(json({ success: false, error: 'owner has no picture' }, 404))));
+      : r.fulfill(json({ success: false, code: 'no-picture', error: 'owner has no picture' }, 404))));
 
     // The upload. Records that it was called so B2 can assert it was NOT.
     await page.route('**/api/assistant/avatar', (r) => (r.request().method() === 'POST'
@@ -117,10 +120,10 @@ test.describe('The stamped composite avatar (ta-avatar #3)', () => {
   }
 
   async function gotoEditor(page) {
-    await page.goto('/tapestry/settings/assistant');
+    await page.goto('/assistant');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.settings-group').first(),
-      'the Assistant Profile settings tab must render for a signed-in owner').toBeVisible({ timeout: 20000 });
+      'the My Assistant page must show the editor to a signed-in owner').toBeVisible({ timeout: 20000 });
   }
 
   /** The Generate control, by accessible name rather than a brittle selector. */

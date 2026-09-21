@@ -4,9 +4,9 @@
  *
  * Renders as an anchor so the link is copyable and middle-clickable, and so a
  * target outside the React router (`/legacy/`) is reached by a full page load
- * without any special casing. A link with no target — the assistant profile,
- * for a caller with no provisioned assistant key — renders disabled rather than
- * vanishing, so the menu reads the same for every signed-in user.
+ * without any special casing. A link with no target — "My Assistant's Profile",
+ * for a caller with no assistant and no way to create one here — renders disabled
+ * rather than vanishing, so the menu reads the same for every signed-in user.
  */
 export default function AvatarMenuLink({ link, onNavigate }) {
   if (!link.to) {

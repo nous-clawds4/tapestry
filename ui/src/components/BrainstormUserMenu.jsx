@@ -92,11 +92,13 @@ export default function BrainstormUserMenu({ user, login, logout }) {
 
   const houseName = houseProfile?.name || 'House';
 
-  // The Main menu points its two profile links at /user/<pubkey> — the same
-  // profile page search results link to (navigation-scaffolding #2).
+  // The Main menu points "My Profile" at /user/<pubkey> — the same profile page
+  // search results link to (navigation-scaffolding #2). The classification decides
+  // whether "My Assistant's Profile" has a page to open (assistant-profile #4).
   const myLinks = personalLinks({
     pubkey: user.pubkey,
     assistantPubkey: user.assistantPubkey,
+    classification: user.classification,
     profileBase: '/user',
   });
 
