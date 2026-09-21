@@ -44,9 +44,11 @@ travel through each phase together.
   `/assistant/profile/edit`. An old bookmark of `/assistant` lands on the hub. From there the profile
   card, then the profile page's link, reach the editor.
 - **Open work this epic touches:**
-  - **assistant-profile #5** (one writer). It is Approved, and its Architecture is under way in
-    another session. It points retired surfaces at "the My Assistant page". After story 1 that page is
-    at `/assistant/profile/edit`, so #5 should link to the editor's address, not to `/assistant`.
+  - **assistant-profile #5** (one writer) merged to staging on 2026-09-21 (PR #733), while this
+    book was at Architecture. It pointed the surfaces it retired at "the My Assistant page
+    (/assistant)": two legacy panels, three refusal messages and a BIBLE sentence. Some of those are
+    written out by hand rather than through the constant, so story 1 moves them to
+    `/assistant/profile/edit` (ADR 0001 sub-decision 6).
   - **setup-status-and-alert #2** (the Setup Alert). It is Approved and not yet designed. It takes
     the same spot in the top bar as story 2's pill. Whichever story lands second fits in beside the
     other. The rule between them is the owner's: setup first.

@@ -1,6 +1,9 @@
 # ADR 0004: The My Assistant page — one page at `/assistant` hosts the one editor, and every entry point links to it
 
-**Status:** Accepted
+**Status:** Accepted. Its route is superseded in part by ADR assistant-management/0001 (2026-09-21): `/assistant`
+becomes the Assistant Management page, and this page moves to `/assistant/profile/edit` under the heading "Edit
+Assistant Profile". "Assistant Management", the old Settings address and the `/settings` card follow that ADR.
+The rest of this ADR stands.
 **Date:** 2026-09-21
 **Story:** `engineering-team/stories/assistant-profile/4-my-assistant-page.md`
 

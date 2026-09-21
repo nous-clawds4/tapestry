@@ -87,7 +87,14 @@ each part will happen. For now the page checks nothing, and every action shows a
     - the "Edit Assistant profile" button on the assistant's own profile page;
     - the Tapestry Settings "Assistant Profile" tab, and the old `/tapestry/settings/assistant`
       address;
-    - the card on the Brainstorm `/settings` page.
+    - the card on the Brainstorm `/settings` page;
+    - the read-only assistant panels on the legacy NIP-85 and customer pages;
+    - the messages that refuse a profile publish (from the profile endpoint and from the generic
+      publish endpoint), which name the page and its address.
+
+    The last two were added by assistant-profile #5, which merged on 2026-09-21 while this story was
+    at Architecture. They were added to this list then, with ADR 0001, and approved with it
+    (2026-09-21).
   - "Assistant Management" in both avatar menus still opens `/assistant`, which is now the hub.
 - [ ] **AC-7: direct loads, phone width, read-only.**
   - Given any of the twelve addresses (`/assistant`, the ten action pages,
@@ -173,6 +180,11 @@ description, an **Alert criteria** section, a **Planning notes** section where t
 Every other label at the editor's entry points stays as it is ("My Assistant's Profile", "✏️ Edit
 Assistant profile →", "🤖 Assistant Profile", and the Dashboard's words).
 
+Outside the app, where the words say "the My Assistant page" they become "the Edit Assistant Profile
+page", and each "(/assistant)" becomes "(/assistant/profile/edit)". This covers the legacy panels'
+sentence and link ("🤖 Edit and publish its profile on the Edit Assistant Profile page →") and the three
+refusal messages, whose other words stay as they are. ADR 0001 sub-decision 6 quotes each in full.
+
 **The FAQ**: five questions, in this order, all **owner** words. Each answer is one paragraph.
 
 1. **What is a Tapestry Assistant?** A Tapestry Assistant is a personalized nostr account, designed
@@ -241,8 +253,9 @@ only. `<TA>` is this instance's TA pubkey (AGENTS.md §1). Each one answers on t
   to come in its own book.
 - **Showing the viewer's assistant on the hub** (its name, picture or npub). The ask does not
   mention it.
-- **Server or nginx changes.** The app already serves any path it does not otherwise know, so none
-  should be needed. The Architect confirms this.
+- **Server routing or nginx changes.** None: the app already serves any path it does not otherwise
+  know (confirmed at Architecture). The one server change is wording: the refusal messages name the
+  editor's new address (AC-6).
 
 ## Open questions
 
@@ -263,6 +276,6 @@ None open. Resolved when the owner approved this story (2026-09-21), all as prop
    "Planning notes". An action with no criteria yet says "Not yet defined."
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
