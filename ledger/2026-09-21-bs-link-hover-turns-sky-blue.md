@@ -20,4 +20,4 @@ a hover colour on each link class, or one shared rule such as `.bsp-page a[class
 patch to the setup back link alone would leave the Tags page behaving differently.
 
 **Pointer:** `ui/src/styles.css:35–36`; the `.bs-setup-back` and `.bs-tagindex-link` rules;
-`engineering-team/reviews/setup-page-scaffold/1-setup-page-and-placeholders.md`.
+`engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`.

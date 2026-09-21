@@ -27,5 +27,5 @@ command at intake. Write into that rule that suites which walk a tree belong to 
 gate proposed in `_intake.md` "2026-08-18 — Make the test gate fast and honest", which would replace
 per-story naming. Related: row 212 (the same path also defines no commit cadence).
 
-**Pointer:** `engineering-team/stories/setup-page-scaffold/1-setup-page-and-placeholders.md`
-§ Deviations; `engineering-team/reviews/setup-page-scaffold/1-setup-page-and-placeholders.md`.
+**Pointer:** `engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md`
+§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`.
