@@ -146,7 +146,15 @@ none of that is this book's. **Changed from outside this book:** PR #722 (`navig
 - **`npm test` at close** — run after the book flip and the epic close-out, over the tree this close leaves behind
   (`+dirty` is this close, uncommitted): `20260921T211149Z-821-5af6 [book-close-assistant-profile] started
   2026-09-21T21:11:49.135Z on 383f99e5+dirty — FAIL, exit 1, 3564 passed, 97 failed, 46 skipped, 218/218 suites;
-  failed: profile-tags, … setup-status` (36 suites; the full list is in the run record).
+  failed: profile-tags, profile-tags-publish, tag-detail, tag-detail-publish, tag-detail-write-publish,
+  tag-index-publish, profile-tag-polish, pin-a-tag, tl-publication-from-pins, tl-publication-from-pins-publish,
+  customize-pin-curation-publish, most-pinned-tag-index-publish, deploy-safety-status, event-less-create-set,
+  capture-a-goal-and-see-it, tapestry-per-concept-detail-views, structures-the-brain-can-trust,
+  break-a-goal-into-pieces, attach-the-world, sessions-read-the-brain, the-proposal-loop, teach-it-what-matters,
+  the-brain-survives, return-the-four-on-every-read-surface, show-the-four-on-the-goal-screens-that-already-exist,
+  recognizable-published-ta-profile, brain-first-tapestry-authoring, tl-membership-method-selector,
+  tl-weighted-sum-method, tl-certainty-method, profile-lookup-bounds, not-yet-shared-filter,
+  concept-count-canonical, summaries-element-count, author-scoped-inspection-roster, setup-status` (36 suites).
   - **The failing set is the one story 5's review saw, suite for suite.** Every one is a live test against the
     local stack, which serves an older checkout (OPEN.md #27).
   - **Three counts moved, all from the stack.** `teach-it-what-matters` H6 and `the-brain-survives` H7 got
@@ -214,7 +222,8 @@ none of that is this book's. **Changed from outside this book:** PR #722 (`navig
       sentence (ADR 0002 debt); OPEN.md #216.
 - [ ] **17. Story 5's post-deploy checks.** AC5 on production after promotion (ledger
       `2026-09-21-assistant-profile-ac5-postdeploy-check`); re-anchor the two R3 sentinels at the owner gate
-      (ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`).
+      (ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`). *2026-09-21: the AC5 half is done — story 5 was
+      promoted by #735 and every assistant profile on both instances is unchanged. The R3 re-anchor remains.*
 - [ ] **18. The Treasure Map's no-assistant state** could now link to `/assistant`, where Admins and Customers can
       create one (`treasure-map-user-assistant` audit §6, provisioning UX).
 - [ ] **19. The dashboard has no error boundary.** OPEN.md #274.
