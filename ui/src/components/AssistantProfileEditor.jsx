@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { buildCompositeAvatar } from '../utils/compositeAvatar';
 
-// Story 2's branded image, served from the instance root. Offered when the owner
-// has no picture of their own to stamp (ta-avatar #3 AC5).
+// Story 2's branded image, served from the instance root — for the in-app preview
+// only. The picture VALUE the editor offers is always the server's absolute
+// status.defaults.picture: a relative path in a published profile resolves against
+// the reader's own machine (ADR assistant-profile/0003).
 const BRANDED_FALLBACK_SRC = '/ta-avatar.png';
 
 // NIP-05 is omitted on purpose — the server computes it deterministically
@@ -156,7 +158,16 @@ export default function AssistantProfileEditor({ customerPubkey }) {
       const res = await fetch('/api/assistant/avatar', { method: 'POST', body });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Upload failed');
-      updateField('picture', data.url || data.path);
+      // Only a publishable URL goes into the picture. With no public address the
+      // instance returns none, and its relative path would be dead for everyone else.
+      if (!data.url) {
+        setComposite(null);
+        setOfferFallback(true);
+        setCompositeNotice('This instance has no public web address, so nostr clients elsewhere could not load '
+          + 'an avatar stored here. Use the branded image instead.');
+        return;
+      }
+      updateField('picture', data.url);
       setCompositeNotice('Saved. Publish the profile to point your assistant at it.');
       setComposite(null);
     } catch (err) {
@@ -167,9 +178,16 @@ export default function AssistantProfileEditor({ customerPubkey }) {
   }
 
   function useBrandedFallback() {
-    updateField('picture', status?.defaults?.picture || BRANDED_FALLBACK_SRC);
+    // The server's default picture is always the branded avatar at an absolute URL —
+    // this instance's copy, or the reference deployment's when it is not public.
+    const offered = status?.defaults?.picture;
     setOfferFallback(false);
-    setCompositeNotice('Using the branded Tapestry image.');
+    if (typeof offered === 'string' && offered) {
+      updateField('picture', offered);
+      setCompositeNotice('Using the branded Tapestry image.');
+    } else {
+      setCompositeNotice('This instance offered no branded image, so the picture was left as it was.');
+    }
   }
 
   function resetToDefaults() {
@@ -299,6 +317,11 @@ export default function AssistantProfileEditor({ customerPubkey }) {
           <div>
             <strong>NIP-05:</strong> <code>{status.computedNip05.address}</code>{' '}
             <span style={{ opacity: 0.6 }}>(server-managed, updates on publish)</span>
+          </div>
+        )}
+        {!status.computedNip05?.address && status.isPublicInstance === false && (
+          <div>
+            <strong>NIP-05:</strong> none — this instance has no public web address, so no NIP-05 is published.
           </div>
         )}
         <div>

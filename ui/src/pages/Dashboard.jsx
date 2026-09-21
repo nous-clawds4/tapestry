@@ -20,11 +20,12 @@ function formatAge(createdAt) {
 
 /* ─── Onboarding ──────────────────────────────────────────── */
 
-function WelcomeCard({ onSetupProfile, onSurpriseMe }) {
+function WelcomeCard({ onSetupProfile, onUseDefault }) {
   const { user } = useAuth();
-  // "Surprise me" signs as the instance Tapestry Assistant — the Owner's assistant
-  // and nobody else's — so only the Owner is offered it (ADR assistant-profile/0001).
-  const canSurprise = user?.classification === 'owner';
+  // "Use the default profile" publishes the one default for the Owner's assistant — the
+  // instance Tapestry Assistant (ADR assistant-profile/0003). It stays Owner-only, as
+  // "Surprise me" was (ADR 0001), until story 5 retires it.
+  const canUseDefault = user?.classification === 'owner';
 
   return (
     <div className="dashboard-card welcome-card">
@@ -46,9 +47,9 @@ function WelcomeCard({ onSetupProfile, onSurpriseMe }) {
             <button className="btn btn-primary" onClick={onSetupProfile}>
               🎨 Set up my Assistant's profile
             </button>
-            {canSurprise && (
-              <button className="btn" onClick={onSurpriseMe}>
-                🎲 Surprise me
+            {canUseDefault && (
+              <button className="btn" onClick={onUseDefault}>
+                ✨ Use the default profile
               </button>
             )}
           </div>
@@ -752,24 +753,14 @@ export default function Dashboard() {
     }
   }
 
-  async function handleSurpriseMe() {
-    // Publish a fun default profile for the Owner's assistant — the instance TA
+  async function handleUseDefaultProfile() {
+    // Publish the one default profile for the Owner's assistant — the instance TA. No content is
+    // sent, so the server's definition is what gets signed (ADR assistant-profile/0003).
     try {
-      const profile = {
-        name: 'Tapestry Assistant',
-        about: 'Your friendly knowledge graph assistant. I sign events, manage concepts, and keep things tidy. 🧠',
-        picture: `https://robohash.org/${user?.assistantPubkey}.png?set=set3&size=200x200`,
-      };
-      const event = {
-        kind: 0,
-        content: JSON.stringify(profile),
-        tags: [],
-        created_at: Math.floor(Date.now() / 1000),
-      };
-      const res = await fetch('/api/strfry/publish', {
+      const res = await fetch('/api/assistant/publish-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event, signAs: 'assistant' }),
+        body: JSON.stringify({ customerPubkey: user?.pubkey }),
       });
       const data = await res.json();
       if (data.success) {
@@ -791,7 +782,7 @@ export default function Dashboard() {
           {assistantStatus === 'needs-setup' && (
             <WelcomeCard
               onSetupProfile={() => navigate(assistantSetupPath)}
-              onSurpriseMe={handleSurpriseMe}
+              onUseDefault={handleUseDefaultProfile}
             />
           )}
           <OnboardingChecklist

@@ -57,6 +57,17 @@ function relayKey(url) {
  * @returns {string[]} possibly empty
  */
 function getConfiguredPublishRelays(options = {}) {
+  return readConfiguredRelays(PUBLISH_RELAY_CATEGORIES, options);
+}
+
+/**
+ * The relays in the named relay-settings lists, in that order, each relay once, in the spelling it was
+ * first given — the one reader of relay settings (the person's-name lookup reads the profile relays
+ * through it too, ADR 0003).
+ * @param {string[]} categories - aRelays keys, e.g. ['aProfileRelays']
+ * @returns {string[]} possibly empty
+ */
+function readConfiguredRelays(categories, options = {}) {
   const getSettings = options.deps?.getSettings ?? options.getSettings ?? realGetSettings;
   let settings;
   try {
@@ -68,7 +79,7 @@ function getConfiguredPublishRelays(options = {}) {
   const aRelays = (settings && settings.aRelays) || {};
   const seen = new Set();
   const relays = [];
-  for (const category of PUBLISH_RELAY_CATEGORIES) {
+  for (const category of categories) {
     const configured = aRelays[category];
     if (!Array.isArray(configured)) continue;
     for (const entry of configured) {
@@ -237,6 +248,7 @@ module.exports = {
   PUBLISH_RELAY_CATEGORIES,
   RELAY_STATUS,
   getConfiguredPublishRelays,
+  readConfiguredRelays,
   getAssistantPublishRelays,
   publishToRelays,
   publishSubject,

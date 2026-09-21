@@ -120,6 +120,20 @@ None. Resolved at approval (2026-09-11):
 5. **Editable fields** — all seven (name, display name, about, picture, banner, website, lightning
    address); NIP-05 read-only.
 
+## Deviations
+
+- `buildDefaultProfileContent(personPubkey, options)` ignores a second argument that isn't an object. An
+  old-style `(pubkey, isOwner)` call therefore gets the one role-free default rather than an error.
+- The editor's "Use the branded image instead" says "This instance offered no branded image, so the
+  picture was left as it was." when the server offers no picture. It used to claim it was using one.
+  This can't happen with the new server; it keeps the message honest.
+- `resolvePersonName` logs a warning when the relay helper throws. It still counts as "no name", as the
+  ADR says.
+- `src/api/assistant/index.js` drops its `child_process` require. Its only user was the deleted
+  `getKind0DisplayName`.
+- The dashboard's "Use the default profile" keeps the old button's alert on failure, and shows no
+  per-relay result on success. Story 4's My Assistant page is where the per-relay result appears.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile/0003-one-role-free-default-profile.md`
