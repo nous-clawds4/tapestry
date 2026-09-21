@@ -75,8 +75,10 @@ the container. But the Node process loaded its modules nine days earlier and has
 ```
 $ docker exec tapestry ps -eo lstart,args | grep '[c]ontrol-panel'
 Sat Sep 12 17:37:30 2026 node /usr/local/lib/node_modules/brainstorm/bin/control-panel.js
-$ git log --oneline --since='2026-09-12T17:37:30Z' HEAD -- src bin | wc -l
+$ git log --oneline --since='2026-09-12T17:37:30Z' HEAD -- src bin | wc -l   # by commit date: a lower bound
 19
+$ git log --oneline cde8b282..HEAD -- src bin | wc -l   # by ancestry from the boot commit row 289 names
+20
 $ curl -s -o /dev/null -w '%{http_code}' http://localhost:7778/api/assistant/roster
 404        # yet the checkout registers the route: src/api/index.js:543
 ```
@@ -94,5 +96,7 @@ row's fifteen suites may be stale-process failures rather than stale-state ones.
 only the served bundle. For example, the server could report the commit it booted from, or the probe
 could compare the process start time with the newest `src/` or `bin/` commit. The cheapest interim
 step is for `dev-refresh.sh --ui` to warn when the backend predates the newest `src/` or `bin/`
-change. Restarting this instance needs `--deps`, because `package.json` has changed since the
-process started.
+change. Restarting this instance does not need `--deps`: since the process started, root
+`package.json` gained only the `gate:status` script (`072da83a`), `package-lock.json` is unchanged,
+and every root dependency is already installed in the container. `scripts/dev-refresh.sh --server`
+is enough.

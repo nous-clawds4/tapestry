@@ -2877,8 +2877,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   gap: 0.4rem;
 }
 /* Personal, destination and account link sections (navigation-scaffolding #2).
-   Compact rows rather than the full-width boxes the footer uses — a full-width
-   box per link would make the dropdown taller than most viewports. */
+   Compact rows rather than the full-width boxes the footer uses, so a long
+   list of links stays as short as it can. */
 .bs-usermenu-links {
   display: flex;
   flex-direction: column;
