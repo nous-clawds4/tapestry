@@ -1,9 +1,9 @@
 # Book of Work: The /setup page — Brainstorm's setup checklist, as a scaffold
 
 **Slug:** setup-page-scaffold
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-20
-**Closed:** —
+**Closed:** 2026-09-21
 
 ## Intent anchor
 
@@ -41,14 +41,14 @@ says kind 3. "llinks" and "setup your Treasure Map" are left as typed.)
 
 *Confirmed 2026-09-20, when the owner approved story 1.*
 
-- [ ] `https://staging.brainstorm.world/setup` shows a setup page modelled on Brainstorm's
+- [x] `https://staging.brainstorm.world/setup` shows a setup page modelled on Brainstorm's
       (`brainstorm.world/setup`) that lists the three actions — Create your account, Create your
       follow list, Activate your Brainstorm account — in that order.
-- [ ] The page shows all three as not yet completed, for every viewer. Nothing checks whether an
+- [x] The page shows all three as not yet completed, for every viewer. Nothing checks whether an
       action has really been taken.
-- [ ] Each action leads to its own page — `/setup/create-account`, `/setup/follow`,
+- [x] Each action leads to its own page — `/setup/create-account`, `/setup/follow`,
       `/setup/activate` — and each of those is a placeholder that says so.
-- [ ] The three things saved for a future session are written down where that session will find
+- [x] The three things saved for a future session are written down where that session will find
       them (`engineering-team/stories/_intake.md`, entry dated 2026-09-20), and none of them is
       built: checking each action's real state, the Setup Alert, and the UX or function of the
       three action pages.
@@ -67,7 +67,9 @@ fix shape OPEN.md row 212 proposes for this path).
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high — every frame bullet is observable in production (staging PR #720,
+  merge `e8d15892`; main PR #721, merge `82771a44`, 2026-09-21), and the one story passed review on
+  the first pass. See `audit.md`.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/setup-page-scaffold/audit.md`
