@@ -39,5 +39,18 @@ caught by `default-deny-mutations` AC3 and story 5's G4, so no behaviour is unpi
 sentinel does not only break on a layout change — **it can keep passing while measuring a different line.**
 Re-anchoring both R3s is ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`.
 
+**2026-09-21 — a fourth instance, in another book (setup-status-and-alert #3, Phase 4).**
+- ADR setup-status-and-alert/0003 moved three import pages' hand-written POST to `/api/strfry/publish` into the
+  shared helper `publishToLocalStrfry`. The request is the same.
+- `test/treasure-map-relay-presence.test.js` R2 pins the literal `/api/strfry/publish` in
+  `TrustedAssertions.jsx` ("the import handler must still post to /api/strfry/publish").
+- Phase 3 grepped for the pill's removed copy and name, but not for the endpoint path. R2 passed at the baseline,
+  because the literal was still there.
+- The story's full scoped gate caught it at Phase 4.
+- The Tester re-aimed R2 to accept either form. Its intent, "the import still posts to the local relay", is
+  unchanged.
+
+The fix shape holds, and it covers endpoint paths moved into a helper as well as copy.
+
 **Pointer:** `engineering-team/stories/done/assistant-profile/4-my-assistant-page.test-plan.md`, the opening
 "Re-aims" section (and the story 3 test plan's, `3-one-default-assistant-profile.test-plan.md:43-47`).

@@ -452,8 +452,11 @@ test('R2: the Import to local strfry affordance survives the panel move', () => 
   const combined = safeRead(PAGE) + safeRead(PANEL);
   assert(/Import to local strfry/.test(combined),
     'shipped behavior: the Import to local strfry button must still exist (in the page or the panel it moved into)');
-  assert(/\/api\/strfry\/publish/.test(safeRead(PAGE)),
-    'the import handler must still post to /api/strfry/publish');
+  // Still a POST to the local relay: by hand, or through utils/nostrPublish's publishToLocalStrfry, which
+  // sends the same request (re-aimed by setup-status-and-alert #3, ADR 0003 § 2).
+  const page = safeRead(PAGE);
+  assert(/\/api\/strfry\/publish/.test(page) || /publishToLocalStrfry\s*\(/.test(page),
+    'the import handler must still post to the local relay (/api/strfry/publish, by hand or through publishToLocalStrfry)');
 });
 
 test('R3: the existing Treasure-Map helpers are untouched', async () => {

@@ -229,3 +229,25 @@ above under the label `setup-alert-3-testdesign`:
 so any other red at Implementation or Review is new. The four skips are the known environmental and
 opt-in ones: `deploy-safety-status` 1, `show-the-four-on-the-goal-screens-that-already-exist` 2,
 and `setup-status` H2 1.
+
+### During Implementation (two test fixes, made as the Tester)
+
+The first 100-suite gate on the implementation (`20260921T231551Z-82497-86f3`) had two reds. Neither was in
+the code:
+
+- **`treasure-map-relay-presence` R2** pins the literal `/api/strfry/publish` in `TrustedAssertions.jsx`. ADR
+  0003 § 2 moves that page's import onto `publishToLocalStrfry`, which sends the same request, so the literal
+  left the page. R2 now accepts either form, and its intent ("the import still posts to the local relay") is
+  kept.
+  - The ADR's re-aim list and this plan's grep missed it. They looked for the pill's removed copy and name,
+    not for the endpoint path.
+  - This is the fourth instance of ledger row `2026-09-21-adr-reaim-list-misses-outcome-asserts`.
+- **U5** failed inside the gate, though it passed on its own. `test/honest-publish-reporting.test.js`
+  installs a fake socket in nostr-tools that accepts every relay, and never removes it. So in the shared
+  process, the unreachable `ws://127.0.0.1:1` read as "accepted".
+  - U5 and U8 now install the real socket, the library's default, before they publish.
+  - Ledger row `2026-09-21-honest-publish-fake-socket-leaks` records the leak.
+
+Run in the gate's order in one process (`honest-publish-reporting`, then `setup-alert-polish`, then
+`treasure-map-relay-presence`), all three pass: 10/0, 14/0 and 35/0. Neither fix weakens a check.
+

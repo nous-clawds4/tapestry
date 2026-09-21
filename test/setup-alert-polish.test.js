@@ -92,6 +92,16 @@ async function startRelay(mode) {
   return { url: `ws://127.0.0.1:${wss.address().port}`, close: () => new Promise((resolve) => wss.close(resolve)) };
 }
 
+/**
+ * Put nostr-tools back on the real WebSocket (its default) before a test that publishes to the stub relays.
+ * test/honest-publish-reporting.test.js swaps in a fake socket that accepts every relay it does not know and
+ * never swaps it back, so in one gate process it would answer these relays too.
+ */
+function useRealWebSocket() {
+  const cjs = require.resolve('nostr-tools/pool', { paths: [path.join(REPO, 'ui')] });
+  require(path.resolve(path.dirname(cjs), '../esm/pool.js')).useWebSocketImplementation(globalThis.WebSocket);
+}
+
 // No relay listens on port 1, so a publish there is "unreachable".
 const DEAD_RELAY = 'ws://127.0.0.1:1';
 const VIEWER = 'a1'.repeat(32);
@@ -143,6 +153,7 @@ test('U4: an external publish skipped by the local-only gate announces nothing',
 });
 
 test('U5: an external publish announces the event when at least one relay accepts it — and not when every relay refuses or is unreachable', async () => {
+  useRealWebSocket();
   const accepting = await startRelay('accept');
   const refusing = await startRelay('refuse');
   try {
@@ -185,6 +196,7 @@ test('U7: after unsubscribing, a listener hears nothing more', async () => {
 });
 
 test('U8: publishEverywhere, with both routes succeeding, announces the same event (at most once per route) — the provider de-duplicates by id', async () => {
+  useRealWebSocket();
   const accepting = await startRelay('accept');
   try {
     const mod = await loadPublish();
