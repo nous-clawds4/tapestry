@@ -49,7 +49,8 @@ const OWNER_USER = { pubkey: OWNER, classification: 'owner', assistantPubkey: TA
 const ADMIN_USER = { pubkey: ADMIN, classification: 'admin', assistantPubkey: ADMIN_ASSISTANT, label: 'an Admin' };
 const CUSTOMER_USER = { pubkey: CUSTOMER, classification: 'customer', assistantPubkey: CUSTOMER_ASSISTANT, label: 'a Customer' };
 
-const MY_ASSISTANT = '/assistant';
+// The one writer's page, since assistant-management #1 (ADR assistant-management/0001): /assistant is now the hub.
+const MY_ASSISTANT = '/assistant/profile/edit';
 const PROMPT_BUTTON = /Set up my Assistant.s profile/;
 const PUBLISHES = /\/api\/(assistant\/publish-profile|strfry\/publish)(\?|$)/;
 

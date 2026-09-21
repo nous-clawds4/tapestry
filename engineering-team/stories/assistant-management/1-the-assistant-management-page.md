@@ -277,5 +277,5 @@ None open. Resolved when the owner approved this story (2026-09-21), all as prop
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md`
 - Review: (filled in after Review phase)

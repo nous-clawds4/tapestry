@@ -917,13 +917,15 @@ test('S4: one notion of "public" — profileDefaults.js uses the SSRF guard\'s c
 
 // Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 5), as this guard asked: the legacy pages no longer publish,
 // so AC5's legacy path is gone — each panel keeps its read-only status and links to the My Assistant page instead.
-test('R1: the legacy pages publish no assistant profile — neither posts publish-profile, and each links to the My Assistant page (/assistant)', () => {
+// Re-aimed again by assistant-management #1 (ADR assistant-management/0001 sub-decision 6): the page each panel links to moved to
+// /assistant/profile/edit, as "the Edit Assistant Profile page"; /assistant is now the Assistant Management hub.
+test('R1: the legacy pages publish no assistant profile — neither posts publish-profile, and each links to the Edit Assistant Profile page (/assistant/profile/edit)', () => {
   for (const file of [NIP85_PAGE, CUSTOMER_PAGE]) {
     const src = safeRead(file);
     assert(src, `${path.relative(REPO, file)} not found`);
     assert(!src.includes('/api/assistant/publish-profile'),
       `${path.relative(REPO, file)} still posts /api/assistant/publish-profile — ADR 0005 sub-decision 5: the legacy panels publish nothing`);
-    assert(/<a\b[^>]*\bhref=["']\/assistant["']/.test(src), `${path.relative(REPO, file)} must link to the My Assistant page (/assistant)`);
+    assert(/<a\b[^>]*\bhref=["']\/assistant\/profile\/edit["']/.test(src), `${path.relative(REPO, file)} must link to the Edit Assistant Profile page (/assistant/profile/edit)`);
   }
 });
 

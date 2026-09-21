@@ -26,6 +26,12 @@
  * W17–W20 were added by assistant-profile #5 (ledger 2026-09-21-my-assistant-checks-browser-only): guards
  * that give B1, B11, B12 and B16 a CI-run counterpart. They pass against the code as it is, and each fails
  * against the defect story 4's review planted for its B-test.
+ *
+ * Re-aimed by assistant-management #1 (ADR assistant-management/0001): /assistant became the Assistant Management
+ * page, and this page — now headed "Edit Assistant Profile" — moved to /assistant/profile/edit
+ * (ui/src/pages/assistant/EditProfile.jsx, component EditAssistantProfilePage). MY_ASSISTANT_PATH keeps its name at
+ * the new value, and "Assistant Management" leads to ASSISTANT_MANAGEMENT_PATH. M5, W1, W2 and W17 fail until that
+ * move is made; W4–W6 no longer accept a literal '/assistant', which would now open the hub.
  */
 
 const fs = require('fs');
@@ -37,7 +43,7 @@ const { nip19, generateSecretKey, getPublicKey } = require('nostr-tools');
 const REPO = path.resolve(__dirname, '..');
 const UI_SRC = path.join(REPO, 'ui/src');
 const MENU_MOD = path.join(REPO, 'ui/src/config/avatarMenuLinks.js');
-const PAGE = path.join(REPO, 'ui/src/pages/assistant/Index.jsx');
+const PAGE = path.join(REPO, 'ui/src/pages/assistant/EditProfile.jsx');   // moved by assistant-management #1
 const APP = path.join(REPO, 'ui/src/App.jsx');
 const EDITOR = path.join(REPO, 'ui/src/components/AssistantProfileEditor.jsx');
 const AUTH_CONTEXT = path.join(REPO, 'ui/src/context/AuthContext.jsx');
@@ -67,7 +73,8 @@ const GUEST_ASSISTANT = 'e1'.repeat(32);
 const ASSISTANT_OF = { [OWNER]: TA, [ADMIN]: ADMIN_ASSISTANT, [CUSTOMER]: CUSTOMER_ASSISTANT };
 
 // The ADR's fixed values.
-const MY_ASSISTANT = '/assistant';
+const MY_ASSISTANT = '/assistant/profile/edit';   // the editor's address since assistant-management #1
+const ASSISTANT_MANAGEMENT = '/assistant';        // the hub's
 const NO_ASSISTANT_REASON = 'No assistant is provisioned for your account yet.';   // unchanged (AC3)
 const NOT_PUBLIC = { domain: 'localhost:7777', isPublic: false, website: '', avatarUrl: 'https://tapestry.brainstorm.world/ta-avatar.png' };
 const PUBLIC = { domain: 'staging.brainstorm.world', isPublic: true, website: 'https://staging.brainstorm.world', avatarUrl: 'https://staging.brainstorm.world/ta-avatar.png' };
@@ -381,12 +388,14 @@ test('M4: "My Profile" keeps following each menu\'s own profile page — /user/�
   }
 });
 
-test('M5: the page\'s address is one exported constant, "/assistant" — and "Assistant Management" leads there too', async () => {
+test('M5: the page\'s address is one exported constant, MY_ASSISTANT_PATH — now "/assistant/profile/edit" — and "Assistant Management" leads to the hub, ASSISTANT_MANAGEMENT_PATH "/assistant" (re-aimed by assistant-management #1)', async () => {
   const mod = await getMenuModule();
   assert(mod.MY_ASSISTANT_PATH === MY_ASSISTANT,
-    `ADR 0004: avatarMenuLinks.js exports MY_ASSISTANT_PATH = '${MY_ASSISTANT}', which every entry point links to — got ${j(mod.MY_ASSISTANT_PATH)}`);
+    `ADR assistant-management/0001: avatarMenuLinks.js exports MY_ASSISTANT_PATH = '${MY_ASSISTANT}', which every entry point links to — got ${j(mod.MY_ASSISTANT_PATH)}`);
+  assert(mod.ASSISTANT_MANAGEMENT_PATH === ASSISTANT_MANAGEMENT,
+    `ADR assistant-management/0001: avatarMenuLinks.js exports ASSISTANT_MANAGEMENT_PATH = '${ASSISTANT_MANAGEMENT}' — got ${j(mod.ASSISTANT_MANAGEMENT_PATH)}`);
   const item = (mod.accountLinks || []).find((l) => l && l.key === 'assistant-management');
-  assert(item && item.to === mod.MY_ASSISTANT_PATH, `"Assistant Management" must lead to MY_ASSISTANT_PATH — got ${j(item && item.to)}`);
+  assert(item && item.to === mod.ASSISTANT_MANAGEMENT_PATH, `"Assistant Management" must lead to the hub, ASSISTANT_MANAGEMENT_PATH — got ${j(item && item.to)}`);
 });
 
 /* ───────────────────────── Q — the status answer ───────────────────────── */
@@ -530,19 +539,19 @@ test('A1: when the owner has no profile picture, the avatar proxy says so in a m
 
 /* ───────────────────────── W — the browser code, by source (the CI backstop) ───────────────────────── */
 
-test('W1: /assistant is a route, and it renders the My Assistant page (ui/src/pages/assistant/Index.jsx)', () => {
+test('W1: the editor\'s address, MY_ASSISTANT_PATH, is a route, and it renders the page (ui/src/pages/assistant/EditProfile.jsx) (re-aimed by assistant-management #1)', () => {
   const app = codeOnly(safeRead(APP));
-  const imp = app.match(/import\s+(\w+)\s+from\s+['"]\.\/pages\/assistant\/Index(?:\.jsx)?['"]/);
-  assert(fs.existsSync(PAGE), `${rel(PAGE)} does not exist. ADR 0004 creates the page there.`);
-  assert(imp, 'App.jsx does not import the page from ./pages/assistant/Index');
-  assert(new RegExp(`path:\\s*['"]/assistant['"]\\s*,\\s*element:\\s*<${imp[1]}\\b`).test(app),
-    `App.jsx has no { path: '/assistant', element: <${imp[1]} /> } route — today /assistant, where "Assistant Management" points, renders "Page not found"`);
+  const imp = app.match(/import\s+(\w+)\s+from\s+['"]\.\/pages\/assistant\/EditProfile(?:\.jsx)?['"]/);
+  assert(fs.existsSync(PAGE), `${rel(PAGE)} does not exist. ADR assistant-management/0001 moves the page there (git mv from Index.jsx).`);
+  assert(imp, 'App.jsx does not import the page from ./pages/assistant/EditProfile');
+  assert(new RegExp(`path:\\s*MY_ASSISTANT_PATH\\s*,\\s*element:\\s*<${imp[1]}\\b`).test(app),
+    `App.jsx has no { path: MY_ASSISTANT_PATH, element: <${imp[1]} /> } route`);
 });
 
-test('W2: the old address /tapestry/settings/assistant redirects to /assistant from a flat route — and the Settings page no longer has an "assistant" child that would tie with it', () => {
+test('W2: the old address /tapestry/settings/assistant redirects to the editor, MY_ASSISTANT_PATH, from a flat route — and the Settings page no longer has an "assistant" child that would tie with it (re-aimed by assistant-management #1)', () => {
   const app = codeOnly(safeRead(APP));
-  assert(/path:\s*['"]settings\/assistant['"]\s*,\s*element:\s*<Navigate\s+to=(?:["']\/assistant["']|\{\s*MY_ASSISTANT_PATH\s*\})\s+replace\b/.test(app),
-    'App.jsx must have { path: \'settings/assistant\', element: <Navigate to="/assistant" replace /> } among the /tapestry children — ' +
+  assert(/path:\s*['"]settings\/assistant['"]\s*,\s*element:\s*<Navigate\s+to=(?:["']\/assistant\/profile\/edit["']|\{\s*MY_ASSISTANT_PATH\s*\})\s+replace\b/.test(app),
+    'App.jsx must have { path: \'settings/assistant\', element: <Navigate to={MY_ASSISTANT_PATH} replace /> } among the /tapestry children — ' +
     'outside the Settings page, whose Owner-only gate would stop a Customer\'s old link');
   assert(!/path:\s*['"]assistant['"]/.test(app),
     'the Settings page\'s own { path: \'assistant\' } child must go: it scores the same as the flat redirect (35), so which one matches would depend on array order');
@@ -560,14 +569,14 @@ test('W3: the profile editor has one host — only the My Assistant page imports
 test('W4: the "Edit Assistant profile" banner on the assistant\'s own profile page links to the My Assistant page', () => {
   const src = codeOnly(safeRead(USER_DETAIL));
   assert(!src.includes('/tapestry/settings/assistant'), 'UserDetail.jsx still links to /tapestry/settings/assistant — an Owner/Admin-only page, so a dead end for a Customer');
-  assert(/\bto=(?:\{\s*MY_ASSISTANT_PATH\s*\}|["']\/assistant["'])/.test(src), 'AC2: the banner\'s link must go to MY_ASSISTANT_PATH ("/assistant")');
+  assert(/\bto=(?:\{\s*MY_ASSISTANT_PATH\s*\}|["']\/assistant\/profile\/edit["'])/.test(src), 'AC2: the banner\'s link must go to MY_ASSISTANT_PATH ("/assistant/profile/edit" since assistant-management #1)');
 });
 
 test('W5: the Tapestry Settings "Assistant Profile" tab opens the My Assistant page — it has a destination, not a panel', () => {
   const src = codeOnly(safeRead(TAPESTRY_SETTINGS));
   const entry = (src.match(/\{[^{}]*key:\s*['"]assistant['"][^{}]*\}/) || [''])[0];
   assert(entry, 'the Settings page has no { key: \'assistant\' } tab — AC2 keeps the tab as an entry point');
-  assert(/\bto:\s*(?:MY_ASSISTANT_PATH|['"]\/assistant['"])/.test(entry), `the tab must carry to: MY_ASSISTANT_PATH — got ${entry.trim()}`);
+  assert(/\bto:\s*(?:MY_ASSISTANT_PATH|['"]\/assistant\/profile\/edit['"])/.test(entry), `the tab must carry to: MY_ASSISTANT_PATH — got ${entry.trim()}`);
   assert(!/\bpath:/.test(entry), `the tab has no path of its own, so it is never the active panel — got ${entry.trim()}`);
   const switchTab = functionText(parse(TAPESTRY_SETTINGS), 'switchTab');
   assert(/\.to\b/.test(switchTab), `switchTab must navigate to a tab's \`to\` when it has one — got ${switchTab.replace(/\s+/g, ' ')}`);
@@ -575,7 +584,7 @@ test('W5: the Tapestry Settings "Assistant Profile" tab opens the My Assistant p
 
 test('W6: the Brainstorm /settings page links to the My Assistant page in place of its editor', () => {
   const src = codeOnly(safeRead(BRAINSTORM_SETTINGS));
-  assert(/href=(?:\{\s*MY_ASSISTANT_PATH\s*\}|["']\/assistant["'])/.test(src), 'AC2: /settings must offer a link to MY_ASSISTANT_PATH ("/assistant") — the card that held the editor');
+  assert(/href=(?:\{\s*MY_ASSISTANT_PATH\s*\}|["']\/assistant\/profile\/edit["'])/.test(src), 'AC2: /settings must offer a link to MY_ASSISTANT_PATH ("/assistant/profile/edit" since assistant-management #1) — the card that held the editor');
 });
 
 test('W7: every avatar menu tells personalLinks who the viewer is — the classification decides whether "My Assistant\'s Profile" has somewhere to go', () => {
@@ -678,7 +687,7 @@ function jsxNamed(sf, name) {
 }
 
 test('W17: the page keeps its visitor branch — "Sign in with nostr" is offered only when no one is signed in, and the editor only to someone who is (guard — the CI counterpart of B1)', () => {
-  const signIn = renderedOnlyWhen(PAGE, /Sign in with nostr/, ['!user'], 'MyAssistantPage');
+  const signIn = renderedOnlyWhen(PAGE, /Sign in with nostr/, ['!user'], 'EditAssistantProfilePage');   // renamed by assistant-management #1
   assert(signIn.ok, `AC5: a visitor is asked to sign in, on the page itself — ${signIn.why}`);
   const editors = jsxNamed(parse(PAGE), 'AssistantProfileEditor');
   assert(editors.length >= 1, `${rel(PAGE)} renders no AssistantProfileEditor`);

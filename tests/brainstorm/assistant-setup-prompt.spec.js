@@ -27,6 +27,8 @@ const { test, expect } = require('@playwright/test');
  *   one My Assistant page — no longer the Tapestry Settings tab or /settings. B3, B4, B5 and B8 follow.)
  *   (assistant-profile #5, ADR 0005 sub-decision 4: "Use the default profile" is gone for every role, the
  *   Owner included. B5 now expects no such button; B3's message follows.)
+ *   (assistant-management #1, ADR assistant-management/0001: the page moved to /assistant/profile/edit, now
+ *   "Edit Assistant Profile"; /assistant is the Assistant Management hub. B3, B4, B5 and B8 expect EDITOR.)
  *   B6 — a signed-in user with no assistant: no prompt, no item, no status call. [AC4]
  *   B7 — the status check fails: no prompt — an error is never "no profile".      [AC1, edge]
  *   B8 — publish, come back: the prompt is gone without a reload.                 [AC5]
@@ -68,6 +70,8 @@ const PROMPT_BUTTON = /Set up my Assistant.s profile/;
 const CHECKLIST_ITEM = 'Give your Assistant a profile';
 const CHECKLIST_ACTION = /Set up profile/;
 const USE_DEFAULT = /Use the default profile/;
+// The editor's address since assistant-management #1 (ADR assistant-management/0001); /assistant is the hub.
+const EDITOR = '/assistant/profile/edit';
 
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -235,7 +239,7 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
       'AC4: the dashboard offers no one-click publish to anyone (ADR 0005 sub-decision 4) — and never did to an Admin (ADR 0001)').toHaveCount(0);
     await prompt.click();
     await expect.poll(() => new URL(page.url()).pathname,
-      'AC3: the button must lead to where an Admin publishes their own assistant\'s profile — the My Assistant page (ADR assistant-profile/0004)').toBe('/assistant');
+      'AC3: the button must lead to where an Admin publishes their own assistant\'s profile — the editor (ADR assistant-management/0001)').toBe(EDITOR);
   });
 
   test('B4: a Customer whose own assistant has no profile is prompted, and the button leads to the My Assistant page', async ({ page }) => {
@@ -245,7 +249,7 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     await expect(prompt, 'AC3: a Customer whose assistant has no profile must be prompted').toHaveCount(1);
     await prompt.click();
     await expect.poll(() => new URL(page.url()).pathname,
-      'AC3: a Customer is sent to the My Assistant page, which every role can reach (ADR assistant-profile/0004)').toBe('/assistant');
+      'AC3: a Customer is sent to the editor, which every role can reach (ADR assistant-management/0001)').toBe(EDITOR);
     expect(log.statusCalls, 'AC4: the check must ask about the Customer\'s own pubkey').toContain(CUSTOMER);
   });
 
@@ -258,7 +262,7 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     await expect(page.getByRole('button', { name: USE_DEFAULT }),
       'ADR 0005 sub-decision 4: the Owner\'s one-click publish is gone — the prompt\'s one action leads to the My Assistant page').toHaveCount(0);
     await prompt.click();
-    await expect.poll(() => new URL(page.url()).pathname, 'AC3: the Owner is sent to the My Assistant page (ADR assistant-profile/0004)').toBe('/assistant');
+    await expect.poll(() => new URL(page.url()).pathname, 'AC3: the Owner is sent to the editor (ADR assistant-management/0001)').toBe(EDITOR);
   });
 
   test('B6: a signed-in user with no assistant sees no prompt and no assistant checklist item, and no status request is made', async ({ page }) => {
@@ -285,7 +289,7 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     await expect(page.getByRole('button', { name: PROMPT_BUTTON }), 'precondition: the prompt shows before the publish').toHaveCount(1);
     published = true;   // the publish happens in the editor; from here on the one answer says so
     await page.getByRole('button', { name: PROMPT_BUTTON }).click();
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/assistant');
+    await expect.poll(() => new URL(page.url()).pathname).toBe(EDITOR);
     // React Router 7 applies a navigation as a React transition: the URL changes before the new
     // route renders. Going back inside that gap lands on the same, never-unmounted dashboard,
     // which never asks again — a race in this test, not in the page (seen in 2 of 3 full-spec

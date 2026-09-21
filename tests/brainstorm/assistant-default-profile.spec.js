@@ -173,7 +173,7 @@ async function mockEditor(page, { isPublic = true, picture, ownerAvatar = 'ok', 
 }
 
 async function openEditor(page) {
-  await page.goto('/assistant');
+  await page.goto('/assistant/profile/edit');   // the editor's address since assistant-management #1
   await page.waitForLoadState('networkidle');
   await expect(page.locator('.settings-group').first(), 'the My Assistant page must show the editor to a signed-in owner').toBeVisible({ timeout: 20000 });
 }

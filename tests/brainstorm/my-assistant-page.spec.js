@@ -39,6 +39,12 @@ const zlib = require('zlib');
  *
  * Against the current build every test but part of B11 fails: /assistant renders "Page not found", the
  * menus and the banner point elsewhere, /settings and the Settings tab still hold the editor.
+ *
+ * Re-aimed by assistant-management #1 (ADR assistant-management/0001): /assistant became the Assistant
+ * Management hub, and this page moved to MY_ASSISTANT (/assistant/profile/edit), headed "Edit Assistant
+ * Profile". "My Assistant's Profile" and every other entry point still lead to the page; "Assistant
+ * Management" now leads to the hub (ASSISTANT_MANAGEMENT). B2, B4, B5 and B11 changed with it; the rest
+ * follow MY_ASSISTANT's new value. Where a title below says "/assistant", read the editor's address.
  */
 
 // Fixtures, never live keys: the runtime lookups are mocked to return them.
@@ -56,7 +62,8 @@ const ADMIN_USER = { pubkey: ADMIN, classification: 'admin', assistantPubkey: AD
 const CUSTOMER_USER = { pubkey: CUSTOMER, classification: 'customer', assistantPubkey: CUSTOMER_ASSISTANT };
 const GUEST_USER = { pubkey: GUEST, classification: 'guest', assistantPubkey: null };
 
-const MY_ASSISTANT = '/assistant';
+const MY_ASSISTANT = '/assistant/profile/edit';   // the editor's address since assistant-management #1
+const ASSISTANT_MANAGEMENT = '/assistant';        // the hub's
 const NO_ASSISTANT_REASON = 'No assistant is provisioned for your account yet.';
 const DOMAIN = 'staging.example.test';
 const NIP05 = `olivia-tapestry-assistant-aaaaaa@${DOMAIN}`;
@@ -168,7 +175,7 @@ async function openMyAssistant(page) {
   await page.goto(MY_ASSISTANT);
   await page.waitForLoadState('networkidle');
   await expect(page.getByRole('heading', { name: 'Page not found' }),
-    'ADR 0004: /assistant must be the My Assistant page — today no route serves it and it renders "Page not found"').toHaveCount(0);
+    `ADR assistant-management/0001: ${MY_ASSISTANT} must be the editor page — it renders "Page not found"`).toHaveCount(0);
   await expect(page.locator('main'), 'the My Assistant page renders its content in <main> (ADR 0004 § Implementation notes)').toHaveCount(1);
 }
 async function openEditorOnPage(page) {
@@ -256,7 +263,7 @@ test.describe('One place — the My Assistant page (assistant-profile #4)', () =
   test('B2: the Owner\'s page shows their assistant — the instance TA\'s pubkey, whether its profile is published, its NIP-05, and a link to its public profile at /user/‹TA›', async ({ page }) => {
     const log = await mock(page, { who: OWNER_USER, hasProfile: true });
     await openEditorOnPage(page);
-    await expect(page.getByRole('heading', { level: 1 }), 'the page is "My Assistant"').toContainText(/My Assistant/);
+    await expect(page.getByRole('heading', { level: 1 }), 'the page is "Edit Assistant Profile" (assistant-management #1)').toHaveText('Edit Assistant Profile');
     const text = await editorText(page);
     expect(text, 'AC1: the assistant\'s pubkey — the Owner\'s assistant is the instance TA').toContain(TA.slice(0, 12));
     expect(text, 'AC1: whether its profile is published (story 1\'s answer)').toMatch(/Currently published:?\s*✅?\s*Yes/);
@@ -280,7 +287,7 @@ test.describe('One place — the My Assistant page (assistant-profile #4)', () =
   });
 
   /* ───────── B4 — AC2: the Brainstorm menus ───────── */
-  test('B4: in the Brainstorm avatar menu — on /about and on the landing page — "My Assistant\'s Profile" and "Assistant Management" both lead to /assistant, for the Owner, an Admin and a Customer', async ({ page }) => {
+  test('B4: in the Brainstorm avatar menu — on /about and on the landing page — "My Assistant\'s Profile" leads to the editor and "Assistant Management" to the hub, for the Owner, an Admin and a Customer (re-aimed by assistant-management #1)', async ({ page }) => {
     for (const who of [OWNER_USER, ADMIN_USER, CUSTOMER_USER]) {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await mock(page, { who });
@@ -291,19 +298,19 @@ test.describe('One place — the My Assistant page (assistant-profile #4)', () =
         const mine = await brainstormItem(menu, MY_ITEM);
         expect(mine.href, `AC2 (${who.classification}, ${where}): "${MY_ITEM}" opens the My Assistant page, not a profile view`).toBe(MY_ASSISTANT);
         const mgmt = await brainstormItem(menu, MANAGEMENT_ITEM);
-        expect(mgmt.href, `(${who.classification}, ${where}): "${MANAGEMENT_ITEM}" leads there too`).toBe(MY_ASSISTANT);
+        expect(mgmt.href, `(${who.classification}, ${where}): "${MANAGEMENT_ITEM}" leads to the hub`).toBe(ASSISTANT_MANAGEMENT);
       }
     }
   });
 
   /* ───────── B5 — AC2: the Tapestry menu ───────── */
-  test('B5: in the Tapestry avatar menu, "My Assistant\'s Profile" and "Assistant Management" both open /assistant', async ({ page }) => {
+  test('B5: in the Tapestry avatar menu, "My Assistant\'s Profile" opens the editor and "Assistant Management" the hub (re-aimed by assistant-management #1)', async ({ page }) => {
     await mock(page, { who: OWNER_USER, hasProfile: true });
-    for (const label of [MY_ITEM, MANAGEMENT_ITEM]) {
+    for (const [label, target] of [[MY_ITEM, MY_ASSISTANT], [MANAGEMENT_ITEM, ASSISTANT_MANAGEMENT]]) {
       await openDashboard(page);
       await page.locator('.user-button').first().click();
       await page.locator('.user-dropdown').getByRole('button', { name: new RegExp(label.replace(/'/g, '.')) }).click();
-      await expect.poll(() => pathname(page), { message: `AC2: "${label}" in the Tapestry menu must open ${MY_ASSISTANT}` }).toBe(MY_ASSISTANT);
+      await expect.poll(() => pathname(page), { message: `AC2: "${label}" in the Tapestry menu must open ${target}` }).toBe(target);
     }
   });
 
@@ -359,14 +366,14 @@ test.describe('One place — the My Assistant page (assistant-profile #4)', () =
   });
 
   /* ───────── B11 — AC3: someone who may not create one ───────── */
-  test('B11: a signed-in guest with no assistant finds "My Assistant\'s Profile" disabled with its explanation and "Assistant Management" still leading to /assistant — where the page explains, with no editor, no create button and no status request', async ({ page }) => {
+  test('B11: a signed-in guest with no assistant finds "My Assistant\'s Profile" disabled with its explanation and "Assistant Management" leading to the hub — and the editor page, opened directly, explains, with no editor, no create button and no status request (re-aimed by assistant-management #1)', async ({ page }) => {
     const log = await mock(page, { who: GUEST_USER });
     await page.goto('/about');
     await page.waitForLoadState('networkidle');
     const menu = await openBrainstormMenu(page);
     const mine = await brainstormItem(menu, MY_ITEM);
     expect(mine, `AC3: the item stays disabled, with "${NO_ASSISTANT_REASON}"`).toEqual({ href: null, disabled: true, title: NO_ASSISTANT_REASON });
-    expect((await brainstormItem(menu, MANAGEMENT_ITEM)).href, '"Assistant Management" stays clickable for everyone (settled with the owner, 2026-09-21)').toBe(MY_ASSISTANT);
+    expect((await brainstormItem(menu, MANAGEMENT_ITEM)).href, '"Assistant Management" stays clickable for everyone, and leads to the hub (assistant-management #1)').toBe(ASSISTANT_MANAGEMENT);
 
     await openMyAssistant(page);
     await expect(page.locator('main'), 'AC3: the page, opened directly, explains rather than failing').toContainText(/no Tapestry Assistant/i);

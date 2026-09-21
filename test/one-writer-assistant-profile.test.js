@@ -24,6 +24,11 @@
  * someone else's assistant goes through, or is refused with no code), and W1–W5 fail (the dashboard
  * and both legacy pages still publish). G3, G4, G5, P1, P3 and W6 are guards: they pass before and
  * after, and pin what this story must keep.
+ *
+ * Re-aimed by assistant-management #1 (ADR assistant-management/0001 sub-decision 6): the one writer's page moved
+ * to /assistant/profile/edit and is called "the Edit Assistant Profile page". The refusals must now point there,
+ * and the legacy panels must link there; a literal '/assistant' would open the Assistant Management hub. G1, P2,
+ * P4, P5 and W4 fail until the refusals and the panels follow the page.
  */
 
 const fs = require('fs');
@@ -66,7 +71,7 @@ const TA_SK = generateSecretKey();
 const TA_KEYS = { pubkey: getPublicKey(TA_SK), privkey: Buffer.from(TA_SK).toString('hex') };
 
 // The ADR's fixed values.
-const MY_ASSISTANT = '/assistant';
+const MY_ASSISTANT = '/assistant/profile/edit';   // the one writer's page since assistant-management #1
 const PUBLIC = { domain: 'staging.brainstorm.world', isPublic: true, website: 'https://staging.brainstorm.world', avatarUrl: 'https://staging.brainstorm.world/ta-avatar.png' };
 /** What the page's form sends: the seven editable fields, some of them empty (ADR 0003 sub-decision 7). */
 const FORM = {
@@ -90,9 +95,12 @@ function codeOnly(src) {
     .join('\n');
 }
 
-/** A refusal's explanation must say where profiles are published: the My Assistant page, at /assistant. */
+/**
+ * A refusal's explanation must say where profiles are published: the Edit Assistant Profile page, at
+ * /assistant/profile/edit (re-aimed by assistant-management #1; it was "the My Assistant page, at /assistant").
+ */
 function pointsToThePage(error) {
-  return typeof error === 'string' && /My Assistant page/i.test(error) && error.includes(MY_ASSISTANT);
+  return typeof error === 'string' && /Edit Assistant Profile page/.test(error) && error.includes(`(${MY_ASSISTANT})`);
 }
 
 /** An answer, short enough to read in a failure message. */
@@ -219,7 +227,7 @@ function kind0Problems(res, seen, before) {
   const why = [];
   const refused = res.statusCode === 403 && res.body && res.body.success === false && res.body.code === 'one-writer';
   if (!refused) why.push(`answered ${summary(res)}`);
-  else if (!pointsToThePage(res.body.error)) why.push(`its error does not point to the My Assistant page (/assistant): ${j(res.body.error)}`);
+  else if (!pointsToThePage(res.body.error)) why.push(`its error does not point to the Edit Assistant Profile page (/assistant/profile/edit): ${j(res.body.error)}`);
   const wrote = seen.imports.slice(before.imports);
   if (wrote.length) why.push(`handed ${wrote.length} event(s) to strfry import (kind ${wrote.map((e) => j(e.kind)).join(', ')})`);
   if (seen.brainWrites > before.brainWrites) why.push('ran the brain-write hook');
@@ -239,7 +247,7 @@ test('G1: asked to sign a kind 0 as the assistant, the generic signer refuses �
     }
     assertNoProblems(problems,
       'AC3 ("refused with an explanation, and no event is written anywhere"), ADR 0005 sub-decision 3 — expected 403 { success: false, ' +
-      'code: \'one-writer\' } pointing to /assistant, before any key is read:');
+      'code: \'one-writer\' } pointing to the Edit Assistant Profile page (/assistant/profile/edit), before any key is read:');
   });
 });
 
@@ -375,7 +383,7 @@ function signedContent(event) { try { return JSON.parse(event.content); } catch 
 function refusalProblems(res, calls, status, code) {
   const why = [];
   if (!(res.statusCode === status && res.body && res.body.success === false && res.body.code === code)) why.push(`answered ${summary(res)}`);
-  else if (!pointsToThePage(res.body.error)) why.push(`its error does not point to the My Assistant page (/assistant): ${j(res.body.error)}`);
+  else if (!pointsToThePage(res.body.error)) why.push(`its error does not point to the Edit Assistant Profile page (/assistant/profile/edit): ${j(res.body.error)}`);
   const did = touched(calls);
   if (did.length) why.push(`the handler ${did.join(', ')}`);
   return why;
@@ -415,7 +423,7 @@ test('P2: a publish that carries no profile is refused — 400, code "no-content
   }
   assertNoProblems(problems,
     'AC3 (ADR 0005 sub-decision 2) — a signed-in Customer publishing their own assistant with no profile: expected 400 { success: false, ' +
-    'code: \'no-content\' } pointing to /assistant, touching no key, no relay and no settings:');
+    'code: \'no-content\' } pointing to the Edit Assistant Profile page (/assistant/profile/edit), touching no key, no relay and no settings:');
 });
 
 test('P3: an emptied profile — content {} — is still the page\'s publish: it is published, and the finishing step still applies (on a public instance, only the server\'s NIP-05 and the client tag) (guard)', async () => {
@@ -445,7 +453,7 @@ test('P4: publishing anyone\'s assistant but your own is refused — 403, code "
   }
   assertNoProblems(problems,
     'AC3 + epic decision 4 (ADR 0005 sub-decision 2) — expected 403 { success: false, code: \'not-your-assistant\' } pointing to ' +
-    '/assistant, touching no key, no relay and no settings:');
+    'the Edit Assistant Profile page (/assistant/profile/edit), touching no key, no relay and no settings:');
 });
 
 test('P5: whose comes before what — someone else\'s assistant with no profile is refused as not theirs (403 "not-your-assistant"), not as empty (400)', async () => {
@@ -536,7 +544,7 @@ test('W1: the dashboard\'s welcome card has one action — "Set up my Assistant\
     const given = attrs(use).map((a) => a.name.getText());
     assert(j(given) === j(['onSetupProfile']), `WelcomeCard is given only onSetupProfile — got ${j(given)}`);
     const to = attrValue(attrs(use)[0]) || '';
-    assert(/navigate\((MY_ASSISTANT_PATH|['"]\/assistant['"])\)/.test(to), `onSetupProfile leads to the My Assistant page — got ${to}`);
+    assert(/navigate\((MY_ASSISTANT_PATH|['"]\/assistant\/profile\/edit['"])\)/.test(to), `onSetupProfile leads to the editor, MY_ASSISTANT_PATH — got ${to}`);
   }
   const src = codeOnly(safeRead(DASHBOARD));
   const found = [];
@@ -616,7 +624,7 @@ test('W4: each legacy panel links to the My Assistant page in every state — th
     const links = [...outside.matchAll(/<a\b[^>]*\bhref=["']([^"']*)["'][^>]*>/gi)].map((m) => m[1]);
     assert(links.includes(MY_ASSISTANT),
       `AC2 ("…and a link to the My Assistant page"), ADR 0005 sub-decision 5 ("a link that shows in every state"), ${where}: ` +
-      `no <a href="/assistant"> in the panel outside #${blocks.join(', #')} — links there: ${j(links)}`);
+      `no <a href="${MY_ASSISTANT}"> in the panel outside #${blocks.join(', #')} — links there: ${j(links)}`);
   }
 });
 

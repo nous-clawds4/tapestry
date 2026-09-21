@@ -120,7 +120,7 @@ test.describe('The stamped composite avatar (ta-avatar #3)', () => {
   }
 
   async function gotoEditor(page) {
-    await page.goto('/assistant');
+    await page.goto('/assistant/profile/edit');   // the editor's address since assistant-management #1
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.settings-group').first(),
       'the My Assistant page must show the editor to a signed-in owner').toBeVisible({ timeout: 20000 });
