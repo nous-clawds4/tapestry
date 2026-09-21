@@ -64,3 +64,39 @@ live tier in a worktree has verified nothing at all.
 `.claude/skills/cycle-local/SKILL.md`; related: `2026-09-20-claude-md-overstates-bind-mount`,
 `2026-09-20-smoke-tier3-cannot-verify-a-negative`, `OPEN.md` #192/#194/#27/#204/#205; audit
 `engineering-team/audits/profile-lookup-bounds/audit.md` §7 R4.
+
+---
+
+**Update 2026-09-21 (avatar-menu account-section review) — a second door: the files are current,
+the process is not.** The case above is a stack reading another tree. This one is not: the session
+worked in the main checkout, which the container bind-mounts, so the branch's code is on disk inside
+the container. But the Node process loaded its modules nine days earlier and has not restarted.
+
+```
+$ docker exec tapestry ps -eo lstart,args | grep '[c]ontrol-panel'
+Sat Sep 12 17:37:30 2026 node /usr/local/lib/node_modules/brainstorm/bin/control-panel.js
+$ git log --oneline --since='2026-09-12T17:37:30Z' HEAD -- src bin | wc -l   # by commit date: a lower bound
+19
+$ git log --oneline cde8b282..HEAD -- src bin | wc -l   # by ancestry from the boot commit row 289 names
+20
+$ curl -s -o /dev/null -w '%{http_code}' http://localhost:7778/api/assistant/roster
+404        # yet the checkout registers the route: src/api/index.js:543
+```
+
+`scripts/dev-refresh.sh --ui` never restarts the backend (`DO_SERVER=0`, `:50`), and a UI-only change
+is exactly when a session reaches for `--ui`. In the full gate run `20260921T041722Z-59978-66e1` (on
+`3938a16f`), two suites are red for this reason alone: `author-scoped-inspection-roster` (the 404
+above) and `profile-lookup-bounds` E2 — this row's own example, now reached from the main checkout.
+`MAX_PUBKEYS_PER_REQUEST` is on disk, but it arrived on 2026-09-20 (`56ea6cf9`), after the process
+started. The same drift voids the premise of `OPEN.md` row 289, whose local baseline rests on "the
+control panel runs the checkout's code". That was true on 2026-09-13 and is not now, so some of that
+row's fifteen suites may be stale-process failures rather than stale-state ones.
+
+**Fix-shape addendum.** The build-identity probe in fix shape 2 has to cover the server process, not
+only the served bundle. For example, the server could report the commit it booted from, or the probe
+could compare the process start time with the newest `src/` or `bin/` commit. The cheapest interim
+step is for `dev-refresh.sh --ui` to warn when the backend predates the newest `src/` or `bin/`
+change. Restarting this instance does not need `--deps`: since the process started, root
+`package.json` gained only the `gate:status` script (`072da83a`), `package-lock.json` is unchanged,
+and every root dependency is already installed in the container. `scripts/dev-refresh.sh --server`
+is enough.

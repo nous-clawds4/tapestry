@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePov } from '../context/PovContext';
-import { personalLinks, destinationLinks } from '../config/avatarMenuLinks';
+import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import AvatarMenuLink from './AvatarMenuLink';
 
 /**
  * Compact user avatar + dropdown menu for Brainstorm Search pages.
  * Shows avatar, welcome, a POV SWITCH (House ⇄ My WoT) writing through the shared
- * PovContext selection (pov-selectable-tag-surfaces Story 4), the shared personal +
- * destination link sections (navigation-scaffolding #2), settings link, sign out.
+ * PovContext selection (pov-selectable-tag-surfaces Story 4), the shared personal,
+ * destination and account link sections (navigation-scaffolding #2), settings link,
+ * sign out.
  */
 export default function BrainstormUserMenu({ user, login, logout }) {
   const [open, setOpen] = useState(false);
@@ -170,6 +171,12 @@ export default function BrainstormUserMenu({ user, login, logout }) {
 
           <div className="bs-usermenu-section bs-usermenu-links">
             {destinationLinks.map(link => (
+              <AvatarMenuLink key={link.key} link={link} onNavigate={() => setOpen(false)} />
+            ))}
+          </div>
+
+          <div className="bs-usermenu-section bs-usermenu-links">
+            {accountLinks.map(link => (
               <AvatarMenuLink key={link.key} link={link} onNavigate={() => setOpen(false)} />
             ))}
           </div>
