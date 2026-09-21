@@ -110,11 +110,11 @@ failed tests, 139 → 129 skipped.
 The process that restart replaced had been spawned at 2026-09-12 17:40:42Z according to the
 container's `/var/log/supervisor/supervisord.log`, about 15 s after the checkout moved to
 `cde8b282`. That is `OPEN.md` row 289's "17:40 UTC", not the 17:37:30 `ps` printed above: `ps lstart`
-under-reads long-lived processes in this container by minutes (it puts supervisord itself at
-17:04:45 on 2026-09-11, before the container's own start at 17:09:53Z), so the start-time probe the
+under-reads long-lived processes in this container by minutes (on 2026-09-21 it put supervisord
+itself at 17:04:45 on 2026-09-11, before the container's own start at 17:09:53Z), so the start-time probe the
 fix-shape addendum suggests should read supervisord's record, not `ps`.
 
-- **Down to the restart.** Between the two commits, `src/` changed only in `src/api/assistant/`
+- **Down to the restart.** Between `78a09be5` and `aa4df2e3`, `src/` changed only in `src/api/assistant/`
   profile code, and none of these suites' test files changed.
   - `author-scoped-inspection-roster` went from 5 failures to 0. Its route and handler were
     registered at both commits (`src/api/index.js:543`), and the old process answered 404.
@@ -127,7 +127,8 @@ fix-shape addendum suggests should read supervisord's record, not `ps`.
   (assistant-profile #3, inside `aa4df2e3`) rewrote H1, the one test that had failed, along with
   H2, H3 and the assistant-profile code they test.
 - **Unchanged.** The other 14 red suites have identical pass, fail and skip counts in both runs, and
-  byte-identical failure messages, so none of them was a stale-process failure. That answers the
+  the same recorded failure messages (the gate record keeps the first 500 characters of each, which
+  clips 7 of the 50), so none of them was a stale-process failure. That answers the
   update above ("some of that row's fifteen suites may be stale-process failures") for fourteen of
   the fifteen; the fifteenth, `recognizable-published-ta-profile`, is the one this comparison cannot
   decide. `OPEN.md` row 289's per-suite triage, stale instance state or a real regression, still
