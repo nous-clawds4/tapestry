@@ -237,6 +237,7 @@ const suites = [
   { file: 'curated-dlist-update-update-preview.test.js' },
   { file: 'curated-dlist-update-publish.test.js' },
   { file: 'assistant-setup-state.test.js' },
+  { file: 'assistant-publish-relays.test.js' },
   { file: 'gate-result-record.test.js' },
   { file: 'harden-user-data-error-path.test.js' },
   { file: 'harden-compute-endpoint.test.js' },

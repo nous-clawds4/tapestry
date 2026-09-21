@@ -19,6 +19,36 @@ const PROFILE_FIELDS = [
   { key: 'lud16', label: 'Lightning address', placeholder: 'name@example.com' },
 ];
 
+// What each relay did with the profile, in the words the story uses: the server's `refused` is what a
+// reader calls rejected (ADR assistant-profile/0002).
+const RELAY_WORDS = {
+  accepted: 'accepted',
+  refused: 'rejected',
+  unreachable: 'unreachable',
+  timeout: 'timed out',
+  skipped: 'skipped',
+};
+
+function relayOutcomeText(row) {
+  const word = RELAY_WORDS[row.status] || row.status;
+  if (row.status === 'skipped') return `${word} (${row.reason || 'local-only publish mode'})`;
+  return row.reason ? `${word}: ${row.reason}` : word;
+}
+
+/** A partial or empty result must never read as a clean success. */
+function publishResultTone(result) {
+  if (!result || !result.ok) return 'error';
+  if (result.outcome === 'kept-local') return 'info';
+  const tried = (result.rows || []).filter((row) => row.status !== 'skipped');
+  return tried.length > 0 && tried.every((row) => row.status === 'accepted') ? 'success' : 'warning';
+}
+
+const TONE_ICON = { success: '✅ ', warning: '⚠️ ', info: 'ℹ️ ', error: '❌ ' };
+const TONE_STYLE = {
+  warning: { backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' },
+  info: { backgroundColor: 'rgba(148, 163, 184, 0.1)', border: '1px solid rgba(148, 163, 184, 0.3)' },
+};
+
 const labelStyle = { fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' };
 const inputStyle = {
   padding: '0.4rem 0.6rem',
@@ -179,7 +209,12 @@ export default function AssistantProfileEditor({ customerPubkey }) {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Publish failed');
-      setPublishResult({ ok: true, message: data.message, relays: data.relays });
+      setPublishResult({
+        ok: true,
+        outcome: data.outcome,
+        message: data.message,
+        rows: (data.relays && data.relays.results) || [],
+      });
       // Reload status so the "currently published" section refreshes
       await loadStatus();
     } catch (err) {
@@ -229,6 +264,8 @@ export default function AssistantProfileEditor({ customerPubkey }) {
       </div>
     );
   }
+
+  const tone = publishResult ? publishResultTone(publishResult) : null;
 
   const shortPk = status.assistantPubkey
     ? `${status.assistantPubkey.slice(0, 12)}…${status.assistantPubkey.slice(-8)}`
@@ -369,14 +406,18 @@ export default function AssistantProfileEditor({ customerPubkey }) {
 
       {publishResult && (
         <div
-          className={`settings-message settings-message-${publishResult.ok ? 'success' : 'error'}`}
-          style={{ marginTop: 0 }}
+          className={`settings-message${tone === 'success' ? ' settings-message-success' : ''}${tone === 'error' ? ' settings-message-error' : ''}`}
+          style={{ marginTop: 0, ...(TONE_STYLE[tone] || null) }}
         >
-          {publishResult.ok ? '✅ ' : '❌ '}
+          {TONE_ICON[tone] || ''}
           {publishResult.message}
-          {publishResult.ok && publishResult.relays && (
-            <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-              Pushed to local strfry + {publishResult.relays.success}/{publishResult.relays.total} external relays.
+          {publishResult.ok && (publishResult.rows || []).length > 0 && (
+            <div style={{ fontSize: '0.75rem', marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              {publishResult.rows.map(row => (
+                <div key={row.relay}>
+                  <code>{row.relay}</code> — {relayOutcomeText(row)}
+                </div>
+              ))}
             </div>
           )}
         </div>
