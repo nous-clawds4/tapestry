@@ -74,5 +74,5 @@ destination for that item (a read-only profile view).
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`
 - Review: (filled in after Review phase)
