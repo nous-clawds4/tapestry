@@ -56,7 +56,7 @@ summarizes it).
   also copy a profile home into strfry, which is a write (ADR assistant-profile/0001).
 - **`useTreasureMap`** (`ui/src/hooks/useTreasureMap.js:80`) reads outside relays through
   `/api/relay/external` without `strict`, and `SimplePool.querySync` answers `[]` for a relay it
-  could not reach (OPEN.md rows 280 and 314). So its `none` can mean "nothing reached". It also
+  could not reach (OPEN.md row 314; it was row 280 before the 2026-09-17 renumbering). So its `none` can mean "nothing reached". It also
   reads the concept graph's relay set. My Curated DLists depends on it, so it stays as it is.
 - **`fetchCurrentMap`** (`src/api/export/nip85/currentMap.js:33`) calls itself strict, but its
   outside read is `querySync` too (`src/api/dlist-curation/index.js:164`), which only rethrows the

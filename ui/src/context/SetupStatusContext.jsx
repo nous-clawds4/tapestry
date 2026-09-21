@@ -29,6 +29,13 @@ export function SetupStatusProvider({ children }) {
   const [result, setResult] = useState({ request: null, phase: 'idle', answer: null });
   const request = wanted && !authLoading && pubkey ? `${pubkey}#${attempt}` : null;
 
+  // When the request goes away — a sign-out, or sign-in re-resolving — the held answer goes too, so
+  // the next read starts from 'checking' even for the same account, whose request key would
+  // otherwise match the old answer again (ADR § 3: signing out resets to idle).
+  if (!request && result.request !== null) {
+    setResult({ request: null, phase: 'idle', answer: null });
+  }
+
   useEffect(() => {
     if (!request) return undefined;
     let cancelled = false;

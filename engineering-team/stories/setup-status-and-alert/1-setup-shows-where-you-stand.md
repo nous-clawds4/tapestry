@@ -135,7 +135,10 @@ None. The owner answered them at planning (2026-09-21). The answers are recorded
 Small judgment calls made during implementation (Implementer role, step 9):
 
 - **Where the sign-in line sits.** For a signed-out visitor, the sign-in line and its button sit
-  where a signed-in viewer's progress line sits: above the steps. The story did not place it.
+  where a signed-in viewer's progress line sits: above the steps. The story did not place it. ADR 0001
+  § 4 lists it after the steps ("then the signed-out line"), so this departs from the ADR's wording.
+  The line goes where a signed-in viewer reads their progress, and it tells the visitor what signing
+  in will show before they read the steps.
 - **The done look.**
   - A done step's marker is a white ✓ in a filled green circle, and its "Done" badge is the green
     counterpart of the amber one.
@@ -148,6 +151,12 @@ Small judgment calls made during implementation (Implementer role, step 9):
     callbacks. So an answer for a previous account is never shown, and the file avoids eslint's
     `react-hooks/set-state-in-effect`.
   - ADR 0001 § 3 allows "a request counter or a `cancelled` flag"; this uses both.
+  - **Review round 2.** When the request goes away — a sign-out, or sign-in re-resolving — the held
+    answer is dropped during render (React's "adjusting state while rendering" pattern). The review's
+    Blocking 1 found that a re-sign-in as the same account rebuilt the same request key, so the
+    answer from before the sign-out showed as current while the new read ran. Now every new read
+    starts from `checking`, as ADR § 3 requires ("`user` becoming `null` resets the state to `idle`").
+    B10 pins it.
 - **One eslint error, the house pattern.** `SetupStatusContext.jsx` carries
   `react-refresh/only-export-components`, because it exports `useSetupStatus` beside its provider.
   - `AuthContext.jsx`, `ConfigContext.jsx` and `AssistantRosterContext.jsx` carry the same error for
