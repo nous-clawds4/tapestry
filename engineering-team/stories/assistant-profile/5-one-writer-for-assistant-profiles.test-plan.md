@@ -26,7 +26,10 @@ The tests are in two new files, plus re-aims in four existing ones and four carr
   the suites of the files it edits (ledger `2026-09-21-adr-reaim-list-misses-outcome-asserts`). The literals were
   "Use the default profile", the dashboard's and the legacy pages' `publish-profile` calls, publishes with no
   content, the Owner publishing a Customer's assistant, and `signAs: 'assistant'` with kind 0.
-  **The grep found nothing beyond the ADR's own list.**
+  **The grep found nothing beyond the ADR's own list.** *(Corrected at review, 2026-09-21: not so. The `signAs`
+  grep also listed `test/create-tapestry.test.js` and `test/add-a-concept-to-a-tapestry.test.js`, and neither was
+  opened. Their R3 window sentinels were caught by Phase 4's full gate; see the story's Deviations and ledger
+  `2026-09-21-adr-reaim-list-misses-outcome-asserts`.)*
   - **`test/one-default-assistant-profile.test.js`** (story 3):
     - **E1, E3, E5 and E6** publish with no content. Each now publishes the table the status offers, as content —
       what "Reset to defaults" then Publish sends. The signed results they assert are unchanged. They pass before

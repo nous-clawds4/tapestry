@@ -1,6 +1,6 @@
 # Story 5: One writer — nothing else can change an assistant's profile
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Feature
 **Epic:** `assistant-profile`
@@ -80,9 +80,14 @@ None.
   `test/create-tapestry.test.js` and `test/add-a-concept-to-a-tapestry.test.js` read a 600-character window from the
   first `signAs === 'assistant'` and need the owner gate inside it. Inside the branch, the refusal pushed the gate
   out; here the gate sits 537 characters in (ledger `2026-09-21-adr-reaim-list-misses-outcome-asserts`).
+  **Corrected at review (2026-09-21):** that is true of the gate's `if`, not of what R3 asserts. R3 needs
+  `isOwner(req)`, `localTrusted` and `403` inside its window. The window now starts at the refusal's own
+  `signAs === 'assistant'`, so its `403` is the refusal's, and the gate's `403` falls outside. The gate's answer
+  stays pinned by `default-deny-mutations` AC3 and G4 (review 5, non-blocking 1; ledger
+  `2026-09-21-r3-sentinels-miss-owner-gate-403`).
 
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
 - Test plan: `engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-profile/5-one-writer-for-assistant-profiles.md`

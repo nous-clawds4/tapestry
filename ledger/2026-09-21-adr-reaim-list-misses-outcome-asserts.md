@@ -31,5 +31,13 @@ caught it. The Implementer moved the refusal just above the branch (same behavio
 leaves the gate 537 characters in. So the fix shape needs one more clause: **open every hit**, and treat a
 position- or window-based source sentinel as asserting the file's layout, not just its literals.
 
+**2026-09-21 — corrected at story 5's review (non-blocking 1).** The paragraph above says the gate is back inside
+the window. That is true of the gate's `if`, not of what R3 asserts (`isOwner(req)`, `localTrusted` and `403` in
+the window). The window now starts at the refusal's own `signAs === 'assistant'`, so the `403` it sees is the
+refusal's; the gate's `403` falls outside. A planted gate answering 401, or a bare 200, passes both R3s — it is
+caught by `default-deny-mutations` AC3 and story 5's G4, so no behaviour is unpinned. The sharper lesson: a window
+sentinel does not only break on a layout change — **it can keep passing while measuring a different line.**
+Re-anchoring both R3s is ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`.
+
 **Pointer:** `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`, the opening
 "Re-aims" section (and the story 3 test plan's, `3-one-default-assistant-profile.test-plan.md:43-47`).
