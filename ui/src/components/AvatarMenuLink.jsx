@@ -1,5 +1,5 @@
 /**
- * One row in an avatar menu's personal / destinations section
+ * One row in an avatar menu's personal / destinations / account section
  * (navigation-scaffolding #2). Shared by the Brainstorm-side menus.
  *
  * Renders as an anchor so the link is copyable and middle-clickable, and so a

@@ -6,7 +6,7 @@ import { resolvePovReadParams } from '../utils/povReadParams';
 import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
 import AvatarMenuLink from '../components/AvatarMenuLink';
-import { personalLinks, destinationLinks } from '../config/avatarMenuLinks';
+import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import TopBar from '../components/TopBar';
 import SearchInput from '../components/SearchInput';
 import TagResultRow from '../components/TagResultRow';
@@ -566,6 +566,13 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
 
           <div className="bs-usermenu-section bs-usermenu-links">
             {destinationLinks.map(link => (
+              <AvatarMenuLink key={link.key} link={link} onNavigate={() => setOpen(false)} />
+            ))}
+          </div>
+
+          {/* Account setup + assistant management */}
+          <div className="bs-usermenu-section bs-usermenu-links">
+            {accountLinks.map(link => (
               <AvatarMenuLink key={link.key} link={link} onNavigate={() => setOpen(false)} />
             ))}
           </div>

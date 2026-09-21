@@ -183,4 +183,14 @@ async function resolveAssistantProfileState(options = {}) {
   return { hasProfile: true, profile: parseProfile(newest), event: newest, source: 'relay' };
 }
 
-module.exports = { resolveAssistantProfileState, importToLocalRelay };
+// The relay budget, the backstop and the two real helpers are shared with the person's-name lookup
+// (profileDefaults.js, ADR 0003), which asks the profile relays the same way.
+module.exports = {
+  resolveAssistantProfileState,
+  importToLocalRelay,
+  RELAY_BUDGET_MS,
+  BACKSTOP_MS,
+  withinBudget,
+  scanLocalKind0: realScanLocalKind0,
+  queryRelaysKind0: realQueryRelaysKind0,
+};
