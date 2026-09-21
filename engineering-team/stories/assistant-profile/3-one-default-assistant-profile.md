@@ -1,6 +1,6 @@
 # Story 3: One default profile for every assistant
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Feature
 **Epic:** `assistant-profile`
@@ -138,4 +138,4 @@ None. Resolved at approval (2026-09-11):
 
 - ADR: `engineering-team/decisions/assistant-profile/0003-one-role-free-default-profile.md`
 - Test plan: `engineering-team/stories/assistant-profile/3-one-default-assistant-profile.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-profile/3-one-default-assistant-profile.md`
