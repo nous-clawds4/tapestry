@@ -132,6 +132,22 @@ None open. Resolved when the owner approved this story (2026-09-20), all as prop
    sentence, and the three placeholder sentences. The follow page says kind 3. The owner's ask said
    "kind 1", but kind 3 is the follow-list kind (NIP-02).
 
+## Deviations
+
+Small judgment calls made during implementation (Implementer role, step 9):
+
+- **Numbered markers.** Each step's not-done marker shows its number (1–3) where Brainstorm shows
+  an icon. The repo has no icon library, and the number also carries the order. A
+  screen-reader-only "Not done:" leads each step's link text, because the marker itself is hidden
+  from assistive technology.
+- **Sentence case kept.** Brainstorm sets its badges and kicker in capitals. Here they keep sentence
+  case, so the page shows the approved copy exactly as written in § Copy.
+- **The Implementer's gate was scoped, not the full suite.** The diff touches only `ui/src/`, and a
+  full `npm test` takes about 53 minutes on this machine and is red by default on suites this diff
+  cannot reach (OPEN.md row 191, and `summaries-element-count`). The Implementer ran the 36 suites
+  that read the touched UI files (by grep of `test/`), plus the UI build, eslint, and a live browser
+  pass. The full suite runs once, at review.
+
 ## Linked artifacts
 - ADR: none (abbreviated path — the only design choices, routes and copy, are recorded above)
 - Test plan: none (abbreviated path)
