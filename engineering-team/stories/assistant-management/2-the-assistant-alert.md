@@ -132,5 +132,5 @@ None open. Resolved when the owner approved this story (2026-09-21), all as prop
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md`
 - Review: (filled in after Review phase)
