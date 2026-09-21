@@ -1,6 +1,6 @@
 # ADR 0003: One default assistant profile — a role-free definition, one public-instance rule, one finishing step for every publish
 
-**Status:** Accepted
+**Status:** Accepted (Amendment 1 appended 2026-09-21 — the status seam keeps story 2's literal publish list)
 **Date:** 2026-09-20
 **Story:** `engineering-team/stories/assistant-profile/3-one-default-assistant-profile.md`
 
@@ -538,7 +538,8 @@ A pure function.
   - `getPersonName`
   - `describeInstance`
   - `resolveAssistantProfileState`
-  - `getPublishRelays` (default `getAssistantPublishRelays`)
+  - ~~`getPublishRelays` (default `getAssistantPublishRelays`)~~ *(Removed by Amendment 1, 2026-09-21: the
+    seam takes no publish-list dependency.)*
 
 The handler's steps:
 
@@ -551,6 +552,8 @@ The handler's steps:
    Add `defaults` when `wantDefaults`.
 6. **Otherwise,** run both lookups at once:
    `const [personName, state] = await Promise.all([wantDefaults ? d.getPersonName(customerPubkey, { allowRelayLookup: allowRelayFallback }) : '', d.resolveAssistantProfileState({ assistantPubkey, allowRelayFallback, getPublishRelays: d.getPublishRelays })])`.
+   *(Amended 2026-09-21 — see Amendment 1: pass `getPublishRelays: getAssistantPublishRelays`, written
+   literally, not `d.getPublishRelays`.)*
 7. **Answer** with every existing field, plus `isPublicInstance`:
    - `defaults` is `buildDefaultProfile(...)`;
    - `computedNip05` is `{ localPart, domain, address }` when public, else `null`;
@@ -672,3 +675,36 @@ branch.
 - **Badged avatars** for Admins and Customers.
 - **In-app display fallbacks.**
 - **The kind 10040 wording question** (OPEN.md row 267).
+
+## Amendment 1 (2026-09-21) — the status seam keeps story 2's literal publish list
+
+### Why
+
+The implementation notes gave `createAssistantStatusHandler` a `getPublishRelays` dependency. The handler
+would then pass `getPublishRelays: d.getPublishRelays` to the setup check. That contradicts a guard that
+already exists:
+
+- Story 2's S3 (`test/assistant-publish-relays.test.js`) requires the literal
+  `getPublishRelays: getAssistantPublishRelays` in `handleAssistantStatus`'s body.
+- That literal is how the suite pins ADR 0002's rule that the setup check and the publisher read one
+  list.
+
+This came to light while the Phase 3 tests were being validated against a throwaway reference
+implementation. With the note followed as written, S3 fails with "handleAssistantStatus must pass
+getAssistantPublishRelays to the resolver". With the literal kept, S3 passes.
+
+### What changes
+
+- The status seam takes **no** `getPublishRelays` dependency. Its dependencies are `getOwnerPubkey`,
+  `getAdminPubkeys`, `getAssistantKeys`, `getPersonName`, `describeInstance` and
+  `resolveAssistantProfileState`.
+- Step 6 passes the list literally:
+  `d.resolveAssistantProfileState({ assistantPubkey, allowRelayFallback, getPublishRelays: getAssistantPublishRelays })`.
+
+### Consequences
+
+- **No test loses reach.** The Q-class of `test/one-default-assistant-profile.test.js` injects
+  `resolveAssistantProfileState`, and its fake never calls the list. The list itself stays covered by
+  story 1's U10 and story 2's L-class.
+- **Story 2's S3 stays as it is,** and so does ADR 0002's "one list both sides read".
+- **Firmware reinstall required?** No.
