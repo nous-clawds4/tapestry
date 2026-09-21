@@ -15,7 +15,8 @@ points people to it except the avatar menus' "Account Setup" link.
 
 ## Stories
 
-`stories/setup-status-and-alert/`. Both are features, so both take all five phases (Standard).
+`stories/setup-status-and-alert/`. All three take all five phases (Standard). #1 and #2 are
+features; #3 fixes #2's review findings, and its same-tab refresh needs a design.
 
 1. `1-setup-shows-where-you-stand.md`: each step on `/setup` shows done or not done for the signed-in
    viewer, by the rules ratified at planning. Signed-out visitors see the steps without marks and a
@@ -23,6 +24,13 @@ points people to it except the avatar menus' "Account Setup" link.
 2. `2-the-setup-alert.md`: Brainstorm's "Finish setting up your account · N steps left" pill in the
    top bar of both halves of the app. It counts only the steps story 1 is *confident* are not done.
    Depends on #1.
+3. `3-setup-alert-polish.md`: story 2's four review findings, fixed by the owner's calls:
+   - dark text on the amber button, at 4.5:1 or better;
+   - the pill announced exactly as it reads;
+   - a re-check after the app publishes the viewer's follow list or Treasure Map;
+   - hidden on the setup pages in any letter case.
+
+   Depends on #2.
 
 ## What Brainstorm has
 
