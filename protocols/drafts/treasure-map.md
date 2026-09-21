@@ -64,7 +64,7 @@ Specific DLists, where specified, supercede the assistant pubkey for generic DLi
   [39998:<d-tag>, <assistant_pubkey_for_d-tag>, <relay>]
 ```
 
-The a-tag of the DList Header can be recreated like this: `39998:<assistant_pubkey>:<d-tag>`. 
+The a-tag of the DList Header can be recreated like this: `39998:<assistant_pubkey>:<d-tag>`. This a-tag becomes the z-tag for the events published by the Assistant.
 
 Multiple DLists can be managed by distinct assistants simultaneously:
 
@@ -96,5 +96,9 @@ The following is valid:
 
 ## Discussion
 
-Note that the proposed spec for Trusted Lists is consistent with the original NIP-85 spec for Trusted Assertions in the sense that the events being published by the assistant pubkeys are kind 30382 and 30392 events, as indicated in the tag. However, the proposed spec for Decentralized Lists deviates: it is kind 39999 events that are being published, not 39998. 
+Note that the proposed spec for Trusted Lists is consistent with the original NIP-85 spec for Trusted Assertions in the sense that the events being published by the assistant pubkeys are kind 30382 and 30392 events, as indicated in the tag. However, the proposed spec for Decentralized Lists may seem like a deviation: it is kind 39999 events that are being published, not 39998. Explanation for this deviation: 
+
+There are two categories of Decentralized Lists: old school, the items of which are identified by their event kind; and new school, the items of which are identified by their z-tag. When the job of the Assistant is to publish items to old school DLists, the event kind (e.g. 3038x, 3039x) must be specified in the Treasure Map. When the job of the Assistant is to publish items to new school DLists, the z-tag must be specified in the Treasure Map.
+
+Question: How does a client know how to distinguish old school style versus new school style DLists when parsing a Treasure Map? Answer: 39998 and 39999 are automatically parsed as new school DLists. Everything else (3038x, 3039x) is parsed as old school DLists.
 
