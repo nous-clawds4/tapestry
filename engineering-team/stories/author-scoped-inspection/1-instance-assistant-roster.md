@@ -1,6 +1,6 @@
 # Story 1: The instance can say which assistants it controls, and for whom
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-20
 **Type:** Feature
 
@@ -81,4 +81,4 @@ instead of assuming everyone wants the owner's view.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/author-scoped-inspection/0001-instance-assistant-roster-and-delegate-resolver.md`
 - Test plan: `engineering-team/stories/author-scoped-inspection/1-instance-assistant-roster.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/author-scoped-inspection/1-4-author-scoped-inspection.md` (PASS)

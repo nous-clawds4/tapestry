@@ -1,6 +1,6 @@
 # Story 4: A b-tag that points at itself is visibly a self-declaration
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-20
 **Type:** Feature
 
@@ -74,4 +74,4 @@ None. This story is independent of stories 1–3 and could be built in any order
 ## Linked artifacts
 - ADR: `engineering-team/decisions/author-scoped-inspection/0002-author-scoped-views-on-active-b-tags.md`
 - Test plan: `engineering-team/stories/author-scoped-inspection/4-mark-self-declaration-rows.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/author-scoped-inspection/1-4-author-scoped-inspection.md` (PASS)

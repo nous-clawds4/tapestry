@@ -1,6 +1,6 @@
 # Story 2: Active b-tags shows every author, and every row names its own
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-20
 **Type:** Feature
 
@@ -70,4 +70,4 @@ None.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/author-scoped-inspection/0002-author-scoped-views-on-active-b-tags.md`
 - Test plan: `engineering-team/stories/author-scoped-inspection/2-every-author-on-active-b-tags.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/author-scoped-inspection/1-4-author-scoped-inspection.md` (PASS)
