@@ -43,17 +43,56 @@ The Assistant may manage items of decentralized lists on behalf of the user.
   [39998, <assistant_pubkey>, <relay>]
 ```
 
-The above says that for DLists, the headers of which are authored by assistant_pubkey, items on those DLists will be added and removed based on community curation criteria.
+The above says that for DLists, the headers of which are authored by assistant_pubkey, items on those DLists will be added and removed based on community curation criteria. Which DLists will be curated? Answer: DList Headers that are 1) authored by the assistant_pubkey and 2) contain a b-tag pointer. Given these criteria, it becomes possible for multiple assistant_pubkeys to be supported within a single 10040 event, as follows:
+
+```json
+  [39998, <assistant_pubkey1>, <relay>],
+  [39998, <assistant_pubkey2>, <relay>]
+```
+
+The DList Header event can be kind 39999 rather than kind 39998, as specified in the Decentralized Lists NIP. Therefore, the following is a valid entry in the kind 10040 event:
+
+```json
+  [39999, <assistant_pubkey>, <relay>]
+```
 
 ### specific DLists
 
 Specific DLists, where specified, supercede the assistant pubkey for generic DLists.
 
 ```json
-  [39998:<d-tag>, <assistant_pubkey>, <relay>]
+  [39998:<d-tag>, <assistant_pubkey_for_d-tag>, <relay>]
 ```
 
-The a-tag of the DList Header can be recreated like this: `39998:<assistant_pubkey>:<d-tag>`. It is presumed that the DList Header 
+The a-tag of the DList Header can be recreated like this: `39998:<assistant_pubkey>:<d-tag>`. 
+
+Multiple DLists can be managed by distinct assistants simultaneously:
+
+```json
+  [39998:<d-tag-1>, <assistant_pubkey1_for_d-tag-1>, <relay>],
+  [39998:<d-tag-2>, <assistant_pubkey2_for_d-tag-2>, <relay>]
+```
+
+## Combination
+
+The following is valid:
+
+```json
+  [30392, <assistant_pubkey>, <relay>],
+  [30392:<a-tag or event id of the Tag>, <assistant_pubkey>, <relay>]
+
+  [30393, <assistant_pubkey>, <relay>],
+  [30393:<a-tag or event id of the Tag>, <assistant_pubkey>, <relay>]
+
+  [39998, <assistant_pubkey1>, <relay>],
+  [39999, <assistant_pubkey1>, <relay>],
+
+  [39998, <assistant_pubkey2>, <relay>],
+  [39999, <assistant_pubkey2>, <relay>],
+
+  [39999:<d-tag-1>, <assistant_pubkey1>, <relay>],
+  [39998:<d-tag-2>, <assistant_pubkey2>, <relay>]
+```
 
 ## Discussion
 
