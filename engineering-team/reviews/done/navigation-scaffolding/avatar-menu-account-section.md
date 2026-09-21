@@ -537,3 +537,37 @@ this change: its routes, page shell and styles are separate, and it gives Accoun
 destination. The ledger update sits in the right row, and its load-bearing claims reproduce. What
 remains is record accuracy: my own comment wording (A1), a pointer for the setup book (A2), a
 lower-bound count (A3) and one wrong restart instruction (A4). None of them affects the code.
+
+---
+
+## Note 2026-09-21: `7c76945f` applies A1–A4
+
+`7c76945f` (parent `dda1c818`) touches three files and does exactly A1–A4, nothing else. Checked
+with `git show` plus a few read-only commands; the full gate was not re-run, because no code
+changed.
+
+- **A1 (`ui/src/styles.css:2880–2881`).** The comment carries my wording verbatim.
+  - The change is comment-only. With `/* */` comments stripped, the file is identical before and
+    after, and it has no `/*!` preserved comments, so the minified CSS can't change.
+  - Checked as a claim: it states the design intent (compact rather than full-width rows) and no
+    longer implies anything about viewport height.
+- **A2 (`engineering-team/audits/setup-page-scaffold/book.md:68–73`).** A new "Changes from
+  outside this book" section, placed between Path and Provenance.
+  - The section is accurate: all three render sites link "Account Setup" to `/setup`.
+  - Its review path resolves.
+  - Its paraphrase ("reach `/setup` only by typing its address") faithfully merges the story's
+    `:119–120` and `:130`.
+- **A3 (the ledger code block).** At `7c76945f`, the `--since` command still prints 19 (now
+  labelled a lower bound), and the new `git log --oneline cde8b282..HEAD -- src bin | wc -l`
+  prints 20. The one-commit difference is `22fe7f28`.
+- **A4 (the ledger's last sentence).** It is my sentence verbatim, and it holds:
+  - `072da83a` is the only commit since `cde8b282` that touches `package.json`, and all it adds is
+    the `gate:status` script;
+  - `package-lock.json` is blob-identical between `cde8b282` and HEAD;
+  - `npm ls --depth=0` in the container exits 0, with nothing missing, unmet or invalid;
+  - `firmware/` has had no commits since `cde8b282`, so a `--server` restart is enough to bring
+    the running stack up to the checkout.
+
+The branch is clean. The lint result is reported with the commit that adds this note.
+
+**PASS**
