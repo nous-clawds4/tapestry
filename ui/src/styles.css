@@ -8844,3 +8844,73 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-assistant-hub-edit-link { color: #a5b4fc; font-weight: 600; }
 
+/* ════════════════════════════════════════════════════════
+   The top bar's alert pill (assistant-management #2, ADR 0002). One slot
+   beside every avatar menu shows at most one pill, setup first. The
+   Assistant Alert is Tapestry's indigo; amber is kept for the Setup Alert
+   (.is-setup, setup-status-and-alert #2). One link, whose parts drop away
+   as the bar narrows: all of it; then no count (≤ 900px); then only the
+   mark and the button (≤ 480px).
+   ════════════════════════════════════════════════════════ */
+
+.bs-topbar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 0.3rem 0 0.7rem;
+  border: 1px solid rgba(165,180,252,0.45);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.bs-topbar-pill:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+.bs-topbar-pill.is-assistant,
+.bs-topbar-pill.is-assistant:hover {
+  color: #c7d2fe;
+  background: rgba(99,102,241,0.14);
+}
+.bs-topbar-pill.is-assistant:hover { border-color: rgba(165,180,252,0.7); }
+.bs-topbar-pill-count { opacity: 0.85; }
+.bs-topbar-pill-button {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.bs-topbar-pill.is-assistant .bs-topbar-pill-button {
+  background: #6366f1;
+  color: #fff;
+}
+
+/* The Tapestry header's auth area holds the pill and the user menu in one row. */
+.header-auth {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .bs-topbar-pill-count { display: none; }
+}
+@media (max-width: 480px) {
+  .bs-topbar-pill-text { display: none; }
+  .bs-topbar-pill { gap: 0.35rem; padding-left: 0.55rem; font-size: 0.72rem; }
+  /* Only while a pill is present, the bar gives up its own words so nothing scrolls sideways
+     (ADR 0002 sub-decision 6): TopBar's logo word; the Tapestry user button's name and role, and
+     the brand's word (the 🧠 stays) — without it the brand wraps, and the fixed Tapestry header
+     grows taller than the 48px the page leaves for it. */
+  .bsp-top-bar:has(.bs-topbar-pill) .bsp-logo > span { display: none; }
+  .app-header:has(.bs-topbar-pill) .user-name,
+  .app-header:has(.bs-topbar-pill) .user-badge,
+  .app-header:has(.bs-topbar-pill) .header-brand-word { display: none; }
+}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePov } from '../context/PovContext';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import AvatarMenuLink from './AvatarMenuLink';
+import TopBarAlert from './TopBarAlert';
 
 /**
  * Compact user avatar + dropdown menu for Brainstorm Search pages.
@@ -102,7 +103,7 @@ export default function BrainstormUserMenu({ user, login, logout }) {
     profileBase: '/user',
   });
 
-  return (
+  const menu = (
     <div className="bs-usermenu" ref={menuRef}>
       <button
         className="bs-usermenu-avatar-btn"
@@ -206,6 +207,9 @@ export default function BrainstormUserMenu({ user, login, logout }) {
       )}
     </div>
   );
+
+  // The top bar's one alert slot sits beside the menu, in the same row (ADR assistant-management/0002).
+  return <><TopBarAlert />{menu}</>;
 }
 
 /**

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
+import TopBarAlert from './TopBarAlert';
 
 function shortPubkey(pk) {
   if (!pk) return '';
@@ -113,11 +114,15 @@ export default function Header({ onToggleSidebar }) {
         ☰
       </button>
       <div className="header-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-        <span className="header-brand-name">🧠 Tapestry</span>
+        {/* The word is its own span so a narrow bar can drop it beside an alert pill, keeping the 🧠. */}
+        <span className="header-brand-name">🧠 <span className="header-brand-word">Tapestry</span></span>
       </div>
       <div className="header-spacer" />
 
       <div className="header-auth">
+        {/* The top bar's one alert slot, beside the user menu. It renders only for a signed-in viewer
+            (ADR assistant-management/0002). */}
+        <TopBarAlert />
         {loading ? (
           <span className="header-loading">…</span>
         ) : user ? (

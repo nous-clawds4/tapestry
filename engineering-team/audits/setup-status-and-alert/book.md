@@ -134,6 +134,25 @@ Around the run:
 
 Each story's test plan pins the exact suite list, and the Reviewer quotes the `gate:status` line.
 
+## Changes from outside this book
+
+- **2026-09-21 — The top bar has one alert slot, and the Setup Alert's place in it is ready** (book
+  `assistant-management`, story 2; ADR assistant-management/0002).
+  - `ui/src/components/TopBarAlert.jsx` is mounted beside every avatar menu: `BrainstormUserMenu`, the
+    landing page's `UserMenu`, the Tapestry `Header`, and `DevPage` where the menu would be. It shows at
+    most one pill.
+  - The rule is the owner's: setup first (book assistant-management § Decisions 2).
+    `pickTopBarPill` (`ui/src/utils/topBarAlert.js`) returns `'setup'`, with
+    `useSetupStatus().pendingCount`, whenever the Setup Alert would count a step. It returns the
+    Assistant Alert only when the setup answer counts nothing, or when the setup check has failed.
+  - **For story 2 here (the Setup Alert):** render the Setup pill in the slot's `'setup'` branch, which
+    renders nothing today. Add its own hide rule for `/setup` and its step pages. Style it with the
+    shared `.bs-topbar-pill` base plus an `.is-setup` modifier in amber. Its ADR may reshape the slot,
+    but must keep "one pill at a time, setup first".
+  - Until then, a viewer with a setup step left sees no pill at all.
+  - The slot reads the shared setup status on every page, so `/api/setup/status` is now asked once per
+    full page load for any signed-in viewer, where before only `/setup` asked it.
+
 ## Provenance
 - **Mode:** Acceptance-frame
 - **Confidence at close:** —

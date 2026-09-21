@@ -130,6 +130,30 @@ None open. Resolved when the owner approved this story (2026-09-21), all as prop
    rule exists so that two pills never show at once. When the setup check fails the Setup Alert
    shows nothing, so the Assistant pill has nothing to give way to.
 
+## Deviations
+
+Small judgment calls made during implementation (Implementer role, step 9):
+
+- **In the Tapestry header, the slot is the first child of `.header-auth`,** ahead of its
+  loading, signed-in and signed-out branches. ADR 0002 sub-decision 4 puts it inside the signed-in
+  branch. The slot draws nothing unless someone is signed in, so the page is the same either way, and
+  this is a one-line diff.
+- **In the two Brainstorm menus, the existing JSX is kept whole.** It is assigned to `const menu`, and
+  the component returns `<><TopBarAlert />{menu}</>`. That is the DOM sub-decision 4 describes, without
+  re-indenting a return of about 100 lines, so each menu's diff is four lines.
+- **Phone width (sub-decision 6's shedding order):**
+  - **Brainstorm bars:** only the first step was needed, `TopBar`'s logo word. `.bsp-top-nav` stays.
+  - **The Tapestry header:** the user name and role went first, as ordered, and then the brand's word.
+    The dropdown arrow was skipped.
+    - Nothing scrolled sideways, which is all browser B6 checks. But a screenshot showed the brand
+      wrapping onto two lines at 375 px.
+    - Measured: the fixed header grew from its usual 55 px to 71 px, covering 23 px of the page, whose
+      content starts at 48 px.
+    - Hiding the arrow changed nothing. Hiding the brand's word (the 🧠 stays) brought the header back
+      to 55 px, the same as with no pill.
+  - **Where it was measured:** B6 found no horizontal scroll with the pill showing on `/`, `/tags`,
+    `/about`, `/settings`, `/developers` and `/tapestry/`, at 1280, 800 and 375 px.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`
 - Test plan: `engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md`

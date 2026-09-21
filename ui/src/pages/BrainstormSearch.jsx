@@ -8,6 +8,7 @@ import { useHouseProfile } from '../components/BrainstormUserMenu';
 import AvatarMenuLink from '../components/AvatarMenuLink';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import TopBar from '../components/TopBar';
+import TopBarAlert from '../components/TopBarAlert';
 import SearchInput from '../components/SearchInput';
 import TagResultRow from '../components/TagResultRow';
 import PinnedTagChips from '../components/PinnedTagChips';
@@ -511,7 +512,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
     profileBase: '/user',
   });
 
-  return (
+  const menu = (
     <div className="bs-usermenu" ref={menuRef}>
       <button
         className="bs-usermenu-avatar-btn"
@@ -595,6 +596,10 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
       )}
     </div>
   );
+
+  // The top bar's one alert slot sits beside the menu, in the same row (ADR assistant-management/0002).
+  // UserMenu renders on the landing page and in the results view, so this one mount covers both.
+  return <><TopBarAlert />{menu}</>;
 }
 
 function timeAgoShort(unixSeconds) {
