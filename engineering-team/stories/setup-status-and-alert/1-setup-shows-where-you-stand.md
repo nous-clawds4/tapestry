@@ -132,5 +132,6 @@ None. The owner answered them at planning (2026-09-21). The answers are recorded
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md`
+  (tests: `test/setup-status.test.js`, `tests/brainstorm/setup-status.spec.js`)
 - Review: (filled in after Review phase)
