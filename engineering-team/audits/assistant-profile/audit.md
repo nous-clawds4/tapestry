@@ -214,7 +214,8 @@ none of that is this book's. **Changed from outside this book:** PR #722 (`navig
       sentence (ADR 0002 debt); OPEN.md #216.
 - [ ] **17. Story 5's post-deploy checks.** AC5 on production after promotion (ledger
       `2026-09-21-assistant-profile-ac5-postdeploy-check`); re-anchor the two R3 sentinels at the owner gate
-      (ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`).
+      (ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`). *2026-09-21: the AC5 half is done — story 5 was
+      promoted by #735 and every assistant profile on both instances is unchanged. The R3 re-anchor remains.*
 - [ ] **18. The Treasure Map's no-assistant state** could now link to `/assistant`, where Admins and Customers can
       create one (`treasure-map-user-assistant` audit §6, provisioning UX).
 - [ ] **19. The dashboard has no error boundary.** OPEN.md #274.
