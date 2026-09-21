@@ -27,6 +27,12 @@
  * Against current code everything FAILS except the R guards: profileDefaults.js does not exist, the
  * status handler has no seam, the publish handler still builds the two-branch default, adds no client
  * tag and always sets a NIP-05, and the dashboard and editor still supply their own values.
+ *
+ * Re-aimed by assistant-profile #5 (ADR 0005): a publish must now carry content, and only the person an
+ * assistant belongs to may publish it. E1, E3, E5 and E6 publish the default the way the page does (the
+ * offered table, as content); E7's guard moves to the status seam, where the definition is now offered;
+ * E8 expects the Owner to be refused a Customer's assistant; W2 and R1 expect the dashboard and the
+ * legacy pages to publish nothing.
  */
 
 const fs = require('fs');
@@ -751,8 +757,11 @@ async function publish(opts, customerPubkey, sessionPubkey, content) {
   return { res, calls: f.calls, keys: f.keys, event, signed };
 }
 
-test('E1: a default publish (no content — the legacy pages, "Use the default profile") on a public instance signs exactly the table, the server-managed NIP-05 and ["client", "‹domain›"]', async () => {
-  const { res, calls, keys, event, signed } = await publish({}, CUSTOMER, CUSTOMER);
+// E1, E3, E5 and E6 re-aimed by assistant-profile #5 (ADR 0005 sub-decision 2): a publish with no content is now
+// refused, so the default reaches a publish the way the page sends it — "Reset to defaults" puts the table the
+// status offers into the form, and Publish sends it as content. What is signed does not change.
+test('E1: publishing the offered default (what "Reset to defaults" then Publish sends) on a public instance signs exactly the table, the server-managed NIP-05 and ["client", "‹domain›"]', async () => {
+  const { res, calls, keys, event, signed } = await publish({}, CUSTOMER, CUSTOMER, tableFor(CUSTOMER, 'Carmen', PUBLIC));
   assert(res.statusCode === 200 && res.body && res.body.success === true && event, `got ${res.statusCode} ${j(res.body)}`);
   const want = signedDefaultFor(CUSTOMER, 'Carmen', keys[CUSTOMER].pubkey, PUBLIC);
   assert(same(signed, want), `AC1 + AC3: the signed content must be the table — expected\n        ${j(want)}\n        got\n        ${j(signed)}`);
@@ -770,8 +779,8 @@ test('E2: an edited profile on a public instance keeps the user\'s fields, but i
   assert(j(event.tags) === j([['client', 'staging.brainstorm.world']]), `AC3: an edited profile carries the client tag too — got ${j(event.tags)}`);
 });
 
-test('E3: a default publish on an instance that is not public carries no website, no NIP-05 and no client tag — and writes no nostr.json mapping', async () => {
-  const { res, calls, keys, event, signed } = await publish({ instance: NOT_PUBLIC }, CUSTOMER, CUSTOMER);
+test('E3: publishing the offered default on an instance that is not public carries no website, no NIP-05 and no client tag — and writes no nostr.json mapping', async () => {
+  const { res, calls, keys, event, signed } = await publish({ instance: NOT_PUBLIC }, CUSTOMER, CUSTOMER, tableFor(CUSTOMER, 'Carmen', NOT_PUBLIC));
   const want = signedDefaultFor(CUSTOMER, 'Carmen', keys[CUSTOMER].pubkey, NOT_PUBLIC);
   assert(same(signed, want), `AC3 + AC4: expected ${j(want)}, got ${j(signed)}`);
   assert(event && j(event.tags) === j([]), `AC3: no client tag on an instance that is not public — got ${j(event && event.tags)}`);
@@ -787,10 +796,10 @@ test('E4: an edited profile on an instance that is not public carries no NIP-05 
   assert(event && j(event.tags) === j([]), `AC3: no client tag — got ${j(event && event.tags)}`);
 });
 
-test('E5: the Owner, an Admin and a Customer each publishing their own default get the same table — differing only in name, npub and NIP-05', async () => {
+test('E5: the Owner, an Admin and a Customer each publishing their own offered default get the same table — differing only in name, npub and NIP-05', async () => {
   const signedBy = {};
   for (const person of [OWNER, ADMIN, CUSTOMER]) {
-    const { res, keys, signed } = await publish({}, person, person);
+    const { res, keys, signed } = await publish({}, person, person, tableFor(person, NAMES[person], PUBLIC));
     assert(res.statusCode === 200 && res.body.success === true, `${NAMES[person]}: got ${res.statusCode} ${j(res.body)}`);
     const want = signedDefaultFor(person, NAMES[person], keys[person].pubkey, PUBLIC);
     assert(same(signed, want), `AC1 + AC5: ${NAMES[person]}'s default must be the table — expected ${j(want)}, got ${j(signed)}`);
@@ -802,28 +811,36 @@ test('E5: the Owner, an Admin and a Customer each publishing their own default g
 });
 
 test('E6: the person\'s name feeds the NIP-05 local-part too, and the publisher may look it up on the relays', async () => {
-  const named = await publish({}, CUSTOMER, CUSTOMER);
+  const named = await publish({}, CUSTOMER, CUSTOMER, tableFor(CUSTOMER, 'Carmen', PUBLIC));
   assert(named.signed && named.signed.nip05 === `${localPartFor('Carmen', named.keys[CUSTOMER].pubkey)}@staging.brainstorm.world`,
     `ADR 0003 sub-decision 3: the same ‹name› names the NIP-05 — got ${j(named.signed && named.signed.nip05)}`);
   assert(named.calls.personName.length >= 1 && named.calls.personName.every((c) => c.pubkey === CUSTOMER && c.options && c.options.allowRelayLookup === true),
     `a publish is always signed in (the person or the Owner), so the lookup may reach the profile relays — got ${j(named.calls.personName)}`);
-  const unnamed = await publish({ names: {} }, CUSTOMER, CUSTOMER);
+  const unnamed = await publish({ names: {} }, CUSTOMER, CUSTOMER, tableFor(CUSTOMER, '', PUBLIC));
   assert(unnamed.signed && unnamed.signed.nip05 === `tapestry-assistant-${unnamed.keys[CUSTOMER].pubkey.slice(-6)}@staging.brainstorm.world`,
     `no name → no name part (format unchanged) — got ${j(unnamed.signed && unnamed.signed.nip05)}`);
 });
 
-test('E7: the one definition cannot be swapped out through the seam — an injected buildDefaultProfileContent changes nothing', async () => {
-  const { signed, keys } = await publish({ deps: { buildDefaultProfileContent: async () => ({ name: 'Injected', about: 'a second definition' }) } }, CUSTOMER, CUSTOMER);
-  assert(same(signed, signedDefaultFor(CUSTOMER, 'Carmen', keys[CUSTOMER].pubkey, PUBLIC)),
-    `AC5 ("every path that publishes an assistant profile starts from this one definition"), ADR 0003 sub-decision 5 — got ${j(signed)}`);
+// Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 2): the publish handler no longer builds a default, so
+// the guard moves to where the one definition is now offered — the status answer's defaults.
+test('E7: the one definition cannot be swapped out through a seam — an injected buildDefaultProfileContent or buildDefaultProfile leaves the offered defaults exactly the table', async () => {
+  const injected = {
+    buildDefaultProfileContent: async () => ({ name: 'Injected', about: 'a second definition' }),
+    buildDefaultProfile: () => ({ name: 'Injected', about: 'a second definition' }),
+  };
+  const { res } = await askStatus({ deps: injected }, { customerPubkey: CUSTOMER, session: CUSTOMER });
+  assert(res.statusCode === 200 && res.body && same(res.body.defaults, tableFor(CUSTOMER, 'Carmen', PUBLIC)),
+    `AC5 ("every path that publishes an assistant profile starts from this one definition"), ADR 0003 sub-decision 5 — got ${res.statusCode} ${j(res.body && res.body.defaults)}`);
 });
 
-test('E8: the Owner publishing a Customer\'s default publishes the CUSTOMER\'s — their name, their npub, their assistant', async () => {
-  const { signed, keys, event, calls } = await publish({}, CUSTOMER, OWNER);
-  assert(same(signed, signedDefaultFor(CUSTOMER, 'Carmen', keys[CUSTOMER].pubkey, PUBLIC)),
-    `principle 1 — whose assistant: the default describes the assistant's own person, never the caller — got ${j(signed)}`);
-  assert(event && event.pubkey === keys[CUSTOMER].pubkey, 'signed by the Customer\'s assistant');
-  assert(calls.personName.every((c) => c.pubkey === CUSTOMER), `the name looked up is the Customer's — got ${j(calls.personName)}`);
+// Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 2; epic decision 4): the Owner used to be able to publish a
+// Customer's assistant through the API. Everyone now publishes their own, so the Owner is refused.
+test('E8: the Owner publishing a Customer\'s assistant is refused — 403 "not-your-assistant" — and nothing is signed, saved, looked up or mapped', async () => {
+  const { res, calls, event } = await publish({}, CUSTOMER, OWNER, tableFor(CUSTOMER, 'Carmen', PUBLIC));
+  assert(res.statusCode === 403 && res.body && res.body.success === false && res.body.code === 'not-your-assistant',
+    `epic decision 4 ("everyone manages their own assistant"), ADR 0005 sub-decision 2 — got ${res.statusCode} ${j(res.body && { ...res.body, event: undefined })}`);
+  assert(!event && calls.nip05.length === 0 && calls.personName.length === 0,
+    `a refusal writes nothing and looks nothing up — got ${calls.importEvent.length} local write(s), ${calls.nip05.length} NIP-05 mapping(s), ${calls.personName.length} name lookup(s)`);
 });
 
 /* ───────────────────────── W — the browser code, by source (CI's backstop for the B-class) ───────────────────────── */
@@ -835,7 +852,9 @@ test('W1: the dashboard\'s setup check asks for the setup state only — /api/as
     'ADR 0003 sub-decision 4: the hook runs on every signed-in dashboard load and never reads the defaults, so it must opt out of the name lookup');
 });
 
-test('W2: the dashboard supplies no assistant profile of its own — no robohash, no kind 0, no sign-as-assistant; it asks publish-profile for the one default', () => {
+// Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 4): the dashboard's "Use the default profile" is gone, so
+// the last assertion is inverted — the dashboard publishes no assistant profile at all.
+test('W2: the dashboard supplies no assistant profile of its own — no robohash, no kind 0, no sign-as-assistant — and, since assistant-profile #5, publishes none at all', () => {
   const src = codeOnly(safeRead(DASHBOARD));
   assert(src, 'ui/src/pages/Dashboard.jsx not found');
   const found = [];
@@ -843,7 +862,8 @@ test('W2: the dashboard supplies no assistant profile of its own — no robohash
   if (/signAs\s*:\s*['"]assistant['"]/.test(src)) found.push("signAs: 'assistant'");
   if (/\bkind\s*:\s*0\b/.test(src)) found.push('a kind 0 built in the browser');
   assert(found.length === 0, `AC5 ("every path that publishes an assistant profile starts from this one definition"): Dashboard.jsx still has ${found.join(', ')}`);
-  assert(/['"`]\/api\/assistant\/publish-profile['"`]/.test(src), 'ADR 0003 sub-decision 6: "Use the default profile" posts /api/assistant/publish-profile with no content');
+  assert(!/['"`]\/api\/assistant\//.test(src),
+    'ADR 0005 sub-decision 4: the dashboard posts nothing to /api/assistant/ — its one-click "Use the default profile" is gone; the profile is published on the My Assistant page');
 });
 
 test('W3: the editor never puts a relative path into the picture field — not the upload\'s path, not the relative branded image', () => {
@@ -895,14 +915,15 @@ test('S4: one notion of "public" — profileDefaults.js uses the SSRF guard\'s c
 
 /* ───────────────────────── R — regression guards (pass before and after) ───────────────────────── */
 
-test('R1: the legacy pages still publish with no content — so they publish the one default (AC5\'s legacy path)', () => {
+// Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 5), as this guard asked: the legacy pages no longer publish,
+// so AC5's legacy path is gone — each panel keeps its read-only status and links to the My Assistant page instead.
+test('R1: the legacy pages publish no assistant profile — neither posts publish-profile, and each links to the My Assistant page (/assistant)', () => {
   for (const file of [NIP85_PAGE, CUSTOMER_PAGE]) {
     const src = safeRead(file);
     assert(src, `${path.relative(REPO, file)} not found`);
-    const at = src.indexOf("'/api/assistant/publish-profile'");
-    assert(at >= 0, `${path.relative(REPO, file)} no longer posts publish-profile — story 5 retires these pages; update this guard then`);
-    assert(/body:\s*JSON\.stringify\(\{\s*customerPubkey:\s*[\w.]+\s*\}\)/.test(src.slice(at, at + 400)),
-      `${path.relative(REPO, file)} must send only customerPubkey, so the server's one definition is what gets published`);
+    assert(!src.includes('/api/assistant/publish-profile'),
+      `${path.relative(REPO, file)} still posts /api/assistant/publish-profile — ADR 0005 sub-decision 5: the legacy panels publish nothing`);
+    assert(/<a\b[^>]*\bhref=["']\/assistant["']/.test(src), `${path.relative(REPO, file)} must link to the My Assistant page (/assistant)`);
   }
 });
 

@@ -65,5 +65,5 @@ None.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.test-plan.md`
 - Review: (filled in after Review phase)

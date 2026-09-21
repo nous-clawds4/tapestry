@@ -13,8 +13,8 @@ const zlib = require('zlib');
  * what the page does with it:
  *
  *   B0 — the served bundle contains the code under test.                          [prerequisite]
- *   B1 — the Owner's "Use the default profile" asks publish-profile for the one default — no
- *        content, no kind 0 built in the browser — and the prompt goes away.        [AC5, AC1]
+ *   B1 — the dashboard builds no kind 0 of its own and, since assistant-profile #5, publishes
+ *        none: the Owner's prompt offers no one-click publish.                     [AC5, AC1]
  *   B2 — the dashboard's setup check asks for the setup state only (defaults=0).    [ADR 0003 §4]
  *   B3 — a badged avatar the instance cannot publish is never put into the picture field as a
  *        relative path; the editor says why and offers the branded image.         [AC4]
@@ -36,6 +36,10 @@ const zlib = require('zlib');
  *
  * Re-aimed by assistant-profile #4 (ADR 0004): the editor now lives on the My Assistant page, /assistant,
  * and the proxy's "no picture" answer carries code: 'no-picture', which the 'missing' mock now sends.
+ *
+ * Re-aimed by assistant-profile #5 (ADR 0005): the dashboard's "Use the default profile" is gone, so B1
+ * now expects no one-click publish at all, and B0 looks for the editor's non-public NIP-05 line instead
+ * of the button's label.
  */
 
 // Fixtures, never live keys: the runtime lookups are mocked to return them.
@@ -212,30 +216,28 @@ test.describe('One default profile for every assistant (assistant-profile #3)', 
   });
 
   /* ───────── B0 — is the code under test the code that is running? ───────── */
+  // Re-aimed by assistant-profile #5: "Use the default profile" left the bundle with the button (ADR 0005), so the
+  // marker is now the editor's non-public NIP-05 line — story 3's code, which stays (ADR 0003 sub-decision 7).
   test('B0: the served origin runs a build that contains the code under test', async ({ request, baseURL }) => {
-    const { found, why } = await bundleContains(request, 'Use the default profile');
+    const { found, why } = await bundleContains(request, 'no NIP-05 is published');
     expect(found,
-      `the bundle served by ${baseURL} does not contain "Use the default profile", the label ADR 0003 gives the dashboard's ` +
-      `one-default button (${why}). Either the bundle predates your edit — run \`cd ui && npm run build\` — or it is not ` +
-      'implemented, in which case B1 says so directly.').toBe(true);
+      `the bundle served by ${baseURL} does not contain "no NIP-05 is published", the editor's line for an instance that is not ` +
+      `public (ADR 0003 sub-decision 7) (${why}). Either the bundle predates your edit — run \`cd ui && npm run build\` — or it is ` +
+      'not implemented, in which case B7 says so directly.').toBe(true);
   });
 
-  /* ───────── B1 — AC5: the dashboard's path starts from the one definition ───────── */
-  test('B1: the Owner\'s "Use the default profile" asks publish-profile for the one default — no content, no kind 0 of its own — and the prompt goes away', async ({ page }) => {
+  /* ───────── B1 — AC5: the dashboard builds no profile of its own — and, since story 5, publishes none ───────── */
+  // Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 4): the dashboard's one-click publish is gone. The one
+  // definition now reaches a publish only through the My Assistant page's form ("Reset to defaults", then Publish).
+  test('B1: the Owner\'s prompt offers no one-click publish — neither "Use the default profile" nor "Surprise me" — and the dashboard sends nothing to publish-profile or to the generic signer', async ({ page }) => {
     const log = await mockDashboard(page, OWNER_USER);
     await openDashboard(page);
     await expect(page.getByRole('button', { name: PROMPT_BUTTON }), 'precondition: the Owner\'s assistant has no profile, so the prompt shows').toHaveCount(1);
-    const button = page.getByRole('button', { name: USE_DEFAULT });
-    await expect(button,
-      'ADR 0003 sub-decision 6: the Owner is offered "Use the default profile" — "Surprise me" published its own name and robohash picture, ' +
-      'a second definition').toHaveCount(1);
-    await button.click();
-    await expect.poll(() => log.publishBodies.length, { timeout: 10000, message: 'the button must POST /api/assistant/publish-profile' }).toBe(1);
-    expect(log.publishBodies[0],
-      'AC5: exactly { customerPubkey } and no content — so the server\'s one definition is what gets signed').toEqual({ customerPubkey: OWNER });
+    await expect(page.getByRole('button', { name: USE_DEFAULT }),
+      'ADR 0005 sub-decision 4: the dashboard offers no way to write the assistant\'s profile — "Use the default profile" is gone').toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Surprise me/ }), 'nor the button it replaced').toHaveCount(0);
+    expect(log.publishBodies, 'AC5 (story 3) / AC1 (story 5): the dashboard publishes nothing').toEqual([]);
     expect(log.strfryBodies, 'AC5: nothing may be signed through the generic sign-as-assistant endpoint').toEqual([]);
-    await expect(page.getByRole('button', { name: PROMPT_BUTTON }),
-      'after the publish the setup check is asked again, and the prompt goes away').toHaveCount(0, { timeout: 10000 });
   });
 
   /* ───────── B2 — the setup check does not pay for the defaults ───────── */
