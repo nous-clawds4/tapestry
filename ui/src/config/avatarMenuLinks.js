@@ -83,6 +83,6 @@ export const destinationLinks = [
  * assistant. Rendered as its own section, below the front doors.
  */
 export const accountLinks = [
-  { key: 'account-setup', icon: '🛠️', label: 'Account Setup', to: '/setup' },
+  { key: 'account-setup', icon: '🧭', label: 'Account Setup', to: '/setup' },
   { key: 'assistant-management', icon: '🎛️', label: 'Assistant Management', to: '/assistant' },
 ];

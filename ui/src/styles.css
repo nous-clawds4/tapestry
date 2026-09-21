@@ -759,6 +759,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   min-width: 200px;
   z-index: 100;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  /* The header is fixed, so scrolling the page can't reach rows below the
+     fold — a menu taller than the viewport scrolls inside itself instead. */
+  max-height: calc(100vh - 60px);
+  max-height: calc(100dvh - 60px);
+  overflow-y: auto;
 }
 
 .dropdown-header {
@@ -2871,9 +2876,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   flex-direction: column;
   gap: 0.4rem;
 }
-/* Personal + destination link sections (navigation-scaffolding #2). Compact
-   rows rather than the full-width boxes the footer uses — eight of those would
-   make the dropdown taller than most viewports. */
+/* Personal, destination and account link sections (navigation-scaffolding #2).
+   Compact rows rather than the full-width boxes the footer uses — a full-width
+   box per link would make the dropdown taller than most viewports. */
 .bs-usermenu-links {
   display: flex;
   flex-direction: column;
