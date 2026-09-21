@@ -1,6 +1,6 @@
 # ADR 0002: The Setup Alert, one self-contained pill mounted beside each avatar menu and reading the shared setup answer
 
-**Status:** Accepted
+**Status:** Accepted (Amendment 1 appended 2026-09-21: the control panel's brand yields room instead of wrapping)
 **Date:** 2026-09-21
 **Story:** `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md`
 **Builds on:** ADR 0001, whose provider and `pendingCount` this reads. It extends one line of ADR 0001
@@ -165,7 +165,7 @@ Finish setup → at 375 px, and no top bar scrolls".
     stays, as on the other Brainstorm bars.
   - In the control panel at ≤ 440 px, the OWNER/ADMIN badge hides while the pill shows.
   - Below 375 px, which AC-5 does not require, the control panel header can still be 26 px too wide
-    (measured at 320 px).
+    (measured at 320 px). *Superseded by Amendment 1: the header fits from 320 px.*
 - **ADR 0001 § 3, extended:** a new assistant for the same account is now also a reason to ask again
   (Decision 5).
 - **Firmware reinstall required?** No.
@@ -201,7 +201,8 @@ Finish setup → at 375 px, and no top bar scrolls".
 - **`BrainstormSearch.jsx` `UserMenu`:** the same at its signed-in return (`:515`).
 - **`Header.jsx`:** `<SetupAlert />` first inside `.header-auth`, ahead of the
   loading / signed-in / sign-in conditional. `styles.css` gains `.header-auth { display: flex;
-  align-items: center; gap: 8px; }`, which it has no rule for today.
+  align-items: center; gap: 8px; }`, which it has no rule for today. *Amendment 1 also puts the
+  brand's word in its own span.*
 - **`DevPage.jsx`:** `<div className="bsp-auth"><SetupAlert /></div>`.
 
 ### 3. Copy: `ui/src/pages/setup/steps.js`
@@ -228,7 +229,7 @@ Story 2 § Copy, verbatim:
     `Header.jsx:139`).
 
   With both rules the prototype fits every host at 375 and 440 px, and the Implementer re-measures
-  with the real styles.
+  with the real styles. *Amendment 1 adds a third rule, for the control panel's brand.*
 
 ### 5. Provider freshness: `ui/src/context/SetupStatusContext.jsx:30`
 
@@ -296,3 +297,64 @@ load (story 2 § Out of scope). ADR 0001 § 3 is otherwise unchanged:
 - **Brainstorm's "Trusted Lists update" pill.**
 - **The avatar menus' own entries,** and the Dashboard.
 - **Below 375 px.**
+
+## Amendment 1 — the control panel's brand yields room instead of wrapping (2026-09-21)
+
+**Raised by:** the Implementer, re-measuring with the real styles as § 4 asks. The owner chose to fix
+it in this story, during Implementation.
+
+**What the re-measurement found.** With the real styles, the pill is 143 px wide on phones, 333 px
+with the sentence and 412 px in full. § 4's rules hold: no top bar scrolls horizontally at 356 px
+or wider (the `TopBar` pages at 320 px or wider), so AC-5 is met. But while a pill shows, the
+control panel's brand, "🧠 Tapestry" (`Header.jsx`, `.header-brand-name`), wraps onto two lines
+whenever the header runs short of room, and the header grows from 55 to 71 px.
+
+Measured on the built UI with every `/api` route mocked:
+- every width from 320 to 1280 px, in 2 px steps;
+- signed in as each role;
+- with a 14-character and a 44-character display name.
+
+| Where | The brand wraps at |
+|---|---|
+| every role, on phones | 320–392 px |
+| just above § 4's 440 px rule, where the role badge returns | 442–448 (Owner), 442 (Admin), 442–466 (Customer), 442–444 (Guest) |
+| Customers, where the sentence appears | 640–656 px |
+| long display names, where the name appears (769 px) | 770–772 (Admin) to 770–794 (Customer) |
+
+Without a pill, the brand never wraps. The prototype behind § 4 measured only horizontal overflow,
+so it did not see this, and no test catches it.
+
+**Decision.** One more rule of the same kind as § 4. It applies only while a pill shows, and only in
+the control panel:
+- **The brand never wraps.** Where room runs short, it truncates with an ellipsis ("🧠 Tapes…").
+- **At `max-width: 440px` its word "Tapestry" hides and the 🧠 stays,** just as § 4 hides the
+  `TopBar` wordmark and keeps its icon.
+
+For the second rule, the word needs an element of its own. `Header.jsx`'s brand becomes
+`🧠 <span className="header-brand-word">Tapestry</span>` inside `.header-brand-name`, with its text
+unchanged. The CSS goes next to § 4's rules:
+
+```css
+.app-header:has(.bs-setup-alert) .header-brand { min-width: 0; }
+.app-header:has(.bs-setup-alert) .header-brand-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 440px) {
+  .app-header:has(.bs-setup-alert) .header-brand-word { display: none; }
+}
+```
+
+**Measured with it**, using the same sweep with the rule injected into the built page:
+- the header keeps its 55 px at every width from 320 to 1280 px, for every role and both name lengths;
+- it never scrolls horizontally;
+- the brand truncates only inside the ranges above, for example "🧠 Tape…" for a Customer at 450 px
+  and "🧠 Tapes…" at 650 px.
+
+**Consequences, updated:**
+- The control panel header now fits from 320 px. The "26 px too wide below 375 px" line in
+  § Consequences no longer holds.
+- **On phones, while the pill shows,** the control panel reads: ☰, 🧠, the pill, and the avatar
+  button. The role badge hides, per § 4.
+- **The developer pages' bar grows by about 7 px when the pill appears.** Its auth slot was empty,
+  and the pill is taller than the logo. This is accepted: it is the pill's own height, not a wrap.
+  No other host's bar changes height.
+- **Tests:** the Tester adds a browser check that, at those widths, the control panel header is
+  the same height with the pill as without it, and never scrolls.
