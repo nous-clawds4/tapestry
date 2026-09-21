@@ -265,8 +265,11 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
     for (const a of X.ACTIONS) await expect(main.locator(`a[href="${a.path}"]`), `"${a.title}" is an <a href="${a.path}">, so it opens in a new tab like any link`).toHaveCount(1);
     const bounties = X.ACTIONS.find((a) => a.path === '/assistant/bounties');
     // A click where a person would make it: on the description, by position. (Locator.click() refuses an element
-    // that another covers — and a card-wide link covers its description by design.)
-    const box = await main.getByText(bounties.text, { exact: true }).boundingBox();
+    // that another covers — and a card-wide link covers its description by design.) The card is below the fold,
+    // and mouse.click() does not scroll, so bring it into view first.
+    const description = main.getByText(bounties.text, { exact: true });
+    await description.scrollIntoViewIfNeeded();
+    const box = await description.boundingBox();
     expect(box, 'precondition: the Bounties card shows its description').not.toBeNull();
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect.poll(() => pathname(page), { message: 'a click on the card\'s description — not its title — opens the card\'s page' }).toBe(bounties.path);

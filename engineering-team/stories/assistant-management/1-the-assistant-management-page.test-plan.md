@@ -70,7 +70,14 @@ Scenarios not derivable from any single criterion, or kept as regression sentine
 - [x] **Sign-in resolving** never flashes a mark, the sign-in line or the no-assistant line (B4). The
       sampling runs while both auth reads are held back.
 - [x] **A click on the description, not the title**, opens the card (B5). This is the stretched-link
-      contract, clicked by position, the way a person clicks.
+      contract, clicked by position, the way a person clicks. The card is scrolled into view first,
+      because `mouse.click` does not scroll. That line was added in Phase 4, after the first
+      implementation run clicked outside the viewport.
+      - **The check has teeth.** Probed at Phase 4 with the CSS broken on purpose, a removed overlay
+        and a restored `opacity: 0.7` on the text each leave the click on the description, and the
+        page does not move.
+      - **The second one was a real defect.** It is why the card text fades by colour (story 1
+        § Deviations).
 - [x] **A NIP link click must not also navigate** the page to the card's address (B6). The URL is
       checked after the popup.
 - [x] **The editor keeps its visitor branch** after the move (B9, and W17 re-aimed).
