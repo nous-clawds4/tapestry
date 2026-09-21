@@ -64,6 +64,6 @@ None.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
