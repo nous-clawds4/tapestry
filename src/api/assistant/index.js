@@ -7,9 +7,10 @@
  *   - For a customer: their Customer Relay Key.
  *
  * The key is selected by getAssistantKeys(pubkey). The kind 0 event is signed
- * server-side with that key and published to local strfry plus the relays
- * getAssistantPublishRelays() names — the same list /api/assistant/status
- * consults when the local relay has no profile (ADR assistant-profile/0001).
+ * server-side with that key, written to local strfry, and then sent to the relays
+ * getAssistantPublishRelays() names — the instance's configured general-purpose,
+ * profile and WoT relays (ADR assistant-profile/0002), which is the same list
+ * /api/assistant/status consults when the local relay has no profile (ADR 0001).
  *
  * POST /api/assistant/publish-profile accepts an optional `content` object so
  * the caller can pass user-edited fields; when omitted, instance-branded
@@ -22,62 +23,12 @@ const { getAssistantKeys } = require('../../utils/assistantKeys');
 const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
 const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
 const { getSettings, updateOverrides, resetOverride } = require('../../config/settings');
-const WebSocket = require('ws');
 const { resolveAssistantProfileState, importToLocalRelay } = require('./profileState');
-
-/**
- * The relays an assistant's kind 0 is published to. It is also the list
- * /api/assistant/status asks when the local relay has no profile, so the check
- * can never consult a relay the publisher skipped (ADR assistant-profile/0001).
- * Story assistant-profile #2 makes it configuration-driven.
- */
-function getAssistantPublishRelays() {
-  return [
-    'wss://relay.primal.net',
-    'wss://relay.damus.io',
-    'wss://nos.lol',
-    'wss://wot.grapevine.network',
-    'wss://purplepag.es',
-  ];
-}
-
-/**
- * Publish a signed event to an external relay via WebSocket.
- * Returns a promise that resolves with success/failure.
- */
-function publishToRelay(relayUrl, signedEvent, timeoutMs = 10000) {
-  return new Promise((resolve) => {
-    try {
-      const ws = new WebSocket(relayUrl);
-      const timer = setTimeout(() => {
-        try { ws.close(); } catch {}
-        resolve({ relay: relayUrl, success: false, error: 'timeout' });
-      }, timeoutMs);
-
-      ws.on('open', () => {
-        ws.send(JSON.stringify(['EVENT', signedEvent]));
-      });
-
-      ws.on('message', (data) => {
-        try {
-          const msg = JSON.parse(data.toString());
-          if (msg[0] === 'OK') {
-            clearTimeout(timer);
-            ws.close();
-            resolve({ relay: relayUrl, success: msg[2] !== false, message: msg[3] || '' });
-          }
-        } catch {}
-      });
-
-      ws.on('error', (err) => {
-        clearTimeout(timer);
-        resolve({ relay: relayUrl, success: false, error: err.message });
-      });
-    } catch (err) {
-      resolve({ relay: relayUrl, success: false, error: err.message });
-    }
-  });
-}
+const {
+  getConfiguredPublishRelays, getAssistantPublishRelays, publishToRelays,
+  publishSubject, summarizePublish, localFailureMessage,
+} = require('./profilePublish');
+const { isPublishLocalOnly } = require('../publish-policy');
 
 // NIP-05 (`nip05`) is server-computed and deterministic — see
 // computeAssistantLocalPart — so we intentionally exclude it from the list
@@ -268,116 +219,171 @@ function sanitizeProfileContent(content) {
  *   }
  * }
  * If `content` is omitted, instance-branded defaults are used (legacy behavior).
+ *
+ * The profile is written to this instance's relay first; only then does it go to the configured
+ * publish relays, and the answer says what each of them did (ADR assistant-profile/0002).
  */
-async function handlePublishProfile(req, res) {
-  try {
-    const { customerPubkey, content } = req.body;
-    if (!customerPubkey || !/^[0-9a-f]{64}$/.test(customerPubkey)) {
-      return res.status(400).json({ success: false, error: 'Valid customerPubkey is required' });
-    }
-
-    // Verify caller is the customer or the owner
-    const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
-    const isOwner = customerPubkey === ownerPubkey;
-    if (req.session?.pubkey !== customerPubkey && req.session?.pubkey !== ownerPubkey) {
-      return res.status(403).json({ success: false, error: 'Not authorized' });
-    }
-
-    // 1. Get assistant keys (unified: owner → TA key, customer → customer relay key)
-    const relayKeys = await getAssistantKeys(customerPubkey);
-    if (!relayKeys || !relayKeys.privkey) {
-      return res.status(400).json({ success: false, error: isOwner ? 'Tapestry Assistant keys not found.' : 'Customer relay keys not found. Set up Trusted Assertions first.' });
-    }
-
-    // Convert privkey from nsec or hex to Uint8Array
-    let privkeyBytes;
-    if (typeof relayKeys.privkey === 'string') {
-      if (relayKeys.privkey.startsWith('nsec')) {
-        privkeyBytes = nostrTools.nip19.decode(relayKeys.privkey).data;
-      } else {
-        privkeyBytes = Buffer.from(relayKeys.privkey, 'hex');
-      }
-    } else {
-      privkeyBytes = relayKeys.privkey;
-    }
-
-    const assistantPubkey = nostrTools.getPublicKey(privkeyBytes);
-
-    // 2. Pick profile content: user-supplied if present, otherwise instance defaults
-    const profileContent = content && typeof content === 'object'
-      ? sanitizeProfileContent(content)
-      : await buildDefaultProfileContent(customerPubkey, isOwner);
-
-    // 2a. NIP-05 is server-managed. Compute the deterministic local-part from
-    // the caller's current display name and the assistant's pubkey, set it on
-    // the kind 0, and update settings.nip05.names so the existing
-    // /.well-known/nostr.json handler attests to it.
-    const callerName = await getKind0DisplayName(customerPubkey, '');
-    const localPart = computeAssistantLocalPart(callerName, assistantPubkey);
-    const domain = getInstanceDomain();
-    profileContent.nip05 = `${localPart}@${domain}`;
-
-    // Drop empty-string keys so we don't pollute kind 0 with blank fields.
-    // (nip05 was just set above, so it survives this pass.)
-    for (const k of Object.keys(profileContent)) {
-      if (profileContent[k] === '') delete profileContent[k];
-    }
-
-    const assistantName = profileContent.display_name || profileContent.name || 'Assistant';
-
-    const event = {
-      kind: 0,
-      pubkey: assistantPubkey,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [],
-      content: JSON.stringify(profileContent),
-    };
-
-    // 4. Sign with assistant's private key
-    const signedEvent = nostrTools.finalizeEvent(event, privkeyBytes);
-    console.log(`[assistant] Kind 0 event signed: ${signedEvent.id.slice(0, 16)}...`);
-
-    // 5. Publish to local strfry
-    await importToLocalRelay(signedEvent);
-
-    console.log(`[assistant] Kind 0 published to strfry for ${assistantPubkey.slice(0, 8)}`);
-
-    // 5b. Keep .well-known/nostr.json in sync. Done after the strfry publish so
-    // a publish failure doesn't leave a NIP-05 record pointing at a kind 0
-    // that isn't actually published.
-    try {
-      updateNip05Mapping(localPart, assistantPubkey);
-      console.log(`[assistant] NIP-05 mapping ${localPart} → ${assistantPubkey.slice(0, 8)} written`);
-    } catch (err) {
-      console.warn('[assistant] NIP-05 mapping update failed (kind 0 already published):', err.message);
-    }
-
-    // 6. Publish to external relays (in parallel, non-blocking)
-    const publishRelays = getAssistantPublishRelays();
-    const relayResults = await Promise.all(
-      publishRelays.map(relay => publishToRelay(relay, signedEvent))
-    );
-    const relaySuccesses = relayResults.filter(r => r.success).length;
-    console.log(`[assistant] Published to ${relaySuccesses}/${publishRelays.length} external relays`);
-    for (const r of relayResults) {
-      if (!r.success) console.warn(`[assistant] Failed: ${r.relay} — ${r.error || r.message || 'unknown'}`);
-    }
-
-    return res.json({
-      success: true,
-      event: signedEvent,
-      assistantPubkey,
-      assistantName,
-      nip05: { localPart, domain, address: `${localPart}@${domain}` },
-      relays: { total: publishRelays.length, success: relaySuccesses, results: relayResults },
-      message: `Tapestry Assistant profile published to strfry + ${relaySuccesses}/${publishRelays.length} external relays`,
-    });
-
-  } catch (err) {
-    console.error(`[assistant] Error publishing profile:`, err);
-    return res.status(500).json({ success: false, error: err.message });
-  }
+function defaultPublishProfileDeps() {
+  return {
+    getAssistantKeys: (pubkey) => getAssistantKeys(pubkey),
+    getOwnerPubkey: () => getConfigFromFile('BRAINSTORM_OWNER_PUBKEY'),
+    getKind0DisplayName: (pubkey, fallback) => getKind0DisplayName(pubkey, fallback),
+    buildDefaultProfileContent: (pubkey, isOwner) => buildDefaultProfileContent(pubkey, isOwner),
+    importEvent: (event) => importToLocalRelay(event),
+    updateNip05Mapping: (localPart, pubkey) => updateNip05Mapping(localPart, pubkey),
+    isLocalOnly: () => isPublishLocalOnly(),
+    getSettings: () => getSettings(),
+    publishToRelays: (event, relays, options) => publishToRelays(event, relays, options),
+    now: () => Date.now(),
+  };
 }
+
+/**
+ * Every side effect behind one seam (the dlist-curation way), so what this handler sends where can be
+ * tested without strfry, a key store or a relay.
+ */
+function createPublishProfileHandler(deps = {}) {
+  const d = { ...defaultPublishProfileDeps(), ...deps };
+
+  return async function handlePublishProfile(req, res) {
+    try {
+      const { customerPubkey, content } = req.body;
+      if (!customerPubkey || !/^[0-9a-f]{64}$/.test(customerPubkey)) {
+        return res.status(400).json({ success: false, error: 'Valid customerPubkey is required' });
+      }
+
+      // Verify caller is the customer or the owner
+      const ownerPubkey = d.getOwnerPubkey();
+      const isOwner = customerPubkey === ownerPubkey;
+      const sessionPubkey = req.session && req.session.pubkey;
+      if (sessionPubkey !== customerPubkey && sessionPubkey !== ownerPubkey) {
+        return res.status(403).json({ success: false, error: 'Not authorized' });
+      }
+
+      // Whose assistant this is, in the words every line of the answer will use.
+      const subject = publishSubject({
+        isOwnerTarget: isOwner,
+        isSelf: sessionPubkey === customerPubkey,
+        targetPubkey: customerPubkey,
+      });
+
+      // 1. Get assistant keys (unified: owner → TA key, customer → customer relay key)
+      const relayKeys = await d.getAssistantKeys(customerPubkey);
+      if (!relayKeys || !relayKeys.privkey) {
+        return res.status(400).json({ success: false, error: isOwner ? 'Tapestry Assistant keys not found.' : 'Customer relay keys not found. Set up Trusted Assertions first.' });
+      }
+
+      // Convert privkey from nsec or hex to Uint8Array
+      let privkeyBytes;
+      if (typeof relayKeys.privkey === 'string') {
+        if (relayKeys.privkey.startsWith('nsec')) {
+          privkeyBytes = nostrTools.nip19.decode(relayKeys.privkey).data;
+        } else {
+          privkeyBytes = Buffer.from(relayKeys.privkey, 'hex');
+        }
+      } else {
+        privkeyBytes = relayKeys.privkey;
+      }
+
+      const assistantPubkey = nostrTools.getPublicKey(privkeyBytes);
+
+      // 2. Pick profile content: user-supplied if present, otherwise instance defaults
+      const profileContent = content && typeof content === 'object'
+        ? sanitizeProfileContent(content)
+        : await d.buildDefaultProfileContent(customerPubkey, isOwner);
+
+      // 2a. NIP-05 is server-managed. Compute the deterministic local-part from
+      // the caller's current display name and the assistant's pubkey, set it on
+      // the kind 0, and update settings.nip05.names so the existing
+      // /.well-known/nostr.json handler attests to it.
+      const callerName = await d.getKind0DisplayName(customerPubkey, '');
+      const localPart = computeAssistantLocalPart(callerName, assistantPubkey);
+      const domain = getInstanceDomain();
+      profileContent.nip05 = `${localPart}@${domain}`;
+
+      // Drop empty-string keys so we don't pollute kind 0 with blank fields.
+      // (nip05 was just set above, so it survives this pass.)
+      for (const k of Object.keys(profileContent)) {
+        if (profileContent[k] === '') delete profileContent[k];
+      }
+
+      const assistantName = profileContent.display_name || profileContent.name || 'Assistant';
+
+      const event = {
+        kind: 0,
+        pubkey: assistantPubkey,
+        created_at: Math.floor(d.now() / 1000),
+        tags: [],
+        content: JSON.stringify(profileContent),
+      };
+
+      // 3. Sign with assistant's private key
+      const signedEvent = nostrTools.finalizeEvent(event, privkeyBytes);
+      console.log(`[assistant] Kind 0 event signed: ${signedEvent.id.slice(0, 16)}...`);
+
+      const localOnly = Boolean(d.isLocalOnly());
+
+      // 4. This instance's relay first (BIBLE §30). If it refuses the profile, nothing goes outward.
+      try {
+        await d.importEvent(signedEvent);
+      } catch (err) {
+        console.error(`[assistant] local write failed for ${assistantPubkey.slice(0, 8)}: ${err.message}`);
+        return res.status(500).json({
+          success: false,
+          stage: 'local',
+          localOnly,
+          error: localFailureMessage(subject, err.message),
+          relays: { total: 0, success: 0, results: [] },
+        });
+      }
+      console.log(`[assistant] Kind 0 published to strfry for ${assistantPubkey.slice(0, 8)}`);
+
+      // 4b. Keep .well-known/nostr.json in sync. Done after the strfry publish so
+      // a publish failure doesn't leave a NIP-05 record pointing at a kind 0
+      // that isn't actually published.
+      try {
+        d.updateNip05Mapping(localPart, assistantPubkey);
+        console.log(`[assistant] NIP-05 mapping ${localPart} → ${assistantPubkey.slice(0, 8)} written`);
+      } catch (err) {
+        console.warn('[assistant] NIP-05 mapping update failed (kind 0 already published):', err.message);
+      }
+
+      // 5. The relays this instance is configured to publish to — each reported as it answered.
+      const relayOptions = { deps: { getSettings: d.getSettings } };
+      const publishRelays = getAssistantPublishRelays({ localOnly, ...relayOptions });
+      const configuredRelays = localOnly ? getConfiguredPublishRelays(relayOptions) : publishRelays;
+      const results = localOnly
+        ? configuredRelays.map((relay) => ({ relay, status: 'skipped', reason: 'local-only publish mode' }))
+        : await d.publishToRelays(signedEvent, publishRelays);
+      const { outcome, message, accepted } = summarizePublish({ subject, rows: results, localOnly });
+
+      console.log(`[assistant] ${outcome}: ${message}`);
+      for (const row of results) {
+        if (row.status !== 'accepted') {
+          console.warn(`[assistant] ${row.relay} — ${row.status}${row.reason ? `: ${row.reason}` : ''}`);
+        }
+      }
+
+      return res.json({
+        success: true,
+        event: signedEvent,
+        assistantPubkey,
+        assistantName,
+        nip05: { localPart, domain, address: `${localPart}@${domain}` },
+        localOnly,
+        outcome,
+        relays: { total: results.length, success: accepted, results },
+        message,
+      });
+
+    } catch (err) {
+      console.error(`[assistant] Error publishing profile:`, err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  };
+}
+
+const handlePublishProfile = createPublishProfileHandler();
 
 /**
  * GET /api/assistant/status
@@ -542,6 +548,7 @@ async function handleProvisionAssistantKey(req, res) {
 // composite's publishable URL on the SAME rule as the branded default — one notion
 // of "could a stranger fetch this", not two (ADR ta-avatar/0003 D4).
 module.exports = {
-  handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey,
+  handlePublishProfile, createPublishProfileHandler,
+  handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey,
   buildDefaultProfileContent, getInstanceWebsite, isPubliclyReachable, getAssistantPublishRelays,
 };

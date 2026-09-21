@@ -19,20 +19,28 @@ const { getConfigFromFile } = require('../../utils/config');
  * GET /api/publish-policy
  * Returns { success, allowExternalPublish }. Public — not sensitive.
  */
+/**
+ * The deployment's posture, read in one place. The endpoint below answers from it, and so does the
+ * server-side assistant publish path (ADR assistant-profile/0002), so the browser and the server can
+ * never read this flag differently.
+ *
+ * env first (per-deployment, also how tests drive it), then brainstorm.conf, then default 'false'
+ * (guard off → external publishing). `!== undefined` (not truthiness): an explicitly-set empty string
+ * counts as "present" and resolves to guard-off — only the exact string 'true' engages the guard.
+ */
+function isPublishLocalOnly() {
+  const raw = process.env.BRAINSTORM_PUBLISH_LOCAL_ONLY !== undefined
+    ? process.env.BRAINSTORM_PUBLISH_LOCAL_ONLY
+    : getConfigFromFile('BRAINSTORM_PUBLISH_LOCAL_ONLY', 'false');
+  return raw === 'true';
+}
+
 function handleGetPublishPolicy(req, res) {
   try {
-    // env first (per-deployment, also how tests drive it), then brainstorm.conf,
-    // then default 'false' (guard off → external publishing). `!== undefined`
-    // (not truthiness): an explicitly-set empty string counts as "present" and
-    // resolves to guard-off — only the exact string 'true' engages the guard.
-    const raw = process.env.BRAINSTORM_PUBLISH_LOCAL_ONLY !== undefined
-      ? process.env.BRAINSTORM_PUBLISH_LOCAL_ONLY
-      : getConfigFromFile('BRAINSTORM_PUBLISH_LOCAL_ONLY', 'false');
-    const localOnly = raw === 'true';
-    return res.json({ success: true, allowExternalPublish: !localOnly });
+    return res.json({ success: true, allowExternalPublish: !isPublishLocalOnly() });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
 }
 
-module.exports = { handleGetPublishPolicy };
+module.exports = { handleGetPublishPolicy, isPublishLocalOnly };
