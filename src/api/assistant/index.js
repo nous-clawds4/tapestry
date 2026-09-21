@@ -24,6 +24,7 @@ const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
 const { getSettings, updateOverrides, resetOverride } = require('../../config/settings');
 const WebSocket = require('ws');
 const { resolveAssistantProfileState, importToLocalRelay } = require('./profileState');
+const { handleGetAssistantRoster } = require('./roster');
 
 /**
  * The relays an assistant's kind 0 is published to. It is also the list
@@ -543,5 +544,6 @@ async function handleProvisionAssistantKey(req, res) {
 // of "could a stranger fetch this", not two (ADR ta-avatar/0003 D4).
 module.exports = {
   handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey,
+  handleGetAssistantRoster,
   buildDefaultProfileContent, getInstanceWebsite, isPubliclyReachable, getAssistantPublishRelays,
 };
