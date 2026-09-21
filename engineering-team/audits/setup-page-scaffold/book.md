@@ -65,6 +65,13 @@ story records the only design choices (routes and copy), and `ui/` has no compon
 The story is committed before implementation starts, so spec and code land in separate commits (the
 fix shape OPEN.md row 212 proposes for this path).
 
+## Changes from outside this book
+
+- **2026-09-21 — `/setup` now has a way in.** The avatar menus link to it as "Account Setup",
+  added at the owner's request outside this book (review:
+  `engineering-team/reviews/done/navigation-scaffolding/avatar-menu-account-section.md`). Story 1's
+  out-of-scope line, that people reach `/setup` only by typing its address, no longer holds.
+
 ## Provenance
 - **Mode:** Acceptance-frame
 - **Confidence at close:** —

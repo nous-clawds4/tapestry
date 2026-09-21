@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
-import { personalLinks, destinationLinks } from '../config/avatarMenuLinks';
+import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 
 function shortPubkey(pk) {
   if (!pk) return '';
@@ -20,7 +20,7 @@ function classificationBadge(classification) {
 }
 
 /**
- * One row in the personal / destinations sections of the Tapestry avatar menu
+ * One row in the personal / destinations / account sections of the Tapestry avatar menu
  * (navigation-scaffolding #2). A link with no target — the assistant profile,
  * for a caller with no provisioned assistant key — renders disabled rather than
  * vanishing, so the menu reads the same for every signed-in user.
@@ -157,6 +157,10 @@ export default function Header({ onToggleSidebar }) {
                 )}
                 <hr className="dropdown-divider" />
                 {destinationLinks.map(link => (
+                  <MenuItem key={link.key} link={link} onGo={go} />
+                ))}
+                <hr className="dropdown-divider" />
+                {accountLinks.map(link => (
                   <MenuItem key={link.key} link={link} onGo={go} />
                 ))}
                 <hr className="dropdown-divider" />

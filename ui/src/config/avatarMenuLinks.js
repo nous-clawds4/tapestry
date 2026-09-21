@@ -77,3 +77,12 @@ export const destinationLinks = [
   { key: 'tapestry-dashboard', icon: '📊', label: 'Tapestry Dashboard', to: '/tapestry/' },
   { key: 'legacy-dashboard', icon: '🗂️', label: 'Legacy Dashboard', to: '/legacy/', external: true },
 ];
+
+/**
+ * Account destinations — getting your account set up, and managing your
+ * assistant. Rendered as its own section, below the front doors.
+ */
+export const accountLinks = [
+  { key: 'account-setup', icon: '🧭', label: 'Account Setup', to: '/setup' },
+  { key: 'assistant-management', icon: '🎛️', label: 'Assistant Management', to: '/assistant' },
+];
