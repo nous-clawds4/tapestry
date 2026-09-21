@@ -242,3 +242,136 @@ record future sessions will trust: the old process's start time (B1), which asse
 the exact text is given above.
 
 **CHANGES_REQUESTED**
+
+---
+
+## Round 2: `055aefbe` (2026-09-21, about 13:37Z to 13:47Z)
+
+**What was reviewed.** Fix commit `055aefbe` on the same branch, on top of `3fe69f02`, the round-1
+review above, which the orchestrator committed unchanged per row 316. The committed blob is the
+round-1 file, and `git status --short` was empty. `055aefbe` changes `OPEN.md` line 321 (row 289)
+and the ledger follow-up (19 insertions, 10 deletions), and nothing else. `origin/staging` was still
+`6eabd419` when fetched at the start of this round, and no PR is open against `staging`. Each
+changed statement was re-derived as a fresh claim, this reviewer's own round-1 wording included
+(`roles/reviewer.md` rule 10).
+
+### Quality gates (round 2)
+
+- [x] `bash scripts/harness-lint.sh` on `055aefbe`: exit 0, `harness-lint: clean (0 violations)`.
+      The output is byte-identical to round 1's after-state: the base's, plus one
+      `INFO non-numbered-review` line for this file.
+- [x] The same six suites, each through its `run()` export on Node 22.23.2 in the worktree:
+      `ledger-row-ids` 6/0, `operational-direction` 86/0/0, `curated-dlist-update-publish` 69/0/0,
+      `curated-dlist-update-update-preview` 34/0/0, `session-start` 32/0, `harness-lint` 76/0.
+      `git status --short` was empty afterwards.
+- [x] Row 289 still parses. One line differs from the base, and it has 9 fields and 8 pipes on both
+      sides. Every cell but Item is byte-identical, and the base's Item cell is a prefix of the new
+      one. The 1,132 added characters hold no pipe, 24 backticks and 4 bold markers, so both are
+      balanced. There are 342 numbered rows on both sides.
+- [x] A script checked the round-1 texts against the new blobs: each of round 1's seven fenced
+      blocks was searched for, whitespace-normalised. Both texts round 1 said to replace are gone.
+      B1's `OPEN.md` sentence, both B2 texts and the B3 bullet are present verbatim, apart from the
+      two changes the orchestrator disclosed: "The process that restart replaced", and the N5
+      clause inside B3.
+- [x] No remaining text gives 17:37 as the start time. The 17:37s left on the branch are ledger
+      line 77 (the `ps` output), line 78 (the pre-existing `--since` count, which round 1 found
+      unaffected), and the two B1 texts that explain them.
+- [ ] Full gate: not re-run (docs-only).
+
+### Claims (round 2)
+
+| Change | Evidence | Result |
+|---|---|---|
+| B1, `OPEN.md`: "the process named above, spawned at 2026-09-12 17:40:42Z according to the container's supervisord log; … whose 2026-09-21 follow-up explains why `ps` reads it as 17:37:30" | supervisord.log line 33 reads `2026-09-12 17:40:42,739 INFO spawned: 'brainstorm' with pid 5648`, and the next `brainstorm` spawn is line 46, at 2026-09-21 05:54:41. "Named above" is the same cell's "started 2026-09-12 17:40 UTC at `cde8b282`". The paragraph that explains the `ps` reading sits inside the ledger's "Follow-up 2026-09-21", between its first paragraph and its bullets. "Reads" is present tense for a process that no longer exists (R2-N1) | holds |
+| B1, ledger paragraph, with the orchestrator's "The process that restart replaced" | "That restart" can only be the first paragraph's "The backend restarted at 05:54:41Z": supervisord stopped the old `brainstorm` at 05:54:41.241 and spawned pid 162342 at 05:54:41.248. The referent is right, and the edit improves on "it". The rest was re-verified at 13:38Z. Reflog: `cde8b282 HEAD@{2026-09-12T13:40:27-04:00}`, 15.7 s before the spawn, so "about 15 s" holds. Row 289 says "17:40 UTC", and ledger line 77 shows 17:37:30. `ps -p 1` still prints `Fri Sep 11 17:04:45 2026`, against Docker `StartedAt` 2026-09-11T17:09:53.93Z. "It puts" gives a drifting reading in the present tense (R2-N2) | holds |
+| B2, both files | As round 1 (7b): H1 was the only failure, in the BEFORE run and in all 15 retained red records, and #724 rewrote H1, H2, H3 and the code. "Went green in that run" refers to the 06:43Z gate the update names | holds |
+| B3, ledger bullet | As round 1 (9b): the fifteen are row 289's re-run set, all red in the BEFORE run. Fourteen are unchanged, and the fifteenth is left undecided, which matches "Not attributable". "The update above" is the "Update 2026-09-21" section | holds |
+| N5, both files: "byte-identical failure messages" | The `failures` arrays are byte-identical, and all 50 entries carry a message. But the gate record clips messages at 500 characters: `test/helpers/gateRecord.js:37` sets `MAX_MESSAGE = 500`, `clip()` at `:94-96` does the clipping, and `:101` applies it. In both runs 7 of the 50 are clipped: the hygiene-check sentinels in `structures-the-brain-can-trust` H1, `break-a-goal-into-pieces` H2, `attach-the-world` H7, `sessions-read-the-brain` H9, `the-proposal-loop` H10, `teach-it-what-matters` H7 and `the-brain-survives` H8. Each is cut after the first entry of the hygiene check's problem list, and the rest of the list is not recorded. So only the recorded text can be called identical. The wording came from round 1's N5 | **fails: R2-B1** |
+| N2, ledger: "Its route and handler were registered at both commits (`src/api/index.js:543`)" | Line 543 is the roster route at `78a09be5` and at `aa4df2e3`. The handler is exported at both (`src/api/assistant/index.js:554` and `:530`). `roster.js` is unchanged in the range, and `a33dc5c7`, which added all three, is an ancestor of `78a09be5` | holds |
+| N2, ledger: "Its live class skipped unless the container served …" | The test file is unchanged in the range, so the past tense describes both runs | holds |
+| N3, ledger: "`OPEN.md` row 289" | Both new occurrences use the form in OPEN.md's header | holds |
+| `055aefbe`'s commit message | Its facts check out: 17:40:42Z, 15 s, 17:04:45 against 17:09:53Z, and "about eight and a half" days (8 d 12 h 14 m). "Each replacement applied as the reviewer worded it" is loose for the B1 paragraph (R2-N4) | fair |
+
+### Findings (round 2)
+
+#### Blocking
+
+**R2-B1. `OPEN.md:321` and `ledger/2026-09-20-live-tier-fails-on-stale-stack.md:129-130`: "byte-identical
+failure messages" claims more than the records hold.** My round-1 N5 ("their messages are
+byte-identical") was loose: the gate record keeps only the first 500 characters of each message. For
+43 of the 50, the whole message is recorded and identical. For the other 7, the hygiene-check
+sentinels, the recorded prefixes are identical, but the rest of each problem list was never recorded.
+A triager reading "byte-identical" could conclude that the sentinels' problem lists did not change
+between the runs, though row 289 itself says the failing set moves with the instance's state. One
+phrase in each file fixes it.
+
+In `OPEN.md`, replace:
+
+```text
+Each has the same pass, fail and skip counts, and byte-identical failure messages, as in the pre-restart run `20260921T044814Z-41349-9c0d`.
+```
+
+with:
+
+```text
+Each has the same pass, fail and skip counts, and the same recorded failure messages, as in the pre-restart run `20260921T044814Z-41349-9c0d`.
+```
+
+In the ledger file, replace (the text spans lines 129–130):
+
+```text
+and byte-identical failure messages, so none of them was a stale-process failure.
+```
+
+with:
+
+```text
+and the same recorded failure messages (the gate record keeps the first 500 characters of each, which clips 7 of the 50), so none of them was a stale-process failure.
+```
+
+These were checked before being written here. All 50 recorded messages are identical across the
+two runs. In each run, 7 of them end in the clip's "…" at 501 characters. The 14 suites' failure
+counts sum to 50 in both runs. Each of the two texts to replace occurs exactly once in its file. The
+next round should check the replacements as claims too.
+
+#### Non-blocking
+
+**R2-N1. `OPEN.md:321`, my round-1 wording: "explains why `ps` reads it as 17:37:30".** The process was
+stopped at 05:54:41, so "read" would be exact. If the row is touched for R2-B1 anyway, it could say
+"…explains why `ps` read it as 17:37:30."
+
+**R2-N2. The ledger's B1 paragraph, my round-1 wording: "(it puts supervisord itself at 17:04:45 on
+2026-09-11, …)".** This reading drifts. The under-read has reached about 5 minutes for processes
+spawned on 2026-09-11, and it may move again after the host sleeps; it still read 17:04:45 at
+13:38:45Z. Dating it would keep it true: "(on 2026-09-21 it put supervisord itself at 17:04:45 on
+2026-09-11, …)". The dated heading above already implies the date, so this is not blocking.
+
+**R2-N3. "Between the two commits" (the ledger's first bullet) now comes straight after the inserted
+paragraph, which names `cde8b282`.** Context still makes the pair clear, but "Between `78a09be5`
+and `aa4df2e3`," would remove any doubt.
+
+**R2-N4. `055aefbe`'s message says "each replacement applied as the reviewer worded it".** The B1
+ledger paragraph has one changed word and stands as its own paragraph. The orchestrator disclosed
+both changes to this reviewer, and both are improvements. If R2-B1's fix gets its own commit, that
+commit's message could say so.
+
+#### Harness friction (round 2)
+
+1. **Rule 10 caught its own case.** One of my non-blocking notes (N5) was adopted verbatim, with the
+   apparent endorsement of two roles, and it carried an overclaim into both files. The rule worked
+   as written; no row is needed.
+2. **The gate record's 500-character clip appears only in the code** (`test/helpers/gateRecord.js:37`).
+   `engineering-team/README.md`, `docs/` and `OPEN.md` do not mention it, so anyone comparing
+   messages across runs finds out the hard way. It belongs with round 1's harness friction 2 (the
+   README's gate section), if the owner takes that up.
+
+### Verdict (round 2)
+
+Everything round 1 blocked on is fixed and re-verified: the start time, the H1 wording and the
+summary sentence all hold. The orchestrator's one-word edit is correct and better than mine, and N2
+and N3 hold. Lint is clean and identical to round 1's after-state, and the six suites that read
+these files pass. One statement added in this round does not hold as worded: "byte-identical failure
+messages", from my own N5, because the gate record clips 7 of the 50 messages at 500 characters. The
+fix is one phrase in each file, given above.
+
+**CHANGES_REQUESTED**
