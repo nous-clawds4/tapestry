@@ -146,10 +146,15 @@ Small judgment calls made during implementation (Implementer role, step 9):
     the approved copy is one line.
   - A done card keeps the card's border and background on hover, since it is not a link.
 - **The provider derives its phase instead of storing it.**
-  - `SetupStatusContext.jsx` keys each answer to the request it answers (pubkey and attempt). It
-    shows an answer only for the current request, and it calls `setState` only in the fetch's
-    callbacks. So an answer for a previous account is never shown, and the file avoids eslint's
-    `react-hooks/set-state-in-effect`.
+  - `SetupStatusContext.jsx` keys each answer to the request it answers (pubkey and attempt), and
+    shows an answer only for the current request.
+  - It sets the held answer in two places only:
+    - in the fetch's callbacks;
+    - since review round 2, in one conditional reset during render (the sub-bullet below).
+
+    So an answer for a previous account is never shown, and the file draws no eslint
+    `react-hooks/set-state-in-effect` error. (Corrected after review round 2: this bullet used to say
+    `setState` was called only in the fetch's callbacks.)
   - ADR 0001 § 3 allows "a request counter or a `cancelled` flag"; this uses both.
   - **Review round 2.** When the request goes away — a sign-out, or sign-in re-resolving — the held
     answer is dropped during render (React's "adjusting state while rendering" pattern). The review's
