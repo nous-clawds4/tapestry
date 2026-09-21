@@ -25,6 +25,9 @@ const { test, expect } = require('@playwright/test');
  * "Pushed to local strfry + X/Y external relays." and has no per-relay lines. B3 passes before and
  * after — the editor already shows `data.error`; it guards that the new local-failure message
  * reaches the user.
+ *
+ * Re-aimed by assistant-profile #4 (ADR 0004): the editor now lives on the My Assistant page, /assistant —
+ * where story 4's AC1 asks for exactly this per-relay result.
  */
 
 const OWNER = 'bb'.repeat(32);
@@ -72,7 +75,7 @@ test.describe('The publish result, relay by relay (assistant-profile #2)', () =>
     }
   });
 
-  /** Signed in as the owner, on the Tapestry assistant editor; `publish` is what the server answers. */
+  /** Signed in as the owner, on the My Assistant page; `publish` is what the server answers. */
   async function mock(page, publish) {
     const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -102,10 +105,10 @@ test.describe('The publish result, relay by relay (assistant-profile #2)', () =>
   }
 
   async function publishFromEditor(page) {
-    await page.goto('/tapestry/settings/assistant');
+    await page.goto('/assistant');
     await page.waitForLoadState('networkidle');
     const button = page.getByRole('button', { name: /publish profile/i }).first();
-    await expect(button, 'the Assistant Profile editor must render for a signed-in owner').toBeVisible({ timeout: 20000 });
+    await expect(button, 'the My Assistant page must show the editor to a signed-in owner').toBeVisible({ timeout: 20000 });
     await button.click();
   }
 

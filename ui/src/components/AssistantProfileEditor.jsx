@@ -9,8 +9,9 @@ import { buildCompositeAvatar } from '../utils/compositeAvatar';
 const BRANDED_FALLBACK_SRC = '/ta-avatar.png';
 
 // NIP-05 is omitted on purpose — the server computes it deterministically
-// from the caller's name + the Assistant's pubkey, and writes the matching
-// /.well-known/nostr.json entry at publish time. Users don't get to set it.
+// from the caller's name + the Assistant's pubkey, and on a public instance only
+// publishes it and writes the matching /.well-known/nostr.json entry (ADR
+// assistant-profile/0003). Users don't get to set it.
 const PROFILE_FIELDS = [
   { key: 'name', label: 'Name', placeholder: 'e.g. Alice\'s Tapestry Assistant' },
   { key: 'display_name', label: 'Display name', placeholder: 'Shown in nostr clients' },
@@ -75,7 +76,16 @@ function pickFields(source) {
   }, {});
 }
 
-export default function AssistantProfileEditor({ customerPubkey }) {
+/**
+ * The one assistant profile editor, hosted by the My Assistant page only (assistant-profile #4, ADR 0004).
+ *
+ * @param {object} props
+ * @param {string} props.customerPubkey - the signed-in person, whose own assistant this edits
+ * @param {boolean} [props.canCreateAssistant=false] - may they create an assistant here if they have none
+ *   (an Admin or a Customer; never the Owner, whose assistant is the instance TA)
+ * @param {() => void} [props.onAssistantCreated] - called once a new assistant key exists
+ */
+export default function AssistantProfileEditor({ customerPubkey, canCreateAssistant = false, onAssistantCreated }) {
   const [status, setStatus] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
@@ -127,14 +137,22 @@ export default function AssistantProfileEditor({ customerPubkey }) {
     setOfferFallback(false);
     setComposite(null);
     try {
-      // Same-origin proxy, so the canvas is not tainted. It answers 404 when the
-      // owner has no picture — that is the fallback path, not an error.
+      // Same-origin proxy, so the canvas is not tainted. Its 404 with code 'no-picture' means the
+      // owner has no picture — the fallback path, not an error. Any other failure (a refusal, a picture
+      // host that failed) is reported in the server's own words (assistant-profile #4, AC4).
       const res = await fetch('/api/assistant/owner-avatar');
       if (!res.ok) {
+        const body = await res.json().catch(() => null);
         setOfferFallback(true);
-        setCompositeNotice(
-          'You have no profile picture to stamp yet, so there is nothing to composite. '
-          + 'You can use the branded Tapestry image instead, or set a picture on your own profile and try again.');
+        if (res.status === 404 && body?.code === 'no-picture') {
+          setCompositeNotice(
+            'You have no profile picture to stamp yet, so there is nothing to composite. '
+            + 'You can use the branded Tapestry image instead, or set a picture on your own profile and try again.');
+        } else {
+          setCompositeNotice(
+            `Could not get your profile picture to stamp: ${body?.error || `the server answered ${res.status}`}. `
+            + 'You can use the branded Tapestry image instead.');
+        }
         return;
       }
       const built = await buildCompositeAvatar(await res.blob());
@@ -206,8 +224,10 @@ export default function AssistantProfileEditor({ customerPubkey }) {
       const res = await fetch('/api/assistant/provision-key', { method: 'POST' });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Provisioning failed');
-      // Key created; reload status so the editor flips into the form view.
+      // Key created; reload status so the editor flips into the form view, then tell the host, so the
+      // rest of the app (menus, the dashboard's check, the banner) learns about the new assistant.
       await loadStatus();
+      if (onAssistantCreated) onAssistantCreated();
     } catch (err) {
       setProvisionError(err.message);
     } finally {
@@ -256,14 +276,37 @@ export default function AssistantProfileEditor({ customerPubkey }) {
   }
 
   if (!status?.hasRelayKey) {
+    // No key behind this person. Only what can succeed is offered (ADR assistant-profile/0004 sub-decision 4):
+    // the Owner's assistant is the instance TA, which provisioning cannot restore, and only someone who may
+    // create an assistant of their own is offered to.
+    if (status?.isOwner) {
+      return (
+        <div className="settings-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <h3 style={{ margin: '0 0 0.25rem' }}>🤖 Tapestry Assistant Profile</h3>
+          <p style={{ margin: 0, opacity: 0.8 }}>
+            This instance's Tapestry Assistant key is missing. It is created when the instance is first set up
+            and can't be created from this page; it has to be restored on the server before this assistant's
+            profile can be managed here.
+          </p>
+        </div>
+      );
+    }
+    if (!canCreateAssistant) {
+      return (
+        <div className="settings-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <h3 style={{ margin: '0 0 0.25rem' }}>🤖 Your Tapestry Assistant Profile</h3>
+          <p style={{ margin: 0, opacity: 0.8 }}>
+            You don't have a Tapestry Assistant on this instance, and your account can't create one here.
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="settings-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <h3 style={{ margin: '0 0 0.25rem' }}>
-          {status?.isOwner ? '🤖 Tapestry Assistant Profile' : '🤖 Your Tapestry Assistant Profile'}
-        </h3>
+        <h3 style={{ margin: '0 0 0.25rem' }}>🤖 Your Tapestry Assistant Profile</h3>
         <p style={{ margin: 0, opacity: 0.8 }}>
-          You don't have a server-side Tapestry Assistant key yet. Create one to start publishing
-          {status?.isOwner ? ' automated events' : ' a kind 0 profile and kind 30382 Trust Assertions'} from your Assistant.
+          You don't have a server-side Tapestry Assistant key yet. Create one to start publishing a kind 0
+          profile and kind 30382 Trust Assertions from your Assistant.
         </p>
         <div>
           <button
@@ -306,8 +349,9 @@ export default function AssistantProfileEditor({ customerPubkey }) {
         <div>
           <strong>Assistant pubkey:</strong>{' '}
           <code>{shortPk}</code>{' '}
+          {/* The public profile — the page search results link to, on the page's own (Brainstorm) side. */}
           <Link
-            to={`/tapestry/users/${status.assistantPubkey}`}
+            to={`/user/${status.assistantPubkey}`}
             style={{ color: '#58a6ff', textDecoration: 'none', marginLeft: '0.25rem' }}
           >
             View public profile →
@@ -332,57 +376,61 @@ export default function AssistantProfileEditor({ customerPubkey }) {
         </div>
       </div>
 
-      {/* The stamped composite: your avatar, wearing the mark (ta-avatar #3). */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            className="settings-action-btn settings-action-btn-secondary"
-            onClick={generateComposite}
-            disabled={generating || publishing}
-          >
-            {generating ? 'Working…' : '🎨 Generate badged avatar'}
-          </button>
-          <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>
-            Stamps your own profile picture with the Tapestry mark.
-          </span>
+      {/* The stamped composite: your avatar, wearing the mark (ta-avatar #3). The Owner's only
+          (assistant-profile #4, AC4): the proxy reads the OWNER's picture, so an Admin's assistant would
+          wear the Owner's face, and a Customer is refused. */}
+      {status.isOwner && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="settings-action-btn settings-action-btn-secondary"
+              onClick={generateComposite}
+              disabled={generating || publishing}
+            >
+              {generating ? 'Working…' : '🎨 Generate badged avatar'}
+            </button>
+            <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>
+              Stamps your own profile picture with the Tapestry mark.
+            </span>
+          </div>
+
+          {composite && (
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <img
+                className="ta-composite-preview"
+                src={composite.dataUrl}
+                alt="Preview of the assistant avatar: your picture with the Tapestry mark"
+                width={96}
+                height={96}
+                style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
+              />
+              <button className="settings-action-btn" onClick={useComposite} disabled={generating}>
+                Use this avatar
+              </button>
+            </div>
+          )}
+
+          {offerFallback && (
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <img
+                className="ta-composite-fallback"
+                src={BRANDED_FALLBACK_SRC}
+                alt="The branded Tapestry Assistant image"
+                width={96}
+                height={96}
+                style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
+              />
+              <button className="settings-action-btn" onClick={useBrandedFallback} disabled={generating}>
+                Use the branded image instead
+              </button>
+            </div>
+          )}
+
+          {compositeNotice && (
+            <div style={{ fontSize: '0.8rem', opacity: 0.85 }}>{compositeNotice}</div>
+          )}
         </div>
-
-        {composite && (
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <img
-              className="ta-composite-preview"
-              src={composite.dataUrl}
-              alt="Preview of the assistant avatar: your picture with the Tapestry mark"
-              width={96}
-              height={96}
-              style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
-            />
-            <button className="settings-action-btn" onClick={useComposite} disabled={generating}>
-              Use this avatar
-            </button>
-          </div>
-        )}
-
-        {offerFallback && (
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <img
-              className="ta-composite-fallback"
-              src={BRANDED_FALLBACK_SRC}
-              alt="The branded Tapestry Assistant image"
-              width={96}
-              height={96}
-              style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
-            />
-            <button className="settings-action-btn" onClick={useBrandedFallback} disabled={generating}>
-              Use the branded image instead
-            </button>
-          </div>
-        )}
-
-        {compositeNotice && (
-          <div style={{ fontSize: '0.8rem', opacity: 0.85 }}>{compositeNotice}</div>
-        )}
-      </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {PROFILE_FIELDS.map(field => (
