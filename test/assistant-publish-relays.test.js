@@ -96,6 +96,18 @@ function withEnv(key, value, fn) {
   try { return fn(); } finally { if (had) process.env[key] = old; else delete process.env[key]; }
 }
 
+/**
+ * withEnv for an async body. The synchronous version restores the variable as soon as the body
+ * SUSPENDS, so anything after an `await` would read the restored value — which is what made G2 read
+ * the flag back as off while the endpoint had answered with it on.
+ */
+async function withEnvAsync(key, value, fn) {
+  const had = Object.prototype.hasOwnProperty.call(process.env, key);
+  const old = process.env[key];
+  if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  try { return await fn(); } finally { if (had) process.env[key] = old; else delete process.env[key]; }
+}
+
 /** Resolve within `ms`, or report 'HUNG' — clearing the timer either way. */
 async function within(promise, ms) {
   let timer;
@@ -739,7 +751,7 @@ test('G1: isPublishLocalOnly() is true only for the exact string "true" (ADR eve
 test('G2: the publish-policy endpoint and the reader agree — the browser and the server gate on one rule', async () => {
   const pol = getPolicy();
   for (const value of ['true', 'false']) {
-    await withEnv('BRAINSTORM_PUBLISH_LOCAL_ONLY', value, async () => {
+    await withEnvAsync('BRAINSTORM_PUBLISH_LOCAL_ONLY', value, async () => {
       const res = fakeRes();
       await pol.handleGetPublishPolicy({ query: {} }, res);
       assert(res.body && res.body.allowExternalPublish === !pol.isPublishLocalOnly(),

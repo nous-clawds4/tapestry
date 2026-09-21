@@ -177,3 +177,16 @@ terminate       : the server's open-client count drops from 1 to 0 in 26 ms
   that moment still predated story 1.)
 - `test/global-publish-gate.test.js` passes 8 of 8. Its source pins on `src/api/publish-policy/index.js`
   stay valid, because ADR 0002 keeps the read inside that file.
+
+**Amended in a Phase-3 kick-back (2026-09-20), during implementation.**
+
+- **What failed:** G2 failed against a correct implementation — "with true: allowExternalPublish false vs
+  isPublishLocalOnly false".
+- **Why:** `withEnv` restores the variable synchronously, so an `async` body reads the restored value
+  after its first `await`. The endpoint was called correctly inside the window and answered correctly;
+  the assertion's own second read happened outside it.
+- **The fix:** a `withEnvAsync` helper holds the variable until the body settles, and G2 uses it.
+  Nothing about what G2 asserts changed, and it does not assume the handler is synchronous.
+- **Still a judge:** with the endpoint patched to answer a constant instead of consulting the reader,
+  G2 fails ("with true: allowExternalPublish true vs isPublishLocalOnly true"). Restored, the suite is
+  39 of 39.
