@@ -96,10 +96,17 @@ approval) and § Deviations, and the review; reconciled against the diff.
 **Undocumented work** — none. Every product file in the diff traces to story #1. The two later
 commits are records: `6acc64e9` corrects the story's Deviations wording and the epic's and intake
 entry's summary of upstream's activation rule (the review's draft-stage findings), and `e4fb2c8b`
-files the review's harness findings (§7) and fixes its non-blocking 2–3. The promotion also carried PR #719, a docs-only ledger row from another
-session; it is not part of this book. The close itself changes one code file: the comment in
-`ui/src/pages/setup/steps.js` that points editors at § Copy now names the story's `done/` path.
-Rebuilding after that edit gives the same bundle, `index-_zLoQMny.js`, so it is inert at runtime.
+files the review's harness findings (§7) and fixes its non-blocking 2–3. The promotion also
+carried PR #719, a docs-only ledger row from another session; it is not part of this book. The close
+itself changes one code file: the comment in `ui/src/pages/setup/steps.js` that points editors at
+§ Copy now names the story's `done/` path. Rebuilding after that edit gives the same bundle,
+`index-_zLoQMny.js`, so it is inert at runtime.
+
+**Changed from outside this book, before the close.** On 2026-09-21, at the owner's request and in
+another session, the avatar menus gained an "Account Setup" item that links to `/setup` (PR #722, in
+production via #723; review `reviews/done/navigation-scaffolding/avatar-menu-account-section.md`).
+That session recorded it in `book.md` § "Changes from outside this book". So §4 #4 describes this
+book's diff, not production: `/setup` now has a way in, though the Setup Alert does not exist yet.
 
 ## 5. Quality state at close
 
@@ -122,6 +129,9 @@ Rebuilding after that edit gives the same bundle, `index-_zLoQMny.js`, so it is 
   746 passed, 36/36 suites.
 - **CI:** `stack-free` green on PR #720 (1m38s), and `stack-free` plus `main-source-guard` green on
   PR #721.
+- **After the close gate,** the close branch was merged with `origin/staging` (`5656418b`), bringing
+  in #722 and #724 from another session — both already reviewed and in production. CI `stack-free` on
+  the close's own PR is the check on that merged tree.
 - **Deploys:** staging run [35561942267](https://github.com/nous-clawds4/tapestry/actions/runs/35561942267)
   green in about 93 s; production run [35563659855](https://github.com/nous-clawds4/tapestry/actions/runs/35563659855)
   green in about 95 s. The same bundle, `index-_zLoQMny.js`, from the reviewed local build through
@@ -152,9 +162,9 @@ Rebuilding after that edit gives the same bundle, `index-_zLoQMny.js`, so it is 
       Getting-Started checklist (instance setup for Owner and Admins), and
       `/tapestry/trusted-agents/setup` (Sponsor/Agent pairing). The same family of problem as
       `navigation-scaffolding` §6 #6's four pairs of same-named surfaces. (epic § Key facts)
-- [ ] **6. No way in until the Setup Alert.** Whether an avatar-menu or dashboard link is also
-      wanted, and where the alert appears (Brainstorm Search pages, the `/tapestry` control panel, or
-      both). (§4 #4)
+- [x] **6. No way in until the Setup Alert.** Resolved outside this book on 2026-09-21: the avatar
+      menus link to `/setup` as "Account Setup" (#722, in production via #723). Where the Setup
+      Alert itself appears stays with #1. (§4 #4)
 - [ ] **7. Links on the Brainstorm Search pages turn sky blue on hover** because the global `a:hover`
       colour outranks their class colour — `/setup`'s back link and `/tags`' links alike. Filed as
       OPEN.md row `2026-09-21-bs-link-hover-turns-sky-blue`. (review non-blocking 1)

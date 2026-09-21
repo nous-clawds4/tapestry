@@ -50,8 +50,9 @@ problem for Tapestry's own users (many of whom sign in only to search), or a dif
 `[FROM FRAME]` In production at `/setup`: the heading "Finish setting up your account.", "0 of 3
 complete" over an empty progress bar, and the three steps above, each shown as not done with a badge
 and one sentence, each linking to its own placeholder page (`/setup/create-account`,
-`/setup/follow`, `/setup/activate`). The page reads and writes nothing about the viewer, looks the
-same signed in or out, and nothing links to it.
+`/setup/follow`, `/setup/activate`). The page reads and writes nothing about the viewer, and looks
+the same signed in or out. Since 2026-09-21 the avatar menus, which only signed-in users see, link to
+it as "Account Setup", added at the owner's request outside this book.
 
 `[FROM FRAME]` Explicitly **not** built, by the owner's choice: checking whether each step is done,
 the Setup Alert, and anything on the three step pages.
@@ -95,8 +96,10 @@ Promoted from the build audit §6:
   book's setup check and its planned My Assistant page.
 - **When is a step done?** Which relays are read; whether a Treasure Map naming another provider
   counts; Brainstorm's own rule is inconsistent (`useFinishSetup.ts` line 60 against 61–63).
-- **Who sees `/setup`, and how do they get there?** Signed-out visitors today; no link anywhere until
-  the Setup Alert; where the alert appears — Brainstorm Search pages, the control panel, or both.
+- **Who sees `/setup`, and how do they get there?** Signed-out visitors can open it today, but only
+  by its address; signed-in users reach it through the avatar menus' "Account Setup" item (since
+  2026-09-21). Where the Setup Alert appears — Brainstorm Search pages, the control panel, or both —
+  is open.
 - **Three surfaces are called "setup"** — `/setup`, the Dashboard's Getting-Started checklist, and
   Trusted Agents → Set Up.
 - **Small:** links on these pages shift hue on hover (an app-wide cleanup row), and the done state
