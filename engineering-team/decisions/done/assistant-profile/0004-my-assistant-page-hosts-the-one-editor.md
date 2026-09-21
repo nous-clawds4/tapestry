@@ -5,7 +5,7 @@ becomes the Assistant Management page, and this page moves to `/assistant/profil
 Assistant Profile". "Assistant Management", the old Settings address and the `/settings` card follow that ADR.
 The rest of this ADR stands.
 **Date:** 2026-09-21
-**Story:** `engineering-team/stories/assistant-profile/4-my-assistant-page.md`
+**Story:** `engineering-team/stories/done/assistant-profile/4-my-assistant-page.md`
 
 ## Context
 

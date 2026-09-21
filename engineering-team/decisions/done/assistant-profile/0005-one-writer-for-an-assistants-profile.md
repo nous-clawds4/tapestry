@@ -5,7 +5,7 @@
 as "the Edit Assistant Profile page", and the three refusal messages, the two legacy panels and BIBLE §14 follow.
 The rules of this ADR stand.
 **Date:** 2026-09-21
-**Story:** `engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.md`
+**Story:** `engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.md`
 
 ## Context
 
@@ -486,7 +486,7 @@ kind 0.
 **Carry-forward — ledger `2026-09-21-my-assistant-checks-browser-only`**
 
 - Four W-cases, the CI-run counterparts of story 4's B1, B11, B12 and B16, as the row's fix shape lists them.
-- Reword line 24 of `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`.
+- Reword line 24 of `engineering-team/stories/done/assistant-profile/4-my-assistant-page.test-plan.md`.
 
 **A new suite** registers as one line in `test/registry.js`.
 

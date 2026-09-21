@@ -6,6 +6,7 @@ import { resolvePovReadParams } from '../utils/povReadParams';
 import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
 import AvatarMenuLink from '../components/AvatarMenuLink';
+import SetupAlert from '../components/SetupAlert';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import TopBar from '../components/TopBar';
 import TopBarAlert from '../components/TopBarAlert';
@@ -597,9 +598,17 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
     </div>
   );
 
-  // The top bar's one alert slot sits beside the menu, in the same row (ADR assistant-management/0002).
-  // UserMenu renders on the landing page and in the results view, so this one mount covers both.
-  return <><TopBarAlert />{menu}</>;
+  // The top bar's alerts sit beside the avatar, in the host's flex row. At most one shows: the Setup Alert
+  // while a setup step is left (setup-status-and-alert #2), else the Assistant Alert — both read the one
+  // shared setup answer (ADR assistant-management/0002, Amendment 1). UserMenu renders on the landing page and
+  // in the results view, so these mounts cover both.
+  return (
+    <>
+      <SetupAlert />
+      <TopBarAlert />
+      {menu}
+    </>
+  );
 }
 
 function timeAgoShort(unixSeconds) {

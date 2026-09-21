@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
+import SetupAlert from './SetupAlert';
 import TopBarAlert from './TopBarAlert';
 
 function shortPubkey(pk) {
@@ -114,14 +115,17 @@ export default function Header({ onToggleSidebar }) {
         ☰
       </button>
       <div className="header-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-        {/* The word is its own span so a narrow bar can drop it beside an alert pill, keeping the 🧠. */}
+        {/* The word has its own span so phones can hide it while an alert pill shows, keeping the 🧠
+            (ADR setup-status-and-alert/0002 Amendment 1; ADR assistant-management/0002). */}
         <span className="header-brand-name">🧠 <span className="header-brand-word">Tapestry</span></span>
       </div>
       <div className="header-spacer" />
 
       <div className="header-auth">
-        {/* The top bar's one alert slot, beside the user menu. It renders only for a signed-in viewer
-            (ADR assistant-management/0002). */}
+        {/* The top bar's alerts, beside the user menu. Each renders only for a signed-in viewer, and at most
+            one shows: the Setup Alert while a setup step is left, else the Assistant Alert
+            (setup-status-and-alert #2; ADR assistant-management/0002, Amendment 1). */}
+        <SetupAlert />
         <TopBarAlert />
         {loading ? (
           <span className="header-loading">…</span>

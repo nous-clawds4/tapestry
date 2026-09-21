@@ -5,8 +5,8 @@ const zlib = require('zlib');
  * assistant-profile #3: One default profile for every assistant — browser half (B-class: what the
  * dashboard and the editor DO).
  *
- * Story: engineering-team/stories/assistant-profile/3-one-default-assistant-profile.md
- * ADR:   engineering-team/decisions/assistant-profile/0003-one-role-free-default-profile.md
+ * Story: engineering-team/stories/done/assistant-profile/3-one-default-assistant-profile.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0003-one-role-free-default-profile.md
  * Node half: test/one-default-assistant-profile.test.js (I/N/D/F/Q/E/W/S/R).
  *
  * Every /api route is mocked, so each test decides exactly what the server answers and asserts only

@@ -1,9 +1,9 @@
 /**
  * assistant-profile #3: One default profile for every assistant.
  *
- * Story: engineering-team/stories/assistant-profile/3-one-default-assistant-profile.md
- * ADR:   engineering-team/decisions/assistant-profile/0003-one-role-free-default-profile.md
- * Plan:  engineering-team/stories/assistant-profile/3-one-default-assistant-profile.test-plan.md
+ * Story: engineering-team/stories/done/assistant-profile/3-one-default-assistant-profile.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0003-one-role-free-default-profile.md
+ * Plan:  engineering-team/stories/done/assistant-profile/3-one-default-assistant-profile.test-plan.md
  * Browser half: tests/brainstorm/assistant-default-profile.spec.js (B-class — what the editor and the
  * dashboard DO).
  *

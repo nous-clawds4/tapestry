@@ -668,6 +668,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 
 .header-spacer { flex: 1; }
 
+/* The auth slot holds the Setup Alert and the user button side by side (setup-status-and-alert #2). */
+.header-auth { display: flex; align-items: center; gap: 8px; }
+
 .header-loading { color: var(--text-muted); }
 
 /* Sign in button */
@@ -8649,6 +8652,72 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 @media (max-width: 480px) {
   .bs-setup-main { padding-top: 1.5rem; }
   .bs-setup-title { font-size: 1.6rem; }
+}
+
+/* The Setup Alert (setup-status-and-alert #2): Brainstorm's "Finish setting up your account" pill,
+   beside each avatar menu, in the step badge's amber. The count drops below 1024 px and the
+   sentence below 640 px (Brainstorm's lg and sm), leaving the ⚠ mark and the button on phones. */
+.bs-setup-alert {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0.2rem 0.25rem 0.2rem 0.6rem;
+  border: 1px solid rgba(210,153,34,0.45);
+  border-radius: 999px;
+  background: rgba(210,153,34,0.12);
+  color: #e3b341;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.bs-setup-alert:hover {
+  /* The global a:hover colour would otherwise repaint the text. */
+  color: #e3b341;
+  border-color: rgba(210,153,34,0.7);
+  background: rgba(210,153,34,0.2);
+}
+.bs-setup-alert:focus-visible {
+  outline: 2px solid #e3b341;
+  outline-offset: 2px;
+}
+.bs-setup-alert-icon { font-size: 0.9rem; line-height: 1; }
+.bs-setup-alert-count { font-weight: 400; opacity: 0.85; }
+.bs-setup-alert-button {
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: #d29922;
+  color: #fff;
+  font-weight: 700;
+}
+@media (max-width: 1023px) {
+  .bs-setup-alert-count { display: none; }
+}
+@media (max-width: 639px) {
+  .bs-setup-alert-sentence { display: none; }
+}
+/* Phones: only while a pill shows, two hosts give up a little room so no top bar overflows at
+   375 px (ADR setup-status-and-alert/0002 § 4): the TopBar wordmark (its icon stays) and the
+   control panel's role badge. With the pill's paddings above, every bar also fits at 360 px. */
+@media (max-width: 440px) {
+  .bsp-top-bar:has(.bs-setup-alert) .bsp-logo > span { display: none; }
+  .app-header:has(.bs-setup-alert) .user-badge { display: none; }
+}
+/* While a pill shows, the control panel's brand yields room instead of wrapping onto two lines
+   (ADR 0002 Amendment 1): it truncates where room runs short, and on phones its word hides and
+   the 🧠 stays. */
+.app-header:has(.bs-setup-alert) .header-brand { min-width: 0; }
+.app-header:has(.bs-setup-alert) .header-brand-name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 440px) {
+  .app-header:has(.bs-setup-alert) .header-brand-word { display: none; }
 }
 
 /* ════════════════════════════════════════════════════════

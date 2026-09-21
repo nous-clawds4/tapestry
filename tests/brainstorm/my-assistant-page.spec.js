@@ -5,8 +5,8 @@ const zlib = require('zlib');
  * assistant-profile #4: One place — the My Assistant page. Browser half (B-class: what the page, the
  * menus and every entry point DO).
  *
- * Story: engineering-team/stories/assistant-profile/4-my-assistant-page.md
- * ADR:   engineering-team/decisions/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md
+ * Story: engineering-team/stories/done/assistant-profile/4-my-assistant-page.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md
  * Node half: test/my-assistant-page.test.js (M/Q/E/A/W — W is this class's CI backstop).
  *
  * Every /api route is mocked, so each test decides exactly what the server answers:

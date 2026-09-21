@@ -10,8 +10,10 @@ import { summarizeSetup } from '../utils/setupStatus';
  * so a page change does not ask again.
  *
  * It asks /api/setup/status only once something wants the answer (useSetupStatus mounts), only
- * when someone is signed in, and again when the signed-in account changes. The server answers for
- * the session itself, so the request carries no parameters. There is no polling: a step completed
+ * when someone is signed in, and again when the signed-in account changes or gains an assistant:
+ * AuthContext.refreshUser() after creating one on /assistant changes user.assistantPubkey for the
+ * same account (ADR setup-status-and-alert/0002 Decision 5). The server answers for the session
+ * itself, so the request carries no parameters. There is no polling: a step completed
  * in another app shows on the next full page load, or after refresh().
  *
  * phase: 'idle' (nothing asked, or signed out) · 'checking' · 'answered' · 'failed' (a network
@@ -27,7 +29,7 @@ export function SetupStatusProvider({ children }) {
   // Each answer carries the request it answers, so an answer for a previous account (or a
   // previous attempt) is never shown: the phase below is derived, not stored.
   const [result, setResult] = useState({ request: null, phase: 'idle', answer: null });
-  const request = wanted && !authLoading && pubkey ? `${pubkey}#${attempt}` : null;
+  const request = wanted && !authLoading && pubkey ? `${pubkey}#${user?.assistantPubkey || '-'}#${attempt}` : null;
 
   // When the request goes away — a sign-out, or sign-in re-resolving — the held answer goes too, so
   // the next read starts from 'checking' even for the same account, whose request key would

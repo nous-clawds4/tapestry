@@ -1,9 +1,9 @@
 /**
  * assistant-profile #2: Publish the assistant's profile to the right relays, and say what happened.
  *
- * Story: engineering-team/stories/assistant-profile/2-publish-to-the-right-relays.md
- * ADR:   engineering-team/decisions/assistant-profile/0002-publish-to-configured-relays-report-each.md
- * Plan:  engineering-team/stories/assistant-profile/2-publish-to-the-right-relays.test-plan.md
+ * Story: engineering-team/stories/done/assistant-profile/2-publish-to-the-right-relays.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0002-publish-to-configured-relays-report-each.md
+ * Plan:  engineering-team/stories/done/assistant-profile/2-publish-to-the-right-relays.test-plan.md
  * Browser half: tests/brainstorm/assistant-publish-result.spec.js (B-class — what the editor SHOWS).
  *
  * Classes (all stack-free — no strfry, no Neo4j, no public relay traffic):

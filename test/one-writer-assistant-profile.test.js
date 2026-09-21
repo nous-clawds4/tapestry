@@ -1,9 +1,9 @@
 /**
  * assistant-profile #5: One writer — nothing else can change an assistant's profile.
  *
- * Story: engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.md
- * ADR:   engineering-team/decisions/assistant-profile/0005-one-writer-for-an-assistants-profile.md
- * Plan:  engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.test-plan.md
+ * Story: engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0005-one-writer-for-an-assistants-profile.md
+ * Plan:  engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.test-plan.md
  * Browser half: tests/brainstorm/one-writer.spec.js (B-class — what the dashboard and the two legacy
  * pages DO).
  *

@@ -77,6 +77,6 @@ sibling Tapestry instance relays (tapestry, staging, tags) is deliberately left 
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/assistant-profile/0002-publish-to-configured-relays-report-each.md`
-- Test plan: `engineering-team/stories/assistant-profile/2-publish-to-the-right-relays.test-plan.md`
-- Review: `engineering-team/reviews/assistant-profile/2-publish-to-the-right-relays.md`
+- ADR: `engineering-team/decisions/done/assistant-profile/0002-publish-to-configured-relays-report-each.md`
+- Test plan: `engineering-team/stories/done/assistant-profile/2-publish-to-the-right-relays.test-plan.md`
+- Review: `engineering-team/reviews/done/assistant-profile/2-publish-to-the-right-relays.md`

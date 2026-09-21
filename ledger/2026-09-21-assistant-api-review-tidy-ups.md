@@ -33,5 +33,5 @@ touches `src/api/assistant/` (assistant-profile #4 or #5).
 **2026-09-21:** (a) and (c) done in assistant-profile #4 (`40fe1fc9`, ADR 0004 sub-decision 8); (a) is
 pinned by Q4 and E1 in `test/my-assistant-page.test.js`. Only (b), the name memo, remains.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/3-one-default-assistant-profile.md`, non-blocking
+**Pointer:** `engineering-team/reviews/done/assistant-profile/3-one-default-assistant-profile.md`, non-blocking
 findings 2, 3 and 4.

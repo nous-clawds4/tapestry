@@ -21,5 +21,5 @@ Fix shape (Tester's lane, any story that touches these suites): anchor each R3 a
 `isOwner(req)`, or assert that the gate's own `403` follows it — instead of a fixed window from the first
 `signAs === 'assistant'`.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/5-one-writer-for-assistant-profiles.md`, non-blocking
+**Pointer:** `engineering-team/reviews/done/assistant-profile/5-one-writer-for-assistant-profiles.md`, non-blocking
 finding 1; ledger `2026-09-21-adr-reaim-list-misses-outcome-asserts` (the process lesson).

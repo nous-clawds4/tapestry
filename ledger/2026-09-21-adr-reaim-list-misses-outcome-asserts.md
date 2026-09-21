@@ -48,5 +48,5 @@ the approved new copy, and the Tester re-aimed them in a separate commit. The fi
 literal the ADR removes or renames (paths, labels, copy)". This instance adds that **a rename of a page's name is
 copy too**: the grep has to take the old name as well as the old address.
 
-**Pointer:** `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`, the opening
+**Pointer:** `engineering-team/stories/done/assistant-profile/4-my-assistant-page.test-plan.md`, the opening
 "Re-aims" section (and the story 3 test plan's, `3-one-default-assistant-profile.test-plan.md:43-47`).

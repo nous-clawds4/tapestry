@@ -1,9 +1,9 @@
 /**
  * assistant-profile #4: One place — the My Assistant page.
  *
- * Story: engineering-team/stories/assistant-profile/4-my-assistant-page.md
- * ADR:   engineering-team/decisions/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md
- * Plan:  engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md
+ * Story: engineering-team/stories/done/assistant-profile/4-my-assistant-page.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md
+ * Plan:  engineering-team/stories/done/assistant-profile/4-my-assistant-page.test-plan.md
  * Browser half: tests/brainstorm/my-assistant-page.spec.js (B-class — what the page, the menus and
  * every entry point DO).
  *

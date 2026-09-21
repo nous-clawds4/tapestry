@@ -1,7 +1,7 @@
 # Test Plan: Story 5 — One writer: nothing else can change an assistant's profile
 
-**Story:** `engineering-team/stories/assistant-profile/5-one-writer-for-assistant-profiles.md`
-**ADR:** `engineering-team/decisions/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
+**Story:** `engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.md`
+**ADR:** `engineering-team/decisions/done/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
 **Date:** 2026-09-21
 
 The tests are in two new files, plus re-aims in four existing ones and four carry-forward guards in a fifth.
