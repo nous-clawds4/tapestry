@@ -1,13 +1,15 @@
 /**
- * The three steps of the /setup checklist, in Tapestry's terms (setup-page-scaffold #1), and the
- * words /setup shows once it knows each step's state (setup-status-and-alert #1).
+ * The three steps of the /setup checklist, in Tapestry's terms (setup-page-scaffold #1), the
+ * words /setup shows once it knows each step's state (setup-status-and-alert #1), and the Setup
+ * Alert's words (setup-status-and-alert #2).
  *
  * One definition feeds both the /setup page and the placeholder page behind each step, so a
  * step's name on the checklist and its page's heading cannot drift apart.
  *
  * The words were approved with the stories; change them there first:
- * engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md § Copy, and
- * engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md § Copy.
+ * engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md § Copy,
+ * engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md § Copy, and
+ * engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md § Copy.
  */
 
 export const CREATE_ACCOUNT_STEP = {
@@ -54,3 +56,15 @@ export const SETUP_COPY = {
   notDoneSrPrefix: 'Not done: ',
   allDone: "You're all set!",
 };
+
+/** The Setup Alert's words (setup-status-and-alert #2 § Copy, Brainstorm's). */
+export const SETUP_ALERT_COPY = {
+  name: 'Finish setting up your account',
+  sentence: 'Finish setting up your account',
+  button: 'Finish setup →',
+};
+
+/** The Setup Alert's count. `n` counts the steps it is confident are not done. */
+export function alertCountText(n) {
+  return n === 1 ? '· 1 step left' : `· ${n} steps left`;
+}

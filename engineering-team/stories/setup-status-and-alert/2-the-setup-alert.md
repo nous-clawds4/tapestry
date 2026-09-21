@@ -106,6 +106,36 @@ None changed. Same orientation handles as story 1: `39998:<TA>:tapestry-assistan
 
 None. The owner answered them at planning (2026-09-21), recorded in book § Decisions 2, 3, 5 and 7–9.
 
+## Deviations
+
+Small judgment calls made during implementation (Implementer role, step 9):
+
+- **How the two avatar menus gain the pill.** ADR 0002 § 2 says each menu's signed-in return
+  "becomes a fragment". `BrainstormUserMenu` and the landing page's `UserMenu` first assign their
+  existing markup to `const menu = (…)`, then return `<><SetupAlert />{menu}</>`. The page gets the
+  same elements in the same order. This avoids re-indenting about 100 lines in each menu, which
+  another session may be editing.
+- **The pill's size.** The ADR fixed its tones and breakpoints but not its paddings.
+  - The paddings were chosen so every bar fits at 360 px, a common phone width. The phone pill is
+    143 px wide; the ADR's prototype was about 132 px and Brainstorm's is about 156 px.
+  - The first paddings gave 147 px, and the control panel then needed 361 px, 1 px more than a
+    360 px phone.
+  - All sizes were measured on the built UI from 320 to 1280 px, as § 4 asks.
+- **Where the `.header-auth` rule lives.** It sits with the control panel's header rules in
+  `styles.css`, beside `.header-spacer`, not in the Setup Alert block. It lays out the header's auth
+  slot, so it goes with the header.
+- **ADR Amendment 1: the control panel's brand.**
+  - **The problem.** The re-measurement found that "🧠 Tapestry" wraps onto two lines while a pill
+    shows, so the header grows from 55 to 71 px. That happens at 320–392 px, just above 440 px, at
+    640–656 px for Customers, and around 770–794 px with long names.
+  - **The owner's call.** The owner chose to fix it in this story ("Fix now").
+  - **The fix.** ADR 0002 gained Amendment 1, and the Tester added B12. While a pill shows:
+    - the brand never wraps, and truncates where room runs short;
+    - on phones its word hides and the 🧠 stays.
+  - **What changed.** `Header.jsx` puts the word in its own span; the brand's text is unchanged.
+  - **Also recorded there:** the developer pages' bar grows by about 7 px when the pill appears,
+    because the pill is taller than the logo it sits beside.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md`
 - Test plan: `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.test-plan.md`

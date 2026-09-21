@@ -6,6 +6,7 @@ import { resolvePovReadParams } from '../utils/povReadParams';
 import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
 import AvatarMenuLink from '../components/AvatarMenuLink';
+import SetupAlert from '../components/SetupAlert';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import TopBar from '../components/TopBar';
 import SearchInput from '../components/SearchInput';
@@ -511,7 +512,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
     profileBase: '/user',
   });
 
-  return (
+  const menu = (
     <div className="bs-usermenu" ref={menuRef}>
       <button
         className="bs-usermenu-avatar-btn"
@@ -594,6 +595,14 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
         </div>
       )}
     </div>
+  );
+
+  // The Setup Alert sits beside the avatar, in the host's flex row (setup-status-and-alert #2).
+  return (
+    <>
+      <SetupAlert />
+      {menu}
+    </>
   );
 }
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
+import SetupAlert from './SetupAlert';
 
 function shortPubkey(pk) {
   if (!pk) return '';
@@ -113,11 +114,15 @@ export default function Header({ onToggleSidebar }) {
         ☰
       </button>
       <div className="header-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-        <span className="header-brand-name">🧠 Tapestry</span>
+        {/* The word has its own span so phones can hide it while the Setup Alert shows
+            (ADR setup-status-and-alert/0002 Amendment 1). */}
+        <span className="header-brand-name">🧠 <span className="header-brand-word">Tapestry</span></span>
       </div>
       <div className="header-spacer" />
 
       <div className="header-auth">
+        {/* Hides itself unless a signed-in viewer has a step left (setup-status-and-alert #2). */}
+        <SetupAlert />
         {loading ? (
           <span className="header-loading">…</span>
         ) : user ? (
