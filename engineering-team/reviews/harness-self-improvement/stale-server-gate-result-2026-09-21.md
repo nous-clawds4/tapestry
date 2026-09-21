@@ -375,3 +375,52 @@ messages", from my own N5, because the gate record clips 7 of the 50 messages at
 fix is one phrase in each file, given above.
 
 **CHANGES_REQUESTED**
+
+---
+
+## Round 3: `c8c27b2d` (2026-09-21, about 13:47Z to 13:53Z)
+
+**What was reviewed.** Fix commit `c8c27b2d`, on `d84c6587`, the round-2 review above, which the
+orchestrator committed unchanged per row 316; the committed blob is the round-2 file, and the tree
+was clean. As the brief asked, only the statements `c8c27b2d` changes were measured.
+
+**Nothing else moved.** `git diff 055aefbe c8c27b2d -- OPEN.md ledger/` shows `OPEN.md` at 1
+insertion and 1 deletion (line 321), and the ledger at 5 and 4 (hunks at lines 113–114, 117 and
+130–131). A script took each file's `055aefbe` blob, applied exactly the five announced
+substitutions (whitespace-normalised, each source text found once) and got the `c8c27b2d` blob, so
+the rest is re-wrapping. Row 289 still parses as in rounds 1 and 2. One line differs from the base,
+with 9 fields and 8 pipes; the other cells are byte-identical; no pipe was added; backticks and bold
+markers balance; and there are 342 rows.
+
+| Change | Measured | Result |
+|---|---|---|
+| R2-B1, `OPEN.md`: "the same recorded failure messages" | All 14 still-red suites have identical counts and byte-identical `failures` arrays across the two records: 50 recorded messages | holds |
+| R2-B1, ledger: "(the gate record keeps the first 500 characters of each, which clips 7 of the 50)" | `test/helpers/gateRecord.js:37` sets `MAX_MESSAGE = 500`. `clip()` (`:94-97`) keeps `s.slice(0, 500)` plus "…" when a message is longer, and `:101` applies it to name and message. In each run, 7 of the 14 suites' 50 messages end in that "…". The BEFORE run's other 7 failures (57 − 50) belong to the three suites that went green, and none of them is clipped, so "7 of the 50" is right for both runs | holds |
+| R2-N1, `OPEN.md`: "explains why `ps` read it as 17:37:30" | Past tense, for a reading taken before the process stopped at 05:54:41 | holds |
+| R2-N2, ledger: "(on 2026-09-21 it put supervisord itself at 17:04:45 on 2026-09-11, before the container's own start at 17:09:53Z)" | `docker exec tapestry ps -o lstart= -p 1` at 13:48:11Z on 2026-09-21 printed `Fri Sep 11 17:04:45 2026`; Docker `StartedAt` is 2026-09-11T17:09:53.93Z | holds |
+| R2-N3, ledger: "Between `78a09be5` and `aa4df2e3`, `src/` changed only in `src/api/assistant/` profile code, and none of these suites' test files changed" | `git diff --name-only 78a09be5 aa4df2e3 -- src` lists the four `src/api/assistant/` files, and none of the three credited test files changed | holds |
+
+**Gates.** `bash scripts/harness-lint.sh` on `c8c27b2d`: exit 0, with output byte-identical to rounds
+1 and 2 (0 violations, and one `INFO non-numbered-review` line for this file). The six suites, each
+through `run()` on Node 22.23.2: `ledger-row-ids` 6/0, `operational-direction` 86/0/0,
+`curated-dlist-update-publish` 69/0/0, `curated-dlist-update-update-preview` 34/0/0,
+`session-start` 32/0, `harness-lint` 76/0. `git status --short` was empty before this section was
+written. `origin/staging` was still `6eabd419` at 13:47Z, and no PR is open against `staging`. The
+full gate was not re-run (docs-only).
+
+**Findings.** Nothing blocking and nothing new. Round 1's B1–B3, round 2's R2-B1, and every
+non-blocking note that was taken up are in place and measured. N1, N4, N6 and R2-N4 were
+informational. Round 1's harness friction 2 and round 2's harness friction 2 are with the owner.
+
+**For the merge.** Land the PR as a merge commit, not a squash, because this file cites
+`be3e4a37`, `055aefbe` and `c8c27b2d`. This lane has no story to flip and no book to close.
+
+### Verdict (round 3)
+
+Every statement the branch adds to `OPEN.md` row 289 and to the stale-stack row now matches its
+evidence. That covers the restart and its time, the old process's real start and why `ps` misread
+it, the totals and per-suite changes, the three suites credited to the restart, the one that is not,
+and the fourteen that did not change, which the record still leaves undecided between stale state
+and a regression. Lint is clean, and the suites that read these files pass.
+
+**PASS**
