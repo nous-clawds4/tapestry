@@ -100,3 +100,26 @@ change. Restarting this instance does not need `--deps`: since the process start
 `package.json` gained only the `gate:status` script (`072da83a`), `package-lock.json` is unchanged,
 and every root dependency is already installed in the container. `scripts/dev-refresh.sh --server`
 is enough.
+
+**Follow-up 2026-09-21: restarted, then the gate compared suite by suite.** The backend restarted at
+05:54:41Z (full `scripts/dev-refresh.sh`, checkout `aa4df2e3`), after which `/api/assistant/roster`
+answered 200. The Node 22 full gate on that clean tree, `20260921T064337Z-21374-92e9`, was compared
+with `20260921T044814Z-41349-9c0d` (on `78a09be5`, stale process): 17 → 14 red suites, 57 → 50
+failed tests, 139 → 129 skipped.
+
+- **Down to the restart.** Between the two commits, `src/` changed only in `src/api/assistant/`
+  profile code, and none of these suites' test files changed.
+  - `author-scoped-inspection-roster` went from 5 failures to 0. Its route and handler predate both
+    runs (`src/api/index.js:543`), and the old process answered 404.
+  - `profile-lookup-bounds` went green; its E2 is this row's own example.
+  - `event-less-create-set` ran 10 live tests it had been skipping (11 → 1 skipped, all passing). Its
+    live class skips unless the container serves `GET /api/normalize/node-primitives`, and the old
+    process did not. That is a feature-keyed probe of the kind fix shape 3 cautions about. Here it
+    turned stale code into skips, with an accurate note, rather than failures.
+- **Not attributable.** `recognizable-published-ta-profile` also went green, but #724
+  (assistant-profile #3, inside `aa4df2e3`) rewrote the H1–H3 assertions that had failed and the
+  assistant-profile code they test.
+- **Unchanged.** The other 14 red suites have identical pass, fail and skip counts in both runs, so
+  none of them is a stale-process failure. That settles this update's "some of that row's fifteen
+  suites may be stale-process failures": apart from the one suite above, none were. Row 289's
+  per-suite triage, stale instance state or a real regression, still stands for all 14.
