@@ -3,13 +3,29 @@ Treasure Map
 
 This NIP is an auxiliary to NIP-85: Trusted Assertions. It details use of 10040 to assign curation of Trusted Lists and Decentralized List Items to Brainstorm and Tapestry Assistants.
 
-## Trusted Lists
+# Principles
+
+## categories
+
+Three categories of things that an Assistant may publish on behalf of the user:
+
+- Trusted Assertions
+- Trusted Lists
+- DLists
+
+## generic versus specific
+
+Assistant A might publish all Trusted Lists (in general terms), with the exception of Trusted List L, which is published by Assistant B (the specific exception to the general rule). The general vs specific rule applies to all categories of things that Assistants publish.
+
+# Trusted Lists
+
+For now, Trusted Lists refers to TLs that are spawned by Tags. Each Tag spawns (defines) one Trusted List. In the future, we may have Trusted Lists spawned by other things, not Tags. 
 
 For any given Tag, there may be a Trusted List of items that are Tagged by trusted entities. The details of the curation, which may be referred to as the *trust determination method*, are not recorded in the 10040 event, but are presumed to be known by the Assistant and may be changed dynamically.
 
-### of pubkeys
+## of pubkeys
 
-### generic Tags
+## generic Tags
 
 ```json
 {
@@ -22,7 +38,7 @@ For any given Tag, there may be a Trusted List of items that are Tagged by trust
 
 The above entry indicates that the Trusted Lists for *all* Tags, unless superseded (below), will be calculated by `<assistant_pubkey>`. The list of "all" Tags is presumed to be known by the Assistant and may be changed dynamically. This list of Tags may be managed, for example, by utilization by the trusted community, by Pinning, or by a combination of both methods.
 
-#### specific Tags
+### specific Tags
 
 Curation of the Trusted List corresponding to a specific Tag may be provided in the manner below, and is assumed to supersede the assignment of an assistant for generic Tags (above).
 
@@ -35,7 +51,7 @@ Curation of the Trusted List corresponding to a specific Tag may be provided in 
 }
 ```
 
-### of events
+## of events (of categories of content)
 
 Same as TLs of pubkeys, but of nostr events.
 
@@ -47,6 +63,10 @@ Same as TLs of pubkeys, but of nostr events.
   ]
 }
 ```
+
+### specific Tags
+
+Same shape as specific Tags for other categories of content (event based, not pubkey based).
 
 ## Decentralized List
 
@@ -86,7 +106,7 @@ The DList Header event can be kind 39999 rather than kind 39998, as specified in
 }
 ```
 
-### specific DLists
+## specific DLists
 
 Specific DLists, where specified, supercede the assistant pubkey for generic DLists.
 
@@ -113,7 +133,7 @@ Multiple DLists can be managed by distinct assistants simultaneously:
 }
 ```
 
-## Combination
+# Putting it all together
 
 The following is valid:
 
@@ -121,6 +141,9 @@ The following is valid:
 {
   "kind": 10040,
   "tags": [
+    [30382, <assistant_pubkey>, <relay>],
+    [30382:<pubkey>, <assistant_pubkey>, <relay>]
+
     [30392, <assistant_pubkey>, <relay>],
     [30392:<a-tag or event id of the Tag>, <assistant_pubkey>, <relay>]
 
@@ -139,7 +162,7 @@ The following is valid:
 }
 ```
 
-## Discussion
+# Discussion
 
 Note that the proposed spec for Trusted Lists is consistent with the original NIP-85 spec for Trusted Assertions in the sense that the events being published by the assistant pubkeys are kind 30382 and 30392 events, as indicated in the tag. However, the proposed spec for Decentralized Lists may seem like a deviation: it is kind 39999 events that are being published, not 39998. Explanation for this deviation: 
 
