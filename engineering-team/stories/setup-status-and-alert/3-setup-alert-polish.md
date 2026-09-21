@@ -97,6 +97,6 @@ None changed. The orientation handles are story 1's: `39998:<TA>:tapestry-assist
 None. The owner answered the three at planning (2026-09-21), recorded above.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
