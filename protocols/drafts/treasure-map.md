@@ -43,11 +43,19 @@ The Assistant may manage items of decentralized lists on behalf of the user.
   [39998, <assistant_pubkey>, <relay>]
 ```
 
+The above says that for DLists, the headers of which are authored by assistant_pubkey, items on those DLists will be added and removed based on community curation criteria.
+
 ### specific DLists
+
+Specific DLists, where specified, supercede the assistant pubkey for generic DLists.
 
 ```json
   [39998:<d-tag>, <assistant_pubkey>, <relay>]
 ```
+
+The a-tag of the DList Header can be recreated like this: `39998:<assistant_pubkey>:<d-tag>`. It is presumed that the DList Header 
+
+## Discussion
 
 Note that the proposed spec for Trusted Lists is consistent with the original NIP-85 spec for Trusted Assertions in the sense that the events being published by the assistant pubkeys are kind 30382 and 30392 events, as indicated in the tag. However, the proposed spec for Decentralized Lists deviates: it is kind 39999 events that are being published, not 39998. 
 
