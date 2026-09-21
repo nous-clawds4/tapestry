@@ -113,6 +113,8 @@ import DevelopersNip50 from './pages/developers/Nip50';
 import DevelopersOpenRanking from './pages/developers/OpenRanking';
 import DevelopersTrustedAssertions from './pages/developers/TrustedAssertions';
 import DevelopersRelayTools from './pages/developers/RelayTools';
+import SetupIndex from './pages/setup/Index';
+import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Placeholders';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
@@ -224,6 +226,22 @@ const router = createBrowserRouter([
   {
     path: '/developers/relay-tools',
     element: <DevelopersRelayTools />,
+  },
+  {
+    path: '/setup',
+    element: <SetupIndex />,
+  },
+  {
+    path: '/setup/create-account',
+    element: <SetupCreateAccount />,
+  },
+  {
+    path: '/setup/follow',
+    element: <SetupFollow />,
+  },
+  {
+    path: '/setup/activate',
+    element: <SetupActivate />,
   },
   {
     path: '/tapestry',
