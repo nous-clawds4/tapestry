@@ -130,6 +130,42 @@ None changed. Named for orientation (`<TA>` is this instance's TA pubkey, AGENTS
 None. The owner answered them at planning (2026-09-21). The answers are recorded in book
 § Decisions 1–6 and in § The rules above.
 
+## Deviations
+
+Small judgment calls made during implementation (Implementer role, step 9):
+
+- **Where the sign-in line sits.** For a signed-out visitor, the sign-in line and its button sit
+  where a signed-in viewer's progress line sits: above the steps. The story did not place it.
+- **The done look.**
+  - A done step's marker is a white ✓ in a filled green circle, and its "Done" badge is the green
+    counterpart of the amber one.
+  - "You're all set!" is one line of green bold text below the list, not Brainstorm's card, because
+    the approved copy is one line.
+  - A done card keeps the card's border and background on hover, since it is not a link.
+- **The provider derives its phase instead of storing it.**
+  - `SetupStatusContext.jsx` keys each answer to the request it answers (pubkey and attempt). It
+    shows an answer only for the current request, and it calls `setState` only in the fetch's
+    callbacks. So an answer for a previous account is never shown, and the file avoids eslint's
+    `react-hooks/set-state-in-effect`.
+  - ADR 0001 § 3 allows "a request counter or a `cancelled` flag"; this uses both.
+- **One eslint error, the house pattern.** `SetupStatusContext.jsx` carries
+  `react-refresh/only-export-components`, because it exports `useSetupStatus` beside its provider.
+  - `AuthContext.jsx`, `ConfigContext.jsx` and `AssistantRosterContext.jsx` carry the same error for
+    the same reason.
+  - ADR 0001 and tests D1/D3 place the hook there.
+  - The other touched UI files lint clean.
+- **The session pubkey is lower-cased before use.** `/api/auth/verify-user` accepts upper-case hex,
+  and strfry filters need lower-case.
+- **Local deploy: one more server file than the diff.** The local container's server tree has drifted
+  from the checkout (OPEN.md row 27) and lacked `src/api/assistant/profilePublish.js`.
+  - The new module reads Relay Settings through that file, so `/cycle-local` copied it along with the
+    story's server files: `src/api/setup/status.js`, `src/api/index.js` and `src/api/openapi.yaml`.
+  - That was checked first:
+    - the container's `src/api/index.js` differed from the checkout only by the new route;
+    - its npm dependencies matched;
+    - every module `profilePublish.js` requires exists there.
+  - None of the other drift was synced.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md`
 - Test plan: `engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md`

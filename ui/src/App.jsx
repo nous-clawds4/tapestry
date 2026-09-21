@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import { AssistantRosterProvider } from './context/AssistantRosterContext';
+import { SetupStatusProvider } from './context/SetupStatusContext';
 import ConceptList from './pages/concepts/ConceptList';
 import ConceptDetail from './pages/concepts/ConceptDetail';
 import ConceptOverview from './pages/concepts/ConceptOverview';
@@ -486,9 +487,13 @@ const router = createBrowserRouter([
 export default function App() {
   // Inside AuthProvider (main.jsx nests App within it — the roster response is session-shaped)
   // and outside the router, so one fetch serves every route. ADR author-scoped-inspection/0002.
+  // The setup status sits the same way, for the same reason: one answer for /setup and the
+  // Setup Alert (ADR setup-status-and-alert/0001).
   return (
     <AssistantRosterProvider>
-      <RouterProvider router={router} />
+      <SetupStatusProvider>
+        <RouterProvider router={router} />
+      </SetupStatusProvider>
     </AssistantRosterProvider>
   );
 }
