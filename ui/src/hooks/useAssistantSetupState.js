@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
  * It asks /api/assistant/status — the endpoint the profile editor reads — about the signed-in
  * user, so the dashboard and the editor always give the same answer. It waits for sign-in to
  * resolve before asking: asking earlier is how the old dashboard came to ask about `null`.
+ * It sends defaults=0: it reads only the setup state, and building the defaults may need a relay
+ * round-trip for the person's name (ADR assistant-profile/0003).
  *
  * status:
  *   'loading'      sign-in or the check has not resolved yet — render nothing
@@ -34,7 +36,7 @@ export default function useAssistantSetupState() {
     }
     let cancelled = false;
     setStatus('loading');
-    fetch(`/api/assistant/status?customerPubkey=${user.pubkey}`)
+    fetch(`/api/assistant/status?customerPubkey=${user.pubkey}&defaults=0`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;

@@ -17,10 +17,12 @@ const { test, expect } = require('@playwright/test');
  *   B2 — an Owner whose assistant has a profile never sees the prompt — not even
  *        for an instant while sign-in resolves.                                  [AC1]
  *   B3 — an Admin with no profile: the prompt concerns THEIR assistant, offers no
- *        "Surprise me", and leads to the Tapestry assistant editor.             [AC3, AC4]
+ *        "Use the default profile", and leads to the Tapestry assistant editor. [AC3, AC4]
  *   B4 — a Customer with no profile: the prompt leads to /settings.              [AC3]
- *   B5 — an Owner with no profile: the prompt (with "Surprise me") leads to the
- *        Tapestry assistant editor.                                              [AC3]
+ *   B5 — an Owner with no profile: the prompt (with "Use the default profile") leads
+ *        to the Tapestry assistant editor.                                       [AC3]
+ *   (assistant-profile #3, ADR 0003 sub-decision 6, renamed "Surprise me" to "Use the default
+ *   profile": it now publishes the one default. B3 and B5 follow the new label.)
  *   B6 — a signed-in user with no assistant: no prompt, no item, no status call. [AC4]
  *   B7 — the status check fails: no prompt — an error is never "no profile".      [AC1, edge]
  *   B8 — publish, come back: the prompt is gone without a reload.                 [AC5]
@@ -61,7 +63,7 @@ const NO_ASSISTANT_USER = { pubkey: GUEST, classification: 'guest', assistantPub
 const PROMPT_BUTTON = /Set up my Assistant.s profile/;
 const CHECKLIST_ITEM = 'Give your Assistant a profile';
 const CHECKLIST_ACTION = /Set up profile/;
-const SURPRISE = /Surprise me/;
+const USE_DEFAULT = /Use the default profile/;
 
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -217,7 +219,7 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
   });
 
   /* ───────── B3 — whose assistant? ───────── */
-  test('B3: an Admin whose own assistant has no profile is prompted about THEIR assistant, is offered no "Surprise me", and is sent to the Tapestry assistant editor', async ({ page }) => {
+  test('B3: an Admin whose own assistant has no profile is prompted about THEIR assistant, is offered no "Use the default profile", and is sent to the Tapestry assistant editor', async ({ page }) => {
     const log = await mock(page, { who: ADMIN_USER, status: { hasProfile: false } });
     await openDashboard(page);
     const prompt = page.getByRole('button', { name: PROMPT_BUTTON });
@@ -225,8 +227,8 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     expect(log.statusCalls,
       'AC4: the check must ask about the Admin\'s own pubkey — their assistant — and never about anyone else').toEqual(expect.arrayContaining([ADMIN]));
     expect(log.statusCalls.filter((pk) => pk !== ADMIN), 'AC4: the dashboard asked about someone other than the signed-in Admin').toEqual([]);
-    await expect(page.getByRole('button', { name: SURPRISE }),
-      'AC4: "Surprise me" rewrites the INSTANCE TA\'s profile, which is not an Admin\'s assistant — it must not be offered to them').toHaveCount(0);
+    await expect(page.getByRole('button', { name: USE_DEFAULT }),
+      'AC4: the dashboard\'s one-click publish stays Owner-only (ADR 0001; ADR 0003 kept the gate) — it must not be offered to an Admin').toHaveCount(0);
     await prompt.click();
     await expect(page, 'AC3: the button must lead to where an Admin publishes their own assistant\'s profile').toHaveURL(/\/tapestry\/settings\/assistant$/);
   });
@@ -242,12 +244,12 @@ test.describe('The assistant setup prompt tells the truth (assistant-profile #1)
     expect(log.statusCalls, 'AC4: the check must ask about the Customer\'s own pubkey').toContain(CUSTOMER);
   });
 
-  test('B5: an Owner whose assistant has no profile is prompted, is offered "Surprise me", and is sent to the Tapestry assistant editor', async ({ page }) => {
+  test('B5: an Owner whose assistant has no profile is prompted, is offered "Use the default profile", and is sent to the Tapestry assistant editor', async ({ page }) => {
     await mock(page, { who: OWNER_USER, status: { hasProfile: false } });
     await openDashboard(page);
     const prompt = page.getByRole('button', { name: PROMPT_BUTTON });
     await expect(prompt, 'AC3: an Owner whose assistant has no profile must be prompted').toHaveCount(1);
-    await expect(page.getByRole('button', { name: SURPRISE }), 'the Owner\'s assistant IS the instance TA, so "Surprise me" stays for the Owner until story 5').toHaveCount(1);
+    await expect(page.getByRole('button', { name: USE_DEFAULT }), 'the Owner keeps the one-click publish — now "Use the default profile" (ADR 0003) — until story 5 retires it').toHaveCount(1);
     await prompt.click();
     await expect(page).toHaveURL(/\/tapestry\/settings\/assistant$/);
   });
