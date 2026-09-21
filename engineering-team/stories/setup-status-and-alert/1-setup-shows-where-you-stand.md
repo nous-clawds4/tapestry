@@ -170,4 +170,4 @@ Small judgment calls made during implementation (Implementer role, step 9):
 - ADR: `engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md`
 - Test plan: `engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md`
   (tests: `test/setup-status.test.js`, `tests/brainstorm/setup-status.spec.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md`

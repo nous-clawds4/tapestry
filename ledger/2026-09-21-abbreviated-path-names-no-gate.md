@@ -27,5 +27,13 @@ command at intake. Write into that rule that suites which walk a tree belong to 
 gate proposed in `_intake.md` "2026-08-18 — Make the test gate fast and honest", which would replace
 per-story naming. Related: row 212 (the same path also defines no commit cadence).
 
+**A second instance (2026-09-21, setup-status-and-alert #1).** That story's test plan pinned its
+walkers from a fresh `grep -rl readdirSync test/`. It still left out `gate-result-record`, whose C9
+reads every `test/*.test.js`. The triage treated `test/` as untouched ("the rest walk trees this
+story does not touch"). But every story whose Test Design adds a suite touches `test/`:
+`stack-free-npm-test` was pinned for exactly that reason, and `gate-result-record` was missed. This
+time it did no harm: it passed on its own, 34/0/0 (the story's review). The same fix shape applies,
+plus one line for the recipe: **the `test/` walkers belong to any story that adds a suite.**
+
 **Pointer:** `engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md`
-§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`.
+§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1.
