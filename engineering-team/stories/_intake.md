@@ -2616,3 +2616,48 @@ the session-start digest point at. That is epic lifecycle, so it belongs to S3.
 **Suggested order within S8:** S8a (2 rows, hours, unblocks trusting every other gate run) → S8d (5 rows, decisions not edits) → S8c → S8b → S8e. S8f goes to the operator whenever convenient and blocks nothing.
 
 **Classification:** Harness story (several). Standard strictness. Books: S2 joins `audits/honest-test-gate/`; the rest want one new book, `meta-ledger-sweep`, with the stories above as its epics.
+
+
+---
+
+## 2026-09-20 — The /setup page, the rest of the way: real step status, the Setup Alert, the three action pages (feature; deferred at intake)
+
+**Origin:** the owner's "not yet" list in the ask behind book `setup-page-scaffold`
+(`engineering-team/audits/setup-page-scaffold/book.md`, which quotes the whole ask verbatim). That
+book builds only the `/setup` page, with all three steps shown as not done, and three placeholder
+pages. These three items were saved for a future session.
+
+**Deferred, verbatim (2026-09-20):**
+
+> Let’s NOT do these things yet, because we will save them for a future session:
+>
+> * Check individually whether each one of these three actions has actually been taken, and prompt accordingly on the /setup page.
+> * Show the Setup Alert at the top of the page that will direct the user to the /setup page.
+> * Build out the UX or the functionality of any of the action-specific pages. For now, they will just be placeholder pages.
+
+**What exists to build on:**
+
+- **Brainstorm's versions**, `NosFabrica/Brainstorm-UI` at `741be6b6` (summarized in
+  `engineering-team/epics/setup-page-scaffold.md` § "What Brainstorm has"): the three-step model
+  `client/src/hooks/useFinishSetup.ts` and the header pill
+  `client/src/components/FinishSetupBanner.tsx`. The model's key idea is two kinds of "not done":
+  optimistic for the page, relay-verified for the pill, so nobody is nagged while their kind 3 or
+  kind 10040 is still loading.
+- **Step 1 (Create your account = set up your Tapestry Assistant):** the `assistant-profile` book's
+  truthful setup check (#1, Done — `ui/src/hooks/useAssistantSetupState.js`) and its planned My
+  Assistant page (#4, Approved, not built).
+- **Step 3 (Activate = your Treasure Map):** the 🍇 TA Treasure Map page
+  (`/tapestry/grapevine/treasure-map`, `ui/src/pages/grapevine/TrustedAssertions.jsx`) already finds
+  the viewer's kind 10040 on the local and configured relays.
+
+**Product questions underneath it:** what "Create your account" means for each kind of visitor (a
+signed-out visitor, a signed-in guest with no assistant, a customer, an admin, the owner); when a
+follow list or a Treasure Map counts as done — which relays are read, and whether a kind 10040 that
+names another provider counts (Brainstorm says it does not); whether signed-out visitors keep seeing
+`/setup`; where the Setup Alert appears (Brainstorm Search pages, the `/tapestry` control panel, or
+both); and how `/setup` relates to the Dashboard's Getting-Started checklist. Every check is about
+the *viewer's own* follow list, Treasure Map and assistant, never the instance TA's.
+
+**Classification:** feature. The status checks and the Setup Alert are small and well shaped by
+Brainstorm's precedent (Standard, all phases). The three action pages are not: each leans **Product
+Team** first.
