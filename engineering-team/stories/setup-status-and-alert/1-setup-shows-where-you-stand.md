@@ -131,6 +131,6 @@ None. The owner answered them at planning (2026-09-21). The answers are recorded
 § Decisions 1–6 and in § The rules above.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
