@@ -108,5 +108,5 @@ None. The owner answered them at planning (2026-09-21), recorded in book § Deci
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.test-plan.md`
 - Review: (filled in after Review phase)
