@@ -537,6 +537,10 @@ async function register(app) {
     app.post('/api/assistant/provision-key', assistantApi.handleProvisionAssistantKey);
     app.get('/api/assistant/status', assistantApi.handleAssistantStatus);
     app.get('/api/assistant/pubkey', assistantApi.handleGetTAPubkey);
+    // Which assistants this instance controls, and who controls each (ADR author-scoped-inspection/0001).
+    // No middleware entry: the handler shapes its own content by session. Its path deliberately
+    // contains no protectedGetEndpoints substring — that list matches with .includes().
+    app.get('/api/assistant/roster', assistantApi.handleGetAssistantRoster);
     // The composite avatar (ta-avatar #3, ADR 0003). Both are owner-only: the
     // first reveals the owner's picture URL, the second writes into a directory
     // that is served publicly.

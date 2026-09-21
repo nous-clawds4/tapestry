@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import { AssistantRosterProvider } from './context/AssistantRosterContext';
 import ConceptList from './pages/concepts/ConceptList';
 import ConceptDetail from './pages/concepts/ConceptDetail';
 import ConceptOverview from './pages/concepts/ConceptOverview';
@@ -465,5 +466,11 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  // Inside AuthProvider (main.jsx nests App within it — the roster response is session-shaped)
+  // and outside the router, so one fetch serves every route. ADR author-scoped-inspection/0002.
+  return (
+    <AssistantRosterProvider>
+      <RouterProvider router={router} />
+    </AssistantRosterProvider>
+  );
 }
