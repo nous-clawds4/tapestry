@@ -66,12 +66,13 @@
                 </div>
             </div>
             
-            <!-- Brainstorm Assistant Panel -->
+            <!-- Tapestry Assistant Panel — read-only: the profile is edited and published on the My Assistant
+                 page (/assistant), its one writer (ADR assistant-profile/0005) -->
             <div class="section">
-                <h2>🤖 Your Brainstorm Assistant</h2>
+                <h2>🤖 Your Tapestry Assistant</h2>
                 <div class="card">
-                    <p>Your Brainstorm Assistant is the Tapestry Assistant identity that publishes kind 30382 Trust Assertions on your behalf.
-                       Give it a profile so other users can see who it represents.</p>
+                    <p>Your Tapestry Assistant is the nostr identity that publishes kind 30382 Trust Assertions on your behalf.
+                       Its profile is edited and published on the My Assistant page.</p>
 
                     <div id="ownerAssistantLoading" class="status-message status-info">Loading assistant status...</div>
 
@@ -97,18 +98,13 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="button-group">
-                            <button id="publishOwnerAssistantBtn" class="button primary-btn" onclick="publishOwnerAssistantProfile()">
-                                Publish Kind 0 Profile
-                            </button>
-                        </div>
-                        <div id="ownerAssistantPublishStatus" class="status-message"></div>
                     </div>
 
                     <div id="ownerAssistantNoKey" style="display: none;" class="status-message status-error">
                         Tapestry Assistant keys not found.
                     </div>
+
+                    <p><a href="/assistant">🤖 Edit and publish its profile on the My Assistant page →</a></p>
                 </div>
             </div>
 
@@ -146,7 +142,7 @@
     </div>
 
     <script>
-        // ── Brainstorm Assistant Functions (owner) ──
+        // ── Tapestry Assistant (read-only) — the profile is published on the My Assistant page ──
 
         let _ownerPubkey = null;
 
@@ -157,11 +153,12 @@
                 const authData = await authResp.json();
                 _ownerPubkey = authData.pubkey;
                 if (!_ownerPubkey) {
-                    document.getElementById('ownerAssistantLoading').textContent = 'Sign in to manage your Brainstorm Assistant.';
+                    document.getElementById('ownerAssistantLoading').textContent = 'Sign in to see your Tapestry Assistant.';
                     return;
                 }
 
-                const resp = await fetch(`/api/assistant/status?customerPubkey=${_ownerPubkey}`);
+                // defaults=0: this panel never reads the default profile, so the status call skips its name lookup.
+                const resp = await fetch(`/api/assistant/status?customerPubkey=${_ownerPubkey}&defaults=0`);
                 const data = await resp.json();
 
                 document.getElementById('ownerAssistantLoading').style.display = 'none';
@@ -192,45 +189,11 @@
                     document.getElementById('ownerAssistantPreview').style.display = 'block';
                     document.getElementById('ownerAssistantDisplayName').textContent = data.profile.display_name || data.profile.name || '';
                     document.getElementById('ownerAssistantAbout').textContent = (data.profile.about || '').slice(0, 120) + '...';
-                    document.getElementById('publishOwnerAssistantBtn').textContent = 'Re-publish Kind 0 Profile';
                 } else {
                     document.getElementById('ownerAssistantProfileStatus').innerHTML = '<span style="color: #f59e0b;">⚠️ Not published</span>';
                 }
             } catch (err) {
                 document.getElementById('ownerAssistantLoading').textContent = 'Failed to load assistant status: ' + err.message;
-            }
-        }
-
-        async function publishOwnerAssistantProfile() {
-            if (!_ownerPubkey) return;
-            const btn = document.getElementById('publishOwnerAssistantBtn');
-            const status = document.getElementById('ownerAssistantPublishStatus');
-            btn.disabled = true;
-            btn.textContent = 'Publishing...';
-            status.textContent = 'Publishing profile...';
-            status.className = 'status-message status-info';
-
-            try {
-                const resp = await fetch('/api/assistant/publish-profile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customerPubkey: _ownerPubkey }),
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    status.textContent = '✅ ' + data.message;
-                    status.className = 'status-message status-success';
-                    await loadOwnerAssistantStatus();
-                } else {
-                    status.textContent = '❌ ' + (data.error || 'Failed');
-                    status.className = 'status-message status-error';
-                }
-            } catch (err) {
-                status.textContent = '❌ ' + err.message;
-                status.className = 'status-message status-error';
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Re-publish Kind 0 Profile';
             }
         }
 

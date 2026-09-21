@@ -22,5 +22,14 @@ file produces it and whichever story wrote the spec.
 renames (paths, labels, copy), not only for the files it edits. That is one line in
 `engineering-team/roles/architect.md`, or in the ADR template's "Test-file changes" note.
 
+**2026-09-21 — a third instance, in the story that filed this row (assistant-profile #5, Phase 4).** Phase 3
+grepped for every literal ADR 0005 changes, and the grep for `signAs` did list `test/create-tapestry.test.js` and
+`test/add-a-concept-to-a-tapestry.test.js` — but neither was opened. Their R3 sentinels read a fixed 600-character
+window from the first `signAs === 'assistant'` in `src/api/strfry/commands/publishEvent.js` and need the owner gate
+inside it. The kind-0 refusal, written as the first statement of that branch, pushed the gate out; the full gate
+caught it. The Implementer moved the refusal just above the branch (same behaviour; story 5's Deviations), which
+leaves the gate 537 characters in. So the fix shape needs one more clause: **open every hit**, and treat a
+position- or window-based source sentinel as asserting the file's layout, not just its literals.
+
 **Pointer:** `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`, the opening
 "Re-aims" section (and the story 3 test plan's, `3-one-default-assistant-profile.test-plan.md:43-47`).

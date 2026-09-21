@@ -62,6 +62,25 @@ None.
 
 None.
 
+## Deviations
+
+- The NIP-85 panel's first sentence read "Your Brainstorm Assistant is the Tapestry Assistant identity…". The ADR's
+  rename would make that "Your Tapestry Assistant is the Tapestry Assistant identity…", so it now reads "…is the
+  nostr identity…", as the customer panel's already did.
+- The NIP-85 panel's signed-out line said "Sign in to manage your Brainstorm Assistant." The panel no longer manages
+  anything, so it now says "Sign in to see your Tapestry Assistant."
+- Beyond the visible copy, the two pages' comments about the panel ("Brainstorm Assistant Panel", "Brainstorm
+  Assistant Functions", "Load Brainstorm Assistant status") say "Tapestry Assistant" and that the panel is read-only.
+  `customer.html`'s module-level `_assistantCustomerPubkey` went with the publish function, its only reader.
+- `publish-profile`'s doc comment no longer lists `nip05` among the body's fields. It never was one: the server sets
+  it, and `sanitizeProfileContent` drops it (ADR 0003).
+- The generic signer's kind-0 refusal sits just above the assistant branch, as `signAs === 'assistant' && event.kind
+  === 0`, not as the branch's first statement (ADR 0005's implementation note). The behaviour is the same — refused
+  for everyone, before the owner gate and before any key is read. The reason: the R3 sentinels in
+  `test/create-tapestry.test.js` and `test/add-a-concept-to-a-tapestry.test.js` read a 600-character window from the
+  first `signAs === 'assistant'` and need the owner gate inside it. Inside the branch, the refusal pushed the gate
+  out; here the gate sits 537 characters in (ledger `2026-09-21-adr-reaim-list-misses-outcome-asserts`).
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
