@@ -248,6 +248,7 @@ const suites = [
   { file: 'nip05-ssrf-guard.test.js' },
   { file: 'author-scoped-inspection-roster.test.js' },
   { file: 'author-scoped-inspection-views.test.js' },
+  { file: 'setup-status.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so
