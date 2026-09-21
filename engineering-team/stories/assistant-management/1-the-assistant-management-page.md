@@ -1,6 +1,6 @@
 # Story 1: The Assistant Management page, its FAQ and ten placeholder action pages
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-21
 **Type:** Feature
 **Epic:** `assistant-management`
@@ -304,4 +304,4 @@ Small judgment calls made during implementation (Implementer role, step 9):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
 - Test plan: `engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-management/1-the-assistant-management-page.md`
