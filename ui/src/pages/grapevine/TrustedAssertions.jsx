@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { queryRelay } from '../../api/relay';
+import { publishToLocalStrfry } from '../../utils/nostrPublish';
 import { useCypher } from '../../hooks/useCypher';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import TreasureMapTagsPanel from './TreasureMapTagsPanel';
@@ -101,12 +102,8 @@ export default function TrustedAssertions() {
     if (!event) return;
     setImportingLocal(true);
     try {
-      const res = await fetch('/api/strfry/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event, signAs: 'client' }),
-      });
-      const data = await res.json();
+      // Through the shared helper, so the Setup Alert hears about the viewer's Map (ADR setup-status-and-alert/0003).
+      const data = await publishToLocalStrfry(event);
       if (data.success) {
         setInLocal(true);
       } else {

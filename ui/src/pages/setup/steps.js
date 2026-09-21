@@ -57,11 +57,15 @@ export const SETUP_COPY = {
   allDone: "You're all set!",
 };
 
-/** The Setup Alert's words (setup-status-and-alert #2 § Copy, Brainstorm's). */
+/**
+ * The Setup Alert's words (setup-status-and-alert #2 § Copy, Brainstorm's). The button reads
+ * "Finish setup →"; the arrow is its own piece because it is decorative, and the pill has no fixed
+ * name: it is announced as it reads (setup-status-and-alert #3, ADR 0003).
+ */
 export const SETUP_ALERT_COPY = {
-  name: 'Finish setting up your account',
   sentence: 'Finish setting up your account',
-  button: 'Finish setup →',
+  button: 'Finish setup',
+  arrow: '→',
 };
 
 /** The Setup Alert's count. `n` counts the steps it is confident are not done. */

@@ -96,6 +96,29 @@ None changed. The orientation handles are story 1's: `39998:<TA>:tapestry-assist
 
 None. The owner answered the three at planning (2026-09-21), recorded above.
 
+## Deviations
+
+Small judgment calls made during implementation (Implementer role, step 9):
+
+- **A listener that throws is logged.** ADR 0003 § 1 asks for each listener to run inside
+  `try/catch`, so a bug in one never breaks a publish. `announcePublished` also `console.warn`s the
+  error, so a broken listener is visible rather than silent.
+- **The import sites' failure paths merge.** `publishToLocalStrfry` resolves a network error or a
+  non-JSON answer as `{ success: false, error }` instead of throwing. At the three import sites
+  (`TrustedAssertions.jsx`, `UserDetail.jsx`, `BrainstormSettings.jsx`), such a failure now reaches
+  each site's "not success" branch instead of its `catch`. Both branches only log, or do nothing, so
+  what the viewer sees is unchanged.
+- **`SetupAlert.jsx`'s header comment** says the pill "carries no label of its own" rather than
+  naming the attribute. The Node sentinel D1 looks for the attribute's name anywhere in the file.
+- **No live Follow.** The local stack answers `allowExternalPublish: true`, so a Follow from a
+  throwaway key would have published to public relays. AC-3 was verified in these ways instead:
+  - hermetically, with the real UI code: the Follow and Treasure Map flows, with WebSockets
+    answered in the page;
+  - in Node, against local stub relays.
+
+  The live pass on `:7778` (a sign-in-only throwaway session) covered AC-1, AC-2 and AC-4. Story 3's
+  P0–P2 and P4 also ran against the deployed bundle there.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`
 - Test plan: `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.test-plan.md`

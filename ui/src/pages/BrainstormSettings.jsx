@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { publishToLocalStrfry } from '../utils/nostrPublish';
 import { usePov } from '../context/PovContext';
 import { useConfig } from '../context/ConfigContext';
 import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
@@ -365,12 +366,8 @@ export default function BrainstormSettings() {
     if (!wotStatus.external10040Event) return;
     setImporting10040(true);
     try {
-      const resp = await fetch('/api/strfry/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: wotStatus.external10040Event, signAs: 'client' }),
-      });
-      const data = await resp.json();
+      // Through the shared helper, so the Setup Alert hears about the Map (ADR setup-status-and-alert/0003).
+      const data = await publishToLocalStrfry(wotStatus.external10040Event);
       if (data.success) {
         setRefreshKey(k => k + 1);
       } else {

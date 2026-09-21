@@ -5,9 +5,38 @@
  * - publishToLocalStrfry: publishes a signed event to the local strfry relay
  * - publishToRelays: publishes a signed event to external relays via SimplePool (browser-side)
  * - publishEverywhere: publishes to both local strfry and external relays in parallel
+ * - onEventPublished: subscribe to every signed event that one of the above got onto a relay
  */
 
 import { SimplePool } from 'nostr-tools/pool';
+
+// Who wants to know when an event reached a relay (ADR setup-status-and-alert/0003): the Setup Alert's
+// provider re-checks after the viewer publishes their follow list or Treasure Map, wherever in the app
+// that happens, without each page having to know about setup.
+const publishListeners = new Set();
+
+/**
+ * Hear about every signed event that reached a relay through this module: the local relay answered
+ * success, or at least one external relay accepted it. publishEverywhere can announce the same event
+ * twice, once per route, so a listener that acts once per event keeps the ids it has seen.
+ * @param {(signedEvent: object) => void} listener
+ * @returns {() => void} unsubscribe
+ */
+export function onEventPublished(listener) {
+  publishListeners.add(listener);
+  return () => { publishListeners.delete(listener); };
+}
+
+function announcePublished(signedEvent) {
+  for (const listener of [...publishListeners]) {
+    try {
+      listener(signedEvent);
+    } catch (err) {
+      // A listener's bug must never fail the publish that already happened.
+      console.warn('[publish] onEventPublished listener threw:', err);
+    }
+  }
+}
 
 export const PUBLISH_RELAYS = [
   'wss://purplepag.es',
@@ -49,7 +78,11 @@ export async function publishToLocalStrfry(signedEvent) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event: signedEvent, signAs: 'client' }),
     });
-    return await resp.json();
+    const data = await resp.json();
+    // The server answers success only after strfry has stored the event, so a listener that reads the
+    // local relay next will find it.
+    if (data?.success === true) announcePublished(signedEvent);
+    return data;
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -168,6 +201,7 @@ export async function publishToRelays(signedEvent, relays = PUBLISH_RELAYS) {
     try { pool.close(relays); } catch {}
   }
 
+  if (successes.length > 0) announcePublished(signedEvent);
   return { successes, failures, details };
 }
 
