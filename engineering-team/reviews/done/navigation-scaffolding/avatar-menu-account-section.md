@@ -297,3 +297,243 @@ dependency change, no TA pubkey, lint parity holds, and the gate's reds are the 
 plus two suites a stale control-panel process explains. The Tapestry menu's viewport overflow is
 the one thing worth fixing before promotion, but its cause predates this commit and the fix is the
 owner's call.
+
+---
+
+## Addendum 2026-09-21: the three commits after the verdict
+
+**Diff:** `git log --first-parent 01c7f03b..78a09be5`, three commits:
+
+- `c90986ad`: the review follow-ups (N1, N2, N5).
+- `30f2f19b`: merges `origin/staging` at `e8d15892`, which is PR #720, the `/setup` scaffold.
+- `78a09be5`: a ledger update.
+
+I re-derived every changed statement below from a command, including the wording I suggested
+myself (reviewer.md step 10).
+
+### Quality gates (re-run by reviewer)
+
+- [x] `npm test` on Node 22.23.2 x64, committed clean tree at `78a09be5`, label
+      `avatar-menu-account-section-addendum`. FAIL, with the same environmental set as the first
+      run:
+
+      ```
+      20260921T044814Z-41349-9c0d [avatar-menu-account-section-addendum] started 2026-09-21T04:48:14.364Z on 78a09be5 — FAIL, exit 1, 3424 passed, 57 failed, 139 skipped, 214/214 suites; failed: tag-detail, capture-a-goal-and-see-it, structures-the-brain-can-trust, break-a-goal-into-pieces, attach-the-world, sessions-read-the-brain, the-proposal-loop, teach-it-what-matters, the-brain-survives, return-the-four-on-every-read-surface, show-the-four-on-the-goal-screens-that-already-exist, recognizable-published-ta-profile, profile-lookup-bounds, not-yet-shared-filter, concept-count-canonical, summaries-element-count, author-scoped-inspection-roster
+      ```
+
+      Compared suite by suite with the first run (`20260921T041722Z-59978-66e1`, on `3938a16f`):
+      214 suites, no difference in any verdict or in any pass/fail/skip count. The five menu
+      sentinel suites are green with zero skips. #720 added no test files.
+- [x] ESLint on `avatarMenuLinks.js` at HEAD: E0 W0. It is the only JS file `c90986ad` touches;
+      CSS isn't linted.
+- [x] Served build:
+  - `index-CabXuA_B.js` carries `{key:"account-setup",icon:"🧭",…,to:"/setup"}` and the
+    `/setup/*` route strings.
+  - `index-CVNf5oh8.css` serves
+    `.user-dropdown{…max-height:calc(100vh - 60px);max-height:calc(100dvh - 60px);overflow-y:auto}`.
+    The fallback pair survived minification, in source order.
+- [x] `bash scripts/harness-lint.sh`: exit 0 with this addendum committed.
+
+### 1. `c90986ad`: the follow-ups
+
+**N1, the Tapestry menu's scroll containment: fixed.** `ui/src/styles.css:762–766`.
+
+**Method.** The same headless browser setup as before, with a fake owner and a fake guest and every
+non-GET request aborted. At each size I opened the menu, scrolled it to its end, and hit-tested the
+centre of Sign Out:
+
+| Viewer, viewport | Menu top → bottom | max-height | scrollHeight / clientHeight | Sign Out bottom: at open → after scroll | Element at Sign Out's centre |
+|---|---|---|---|---|---|
+| owner, 1366×600 | 50 → 590 | 540px | 624 / 538 | 675 → 589 | Sign Out |
+| owner, 1366×657 | 50 → 647 | 597px | 624 / 595 | 675 → 646 | Sign Out |
+| owner, 1366×400 | 50 → 390 | 340px | 624 / 338 | 675 → 389 | Sign Out |
+| owner, 375×667 | 50 → 657 | 607px | 640 / 605 | 691 → 656 | Sign Out |
+| owner, 375×540 | 50 → 530 | 480px | 640 / 478 | 691 → 529 | Sign Out |
+| owner, 320×480 | 50 → 470 | 420px | 640 / 418 | 691 → 469 | Sign Out |
+| guest, 1366×600 | 50 → 590 | 540px | 580 / 538 | 631 → 589 | Sign Out |
+| guest, 375×540 | 50 → 530 | 480px | 596 / 478 | 647 → 529 | Sign Out |
+
+- **No horizontal overflow** at any size (`scrollWidth == clientWidth`), even though
+  `overflow-y: auto` makes `overflow-x` compute to `auto`.
+- **Windows-style scrollbars.** I forced a real 17px scrollbar (`::-webkit-scrollbar`, in a
+  headless run without `--hide-scrollbars`):
+  - The menu keeps its width. A few long labels wrap (their rows go from 44px to 60px), but nothing
+    overflows or clips, and Sign Out stays reachable.
+  - Dragging the scrollbar thumb keeps the menu open and scrolls it to the end (102 of 102px). The
+    click-outside handler treats the scrollbar as inside `menuRef`. A real outside click still
+    closes the menu.
+- **The 60px offset holds at every width.** `.app-header` ends at y=55, and the menu starts at
+  y=50, at 1366, 375 and 320 wide, so the menu stops 10px above the bottom of the window. The
+  header can't grow: `.user-name` is `nowrap` with an ellipsis at 150px, and is hidden on mobile
+  (`styles.css:726–732`, `:2508`).
+- The new comment (`styles.css:762–763`) is accurate and not time-bound.
+- **The coordinator's measurements.** Every number that doesn't depend on the signed-in user
+  matches mine exactly: top 50, bottom 590, max-height 540px, clientHeight 538, and 589 and 529
+  after scrolling. Their scrollHeight of 565, and their "the whole menu fits at 375×667", come from
+  their stub user. That is probably a guest with a wider avatar button, so "Brainstorm Landing
+  Page" doesn't wrap. For an owner at 375×667 the menu does need scrolling (Sign Out 691 → 656).
+  Sign Out is reachable either way.
+
+**N2, the stale `.bs-usermenu-links` comment: fixed, using my wording verbatim, and my wording
+overstates.** `styles.css:2879–2881`.
+
+- The count is gone and all three sections are named.
+- But I measured the `/about` menu:
+  - a compact row is 32.5px plus a 1.6px gap;
+  - a footer box is 37.2px plus a 6.4px gap;
+  - so full-width boxes would add about 95px across the ten links;
+  - and the compact menu already ends at y=751, below the bottom of the 657px window I used above
+    for a 1366×768 laptop.
+- So "a full-width box per link would make the dropdown taller than most viewports" is literally
+  true, but the contrast it implies (that compact rows keep the menu within most viewports) is
+  not.
+- Non-blocking (A1). If anyone edits this comment again, a more accurate version is:
+  "Compact rows rather than the full-width boxes the footer uses, so a long list of links stays as
+  short as it can."
+
+**N5, the icon: changed to 🧭 (U+1F9ED).**
+
+- In `ui/src` it appears only at `avatarMenuLinks.js:86` and on the Concepts list page:
+  - `ConceptList.jsx:271` is a column-header icon;
+  - `ConceptList.jsx:332` is a filter `<label>` ("🧭 Coverage"), not a column header as the
+    coordinator's note said.
+- Neither use is navigation, and the icon doesn't appear in the `public/` pages. Fine.
+
+### 2. `30f2f19b`: merging #720 (the `/setup` scaffold)
+
+**A clean merge that hides nothing.** `git merge-tree --write-tree c90986ad e8d15892` produces tree
+`8f9e52e1`, byte-identical to `30f2f19b^{tree}`.
+
+**No conflict with this change:**
+
+- **Menu files.** The five menu files, `TopBar.jsx` and `Layout.jsx` are blob-identical before and
+  after the merge.
+- **Routes.**
+  - `/setup`, `/setup/create-account`, `/setup/follow` and `/setup/activate` are top-level React
+    routes (`App.jsx:231–243`), registered before the top-level `*` at `:483`.
+  - No server file changed: `git diff --stat c90986ad 30f2f19b` lists only `ui/src` and docs. So
+    `/setup` is purely client-side, and its `accountLinks` entry needs no `external` flag.
+  - The Tapestry menu's `navigate()` and the Brainstorm menus' full page load reach the same page.
+- **Styles.** All 159 added lines are appended at the end of the file (`styles.css:8464` onward).
+  Every selector is under `.bs-setup-*`, plus one `@media (max-width: 480px)` block that holds two
+  of them. None reaches `.user-dropdown`, `.bs-usermenu-*` or `.dropdown-*`.
+- **Page shell.** `SetupIndex` and the placeholder pages mount `<TopBar />` with the default auth
+  slot, which is `BrainstormUserMenu`. So `/setup` shows the account section too. Measured: the
+  same six sections in the same order.
+
+**Behaviour at HEAD:**
+
+| From | Item | Lands on | Heading |
+|---|---|---|---|
+| Tapestry | Account Setup | `/setup` (same document) | "Finish setting up your account." |
+| Tapestry | Assistant Management | `/assistant` (same document) | "Page not found" |
+| `/about` and `/` | Account Setup | `/setup` (full page load) | "Finish setting up your account." |
+| `/about` and `/setup` | Assistant Management | `/assistant` (full page load) | "Page not found" |
+
+**#720's story scope.** The story is
+`engineering-team/stories/setup-page-scaffold/1-setup-page-and-placeholders.md`.
+
+- It lists "Any link to `/setup` from a menu or another page" as out of scope (`:119`).
+- It records Open Question 2 as resolved: "No way in yet: `/setup` is reached only by its address
+  until the Setup Alert is built" (`:130`).
+- Both describe that story's end state, which the owner approved on 2026-09-20. The owner's
+  2026-09-21 ask explicitly adds the menu link, so this change supersedes them.
+- Nothing in #720's code or acceptance criteria depends on `/setup` being unlinked. AC-1 is about
+  any visitor opening `/setup`.
+- The Setup Alert is a separate item and is still queued.
+- See non-blocking A2.
+
+### 3. `78a09be5`: the ledger update
+
+**Placement: right.**
+
+- `ledger/2026-09-20-live-tier-fails-on-stale-stack.md` asks exactly the question this case
+  answers: "is the stack running the code in this working tree?" (`:11–12`).
+- Its fix shape 2, a build-identity probe, covers both ways in. A second row would split one fix
+  across two files.
+- The update uses the same form as the other ledger update on the branch
+  (`2026-09-20-claude-md-overstates-bind-mount.md:51–53`): a `---` separator, then a bold dated
+  lead after the Pointer. The row's `**Status:**` stays OPEN (`:6`).
+- The row predates my review; see correction 1.
+
+**The update's claims, re-checked:**
+
+| Claim | Check | Result |
+|---|---|---|
+| `ps` shows the control panel started `Sat Sep 12 17:37:30 2026` | Re-ran the quoted command | ✅ identical |
+| 19 commits changed `src/` or `bin/` since then | The quoted `--since='2026-09-12T17:37:30Z'` gives 19, and so does my 17:40:00Z bound | ✅ as a committer-date count, but it is a lower bound (A3) |
+| `/api/assistant/roster` answers 404, though `src/api/index.js:543` registers it | 404 live. The file on disk inside the container has the route (`grep -c` → 1) | ✅ |
+| The branch's code is on disk inside the container, and only the process is old | `docker exec tapestry grep -c MAX_PUBKEYS_PER_REQUEST …/fetchProfiles.js` → 7. The original row measured 0 | ✅ |
+| `--ui` never restarts the backend (`DO_SERVER=0`, `:50`) | `scripts/dev-refresh.sh:25`, `:50` | ✅ |
+| Two suites are red "for this reason alone" in `…041722Z…` | Both reproduce identically in `…044814Z…`. Where their code actually runs they pass: the roster suite 15/15 (`reviews/done/author-scoped-inspection/1-4-author-scoped-inspection.md:33`), `profile-lookup-bounds` 27/27 against staging (the row's own measurement). Here, exactly the assertions on new code fail | ✅ strongly supported; only a restart would prove it |
+| `MAX_PUBKEYS_PER_REQUEST` arrived on 2026-09-20 in `56ea6cf9` | `git log -S` on `fetchProfiles.js` | ✅ |
+| Row 289's premise held on 2026-09-13 and doesn't now | Attributed to row 289's own text. "fifteen" matches the 15-suite re-run the row records | ✅ |
+| "nine days earlier" | 8 days 11 hours, i.e. nine calendar days (the 12th to the 21st) | ✅ read as calendar days |
+| "Restarting this instance needs `--deps`, because `package.json` has changed" | Since the process started, root `package.json` gained only the `gate:status` script (`072da83a`). `dependencies`, `devDependencies` and `engines` are unchanged. `package-lock.json` is blob-identical between `cde8b282` and HEAD. Every root dependency is present in the container's `node_modules` | ❌ `--server` is enough (A4) |
+
+### Corrections to the review above
+
+1. **Harness friction 1 said "None exists: I searched OPEN.md and `ledger/`". That was false.**
+   - `ledger/2026-09-20-live-tier-fails-on-stale-stack.md` was already on the branch when I wrote
+     that. It was added in `13fdcc71` on 2026-09-20, and `git cat-file -e 01c7f03b:<path>`
+     succeeds.
+   - My patterns searched for a stale "server", "process" or "control panel", and missed "stale
+     stack".
+   - The coordinator's dedup is right, and the existing row is the correct home.
+2. **"Both links land on 'Page not found'" held at `3938a16f`, but not at HEAD.**
+   - Since the #720 merge, Account Setup reaches the `/setup` scaffold. Only Assistant Management
+     still reaches "Page not found".
+   - Non-blocking 3 now concerns only that one link.
+   - Non-blocking 4's `external` caveat now applies only to `/assistant`.
+3. **"19 server commits behind"** (Harness friction 1) is a committer-date count and a lower bound;
+   see A3.
+4. **Lint count.** The coordinator confirmed that the 29 they reported counted output lines. 27 is
+   the right number.
+
+### Findings (addendum)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+- **A1. My N2 comment wording overstates.** The optional rewording is under N2 above.
+- **A2. Record the new way in to `/setup` in the open `setup-page-scaffold` book.**
+  - The book (`engineering-team/audits/setup-page-scaffold/book.md`, still Open) and its story say
+    `/setup` has no way in.
+  - This review is filed under `navigation-scaffolding`, where that book's close won't look.
+  - A one-line pointer in that `book.md` keeps its as-built audit honest. For example:
+    "2026-09-21: the avatar menus now link to `/setup` as Account Setup (doc lane,
+    `reviews/done/navigation-scaffolding/avatar-menu-account-section.md`)".
+- **A3. "19" is a lower bound, in the ledger update and in my review.**
+  - `--since` filters by committer date. It can't see a commit dated before the process started
+    that reached the branch afterwards.
+  - Row 289 names `cde8b282` as the commit the process booted from.
+    `git rev-list --count cde8b282..HEAD -- src bin` gives 20. The extra one is `22fe7f28`, a
+    merge dated 16:43Z on 09-12.
+  - Suggested wording: "at least 19 commits (20 by ancestry from `cde8b282`)". The conclusion
+    doesn't change.
+- **A4. The ledger update's `--deps` claim is wrong.**
+  - The exact fix is to replace the update's last sentence with: "Restarting this instance does not
+    need `--deps`: since the process started, root `package.json` gained only the `gate:status`
+    script (`072da83a`), `package-lock.json` is unchanged, and every root dependency is already
+    installed in the container. `scripts/dev-refresh.sh --server` is enough."
+  - Optional: broaden the row's title (not its id) to "…when the local stack isn't running the
+    working tree's code".
+
+#### Harness friction
+
+None new.
+
+### Verdict (addendum)
+
+**PASS**
+
+All three commits are sound. The scroll fix does what non-blocking 1 asked, at every size and for
+both roles, including Windows-style scrollbars, with no horizontal overflow. The comment and icon
+follow-ups landed. The #720 merge is exactly git's automatic merge and conflicts with nothing in
+this change: its routes, page shell and styles are separate, and it gives Account Setup a real
+destination. The ledger update sits in the right row, and its load-bearing claims reproduce. What
+remains is record accuracy: my own comment wording (A1), a pointer for the setup book (A2), a
+lower-bound count (A3) and one wrong restart instruction (A4). None of them affects the code.
