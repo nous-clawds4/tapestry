@@ -290,12 +290,22 @@ test('U10: the relays asked are exactly the instance\'s publish relays, about th
     `ADR 0001: the relay query carries maxWait ${RELAY_BUDGET_MS}, got ${JSON.stringify(q.params)}`);
 });
 
-test('U11: index.js exports getAssistantPublishRelays() — a non-empty list of relay URLs, the one list publishing and checking share', () => {
+test('U11: index.js exports getAssistantPublishRelays() — outside local-only mode, a non-empty list of relay URLs, the one list publishing and checking share', () => {
   let mod;
   try { mod = require(ASSISTANT_SRC); } catch (err) { throw new Error(`src/api/assistant/index.js failed to load: ${err.message}`); }
   assert(typeof mod.getAssistantPublishRelays === 'function',
-    'ADR 0001: src/api/assistant/index.js must export getAssistantPublishRelays() — the seam story 2 makes configurable');
-  const list = mod.getAssistantPublishRelays();
+    'ADR 0001: src/api/assistant/index.js must export getAssistantPublishRelays() — the one list the publisher and the setup check share');
+  // ADR assistant-profile/0002: local-only publish mode empties the publish set, so pin the flag off
+  // here rather than inherit it from whoever runs the suite.
+  const savedLocalOnly = process.env.BRAINSTORM_PUBLISH_LOCAL_ONLY;
+  process.env.BRAINSTORM_PUBLISH_LOCAL_ONLY = 'false';
+  let list;
+  try {
+    list = mod.getAssistantPublishRelays();
+  } finally {
+    if (savedLocalOnly === undefined) delete process.env.BRAINSTORM_PUBLISH_LOCAL_ONLY;
+    else process.env.BRAINSTORM_PUBLISH_LOCAL_ONLY = savedLocalOnly;
+  }
   assert(Array.isArray(list) && list.length > 0, `getAssistantPublishRelays() must return a non-empty array, got ${JSON.stringify(list)}`);
   assert(list.every((u) => typeof u === 'string' && /^wss?:\/\//.test(u)), `every publish relay must be a ws(s):// URL: ${JSON.stringify(list)}`);
 });
