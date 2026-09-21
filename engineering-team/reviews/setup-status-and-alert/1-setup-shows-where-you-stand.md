@@ -305,3 +305,288 @@ every claim in the Deviations, the test plan's Verification and the commit messa
 ## Verdict
 
 **CHANGES_REQUESTED**
+
+## Round 2: `aa74544f` (2026-09-21)
+
+**Reviewer:** Claude (acting as Reviewer). I took no part in round 1 and reviewed this round independently.
+**Diff:** `git diff eff82667 aa74544f`. Whole story: `git diff 48813298 aa74544f`. Branch
+`feat/setup-status-and-alert`, working tree clean.
+- **Tester, `58ccd51d`:** B10 and its `mockSession` helper in `tests/brainstorm/setup-status.spec.js`, the
+  test plan's § Round 2, and `gate-result-record` added to the pinned gate.
+- **Implementer, `aa74544f`:** the provider fix (7 lines), two Deviations, and the ADR citation.
+
+Every round-2 claim was re-derived from commands, including the wording round 1 suggested (role step 10).
+
+In short:
+- Blocking 1 is fixed, by a conditional reset during render (`SetupStatusContext.jsx:35–37`).
+- B10 fails on the pre-fix build (verified here, not taken from the record) and passes on this one.
+- The reset is StrictMode-safe and adds no lint error.
+- Nothing that round 1 verified has regressed.
+- One sentence in the story's Deviations is now false (Non-blocking 1).
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **The walker list** (`/usr/bin/grep -rl readdirSync test/`, re-run first). It finds 21 files: 19
+  suites and 2 helpers.
+  - All ten pinned walkers are among them, `gate-result-record` included.
+  - Three more are already in the 72 through the filename grep: `retire-offering-vocabulary`,
+    `show-the-four-on-the-goal-screens-that-already-exist` and `stamped-composite-avatar`.
+  - Five read trees this branch does not change:
+    - `event-tagging-core` and `event-tagging-write-path` read `src/lib/event-tagging`;
+    - `reconciliation-rearchitecture` reads `src/pipeline/reconciliation`;
+    - `store-the-four-when-a-goal-is-captured-or-updated` reads `firmware/`;
+    - `ledger-row-ids` builds its own fixture checkouts.
+
+    `git diff 6eabd419 HEAD` (merge-base with `main`) touches none of those trees.
+  - The last one, `session-start`, reads the repo's real `ledger/` (AC-5, `test/session-start.test.js:470`).
+    This branch changes `ledger/`, but only in round 1's review commit `eff82667`, not in the story's code.
+    Run on its own through `.run()`: 32 passed, 0 failed. `ledger-row-ids` on its own: 6 passed, 0 failed.
+    See Harness friction 2.
+  - A dry run of the heredoc's selection gives 64 named suites plus 10 walkers, 2 of them already named:
+    72. That is exactly the pinned list, and none is missing from `test/registry.js`.
+- [x] **The story's scoped gate:** the test plan's heredoc verbatim, with
+  `GATE_LABEL=setup-status-1-review-r2`. `npm run gate:status -- --label setup-status-1-review-r2`:
+
+  ```
+  20260921T185018Z-58792-5ecd [setup-status-1-review-r2] started 2026-09-21T18:50:18.859Z on aa74544f — PASS, exit 0, 1519 passed, 0 failed, 4 skipped, 72/72 suites · /Users/wds4/repos/nous-clawds4/tapestry/tmp/gate-runs/20260921T185018Z-58792-5ecd.json
+  ```
+
+  - It ran on the committed tree (`git.dirty: false`), with no stray errors.
+  - Round 1's run was 1485 passed on 71 suites. `gate-result-record` adds 34 (34/0/0 in this record),
+    which makes 1519, so nothing else moved.
+  - The four skips are the baseline's: `deploy-safety-status` 1, `show-the-four…` 2 and `setup-status` H2 1.
+  - The run that `aa74544f`'s message cites (`20260921T183445Z-53353-33e7`) has the same totals, on
+    `58ccd51d` with three dirty files.
+- [x] **The Node suite with the live sign-in** (`SETUP_STATUS_LIVE_SIGN_IN=1`, through `.run()`): 40
+  passed, 0 failed, 0 skipped. The H-class executed 2 and skipped 0. The log has 47 lines, so the suite ran.
+- [x] **The UI build** (`npm --prefix ui run build`): exit 0.
+  - The content hash is the same before and after (`index-Cn1YBB3T.js`), so `dist/` already held this
+    tree's build, and `:4173` serves it.
+  - The live `:7778` container serves an `index-Cn1YBB3T.js` with the same SHA-256. So what holds on `:4173`
+    holds on the local stack.
+- [x] **The browser class** (`BRAINSTORM_BASE_URL=http://localhost:4173 npx playwright test
+  tests/brainstorm/setup-status.spec.js --project=chromium`): 15 passed (B0–B10). B10 alone with
+  `--repeat-each=5`, in parallel: 5 passed.
+- [x] **B10 against the pre-fix build: verified here, not taken from the record.**
+  - `ui/` is identical at `7fe27582`, `eff82667` and `58ccd51d`. In `aa74544f` the guard is the only `ui/`
+    change.
+  - How the pre-fix build was made:
+    - `git archive eff82667 ui src/lib` into the session scratchpad, with `ui/node_modules` symlinked;
+    - `vite build` with `--outDir` and vite's `cacheDir` both in the scratchpad;
+    - `vite preview` on `:4174`.
+
+    The repo's `dist/` and working tree were not touched.
+  - The same pipeline on `aa74544f` reproduces the repo's `dist/` byte for byte (`diff -rq`), so it is
+    faithful. The pre-fix bundle is `index-DBPZgGp7.js`, the one round 1 reviewed.
+  - **The full class on `:4174`:** 14 passed and 1 failed (B10), as the test plan records (`:259`).
+  - **B10 with `--repeat-each=2`:** it failed both times with "the answer from before the sign-out was
+    shown as current while the new check was still running". Each time 18 samples were stale, and each
+    began "3 of 3 complete✓Done: Create your account…". That is the recorded 18 (`:261`).
+- [x] **eslint parity** (`npx --prefix ui --no-install eslint --config ui/eslint.config.js …`, from the
+  repo root).
+  - At HEAD there is one error: `SetupStatusContext.jsx:72` `react-refresh/only-export-components`.
+    - The pre-fix file, checked through `--stdin`, has the same error at `:65`. The guard's 7 lines moved it.
+    - `AuthContext.jsx:8`, `ConfigContext.jsx:5` and `AssistantRosterContext.jsx:19` carry the same error.
+    - `App.jsx`, `pages/setup/Index.jsx`, `pages/setup/steps.js` and `utils/setupStatus.js` lint clean.
+  - The guard adds nothing from the React-hooks rules.
+    - `--print-config` shows `react-hooks/set-state-in-render` on at error level, and it stays silent.
+    - The same file with the guard's `if` removed, through `--stdin`, draws "Calling setState during render
+      may trigger an infinite loop" at `:36`. So the rule is live, and it accepts only the conditional form.
+    - `set-state-in-effect` is silent too.
+- [x] **`bash scripts/harness-lint.sh`:** exit 0, "harness-lint: clean (0 violations)".
+- [x] **The reviewer's lifecycle check,** `r2/provider-lifecycle-r2.js` in the session scratchpad. See the
+  next section.
+- [ ] _Lint not configured — skipped (eslint parity above is the book's check)._
+- [ ] _Typecheck not configured — skipped._
+- [ ] _Build not configured — skipped (the UI build above is the book's check)._
+
+### The fix: `ui/src/context/SetupStatusContext.jsx:32–37`
+
+- **By reading the code.** When there is no current request (`:30`) and a result is still held, the guard
+  resets the result to `{ request: null, phase: 'idle', answer: null }` during render.
+  - This is the pattern React documents for adjusting state while rendering, and it converges. After the
+    update `result.request` is `null`, so the condition is false. The cost is one extra render pass, and
+    only when the request goes away.
+  - It never touches `request`, the fetch effect's only dependency (`:53`), so it cannot add or skip a fetch.
+  - It cannot lose an answer. It fires only when there is no request, and the next non-null request runs
+    the effect again and fetches. Every scenario below ends on its new answer.
+  - An answer can land between the commit that clears the request and the effect cleanup that sets
+    `cancelled`. Two things keep it off the page: the phase is `'idle'` while there is no request
+    (`:55`), and the guard clears the result again on the next render.
+- **By running it.** The script started from round 1's `provider-race-check.js`, with three additions:
+  - every scenario runs in a fresh browser context;
+  - a MutationObserver, installed before the app loads, records every committed DOM state of
+    `main.bs-setup-main`, so a stale state shorter than one poll would still count;
+  - every `/api` request is answered in the browser, and non-GET and other-origin requests are aborted and
+    recorded.
+
+  It ran against three builds:
+
+  | Scenario | HEAD, production (`:4173`) | HEAD, development React (`:4175`) | Pre-fix control (`:4174`) |
+  |---|---|---|---|
+  | S0: signed in on `/`, no consumer, no read; client-side navigation to `/setup`, exactly one read | ok | ok | ok |
+  | S1: first sign-in from the page's button: 0 of 3 while checking, then the answer; one read, no query | ok | ok | ok |
+  | S2 (Blocking 1): sign out, then back in as the same account | ok, 0 stale DOM states | ok | fails: 3 of 3 shown |
+  | S3: the pre-sign-out read (same request key) answers during the new read | ok | ok | ok |
+  | S4: account switch through sign-out | ok | ok | ok |
+  | S5: a late answer for the previous account | ok | ok | ok |
+  | S6: auth re-resolves for an unchanged signed-in user | ok | ok | fails: 3/3 → unmarked → 3/3 |
+  | S7: switch A → B while signed in | ok | ok | ok |
+  | S8: `refresh()` | ok | ok | ok |
+  | S9: sign-out while a read is in flight | ok | ok | ok |
+  | Every scenario: no page error, no React render-loop or nested-update message, no stray non-GET, no other origin | ok | ok | ok |
+  | Checks passed | 24 of 24 | 24 of 24 | 21 of 24 |
+
+  - The control fails exactly the two checks that need the reset (S2 and S6). It passes everything round 1
+    verified: the lazy fetch, one read per load, account switches and dropped late answers. So the fix broke
+    none of them.
+  - S3 passes on the control too. The `cancelled` flag, which predates round 2, is what keeps a late
+    same-key answer out.
+  - S6 and S7 call `AuthContext.login()` through the React tree. Every UI caller of `login()` runs only when
+    signed out: `Header.jsx:70`, `BrainstormUserMenu.jsx:86`, `TagNotesView.jsx:52`, `Pins.jsx:157`,
+    `setup/Index.jsx:110`, `Tag.jsx:188` and `BrainstormSearch.jsx:497`.
+    - So today's UI cannot reach either path. They check the "sign-in re-resolving" half of the new
+      Deviation.
+    - S6's sequence is 3/3 → unmarked → 0/3 → 2/3. While `checkStatus` runs, the page shows its
+      sign-in-resolving look; then the new read starts from checking.
+- **StrictMode.**
+  - The development build (`NODE_ENV=development vite build`) carries no "Minified React error" strings, and
+    it does carry the dev-only nested-update warning.
+  - It runs mount effects twice: `/api/auth/status` is requested twice per load there, and once in production.
+  - Under it, the provider passed every scenario with the same read counts, and nothing reached the console
+    as an error or a warning.
+- **Round 1's own script on HEAD:** 12 ok, 0 failed. Its P3 line now reads "previous answer (3 of 3) shown
+  while the new read was in flight: false"; round 1 recorded `true`.
+
+### Spec and ADR, for what changed
+
+- [x] **AC-4's fourth bullet** (story `:80`, "while a step's check is still running … not done") now holds
+  in every case tested:
+  - the first load (B5);
+  - re-sign-in (B10, S2);
+  - an account switch (S4, S7);
+  - `refresh()` (S8);
+  - an auth re-resolve (S6).
+- [x] **ADR 0001 § 3.**
+  - "`user` becoming `null` resets the state to `idle`" (`:361–362`) is honored. The reset fires whenever
+    the request goes away, and that includes `user` becoming `null` (S2, S9).
+  - "A request counter or a `cancelled` flag" (`:363`): both are still there (S3, S5).
+- [x] **Story 2's AC-2** (the pill counts only finished checks, and reads this provider): during any new
+  check the provider summarizes `null`, so the pill would count nothing.
+- [x] **Files match the ADR.** Round 2 touches five files: the provider, the spec, the story, the ADR and
+  the test plan. There are no new dependencies and no server change.
+
+### B10, read as closely as the code
+
+- **Hermetic.** `mockSession` registers the `/api/**` catch-all first (spec `:142`). Playwright tries the
+  most recently registered route first, so the specific mocks (`:143–171`) win. Every other `/api` request
+  is answered in the browser instead of reaching `:7778` through the preview's proxy.
+- **Not trivially satisfied.** Beyond "no stale sample" (`:397–398`), B10 requires:
+  - a "0 of 3 complete" sample inside the window (`:399`), so a page stuck signed out or loading fails;
+  - "1 of 3" within 5 s (`:402`), so the new answer is not lost;
+  - the signer's `getPublicKey` and `signEvent:22242` (`:405–406`);
+  - every status read being for the viewer (`:408`).
+- **A meaningful window.**
+  - Polling starts right after the click and runs for 2 s (`:391–396`).
+  - The second read is answered 3 s after it starts (`:376`), and it starts only after sign-in completes.
+  - So every sample falls while that read is in flight, with roughly a second to spare. Against the pre-fix
+    build, 18 samples were stale.
+- **Limits:** see Non-blocking 2.
+
+### The round-2 documents, checked as claims
+
+- [x] **The sign-in line Deviation** (story `:137–141`) is accurate.
+  - ADR § 4 has "then the signed-out line" (`:390`).
+  - The page puts the line above the steps: `Index.jsx:107–114`, before the `<ol>` at `:116`, next to the
+    progress block (`:86–105`).
+  - This closes round 1's Non-blocking 1.
+- [x] **The provider Deviation's "Review round 2" sub-bullet** (story `:154–159`) is accurate:
+  - the mechanism;
+  - the cause (the same key, `${pubkey}#${attempt}`, rebuilt at `SetupStatusContext.jsx:30`);
+  - "every new read starts from `checking`" (S1, S2, S4, S6, S7, S8);
+  - the verbatim ADR quote.
+
+  The bullet above it is now false (Non-blocking 1).
+- [x] **The ADR citation** (`:59`) is accurate.
+  - OPEN.md row 314 (`OPEN.md:346`) is the `querySync` row, and it says "Renumbered 314 at the 2026-09-17
+    staging merge; it was 280 on this branch".
+  - Row 280 (`OPEN.md:312`) is now the host-`node_modules` meta row.
+  - No other "row 280" remains in the story's files. `src/api/_shared/relaySource.js:225` keeps its older
+    "row 280", which is outside this story (ADR § 7).
+  - This closes round 1's Non-blocking 7 for the ADR.
+- [x] **The test plan** (`:143–153`, `:244–265`).
+  - Its counts are reproduced above: 64 + 8 = 72, and 14 passed / 1 failed with 18 stale samples.
+  - "`gate-result-record` (C9) also reads every `test/*.test.js`" holds. C9 skips only its two guard files
+    (`test/gate-result-record.test.js:408–412`), so it reads `setup-status.test.js`.
+  - `mockSession` is used only by B10 (spec `:373`), so "the new helper changed nothing for them" holds.
+- [x] **The commit messages.**
+  - `aa74544f`'s gate totals match its run record.
+  - `58ccd51d`'s "against 7fe27582 it sees the pre-sign-out answer" matches the pre-fix run above.
+
+### Unchanged since round 1
+
+Round 2 touches no server file, concept, handle, dependency or tooling. So round 1's results on
+concept-graph integrity, the house rules and security stand.
+- The round-2 files hold no 64-hex literal, no debug output and no control bytes.
+- The spec's keys are fixtures: `'a1'.repeat(32)`, a `'c'.repeat(64)` challenge and an all-zero signature.
+- There is no scope creep.
+
+### Findings
+
+#### Blocking
+
+None. Round 1's Blocking 1 is fixed. B10 fails on `eff82667`'s build and passes on `aa74544f`'s, and S2 and
+S6 above agree.
+
+#### Non-blocking
+
+1. **Story `:149–152`: a Deviation bullet is now false.**
+   - It says the provider "calls `setState` only in the fetch's callbacks".
+   - Since round 2, `setResult` is also called during render (`SetupStatusContext.jsx:36`), as the
+     sub-bullet at `:154–156` itself says. So the record contradicts itself, and the book close harvests
+     Deviations.
+   - The bullet's conclusion still holds: the rule is `set-state-in-effect`, and a call during render is
+     not in an effect.
+   - Optional fix, for example "it sets the answer only in the fetch's callbacks, plus one conditional reset
+     during render (below)". That wording is a claim too: check it against the code.
+2. **`tests/brainstorm/setup-status.spec.js:391–396` and `:407`: B10 polls, and it allows extra reads.**
+   - Sampling every 100 ms can miss a stale state that lasts less than one poll.
+   - `toBeGreaterThanOrEqual(2)` would pass a duplicate read after re-sign-in.
+   - Neither hides anything today: S2's MutationObserver found no stale DOM state, and there were exactly
+     2 reads.
+   - Optional: record DOM states with a MutationObserver installed through `addInitScript`, and assert
+     exactly 2 reads.
+3. **Round 1's non-blocking items that this round left as they were.** All still non-blocking:
+   - B3 never asserts the ✓ marker (round 1 Non-blocking 2);
+   - H2 cannot tell its two live branches apart (Non-blocking 3);
+   - `getConfigFromFile` runs on every request (Non-blocking 6).
+
+   Today's UI cannot reach S6's or S7's path, so B10 not covering them is not a gap now. Story 2's pill, or
+   a step page that calls `refresh()`, is the time to add them.
+
+#### Harness friction *(each becomes an OPEN.md row, type `meta`)*
+
+1. **Implementer step 9 covers adding a Deviation, not revising one on a later round**
+   (`engineering-team/roles/implementer.md:47`).
+   - Round 2 added a sub-bullet for the new mechanism and left the contrary sentence above it standing
+     (Non-blocking 1).
+   - Round 1's Blocking 1 also rested partly on a Deviation that stopped short of the case it missed.
+   - Candidate: when a review has asked for changes, the Implementer re-reads each Deviation that describes
+     the code the fix touches, and revises it rather than only appending.
+2. **The gate recipe's walker triage looks at the story's code, but the branch also carries the review's
+   ledger rows.**
+   - `session-start` AC-5 reads the real `ledger/`, which `eff82667` changed. So the test plan's "the rest
+     walk trees this story does not touch" (`:153`) holds for the code but not for the branch.
+   - Harmless here: 32 passed and 0 failed on its own, and `harness-lint` is clean.
+   - Same family as round 1's Harness friction 1. Extend ledger row
+     `2026-09-21-abbreviated-path-names-no-gate` rather than opening a new row.
+
+### Close-out (same commit)
+
+- [ ] Story `**Status:**` flipped to `Done`: this round's brief reserves it for the orchestrator, so it is
+  not done here.
+- [ ] Completion detection: the orchestrator's step. It goes in the chat, not in this file (template).
+
+### Verdict
+
+**PASS**

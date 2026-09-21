@@ -1,6 +1,6 @@
 # Story 1: /setup shows where you stand
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-21
 **Type:** Feature
 **Epic:** `setup-status-and-alert`

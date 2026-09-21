@@ -35,5 +35,12 @@ story does not touch"). But every story whose Test Design adds a suite touches `
 time it did no harm: it passed on its own, 34/0/0 (the story's review). The same fix shape applies,
 plus one line for the recipe: **the `test/` walkers belong to any story that adds a suite.**
 
+**And the branch, not just the code (setup-status-and-alert #1, review round 2).** A walker triage
+that looks only at the story's code misses what the rest of the branch changes. That branch also
+carried round 1's review commit, which added and edited `ledger/` rows, and `session-start` AC-5 reads
+the real `ledger/`. So "the rest walk trees this story does not touch" held for the code but not for
+the branch. It did no harm: 32/0 on its own, and `harness-lint` was clean. The fix shape grows by one
+clause: **triage the walkers against `git diff <merge-base>...HEAD`, not the story's files.**
+
 **Pointer:** `engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md`
-§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1.
+§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1 and § Round 2, Harness friction 2.
