@@ -21,7 +21,7 @@ function formatAge(createdAt) {
 
 /* ─── Onboarding ──────────────────────────────────────────── */
 
-// The prompt's one action leads to the My Assistant page, where the profile is edited and published —
+// The prompt's one action leads to the Edit Assistant Profile page, where the profile is edited and published —
 // the dashboard itself writes no assistant profile (ADR assistant-profile/0005).
 function WelcomeCard({ onSetupProfile }) {
   return (
@@ -731,7 +731,7 @@ export default function Dashboard() {
   function handleOnboardingAction(key) {
     switch (key) {
       case 'ta-profile':
-        // Every role sets up their own assistant on the My Assistant page (assistant-profile #4).
+        // Every role sets up their own assistant on the Edit Assistant Profile page (assistant-profile #4).
         navigate(MY_ASSISTANT_PATH);
         break;
       case 'bios':

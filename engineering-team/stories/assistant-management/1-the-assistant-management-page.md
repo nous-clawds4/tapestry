@@ -275,6 +275,32 @@ None open. Resolved when the owner approved this story (2026-09-21), all as prop
 5. **The notes are shown on the placeholder pages**, as the ask proposes, under "Alert criteria" and
    "Planning notes". An action with no criteria yet says "Not yet defined."
 
+## Deviations
+
+Small judgment calls made during implementation (Implementer role, step 9):
+
+- **The editor's heading and back link take their words from `ASSISTANT_COPY`** (`editorHeading`,
+  `editorBack`), not literal JSX text as ADR 0001 sub-decision 6's snippet shows. That keeps story 1's
+  copy in one place, as sub-decision 1 intends for `ASSISTANT_COPY`. The rendered words are the
+  approved ones. The hub's heading is two entries, `headingLead` and `headingAccent`, as sub-decision 3
+  describes.
+- **The card's description and chevron fade by colour, not opacity.** `/setup`'s step text uses
+  `opacity: 0.7`, and the first build copied it. Opacity below 1 paints an element in the positioned
+  layer, in document order. That put the description above the card-wide link's `::after` overlay, so
+  a click on the description missed the link. Browser B5 caught it, and a probe with the old rule put
+  back confirmed it. `rgba(226,232,240,0.7)` gives the same shade as `#e2e8f0` at 0.7.
+- **Comment-only edits** in `AuthContext.jsx`, `AssistantProfileEditor.jsx`, `Dashboard.jsx` and
+  `UserDetail.jsx` rename "the My Assistant page" to "the Edit Assistant Profile page", as sub-decision 6
+  allows. Their code is unchanged. Two comments keep the old name on purpose, as history ("It was the
+  My Assistant page at /assistant"): in `avatarMenuLinks.js` and in `EditProfile.jsx`.
+- **The no-assistant line's link has its own class**, `bs-assistant-hub-setup-link`, in the page's
+  indigo. ADR 0001 names no class for it.
+- **Two Phase 3 misses were fixed by the Tester in their own commits** (`0025fa2b`, `0485da0f`), not
+  here:
+  - `one-writer.spec.js` B2 and B3 still checked the legacy link's words for "My Assistant" (ledger
+    `2026-09-21-adr-reaim-list-misses-outcome-asserts`, fourth instance);
+  - B5 clicked a card below the fold without scrolling.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
 - Test plan: `engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md`

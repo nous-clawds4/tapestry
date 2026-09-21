@@ -157,7 +157,7 @@ export function AuthProvider({ children }) {
   }, [runLogin]);
 
   // Re-read who the signed-in user is — their classification and assistant — without a sign-in check:
-  // `loading` is never touched, so pages gated on it stay mounted. The My Assistant page calls this after
+  // `loading` is never touched, so pages gated on it stay mounted. The Edit Assistant Profile page calls this after
   // creating an assistant, so the menus, the dashboard's setup check and the banner see it without a
   // reload (assistant-profile #4, ADR 0004).
   const refreshUser = useCallback(async () => {
