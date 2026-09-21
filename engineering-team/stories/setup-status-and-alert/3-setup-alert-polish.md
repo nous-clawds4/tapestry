@@ -98,5 +98,5 @@ None. The owner answered the three at planning (2026-09-21), recorded above.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.test-plan.md`
 - Review: (filled in after Review phase)

@@ -250,6 +250,7 @@ const suites = [
   { file: 'author-scoped-inspection-views.test.js' },
   { file: 'setup-status.test.js' },
   { file: 'setup-alert.test.js' },
+  { file: 'setup-alert-polish.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so
