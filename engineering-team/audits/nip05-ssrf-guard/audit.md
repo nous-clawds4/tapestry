@@ -142,10 +142,10 @@ walked file by file against the story.
 - [ ] **No endpoint in the repo is rate-limited** and there is no pattern to follow. Needs its own
       story + ADR: mechanism, unit of limiting, and the spoofable client-IP-behind-nginx problem.
       (§4 #7 · OPEN.md row `2026-09-20-public-endpoints-have-no-rate-limiting`)
-- [ ] **OPEN.md row 148** — `assistant-profile` #3 can now import `isPublicAddress` and
+- [x] **OPEN.md row 148** — `assistant-profile` #3 can now import `isPublicAddress` and
       `hasPrivateHostSuffix`. Note it must also move the deliberately independent mirror predicate
       `isPubliclyRoutable` in `test/recognizable-published-ta-profile.test.js`, which row 148 records
-      as having the identical gap. That suite is in the standing-red set, before and after.
+      as having the identical gap. That suite is in the standing-red set, before and after. *Resolved 2026-09-21 by `assistant-profile` #3 (ADR 0003): it imports both classifiers, and moved `isPubliclyRoutable` with the rule; row 148 DONE.*
 - [ ] **Production promotion** — this book is live on `staging` only. Prod still has the unguarded
       behaviour (measured: 5.35 s vs 0.078 s). Promotion is a separate, operator-approved
       `/cycle-prod` run.

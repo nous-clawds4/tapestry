@@ -3,8 +3,10 @@
 **Id:** 2026-09-21-my-assistant-comment-nits
 **Type:** docs
 **Opened:** 2026-09-21 (assistant-profile #4 review, non-blocking 3 and 4)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-09-21 (assistant-profile #5, ADR 0005 sub-decision 7; #733) — both items: the `ui/src/styles.css`
+example now reads "for someone with no assistant and no way to create one here", and the provision handler's comment
+names `mayCreateAssistant`, so ADR 0004's "each one's comment names the other" holds.
 
 Two comments, no behaviour. Story 5 touches the same area, so it is the natural carrier.
 
@@ -19,4 +21,4 @@ Two comments, no behaviour. Story 5 touches the same area, so it is the natural 
     `mayCreateAssistant`, and the ADR's "Unchanged, deliberately" list kept that handler as it was.
   - Fix: add one comment line to the handler, or drop the claim from the ADR.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/4-my-assistant-page.md`, non-blocking findings 3 and 4.
+**Pointer:** `engineering-team/reviews/done/assistant-profile/4-my-assistant-page.md`, non-blocking findings 3 and 4.

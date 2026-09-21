@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-12
-**Story:** `engineering-team/stories/assistant-profile/2-publish-to-the-right-relays.md`
+**Story:** `engineering-team/stories/done/assistant-profile/2-publish-to-the-right-relays.md`
 
 ## Context
 

@@ -224,6 +224,70 @@ paths:
                   customerId:
                     type: string
 
+  /api/setup/status:
+    get:
+      tags: [Auth]
+      summary: The signed-in viewer's three /setup steps
+      description: >-
+        Read-only. Answers for the session's viewer only and takes no parameters. Step 1 is done when
+        this instance holds an assistant for the viewer; step 2 when their follow list (kind 3) follows
+        someone other than them; step 3 when their Treasure Map (kind 10040) names their assistant for
+        both rank and followers. Steps 2 and 3 read the local relay first and the configured outside
+        relays only on a local miss. `finished` is false when the check could not be completed;
+        `pending` (what the Setup Alert counts) is true only for a finished check that is not done and,
+        for step 3, whose Map names no other provider. Without a session it answers
+        `{ success: true, signedIn: false }`.
+      responses:
+        '200':
+          description: The viewer's setup status, or signedIn false without a session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signedIn:
+                    type: boolean
+                  steps:
+                    type: object
+                    properties:
+                      account:
+                        type: object
+                        properties:
+                          done: { type: boolean }
+                          pending: { type: boolean }
+                          finished: { type: boolean }
+                      follow:
+                        type: object
+                        properties:
+                          done: { type: boolean }
+                          pending: { type: boolean }
+                          finished: { type: boolean }
+                          followCount: { type: integer }
+                          source: { type: string, enum: [local, relay], nullable: true }
+                          reason: { type: string, enum: [local-unreadable, no-outside-relays, outside-unreachable] }
+                      activate:
+                        type: object
+                        properties:
+                          done: { type: boolean }
+                          pending: { type: boolean }
+                          finished: { type: boolean }
+                          otherProvider: { type: boolean }
+                          source: { type: string, enum: [local, relay], nullable: true }
+                          reason: { type: string, enum: [local-unreadable, no-outside-relays, outside-unreachable] }
+        '500':
+          description: The check threw unexpectedly
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: string
+
   /api/auth/sign-up-new-customer:
     post:
       tags: [Auth]

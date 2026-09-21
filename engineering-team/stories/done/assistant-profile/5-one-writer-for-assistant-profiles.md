@@ -1,6 +1,6 @@
 # Story 5: One writer — nothing else can change an assistant's profile
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Feature
 **Epic:** `assistant-profile`
@@ -62,8 +62,32 @@ None.
 
 None.
 
+## Deviations
+
+- The NIP-85 panel's first sentence read "Your Brainstorm Assistant is the Tapestry Assistant identity…". The ADR's
+  rename would make that "Your Tapestry Assistant is the Tapestry Assistant identity…", so it now reads "…is the
+  nostr identity…", as the customer panel's already did.
+- The NIP-85 panel's signed-out line said "Sign in to manage your Brainstorm Assistant." The panel no longer manages
+  anything, so it now says "Sign in to see your Tapestry Assistant."
+- Beyond the visible copy, the two pages' comments about the panel ("Brainstorm Assistant Panel", "Brainstorm
+  Assistant Functions", "Load Brainstorm Assistant status") say "Tapestry Assistant" and that the panel is read-only.
+  `customer.html`'s module-level `_assistantCustomerPubkey` went with the publish function, its only reader.
+- `publish-profile`'s doc comment no longer lists `nip05` among the body's fields. It never was one: the server sets
+  it, and `sanitizeProfileContent` drops it (ADR 0003).
+- The generic signer's kind-0 refusal sits just above the assistant branch, as `signAs === 'assistant' && event.kind
+  === 0`, not as the branch's first statement (ADR 0005's implementation note). The behaviour is the same — refused
+  for everyone, before the owner gate and before any key is read. The reason: the R3 sentinels in
+  `test/create-tapestry.test.js` and `test/add-a-concept-to-a-tapestry.test.js` read a 600-character window from the
+  first `signAs === 'assistant'` and need the owner gate inside it. Inside the branch, the refusal pushed the gate
+  out; here the gate sits 537 characters in (ledger `2026-09-21-adr-reaim-list-misses-outcome-asserts`).
+  **Corrected at review (2026-09-21):** that is true of the gate's `if`, not of what R3 asserts. R3 needs
+  `isOwner(req)`, `localTrusted` and `403` inside its window. The window now starts at the refusal's own
+  `signAs === 'assistant'`, so its `403` is the refusal's, and the gate's `403` falls outside. The gate's answer
+  stays pinned by `default-deny-mutations` AC3 and G4 (review 5, non-blocking 1; ledger
+  `2026-09-21-r3-sentinels-miss-owner-gate-403`).
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/done/assistant-profile/0005-one-writer-for-an-assistants-profile.md`
+- Test plan: `engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.test-plan.md`
+- Review: `engineering-team/reviews/done/assistant-profile/5-one-writer-for-assistant-profiles.md`

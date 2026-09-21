@@ -1,11 +1,13 @@
 /**
- * The three steps of the /setup checklist, in Tapestry's terms (setup-page-scaffold #1).
+ * The three steps of the /setup checklist, in Tapestry's terms (setup-page-scaffold #1), and the
+ * words /setup shows once it knows each step's state (setup-status-and-alert #1).
  *
  * One definition feeds both the /setup page and the placeholder page behind each step, so a
  * step's name on the checklist and its page's heading cannot drift apart.
  *
- * The words were approved with the story; change them there first:
- * engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md § Copy.
+ * The words were approved with the stories; change them there first:
+ * engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md § Copy, and
+ * engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md § Copy.
  */
 
 export const CREATE_ACCOUNT_STEP = {
@@ -14,6 +16,7 @@ export const CREATE_ACCOUNT_STEP = {
   badge: 'Start here',
   text: 'Your account comes with your own Tapestry Assistant: a nostr identity this instance holds for you, which signs and publishes on your behalf.',
   placeholder: 'This page will set up your account on this Tapestry instance — which means setting up your Tapestry Assistant, the nostr identity this instance holds for you, which signs and publishes on your behalf.',
+  doneText: 'This instance holds your Tapestry Assistant.',
 };
 
 export const FOLLOW_STEP = {
@@ -30,6 +33,24 @@ export const ACTIVATE_STEP = {
   badge: 'Required for other apps',
   text: 'One signature publishes your Treasure Map, which tells other apps that your Tapestry Assistant manages your rank and followers scores.',
   placeholder: 'This page will set up your Treasure Map — a kind 10040 nostr event — so that your rank and followers scores are managed by your Tapestry Assistant on this instance.',
+  doneText: 'Your Treasure Map names your Tapestry Assistant for your rank and followers scores.',
+  // Replaces `text` while the step is not done because the Map names another provider.
+  otherProviderText: 'Your Treasure Map names another provider for your scores.',
 };
 
 export const SETUP_STEPS = [CREATE_ACCOUNT_STEP, FOLLOW_STEP, ACTIVATE_STEP];
+
+/** Step 2's done sentence. `n` counts the accounts followed other than yourself. */
+export function followDoneText(n) {
+  return n === 1 ? '1 account followed.' : `${n} accounts followed.`;
+}
+
+/** The page's own words (setup-status-and-alert #1 § Copy). */
+export const SETUP_COPY = {
+  signedOutLine: "Sign in to see which steps you've done.",
+  signInButton: 'Sign in with nostr',
+  doneBadge: 'Done',
+  doneSrPrefix: 'Done: ',
+  notDoneSrPrefix: 'Not done: ',
+  allDone: "You're all set!",
+};

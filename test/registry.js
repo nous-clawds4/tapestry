@@ -240,6 +240,7 @@ const suites = [
   { file: 'assistant-publish-relays.test.js' },
   { file: 'one-default-assistant-profile.test.js' },
   { file: 'my-assistant-page.test.js' },
+  { file: 'one-writer-assistant-profile.test.js' },
   { file: 'gate-result-record.test.js' },
   { file: 'harden-user-data-error-path.test.js' },
   { file: 'harden-compute-endpoint.test.js' },
@@ -247,6 +248,7 @@ const suites = [
   { file: 'nip05-ssrf-guard.test.js' },
   { file: 'author-scoped-inspection-roster.test.js' },
   { file: 'author-scoped-inspection-views.test.js' },
+  { file: 'setup-status.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so

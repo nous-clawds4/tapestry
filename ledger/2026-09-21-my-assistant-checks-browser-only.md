@@ -3,8 +3,10 @@
 **Id:** 2026-09-21-my-assistant-checks-browser-only
 **Type:** cleanup
 **Opened:** 2026-09-21 (assistant-profile #4 review, non-blocking 1)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-09-21 (assistant-profile #5 Phase 3, `069ca3de`; #733) — W17–W20 in `test/my-assistant-page.test.js`
+are the CI-run counterparts of B1, B11, B12 and B16; each fails against the defect review 4 planted for its B-test.
+Line 24 of story 4's test plan is reworded.
 
 The code is correct today. The gap is that CI would not notice a regression. The review planted each of
 these single edits, and each one passed every Node suite. Each was caught only by
@@ -33,7 +35,7 @@ Fix shape (Tester's lane; story 5 touches the same files):
   - `onAssistantCreated={refreshUser}`;
   - `refreshUser` sets `assistantPubkey` from `data`;
   - the "no profile picture" copy is guarded by `body.code === 'no-picture'` together with the 404.
-- Reword line 24 of `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`.
+- Reword line 24 of `engineering-team/stories/done/assistant-profile/4-my-assistant-page.test-plan.md`.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/4-my-assistant-page.md`, non-blocking finding 1 (with
+**Pointer:** `engineering-team/reviews/done/assistant-profile/4-my-assistant-page.md`, non-blocking finding 1 (with
 the mutant tables).

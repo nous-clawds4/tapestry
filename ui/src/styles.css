@@ -800,9 +800,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .dropdown-item:hover:not(:disabled) { background: var(--bg-tertiary); }
 .dropdown-item:last-child { border-radius: 0 0 8px 8px; }
 /* Disabled rows stay visible so the menu reads the same for every signed-in
-   user — e.g. My Assistant's Profile with no provisioned assistant key. The
-   wrapper carries the explanatory tooltip, because Firefox suppresses pointer
-   events on the disabled button itself. */
+   user — e.g. My Assistant's Profile for someone with no assistant and no way
+   to create one here. The wrapper carries the explanatory tooltip, because
+   Firefox suppresses pointer events on the disabled button itself. */
 .dropdown-item:disabled {
   opacity: 0.35;
   cursor: default;
@@ -8593,6 +8593,36 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   font-size: 1.4rem;
   line-height: 1;
   opacity: 0.45;
+}
+
+/* Step states (setup-status-and-alert #1). A done step is not a link, so its card answers no hover. */
+.bs-setup-step.is-done:hover {
+  border-color: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+}
+.bs-setup-step-marker.is-done {
+  border-color: var(--green, #3fb950);
+  background: var(--green, #3fb950);
+  color: #fff;
+}
+.bs-setup-step-badge.is-done {
+  border-color: rgba(63,185,80,0.45);
+  background: rgba(63,185,80,0.12);
+  color: var(--green, #3fb950);
+}
+.bs-setup-signin {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+.bs-setup-signin p { margin: 0; opacity: 0.85; }
+.bs-setup-all-set {
+  margin: 1.25rem 0 0;
+  font-weight: 700;
+  color: var(--green, #3fb950);
 }
 
 /* The three step pages */

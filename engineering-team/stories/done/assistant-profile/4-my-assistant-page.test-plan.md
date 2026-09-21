@@ -1,7 +1,7 @@
 # Test Plan: Story 4 — One place: the My Assistant page
 
-**Story:** `engineering-team/stories/assistant-profile/4-my-assistant-page.md`
-**ADR:** `engineering-team/decisions/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md`
+**Story:** `engineering-team/stories/done/assistant-profile/4-my-assistant-page.md`
+**ADR:** `engineering-team/decisions/done/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md`
 **Date:** 2026-09-21
 
 The tests are in two new files, plus re-aims of five existing ones.
@@ -21,9 +21,11 @@ The tests are in two new files, plus re-aims of five existing ones.
   - **E — the publish handler**, through its seam: an array-shaped `customerPubkey`.
   - **A — the avatar proxy.** Its "no picture" answer carries `code: 'no-picture'`. The test drives the
     real handler; strfry is absent, so the owner has no picture.
-  - **W — the browser code, by source.** This is the CI-enforced backstop for the B-class, because CI runs
-    no browser. W15 and W16 are guards carried forward from the same ledger row's item 2 (the
-    counterparts of story 3's B7 and B3).
+  - **W — the browser code, by source.** CI runs no browser, so this is the part of the B-class that CI
+    checks. It is a backstop for the B-tests a source check can reach, not for all of them. At this
+    story's review, B1, B11, B12 and B16 had no W counterpart; story 5 added W17–W20 for them (ledger
+    `2026-09-21-my-assistant-checks-browser-only`). W15 and W16 are guards carried forward from item 2 of
+    ledger `2026-09-21-status-no-key-relay-gate-unpinned` (the counterparts of story 3's B7 and B3).
 - **`tests/brainstorm/my-assistant-page.spec.js`** — the Playwright **B** class: what the page, the menus
   and every entry point *do*. It is hermetic, because every `/api` route is mocked.
 - **Re-aims.** Each one follows from ADR 0004's decisions.

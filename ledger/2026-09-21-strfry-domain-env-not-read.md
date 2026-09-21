@@ -14,7 +14,7 @@ status handler still answered `isPublicInstance: false`.
 
 **Why it matters.**
 
-- Story 3's review (`engineering-team/reviews/assistant-profile/3-one-default-assistant-profile.md`,
+- Story 3's review (`engineering-team/reviews/done/assistant-profile/3-one-default-assistant-profile.md`,
   "Quality gates") reports the real handler passing for three instance shapes. One of them is
   "`STRFRY_DOMAIN=staging.brainstorm.world` (public)", with "only the key store and the owner lookup" faked.
 - If the variable was set this way, that review's public and LAN runs repeated the unconfigured one.
@@ -29,4 +29,4 @@ status handler still answered `isPublicInstance: false`.
 - Say that the environment does not reach `getConfigFromFile`.
 - Put this where reviewers look: AGENTS.md or the reviewer role's gate notes.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/4-my-assistant-page.md`, "Harness friction" 1.
+**Pointer:** `engineering-team/reviews/done/assistant-profile/4-my-assistant-page.md`, "Harness friction" 1.

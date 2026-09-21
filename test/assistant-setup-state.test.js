@@ -1,9 +1,9 @@
 /**
  * assistant-profile #1: The setup prompt tells the truth.
  *
- * Story: engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.md
- * ADR:   engineering-team/decisions/assistant-profile/0001-one-setup-state-answer-local-first.md
- * Plan:  engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.test-plan.md
+ * Story: engineering-team/stories/done/assistant-profile/1-setup-prompt-tells-the-truth.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0001-one-setup-state-answer-local-first.md
+ * Plan:  engineering-team/stories/done/assistant-profile/1-setup-prompt-tells-the-truth.test-plan.md
  * Browser half: tests/brainstorm/assistant-setup-prompt.spec.js (B-class — what a viewer SEES).
  *
  * Classes:

@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-21
-**Story:** `engineering-team/stories/assistant-profile/4-my-assistant-page.md`
+**Story:** `engineering-team/stories/done/assistant-profile/4-my-assistant-page.md`
 
 ## Context
 

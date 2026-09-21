@@ -1,7 +1,7 @@
 # Test Plan: Story 3 — One default profile for every assistant
 
-**Story:** `engineering-team/stories/assistant-profile/3-one-default-assistant-profile.md`
-**ADR:** `engineering-team/decisions/assistant-profile/0003-one-role-free-default-profile.md`
+**Story:** `engineering-team/stories/done/assistant-profile/3-one-default-assistant-profile.md`
+**ADR:** `engineering-team/decisions/done/assistant-profile/0003-one-role-free-default-profile.md`
 **Date:** 2026-09-21
 
 The tests are in two new files, plus re-aims of three existing ones.

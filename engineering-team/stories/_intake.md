@@ -2622,6 +2622,8 @@ the session-start digest point at. That is epic lifecycle, so it belongs to S3.
 
 ## 2026-09-20 — The /setup page, the rest of the way: real step status, the Setup Alert, the three action pages (feature; deferred at intake)
 
+**PICKED UP** (partial) 2026-09-21 → book `engineering-team/audits/setup-status-and-alert/book.md`, which takes deferred items 1 and 2: each step's real status on `/setup` (story #1) and the Setup Alert (story #2). **Item 3 is still open:** the UX and function of the three step pages, which stay placeholders. The product questions below were answered at that book's planning (its § Decisions), except for what each step page must let a person do.
+
 **Origin:** the owner's "not yet" list in the ask behind book `setup-page-scaffold`
 (`engineering-team/audits/setup-page-scaffold/book.md`, which quotes the whole ask verbatim). That
 book builds only the `/setup` page, with all three steps shown as not done, and three placeholder

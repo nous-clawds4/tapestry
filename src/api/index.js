@@ -548,6 +548,12 @@ async function register(app) {
     app.get('/api/assistant/owner-avatar', assistantAvatarApi.handleOwnerAvatar);
     app.post('/api/assistant/avatar', assistantAvatarApi.uploadMiddleware, assistantAvatarApi.handleUploadAvatar);
 
+    // ── /setup: the signed-in viewer's three setup steps (ADR setup-status-and-alert/0001) ──
+    // No middleware entry: the handler reads the session itself and answers signedIn:false without
+    // one. Its path contains no protectedGetEndpoints substring — that list matches with .includes().
+    const setupStatus = require('./setup/status');
+    app.get('/api/setup/status', setupStatus.handleSetupStatus);
+
     // ── Owner pubkey (public) ──
     const ownerApi = require('./owner');
     app.get('/api/owner/pubkey', ownerApi.handleGetOwnerPubkey);
