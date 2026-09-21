@@ -5,7 +5,7 @@
  * step's name on the checklist and its page's heading cannot drift apart.
  *
  * The words were approved with the story; change them there first:
- * engineering-team/stories/setup-page-scaffold/1-setup-page-and-placeholders.md § Copy.
+ * engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md § Copy.
  */
 
 export const CREATE_ACCOUNT_STEP = {

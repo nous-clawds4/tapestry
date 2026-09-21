@@ -1,7 +1,9 @@
 # Epic: setup-page-scaffold
 
 **Created:** 2026-09-20
-**Status:** Active
+**Status:** Done (epic retired 2026-09-21 at the book close — story #1 Done and reviewed, in
+production via PR #720 → staging (`e8d15892`) and PR #721 → main (`82771a44`); folders moved under
+`done/`)
 **Book:** `engineering-team/audits/setup-page-scaffold/book.md` (no PRD — acceptance frame)
 **Provenance:** Owner request 2026-09-20 (in-session): give Tapestry a `/setup` page like
 Brainstorm's, built as a scaffold for now — the page and three placeholder action pages, with nothing
@@ -39,10 +41,14 @@ Only the first is in this epic. The model and the pill are the next session's wo
 
 ## Stories
 
-`stories/setup-page-scaffold/`:
+`stories/done/setup-page-scaffold/`:
 
 1. `1-setup-page-and-placeholders.md` — the `/setup` page with all three steps shown as not done,
-   and the placeholder pages `/setup/create-account`, `/setup/follow`, `/setup/activate`.
+   and the placeholder pages `/setup/create-account`, `/setup/follow`, `/setup/activate`. **Done.**
+
+One story, first-pass PASS. Review: `reviews/done/setup-page-scaffold/`. Close artifacts:
+`audits/setup-page-scaffold/{audit.md,prd-seed.md}`. What comes next is the owner's deferred list in
+`stories/_intake.md` (2026-09-20), not more of this epic.
 
 ## Key facts / guardrails
 
