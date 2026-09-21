@@ -585,8 +585,14 @@ function handlerFakes(opts = {}) {
   const deps = {
     getAssistantKeys: async () => ({ pubkey: assistantPubkey, privkey: Buffer.from(sk).toString('hex') }),
     getOwnerPubkey: () => OWNER,
-    getKind0DisplayName: async () => 'Alice',
-    buildDefaultProfileContent: async () => ({ name: "Alice's Tapestry Assistant", about: 'fixture default' }),
+    // ADR assistant-profile/0003 replaced the local-only name reader and the injectable default with
+    // these two. Both must be injected: the real getPersonName may ask the real profile relays, because a
+    // publish is always signed in.
+    getPersonName: async () => 'Alice',
+    describeInstance: () => ({
+      domain: 'staging.example.test', isPublic: true,
+      website: 'https://staging.example.test', avatarUrl: 'https://staging.example.test/ta-avatar.png',
+    }),
     importEvent: async (event) => {
       calls.order.push('local');
       calls.importEvent.push(event);

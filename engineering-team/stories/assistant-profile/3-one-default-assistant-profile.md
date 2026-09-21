@@ -123,5 +123,5 @@ None. Resolved at approval (2026-09-11):
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile/0003-one-role-free-default-profile.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-profile/3-one-default-assistant-profile.test-plan.md`
 - Review: (filled in after Review phase)
