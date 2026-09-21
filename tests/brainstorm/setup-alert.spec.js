@@ -24,6 +24,8 @@ const { test, expect } = require('@playwright/test');
  *   B9  — creating an assistant on /assistant updates the pill without a reload.      [ADR 0002 Decision 5]
  *   B10 — the results view carries the pill too (wide screens).                       [AC-1]
  *   B11 — the phone accommodations apply only while a pill is showing.                [ADR 0002 § 4]
+ *   B12 — the control panel header keeps its height and never scrolls with the pill:
+ *         its brand yields room instead of wrapping.                                   [ADR 0002 Amendment 1]
  *
  * Hermetic: an /api/** catch-all is registered FIRST (the :4173 preview proxies /api to the live
  * :7778 stack — OPEN.md row 2026-09-21-vite-preview-proxies-live-stack), then per-scenario routes.
@@ -72,9 +74,9 @@ const ACCOUNT_OPEN_REST_UNFINISHED = answer(step(false, true),
  * in order (the last one repeats); an entry may be 'hang' (never answered) or 'error' (a 500).
  * /assistant's create flow is mocked too: POST /api/assistant/provision-key gives the viewer an
  * assistant, which /api/auth/user-classification and /api/assistant/status then report.
- * `signer: true` adds a recording NIP-07 signer (window.__signer).
+ * `signer: true` adds a recording NIP-07 signer (window.__signer). `name` is the viewer's display name.
  */
-async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], signer = false } = {}) {
+async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], signer = false, name = 'Fixture Viewer' } = {}) {
   const state = { assistant: who ? who.assistantPubkey : null, statusCalls: 0, nonGet: [] };
   page.on('request', (req) => {
     if (req.method() === 'GET') return;
@@ -100,7 +102,7 @@ async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], signer = false
   await page.route('**/api/owner/pubkey', (r) => r.fulfill(json({ success: true, pubkey: 'bb'.repeat(32) })));
   await page.route('**/api/relays', (r) => r.fulfill(json({ success: true, aRelays: {} })));
   await page.route('**/api/assistant/roster', (r) => r.fulfill(json({ success: true, assistants: [], viewer: null })));
-  await page.route('**/api/profiles**', (r) => r.fulfill(json({ success: true, profiles: { [VIEWER]: { name: 'Fixture Viewer' } } })));
+  await page.route('**/api/profiles**', (r) => r.fulfill(json({ success: true, profiles: { [VIEWER]: { name } } })));
   await page.route('**/api/search/profiles/meili**', (r) => r.fulfill(json({
     success: true, hits: [{ pubkey: 'b2'.repeat(32), name: 'jack', display_name: 'Jack' }], estimatedTotalHits: 1,
   })));
@@ -411,4 +413,35 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
     await expect(pill(page)).toHaveCount(0);
     await expect(page.locator('.app-header .user-badge'), 'without a pill, nothing changes').toBeVisible();
   });
+
+  /* ───────── B12 — the control panel's brand yields room (ADR 0002 Amendment 1) ───────── */
+  // One width inside each range where the brand used to wrap: phones for every role (375, 390), just
+  // above the 440 px badge rule (450), where the sentence appears (650), and where the name appears (780).
+  const LONG_NAME = 'A Deliberately Long Display Name For Testing';
+  for (const [who, name, width] of [
+    [OWNER, 'Fixture Viewer', 375],
+    [OWNER, 'Fixture Viewer', 390],
+    [CUSTOMER, 'Fixture Viewer', 450],
+    [CUSTOMER, 'Fixture Viewer', 650],
+    [CUSTOMER, LONG_NAME, 780],
+  ]) {
+    test(`B12: at ${width} px (${who.classification}${name === LONG_NAME ? ', a long display name' : ''}), the control panel header is as tall with the pill as without it and never scrolls (ADR 0002 Amendment 1)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await mock(page, { who, name, answers: [NONE_LEFT, TWO_LEFT] });
+      const measure = () => page.evaluate(() => {
+        const h = document.querySelector('.app-header');
+        const b = document.querySelector('.header-brand-name');
+        return { header: Math.round(h.getBoundingClientRect().height), brand: Math.round(b.getBoundingClientRect().height), sw: h.scrollWidth, cw: h.clientWidth };
+      });
+      await open(page, '/tapestry/');
+      await expect(pill(page), 'first load: nothing left, so no pill').toHaveCount(0);
+      const without = await measure();
+      await open(page, '/tapestry/');
+      await expect(pill(page), 'second load: two steps left').toBeVisible();
+      const withPill = await measure();
+      expect(withPill.brand, `the brand is ${withPill.brand}px tall with the pill, ${without.brand}px without: it wrapped`).toBeLessThanOrEqual(without.brand + 1);
+      expect(withPill.header, `the header is ${withPill.header}px tall with the pill, ${without.header}px without`).toBeLessThanOrEqual(without.header + 1);
+      expect(withPill.sw, `the header's content is ${withPill.sw}px wide inside ${withPill.cw}px`).toBeLessThanOrEqual(withPill.cw + 1);
+    });
+  }
 });

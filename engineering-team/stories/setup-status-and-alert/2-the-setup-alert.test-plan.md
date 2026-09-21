@@ -15,8 +15,8 @@ Two new files carry the tests:
   | **D** | the JSX this runner cannot execute: the component, its four mounts, the provider's request key | source sentinels |
   | **S** | the house rule on pubkey literals | source sentinel |
 
-- **`tests/brainstorm/setup-alert.spec.js`** is the Playwright **B** class, 45 tests: what a viewer
-  sees in each top bar. It runs hermetically against the built UI with every `/api` route mocked,
+- **`tests/brainstorm/setup-alert.spec.js`** is the Playwright **B** class, 50 tests (45 at Test
+  Design, plus B12 ×5 for ADR Amendment 1): what a viewer sees in each top bar. It runs hermetically against the built UI with every `/api` route mocked,
   like story 1's spec.
 
 **The session in the B class is static.** `/api/auth/status` answers "authenticated" for the
@@ -36,6 +36,7 @@ reaches `AuthContext.refreshUser()`.
 | **AC-5** every width | **B7** ×6 hosts at 1280, 800 and 375 px: the accessible name "Finish setting up your account" at every width; the sentence and the count at 1280; the sentence at 800 (the count is left free: "may drop"); only ⚠ and "Finish setup →" at 375; the top bar's content (`scrollWidth`) no wider than the bar. **B11** ×4: the ADR's two phone accommodations (the `TopBar` wordmark, the control panel's role badge) apply at 375 px only while a pill shows. | spec | browser |
 | **AC-6** read-only | **B8** ×2 (`/tags`, and the control panel as Owner): with the pill showing, every request that is not a GET is a Cypher read, and a recording NIP-07 signer is never asked to sign. **D1**: no `fetch(` in the component. Story 1's **S2** still guards the server module, which this story does not change. | both | browser; unit |
 | ADR Decision 5 (freshness) | **B9**, behavioural: on `/assistant`, a Customer with no assistant clicks "Create my Tapestry Assistant key" (`provision-key` mocked); `user-classification` then reports the assistant; the pill drops from "· 2 steps left" to "· 1 step left" in the same document, after exactly two status reads. **D3**: the request key includes the viewer's assistant. | both | browser; unit |
+| ADR Amendment 1 (the control panel's brand) | **B12** ×5, one width inside each range where the brand wrapped: 375 and 390 px (Owner), 450 and 650 px (Customer), 780 px (Customer, a 44-character name). Each loads `/tapestry/` twice, first with nothing left (no pill), then with two steps left: the brand and the header are no taller with the pill, and the header never scrolls. | spec | browser |
 | Build prerequisite | **B0**: the served bundle contains `bs-setup-alert`, so a stale build fails loudly instead of passing the "no pill" tests. | spec | browser |
 
 ## Edge cases
@@ -233,3 +234,16 @@ green on this machine at the base, including the live-tier suites against the lo
 other red at Implementation or Review is new. The four skips are the same as story 1's, all
 environmental or opt-in: `deploy-safety-status` 1, `show-the-four-on-the-goal-screens-that-already-exist`
 2, and `setup-status` H2 1 (not opted in).
+
+### Amendment 1 (during Implementation)
+
+Re-measuring with the real styles, as ADR 0002 § 4 asks, the Implementer found that the control
+panel's brand wraps onto two lines while a pill shows, and the header grows from 55 to 71 px. No
+test caught it, because nothing scrolls horizontally. The owner chose to fix it in this story, and
+ADR 0002 gained Amendment 1. **B12** pins it, at one width inside each range it measured (the
+ranges are listed in the amendment).
+
+Confirmed failing on 2026-09-21 against a build of the implementation that follows ADR 0002 as first
+written (before the amendment): **B12, 5 failed**. Each fails with "the brand is 54px tall with the
+pill, 27px without: it wrapped".
+
