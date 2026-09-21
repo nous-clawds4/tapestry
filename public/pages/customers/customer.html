@@ -123,12 +123,13 @@
                     </div>
                 </div>
                 
-                <!-- Brainstorm Assistant Panel -->
+                <!-- Tapestry Assistant Panel — read-only: the profile is edited and published on the My Assistant
+                     page (/assistant), its one writer (ADR assistant-profile/0005) -->
                 <div class="nip85-panel" style="margin-top: 1.5rem;">
-                    <h3>🤖 Your Brainstorm Assistant</h3>
+                    <h3>🤖 Your Tapestry Assistant</h3>
                     <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 1rem;">
-                        Your Brainstorm Assistant is a nostr identity that publishes Trust Assertions on your behalf.
-                        Give it a profile so other users can see who it represents.
+                        Your Tapestry Assistant is a nostr identity that publishes Trust Assertions on your behalf.
+                        Its profile is edited and published on the My Assistant page.
                     </p>
 
                     <div id="assistantLoading" style="color: #888;">Loading assistant status...</div>
@@ -147,7 +148,7 @@
                             </div>
                         </div>
 
-                        <!-- Profile preview (shown after publishing) -->
+                        <!-- Profile preview (shown when a profile is published) -->
                         <div id="assistantProfilePreview" style="display: none; margin-bottom: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
                             <div style="display: flex; align-items: center; gap: 0.75rem;">
                                 <img id="assistantAvatar" src="" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.1);" onerror="this.style.display='none'">
@@ -157,16 +158,13 @@
                                 </div>
                             </div>
                         </div>
-
-                        <button id="publishAssistantBtn" class="action-button" onclick="publishAssistantProfile()" style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.4); color: #22c55e; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
-                            Publish Kind 0 Profile
-                        </button>
-                        <span id="assistantPublishStatus" style="margin-left: 0.75rem; font-size: 0.85rem; color: #888;"></span>
                     </div>
 
                     <div id="assistantNoKey" style="display: none; color: #888; font-size: 0.9rem;">
-                        Set up Trusted Assertions first to get a Brainstorm Assistant.
+                        Set up Trusted Assertions first to get a Tapestry Assistant.
                     </div>
+
+                    <p style="margin-top: 1rem; font-size: 0.9rem;"><a href="/assistant">🤖 Edit and publish its profile on the My Assistant page →</a></p>
                 </div>
 
                 <!-- Kind 30382 Event Status Panel -->
@@ -861,15 +859,12 @@
             }
         }
 
-        // ── Brainstorm Assistant Functions ──
-
-        // Module-level variable to store the customer pubkey for assistant functions
-        let _assistantCustomerPubkey = null;
+        // ── Tapestry Assistant (read-only) — the profile is published on the My Assistant page ──
 
         async function loadAssistantStatus(customerPubkey) {
-            _assistantCustomerPubkey = customerPubkey;
             try {
-                const resp = await fetch(`/api/assistant/status?customerPubkey=${customerPubkey}`);
+                // defaults=0: this panel never reads the default profile, so the status call skips its name lookup.
+                const resp = await fetch(`/api/assistant/status?customerPubkey=${customerPubkey}&defaults=0`);
                 const data = await resp.json();
 
                 document.getElementById('assistantLoading').style.display = 'none';
@@ -905,45 +900,11 @@
                     }
                     document.getElementById('assistantDisplayName').textContent = data.profile.display_name || data.profile.name || '';
                     document.getElementById('assistantAbout').textContent = (data.profile.about || '').slice(0, 120) + '...';
-                    document.getElementById('publishAssistantBtn').textContent = 'Re-publish Kind 0 Profile';
                 } else {
                     document.getElementById('assistantProfileStatus').innerHTML = '<span style="color: #f59e0b;">⚠️ Not published</span>';
                 }
             } catch (err) {
                 document.getElementById('assistantLoading').textContent = 'Failed to load assistant status';
-            }
-        }
-
-        async function publishAssistantProfile() {
-            const btn = document.getElementById('publishAssistantBtn');
-            const status = document.getElementById('assistantPublishStatus');
-            btn.disabled = true;
-            btn.textContent = 'Publishing...';
-            status.textContent = 'Generating avatar and uploading...';
-            status.style.color = '#888';
-
-            try {
-                const resp = await fetch('/api/assistant/publish-profile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customerPubkey: _assistantCustomerPubkey }),
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    status.textContent = '✅ ' + data.message;
-                    status.style.color = '#22c55e';
-                    // Reload status to show preview
-                    await loadAssistantStatus(_assistantCustomerPubkey);
-                } else {
-                    status.textContent = '❌ ' + (data.error || 'Failed');
-                    status.style.color = '#ef4444';
-                }
-            } catch (err) {
-                status.textContent = '❌ ' + err.message;
-                status.style.color = '#ef4444';
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Re-publish Kind 0 Profile';
             }
         }
 
@@ -1132,7 +1093,7 @@
                     loadNewNip85Status(pubkey);
                     setupNewNip85EventHandlers(pubkey);
 
-                    // Load Brainstorm Assistant status
+                    // Load the Tapestry Assistant's read-only status
                     loadAssistantStatus(pubkey);
 
                 } else {

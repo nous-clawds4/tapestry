@@ -1,9 +1,9 @@
 # Book of Work: The assistant's profile — one page, one default, an honest setup check
 
 **Slug:** assistant-profile
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-11
-**Closed:** —
+**Closed:** 2026-09-21
 
 ## Intent anchor
 
@@ -29,15 +29,15 @@ taken at planning that shape it are recorded in the epic (`engineering-team/epic
 
 *Confirmed 2026-09-11, when the owner approved the stories.*
 
-- [ ] There is one place — a dedicated **My Assistant** page — where a signed-in Owner, Admin or
+- [x] There is one place — a dedicated **My Assistant** page — where a signed-in Owner, Admin or
       Customer manages their own assistant's profile. Every entry point leads there, and nothing
       else can write an assistant's kind 0.
-- [ ] Every assistant's default profile comes from one definition (the spec ratified at planning),
+- [x] Every assistant's default profile comes from one definition (the spec ratified at planning),
       whichever role or path publishes it, and users can edit exactly the agreed fields.
-- [ ] The "set up your Assistant" prompt appears only when the viewer's own assistant has no profile
+- [x] The "set up your Assistant" prompt appears only when the viewer's own assistant has no profile
       on the local relay or on the relays its profile is published to — never for a profile that
       exists.
-- [ ] Publishing the profile reaches the relays the instance is configured for, and the user sees an
+- [x] Publishing the profile reaches the relays the instance is configured for, and the user sees an
       honest result for each relay.
 
 ## Epics in this book
@@ -48,7 +48,7 @@ taken at planning that shape it are recorded in the epic (`engineering-team/epic
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high — every frame bullet is observable: stories 1–4 in production (#651, #718, #725, #731), story 5 on staging (#733, five-tier smoke clean). The one-writer bullet has a named, owner-settled residual (a TA-signed kind 5 through the generic signer — OPEN.md #269; audit §4 #5).
 
 ## Close artifacts *(filled by `/close-book`)*
 

@@ -21,13 +21,9 @@ function formatAge(createdAt) {
 
 /* ─── Onboarding ──────────────────────────────────────────── */
 
-function WelcomeCard({ onSetupProfile, onUseDefault }) {
-  const { user } = useAuth();
-  // "Use the default profile" publishes the one default for the Owner's assistant — the
-  // instance Tapestry Assistant (ADR assistant-profile/0003). It stays Owner-only, as
-  // "Surprise me" was (ADR 0001), until story 5 retires it.
-  const canUseDefault = user?.classification === 'owner';
-
+// The prompt's one action leads to the My Assistant page, where the profile is edited and published —
+// the dashboard itself writes no assistant profile (ADR assistant-profile/0005).
+function WelcomeCard({ onSetupProfile }) {
   return (
     <div className="dashboard-card welcome-card">
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
@@ -48,11 +44,6 @@ function WelcomeCard({ onSetupProfile, onUseDefault }) {
             <button className="btn btn-primary" onClick={onSetupProfile}>
               🎨 Set up my Assistant's profile
             </button>
-            {canUseDefault && (
-              <button className="btn" onClick={onUseDefault}>
-                ✨ Use the default profile
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -725,7 +716,7 @@ export default function Dashboard() {
 
   // Whether the signed-in user's own assistant has a profile — the answer every
   // setup surface shares (/api/assistant/status, ADR assistant-profile/0001).
-  const { status: assistantStatus, refresh: refreshAssistantStatus } = useAssistantSetupState();
+  const { status: assistantStatus } = useAssistantSetupState();
 
   // Check constraints status
   const [constraintsOk, setConstraintsOk] = useState(null); // null=loading, true/false
@@ -749,26 +740,6 @@ export default function Dashboard() {
     }
   }
 
-  async function handleUseDefaultProfile() {
-    // Publish the one default profile for the Owner's assistant — the instance TA. No content is
-    // sent, so the server's definition is what gets signed (ADR assistant-profile/0003).
-    try {
-      const res = await fetch('/api/assistant/publish-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerPubkey: user?.pubkey }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        refreshAssistantStatus();
-      } else {
-        alert('Failed to publish profile: ' + (data.error || 'unknown error'));
-      }
-    } catch (err) {
-      alert('Error: ' + err.message);
-    }
-  }
-
   const isLoading = assistantStatus === 'loading';
 
   return (
@@ -776,10 +747,7 @@ export default function Dashboard() {
       {!isLoading && (
         <>
           {assistantStatus === 'needs-setup' && (
-            <WelcomeCard
-              onSetupProfile={() => navigate(MY_ASSISTANT_PATH)}
-              onUseDefault={handleUseDefaultProfile}
-            />
+            <WelcomeCard onSetupProfile={() => navigate(MY_ASSISTANT_PATH)} />
           )}
           <OnboardingChecklist
             user={user}

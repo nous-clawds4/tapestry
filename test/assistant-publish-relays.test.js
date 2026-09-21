@@ -1,9 +1,9 @@
 /**
  * assistant-profile #2: Publish the assistant's profile to the right relays, and say what happened.
  *
- * Story: engineering-team/stories/assistant-profile/2-publish-to-the-right-relays.md
- * ADR:   engineering-team/decisions/assistant-profile/0002-publish-to-configured-relays-report-each.md
- * Plan:  engineering-team/stories/assistant-profile/2-publish-to-the-right-relays.test-plan.md
+ * Story: engineering-team/stories/done/assistant-profile/2-publish-to-the-right-relays.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0002-publish-to-configured-relays-report-each.md
+ * Plan:  engineering-team/stories/done/assistant-profile/2-publish-to-the-right-relays.test-plan.md
  * Browser half: tests/brainstorm/assistant-publish-result.spec.js (B-class — what the editor SHOWS).
  *
  * Classes (all stack-free — no strfry, no Neo4j, no public relay traffic):
@@ -22,6 +22,10 @@
  * Against current code everything FAILS except the S3 guard: profilePublish.js does not exist, the
  * handler has no seam, the publish list is five literals in index.js, and publish-policy exports no
  * reader.
+ *
+ * Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 2): E5's owner-for-a-Customer leg and E7's
+ * no-content publish now expect refusals — only the person an assistant belongs to may publish it, and
+ * only with content.
  */
 
 const fs = require('fs');
@@ -693,17 +697,20 @@ test('E4: the local relay is written first — the relays hear about the profile
   assert(j(calls.order) === j(['local', 'relays']), `local-first (BIBLE §30): expected [local, relays], got ${j(calls.order)}`);
 });
 
-test('E5: the summary names the right assistant — the Tapestry Assistant for the owner, "your" for a Customer, and the named one when the owner publishes for someone else', async () => {
+// Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 2; epic decision 4): the owner can no longer publish someone
+// else's assistant, so the third leg now expects a refusal. M1 still pins publishSubject's words for that case.
+test('E5: the summary names the right assistant — the Tapestry Assistant for the owner, "your" for a Customer — and the owner can no longer publish for someone else', async () => {
   const owner = await callHandler({}, OWNER, OWNER);
   const customer = await callHandler({}, CUSTOMER, CUSTOMER);
   const forCustomer = await callHandler({}, CUSTOMER, OWNER);
-  const last6 = require('nostr-tools').nip19.npubEncode(CUSTOMER).slice(-6);
   assert(String(owner.res.body.message).startsWith("The Tapestry Assistant's profile"), `owner: ${j(owner.res.body.message)}`);
   assert(String(customer.res.body.message).startsWith("Your Tapestry Assistant's profile"),
     `AC4: a Customer must be told about THEIR assistant, not "Tapestry Assistant profile published" — got ${j(customer.res.body.message)}`);
   assert(!/Tapestry Assistant profile published/.test(String(customer.res.body.message)), 'the old wording must be gone');
-  const m = String(forCustomer.res.body.message);
-  assert(m.includes(last6) && !/^Your\b/.test(m), `the owner publishing for a Customer names that assistant (npub …${last6}) — got ${j(m)}`);
+  assert(forCustomer.res.statusCode === 403 && forCustomer.res.body && forCustomer.res.body.code === 'not-your-assistant',
+    `ADR 0005 sub-decision 2: the owner publishing a Customer's assistant is refused — got ${forCustomer.res.statusCode} ${j(forCustomer.res.body)}`);
+  assert(forCustomer.calls.importEvent.length === 0 && forCustomer.calls.publishToRelays.length === 0 && forCustomer.calls.nip05.length === 0,
+    'nothing may be saved, sent or mapped for a refused publish');
 });
 
 test('E6: change the relay lists between two publishes and the second goes to the new lists — no restart', async () => {
@@ -718,12 +725,14 @@ test('E6: change the relay lists between two publishes and the second goes to th
     `AC1: the next publish follows the changed lists — got ${j(f.calls.publishToRelays[1].relays)}`);
 });
 
-test('E7: a publish with no content (the legacy pages) still answers success, a message and relay counts — the contract they read', async () => {
-  const { res } = await callHandler({}, CUSTOMER, CUSTOMER, null);
-  assert(res.statusCode === 200 && res.body && res.body.success === true, `got ${res.statusCode} ${j(res.body)}`);
-  assert(typeof res.body.message === 'string' && res.body.message.length > 0, 'the legacy pages print data.message');
-  assert(Number.isInteger(res.body.relays && res.body.relays.total) && Number.isInteger(res.body.relays.success),
-    `relays.total and relays.success stay numbers — got ${j(res.body.relays)}`);
+// Re-aimed by assistant-profile #5 (ADR 0005 sub-decision 2): the legacy pages no longer publish, and a publish with
+// no content is refused. A legacy page left open from before the deploy prints data.error, so the refusal explains itself.
+test('E7: a publish with no content — what the legacy pages sent — is refused: 400 "no-content", with an explanation, and nothing is saved or sent', async () => {
+  const { res, calls } = await callHandler({}, CUSTOMER, CUSTOMER, null);
+  assert(res.statusCode === 400 && res.body && res.body.success === false && res.body.code === 'no-content', `got ${res.statusCode} ${j(res.body)}`);
+  assert(typeof res.body.error === 'string' && res.body.error.length > 0, 'a legacy page left open prints data.error — the refusal must explain itself');
+  assert(calls.importEvent.length === 0 && calls.publishToRelays.length === 0 && calls.nip05.length === 0,
+    `nothing may be saved, sent or mapped — got ${calls.importEvent.length} local write(s), ${calls.publishToRelays.length} send(s)`);
 });
 
 test('E8: a caller who is neither the assistant\'s user nor the owner is still refused — nothing saved, nothing sent', async () => {

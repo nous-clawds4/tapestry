@@ -2,7 +2,7 @@
 
 **Status:** Accepted (Amendment 1 appended 2026-09-12 — each publish relay counts on its own)
 **Date:** 2026-09-11
-**Story:** `engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.md`
+**Story:** `engineering-team/stories/done/assistant-profile/1-setup-prompt-tells-the-truth.md`
 
 ## Context
 

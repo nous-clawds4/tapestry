@@ -4,7 +4,7 @@
 **Type:** cleanup
 **Opened:** 2026-09-21 (assistant-profile #3 review, non-blocking 1 and 5)
 **Status:** DONE
-**Done:** 2026-09-21 (assistant-profile #4, `c0efdd84`; PR pending) — Q2 and Q3 in `test/my-assistant-page.test.js` pin the no-key branch's relay gate, Q3 through the real `getPersonName`; W15 and W16 are the CI-run counterparts of story 3's B7 and B3.
+**Done:** 2026-09-21 (assistant-profile #4, `c0efdd84`; #730, promoted by #731) — Q2 and Q3 in `test/my-assistant-page.test.js` pin the no-key branch's relay gate, Q3 through the real `getPersonName`; W15 and W16 are the CI-run counterparts of story 3's B7 and B3.
 
 Two test gaps. The code is correct in both cases today; the gaps are that nothing would catch a regression.
 
@@ -38,6 +38,6 @@ W counterpart.**
 
 Fix shape: a W4 source check for both.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/3-one-default-assistant-profile.md`, non-blocking
+**Pointer:** `engineering-team/reviews/done/assistant-profile/3-one-default-assistant-profile.md`, non-blocking
 findings 1 and 5 (the mutation table lists the surviving mutants);
-`engineering-team/stories/assistant-profile/4-my-assistant-page.md`.
+`engineering-team/stories/done/assistant-profile/4-my-assistant-page.md`.

@@ -143,9 +143,9 @@ All three merged to `staging`: PR #504 (`2f13856d`), PR #506 (`ea80dd02`), PR #5
 - [ ] **The users directory shows the assistant unbadged** — `ui/src/pages/users/Index.jsx` hand-rolls
       `AuthorCell`'s markup instead of using it, so it also keeps the broken-image bug. Jarring because
       clicking through *is* badged. (OPEN.md **#147**, from §4 / review 1 finding 3)
-- [ ] **`isPubliclyReachable` admits RFC1918** — a LAN-hosted instance would publish a dead avatar URL
+- [x] **`isPubliclyReachable` admits RFC1918** — a LAN-hosted instance would publish a dead avatar URL
       into a signed, relay-replicated kind-0. The test's independent mirror predicate shares the blind
-      spot, so both must move together. (OPEN.md **#148**, from §4 #4)
+      spot, so both must move together. (OPEN.md **#148**, from §4 #4) *Resolved 2026-09-21 by `assistant-profile` #3 (ADR 0003 sub-decision 1): one syntactic public-instance rule on ssrfGuard's classifiers; OPEN.md row 148 DONE, and the mirror predicate moved with it.*
 - [ ] **Retention policy for accumulated composites** — kept deliberately (§4 #5); bounded in practice
       by how rarely an owner regenerates, but unbounded in principle.
 - [ ] **Automatic regeneration when the owner's avatar changes** — task-scheduler territory (§4 #8).
@@ -153,9 +153,9 @@ All three merged to `staging`: PR #504 (`2f13856d`), PR #506 (`ea80dd02`), PR #5
       in terms of *the owner's* kind-0, so generalizing is not free.
 - [ ] **Migrate the remaining one-off avatar `<img>` sites** to the shared component (NoteCard,
       BrainstormProfile, search, user menu, TagChip, PinnedListPanel) — ADR 0001 §Consequences.
-- [ ] **The customer branch's `'a customer'` name fallback** publishes *"a customer's Tapestry
-      Assistant"* — visibly inconsistent with the owner branch after story 2. (ADR 0002 §Consequences)
-- [ ] **Nothing is on prod.** All three stories are staging-only; promotion is a separate decision.
+- [x] **The customer branch's `'a customer'` name fallback** publishes *"a customer's Tapestry
+      Assistant"* — visibly inconsistent with the owner branch after story 2. (ADR 0002 §Consequences) *Resolved 2026-09-21 by `assistant-profile` #3: one role-free default; OPEN.md row 154 DONE.*
+- [x] **Nothing is on prod.** All three stories are staging-only; promotion is a separate decision. *Resolved by a later promotion: `ui/public/ta-avatar.png` and `src/api/assistant/avatar.js` are on `origin/main` (checked at the `assistant-profile` close, 2026-09-21).*
 
 ## 7. Process findings (harness)
 

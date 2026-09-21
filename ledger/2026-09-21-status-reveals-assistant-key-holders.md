@@ -28,4 +28,9 @@ Fix shape — a decision first:
 Before changing it, check the anonymous readers of this endpoint. The dashboard's setup hook asks only about
 the signed-in user. Story 1's live H-class makes anonymous calls. The legacy pages go away in story 5.
 
-**Pointer:** `engineering-team/reviews/assistant-profile/4-my-assistant-page.md`, non-blocking finding 2.
+**2026-09-21 (assistant-profile #5):** the legacy pages did not go away. Their assistant panels stay, read-only
+(ADR assistant-profile/0005 sub-decision 5), and ask `/api/assistant/status` only about the signed-in person, with
+`defaults=0`. So they are not anonymous readers, and a fix to this row does not have to account for them. Story 5
+left this row open by the owner's choice: it gets its own story.
+
+**Pointer:** `engineering-team/reviews/done/assistant-profile/4-my-assistant-page.md`, non-blocking finding 2.

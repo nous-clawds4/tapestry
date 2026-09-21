@@ -4,9 +4,9 @@
 **Date:** 2026-09-11
 **Diff:** `git diff f0a5df3b..8d7690ec`. Branch `feat/assistant-profile-setup-prompt`, base `origin/staging` @ `f0a5df3b`. Four commits: `e3ee5014` (ADR), `651d094d` (failing tests), `e5156fc1` (the owner-approved B8 kick-back), `8d7690ec` (implementation).
 **Inputs:**
-- story `stories/assistant-profile/1-setup-prompt-tells-the-truth.md`
-- ADR `decisions/assistant-profile/0001-one-setup-state-answer-local-first.md` (Accepted)
-- test plan `stories/assistant-profile/1-setup-prompt-tells-the-truth.test-plan.md`
+- story `stories/done/assistant-profile/1-setup-prompt-tells-the-truth.md`
+- ADR `decisions/done/assistant-profile/0001-one-setup-state-answer-local-first.md` (Accepted)
+- test plan `stories/done/assistant-profile/1-setup-prompt-tells-the-truth.test-plan.md`
 - epic `epics/assistant-profile.md`
 
 ## Quality gates (run by reviewer, not trusted)
@@ -317,7 +317,7 @@ The real helper settles at its own deadline, about 4.0 s, a full second before t
 - It injects the local scan, the import, the relay list and the memo, but deliberately not `queryRelaysKind0`, so it runs the real helper.
 - It uses ephemeral ports on 127.0.0.1 and needs only `ws` and `nostr-tools`: no stack, safe in CI. It adds about 4 s.
 
-**Amendment 1 records the change adequately** (`decisions/assistant-profile/0001-one-setup-state-answer-local-first.md:230-297`; in-place pointer at `:159-160`; Status line at `:3`).
+**Amendment 1 records the change adequately** (`decisions/done/assistant-profile/0001-one-setup-state-answer-local-first.md:230-297`; in-place pointer at `:159-160`; Status line at `:3`).
 - It explains the mechanism, with nostr-tools line references.
 - It weighs options A and B, and records the choice and how it was validated.
 - It lists the three changes: step 4 asks each relay on its own, the backstop at `RELAY_BUDGET_MS + 1000`, and the `hasRelayKey` mapping.
@@ -361,7 +361,7 @@ None.
 
 ### On approval (same commit, by the committing session)
 
-- [ ] Set the story's `**Status:**` to `Done` in place (`engineering-team/stories/assistant-profile/1-setup-prompt-tells-the-truth.md:3`), in the same commit as this section. That pairs it with the verdict below for harness-lint L1. Until then, lint reports one expected L1 for this story.
+- [ ] Set the story's `**Status:**` to `Done` in place (`engineering-team/stories/done/assistant-profile/1-setup-prompt-tells-the-truth.md:3`), in the same commit as this section. That pairs it with the verdict below for harness-lint L1. Until then, lint reports one expected L1 for this story.
 - [ ] Completion detection was done by the reviewer. The result is in the chat, as the template requires.
 - [ ] After deploying to staging, run H1 there (`BRAINSTORM_BASE_URL=<staging>`). The test plan names it the decisive live check.
 

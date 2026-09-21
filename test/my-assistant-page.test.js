@@ -1,9 +1,9 @@
 /**
  * assistant-profile #4: One place — the My Assistant page.
  *
- * Story: engineering-team/stories/assistant-profile/4-my-assistant-page.md
- * ADR:   engineering-team/decisions/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md
- * Plan:  engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md
+ * Story: engineering-team/stories/done/assistant-profile/4-my-assistant-page.md
+ * ADR:   engineering-team/decisions/done/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md
+ * Plan:  engineering-team/stories/done/assistant-profile/4-my-assistant-page.test-plan.md
  * Browser half: tests/brainstorm/my-assistant-page.spec.js (B-class — what the page, the menus and
  * every entry point DO).
  *
@@ -22,6 +22,10 @@
  * customerPubkey gets 500 or 403, not 400), A1 fails (no code), and W1–W14 fail (no page, no
  * route, the editor still has two hosts, …). M4, Q2, Q3, W15 and W16 are guards: they pass before
  * and after, and pin behaviour this story must keep.
+ *
+ * W17–W20 were added by assistant-profile #5 (ledger 2026-09-21-my-assistant-checks-browser-only): guards
+ * that give B1, B11, B12 and B16 a CI-run counterpart. They pass against the code as it is, and each fails
+ * against the defect story 4's review planted for its B-test.
  */
 
 const fs = require('fs');
@@ -115,7 +119,11 @@ function functionText(sf, name) {
   return found;
 }
 
-/** Does `expr` being truthy imply one of `guards` (normalised expressions, e.g. 'status.isOwner')? */
+/**
+ * Does `expr` being truthy imply one of `guards` (normalised expressions, e.g. 'status.isOwner')? A guard may
+ * also be a negation or a comparison written out as such — '!user', "body.code==='no-picture'" — which then
+ * counts only where the code says exactly that (story 5's W17–W20).
+ */
 function asserts(expr, guards) {
   const t = ts();
   while (t.isParenthesizedExpression(expr)) expr = expr.expression;
@@ -123,12 +131,14 @@ function asserts(expr, guards) {
     const op = expr.operatorToken.kind;
     if (op === t.SyntaxKind.AmpersandAmpersandToken) return asserts(expr.left, guards) || asserts(expr.right, guards);
     if ((op === t.SyntaxKind.EqualsEqualsEqualsToken || op === t.SyntaxKind.EqualsEqualsToken) && expr.right.kind === t.SyntaxKind.TrueKeyword) return asserts(expr.left, guards);
-    return false;
+    if (op === t.SyntaxKind.BarBarToken) return false;
+    return guards.includes(norm(expr.getText()));
   }
   if (t.isCallExpression(expr) && expr.expression.getText() === 'Boolean' && expr.arguments.length === 1) return asserts(expr.arguments[0], guards);
   if (t.isPrefixUnaryExpression(expr) && expr.operator === t.SyntaxKind.ExclamationToken) {
     const inner = expr.operand;
-    return t.isPrefixUnaryExpression(inner) && inner.operator === t.SyntaxKind.ExclamationToken && asserts(inner.operand, guards);
+    if (t.isPrefixUnaryExpression(inner) && inner.operator === t.SyntaxKind.ExclamationToken) return asserts(inner.operand, guards);
+    return guards.includes(norm(expr.getText()));
   }
   return guards.includes(norm(expr.getText()));
 }
@@ -654,6 +664,61 @@ test('W16: "Use this avatar" returns before touching the picture when the upload
   const use = body.search(/updateField\(\s*['"]picture['"]/);
   assert(check >= 0 && use > check && /return\b/.test(body.slice(check, use)),
     'useComposite must return early when data.url is empty — before any updateField(\'picture\', …) (ledger 2026-09-21-status-no-key-relay-gate-unpinned, item 2)');
+});
+
+// W17–W20 were added by assistant-profile #5, carried forward from ledger 2026-09-21-my-assistant-checks-browser-only:
+// the CI-run counterparts of B1, B11, B12 and B16. Before them, each of the review's planted defects for those four
+// passed every Node suite and was caught only by the browser class, which CI does not run (review 4, non-blocking 1).
+
+/** Every JSX element (opening or self-closing) named `name` in `sf`. */
+function jsxNamed(sf, name) {
+  const out = [];
+  if (sf) walk(sf, (n) => { if ((ts().isJsxOpeningElement(n) || ts().isJsxSelfClosingElement(n)) && n.tagName.getText() === name) out.push(n); });
+  return out;
+}
+
+test('W17: the page keeps its visitor branch — "Sign in with nostr" is offered only when no one is signed in, and the editor only to someone who is (guard — the CI counterpart of B1)', () => {
+  const signIn = renderedOnlyWhen(PAGE, /Sign in with nostr/, ['!user'], 'MyAssistantPage');
+  assert(signIn.ok, `AC5: a visitor is asked to sign in, on the page itself — ${signIn.why}`);
+  const editors = jsxNamed(parse(PAGE), 'AssistantProfileEditor');
+  assert(editors.length >= 1, `${rel(PAGE)} renders no AssistantProfileEditor`);
+  assert(editors.every((e) => guardedHere(e, ['user'])),
+    'AC5 ("sees no one\'s assistant controls"): the editor must be reached only after the visitor branch — only when user is set');
+});
+
+test('W18: the editor is shown only to someone the page has something for — under hasMyAssistantPage(user), the avatar menu\'s own predicate (guard — the CI counterpart of B11)', () => {
+  const editors = jsxNamed(parse(PAGE), 'AssistantProfileEditor');
+  assert(editors.length >= 1, `${rel(PAGE)} renders no AssistantProfileEditor`);
+  assert(editors.every((e) => guardedHere(e, ['hasMyAssistantPage(user)'])),
+    'AC3 (ADR 0004 sub-decision 2): the page shows the editor exactly when hasMyAssistantPage(user) — a guest with no assistant gets the explanation, not an editor');
+});
+
+test('W19: after an assistant is created the app is told — the page hands the editor useAuth()\'s refreshUser as onAssistantCreated, and refreshUser takes the new assistantPubkey from the answer (guard — the CI counterpart of B12)', () => {
+  const sf = parse(PAGE);
+  let local = null;   // the page's own name for useAuth()'s refreshUser
+  if (sf) walk(sf, (n) => {
+    if (!(ts().isVariableDeclaration(n) && n.initializer && norm(n.initializer.getText()) === 'useAuth()' && ts().isObjectBindingPattern(n.name))) return;
+    for (const el of n.name.elements) {
+      if ((el.propertyName ? el.propertyName.getText() : el.name.getText()) === 'refreshUser') local = el.name.getText();
+    }
+  });
+  assert(local, 'ADR 0004 sub-decision 7: the page takes refreshUser from useAuth()');
+  const handed = jsxNamed(sf, 'AssistantProfileEditor').map((e) => {
+    const a = e.attributes.properties.find((p) => ts().isJsxAttribute(p) && p.name.getText() === 'onAssistantCreated');
+    return a && a.initializer && ts().isJsxExpression(a.initializer) && a.initializer.expression ? norm(a.initializer.expression.getText()) : null;
+  });
+  assert(handed.length >= 1 && handed.every((h) => h === local),
+    `AC3: the page must pass onAssistantCreated={${local}} — got ${j(handed)}`);
+  const body = codeOnly(functionText(parse(AUTH_CONTEXT), 'refreshUser'));
+  assert(/\bsetUser\s*\(/.test(body) && /\bassistantPubkey\s*:\s*data\??\.assistantPubkey\b/.test(body),
+    `ADR 0004 sub-decision 7: refreshUser must set assistantPubkey from the answer (data.assistantPubkey), so the menus and the dashboard see the new assistant — got ${body.replace(/\s+/g, ' ').slice(0, 300)}`);
+});
+
+test('W20: the "no profile picture" copy shows only for the proxy\'s 404 that says code "no-picture" — both conditions, not either one (guard — the CI counterpart of B16)', () => {
+  const status = renderedOnlyWhen(EDITOR, /no profile picture to stamp/i, ['res.status===404']);
+  const code = renderedOnlyWhen(EDITOR, /no profile picture to stamp/i, ["body.code==='no-picture'", 'body.code==="no-picture"']);
+  assert(status.ok && code.ok,
+    `AC4 (ADR 0004 sub-decision 5: "only for res.status === 404 && body?.code === 'no-picture'") — ${[status, code].filter((v) => !v.ok).map((v) => v.why).join('; ')}`);
 });
 
 async function run() {
