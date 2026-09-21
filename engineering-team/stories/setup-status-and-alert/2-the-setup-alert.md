@@ -1,6 +1,6 @@
 # Story 2: The Setup Alert
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-21
 **Type:** Feature
 **Epic:** `setup-status-and-alert`
@@ -139,4 +139,4 @@ Small judgment calls made during implementation (Implementer role, step 9):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md`
 - Test plan: `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/setup-status-and-alert/2-the-setup-alert.md` (PASS)
