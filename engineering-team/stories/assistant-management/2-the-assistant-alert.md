@@ -157,4 +157,4 @@ Small judgment calls made during implementation (Implementer role, step 9):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`
 - Test plan: `engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-management/2-the-assistant-alert.md`
