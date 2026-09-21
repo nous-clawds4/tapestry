@@ -12,10 +12,11 @@
  * profile and WoT relays (ADR assistant-profile/0002), which is the same list
  * /api/assistant/status consults when the local relay has no profile (ADR 0001).
  *
- * POST /api/assistant/publish-profile accepts an optional `content` object so
- * the caller can pass user-edited fields; when omitted, the one default profile
- * is used (./profileDefaults.js, ADR assistant-profile/0003). Either way the
- * profile passes the same finishing step before it is signed.
+ * POST /api/assistant/publish-profile is the one writer of an assistant's kind 0 (ADR
+ * assistant-profile/0005): the signed-in person publishes their own assistant's profile from the
+ * My Assistant page, sending its fields as `content`. The page's "Reset to defaults" fills those
+ * fields with the one default (./profileDefaults.js, ADR 0003); the profile then passes the same
+ * finishing step before it is signed.
  */
 
 const nostrTools = require('nostr-tools');
@@ -40,6 +41,15 @@ const {
 // drops it; the publish handler sets nip05 itself, on a public instance only
 // (ADR assistant-profile/0003).
 const PROFILE_FIELDS = ['name', 'display_name', 'about', 'picture', 'banner', 'website', 'lud16'];
+
+// The publish handler's two refusals (ADR assistant-profile/0005): anything but the My Assistant page's
+// publish — the signed-in person, their own assistant, the fields as content — is refused before a key
+// is read.
+const NOT_YOUR_ASSISTANT =
+  'An assistant\'s profile can be published only by the person it belongs to, signed in, on the My Assistant page (/assistant).';
+const NO_CONTENT =
+  'Nothing was published: the request carried no profile. Edit and publish your assistant\'s profile on the My Assistant page ' +
+  '(/assistant). Its "Reset to defaults" fills in the default profile.';
 
 /**
  * The instance's https website — e.g. "https://tapestry.brainstorm.world" — or '' when the instance is
@@ -141,17 +151,17 @@ function sanitizeProfileContent(content) {
 /**
  * POST /api/assistant/publish-profile
  * Body: {
- *   customerPubkey: "hex",          // pubkey whose assistant we're publishing for
- *   content?: {                      // optional user-edited kind 0 fields
- *     name, display_name, about, picture, banner, website, nip05, lud16
+ *   customerPubkey: "hex",          // the signed-in person — only their own assistant is published
+ *   content: {                       // the profile's kind 0 fields, as the My Assistant page's form holds them
+ *     name, display_name, about, picture, banner, website, lud16
  *   }
  * }
- * If `content` is omitted, the one default profile is published (ADR assistant-profile/0003) — what
- * the legacy pages and the dashboard's "Use the default profile" do.
+ * This is the one writer of an assistant's kind 0 (ADR assistant-profile/0005). Anyone but the person the
+ * assistant belongs to — the Owner included — is refused (403, not-your-assistant), and so is a request
+ * with no content object (400, no-content), before any key is read.
  *
- * Default or edited, the profile passes finalizeAssistantProfile before it is signed: on a public
- * instance it carries the server-managed NIP-05 and a ["client", ‹domain›] tag, and on any other
- * instance neither.
+ * The profile passes finalizeAssistantProfile before it is signed: on a public instance it carries the
+ * server-managed NIP-05 and a ["client", ‹domain›] tag, and on any other instance neither.
  *
  * The profile is written to this instance's relay first; only then does it go to the configured
  * publish relays, and the answer says what each of them did (ADR assistant-profile/0002).
@@ -186,13 +196,20 @@ function createPublishProfileHandler(deps = {}) {
         return res.status(400).json({ success: false, error: 'Valid customerPubkey is required' });
       }
 
-      // Verify caller is the customer or the owner
+      // Whose: only the signed-in person may publish their own assistant's profile — the Owner too, whose
+      // own assistant is the instance TA. Checked first, so a refusal reads no key (ADR assistant-profile/0005).
+      const sessionPubkey = (req.session && req.session.authenticated) ? req.session.pubkey : null;
+      if (!sessionPubkey || sessionPubkey !== customerPubkey) {
+        return res.status(403).json({ success: false, code: 'not-your-assistant', error: NOT_YOUR_ASSISTANT });
+      }
+      // What: the profile's fields, as the My Assistant page sends them. No content no longer means "the
+      // default" — "Reset to defaults" puts the default in the form, and the form is what is published.
+      if (content === null || typeof content !== 'object' || Array.isArray(content)) {
+        return res.status(400).json({ success: false, code: 'no-content', error: NO_CONTENT });
+      }
+
       const ownerPubkey = d.getOwnerPubkey();
       const isOwner = customerPubkey === ownerPubkey;
-      const sessionPubkey = req.session && req.session.pubkey;
-      if (sessionPubkey !== customerPubkey && sessionPubkey !== ownerPubkey) {
-        return res.status(403).json({ success: false, error: 'Not authorized' });
-      }
 
       // Whose assistant this is, in the words every line of the answer will use.
       const subject = publishSubject({
@@ -221,18 +238,14 @@ function createPublishProfileHandler(deps = {}) {
 
       const assistantPubkey = nostrTools.getPublicKey(privkeyBytes);
 
-      // 2. The content: the user's edits if present, otherwise the one default (ADR assistant-profile/0003),
-      //    which is built here and nowhere else — no dependency can stand in for it. The person's name is
-      //    needed only for the default or for the NIP-05, which only a public instance publishes; a publish
-      //    is always signed in, so the lookup may reach the profile relays.
+      // 2. The content: the fields the person published (ADR assistant-profile/0005). The person's name is
+      //    needed only for the NIP-05, which only a public instance publishes; a publish is always signed
+      //    in, so the lookup may reach the profile relays.
       const instance = d.describeInstance();
-      const hasUserContent = Boolean(content && typeof content === 'object');
-      const personName = (!hasUserContent || instance.isPublic)
+      const personName = instance.isPublic
         ? await d.getPersonName(customerPubkey, { allowRelayLookup: true })
         : '';
-      const draft = hasUserContent
-        ? sanitizeProfileContent(content)
-        : buildDefaultProfile({ personPubkey: customerPubkey, personName, instance });
+      const draft = sanitizeProfileContent(content);
 
       // 2a. NIP-05 is server-managed: the deterministic local-part from the person's name and the
       //     assistant's pubkey. The finishing step sets it — with the client tag — on a public instance
@@ -461,6 +474,10 @@ function handleGetTAPubkey(req, res) {
  * an active customer. Storage scheme matches customer relay keys (slot is
  * the caller's pubkey), so getAssistantKeys(pubkey) will find it without
  * any extra routing.
+ *
+ * What the My Assistant page offers is decided separately, by mayCreateAssistant
+ * (ui/src/config/avatarMenuLinks.js): these roles less the Owner, whose assistant is the
+ * instance TA and cannot be provisioned here (ADR assistant-profile/0004).
  */
 async function handleProvisionAssistantKey(req, res) {
   try {
@@ -522,8 +539,8 @@ async function handleProvisionAssistantKey(req, res) {
 }
 
 // buildDefaultProfileContent is exported for tests: it is the stack-free entry point
-// to the one default the editor offers and a content-less publish signs
-// (./profileDefaults.js holds the definition itself).
+// to the one default the editor is offered (./profileDefaults.js holds the definition
+// itself; since ADR assistant-profile/0005 no content-less publish signs it).
 // getInstanceWebsite + isPubliclyReachable are exported so ./avatar.js can gate the
 // composite's publishable URL on the SAME rule as the branded default — one notion
 // of "could a stranger fetch this", not two (ADR ta-avatar/0003 D4).

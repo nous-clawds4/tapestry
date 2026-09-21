@@ -240,6 +240,7 @@ const suites = [
   { file: 'assistant-publish-relays.test.js' },
   { file: 'one-default-assistant-profile.test.js' },
   { file: 'my-assistant-page.test.js' },
+  { file: 'one-writer-assistant-profile.test.js' },
   { file: 'gate-result-record.test.js' },
   { file: 'harden-user-data-error-path.test.js' },
   { file: 'harden-compute-endpoint.test.js' },
