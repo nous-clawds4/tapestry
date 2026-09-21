@@ -12,6 +12,7 @@ import { useCypher } from '../../hooks/useCypher';
 import { queryRelay } from '../../api/relay';
 import AuthorCell from '../../components/AuthorCell';
 import Avatar from '../../components/Avatar';
+import { MY_ASSISTANT_PATH } from '../../config/avatarMenuLinks';
 
 function shortPubkey(pk) {
   if (!pk) return '—';
@@ -99,8 +100,9 @@ export default function UserDetail() {
               The server-side identity that signs automated events on your behalf.
             </span>
           </div>
+          {/* Every role edits their assistant on the My Assistant page (assistant-profile #4). */}
           <Link
-            to="/tapestry/settings/assistant"
+            to={MY_ASSISTANT_PATH}
             className="btn btn-primary"
             style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', textDecoration: 'none' }}
           >

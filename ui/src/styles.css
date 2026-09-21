@@ -8620,3 +8620,32 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bs-setup-main { padding-top: 1.5rem; }
   .bs-setup-title { font-size: 1.6rem; }
 }
+
+/* ════════════════════════════════════════════════════════
+   My Assistant — /assistant (assistant-profile #4). The /setup column;
+   the profile editor inside keeps its own look until a design pass.
+   ════════════════════════════════════════════════════════ */
+
+.bs-assistant-main {
+  max-width: 640px;
+  padding-top: 2rem;
+  padding-bottom: 4rem;
+}
+.bs-assistant-title {
+  margin: 0 0 1.25rem;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.bs-assistant-note {
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+  opacity: 0.85;
+}
+.bs-assistant-note:last-child { margin-bottom: 0; }
+
+@media (max-width: 480px) {
+  .bs-assistant-main { padding-top: 1.5rem; }
+  .bs-assistant-title { font-size: 1.6rem; }
+}

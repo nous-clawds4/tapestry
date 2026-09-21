@@ -194,8 +194,10 @@ async function handleOwnerAvatar(req, res) {
     // from the request (D2).
     const pictureUrl = await getOwnerKind0PictureUrl(ownerPubkey);
     if (!pictureUrl) {
-      // Not an error: this is the branded-fallback path the editor offers (AC5).
-      return res.status(404).json({ success: false, error: 'The owner has no profile picture' });
+      // Not an error: this is the branded-fallback path the editor offers (AC5). The code tells it apart
+      // from every other failure here, which the editor reports in these answers' own words
+      // (assistant-profile #4, ADR 0004).
+      return res.status(404).json({ success: false, code: 'no-picture', error: 'The owner has no profile picture' });
     }
 
     let parsed = parseFetchableUrl(pictureUrl);

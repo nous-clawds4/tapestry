@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePov } from '../context/PovContext';
 import { useConfig } from '../context/ConfigContext';
 import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
-import AssistantProfileEditor from '../components/AssistantProfileEditor';
+import { MY_ASSISTANT_PATH } from '../config/avatarMenuLinks';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -472,9 +472,13 @@ export default function BrainstormSettings() {
           <a href="/pins" className="bss-link-btn">📌 Open your pins</a>
         </div>
 
-        {/* Assistant profile card */}
+        {/* Your assistant — managed on the My Assistant page, the one place for it (assistant-profile #4) */}
         <div className="bss-card">
-          <AssistantProfileEditor customerPubkey={user.pubkey} />
+          <div className="bss-card-header">Your Tapestry Assistant</div>
+          <p className="bss-card-body">
+            See your assistant, and edit and publish its profile, on the My Assistant page.
+          </p>
+          <a href={MY_ASSISTANT_PATH} className="bss-link-btn">🤖 Open My Assistant</a>
         </div>
 
         {/* WoT Status */}

@@ -37,7 +37,8 @@ const {
 // NIP-05 (`nip05`) is server-computed and deterministic — see
 // computeAssistantLocalPart — so we intentionally exclude it from the list
 // of user-editable kind 0 fields. If a client sends one, sanitizeProfileContent
-// drops it; the publish handler always sets nip05 itself.
+// drops it; the publish handler sets nip05 itself, on a public instance only
+// (ADR assistant-profile/0003).
 const PROFILE_FIELDS = ['name', 'display_name', 'about', 'picture', 'banner', 'website', 'lud16'];
 
 /**
@@ -180,7 +181,8 @@ function createPublishProfileHandler(deps = {}) {
   return async function handlePublishProfile(req, res) {
     try {
       const { customerPubkey, content } = req.body;
-      if (!customerPubkey || !/^[0-9a-f]{64}$/.test(customerPubkey)) {
+      // A string first: the regex would coerce a one-element array to its element and let it through.
+      if (typeof customerPubkey !== 'string' || !/^[0-9a-f]{64}$/.test(customerPubkey)) {
         return res.status(400).json({ success: false, error: 'Valid customerPubkey is required' });
       }
 
@@ -351,8 +353,9 @@ function createAssistantStatusHandler(deps = {}) {
   return async function handleAssistantStatus(req, res) {
     try {
       const { customerPubkey } = req.query;
-      // The defaults are built from the person's npub, which only a real pubkey has.
-      if (!customerPubkey || !/^[0-9a-f]{64}$/.test(customerPubkey)) {
+      // The defaults are built from the person's npub, which only a real pubkey has. A string first:
+      // ?customerPubkey[]=‹hex› arrives as an array, which the regex would coerce and let through.
+      if (typeof customerPubkey !== 'string' || !/^[0-9a-f]{64}$/.test(customerPubkey)) {
         return res.status(400).json({ success: false, error: 'Valid customerPubkey is required' });
       }
       const wantDefaults = req.query.defaults !== '0';
@@ -384,7 +387,9 @@ function createAssistantStatusHandler(deps = {}) {
       const relayKeys = await d.getAssistantKeys(customerPubkey);
 
       if (!relayKeys || !relayKeys.pubkey) {
-        const answer = { success: true, hasRelayKey: false, hasProfile: false, profileSource: null, isPublicInstance: instance.isPublic };
+        // isOwner here too, so an Owner whose Tapestry Assistant key is missing is told so in the Owner's
+        // words, not a Customer's (ADR assistant-profile/0004). The owner's pubkey is already public.
+        const answer = { success: true, hasRelayKey: false, hasProfile: false, profileSource: null, isOwner, isPublicInstance: instance.isPublic };
         if (wantDefaults) {
           const personName = await d.getPersonName(customerPubkey, { allowRelayLookup: allowRelayFallback });
           answer.defaults = buildDefaultProfile({ personPubkey: customerPubkey, personName, instance });

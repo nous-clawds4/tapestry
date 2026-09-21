@@ -8,27 +8,58 @@
  * reason a user could see. This module is the single list both menus render, so
  * they can't drift again.
  *
- * The one deliberate difference is where the two profile links point: the Main
- * menu sends you to `/user/<pubkey>` (the same profile page search results link
- * to), the Tapestry menu to `/tapestry/users/<pubkey>`. That's the caller's
- * `profileBase`.
+ * The one deliberate difference is where "My Profile" points: the Main menu
+ * sends you to `/user/<pubkey>` (the same profile page search results link to),
+ * the Tapestry menu to `/tapestry/users/<pubkey>`. That's the caller's
+ * `profileBase`. "My Assistant's Profile" opens the one My Assistant page from
+ * both (assistant-profile #4).
  *
  * Every link here is available to every signed-in user. The single exception is
- * the assistant profile, which has no target when the caller has no provisioned
- * assistant key — it stays visible and disabled rather than disappearing, so
- * the menu reads the same for everyone.
+ * "My Assistant's Profile", which has no target when the caller has no assistant
+ * and cannot create one here — it stays visible and disabled rather than
+ * disappearing, so the menu reads the same for everyone.
+ *
+ * This module has no imports, so the Node test suite can load it as it is
+ * (test/my-assistant-page.test.js). Keep it that way.
  */
 
 export const NO_ASSISTANT_REASON =
   'No assistant is provisioned for your account yet.';
 
+/** The My Assistant page — the one place anyone manages their own assistant (ADR assistant-profile/0004). */
+export const MY_ASSISTANT_PATH = '/assistant';
+
+/**
+ * May this signed-in user create an assistant of their own here? An Admin or an
+ * active Customer may: they are the roles POST /api/assistant/provision-key
+ * accepts, less the Owner, whose assistant is the instance's Tapestry Assistant,
+ * created when the instance is set up — provisioning cannot restore it. The
+ * server still enforces its own rule; this only decides what the page offers.
+ * @param {?{ classification?: string }} user
+ */
+export function mayCreateAssistant(user) {
+  return Boolean(user) && (user.classification === 'admin' || user.classification === 'customer');
+}
+
+/**
+ * Does the My Assistant page have something for this user to manage? Their
+ * assistant if they have one; the Owner's even when its key is missing (the page
+ * says so); or one they may create there. "My Assistant's Profile" is enabled
+ * exactly when this is true and the page shows its controls exactly when it is
+ * true, so the two cannot disagree.
+ * @param {?{ classification?: string, assistantPubkey?: ?string }} user
+ */
+export function hasMyAssistantPage(user) {
+  return Boolean(user && (user.assistantPubkey || user.classification === 'owner' || mayCreateAssistant(user)));
+}
+
 /**
  * Personal destinations — "my things".
- * @param {{ pubkey: string, assistantPubkey: ?string, profileBase: string }} opts
+ * @param {{ pubkey: string, assistantPubkey: ?string, classification: ?string, profileBase: string }} opts
  *   `profileBase` is '/user' (Main menu) or '/tapestry/users' (Tapestry menu).
  * @returns {Array<{ key, icon, label, to: ?string, disabledReason?: string }>}
  */
-export function personalLinks({ pubkey, assistantPubkey, profileBase }) {
+export function personalLinks({ pubkey, assistantPubkey, classification, profileBase }) {
   return [
     {
       key: 'my-profile',
@@ -40,7 +71,7 @@ export function personalLinks({ pubkey, assistantPubkey, profileBase }) {
       key: 'my-assistant',
       icon: '🤖',
       label: "My Assistant's Profile",
-      to: assistantPubkey ? `${profileBase}/${assistantPubkey}` : null,
+      to: hasMyAssistantPage({ assistantPubkey, classification }) ? MY_ASSISTANT_PATH : null,
       disabledReason: NO_ASSISTANT_REASON,
     },
     {
@@ -84,5 +115,5 @@ export const destinationLinks = [
  */
 export const accountLinks = [
   { key: 'account-setup', icon: '🧭', label: 'Account Setup', to: '/setup' },
-  { key: 'assistant-management', icon: '🎛️', label: 'Assistant Management', to: '/assistant' },
+  { key: 'assistant-management', icon: '🎛️', label: 'Assistant Management', to: MY_ASSISTANT_PATH },
 ];
