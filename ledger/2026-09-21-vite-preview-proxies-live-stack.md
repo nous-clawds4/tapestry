@@ -26,5 +26,14 @@ Neither the test plan template, the spec precedent nor the B-class run recipe sa
 2. Or a stated rule, in the B-class precedent and the test-plan template, that every spec registers
    the catch-all before any specific route.
 
+**A second leak: the global setup (setup-status-and-alert #2 review).** Playwright's global setup
+is not mocked at all. `tests/global-setup.js` loads the base URL (`:27`) and then `/api/neo4j-health`
+(`:37`) before any spec registers its routes. Through `:4173` both reach the live `:7778`. The health
+check gets Express's "Cannot GET" 404, and the setup still prints "✅ Neo4j health endpoint is
+accessible", because `page.goto` does not throw on a 404. The leaked requests are signed-out GETs,
+so no harm is done. But a spec that calls itself hermetic is not hermetic as a run. Fix shape 1
+(`preview: { proxy: {} }`) closes both leaks.
+
 **Pointer:** `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md`
-§ Harness friction 2.
+§ Harness friction 2; `engineering-team/reviews/setup-status-and-alert/2-the-setup-alert.md`
+§ Harness friction 1.

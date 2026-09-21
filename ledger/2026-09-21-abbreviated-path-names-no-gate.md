@@ -42,5 +42,11 @@ the real `ledger/`. So "the rest walk trees this story does not touch" held for 
 the branch. It did no harm: 32/0 on its own, and `harness-lint` was clean. The fix shape grows by one
 clause: **triage the walkers against `git diff <merge-base>...HEAD`, not the story's files.**
 
+**And after a merge, again (setup-status-and-alert #2, before its staging PR).** Story 2's pinned
+list was triaged against its branch. Then the owner-required merge of `origin/staging` brought in
+`one-writer-assistant-profile` (assistant-profile #5), whose W5 walks `ui/src`, where story 2's code
+lives. No filename grep finds it. Run on its own, it passed 17/0/0. The fix shape grows by one more
+clause: **re-run the walker grep after merging the base branch, not only at Test Design.**
+
 **Pointer:** `engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md`
 § Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1 and § Round 2, Harness friction 2.
