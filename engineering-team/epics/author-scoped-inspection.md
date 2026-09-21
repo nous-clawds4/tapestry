@@ -1,7 +1,7 @@
 # Epic: Author-scoped inspection
 
 **Created:** 2026-09-20
-**Status:** Active
+**Status:** Done *(epic retired at the book close 2026-09-21; all four stories Done, review PASS, merged to `staging` as `a90011c4` via PR #714 and smoke-verified there. Active z-tags adopting the same treatment is recorded as a carry-forward, not open engineering work — reopen the way `tag-event-inspector` did if a second surface is taken up.)*
 **Provenance:** Owner request in session 2026-09-20 (no intake entry — the request went straight
 into stories, per workflow `0-intake` step 1). Book anchor at
 `engineering-team/audits/author-scoped-inspection/book.md` (acceptance-frame book, opened

@@ -1,9 +1,9 @@
 # Book of Work: Author-scoped inspection on Active b-tags
 
 **Slug:** author-scoped-inspection
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-20
-**Closed:** —
+**Closed:** 2026-09-21
 
 ## Intent anchor
 
@@ -14,18 +14,18 @@ the problem statement.
 
 ### Acceptance frame
 
-- [ ] **Active b-tags shows every b-tag event the local relay holds**, not only the ones the
+- [x] **Active b-tags shows every b-tag event the local relay holds**, not only the ones the
       instance's own assistant signed — including events signed by assistants and people this
       instance does not control.
-- [ ] **Every row says who signed it.** With more than one author in the table, a row that does
+- [x] **Every row says who signed it.** With more than one author in the table, a row that does
       not name its author is not readable.
-- [ ] **A reader can narrow to one person** — the owner, themselves, or any customer of this
+- [x] **A reader can narrow to one person** — the owner, themselves, or any customer of this
       instance — and see that person's events together with their assistant's.
-- [ ] **A reader can narrow by kind of author** — assistants this instance controls, the people
+- [x] **A reader can narrow by kind of author** — assistants this instance controls, the people
       who control them, or everyone else — independently of the person filter.
-- [ ] **The default view is the signed-in reader's own** (their events and their assistant's),
+- [x] **The default view is the signed-in reader's own** (their events and their assistant's),
       falling back to the owner's when nobody is signed in.
-- [ ] **A row whose b-tag points at itself is visibly distinct** in the table, and says so in its
+- [x] **A row whose b-tag points at itself is visibly distinct** in the table, and says so in its
       detail panel.
 
 ## Epics in this book
@@ -33,7 +33,7 @@ the problem statement.
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(set at close)*
+- **Confidence at close:** high — the anchor was captured at intake before any code, and every frame bullet was verified against the running staging deployment, not against the tests.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/author-scoped-inspection/audit.md`
