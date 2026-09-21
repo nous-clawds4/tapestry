@@ -19,8 +19,12 @@ import { useState, useMemo, useEffect, Fragment } from 'react';
  * @param {Function} [props.renderExpanded] - `(row) => ReactNode`. When supplied, each
  *   row gains a trailing disclosure control and the returned node renders in a panel
  *   row beneath it, closed by default.
+ * @param {Function} [props.rowClassName] - `(row) => string | undefined`. When supplied, the
+ *   returned class is appended to the row's own classes, for callers that need to mark a
+ *   subset of rows (ADR author-scoped-inspection/0002). Omit it and the class attribute is
+ *   byte-identical to what it was before the prop existed.
  *
- * `pageSize`, `showFilter`, `filterKeys` and `renderExpanded` are additive/optional;
+ * `pageSize`, `showFilter`, `filterKeys`, `renderExpanded` and `rowClassName` are additive/optional;
  * callers that omit them get the original behavior (no pagination, filter shown, no
  * disclosure column, no panel row). Sorting always applies to the full (filtered) set
  * before pagination, so the default order and any header re-sort are correct across all
@@ -31,7 +35,7 @@ import { useState, useMemo, useEffect, Fragment } from 'react';
  * stable `uuid`, or an open panel will follow a *position* across a re-sort rather than
  * its row.
  */
-export default function DataTable({ columns, data, onRowClick, emptyMessage = 'No data', pageSize, showFilter = true, filterKeys = [], renderExpanded }) {
+export default function DataTable({ columns, data, onRowClick, emptyMessage = 'No data', pageSize, showFilter = true, filterKeys = [], renderExpanded, rowClassName }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
   const [filter, setFilter] = useState('');
@@ -140,7 +144,10 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
                 <Fragment key={rowKey(row, i)}>
                   <tr
                     onClick={() => onRowClick?.(row)}
-                    className={onRowClick ? 'clickable' : ''}
+                    // Strictly opt-in: with no rowClassName the expression yields exactly the
+                    // string this attribute carried before the prop existed.
+                    className={[onRowClick ? 'clickable' : '', rowClassName?.(row) || '']
+                      .filter(Boolean).join(' ')}
                   >
                     {columns.map(col => (
                       <td key={col.key}>

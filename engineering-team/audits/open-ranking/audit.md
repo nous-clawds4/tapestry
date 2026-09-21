@@ -56,7 +56,7 @@ A public, read-only HTTP interface to Brainstorm's web of trust, conformant to t
 
 ## 6. Carry-forward register
 
-- [ ] **Story 3 — personalized search**: build the server-side main→delegated POV resolver (owner→TA, customer→relay key) so ORE `pov` (the main pubkey) works across stats and search (W13).
+- [ ] **Story 3 — personalized search**: build the server-side main→delegated POV resolver (owner→TA, customer→relay key) so ORE `pov` (the main pubkey) works across stats and search (W13). *(Half-built elsewhere 2026-09-21: the resolver itself now exists as `getAssistantPubkeyFor` in `src/utils/assistantKeys.js` — ADR `author-scoped-inspection/0001`, which records that W13's `resolveProvisionedDelegate` **is** this function. Story 3 should adopt it rather than mint a third mapping. Left unticked: the search wiring, the readiness check and the `422` are not built.)*
 - [x] **Pre-prod gate** *(2026-07-10, ADR 0005)*: the personalized-stats `pov:true` path is now gated behind `openRanking.personalizedStats` (**default OFF**) — omitted from the served surface, a request 422s as "unsupported" with **no** pov/provisioning check, so the enumeration oracle no longer runs. Done for the `main`→`tapestry.brainstorm.world` cutover. **Re-enabling requires the auth work below** — the config flag alone re-opens the oracle and must not be turned on publicly without ORE-A/self-only (still W12, next line).
 - [ ] **Auth to RE-ENABLE personalized stats**: ORE-A/NWT or a NIP-98 self-only check on the `pov:true` path, so `openRanking.personalizedStats` can be safely turned on (W12). Until then the feature stays gated OFF.
 - [ ] **ORE-A / NWT auth** and the remaining ORE endpoints (`/rank/pubkeys`, `/recommend/pubkeys`, `/followers`, `/muters`, `/compromised/pubkeys`).

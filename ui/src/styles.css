@@ -17,6 +17,12 @@
   --purple: #bc8cff;
   --red: #f85149;
   --sidebar-width: 240px;
+  /* A row whose b-tag points at its own event — a self-declaration, not a correspondence.
+     --purple at low alpha: a hue the table uses nowhere else, so it reads as a mark rather than
+     as status. Deliberately not --orange/--red, which would read as a warning.
+     ADR author-scoped-inspection/0002. */
+  --row-self-declared: rgba(188, 140, 255, 0.07);
+  --row-self-declared-hover: rgba(188, 140, 255, 0.13);
 }
 
 body {
@@ -371,6 +377,17 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .data-table tbody tr:hover {
   background: var(--bg-tertiary);
 }
+
+/* Self-declaration rows. Placed AFTER the :hover rule above by decision, not by accident: at equal
+   specificity source order decides, so defining these earlier would let the plain hover background
+   erase the mark. The paired :hover rule is what keeps the row's own hover feedback — a tint alone
+   would win in both states and the row would stop responding to the pointer.
+   ADR author-scoped-inspection/0002; story 4 AC-5. */
+.data-table tbody tr.row-self-declared { background: var(--row-self-declared); }
+.data-table tbody tr.row-self-declared:hover { background: var(--row-self-declared-hover); }
+/* The left rule rides on the first cell as an inset shadow: the table is border-collapse: collapse,
+   under which a <tr> border does not render reliably. Untouched by either background rule. */
+.data-table tbody tr.row-self-declared td:first-child { box-shadow: inset 3px 0 0 var(--purple); }
 
 .data-table tbody tr.clickable {
   cursor: pointer;

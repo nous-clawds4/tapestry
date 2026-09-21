@@ -29,6 +29,7 @@ const {
   publishSubject, summarizePublish, localFailureMessage,
 } = require('./profilePublish');
 const { isPublishLocalOnly } = require('../publish-policy');
+const { handleGetAssistantRoster } = require('./roster');
 
 // NIP-05 (`nip05`) is server-computed and deterministic — see
 // computeAssistantLocalPart — so we intentionally exclude it from the list
@@ -550,5 +551,6 @@ async function handleProvisionAssistantKey(req, res) {
 module.exports = {
   handlePublishProfile, createPublishProfileHandler,
   handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey,
+  handleGetAssistantRoster,
   buildDefaultProfileContent, getInstanceWebsite, isPubliclyReachable, getAssistantPublishRelays,
 };

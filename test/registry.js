@@ -243,6 +243,8 @@ const suites = [
   { file: 'harden-compute-endpoint.test.js' },
   { file: 'shared-concepts-row-detail.test.js' },
   { file: 'nip05-ssrf-guard.test.js' },
+  { file: 'author-scoped-inspection-roster.test.js' },
+  { file: 'author-scoped-inspection-views.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so

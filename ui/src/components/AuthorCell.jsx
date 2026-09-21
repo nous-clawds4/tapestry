@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 import { useConfig } from '../context/ConfigContext';
 import { PROFILE_LOOKUP_FAILED } from '../utils/profileBatch';
+import { useAssistantRoster } from '../context/AssistantRosterContext';
+import { assistantPubkeys } from '../utils/authorScope';
 
 function shortPubkey(pk) {
   if (!pk) return '—';
@@ -23,6 +25,7 @@ function shortPubkey(pk) {
 export default function AuthorCell({ pubkey, profiles, size }) {
   const navigate = useNavigate();
   const { taPubkey } = useConfig();
+  const { assistants } = useAssistantRoster();
 
   if (!pubkey) return <span className="text-muted">—</span>;
 
@@ -30,8 +33,11 @@ export default function AuthorCell({ pubkey, profiles, size }) {
   const lookupFailed = raw === PROFILE_LOOKUP_FAILED;
   const p = lookupFailed ? null : raw;
   // A fresh instance's assistant has published no kind-0, so without this it
-  // would be listed as a truncated pubkey — naming nothing to a reader.
-  const unnamed = pubkey === taPubkey ? 'Tapestry Assistant' : shortPubkey(pubkey);
+  // would be listed as a truncated pubkey — naming nothing to a reader. Widened from the owner's
+  // assistant to any assistant this instance controls (ADR author-scoped-inspection/0002): once
+  // several appear in one column, naming only one of them is worse than naming none.
+  const isAssistant = pubkey === taPubkey || assistantPubkeys(assistants).has(pubkey);
+  const unnamed = isAssistant ? 'Tapestry Assistant' : shortPubkey(pubkey);
   const displayName = p?.display_name || p?.name || unnamed;
 
   function handleClick(e) {
@@ -40,7 +46,8 @@ export default function AuthorCell({ pubkey, profiles, size }) {
   }
 
   if (lookupFailed) {
-    // `unnamed`, not the raw short pubkey: the TA's identity comes from config, so a failed
+    // `unnamed`, not the raw short pubkey: an assistant's identity comes from config (the
+    // owner's) or the roster (any other account's), so a failed
     // lookup tells us nothing about WHO this is and we still know. The ⚠ carries the
     // "couldn't check" signal without throwing away a name we already had.
     return (
