@@ -1,6 +1,6 @@
 # Story 4: One place — the My Assistant page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-11
 **Type:** Feature
 **Epic:** `assistant-profile`
@@ -89,4 +89,4 @@ destination for that item (a read-only profile view).
 
 - ADR: `engineering-team/decisions/assistant-profile/0004-my-assistant-page-hosts-the-one-editor.md`
 - Test plan: `engineering-team/stories/assistant-profile/4-my-assistant-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-profile/4-my-assistant-page.md`
