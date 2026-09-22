@@ -17,5 +17,5 @@ three in the review commit.
 path, Review the review path, by the Reviewer, whose sanctioned writes gain that one line in `roles/reviewer.md`
 step 9). A lint check could flag a `Done` story with a placeholder left.
 
-**Pointer:** review `engineering-team/reviews/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
+**Pointer:** review `engineering-team/reviews/done/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
 § Harness friction 2; `engineering-team/templates/user-story.md` § Linked artifacts.

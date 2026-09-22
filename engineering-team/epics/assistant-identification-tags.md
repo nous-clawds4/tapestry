@@ -1,6 +1,6 @@
 # Epic: assistant-identification-tags — the Identification Tags page, and the hub's first real answer
 
-**Status:** Active
+**Status:** Done (book closed 2026-09-22; the folders sit under `done/`, and the branch was unmerged at the close)
 **Created:** 2026-09-22
 **Book:** `engineering-team/audits/assistant-identification-tags/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask for this action page (quoted in the book), settled through a Discovery
@@ -21,7 +21,7 @@ through this instance, which holds the Assistant's key.
 
 ## Stories
 
-`stories/assistant-identification-tags/`. All three are features, so all three take all five phases
+`stories/done/assistant-identification-tags/`. All three are features, so all three take all five phases
 (Standard).
 
 1. `1-the-one-answer-and-the-hubs-first-real-mark.md`: the required list, the server's answer for the
@@ -73,4 +73,4 @@ through this instance, which holds the Assistant's key.
 
 ## ADRs
 
-`decisions/assistant-identification-tags/`, created per story at Architecture.
+`decisions/done/assistant-identification-tags/`, created per story at Architecture.

@@ -25,6 +25,6 @@ signed-in page load.
 module batching its outside reads into one filter per relay. Do it in a quiet moment outside the two parallel
 books (setup-status-and-alert, assistant-identification-tags), with the six suites that pin these modules.
 
-**Pointer:** review `engineering-team/reviews/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
-§ Non-blocking 1–2; ADR `engineering-team/decisions/assistant-identification-tags/0001-one-assistant-attention-answer.md`
+**Pointer:** review `engineering-team/reviews/done/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
+§ Non-blocking 1–2; ADR `engineering-team/decisions/done/assistant-identification-tags/0001-one-assistant-attention-answer.md`
 § Consequences.

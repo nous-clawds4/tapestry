@@ -16,5 +16,5 @@ offers `Proposed | Accepted | Superseded` with no rule.
 `**Status:** Accepted (approved <date>)` before committing. Optionally a lint check (L-series) that an ADR
 linked from a `Done` story does not read `Proposed`.
 
-**Pointer:** review `engineering-team/reviews/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
+**Pointer:** review `engineering-team/reviews/done/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
 § Harness friction 1.

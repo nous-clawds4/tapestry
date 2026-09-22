@@ -21,5 +21,5 @@ review checklist.
 tests can't catch: "universal claims in the diff's comments and docs re-run their proving command". Optionally a
 lint check for those words in a new ADR without a fenced command nearby.
 
-**Pointer:** review `engineering-team/reviews/assistant-identification-tags/3-your-assistants-two-taggings.md`
+**Pointer:** review `engineering-team/reviews/done/assistant-identification-tags/3-your-assistants-two-taggings.md`
 § Blocking 1 and § Harness friction 1; ADR 0003 Amendment 1.

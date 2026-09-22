@@ -28,5 +28,5 @@ three-hop reference chain — story 3's plan points at story 2's, which points a
 lives only in a review and in scratchpad copies — and the Reviewer re-derived it for the third time in one book.
 `scripts/gate-for.sh <label> <pattern>`, committed, is the fix for all three gaps.
 
-**Pointer:** review `engineering-team/reviews/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
+**Pointer:** review `engineering-team/reviews/done/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
 § Harness friction 3; the plan's § How to run.

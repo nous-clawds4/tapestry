@@ -22,5 +22,5 @@ status` and unstage anything outside the phase's lane (`git restore --staged`). 
 or a pre-commit check: a commit whose subject starts with `test:` touches only `test/`, `tests/`, `test/helpers/` and
 the plan file.
 
-**Pointer:** review `engineering-team/reviews/assistant-identification-tags/2-the-page-and-your-two-taggings.md`
+**Pointer:** review `engineering-team/reviews/done/assistant-identification-tags/2-the-page-and-your-two-taggings.md`
 § Harness friction 1; commits `d7611992` and `1089f04e`.

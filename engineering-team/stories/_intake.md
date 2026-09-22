@@ -2077,7 +2077,7 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 
 ## 2026-08-09 — TA ↔ owner two-way handshake (park; do not pull into current work)
 
-**PICKED UP** (partial) 2026-09-22 → `engineering-team/audits/assistant-identification-tags/book.md` — the handshake in its tagging form, both directions (the owner tags the Assistant; the Assistant tags the owner), as the Identification Tags page. The kind-0 `p`-tag claim is not built.
+**PICKED UP** (partial) 2026-09-22 → `engineering-team/audits/assistant-identification-tags/book.md` — the handshake in its tagging form, both directions (the owner tags the Assistant; the Assistant tags the owner), as the Identification Tags page. The kind-0 `p`-tag claim is not built. **Book closed 2026-09-22** (on `feat/assistant-identification-tags`, unmerged at the close); the kind-0 form stays open.
 
 **NOT PICKED UP — parked deliberately.** Surfaced while landing the Shared Concepts Registry description: the page's Author column reads "Tapestry Assistant" for every row, and the owner named the general problem behind it. The owner's framing, verbatim:
 
@@ -2669,7 +2669,7 @@ Team** first.
 
 ## 2026-09-21 — The Assistant Management page, the rest of the way: real "needs attention" answers and the ten action pages (feature; deferred at intake)
 
-**PICKED UP** (partial) 2026-09-22 → `engineering-team/audits/assistant-identification-tags/book.md` — the identification-tags action page and its real "needs attention" answer (item 1 for that action, item 2 for that page). The other nine pages, their answers, and the DMs stay open.
+**PICKED UP** (partial) 2026-09-22 → `engineering-team/audits/assistant-identification-tags/book.md` — the identification-tags action page and its real "needs attention" answer (item 1 for that action, item 2 for that page). The other nine pages, their answers, and the DMs stay open. **Book closed 2026-09-22** (on `feat/assistant-identification-tags`, unmerged at the close); nine actions and the DMs remain.
 
 **Origin:** the owner's ask behind book `assistant-management`
 (`engineering-team/audits/assistant-management/book.md`, which quotes the whole ask verbatim). That

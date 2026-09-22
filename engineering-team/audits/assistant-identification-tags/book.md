@@ -1,9 +1,9 @@
 # Book of Work: The Identification Tags page — the first action with a real "needs attention" answer
 
 **Slug:** assistant-identification-tags
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-22
-**Closed:** —
+**Closed:** 2026-09-22 (on `feat/assistant-identification-tags`, unmerged; shipping to staging is the owner's separate decision)
 
 ## Intent anchor
 
@@ -52,28 +52,28 @@ Recorded in full in the discovery brief. In short:
 *Confirmed 2026-09-22, when the owner approved stories 1–3. The canonical author key is the owner's own
 (BIBLE §20, wds4/straycat).*
 
-- [ ] **The four required taggings**, the same on every instance: you on your Assistant, "My Tapestry
+- [x] **The four required taggings**, the same on every instance: you on your Assistant, "My Tapestry
       Assistant" and "My Agent"; your Assistant on you, "My Tapestry Owner" and "My Human". Their
       definitions are canonical tags the owner publishes once with their own key; the app knows each by
       its name and its canonical address.
-- [ ] **One real answer.** For a signed-in viewer with an Assistant on this instance, the instance says
+- [x] **One real answer.** For a signed-in viewer with an Assistant on this instance, the instance says
       which of the four are present and which are missing, for that viewer's own Assistant only, read
       from this instance's relay first and then the outside relays it reads tags from. A third party's
       dispute changes nothing; the signer's own flip or retraction makes a tagging missing.
-- [ ] **The hub tells the truth for this action.** The Identification Tags card is marked, and the hub's
+- [x] **The hub tells the truth for this action.** The Identification Tags card is marked, and the hub's
       count line and the Assistant Alert count it, only while a required tagging is missing. The other
       nine actions still count as before.
-- [ ] **The page** at `/assistant/identification-tags` replaces its placeholder: the owner's description,
+- [x] **The page** at `/assistant/identification-tags` replaces its placeholder: the owner's description,
       the Treasure Map sentence, and two cards, one per signer, each listing its two taggings with their
       state, a checkbox per missing tagging (checked by default) and one publish button. A canonical tag
       that cannot be found is said so, and that tagging cannot be published.
-- [ ] **Your two taggings** are signed with your nostr extension when you press publish on the first
+- [x] **Your two taggings** are signed with your nostr extension when you press publish on the first
       card, sent to this instance's relay and the outside relays, and each relay's answer is shown.
-- [ ] **Your Assistant's two taggings** are signed by this instance with your own Assistant's key when
+- [x] **Your Assistant's two taggings** are signed by this instance with your own Assistant's key when
       you press publish on the second card, for your own Assistant only, written to this instance's
       relay first and then the configured relays, each relay's answer shown. Nothing is published at
       Assistant creation, and nothing else gains the power to sign as an Assistant.
-- [ ] **Nothing else changes:** no change to the tagging wire format, no other action page, no DMs.
+- [x] **Nothing else changes:** no change to the tagging wire format, no other action page, no DMs.
 
 ## Epics in this book
 
@@ -102,7 +102,10 @@ top-bar pill's count.
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(filled at close)*
+- **Confidence at close:** high for what the code does (every frame bullet traces to a story; all three passed
+  review; each bullet was observed on the local instance, audit §5), medium for the frame as a user will meet it:
+  nothing has been seen on staging, and the four canonical definitions are not yet published, so every row reads
+  "Tag not found" until the owner publishes them (audit header, §4 #1).
 
 ## Close artifacts *(filled by `/close-book`)*
 
