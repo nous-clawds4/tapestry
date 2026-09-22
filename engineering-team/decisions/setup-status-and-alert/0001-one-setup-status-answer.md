@@ -1,6 +1,6 @@
 # ADR 0001: One setup-status answer for the signed-in viewer, computed on the server, shared by `/setup` and the pill
 
-**Status:** Accepted
+**Status:** Accepted (§ 3's triggers extended by `setup-status-and-alert` ADR 0002 Decision 5, the viewer's assistant in the request key, and ADR 0003, a re-check after the viewer's own kind 3 or kind 10040 publish)
 **Date:** 2026-09-21
 **Story:** `engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md`
 (the model it designs is also what story 2, the Setup Alert, reads; story 2's own ADR decides only

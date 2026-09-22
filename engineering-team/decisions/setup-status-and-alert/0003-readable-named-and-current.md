@@ -1,6 +1,6 @@
 # ADR 0003: The Setup Alert: dark text on its chip, named by what it shows, and re-checked when the viewer publishes
 
-**Status:** Accepted
+**Status:** Accepted (Amendment 1 appended 2026-09-21: `publishEverywhere` announces once, and every announcement re-checks)
 **Date:** 2026-09-21
 **Story:** `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.md`
 **Builds on:** ADR 0001 (the shared provider and its `refresh()`) and ADR 0002 (the pill), whose
@@ -99,12 +99,13 @@ These are exactly AC-2's strings.
 **Pros:**
 - One place covers every current path, and any future one that uses the shared helpers.
 - The re-check starts after the event is on a relay: after the local write, which is the one the
-  check reads first.
+  check reads first. *Only when the local route announced first; Amendment 1 makes it always so.*
 - No page learns about setup.
 
 **Cons:**
 - `publishEverywhere` announces the same event up to twice, once per route, which the de-duplication
-  absorbs.
+  absorbs. *Wrong: the de-duplication could drop the announcement that mattered. Superseded by
+  Amendment 1.*
 - A future page that bypasses the helpers with a raw request is missed. The Tester can pin the list
   of raw callers so that a new one surfaces.
 
@@ -181,13 +182,14 @@ replaced by story 3's AC-2, as story 3 records.
 - The pill is readable, at 7.5:1.
 - It is announced as it reads.
 - It catches up within about a second of the viewer's own save anywhere in the app. The `/setup`
-  page, which reads the same answer, catches up with it.
+  page, which reads the same answer, catches up with it. *The timing is corrected in Amendment 1.*
 
 **During the re-check:**
 - `refresh()` changes the request key, so the phase is `checking` until the new answer lands (ADR
   0001 § 3).
 - The pill hides, and `/setup` shows its "still checking" state. Neither shows the old answer as
   current, which is AC-3's second clause. Any flash lasts only the local check's duration.
+  *Corrected in Amendment 1.*
 
 **Load:**
 - One extra status read per publish of the viewer's own kind 3 or kind 10040.
@@ -227,7 +229,8 @@ replaced by story 3's AC-2, as story 3 records.
    and `refresh`:
    - it subscribes through `onEventPublished`;
    - it calls `refresh()` when the event's `pubkey` equals the signed-in `pubkey`, its `kind` is `3`
-     or `10040`, and its `id` has not been seen before (a `useRef(new Set())`);
+     or `10040`, and its `id` has not been seen before (a `useRef(new Set())`). *Amendment 1 drops the
+     id check: every announcement re-checks.*
    - it unsubscribes on cleanup.
 
    Update the header comment's "and again when…" sentence. Nothing else changes: the request key,
@@ -284,3 +287,73 @@ replaced by story 3's AC-2, as story 3 records.
   phone rules stay.
 - **Routing the other raw publishers through the helpers.** They never carry kind 3 or 10040.
 - **The `/setup` page's own copy.** It shows the same answer, and nothing about it changes.
+
+## Amendment 1 — one announcement per `publishEverywhere`, and every announcement re-checks (2026-09-21)
+
+**Raised by:** story 3's review, Blocking 1
+(`engineering-team/reviews/setup-status-and-alert/3-setup-alert-polish.md`). The owner approved this
+shape: "Proceed with the round 2 fix".
+
+**What was wrong.** Option A assumed that the re-check starts after the local write. It did not
+always.
+- `publishEverywhere` ran both routes in parallel, and each announced its own success. The provider
+  acted only on the first announcement of an event id.
+- When every outside relay answered before the local import finished, the re-check read the local
+  relay before the new event was stored. If an older event of that kind was there, it came back as a
+  finished answer (`src/api/setup/status.js`, a local hit ends the lookup).
+- The local announcement then carried an id already heard, and it was dropped. The pill kept the
+  old count until the next full page load.
+- The review reproduced this on the built UI.
+- **A second way in, with no race:** push a Map to a relay the check does not read, then import it
+  locally. The import's announcement was dropped as a duplicate.
+
+**Decision.**
+1. **`publishEverywhere` announces once.**
+   - It announces straight after the local write when that succeeds, without waiting for the
+     relays.
+   - Otherwise it announces once the relays have settled, if at least one accepted.
+   - It does this through internal versions of the two routes that do not announce.
+     `publishToLocalStrfry` and `publishToRelays`, called on their own, still announce as § 1 says.
+2. **The provider re-checks on every announcement of the viewer's own kind 3 or kind 10040.** It keeps
+   no record of ids already heard. So two publishes of one event, such as a push and then an import,
+   each re-check, and the later answer is the current one.
+
+**What follows:**
+- **When the local write succeeds,** the re-check after a Follow or a Map edit always starts after
+  it. `handlePublishEvent` answers success only after `strfry import` has stored the event, so the
+  check finds it.
+- **When the local write fails but a relay accepted,** the re-check finds the new event only if this
+  instance's relay holds no older event of that kind and the check's own outside relays have it
+  (ADR 0001's local-first rule). That is no worse than before this story.
+- **A relay sync that pushes or pulls several times** re-checks each time, and the last answer is
+  the current one. Each re-check is one status read.
+- **P3 "both routes"** still sees one re-check per Follow, because the local route announces and the
+  relays no longer do.
+
+**Corrections to the text above** (review, Non-blocking 2):
+- **How long the catch-up takes.** It takes as long as the check.
+  - On a local hit for both kinds, that is well under a second.
+  - For a viewer with no Map anywhere, the Map lookup reads outside relays: about 2.5 s live, capped
+    at 8 s (ADR 0001). The pill is hidden meanwhile.
+- **What `/setup` shows during the re-check.** It has no separate "still checking" state. While the
+  answer is unknown it shows "0 of 3 complete", with every step not done (story 1's design). That is
+  not the old answer, so AC-3 holds.
+- **The Relay Presence panel.** Its `publishToRelays` and `publishToLocalStrfry` are the push and
+  pull branches of one sync (`TreasureMapRelayPresence.jsx:177–214`), not a sequence.
+- **The Treasure Map editors** also include `CurateHereOffer.jsx`, through `publishOrThrow`.
+- **"One of two routes"** holds for the React app. The legacy static pages
+  (`public/pages/nip85.html`, the customer sign-up pages and `index.html`) publish a signed 10040
+  through `/api/publish-signed-kind10040`. They are separate documents, so a full page load follows.
+  The raw-publisher sentinel (§ 7) watches only the `/api/strfry/publish` literal.
+- **The quote "a step completed in another app shows on the next full page load, or after
+  refresh()"** is from the provider's own header comment, not from ADR 0001 § 3.
+
+**Tests.** The Tester adds or re-aims:
+- a P3 case with the local write held back behind relays that accept at once, and a status answer
+  that depends on what the local relay holds;
+- U8, re-aimed to one announcement after the local write;
+- new U cases for the other `publishEverywhere` outcomes;
+- D2, re-aimed to "no record of ids heard";
+- a P3 case for the Map page's "Import to local strfry", which the review noted no browser test
+  drives.
+
