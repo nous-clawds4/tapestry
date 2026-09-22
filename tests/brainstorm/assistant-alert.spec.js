@@ -21,6 +21,12 @@ const X = require('../../test/helpers/assistantManagementFixtures');
  *        bar scrolls sideways.                                                               [AC-6]
  *   B7 — read-only: GETs only, the setup status once per full load, nothing new asked.       [AC-7]
  *   B8 — the pill is indigo, never the Setup Alert's amber.                                  [story 2 § Copy]
+ *   B9 — from 320 to 1280 px, with the pill showing, no top bar scrolls sideways, and the fixed Tapestry header
+ *        grows no taller than without the pill (a long user name in it).                     [AC-6; ADR 0002 Amendment 1]
+ *
+ * Re-aimed after the Setup Alert shipped first as its own component (ADR 0002 Amendment 1): B3 now runs against
+ * a build with the real Setup pill, so "a step left" is observed as the Setup pill showing and this one not, and the
+ * "at most one pill" sampling has two pills that could collide.
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked. /api/setup/status is answered in ADR setup-status-and-alert/0001's shape — or held,
@@ -53,6 +59,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const squash = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 const pathname = (page) => new URL(page.url()).pathname;
 const pillOf = (page) => page.getByRole('link', { name: X.ALERT.name, exact: true });
+const setupPillOf = (page) => page.getByRole('link', { name: 'Finish setting up your account', exact: true });
 const anyPill = (page) => page.getByRole('link', { name: /^(Manage your Tapestry Assistant|Finish setting up your account)$/ });
 
 // The pages the story names (AC-1): Brainstorm's own top bars, TopBar, the landing page, the Tapestry header, a developer page.
@@ -68,7 +75,7 @@ const PAGES = [
  * Mock every route. `who` is null (a visitor) or { pubkey, classification, assistantPubkey }. `setup` is the
  * /api/setup/status answer: an object, 'hang', 'error' (a 500), or { delayMs, body }.
  */
-async function mock(page, { who = CUSTOMER_USER, setup = SETUP_DONE } = {}) {
+async function mock(page, { who = CUSTOMER_USER, setup = SETUP_DONE, longName = false } = {}) {
   const log = { setupCalls: [], api: [], nonGet: [] };
   page.on('request', (req) => {
     const u = new URL(req.url());
@@ -82,7 +89,8 @@ async function mock(page, { who = CUSTOMER_USER, setup = SETUP_DONE } = {}) {
   await page.route('**/api/owner/pubkey', (r) => r.fulfill(json({ success: true, pubkey: 'bb'.repeat(32) })));
   await page.route('**/api/relays', (r) => r.fulfill(json({ success: true, aRelays: {} })));
   await page.route('**/api/assistant/roster', (r) => r.fulfill(json({ success: true, assistants: [], viewer: null })));
-  await page.route('**/api/profiles**', (r) => r.fulfill(json({ success: true, profiles: {} })));
+  await page.route('**/api/profiles**', (r) => r.fulfill(json({ success: true, profiles: longName && who
+    ? { [who.pubkey]: { name: 'Alexandria Thompson-Whitfield', display_name: 'Alexandria Thompson-Whitfield' } } : {} })));
   await page.route('**/api/auth/status', (r) => r.fulfill(json(who ? { authenticated: true, pubkey: who.pubkey } : { authenticated: false, pubkey: null })));
   await page.route('**/api/auth/user-classification', (r) => r.fulfill(json(who
     ? { success: true, classification: who.classification, pubkey: who.pubkey, assistantPubkey: who.assistantPubkey }
@@ -131,17 +139,19 @@ async function bundleContains(request, needle) {
   return { found: false, why: `searched ${seen.size} JS chunks` };
 }
 
-/** Sample the page for `ms`: the most pills of any kind seen at once, and whether the Assistant pill ever showed. */
+/** Sample the page for `ms`: the most pills of any kind seen at once, and whether each pill ever showed. */
 async function watch(page, ms) {
   let most = 0;
   let assistantShown = false;
+  let setupShown = false;
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
     most = Math.max(most, await anyPill(page).count());
     if (await pillOf(page).count()) assistantShown = true;
+    if (await setupPillOf(page).count()) setupShown = true;
     await page.waitForTimeout(100);
   }
-  return { most, assistantShown };
+  return { most, assistantShown, setupShown };
 }
 
 test.describe('The Assistant Alert (assistant-management #2)', () => {
@@ -208,30 +218,35 @@ test.describe('The Assistant Alert (assistant-management #2)', () => {
   });
 
   /* ───────── B3 — setup first ───────── */
-  test('B3: while the setup status is being checked the pill waits; a step left means the Setup Alert\'s turn; nothing left, another provider, or a failed check means the Assistant pill — and never two pills at once (AC-3)', async ({ page }) => {
-    test.setTimeout(120000);
+  test('B3: while the setup status is being checked no pill shows; a step left shows the Setup pill and not this one; nothing left, another provider, or a failed check shows the Assistant pill — and never two pills at once (AC-3)', async ({ page }) => {
+    test.setTimeout(150000);
+    // [label, setup answer, the Assistant pill shows, the Setup pill shows]
     const cases = [
-      ['the check still running', 'hang', false],
-      ['a setup step left (the follow list)', SETUP_FOLLOW_LEFT, false],
-      ['every step done', SETUP_DONE, true],
-      ['steps 1–2 done, and a Map naming another provider (the Setup Alert does not count it)', SETUP_OTHER_PROVIDER, true],
-      ['the setup check failed', 'error', true],
+      ['the check still running', 'hang', false, false],
+      ['a setup step left (the follow list)', SETUP_FOLLOW_LEFT, false, true],
+      ['every step done', SETUP_DONE, true, false],
+      ['steps 1–2 done, and a Map naming another provider (the Setup Alert does not count it)', SETUP_OTHER_PROVIDER, true, false],
+      ['the setup check failed', 'error', true, false],
     ];
-    for (const [label, setup, shows] of cases) {
+    for (const [label, setup, shows, setupShows] of cases) {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await mock(page, { setup });
       await page.goto('/about');
       const seen = await watch(page, 3500);
       expect(seen.most, `${label}: at most one pill at any moment`).toBeLessThanOrEqual(1);
       expect(seen.assistantShown, `${label}: the Assistant pill ${shows ? 'shows' : 'stays hidden'}`).toBe(shows);
+      expect(seen.setupShown, `${label}: the Setup pill ${setupShows ? 'shows — setup first' : 'stays hidden'}`).toBe(setupShows);
     }
-    // The answer arrives late: nothing until it does, then the pill.
-    await page.unrouteAll({ behavior: 'ignoreErrors' });
-    await mock(page, { setup: { delayMs: 3000, body: SETUP_DONE } });
-    await page.goto('/about');
-    const early = await watch(page, 2000);
-    expect(early.assistantShown, 'while the setup answer is on its way, no Assistant pill — it would be replaced if a step were left').toBe(false);
-    await expect(pillOf(page), 'once the answer says nothing is left, the pill shows').toHaveCount(1, { timeout: 8000 });
+    // The answer arrives late, in both directions: no pill at all until it does, then the right one.
+    for (const [body, expected, other] of [[SETUP_DONE, pillOf, setupPillOf], [SETUP_FOLLOW_LEFT, setupPillOf, pillOf]]) {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await mock(page, { setup: { delayMs: 3000, body } });
+      await page.goto('/about');
+      const early = await watch(page, 2000);
+      expect(early.assistantShown || early.setupShown, 'while the setup answer is on its way, no pill of either kind').toBe(false);
+      await expect(expected(page), 'once the answer arrives, its pill shows').toHaveCount(1, { timeout: 8000 });
+      await expect(other(page), 'and only that one').toHaveCount(0);
+    }
   });
 
   /* ───────── B4 — where it hides ───────── */
@@ -313,6 +328,48 @@ test.describe('The Assistant Alert (assistant-management #2)', () => {
     await expect(pillOf(page), 'back on /about, the pill again').toHaveCount(1);
     expect(log.setupCalls, 'moving around inside the app asks nothing new').toHaveLength(1);
     expect(log.api.filter((a) => /publish|sign/i.test(a)), 'no publish or sign request').toEqual([]);
+  });
+
+  /* ───────── B9 — the bars keep their shape at every width ───────── */
+  // The widths are each side of every breakpoint that changes what a bar holds while the pill shows: the pill's own
+  // (count ≤ 1023, sentence ≤ 679, TopBar's nav < 360), the Setup Alert's (≤ 639, the edge that was once this pill's),
+  // the phone rules (≤ 480), TopBar's padding (≤ 600) and the Tapestry header's (≤ 768; its user name from 769, and a
+  // long one to 794), plus 320, 375, 414 and 1280.
+  // The height check is the fixed Tapestry header's: it overlays the page, whose content starts at 48px, so growing
+  // covers content. A static bar may grow a few px where the pill is taller than the logo (the developer pages), as the
+  // Setup Alert's own ADR recorded for its pill; that moves content down and covers nothing.
+  test('B9: from 320 to 1280 px, with the Assistant pill showing, no top bar scrolls sideways and the fixed Tapestry header grows no taller than it is without the pill — a long user name included (AC-6; ADR 0002 Amendment 1)', async ({ page }) => {
+    test.setTimeout(600000);
+    const widths = [320, 359, 360, 375, 414, 480, 481, 600, 601, 639, 640, 679, 680, 768, 769, 794, 1023, 1024, 1280];
+    const barOf = () => page.evaluate(() => {
+      const bar = document.querySelector('.app-header, .bsp-top-bar, .bss-top-bar');
+      return { height: bar ? Math.round(bar.getBoundingClientRect().height) : null,
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    });
+    const problems = [];
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 700 });
+      for (const address of ['/', '/tags', '/about', '/settings', '/developers', '/tapestry/']) {
+        let without = null;
+        if (address === '/tapestry/') {
+          await page.unrouteAll({ behavior: 'ignoreErrors' });
+          // Without a pill: the same Customer, name and badge, but with no assistant — and every setup step done, so no
+          // Setup pill either.
+          await mock(page, { who: { ...CUSTOMER_USER, assistantPubkey: null }, setup: SETUP_DONE, longName: true });
+          await open(page, address, 1200);
+          without = await barOf();
+        }
+        await page.unrouteAll({ behavior: 'ignoreErrors' });
+        await mock(page, { who: CUSTOMER_USER, setup: SETUP_DONE, longName: true });
+        await open(page, address, 1200);
+        const shown = await pillOf(page).count();
+        const withPill = await barOf();
+        if (shown !== 1) problems.push(`${width}px ${address}: no Assistant pill`);
+        if (withPill.overflow > 0) problems.push(`${width}px ${address}: scrolls sideways by ${withPill.overflow}px`);
+        if (without && withPill.height > without.height) problems.push(`${width}px ${address}: the fixed header grows ${without.height}→${withPill.height}px`);
+      }
+    }
+    expect(problems, `with the pill showing:\n${problems.join('\n')}`).toEqual([]);
   });
 
   /* ───────── B8 — its colour ───────── */

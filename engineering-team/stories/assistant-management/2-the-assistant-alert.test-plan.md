@@ -10,7 +10,8 @@ Two classes, as in story 1's plan:
   - P: the pure picker, over every case of story 2 § When the pill shows;
   - C: the pill's words;
   - W: the slot and its four mounts, by source.
-- **Browser.** `tests/brainstorm/assistant-alert.spec.js`, B0–B8.
+- **Browser.** `tests/brainstorm/assistant-alert.spec.js`, B0–B9. B9 was added, and B3 strengthened, after review 2
+  (2026-09-21; ADR 0002 Amendment 1).
 
 The approved words come from the shared `test/helpers/assistantManagementFixtures.js`.
 
@@ -24,13 +25,14 @@ The approved words come from the shared `test/helpers/assistantManagementFixture
 | AC-2 | B2 signed out: no pill on the five pages · a signed-in guest with no assistant, setup answered all done: no pill | browser | browser |
 | AC-3 setup first | P2 idle or checking → none · P3 a counted step → `'setup'` with that count, never the Assistant pill, even on `/assistant` · P4 nothing counted → the Assistant pill with the hub's count · P5 failed → the Assistant pill · P8 all 96 combinations: exactly one of none / setup / assistant, and the Assistant pill only where setup-first allows it | Node | unit |
 | AC-3 | W1 the slot reads `useSetupStatus()` and decides with `pickTopBarPill` | Node | source |
-| AC-3 | B3 check held → no pill; a follow list left → no pill; all done → pill; another provider → pill; check failed → pill; at most one pill at any sampled moment · a late answer: no pill before it, the pill after | browser | browser |
+| AC-3 | B3 check held → no pill of either kind; a follow list left → the Setup pill, and not this one; all done → this pill; another provider → this pill; check failed → this pill; at most one pill at any sampled moment · a late answer, both ways: no pill of either kind before it, then the right one alone. *(Strengthened after review 2: it now runs with the real Setup pill in the build.)* | browser | browser |
 | AC-4 where it hides | P7 `/assistant`, `/assistant/`, `/assistant/profile`, `/assistant/profile/edit`, `/assistant/dlists`, `/assistant/preferences` → none; `/assistants`, `/assistant-x`, `/setup`, `/`, `/tapestry/`… → the pill | Node | unit |
 | AC-4 | W2 no `<button>` in the slot, no dismiss state | Node | source |
 | AC-4 | B4 no pill on the six hub addresses; nothing inside or beside the pill closes it | browser | browser |
 | AC-5 never disagrees | P4 the count passes through · W1 the count comes from `assistantAttention` · W2 its words from `attentionCountText` | Node | unit + source |
 | AC-5 | B5 the pill's N equals the hub's count line and its number of marks (10) | browser | browser |
-| AC-6 every width | B6 1280 px: sentence and count · 800 px: count hidden (ADR 0002: ≤ 900 px) · 375 px: only ⚠ and "Manage Assistant →", still named "Manage your Tapestry Assistant" · no horizontal scroll on `/`, `/tags`, `/about`, `/settings`, `/developers`, `/tapestry/` at all three widths, with the pill showing | browser | browser |
+| AC-6 every width | B6 1280 px: sentence and count · 800 px: count hidden (ADR 0002: ≤ 900 px; Amendment 1: ≤ 1023 px) · 375 px: only ⚠ and "Manage Assistant →", still named "Manage your Tapestry Assistant" · no horizontal scroll on `/`, `/tags`, `/about`, `/settings`, `/developers`, `/tapestry/` at all three widths, with the pill showing | browser | browser |
+| AC-6 | B9 *(added after review 2)*: 19 widths from 320 to 1280 px, on both sides of every breakpoint that changes a bar while the pill shows, on the same six pages, as a Customer with a 29-character name: nothing scrolls sideways, and the fixed Tapestry header is no taller with the pill than without it | browser | browser |
 | AC-7 read-only | W1 no `fetch`, no `/api/`, no browser storage in the slot · P9 the picker imports only `avatarMenuLinks.js` | Node | source |
 | AC-7 | B7 only GETs; one `/api/setup/status` read per full load, with no parameters; none on in-app navigation; no publish or sign request | browser | browser |
 | § Copy (the look) | C1 `ASSISTANT_ALERT_COPY` { name, sentence, button } · B8 the button chip's computed colour is indigo (blue well above red and green), not amber | Node + browser | unit + browser |
@@ -48,12 +50,20 @@ The approved words come from the shared `test/helpers/assistantManagementFixture
 - [x] **Never two pills** (B3). At most one pill-shaped link at any sampled moment. Today only the
       Assistant pill exists. When the Setup Alert ships this sampling starts to bite, because its
       accessible name is counted too.
+      *2026-09-21, after review 2: the Setup Alert has shipped (PR #737), and the branch merged it. B3
+      now also asserts that the Setup pill shows where a step is left, so the sampling counts two real
+      pills.*
+- [x] **The edges of each breakpoint** (B9). B9's first version tested 11 fixed widths. After the
+      first fixes, a scratch probe found a 10–12 px scroll at 640–642 px, which none of them hit: the
+      sentence came back too early. B9 now tests each side of every breakpoint.
 - [x] **No re-ask on in-app navigation** (B7). The provider sits outside the router (ADR
       setup-status-and-alert/0001), so leaving `/about` for `/assistant` and back asks nothing new.
 
 **Not covered, and why:**
 
 - **The Setup pill.** It is setup-status-and-alert #2. P3 pins only what this slot returns for it.
+  *2026-09-21: the Setup pill is now in the build, and B3 observes it beside this one. How it behaves
+  on its own stays its own suite's job (`tests/brainstorm/setup-alert.spec.js`).*
 - **The results view on a phone.** At ≤ 600 px the existing rule hides the whole right side of that
   header, avatar menu included (ADR 0002 § Consequences). No change here.
 - **Pages without a top bar:** the site-wide "Page not found" and `/legacy/` (story § Out of
@@ -77,7 +87,7 @@ As in story 1's plan: Node 22 for the Node class, and Playwright `chromium` agai
   ta-composite-avatar. setup-status.spec.js B7 checks 375 px on `/setup` with every step done, which
   now includes the pill.
 - The book's gate is one run over both stories. Its command and its 106 pinned suites are in story
-  1's plan § How to run.
+  1's plan § How to run. After the merge of `origin/staging` it finds 107: `setup-alert` joins.
 
 ## How to run
 
@@ -118,3 +128,43 @@ environment as story 1's (Chromium 141.0.7390.37, the branch's UI built before a
 - **B2 passes, as it must.** It asserts that no pill shows for a visitor or for a viewer with no
   assistant, which is trivially true before any pill exists. It becomes a real check once the
   implementation draws one.
+
+### After review 2 (2026-09-21), on the merged build
+
+The branch merged `origin/staging` at `fc7021f2`, bringing the Setup Alert. The UI was built from it before
+any fix, and B3 and B9 ran against it, with setup-status-and-alert's B3 and B9 (re-aimed; story 1's plan
+§ Re-aimed suites).
+
+- **B3, strengthened, passed.** Setup already came first in the picker. What is new is that the test now
+  sees it with the real Setup pill in the build.
+- **B9's first version failed.** It tested 11 fixed widths, and checked the height of every bar:
+
+  ```
+  320px /: scrolls sideways by 24px          (and /tags)
+  560px /: scrolls sideways by 91px          (and /tags)
+  656px /: scrolls sideways by 3px           (and /tags)
+  560px /tapestry/: the bar grows 55→71px    (and at 656, 700 and 800 px)
+  320px /developers: the bar grows 39→47px   (through 560 px; 47→55px from 656 to 1280 px)
+  ```
+
+  - **The `/developers` rows.** They are the developer bar's own 8 px growth when a pill appears. The
+    Setup Alert's ADR accepted the same for its pill (setup-status-and-alert/0002 Amendment 1).
+  - **So the height check is now scoped** to the fixed Tapestry header, the one bar that covers the page
+    when it grows. ADR 0002 Amendment 1 records the developer bar's growth.
+  - **The widths.** The first fixes passed B9's 11 widths. A scratch probe at every 2 px near each
+    breakpoint then found `/` and `/tags` scrolling by 12 px at 640 and 10 px at 642. B9 now tests both
+    sides of every breakpoint, 19 widths in all.
+- **Another book's suite, re-aimed.** That first run took only B3 and B9 from `setup-alert.spec.js`. The
+  whole suite, run later on the merged build, found two more failures, in B11: "at 375 px the TopBar wordmark
+  stays when there is no pill" and "… the control panel role badge stays …", both on "without a pill, nothing
+  changes".
+  - **Why.** Their "no pill" viewers have an assistant and no step left. Since this story, such a viewer gets
+    the Assistant pill, whose phone rules shed the same wordmark and badge.
+  - **The re-aim.** They now sign in a viewer with no assistant (for the badge, an Owner whose key is missing),
+    and also assert that no Assistant pill shows. Each edit is marked with a comment naming this story.
+  - **The run.** Its pre-re-aim copy on this build: 47 passed, 3 failed. The third failure was B9, from the
+    editor's move (story 1's plan § Re-aimed suites).
+  - **Missed at Test Design.** § Test infrastructure's watch item said other books' suites would see the
+    pill, and that it "removes no control". But it does hide text, and B11 asserts on that text. See the
+    ledger row filed with this fix round.
+- **After the fix,** on the built UI: `assistant-alert.spec.js` 10/10, with B9 over its 19 widths.

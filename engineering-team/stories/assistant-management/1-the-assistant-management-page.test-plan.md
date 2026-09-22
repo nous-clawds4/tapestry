@@ -60,6 +60,7 @@ Each edit is marked in the file with a comment naming assistant-management #1.
 | `tests/brainstorm/assistant-setup-prompt.spec.js` | the prompt's destination is `EDITOR` (B3–B5, B8) | fails | passes |
 | `tests/brainstorm/one-writer.spec.js` | `MY_ASSISTANT`. B2 and B3's check of the legacy link's words (`/My Assistant/` → `/Edit Assistant Profile/`). Phase 3 missed that assertion; the Implementer's browser run caught it, and it was re-aimed in its own test commit (ledger `2026-09-21-adr-reaim-list-misses-outcome-asserts`, fourth instance). | fails | passes |
 | `tests/brainstorm/assistant-default-profile.spec.js`, `assistant-publish-result.spec.js`, `ta-composite-avatar.spec.js` | `page.goto` to the editor's address | fail | pass |
+| `tests/brainstorm/setup-alert.spec.js` *(added 2026-09-21, after review 2: it is setup-status-and-alert #2's suite, and it reached this branch with the merge of `origin/staging` at `fc7021f2`)* | Its host row, "the My Assistant page (/assistant)", becomes "the Edit Assistant Profile page (/assistant/profile/edit)". B9, which creates an assistant with the editor's button, opens `/assistant/profile/edit`. | B9 fails ("the page offers to create an assistant": the hub has no such button) | passes |
 
 ## Edge cases
 
@@ -163,6 +164,10 @@ EOF
   message modules, the legacy pages, BIBLE, the slot and its mounts, and the shared fixture.
 - **Eight walkers are added,** from `grep -l readdirSync test/*.test.js`: the suites that read every
   file under `ui/src`, `src`, `public`, BIBLE or `test/`, which a filename grep cannot find.
+- **After the merge of `origin/staging` (2026-09-21, `fc7021f2`), 107 suites.** The command computes its
+  list when it runs, and the filename grep now also finds `setup-alert`, the Setup Alert's suite, which reads
+  the same four mounts. `grep -l readdirSync` after the merge finds no new walker: its two other hits,
+  `reconciliation-rearchitecture` and `session-start`, predate the pin and read one fixed folder each.
 
 The list:
 
