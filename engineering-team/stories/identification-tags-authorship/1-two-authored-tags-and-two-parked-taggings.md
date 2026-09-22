@@ -1,6 +1,6 @@
 # Story 1: Two authored tags and two parked taggings
 
-**Status:** Approved (gate 2026-09-22)
+**Status:** Done
 **Created:** 2026-09-22
 **Type:** Feature
 
@@ -109,4 +109,4 @@ New unless marked **owner**.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/identification-tags-authorship/0001-each-definition-has-its-author-and-two-taggings-are-parked.md`
 - Test plan: `engineering-team/stories/identification-tags-authorship/1-two-authored-tags-and-two-parked-taggings.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/identification-tags-authorship/1-two-authored-tags-and-two-parked-taggings.md`
