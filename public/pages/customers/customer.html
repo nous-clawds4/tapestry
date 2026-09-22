@@ -123,13 +123,13 @@
                     </div>
                 </div>
                 
-                <!-- Tapestry Assistant Panel — read-only: the profile is edited and published on the My Assistant
-                     page (/assistant), its one writer (ADR assistant-profile/0005) -->
+                <!-- Tapestry Assistant Panel — read-only: the profile is edited and published on the Edit Assistant
+                     Profile page (/assistant/profile/edit), its one writer (ADR assistant-profile/0005) -->
                 <div class="nip85-panel" style="margin-top: 1.5rem;">
                     <h3>🤖 Your Tapestry Assistant</h3>
                     <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 1rem;">
                         Your Tapestry Assistant is a nostr identity that publishes Trust Assertions on your behalf.
-                        Its profile is edited and published on the My Assistant page.
+                        Its profile is edited and published on the Edit Assistant Profile page.
                     </p>
 
                     <div id="assistantLoading" style="color: #888;">Loading assistant status...</div>
@@ -164,7 +164,7 @@
                         Set up Trusted Assertions first to get a Tapestry Assistant.
                     </div>
 
-                    <p style="margin-top: 1rem; font-size: 0.9rem;"><a href="/assistant">🤖 Edit and publish its profile on the My Assistant page →</a></p>
+                    <p style="margin-top: 1rem; font-size: 0.9rem;"><a href="/assistant/profile/edit">🤖 Edit and publish its profile on the Edit Assistant Profile page →</a></p>
                 </div>
 
                 <!-- Kind 30382 Event Status Panel -->
@@ -859,7 +859,7 @@
             }
         }
 
-        // ── Tapestry Assistant (read-only) — the profile is published on the My Assistant page ──
+        // ── Tapestry Assistant (read-only) — the profile is published on the Edit Assistant Profile page ──
 
         async function loadAssistantStatus(customerPubkey) {
             try {

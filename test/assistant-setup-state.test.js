@@ -466,14 +466,15 @@ test('D5: the dashboard shows the welcome prompt only for a definite "needs setu
 
 // Re-aimed by assistant-profile #4 (ADR 0004 sub-decision 3): story 1 sent Owners and Admins to the Tapestry
 // settings tab and everyone else to /settings; both now hand the editor to the one My Assistant page.
-test('D6: the prompt sends every viewer to the My Assistant page — /assistant for every role; neither old destination remains', () => {
+// Re-aimed by assistant-management #1 (ADR assistant-management/0001): the page moved to /assistant/profile/edit; /assistant is the hub.
+test('D6: the prompt sends every viewer to the editor — MY_ASSISTANT_PATH (/assistant/profile/edit) for every role; neither old destination remains', () => {
   const src = safeRead(DASHBOARD);
   assert(!src.includes('/tapestry/settings/assistant'),
     'ADR assistant-profile/0004: /tapestry/settings/assistant is no longer a destination — the prompt leads to the My Assistant page');
   assert(!/['"`]\/settings['"`]/.test(src),
     'ADR assistant-profile/0004: /settings no longer holds the editor, so it is no longer the prompt\'s destination for anyone');
-  assert(/\bMY_ASSISTANT_PATH\b|['"`]\/assistant['"`]/.test(src),
-    'AC3 (story 1) + AC2 (story 4): the prompt and its checklist item must lead to MY_ASSISTANT_PATH ("/assistant")');
+  assert(/\bMY_ASSISTANT_PATH\b|['"`]\/assistant\/profile\/edit['"`]/.test(src),
+    'AC3 (story 1) + AC2 (story 4): the prompt and its checklist item must lead to MY_ASSISTANT_PATH ("/assistant/profile/edit" since assistant-management #1)');
 });
 
 test('D7: a status reply saying the user has no assistant key means "no assistant", never "needs setup" (Amendment 1)', () => {

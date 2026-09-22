@@ -3,16 +3,17 @@
  * POST /api/strfry/publish
  * Body: { event, signAs: "assistant" | "client" }
  *   assistant — sign with Tapestry Assistant key, then publish. Never a kind 0: an assistant's
- *               profile has one writer, the My Assistant page's publish (ADR assistant-profile/0005)
+ *               profile has one writer, the Edit Assistant Profile page's publish (ADR assistant-profile/0005)
  *   client — event is already signed by client (NIP-07), just publish
  */
 const { exec } = require('child_process');
 const { getOwnerAssistantKeys } = require('../../../utils/assistantKeys');
 const { isOwner } = require('../../../middleware/auth');
 const { maybeBrainWriteTapestry } = require('../tapestryBrainWrite');
+const { EDIT_ASSISTANT_PROFILE_PAGE } = require('../../../utils/assistantPages');
 
 const ASSISTANT_PROFILE_REFUSAL =
-  'This endpoint does not sign kind 0 profiles. An assistant\'s profile is published only on the My Assistant page (/assistant).';
+  `This endpoint does not sign kind 0 profiles. An assistant's profile is published only on ${EDIT_ASSISTANT_PROFILE_PAGE}.`;
 
 // Lazy-load nostr-tools resiliently: the absolute path resolves inside the Docker
 // container (prod/staging); the bare require resolves everywhere else (CI's stack-free
@@ -35,7 +36,7 @@ async function handlePublishEvent(req, res) {
     }
 
     // An assistant's profile (kind 0) is never signed here, for anyone: it is published only from the
-    // My Assistant page, through /api/assistant/publish-profile (ADR assistant-profile/0005). Refused
+    // Edit Assistant Profile page, through /api/assistant/publish-profile (ADR assistant-profile/0005). Refused
     // before the owner gate and before any key is read. Only a number can be signed as a kind, and every
     // number that serializes as 0 (-0 included) is === 0.
     if (signAs === 'assistant' && event.kind === 0) {

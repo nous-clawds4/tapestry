@@ -77,7 +77,8 @@ function pickFields(source) {
 }
 
 /**
- * The one assistant profile editor, hosted by the My Assistant page only (assistant-profile #4, ADR 0004).
+ * The one assistant profile editor, hosted by the Edit Assistant Profile page only (assistant-profile #4, ADR 0004;
+ * that page moved to /assistant/profile/edit with assistant-management #1).
  *
  * @param {object} props
  * @param {string} props.customerPubkey - the signed-in person, whose own assistant this edits

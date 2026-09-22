@@ -150,8 +150,8 @@ function buildRobotsTxt(opts = {}) {
 
 /**
  * llms.txt (llmstxt.org) — a curated pointer manifest for visiting AI agents.
- * Story: engineering-team/stories/llms-txt/1-serve-llms-txt-on-the-fleet.md
- * ADR:   engineering-team/decisions/llms-txt/0001-serve-llms-txt-on-the-fleet.md
+ * Story: engineering-team/stories/done/llms-txt/1-serve-llms-txt-on-the-fleet.md
+ * ADR:   engineering-team/decisions/done/llms-txt/0001-serve-llms-txt-on-the-fleet.md
  *
  * Static and identical on every host — unlike security.txt's Canonical, there
  * is no per-deployment field, so this takes no options.

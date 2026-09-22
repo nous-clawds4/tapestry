@@ -1,7 +1,8 @@
 # Epic: llms-txt
 
 **Created:** 2026-09-22
-**Status:** Open
+**Status:** Done
+**Retired:** 2026-09-22 — story 1 Done (review PASS same day), on staging via PR #740 and production via #741 the same day; also synced to the `feat/tags` and `feature-magic-carpet` sandboxes by direct cherry-pick + push (no PR — those branches predate `staging`-first review conventions). Story, ADR, review and test plan moved under `done/llms-txt/`. Book closed the same day.
 **Book:** `engineering-team/audits/llms-txt/book.md` (acceptance-frame)
 **Provenance:** `engineering-team/stories/_intake.md` § "2026-08-18 — Serve llms.txt on the tapestry fleet (protocols#6)". Open since 2026-08-18; picked up 2026-09-22, directly following the `site-trust-signals` book close.
 
@@ -13,7 +14,7 @@ The adoption path for the estate's trust scores increasingly runs through develo
 
 ## Stories
 
-1. `stories/llms-txt/1-serve-llms-txt-on-the-fleet.md` — the document builder, the route, and the `robots.txt` exemption. **Draft**.
+1. `stories/done/llms-txt/1-serve-llms-txt-on-the-fleet.md` — the document builder, the route, and the `robots.txt` exemption. **Done** (review PASS 2026-09-22).
 
 ## Key facts / guardrails
 

@@ -2664,3 +2664,44 @@ the *viewer's own* follow list, Treasure Map and assistant, never the instance T
 **Classification:** feature. The status checks and the Setup Alert are small and well shaped by
 Brainstorm's precedent (Standard, all phases). The three action pages are not: each leans **Product
 Team** first.
+
+## 2026-09-21 — The Assistant Management page, the rest of the way: real "needs attention" answers and the ten action pages (feature; deferred at intake)
+
+**Origin:** the owner's ask behind book `assistant-management`
+(`engineering-team/audits/assistant-management/book.md`, which quotes the whole ask verbatim). That
+book builds the `/assistant` hub, with all ten actions shown as needing attention, ten placeholder
+action pages, and the Assistant Alert that counts them. These items were saved for later sessions.
+
+**Deferred, verbatim (2026-09-21):**
+
+> In this session, we will create the bones of this feature, including the basic UX for the /assistant page and placeholders for 8 or 9 sub-pages (/assistant/*), but we will save the actual functionality for later sessions.
+
+> For now, we will assume that ALL of the Actions require attention. In future sessions, we will do the complex process of actually deciding which Actions require attention and which do not.
+
+> Each individual Management Action page will likewise have its own list of Action Cards, each of which will be in one of two states: needs attention (or not). However, in this session, we will not be concerning ourselves with the complex functionality of each of the Action pages.
+
+**What is deferred:**
+
+1. **Real "needs attention" answers.** Each action's state comes from its alert criteria, for the
+   viewer's own assistant, so that the hub's marks, its count line and the Assistant Alert tell the
+   truth. The owner's criteria so far, for the profile and identification-tags actions, are in
+   story 1 § Copy (`stories/done/assistant-management/1-the-assistant-management-page.md`), and are shown
+   on the placeholder pages. The other eight have none yet.
+2. **The ten action pages**, each with its own action cards: profile (a checklist of the assistant's
+   profile, pointing to the editor at `/assistant/profile/edit` for what is wrong),
+   identification-tags, trusted-assertions, trusted-lists, dlists, bounties, pins, tags,
+   notifications-and-alerts, preferences.
+3. **The assistant's DMs** (the FAQ's "Coming soon").
+
+**What exists to build on:** the `assistant-profile` book (the default profile, the publish relays
+and the editor, at `/assistant/profile/edit` once `assistant-management` #1 ships); the `/setup`
+status pattern, one shared answer read by both the page and its alert (ADR
+setup-status-and-alert/0001, `/api/setup/status`); and the `tag`, `nostr-user-tag`, `tag-pinning`
+and `list` concepts in the local graph.
+
+**Product questions underneath it:** for each action, what "needs attention" means, for whom, and
+from which relays; whether the Assistant Alert should stay persistent once its count is real; and
+how the hub orders or groups actions as the list grows past ten ("8 or 9 (and growing)").
+
+**Classification:** feature. The per-action checks can follow the `/setup` status pattern (Standard,
+all phases). Each action page leans **Product Team** first, as the `/setup` step pages do.

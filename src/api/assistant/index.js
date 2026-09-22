@@ -14,7 +14,7 @@
  *
  * POST /api/assistant/publish-profile is the one writer of an assistant's kind 0 (ADR
  * assistant-profile/0005): the signed-in person publishes their own assistant's profile from the
- * My Assistant page, sending its fields as `content`. The page's "Reset to defaults" fills those
+ * Edit Assistant Profile page (src/utils/assistantPages.js), sending its fields as `content`. The page's "Reset to defaults" fills those
  * fields with the one default (./profileDefaults.js, ADR 0003); the profile then passes the same
  * finishing step before it is signed.
  */
@@ -25,6 +25,7 @@ const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
 const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
 const { getSettings, updateOverrides, resetOverride } = require('../../config/settings');
 const { resolveAssistantProfileState, importToLocalRelay } = require('./profileState');
+const { EDIT_ASSISTANT_PROFILE_PAGE } = require('../../utils/assistantPages');
 const {
   getConfiguredPublishRelays, getAssistantPublishRelays, publishToRelays,
   publishSubject, summarizePublish, localFailureMessage,
@@ -42,14 +43,14 @@ const {
 // (ADR assistant-profile/0003).
 const PROFILE_FIELDS = ['name', 'display_name', 'about', 'picture', 'banner', 'website', 'lud16'];
 
-// The publish handler's two refusals (ADR assistant-profile/0005): anything but the My Assistant page's
-// publish — the signed-in person, their own assistant, the fields as content — is refused before a key
-// is read.
+// The publish handler's two refusals (ADR assistant-profile/0005): anything but the Edit Assistant Profile
+// page's publish — the signed-in person, their own assistant, the fields as content — is refused before a
+// key is read. Both name the page and its address (assistant-management #1, ADR 0001 sub-decision 6).
 const NOT_YOUR_ASSISTANT =
-  'An assistant\'s profile can be published only by the person it belongs to, signed in, on the My Assistant page (/assistant).';
+  `An assistant's profile can be published only by the person it belongs to, signed in, on ${EDIT_ASSISTANT_PROFILE_PAGE}.`;
 const NO_CONTENT =
-  'Nothing was published: the request carried no profile. Edit and publish your assistant\'s profile on the My Assistant page ' +
-  '(/assistant). Its "Reset to defaults" fills in the default profile.';
+  `Nothing was published: the request carried no profile. Edit and publish your assistant's profile on ${EDIT_ASSISTANT_PROFILE_PAGE}. ` +
+  'Its "Reset to defaults" fills in the default profile.';
 
 /**
  * The instance's https website — e.g. "https://tapestry.brainstorm.world" — or '' when the instance is
@@ -152,7 +153,7 @@ function sanitizeProfileContent(content) {
  * POST /api/assistant/publish-profile
  * Body: {
  *   customerPubkey: "hex",          // the signed-in person — only their own assistant is published
- *   content: {                       // the profile's kind 0 fields, as the My Assistant page's form holds them
+ *   content: {                       // the profile's kind 0 fields, as the Edit Assistant Profile page's form holds them
  *     name, display_name, about, picture, banner, website, lud16
  *   }
  * }
@@ -202,7 +203,7 @@ function createPublishProfileHandler(deps = {}) {
       if (!sessionPubkey || sessionPubkey !== customerPubkey) {
         return res.status(403).json({ success: false, code: 'not-your-assistant', error: NOT_YOUR_ASSISTANT });
       }
-      // What: the profile's fields, as the My Assistant page sends them. No content no longer means "the
+      // What: the profile's fields, as the Edit Assistant Profile page sends them. No content no longer means "the
       // default" — "Reset to defaults" puts the default in the form, and the form is what is published.
       if (content === null || typeof content !== 'object' || Array.isArray(content)) {
         return res.status(400).json({ success: false, code: 'no-content', error: NO_CONTENT });
@@ -475,7 +476,7 @@ function handleGetTAPubkey(req, res) {
  * the caller's pubkey), so getAssistantKeys(pubkey) will find it without
  * any extra routing.
  *
- * What the My Assistant page offers is decided separately, by mayCreateAssistant
+ * What the Edit Assistant Profile page offers is decided separately, by mayCreateAssistant
  * (ui/src/config/avatarMenuLinks.js): these roles less the Owner, whose assistant is the
  * instance TA and cannot be provisioned here (ADR assistant-profile/0004).
  */
