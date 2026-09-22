@@ -139,6 +139,37 @@ Around the run:
 
 Each story's test plan pins the exact suite list, and the Reviewer quotes the `gate:status` line.
 
+## Changes from outside this book
+
+- **2026-09-21 — The Assistant Alert stands beside the Setup Alert, and gives way to it** (book
+  `assistant-management`, story 2; ADR assistant-management/0002 and its Amendment 1). *Corrected
+  2026-09-21, after that story's review. The first version of this note was written before this book's
+  story 2 merged, and told it to render inside the other book's slot.*
+  - **The mounts.** Each of the four hosts renders `<SetupAlert />` and then `<TopBarAlert />`:
+    `BrainstormUserMenu`, the landing page's `UserMenu`, the Tapestry `Header`, and `DevPage`'s `.bsp-auth`.
+    The Setup Alert itself is unchanged.
+  - **The owner's rule is setup first** (book assistant-management § Decisions 2). The Assistant Alert shows
+    only when the one setup answer counts no step, or when the setup check has failed. Whenever
+    `pendingCount` is at least 1, `pickTopBarPill` (`ui/src/utils/topBarAlert.js`) returns `'setup'`, and
+    the slot draws nothing.
+  - **What this relies on here.**
+    - The Setup Alert shows only when someone is signed in and `pendingCount` is at least 1
+      (`SetupAlert.jsx:24`). That is why the two pills never show together.
+    - A change here that shows it on any other condition, while the check runs or after a failed check,
+      would put the Assistant Alert beside it. Such a change must update `pickTopBarPill` too.
+    - Browser `tests/brainstorm/assistant-alert.spec.js` B3 would catch it.
+  - **Shared CSS.** This book's ADR 0002 Amendment 1 rules for the control panel's brand now fire for
+    either pill (`:has(.bs-setup-alert, .bs-topbar-pill)`). The `.header-auth` row is this book's rule;
+    the other book's copy of it was removed.
+  - **This book's suite, re-aimed in four places** (`tests/brainstorm/setup-alert.spec.js`, each marked with
+    a comment):
+    - the host row and B9 open the editor's new address, `/assistant/profile/edit` (ADR
+      assistant-management/0001);
+    - B11's two "no pill" tests sign in a viewer with no assistant, because the Assistant pill sheds the
+      same text.
+  - **One setup read.** Both alerts read the shared setup status, so `/api/setup/status` is asked once per
+    full page load for any signed-in viewer.
+
 ## Provenance
 - **Mode:** Acceptance-frame
 - **Confidence at close:** —

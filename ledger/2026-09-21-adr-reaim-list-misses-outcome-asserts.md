@@ -39,7 +39,16 @@ caught by `default-deny-mutations` AC3 and story 5's G4, so no behaviour is unpi
 sentinel does not only break on a layout change — **it can keep passing while measuring a different line.**
 Re-anchoring both R3s is ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`.
 
-**2026-09-21 — a fourth instance, in another book (setup-status-and-alert #3, Phase 4).**
+**2026-09-21 — a fourth instance (assistant-management #1, caught in Phase 4 by the browser class).** ADR
+assistant-management/0001 moves the editor to `/assistant/profile/edit` and renames it "the Edit Assistant Profile
+page". Its re-aim list named `tests/brainstorm/one-writer.spec.js` for the address only. The Tester's Phase 3
+grep took the old address, `/assistant`, and not the old page name. So B2 and B3's
+`toContainText(/My Assistant/)` on the legacy link's words stayed. The Implementer's browser run failed them against
+the approved new copy, and the Tester re-aimed them in a separate commit. The fix shape above already says "every
+literal the ADR removes or renames (paths, labels, copy)". This instance adds that **a rename of a page's name is
+copy too**: the grep has to take the old name as well as the old address.
+
+**2026-09-21 — a fifth instance, in another book (setup-status-and-alert #3, Phase 4), found in parallel with the fourth.**
 - ADR setup-status-and-alert/0003 moved three import pages' hand-written POST to `/api/strfry/publish` into the
   shared helper `publishToLocalStrfry`. The request is the same.
 - `test/treasure-map-relay-presence.test.js` R2 pins the literal `/api/strfry/publish` in
@@ -52,7 +61,7 @@ Re-anchoring both R3s is ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`.
 
 The fix shape holds, and it covers endpoint paths moved into a helper as well as copy.
 
-**And a fifth, in the same story's round 2.**
+**And a sixth, in the same story's round 2.**
 - ADR 0003 Amendment 1 made `publishEverywhere` announce once, and the implementation added an
   optional `{ announce }` argument to `publishToRelays`.
 - `test/treasure-map-relay-sync.test.js` R4 pins the literal signature text, closing parenthesis

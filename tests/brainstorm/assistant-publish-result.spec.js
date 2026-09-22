@@ -105,7 +105,7 @@ test.describe('The publish result, relay by relay (assistant-profile #2)', () =>
   }
 
   async function publishFromEditor(page) {
-    await page.goto('/assistant');
+    await page.goto('/assistant/profile/edit');   // the editor's address since assistant-management #1
     await page.waitForLoadState('networkidle');
     const button = page.getByRole('button', { name: /publish profile/i }).first();
     await expect(button, 'the My Assistant page must show the editor to a signed-in owner').toBeVisible({ timeout: 20000 });

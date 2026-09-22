@@ -11,23 +11,38 @@
  * The one deliberate difference is where "My Profile" points: the Main menu
  * sends you to `/user/<pubkey>` (the same profile page search results link to),
  * the Tapestry menu to `/tapestry/users/<pubkey>`. That's the caller's
- * `profileBase`. "My Assistant's Profile" opens the one My Assistant page from
- * both (assistant-profile #4).
+ * `profileBase`. "My Assistant's Profile" opens the one Edit Assistant Profile
+ * page from both (assistant-profile #4; moved by assistant-management #1), and
+ * "Assistant Management" opens the Assistant Management page.
  *
  * Every link here is available to every signed-in user. The single exception is
  * "My Assistant's Profile", which has no target when the caller has no assistant
  * and cannot create one here — it stays visible and disabled rather than
  * disappearing, so the menu reads the same for everyone.
  *
- * This module has no imports, so the Node test suite can load it as it is
- * (test/my-assistant-page.test.js). Keep it that way.
+ * This module has no imports, so the Node test suites can load it as it is
+ * (test/my-assistant-page.test.js, test/assistant-management-page.test.js), and
+ * ui/src/pages/assistant/actions.js and ui/src/utils/topBarAlert.js can import
+ * it. Keep it that way.
  */
 
 export const NO_ASSISTANT_REASON =
   'No assistant is provisioned for your account yet.';
 
-/** The My Assistant page — the one place anyone manages their own assistant (ADR assistant-profile/0004). */
-export const MY_ASSISTANT_PATH = '/assistant';
+/**
+ * The Assistant Management page — the hub for everything a person's assistant does (ADR
+ * assistant-management/0001). Its ten action pages live under it (ui/src/pages/assistant/actions.js).
+ */
+export const ASSISTANT_MANAGEMENT_PATH = '/assistant';
+
+/**
+ * The Edit Assistant Profile page — the one place anyone edits and publishes their own assistant's
+ * profile (ADR assistant-profile/0004). It was the My Assistant page at /assistant; ADR
+ * assistant-management/0001 moved it under the profile page and kept this name, so every entry point
+ * that links through the constant followed it. The server names the same address in its refusals
+ * (src/utils/assistantPages.js); test/assistant-management-page.test.js keeps the two equal.
+ */
+export const MY_ASSISTANT_PATH = `${ASSISTANT_MANAGEMENT_PATH}/profile/edit`;
 
 /**
  * May this signed-in user create an assistant of their own here? An Admin or an
@@ -42,7 +57,7 @@ export function mayCreateAssistant(user) {
 }
 
 /**
- * Does the My Assistant page have something for this user to manage? Their
+ * Does the Edit Assistant Profile page have something for this user to manage? Their
  * assistant if they have one; the Owner's even when its key is missing (the page
  * says so); or one they may create there. "My Assistant's Profile" is enabled
  * exactly when this is true and the page shows its controls exactly when it is
@@ -115,5 +130,5 @@ export const destinationLinks = [
  */
 export const accountLinks = [
   { key: 'account-setup', icon: '🧭', label: 'Account Setup', to: '/setup' },
-  { key: 'assistant-management', icon: '🎛️', label: 'Assistant Management', to: MY_ASSISTANT_PATH },
+  { key: 'assistant-management', icon: '🎛️', label: 'Assistant Management', to: ASSISTANT_MANAGEMENT_PATH },
 ];

@@ -214,6 +214,8 @@ none of that is this book's. **Changed from outside this book:** PR #722 (`navig
 - [ ] **14. Validating URLs a user types** (picture, banner, website). (§4 #10)
 - [ ] **15. A design pass on the My Assistant page** — the editor's control-panel look inside a Brainstorm page,
       its unstyled `settings-action-btn` buttons, the pubkey as shortened hex. (story 4 Out of scope / Deviations)
+      *2026-09-22 (book `assistant-management`): the page is now the Edit Assistant Profile page, at
+      `/assistant/profile/edit`, and only its heading and back link changed. The design pass is still open.*
 - [ ] **16. Small record and code tidy-ups from the reviews:** the relay-fallback wording (review 1 R2-1, §4 #12);
       a failed setup check can let the checklist read "Setup complete" (review 1 Note 2); BIBLE has no row for
       `/api/assistant/status` and the handler's JSDoc does not mention its copy-home write (review 1 Note 4); the
@@ -226,6 +228,9 @@ none of that is this book's. **Changed from outside this book:** PR #722 (`navig
       promoted by #735 and every assistant profile on both instances is unchanged. The R3 re-anchor remains.*
 - [ ] **18. The Treasure Map's no-assistant state** could now link to `/assistant`, where Admins and Customers can
       create one (`treasure-map-user-assistant` audit §6, provisioning UX).
+      *2026-09-22 (book `assistant-management`): the create button moved with the editor to
+      `/assistant/profile/edit`. `/assistant` is now the Assistant Management hub, whose no-assistant line points
+      to `/setup`. The link this item suggests should go to the editor.*
 - [ ] **19. The dashboard has no error boundary.** OPEN.md #274.
 
 ## 7. Process findings (harness)

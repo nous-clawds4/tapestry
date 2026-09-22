@@ -1,8 +1,8 @@
 /**
  * Site trust signals — RFC 9116 security.txt, robots.txt, and probe-path classification.
  *
- * Story: engineering-team/stories/site-trust-signals/1-security-txt-and-honest-404s.md
- * ADR:   engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md
+ * Story: engineering-team/stories/done/site-trust-signals/1-security-txt-and-honest-404s.md
+ * ADR:   engineering-team/decisions/done/site-trust-signals/0036-security-txt-and-honest-404s.md
  *
  * Kept out of bin/control-panel.js so the document builders are unit-testable
  * without booting Express.
@@ -131,6 +131,13 @@ function buildSecurityTxt(opts = {}) {
  * stops a new sandbox from competing with production in search results before
  * anyone remembers to configure it.
  *
+ * The non-indexing branch carves out one exemption: `LLMS_TXT_PATH` (story
+ * llms-txt #1). `llms.txt` is a deliberate-agent affordance, not a
+ * search-indexing signal, so a sandbox opting out of indexing should not also
+ * hide it from an agent that fetches it by name. The indexing branch is
+ * untouched — production's robots.txt stays byte-identical to before this
+ * story (ADR llms-txt/0001, "behavior unchanged").
+ *
  * @param {{allowIndexing?: boolean}} [opts]
  * @returns {string}
  */
@@ -138,7 +145,60 @@ function buildRobotsTxt(opts = {}) {
   const allowIndexing = Boolean(opts && opts.allowIndexing);
   return allowIndexing
     ? 'User-agent: *\nAllow: /\n'
-    : 'User-agent: *\nDisallow: /\n';
+    : `User-agent: *\nAllow: ${LLMS_TXT_PATH}\nDisallow: /\n`;
+}
+
+/**
+ * llms.txt (llmstxt.org) — a curated pointer manifest for visiting AI agents.
+ * Story: engineering-team/stories/done/llms-txt/1-serve-llms-txt-on-the-fleet.md
+ * ADR:   engineering-team/decisions/done/llms-txt/0001-serve-llms-txt-on-the-fleet.md
+ *
+ * Static and identical on every host — unlike security.txt's Canonical, there
+ * is no per-deployment field, so this takes no options.
+ *
+ * Content is pointers only (mostly into NosFabrica/protocols): the estate
+ * discrepancy rule applies — ECOSYSTEM.md is canonical, this file only
+ * points, so it should almost never need to change.
+ */
+const LLMS_TXT_PATH = '/llms.txt';
+
+const LLMS_TXT = `# Tapestry (Brainstorm Search)
+
+> Tapestry is the research-and-development side of Brainstorm, a personalized web-of-trust system for nostr: a local-first personal knowledge graph plus a trust engine that computes GrapeRank scores from a chosen observer's point of view and publishes them back to nostr as signed events. Protocols are drafted and piloted here, then adopted by the production Brainstorm stack at brainstorm.world.
+
+Notes for agents:
+
+- This site is a JavaScript single-page app. Its page URLs return an empty HTML shell to clients that do not run JavaScript, so read the markdown documents linked below instead of scraping pages.
+- There is no global trust score. Every score is computed from a specific observer's point of view, and the same account can rank high from one point of view and be invisible from another. When answering "is this account trustworthy?", say whose point of view the answer comes from.
+- Each wire format is normative in exactly one place: matured specs live in NosFabrica/protocols, drafts in this repository's protocols directory. For which hosts and repositories exist and what role each plays, ECOSYSTEM.md is authoritative.
+
+## Protocols
+
+- [Concepts](https://raw.githubusercontent.com/NosFabrica/protocols/main/CONCEPTS.md): the model behind every spec (five claims, the roles, shared vocabulary). Start here.
+- [Trusted Assertions](https://raw.githubusercontent.com/NosFabrica/protocols/main/specs/trusted-assertions.md): consumer spec for finding and reading published trust scores (companion to NIP-85).
+- [GrapeRank](https://raw.githubusercontent.com/NosFabrica/protocols/main/specs/graperank.md): how personalized trust scores are computed.
+- [Ecosystem map](https://raw.githubusercontent.com/NosFabrica/protocols/main/ECOSYSTEM.md): canonical inventory of the organizations, repositories, and hosts, and each one's role.
+
+## Tapestry
+
+- [README](https://raw.githubusercontent.com/nous-clawds4/tapestry/main/README.md): what Tapestry is and how to run your own instance with Docker.
+- [AGENTS.md](https://raw.githubusercontent.com/nous-clawds4/tapestry/main/AGENTS.md): orientation for coding agents working in the Tapestry codebase.
+- [Protocol drafts](https://raw.githubusercontent.com/nous-clawds4/tapestry/main/protocols/README.md): index and status of pre-NIP drafts (decentralized lists, concepts, tags).
+- [tapestry-cli](https://raw.githubusercontent.com/nous-clawds4/tapestry-cli/main/README.md): command-line tools for agents curating concepts via the Tapestry protocol.
+
+## Optional
+
+- [BIBLE.md](https://raw.githubusercontent.com/nous-clawds4/tapestry/main/BIBLE.md): full architecture, data model, and API reference (about 185 KB; read its table of contents first and fetch only the sections you need).
+- [brainstorm-cli](https://raw.githubusercontent.com/nous-clawds4/brainstorm-cli/main/README.md): command-line tool for agents using the production Brainstorm backend.
+- [Brainstorm API (OpenAPI)](https://api.brainstorm.world/openapi.json): machine-readable description of the production API (about 130 KB of JSON).
+- [Security policy](https://raw.githubusercontent.com/nous-clawds4/tapestry/main/SECURITY.md): how to report a vulnerability, and which hosts this codebase serves.
+`;
+
+/**
+ * @returns {string}
+ */
+function buildLlmsTxt() {
+  return LLMS_TXT;
 }
 
 /**
@@ -206,6 +266,8 @@ module.exports = {
   buildSecurityTxt,
   buildRobotsTxt,
   isBlockedProbePath,
+  buildLlmsTxt,
+  LLMS_TXT_PATH,
   // Exported for the test suite. NOTE: the sibling fleets (Brainstorm-UI, the
   // strfry relays) carry their own COPIES of this text — they are separate
   // repositories and cannot import it. Any edit here must be mirrored there.

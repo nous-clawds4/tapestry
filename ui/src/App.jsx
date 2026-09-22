@@ -116,7 +116,11 @@ import DevelopersTrustedAssertions from './pages/developers/TrustedAssertions';
 import DevelopersRelayTools from './pages/developers/RelayTools';
 import SetupIndex from './pages/setup/Index';
 import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Placeholders';
-import MyAssistantPage from './pages/assistant/Index';
+import AssistantManagementPage from './pages/assistant/Index';
+import EditAssistantProfilePage from './pages/assistant/EditProfile';
+import AssistantActionPage from './pages/assistant/ActionPage';
+import { ASSISTANT_ACTIONS } from './pages/assistant/actions';
+import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH } from './config/avatarMenuLinks';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
@@ -246,10 +250,18 @@ const router = createBrowserRouter([
     element: <SetupActivate />,
   },
   {
-    // The My Assistant page: the one place anyone manages their own assistant (assistant-profile #4).
-    path: '/assistant',
-    element: <MyAssistantPage />,
+    // The Assistant Management page (assistant-management #1, ADR 0001).
+    path: ASSISTANT_MANAGEMENT_PATH,
+    element: <AssistantManagementPage />,
   },
+  {
+    // The Edit Assistant Profile page: the one place anyone edits their own assistant's profile
+    // (assistant-profile #4; moved here from /assistant by assistant-management #1).
+    path: MY_ASSISTANT_PATH,
+    element: <EditAssistantProfilePage />,
+  },
+  // The ten action pages under /assistant, placeholders for now: one route per ASSISTANT_ACTIONS entry.
+  ...ASSISTANT_ACTIONS.map((action) => ({ path: action.path, element: <AssistantActionPage action={action} /> })),
   {
     path: '/tapestry',
     element: <Layout />,
@@ -460,11 +472,12 @@ const router = createBrowserRouter([
         path: 'manage/audit',
         element: <Navigate to="/tapestry/settings/auditing" replace />,
       },
-      // The assistant editor moved to the My Assistant page (assistant-profile #4, ADR 0004). Redirected
-      // here, not inside the Settings page, whose Owner-only gate would stop a Customer's old link. The
-      // Settings page has no `assistant` child of its own: one would score the same as this route, and
-      // which of them matched would then depend on array order.
-      { path: 'settings/assistant', element: <Navigate to="/assistant" replace /> },
+      // The assistant editor moved to its own page (assistant-profile #4, ADR 0004), now the Edit Assistant
+      // Profile page at MY_ASSISTANT_PATH (assistant-management #1). Redirected here, not inside the Settings
+      // page, whose Owner-only gate would stop a Customer's old link. The Settings page has no `assistant`
+      // child of its own: one would score the same as this route, and which of them matched would then
+      // depend on array order.
+      { path: 'settings/assistant', element: <Navigate to={MY_ASSISTANT_PATH} replace /> },
       {
         path: 'io',
         handle: { crumb: 'I/O' },

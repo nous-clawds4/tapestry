@@ -204,6 +204,7 @@ const suites = [
   { file: 'shared-by-me.test.js' },
   { file: 'retire-offering-vocabulary.test.js' },
   { file: 'site-trust-signals.test.js' },
+  { file: 'llms-txt.test.js' },
   { file: 'tl-membership-method-selector.test.js' },
   { file: 'tl-weighted-sum-method.test.js' },
   { file: 'tl-certainty-method.test.js' },
@@ -251,6 +252,8 @@ const suites = [
   { file: 'setup-status.test.js' },
   { file: 'setup-alert.test.js' },
   { file: 'setup-alert-polish.test.js' },
+  { file: 'assistant-management-page.test.js' },
+  { file: 'assistant-alert.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so

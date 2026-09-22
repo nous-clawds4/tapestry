@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import SetupAlert from './SetupAlert';
+import TopBarAlert from './TopBarAlert';
 
 function shortPubkey(pk) {
   if (!pk) return '';
@@ -114,15 +115,18 @@ export default function Header({ onToggleSidebar }) {
         ☰
       </button>
       <div className="header-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-        {/* The word has its own span so phones can hide it while the Setup Alert shows
-            (ADR setup-status-and-alert/0002 Amendment 1). */}
+        {/* The word has its own span so phones can hide it while an alert pill shows, keeping the 🧠
+            (ADR setup-status-and-alert/0002 Amendment 1; ADR assistant-management/0002). */}
         <span className="header-brand-name">🧠 <span className="header-brand-word">Tapestry</span></span>
       </div>
       <div className="header-spacer" />
 
       <div className="header-auth">
-        {/* Hides itself unless a signed-in viewer has a step left (setup-status-and-alert #2). */}
+        {/* The top bar's alerts, beside the user menu. Each renders only for a signed-in viewer, and at most
+            one shows: the Setup Alert while a setup step is left, else the Assistant Alert
+            (setup-status-and-alert #2; ADR assistant-management/0002, Amendment 1). */}
         <SetupAlert />
+        <TopBarAlert />
         {loading ? (
           <span className="header-loading">…</span>
         ) : user ? (

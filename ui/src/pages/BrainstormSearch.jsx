@@ -9,6 +9,7 @@ import AvatarMenuLink from '../components/AvatarMenuLink';
 import SetupAlert from '../components/SetupAlert';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import TopBar from '../components/TopBar';
+import TopBarAlert from '../components/TopBarAlert';
 import SearchInput from '../components/SearchInput';
 import TagResultRow from '../components/TagResultRow';
 import PinnedTagChips from '../components/PinnedTagChips';
@@ -597,10 +598,14 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
     </div>
   );
 
-  // The Setup Alert sits beside the avatar, in the host's flex row (setup-status-and-alert #2).
+  // The top bar's alerts sit beside the avatar, in the host's flex row. At most one shows: the Setup Alert
+  // while a setup step is left (setup-status-and-alert #2), else the Assistant Alert — both read the one
+  // shared setup answer (ADR assistant-management/0002, Amendment 1). UserMenu renders on the landing page and
+  // in the results view, so these mounts cover both.
   return (
     <>
       <SetupAlert />
+      <TopBarAlert />
       {menu}
     </>
   );

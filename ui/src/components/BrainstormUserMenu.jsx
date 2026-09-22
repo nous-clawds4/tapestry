@@ -3,6 +3,7 @@ import { usePov } from '../context/PovContext';
 import { personalLinks, destinationLinks, accountLinks } from '../config/avatarMenuLinks';
 import AvatarMenuLink from './AvatarMenuLink';
 import SetupAlert from './SetupAlert';
+import TopBarAlert from './TopBarAlert';
 
 /**
  * Compact user avatar + dropdown menu for Brainstorm Search pages.
@@ -208,10 +209,13 @@ export default function BrainstormUserMenu({ user, login, logout }) {
     </div>
   );
 
-  // The Setup Alert sits beside the avatar, in the host's flex row (setup-status-and-alert #2).
+  // The top bar's alerts sit beside the avatar, in the host's flex row. At most one shows: the Setup Alert
+  // while a setup step is left (setup-status-and-alert #2), else the Assistant Alert — both read the one
+  // shared setup answer (ADR assistant-management/0002, Amendment 1).
   return (
     <>
       <SetupAlert />
+      <TopBarAlert />
       {menu}
     </>
   );

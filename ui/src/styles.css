@@ -8707,11 +8707,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bsp-top-bar:has(.bs-setup-alert) .bsp-logo > span { display: none; }
   .app-header:has(.bs-setup-alert) .user-badge { display: none; }
 }
-/* While a pill shows, the control panel's brand yields room instead of wrapping onto two lines
-   (ADR 0002 Amendment 1): it truncates where room runs short, and on phones its word hides and
-   the 🧠 stays. */
-.app-header:has(.bs-setup-alert) .header-brand { min-width: 0; }
-.app-header:has(.bs-setup-alert) .header-brand-name {
+/* While a pill shows — the Setup Alert's or the Assistant Alert's — the control panel's brand yields
+   room instead of wrapping onto two lines (ADR setup-status-and-alert/0002 Amendment 1; ADR
+   assistant-management/0002 Amendment 1): it truncates where room runs short, and on phones its word
+   hides and the 🧠 stays. */
+.app-header:has(.bs-setup-alert, .bs-topbar-pill) .header-brand { min-width: 0; }
+.app-header:has(.bs-setup-alert, .bs-topbar-pill) .header-brand-name {
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -8722,7 +8723,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 
 /* ════════════════════════════════════════════════════════
-   My Assistant — /assistant (assistant-profile #4). The /setup column;
+   The Edit Assistant Profile page — /assistant/profile/edit (assistant-profile #4;
+   moved from /assistant by assistant-management #1). The /setup column;
    the profile editor inside keeps its own look until a design pass.
    ════════════════════════════════════════════════════════ */
 
@@ -8748,4 +8750,238 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 @media (max-width: 480px) {
   .bs-assistant-main { padding-top: 1.5rem; }
   .bs-assistant-title { font-size: 1.6rem; }
+}
+
+/* ════════════════════════════════════════════════════════
+   Assistant Management — /assistant and its ten action pages
+   (assistant-management #1, ADR 0001). The /setup column and its shared
+   pieces (kicker, title and accent, sign-in box, back link, placeholder box,
+   amber badge) come from the bs-setup-* rules above, so the two pages look
+   alike by construction; these rules add the count line, the FAQ, the
+   sections, the cards and the placeholder pages' notes headings.
+   ════════════════════════════════════════════════════════ */
+
+.bs-assistant-hub-count {
+  margin: 1.75rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #e3b341; /* the amber of the "Needs attention" badges */
+}
+.bs-assistant-hub-setup-link {
+  color: #a5b4fc;
+  font-weight: 600;
+  text-decoration: none;
+}
+.bs-assistant-hub-setup-link:hover { text-decoration: underline; }
+
+/* The FAQ: a native disclosure, closed until opened. */
+.bs-assistant-hub-faq {
+  margin-top: 1.5rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+}
+.bs-assistant-hub-faq > summary {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #c7d2fe;
+}
+.bs-assistant-hub-faq > summary:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+.bs-assistant-hub-faq dl { margin: 0; padding: 0 1rem 1rem; }
+.bs-assistant-hub-faq dt { margin-top: 0.9rem; font-size: 0.9rem; font-weight: 700; }
+.bs-assistant-hub-faq dd { margin: 0.35rem 0 0; font-size: 0.85rem; line-height: 1.6; opacity: 0.8; }
+
+.bs-assistant-hub-section { margin-top: 2rem; }
+.bs-assistant-hub-section-heading {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+.bs-assistant-hub-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* A card is the /setup step card, with its title link stretched over the whole card (ADR 0001 § 4). */
+.bs-assistant-hub-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  transition: border-color 0.15s, background 0.15s;
+}
+.bs-assistant-hub-card:hover {
+  border-color: rgba(165,180,252,0.45);
+  background: rgba(255,255,255,0.05);
+}
+.bs-assistant-hub-card-marker {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: 0.05rem;
+  border: 2px solid #818cf8;
+  border-radius: 50%;
+  background: rgba(99,102,241,0.12);
+  color: #c7d2fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.bs-assistant-hub-card.needs-attention .bs-assistant-hub-card-marker {
+  border-color: rgba(210,153,34,0.75);
+  background: rgba(210,153,34,0.12);
+  color: #e3b341;
+}
+.bs-assistant-hub-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.bs-assistant-hub-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.bs-assistant-hub-card-link,
+.bs-assistant-hub-card-link:hover {
+  /* The global a:hover colour would otherwise recolour the title; only the card answers the hover. */
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.bs-assistant-hub-card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+}
+.bs-assistant-hub-card-link:focus-visible { outline: none; }
+.bs-assistant-hub-card-link:focus-visible::after {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+/* Faded by colour, not opacity: opacity below 1 would paint the text above the card-wide link's
+   overlay, so a click on the description would miss the link. */
+.bs-assistant-hub-card-text {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: rgba(226,232,240,0.7);
+  overflow-wrap: anywhere;
+}
+.bs-assistant-hub-card-chevron {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: rgba(226,232,240,0.45);
+}
+/* A description's NIP link sits above the card-wide link, so it opens its NIP, not the card's page. */
+.bs-assistant-hub-inline-link {
+  position: relative;
+  z-index: 1;
+  color: #a5b4fc;
+}
+
+/* The placeholder pages */
+.bs-assistant-hub-notes-heading {
+  margin: 1.1rem 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+.bs-assistant-hub-edit-link { color: #a5b4fc; font-weight: 600; }
+
+/* ════════════════════════════════════════════════════════
+   The top bar's alert pill (assistant-management #2, ADR 0002). One slot
+   beside every avatar menu shows at most one pill, setup first. The
+   Assistant Alert is Tapestry's indigo; the Setup Alert, its own component
+   beside this one, is amber (setup-status-and-alert #2). One link, whose
+   parts drop away as the bar narrows (ADR 0002 Amendment 1): all of it; then
+   no count (≤ 1023px, the Setup Alert's); then only the mark and the button
+   (≤ 679px — its button is longer than the Setup Alert's, so at 640px the
+   sentence would push the TopBar pages 12px past the edge).
+   ════════════════════════════════════════════════════════ */
+
+/* The Setup Alert's shape and size (setup-status-and-alert #2), so the two pills match. */
+.bs-topbar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding: 0.2rem 0.25rem 0.2rem 0.6rem;
+  border: 1px solid rgba(165,180,252,0.45);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.bs-topbar-pill:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+.bs-topbar-pill.is-assistant,
+.bs-topbar-pill.is-assistant:hover {
+  color: #c7d2fe;
+  background: rgba(99,102,241,0.14);
+}
+.bs-topbar-pill.is-assistant:hover { border-color: rgba(165,180,252,0.7); }
+.bs-topbar-pill-count { opacity: 0.85; }
+.bs-topbar-pill-button {
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.bs-topbar-pill.is-assistant .bs-topbar-pill-button {
+  background: #6366f1;
+  color: #fff;
+}
+
+@media (max-width: 1023px) {
+  .bs-topbar-pill-count { display: none; }
+}
+@media (max-width: 679px) {
+  .bs-topbar-pill-text { display: none; }
+}
+@media (max-width: 480px) {
+  /* Only while a pill is present, the bar gives up its own words so nothing scrolls sideways
+     (ADR 0002 sub-decision 6): TopBar's logo word; the Tapestry user button's name and role, and
+     the brand's word (the 🧠 stays) — without it the brand wraps, and the fixed Tapestry header
+     grows taller than the 48px the page leaves for it. */
+  .bsp-top-bar:has(.bs-topbar-pill) .bsp-logo > span { display: none; }
+  .app-header:has(.bs-topbar-pill) .user-name,
+  .app-header:has(.bs-topbar-pill) .user-badge,
+  .app-header:has(.bs-topbar-pill) .header-brand-word { display: none; }
+}
+@media (max-width: 359px) {
+  /* Below 360 px, the next step of the shedding order: TopBar's nav (its About link). Without it the pill
+     pushes the avatar menu off the right edge below 352 px (ADR 0002 Amendment 1). */
+  .bsp-top-bar:has(.bs-topbar-pill) .bsp-top-nav { display: none; }
 }

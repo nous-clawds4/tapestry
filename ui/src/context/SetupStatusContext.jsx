@@ -12,12 +12,12 @@ import { onEventPublished } from '../utils/nostrPublish';
  *
  * It asks /api/setup/status only once something wants the answer (useSetupStatus mounts), only
  * when someone is signed in, and again when the signed-in account changes or gains an assistant:
- * AuthContext.refreshUser() after creating one on /assistant changes user.assistantPubkey for the
- * same account (ADR setup-status-and-alert/0002 Decision 5). It also asks again once the app has
- * published the viewer's own follow list (kind 3) or Treasure Map (kind 10040), heard through
- * onEventPublished (ADR setup-status-and-alert/0003). The server answers for the session itself, so
- * the request carries no parameters. There is no polling: a step completed in another app or tab
- * shows on the next full page load, or after refresh().
+ * AuthContext.refreshUser() after creating one on /assistant/profile/edit changes
+ * user.assistantPubkey for the same account (ADR setup-status-and-alert/0002 Decision 5). It also
+ * asks again once the app has published the viewer's own follow list (kind 3) or Treasure Map
+ * (kind 10040), heard through onEventPublished (ADR setup-status-and-alert/0003). The server answers
+ * for the session itself, so the request carries no parameters. There is no polling: a step
+ * completed in another app or tab shows on the next full page load, or after refresh().
  *
  * phase: 'idle' (nothing asked, or signed out) · 'checking' · 'answered' · 'failed' (a network
  * error, a failure answer, or the server saying the session has expired).

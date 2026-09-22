@@ -2150,18 +2150,18 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 
 ## 2026-08-18 — Serve llms.txt on the tapestry fleet (protocols#6)
 
-**NOT PICKED UP.** Estate-wide tracking: [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6). Add [llms.txt](https://llmstxt.org/) — a root-level curated markdown map of key documents for visiting AI agents — to all six tapestry-fleet hosts, as one more exact-match document through the site-trust plumbing this repo already ships.
+**PICKED UP** 2026-09-22 → book `engineering-team/audits/llms-txt/book.md`, epic `llms-txt`, story `llms-txt` #1 (review PASS same day). Estate-wide tracking: [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6). Add [llms.txt](https://llmstxt.org/) — a root-level curated markdown map of key documents for visiting AI agents — to every tapestry-fleet host (four since `communities.` and `curate.` were decommissioned on 2026-09-12), as one more exact-match document through the site-trust plumbing this repo already ships.
 
 **Why (from the estate issue):** the adoption path for the estate's trust scores increasingly runs through developers' AI assistants; an agent fetching `<host>/llms.txt` should be routed on the first hop to the normative specs ([trusted-assertions](https://github.com/NosFabrica/protocols/blob/main/specs/trusted-assertions.md), [graperank](https://github.com/NosFabrica/protocols/blob/main/specs/graperank.md)), [CONCEPTS.md](https://github.com/NosFabrica/protocols/blob/main/CONCEPTS.md), and [ECOSYSTEM.md](https://github.com/NosFabrica/protocols/blob/main/ECOSYSTEM.md). Honest caveat carried from the issue: no major crawler commits to consuming it — this is cheap insurance plus a deliberate-agent affordance, not SEO.
 
-**Why it's small here:** `src/utils/siteTrust.js` already renders security.txt and robots.txt as a pure module with a shape-based rule ahead of the SPA catch-all (site-trust-signals book; ADR `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`). llms.txt is a third document through the same module: static pointer manifest, per-deployment canonical hostname supplied the way security.txt's values are, served `text/plain` or `text/markdown`, honest 404s untouched. Content is **pointers only** (mostly into NosFabrica/protocols) so the file almost never changes; the estate discrepancy rule applies — ECOSYSTEM.md is canonical, llms.txt only points.
+**Why it's small here:** `src/utils/siteTrust.js` already renders security.txt and robots.txt as a pure module with a shape-based rule ahead of the SPA catch-all (site-trust-signals book; ADR `engineering-team/decisions/done/site-trust-signals/0036-security-txt-and-honest-404s.md`). llms.txt is a third document through the same module: static pointer manifest, per-deployment canonical hostname supplied the way security.txt's values are, served `text/plain` or `text/markdown`, honest 404s untouched. Content is **pointers only** (mostly into NosFabrica/protocols) so the file almost never changes; the estate discrepancy rule applies — ECOSYSTEM.md is canonical, llms.txt only points.
 
 **Test shape:** follow the existing siteTrust suite — assert 200 + content type + link inventory on `/llms.txt`, and fold "do the links resolve" into the same renewal ritual that owns the security.txt `Expires` check (test U1's family).
 
 **Classification:** Feature (small; serving-layer only, no wire format).
 **Strictness:** Standard.
 **Phase path:** `/plan-feature`, one story. Coordinate timing with the Brainstorm-UI (nginx) and brainstorm-k8s (edge) portions via protocols#6 — no ordering dependency, but shipping all fleets near-together keeps the estate's root-document story consistent.
-**References:** [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6); `src/utils/siteTrust.js`; `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`; [llmstxt.org](https://llmstxt.org/).
+**References:** [NosFabrica/protocols#6](https://github.com/NosFabrica/protocols/issues/6); `src/utils/siteTrust.js`; `engineering-team/decisions/done/site-trust-signals/0036-security-txt-and-honest-404s.md`; [llmstxt.org](https://llmstxt.org/).
 
 ---
 
@@ -2664,3 +2664,44 @@ the *viewer's own* follow list, Treasure Map and assistant, never the instance T
 **Classification:** feature. The status checks and the Setup Alert are small and well shaped by
 Brainstorm's precedent (Standard, all phases). The three action pages are not: each leans **Product
 Team** first.
+
+## 2026-09-21 — The Assistant Management page, the rest of the way: real "needs attention" answers and the ten action pages (feature; deferred at intake)
+
+**Origin:** the owner's ask behind book `assistant-management`
+(`engineering-team/audits/assistant-management/book.md`, which quotes the whole ask verbatim). That
+book builds the `/assistant` hub, with all ten actions shown as needing attention, ten placeholder
+action pages, and the Assistant Alert that counts them. These items were saved for later sessions.
+
+**Deferred, verbatim (2026-09-21):**
+
+> In this session, we will create the bones of this feature, including the basic UX for the /assistant page and placeholders for 8 or 9 sub-pages (/assistant/*), but we will save the actual functionality for later sessions.
+
+> For now, we will assume that ALL of the Actions require attention. In future sessions, we will do the complex process of actually deciding which Actions require attention and which do not.
+
+> Each individual Management Action page will likewise have its own list of Action Cards, each of which will be in one of two states: needs attention (or not). However, in this session, we will not be concerning ourselves with the complex functionality of each of the Action pages.
+
+**What is deferred:**
+
+1. **Real "needs attention" answers.** Each action's state comes from its alert criteria, for the
+   viewer's own assistant, so that the hub's marks, its count line and the Assistant Alert tell the
+   truth. The owner's criteria so far, for the profile and identification-tags actions, are in
+   story 1 § Copy (`stories/done/assistant-management/1-the-assistant-management-page.md`), and are shown
+   on the placeholder pages. The other eight have none yet.
+2. **The ten action pages**, each with its own action cards: profile (a checklist of the assistant's
+   profile, pointing to the editor at `/assistant/profile/edit` for what is wrong),
+   identification-tags, trusted-assertions, trusted-lists, dlists, bounties, pins, tags,
+   notifications-and-alerts, preferences.
+3. **The assistant's DMs** (the FAQ's "Coming soon").
+
+**What exists to build on:** the `assistant-profile` book (the default profile, the publish relays
+and the editor, at `/assistant/profile/edit` once `assistant-management` #1 ships); the `/setup`
+status pattern, one shared answer read by both the page and its alert (ADR
+setup-status-and-alert/0001, `/api/setup/status`); and the `tag`, `nostr-user-tag`, `tag-pinning`
+and `list` concepts in the local graph.
+
+**Product questions underneath it:** for each action, what "needs attention" means, for whom, and
+from which relays; whether the Assistant Alert should stay persistent once its count is real; and
+how the hub orders or groups actions as the list grows past ten ("8 or 9 (and growing)").
+
+**Classification:** feature. The per-action checks can follow the `/setup` status pattern (Standard,
+all phases). Each action page leans **Product Team** first, as the `/setup` step pages do.

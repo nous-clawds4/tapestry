@@ -66,13 +66,13 @@
                 </div>
             </div>
             
-            <!-- Tapestry Assistant Panel — read-only: the profile is edited and published on the My Assistant
-                 page (/assistant), its one writer (ADR assistant-profile/0005) -->
+            <!-- Tapestry Assistant Panel — read-only: the profile is edited and published on the Edit Assistant
+                 Profile page (/assistant/profile/edit), its one writer (ADR assistant-profile/0005) -->
             <div class="section">
                 <h2>🤖 Your Tapestry Assistant</h2>
                 <div class="card">
                     <p>Your Tapestry Assistant is the nostr identity that publishes kind 30382 Trust Assertions on your behalf.
-                       Its profile is edited and published on the My Assistant page.</p>
+                       Its profile is edited and published on the Edit Assistant Profile page.</p>
 
                     <div id="ownerAssistantLoading" class="status-message status-info">Loading assistant status...</div>
 
@@ -104,7 +104,7 @@
                         Tapestry Assistant keys not found.
                     </div>
 
-                    <p><a href="/assistant">🤖 Edit and publish its profile on the My Assistant page →</a></p>
+                    <p><a href="/assistant/profile/edit">🤖 Edit and publish its profile on the Edit Assistant Profile page →</a></p>
                 </div>
             </div>
 
@@ -142,7 +142,7 @@
     </div>
 
     <script>
-        // ── Tapestry Assistant (read-only) — the profile is published on the My Assistant page ──
+        // ── Tapestry Assistant (read-only) — the profile is published on the Edit Assistant Profile page ──
 
         let _ownerPubkey = null;
 

@@ -1,6 +1,9 @@
 # ADR 0005: One writer — only `publish-profile` signs an assistant's profile, for the signed-in person's own assistant, from the fields they publish
 
-**Status:** Accepted
+**Status:** Accepted. The address and name it gives the one writer's page, "the My Assistant page
+(/assistant)", change under ADR assistant-management/0001 (2026-09-21): the page moves to `/assistant/profile/edit`
+as "the Edit Assistant Profile page", and the three refusal messages, the two legacy panels and BIBLE §14 follow.
+The rules of this ADR stand.
 **Date:** 2026-09-21
 **Story:** `engineering-team/stories/done/assistant-profile/5-one-writer-for-assistant-profiles.md`
 
