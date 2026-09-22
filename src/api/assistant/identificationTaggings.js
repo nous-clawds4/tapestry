@@ -2,8 +2,8 @@
  * POST /api/assistant/identification-tags/publish — your Assistant signs its identification taggings of you
  * (assistant-identification-tags #3, ADR assistant-identification-tags/0003).
  *
- * A narrow, session-bound route — the second such route after publish-profile — through which the signed-in person's
- * own Assistant signs its identification taggings: the required taggings whose signer is the Assistant (src/lib/identification-tags: "My Tapestry Owner", "My Human"), each an
+ * A narrow, session-bound route, in the shape of publish-profile (ADR 0003 Option A), through which the signed-in
+ * person's own Assistant signs its identification taggings: the required taggings whose signer is the Assistant (src/lib/identification-tags: "My Tapestry Owner", "My Human"), each an
  * ordinary nostr-user-tag assertion of the canonical tag, tagging the signed-in person, as an apply, in exactly the
  * shape the browser's tagging publisher gives the person's own (ui/src/utils/publishProfileTag.js).
  *
@@ -11,7 +11,7 @@
  * instance TA, anyone else's their own relay key); no request parameter names a person or an Assistant. Refusals come
  * first, before any key is read: not signed in (401), a body that is not a non-empty list of the Assistant-signed
  * required keys (400), no Assistant on this instance (403). The route signs nothing else. The generic signer
- * (src/api/strfry/commands/publishEvent.js) stays owner-only and TA-only, and the other assistant-key signers —
+ * (src/api/strfry/commands/publishEvent.js) stays owner-or-admin (OPEN.md row 269) and TA-only, and the other assistant-key signers —
  * trusted lists, curated DList headers and updates, normalization, NIP-85 — are unchanged by it.
  *
  * Per tagging: its canonical definition must be findable (story 1's lookup, local relay first, then the tag-federation

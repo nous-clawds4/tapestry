@@ -336,8 +336,14 @@ the route comment, the OpenAPI description and BIBLE's §11 row and §14 bullet 
 false with one grep: the curated-DList header and update routes sign with the person's own Assistant key on request
 (`src/api/dlist-curation/index.js:232-247`, `update.js:287-295`), and the trusted-list and normalization routes sign
 with the TA on request. The true, scoped statement, now in all five places: this is a narrow, session-bound route in
-the shape of `publish-profile` — the second such route — through which the person's own Assistant signs its
-identification taggings; the generic signer stays owner-only and TA-only, and the other assistant-key signers
+the shape of `publish-profile` (Option A) through which the person's own Assistant signs its identification
+taggings; the generic signer stays owner-or-admin (OPEN.md row 269) and TA-only, and the other assistant-key signers
 (trusted lists, curated DList headers and updates, normalization, NIP-85) are unchanged. The design is untouched.
 The lesson is the ledger's: a universal claim in an ADR carries its proving command, or it does not go into a
 universal document.
+
+**Round 2 correction (2026-09-22).** The first rewording called this "the second such route after `publish-profile`".
+That ordinal was false too: `POST /api/dlist-curation/header` and `/update` are narrow, session-bound routes where
+the person's own Assistant signs, and both predate `publish-profile`'s narrow form. The five places now say
+"another narrow, session-bound route in the shape of `publish-profile`", with no count and no chronology, and name
+the generic signer's gate as it is, owner-or-admin (OPEN.md row 269).

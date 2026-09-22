@@ -110,8 +110,9 @@ audit.*
 6. **The scope claim was reworded after review round 1** (ADR 0003 Amendment 1): the route is not "the only thing
    besides its profile" an Assistant's key signs — the curated-DList and trusted-list routes sign with assistant keys
    too. The module header, the route comment, the OpenAPI description and BIBLE's §11 row and §14 bullet now say what
-   is true: a second narrow, session-bound route after `publish-profile`, with the generic signer and the other
-   assistant-key signers unchanged. The OpenAPI `keys` enum also became a description, since the list grows with the
+   is true: another narrow, session-bound route in the shape of `publish-profile`, with the generic signer and the
+   other assistant-key signers unchanged (review round 2 dropped a first rewording's ordinal, "the second such route":
+   the curated-DList routes came first). The OpenAPI `keys` enum also became a description, since the list grows with the
    app (Discovery decision 7).
 
 ## Linked artifacts
