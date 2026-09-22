@@ -3,8 +3,10 @@
  * (assistant-identification-tags #3, ADR assistant-identification-tags/0003).
  *
  * A narrow, session-bound route, in the shape of publish-profile (ADR 0003 Option A), through which the signed-in
- * person's own Assistant signs its identification taggings: the required taggings whose signer is the Assistant (src/lib/identification-tags: "My Tapestry Owner", "My Human"), each an
- * ordinary nostr-user-tag assertion of the canonical tag, tagging the signed-in person, as an apply, in exactly the
+ * person's own Assistant signs its identification taggings: the OFFERED taggings whose signer is the Assistant
+ * (src/lib/identification-tags — today "My Tapestry Owner"; "My Human" is listed but parked, and a body naming it is
+ * refused; identification-tags-authorship #1), each an ordinary nostr-user-tag assertion of the definition its own
+ * author published, tagging the signed-in person, as an apply, in exactly the
  * shape the browser's tagging publisher gives the person's own (ui/src/utils/publishProfileTag.js).
  *
  * Whose Assistant comes from the SESSION only: the one main→delegate mapping (getAssistantKeys — the Owner's is the
@@ -14,8 +16,8 @@
  * (src/api/strfry/commands/publishEvent.js) stays owner-or-admin (OPEN.md row 269) and TA-only, and the other assistant-key signers —
  * trusted lists, curated DList headers and updates, normalization, NIP-85 — are unchanged by it.
  *
- * Per tagging: its canonical definition must be findable (story 1's lookup, local relay first, then the tag-federation
- * relays), else that tagging alone is refused as tag-not-found; the event is written to this instance's relay first —
+ * Per tagging: its definition must be findable at its author's address (story 1's lookup, local relay first, then the
+ * tag-federation relays), else that tagging alone is refused as tag-not-found; the event is written to this instance's relay first —
  * a failed write sends it nowhere and says so — then to the relays this instance is configured to publish to (the
  * general-purpose, profile and WoT lists plus the relays it reads tags from), each reported in the profile publish's
  * words (accepted | refused | unreachable | timeout, or skipped in local-only mode).
@@ -25,7 +27,7 @@
  */
 
 const {
-  REQUIRED_TAGGINGS, CANONICAL_TAG_AUTHOR, taggingDTag,
+  OFFERED_TAGGINGS, taggingDTag,
 } = require('../../lib/identification-tags');
 const { lookupByAddresses, tagRelays } = require('./attention');
 
@@ -50,7 +52,8 @@ const WORDS = {
   failed: "Could not publish your Assistant's taggings",
 };
 
-const ASSISTANT_ENTRIES = REQUIRED_TAGGINGS.filter((e) => e.signer === 'assistant');
+// The offered entries only: a parked key fails the body check below and is refused before any key is read.
+const ASSISTANT_ENTRIES = OFFERED_TAGGINGS.filter((e) => e.signer === 'assistant');
 const ASSISTANT_KEYS = new Set(ASSISTANT_ENTRIES.map((e) => e.key));
 
 // nostr-tools, lazily and resiliently: the absolute path resolves inside the container, the bare require everywhere
@@ -125,7 +128,7 @@ function buildAssistantTagging({ signerPubkey, targetPubkey, tag, localTaPubkey,
 /**
  * The whole flow after the session and body checks: whose key, the definitions, then per tagging the build, the sign,
  * the local write and the fan-out, each reported. Answers { refusal } when the viewer has no Assistant here, else
- * { results } — one row per requested key, in REQUIRED_TAGGINGS order.
+ * { results } — one row per requested key, in the list's order.
  */
 async function publishAssistantTaggingsFor({ viewer, keys }, deps) {
   const d = { ...defaultDeps(), ...deps };
@@ -137,7 +140,15 @@ async function publishAssistantTaggingsFor({ viewer, keys }, deps) {
   const privkeyBytes = privkeyBytesOf(relayKeys.privkey);
   const assistantPubkey = String(d.getPublicKey(privkeyBytes)).toLowerCase();
 
-  const definitions = await lookupByAddresses({ kind: 39999, author: CANONICAL_TAG_AUTHOR, ds: entries.map((e) => e.slug), relays: tagRelays(d) }, d);
+  // Each definition at its own author's address (identification-tags-authorship ADR 0001 sub-decision 4).
+  const relays = tagRelays(d);
+  const byAuthor = new Map();
+  for (const e of entries) {
+    if (!byAuthor.has(e.author)) byAuthor.set(e.author, []);
+    byAuthor.get(e.author).push(e.slug);
+  }
+  const found = await Promise.all([...byAuthor.entries()].map(async ([author, ds]) => [author, await lookupByAddresses({ kind: 39999, author, ds, relays }, d)]));
+  const definitionsByAuthor = new Map(found);
 
   const localOnly = Boolean(d.isLocalOnly());
   const configured = d.readConfiguredRelays(TAGGING_PUBLISH_CATEGORIES);
@@ -152,7 +163,7 @@ async function publishAssistantTaggingsFor({ viewer, keys }, deps) {
   const results = [];
   for (const entry of entries) {
     const subject = `"${entry.name}"`;
-    const definition = definitions[entry.slug];
+    const definition = (definitionsByAuthor.get(entry.author) || {})[entry.slug];
     if (!definition || !definition.finished || !definition.event) {
       results.push({ key: entry.key, name: entry.name, ok: false, code: CODES.TAG_NOT_FOUND, message: WORDS.tagNotFound(entry.name) });
       continue;
@@ -160,7 +171,7 @@ async function publishAssistantTaggingsFor({ viewer, keys }, deps) {
     const template = buildAssistantTagging({
       signerPubkey: assistantPubkey,
       targetPubkey: viewer,
-      tag: { eventId: definition.event.id, slug: entry.slug, authorPubkey: CANONICAL_TAG_AUTHOR },
+      tag: { eventId: definition.event.id, slug: entry.slug, authorPubkey: entry.author },
       localTaPubkey,
       canonicalZ: zCanonical,
       createdAt: Math.floor(d.now() / 1000),

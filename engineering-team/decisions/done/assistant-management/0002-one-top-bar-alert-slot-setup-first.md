@@ -1,7 +1,8 @@
 # ADR 0002: One alert slot beside every avatar menu shows one pill at a time — the Setup Alert's first, then the Assistant Alert
 
 **Status:** Accepted (Amendment 1 appended 2026-09-21: the Setup Alert shipped first, as its own component; the
-two pills stand side by side and read the one setup answer)
+two pills stand side by side and read the one setup answer; Amendment 2 appended 2026-09-22: the pill sits centered in
+its bar wherever the bar has room)
 **Date:** 2026-09-21
 **Story:** `engineering-team/stories/done/assistant-management/2-the-assistant-alert.md`
 (the slot it designs is also where setup-status-and-alert #2, the Setup Alert, will render; see
@@ -464,3 +465,18 @@ suites and restyle it. That would only buy a property the shared answer already 
 - B3 observes the real Setup pill.
 - B9 is new (point 4).
 - `setup-alert.spec.js` is re-aimed (point 5), and story 1's test plan lists it among the re-aimed suites.
+
+## Amendment 2: the pill sits centered in its bar wherever the bar has room (2026-09-22)
+
+The owner asked for both top-bar pills to be centered, as Brainstorm centers its own. They shipped that way as an
+operator-present hotfix (trace: OPEN.md row `2026-09-22-topbar-alert-pill-centered`). The rule, the cutoff widths
+and the measurements are written once, in ADR setup-status-and-alert/0002 Amendment 2, because the one CSS rule
+covers both pills. What it means for this ADR:
+- **The slot does not move.** `TopBarAlert` is still mounted beside every avatar menu, and the developer pages'
+  `.bsp-auth` still holds it. The Option A mounts, sub-decision 1's picker and B1's structural checks all hold.
+- **Only where it is drawn changes.** From 640 px in the Brainstorm bars and from 1200 px in the control panel's
+  header, the pill is taken out of the row and centered on the bar. The results view's header keeps it beside
+  the menu at every width. Narrower bars keep it beside the menu, and Amendment 1's shedding order applies
+  there unchanged.
+- **The Assistant pill is the wider of the two** (540 px in full, 379 px without its count), so it sets the control
+  panel's 1200 px cutoff. At 680 px on a TopBar page it has the least room of any case measured: 14 px on each side.

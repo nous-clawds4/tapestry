@@ -8,6 +8,11 @@
  * Browser half: tests/brainstorm/assistant-taggings-publish.spec.js (B-class — the second card's press and what it shows).
  * Words and shapes: test/helpers/identificationTagsFixtures.js.
  *
+ * Re-aimed 2026-09-22 by identification-tags-authorship #1 (story engineering-team/stories/identification-tags-authorship/
+ * 1-two-authored-tags-and-two-parked-taggings.md, its ADR 0001 and plan): the Assistant publishes one offered tagging,
+ * "My Tapestry Owner", against the definition its own author (Nous' Tapestry Assistant) published; "My Human" is parked
+ * and refused (E12); no single canonical author remains (E11).
+ *
  * Classes:
  *   E — src/api/assistant/identificationTaggings.js driven through the dependencies ADR 0003 names (getAssistantKeys,
  *       getOwnerAssistantPubkey, scanLocal, readRelay, readConfiguredRelays, getConfigFromFile, importEvent, isLocalOnly,
@@ -47,11 +52,15 @@ const NL = String.fromCharCode(10);
 const VIEWER = 'a1'.repeat(32);
 const OWNER = 'bb'.repeat(32);
 const TA_FIXTURE = 'ee'.repeat(32); // the runtime instance TA, for the local z
-const CANON = X.CANONICAL_TAG_AUTHOR;
+const OTHER_TAG_AUTHOR = '6d'.repeat(32);
+// A fixture definition is by the entry's own author; a parked slug gets another author's same-named tag.
+const authorOf = (slug) => { const e = X.REQUIRED.find((x) => x.slug === slug); return e && e.offered ? e.author : OTHER_TAG_AUTHOR; };
 const LEGACY_Z = '39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-user-tag';
 const RELAYS = ['wss://a.example', 'wss://b.example'];
-const ASSISTANT_ROWS = X.REQUIRED.filter((e) => e.signer === 'assistant');
-const PERSON_ROW = X.REQUIRED.find((e) => e.signer === 'person');
+const ASSISTANT_ROWS = X.OFFERED.filter((e) => e.signer === 'assistant'); // one today: My Tapestry Owner
+const OWNER_ROW = ASSISTANT_ROWS[0];
+const PERSON_ROW = X.OFFERED.find((e) => e.signer === 'person');
+const PARKED_KEY = 'my-human'; // parked: listed, never published (identification-tags-authorship #1 AC-5)
 const CATEGORIES = ['aPopularGeneralPurposeRelays', 'aProfileRelays', 'aWotRelays', 'aTagFederationRelays'];
 
 const tests = [];
@@ -104,7 +113,7 @@ const tagOf = (ev, name) => { const t = (ev.tags || []).find((x) => x[0] === nam
 const tagsOf = (ev, name) => (ev.tags || []).filter((x) => x[0] === name).map((x) => x[1]);
 let idSeq = 0;
 const hexId = (n) => n.toString(16).padStart(64, '0');
-function definition(slug, { author = CANON, id } = {}) {
+function definition(slug, { author = authorOf(slug), id } = {}) {
   idSeq += 1;
   return { id: id || hexId(idSeq), pubkey: author, kind: 39999, created_at: 500, tags: [['d', slug], ['z', `39998:${TA_FIXTURE}:tag`]], content: show({ tag: { slug, name: slug, description: '' } }), sig: '0'.repeat(128) };
 }
@@ -117,7 +126,7 @@ function matching(events, filter) {
  * Recording fakes for every dependency ADR 0003 names.
  *   assistant   — 'customer' (a fresh key under the viewer) | 'owner-ta' (the viewer is OWNER and the key is the TA) |
  *                 null (none) | 'throw'.
- *   definitions — the definitions this instance's relay holds (default: all four); 'reject' makes the scan fail.
+ *   definitions — the definitions this instance's relay holds (default: the offered ones, each by its author); 'reject' makes the scan fail.
  *   relays      — { [url]: events } for the outside read on a definition miss (default: none configured for the read).
  *   configured  — what readConfiguredRelays answers (default RELAYS for the publish set, [] for the tag-relay read).
  *   localFails  — an array of tagging keys whose local import throws.
@@ -129,7 +138,7 @@ function fakes(opts = {}) {
   const sk = n.generateSecretKey();
   const assistantPubkey = n.getPublicKey(sk);
   const calls = { getAssistantKeys: [], scanLocal: [], readRelay: [], readConfiguredRelays: [], importEvent: [], publishToRelays: [], order: [] };
-  const defs = opts.definitions === undefined ? X.REQUIRED.map((e) => definition(e.slug)) : opts.definitions;
+  const defs = opts.definitions === undefined ? X.OFFERED.map((e) => definition(e.slug)) : opts.definitions;
   const deps = {
     getAssistantKeys: async (pubkey) => {
       calls.getAssistantKeys.push(pubkey);
@@ -193,7 +202,7 @@ async function answer(opts, req) {
 
 test('E1: without an authenticated session the route answers 401 not-signed-in with the approved words, and reads no key (AC-2)', async () => {
   const wrong = [];
-  for (const [label, req] of [['no session', { body: { keys: ['my-human'] } }], ['authenticated unset', { session: { pubkey: VIEWER }, body: { keys: ['my-human'] } }], ['not 64-hex', { session: { authenticated: true, pubkey: 'npub1x' }, body: { keys: ['my-human'] } }]]) {
+  for (const [label, req] of [['no session', { body: { keys: ['my-tapestry-owner'] } }], ['authenticated unset', { session: { pubkey: VIEWER }, body: { keys: ['my-tapestry-owner'] } }], ['not 64-hex', { session: { authenticated: true, pubkey: 'npub1x' }, body: { keys: ['my-tapestry-owner'] } }]]) {
     const { res, body, calls } = await answer({}, req);
     if (res.statusCode !== 401 || !body || body.success !== false || body.code !== 'not-signed-in' || body.error !== X.REFUSALS['not-signed-in']) wrong.push(`${label}: ${res.statusCode} ${show(body)}`);
     if (calls.getAssistantKeys.length || calls.importEvent.length) wrong.push(`${label}: read a key or imported`);
@@ -203,7 +212,7 @@ test('E1: without an authenticated session the route answers 401 not-signed-in w
 
 test('E2: a body that is not a non-empty list of the Assistant-signed required keys is refused 400 not-an-assistant-tagging before any key is read (AC-3)', async () => {
   const wrong = [];
-  for (const [label, body] of [['no keys', {}], ['empty', { keys: [] }], ['not a list', { keys: 'my-human' }], ['a number', { keys: [1] }], ["a person's tagging", { keys: [PERSON_ROW.key] }], ['unknown', { keys: ['my-cat'] }], ['one good, one bad', { keys: ['my-human', 'my-agent'] }]]) {
+  for (const [label, body] of [['no keys', {}], ['empty', { keys: [] }], ['not a list', { keys: 'my-tapestry-owner' }], ['a number', { keys: [1] }], ["a person's tagging", { keys: [PERSON_ROW.key] }], ['a parked tagging alone', { keys: [PARKED_KEY] }], ['a parked tagging beside the offered one', { keys: [OWNER_ROW.key, PARKED_KEY] }], ['unknown', { keys: ['my-cat'] }], ['one good, one bad', { keys: ['my-human', 'my-agent'] }]]) {
     const { res, body: got, calls } = await answer({}, { session: { authenticated: true, pubkey: VIEWER }, body });
     if (res.statusCode !== 400 || !got || got.code !== 'not-an-assistant-tagging' || got.error !== X.REFUSALS['not-an-assistant-tagging']) wrong.push(`${label}: ${res.statusCode} ${show(got)}`);
     if (calls.getAssistantKeys.length || calls.importEvent.length) wrong.push(`${label}: read a key or imported`);
@@ -218,11 +227,11 @@ test('E3: a signed-in viewer with no Assistant here is refused 403 no-assistant,
   assert(show(calls.getAssistantKeys) === show([VIEWER]), `the key was looked up for the session's viewer only: ${show(calls.getAssistantKeys)}`);
 });
 
-test('E4: the happy path — both taggings signed with the Assistant\'s key in the browser\'s shape, written locally before any relay, each reported in the profile publish\'s words, in the required order (AC-1, AC-4)', async () => {
+test('E4: the happy path — the offered tagging signed with the Assistant\'s key in the browser\'s shape, written locally before any relay, each reported in the profile publish\'s words, in the required order (AC-1, AC-4)', async () => {
   const { res, body, results, calls, assistantPubkey } = await answer({});
   assert(res.statusCode === 200 && body && body.success === true, `got ${res.statusCode} ${show(body)}`);
-  assert(results.length === 2 && results[0].key === 'my-tapestry-owner' && results[1].key === 'my-human', `two rows in REQUIRED order: ${show(results.map((r) => r.key))}`);
-  assert(calls.importEvent.length === 2 && calls.publishToRelays.length === 2, `two local writes and two fan-outs: ${show(calls.order)}`);
+  assert(results.length === 1 && results[0].key === OWNER_ROW.key, `one row, the offered assistant tagging: ${show(results.map((r) => r.key))}`);
+  assert(calls.importEvent.length === 1 && calls.publishToRelays.length === 1, `one local write and one fan-out: ${show(calls.order)}`);
   for (const [i, entry] of ASSISTANT_ROWS.entries()) {
     const ev = calls.importEvent[i];
     const wrong = [];
@@ -230,7 +239,7 @@ test('E4: the happy path — both taggings signed with the Assistant\'s key in t
     if (ev.pubkey !== assistantPubkey) wrong.push('not signed by the Assistant');
     if (!nt().verifyEvent(ev)) wrong.push('the signature does not verify');
     if (tagOf(ev, 'p') !== VIEWER) wrong.push('p is not the viewer');
-    if (tagOf(ev, 'a') !== X.canonicalTagAddress(entry.slug)) wrong.push(`a ${tagOf(ev, 'a')}`);
+    if (tagOf(ev, 'a') !== X.definitionAddress(entry)) wrong.push(`a ${tagOf(ev, 'a')} (want the definition by its own author, ${X.definitionAddress(entry)})`);
     if (tagOf(ev, 'd') !== X.taggingDTag({ slug: entry.slug, targetPubkey: VIEWER, signerPubkey: assistantPubkey })) wrong.push(`d ${tagOf(ev, 'd')}`);
     if (!/^[0-9a-f]{64}$/.test(tagOf(ev, 'e') || '')) wrong.push('e is not the definition id');
     const zs = tagsOf(ev, 'z');
@@ -253,31 +262,31 @@ test('E4: the happy path — both taggings signed with the Assistant\'s key in t
 });
 
 test('E5: whose Assistant — the Owner\'s is whatever the key mapping answers for the Owner; the target is always the viewer; duplicate keys are published once (AC-1, AC-2)', async () => {
-  const { results, calls } = await answer({}, signedInReq(['my-human', 'my-human'], OWNER));
+  const { results, calls } = await answer({}, signedInReq([OWNER_ROW.key, OWNER_ROW.key], OWNER));
   assert(show(calls.getAssistantKeys) === show([OWNER]), `keys resolved for the session's viewer: ${show(calls.getAssistantKeys)}`);
-  assert(results.length === 1 && results[0].key === 'my-human', `duplicates collapse: ${show(results.map((r) => r.key))}`);
+  assert(results.length === 1 && results[0].key === OWNER_ROW.key, `duplicates collapse: ${show(results.map((r) => r.key))}`);
+  assert(calls.importEvent[0], `the tagging was signed and written locally; got ${show(results)}`);
   assert(tagOf(calls.importEvent[0], 'p') === OWNER, 'the target is the viewer');
 });
 
-test('E6: a canonical definition not found, or not checkable, refuses that tagging only — tag-not-found with story 2\'s sentence — and the other still publishes (AC-6)', async () => {
-  const one = await answer({ definitions: X.REQUIRED.filter((e) => e.key !== 'my-human').map((e) => definition(e.slug)), tagRelays: ['wss://dcosl.example'], relays: { 'wss://dcosl.example': [] } });
-  const human = one.row('my-human'); const owner = one.row('my-tapestry-owner');
-  assert(human && human.ok === false && human.code === 'tag-not-found' && human.message === X.PAGE_COPY.tagNotFound('My Human'), `not found: ${show(human)}`);
-  assert(owner && owner.ok === true && owner.outcome === 'published', `the other still publishes: ${show(owner)}`);
-  assert(one.calls.importEvent.length === 1, 'nothing signed for the refused one');
+test('E6: the definition not found (a same-named tag by another author is not it), or not checkable, refuses the tagging — tag-not-found with story 2\'s sentence — and nothing is signed (AC-6)', async () => {
+  const one = await answer({ definitions: [definition(OWNER_ROW.slug, { author: OTHER_TAG_AUTHOR })], tagRelays: ['wss://dcosl.example'], relays: { 'wss://dcosl.example': [] } });
+  const owner = one.row(OWNER_ROW.key);
+  assert(owner && owner.ok === false && owner.code === 'tag-not-found' && owner.message === X.PAGE_COPY.tagNotFound(OWNER_ROW.name), `not found: ${show(owner)}`);
+  assert(one.calls.importEvent.length === 0, 'nothing signed for the refused one');
   const two = await answer({ definitions: [], tagRelays: [] });
-  assert(two.results.every((r) => r.ok === false && r.code === 'tag-not-found'), `unfinished definitions (no outside relay): every row tag-not-found; got ${show(two.results)}`);
+  assert(two.results.length === 1 && two.results.every((r) => r.ok === false && r.code === 'tag-not-found'), `unfinished definition (no outside relay): tag-not-found; got ${show(two.results)}`);
   assert(two.calls.importEvent.length === 0, 'nothing signed');
   const three = await answer({ definitions: 'reject' });
-  assert(three.res.statusCode === 200 && three.results.every((r) => r.code === 'tag-not-found'), `a failed local scan: tag-not-found rows, not a 500; got ${three.res.statusCode} ${show(three.results)}`);
+  assert(three.res.statusCode === 200 && three.results.every((r) => r.code === 'tag-not-found'), `a failed local scan: a tag-not-found row, not a 500; got ${three.res.statusCode} ${show(three.results)}`);
 });
 
-test('E7: a failed local write sends that tagging to no relay and says so; the next tagging is still tried (AC-4)', async () => {
-  const { results, calls } = await answer({ localFails: ['my-tapestry-owner'] });
-  const owner = results[0]; const human = results[1];
-  assert(owner && owner.ok === false && owner.stage === 'local' && owner.outcome === 'not-delivered' && owner.message === X.serverLocalFailedRow(ASSISTANT_ROWS[0], 'strfry import failed (fixture)').message && sameJson(owner.relays, { total: 0, success: 0, results: [] }), `failed local write: ${show(owner)}`);
-  assert(calls.publishToRelays.length === 1 && tagOf(calls.publishToRelays[0].event, 'd') === tagOf(calls.importEvent[1], 'd'), 'only the second tagging reached the relays');
-  assert(human && human.ok === true && human.outcome === 'published', `the second still published: ${show(human)}`);
+test('E7: a failed local write sends the tagging to no relay and says so (AC-4)', async () => {
+  const { results, calls } = await answer({ localFails: [OWNER_ROW.key] });
+  const owner = results[0];
+  assert(owner && owner.ok === false && owner.stage === 'local' && owner.outcome === 'not-delivered' && owner.message === X.serverLocalFailedRow(OWNER_ROW, 'strfry import failed (fixture)').message, `the failed local write: ${show(owner)}`);
+  assert(calls.publishToRelays.length === 0, 'nothing reached the relays');
+  assert(results.length === 1, `one row; got ${show(results.map((r) => r.key))}`);
 });
 
 test('E8: in local-only publish mode every configured relay reads skipped, the outcome is kept-local in the approved words, and no socket opens (AC-4)', async () => {
@@ -289,7 +298,7 @@ test('E8: in local-only publish mode every configured relay reads skipped, the o
     const shaped = row && { key: row.key, name: row.name, ok: row.ok, outcome: row.outcome, message: row.message, localOnly: row.localOnly, relays: row.relays };
     assert(sameJson(shaped, want), `${entry.key}: want ${show(want)}, got ${show(shaped)}`);
   }
-  assert(calls.importEvent.length === 2, 'both still written locally');
+  assert(calls.importEvent.length === 1, 'still written locally');
 });
 
 test('E9: a partial fan-out counts only the relays that accepted, in the profile publish\'s words; the local z is omitted with no runtime TA (AC-4)', async () => {
@@ -306,14 +315,26 @@ test('E10: an unexpected throw outside the per-tagging loop answers 500 with the
   assert(res.statusCode === 500 && sameJson(body, { success: false, error: "Could not publish your Assistant's taggings" }), `got ${res.statusCode} ${show(body)}`);
 });
 
-test('E11: the definitions are looked up by address under the canonical author, through the tag relays only on a miss (ADR 0003 sub-decision 4)', async () => {
+test('E11: the definition is looked up by address under its own author — Nous\' Tapestry Assistant for My Tapestry Owner — through the tag relays only on a miss; the retired single author is never asked (identification-tags-authorship ADR 0001 sub-decision 4)', async () => {
   const { calls } = await answer({});
-  const scan = calls.scanLocal.find((f) => Array.isArray(f.authors) && f.authors[0] === CANON);
-  assert(scan && sameJson(scan.kinds, [39999]) && sameJson([...scan['#d']].sort(), ASSISTANT_ROWS.map((e) => e.slug).sort()), `one local scan for the Assistant-signed slugs under the canonical author; got ${show(calls.scanLocal)}`);
+  const scan = calls.scanLocal.find((f) => Array.isArray(f.authors) && f.authors[0] === OWNER_ROW.author);
+  assert(scan && sameJson(scan.kinds, [39999]) && sameJson(scan['#d'], [OWNER_ROW.slug]), `one local scan for the slug under the definition's author ${OWNER_ROW.author.slice(0, 8)}…; got ${show(calls.scanLocal)}`);
+  assert(!calls.scanLocal.some((f) => Array.isArray(f.authors) && f.authors[0] === 'e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f'), 'the retired single canonical author is never asked');
   assert(calls.readRelay.length === 0, 'found locally: no outside read');
-  const miss = await answer({ definitions: [], tagRelays: ['wss://dcosl.example'], relays: { 'wss://dcosl.example': X.REQUIRED.map((e) => definition(e.slug)) } });
-  assert(miss.calls.readRelay.length === 1 && miss.calls.readRelay[0].url === 'wss://dcosl.example', `a local miss reads the tag relays: ${show(miss.calls.readRelay.map((c) => c.url))}`);
-  assert(miss.results.every((r) => r.ok === true), `definitions from the relay publish: ${show(miss.results.map((r) => [r.key, r.ok, r.code]))}`);
+  const miss = await answer({ definitions: [], tagRelays: ['wss://dcosl.example'], relays: { 'wss://dcosl.example': [definition(OWNER_ROW.slug)] } });
+  assert(miss.calls.readRelay.length === 1 && miss.calls.readRelay[0].url === 'wss://dcosl.example' && sameJson(miss.calls.readRelay[0].filter.authors, [OWNER_ROW.author]), `a local miss reads the tag relays under the author: ${show(miss.calls.readRelay)}`);
+  assert(miss.results.every((r) => r.ok === true), `the definition from the relay publishes: ${show(miss.results.map((r) => [r.key, r.ok, r.code]))}`);
+});
+
+test('E12: a parked key is refused 400 before any key is read — alone, beside the offered one, or the other parked one — even when a same-named definition exists, and nothing is published for either (identification-tags-authorship #1 AC-5)', async () => {
+  const defs = [...X.OFFERED.map((e) => definition(e.slug)), definition(PARKED_KEY, { author: OTHER_TAG_AUTHOR })];
+  const wrong = [];
+  for (const [label, keys] of [['alone', [PARKED_KEY]], ['beside the offered one', [OWNER_ROW.key, PARKED_KEY]], ['the other parked one', ['my-agent']]]) {
+    const { res, body, calls } = await answer({ definitions: defs }, signedInReq(keys));
+    if (res.statusCode !== 400 || !body || body.code !== 'not-an-assistant-tagging' || body.error !== X.REFUSALS['not-an-assistant-tagging']) wrong.push(`${label}: ${res.statusCode} ${show(body)}`);
+    if (calls.getAssistantKeys.length || calls.importEvent.length || calls.publishToRelays.length) wrong.push(`${label}: read a key, signed or published`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 /* ───────────────────────── B — the builder against the browser's layout ───────────────────────── */
@@ -321,7 +342,7 @@ test('E11: the definitions are looked up by address under the canonical author, 
 test('B1: buildAssistantTagging composes the browser builder\'s tag layout — the same tag names in the same order, the same content keys (AC-1; ADR 0003 sub-decision 5)', () => {
   const mod = taggingsModule();
   const build = need(mod, 'buildAssistantTagging');
-  const ev = build({ signerPubkey: 'a2'.repeat(32), targetPubkey: VIEWER, tag: { eventId: 'ab'.repeat(32), slug: 'my-human', authorPubkey: CANON }, localTaPubkey: TA_FIXTURE, canonicalZ: LEGACY_Z, createdAt: 1_700_000_000 });
+  const ev = build({ signerPubkey: 'a2'.repeat(32), targetPubkey: VIEWER, tag: { eventId: 'ab'.repeat(32), slug: OWNER_ROW.slug, authorPubkey: OWNER_ROW.author }, localTaPubkey: TA_FIXTURE, canonicalZ: LEGACY_Z, createdAt: 1_700_000_000 });
   const got = ev.tags.map((t) => t[0]);
   // The browser's layout, read from its source: the names in its `tags: [ … ]` literal, in order.
   const src = codeOnly(safeRead(PUBLISHER));
@@ -334,7 +355,7 @@ test('B1: buildAssistantTagging composes the browser builder\'s tag layout — t
   const content = JSON.parse(ev.content);
   assert(sameJson(Object.keys(content.nostrUserTag).sort(), ['tagAddress', 'tagEventId', 'taggedPubkey']), `content keys ${show(content)}`);
   assert(ev.kind === 39999 && ev.pubkey === 'a2'.repeat(32) && ev.created_at === 1_700_000_000 && !ev.sig, 'an unsigned template: kind, pubkey, created_at, no sig');
-  const noLocal = build({ signerPubkey: 'a2'.repeat(32), targetPubkey: VIEWER, tag: { eventId: 'ab'.repeat(32), slug: 'my-human', authorPubkey: CANON }, localTaPubkey: null, canonicalZ: LEGACY_Z, createdAt: 1 });
+  const noLocal = build({ signerPubkey: 'a2'.repeat(32), targetPubkey: VIEWER, tag: { eventId: 'ab'.repeat(32), slug: OWNER_ROW.slug, authorPubkey: OWNER_ROW.author }, localTaPubkey: null, canonicalZ: LEGACY_Z, createdAt: 1 });
   assert(sameJson(tagsOf(noLocal, 'z'), [LEGACY_Z]), 'without a runtime TA the local z is omitted, the canonical stays');
 });
 
@@ -344,7 +365,7 @@ test('C1: describeServerPublish turns the route\'s rows into the report the card
   const mod = await esm(REPORT_MOD, 'story 2 created it; ADR 0003 sub-decision 8 adds describeServerPublish.');
   const f = mod.describeServerPublish;
   assert(typeof f === 'function', 'taggingPublishReport.js must export describeServerPublish({ name, row })');
-  const e = ASSISTANT_ROWS[1];
+  const e = ASSISTANT_ROWS[0];
   const pub = f({ name: e.name, row: X.serverPublishedRow(e) });
   assert(pub.ok === true && pub.outcome === 'published' && pub.message === X.serverPublishedRow(e).message && pub.rows.length === 2 && pub.rows[0].status === 'accepted', `published: ${show(pub)}`);
   const kept = f({ name: e.name, row: X.serverPublishedRow(e, { localOnly: true }) });
@@ -444,7 +465,7 @@ async function stackAvailable() {
 test('H1: live — an anonymous POST is refused with 401 (the middleware\'s default deny), never 404 and never 200', async () => {
   if (!(await stackAvailable())) { hSkipped++; return 'SKIP'; }
   hExecuted++;
-  const got = await postJson(`${HOST_BASE}${X.PUBLISH_ROUTE}`, { keys: ['my-human'] });
+  const got = await postJson(`${HOST_BASE}${X.PUBLISH_ROUTE}`, { keys: ['my-tapestry-owner'] });
   assert(got.status === 401, `expected 401; got ${got.status} ${show(got.body)} — a 404 means the route is missing on ${HOST_BASE}, or the server there predates it (restart the backend after implementing).`);
   // The middleware answers 401 for any /api/ POST, registered or not, so the status alone cannot tell the route from a
   // missing one; the documented route (S1) is the second half of this check.

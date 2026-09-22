@@ -8,6 +8,10 @@
  * Browser half: tests/brainstorm/assistant-identification-tags-page.spec.js (B-class — what a viewer SEES and what a press
  * does). Expected words and shapes: test/helpers/identificationTagsFixtures.js.
  *
+ * Re-aimed 2026-09-22 by identification-tags-authorship #1 (story engineering-team/stories/identification-tags-authorship/
+ * 1-two-authored-tags-and-two-parked-taggings.md, its ADR 0001 and plan): the sample entry is an offered one, C4 and C8
+ * pin the parked state, S1/S2 pin entry.author in place of the retired single canonical author, S5 the greyed row.
+ *
  * Classes:
  *   C — the pure ESM modules, loaded in Node: ui/src/pages/assistant/identificationTagsCopy.js (the words, rowState,
  *       cardState) and ui/src/utils/taggingPublishReport.js (describeTaggingPublish, publishTone, relayLine).  [AC-2, AC-3, AC-4]
@@ -66,7 +70,8 @@ async function esm(absPath, what) {
 const copyModule = () => esm(COPY_MOD, 'ADR 0002 sub-decision 2 (Amendment 1: named apart from the page) creates it: IDENTIFICATION_TAGS_COPY, rowState, cardState — pure, no imports.');
 const reportModule = () => esm(REPORT_MOD, 'ADR 0002 sub-decision 4 creates it: describeTaggingPublish, publishTone, relayLine — pure, no imports.');
 
-const ENTRY = X.REQUIRED[1]; // My Agent
+const ENTRY = X.REQUIRED[0]; // My Tapestry Assistant (offered)
+const PARKED = X.REQUIRED[1]; // My Agent (parked; identification-tags-authorship #1)
 const rowOf = (answer, key) => answer.actions[X.CHECKED_ACTION].taggings.find((r) => r.key === key);
 
 /* ───────────────────────── C — the words and the rules ───────────────────────── */
@@ -110,28 +115,45 @@ test('C3: rowState — with an answer: present, missing, tag-not-found (whatever
   const { rowState } = await copyModule();
   const wrong = [];
   const check = (label, row, want) => { const got = rowState(ENTRY, row, 'answered'); if (!sameJson(got, want)) wrong.push(`${label}: want ${show(want)}, got ${show(got)}`); };
-  check('present', rowOf(X.DONE, 'my-agent'), { state: 'present', reason: null, definitionKnown: true });
-  check('missing', rowOf(X.MISSING_ALL, 'my-agent'), { state: 'missing', reason: null, definitionKnown: true });
-  check('tag not found', rowOf(X.TAG_NOT_FOUND, 'my-agent'), { state: 'tag-not-found', reason: null, definitionKnown: false });
-  check('tag not found even when the tagging is present', { ...rowOf(X.TAG_NOT_FOUND, 'my-agent'), present: true }, { state: 'tag-not-found', reason: null, definitionKnown: false });
-  check('unfinished', rowOf(X.UNFINISHED, 'my-agent'), { state: 'could-not-check', reason: 'no-outside-relays', definitionKnown: false });
-  check('unfinished, local unreadable', { ...rowOf(X.UNFINISHED, 'my-agent'), reason: 'local-unreadable' }, { state: 'could-not-check', reason: 'local-unreadable', definitionKnown: false });
-  check('missing with an unfinished definition', { ...rowOf(X.MISSING_ALL, 'my-agent'), definition: { finished: false, found: null, source: null, reason: 'outside-unreachable', eventId: null, address: 'x' } }, { state: 'missing', reason: null, definitionKnown: false });
+  check('present', rowOf(X.DONE, 'my-tapestry-assistant'), { state: 'present', reason: null, definitionKnown: true });
+  check('missing', rowOf(X.MISSING_ALL, 'my-tapestry-assistant'), { state: 'missing', reason: null, definitionKnown: true });
+  check('tag not found', rowOf(X.TAG_NOT_FOUND, 'my-tapestry-assistant'), { state: 'tag-not-found', reason: null, definitionKnown: false });
+  check('tag not found even when the tagging is present', { ...rowOf(X.TAG_NOT_FOUND, 'my-tapestry-assistant'), present: true }, { state: 'tag-not-found', reason: null, definitionKnown: false });
+  check('unfinished', rowOf(X.UNFINISHED, 'my-tapestry-assistant'), { state: 'could-not-check', reason: 'no-outside-relays', definitionKnown: false });
+  check('unfinished, local unreadable', { ...rowOf(X.UNFINISHED, 'my-tapestry-assistant'), reason: 'local-unreadable' }, { state: 'could-not-check', reason: 'local-unreadable', definitionKnown: false });
+  check('missing with an unfinished definition', { ...rowOf(X.MISSING_ALL, 'my-tapestry-assistant'), definition: { finished: false, found: null, source: null, reason: 'outside-unreachable', eventId: null, address: 'x' } }, { state: 'missing', reason: null, definitionKnown: false });
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C4: cardState — done when every row is present; unknown when every row is unknown; marked otherwise, checking and could-not-check included (AC-2)', async () => {
+test('C4: cardState — done when every non-parked row is present; unknown when every non-parked row is unknown (or there is none); marked otherwise, checking and could-not-check included; a parked row is out of the count (AC-2; identification-tags-authorship #1 AC-3)', async () => {
   const { cardState } = await copyModule();
   const cases = [
     [['present', 'present'], 'done'], [['unknown', 'unknown'], 'unknown'], [['present', 'missing'], 'marked'],
     [['missing', 'missing'], 'marked'], [['present', 'tag-not-found'], 'marked'], [['checking', 'checking'], 'marked'],
     [['present', 'could-not-check'], 'marked'], [['could-not-check', 'could-not-check'], 'marked'],
+    // identification-tags-authorship #1 AC-3: a parked row never marks, never counts against done, and alone is unknown.
+    [['present', 'parked'], 'done'], [['missing', 'parked'], 'marked'], [['unknown', 'parked'], 'unknown'], [['checking', 'parked'], 'marked'],
+    [['tag-not-found', 'parked'], 'marked'], [['parked', 'parked'], 'unknown'],
   ];
   const wrong = [];
   for (const [states, want] of cases) {
     const got = cardState(states.map((state) => ({ state })));
     if (got !== want) wrong.push(`${show(states)}: want ${want}, got ${show(got)}`);
   }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('C8: rowState — a parked entry is parked in every phase and whatever the answer says: no reason, no definition, never publishable; an offered entry never is (identification-tags-authorship #1 AC-3)', async () => {
+  const { rowState } = await copyModule();
+  const want = { state: 'parked', reason: null, definitionKnown: false };
+  const wrong = [];
+  for (const phase of ['idle', 'checking', 'answered', 'failed']) {
+    for (const [label, row] of [['no row', null], ['a present row', X.taggingRow(PARKED)], ['a missing row', X.taggingRow(PARKED, { present: false, source: null })]]) {
+      const got = rowState(PARKED, row, phase);
+      if (!sameJson(got, want)) wrong.push(`${phase}, ${label}: want ${show(want)}, got ${show(got)}`);
+    }
+  }
+  for (const e of X.OFFERED) { const got = rowState(e, null, 'idle'); if (!got || got.state === 'parked') wrong.push(`${e.key} is offered, never parked; got ${show(got)}`); }
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -198,7 +220,7 @@ test('C7: publishTone never shows a partial or empty result as a clean success, 
 
 /* ───────────────────────── S — the page, the route, the publisher, by source ───────────────────────── */
 
-test('S1: the page exists and reads only the shared answers — useAuth, useConfig, useAssistantAttention — never fetches, and takes the list and the canonical author from the library (AC-1, AC-7; ADR 0002 sub-decision 1)', () => {
+test('S1: the page exists and reads only the shared answers — useAuth, useConfig, useAssistantAttention — never fetches, and takes the list from the library (AC-1, AC-7; ADR 0002 sub-decision 1)', () => {
   const src = codeOnly(safeRead(PAGE));
   assert(src, `${rel(PAGE)} does not exist — ADR 0002 § Implementation notes 4 creates it`);
   const wrong = [];
@@ -206,24 +228,24 @@ test('S1: the page exists and reads only the shared answers — useAuth, useConf
     [/export\s+default\s+function\s+IdentificationTagsPage\s*\(/, 'export default function IdentificationTagsPage()'],
     [/\buseAuth\s*\(/, 'useAuth()'], [/\buseConfig\s*\(/, 'useConfig() (the runtime TA for the local z)'], [/\buseAssistantAttention\s*\(/, 'useAssistantAttention() — the one answer'],
     [/from\s*['"]@tapestry\/identification-tags['"]/, "the library through the '@tapestry/identification-tags' alias"],
-    [/\bREQUIRED_TAGGINGS\b/, 'REQUIRED_TAGGINGS'], [/\bCANONICAL_TAG_AUTHOR\b/, 'CANONICAL_TAG_AUTHOR'],
+    [/\bREQUIRED_TAGGINGS\b/, 'REQUIRED_TAGGINGS'],
     [/\browState\s*\(/, 'rowState(…)'], [/\bcardState\s*\(/, 'cardState(…)'], [/\bIDENTIFICATION_TAGS_COPY\b/, 'IDENTIFICATION_TAGS_COPY'],
     [/\bASSISTANT_ACTIONS\b/, "the action's own entry (heading and description come from actions.js, not a second copy)"],
     [/aria-live=["']polite["']/, 'an aria-live="polite" results region'], [/type=["']checkbox["']/, 'a checkbox per row'],
   ]) if (!re.test(src)) wrong.push(`no ${what}`);
-  for (const [re, what] of [[/\bfetch\s*\(/, 'fetch('], [/['"`]\/api\//, 'an /api/ path'], [/localStorage|sessionStorage/, 'browser storage']]) {
+  for (const [re, what] of [[/\bfetch\s*\(/, 'fetch('], [/['"`]\/api\//, 'an /api/ path'], [/localStorage|sessionStorage/, 'browser storage'], [/\bCANONICAL_TAG_AUTHOR\b|canonicalTagAddress/, 'the retired single canonical author (each entry carries its own: entry.author — identification-tags-authorship #1)']]) {
     if (re.test(src)) wrong.push(`uses ${what} — the page reads the shared answer and stores nothing`);
   }
   assert(wrong.length === 0, `ADR 0002: ${wrong.join('; ')}`);
 });
 
-test('S2: the first card publishes through the publisher\'s report-returning variant — the canonical tag, the viewer\'s own Assistant as the target, an apply — describes each result with the report util, and refreshes the answer (AC-4; ADR 0002 sub-decision 6)', () => {
+test('S2: the first card publishes through the publisher\'s report-returning variant — the entry\'s own definition, the viewer\'s own Assistant as the target, an apply — describes each result with the report util, and refreshes the answer (AC-4; ADR 0002 sub-decision 6)', () => {
   const src = codeOnly(safeRead(PAGE));
   assert(src, `${rel(PAGE)} does not exist`);
   const wrong = [];
   for (const [re, what] of [
     [/\bpublishProfileTagAssertionWithReport\s*\(/, 'publishProfileTagAssertionWithReport(…)'],
-    [/authorPubkey:\s*CANONICAL_TAG_AUTHOR/, 'authorPubkey: CANONICAL_TAG_AUTHOR (the canonical tag)'],
+    [/authorPubkey:\s*entry\.author/, "authorPubkey: entry.author (the definition's own author — identification-tags-authorship #1 AC-4)"],
     [/targetPubkey:\s*user\.assistantPubkey/, "targetPubkey: user.assistantPubkey (the viewer's own Assistant)"],
     [/polarity:\s*1\b/, 'polarity: 1 (an apply)'], [/localTaPubkey:\s*taPubkey/, 'localTaPubkey: taPubkey (the runtime local z)'],
     [/\bdescribeTaggingPublish\s*\(/, 'describeTaggingPublish(…)'], [/\bPUBLISH_RELAYS\b/, 'PUBLISH_RELAYS handed to the report (the relays every tagging goes to)'],
@@ -269,10 +291,10 @@ test('S4: the publisher gains publishProfileTagAssertionWithReport and assertPub
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('S5: the styles block exists with the card, its marked and done looks, the rows, and a phone-width rule (AC-6; ADR 0002 sub-decision 7)', () => {
+test('S5: the styles block exists with the card, its marked and done looks, the rows, the greyed parked row, and a phone-width rule (AC-6; ADR 0002 sub-decision 7; identification-tags-authorship #1 AC-3)', () => {
   const css = safeRead(STYLES);
   const wrong = [];
-  for (const cls of ['.bs-idtags-card', '.bs-idtags-card.is-marked', '.bs-idtags-card.is-done', '.bs-idtags-rows', '.bs-idtags-results']) {
+  for (const cls of ['.bs-idtags-card', '.bs-idtags-card.is-marked', '.bs-idtags-card.is-done', '.bs-idtags-rows', '.bs-idtags-results', '.bs-idtags-row.is-parked']) {
     if (!css.includes(cls)) wrong.push(`no ${cls}`);
   }
   const phone = [...css.matchAll(/@media \(max-width: 480px\) \{([\s\S]*?)\n\}/g)].some((m) => m[1].includes('bs-idtags'));

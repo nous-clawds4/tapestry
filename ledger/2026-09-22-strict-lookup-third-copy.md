@@ -28,3 +28,7 @@ books (setup-status-and-alert, assistant-identification-tags), with the six suit
 **Pointer:** review `engineering-team/reviews/done/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
 § Non-blocking 1–2; ADR `engineering-team/decisions/done/assistant-identification-tags/0001-one-assistant-attention-answer.md`
 § Consequences.
+
+**2026-09-22, identification-tags-authorship #1.** The definitions are now looked up per author (two authors, one slug
+each), so on a local miss the attention module reads each tag-federation relay up to four times per signed-in page
+load, not three; the batching fix above covers it.

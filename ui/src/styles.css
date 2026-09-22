@@ -8991,6 +8991,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-idtags-row-name { font-weight: 600; }
 .bs-idtags-row-state { font-size: 0.85rem; line-height: 1.5; opacity: 0.7; }
 .bs-idtags-row.is-present .bs-idtags-row-state { color: var(--green, #3fb950); opacity: 0.9; }
+/* A parked row (identification-tags-authorship #1): listed, greyed out, its box disabled and unchecked. */
+.bs-idtags-row.is-parked { opacity: 0.55; }
+.bs-idtags-row.is-parked .bs-idtags-row-label { cursor: not-allowed; }
 .bs-idtags-actions { margin-top: 0.9rem; }
 .bs-idtags-publish {
   padding: 0.45rem 0.9rem;
@@ -9058,4 +9061,31 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   /* Below 360 px, the next step of the shedding order: TopBar's nav (its About link). Without it the pill
      pushes the avatar menu off the right edge below 352 px (ADR 0002 Amendment 1). */
   .bsp-top-bar:has(.bs-topbar-pill) .bsp-top-nav { display: none; }
+}
+
+/* Either pill sits centered in its bar, as Brainstorm centers its own (Brainstorm-UI
+   client/src/components/AppHeader.tsx), wherever the bar has room for it (hotfix 2026-09-22, amending
+   ADR setup-status-and-alert/0002 and ADR assistant-management/0002): from 640 px in the Brainstorm
+   bars — TopBar, the pages' own bars, Settings and the developer pages — whose sides hold only the logo,
+   the About link and the avatar; from 1200 px in the Tapestry header, whose user button can carry a
+   150 px name and a role badge beside the 540 px Assistant pill. Narrower, the pill stays beside the
+   avatar menu, where the rules above fit it. The results header keeps it there at every width: its
+   search box fills the middle. */
+@media (min-width: 640px) {
+  .bss-top-bar { position: relative; }
+  .bsp-top-bar :is(.bs-setup-alert, .bs-topbar-pill),
+  .bss-top-bar :is(.bs-setup-alert, .bs-topbar-pill) {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+@media (min-width: 1200px) {
+  .app-header :is(.bs-setup-alert, .bs-topbar-pill) {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
 }
