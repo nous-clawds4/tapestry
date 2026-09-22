@@ -63,6 +63,6 @@ None outstanding. Resolved with the operator at Planning on 2026-09-22:
 - **Content-type** → `text/plain; charset=utf-8`, matching `security.txt` and `robots.txt` precedent in this repo.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/llms-txt/0001-serve-llms-txt-on-the-fleet.md`
-- Test plan: `engineering-team/stories/llms-txt/1-serve-llms-txt-on-the-fleet.test-plan.md`
-- Review: `engineering-team/reviews/llms-txt/1-serve-llms-txt-on-the-fleet.md`
+- ADR: `engineering-team/decisions/done/llms-txt/0001-serve-llms-txt-on-the-fleet.md`
+- Test plan: `engineering-team/stories/done/llms-txt/1-serve-llms-txt-on-the-fleet.test-plan.md`
+- Review: `engineering-team/reviews/done/llms-txt/1-serve-llms-txt-on-the-fleet.md`
