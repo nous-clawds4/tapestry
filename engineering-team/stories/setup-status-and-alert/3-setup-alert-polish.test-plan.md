@@ -15,9 +15,9 @@ replaced.
   | **U** ×10 | the publish signal in `ui/src/utils/nostrPublish.js` (ADR 0003 § 1, Amendment 1): each call announces at most once, and `publishEverywhere` announces once, after the local write | the real module in Node, a fresh instance per test. `fetch` is stubbed, and the external route publishes to stub relays served by the `ws` package on 127.0.0.1: one that accepts, one that refuses, and a port with no relay |
   | **C** ×1 | the alert's copy (§ 5) | `steps.js` loaded as ESM |
   | **D** ×3 | the pill (§ 4), the provider's listener (§ 3), and the three import sites (§ 2) | source sentinels |
-  | **S** ×3 | the chip's contrast (§ 6, AC-1); the pages that POST to `/api/strfry/publish` by hand (§ 7); and that only `nostrPublish.js` passes `announce: false` (Amendment 1) | computed from `styles.css`; walks of `ui/src` |
+  | **S** ×3 | the chip's contrast (§ 6, AC-1); the pages that POST to `/api/strfry/publish` by hand (§ 7); and that only `nostrPublish.js` sets the `announce` option, in any spelling (Amendment 1; widened in round 4) | computed from `styles.css`; walks of `ui/src` |
 
-- **`tests/brainstorm/setup-alert-polish.spec.js`** is the Playwright B class, 21 tests (P0–P4; 18 at Test Design, and round 2 and round 3 added three P3 cases),
+- **`tests/brainstorm/setup-alert-polish.spec.js`** is the Playwright B class, 23 tests (P0–P4; 18 at Test Design; rounds 2 and 3 added three P3 cases, and round 4 added P3 Unfollow and a fresh-load P4),
   run hermetically against the built UI like stories 1 and 2:
   - every `/api` route is mocked, with the catch-all first;
   - every WebSocket is answered in the page (`page.routeWebSocket`), so no publish reaches a real
@@ -40,8 +40,8 @@ replaced.
 |---|---|---|---|
 | **AC-1** the button reads clearly | **P1** ×3 (1280, 800, 375 px): the chip's text is `rgb(15, 15, 26)` and contrasts ≥ 4.5:1 with its chip. The sentence (1280, 800) and the count (1280) keep ≥ 4.5:1, measured against the pill's translucent amber composited over what is behind it, with the count's own opacity applied. **S1**: the same ratio computed from `styles.css`, and the chip is still amber. | both | browser; unit |
 | **AC-2** announced as it reads | **P2** ×3: at each width, `toHaveAccessibleName` gives the story's exact string, the pill has no `aria-label`, the ⚠ and the arrow are inside `aria-hidden` elements, and the button still reads "Finish setup →". **P2** singular: "· 1 step left". **P2** Chrome: Chrome's own accessibility tree (CDP `Accessibility.getFullAXTree`) gives the same names at all three widths. **P2** keyboard: Tab reaches the link by its new name, and Enter opens `/setup`. **C1**, **D1**. | both | browser; unit |
-| **AC-3** catches up after an in-app save | **P3** Follow (kind 3, a profile page): the pill goes from "· 2 steps left" to "· 1 step left" in the same document, after exactly two status reads. The second read is delayed 1.5 s, and a MutationObserver log shows no committed state carrying the old count from 300 ms after the publish until the new answer. `/setup`, reached through the pill, shows "2 of 3 complete" with no third read. **P3** both routes: a Follow reaching the local relay *and* outside relays is announced once, so it re-checks once. **P3** race (round 2): with the local write held behind relays that accept at once, and the status read answering from the local relay, the pill still ends on the new answer. **P3** import (round 2): the Map page's "Import to local strfry" re-checks and the pill goes. **P3** second way in (round 3): a Map edit whose local write fails while the relays accept, then an import of that same event, re-checks each time (three reads) and the pill goes. **P3** Mute (kind 10000): no re-check (the negative control). **P3** Treasure Map editor (kind 10040, as the Owner): one re-check, and the pill goes once nothing is left. **U1–U10**: the signal itself. **D2**: the provider's filter (the viewer's pubkey, kinds 3 and 10040) and no record of ids heard. **D3**: the import sites. **S2**, **S3**: no new hand-written publisher, and no other caller silencing the announcement, goes unnoticed. | both | browser; unit |
-| **AC-4** hidden in any letter case | **P4** ×4: `/SETUP`, `/Setup/Follow`, `/SETUP/ACTIVATE`, `/Setup/create-account` each render a setup page (`main.bs-setup-main`) with no pill, and a control on `/tags` shows the pill for the same viewer first. **D1** (the lower-cased comparison). | both | browser; unit |
+| **AC-3** catches up after an in-app save | **P3** Follow (kind 3, a profile page): the mock holds the re-check's answer back until the test releases it. While it is held, the pill (sampled every 100 ms) shows nothing, never the old "2 steps left". Its log, from the entry in force when the re-check reached the server until the release, never carries it either. `/setup`, reached in-app, shows "0 of 3 complete" with no step marked done, never the old "1 of 3". Once released, `/setup` shows "2 of 3 complete" and the pill "· 1 step left", in the same document, after exactly two reads (round 4; the first version logged only changes, so a provider that kept the old answer passed it). **P3** Unfollow (round 4): the same the other way. The one follow is removed and the step is counted again ("· 1 step left" → "· 2 steps left", "2 of 3" → "1 of 3"). **P3** both routes: a Follow reaching the local relay *and* outside relays is announced once, so it re-checks once. **P3** race (round 2): with the local write held behind relays that accept at once, and the status read answering from the local relay, the pill still ends on the new answer. **P3** import (round 2): the Map page's "Import to local strfry" re-checks. `/setup`, reached in-app, shows "3 of 3 complete", and only then does the test check that no pill remains (round 4). **P3** second way in (round 3): a Map edit whose local write fails while the relays accept, then an import of that same event, re-checks each time (three reads), ending the same way. **P3** Mute (kind 10000): no re-check (the negative control). **P3** Treasure Map editor (kind 10040, as the Owner): one re-check, ending the same way. **U1–U10**: the signal itself. **D2**: the provider's filter (the viewer's pubkey, kinds 3 and 10040) and no record of ids heard. **D3**: the import sites. **S2**, **S3**: no new hand-written publisher, and no other caller silencing the announcement, goes unnoticed. | both | browser; unit |
+| **AC-4** hidden in any letter case | **P4** ×4: `/SETUP`, `/Setup/Follow`, `/SETUP/ACTIVATE`, `/Setup/create-account` are each reached in-app after `/tags` has drawn the pill for the same viewer. So the answer is in, and moving does not read again. Each renders a setup page (`main.bs-setup-main`) with no pill. **P4** fresh load: `/SETUP` loaded afresh shows no pill once its own answer shows ("1 of 3 complete"). Round 4: before, each variant was loaded afresh and checked after a fixed wait, which also passes while the check runs. **D1** (the lower-cased comparison). | both | browser; unit |
 | **AC-5** nothing else changes | Story 2's browser class (50) and Node suite (6), re-aimed as above, and story 1's browser class (15), all re-run. | both | browser; unit |
 | Build prerequisite | **P0**: the served bundle contains `bs-setup-alert-arrow`, so a stale build fails loudly. | spec | browser |
 
@@ -57,14 +57,22 @@ Beyond the criteria:
   Unsubscribing works (U7).
 - [x] **One publish reaching both routes** is announced once (U8), so it causes one re-check (P3, both routes). **A second publish of the same event** (the import after a failed local write) re-checks again (P3, second way in).
 - [x] **A setup-irrelevant publish by the viewer** (kind 10000) causes no re-check (P3 Mute).
-- [x] **The old count is never current during the re-check** (P3 Follow's MutationObserver log).
-  Before the publish the old count is simply the latest answer.
+- [x] **The old answer is never current during the re-check,** on the pill or on `/setup` (P3 Follow and P3
+  Unfollow). The re-check's answer is held back while both are sampled every 100 ms, and the pill's log is read
+  from the entry in force when the re-check reached the server. Before the publish the old count is simply the
+  latest answer.
+- [x] **A "no pill" check counts only once the answer is in,** because the pill also hides while a check runs
+  (round 4). The Map tests end on `/setup` showing 3 of 3. P4 moves in-app after the pill is drawn, and P4's
+  fresh load waits for "1 of 3 complete".
 - [x] **A case variant whose prefix is already lower case** (`/setup/CREATE-ACCOUNT`) was hidden
       even before this story, so P4 uses `/Setup/create-account` instead.
 - [ ] **Not covered, by scope:**
   - publishes from other apps or tabs (story § Out of scope);
-  - the three import flows' own pages in the browser. D3 and S2 pin their route through
+  - UserDetail's "Find" and Settings' import in the browser. Round 1 probed both by hand. The Map page's import
+    is driven by P3 import and P3 second way in. D3 and S2 pin all three pages' route through
     `publishToLocalStrfry`, and U2 pins what that helper then does;
+  - the three step pages loaded afresh. They show no answer to wait for, so P4 reaches them in-app, where the
+    answer is known to be in. The path check does not depend on how the page was reached;
   - another user's event reaching the provider. Only the signed-in viewer publishes from this
     browser, so D2's pubkey filter is pinned by source.
 
@@ -101,7 +109,9 @@ node -e "require('./test/setup-alert-polish.test.js').run().then((r) => process.
 BRAINSTORM_BASE_URL=http://localhost:4173 npx playwright test tests/brainstorm/setup-alert-polish.spec.js tests/brainstorm/setup-alert.spec.js tests/brainstorm/setup-status.spec.js --project=chromium
 ```
 
-**The story's gate.** One gate-engine run over the 100 suites below, from the repo root:
+**The story's gate.** One gate-engine run over the 103 suites below, from the repo root. There were 100 at Test Design. The
+branch has touched `ledger/` since round 1's implementation, so round 2 added `harness-lint` and `ledger-row-ids`, and
+round 3 added `rollup-scanners`:
 
 ```
 GATE_LABEL=setup-alert-3 node - <<'EOF'
@@ -115,7 +125,8 @@ const named = execSync("/usr/bin/grep -lE 'api/index\\.js|openapi\\.yaml|App\\.j
 const walkers = ['collapse-into-export-concept', 'publish-export-a-concept', 'users-page-neo4j-endpoint', 'in-app-badged-ta-avatar',
   'note-tagging-raw-events-inspector-ui', 'curated-dlist-update-publish', 'my-assistant-page', 'one-writer-assistant-profile',
   'stack-free-npm-test', 'gate-result-record', 'session-start'].map((n) => `${n}.test.js`);
-const want = new Set([...named, ...walkers, 'setup-status.test.js', 'setup-alert.test.js', 'setup-alert-polish.test.js']);
+const ledgerReaders = ['harness-lint', 'ledger-row-ids', 'rollup-scanners'].map((n) => `${n}.test.js`);
+const want = new Set([...named, ...walkers, ...ledgerReaders, 'setup-status.test.js', 'setup-alert.test.js', 'setup-alert-polish.test.js']);
 const missing = [...want].filter((f) => !suites.some((s) => s.file === f));
 if (missing.length) { console.error('not in test/registry.js:', missing.join(', ')); process.exit(2); }
 runGate({ suites: suites.filter((s) => s.file && want.has(s.file)), label: process.env.GATE_LABEL });
@@ -158,7 +169,7 @@ neither `src/` nor `ledger/`.
   grep already names one of them, it runs anyway.
 
 In all, 93 named suites plus 7 walkers the grep misses gives **100 suites**, none missing from the
-registry.
+registry. With the three suites that read `ledger/` (rounds 2 and 3), the gate is **103 suites**.
 
 If the Implementer touches a file outside ADR 0003's list, extend the grep and say so in the story's
 Deviations.
@@ -214,7 +225,11 @@ the classes they concern:
 |---|---|
 | no de-duplication, and any kind re-checks (round 1's design; now the de-duplication itself is gone, and only the kind filter still matters) | P3 both routes (3 reads, not 2); P3 Mute (2 reads, not 1) |
 | the old `aria-label` kept | all six P2 tests |
-| the case-sensitive `/setup` check kept | all four P4 tests |
+| the case-sensitive `/setup` check kept | all four P4 tests (round 4: all five, in-app and fresh, including with every answer 2 s late) |
+| the provider keeps the old answer while it re-checks the same viewer (review round 3's mutant; round 4) | P3 Follow and P3 Unfollow, at the pill's samples. With the samples removed, the log check alone fails too |
+| `/setup` alone keeps the old answer while the re-check runs (round 4) | P3 Follow and P3 Unfollow, at `/setup`'s samples; the pill's checks pass |
+| the old answer stays for the first 250 ms of a re-check (round 4) | P3 Follow and P3 Unfollow. With the samples removed, the log check alone fails too |
+| the pill is drawn with nothing counted (round 4) | P3 Follow and P3 Unfollow ("· 0 steps left" while the re-check runs); the three Map tests ("nothing is left, so no pill") |
 | the external route announces nothing | U5 ("heard []") |
 | a refused local publish is announced anyway | U3 ("heard 1") |
 
@@ -330,3 +345,67 @@ passed on a stale final answer (6 of 20). No code changed in this round. What ch
 This follows ledger row `2026-09-21-single-run-satisfiability`: repeat runs on the build, and a stale-answer
 mutation of the mock, before calling a browser test satisfiable.
 
+### Round 4 (after round 3's review asked for changes)
+
+Round 3's Blocking 1: P3 Follow's check that the pill "never shows the old count while the re-check runs" could not
+fail. Its recorder logged only changes, so a provider that kept showing the old answer added no entry. The reviewer's
+two-line mutant passed all 86 browser tests of stories 1–3. No code changed in this round. What changed:
+
+- **P3 Follow** holds the re-check's answer back and checks the state in force while it is held. The mock answers
+  `{ body, hold: true }` only when the test calls `state.release()`. A shared helper, `expectHeldRecheck`, checks:
+  - **the pill,** sampled every 100 ms for 1.2 s: nothing (story 2), never the old count;
+  - **the pill's log,** from the entry in force when the re-check reached the server until the release: no entry with
+    the old count, so a flash between two samples fails too;
+  - **`/setup`,** reached in-app while the read is still held and sampled the same way: "0 of 3 complete" with no step
+    marked done (story 1), never the old "1 of 3". The move is `history.pushState` plus a `popstate` event, as
+    `my-assistant-page.spec.js` does;
+  - **after the release:** `/setup` shows "2 of 3 complete". Back on the profile page, the pill shows "· 1 step left".
+    Two reads, one document.
+- **P3 Unfollow** (new; Non-blocking 4): the viewer unfollows the one account they follow, and the step is counted again
+  ("· 1 step left" → "· 2 steps left", "2 of 3" → "1 of 3"), through the same helper.
+- **The Map tests** (P3 import, P3 second way in, P3 Treasure Map editor; Non-blocking 1) end on a finished answer.
+  `/setup`, reached in-app, shows "3 of 3 complete" and "You're all set!". Only then, back on the Map page, do they
+  check that no pill remains.
+- **P4** (Non-blocking 1): each case variant is reached in-app after `/tags` has drawn the pill, so the answer is in, and
+  moving does not read again. A new test loads `/SETUP` afresh and checks the pill once "1 of 3 complete" shows. The
+  three step pages show no answer to wait for, so they are covered in-app only (see "Not covered").
+- **S3** (Non-blocking 3) finds the option in any spelling: a bare or quoted key, a shorthand property, or a member.
+  Comments are dropped first. A control requires it to find the option where it lives, in `nostrPublish.js`.
+- **This plan** (Non-blocking 2): the AC-3 and AC-4 rows, the edge cases and the not-covered list describe the tests as
+  they are, and the mutation table has round 4's mutants.
+- **The mock** records each published event's tags (for Unfollow). `state.publishedAt` is gone; nothing read it once
+  the old log check went.
+
+**The mutants,** each built from HEAD's source in a scratchpad mirror and served on its own port (not committed):
+- **M1** is the reviewer's, from the round-3 review: the provider keeps the held answer while it re-checks the same
+  viewer.
+- **M2:** the provider also exposes its held answer. `useSetupStatus({ keepOld: true })` summarizes that answer while
+  checking, and only `/setup` asks for it, so the pill still hides.
+- **M3:** a 250 ms grace. For the first 250 ms of a re-check of the same viewer the phase stays `answered` with the old
+  answer, and a timer re-renders once the grace is over.
+- **M4:** story 2's case-sensitive hide: `const path = pathname;` in `SetupAlert.jsx`.
+- **M5:** the pill is drawn with nothing counted: `pendingCount < 0` in place of `< 1`.
+
+**Evidence, all on 2026-09-21 (local time):**
+
+| Run | Result |
+|---|---|
+| Story 3's spec on HEAD's build (`index-DNK2T4Hx.js`), `--repeat-each 20` | 460 passed, 0 failed (23 tests) |
+| M1 | P3 Follow and P3 Unfollow fail 40 of 40, at the pill's samples. A copy of the spec with the samples removed fails 40 of 40 at the log check |
+| M2 | P3 Follow and P3 Unfollow fail 40 of 40, at `/setup`'s samples; the pill's checks pass |
+| M3 | 40 of 40 fail; the first samples catch it. With the samples removed, the log check alone fails 40 of 40 |
+| M4 | all five P4 tests fail, 100 of 100. With every answer 2 s late, 100 of 100 |
+| M5 | P3 Follow and P3 Unfollow fail 40 of 40 ("· 0 steps left" while the re-check runs); the three Map tests fail 60 of 60 ("nothing is left, so no pill") |
+| A copy of the spec whose re-check answers the viewer's state from before the save, at once | the seven P3 tests that end on a new answer fail 140 of 140. Mute, which never re-checks, passes 20 of 20 |
+| The same, served 300 ms late | 140 of 140 fail; Mute passes 20 of 20 |
+| P4 with every answer 2 s late, on HEAD | 100 of 100 pass |
+| S3 in a scratch mirror, with the option spelled `{ 'announce': false }`, `{ announce: quiet }`, `{ announce }` and `opts.announce = false` | S3 fails each time, and nothing else does. A comment naming the option does not trip it |
+| The Node suite | 17 passed |
+| Story 2's and story 1's browser classes, and the four `/assistant` specs, on HEAD | 50, 15 and 40 passed |
+| The scoped gate, 103 suites (`20260922T032453Z-4142-43cd [setup-alert-3-r4]`) | PASS: 2128 passed, 0 failed, the usual 4 skips |
+
+This follows ledger row `2026-09-21-single-run-satisfiability`, with round 3's two clauses: each "never shows X" check
+has a code mutant that keeps showing X, and the stale answer is served late as well as at once.
+
+**Left for later:** story 2's spec has the same "no pill" shape (B4, B5). It is out of this round's scope, and is ledger
+row `2026-09-22-setup-alert-no-pill-checks-early`.

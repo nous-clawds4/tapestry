@@ -12,12 +12,14 @@ const { test, expect } = require('@playwright/test');
  *   P2 — the pill's accessible name is what it shows at 1280 / 800 / 375, the ⚠ and the
  *        arrow are not announced, Chrome's own accessibility tree agrees, and it still
  *        opens /setup from the keyboard.                                                 [AC-2]
- *   P3 — after the app publishes the viewer's kind 3 (Follow) or kind 10040 (the Treasure
- *        Map editor, the Map page's import), the pill and /setup catch up without a reload,
- *        one re-check per publish, never showing the old count while it runs — even when
- *        the outside relays answer before the local write; a kind 10000 (Mute) does not
- *        re-check.                                                                        [AC-3]
- *   P4 — no pill on /setup and its step pages in any letter case.                        [AC-4]
+ *   P3 — after the app publishes the viewer's kind 3 (Follow, Unfollow) or kind 10040 (the
+ *        Treasure Map editor, the Map page's import), the pill and /setup catch up without a
+ *        reload, one re-check per publish, and a step that became not done is counted again.
+ *        Neither shows the old answer while the re-check runs: the mock holds the answer back
+ *        and both are sampled meanwhile. This holds even when the outside relays answer
+ *        before the local write; a kind 10000 (Mute) does not re-check.                  [AC-3]
+ *   P4 — no pill on /setup and its step pages in any letter case, checked only once the
+ *        answer is in (the pill also hides while a check runs).                           [AC-4]
  *
  * AC-5 (nothing else changes) is story 2's and story 1's browser classes, re-run unchanged in intent
  * (tests/brainstorm/setup-alert.spec.js, tests/brainstorm/setup-status.spec.js).
@@ -49,6 +51,10 @@ const ONE_LEFT = answer(DONE, step(true, false, { followCount: 2, source: 'local
 const ONE_LEFT_MAP = answer(DONE, step(true, false, { followCount: 2, source: 'local' }), OPEN);
 const NONE_LEFT = answer(DONE, step(true, false, { followCount: 2, source: 'local' }), step(true, false, { otherProvider: false, source: 'local' }));
 const THREE_LEFT = answer(OPEN, step(false, true, { followCount: 0, source: null }), step(false, true, { otherProvider: false, source: null }));
+// The viewer follows FRIEND only (CONTACTS), so unfollowing FRIEND leaves step 2 not done again.
+const ONE_LEFT_FRIEND = answer(DONE, step(true, false, { followCount: 1, source: 'local' }), step(false, true, { otherProvider: false, source: null }));
+
+const MAP_PAGE = '/tapestry/grapevine/treasure-map';
 
 // Story 3 AC-2's names; `n` counted steps.
 const NAME_WIDE = (n) => `Finish setting up your account · ${n === 1 ? '1 step' : `${n} steps`} left Finish setup`;
@@ -71,10 +77,14 @@ const MAP = { id: 'f1'.repeat(32), pubkey: VIEWER, kind: 10040, created_at: 1790
  * holds the sign-in answer back, so that page's relay list is in before its one Map search runs (the
  * page searches once, when sign-in resolves, and does not search again: OPEN.md row 260). `localRefusals`
  * refuses that many local writes first (the rest succeed). The outside relays record what they accept
- * (state.relayEvents), and the Map page's outside lookup serves the latest of them.
+ * (state.relayEvents), and the Map page's outside lookup serves the latest of them. An answer given as
+ * { body, hold: true } is held back until the test calls state.release(). state.heldAt and
+ * state.releasedAt record when that read arrived and when it was released, by Node's clock; the page's
+ * Date.now() reads the same clock.
  */
 async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], external = false, publishDelayMs = 0, answerFor = null, mapLocal = true, authDelayMs = 0, localRefusals = 0 } = {}) {
-  const state = { statusCalls: 0, published: [], publishedAt: null, localHasNew: false, localEvent: null, relayEvents: [], refusalsLeft: localRefusals };
+  const state = { statusCalls: 0, published: [], localHasNew: false, localEvent: null, relayEvents: [], refusalsLeft: localRefusals,
+    heldAt: null, releasedAt: null, release: () => { throw new Error('no status read is being held'); } };
   const queue = answers.slice();
 
   await page.addInitScript((pk) => {
@@ -88,7 +98,8 @@ async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], external = fal
         return { ...e, pubkey: pk, id: n.toString(16).padStart(64, '9'), sig: '0'.repeat(128) };
       },
     };
-    // Every committed state of the pill, for "never shows the old count while the new check runs".
+    // Every change of the pill, by the page's clock. With the entry in force when a re-check reached the
+    // server, this is a complete record of what the pill showed while the check ran (P3's held re-checks).
     window.__pillLog = [];
     const record = () => {
       const p = document.querySelector('a.bs-setup-alert');
@@ -119,7 +130,7 @@ async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], external = fal
   await page.route('**/api/owner/pubkey', (r) => r.fulfill(json({ success: true, pubkey: 'bb'.repeat(32) })));
   await page.route('**/api/relays', (r) => r.fulfill(json({ success: true, aRelays: {} })));
   await page.route('**/api/assistant/roster', (r) => r.fulfill(json({ success: true, assistants: [], viewer: null })));
-  await page.route('**/api/profiles**', (r) => r.fulfill(json({ success: true, profiles: { [VIEWER]: { name: 'Fixture Viewer' }, [TARGET]: { name: 'Fixture Target' } } })));
+  await page.route('**/api/profiles**', (r) => r.fulfill(json({ success: true, profiles: { [VIEWER]: { name: 'Fixture Viewer' }, [TARGET]: { name: 'Fixture Target' }, [FRIEND]: { name: 'Fixture Friend' } } })));
   await page.route('**/api/auth/status', async (r) => {
     if (authDelayMs) await new Promise((resolve) => setTimeout(resolve, authDelayMs));
     return r.fulfill(json({ authenticated: true, pubkey: who.pubkey }));
@@ -141,7 +152,7 @@ async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], external = fal
   });
   await page.route('**/api/strfry/publish', async (r) => {
     const body = JSON.parse(r.request().postData() || '{}');
-    state.published.push(body.event ? { kind: body.event.kind, pubkey: body.event.pubkey, id: body.event.id } : null);
+    state.published.push(body.event ? { kind: body.event.kind, pubkey: body.event.pubkey, id: body.event.id, tags: body.event.tags } : null);
     if (publishDelayMs) await new Promise((resolve) => setTimeout(resolve, publishDelayMs));
     if (state.refusalsLeft > 0) {
       state.refusalsLeft -= 1;
@@ -150,12 +161,15 @@ async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], external = fal
     state.localHasNew = true;
     state.localEvent = body.event || null;
     await r.fulfill(json({ success: true, event: body.event }));
-    state.publishedAt = Date.now();
   });
   await page.route('**/api/setup/status**', async (r) => {
     state.statusCalls += 1;
     const next = answerFor ? answerFor(state) : (queue.length > 1 ? queue.shift() : queue[0]);
-    const { body, delayMs } = next && next.body ? next : { body: next, delayMs: 0 };
+    const { body, delayMs, hold } = next && next.body ? next : { body: next, delayMs: 0 };
+    if (hold) {
+      state.heldAt = Date.now();
+      await new Promise((resolve) => { state.release = () => { state.releasedAt = Date.now(); resolve(); }; });
+    }
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     return r.fulfill(json(body));
   });
@@ -168,6 +182,88 @@ async function open(page, path) {
 }
 
 const pill = (page) => page.locator('a.bs-setup-alert[href="/setup"]');
+
+/** Move in-app, as the router's links do: no reload, so the providers keep their answer (as my-assistant-page.spec.js does). */
+async function goInApp(page, path) {
+  await page.evaluate((to) => { window.history.pushState({}, '', to); window.dispatchEvent(new PopStateEvent('popstate', { state: {} })); }, path);
+}
+
+/** What `read` returns in the page, every 100 ms for `ms`: the states in force, not only the changes. */
+async function sample(page, read, ms = 1200) {
+  const seen = [];
+  for (const until = Date.now() + ms; Date.now() < until;) {
+    seen.push(await page.evaluate(read));
+    await page.waitForTimeout(100);
+  }
+  return seen;
+}
+
+const readPill = () => { const p = document.querySelector('a.bs-setup-alert'); return p ? p.textContent : null; };
+const readSetup = () => {
+  const main = document.querySelector('main.bs-setup-main');
+  if (!main) return '(no setup page)';
+  const label = main.querySelector('.bs-setup-progress-label');
+  return `${label ? label.textContent.trim() : '(no progress line)'}, ${main.querySelectorAll('.bs-setup-step.is-done').length} marked done`;
+};
+
+/**
+ * AC-3's second clause, for one in-app save whose re-check the mock holds back ({ hold: true }). While the
+ * re-check runs, neither surface may show the old answer as current:
+ *  - The pill on `from`, sampled every 100 ms, shows nothing (story 2) and never `oldPill`. Its log is checked
+ *    too, from the entry in force when the re-check reached the server until the answer was released, so a
+ *    flash between two samples also fails.
+ *  - /setup, reached in-app while the read is still held, shows every step not done (story 1), never `oldSetup`.
+ * Then the answer is released. /setup shows `newSetup`, and back on `from` the pill shows `newPill`, with no
+ * further read and no reload.
+ */
+async function expectHeldRecheck(page, state, { from, oldPill, oldSetup, newSetup, newPill }) {
+  await expect.poll(() => state.heldAt !== null, { message: 'the publish starts a re-check, and the mock holds its answer back' }).toBe(true);
+  expect(state.statusCalls, 'one re-check for one publish').toBe(2);
+
+  const pillSeen = await sample(page, readPill);
+  expect(pillSeen.filter((t) => t !== null && t.includes(oldPill)),
+    `the pill showed the old "${oldPill}" as current while the re-check ran (sampled every 100 ms): ${JSON.stringify(pillSeen)}`).toEqual([]);
+  expect(pillSeen.every((t) => t === null), `while the re-check runs the pill shows nothing (story 2): ${JSON.stringify(pillSeen)}`).toBe(true);
+
+  await goInApp(page, '/setup');
+  const progress = page.locator('main.bs-setup-main .bs-setup-progress-label');
+  await expect(progress, '/setup, reached in-app while the re-check runs').toBeVisible();
+  const setupSeen = await sample(page, readSetup);
+  expect(setupSeen.filter((t) => t.includes(oldSetup)),
+    `/setup showed the old "${oldSetup}" as current while the re-check ran (sampled every 100 ms): ${JSON.stringify(setupSeen)}`).toEqual([]);
+  expect(setupSeen.every((t) => t === '0 of 3 complete, 0 marked done'),
+    `while the re-check runs /setup shows every step not done (story 1): ${JSON.stringify(setupSeen)}`).toBe(true);
+
+  state.release();
+  await expect(progress, '/setup shows the new answer').toHaveText(newSetup);
+  await goInApp(page, from);
+  await expect(pill(page), 'the pill counts the new answer').toContainText(newPill);
+
+  const log = await page.evaluate(() => window.__pillLog);
+  const inWindow = [log.filter((e) => e.t <= state.heldAt).pop(), ...log.filter((e) => e.t > state.heldAt && e.t < state.releasedAt)];
+  expect(inWindow.filter((e) => e && e.text !== null && e.text.includes(oldPill)),
+    `the pill's log has the old "${oldPill}" in force after the re-check reached the server (held at ${state.heldAt}, released at ${state.releasedAt}): ${JSON.stringify(log)}`).toEqual([]);
+
+  expect(state.statusCalls, 'moving between pages does not read again').toBe(2);
+  expect(await page.evaluate(() => window.__sameDocument === true), 'no reload: the same document').toBe(true);
+}
+
+/**
+ * "Nothing is left, so the pill goes", shown by a finished answer. The pill also hides while a check runs, so
+ * its absence alone can pass before any answer is drawn. /setup, reached in-app, must show all three steps
+ * done (the answer stays; there is no new read). Then, back on the Map page, there must be no pill.
+ */
+async function expectMapNothingLeft(page, state, reads) {
+  await goInApp(page, '/setup');
+  const main = page.locator('main.bs-setup-main');
+  await expect(main.locator('.bs-setup-progress-label'), 'the re-check\'s answer has every step done').toHaveText('3 of 3 complete', { timeout: 8000 });
+  await expect(main.getByText("You're all set!", { exact: true })).toBeVisible();
+  await goInApp(page, MAP_PAGE);
+  await expect(page.getByRole('heading', { name: /TA Treasure Map/ }), 'back on the Map page').toBeVisible();
+  await expect(pill(page), 'nothing is left, so no pill').toHaveCount(0);
+  expect(state.statusCalls, 'moving between pages does not read again').toBe(reads);
+  expect(await page.evaluate(() => window.__sameDocument === true), 'no reload: the same document').toBe(true);
+}
 
 /** Contrast of `el`'s text against what is painted behind it (translucent layers composited). */
 async function textContrast(locator) {
@@ -298,9 +394,9 @@ test.describe('The Setup Alert, polished (setup-status-and-alert #3)', () => {
   });
 
   /* ───────── P3 — it catches up after an in-app save (AC-3) ───────── */
-  test('P3: following someone publishes the viewer\'s kind 3, and the pill counts one step fewer without a reload, never showing the old count while it re-checks (AC-3)', async ({ page }) => {
+  test('P3: following someone publishes the viewer\'s kind 3, and the pill and /setup count one step fewer without a reload, neither showing the old answer while the re-check runs (AC-3)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    const state = await mock(page, { answers: [TWO_LEFT, { body: ONE_LEFT, delayMs: 1500 }] });
+    const state = await mock(page, { answers: [TWO_LEFT, { body: ONE_LEFT, hold: true }] });
     await open(page, `/user/${TARGET}`);
     await expect(pill(page)).toContainText('· 2 steps left');
     await page.evaluate(() => { window.__sameDocument = true; });
@@ -309,17 +405,22 @@ test.describe('The Setup Alert, polished (setup-status-and-alert #3)', () => {
     await followBtn.click();
     await expect.poll(() => state.published.length, { message: 'the Follow publishes one event' }).toBe(1);
     expect(state.published[0], 'it is the viewer\'s own kind 3').toMatchObject({ kind: 3, pubkey: VIEWER });
-    await expect(pill(page), 'the pill counts the new answer, with no reload').toContainText('· 1 step left', { timeout: 8000 });
-    expect(await page.evaluate(() => window.__sameDocument === true), 'no reload: the same document').toBe(true);
-    expect(state.statusCalls, 'one re-check after the publish').toBe(2);
-    const log = await page.evaluate(() => window.__pillLog);
-    const stale = log.filter((e) => e.t > state.publishedAt + 300 && e.text && e.text.includes('2 steps left'));
-    expect(stale, `the old count was shown as current while the new check ran: ${JSON.stringify(stale)}`).toEqual([]);
-    // /setup reads the same, refreshed answer (the pill navigates in-app; no third read).
-    await pill(page).click();
-    await expect(page).toHaveURL(/\/setup$/);
-    await expect(page.locator('main.bs-setup-main')).toContainText('2 of 3 complete');
-    expect(state.statusCalls, '/setup shows the refreshed answer without reading again').toBe(2);
+    await expectHeldRecheck(page, state, { from: `/user/${TARGET}`, oldPill: '2 steps left', oldSetup: '1 of 3 complete', newSetup: '2 of 3 complete', newPill: '· 1 step left' });
+  });
+
+  test('P3: unfollowing the one account followed publishes the viewer\'s kind 3, and the step is counted again, the pill going from 1 step left to 2 and /setup from 2 of 3 to 1, neither showing the old answer while the re-check runs (AC-3)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const state = await mock(page, { answers: [ONE_LEFT_FRIEND, { body: TWO_LEFT, hold: true }] });
+    await open(page, `/user/${FRIEND}`);
+    await expect(pill(page)).toContainText('· 1 step left');
+    await page.evaluate(() => { window.__sameDocument = true; });
+    const unfollowBtn = page.getByRole('button', { name: 'Unfollow', exact: true });
+    await expect(unfollowBtn, 'the profile page offers Unfollow: the viewer\'s contact list follows this account').toBeEnabled();
+    await unfollowBtn.click();
+    await expect.poll(() => state.published.length, { message: 'the Unfollow publishes one event' }).toBe(1);
+    expect(state.published[0], 'it is the viewer\'s own kind 3').toMatchObject({ kind: 3, pubkey: VIEWER });
+    expect(state.published[0].tags.filter((t) => t[0] === 'p'), 'and it follows no one now').toEqual([]);
+    await expectHeldRecheck(page, state, { from: `/user/${FRIEND}`, oldPill: '1 step left', oldSetup: '2 of 3 complete', newSetup: '1 of 3 complete', newPill: '· 2 steps left' });
   });
 
   test('P3: when the Follow reaches both the local relay and outside relays, the pill still re-checks once (one event, one re-check) (AC-3)', async ({ page }) => {
@@ -350,7 +451,7 @@ test.describe('The Setup Alert, polished (setup-status-and-alert #3)', () => {
   test('P3: importing the viewer\'s Treasure Map to the local relay from the Map page re-checks too (AC-3, ADR 0003 § 2)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const state = await mock(page, { who: OWNER, mapLocal: false, authDelayMs: 800, answerFor: (st) => (st.localHasNew ? NONE_LEFT : ONE_LEFT_MAP) });
-    await open(page, '/tapestry/grapevine/treasure-map');
+    await open(page, MAP_PAGE);
     await expect(pill(page)).toContainText('· 1 step left');
     await page.evaluate(() => { window.__sameDocument = true; });
     // The import sits in the relay panel, folded by default.
@@ -358,17 +459,15 @@ test.describe('The Setup Alert, polished (setup-status-and-alert #3)', () => {
     await page.getByRole('button', { name: /Import to local strfry/ }).click();
     await expect.poll(() => state.published.length, { message: 'the import publishes the Map once' }).toBe(1);
     expect(state.published[0], 'it is the viewer\'s own kind 10040').toMatchObject({ kind: 10040, pubkey: VIEWER, id: MAP.id });
-    // The read count first: the pill also hides while the re-check runs, so "no pill" alone can pass early.
     await expect.poll(() => state.statusCalls, { message: 'one re-check after the import' }).toBe(2);
-    await expect(pill(page), 'nothing is left, so the pill goes').toHaveCount(0, { timeout: 8000 });
-    expect(await page.evaluate(() => window.__sameDocument === true), 'no reload: the same document').toBe(true);
+    await expectMapNothingLeft(page, state, 2);
   });
 
   test('P3: a Map edit whose local write fails while the relays accept, then an import of that same event, re-checks each time — the import is not dropped as already heard (AC-3, ADR 0003 Amendment 1)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const state = await mock(page, { who: OWNER, mapLocal: false, external: true, authDelayMs: 800, localRefusals: 1,
       answerFor: (st) => (st.localHasNew ? NONE_LEFT : ONE_LEFT_MAP) });
-    await open(page, '/tapestry/grapevine/treasure-map');
+    await open(page, MAP_PAGE);
     await expect(pill(page)).toContainText('· 1 step left');
     await page.evaluate(() => { window.__sameDocument = true; });
     // 1. The hand editor publishes an edit: the local write is refused, the outside relays accept.
@@ -385,8 +484,8 @@ test.describe('The Setup Alert, polished (setup-status-and-alert #3)', () => {
     await page.getByRole('button', { name: /Import to local strfry/ }).click();
     await expect.poll(() => state.statusCalls, { message: 'the import of the same event must re-check again, not be dropped as already heard' }).toBe(3);
     expect(state.published[state.published.length - 1], 'the import published the edited event').toMatchObject({ kind: 10040, pubkey: VIEWER, id: edited.id });
-    await expect(pill(page), 'stored locally now, nothing is left: the pill goes').toHaveCount(0, { timeout: 8000 });
-    expect(await page.evaluate(() => window.__sameDocument === true), 'no reload: the same document').toBe(true);
+    // Stored locally now, nothing is left.
+    await expectMapNothingLeft(page, state, 3);
   });
 
   test('P3: muting someone (kind 10000) is not a setup step, so the pill does not re-check (AC-3)', async ({ page }) => {
@@ -405,7 +504,7 @@ test.describe('The Setup Alert, polished (setup-status-and-alert #3)', () => {
   test('P3: publishing the viewer\'s Treasure Map (kind 10040) from the Map editor re-checks too, and the pill goes once nothing is left (AC-3)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const state = await mock(page, { who: OWNER, answers: [ONE_LEFT_MAP, NONE_LEFT] });
-    await open(page, '/tapestry/grapevine/treasure-map');
+    await open(page, MAP_PAGE);
     await expect(pill(page)).toContainText('· 1 step left');
     await page.evaluate(() => { window.__sameDocument = true; });
     await page.getByRole('button', { name: /Update your kind 10040 event Treasure Map by hand/ }).click();
@@ -417,20 +516,31 @@ test.describe('The Setup Alert, polished (setup-status-and-alert #3)', () => {
     await expect.poll(() => state.published.length, { message: 'the editor publishes one event' }).toBe(1);
     expect(state.published[0], 'it is the viewer\'s own kind 10040').toMatchObject({ kind: 10040, pubkey: VIEWER });
     await expect.poll(() => state.statusCalls, { message: 'one re-check after the Map publish' }).toBe(2);
-    await expect(pill(page), 'nothing is left, so the pill goes').toHaveCount(0, { timeout: 8000 });
-    expect(await page.evaluate(() => window.__sameDocument === true), 'no reload: the same document').toBe(true);
+    await expectMapNothingLeft(page, state, 2);
   });
 
   /* ───────── P4 — hidden on the setup pages whatever the case (AC-4) ───────── */
+  // The pill also hides while a check runs, so "no pill" counts only once the answer is in. Each variant is
+  // reached in-app after /tags has drawn the pill: the answer is in, and moving does not read again. /SETUP is
+  // also loaded afresh, and checked once its own answer shows. The step pages show no answer to wait for.
   for (const path of ['/SETUP', '/Setup/Follow', '/SETUP/ACTIVATE', '/Setup/create-account']) {
     test(`P4: no pill on ${path}, which shows a setup page (AC-4)`, async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 800 });
-      await mock(page, { answers: [TWO_LEFT] });
+      const state = await mock(page, { answers: [TWO_LEFT] });
       await open(page, '/tags');
-      await expect(pill(page), 'control: the pill shows on /tags for this viewer').toBeVisible();
-      await open(page, path);
+      await expect(pill(page), 'control: the answer is in, and the pill shows on /tags for this viewer').toContainText('· 2 steps left');
+      await goInApp(page, path);
       await expect(page.locator('main.bs-setup-main'), `${path} renders a setup page`).toBeVisible();
-      await expect(pill(page), `no pill on ${path}`).toHaveCount(0);
+      await expect(pill(page), `no pill on ${path}, with the answer that drew it on /tags still in force`).toHaveCount(0);
+      expect(state.statusCalls, 'moving in-app does not read again').toBe(1);
     });
   }
+
+  test('P4: /SETUP loaded afresh shows no pill once its own answer is in (AC-4)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await mock(page, { answers: [TWO_LEFT] });
+    await page.goto('/SETUP');
+    await expect(page.locator('main.bs-setup-main .bs-setup-progress-label'), 'the answer is in: /SETUP shows it').toHaveText('1 of 3 complete');
+    await expect(pill(page), 'no pill on /SETUP').toHaveCount(0);
+  });
 });

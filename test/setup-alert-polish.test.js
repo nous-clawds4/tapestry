@@ -355,21 +355,29 @@ test('S2: only the known pages POST to /api/strfry/publish by hand — a new one
     `route it through publishToLocalStrfry so the Setup Alert re-checks (ADR 0003); otherwise add it to RAW_PUBLISH_ALLOWED with the kinds it sends.`);
 });
 
-test('S3: only utils/nostrPublish.js passes announce: false — every other caller keeps the announcement (ADR 0003 Amendment 1)', async () => {
+// The announce option in any spelling: a key, bare or quoted ({ announce: x }, { 'announce': false }), a
+// shorthand property ({ announce }), or a member (opts.announce = x, opts['announce'] = x). Comments are dropped
+// first. A spread of an options object built elsewhere is the usual limit of a source sentinel.
+const ANNOUNCE_OPTION = /[{,]\s*(['"`]?)announce\1\s*:|[{,]\s*announce\s*(?=[,}])|\.announce\b|\[\s*(['"`])announce\2\s*\]/;
+const withoutComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+
+test('S3: only utils/nostrPublish.js sets the announce option — no other caller can silence the announcement (ADR 0003 Amendment 1)', async () => {
   const found = [];
   (function walk(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(p);
-      else if (/\.(jsx?|mjs)$/.test(entry.name) && /announce\s*:\s*false/.test(fs.readFileSync(p, 'utf8'))) {
+      else if (/\.(jsx?|mjs)$/.test(entry.name) && ANNOUNCE_OPTION.test(withoutComments(fs.readFileSync(p, 'utf8')))) {
         found.push(path.relative(UI_SRC, p).split(path.sep).join('/'));
       }
     }
   })(UI_SRC);
+  assert(found.includes('utils/nostrPublish.js'), 'control: the sentinel must find the option where it lives, in utils/nostrPublish.js');
   const others = found.filter((f) => f !== 'utils/nostrPublish.js');
   assert(others.length === 0,
-    `these files silence a publish's announcement: ${others.join(', ')}. Only publishEverywhere may, because it announces once itself; ` +
-    'anywhere else the Setup Alert would not re-check after the viewer publishes their follow list or Treasure Map.');
+    `these files set a publish's announce option: ${others.join(', ')}. Only publishEverywhere may silence the announcement, because it ` +
+    'announces once itself; anywhere else the Setup Alert would not re-check after the viewer publishes their follow list or Treasure Map. ' +
+    'Callers keep the default (story 3 § Deviations: "No other caller passes the option").');
 });
 
 async function run() {
