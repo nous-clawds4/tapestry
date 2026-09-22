@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — Serve llms.txt on the fleet
 
-**Story:** `engineering-team/stories/llms-txt/1-serve-llms-txt-on-the-fleet.md`
-**ADR:** `engineering-team/decisions/llms-txt/0001-serve-llms-txt-on-the-fleet.md`
+**Story:** `engineering-team/stories/done/llms-txt/1-serve-llms-txt-on-the-fleet.md`
+**ADR:** `engineering-team/decisions/done/llms-txt/0001-serve-llms-txt-on-the-fleet.md`
 **Date:** 2026-09-22
 
 ## Coverage map

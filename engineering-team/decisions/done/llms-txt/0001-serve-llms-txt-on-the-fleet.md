@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-22
-**Story:** `engineering-team/stories/llms-txt/1-serve-llms-txt-on-the-fleet.md`
+**Story:** `engineering-team/stories/done/llms-txt/1-serve-llms-txt-on-the-fleet.md`
 
 ## Context
 

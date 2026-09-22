@@ -1,9 +1,9 @@
 # Book of Work: llms.txt on the tapestry fleet
 
 **Slug:** llms-txt
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-22
-**Closed:** —
+**Closed:** 2026-09-22
 
 ## Intent anchor
 
@@ -13,12 +13,14 @@ This book follows directly on `site-trust-signals` (Closed 2026-09-22): `llms.tx
 
 ### Acceptance frame
 
-- [ ] All four tapestry-fleet hosts serve `/llms.txt` as `text/plain; charset=utf-8`, following the [llmstxt.org](https://llmstxt.org/) format.
-- [ ] Content is a pointer manifest only — links into `NosFabrica/protocols` and this repo's own top-level docs — never a duplicate of their text (the estate discrepancy rule: `ECOSYSTEM.md` is canonical, `llms.txt` only points).
-- [ ] Every linked URL resolves (verified at ship time, and re-verified at the same renewal ritual that owns the `security.txt` `Expires` check, OPEN.md row 172).
-- [ ] `/llms.txt` is reachable on the three non-production hosts despite their `robots.txt: Disallow: /` — a targeted `Allow: /llms.txt` exemption, not a blanket indexing change.
-- [ ] Honest 404s and every other `site-trust-signals` behavior are unaffected.
-- [ ] Verified live on all four hosts after deploy.
+- [x] All four tapestry-fleet hosts serve `/llms.txt` as `text/plain; charset=utf-8`, following the [llmstxt.org](https://llmstxt.org/) format.
+- [x] Content is a pointer manifest only — links into `NosFabrica/protocols` and this repo's own top-level docs — never a duplicate of their text (the estate discrepancy rule: `ECOSYSTEM.md` is canonical, `llms.txt` only points).
+- [x] Every linked URL resolves (verified at ship time, and re-verified at the same renewal ritual that owns the `security.txt` `Expires` check, OPEN.md row 172).
+- [x] `/llms.txt` is reachable on the three non-production hosts despite their `robots.txt: Disallow: /` — a targeted `Allow: /llms.txt` exemption, not a blanket indexing change.
+- [x] Honest 404s and every other `site-trust-signals` behavior are unaffected.
+- [x] Verified live on all four hosts after deploy.
+
+*At close (2026-09-22):* all six bullets independently re-verified live by direct probe of all four hosts in the same session as this close, not just inherited from Review's evidence (which covered only `tapestry.` and `staging.`, since `tags.` and `magic-carpet.` weren't synced until after Review passed — see audit §4 #1).
 
 ## Epics in this book
 - `llms-txt` — serve `llms.txt` across the tapestry fleet.
@@ -36,7 +38,7 @@ No ordering dependency, but shipping all fleets near-together keeps the estate's
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high — every frame bullet is checkable in the diff and against the live hosts, and all six were checked, live, on all four hosts, during this close.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/llms-txt/audit.md`
