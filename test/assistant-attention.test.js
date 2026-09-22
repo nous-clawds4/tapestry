@@ -677,7 +677,8 @@ test('S4: TAG_RELAY_CATEGORIES is [\'aTagFederationRelays\'] — the relays this
 });
 
 test('S5: BIBLE §11/§14 and the OpenAPI document say what is true — no "two identification taggings", no single key\'s "canonical definitions", no "My Human" beside "My Tapestry Owner" as published, and the undecided pair named as parked (identification-tags-authorship #1 AC-6)', () => {
-  const bible = safeRead(path.join(REPO, 'BIBLE.md'));
+  // The body only: the "Last updated" line is a changelog whose "prior:" entries describe past states in their own words.
+  const bible = safeRead(path.join(REPO, 'BIBLE.md')).split(NL).filter((line) => !line.startsWith('**Last updated:**')).join(NL);
   const yaml = safeRead(OPENAPI);
   const wrong = [];
   for (const [label, text] of [['BIBLE.md', bible], ['openapi.yaml', yaml]]) {
