@@ -8706,11 +8706,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bsp-top-bar:has(.bs-setup-alert) .bsp-logo > span { display: none; }
   .app-header:has(.bs-setup-alert) .user-badge { display: none; }
 }
-/* While a pill shows, the control panel's brand yields room instead of wrapping onto two lines
-   (ADR 0002 Amendment 1): it truncates where room runs short, and on phones its word hides and
-   the 🧠 stays. */
-.app-header:has(.bs-setup-alert) .header-brand { min-width: 0; }
-.app-header:has(.bs-setup-alert) .header-brand-name {
+/* While a pill shows — the Setup Alert's or the Assistant Alert's — the control panel's brand yields
+   room instead of wrapping onto two lines (ADR setup-status-and-alert/0002 Amendment 1; ADR
+   assistant-management/0002 Amendment 1): it truncates where room runs short, and on phones its word
+   hides and the 🧠 stays. */
+.app-header:has(.bs-setup-alert, .bs-topbar-pill) .header-brand { min-width: 0; }
+.app-header:has(.bs-setup-alert, .bs-topbar-pill) .header-brand-name {
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -8721,7 +8722,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 
 /* ════════════════════════════════════════════════════════
-   My Assistant — /assistant (assistant-profile #4). The /setup column;
+   The Edit Assistant Profile page — /assistant/profile/edit (assistant-profile #4;
+   moved from /assistant by assistant-management #1). The /setup column;
    the profile editor inside keeps its own look until a design pass.
    ════════════════════════════════════════════════════════ */
 
@@ -8916,26 +8918,29 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 /* ════════════════════════════════════════════════════════
    The top bar's alert pill (assistant-management #2, ADR 0002). One slot
    beside every avatar menu shows at most one pill, setup first. The
-   Assistant Alert is Tapestry's indigo; amber is kept for the Setup Alert
-   (.is-setup, setup-status-and-alert #2). One link, whose parts drop away
-   as the bar narrows: all of it; then no count (≤ 900px); then only the
-   mark and the button (≤ 480px).
+   Assistant Alert is Tapestry's indigo; the Setup Alert, its own component
+   beside this one, is amber (setup-status-and-alert #2). One link, whose
+   parts drop away as the bar narrows (ADR 0002 Amendment 1): all of it; then
+   no count (≤ 1023px, the Setup Alert's); then only the mark and the button
+   (≤ 679px — its button is longer than the Setup Alert's, so at 640px the
+   sentence would push the TopBar pages 12px past the edge).
    ════════════════════════════════════════════════════════ */
 
+/* The Setup Alert's shape and size (setup-status-and-alert #2), so the two pills match. */
 .bs-topbar-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   flex-shrink: 0;
-  height: 30px;
-  padding: 0 0.3rem 0 0.7rem;
+  padding: 0.2rem 0.25rem 0.2rem 0.6rem;
   border: 1px solid rgba(165,180,252,0.45);
   border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
   white-space: nowrap;
   text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
 }
 .bs-topbar-pill:focus-visible {
   outline: 2px solid #a5b4fc;
@@ -8949,10 +8954,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-topbar-pill.is-assistant:hover { border-color: rgba(165,180,252,0.7); }
 .bs-topbar-pill-count { opacity: 0.85; }
 .bs-topbar-pill-button {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 0.6rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 999px;
   font-weight: 700;
 }
@@ -8961,19 +8963,13 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: #fff;
 }
 
-/* The Tapestry header's auth area holds the pill and the user menu in one row. */
-.header-auth {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-@media (max-width: 900px) {
+@media (max-width: 1023px) {
   .bs-topbar-pill-count { display: none; }
 }
-@media (max-width: 480px) {
+@media (max-width: 679px) {
   .bs-topbar-pill-text { display: none; }
-  .bs-topbar-pill { gap: 0.35rem; padding-left: 0.55rem; font-size: 0.72rem; }
+}
+@media (max-width: 480px) {
   /* Only while a pill is present, the bar gives up its own words so nothing scrolls sideways
      (ADR 0002 sub-decision 6): TopBar's logo word; the Tapestry user button's name and role, and
      the brand's word (the 🧠 stays) — without it the brand wraps, and the fixed Tapestry header
@@ -8982,4 +8978,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .app-header:has(.bs-topbar-pill) .user-name,
   .app-header:has(.bs-topbar-pill) .user-badge,
   .app-header:has(.bs-topbar-pill) .header-brand-word { display: none; }
+}
+@media (max-width: 359px) {
+  /* Below 360 px, the next step of the shedding order: TopBar's nav (its About link). Without it the pill
+     pushes the avatar menu off the right edge below 352 px (ADR 0002 Amendment 1). */
+  .bsp-top-bar:has(.bs-topbar-pill) .bsp-top-nav { display: none; }
 }

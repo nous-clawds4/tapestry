@@ -115,6 +115,11 @@ display fixes:
 - "(link to …)" turned into the link it asks for;
 - one correction, approved with the story (§ Open questions 1): the kind number for follows.
 
+*Noted 2026-09-21, after review 1: the approved tables below make two more edits. In the profile's
+alert criteria, the owner's "etc)" gains two full stops, reading "etc.).". The owner's "Note: this page
+will not be the same…", which sat on that alert-criteria line in the ask, is in the profile's Planning
+notes, without "Note:".*
+
 **`/assistant`**
 
 | Element | Text | Source |

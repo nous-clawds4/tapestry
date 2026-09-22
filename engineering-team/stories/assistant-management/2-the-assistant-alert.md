@@ -11,7 +11,8 @@
 The owner wants a persistent reminder, like the Setup Alert, that sends people to `/assistant` while
 any of their assistant's actions needs attention. The Setup Alert is setup-status-and-alert #2:
 Brainstorm's "Finish setting up your account · N steps left" pill beside the avatar menu. It is
-approved but not built yet.
+approved but not built yet. *(Noted 2026-09-21, after review 2: it has since shipped to staging first,
+as its own component, in PR #737. The two pills stand side by side; see ADR 0002 Amendment 1.)*
 
 The owner decided at intake (book § Decisions 2) that **only one pill shows at a time, and setup
 comes first.** Setting up means having an assistant, a follow list and a Treasure Map, and all of that
@@ -43,7 +44,8 @@ All of these must hold:
    `/assistant/profile/edit`.
 
 Until setup-status-and-alert #2 ships, a viewer with a setup step left sees no pill at all. That is
-expected: their pill is the Setup Alert, which is not built yet.
+expected: their pill is the Setup Alert, which is not built yet. *(Noted 2026-09-21: it has shipped,
+and such a viewer now sees the Setup pill.)*
 
 ## Acceptance criteria
 
@@ -110,7 +112,8 @@ the pill is about.
   scope).
 - **The Setup Alert itself** is setup-status-and-alert #2. This story only gives way to it. If this
   story lands first, it leaves the shared spot ready for that pill. If that pill lands first, this
-  one fits beside it.
+  one fits beside it. *(Noted 2026-09-21: that pill landed first, and this one stands beside it; ADR
+  0002 Amendment 1.)*
 - **Dismissing the pill.** Like the Setup Alert it is persistent. With every action counted for
   now, that means a viewer with an assistant and no setup left sees it on every page but
   `/assistant`. Deciding whether that should reach production before the real checks exist is a
@@ -137,12 +140,13 @@ Small judgment calls made during implementation (Implementer role, step 9):
 - **In the Tapestry header, the slot is the first child of `.header-auth`,** ahead of its
   loading, signed-in and signed-out branches. ADR 0002 sub-decision 4 puts it inside the signed-in
   branch. The slot draws nothing unless someone is signed in, so the page is the same either way, and
-  this is a one-line diff.
+  this is a one-line diff. *(Since the merge of the Setup Alert, the slot comes just after it.)*
 - **In the two Brainstorm menus, the existing JSX is kept whole.** It is assigned to `const menu`, and
   the component returns `<><TopBarAlert />{menu}</>`. That is the DOM sub-decision 4 describes, without
   re-indenting a return of about 100 lines, so each menu's diff is four lines.
 - **Phone width (sub-decision 6's shedding order):**
   - **Brainstorm bars:** only the first step was needed, `TopBar`'s logo word. `.bsp-top-nav` stays.
+    *(Since ADR 0002 Amendment 1, it hides below 360 px.)*
   - **The Tapestry header:** the user name and role went first, as ordered, and then the brand's word.
     The dropdown arrow was skipped.
     - Nothing scrolled sideways, which is all browser B6 checks. But a screenshot showed the brand
@@ -153,6 +157,27 @@ Small judgment calls made during implementation (Implementer role, step 9):
       to 55 px, the same as with no pill.
   - **Where it was measured:** B6 found no horizontal scroll with the pill showing on `/`, `/tags`,
     `/about`, `/settings`, `/developers` and `/tapestry/`, at 1280, 800 and 375 px.
+- **ADR 0002 Amendment 1: after the Setup Alert shipped first** (2026-09-21, review 2).
+  - **The problem.** The Setup Alert merged to staging first, as its own component at the same four
+    mounts, with its own CSS. On the merged build, the new B9 width sweep found:
+    - sideways scrolls on `/` and `/tags` at 320, 560 and 656 px;
+    - the fixed Tapestry header growing from 55 to 71 px at 560–800 px.
+
+    The amendment gives the numbers.
+  - **The owner's call.** Keep both components side by side, and amend the ADR.
+  - **The fix,** as the amendment records it:
+    - the Setup Alert's shape and size;
+    - the count hidden at ≤ 1023 px, the sentence at ≤ 679 px;
+    - the brand rules for either pill;
+    - `TopBar`'s nav hidden below 360 px;
+    - one `.header-auth` rule.
+  - **How 679 was found.** The first fix used the Setup Alert's 639. B9's fixed widths then passed, but
+    a scratch probe at every 2 px found 10–12 px scrolls at 640–642 px on `/` and `/tags`. This pill's
+    longer button needs 652 px there.
+  - **The phone pill** no longer shrinks its font at ≤ 480 px. The Setup Alert's pill does not shrink
+    either, and with the nav rule every bar fits.
+  - **Also fixed:** the stale comments review 1 found, the editor's CSS heading and the setup provider's
+    "on /assistant".
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`

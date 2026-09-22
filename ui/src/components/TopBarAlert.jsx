@@ -6,9 +6,11 @@ import { ASSISTANT_ALERT_COPY, assistantAttention, attentionCountText } from '..
 import { pickTopBarPill } from '../utils/topBarAlert';
 
 /**
- * The top bar's one alert slot (assistant-management #2, ADR 0002). Mounted beside every avatar menu —
+ * The top bar's Assistant Alert slot (assistant-management #2, ADR 0002). Mounted beside every avatar menu —
  * BrainstormUserMenu, the landing page's UserMenu, the Tapestry Header — and where the menu would be on the
- * developer pages. It shows at most one pill, chosen by pickTopBarPill: setup first, then the Assistant Alert.
+ * developer pages, each time just after the Setup Alert (setup-status-and-alert #2), which is its own component.
+ * pickTopBarPill decides, setup first: while the Setup Alert counts a step this slot draws nothing, so the two
+ * pills never show together (ADR 0002 Amendment 1).
  *
  * It reads only answers the app already shares: sign-in, the one setup status (ADR setup-status-and-alert/0001,
  * asked once per full page load), the page's address, and the Assistant Management page's own attention answer,
@@ -40,6 +42,6 @@ export default function TopBarAlert() {
     pathname,
   });
   if (pill === 'assistant') return <AssistantPill count={n} />;
-  // 'setup': the Setup Alert (setup-status-and-alert #2) renders here once it is built (ADR 0002 § 5).
+  // 'setup': give way. The Setup Alert, mounted beside this slot, shows its own pill (ADR 0002 Amendment 1).
   return null;
 }
