@@ -117,8 +117,8 @@ export async function publishProfileTagAssertionWithReport({ tag, targetPubkey, 
  * rule). The contract useProfileTags and the Tag page rely on.
  * @returns {Promise<object>} the signed event.
  */
-export async function publishProfileTagAssertion(args) {
-  const { signed, result } = await publishProfileTagAssertionWithReport(args);
+export async function publishProfileTagAssertion({ tag, targetPubkey, polarity, localTaPubkey }) {
+  const { signed, result } = await publishProfileTagAssertionWithReport({ tag, targetPubkey, polarity, localTaPubkey });
   assertPublished(result);
   return signed;
 }
