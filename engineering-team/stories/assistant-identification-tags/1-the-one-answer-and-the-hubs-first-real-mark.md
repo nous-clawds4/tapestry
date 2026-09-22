@@ -1,6 +1,6 @@
 # Story 1: The one answer — which identification taggings are missing for your Assistant — and the hub's first real mark
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-22
 **Type:** Feature
 **Epic:** `assistant-identification-tags`
@@ -140,6 +140,6 @@ audit.*
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/assistant-identification-tags/0001-one-assistant-attention-answer.md`
+- Test plan: `engineering-team/stories/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.test-plan.md`
+- Review: `engineering-team/reviews/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`

@@ -1,6 +1,6 @@
 # ADR 0001: One assistant-attention answer — the four identification taggings checked on the server for the viewer's own Assistant, shared by the hub, the pill and the page
 
-**Status:** Proposed
+**Status:** Accepted (approved 2026-09-22)
 **Date:** 2026-09-22
 **Story:** `engineering-team/stories/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
 
