@@ -9,7 +9,7 @@
  * does). Expected words and shapes: test/helpers/identificationTagsFixtures.js.
  *
  * Classes:
- *   C — the pure ESM modules, loaded in Node: ui/src/pages/assistant/identificationTags.js (the words, rowState,
+ *   C — the pure ESM modules, loaded in Node: ui/src/pages/assistant/identificationTagsCopy.js (the words, rowState,
  *       cardState) and ui/src/utils/taggingPublishReport.js (describeTaggingPublish, publishTone, relayLine).  [AC-2, AC-3, AC-4]
  *   S — source sentinels on the files the runner cannot execute: the page (JSX), the route map in App.jsx, the publisher's
  *       report-returning variant, the styles block.                                                        [AC-1, AC-4 … AC-7]
@@ -26,7 +26,7 @@ const X = require('./helpers/identificationTagsFixtures');
 const H = require('./helpers/assistantManagementFixtures');
 
 const REPO = path.resolve(__dirname, '..');
-const COPY_MOD = path.join(REPO, 'ui/src/pages/assistant/identificationTags.js');
+const COPY_MOD = path.join(REPO, 'ui/src/pages/assistant/identificationTagsCopy.js');
 const REPORT_MOD = path.join(REPO, 'ui/src/utils/taggingPublishReport.js');
 const PAGE = path.join(REPO, 'ui/src/pages/assistant/IdentificationTags.jsx');
 const APP = path.join(REPO, 'ui/src/App.jsx');
@@ -63,7 +63,7 @@ async function esm(absPath, what) {
   assert(!mod.__loadError, `${rel(absPath)} must load in Node as ESM (relative imports with .js): ${mod.__loadError && mod.__loadError.message}`);
   return mod;
 }
-const copyModule = () => esm(COPY_MOD, 'ADR 0002 sub-decision 2 creates it: IDENTIFICATION_TAGS_COPY, rowState, cardState — pure, no imports.');
+const copyModule = () => esm(COPY_MOD, 'ADR 0002 sub-decision 2 (Amendment 1: named apart from the page) creates it: IDENTIFICATION_TAGS_COPY, rowState, cardState — pure, no imports.');
 const reportModule = () => esm(REPORT_MOD, 'ADR 0002 sub-decision 4 creates it: describeTaggingPublish, publishTone, relayLine — pure, no imports.');
 
 const ENTRY = X.REQUIRED[1]; // My Agent
