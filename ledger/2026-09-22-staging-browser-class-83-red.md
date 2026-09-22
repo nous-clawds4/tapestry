@@ -56,6 +56,13 @@
 
 Then record a green, or explicitly waived, baseline for the full browser class on staging.
 
+**One more, a flake rather than a red test** (found at review 2, round 2):
+- **Where.** `tests/brainstorm/author-scoped-inspection.spec.js:157`, E3.
+- **The race.** It reads the table's headers (`allTextContents()` on `table.data-table thead th`) straight after
+  `page.goto`, without waiting for the table.
+- **How it shows.** It failed once under 4 workers, then passed 13 of 13 on its own.
+- **Fix.** Wait for the headers first, for example `await expect(page.locator('table.data-table thead th').first()).toBeVisible()`.
+
 **Reproducing the comparison** (what was done here):
 1. `git worktree add --detach <dir> origin/staging`.
 2. `cd <dir>/ui && npm ci && npx vite build`, under Node 22 x64. The build lands in `<dir>/dist`. It is
