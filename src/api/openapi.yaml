@@ -355,8 +355,8 @@ paths:
       tags: [Auth]
       summary: Have the signed-in viewer's own Assistant sign and publish its identification taggings of them
       description: >-
-        The one route through which an Assistant's key signs something other than its profile: the required
-        taggings whose signer is the Assistant ("My Tapestry Owner", "My Human"), each an ordinary nostr-user-tag
+        A narrow, session-bound route, in the shape of publish-profile, through which the signed-in person's own
+        Assistant signs its identification taggings: the required taggings whose signer is the Assistant ("My Tapestry Owner", "My Human"), each an ordinary nostr-user-tag
         assertion of the canonical tag, tagging the viewer, as an apply. Whose Assistant comes from the session
         (the Owner's is the instance TA; anyone else's their own); nothing in the body names a person or an
         Assistant. Refused before any key is read: no session (401 not-signed-in), a body that is not a non-empty
@@ -376,7 +376,8 @@ paths:
               properties:
                 keys:
                   type: array
-                  items: { type: string, enum: [my-tapestry-owner, my-human] }
+                  description: The keys of required taggings whose signer is the Assistant (today my-tapestry-owner and my-human; the list grows with the app, never per instance)
+                  items: { type: string }
       responses:
         '200':
           description: One report per requested key, in the required order, whatever each tagging's fate

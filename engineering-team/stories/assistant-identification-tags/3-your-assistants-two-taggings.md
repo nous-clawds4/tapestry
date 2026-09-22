@@ -107,6 +107,12 @@ audit.*
    util throws for the latter; the page turns it into the notice.
 5. **The route's per-tagging report omits the signed event** (ADR 0003 sub-decision 6): the page needs the report
    only, and the answer stays free of key material and of the Assistant's pubkey.
+6. **The scope claim was reworded after review round 1** (ADR 0003 Amendment 1): the route is not "the only thing
+   besides its profile" an Assistant's key signs — the curated-DList and trusted-list routes sign with assistant keys
+   too. The module header, the route comment, the OpenAPI description and BIBLE's §11 row and §14 bullet now say what
+   is true: a second narrow, session-bound route after `publish-profile`, with the generic signer and the other
+   assistant-key signers unchanged. The OpenAPI `keys` enum also became a description, since the list grows with the
+   app (Discovery decision 7).
 
 ## Linked artifacts
 

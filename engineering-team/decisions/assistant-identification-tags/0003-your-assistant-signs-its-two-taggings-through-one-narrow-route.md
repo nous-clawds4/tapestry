@@ -1,6 +1,6 @@
 # ADR 0003: Your Assistant signs its two taggings through one narrow, session-bound route, local relay first, each relay reported, and the second card reads the same report
 
-**Status:** Accepted (approved 2026-09-22)
+**Status:** Accepted (approved 2026-09-22; Amendment 1 appended 2026-09-22: the scope claim)
 **Date:** 2026-09-22
 **Story:** `engineering-team/stories/assistant-identification-tags/3-your-assistants-two-taggings.md`
 
@@ -327,3 +327,17 @@ as today. The `Card` component is unchanged except that `publishing` is a boolea
 - Retracting or disputing as the Assistant.
 - Folding the two tagging builders into the library.
 - A general per-user sign-as-assistant route; OPEN.md row 269.
+
+## Amendment 1 — the route is not "the only thing besides its profile" an Assistant's key signs (2026-09-22, review round 1)
+
+Sub-decision 11 prescribed the sentence "what an Assistant's key signs on the person's request — its profile and its
+two identification taggings, and nothing else outside the generic signer's owner-only path", and the header comment,
+the route comment, the OpenAPI description and BIBLE's §11 row and §14 bullet carried it. The Reviewer showed it
+false with one grep: the curated-DList header and update routes sign with the person's own Assistant key on request
+(`src/api/dlist-curation/index.js:232-247`, `update.js:287-295`), and the trusted-list and normalization routes sign
+with the TA on request. The true, scoped statement, now in all five places: this is a narrow, session-bound route in
+the shape of `publish-profile` — the second such route — through which the person's own Assistant signs its
+identification taggings; the generic signer stays owner-only and TA-only, and the other assistant-key signers
+(trusted lists, curated DList headers and updates, normalization, NIP-85) are unchanged. The design is untouched.
+The lesson is the ledger's: a universal claim in an ADR carries its proving command, or it does not go into a
+universal document.

@@ -557,8 +557,8 @@ async function register(app) {
     // Alert and the action pages (assistant-identification-tags #1, ADR 0001). Session-shaped, read-only.
     const assistantAttentionApi = require('./assistant/attention');
     app.get('/api/assistant/attention', assistantAttentionApi.handleAssistantAttention);
-    // Your Assistant signs its two identification taggings of you — one narrow, session-bound route; the only thing
-    // besides its profile that an Assistant's key signs on request (assistant-identification-tags #3, ADR 0003).
+    // Your Assistant signs its two identification taggings of you — a narrow, session-bound route in the shape of
+    // publish-profile; the generic signer is unchanged (assistant-identification-tags #3, ADR 0003).
     const identificationTaggingsApi = require('./assistant/identificationTaggings');
     app.post('/api/assistant/identification-tags/publish', identificationTaggingsApi.handlePublishIdentificationTaggings);
 
