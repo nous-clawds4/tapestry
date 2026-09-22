@@ -97,7 +97,8 @@ these estimates.
   - The menu components now render something beside themselves: a fragment in the two Brainstorm
     menus.
   - Until the Setup Alert exists, the `'setup'` branch renders nothing. It is a deliberate seam, and
-    it is documented.
+    it is documented. *(Amendment 1: it renders nothing for good; the Setup Alert draws itself beside
+    the slot.)*
 
 ### Option B: two independent pills, each mounted beside the menus
 
@@ -177,6 +178,9 @@ export default function TopBarAlert() {
   return null; // 'setup': the Setup Alert (setup-status-and-alert #2) renders here once it is built
 }
 ```
+
+*Amendment 1: the `'setup'` comment above no longer holds. That result now means "give way", and the
+Setup Alert renders beside the slot, not in it.*
 
 - `AssistantPill` is internal to the file.
 - The slot takes no props. It must render inside the router, for `useLocation`. All four mounts do.
@@ -274,7 +278,9 @@ step below 360 px.*
 - **Wider menus.** The menu components now render a sibling. Any future caller that places
   `BrainstormUserMenu` outside a flex row should give it one.
 - **Shared names.** The pill's base class and the slot are shared with the other book. Renaming
-  them later touches both.
+  them later touches both. *(Amendment 1: no longer true. The Setup Alert has its own component and
+  its own `.bs-setup-alert` class. What the two books share is the setup answer, and the dependency in
+  Amendment 1 point 3.)*
 - **Firmware reinstall required?** No.
 
 ## Implementation notes
@@ -344,8 +350,15 @@ this story reached Review. Its ADR, setup-status-and-alert/0002, never saw this 
 - its own CSS: `.bs-setup-alert`, the same `.header-auth` row (`styles.css:672`), `:has(.bs-setup-alert)`
   shedding at ≤ 440 px, and its Amendment 1's rules that stop the control panel's brand wrapping.
 
-So § Context's "The Setup Alert is not built", Option A's "needs no new mounts", sub-decision 5 and the
-§ Consequences line "Until the Setup Alert ships…" no longer hold. The branch merged `origin/staging` at
+So these no longer hold:
+- § Context's "The Setup Alert is not built";
+- Option A's "needs no new mounts", and its con that the `'setup'` branch renders nothing until the
+  Setup Alert exists;
+- sub-decision 2's comment that the Setup Alert "renders here once it is built";
+- sub-decision 5;
+- the § Consequences lines "Until the Setup Alert ships…" and "Shared names".
+
+Each carries an italic pointer here. The branch merged `origin/staging` at
 `fc7021f2`.
 
 **Decision: side by side, the Setup Alert first.** This is Option B, which § Options rejected because
