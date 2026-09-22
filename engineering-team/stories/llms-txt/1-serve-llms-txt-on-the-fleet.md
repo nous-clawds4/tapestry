@@ -64,5 +64,5 @@ None outstanding. Resolved with the operator at Planning on 2026-09-22:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/llms-txt/0001-serve-llms-txt-on-the-fleet.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/llms-txt/1-serve-llms-txt-on-the-fleet.test-plan.md`
 - Review: (filled in after Review phase)
