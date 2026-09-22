@@ -843,3 +843,316 @@ older follow list.** Times are from the click.
 ### Verdict (round 2)
 
 **CHANGES_REQUESTED**
+
+## Round 3: `46403384`
+
+**Reviewer:** Claude (acting as Reviewer). I did not write rounds 1 or 2, the ADR, the tests or the code.
+**Date:** 2026-09-21
+**Diff:** `git diff 63a80f91..HEAD` on `feat/setup-status-and-alert`, HEAD `46403384`, working tree clean. The commits:
+- `79e319ad` the round-3 tests (P3 import reordered, P3 second way in, S3) and the test plan;
+- `46403384` ADR 0003's as-built note and corrected example, and the story's Deviations heading.
+
+No code changed this round: `git diff 29438ff3..HEAD -- ui/ src/` is empty. The story's whole code change is still
+`git diff 6754a16a..HEAD -- ui/`.
+
+### In short
+
+- **Round 2's Blocking 1 is resolved, as asked.**
+  - P3 import now polls the read count before it checks the pill (`tests/brainstorm/setup-alert-polish.spec.js:362–363`).
+  - It can no longer fail on correct code: once the second read has started, every later state of the pill is "none".
+  - It passed 100 of 100 runs, and 20 of 20 at 28 workers. An instant stale answer fails it 100 of 100.
+- **The new "second way in" test is sound.**
+  - It drives the real page path.
+  - It fails 20 of 20 on `bad15295` and on a provider that remembers ids in an object. It passes 100 of 100 on HEAD.
+  - Round 2's Non-blocking 1 to 6 are resolved (3 mostly).
+- **One new blocking issue, in P3 Follow, a test from Test Design that no round has tested for bite.**
+  - Its check for AC-3's second clause ("never showing the old count while it re-checks") cannot fail.
+  - A provider that keeps showing the old count throughout the re-check passes every browser and Node test of all
+    three stories: 86 of 86 in the browser.
+  - `/setup` during a re-check has no test at all.
+  - The fix is the Tester's. No code change is asked (Blocking 1).
+- **Non-blocking:**
+  - the "no pill" checks, and P4's, bite only because the mock answers at once;
+  - one line of the test plan is stale;
+  - S3 misses a quoted key;
+  - AC-3's "counted again" direction has no test.
+- **Everything else holds.** I checked it with my own runs, not the Implementer's numbers:
+  - the 103-suite gate, 2128/0;
+  - the browser classes: 86 of 86 and 55 of 55, and 21 of 21 against the live `:7778`;
+  - 620 runs of the P3 tests on HEAD's build, none failing;
+  - `harness-lint` and hygiene, clean.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **The walker triage, re-run against `git diff 6754a16a...HEAD`.** I followed ledger row
+  `2026-09-21-abbreviated-path-names-no-gate`, including its spawned-script recipe.
+  - The branch touches 28 files, under `OPEN.md`, `engineering-team/`, `ledger/`, `test/`, `tests/brainstorm/` and
+    `ui/src`. It touches neither `src/`, `scripts/` nor `firmware/`.
+  - The recipe's greps:
+    - `readdirSync`: 22 suites and 2 helpers;
+    - spawns of `scripts/`;
+    - real reads of `OPEN.md` and `ledger/`.
+  - I also swept for readers of `engineering-team/`, `tests/` and `test/registry.js`.
+  - Outside the gate, the greps and the sweep give 31 candidates. Each one reads something this branch does not
+    change:
+    - a tree the branch does not touch;
+    - a fixture;
+    - a comment only;
+    - or fixed files outside the branch. The three `curated-dlist-update-*` suites read named `ui/src` files, none
+      of the eight this story changes.
+    - `curated-dlist-update-update-preview` reads `OPEN.md` row 314, and `operational-direction` reads row 41. The
+      branch changes only row 28.
+    - `scheduled-task-timeout-propagation`'s "registry" is the task registry.
+  - So the brief's list covers every reader: the plan's heredoc with `harness-lint`, `ledger-row-ids` and
+    `rollup-scanners` added to the walkers. It is 93 named suites and 10 walkers the grep misses: 103, none missing
+    from `test/registry.js`.
+- [x] **The gate,** under `GATE_LABEL=setup-alert-3-r3-review`, with nothing else running.
+  `npm run gate:status -- --label setup-alert-3-r3-review` reads:
+
+  ```
+  20260922T015721Z-54569-b0eb [setup-alert-3-r3-review] started 2026-09-22T01:57:21.306Z on 46403384 — PASS, exit 0, 2128 passed, 0 failed, 4 skipped, 103/103 suites · /Users/wds4/repos/nous-clawds4/tapestry/tmp/gate-runs/20260922T015721Z-54569-b0eb.json
+  ```
+
+  - The record has `git.dirty: false`, no stray errors, and node v24.18.0. It took 195 s.
+  - The four skips are the baseline's own: `deploy-safety-status` 1, `show-the-four…` 2 and `setup-status` H2 1.
+  - Round 2's gate passed 2094. Add `rollup-scanners`' 33 and S3, and that is 2128. Every other suite has round 2's
+    count.
+  - `setup-alert-polish` runs last (#103): 17/0.
+  - The suites this story leans on:
+    - `global-publish-gate` 8/0 and `treasure-map-relay-sync` 22/0;
+    - `honest-publish-reporting` 10/0 and `treasure-map-relay-presence` 35/0;
+    - `harness-lint` 76/0, `ledger-row-ids` 6/0, `rollup-scanners` 33/0 and `session-start` 32/0.
+- [x] **Six suites outside the gate, each run on its own through `.run()`:**
+  - `close-unauth-write-surface` 14/0;
+  - `event-tagging-write-path` 19/0;
+  - `one-default-assistant-profile` 52/0;
+  - `reconciliation-rearchitecture` 15/0;
+  - `curated-dlist-update-update-preview` 34/0;
+  - `operational-direction` 86/0. Its H tests only read, and H6 asserts that the read writes nothing.
+- [x] **The UI build** (`npm --prefix ui run build`) exits 0. It gives `index-DNK2T4Hx.js` and `index-DLb1LOT-.css`,
+  round 2's hashes.
+  - `:4173` serves that file (same SHA-256), and so does the live `:7778`.
+- [x] **The browser classes on `:4173`:**
+  - `setup-alert-polish`, `setup-alert` and `setup-status`: **86 passed** (21, 50 and 15);
+  - the five hermetic /assistant specs: **55 passed** (8, 4, 10, 18 and 15). Each has the `/api/**` catch-all.
+  - Story 3's spec against the live `:7778`: **21 passed**. The spec is hermetic there too.
+- [x] **Stability on HEAD's build, `--repeat-each`, default workers (the machine has 28 logical cores):**
+  - every P3 test ×30: 210 of 210;
+  - P3 import and P3 second way in ×100: 200 of 200;
+  - every P3 test ×20 at `--workers=28`: 140 of 140;
+  - the whole spec ×10: 210 of 210.
+  - That is 620 runs of the P3 tests, none failing.
+- [x] **Old code and mutants.**
+  - The builds are my own:
+    - each from `git archive` into the session scratchpad;
+    - built with `vite build --outDir`;
+    - served with `vite preview --outDir` on `:4174`–`:4177`, with the hash checked.
+  - The mock variants were temporary copies of the spec under `tests/brainstorm/`, and of the Node suites under
+    `test/`. All are deleted, and the tree is clean.
+
+  | Build or variant | Result |
+  |---|---|
+  | `bad15295` (`index-8tznIVuA.js`, round 1's hash), HEAD's spec | 19 passed, 2 failed: P3 race ("the pill must end on the new answer") and P3 second way in ("the import of the same event must re-check again …", Expected 3, Received 2) |
+  | `bad15295`, P3 second way in ×20 | 0 passed, 20 failed |
+  | HEAD with the provider remembering ids in `useRef({})` (`index-DKdbBB23.js`) | Node suite 17/0: D2's patterns do not match it. Browser: 20 passed, and only P3 second way in failed. ×20: 0 passed, 20 failed |
+  | A stale final answer, served at once (`answerFor: () => ONE_LEFT_MAP`; `[ONE_LEFT_MAP]` for the Map editor), ×100 each | P3 import, P3 second way in and P3 Map editor: 0 passed each. All 300 failed at the final pill check |
+  | The same stale answer, served 300 ms after the request, ×30 each | 30 passed of 30 for each: 90 false passes (Non-blocking 1) |
+  | HEAD with a provider that keeps the held answer while it re-checks the same viewer (`index-sbB7TMq-.js`; the diff is under Blocking 1) | Story 3's, 2's and 1's browser classes: 86 passed of 86. The Node suites against it: 39/0/1, 6/0 and 17/0 (Blocking 1) |
+  | Story 2's code (`6754a16a`, `index-CVntJGmH.js`, the case-sensitive hide), P4 as written | 0 passed, 4 failed |
+  | The same build; P4 with the `/SETUP` page's read answered after 2 s | 4 passed, 0 failed (Non-blocking 1) |
+  | S3 on a mirror of `ui/src` whose `TrustedAssertions.jsx` passes `{ announce: false }` | S3 fails (16/1). The unmodified mirror gives 17/0. With a quoted key, `{ 'announce': false }`, it gives 17/0 (Non-blocking 3) |
+
+- [x] **`bash scripts/harness-lint.sh`:** exit 0, "harness-lint: clean (0 violations)", on the tree under review.
+- [x] **Hygiene:**
+  - no raw control bytes and no CRLF in any of the 28 files the branch touches;
+  - round 3's added lines carry no `console.log`, `debugger`, `.only(`, TODO or 64-hex literal;
+  - no package, eslint, vite or Playwright config change;
+  - no `ui/` change, so round 2's eslint parity stands.
+- [ ] _Lint, typecheck and build are not configured: skipped. The UI build above is the book's check._
+
+### Round 2's findings, re-checked
+
+| Round 2 | Round 3 | Evidence |
+|---|---|---|
+| **Blocking 1**, P3 import raced | **Resolved, as asked** | The poll comes first (`:362`). The test is stable (above) and fails on an instant stale answer 100 of 100. It still depends on the mock answering at once (Non-blocking 1) |
+| **Blocking 1**, the recommended probe-L test | **Done** | P3 second way in (`:367–390`). See "The second way in" below |
+| **Non-blocking 1**, the ADR's as-built pointer | **Resolved** | ADR 0003 `:320–322` matches `nostrPublish.js:77`, `:166` and `:226–227`, and the story's Deviation |
+| **Non-blocking 2**, the ADR's second-way-in example | **Resolved** | `:307–311` and `:324–325` match the page. A push needs a local event (`ui/src/utils/treasureMap.js:1204`, fed by `TreasureMapRelayPresence.jsx:164`). Import is offered only when the Map is not local (`:278–289`) |
+| **Non-blocking 3**, the test plan's first half | **Mostly** | The counts (17 and 21) are updated and accurate, and so are the AC-3 row, the edge case at `:58`, the mutation row and the spec's message (`:333`). Two exceptions: `:66–67` (Non-blocking 2), and the P3 Follow claim at `:43` and `:60` (Blocking 1) |
+| **Non-blocking 4**, Amendment 1 § 2 pinned only by D2 | **Resolved** | The id-memory provider passes the Node suite 17/0 and fails P3 second way in 20 of 20 |
+| **Non-blocking 5**, nothing flags `announce: false` | **Resolved** | S3 (`test/setup-alert-polish.test.js:358–373`) bites on the plain spelling (Non-blocking 3) |
+| **Non-blocking 6**, the story's heading | **Resolved** | Story `:121` |
+| **Non-blocking 7**, not verified | **Still not verified** | Non-blocking 5 |
+| **Harness friction 1 and 2** | **Recorded** | Ledger rows `2026-09-21-abbreviated-path-names-no-gate` (the recipe clause) and `2026-09-21-single-run-satisfiability`, both from `63a80f91`. This round's plan follows the second |
+
+### This round's own claims, checked
+
+- **The test plan's first half:**
+  - `:11`, `:15`, `:18` and `:20`: 17 Node tests (U ×10, C ×1, D ×3, S ×3) and 21 browser tests. These match the gate
+    and my runs.
+  - The mutation row at `:215` is annotated as round 1's design. Its "Fails" column is round 1's result.
+- **The round-3 evidence table (`:321–328`):**
+  - I re-derived every row with more repeats. Each holds as stated.
+  - One caveat: "Their final checks bite" holds for a stale answer served at once, not for one served late
+    (Non-blocking 1).
+- **"No code changed in this round":** true.
+- **The mock's additions:** they are as described (`:76–77`, `:106`, `:132–133`, `:146–149`).
+- **ADR 0003:** the as-built note (`:320–322`), the corrected example (`:307–311`) and Decision 2 (`:323–325`) are
+  accurate.
+  - The note's reason, that internal functions would have moved the local-only guard, is the story's Deviation. It is
+    consistent with `test/global-publish-gate.test.js:150–156`.
+- **The story:** the heading is fixed. The Deviations need no round-3 entry, because nothing was implemented this
+  round.
+
+### The second way in, and the mock's fidelity
+
+- **It drives the real page path.** Only the network is mocked.
+  1. The hand editor (`TreasureMapManualEdit.jsx:38–54`) calls `publishOrThrow`, which throws only when both routes
+     fail (`publishProfileTag.js:24–33`). That calls `publishEverywhere`.
+  2. The local write is refused, and the five in-page relays accept. So there is one announcement, after the relays
+     (`nostrPublish.js:232`), and the first re-check.
+  3. `onPublished` runs the page's `search()` (`TrustedAssertions.jsx:46–98`). The local scan is empty, and
+     `/api/relay/external` gives back the edit.
+  4. The relay panel mounts again, folded. "📥 Import to local strfry" calls `publishToLocalStrfry(edit)` (`:106`).
+     That is the second announcement and the third read.
+  5. `:387` pins that the import published the edited event, not the old Map.
+- **The ordering does not race.**
+  - The announcement's `refresh()` and `search()`'s `setLoading(true)` run in the same task: `publishEverywhere`
+    returns straight after announcing, and the editor calls `onPublished` next. React batches them.
+  - So the old panel is gone before the second read reaches the mock, and the test's clicks wait for the new panel.
+  - I read this from the code. All 161 runs of this test on HEAD's build agree.
+- **The mock's new behaviour is faithful enough.**
+  - **`localRefusals`** answers HTTP 200 with `{ success: false, error }`. That is the real handler's answer to a
+    failed `strfry import` (`src/api/strfry/commands/publishEvent.js:112–113`).
+  - **The relays:** every in-page socket records each EVENT and answers `OK true` (`:106`), as a relay that accepts
+    it would.
+  - **One simplification:** `/api/relay/external` answers with the latest recorded kind 10040, whichever relays the
+    page asks for (`:132–133`).
+    - The page asks its "general purpose relays"; the edit went to `PUBLISH_RELAYS`.
+    - For real, the page finds the edit only where those two sets overlap.
+    - This simplifies where the Map lives, not the code under test.
+  - **The status mock** reads only the local relay. The real check reads outside relays on a local miss.
+    - So `:382`'s premise ("step 3 is still counted") assumes that the check's own relays did not find the edit.
+    - That is a possible world (ADR 0003 Amendment 1, "What follows").
+
+### Findings
+
+#### Blocking
+
+1. **`tests/brainstorm/setup-alert-polish.spec.js:315–317`, with `:93–98`: P3 Follow's check for AC-3's second clause
+   cannot fail when the pill keeps the old count during the re-check. Nothing else pins that clause after an in-app
+   save, for the pill or for `/setup`.**
+   - **The mechanism.**
+     - The recorder adds a log entry only when the pill's text changes (`:97`).
+     - The check looks for entries made after `publishedAt + 300` that carry "2 steps left" (`:316`).
+     - A provider that goes on showing the held answer while it re-checks never changes the text in that window. It
+       adds no entry, so the check finds nothing and passes.
+     - The check catches only a pill that hides and then comes back with the old count.
+     - It has been this way since Test Design (`786801e1`).
+   - **Measured.** A two-line mutant of the provider keeps the held answer while it re-checks the same viewer (diff
+     below).
+     - **The pill during P3 Follow's delayed read,** sampled every 100 ms:
+       - the mutant showed "· 2 steps left" in 12 of 12 samples, and HEAD showed no pill in 12 of 12;
+       - P3 Follow's own check found 0 stale entries on both.
+     - **`/setup` during the delayed read,** after an in-app move there:
+       - the mutant showed the old "1 of 3 complete" in 12 of 12 samples;
+       - HEAD showed "0 of 3 complete" in 12 of 12.
+     - **The test suites:** story 3's, 2's and 1's browser classes pass 86 of 86 on the mutant. The Node suites pass
+       39/0/1, 6/0 and 17/0.
+     - **Why nothing else catches it:**
+       - the Node D sentinels do not read the phase line;
+       - story 1's B10 samples the page in flight, but only across a sign-out, where the reset guard clears the
+         answer anyway;
+       - story 2's B9 checks only the end state.
+   - **What it contradicts.**
+     - **AC-3,** second clause (story `:66–67`): "while the new check runs, neither shows the old answer as
+       current".
+     - **ADR 0003 § 7** (`:269–272`) asks for this test: "during the second read it shows no old count".
+     - **The test plan claims it** at `:43` ("a MutationObserver log shows no committed state carrying the old count
+       from 300 ms after the publish until the new answer"), and ticks it at `:60`.
+   - **Why it blocks.**
+     - The code is right today. But this clause of an acceptance criterion has no test that can fail.
+     - Keeping the held answer to stop the pill flickering is a natural next change to this provider. ADR 0003's
+       Consequences discuss that flash. The change would break AC-3 with every test green.
+     - It is round 2's Blocking 1 in a stronger form: a check that does not pin its own headline. That one passed a
+       stale answer 6 of 20 times. This one cannot fail on it.
+     - No round measured it. The plan's mutation table has no mutant for this clause. Round 1's probes recorded the
+       behaviour with their own recorder, not the test's bite.
+   - **Asked change (Tester; no code change):**
+     - make P3 Follow check the state in force during the delayed read, not only the changes. For example:
+       - sample the pill every 100 ms while the answer is held back, as story 1's B10 does;
+       - or require that the log entry just before the new answer is the hidden state, begun no later than
+         `publishedAt + 300`.
+     - check `/setup` in the same window. Move there in-app while the read is held back. Require "0 of 3 complete",
+       never the old "1 of 3 complete", until the answer, and then "2 of 3 complete";
+     - show that the new checks fail on the mutant below and pass on HEAD with `--repeat-each` (20 or more);
+     - correct the plan at `:43` and `:60`, and add the mutant to its mutation table.
+
+   The mutant, for the Tester's oracle. It replaces `ui/src/context/SetupStatusContext.jsx:60`:
+
+   ```js
+   const samePerson = !!(result.request && request && result.request.split('#')[0] === request.split('#')[0]);
+   const phase = !request ? 'idle' : result.request === request ? result.phase : (samePerson && result.phase === 'answered' ? 'answered' : 'checking');
+   ```
+
+#### Non-blocking
+
+1. **`tests/brainstorm/setup-alert-polish.spec.js:363`, `:388`, `:420` and `:433`: the "no pill" checks cannot tell a
+   finished answer from a check still running. They bite only because the mock answers at once.**
+   - `state.statusCalls` counts a read when its request reaches the mock (`:156`), before it is answered.
+   - The pill is also hidden while the check runs. So after `expect.poll(() => state.statusCalls).toBe(n)`,
+     `toHaveCount(0)` can pass before any answer is drawn.
+   - **The Map tests:**
+     - with the spec's instant mock, a stale final answer fails all three of them, 300 of 300;
+     - served 300 ms after the request, the same stale answer passes 30 of 30 for each.
+   - **P4** waits a fixed 1.5 s instead (`open()`, `:167`). On story 2's case-sensitive build:
+     - it fails 4 of 4 as written;
+     - it passes 4 of 4 when the `/SETUP` page's read answers after 2 s.
+   - So the plan's "Their final checks bite" (`:327`) holds for an instant answer only.
+   - Optional: end each test on something only a finished answer shows:
+     - for the Map tests, an in-app move to `/setup` showing the all-done state, as P3 Follow does;
+     - for P4, `main.bs-setup-main` reading "1 of 3 complete" before the pill check.
+2. **Test plan `:66–67`: "the three import flows' own pages in the browser" are still listed as not covered.**
+   - The Map page's import is now driven by P3 import and P3 second way in.
+   - UserDetail's Find and Settings' import are still not driven in the browser. Round 1 probed them by hand.
+   - Optional: say so.
+3. **`test/setup-alert-polish.test.js:364`: S3's pattern misses a quoted key or a variable.**
+   - `{ 'announce': false }` passed S3 on my mirror (17/0), and `{ announce: quiet }` would too.
+   - That is the usual limit of a source sentinel, and the JSDoc documents the option (`nostrPublish.js:73–74`,
+     `:162–163`).
+   - Optional.
+4. **AC-3's "one that became not done is counted again" (story `:65`) has no test.**
+   - Every P3 test ends on a lower count.
+   - The provider shows whatever the new answer says, so the direction makes no difference to the code.
+   - Round 2's probe J drove the other direction: a Follow, then an Unfollow, ended on "· 3 steps left".
+   - Optional: an Unfollow case, which Blocking 1's rework could share.
+5. **Still not verified** (round 2's Non-blocking 7):
+   - screen readers and voice control;
+   - Firefox and Safari;
+   - a live Follow: the local stack answers `allowExternalPublish: true`;
+   - the "about 2.5 s live" catch-up for a viewer with no Map;
+   - signing out while a publish is in flight.
+
+#### Harness friction *(each becomes an OPEN.md row, type `meta`)*
+
+1. **The satisfiability rule catches a check that passes too early. It does not catch a check for a state that the
+   code under test never produces.**
+   - Ledger row `2026-09-21-single-run-satisfiability` asks for two things: `--repeat-each`, and a stale final answer
+     from the mock. Round 3 did both.
+   - Neither can exercise P3 Follow's "never shows the old count". A stale answer from the mock is still an answer,
+     and this clause is about the time before any answer arrives.
+   - Only a mutant of the code that keeps the old state shows that the check is vacuous (Blocking 1).
+   - The row's stale-answer step also misses a late answer. Served at once, the stale answer was caught 300 of 300.
+     Served 300 ms late, it passed 90 of 90 (Non-blocking 1).
+   - Asked: extend the row with two clauses:
+     - for every "never shows X" check, a code mutant that keeps showing X, which the test must fail on;
+     - serve the stale answer late as well as at once.
+
+### Close-out (same commit)
+
+- [ ] Story `**Status:**` stays `Approved`: this round requests changes.
+- [ ] Completion detection: none until a later round clears Blocking 1.
+
+### Verdict (round 3)
+
+**CHANGES_REQUESTED**
