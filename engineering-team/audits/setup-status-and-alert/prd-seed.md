@@ -47,7 +47,8 @@ them. The feature turns those preconditions from hidden state into a checklist.
 
 ## 3. Scope (as-built)
 
-`[FROM FRAME]` Shipped and on staging. The owner asked for the promotion to production to follow this close:
+`[FROM FRAME]` Shipped. Stories 1 and 2 are in production (promotions #735 and #739). Story 3 follows in the
+promotion the owner asked for after this close:
 
 - **`/setup` with real status:**
   - each step done or not done;
