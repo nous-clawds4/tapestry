@@ -304,8 +304,11 @@ always.
 - The local announcement then carried an id already heard, and it was dropped. The pill kept the
   old count until the next full page load.
 - The review reproduced this on the built UI.
-- **A second way in, with no race:** push a Map to a relay the check does not read, then import it
-  locally. The import's announcement was dropped as a duplicate.
+- **A second way in, with no race:** a publish whose local write fails while a relay accepts it, then
+  an import of that same event to the local relay (for example, a Map edit, then the Map page's "Import
+  to local strfry"). The import's announcement was dropped as a duplicate. *Corrected: the first wording
+  here, "push a Map … then import it", cannot happen in that order, because the page offers a push only
+  when the local relay holds the Map (story 3's review, round 2).*
 
 **Decision.**
 1. **`publishEverywhere` announces once.**
@@ -314,9 +317,12 @@ always.
    - Otherwise it announces once the relays have settled, if at least one accepted.
    - It does this through internal versions of the two routes that do not announce.
      `publishToLocalStrfry` and `publishToRelays`, called on their own, still announce as § 1 says.
+     *As built: an optional `{ announce }` argument on the two exported routes (default `true`), which
+     `publishEverywhere` sets to `false`. Internal functions would have moved the local-only guard out of
+     `publishToRelays` (story 3 § Deviations).*
 2. **The provider re-checks on every announcement of the viewer's own kind 3 or kind 10040.** It keeps
-   no record of ids already heard. So two publishes of one event, such as a push and then an import,
-   each re-check, and the later answer is the current one.
+   no record of ids already heard. So two publishes of one event, such as a publish whose local write
+   failed and then an import of it, each re-check, and the later answer is the current one.
 
 **What follows:**
 - **When the local write succeeds,** the re-check after a Follow or a Map edit always starts after

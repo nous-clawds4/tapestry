@@ -118,7 +118,7 @@ Small judgment calls made during implementation (Implementer role, step 9):
 
   The live pass on `:7778` (a sign-in-only throwaway session) covered AC-1, AC-2 and AC-4. Story 3's
   P0–P2 and P4 also ran against the deployed bundle there.
-- **Round 2 (ADR 0003 Amendment 1), as written.**
+- **Round 2 (ADR 0003 Amendment 1).**
   - **Not quite as written.** The amendment says "through internal versions of the two routes that do
     not announce". Instead, the two exported routes take an `{ announce }` option, default `true`, and
     `publishEverywhere` calls them with `announce: false`.
