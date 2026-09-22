@@ -149,7 +149,7 @@ const { suites } = require('./test/registry');
 const PAT = "App\\.jsx|avatarMenuLinks|pages/assistant|BrainstormSettings|styles\\.css|assistantPages|api/assistant/index|api/assistant/?[^/]|publishEvent|nip85\\.html|customer\\.html|BIBLE\\.md|topBarAlert|TopBarAlert|BrainstormUserMenu|BrainstormSearch|components/Header|DevPage|assistantManagementFixtures";
 const named = execSync(`/usr/bin/grep -lE '${PAT}' test/*.test.js`).toString().trim().split('\n').map((p) => p.replace(/^test\//, ''));
 const walkers = ['close-unauth-write-surface', 'collapse-into-export-concept', 'event-tagging-core', 'gate-result-record', 'ledger-row-ids',
-  'publish-export-a-concept', 'stack-free-npm-test', 'users-page-neo4j-endpoint'].map((n) => `${n}.test.js`);
+  'publish-export-a-concept', 'session-start', 'stack-free-npm-test', 'users-page-neo4j-endpoint'].map((n) => `${n}.test.js`);
 const want = new Set([...named, ...walkers]);
 const missing = [...want].filter((f) => !suites.some((s) => s.file === f));
 if (missing.length) { console.error('not in test/registry.js:', missing.join(', ')); process.exit(2); }
@@ -168,6 +168,10 @@ EOF
   list when it runs, and the filename grep now also finds `setup-alert`, the Setup Alert's suite, which reads
   the same four mounts. `grep -l readdirSync` after the merge finds no new walker: its two other hits,
   `reconciliation-rearchitecture` and `session-start`, predate the pin and read one fixed folder each.
+- **After review 2, round 2: 108 suites.** `session-start` joins as a walker. The one folder it reads is
+  `ledger/`, and this branch adds rows there. Staging's `c47becd6` clause asks walkers to be triaged
+  against the whole diff, not only the code. `reconciliation-rearchitecture` stays out: it reads
+  `src/pipeline/reconciliation/`, which this branch does not touch.
 
 The list:
 

@@ -21,7 +21,8 @@ const { test, expect } = require('@playwright/test');
  *         same accessible name, and no top bar wider than the screen, on every host.  [AC-5]
  *   B8  — pages showing the pill only read (GETs; the Dashboard's Cypher reads over POST)
  *         and sign nothing.                                                            [AC-6]
- *   B9  — creating an assistant on /assistant updates the pill without a reload.      [ADR 0002 Decision 5]
+ *   B9  — creating an assistant on /assistant/profile/edit updates the pill without a reload (re-aimed by
+ *         assistant-management #1: the editor moved from /assistant).                   [ADR 0002 Decision 5]
  *   B10 — the results view carries the pill too (wide screens).                       [AC-1]
  *   B11 — the phone accommodations apply only while a pill is showing.                [ADR 0002 § 4]
  *   B12 — the control panel header keeps its height and never scrolls with the pill:

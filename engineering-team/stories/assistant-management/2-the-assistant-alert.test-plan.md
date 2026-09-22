@@ -25,6 +25,7 @@ The approved words come from the shared `test/helpers/assistantManagementFixture
 | AC-2 | B2 signed out: no pill on the five pages · a signed-in guest with no assistant, setup answered all done: no pill | browser | browser |
 | AC-3 setup first | P2 idle or checking → none · P3 a counted step → `'setup'` with that count, never the Assistant pill, even on `/assistant` · P4 nothing counted → the Assistant pill with the hub's count · P5 failed → the Assistant pill · P8 all 96 combinations: exactly one of none / setup / assistant, and the Assistant pill only where setup-first allows it | Node | unit |
 | AC-3 | W1 the slot reads `useSetupStatus()` and decides with `pickTopBarPill` | Node | source |
+| AC-3 (the Setup Alert's half) | W5 *(added after review 2, round 2)*: the Setup Alert, beside the slot, returns `null` unless signed in and `pendingCount` is at least 1; `useSetupStatus()` summarizes the answer only when `phase === 'answered'`; `summarizeSetup` counts nothing for no answer, a failure or an expired session. That is the CI-run backstop for "never both" (ADR 0002 Amendment 1 point 3) | Node | source + unit (ESM) |
 | AC-3 | B3 check held → no pill of either kind; a follow list left → the Setup pill, and not this one; all done → this pill; another provider → this pill; check failed → this pill; at most one pill at any sampled moment · a late answer, both ways: no pill of either kind before it, then the right one alone. *(Strengthened after review 2: it now runs with the real Setup pill in the build.)* | browser | browser |
 | AC-4 where it hides | P7 `/assistant`, `/assistant/`, `/assistant/profile`, `/assistant/profile/edit`, `/assistant/dlists`, `/assistant/preferences` → none; `/assistants`, `/assistant-x`, `/setup`, `/`, `/tapestry/`… → the pill | Node | unit |
 | AC-4 | W2 no `<button>` in the slot, no dismiss state | Node | source |
@@ -73,6 +74,9 @@ The approved words come from the shared `test/helpers/assistantManagementFixture
   with an assistant then gets the pill. It adds no request those suites forbid and removes no
   control, so it is a thing to watch at review, not a test here. It is listed in § Test
   infrastructure.
+  *2026-09-21, after review 2: incomplete. The pill's phone rules also hide text, the wordmark and the
+  role badge, and `setup-alert.spec.js` B11 asserts on that text. § Verification, "After review 2",
+  records the re-aim.*
 
 ## Test infrastructure
 
@@ -87,7 +91,8 @@ As in story 1's plan: Node 22 for the Node class, and Playwright `chromium` agai
   ta-composite-avatar. setup-status.spec.js B7 checks 375 px on `/setup` with every step done, which
   now includes the pill.
 - The book's gate is one run over both stories. Its command and its 106 pinned suites are in story
-  1's plan § How to run. After the merge of `origin/staging` it finds 107: `setup-alert` joins.
+  1's plan § How to run. After the merge of `origin/staging` it finds 107: `setup-alert` joins. After
+  review 2's round 2 it runs 108: `session-start` joins as a walker of `ledger/`.
 
 ## How to run
 

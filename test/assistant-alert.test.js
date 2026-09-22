@@ -14,7 +14,8 @@
  *   C — the pill's words, ASSISTANT_ALERT_COPY in ui/src/pages/assistant/actions.js.
  *   W — the browser code, by source. CI runs no browser, so this is the CI backstop for the B-class: the slot reads the
  *       shared answers and nothing else, links to the hub, cannot be dismissed, and is mounted beside each avatar menu —
- *       four mounts, no more.
+ *       four mounts, no more. W5 pins the other half of "never both" (ADR 0002 Amendment 1 point 3): the Setup Alert,
+ *       beside the slot, draws only on an answered count of at least one step — exactly when the picker gives way.
  *
  * Against the code before this story, everything fails: topBarAlert.js and TopBarAlert.jsx do not exist, there is no
  * ASSISTANT_ALERT_COPY, and no top bar mounts a slot.
@@ -30,6 +31,10 @@ const UI_SRC = path.join(REPO, 'ui/src');
 const PICKER = path.join(REPO, 'ui/src/utils/topBarAlert.js');
 const SLOT = path.join(REPO, 'ui/src/components/TopBarAlert.jsx');
 const ACTIONS_MOD = path.join(REPO, 'ui/src/pages/assistant/actions.js');
+// The Setup Alert (setup-status-and-alert #2) and the one setup answer it reads, for W5.
+const SETUP_ALERT = path.join(REPO, 'ui/src/components/SetupAlert.jsx');
+const SETUP_CTX = path.join(REPO, 'ui/src/context/SetupStatusContext.jsx');
+const SETUP_UTIL = path.join(REPO, 'ui/src/utils/setupStatus.js');
 const MOUNTS = {
   'BrainstormUserMenu (behind TopBar and 14 pages\' own top bars)': path.join(REPO, 'ui/src/components/BrainstormUserMenu.jsx'),
   'the landing page\'s UserMenu (BrainstormSearch.jsx: landing and results views)': path.join(REPO, 'ui/src/pages/BrainstormSearch.jsx'),
@@ -277,6 +282,57 @@ test('W4: nothing else mounts the slot — no page gets two pills, and TopBar it
   const mounts = new Set(Object.values(MOUNTS));
   const extra = files.filter((f) => !mounts.has(f) && /<TopBarAlert\b/.test(codeOnly(safeRead(f)))).map(rel);
   assert(extra.length === 0, `only the four mounts may render <TopBarAlert />; also found in ${j(extra)}`);
+});
+
+test('W5: the Setup Alert, mounted beside the slot, draws its pill only when someone is signed in and the answered setup check counts a step — when the picker gives way, so the two pills never show together (AC-3; ADR 0002 Amendment 1 point 3)', async () => {
+  const t = ts();
+  const sf = parse(SETUP_ALERT);
+  assert(sf, `${rel(SETUP_ALERT)} does not exist — setup-status-and-alert #2 ships it, and ADR 0002 Amendment 1 leans on its rule`);
+  let fn = null;
+  walk(sf, (n) => { if (!fn && t.isFunctionDeclaration(n) && n.name && n.name.text === 'SetupAlert') fn = n; });
+  assert(fn && fn.body, `${rel(SETUP_ALERT)}: no function SetupAlert()`);
+  const wrong = [];
+  const src = codeOnly(fn.body.getText());
+  if (!/\{[^}]*\bpendingCount\b[^}]*\}\s*=\s*useSetupStatus\s*\(\s*\)/.test(src)) {
+    wrong.push('its pendingCount does not come from useSetupStatus() — the one answer the slot also reads');
+  }
+  // Before anything is drawn: return null unless someone is signed in and at least one step is counted.
+  const strip = (e) => { while (e && t.isParenthesizedExpression(e)) e = e.expression; return e; };
+  const disjuncts = (e) => {
+    e = strip(e);
+    return t.isBinaryExpression(e) && e.operatorToken.kind === t.SyntaxKind.BarBarToken ? [...disjuncts(e.left), ...disjuncts(e.right)] : [e];
+  };
+  const NONE_COUNTED = /^(pendingCount\s*<\s*1|pendingCount\s*<=\s*0|pendingCount\s*===?\s*0|!\s*pendingCount)$/;
+  let guard = null;
+  let drawnFirst = false;
+  for (const st of fn.body.statements) {
+    if (t.isReturnStatement(st) && st.expression && !/^null$/.test(st.expression.getText())) { drawnFirst = !guard; break; }
+    if (t.isIfStatement(st) && !guard) {
+      const then = t.isBlock(st.thenStatement) && st.thenStatement.statements.length === 1 ? st.thenStatement.statements[0] : st.thenStatement;
+      if (t.isReturnStatement(then) && then.expression && then.expression.getText() === 'null') {
+        const parts = disjuncts(st.expression).map((d) => d.getText().replace(/\s+/g, ' ').trim());
+        if (parts.some((d) => NONE_COUNTED.test(d))) guard = parts;
+      }
+    }
+  }
+  if (!guard) wrong.push('no early "if (… pendingCount < 1 …) return null;" before the pill: it must draw nothing while no step is counted');
+  else {
+    if (drawnFirst) wrong.push('it returns its pill before the guard');
+    if (!guard.includes('!user')) wrong.push(`the guard ${j(guard)} does not include !user — a signed-out visitor must see no pill`);
+    if (!guard.includes('loading')) wrong.push(`the guard ${j(guard)} does not include loading — nothing while sign-in resolves`);
+  }
+  // The count is non-zero only once the check has answered: useSetupStatus summarizes the held answer in no other phase…
+  const ctx = codeOnly(safeRead(SETUP_CTX));
+  if (!/summarizeSetup\(\s*phase\s*===\s*['"]answered['"]\s*\?\s*ctx\.answer\s*:\s*null\s*\)/.test(ctx)) {
+    wrong.push(`${rel(SETUP_CTX)}: useSetupStatus() must summarize the answer only when phase === 'answered' (summarizeSetup(phase === 'answered' ? ctx.answer : null))`);
+  }
+  // …and an answer that is not a signed-in success counts nothing.
+  const util = await loadEsm(SETUP_UTIL, 'setup-status-and-alert #1 creates it: the pure summarizeSetup() behind /setup and the Setup Alert.');
+  for (const [label, answer] of [['no answer', null], ['a failure', { success: false }], ['an expired session', { success: true, signedIn: false }]]) {
+    const n = util.summarizeSetup(answer).pendingCount;
+    if (n !== 0) wrong.push(`summarizeSetup(${label}).pendingCount is ${j(n)}, want 0`);
+  }
+  assert(wrong.length === 0, `"never both" rests on this (the picker returns 'setup', and the slot draws nothing, exactly when the answered count is at least one): ${wrong.join('; ')}`);
 });
 
 async function runSuite() {
