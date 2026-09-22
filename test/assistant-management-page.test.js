@@ -340,8 +340,10 @@ test('W1: App.jsx routes the hub at /assistant, the editor at /assistant/profile
   if (editor && !new RegExp(`path:\\s*MY_ASSISTANT_PATH\\s*,\\s*element:\\s*<${editor}\\b`).test(app)) {
     wrong.push(`no { path: MY_ASSISTANT_PATH, element: <${editor} /> } route`);
   }
-  if (placeholder && !new RegExp(`ASSISTANT_ACTIONS\\.map\\(\\s*\\(?\\s*(\\w+)\\s*\\)?\\s*=>\\s*\\(\\s*\\{\\s*path:\\s*\\1\\.path\\s*,\\s*element:\\s*<${placeholder}\\b[^>]*\\baction=\\{\\s*\\1\\s*\\}`).test(app)) {
-    wrong.push(`the ten placeholder routes are not generated as ...ASSISTANT_ACTIONS.map((a) => ({ path: a.path, element: <${placeholder} action={a} /> }))`);
+  // Re-aimed for assistant-identification-tags #2 (ADR 0002 sub-decision 1): an action may route to its own page
+  // through ACTION_PAGES[a.key]; every action without one still routes to the placeholder.
+  if (placeholder && !new RegExp(`ASSISTANT_ACTIONS\\.map\\(\\s*\\(?\\s*(\\w+)\\s*\\)?\\s*=>\\s*\\(\\s*\\{\\s*path:\\s*\\1\\.path\\s*,\\s*element:\\s*(?:ACTION_PAGES\\[\\s*\\1\\.key\\s*\\]\\s*\\?\\?\\s*)?<${placeholder}\\b[^>]*\\baction=\\{\\s*\\1\\s*\\}`).test(app)) {
+    wrong.push(`the action routes are not generated as ...ASSISTANT_ACTIONS.map((a) => ({ path: a.path, element: [ACTION_PAGES[a.key] ??] <${placeholder} action={a} /> }))`);
   }
   if (/\bMyAssistantPage\b/.test(app)) wrong.push('App.jsx still names MyAssistantPage — the editor moved to EditProfile.jsx');
   assert(wrong.length === 0, `ADR 0001 sub-decision 2: ${wrong.join('; ')}`);

@@ -11,6 +11,13 @@ import { getActiveSignerOrThrow } from './signerGuard';
  * Both surfaces call publishProfileTagAssertion to construct, sign, and publish
  * the kind-39999 assertion event with identical tag layout, so future wire
  * changes happen in one place.
+ *
+ * publishProfileTagAssertionWithReport (assistant-identification-tags #2, ADR
+ * 0002 sub-decision 3) is the same build and sign, returning what every relay
+ * did instead of throwing on delivery: the Identification Tags page reports
+ * each tagging's publish relay by relay. publishProfileTagAssertion is its
+ * wrapper and keeps the contract its callers have (throw when nothing took the
+ * event; return the signed event).
  */
 
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
@@ -23,13 +30,21 @@ export const NOSTR_USER_TAG_HANDLE = `39998:${TA_PUBKEY}:nostr-user-tag`;
  */
 export async function publishOrThrow(signed) {
   const result = await publishEverywhere(signed);
+  assertPublished(result);
+  return result;
+}
+
+/**
+ * publishOrThrow's rule, on a publishEverywhere result: throw when the local
+ * write and every outside relay failed; otherwise nothing.
+ */
+export function assertPublished(result) {
   const localOk = result?.local?.success;
   const externalOk = (result?.external?.successes?.length || 0) > 0;
   if (!localOk && !externalOk) {
     const reason = result?.local?.error || 'Publish failed on every relay.';
     throw new Error(reason);
   }
-  return result;
 }
 
 /**
@@ -41,9 +56,12 @@ export async function publishOrThrow(signed) {
  *   pubkey (the `.pubkey` of its kind-39999 event), needed for the `a` coord.
  * @param {string} args.targetPubkey — the pubkey being tagged.
  * @param {1 | -1} args.polarity — +1 = apply; -1 = dispute.
- * @returns {Promise<object>} the signed event.
+ * @param {string[]} [args.relays] — the outside relays; publishEverywhere's default when omitted.
+ * @returns {Promise<{signed: object, result: object}>} the signed event and publishEverywhere's result:
+ *   { local: { success, error? }, external: { successes, failures, details?, skippedByGate? } }. Never throws
+ *   on delivery — the caller reads the result (ui/src/utils/taggingPublishReport.js describes it).
  */
-export async function publishProfileTagAssertion({ tag, targetPubkey, polarity, localTaPubkey }) {
+export async function publishProfileTagAssertionWithReport({ tag, targetPubkey, polarity, localTaPubkey, relays }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to publish tags.');
   }
@@ -89,6 +107,18 @@ export async function publishProfileTagAssertion({ tag, targetPubkey, polarity, 
     }),
   };
   const signed = await window.nostr.signEvent(unsigned);
-  await publishOrThrow(signed);
+  const result = relays ? await publishEverywhere(signed, relays) : await publishEverywhere(signed);
+  return { signed, result };
+}
+
+/**
+ * Build, sign, and publish a single (tag, target, polarity) assertion, throwing
+ * when neither the local relay nor any outside relay took it (publishOrThrow's
+ * rule). The contract useProfileTags and the Tag page rely on.
+ * @returns {Promise<object>} the signed event.
+ */
+export async function publishProfileTagAssertion({ tag, targetPubkey, polarity, localTaPubkey }) {
+  const { signed, result } = await publishProfileTagAssertionWithReport({ tag, targetPubkey, polarity, localTaPubkey });
+  assertPublished(result);
   return signed;
 }

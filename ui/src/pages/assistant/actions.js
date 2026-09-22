@@ -1,7 +1,9 @@
 /**
  * The Assistant Management page, as data (assistant-management #1, ADR 0001 sub-decision 1): its three
  * sections, its ten actions, its FAQ and its words — and the one answer to "which of the viewer's actions
- * need attention", which the page's marks, its count line and the Assistant Alert (story 2) all read.
+ * need attention", which the page's marks, its count line and the Assistant Alert (story 2) all read. Since
+ * assistant-identification-tags #1 that answer merges the server's real checks (GET /api/assistant/attention,
+ * the actions in CHECKED_ACTIONS) with the placeholders, in two readings: the page's and the pill's.
  *
  * One definition feeds the page (Index.jsx), the placeholder page behind each action (ActionPage.jsx) and
  * their routes (App.jsx), so a card, its page and its address cannot drift apart. Adding an action is one
@@ -209,16 +211,44 @@ export function plainText(parts) {
 }
 
 /**
- * Which of the viewer's actions need attention (story 1 AC-2; the pill counts the same answer, story 2
- * AC-5). A scaffold: every action, for a viewer who has an assistant on this instance — sign-in's
- * user.assistantPubkey, the getAssistantPubkeyFor answer that also marks /setup's first step done — and
- * none for anyone else. When the real per-action checks come, this answer (or what replaces it) stays the
- * one source for both the page and the pill.
- * @param {?{ assistantPubkey?: ?string }} user
- * @returns {{ hasAssistant: boolean, needsAttention: string[], count: number }}
+ * The actions whose "needs attention" answer is real — computed by GET /api/assistant/attention for the viewer's own
+ * assistant (ADR assistant-identification-tags/0001 sub-decision 6) — as opposed to the placeholders, which count
+ * everywhere until their check is built. An action joins this list when its check ships.
  */
-export function assistantAttention(user) {
+export const CHECKED_ACTIONS = ['identification-tags'];
+
+/**
+ * Which of the viewer's actions need attention (story 1 AC-2; the pill counts the same answer, story 2 AC-5), in the
+ * two readings ADR assistant-identification-tags/0001 sub-decision 6 defines:
+ *   - the page reading, `needsAttention` and `count`: a placeholder is always marked; a checked action is marked
+ *     unless its answer says `done` — so while the answer is on its way, when the fetch failed, and when the check
+ *     did not finish, it stays marked, as /setup shows a step as not done until it knows;
+ *   - the pill reading, `alertCount`: a placeholder always counts; a checked action counts only when its answer says
+ *     `pending` (a finished check found something missing) — the confident reading, as the Setup Alert counts.
+ * Both are about a viewer who has an assistant on this instance — sign-in's user.assistantPubkey, the
+ * getAssistantPubkeyFor answer that also marks /setup's first step done — and empty for anyone else.
+ * @param {?{ assistantPubkey?: ?string }} user
+ * @param {?{ answered?: boolean, actions?: Object<string, { done?: boolean, pending?: boolean }> }} [attention]
+ *   what useAssistantAttention() returns (ui/src/context/AssistantAttentionContext.jsx); omitted = not answered
+ * @returns {{ hasAssistant: boolean, needsAttention: string[], count: number, alertCount: number }}
+ */
+export function assistantAttention(user, attention = null) {
   const hasAssistant = Boolean(user && user.assistantPubkey);
-  const needsAttention = hasAssistant ? ASSISTANT_ACTIONS.map((action) => action.key) : [];
-  return { hasAssistant, needsAttention, count: needsAttention.length };
+  if (!hasAssistant) return { hasAssistant: false, needsAttention: [], count: 0, alertCount: 0 };
+  const answers = attention && attention.answered === true && attention.actions && typeof attention.actions === 'object'
+    ? attention.actions
+    : {};
+  const needsAttention = [];
+  let alertCount = 0;
+  for (const action of ASSISTANT_ACTIONS) {
+    if (!CHECKED_ACTIONS.includes(action.key)) {
+      needsAttention.push(action.key);
+      alertCount += 1;
+      continue;
+    }
+    const answer = answers[action.key];
+    if (!answer || answer.done !== true) needsAttention.push(action.key);
+    if (answer && answer.pending === true) alertCount += 1;
+  }
+  return { hasAssistant, needsAttention, count: needsAttention.length, alertCount };
 }

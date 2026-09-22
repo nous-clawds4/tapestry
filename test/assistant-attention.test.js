@@ -1,0 +1,765 @@
+'use strict';
+/**
+ * assistant-identification-tags #1: the one answer — which identification taggings are missing for your Assistant —
+ * and the hub's first real mark.
+ *
+ * Story: engineering-team/stories/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md
+ * ADR:   engineering-team/decisions/assistant-identification-tags/0001-one-assistant-attention-answer.md
+ * Plan:  engineering-team/stories/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.test-plan.md
+ * Browser half: tests/brainstorm/assistant-attention.spec.js (B-class — what a viewer SEES on the hub and in the pill).
+ * Expected words and shapes: test/helpers/identificationTagsFixtures.js.
+ *
+ * Classes:
+ *   L — the shared library src/lib/identification-tags (pure CommonJS): the required list, the canonical author, the
+ *       address and d-tag composers, the polarity reader.                                            [AC-1, AC-3]
+ *   U — src/api/assistant/attention.js driven through the dependencies ADR 0001 names (getAssistantPubkeyFor,
+ *       scanLocal, readRelay, readConfiguredRelays, getConfigFromFile). Stack-free.                     [AC-2 … AC-7]
+ *   C — the pure ESM utils, loaded in Node: ui/src/utils/assistantAttention.js (the summarizer), the two-reading
+ *       merge assistantAttention(user, attention) and CHECKED_ACTIONS in ui/src/pages/assistant/actions.js, and the
+ *       picker's assistantPhase in ui/src/utils/topBarAlert.js.                                       [AC-5]
+ *   S — source sentinels on the server: the route is registered and documented, the module never writes, never reads
+ *       a query parameter, and reads relays strictly.                                                [AC-2, AC-7]
+ *   D — source sentinels on the UI files this runner cannot execute (JSX): the provider, where App.jsx mounts it, the
+ *       hub and the slot reading it, the Vite alias.                                                  [AC-5, AC-7]
+ *   R — regressions that pass before and after: the publisher's d-tag rule, and the old one-argument answers.
+ *   H — the live contract on whatever instance is reachable (BRAINSTORM_BASE_URL, else localhost:7778): one anonymous
+ *       GET. Skips when nothing answers, or on a Node without fetch.
+ *
+ * Everything except R FAILS against the current code: src/lib/identification-tags, src/api/assistant/attention.js,
+ * ui/src/utils/assistantAttention.js and ui/src/context/AssistantAttentionContext.jsx do not exist; assistantAttention
+ * takes one argument and answers no alertCount; the picker has no assistantPhase; /api/assistant/attention answers 404.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
+const X = require('./helpers/identificationTagsFixtures');
+
+const REPO = path.resolve(__dirname, '..');
+const LIB_DIR = path.join(REPO, 'src/lib/identification-tags');
+const LIB = path.join(LIB_DIR, 'index.js');
+const ATTENTION_MODULE = path.join(REPO, 'src/api/assistant/attention.js');
+const SETUP_STATUS_MODULE = path.join(REPO, 'src/api/setup/status.js');
+const API_INDEX = path.join(REPO, 'src/api/index.js');
+const OPENAPI = path.join(REPO, 'src/api/openapi.yaml');
+const UI_UTIL = path.join(REPO, 'ui/src/utils/assistantAttention.js');
+const ACTIONS_MOD = path.join(REPO, 'ui/src/pages/assistant/actions.js');
+const PICKER = path.join(REPO, 'ui/src/utils/topBarAlert.js');
+const PROVIDER = path.join(REPO, 'ui/src/context/AssistantAttentionContext.jsx');
+const APP = path.join(REPO, 'ui/src/App.jsx');
+const HUB_PAGE = path.join(REPO, 'ui/src/pages/assistant/Index.jsx');
+const SLOT = path.join(REPO, 'ui/src/components/TopBarAlert.jsx');
+const VITE = path.join(REPO, 'ui/vite.config.js');
+const PUBLISHER = path.join(REPO, 'ui/src/utils/publishProfileTag.js');
+const HOST_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
+const NL = String.fromCharCode(10);
+
+// Fixture keys, never live ones. TA stands in for an instance TA: the suite never reads a real one.
+const VIEWER = 'a1'.repeat(32);
+const ASSISTANT = 'a2'.repeat(32);
+const TA = 'ee'.repeat(32);
+const OTHER = 'b2'.repeat(32);
+const OTHER_TAG_AUTHOR = '6d'.repeat(32);
+const CANON = X.CANONICAL_TAG_AUTHOR;
+
+// Fixture relays.
+const DCOSL = 'wss://dcosl.example';
+const SECOND = 'wss://second.example';
+const OWN = 'ws://localhost:7777';
+
+// ADR 0001 § Implementation notes 2.
+const TAG_RELAY_CATEGORIES = ['aTagFederationRelays'];
+const RELAY_BUDGET_MS = 8000;
+const ACTION = X.CHECKED_ACTION;
+
+const tests = [];
+function test(name, fn) { tests.push([name, fn]); }
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
+function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+const show = (v) => JSON.stringify(v);
+const rel = (p) => path.relative(REPO, p);
+
+/** Key-order-blind JSON equality. */
+function sortKeys(v) {
+  if (Array.isArray(v)) return v.map(sortKeys);
+  if (v && typeof v === 'object') return Object.keys(v).sort().reduce((o, k) => { o[k] = sortKeys(v[k]); return o; }, {});
+  return v;
+}
+const sameJson = (a, b) => show(sortKeys(a)) === show(sortKeys(b));
+
+/** Source with comments removed (block comments become blank lines, so line numbers stay true). */
+function codeOnly(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '))
+    .split(NL)
+    .map((line) => line.replace(/(^|[^:'"`\\])\/\/.*$/, '$1'))
+    .join(NL);
+}
+
+let hExecuted = 0;
+let hSkipped = 0;
+
+/* ───────────────────────── fixtures: events ───────────────────────── */
+
+let idSeq = 0;
+const hexId = (n) => n.toString(16).padStart(64, '0');
+const tagOf = (ev, name) => { const t = (ev.tags || []).find((x) => x[0] === name); return t ? t[1] : null; };
+
+function ev(kind, pubkey, createdAt, tags, id, content = '') {
+  idSeq += 1;
+  return { id: id || hexId(idSeq), pubkey, kind, created_at: createdAt, tags, content, sig: '0'.repeat(128) };
+}
+
+/**
+ * A tagging in the deployed shape (ui/src/utils/publishProfileTag.js): d/p/a/e/z/z/polarity. `polarity` null omits
+ * the tag; `tagAuthor` is whose same-named tag it points at (the canonical author by default).
+ */
+function tagging(signer, target, slug, { polarity = '1', createdAt = 1000, id, tagAuthor = CANON } = {}) {
+  const tags = [
+    ['d', X.taggingDTag({ slug, targetPubkey: target, signerPubkey: signer })],
+    ['p', target],
+    ['a', `39999:${tagAuthor}:${slug}`],
+    ['e', hexId(9000 + idSeq)],
+    ['z', '39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-user-tag'],
+    ['z', `39998:${TA}:nostr-user-tag`],
+  ];
+  if (polarity !== null) tags.push(['polarity', String(polarity)]);
+  return ev(39999, signer, createdAt, tags, id, show({ nostrUserTag: { taggedPubkey: target, tagAddress: `39999:${tagAuthor}:${slug}` } }));
+}
+
+/** A tag definition (protocols/drafts/tags.md § Tag definitions) by `author`, at d = slug. */
+function definition(slug, { author = CANON, createdAt = 500, id, name } = {}) {
+  return ev(39999, author, createdAt, [['d', slug], ['z', `39998:${TA}:tag`]], id,
+    show({ tag: { slug, name: name || slug, description: `fixture ${slug}` } }));
+}
+
+/** The four taggings for a viewer and their assistant, all applied. */
+function allFour({ viewer = VIEWER, assistant = ASSISTANT, createdAt = 1000 } = {}) {
+  return X.REQUIRED.map((e) => (e.signer === 'person'
+    ? tagging(viewer, assistant, e.slug, { createdAt })
+    : tagging(assistant, viewer, e.slug, { createdAt })));
+}
+const allDefinitions = () => X.REQUIRED.map((e) => definition(e.slug));
+
+/** What a relay answers a filter with: the events matching its kinds, authors and #d. */
+function matching(events, filter) {
+  const kinds = Array.isArray(filter && filter.kinds) ? filter.kinds : null;
+  const authors = Array.isArray(filter && filter.authors) ? filter.authors.map((a) => String(a).toLowerCase()) : null;
+  const ds = Array.isArray(filter && filter['#d']) ? filter['#d'] : null;
+  return events.filter((e) => (!kinds || kinds.includes(e.kind))
+    && (!authors || authors.includes(String(e.pubkey).toLowerCase()))
+    && (!ds || ds.includes(tagOf(e, 'd'))));
+}
+
+/* ───────────────────────── the modules under test ───────────────────────── */
+
+function libModule() {
+  if (!fs.existsSync(LIB)) {
+    throw new Error('src/lib/identification-tags/index.js does not exist. ADR 0001 sub-decision 1 creates it: the pure, dependency-free ' +
+      'library both the server and the UI load (REQUIRED_TAGGINGS, CANONICAL_TAG_AUTHOR, canonicalTagAddress, taggingDTag, readPolarity, ' +
+      'polarityBucket, isTagging, signerAndTarget).');
+  }
+  delete require.cache[require.resolve(LIB)];
+  return require(LIB);
+}
+function attentionModule() {
+  if (!fs.existsSync(ATTENTION_MODULE)) {
+    throw new Error('src/api/assistant/attention.js does not exist. ADR 0001 § Implementation notes 2 creates it: the one module that ' +
+      'answers GET /api/assistant/attention for the session\'s viewer (handleAssistantAttention, lookupByAddresses, checkIdentificationTags, ' +
+      'evaluateIdentificationTags, tagRelays).');
+  }
+  delete require.cache[require.resolve(ATTENTION_MODULE)];
+  return require(ATTENTION_MODULE);
+}
+function need(mod, name, file = 'src/api/assistant/attention.js') {
+  assert(typeof mod[name] === 'function', `${file} must export ${name}() (ADR 0001 § Implementation notes).`);
+  return mod[name];
+}
+
+/**
+ * The injected dependencies, under the names ADR 0001 gives them. Every one RECORDS its calls.
+ *   assistant   — what getAssistantPubkeyFor answers: default ASSISTANT; null = no assistant; 'throw'.
+ *   local       — the events this instance's relay holds (an array), or 'reject' (the scan fails), or a function
+ *                 of the filter.
+ *   relays      — { [url]: events | 'unreachable' | 'hang' | 'throw' }: each outside relay. An unlisted relay is
+ *                 unreachable. An array answers `ok` with the events matching the filter.
+ *   configured  — what readConfiguredRelays answers for the tag-federation category; default [DCOSL].
+ *   config      — getConfigFromFile's values (BRAINSTORM_RELAY_URL, STRFRY_DOMAIN).
+ */
+function fakes(opts = {}) {
+  const calls = { getAssistantPubkeyFor: [], scanLocal: [], readRelay: [], readConfiguredRelays: [] };
+  const deps = {
+    getAssistantPubkeyFor: async (pk) => {
+      calls.getAssistantPubkeyFor.push(pk);
+      if (opts.assistant === 'throw') throw new Error('fixture: the key store exploded');
+      return opts.assistant === undefined ? ASSISTANT : opts.assistant;
+    },
+    scanLocal: async (filter) => {
+      calls.scanLocal.push(filter);
+      if (opts.local === 'reject') throw new Error('fixture: strfry scan failed');
+      if (typeof opts.local === 'function') return opts.local(filter);
+      return matching(Array.isArray(opts.local) ? opts.local : [], filter);
+    },
+    readRelay: async (url, filter) => {
+      calls.readRelay.push({ url, filter });
+      const answer = opts.relays ? opts.relays[url] : undefined;
+      if (answer === 'hang') return new Promise(() => {});
+      if (answer === 'throw') throw new Error('fixture: the relay read threw');
+      if (!Array.isArray(answer)) return { status: 'unreachable', events: [], error: 'fixture: unreachable' };
+      return { status: 'ok', events: matching(answer, filter), error: null };
+    },
+    readConfiguredRelays: (categories) => {
+      calls.readConfiguredRelays.push(categories);
+      return (opts.configured || [DCOSL]).slice();
+    },
+    getConfigFromFile: (key, dflt) => (opts.config && Object.prototype.hasOwnProperty.call(opts.config, key) ? opts.config[key] : dflt),
+  };
+  return { deps, calls };
+}
+
+function fakeRes() {
+  const res = { statusCode: 200, body: undefined };
+  res.status = (code) => { res.statusCode = code; return res; };
+  res.json = (body) => { res.body = body; return res; };
+  return res;
+}
+const signedInReq = (pubkey = VIEWER, extra = {}) => ({ session: { authenticated: true, pubkey }, query: {}, ...extra });
+
+async function answer(opts, req = signedInReq()) {
+  const handle = need(attentionModule(), 'handleAssistantAttention');
+  const { deps, calls } = fakes(opts);
+  const res = fakeRes();
+  await handle(req, res, deps);
+  const action = res.body && res.body.actions && res.body.actions[ACTION];
+  const rows = action && Array.isArray(action.taggings) ? action.taggings : [];
+  const row = (key) => rows.find((r) => r && r.key === key);
+  return { res, body: res.body, action, rows, row, calls };
+}
+
+/** Resolve within `ms`, or report 'HUNG' — clearing the timer either way. */
+async function within(promise, ms) {
+  let timer;
+  const hung = new Promise((resolve) => { timer = setTimeout(() => resolve('HUNG'), ms); });
+  try { return await Promise.race([promise, hung]); } finally { clearTimeout(timer); }
+}
+
+async function loadEsm(absPath) {
+  try { return await import(pathToFileURL(absPath).href); } catch (err) { return { __loadError: err }; }
+}
+async function esm(absPath, what) {
+  assert(fs.existsSync(absPath), `${rel(absPath)} does not exist. ${what}`);
+  const mod = await loadEsm(absPath);
+  assert(!mod.__loadError, `${rel(absPath)} must load in Node as ESM (relative imports with .js): ${mod.__loadError && mod.__loadError.message}`);
+  return mod;
+}
+const actionsModule = () => esm(ACTIONS_MOD, 'It holds assistantAttention and CHECKED_ACTIONS (ADR 0001 sub-decision 6).');
+const pickerModule = () => esm(PICKER, 'It holds pickTopBarPill (ADR 0001 sub-decision 8).');
+const uiUtil = () => esm(UI_UTIL, 'ADR 0001 § Implementation notes 3 creates it: the pure summarizeAttention() the provider hands out.');
+
+/* ───────────────────────── L — the shared library ───────────────────────── */
+
+test('L1: the library exists, is CommonJS, and requires nothing — both the server and the UI (through the Vite alias) can load it (ADR 0001 sub-decision 1)', () => {
+  const mod = libModule();
+  const src = codeOnly(safeRead(LIB));
+  assert(!/\brequire\s*\(/.test(src) && !/^\s*import\b/m.test(src), 'src/lib/identification-tags/index.js must be dependency-free: no require() and no import');
+  for (const name of ['REQUIRED_TAGGINGS', 'CANONICAL_TAG_AUTHOR', 'canonicalTagAddress', 'taggingDTag', 'readPolarity', 'polarityBucket', 'isTagging', 'signerAndTarget']) {
+    assert(mod[name] !== undefined, `the library must export ${name}`);
+  }
+});
+
+test('L2: the canonical author is the owner\'s own key (BIBLE §20, npub1u5njm6g…), and each canonical address is 39999:<that key>:<slug> (AC-1; Discovery decision 5)', () => {
+  const mod = libModule();
+  assert(mod.CANONICAL_TAG_AUTHOR === CANON, `CANONICAL_TAG_AUTHOR: want ${CANON} (${X.CANONICAL_TAG_AUTHOR_NPUB}), got ${show(mod.CANONICAL_TAG_AUTHOR)}`);
+  for (const e of X.REQUIRED) {
+    assert(mod.canonicalTagAddress(e.slug) === X.canonicalTagAddress(e.slug), `canonicalTagAddress(${e.slug}): want ${X.canonicalTagAddress(e.slug)}, got ${show(mod.canonicalTagAddress(e.slug))}`);
+  }
+});
+
+test('L3: the required list is the four taggings in order — My Tapestry Assistant, My Agent (you on your Assistant), My Tapestry Owner, My Human (your Assistant on you) — each with its name, slug, signer, target and canonical address (AC-1)', () => {
+  const mod = libModule();
+  const got = (mod.REQUIRED_TAGGINGS || []).map((e) => ({ key: e.key, name: e.name, slug: e.slug, signer: e.signer, target: e.target, address: e.address }));
+  const want = X.REQUIRED.map((e) => ({ ...e, address: X.canonicalTagAddress(e.slug) }));
+  assert(sameJson(got, want), `REQUIRED_TAGGINGS: want ${show(want)}, got ${show(got)}`);
+  assert(Object.isFrozen(mod.REQUIRED_TAGGINGS) || true, 'ok');
+});
+
+test('L4: taggingDTag composes the publisher\'s address — profile-tag-<slug>-<target[0:8]>-<signer[0:8]> — and signerAndTarget resolves each entry\'s signer and target from the viewer and their assistant (AC-3)', () => {
+  const mod = libModule();
+  const d = mod.taggingDTag({ slug: 'my-agent', targetPubkey: ASSISTANT, signerPubkey: VIEWER });
+  assert(d === `profile-tag-my-agent-${ASSISTANT.slice(0, 8)}-${VIEWER.slice(0, 8)}`, `taggingDTag: got ${show(d)}`);
+  const wrong = [];
+  for (const e of mod.REQUIRED_TAGGINGS) {
+    const st = mod.signerAndTarget(e, { personPubkey: VIEWER, assistantPubkey: ASSISTANT });
+    const want = e.signer === 'person' ? { signerPubkey: VIEWER, targetPubkey: ASSISTANT } : { signerPubkey: ASSISTANT, targetPubkey: VIEWER };
+    if (!sameJson(st, want)) wrong.push(`${e.key}: want ${show(want)}, got ${show(st)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('L5: readPolarity and polarityBucket read a tagging the way the reads do — absent is apply, ≥ 0.5 applies, ≤ −0.5 disputes, between is neutral, junk is apply — and isTagging knows a tagging by its d prefix (AC-3)', () => {
+  const mod = libModule();
+  const cases = [[null, 1, 'apply'], ['1', 1, 'apply'], ['-1', -1, 'dispute'], ['0.2', 0.2, 'neutral'], ['-0.5', -0.5, 'dispute'], ['0.5', 0.5, 'apply'], ['x', 1, 'apply']];
+  const wrong = [];
+  for (const [pol, num, bucket] of cases) {
+    const t = tagging(VIEWER, ASSISTANT, 'my-agent', { polarity: pol });
+    const n = mod.readPolarity(t);
+    const b = mod.polarityBucket(n);
+    if (n !== num || b !== bucket) wrong.push(`polarity ${show(pol)}: want ${num}/${bucket}, got ${show(n)}/${show(b)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+  assert(mod.isTagging(tagging(VIEWER, ASSISTANT, 'my-agent')) === true, 'a profile-tag-… kind 39999 is a tagging');
+  assert(mod.isTagging(definition('my-agent')) === false, 'a tag definition (d = slug) is not a tagging');
+  assert(mod.isTagging(ev(1, VIEWER, 1, [['d', 'profile-tag-x-a-b']])) === false, 'a kind 1 is not a tagging');
+});
+
+/* ───────────────────────── U — the handler ───────────────────────── */
+
+test('U1: without an authenticated session the endpoint answers { success: true, signedIn: false } and asks nothing (AC-2)', async () => {
+  const handle = need(attentionModule(), 'handleAssistantAttention');
+  const cases = [
+    ['no session at all', {}],
+    ['an empty session', { session: {} }],
+    ['a sign-in still pending (authenticated unset)', { session: { pubkey: VIEWER } }],
+    ['authenticated is not exactly true', { session: { authenticated: 'true', pubkey: VIEWER } }],
+    ['a session pubkey that is not 64-hex', { session: { authenticated: true, pubkey: 'npub1notahexkey' } }],
+  ];
+  const wrong = [];
+  for (const [label, req] of cases) {
+    const { deps, calls } = fakes();
+    const res = fakeRes();
+    await handle(req, res, deps);
+    if (res.statusCode !== 200 || !sameJson(res.body, X.SIGNED_OUT)) wrong.push(`${label}: ${res.statusCode} ${show(res.body)}`);
+    if (calls.getAssistantPubkeyFor.length || calls.scanLocal.length || calls.readRelay.length) wrong.push(`${label}: asked something`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U2: a signed-in viewer with no assistant on this instance gets { signedIn: true, hasAssistant: false, actions: {} } — nothing is scanned or read (AC-2)', async () => {
+  const { res, body, calls } = await answer({ assistant: null });
+  assert(res.statusCode === 200 && sameJson(body, X.NO_ASSISTANT), `want ${show(X.NO_ASSISTANT)}, got ${res.statusCode} ${show(body)}`);
+  assert(calls.scanLocal.length === 0 && calls.readRelay.length === 0, 'no assistant, nothing to check: no scan, no relay read');
+  assert(show(calls.getAssistantPubkeyFor) === show([VIEWER]), `the assistant is looked up for the session\'s viewer: ${show(calls.getAssistantPubkeyFor)}`);
+});
+
+test('U3: every tagging and definition on this instance\'s relay — each row present, finished, local; the action finished and done; no outside relay is read (AC-3, AC-4, AC-6)', async () => {
+  const { body, action, rows, calls } = await answer({ local: [...allFour(), ...allDefinitions()] });
+  assert(body && body.success === true && body.signedIn === true && body.hasAssistant === true, `got ${show(body)}`);
+  assert(action && action.finished === true && action.done === true && action.pending === false, `action flags: ${show(action && { finished: action.finished, done: action.done, pending: action.pending })}`);
+  const got = rows.map((r) => ({ key: r.key, name: r.name, slug: r.slug, signer: r.signer, target: r.target, present: r.present, finished: r.finished, source: r.source, found: r.definition && r.definition.found, dsource: r.definition && r.definition.source }));
+  const want = X.REQUIRED.map((e) => ({ ...e, present: true, finished: true, source: 'local', found: true, dsource: 'local' }));
+  assert(sameJson(got, want), `rows: want ${show(want)}, got ${show(got)}`);
+  assert(calls.readRelay.length === 0, `a local hit reads no outside relay; read ${show(calls.readRelay.map((c) => c.url))}`);
+  assert(calls.scanLocal.length <= 3, `the taggings and the definitions are looked up by address in at most three local scans (ADR 0001 § Implementation notes 2); got ${calls.scanLocal.length}`);
+  const pairs = new Set();
+  for (const f of calls.scanLocal) {
+    assert(Array.isArray(f.kinds) && f.kinds.length === 1 && f.kinds[0] === 39999 && Array.isArray(f.authors) && f.authors.length === 1 && Array.isArray(f['#d']),
+      `each local scan is { kinds: [39999], authors: [one], '#d': [...] }; got ${show(f)}`);
+    for (const d of f['#d']) pairs.add(`${f.authors[0]}|${d}`);
+  }
+  const wantPairs = new Set([
+    ...X.REQUIRED.map((e) => (e.signer === 'person'
+      ? `${VIEWER}|${X.taggingDTag({ slug: e.slug, targetPubkey: ASSISTANT, signerPubkey: VIEWER })}`
+      : `${ASSISTANT}|${X.taggingDTag({ slug: e.slug, targetPubkey: VIEWER, signerPubkey: ASSISTANT })}`)),
+    ...X.REQUIRED.map((e) => `${CANON}|${e.slug}`),
+  ]);
+  assert(sameJson([...pairs].sort(), [...wantPairs].sort()), `the (author, d) pairs looked up: want ${show([...wantPairs].sort())}, got ${show([...pairs].sort())}`);
+  for (const r of rows) {
+    assert(r.definition && typeof r.definition.eventId === 'string' && r.definition.eventId.length === 64 && r.definition.address === X.canonicalTagAddress(r.slug),
+      `${r.key}: the definition carries its eventId and canonical address for story 2; got ${show(r.definition)}`);
+  }
+});
+
+test('U4: a local miss for one tagging asks the outside tag relays with only the missing addresses, and the newest found counts — present, finished, source relay (AC-3, AC-4)', async () => {
+  const local = [...allFour().filter((e) => tagOf(e, 'd') !== X.taggingDTag({ slug: 'my-human', targetPubkey: VIEWER, signerPubkey: ASSISTANT })), ...allDefinitions()];
+  const older = tagging(ASSISTANT, VIEWER, 'my-human', { createdAt: 900 });
+  const newer = tagging(ASSISTANT, VIEWER, 'my-human', { createdAt: 1200 });
+  const { action, row, calls } = await answer({ local, relays: { [DCOSL]: [older, newer] } });
+  const r = row('my-human');
+  assert(r && r.present === true && r.finished === true && r.source === 'relay', `my-human from the relay: got ${show(r)}`);
+  assert(action.done === true && action.finished === true, `the action is done once the relay supplied the last one: ${show(action)}`);
+  assert(calls.readRelay.length === 1 && calls.readRelay[0].url === DCOSL, `one outside read, of the tag-federation relay; got ${show(calls.readRelay.map((c) => c.url))}`);
+  const f = calls.readRelay[0].filter;
+  const wantD = X.taggingDTag({ slug: 'my-human', targetPubkey: VIEWER, signerPubkey: ASSISTANT });
+  assert(Array.isArray(f['#d']) && f['#d'].length === 1 && f['#d'][0] === wantD && show(f.authors) === show([ASSISTANT]),
+    `the outside filter carries only the missing address for its author; got ${show(f)}`);
+  assert(show(calls.readConfiguredRelays) === show([TAG_RELAY_CATEGORIES]), `the tag relays are the aTagFederationRelays setting; asked ${show(calls.readConfiguredRelays)}`);
+});
+
+test('U5: the newest event at an address wins — a later dispute makes the tagging missing; on a created_at tie the lexically lowest id (AC-3)', async () => {
+  const apply = tagging(VIEWER, ASSISTANT, 'my-agent', { createdAt: 1000, polarity: '1' });
+  const laterDispute = tagging(VIEWER, ASSISTANT, 'my-agent', { createdAt: 1100, polarity: '-1' });
+  const one = await answer({ local: [], relays: { [DCOSL]: [apply, laterDispute] } });
+  const r1 = one.row('my-agent');
+  assert(r1 && r1.present === false && r1.finished === true, `a later dispute by the signer: missing, finished; got ${show(r1)}`);
+  const tieA = tagging(VIEWER, ASSISTANT, 'my-agent', { createdAt: 2000, polarity: '-1', id: 'f'.repeat(64) });
+  const tieB = tagging(VIEWER, ASSISTANT, 'my-agent', { createdAt: 2000, polarity: '1', id: '0'.repeat(63) + '1' });
+  const two = await answer({ local: [], relays: { [DCOSL]: [tieA, tieB] } });
+  const r2 = two.row('my-agent');
+  assert(r2 && r2.present === true, `on a tie the lexically lowest id wins (the apply); got ${show(r2)}`);
+});
+
+test('U6: polarity — absent is apply; dispute and neutral are missing; junk is apply (AC-3)', async () => {
+  const cases = [[null, true], ['1', true], ['-1', false], ['0.2', false], ['x', true]];
+  const wrong = [];
+  for (const [pol, present] of cases) {
+    const t = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant', { polarity: pol });
+    const { row } = await answer({ local: [t] });
+    const r = row('my-tapestry-assistant');
+    if (!r || r.present !== present || r.finished !== true) wrong.push(`polarity ${show(pol)}: want present ${present}, got ${show(r && { present: r.present, finished: r.finished })}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U7: a tagging that points at another author\'s same-named tag counts as present — the definition\'s author never gates the read (AC-3; principle 2)', async () => {
+  const t = tagging(VIEWER, ASSISTANT, 'my-agent', { tagAuthor: OTHER_TAG_AUTHOR });
+  const { row } = await answer({ local: [t] });
+  const r = row('my-agent');
+  assert(r && r.present === true && r.finished === true, `a tagging of 39999:${OTHER_TAG_AUTHOR.slice(0, 8)}…:my-agent by the viewer: present; got ${show(r)}`);
+});
+
+test('U8: someone else\'s dispute changes nothing, and someone else\'s apply is not the viewer\'s (AC-3)', async () => {
+  const mine = tagging(VIEWER, ASSISTANT, 'my-agent');
+  const theirs = tagging(OTHER, ASSISTANT, 'my-agent', { polarity: '-1', createdAt: 5000 });
+  const one = await answer({ local: [mine, theirs] });
+  assert(one.row('my-agent').present === true, `another person\'s dispute leaves the viewer\'s apply present; got ${show(one.row('my-agent'))}`);
+  const two = await answer({ local: [theirs, tagging(OTHER, ASSISTANT, 'my-tapestry-assistant')] });
+  assert(two.row('my-agent').present === false && two.row('my-tapestry-assistant').present === false,
+    `only the required signer\'s tagging counts; got ${show(two.rows.map((r) => [r.key, r.present]))}`);
+});
+
+test('U9: unfinished, with a reason — this instance\'s relay unreadable; no outside relay configured; every outside relay unreachable (AC-4)', async () => {
+  const one = await answer({ local: 'reject' });
+  assert(one.res.statusCode === 200 && one.rows.length === 4 && one.rows.every((r) => r.finished === false && r.present === false && r.reason === 'local-unreadable' && r.source === null),
+    `a failed local scan: every row unfinished with reason local-unreadable; got ${show(one.rows.map((r) => [r.key, r.finished, r.reason]))}`);
+  assert(one.action.finished === false && one.action.done === false && one.action.pending === false, `unfinished action: ${show(one.action)}`);
+  assert(one.rows.every((r) => r.definition && r.definition.finished === false && r.definition.found === null), `definitions unfinished too: ${show(one.rows.map((r) => r.definition))}`);
+
+  const two = await answer({ local: [], configured: [] });
+  assert(two.rows.every((r) => r.finished === false && r.reason === 'no-outside-relays'), `no relay configured: no-outside-relays; got ${show(two.rows.map((r) => [r.key, r.reason]))}`);
+  assert(two.calls.readRelay.length === 0, 'nothing to read');
+
+  const three = await answer({ local: [], relays: { [DCOSL]: 'unreachable', [SECOND]: 'throw' }, configured: [DCOSL, SECOND] });
+  assert(three.rows.every((r) => r.finished === false && r.reason === 'outside-unreachable'), `every relay unreachable: outside-unreachable; got ${show(three.rows.map((r) => [r.key, r.reason]))}`);
+});
+
+test('U10: a relay that never answers loses the budget (RELAY_BUDGET_MS = 8000) and the answering relay still counts (AC-4)', async () => {
+  const found = allFour();
+  const started = Date.now();
+  const out = await within(answer({ local: [], relays: { [DCOSL]: 'hang', [SECOND]: [...found, ...allDefinitions()] }, configured: [DCOSL, SECOND] }), RELAY_BUDGET_MS + 3000);
+  assert(out !== 'HUNG', `the answer never came: a hanging relay must lose the budget (${Date.now() - started} ms)`);
+  assert(out.action && out.action.finished === true && out.action.done === true, `the answering relay decides: ${show(out.action)}`);
+  assert(Date.now() - started >= RELAY_BUDGET_MS - 100, 'the hanging relay was given the whole budget');
+});
+
+test('U11: this instance\'s own relay is never an outside relay — loopback and BRAINSTORM_RELAY_URL\'s host are dropped, and a duplicate is read once (AC-3)', async () => {
+  const { calls } = await answer({
+    local: [], configured: [OWN, 'wss://own.example/', DCOSL, DCOSL.toUpperCase(), 'not-a-relay'],
+    config: { BRAINSTORM_RELAY_URL: 'wss://own.example' }, relays: { [DCOSL]: [] },
+  });
+  // Distinct, because each of the three lookups (the viewer's, the assistant's, the canonical author's) reads the
+  // relay once with its own author filter (ADR 0001 § Implementation notes 2): the set of relays read is what
+  // own-relay exclusion and de-duplication decide.
+  const urls = [...new Set(calls.readRelay.map((c) => c.url))];
+  assert(sameJson(urls, [DCOSL]), `outside relays: want [${DCOSL}], read ${show(calls.readRelay.map((c) => c.url))}`);
+  assert(calls.readRelay.length <= 3, `at most one read per relay per lookup, three lookups; got ${calls.readRelay.length}`);
+});
+
+test('U12: the definitions — found; not found (finished); the found one carries its eventId — and a missing definition never makes a present tagging missing (AC-6)', async () => {
+  const def = definition('my-agent', { id: 'ab'.repeat(32) });
+  const { row } = await answer({ local: [...allFour(), def], relays: { [DCOSL]: [] } });
+  const agent = row('my-agent');
+  assert(agent.definition.found === true && agent.definition.finished === true && agent.definition.eventId === 'ab'.repeat(32) && agent.definition.source === 'local',
+    `my-agent\'s definition: found locally with its id; got ${show(agent.definition)}`);
+  const human = row('my-human');
+  assert(human.definition.found === false && human.definition.finished === true && human.definition.eventId === null,
+    `my-human\'s definition: not found, finished (the relay answered); got ${show(human.definition)}`);
+  assert(human.present === true, 'the tagging stays present whatever the definition');
+});
+
+test('U13: the action\'s flags — done needs every tagging finished and present; pending needs one finished and missing, even while another is unfinished; the invariants hold (AC-5)', async () => {
+  const mod = attentionModule();
+  const evaluate = need(mod, 'evaluateIdentificationTags');
+  const found = (e) => ({ finished: true, event: e, source: 'local' });
+  const none = { finished: true, event: null, source: null };
+  const unfinished = { finished: false, reason: 'outside-unreachable' };
+  const defs = () => ({ finished: true, event: definition('x'), source: 'local' });
+  const entries = (lookups) => X.REQUIRED.map((required, i) => ({ required, lookup: lookups[i], definition: defs() }));
+  const four = allFour();
+  const cases = [
+    ['all present', entries(four.map(found)), { finished: true, done: true, pending: false }],
+    ['three present, one missing', entries([found(four[0]), found(four[1]), found(four[2]), none]), { finished: true, done: false, pending: true }],
+    ['three present, one unfinished', entries([found(four[0]), found(four[1]), found(four[2]), unfinished]), { finished: false, done: false, pending: false }],
+    ['two missing, two unfinished', entries([none, none, unfinished, unfinished]), { finished: false, done: false, pending: true }],
+    ['all unfinished', entries([unfinished, unfinished, unfinished, unfinished]), { finished: false, done: false, pending: false }],
+  ];
+  const wrong = [];
+  for (const [label, input, want] of cases) {
+    const got = evaluate({ entries: input });
+    const flags = got && { finished: got.finished, done: got.done, pending: got.pending };
+    if (!sameJson(flags, want)) wrong.push(`${label}: want ${show(want)}, got ${show(flags)}`);
+    if (got && ((got.done && !got.finished) || (got.done && got.pending))) wrong.push(`${label}: invariants broken ${show(flags)}`);
+    if (got && (!Array.isArray(got.taggings) || got.taggings.length !== 4)) wrong.push(`${label}: four rows expected, got ${show(got && got.taggings)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U14: whose assistant — the Owner\'s is the TA, a Customer\'s their own: the mapping\'s answer is the signer of the assistant\'s two taggings and the target of the viewer\'s (AC-2)', async () => {
+  const owner = 'bb'.repeat(32);
+  const { calls, row } = await answer({ assistant: TA, local: [tagging(TA, owner, 'my-tapestry-owner'), tagging(owner, TA, 'my-agent')] }, signedInReq(owner));
+  assert(show(calls.getAssistantPubkeyFor) === show([owner]), `the assistant is resolved for the session\'s viewer only: ${show(calls.getAssistantPubkeyFor)}`);
+  assert(row('my-tapestry-owner').present === true && row('my-agent').present === true && row('my-human').present === false,
+    `the TA\'s tagging of the owner and the owner\'s of the TA are found; got ${show(calls.scanLocal)} → ${show(rowsOf(row))}`);
+  function rowsOf(r) { return X.REQUIRED.map((e) => [e.key, r(e.key) && r(e.key).present]); }
+  const authors = new Set(calls.scanLocal.map((f) => f.authors[0]));
+  assert(authors.has(owner) && authors.has(TA) && authors.has(CANON) && !authors.has(ASSISTANT), `local scans by the owner, the TA and the canonical author only; got ${show([...authors])}`);
+});
+
+test('U15: no query parameter changes the answer or the relays asked — the answer follows the session (AC-2)', async () => {
+  const local = [...allFour(), ...allDefinitions()];
+  const plain = await answer({ local });
+  const probed = await answer({ local }, signedInReq(VIEWER, { query: { pubkey: OTHER, viewer: OTHER, assistant: OTHER, relays: 'wss://evil.example', wotPov: 'user' } }));
+  assert(sameJson(plain.body, probed.body), `query parameters changed the answer: without ${show(plain.body)}, with ${show(probed.body)}`);
+  const asked = show(probed.calls.scanLocal) + show(probed.calls.readRelay) + show(probed.calls.getAssistantPubkeyFor);
+  assert(!asked.includes(OTHER) && !asked.includes('evil'), `a query parameter reached a lookup: ${asked}`);
+});
+
+test('U16: the answer carries no viewer or assistant pubkey (AC-2)', async () => {
+  const { body } = await answer({ local: [...allFour(), ...allDefinitions()] });
+  const s = show(body);
+  assert(!s.includes(VIEWER) && !s.includes(ASSISTANT), `the answer must carry neither the viewer\'s nor the assistant\'s pubkey: ${s}`);
+});
+
+test('U17: an unexpected throw answers 500 { success: false, error: "Could not check assistant attention" } (ADR 0001 § Implementation notes 2)', async () => {
+  const { res, body } = await answer({ assistant: 'throw' });
+  assert(res.statusCode === 500 && sameJson(body, { success: false, error: 'Could not check assistant attention' }), `got ${res.statusCode} ${show(body)}`);
+});
+
+/* ───────────────────────── C — the UI utils (ESM) ───────────────────────── */
+
+test('C1: summarizeAttention — a signed-in answer is answered with its actions; anything else (null, a failure, signed out, no assistant) is not, or has no assistant (ADR 0001 § Implementation notes 3)', async () => {
+  const mod = await uiUtil();
+  const s = mod.summarizeAttention;
+  assert(typeof s === 'function', 'ui/src/utils/assistantAttention.js must export summarizeAttention(answer)');
+  const done = s(X.DONE);
+  assert(done.answered === true && done.hasAssistant === true && done.actions && done.actions[ACTION] && done.actions[ACTION].done === true, `DONE: ${show(done)}`);
+  const none = s(X.NO_ASSISTANT);
+  assert(none.answered === true && none.hasAssistant === false && sameJson(none.actions, {}), `NO_ASSISTANT: ${show(none)}`);
+  for (const [label, input] of [['null', null], ['a failure', { success: false }], ['signed out', X.SIGNED_OUT], ['garbage', 'x'], ['no actions object', { success: true, signedIn: true, hasAssistant: true }]]) {
+    const got = s(input);
+    assert(got && got.answered === false && got.hasAssistant === false && sameJson(got.actions, {}), `${label}: want not answered, got ${show(got)}`);
+  }
+});
+
+test('C2: CHECKED_ACTIONS names exactly the identification-tags action, and every checked key is a real action (ADR 0001 sub-decision 6)', async () => {
+  const mod = await actionsModule();
+  assert(sameJson(mod.CHECKED_ACTIONS, [ACTION]), `CHECKED_ACTIONS: want ${show([ACTION])}, got ${show(mod.CHECKED_ACTIONS)}`);
+  const keys = mod.ASSISTANT_ACTIONS.map((a) => a.key);
+  assert(mod.CHECKED_ACTIONS.every((k) => keys.includes(k)), 'every checked key is one of the ten actions');
+});
+
+test('C3: the two readings — with no answer a checked action is marked but not counted; done unmarks and uncounts it; pending marks and counts; unfinished marks only; placeholders always both (AC-5)', async () => {
+  const mod = await actionsModule();
+  const attention = mod.assistantAttention;
+  const summarize = (await uiUtil()).summarizeAttention;
+  const user = { pubkey: 'cc'.repeat(32), classification: 'customer', assistantPubkey: 'c1'.repeat(32) };
+  const all = mod.ASSISTANT_ACTIONS.map((a) => a.key);
+  const nine = all.filter((k) => k !== ACTION);
+  const cases = [
+    ['no answer (undefined)', undefined, all, 9],
+    ['not answered (failed)', summarize(null), all, 9],
+    ['checking (phase only)', { phase: 'checking', answered: false, actions: {} }, all, 9],
+    ['done', summarize(X.DONE), nine, 9],
+    ['pending', summarize(X.PENDING), all, 10],
+    ['unfinished', summarize(X.UNFINISHED), all, 9],
+  ];
+  const wrong = [];
+  for (const [label, att, wantMarked, wantAlert] of cases) {
+    const got = att === undefined ? attention(user) : attention(user, att);
+    const shaped = got && { hasAssistant: got.hasAssistant, needsAttention: got.needsAttention, count: got.count, alertCount: got.alertCount };
+    const want = { hasAssistant: true, needsAttention: wantMarked, count: wantMarked.length, alertCount: wantAlert };
+    if (!sameJson(shaped, want)) wrong.push(`${label}: want ${show(want)}, got ${show(shaped)}`);
+  }
+  for (const [label, who] of [['a visitor', null], ['a guest with no assistant', { pubkey: 'ee'.repeat(32), classification: 'guest', assistantPubkey: null }]]) {
+    const got = attention(who, summarize(X.DONE));
+    const want = { hasAssistant: false, needsAttention: [], count: 0, alertCount: 0 };
+    const shaped = got && { hasAssistant: got.hasAssistant, needsAttention: got.needsAttention, count: got.count, alertCount: got.alertCount };
+    if (!sameJson(shaped, want)) wrong.push(`${label}: want ${show(want)}, got ${show(shaped)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('C4: the picker waits for the attention answer — assistantPhase "checking" draws no pill after setup has had its turn; setup still comes first; the default is answered, so every old input is unchanged (ADR 0001 sub-decision 8)', async () => {
+  const mod = await pickerModule();
+  const base = { signedIn: true, setupPhase: 'answered', setupPendingCount: 0, assistantCount: 9, pathname: '/about' };
+  const shape = (r) => r && { pill: r.pill, count: r.count };
+  const NONE = { pill: null, count: 0 };
+  assert(sameJson(shape(mod.pickTopBarPill({ ...base, assistantPhase: 'checking' })), NONE), `checking: want none, got ${show(mod.pickTopBarPill({ ...base, assistantPhase: 'checking' }))}`);
+  assert(sameJson(shape(mod.pickTopBarPill({ ...base, setupPhase: 'failed', assistantPhase: 'checking' })), NONE), 'checking, setup failed: still none');
+  assert(sameJson(shape(mod.pickTopBarPill({ ...base, setupPendingCount: 2, assistantPhase: 'checking' })), { pill: 'setup', count: 2 }), 'setup first, even while the attention answer is on its way');
+  for (const phase of ['answered', 'failed', 'idle']) {
+    assert(sameJson(shape(mod.pickTopBarPill({ ...base, assistantPhase: phase })), { pill: 'assistant', count: 9 }), `assistantPhase ${phase}: the Assistant pill with the count`);
+  }
+  assert(sameJson(shape(mod.pickTopBarPill(base)), { pill: 'assistant', count: 9 }), 'no assistantPhase given: as before');
+  assert(sameJson(shape(mod.pickTopBarPill({ ...base, assistantCount: 0, assistantPhase: 'answered' })), NONE), 'count 0: none');
+});
+
+/* ───────────────────────── S — the server, by source ───────────────────────── */
+
+test('S1: the route GET /api/assistant/attention is registered in src/api/index.js and documented in openapi.yaml (ADR 0001 sub-decision 9)', () => {
+  // The raw source, not codeOnly(): src/api/index.js mounts globs like '/api/*', which the comment stripper would
+  // read as the start of a block comment and swallow everything to the next '*/'.
+  const index = safeRead(API_INDEX);
+  assert(/app\.get\(\s*['"]\/api\/assistant\/attention['"]/.test(index), 'src/api/index.js must register app.get(\'/api/assistant/attention\', …)');
+  const yaml = safeRead(OPENAPI);
+  assert(/^\s*\/api\/assistant\/attention:\s*$/m.test(yaml), 'src/api/openapi.yaml must document /api/assistant/attention');
+});
+
+test('S2: the module never writes — no strfry import, no signing, no publish, no settings or key-store write — never reads a query parameter, and reads outside relays strictly (AC-2, AC-7)', () => {
+  const src = codeOnly(safeRead(ATTENTION_MODULE));
+  assert(src, 'src/api/assistant/attention.js does not exist');
+  const wrong = [];
+  for (const [re, what] of [
+    [/strfry\s+import/, 'strfry import'], [/finalizeEvent|signEvent|getAssistantKeys\b|getOwnerAssistantKeys/, 'a signer or a key read'],
+    [/publishToRelays|publishEverywhere|importToLocalRelay/, 'a publish helper'], [/updateOverrides|writeFileSync|storeRelayKeys/, 'a write'],
+    [/req\.query/, 'req.query'], [/querySync/, 'querySync (non-strict; use readRelayEvents)'],
+  ]) if (re.test(src)) wrong.push(`uses ${what}`);
+  assert(/readRelayEvents/.test(src), 'reads outside relays with readRelayEvents, the strict reader');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('S3: the module leaves src/api/setup/status.js as it is and reuses its strict pieces — scanLocalStrict and outsideOnly — instead of a fourth copy (ADR 0001 sub-decision 3)', () => {
+  const src = codeOnly(safeRead(ATTENTION_MODULE));
+  assert(/require\(\s*['"]\.\.\/setup\/status['"]\s*\)/.test(src), 'requires ../setup/status for scanLocalStrict / outsideOnly / RELAY_BUDGET_MS');
+  const status = codeOnly(safeRead(SETUP_STATUS_MODULE));
+  assert(!/attention|identification/i.test(status), 'src/api/setup/status.js is not edited for this story (a parallel book\'s module)');
+});
+
+test('S4: TAG_RELAY_CATEGORIES is [\'aTagFederationRelays\'] — the relays this instance reads tags from (AC-3)', () => {
+  const mod = attentionModule();
+  assert(sameJson(mod.TAG_RELAY_CATEGORIES, TAG_RELAY_CATEGORIES), `want ${show(TAG_RELAY_CATEGORIES)}, got ${show(mod.TAG_RELAY_CATEGORIES)}`);
+});
+
+/* ───────────────────────── D — the UI, by source (CI runs no browser) ───────────────────────── */
+
+test('D1: the provider exists, exports AssistantAttentionProvider and useAssistantAttention, fetches /api/assistant/attention with no parameters, and re-checks on a published tagging (ADR 0001 sub-decision 7)', () => {
+  const src = codeOnly(safeRead(PROVIDER));
+  assert(src, `${rel(PROVIDER)} does not exist — ADR 0001 § Implementation notes 4 creates it`);
+  const wrong = [];
+  for (const [re, what] of [
+    [/export\s+function\s+AssistantAttentionProvider\s*\(/, 'export function AssistantAttentionProvider'],
+    [/export\s+function\s+useAssistantAttention\s*\(/, 'export function useAssistantAttention'],
+    [/fetch\(\s*['"`]\/api\/assistant\/attention['"`]\s*\)/, "fetch('/api/assistant/attention') with no parameters"],
+    [/\bonEventPublished\s*\(/, 'onEventPublished(…) — re-check after a tagging is published'],
+    [/profile-tag-/, 'the tagging d prefix (only a tagging by the viewer or their assistant re-checks)'],
+    [/\bsummarizeAttention\s*\(/, 'summarizeAttention(…)'],
+    [/assistantPubkey/, 'user.assistantPubkey — fetch only for a viewer with an assistant, and again when it changes'],
+  ]) if (!re.test(src)) wrong.push(`no ${what}`);
+  assert(!/localStorage|sessionStorage/.test(src), 'stores nothing in the browser');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('D2: App.jsx mounts AssistantAttentionProvider inside SetupStatusProvider, around the router (ADR 0001 § Implementation notes 4)', () => {
+  const src = codeOnly(safeRead(APP));
+  assert(/import\s*\{\s*AssistantAttentionProvider\s*\}\s*from\s*['"]\.\/context\/AssistantAttentionContext['"]/.test(src), 'imports { AssistantAttentionProvider } from ./context/AssistantAttentionContext');
+  const m = src.match(/<SetupStatusProvider>\s*<AssistantAttentionProvider>\s*<RouterProvider[\s\S]*?<\/AssistantAttentionProvider>\s*<\/SetupStatusProvider>/);
+  assert(m, 'the provider wraps <RouterProvider …/> directly inside <SetupStatusProvider>');
+});
+
+test('D3: the hub and the slot read the one answer — useAssistantAttention() handed to assistantAttention(user, …) — and the slot passes alertCount and assistantPhase to the picker (AC-5)', () => {
+  const wrong = [];
+  for (const [file, label] of [[HUB_PAGE, 'the hub'], [SLOT, 'the slot']]) {
+    const src = codeOnly(safeRead(file));
+    if (!/\buseAssistantAttention\s*\(/.test(src)) wrong.push(`${label}: no useAssistantAttention()`);
+    if (!/\bassistantAttention\s*\(\s*user\s*,/.test(src)) wrong.push(`${label}: assistantAttention(user, …) must take the answer`);
+  }
+  const slot = codeOnly(safeRead(SLOT));
+  if (!/assistantCount:\s*alertCount/.test(slot)) wrong.push('the slot passes the pill reading: assistantCount: alertCount');
+  if (!/assistantPhase:/.test(slot)) wrong.push('the slot passes assistantPhase to the picker');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('D4: actions.js keeps its one import, and the Vite config aliases @tapestry/identification-tags to the library and includes it in the CommonJS transform (ADR 0001 sub-decision 1)', () => {
+  const actions = codeOnly(safeRead(ACTIONS_MOD));
+  const imports = [...actions.matchAll(/^\s*import\b[^;]*?from\s*['"]([^'"]+)['"]/gm)].map((m) => m[1]);
+  assert(sameJson(imports, ['../../config/avatarMenuLinks.js']), `actions.js: expected one import, got ${show(imports)}`);
+  const vite = safeRead(VITE);
+  assert(/['"]@tapestry\/identification-tags['"]\s*:/.test(vite), 'ui/vite.config.js aliases @tapestry/identification-tags');
+  assert(/src\\\/lib\\\/identification-tags/.test(vite), 'ui/vite.config.js includes /src\\/lib\\/identification-tags/ in build.commonjsOptions.include');
+});
+
+/* ───────────────────────── R — regressions that pass before and after ───────────────────────── */
+
+test('R1: the publisher still composes the d-tag the library and the server look taggings up by (ADR 0001 sub-decision 3)', () => {
+  const src = safeRead(PUBLISHER);
+  assert(src.includes('`profile-tag-${tag.slug}-${targetPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`'),
+    'ui/src/utils/publishProfileTag.js must still build d as profile-tag-<slug>-<target[0:8]>-<signer[0:8]>; if this rule changes, the lookup (and the library\'s taggingDTag) must change with it');
+});
+
+test('R2: assistantAttention(user) with no answer still marks every action for a viewer with an assistant and none for anyone else (assistant-management #1 D7 holds)', async () => {
+  const mod = await actionsModule();
+  const all = mod.ASSISTANT_ACTIONS.map((a) => a.key);
+  const withOne = mod.assistantAttention({ pubkey: 'cc'.repeat(32), classification: 'customer', assistantPubkey: 'c1'.repeat(32) });
+  assert(sameJson({ hasAssistant: withOne.hasAssistant, needsAttention: withOne.needsAttention, count: withOne.count }, { hasAssistant: true, needsAttention: all, count: all.length }), `got ${show(withOne)}`);
+  const without = mod.assistantAttention(null);
+  assert(sameJson({ hasAssistant: without.hasAssistant, needsAttention: without.needsAttention, count: without.count }, { hasAssistant: false, needsAttention: [], count: 0 }), `got ${show(without)}`);
+});
+
+/* ───────────────────────── H — live ───────────────────────── */
+
+async function getJson(url) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    let body = null;
+    try { body = await res.json(); } catch { body = null; }
+    return { status: res.status, body };
+  } finally { clearTimeout(timer); }
+}
+async function stackAvailable() {
+  if (typeof fetch !== 'function') return false;
+  try { const r = await getJson(`${HOST_BASE}/api/assistant/pubkey`); return r.status === 200; } catch { return false; }
+}
+
+test('H1: live — an anonymous GET /api/assistant/attention answers 200 { success: true, signedIn: false }', async () => {
+  if (!(await stackAvailable())) { hSkipped++; return 'SKIP'; }
+  hExecuted++;
+  let got;
+  try {
+    got = await getJson(`${HOST_BASE}/api/assistant/attention`);
+  } catch (err) {
+    throw new Error(`${err.message} — the route is missing on ${HOST_BASE}: not implemented, or the server there predates it (restart the backend after implementing).`);
+  }
+  assert(got.status === 200 && sameJson(got.body, X.SIGNED_OUT),
+    `expected 200 ${show(X.SIGNED_OUT)} for a request with no session; got ${got.status} ${show(got.body)}`);
+  return undefined;
+});
+
+async function run() {
+  console.log(`${NL}=== assistant-attention (assistant-identification-tags #1) ===`);
+  let pass = 0, fail = 0, skipped = 0;
+  const failures = [];
+  for (const [name, fn] of tests) {
+    try {
+      const r = await fn();
+      if (r === 'SKIP') { console.log(`  SKIP  ${name}`); skipped++; }
+      else { console.log(`  PASS  ${name}`); pass++; }
+    } catch (err) {
+      console.log(`  FAIL  ${name}${NL}        ${err.message}`);
+      failures.push({ name, message: err.message });
+      fail++;
+    }
+  }
+  console.log(`assistant-attention: H-class ${hExecuted} executed / ${hSkipped} skipped`);
+  if (hSkipped > 0 && hExecuted === 0) {
+    console.log('assistant-attention: !! LIVE COVERAGE DID NOT RUN — stack unreachable (or no fetch on this Node).');
+    if (process.env.TAPESTRY_REQUIRE_LIVE === '1') {
+      failures.push({ name: 'live coverage', message: 'TAPESTRY_REQUIRE_LIVE=1 but the whole H-class skipped.' });
+      fail++;
+    }
+  }
+  console.log(`${NL}assistant-attention: ${pass} passed, ${fail} failed, ${skipped} skipped`);
+  return { pass, fail, failures, skipped, hExecuted, hSkipped };
+}
+
+module.exports = { run };
