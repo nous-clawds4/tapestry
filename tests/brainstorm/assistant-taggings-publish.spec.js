@@ -148,7 +148,9 @@ test.describe("Your Assistant's two taggings (assistant-identification-tags #3)"
     for (const e of ASSISTANT_ROWS) await expect(boxOf(card, e.name)).toBeChecked();
     await expect(buttonOf(card, T.PAGE_COPY.buttons.assistant)).toBeEnabled();
     await expect(personCard(page)).toHaveClass(/is-done/);
-    await expect(personCard(page).getByRole('button')).toHaveCount(0);
+    // Story 2 AC-3: a card's button stays rendered and disabled while nothing is checked (its B1 pins the same).
+    const personButton = buttonOf(personCard(page), T.PAGE_COPY.buttons.person);
+    if (await personButton.count()) await expect(personButton, "the first card's button, nothing to publish").toBeDisabled();
   });
 
   test('B2: the press — one POST with the checked keys; each row\'s summary and relay lines; then the rows flip and the hub counts nine (AC-1, AC-4, AC-5)', async ({ page }) => {
