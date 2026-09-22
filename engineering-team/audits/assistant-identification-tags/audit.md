@@ -200,10 +200,11 @@ non-blocking findings, then reconciled against the diff.
 
 ## 6. Carry-forward register
 
-- [ ] **1. The owner publishes the four canonical tag definitions with their own key.** Story 2 § Copy carries the
+- [x] **1. The owner publishes the four canonical tag definitions with their own key.** Story 2 § Copy carries the
       names, slugs and proposed descriptions (the owner edits). Until then every instance reads "Tag not found"
       and the page can publish nothing. (book § Prerequisite; §4 #1)
-- [ ] **2. Ship it.** The branch is unmerged at close: `/cycle-staging` after `scripts/check-safe-to-merge.sh
+      *2026-09-22: superseded by book `identification-tags-authorship` — "My Tapestry Assistant" and "My Tapestry Owner"
+      exist under Nous' and Nous' Tapestry Assistant's keys, "My Agent" and "My Human" are parked (on staging, PR #752).- [ ] **2. Ship it.** The branch is unmerged at close: `/cycle-staging` after `scripts/check-safe-to-merge.sh
       staging`, then see the frame on staging once the definitions exist. (audit header)
 - [ ] **3. A "broadcast" reading of present, and re-sending a Present row.** Present means "on this instance's
       relay"; the purpose of the tags is broadcast, and a Present row cannot be re-sent from the page.

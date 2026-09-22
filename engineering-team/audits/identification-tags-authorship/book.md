@@ -1,9 +1,9 @@
 # Book of Work: Identification Tags — two authored definitions, two parked taggings
 
 **Slug:** identification-tags-authorship
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-22
-**Closed:** —
+**Closed:** 2026-09-22 (on staging, PR #752, and on production, PR #754 by a sibling session; the close artifacts follow on `close/identification-tags-authorship`)
 
 ## Intent anchor
 
@@ -34,16 +34,16 @@ Owner" in the ask is the tagging the app calls "My Human" (Discovery decision 6 
 
 *Restated 2026-09-22; confirmed at the story gate.*
 
-- [ ] **Two definitions, two authors.** "My Tapestry Assistant" is the tag Nous authored; "My Tapestry Owner" is the
+- [x] **Two definitions, two authors.** "My Tapestry Assistant" is the tag Nous authored; "My Tapestry Owner" is the
       tag Nous' Tapestry Assistant authored. The app names each by that author's address, publishes the two
       taggings against those definitions, and keeps reading "present" by name as before.
-- [ ] **Two parked taggings.** "My Agent" and "My Human" stay on their cards, unchecked, greyed out and not
+- [x] **Two parked taggings.** "My Agent" and "My Human" stay on their cards, unchecked, greyed out and not
       editable; nothing can issue them, from the page or through the Assistant's route. No decision is taken on
       them; unparking one later is a small change.
-- [ ] **The answer counts what can be issued.** The hub's card, its count line and the Assistant Alert consider
+- [x] **The answer counts what can be issued.** The hub's card, its count line and the Assistant Alert consider
       only the two offered taggings; the parked ones neither mark nor count. *(Confirmed at the story gate,
       2026-09-22.)*
-- [ ] **Nothing else changes:** no wire-format change, no other page, no change to how "present" is read.
+- [x] **Nothing else changes:** no wire-format change, no other page, no change to how "present" is read.
 
 ## Epics in this book
 
@@ -62,7 +62,9 @@ book's branch were at the same code). Before Implementation and again before Rev
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(filled at close)*
+- **Confidence at close:** high. One story, tracing to every frame bullet, reviewed PASS in one round; every bullet
+  observed on `staging.brainstorm.world` after the deploy (audit §5), signed out; the signed-in path is covered by the
+  mocked browser suites and a local signed-in probe, and Nous' own hub on production is what the promotion will show.
 
 ## Close artifacts *(filled by `/close-book`)*
 

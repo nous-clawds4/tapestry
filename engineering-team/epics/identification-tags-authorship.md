@@ -1,6 +1,6 @@
 # Epic: identification-tags-authorship — two authored definitions, two parked taggings
 
-**Status:** Active
+**Status:** Done (book closed 2026-09-22; on staging, PR #752)
 **Created:** 2026-09-22
 **Book:** `engineering-team/audits/identification-tags-authorship/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-09-22, the same day the `assistant-identification-tags` book (now under
@@ -16,7 +16,7 @@ undecided.** "My Tapestry Assistant" is Nous' tag; "My Tapestry Owner" is the ta
 
 ## Stories
 
-`stories/identification-tags-authorship/`. One feature, all five phases (Standard).
+`stories/done/identification-tags-authorship/`. One feature, all five phases (Standard).
 
 1. `1-two-authored-tags-and-two-parked-taggings.md`: per-entry definition authors in the shared list, the two
    parked entries, the answer and the page reading them, the two publishers pointing at the right definitions.
@@ -43,4 +43,4 @@ undecided.** "My Tapestry Assistant" is Nous' tag; "My Tapestry Owner" is the ta
 
 ## ADRs
 
-`decisions/identification-tags-authorship/`, created at Architecture.
+`decisions/done/identification-tags-authorship/`, created at Architecture.
