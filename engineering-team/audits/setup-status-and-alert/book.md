@@ -84,7 +84,7 @@ relay lookup at all, so the question no longer arises.
 
 ### Acceptance frame
 
-*Confirmed 2026-09-21, when the owner approved stories 1 and 2.*
+*Confirmed 2026-09-21, when the owner approved stories 1 and 2. The fifth bullet was added the same day, when the owner opened story 3 after story 2's review.*
 
 - [ ] `/setup` shows each of the three steps as done or not done for the signed-in viewer, by the
       rules in Decisions 1–3. Each check reads only the viewer's own assistant, kind 3 and kind
@@ -98,11 +98,16 @@ relay lookup at all, so the question no longer arises.
 - [ ] Nothing is published, signed or stored on the viewer's behalf. The checks only read.
 - [ ] The three step pages stay placeholders. `/assistant` and the Dashboard's Getting-Started
       checklist are unchanged. The `_intake.md` entry stays open for the step pages.
+- [ ] The pill's "Finish setup →" text meets the 4.5:1 contrast guideline. The pill is announced
+      exactly as it reads at each width. It catches up without a reload after the app publishes the
+      viewer's follow list or Treasure Map. It hides on the setup pages whatever the letter case of
+      the address.
 
 ## Epics in this book
 
-- `setup-status-and-alert` has two stories: `/setup` shows where you stand (#1), and the Setup
-  Alert (#2), which counts #1's answers.
+- `setup-status-and-alert` has three stories: `/setup` shows where you stand (#1); the Setup
+  Alert (#2), which counts #1's answers; and #3, which fixes #2's four review findings by the
+  owner's calls.
 
 ## Path
 

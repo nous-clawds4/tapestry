@@ -50,9 +50,11 @@ test('C1: steps.js carries the alert\'s words from story 2 § Copy, verbatim', a
   assert(!mod.__loadError, `ui/src/pages/setup/steps.js must load in Node as ESM: ${mod.__loadError && mod.__loadError.message}`);
   const c = mod.SETUP_ALERT_COPY;
   assert(c && typeof c === 'object', 'steps.js must export SETUP_ALERT_COPY (ADR 0002 § Implementation notes 3)');
-  assert(c.name === 'Finish setting up your account', `SETUP_ALERT_COPY.name (the pill's accessible name): got ${show(c.name)}`);
   assert(c.sentence === 'Finish setting up your account', `SETUP_ALERT_COPY.sentence: got ${show(c.sentence)}`);
-  assert(c.button === 'Finish setup →', `SETUP_ALERT_COPY.button: got ${show(c.button)}`);
+  // The button's visible words. Story 3 (ADR 0003 § 5) split the arrow into its own decorative piece and
+  // dropped the fixed accessible name; test/setup-alert-polish.test.js C1 pins that exact shape.
+  const shown = `${c.button}${c.arrow ? ` ${c.arrow}` : ''}`;
+  assert(shown === 'Finish setup →', `the button must still read "Finish setup →"; got ${show(shown)}`);
 });
 
 test('C2: alertCountText says "· 1 step left" and "· N steps left"', async () => {
@@ -74,7 +76,8 @@ test('D1: ui/src/components/SetupAlert.jsx is one link to /setup that reads the 
   assert(/useAuth\s*\(/.test(src), 'the pill must read useAuth() to hide while signed out or while sign-in resolves');
   assert(/useLocation\s*\(/.test(src), 'the pill must read useLocation() to hide on /setup and its step pages');
   assert(/<Link\b[^>]*\bto=["']\/setup["']/.test(src), 'the pill must be a <Link to="/setup">');
-  assert(/aria-label=\{\s*SETUP_ALERT_COPY\.name\s*\}/.test(src), 'the pill\'s accessible name must be SETUP_ALERT_COPY.name (story 2 AC-5)');
+  // Story 2 AC-5's fixed accessible name was replaced by story 3 AC-2 (ADR 0003): the pill is named by
+  // what it shows, which test/setup-alert-polish.test.js D1 and its browser spec pin.
   assert(!/\bfetch\s*\(/.test(src), 'the pill must not fetch: the provider is the one reader (story 2 AC-4)');
   assert(!/<button\b/.test(src), 'the pill has no button inside it: no close control, and no nested interactive element (story 2 AC-3)');
 });

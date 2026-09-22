@@ -59,8 +59,11 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const squash = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 const pathname = (page) => new URL(page.url()).pathname;
 const pillOf = (page) => page.getByRole('link', { name: X.ALERT.name, exact: true });
-const setupPillOf = (page) => page.getByRole('link', { name: 'Finish setting up your account', exact: true });
-const anyPill = (page) => page.getByRole('link', { name: /^(Manage your Tapestry Assistant|Finish setting up your account)$/ });
+// The Setup pill by its element, not its old fixed name. Re-aimed when setup-status-and-alert #3 merged: its ADR
+// (setup-status-and-alert/0003) names the pill by what it shows at each width, which that book's
+// tests/brainstorm/setup-alert-polish.spec.js pins exactly.
+const setupPillOf = (page) => page.locator('a.bs-setup-alert[href="/setup"]');
+const anyPill = (page) => pillOf(page).or(setupPillOf(page));
 
 // The pages the story names (AC-1): Brainstorm's own top bars, TopBar, the landing page, the Tapestry header, a developer page.
 const PAGES = [

@@ -8690,7 +8690,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
   background: #d29922;
-  color: #fff;
+  /* Dark on the amber: 7.5:1, where white was 2.52:1 (setup-status-and-alert #3 AC-1). */
+  color: #0f0f1a;
   font-weight: 700;
 }
 @media (max-width: 1023px) {

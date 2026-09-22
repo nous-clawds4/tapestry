@@ -10,6 +10,7 @@ import { toExternalUrl } from '../../utils/url';
 import { useAuth } from '../../context/AuthContext';
 import { useCypher } from '../../hooks/useCypher';
 import { queryRelay } from '../../api/relay';
+import { publishToLocalStrfry } from '../../utils/nostrPublish';
 import AuthorCell from '../../components/AuthorCell';
 import Avatar from '../../components/Avatar';
 import { MY_ASSISTANT_PATH } from '../../config/avatarMenuLinks';
@@ -306,13 +307,9 @@ function TrustPanel({ pubkey, isCurrentPov, setPovPubkey, navigate }) {
         const data = await res.json();
         if (data.success && data.events?.length > 0) {
           const ev = data.events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
-          // Import to local strfry
-          const pubRes = await fetch('/api/strfry/publish', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event: ev, signAs: 'client' }),
-          });
-          const pubData = await pubRes.json();
+          // Import to local strfry, through the shared helper so the Setup Alert hears about the viewer's
+          // own follow list or Map (ADR setup-status-and-alert/0003).
+          const pubData = await publishToLocalStrfry(ev);
           if (pubData.success) {
             setEvent(ev);
           }

@@ -48,5 +48,28 @@ the approved new copy, and the Tester re-aimed them in a separate commit. The fi
 literal the ADR removes or renames (paths, labels, copy)". This instance adds that **a rename of a page's name is
 copy too**: the grep has to take the old name as well as the old address.
 
+**2026-09-21 — a fifth instance, in another book (setup-status-and-alert #3, Phase 4), found in parallel with the fourth.**
+- ADR setup-status-and-alert/0003 moved three import pages' hand-written POST to `/api/strfry/publish` into the
+  shared helper `publishToLocalStrfry`. The request is the same.
+- `test/treasure-map-relay-presence.test.js` R2 pins the literal `/api/strfry/publish` in
+  `TrustedAssertions.jsx` ("the import handler must still post to /api/strfry/publish").
+- Phase 3 grepped for the pill's removed copy and name, but not for the endpoint path. R2 passed at the baseline,
+  because the literal was still there.
+- The story's full scoped gate caught it at Phase 4.
+- The Tester re-aimed R2 to accept either form. Its intent, "the import still posts to the local relay", is
+  unchanged.
+
+The fix shape holds, and it covers endpoint paths moved into a helper as well as copy.
+
+**And a sixth, in the same story's round 2.**
+- ADR 0003 Amendment 1 made `publishEverywhere` announce once, and the implementation added an
+  optional `{ announce }` argument to `publishToRelays`.
+- `test/treasure-map-relay-sync.test.js` R4 pins the literal signature text, closing parenthesis
+  included.
+- The first shape tried, a separate internal function holding the local-only guard, instead broke
+  `test/global-publish-gate.test.js`'s check that `publishEverywhere` routes through `publishToRelays`.
+- **The lesson:** function signatures and call shapes are literals too. Grep `test/` for a helper's
+  name before changing its signature or its internal routing.
+
 **Pointer:** `engineering-team/stories/done/assistant-profile/4-my-assistant-page.test-plan.md`, the opening
 "Re-aims" section (and the story 3 test plan's, `3-one-default-assistant-profile.test-plan.md:43-47`).
