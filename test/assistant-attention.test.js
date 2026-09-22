@@ -9,9 +9,13 @@
  * Browser half: tests/brainstorm/assistant-attention.spec.js (B-class — what a viewer SEES on the hub and in the pill).
  * Expected words and shapes: test/helpers/identificationTagsFixtures.js.
  *
+ * Re-aimed 2026-09-22 by identification-tags-authorship #1 (story engineering-team/stories/identification-tags-authorship/
+ * 1-two-authored-tags-and-two-parked-taggings.md, its ADR 0001 and plan): each offered definition has its own author,
+ * My Agent and My Human are parked, and the answer carries the two offered rows only. L2, L3, U3–U14 and U18 pin it.
+ *
  * Classes:
- *   L — the shared library src/lib/identification-tags (pure CommonJS): the required list, the canonical author, the
- *       address and d-tag composers, the polarity reader.                                            [AC-1, AC-3]
+ *   L — the shared library src/lib/identification-tags (pure CommonJS): the list (offered and parked), each
+ *       definition's author and address, the d-tag composer, the polarity reader.                                            [AC-1, AC-3]
  *   U — src/api/assistant/attention.js driven through the dependencies ADR 0001 names (getAssistantPubkeyFor,
  *       scanLocal, readRelay, readConfiguredRelays, getConfigFromFile). Stack-free.                     [AC-2 … AC-7]
  *   C — the pure ESM utils, loaded in Node: ui/src/utils/assistantAttention.js (the summarizer), the two-reading
@@ -60,7 +64,9 @@ const ASSISTANT = 'a2'.repeat(32);
 const TA = 'ee'.repeat(32);
 const OTHER = 'b2'.repeat(32);
 const OTHER_TAG_AUTHOR = '6d'.repeat(32);
-const CANON = X.CANONICAL_TAG_AUTHOR;
+// Each offered definition's author (identification-tags-authorship #1): a fixture tagging points at the entry's own
+// definition, and a fixture definition is by the entry's author; a parked slug gets another author's same-named tag.
+const authorOf = (slug) => { const e = X.REQUIRED.find((x) => x.slug === slug); return e && e.offered ? e.author : OTHER_TAG_AUTHOR; };
 
 // Fixture relays.
 const DCOSL = 'wss://dcosl.example';
@@ -112,9 +118,9 @@ function ev(kind, pubkey, createdAt, tags, id, content = '') {
 
 /**
  * A tagging in the deployed shape (ui/src/utils/publishProfileTag.js): d/p/a/e/z/z/polarity. `polarity` null omits
- * the tag; `tagAuthor` is whose same-named tag it points at (the canonical author by default).
+ * the tag; `tagAuthor` is whose same-named tag it points at (the entry's definition author by default).
  */
-function tagging(signer, target, slug, { polarity = '1', createdAt = 1000, id, tagAuthor = CANON } = {}) {
+function tagging(signer, target, slug, { polarity = '1', createdAt = 1000, id, tagAuthor = authorOf(slug) } = {}) {
   const tags = [
     ['d', X.taggingDTag({ slug, targetPubkey: target, signerPubkey: signer })],
     ['p', target],
@@ -128,18 +134,18 @@ function tagging(signer, target, slug, { polarity = '1', createdAt = 1000, id, t
 }
 
 /** A tag definition (protocols/drafts/tags.md § Tag definitions) by `author`, at d = slug. */
-function definition(slug, { author = CANON, createdAt = 500, id, name } = {}) {
+function definition(slug, { author = authorOf(slug), createdAt = 500, id, name } = {}) {
   return ev(39999, author, createdAt, [['d', slug], ['z', `39998:${TA}:tag`]], id,
     show({ tag: { slug, name: name || slug, description: `fixture ${slug}` } }));
 }
 
-/** The four taggings for a viewer and their assistant, all applied. */
-function allFour({ viewer = VIEWER, assistant = ASSISTANT, createdAt = 1000 } = {}) {
-  return X.REQUIRED.map((e) => (e.signer === 'person'
+/** The offered taggings for a viewer and their assistant, all applied. */
+function allOffered({ viewer = VIEWER, assistant = ASSISTANT, createdAt = 1000 } = {}) {
+  return X.OFFERED.map((e) => (e.signer === 'person'
     ? tagging(viewer, assistant, e.slug, { createdAt })
     : tagging(assistant, viewer, e.slug, { createdAt })));
 }
-const allDefinitions = () => X.REQUIRED.map((e) => definition(e.slug));
+const offeredDefinitions = () => X.OFFERED.map((e) => definition(e.slug));
 
 /** What a relay answers a filter with: the events matching its kinds, authors and #d. */
 function matching(events, filter) {
@@ -156,7 +162,7 @@ function matching(events, filter) {
 function libModule() {
   if (!fs.existsSync(LIB)) {
     throw new Error('src/lib/identification-tags/index.js does not exist. ADR 0001 sub-decision 1 creates it: the pure, dependency-free ' +
-      'library both the server and the UI load (REQUIRED_TAGGINGS, CANONICAL_TAG_AUTHOR, canonicalTagAddress, taggingDTag, readPolarity, ' +
+      'library both the server and the UI load (REQUIRED_TAGGINGS, OFFERED_TAGGINGS, definitionAddress, taggingDTag, readPolarity, ' +
       'polarityBucket, isTagging, signerAndTarget).');
   }
   delete require.cache[require.resolve(LIB)];
@@ -262,31 +268,46 @@ test('L1: the library exists, is CommonJS, and requires nothing — both the ser
   const mod = libModule();
   const src = codeOnly(safeRead(LIB));
   assert(!/\brequire\s*\(/.test(src) && !/^\s*import\b/m.test(src), 'src/lib/identification-tags/index.js must be dependency-free: no require() and no import');
-  for (const name of ['REQUIRED_TAGGINGS', 'CANONICAL_TAG_AUTHOR', 'canonicalTagAddress', 'taggingDTag', 'readPolarity', 'polarityBucket', 'isTagging', 'signerAndTarget']) {
+  for (const name of ['REQUIRED_TAGGINGS', 'OFFERED_TAGGINGS', 'definitionAddress', 'taggingDTag', 'readPolarity', 'polarityBucket', 'isTagging', 'signerAndTarget']) {
     assert(mod[name] !== undefined, `the library must export ${name}`);
   }
+  assert(mod.CANONICAL_TAG_AUTHOR === undefined && mod.canonicalTagAddress === undefined, 'the single canonical author is gone (identification-tags-authorship #1 AC-1): no CANONICAL_TAG_AUTHOR, no canonicalTagAddress');
 });
 
-test('L2: the canonical author is the owner\'s own key (BIBLE §20, npub1u5njm6g…), and each canonical address is 39999:<that key>:<slug> (AC-1; Discovery decision 5)', () => {
+test('L2: each offered entry carries the author of its definition — Nous for My Tapestry Assistant, Nous\' Tapestry Assistant for My Tapestry Owner — and its address 39999:<author>:<slug>; a parked entry carries neither (identification-tags-authorship #1 AC-1; ADR 0001 sub-decision 1)', () => {
   const mod = libModule();
-  assert(mod.CANONICAL_TAG_AUTHOR === CANON, `CANONICAL_TAG_AUTHOR: want ${CANON} (${X.CANONICAL_TAG_AUTHOR_NPUB}), got ${show(mod.CANONICAL_TAG_AUTHOR)}`);
+  const { nip19 } = require('nostr-tools');
+  const wrong = [];
   for (const e of X.REQUIRED) {
-    assert(mod.canonicalTagAddress(e.slug) === X.canonicalTagAddress(e.slug), `canonicalTagAddress(${e.slug}): want ${X.canonicalTagAddress(e.slug)}, got ${show(mod.canonicalTagAddress(e.slug))}`);
+    const got = (mod.REQUIRED_TAGGINGS || []).find((x) => x && x.key === e.key) || {};
+    if (e.offered) {
+      const fromNpub = nip19.decode(X.AUTHORS[e.key].npub).data;
+      if (fromNpub !== e.author) wrong.push(`${e.key}: the fixture npub ${X.AUTHORS[e.key].npub} is not ${e.author}`);
+      if (got.author !== e.author) wrong.push(`${e.key}: author want ${e.author} (${X.AUTHORS[e.key].name}, ${X.AUTHORS[e.key].npub}), got ${show(got.author)}`);
+      if (got.address !== X.definitionAddress(e)) wrong.push(`${e.key}: address want ${X.definitionAddress(e)}, got ${show(got.address)}`);
+      if (mod.definitionAddress(got) !== X.definitionAddress(e)) wrong.push(`definitionAddress(${e.key}): want ${X.definitionAddress(e)}, got ${show(mod.definitionAddress(got))}`);
+    } else {
+      if (got.author !== null || got.address !== null) wrong.push(`${e.key} is parked: author and address must be null, got ${show([got.author, got.address])}`);
+      if (mod.definitionAddress(got) !== null) wrong.push(`definitionAddress(${e.key}): want null, got ${show(mod.definitionAddress(got))}`);
+    }
   }
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L3: the required list is the four taggings in order — My Tapestry Assistant, My Agent (you on your Assistant), My Tapestry Owner, My Human (your Assistant on you) — each with its name, slug, signer, target and canonical address (AC-1)', () => {
+test('L3: the list is still the four taggings in order — My Tapestry Assistant, My Agent (you on your Assistant), My Tapestry Owner, My Human (your Assistant on you) — each with its name, slug, signer, target, offered, author and address; OFFERED_TAGGINGS is the offered two in order; both frozen (AC-1)', () => {
   const mod = libModule();
-  const got = (mod.REQUIRED_TAGGINGS || []).map((e) => ({ key: e.key, name: e.name, slug: e.slug, signer: e.signer, target: e.target, address: e.address }));
-  const want = X.REQUIRED.map((e) => ({ ...e, address: X.canonicalTagAddress(e.slug) }));
-  assert(sameJson(got, want), `REQUIRED_TAGGINGS: want ${show(want)}, got ${show(got)}`);
-  assert(Object.isFrozen(mod.REQUIRED_TAGGINGS) || true, 'ok');
+  const pick = (e) => ({ key: e.key, name: e.name, slug: e.slug, signer: e.signer, target: e.target, offered: e.offered, author: e.author, address: e.address });
+  const got = (mod.REQUIRED_TAGGINGS || []).map(pick);
+  assert(sameJson(got, X.REQUIRED.map(pick)), `REQUIRED_TAGGINGS: want ${show(X.REQUIRED.map(pick))}, got ${show(got)}`);
+  const offered = (mod.OFFERED_TAGGINGS || []).map(pick);
+  assert(sameJson(offered, X.OFFERED.map(pick)), `OFFERED_TAGGINGS: want ${show(X.OFFERED.map(pick))}, got ${show(offered)}`);
+  assert(Object.isFrozen(mod.REQUIRED_TAGGINGS) && Object.isFrozen(mod.OFFERED_TAGGINGS), 'both lists are frozen');
 });
 
 test('L4: taggingDTag composes the publisher\'s address — profile-tag-<slug>-<target[0:8]>-<signer[0:8]> — and signerAndTarget resolves each entry\'s signer and target from the viewer and their assistant (AC-3)', () => {
   const mod = libModule();
-  const d = mod.taggingDTag({ slug: 'my-agent', targetPubkey: ASSISTANT, signerPubkey: VIEWER });
-  assert(d === `profile-tag-my-agent-${ASSISTANT.slice(0, 8)}-${VIEWER.slice(0, 8)}`, `taggingDTag: got ${show(d)}`);
+  const d = mod.taggingDTag({ slug: 'my-tapestry-assistant', targetPubkey: ASSISTANT, signerPubkey: VIEWER });
+  assert(d === `profile-tag-my-tapestry-assistant-${ASSISTANT.slice(0, 8)}-${VIEWER.slice(0, 8)}`, `taggingDTag: got ${show(d)}`);
   const wrong = [];
   for (const e of mod.REQUIRED_TAGGINGS) {
     const st = mod.signerAndTarget(e, { personPubkey: VIEWER, assistantPubkey: ASSISTANT });
@@ -301,14 +322,14 @@ test('L5: readPolarity and polarityBucket read a tagging the way the reads do �
   const cases = [[null, 1, 'apply'], ['1', 1, 'apply'], ['-1', -1, 'dispute'], ['0.2', 0.2, 'neutral'], ['-0.5', -0.5, 'dispute'], ['0.5', 0.5, 'apply'], ['x', 1, 'apply']];
   const wrong = [];
   for (const [pol, num, bucket] of cases) {
-    const t = tagging(VIEWER, ASSISTANT, 'my-agent', { polarity: pol });
+    const t = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant', { polarity: pol });
     const n = mod.readPolarity(t);
     const b = mod.polarityBucket(n);
     if (n !== num || b !== bucket) wrong.push(`polarity ${show(pol)}: want ${num}/${bucket}, got ${show(n)}/${show(b)}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
-  assert(mod.isTagging(tagging(VIEWER, ASSISTANT, 'my-agent')) === true, 'a profile-tag-… kind 39999 is a tagging');
-  assert(mod.isTagging(definition('my-agent')) === false, 'a tag definition (d = slug) is not a tagging');
+  assert(mod.isTagging(tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant')) === true, 'a profile-tag-… kind 39999 is a tagging');
+  assert(mod.isTagging(definition('my-tapestry-assistant')) === false, 'a tag definition (d = slug) is not a tagging');
   assert(mod.isTagging(ev(1, VIEWER, 1, [['d', 'profile-tag-x-a-b']])) === false, 'a kind 1 is not a tagging');
 });
 
@@ -342,14 +363,14 @@ test('U2: a signed-in viewer with no assistant on this instance gets { signedIn:
 });
 
 test('U3: every tagging and definition on this instance\'s relay — each row present, finished, local; the action finished and done; no outside relay is read (AC-3, AC-4, AC-6)', async () => {
-  const { body, action, rows, calls } = await answer({ local: [...allFour(), ...allDefinitions()] });
+  const { body, action, rows, calls } = await answer({ local: [...allOffered(), ...offeredDefinitions()] });
   assert(body && body.success === true && body.signedIn === true && body.hasAssistant === true, `got ${show(body)}`);
   assert(action && action.finished === true && action.done === true && action.pending === false, `action flags: ${show(action && { finished: action.finished, done: action.done, pending: action.pending })}`);
   const got = rows.map((r) => ({ key: r.key, name: r.name, slug: r.slug, signer: r.signer, target: r.target, present: r.present, finished: r.finished, source: r.source, found: r.definition && r.definition.found, dsource: r.definition && r.definition.source }));
-  const want = X.REQUIRED.map((e) => ({ ...e, present: true, finished: true, source: 'local', found: true, dsource: 'local' }));
+  const want = X.OFFERED.map((e) => ({ key: e.key, name: e.name, slug: e.slug, signer: e.signer, target: e.target, present: true, finished: true, source: 'local', found: true, dsource: 'local' }));
   assert(sameJson(got, want), `rows: want ${show(want)}, got ${show(got)}`);
   assert(calls.readRelay.length === 0, `a local hit reads no outside relay; read ${show(calls.readRelay.map((c) => c.url))}`);
-  assert(calls.scanLocal.length <= 3, `the taggings and the definitions are looked up by address in at most three local scans (ADR 0001 § Implementation notes 2); got ${calls.scanLocal.length}`);
+  assert(calls.scanLocal.length <= 4, `the taggings and the definitions are looked up by address in at most four local scans — two signers, two definition authors (identification-tags-authorship ADR 0001 sub-decision 2); got ${calls.scanLocal.length}`);
   const pairs = new Set();
   for (const f of calls.scanLocal) {
     assert(Array.isArray(f.kinds) && f.kinds.length === 1 && f.kinds[0] === 39999 && Array.isArray(f.authors) && f.authors.length === 1 && Array.isArray(f['#d']),
@@ -357,44 +378,44 @@ test('U3: every tagging and definition on this instance\'s relay — each row pr
     for (const d of f['#d']) pairs.add(`${f.authors[0]}|${d}`);
   }
   const wantPairs = new Set([
-    ...X.REQUIRED.map((e) => (e.signer === 'person'
+    ...X.OFFERED.map((e) => (e.signer === 'person'
       ? `${VIEWER}|${X.taggingDTag({ slug: e.slug, targetPubkey: ASSISTANT, signerPubkey: VIEWER })}`
       : `${ASSISTANT}|${X.taggingDTag({ slug: e.slug, targetPubkey: VIEWER, signerPubkey: ASSISTANT })}`)),
-    ...X.REQUIRED.map((e) => `${CANON}|${e.slug}`),
+    ...X.OFFERED.map((e) => `${e.author}|${e.slug}`),
   ]);
   assert(sameJson([...pairs].sort(), [...wantPairs].sort()), `the (author, d) pairs looked up: want ${show([...wantPairs].sort())}, got ${show([...pairs].sort())}`);
   for (const r of rows) {
-    assert(r.definition && typeof r.definition.eventId === 'string' && r.definition.eventId.length === 64 && r.definition.address === X.canonicalTagAddress(r.slug),
-      `${r.key}: the definition carries its eventId and canonical address for story 2; got ${show(r.definition)}`);
+    assert(r.definition && typeof r.definition.eventId === 'string' && r.definition.eventId.length === 64 && r.definition.address === X.definitionAddress(X.REQUIRED.find((e) => e.key === r.key)),
+      `${r.key}: the definition carries its eventId and its author's address for story 2; got ${show(r.definition)}`);
   }
 });
 
 test('U4: a local miss for one tagging asks the outside tag relays with only the missing addresses, and the newest found counts — present, finished, source relay (AC-3, AC-4)', async () => {
-  const local = [...allFour().filter((e) => tagOf(e, 'd') !== X.taggingDTag({ slug: 'my-human', targetPubkey: VIEWER, signerPubkey: ASSISTANT })), ...allDefinitions()];
-  const older = tagging(ASSISTANT, VIEWER, 'my-human', { createdAt: 900 });
-  const newer = tagging(ASSISTANT, VIEWER, 'my-human', { createdAt: 1200 });
+  const local = [...allOffered().filter((e) => tagOf(e, 'd') !== X.taggingDTag({ slug: 'my-tapestry-owner', targetPubkey: VIEWER, signerPubkey: ASSISTANT })), ...offeredDefinitions()];
+  const older = tagging(ASSISTANT, VIEWER, 'my-tapestry-owner', { createdAt: 900 });
+  const newer = tagging(ASSISTANT, VIEWER, 'my-tapestry-owner', { createdAt: 1200 });
   const { action, row, calls } = await answer({ local, relays: { [DCOSL]: [older, newer] } });
-  const r = row('my-human');
-  assert(r && r.present === true && r.finished === true && r.source === 'relay', `my-human from the relay: got ${show(r)}`);
+  const r = row('my-tapestry-owner');
+  assert(r && r.present === true && r.finished === true && r.source === 'relay', `my-tapestry-owner from the relay: got ${show(r)}`);
   assert(action.done === true && action.finished === true, `the action is done once the relay supplied the last one: ${show(action)}`);
   assert(calls.readRelay.length === 1 && calls.readRelay[0].url === DCOSL, `one outside read, of the tag-federation relay; got ${show(calls.readRelay.map((c) => c.url))}`);
   const f = calls.readRelay[0].filter;
-  const wantD = X.taggingDTag({ slug: 'my-human', targetPubkey: VIEWER, signerPubkey: ASSISTANT });
+  const wantD = X.taggingDTag({ slug: 'my-tapestry-owner', targetPubkey: VIEWER, signerPubkey: ASSISTANT });
   assert(Array.isArray(f['#d']) && f['#d'].length === 1 && f['#d'][0] === wantD && show(f.authors) === show([ASSISTANT]),
     `the outside filter carries only the missing address for its author; got ${show(f)}`);
   assert(show(calls.readConfiguredRelays) === show([TAG_RELAY_CATEGORIES]), `the tag relays are the aTagFederationRelays setting; asked ${show(calls.readConfiguredRelays)}`);
 });
 
 test('U5: the newest event at an address wins — a later dispute makes the tagging missing; on a created_at tie the lexically lowest id (AC-3)', async () => {
-  const apply = tagging(VIEWER, ASSISTANT, 'my-agent', { createdAt: 1000, polarity: '1' });
-  const laterDispute = tagging(VIEWER, ASSISTANT, 'my-agent', { createdAt: 1100, polarity: '-1' });
+  const apply = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant', { createdAt: 1000, polarity: '1' });
+  const laterDispute = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant', { createdAt: 1100, polarity: '-1' });
   const one = await answer({ local: [], relays: { [DCOSL]: [apply, laterDispute] } });
-  const r1 = one.row('my-agent');
+  const r1 = one.row('my-tapestry-assistant');
   assert(r1 && r1.present === false && r1.finished === true, `a later dispute by the signer: missing, finished; got ${show(r1)}`);
-  const tieA = tagging(VIEWER, ASSISTANT, 'my-agent', { createdAt: 2000, polarity: '-1', id: 'f'.repeat(64) });
-  const tieB = tagging(VIEWER, ASSISTANT, 'my-agent', { createdAt: 2000, polarity: '1', id: '0'.repeat(63) + '1' });
+  const tieA = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant', { createdAt: 2000, polarity: '-1', id: 'f'.repeat(64) });
+  const tieB = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant', { createdAt: 2000, polarity: '1', id: '0'.repeat(63) + '1' });
   const two = await answer({ local: [], relays: { [DCOSL]: [tieA, tieB] } });
-  const r2 = two.row('my-agent');
+  const r2 = two.row('my-tapestry-assistant');
   assert(r2 && r2.present === true, `on a tie the lexically lowest id wins (the apply); got ${show(r2)}`);
 });
 
@@ -411,25 +432,25 @@ test('U6: polarity — absent is apply; dispute and neutral are missing; junk is
 });
 
 test('U7: a tagging that points at another author\'s same-named tag counts as present — the definition\'s author never gates the read (AC-3; principle 2)', async () => {
-  const t = tagging(VIEWER, ASSISTANT, 'my-agent', { tagAuthor: OTHER_TAG_AUTHOR });
+  const t = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant', { tagAuthor: OTHER_TAG_AUTHOR });
   const { row } = await answer({ local: [t] });
-  const r = row('my-agent');
+  const r = row('my-tapestry-assistant');
   assert(r && r.present === true && r.finished === true, `a tagging of 39999:${OTHER_TAG_AUTHOR.slice(0, 8)}…:my-agent by the viewer: present; got ${show(r)}`);
 });
 
 test('U8: someone else\'s dispute changes nothing, and someone else\'s apply is not the viewer\'s (AC-3)', async () => {
-  const mine = tagging(VIEWER, ASSISTANT, 'my-agent');
-  const theirs = tagging(OTHER, ASSISTANT, 'my-agent', { polarity: '-1', createdAt: 5000 });
+  const mine = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant');
+  const theirs = tagging(OTHER, ASSISTANT, 'my-tapestry-assistant', { polarity: '-1', createdAt: 5000 });
   const one = await answer({ local: [mine, theirs] });
-  assert(one.row('my-agent').present === true, `another person\'s dispute leaves the viewer\'s apply present; got ${show(one.row('my-agent'))}`);
-  const two = await answer({ local: [theirs, tagging(OTHER, ASSISTANT, 'my-tapestry-assistant')] });
-  assert(two.row('my-agent').present === false && two.row('my-tapestry-assistant').present === false,
+  assert(one.row('my-tapestry-assistant').present === true, `another person\'s dispute leaves the viewer\'s apply present; got ${show(one.row('my-tapestry-assistant'))}`);
+  const two = await answer({ local: [theirs, tagging(OTHER, ASSISTANT, 'my-tapestry-assistant', { createdAt: 6000 })] });
+  assert(two.row('my-tapestry-assistant').present === false && two.row('my-tapestry-owner').present === false,
     `only the required signer\'s tagging counts; got ${show(two.rows.map((r) => [r.key, r.present]))}`);
 });
 
 test('U9: unfinished, with a reason — this instance\'s relay unreadable; no outside relay configured; every outside relay unreachable (AC-4)', async () => {
   const one = await answer({ local: 'reject' });
-  assert(one.res.statusCode === 200 && one.rows.length === 4 && one.rows.every((r) => r.finished === false && r.present === false && r.reason === 'local-unreadable' && r.source === null),
+  assert(one.res.statusCode === 200 && one.rows.length === 2 && one.rows.every((r) => r.finished === false && r.present === false && r.reason === 'local-unreadable' && r.source === null),
     `a failed local scan: every row unfinished with reason local-unreadable; got ${show(one.rows.map((r) => [r.key, r.finished, r.reason]))}`);
   assert(one.action.finished === false && one.action.done === false && one.action.pending === false, `unfinished action: ${show(one.action)}`);
   assert(one.rows.every((r) => r.definition && r.definition.finished === false && r.definition.found === null), `definitions unfinished too: ${show(one.rows.map((r) => r.definition))}`);
@@ -443,9 +464,9 @@ test('U9: unfinished, with a reason — this instance\'s relay unreadable; no ou
 });
 
 test('U10: a relay that never answers loses the budget (RELAY_BUDGET_MS = 8000) and the answering relay still counts (AC-4)', async () => {
-  const found = allFour();
+  const found = allOffered();
   const started = Date.now();
-  const out = await within(answer({ local: [], relays: { [DCOSL]: 'hang', [SECOND]: [...found, ...allDefinitions()] }, configured: [DCOSL, SECOND] }), RELAY_BUDGET_MS + 3000);
+  const out = await within(answer({ local: [], relays: { [DCOSL]: 'hang', [SECOND]: [...found, ...offeredDefinitions()] }, configured: [DCOSL, SECOND] }), RELAY_BUDGET_MS + 3000);
   assert(out !== 'HUNG', `the answer never came: a hanging relay must lose the budget (${Date.now() - started} ms)`);
   assert(out.action && out.action.finished === true && out.action.done === true, `the answering relay decides: ${show(out.action)}`);
   assert(Date.now() - started >= RELAY_BUDGET_MS - 100, 'the hanging relay was given the whole budget');
@@ -456,41 +477,43 @@ test('U11: this instance\'s own relay is never an outside relay — loopback and
     local: [], configured: [OWN, 'wss://own.example/', DCOSL, DCOSL.toUpperCase(), 'not-a-relay'],
     config: { BRAINSTORM_RELAY_URL: 'wss://own.example' }, relays: { [DCOSL]: [] },
   });
-  // Distinct, because each of the three lookups (the viewer's, the assistant's, the canonical author's) reads the
-  // relay once with its own author filter (ADR 0001 § Implementation notes 2): the set of relays read is what
-  // own-relay exclusion and de-duplication decide.
+  // Distinct, because each of the four lookups (the viewer's, the assistant's, the two definition authors') reads the
+  // relay once with its own author filter (ADR 0001 § Implementation notes 2; identification-tags-authorship ADR 0001
+  // sub-decision 2): the set of relays read is what own-relay exclusion and de-duplication decide.
   const urls = [...new Set(calls.readRelay.map((c) => c.url))];
   assert(sameJson(urls, [DCOSL]), `outside relays: want [${DCOSL}], read ${show(calls.readRelay.map((c) => c.url))}`);
-  assert(calls.readRelay.length <= 3, `at most one read per relay per lookup, three lookups; got ${calls.readRelay.length}`);
+  assert(calls.readRelay.length <= 4, `at most one read per relay per lookup, four lookups; got ${calls.readRelay.length}`);
 });
 
-test('U12: the definitions — found; not found (finished); the found one carries its eventId — and a missing definition never makes a present tagging missing (AC-6)', async () => {
-  const def = definition('my-agent', { id: 'ab'.repeat(32) });
-  const { row } = await answer({ local: [...allFour(), def], relays: { [DCOSL]: [] } });
-  const agent = row('my-agent');
-  assert(agent.definition.found === true && agent.definition.finished === true && agent.definition.eventId === 'ab'.repeat(32) && agent.definition.source === 'local',
-    `my-agent\'s definition: found locally with its id; got ${show(agent.definition)}`);
-  const human = row('my-human');
-  assert(human.definition.found === false && human.definition.finished === true && human.definition.eventId === null,
-    `my-human\'s definition: not found, finished (the relay answered); got ${show(human.definition)}`);
-  assert(human.present === true, 'the tagging stays present whatever the definition');
+test('U12: the definitions — found at its own author\'s address; not found (finished); the found one carries its eventId; a same-named tag by another author is not it — and a missing definition never makes a present tagging missing (AC-6; identification-tags-authorship #1 AC-2)', async () => {
+  const def = definition('my-tapestry-assistant', { id: 'ab'.repeat(32) });
+  const { row } = await answer({ local: [...allOffered(), def], relays: { [DCOSL]: [] } });
+  const assistant = row('my-tapestry-assistant');
+  assert(assistant.definition.found === true && assistant.definition.finished === true && assistant.definition.eventId === 'ab'.repeat(32) && assistant.definition.source === 'local',
+    `my-tapestry-assistant\'s definition: found locally with its id; got ${show(assistant.definition)}`);
+  const owner = row('my-tapestry-owner');
+  assert(owner.definition.found === false && owner.definition.finished === true && owner.definition.eventId === null,
+    `my-tapestry-owner\'s definition: not found, finished (the relay answered); got ${show(owner.definition)}`);
+  assert(owner.present === true, 'the tagging stays present whatever the definition');
+  const byAnother = await answer({ local: [...allOffered(), definition('my-tapestry-assistant', { author: OTHER_TAG_AUTHOR, id: 'cd'.repeat(32) })], relays: { [DCOSL]: [] } });
+  assert(byAnother.row('my-tapestry-assistant').definition.found === false, `a same-named tag by another author is not the definition the page publishes against; got ${show(byAnother.row('my-tapestry-assistant').definition)}`);
 });
 
-test('U13: the action\'s flags — done needs every tagging finished and present; pending needs one finished and missing, even while another is unfinished; the invariants hold (AC-5)', async () => {
+test('U13: the action\'s flags — done needs every offered tagging finished and present; pending needs one finished and missing, even while the other is unfinished; the invariants hold; two rows, never a parked one (AC-5; identification-tags-authorship #1 AC-2)', async () => {
   const mod = attentionModule();
   const evaluate = need(mod, 'evaluateIdentificationTags');
   const found = (e) => ({ finished: true, event: e, source: 'local' });
   const none = { finished: true, event: null, source: null };
   const unfinished = { finished: false, reason: 'outside-unreachable' };
   const defs = () => ({ finished: true, event: definition('x'), source: 'local' });
-  const entries = (lookups) => X.REQUIRED.map((required, i) => ({ required, lookup: lookups[i], definition: defs() }));
-  const four = allFour();
+  const entries = (lookups) => X.OFFERED.map((required, i) => ({ required, lookup: lookups[i], definition: defs() }));
+  const two = allOffered();
   const cases = [
-    ['all present', entries(four.map(found)), { finished: true, done: true, pending: false }],
-    ['three present, one missing', entries([found(four[0]), found(four[1]), found(four[2]), none]), { finished: true, done: false, pending: true }],
-    ['three present, one unfinished', entries([found(four[0]), found(four[1]), found(four[2]), unfinished]), { finished: false, done: false, pending: false }],
-    ['two missing, two unfinished', entries([none, none, unfinished, unfinished]), { finished: false, done: false, pending: true }],
-    ['all unfinished', entries([unfinished, unfinished, unfinished, unfinished]), { finished: false, done: false, pending: false }],
+    ['both present', entries(two.map(found)), { finished: true, done: true, pending: false }],
+    ['one present, one missing', entries([found(two[0]), none]), { finished: true, done: false, pending: true }],
+    ['one present, one unfinished', entries([found(two[0]), unfinished]), { finished: false, done: false, pending: false }],
+    ['one missing, one unfinished', entries([none, unfinished]), { finished: false, done: false, pending: true }],
+    ['both unfinished', entries([unfinished, unfinished]), { finished: false, done: false, pending: false }],
   ];
   const wrong = [];
   for (const [label, input, want] of cases) {
@@ -498,24 +521,25 @@ test('U13: the action\'s flags — done needs every tagging finished and present
     const flags = got && { finished: got.finished, done: got.done, pending: got.pending };
     if (!sameJson(flags, want)) wrong.push(`${label}: want ${show(want)}, got ${show(flags)}`);
     if (got && ((got.done && !got.finished) || (got.done && got.pending))) wrong.push(`${label}: invariants broken ${show(flags)}`);
-    if (got && (!Array.isArray(got.taggings) || got.taggings.length !== 4)) wrong.push(`${label}: four rows expected, got ${show(got && got.taggings)}`);
+    if (got && (!Array.isArray(got.taggings) || got.taggings.length !== 2 || got.taggings.some((t) => !X.OFFERED.some((e) => e.key === t.key)))) wrong.push(`${label}: the two offered rows expected, got ${show(got && got.taggings && got.taggings.map((t) => t.key))}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U14: whose assistant — the Owner\'s is the TA, a Customer\'s their own: the mapping\'s answer is the signer of the assistant\'s two taggings and the target of the viewer\'s (AC-2)', async () => {
+test('U14: whose assistant — the Owner\'s is the TA, a Customer\'s their own: the mapping\'s answer is the signer of the assistant\'s tagging and the target of the viewer\'s; the local scans are by the two signers and the two definition authors only (AC-2)', async () => {
   const owner = 'bb'.repeat(32);
-  const { calls, row } = await answer({ assistant: TA, local: [tagging(TA, owner, 'my-tapestry-owner'), tagging(owner, TA, 'my-agent')] }, signedInReq(owner));
+  const { calls, row } = await answer({ assistant: TA, local: [tagging(TA, owner, 'my-tapestry-owner'), tagging(owner, TA, 'my-tapestry-assistant')] }, signedInReq(owner));
   assert(show(calls.getAssistantPubkeyFor) === show([owner]), `the assistant is resolved for the session\'s viewer only: ${show(calls.getAssistantPubkeyFor)}`);
-  assert(row('my-tapestry-owner').present === true && row('my-agent').present === true && row('my-human').present === false,
-    `the TA\'s tagging of the owner and the owner\'s of the TA are found; got ${show(calls.scanLocal)} → ${show(rowsOf(row))}`);
-  function rowsOf(r) { return X.REQUIRED.map((e) => [e.key, r(e.key) && r(e.key).present]); }
+  assert(row('my-tapestry-owner').present === true && row('my-tapestry-assistant').present === true,
+    `the TA\'s tagging of the owner and the owner\'s of the TA are found; got ${show(calls.scanLocal)} → ${show(X.OFFERED.map((e) => [e.key, row(e.key) && row(e.key).present]))}`);
   const authors = new Set(calls.scanLocal.map((f) => f.authors[0]));
-  assert(authors.has(owner) && authors.has(TA) && authors.has(CANON) && !authors.has(ASSISTANT), `local scans by the owner, the TA and the canonical author only; got ${show([...authors])}`);
+  const definitionAuthors = X.OFFERED.map((e) => e.author);
+  assert(authors.has(owner) && authors.has(TA) && definitionAuthors.every((a) => authors.has(a)) && !authors.has(ASSISTANT) && authors.size === 2 + new Set(definitionAuthors).size,
+    `local scans by the owner, the TA and the two definition authors only; got ${show([...authors])}`);
 });
 
 test('U15: no query parameter changes the answer or the relays asked — the answer follows the session (AC-2)', async () => {
-  const local = [...allFour(), ...allDefinitions()];
+  const local = [...allOffered(), ...offeredDefinitions()];
   const plain = await answer({ local });
   const probed = await answer({ local }, signedInReq(VIEWER, { query: { pubkey: OTHER, viewer: OTHER, assistant: OTHER, relays: 'wss://evil.example', wotPov: 'user' } }));
   assert(sameJson(plain.body, probed.body), `query parameters changed the answer: without ${show(plain.body)}, with ${show(probed.body)}`);
@@ -524,7 +548,7 @@ test('U15: no query parameter changes the answer or the relays asked — the ans
 });
 
 test('U16: the answer carries no viewer or assistant pubkey (AC-2)', async () => {
-  const { body } = await answer({ local: [...allFour(), ...allDefinitions()] });
+  const { body } = await answer({ local: [...allOffered(), ...offeredDefinitions()] });
   const s = show(body);
   assert(!s.includes(VIEWER) && !s.includes(ASSISTANT), `the answer must carry neither the viewer\'s nor the assistant\'s pubkey: ${s}`);
 });
@@ -532,6 +556,19 @@ test('U16: the answer carries no viewer or assistant pubkey (AC-2)', async () =>
 test('U17: an unexpected throw answers 500 { success: false, error: "Could not check assistant attention" } (ADR 0001 § Implementation notes 2)', async () => {
   const { res, body } = await answer({ assistant: 'throw' });
   assert(res.statusCode === 500 && sameJson(body, { success: false, error: 'Could not check assistant attention' }), `got ${res.statusCode} ${show(body)}`);
+});
+
+test('U18: the parked taggings are neither looked up nor answered — no scan or read names a parked slug or its d, the answer has no row for them, and they never hold the action back or push it forward (identification-tags-authorship #1 AC-2)', async () => {
+  const parkedMine = tagging(VIEWER, ASSISTANT, 'my-tapestry-assistant');
+  const parkedDefinition = definition('my-tapestry-assistant');
+  const { action, rows, calls } = await answer({ local: [...allOffered(), ...offeredDefinitions(), parkedMine, parkedDefinition], relays: { [DCOSL]: [] } });
+  assert(action.finished === true && action.done === true && action.pending === false, `both offered present: done, whatever exists for the parked two; got ${show(action && { finished: action.finished, done: action.done, pending: action.pending })}`);
+  assert(sameJson(rows.map((r) => r.key), X.OFFERED.map((e) => e.key)), `rows for the offered taggings only, in order; got ${show(rows.map((r) => r.key))}`);
+  const named = [...calls.scanLocal, ...calls.readRelay.map((c) => c.filter)].flatMap((f) => (Array.isArray(f['#d']) ? f['#d'] : []));
+  const parkedNames = X.PARKED.flatMap((e) => [e.slug, X.taggingDTag({ slug: e.slug, targetPubkey: ASSISTANT, signerPubkey: VIEWER }), X.taggingDTag({ slug: e.slug, targetPubkey: VIEWER, signerPubkey: ASSISTANT })]);
+  assert(!named.some((d) => parkedNames.includes(d)), `a lookup named a parked slug or d: ${show(named.filter((d) => parkedNames.includes(d)))}`);
+  const offeredMissing = await answer({ local: [...offeredDefinitions(), parkedMine], relays: { [DCOSL]: [] } });
+  assert(offeredMissing.action.pending === true && offeredMissing.action.done === false && offeredMissing.rows.length === 2, `a parked tagging present anyway does not make the action done; got ${show(offeredMissing.action)}`);
 });
 
 /* ───────────────────────── C — the UI utils (ESM) ───────────────────────── */
@@ -637,6 +674,19 @@ test('S3: the module leaves src/api/setup/status.js as it is and reuses its stri
 test('S4: TAG_RELAY_CATEGORIES is [\'aTagFederationRelays\'] — the relays this instance reads tags from (AC-3)', () => {
   const mod = attentionModule();
   assert(sameJson(mod.TAG_RELAY_CATEGORIES, TAG_RELAY_CATEGORIES), `want ${show(TAG_RELAY_CATEGORIES)}, got ${show(mod.TAG_RELAY_CATEGORIES)}`);
+});
+
+test('S5: BIBLE §11/§14 and the OpenAPI document say what is true — no "two identification taggings", no single key\'s "canonical definitions", no "My Human" beside "My Tapestry Owner" as published, and the undecided pair named as parked (identification-tags-authorship #1 AC-6)', () => {
+  const bible = safeRead(path.join(REPO, 'BIBLE.md'));
+  const yaml = safeRead(OPENAPI);
+  const wrong = [];
+  for (const [label, text] of [['BIBLE.md', bible], ['openapi.yaml', yaml]]) {
+    for (const re of [/two identification taggings/i, /the canonical definitions/i, /canonical tag definitions/i, /"My Tapestry Owner", "My Human"/, /My Tapestry Owner and My Human/, /my-tapestry-owner and my-human/]) {
+      if (re.test(text)) wrong.push(`${label} still says ${re}`);
+    }
+    if (!/parked/i.test(text)) wrong.push(`${label} does not say the two undecided taggings are parked`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 /* ───────────────────────── D — the UI, by source (CI runs no browser) ───────────────────────── */
