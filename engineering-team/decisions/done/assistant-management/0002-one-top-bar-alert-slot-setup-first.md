@@ -3,7 +3,7 @@
 **Status:** Accepted (Amendment 1 appended 2026-09-21: the Setup Alert shipped first, as its own component; the
 two pills stand side by side and read the one setup answer)
 **Date:** 2026-09-21
-**Story:** `engineering-team/stories/assistant-management/2-the-assistant-alert.md`
+**Story:** `engineering-team/stories/done/assistant-management/2-the-assistant-alert.md`
 (the slot it designs is also where setup-status-and-alert #2, the Setup Alert, will render; see
 § Decision 5. *Amendment 1: it shipped as its own component, beside the slot.*)
 

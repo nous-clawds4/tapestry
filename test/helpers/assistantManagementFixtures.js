@@ -5,8 +5,8 @@
  * browser suites (tests/brainstorm/assistant-management-page.spec.js, tests/brainstorm/assistant-alert.spec.js),
  * so the four cannot disagree about what the owner approved.
  *
- * Source of truth: engineering-team/stories/assistant-management/1-the-assistant-management-page.md § Copy and
- * engineering-team/stories/assistant-management/2-the-assistant-alert.md § Copy (approved 2026-09-21), with the
+ * Source of truth: engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md § Copy and
+ * engineering-team/stories/done/assistant-management/2-the-assistant-alert.md § Copy (approved 2026-09-21), with the
  * display fixes story 1 lists: straight apostrophes, first letters capitalized, "(link to …)" made into the link
  * it asks for, and "follows (kind 3)". Change a word there first, then here.
  */

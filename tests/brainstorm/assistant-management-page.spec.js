@@ -5,9 +5,9 @@ const X = require('../../test/helpers/assistantManagementFixtures');
  * assistant-management #1: the Assistant Management page, its FAQ and ten placeholder action pages, and the
  * profile editor's move — the browser class.
  *
- * Story: engineering-team/stories/assistant-management/1-the-assistant-management-page.md
- * ADR:   engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md
- * Plan:  engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md
+ * Story: engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md
+ * ADR:   engineering-team/decisions/done/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md
+ * Plan:  engineering-team/stories/done/assistant-management/1-the-assistant-management-page.test-plan.md
  * Node half: test/assistant-management-page.test.js (D/M/W/O/H). Expected words: test/helpers/assistantManagementFixtures.js.
  *
  *   B0  — the served origin runs a build that contains the code under test.                 [prerequisite]

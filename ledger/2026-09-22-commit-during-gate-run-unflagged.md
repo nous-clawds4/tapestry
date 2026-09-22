@@ -30,5 +30,5 @@ and totals without reading git again.
 The first is a habit, and belongs in the Implementer's and the session's instructions for handing work to a
 Reviewer. The second makes the record honest whoever forgets the habit.
 
-**Pointer:** review `engineering-team/reviews/assistant-management/2-the-assistant-alert.md`, § Round 2 →
+**Pointer:** review `engineering-team/reviews/done/assistant-management/2-the-assistant-alert.md`, § Round 2 →
 Findings (round 2) → Harness friction 1.

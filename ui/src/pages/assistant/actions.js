@@ -11,8 +11,8 @@
  * (test/assistant-management-page.test.js, test/assistant-alert.test.js).
  *
  * The words were approved with the stories; change them there first:
- * engineering-team/stories/assistant-management/1-the-assistant-management-page.md § Copy, and
- * engineering-team/stories/assistant-management/2-the-assistant-alert.md § Copy.
+ * engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md § Copy, and
+ * engineering-team/stories/done/assistant-management/2-the-assistant-alert.md § Copy.
  */
 
 import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH } from '../../config/avatarMenuLinks.js';

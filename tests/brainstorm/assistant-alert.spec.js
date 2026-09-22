@@ -4,9 +4,9 @@ const X = require('../../test/helpers/assistantManagementFixtures');
 /**
  * assistant-management #2: the Assistant Alert — the browser class.
  *
- * Story: engineering-team/stories/assistant-management/2-the-assistant-alert.md
- * ADR:   engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md
- * Plan:  engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md
+ * Story: engineering-team/stories/done/assistant-management/2-the-assistant-alert.md
+ * ADR:   engineering-team/decisions/done/assistant-management/0002-one-top-bar-alert-slot-setup-first.md
+ * Plan:  engineering-team/stories/done/assistant-management/2-the-assistant-alert.test-plan.md
  * Node half: test/assistant-alert.test.js (P/C/W). Expected words: test/helpers/assistantManagementFixtures.js.
  *
  *   B0 — the served origin runs a build that contains the pill.                              [prerequisite]

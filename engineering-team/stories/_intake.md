@@ -2685,7 +2685,7 @@ action pages, and the Assistant Alert that counts them. These items were saved f
 1. **Real "needs attention" answers.** Each action's state comes from its alert criteria, for the
    viewer's own assistant, so that the hub's marks, its count line and the Assistant Alert tell the
    truth. The owner's criteria so far, for the profile and identification-tags actions, are in
-   story 1 § Copy (`stories/assistant-management/1-the-assistant-management-page.md`), and are shown
+   story 1 § Copy (`stories/done/assistant-management/1-the-assistant-management-page.md`), and are shown
    on the placeholder pages. The other eight have none yet.
 2. **The ten action pages**, each with its own action cards: profile (a checklist of the assistant's
    profile, pointing to the editor at `/assistant/profile/edit` for what is wrong),
