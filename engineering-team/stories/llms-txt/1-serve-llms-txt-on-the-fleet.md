@@ -1,6 +1,6 @@
 # Story 1: Serve llms.txt on the fleet
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-22
 **Type:** Feature
 
@@ -65,4 +65,4 @@ None outstanding. Resolved with the operator at Planning on 2026-09-22:
 ## Linked artifacts
 - ADR: `engineering-team/decisions/llms-txt/0001-serve-llms-txt-on-the-fleet.md`
 - Test plan: `engineering-team/stories/llms-txt/1-serve-llms-txt-on-the-fleet.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/llms-txt/1-serve-llms-txt-on-the-fleet.md`
