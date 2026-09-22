@@ -130,6 +130,18 @@ Small judgment calls made during implementation (Implementer role, step 9):
   - `publishEverywhere` announces once.
   - The provider's id record is gone.
   - The round-2 bundle was redeployed to `:7778`, and story 3's full spec (20) passes against it.
+- **At the merge of `origin/staging`, for shipping (made as the Tester).**
+  - **What broke.** Book `assistant-management` shipped the Assistant Alert beside the Setup Alert while this
+    story was in review. Its `tests/brainstorm/assistant-alert.spec.js` found the Setup pill by its old fixed name,
+    `'Finish setting up your account'`, matched exactly. ADR 0003 replaced that name with what the pill shows.
+  - **What that did.** On the merged build, B3's "a step left shows the Setup pill" failed. Its "never two pills
+    at once" and the "no pill" checks in B2 and B4 could no longer see the Setup pill at all.
+  - **The re-aim.** `setupPillOf` now finds the pill by its element (`a.bs-setup-alert[href="/setup"]`), as
+    story 2's spec does since this story. `anyPill` is `pillOf(page).or(setupPillOf(page))`, and the Assistant
+    pill's own locator is unchanged.
+  - **Checked.** The spec passes 10 of 10 on the merged build. A mutant of that book's picker with "setup
+    first" dropped, so both pills show when a step is left, fails B3 3 of 3 at "at most one pill at any moment".
+  - Ledger row `2026-09-22-parallel-books-no-shared-line-recheck` has the other half of this collision.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`
