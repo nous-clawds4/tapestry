@@ -141,6 +141,6 @@ Promoted from the build audit §6:
 - [ ] Whether "present on this instance's relay" is enough, or whether the page owes a "broadcast" state.
 - [ ] Whether a row the check could not settle should still be publishable.
 - [ ] Whether the Assistant's taggings should also be published at creation, and on which paths.
-- [ ] Whether the four names are final ("My Owner" became "My Human" at Discovery) and whether more are coming.
+- [ ] Whether the four names are final ("My Owner" became "My Human" at Discovery) and whether more are coming. *(2026-09-22: "My Agent" and "My Human" are parked, undecided — book `identification-tags-authorship`.)*
 - [ ] Whether outside clients should read by name or by canonical address, once the `protocols/` note exists.
 - [ ] Whether the person can dispute or retract a tagging from this page, or only from the profile's tag surfaces.
