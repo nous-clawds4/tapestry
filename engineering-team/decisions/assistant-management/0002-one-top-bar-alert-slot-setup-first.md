@@ -396,6 +396,7 @@ suites and restyle it. That would only buy a property the shared answer already 
      - With the sentence showing, the `TopBar` pages need 652 px. At 640 they scroll 12 px, measured in 2 px
        steps (the first fix, at 639, left this).
      - 679 leaves 28 px for fonts wider than the ones measured here.
+     - The owner kept 679 (2026-09-21) over shortening the button's approved words.
    - **The control panel's brand rules fire for either pill:** `.app-header:has(.bs-setup-alert, .bs-topbar-pill)`.
      Sub-decision 6's ≤ 480 px rules for this pill stay.
    - **`TopBar`'s nav hides below 360 px** (`max-width: 359px`).

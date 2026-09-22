@@ -174,6 +174,8 @@ Small judgment calls made during implementation (Implementer role, step 9):
   - **How 679 was found.** The first fix used the Setup Alert's 639. B9's fixed widths then passed, but
     a scratch probe at every 2 px found 10–12 px scrolls at 640–642 px on `/` and `/tags`. This pill's
     longer button needs 652 px there.
+    - **The owner kept 679** (2026-09-21) over the alternative, shortening the button's approved words.
+      So between 640 and 679 px the Setup pill shows its sentence and this one does not.
   - **The phone pill** no longer shrinks its font at ≤ 480 px. The Setup Alert's pill does not shrink
     either, and with the nav rule every bar fits.
   - **Also fixed:** the stale comments review 1 found, the editor's CSS heading and the setup provider's
