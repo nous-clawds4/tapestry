@@ -2,9 +2,9 @@
 /**
  * setup-status-and-alert #3: the Setup Alert, readable, announced as it reads, and current.
  *
- * Story: engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.md
- * ADR:   engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md
- * Plan:  engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.test-plan.md
+ * Story: engineering-team/stories/done/setup-status-and-alert/3-setup-alert-polish.md
+ * ADR:   engineering-team/decisions/done/setup-status-and-alert/0003-readable-named-and-current.md
+ * Plan:  engineering-team/stories/done/setup-status-and-alert/3-setup-alert-polish.test-plan.md
  * Browser half: tests/brainstorm/setup-alert-polish.spec.js.
  *
  * Classes:

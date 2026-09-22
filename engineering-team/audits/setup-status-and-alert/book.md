@@ -1,9 +1,9 @@
 # Book of Work: The /setup page, live — each step's real state, and the Setup Alert
 
 **Slug:** setup-status-and-alert
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-21
-**Closed:** —
+**Closed:** 2026-09-22 (on staging: PRs #732, #737 and #746; the owner asked for the promotion to main to follow the close)
 
 ## Intent anchor
 
@@ -86,19 +86,19 @@ relay lookup at all, so the question no longer arises.
 
 *Confirmed 2026-09-21, when the owner approved stories 1 and 2. The fifth bullet was added the same day, when the owner opened story 3 after story 2's review.*
 
-- [ ] `/setup` shows each of the three steps as done or not done for the signed-in viewer, by the
+- [x] `/setup` shows each of the three steps as done or not done for the signed-in viewer, by the
       rules in Decisions 1–3. Each check reads only the viewer's own assistant, kind 3 and kind
       10040. The instance TA counts only as the Owner's own assistant. "N of 3 complete" counts the
       done steps. A signed-out visitor sees the steps without marks and a prompt to sign in.
-- [ ] A persistent Setup Alert, modelled on Brainstorm's pill, sends signed-in viewers to `/setup`
+- [x] A persistent Setup Alert, modelled on Brainstorm's pill, sends signed-in viewers to `/setup`
       from every page outside `/tapestry` and every `/tapestry` page while at least one step is
       confidently not done. It never counts a step whose check is still loading or has failed, or
       whose Treasure Map names another provider. It is hidden when the viewer is signed out, and on
       `/setup` and its step pages.
-- [ ] Nothing is published, signed or stored on the viewer's behalf. The checks only read.
-- [ ] The three step pages stay placeholders. `/assistant` and the Dashboard's Getting-Started
+- [x] Nothing is published, signed or stored on the viewer's behalf. The checks only read.
+- [x] The three step pages stay placeholders. `/assistant` and the Dashboard's Getting-Started
       checklist are unchanged. The `_intake.md` entry stays open for the step pages.
-- [ ] The pill's "Finish setup →" text meets the 4.5:1 contrast guideline. The pill is announced
+- [x] The pill's "Finish setup →" text meets the 4.5:1 contrast guideline. The pill is announced
       exactly as it reads at each width. It catches up without a reload after the app publishes the
       viewer's follow list or Treasure Map. It hides on the setup pages whatever the letter case of
       the address.
@@ -172,7 +172,9 @@ Each story's test plan pins the exact suite list, and the Reviewer quotes the `g
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high. Every frame bullet traces to a story, and all three passed review. Each was
+  smoke-tested on `staging.brainstorm.world` with a real throwaway guest session. The one exception is the same-tab
+  catch-up after a live Follow, covered by the hermetic browser tests instead (audit §5).
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/setup-status-and-alert/audit.md`

@@ -2,9 +2,9 @@
 /**
  * setup-status-and-alert #2: the Setup Alert.
  *
- * Story: engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md
- * ADR:   engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md
- * Plan:  engineering-team/stories/setup-status-and-alert/2-the-setup-alert.test-plan.md
+ * Story: engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.md
+ * ADR:   engineering-team/decisions/done/setup-status-and-alert/0002-the-setup-alert-pill.md
+ * Plan:  engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.test-plan.md
  * Browser half: tests/brainstorm/setup-alert.spec.js (B-class — what a viewer SEES in each top bar).
  *
  * Classes:

@@ -24,6 +24,6 @@ pins that (`test/setup-status.test.js` X1–X4).
 `success: false`, and check each caller's error path. It may be enough to share
 `scanLocalStrict`.
 
-**Pointer:** `engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md`
-§ Consequences; `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md`
+**Pointer:** `engineering-team/decisions/done/setup-status-and-alert/0001-one-setup-status-answer.md`
+§ Consequences; `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`
 § Non-blocking 8a.

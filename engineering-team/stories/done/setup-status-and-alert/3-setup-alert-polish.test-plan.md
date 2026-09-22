@@ -1,7 +1,7 @@
 # Test Plan: Story 3 — The Setup Alert: readable, announced as it reads, and current
 
-**Story:** `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.md`
-**ADR:** `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`
+**Story:** `engineering-team/stories/done/setup-status-and-alert/3-setup-alert-polish.md`
+**ADR:** `engineering-team/decisions/done/setup-status-and-alert/0003-readable-named-and-current.md`
 **Date:** 2026-09-21
 
 Two new files carry the tests, and two of story 2's files change so they stop pinning what ADR 0003

@@ -148,16 +148,22 @@ book's diff, not production: `/setup` now has a way in, though the Setup Alert d
       UX and function of the three action pages — verbatim, with Brainstorm's model and what exists
       to build on, in `stories/_intake.md` "2026-09-20 — The /setup page, the rest of the way".
       (§4 #4, #5)
-- [ ] **2. What "Create your account" means for each kind of visitor** — a signed-out visitor, a
+      *2026-09-22: the first two shipped with book `setup-status-and-alert` (closed; audit there). The third,
+      the step pages, stays open in that intake entry.*
+- [x] **2. What "Create your account" means for each kind of visitor** — a signed-out visitor, a
       signed-in guest with no assistant, a customer, an admin, the owner. The `assistant-profile`
       book's truthful setup check (#1) and planned My Assistant page (#4) are the likely foundations.
-      (§4 #6)
-- [ ] **3. Whether signed-out visitors keep seeing `/setup`** once the page checks real state.
-      (§4 #3)
-- [ ] **4. When a follow list or a Treasure Map counts as done.** Which relays are read, and whether
+      (§4 #6) *Resolved 2026-09-22 by book `setup-status-and-alert` § Decisions 1 and 5: step 1 is done when this
+      instance holds an assistant for the viewer, and a guest with none is treated like everyone else.*
+- [x] **3. Whether signed-out visitors keep seeing `/setup`** once the page checks real state.
+      (§4 #3) *Resolved 2026-09-22 by book `setup-status-and-alert` § Decision 4: they do, with the steps
+      unmarked and a prompt to sign in.*
+- [x] **4. When a follow list or a Treasure Map counts as done.** Which relays are read, and whether
       a kind 10040 naming another provider counts. Brainstorm's own rule is inconsistent:
       `useFinishSetup.ts` line 60 lets a local "activated" flag win, against the comment at lines
-      61–63. (epic § "What Brainstorm has"; the review's draft-stage finding)
+      61–63. (epic § "What Brainstorm has"; the review's draft-stage finding) *Resolved 2026-09-22 by book
+      `setup-status-and-alert` § Decisions 2 and 3: this instance's relay first, then the configured outside relays,
+      the newest event counting; a Map naming another provider is not done, and the alert does not count it.*
 - [ ] **5. "Setup" now names three surfaces** — `/setup`, the `/tapestry` Dashboard's
       Getting-Started checklist (instance setup for Owner and Admins), and
       `/tapestry/trusted-agents/setup` (Sponsor/Agent pairing). The same family of problem as
@@ -168,9 +174,10 @@ book's diff, not production: `/setup` now has a way in, though the Setup Alert d
 - [ ] **7. Links on the Brainstorm Search pages turn sky blue on hover** because the global `a:hover`
       colour outranks their class colour — `/setup`'s back link and `/tags`' links alike. Filed as
       OPEN.md row `2026-09-21-bs-link-hover-turns-sky-blue`. (review non-blocking 1)
-- [ ] **8. The done state is undesigned.** The numbered markers stand in for Brainstorm's icons; what
+- [x] **8. The done state is undesigned.** The numbered markers stand in for Brainstorm's icons; what
       a done step looks like (a check, a "Done" chip, a collapsed row) is decided when steps can be
-      done. (§4 #1)
+      done. (§4 #1) *Resolved 2026-09-22 by `setup-status-and-alert` #1: a green ✓, a "Done" badge and the step's
+      done sentence, and "You're all set!" at 3 of 3.*
 
 ## 7. Process findings (harness)
 
