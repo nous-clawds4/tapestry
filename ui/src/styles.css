@@ -8943,6 +8943,80 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   text-decoration: none;
   transition: border-color 0.15s, background 0.15s;
 }
+
+/* ── /assistant/identification-tags — the Identification Tags page (assistant-identification-tags #2, ADR 0002) ──
+   Two cards, one per signer, in the /setup step's box look as their own class (no link hover), rows with a
+   checkbox each where a tagging can be published, one publish button, and the per-tagging results. */
+.bs-idtags-description { margin: 1rem 0 0; font-size: 0.95rem; line-height: 1.6; opacity: 0.85; }
+.bs-idtags-treasure-map { margin: 0.6rem 0 0; font-size: 0.85rem; line-height: 1.6; opacity: 0.7; }
+.bs-idtags-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+}
+.bs-idtags-card-marker {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.bs-idtags-card.is-marked .bs-idtags-card-marker {
+  border-color: rgba(210,153,34,0.6);
+  background: rgba(210,153,34,0.14);
+  color: #e3b341;
+}
+.bs-idtags-card.is-done .bs-idtags-card-marker {
+  border-color: var(--green, #3fb950);
+  background: var(--green, #3fb950);
+  color: #fff;
+}
+.bs-idtags-card-body { flex: 1 1 auto; min-width: 0; }
+.bs-idtags-card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.bs-idtags-card-title { margin: 0; font-size: 1rem; font-weight: 700; }
+.bs-idtags-rows { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.bs-idtags-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem; font-size: 0.9rem; }
+.bs-idtags-row-label { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.bs-idtags-row-label input:disabled + .bs-idtags-row-name { opacity: 0.6; }
+.bs-idtags-row-name { font-weight: 600; }
+.bs-idtags-row-state { font-size: 0.85rem; line-height: 1.5; opacity: 0.7; }
+.bs-idtags-row.is-present .bs-idtags-row-state { color: var(--green, #3fb950); opacity: 0.9; }
+.bs-idtags-actions { margin-top: 0.9rem; }
+.bs-idtags-publish {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid rgba(165,180,252,0.5);
+  border-radius: 8px;
+  background: rgba(99,102,241,0.18);
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.bs-idtags-publish:hover:not(:disabled) { background: rgba(99,102,241,0.3); }
+.bs-idtags-publish:disabled { opacity: 0.5; cursor: not-allowed; }
+.bs-idtags-results { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
+.bs-idtags-results:empty { margin-top: 0; }
+.bs-idtags-result { padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.85rem; line-height: 1.5; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); }
+.bs-idtags-result.is-success { border-color: rgba(63,185,80,0.45); background: rgba(63,185,80,0.1); }
+.bs-idtags-result.is-warning { border-color: rgba(210,153,34,0.5); background: rgba(210,153,34,0.1); }
+.bs-idtags-result.is-error { border-color: rgba(248,81,73,0.5); background: rgba(248,81,73,0.1); }
+.bs-idtags-result-relays { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.4rem; font-size: 0.75rem; opacity: 0.85; }
+.bs-idtags-result-relays code { word-break: break-all; }
+@media (max-width: 480px) {
+  .bs-idtags-card { gap: 0.6rem; padding: 0.8rem; }
+  .bs-idtags-row { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
+  .bs-idtags-publish { width: 100%; }
+}
 .bs-topbar-pill:focus-visible {
   outline: 2px solid #a5b4fc;
   outline-offset: 2px;

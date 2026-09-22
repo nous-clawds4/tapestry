@@ -181,8 +181,11 @@ Reconciled against the diff.
 - [ ] **1. Real "needs attention" answers,** from each action's alert criteria, for the viewer's own assistant.
       Only the profile and identification-tags actions have criteria so far. (`stories/_intake.md`, entry 2026-09-21,
       item 1; §4 #4)
+      *2026-09-22: the identification-tags action has its real answer (book `assistant-identification-tags`, closed
+      2026-09-22, unmerged at its close); nine actions still count as placeholders.*
 - [ ] **2. The ten action pages,** each with its own action cards, starting with the profile checklist that points to
       the editor for what is wrong. (intake item 2)
+      *2026-09-22: one of the ten, `/assistant/identification-tags`, is built (the same book); nine remain.*
 - [ ] **3. The assistant's DMs,** the FAQ's "Coming soon". (intake item 3)
 - [ ] **4. Whether the pill should reach production while every action counts.** Held by the owner at this close.
       (story 2 § Out of scope; §4 #13)

@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const X = require('../../test/helpers/assistantManagementFixtures');
+const { PENDING: ATTENTION_PENDING } = require('../../test/helpers/identificationTagsFixtures');
 
 /**
  * assistant-management #2: the Assistant Alert — the browser class.
@@ -98,6 +99,10 @@ async function mock(page, { who = CUSTOMER_USER, setup = SETUP_DONE, longName = 
   await page.route('**/api/auth/user-classification', (r) => r.fulfill(json(who
     ? { success: true, classification: who.classification, pubkey: who.pubkey, assistantPubkey: who.assistantPubkey }
     : { success: true, classification: 'unauthenticated', pubkey: null, assistantPubkey: null })));
+  // assistant-identification-tags #1: the pill and the hub now read one more shared answer. Answered PENDING (a tagging
+  // missing, check finished) so that every count this class pins stays ten: a checked action counts only from a finished
+  // answer, and the catch-all's failure would read as nine. tests/brainstorm/assistant-attention.spec.js pins the other answers.
+  await page.route('**/api/assistant/attention**', (r) => r.fulfill(json(ATTENTION_PENDING)));
   await page.route('**/api/setup/status**', async (r) => {
     log.setupCalls.push(r.request().url());
     if (setup === 'hang') return new Promise(() => {});

@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSetupStatus } from '../context/SetupStatusContext';
+import { useAssistantAttention } from '../context/AssistantAttentionContext';
 import { ASSISTANT_MANAGEMENT_PATH } from '../config/avatarMenuLinks';
 import { ASSISTANT_ALERT_COPY, assistantAttention, attentionCountText } from '../pages/assistant/actions';
 import { pickTopBarPill } from '../utils/topBarAlert';
@@ -13,8 +14,10 @@ import { pickTopBarPill } from '../utils/topBarAlert';
  * pills never show together (ADR 0002 Amendment 1).
  *
  * It reads only answers the app already shares: sign-in, the one setup status (ADR setup-status-and-alert/0001,
- * asked once per full page load), the page's address, and the Assistant Management page's own attention answer,
- * so the pill's count is the page's count. It stores nothing and cannot be dismissed.
+ * asked once per full page load), the page's address, and the Assistant Management page's own attention answer —
+ * in its pill reading, alertCount, which counts a checked action only from a finished, missing answer (ADR
+ * assistant-identification-tags/0001 sub-decision 6), and which waits for that answer before drawing anything
+ * (sub-decision 8). It stores nothing and cannot be dismissed.
  */
 
 /** The Assistant Alert: one link to /assistant, named by its sentence; its parts drop away as the bar narrows. */
@@ -33,12 +36,14 @@ export default function TopBarAlert() {
   const { user, loading } = useAuth();
   const setup = useSetupStatus();
   const { pathname } = useLocation();
-  const { count } = assistantAttention(user);
+  const attention = useAssistantAttention();
+  const { alertCount } = assistantAttention(user, attention);
   const { pill, count: n } = pickTopBarPill({
     signedIn: !loading && !!user,
     setupPhase: setup.phase,
     setupPendingCount: setup.pendingCount,
-    assistantCount: count,
+    assistantCount: alertCount,
+    assistantPhase: attention.phase,
     pathname,
   });
   if (pill === 'assistant') return <AssistantPill count={n} />;

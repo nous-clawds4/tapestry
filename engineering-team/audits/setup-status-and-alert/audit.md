@@ -188,6 +188,8 @@ Reconciled against the diff.
   - a check that never finishes without outside relays (§4 #2);
   - the endpoint's per-relay loop duplicates `fetchEvents.js`'s, to be unified if a third caller appears (ADR
     0001, follow-up c);
+    *2026-09-22: the third caller appeared (`src/api/assistant/attention.js`, book `assistant-identification-tags`); the
+    unification is deferred to ledger `2026-09-22-strict-lookup-third-copy`.*
   - "never both" depends on this pill's show rule (§4 #11).
 
 ## 6. Carry-forward register

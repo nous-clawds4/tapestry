@@ -553,6 +553,14 @@ async function register(app) {
     // one. Its path contains no protectedGetEndpoints substring — that list matches with .includes().
     const setupStatus = require('./setup/status');
     app.get('/api/setup/status', setupStatus.handleSetupStatus);
+    // Which of the viewer's Assistant Management actions need attention — one answer for the hub, the Assistant
+    // Alert and the action pages (assistant-identification-tags #1, ADR 0001). Session-shaped, read-only.
+    const assistantAttentionApi = require('./assistant/attention');
+    app.get('/api/assistant/attention', assistantAttentionApi.handleAssistantAttention);
+    // Your Assistant signs its two identification taggings of you — a narrow, session-bound route in the shape of
+    // publish-profile; the generic signer is unchanged (assistant-identification-tags #3, ADR 0003).
+    const identificationTaggingsApi = require('./assistant/identificationTaggings');
+    app.post('/api/assistant/identification-tags/publish', identificationTaggingsApi.handlePublishIdentificationTaggings);
 
     // ── Owner pubkey (public) ──
     const ownerApi = require('./owner');

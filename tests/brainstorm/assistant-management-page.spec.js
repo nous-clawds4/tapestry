@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const X = require('../../test/helpers/assistantManagementFixtures');
+const { PENDING: ATTENTION_PENDING } = require('../../test/helpers/identificationTagsFixtures');
 
 /**
  * assistant-management #1: the Assistant Management page, its FAQ and ten placeholder action pages, and the
@@ -110,6 +111,10 @@ async function mock(page, { who = null, authDelayMs = 0, setup = SETUP_DONE } = 
       ? { success: true, classification: who.classification, pubkey: who.pubkey, assistantPubkey: who.assistantPubkey }
       : { success: true, classification: 'unauthenticated', pubkey: null, assistantPubkey: null }));
   });
+  // assistant-identification-tags #1: the pill and the hub now read one more shared answer. Answered PENDING (a tagging
+  // missing, check finished) so that every count this class pins stays ten: a checked action counts only from a finished
+  // answer, and the catch-all's failure would read as nine. tests/brainstorm/assistant-attention.spec.js pins the other answers.
+  await page.route('**/api/assistant/attention**', (r) => r.fulfill(json(ATTENTION_PENDING)));
   await page.route('**/api/setup/status**', (r) => r.fulfill(json(setup)));
   await page.route('**/api/assistant/status**', (r) => r.fulfill(json(editorStatus(who && who.assistantPubkey))));
   return log;
@@ -351,6 +356,8 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
   /* ───────── B8 — the ten placeholder pages ───────── */
   for (const a of X.ACTIONS) {
     test(`B8 ${a.path}: a placeholder page with the title, "Placeholder page.", the description, the alert criteria${a.planningNotes ? ', the planning notes' : ''}${a.editLink ? ', a link to the editor' : ''} and a way back (AC-5)`, async ({ page }) => {
+      // assistant-identification-tags #2 builds this action's page; tests/brainstorm/assistant-identification-tags-page.spec.js pins it.
+      if (a.path === '/assistant/identification-tags') test.skip(true, 'no longer a placeholder (assistant-identification-tags #2)');
       await mock(page, { who: CUSTOMER_USER });
       const main = await open(page, a.path);
       await expect(page.getByRole('heading', { name: 'Page not found' }), `${a.path} is a page`).toHaveCount(0);

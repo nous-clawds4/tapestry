@@ -15,6 +15,10 @@ const eventTaggingCore = fileURLToPath(new URL('../src/lib/event-tagging', impor
 // as the event-tagging tree above, for the same reason: it must be unit-testable
 // by the node runner, which cannot execute anything under ui/src.
 const broadcastOutcomeCore = fileURLToPath(new URL('../src/lib/broadcastOutcome.js', import.meta.url))
+// The identification-tags library (src/lib/identification-tags): the four required taggings and their canonical
+// author, one definition for the server's check and the Identification Tags page (ADR
+// assistant-identification-tags/0001 sub-decision 1). Same cross-boundary CJS treatment as the two above.
+const identificationTagsCore = fileURLToPath(new URL('../src/lib/identification-tags', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
@@ -23,13 +27,14 @@ export default defineConfig({
     alias: {
       '@tapestry/event-tagging': eventTaggingCore,
       '@tapestry/broadcast-outcome': broadcastOutcomeCore,
+      '@tapestry/identification-tags': identificationTagsCore,
     },
   },
   build: {
     outDir: '../dist',
     emptyOutDir: true,
     commonjsOptions: {
-      include: [/src\/lib\/event-tagging/, /src\/lib\/broadcastOutcome/, /node_modules/],
+      include: [/src\/lib\/event-tagging/, /src\/lib\/broadcastOutcome/, /src\/lib\/identification-tags/, /node_modules/],
     },
   },
   server: {
