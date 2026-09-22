@@ -10,7 +10,7 @@
  * <brainstorm url>/api/personalized-pagerank?pubkey=<pubkey>
  */
 
-const { exec, execSync } = require('child_process');
+const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -32,22 +32,35 @@ function handleGenerateForApiPageRank(req, res) {
   // retrieve limit as an argument
   const limit = req.query.limit;
 
+  // Strict input validation. This value is used both as a subprocess argument and
+  // as a filesystem path segment below, so anything but an exact nostr pubkey is
+  // rejected before any execution. pubkey = 64 hex chars; limit (optional) = a
+  // positive integer.
   if (!pubkey) {
-    return res.json({
-      success: false,
-      error: 'No pubkey provided'
-    });
+    return res.status(400).json({ success: false, error: 'No pubkey provided' });
+  }
+  if (!/^[0-9a-f]{64}$/i.test(pubkey)) {
+    return res.status(400).json({ success: false, error: 'Invalid pubkey parameter' });
+  }
+  let limitArg = null;
+  if (limit !== undefined && limit !== '') {
+    if (!/^[0-9]{1,9}$/.test(String(limit))) {
+      return res.status(400).json({ success: false, error: 'Invalid limit parameter' });
+    }
+    limitArg = String(parseInt(limit, 10));
   }
 
   const filePath = '/var/lib/brainstorm/api/personalizedPageRankForApi/' + pubkey + '/scores.json';
 
   try {
-    // Use exec with timeout and maxBuffer options to handle large outputs
-    let personalizedPageRankForApiCommand = `/usr/local/lib/node_modules/brainstorm/src/algos/personalizedPageRankForApi.sh ${pubkey}`;
-    if (limit) {
-      personalizedPageRankForApiCommand += ` ${limit}`;
+    // Invoke the script via execFile with an argument vector (no shell), so shell
+    // metacharacters in any argument are inert. Inputs are already validated above.
+    const scriptPath = '/usr/local/lib/node_modules/brainstorm/src/algos/personalizedPageRankForApi.sh';
+    const scriptArgs = [pubkey];
+    if (limitArg !== null) {
+      scriptArgs.push(limitArg);
     }
-    const child = exec(personalizedPageRankForApiCommand, {
+    const child = execFile(scriptPath, scriptArgs, {
       timeout: 170000, // slightly less than the HTTP timeout
       maxBuffer: 50 * 1024 * 1024 // 50MB buffer to handle large outputs (default is 1MB)
     }, (error, stdout, stderr) => {

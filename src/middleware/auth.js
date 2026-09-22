@@ -444,12 +444,17 @@ async function authMiddleware(req, res, next) {
             req.path.includes(endpoint) && req.method === 'POST'
         );
 
-        // Owner-only GET endpoints (sensitive reads)
+        // Owner-only GET endpoints (sensitive reads + owner-only computations)
         const ownerOnlyGetEndpoints = [
             '/backups',
             '/backups/download',
             '/restore/sets',
-            '/get-customer-relay-keys'
+            '/get-customer-relay-keys',
+            // Owner-only real-time computation: it spawns a server-side job and is
+            // in the owner-only set, but enforcement there is POST-only, so the GET
+            // needs its own gate here. (The POST sibling '/generate-pagerank' is
+            // already covered by ownerOnlyEndpoints above.)
+            '/personalized-pagerank'
         ];
         const isOwnerGetEndpoint = ownerOnlyGetEndpoints.some(endpoint => 
             req.path.includes(endpoint) && req.method === 'GET'
@@ -482,12 +487,13 @@ async function authMiddleware(req, res, next) {
             return res.status(401).json({ error: 'Authentication required for this action' });
         }
 
-        // Sensitive GET reads that also require authentication.
+        // Sensitive GET reads / owner-only computations that also require authentication.
         const protectedGetEndpoints = [
             '/backups',
             '/backups/download',
             '/restore/sets',
-            '/get-customer-relay-keys'
+            '/get-customer-relay-keys',
+            '/personalized-pagerank'
         ];
         const isProtectedGetEndpoint = protectedGetEndpoints.some(endpoint =>
             req.path.includes(endpoint) && req.method === 'GET'
