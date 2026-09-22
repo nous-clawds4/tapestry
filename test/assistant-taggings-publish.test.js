@@ -385,7 +385,9 @@ test('S2: the generic signer is untouched, and no creation path names the new mo
   assert(/if \(!isOwner\(req\) && !req\.localTrusted\)/.test(signer) && /event\.kind === 0/.test(signer) && !/identificationTaggings|identification-tags/.test(signer), 'publishEvent.js keeps its owner gate and kind-0 refusal and knows nothing of this route');
   const { execSync } = require('child_process');
   const hits = execSync(`/usr/bin/grep -rl "identificationTaggings" ${path.join(REPO, 'src')} ${path.join(REPO, 'bin')} ${path.join(REPO, 'setup')} 2>/dev/null || true`).toString().trim().split(NL).filter(Boolean).map((p) => path.relative(REPO, p)).sort();
-  assert(sameJson(hits, ['src/api/assistant/identificationTaggings.js', 'src/api/index.js']), `only the module and the route registration name it; found ${show(hits)}`);
+  // grep matches contents, not filenames: the module does not spell its own name inside itself, so the one legitimate
+  // hit is the route registration. Any creation path that required the module would appear here.
+  assert(sameJson(hits, ['src/api/index.js']), `only the route registration names the module; found ${show(hits)}`);
   for (const [file, re] of [['src/api/assistant/index.js', /identificationTaggings|identification-tags\/publish/], ['src/utils/customerManager.js', /identificationTaggings/], ['setup/create_nostr_identity.sh', /identification/]]) {
     assert(!re.test(safeRead(path.join(REPO, file))), `${file} must not publish taggings at creation`);
   }
