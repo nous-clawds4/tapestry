@@ -204,6 +204,7 @@ const suites = [
   { file: 'shared-by-me.test.js' },
   { file: 'retire-offering-vocabulary.test.js' },
   { file: 'site-trust-signals.test.js' },
+  { file: 'llms-txt.test.js' },
   { file: 'tl-membership-method-selector.test.js' },
   { file: 'tl-weighted-sum-method.test.js' },
   { file: 'tl-certainty-method.test.js' },
