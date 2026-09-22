@@ -146,3 +146,36 @@ The page spec: B0 and B8–B12 pass; B1–B7 and B13 fail, each on the parked ro
 The publish spec: B0 and B3–B5 pass; B1, B2 and B6 fail on the parked row and on the POST, which the old build sends
 with two keys. The passing cases pass on both builds by construction (B8–B10 never touch the parked row; the old
 page shows "My Agent" as could-not-check, so it signs one tagging there too).
+
+### After implementation (2026-09-22, `1ea0e9cc`; tests at `c61c3794`)
+
+Recorded by the Tester for the Reviewer, who re-runs everything (nothing here is trusted on its own). Node 22.23.2
+throughout, the local stack up.
+
+- **One Tester-lane correction after the suite's first run against the implementation,** its own `test:` commit
+  (`c61c3794`): S5 read the whole of BIBLE.md, whose "Last updated" changelog line carries the historical phrase
+  "its two identification taggings" in a "prior:" entry; S5 now reads the body and leaves the changelog its history.
+- **The three suites:** `assistant-attention` 39/0 (H1 executed live), `assistant-identification-tags-page` 16/0,
+  `assistant-taggings-publish` 20/0 (H1 executed live). The neighbours unchanged: `dual-z-writer` 14/0,
+  `assistant-management-page` 24/0, `assistant-alert` 15/0, `default-deny-mutations` 14/0,
+  `assistant-publish-relays` 39/0.
+- **The book's gate** (§ How to run's recipe, 53 suites, on the committed tree), read with
+  `npm run gate:status -- --label identification-tags-authorship-1-after`:
+  `20260922T220123Z-58022-a4f8 [identification-tags-authorship-1-after] started 2026-09-22T22:01:23.241Z on 1ea0e9cc — PASS, exit 0, 794 passed, 0 failed, 114 skipped, 53/53 suites`.
+  **Against the baseline** (the close gate `20260922T130828Z-49331-2d67`, compared suite by suite over the 53):
+  50 unchanged; the only three that moved are this story's, each by its new cases — `assistant-attention`
+  37/0 → 39/0, `assistant-identification-tags-page` 15/0 → 16/0, `assistant-taggings-publish` 19/0 → 20/0. None
+  of this host's known red live suites is in the pattern set.
+- **Browser, against the rebuilt UI on `localhost:7778`** (`scripts/dev-refresh.sh`: bundle `index-r3Y8NShy.js`,
+  backend restarted 22:00:36 container time), the six classes run together: **64 passed, 1 skipped** (the hub
+  spec's identification-tags placeholder case, skipped by design since the previous book), exit 0, 3.1 min —
+  `assistant-identification-tags-page` 14/14, `assistant-taggings-publish` 7/7, `assistant-attention` 7/7,
+  `assistant-alert` 10/10, `assistant-management-page` 22/22 + 1 skipped, `assistant-publish-result` 4/4.
+- **Signed out, the real page** (the built-in browser): both cards render, each with its offered row and its
+  parked row greyed, "Not offered yet", a disabled unchecked box; no console errors.
+- **A genuine signed-in probe of the route** (a scratchpad script; the local owner's key from the Keychain signs
+  the kind 22242 challenge; the key never leaves the process): anonymous POST → 401 from the middleware; the parked
+  key `my-human` → 400 `not-an-assistant-tagging` with the approved words; `my-tapestry-owner` → 200 in 49 ms with
+  one `tag-not-found` row (no definition by `a73a2980…` is reachable on this stack: nothing local, no tag-federation
+  relay), and the local relay holds no tagging of the viewer afterwards. Nothing was signed or written.
+- `bash scripts/harness-lint.sh`: clean.
