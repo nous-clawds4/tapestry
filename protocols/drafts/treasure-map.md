@@ -17,6 +17,10 @@ Three categories of things that an Assistant may publish on behalf of the user:
 
 Assistant A might publish all Trusted Lists (in general terms), with the exception of Trusted List L, which is published by Assistant B (the specific exception to the general rule). The general vs specific rule applies to all categories of things that Assistants publish.
 
+# Trusted Assertions
+
+As per NIP-85. No change in this NIP.
+
 # Trusted Lists
 
 For now, Trusted Lists refers to TLs that are spawned by Tags. Each Tag spawns (defines) one Trusted List. In the future, we may have Trusted Lists spawned by other things, not Tags. 
@@ -68,7 +72,7 @@ Same as TLs of pubkeys, but of nostr events.
 
 Same shape as specific Tags for other categories of content (event based, not pubkey based).
 
-## Decentralized List
+# Decentralized List
 
 The Assistant may manage items of decentralized lists on behalf of the user.
 
@@ -132,6 +136,10 @@ Multiple DLists can be managed by distinct assistants simultaneously:
   ]
 }
 ```
+
+# Primary vs fallback
+
+For any given service, it is allowed for the Treasure Map to have more than one assistant listed as the provider for that score. In this case, the first one listed will be known as the primary or the default provider; all subsequent ones will be known as the fallback providers. A user who subscribes to multiple Service Providers may wish to use the primary provider at external clients; but some clients, particularly the service providers themselves, may prefer one SP over another and so may select the assistant based on its SP of origin, which should be available in its kind 0 profile. 
 
 # Putting it all together
 
