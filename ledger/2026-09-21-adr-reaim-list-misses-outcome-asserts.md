@@ -52,5 +52,15 @@ Re-anchoring both R3s is ledger `2026-09-21-r3-sentinels-miss-owner-gate-403`.
 
 The fix shape holds, and it covers endpoint paths moved into a helper as well as copy.
 
+**And a fifth, in the same story's round 2.**
+- ADR 0003 Amendment 1 made `publishEverywhere` announce once, and the implementation added an
+  optional `{ announce }` argument to `publishToRelays`.
+- `test/treasure-map-relay-sync.test.js` R4 pins the literal signature text, closing parenthesis
+  included.
+- The first shape tried, a separate internal function holding the local-only guard, instead broke
+  `test/global-publish-gate.test.js`'s check that `publishEverywhere` routes through `publishToRelays`.
+- **The lesson:** function signatures and call shapes are literals too. Grep `test/` for a helper's
+  name before changing its signature or its internal routing.
+
 **Pointer:** `engineering-team/stories/done/assistant-profile/4-my-assistant-page.test-plan.md`, the opening
 "Re-aims" section (and the story 3 test plan's, `3-one-default-assistant-profile.test-plan.md:43-47`).

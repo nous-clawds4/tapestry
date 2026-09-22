@@ -288,3 +288,14 @@ Fixture notes:
 for the relays*. U8 pins "after the local write", and the race test pins the result. Waiting for the
 relays too would only delay the catch-up by up to the relays' publish timeout.
 
+**Round 2, during Implementation: one more re-aim (made as the Tester).** The implementation keeps the
+local-only guard inside `publishToRelays`, so `global-publish-gate`'s coverage check holds (see the
+story's Deviations). It gives the two exported routes an optional `{ announce }` argument, which
+`publishEverywhere` sets to `false`.
+- `treasure-map-relay-sync` R4 matched the exact text `publishToRelays(signedEvent, relays =
+  PUBLISH_RELAYS)`, closing parenthesis included.
+- Its message says the intent: "signature must not narrow". An optional third parameter widens the
+  signature, so R4 now accepts a comma or a closing parenthesis after the relay list.
+- This is another by-value literal that the amendment's re-aim list missed (ledger row
+  `2026-09-21-adr-reaim-list-misses-outcome-asserts`).
+
