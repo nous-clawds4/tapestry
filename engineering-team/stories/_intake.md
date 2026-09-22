@@ -2077,6 +2077,8 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 
 ## 2026-08-09 — TA ↔ owner two-way handshake (park; do not pull into current work)
 
+**PICKED UP** (partial) 2026-09-22 → `engineering-team/audits/assistant-identification-tags/book.md` — the handshake in its tagging form, both directions (the owner tags the Assistant; the Assistant tags the owner), as the Identification Tags page. The kind-0 `p`-tag claim is not built.
+
 **NOT PICKED UP — parked deliberately.** Surfaced while landing the Shared Concepts Registry description: the page's Author column reads "Tapestry Assistant" for every row, and the owner named the general problem behind it. The owner's framing, verbatim:
 
 > The issue of getting confused between Alice and Alice's Tapestry Assistant is a big one, that I think is beyond the scope of what we're doing right now. At some point we may want the Tapestry Assistant profile to "claim" its owner using a p-tag; and we may want Alice to "claim" her Tapestry Assistant(s) using a Tagging. In other words, a two-way handshake so it will always be easy to map a TA to its owner. Maybe that could be filed away as something to do later. But I don't want to get too distracted from the tasks at hand.
@@ -2666,6 +2668,8 @@ Brainstorm's precedent (Standard, all phases). The three action pages are not: e
 Team** first.
 
 ## 2026-09-21 — The Assistant Management page, the rest of the way: real "needs attention" answers and the ten action pages (feature; deferred at intake)
+
+**PICKED UP** (partial) 2026-09-22 → `engineering-team/audits/assistant-identification-tags/book.md` — the identification-tags action page and its real "needs attention" answer (item 1 for that action, item 2 for that page). The other nine pages, their answers, and the DMs stay open.
 
 **Origin:** the owner's ask behind book `assistant-management`
 (`engineering-team/audits/assistant-management/book.md`, which quotes the whole ask verbatim). That
