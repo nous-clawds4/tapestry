@@ -3,8 +3,8 @@ const { test, expect } = require('@playwright/test');
 /**
  * setup-status-and-alert #2: the Setup Alert — the browser class.
  *
- * Story: engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md
- * ADR:   engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md
+ * Story: engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.md
+ * ADR:   engineering-team/decisions/done/setup-status-and-alert/0002-the-setup-alert-pill.md
  * Node half: test/setup-alert.test.js (C/D/S).
  *
  *   B0  — the served origin runs a build that contains the pill.                      [prerequisite]

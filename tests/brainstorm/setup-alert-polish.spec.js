@@ -3,8 +3,8 @@ const { test, expect } = require('@playwright/test');
 /**
  * setup-status-and-alert #3: the Setup Alert, readable, announced as it reads, and current (browser class).
  *
- * Story: engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.md
- * ADR:   engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md
+ * Story: engineering-team/stories/done/setup-status-and-alert/3-setup-alert-polish.md
+ * ADR:   engineering-team/decisions/done/setup-status-and-alert/0003-readable-named-and-current.md
  * Node half: test/setup-alert-polish.test.js (U/C/D/S).
  *
  *   P0 — the served origin runs a build with the decorative arrow.                         [prerequisite]

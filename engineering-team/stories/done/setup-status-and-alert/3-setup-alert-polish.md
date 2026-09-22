@@ -9,7 +9,7 @@
 ## Background
 
 Story 2 shipped the Setup Alert to staging (PR #737). Its review passed with four non-blocking
-findings (`engineering-team/reviews/setup-status-and-alert/2-the-setup-alert.md`, Non-blocking 1–4).
+findings (`engineering-team/reviews/done/setup-status-and-alert/2-the-setup-alert.md`, Non-blocking 1–4).
 In each one the code did what the approved story or ADR said. The owner chose to fix all four in
 this story (2026-09-21):
 
@@ -144,6 +144,6 @@ Small judgment calls made during implementation (Implementer role, step 9):
   - Ledger row `2026-09-22-parallel-books-no-shared-line-recheck` has the other half of this collision.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`
-- Test plan: `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.test-plan.md`
-- Review: `engineering-team/reviews/setup-status-and-alert/3-setup-alert-polish.md`
+- ADR: `engineering-team/decisions/done/setup-status-and-alert/0003-readable-named-and-current.md`
+- Test plan: `engineering-team/stories/done/setup-status-and-alert/3-setup-alert-polish.test-plan.md`
+- Review: `engineering-team/reviews/done/setup-status-and-alert/3-setup-alert-polish.md`

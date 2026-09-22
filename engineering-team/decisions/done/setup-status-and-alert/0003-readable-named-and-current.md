@@ -2,14 +2,14 @@
 
 **Status:** Accepted (Amendment 1 appended 2026-09-21: `publishEverywhere` announces once, and every announcement re-checks)
 **Date:** 2026-09-21
-**Story:** `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.md`
+**Story:** `engineering-team/stories/done/setup-status-and-alert/3-setup-alert-polish.md`
 **Builds on:** ADR 0001 (the shared provider and its `refresh()`) and ADR 0002 (the pill), whose
 parts listed under § Decision it supersedes.
 
 ## Context
 
 Story 3 fixes the four non-blocking findings of story 2's review
-(`engineering-team/reviews/setup-status-and-alert/2-the-setup-alert.md`, Non-blocking 1–4). For
+(`engineering-team/reviews/done/setup-status-and-alert/2-the-setup-alert.md`, Non-blocking 1–4). For
 three of them it follows the owner's planning calls (story 3 § "The owner's answers"):
 
 | AC | What it asks | Where the code stands (on staging, PR #737) |
@@ -291,7 +291,7 @@ replaced by story 3's AC-2, as story 3 records.
 ## Amendment 1 — one announcement per `publishEverywhere`, and every announcement re-checks (2026-09-21)
 
 **Raised by:** story 3's review, Blocking 1
-(`engineering-team/reviews/setup-status-and-alert/3-setup-alert-polish.md`). The owner approved this
+(`engineering-team/reviews/done/setup-status-and-alert/3-setup-alert-polish.md`). The owner approved this
 shape: "Proceed with the round 2 fix".
 
 **What was wrong.** Option A assumed that the re-check starts after the local write. It did not

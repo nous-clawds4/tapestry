@@ -181,7 +181,7 @@ Small judgment calls made during implementation (Implementer role, step 9):
   - None of the other drift was synced.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md`
-- Test plan: `engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md`
+- ADR: `engineering-team/decisions/done/setup-status-and-alert/0001-one-setup-status-answer.md`
+- Test plan: `engineering-team/stories/done/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md`
   (tests: `test/setup-status.test.js`, `tests/brainstorm/setup-status.spec.js`)
-- Review: `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md`
+- Review: `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`

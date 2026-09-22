@@ -2,9 +2,9 @@
 /**
  * setup-status-and-alert #1: /setup shows where you stand.
  *
- * Story: engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md
- * ADR:   engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md
- * Plan:  engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md
+ * Story: engineering-team/stories/done/setup-status-and-alert/1-setup-shows-where-you-stand.md
+ * ADR:   engineering-team/decisions/done/setup-status-and-alert/0001-one-setup-status-answer.md
+ * Plan:  engineering-team/stories/done/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md
  * Browser half: tests/brainstorm/setup-status.spec.js (B-class — what a viewer SEES on /setup).
  *
  * Classes:

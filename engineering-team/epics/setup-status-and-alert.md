@@ -1,6 +1,6 @@
 # Epic: setup-status-and-alert — the /setup page, live
 
-**Status:** Open
+**Status:** Done
 **Created:** 2026-09-21
 **Book:** `engineering-team/audits/setup-status-and-alert/book.md` (no PRD — acceptance frame)
 **Provenance:** items 1 and 2 of the owner's deferred list from book `setup-page-scaffold`
@@ -15,7 +15,7 @@ points people to it except the avatar menus' "Account Setup" link.
 
 ## Stories
 
-`stories/setup-status-and-alert/`. All three take all five phases (Standard). #1 and #2 are
+`stories/done/setup-status-and-alert/`. All three take all five phases (Standard). #1 and #2 are
 features; #3 fixes #2's review findings, and its same-tab refresh needs a design.
 
 1. `1-setup-shows-where-you-stand.md`: each step on `/setup` shows done or not done for the signed-in

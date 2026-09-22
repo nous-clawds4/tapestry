@@ -8,8 +8,8 @@
  *
  * The words were approved with the stories; change them there first:
  * engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md § Copy,
- * engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md § Copy, and
- * engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md § Copy.
+ * engineering-team/stories/done/setup-status-and-alert/1-setup-shows-where-you-stand.md § Copy, and
+ * engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.md § Copy.
  */
 
 export const CREATE_ACCOUNT_STEP = {

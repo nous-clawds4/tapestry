@@ -11,10 +11,10 @@ commits:
 - `9fa997af` two test fixes made as the Tester during Phase 4, and two ledger rows;
 - `bad15295` the implementation.
 
-**Story:** `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.md`
-**ADR:** `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`. It supersedes parts of
+**Story:** `engineering-team/stories/done/setup-status-and-alert/3-setup-alert-polish.md`
+**ADR:** `engineering-team/decisions/done/setup-status-and-alert/0003-readable-named-and-current.md`. It supersedes parts of
 ADR 0002 and extends ADR 0001 § 3.
-**Test plan:** `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.test-plan.md`
+**Test plan:** `engineering-team/stories/done/setup-status-and-alert/3-setup-alert-polish.test-plan.md`
 
 ## In short
 

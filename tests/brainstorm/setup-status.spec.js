@@ -3,8 +3,8 @@ const { test, expect } = require('@playwright/test');
 /**
  * setup-status-and-alert #1: /setup shows where you stand — the browser class.
  *
- * Story: engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md
- * ADR:   engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md
+ * Story: engineering-team/stories/done/setup-status-and-alert/1-setup-shows-where-you-stand.md
+ * ADR:   engineering-team/decisions/done/setup-status-and-alert/0001-one-setup-status-answer.md
  * Node half: test/setup-status.test.js (U/X/C/S/D/R/H).
  *
  * ── Why this file carries the page's acceptance criteria ────────────────

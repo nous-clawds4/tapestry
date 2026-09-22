@@ -22,5 +22,5 @@ page.
 retry's catch, guarded, is probably enough. Or wrap the connect so a timed-out socket is always torn
 down. Confirm against a relay that accepts slowly: a local `ws` server that delays its upgrade.
 
-**Pointer:** `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md`
+**Pointer:** `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`
 § Non-blocking 4.

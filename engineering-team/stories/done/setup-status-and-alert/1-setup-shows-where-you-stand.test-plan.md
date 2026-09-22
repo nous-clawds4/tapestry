@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — /setup shows where you stand
 
-**Story:** `engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md`
-**ADR:** `engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md`
+**Story:** `engineering-team/stories/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`
+**ADR:** `engineering-team/decisions/done/setup-status-and-alert/0001-one-setup-status-answer.md`
 **Date:** 2026-09-21
 
 Two new files carry the tests:

@@ -2,7 +2,7 @@
 
 **Status:** Accepted (Amendment 1 appended 2026-09-21: the control panel's brand yields room instead of wrapping; § 1's `aria-label`, § 3's `name` and `button` copy, § 4's white chip text and § 5's "No other trigger is added" superseded by `setup-status-and-alert` ADR 0003)
 **Date:** 2026-09-21
-**Story:** `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md`
+**Story:** `engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.md`
 **Builds on:** ADR 0001, whose provider and `pendingCount` this reads. It extends one line of ADR 0001
 § 3; see Decision 5.
 

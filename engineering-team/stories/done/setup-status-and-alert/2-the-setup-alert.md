@@ -137,6 +137,6 @@ Small judgment calls made during implementation (Implementer role, step 9):
     because the pill is taller than the logo it sits beside.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md`
-- Test plan: `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.test-plan.md`
-- Review: `engineering-team/reviews/setup-status-and-alert/2-the-setup-alert.md` (PASS)
+- ADR: `engineering-team/decisions/done/setup-status-and-alert/0002-the-setup-alert-pill.md`
+- Test plan: `engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.test-plan.md`
+- Review: `engineering-team/reviews/done/setup-status-and-alert/2-the-setup-alert.md` (PASS)

@@ -7,7 +7,7 @@
 **Done:** —
 
 Story 3's round-3 review found that its "no pill" checks could not tell a finished answer from a check still
-running (review `engineering-team/reviews/setup-status-and-alert/3-setup-alert-polish.md`, round 3,
+running (review `engineering-team/reviews/done/setup-status-and-alert/3-setup-alert-polish.md`, round 3,
 Non-blocking 1). The pill also hides while the check runs, so `toHaveCount(0)` can pass before any answer is drawn.
 Round 4 fixed story 3's spec. Story 2's spec has the same shape, and it was left alone because the round was
 scoped to story 3's spec.

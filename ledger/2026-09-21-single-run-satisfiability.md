@@ -47,5 +47,5 @@ once answered, and run it with the answer late. Round 4's M7 is that mutant: it 
 ending 30 of 30 with the re-check 2 s late, and fails round 4's 30 of 30. It is also the mutant that exposes
 story 2's B4, B11 and B12 (ledger row `2026-09-22-setup-alert-no-pill-checks-early`).
 
-**Pointer:** `engineering-team/reviews/setup-status-and-alert/3-setup-alert-polish.md` § Round 2, Blocking 1 and
+**Pointer:** `engineering-team/reviews/done/setup-status-and-alert/3-setup-alert-polish.md` § Round 2, Blocking 1 and
 Harness friction 2.

@@ -189,6 +189,8 @@ Reconciled against the diff.
 - [ ] **5. Two product questions from intake.** Whether the pill stays persistent once its count is real, and how the
       hub groups its actions past ten ("8 or 9 (and growing)"). (intake "Product questions")
 - [ ] **6. The pill's name and visible words at phone widths:** label in name, WCAG 2.5.3. (§4 #11)
+      *2026-09-22: the Setup Alert no longer "does the same" (§4 #11). Book `setup-status-and-alert` #3 names it by
+      what it shows at each width, with no `aria-label` (its ADR 0003). This pill's own name is unchanged.*
 - [ ] **7. Creating an assistant from the hub.** A viewer who may create one but has none is sent to `/setup`, whose
       step 1 is a placeholder. This closes when the `/setup` step pages are built (intake 2026-09-20, item 3). (§4 #6)
 - [ ] **8. On promotion, saved `/assistant` links open the hub, not the editor.** The editor is one card away, or

@@ -67,4 +67,4 @@ clause: **re-run the walker grep after merging the base branch, not only at Test
   - triage every hit against the branch's diff.
 
 **Pointer:** `engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md`
-§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1 and § Round 2, Harness friction 2.
+§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1 and § Round 2, Harness friction 2.
