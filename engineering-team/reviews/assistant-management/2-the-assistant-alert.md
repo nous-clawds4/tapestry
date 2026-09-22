@@ -507,3 +507,69 @@ The fix round resolves both blocking findings. Every claim in it that I re-deriv
 recording and hardening, none of it a defect in this diff.
 
 **PASS**
+
+---
+
+## Post-verdict check — 2026-09-22 (round 2's non-blocking items, done before the staging deploy)
+
+**Commits:** `bf4adce9`, `6f4ba1ad`, `572bdde3`, `f30dd464`, `3e2d5e47`, on top of `499e4a66`. The tip is
+`3e2d5e47`, and the tree is clean. The owner asked for all six items before the deploy.
+
+**The gate.** The fix session ran it, and I read the record rather than start a second run in the same checkout:
+
+```
+20260922T030128Z-8883-ed8a [assistant-management-rnd2-fixes] started 2026-09-22T03:01:28.701Z on 3e2d5e47 — FAIL, exit 1, 1954 passed, 25 failed, 58 skipped, 108/108 suites; failed: capture-a-goal-and-see-it, structures-the-brain-can-trust, break-a-goal-into-pieces, attach-the-world, sessions-read-the-brain, the-proposal-loop, teach-it-what-matters, the-brain-survives, show-the-four-on-the-goal-screens-that-already-exist, concept-count-canonical, summaries-element-count · tmp/gate-runs/20260922T030128Z-8883-ed8a.json
+```
+
+- **Attributable.** The last commit was at 03:01:16Z, the run started at 03:01:28Z, and HEAD was still `3e2d5e47`
+  when it finished.
+- **Against my `20260922T021635Z-59393-0242`**, suite by suite, exactly two things differ:
+  - `assistant-alert`, 14 → 15/0/0 (W5);
+  - `session-start`, new, 32/0/0.
+- **The rest is unchanged.** The failing tests are the same, and 1921 + 1 + 32 = 1954.
+- **Lint.** `bash scripts/harness-lint.sh` exits 0, clean, at the tip.
+
+**The six items, each checked against the tip:**
+
+1. **Non-blocking 1 (a CI backstop for "never both"): done.**
+   - **W5**, in `test/assistant-alert.test.js`, parses `SetupAlert()`. It requires an early `return null` whose
+     disjuncts include `loading`, `!user` and a none-counted test, before an unconditional pill return. It also
+     pins `summarizeSetup(phase === 'answered' ? ctx.answer : null)`, and zero counts for no answer, a failure
+     and an expired session.
+   - **Run through `run()`:** 15/0/0.
+   - **Mutation probe.** Nine planted defects, one at a time, in a scratch copy of the files: nothing in the repo
+     was edited while that gate ran.
+     - The fix session's five (guard `< 0`, no `!user`, no count, summarize in any phase, `notAnswered` pending)
+       each fail W5 with a message naming the link. So does my sixth, a guard with no `loading`.
+     - Two blind spots remain, both still covered by browser B3:
+       - (a) a *conditional* pill return placed before the guard (`if (…) return <Link…/>`) passes W5, which only
+         notices an unconditional early return;
+       - (b) this story's own wiring, `TopBarAlert.jsx`'s `setupPendingCount: setup.pendingCount`, can be broken
+         (`0`) with the whole suite still green.
+     - **What closing them is worth:** two small assertions. For (a), treat any non-null return before the guard,
+       at any depth, as drawn first. For (b), add a W1 regex for the three arguments. This is optional hardening,
+       and not a condition for staging.
+     - The ninth, `summarizeSetup` ignoring `signedIn`, passes too. It is harmless: the server's no-session answer
+       carries no `steps` (`src/api/setup/status.js:21`, `:259`), and the provider marks it `failed` anyway.
+2. **Non-blocking 2: done.** ADR 0002 has pointers at `:100-101`, after the snippet (`:182-183`), and at
+   "Shared names" (`:281-283`, now marked false). The amendment's list of superseded lines names all seven.
+3. **Non-blocking 3: done.**
+   - The watch item in test plan 2 carries a dated note, `:77-79`.
+   - Story 2's Deviation shows the merged fragment, `:145-146`.
+4. **Non-blocking 4: done.** `tests/brainstorm/setup-alert.spec.js:24-25` names `/assistant/profile/edit`.
+5. **Non-blocking 5: done.**
+   - `session-start` is in the plan's walker list, and the gate now runs 108 suites.
+   - `reconciliation-rearchitecture` stays out, correctly: it reads `src/pipeline/reconciliation/`, which this
+     branch does not touch.
+6. **Non-blocking 6: done.** `ledger/2026-09-22-staging-browser-class-83-red.md` records the E3 race and a fix.
+
+**Harness friction 1: filed, and accurate.** `ledger/2026-09-22-commit-during-gate-run-unflagged.md` has
+the header fields, and its three citations are right:
+- `gitIdentity()` at `test/helpers/gateRecord.js:49-59`;
+- the record is created at `:129`;
+- `finishRecord` at `:147` writes without re-reading git.
+
+The fix session also followed the row's own habit this time: it asked me not to commit while its run was
+RUNNING.
+
+The verdict stands: **PASS**
