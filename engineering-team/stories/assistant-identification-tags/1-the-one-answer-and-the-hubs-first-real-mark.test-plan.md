@@ -159,3 +159,36 @@ answer). The failures:
 
 The two re-aimed browser classes were not re-run at this phase (their mocks gained one route; nothing they assert
 changes until the build does). The Implementer runs them whole after the UI rebuild, per § How to run.
+
+### After implementation (2026-09-22, `27d5c15d`)
+
+Recorded by the Tester for the Reviewer, who re-runs everything (the Reviewer runs the gate; nothing here is
+trusted on its own). Node 22.23.2 throughout.
+
+- **Two assertions corrected before the implementation commit** (`433b4e83`, `test:`), logged in the story's
+  § Deviations 1: U11 now compares the *distinct* relays read (each of the three lookups reads a relay once), and S1
+  reads `src/api/index.js` raw, because the comment stripper took the `'/api/settings/*'` glob for a block comment.
+- **`test/assistant-attention.test.js`:** 37 passed, 0 failed, 0 skipped, H1 included, after
+  `scripts/dev-refresh.sh` restarted the backend with the route.
+- **The book's gate, baseline vs after,** read with `npm run gate:status -- --label …`:
+  - baseline `20260922T053841Z-80977-caaf [assistant-identification-tags-1-baseline]` on `918f1b99`: FAIL,
+    2213 passed, 60 failed, 59 skipped, 119/119 suites;
+  - after `20260922T054557Z-93203-1dd6 [assistant-identification-tags-1-after]` on `27d5c15d`: FAIL,
+    2248 passed, 25 failed, 59 skipped, 119/119 suites.
+  - **Suite by suite, the only change is `assistant-attention`, 2/35 → 37/0.** The 25 failures left are the host's
+    known live-graph set (`capture-a-goal-and-see-it`, `structures-the-brain-can-trust`, `break-a-goal-into-pieces`,
+    `attach-the-world`, `sessions-read-the-brain`, `the-proposal-loop`, `teach-it-what-matters`, `the-brain-survives`,
+    `show-the-four-on-the-goal-screens-that-already-exist`, `concept-count-canonical`, `summaries-element-count`),
+    identical in both records (memory `host-gate-at-ci-parity`).
+- **Browser, against the rebuilt UI on `localhost:7778`** (`scripts/dev-refresh.sh`, bundle `index-Cxk6N3PV.js`),
+  each class run whole:
+  - `assistant-attention.spec.js` 7/7, `assistant-alert.spec.js` 10/10, `assistant-management-page.spec.js` 23/23
+    (one Playwright run, exit 0);
+  - the setup book's `setup-alert.spec.js` 50/50, `setup-alert-polish.spec.js` 23/23, `setup-status.spec.js` 15/15
+    (one run, exit 0) — the shared top bar, run whole as § How to run asks.
+- **A genuine signed-in read** (a scratchpad script: the local owner's key from the Keychain signs the kind 22242
+  challenge; nothing is published): `GET /api/assistant/attention` answered in about 40 ms with `hasAssistant: true`
+  (the Owner's assistant is the TA) and every tagging and definition `finished: false, reason: 'no-outside-relays'`,
+  which is this dev stack's truth (no tag-federation relay configured, nothing on the local relay); the same request
+  with `?pubkey=…&relays=…` answered byte-for-byte the same.
+- `bash scripts/harness-lint.sh`: clean.
