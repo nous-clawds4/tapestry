@@ -263,3 +263,247 @@ second, and it was built as if it landed first.
 
 ## Verdict
 **CHANGES_REQUESTED**
+
+---
+
+## Round 2 — 2026-09-22 (after the fix round)
+
+**Diff:** `git diff 1228b96d..86bbc320`.
+- **The merge.** `fc7021f2` merges `origin/staging` at `6754a16a`, which brings in the Setup Alert (PR #737).
+- **The fix round.**
+  - `15fe11fb`: ADR 0002 Amendment 1;
+  - `2b88be30`: the tests;
+  - `a6420c79`: the CSS, comments and records;
+  - `fc411a0d`: the ledger row for round 1's harness friction.
+- **After the round-2 request.** `396d98cf` records, in the docs, the owner keeping the 679 px breakpoint. `86bbc320`
+  adds a cleanup ledger row, `2026-09-22-staging-browser-class-83-red`.
+- **Tree.** Clean at `86bbc320`. `origin/staging` is now `4e568edf`, and
+  `git merge-tree --write-tree HEAD origin/staging` merges it with no conflict. Its only overlap is
+  `stories/_intake.md`, which auto-merges. Since `6754a16a`, staging's `src/utils/siteTrust.js` change is to a
+  comment only.
+
+Per the Reviewer's rule for a later round, each fix below is checked as a fresh claim, including the ones
+built on my own round-1 wording.
+
+### Quality gates (re-run by reviewer)
+
+- [x] **The book's scoped gate, on the tip.** It is the plan's unchanged script. After the merge it finds 107
+  suites; `setup-alert` joins. `npm run gate:status -- --label assistant-management-review2-tip`:
+
+  ```
+  20260922T021635Z-59393-0242 [assistant-management-review2-tip] started 2026-09-22T02:16:35.267Z on 86bbc320 — FAIL, exit 1, 1921 passed, 25 failed, 58 skipped, 107/107 suites; failed: capture-a-goal-and-see-it, structures-the-brain-can-trust, break-a-goal-into-pieces, attach-the-world, sessions-read-the-brain, the-proposal-loop, teach-it-what-matters, the-brain-survives, show-the-four-on-the-goal-screens-that-already-exist, concept-count-canonical, summaries-element-count · tmp/gate-runs/20260922T021635Z-59393-0242.json
+  ```
+
+  - **The record matches the others suite by suite.** I compared it with my round-1 record
+    `20260921T225510Z-18790-44e9` and with the fix round's `20260922T004431Z-86667-0b97`.
+    - There are 0 differences in pass/fail/skip/verdict across the 106 common suites.
+    - The failing tests are the same, test by test: the 11 live-graph suites (review 1).
+    - The one new suite is `setup-alert`, at 6/0/0.
+  - **This story's suites:** `assistant-alert` 14/0/0, `setup-status` 39/0/1.
+  - **An earlier run is not the record.** `20260922T020935Z-27290-6cac`, labelled `assistant-management-review2`,
+    has the same totals. But `396d98cf` and `86bbc320` were committed into this checkout while it ran (Harness
+    friction 1), so I re-ran on the tip.
+  - **One more walker, run alone.** `session-start` reads the real `ledger/`, and this diff adds an OPEN meta row
+    there, but it is not in the pinned list (Non-blocking 5). Through `run()`: 32 passed, 0 failed.
+- [x] **Browser class.** Chromium against `:7778`, serving `index-DO6DL-ap.js` / `index-DR3LjFUi.css`. That build
+  carries the tip's rules: one `.header-auth` rule, the 1023, 679, 480 and 359 px breakpoints, and
+  `:has(.bs-setup-alert,.bs-topbar-pill)`. There is no UI change after `a6420c79`.
+  - **One run of 15 specs: 213 passed, 1 failed.**
+  - **This story and the other book:**
+    - `assistant-alert` 10/10, including B9's 19-width sweep;
+    - `setup-alert` 50/50, including the re-aimed host row, B9 and both B11s;
+    - `setup-status` 15/15.
+  - **Story 1 and the re-aimed suites, all green:**
+    - `assistant-management-page` 23/23;
+    - `my-assistant-page` 18, `assistant-setup-prompt` 10, `one-writer` 15, `assistant-default-profile` 8,
+      `assistant-publish-result` 4, `ta-composite-avatar` 5.
+  - **The five other specs where this pill can appear.** They talk to the live stack, but stub a viewer with an
+    assistant and leave `/api/setup/status` unmocked, so the pill shows (their writes are all mocked):
+    - `goal-intent-screens` 8/8, `tapestry-add-concept` 13/13, `tapestry-create` 8/8 and
+      `tapestry-remove-concept` 14/14;
+    - `author-scoped-inspection` 12/13. The failure is E3, at `tests/brainstorm/author-scoped-inspection.spec.js:157`.
+      It reads `thead th` with `allTextContents()` straight after `goto`, without waiting, and got `""` under 4
+      workers. Alone it passed 13/13 three times out of three. That is a race in the test, and it does not assert
+      on the top bar (Non-blocking 6).
+- [x] **The 83 tests red on the shared line** (ledger `2026-09-22-staging-browser-class-83-red`) **cannot come
+  from this pill.**
+  - The pill renders only for a signed-in viewer whose `user.assistantPubkey` is set, and `AuthContext.jsx:66-71`
+    takes that only from `/api/auth/user-classification`.
+  - None of the 19 red spec files stubs a classification with an `assistantPubkey`.
+  - The rest run signed out, `auth.spec.js` included: all five of its tests are unauthenticated.
+  - None of them opens `/assistant`.
+  - This supports the fix round's build-against-build comparison by a separate route. I did not repeat that
+    comparison: 41 of the 51 specs have no `/api` catch-all, and some of them write to the local stack.
+- [x] **My own probes** (session scratchpad, every `/api` mocked, a 29-character user name):
+  - **A 1 px sweep from 320 to 1280 px.** Ten pages: `/`, `/tags`, `/about`, `/settings`, `/developers`, `/tapestry/`,
+    `/user/‹pubkey›`, `/setup/follow`, `/?q=alice` and `/assistant`. Three states each: the Assistant pill,
+    the Setup pill, and no pill.
+    - **No sideways scroll** at any width, in any state.
+    - **The fixed Tapestry header is 55 px** at every width, in all three states.
+    - **Bar heights are the same with or without a pill**, except the developer bar's +8 px (39→47, 47→55).
+      The amendment records it, and that bar is not fixed.
+    - **The pill is missing only where it should be:**
+      - the Assistant pill on `/assistant`;
+      - the Setup pill on `/setup/*`;
+      - both on the results view at ≤ 600 px, as ADR 0002 § Consequences records.
+  - **The amendment's numbers, each reproduced:**
+    - at 640 px the pills are 379 px and 333 px wide;
+    - with the sentence forced back, `/tags` scrolls 12 px at 640 and first fits at 652;
+    - with the nav forced back, the overflow is 31 px at 320, 1 at 350 and 0 from 351;
+    - the two pills have the same box: 29.7 px tall, and the same padding, radius and font, at 1280, 800 and
+      375 px (story 2 § Copy, "shape and size match").
+  - **Never both.** I took three setup states (a step left, none left, check failed) across eight pages:
+    `/about`, `/`, `/tapestry/`, `/developers`, `/setup`, `/setup/follow`, `/assistant`, `/assistant/profile/edit`.
+    - No combination showed both pills.
+    - **A step left:** the Setup pill everywhere but `/setup*`.
+    - **None left, or a failed check:** the Assistant pill everywhere but `/assistant*`.
+    - **On `/setup` with a step left:** neither, as Amendment 1 point 3 says.
+- [x] **eslint parity.** No new rule hits against `6754a16a`'s versions of the four mounts, `TopBarAlert.jsx`,
+  `topBarAlert.js`, `SetupAlert.jsx` and `SetupStatusContext.jsx`.
+- [x] **Added lines:** no secrets, debug output or commented-out code.
+- [x] **`bash scripts/harness-lint.sh`:** exit 0, clean, at the tip, and again on this commit.
+
+### Round 1's findings, re-checked
+
+- **Blocking 1: resolved.**
+  - **The merge.** Diffing the merge commit against a plain `git merge-tree` of its two parents shows it changed
+    only the six conflicted files.
+  - **The resolutions:**
+    - each of the four hosts renders `<SetupAlert />` then `<TopBarAlert />`;
+    - the registry keeps all three new suites;
+    - the ledger row keeps both sides.
+  - **The owner's choice: side by side,** which is Option B, the one ADR 0002 once rejected. Amendment 1 records it,
+    and gives the reason.
+  - **Why the two pills cannot show together.** Amendment 1 point 3 says it holds by the one shared answer, and
+    the code bears it out:
+    - `SetupAlert.jsx:24` shows only when someone is signed in and `pendingCount >= 1`;
+    - `pendingCount` is non-zero only when the phase is `answered` (`SetupStatusContext.jsx:82`,
+      `setupStatus.js:20-36`);
+    - in exactly that case `pickTopBarPill` returns `'setup'`;
+    - both components read the same context in the same render.
+  - **AC-3's "at no moment … both"** is no longer vacuous. B3 now runs with the real Setup pill in the build: a
+    step left shows it and not this one, and late answers are checked both ways. My matrix agrees.
+- **Blocking 2: resolved,** apart from three lines in ADR 0002 left without a pointer (Non-blocking 2).
+  - **The setup-status-and-alert book note** is rewritten and marked as corrected. It cites `SetupAlert.jsx:24`
+    correctly, and it names the dependency.
+  - **The ADR** keeps its history, with inline pointers at the other superseded lines and Amendment 1 appended.
+  - **Story 2** has dated notes at `:14`, `:47-48` and `:115-116`.
+  - **Test plan 2** has dated notes at `:53-55` and `:65-66`.
+- **Non-blocking 1 (under 345 px): fixed.** The `max-width: 359px` rule hides `TopBar`'s nav, and my sweep finds no
+  scroll at any width. The cost below 360 px is the About link, and neither menu links to `/about`. That was
+  already the second step of ADR 0002 sub-decision 6's shedding order, and Amendment 1 records it.
+- **Non-blocking 2 (B6 checked only scroll): fixed.** B9 compares the fixed header with and without the pill at
+  19 widths.
+- **Non-blocking 3 (label in name):** unchanged. It is a product question, as before.
+- **Non-blocking 4 (the header's 55 px against the 48 px offset):** pre-existing and unchanged.
+- **Harness friction 1:** filed as ledger `2026-09-22-parallel-books-no-shared-line-recheck`. The row is
+  accurate, and its new clause is sound: after a merge, run every brought-in suite that touches the same
+  surface, whole.
+
+### Story 1 on the merged tree
+
+Review 1's verdict holds. Its files are unchanged since that review, and the merge only added staging's Setup
+Alert code around them.
+- **Node suites (tip gate):**
+  - `assistant-management-page` 24/0/0, with H1 executed;
+  - O4's sweep is clean on the merged tree;
+  - the re-aimed suites are as in round 1.
+- **Browser:** `assistant-management-page` 23/23.
+- **My wider sweep:** clean, apart from the history comment at `avatarMenuLinks.js:40`, which is kept on purpose.
+- **Review 1's Non-blocking items:**
+  - 1 is fixed: `styles.css:8725`;
+  - 2 is fixed: story 1 `:118-121`;
+  - 3 is fixed: `setup-alert.spec.js` `:173` and B9 (`:367-370`), and `SetupStatusContext.jsx:14`;
+  - 4 (AC-7 on staging) still waits for the deploy.
+- **One trivial leftover:** Non-blocking 4 below.
+- **Review 1 gains a short addendum** pointing here.
+
+### Spec and ADR adherence (round 2)
+
+- [x] **Story 2's ACs, with both pills in the build:**
+  - AC-1: the pill sits where the Setup Alert sits, before the menu;
+  - AC-2 and AC-4: B2 and B4;
+  - AC-3: B3, and my matrix;
+  - AC-5: B5;
+  - AC-6: B6, B9 and my sweep;
+  - AC-7: B7.
+
+  The copy is unchanged. § Copy's "shape and size match the Setup Alert's" now holds exactly.
+- [x] **Amendment 1's Implementation notes match the diff:**
+  - the pill block's shape, breakpoints, nav rule and brand selectors;
+  - the duplicate `.header-auth` removed, keeping `styles.css:672`;
+  - the comments in `TopBarAlert.jsx`;
+  - the records;
+  - the mounts, as resolved in `fc7021f2`.
+- [x] **The other book's surface.** Nothing else of it changed beyond what is recorded:
+  - the four re-aims in `setup-alert.spec.js`, each marked;
+  - the brand selectors widened to either pill;
+  - a comment in `SetupStatusContext.jsx`.
+
+  `SetupAlert.jsx` itself is untouched.
+- [x] **Owner decisions** are recorded in Amendment 1 (`:338`, `:399`) and story 2 (`:167`, `:177`): side by side,
+  and keeping 679 px. I took them as recorded, since the repo cannot show the conversation.
+- [x] **No new dependency or tooling, no concept change, and no firmware reinstall.**
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **"Never both" has no CI backstop.** It now rests on `ui/src/components/SetupAlert.jsx:24`: the Setup Alert
+   returns `null` unless `pendingCount >= 1`. Only browser B3 pins that, and no workflow runs Playwright.
+   - If a later edit to the other book's component showed its pill while the check runs, or after a failure, the
+     two pills would show together, with the Node gate still green.
+   - Amendment 1 point 3 and the setup-status-and-alert book note both accept this dependency.
+   - Optional: a W5 in `test/assistant-alert.test.js` that reads `SetupAlert.jsx` and asserts its early return
+     on `loading || !user || pendingCount < 1`, the condition `pickTopBarPill`'s `'setup'` branch mirrors.
+2. **Three superseded lines in
+   `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md` have no pointer:**
+   - `:99-100`: Option A's con, "Until the Setup Alert exists, the `'setup'` branch renders nothing" (round 1
+     listed it as `:96`);
+   - `:177`: sub-decision 2's snippet comment, "renders here once it is built";
+   - `:276-277`: § Consequences, "Shared names. The pill's base class and the slot are shared with the other
+     book". This is now false: the other book uses `.bs-setup-alert` and its own component.
+
+   Amendment 1's list at `:347-348` omits all three. Optional: an italic pointer at each, as done elsewhere.
+3. **Two dated notes are missing.**
+   - `engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md:71-75`: the watch item still
+     says the pill "removes no control". `:167-168` records the miss, but the line itself carries no note.
+   - `engineering-team/stories/assistant-management/2-the-assistant-alert.md:144-146`: the Deviation still quotes
+     `<><TopBarAlert />{menu}</>`. The mounts now render `<SetupAlert />` first.
+4. **`tests/brainstorm/setup-alert.spec.js:24`**: the header index still reads "B9 — creating an assistant on
+   /assistant". B9's own title, at `:367`, was re-aimed. This one is story 1's, from the editor's move.
+5. **The pinned gate list omits `session-start`.**
+   - `engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md:169-170` says it
+     "read[s] one fixed folder". True, but that folder is `ledger/`, which this diff touches.
+   - Staging's `c47becd6` clause asks for walkers to be triaged against the whole diff.
+   - It passes alone (32/0), so this is recording only. Optional: add it to the list.
+6. **`tests/brainstorm/author-scoped-inspection.spec.js:157`**, not this branch: E3 reads the table's headers without
+   waiting for them, and failed once under 4 workers. It could join the cleanup row
+   `2026-09-22-staging-browser-class-83-red` as a flake.
+
+#### Harness friction *(each becomes an OPEN.md row, type `meta`)*
+
+1. **Commits landed in the reviewed checkout while the Reviewer's gate was running there, and the gate record
+   cannot show it.**
+   - What happened:
+     - `396d98cf` and `86bbc320` were committed at 02:14:55Z;
+     - run `20260922T020935Z-27290-6cac`, which records "on fc411a0d", had started at 02:09:35Z;
+     - so suites after about #90 read the tip's tree.
+   - Why the record misses it: it captures git identity once, at creation (`gitIdentity()`,
+     `test/helpers/gateRecord.js:56`, `:129`).
+   - The damage here: a re-run (about 4 minutes), and nothing else, since the changes were docs only.
+   - Suggested fix:
+     - before committing into a checkout, check `npm run gate:status -- --list` for a RUNNING record;
+     - and let the engine re-read HEAD and the porcelain at finish, and mark a record whose tree moved.
+   - No existing row covers this: I searched `ledger/` and `OPEN.md` on the branch and on `origin/staging`.
+
+### Round 2 verdict
+
+The fix round resolves both blocking findings. Every claim in it that I re-derived holds. What remains is
+recording and hardening, none of it a defect in this diff.
+
+**PASS**

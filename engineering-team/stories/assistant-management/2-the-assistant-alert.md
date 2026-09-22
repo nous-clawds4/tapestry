@@ -1,6 +1,6 @@
 # Story 2: The Assistant Alert
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-21
 **Type:** Feature
 **Epic:** `assistant-management`

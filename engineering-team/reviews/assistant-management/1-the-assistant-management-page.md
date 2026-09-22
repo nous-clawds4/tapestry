@@ -237,3 +237,22 @@ None in this story's diff against its base.
 
 ## Verdict
 **PASS**
+
+---
+
+## Addendum — 2026-09-22, on the merged tree
+
+Checked during story 2's second round. Details are in `engineering-team/reviews/assistant-management/2-the-assistant-alert.md`
+§ Round 2, "Story 1 on the merged tree".
+
+- **The verdict above holds at `86bbc320`,** after the branch merged `origin/staging`:
+  - this story's code and tests are unchanged since this review;
+  - the tip gate `20260922T021635Z-59393-0242` has `assistant-management-page` at 24/0/0 (H1 executed), with a
+    clean O4;
+  - the browser spec gave 23/23.
+- **Non-blocking 1–3 are fixed:**
+  - `ui/src/styles.css:8725`;
+  - story 1 `:118-121`;
+  - `tests/brainstorm/setup-alert.spec.js:173` and its B9, and `ui/src/context/SetupStatusContext.jsx:14`.
+- **Non-blocking 4 (AC-7 on staging)** waits for the deploy.
+- **One trivial leftover:** `tests/brainstorm/setup-alert.spec.js:24`'s header index still says "/assistant".
