@@ -356,6 +356,8 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
   /* ───────── B8 — the ten placeholder pages ───────── */
   for (const a of X.ACTIONS) {
     test(`B8 ${a.path}: a placeholder page with the title, "Placeholder page.", the description, the alert criteria${a.planningNotes ? ', the planning notes' : ''}${a.editLink ? ', a link to the editor' : ''} and a way back (AC-5)`, async ({ page }) => {
+      // assistant-identification-tags #2 builds this action's page; tests/brainstorm/assistant-identification-tags-page.spec.js pins it.
+      if (a.path === '/assistant/identification-tags') test.skip(true, 'no longer a placeholder (assistant-identification-tags #2)');
       await mock(page, { who: CUSTOMER_USER });
       const main = await open(page, a.path);
       await expect(page.getByRole('heading', { name: 'Page not found' }), `${a.path} is a page`).toHaveCount(0);

@@ -78,8 +78,63 @@ const UNFINISHED = attentionAnswer({
   })),
 });
 
+// ─── Story 2: the page (story § Copy, as amended by ADR 0002 sub-decision 5) ───────────────────────────
+const PAGE = '/assistant/identification-tags';
+
+/** The page's own words. The heading, the description, "Needs attention" and the sign-in / no-assistant lines are the
+ *  hub's (assistantManagementFixtures) and the action entry's; these are new here. */
+const PAGE_COPY = {
+  treasureMap: 'Your Treasure Map tells apps what your Assistant publishes for you; these tags are simply an additional mechanism to associate you and your Assistant.',
+  cards: { person: 'Taggings you put on your Assistant', assistant: 'Taggings your Assistant puts on you' },
+  states: { present: 'Present', missing: 'Missing', checking: 'Checking…' },
+  tagNotFound: (name) => `Tag not found: the tag "${name}" has not been published yet, so this tagging can't be made here.`,
+  couldNotCheck: {
+    'local-unreadable': "Could not read this instance's relay.",
+    'no-outside-relays': "Not found on this instance's relay, and no outside relay is configured to check.",
+    'outside-unreachable': "Not found on this instance's relay, and no outside relay answered.",
+    'request-failed': 'Could not check: this instance did not answer.',
+  },
+  definitionUnknown: "Its tag definition could not be checked, so it can't be published yet.",
+  buttons: { person: 'Publish with your nostr extension', assistant: 'Have your Assistant publish' },
+  publishing: 'Publishing…',
+  signedOutLine: 'Sign in to see your identification tags.',
+  noExtension: 'No nostr extension was found. Install one to publish taggings.',
+  signatureRefused: (name, reason) => `"${name}" was not published: your nostr extension did not sign it (${reason}).`,
+  doneBadge: 'Done',
+  doneSrPrefix: 'Done: ',
+};
+
+/** The per-tagging publish summaries (story § Copy; ADR 0002 sub-decision 5 for a failed local write). */
+const PUBLISH_WORDS = {
+  published: (name, a, n) => `"${name}" was saved on this instance's relay and accepted by ${a} of ${n} relays.`,
+  partly: (n, a) => ` ${n - a} did not accept it; see below.`,
+  none: (name, n) => `"${name}" was saved on this instance's relay, but none of the ${n} relays accepted it; see below.`,
+  keptLocal: (name) => `"${name}" was saved on this instance's relay only: local-only publish mode is on, so it was not sent to any other relay.`,
+  noRelays: (name) => `"${name}" was saved on this instance's relay only: no outside relay was given.`,
+  localFailedSome: (name, reason, a, n) => `"${name}" could not be saved on this instance's relay (${reason}), but ${a} of ${n} relays accepted it.`,
+  localFailedNone: (name, reason, n) => `"${name}" could not be saved on this instance's relay (${reason}), and none of the ${n} relays accepted it.`,
+  localFailedKept: (name, reason) => `"${name}" could not be saved on this instance's relay (${reason}), and local-only publish mode kept it from any other relay.`,
+  relay: { accepted: 'accepted', refused: (r) => (r ? `rejected: ${r}` : 'rejected'), unreachable: (r) => (r ? `unreachable: ${r}` : 'unreachable'), timeout: (r) => (r ? `timed out: ${r}` : 'timed out'), skipped: 'skipped (local-only publish mode)' },
+};
+
+/** Every tagging missing, every definition found: the publishable state. */
+const MISSING_ALL = attentionAnswer({
+  finished: true, done: false, pending: true,
+  rows: REQUIRED.map((e) => taggingRow(e, { present: false, source: null })),
+});
+
+/** As MISSING_ALL, but "My Agent"'s canonical definition is not found (finished). */
+const TAG_NOT_FOUND = attentionAnswer({
+  finished: true, done: false, pending: true,
+  rows: REQUIRED.map((e) => taggingRow(e, {
+    present: false, source: null,
+    ...(e.key === 'my-agent' ? { definition: { finished: true, found: false, source: null, eventId: null, address: canonicalTagAddress(e.slug) } } : {}),
+  })),
+});
+
 module.exports = {
   CANONICAL_TAG_AUTHOR, CANONICAL_TAG_AUTHOR_NPUB, REQUIRED, CHECKED_ACTION,
   canonicalTagAddress, taggingDTag, taggingRow, attentionAnswer,
   SIGNED_OUT, NO_ASSISTANT, DONE, PENDING, UNFINISHED,
+  PAGE, PAGE_COPY, PUBLISH_WORDS, MISSING_ALL, TAG_NOT_FOUND,
 };
