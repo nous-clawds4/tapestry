@@ -1,6 +1,6 @@
 # Story 3: Your Assistant's two taggings of you
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-22
 **Type:** Feature
 **Epic:** `assistant-identification-tags`
@@ -119,4 +119,4 @@ audit.*
 
 - ADR: `engineering-team/decisions/assistant-identification-tags/0003-your-assistant-signs-its-two-taggings-through-one-narrow-route.md`
 - Test plan: `engineering-team/stories/assistant-identification-tags/3-your-assistants-two-taggings.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-identification-tags/3-your-assistants-two-taggings.md`

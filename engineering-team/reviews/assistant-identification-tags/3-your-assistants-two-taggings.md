@@ -132,3 +132,43 @@ Not applicable: an acceptance-frame book, no PRD. The words were checked against
 ### On PASS (same commit)
 - [ ] Story `**Status:**` not flipped: it stays `Approved`.
 - [ ] Completion detection: the provisional book reading from round 1 stands — every acceptance-frame bullet is satisfied by what shipped; only this sentence blocks. Recorded in the chat, not here.
+
+## Round 3 (2026-09-22) — the round-2 finding, re-checked as fresh claims
+
+**Diff:** `git diff e9e2b492..f58591c2` — `src/api/assistant/identificationTaggings.js` header (two comment lines), `BIBLE.md` §11 row `:497` and §14 bullet `:1076`, ADR 0003 Amendment 1 (its sentence corrected; a "Round 2 correction" paragraph added), story § Deviations 6; plus `606fc2f0` (my round-2 section, committed as left). HEAD `f58591c2`, tree clean; `git fetch origin staging` (still `85e4e30d`) and `git merge-tree --write-tree HEAD origin/staging` clean (exit 0, tree `e4f62c0c`).
+
+### What I re-ran
+- **Docs/comments only, no behaviour:** `git diff e9e2b492..HEAD --stat -- test tests` empty; the comment-stripped text of `identificationTaggings.js` and `index.js` at `e9e2b492` and `f58591c2` is byte-identical; `openapi.yaml` unchanged this round and still parses.
+- **The story suite** through `run()` under Node 22.23.2: `assistant-taggings-publish` **19 passed, 0 failed, 0 skipped, H1 executed** live.
+- **The book's gate on the PASS candidate itself** (same 156-suite recipe; the set equals the baseline's), label `assistant-identification-tags-3-review-r3`. The `npm run gate:status -- --label assistant-identification-tags-3-review-r3` line (exit 1):
+
+  > `20260922T124222Z-10752-903c [assistant-identification-tags-3-review-r3] started 2026-09-22T12:42:22.906Z on f58591c2 — FAIL, exit 1, 2640 passed, 44 failed, 121 skipped, 156/156 suites; failed: tag-detail, capture-a-goal-and-see-it, structures-the-brain-can-trust, break-a-goal-into-pieces, attach-the-world, sessions-read-the-brain, the-proposal-loop, teach-it-what-matters, the-brain-survives, show-the-four-on-the-goal-screens-that-already-exist, concept-count-canonical, summaries-element-count`
+
+  Suite by suite: **156/156 identical to round 2's record** `20260922T123514Z-90423-d735`, and 155/156 identical to the baseline `20260922T120710Z-33381-7613` with the one story-suite flip (FAIL 1/18/0 → PASS 19/0/0), exactly as in rounds 1 and 2. The FAIL verdict is the host's twelve live-graph suites, none touched by this story. Record git: `f58591c2`, `dirty: false`.
+- **`bash scripts/harness-lint.sh`** — run twice: on the committed state it reports one L1 violation (this review read PASS-final after round 2, because the round-2 section's "On PASS" heading followed its verdict, while the story was still `Approved`); after this section and the story's Status flip it is clean — recorded below the verdict in the chat, not here, since nothing may follow the final token.
+
+### Each reworded sentence, checked with its own command
+| Claim (where) | Command | Result |
+|---|---|---|
+| The ordinal is gone from the live text | `grep -n 'second such route\|second narrow\|a second narrow\|the second '` over the module, `index.js`, `openapi.yaml`, `BIBLE.md`, filtered to route/publish-profile lines | Empty. It survives only as quoted history in ADR Amendment 1's "Round 2 correction" and story § Deviations 6, both of which say it was false and why. **True.** |
+| "another narrow, session-bound route in the shape of `publish-profile`" (`BIBLE.md:497`, `:1076`; "in the shape of publish-profile (ADR 0003 Option A)" `identificationTaggings.js:5`) | ADR 0003 Option A ("built the way the profile publish is") + the round-1 read of the module against `createPublishProfileHandler` | No count, no chronology; a lineage claim the ADR's own Option A states. **True.** |
+| "The generic signer stays owner-or-admin (OPEN.md row 269) and TA-only" (`identificationTaggings.js:14`, `BIBLE.md:1076`, ADR Amendment 1) | `sed -n 288,294p src/middleware/auth.js` (`isOwner` returns `isOwnerOrAdmin(req)`); `publishEvent.js:53` (`!isOwner(req) && !req.localTrusted`), `:57` (`getOwnerAssistantKeys()`); `grep -n '^| 269' OPEN.md` → `OPEN.md:301`, the row about exactly this alias, OPEN | **True**, and now says what the code does. |
+| "the other assistant-key signers — trusted lists, curated DList headers and updates, normalization, NIP-85 — are unchanged" (`identificationTaggings.js:14-15`, `BIBLE.md:497`, `:1076`) | `git diff 85e4e30d...HEAD --stat -- src/api/trustedList src/api/dlist-curation src/api/normalize src/algos/nip85 src/algos/customers/nip85 src/api/export/nip85 src/api/strfry` | Empty. The signer sweep (`grep -rn 'getAssistantKeys(\|getOwnerAssistantKeys(\|finalizeEvent(' src`) lists the same fifteen files as in rounds 1 and 2. **True.** |
+| ADR "Round 2 correction": the DList header and update routes "are narrow, session-bound routes where the person's own Assistant signs, and both predate `publish-profile`'s narrow form" | Round 2's commands: `dlist-curation/index.js:243-291`, `update.js:358-500`; `git log --diff-filter=A` → `5fe877b8` 2026-09-10, `24a4c447` 2026-09-13; `git log -S'createPublishProfileHandler'` → `90f54a09` 2026-09-20 | **True.** |
+| Story § Deviations 6: "review round 2 dropped a first rewording's ordinal … the curated-DList routes came first" | The same | **True.** |
+| "Nothing publishes them when an assistant is created" (`BIBLE.md:1076`; module header) | S2 (19/0) and round 1's own grep over `src`, `bin`, `setup`, `ui/src`; the sweep above shows no new caller | **True.** |
+
+### Findings
+- **Blocking:** none. Round 1's finding (the exclusivity claim) and round 2's (the ordinal) are both fixed and verified; round 2's non-blocking R2-1 ("owner-only") is closed by `f58591c2`.
+- **Non-blocking:** round 1's 1, 2, 4–9 stand as written (3 closed in round 2); nothing new. One style note for whoever next edits the header: `identificationTaggings.js:6` and `:14` now run past the file's line width — cosmetic, not a house rule.
+- **Harness friction:** none new. Note for the record: the L1 rule reads the last verdict-shaped token on a heading or bold line, so a review's "On PASS" checklist must sit before its final verdict line — this section does that; round 2's did not, which is what tripped the lint between rounds.
+
+### Book completion
+Performed on this PASS; the bullet-by-bullet reading is in the chat (the workflow keeps it out of this file). In short: every bullet of `book.md` § Acceptance frame is satisfied by stories 1–3 as shipped and reviewed; the book looks complete; `/close-book` is the main session's to offer to the owner, not mine to run.
+
+### On this PASS (same commit)
+- Story `**Status:**` flipped to `Done` in place (`stories/assistant-identification-tags/3-your-assistants-two-taggings.md:3`).
+- Completion detection performed; the result is recorded in the chat, not here.
+
+## Verdict (round 3)
+**PASS**
