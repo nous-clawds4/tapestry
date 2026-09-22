@@ -5,9 +5,9 @@
 **Diff:** `git diff 48813298 7fe27582` (whole story: ADR `128f9b9d`, failing tests `f090a409`,
 implementation `7fe27582`); implementation alone `git diff f090a409 7fe27582`. Branch
 `feat/setup-status-and-alert`, working tree clean.
-**Story:** `engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.md`
-**ADR:** `engineering-team/decisions/setup-status-and-alert/0001-one-setup-status-answer.md`
-**Test plan:** `engineering-team/stories/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md`
+**Story:** `engineering-team/stories/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`
+**ADR:** `engineering-team/decisions/done/setup-status-and-alert/0001-one-setup-status-answer.md`
+**Test plan:** `engineering-team/stories/done/setup-status-and-alert/1-setup-shows-where-you-stand.test-plan.md`
 
 Tester and Implementer were the same session, so the tests were read as closely as the code, and
 every claim in the Deviations, the test plan's Verification and the commit messages was re-derived.

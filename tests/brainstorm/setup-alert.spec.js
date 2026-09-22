@@ -3,8 +3,8 @@ const { test, expect } = require('@playwright/test');
 /**
  * setup-status-and-alert #2: the Setup Alert — the browser class.
  *
- * Story: engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md
- * ADR:   engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md
+ * Story: engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.md
+ * ADR:   engineering-team/decisions/done/setup-status-and-alert/0002-the-setup-alert-pill.md
  * Node half: test/setup-alert.test.js (C/D/S).
  *
  *   B0  — the served origin runs a build that contains the pill.                      [prerequisite]
@@ -17,8 +17,9 @@ const { test, expect } = require('@playwright/test');
  *   B5  — no pill signed out, none on /setup and its step pages, and no close button. [AC-3]
  *   B6  — the pill's N is the steps /setup shows as not done, less an "another
  *         provider" step (so never more), and both read one answer.                   [AC-4]
- *   B7  — sentence and count at 1280, the sentence at 800, only ⚠ + button at 375, the
- *         same accessible name, and no top bar wider than the screen, on every host.  [AC-5]
+ *   B7  — sentence and count at 1280, the sentence at 800, only ⚠ + button at 375, and no
+ *         top bar wider than the screen, on every host. The accessible name at each
+ *         width is story 3's AC-2 (tests/brainstorm/setup-alert-polish.spec.js).        [AC-5]
  *   B8  — pages showing the pill only read (GETs; the Dashboard's Cypher reads over POST)
  *         and sign nothing.                                                            [AC-6]
  *   B9  — creating an assistant on /assistant/profile/edit updates the pill without a reload (re-aimed by
@@ -135,7 +136,9 @@ async function open(page, path) {
   await page.waitForTimeout(2000);
 }
 
-const pill = (page) => page.getByRole('link', { name: NAME });
+// The pill by its element, not its accessible name: story 3 (ADR 0003) names it by what it shows, which
+// changes with the width. tests/brainstorm/setup-alert-polish.spec.js pins those names exactly.
+const pill = (page) => page.locator('a.bs-setup-alert[href="/setup"]');
 const bar = (page) => page.locator('.bsp-top-bar, .app-header, .bs-results-header').first();
 
 /** Does any JS chunk the origin serves contain `needle`? Follows chunk references one hop at a time. */
@@ -195,7 +198,7 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
       await open(page, path);
       await expect(bar(page), 'the page renders its top bar').toBeVisible();
       if (avatarSel) await expect(bar(page).locator(avatarSel).first(), `the avatar menu (${avatarSel}) renders: the viewer is signed in`).toBeVisible();
-      const p = bar(page).getByRole('link', { name: NAME });
+      const p = bar(page).locator('a.bs-setup-alert[href="/setup"]');
       await expect(p, 'the pill must be in the top bar').toBeVisible();
       await expect(p).toContainText('Finish setting up your account');
       await expect(p).toContainText('· 2 steps left');
@@ -207,7 +210,7 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
         expect(pb.x + pb.width, 'the pill sits beside the avatar menu, before it').toBeLessThanOrEqual(ab.x + 1);
         expect(Math.abs((pb.y + pb.height / 2) - (ab.y + ab.height / 2)), 'the pill and the avatar share the bar\'s line').toBeLessThan(ab.height);
       } else {
-        await expect(page.locator('.bsp-top-bar .bsp-auth').getByRole('link', { name: NAME }), 'on the developer pages the pill fills the empty auth slot').toBeVisible();
+        await expect(page.locator('.bsp-top-bar .bsp-auth a.bs-setup-alert'), 'on the developer pages the pill fills the empty auth slot').toBeVisible();
       }
     });
   }
@@ -230,7 +233,7 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
     let focused = false;
     for (let i = 0; i < 30 && !focused; i++) {
       await page.keyboard.press('Tab');
-      focused = await page.evaluate((name) => document.activeElement && document.activeElement.getAttribute('aria-label') === name, NAME);
+      focused = await page.evaluate(() => !!(document.activeElement && document.activeElement.matches('a.bs-setup-alert')));
     }
     expect(focused, 'the pill must be reachable with Tab').toBe(true);
     await page.keyboard.press('Enter');
@@ -322,14 +325,14 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
 
   /* ───────── B7 — every width ───────── */
   for (const [label, path, who] of HOSTS) {
-    test(`B7: on ${label}, sentence and count at 1280, the sentence at 800, only ⚠ and the button at 375, one accessible name, and no top bar wider than the screen (AC-5)`, async ({ page }) => {
+    test(`B7: on ${label}, sentence and count at 1280, the sentence at 800, only ⚠ and the button at 375, and no top bar wider than the screen (AC-5)`, async ({ page }) => {
       await mock(page, { who, answers: [TWO_LEFT] });
       // count: true = must show, false = must be hidden, null = either (AC-5: "on narrower screens the count may drop").
       for (const [width, sentence, count] of [[1280, true, true], [800, true, null], [375, false, false]]) {
         await page.setViewportSize({ width, height: 800 });
         await open(page, path);
         const p = pill(page);
-        await expect(p, `${width}px: the pill keeps its accessible name "${NAME}"`).toBeVisible();
+        await expect(p, `${width}px: the pill shows (its accessible name at each width is story 3's AC-2)`).toBeVisible();
         const sentenceEl = p.getByText(NAME, { exact: true });
         const countEl = p.getByText('· 2 steps left', { exact: true });
         if (sentence) await expect(sentenceEl, `${width}px: the sentence shows`).toBeVisible();
@@ -385,7 +388,7 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
     await mock(page, { answers: [TWO_LEFT] });
     await open(page, '/?q=jack');
     await expect(page.locator('.bs-results-header .bs-usermenu-avatar-btn'), 'the results view renders, signed in').toBeVisible();
-    await expect(page.locator('.bs-results-header').getByRole('link', { name: NAME })).toBeVisible();
+    await expect(page.locator('.bs-results-header a.bs-setup-alert')).toBeVisible();
   });
 
   /* ───────── B11 — phone accommodations only while a pill shows ───────── */

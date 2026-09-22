@@ -32,5 +32,5 @@ switches and re-sign-ins.
 **Fix shape:** write the recipe into the B-class precedent. Story 1's fix round adds such a test to
 `tests/brainstorm/setup-status.spec.js`, and story 2's pill needs the same.
 
-**Pointer:** `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md`
+**Pointer:** `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`
 § Blocking 1 and § Harness friction 3.

@@ -52,6 +52,20 @@ that re-aim has the same blind spot.
 - **The fix-shape clause:** after merging a shared line, run the whole of every suite the merge brings in
   that touches the same surface, not only its re-aimed tests.
 
+**The other book's half (setup-status-and-alert #3, at its merge of `origin/staging` for shipping).** The collision
+ran the other way too.
+- **What broke.** Story 3's ADR (setup-status-and-alert/0003, approved while this book was in flight) replaced
+  the Setup pill's fixed accessible name with what it shows. `tests/brainstorm/assistant-alert.spec.js` found the
+  Setup pill by that old name, matched exactly.
+- **On the merged build:**
+  - B3's "a step left shows the Setup pill" failed;
+  - B3's "never two pills at once" and the "no pill" checks in B2 and B4 could no longer see the Setup pill
+    at all, so they passed without testing it.
+- **How it was caught.** Only because the whole of this book's suite was run after the merge, as the fix-shape
+  clause above says. Neither ADR could have listed the other's spec.
+- **The re-aim.** The Setup pill is now found by its element, and the union by `.or()`. A mutant with "setup
+  first" dropped fails B3 at "at most one pill". The detail is in that story's § Deviations.
+
 **Pointer:**
 - review `engineering-team/reviews/done/assistant-management/2-the-assistant-alert.md`, Blocking 1 and harness
   friction 1;

@@ -34,6 +34,6 @@ accessible", because `page.goto` does not throw on a 404. The leaked requests ar
 so no harm is done. But a spec that calls itself hermetic is not hermetic as a run. Fix shape 1
 (`preview: { proxy: {} }`) closes both leaks.
 
-**Pointer:** `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md`
-§ Harness friction 2; `engineering-team/reviews/setup-status-and-alert/2-the-setup-alert.md`
+**Pointer:** `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`
+§ Harness friction 2; `engineering-team/reviews/done/setup-status-and-alert/2-the-setup-alert.md`
 § Harness friction 1.

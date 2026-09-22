@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { summarizeSetup } from '../utils/setupStatus';
+import { onEventPublished } from '../utils/nostrPublish';
 
 /**
  * The signed-in viewer's /setup status (ADR setup-status-and-alert/0001).
@@ -12,9 +13,11 @@ import { summarizeSetup } from '../utils/setupStatus';
  * It asks /api/setup/status only once something wants the answer (useSetupStatus mounts), only
  * when someone is signed in, and again when the signed-in account changes or gains an assistant:
  * AuthContext.refreshUser() after creating one on /assistant/profile/edit changes
- * user.assistantPubkey for the same account (ADR setup-status-and-alert/0002 Decision 5). The server
- * answers for the session itself, so the request carries no parameters. There is no polling: a step
- * completed in another app shows on the next full page load, or after refresh().
+ * user.assistantPubkey for the same account (ADR setup-status-and-alert/0002 Decision 5). It also
+ * asks again once the app has published the viewer's own follow list (kind 3) or Treasure Map
+ * (kind 10040), heard through onEventPublished (ADR setup-status-and-alert/0003). The server answers
+ * for the session itself, so the request carries no parameters. There is no polling: a step
+ * completed in another app or tab shows on the next full page load, or after refresh().
  *
  * phase: 'idle' (nothing asked, or signed out) · 'checking' · 'answered' · 'failed' (a network
  * error, a failure answer, or the server saying the session has expired).
@@ -58,6 +61,16 @@ export function SetupStatusProvider({ children }) {
   const answer = phase === 'answered' ? result.answer : null;
   const want = useCallback(() => setWanted(true), []);
   const refresh = useCallback(() => setAttempt((n) => n + 1), []);
+
+  // Ask again after each announcement of the viewer's own kind 3 or kind 10040 reaching a relay. Every
+  // one counts, even for an event heard before: a later import of it can change what the check reads
+  // (ADR setup-status-and-alert/0003 Amendment 1).
+  useEffect(() => onEventPublished((ev) => {
+    if (!pubkey || !ev || ev.pubkey !== pubkey) return;
+    if (ev.kind !== 3 && ev.kind !== 10040) return;
+    refresh();
+  }), [pubkey, refresh]);
+
   const value = useMemo(() => ({ phase, answer, want, refresh }), [phase, answer, want, refresh]);
 
   return (

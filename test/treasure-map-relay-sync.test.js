@@ -280,7 +280,9 @@ test('R3: the page keeps its other Treasure-Map panels', () => {
 
 test('R4: the shared publish helpers are unchanged in the ways this story relies on', () => {
   const src = safeRead(PUBLISH);
-  assert(/export async function publishToRelays\(signedEvent, relays = PUBLISH_RELAYS\)/.test(src),
+  // Further optional parameters do not narrow it: setup-status-and-alert ADR 0003 Amendment 1 added an
+  // { announce } option after the relay list (re-aimed by that story).
+  assert(/export async function publishToRelays\(signedEvent, relays = PUBLISH_RELAYS[,)]/.test(src),
     'ADR 0002 relies on publishToRelays accepting an explicit relay list — signature must not narrow');
   assert(/skippedByGate:\s*true/.test(src),
     'ADR 0002 relies on the local-only gate returning skippedByGate rather than a failure');

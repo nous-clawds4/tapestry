@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — The Setup Alert
 
-**Story:** `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md`
-**ADR:** `engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md`
+**Story:** `engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.md`
+**ADR:** `engineering-team/decisions/done/setup-status-and-alert/0002-the-setup-alert-pill.md`
 **Date:** 2026-09-21
 
 Two new files carry the tests:

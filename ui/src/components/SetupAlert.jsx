@@ -14,7 +14,12 @@ import { SETUP_ALERT_COPY, alertCountText } from '../pages/setup/steps';
  * the two cannot disagree, and it asks the server nothing itself: mounting it is what asks the
  * provider, which is why the hook runs on every render, signed in or not.
  *
- * It hides on /setup and on the three step pages, and it cannot be dismissed.
+ * It hides on /setup and on the three step pages, in any letter case (the router matches them that
+ * way), and it cannot be dismissed.
+ *
+ * It carries no label of its own: its accessible name is the words it shows at each width (the sentence
+ * and the count drop out with them), and the ⚠ mark and the arrow are decorative (ADR
+ * setup-status-and-alert/0003).
  */
 export default function SetupAlert() {
   const { user, loading } = useAuth();
@@ -22,14 +27,17 @@ export default function SetupAlert() {
   const { pathname } = useLocation();
 
   if (loading || !user || pendingCount < 1) return null;
-  if (pathname === '/setup' || pathname.startsWith('/setup/')) return null;
+  const path = pathname.toLowerCase();
+  if (path === '/setup' || path.startsWith('/setup/')) return null;
 
   return (
-    <Link to="/setup" className="bs-setup-alert" aria-label={SETUP_ALERT_COPY.name}>
+    <Link to="/setup" className="bs-setup-alert">
       <span className="bs-setup-alert-icon" aria-hidden="true">⚠</span>
       <span className="bs-setup-alert-sentence">{SETUP_ALERT_COPY.sentence}</span>
       <span className="bs-setup-alert-count">{alertCountText(pendingCount)}</span>
-      <span className="bs-setup-alert-button">{SETUP_ALERT_COPY.button}</span>
+      <span className="bs-setup-alert-button">
+        {SETUP_ALERT_COPY.button}<span className="bs-setup-alert-arrow" aria-hidden="true"> {SETUP_ALERT_COPY.arrow}</span>
+      </span>
     </Link>
   );
 }

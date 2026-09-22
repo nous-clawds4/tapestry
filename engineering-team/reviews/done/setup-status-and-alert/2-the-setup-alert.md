@@ -10,10 +10,10 @@ implementation alone is `git diff e67eb198 f8fca976 -- ui/`. The commits:
 - `e67eb198` test B12 (×5);
 - `f8fca976` the implementation.
 
-**Story:** `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.md`
-**ADR:** `engineering-team/decisions/setup-status-and-alert/0002-the-setup-alert-pill.md`, Amendment 1 included. It
+**Story:** `engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.md`
+**ADR:** `engineering-team/decisions/done/setup-status-and-alert/0002-the-setup-alert-pill.md`, Amendment 1 included. It
 builds on ADR 0001.
-**Test plan:** `engineering-team/stories/setup-status-and-alert/2-the-setup-alert.test-plan.md`
+**Test plan:** `engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.test-plan.md`
 
 ## In short
 

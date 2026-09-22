@@ -48,5 +48,23 @@ list was triaged against its branch. Then the owner-required merge of `origin/st
 lives. No filename grep finds it. Run on its own, it passed 17/0/0. The fix shape grows by one more
 clause: **re-run the walker grep after merging the base branch, not only at Test Design.**
 
+**And after Phase 4, and through spawned scripts (setup-status-and-alert #3 review).**
+- **Phase 4 can touch a tree the triage ruled out.** Story 3's plan said the branch touched neither `src/` nor
+  `ledger/`. Then its Phase-4 test fixes (`9fa997af`) edited one ledger row and added another.
+- **A grep for `readdirSync` misses suites that read a tree through a script they spawn.** `harness-lint.test.js`
+  runs `scripts/harness-lint.sh` on the real repo, and that script's L15 reads every `ledger/*.md`.
+- Both passed here.
+- The fix shape gains two clauses:
+  - **re-triage after any commit that touches a new tree;**
+  - **count a suite that spawns a repo script as a reader of whatever that script reads.**
+
+**And the spawned-script clause, missed at once (setup-status-and-alert #3, review round 2).**
+- Round 2's walker list added the two `ledger/` readers round 1 named, `harness-lint` and `ledger-row-ids`.
+- It still missed `rollup-scanners`. Its AC-2 reads `OPEN.md`'s meta rows and the open `ledger/` meta rows
+  through `scripts/lib/collect-meta.sh`, which it spawns on the real repo. It passed on its own, 33/0.
+- **The clause, as a recipe:**
+  - grep `test/` for spawns of `scripts/`, and for reads of `OPEN.md` and `ledger/`;
+  - triage every hit against the branch's diff.
+
 **Pointer:** `engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md`
-§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1 and § Round 2, Harness friction 2.
+§ Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1 and § Round 2, Harness friction 2.

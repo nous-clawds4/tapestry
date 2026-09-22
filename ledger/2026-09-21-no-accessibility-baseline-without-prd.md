@@ -27,5 +27,5 @@ keyboard reach and a visible focus style. Candidates are the ADR template's impl
 test-plan template (so a Tester adds the check), and the review checklist's house-rules section. The
 cheapest is the review checklist, which would make the Reviewer measure it every time.
 
-**Pointer:** `engineering-team/reviews/setup-status-and-alert/2-the-setup-alert.md` § Harness
+**Pointer:** `engineering-team/reviews/done/setup-status-and-alert/2-the-setup-alert.md` § Harness
 friction 2, and Non-blocking 1 and 2.

@@ -27,5 +27,5 @@ for changes, re-read every Deviation that describes the code the fix touches, an
 than only appending. The Reviewer's round-N check then covers the revised text as a fresh claim, as
 roles/reviewer.md step 10 already asks.
 
-**Pointer:** `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md`
+**Pointer:** `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`
 § Round 2, Non-blocking 1 and Harness friction 1.
