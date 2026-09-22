@@ -137,7 +137,7 @@ Recorded by the Tester for the Reviewer, who re-runs everything. Node 22.23.2 th
   - `assistant-identification-tags-page.spec.js` 13/13; `assistant-management-page.spec.js` 22/22 with the
     identification-tags placeholder case skipped as re-aimed; `authored-tagging.spec.js` 2/2 (one run, exit 0);
   - on the previous bundle of the same code (`index-D1RmfFHM.js`, before the signature fix): `assistant-attention`
-    7/7, `assistant-alert` 10/10, and `tag-detail-write.spec.js` 20/29 — its nine failures are the nine ledger
+    7/7, `assistant-alert` 10/10, and `tag-detail-write.spec.js` 2/11 — its nine failures are the nine ledger
     `2026-09-22-staging-browser-class-83-red` lists for that spec ("Apply" buttons, a "Viewer Only Target" row, the
     "find a profile to tag" field), red on the shared line before this book; six of the nine never publish.
 - `bash scripts/harness-lint.sh`: clean.

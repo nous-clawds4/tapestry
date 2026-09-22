@@ -1,6 +1,6 @@
 # Story 2: The Identification Tags page, and your two taggings of your Assistant
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-22
 **Type:** Feature
 **Epic:** `assistant-identification-tags`
@@ -189,4 +189,4 @@ audit.*
 
 - ADR: `engineering-team/decisions/assistant-identification-tags/0002-the-page-reads-the-one-answer-and-publishes-through-the-tagging-publisher.md`
 - Test plan: `engineering-team/stories/assistant-identification-tags/2-the-page-and-your-two-taggings.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-identification-tags/2-the-page-and-your-two-taggings.md`
