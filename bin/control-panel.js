@@ -54,7 +54,7 @@ const api = require('../src/api');
 
 // Import centralized configuration utility
 const { getConfigFromFile } = require('../src/utils/config');
-const { buildSecurityTxt, buildRobotsTxt, isBlockedProbePath } = require('../src/utils/siteTrust');
+const { buildSecurityTxt, buildRobotsTxt, isBlockedProbePath, buildLlmsTxt, LLMS_TXT_PATH } = require('../src/utils/siteTrust');
 
 // Determine if we should use HTTPS (local development) or HTTP (behind proxy)
 let useHTTPS = process.env.USE_HTTPS === 'true';
@@ -155,14 +155,19 @@ app.use('/libs/chartjs-adapter-date-fns', express.static(path.join(__dirname, '.
 
 // Site trust signals (story site-trust-signals/1, ADR 0036).
 //
-// Two well-known documents that state who operates this deployment and whether
-// it should be indexed. Registered here deliberately: after the static
-// middleware above, and BEFORE the session middleware below, so that scanners
-// and crawlers fetching them do not mint a session on every request.
+// Three well-known documents that state who operates this deployment, whether
+// it should be indexed, and (llms.txt) what to read next. Registered here
+// deliberately: after the static middleware above, and BEFORE the session
+// middleware below, so that scanners, crawlers, and agents fetching them do
+// not mint a session on every request.
 //
-// These cannot be plain files under public/ — express.static ignores dotfile
-// paths by default, so /.well-known/* would never be served. Rendering them
-// also lets Canonical name the actual deployment instead of a hardcoded host.
+// security.txt and robots.txt cannot be plain files under public/ — express.static
+// ignores dotfile paths by default, so /.well-known/* would never be served.
+// Rendering them also lets Canonical name the actual deployment instead of a
+// hardcoded host. llms.txt has no dotfile problem, but stays here too (story
+// llms-txt #1, ADR llms-txt/0001) so one module and one registration block
+// owns every well-known root document, rather than splitting them across a
+// static file and this file.
 app.get('/.well-known/security.txt', (req, res) => {
     res.set('Content-Type', 'text/plain; charset=utf-8');
     res.send(buildSecurityTxt({ domain: process.env.DOMAIN_NAME }));
@@ -171,6 +176,16 @@ app.get('/.well-known/security.txt', (req, res) => {
 app.get('/robots.txt', (req, res) => {
     res.set('Content-Type', 'text/plain; charset=utf-8');
     res.send(buildRobotsTxt({ allowIndexing: process.env.ALLOW_INDEXING === 'true' }));
+});
+
+// Placement is load-bearing, identically to the two routes above: `.txt` is a
+// blocked extension in isBlockedProbePath's BLOCKED_EXTENSIONS, so this MUST
+// be registered before the honest-404 deny-rule middleware below, or it 404s
+// itself (verified: isBlockedProbePath('/llms.txt') === true, same as
+// '/robots.txt' — see ADR llms-txt/0001).
+app.get(LLMS_TXT_PATH, (req, res) => {
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.send(buildLlmsTxt());
 });
 
 // Session middleware
