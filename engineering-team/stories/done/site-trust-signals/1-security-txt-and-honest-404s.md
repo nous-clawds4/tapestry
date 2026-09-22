@@ -90,6 +90,6 @@ None outstanding. Resolved with the owner at intake on 2026-08-11:
 - **Rollout** → staging → main first, then cherry-pick to the four sandbox branches.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`
-- Test plan: `engineering-team/tests/site-trust-signals/1-security-txt-and-honest-404s.md`
-- Review: `engineering-team/reviews/site-trust-signals/1-security-txt-and-honest-404s.md`
+- ADR: `engineering-team/decisions/done/site-trust-signals/0036-security-txt-and-honest-404s.md`
+- Test plan: `engineering-team/stories/done/site-trust-signals/1-security-txt-and-honest-404s.test-plan.md`
+- Review: `engineering-team/reviews/done/site-trust-signals/1-security-txt-and-honest-404s.md`

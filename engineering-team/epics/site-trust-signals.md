@@ -1,7 +1,9 @@
 # Epic: site-trust-signals
 
 **Created:** 2026-08-11
-**Status:** Open
+**Status:** Done
+**Retired:** 2026-09-22 — story 1 Done (review PASS 2026-08-12), on staging via PR #545 and production via #546 the same day; the attestation follow-up (#547) is on both. Story, ADR, review and test plan moved under `done/site-trust-signals/`. Book closed the same day.
+**Book:** `engineering-team/audits/site-trust-signals/book.md` (acceptance-frame)
 
 ## Goal
 
@@ -28,10 +30,10 @@ vulnerability in any Brainstorm deployment has no documented way to report it.
 
 ## Stories
 
-1. `stories/site-trust-signals/1-security-txt-and-honest-404s.md` — RFC 9116 `security.txt` with
+1. `stories/done/site-trust-signals/1-security-txt-and-honest-404s.md` — RFC 9116 `security.txt` with
    per-host `Canonical` and the full-estate ownership attestation; a real `robots.txt` (production
    indexable, sandboxes `Disallow: /`); and a shape-based 404 rule ahead of the SPA catch-all so
-   probe and asset paths stop returning 200. **Draft**.
+   probe and asset paths stop returning 200. **Done** (review PASS 2026-08-12).
 
 ## Key facts / guardrails
 
