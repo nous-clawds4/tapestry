@@ -114,3 +114,34 @@ Story 2's suite stays green with the grown fixture (`assistant-identification-ta
 2's spec together: 12 passed, 7 failed. The seven are exactly the expected set: B0–B5 of
 `assistant-taggings-publish.spec.js` (the bundle does not call the route; the second card has no button) and story 2's
 re-aimed B5 (the same missing button). Story 2's other twelve pass.
+
+### After implementation (2026-09-22, `86a032c1`; tests at `74058174`)
+
+Recorded by the Tester for the Reviewer, who re-runs everything. Node 22.23.2 throughout.
+
+- **Two Tester-lane corrections after the suite's first runs against the implementation,** each its own `test:`
+  commit: S2 expected `grep -rl` to list the module itself, but grep matches contents and the module does not spell
+  its own name (`6e9a0eb2`); browser B1 expected no button on the done first card, but story 2 AC-3 keeps a card's
+  button rendered and disabled while nothing is checked, as story 2's own B1 pins (`74058174`).
+- **`test/assistant-taggings-publish.test.js`:** 19 passed, 0 failed, H1 executed live. Also green on the
+  implementation: `assistant-identification-tags-page` 15/0, `dual-z-writer` 14/0, `default-deny-mutations` 14/0,
+  `assistant-publish-relays` 39/0, `assistant-attention` 37/0.
+- **The book's gate, baseline vs after** (the widened pattern; 156 suites), read with `npm run gate:status -- --label …`:
+  - baseline `20260922T120710Z-33381-7613 [assistant-identification-tags-3-baseline]` on `1d547a43`: FAIL,
+    2622 passed, 62 failed, 121 skipped, 156/156 suites;
+  - after `20260922T121159Z-49324-9844 [assistant-identification-tags-3-after]` on `86a032c1` (clean tree): FAIL,
+    2640 passed, 44 failed, 121 skipped, 156/156 suites.
+  - **Suite by suite, the only change is `assistant-taggings-publish`, 1/18 → 19/0.** The failing set is the
+    baseline's minus the story suite: the host's eleven live-graph suites plus `tag-detail`, which the widened
+    pattern pulls in and which is red in both records.
+- **Browser, against the rebuilt UI on `localhost:7778`** (`scripts/dev-refresh.sh`: bundle `index-DUEUUBue.js`,
+  backend restarted 2026-09-22 12:12:16 UTC with the route), each class run whole: `assistant-taggings-publish` 6/6
+  (after the B1 correction; 5/6 before it), `assistant-identification-tags-page` 13/13 (B5 re-aimed),
+  `assistant-management-page` 22/22 + 1 skipped by design, `assistant-attention` 7/7, `assistant-alert` 10/10,
+  `assistant-publish-result` 4/4 — 61 passed, 1 skipped, and the one B1 failure that the correction closed.
+- **A genuine signed-in probe of the route** (a scratchpad script; the local owner's key from the Keychain signs
+  the kind 22242 challenge; nothing is published): an anonymous POST → 401 from the middleware; a person-signed key →
+  400 `not-an-assistant-tagging` with the approved words; the signed-in POST for both keys → 200 in 38 ms with two
+  `tag-not-found` rows (no canonical definition is reachable on this stack), and the local relay holds no tagging of
+  the viewer afterwards — nothing was signed or written.
+- `bash scripts/harness-lint.sh`: clean.
