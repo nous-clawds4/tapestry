@@ -1,6 +1,6 @@
 # ADR 0002: The Identification Tags page reads the one answer, and publishes your two taggings through the existing tagging publisher with a per-tagging, per-relay report
 
-**Status:** Proposed
+**Status:** Accepted (approved 2026-09-22)
 **Date:** 2026-09-22
 **Story:** `engineering-team/stories/assistant-identification-tags/2-the-page-and-your-two-taggings.md`
 
