@@ -111,3 +111,33 @@ The re-aimed hub suite passes before the change: `assistant-management-page` 24/
 (story 1's, which predates this story): 2 passed, 11 failed. B0 fails because the bundle
 does not contain the first card's title; B1 fails on the Treasure Map sentence; the rest time out looking for the
 cards, boxes and buttons the placeholder page does not have.
+
+### After implementation (2026-09-22, `860ec615`)
+
+Recorded by the Tester for the Reviewer, who re-runs everything. Node 22.23.2 throughout.
+
+- **Two Implementer-side rounds after the first commit** (story § Deviations 6 and the commit log): the copy module
+  was renamed `identificationTagsCopy.js` (ADR 0002 Amendment 1: a name differing from the page's only by case
+  resolved to the wrong file when the container built the UI from the case-insensitive bind mount), with this suite's
+  one path constant re-aimed in its own `test:` commit (`d7611992`); and the publisher's wrapper got its destructured
+  signature back after `test/dual-z-writer.test.js` pinned it (`860ec615`).
+- **`test/assistant-identification-tags-page.test.js`:** 15 passed, 0 failed. `dual-z-writer` 14/0,
+  `assistant-management-page` 24/0 (W1 re-aimed), `assistant-attention` 37/0.
+- **The book's gate, baseline vs after** (the widened pattern; the recipe now drops the registry's excluded suites,
+  which the pattern's `Tag\.jsx` had pulled in), read with `npm run gate:status -- --label …`:
+  - baseline `20260922T111447Z-47997-3777 [assistant-identification-tags-2-baseline]` on `cbae0c77`: FAIL,
+    2422 passed, 38 failed, 59 skipped, 131/131 suites;
+  - after `20260922T112709Z-91579-0287 [assistant-identification-tags-2-after]` on `860ec615`: FAIL,
+    2435 passed, 25 failed, 59 skipped, 131/131 suites.
+  - **Suite by suite, the only change is `assistant-identification-tags-page`, 2/13 → 15/0.** The 25 failures left
+    are the host's eleven live-graph suites, the same set as the baseline's (memory `host-gate-at-ci-parity`). An
+    intermediate after-run on `1089f04e` (`20260922T112211Z-79374-7255`) showed `dual-z-writer` 13/1, which the
+    signature fix closed.
+- **Browser, against the rebuilt UI on `localhost:7778`** (bundle `index-D7NZovvU.js`), each class run whole:
+  - `assistant-identification-tags-page.spec.js` 13/13; `assistant-management-page.spec.js` 22/22 with the
+    identification-tags placeholder case skipped as re-aimed; `authored-tagging.spec.js` 2/2 (one run, exit 0);
+  - on the previous bundle of the same code (`index-D1RmfFHM.js`, before the signature fix): `assistant-attention`
+    7/7, `assistant-alert` 10/10, and `tag-detail-write.spec.js` 20/29 — its nine failures are the nine ledger
+    `2026-09-22-staging-browser-class-83-red` lists for that spec ("Apply" buttons, a "Viewer Only Target" row, the
+    "find a profile to tag" field), red on the shared line before this book; six of the nine never publish.
+- `bash scripts/harness-lint.sh`: clean.
