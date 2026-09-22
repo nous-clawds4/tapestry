@@ -1,6 +1,6 @@
 # ADR 0001: Each definition has its author, and two taggings are parked
 
-**Status:** Proposed
+**Status:** Accepted (approved 2026-09-22)
 **Date:** 2026-09-22
 **Story:** `engineering-team/stories/identification-tags-authorship/1-two-authored-tags-and-two-parked-taggings.md`
 **Epic:** `identification-tags-authorship`

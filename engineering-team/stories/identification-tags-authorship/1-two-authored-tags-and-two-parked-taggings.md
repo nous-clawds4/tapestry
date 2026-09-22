@@ -107,6 +107,6 @@ New unless marked **owner**.
 4. **The fourth tagging keeps the name "My Human"** while parked; renaming later is one word.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/identification-tags-authorship/0001-each-definition-has-its-author-and-two-taggings-are-parked.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
