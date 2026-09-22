@@ -1,6 +1,6 @@
 # ADR 0002: The Setup Alert, one self-contained pill mounted beside each avatar menu and reading the shared setup answer
 
-**Status:** Accepted (Amendment 1 appended 2026-09-21: the control panel's brand yields room instead of wrapping; § 1's `aria-label`, § 3's `name` and `button` copy, § 4's white chip text and § 5's "No other trigger is added" superseded by `setup-status-and-alert` ADR 0003)
+**Status:** Accepted (Amendment 1 appended 2026-09-21: the control panel's brand yields room instead of wrapping; § 1's `aria-label`, § 3's `name` and `button` copy, § 4's white chip text and § 5's "No other trigger is added" superseded by `setup-status-and-alert` ADR 0003; Amendment 2 appended 2026-09-22: the pill sits centered in its bar wherever the bar has room)
 **Date:** 2026-09-21
 **Story:** `engineering-team/stories/done/setup-status-and-alert/2-the-setup-alert.md`
 **Builds on:** ADR 0001, whose provider and `pendingCount` this reads. It extends one line of ADR 0001
@@ -358,3 +358,46 @@ unchanged. The CSS goes next to § 4's rules:
   No other host's bar changes height.
 - **Tests:** the Tester adds a browser check that, at those widths, the control panel header is
   the same height with the pill as without it, and never scrolls.
+
+## Amendment 2 — the pill sits centered in its bar wherever the bar has room (2026-09-22)
+
+**Raised by:** the owner, about both pills: "They should be centered, but they are instead off to
+the right." Shipped as an operator-present hotfix (intake § 3); its trace is OPEN.md row
+`2026-09-22-topbar-alert-pill-centered`. It amends ADR assistant-management/0002 the same way (its Amendment 2).
+
+**Why.** Brainstorm, the model for this pill, centers it. Its app header is a three-column grid with the pill in
+the middle column (Brainstorm-UI `client/src/components/AppHeader.tsx`), and its landing page centers the pill
+absolutely (`client/src/pages/landing.tsx`). This ADR placed it beside the avatar menu instead.
+
+**Decision.** The mounts stay where they are. Option A holds, § 2's four hosts are unchanged, and the pill is still
+rendered beside each avatar menu. One CSS rule takes it out of the row and centers it on the bar, where the bar
+has room:
+- **the Brainstorm bars** (`.bsp-top-bar`, `.bss-top-bar`) **from 640 px.** Their sides hold only the logo, the
+  About link and the avatar;
+- **the control panel's header** (`.app-header`) **from 1200 px.** Its user button can carry a 150 px name and a
+  role badge, and the Assistant pill is 540 px wide at full size;
+- **the results view's header** (`.bs-results-header`) **at no width.** Its search box fills the middle.
+
+Narrower than that, the pill stays beside the avatar menu, and § 4's rules and Amendment 1's apply as before.
+The rule sits after the Assistant pill's block in `ui/src/styles.css`, since it covers both pills.
+
+**Measured** on the local stack, signed in through a fetch stub, with both pills:
+- **Centered to the pixel** at every page and width sampled:
+  - `/`, `/about`, `/settings` and `/developers` at 640, 680, 1024, 1200 and 1280 px;
+  - `/assistant` at 640, 1200 and 1280 px, with the Setup pill (the Assistant pill hides there);
+  - `/tapestry/` at 1200 and 1280 px.
+
+  Before the cutoffs were chosen, the centering on its own was injected on staging. It also measured centered on
+  the Brainstorm bars at 680, 900, 1023, 1024 and 1100 px.
+- **Nearest neighbour.** In every centered case measured, the pill is at least 14 px from anything else in the
+  bar. The closest case is the Assistant pill at 680 px on a TopBar page. At 1200 px, with a 150 px name and the Customer badge, the control panel's user
+  button is 19 px away.
+- **Fallback.** At 639 and 375 px (Brainstorm bars) and at 1199 px and below (control panel), the pill is back
+  beside the avatar, as before.
+- **Scrolling and height.** No bar scrolls sideways at any width checked. No bar changes height, with one
+  exception from 640 px up: the developer pages' bar no longer grows by the 7 px in Amendment 1's Consequences,
+  because the pill no longer sits in its row.
+
+**Tests.** `tests/brainstorm/setup-alert.spec.js`, `assistant-alert.spec.js` and `setup-alert-polish.spec.js` pass
+unchanged against the built UI: 83 of 83. Their B1s check where the pill is mounted, which did not move. **No test
+pins the centering**, a residual the hotfix leaves (see its ledger row).
