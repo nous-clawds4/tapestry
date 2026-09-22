@@ -120,6 +120,7 @@ import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Pl
 import AssistantManagementPage from './pages/assistant/Index';
 import EditAssistantProfilePage from './pages/assistant/EditProfile';
 import AssistantActionPage from './pages/assistant/ActionPage';
+import IdentificationTagsPage from './pages/assistant/IdentificationTags';
 import { ASSISTANT_ACTIONS } from './pages/assistant/actions';
 import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH } from './config/avatarMenuLinks';
 import Tag from './pages/Tag';
@@ -129,6 +130,12 @@ import PinRedirect from './components/PinRedirect';
 import BrainstormFeed from './pages/BrainstormFeed';
 import BrainstormEvent from './pages/BrainstormEvent';
 import NotFound from './pages/NotFound';
+// The action pages that are built, by action key; every other action routes to the placeholder
+// (assistant-identification-tags #2, ADR 0002 sub-decision 1).
+const ACTION_PAGES = {
+  'identification-tags': <IdentificationTagsPage />,
+};
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -261,8 +268,9 @@ const router = createBrowserRouter([
     path: MY_ASSISTANT_PATH,
     element: <EditAssistantProfilePage />,
   },
-  // The ten action pages under /assistant, placeholders for now: one route per ASSISTANT_ACTIONS entry.
-  ...ASSISTANT_ACTIONS.map((action) => ({ path: action.path, element: <AssistantActionPage action={action} /> })),
+  // The ten action pages under /assistant: one route per ASSISTANT_ACTIONS entry — the action's own page where one
+  // is built (ACTION_PAGES, keyed by action key), the placeholder otherwise (ADR assistant-identification-tags/0002).
+  ...ASSISTANT_ACTIONS.map((action) => ({ path: action.path, element: ACTION_PAGES[action.key] ?? <AssistantActionPage action={action} /> })),
   {
     path: '/tapestry',
     element: <Layout />,

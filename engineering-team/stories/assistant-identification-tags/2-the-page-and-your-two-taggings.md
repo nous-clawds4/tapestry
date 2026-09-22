@@ -158,8 +158,32 @@ No concept changes; no firmware reinstall.
 2. **The button's words** — *settled 2026-09-22 at approval:* the buttons name the signer. "Publish with
    your nostr extension" on the first card; "Have your Assistant publish" on the second (story 3).
 
+## Deviations
+
+*The Implementer's log (Phase 4, 2026-09-22): judgment calls too small for an ADR amendment, for the book-close
+audit.*
+
+1. **The failed-local-write lines** follow ADR 0002 sub-decision 5, not this story's § Copy row: the browser publish
+   sends locally and to the outside relays in parallel, so the page says what the relays did ("… could not be saved on
+   this instance's relay (reason), but a of n relays accepted it" / "… and none of the n relays accepted it" / "… and
+   local-only publish mode kept it from any other relay"). The § Copy row's "so it was not sent to any other relay"
+   describes story 3's server publish.
+2. **Three sentences the § Copy table did not have:** "Could not check: this instance did not answer." (the answer's
+   request failed); "Its tag definition could not be checked, so it can't be published yet." (a Missing row whose
+   definition check did not finish shows a disabled checkbox with it); and "… saved on this instance's relay only: no
+   outside relay was given." (a publish given no outside relay, which the page never does; the report util covers it).
+   All three are in `ui/src/pages/assistant/identificationTags.js` and the fixture.
+3. **A row the check could not settle has no checkbox** (AC-3 names checkboxes for Missing rows only), so on an
+   instance with no tag-federation relay and nothing on its local relay the page offers nothing to publish. Approved
+   with ADR 0002; the book's carry-forward notes a possible "publish anyway" later.
+4. **The results carry the editor's tone icons** (✅ ⚠️ ℹ️ ❌, as `AssistantProfileEditor.jsx` shows a publish result),
+   so the two publish reports in the app read alike. The product guardrail's "no emoji in product copy" was weighed;
+   the icons are status marks beside the sentence, not copy, and match the shipped editor.
+5. **The second card renders every row, state and checkbox but no button** (AC-5); its checkboxes are live, so a
+   viewer can already leave one out before story 3 wires the button.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/assistant-identification-tags/0002-the-page-reads-the-one-answer-and-publishes-through-the-tagging-publisher.md`
+- Test plan: `engineering-team/stories/assistant-identification-tags/2-the-page-and-your-two-taggings.test-plan.md`
 - Review: (filled in after Review phase)
