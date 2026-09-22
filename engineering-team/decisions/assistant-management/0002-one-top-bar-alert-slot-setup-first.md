@@ -1,10 +1,11 @@
 # ADR 0002: One alert slot beside every avatar menu shows one pill at a time — the Setup Alert's first, then the Assistant Alert
 
-**Status:** Accepted
+**Status:** Accepted (Amendment 1 appended 2026-09-21: the Setup Alert shipped first, as its own component; the
+two pills stand side by side and read the one setup answer)
 **Date:** 2026-09-21
 **Story:** `engineering-team/stories/assistant-management/2-the-assistant-alert.md`
 (the slot it designs is also where setup-status-and-alert #2, the Setup Alert, will render; see
-§ Decision 5)
+§ Decision 5. *Amendment 1: it shipped as its own component, beside the slot.*)
 
 ## Context
 
@@ -30,6 +31,7 @@ Story 2, in short:
 book's ADR 0001 left its story 2's ADR "only where the pill goes". The owner has since decided
 where both pills stand relative to each other (book assistant-management § Decisions 2: one at a
 time, setup first). This ADR therefore decides the shared place, and the Setup Alert plugs into it.
+*Amendment 1: no longer true. The Setup Alert shipped first, as its own component.*
 
 ### Concept-graph orientation
 
@@ -89,7 +91,8 @@ these estimates.
   - "The two pills never show together" holds by construction: one slot renders one element.
   - The precedence rule lives in one pure function that Node can test.
   - Every future page that uses `TopBar` or `BrainstormUserMenu` gets the slot for free.
-  - The Setup Alert needs no new mounts. It renders in the slot's `'setup'` branch.
+  - The Setup Alert needs no new mounts. It renders in the slot's `'setup'` branch. *(Amendment 1:
+    it has its own mounts, beside the slot.)*
 - **Cons:**
   - The menu components now render something beside themselves: a fragment in the two Brainstorm
     menus.
@@ -210,11 +213,12 @@ export default function TopBarAlert() {
   covers the landing page and the results view in one edit.
 - **`Header.jsx`:** in `.header-auth`'s signed-in branch, `<><TopBarAlert /><div className="header-user" …>…</div></>`.
   A new CSS rule makes it a row: `.header-auth { display: flex; align-items: center; gap: 8px; }`.
-  Today it holds one child, so the row changes nothing else.
+  Today it holds one child, so the row changes nothing else. *(Amendment 1: the Setup Alert brought
+  the same rule; its copy is the one kept.)*
 - **`DevPage.jsx`:** `<div className="bsp-auth"><TopBarAlert /></div>`. `DevPage` needs no
   `useAuth` of its own, because the slot reads it.
 
-**5. Hand-off to setup-status-and-alert #2 (the Setup Alert).**
+**5. Hand-off to setup-status-and-alert #2 (the Setup Alert).** *Superseded by Amendment 1.*
 
 - **Where it renders.** The Setup pill renders in this slot's `'setup'` branch, with
   `count = setupPendingCount`, and adds its own rule that hides it on `/setup` and its step pages.
@@ -226,7 +230,8 @@ export default function TopBarAlert() {
   next session will look.
 
 **6. Look and widths, in `ui/src/styles.css`.** Add one block, "Top-bar alert pill
-(assistant-management #2)".
+(assistant-management #2)". *Amendment 1 replaces the shape and the widths, and moves the nav
+step below 360 px.*
 
 - **Shape.** `.bs-topbar-pill` is an inline-flex, one-line (`white-space: nowrap`) rounded pill,
   about 30px tall, so it fits inside the Tapestry header's 48px and the Brainstorm bars.
@@ -258,7 +263,7 @@ export default function TopBarAlert() {
   the slot also decides the Setup pill. That keeps the slot simple, and the Setup Alert needs the
   answer for exactly those viewers.
 - **Until the Setup Alert ships, viewers with setup steps left see no pill at all.** Story 2 records
-  this as expected.
+  this as expected. *Superseded by Amendment 1: it has shipped.*
 - **The pill is persistent.** With all ten actions counted, a signed-in viewer who has an assistant
   and no setup left sees it on every page except `/assistant*`. The owner accepted this for
   staging. Whether it goes to production before the real checks exist is a promotion call
@@ -323,7 +328,125 @@ session is not needed: stubbed sign-in covers the states (AGENTS.md; `/cycle-loc
 ## Out of scope
 
 - **The Setup pill itself.** It is setup-status-and-alert #2, which renders into this slot
-  (sub-decision 5).
+  (sub-decision 5). *Amendment 1: beside this slot, not into it.*
 - Real "needs attention" answers (ADR 0001 § Consequences; `stories/_intake.md`, entry 2026-09-21).
 - Dismissing the pill, and noticing changes made elsewhere before the next full load.
 - Pages without a top bar: the site-wide "Page not found", and `/legacy/`.
+
+## Amendment 1: the Setup Alert shipped first, as its own component; the two pills stand side by side (2026-09-21)
+
+**Raised by:** the Reviewer (review 2, Blocking 1 and 2). The owner approved the fix plan on 2026-09-21:
+merge the shared line, keep both components side by side, and amend this ADR.
+
+**What changed under this ADR.** setup-status-and-alert #2 merged to staging (PR #737, `6754a16a`) before
+this story reached Review. Its ADR, setup-status-and-alert/0002, never saw this one. It shipped:
+- `ui/src/components/SetupAlert.jsx`, a self-contained pill, mounted at the same four places as this slot;
+- its own CSS: `.bs-setup-alert`, the same `.header-auth` row (`styles.css:672`), `:has(.bs-setup-alert)`
+  shedding at ≤ 440 px, and its Amendment 1's rules that stop the control panel's brand wrapping.
+
+So § Context's "The Setup Alert is not built", Option A's "needs no new mounts", sub-decision 5 and the
+§ Consequences line "Until the Setup Alert ships…" no longer hold. The branch merged `origin/staging` at
+`fc7021f2`.
+
+**Decision: side by side, the Setup Alert first.** This is Option B, which § Options rejected because
+"never both" would rest on two components agreeing. It is chosen now because the Setup Alert is reviewed and
+shipped. Moving it into this slot, review 2's choice (a), would reopen a Done story in another book, re-aim its
+suites and restyle it. That would only buy a property the shared answer already gives (point 3).
+
+1. **Mounts.** Each of the four hosts renders `<SetupAlert />` and then `<TopBarAlert />`, before its menu:
+   - the two Brainstorm menus return `<><SetupAlert /><TopBarAlert />{menu}</>`;
+   - the Tapestry header puts both first in `.header-auth`;
+   - `DevPage` puts both in `.bsp-auth`.
+2. **The picker is unchanged.** Its `'setup'` result now means "give way": the slot draws nothing, and the
+   Setup Alert draws itself beside it.
+3. **Why the two never show together.** Both read the one answer from `SetupStatusProvider`, in the same
+   render:
+   - the Setup Alert shows only when someone is signed in, `pendingCount` is at least 1, and the page is not
+     `/setup` or under it (`SetupAlert.jsx:24-25`);
+   - `pendingCount` is 0 unless the phase is `answered`: `useSetupStatus` summarizes `null` in every other
+     phase (`SetupStatusContext.jsx:82`, `setupStatus.js:20-36`);
+   - so whenever the Setup pill shows, `pickTopBarPill` returns `'setup'` and the slot draws nothing. On
+     `/setup` with a step left, neither shows: the Setup pill by its own rule, the Assistant pill because setup
+     comes first.
+
+   This holds by the shared answer, not by one element, so it depends on the Setup Alert keeping its rule. If
+   that pill ever showed on another condition, such as while the check runs or after it fails, the two could
+   show together. The dependency is written into the Setup Alert's book, and browser B3 now observes both
+   pills (§ Tests below).
+4. **Widths, re-measured with both components in the build.** B9, a new width sweep, ran on the merged build
+   before any fix: every `/api` route mocked, a Customer with a 29-character name.
+
+   | Where | Found |
+   |---|---|
+   | `TopBar` pages (`/`, `/tags`) at 560 px | a 91 px sideways scroll: the count had gone (≤ 900 px), but the sentence stayed until 480 px |
+   | the same at 656 px | 3 px |
+   | the same at 320 px | 24 px (review 2, Non-blocking 1) |
+   | `/tapestry/` at 560, 656, 700 and 800 px | the fixed header grew from 55 to 71 px: the brand rules of setup-status-and-alert/0002 Amendment 1 key on `.bs-setup-alert` only |
+   | `/developers`, at every width | the bar grows 8 px (39 → 47 px on narrow screens, 47 → 55 px on wide ones): the pill's own height beside a small logo |
+
+   Decision:
+   - **The Setup Alert's shape and size.** `.bs-topbar-pill` takes `.bs-setup-alert`'s paddings, gap and line
+     height, and its button takes the Setup Alert button's padding, instead of fixed 30 px and 22 px heights.
+     Story 2 § Copy asked for this ("Its shape and size match the Setup Alert's"), and it removed the 3 px at
+     656.
+   - **The count hides at ≤ 1023 px,** the Setup Alert's breakpoint (Brainstorm's lg).
+   - **The sentence hides at ≤ 679 px, not at the Setup Alert's 639.**
+     - This pill's button, "Manage Assistant →", is longer than "Finish setup →": at 640 px the pills are
+       379 px and 333 px wide.
+     - With the sentence showing, the `TopBar` pages need 652 px. At 640 they scroll 12 px, measured in 2 px
+       steps (the first fix, at 639, left this).
+     - 679 leaves 28 px for fonts wider than the ones measured here.
+   - **The control panel's brand rules fire for either pill:** `.app-header:has(.bs-setup-alert, .bs-topbar-pill)`.
+     Sub-decision 6's ≤ 480 px rules for this pill stay.
+   - **`TopBar`'s nav hides below 360 px** (`max-width: 359px`).
+     - This is sub-decision 6's own second step. It is needed only below 352 px: 31 px at 320, 1 px at 350.
+     - 360 px, a common phone width, keeps the About link.
+     - Neither avatar menu links to About, so below 360 px the bar offers no way to it while the pill shows.
+   - **One `.header-auth` rule:** the Setup Alert's, at `styles.css:672`. This block's copy goes.
+
+   **Measured with it:** B9, now on both sides of every breakpoint (19 widths from 320 to 1280 px), on `/`,
+   `/tags`, `/about`, `/settings`, `/developers` and `/tapestry/`:
+   - nothing scrolls sideways;
+   - the control panel header stays 55 px with the pill.
+
+   A scratch probe at 25 widths near each edge agrees.
+5. **The Setup Alert's own suite.** The editor moved (ADR 0001), so two tests in
+   `tests/brainstorm/setup-alert.spec.js` open `/assistant/profile/edit` instead of `/assistant`: its host row,
+   and B9, which creates an assistant there.
+
+**Consequences, updated:**
+- **"Never both"** comes from the shared answer plus the Setup Alert's rule. It is pinned by browser B3 with both
+  pills in the build:
+  - a step left shows the Setup pill and not this one;
+  - late answers are checked both ways;
+  - at most one pill shows at any sampled moment.
+
+  Node P3 and P8 pin the picker's side.
+- **The precedence still lives in one pure function.** The Setup Alert does not consult it, and does not need
+  to.
+- **The developer bar grows 8 px when either pill appears.** This is accepted, as setup-status-and-alert/0002
+  Amendment 1 accepted it for its pill: it is the pill's own height, not a wrap, and that bar is not fixed.
+- **Below 360 px, on `TopBar` pages,** the About link hides while the pill shows.
+- **Between 640 and 679 px** the Setup pill shows its sentence and this one does not. The two never show
+  together, so no bar mixes the two looks.
+- **Firmware reinstall required?** No.
+
+**Implementation notes:**
+- `ui/src/styles.css`, in the pill block:
+  - the shape;
+  - the 1023 and 679 px breakpoints;
+  - the `max-width: 359px` nav rule;
+  - the brand selectors;
+  - this block's `.header-auth` copy, removed.
+- `ui/src/components/TopBarAlert.jsx`: its comments say the slot gives way to the Setup Alert, not that it
+  hosts it.
+- Records:
+  - the "Changes from outside this book" note in `engineering-team/audits/setup-status-and-alert/book.md` says
+    what the merged code does, and names point 3's dependency;
+  - story 2 and its test plan get dated notes where they say the Setup Alert is unbuilt.
+- The four mounts were resolved in the merge, `fc7021f2`.
+
+**Tests (Tester):**
+- B3 observes the real Setup pill.
+- B9 is new (point 4).
+- `setup-alert.spec.js` is re-aimed (point 5), and story 1's test plan lists it among the re-aimed suites.
