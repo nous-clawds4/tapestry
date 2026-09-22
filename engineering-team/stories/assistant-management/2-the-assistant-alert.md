@@ -142,7 +142,8 @@ Small judgment calls made during implementation (Implementer role, step 9):
   branch. The slot draws nothing unless someone is signed in, so the page is the same either way, and
   this is a one-line diff. *(Since the merge of the Setup Alert, the slot comes just after it.)*
 - **In the two Brainstorm menus, the existing JSX is kept whole.** It is assigned to `const menu`, and
-  the component returns `<><TopBarAlert />{menu}</>`. That is the DOM sub-decision 4 describes, without
+  the component returns `<><TopBarAlert />{menu}</>` *(since the merge of the Setup Alert:
+  `<><SetupAlert /><TopBarAlert />{menu}</>`)*. That is the DOM sub-decision 4 describes, without
   re-indenting a return of about 100 lines, so each menu's diff is four lines.
 - **Phone width (sub-decision 6's shedding order):**
   - **Brainstorm bars:** only the first step was needed, `TopBar`'s logo word. `.bsp-top-nav` stays.
