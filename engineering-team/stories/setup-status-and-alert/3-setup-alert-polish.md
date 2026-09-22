@@ -122,4 +122,4 @@ Small judgment calls made during implementation (Implementer role, step 9):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`
 - Test plan: `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/setup-status-and-alert/3-setup-alert-polish.md`

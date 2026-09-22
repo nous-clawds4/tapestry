@@ -1,0 +1,519 @@
+# Review: Story 3 — The Setup Alert: readable, announced as it reads, and current
+
+**Reviewer:** Claude (acting as Reviewer). I did not write this story's ADR, its tests or its code.
+**Date:** 2026-09-21
+**Diff:** `git diff 6754a16a...HEAD` on `feat/setup-status-and-alert`, HEAD `bad15295`, working tree clean. `6754a16a`
+is staging's merge of story 2. The implementation alone is `git diff 6754a16a bad15295 -- ui/`, eight files. The
+commits:
+- `53f00c21` the story, the book's fifth frame bullet and the epic's story list;
+- `9b2aec35` ADR 0003;
+- `786801e1` the failing tests (14 Node, 18 browser) and story 2's two re-aimed suites;
+- `9fa997af` two test fixes made as the Tester during Phase 4, and two ledger rows;
+- `bad15295` the implementation.
+
+**Story:** `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.md`
+**ADR:** `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`. It supersedes parts of
+ADR 0002 and extends ADR 0001 § 3.
+**Test plan:** `engineering-team/stories/setup-status-and-alert/3-setup-alert-polish.test-plan.md`
+
+## In short
+
+- **One blocking issue. It is in the design, not the code** (Blocking 1).
+  - The code does what ADR 0003 says. But the ADR's rule that an event id triggers only one re-check (§ 3), together
+    with `publishEverywhere` running its two routes in parallel, lets the re-check start *before* the local write
+    when every outside relay answers first.
+  - The check reads the local relay first and stops at any local hit (`src/api/setup/status.js:143`). So a viewer
+    whose local relay already holds an older follow list or Map gets the old answer back as a finished one.
+  - The local announcement that follows is then dropped as a duplicate. The pill keeps counting the step until the
+    next full page load.
+  - I reproduced it on the built UI. It is uncommon: the local import has to lose a race against every outside
+    relay. But it breaks AC-3 in the way ADR 0003 says cannot happen: "The re-check starts after the event is on a
+    relay: after the local write" (`:101–102`).
+  - The fix is small, but it changes ADR § 1 or § 3, so it goes back to the Architect. If the owner would rather
+    accept the gap, AC-3 and the ADR need to say so.
+- **Everything else holds.** I checked it with my own runs, not the Implementer's numbers:
+  - the scoped gate, 100/100 suites, and the six suites outside it that read what the branch touches;
+  - the browser classes (83/83) and the /assistant specs (55/55);
+  - AC-1 in every host, at three widths, plain, hovered and focused. The chip is 7.54:1 everywhere, and no other
+    text is under 5.04:1;
+  - AC-2 in Chrome's own accessibility tree, at every breakpoint, for one, two and three steps;
+  - AC-4 for every letter case, on the preview and on the real server;
+  - AC-5: 135 host and width cases, identical to story 2's build;
+  - the three import pages, on every kind of answer.
+- **Non-blocking:**
+  - the older ADRs' Status lines don't record the supersession, which is the repo's convention;
+  - some sentences in ADR 0003 and the test plan are inaccurate;
+  - `/%73etup` still shows the pill;
+  - one import page no longer logs a failure.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **The walker triage, re-run first.**
+  - `/usr/bin/grep -rl readdirSync test/` finds 24 files: 22 suites and 2 helpers.
+  - The gate's selection (a dry run of the heredoc) is 93 named suites plus 7 walkers: 100, none missing from
+    `test/registry.js`.
+  - The grep extension adds exactly the 18 suites the plan lists. Story 2's grep alone finds 75 today.
+  - Five walkers are outside the gate: `close-unauth-write-surface`, `event-tagging-write-path`, `ledger-row-ids`,
+    `one-default-assistant-profile` and `reconciliation-rearchitecture`.
+  - `git diff --name-only 6754a16a...HEAD` touches `ui/src`, `test/`, `tests/brainstorm/`, `engineering-team/` and,
+    since `9fa997af`, `ledger/`. The plan says `ledger/` is untouched (Non-blocking 3).
+  - The suites that read the real `ledger/` are `harness-lint` (through the script it spawns) and `ledger-row-ids`.
+    Neither is in the gate, so I ran them (next item but one).
+- [x] **The story's scoped gate.** I ran the test plan's heredoc verbatim with `GATE_LABEL=setup-alert-3-review`.
+  `npm run gate:status -- --label setup-alert-3-review` reads:
+
+  ```
+  20260921T233256Z-17430-8a2f [setup-alert-3-review] started 2026-09-21T23:32:56.839Z on bad15295 — PASS, exit 0, 2010 passed, 0 failed, 4 skipped, 100/100 suites · /Users/wds4/repos/nous-clawds4/tapestry/tmp/gate-runs/20260921T233256Z-17430-8a2f.json
+  ```
+
+  - It ran on the committed tree (`git.dirty: false`) with no stray errors.
+  - The Test Design baseline is `20260921T230623Z-62382-a329`: 1996 passed and 14 failed, all 14 in
+    `setup-alert-polish`. 1996 + 14 = 2010, so the 14 reds turned green and nothing else changed.
+  - The four skips are the baseline's own: `deploy-safety-status` 1, `show-the-four…` 2 and `setup-status` H2 1.
+  - The first implementation gate, `20260921T231551Z-82497-86f3`, has exactly the two reds the plan's "During
+    Implementation" describes: `treasure-map-relay-presence` R2 and `setup-alert-polish` U5.
+  - The implementation commit cites `20260921T232046Z-1634-9661`, on `786801e1+dirty`. It has the same totals as my
+    run.
+- [x] **Six suites outside the gate, each run on its own through `.run()`:**
+  - `harness-lint`: 76 passed, 0 failed;
+  - `ledger-row-ids`: 6 passed, 0 failed;
+  - `event-tagging-write-path`: 19 passed, 0 failed;
+  - `reconciliation-rearchitecture`: 15 passed, 0 failed;
+  - `close-unauth-write-surface`: 14 passed, 0 failed;
+  - `one-default-assistant-profile`: 52 passed, 0 failed.
+- [x] **The UI build** (`npm --prefix ui run build`) exits 0.
+  - The hash did not change: `index-8tznIVuA.js`, `index-DLb1LOT-.css`.
+  - `:4173` serves that file (same SHA-256), and so does the live `:7778` stack.
+- [x] **The browser classes on `:4173`:**
+  - `setup-alert-polish`, `setup-alert` and `setup-status`: **83 passed** (18, 50 and 15) in 23.9 s;
+  - the /assistant specs: **55 passed**. Each has the `/api/**` catch-all, and the page publishes nothing from the
+    browser.
+- [x] **Story 2's build, for the baseline.**
+  - I built `6754a16a`'s `ui/` into the scratchpad. It gives `index-CVntJGmH.js`, the staging hash the plan names.
+    I served it on `:4174`.
+  - Story 3's and story 2's specs against it: **17 failed, 51 passed**. The 17 are exactly the Verification's
+    story 3 reds. The passes are story 2's 50 plus P3 Mute.
+- [x] **The live `:7778` bundle.**
+  - P0–P2 and P4: **14 passed**.
+  - The real server answers `/SETUP`, `/Setup/Follow`, `/SETUP/ACTIVATE` and `/Setup/create-account` with HTTP 200
+    and the app, so AC-4's spellings reach the router in production too.
+- [x] **eslint parity.** I counted problems per rule at HEAD and at `6754a16a` (through `--stdin`, with the ui config).
+  Nothing is new:
+  - `SetupAlert.jsx` and `steps.js` lint clean;
+  - `nostrPublish.js` has `no-empty` ×1, as the base does;
+  - `SetupStatusContext.jsx` has `only-export-components` ×1, as the base does;
+  - `TrustedAssertions.jsx` has `no-empty` ×1 and `exhaustive-deps` ×1;
+  - `UserDetail.jsx` has `no-empty` ×2;
+  - `BrainstormSettings.jsx` has `no-unused-vars` ×2, `no-empty` ×7 and `exhaustive-deps` ×1.
+- [x] **`bash scripts/harness-lint.sh`:** exit 0, "harness-lint: clean (0 violations)", on the tree under review.
+- [x] **Hygiene**, over every file the branch touches:
+  - no raw control bytes (the `perl` sweep);
+  - no 64-hex literal added (the fixtures are `'a1'.repeat(32)` and the like);
+  - one `console.warn`, which is Deviation 1;
+  - no TODO;
+  - no `package*.json`, eslint or vite config change.
+- [ ] _Lint not configured: skipped. The eslint parity check above is the book's check._
+- [ ] _Typecheck not configured: skipped._
+- [ ] _Build not configured: skipped. The UI build above is the book's check._
+
+### My own probes (session scratchpad `review3/`, not committed)
+
+All of them are hermetic:
+- the `/api/**` catch-all is registered first;
+- every WebSocket is answered in the page;
+- a fake NIP-07 signer signs.
+
+Two recorders are installed before the app loads:
+- a MutationObserver keeps every committed state of the pill and of `/setup`'s progress line;
+- a fetch wrapper records when each publish and status request starts and when its answer arrives.
+
+**AC-3 timing: Follow on a profile page, as a customer with two steps left.** Times are from the click.
+
+| Case | What happened |
+|---|---|
+| A: local-only gate; the re-check answer delayed 1.5 s | The publish was answered at +71 ms and the pill hid at +73 ms. "· 1 step left" at +1577 ms. No state in between carries the old count. Two reads. |
+| B: both routes, nothing delayed | The local answer came at +70 ms and started the re-check at +72 ms. The relays got the event at +74 ms. One re-check. |
+| C: both routes; the local import takes 800 ms; the relays answer at once; the local relay already holds an older kind 3 | The status mock answers as the real check would: from the local relay until the import lands. The relays accepted at +71 ms, and the re-check started at +72 ms, before the local write was answered at +834 ms. The re-check returned "· 2 steps left" and the pill showed it. The local announcement was dropped. Still "· 2 steps left" 6 s later, with two reads in all. **Blocking 1.** |
+| C2: as C, but the relays take 800 ms and the local import is instant | The re-check started after the local write. Ends on "· 1 step left". |
+| D: an in-app move to `/setup` 150 ms after the click; the answer delayed 2 s | `/setup` read "0 of 3 complete" until the answer, then "2 of 3 complete". Never the old "1 of 3". |
+
+**AC-2: the accessible name in Chrome's own tree** (CDP `Accessibility.getFullAXTree`). Playwright's `ariaSnapshot()`
+agrees at every width.
+
+| Width | Name |
+|---|---|
+| 1280, 1024 | "Finish setting up your account · N steps left Finish setup" for N = 2 and 3; "· 1 step left" for N = 1 |
+| 1023, 800, 640 | "Finish setting up your account Finish setup" |
+| 639, 375, 320 | "Finish setup" |
+
+- The visible text is the name plus the ⚠ and the arrow.
+- The pill measures 142.63, 333.30 and 412.50 px (N = 2). Story 2's build measures 142.61, 333.28 and 412.48 px. The
+  arrow's own span moves the width by 0.02 px, so story 2's 143, 333 and 412 px hold.
+
+**AC-1: contrast against the composited background**, at 1280, 800 and 375 px.
+
+| Host | Chip | Sentence | Count | Sentence / count on hover |
+|---|---|---|---|---|
+| `/tags`, `/about`, `/settings` (`.bss-*`), `/developers`, `/assistant` | 7.54 | 8.29 | 6.38 | 7.13 / 5.60 |
+| `/` (the landing page) | 7.54 | 8.24 | 6.34 | 7.10 / 5.58 |
+| `/tapestry/` (Owner and Customer), `/?q=` (the results view) | 7.54 | 7.36 | 5.76 | 6.32 / 5.04 |
+
+- The chip is `rgb(15, 15, 26)` on `rgb(210, 153, 34)`, at 12.48 px and weight 700. That holds in every host, at every
+  width, hovered and keyboard-focused.
+- The focus ring is `2px solid rgb(227, 179, 65)` with a 2 px offset, on `:focus-visible`.
+- The results view shows no pill at 375 px. That is its existing collapse at 600 px and below.
+- No global `a:visited` rule exists that could repaint the pill once `/setup` is in the history.
+
+**AC-5: layout, HEAD against story 2's build, with the pill showing.**
+- Hosts: `/tags`, `/`, `/about`, `/settings`, `/developers`, `/tapestry/` as Owner and as Customer, `/assistant` and
+  `/?q=jack`.
+- Widths: 320, 360, 375, 440/441, 600/601, 639/640, 768/769, 800, 1023/1024 and 1280.
+- Result: 135 cases. Bar heights, bar overflow, page overflow and whether the pill shows are identical, and the pill
+  widths agree within 0.1 px. No bar and no page overflows.
+
+**AC-4: which paths render a setup page, and whether the pill shows** (`:4173`, then story 2's build on `:4174`).
+- Every spelling below renders a setup page with no pill at HEAD: `/SETUP`, `/Setup`, `/sEtUp`, `/SETUP/`,
+  `/Setup/Follow`, `/SETUP/FOLLOW/`, `/setup/ACTIVATE`, `/Setup/create-account`, `/SETUP/CREATE-ACCOUNT`,
+  `/setup?x=1` and `/SETUP#top`.
+- Story 2's build shows the pill on `/SETUP` and `/SETUP#top`.
+- `/setup/unknown`, `/Setup/Unknown`, `/setupx` and `//setup` render "Page not found", which has no pill host. So
+  nothing is hidden where it should show.
+- `/%73etup` and `/%53ETUP` render `/setup` with the pill, on both builds (Non-blocking 4).
+
+**The three import sites, which the plan left out of the browser.**
+- Each site ran against four answers from `/api/strfry/publish`:
+  - success;
+  - a refusal (`{ success: false }`);
+  - an aborted request;
+  - an HTML 502.
+- The sites: the Treasure Map page (as Owner, inside "Where this Map lives"); UserDetail's Find for kinds 3 and 10040,
+  on the viewer's own page and on another user's; and Settings' `importLocal10040`.
+
+| Site | HEAD on success | HEAD on a failure | Against story 2's build |
+|---|---|---|---|
+| Treasure Map page | the button goes, and one re-check (1 → 2 reads) | the button stays; "Import failed: …" logged | the same on screen; the aborted and 502 cases logged "Import error: …" |
+| UserDetail, the viewer's own | the two Finds turn to "🔄 Update", and two re-checks (1 → 3 reads) | the Finds stay; nothing logged | the same on screen; the aborted and 502 cases logged "Find event error: …" (Non-blocking 5) |
+| UserDetail, another user | "🔄 Update", and no re-check | as for the viewer's own page | the same |
+| Settings | the button goes, and one re-check | the button stays; "[settings] 10040 import failed: …" | the same on screen; the aborted and 502 cases logged "… import error: …" |
+
+No page errors in any run.
+
+## Spec adherence
+
+- [x] **Every acceptance criterion has a passing test.** My own checks agree, with one exception:
+  - **AC-1:** P1 ×3 and S1. My table above covers every host, hover and focus.
+  - **AC-2:** P2 ×6, C1 and D1. My AX-tree sweep covers the breakpoints on both sides and N = 1, 2 and 3.
+  - **AC-3:** P3 ×4, U1–U8, D2, D3 and S2. The second clause holds in every ordering (probes A to D). The first clause
+    fails when the outside relays answer before the local import (Blocking 1). No test covers that ordering: P3 "both
+    routes" answers both routes at once, so the local route always wins (probe B).
+  - **AC-4:** P4 ×4 and D1, on the preview and on the real server. The percent-encoded spelling is Non-blocking 4.
+  - **AC-5:**
+    - story 2's 50 browser tests and 6 Node tests, and story 1's 15;
+    - my 135-case layout comparison;
+    - the import-page probes.
+    - The pill and its checks still only read: the new listener calls `refresh()`, which is a GET.
+- [x] **No criterion is silently dropped.**
+- [x] **No behaviour beyond the story.** The copy is unchanged on screen ("Finish setup →"), and every file changed is
+  on the ADR's list.
+
+## ADR adherence
+
+- [x] **§ 1, `nostrPublish.js`:**
+  - a module-level `Set` (`:16`);
+  - `onEventPublished` returns an unsubscribe (`:25–28`);
+  - `announcePublished` runs each listener inside `try/catch` (`:30–39`);
+  - the local route announces on `data?.success === true` (`:84`);
+  - the external route announces on `successes.length > 0`, after the relays settle (`:204`). The local-only gate's
+    return comes before it (`:165–168`);
+  - return values are unchanged, and `publishEverywhere` is unchanged.
+- [x] **§ 2, the three import sites:**
+  - each calls `publishToLocalStrfry` (`TrustedAssertions.jsx:106`, `UserDetail.jsx:312`,
+    `BrainstormSettings.jsx:370`);
+  - each keeps its `success` and `error` handling;
+  - nothing else in those files changed.
+- [x] **§ 3, the provider:**
+  - one effect keyed on `[pubkey, refresh]` (`SetupStatusContext.jsx:67–74`), which returns the unsubscribe;
+  - the filter is the ADR's: the viewer's `pubkey`, kind 3 or 10040, and an id not seen before;
+  - the header comment is updated;
+  - the request key, the reset guard and the lazy start are untouched.
+- [x] **§ 4, `SetupAlert.jsx`:**
+  - no `aria-label`;
+  - the path is lower-cased before the comparison (`:30–31`);
+  - the button span is the ADR's markup character for character, with the ⚠ still `aria-hidden`.
+- [x] **§ 5, `steps.js`:** `SETUP_ALERT_COPY` is `{ sentence, button: 'Finish setup', arrow: '→' }`, and
+  `alertCountText` is unchanged.
+- [x] **§ 6, `styles.css`:** the chip's colour becomes `#0f0f1a`, with a one-line comment. No other style change.
+- [x] **§ 7, the Tester's notes:**
+  - C1 and D1 re-aimed, and `pill()` finds the element;
+  - the new P, U, C, D and S classes;
+  - S2, the optional sentinel, is there.
+  - The only test file outside § 7's list is `test/treasure-map-relay-presence.test.js` (below).
+- [x] **No new dependencies.**
+- [ ] **The supersession.**
+  - ADR 0003 § Decision names the right clauses of ADR 0002: `:186`, `:211`, `:221` and `:247`.
+  - But neither ADR 0002's nor ADR 0001's Status line records it (Non-blocking 1).
+  - One of its quotes is not in the section it cites (Non-blocking 2).
+
+### The Phase-4 test changes (`9fa997af`)
+
+- **Form.**
+  - They are in their own `test:` commit, before `impl:`, and the plan's "During Implementation" records them.
+  - The Implementer role sends a wrong test back to the Tester (`engineering-team/roles/implementer.md:11`). This
+    session did that by taking the Tester's role. I cannot see whether the owner was asked.
+- **R2 keeps its intent.**
+  - It now accepts the literal endpoint or a `publishToLocalStrfry(` call in the page. That is exactly as strong as the
+    old "the literal appears anywhere in the page".
+  - U2 pins that `publishToLocalStrfry` POSTs to `/api/strfry/publish`: its fetch stub throws on any other URL.
+  - D3 pins that the three sites call the helper.
+- **U5 and U8's `useRealWebSocket()` is right and needed.**
+  - The leak is real: `test/honest-publish-reporting.test.js:154–157` installs `FakeRelaySocket` once and never
+    restores it, and the fake accepts any URL it does not know.
+  - My copy of the suite with `useRealWebSocket()` made a no-op fails U5 after `honest-publish-reporting` ("got
+    successes: [the stub relay, ws://127.0.0.1:1]"), and passes on its own.
+  - The real suite, run in the gate's true order in one process, gives 10/0, then 35/0, then 14/0.
+  - It loads `nostr-tools/pool`'s ESM build from `ui/`, which is the module `nostrPublish.js` gets in Node.
+- **Nothing downstream is at risk.**
+  - `setup-alert-polish` is the last registered suite (`test/registry.js:253`), in both `npm test` and the gate. So
+    the real socket it installs meets no later suite.
+  - By a grep of every suite registered after `honest-publish-reporting`, it is also the only one that loads
+    `nostrPublish.js` and publishes. So the new ledger row's "Nothing else is known to be affected" holds.
+- **U8** accepts one or two announcements of the event (`:208–209`). U2 and U5 pin each route on its own, so that is
+  enough.
+
+### The story's Deviations, checked
+
+1. **A listener that throws is logged:** accurate (`nostrPublish.js:36`, and U6).
+2. **The import sites' failure paths merge:** accurate. My import probes show nothing changes on screen for any answer.
+   The only differences are console lines, and "or do nothing" covers UserDetail (Non-blocking 5).
+3. **The header comment avoids the attribute's name:** accurate. D1's test is `!/aria-label/.test(src)`.
+4. **No live Follow:** accurate.
+   - Live `/api/publish-policy` answers `allowExternalPublish: true`.
+   - The deployed bundle is byte-identical to the one under review.
+   - I re-ran P0–P2 and P4 against it (14/14).
+   - I did not repeat the sign-in-only live pass.
+
+### Other documents, checked as claims
+
+- **ADR 0003 § Context:**
+  - All 26 of its line references are correct at `6754a16a`.
+  - The claim about `publishEvent.js:100–125` is true: the handler awaits `strfry import` before answering success.
+  - "`refresh()` has no caller" was true at the base.
+  - The prototype's names match my AX-tree sweep.
+  - 7.54:1 is measured.
+  - The raw publishers carry the kinds it lists:
+    - `NewDList` sends 9998 or 39998, and `NewDListItem` sends 9999 or 39999;
+    - `CuratedDListHeaders`' only import is a found DList header (`FoundHeader`, `:129`);
+    - `DListRatings` and `DListItemRatings` import kind 7 reactions;
+    - `useCreateTapestry` and `Add`/`RemoveConceptFromTapestry` send `signAs: 'assistant'`.
+  - `SearchPreferences.jsx:47` opens a raw WebSocket, but only to read.
+  - The rest of § Context and § Consequences: Non-blocking 2.
+- **The test plan:**
+  - These counts are right: 14 Node tests, 18 browser tests, 93 grep hits, the list of 18 and 100 suites.
+  - The Verification's 17 failed and 1 passed, and story 2's 50, are right (my run on story 2's build).
+  - I re-derived only the U5 row of its mutation table.
+  - The "During Implementation" gate order and the walker triage are not right (Non-blocking 3).
+- **The implementation commit message:** 83/83, 55/55 and the gate totals are confirmed, and so is "Deployed to the
+  local container".
+- **Ledger row `2026-09-21-honest-publish-fake-socket-leaks`:** accurate on every point I checked: `:156`, the default
+  "accept", never restored, and nothing else affected. The fourth-instance note on
+  `2026-09-21-adr-reaim-list-misses-outcome-asserts` is accurate too.
+- **The book's fifth frame bullet and the epic's story 3 entry:** they describe the story accurately. The frame's
+  "catches up without a reload" is subject to Blocking 1.
+
+## Concept-graph integrity
+
+- [x] **Handles.** No concept handle in the code. The story's orientation handles are story 1's.
+- [x] **Firmware.** No concept definition changed, so no reinstall is needed.
+- [x] **Orientation.** The code touches no concept.
+
+## Things tests can't catch
+
+- [x] **Secrets:** none.
+- [x] **Debug output:** only the deliberate `console.warn`.
+- [x] **Commented-out code:** none.
+- [x] **Error paths.** All three import pages behave the same on screen for every failure (probes).
+- [ ] **Races.**
+  - The route order is Blocking 1.
+  - The listener itself is sound:
+    - it re-subscribes when `pubkey` changes, and its cleanup unsubscribes, so a sign-out and sign-in or an account
+      switch leaves one listener;
+    - StrictMode's double mount (`ui/src/main.jsx:11`) is dev-only, and the cleanup covers it;
+    - the id `Set` grows by one entry per viewer save of kind 3 or 10040 that reached a relay. That is negligible.
+      It is never cleared across accounts, which is harmless: the ids are hashes of signed events.
+  - Two quick saves each re-check. The key change cancels the older read (the `cancelled` flag), so only the newest
+    answer shows.
+- [x] **Security.** Nothing new at a boundary. The listener only reads three fields (`pubkey`, `kind`, `id`) of an
+  event the app itself just published.
+- [x] **Load:** one extra status read per viewer save of kind 3 or 10040, as the ADR accepts.
+- [ ] **Browsers:** Chromium only.
+
+## House rules check
+
+- [x] **Concept Graph API authority** is respected; there is nothing to orient on.
+- [x] **No new lint, typecheck or build tooling.**
+- [x] **No hardcoded TA pubkey,** from the sweep of the whole branch diff.
+
+## Product-guide adherence *(no PRD; the book has an acceptance frame)*
+
+- [x] **Copy.** Unchanged on screen, byte for byte, including U+00B7 and U+2192.
+- [x] **Accessibility.**
+  - Story 2's review found this book had no accessibility baseline (its Harness friction 2).
+  - This story is that baseline's first use: AC-1 and AC-2 are measured above, in every host and at every breakpoint.
+
+## Findings
+
+### Blocking
+
+1. **`ui/src/context/SetupStatusContext.jsx:71–73` with `ui/src/utils/nostrPublish.js:84`, `:204` and `:217–220`: when
+   the outside relays answer before the local import, the re-check reads the local relay before the new event is in
+   it, and the local announcement that would correct it is dropped.**
+   - **The mechanism.**
+     - `publishEverywhere` runs both routes in parallel (`nostrPublish.js:217–220`).
+     - Each route announces on its own success:
+       - the local route after the server's `strfry import` (`:84`);
+       - the external route once at least one relay accepted, after all of them have settled (`:204`).
+     - The provider re-checks on the first announcement of an id and ignores every later one (`:71–73`; ADR 0003 § 3,
+       `:230`).
+     - The check reads the local relay first and stops at any local hit, of any age (`src/api/setup/status.js:143`).
+       It reads outside relays only on a local miss.
+     - So when every outside relay answers before the local import finishes, the re-check scans the local relay before
+       the new event is stored.
+     - If an older event of that kind is already there, the check returns the old answer as a finished one.
+     - When the local import lands a moment later, its announcement carries an id already seen, and nothing asks
+       again.
+   - **Reproduced on the built UI (probe C).**
+     - The Follow's relays accepted at +71 ms, the re-check started at +72 ms, and the local write was answered at
+       +834 ms.
+     - The pill went back to "· 2 steps left" and still read it 6 s later, with two reads in all.
+     - With the order reversed (C2), the same fixture ends on "· 1 step left".
+   - **A second way in, with no race.**
+     1. On the Treasure Map page, push the Map to a relay. That is an announcement from the external route alone
+        (`TreasureMapRelayPresence.jsx:181`).
+     2. The push re-checks. But the panel's targets include `aTapestryInstanceRelays` and `aTrustedListRelays`, which
+        the check's Map lookup never reads (compare `TreasureMapRelayPresence.jsx:20–25` with
+        `src/api/export/nip85/currentMap.js:19–26`). So the check can still find no Map.
+     3. Then "Import to local strfry" the same Map (`TrustedAssertions.jsx:106`). Its announcement has an id already
+        seen. If that Map names the viewer's assistant for rank and followers, step 3 is now done, but the pill
+        keeps counting it.
+     - I traced this path in the source. I did not drive it in the browser.
+   - **How likely.**
+     - Uncommon. The local import must lose to every one of the five outside relays, because `publishToRelays` waits
+       for all of them (`:181–193`).
+     - And the local relay must already hold an older, different event of that kind. That is common for Map edits,
+       and possible for a follow list already in this instance's relay.
+     - When it happens, the pill and `/setup` behave as they did before this story: the old count until the next
+       full page load. Nothing is written wrongly.
+   - **What it contradicts.**
+     - **AC-3** (story `:61–67`): "within a few seconds of the publish succeeding … the pill's count and `/setup` show
+       the new answer".
+     - **ADR 0003, Option A** (`:101–102`): "The re-check starts after the event is on a relay: after the local write,
+       which is the one the check reads first." That holds only when the local route announces first.
+     - Its Cons (`:106–107`) call the second announcement harmless: "which the de-duplication absorbs".
+   - **Why the tests pass.**
+     - P3 "both routes" answers the local publish and the relays at once, so the local route always wins (probe B).
+     - Its status mock gives the same answer whenever it is asked.
+     - The plan's mutation table pins the id de-duplication itself (test plan `:215`).
+   - **Asked change: an ADR 0003 amendment (Architect), a test (Tester), then the code.**
+     - Make sure a successful local write is always followed by a re-check that starts after it. Two small shapes:
+       - carry the route in the announcement, and let a local announcement re-check even when the id was first heard
+         from the relays;
+       - or have `publishEverywhere` announce once: after the local route when it succeeds, otherwise after the
+         external one.
+     - Either shape keeps one re-check in the usual order, so P3 "both routes" can stay as it is.
+     - Pin it with a P3 case in probe C's shape: the local publish delayed behind relays that accept at once, and a
+       status mock that answers from the local relay's state. It asserts that the pill ends on the new count.
+     - If the chosen shape lets the early, stale answer show for a moment, either say so in AC-3 or rule it out.
+     - Correct Option A's pro and its Cons, and record the change in the story's Deviations.
+     - If the owner would rather keep the current design, amend AC-3 and ADR 0003 to state the gap, and open a ledger
+       row.
+
+### Non-blocking
+
+1. **ADR 0002 `:3` and ADR 0001 `:3`: neither Status line records what ADR 0003 supersedes or extends.**
+   - The repo's convention records a partial supersession on the older ADR's Status line. For example,
+     `engineering-team/decisions/done/curated-dlist-update/0005-update-preview-and-honest-reads.md:3` says "(§7's
+     entries and §8's closing line superseded by `curated-dlist-update` ADR 0006)". There are nine more under
+     `done/dlist-curation/`, `done/my-curated-dlists/` and `done/curated-dlist-update/`.
+   - ADR 0002 still reads as if these were current:
+     - `aria-label={SETUP_ALERT_COPY.name}` (`:186`);
+     - the `name` and `'Finish setup →'` copy (`:211`);
+     - the white text on the chip (`:221`);
+     - "No other trigger is added" (`:247`).
+   - ADR 0001 does not mention the new trigger.
+   - Asked: add the parenthetical to both Status lines. It can go with Blocking 1's amendment.
+2. **ADR 0003: sentences the code or the source contradict.** Fix them with the amendment.
+   - **`:183` and `:190`: "within about a second" and "Any flash lasts only the local check's duration".**
+     - The check waits for both lookups (`src/api/setup/status.js:263–266`).
+     - Take a viewer with no Map anywhere: the usual new account, with step 3 left. Their Map lookup misses locally
+       and reads outside relays. That took about 2.5 s in story 2's live pass, and it is capped at 8 s (ADR 0001
+       `:189–191`).
+     - So after each follow, the pill is gone for that long before it comes back. I did not re-measure this live.
+   - **`:189`: "`/setup` shows its 'still checking' state".**
+     - `/setup` has no separate checking state. It shows "0 of 3 complete" with every step "Not done", step 1
+       included. That is story 1's design (probe D).
+     - It is not the old answer, so AC-3 holds.
+   - **`:40–41`: "(`publishToRelays`, then `publishToLocalStrfry`)".** These are the push and pull branches of one sync
+     (`TreasureMapRelayPresence.jsx:177–214`), not a sequence.
+   - **`:37–39`, the Treasure Map editors.** The list leaves out `CurateHereOffer.jsx:94–95`, which signs a kind 10040
+     (`upsertDListEntry`) and publishes through `publishOrThrow`. It is covered, so no behaviour is missing.
+   - **`:26–27`: "one of two routes".** That holds for the React app.
+     - The legacy static pages publish a signed 10040 through `/api/publish-signed-kind10040`:
+       `public/pages/nip85.html:324`, `customers/sign-up.html:790`, `customers/customer.html:986` and
+       `index.html:790`.
+     - They are separate documents, so the app loads again after them.
+     - Relatedly, S2 watches only the `/api/strfry/publish` literal. So `:199–200`, "The Tester's sentinel … makes a
+       new raw caller visible", covers that one endpoint.
+   - **`:172–173`: "The same section's 'a step completed in another app shows on the next full page load, or after
+     refresh()'".**
+     - That is the provider's own header comment (`SetupStatusContext.jsx:16–17` at `6754a16a`).
+     - ADR 0001 § 3 (`:351–370`) does not contain it. ADR 0001 § Consequences `:185` has a similar line.
+3. **The test plan:**
+   - **`:251–252`, the gate's order.** It is `honest-publish-reporting`, then `treasure-map-relay-presence`, then
+     `setup-alert-polish` (`test/registry.js:216`, `:220`, `:253`). It is not "then `setup-alert-polish`, then
+     `treasure-map-relay-presence`". The counts are right: in the true order I got 10/0, 35/0 and 14/0.
+   - **`:150–151`: "neither `src/` nor `ledger/`".** This stopped being true at `9fa997af`, which edits one ledger row
+     and adds another. The suites that read the real `ledger/` and are outside the gate pass on their own (above).
+     See Harness friction 1.
+   - **`:43` and `:58`:** P3 "both routes" cannot tell which route announced first (Blocking 1).
+4. **`ui/src/components/SetupAlert.jsx:30–31`: a percent-encoded spelling still shows the pill on a setup page.**
+   - `/%73etup` and `/%53ETUP` render `/setup` with the pill, on both builds, because the router decodes the path
+     before matching.
+   - AC-4 says "in any letter case", which this is not, and nobody types it.
+   - Optional: match with the router (`matchPath` or `useMatch`), or decode the path before comparing.
+5. **`ui/src/pages/users/UserDetail.jsx:312–315`: an aborted request or a non-JSON answer during the import no longer
+   logs.**
+   - Before, the `catch` logged "Find event error: …". Now `publishToLocalStrfry` resolves `{ success: false }`, and
+     this site's `else` does nothing.
+   - On screen nothing changes (probe), and Deviation 2's "or do nothing" records it.
+   - Optional: log in the `else`.
+6. **Not verified:**
+   - **Screen readers and voice control.** Chrome's accessibility tree is the evidence. Whether VoiceOver or NVDA
+     speak the "·" depends on their punctuation settings.
+   - **A live Follow.** The local stack publishes externally, as Deviation 4 says.
+   - **Firefox and Safari.**
+
+### Harness friction *(each becomes an OPEN.md row, type `meta`)*
+
+1. **The walker triage happens once, at Test Design, but Phase 4 can touch new trees.**
+   - `9fa997af` touched `ledger/` after the plan's triage said the branch did not.
+   - Also, the `readdirSync` grep cannot find a suite that reads a tree through a script it spawns.
+     `harness-lint.test.js` runs `scripts/harness-lint.sh` on the real repo, and that script's L15 reads every
+     `ledger/*.md`.
+   - Both passed here.
+   - Extend `2026-09-21-abbreviated-path-names-no-gate` with two clauses:
+     - re-triage after any commit that touches a new tree;
+     - count a suite that spawns a repo script as a reader of whatever that script reads.
+2. **The review template's closing section after `## Verdict` still makes a review that requests changes parse as
+   passed.**
+   - This is OPEN.md row 28. A two-line fixture through `scripts/lib/review-verdict.awk` confirms it still happens.
+   - This file puts its close-out above the verdict.
+   - Add a recurrence note to row 28.
+
+## Close-out (same commit)
+
+- [ ] Story `**Status:**` stays `Approved`: this review requests changes.
+- [ ] Completion detection: none until a later round clears Blocking 1.
+
+## Verdict
+
+**CHANGES_REQUESTED**
