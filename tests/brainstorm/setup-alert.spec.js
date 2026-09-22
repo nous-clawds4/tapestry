@@ -21,7 +21,8 @@ const { test, expect } = require('@playwright/test');
  *         same accessible name, and no top bar wider than the screen, on every host.  [AC-5]
  *   B8  — pages showing the pill only read (GETs; the Dashboard's Cypher reads over POST)
  *         and sign nothing.                                                            [AC-6]
- *   B9  — creating an assistant on /assistant updates the pill without a reload.      [ADR 0002 Decision 5]
+ *   B9  — creating an assistant on /assistant/profile/edit updates the pill without a reload (re-aimed by
+ *         assistant-management #1: the editor moved from /assistant).                   [ADR 0002 Decision 5]
  *   B10 — the results view carries the pill too (wide screens).                       [AC-1]
  *   B11 — the phone accommodations apply only while a pill is showing.                [ADR 0002 § 4]
  *   B12 — the control panel header keeps its height and never scrolls with the pill:
@@ -169,7 +170,8 @@ const HOSTS = [
   ['an own top bar (/about)', '/about', CUSTOMER, '.bs-usermenu-avatar-btn'],
   ['the developer pages (/developers)', '/developers', CUSTOMER, null],
   ['the control panel (/tapestry/, Owner)', '/tapestry/', OWNER, '.user-button'],
-  ['the My Assistant page (/assistant)', '/assistant', CUSTOMER, '.bs-usermenu-avatar-btn'],
+  // Re-aimed by assistant-management #1 (ADR assistant-management/0001): the editor moved from /assistant.
+  ['the Edit Assistant Profile page (/assistant/profile/edit)', '/assistant/profile/edit', CUSTOMER, '.bs-usermenu-avatar-btn'],
 ];
 
 test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
@@ -361,10 +363,12 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
   }
 
   /* ───────── B9 — freshness after creating an assistant ───────── */
-  test('B9: creating an assistant on /assistant updates the pill without a reload (ADR 0002 Decision 5)', async ({ page }) => {
+  // Re-aimed by assistant-management #1 (ADR assistant-management/0001): the editor, with its create button, moved from
+  // /assistant to /assistant/profile/edit.
+  test('B9: creating an assistant on the Edit Assistant Profile page updates the pill without a reload (ADR 0002 Decision 5)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const state = await mock(page, { who: NO_ASSISTANT, answers: [TWO_LEFT, ONE_LEFT] });
-    await open(page, '/assistant');
+    await open(page, '/assistant/profile/edit');
     const create = page.getByRole('button', { name: 'Create my Tapestry Assistant key' });
     await expect(create, 'the page offers to create an assistant: the viewer has none').toBeVisible();
     await expect(pill(page)).toContainText('· 2 steps left');
@@ -392,11 +396,14 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
     await expect(pill(page)).toBeVisible();
     await expect(page.locator('.bsp-top-bar .bsp-logo > span'), 'with a pill, the wordmark gives up its room').toBeHidden();
   });
+  // Re-aimed by assistant-management #2 (ADR assistant-management/0002 Amendment 1): a viewer with an assistant and no
+  // step left now gets the Assistant Alert's pill, which sheds the same text. "No pill" is a viewer with no assistant.
   test('B11: at 375 px the TopBar wordmark stays when there is no pill (ADR 0002 § 4)', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
-    await mock(page, { answers: [NONE_LEFT] });
+    await mock(page, { who: NO_ASSISTANT, answers: [NONE_LEFT] });
     await open(page, '/tags');
     await expect(pill(page)).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Manage your Tapestry Assistant', exact: true }), 'and no Assistant pill either').toHaveCount(0);
     await expect(page.locator('.bsp-top-bar .bsp-logo > span'), 'without a pill, nothing changes').toBeVisible();
   });
   test('B11: at 375 px the control panel role badge hides only while the pill shows (ADR 0002 § 4)', async ({ page }) => {
@@ -406,11 +413,13 @@ test.describe('The Setup Alert (setup-status-and-alert #2)', () => {
     await expect(pill(page)).toBeVisible();
     await expect(page.locator('.app-header .user-badge'), 'with a pill, the badge gives up its room').toBeHidden();
   });
+  // Re-aimed by assistant-management #2, as above: an Owner whose assistant key is missing.
   test('B11: at 375 px the control panel role badge stays when there is no pill (ADR 0002 § 4)', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
-    await mock(page, { who: OWNER, answers: [NONE_LEFT] });
+    await mock(page, { who: { ...OWNER, assistantPubkey: null }, answers: [NONE_LEFT] });
     await open(page, '/tapestry/');
     await expect(pill(page)).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Manage your Tapestry Assistant', exact: true }), 'and no Assistant pill either').toHaveCount(0);
     await expect(page.locator('.app-header .user-badge'), 'without a pill, nothing changes').toBeVisible();
   });
 

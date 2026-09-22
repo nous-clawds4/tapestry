@@ -45,6 +45,20 @@ taken at planning that shape it are recorded in the epic (`engineering-team/epic
 - `assistant-profile` — five ordered stories: a truthful setup prompt, the right publish relays, one
   default profile, the My Assistant page, one writer.
 
+## Changes from outside this book
+
+- **2026-09-21 — The My Assistant page moved to `/assistant/profile/edit` and is now "Edit Assistant
+  Profile"** (book `assistant-management`, story 1; ADR assistant-management/0001).
+  - `/assistant` is now the Assistant Management page, and "Assistant Management" in both avatar menus
+    leads there.
+  - The editor keeps its behaviour and its one constant, `MY_ASSISTANT_PATH`, now
+    `'/assistant/profile/edit'`, so every entry point that links through the constant followed it.
+  - The addresses written out by hand followed too: the three refusal messages (built from
+    `src/utils/assistantPages.js`), the two legacy panels and BIBLE §14.
+  - ADR 0004's route and ADR 0005's page name are superseded in part; each status line says so.
+  - Where this book's documents say "the My Assistant page (/assistant)", read the Edit Assistant Profile
+    page at `/assistant/profile/edit`.
+
 ## Provenance
 
 - **Mode:** Acceptance-frame

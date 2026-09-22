@@ -100,7 +100,7 @@ export default function UserDetail() {
               The server-side identity that signs automated events on your behalf.
             </span>
           </div>
-          {/* Every role edits their assistant on the My Assistant page (assistant-profile #4). */}
+          {/* Every role edits their assistant on the Edit Assistant Profile page (assistant-profile #4). */}
           <Link
             to={MY_ASSISTANT_PATH}
             className="btn btn-primary"

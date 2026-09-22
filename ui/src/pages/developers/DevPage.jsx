@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import SetupAlert from '../../components/SetupAlert';
+import TopBarAlert from '../../components/TopBarAlert';
 
 // Shared inline styles for the developer pages (reuses the legacy bsp- chrome).
 export const S = {
@@ -43,8 +44,9 @@ export default function DevPage({ title, intro, back = true, children }) {
         <a href="/" className="bsp-logo">
           <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
         </a>
-        {/* No avatar menu here: the Setup Alert takes its slot (setup-status-and-alert #2). */}
-        <div className="bsp-auth"><SetupAlert /></div>
+        {/* No avatar menu here: the top bar's alerts take its place — at most one shows (setup-status-and-alert #2;
+            ADR assistant-management/0002, Amendment 1). */}
+        <div className="bsp-auth"><SetupAlert /><TopBarAlert /></div>
       </div>
 
       <div className="bsp-content" style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1.5rem' }}>
