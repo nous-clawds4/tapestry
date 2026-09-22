@@ -1,8 +1,8 @@
 /**
  * Site trust signals — RFC 9116 security.txt, robots.txt, and probe-path classification.
  *
- * Story: engineering-team/stories/site-trust-signals/1-security-txt-and-honest-404s.md
- * ADR:   engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md
+ * Story: engineering-team/stories/done/site-trust-signals/1-security-txt-and-honest-404s.md
+ * ADR:   engineering-team/decisions/done/site-trust-signals/0036-security-txt-and-honest-404s.md
  *
  * Kept out of bin/control-panel.js so the document builders are unit-testable
  * without booting Express.

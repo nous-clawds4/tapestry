@@ -4,7 +4,7 @@
 **Type:** cleanup
 **Opened:** 2026-09-21 (assistant-profile #4 review, non-blocking 1)
 **Status:** DONE
-**Done:** 2026-09-21 (assistant-profile #5 Phase 3, `069ca3de`; #733) — W17–W20 in `test/my-assistant-page.test.js`
+**Done:** 2026-09-21 (assistant-profile #5 Phase 3, `069ca3de`; #733, promoted by #735) — W17–W20 in `test/my-assistant-page.test.js`
 are the CI-run counterparts of B1, B11, B12 and B16; each fails against the defect review 4 planted for its B-test.
 Line 24 of story 4's test plan is reworded.
 

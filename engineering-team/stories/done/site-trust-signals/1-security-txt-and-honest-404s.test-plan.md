@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — security.txt, robots.txt, and honest 404s
 
-**Story:** `engineering-team/stories/site-trust-signals/1-security-txt-and-honest-404s.md`
-**ADR:** `engineering-team/decisions/site-trust-signals/0036-security-txt-and-honest-404s.md`
+**Story:** `engineering-team/stories/done/site-trust-signals/1-security-txt-and-honest-404s.md`
+**ADR:** `engineering-team/decisions/done/site-trust-signals/0036-security-txt-and-honest-404s.md`
 **Date:** 2026-08-11
 
 ## Coverage map
