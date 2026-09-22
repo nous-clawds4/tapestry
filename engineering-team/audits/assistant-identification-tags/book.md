@@ -49,7 +49,8 @@ Recorded in full in the discovery brief. In short:
 
 ### Acceptance frame
 
-*To be confirmed when the owner approves the stories.*
+*Confirmed 2026-09-22, when the owner approved stories 1–3. The canonical author key is the owner's own
+(BIBLE §20, wds4/straycat).*
 
 - [ ] **The four required taggings**, the same on every instance: you on your Assistant, "My Tapestry
       Assistant" and "My Agent"; your Assistant on you, "My Tapestry Owner" and "My Human". Their
