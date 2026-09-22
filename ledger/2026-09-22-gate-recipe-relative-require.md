@@ -17,5 +17,11 @@ Reviewer one aborted gate launch on 2026-09-22.
 from the repo root; do not save it elsewhere". Better: a small `scripts/gate-for.sh <label> <pattern>` that
 owns the computation, so plans cite one command instead of copying twenty lines.
 
+**Second gap (2026-09-22, assistant-identification-tags #2, review § Harness friction 2).** The recipe exists only
+as prose in each plan plus scratchpad copies. Story 2's plan describes a further step — drop the registry's
+`excluded` suites, which a widened pattern (`Tag\.jsx`) pulls in and which make the launcher exit 2 — that lives in
+no committed file, so each role re-derives it and a sibling session's copy was already gone. The `scripts/gate-for.sh
+<label> <pattern>` shape above would close both gaps at once.
+
 **Pointer:** review `engineering-team/reviews/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
 § Harness friction 3; the plan's § How to run.
