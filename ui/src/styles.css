@@ -8991,6 +8991,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-idtags-row-name { font-weight: 600; }
 .bs-idtags-row-state { font-size: 0.85rem; line-height: 1.5; opacity: 0.7; }
 .bs-idtags-row.is-present .bs-idtags-row-state { color: var(--green, #3fb950); opacity: 0.9; }
+/* A parked row (identification-tags-authorship #1): listed, greyed out, its box disabled and unchecked. */
+.bs-idtags-row.is-parked { opacity: 0.55; }
+.bs-idtags-row.is-parked .bs-idtags-row-label { cursor: not-allowed; }
 .bs-idtags-actions { margin-top: 0.9rem; }
 .bs-idtags-publish {
   padding: 0.45rem 0.9rem;
