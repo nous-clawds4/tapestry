@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { REQUIRED_TAGGINGS, CANONICAL_TAG_AUTHOR } from '@tapestry/identification-tags';
+import { REQUIRED_TAGGINGS } from '@tapestry/identification-tags';
 import TopBar from '../../components/TopBar';
 import { useAuth } from '../../context/AuthContext';
 import { useConfig } from '../../context/ConfigContext';
@@ -17,14 +17,16 @@ import { IDENTIFICATION_TAGS_COPY as COPY, rowState, cardState } from './identif
 /**
  * /assistant/identification-tags — the Identification Tags page (assistant-identification-tags #2, ADR 0002).
  *
- * Four taggings make the handshake between a person and their Tapestry Assistant: two the person signs about the
- * Assistant (My Tapestry Assistant, My Agent) and two the Assistant signs about the person (My Tapestry Owner,
- * My Human). Each is a row on one of two cards, one per signer. The rows' states come from the one answer the hub
+ * Four taggings are listed for the handshake between a person and their Tapestry Assistant: two the person signs about
+ * the Assistant (My Tapestry Assistant, offered; My Agent, parked) and two the Assistant signs about the person (My
+ * Tapestry Owner, offered; My Human, parked). Each is a row on one of two cards, one per signer; a parked row is greyed,
+ * unchecked and uneditable, and nothing reads or publishes it (identification-tags-authorship #1). The offered rows'
+ * states come from the one answer the hub
  * and the Assistant Alert read too (AssistantAttentionContext, story 1), so the three cannot disagree; the page
  * fetches nothing itself.
  *
  * The first card's publish signs one tagging per checked row with the viewer's nostr extension, through the tagging
- * publisher every tagging goes through (publishProfileTagAssertionWithReport: the canonical tag, the viewer's own
+ * publisher every tagging goes through (publishProfileTagAssertionWithReport: the definition its own author published, the viewer's own
  * Assistant as the target, an apply), and reports what each relay did in the words of taggingPublishReport.js. The
  * second card's publish asks this instance to sign with the Assistant's own key, one request for every checked row
  * (publishAssistantIdentificationTaggings, story 3 / ADR 0003), and draws the server's report through the same util.
@@ -43,6 +45,7 @@ function rowText(row) {
   if (state === 'present') return COPY.states.present;
   if (state === 'missing') return row.definitionKnown ? COPY.states.missing : `${COPY.states.missing} ${COPY.definitionUnknown}`;
   if (state === 'checking') return COPY.states.checking;
+  if (state === 'parked') return COPY.states.parked;
   if (state === 'tag-not-found') return COPY.tagNotFound(row.entry.name);
   if (state === 'could-not-check') return COPY.couldNotCheck[reason] || COPY.couldNotCheck['request-failed'];
   return '';
@@ -69,8 +72,8 @@ function Result({ result }) {
 }
 
 /**
- * One card: its rows, a checkbox per missing row, its publish button (only when given `onPublish` — the second card
- * gets none until story 3), and its results.
+ * One card: its rows, a checkbox per missing row (and a disabled, unchecked one per parked row), its publish button
+ * (only when given `onPublish`), and its results.
  */
 function Card({ signer, title, rows, checked, onToggle, onPublish, publishing, results, notice }) {
   const state = cardState(rows);
@@ -94,7 +97,7 @@ function Card({ signer, title, rows, checked, onToggle, onPublish, publishing, r
         <ul className="bs-idtags-rows">
           {rows.map((row) => {
             const { entry, state: rowStateName, definitionKnown } = row;
-            const hasBox = rowStateName === 'missing' || rowStateName === 'tag-not-found';
+            const hasBox = rowStateName === 'missing' || rowStateName === 'tag-not-found' || rowStateName === 'parked';
             const boxEnabled = rowStateName === 'missing' && definitionKnown && !publishing;
             const text = rowText(row);
             return (
@@ -190,7 +193,7 @@ export default function IdentificationTagsPage() {
       const { entry, answerRow } = row;
       try {
         const { result } = await publishProfileTagAssertionWithReport({
-          tag: { eventId: answerRow.definition.eventId, slug: entry.slug, authorPubkey: CANONICAL_TAG_AUTHOR },
+          tag: { eventId: answerRow.definition.eventId, slug: entry.slug, authorPubkey: entry.author },
           targetPubkey: user.assistantPubkey,
           polarity: 1,
           localTaPubkey: taPubkey,

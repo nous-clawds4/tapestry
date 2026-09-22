@@ -3,37 +3,40 @@ const X = require('../../test/helpers/assistantManagementFixtures');
 const T = require('../../test/helpers/identificationTagsFixtures');
 
 /**
- * assistant-identification-tags #3: your Assistant's two taggings — the browser class.
+ * assistant-identification-tags #3: your Assistant's taggings — the browser class.
+ * Re-aimed 2026-09-22 by identification-tags-authorship #1: the Assistant publishes one offered tagging, "My Tapestry
+ * Owner"; "My Human" is parked (greyed, a disabled unchecked box) and never posted.
  *
- * Story: engineering-team/stories/assistant-identification-tags/3-your-assistants-two-taggings.md
- * ADR:   engineering-team/decisions/assistant-identification-tags/0003-your-assistant-signs-its-two-taggings-through-one-narrow-route.md
- * Plan:  engineering-team/stories/assistant-identification-tags/3-your-assistants-two-taggings.test-plan.md
+ * Story: engineering-team/stories/done/assistant-identification-tags/3-your-assistants-two-taggings.md
+ * Re-aim: engineering-team/stories/identification-tags-authorship/1-two-authored-tags-and-two-parked-taggings.md (its ADR 0001, plan)
  * Node half: test/assistant-taggings-publish.test.js (E/B/C/S/R/H). Words and answers: test/helpers/identificationTagsFixtures.js.
  *
  *   B0 — the served origin runs a build with the second card's button.                                [prerequisite]
- *   B1 — a pending answer: the second card's button, enabled; the first card's stays disabled (done).   [AC-5]
- *   B2 — the press: one POST with the checked keys, the row's summary and relay lines, the rows flip
+ *   B1 — a pending answer: the second card's button, enabled, its offered box checked, the parked box
+ *        inert; the first card's button stays disabled (done).                                          [AC-5]
+ *   B2 — the press: one POST with the one checked key, the row's summary and relay lines, the row flips
  *        to Present, the hub counts nine.                                                              [AC-1, AC-4, AC-5]
- *   B3 — a failed local write and a tag not found, each on its own row; the tone rule.                 [AC-4, AC-6]
+ *   B3 — a failed local write, then a tag not found, each on the row; the tone rule.                    [AC-4, AC-6]
  *   B4 — a whole-request refusal (no Assistant) shows its words; a request that never answers shows
  *        the notice; nothing else changes.                                                             [AC-2, AC-5]
  *   B5 — during the second card's press the first card's controls stay enabled; nothing is posted
  *        before the press.                                                                             [AC-5, AC-7]
+ *   B6 — the parked box on the second card cannot be checked, and a press never names it.              [authorship AC-3, AC-5]
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked; the publish route answers per scenario and logs its bodies; the attention route answers
- * a queue so the rows can flip after a press. No signer is needed: the Assistant signs on the server, which is mocked.
+ * a queue so the row can flip after a press. No signer is needed: the Assistant signs on the server, which is mocked.
  *
- * These FAIL against the build before this story: the second card has no button.
+ * These FAIL against the build before the re-aim: "My Human" has a live checked box and the press posts two keys.
  */
 
 const TA = 'aa'.repeat(32);
 const CUSTOMER = 'cc'.repeat(32);
 const CUSTOMER_ASSISTANT = 'c1'.repeat(32);
 const CUSTOMER_USER = { pubkey: CUSTOMER, classification: 'customer', assistantPubkey: CUSTOMER_ASSISTANT };
-const ASSISTANT_ROWS = T.REQUIRED.filter((e) => e.signer === 'assistant');
-const OWNER_ROW = ASSISTANT_ROWS[0];
-const HUMAN_ROW = ASSISTANT_ROWS[1];
+const OWNER_ROW = T.OFFERED.find((e) => e.signer === 'assistant');      // My Tapestry Owner
+const PARKED_ROW = T.PARKED.find((e) => e.signer === 'assistant');      // My Human
+const OFFERED_PERSON = T.OFFERED.find((e) => e.signer === 'person');    // My Tapestry Assistant
 
 const SETUP_DONE = {
   success: true, signedIn: true, steps: {
@@ -42,10 +45,10 @@ const SETUP_DONE = {
     activate: { done: true, pending: false, finished: true, otherProvider: false, source: 'local' },
   },
 };
-/** Both of the Assistant's taggings missing, the person's present, definitions found. */
+/** The Assistant's offered tagging missing, the person's present, definitions found. */
 const ASSISTANT_MISSING = T.attentionAnswer({
   finished: true, done: false, pending: true,
-  rows: T.REQUIRED.map((e) => T.taggingRow(e, e.signer === 'assistant' ? { present: false, source: null } : {})),
+  rows: T.OFFERED.map((e) => T.taggingRow(e, e.signer === 'assistant' ? { present: false, source: null } : {})),
 });
 
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -87,7 +90,7 @@ async function mock(page, { who = CUSTOMER_USER, attention = ASSISTANT_MISSING, 
     log.publishBodies.push(body);
     if (publish === 'hang') return new Promise(() => {});
     const answer = typeof publish === 'function' ? publish(body) : publish;
-    if (!answer) return r.fulfill(json(T.serverAnswer(ASSISTANT_ROWS.map((e) => T.serverPublishedRow(e)))));
+    if (!answer) return r.fulfill(json(T.serverAnswer([T.serverPublishedRow(OWNER_ROW)])));
     return r.fulfill(json(answer.body || answer, answer.status || 200));
   });
   return log;
@@ -126,26 +129,38 @@ async function bundleContains(request, needle) {
 const cards = (page) => page.locator('.bs-idtags-card');
 const personCard = (page) => cards(page).nth(0);
 const assistantCard = (page) => cards(page).nth(1);
+const rowsOf = (card) => card.locator('.bs-idtags-rows li');
 const boxOf = (card, name) => card.getByRole('checkbox', { name, exact: true });
 const buttonOf = (card, name) => card.getByRole('button', { name, exact: true });
 const results = (card) => card.locator('.bs-idtags-results');
 
-test.describe("Your Assistant's two taggings (assistant-identification-tags #3)", () => {
+/** The parked row on the second card: greyed, its box disabled and unchecked, the words. */
+async function expectParked(card, entry) {
+  const row = rowsOf(card).filter({ hasText: entry.name }).first();
+  await expect(row, `${entry.name} is a parked row`).toHaveClass(/is-parked/);
+  expect(squash(await textOf(row))).toContain(T.PAGE_COPY.states.parked);
+  await expect(boxOf(card, entry.name)).toBeDisabled();
+  await expect(boxOf(card, entry.name)).not.toBeChecked();
+}
+
+test.describe("Your Assistant's taggings (assistant-identification-tags #3, re-aimed by identification-tags-authorship #1)", () => {
   test.beforeEach(async () => {
     if (process.env.BRAINSTORM_SERVER_ACCESSIBLE !== 'true') test.skip('Brainstorm server not accessible (set BRAINSTORM_SERVER_ACCESSIBLE=true)');
   });
 
   test('B0: the served origin runs a build with the second card\'s button', async ({ request, baseURL }) => {
     const { found, why } = await bundleContains(request, T.PUBLISH_ROUTE);
-    expect(found, `the bundle served by ${baseURL} does not call ${T.PUBLISH_ROUTE} (${why}). Rebuild the UI, or the story is not built yet — B1–B5 say so directly.`).toBe(true);
+    expect(found, `the bundle served by ${baseURL} does not call ${T.PUBLISH_ROUTE} (${why}). Rebuild the UI, or the story is not built yet — B1–B6 say so directly.`).toBe(true);
   });
 
-  test("B1: with the Assistant's two taggings missing, the second card offers \"Have your Assistant publish\", enabled, with both boxes checked; the first card is done (AC-5)", async ({ page }) => {
+  test("B1: with the Assistant's offered tagging missing, the second card offers \"Have your Assistant publish\", enabled, with its box checked and the parked box inert; the first card is done (AC-5)", async ({ page }) => {
     await mock(page);
     await open(page);
     const card = assistantCard(page);
     await expect(card).toHaveClass(/is-marked/);
-    for (const e of ASSISTANT_ROWS) await expect(boxOf(card, e.name)).toBeChecked();
+    await expect(boxOf(card, OWNER_ROW.name)).toBeChecked();
+    await expect(boxOf(card, OWNER_ROW.name)).toBeEnabled();
+    await expectParked(card, PARKED_ROW);
     await expect(buttonOf(card, T.PAGE_COPY.buttons.assistant)).toBeEnabled();
     await expect(personCard(page)).toHaveClass(/is-done/);
     // Story 2 AC-3: a card's button stays rendered and disabled while nothing is checked (its B1 pins the same).
@@ -153,39 +168,48 @@ test.describe("Your Assistant's two taggings (assistant-identification-tags #3)"
     if (await personButton.count()) await expect(personButton, "the first card's button, nothing to publish").toBeDisabled();
   });
 
-  test('B2: the press — one POST with the checked keys; each row\'s summary and relay lines; then the rows flip and the hub counts nine (AC-1, AC-4, AC-5)', async ({ page }) => {
+  test('B2: the press — one POST with the one checked key; the row\'s summary and relay lines; then the row flips and the hub counts nine (AC-1, AC-4, AC-5)', async ({ page }) => {
     const log = await mock(page, { attention: [ASSISTANT_MISSING, T.DONE] });
     await open(page);
     const card = assistantCard(page);
-    await boxOf(card, OWNER_ROW.name).uncheck();
     await buttonOf(card, T.PAGE_COPY.buttons.assistant).click();
     await expect.poll(() => log.publishBodies.length, { timeout: 15000 }).toBe(1);
-    expect(log.publishBodies[0], 'only the checked key').toEqual({ keys: [HUMAN_ROW.key] });
+    expect(log.publishBodies[0], 'the one checked key, never the parked one').toEqual({ keys: [OWNER_ROW.key] });
     await expect(results(card)).toBeVisible();
     const text = squash(await textOf(results(card)));
-    const row = T.serverPublishedRow(HUMAN_ROW);
+    const row = T.serverPublishedRow(OWNER_ROW);
     expect(text).toContain(row.message);
     expect(text).toContain('wss://a.example — accepted');
-    expect(text).not.toContain(`"${OWNER_ROW.name}"`);
+    expect(text).not.toContain(`"${PARKED_ROW.name}"`);
     await expect.poll(() => log.attentionCalls, 'the answer was re-read').toBeGreaterThanOrEqual(2);
-    await expect(card, 'the rows flipped').toHaveClass(/is-done/, { timeout: 10000 });
+    await expect(card, 'the row flipped').toHaveClass(/is-done/, { timeout: 10000 });
+    await expectParked(card, PARKED_ROW);
     await page.goto(X.HUB);
     await page.locator('main').first().waitFor({ timeout: 20000 });
     await page.waitForTimeout(1500);
     expect(squash(await textOf(page.locator('main').first()))).toContain(X.countText(9));
   });
 
-  test('B3: a failed local write and a tag not found — each on its own row, with the error tone; the card stays marked (AC-4, AC-6)', async ({ page }) => {
-    await mock(page, { publish: T.serverAnswer([T.serverLocalFailedRow(OWNER_ROW), T.serverTagNotFoundRow(HUMAN_ROW)]) });
+  test('B3: a failed local write, then a tag not found — each on the row, with the error tone; the card stays marked (AC-4, AC-6)', async ({ page }) => {
+    await mock(page, { publish: T.serverAnswer([T.serverLocalFailedRow(OWNER_ROW)]) });
     await open(page);
-    const card = assistantCard(page);
+    let card = assistantCard(page);
     await buttonOf(card, T.PAGE_COPY.buttons.assistant).click();
     await expect(results(card)).toBeVisible();
     await page.waitForTimeout(1000);
-    const text = squash(await textOf(results(card)));
-    expect(text).toContain(T.serverLocalFailedRow(OWNER_ROW).message);
-    expect(text).toContain(T.PAGE_COPY.tagNotFound(HUMAN_ROW.name));
-    await expect(results(card).locator('.bs-idtags-result.is-error')).toHaveCount(2);
+    expect(squash(await textOf(results(card)))).toContain(T.serverLocalFailedRow(OWNER_ROW).message);
+    await expect(results(card).locator('.bs-idtags-result.is-error')).toHaveCount(1);
+    await expect(card).toHaveClass(/is-marked/);
+
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await mock(page, { publish: T.serverAnswer([T.serverTagNotFoundRow(OWNER_ROW)]) });
+    await open(page);
+    card = assistantCard(page);
+    await buttonOf(card, T.PAGE_COPY.buttons.assistant).click();
+    await expect(results(card)).toBeVisible();
+    await page.waitForTimeout(1000);
+    expect(squash(await textOf(results(card)))).toContain(T.PAGE_COPY.tagNotFound(OWNER_ROW.name));
+    await expect(results(card).locator('.bs-idtags-result.is-error')).toHaveCount(1);
     await expect(card).toHaveClass(/is-marked/);
   });
 
@@ -198,7 +222,6 @@ test.describe("Your Assistant's two taggings (assistant-identification-tags #3)"
     expect(squash(await textOf(card))).toContain(T.REFUSALS['no-assistant']);
 
     await page.unrouteAll({ behavior: 'ignoreErrors' });
-    await page.route(`**${T.PUBLISH_ROUTE}`, (r) => r.abort('failed'));
     await mock(page);
     await page.unroute(`**${T.PUBLISH_ROUTE}`);
     await page.route(`**${T.PUBLISH_ROUTE}`, (r) => r.abort('failed'));
@@ -211,7 +234,7 @@ test.describe("Your Assistant's two taggings (assistant-identification-tags #3)"
   });
 
   test("B5: during the second card's press the first card's controls stay enabled, and nothing is posted before a press (AC-5, AC-7)", async ({ page }) => {
-    const both = T.attentionAnswer({ finished: true, done: false, pending: true, rows: T.REQUIRED.map((e) => T.taggingRow(e, { present: false, source: null })) });
+    const both = T.attentionAnswer({ finished: true, done: false, pending: true, rows: T.OFFERED.map((e) => T.taggingRow(e, { present: false, source: null })) });
     const log = await mock(page, { attention: both, publish: 'hang' });
     await open(page);
     expect(log.nonGet, 'nothing posted before a press').toEqual([]);
@@ -219,7 +242,19 @@ test.describe("Your Assistant's two taggings (assistant-identification-tags #3)"
     await page.waitForTimeout(800);
     await expect(buttonOf(assistantCard(page), T.PAGE_COPY.publishing)).toBeDisabled();
     await expect(buttonOf(personCard(page), T.PAGE_COPY.buttons.person), "the first card's button").toBeEnabled();
-    await expect(boxOf(personCard(page), T.REQUIRED[0].name), "the first card's boxes").toBeEnabled();
+    await expect(boxOf(personCard(page), OFFERED_PERSON.name), "the first card's offered box").toBeEnabled();
     expect(log.publishBodies).toHaveLength(1);
+  });
+
+  test('B6: the parked box on the second card cannot be checked, and a press never names it (identification-tags-authorship #1 AC-3, AC-5)', async ({ page }) => {
+    const log = await mock(page);
+    await open(page);
+    const card = assistantCard(page);
+    await expectParked(card, PARKED_ROW);
+    await boxOf(card, PARKED_ROW.name).click({ force: true });
+    await expect(boxOf(card, PARKED_ROW.name), 'a click changes nothing').not.toBeChecked();
+    await buttonOf(card, T.PAGE_COPY.buttons.assistant).click();
+    await expect.poll(() => log.publishBodies.length, { timeout: 15000 }).toBe(1);
+    expect(log.publishBodies[0]).toEqual({ keys: [OWNER_ROW.key] });
   });
 });

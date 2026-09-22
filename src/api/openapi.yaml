@@ -295,13 +295,15 @@ paths:
       description: >-
         Read-only. Answers for the session's viewer and the assistant this instance holds for them, and takes
         no parameters. `actions` maps each action that has a real check to its answer; today only
-        `identification-tags`, the four taggings between a person and their assistant (My Tapestry Assistant and
-        My Agent by the person; My Tapestry Owner and My Human by the assistant). Each tagging is looked up by its
+        `identification-tags`, the offered taggings between a person and their assistant: My Tapestry Assistant (by
+        the person) and My Tapestry Owner (by the assistant); My Agent and My Human are listed but parked, and never
+        looked up. Each tagging is looked up by its
         replaceable address on the local relay first and on the configured tag-federation relays only on a local
         miss; `present` means the signer's latest stance applies it; `finished` is false when the check could not
         be completed (`reason`). The action is `done` when every tagging is finished and present, and `pending`
         (what the Assistant Alert counts) when a finished check found one missing. Each row's `definition` says
-        whether the tag's canonical definition was found. Without a session it answers
+        whether the tag's definition was found at its own author's address (Nous for My Tapestry Assistant, Nous'
+        Tapestry Assistant for My Tapestry Owner). Without a session it answers
         `{ success: true, signedIn: false }`; with a session but no assistant here, `hasAssistant: false`.
       responses:
         '200':
@@ -356,12 +358,13 @@ paths:
       summary: Have the signed-in viewer's own Assistant sign and publish its identification taggings of them
       description: >-
         A narrow, session-bound route, in the shape of publish-profile, through which the signed-in person's own
-        Assistant signs its identification taggings: the required taggings whose signer is the Assistant ("My Tapestry Owner", "My Human"), each an ordinary nostr-user-tag
-        assertion of the canonical tag, tagging the viewer, as an apply. Whose Assistant comes from the session
+        Assistant signs its identification taggings: the offered taggings whose signer is the Assistant (today "My
+        Tapestry Owner"; "My Human" is listed but parked, and a body naming it is refused), each an ordinary
+        nostr-user-tag assertion of the definition its own author published, tagging the viewer, as an apply. Whose Assistant comes from the session
         (the Owner's is the instance TA; anyone else's their own); nothing in the body names a person or an
         Assistant. Refused before any key is read: no session (401 not-signed-in), a body that is not a non-empty
         list of those keys (400 not-an-assistant-tagging), no Assistant on this instance (403 no-assistant). Per
-        tagging: its canonical definition must be findable (local relay first, then the tag-federation relays) or
+        tagging: its definition must be findable at its author's address (local relay first, then the tag-federation relays) or
         that tagging alone is refused as tag-not-found; the event is written to this instance's relay first (a
         failed write sends it nowhere and says so), then to the configured general-purpose, profile, WoT and
         tag-federation relays, each reported (accepted, refused, unreachable, timeout; skipped in local-only mode).
@@ -376,7 +379,7 @@ paths:
               properties:
                 keys:
                   type: array
-                  description: The keys of required taggings whose signer is the Assistant (today my-tapestry-owner and my-human; the list grows with the app, never per instance)
+                  description: The keys of offered taggings whose signer is the Assistant (today my-tapestry-owner; my-human is parked and refused; the list grows with the app, never per instance)
                   items: { type: string }
       responses:
         '200':

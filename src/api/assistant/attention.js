@@ -7,12 +7,15 @@
  * main→delegate mapping; for the Owner the instance TA), and no request parameter can change whose state is read or
  * which relays are asked.
  *
- * Today one action is checked, `identification-tags`: the four taggings that make the handshake between a person and
- * their assistant (src/lib/identification-tags). Each is looked up by its replaceable address — the publisher's
+ * Today one action is checked, `identification-tags`: the OFFERED taggings that make the handshake between a person and
+ * their assistant (src/lib/identification-tags — today "My Tapestry Assistant" and "My Tapestry Owner"; "My Agent" and
+ * "My Human" are listed but parked and never looked up, identification-tags-authorship #1). Each is looked up by its
+ * replaceable address — the publisher's
  * deterministic d tag, which embeds the slug and not the tag's author, so a tagging of anyone's same-named tag counts —
  * on this instance's relay first; only when that holds none are the outside relays this instance reads tags from
  * (Relay Settings' tag-federation list) asked, and then the newest found counts. A tagging is present when the signer's
- * latest stance applies it. Each canonical definition is looked up the same way and reported; it never gates "present".
+ * latest stance applies it. Each offered tagging's definition is looked up the same way, at its own author's address
+ * (identification-tags-authorship ADR 0001), and reported; it never gates "present".
  *
  * "Finished" is /setup's rule (src/api/setup/status.js, whose strict pieces this module reuses): the local relay held
  * it, or held none and at least one outside relay answered. The action is `done` when every tagging is finished and
@@ -27,7 +30,7 @@
  */
 
 const {
-  REQUIRED_TAGGINGS, CANONICAL_TAG_AUTHOR, canonicalTagAddress, taggingDTag, signerAndTarget, readPolarity, polarityBucket,
+  OFFERED_TAGGINGS, definitionAddress, taggingDTag, signerAndTarget, readPolarity, polarityBucket,
 } = require('../../lib/identification-tags');
 const { scanLocalStrict, outsideOnly, RELAY_BUDGET_MS } = require('../setup/status');
 
@@ -139,7 +142,7 @@ function tagRelays(deps) {
 }
 
 /**
- * The identification-tags action, from its four taggings' lookups and their definitions'. Pure.
+ * The identification-tags action, from its offered taggings' lookups and their definitions'. Pure.
  * @param {{entries: Array<{required: Object, lookup: Object, definition: Object}>}} input
  * @returns {{finished: boolean, done: boolean, pending: boolean, taggings: Object[]}}
  */
@@ -156,7 +159,7 @@ function evaluateIdentificationTags({ entries }) {
       row.source = null;
       row.reason = lookup && lookup.reason ? lookup.reason : 'outside-unreachable';
     }
-    const address = required.address || canonicalTagAddress(required.slug);
+    const address = required.address || definitionAddress(required);
     if (definition && definition.finished) {
       row.definition = { finished: true, found: !!definition.event, source: definition.source || null, eventId: definition.event ? definition.event.id : null, address };
     } else {
@@ -170,10 +173,14 @@ function evaluateIdentificationTags({ entries }) {
   return { finished, done, pending, taggings };
 }
 
-/** The four taggings and their definitions, looked up by address in at most three local scans, then evaluated. */
+/**
+ * The offered taggings and their definitions, looked up by address in at most four local scans — one per signer, one
+ * per definition author (identification-tags-authorship ADR 0001 sub-decision 2) — then evaluated. Parked entries are
+ * never looked up and get no row.
+ */
 async function checkIdentificationTags({ viewer, assistantPubkey }, deps) {
   const relays = tagRelays(deps);
-  const plan = REQUIRED_TAGGINGS.map((required) => {
+  const plan = OFFERED_TAGGINGS.map((required) => {
     const { signerPubkey, targetPubkey } = signerAndTarget(required, { personPubkey: viewer, assistantPubkey });
     return { required, signerPubkey, d: taggingDTag({ slug: required.slug, targetPubkey, signerPubkey }) };
   });
@@ -182,12 +189,18 @@ async function checkIdentificationTags({ viewer, assistantPubkey }, deps) {
     if (!bySigner.has(p.signerPubkey)) bySigner.set(p.signerPubkey, []);
     bySigner.get(p.signerPubkey).push(p.d);
   }
-  const [signerResults, definitions] = await Promise.all([
+  const byAuthor = new Map();
+  for (const required of OFFERED_TAGGINGS) {
+    if (!byAuthor.has(required.author)) byAuthor.set(required.author, []);
+    byAuthor.get(required.author).push(required.slug);
+  }
+  const [signerResults, authorResults] = await Promise.all([
     Promise.all([...bySigner.entries()].map(async ([author, ds]) => [author, await lookupByAddresses({ kind: 39999, author, ds, relays }, deps)])),
-    lookupByAddresses({ kind: 39999, author: CANONICAL_TAG_AUTHOR, ds: REQUIRED_TAGGINGS.map((r) => r.slug), relays }, deps),
+    Promise.all([...byAuthor.entries()].map(async ([author, ds]) => [author, await lookupByAddresses({ kind: 39999, author, ds, relays }, deps)])),
   ]);
   const lookups = new Map(signerResults);
-  const entries = plan.map((p) => ({ required: p.required, lookup: lookups.get(p.signerPubkey)[p.d], definition: definitions[p.required.slug] }));
+  const definitions = new Map(authorResults);
+  const entries = plan.map((p) => ({ required: p.required, lookup: lookups.get(p.signerPubkey)[p.d], definition: definitions.get(p.required.author)[p.required.slug] }));
   return evaluateIdentificationTags({ entries });
 }
 

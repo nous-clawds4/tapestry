@@ -9,13 +9,14 @@
  *
  * The words were approved with the story; change them there first:
  * engineering-team/stories/assistant-identification-tags/2-the-page-and-your-two-taggings.md § Copy, as amended by
- * ADR 0002 sub-decision 5 (the failed-local-write lines live in ui/src/utils/taggingPublishReport.js).
+ * ADR 0002 sub-decision 5 (the failed-local-write lines live in ui/src/utils/taggingPublishReport.js). The parked
+ * words and rules come from identification-tags-authorship #1 (its story § Copy and ADR 0001 sub-decision 3).
  */
 
 export const IDENTIFICATION_TAGS_COPY = {
   treasureMap: 'Your Treasure Map tells apps what your Assistant publishes for you; these tags are simply an additional mechanism to associate you and your Assistant.',
   cards: { person: 'Taggings you put on your Assistant', assistant: 'Taggings your Assistant puts on you' },
-  states: { present: 'Present', missing: 'Missing', checking: 'Checking…' },
+  states: { present: 'Present', missing: 'Missing', checking: 'Checking…', parked: 'Not offered yet' },
   tagNotFound: (name) => `Tag not found: the tag "${name}" has not been published yet, so this tagging can't be made here.`,
   couldNotCheck: {
     'local-unreadable': "Could not read this instance's relay.",
@@ -37,6 +38,8 @@ export const IDENTIFICATION_TAGS_COPY = {
 /**
  * One row's state, from the required entry, its row in the /api/assistant/attention answer (or null) and the
  * provider's phase (AC-2, AC-3).
+ *   parked           — the entry is listed but not offered (identification-tags-authorship #1): greyed, unchecked,
+ *                      uneditable, whatever the phase or the answer
  *   unknown          — nothing to show: signed out, or no assistant here (phase idle)
  *   checking         — the answer is on its way
  *   present, missing — a finished check
@@ -46,6 +49,7 @@ export const IDENTIFICATION_TAGS_COPY = {
  * @returns {{ state: string, reason: ?string, definitionKnown: boolean }}
  */
 export function rowState(entry, answerRow, phase) {
+  if (entry && entry.offered === false) return { state: 'parked', reason: null, definitionKnown: false };
   if (phase === 'idle') return { state: 'unknown', reason: null, definitionKnown: false };
   if (phase === 'checking') return { state: 'checking', reason: null, definitionKnown: false };
   if (phase !== 'answered' || !answerRow || typeof answerRow !== 'object') {
@@ -59,15 +63,16 @@ export function rowState(entry, answerRow, phase) {
 }
 
 /**
- * A card's state from its rows' states: `done` when every row is present, `unknown` when every row is unknown
- * (no mark, no badge), `marked` otherwise — missing, tag-not-found, could-not-check and checking all mark the card,
- * the page reading: marked until proven done (AC-2).
+ * A card's state from its rows' states, the parked rows left out (they never mark and never count against done):
+ * `done` when every other row is present, `unknown` when every other row is unknown or there is none (no mark, no
+ * badge), `marked` otherwise — missing, tag-not-found, could-not-check and checking all mark the card, the page
+ * reading: marked until proven done (AC-2; identification-tags-authorship #1 AC-3).
  * @param {Array<{ state: string } | string>} rows
  * @returns {'done' | 'unknown' | 'marked'}
  */
 export function cardState(rows) {
-  const states = (Array.isArray(rows) ? rows : []).map((r) => (typeof r === 'string' ? r : r && r.state));
-  if (states.length > 0 && states.every((s) => s === 'unknown')) return 'unknown';
-  if (states.length > 0 && states.every((s) => s === 'present')) return 'done';
+  const states = (Array.isArray(rows) ? rows : []).map((r) => (typeof r === 'string' ? r : r && r.state)).filter((s) => s !== 'parked');
+  if (states.length === 0 || states.every((s) => s === 'unknown')) return 'unknown';
+  if (states.every((s) => s === 'present')) return 'done';
   return 'marked';
 }

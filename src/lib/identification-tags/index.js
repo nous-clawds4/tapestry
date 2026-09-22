@@ -1,44 +1,49 @@
 'use strict';
 /**
- * Identification tags — the four taggings that make the handshake between a person and their Tapestry Assistant
- * (assistant-identification-tags #1, ADR 0001 sub-decisions 1–3):
+ * Identification tags — the taggings that make the handshake between a person and their Tapestry Assistant
+ * (assistant-identification-tags #1, ADR 0001 sub-decisions 1–3; identification-tags-authorship #1, ADR 0001):
  *
- *   you on your Assistant:   My Tapestry Assistant, My Agent
- *   your Assistant on you:   My Tapestry Owner, My Human
+ *   you on your Assistant:   My Tapestry Assistant (offered), My Agent (parked)
+ *   your Assistant on you:   My Tapestry Owner (offered), My Human (parked)
  *
  * Pure, dependency-free CommonJS, on purpose: the server checks from it (src/api/assistant/attention.js), the UI
  * imports it through the Vite alias @tapestry/identification-tags, and the Node runner loads it as it is.
  *
- * CANONICAL_TAG_AUTHOR is the OWNER'S OWN KEY — the npub BIBLE §20 lists for wds4/straycat — naming the four
- * well-known tag definitions the owner publishes once, so every Tapestry instance and every outside reader looks
- * for the same four addresses (Discovery decision 5, product-team/discoveries/assistant-identification-tags.md).
- * It is a publishing convention, never a read filter, never a signer, and NOT a Tapestry Assistant pubkey: the
- * per-deployment TA is resolved at runtime everywhere (CLAUDE.md house rule), and this constant is never used as an
- * authors: filter, in a concept handle, or to sign anything. A tagging of a same-named tag by any other author counts
- * as present all the same (principle 2: publication is permissionless; trust is filtered at read time).
+ * Each OFFERED entry carries the author of its definition — the tag the page publishes against. "My Tapestry
+ * Assistant" is the tag Nous published; "My Tapestry Owner" is the tag Nous' Tapestry Assistant published (both found
+ * on the relays 2026-09-22; the story's § Background has the npubs). They are constants of the list, the same on
+ * every instance: never a runtime TA pubkey, never an authors: filter on a read of taggings, never a signer. A
+ * tagging of a same-named tag by any other author counts as present all the same (principle 2: publication is
+ * permissionless; trust is filtered at read time); the author matters only for what a NEW tagging points at (its `a`
+ * and `e`), and for finding that definition.
+ *
+ * A PARKED entry (offered: false) is listed so the page can show it, greyed out, but nothing reads, counts or
+ * publishes it: the owner is undecided about it (2026-09-22). Unparking one is filling in its author and flipping
+ * `offered`; no server or page change.
  */
-
-const CANONICAL_TAG_AUTHOR = 'e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f';
 
 /** Every tagging's d tag starts with this (protocols/drafts/tags.md § Taggings; ui/src/utils/publishProfileTag.js). */
 const TAGGING_D_PREFIX = 'profile-tag-';
 
-/** The canonical address of a required tag's definition: 39999:<the owner's key>:<slug>. */
-function canonicalTagAddress(slug) {
-  return `39999:${CANONICAL_TAG_AUTHOR}:${slug}`;
+/** The address of an entry's definition, 39999:<its author>:<slug>; null for a parked entry, which has none. */
+function definitionAddress(entry) {
+  return entry && entry.offered && entry.author ? `39999:${entry.author}:${entry.slug}` : null;
 }
 
 /**
- * The required taggings, in order — one list, the same on every instance, shipped with the app (Discovery
- * decision 7). `signer` is who signs the tagging; `target` whom it tags. Adding a tagging later is one entry (and,
- * if needed, its canonical tag).
+ * The taggings the page lists, in order — one list, the same on every instance, shipped with the app (Discovery
+ * decision 7). `signer` is who signs the tagging; `target` whom it tags; `offered` whether the page can issue it
+ * today; `author` the key that published its definition (null while parked). Adding a tagging later is one entry.
  */
 const REQUIRED_TAGGINGS = Object.freeze([
-  { key: 'my-tapestry-assistant', name: 'My Tapestry Assistant', slug: 'my-tapestry-assistant', signer: 'person', target: 'assistant' },
-  { key: 'my-agent', name: 'My Agent', slug: 'my-agent', signer: 'person', target: 'assistant' },
-  { key: 'my-tapestry-owner', name: 'My Tapestry Owner', slug: 'my-tapestry-owner', signer: 'assistant', target: 'person' },
-  { key: 'my-human', name: 'My Human', slug: 'my-human', signer: 'assistant', target: 'person' },
-].map((entry) => Object.freeze({ ...entry, address: canonicalTagAddress(entry.slug) })));
+  { key: 'my-tapestry-assistant', name: 'My Tapestry Assistant', slug: 'my-tapestry-assistant', signer: 'person', target: 'assistant', offered: true, author: '15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270' },
+  { key: 'my-agent', name: 'My Agent', slug: 'my-agent', signer: 'person', target: 'assistant', offered: false, author: null },
+  { key: 'my-tapestry-owner', name: 'My Tapestry Owner', slug: 'my-tapestry-owner', signer: 'assistant', target: 'person', offered: true, author: 'a73a298068496ba25d9d7f35839e5688cb60eab89d5aba095520d7835a9f9528' },
+  { key: 'my-human', name: 'My Human', slug: 'my-human', signer: 'assistant', target: 'person', offered: false, author: null },
+].map((entry) => Object.freeze({ ...entry, address: definitionAddress(entry) })));
+
+/** The entries the page can issue and the check reads, in order. */
+const OFFERED_TAGGINGS = Object.freeze(REQUIRED_TAGGINGS.filter((entry) => entry.offered));
 
 /**
  * The replaceable address of one signer's stance on one slug and one target — the publisher's rule, verbatim
@@ -85,10 +90,10 @@ function signerAndTarget(entry, { personPubkey, assistantPubkey }) {
 }
 
 module.exports = {
-  CANONICAL_TAG_AUTHOR,
   TAGGING_D_PREFIX,
   REQUIRED_TAGGINGS,
-  canonicalTagAddress,
+  OFFERED_TAGGINGS,
+  definitionAddress,
   taggingDTag,
   readPolarity,
   polarityBucket,
