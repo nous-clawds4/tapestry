@@ -77,6 +77,28 @@ export function describeTaggingPublish({ name, local, external, relays }) {
   return { ok, outcome, message, rows, accepted, tried: n };
 }
 
+/**
+ * A row of the server's answer to POST /api/assistant/identification-tags/publish (assistant-identification-tags #3,
+ * ADR 0003 sub-decision 8), as the same report shape the cards draw: the server's rows already speak this util's
+ * relay vocabulary and its message is already in the story's words. `answer` is the whole answer when it is a
+ * refusal (`success: false` with `code`), in which case every requested key gets the refusal's words.
+ * @param {{ name: string, row: ?Object, answer?: ?Object }} input
+ * @returns {{ ok: boolean, outcome: string, message: string, rows: Array<{ relay: string, status: string, reason: string }> }}
+ */
+export function describeServerPublish({ name, row, answer }) {
+  if (answer && answer.success === false) {
+    return { ok: false, outcome: 'not-delivered', message: answer.error || `"${name}" was not published.`, rows: [] };
+  }
+  if (!row || typeof row !== 'object') {
+    return { ok: false, outcome: 'not-delivered', message: `"${name}" was not published: this instance gave no answer for it.`, rows: [] };
+  }
+  if (row.ok === true) {
+    const rows = row.relays && Array.isArray(row.relays.results) ? row.relays.results.map((r) => ({ relay: r.relay, status: r.status, reason: r.reason || '' })) : [];
+    return { ok: true, outcome: row.outcome || 'not-delivered', message: row.message || '', rows };
+  }
+  return { ok: false, outcome: 'not-delivered', message: row.message || `"${name}" was not published.`, rows: [] };
+}
+
 /** The editor's tone rule: a partial or empty result never reads as a clean success. */
 export function publishTone(report) {
   if (!report || !report.ok) return 'error';

@@ -29,6 +29,7 @@ export const IDENTIFICATION_TAGS_COPY = {
   signedOutLine: 'Sign in to see your identification tags.',
   noExtension: 'No nostr extension was found. Install one to publish taggings.',
   signatureRefused: (name, reason) => `"${name}" was not published: your nostr extension did not sign it (${reason}).`,
+  requestFailed: 'This instance did not answer; nothing was published.',
   doneBadge: 'Done',
   doneSrPrefix: 'Done: ',
 };

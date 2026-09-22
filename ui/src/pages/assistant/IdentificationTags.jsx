@@ -7,8 +7,9 @@ import { useConfig } from '../../context/ConfigContext';
 import { useAssistantAttention } from '../../context/AssistantAttentionContext';
 import { ASSISTANT_MANAGEMENT_PATH } from '../../config/avatarMenuLinks';
 import { publishProfileTagAssertionWithReport } from '../../utils/publishProfileTag';
+import { publishAssistantIdentificationTaggings } from '../../utils/publishAssistantTaggings';
 import { PUBLISH_RELAYS } from '../../utils/nostrPublish';
-import { describeTaggingPublish, publishTone, relayLine } from '../../utils/taggingPublishReport';
+import { describeTaggingPublish, describeServerPublish, publishTone, relayLine } from '../../utils/taggingPublishReport';
 import ActionText from './ActionText';
 import { ASSISTANT_ACTIONS, ASSISTANT_COPY } from './actions';
 import { IDENTIFICATION_TAGS_COPY as COPY, rowState, cardState } from './identificationTagsCopy';
@@ -25,7 +26,8 @@ import { IDENTIFICATION_TAGS_COPY as COPY, rowState, cardState } from './identif
  * The first card's publish signs one tagging per checked row with the viewer's nostr extension, through the tagging
  * publisher every tagging goes through (publishProfileTagAssertionWithReport: the canonical tag, the viewer's own
  * Assistant as the target, an apply), and reports what each relay did in the words of taggingPublishReport.js. The
- * second card's publish — the Assistant's own key, through this instance — is story 3's.
+ * second card's publish asks this instance to sign with the Assistant's own key, one request for every checked row
+ * (publishAssistantIdentificationTaggings, story 3 / ADR 0003), and draws the server's report through the same util.
  *
  * Checkboxes are component state, rebuilt from each new answer (an unchecked box is "not this time", nothing is
  * stored). Results live until the next press or a navigation.
@@ -166,18 +168,24 @@ export default function IdentificationTagsPage() {
     return next;
   });
 
-  const [publishing, setPublishing] = useState(false);
+  // Which card is publishing (a press on one never disables the other), the results by row, and a notice per card.
+  const [publishingCard, setPublishingCard] = useState(null);
   const [results, setResults] = useState({});
-  const [notice, setNotice] = useState(null);
+  const [notices, setNotices] = useState({ person: null, assistant: null });
+  const clearResultsOf = (cardRows) => setResults((prev) => {
+    const next = { ...prev };
+    for (const row of cardRows) delete next[row.entry.key];
+    return next;
+  });
 
   /** The first card's publish: one tagging per checked row, in turn, each reported (ADR 0002 sub-decision 6). */
   async function publishPersonTaggings() {
-    setNotice(null);
-    if (!window.nostr) { setNotice(COPY.noExtension); return; }
+    setNotices((n) => ({ ...n, person: null }));
+    if (!window.nostr) { setNotices((n) => ({ ...n, person: COPY.noExtension })); return; }
     const toPublish = personRows.filter((row) => checked.has(row.entry.key) && row.state === 'missing' && row.definitionKnown);
     if (toPublish.length === 0) return;
-    setPublishing(true);
-    setResults({});
+    setPublishingCard('person');
+    clearResultsOf(personRows);
     for (const row of toPublish) {
       const { entry, answerRow } = row;
       try {
@@ -194,9 +202,40 @@ export default function IdentificationTagsPage() {
         setResults((prev) => ({ ...prev, [entry.key]: { refusal: COPY.signatureRefused(entry.name, reason) } }));
       }
     }
-    setPublishing(false);
+    setPublishingCard(null);
     // The chokepoint announced each local write and the answer re-checked; this covers a press whose local writes
     // all failed but a relay accepted.
+    attention.refresh();
+  }
+
+  /**
+   * The second card's publish: one request for every checked row, signed by this instance with the viewer's own
+   * Assistant's key (ADR 0003 sub-decision 9). The server's report is drawn through the same util as the first card's;
+   * a whole-request refusal or a request that never answers becomes the card's notice.
+   */
+  async function publishAssistantTaggings() {
+    setNotices((n) => ({ ...n, assistant: null }));
+    const toPublish = assistantRows.filter((row) => checked.has(row.entry.key) && row.state === 'missing' && row.definitionKnown);
+    if (toPublish.length === 0) return;
+    setPublishingCard('assistant');
+    clearResultsOf(assistantRows);
+    try {
+      const data = await publishAssistantIdentificationTaggings(toPublish.map((row) => row.entry.key));
+      if (data.success !== true) {
+        setNotices((n) => ({ ...n, assistant: data.error || COPY.requestFailed }));
+      } else {
+        const byKey = new Map((data.results || []).map((r) => [r && r.key, r]));
+        const next = {};
+        for (const row of toPublish) {
+          next[row.entry.key] = { report: describeServerPublish({ name: row.entry.name, row: byKey.get(row.entry.key) || null }) };
+        }
+        setResults((prev) => ({ ...prev, ...next }));
+      }
+    } catch {
+      setNotices((n) => ({ ...n, assistant: COPY.requestFailed }));
+    }
+    setPublishingCard(null);
+    // The server's publish announces nothing in the browser: ask for the answer again.
     attention.refresh();
   }
 
@@ -233,9 +272,9 @@ export default function IdentificationTagsPage() {
           checked={checked}
           onToggle={toggle}
           onPublish={hasAssistant ? publishPersonTaggings : null}
-          publishing={publishing}
+          publishing={publishingCard === 'person'}
           results={results}
-          notice={notice}
+          notice={notices.person}
         />
         <Card
           signer="assistant"
@@ -243,10 +282,10 @@ export default function IdentificationTagsPage() {
           rows={assistantRows}
           checked={checked}
           onToggle={toggle}
-          onPublish={null}
-          publishing={false}
-          results={{}}
-          notice={null}
+          onPublish={hasAssistant ? publishAssistantTaggings : null}
+          publishing={publishingCard === 'assistant'}
+          results={results}
+          notice={notices.assistant}
         />
       </main>
     </div>

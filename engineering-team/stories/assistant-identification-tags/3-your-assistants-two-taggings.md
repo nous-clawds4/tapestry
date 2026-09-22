@@ -90,8 +90,26 @@ No concept changes; no firmware reinstall.
    tag-federation relays). The acceptance criterion asks only that the relays this instance reads tags
    from are included.
 
+## Deviations
+
+*The Implementer's log (Phase 4, 2026-09-22): judgment calls too small for an ADR amendment, for the book-close
+audit.*
+
+1. **`NOSTR_USER_TAG_Z_TAG` was already exported** from `src/api/profile-tags/index.js`, so ADR 0003 § Implementation
+   notes 1 ("add it to `module.exports`") was a no-op; that file is unchanged.
+2. **One Tester-lane correction after the suite's first run against the implementation** (a `test:` commit before
+   the implementation commit): S2 expected `grep -rl` to list the module itself, but grep matches contents, not
+   filenames, and the module does not spell its own name; the one legitimate hit is the route registration.
+3. **Notices are per card** (`notices.person`, `notices.assistant`) and so is the publishing state (`publishingCard`),
+   so a press on one card never disables or speaks for the other (ADR 0003 sub-decision 9).
+4. **A whole-request refusal shows the server's own words as the card's notice** (`data.error`), and a request that
+   never answers, or answers without JSON, shows "This instance did not answer; nothing was published." The client
+   util throws for the latter; the page turns it into the notice.
+5. **The route's per-tagging report omits the signed event** (ADR 0003 sub-decision 6): the page needs the report
+   only, and the answer stays free of key material and of the Assistant's pubkey.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/assistant-identification-tags/0003-your-assistant-signs-its-two-taggings-through-one-narrow-route.md`
+- Test plan: `engineering-team/stories/assistant-identification-tags/3-your-assistants-two-taggings.test-plan.md`
 - Review: (filled in after Review phase)

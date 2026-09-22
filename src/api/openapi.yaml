@@ -350,6 +350,76 @@ paths:
                                   address: { type: string }
         '500':
           description: The check could not run
+  /api/assistant/identification-tags/publish:
+    post:
+      tags: [Auth]
+      summary: Have the signed-in viewer's own Assistant sign and publish its identification taggings of them
+      description: >-
+        The one route through which an Assistant's key signs something other than its profile: the required
+        taggings whose signer is the Assistant ("My Tapestry Owner", "My Human"), each an ordinary nostr-user-tag
+        assertion of the canonical tag, tagging the viewer, as an apply. Whose Assistant comes from the session
+        (the Owner's is the instance TA; anyone else's their own); nothing in the body names a person or an
+        Assistant. Refused before any key is read: no session (401 not-signed-in), a body that is not a non-empty
+        list of those keys (400 not-an-assistant-tagging), no Assistant on this instance (403 no-assistant). Per
+        tagging: its canonical definition must be findable (local relay first, then the tag-federation relays) or
+        that tagging alone is refused as tag-not-found; the event is written to this instance's relay first (a
+        failed write sends it nowhere and says so), then to the configured general-purpose, profile, WoT and
+        tag-federation relays, each reported (accepted, refused, unreachable, timeout; skipped in local-only mode).
+        Nothing calls this when an Assistant is created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [keys]
+              properties:
+                keys:
+                  type: array
+                  items: { type: string, enum: [my-tapestry-owner, my-human] }
+      responses:
+        '200':
+          description: One report per requested key, in the required order, whatever each tagging's fate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string }
+                        name: { type: string }
+                        ok: { type: boolean }
+                        outcome: { type: string, enum: [published, kept-local, not-delivered] }
+                        message: { type: string }
+                        localOnly: { type: boolean }
+                        stage: { type: string, enum: [local] }
+                        code: { type: string, enum: [tag-not-found] }
+                        relays:
+                          type: object
+                          properties:
+                            total: { type: integer }
+                            success: { type: integer }
+                            results:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  relay: { type: string }
+                                  status: { type: string, enum: [accepted, refused, unreachable, timeout, skipped] }
+                                  reason: { type: string }
+        '400':
+          description: The body is not a non-empty list of the Assistant-signed required keys (code not-an-assistant-tagging)
+        '401':
+          description: No signed-in session (code not-signed-in)
+        '403':
+          description: No Assistant on this instance for the viewer (code no-assistant)
+        '500':
+          description: The publish could not run
   /api/auth/sign-up-new-customer:
     post:
       tags: [Auth]
