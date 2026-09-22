@@ -63,6 +63,6 @@ None outstanding. Resolved with the operator at Planning on 2026-09-22:
 - **Content-type** → `text/plain; charset=utf-8`, matching `security.txt` and `robots.txt` precedent in this repo.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/llms-txt/0001-serve-llms-txt-on-the-fleet.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
