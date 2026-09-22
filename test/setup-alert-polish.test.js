@@ -195,7 +195,29 @@ test('U7: after unsubscribing, a listener hears nothing more', async () => {
   assert(heard.length === 1, `only the publish before unsubscribing may be heard; heard ${show(heard)}`);
 });
 
-test('U8: publishEverywhere, with both routes succeeding, announces the same event (at most once per route) — the provider de-duplicates by id', async () => {
+test('U8: publishEverywhere announces once, straight after the local write — even when the relays answer first (ADR 0003 Amendment 1)', async () => {
+  useRealWebSocket();
+  const accepting = await startRelay('accept');
+  try {
+    const mod = await loadPublish();
+    assert(typeof mod.onEventPublished === 'function', 'onEventPublished is not exported');
+    const heard = [];
+    mod.onEventPublished((ev) => heard.push({ id: ev.id, t: Date.now() }));
+    const ev = event(3, 'e8');
+    let localAnsweredAt = null;
+    // The local write is held back 300 ms, so the relay (answering at once) settles first.
+    const slowLocal = async () => { await new Promise((resolve) => setTimeout(resolve, 300)); localAnsweredAt = Date.now(); return { success: true }; };
+    await withFetch({ '/api/strfry/publish': slowLocal, ...POLICY_EXTERNAL }, () => mod.publishEverywhere(ev, [accepting.url]));
+    assert(heard.length === 1, `publishEverywhere must announce exactly once; heard ${heard.length}: ${show(heard)}`);
+    assert(heard[0].id === ev.id, `it must announce the published event; heard ${show(heard[0])}`);
+    assert(localAnsweredAt !== null && heard[0].t >= localAnsweredAt,
+      `the announcement must come after the local write (local answered at ${localAnsweredAt}, announced at ${heard[0].t})`);
+  } finally {
+    await accepting.close();
+  }
+});
+
+test('U9: publishEverywhere whose local write fails announces once, after a relay accepted', async () => {
   useRealWebSocket();
   const accepting = await startRelay('accept');
   try {
@@ -203,12 +225,29 @@ test('U8: publishEverywhere, with both routes succeeding, announces the same eve
     assert(typeof mod.onEventPublished === 'function', 'onEventPublished is not exported');
     const heard = [];
     mod.onEventPublished((ev) => heard.push(ev.id));
-    const ev = event(3, 'e8');
-    await withFetch({ '/api/strfry/publish': { success: true }, ...POLICY_EXTERNAL }, () => mod.publishEverywhere(ev, [accepting.url]));
-    assert(heard.length >= 1 && heard.length <= 2 && heard.every((id) => id === ev.id),
-      `expected the one event announced once or twice (local, external); heard ${show(heard)}`);
+    const ev = event(10040, 'e9');
+    const result = await withFetch({ '/api/strfry/publish': { success: false, error: 'strfry import failed' }, ...POLICY_EXTERNAL },
+      () => mod.publishEverywhere(ev, [accepting.url]));
+    assert(result.external.successes.length === 1, `fixture check: the relay should accept; got ${show(result.external)}`);
+    assert(heard.length === 1 && heard[0] === ev.id, `a relay took it, so it is announced once; heard ${show(heard)}`);
   } finally {
     await accepting.close();
+  }
+});
+
+test('U10: publishEverywhere that reaches no relay at all announces nothing', async () => {
+  useRealWebSocket();
+  const refusing = await startRelay('refuse');
+  try {
+    const mod = await loadPublish();
+    assert(typeof mod.onEventPublished === 'function', 'onEventPublished is not exported');
+    const heard = [];
+    mod.onEventPublished((ev) => heard.push(ev.id));
+    await withFetch({ '/api/strfry/publish': { success: false, error: 'strfry import failed' }, ...POLICY_EXTERNAL },
+      () => mod.publishEverywhere(event(3, 'e10'), [refusing.url, DEAD_RELAY]));
+    assert(heard.length === 0, `nothing reached a relay; heard ${show(heard)}`);
+  } finally {
+    await refusing.close();
   }
 });
 
@@ -239,7 +278,7 @@ test('D1: SetupAlert.jsx — no aria-label, a decorative arrow, a decorative ⚠
   assert(/toLowerCase\(\)/.test(src), 'the /setup hide must compare a lower-cased path (story 3 AC-4)');
 });
 
-test('D2: SetupStatusContext.jsx — listens with onEventPublished and re-checks only for the viewer\'s own kind 3 or kind 10040, once per event id (ADR 0003 § 3)', async () => {
+test('D2: SetupStatusContext.jsx — listens with onEventPublished and re-checks on every announcement of the viewer\'s own kind 3 or kind 10040 (ADR 0003 § 3, Amendment 1)', async () => {
   const src = safeRead(PROVIDER);
   assert(/import\s*\{[^}]*\bonEventPublished\b[^}]*\}\s*from\s*['"]\.\.\/utils\/nostrPublish['"]/.test(src),
     'SetupStatusContext.jsx must import { onEventPublished } from ../utils/nostrPublish');
@@ -248,7 +287,10 @@ test('D2: SetupStatusContext.jsx — listens with onEventPublished and re-checks
   assert(/10040/.test(src) && /([!=]==\s*3\b|\b3\s*[!=]==|\[\s*3\s*,\s*10040\s*\]|\[\s*10040\s*,\s*3\s*\])/.test(src),
     'the provider must filter to kind 3 and kind 10040');
   assert(/\.pubkey\s*(===|!==)\s*pubkey|pubkey\s*(===|!==)\s*\w+\.pubkey/.test(src), 'the provider must compare the event\'s pubkey with the signed-in viewer\'s');
-  assert(/\.id\b/.test(src) && /new Set\(/.test(src), 'the provider must de-duplicate by event id (a Set of ids seen)');
+  // Amendment 1: no record of ids already heard. A later announcement of the same event (an import after a
+  // push, or the local write after the relays) must still re-check.
+  assert(!/new Set\(/.test(src) && !/\.has\(\s*\w+\.id\s*\)/.test(src),
+    'the provider must not remember event ids it has heard: every announcement re-checks (ADR 0003 Amendment 1)');
   assert(/refresh\(\)/.test(src), 'the provider must call refresh() for a matching event');
 });
 

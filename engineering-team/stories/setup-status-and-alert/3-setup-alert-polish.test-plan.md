@@ -248,6 +248,43 @@ the code:
   - U5 and U8 now install the real socket, the library's default, before they publish.
   - Ledger row `2026-09-21-honest-publish-fake-socket-leaks` records the leak.
 
-Run in the gate's order in one process (`honest-publish-reporting`, then `setup-alert-polish`, then
-`treasure-map-relay-presence`), all three pass: 10/0, 14/0 and 35/0. Neither fix weakens a check.
+Run in one process in the gate's order (`honest-publish-reporting`, then `treasure-map-relay-presence`, then
+`setup-alert-polish`, as `test/registry.js` lists them), all three pass: 10/0, 35/0 and 14/0. Neither fix
+weakens a check.
+- **Correction (review, Non-blocking 3):** the first version of this paragraph gave the order wrongly. Also,
+  `9fa997af` touched `ledger/`, after the triage said the branch did not. `session-start` was already pinned,
+  and the other readers passed on their own. See the extended ledger row
+  `2026-09-21-abbreviated-path-names-no-gate`.
+
+### Round 2 (after the review asked for changes)
+
+The review's Blocking 1 is a race in ADR 0003's first design.
+- The outside relays could announce a Follow or a Map edit before the local write.
+- The re-check then read the local relay too early, and the local write's own announcement was
+  dropped as a duplicate.
+
+ADR 0003 Amendment 1 changes the design: `publishEverywhere` announces once, straight after the local
+write when it succeeds, and every announcement re-checks. These tests pin it:
+
+| Test | What it pins | On today's code (`bad15295`) |
+|---|---|---|
+| **P3** race (new) | the local write held back 800 ms behind relays that accept at once, and the status read answers from what the local relay holds (old until the new event is stored). The pill must end on "· 1 step left" and stay there, after exactly two reads | **fails**: "the pill must end on the new answer" (it stays at "· 2 steps left") |
+| **P3** import (new) | the Map page's "📥 Import to local strfry": the Map only outside, then one re-check, and the pill goes. The review noted no browser test drove an import site | passes (a guard; the import already announces) |
+| **U8** (re-aimed) | `publishEverywhere` announces exactly once, after the local write, even when the relay settles first | **fails**: "heard 2" |
+| **U9** (new) | the local write refused and a relay accepted: one announcement | passes (a guard) |
+| **U10** (new) | nothing reached a relay: no announcement | passes (a guard) |
+| **D2** (re-aimed) | the provider keeps no record of ids heard, so every announcement re-checks | **fails** |
+
+Fixture notes:
+- The import test holds the sign-in answer back 800 ms. The Map page searches once, when sign-in
+  resolves, and would otherwise miss its relay list (OPEN.md row 260).
+- The import button sits in the "Where this Map lives" panel, which is folded by default.
+
+**Satisfiable.** A throwaway Amendment 1 on HEAD's code, in a scratchpad mirror (not committed):
+- Node: 16/16;
+- browser: 85/85 (story 3 20, story 2 50, story 1 15).
+
+**Not pinned by a test:** that the announcement comes straight after the local write *without waiting
+for the relays*. U8 pins "after the local write", and the race test pins the result. Waiting for the
+relays too would only delay the catch-up by up to the relays' publish timeout.
 

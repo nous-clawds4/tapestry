@@ -13,9 +13,10 @@ const { test, expect } = require('@playwright/test');
  *        arrow are not announced, Chrome's own accessibility tree agrees, and it still
  *        opens /setup from the keyboard.                                                 [AC-2]
  *   P3 — after the app publishes the viewer's kind 3 (Follow) or kind 10040 (the Treasure
- *        Map editor), the pill and /setup catch up without a reload, one re-check per
- *        publish, never showing the old count while it runs; a kind 10000 (Mute) does
- *        not re-check.                                                                    [AC-3]
+ *        Map editor, the Map page's import), the pill and /setup catch up without a reload,
+ *        one re-check per publish, never showing the old count while it runs — even when
+ *        the outside relays answer before the local write; a kind 10000 (Mute) does not
+ *        re-check.                                                                        [AC-3]
  *   P4 — no pill on /setup and its step pages in any letter case.                        [AC-4]
  *
  * AC-5 (nothing else changes) is story 2's and story 1's browser classes, re-run unchanged in intent
@@ -63,9 +64,15 @@ const MAP = { id: 'f1'.repeat(32), pubkey: VIEWER, kind: 10040, created_at: 1790
  * Mock every route, with a fake NIP-07 signer. `answers` are the /api/setup/status answers in order
  * (the last repeats); an entry may be { body, delayMs }. `external` allows external publishing, and
  * the page's WebSockets then accept every EVENT (OK true); otherwise the local-only gate is on.
+ * `publishDelayMs` holds the local write back; `answerFor(state)`, when given, answers the status read
+ * from what the local relay holds (state.localHasNew turns true when a publish is stored), like the
+ * server's local-first check. `mapLocal: false` keeps the viewer's Map off the local relay and serves it
+ * from an outside relay the Map page knows, so the page offers "Import to local strfry". `authDelayMs`
+ * holds the sign-in answer back, so that page's relay list is in before its one Map search runs (the
+ * page searches once, when sign-in resolves, and does not search again: OPEN.md row 260).
  */
-async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], external = false } = {}) {
-  const state = { statusCalls: 0, published: [], publishedAt: null };
+async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], external = false, publishDelayMs = 0, answerFor = null, mapLocal = true, authDelayMs = 0 } = {}) {
+  const state = { statusCalls: 0, published: [], publishedAt: null, localHasNew: false };
   const queue = answers.slice();
 
   await page.addInitScript((pk) => {
@@ -100,34 +107,45 @@ async function mock(page, { who = CUSTOMER, answers = [TWO_LEFT], external = fal
   });
 
   await page.route('**/api/**', (r) => r.fulfill(json({ success: false, error: 'not mocked by setup-alert-polish.spec.js' })));
-  await page.route('**/api/neo4j/query', (r) => r.fulfill(json({ success: true, data: [] })));
+  await page.route('**/api/neo4j/query', (r) => {
+    // The Map page's "general purpose relays" query: one relay, so it can look for the Map outside.
+    const cypher = (JSON.parse(r.request().postData() || '{}').cypher || '');
+    const data = /general purpose relays/.test(cypher) ? [{ name: 'outside relay', json: JSON.stringify({ nostrRelay: { websocketUrl: 'wss://outside.example' } }) }] : [];
+    return r.fulfill(json({ success: true, data }));
+  });
   await page.route('**/api/assistant/pubkey', (r) => r.fulfill(json({ success: true, pubkey: TA })));
   await page.route('**/api/owner/pubkey', (r) => r.fulfill(json({ success: true, pubkey: 'bb'.repeat(32) })));
   await page.route('**/api/relays', (r) => r.fulfill(json({ success: true, aRelays: {} })));
   await page.route('**/api/assistant/roster', (r) => r.fulfill(json({ success: true, assistants: [], viewer: null })));
   await page.route('**/api/profiles**', (r) => r.fulfill(json({ success: true, profiles: { [VIEWER]: { name: 'Fixture Viewer' }, [TARGET]: { name: 'Fixture Target' } } })));
-  await page.route('**/api/auth/status', (r) => r.fulfill(json({ authenticated: true, pubkey: who.pubkey })));
+  await page.route('**/api/auth/status', async (r) => {
+    if (authDelayMs) await new Promise((resolve) => setTimeout(resolve, authDelayMs));
+    return r.fulfill(json({ authenticated: true, pubkey: who.pubkey }));
+  });
   await page.route('**/api/auth/user-classification', (r) => r.fulfill(json({ success: true, classification: who.classification, pubkey: who.pubkey, assistantPubkey: who.assistantPubkey })));
   await page.route('**/api/publish-policy', (r) => r.fulfill(json({ success: true, allowExternalPublish: external })));
   await page.route('**/api/relay/external**', (r) => {
     const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
     const kinds = filter.kinds || [];
-    return r.fulfill(json({ success: true, events: kinds.includes(3) ? [CONTACTS] : kinds.includes(10000) ? [MUTES] : [] }));
+    return r.fulfill(json({ success: true, events: kinds.includes(3) ? [CONTACTS] : kinds.includes(10000) ? [MUTES] : kinds.includes(10040) && !mapLocal ? [MAP] : [] }));
   });
   await page.route('**/api/strfry/scan**', (r) => {
     const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
     const kinds = filter.kinds || [];
-    return r.fulfill(json({ success: true, events: kinds.includes(10040) ? [MAP] : [], count: kinds.includes(10040) ? 1 : 0 }));
+    const hasMap = kinds.includes(10040) && (mapLocal || state.localHasNew);
+    return r.fulfill(json({ success: true, events: hasMap ? [MAP] : [], count: hasMap ? 1 : 0 }));
   });
   await page.route('**/api/strfry/publish', async (r) => {
     const body = JSON.parse(r.request().postData() || '{}');
     state.published.push(body.event ? { kind: body.event.kind, pubkey: body.event.pubkey, id: body.event.id } : null);
+    if (publishDelayMs) await new Promise((resolve) => setTimeout(resolve, publishDelayMs));
+    state.localHasNew = true;
     await r.fulfill(json({ success: true, event: body.event }));
     state.publishedAt = Date.now();
   });
   await page.route('**/api/setup/status**', async (r) => {
     state.statusCalls += 1;
-    const next = queue.length > 1 ? queue.shift() : queue[0];
+    const next = answerFor ? answerFor(state) : (queue.length > 1 ? queue.shift() : queue[0]);
     const { body, delayMs } = next && next.body ? next : { body: next, delayMs: 0 };
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     return r.fulfill(json(body));
@@ -304,6 +322,36 @@ test.describe('The Setup Alert, polished (setup-status-and-alert #3)', () => {
     await expect(pill(page)).toContainText('· 1 step left', { timeout: 8000 });
     await page.waitForTimeout(1500);
     expect(state.statusCalls, 'two announcements of the same event must cause one re-check').toBe(2);
+  });
+
+  test('P3: when the outside relays answer before the local write, the pill still ends on the new answer — the re-check waits for the local write (AC-3, ADR 0003 Amendment 1)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    // The status read answers from the local relay, as the server's local-first check does: the old
+    // follow list until the new one is stored there.
+    const state = await mock(page, { external: true, publishDelayMs: 800, answerFor: (st) => (st.localHasNew ? ONE_LEFT : TWO_LEFT) });
+    await open(page, `/user/${TARGET}`);
+    await expect(pill(page)).toContainText('· 2 steps left');
+    await page.getByRole('button', { name: 'Follow', exact: true }).click();
+    await expect(pill(page), 'the pill must end on the new answer').toContainText('· 1 step left', { timeout: 8000 });
+    await page.waitForTimeout(1500);
+    await expect(pill(page), 'and stay there').toContainText('· 1 step left');
+    expect(state.statusCalls, 'one re-check, after the local write').toBe(2);
+  });
+
+  test('P3: importing the viewer\'s Treasure Map to the local relay from the Map page re-checks too (AC-3, ADR 0003 § 2)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const state = await mock(page, { who: OWNER, mapLocal: false, authDelayMs: 800, answerFor: (st) => (st.localHasNew ? NONE_LEFT : ONE_LEFT_MAP) });
+    await open(page, '/tapestry/grapevine/treasure-map');
+    await expect(pill(page)).toContainText('· 1 step left');
+    await page.evaluate(() => { window.__sameDocument = true; });
+    // The import sits in the relay panel, folded by default.
+    await page.getByRole('button', { name: /Where this Map lives/ }).click();
+    await page.getByRole('button', { name: /Import to local strfry/ }).click();
+    await expect.poll(() => state.published.length, { message: 'the import publishes the Map once' }).toBe(1);
+    expect(state.published[0], 'it is the viewer\'s own kind 10040').toMatchObject({ kind: 10040, pubkey: VIEWER, id: MAP.id });
+    await expect(pill(page), 'nothing is left, so the pill goes').toHaveCount(0, { timeout: 8000 });
+    expect(state.statusCalls, 'one re-check after the import').toBe(2);
+    expect(await page.evaluate(() => window.__sameDocument === true), 'no reload: the same document').toBe(true);
   });
 
   test('P3: muting someone (kind 10000) is not a setup step, so the pill does not re-check (AC-3)', async ({ page }) => {
