@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-11
-**Story:** `engineering-team/stories/site-trust-signals/1-security-txt-and-honest-404s.md`
+**Story:** `engineering-team/stories/done/site-trust-signals/1-security-txt-and-honest-404s.md`
 
 ## Context
 

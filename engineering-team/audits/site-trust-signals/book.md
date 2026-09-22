@@ -1,9 +1,9 @@
 # Book of Work: Site trust signals
 
 **Slug:** site-trust-signals
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-11
-**Closed:** —
+**Closed:** 2026-09-22
 
 ## Intent anchor
 
@@ -27,16 +27,21 @@ relays; those are tracked outside this harness because they live in other reposi
 
 ### Acceptance frame
 
-- [ ] All six tapestry-fleet hosts serve a valid RFC 9116 `/.well-known/security.txt` as
+- [x] All six tapestry-fleet hosts serve a valid RFC 9116 `/.well-known/security.txt` as
       `text/plain; charset=utf-8`, with `Canonical` rendered for the requesting host.
-- [ ] The file carries the full-estate ownership attestation, so a reviewer can see the six hosts
+- [x] The file carries the full-estate ownership attestation, so a reviewer can see the six hosts
       are deliberately-operated siblings rather than anonymous clones.
-- [ ] All six serve a real `robots.txt`: production indexable, the five non-production hosts
+- [x] All six serve a real `robots.txt`: production indexable, the five non-production hosts
       `Disallow: /`.
-- [ ] Probe and asset-shaped paths (`/.env`, `/wp-login.php`, unhandled `/.well-known/*`) return a
+- [x] Probe and asset-shaped paths (`/.env`, `/wp-login.php`, unhandled `/.well-known/*`) return a
       genuine **404**, while every existing SPA deep link still resolves through client-side routing.
-- [ ] `SECURITY.md` exists in the repo and is the target of the `Policy:` field.
-- [ ] Verified live on all six hosts after deploy.
+- [x] `SECURITY.md` exists in the repo and is the target of the `Policy:` field.
+- [x] Verified live on all six hosts after deploy.
+
+*At close (2026-09-22):* "six" is now **four**. `communities.` and `curate.brainstorm.world` carried
+this work (both fixes are on their archived branches) and were then decommissioned on 2026-09-12
+(PR #656), so every bullet is recorded against the four hosts that exist, all re-verified live
+during this close. That is a fleet change, not an unmet criterion — audit §4 #1.
 
 ## Epics in this book
 - `site-trust-signals` — security.txt, robots.txt, and honest 404s across the tapestry fleet.
@@ -52,9 +57,14 @@ Tracked in the same session, but not governed by this harness (different reposit
 Backend APIs (`api.brainstorm.world`, `search.brainstorm.world`, `brainstormserver*.nosfabrica.com`)
 already return correct 404s and need only a `security.txt`.
 
+*Status at close, probed 2026-09-22:* see audit §6. The Product UI fleet shipped its half
+(`NosFabrica/Brainstorm-UI#43`); the relays and the API hosts have not.
+
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high — every frame bullet is checkable in the diff and against the live
+  hosts, and all of them were checked during this close. The one soft spot is the frame's host
+  count, which the fleet outgrew; audit §4 #1.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/site-trust-signals/audit.md`
