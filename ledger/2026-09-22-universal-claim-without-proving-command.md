@@ -23,3 +23,8 @@ lint check for those words in a new ADR without a fenced command nearby.
 
 **Pointer:** review `engineering-team/reviews/done/assistant-identification-tags/3-your-assistants-two-taggings.md`
 § Blocking 1 and § Harness friction 1; ADR 0003 Amendment 1.
+
+**Second sighting (2026-09-22, identification-tags-authorship #1, review § Harness friction).** The ADR wrote its
+proving command down but nobody ran it before Review: `grep -rn "CANONICAL_TAG_AUTHOR\|canonicalTagAddress" src
+ui/src test tests` prints the two test guards that assert the names are gone, so the ADR's "must print nothing" was
+one scope too wide. Writing the command is half the rule; running it and recording its output is the other half.
