@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { summarizeSetup } from '../utils/setupStatus';
 import { onEventPublished } from '../utils/nostrPublish';
@@ -62,14 +62,12 @@ export function SetupStatusProvider({ children }) {
   const want = useCallback(() => setWanted(true), []);
   const refresh = useCallback(() => setAttempt((n) => n + 1), []);
 
-  // Ask again after the viewer's own kind 3 or kind 10040 reaches a relay. publishEverywhere can
-  // announce one event twice (the local relay, then outside relays), so each event id counts once.
-  const seenPublished = useRef(new Set());
+  // Ask again after each announcement of the viewer's own kind 3 or kind 10040 reaching a relay. Every
+  // one counts, even for an event heard before: a later import of it can change what the check reads
+  // (ADR setup-status-and-alert/0003 Amendment 1).
   useEffect(() => onEventPublished((ev) => {
     if (!pubkey || !ev || ev.pubkey !== pubkey) return;
     if (ev.kind !== 3 && ev.kind !== 10040) return;
-    if (seenPublished.current.has(ev.id)) return;
-    seenPublished.current.add(ev.id);
     refresh();
   }), [pubkey, refresh]);
 

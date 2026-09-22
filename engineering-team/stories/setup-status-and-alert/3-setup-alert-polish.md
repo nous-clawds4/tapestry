@@ -118,6 +118,18 @@ Small judgment calls made during implementation (Implementer role, step 9):
 
   The live pass on `:7778` (a sign-in-only throwaway session) covered AC-1, AC-2 and AC-4. Story 3's
   P0–P2 and P4 also ran against the deployed bundle there.
+- **Round 2 (ADR 0003 Amendment 1), as written.**
+  - **Not quite as written.** The amendment says "through internal versions of the two routes that do
+    not announce". Instead, the two exported routes take an `{ announce }` option, default `true`, and
+    `publishEverywhere` calls them with `announce: false`.
+  - **Why:** the first shape moved the local-only guard out of `publishToRelays` into a new internal
+    function. That broke `test/global-publish-gate.test.js`'s coverage check ("publishEverywhere must
+    route through publishToRelays"), whose intent is that the one guard covers every caller.
+  - **The result:** the option keeps the guard exactly where it was, with the same semantics and a
+    smaller diff. No other caller passes the option.
+  - `publishEverywhere` announces once.
+  - The provider's id record is gone.
+  - The round-2 bundle was redeployed to `:7778`, and story 3's full spec (20) passes against it.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/setup-status-and-alert/0003-readable-named-and-current.md`

@@ -17,8 +17,9 @@ const publishListeners = new Set();
 
 /**
  * Hear about every signed event that reached a relay through this module: the local relay answered
- * success, or at least one external relay accepted it. publishEverywhere can announce the same event
- * twice, once per route, so a listener that acts once per event keeps the ids it has seen.
+ * success, or at least one external relay accepted it. Each publish call announces at most once;
+ * publishEverywhere announces straight after its local write when that succeeds, so a listener that
+ * reads the local relay next finds the event (ADR setup-status-and-alert/0003 Amendment 1).
  * @param {(signedEvent: object) => void} listener
  * @returns {() => void} unsubscribe
  */
@@ -69,9 +70,11 @@ export async function fetchFromRelays(filter, relays = PUBLISH_RELAYS) {
 /**
  * Publish a signed event to the local strfry relay via the server API.
  * @param {object} signedEvent - A fully signed nostr event
+ * @param {{announce?: boolean}} [options] - announce: false leaves the onEventPublished announcement to
+ *   the caller (publishEverywhere); every other caller keeps the default
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function publishToLocalStrfry(signedEvent) {
+export async function publishToLocalStrfry(signedEvent, { announce = true } = {}) {
   try {
     const resp = await fetch('/api/strfry/publish', {
       method: 'POST',
@@ -80,8 +83,8 @@ export async function publishToLocalStrfry(signedEvent) {
     });
     const data = await resp.json();
     // The server answers success only after strfry has stored the event, so a listener that reads the
-    // local relay next will find it.
-    if (data?.success === true) announcePublished(signedEvent);
+    // local relay next will find it. publishEverywhere passes announce: false and announces once itself.
+    if (announce && data?.success === true) announcePublished(signedEvent);
     return data;
   } catch (err) {
     return { success: false, error: err.message };
@@ -156,9 +159,11 @@ function classifyRelayOutcome(settled) {
  *
  * @param {object} signedEvent - A fully signed nostr event
  * @param {string[]} relays - Array of relay URLs
+ * @param {{announce?: boolean}} [options] - announce: false leaves the onEventPublished announcement to
+ *   the caller (publishEverywhere); every other caller keeps the default
  * @returns {Promise<{successes: string[], failures: string[], details?: Object<string, {status: string, reason: string}>, skippedByGate?: boolean}>}
  */
-export async function publishToRelays(signedEvent, relays = PUBLISH_RELAYS) {
+export async function publishToRelays(signedEvent, relays = PUBLISH_RELAYS, { announce = true } = {}) {
   // Opt-in LOCAL-ONLY guard (ADR 0002): when on, do not open any socket to an
   // external relay. Returns a normal result shape (so callers treat local-only as
   // success), marked skippedByGate so "kept local" is distinguishable from "failed".
@@ -201,7 +206,8 @@ export async function publishToRelays(signedEvent, relays = PUBLISH_RELAYS) {
     try { pool.close(relays); } catch {}
   }
 
-  if (successes.length > 0) announcePublished(signedEvent);
+  // publishEverywhere passes announce: false and announces once itself.
+  if (announce && successes.length > 0) announcePublished(signedEvent);
   return { successes, failures, details };
 }
 
@@ -214,9 +220,15 @@ export async function publishToRelays(signedEvent, relays = PUBLISH_RELAYS) {
  * @returns {Promise<{local: object, external: {successes: string[], failures: string[]}}>}
  */
 export async function publishEverywhere(signedEvent, relays = PUBLISH_RELAYS) {
-  const [local, external] = await Promise.all([
-    publishToLocalStrfry(signedEvent),
-    publishToRelays(signedEvent, relays),
-  ]);
+  // Both routes run in parallel, but the event is announced once (ADR setup-status-and-alert/0003
+  // Amendment 1): straight after the local write when it succeeds, without waiting for the relays, so
+  // whoever re-reads the local relay sees the new event; otherwise once a relay accepted it.
+  const localWrite = publishToLocalStrfry(signedEvent, { announce: false });
+  const externalSend = publishToRelays(signedEvent, relays, { announce: false });
+  const local = await localWrite;
+  const localOk = local?.success === true;
+  if (localOk) announcePublished(signedEvent);
+  const external = await externalSend;
+  if (!localOk && external.successes.length > 0) announcePublished(signedEvent);
   return { local, external };
 }
