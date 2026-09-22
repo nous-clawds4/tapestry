@@ -3,7 +3,7 @@
 **Slug:** setup-status-and-alert
 **Status:** Closed
 **Opened:** 2026-09-21
-**Closed:** 2026-09-22 (on staging: PRs #732, #737 and #746; the owner asked for the promotion to main to follow the close)
+**Closed:** 2026-09-22 (stories 1 and 2 in production through promotions #735 and #739; story 3 on staging through PR #746, promoted after the close)
 
 ## Intent anchor
 

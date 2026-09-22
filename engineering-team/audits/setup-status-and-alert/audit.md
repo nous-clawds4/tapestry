@@ -11,7 +11,10 @@ the union of the three, each taken against its merge's first parent:
 The branch merged `origin/staging` before #737, and again before #746 (`c892d529`). The second merge brought in
 book `assistant-management`'s Assistant Alert, which shares the Setup Alert's spot (§4 #11).
 
-**Not yet on main at this close.** The owner asked for the book to be closed first and promoted after.
+**Production at this close.** Stories 1 and 2 were already on main, through other sessions' promotions: story 1
+with #735 (2026-09-21T21:55:28Z) and story 2 with #739 (2026-09-22T01:38:44Z). Story 3 and this close follow in
+the promotion the owner asked for after the close. *(Corrected after the close commit: its first version said the
+whole book was not yet on main.)*
 
 **Provenance:** Acceptance-frame. There is no PRD.
 - The owner's ask is quoted verbatim in `book.md`, with the nine planning decisions.
