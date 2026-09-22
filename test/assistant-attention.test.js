@@ -456,8 +456,12 @@ test('U11: this instance\'s own relay is never an outside relay — loopback and
     local: [], configured: [OWN, 'wss://own.example/', DCOSL, DCOSL.toUpperCase(), 'not-a-relay'],
     config: { BRAINSTORM_RELAY_URL: 'wss://own.example' }, relays: { [DCOSL]: [] },
   });
-  const urls = calls.readRelay.map((c) => c.url);
-  assert(sameJson(urls, [DCOSL]), `outside relays: want [${DCOSL}], read ${show(urls)}`);
+  // Distinct, because each of the three lookups (the viewer's, the assistant's, the canonical author's) reads the
+  // relay once with its own author filter (ADR 0001 § Implementation notes 2): the set of relays read is what
+  // own-relay exclusion and de-duplication decide.
+  const urls = [...new Set(calls.readRelay.map((c) => c.url))];
+  assert(sameJson(urls, [DCOSL]), `outside relays: want [${DCOSL}], read ${show(calls.readRelay.map((c) => c.url))}`);
+  assert(calls.readRelay.length <= 3, `at most one read per relay per lookup, three lookups; got ${calls.readRelay.length}`);
 });
 
 test('U12: the definitions — found; not found (finished); the found one carries its eventId — and a missing definition never makes a present tagging missing (AC-6)', async () => {
@@ -602,7 +606,9 @@ test('C4: the picker waits for the attention answer — assistantPhase "checking
 /* ───────────────────────── S — the server, by source ───────────────────────── */
 
 test('S1: the route GET /api/assistant/attention is registered in src/api/index.js and documented in openapi.yaml (ADR 0001 sub-decision 9)', () => {
-  const index = codeOnly(safeRead(API_INDEX));
+  // The raw source, not codeOnly(): src/api/index.js mounts globs like '/api/*', which the comment stripper would
+  // read as the start of a block comment and swallow everything to the next '*/'.
+  const index = safeRead(API_INDEX);
   assert(/app\.get\(\s*['"]\/api\/assistant\/attention['"]/.test(index), 'src/api/index.js must register app.get(\'/api/assistant/attention\', …)');
   const yaml = safeRead(OPENAPI);
   assert(/^\s*\/api\/assistant\/attention:\s*$/m.test(yaml), 'src/api/openapi.yaml must document /api/assistant/attention');
