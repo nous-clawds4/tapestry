@@ -1,6 +1,6 @@
 # ADR 0003: Your Assistant signs its two taggings through one narrow, session-bound route, local relay first, each relay reported, and the second card reads the same report
 
-**Status:** Proposed
+**Status:** Accepted (approved 2026-09-22)
 **Date:** 2026-09-22
 **Story:** `engineering-team/stories/assistant-identification-tags/3-your-assistants-two-taggings.md`
 
