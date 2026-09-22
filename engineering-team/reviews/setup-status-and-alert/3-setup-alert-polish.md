@@ -517,3 +517,329 @@ No page errors in any run.
 ## Verdict
 
 **CHANGES_REQUESTED**
+
+## Round 2: `29438ff3`
+
+**Reviewer:** Claude (acting as Reviewer). I did not write round 1, the ADR amendment, the tests or the code.
+**Date:** 2026-09-21
+**Diff:** `git diff 27050a3b..HEAD` on `feat/setup-status-and-alert`, HEAD `29438ff3`, working tree clean. The commits:
+- `1d81afa6` ADR 0003 Amendment 1, the Status lines of ADRs 0001 and 0002, and the inline correction pointers in
+  ADR 0003;
+- `9a9e6aeb` the round-2 tests: P3 race and P3 import (new), U8 and D2 (re-aimed), U9 and U10 (new);
+- `9cd66d73` the re-aim of `treasure-map-relay-sync` R4;
+- `29438ff3` the code: `ui/src/utils/nostrPublish.js` and `ui/src/context/SetupStatusContext.jsx`.
+
+### In short
+
+- **Blocking 1 is closed, in the code and in my own runs.**
+  - `publishEverywhere` now announces once: straight after a successful local write, otherwise after the relays
+    settle if one accepted (`nostrPublish.js:226–232`). The provider re-checks on every announcement
+    (`SetupStatusContext.jsx:68–72`).
+  - Round 1's probe C, re-run on the built UI:
+    - the relays accept at +69 ms and the local write answers at +835 ms;
+    - the one re-check starts at +839 ms and ends on "· 1 step left".
+    - On `bad15295`, rebuilt from source, the same probe still ends on "· 2 steps left".
+  - The second way in is closed too, but the ADR describes it in an order the page cannot produce (Non-blocking 2).
+    In the order it can, `bad15295` leaves the pill on "· 1 step left" after the import, and HEAD clears it.
+- **One new blocking issue, in a test this round added.** P3 import (`tests/brainstorm/setup-alert-polish.spec.js:341–355`)
+  checks in an order that races.
+  - On HEAD's correct code it failed 3 times in 30 runs.
+  - With the import's re-check answering the old "1 step left", it still passed 6 times in 20.
+  - Round 1's Map-editor test just below it checks in the safe order, and catches the stale answer 20 times in 20.
+  - The fix is the Tester's and small. No code change is asked.
+- **Everything else holds.** I checked it with my own runs, not the Implementer's numbers:
+  - the 102-suite gate, 2094/0;
+  - `rollup-scanners`, which the triage missed (Harness friction 1), 33/0;
+  - the browser classes, 85/85 and 55/55;
+  - eslint parity and `harness-lint`.
+- **Round 1's non-blocking items:**
+  - the ADR Status lines and ADR 0003's sentences are fixed, and accurate;
+  - the test plan's first half still describes round 1's design (Non-blocking 3);
+  - Non-blocking 4 and 5 were optional, and are untouched.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **The walker triage, re-run against `git diff 6754a16a...HEAD`.** I applied ledger row
+  `2026-09-21-abbreviated-path-names-no-gate`, including its two newest clauses.
+  - The branch touches `OPEN.md`, `engineering-team/`, `ledger/`, `test/`, `tests/brainstorm/` and `ui/src`. It
+    touches neither `src/`, `scripts/` nor `firmware/`.
+  - The brief's list is the plan's heredoc plus `harness-lint` and `ledger-row-ids`. A dry run gives 93 named suites
+    and 9 walkers the grep misses: 102, none missing from `test/registry.js`.
+  - One more suite reads what the branch touches, through a script it spawns: `rollup-scanners`.
+    - Its AC-2 runs `scripts/lib/collect-meta.sh` on the real repo.
+    - That script reads the `meta` rows of `OPEN.md` and the open `meta` rows under `ledger/`.
+    - Round 1's review commit edited `OPEN.md` row 28. Round 2 edited the meta row
+      `2026-09-21-adr-reaim-list-misses-outcome-asserts`.
+    - So I ran it on its own (below).
+  - The other suites that spawn repo scripts read fixtures (`harness-stats`, `safe-to-merge-check`), or trees the
+    branch does not touch (`tl-certainty-method`, `tl-weighted-sum-method`, `event-less-create-set`).
+- [x] **The gate.** I ran the plan's heredoc with `harness-lint` and `ledger-row-ids` added to the walkers, under
+  `GATE_LABEL=setup-alert-3-r2-review`, with nothing else running. `npm run gate:status -- --label setup-alert-3-r2-review`
+  reads:
+
+  ```
+  20260922T010816Z-21552-5645 [setup-alert-3-r2-review] started 2026-09-22T01:08:16.890Z on 29438ff3 — PASS, exit 0, 2094 passed, 0 failed, 4 skipped, 102/102 suites · /Users/wds4/repos/nous-clawds4/tapestry/tmp/gate-runs/20260922T010816Z-21552-5645.json
+  ```
+
+  - The record has `git.dirty: false`, no stray errors, and node v24.18.0.
+  - The four skips are the baseline's own: `deploy-safety-status` 1, `show-the-four…` 2 and `setup-status` H2 1.
+  - Round 1's gate passed 2010 tests over 100 suites. Add `harness-lint` 76, `ledger-row-ids` 6 and the new U9 and
+    U10, and that is 2094.
+  - `setup-alert-polish` runs last (#102): 16/0.
+  - The suites this round touches or leans on: `global-publish-gate` 8/0, `treasure-map-relay-sync` 22/0,
+    `honest-publish-reporting` 10/0, `treasure-map-relay-presence` 35/0 and `session-start` 32/0.
+- [x] **Five suites outside the gate, each run on its own through `.run()`:**
+  - `rollup-scanners`: 33 passed, 0 failed. That includes AC-2 on the real `OPEN.md`;
+  - `close-unauth-write-surface`: 14 passed, 0 failed;
+  - `event-tagging-write-path`: 19 passed, 0 failed;
+  - `one-default-assistant-profile`: 52 passed, 0 failed;
+  - `reconciliation-rearchitecture`: 15 passed, 0 failed.
+- [x] **HEAD's Node suite against `bad15295`'s code** (a scratchpad mirror): 14 passed and 2 failed.
+  - U8 fails with "heard 2", and D2 fails.
+  - U9 and U10 pass.
+  - That is the test plan's round-2 table, row for row.
+- [x] **The UI build** (`npm --prefix ui run build`) exits 0. It gives `index-DNK2T4Hx.js` and `index-DLb1LOT-.css`.
+  - `:4173` serves that file (same SHA-256), and so does the live `:7778`. So the story's "redeployed to `:7778`"
+    holds.
+  - I rebuilt `bad15295` from `git archive` into the scratchpad. It gives `index-8tznIVuA.js`, the hash round 1
+    recorded. I served it on `:4174`.
+- [x] **The browser classes on `:4173`:**
+  - `setup-alert-polish`, `setup-alert` and `setup-status`: **85 passed** (20, 50 and 15);
+  - the five hermetic /assistant specs: **55 passed** (18, 15, 8, 4 and 10). Each has the `/api/**` catch-all.
+  - The story's spec against `:7778` gives 20 passed.
+- [x] **The round-2 spec against `bad15295` on `:4174`:** 19 passed and 1 failed.
+  - The failure is P3 race: "the pill must end on the new answer".
+  - P3 import passes.
+  - That matches the plan's table: the race test fails, and the import test is a guard.
+- [x] **Repeats of the story's P3 tests on `:4173`** (`--repeat-each`): see Blocking 1.
+- [x] **eslint parity with `27050a3b`,** through `--stdin` with the ui config. Nothing is new:
+  - `nostrPublish.js` has `no-empty` ×1: the `pool.close` catch, now at `:206`;
+  - `SetupStatusContext.jsx` has `only-export-components` ×1.
+- [x] **`bash scripts/harness-lint.sh`:** exit 0, "harness-lint: clean (0 violations)", on the tree under review.
+- [x] **Hygiene**, over the round's files:
+  - no raw control bytes;
+  - no 64-hex literal added;
+  - no `console.log`, `debugger`, TODO or `.only(`;
+  - no package, eslint, vite or Playwright config change.
+- [ ] _Lint, typecheck and build are not configured: skipped. The eslint parity check and the UI build above are
+  the book's checks._
+
+### Round 1's findings, re-checked
+
+| Round 1 | Round 2 | Evidence |
+|---|---|---|
+| **Blocking 1**, the race | **Resolved** | Probes C and C2 below. P3 race fails on `bad15295` and passes on HEAD |
+| **Blocking 1**, the second way in | **Resolved in the code; the ADR's example is wrong** | Probe L below; Non-blocking 2 |
+| **Non-blocking 1**, the ADR Status lines | **Resolved** | ADR 0001 `:3` and ADR 0002 `:3` now record the extension and the four superseded clauses. ADR 0002's list matches ADR 0003 § Decision (`:165–170`). ADR 0001's line calls ADR 0002's Implementation notes § 5 "Decision 5", as the provider's header comment already did; ADR 0002 calls it § 5. That is harmless |
+| **Non-blocking 2**, ADR 0003's sentences | **Resolved** | See the note below the table |
+| **Non-blocking 3**, the test plan | **Partly** | The gate order and the `ledger/` triage are corrected (`:254–257`). The coverage map, the edge cases and the mutation table still describe round 1's design (Non-blocking 3) |
+| **Non-blocking 4**, `/%73etup` | Not addressed; it was optional | `SetupAlert.jsx` is not in this round |
+| **Non-blocking 5**, UserDetail's log | Not addressed; it was optional | `UserDetail.jsx` is not in this round |
+| **Non-blocking 6**, not verified | Still not verified | See Non-blocking 7 |
+| **Harness friction 1 and 2** | Recorded | The ledger row has both new clauses, and `OPEN.md` row 28 has the third-occurrence note |
+
+I checked each of ADR 0003's inline pointers and each entry under "Corrections to the text above":
+- the relay budget is `RELAY_BUDGET_MS = 8000` (`src/api/setup/status.js:33`);
+- `/setup` shows "0 of 3 complete" during a re-check (probe D);
+- the push and pull branches are `TreasureMapRelayPresence.jsx:177–214`;
+- `CurateHereOffer.jsx:95` calls `publishOrThrow`;
+- the legacy pages publish through `/api/publish-signed-kind10040`: `public/pages/nip85.html:324`,
+  `customers/sign-up.html:790`, `customers/customer.html:986` and `index.html:790`. So does
+  `customers/customer_backup.html:1099`, which the amendment does not name;
+- the quote is in the provider's header comment at `6754a16a`, and nowhere in ADR 0001.
+
+### The Deviation: an `{ announce }` option, not internal functions
+
+- **It is acceptable.**
+  - Every current caller behaves as before. I grepped every call site in `ui/src`:
+    - `publishToLocalStrfry` is called with one argument (`TrustedAssertions.jsx:106`, `UserDetail.jsx:312`,
+      `BrainstormSettings.jsx:370`, `TreasureMapRelayPresence.jsx:197`);
+    - `publishToRelays` is called with two (`TreasureMapRelayPresence.jsx:181`, `dispositionActions.js:32` and
+      `:64`, `ConceptDetail.jsx:126`);
+    - only `publishEverywhere` passes `{ announce: false }` (`nostrPublish.js:226–227`).
+  - No caller can hit the new parameter by accident: none passes more arguments, and none hands the helpers over as a
+    callback.
+  - The local-only guard is still the first statement of `publishToRelays` (`:170`), and `global-publish-gate`
+    passes 8/0.
+  - The Deviation's reason is right. The suite's coverage check reads `publishEverywhere`'s text for the word
+    `publishToRelays` (`test/global-publish-gate.test.js:150–156`). So a `publishEverywhere` that called an
+    internal function by another name fails it.
+- **The ADR should say what was built** (Non-blocking 1).
+- **The cost is one wider export.** A future caller could pass `announce: false` and quietly lose the Setup Alert's
+  refresh (Non-blocking 5).
+
+### My own probes (session scratchpad `review3r2/`, not committed)
+
+They use round 1's method:
+- the `/api/**` catch-all is registered first;
+- every WebSocket is answered in the page;
+- a fake NIP-07 signer signs;
+- a MutationObserver keeps every committed state of the pill and of `/setup`'s progress line;
+- a fetch wrapper records when each publish and status request starts and ends.
+
+The status mock answers as the real local-first check would: from the probe's own copy of the local relay, read
+when each request arrives. Each probe ran on HEAD (`:4173`), and where it matters on `bad15295` (`:4174`).
+
+**AC-3 orderings: Follow on a profile page, as a customer with two steps left, whose local relay already holds an
+older follow list.** Times are from the click.
+
+| Case | HEAD | `bad15295` |
+|---|---|---|
+| A: local-only gate; the answer delayed 1.5 s | re-check at +55 ms, right after the write (+54). The pill hides, then shows "· 1 step left" at +1559. 2 reads | not run |
+| B: both routes, nothing delayed | "· 1 step left". 2 reads | the same |
+| C: relays at once; the local write takes 800 ms (round 1's probe C) | relays at +69, write answered at +835, re-check at +839: **"· 1 step left"**. 2 reads | re-check at +53: **"· 2 steps left"**, and it stays |
+| C2: the relays answer after 800 ms; the local write at once | re-check at +54, before any relay answered: "· 1 step left" | the same |
+| E1–E3: the local write refused, aborted or an HTML 502; relays accept | one re-check after the relays (+57 to +61). It shows the local relay's older answer, "· 2 steps left" | the same |
+| E4: the local write refused; relays accept after 800 ms | one re-check at +873, after the relays settled: "· 2 steps left" | the same |
+| F: the local write refused, and every relay refuses | no re-check. 1 read | not run |
+| G: local-only gate; the local write refused | no re-check. 1 read | not run |
+| H: local-only gate; the local write takes 800 ms | re-check at +837, after the write: "· 1 step left" | the same |
+| D: an in-app move to `/setup` 150 ms after the click; the answer delayed 2 s | `/setup` reads "0 of 3 complete" until the answer, then "2 of 3 complete". Never "1 of 3" | not run |
+| J: Follow, then Unfollow at +111 ms. The Follow's read answers late ("1 left" at +2561), the Unfollow's early ("3 left" at +352) | 3 reads. The pill reads "· 3 steps left" from +353, and the late answer never replaces it | not run |
+
+- E1 to E4 are the case Amendment 1 records: "When the local write fails but a relay accepted … no worse than before
+  this story".
+  - The old count is then the check's own answer, because a local hit ends the lookup (`src/api/setup/status.js:143`).
+  - No later announcement comes that could change it.
+- **In no ordering did the pill show an old answer as finished when a later announcement should have corrected it.**
+
+**The second way in (probe L), as the Owner on the Treasure Map page.** The Map is only outside.
+1. The hand editor publishes a changed Map. The local write is refused, and the five relays accept.
+2. The page searches again. It finds the new Map outside, and offers "Import to local strfry".
+3. The import stores that same event (`999999…`) locally.
+4. The status mock says "· 1 step left" until the event is local.
+
+- **HEAD:** three reads. The import's re-check starts at +2650 ms, and the pill goes.
+- **`bad15295`:** two reads. The import's announcement carries an id already heard, so the pill stays at
+  "· 1 step left", though the Map is now local.
+- So Decision 2 fixes a real, reachable path. It is not the one the ADR names (Non-blocking 2).
+
+**A burst (probe K).**
+- The setup: as the Owner, with the Map local and three relays lacking it, I pressed "Send my version" on all three,
+  120 ms apart.
+- HEAD re-checks three times: reads 2, 3 and 4 start at +41, +190 and +323 ms.
+- I made reads 2 and 3 answer late, with a stale "1 left" (+1644 and +1395), and read 4 early, with nothing left
+  (+427). The pill stayed hidden throughout.
+- The request key and the cancel flag keep the newest answer (`SetupStatusContext.jsx:35`, `:44–60`).
+- All four rows then read "Has this version", with no page errors.
+
+**Reasoned from the code, not driven:**
+- **Signed out:** the listener returns on `!pubkey` (`:69`), and there is no request anyway.
+- **While sign-in resolves:** `refresh()` raises `attempt`, but the request stays null until auth settles (`:35`),
+  and then there is one read.
+- **Another pubkey or another kind:** filtered out (`:69–70`). Round 1's import probes showed that another user's
+  Find does not re-check, and nothing on that path changed.
+- **Caching:** the live `/api/setup/status` sends only a weak ETag, with no `Cache-Control`, `Expires` or
+  `Last-Modified`. The handler has no cache of its own. So every re-check reaches it.
+
+### Findings
+
+#### Blocking
+
+1. **`tests/brainstorm/setup-alert-polish.spec.js:352–353`: the new P3 import test checks in an order that races,
+   and it does not pin its own headline.**
+   - **The mechanism.**
+     - The pill hides as soon as a re-check starts, because the phase is `checking` (ADR 0001 § 3).
+     - So `toHaveCount(0)` at `:352` can pass during the re-check itself, before the second status request reaches
+       the test's route handler.
+     - Then `state.statusCalls` at `:353` still reads 1.
+   - **Measured on HEAD's correct code:** 3 failures in 30 runs (1 in 20, then 2 in 10). Each was "one re-check
+     after the import … Received: 1". The other five P3 tests passed 50 of 50.
+   - **Measured with the import's re-check answering the old "1 step left"** (a copy of the spec with
+     `answerFor: () => ONE_LEFT_MAP`): it still passed 6 of 20. So "nothing is left, so the pill goes" is not pinned.
+   - **The test below it does this right.** Round 1's Map-editor test polls the read count first, and then checks the
+     pill (`:384–385`). With the same stale answer it failed 20 of 20, and on HEAD it was stable.
+   - **Why it blocks.** This is an acceptance criterion's test that fails about one run in ten on correct code.
+     - It makes every later run of this class suspect. Later stories re-run it for their own AC-5.
+     - It teaches re-running until green.
+     - The round's recorded "85/85" is true only per run.
+   - **Asked change (Tester):**
+     - order P3 import as `:384–385` does: `expect.poll(() => state.statusCalls).toBe(2)`, then `toHaveCount(0)`;
+     - or wait until the second answer has been served before checking the pill;
+     - show it is stable with `--repeat-each` (20 or more), and that it fails on a stale answer.
+   - **Recommended in the same pass:** extend the test to probe L's shape. That also closes Non-blocking 4.
+     - The hand editor publishes, with the local write refused and the relays accepting.
+     - Then "Import to local strfry" the same event.
+     - Expect three reads, and the pill gone.
+     - I ran exactly this shape. It fails on `bad15295` and on the variant in Non-blocking 4, and it passes on HEAD.
+     - The spec's `mock` already has most of it (`mapLocal: false`, `authDelayMs`). It needs an answer per local
+       publish, and an outside relay that serves what was published to it.
+
+#### Non-blocking
+
+1. **ADR 0003 `:315–316`, Amendment 1 Decision 1: "through internal versions of the two routes that do not
+   announce".**
+   - The code gives the two exported routes an `{ announce }` option instead (`nostrPublish.js:77`, `:166`).
+   - The story records the change and why (Deviations `:121–132`). The ADR still describes functions that do not
+     exist.
+   - Asked (Architect): an italic as-built pointer, like the others, naming the option and the story's Deviation.
+2. **ADR 0003 `:307–308` and `:318`: the second way in, "push a Map to a relay … then import it locally", and "such
+   as a push and then an import".** The page cannot do these in that order.
+   - "Send my version", the push, is offered only when the local relay holds the Map:
+     - `localEvent = inLocal ? event : null` (`TreasureMapRelayPresence.jsx:164`);
+     - `planRelaySync` pushes only when it has a local event (`ui/src/utils/treasureMap.js:1204–1205`).
+   - "Import to local strfry" is offered only when the local relay does not hold it
+     (`TreasureMapRelayPresence.jsx:278–289`).
+   - The real path is probe L: a publish whose local write fails while a relay accepts, then an import of that event.
+     For a follow list, the import is UserDetail's Find on the viewer's own page.
+   - Round 1 traced its version in the source and did not drive it, and the amendment took it over. The decision is
+     right; only the example is wrong.
+   - Asked (Architect): replace the example.
+3. **The test plan's first half still describes round 1's design.**
+   - `:11` and `:15` say 14 tests and "U ×8"; there are now 16 and ×10. `:20` says 18 tests; there are now 20.
+   - The AC-3 row of the coverage map (`:43`):
+     - says P3 "both routes" sees "two announcements of one event";
+     - says D2 pins "de-duplicated by id". D2 now asserts the opposite, and `publishEverywhere` announces once;
+     - does not list P3 race, P3 import, U9 or U10.
+   - These are round 1's design too:
+     - the edge case at `:58` ("One event announced twice (local plus outside, U8)");
+     - the mutation row at `:215` ("no de-duplication …");
+     - the spec's message at `:324`: "two announcements of the same event must cause one re-check".
+   - Asked (Tester): update them with Blocking 1's fix. The coverage map is what a reviewer checks the criteria
+     against.
+4. **Amendment 1 § 2 is pinned only by D2's source pattern** (`test/setup-alert-polish.test.js:292–293`: no
+   `new Set(` and no `.has(x.id)`).
+   - A provider variant that keeps id memory in an object (`useRef({})`, then `if (heard.current[ev.id]) return;`)
+     passes the Node suite 16/16, D2 included.
+   - It also passed the browser class, 19 of 20. Its one failure was Blocking 1's race, not a detection.
+   - Probe L on that variant reproduces round 1's second way in: the pill stuck at "· 1 step left".
+   - D2 does catch round 1's exact shape. Blocking 1's recommended probe-L test would close this.
+5. **`nostrPublish.js:73–74` and `:162–163`: nothing flags a caller other than `publishEverywhere` that passes
+   `announce: false`.** The JSDoc documents it.
+   - Optional: have D3 or S2 list the files that pass it.
+6. **Story `:121–122`: the heading says "as written", and the next line says "Not quite as written".**
+   - Optional: drop "as written" from the heading.
+7. **Not verified:**
+   - screen readers and voice control;
+   - Firefox and Safari;
+   - a live Follow: the local stack answers `allowExternalPublish: true`;
+   - the "about 2.5 s live" catch-up for a viewer with no Map;
+   - signing out while a publish is in flight. I reasoned it from the code above.
+
+#### Harness friction *(each becomes an OPEN.md row, type `meta`)*
+
+1. **This round's walker list missed `rollup-scanners`, though the ledger row's newest clause covers it.**
+   - The list added `harness-lint` and `ledger-row-ids`, the two `ledger/` readers round 1 named.
+   - `rollup-scanners` AC-2 also reads the meta rows of `OPEN.md` and the open meta rows under `ledger/`. It does so
+     through `scripts/lib/collect-meta.sh`, which it spawns on the real repo (`test/rollup-scanners.test.js:108–117`).
+   - It passed on its own, 33/0.
+   - Asked:
+     - add this as another instance on `2026-09-21-abbreviated-path-names-no-gate`;
+     - turn the clause into a recipe: grep `test/` for spawns of `scripts/` and for reads of `OPEN.md` and
+       `ledger/`, then triage each hit.
+2. **Test Design proves a browser test satisfiable with a single run.**
+   - P3 import passed the Tester's oracle run, the Implementer's runs, and my first run.
+   - Only `--repeat-each` showed the race.
+   - Only a stale answer from the mock showed that its final check does not bite.
+   - Asked: when a browser test waits for a state that also appears in passing, run it with `--repeat-each` on the
+     oracle build, and mutate its final answer, before calling it satisfiable. Here the passing state was the pill
+     hidden during `checking`. The rule could go in the Tester role or the test-plan template.
+
+### Close-out (same commit)
+
+- [ ] Story `**Status:**` stays `Approved`: this round requests changes.
+- [ ] Completion detection: none until a later round clears Blocking 1.
+
+### Verdict (round 2)
+
+**CHANGES_REQUESTED**

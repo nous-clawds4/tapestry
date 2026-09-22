@@ -58,5 +58,13 @@ clause: **re-run the walker grep after merging the base branch, not only at Test
   - **re-triage after any commit that touches a new tree;**
   - **count a suite that spawns a repo script as a reader of whatever that script reads.**
 
+**And the spawned-script clause, missed at once (setup-status-and-alert #3, review round 2).**
+- Round 2's walker list added the two `ledger/` readers round 1 named, `harness-lint` and `ledger-row-ids`.
+- It still missed `rollup-scanners`. Its AC-2 reads `OPEN.md`'s meta rows and the open `ledger/` meta rows
+  through `scripts/lib/collect-meta.sh`, which it spawns on the real repo. It passed on its own, 33/0.
+- **The clause, as a recipe:**
+  - grep `test/` for spawns of `scripts/`, and for reads of `OPEN.md` and `ledger/`;
+  - triage every hit against the branch's diff.
+
 **Pointer:** `engineering-team/stories/done/setup-page-scaffold/1-setup-page-and-placeholders.md`
 § Deviations; `engineering-team/reviews/done/setup-page-scaffold/1-setup-page-and-placeholders.md`; `engineering-team/reviews/setup-status-and-alert/1-setup-shows-where-you-stand.md` § Harness friction 1 and § Round 2, Harness friction 2.
