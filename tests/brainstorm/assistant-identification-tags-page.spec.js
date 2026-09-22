@@ -261,7 +261,8 @@ test.describe('The Identification Tags page, and your two taggings (assistant-id
     await expect(personCard(page)).toHaveClass(/is-done/);
     await expect(assistantCard(page)).toHaveClass(/is-marked/);
     await expect(boxOf(assistantCard(page), 'My Human')).toBeChecked();
-    await expect(assistantCard(page).getByRole('button'), 'no button on the second card until story 3').toHaveCount(0);
+    // Re-aimed for story 3: the second card has its button now; tests/brainstorm/assistant-taggings-publish.spec.js pins it.
+    await expect(assistantCard(page).getByRole('button', { name: T.PAGE_COPY.buttons.assistant, exact: true }), "the second card's button (story 3)").toHaveCount(1);
   });
 
   test('B6: signed out, no Assistant, and while sign-in resolves (AC-1)', async ({ page }) => {

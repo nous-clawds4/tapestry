@@ -256,6 +256,7 @@ const suites = [
   { file: 'assistant-alert.test.js' },
   { file: 'assistant-attention.test.js' },
   { file: 'assistant-identification-tags-page.test.js' },
+  { file: 'assistant-taggings-publish.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so

@@ -132,9 +132,44 @@ const TAG_NOT_FOUND = attentionAnswer({
   })),
 });
 
+// ─── Story 3: your Assistant's two taggings (story § Copy; ADR 0003 sub-decisions 2, 6, 8) ─────────────────
+const PUBLISH_ROUTE = '/api/assistant/identification-tags/publish';
+
+/** The route's refusal words (story 3 § Copy) and the page's notice for a request that never answered. */
+const REFUSALS = {
+  'not-signed-in': "Sign in to have your Assistant publish its taggings.",
+  'no-assistant': "You don't have a Tapestry Assistant on this instance yet.",
+  'not-an-assistant-tagging': "That is not one of the taggings your Assistant publishes.",
+};
+const REQUEST_FAILED = 'This instance did not answer; nothing was published.';
+
+/** One published tagging's row in the route's answer, in the profile publish's words. */
+function serverPublishedRow(entry, { relays = ['wss://a.example', 'wss://b.example'], accepted = relays.length, localOnly = false } = {}) {
+  const rows = relays.map((relay, i) => (localOnly
+    ? { relay, status: 'skipped', reason: 'local-only publish mode' }
+    : { relay, status: i < accepted ? 'accepted' : 'refused', reason: i < accepted ? '' : 'blocked' }));
+  const subject = `"${entry.name}"`;
+  let outcome, message;
+  if (localOnly) { outcome = 'kept-local'; message = `${subject} was saved on this instance's relay only: local-only publish mode is on, so it was not sent to any other relay.`; }
+  else if (accepted > 0) { outcome = 'published'; message = `${subject} was saved on this instance's relay and accepted by ${accepted} of ${relays.length} relays.` + (accepted < relays.length ? ` ${relays.length - accepted} did not accept it; see below.` : ''); }
+  else { outcome = 'not-delivered'; message = `${subject} was saved on this instance's relay, but none of the ${relays.length} relays accepted it; see below.`; }
+  return { key: entry.key, name: entry.name, ok: true, outcome, message, localOnly, relays: { total: rows.length, success: localOnly ? 0 : accepted, results: rows } };
+}
+function serverLocalFailedRow(entry, reason = 'strfry import failed') {
+  return { key: entry.key, name: entry.name, ok: false, stage: 'local', outcome: 'not-delivered', localOnly: false,
+    message: `"${entry.name}" could not be saved on this instance's relay (${reason}), so it was not sent to any other relay.`,
+    relays: { total: 0, success: 0, results: [] } };
+}
+function serverTagNotFoundRow(entry) {
+  return { key: entry.key, name: entry.name, ok: false, code: 'tag-not-found', message: PAGE_COPY.tagNotFound(entry.name) };
+}
+const serverAnswer = (rows) => ({ success: true, results: rows });
+const serverRefusal = (code) => ({ success: false, code, error: REFUSALS[code] });
+
 module.exports = {
   CANONICAL_TAG_AUTHOR, CANONICAL_TAG_AUTHOR_NPUB, REQUIRED, CHECKED_ACTION,
   canonicalTagAddress, taggingDTag, taggingRow, attentionAnswer,
   SIGNED_OUT, NO_ASSISTANT, DONE, PENDING, UNFINISHED,
   PAGE, PAGE_COPY, PUBLISH_WORDS, MISSING_ALL, TAG_NOT_FOUND,
+  PUBLISH_ROUTE, REFUSALS, REQUEST_FAILED, serverPublishedRow, serverLocalFailedRow, serverTagNotFoundRow, serverAnswer, serverRefusal,
 };
