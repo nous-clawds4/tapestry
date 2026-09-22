@@ -8,16 +8,16 @@ Two new files carry the tests, and two of story 2's files change so they stop pi
 replaced.
 
 - **`test/setup-alert-polish.test.js`** is the Node suite, registered in `test/registry.js` after
-  `setup-alert.test.js`. It has 14 tests in four classes:
+  `setup-alert.test.js`. It has 17 tests in four classes (14 at Test Design; round 2 added U9 and U10, round 3 added S3):
 
   | Class | What it tests | How |
   |---|---|---|
-  | **U** ×8 | the publish signal in `ui/src/utils/nostrPublish.js` (ADR 0003 § 1) | the real module in Node, a fresh instance per test. `fetch` is stubbed, and the external route publishes to stub relays served by the `ws` package on 127.0.0.1: one that accepts, one that refuses, and a port with no relay |
+  | **U** ×10 | the publish signal in `ui/src/utils/nostrPublish.js` (ADR 0003 § 1, Amendment 1): each call announces at most once, and `publishEverywhere` announces once, after the local write | the real module in Node, a fresh instance per test. `fetch` is stubbed, and the external route publishes to stub relays served by the `ws` package on 127.0.0.1: one that accepts, one that refuses, and a port with no relay |
   | **C** ×1 | the alert's copy (§ 5) | `steps.js` loaded as ESM |
   | **D** ×3 | the pill (§ 4), the provider's listener (§ 3), and the three import sites (§ 2) | source sentinels |
-  | **S** ×2 | the chip's contrast (§ 6, AC-1), and the pages that POST to `/api/strfry/publish` by hand (§ 7) | computed from `styles.css`; a walk of `ui/src` |
+  | **S** ×3 | the chip's contrast (§ 6, AC-1); the pages that POST to `/api/strfry/publish` by hand (§ 7); and that only `nostrPublish.js` passes `announce: false` (Amendment 1) | computed from `styles.css`; walks of `ui/src` |
 
-- **`tests/brainstorm/setup-alert-polish.spec.js`** is the Playwright B class, 18 tests (P0–P4),
+- **`tests/brainstorm/setup-alert-polish.spec.js`** is the Playwright B class, 21 tests (P0–P4; 18 at Test Design, and round 2 and round 3 added three P3 cases),
   run hermetically against the built UI like stories 1 and 2:
   - every `/api` route is mocked, with the catch-all first;
   - every WebSocket is answered in the page (`page.routeWebSocket`), so no publish reaches a real
@@ -40,7 +40,7 @@ replaced.
 |---|---|---|---|
 | **AC-1** the button reads clearly | **P1** ×3 (1280, 800, 375 px): the chip's text is `rgb(15, 15, 26)` and contrasts ≥ 4.5:1 with its chip. The sentence (1280, 800) and the count (1280) keep ≥ 4.5:1, measured against the pill's translucent amber composited over what is behind it, with the count's own opacity applied. **S1**: the same ratio computed from `styles.css`, and the chip is still amber. | both | browser; unit |
 | **AC-2** announced as it reads | **P2** ×3: at each width, `toHaveAccessibleName` gives the story's exact string, the pill has no `aria-label`, the ⚠ and the arrow are inside `aria-hidden` elements, and the button still reads "Finish setup →". **P2** singular: "· 1 step left". **P2** Chrome: Chrome's own accessibility tree (CDP `Accessibility.getFullAXTree`) gives the same names at all three widths. **P2** keyboard: Tab reaches the link by its new name, and Enter opens `/setup`. **C1**, **D1**. | both | browser; unit |
-| **AC-3** catches up after an in-app save | **P3** Follow (kind 3, a profile page): the pill goes from "· 2 steps left" to "· 1 step left" in the same document, after exactly two status reads. The second read is delayed 1.5 s, and a MutationObserver log shows no committed state carrying the old count from 300 ms after the publish until the new answer. `/setup`, reached through the pill, shows "2 of 3 complete" with no third read. **P3** both routes: when the Follow reaches the local relay *and* outside relays (two announcements of one event), there is still one re-check. **P3** Mute (kind 10000): no re-check (the negative control). **P3** Treasure Map (kind 10040, the Map page's hand editor, as the Owner): one re-check, and the pill goes once nothing is left. **U1–U8**: the signal itself. **D2**: the provider's filter: the viewer's pubkey, kinds 3 and 10040, de-duplicated by id. **D3**: the import sites. **S2**: no new hand-written publisher goes unnoticed. | both | browser; unit |
+| **AC-3** catches up after an in-app save | **P3** Follow (kind 3, a profile page): the pill goes from "· 2 steps left" to "· 1 step left" in the same document, after exactly two status reads. The second read is delayed 1.5 s, and a MutationObserver log shows no committed state carrying the old count from 300 ms after the publish until the new answer. `/setup`, reached through the pill, shows "2 of 3 complete" with no third read. **P3** both routes: a Follow reaching the local relay *and* outside relays is announced once, so it re-checks once. **P3** race (round 2): with the local write held behind relays that accept at once, and the status read answering from the local relay, the pill still ends on the new answer. **P3** import (round 2): the Map page's "Import to local strfry" re-checks and the pill goes. **P3** second way in (round 3): a Map edit whose local write fails while the relays accept, then an import of that same event, re-checks each time (three reads) and the pill goes. **P3** Mute (kind 10000): no re-check (the negative control). **P3** Treasure Map editor (kind 10040, as the Owner): one re-check, and the pill goes once nothing is left. **U1–U10**: the signal itself. **D2**: the provider's filter (the viewer's pubkey, kinds 3 and 10040) and no record of ids heard. **D3**: the import sites. **S2**, **S3**: no new hand-written publisher, and no other caller silencing the announcement, goes unnoticed. | both | browser; unit |
 | **AC-4** hidden in any letter case | **P4** ×4: `/SETUP`, `/Setup/Follow`, `/SETUP/ACTIVATE`, `/Setup/create-account` each render a setup page (`main.bs-setup-main`) with no pill, and a control on `/tags` shows the pill for the same viewer first. **D1** (the lower-cased comparison). | both | browser; unit |
 | **AC-5** nothing else changes | Story 2's browser class (50) and Node suite (6), re-aimed as above, and story 1's browser class (15), all re-run. | both | browser; unit |
 | Build prerequisite | **P0**: the served bundle contains `bs-setup-alert-arrow`, so a stale build fails loudly. | spec | browser |
@@ -55,7 +55,7 @@ Beyond the criteria:
   - every outside relay refusing or unreachable (U5).
 - [x] **A listener that throws** never breaks the publish, and the others still hear it (U6).
   Unsubscribing works (U7).
-- [x] **One event announced twice** (local plus outside, U8) causes one re-check (P3, both routes).
+- [x] **One publish reaching both routes** is announced once (U8), so it causes one re-check (P3, both routes). **A second publish of the same event** (the import after a failed local write) re-checks again (P3, second way in).
 - [x] **A setup-irrelevant publish by the viewer** (kind 10000) causes no re-check (P3 Mute).
 - [x] **The old count is never current during the re-check** (P3 Follow's MutationObserver log).
   Before the publish the old count is simply the latest answer.
@@ -212,7 +212,7 @@ the classes they concern:
 
 | Mutation | Fails |
 |---|---|
-| no de-duplication, and any kind re-checks | P3 both routes (3 reads, not 2); P3 Mute (2 reads, not 1) |
+| no de-duplication, and any kind re-checks (round 1's design; now the de-duplication itself is gone, and only the kind filter still matters) | P3 both routes (3 reads, not 2); P3 Mute (2 reads, not 1) |
 | the old `aria-label` kept | all six P2 tests |
 | the case-sensitive `/setup` check kept | all four P4 tests |
 | the external route announces nothing | U5 ("heard []") |
@@ -298,4 +298,35 @@ story's Deviations). It gives the two exported routes an optional `{ announce }`
   signature, so R4 now accepts a comma or a closing parenthesis after the relay list.
 - This is another by-value literal that the amendment's re-aim list missed (ledger row
   `2026-09-21-adr-reaim-list-misses-outcome-asserts`).
+
+### Round 3 (after round 2's review asked for changes)
+
+Round 2's Blocking 1 was a flaw in a test: **P3 import** checked that the pill was gone before checking the read
+count. The pill also hides while a re-check runs, so the test raced (3 of 30 runs failed on correct code) and
+passed on a stale final answer (6 of 20). No code changed in this round. What changed:
+
+- **P3 import** polls for the second read first, then checks the pill (the order the Map-editor test already used).
+- **P3 second way in** (new, the reviewer's probe L):
+  1. the hand editor publishes a Map edit whose local write is refused while the relays accept (one re-check);
+  2. the page finds the edit outside, and "Import to local strfry" publishes that same event (a second re-check);
+  3. three reads in all, and the pill goes.
+
+  The mock gained `localRefusals`, and outside relays that record what they accept and serve it back.
+- **S3** (new): only `utils/nostrPublish.js` passes `announce: false`.
+- **The first half of this plan** now describes Amendment 1's design: the counts, the AC-3 row, the edge case,
+  and the mutation row.
+
+**Evidence, all on 2026-09-21:**
+
+| Run | Result |
+|---|---|
+| Story 3's spec on HEAD's build (`index-DNK2T4Hx.js`) | 21 passed |
+| Every P3 test with `--repeat-each 20` on HEAD | 140 passed, 0 failed (20 each, 7 tests) |
+| The old code (`bad15295`, rebuilt: `index-8tznIVuA.js`) | P3 race **fails** ("the pill must end on the new answer"); P3 second way in **fails** ("Expected: 3, Received: 2"); the rest pass |
+| A mutant keeping id memory in an object (it passes D2's source check and the whole Node suite) | only P3 second way in **fails** ("Expected: 3, Received: 2"). So the "every announcement re-checks" rule is now pinned by behaviour, not only by D2's pattern |
+| A copy of the spec whose status mock always answers the stale "1 step left" for the two import tests, `--repeat-each 20` | P3 import 0 passed, 20 failed; P3 second way in 0 passed, 20 failed. Their final checks bite |
+| The Node suite | 17 passed (S3 new) |
+
+This follows ledger row `2026-09-21-single-run-satisfiability`: repeat runs on the build, and a stale-answer
+mutation of the mock, before calling a browser test satisfiable.
 

@@ -355,6 +355,23 @@ test('S2: only the known pages POST to /api/strfry/publish by hand — a new one
     `route it through publishToLocalStrfry so the Setup Alert re-checks (ADR 0003); otherwise add it to RAW_PUBLISH_ALLOWED with the kinds it sends.`);
 });
 
+test('S3: only utils/nostrPublish.js passes announce: false — every other caller keeps the announcement (ADR 0003 Amendment 1)', async () => {
+  const found = [];
+  (function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (/\.(jsx?|mjs)$/.test(entry.name) && /announce\s*:\s*false/.test(fs.readFileSync(p, 'utf8'))) {
+        found.push(path.relative(UI_SRC, p).split(path.sep).join('/'));
+      }
+    }
+  })(UI_SRC);
+  const others = found.filter((f) => f !== 'utils/nostrPublish.js');
+  assert(others.length === 0,
+    `these files silence a publish's announcement: ${others.join(', ')}. Only publishEverywhere may, because it announces once itself; ` +
+    'anywhere else the Setup Alert would not re-check after the viewer publishes their follow list or Treasure Map.');
+});
+
 async function run() {
   console.log('\n=== setup-alert-polish (setup-status-and-alert #3) ===');
   let pass = 0, fail = 0;
