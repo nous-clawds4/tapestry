@@ -1,6 +1,6 @@
 # ADR 0002: The Identification Tags page reads the one answer, and publishes your two taggings through the existing tagging publisher with a per-tagging, per-relay report
 
-**Status:** Accepted (approved 2026-09-22)
+**Status:** Accepted (approved 2026-09-22; Amendment 1 appended 2026-09-22: the copy module's name)
 **Date:** 2026-09-22
 **Story:** `engineering-team/stories/assistant-identification-tags/2-the-page-and-your-two-taggings.md`
 
@@ -374,3 +374,12 @@ lines), and the 480 px rules.
 - Disputing or retracting from this page; a stored opt-out; publishing a row the check could not settle.
 - Changing where taggings are published (`PUBLISH_RELAYS`) or read from.
 - Lifting the per-relay renderer into a shared component.
+
+## Amendment 1 — the copy module is `identificationTagsCopy.js` (2026-09-22, Implementation)
+
+Sub-decision 2 named the pure module `ui/src/pages/assistant/identificationTags.js`, beside the page
+`IdentificationTags.jsx`. The two differ only by case, and the dev container builds the UI from the macOS bind
+mount, a case-insensitive filesystem: Vite's extension-less resolution of `./pages/assistant/IdentificationTags`
+tries `.js` first, found the module, and the build failed ("default" is not exported). The module is named
+`identificationTagsCopy.js` instead; nothing else in the design changes. The rule this leaves behind: never name a
+pure module and a JSX page the same modulo case, since Linux CI resolves them apart and a macOS checkout does not.

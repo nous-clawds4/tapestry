@@ -181,6 +181,9 @@ audit.*
    the icons are status marks beside the sentence, not copy, and match the shipped editor.
 5. **The second card renders every row, state and checkbox but no button** (AC-5); its checkboxes are live, so a
    viewer can already leave one out before story 3 wires the button.
+6. **The copy module is `identificationTagsCopy.js`, not `identificationTags.js`** (ADR 0002 Amendment 1): a name
+   that differs from the page's `IdentificationTags.jsx` only by case resolved to the wrong file when the container
+   built the UI from the case-insensitive macOS bind mount. The suite's one path constant follows (a `test:` commit).
 
 ## Linked artifacts
 

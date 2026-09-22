@@ -11,7 +11,7 @@ import { PUBLISH_RELAYS } from '../../utils/nostrPublish';
 import { describeTaggingPublish, publishTone, relayLine } from '../../utils/taggingPublishReport';
 import ActionText from './ActionText';
 import { ASSISTANT_ACTIONS, ASSISTANT_COPY } from './actions';
-import { IDENTIFICATION_TAGS_COPY as COPY, rowState, cardState } from './identificationTags';
+import { IDENTIFICATION_TAGS_COPY as COPY, rowState, cardState } from './identificationTagsCopy';
 
 /**
  * /assistant/identification-tags — the Identification Tags page (assistant-identification-tags #2, ADR 0002).

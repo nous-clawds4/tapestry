@@ -1,7 +1,9 @@
 /**
  * The Identification Tags page's words and rules (assistant-identification-tags #2, ADR 0002 sub-decision 2).
  *
- * Pure, no imports, so Node suites can load it (test/assistant-identification-tags-page.test.js). The heading, the
+ * Pure, no imports, so Node suites can load it (test/assistant-identification-tags-page.test.js). Named apart from the
+ * page (IdentificationTags.jsx): a module that differs from it only by case resolves to the wrong file on a
+ * case-insensitive filesystem, which the dev container's bind mount is (ADR 0002 Amendment 1). The heading, the
  * description, "Needs attention" and its screen-reader prefix, the sign-in button and the no-assistant line are the
  * hub's and the action entry's (ui/src/pages/assistant/actions.js); the page imports those itself.
  *
