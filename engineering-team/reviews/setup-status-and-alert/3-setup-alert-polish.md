@@ -1156,3 +1156,263 @@ No code changed this round: `git diff 29438ff3..HEAD -- ui/ src/` is empty. The 
 ### Verdict (round 3)
 
 **CHANGES_REQUESTED**
+
+## Round 4: `96a34b5a`
+
+**Reviewer:** Claude (acting as Reviewer). I did not write rounds 1 to 3, the ADR, the tests or the code.
+**Date:** 2026-09-22
+**Diff:** `git diff 74852bd6..HEAD` on `feat/setup-status-and-alert`, HEAD `96a34b5a`, working tree clean. One commit,
+`96a34b5a`: the round-4 tests (`tests/brainstorm/setup-alert-polish.spec.js`, `test/setup-alert-polish.test.js`), the
+test plan, and a new ledger row.
+
+No code changed this round: `git diff 29438ff3..HEAD -- ui/ src/` is empty. The story's whole code change is still
+`git diff 6754a16a..HEAD -- ui/`.
+
+### In short
+
+- **Round 3's Blocking 1 is resolved, as asked.**
+  - P3 Follow now holds the re-check's answer back and checks what is in force meanwhile, through `expectHeldRecheck`
+    (`tests/brainstorm/setup-alert-polish.spec.js:219–249`). It checks the pill every 100 ms, the pill's log from the
+    entry in force when the read arrived, and `/setup` reached in-app.
+  - I rebuilt round 3's mutant from its diff; it gives the bundle hash round 3 recorded. It fails P3 Follow and
+    Unfollow 40 of 40 at the samples, and 40 of 40 on the log check alone. HEAD passes 460 of 460 at
+    `--repeat-each 20`.
+  - The log check compares two processes' clocks. It is sound: the page stamps the hide before the re-check's request
+    exists, because of React's commit order. No margin was negative in 360 runs, but it is often zero (Non-blocking 3).
+- **Round 3's Non-blocking 1 to 4 are resolved.**
+  - The Map tests and P4 now end on something only a finished answer shows.
+  - A wrong pill or a stale answer fails them when the answer is late as well as at once.
+- **No blocking issue.**
+- **Non-blocking:**
+  - the new ledger row misses seven of story 2's tests with the same shape;
+  - S3 now also fires on an `announce` that sets no publish option;
+  - the log check rests on React's commit order, with no margin to spare;
+  - round 3's list of unverified things stands.
+- **One harness friction item.** The satisfiability row's two clauses, met separately, do not show that a "no pill at
+  the end" check bites a late answer. A different mutant does.
+- **Everything else holds.** I checked it with my own runs, not the Tester's numbers:
+  - the 103-suite gate, 2128/0;
+  - the browser classes: 23, 50, 15 and 55;
+  - `harness-lint` and hygiene, clean.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **The walker triage.** The round touches four files: the plan, the spec, the Node suite and one new file under
+  `ledger/`.
+  - The suites that read `ledger/` are `harness-lint`, `ledger-row-ids`, `rollup-scanners` and `session-start`. All
+    four are in the gate.
+  - No suite walks `tests/brainstorm/`. The six that mention it do so in comments, and walk `ui/src` or other trees.
+  - Otherwise round 3's triage of the branch stands. A dry run of the plan's driver selects 103 suites (93 named and
+    10 walkers), none missing from `test/registry.js`.
+- [x] **The gate.** I ran the plan's heredoc verbatim under `GATE_LABEL=setup-alert-3-r4-review`, with nothing else
+  running. `npm run gate:status -- --label setup-alert-3-r4-review` reads:
+
+  ```
+  20260922T034029Z-50070-2c0e [setup-alert-3-r4-review] started 2026-09-22T03:40:29.073Z on 96a34b5a — PASS, exit 0, 2128 passed, 0 failed, 4 skipped, 103/103 suites · /Users/wds4/repos/nous-clawds4/tapestry/tmp/gate-runs/20260922T034029Z-50070-2c0e.json
+  ```
+
+  - The record has `git.dirty: false`, no stray errors, and node v24.18.0. It took 211 s.
+  - The four skips are the baseline's own: `deploy-safety-status` 1, `show-the-four…` 2 and `setup-status` H2 1.
+  - Every suite has round 3's count (`20260922T015721Z-54569-b0eb`): S3 was reworked, not added.
+  - `setup-alert-polish` runs last (#103): 17/0.
+  - The suites this story leans on:
+    - `global-publish-gate` 8/0 and `treasure-map-relay-sync` 22/0;
+    - `honest-publish-reporting` 10/0 and `treasure-map-relay-presence` 35/0;
+    - `harness-lint` 76/0, `ledger-row-ids` 6/0, `rollup-scanners` 33/0 and `session-start` 32/0.
+  - The plan's own record (`20260922T032453Z-4142-43cd`) ran on `74852bd6+dirty`, the round's four files before their
+    commit. This run is on the committed tree.
+- [x] **The UI build.** I built `git archive 96a34b5a` in the scratchpad with the repo's `node_modules`. It gives
+  `index-DNK2T4Hx.js`, SHA-256 `96ffb122…`. `:4173` and the live `:7778` serve the same bytes.
+- [x] **The browser classes on `:4173`:**
+  - story 3's spec: **23 passed**;
+  - story 2's and story 1's: **65 passed** (50 and 15);
+  - the /assistant specs: **55 passed**. The brief's four give 40 (8, 4, 10 and 18), and `one-writer` gives 15. Each
+    has the `/api/**` catch-all.
+  - Story 3's spec against the live `:7778`: **23 passed**. It is hermetic there too.
+- [x] **Stability on HEAD's build:**
+  - the whole spec ×20 at default workers: 460 of 460;
+  - the whole spec ×10 at `--workers=28`: 230 of 230;
+  - P3 Follow and Unfollow in an instrumented copy of the spec, 360 runs:
+    - 100 at default workers;
+    - 200 at 28 workers;
+    - 10 alongside story 2's and story 1's classes (440 of 440 in that run);
+    - 50 with page-side timestamps.
+    
+    None failed. The timings are under Non-blocking 3.
+- [x] **Mutants and variants.**
+  - Each build is my own:
+    - `git archive 96a34b5a` with one edit, built with `vite build`;
+    - served with `vite preview --outDir` from `ui/`, on `:4174`–`:4179`, with the hash checked.
+  - The variants are env-switched copies of the spec under `tests/brainstorm/`. None was edited while a run was in
+    flight.
+  - All the copies are gone, and every server is stopped.
+
+  | Build or variant | Result |
+  |---|---|
+  | **M1**: round 3's diff verbatim (`index-sbB7TMq-.js`, the hash round 3 recorded) | P3 Follow and Unfollow ×20: 0 of 40 pass, all at the pill's samples. With every sample assertion switched off: 0 of 40, all at the log check |
+  | **M2**: `/setup` alone keeps the old answer. `useSetupStatus({ keepOld: true })`, asked for only by `Index.jsx` (`index-Dwy3gj3u.js`) | 0 of 40, all at `/setup`'s samples. The pill's checks, which run first, pass |
+  | **M3**: the old answer for the first 250 ms of a re-check (`index-UBA93PrT.js`) | 0 of 40 at the samples. Samples off: 0 of 40 at the log check |
+  | **M4**: `const path = pathname;` (`index-Bb5H_mye.js`) | The five P4 tests ×20: 0 of 100. With every answer 300 ms late: 0 of 100. With every answer 2 s late: 0 of 100 |
+  | **M5**: `pendingCount < 0` (`index-CmhuXbyK.js`) | P3 Follow and Unfollow: 0 of 40 ("· 0 steps left" in the samples). The three Map tests: 0 of 60, and 0 of 60 with the re-check 300 ms or 2 s late |
+  | **M6**, mine: the pill hidden during the re-check, except for one 60 ms flash of the old count at +500 ms (`index-BIeY49l-.js`) | 0 of 40: 10 at the samples, 30 at the log check. Samples off: 0 of 40 at the log check. So a flash between two samples fails, as the helper's comment says |
+  | **M7**, mine: the pill hidden while checking, and drawn with nothing counted once answered (`index-DgZ7W8DE.js`) | The three Map tests ×10: 0 of 30 at once, and 0 of 30 with the re-check 2 s late, all at "nothing is left, so no pill". Round 3's version of the same tests, with the re-check 2 s late: 30 of 30 pass |
+  | HEAD, with the re-check answering the state from before the save, at once | The seven re-checking P3 tests ×20: 0 of 140. Mute: 20 of 20 |
+  | The same, served 300 ms late | 0 of 140. Mute: 20 of 20 |
+  | HEAD, with correct answers served late | The three Map tests with the re-check 2 s late: 60 of 60. P4 with every answer 300 ms or 2 s late: 100 of 100 each |
+
+- [x] **S3 on a mirror.** I ran the suite file through `.run()` against HEAD's `ui/src`; unmodified, it gives 17/0. I
+  appended one line at a time to `pages/grapevine/TrustedAssertions.jsx`:
+  - **It bites** on eight spellings. Each gives 16/1, naming only that file:
+    - `{ announce: false }`, `{ 'announce': false }` and `{ "announce": false }`;
+    - `{ announce: quiet }`, and the shorthand `{ announce }`;
+    - `opts.announce = false` and `opts['announce'] = false`;
+    - a key split over lines.
+  - **No false positive** from a line, block or JSX comment naming the option, or from `announcePublished`,
+    `announcement` or `announced`.
+  - The rest is Non-blocking 2.
+- [x] **`bash scripts/harness-lint.sh`:** exit 0, "harness-lint: clean (0 violations)". L15 accepts the new ledger file.
+- [x] **Hygiene:**
+  - no raw control bytes and no CRLF in the round's four files;
+  - the added lines carry no `console.log`, `debugger`, `.only(`, TODO or 64-hex literal;
+  - no package, eslint, vite or Playwright config change.
+- [ ] _Lint, typecheck and build are not configured: skipped. The UI build above is the book's check._
+
+### Round 3's findings, re-checked
+
+| Round 3 | Round 4 | Evidence |
+|---|---|---|
+| **Blocking 1**, P3 Follow's check could not fail | **Resolved, as asked** | The pill is sampled while the read is held (`:223–226`). Its log is read from the entry in force at `heldAt` (`:242–245`). `/setup` is reached in-app and sampled (`:228–235`): "0 of 3 complete", then "2 of 3 complete" (`:238`). M1 fails 40 of 40, and 40 of 40 on the log alone; HEAD passes 460 of 460. The plan's AC-3 row (`:43`), edge case (`:60–63`) and mutation table (`:229`) are corrected |
+| **Non-blocking 1**, "no pill" checks pass early | **Resolved** | The Map tests end through `expectMapNothingLeft` (`:256–266`): `/setup` must read "3 of 3 complete" first. P4 moves in-app after `/tags` has drawn the pill (`:526–537`). The fresh `/SETUP` load waits for "1 of 3 complete" (`:539–545`). Stale answers fail these tests late as well as at once, and so do M4 and M7. HEAD passes them with late answers |
+| **Non-blocking 2**, the plan's import-page wording | **Resolved** | Plan `:71–73` says which pages the browser drives, and what pins the other two |
+| **Non-blocking 3**, S3 missed a quoted key or a variable | **Resolved, with a new limit** | It bites on every spelling round 3 named, and more. It now also fires on unrelated `announce` names (Non-blocking 2) |
+| **Non-blocking 4**, "counted again" had no test | **Resolved** | P3 Unfollow (`:411–424`). The kind 3 it publishes follows no one (`:422`). Then "· 1 step left" becomes "· 2 steps left", and "2 of 3" becomes "1 of 3", through the same helper. M1, M2, M3, M5, M6 and the stale answers all fail it |
+| **Non-blocking 5**, not verified | **Still not verified** | Non-blocking 4 |
+| **Harness friction 1** | **Recorded, and followed** | Ledger row `2026-09-21-single-run-satisfiability` has both clauses (`74852bd6`). This round has a code mutant for every "never shows X" check it adds, and serves stale answers 300 ms late. The clauses' gap is Harness friction 1 below |
+
+### This round's own claims, checked
+
+- **The plan's first half:**
+  - `:11`, `:18` and `:20`: 17 Node tests and 23 browser tests, and "round 4 added P3 Unfollow and a fresh-load P4".
+    These match the gate and my runs.
+  - The AC-3 row (`:43`), the AC-4 row (`:44`), the edge cases (`:60–66`) and the not-covered list (`:69–77`) describe
+    the tests as they are.
+  - The mutation-table rows for round 4 (`:228–232`): I reproduced each with my own mutant (above).
+- **The Round 4 evidence table (`:391–405`):** I reproduced every row, at the stated counts. The gate row's record
+  predates the commit (above).
+- **"No code changed in this round":** true.
+- **The ledger row** `ledger/2026-09-22-setup-alert-no-pill-checks-early.md`:
+  - its format is right. The id is the UTC day of the commit (03:29Z on 2026-09-22) plus six words, 43 characters in
+    all, and the file's Id field repeats it. L15 accepts it;
+  - what it lists is accurate: B4 at `tests/brainstorm/setup-alert.spec.js:251–265`, B5 at `:273–289`, and the waits
+    in `open()` (`:133–136`);
+  - its scope is short by seven tests (Non-blocking 1).
+- **The in-app move** (`goInApp`, `:186–189`) is faithful enough for what it proves.
+  - It is the technique of `my-assistant-page.spec.js:404`. React Router's browser history takes the `popstate` as a
+    POP navigation, which runs the same router path as a `<Link>`'s PUSH, with no reload.
+  - The two providers sit above the router (`ui/src/App.jsx:503–507`). The spec pins "no new read" (`statusCalls`)
+    and "no reload" (`__sameDocument`).
+  - What differs from a real click touches neither the pill nor `/setup`: a POP rather than a PUSH, and no `idx` in
+    `history.state`.
+  - The move is also needed. The pill that the old test clicked is hidden while the read is held, and nothing in the
+    app links to `/SETUP`.
+- **P4 without fresh loads of the step pages** is acceptable against AC-4.
+  - The hide reads `useLocation().pathname` (`ui/src/components/SetupAlert.jsx:27–31`). That is the same value
+    however the page was reached.
+  - A freshly loaded step page shows nothing that only a finished answer shows, so there is nothing to wait for.
+  - M4 fails the four in-app tests and the fresh `/SETUP` load, 100 of 100 at every delay.
+  - Story 2's B5 still loads the lower-case step pages afresh.
+- **Every "never shows X" check this round adds has a code mutant that shows X:**
+  - the pill's samples and log: M1, M3 and M6;
+  - "the pill shows nothing": M5;
+  - `/setup`'s samples: M2;
+  - the Map tests' "no pill": M5 and M7;
+  - P4: M4.
+
+  The only checks with no code mutant are counts ("does not read again") and navigation checks.
+
+### Findings
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **`ledger/2026-09-22-setup-alert-no-pill-checks-early.md:15–21`: the row's list misses seven of story 2's tests
+   with the same shape.**
+   - These also check `toHaveCount(0)` after `open()`'s fixed wait:
+     - B11's two "stays when there is no pill" tests (`tests/brainstorm/setup-alert.spec.js:398`, `:412`);
+     - B12's first-load check, at five widths (`:440`).
+   - I measured them on M7, with an env-switched copy of story 2's spec:
+     - with the answer at once, B4's "nothing left", both B11 tests and the five B12 tests fail, 8 of 8;
+     - with the answer 3.5 s late, all eight pass.
+   - The row's fix shape names `{ body, delayMs }`, which story 2's mock (`:123–129`) does not accept yet.
+   - Optional: add B11 and B12 to the row.
+2. **`test/setup-alert-polish.test.js:361–362`: S3 now fires on an `announce` that sets no publish option, and a `//`
+   inside a string hides the rest of its line.**
+   - Each of these fails S3 with "these files set a publish's announce option" (16/1), though none sets one:
+     - a named import, `import { announce } from '../../utils/a11y'`;
+     - a destructure, `const { announce } = props`;
+     - a method call, `liveRegion.announce('Saved')`.
+   - A screen-reader live-region helper is a likely name in exactly this area.
+   - `withoutComments` drops everything after a `//` that no colon precedes. So S3 passes this line:
+     `const u = '//cdn.example/x'; await publishToLocalStrfry(event, { announce: false });`. A spread is the
+     documented limit (`:358–360`).
+   - The false positives are loud, not silent. Optional: narrow the member and shorthand forms, or say so in the
+     comment.
+3. **`tests/brainstorm/setup-alert-polish.spec.js:243`: the log check is sound today because of React's commit order,
+   with no margin to spare.**
+   - **Why it cannot fail on correct code today:**
+     - the re-check's `setAttempt` is a default-lane update;
+     - React 19.2.4 commits the render that hides the pill, then calls `requestPaint()`
+       (`ui/node_modules/react-dom/cjs/react-dom-client.production.js:11673`);
+     - the Scheduler then yields (`ui/node_modules/scheduler/cjs/scheduler.production.js:114–115`);
+     - so the MutationObserver's microtask stamps the hide before the next task runs the effect that calls `fetch()`
+       (`:11497`);
+     - the request, and so `heldAt`, come after the hide.
+   - **Measured:**
+     - on the page's own clock, the hide was stamped 0 to 0.2 ms before the second `fetch()` call, in 50 of 50 runs;
+     - `heldAt` minus the hide was 0 to 3 ms at default workers, and 0 to 75 ms at 28 workers;
+     - it was never negative in 360 runs, and exactly 0 in 35 of them, which the `<=` admits;
+     - load widens the margin rather than narrowing it.
+   - **The ordering is React's, not the test's.**
+     - React flushes passive effects inside the commit's task for sync-lane renders (`:11718`).
+     - If an upgrade did that for this render too, the hide would be stamped after the request left. The check would
+       then race on correct code.
+     - The samples would still catch M1 and M3.
+   - Optional: say so in the helper's comment (`:209–218`), or record the pill's state synchronously when the
+     re-check's `fetch` is called.
+4. **Still not verified** (round 3's Non-blocking 5):
+   - screen readers and voice control;
+   - Firefox and Safari;
+   - a live Follow: the local stack answers `allowExternalPublish: true`;
+   - the "about 2.5 s live" catch-up for a viewer with no Map;
+   - signing out while a publish is in flight.
+
+#### Harness friction *(each becomes an OPEN.md row, type `meta`)*
+
+1. **The satisfiability row's two clauses can each be met without showing that a "no X at the end" check bites a late
+   answer.**
+   - Ledger row `2026-09-21-single-run-satisfiability` asks for two things:
+     - a code mutant that keeps showing X;
+     - a stale answer served late.
+   - This round did both for the Map tests' "nothing is left, so no pill":
+     - M5 shows a pill while the check runs too, so it fails any ending, early or not. Round 3's vacuous ending also
+       fails on it, 30 of 30 with the re-check 2 s late;
+     - the stale answers served late fail at the "3 of 3 complete" wait, before the no-pill line.
+   - So neither run shows that the no-pill line itself bites when the answer is late.
+   - M7 does, because it hides while checking and is wrong only once answered:
+     - it passes round 3's ending 30 of 30 with the re-check 2 s late, and fails round 4's 30 of 30;
+     - it is also the mutant that exposes story 2's B4, B11 and B12 (Non-blocking 1).
+   - Asked: extend that row. For a check that X is absent at the end, the mutant should hide X while the check runs
+     and show it once answered, and it should be run with the answer late.
+
+### Close-out (same commit)
+
+- [x] Story `**Status:**` flipped to `Done` in place (story `:3`).
+- [x] Completion detection performed against `engineering-team/audits/setup-status-and-alert/book.md`. The result is
+  reported in the chat, not in this file (template).
+
+### Verdict (round 4)
+
+**PASS**

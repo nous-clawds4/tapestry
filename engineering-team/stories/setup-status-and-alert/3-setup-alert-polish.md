@@ -1,6 +1,6 @@
 # Story 3: The Setup Alert — readable, announced as it reads, and current
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-21
 **Type:** Bug
 **Epic:** `setup-status-and-alert`
