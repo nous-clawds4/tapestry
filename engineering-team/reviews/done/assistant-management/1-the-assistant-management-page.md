@@ -5,9 +5,9 @@
 **Diff:** `git diff 383f99e5...43cfd1a3` (the branch base is `origin/staging` at `383f99e5`). Story 1's own
 commits: story `f172f945`, ADR `69e45760`, failing tests `1abe625b`, two Phase-4 test fixes `0025fa2b` and
 `0485da0f`, implementation `92c2ef70`. Branch `feat/assistant-management`, working tree clean.
-**Story:** `engineering-team/stories/assistant-management/1-the-assistant-management-page.md`
-**ADR:** `engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
-**Test plan:** `engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md`
+**Story:** `engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md`
+**ADR:** `engineering-team/decisions/done/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
+**Test plan:** `engineering-team/stories/done/assistant-management/1-the-assistant-management-page.test-plan.md`
 
 Every role before this one ran in a single session. So I re-derived each claim in the Deviations, the test
 plan and the commit messages from commands. I did not take them from the prose.
@@ -187,7 +187,7 @@ None in this story's diff against its base.
    - Optional: re-word it to "Edit Assistant Profile — /assistant/profile/edit (assistant-profile #4; moved
      by assistant-management #1)".
    - Optional: add `.css` to O4's comment-free sweep, or to its "My Assistant" check.
-2. **`engineering-team/stories/assistant-management/1-the-assistant-management-page.md:110`**: the § Copy
+2. **`engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md:110`**: the § Copy
    preamble says the owner's words are "kept as typed" apart from four display fixes. The approved table
    makes two more edits at `:162`:
    - "etc)" becomes "etc.)." in the profile's alert criteria;
@@ -242,7 +242,7 @@ None in this story's diff against its base.
 
 ## Addendum — 2026-09-22, on the merged tree
 
-Checked during story 2's second round. Details are in `engineering-team/reviews/assistant-management/2-the-assistant-alert.md`
+Checked during story 2's second round. Details are in `engineering-team/reviews/done/assistant-management/2-the-assistant-alert.md`
 § Round 2, "Story 1 on the merged tree".
 
 - **The verdict above holds at `86bbc320`,** after the branch merged `origin/staging`:

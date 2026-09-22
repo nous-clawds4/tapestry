@@ -1,9 +1,9 @@
 # Book of Work: The Assistant Management page — `/assistant`, as a scaffold, with its alert
 
 **Slug:** assistant-management
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-21
-**Closed:** —
+**Closed:** 2026-09-22 (on staging, PR #742; the owner held production at the close)
 
 ## Intent anchor
 
@@ -127,20 +127,20 @@ Trusted Content, two under Notifications. All ten are built.
 
 *Confirmed 2026-09-21, when the owner approved stories 1 and 2.*
 
-- [ ] `https://staging.brainstorm.world/assistant` is the Assistant Management page. It is styled
+- [x] `https://staging.brainstorm.world/assistant` is the Assistant Management page. It is styled
       like `/setup` and headed "Manage the Profile and Capabilities of your Tapestry Assistant". It
       lists the ten actions as cards under the three headings, and has a FAQ that stays closed until
       it is opened.
-- [ ] Every action shows as needing attention for a signed-in viewer who has an assistant. Nothing
+- [x] Every action shows as needing attention for a signed-in viewer who has an assistant. Nothing
       is actually checked yet.
-- [ ] Each card leads to its own placeholder page under `/assistant/…`. The page says it is a
+- [x] Each card leads to its own placeholder page under `/assistant/…`. The page says it is a
       placeholder and carries the owner's alert criteria and notes for that action.
-- [ ] The profile editor that lived at `/assistant` now lives at `/assistant/profile/edit`, and
+- [x] The profile editor that lived at `/assistant` now lives at `/assistant/profile/edit`, and
       every link to it leads there. "Assistant Management" in the avatar menus leads to the new page.
-- [ ] An Assistant Alert, modelled on the Setup Alert, sends signed-in viewers with an assistant to
+- [x] An Assistant Alert, modelled on the Setup Alert, sends signed-in viewers with an assistant to
       `/assistant` from the other pages of both halves of the app. It gives way to the Setup Alert
       and hides on `/assistant` and its pages.
-- [ ] Nothing is checked, published or stored on anyone's behalf. The work saved for later is
+- [x] Nothing is checked, published or stored on anyone's behalf. The work saved for later is
       written down where a later session will find it (`engineering-team/stories/_intake.md`, entry
       dated 2026-09-21): deciding which actions really need attention, and building the action
       pages.
@@ -158,7 +158,8 @@ features.
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high. Every frame bullet was observed on `staging.brainstorm.world` after PR #742's
+  deploy (audit §5); both stories passed review.
 
 ## Close artifacts *(filled by `/close-book`)*
 

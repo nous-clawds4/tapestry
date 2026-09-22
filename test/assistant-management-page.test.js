@@ -3,9 +3,9 @@
  * assistant-management #1: the Assistant Management page, its FAQ and ten placeholder action pages, and the
  * profile editor's move to /assistant/profile/edit.
  *
- * Story: engineering-team/stories/assistant-management/1-the-assistant-management-page.md
- * ADR:   engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md
- * Plan:  engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md
+ * Story: engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md
+ * ADR:   engineering-team/decisions/done/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md
+ * Plan:  engineering-team/stories/done/assistant-management/1-the-assistant-management-page.test-plan.md
  * Browser half: tests/brainstorm/assistant-management-page.spec.js (B-class: what a viewer SEES and can DO).
  * Expected words: test/helpers/assistantManagementFixtures.js (the stories' § Copy, one copy for every suite).
  *

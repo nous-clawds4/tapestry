@@ -2,9 +2,9 @@
 /**
  * assistant-management #2: the Assistant Alert — one pill at a time, the Setup Alert's first.
  *
- * Story: engineering-team/stories/assistant-management/2-the-assistant-alert.md
- * ADR:   engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md
- * Plan:  engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md
+ * Story: engineering-team/stories/done/assistant-management/2-the-assistant-alert.md
+ * ADR:   engineering-team/decisions/done/assistant-management/0002-one-top-bar-alert-slot-setup-first.md
+ * Plan:  engineering-team/stories/done/assistant-management/2-the-assistant-alert.test-plan.md
  * Browser half: tests/brainstorm/assistant-alert.spec.js (B-class: where the pill shows, what it says, where it goes).
  * Expected words: test/helpers/assistantManagementFixtures.js.
  *

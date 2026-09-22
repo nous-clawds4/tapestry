@@ -1,6 +1,6 @@
 # Epic: assistant-management — the Assistant Management page, as a scaffold, with its alert
 
-**Status:** Open
+**Status:** Done
 **Created:** 2026-09-21
 **Book:** `engineering-team/audits/assistant-management/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-09-21, quoted verbatim in the book. It follows two patterns:
@@ -17,7 +17,7 @@ is checked, and no action is built.
 
 ## Stories
 
-`stories/assistant-management/`. Both are features, so both take all five phases (Standard). They
+`stories/done/assistant-management/`. Both are features, so both take all five phases (Standard). They
 travel through each phase together.
 
 1. `1-the-assistant-management-page.md`: the hub at `/assistant`, its FAQ and the ten placeholder
@@ -70,4 +70,4 @@ Saved for later by the owner, and recorded in `stories/_intake.md` (entry dated 
 
 ## ADRs
 
-`decisions/assistant-management/`, created per story at Architecture.
+`decisions/done/assistant-management/`, created per story at Architecture.

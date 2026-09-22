@@ -5,9 +5,9 @@
 **Diff:** `git diff 383f99e5...43cfd1a3` (the branch base is `origin/staging` at `383f99e5`). Story 2's own
 commits: story `df435143`, ADR `6f30e0e5`, failing tests `786e4251`, implementation `43cfd1a3`. Branch
 `feat/assistant-management`, working tree clean.
-**Story:** `engineering-team/stories/assistant-management/2-the-assistant-alert.md`
-**ADR:** `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`
-**Test plan:** `engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md`
+**Story:** `engineering-team/stories/done/assistant-management/2-the-assistant-alert.md`
+**ADR:** `engineering-team/decisions/done/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`
+**Test plan:** `engineering-team/stories/done/assistant-management/2-the-assistant-alert.test-plan.md`
 
 **In one paragraph.** Against its base, this diff is sound. Every AC has a passing test, every Deviation
 is justified, and my own probes agree with the Implementer's measurements. It is blocked for a reason
@@ -188,16 +188,16 @@ second, and it was built as if it landed first.
      that book's story 2 to "render the Setup pill in the slot's `'setup'` branch, which renders nothing
      today". It also says "Until then, a viewer with a setup step left sees no pill at all". That story is
      Done on staging (review `9cbbe027`) and mounts its own component.
-   - **`engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`**:
+   - **`engineering-team/decisions/done/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`**:
      - `:29-32`: "The Setup Alert is not built … plugs into it";
      - `:96`: the `'setup'` branch "renders nothing" until it exists;
      - `:217-226`: sub-decision 5, the hand-off;
      - `:260-261`: "Until the Setup Alert ships, viewers with setup steps left see no pill at all".
-   - **`engineering-team/stories/assistant-management/2-the-assistant-alert.md`**:
+   - **`engineering-team/stories/done/assistant-management/2-the-assistant-alert.md`**:
      - `:13-14`: "approved but not built yet";
      - `:45-46`: "Until setup-status-and-alert #2 ships…";
      - `:111-113`: which pill lands first.
-   - **`engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md`**:
+   - **`engineering-team/stories/done/assistant-management/2-the-assistant-alert.test-plan.md`**:
      - `:48-50`: "Today only the Assistant pill exists";
      - `:56`: "The Setup pill. It is setup-status-and-alert #2."
 
@@ -461,7 +461,7 @@ None.
    - Optional: a W5 in `test/assistant-alert.test.js` that reads `SetupAlert.jsx` and asserts its early return
      on `loading || !user || pendingCount < 1`, the condition `pickTopBarPill`'s `'setup'` branch mirrors.
 2. **Three superseded lines in
-   `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md` have no pointer:**
+   `engineering-team/decisions/done/assistant-management/0002-one-top-bar-alert-slot-setup-first.md` have no pointer:**
    - `:99-100`: Option A's con, "Until the Setup Alert exists, the `'setup'` branch renders nothing" (round 1
      listed it as `:96`);
    - `:177`: sub-decision 2's snippet comment, "renders here once it is built";
@@ -470,14 +470,14 @@ None.
 
    Amendment 1's list at `:347-348` omits all three. Optional: an italic pointer at each, as done elsewhere.
 3. **Two dated notes are missing.**
-   - `engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md:71-75`: the watch item still
+   - `engineering-team/stories/done/assistant-management/2-the-assistant-alert.test-plan.md:71-75`: the watch item still
      says the pill "removes no control". `:167-168` records the miss, but the line itself carries no note.
-   - `engineering-team/stories/assistant-management/2-the-assistant-alert.md:144-146`: the Deviation still quotes
+   - `engineering-team/stories/done/assistant-management/2-the-assistant-alert.md:144-146`: the Deviation still quotes
      `<><TopBarAlert />{menu}</>`. The mounts now render `<SetupAlert />` first.
 4. **`tests/brainstorm/setup-alert.spec.js:24`**: the header index still reads "B9 — creating an assistant on
    /assistant". B9's own title, at `:367`, was re-aimed. This one is story 1's, from the editor's move.
 5. **The pinned gate list omits `session-start`.**
-   - `engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md:169-170` says it
+   - `engineering-team/stories/done/assistant-management/1-the-assistant-management-page.test-plan.md:169-170` says it
      "read[s] one fixed folder". True, but that folder is `ledger/`, which this diff touches.
    - Staging's `c47becd6` clause asks for walkers to be triaged against the whole diff.
    - It passes alone (32/0), so this is recording only. Optional: add it to the list.

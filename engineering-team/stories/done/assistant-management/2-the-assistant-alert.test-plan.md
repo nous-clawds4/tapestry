@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — The Assistant Alert
 
-**Story:** `engineering-team/stories/assistant-management/2-the-assistant-alert.md`
-**ADR:** `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`
+**Story:** `engineering-team/stories/done/assistant-management/2-the-assistant-alert.md`
+**ADR:** `engineering-team/decisions/done/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`
 **Date:** 2026-09-21
 
 Two classes, as in story 1's plan:

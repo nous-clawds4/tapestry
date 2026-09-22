@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-21
-**Story:** `engineering-team/stories/assistant-management/1-the-assistant-management-page.md`
+**Story:** `engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md`
 **Supersedes in part:** ADR assistant-profile/0004, only its route and what points there. That
 ADR's sub-decision 1 put the page at `/assistant` under the heading "🤖 My Assistant". Sub-decision 3
 sent "Assistant Management", the old Settings address and the `/settings` card there. Everything

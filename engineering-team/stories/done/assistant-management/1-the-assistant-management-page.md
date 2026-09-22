@@ -307,6 +307,6 @@ Small judgment calls made during implementation (Implementer role, step 9):
   - B5 clicked a card below the fold without scrolling.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
-- Test plan: `engineering-team/stories/assistant-management/1-the-assistant-management-page.test-plan.md`
-- Review: `engineering-team/reviews/assistant-management/1-the-assistant-management-page.md`
+- ADR: `engineering-team/decisions/done/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
+- Test plan: `engineering-team/stories/done/assistant-management/1-the-assistant-management-page.test-plan.md`
+- Review: `engineering-team/reviews/done/assistant-management/1-the-assistant-management-page.md`

@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — The Assistant Management page, its FAQ and ten placeholder action pages
 
-**Story:** `engineering-team/stories/assistant-management/1-the-assistant-management-page.md`
-**ADR:** `engineering-team/decisions/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
+**Story:** `engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md`
+**ADR:** `engineering-team/decisions/done/assistant-management/0001-the-hub-takes-assistant-and-the-editor-moves-under-it.md`
 **Date:** 2026-09-21
 
 Two classes, as in the `/setup` books:

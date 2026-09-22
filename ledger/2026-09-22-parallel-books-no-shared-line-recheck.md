@@ -53,9 +53,9 @@ that re-aim has the same blind spot.
   that touches the same surface, not only its re-aimed tests.
 
 **Pointer:**
-- review `engineering-team/reviews/assistant-management/2-the-assistant-alert.md`, Blocking 1 and harness
+- review `engineering-team/reviews/done/assistant-management/2-the-assistant-alert.md`, Blocking 1 and harness
   friction 1;
-- ADR `engineering-team/decisions/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`,
+- ADR `engineering-team/decisions/done/assistant-management/0002-one-top-bar-alert-slot-setup-first.md`,
   Amendment 1;
-- test plan `engineering-team/stories/assistant-management/2-the-assistant-alert.test-plan.md`, § Verification
+- test plan `engineering-team/stories/done/assistant-management/2-the-assistant-alert.test-plan.md`, § Verification
   "After review 2".
