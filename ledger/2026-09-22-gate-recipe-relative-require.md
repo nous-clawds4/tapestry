@@ -23,5 +23,10 @@ as prose in each plan plus scratchpad copies. Story 2's plan describes a further
 no committed file, so each role re-derives it and a sibling session's copy was already gone. The `scripts/gate-for.sh
 <label> <pattern>` shape above would close both gaps at once.
 
+**Third gap (2026-09-22, assistant-identification-tags #3, review round 1 § Harness friction 2).** The recipe is now a
+three-hop reference chain — story 3's plan points at story 2's, which points at story 1's, and the `excluded` drop
+lives only in a review and in scratchpad copies — and the Reviewer re-derived it for the third time in one book.
+`scripts/gate-for.sh <label> <pattern>`, committed, is the fix for all three gaps.
+
 **Pointer:** review `engineering-team/reviews/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
 § Harness friction 3; the plan's § How to run.
