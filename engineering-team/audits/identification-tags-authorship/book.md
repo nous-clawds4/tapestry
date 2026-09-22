@@ -41,8 +41,8 @@ Owner" in the ask is the tagging the app calls "My Human" (Discovery decision 6 
       editable; nothing can issue them, from the page or through the Assistant's route. No decision is taken on
       them; unparking one later is a small change.
 - [ ] **The answer counts what can be issued.** The hub's card, its count line and the Assistant Alert consider
-      only the two offered taggings; the parked ones neither mark nor count. *(The owner's answer at the gate
-      decides this bullet.)*
+      only the two offered taggings; the parked ones neither mark nor count. *(Confirmed at the story gate,
+      2026-09-22.)*
 - [ ] **Nothing else changes:** no wire-format change, no other page, no change to how "present" is read.
 
 ## Epics in this book

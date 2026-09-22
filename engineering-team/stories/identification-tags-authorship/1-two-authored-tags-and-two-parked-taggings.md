@@ -1,6 +1,6 @@
 # Story 1: Two authored tags and two parked taggings
 
-**Status:** Draft
+**Status:** Approved (gate 2026-09-22)
 **Created:** 2026-09-22
 **Type:** Feature
 
@@ -97,12 +97,14 @@ New unless marked **owner**.
 
 ## Open questions
 
-1. **The two authors.** Found and named on the relays (Background). Confirm at the gate.
-2. **Do the parked taggings count toward "needs attention"?** Recommended: no. They cannot be issued, so
-   counting them would mark the card and count in the pill forever. AC-2 and AC-3 are written that way.
-3. **The parked rows' words.** Recommended: "Not offered yet". AC-3 is written that way.
-4. **The fourth tagging's displayed name.** The ask says "My Owner"; the app says "My Human" (Discovery decision
-   6). Recommended: keep "My Human" while it is parked; renaming later is one word.
+*All four settled at the gate, 2026-09-22 (the owner took each recommendation):*
+
+1. **The two authors** are the ones found on the relays (Background): Nous for "My Tapestry Assistant", Nous'
+   Tapestry Assistant for "My Tapestry Owner".
+2. **The parked taggings do not count** toward "needs attention": the card, the count line and the Assistant Alert
+   consider only the two offered taggings (AC-2, AC-3).
+3. **A parked row says "Not offered yet"** (AC-3, § Copy).
+4. **The fourth tagging keeps the name "My Human"** while parked; renaming later is one word.
 
 ## Linked artifacts
 - ADR: (filled in after Architecture phase)
