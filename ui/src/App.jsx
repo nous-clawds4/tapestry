@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import Layout from './components/Layout';
 import { AssistantRosterProvider } from './context/AssistantRosterContext';
 import { SetupStatusProvider } from './context/SetupStatusContext';
+import { AssistantAttentionProvider } from './context/AssistantAttentionContext';
 import ConceptList from './pages/concepts/ConceptList';
 import ConceptDetail from './pages/concepts/ConceptDetail';
 import ConceptOverview from './pages/concepts/ConceptOverview';
@@ -515,7 +516,9 @@ export default function App() {
   return (
     <AssistantRosterProvider>
       <SetupStatusProvider>
-        <RouterProvider router={router} />
+        <AssistantAttentionProvider>
+          <RouterProvider router={router} />
+        </AssistantAttentionProvider>
       </SetupStatusProvider>
     </AssistantRosterProvider>
   );

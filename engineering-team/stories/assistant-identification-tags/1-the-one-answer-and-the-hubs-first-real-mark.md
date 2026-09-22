@@ -118,6 +118,26 @@ No concept changes; no firmware reinstall.
    shows how far it went. The purpose of the tags is broadcast, so the owner may later want a
    "broadcast" reading too. *Settled 2026-09-22 at approval: local suffices for now.*
 
+## Deviations
+
+*The Implementer's log (Phase 4, 2026-09-22): judgment calls too small for an ADR amendment, for the book-close
+audit.*
+
+1. **Two Tester-lane corrections after the suite's first run against the implementation,** committed on their own
+   as `test:` before the implementation commit. U11 asserted one outside read across the whole request, but ADR 0001
+   reads each relay once *per lookup* and there are three lookups (the viewer's, the assistant's, the canonical
+   author's); it now asserts the distinct relays read, and at most three reads. S1 stripped comments from
+   `src/api/index.js` with the UI files' helper, which reads the glob string `'/api/settings/*'` as the start of a
+   block comment and swallowed the registration line; it now reads the raw source.
+2. **No action-level `reason`.** AC-4 asks each tagging's check to say why it did not finish; the four rows carry the
+   reason, and the action itself carries only its three flags. Nothing reads an action-level reason.
+3. **Rows name their signer and target as the words `person` and `assistant`,** never as pubkeys, so the answer
+   carries no viewer or assistant pubkey (the `/api/setup/status` precedent). Story 2's page already has both
+   pubkeys from sign-in.
+4. **The provider fetches only for a viewer with an assistant** (`user.assistantPubkey` set), as ADR 0001
+   § Implementation notes 4 says; a viewer without one has nothing to check, and the hub shows no marks for them
+   whatever the answer.
+
 ## Linked artifacts
 
 - ADR: (filled in after Architecture phase)

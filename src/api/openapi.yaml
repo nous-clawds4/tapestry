@@ -288,6 +288,68 @@ paths:
                   error:
                     type: string
 
+  /api/assistant/attention:
+    get:
+      tags: [Auth]
+      summary: Which of the signed-in viewer's Assistant Management actions need attention
+      description: >-
+        Read-only. Answers for the session's viewer and the assistant this instance holds for them, and takes
+        no parameters. `actions` maps each action that has a real check to its answer; today only
+        `identification-tags`, the four taggings between a person and their assistant (My Tapestry Assistant and
+        My Agent by the person; My Tapestry Owner and My Human by the assistant). Each tagging is looked up by its
+        replaceable address on the local relay first and on the configured tag-federation relays only on a local
+        miss; `present` means the signer's latest stance applies it; `finished` is false when the check could not
+        be completed (`reason`). The action is `done` when every tagging is finished and present, and `pending`
+        (what the Assistant Alert counts) when a finished check found one missing. Each row's `definition` says
+        whether the tag's canonical definition was found. Without a session it answers
+        `{ success: true, signedIn: false }`; with a session but no assistant here, `hasAssistant: false`.
+      responses:
+        '200':
+          description: The viewer's attention answer, or signedIn false without a session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signedIn:
+                    type: boolean
+                  hasAssistant:
+                    type: boolean
+                  actions:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        finished: { type: boolean }
+                        done: { type: boolean }
+                        pending: { type: boolean }
+                        taggings:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              key: { type: string }
+                              name: { type: string }
+                              slug: { type: string }
+                              signer: { type: string, enum: [person, assistant] }
+                              target: { type: string, enum: [person, assistant] }
+                              present: { type: boolean }
+                              finished: { type: boolean }
+                              source: { type: string, nullable: true }
+                              reason: { type: string }
+                              definition:
+                                type: object
+                                properties:
+                                  finished: { type: boolean }
+                                  found: { type: boolean, nullable: true }
+                                  source: { type: string, nullable: true }
+                                  reason: { type: string }
+                                  eventId: { type: string, nullable: true }
+                                  address: { type: string }
+        '500':
+          description: The check could not run
   /api/auth/sign-up-new-customer:
     post:
       tags: [Auth]

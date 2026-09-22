@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import TopBar from '../../components/TopBar';
 import { useAuth } from '../../context/AuthContext';
+import { useAssistantAttention } from '../../context/AssistantAttentionContext';
 import ActionText from './ActionText';
 import {
   ASSISTANT_SECTIONS, ASSISTANT_ACTIONS, ASSISTANT_FAQ, ASSISTANT_COPY, assistantAttention, attentionCountText,
@@ -12,9 +13,10 @@ import {
  * Tapestry Assistant does for them, as cards under three headings, with a FAQ. Styled like /setup, whose
  * classes it shares for the parts the two pages have in common.
  *
- * A scaffold for now: each card leads to a placeholder page, and every action needs attention for a viewer
- * who has an assistant — the one answer, assistantAttention(user), that the Assistant Alert counts too. The
- * page reads only the sign-in state the app already holds; it asks the server nothing. Four states:
+ * Each card leads to its action's page (a placeholder until the action is built), and its mark comes from the
+ * one answer the Assistant Alert counts too: assistantAttention(user, attention), the placeholders merged with the
+ * server's real checks (GET /api/assistant/attention, shared through AssistantAttentionProvider — since
+ * assistant-identification-tags #1, ADR 0001). A checked action stays marked until its answer says done. Four states:
  *   - sign-in still resolving: the cards, unmarked, and no line;
  *   - signed out: the cards, unmarked, and a line asking the visitor to sign in;
  *   - signed in with no assistant here: the cards, unmarked, and a line pointing to Account Setup;
@@ -46,7 +48,8 @@ function ActionCard({ action, marked }) {
 
 export default function AssistantManagementPage() {
   const { user, loading, login } = useAuth();
-  const { hasAssistant, needsAttention, count } = assistantAttention(user);
+  const attention = useAssistantAttention();
+  const { hasAssistant, needsAttention, count } = assistantAttention(user, attention);
   const signedIn = !loading && !!user;
   const signedOut = !loading && !user;
   const marked = (action) => signedIn && needsAttention.includes(action.key);

@@ -8,8 +8,11 @@
  *     it never shows only to be replaced;
  *   - the setup answer counts a step (the Setup Alert's count, useSetupStatus().pendingCount) → the Setup
  *     Alert's turn ('setup');
+ *   - the Assistant Management page's own answer still being checked ('checking') → no pill yet either, so its
+ *     count never changes under the viewer (ADR assistant-identification-tags/0001 sub-decision 8);
  *   - otherwise — nothing counted, or the setup check failed, so the Setup Alert shows nothing either — the
- *     Assistant pill, when an action needs attention and the page is not /assistant or under it.
+ *     Assistant pill, when an action needs attention (the pill reading, alertCount) and the page is not /assistant
+ *     or under it.
  *
  * Pure, with one import (and its `.js`), so Node suites can load it (test/assistant-alert.test.js).
  */
@@ -23,14 +26,16 @@ export function isAssistantPath(pathname) {
 
 /**
  * @param {{ signedIn: boolean, setupPhase: string, setupPendingCount: number, assistantCount: number,
- *           pathname: string }} state
+ *           assistantPhase?: string, pathname: string }} state — assistantPhase is the attention answer's phase
+ *           (AssistantAttentionContext); omitted means answered, so callers that predate it are unchanged
  * @returns {{ pill: null | 'setup' | 'assistant', count: number }}
  */
-export function pickTopBarPill({ signedIn, setupPhase, setupPendingCount, assistantCount, pathname }) {
+export function pickTopBarPill({ signedIn, setupPhase, setupPendingCount, assistantCount, assistantPhase = 'answered', pathname }) {
   const none = { pill: null, count: 0 };
   if (!signedIn) return none;
   if (setupPhase !== 'answered' && setupPhase !== 'failed') return none;
   if (setupPhase === 'answered' && setupPendingCount > 0) return { pill: 'setup', count: setupPendingCount };
+  if (assistantPhase === 'checking') return none;
   if (assistantCount > 0 && !isAssistantPath(pathname)) return { pill: 'assistant', count: assistantCount };
   return none;
 }
