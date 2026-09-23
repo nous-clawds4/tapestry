@@ -156,3 +156,7 @@ reported failures. Attribution:
   after it, run individually with the URL and caps: 27 green, the one red being
   assistant-setup-state above.
 Nothing attributable to the merge or to story 2.
+- **2026-09-23 — frame complete.** `feat/tags` was pushed and verified on tags.b.w on 2026-09-17
+  (item tagging, wombat fix, `/lists` pagination, contextual pin), and again on 2026-09-22 with
+  the `search-index-selection` epic on top; the two-way sync cadence (D3) was exercised at that
+  deploy (two unrelated upstream commits absorbed by fast-forward). Operator ratified close.

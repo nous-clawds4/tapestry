@@ -1,7 +1,7 @@
 # Book of Work: Search-index selection
 
 **Slug:** search-index-selection
-**Status:** Open
+**Status:** Closing (Gate B ratified 2026-09-23)
 **Opened:** 2026-09-18
 **Closed:** —
 **Strictness:** Light — workflows/light-profile.md (a story escalates to Standard only on a
@@ -41,7 +41,7 @@ point-of-view threshold.
 - [x] **Deferred by design (2026-09-18):** the `author ∈ <list>` value and its filter-list
       picker; self-attested curator sets with GrapeRank; extrinsic per-list config joined by
       `b`; field types as a DList with url-templates. Tracked in the design doc, not here.
-- [ ] **Publish discipline.** Taggings publish to local strfry only during the build; the
+- [x] **Publish discipline.** Taggings publish to local strfry only during the build; the
       feature ships to `feat/tags` → tags.brainstorm.world as its staging.
 
 ## Epics in this book
@@ -70,3 +70,15 @@ point-of-view threshold.
   detected collision. Recorded in story 3's draft, carried into story 5.
 - **2026-09-18 — New story 4 (operator):** a confirm step on first pin, so the default curation
   that quietly publishes a list becomes visible and editable; sequenced with/before story 5.
+- **2026-09-22 — Gate B (epic): MERGE.** Operator: "let's merge, push and run." Fast-forwarded
+  `feat/tags` after absorbing two unrelated upstream commits; deploy green; firmware reinstalled
+  on the droplet; a full refresh cycle republished all 2,437 profile lists with the new tags; 0
+  collisions, 0 author mismatches on tags.b.w.
+- **2026-09-23 — Gate B verification: PASS.** The three live TL suites cannot complete anywhere as
+  written (each waits on a ~30-min `refresh-all`; OPEN 315) and skip on the droplet for want of
+  `nak` (OPEN 314); the wire claims were verified instead by the hermetic suites plus reading the
+  tags off every live list, and by the operator's five-step UI walkthrough on tags.b.w (method
+  recorded; per-pin override; weighted-sum fallback; "Only me" × certainty; settings gate) —
+  "all seem to pass." Found and filed during verification: OPEN 315 (nightly refresh has hit its
+  300 s cap for two months, server completes anyway), OPEN 316 (context stamps are instance-TA
+  scoped; mirrored contextual pins now collide-and-freeze instead of stomping).
