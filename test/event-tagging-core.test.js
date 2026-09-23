@@ -249,7 +249,7 @@ t('purity: no app requires, no network, no Date.now, no crypto, CJS only', () =>
     for (const bad of banned) {
       assert(!src.includes(bad), `${f} must not reference "${bad}" (dependency-free, no I/O, no time)`);
     }
-    assert(!/\bimport\s/.test(src), `${f} must be CommonJS (no ESM import)`);
+    assert(!/^\s*import\s/m.test(src), `${f} must be CommonJS (no ESM import)`); // anchored: the prose "the only import is…" in a header comment is not an import statement
     // every require(...) must be a sibling './' path — no app/parent escapes, no node_modules deps
     const reqs = [...src.matchAll(/require\(\s*['"]([^'"]+)['"]\s*\)/g)].map((m) => m[1]);
     for (const r of reqs) {
