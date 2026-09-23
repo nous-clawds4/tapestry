@@ -19,7 +19,7 @@ not a config file, and explicitly not a point-of-view threshold (which cannot gi
 certainty — see the design doc's rejected alternatives).
 
 ## Stories
-`stories/search-index-selection/`:
+`stories/done/search-index-selection/`:
 1. `1-tag-a-list-header.md` — **Done** (review PASS, 2 rounds). A tagging affordance on a list header, and the
    read path that makes a tagged header resolve for display. Prerequisite for everything
    else: today no UI surface can tag a kind-39998 at all.
@@ -43,7 +43,7 @@ with its filter-list picker; self-attested curator sets with GrapeRank (rung 3);
 per-list config joined by a `b` tag; field types as a DList with url-template affordances.
 
 ## Decisions
-`decisions/search-index-selection/0001-author-constraint.md` — Accepted (story 2). Both halves
+`decisions/done/search-index-selection/0001-author-constraint.md` — Accepted (story 2). Both halves
 of the old story 3 are wire-visible, so each expects its own ADR: **0002** for story 3 (the
 method rides the published `curationMethod` JSON, and the published 30392 discloses the fold
 that ran) and **0003** for story 5 (the variant rides the `d` tag, the search backend's

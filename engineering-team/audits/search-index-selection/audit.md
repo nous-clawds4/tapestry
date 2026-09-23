@@ -50,7 +50,7 @@ could not complete on this host (§5, §7 (j)), so this audit quotes no full-gat
 
 | Story | Delivered | Status | Review |
 |---|---|---|---|
-| #1 tag-a-list-header | header tag affordance (39998-gated) + kind-derived item resolution + "Lists" group | Done | `reviews/search-index-selection/1-tag-a-list-header.md` (2 rounds) |
+| #1 tag-a-list-header | header tag affordance (39998-gated) + kind-derived item resolution + "Lists" group | Done | `reviews/done/search-index-selection/1-tag-a-list-header.md` (2 rounds) |
 | #2 only-me-curation | `authorConstraint` predicate + 1.0 self-weight carve-out + list disclosure | Done | `.../2-only-me-curation.md` (1 round) |
 | #3 per-pin-membership-method | per-pin fold + `membership-method` disclosure restored + one client vocabulary module | Done | `.../3-per-pin-membership-method.md` (2 rounds) |
 | #4 confirm-step-on-first-pin | create-mode interstitial + pure `buildCuration` extraction | Done | `.../4-confirm-step-on-first-pin.md` (3 rounds) |
@@ -148,23 +148,41 @@ two deviations at #8. Three caveats on the *close* range rather than the book ra
   place the book fixed a pre-existing bug rather than adding a capability.
 
 ## 5. Quality state at close
-- **Test gate — attempted twice at close, and it does not complete on this host.** Both runs stall
-  on the same live suite. The `npm run gate:status` lines, verbatim:
-  - `20260923T170144Z-2353287-4c50 [book-close-search-index-selection] started 2026-09-23T17:01:44.980Z on 0c428f8f+dirty — INTERRUPTED by SIGTERM, exit 143, no totals (interrupted), 17/216 suites; failed: profile-tags, profile-tags-publish, tag-detail, tag-detail-publish, tag-detail-write, tag-detail-write-publish, tag-index, tag-index-publish, authored-tagging, profile-tag-polish, pin-a-tag, pin-a-tag-publish · tmp/gate-runs/20260923T170144Z-2353287-4c50.json`
-  - `20260923T170711Z-2397240-5f82 [book-close-sis-2] started 2026-09-23T17:07:11.089Z on 0c428f8f+dirty — RUNNING — 17/216 suites, current pin-a-tag-publish · tmp/gate-runs/20260923T170711Z-2397240-5f82.json`
-  Both stop advancing at **suite 18/216, `tl-publication-from-pins`** — a live suite whose setup
-  waits on a full `refresh-all`, i.e. exactly OPEN 315's ~30-minute cycle. So **no full-gate verdict
-  exists for this close, and this audit does not claim one.** That is a finding, not a formality:
-  the Light profile makes the full gate the book-close gate (`light-profile.md:21`), five
-  consecutive reviews deferred to it, and it turns out the gate has not been runnable end-to-end on
-  this corpus since the cycle time grew. OPEN 315 is therefore larger in scope than its row states —
-  it does not merely block three TL suites, it blocks the book-close gate itself. **What is owed:**
-  a full `npm test` on a host or fixture corpus where `refresh-all` is not ~30 minutes (or after
-  OPEN 315's "point the live legs at `refresh-pinned-tag`" fix), quoted into this section.
-  *(State at close: the second run was left detached — pid 2397240, label `book-close-sis-2` — still
-  stalled at suite 18 while a sibling book-close gate started on the same checkout. Re-read it with
-  `npm run gate:status -- --label book-close-sis-2`; stopping it is reasonable, since two gates on
-  one stack demonstrably contaminate each other.)*
+- **Test gate — attempted twice at close; neither run finished, and neither reached this book's own
+  suites.** The `npm run gate:status` lines, verbatim:
+  - `20260923T170144Z-2353287-4c50 [book-close-search-index-selection] started 2026-09-23T17:01:44.980Z on 0c428f8f+dirty — INTERRUPTED by SIGTERM, exit 143, no totals (interrupted), 17/216 suites · tmp/gate-runs/20260923T170144Z-2353287-4c50.json`
+  - `20260923T170711Z-2397240-5f82 [book-close-sis-2] started 2026-09-23T17:07:11.089Z on 0c428f8f+dirty — INTERRUPTED by SIGTERM, exit 143, no totals (interrupted), 173/216 suites, current tl-weighted-sum-method · tmp/gate-runs/20260923T170711Z-2397240-5f82.json`
+  The second run got to **173/216** (116 PASS / 51 FAIL among recorded suites) before being killed,
+  while a sibling book-close gate ran on the same checkout and the same live stack. **Of this book's
+  suites it reached exactly two** — `note-trusted-list` PASS 15/0/0 and `tl-membership-method-selector`
+  FAIL 9/3/0 (its live legs, per OPEN 314/315). `tag-a-list-header`, `only-me-curation`,
+  `per-pin-membership-method`, `confirm-step-on-first-pin`, `explicit-pin-variant-key`,
+  `pin-stack-composition`, `context-scoped-pins`, `item-trusted-list`, `dlist-*`,
+  `trusted-list-raw-view`, `tl-weighted-sum-method` and `tl-certainty-method` were **never reached**.
+  So **no full-gate verdict exists for this close, and this audit does not claim one.**
+- **What the partial run does tell us, and what it does not.** The 51 failures are overwhelmingly
+  *live-stack* suites failing against the dev panel's current auth/gating posture (`expected 403,
+  got 200` on host-gated brain reads; `expected 400, got 200` on validation paths) or against a
+  saturated stack — not hermetic regressions in this book's code, whose suites the run never got to.
+  Two findings are nonetheless real and worth keeping:
+  1. **`event-tagging-core` is red on a false positive introduced by a code comment** — its purity
+     sentinel scans `src/lib/event-tagging/pins.js` for `/\bimport\s/` (`test/event-tagging-core.test.js:252`)
+     and matches the prose *"the only import is the equally pure sibling `handles.js`"*
+     (`pins.js:4`). The file is CommonJS; the rule is right; the regex reads a comment. Introduced by
+     `c0138b9a` — the **previous** book (`dlist-item-tagging` #5) — so it has been red in the full
+     gate ever since and nobody saw it, because nobody ran the full gate. One-line fix either way
+     (reword the comment, or anchor the pattern at `^\s*import\s`). It is the same sentinel pathology
+     as §7 (a)/(d), caught here by the gate instead of by a reviewer.
+  2. **The full gate has not been run end to end for long enough that a trivially-fixable red went
+     unnoticed across a whole book.** That is the substance of §7 (j).
+- **Why it will not complete on this host.** Suite 18, `tl-publication-from-pins`, and the three TL
+  suites each wait on a full `refresh-all` — OPEN 315's ~30-minute cycle — so a serial 216-suite run
+  spends most of its wall clock blocked. The Light profile makes the full gate the book-close gate
+  (`light-profile.md:21`) and five consecutive reviews deferred to it; OPEN 315 is therefore larger
+  in scope than its row states — it does not merely block three TL suites, it blocks the book-close
+  gate itself. **What is owed:** a full `npm test` on a host or fixture corpus where `refresh-all` is
+  not ~30 minutes (or after OPEN 315's "point the live legs at `refresh-pinned-tag`" fix), run as the
+  *only* gate touching the stack, quoted into this section.
 - **What *is* certified.** Every suite this book wrote or touched was run green by the Reviewer in
   the foreground, per suite, exit code captured by brace-redirect, and recorded in the five review
   files: `tag-a-list-header` 28/0/0 · `only-me-curation` 35/0/0 · `per-pin-membership-method`
@@ -269,6 +287,12 @@ two deviations at #8. Three caveats on the *close* range rather than the book ra
       (story 4's S13, story 5's S22) — the class of assertion that went green against a crashing
       page and against an unreachable one.
 - [ ] **Cap or truncate the four unbounded warn `Set`s** (§5).
+- [ ] **Fix `event-tagging-core`'s purity sentinel false positive** — `/\bimport\s/` at
+      `test/event-tagging-core.test.js:252` matches the word "import" inside the header comment of
+      `src/lib/event-tagging/pins.js:4`. Pre-existing (arrived with `c0138b9a`, the previous book),
+      red in the full gate ever since, one line either way (§5).
+- [ ] **Run the full `npm test` to completion** on a host/corpus where `refresh-all` is not ~30
+      minutes, as the only gate touching the stack, and quote the `gate:status` line into §5.
 
 ## 7. Process findings (harness)
 
@@ -293,7 +317,7 @@ corpus median of 3.
 | **(g) J1/J2 labels were swapped once in a judge spawn.** The judge audited the rubric its body named rather than the label, so the artifact record is correct; the mislabel survives only in a commit subject and a story annotation | story 4 Design-note annotations ("amended at J2"/"at J3"); spawn history | **Declined.** Single occurrence, self-correcting, zero artifact damage: the spawn prompt carries the rubric text itself (`light-profile.md:27`), so the label is decoration. A guard would cost more than the defect. Recorded here so a second occurrence escalates rather than starting from zero |
 | **(h) The live TL tier is structurally unrunnable at corpus scale.** Each of the three suites' live legs triggers a full `refresh-all` and waits; that cycle is now ~30 min on a mirrored corpus, so they time out under any cap — and on the droplet they skip for want of `nak`. Consequence: three re-aimed assertions have never executed anywhere, across two review rounds and a deploy. The nightly `refreshPinnedTagTLs` has also been reporting a false failure for two months (63 consecutive runs at its 300 s curl cap) with nobody noticing, because no alert reads TASK_END | reviews #2 friction 1, #3 round 1 non-blocking 3 + "Carried to Gate B"; deploy-day verification | **OPEN.md rows 314 (`meta`) and 315 (`bug`)** — both filed 2026-09-22 with root cause and fix shapes |
 | **(i) A Tester agent was cut off mid-task by a spend limit and the phase was recovered from the working tree.** The recovery worked because the partial suite was on disk and the next agent could read it — but nothing in the harness *says* that is the procedure, so the recovery was improvised. A phase agent that dies mid-write leaves a tree that looks like a completed phase | session record, story-5 Phase 3 | **OPEN.md row — proposed, type `meta`** (text in the close report; the parent adds it serially). *Fix shape: one paragraph in `engineering-team/README.md` or `workflows/3-test-design.md` — an interrupted phase resumes by diffing the working tree against the phase's own commit convention and re-running the phase's verification step (for Phase 3: "confirm the tests fail for the right reason"), never by assuming the artifact is complete.* |
-| **(j) The book-close gate itself could not run — found at this close.** `npm test` was attempted twice over the final tree and both runs stopped advancing at suite **18/216** (`tl-publication-from-pins`), whose setup waits on the same ~30-minute `refresh-all` as (h)'s TL suites. So the Light profile's designated book-close gate (`light-profile.md:21`) — the gate five consecutive reviews deferred to — is not currently runnable end to end on this corpus. Compounding it: a sibling session's gate was running on the same checkout and the same live stack at the same moment, and `pin-a-tag-publish` passed 7/0 in one run and failed at suite setup in the other, six minutes apart, at an identical commit and tree | this close (§5); run records `…170144Z-2353287-4c50`, `…170711Z-2397240-5f82`, sibling `…170037Z-2336600-9ae2` | **OPEN.md rows — proposed, two of them** (texts in the close report; the parent adds them serially): one `bug` escalating OPEN 315's scope to "blocks the book-close gate, not just three TL suites", and one `meta` for concurrent gate runs on a shared checkout/stack not producing independent answers |
+| **(j) The book-close gate itself could not be completed — found at this close.** `npm test` was attempted twice over the final tree; both runs ended INTERRUPTED (17/216 and 173/216), and **neither reached this book's own suites**. The wall clock goes to live suites that each wait on the same ~30-minute `refresh-all` as (h)'s TL suites. So the Light profile's designated book-close gate (`light-profile.md:21`) — the gate five consecutive reviews deferred to — is not currently completable on this corpus. Two consequences surfaced immediately: a red that has sat in the gate since the **previous** book went unnoticed (`event-tagging-core`'s purity sentinel matching the word "import" inside a comment in `pins.js:4`, from `c0138b9a`); and a sibling session's gate ran on the same checkout and live stack at the same moment, with `pin-a-tag-publish` passing 7/0 in one run and failing at suite setup in the other, six minutes apart at an identical commit and tree | this close (§5); run records `…170144Z-2353287-4c50`, `…170711Z-2397240-5f82`, sibling `…170037Z-2336600-9ae2` | **OPEN.md rows — proposed, three** (texts in the close report; the parent adds them serially): an amendment to row 315 escalating its scope to "blocks the book-close gate, not just three TL suites"; one `meta` for concurrent gate runs on a shared checkout/stack not producing independent answers; one `bug` for the `event-tagging-core` false positive |
 
 **Does any of this port to the other flow (Direction ↔ human-gated)?** (a), (b), (d) and (f) are
 flow-agnostic — they live in the ADR template, the Light gate rubrics, the story template and the

@@ -1,7 +1,7 @@
 # Epic: feat-tags-modernization
 
 **Created:** 2026-09-17
-**Status:** Active
+**Status:** Done (closed 2026-09-23 with the book; story folders left in place, matching the `contextual-pins` precedent — retirement to `done/` is deferred while the sibling `dlist-item-tagging` book shares this branch)
 **Book:** `engineering-team/audits/feat-tags-modernization/book.md` (acceptance-frame, Standard)
 **Provenance:** Operator decision 2026-09-17, mid-session, after a replay of the
 `dlist-item-tagging` epic onto `feat/tags` required a divergent nav implementation and four

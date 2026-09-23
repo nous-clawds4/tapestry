@@ -1,9 +1,9 @@
 # Book of Work: Modernizing feat/tags against staging
 
 **Slug:** feat-tags-modernization
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-17
-**Closed:** —
+**Closed:** 2026-09-23
 **Strictness:** Standard
 
 ## Intent anchor
@@ -63,7 +63,7 @@ book must either restore the policy or replace it with one the team will actuall
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** **High** on the engineering record; **medium** on one bullet. High because every frame bullet is backed by a measurement rather than a claim: the gap was verified at 0 by `git rev-list --count feat/tags..staging`, the census rulings were checked by content diff against staging (not by commit subject), security parity was re-verified on the merged tree, the pin-stack story was reviewed against its ADR with all seven authorized suites green, and the whole branch was pushed and exercised live on tags.brainstorm.world on 2026-09-17 and again on 2026-09-22 — including one regression (the dropped CSS block) that live use actually caught and that was fixed on the record. The medium: the "deployable" bullet rests on a **capped** full-suite run (interrupted at 177/206) whose failures were attributed rather than re-run to green in one pass, and four live-stack membership-method suites have never executed against this branch's own runner (deferred at the story-2 review, and OPEN 314 records that they skip on tags.b.w for want of `nak` in the container). Nothing observed contradicts AC-4, and the argument for it is strong (neutral pins are byte-identical by construction, verified by whole-file diff) — but it is an argument plus stack-free fixtures, not a live-ladder run. Treat AC-4 as well-evidenced, not as executed.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/feat-tags-modernization/audit.md`
