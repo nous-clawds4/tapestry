@@ -1,7 +1,9 @@
 # Indexing DLists for search — target state
 
-**Status:** 🟡 DESIGN TARGET — the consumer contract is settled; the pipeline that
-produces it is not built. Nothing here is ratified.
+**Status:** 🟢 PART 1 SHIPPED — rung 1 of the guard ladder is live on tags.brainstorm.world
+(2026-09-22; epic `search-index-selection`, five stories, build audit at
+`engineering-team/audits/search-index-selection/audit.md`). Parts 2 and 3 below remain
+targets. Nothing in Parts 2–3 is ratified.
 **Created:** 2026-09-18 · **Revised:** 2026-09-18 (rev 2, after the design debate)
 **Audience:** the Vespa-backed search backend (separate repo), and anyone else who wants to
 subscribe to "which Decentralized Lists are worth indexing".
