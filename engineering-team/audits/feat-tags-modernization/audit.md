@@ -132,20 +132,59 @@ and the `dlist-item-tagging` book that shares this branch is still open. Carried
 
 ## 5. Quality state at close
 
-- **Test gate at close:** see the `gate:status` line recorded below. Run on the post-flip tree.
-  `GATE_RUN_PLACEHOLDER`
-- **Known-environmental failure classes on this host** (unchanged from the book's attribution note, and
-  re-observed in this run): the `:7778` foreign-relay false positive (OPEN 292 / 297) and the
-  tag-detail corpus precondition. Neither is attributable to this book's code.
-- **Accepted open issues:** OPEN 299 (three contextual-pins hardening gaps), 302 (fresh-tag chip
-  coordinate — since fixed on this branch by `ec8c41e2`), 311 (a context pin omits the personal
-  `localTA` `z` stamp), 316 (the context stamp is instance-scoped, so a mirrored contextual pin degrades
-  — sibling book's row, referenced only).
+**Test gate at close.** Run over the final state (after the book flip and the epic flip), on the
+session's checkout — branch `feat/search-index-selection`, tree `0c428f8f+dirty` — because that is the
+tree this close leaves behind; the book's own code shipped from `feat/tags` and was last gated there
+(see the capped-run attribution in `book.md`). `npm run gate:status` line, verbatim:
+
+> `20260923T171136Z-2490414-1d42 [book-close-ftm-2] started 2026-09-23T17:11:36.332Z on 0c428f8f+dirty — FAIL, exit 1, 3491 passed, 75 failed, 133 skipped, 216/216 suites; failed: tag-detail, tl-publication-from-pins, tl-publication-from-pins-publish, most-pinned-tag-index-publish, tag-detail-curated-view-and-pin-polish-publish, pin-detail-into-tag-pinned-tab, open-ranking-rank, open-ranking-followers-muters, event-tagging-core, capture-a-goal-and-see-it, structures-the-brain-can-trust, break-a-goal-into-pieces, attach-the-world, sessions-read-the-brain, the-proposal-loop, teach-it-what-matters, the-brain-survives, operational-direction, return-the-four-on-every-read-surface, show-the-four-on-the-goal-screens-that-already-exist, recognizable-published-ta-profile, llms-txt, tl-membership-method-selector, tl-weighted-sum-method, only-me-curation, per-pin-membership-method, item-trusted-list`
+
+**This is a red gate, and it is recorded red.** The close does not claim green. Attribution of the 27
+failing suites, from the run log:
+
+- **Live-stack unavailability — the largest class.** The local stack stopped answering partway through:
+  `refresh-all-pinned-tags failed: no response from the stack (empty output, no HTTP status, or a
+  refused connection)` and bare `fetch failed`, plus two `spawnSync /bin/sh ETIMEDOUT`. Every
+  live-leg TL suite (`tl-publication-from-pins`, `tl-membership-method-selector`,
+  `tl-weighted-sum-method`, `per-pin-membership-method`, `only-me-curation`, the `-publish` twins) and
+  the goal/brain/operational-direction block fail on that, with their stack-free legs green
+  (`tl-membership-method-selector` 10 passed / 2 failed — both failures the live legs). Compounding
+  cause, measured this session: **three full gate runs from two concurrent book closes were live on
+  this one checkout and one local stack** (`20260923T170037Z`, `20260923T170144Z`, `20260923T170711Z`),
+  and the `tl-publication-from-pins` suite alone held the stack for ~20 minutes — which is OPEN 315's
+  ~30-minute `refresh-all` in another guise. Two of those runs were killed by SIGTERM before finishing.
+- **Missing optional devDependency:** `open-ranking-rank` / `open-ranking-followers-muters` — *the
+  `open-ranking` SDK devDependency is not installed* (exact-pinned, ADR `ore-parity/0001` decision 6).
+  Environmental, unrelated to any book.
+- **Corpus precondition:** `tag-detail` — *no tag in the first 60 of available-tags has any tagged
+  profile*. Identical to the class recorded in `book.md`'s attribution note; not code.
+- **`item-trusted-list` U18–U20 — belongs to the sibling line, flagged not adjudicated.** This suite **Re-diagnosed at commit time: a gate-isolation false negative, not a runner gap — the suite passes 51/0 standalone; the in-process gate pins the TA pubkey from whichever suite loads it first (OPEN 322).**
+  (the kind-30394 item-TL runner, a `search-index-selection`/`dlist-item-tagging` surface that does not
+  exist on the tree this book shipped) asserts the three-`z` composition this book's ADR 0001 §3
+  ratified, and measures two. Note U18 fails on the *neutral* case while printing exactly the pair it
+  says it wants, which points at the assertion's set comparison rather than at the runner — but U19 does
+  show a contextual item TL with no context `z`. Either a real gap in the newer item-TL path or a broken
+  comparator; **owned by the branch it lives on**, not resolvable inside this close. Proposed as a ledger
+  row (see the close report).
+- **Not attributable to this book's code.** No failing suite is one of the seven this book's story-2
+  review gated (`pin-stack-composition`, `context-scoped-pins`, `restore-historical-data-…`,
+  `pinned-notes-display`, `note-trusted-list`, `trusted-list-pin-publish-blockers`,
+  `generalized-tag-pinning`); all seven are green in this run.
+
+- **Known-environmental probe classes**, re-verified unfixed at this close: the `:7778` foreign-relay
+  false positive (OPEN 292 / 297). Live demonstration in this same session — the sibling close's first
+  run, launched without `BRAINSTORM_BASE_URL`, reported 12 failed suites in its first 17; this run, with
+  the URL set, reported 1.
+- **Accepted open issues against what this book shipped:** OPEN 299 (three contextual-pins hardening
+  gaps), OPEN 311 (a context pin omits the personal `localTA` `z` stamp), OPEN 316 (the context stamp is
+  instance-scoped, so a mirrored contextual pin degrades — the sibling book's row, referenced only).
 - **Closed during or after the book:** OPEN 298 (`useTagMemberSets` hand-composed `d`-tag — closed by
-  `search-index-selection` #5), 301 (`/lists` index gating on an unbounded count scan), 303 (the CSS block).
-- **Debt from ADR 0001 §Consequences:** two `d`-tag composers exist client- and server-side and are kept
-  honest only by a parity test; the context `z` count differs from the `dlist-item-tagging` convention
-  until that book's story 5 lands.
+  `search-index-selection` #5), OPEN 301 (`/lists` gating on an unbounded count scan), OPEN 302 (the
+  fresh-tag chip coordinate, fixed on this branch by `ec8c41e2`), OPEN 303 (the CSS block).
+- **Debt from ADR 0001 §Consequences:** the `d`-tag string is composed by one helper but consumed on both
+  client and server, kept honest only by a parity test; and a contextual TL's `z` count differs from the
+  `dlist-item-tagging` two-`z` convention until that book's story 5 lands (additive and forward-compatible
+  by construction — and the `item-trusted-list` failures above are the first place that seam is visible).
 
 ## 6. Carry-forward register
 
