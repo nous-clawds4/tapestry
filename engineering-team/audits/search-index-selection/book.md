@@ -1,9 +1,9 @@
 # Book of Work: Search-index selection
 
 **Slug:** search-index-selection
-**Status:** Closing (Gate B ratified 2026-09-23)
+**Status:** Closed (2026-09-23)
 **Opened:** 2026-09-18
-**Closed:** —
+**Closed:** 2026-09-23
 **Strictness:** Light — workflows/light-profile.md (a story escalates to Standard only on a
 wire-format trigger; stories 2 and 3 each carry a wire-visible value and expect an ADR)
 **Branch:** `feat/search-index-selection` off `feat/tags` → merges to `feat/tags`
@@ -49,7 +49,18 @@ point-of-view threshold.
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** **Medium-high, with one uncovered claim named.** The frame's four
+  capability bullets are ticked, and each is evidenced four ways — hermetic handles, a live browser
+  drive at every Gate B, live server runs against the real corpus, and the 2026-09-22 deploy that
+  republished all 2,437 profile lists carrying the new tags (0 collisions, 0 author mismatches) plus
+  the operator's five-step walkthrough. What is **not** covered is bullet 4's *end-to-end*: every
+  story put authoring the `worth-indexing-for-search` tag and tagging the `github-accounts` header
+  out of scope ("no code" — design-doc build-progression step 3), and the Gate-B walkthrough
+  exercised the five mechanisms rather than that specific chain, so **the day-one list has not been
+  demonstrably published**. It is blocked on a naming decision, not on build (audit §4 #1, §6).
+  Secondary gap: the three live TL suites' own proof of the `membership-method` tag has never
+  executed anywhere (OPEN 314/315) — the claim is covered three other ways; the suites are not.
+  Everything else in the frame is as-built and live on tags.brainstorm.world.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/search-index-selection/audit.md`
