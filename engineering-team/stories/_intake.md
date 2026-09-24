@@ -2543,3 +2543,14 @@ read, so it may be exactly the artifact a backend wants instead of scanning kind
 `dlist-item-tagging` #5 / ADR 0002 (the 30394 shape + `z` discipline; E1 — never an `a`
 back-ref on a 30394); `search-index-selection` book audit; OPEN 315 (refresh-cycle cost — a
 new runner adds to it).
+
+**Discovery `z` (operator question, 2026-09-24).** The sample carries only the concept `z`
+(`39998:<TA>:trusted-list`) because the second, per-subject `z` has no target yet: ADR
+`dlist-item-tagging/0002` defined a per-**tag** TL header (`39999:<TA>:tl:<slug>-tls`, itself an
+item on `trusted-list-for-tag`), and nothing analogous exists for a **list**. The source list's
+coordinate must not ride a `z` (a false membership claim — the list is the *subject*, not the
+container) nor an `a` (a member, on 30394). Design obligation for the ADR: a per-list TL header,
+e.g. `39999:<TA>:tl:<listAuthor8>-<listD>-tls`, an item on a new firmware type header
+`trusted-list-for-dlist` (sibling of `trusted-list-for-tag`; reinstall), `a` → the list header;
+every list-items TL stamps `z` → it, so "all Trusted Lists about list X" is one `#z` filter.
+`source-list` stays as the stable cross-version back-ref, exactly as `source-tag` does today.
