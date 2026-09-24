@@ -2514,3 +2514,32 @@ rides published events); B is Standard too — the variant key is wire-visible i
 **Related:** OPEN rows 306–307 (two gaps found while verifying); ADRs
 `contextual-pins/0001` and `feat-tags-modernization/0001` (pin composition);
 `dlist-item-tagging/0003` (the item Trusted List this rides on).
+
+---
+
+## 2026-09-24 — A Trusted List of a DList's ITEMS, by inclusion (not by tagging)
+
+**Origin:** operator, 2026-09-24 — "i want to do it NOT by tags. i want to be able to generate a
+TL of dlists." Every kind-30394 the pipeline publishes today is *tag-derived*: pin a tag → the
+items a POV considers tagged with it. There is no primitive for "publish this list's items as a
+Trusted List". A hand-published sample exists on tags.brainstorm.world (kind 30394, TA-signed,
+`d = tl-list-items-b83a28b7-github-accounts`, 7 `a` members, `['membership','list-inclusion']`,
+`['source-list', <header coord>]`, concept `z`) so the Vespa backend has a concrete 30394 of
+items to integrate against; it was published outside any runner and no sweep owns its
+namespace — it will neither refresh nor retract on its own.
+
+**The ask, as a feature:** a runner (and a UI affordance on the list page — "publish as a Trusted
+List") that emits a 30394 whose members are a DList's items as published, under an observer's
+POV. Design questions for Gate A: what "trusted" means when membership is inclusion — likely a
+POV trust filter on the item *authors* (a list where anyone can add items needs one; a
+single-curator list does not), plus the per-list curation the pin stack already carries; the
+`d`-tag namespace (`tl-list-items-<author8>-<listd>[-<obs8>]`?) and which sweep owns it; whether
+this is a *pin of a list* (the pin stack generalised from tags to lists — the natural home,
+since pins already carry curation, refresh, retraction and the Pinned-tab UI) or a separate
+publisher; and how it composes with the search-index design (`docs/SEARCH_INDEX_DLIST_SELECTION.md`
+— a list of *lists* selects what to index; this is the list of *items* an indexer would then
+read, so it may be exactly the artifact a backend wants instead of scanning kind-39999 by `#z`).
+**Classification:** Feature, wire-visible (new 30394 shape + d namespace) → ADR. **Related:**
+`dlist-item-tagging` #5 / ADR 0002 (the 30394 shape + `z` discipline; E1 — never an `a`
+back-ref on a 30394); `search-index-selection` book audit; OPEN 315 (refresh-cycle cost — a
+new runner adds to it).
