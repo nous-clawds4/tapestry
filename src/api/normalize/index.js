@@ -4639,7 +4639,17 @@ async function handleSetBTag(req, res) {
     `, { uuid });
     if (!tagRows.length) return res.json({ success: false, error: `Event "${uuid}" not found` });
 
-    const newTags = tagRows
+    // The consumer and importEventDirect race after publishToStrfry and key
+    // tag nodes differently, so the graph can hold exact-duplicate tag rows.
+    // Dedupe here or the duplicates get signed into the rebuilt event.
+    const seen = new Set();
+    const uniqueRows = tagRows.filter(t => {
+      const k = JSON.stringify([t.type, t.value, t.value1, t.value2]);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    const newTags = uniqueRows
       .filter(t => !(t.type === 'b' && t.value === target))
       .map(t => {
         const tag = [t.type, t.value];
@@ -4681,6 +4691,17 @@ async function handleSetBTag(req, res) {
         MERGE (child)-[r:REFERENCES]->(t) SET r.source = 'b-tag'
       `, { uuid, target });
     }
+
+    // Clear exact-duplicate tag nodes the race may have left (keeps one of
+    // each (type,value,value1,value2); multiple b tags with DIFFERENT values
+    // are legitimate and untouched).
+    await writeCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
+      WITH t.type AS ty, t.value AS v, t.value1 AS v1, t.value2 AS v2, collect(t) AS ts
+      WHERE size(ts) > 1
+      UNWIND ts[1..] AS extra
+      DETACH DELETE extra
+    `, { uuid });
 
     return res.json({
       success: true,
