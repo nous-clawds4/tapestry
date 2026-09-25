@@ -4659,7 +4659,7 @@ async function handleSetBTag(req, res) {
       });
     if (!remove) {
       const b = ['b', target, mk];
-      if (note) b.push(String(note).slice(0, 200));
+      if (note) b.push(String(note).slice(0, 500));
       newTags.push(b);
     }
 
