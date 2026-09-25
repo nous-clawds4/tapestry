@@ -4658,6 +4658,30 @@ async function handleSetBTag(req, res) {
     await publishToStrfry(evt);
     await importEventDirect(evt, uuid);
 
+    // importEventDirect is the simplified importer: node + tags only, no
+    // refStatements. Derive the edge here with the same statements eventSync
+    // would produce for this tag (eventSync.js b-branch), so the endpoint is
+    // consistent regardless of whether the pipeline replays the event later.
+    const rel = mk === 'inherit' ? 'INHERITS_FROM' : 'REFERENCES';
+    if (remove) {
+      await writeCypher(`
+        MATCH (child:NostrEvent {uuid: $uuid})-[r:${rel}]->(t:NostrEvent {uuid: $target})
+        DELETE r
+      `, { uuid, target });
+    } else if (mk === 'inherit') {
+      await writeCypher(`
+        MATCH (child:NostrEvent {uuid: $uuid})
+        MERGE (parent:NostrEvent {uuid: $target})
+        MERGE (child)-[:INHERITS_FROM]->(parent)
+      `, { uuid, target });
+    } else {
+      await writeCypher(`
+        MATCH (child:NostrEvent {uuid: $uuid})
+        MERGE (t:NostrEvent {uuid: $target})
+        MERGE (child)-[r:REFERENCES]->(t) SET r.source = 'b-tag'
+      `, { uuid, target });
+    }
+
     return res.json({
       success: true,
       message: `b tag (${mk}) ${remove ? 'removed' : 'set'}: ${uuid} -> ${target}`,
