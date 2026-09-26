@@ -11,6 +11,7 @@ const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 const firmware = require('./firmware');
+const { buildImportCypher, executeCypher } = require('../neo4j/eventSync');
 const dtag = require('../../lib/dtag');
 
 // ── Relationship type aliases from firmware ──────────────────
@@ -4623,6 +4624,12 @@ async function handleForkNode(req, res) {
 // ══════════════════════════════════════════════════════════════
 async function handleSetBTag(req, res) {
   try {
+    // Owner gate (the in-file pattern): the event is signed with the TA key,
+    // so an authenticated non-owner must not be able to author through it.
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
     const { uuid, target, marker, note, remove } = req.body || {};
     if (!uuid) return res.status(400).json({ success: false, error: 'Missing uuid' });
     if (!target) return res.status(400).json({ success: false, error: 'Missing target' });
@@ -4639,9 +4646,8 @@ async function handleSetBTag(req, res) {
     `, { uuid });
     if (!tagRows.length) return res.json({ success: false, error: `Event "${uuid}" not found` });
 
-    // The consumer and importEventDirect race after publishToStrfry and key
-    // tag nodes differently, so the graph can hold exact-duplicate tag rows.
-    // Dedupe here or the duplicates get signed into the rebuilt event.
+    // Graphs written by older import paths can hold exact-duplicate tag
+    // rows; dedupe so they are never signed into the rebuilt event.
     const seen = new Set();
     const uniqueRows = tagRows.filter(t => {
       const k = JSON.stringify([t.type, t.value, t.value1, t.value2]);
@@ -4666,42 +4672,24 @@ async function handleSetBTag(req, res) {
     const kind = uuid.startsWith('39998:') ? 39998 : 39999;
     const evt = signAndFinalize({ kind, tags: newTags, content: '' });
     await publishToStrfry(evt);
-    await importEventDirect(evt, uuid);
 
-    // importEventDirect is the simplified importer: node + tags only, no
-    // refStatements. Derive the edge here with the same statements eventSync
-    // would produce for this tag (eventSync.js b-branch), so the endpoint is
-    // consistent regardless of whether the pipeline replays the event later.
-    const rel = mk === 'inherit' ? 'INHERITS_FROM' : 'REFERENCES';
-    if (remove) {
-      await writeCypher(`
-        MATCH (child:NostrEvent {uuid: $uuid})-[r:${rel}]->(t:NostrEvent {uuid: $target})
-        DELETE r
-      `, { uuid, target });
-    } else if (mk === 'inherit') {
-      await writeCypher(`
-        MATCH (child:NostrEvent {uuid: $uuid})
-        MERGE (parent:NostrEvent {uuid: $target})
-        MERGE (child)-[:INHERITS_FROM]->(parent)
-      `, { uuid, target });
-    } else {
-      await writeCypher(`
-        MATCH (child:NostrEvent {uuid: $uuid})
-        MERGE (t:NostrEvent {uuid: $target})
-        MERGE (child)-[r:REFERENCES]->(t) SET r.source = 'b-tag'
-      `, { uuid, target });
-    }
-
-    // Clear exact-duplicate tag nodes the race may have left (keeps one of
-    // each (type,value,value1,value2); multiple b tags with DIFFERENT values
-    // are legitimate and untouched).
+    // Import with the canonical importer (eventSync.buildImportCypher), the
+    // same path firmware install uses when it seeds a pointer-b. It derives
+    // REFERENCES / INHERITS_FROM from the b tags itself, so this handler holds
+    // no edge logic of its own. First clear what the previous version of this
+    // event produced — its tag nodes, and the edges derived from its b tags —
+    // so the result is a pure function of the new event: removal needs no
+    // special case, and stale tags cannot accumulate.
     await writeCypher(`
       MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
-      WITH t.type AS ty, t.value AS v, t.value1 AS v1, t.value2 AS v2, collect(t) AS ts
-      WHERE size(ts) > 1
-      UNWIND ts[1..] AS extra
-      DETACH DELETE extra
+      DETACH DELETE t
     `, { uuid });
+    await writeCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[r:REFERENCES|INHERITS_FROM]->()
+      WHERE type(r) = 'INHERITS_FROM' OR r.source = 'b-tag'
+      DELETE r
+    `, { uuid });
+    await executeCypher(buildImportCypher(evt));
 
     return res.json({
       success: true,
