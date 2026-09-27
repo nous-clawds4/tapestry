@@ -5,6 +5,7 @@
 **Design doc:** `engineering-team/designs/unified-taggings.md` (full model; this ADR ratifies it)
 **Driving story:** `engineering-team/stories/event-tagging/9-unified-tag-index-notes-and-profiles.md` (first consumer)
 **Also underpins:** Stories 10 (unified search) and 11 (profile tagging-activity spans notes)
+**Narrowed (2026-09-26):** Decision 1 is superseded for the write-side projection of `nostr-user-tag` assertions into Neo4j `TAGS` edges only, by `tagging-edges/0001`; read-time normalization is unchanged.
 
 ## Context
 
