@@ -202,7 +202,7 @@ NIP-22 uses uppercase `K` for the same meaning, and also uses `E`, `A`, `I` and 
 
 **Decision (2026-09-27):** ❌ rejected. Consequences:
 - Trusted Lists drop `K` / `Z` / `T`. Lists are found by their exact `d` key; browsing by category or Tag happens client-side.
-- Pinnings still need a way to say "for this category". Proposed replacement: one multi-letter `["context", <coordinate>]` tag, not relay-indexed. It is under review in a separate issue (`repo/ISSUE-pinning-context.md`).
+- Pinnings still need a way to say "for this category". Proposed replacement: one multi-letter `["context", <coordinate>]` tag, not relay-indexed. It is under review in a separate issue ([#762](https://github.com/nous-clawds4/tapestry/issues/762)).
 
 **Refs:** treasure-maps § 5.5; [content-categories](./drafts/content-categories.md) § 2; [pins](./drafts/pins.md) § 3; [W2](#w2--single-char-tag-namespace-registry).
 
@@ -216,7 +216,7 @@ Pubkey taggings name their Tag directly; event taggings name it indirectly, thro
 
 **Decision (2026-09-27):** ⏸ on hold. To be opened as a Tapestry issue for Vinney to review.
 
-**Refs:** [docs/reviews/tags-nip-review-2026-09.md](../docs/reviews/tags-nip-review-2026-09.md) point 3; pins § 2; [W10](#w10--taggings-family-naming--expansion).
+**Refs:** [docs/reviews/tags-nip-review-2026-09.md](../docs/reviews/tags-nip-review-2026-09.md) point 3; pins § 2; [W10](#w10--taggings-family-naming--expansion); review issue [#761](https://github.com/nous-clawds4/tapestry/issues/761).
 
 ## W20 — Hashed target in assertion `d` tags
 
