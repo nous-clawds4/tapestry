@@ -1,0 +1,412 @@
+# ADR 0001: The tagging edge contract — one pure module every TAGS writer calls
+
+**Status:** Accepted
+**Date:** 2026-09-26
+**Story:** `engineering-team/stories/tagging-edges/1-tagging-edge-contract.md`
+
+## Context
+
+Story `tagging-edges` #1 asks for one agreed definition of the NostrUser→NostrUser relationship that reflects a
+tagging, before anything writes one. Its acceptance criteria, restated (the story holds the exact wording):
+
+- **AC-1** — every deployed tagging shape (address and id, address only, id only) converts to a record of the same
+  form. The record holds:
+  - from = the author; to = the `p` pubkey, lower-case;
+  - identity = `39999:<author>:<d>`, plus the event id and `created_at`;
+  - the stance exactly as published, or *absent*;
+  - the tag's event id when the event names one, and which of the two stamps the event carried;
+  - the tag's address and slug whenever the address is known, either named by the event or resolved from a
+    supplied tag element whose id the tagging names.
+
+  If the tagging names only an id and that element is not supplied, the record holds the id, no address and no
+  slug, and is marked unresolved. It never takes another author's same-slug tag.
+- **AC-2** — anything that is not a tagging gets no record, a named reason, and never a throw. That covers
+  another kind, no `d`, no `nostr-user-tag` stamp, zero or several `p`, a non-64-hex `p`, no tag named, several
+  different tags named, or an `a` not of the form `39999:<64-hex>:<slug>`. A record is produced for any author,
+  a self-tagging, a dispute, a neutral "0", an absent stance, or a tag that is not on this relay.
+- **AC-3** — of two versions at one identity, the newer `created_at` stands, and on a tie the lower event id
+  (NIP-01). The result is the same whichever order the versions arrive in. When the target changes, the outcome
+  names the target that no longer holds this tagging.
+- **AC-4** — a kind-5 applies only if the tagger signed it and it names either the version's id, or the tagging's
+  address with `created_at` no earlier than the version's. A revoke naming a superseded version, a later version,
+  or signed by anyone else does not apply. The answer is the same whether the revoke arrives before or after the
+  version.
+- **AC-5** — BIBLE §6 lists `TAGS` among the social relationships between NostrUser nodes.
+  - FOLLOWS, MUTES and REPORTS appear beside it by direction and source event kind only.
+  - For `TAGS` it gives the direction, source events, what identifies one and what it records, that an absent
+    stance counts as apply, and the rules of AC-3 and AC-4.
+  - The glossary separates `TAGS` from `HAS_TAG` / `NostrEventTag`.
+  - The docs say that no pipeline writes `TAGS` yet.
+
+**Concepts (oriented via the Concept Graph, 2026-09-26).** Calls, in order, before any source reading in this
+phase: `/api/concept-graph/summaries` (at session start and again in Planning); `/node/39998:<TA>:nostr-user-tag/neighbors`;
+`/node/39998:<TA>:relationship-type/neighbors`; `/node/39999:<TA>:relationship-type-superset/neighbors`;
+`/node/39999:<TA>:relationship-types-for-nostr/neighbors`; `/node/39999:<TA>:relationship-type-schema`; and, in
+Planning, `/node/39999:<TA>:nostr-user-tag-schema`. Firmware files and source were read only afterwards.
+- `39998:<TA>:nostr-user-tag` (local TA `8387ec0e…`, resolved at runtime) has the full core-node set. Its
+  `REFERENCES` neighbour is the canonical header
+  `39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-user-tag` (the ADR 0015 literal,
+  present locally as a community-reference node). Taggings on every deployment carry the canonical stamp; since
+  2026-06-17 most writers also add the publishing deployment's own (`tag-federation/0003`).
+- `39999:<TA>:nostr-user-tag-schema` describes the content `{"nostrUserTag": {taggedPubkey*, tagEventId*,
+  tagAddress?}}`. The story names three departures from it: address-only taggings are accepted, the stance is
+  read from the `polarity` tag, and the target is read from `p`.
+- `39998:<TA>:relationship-type` registers edge types as elements
+  (`firmware/versions/v1.0.0/concepts/relationship-type/`). Its `nostr` set holds authors, references, has-tag
+  and two class-thread types (`manifest.json`). FOLLOWS, MUTES and REPORTS are **not** registered.
+
+**Decisions this ADR must agree with, checked:**
+- `0001-profile-tag-architecture.md` (flat, :79, :55):
+  - identity is (author, target, tag) through the replaceable `d`;
+  - a flip is an overwrite;
+  - a revoke is a kind-5 naming the assertion id;
+  - an absent `polarity` means `"1"`.
+
+  Agrees.
+- `profile/0022-nostr-user-tag-hybrid-ea-reference.md`: `a` is the tag's identity and `e` is provenance. Agrees
+  (see the resolution rule below).
+- `profile-tag-hardening/0001-consume-profile-tags-by-a-coordinate.md`: readers take `a` first, then `e` through a
+  by-id map, with no cross-check (`assertionTagCoordinate`, `src/api/profile-tags/index.js:192-201`). Agrees; the
+  resolution order below is the same.
+- `tag-federation/0003-dual-z-writer.md`: two z stamps. Agrees (`zCanonical` / `zLocal`).
+- `0015-restore-historical-data-and-fix-tl-author-filter.md` fixes where the canonical literal may live. This ADR
+  adds no copy: both pubkeys are parameters.
+- `event-tagging/0009-unified-taggings-normalization.md` decides that the dependency-free core
+  `src/lib/event-tagging` is the one **read-time** normalization layer: "profile-tagging … registry members, not
+  parallel cores" (Decision 1), under its constraint 1, "read/aggregation only". This ADR's module parses the same
+  `nostr-user-tag` assertions for a **write-side projection** into Neo4j, which 0009's scope excludes. It is still
+  a second parser of those assertions, and the departure is deliberate (Decision → "Relation to event-tagging/0009").
+
+**The code a writer would otherwise borrow from, and why it can't be borrowed as is.**
+- `src/lib/event-tagging/taggings.js:44-58`: the `nostr-user-tag` member's `extractTag` accepts **only an `a`
+  tag** (`COORD_RE`). It therefore drops id-only taggings, which are 97% of the census (6,739 of 6,972 on
+  production). This also drops them from `/api/tags/index` and tag applicability
+  (`src/api/event-tags/index.js:480` → `normalizeTaggings` skips a tagging whose `extractTag` returns null). That
+  is a live read-side defect, and a ledger row below records it.
+- `readPolarity` exists four times (`src/lib/event-tagging/classify.js:25`, `src/lib/event-tagging/taggings.js:24`,
+  `src/lib/identification-tags/index.js:65`, `src/api/profile-tags/index.js:141`). Each maps an absent stance to
+  `1`, which erases the *absent* value AC-1 must keep.
+- `src/api/profile-tags/index.js:162-173` `dedupeReplaceable` keeps the **first** of two versions with equal
+  `created_at`, not NIP-01's lower id. The module is not pure either: it resolves the TA at load (`:55`), logs, and
+  imports relay and Meili I/O.
+- The existing FOLLOWS / MUTES / REPORTS writers each derive edge shape inline, and they disagree.
+  `src/pipeline/stream/redis-consumer.js:92-105` writes property-less REPORTS. The reconcile path writes
+  `report_type` plus a wall-clock `timestamp`. This is the failure the story exists to prevent.
+
+**What strfry 1.1.0 actually does** (source read in the container, `/usr/local/src/strfry/src/events.cpp`):
+- Replaceable identity is the **first** `d` tag. A missing `d`, or one longer than 255 bytes, becomes `''`
+  (:48-62, :282-286).
+- On equal `created_at` the lower id stands (:246-249).
+- An `a`-deletion covers stored versions with `created_at <=` the deletion, and refuses later arrivals at or
+  before it (:320, :352).
+- An `e`-deletion that arrives before its event is honoured through the deletion index (:274).
+- A kind-5 naming another author's address is rejected (:43-45).
+- Hex in `id` / `pubkey` / `e` / `p` is decoded case-insensitively and compared as bytes (:12-13, :39-41).
+- A kind-5 can delete a kind-5, which NIP-09 says has no effect (:333-338).
+
+**Census replay** (a throwaway prototype of this contract run over the 2026-09-26 JSONL from all three hosts):
+- Every tagging became a record: 6,972 / 6,965 / 6,980, with 0 refusals.
+- 6 on each host stay unresolved, because the tag element they name is gone and no tag by that slug exists.
+- 0 a+e mismatches.
+- Polarity values seen: "1", "-1", "0", or absent, and nothing else.
+- Within a host, no kind-5 applies to a stored tagging.
+- **Across hosts**, 2 UI revokes on tags.brainstorm.world apply to taggings still stored on production and
+  staging. The dcosl router stream carries kinds 9998/9999/39998/39999 but no kind 5
+  (`setup/router-presets.json:6,19`), so revokes do not travel with taggings.
+
+**Constraints.**
+- JS without a build step, CommonJS, and Node's hand-rolled test style (`test/registry.js`); no new dependencies.
+- CLAUDE.md principles 1–3: the record carries a raw assertion, never trust, counts, ranks, names or an
+  "applied" flag.
+- Principle 4 / BIBLE §30: `TAGS` edges are event-projection state, re-derivable from the relay. Deletes must be
+  scoped to this type and one tagging.
+- The TA pubkey is never hardcoded outside the ADR 0015 sites.
+
+## Options considered
+
+### Option A — a new pure module, `src/lib/tagging-edges/` (chosen)
+A dependency-free folder holds the contract. It converts an event to an edge record or a refusal, picks the
+standing version, decides whether a revoke applies, and lists what a revoke names. Both stamp pubkeys are
+parameters. Stories 2 and 3 require it; nothing else changes.
+- **Pros:**
+  - One definition for every future writer.
+  - Pure, so it can be tested with no stack, and a purity guard can pin that.
+  - Keeps *absent*, the `e` fallback and NIP-01 tie-breaking without changing any reader's behavior.
+  - Adds no new literal.
+  - An epic-scoped home where story 2 can add its pure diff beside it.
+- **Cons:**
+  - A fifth `polarity` reader and a second `nostr-user-tag` parser beside 0009's core; convergence is follow-up
+    debt.
+  - Repeats a few lines of parsing the core already has.
+
+### Option B — extend the event-tagging core (`src/lib/event-tagging/`), per 0009 Decision 1
+Add a sibling file exported from `src/lib/event-tagging/index.js`, reuse `COORD_RE` and the family registry, and
+widen `nostrUserTagMember.extractTag` to fall back to `e`.
+- **Pros:**
+  - Honors 0009's single-core decision literally.
+  - The core's purity guard (`test/event-tagging-core.test.js:235`) would cover the new file.
+  - Widening `extractTag` would also fix the `/api/tags/index` id-only omission.
+- **Cons:**
+  - The core is the read-time SDK seed ("lift this folder wholesale", `src/lib/event-tagging/index.js:13-14`),
+    and 0009 fences it to read/aggregation; a Neo4j edge vocabulary and write-side rules do not belong there.
+  - Widening `extractTag` changes what `/tags` counts. That is user-visible and outside this story's acceptance
+    criteria.
+  - The core's `readPolarity` loses *absent*.
+  - Coupling the read stack to the write stack means a reader fix could silently change edge shape.
+
+### Option C — reuse the profile-tags helpers directly
+Import `assertionTagCoordinate`, `dedupeReplaceable` and `readPolarity` from `src/api/profile-tags/index.js`.
+- **Pros:** least new code.
+- **Cons:**
+  - Not pure: TA lookup and logging at load, plus relay and Meili imports.
+  - `dedupeReplaceable` breaks ties differently from AC-3.
+  - `readPolarity` loses *absent*.
+  - The pipeline would depend on an HTTP handler module.
+
+### Sub-decision — registering `TAGS` in the relationship-type concept
+Adding `firmware/versions/v1.0.0/concepts/relationship-type/elements/tags.json` would make `TAGS` a graph-visible
+relationship type, at the cost of a firmware change and reinstall. FOLLOWS, MUTES and REPORTS are not registered
+either, so registering one of the four would be inconsistent. **Deferred:** register all four together later (a
+ledger row). No firmware change here.
+
+## Decision
+
+We chose **Option A**. It gives every writer one pure definition without changing any reader. It keeps the three
+things the story needs that the existing helpers lose: the *absent* stance, resolution through `e`, and NIP-01
+tie-breaking. It adds no new copy of the canonical literal.
+
+**Relation to event-tagging/0009.** This ADR **narrowly supersedes 0009 Decision 1 ("not parallel cores") for the
+write-side projection of `nostr-user-tag` assertions only**. 0009 keeps governing read-time normalization, and this
+ADR changes nothing there. The
+two parsers differ on purpose, in three ways: *absent* is kept, `e` resolves the tag, and ties go to NIP-01. When
+0009's deferred Phase-2 cleanup runs, it should converge the core's member onto these rules, starting with the
+`e` fallback. That is a ledger row. A later NostrUser→NostrEvent edge will need the core's indirect
+tagging-header resolution. Whether it extends this module or joins the core is decided then; only the standing
+and revoke rules below are meant to carry over unchanged. A one-line scope note is added to 0009 pointing here.
+
+**Binding for later stories:**
+- The gap-filling pass (story 2) and the real-time path (story 3) derive every `TAGS` property through this module.
+- No writer composes `TAGS` properties any other way, and none adds event-derived properties the module does not
+  produce.
+- Every write and delete is conditional on the state its decision was made from. It matches `r.eventId =
+  $seenEventId`, or no edge at the address for a create, and re-checks AC-3's order inside the same statement.
+  Story 2 owns that Cypher guard and must pin it with a parity test against `standingEdge` over the same truth
+  table (lowercase hex compares the same way in Cypher and JS).
+- Writer-set properties, such as provenance or ingest time, are story 2's to decide, in camelCase, without
+  colliding with the names below.
+
+### The contract
+
+The `TAGS` relationship is `(:NostrUser {pubkey: from})-[:TAGS {…}]->(:NostrUser {pubkey: to})`, one per tagging
+address. All of its properties are event-derived:
+
+| Property | Type | Meaning |
+|---|---|---|
+| `address` | string | `39999:<author>:<d>`: the tagging's replaceable address and its identity (unique per `TAGS`, enforced in story 2). It equals a letter node's `uuid` if tagging events are ever imported |
+| `eventId` | string | the id of the version that stands (would join a letter node's `id`) |
+| `createdAt` | integer | that version's `created_at`, in unix seconds. Not `timestamp`, which other edges use for wall-clock time or 0 and `src/api/neo4j/neo4jStatus.js:208` reads across all types |
+| `polarity` | string or null | the first `polarity` tag's value exactly as published (`"1"`, `"-1"`, `"0"`, …); `null` means absent |
+| `tagAddress` | string or null | `39999:<tagAuthor>:<slug>` (pubkey lower-case) when known, whether named by `a` or resolved from a supplied tag element; otherwise `null` |
+| `tagEventId` | string or null | the tag-element version the event names in `e`, lower-case, when it names one |
+| `tagSlug` | string or null | the last part of `tagAddress`, or `null` when `tagAddress` is `null`. An identifier, never a display name |
+| `zCanonical` | boolean | the event carries `39998:<canonical>:nostr-user-tag` |
+| `zLocal` | boolean | the event carries `39998:<this deployment's TA>:nostr-user-tag`. Relative to the reading deployment: the same event can differ between deployments |
+
+Edge properties are camelCase, like derived NostrUser properties. NostrEvent nodes keep their wire names
+(`id`, `created_at`, `uuid`). Nothing else goes on the relationship: no trust, rank, count, tag name, bucketed
+stance or "applied" flag. "Resolved" means `tagAddress IS NOT NULL` and is not stored separately. **Graph readers
+bucket the stance** with `coalesce(toFloat(r.polarity), 1.0)`: ≥ 0.5 is apply, ≤ −0.5 is dispute, anything else
+is neutral. That matches today's readers: an absent or non-numeric stance counts as apply. One known edge
+difference: JS reads `""` as 0, which is neutral.
+
+**Which version stands (AC-3).** At the same `address`:
+- The greater `createdAt` stands. On equal `createdAt`, the lexically lower `eventId` stands (NIP-01, as strfry
+  does).
+- Equal `eventId` means the same version. Its tag address and slug are kept from whichever side has them, so
+  resolution only ever moves from `null` to a value.
+- A newer **non-tagging** version at the same address, i.e. a refusal that carries an address, retires the edge.
+  The relay keeps only the newest version at an address, whatever its content.
+- **No tombstone.** Once an edge is retired, `standingEdge(null, older)` would accept an older tagging.
+  Order-independence is therefore promised for edge against edge. Retirement relies on the relay's replaceable
+  rule: a writer fed from the local relay never sees an older version after a newer one is stored, because strfry
+  refuses it, and story 2's sweep reads only the relay's current version per address.
+
+**The tag reference.** When the event carries `a`, that is the tag's identity (`profile/0022`,
+`profile-tag-hardening/0001`); `e` is provenance, and a mismatch between them is not refused. AC-2's "several
+different tags named" is read as "more than one distinct `a`, or more than one distinct `e`". Ruled by the owner at the
+Architecture gate (2026-09-27); the story's AC-2 now reads that way.
+
+**What a revoke removes (AC-4).** **Hex case, one rule for taggings and deletions alike.** An event's own `id` and `pubkey` must be lowercase
+(NIP-01), or it is not an event this module accepts. Tag *values* (`p`, `e`, and the pubkey segment of `a`) are
+lower-cased before use, because strfry decodes them case-insensitively.
+
+A kind-5 applies to a version if and only if:
+- `deletion.pubkey === version.from` (the deletion passes the same event check), and
+- either one of the deletion's `e` values, lower-cased, equals `version.eventId`, or one of its `a` values, with
+  the pubkey segment lower-cased, equals `version.address` and `deletion.created_at >= version.createdAt`.
+
+It is a pure function of the two events, so arrival order cannot change the answer.
+
+## Consequences
+
+- **Enables:** stories 2 and 3 share one definition, so their edges cannot drift the way REPORTS did. Story 2 can
+  create the uniqueness rule on `TAGS.address` knowing exactly what writes to it. The contract is plain objects,
+  not tied to a store.
+- **Constrains:**
+  - Id-only taggings resolve only when the caller supplies tag elements, so story 2 must fetch them; the census
+    shows all but 6 resolve against the relay. Story 2's sweep re-attempts edges with `tagAddress IS NULL` on
+    every run.
+  - Callers supply both stamp pubkeys: the runtime TA through `getOwnerAssistantPubkey()`, and the canonical
+    pubkey from an ADR 0015 site. Requiring `src/api/profile-tags` from the pipeline is the dependency Option C
+    rejected. Story 2 therefore either requires it lazily inside its entry point, following the precedent at
+    `src/api/assistant/identificationTaggings.js:72`, and records that, or proposes an ADR 0015 amendment moving
+    the literal into a pure constants module. It must not add a new literal.
+  - **Revokes do not travel with taggings today.** The dcosl stream has no kind 5, and UI revokes carry no `k`.
+    Story 2 must read kind-5 events from the same sources it reads taggings from, and bringing kind 5 into the
+    router stream is a ledger row. Census evidence: 2 revokes on tags.brainstorm.world apply to taggings still
+    stored on production and staging.
+  - **An e-only revoke removes only the version it names.** An older version re-sent afterwards stands again, and
+    strfry accepts it too. The UI revoke (`ui/src/hooks/useProfileTags.js:150-163`) should also name the address
+    (NIP-09); that is a ledger row. A kind-5 that names another kind-5 is ignored here (NIP-09), but strfry drops
+    the named kind-5, so passes fed from the relay can't see it afterwards.
+  - Retiring the canonical stamp (ADR 0015's "eventual full retirement") would make taggings stamped only by
+    another deployment be refused as `no-nostr-user-tag-stamp`. Any such migration must revisit this contract.
+- **Differences left in place, knowingly:** the read side (`/api/profile-tags/*`, `/api/tags/index`, the 0009
+  core) keeps its own polarity reader and first-seen tie-break, and the core still drops id-only taggings. None of
+  that changes here.
+- **New debt / follow-ups (ledger rows, filed at the end of this session):**
+  1. The 0009 core's `nostrUserTagMember.extractTag` drops id-only taggings from `/api/tags/index` and
+     applicability.
+  2. Register TAGS, FOLLOWS, MUTES and REPORTS in the relationship-type concept.
+  3. The nostr-user-tag schema's stale `tagEventId`-required rule.
+  4. Document FOLLOWS / MUTES / REPORTS properties (their writers disagree).
+  5. Bring kind 5 into the tagging router streams.
+  6. UI revoke should also name the address.
+- **Firmware reinstall required?** No. No concept definition changes.
+
+## Implementation notes
+
+- **New folder `src/lib/tagging-edges/`**, CommonJS and pure: no requires outside the folder, no I/O, no
+  `Date.now()` / `Math.random()`, no crypto, no logging. Node globals (`Buffer`) are fine.
+  - `contract.js` holds everything below.
+  - `index.js` re-exports `contract.js`; story 2 adds siblings here.
+- **Constants:**
+  - `TAGS_RELATIONSHIP = 'TAGS'`.
+  - `REFUSAL`, a frozen map of stable reason strings: `not-an-event`, `wrong-kind`, `no-d`,
+    `no-nostr-user-tag-stamp`, `no-target`, `several-targets`, `bad-target`, `no-tag-reference`,
+    `several-tag-references`, `bad-tag-address`.
+- **`taggingToEdge(event, { canonicalPubkey, localPubkey, tagElementsById } = {})`** returns either
+  `{ ok: true, edge }` or `{ ok: false, reason, address?, eventId?, createdAt?, from? }`. The body runs inside
+  `try`; a thrown error returns `{ ok: false, reason: 'not-an-event' }`. It never throws. The checks run in this
+  order:
+  1. **Event.**
+     - `id` and `pubkey` match `/^[0-9a-f]{64}$/` (lowercase, NIP-01).
+     - `created_at` is a non-negative integer and `tags` is an array.
+     - Otherwise → `not-an-event`.
+     - `kind !== 39999` → `wrong-kind`.
+     - `d` is the **first** `d` tag's value. If it is missing, not a string, empty, or longer than 255 UTF-8
+       bytes (`Buffer.byteLength`) → `no-d`. strfry files such events under `d = ''`.
+     - Once step 1 passes, every later refusal also carries `address` (`39999:${pubkey}:${d}`), `eventId`,
+       `createdAt` and `from`.
+  2. **Stamp.** At least one `z` equals `39998:${canonicalPubkey}:nostr-user-tag` or
+     `39998:${localPubkey}:nostr-user-tag`; otherwise → `no-nostr-user-tag-stamp`. This sets `zCanonical` and
+     `zLocal`. If both pubkeys are equal, both flags are true. A missing or empty pubkey option matches nothing.
+  3. **Target.**
+     - Take every `p` value that is a string, lower-cased, and count the distinct ones: 0 → `no-target`, more
+       than 1 → `several-targets`.
+     - The remaining value must match `/^[0-9a-f]{64}$/`, else `bad-target`. It becomes `to`.
+     - Self-taggings (`to === from`) are accepted.
+  4. **Tag reference.**
+     - Distinct `a` values (strings) greater than 1 → `several-tag-references`. A single `a` must match
+       `/^39999:([0-9a-fA-F]{64}):(.+)$/`, else `bad-tag-address`; its pubkey segment is lower-cased.
+     - `e` values that are not 64-hex are ignored. The rest are lower-cased; more than one distinct →
+       `several-tag-references`. NIP-10 markers are not considered.
+     - Neither a valid `a` nor a valid `e` → `no-tag-reference`.
+  5. **Resolution.**
+     - With `a`: `tagAddress` is the normalized `a` and `tagSlug` its last segment. `e` only fills `tagEventId`.
+     - Without `a` but with an `e`, look up `tagElementsById.get(e)`; a lookup that throws counts as absent. The
+       element is usable only if it is kind 39999, has a non-empty first `d`, and carries `39998:<canonical>:tag`
+       or `39998:<local>:tag` as a `z`. A usable element gives `tagAddress = 39999:${el.pubkey}:${d}`; an
+       unusable or absent one leaves `tagAddress` and `tagSlug` as `null`.
+     - The module never searches for a tag by slug.
+  6. **Stance.** `polarity` is the first `polarity` tag's `[1]` when that is a string, else `null`. Every string
+     value is accepted.
+  7. **Edge.** `{ type: 'TAGS', from: pubkey, to, address, eventId: id, createdAt: created_at, polarity,
+     tagAddress, tagEventId, tagSlug, zCanonical, zLocal }`, and nothing else.
+- **`standingEdge(current, incoming)`** returns `{ standing, superseded, droppedTarget, changed, reason }`.
+  - `current` is an edge or `null`.
+  - `incoming` is an edge, a refusal carrying an `address`, or `null`.
+  - `reason` is one of `no-incoming`, `new`, `newer`, `older-ignored`, `same-version`, `retired-by-non-tagging`,
+    `address-mismatch`.
+
+  The outcomes:
+  - **Incoming is `null`:** `current` stands; `changed: false`, reason `no-incoming`.
+  - **No current, incoming is an edge:** it stands; `changed: true`, reason `new`.
+  - **No current, incoming is a refusal:** `standing: null`; `changed: false`, reason `retired-by-non-tagging`.
+  - **Different addresses:** `current` stands and nothing changes; reason `address-mismatch`. It never throws.
+  - **Same `eventId`:** `standing` is `current`, with `tagAddress` / `tagSlug` filled from `incoming` if
+    `current`'s are null, and `zCanonical` / `zLocal` taken from `incoming`. `changed` is true if any property
+    differs from `current`; reason `same-version`. If `incoming` is a refusal with the same id, it is treated as
+    retiring the edge.
+  - **Incoming stands** (AC-3 order):
+    - If `incoming` is an edge, it stands, with reason `newer`.
+    - If it is a refusal, `standing` is `null`, with reason `retired-by-non-tagging`.
+    - In both cases `superseded` is `current`, `changed` is true, and `droppedTarget` is `current.to` when the
+      edge is retired or its target differs.
+  - **Current stands:** `standing` is `current`, `superseded` is `incoming`, `changed: false`, reason
+    `older-ignored`.
+  - **Order-independence:** for two edges `a` and `b` at one address, `standingEdge(a, b).standing.eventId ===
+    standingEdge(b, a).standing.eventId`.
+- **`revokeApplies(edge, deletion)`** returns `{ applies, reason }`, where `reason` is one of `names-event-id`,
+  `names-address`, `not-a-deletion` (not kind 5, or failing the same event check as step 1, including a
+  non-lowercase `id` / `pubkey`), `not-the-tagger`, `address-deletion-older`,
+  `not-named`. It never throws.
+- **`revokeTargets(deletion)`** returns `{ eventIds, addresses }`: the kind-5's valid `e` values (lower-cased)
+  and its `a` values (pubkey segment lower-cased), or both empty for anything that is not a kind 5. This is the
+  single place story 3 finds which edges a revoke could touch.
+- **Tests (Tester's lane, Phase 3):** a new suite registered in `test/registry.js`. It covers:
+  - the census shapes from the story's Open questions, and every `REFUSAL` reason;
+  - the refusal-carries-address and retire cases;
+  - both orders in `standingEdge`, including the same-id resolution upgrade;
+  - revoke-before-version, and the hex-case and first-`d` cases;
+  - a purity guard over `src/lib/tagging-edges/`, modelled on `test/event-tagging-core.test.js:234-252`.
+
+  Fixture pubkeys are fake 64-hex, as in that suite.
+- **BIBLE (AC-5):**
+  - **§6:** a new `#### Social Graph Relationships (NostrUser → NostrUser)` after `#### Infrastructure` (the last
+    `####` under `### Relationship Types`).
+    - `FOLLOWS` (kind 3), `MUTES` (kind 10000) and `REPORTS` (kind 1984) are listed by direction and source kind
+      only.
+    - `TAGS` is described in full: source kind 39999 with a `nostr-user-tag` stamp; identity; the property table;
+      the standing and revoke rules; that an absent stance counts as apply, with the `coalesce` bucketing; "raw
+      assertion — no trust or counts; filter per POV at read time"; and its §30 class, event-projection state
+      re-derivable from the relay.
+    - A plain status line: *no pipeline writes `TAGS` yet* (story 2 adds the gap-filling pass, story 3 the
+      real-time path). Pointers to `src/lib/tagging-edges/` and this ADR.
+  - **§21 Glossary:** a `TAGS` row distinguishing it from `HAS_TAG` / `NostrEventTag`, which carry nostr tag
+    arrays.
+  - **§30:** append `TAGS` to the coverage status line (BIBLE.md:1838).
+  - Prepend a `Last updated:` entry (lint L9). No §16 entry: nothing user-visible ships, and story 2 adds one.
+  - **Wording trap:** `test/assistant-attention.test.js:681-688` fails if BIBLE text outside the Last-updated line
+    says "the canonical definitions" or "canonical tag definitions". Say "the canonical `nostr-user-tag` stamp".
+- **ADR 0009:** add one line under its header, "**Narrowed (2026-09-26):** Decision 1 is superseded for the
+  write-side projection of `nostr-user-tag` assertions into Neo4j `TAGS` edges only, by `tagging-edges/0001`;
+  read-time normalization is unchanged." This goes in the ADR commit, not the implementation.
+- **Unchanged:** `src/api/profile-tags/`, `src/api/event-tags/`, `src/lib/event-tagging/`, the follows pipeline,
+  firmware, UI, and `protocols/`.
+
+## Out of scope
+
+- Writing `TAGS` to Neo4j:
+  - the uniqueness constraint and index on `TAGS.address` / `TAGS.eventId`;
+  - the conditional-write Cypher guard and its parity test;
+  - writer-set provenance properties;
+  - whether NostrUser ends are created on write;
+  - how tag elements and kind-5 events are fetched.
+
+  All of that is story 2.
+- The real-time transport (story 3) and the control panel (story 4).
+- Changing any reader's polarity, tie-break or `e` handling (the 0009 Phase-2 cleanup).
+- Importing tag elements as nodes (OPEN.md #136 stage 2).
+- Registering relationship types in firmware.
+- NostrUser→NostrEvent edges.

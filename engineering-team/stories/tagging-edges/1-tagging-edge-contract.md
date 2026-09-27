@@ -29,7 +29,7 @@ few events of it):**
 | names the tag by event id only / by address and id / by address only | 6,739 / 134 / 99 |
 | tag reference resolves to a tag element on the relay / unresolvable | 6,966 / 6 |
 | stance "1" (apply) / "-1" (dispute) / absent / "0" | 4,938 / 1,759 / 242 / 33 |
-| carries only the canonical stamp / canonical + this deployment's own | 6,762 / 210 |
+| carries only the canonical stamp / canonical + some deployment's own | 6,762 / 210 (production's own: 5) |
 | target `p` tags per event | always exactly one, always 64-hex |
 | self-taggings (tagger = target) | 62 |
 | distinct taggers / targets (real subset) | 2,357 / 3,816 (59 / 349) |
@@ -67,7 +67,8 @@ census found no event where they differ).
       address of a same-slug tag by another author.
 - [ ] **AC-2 — anything else is refused with a reason; nothing is refused for who wrote it.** Given an event
       that is not a tagging — another kind, no `d`, no `nostr-user-tag` stamp, zero or several `p`, a `p` that
-      is not 64-hex, no tag named, several different tags named, or an `a` not of the form
+      is not 64-hex, no tag named, several different tags named (more than one distinct `a`, or more than one distinct
+      `e`), or an `a` not of the form
       `39999:<64-hex>:<slug>` — then there is no record and a named reason, and the conversion never throws.
       Given a tagging from any author (unknown, untrusted, a test fixture), a self-tagging, a dispute, a neutral
       "0", an absent stance, or a tag that is not on this relay, then a record is produced.
@@ -130,6 +131,12 @@ Settled by the owner at approval (2026-09-26):
    requires it; this contract does not refuse other `d`s — the identity is the address whatever the `d`.
 4. **Code and BIBLE stay in one story**, per the project's practice of documenting in the same change.
 
+Settled by the owner at the Architecture gate (2026-09-27):
+
+- **`a` is the tag's identity.** When a tagging names its tag by address (`a`) and by id (`e`), the address is
+  the tag and the id is provenance (ADR `profile/0022`); a mismatch between them is not a refusal. "Several
+  different tags named" in AC-2 means more than one distinct `a`, or more than one distinct `e`.
+
 Still open, for later phases:
 
 5. For the Architect: a `relationship-type` concept (`39998:<TA>:relationship-type`) exists in the local graph;
@@ -141,6 +148,6 @@ Still open, for later phases:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tagging-edges/0001-tagging-edge-contract.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
