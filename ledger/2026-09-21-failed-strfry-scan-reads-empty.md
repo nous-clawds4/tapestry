@@ -16,6 +16,11 @@ So a scan that exits non-zero, for example with the LMDB locked or the binary br
 then read "none" as "no Map" (see row 314 for why the outside read cannot tell either). So Map
 regeneration can run blind.
 
+**A third reader (added 2026-09-27, tagging-edges #2 Planning):** `GET /api/strfry/scan/stream`
+(`src/api/strfry/queries/scanStream.js:24-44`) pipes strfry's stdout into a 200 response and ends it
+whatever the exit code, so a scan that dies midway reads as a shorter, complete-looking answer. Anyone
+measuring through it (the tagging-edges census did) must pair it with `GET /api/strfry/scan/count`.
+
 `src/api/setup/status.js` (ADR setup-status-and-alert/0001) does not share the flaw: its
 `scanLocalStrict` rejects on a spawn error, a non-zero exit or a timeout, and a fake-`strfry` suite
 pins that (`test/setup-status.test.js` X1–X4).
