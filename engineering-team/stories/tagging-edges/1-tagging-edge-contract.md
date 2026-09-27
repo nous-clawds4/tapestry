@@ -1,6 +1,6 @@
 # Story 1: The tagging edge contract
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-26
 **Type:** Feature
 

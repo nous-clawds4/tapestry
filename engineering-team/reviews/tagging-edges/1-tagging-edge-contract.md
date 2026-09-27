@@ -2,6 +2,7 @@
 
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-09-27
+**Verdict:** **PASS** (after re-review; see "Re-review (2026-09-27)" at the bottom. Round 1 was CHANGES_REQUESTED.)
 **Diff:** the whole branch is `git diff 72469bde..7e18a404` on `feat/tagging-edges`. It has four commits: `60e33542` story, `03c75544` ADR (plus the one-line 0009 note), `491735fe` failing tests, and `7e18a404` implementation (`src/lib/tagging-edges/{contract,index}.js`, BIBLE §6/§21/§30 + Last updated, story Deviations). 11 files, 2,023 insertions, 2 deletions. The implementation commit touches no test file (`git diff --stat 491735fe..7e18a404`: BIBLE, story, contract.js, index.js). I re-checked the shared line: `git fetch origin staging` leaves `origin/staging` at `72469bde`, so the branch is 0 behind, and `git merge-tree --write-tree 7e18a404 origin/staging` exits 0.
 **Story:** `engineering-team/stories/tagging-edges/1-tagging-edge-contract.md` (Approved 2026-09-26; Architecture-gate ruling 2026-09-27)
 **ADR:** `engineering-team/decisions/tagging-edges/0001-tagging-edge-contract.md`, including "Clarifications (Test Design, 2026-09-27)" 1–8
@@ -145,3 +146,190 @@ Should-fix items. They conform to the ADR as written, so each one needs an owner
 
 ## Verdict
 **CHANGES_REQUESTED**
+
+## Re-review (2026-09-27)
+
+**Reviewer:** Claude (acting as Reviewer), round 2
+**Diff:** `git diff aff3c1cd..914f59fa`, three commits:
+- `e78c1152`: ADR clarifications 9–13, six new tests plus one AC-5 assertion, and a test-plan section.
+- `4a9c11ac`: `contract.js`, BIBLE §6, and fixes to the ADR, epic, story and book.
+- `914f59fa`: 11 ledger rows.
+
+19 files, 696 insertions, 51 deletions. Nothing on the ADR's Unchanged list moved: `--stat` shows only BIBLE, the book, ADR, epic, story, test plan, `ledger/`, `contract.js` and the test. `git ls-remote origin refs/heads/staging` is still `72469bde`, so the branch is 0 behind.
+**Owner rulings at the round-1 gate:**
+- Fix: Blocking 1–4, Non-blocking 1–2 (as clarifications 9–10), and nits 2–4 and 6–12.
+- Non-blocking 3 becomes binding for story 2.
+- Nit 1 is documented in JSDoc only.
+- Nit 5 is kept as the NIP-01 rule (clarification 13).
+
+### Quality gates (run by reviewer on the committed, clean tree `914f59fa`)
+
+The host has Node v16.17.0 and no Node 22, so no CI-parity run was made.
+
+- [x] **Story suite through the gate engine** (`runGate({ suites: [{ file: 'tagging-edge-contract.test.js' }], label: 'review2-tagging-edges-1' })`):
+
+  > `20260927T125819Z-69048-69a4 [review2-tagging-edges-1] started 2026-09-27T12:58:19.457Z on 914f59fa — PASS, exit 0, 82 passed, 0 failed, 0 skipped, 1/1 suites`
+
+- [x] **Full gate** (`GATE_LABEL=review2-tagging-edges-1-full npm test`):
+
+  > `20260927T125823Z-69070-ae0d [review2-tagging-edges-1-full] started 2026-09-27T12:58:23.564Z on 914f59fa — FAIL, exit 1, 3459 passed, 14 failed, 533 skipped, 227/227 suites; failed: event-less-create-set, honest-publish-reporting, setup-alert-polish`
+
+  The record shows `state: finished`, `git.dirty: false` with `dirtyCount: 0`, and 0 stray errors. Suite-by-suite comparison on `file, verdict, pass, fail, skipped`:
+  - **Against the baseline** `20260927T043752Z-88612-11f0`: 1 of 227 suites moved. `tagging-edge-contract` went from FAIL 0/76/0 to PASS 82/0/0.
+  - **Against the Implementer's after-run** `20260927T124211Z-4360-960f`: 0 of 227 moved. That run was taken on `e78c1152+dirty` (`dirtyCount: 17`); this committed-tree run replaces it.
+  - **Against my round-1 run** `20260927T054616Z-87387-323c`: 1 moved, `tagging-edge-contract` 76 → 82.
+  - **The three red suites are the same as in the baseline, and the cause is the environment (Node 16):**
+    - `event-less-create-set` 23/1/1: `fetch is not a function`.
+    - `honest-publish-reporting` 1/9/0 and `setup-alert-polish` 13/4/0: `ERR_REQUIRE_ESM` on `nostr-tools/lib/esm`.
+- [x] `bash scripts/harness-lint.sh`: exit 0, "clean (0 violations)".
+- [~] `git diff --check aff3c1cd..914f59fa`: exit 2, one new blank line at EOF in `test-plan.md:225` (Nit R2-9).
+- [ ] `npm run test:playwright`: not applicable, because there is no UI.
+
+### The new tests against clarifications 9–12
+
+- **Mapping.** Each clarification has its tests:
+  - Clarification 9 (ADR :435-437): `test:665` and `:672`.
+  - Clarification 10 (:438-440): `:680`.
+  - Clarification 11 (:441-442): `:694` and `:701`.
+  - Clarification 12 (:443-444): `:708`.
+  - The target-move rule: the AC-5 assertion at `:799`.
+
+  Each one asserts what its clarification says.
+- **Red before the fix.** The Tester's record `20260927T123353Z-66902-577b [tagging-edges-1-round2-red]` ran on `aff3c1cd+dirty`, where `dirtyCount: 3` matches the three files of `e78c1152`. It shows 75 passed and 7 failed, and the seven are exactly the new tests. Each fails on the behavior it pins: `no-d` ×2, the higher id standing, resolution to another author's tag, `not-an-event`, `bad-tag-address`, and the missing BIBLE sentence.
+- **I reproduced the red independently** (scratch `rereview-reviewer/red.sh`), running the committed test against three trees:
+  - `aff3c1cd`'s module and BIBLE: 75/7, the same seven.
+  - `aff3c1cd`'s module with `914f59fa`'s BIBLE: 76/6, so the AC-5 assertion depends on the BIBLE alone.
+  - `914f59fa`: 82/0.
+- **Mutation check** (`mutate.sh`). I reverted each fix alone in a scratch copy, and each revert fails exactly its own test:
+  - `TAG_ADDRESS_RE` without `s`: clarification 12.
+  - `ANY_ADDRESS_RE` without `s`: clarification 12.
+  - No `el.id` check: clarification 11 (id).
+  - `!==` in `standsOver`: clarification 10.
+  - First-`d`-only `identityD`: both clarification 9 tests.
+
+  The widened `try` is shown by the red run, where the throwing-element test gave `not-an-event`.
+- **Real driver.** The clarification 10 test uses an Integer-like stub, so I also ran the real `neo4j-driver` 5.28.1 (`neo4j.int(n).valueOf()` is a `bigint`). Integer/number, Integer/Integer and BigInt/Integer ties and orderings give the same standing version in both argument orders.
+- **One gap.** The test at `:672` is named "retires or replaces", but it asserts only the replace path. The retire path works: I probed a non-tagging v2 with tags `[long d, 'x']`. It is refused at `…:x`, and `standingEdge(v1, it)` gives `retired-by-non-tagging` (Nit R2-10).
+
+### Round-1 findings: disposition and evidence
+
+| # | Ruling | Disposition | Evidence |
+|---|---|---|---|
+| Blocking 1 | fix | **Fixed** | BIBLE.md:302 now reads "Every property comes from the tagging, except that a tagging naming its tag only by id takes `tagAddress` and `tagSlug` from the tag element its `e` names". :318 reads "re-derivable from the local relay (the tagging, plus the tag element it names) … no display names". Both match contract.js:105, :155 and :172-174. "No trust", "read time" (:293) and "event-projection" are kept, and the AC-5 tests pass. |
+| Blocking 2 | fix | **Fixed** | BIBLE.md:308 now says "(not `timestamp`)" and no longer characterizes other edges. ADR :212 now says "which older edges' writers fill inconsistently", which matches round 1's file:line evidence. |
+| Blocking 3 | fix | **Fixed** | BIBLE.md:315 is qualified. It says the reading matches for `"1"`, `"-1"`, `"0"` and absent, and that `""`, `"NaN"` and `"-Infinity"` can bucket differently in Cypher and in JS. This agrees with round 1's table. The ADR's own sentence is still stale (Nit R2-7). |
+| Blocking 4 | fix | **Fixed** | `914f59fa` adds 11 `ledger/2026-09-27-*.md` rows. Each has `**Id:**` equal to its filename, Type and Status headers, and an id of 47 characters or fewer, and harness-lint exits 0. A scripted check resolves every date+slug id cited in the ADR, epic, story, test plan, book and rows to a file (11/11). ADR follow-up 1 now points at OPEN.md row 45 (OPEN.md:78, the `/api/tags/index` under-count) as its diagnosis, which fits. On `origin/staging` (= remote), `reconnect`, `at-most-once`, `relationship-type` and `revoke` get 0 hits in OPEN.md and `ledger/`. I read the hits for `websocket`, `tagEventId`, `kind 5`, `AUTHORED` and `fixture`, and none is the same item. |
+| Non-blocking 1 | fix (clarification 9) | **Fixed** | Code at contract.js:63-69. ADR step 1 at :316-318, the strfry bullet at :97-98, clarification 9, and tests :665 and :672. I probed it against strfry's source in the container (`events.cpp:35`, `:48`, `:59-62`, `:282-286`), and every case agrees with where strfry files the event:<br>- valueless then x → `no-d` (strfry files it under `''`)<br>- empty then x → `no-d` (`''`)<br>- 256 B then x → x<br>- 255 B → kept<br>- 85×€ (255 B) → kept<br>- 86×€ then y → y<br>- long, long, y → y<br>- x then long → x<br>- long, valueless, x → `no-d` (`''`)<br>What remains: F2, F6a, F6b. |
+| Non-blocking 2 | fix (clarification 10) | **Fixed for the types it names** | Code at contract.js:191-195, clarification 10, test :680, and the real-driver probe above. What remains: F1, values that cannot be compared. |
+| Non-blocking 3 | binding for story 2 | **Done** | ADR "Binding for later stories" :197-199, epic :55-57, and contract.js:13-15. What remains: F4, wording. |
+| Nit 1 | JSDoc only | **Done** | contract.js:202-204. |
+| Nit 2 | fix | **Fixed** | The `s` flag is on both regexes (contract.js:35-36). ADR step 4's regex (:331), clarification 12 and test :708 are updated, and a mutation on either regex fails the test. |
+| Nit 3 | fix | **Fixed** | contract.js:98 (`el.id !== tagEventId`), clarification 11, test :694. |
+| Nit 4 | fix | **Fixed** | contract.js:95-108 runs the whole resolution inside `try`; test :701. ADR step 5 is not amended to match (Nit R2-8). |
+| Nit 5 | kept as NIP-01 | **Recorded** | Clarification 13 (:445-447). Its "story 2's sweep … removes the edge instead" is not something `standingEdge` does. An upper-case-id v2 is refused with no address, so the result is `address-mismatch` (probe). The claim rests on story 2's "repairs drift" scope (epic :23-24). See F5 and R2-NB3. |
+| Nit 6 | fix | **Fixed** | BIBLE.md:300 now reads "the canonical `nostr-user-tag` stamp or this deployment's own", which matches contract.js:131-135. |
+| Nit 7 | fix | **Fixed** | BIBLE.md:316 carries the target-move sentence, which matches contract.js:234 (`droppedTarget`). The AC-5 assertion is at test :799. |
+| Nit 8 | fix | **Fixed** | contract.js:13-14 and ADR Binding :200-201. |
+| Nit 9 | fix | **Fixed** | BIBLE.md:300 uses a Markdown link, and `protocols/drafts/tags.md` exists. |
+| Nit 10 | fix | **Fixed** | Story :97-98 now uses `<TA>` plus the runtime lookup. `git grep -i 8387ec0e 914f59fa -- engineering-team/stories/tagging-edges` is empty, and the ADR's elided form (:46) stays, as round 1 accepted. The full literal is still in the history (`60e33542`); it is a public key, not a secret. |
+| Nit 11 | fix | **Fixed** | book.md:59 has `**Confidence at close:** —` and :64-66 has `## Close artifacts`, matching `templates/book.md:61-65` (`prd-seed.md`, because this book has no PRD). |
+| Nit 12 | fix | **Fixed** | test-plan.md:168 says "eight". |
+
+### Things tests can't catch (round-2 diff)
+- [x] **Secrets and debug code.** No added line carries a 64-hex literal (a grep of the `+` lines finds 0). There is no `console`, `debugger`, TODO, FIXME, `nsec`, privkey or secret, and no commented-out code.
+- [x] **Regexes.** Both are still anchored and have no nested quantifiers, so they stay linear with `s`.
+- [x] **identityD.** It calls `Buffer.byteLength` once per `d` tag, and strfry bounds the tag count. The second length check at :67 can no longer be true, which is harmless.
+- [x] **Concurrency.** Unchanged: the module is pure and has no state.
+- [x] **Scope.** The diff stays inside the ratified fixes. Two ledger rows were not asked for in round 1 (`bible-s6-relationship-name-drift` and `test-fixture-taggings-on-prod-relays`). They track two items in the story's Out of scope, so they are appropriate.
+
+### House rules
+- [x] **No new tooling.** Round 2 does not touch `package.json` or `test/registry.js`.
+- [x] **TA pubkey and ADR 0015.** No `LEGACY_*` constant is touched and no local TA literal is added.
+- [x] **Concept graph.** No concept definition changed, so no firmware reinstall is needed.
+
+### Round-2 finder: every item checked
+
+Probes are in scratch `rereview-reviewer/probe.js`. They require the real module and `node_modules/neo4j-driver`, and I ran them on Node v16.
+
+- **F1 (should-fix) `standsOver` with values that cannot be compared: reproduced; classed Non-blocking (R2-NB1).** Every result below matches the finder:
+
+  | Case | Round 2 | Round 1 |
+  |---|---|---|
+  | NaN current (lower id) vs a real newer version | `older-ignored` | `older-ignored` |
+  | real current vs NaN incoming (lower id) | `newer` | `older-ignored` |
+  | undefined current (higher id) vs 2000 (lower id) | `newer` | `older-ignored` |
+  | `{low:2000,high:0}` current (higher id) vs 1999 (lower id) | `newer` (the older version stands) | `older-ignored` |
+  | NaN current vs a newer non-tagging refusal | `older-ignored` | `older-ignored` |
+
+  Why this is outside the contract: `taggingToEdge` refuses a `created_at` of NaN, undefined, null, 1.5, -1, `"1000"` or `1000n` as `not-an-event` (probe). Every refusal that carries a `createdAt` has passed the same check. So an `incoming` built by the module is always an integer, and only a caller-built `current` can fail to compare.
+
+  Round 2 changed which wrong answer those inputs get:
+  - Round 1 always kept `current`, so a bad current beat every newer version.
+  - Round 2 falls to the id. That is right about half the time, but with `{low,high}` it can let an older version replace the current one.
+
+  Neither round is total. Clarification 10's "falls to the event id only on a tie" holds only for comparable values.
+
+  **Not blocking:** the module has no caller until story 2, and every input inside the contract orders correctly.
+
+  **Ask (owner decision; carry into story 2's ADR):** take one of these two options.
+  - Take the finder's guard (`a.createdAt >= 0` versus `b.createdAt >= 0` before the `>`/`<` chain) with tests, and qualify clarification 10. I checked the guard: it is true for number, BigInt and driver Integer, and false for NaN, undefined and `{low,high}`. It is also true for `null` (read as 0) and for numeric strings, and its tests should pin both.
+  - Or bind story 2 to two rules: pass `createdAt` exactly as the driver returns it, never JSON-round-tripped; and treat a stored `TAGS` edge whose `createdAt` is not an integer as drift to re-derive.
+- **F2 (nit) the tag element's first `d`: reproduced; Non-blocking (R2-NB2).**
+  - An element with tags `[L×300, 'podcaster']` resolves to a 371-character `tagAddress`.
+  - An element whose only `d` is 300 bytes also resolves.
+  - The same `d` shapes on a tagging give `…:podcaster` and `no-d`.
+
+  This conforms to ADR step 5 as written ("non-empty first `d`", :339), so it is not a defect against the ADR. It is an inconsistency that clarification 9 left behind. **Carry into story 2:** use `identityD` in `resolveTagElement`, reword step 5, and add a test.
+- **F3 (nit) revoke addresses vs strfry: reproduced; pre-existing (round-1 code, not introduced by round 2).**
+  - **(a)** A 271-byte address gives `names-address` (probe). strfry skips tag values over 255 bytes at `events.cpp:48`, before the kind-5 loop (:332-360) and the `replaceDeletion` index (`golpe.yaml:65-80`), and both walk `foreachTag`.
+  - **(b)** `EventUtils.h:38-39` uses `stoull` and checks `pos == size`, so `039999`, `+39999` and ` 39999` all delete on the relay. The contract gives `not-named` for all three (probe).
+  - **(c)** `golpe.yaml:80` hashes the raw `a`, while `events.cpp:313` looks up the lower-case canonical form. The contract gives `names-address` for an upper-case pubkey (probe).
+
+  In (a) and (c) the contract honours the tagger's signed NIP-09 deletion where strfry does not act. In (b) the relay deletes the tagging and the contract ignores the kind-5, so story 2's drift repair must catch it (R2-NB3). **Ask:** record (a)–(c) as known divergences next to ADR :100, as clarification 13 does. Mirroring them in code is optional.
+- **F4 (nit) the stamp-pubkey guardrail wording: reproduced.** Probes:
+  - Without canonical: canonical-only taggings get `no-nostr-user-tag-stamp`.
+  - Without local: local-only taggings get it.
+  - Without either: every tagging gets it.
+  - An upper-case canonical pubkey: canonical-only taggings are refused.
+
+  Epic :55-57's "without the canonical or local pubkey" can be read either way. The case that motivated the binding, one pubkey missing, is not the case the sentence describes. The ADR's "without them" (:197-199) is accurate. **Ask:** fix the epic sentence and write "lowercase 64-hex" when story 2's ADR adopts the binding.
+- **F5 (nit) BIBLE "not a tagging retires it": reproduced at the contract level; refuted as a false BIBLE claim.** Location correction: the sentence is at BIBLE.md:316, not :315.
+
+  The probe confirms the contract behavior: an upper-case-id v2 gives `not-an-event` with no address, so the result is `address-mismatch`. But BIBLE describes the relationship. Clarification 13 hands this case to story 2's drift repair (epic :23-24, "repairs drift"), and an upper-case-hex event is not a NIP-01 event.
+
+  **Carry (R2-NB3):** story 2's ADR must state that its drift repair removes an edge when the current relay version at its address is not an accepted version of that edge. Clarification 13, F3(b) and this sentence all depend on that rule, and neither the Binding list nor the epic's guardrails state it. Citing clarification 13 when story 2 updates BIBLE is optional.
+- **F6 (nits) three doc slips: all reproduced.**
+  - **(a)** `events.cpp:57` is the tag loop's closing brace; the virtual `''` append is :59-62, with the add at :61. The ":57-60" originated in my round-1 Non-blocking 1 text, and clarification 9 (:436) copied it.
+  - **(b)** `events.cpp:35` throws "tag val was not a string", so strfry rejects a non-string value outright. ADR step 1 (:318) says it files the event under `''`. That wording was already in round 1's step 1.
+  - **(c)** test-plan.md:205 says "three behaviors", but clarifications 9–12 cover four.
+- **Checked-and-clean list:** my own runs agree. I re-ran the `identityD` cases, the driver-Integer orderings, the ledger and cited-row checks, and the gate.
+
+### Findings (round 2)
+
+#### Blocking
+None.
+
+#### Non-blocking
+Should-fix items for the owner to decide. Carrying them into story 2's ADR is enough, because the module has no caller until story 2.
+1. **R2-NB1, contract.js:191-195 and clarification 10**: when `createdAt` cannot be compared, the order falls to the event id (F1). **Ask:** add the guard with tests, or bind story 2's reader as described in F1.
+2. **R2-NB2, contract.js:99-101 and ADR step 5 (:339)**: tag elements take their first `d`, not the identity `d` (F2). **Ask:** use `identityD`, reword step 5, and add a test.
+3. **R2-NB3, clarification 13 (:445-447)**: this clarification, F3(b) and BIBLE.md:316 depend on story 2's drift repair removing an edge whose address's current relay version is not an accepted version of it, and neither the Binding list nor the epic's guardrails state that rule. **Ask:** make it binding in story 2's ADR, under the mass-delete guard.
+
+#### Nits
+4. **R2-4, ADR :100**: record F3's (a)–(c) as known divergences.
+5. **R2-5, epics/tagging-edges.md:55-57**: correct the wording, and write "lowercase 64-hex" in the binding (F4).
+6. **R2-6, ADR :436 and :318, and test-plan.md:205**: fix F6 (a)–(c).
+7. **R2-7, ADR :224-225**: "That matches today's readers: an absent or non-numeric stance counts as apply. One known edge difference …" is now stale against BIBLE.md:315. In Cypher, `"NaN"` buckets as neutral and `"-Infinity"` as dispute.
+8. **R2-8, ADR step 5 (:338-340)**: the step still says only "a lookup that throws counts as absent" and lacks the id check. Clarification 11 governs, so amend the step to match.
+9. **R2-9, test-plan.md:225**: a trailing blank line at EOF (`git diff --check`).
+10. **R2-10, test :672**: the name says "retires or replaces", but only the replace path is asserted. Optionally add the retire assertion, which the probe shows already holds.
+
+#### Harness friction
+1. **The Implementer's after-gate ran on a dirty tree again.** Run `20260927T124211Z-4360-960f` was on `e78c1152+dirty` (`dirtyCount: 17`) and finished at 12:47:33Z. `4a9c11ac` and `914f59fa` were committed at 12:47:54Z. This is the second round in a row. My committed-tree run matches it on all 227 suites, so nothing was hidden. I propose no row. If the owner wants the after-gate run on a committed tree, that is a change to workflow 4.
+
+### On PASS
+- **Story status not flipped.** This re-review was scoped to the review file only, so the story's `**Status:**` (still `Approved`) was not changed. The caller should set `**Status:** Done` in `engineering-team/stories/tagging-edges/1-tagging-edge-contract.md` in the review commit. Until then, `bash scripts/harness-lint.sh` exits 1 with a single violation, L1 ("review … is PASS-final but story status is 'Approved'").
+- **Completion detection** goes in the chat, not in this file.
+
+### Verdict
+**PASS**
