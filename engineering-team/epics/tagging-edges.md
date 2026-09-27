@@ -20,9 +20,9 @@ reaches Neo4j at all; every tag surface scans the relay per request.
 
 1. `1-tagging-edge-contract.md` — what one relationship is: which events count, what the relationship carries,
    which version of a tagging stands, what a revoke removes; documented in BIBLE. No relationship is written yet.
-2. *(planned)* The gap-filling pass and backfill — writes the relationships, enforces one-per-tagging in the
-   database, repairs drift, refuses to mass-delete on a failed or empty relay read. Its first run is the
-   backfill.
+2. `2-gap-filling-pass-and-backfill.md` — the gap-filling pass and backfill: writes the relationships, enforces
+   one-per-tagging in the database, repairs drift, refuses to mass-delete on a failed or empty relay read. Its first
+   run is the backfill.
    **Carry-forwards from story 1's review** (owner-ratified 2026-09-27; `reviews/tagging-edges/1-tagging-edge-contract.md`
    § "Re-review", R2-NB1–3 and R2-4–10) — each becomes an acceptance criterion or a docs task of story 2:
    - *R2-NB1:* a `createdAt` that cannot be compared (NaN, undefined, a JSON-round-tripped Neo4j Integer) makes
