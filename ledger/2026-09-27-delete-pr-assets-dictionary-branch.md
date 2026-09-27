@@ -22,3 +22,8 @@ version 2 of the Dictionary (SPEC § 3–4: add/veto pinnings, GUM₂/GUM₃, su
 `docs/*HANDOFF*.md` with a Status line would put it on `/whats-open`'s radar.
 
 **Pointer:** PR #763 (§ Screenshots, and the SPEC.md link in its first line); the branch's README.
+
+**Update 2026-09-27: the spec is in the repo.** The owner chose to keep it: `SPEC.md` is now
+[`docs/DICTIONARY_PAGE_HANDOFF.md`](../docs/DICTIONARY_PAGE_HANDOFF.md), with a 🔴 Status line until version 2 ships.
+The branch now hosts only #763's screenshots and the spec copy linked from #763. #763 is merged and in production
+(promotion #766), so deleting the branch now costs only those images in its description.
