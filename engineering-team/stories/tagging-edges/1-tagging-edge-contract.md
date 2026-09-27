@@ -159,4 +159,4 @@ Still open, for later phases:
 
 - ADR: `engineering-team/decisions/tagging-edges/0001-tagging-edge-contract.md`
 - Test plan: `engineering-team/stories/tagging-edges/1-tagging-edge-contract.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tagging-edges/1-tagging-edge-contract.md`
