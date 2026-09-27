@@ -165,7 +165,7 @@ npm run gate:status -- --label tagging-edges-1
 ## Validation of the suite itself (2026-09-27)
 
 - **Against a reference implementation:** an implementation written from the ADR alone, blind to the tests, and
-  adjusted only for the six ADR clarifications, plus a `BIBLE.md` mock carrying the ADR-mandated sections, passes
+  adjusted only for the eight ADR clarifications, plus a `BIBLE.md` mock carrying the ADR-mandated sections, passes
   **76 / 76**. So every test can pass, including the docs tests. That check caught a section-helper bug that would
   have made three docs tests unpassable. After the Gate 3 fixes (per-line direction check, key set for every shape) it
   was re-run: still 76 / 76 on the reference, 0 / 76 on the repo.
@@ -199,3 +199,27 @@ Failure reasons (76):
 Every failure is the missing module or the missing BIBLE text; none comes from a typo or a load error. A full labelled
 baseline (`GATE_LABEL=tagging-edges-1-baseline npm test`) is recorded for Implementation's suite-by-suite comparison,
 because the full gate on this host is already red on unrelated live suites (OPEN.md row 289).
+
+## Review round (2026-09-27)
+
+The Review found three behaviors the ADR had left open, and the owner ratified clarifications 9–12 at the Review gate.
+Six tests pin them, and one AC-5 assertion was added for the target-move rule. That makes 82 tests in all.
+
+| Clarification | Test |
+|---|---|
+| 9 — the identity `d` is the first `d` strfry indexes | `clarification 9: an over-long first d is skipped …`; `clarification 9: a version the relay filed under a later d …` |
+| 10 — the order holds for a BigInt or Integer-like `createdAt` | `clarification 10: the version order holds when createdAt is a BigInt …` |
+| 11 — the element id must match; a throwing element is absent | `clarification 11: a supplied element resolves only if its id is the e …`; `clarification 11: an element that throws …` |
+| 12 — addresses match any character after the second colon | `clarification 12: an address may carry any character …` |
+| AC-5 — BIBLE states the target-move rule | an added assertion in `AC-5: the subsection gives TAGS' identity …` |
+
+Red before the fix, with 7 failing, each on the behavior it pins:
+
+```
+$ npm run gate:status -- --label tagging-edges-1-round2-red
+20260927T123353Z-66902-577b [tagging-edges-1-round2-red] started 2026-09-27T12:33:53.320Z on aff3c1cd+dirty — FAIL, exit 1, 75 passed, 7 failed, 0 skipped, 1/1 suites; failed: tagging-edge-contract
+```
+
+A scratch copy of the module carrying the intended fixes, plus a BIBLE with the target-move sentence, passes 82 / 82,
+so every new test can pass.
+

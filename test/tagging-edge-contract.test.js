@@ -661,6 +661,62 @@ t('AC-4: revokeApplies with no edge never throws and does not apply', () => {
   }
 });
 
+// ─── review round (2026-09-27): ADR 0001 clarifications 9–12 ───
+t('clarification 9: an over-long first d is skipped, as strfry does — the next d is the identity', () => {
+  const long = 'L'.repeat(300);
+  eq(edgeOf(tagging({ d: long, extraTags: [['d', 'x']] })).address, `39999:${ALICE}:x`, 'identity is the first indexable d');
+  eq(refusalOf(tagging({ d: long, extraTags: [['d', 'M'.repeat(256)]] })).reason, 'no-d', 'no indexable d left');
+  eq(refusalOf(tagging({ d: long, extraTags: [['d', '']] })).reason, 'no-d', 'the first indexable d is empty');
+});
+
+t('clarification 9: a version the relay filed under a later d retires or replaces the edge at that address', () => {
+  const { standingEdge } = load();
+  const v1 = v({ d: 'x', eventId: id(0x10), created_at: 100 });
+  const v2 = edgeOf(tagging({ d: 'L'.repeat(300), extraTags: [['d', 'x']], target: CAROL, eventId: id(0x20), created_at: 200 }));
+  const r = standingEdge(v1, v2);
+  same({ reason: r.reason, s: r.standing.eventId, dropped: r.droppedTarget }, { reason: 'newer', s: id(0x20), dropped: BOB }, 'v2 stands at x');
+});
+
+t('clarification 10: the version order holds when createdAt is a BigInt or an Integer-like object read back from Neo4j', () => {
+  const { standingEdge } = load();
+  const high = v({ eventId: id(0x09), created_at: 1000 });
+  const low = v({ eventId: id(0x01), created_at: 1000, target: CAROL });
+  const bigHigh = { ...high, createdAt: 1000n };
+  const intLikeHigh = { ...high, createdAt: { valueOf: () => 1000n, toString: () => '1000' } };
+  for (const [label, cur] of [['BigInt', bigHigh], ['Integer-like', intLikeHigh]]) {
+    eq(standingEdge(cur, low).standing.eventId, id(0x01), `${label} current, tie: the lower id stands`);
+    eq(standingEdge(low, cur).standing.eventId, id(0x01), `${label} incoming, tie: the lower id stands`);
+  }
+  eq(standingEdge({ ...high, createdAt: 999n }, low).standing.eventId, id(0x01), 'BigInt older loses');
+  eq(standingEdge({ ...high, createdAt: 1001n }, low).standing.eventId, id(0x09), 'BigInt newer wins');
+});
+
+t('clarification 11: a supplied element resolves only if its id is the e the tagging names', () => {
+  const liar = { get: () => tagElement({ author: CAROL, eventId: id(0x9999) }) }; // answers every lookup with another tag
+  const edge = edgeOf(tagging({ a: null }), { ...OPTS, tagElementsById: liar });
+  eq(edge.tagAddress, null, 'tagAddress stays null');
+  eq(edge.tagEventId, TAG_V1, 'tagEventId kept');
+});
+
+t('clarification 11: an element that throws while being read leaves the tagging unresolved, not refused', () => {
+  const trap = new Map([[TAG_V1, { get id() { throw new Error('boom'); } }]]);
+  const r = convert(tagging({ a: null }), { ...OPTS, tagElementsById: trap });
+  assert(r.ok === true, `expected a record, got ${JSON.stringify(r)}`);
+  eq(r.edge.tagAddress, null, 'unresolved');
+});
+
+t('clarification 12: an address may carry any character after the second colon, line terminators included', () => {
+  const { revokeApplies, revokeTargets } = load();
+  const slug = 'foo\nbar';
+  const edge = edgeOf(tagging({ a: `39999:${JACK}:${slug}` }));
+  eq(edge.tagAddress, `39999:${JACK}:${slug}`, 'tagging a with a newline in the slug');
+  eq(edge.tagSlug, slug, 'slug kept whole');
+  const author = 'abcd'.repeat(16);
+  const tagged = edgeOf(tagging({ author, d: 'x\ny' }));
+  same(revokeTargets(deletion({ author, a: [`39999:${'ABCD'.repeat(16)}:x\ny`] })).addresses, [`39999:${author}:x\ny`], 'revokeTargets lower-cases the pubkey');
+  same(revokeApplies(tagged, deletion({ author, a: [`39999:${'ABCD'.repeat(16)}:x\ny`] })), { applies: true, reason: 'names-address' }, 'revoke by that address');
+});
+
 // ─── purity / ADR 0015 ───
 t('purity: the module is pure CommonJS — sibling requires only, no I/O, no time, no randomness, no logging', () => {
   if (!fs.existsSync(MODULE_DIR)) throw new Error('src/lib/tagging-edges/ does not exist yet (purity check)');
@@ -740,6 +796,7 @@ t('AC-5: the subsection gives TAGS\' identity, every property, the absent-stance
   assert(s.includes('coalesce(toFloat(r.polarity), 1.0)'), 'gives graph readers the bucketing expression');
   assert(/NIP-01|lower[^\n]{0,40}\bid\b/i.test(s), 'states the standing rule (newer wins; ties to the lower id)');
   assert(/kind[- ]?5|NIP-09/i.test(s) && /tagger|same author|its author/i.test(s), 'states the revoke rule (only the tagger\'s kind-5)');
+  assert(/\bdifferent (person|target)\b|\bmoves (the relationship|it) to\b/i.test(s), 'states that a newer version naming another person moves the relationship');
   assert(/no trust/i.test(s) && /read time/i.test(s), 'says it is a raw assertion — no trust or counts; POV applied at read time');
   assert(/event-projection/i.test(s), 'names its §30 class (event-projection)');
   assert(s.includes('src/lib/tagging-edges') && s.includes('tagging-edges/0001'), 'points to src/lib/tagging-edges/ and this ADR');

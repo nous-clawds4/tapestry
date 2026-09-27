@@ -94,8 +94,8 @@ Planning, `/node/39999:<TA>:nostr-user-tag-schema`. Firmware files and source we
   `report_type` plus a wall-clock `timestamp`. This is the failure the story exists to prevent.
 
 **What strfry 1.1.0 actually does** (source read in the container, `/usr/local/src/strfry/src/events.cpp`):
-- Replaceable identity is the **first** `d` tag. A missing `d`, or one longer than 255 bytes, becomes `''`
-  (:48-62, :282-286).
+- Replaceable identity is the first `d` tag strfry indexes: a `d` longer than 255 bytes is skipped, and when no
+  `d` is left the identity is `''` (:48-62, :282-286). *(Corrected in the review round, clarification 9.)*
 - On equal `created_at` the lower id stands (:246-249).
 - An `a`-deletion covers stored versions with `created_at <=` the deletion, and refuses later arrivals at or
   before it (:320, :352).
@@ -194,6 +194,11 @@ and revoke rules below are meant to carry over unchanged. A one-line scope note 
   table (lowercase hex compares the same way in Cypher and JS).
 - Writer-set properties, such as provenance or ingest time, are story 2's to decide, in camelCase, without
   colliding with the names below.
+- *(Review round, 2026-09-27.)* **A writer must refuse to start unless both stamp pubkeys are 64-hex.** A writer
+  started without them would read every tagging as a non-tagging and retire every edge (step 2 plus the
+  retirement rule). Story 2's mass-delete guard also counts retirements per run.
+- *(Review round.)* **Callers pass only relay-verified events.** The module does not check signatures; strfry
+  verifies them before storing, and every writer reads from the relay.
 
 ### The contract
 
@@ -204,7 +209,7 @@ address. All of its properties are event-derived:
 |---|---|---|
 | `address` | string | `39999:<author>:<d>`: the tagging's replaceable address and its identity (unique per `TAGS`, enforced in story 2). It equals a letter node's `uuid` if tagging events are ever imported |
 | `eventId` | string | the id of the version that stands (would join a letter node's `id`) |
-| `createdAt` | integer | that version's `created_at`, in unix seconds. Not `timestamp`, which other edges use for wall-clock time or 0 and `src/api/neo4j/neo4jStatus.js:208` reads across all types |
+| `createdAt` | integer | that version's `created_at`, in unix seconds. Not `timestamp`, which older edges' writers fill inconsistently and `src/api/neo4j/neo4jStatus.js:208` reads across all types |
 | `polarity` | string or null | the first `polarity` tag's value exactly as published (`"1"`, `"-1"`, `"0"`, …); `null` means absent |
 | `tagAddress` | string or null | `39999:<tagAuthor>:<slug>` (pubkey lower-case) when known, whether named by `a` or resolved from a supplied tag element; otherwise `null` |
 | `tagEventId` | string or null | the tag-element version the event names in `e`, lower-case, when it names one |
@@ -304,8 +309,9 @@ It is a pure function of the two events, so arrival order cannot change the answ
      - `created_at` is a non-negative integer and `tags` is an array.
      - Otherwise → `not-an-event`.
      - `kind !== 39999` → `wrong-kind`.
-     - `d` is the **first** `d` tag's value. If it is missing, not a string, empty, or longer than 255 UTF-8
-       bytes (`Buffer.byteLength`) → `no-d`. strfry files such events under `d = ''`.
+     - `d` is the value of the first `d` tag that strfry indexes (clarification 9): `d` tags whose value is a
+       string longer than 255 UTF-8 bytes (`Buffer.byteLength`) are skipped. If that first remaining `d` is
+       missing, not a string, or empty, or no `d` remains → `no-d`. strfry files such events under `d = ''`.
      - Once step 1 passes, every later refusal also carries `address` (`39999:${pubkey}:${d}`), `eventId`,
        `createdAt` and `from`.
   2. **Stamp.** At least one `z` equals `39998:${canonicalPubkey}:nostr-user-tag` or
@@ -318,7 +324,8 @@ It is a pure function of the two events, so arrival order cannot change the answ
      - Self-taggings (`to === from`) are accepted.
   4. **Tag reference.**
      - Distinct `a` values (strings) greater than 1 → `several-tag-references`. A single `a` must match
-       `/^39999:([0-9a-fA-F]{64}):(.+)$/`, else `bad-tag-address`; its pubkey segment is lower-cased.
+       `/^39999:([0-9a-fA-F]{64}):(.+)$/s` (the slug may contain any character, as strfry takes everything after
+       the second colon), else `bad-tag-address`; its pubkey segment is lower-cased.
      - `e` values that are not 64-hex are ignored. The rest are lower-cased; more than one distinct →
        `several-tag-references`. NIP-10 markers are not considered.
      - Neither a valid `a` nor a valid `e` → `no-tag-reference`.
@@ -418,6 +425,22 @@ Implementer and the tests agree. Ratified by the owner at the Test Design gate (
    crypto / logging already listed. The purity guard judges code, not comments.
 8. **A missing or empty pubkey option matches nothing for the `:tag` stamp too** (step 5), as it does for the
    `:nostr-user-tag` stamp (step 2).
+
+**Review round (2026-09-27), ratified by the owner at the Review gate:**
+
+9. **The identity `d` is the first `d` strfry indexes.** strfry skips a `d` longer than 255 bytes and files the event
+   under the next `d` (`events.cpp:48`, :57-60, :282-286). Step 1 skips such `d` tags the same way, so a version the
+   relay stored under a later `d` gets that address and can retire or replace the edge there.
+10. **The version order works whatever numeric type `createdAt` has.** It compares with `>` / `<` and falls to the
+    event id only on a tie, so a `createdAt` read back from Neo4j (a driver Integer or a BigInt) orders the same as
+    a JS number.
+11. **A supplied element resolves only if its `id` is the `e` the tagging names.** Any error while reading the
+    element counts as absent, so the tagging stays unresolved rather than being refused.
+12. **Address patterns match any character after the second colon**, line terminators included (the `s` flag), for
+    tagging `a` values and for revoke addresses alike.
+13. **An event with an upper-case `id` or `pubkey` stays outside the contract** (NIP-01). strfry accepts such an
+    event and can replace or delete by it, so a version like that neither retires nor revokes an edge here; story
+    2's sweep, which reads the relay's current state, removes the edge instead.
 
 ## Out of scope
 
