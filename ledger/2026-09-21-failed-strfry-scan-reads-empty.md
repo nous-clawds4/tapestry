@@ -21,6 +21,12 @@ regeneration can run blind.
 whatever the exit code, so a scan that dies midway reads as a shorter, complete-looking answer. Anyone
 measuring through it (the tagging-edges census did) must pair it with `GET /api/strfry/scan/count`.
 
+**`scanLocalStrict` has two flaws of its own (added 2026-09-27, tagging-edges #2 Architecture):** it decodes each
+stdout chunk separately (`out += chunk`, `src/api/setup/status.js:80`), so a multi-byte character split across two
+chunks becomes U+FFFD while the line still parses; and it drops lines it cannot parse (:91, pinned by X1 in
+`test/setup-status.test.js`). ADR `tagging-edges/0002` therefore adds a separate strict reader,
+`src/lib/strfryScanStrict.js`, which the readers here can converge onto once it lands.
+
 `src/api/setup/status.js` (ADR setup-status-and-alert/0001) does not share the flaw: its
 `scanLocalStrict` rejects on a spawn error, a non-zero exit or a timeout, and a fake-`strfry` suite
 pins that (`test/setup-status.test.js` X1–X4).
