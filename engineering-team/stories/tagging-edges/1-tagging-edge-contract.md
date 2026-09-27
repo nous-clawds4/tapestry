@@ -146,6 +146,15 @@ Still open, for later phases:
 6. For Test Design: the census shapes (address and id, address only, id only, dual stamp, neutral "0", absent
    stance, self-tagging) are the cases the tests should cover.
 
+## Deviations
+
+- `REFUSAL`'s keys are UPPER_SNAKE (`NOT_AN_EVENT`, `NO_STAMP`, …); the ADR fixed only the ten values, which the tests pin.
+- `revokeTargets` applies the same well-formed-kind-5 check as `revokeApplies` (lowercase id/pubkey included) and
+  de-duplicates what it returns; the ADR said only "both empty for anything that is not a kind 5".
+- `revokeApplies` with an edge that is not an object gives reason `not-named` (clarification 5 fixed only
+  `applies: false`); an `e` match is checked before an address match, so it wins on a kind-5 naming both.
+- `standingEdge` treats a refusal passed as `current` as nothing standing.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tagging-edges/0001-tagging-edge-contract.md`
