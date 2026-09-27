@@ -10,11 +10,13 @@ import { declareAndBroadcast, defer, wireAndBroadcast } from '../utils/dispositi
  * (self-declare), or keep private (the reserved sentinel). The action
  * mechanics + broadcast-fallback strings live in utils/dispositionActions
  * (extracted behavior-preserving, ADR 0003, shared with the Adoption Queue's
- * publish view). No route of its own — rendered inline by ConceptList.
+ * publish view). No route of its own — rendered inline by ConceptList, and by
+ * the Concepts dictionary's "Add to Dictionary", which passes `initialTarget`
+ * to pre-fill the wire target with the shared concept being added.
  */
-export default function DispositionPanel({ handle, name, disposition, onActed, onNext, hasNext, onClose }) {
+export default function DispositionPanel({ handle, name, disposition, initialTarget, onActed, onNext, hasNext, onClose }) {
   const { rows: communityRows } = useCommunitySharedConcepts();
-  const [target, setTarget] = useState('');
+  const [target, setTarget] = useState(initialTarget || '');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const [acted, setActed] = useState(false);

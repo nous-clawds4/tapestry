@@ -71,8 +71,9 @@ import {
   DictionariesIndex,
   DictionaryTags,
   DictionaryDLists,
-  DictionaryConcepts,
 } from './pages/dictionaries/Placeholders';
+import DictionaryConcepts from './pages/dictionaries/Concepts';
+import DictionaryConceptEntry from './pages/dictionaries/ConceptEntry';
 import { MyTrustedAgents, AllTrustedAgents, TrustedAgentSetup } from './pages/trusted-agents/Placeholders';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
@@ -461,7 +462,14 @@ const router = createBrowserRouter([
           { index: true, element: <DictionariesIndex /> },
           { path: 'tags', element: <DictionaryTags />, handle: { crumb: 'Tags' } },
           { path: 'dlists', element: <DictionaryDLists />, handle: { crumb: 'DLists' } },
-          { path: 'concepts', element: <DictionaryConcepts />, handle: { crumb: 'Concepts' } },
+          {
+            path: 'concepts',
+            handle: { crumb: 'Concepts' },
+            children: [
+              { index: true, element: <DictionaryConcepts /> },
+              { path: ':coord', element: <DictionaryConceptEntry />, handle: { crumb: 'Entry' } },
+            ],
+          },
         ],
       },
       {

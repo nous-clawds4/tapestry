@@ -23,6 +23,7 @@ const { computeDictionary } = require('../../lib/trustedDictionary');
 const { dispositionOf } = require('../../lib/bValueForms');
 const { runCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
+const { getManifest } = require('../normalize/firmware');
 
 const REGISTRY_SLUG = 'shared-concept';
 const LEDGER_SLUG = 'adoption-disposition';
@@ -117,6 +118,31 @@ async function handleAdoptionQueue(req, res) {
 }
 
 /**
+ * Firmware concept headers, for the Dictionary's Firmware marker: this
+ * instance's own header for every concept in the active firmware manifest,
+ * plus the manifest's community-reference headers. Classified here, at the
+ * seam, like isMine and bState. A missing or unreadable manifest marks
+ * nothing rather than failing the read.
+ */
+function firmwareCoords(taPubkey) {
+  const coords = new Set();
+  try {
+    for (const c of getManifest().concepts || []) {
+      if (c && typeof c.slug === 'string' && c.slug) coords.add(`39998:${taPubkey}:${c.slug}`);
+      const ref = c && c.communityReference && c.communityReference.headerATag;
+      if (typeof ref === 'string' && ref) coords.add(ref);
+    }
+  } catch { /* no manifest → no firmware markers */ }
+  return coords;
+}
+
+/** A header tag's value at `idx`, or null (the adoption module's slim-projection idiom). */
+const tagAt = (ev, name, idx = 1) => {
+  const t = (ev.tags || []).find((x) => x && x[0] === name);
+  return t && typeof t[idx] === 'string' && t[idx].trim() !== '' ? t[idx] : null;
+};
+
+/**
  * The trusted dictionary (ADR shared-concepts-adoption/0005) — S3b with a
  * minimum-trusted-users threshold, computed at read time from the active POV.
  *
@@ -139,7 +165,7 @@ async function assembleTrustedDictionary({ wotPov, userPubkey } = {}) {
   // replaceable-version residue — the handleAdoptionQueue idiom).
   const allHeaders = await strfryScanStream({ kinds: [39998] }, (ev) => ({
     kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at,
-    tags: keepTags(ev, ['d', 'names', 'name', 'b']),
+    tags: keepTags(ev, ['d', 'names', 'name', 'b', 'description']),
   }));
   const newest = new Map(); // coord → slim header
   for (const ev of allHeaders) {
@@ -149,6 +175,7 @@ async function assembleTrustedDictionary({ wotPov, userPubkey } = {}) {
     const prev = newest.get(coord);
     if (!prev || (ev.created_at || 0) > (prev.created_at || 0)) newest.set(coord, ev);
   }
+  const firmware = firmwareCoords(taPubkey);
   const headers = [];
   for (const [coord, ev] of newest) {
     const isMine = ev.pubkey === taPubkey;
@@ -158,7 +185,16 @@ async function assembleTrustedDictionary({ wotPov, userPubkey } = {}) {
       const disp = dispositionOf(bValues, coord);
       bState = (disp.wired || disp.selfDeclared) ? 'real' : (disp.deferred ? 'deferred' : 'none');
     }
-    headers.push({ coord, name: bestName(ev), author: ev.pubkey, isMine, bState });
+    headers.push({
+      coord,
+      name: bestName(ev),
+      plural: tagAt(ev, 'names', 2),
+      description: tagAt(ev, 'description'),
+      author: ev.pubkey,
+      isMine,
+      isFirmware: firmware.has(coord),
+      bState,
+    });
   }
 
   const coords = headers.map((h) => h.coord);
@@ -206,10 +242,11 @@ async function assembleTrustedDictionary({ wotPov, userPubkey } = {}) {
     qualifying = new Set(rows.map((r) => r.pubkey));
   }
 
-  const { entries } = computeDictionary({ headers, zCarriers, qualifying, threshold, taPubkey });
+  const { entries, metric } = computeDictionary({ headers, zCarriers, qualifying, threshold, taPubkey });
 
   return {
     entries,
+    metric,
     cutoff,
     threshold,
     taPubkey,
@@ -248,7 +285,9 @@ async function handleTrustedDictionary(req, res) {
       },
     )).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
-    return res.json({ success: true, entries: out.entries, snapshots, pov: out.pov });
+    // `metric` names the General Usage Metric every entry's `gum` carries
+    // ("gum1" in version 1), so GUM₂ / GUM₃ can arrive without a new shape.
+    return res.json({ success: true, metric: out.metric, entries: out.entries, snapshots, pov: out.pov });
   } catch (error) {
     console.error('trusted-dictionary error:', error);
     return res.status(500).json({ success: false, error: error.message });
