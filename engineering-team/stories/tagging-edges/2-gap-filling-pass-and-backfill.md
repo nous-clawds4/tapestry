@@ -269,6 +269,6 @@ For Test Design:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tagging-edges/0002-gap-filling-pass.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
