@@ -133,3 +133,50 @@ fix-shape addendum suggests should read supervisord's record, not `ps`.
   the fifteen; the fifteenth, `recognizable-published-ta-profile`, is the one this comparison cannot
   decide. `OPEN.md` row 289's per-suite triage, stale instance state or a real regression, still
   stands for all 14.
+
+---
+
+**Update 2026-09-27 (Mac Studio, dictionary-concepts-v1 gate, PR #763): a third door, a partial sync with no bind
+mount.** The two cases above come from the laptop (`/Users/clawds4/…`), where the container bind-mounts the checkout.
+On the Mac Studio it does not: `docker inspect tapestry` shows only the four named volumes
+(`tapestry-{data,logs,neo4j,strfry}`; cf. `OPEN.md` rows 198/226 and `2026-09-20-claude-md-overstates-bind-mount`).
+Code reaches that container only when a session copies it in (`/cycle-local` deploys file by file:
+`docker cp $WT/<changed-file> …`) or rebuilds. So its code drifts one file at a time.
+
+```
+# every .js file under bin/ and src/, container sha1 vs origin/staging (72469bde)
+same=400 differ=1   → bin/control-panel.js
+$ docker exec tapestry grep -c LLMS_TXT_PATH /usr/local/lib/node_modules/brainstorm/bin/control-panel.js
+0
+```
+
+`d228393e` (llms-txt #1, 2026-09-21) changed both `src/utils/siteTrust.js` and `bin/control-panel.js`. The first reached
+the container; the second is still the 2026-08-12 version (`5b6a33fd`). Because the `/llms.txt` route is registered in
+`bin/control-panel.js`, the container answers 404. In full gate `20260927T045641Z-34986-d431` (226/226 suites; FAIL,
+3849 passed / 6 failed / 60 skipped), `llms-txt` H1 reports "expected 200; got 404". The test is correct and the
+container is stale. The same door hides any branch's server change from this machine's live tier until the change is
+deployed; #763's new `/api/trusted-dictionary` fields are pinned by its U and S tests for that reason.
+
+**Fix-shape addendum.**
+
+- **Now.** When no other session holds the container, copy `bin/control-panel.js` in and run
+  `docker exec tapestry supervisorctl restart brainstorm`, or rebuild the container.
+- **Structural.** Per-file `docker cp` makes partial syncs easy. A drift check at deploy time would have caught this
+  one: compare container and checkout sha1s over `bin/` and `src/`, which takes about ten seconds. So would the
+  build-identity probe of fix shape 2.
+
+**Done the same day, 13:36Z: the Mac Studio container was synced to `staging` `681b1dec`** (owner's go-ahead). A
+parity check over every tracked file under `bin/`, `src/`, `firmware/`, `public/`, `config/`, `setup/`, `docker/`, plus
+`package.json` and `package-lock.json` (1135 files, container sha1 vs `git show`), found five stale or missing files:
+
+- `bin/control-panel.js`, the one above;
+- `public/pages/nip85.html` and `public/pages/customers/customer.html`, stale since `92c2ef70` (2026-09-21);
+- `src/lib/tagging-edges/{contract,index}.js`, new in #764 that morning.
+
+Those five were copied in with the `/cycle-local` § 2 recipe; the originals are in the container's
+`/tmp/pre-staging-parity-2026-09-27/`. Then `supervisorctl restart brainstorm`; the log shows a clean boot.
+
+- **After:** 1114 of 1114 files match. The only exceptions are the `firmware/active` symlink and `public/kg/`, which
+  `.dockerignore` excludes by design. The served UI bundle matched a fresh `staging` build, so it needed no deploy.
+- **Result:** `/llms.txt` answers 200 `text/plain`, and `llms-txt` passes 27/27.
+- **Still open:** this row, for the structural fix (a drift check at deploy time, or the build-identity probe).
