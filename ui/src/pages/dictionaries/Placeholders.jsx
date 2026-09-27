@@ -81,13 +81,4 @@ export function DictionaryDLists() {
   );
 }
 
-export function DictionaryConcepts() {
-  return (
-    <PlaceholderPage title="📖 Concepts">
-      <p>
-        This page will be the dictionary of concepts — the concepts a trust network demonstrably
-        uses, as distinct from the concept headers held in this instance's own graph.
-      </p>
-    </PlaceholderPage>
-  );
-}
+// The Concepts dictionary is built: ./Concepts.jsx (version 1) and ./ConceptEntry.jsx.

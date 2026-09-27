@@ -15,11 +15,24 @@
  *            (they beat qualifying-set membership), the qualifying/total count
  *            split, the isMine/sentinelDeferred flags (real headers stay in —
  *            the dictionary is not the worklist), sorting, empties.
+ *   U8..U10 — Dictionary › Concepts v1 (handoff SPEC § 2/§ 4): the result
+ *            names its General Usage Metric (`metric: "gum1"`) and every
+ *            entry carries `gum` (= the qualifying-author count) and
+ *            `override: null`; `itemCount` counts every z-filed item,
+ *            self-filed and TA-filed included, without touching membership;
+ *            plural / description / isFirmware pass through from the seam.
  *   S1..S4 — structural pins (line/name-based; OPEN.md #109/#143 discipline):
  *            the read route + its Neo4j seam + the two config knobs; the
  *            owner-gated snapshot mint (concept name, derivation marker,
  *            sentinel drop); the UI surface (page + route + nav + POV params);
  *            the F1/F2 contract untouched (regression, passes pre AND post).
+ *   S5..S6 — Dictionary › Concepts v1: the handler's firmware seam, header
+ *            projection and `metric` in the response; the page and its entry
+ *            route replace the placeholder, read the server's `gum` rather
+ *            than re-deriving it, and leave the Dictionaries index prose alone.
+ *            (The H class runs against the live container, which carries
+ *            these fields only once this change is deployed there — so the
+ *            new fields are pinned here, in U and S.)
  *   H1..H5 — live-stack integration (SKIP when the stack is down; OPEN.md
  *            #144 nextStamp discipline on every fixture header/carrier write;
  *            Neo4j fixture rows written via the localTrusted loopback
@@ -65,6 +78,10 @@ const ADOPTION_LIB_JS = path.join(ROOT, 'src/lib/adoptionQueue.js');
 const APP_JSX = path.join(ROOT, 'ui/src/App.jsx');
 const LAYOUT_JSX = path.join(ROOT, 'ui/src/components/Layout.jsx');
 const PAGE_JSX = path.join(ROOT, 'ui/src/pages/shared-concepts/TrustedDictionary.jsx');
+const DICT_CONCEPTS_JSX = path.join(ROOT, 'ui/src/pages/dictionaries/Concepts.jsx');
+const DICT_ENTRY_JSX = path.join(ROOT, 'ui/src/pages/dictionaries/ConceptEntry.jsx');
+const DICT_HELPERS_JS = path.join(ROOT, 'ui/src/pages/dictionaries/conceptsDictionary.js');
+const DICT_PLACEHOLDERS_JSX = path.join(ROOT, 'ui/src/pages/dictionaries/Placeholders.jsx');
 
 const HOST_BASE = `http://localhost:${process.env.TAPESTRY_PORT || '7778'}`;
 const CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
@@ -217,6 +234,67 @@ test('U7: the core stays zero-require and exports computeDictionary', () => {
   fnOrFail();
 });
 
+test('U8: the result names its metric ("gum1") and every entry carries gum = qualifying authors, override null', () => {
+  const out = fnOrFail()(base({
+    headers: [mine('three', 'none'), foreign('two')],
+    zCarriers: [
+      zc(Q1, myCoord('three')), zc(Q2, myCoord('three')), zc('4'.repeat(64), myCoord('three')), zc(UQ, myCoord('three')),
+      zc(Q1, foreignCoord('two')), zc(Q2, foreignCoord('two')),
+    ],
+    qualifying: new Set([Q1, Q2, '4'.repeat(64)]),
+  }));
+  assert(out.metric === 'gum1', `the result must name its General Usage Metric "gum1" (SPEC § 4), got ${JSON.stringify(out.metric)}`);
+  assert(out.entries.length === 2, `two members expected, got ${out.entries.length}`);
+  for (const e of out.entries) {
+    assert(e.gum === e.qualifyingAuthorCount,
+      `GUM₁ is the qualifying-author count — ${e.coord}: gum ${e.gum} vs qualifying ${e.qualifyingAuthorCount}`);
+    assert(e.override === null, `override is version 2 (Pins) — always null in v1, got ${JSON.stringify(e.override)}`);
+  }
+  const three = out.entries.find((e) => e.coord === myCoord('three'));
+  assert(three && three.gum === 3, `three qualifying authors (UQ excluded) → gum 3, got ${three && three.gum}`);
+  assert(fnOrFail()(base()).metric === 'gum1', 'an empty result still names its metric');
+});
+
+test('U9: itemCount counts every z-filed item — self-filed and TA-filed included — and never moves membership', () => {
+  const out = fnOrFail()(base({
+    headers: [foreign('sized'), foreign('self-only')],
+    zCarriers: [
+      zc(FH, foreignCoord('sized')), zc(FH, foreignCoord('sized')), // the header's own author, two items
+      zc(TA, foreignCoord('sized')),                                // the TA files one
+      zc(Q1, foreignCoord('sized')), zc(Q2, foreignCoord('sized')), // two qualifying cross-authors
+      { pubkey: UQ, id: 'dup'.padStart(64, '0'), tags: [['z', foreignCoord('sized')], ['z', foreignCoord('sized')]] }, // one event, z twice
+      zc(FH, foreignCoord('self-only')), zc(FH, foreignCoord('self-only')), zc(TA, foreignCoord('self-only')),
+    ],
+    qualifying: new Set([Q1, Q2, FH, TA]),
+  }));
+  const sized = out.entries.find((e) => e.coord === foreignCoord('sized'));
+  assert(sized, 'the header with two qualifying cross-authors must be a member');
+  assert(sized.itemCount === 6, `items: 2 self + 1 TA + 2 qualifying + 1 double-z event = 6, got ${sized.itemCount}`);
+  assert(sized.qualifyingAuthorCount === 2 && sized.gum === 2,
+    `self and TA filings never count toward GUM₁ — expected 2, got qualifying ${sized.qualifyingAuthorCount} / gum ${sized.gum}`);
+  assert(sized.totalEventCount === 3, `cross-author usage events: Q1, Q2, the double-z event = 3, got ${sized.totalEventCount}`);
+  assert(!out.entries.some((e) => e.coord === foreignCoord('self-only')),
+    'a header with only self and TA filings is not a member, however many items it holds');
+});
+
+test('U10: plural, description and isFirmware pass through from the seam; absent fields read null / false', () => {
+  const out = fnOrFail()(base({
+    headers: [
+      { coord: myCoord('relay'), name: 'nostr relay', plural: 'nostr relays', description: 'A relay.', author: TA, isMine: true, isFirmware: true, bState: 'real' },
+      foreign('bare'),
+    ],
+    zCarriers: [zc(Q1, myCoord('relay')), zc(Q1, foreignCoord('bare'))],
+    qualifying: new Set([Q1]),
+    threshold: 1,
+  }));
+  const relay = out.entries.find((e) => e.coord === myCoord('relay'));
+  assert(relay && relay.plural === 'nostr relays' && relay.description === 'A relay.' && relay.isFirmware === true,
+    `seam fields must pass through, got ${JSON.stringify(relay)}`);
+  const bare = out.entries.find((e) => e.coord === foreignCoord('bare'));
+  assert(bare && bare.plural === null && bare.description === null && bare.isFirmware === false,
+    `absent seam fields must read null / false, got ${JSON.stringify(bare)}`);
+});
+
 // ═══ S — structural pins ═══════════════════════════════════════════════
 
 test('S1: the read route exists with its Neo4j seam and the two config knobs', () => {
@@ -277,6 +355,54 @@ test('S4 (regression, passes pre AND post): the F1/F2 surfaces stay untouched', 
   const app = safeRead(APP_JSX);
   assert(app && [...app.matchAll(/\bpath:\s*['"`]([^'"`]*)['"`]/g)].some((m) => m[1] === 'adoption-queue'),
     "the 'adoption-queue' route must still be registered");
+});
+
+test('S5: the handler classifies firmware at the seam, projects the description, and returns metric', () => {
+  const mod = safeRead(ADOPTION_API_JS);
+  assert(mod, 'src/api/adoption/index.js unreadable');
+  assert(/require\([^)]*normalize\/firmware[^)]*\)/.test(mod) && /getManifest\s*\(/.test(mod),
+    'the firmware marker must come from the active firmware manifest (src/api/normalize/firmware getManifest)');
+  assert(/communityReference/.test(mod) && /headerATag/.test(mod),
+    "the manifest's community-reference headers must count as firmware too");
+  assert(/isFirmware\s*:/.test(mod), 'headers must reach the core with isFirmware classified at the seam');
+  assert(/keepTags\(ev,\s*\[[^\]]*['"]description['"][^\]]*\]\)/.test(mod),
+    'the dictionary header projection must keep the description tag');
+  assert(/metric:\s*out\.metric/.test(mod),
+    'GET /api/trusted-dictionary must return the core\'s metric field (SPEC § 4: "gum1" in v1)');
+});
+
+test('S6: Dictionary › Concepts — page + entry route replace the placeholder, render the server\'s gum, index prose untouched', () => {
+  const pageOnly = safeRead(DICT_CONCEPTS_JSX);
+  assert(pageOnly, 'ui/src/pages/dictionaries/Concepts.jsx is missing');
+  const helpers = safeRead(DICT_HELPERS_JS);
+  assert(helpers, 'ui/src/pages/dictionaries/conceptsDictionary.js (the pages\' shared reads) is missing');
+  const entry = safeRead(DICT_ENTRY_JSX);
+  assert(entry, 'ui/src/pages/dictionaries/ConceptEntry.jsx is missing');
+  const page = `${pageOnly}\n${helpers}`;
+  assert(/\/api\/trusted-dictionary/.test(page) && /usePov\s*\(/.test(pageOnly),
+    'the Concepts dictionary must read /api/trusted-dictionary with the active POV (usePov)');
+  assert(/\.gum\b/.test(pageOnly) && /metric/.test(pageOnly), 'the page must render the server-computed gum and its metric');
+  for (const [file, src] of [['Concepts.jsx', pageOnly], ['conceptsDictionary.js', helpers], ['ConceptEntry.jsx', entry]]) {
+    assert(!/qualifyingAuthorCount/.test(src),
+      `${file} must not re-derive the metric from the raw counts — it reads gum (SPEC § 4)`);
+  }
+  assert(/\/api\/shared-by-me/.test(page), "the 'Shared by you' marker reads /api/shared-by-me (SPEC § 1)");
+  assert(/useCommunitySharedConcepts/.test(pageOnly), '"Don\'t see what you\'re looking for?" searches useCommunitySharedConcepts');
+  const app = safeRead(APP_JSX) || '';
+  const dictBlock = app.slice(app.indexOf("path: 'dictionaries'"), app.indexOf("path: 'trusted-agents'"));
+  assert(/path:\s*['"`]concepts['"`][\s\S]*index:\s*true,\s*element:\s*<DictionaryConcepts\s*\/>/.test(dictBlock)
+    && /path:\s*['"`]:coord['"`],\s*element:\s*<DictionaryConceptEntry\s*\/>/.test(dictBlock),
+    "App.jsx must route dictionaries/concepts to the page and dictionaries/concepts/:coord to its entry page");
+  assert(/from\s+['"]\.\/pages\/dictionaries\/Concepts['"]/.test(app) && /from\s+['"]\.\/pages\/dictionaries\/ConceptEntry['"]/.test(app),
+    'App.jsx must import the Concepts page and its entry page');
+  const ph = safeRead(DICT_PLACEHOLDERS_JSX);
+  assert(ph, 'Placeholders.jsx unreadable');
+  assert(!/export function DictionaryConcepts\b/.test(ph), 'the DictionaryConcepts placeholder must be replaced, not kept beside the page');
+  assert(/export function DictionaryTags\b/.test(ph) && /export function DictionaryDLists\b/.test(ph),
+    'the Tags and DLists placeholders stay (SPEC § 5)');
+  assert(ph.includes('Being added by hand will override community-based criteria.')
+    && ph.includes('There are currently three dictionaries: Tags, DLists, and Concepts.'),
+    "the Dictionaries index keeps the owner's verbatim model statement (do not edit it)");
 });
 
 // ═══ H — live integration (SKIP when the stack is down) ════════════════
