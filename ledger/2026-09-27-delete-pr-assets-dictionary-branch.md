@@ -3,8 +3,8 @@
 **Id:** 2026-09-27-delete-pr-assets-dictionary-branch
 **Type:** cleanup
 **Opened:** 2026-09-27 (Dictionary › Concepts v1, PR #763)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-09-27 (branch deleted after #763 shipped via promotion #766; the spec stays in the repo as `docs/DICTIONARY_PAGE_HANDOFF.md`, #767)
 
 `pr-assets/dictionary-concepts-v1` is an orphan branch: root commit `59ddd4ee`, with no history shared with the code.
 
@@ -27,3 +27,5 @@ version 2 of the Dictionary (SPEC § 3–4: add/veto pinnings, GUM₂/GUM₃, su
 [`docs/DICTIONARY_PAGE_HANDOFF.md`](../docs/DICTIONARY_PAGE_HANDOFF.md), with a 🔴 Status line until version 2 ships.
 The branch now hosts only #763's screenshots and the spec copy linked from #763. #763 is merged and in production
 (promotion #766), so deleting the branch now costs only those images in its description.
+
+**Closed 2026-09-27.** `git push origin --delete pr-assets/dictionary-concepts-v1` deleted root commit `59ddd4ee`, which held a README, `SPEC.md` and eight screenshots. #763's description now carries a note in place of the images, with links to the live page and to the in-repo handoff.
