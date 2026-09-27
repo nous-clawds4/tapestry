@@ -395,6 +395,30 @@ It is a pure function of the two events, so arrival order cannot change the answ
 - **Unchanged:** `src/api/profile-tags/`, `src/api/event-tags/`, `src/lib/event-tagging/`, the follows pipeline,
   firmware, UI, and `protocols/`.
 
+## Clarifications (Test Design, 2026-09-27)
+
+Test Design validated the suite against a blind reference implementation and mutation testing. That work found
+places where this ADR left a detail open. They are settled here, each by the rule the ADR already states, so the
+Implementer and the tests agree. Ratified by the owner at the Test Design gate (2026-09-27):
+
+1. **A supplied tag element is an event, so it passes the step-1 event check.** Its `id` and `pubkey` must be
+   lowercase 64-hex (the hex-case rule), or the element is unusable and the record stays unresolved. The resolved
+   `tagAddress` is therefore always lowercase in its pubkey segment.
+2. **`tagSlug` is everything after `39999:<pubkey>:`** in `tagAddress`, and equals the tag element's `d` even when
+   that `d` contains `:`. "Last segment" / "last part" above mean this.
+3. **`a` values are normalized before they are counted.** Each well-formed `a` has its pubkey segment lower-cased
+   first, the same as `p` and `e`, so two `a` values that differ only in pubkey case are one tag. Only the pubkey
+   segment is lower-cased; the slug keeps its case.
+4. **Empty results are explicit.** `superseded` and `droppedTarget` are `null` whenever no version is superseded or
+   no target is dropped. `revokeTargets` returns arrays. A step-1 refusal (`not-an-event`, `wrong-kind`, `no-d`)
+   carries no `address` / `eventId` / `createdAt` / `from` keys.
+5. **`revokeApplies` with an edge that is not an object** returns `{ applies: false, … }` and never throws.
+6. **`standingEdge(null, null)`** returns `standing: null`, `changed: false`, reason `no-incoming`.
+7. **"Pure" also excludes `new Date` and any use of `process`**, beside the `Date.now()` / `Math.random()` / I/O /
+   crypto / logging already listed. The purity guard judges code, not comments.
+8. **A missing or empty pubkey option matches nothing for the `:tag` stamp too** (step 5), as it does for the
+   `:nostr-user-tag` stamp (step 2).
+
 ## Out of scope
 
 - Writing `TAGS` to Neo4j:

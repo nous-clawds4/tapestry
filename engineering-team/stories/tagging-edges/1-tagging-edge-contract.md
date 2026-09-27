@@ -149,5 +149,5 @@ Still open, for later phases:
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tagging-edges/0001-tagging-edge-contract.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tagging-edges/1-tagging-edge-contract.test-plan.md`
 - Review: (filled in after Review phase)
