@@ -52,7 +52,11 @@ Order: 1 → 2 → 3 → 4 (4's page can start once 2's status shape is fixed).
 - **The z namespaces.** Taggings carry the canonical `nostr-user-tag` concept stamp (the ADR 0015 literal,
   identical on every deployment) and, since 2026-06-17, also this deployment's own (runtime TA). Any use of the
   TA pubkey other than the ADR 0015 literal resolves it at runtime.
+- **A writer refuses to start without both stamp pubkeys** (ADR 0001, review round). A writer started without the
+  canonical or local pubkey would read every tagging as a non-tagging and retire every edge; story 2 checks both
+  are 64-hex at startup, and its mass-delete guard counts retirements per run.
 - **Known defects in the follows pipeline stay out of this epic** (the relay-websocket gap in the strfry patch,
   the Redis client that never reconnects, at-most-once delivery, the stream and reconcile writers disagreeing
-  on REPORTS' shape): they get ledger rows (filed at the end of the kickoff session, 2026-09-26) and are
-  not copied.
+  on REPORTS' shape): they have ledger rows and are not copied — OPEN.md rows
+  `2026-09-27-strfry-redis-misses-websocket-writes`, `2026-09-27-strfry-redis-never-reconnects`,
+  `2026-09-27-stream-consumer-at-most-once` and `2026-09-27-reports-writers-disagree-on-shape`.

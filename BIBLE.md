@@ -297,25 +297,25 @@ Relationships between two `NostrUser` nodes, each projected from one kind of sig
 | `FOLLOWS` | NostrUser → NostrUser | kind 3 (follow list) |
 | `MUTES` | NostrUser → NostrUser | kind 10000 (mute list) |
 | `REPORTS` | NostrUser → NostrUser | kind 1984 (NIP-56 report) |
-| `TAGS` | NostrUser → NostrUser (tagger → tagged person) | kind 39999 carrying a `nostr-user-tag` stamp (a tagging — `protocols/drafts/tags.md`) |
+| `TAGS` | NostrUser → NostrUser (tagger → tagged person) | kind 39999 carrying the canonical `nostr-user-tag` stamp or this deployment's own (a tagging — [protocols/drafts/tags.md](protocols/drafts/tags.md)) |
 
-**`TAGS`** — one relationship per tagging, identified by the tagging's replaceable address. Every property comes from the event:
+**`TAGS`** — one relationship per tagging, identified by the tagging's replaceable address. Every property comes from the tagging, except that a tagging naming its tag only by id takes `tagAddress` and `tagSlug` from the tag element its `e` names:
 
 | Property | Meaning |
 |----------|---------|
 | `address` | `39999:<tagger>:<d>` — the relationship's identity (one per address) |
 | `eventId` | id of the version that stands |
-| `createdAt` | that version's `created_at`, unix seconds (not `timestamp`, which other edges use for wall-clock time) |
+| `createdAt` | that version's `created_at`, unix seconds (not `timestamp`) |
 | `polarity` | the first `polarity` tag's value exactly as published (`"1"`, `"-1"`, `"0"`, …), or null when absent |
 | `tagAddress` | `39999:<tagAuthor>:<slug>` of the tag applied — the event's `a` (the tag's identity), or resolved from the tag element its `e` names; null when unresolved |
 | `tagEventId` | the tag-element version the event names in `e` (provenance), or null |
 | `tagSlug` | the part of `tagAddress` after `39999:<tagAuthor>:`, or null |
 | `zCanonical` / `zLocal` | whether the event carries the canonical `nostr-user-tag` stamp / this deployment's own (relative to the reading deployment) |
 
-- **Absent stance counts as apply.** Graph readers bucket with `coalesce(toFloat(r.polarity), 1.0)`: ≥ 0.5 apply, ≤ −0.5 dispute, otherwise neutral — the same reading as today's tag surfaces.
-- **One version stands:** the newer `created_at`; on a tie, the lower event id (NIP-01, as strfry keeps). A newer version at the same address that is not a tagging retires the relationship.
+- **Absent stance counts as apply.** Graph readers bucket with `coalesce(toFloat(r.polarity), 1.0)`: ≥ 0.5 apply, ≤ −0.5 dispute, otherwise neutral. That matches today's tag surfaces for every value on the relays today (`"1"`, `"-1"`, `"0"`, absent); malformed values such as `""`, `"NaN"` or `"-Infinity"` can bucket differently in Cypher and in JS.
+- **One version stands:** the newer `created_at`; on a tie, the lower event id (NIP-01, as strfry keeps). A newer version naming a different person moves the relationship to that person; a newer version at the same address that is not a tagging retires it.
 - **Revokes:** a kind-5 deletion (NIP-09) removes the relationship only when the tagger signed it and it names the standing version's id, or the tagging's address with a `created_at` no earlier than that version's.
-- **§30 class: event-projection** — re-derivable from the relay; every delete is scoped to one `TAGS` relationship. It records nothing its event does not hold: no trust, no counts, no tag names.
+- **§30 class: event-projection** — re-derivable from the local relay (the tagging, plus the tag element it names); every delete is scoped to one `TAGS` relationship. It holds no trust, no counts and no display names.
 
 **Status:** no pipeline writes `TAGS` yet. Every writer must derive it through `src/lib/tagging-edges/` (ADR `tagging-edges/0001`); the gap-filling pass (tagging-edges story 2) and the real-time path (story 3) will write it.
 

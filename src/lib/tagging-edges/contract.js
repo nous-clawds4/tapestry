@@ -9,6 +9,10 @@
  * required, and there is no I/O, clock, randomness or logging. Both stamp pubkeys are parameters:
  * the caller supplies the canonical stamp's pubkey (an ADR 0015 site) and this deployment's TA
  * (resolved at runtime), so no pubkey is written here.
+ *
+ * Callers pass only relay-verified events: signatures are not checked here (strfry verifies them
+ * before storing). A writer must not run without both stamp pubkeys — it would read every tagging
+ * as a non-tagging and retire every edge (ADR 0001, "Binding for later stories").
  */
 
 const TAGS_RELATIONSHIP = 'TAGS';
@@ -28,9 +32,9 @@ const REFUSAL = Object.freeze({
 
 const HEX64 = /^[0-9a-f]{64}$/;
 const HEX64_ANY_CASE = /^[0-9a-fA-F]{64}$/;
-const TAG_ADDRESS_RE = /^39999:([0-9a-fA-F]{64}):(.+)$/;
-const ANY_ADDRESS_RE = /^(\d+):([0-9a-fA-F]{64}):(.*)$/;
-// strfry indexes a `d` of at most 255 bytes; a longer one files the event under d = ''.
+const TAG_ADDRESS_RE = /^39999:([0-9a-fA-F]{64}):(.+)$/s;
+const ANY_ADDRESS_RE = /^(\d+):([0-9a-fA-F]{64}):(.*)$/s;
+// strfry indexes a `d` of at most 255 bytes and skips a longer one; with no `d` left the identity is ''.
 const MAX_D_BYTES = 255;
 
 const EMPTY_TARGETS = () => ({ eventIds: [], addresses: [] });
@@ -55,9 +59,10 @@ function stringValues(ev, name) {
   return ev.tags.filter((t) => Array.isArray(t) && t[0] === name && typeof t[1] === 'string').map((t) => t[1]);
 }
 
-/** The first `d` tag's value when strfry would file the event under it; otherwise null. */
+/** The value of the first `d` strfry indexes (over-long ones are skipped), when it is usable; otherwise null. */
 function identityD(ev) {
-  const t = firstTag(ev, 'd');
+  const t = ev.tags.find((x) => Array.isArray(x) && x[0] === 'd'
+    && !(typeof x[1] === 'string' && Buffer.byteLength(x[1], 'utf8') > MAX_D_BYTES));
   const d = t && t[1];
   if (typeof d !== 'string' || d === '' || Buffer.byteLength(d, 'utf8') > MAX_D_BYTES) return null;
   return d;
@@ -82,25 +87,25 @@ function normalizeAddress(a) {
 
 /**
  * Resolve a tag named only by event id from the caller's tag elements (step 5). The element must
- * pass the event check, be kind 39999 with a non-empty first `d`, and carry a `:tag` stamp this
- * deployment honours. A lookup that throws counts as absent. Never searches by slug.
+ * pass the event check, be the event the tagging names, be kind 39999 with a non-empty first `d`,
+ * and carry a `:tag` stamp this deployment honours. Any error while looking it up or reading it
+ * counts as absent. Never searches by slug.
  */
 function resolveTagElement(tagEventId, opts) {
-  let el;
   try {
     const map = opts.tagElementsById;
-    el = map && typeof map.get === 'function' ? map.get(tagEventId) : undefined;
+    const el = map && typeof map.get === 'function' ? map.get(tagEventId) : undefined;
+    if (!isEvent(el) || el.id !== tagEventId || el.kind !== 39999) return null;
+    const d = firstTag(el, 'd');
+    const slug = d && d[1];
+    if (typeof slug !== 'string' || slug === '') return null;
+    const tagStamps = [stamp(opts.canonicalPubkey, 'tag'), stamp(opts.localPubkey, 'tag')].filter(Boolean);
+    const zs = stringValues(el, 'z');
+    if (!tagStamps.some((s) => zs.includes(s))) return null;
+    return { address: `39999:${el.pubkey}:${slug}`, slug };
   } catch (_) {
     return null;
   }
-  if (!isEvent(el) || el.kind !== 39999) return null;
-  const d = firstTag(el, 'd');
-  const slug = d && d[1];
-  if (typeof slug !== 'string' || slug === '') return null;
-  const tagStamps = [stamp(opts.canonicalPubkey, 'tag'), stamp(opts.localPubkey, 'tag')].filter(Boolean);
-  const zs = stringValues(el, 'z');
-  if (!tagStamps.some((s) => zs.includes(s))) return null;
-  return { address: `39999:${el.pubkey}:${slug}`, slug };
 }
 
 /**
@@ -178,9 +183,14 @@ function taggingToEdge(event, options) {
 
 function isRefusal(x) { return isObject(x) && x.ok === false; }
 
-/** Does version `a` stand over version `b`? Newer created_at; on a tie the lower event id (NIP-01). */
+/**
+ * Does version `a` stand over version `b`? Newer created_at; on a tie the lower event id (NIP-01).
+ * Relational comparison, so a createdAt read back from Neo4j (a driver Integer or a BigInt) orders
+ * the same as a JS number.
+ */
 function standsOver(a, b) {
-  if (a.createdAt !== b.createdAt) return a.createdAt > b.createdAt;
+  if (a.createdAt > b.createdAt) return true;
+  if (a.createdAt < b.createdAt) return false;
   return a.eventId < b.eventId;
 }
 
@@ -190,7 +200,8 @@ function outcome(standing, superseded, droppedTarget, changed, reason) {
 
 /**
  * Which version of a tagging stands (AC-3). `current` is an edge or null; `incoming` is an edge, a
- * refusal carrying an address (a non-tagging version, which retires the edge), or null.
+ * refusal carrying an address (a non-tagging version, which retires the edge), or null. Pass the
+ * edge itself — `taggingToEdge(…).edge` — not the `{ ok, edge }` result.
  * Tag resolution only moves from null to a value; the stamp flags follow the incoming record.
  */
 function standingEdge(current, incoming) {

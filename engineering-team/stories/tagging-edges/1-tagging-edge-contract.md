@@ -49,7 +49,8 @@ A tagging is an element of the nostr user tag concept; its content is described 
 `39999:<TA>:nostr-user-tag-schema` (`taggedPubkey` and `tagEventId` required, `tagAddress` optional). This
 contract departs from the schema in three named ways, each because signed taggings in the wild do: (1) a
 tagging that names its tag by address only — no event id; 99 in the census, content `tagEventId: null` — is
-accepted (the schema's stale `required` gets a ledger row; changing the schema is out of scope); (2) the stance
+accepted (the schema's stale `required` is OPEN.md row `2026-09-27-user-tag-schema-requires-event-id`; changing the
+schema is out of scope); (2) the stance
 is read from the event's `polarity` tag, per the Tags & Taggings draft protocol, which the schema does not
 describe; (3) the target is read from the event's `p` tag, which the schema says `taggedPubkey` mirrors (the
 census found no event where they differ).
@@ -93,8 +94,8 @@ census found no event where they differ).
 - `39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-user-tag` — nostr user tag,
   canonical stamp (the ADR 0015 literal; present locally as a community-reference node). The concept whose
   elements are the taggings this story converts.
-- `39998:<TA>:nostr-user-tag` — nostr user tag, this deployment's own stamp (runtime TA; locally
-  `39998:8387ec0e9a1796d628688633c759ee5e3fb86587630beb03166e4e333a9a294f:nostr-user-tag`).
+- `39998:<TA>:nostr-user-tag` — nostr user tag, this deployment's own stamp (the TA pubkey is resolved at
+  runtime via `GET /api/assistant/pubkey`; never written into docs or code).
 - `39999:<TA>:nostr-user-tag-schema` — the nostr user tag concept's JSON schema (the tagging content this
   contract reads; departures listed above the acceptance criteria).
 - `39998:<TA>:tag` — tag (the tag elements a tagging applies); canonical stamp
@@ -115,7 +116,8 @@ census found no event where they differ).
 - Any change to follows / mutes / reports ingestion, or fixes to its known defects (ledger rows instead).
 - Fixing BIBLE §6's older naming drift (e.g. `AUTHORED` vs the live `AUTHORS`) — a separate doc-lane change.
 - Documenting FOLLOWS / MUTES / REPORTS' properties — their stream and reconcile writers disagree on them;
-  that gets a ledger row, and AC-5 names those three by direction and source kind only.
+  that is OPEN.md row `2026-09-27-social-edge-properties-undocumented`, and AC-5 names those three by direction and
+  source kind only.
 - Cleaning the test-fixture taggings off the shared relays.
 - Checking event signatures: the relay verifies them before storing an event, and every tagging this contract
   sees comes from the relay.

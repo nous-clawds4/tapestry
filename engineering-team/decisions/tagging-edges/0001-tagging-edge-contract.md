@@ -82,7 +82,7 @@ Planning, `/node/39999:<TA>:nostr-user-tag-schema`. Firmware files and source we
   tag** (`COORD_RE`). It therefore drops id-only taggings, which are 97% of the census (6,739 of 6,972 on
   production). This also drops them from `/api/tags/index` and tag applicability
   (`src/api/event-tags/index.js:480` → `normalizeTaggings` skips a tagging whose `extractTag` returns null). That
-  is a live read-side defect, and a ledger row below records it.
+  is a live read-side defect: the diagnosis of OPEN.md row 45 (see follow-ups below).
 - `readPolarity` exists four times (`src/lib/event-tagging/classify.js:25`, `src/lib/event-tagging/taggings.js:24`,
   `src/lib/identification-tags/index.js:65`, `src/api/profile-tags/index.js:141`). Each maps an absent stance to
   `1`, which erases the *absent* value AC-1 must keep.
@@ -167,7 +167,7 @@ Import `assertionTagCoordinate`, `dedupeReplaceable` and `readPolarity` from `sr
 Adding `firmware/versions/v1.0.0/concepts/relationship-type/elements/tags.json` would make `TAGS` a graph-visible
 relationship type, at the cost of a firmware change and reinstall. FOLLOWS, MUTES and REPORTS are not registered
 either, so registering one of the four would be inconsistent. **Deferred:** register all four together later (a
-ledger row). No firmware change here.
+OPEN.md row `2026-09-27-register-social-relationship-types`). No firmware change here.
 
 ## Decision
 
@@ -180,7 +180,7 @@ write-side projection of `nostr-user-tag` assertions only**. 0009 keeps governin
 ADR changes nothing there. The
 two parsers differ on purpose, in three ways: *absent* is kept, `e` resolves the tag, and ties go to NIP-01. When
 0009's deferred Phase-2 cleanup runs, it should converge the core's member onto these rules, starting with the
-`e` fallback. That is a ledger row. A later NostrUser→NostrEvent edge will need the core's indirect
+`e` fallback (OPEN.md row 45). A later NostrUser→NostrEvent edge will need the core's indirect
 tagging-header resolution. Whether it extends this module or joins the core is decided then; only the standing
 and revoke rules below are meant to carry over unchanged. A one-line scope note is added to 0009 pointing here.
 
@@ -268,25 +268,29 @@ It is a pure function of the two events, so arrival order cannot change the answ
     the literal into a pure constants module. It must not add a new literal.
   - **Revokes do not travel with taggings today.** The dcosl stream has no kind 5, and UI revokes carry no `k`.
     Story 2 must read kind-5 events from the same sources it reads taggings from, and bringing kind 5 into the
-    router stream is a ledger row. Census evidence: 2 revokes on tags.brainstorm.world apply to taggings still
+    router stream is OPEN.md row `2026-09-27-revokes-do-not-travel`. Census evidence: 2 revokes on tags.brainstorm.world apply to taggings still
     stored on production and staging.
   - **An e-only revoke removes only the version it names.** An older version re-sent afterwards stands again, and
     strfry accepts it too. The UI revoke (`ui/src/hooks/useProfileTags.js:150-163`) should also name the address
-    (NIP-09); that is a ledger row. A kind-5 that names another kind-5 is ignored here (NIP-09), but strfry drops
+    (NIP-09); that is OPEN.md row `2026-09-27-ui-revoke-names-id-only`. A kind-5 that names another kind-5 is ignored here (NIP-09), but strfry drops
     the named kind-5, so passes fed from the relay can't see it afterwards.
   - Retiring the canonical stamp (ADR 0015's "eventual full retirement") would make taggings stamped only by
     another deployment be refused as `no-nostr-user-tag-stamp`. Any such migration must revisit this contract.
 - **Differences left in place, knowingly:** the read side (`/api/profile-tags/*`, `/api/tags/index`, the 0009
   core) keeps its own polarity reader and first-seen tie-break, and the core still drops id-only taggings. None of
   that changes here.
-- **New debt / follow-ups (ledger rows, filed at the end of this session):**
+- **New debt / follow-ups (ledger rows, filed 2026-09-27 in the review round):**
   1. The 0009 core's `nostrUserTagMember.extractTag` drops id-only taggings from `/api/tags/index` and
-     applicability.
-  2. Register TAGS, FOLLOWS, MUTES and REPORTS in the relationship-type concept.
-  3. The nostr-user-tag schema's stale `tagEventId`-required rule.
-  4. Document FOLLOWS / MUTES / REPORTS properties (their writers disagree).
-  5. Bring kind 5 into the tagging router streams.
-  6. UI revoke should also name the address.
+     applicability — already tracked as OPEN.md row 45 ("the unified tag index reports far fewer tags"); this is
+     its diagnosis.
+  2. Register TAGS, FOLLOWS, MUTES and REPORTS in the relationship-type concept — OPEN.md row
+     `2026-09-27-register-social-relationship-types`.
+  3. The nostr-user-tag schema's stale `tagEventId`-required rule — OPEN.md row
+     `2026-09-27-user-tag-schema-requires-event-id`.
+  4. Document FOLLOWS / MUTES / REPORTS properties (their writers disagree) — OPEN.md rows
+     `2026-09-27-social-edge-properties-undocumented` and `2026-09-27-reports-writers-disagree-on-shape`.
+  5. Bring kind 5 into the tagging router streams — OPEN.md row `2026-09-27-revokes-do-not-travel`.
+  6. UI revoke should also name the address — OPEN.md row `2026-09-27-ui-revoke-names-id-only`.
 - **Firmware reinstall required?** No. No concept definition changes.
 
 ## Implementation notes

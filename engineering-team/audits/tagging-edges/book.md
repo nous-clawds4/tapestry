@@ -56,6 +56,11 @@ authorized and taken the same day (numbers in story 1's Background).
 ## Provenance
 
 - **Mode:** Acceptance-frame
+- **Confidence at close:** —
 - **Orientation:** a read-only mapping pass on 2026-09-25 (seven area readers, an adversarial fact-check of
   115 load-bearing claims — 98 confirmed, 15 corrected, 2 unverifiable — and a completeness critique) plus the
   2026-09-26 three-host census; findings carried into the epic's "Key facts / guardrails".
+
+## Close artifacts *(filled by `/close-book`)*
+- Build audit: `engineering-team/audits/tagging-edges/audit.md`
+- Product feedback: `engineering-team/audits/tagging-edges/prd-seed.md`
