@@ -232,9 +232,10 @@ export default function DictionaryConcepts() {
                       <span className="dict-menu-name">{g.label}</span>
                       <span
                         className="dict-menu-count"
-                        title={n === null ? 'Could not read what you have shared yet.' : undefined}
+                        title={n !== null ? undefined
+                          : shared.failed ? 'Could not read what you have shared.' : 'Reading what you have shared…'}
                       >
-                        {n === null ? '…' : n}
+                        {n === null ? (shared.failed ? '?' : '…') : n}
                       </span>
                     </label>
                   );
