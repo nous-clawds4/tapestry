@@ -170,3 +170,124 @@ The b-coverage discipline (intake 2026-08-05, F5) wants every concept header dis
 **Resolution (owner decision 2026-08-06 at `/discuss`; ratified via `shared-concepts-adoption` ADR 0001, F5 story #1).** **Option (a) — the sentinel** — after weighing the local-disposition alternative: exactly the reserved literal `["b", "b-tag-deferred"]`, no variants, no type element. The wire ruling landed as a **reserved value** in [inherit-from](./drafts/inherit-from.md) § "The `b` tag" (a value, not a type — ADR 0029's registry untouched) with semantics in [shared-concepts](./drafts/shared-concepts.md) § "Deliberate non-affiliation": a disposition marker, not a correspondence claim — zero weight in every aggregate, excluded from reach/closure/clouds, replaced (never accumulated) when a real affiliation arrives. Parser guidance shipped with the ruling: the strfry→Neo4j chokepoint derives edges only for the two locator forms (no phantom target nodes — `src/lib/bValueForms.js` is the single code owner), and the b-surfaces skip the sentinel by name, rendering it as its own state rather than a failed lookup. The owner's original three-action disposition stands: wire external / auto b-tag / keep private; the "auto-b unpublished" half-state was dropped.
 
 **Refs:** `engineering-team/stories/_intake.md` 2026-08-05 entry (F5); community-reference ADR 0029 (registry closure); [inherit-from spec](./drafts/inherit-from.md) (b value forms + the reserved value); [shared-concepts spec](./drafts/shared-concepts.md) § "Deliberate non-affiliation" (resolving authority); `shared-concepts-adoption` ADR 0001 + story `stories/shared-concepts-adoption/1-b-coverage-audit-and-disposition.md`; `ui/src/pages/shared-concepts/ActiveBTags.jsx` + `BTagDetail.jsx` (the parsers, now skipping deliberately).
+
+## W17 — Upstream kinds `30386` / `30387` / `30396` / `30397`
+
+**Status:** Closed — accepted 2026-09-27 · raised 2026-09-27
+
+Four new Trusted Assertion / Trusted List kinds:
+- `30386` / `30396` — a Score about a DList item, and a list of DList items;
+- `30387` / `30397` — a Score about a list, and a list of lists (`z` members).
+
+None exists in NIP-85. **Question:** propose all four upstream together with the `3039x` list family, or keep them Tapestry-internal for now?
+
+**Suggested:** propose together, alongside the Treasure Maps key grammar.
+
+**Decision (2026-09-27):** ✅ accepted. Propose all four together, as part of the Trusted Lists family, **not** as an amendment to NIP-85 for now. A NIP-85 update can follow later.
+
+**Refs:** [treasure-maps](./drafts/treasure-maps.md) § 4.2; [dlist-header-declaration](./drafts/dlist-header-declaration.md) § 5.1; [amendments-2026-09](./drafts/amendments-2026-09.md) § 6.
+
+## W18 — Descriptor tag letters `K` / `Z` / `T`
+
+**Status:** Closed — rejected 2026-09-27; the pinning replacement is under review in its own issue · raised 2026-09-27
+
+Uppercase descriptor tags describe what a Trusted List (or a pinning context) is about:
+- `K` — a kind or NIP-73 type;
+- `Z` — a category by coordinate or event id;
+- `T` — the Tag or Pin.
+
+NIP-22 uses uppercase `K` for the same meaning, and also uses `E`, `A`, `I` and `P`.
+
+**Suggested:** keep all three; check `Z` and `T` against any newer NIPs before publication.
+
+**Decision (2026-09-27):** ❌ rejected. Consequences:
+- Trusted Lists drop `K` / `Z` / `T`. Lists are found by their exact `d` key; browsing by category or Tag happens client-side.
+- Pinnings still need a way to say "for this category". Proposed replacement: one multi-letter `["context", <coordinate>]` tag, not relay-indexed. It is under review in a separate issue (`repo/ISSUE-pinning-context.md`).
+
+**Refs:** treasure-maps § 5.5; [content-categories](./drafts/content-categories.md) § 2; [pins](./drafts/pins.md) § 3; [W2](#w2--single-char-tag-namespace-registry).
+
+## W19 — Tag-element as its own list header (retire the per-tag tagging header)
+
+**Status:** Open — on hold 2026-09-27, pending Vinney's review · raised 2026-09-27
+
+Pubkey taggings name their Tag directly; event taggings name it indirectly, through a per-tag header. Two shapes, one idea.
+
+**Suggested:** for new work, make the tag-element a declared header (`["z", "list"]`, `names`), and have every tagging point its `z` at it directly. Readers union both shapes during the transition. Wire-impactful.
+
+**Decision (2026-09-27):** ⏸ on hold. To be opened as a Tapestry issue for Vinney to review.
+
+**Refs:** [docs/reviews/tags-nip-review-2026-09.md](../docs/reviews/tags-nip-review-2026-09.md) point 3; pins § 2; [W10](#w10--taggings-family-naming--expansion).
+
+## W20 — Hashed target in assertion `d` tags
+
+**Status:** Open — reportedly fixed on Vinney's branch; not yet on `main` · raised 2026-09-27
+
+`event-tag-<descriptor>-<target8>-<asserter8>` takes `target8` from an `a` target's *author* segment, so two targets by the same author collide.
+
+**Suggested:** `target8` = the first 8 hex characters of sha256 of the full target value. It's the same rule the Pins draft uses (pins § 3.1).
+
+**Decision (2026-09-27):** reportedly already addressed by Vinney. Not yet visible on `main`, where `event-taggings.md` still takes `target8` from the author segment; check his branch before closing.
+
+**Refs:** tags review point 1; [event-taggings](./drafts/event-taggings.md) § The assertion d-tag.
+
+## W21 — Category hints on taggings (`Z` / `K`)
+
+**Status:** Closed — rejected 2026-09-27 · raised 2026-09-27
+
+Finding "Mexican taggings of items in Restaurants in Nashville" takes a scan and an intersection, because a tagging doesn't carry its target's category.
+
+**Suggested:** an optional `["Z", <DList coord>]` or `["K", <kind>]` on taggings. It's a hint, never a gate: readers still verify membership.
+
+**Decision (2026-09-27):** ❌ rejected.
+
+**Refs:** tags review point 6; [spawning](./drafts/spawning.md) § 3.2.
+
+## W22 — Private insights and preferences
+
+**Status:** Closed — approved 2026-09-27 · raised 2026-09-27
+
+Three things want privacy:
+- pinnings;
+- Treasure Map entries (NIP-85 `.content`);
+- Trust Determination Methods.
+
+**Suggested — one pattern for all three:** a private item is published by the owner's Assistant and NIP-44-encrypted to itself, marked `["private", "1"]`, and counts only for its owner.
+- Delegation entries in the Map stay public until NIP-85's current private-entry text is checked.
+- Trust Determination Methods already follow this pattern.
+
+**Decision (2026-09-27):** ✅ approved.
+
+**Refs:** pins § 9; treasure-maps § 13 Q8; [trust-determination-methods](./drafts/trust-determination-methods.md) § 4.
+
+## W23 — Applicability as the community default for Tag pinnings
+
+**Status:** Closed — approved 2026-09-27 · raised 2026-09-27
+
+**Suggested:** for a generic `spawns-trusted-list` pinning, community(Tag, C) = applicability (hints plus usage), weighted by trust from the owner's point of view. Pinnings adjust it. Applicability hints extend to every content category (`tag-for-kind:<k>`, `tag-for-dlist:<coord>`).
+
+**Decision (2026-09-27):** ✅ approved, including extending the applicability hints to every content category.
+
+**Refs:** pins § 6.2; spawning § 3.5; amendments § 4; [tags](./drafts/tags.md) § Applicability hints.
+
+## W24 — Tag hierarchy (parent and child Tags)
+
+**Status:** Open · raised 2026-09-27
+
+Tags need parent–child relationships in which the child's domain is a subset of the parent's: *Baseball* is a child of *Sports*.
+
+- **Direction.** Implication runs child → parent. Something tagged Baseball is also Sports; something tagged Sports is not necessarily Baseball.
+- **Search and lists expand downward.** A search for Sports, or the Sports Trusted List, includes everything tagged with any descendant of Sports.
+- **Pins.**
+  - Pinning *Sports* to *Spawns a Trusted List* gives a Sports list that already includes Baseball content.
+  - It does **not** also spawn a separate list per child by default, because each list costs the Assistant real work. "Include subtopics as separate lists" could be an explicit option.
+  - A pin on a child is more specific than a pin on its parent, and wins (the usual most-specific rule).
+- **Pinning contexts** can nest the same way, for example Restaurants in Nashville ⊂ Restaurants in Tennessee. A context covers its subsets, and the most specific pin wins.
+- **Mechanism, candidate:** the class-thread `s` tag ("subset of"), which already exists. A community-curated relationship list is the alternative.
+- **Open question: whose job is it to state that Tag A is a parent of Tag B?**
+  - the author of A;
+  - the author of B;
+  - or a third party.
+
+  The owner's inclination is a **third party**. That argues against `s`, which is authorship-gated, and for a community-curated relationship list, judged per point of view like any other list. To be discussed.
+
+**Refs:** [class-thread-relationships](./drafts/class-thread-relationships.md); [stamping](./drafts/stamping.md) (breadth queries must expand); tags review point 8; pins § 6.2; [W14](#w14--subsetancestor-stamping-z-expansion-across-class-thread-structure).
