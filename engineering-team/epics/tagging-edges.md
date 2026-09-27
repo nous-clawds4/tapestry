@@ -23,6 +23,20 @@ reaches Neo4j at all; every tag surface scans the relay per request.
 2. *(planned)* The gap-filling pass and backfill — writes the relationships, enforces one-per-tagging in the
    database, repairs drift, refuses to mass-delete on a failed or empty relay read. Its first run is the
    backfill.
+   **Carry-forwards from story 1's review** (owner-ratified 2026-09-27; `reviews/tagging-edges/1-tagging-edge-contract.md`
+   § "Re-review", R2-NB1–3 and R2-4–10) — each becomes an acceptance criterion or a docs task of story 2:
+   - *R2-NB1:* a `createdAt` that cannot be compared (NaN, undefined, a JSON-round-tripped Neo4j Integer) makes
+     `standingEdge` fall to the event-id tie-break. Guard it in the contract (with tests), or normalize every
+     `createdAt` read back from Neo4j before calling it — and pin whichever with a test.
+   - *R2-NB2:* `resolveTagElement` takes the tag element's first `d`, not the `d` strfry indexes (clarification 9
+     applied to elements): use the element's identity `d`.
+   - *R2-NB3:* the drift repair must remove an edge whose tagging the relay no longer holds at all — ADR 0001's
+     clarification 13 and BIBLE §6's retirement sentence rely on it. Make it binding in story 2's ADR.
+   - *Doc nits R2-4–10:* record strfry's remaining a-deletion divergences beside ADR 0001's strfry bullet; fix the
+     epic's stamp-pubkey guardrail wording ("either" vs "both") and say "lowercase 64-hex" in the binding; the
+     clarification-9 line numbers and non-string-`d` wording; ADR 0001's stale "One known edge difference"
+     sentence and step 5 (clarification 11); the test plan's trailing blank line; a retire-path case for the
+     clarification-9 test.
 3. *(planned)* The real-time path — reflects new taggings, stance changes and revokes within seconds to
    minutes, from every path an event can reach the relay, independently of the follows pipeline.
 4. *(planned)* The control panel — status, counts, relay-vs-graph drift, start / stop, gap-fill on demand;
