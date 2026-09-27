@@ -164,3 +164,19 @@ deployed; #763's new `/api/trusted-dictionary` fields are pinned by its U and S 
 - **Structural.** Per-file `docker cp` makes partial syncs easy. A drift check at deploy time would have caught this
   one: compare container and checkout sha1s over `bin/` and `src/`, which takes about ten seconds. So would the
   build-identity probe of fix shape 2.
+
+**Done the same day, 13:36Z: the Mac Studio container was synced to `staging` `681b1dec`** (owner's go-ahead). A
+parity check over every tracked file under `bin/`, `src/`, `firmware/`, `public/`, `config/`, `setup/`, `docker/`, plus
+`package.json` and `package-lock.json` (1135 files, container sha1 vs `git show`), found five stale or missing files:
+
+- `bin/control-panel.js`, the one above;
+- `public/pages/nip85.html` and `public/pages/customers/customer.html`, stale since `92c2ef70` (2026-09-21);
+- `src/lib/tagging-edges/{contract,index}.js`, new in #764 that morning.
+
+Those five were copied in with the `/cycle-local` § 2 recipe; the originals are in the container's
+`/tmp/pre-staging-parity-2026-09-27/`. Then `supervisorctl restart brainstorm`; the log shows a clean boot.
+
+- **After:** 1114 of 1114 files match. The only exceptions are the `firmware/active` symlink and `public/kg/`, which
+  `.dockerignore` excludes by design. The served UI bundle matched a fresh `staging` build, so it needed no deploy.
+- **Result:** `/llms.txt` answers 200 `text/plain`, and `llms-txt` passes 27/27.
+- **Still open:** this row, for the structural fix (a drift check at deploy time, or the build-identity probe).
