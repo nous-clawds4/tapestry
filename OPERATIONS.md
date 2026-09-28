@@ -633,7 +633,7 @@ A future reviewer who sees these tests fail should stop and ask whether the chan
 
 ## 12. Reconciliation — four independent tasks (story #23 / ADR 0020)
 
-Reconciliation repairs drift between strfry (canonical nostr event store) and the Neo4j social graph (FOLLOWS / MUTES / REPORTS from kind 3 / 10000 / 1984). Story #23 **superseded** the single `reconciliation.sh --mode` engine — whose eager full-graph `DISTINCT u.pubkey ... ORDER BY u.pubkey SKIP/LIMIT` rater-pagination hit Neo4j's `transaction.total.max` and crashed `reconcileAll` at 32M edges — with **four independent task scripts**, each tuned to its own guarantee. The legacy `reconciliation` registry key was **removed**.
+Reconciliation repairs drift between strfry (canonical nostr event store) and the Neo4j social graph (FOLLOWS / MUTES / REPORTS from kind 3 / 10000 / 1984). Story #23 **superseded** the single `reconciliation.sh --mode` engine — whose eager full-graph `DISTINCT u.pubkey ... ORDER BY u.pubkey SKIP/LIMIT` rater-pagination hit Neo4j's `transaction.total.max` and crashed `reconcileAll` at 32M edges — with **four independent task scripts**, each tuned to its own guarantee. The legacy `reconciliation` registry key was **removed**. §12.8 documents a separate reconcile for `TAGS` (`reconcileTaggingEdges`, ADR `tagging-edges/0002`), which follows the relay per tagging address and shares none of this diff/apply machinery.
 
 | Task | Script | Scope | Mechanism | `neo4j-heavy`? |
 |---|---|---|---|---|
@@ -714,6 +714,58 @@ Human log: `${BRAINSTORM_LOG_DIR}/reconciliation.log` (per-phase + extractor/con
 - The eager-pagination `getRaterCount()` / `getRaters()` functions are **removed** from all three Neo4j extractors; `--authorsFromDir` is now required.
 - The host `systemd/reconcile.timer` remains **deprecated** (bypasses queue + semaphore); confirm `systemctl is-enabled reconcile.timer` is disabled. Unit-file removal is a tracked follow-up.
 
+### 12.8 `reconcileTaggingEdges` — the tagging gap-filling pass (tagging-edges #2 / ADR tagging-edges/0002)
+
+Brings the graph's `TAGS` relationships (BIBLE §6) into agreement with this instance's relay. The first run is the backfill; later runs repair drift. `neo4j-heavy` (it waits behind scoring runs, and they wait for it); 30-minute time-out. Script: `src/pipeline/tagging-edges/reconcileTaggingEdges.sh`, which takes a kernel `flock` on `/var/lib/brainstorm/tagging-edges/pass.lock` and `exec`s the Node runner, so two passes never run at once.
+
+**Running it.** Task Explorer, or `POST /api/run-task?taskName=reconcileTaggingEdges` (signed in). It takes no arguments. Locally, restart `brainstorm` first (`docker exec tapestry supervisorctl restart brainstorm`) so the registry entry, the routes and the boot hook load, and build the UI for the Dashboard's constraints list. Do not run the wrapper by hand: it passes the lock check but skips the `neo4j-heavy` wait (a hand-run of the Node file without the pass's lock is refused; an exclusive flock on any file on fd 9 also passes the check, ledger `2026-09-28-lock-check-accepts-any-flock`).
+
+**Scheduling it.** Fresh installs seed a **disabled** daily entry (`seed:reconcileTaggingEdges`); turn it on in Scheduled Tasks. Staging and production keep their existing schedule files: add a daily `reconcileTaggingEdges` entry there by hand (Scheduled Tasks → add), with no arguments.
+
+**Reading the report.** `GET /api/tagging-edges/status` (public; open it in a browser on the instance). `latest.outcome`:
+
+| Outcome | Meaning |
+|---|---|
+| `done` | Every planned change applied. Lost races (`relationships.lostRace`) and conflicting addresses (`anomalies`) are counted and left to the next pass; `reason` names them when there are any. `relationships.added` / `changed` / `removed` / `unchanged`, `peopleAdded`, `refused.byReason` say what happened. On a first run, `added = taggingsRead − refused.total`. |
+| `done-removals-held` | Every create, update and move applied; removals over the limit (more than 50 **and** more than a tenth of the tagging relationships at start — on a confirmed run, of those left after the confirmed removals) were held. `held.total` / `held.byReason`; the list is at `GET /api/tagging-edges/held?runId=<latest runId>`. |
+| `refused` | A start check failed and no relationship or person changed (a `schema` refusal can follow the pass's own `CREATE CONSTRAINT tags_address` when the rule did not come ONLINE within 60 s; the rule then stays): `reasonCode` `identity` (which stamp identity, the problem and its source), `config` (`NEO4J_URI` / `NEO4J_USER` not set, or `failure.code: 'driver'` when the database driver could not be built from them), or `schema` (the `tags_address` rule could not be put in place, or `nostrUser_pubkey` is missing — run the Dashboard fix). |
+| `failed` | A read failed (`failure.read`: `graph` or `relay`; no relationship or person changed; on a confirmed run the confirmation is spent, since it is claimed before the reads, and the next pass holds the over-limit removals again), planning failed (`failure.stage: 'plan'`; the same), a write failed (`failure.stage: 'write'`, with `failure.read: 'graph-verify'` when a batch's re-read failed; committed batches stand, each tagging at one version), the held list could not be written (`reasonCode: 'report'`, `failure.stage: 'report'`: the creates, updates and moves have applied, and on a confirmed run so have the confirmed removals and the confirmation is spent; there is no held list), an unexpected error ended it (`reasonCode: 'error'`, `failure.stage: 'unexpected'`), or it was stopped (`stopped: true` — a time-out, or a container restart or re-creation such as a deploy; `reasonCode: 'signal'` for SIGTERM/SIGINT). A backend-only restart (`supervisorctl restart brainstorm`) does not stop a running pass: it finishes. The dead worker's `neo4j-heavy` lease is not released, so the queue's one stalled re-run, and every scoring run, waits up to 4 h (see Lease), after which the re-run performs an ordinary pass (unless another heavy task, such as a scoring run, takes the freed slot first and outlasts the re-run's own 4 h wait, which began after the dead pass took its lease; the re-run then fails `RESOURCE_CLASS_WAIT_TIMEOUT`, §10.6, and the next scheduled or on-demand pass does the work). The next pass finishes the job. |
+
+Two report-write failures leave the report behind the pass. If the first record cannot be written, the pass stops before any graph contact and the previous report stays `latest`; only the events say so (`TASK_ERROR` with `stage: 'report'`, and `TASK_END` with `outcome: 'failed'`, `reasonCode: 'report'`). If only the final write fails, the stored record still reads `failed`, `stopped: true`, although the pass ran to the end; its `TASK_ERROR` carries `reportWriteFailed: true`.
+
+`latest.running` is true only while that pass's process is alive. Pre-images of relationships that carried keys outside the nine are kept in `/var/lib/brainstorm/tagging-edges/preimages/<runId>.jsonl` (served by no route; prune only by hand).
+
+**Confirming held removals.** Only the owner, signed in, from the instance's own page (a browser console on it):
+
+```js
+const s = await (await fetch('/api/tagging-edges/status')).json();
+await (await fetch('/api/tagging-edges/confirm-held-removals', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runId: s.latest.runId }),
+})).json();
+```
+
+The confirmation is single-use, bound to that report's held list, and valid 24 h; the next pass to pass its start checks claims it and removes only the confirmed entries still due (other removals are judged against the limit over the relationships left after the confirmed ones, `limit.baseAfterConfirmed`; if they exceed it they are held again for a second confirmation). The answer says whether it enqueued a pass (`enqueued`); if the queue is down, start one from the Task Explorer. A confirmation never rides a task argument or a schedule entry.
+
+**Lease.** A deploy, or a backend-only restart, while a heavy job runs can leave a stale `neo4j-heavy` lease that holds this pass and scoring for up to 4 h — see "The `RESOURCE_CLASS_WAIT_TIMEOUT` failure mode" in §10.6.
+
+**Measured durations.** Estimated under a minute for the census-scale backfill (about 7,030 creates). If a measured `durationMs` exceeds a fifth of the 30-minute time-out, raise the time-out in the same change; check the read time-outs the same way against `reads.*.ms` (a 10× margin or more).
+
+- **Local end-to-end run** (2026-09-28, the local instance, its relay holding 7,030 taggings; on the working tree about a minute before commit `64885ce7` was made (03:26:03Z) — nothing records that tree, and `64885ce7`'s message reports this run's figures; the later implementation commits are `da787035` (a comment) and the review-round-2 fixes `8784f2ed`, after which the run was not repeated). Backfill `20260928T032430Z-08965d1d`: `done` in 2,595 ms. Phases (ms): identities 30, schema 98, graph-read 7, relay-read 72 (10,405 events, 8,227,479 bytes), plan 47, write-creates 2,330 over 29 batches. Added 7,030 = `taggingsRead` 7,030 − `refused.total` 0; `peopleAdded` 6,196; `unresolved` 6. Second pass `20260928T032501Z-472c2596`: `done` in 524 ms, 7,030 unchanged, nothing added, changed or removed. 2.6 s is far below a fifth of the time-out (6 min), so the 30-minute time-out stands; the reads are far inside their time-outs: the backfill's relay scan 67 ms against 60 s, and the second pass's graph read 204 ms for 7,030 rows against 120 s (the backfill's graph read, 5 ms, read an empty graph).
+- **Staging backfill:** not yet run. Record its run id, `durationMs`, `phases[].ms` and the relay's tagging count here.
+
+#### The one-per-tagging rule reaches an existing instance with no owner step
+
+`tags_address` (`CREATE CONSTRAINT tags_address IF NOT EXISTS FOR ()-[r:TAGS]-() REQUIRE r.address IS UNIQUE`) is the first schema addition since the constraints check began comparing by name. The control panel creates it at every start (every deploy re-creates the container), retrying for up to 30 minutes while Neo4j starts or its password is being set, and logs one line if it cannot (`[tagging-edges] uniqueness rule tags_address not created: <code>`). Confirm it on each host **before that host's backfill**, with either:
+
+- (a) the boot that made it: `docker exec tapestry grep 'tagging-edges' /var/log/supervisor/brainstorm.log` shows `[tagging-edges] uniqueness rule tags_address created`; or
+- (b) `SHOW CONSTRAINTS YIELD name, entityType WHERE name = 'tags_address'` returns one row reading `RELATIONSHIP`.
+
+The Dashboard banner and `GET /api/status/neo4j-constraints` (`"status": "set up"`) check the name only (the banner only on a UI built with this change). If creation fails, the line reads `… not created: <code>`: `no-status` is an error without a Neo4j status, such as a kernel version too old for relationship uniqueness (ADR `tagging-edges/0002` Risk 1); `name-taken` is a rule with another definition holding the name; `no-change` is a `CREATE` after which the rule is still not listed. Do not run that host's backfill (the pass refuses `schema` anyway) and raise it with the owner.
+
+Install Firmware (Settings › Firmware) also waits for the rule while firmware is not fully installed: the server's check compares by name, so a rule present only under another name reads missing there, and the Dashboard fix cannot clear it (`IF NOT EXISTS` sees the equivalent rule and does nothing). Neo4j cannot rename a constraint: with no pass running, `DROP CONSTRAINT <that name>`, then run the Dashboard fix (or the `CREATE CONSTRAINT tags_address …` statement above).
+
+Fallbacks: the Dashboard's fix button, or `setup/neo4jConstraintsAndIndexes.sh` (its last statement). The pass itself creates the rule if it is missing, and refuses (`schema`) without it.
+
 ## 13. Task scheduling — generalized scheduler (story #22 / ADR 0019)
 
 Recurring task scheduling is served by **BullMQ Job Schedulers** attached to each task's queue — not an in-process `setInterval` (which was retired). **Any** task in the registry can be scheduled; schedules are durable (persisted in Redis, survive a control-panel restart) and every fire routes through the queue, so the `neo4j-heavy` semaphore, per-task concurrency, and BullBoard all apply.
@@ -751,6 +803,7 @@ Suggested cadence:
 - `reconcileNetwork` — every few hours (`intervalHours: 6`) or daily. Cost bounded by the network predicate; staging-measured runtime on the verified set: ~9 min.
 - `reconcileAll` — weekly via cron at a low-traffic hour (e.g. `cron: "0 4 * * 0"`). Holds `neo4j-heavy` for ~15 min on the staging-scale 32M-edge graph; blocks GrapeRank/PageRank meanwhile.
 - `reconcileAuthor` — on-demand, not scheduled.
+- `reconcileTaggingEdges` — daily (`intervalDays: 1`); a disabled seed on fresh installs, added by hand elsewhere (§12.8).
 
 **No seed-first runbook needed** (story #23): the bounded `reconcileRecent` cannot bootstrap into a full pass on a missing watermark, so the previous "run `reconcileAll` first" caveat is obsolete.
 ## 14. Local dev loop (inside-container source edits)

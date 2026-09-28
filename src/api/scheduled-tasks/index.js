@@ -67,6 +67,18 @@ function freshInstallEntries(registry) {
       intervalMinutes: 0,
       cron: '',
     },
+    {
+      // The tagging gap-filling pass (ADR tagging-edges/0002): a daily backstop, disabled until the owner opts in.
+      id: 'seed:reconcileTaggingEdges',
+      taskId: 'reconcileTaggingEdges',
+      label: labelOf('reconcileTaggingEdges'),
+      args: {},
+      enabled: false,
+      intervalDays: 1,
+      intervalHours: 0,
+      intervalMinutes: 0,
+      cron: '',
+    },
   ];
 }
 
