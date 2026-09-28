@@ -420,7 +420,13 @@ async function authMiddleware(req, res, next) {
             '/restore/upload',
             '/restore/sets',
             '/restore/customer',
-            '/api/normalize'
+            '/api/normalize',
+            // Relay router mutations: they decide what this instance mirrors to
+            // and from other relays (handlers also gate; see routerConfig.js).
+            '/strfry/router-config',
+            '/strfry/router-toggle',
+            '/strfry/router-restart',
+            '/strfry/router-restore-defaults'
         ];
 
         // Check if this endpoint is for customer or owner only
