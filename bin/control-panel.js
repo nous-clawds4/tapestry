@@ -325,6 +325,15 @@ app.use(authMiddleware);
   await api.register(app);
   console.log('API routes registered');
 
+  // The one-per-tagging rule (tagging-edges #2, ADR tagging-edges/0002 D12, AC-6), in place from deploy with no owner
+  // step. Not awaited, and it never rejects: it retries while Neo4j starts or its password is still being set.
+  require('../src/pipeline/tagging-edges/graph').ensureTagsConstraintOnBoot({
+    runWrite: (cypher, params) => require('../src/lib/neo4j-driver').writeCypher(cypher, params),
+    runRead: (cypher, params) => require('../src/lib/neo4j-driver').runCypher(cypher, params),
+    log: (line) => console.log(line),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  });
+
   // Reconcile recurring schedules into BullMQ Job Schedulers (story #22 / ADR 0019).
   // Replaces the in-process setInterval scheduler. Requires the queue, so it is
   // gated on TASK_QUEUE_ENABLED and runs after initTaskQueue + api.register.

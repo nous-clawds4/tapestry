@@ -87,7 +87,8 @@ function normalizeAddress(a) {
 
 /**
  * Resolve a tag named only by event id from the caller's tag elements (step 5). The element must
- * pass the event check, be the event the tagging names, be kind 39999 with a non-empty first `d`,
+ * pass the event check, be the event the tagging names, be kind 39999 with an identity `d` — the
+ * first `d` of 255 bytes or fewer, read as a tagging's own (R2-NB2; ADR tagging-edges/0002 A8) —
  * and carry a `:tag` stamp this deployment honours. Any error while looking it up or reading it
  * counts as absent. Never searches by slug.
  */
@@ -96,9 +97,8 @@ function resolveTagElement(tagEventId, opts) {
     const map = opts.tagElementsById;
     const el = map && typeof map.get === 'function' ? map.get(tagEventId) : undefined;
     if (!isEvent(el) || el.id !== tagEventId || el.kind !== 39999) return null;
-    const d = firstTag(el, 'd');
-    const slug = d && d[1];
-    if (typeof slug !== 'string' || slug === '') return null;
+    const slug = identityD(el);
+    if (slug === null) return null;
     const tagStamps = [stamp(opts.canonicalPubkey, 'tag'), stamp(opts.localPubkey, 'tag')].filter(Boolean);
     const zs = stringValues(el, 'z');
     if (!tagStamps.some((s) => zs.includes(s))) return null;
@@ -283,4 +283,5 @@ module.exports = {
   standingEdge,
   revokeApplies,
   revokeTargets,
+  stamp,
 };

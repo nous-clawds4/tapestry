@@ -5,8 +5,8 @@
 **Story:** `engineering-team/stories/tagging-edges/1-tagging-edge-contract.md`
 **Amended (2026-09-27):** by `tagging-edges/0002` — the write guard (writers follow the relay's current version),
 kind-5 reading, writer-set properties, the stamp-pubkey binding, R2-NB3, step 5 (R2-8, R2-NB2), clarifications 10
-and 13, and the consequences on tag-element fetching and revokes. Carry-forwards R2-4 to R2-7 land with story 2's
-implementation.
+and 13, and the consequences on tag-element fetching and revokes. Carry-forwards R2-4 to R2-7 were applied with story
+2's implementation (R2-4 strfry bullet, R2-6 step 1 and clarification 9, R2-7 stance paragraph).
 
 ## Context
 
@@ -107,6 +107,14 @@ Planning, `/node/39999:<TA>:nostr-user-tag-schema`. Firmware files and source we
 - A kind-5 naming another author's address is rejected (:43-45).
 - Hex in `id` / `pubkey` / `e` / `p` is decoded case-insensitively and compared as bytes (:12-13, :39-41).
 - A kind-5 can delete a kind-5, which NIP-09 says has no effect (:333-338).
+- *(Amended by `tagging-edges/0002`, R2-4.)* Remaining address-deletion divergences from the definition: strfry
+  skips an `a` value over 255 bytes, so it does not honour an `a`-deletion naming such an address, where the
+  contract gives `names-address` (`events.cpp:48`); it parses the kind with `stoull`, so `039999`, `+39999` and
+  ` 39999` delete on the relay, where the contract gives `not-named` (`EventUtils.h:38-39`); and its deletion index
+  hashes the raw `a` while lookups use the lower-case form (`golpe.yaml:80`, `events.cpp:313`), so an upper-case
+  pubkey in the address does not delete on the relay, where the contract lower-cases it and gives `names-address`.
+  Writers follow the relay's current state, so each divergence decides only whether the relay still holds the
+  tagging.
 
 **Census replay** (a throwaway prototype of this contract run over the 2026-09-26 JSONL from all three hosts):
 - Every tagging became a record: 6,972 / 6,965 / 6,980, with 0 refusals.
@@ -235,8 +243,9 @@ Edge properties are camelCase, like derived NostrUser properties. NostrEvent nod
 (`id`, `created_at`, `uuid`). Nothing else goes on the relationship: no trust, rank, count, tag name, bucketed
 stance or "applied" flag. "Resolved" means `tagAddress IS NOT NULL` and is not stored separately. **Graph readers
 bucket the stance** with `coalesce(toFloat(r.polarity), 1.0)`: ≥ 0.5 is apply, ≤ −0.5 is dispute, anything else
-is neutral. That matches today's readers: an absent or non-numeric stance counts as apply. One known edge
-difference: JS reads `""` as 0, which is neutral.
+is neutral. *(Amended by `tagging-edges/0002`, R2-7.)* That matches today's tag surfaces for every value on the
+relays today (`"1"`, `"-1"`, `"0"`, absent); malformed values such as `""`, `"NaN"` or `"-Infinity"` can bucket
+differently in Cypher and in JS (BIBLE §6).
 
 **Which version stands (AC-3).** At the same `address`:
 - The greater `createdAt` stands. On equal `createdAt`, the lexically lower `eventId` stands (NIP-01, as strfry
@@ -334,7 +343,9 @@ It is a pure function of the two events, so arrival order cannot change the answ
      - `kind !== 39999` → `wrong-kind`.
      - `d` is the value of the first `d` tag that strfry indexes (clarification 9): `d` tags whose value is a
        string longer than 255 UTF-8 bytes (`Buffer.byteLength`) are skipped. If that first remaining `d` is
-       missing, not a string, or empty, or no `d` remains → `no-d`. strfry files such events under `d = ''`.
+       missing, not a string, or empty, or no `d` remains → `no-d`. *(Amended by `tagging-edges/0002`, R2-6.)*
+       strfry rejects an event whose `d` value is not a string (`events.cpp:35`), and files one whose first
+       remaining `d` is missing or empty, or that has no `d` left, under `d = ''`.
      - Once step 1 passes, every later refusal also carries `address` (`39999:${pubkey}:${d}`), `eventId`,
        `createdAt` and `from`.
   2. **Stamp.** At least one `z` equals `39998:${canonicalPubkey}:nostr-user-tag` or
@@ -454,7 +465,7 @@ Implementer and the tests agree. Ratified by the owner at the Test Design gate (
 **Review round (2026-09-27), ratified by the owner at the Review gate:**
 
 9. **The identity `d` is the first `d` strfry indexes.** strfry skips a `d` longer than 255 bytes and files the event
-   under the next `d` (`events.cpp:48`, :57-60, :282-286). Step 1 skips such `d` tags the same way, so a version the
+   under the next `d` (`events.cpp:48`, :59-62, :282-286). Step 1 skips such `d` tags the same way, so a version the
    relay stored under a later `d` gets that address and can retire or replace the edge there.
 10. **The version order works whatever numeric type `createdAt` has.** It compares with `>` / `<` and falls to the
     event id only on a tie, so a `createdAt` read back from Neo4j (a driver Integer or a BigInt) orders the same as

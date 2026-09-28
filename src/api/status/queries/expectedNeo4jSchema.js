@@ -15,6 +15,10 @@ const EXPECTED_CONSTRAINTS = [
     'SetOfNostrUserWotMetricsCards_observee_pubkey',
     'nostrUserWotMetricsCard_unique_combination_1',
     'nostrUserWotMetricsCard_unique_combination_2',
+    // One TAGS relationship per tagging address (ADR tagging-edges/0002, AC-6); its owned index carries the same name.
+    // Install Firmware waits for it (FirmwareExplorer.jsx); a rule present only under another name reads missing
+    // here — rename it to tags_address.
+    'tags_address',
 ];
 
 const EXPECTED_INDEXES = [

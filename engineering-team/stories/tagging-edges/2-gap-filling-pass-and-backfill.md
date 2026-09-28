@@ -267,6 +267,53 @@ For Test Design:
 - A live test that republishes at one address reads the current version first and publishes a strictly newer one
   (OPEN.md row 144); no live test publishes taggings through a relay whose router streams carry them outward.
 
+## Deviations
+
+- The graph port normalises every row itself (`toPortRow`, C6): it refuses before any transaction a row without an
+  address, without the `snapshot` (or `row`) an update/move/removal needs or the `desired` a create/update/move needs,
+  or whose `desired` is not for its own address; the caller's other keys are kept and reach `preimage`.
+- The runner sends C6 rows (`{ address, snapshot, desired }` / `{ address, desired }`) and builds each pre-image from
+  the snapshot row (any key outside the nine), not from a planner-only annotation, so any C6 caller gets one.
+- planPass items carry `snapshot` and `strippedKeys` but no `row`, `rid` or `fingerprint` (the port computes the
+  fingerprint); `limit` has no `confirmedApplied` key (the ADR's shape; `confirmed.removalsApplied` counts commits).
+- A rejected apply carries `err.partial` (`{ applied, lostRace, nodesCreated, transientRetries, appliedAddresses }`
+  of what committed before it), which the runner counts before `failed` / `write` (ADR step 11, "partial counts").
+  The applies no longer return `lostAddresses`, and `schemaStatusFromRows` no longer returns `state` (nothing read them).
+- `openGraph` takes only `{ uri, user, password }` (no injected driver, so `close()` never closes a shared one).
+- When a rule with another definition holds the name `tags_address`, `ensureTagsConstraint` answers at once (no
+  CREATE, no wait) and the boot hook logs `not created: name-taken`; after its CREATE the hook re-reads SHOW and logs
+  `not created: no-change` unless the rule is now listed.
+- `planPass` throws on a non-array `snapshotRows` / `relayEvents` or a bad stamp identity, and `sweepFilter` on a bad
+  identity (the runner turns a planner throw into `failed` / `plan`); `decideAddress` throws on a `relayAt` that is
+  not a contract edge, a refusal, a conflict marker or nothing.
+- `relationships.unresolved` also counts an unresolved stored relationship left at a relay-conflict address (plan
+  count renamed `unresolvedUntouched`).
+- `sweep.js` also exports `canonicalValue` (the pre-image's value serialisation, guard step 1) and `removalKey` (the
+  one `(address, seenEventId)` key judgeRemovals, planPass and the runner share); neither is in the ADR's list.
+- A confirmed run fills `confirmed` when the claim is honoured (`removalsApplied` counted as removals commit,
+  `heldNoLongerDue` once the plan is made) and saves the record right after any claim, so a run that fails or stops
+  partway still says it was confirmed. A stop asked for before step 7 ends the run without claiming.
+- The driver-build refusal carries fixed text (`code: 'driver'`), and the report's error text replaces any URI and
+  IPv4 `host:port` (the status route is public).
+- A `done` report's `reason` names lost races and conflicting addresses left to the next pass when there are any;
+  each write phase's `PROGRESS` also carries `applied` and `lostRace`; the driver is closed after `TASK_END`.
+- `defaultDeps().proc` is `process` and the entry calls `run({ proc: process })` (C2); the start time then comes
+  from `state.processStartTime(pid)`. The `ownerAssistantPubkey` alias is gone (C1 names only
+  `getOwnerAssistantPubkey`). The runner awaits `writeReport` (pessimistic and final), `appendPreimages`,
+  `heldDigest`, `writeHeld` and `prune`; phase-boundary rewrites stay best effort.
+- state.js writes with `writeFileSync` (a short write throws), cuts a torn pre-image tail back off on failure,
+  fsyncs the parent when it makes a directory, and `claimConfirmation` refuses a run id outside `RUN_ID_RE` and
+  claims under a nonce only when it is 32 lower-case hex (C13).
+- Status: an unreadable `confirmation.json` shows as `confirmationPending: { unreadable: <code> }` rather than a
+  500 that hides the report; both handlers await `isAlive`, which also takes an async `readFile` (C11).
+- Confirm: a failed `writeConfirmation` answers 500 naming the write; a withdraw that throws answers 500
+  `withdraw-failed` saying the started pass may honour the record (the ADR's 409 assumes the withdraw worked).
+- `scanStrict` rejects when `isExpected` is not a function (the ADR lists it as a completeness condition), when
+  spawn gives no child (`spawn`), when the child had no stdout or its stdout errors (`process-error`); stderr errors
+  are ignored. It exports only `scanStrict` and `ScanError`. Invalid UTF-8 still decodes as U+FFFD (ADR D2's
+  `setEncoding`); the header says so.
+- The fresh-install seed is laid out one field per line like its neighbours (the ADR showed it on one line).
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tagging-edges/0002-gap-filling-pass.md`

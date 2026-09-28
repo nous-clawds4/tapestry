@@ -202,7 +202,7 @@ because the full gate on this host is already red on unrelated live suites (OPEN
 
 ## Review round (2026-09-27)
 
-The Review found three behaviors the ADR had left open, and the owner ratified clarifications 9–12 at the Review gate.
+The Review found behaviors the ADR had left open, and the owner ratified four clarifications, 9–12, at the Review gate.
 Six tests pin them, and one AC-5 assertion was added for the target-move rule. That makes 82 tests in all.
 
 | Clarification | Test |
@@ -222,4 +222,3 @@ $ npm run gate:status -- --label tagging-edges-1-round2-red
 
 A scratch copy of the module carrying the intended fixes, plus a BIBLE with the target-move sentence, passes 82 / 82,
 so every new test can pass.
-

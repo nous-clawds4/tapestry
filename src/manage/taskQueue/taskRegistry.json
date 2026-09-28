@@ -345,6 +345,37 @@
       "notes": "Story #23 / ADR 0020. Own script (reconcileRecent.sh); bounded overridable recency window, no bootstrap; streamed single-query extraction; neo4j-heavy (serializes via ADR 0013)."
     },
 
+    "reconcileTaggingEdges": {
+      "name": "Reconcile tagging relationships",
+      "categories": ["network"],
+      "description": "Brings the graph's TAGS relationships into agreement with this instance's relay (tagging-edges #2). The first run is the backfill; later runs repair drift. Holds large removals for owner confirmation. Report: GET /api/tagging-edges/status.",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/tagging-edges/reconcileTaggingEdges.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/tagging-edges/reconcileTaggingEdges.sh",
+      "script_relative_path": "pipeline/tagging-edges/reconcileTaggingEdges",
+      "staticArgs": "",
+      "arguments": false,
+      "scope": "system",
+      "priority": "medium",
+      "frequency": "daily",
+      "status": "active",
+      "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "1800000 = 30 minutes; first run under a minute at census scale (re-check against the staging backfill's durationMs); below the 4h neo4j-heavy lease",
+              "duration": 1800000,
+              "forceKill": true
+            }
+          }
+        }
+      },
+      "notes": "ADR tagging-edges/0002. The wrapper takes a kernel flock and execs node; script_relative_path matches both. Takes no arguments: the owner's confirmation is a server-side record, never a task argument."
+    },
+
     "reconcileAll": {
       "name": "Reconcile (full)",
       "categories": ["network"],

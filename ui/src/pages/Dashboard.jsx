@@ -225,6 +225,7 @@ const EXPECTED_CONSTRAINTS = [
   { name: 'nostrEvent_uuid', label: 'NostrEvent.uuid', property: 'uuid', entity: 'NostrEvent' },
   { name: 'nostrEventTag_uuid', label: 'NostrEventTag.uuid', property: 'uuid', entity: 'NostrEventTag' },
   { name: 'nostrUser_pubkey', label: 'NostrUser.pubkey', property: 'pubkey', entity: 'NostrUser' },
+  { name: 'tags_address', label: 'TAGS.address', property: 'address', entity: 'TAGS' },
 ];
 
 const EXPECTED_INDEXES = [
