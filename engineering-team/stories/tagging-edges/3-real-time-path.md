@@ -133,6 +133,9 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
   one import or one sync can bring) is reflected in full within 5 minutes of the last one stored, and none is lost.
   For a change in such a burst, this bound replaces the minute of AC-1 and AC-2. A larger burst is still reflected
   in full, with nothing lost, but not within the 5 minutes (item 12).
+
+  *(Amended at Architecture, 2026-09-28, owner decisions 5, 9 and 10 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate": the corners that wait for the
+  pass, the scale ceilings and the backlog cap, and a stalled subscription or an unresponsive Redis.)*
 - [ ] **AC-2: a revoke shows up within a minute; the relay decides, and a deletion only prompts a look.**
   - **Given** the graph holds a relationship at an address a deletion names, directly or through the event id the
     relationship records,
@@ -150,6 +153,10 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
   - a kind-5 that is no tagging revoke: an unpin, a curated-list copy's deletion, an ordinary note deletion.
 
   **No count limit** (owner decision): a burst of legitimate revokes goes through, within AC-1's burst bound.
+
+  *(Amended at Architecture, 2026-09-28, owner decisions 2, 3, 9 and 10 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate": a revoke is the tagging's
+  author's deletion under strfry's rule applied to the recorded version; only the author's kind-5 prompts a look; a
+  bulk revoke of N of one's own taggings counts as N changes; and the residuals beyond the minute.)*
 - [ ] **AC-3: a failed read, an unavailable graph, a bad setup or a crash loses nothing and removes nothing
       wrongly.**
   - **Failed or incomplete read.** Given a read the path depends on fails or comes back incomplete (an error, no
@@ -182,6 +189,9 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
     such event prompted: a read of everything that comes back empty (after a relay wipe, say) removes nothing. A
     tagging that leaves the relay with no such event keeps its relationship until the next pass, whose limit
     applies (story 2 AC-5), or until an event about that tagging arrives.
+
+  *(Amended at Architecture, 2026-09-28, owner decision 5 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate": the crash corners of about 250 ms and before
+  the first record is written.)*
 - [ ] **AC-4: after downtime it catches up by itself within 5 minutes; no start ever backfills.**
   - **Given** the path has run on this instance before,
   - **when** it runs again after any downtime (a deploy, a restart, a crash of the path, the graph or the relay
@@ -215,6 +225,9 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
   owner-started pass's job (the backfill; item 8). A relationship the graph already holds at such an address still
   follows the relay's version when a look is prompted (AC-2). Anything the relay stores after the first start, a
   re-sent older version included, is reflected per AC-1.
+
+  *(Amended at Architecture, 2026-09-28, owner decisions 5, 9 and 10 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate": the corners that wait for the
+  pass, including changed identities; the catch-up's scale ceilings; and an unresponsive Redis.)*
 - [ ] **AC-5: it runs on its own, and alongside the pass.**
   - **Off by default; owner switch.** The path ships turned off on every instance, fresh installs included. The
     owner turns it on and off per instance from the instance itself, without a shell; any session that is not the
@@ -234,6 +247,10 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
     pass never stops the path. When both act on the same tagging, the graph at that address never goes back to an
     older read of the relay than one already reflected there. The exceptions are the two interleavings ADR 0002
     accepts (a tagging changed and revoked inside one pass's read-to-write window), which the next pass repairs.
+
+  *(Amended at Architecture, 2026-09-28, owner decisions 9 and 10 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate": past the heap ceiling the path
+  cannot keep up, and a Redis that accepts no connection stalls every relay read. The path itself repairs both
+  interleavings within about a minute of the pass ending.)*
 - [ ] **AC-6: the owner can read its status.**
   - **Where.** The owner reads it on the instance, without a shell or logs, and it survives restarts and deploys.
     When the owner reads it, every figure covers the path's work up to at most 1 minute earlier.
@@ -424,6 +441,8 @@ approval (2026-09-28):
 
    On staging and production, the next pass is an owner-started one until a schedule entry is added; on fresh
    installs, it is one until the owner enables the seeded entry.
+
+   *(Amended at Architecture, 2026-09-28: owner decision 5 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate" lists every corner that waits for the pass.)*
 8. **Decision 3, every start.** The no-backfill rule holds at every start, not only the first. No catch-up creates a
    relationship for a version the relay has held since before the first start.
 9. **Decision 4, what may prompt a removal.** A removal answers one of two events: a new version stored at the
@@ -620,6 +639,6 @@ For Test Design:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tagging-edges/0003-real-time-path.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
