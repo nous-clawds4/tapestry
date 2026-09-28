@@ -99,7 +99,7 @@ between NostrUser nodes; it defines no concept and changes none. The canonical s
 - *Durable state.* `/var/lib/brainstorm` is the named `tapestry-data` volume (`docker-compose.yml:30-34`) and
   survives restarts and container re-creation. Redis `/data` has no named volume. `events.jsonl` rotates and keeps
   phantom `TASK_START`s after a kill, and the Scheduled Tasks panel reads a `rec.failure` field nothing writes
-  (`src/api/scheduled-tasks/index.js:195`).
+  (`src/api/scheduled-tasks/index.js:207`).
 - *Identities.* `NOSTR_USER_TAG_Z_TAG` is exported from `src/api/profile-tags/index.js:60` (export at :1865);
   `LEGACY_Z_TAG_PUBKEY` (:49) is not. The lazy-require precedent is `canonicalZ()`
   (`src/api/assistant/identificationTaggings.js:71-73`). `getOwnerAssistantPubkey()` returns env `TA_PUBKEY`
@@ -521,17 +521,29 @@ time-out's `kill -9` the process stays a zombie with the same stat line until PI
 `latest.running` from liveness and never passes the stored value through (the pessimistic record stores `running:
 true`); a run that is not alive shows its stored text. After a `kill -9`, or a container restart or re-creation (new
 pid namespace), the report therefore already reads failed and stopped, and the next pass moves it into `previous`. A
-backend-only restart leaves the pass running (Context, the task system): its report goes from running to final, and
-the stalled BullMQ re-run is refused by the pgrep guard or the lock. The Tester does not pin "restart → stopped". On
-SIGTERM or SIGINT the pass stops at the next batch boundary and writes `failed`, `stopped: true`, `reasonCode:
-'signal'` (story 4's Stop can use this).
+backend-only restart leaves the pass running (Context, the task system): its report goes from running to final.
+*(Amended in review round 1, 2026-09-28: this sentence said the stalled BullMQ re-run is refused by the pgrep guard or
+the lock.)* The control panel's SIGTERM handler closes the Neo4j driver and exits (`bin/control-panel.js:401`), so the
+Worker's `finally { await release(); }` (`src/manage/taskQueue/queue/index.js:127-128`) never runs, and the dead
+worker's `neo4j-heavy` lease stays in Redis until its 4 h TTL (`src/manage/taskQueue/queue/resourceSemaphore.js:30`;
+nothing clears leases at boot). BullMQ's defaults (`maxStalledCount` 1, `lockDuration` 30 s; no override in the repo)
+re-run the job once. The re-run, like every scoring run, waits behind the stale lease (cap 1) for up to 4 h; by then
+the orphaned pass has long finished, so neither the pgrep guard nor the lock refuses it, and it performs an ordinary
+pass. The Tester does not pin "restart → stopped". On SIGTERM or SIGINT the pass stops at the next batch boundary and
+writes `failed`, `stopped: true`, `reasonCode: 'signal'` (story 4's Stop can use this).
 
 **Who reads it.** `GET /api/tagging-edges/status` returns `{ reportVersion, running, latest, previous,
 confirmationPending }` (the pending record without its nonce); `GET /api/tagging-edges/held?runId=&offset=&limit≤1000`
 pages **the latest report's** held list and no other. Both are public reads, following the house convention for
-status GETs (`deploy-safety`, `status/neo4j-constraints`, `scheduled-tasks/list`): every value is relay-derived or a
-count, identities appear only as 8-character prefixes, and no config value, absolute path or credential appears:
-for a filesystem error, `failure.message` carries `err.code` and the state-relative file name, never `err.message`.
+status GETs (`deploy-safety`, `status/neo4j-constraints`, `scheduled-tasks/list`). *(Amended in review round 1,
+2026-09-28: this said every value is relay-derived or a count.)* They serve counts, run ids, timestamps, relay- and
+graph-derived values (tagging addresses, event ids, property-key names), the held list's digest, the pass's pid and
+process start time (`process`, in the shape above), reason text and redacted error text. The stamp identities and the
+confirming owner appear only as 8-character prefixes, while a tagging address carries its author's full pubkey. No
+config value, absolute path or credential appears: for a filesystem error, `failure.message` carries `err.code` and the
+state-relative file name, never `err.message`; a Neo4j connection error (`ServiceUnavailable`, `SessionExpired`)
+carries fixed text; every other error text, strfry's `stderrTail` included, passes one redactor that replaces any URI,
+absolute path and IPv4 `host:port` and cuts every 64-hex run to 8 characters.
 
 The held route never builds a path from request input. Express URL-decodes query values and every unauthenticated
 GET reaches the handler (`src/middleware/auth.js:505`), so: `runId` is optional; when given, it must be a string (not an
@@ -655,7 +667,7 @@ Each goes into ADR 0001 in the same commit as this ADR, with an "Amended by `tag
 | **AC-5** | Plan-then-apply with the frozen limit over the base of relationships at tagging addresses; moves are updates; outcome `done-removals-held` with counts by reason; no memory between passes. Owner-only, cross-site-refusing route; a single-use record bound to run id and held digest, claimed by rename after the start checks; a confirmed run removes only held-and-still-due entries (`C`) and judges the rest against `base − \|C\|`. No argument, env, job-data or schedule channel. |
 | **AC-6** | `tags_address` created by the boot hook on every deploy and restart; the pass's pre-flight creates it or refuses before any write; the setup script's last statement powers the Dashboard fix; both name-based lists carry the name, so they agree. |
 | **AC-7** | `report.json` on the data volume, with every listed field, read through `GET /api/tagging-edges/status`. A registry task with a disabled daily seed; the confirm route enqueues through the queue. Queue dedup, the pgrep guard and the kernel lock; a start that finds the lock held is refused. Pessimistic-first report plus liveness gives "failed — stopped" after a kill or a container restart; each committed transaction leaves every tagging it touched at one version; the next pass converges. A confirmed run stopped before its removals finish has spent its confirmation (AC-5: one run): the next pass reaches the state a completed unconfirmed run reaches — over-limit removals held again — and the owner confirms that report (owner decision 7). |
-| **AC-8** | The only node clause is a bare keyed `MERGE`; `SET r = props` with exactly the nine contract keys; a key outside the nine is dropped only after its pre-image is recorded (the guard, step 1); no bookkeeping value, so nothing named `timestamp`. Static audit of every statement, and the before/after snapshot in the local end-to-end run. |
+| **AC-8** | The only node clause is a bare keyed `MERGE`; `SET r = props` with exactly the nine contract keys; a key outside the nine is dropped only after its pre-image is recorded (the guard, step 1); no bookkeeping value, so nothing named `timestamp`. Static audit of every statement. *(Amended in review round 1, 2026-09-28.)* The social and scores clause is evidenced by the live sandbox's SL15 (a scored fixture person with a `FOLLOWS` keeps its labels, properties and `FOLLOWS` after creates and moves written through the pass's own port to the real Neo4j; green at review, test plan § Verification); the local end-to-end run's before/after snapshot (story § Evidence) shows the rest, but its graph held no `FOLLOWS`, `MUTES` or `REPORTS`, so it cannot show that clause. |
 
 ## Consequences
 
@@ -703,7 +715,7 @@ Each goes into ADR 0001 in the same commit as this ADR, with an "Amended by `tag
      readers can adopt `src/lib/strfryScanStrict.js`. Relates to row `2026-09-21-failed-strfry-scan-reads-empty`.
   3. `launchChildTask.sh:460` greps `${BRAINSTORM_LOG_DIR}/events.jsonl` rather than `taskQueue/events.jsonl`, and a
      time-out or uncaught failure returns 0 (:496-523), so a BullMQ job's success flag means nothing.
-  4. The Scheduled Tasks panel reads `rec.failure`, which no emitter writes (`src/api/scheduled-tasks/index.js:195`),
+  4. The Scheduled Tasks panel reads `rec.failure`, which no emitter writes (`src/api/scheduled-tasks/index.js:207`),
      so every `TASK_END` reads as success.
   5. Nothing clears the `neo4j-heavy` holders hash at boot, so a deploy-killed heavy job blocks heavy tasks for up to
      4 h.
@@ -752,9 +764,11 @@ Each goes into ADR 0001 in the same commit as this ADR, with an "Amended by `tag
 12. **The pass takes `neo4j-heavy`** (D10), with its costs: it waits behind scoring, scoring waits for it, a stale
     lease after a deploy can hold it for up to 4 h, and `deploy-safety` reads unsafe while its job is active.
 13. **Three new routes:** `GET /api/tagging-edges/status` and `GET /api/tagging-edges/held` as public reads of
-    relay-derived data and counts (the held route serves only the latest report's list and builds no path from the
-    request), and `POST /api/tagging-edges/confirm-held-removals` as owner-only (no admins, no loopback), a deliberate
-    departure from the handoff's mutation template.
+    counts, relay- and graph-derived values and redacted error text, with no config value, absolute path or credential
+    ("Who reads it"; *amended in review round 1, 2026-09-28*: this said relay-derived data and counts); the held route
+    serves only the latest report's list and builds no path from the request; and
+    `POST /api/tagging-edges/confirm-held-removals` as owner-only (no admins, no loopback), a deliberate departure
+    from the handoff's mutation template.
 14. **Until story 4:** AC-7's "read its report on the instance" is met by the JSON status URL, and AC-5's
     confirmation is a signed-in `fetch` from the owner's browser (OPERATIONS carries the snippet). The alternative is
     a minimal button on a legacy page (about 40 lines).
@@ -801,9 +815,12 @@ Test-file changes named here belong to Phase 3 (the Tester's lane); the Implemen
   (`unparseable`, `not-an-event-line`); no id repeats, compared lower-cased (`duplicate`); every event passes
   `isExpected` — kind 39999 and a `z` among the requested stamps (`off-filter`); total bytes ≤ `maxBytes`
   (`too-large`). It keeps a 4 KiB stderr tail; the report takes only the last `strfry error:` line or the exit code,
-  at most 300 characters, with any 64-hex run cut to 8 characters. No count is taken (a separate process is a
-  separate snapshot). Skeleton: the settle-once / SIGKILL time-out of `status.js:57-86` with the line loop of
-  `bDisposition.js:70-100` and the stderr tail of `dlist-curation/update.js:238-243`.
+  at most 300 characters, with any 64-hex run cut to 8 characters. *(Amended in review round 1, 2026-09-28.)* Any URI,
+  absolute path and IPv4 `host:port` in it are replaced too — strfry names its config file's path when it cannot load
+  it — by the one redactor (`redactPublicText`, exported beside `scanStrict`) the runner's `failure.message` shares.
+  No count is taken (a separate process is a separate snapshot). Skeleton: the settle-once / SIGKILL time-out of
+  `status.js:57-86` with the line loop of `bDisposition.js:70-100` and the stderr tail of
+  `dlist-curation/update.js:238-243`.
 - `src/pipeline/tagging-edges/reconcileTaggingEdges.sh` — the wrapper:
 
   ```bash

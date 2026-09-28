@@ -21,8 +21,10 @@
  * reassembled, never replaced; a byte sequence that is not valid UTF-8 is decoded as U+FFFD, not refused)
  * and split into lines as it arrives. `bytes` counts the decoded text re-encoded as UTF-8 — the bytes
  * read, for valid UTF-8. No count is taken: a second process would read a second snapshot. The error's
- * stderrTail is redacted: the last `strfry error:` line or the exit code, at most 300 characters, with
- * every 64-hex run cut to 8 characters.
+ * stderrTail is redacted, because the pass's report carries it to a public route: the last `strfry error:` line
+ * or the exit code, at most 300 characters, through redactPublicText() — any URI, absolute path and IPv4
+ * host:port replaced, and every 64-hex run cut to 8 characters. (Amended in review round 1, 2026-09-28: paths
+ * too; strfry names its config file's path when it cannot load it.)
  */
 
 const DEFAULT_TIMEOUT_MS = 60000;
@@ -40,9 +42,18 @@ class ScanError extends Error {
   }
 }
 
-/** Cut every run of 64 or more hex characters to its first 8. */
-function redactHex(s) {
-  return String(s).replace(/[0-9a-fA-F]{64,}/g, (m) => m.slice(0, 8));
+/**
+ * Error text a public route may serve (the tagging-edges pass's report shares this one redactor): any URI (it may
+ * carry credentials) → `<uri>`; then any absolute path, a `/` that starts a word (at the start, or after a space,
+ * quote, bracket, parenthesis or `=`) → `<path>`; then any IPv4 host:port → `<host>`; and every run of 64 or more
+ * hex characters cut to its first 8. A relative path (`../lib/x`) is kept. The caller bounds the length.
+ */
+function redactPublicText(s) {
+  return String(s)
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s'"]+/gi, '<uri>')
+    .replace(/(^|[\s'"[(=])\/[^\s'"\])]+/g, '$1<path>')
+    .replace(/\b\d{1,3}(?:\.\d{1,3}){3}:\d+\b/g, '<host>')
+    .replace(/[0-9a-fA-F]{64,}/g, (m) => m.slice(0, 8));
 }
 
 /** The report's view of stderr: the last `strfry error:` line, else the exit code; ≤ 300 chars, redacted. */
@@ -54,7 +65,7 @@ function summarizeStderr(stderr, exitCode) {
   }
   if (picked === null && exitCode !== null && exitCode !== undefined) picked = `exit code ${exitCode}`;
   if (picked === null) return null;
-  return redactHex(picked).slice(0, TAIL_MAX);
+  return redactPublicText(picked).slice(0, TAIL_MAX);
 }
 
 /**
@@ -169,4 +180,4 @@ function scanStrict(filter, { timeoutMs = DEFAULT_TIMEOUT_MS, isExpected, maxByt
   });
 }
 
-module.exports = { scanStrict, ScanError };
+module.exports = { scanStrict, ScanError, redactPublicText };

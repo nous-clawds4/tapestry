@@ -111,10 +111,13 @@ Planning, `/node/39999:<TA>:nostr-user-tag-schema`. Firmware files and source we
   skips an `a` value over 255 bytes, so it does not honour an `a`-deletion naming such an address, where the
   contract gives `names-address` (`events.cpp:48`); it parses the kind with `stoull`, so `039999`, `+39999` and
   ` 39999` delete on the relay, where the contract gives `not-named` (`EventUtils.h:38-39`); and its deletion index
-  hashes the raw `a` while lookups use the lower-case form (`golpe.yaml:80`, `events.cpp:313`), so an upper-case
-  pubkey in the address does not delete on the relay, where the contract lower-cases it and gives `names-address`.
-  Writers follow the relay's current state, so each divergence decides only whether the relay still holds the
-  tagging.
+  hashes the raw `a` while lookups use the canonical form, so an `a`-deletion with an upper-case pubkey (or a
+  `039999`-style kind) deletes the version stored then (`events.cpp:339-355`; the pubkey is decoded
+  case-insensitively, `EventUtils.h:49`) but does not refuse a version with `created_at` no later than the
+  deletion's that arrives afterwards (`golpe.yaml:80` hashes the raw `a`; `events.cpp:313` checks arrivals under the
+  lower-case pubkey and decimal kind); the contract lower-cases the pubkey and gives `names-address`. *(Corrected in
+  story 2's review round 1, 2026-09-28: this said an upper-case pubkey does not delete on the relay.)* Writers follow
+  the relay's current state, so each divergence decides only whether the relay still holds the tagging.
 
 **Census replay** (a throwaway prototype of this contract run over the 2026-09-26 JSONL from all three hosts):
 - Every tagging became a record: 6,972 / 6,965 / 6,980, with 0 refusals.

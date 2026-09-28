@@ -278,11 +278,14 @@ For Test Design:
   fingerprint); `limit` has no `confirmedApplied` key (the ADR's shape; `confirmed.removalsApplied` counts commits).
 - A rejected apply carries `err.partial` (`{ applied, lostRace, nodesCreated, transientRetries, appliedAddresses }`
   of what committed before it), which the runner counts before `failed` / `write` (ADR step 11, "partial counts").
-  The applies no longer return `lostAddresses`, and `schemaStatusFromRows` no longer returns `state` (nothing read them).
+- `schemaStatusFromRows` also returns `nameTaken` in each rule's status, beyond C9's shape (a rule with another
+  definition holds the name, so `CREATE … IF NOT EXISTS` would do nothing); `ensureTagsConstraint` and the boot hook
+  read it. `graph.js` also exports `MAX_BATCH` (250, the runner's batch size), which the ADR's export list omits.
 - `openGraph` takes only `{ uri, user, password }` (no injected driver, so `close()` never closes a shared one).
 - When a rule with another definition holds the name `tags_address`, `ensureTagsConstraint` answers at once (no
-  CREATE, no wait) and the boot hook logs `not created: name-taken`; after its CREATE the hook re-reads SHOW and logs
-  `not created: no-change` unless the rule is now listed.
+  CREATE, no wait) and the boot hook logs `not created: name-taken (…)`; after its CREATE the hook re-reads SHOW and
+  logs `not created: no-change (…)` unless the rule is now listed. Each line carries its code, then the reason in
+  parentheses (review round 1, Blocking 2: the first version logged the reason alone).
 - `planPass` throws on a non-array `snapshotRows` / `relayEvents` or a bad stamp identity, and `sweepFilter` on a bad
   identity (the runner turns a planner throw into `failed` / `plan`); `decideAddress` throws on a `relayAt` that is
   not a contract edge, a refusal, a conflict marker or nothing.
@@ -294,14 +297,21 @@ For Test Design:
   `heldNoLongerDue` once the plan is made) and saves the record right after any claim, so a run that fails or stops
   partway still says it was confirmed. A stop asked for before step 7 ends the run without claiming.
 - The driver-build refusal carries fixed text (`code: 'driver'`), and the report's error text replaces any URI and
-  IPv4 `host:port` (the status route is public).
+  IPv4 `host:port` (the status route is public). Review round 1 (Blocking 1, Non-blocking 4): a Neo4j connection
+  error (`ServiceUnavailable`, `SessionExpired`) also carries fixed text, keyed by `err.code` through a `Map` (so an
+  inherited property name never matches), because the driver's text names the host; and every other error text,
+  strfry's `stderrTail` included, passes one redactor, `redactPublicText`, which adds an absolute-path rule (a `/`
+  that starts a word) after the URI rule. A relative module name (`'../../lib/x'`) is kept: the round-2 tests flag
+  only absolute paths, and a stricter no-`/` rule would also cut ordinary text. No `name:port` rule, which would eat
+  times.
 - A `done` report's `reason` names lost races and conflicting addresses left to the next pass when there are any;
   each write phase's `PROGRESS` also carries `applied` and `lostRace`; the driver is closed after `TASK_END`.
 - `defaultDeps().proc` is `process` and the entry calls `run({ proc: process })` (C2); the start time then comes
   from `state.processStartTime(pid)`. The `ownerAssistantPubkey` alias is gone (C1 names only
   `getOwnerAssistantPubkey`). The runner awaits `writeReport` (pessimistic and final), `appendPreimages`,
   `heldDigest`, `writeHeld` and `prune`; phase-boundary rewrites stay best effort.
-- state.js writes with `writeFileSync` (a short write throws), cuts a torn pre-image tail back off on failure,
+- state.js writes with `writeFileSync` (which loops until every byte is written, and throws on an error such as
+  ENOSPC), cuts a torn pre-image tail back off on failure,
   fsyncs the parent when it makes a directory, and `claimConfirmation` refuses a run id outside `RUN_ID_RE` and
   claims under a nonce only when it is 32 lower-case hex (C13).
 - Status: an unreadable `confirmation.json` shows as `confirmationPending: { unreadable: <code> }` rather than a
@@ -310,9 +320,36 @@ For Test Design:
   `withdraw-failed` saying the started pass may honour the record (the ADR's 409 assumes the withdraw worked).
 - `scanStrict` rejects when `isExpected` is not a function (the ADR lists it as a completeness condition), when
   spawn gives no child (`spawn`), when the child had no stdout or its stdout errors (`process-error`); stderr errors
-  are ignored. It exports only `scanStrict` and `ScanError`. Invalid UTF-8 still decodes as U+FFFD (ADR D2's
-  `setEncoding`); the header says so.
+  are ignored. It exports `scanStrict`, `ScanError` and, since review round 1, `redactPublicText`: the one redactor
+  lives in the lower layer, which the runner already depends on, rather than in a new file; the runner also passes a
+  scan port's `stderrTail` through it at the report, so a port other than `scanStrict` is covered. Invalid UTF-8
+  still decodes as U+FFFD (ADR D2's `setEncoding`); the header says so.
 - The fresh-install seed is laid out one field per line like its neighbours (the ADR showed it on one line).
+- Review round 1 (2026-09-28): the runner's header comment is qualified the same way as BIBLE §16 and §11 (a failed
+  read of the graph snapshot or the relay changes nothing; a failed verify re-read leaves committed batches standing;
+  a hand-run of the Node file is refused), beyond the review's list of places.
+- Review round 1, Nit 6: the revokes ledger row's method parenthetical follows the Planning session's census script
+  and request logs (session scratch, not in the repo), which differ from the round-2 task brief in two details: the kind-5 reads ran at about 17:07Z on 2026-09-27, and "taggers" is the union across the three hosts
+  (2,402) of the authors of the `nostr-user-tag`-stamped taggings the contract accepts, not each host's own.
+
+## Evidence
+
+- **Local end-to-end run** (story Open question 7), 2026-09-28, on the local instance, taken at the code of commit
+  `64885ce7` before that commit was made; the one later implementation commit, `da787035`, changes only a comment.
+  Figures from `GET /api/tagging-edges/status`:
+  - Backfill `20260928T032430Z-08965d1d`: `done` in 2,595 ms. Phases (ms): identities 30, schema 98, graph-read 7,
+    relay-read 72 (10,405 events, 8,227,479 bytes), plan 47, write-creates 2,330 over 29 batches. Added 7,030 =
+    `taggingsRead` 7,030 − `refused.total` 0; `peopleAdded` 6,196; `unresolved` 6, as the census found on each host.
+  - Second pass `20260928T032501Z-472c2596`: `done` in 524 ms, 7,030 unchanged; nothing added, changed or removed.
+- **Graph snapshot around the backfill** (read-only Cypher), before → after: `FOLLOWS` / `MUTES` / `REPORTS` / `TAGS`
+  0/0/0/0 → 0/0/0/7,030; relationships 4,989 → 12,019; nodes 4,467 → 10,663; `NostrUser` 3 → 6,199, none with a
+  key other than `pubkey`, so the 3 pre-existing people are unchanged. After: no two `TAGS` share an address, every
+  `TAGS` joins two `NostrUser` nodes and carries exactly the nine keys, and every `createdAt` is INTEGER.
+- **What it does not show.** The local graph had no `FOLLOWS`, `MUTES` or `REPORTS`, so the run cannot evidence
+  AC-8's clause that social relationships and scores do not move. The live sandbox's SL15 covers it: a scored fixture
+  person with a `FOLLOWS` keeps its labels, properties and `FOLLOWS` after creates and moves that `planPass` plans and
+  the pass's own port writes to the real Neo4j (green at review, test plan § Verification).
+- **Staging backfill:** not yet run; OPERATIONS §12.8 "Measured durations" holds its line.
 
 ## Linked artifacts
 

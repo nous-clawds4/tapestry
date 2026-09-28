@@ -25,7 +25,7 @@ marked the claim "Holds", citing `FirmwareExplorer.jsx:64, :541`: it read the li
 disabled state, not the render condition around them. Two §2.4 claims were also looser than they read: "reusable as
 is" (a registry task must be a bash entry script, `src/manage/taskQueue/launchChildTask.sh:344`, :349), and
 "scheduling needs no new code" (true for an entry the operator adds; a shipped seed reaches only instances with no
-schedule file, `src/api/scheduled-tasks/index.js:118-125`, OPEN.md row 336).
+schedule file, `src/api/scheduled-tasks/index.js:130-137`, OPEN.md row 336).
 
 **The lesson.** A claim about what a UI shows needs the render condition that encloses the cited line, not only the
 line; verify it on an instance in the state the claim is about (here: firmware installed).

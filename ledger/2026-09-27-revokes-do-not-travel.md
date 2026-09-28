@@ -23,7 +23,10 @@ tags.brainstorm.world, and neither kind 5 is on production or staging. The ops r
 (`docs/TAG_FEDERATION_OPS.md:11`, repeated in OPEN.md row 25's notes) and left it to decide once dcosl's kind-5
 volume was counted. The streams were then set up without kind 5.
 
-*Re-measured 2026-09-27 (tagging-edges #2 Planning):* tags.brainstorm.world holds 40 kind-5 events, 39 of them by
+*Re-measured 2026-09-27 (tagging-edges #2 Planning; method: each host's public `GET /api/strfry/scan/stream` with
+`filter={"kinds":[5]}`, cross-checked against a matching `GET /api/strfry/scan/count`, read at about 17:07Z; "taggers"
+are the authors of the `nostr-user-tag`-stamped kind-39999 taggings the contract accepts on any of the three hosts,
+2,402 in all, read the same hour the same way):* tags.brainstorm.world holds 40 kind-5 events, 39 of them by
 taggers, none dated after the census, so "27" reflects a scope the census did not record. The cross-host pair is
 confirmed: `33a885dc…` revokes `fd8e3102…` and `2359f6ce…` revokes `904c0d4e…`, both by event id; both taggings are
 still on production and staging, and gone from tags. Production's 21 kind-5s by taggers and staging's one kind-5 name

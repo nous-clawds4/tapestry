@@ -3,14 +3,16 @@
  * reconcileTaggingEdges — the gap-filling pass (tagging-edges story 2, ADR tagging-edges/0002).
  *
  * Brings the graph's `TAGS` relationships into agreement with this instance's own relay, one tagging
- * at a time. The first run is the backfill; every later run repairs drift. Started only through the
- * task system, by reconcileTaggingEdges.sh, which holds the pass's kernel flock on fd 9 and execs this
- * file (so the lock lives exactly as long as the pass).
+ * at a time. The first run is the backfill; every later run repairs drift. Started through the task
+ * system, by reconcileTaggingEdges.sh, which holds the pass's kernel flock on fd 9 and execs this file
+ * (so the lock lives exactly as long as the pass); a hand-run of this file, without the lock, is refused.
  *
  * Sequence (ADR 0002, Implementation notes): lock → runId → pessimistic report → identities → config
  * → schema pre-flight → claim any owner confirmation → READ graph → READ relay (one strict scan,
  * started only after the graph read resolved) → plan (pure) → creates, updates, moves, removals →
- * held file + final report. A refusal or a failed read changes nothing; the report says why.
+ * held file + final report. A refusal, or a failed read of the graph snapshot or the relay, changes
+ * nothing; a batch's verify re-read that fails ends the run failed with the committed batches standing
+ * (owner decision 8). The report says why.
  *
  * Exit codes: 0 done or done-removals-held (and a start refused because another pass holds the lock);
  * 2 refused; 1 failed.
@@ -21,6 +23,7 @@ const {
   removalKey,
 } = require('../../lib/tagging-edges/sweep');
 const { schemaStatusFromRows, SCALAR_TYPES, MAX_BATCH } = require('./graph');
+const { redactPublicText } = require('../../lib/strfryScanStrict');
 
 const TASK_NAME = 'reconcileTaggingEdges';
 const LOCK_FD = 9;
@@ -68,16 +71,24 @@ function makeRunId(ms, hex) {
 function prefix(pk) { return typeof pk === 'string' ? pk.slice(0, 8) : null; }
 
 /**
- * Error text for the report, which a public route serves: bounded, with any URI (it may carry credentials) and
- * any IPv4 host:port replaced, and every 64-hex run cut to 8 characters.
+ * A Neo4j connection error repeats the configured host (`getaddrinfo ENOTFOUND <host>`, `<host>:<port>`), so its
+ * report text is fixed, keyed by the driver's code (the code itself is in `failure.code`).
+ */
+const CONNECTION_ERROR_TEXT = new Map([
+  ['ServiceUnavailable', 'the Neo4j server could not be reached'],
+  ['SessionExpired', 'the connection to the Neo4j server was lost'],
+]);
+
+/**
+ * Error text for the report, which a public route serves: fixed text for a Neo4j connection error; otherwise
+ * err.message through the one redactor strfry's stderrTail also passes (any URI, absolute path and IPv4
+ * host:port replaced, every 64-hex run cut to 8 characters), at most 300 characters.
  */
 function safeMessage(err) {
+  const code = err && typeof err.code === 'string' ? err.code : null;
+  if (code !== null && CONNECTION_ERROR_TEXT.has(code)) return CONNECTION_ERROR_TEXT.get(code);
   const m = err && err.message ? String(err.message) : String(err);
-  return m
-    .replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s'"]+/gi, '<uri>')
-    .replace(/\b\d{1,3}(?:\.\d{1,3}){3}:\d+\b/g, '<host>')
-    .replace(/[0-9a-fA-F]{64,}/g, (x) => x.slice(0, 8))
-    .slice(0, 300);
+  return redactPublicText(m).slice(0, 300);
 }
 
 /** A filesystem failure names its code and the state-relative file, never err.message (which carries a path). */
@@ -437,7 +448,7 @@ async function runInner(depsIn) {
       if (!scanned || !Array.isArray(scanned.events)) throw Object.assign(new Error('the relay scan returned no events list'), { code: 'incomplete' });
     } catch (err) {
       const failure = { stage: 'read', read: 'relay', code: (err && err.code) || 'error', message: safeMessage(err) };
-      if (err && err.stderrTail) failure.stderrTail = String(err.stderrTail).slice(0, 300);
+      if (err && err.stderrTail) failure.stderrTail = redactPublicText(err.stderrTail).slice(0, 300);
       return await fail('read', failure, 'the relay read failed');
     }
     latest.reads.relay = { events: scanned.events.length, bytes: scanned.bytes == null ? null : scanned.bytes, ms: deps.now() - relayStart };

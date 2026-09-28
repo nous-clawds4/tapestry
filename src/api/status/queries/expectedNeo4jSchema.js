@@ -17,7 +17,8 @@ const EXPECTED_CONSTRAINTS = [
     'nostrUserWotMetricsCard_unique_combination_2',
     // One TAGS relationship per tagging address (ADR tagging-edges/0002, AC-6); its owned index carries the same name.
     // Install Firmware waits for it (FirmwareExplorer.jsx); a rule present only under another name reads missing
-    // here — rename it to tags_address.
+    // here. Neo4j cannot rename a constraint: with no pass running, DROP that one, then create tags_address (the
+    // Dashboard fix).
     'tags_address',
 ];
 

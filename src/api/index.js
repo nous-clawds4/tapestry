@@ -512,9 +512,11 @@ async function register(app) {
     app.post('/api/admin/remove', adminApi.requireOwnerOnly, adminApi.handleRemoveAdmin);
 
     // ── The tagging gap-filling pass (tagging-edges #2, ADR tagging-edges/0002) ──
-    // Two public reads of relay-derived data and counts (the held route serves only the latest report's list and
-    // builds no path from the request), and one owner-only confirmation (no admins, no loopback). None of these
-    // paths contains an ownerOnlyEndpoints substring.
+    // Two public reads — counts, relay- and graph-derived values, the pass's pid and redacted error text; stamp
+    // identities as 8-character prefixes; no config value, absolute path or credential (ADR tagging-edges/0002
+    // "Who reads it"). The held route serves only the latest report's list and builds no path from the request.
+    // One owner-only confirmation (no admins, no loopback). None of these paths contains an ownerOnlyEndpoints
+    // substring.
     const taggingEdges = require('./tagging-edges');
     app.get('/api/tagging-edges/status', taggingEdges.handleStatus);
     app.get('/api/tagging-edges/held', taggingEdges.handleHeld);

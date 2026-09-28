@@ -435,14 +435,14 @@ async function ensureTagsConstraintOnBoot({ runWrite, runRead, log = () => {}, s
           return { outcome: 'present' };
         }
         if (status.nameTaken) {
-          say('[tagging-edges] uniqueness rule tags_address not created: the name tags_address is held by a rule with another definition');
+          say('[tagging-edges] uniqueness rule tags_address not created: name-taken (the name tags_address is held by a rule with another definition)');
           return { outcome: 'not-created', code: 'name-taken' };
         }
         await runWrite(CYPHER.CREATE_TAGS_CONSTRAINT, {});
         // IF NOT EXISTS can do nothing; say "created" only when the rule is now listed.
         const after = schemaStatusFromRows(await runRead(CYPHER.SHOW_CONSTRAINTS, {}), await runRead(CYPHER.SHOW_INDEXES, {})).tagsAddress;
         if (!after.present) {
-          say('[tagging-edges] uniqueness rule tags_address not created: the CREATE changed nothing');
+          say('[tagging-edges] uniqueness rule tags_address not created: no-change (the CREATE changed nothing)');
           return { outcome: 'not-created', code: 'no-change' };
         }
         say('[tagging-edges] uniqueness rule tags_address created');

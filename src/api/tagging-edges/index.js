@@ -7,8 +7,11 @@
  *   POST /api/tagging-edges/confirm-held-removals   owner only: { runId } → a single-use confirmation record
  *                                                   the next pass claims, then an enqueue through the task system
  *
- * Every value served is relay-derived or a count; identities appear only as 8-character prefixes; no config
- * value, absolute path or credential appears. The held route never builds a path from request input.
+ * What is served: counts, run ids, timestamps, relay- and graph-derived values (tagging addresses, event ids,
+ * property-key names), the held list's digest, the pass's pid and process start time, reason text and redacted
+ * error text. The stamp identities and the confirming owner appear only as 8-character prefixes, while a tagging
+ * address carries its author's full pubkey; no config value, absolute path or credential appears (the runner
+ * redacts error text before it enters the report). The held route never builds a path from request input.
  *
  * The display logic is the pure computeStatus(); validateConfirmation() is the pure half of the confirm
  * route. Handlers take their dependencies (readFile included) as a third argument, for tests.
