@@ -168,6 +168,7 @@ const suites = [
   { file: 'users-page-neo4j-endpoint.test.js' },
   { file: 'strfry-wipe-owner-gate.test.js' },
   { file: 'strfry-router-owner-gate.test.js' },
+  { file: 'strfry-router-value-hardening.test.js' },
   { file: 'relationship-primitives.test.js', skipNote: 'preconditions not met' },
   { file: 'relationship-primitives-probe.test.js', skipNote: 'preconditions not met' },
   { file: 'event-less-create-set.test.js', skipNote: 'preconditions not met' },

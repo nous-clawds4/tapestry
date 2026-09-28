@@ -3,8 +3,8 @@
 **Id:** 2026-09-28-router-plugin-value-hardening
 **Type:** bug
 **Opened:** 2026-09-28 (PR #771 review, this session — the residual I flagged in review question 4)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-09-28 — branch `fix/router-plugin-url-hardening`: `handleUpdateRouterConfig` now 400s a plugin path outside `PLUGINS_DIR` and a non-`ws(s)`/quote/whitespace/control URL before any write, and `generateConfig` JSON-escapes `dir`/`pluginDown`/`pluginUp`/`urls` at the sink (byte-identical for legal values — `router-stream-tag-filters` R2 byte-identity guard still passes). New suite `test/strfry-router-value-hardening.test.js` 14/14 (10 fail on the pre-fix code). Shipped to all four instances (staging, main, feat/tags, feature-magic-carpet). Owner-only-for-plugins was considered and not adopted: admins already reach `/api/run-script` and `/service-management/control` via the same `isOwner`, so a per-field owner-only carve-out buys little and diverges from the other router mutations — the allowlist + escaping close the injection for every tier.
 
 **What was seen.** `handleUpdateRouterConfig` (`src/api/strfry/routerConfig.js:203`) validates a
 stream's `name` (`^\w+$`), `dir` (enum) and that `urls` is an array, and reconstructs `filter`
