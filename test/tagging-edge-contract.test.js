@@ -11,6 +11,16 @@
  * Pure: no stack, no network, no signing. Fixture pubkeys are fake 64-hex; the two stamp
  * pubkeys are parameters of the contract, so no deployment's real key appears here.
  * Hand-rolled in the project's existing test style — no new framework.
+ *
+ * Extended by Story 2 (tagging-edges #2, the gap-filling pass) — the tests whose names start "S2C":
+ *   Story: engineering-team/stories/tagging-edges/2-gap-filling-pass-and-backfill.md
+ *   ADR:   engineering-team/decisions/tagging-edges/0002-gap-filling-pass.md ("Seams for Test Design → Contract suite")
+ *   Plan:  engineering-team/stories/tagging-edges/2-gap-filling-pass-and-backfill.test-plan.md
+ * R2-NB2 (a tag element resolves under its identity d), R2-10 (a retire-path case for clarification 9), the new
+ * `stamp` export, and BIBLE §6's status line (re-aimed from story 1's "no pipeline writes TAGS yet"), Revokes
+ * bullet, "One version stands" bullet and §30-class bullet, §11's three route rows, a §16 entry and a story-2
+ * Last updated entry (ADR 0002 Implementation notes → BIBLE.md). The S2C tests are intentionally red until story 2's implementation lands,
+ * except S2C5 (R2-10): its behaviour shipped with story 1's clarification 9, and S2C5 pins it on the retire path.
  */
 
 const fs = require('fs');
@@ -717,6 +727,115 @@ t('clarification 12: an address may carry any character after the second colon, 
   same(revokeApplies(tagged, deletion({ author, a: [`39999:${'ABCD'.repeat(16)}:x\ny`] })), { applies: true, reason: 'names-address' }, 'revoke by that address');
 });
 
+// ─── Story 2 (tagging-edges #2, ADR 0002): R2-NB2, R2-10 and the stamp export ───
+const OVERLONG_ASCII = 'L'.repeat(256);   // 256 bytes: one over the 255-byte limit
+const OVERLONG_UTF8 = '€'.repeat(86);     // 258 bytes in 86 characters
+const AT_LIMIT_UTF8 = '€'.repeat(85);     // exactly 255 bytes
+
+/** Tag element TAG_V1 whose d tags are exactly `dTags`, in order (a string is ['d', s]; an array is the raw tag). */
+function elementWithDs(dTags) {
+  const el = tagElement({ slug: null });
+  return { ...el, tags: [...dTags.map((d) => (Array.isArray(d) ? d : ['d', d])), ...el.tags] };
+}
+/** What an id-only tagging naming TAG_V1 records when `el` is the element supplied for TAG_V1. */
+function resolvedBy(el) {
+  const edge = edgeOf(tagging({ a: null }), { ...OPTS, tagElementsById: new Map([[TAG_V1, el]]) });
+  return { tagAddress: edge.tagAddress, tagSlug: edge.tagSlug, tagEventId: edge.tagEventId };
+}
+const UNRESOLVED = { tagAddress: null, tagSlug: null, tagEventId: TAG_V1 };
+/** Long d values shown by their first characters and byte length, for readable failure messages only. */
+function brief(v) {
+  if (typeof v === 'string') return v.length > 100 ? `${v.slice(0, 16)}…(${Buffer.byteLength(v, 'utf8')} bytes)` : v;
+  if (Array.isArray(v)) return v.map(brief);
+  if (v && typeof v === 'object') return Object.keys(v).reduce((o, k) => { o[k] = brief(v[k]); return o; }, {});
+  return v;
+}
+/** `same`, comparing the full values but printing long strings briefly. */
+function sameBrief(actual, expected, label) {
+  if (JSON.stringify(sortKeys(actual)) !== JSON.stringify(sortKeys(expected))) {
+    throw new Error(`${label}\n        expected: ${JSON.stringify(sortKeys(brief(expected)))}\n        actual:   ${JSON.stringify(sortKeys(brief(actual)))}`);
+  }
+}
+
+t('S2C1 (R2-NB2): a tag element whose first d is over 255 bytes resolves under the next d, as strfry files it — and a first d of exactly 255 bytes is still its identity', () => {
+  const underPodcaster = { tagAddress: TAG_ADDR, tagSlug: 'podcaster', tagEventId: TAG_V1 };
+  sameBrief(resolvedBy(elementWithDs([OVERLONG_ASCII, 'podcaster'])), underPodcaster, 'a 256-byte first d is skipped');
+  sameBrief(resolvedBy(elementWithDs([OVERLONG_UTF8, 'podcaster'])), underPodcaster, 'a 258-byte (86-character) first d is skipped');
+  sameBrief(resolvedBy(elementWithDs([OVERLONG_ASCII, 'M'.repeat(300), 'podcaster'])), underPodcaster, 'every over-long d before the first indexable one is skipped');
+  sameBrief(resolvedBy(elementWithDs([AT_LIMIT_UTF8, 'podcaster'])),
+    { tagAddress: `39999:${JACK}:${AT_LIMIT_UTF8}`, tagSlug: AT_LIMIT_UTF8, tagEventId: TAG_V1 }, 'a 255-byte first d is the identity');
+});
+
+t('S2C2 (R2-NB2): a tag element whose identity d is empty stays unusable — an empty first d before a valid one, and an over-long first d followed by an empty one', () => {
+  sameBrief(resolvedBy(elementWithDs(['', 'podcaster'])), UNRESOLVED, 'empty first d, then a valid d (story 1 pins this too)');
+  sameBrief(resolvedBy(elementWithDs([OVERLONG_ASCII, '', 'podcaster'])), UNRESOLVED, 'over-long first d, then an empty d, then a valid d');
+});
+
+t('S2C3 (R2-NB2): a tag element with no indexable d, or whose first indexable d has no string value, stays unusable (the tagging stays unresolved, not refused)', () => {
+  sameBrief(resolvedBy(elementWithDs([OVERLONG_ASCII])), UNRESOLVED, 'its only d is over-long');
+  sameBrief(resolvedBy(elementWithDs([OVERLONG_ASCII, OVERLONG_UTF8])), UNRESOLVED, 'every d is over-long');
+  sameBrief(resolvedBy(elementWithDs([OVERLONG_ASCII, ['d'], 'podcaster'])), UNRESOLVED, 'the first indexable d has no value');
+  sameBrief(resolvedBy(elementWithDs([OVERLONG_ASCII, ['d', 5], 'podcaster'])), UNRESOLVED, 'the first indexable d is not a string');
+});
+
+t('S2C4 (R2-NB2): a tag element\'s identity d is read exactly as a tagging\'s own — for the same d tags, the element resolves under the d the tagging\'s address takes, and not at all where the tagging is no-d', () => {
+  const cases = [
+    ['x'], ['', 'x'], [OVERLONG_ASCII, 'x'], [OVERLONG_ASCII], [OVERLONG_ASCII, ''], [['d'], 'x'], [['d', 5], 'x'],
+    [OVERLONG_ASCII, ['d'], 'x'], [AT_LIMIT_UTF8], [OVERLONG_UTF8, AT_LIMIT_UTF8, 'x'], ['ns:x'], ['x\ny'],
+  ];
+  for (const dTags of cases) {
+    const base = tagging({ d: null });
+    const ev = { ...base, tags: [...dTags.map((d) => (Array.isArray(d) ? d : ['d', d])), ...base.tags] };
+    const r = convert(ev);
+    const taggingD = r.ok ? r.edge.address.slice(`39999:${ALICE}:`.length) : null;
+    if (!r.ok) eq(r.reason, 'no-d', `tagging with d tags ${JSON.stringify(brief(dTags))} is refused only as no-d`);
+    sameBrief(resolvedBy(elementWithDs(dTags)).tagSlug, taggingD, `element with d tags ${JSON.stringify(brief(dTags))} resolves under the tagging's identity d`);
+  }
+});
+
+t('S2C5 (R2-10): a newer non-tagging version whose over-long first d is followed by the tagging\'s d retires the edge at that address', () => {
+  const { standingEdge } = load();
+  const edge = v({ d: 'x', eventId: id(0x10), created_at: 100 });
+  for (const [label, spoil] of [['no target', { target: null }], ['no nostr-user-tag stamp', { z: [] }]]) {
+    for (const longD of [OVERLONG_ASCII, OVERLONG_UTF8]) {
+      const nonTagging = refusalOf(tagging({ d: longD, extraTags: [['d', 'x']], eventId: id(0x20), created_at: 200, ...spoil }));
+      eq(nonTagging.address, `39999:${ALICE}:x`, `${label}: the non-tagging is filed under the tagging's d`);
+      const r = standingEdge(edge, nonTagging);
+      same({ standing: r.standing, reason: r.reason, changed: r.changed, dropped: r.droppedTarget, sup: r.superseded && r.superseded.eventId },
+        { standing: null, reason: 'retired-by-non-tagging', changed: true, dropped: BOB, sup: id(0x10) },
+        `${label}, ${Buffer.byteLength(longD, 'utf8')}-byte first d: the edge is retired`);
+    }
+  }
+});
+
+t('S2C6: the contract exports stamp — 39998:<pubkey>:<concept slug>, and null for a missing or empty pubkey', () => {
+  const { stamp } = load();
+  eq(typeof stamp, 'function', 'export stamp (ADR 0002: "export stamp")');
+  eq(stamp(CANON, 'nostr-user-tag'), STAMP(CANON), 'canonical nostr-user-tag stamp');
+  eq(stamp(LOCAL, 'nostr-user-tag'), STAMP(LOCAL), 'local nostr-user-tag stamp');
+  eq(stamp(CANON, 'tag'), TAG_STAMP(CANON), 'canonical tag stamp');
+  eq(stamp(LOCAL, 'tag'), TAG_STAMP(LOCAL), 'local tag stamp');
+  for (const pk of [undefined, null, '']) eq(stamp(pk, 'tag'), null, `pubkey ${JSON.stringify(pk)} gives no stamp`);
+});
+
+t('S2C7: the stamps stamp builds are the ones the contract honours — a tagging stamped stamp(local, "nostr-user-tag") is zLocal, an element stamped stamp(canonical or local, "tag") resolves', () => {
+  const { stamp } = load();
+  eq(typeof stamp, 'function', 'export stamp');
+  const e = edgeOf(tagging({ z: [stamp(LOCAL, 'nostr-user-tag')] }));
+  same([e.zCanonical, e.zLocal], [false, true], 'a tagging carrying only stamp(local, "nostr-user-tag")');
+  same([edgeOf(tagging({ z: [stamp(CANON, 'nostr-user-tag')] })).zCanonical], [true], 'a tagging carrying stamp(canonical, "nostr-user-tag")');
+  for (const pk of [CANON, LOCAL]) {
+    eq(resolvedBy(tagElement({ z: [stamp(pk, 'tag')] })).tagAddress, TAG_ADDR, `an element carrying stamp(${pk === CANON ? 'canonical' : 'local'}, "tag") resolves`);
+  }
+});
+
+t('S2C8: contract.js exports story 1\'s six names plus stamp, and nothing else (ADR 0002: "export stamp. Nothing else")', () => {
+  let m;
+  try { m = require(`${MODULE_REQUIRE}/contract`); }
+  catch (e) { throw new Error(`tagging-edges contract not implemented yet (require('${MODULE_REQUIRE}/contract') failed: ${e.message})`); }
+  same(Object.keys(m).sort(), ['REFUSAL', 'TAGS_RELATIONSHIP', 'revokeApplies', 'revokeTargets', 'stamp', 'standingEdge', 'taggingToEdge'], 'contract.js exports');
+});
+
 // ─── purity / ADR 0015 ───
 t('purity: the module is pure CommonJS — sibling requires only, no I/O, no time, no randomness, no logging', () => {
   if (!fs.existsSync(MODULE_DIR)) throw new Error('src/lib/tagging-edges/ does not exist yet (purity check)');
@@ -802,8 +921,103 @@ t('AC-5: the subsection gives TAGS\' identity, every property, the absent-stance
   assert(s.includes('src/lib/tagging-edges') && s.includes('tagging-edges/0001'), 'points to src/lib/tagging-edges/ and this ADR');
 });
 
-t('AC-5: the docs say plainly that no pipeline writes TAGS yet', () => {
-  assert(/no pipeline writes `?TAGS`? yet/i.test(socialSubsection()), 'the subsection says "no pipeline writes TAGS yet"');
+// Story 1's "AC-5: the docs say plainly that no pipeline writes TAGS yet" is re-aimed by story 2 (its BIBLE docs task:
+// "story 1's check that 'no pipeline writes TAGS yet' is updated in the same change") — S2C9 below replaces it.
+/** Every check `line` fails, as "<label>" strings. */
+function missing(line, checks) { return checks.filter(([, ok]) => !ok(line)).map(([label]) => label); }
+function subsectionLine(startRe, what) {
+  const line = socialSubsection().split('\n').find((l) => startRe.test(l.trim()));
+  assert(line, `the Social Graph Relationships subsection has ${what}`);
+  return line;
+}
+
+t('S2C9 (re-aims story 1\'s status-line check): BIBLE §6\'s TAGS status line says what writes TAGS and how it runs — task reconcileTaggingEdges, GET /api/tagging-edges/status — and no longer says no pipeline writes it', () => {
+  const line = subsectionLine(/^\*\*Status:\*\*/, 'a "**Status:**" line');
+  const gaps = missing(line, [
+    ['no longer say "no pipeline writes TAGS yet" (anywhere in the subsection)', () => !/no pipeline writes `?TAGS`? yet/i.test(socialSubsection())],
+    ['name the writer, the gap-filling pass', (l) => /gap-filling pass/i.test(l)],
+    ['name its task, reconcileTaggingEdges', (l) => /\breconcileTaggingEdges\b/.test(l)],
+    ['point to src/pipeline/tagging-edges/', (l) => l.includes('src/pipeline/tagging-edges')],
+    ['cite ADR tagging-edges/0002', (l) => l.includes('tagging-edges/0002')],
+    ['say it runs on demand or on a schedule', (l) => /on demand/i.test(l) && /schedule/i.test(l)],
+    ['name its lock class, neo4j-heavy', (l) => l.includes('neo4j-heavy')],
+    ['say large removals are held for the owner to confirm', (l) => /\bhold|\bheld/i.test(l) && /owner/i.test(l) && /confirm/i.test(l)],
+    ['name where it reports, GET /api/tagging-edges/status', (l) => /GET\s+`?\/api\/tagging-edges\/status\b/.test(l)],
+    ['say the real-time path (story 3) is not built yet', (l) => /real-time/i.test(l) && /not (yet )?built/i.test(l)],
+  ]);
+  assert(gaps.length === 0, `the TAGS status line should: ${gaps.join('; ')}\n        line: ${line}`);
+});
+
+t('S2C10: BIBLE §6\'s Revokes bullet says the relationship follows the relay — removed when the relay no longer holds the tagging, by any route it honours, and kept while the relay holds it even when a deletion it did not act on names it', () => {
+  const line = subsectionLine(/^- \*\*Revokes/, 'a "- **Revokes" bullet');
+  const gaps = missing(line, [
+    ['say the relationship is removed when the relay no longer holds the tagging', (l) => /\bremov/i.test(l) && /relay no longer holds/i.test(l)],
+    ['say that holds by any route the relay honours', (l) => /any route/i.test(l)],
+    ['name the tagger\'s kind-5 (NIP-09) as such a route', (l) => /kind[- ]?5|NIP-09/i.test(l) && /tagger/i.test(l)],
+    ['say it stays while the relay holds the tagging', (l) => /\b(stays|kept|remains)\b[^\n]*while the relay (still )?holds/i.test(l)],
+    ['say that holds even when a deletion the relay did not act on names it', (l) => /deletion|kind[- ]?5/i.test(l) && /(did not|didn't|does not|doesn't) (act on|honou?r)/i.test(l)],
+  ]);
+  assert(gaps.length === 0, `the Revokes bullet should: ${gaps.join('; ')}\n        bullet: ${line}`);
+});
+
+t('S2C11: BIBLE §6\'s "One version stands" bullet says writers follow the relay\'s current version — an older version re-sent after an id-only revoke included', () => {
+  const line = subsectionLine(/^- \*\*One version stands/, 'a "- **One version stands" bullet');
+  const gaps = missing(line, [
+    ['say writers follow the relay\'s current version', (l) => /relay's current version/i.test(l)],
+    ['include an older version re-sent', (l) => /\bolder\b/i.test(l) && /re-?sent/i.test(l)],
+    // ADR 0002 (BIBLE task, "One version stands") gives the meaning, not the words: a revoke that named only the
+    // newer version's id. Any phrasing of that passes.
+    ['name the id-only revoke that lets it back',
+      (l) => /id-only revoke|revoked? (only )?by (its )?(event )?id|revoke (that |which )?nam(?:e[sd]|ing) only [^.]*\bid\b/i.test(l)],
+  ]);
+  assert(gaps.length === 0, `the "One version stands" bullet should: ${gaps.join('; ')}\n        bullet: ${line}`);
+});
+
+t('S2C12: BIBLE §6 names the one-relationship-per-tagging rule, tags_address', () => {
+  assert(/\btags_address\b/.test(socialSubsection()), 'the Social Graph Relationships subsection names `tags_address` (ADR 0002: "One sentence on tags_address")');
+});
+
+t('S2C13: BIBLE §6\'s "§30 class" bullet says a resolution kept after its tag element is replaced cannot be re-derived, so writers keep it', () => {
+  const line = subsectionLine(/^- \*\*§30 class/, 'a "- **§30 class" bullet');
+  const gaps = missing(line, [
+    ['still name the class, event-projection', (l) => /event-projection/i.test(l)],
+    ['speak of a resolution (tagAddress / tagSlug) kept after its tag element is replaced', (l) => /resolution|tagAddress|tagSlug/i.test(l) && /(replaced|gone|vanish|no longer)/i.test(l)],
+    ['say it cannot be re-derived', (l) => /(cannot|can't|can ?not) be re-?derived/i.test(l)],
+    ['say writers keep it', (l) => /\bkeep/i.test(l)],
+  ]);
+  assert(gaps.length === 0, `the §30 class bullet should (ADR 0002 Implementation notes → BIBLE.md, §6 §30 class): ${gaps.join('; ')}\n        bullet: ${line}`);
+});
+
+t('S2C14: BIBLE §11 lists the pass\'s three routes — GET /api/tagging-edges/status, GET /api/tagging-edges/held and POST /api/tagging-edges/confirm-held-removals, the last marked owner-only', () => {
+  const s11 = bibleSection(/^## 11\. /m, /^## 12\. /m);
+  const rows = s11.split('\n').filter((l) => /^\|/.test(l.trim()));
+  const rowFor = (method, p) => rows.find((l) => {
+    const cells = l.split('|').map((c) => c.trim().replace(/`/g, ''));
+    return cells.includes(method) && cells.some((c) => c === p || c.startsWith(`${p}?`));
+  });
+  const problems = [];
+  for (const [method, p] of [['GET', '/api/tagging-edges/status'], ['GET', '/api/tagging-edges/held'], ['POST', '/api/tagging-edges/confirm-held-removals']]) {
+    if (!rowFor(method, p)) problems.push(`no §11 table row | ${method} | ${p} |`);
+  }
+  const confirm = rowFor('POST', '/api/tagging-edges/confirm-held-removals');
+  if (confirm && !/\bowner\b/i.test(confirm)) problems.push(`the confirm row should say it is owner-only; it reads: ${confirm.trim()}`);
+  assert(problems.length === 0, `ADR 0002 Implementation notes → BIBLE.md ("§11: rows for the three routes"):\n        ${problems.join('\n        ')}`);
+});
+
+t('S2C15: BIBLE §16 (What\'s Been Built) has an entry for the gap-filling pass, naming its task and ADR tagging-edges/0002', () => {
+  const s16 = bibleSection(/^## 16\. /m, /^## 17\. /m);
+  const entry = s16.split('\n').find((l) => /^\s*[-*]/.test(l) && /tagging-edges\/0002/.test(l));
+  assert(entry, '§16 should have a bullet citing ADR tagging-edges/0002 (ADR 0002 Implementation notes → BIBLE.md: "§16: an entry")');
+  assert(/\breconcileTaggingEdges\b/.test(entry) && /gap-filling/i.test(entry),
+    `the §16 entry should name the gap-filling pass and its task reconcileTaggingEdges; it reads: ${entry.trim().slice(0, 300)}`);
+});
+
+t('S2C16: BIBLE\'s Last updated line leads with story 2 — its newest entry (before the first "; prior:") names tagging-edges #2', () => {
+  const line = fs.readFileSync(BIBLE, 'utf-8').split('\n').find((l) => l.startsWith('**Last updated:**'));
+  assert(line, 'BIBLE.md has a **Last updated:** line');
+  const head = line.split('; prior:')[0];
+  assert(/tagging-edges #2\b/.test(head),
+    `the newest Last updated entry should record story 2 in the house form "… — tagging-edges #2 / ADR 0002" (ADR 0002: "A new Last updated: line"); it reads: ${head.slice(0, 300)}`);
 });
 
 t('AC-5: the glossary tells TAGS apart from HAS_TAG and NostrEventTag', () => {
@@ -834,7 +1048,7 @@ async function run() {
     catch (err) { console.log(`  FAIL  ${name}\n        ${err.message}`); failures.push({ name, message: err.message }); fail++; }
   }
   console.log(`\ntagging-edge-contract: ${pass} passed, ${fail} failed`);
-  return { pass, fail, failures };
+  return { pass, fail, skipped: 0, failures };
 }
 
 if (require.main === module) {

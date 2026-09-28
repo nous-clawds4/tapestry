@@ -3,6 +3,10 @@
 **Status:** Accepted
 **Date:** 2026-09-26
 **Story:** `engineering-team/stories/tagging-edges/1-tagging-edge-contract.md`
+**Amended (2026-09-27):** by `tagging-edges/0002` — the write guard (writers follow the relay's current version),
+kind-5 reading, writer-set properties, the stamp-pubkey binding, R2-NB3, step 5 (R2-8, R2-NB2), clarifications 10
+and 13, and the consequences on tag-element fetching and revokes. Carry-forwards R2-4 to R2-7 were applied with story
+2's implementation (R2-4 strfry bullet, R2-6 step 1 and clarification 9, R2-7 stance paragraph).
 
 ## Context
 
@@ -103,6 +107,18 @@ Planning, `/node/39999:<TA>:nostr-user-tag-schema`. Firmware files and source we
 - A kind-5 naming another author's address is rejected (:43-45).
 - Hex in `id` / `pubkey` / `e` / `p` is decoded case-insensitively and compared as bytes (:12-13, :39-41).
 - A kind-5 can delete a kind-5, which NIP-09 says has no effect (:333-338).
+- *(Amended by `tagging-edges/0002`, R2-4.)* Remaining address-deletion divergences from the definition: strfry
+  skips an `a` value over 255 bytes, so it does not honour an `a`-deletion naming such an address, where the
+  contract gives `names-address` (`events.cpp:48`); it parses the kind with `stoull`, so `039999`, `+39999` and
+  ` 39999` delete on the relay, where the contract gives `not-named` (`EventUtils.h:38-39`); and its deletion index
+  hashes the raw `a` while lookups use the canonical form, so an `a`-deletion with an upper-case pubkey (or a
+  `039999`-style kind) deletes the version stored then (`events.cpp:339-355`; the pubkey is decoded
+  case-insensitively, `EventUtils.h:49`) but does not refuse a version with `created_at` no later than the
+  deletion's that arrives afterwards (`golpe.yaml:80` hashes the raw `a`; `events.cpp:313` checks arrivals under the
+  lower-case pubkey and decimal kind). For the upper-case pubkey the contract lower-cases it and gives
+  `names-address`; for the `039999`-style kind it gives `not-named`, as above. *(Corrected in
+  story 2's review round 1, 2026-09-28: this said an upper-case pubkey does not delete on the relay.)* Writers follow
+  the relay's current state, so each divergence decides only whether the relay still holds the tagging.
 
 **Census replay** (a throwaway prototype of this contract run over the 2026-09-26 JSONL from all three hosts):
 - Every tagging became a record: 6,972 / 6,965 / 6,980, with 0 refusals.
@@ -188,15 +204,25 @@ and revoke rules below are meant to carry over unchanged. A one-line scope note 
 - The gap-filling pass (story 2) and the real-time path (story 3) derive every `TAGS` property through this module.
 - No writer composes `TAGS` properties any other way, and none adds event-derived properties the module does not
   produce.
-- Every write and delete is conditional on the state its decision was made from. It matches `r.eventId =
-  $seenEventId`, or no edge at the address for a create, and re-checks AC-3's order inside the same statement.
-  Story 2 owns that Cypher guard and must pin it with a parity test against `standingEdge` over the same truth
-  table (lowercase hex compares the same way in Cypher and JS).
-- Writer-set properties, such as provenance or ingest time, are story 2's to decide, in camelCase, without
-  colliding with the names below.
-- *(Review round, 2026-09-27.)* **A writer must refuse to start unless both stamp pubkeys are 64-hex.** A writer
-  started without them would read every tagging as a non-tagging and retire every edge (step 2 plus the
-  retirement rule). Story 2's mass-delete guard also counts retirements per run.
+- *(Amended by `tagging-edges/0002`.)* Every write and delete is conditional on the graph state its decision was made from. The writer
+  takes the relationship's write lock, re-reads it in the same transaction and proceeds only if it still equals what
+  was read — every property with its type, both ends, and its element id; a create proceeds only while no `TAGS`
+  relationship holds the address, which the uniqueness rule `tags_address` makes atomic. The decision is made from a
+  relay read taken after that graph read, and follows the relay's current version at the address, older or newer:
+  strfry has already applied the version order and every deletion it honours, so no write re-checks AC-3's order.
+  Story 2 pins its decision against `standingEdge` over the standing-rule truth table, with exactly two documented
+  divergences (`older-ignored` → the relay's version; `no-incoming` → a removal).
+- *(Amended by `tagging-edges/0002`.)* Writer-set properties: story 2 decided none. A `TAGS` relationship carries exactly the nine
+  properties below.
+- *(Review round, 2026-09-27; amended by `tagging-edges/0002`, R2-5.)* **A writer must refuse to start unless both
+  stamp pubkeys are lowercase 64-hex;** either one missing, empty, not 64 hex characters or containing an upper-case
+  letter refuses the run and names that identity. A writer started without them would read every tagging as a
+  non-tagging and retire every edge (step 2 plus the retirement rule). Story 2's mass-delete guard counts every
+  AC-3 removal per run.
+- *(Amended by `tagging-edges/0002`.)* **R2-NB3.** A relationship at a tagging address is removed when the relay holds nothing at its
+  address, or holds a version there the definition refuses, and only while it still holds the version the decision
+  was made from, subject to the mass-removal limit. It stays while the relay holds an accepted version at its
+  address, even when a deletion names it.
 - *(Review round.)* **Callers pass only relay-verified events.** The module does not check signatures; strfry
   verifies them before storing, and every writer reads from the relay.
 
@@ -221,8 +247,9 @@ Edge properties are camelCase, like derived NostrUser properties. NostrEvent nod
 (`id`, `created_at`, `uuid`). Nothing else goes on the relationship: no trust, rank, count, tag name, bucketed
 stance or "applied" flag. "Resolved" means `tagAddress IS NOT NULL` and is not stored separately. **Graph readers
 bucket the stance** with `coalesce(toFloat(r.polarity), 1.0)`: ≥ 0.5 is apply, ≤ −0.5 is dispute, anything else
-is neutral. That matches today's readers: an absent or non-numeric stance counts as apply. One known edge
-difference: JS reads `""` as 0, which is neutral.
+is neutral. *(Amended by `tagging-edges/0002`, R2-7.)* That matches today's tag surfaces for every value on the
+relays today (`"1"`, `"-1"`, `"0"`, absent); malformed values such as `""`, `"NaN"` or `"-Infinity"` can bucket
+differently in Cypher and in JS (BIBLE §6).
 
 **Which version stands (AC-3).** At the same `address`:
 - The greater `createdAt` stands. On equal `createdAt`, the lexically lower `eventId` stands (NIP-01, as strfry
@@ -234,7 +261,9 @@ difference: JS reads `""` as 0, which is neutral.
 - **No tombstone.** Once an edge is retired, `standingEdge(null, older)` would accept an older tagging.
   Order-independence is therefore promised for edge against edge. Retirement relies on the relay's replaceable
   rule: a writer fed from the local relay never sees an older version after a newer one is stored, because strfry
-  refuses it, and story 2's sweep reads only the relay's current version per address.
+  refuses it, and story 2's sweep reads only the relay's current version per address. *(Amended by `tagging-edges/0002`.)* An id-only
+  revoke is the exception: strfry then accepts an older version re-sent at the address, and writers follow it,
+  because they follow the relay's current version. Order-independence remains a property of `standingEdge`.
 
 **The tag reference.** When the event carries `a`, that is the tag's identity (`profile/0022`,
 `profile-tag-hardening/0001`); `e` is provenance, and a mismatch between them is not refused. AC-2's "several
@@ -260,14 +289,17 @@ It is a pure function of the two events, so arrival order cannot change the answ
 - **Constrains:**
   - Id-only taggings resolve only when the caller supplies tag elements, so story 2 must fetch them; the census
     shows all but 6 resolve against the relay. Story 2's sweep re-attempts edges with `tagAddress IS NULL` on
-    every run.
+    every run. *(Amended by `tagging-edges/0002`.)* Story 2 reads tag elements by the two `:tag` stamps in the same relay scan as the
+    taggings.
   - Callers supply both stamp pubkeys: the runtime TA through `getOwnerAssistantPubkey()`, and the canonical
     pubkey from an ADR 0015 site. Requiring `src/api/profile-tags` from the pipeline is the dependency Option C
     rejected. Story 2 therefore either requires it lazily inside its entry point, following the precedent at
     `src/api/assistant/identificationTaggings.js:72`, and records that, or proposes an ADR 0015 amendment moving
     the literal into a pure constants module. It must not add a new literal.
   - **Revokes do not travel with taggings today.** The dcosl stream has no kind 5, and UI revokes carry no `k`.
-    Story 2 must read kind-5 events from the same sources it reads taggings from, and bringing kind 5 into the
+    *(Amended by `tagging-edges/0002`.)* Writers read no kind-5 events to decide removals: the relay's current state reflects every
+    deletion strfry honours, and a deletion strfry did not honour removes nothing (story 2 AC-3). Story 3 follows
+    the same rule — a kind-5 prompts a re-read of the relay, never a removal by itself. Bringing kind 5 into the
     router stream is OPEN.md row `2026-09-27-revokes-do-not-travel`. Census evidence: 2 revokes on tags.brainstorm.world apply to taggings still
     stored on production and staging.
   - **An e-only revoke removes only the version it names.** An older version re-sent afterwards stands again, and
@@ -315,7 +347,9 @@ It is a pure function of the two events, so arrival order cannot change the answ
      - `kind !== 39999` → `wrong-kind`.
      - `d` is the value of the first `d` tag that strfry indexes (clarification 9): `d` tags whose value is a
        string longer than 255 UTF-8 bytes (`Buffer.byteLength`) are skipped. If that first remaining `d` is
-       missing, not a string, or empty, or no `d` remains → `no-d`. strfry files such events under `d = ''`.
+       missing, not a string, or empty, or no `d` remains → `no-d`. *(Amended by `tagging-edges/0002`, R2-6.)*
+       strfry rejects an event whose `d` value is not a string (`events.cpp:35`), and files one whose first
+       remaining `d` is missing or empty, or that has no `d` left, under `d = ''`.
      - Once step 1 passes, every later refusal also carries `address` (`39999:${pubkey}:${d}`), `eventId`,
        `createdAt` and `from`.
   2. **Stamp.** At least one `z` equals `39998:${canonicalPubkey}:nostr-user-tag` or
@@ -335,9 +369,11 @@ It is a pure function of the two events, so arrival order cannot change the answ
      - Neither a valid `a` nor a valid `e` → `no-tag-reference`.
   5. **Resolution.**
      - With `a`: `tagAddress` is the normalized `a` and `tagSlug` its last segment. `e` only fills `tagEventId`.
-     - Without `a` but with an `e`, look up `tagElementsById.get(e)`; a lookup that throws counts as absent. The
-       element is usable only if it is kind 39999, has a non-empty first `d`, and carries `39998:<canonical>:tag`
-       or `39998:<local>:tag` as a `z`. A usable element gives `tagAddress = 39999:${el.pubkey}:${d}`; an
+     - Without `a` but with an `e`, look up `tagElementsById.get(e)`. *(Amended by `tagging-edges/0002`.)* The element is usable only if
+       it passes the step-1 event check, its `id` is the `e` the tagging names, it is kind 39999, it has an identity
+       `d` — the first `d` of 255 bytes or fewer, read as step 1 reads a tagging's own; a missing, empty or
+       non-string one makes it unusable — and it carries `39998:<canonical>:tag` or `39998:<local>:tag` as a `z`.
+       Any error while looking it up or reading it counts as absent. A usable element gives `tagAddress = 39999:${el.pubkey}:${d}`; an
        unusable or absent one leaves `tagAddress` and `tagSlug` as `null`.
      - The module never searches for a tag by slug.
   6. **Stance.** `polarity` is the first `polarity` tag's `[1]` when that is a string, else `null`. Every string
@@ -433,18 +469,22 @@ Implementer and the tests agree. Ratified by the owner at the Test Design gate (
 **Review round (2026-09-27), ratified by the owner at the Review gate:**
 
 9. **The identity `d` is the first `d` strfry indexes.** strfry skips a `d` longer than 255 bytes and files the event
-   under the next `d` (`events.cpp:48`, :57-60, :282-286). Step 1 skips such `d` tags the same way, so a version the
+   under the next `d` (`events.cpp:48`, :59-62, :282-286). Step 1 skips such `d` tags the same way, so a version the
    relay stored under a later `d` gets that address and can retire or replace the edge there.
 10. **The version order works whatever numeric type `createdAt` has.** It compares with `>` / `<` and falls to the
     event id only on a tie, so a `createdAt` read back from Neo4j (a driver Integer or a BigInt) orders the same as
-    a JS number.
+    a JS number, for numeric types. *(Amended by `tagging-edges/0002`.)* A `createdAt` that is missing, `null`, a string, NaN, a float or
+    a boolean is not ordered safely: JS and Cypher compare such values differently. The gap-filling pass never
+    orders a stored `createdAt` to decide a write and repairs any that is not an integer; any writer that orders
+    stored edges must first guard `standsOver` against such values.
 11. **A supplied element resolves only if its `id` is the `e` the tagging names.** Any error while reading the
     element counts as absent, so the tagging stays unresolved rather than being refused.
 12. **Address patterns match any character after the second colon**, line terminators included (the `s` flag), for
     tagging `a` values and for revoke addresses alike.
 13. **An event with an upper-case `id` or `pubkey` stays outside the contract** (NIP-01). strfry accepts such an
     event and can replace or delete by it, so a version like that neither retires nor revokes an edge here; story
-    2's sweep, which reads the relay's current state, removes the edge instead.
+    2's sweep, which reads the relay's current state, removes the edge instead, reported as `not-on-relay`
+    (`tagging-edges/0002`).
 
 ## Out of scope
 
@@ -455,7 +495,10 @@ Implementer and the tests agree. Ratified by the owner at the Test Design gate (
   - whether NostrUser ends are created on write;
   - how tag elements and kind-5 events are fetched.
 
-  All of that is story 2.
+  All of that is story 2. Settled by `tagging-edges/0002`: the `tags_address` constraint, with no `TAGS.eventId`
+  index (story 3 adds one if it needs it); the lock–re-read–verify guard and its parity test; writer-set properties
+  (none); ends created on write by a bare keyed `MERGE`; tag elements fetched by `:tag` stamp in the same scan as the
+  taggings; kind 5 not fetched.
 - The real-time transport (story 3) and the control panel (story 4).
 - Changing any reader's polarity, tie-break or `e` handling (the 0009 Phase-2 cleanup).
 - Importing tag elements as nodes (OPEN.md #136 stage 2).

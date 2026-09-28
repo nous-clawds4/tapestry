@@ -20,9 +20,9 @@ reaches Neo4j at all; every tag surface scans the relay per request.
 
 1. `1-tagging-edge-contract.md` — what one relationship is: which events count, what the relationship carries,
    which version of a tagging stands, what a revoke removes; documented in BIBLE. No relationship is written yet.
-2. *(planned)* The gap-filling pass and backfill — writes the relationships, enforces one-per-tagging in the
-   database, repairs drift, refuses to mass-delete on a failed or empty relay read. Its first run is the
-   backfill.
+2. `2-gap-filling-pass-and-backfill.md` — the gap-filling pass and backfill: writes the relationships, enforces
+   one-per-tagging in the database, repairs drift, refuses to mass-delete on a failed or empty relay read. Its first
+   run is the backfill.
    **Carry-forwards from story 1's review** (owner-ratified 2026-09-27; `reviews/tagging-edges/1-tagging-edge-contract.md`
    § "Re-review", R2-NB1–3 and R2-4–10) — each becomes an acceptance criterion or a docs task of story 2:
    - *R2-NB1:* a `createdAt` that cannot be compared (NaN, undefined, a JSON-round-tripped Neo4j Integer) makes
@@ -66,9 +66,11 @@ Order: 1 → 2 → 3 → 4 (4's page can start once 2's status shape is fixed).
 - **The z namespaces.** Taggings carry the canonical `nostr-user-tag` concept stamp (the ADR 0015 literal,
   identical on every deployment) and, since 2026-06-17, also this deployment's own (runtime TA). Any use of the
   TA pubkey other than the ADR 0015 literal resolves it at runtime.
-- **A writer refuses to start without both stamp pubkeys** (ADR 0001, review round). A writer started without the
-  canonical or local pubkey would read every tagging as a non-tagging and retire every edge; story 2 checks both
-  are 64-hex at startup, and its mass-delete guard counts retirements per run.
+- **A writer refuses to start without both stamp pubkeys** (ADR 0001, review round). A writer started without one
+  of the two stamp pubkeys would read every tagging that carries only the missing stamp as a non-tagging and retire
+  its edge (without both, every edge); the writer refuses if *either* identity is missing or malformed — each must
+  be lowercase 64-hex (story 2 checks both at startup, ADR `tagging-edges/0002`) — and its mass-delete guard counts
+  every removal per run.
 - **Known defects in the follows pipeline stay out of this epic** (the relay-websocket gap in the strfry patch,
   the Redis client that never reconnects, at-most-once delivery, the stream and reconcile writers disagreeing
   on REPORTS' shape): they have ledger rows and are not copied — OPEN.md rows

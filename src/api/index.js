@@ -511,6 +511,17 @@ async function register(app) {
     app.post('/api/admin/add', adminApi.requireOwnerOnly, adminApi.handleAddAdmin);
     app.post('/api/admin/remove', adminApi.requireOwnerOnly, adminApi.handleRemoveAdmin);
 
+    // ── The tagging gap-filling pass (tagging-edges #2, ADR tagging-edges/0002) ──
+    // Two public reads — counts, relay- and graph-derived values, the pass's pid and redacted error text; stamp
+    // identities as 8-character prefixes; no config value, absolute path or credential (ADR tagging-edges/0002
+    // "Who reads it"). The held route serves only the latest report's list and builds no path from the request.
+    // One owner-only confirmation (no admins, no loopback). None of these paths contains an ownerOnlyEndpoints
+    // substring.
+    const taggingEdges = require('./tagging-edges');
+    app.get('/api/tagging-edges/status', taggingEdges.handleStatus);
+    app.get('/api/tagging-edges/held', taggingEdges.handleHeld);
+    app.post('/api/tagging-edges/confirm-held-removals', adminApi.requireOwnerOnly, taggingEdges.handleConfirmHeldRemovals);
+
     // ── BullBoard (task queue operations UI) — owner+admin at /admin/queues ──
     // Story #13 / ADR 0010 (mount). Story #18 / ADR 0016 widened the gate from
     // owner-only to owner+admin via requireOwnerOrAdmin. Admin-management

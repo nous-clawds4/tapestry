@@ -75,6 +75,8 @@ CREATE INDEX nostrUserWotMetricsCard_verifiedMuterCount IF NOT EXISTS FOR (n:Nos
 CREATE INDEX nostrUserWotMetricsCard_verifiedReporterCount IF NOT EXISTS FOR (n:NostrUserWotMetricsCard) ON (n.verifiedReporterCount);
 
 CREATE INDEX nostrUserWotMetricsCard_followerInput IF NOT EXISTS FOR (n:NostrUserWotMetricsCard) ON (n.followerInput);
+
+CREATE CONSTRAINT tags_address IF NOT EXISTS FOR ()-[r:TAGS]-() REQUIRE r.address IS UNIQUE;
 "
 
 # Emit structured event for constraint/index creation phase
