@@ -1,5 +1,7 @@
 # Review: Story 2 — The gap-filling pass and backfill
 
+**Verdict:** **PASS** (after re-review; see "Re-review (2026-09-28)" at the bottom. Round 1 asked for changes: six blocking items, all fixed in rounds 2 and 3.)
+
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-09-28
 **Diff:** `git diff origin/staging...da787035` on `feat/tagging-edges-2` (merge-base `88e8659a`). Seven commits: `0af7cc5b` story, `1b1e1ad8` ledger (Planning), `cd997e2e` ADR 0002, `dfdb7595` ledger (Architecture), `05e5f013` failing tests, `64885ce7` implementation, `da787035` one comment reworded. 45 files, 13,403 insertions, 57 deletions. `origin/staging` (`354eb966`) has since gained seven router-fix commits. They touch two of this branch's files, in hunks that do not overlap: `BIBLE.md` (staging :529; branch :8, :316-320, :651, :1470) and `test/registry.js` (staging :170; branch :261). `git merge-tree --write-tree da787035 origin/staging` exits 0.
@@ -494,3 +496,217 @@ Blocking items to clear, each with its ask above:
 Non-blocking 1 (record the live runs) and Non-blocking 2 (record the end-to-end evidence) are asked in the same round. The Tester's items (Blocking 2's CAND-W4a/W4b and the coverage gaps 8–17, priority 8 and 9) go to Test Design within the round, since the Implementer does not edit `test/`.
 
 **CHANGES_REQUESTED**
+
+
+## Re-review (2026-09-28)
+
+**Reviewer:** Claude (acting as Reviewer), rounds 2 and 3
+**Diff:** `git diff 0548e41a..194b5197` on `feat/tagging-edges-2`, six commits (rounds 2 and 3):
+- `08db63a4` (Test Design): 23 new tests in five suites, an exit-status check in SR5, and the test plan (counts, coverage map, a decision-7 row, the Round 2 validation and an Implementation verification entry). It touches no `src/` file.
+- `8784f2ed` (Implementation): `redactPublicText` in `src/lib/strfryScanStrict.js`; the runner's fixed connection-error text and `stderrTail` redaction; `graph.js`'s two log lines; comment-only edits in `src/api/index.js`, `src/api/tagging-edges/index.js` and `expectedNeo4jSchema.js`; BIBLE, OPERATIONS, ADRs 0001 and 0002 and the story; two new ledger rows and three amended ones. It touches no test file.
+- `19d3325c` (docs): wording corrections from the Implementer's own check (story Evidence, the Nit 6 Deviation, OPERATIONS' first-report-write failure, ADR 0001 R2-4).
+- `b7f7ae21` (Test Design, round 3): SS29, SS30, SR73, SR74, SR75 — the redactor's URI and IPv4 rules, the SessionExpired fixed text, and the runner-side `stderrTail` redaction with a scan port other than `scanStrict`; test plan Round 3 sections. No `src/` file.
+- `25c8675f` (docs, round 3): the round-2 findings below — BIBLE §16 / OPERATIONS / runner header for confirmed runs, the story Evidence key counts (measured), the redactor's actual rule stated, the re-run and lease caveats, the stale-lease row, the hand-run wording, the evidence wording; comments only in three source files. No test file.
+- `194b5197` (docs): OPERATIONS' `refused` row — a `schema` refusal can follow the pass's own `CREATE CONSTRAINT tags_address`.
+
+The round-2 figures below are at `19d3325c`; round 3 is recorded in its own section and in the final gate. `git merge-tree --write-tree 194b5197 origin/staging` exits 0 (`origin/staging` at `354eb966`).
+**Owner rulings at the round-1 gate:** none recorded in the repo. The round-2 commits act on Blocking 1–6, Non-blocking 1, 2 and 4–17, and Nits 2–6. Non-blocking 3 and Nit 1 are filed as ledger rows (round 1 offered a row for Nit 1).
+**Method.** Two lenses, then my own re-checks:
+- **Lens A (code, tests, redaction):** probes with strfry's real stderr and the real driver, a mutant for every candidate of items 8–17, and suites through `run()` from `git archive` trees.
+- **Lens B (documents of record):** every changed statement re-derived against the code, the container's BullMQ 5.76.10 and strfry `f31a1b9` source, the local status route (GET only), and the planning and implementation scratch.
+- **Mine:** the claim-before-read order, the unresolved relationships' keys, which path each SR64 case takes, three mutants of my own, and every asked wording in this section, including the lenses' suggestions, run as a claim (step 10).
+
+Probes and outputs are in `$R2 = /private/tmp/claude-506/-Users-VIRGIL-repos-nous-clawds4-tapestry/dbce76a9-dc52-45aa-8aa5-d9f79c120c25/scratchpad/s2-rereview/`, which is ephemeral. Nothing in the checkout was modified and no mutating request was made. One read-only network contact is under Harness friction.
+
+### Quality gates
+
+- [x] **Full `npm test`** on the committed tree:
+
+  > `20260928T071120Z-87594-381c [review3-tagging-edges-2] started 2026-09-28T07:11:20.249Z on 194b5197 — FAIL, exit 1, 4129 passed, 30 failed, 157 skipped, 233/233 suites; failed: capture-a-goal-and-see-it, structures-the-brain-can-trust, break-a-goal-into-pieces, attach-the-world, sessions-read-the-brain, teach-it-what-matters, the-brain-survives, return-the-four-on-every-read-surface, show-the-four-on-the-goal-screens-that-already-exist, not-yet-shared-filter, concept-count-canonical, summaries-element-count`
+
+  Node v22.23.3, stack up, `git.dirty: false`. Suite by suite:
+  - **Against the baseline** `20260928T023807Z-93805-c275` (`05e5f013`): 8 of 233 moved — the seven story suites red → green (contract 97/0, sweep 55/0, strfry-scan-strict 30/0, runner 75/0, state-routes 54/0, wiring 60/0; live red → SKIP 0/0/16) and `tag-detail` 9/19 → 28/0 (environmental: its precondition corpus is now in the local relay).
+  - **Against round 1's Reviewer run** `20260928T042244Z-6226-196f` (`da787035`): only the suites that gained round-2 and round-3 tests moved, each by exactly its new tests.
+  - **Against the round-2 Reviewer run** `20260928T061536Z-43180-3bd1` (`19d3325c`): 2 moved, strfry-scan-strict 28 → 30 and runner 72 → 75 (round 3's tests).
+  - **The 12 red suites** are the same in all four records and none is touched by this diff.
+
+  The PASS below rests on this comparison: no suite this diff touches may be red.
+- [x] **The story suites through `run()`**, from `git archive` trees in scratch, on Node v16.17.0 and v22.23.3, with no `NEO4J_*` set (lens A). I re-ran scan-strict, runner, state-routes and wiring at `19d3325c` on Node 22 and got the same totals.
+
+  | Suite | `08db63a4` (the tests alone) | `19d3325c` |
+  |---|---|---|
+  | tagging-edge-contract | 97/0 | 97/0 |
+  | tagging-edges-sweep | 55/0 | 55/0 |
+  | strfry-scan-strict | 27/1 (SS28) | 28/0 |
+  | tagging-edges-runner | 70/2 (SR63; SR65, all 3 cases) | 72/0 |
+  | tagging-edges-state-routes | 54/0 | 54/0 |
+  | tagging-edges-wiring | 59/1 (SWR56) | 60/0 |
+  | tagging-edges-live | 0/0/16 skipped | 0/0/16 skipped |
+
+  The two Node versions agree. This matches the test plan's round-2 record (:562-586) and its arithmetic: 382 tests, 301 new, 23 added.
+- [x] **Live suite, run by the Reviewer at `19d3325c`** (Node v22.23.3, Neo4j 5.26.10, credentials from the container conf, never printed; no pass running): read-only **7/0/9**, write sandbox **16/0/0**; afterwards `TAGS` 7,030, NostrUser 6,199, FOLLOWS 0, as before. Round 3 changes no executable line (comments only in `src/`), so these stand for `194b5197`.
+- [x] `bash scripts/harness-lint.sh` at `194b5197`: exit 0, "clean (0 violations)" (and again with this section and the story flip, in the review commit).
+- [x] `git diff --check 0548e41a..194b5197`: exit 0.
+- [ ] `npm run test:playwright`: not applicable. Round 2 touches no UI file.
+
+### Round-1 findings: disposition and evidence
+
+| # | Disposition | Evidence |
+|---|---|---|
+| Blocking 1 | **Fixed** | Lens A captured strfry's real stderr fresh from the container (`strfry --config=/nonexistent-review-probe.conf scan '{"limit":1}'`: exit 1, seven lines including the loguru preamble). It fed that stderr through a child process into the real `scanStrict`, then the real `run(deps)`, then the real `handleStatus` (`$R2/lens-a/probe/probe-b1.js`).<br>- At `0548e41a` the status body carries `/nonexistent` and `[/`.<br>- At `19d3325c`, `stderrTail` reads `strfry error: Failed to load config file '<path>': filesystem error: open() failed: No such file or directory [<path>]`, and neither the body nor the events carry a path. The pass still ends `failed` / `read` / `relay`, exit 1.<br>- The same holds for `/etc/strfry.conf` and for a second missing directory, on both Node versions.<br>Mutants: `summarizeStderr` back to the hex-only cut is killed by SS28; removing both redactions, by SR63; removing the path rule, by SS28, SR63 and SR65. The `scanStrict` header (:24-27) and ADR 0002 :818-820 now say paths are redacted. What remains: R2-6 (the rule's wording) and R2-7 (the runner-side redaction is unpinned). |
+| Blocking 2 | **Fixed** | graph.js:438 logs `not created: name-taken (…)` and :445 logs `not created: no-change (…)`. That is the same `not created: <code>` form as the `no-status` and give-up lines (:453, :457). OPERATIONS :763 lists `no-change`, and story :285-288 matches the code. SWR55 kills the deletion of the name-taken early return (graph.js:242): a CREATE is sent where none is expected. SWR56 kills a revert of both strings, and it was red at `08db63a4`, quoting the round-1 sentences. |
+| Blocking 3 | **Fixed** | OPERATIONS :732 and :749, and ADR 0002 :524-532 (with an amendment note), now give the sequence. I re-derived each step:<br>- `[program:brainstorm]` sets no `stopasgroup` or `killasgroup` (`docker/supervisord.conf:55-65`; `git grep` over `docker/` finds neither), so SIGTERM reaches the control panel alone.<br>- Its handler is `await closeDriver(); process.exit(0)` (`bin/control-panel.js:401`), so the Worker's `finally { await release(); }` (`queue/index.js:127-128`) never runs.<br>- The lease TTL is 4 h (`resourceSemaphore.js:30`).<br>- BullMQ 5.76.10's defaults are `lockDuration` 30000, `maxStalledCount` 1 and `stalledInterval` 30000 (`dist/cjs/classes/worker.js:34`), and `git grep` finds no override in `src/` or `bin/`.<br>Lens B confirmed the container's `neo4j-heavy` cap of 1, and that the orphaned child runs to its end (`launchChildTask.sh:344`, :375-392). What remains: R2-4 (round 1's own "after which the re-run performs an ordinary pass"). |
+| Blocking 4 | **Fixed** | All five places are reworded: BIBLE.md:657, ADR 0002 :538-546 and :766-768, `src/api/tagging-edges/index.js:10-14`, and `src/api/index.js:515-519`. `git grep -i 'relay-derived'` finds the old phrases only inside the two amendment notes. The new list matches what the route serves:<br>- `computeStatus` passes `latest` and `previous` through (`src/api/tagging-edges/index.js:101-115`).<br>- The pessimistic record holds run ids, timestamps, counts, reason codes and `process {pid, startTime}` (runner :153-179), and the identities are cut to 8 characters (:350).<br>- The confirmation record carries `mintedBy: owner.slice(0, 8)` (`src/api/tagging-edges/index.js:272`), and `withoutNonce` (:90) strips the nonce from the answer.<br>- Every `failure.message` is fixed text, `fsFailure` (the code and a relative file) or `safeMessage`.<br>What remains: R2-6 ("any absolute path"). |
+| Blocking 5 | **Fixed as asked; the asked wording has a further gap** | BIBLE.md:1470 carries round 1's wording. Its graph-verify half holds: a failed verify re-read fails the run at `write` (runner :528-530), and the committed batches stand (SR53). The kept half, "changes nothing when a read its plan is made from … fails", I re-derived as a claim (step 10). It is false on a run that claimed a confirmation, because the claim (step 7, runner :387-406) comes before the graph read (step 8, :410-415). Lens B's probe ends `failed` / `read` / `graph` with `confirmation.json` gone (`$R2/lens-b/probe-claim/probe.js`). → R2-NB1. |
+| Blocking 6 | **Fixed** | ADR 0001 :114-121 now says an upper-case-pubkey deletion deletes the version stored then and does not refuse a later arrival, and it carries a correction note. Lens B re-checked this against the container's strfry source (`f31a1b9`; only `golpe.yaml` and `WriterPipeline.h` differ from upstream):<br>- `EventUtils.h:38` parses the kind with `stoull`; :49 decodes the pubkey with `from_hex`, which accepts `A`-`F` (`hex.h:56`).<br>- `events.cpp:45` compares the author as bytes, and :339-355 deletes stored versions whose `created_at` ≤ the deletion's.<br>- `golpe.yaml:80` hashes the raw `a`, while `events.cpp:313` looks arrivals up under the lower-case form.<br>`19d3325c`'s split (`names-address` for the pubkey, `not-named` for `039999`) agrees with `ledger/2026-09-27-ui-revoke-names-id-only.md`. |
+| Non-blocking 1 | **Fixed** | Test plan § Implementation verification (:544-560) records:<br>- the Reviewer's runs at `da787035` (7/0/9 and 16/0/0; Node 22.23.3; Neo4j 5.26.10);<br>- the verify pass's run on Node 16;<br>- the Implementer's run, from `64885ce7`'s message.<br>Its "no code changed between `da787035` and `0548e41a`" holds: `git diff --stat` shows the review, the story's link and two ledger rows. The live suite was not re-run at `19d3325c` (Quality gates). |
+| Non-blocking 2 | **Fixed, with one false parenthetical** | (a) OPERATIONS :753-754 carries the run ids, phases and counts. Every figure matches the local status route as read now (`$R2/lens-b/status-now.json`):<br>- backfill `08965d1d`: 2,595 ms; phases 30 / 98 / 7 / 72 / 47 / 2,330; relay read 67 ms; graph read 5 ms for 0 rows;<br>- second pass `472c2596`: 524 ms; 7,030 unchanged; graph read 204 ms for 7,030 rows.<br>(b) Story § Evidence (:335-353) records the snapshot, and says what it does not show. The snapshot matches `s2-impl/e2e/`: 4,989 → 12,019 relationships, 4,467 → 10,663 nodes, 3 → 6,199 NostrUser, INTEGER `createdAt`, 9 distinct keys.<br>(c) The ADR's AC-8 row (:670) cites SL15, and its description matches `test/tagging-edges-live.test.js:757`.<br>What remains: R2-NB2 ("carry eight") and R2-8 (two wording slips). |
+| Non-blocking 3 | **Deferred to a ledger row** | `ledger/2026-09-28-confirm-route-joins-finishing-job.md` (bug, OPEN) states the defect and round 1's fix shape. Lens B re-checked its claims, and found no duplicate at HEAD or on `origin/staging`:<br>- `check_interval=5` (`launchChildTask.sh:375`);<br>- the gap between TASK_END and `resource_class_released` in `taskQueue/events.jsonl`;<br>- `addStandardJob-9.lua:91` → `handleDuplicatedJob`;<br>- `runViaQueueAsync` always answers `success: true`.<br>No code, test or document changed. ADR 0002 :461-462 and OPERATIONS :747 still describe `enqueued` without the 0–5 s window, and the row's fix shape carries those amendments. A row is acceptable for a non-blocking item that fails safe. |
+| Non-blocking 4 | **Partly fixed** | (a) Host names: fixed. Lens A ran the real runner, `graph.js` and `neo4j-driver` with `dns.lookup` stubbed and every connection sent to loopback port 1 (`$R2/lens-a/probe/probe-driver.js`). The URIs were `bolt://localhost:1`, `bolt://[::1]:1`, an ENOTFOUND host, `neo4j.internal`, a `neo4j://` routing URI and a credentialed URI. For every one, `failure.message` is now `the Neo4j server could not be reached`, code `ServiceUnavailable`. At `0548e41a`, `::1` leaked and about 14 characters of the ENOTFOUND host survived. The path rule is in, and SR65 pins the ENOTFOUND and MODULE_NOT_FOUND cases.<br>(b) Round 1 found that nothing pins the URI or IPv4 redaction. That is still true → R2-NB3. |
+| Non-blocking 5 | **Fixed** | OPERATIONS :730 and :747 name `limit.baseAfterConfirmed` and the second confirmation, which matches `sweep.js:477-486`. |
+| Non-blocking 6 | **Fixed** | OPERATIONS :731-734 now carries each missing outcome, and each matches the runner:<br>- `reasonCode 'report'` (runner :598-605): the creates, updates and moves have applied, and on a confirmed run so have the confirmed removals, with the claim spent;<br>- `'error'` / `unexpected` (:629);<br>- a failed first record: no graph contact, and `TASK_END` carries `reasonCode: 'report'` (:262-266; the `TASK_END` clause is `19d3325c`'s);<br>- a failed final write (`finish()`, :300-328);<br>- `driver` under `config` (:364).<br>The read and plan clauses' "nothing changed" predates round 2 → R2-NB1. |
+| Non-blocking 7 | **Fixed** | Test plan :171 now reads `[x] … 2 (C19), pinned by SR7 and SR5`. SR5 asserts exit status 2, and lens A's mutant entry `run({})` fails it. |
+| 8 (pre-images through the real port) | **Fixed** | SWR57 kills M-W1a. SWR57 and SWR58 kill M-W1b: SWR58 drives the real `run(deps)` over the real `openGraph` on the fake driver, through a new `RUNNER_PATH` constant. |
+| 9 (shapeless reads) | **Fixed** | SW55 kills the `planPass` relay and snapshot guards. SR66 kills the runner's scan guard (runner :448), both removed whole (3 of 5 cases fail) and cut to `!scanned` (2 of 5), and also with the sweep guard removed. SR66's `''` graph case kills the rows-list guard (:415). |
+| 10 (a confirmed run that fails partway) | **Fixed** | SR67 kills M-R1a and M-R1b. The test plan's decision table gains the decision-7 row (:86). |
+| 11 (a stop before or at the claim) | **Fixed** | SR68 kills the mutant CAND-R2 was written for, and SR69 kills CAND-R3's. |
+| 12 (the rule not ONLINE after `ensureTagsConstraint`) | **Fixed** | SR70 kills M-R4 and the removal of the whole guard. Its first case is relabelled as asked. |
+| 13 (`err.partial`) | **Fixed** | SWR59 kills M-W3 and SR71 kills M-R6. One site round 1 did not name survives: `applyLocked`'s `withPartial` (graph.js:336). It cannot change the report, because the runner hands `applyLocked` at most `MAX_BATCH` rows at a time (runner :573-585), so that partial is always empty. |
+| 14 (`toPortRow`'s own-address check) | **Fixed** | SWR60, the eight-case candidate, kills `if (false)` at graph.js:189. |
+| 15 (the start-time fallback) | **Fixed** | SR72 kills M-R8. |
+| 16 (the routes' failure paths) | **Fixed** | RT30 kills M-S3. RT31 kills the five M-S4 and M-W mutants (no catch; the error swallowed as true or false; the withdraw's no-catch and swallow). Test plan :256-257 now matches `state.js:229-236`: true, false, or a throw that the route answers with 500 `withdraw-failed`. |
+| 17 (state-file robustness) | **Fixed** | ST20 kills M-S1 and M-S1b, ST21 kills M-S2, and ST22 kills M-S5, on both Node versions. ST20's title says it guards the Node 16 path. Story :313-314 now reads "(which loops until every byte is written, and throws on an error such as ENOSPC)", round 1's wording, which I re-derived:<br>- Node 16's `writeFileSync` loops over `fs.writeSync` (round 1's probe: 43 calls).<br>- On Node 22.23.3 a string goes to the native `binding.writeFileUtf8` (its JavaScript source, printed here). I did not drive that native write to a short write. |
+| Nit 1 | **Deferred to a ledger row** (round 1 allowed one) | `ledger/2026-09-28-lock-check-accepts-any-flock.md` (bug, OPEN). Lens B re-checked it, and found no duplicate at HEAD or on `origin/staging`:<br>- `state.js:318-325` accepts any `FLOCK … WRITE` line and checks no inode, as ADR 0002 :846 specifies.<br>- A `git grep` over `*.sh` finds fd 9 only in `reconcileTaggingEdges.sh:9`; the other scripts use fds 200 and 201 or `{LOCK_FD}`.<br>- "The pid reads 0" holds, because `flock(1)` exits after taking the lock (wrapper :10).<br>What remains: R2-9 (the documents' "a hand-run … is refused"). |
+| Nit 2 | **Fixed** | Story :281-283 lists `nameTaken` (graph.js:99-101, read at :242 and :437) and `MAX_BATCH` (graph.js:18, exported at :474). The ADR's export list (:883-893) omits `MAX_BATCH`, as the story says. The unanchored `lostAddresses` sentence is gone. |
+| Nit 3 | **Fixed** | OPERATIONS :765 and `expectedNeo4jSchema.js:19-21` say to DROP the rule, then create `tags_address` through the Dashboard fix. The `CREATE CONSTRAINT tags_address …` statement they point to is at OPERATIONS :757. |
+| Nit 4 | **Fixed** | At HEAD, `src/api/scheduled-tasks/index.js:207` is `s.status = rec.failure ? 'failed' : 'success'`, :198-210 is the session block and :130-137 is the seed. Both ledger rows, and ADR 0002 :102 and :718, now cite these lines. They are right for this branch; `origin/staging` has the first line at :195 until the merge. |
+| Nit 5 | **Fixed as asked; the asked wording has a gap** | BIBLE.md:653 and OPERATIONS :721 use round 1's wording; OPERATIONS also has the optional "Do not run the wrapper by hand" sentence. The runner header (:6-8) says the same. I re-derived "a hand-run of its Node file is refused": it fails when fd 9 carries an exclusive flock on another file, which is Nit 1's case. → R2-9. |
+| Nit 6 | **Fixed** | The revokes row now gives the endpoint, the filter, the time and what "taggers" means. Lens B checked it against the Planning scratch (`s2-plan/census-ends`):<br>- `f_kind5.js` takes one unscoped `{kinds:[5]}` count and stream per host;<br>- `f_kind5.summary.json` gives 2,402 taggers in the union, 40 kind-5s on tags (39 by taggers), 21 by taggers on production, and 1 on staging (0 by taggers);<br>- `tags.requests.log:31` shows the kind-5 count at 17:07:39Z;<br>- the union comes from the edges the contract accepts (`d_classify.js`). |
+
+### Things tests can't catch (round-2 diff)
+- [x] **Scope.** The `src/` diff holds only the asked changes:
+  - `redactPublicText`, exported from `strfryScanStrict.js` and used by `summarizeStderr` and the runner;
+  - `CONNECTION_ERROR_TEXT` and `safeMessage`;
+  - the runner's `stderrTail` redaction;
+  - `graph.js`'s two strings;
+  - comments in `src/api/index.js`, `src/api/tagging-edges/index.js`, `expectedNeo4jSchema.js` and the runner header.
+
+  The runner now requires `strfryScanStrict` when it loads. That module does nothing at require time, and SR2 is green. Every new test maps to a round-1 candidate or to the Blocking 1 / Non-blocking 4 asks. `package.json` and `test/registry.js` are unchanged.
+- [x] **Secrets and debug code.** The 1,117 added lines carry no 64-hex run and no `console`, `debugger`, TODO or FIXME. The strings that look like credentials are fixtures: `fake-neo4j-password-4d9e`, `fake-password-3c9d-never-printed`, `bolt://fake-neo4j.invalid:7687` and `uri-secret-7f3a`.
+- [x] **Over-redaction.** Lens A's battery (`$R2/lens-a/probe/redactor-battery.js`) keeps all of these unchanged: times, ISO timestamps, relative names (`../../lib/x`, `./strfry-db/`, `src/lib/x`, `preimages/<runId>.jsonl`), `read/write`, ` / `, `1/10`, `2026/09/28`, `HTTP/1.1`, version numbers, and Cypher division. It over-redacts only two shapes that no current source produces: a route after a space, and a four-part dotted number with a `:port`. The fixed connection text drops the errno cause (R2-10).
+- [x] **Principle 4 and concurrency.** Unchanged: no statement, lock or write path moved.
+- [x] **Ledger rows.** The two new rows' claims hold (Non-blocking 3 and Nit 1 above). The three amended rows change only the cites and the method that round 1 asked for.
+
+### House rules
+- [x] **No new tooling.** `package.json` and `test/registry.js` are untouched.
+- [x] **TA pubkey and ADR 0015.** No `LEGACY_*` constant is touched and no TA literal is added.
+- [x] **Concept graph.** No concept definition changed, so no firmware reinstall is needed.
+
+### Findings (round 2)
+
+#### Blocking
+None.
+
+#### Non-blocking
+1. **R2-NB1, BIBLE.md:1470 (§16); OPERATIONS.md:732 (the `failed` row: "A read failed (…; nothing changed), planning failed (…; nothing changed)"); runner header :12-14** — **"changes nothing" when a plan read, or the plan, fails is false on a run that claimed a confirmation.** The BIBLE sentence is round 1's own asked wording for Blocking 5. The OPERATIONS clauses and the header are text round 1 left standing.
+   - **Why:** the claim at step 7 (runner :387-406) comes before the graph read at step 8 (:410-415) and the relay read at step 9 (:442-448). The claim renames `confirmation.json` into `claimed/` (`state.js:199-226`, the rename at :215). So after a failed read or plan, the confirmation is spent, and the next pass holds those removals again for a second confirmation. The ADR says so (:472; the AC-7 row, :669; owner decision 7, :748). SR67 and SR69 pin the spend for a failed write and for a stop.
+   - **Evidence:** lens B's probe (`$R2/lens-b/probe-claim/probe.js`, on a `git archive` copy of `19d3325c`, Node 22) runs a confirmed pass whose `readAll` throws. It ends `failed` / `read` / `graph` with `confirmation {found: true, honoured: true}` and `confirmed` set, and `confirmation.json` is no longer pending. The sentences are loose in a second way too: on a host without the rule, step 6 creates `tags_address` (:372-373) before either read. AC-4's own scope avoids both: "no relationship or person is added, changed or removed" (story :85-88).
+   - **Not blocking.** Round 1's Blocking 5, on the same sentence, hid committed graph writes, which are the sentence's own subject. This gap is state outside the graph that the ADR records, that the report shows (`confirmation.honoured`, `confirmed`), and that fails safe: nothing is removed, and the owner confirms again. Round 1 rated the matching confirmed-run gap in the outcome table non-blocking (Non-blocking 6).
+   - **Ask:** use AC-4's scope in all three places.
+     - BIBLE §16: "adds, changes or removes no relationship or person when a read its plan is made from (the graph snapshot or the relay scan) fails or comes back incomplete, though any owner confirmation it has claimed is spent (owner decision 7); a batch's verify re-read …".
+     - OPERATIONS `failed` row, the read and plan clauses: "no relationship or person changed; a confirmation the run claimed is spent, and the next pass holds over-limit removals again".
+     - The runner header: the same.
+
+     I checked these as claims. Every read and the plan run after the claim (:387-406 comes before :410-415 and :442-448). The claim renames the record before `validateClaim` runs (:393, :398), so a claim that is not honoured is spent as well; hence "any".
+2. **R2-NB2, story :347-348 (§ Evidence)** — **"(the 6 unresolved ones carry eight: a null `tagAddress` / `tagSlug` is not stored)" is false.** `19d3325c` added it.
+   - **Why:** an unresolved tagging names its tag only by `e` (`contract.js:152`), and resolution found no tag element, so `tagAddress` and `tagSlug` are both null (:155, :172-174). `toWriteProps` skips nulls (`graph.js:72-79`). The relationship therefore carries `address`, `createdAt`, `eventId` and `tagEventId`, plus `zCanonical` and `zLocal`, which are booleans (:133-134) and always stored, plus `polarity` when the tagging has one. That is seven keys at most.
+   - **Evidence:** lens B's probe runs the real `taggingToEdge` and `toWriteProps` (`$R2/lens-b/probe-keys/probe.js`): 7 keys with a polarity, 6 without. The snapshot measured only `r.tagAddress IS NULL` = 6 and the union of keys.
+   - **Ask:** replace the parenthetical with "(the 6 unresolved ones carry at most seven: no `tagAddress` or `tagSlug`, and no `polarity` where the tagging has none)", or drop it. "No key outside the nine" stands.
+3. **R2-NB3, `src/lib/strfryScanStrict.js:53`, :55; runner :79; `test/tagging-edges-runner.test.js:1640-1670` (SR64); test plan :119-120, :169-170, :494** — **no test reaches the redactor's URI and IPv4 rules, or the `SessionExpired` text. Round 1's Non-blocking 4(b) is still open.**
+   - **Why:** the test plan describes SR64 (CAND-R5) as covering "a credentialed URI and an IPv4 host:port". Both of its cases now take a fixed-text path before the redactor runs:
+     - case 1's error has code `ServiceUnavailable` (:1647), which `CONNECTION_ERROR_TEXT` answers (runner :88-89);
+     - case 2 throws from `openGraph`, and the driver refusal's fixed text answers it (:364).
+
+     So SR64 pins only the fixed texts. CAND-R5 killed M-R5a at `da787035`, but the round-2 fix moved its input onto another branch. The test plan's :494 ("each adopted candidate kills the mutant its item names", at `da787035`) no longer holds for it.
+   - **Evidence:** lens A removed both `.replace` lines (URI and IPv4), and all six story-2 suites stayed green on Node 16 and 22 (97/0, 55/0, 28/0, 72/0, 54/0, 60/0). With the `SessionExpired` entry removed, the runner stayed at 72/0 and wiring at 60/0. I reproduced both mutants on Node 22 (`$R2/synth/m1`, `m2`): scan-strict 28/0, runner 72/0, wiring 60/0, state-routes 54/0. A `SessionExpired` message can name a server: `neo4j-driver-bolt-connection`'s routing provider builds `'No longer possible to write to server at ' + address` (`connection-provider-routing.js:209`).
+   - **Ask:** add cases that reach the redactor, one or both of:
+     - an SS case that calls `redactPublicText` directly: a credentialed `bolt://` URI becomes `<uri>`, `172.18.0.3:7687` becomes `<host>`, and `'../../lib/x'` is kept;
+     - SR cases with `err.code` `'SessionExpired'` and a message naming a host:port, and with a code outside `CONNECTION_ERROR_TEXT` (e.g. `'Neo.ClientError.General.Unknown'`) and a message carrying a credentialed URI and an IPv4 host:port.
+
+     Then state in the test plan what each SR64 case pins, and date :494's claim to `da787035`.
+
+#### Nits
+4. **R2-4, OPERATIONS.md:732 ("after which the re-run performs an ordinary pass"); ADR 0002 :530-532.** This is round 1's asked wording for Blocking 3, and the re-run is not guaranteed the freed slot.
+   - **Why:** each waiter polls on its own every 500 ms, and the Lua acquire grants the slot to the first caller after the sweep; there is no FIFO (`resourceSemaphore.js:102-160`). The re-run times out 4 h after it began waiting (`DEFAULT_ACQUIRE_TIMEOUT_MS`, :32). That is later than the stale lease's expiry only by the dead pass's run time plus the stall detection. If a scoring run takes the slot and holds it past that margin, the re-run fails `RESOURCE_CLASS_WAIT_TIMEOUT`. No `attempts` option is set anywhere under `src/manage` (`git grep`), so the job is not retried.
+   - **Ask:** append "(unless a scoring run takes the freed slot first and outlasts the re-run's own 4 h wait: the re-run then fails `RESOURCE_CLASS_WAIT_TIMEOUT`, §10.6, and the next scheduled or on-demand pass does the work)". Say the same in the ADR amendment.
+5. **R2-5, `ledger/2026-09-27-stale-heavy-lease-after-deploy.md` (the title, :10-12, :17-18).** This branch filed the row (`dfdb7595`; it is not on `origin/staging`).
+   - **Problems:**
+     - It names only deploys, but round 2 now documents the same stale lease after a backend-only restart.
+     - Its fix shape's alternative, "(or every lease, since no task survives a container re-creation)", would be unsafe after a backend-only restart. At that boot it would drop the lease of a heavy task that is still running orphaned, and a second heavy task could then start beside it.
+     - Its first alternative, dropping leases "whose holder job is not active", cannot be done as written: a lease records only `leaseId → expiry` (ACQUIRE_LUA's HSET), not its job.
+   - **Ask:** add the backend-only restart to the title and the body. Drop the "every lease" alternative, or say that boot cannot tell a re-creation from a backend-only restart. Note that a lease would have to record its job id.
+6. **R2-6, `src/lib/strfryScanStrict.js:24-26`; ADR 0002 :545-546 and :818-820; BIBLE.md:657; `src/api/tagging-edges/index.js:13-14`.** "Replaces any URI, absolute path and IPv4 host:port" and "no … absolute path" say more than the path rule does.
+   - **Why:** the rule (:54) replaces a `/` only at the start of the text or after whitespace, a quote, `[`, `(` or `=`. The `redactPublicText` docblock (:45-50), story :303 and test plan :273-276 say exactly that. Round 1's Blocking 1 ask supplied this regex.
+   - **Evidence:** at `19d3325c` these pass unchanged: `config file:/etc/strfry.conf`, `directory,/var/lib/strfry`, `` `/var/lib/strfry/data.mdb` ``, `path=</etc/x>` and `{/etc/x}`. `'/Users/Some One/x'` loses only its first word (lens A and B batteries). No current source was found that emits these shapes: strfry's config and LMDB errors quote or bracket their paths, and so do Node's fs and module errors. So no exposure was found; the documents claim more than the rule does.
+   - **Ask:** choose one.
+     - Word the five places as the docblock does: "an absolute path that starts a word …", and "no … absolute path, in the error shapes Node, strfry and the driver produce".
+     - Widen the leading class and add a battery case. A widened rule has a cost. `(^|[^\w./])\/…` catches all five forms above, but it also cuts a tagging address whose `d` starts with `/` inside error text (`…:aaaaaaaa:<path>'`; `$R2/synth/widened-battery.js`).
+7. **R2-7, runner :451; story :323-325.** The story says the runner redacts a scan port's `stderrTail` again, "so a port other than `scanStrict` is covered". No test covers that.
+   - **Why:** SR63 uses the real `scanStrict`, which already redacts, so SR63 passes whichever side does the redaction (test plan :484 says so).
+   - **Evidence:** a mutant that turns :451 back into `String(err.stderrTail).slice(0, 300)` leaves the runner at 72/0 (lens A; I reproduced it on Node 22, `$R2/synth/m3`).
+   - **Ask:** add an SR case whose fake scan port rejects with an unredacted `stderrTail` naming `/etc/strfry.conf`, and assert that `failure.stderrTail` holds no path. Otherwise drop "is covered" from the story.
+8. **R2-8, OPERATIONS.md:753; story :337-338.** Two wording slips in the evidence.
+   - (a) "Taken at the code of commit `64885ce7` before that commit was made" says the tree matched that commit, but nothing records the tree. The snapshot files date from 03:24:18Z to 03:24:54Z, the runs ended at 03:24:32Z and 03:25:01Z, and `64885ce7` was committed at 03:26:03Z. Scratch holds no tree hash or diff.
+   - (b) The graph read cited against the 120 s time-out, 5 ms, is the backfill's read of an empty graph. The second pass read 7,030 rows in 204 ms (its graph-read phase took 224 ms).
+
+   **Ask:** (a) write "on the working tree about a minute before commit `64885ce7` was made (03:26:03Z); nothing records that tree"; (b) cite 204 ms for 7,030 rows.
+9. **R2-9, BIBLE.md:653; OPERATIONS.md:721; runner header :6-8.** "A hand-run of its Node file is refused" is round 1's Nit 5 wording; the header says "a hand-run of this file, without the lock, is refused". Neither holds when fd 9 carries an exclusive flock on another file, because `lockHeld(9)` checks no inode (`state.js:318-325`; `ledger/2026-09-28-lock-check-accepts-any-flock.md`). "Without the lock" does not fix it: such a run does not hold the pass's lock, yet it passes the check. **Ask:** until the row is fixed, write in all three places "a hand-run of its Node file is refused unless fd 9 holds an exclusive flock (on any file: ledger `2026-09-28-lock-check-accepts-any-flock`)".
+10. **R2-10, runner :77-80, :89 (optional).** The fixed connection text drops the cause, so a report can no longer tell a wrong host (ENOTFOUND) from a server that is down (ECONNREFUSED). At `0548e41a`, `failure.message` ended in `Caused by: connect ECONNREFUSED …` or `getaddrinfo ENOTFOUND …` (lens A's driver probe). The raw text is logged nowhere else: TASK_ERROR carries the same failure. **Ask (optional):** append the errno name when the message carries one, taken from a fixed list (`ECONNREFUSED`, `ENOTFOUND`, `ETIMEDOUT`, `EAI_AGAIN`, …), for example "the Neo4j server could not be reached (ENOTFOUND)". A bare `/E[A-Z]{3,}/` would also match words such as `ERROR`.
+
+### Round 3 — the round-2 findings, closed
+
+An independent check re-derived each item at `194b5197` from `git archive` copies (read-only; scratch `s2-round3-check/`), on Node 16.17.0 and 22.23.3:
+
+| Round-2 item | Disposition | Evidence |
+|---|---|---|
+| R2-NB1 (BIBLE §16 "changes nothing" false on a confirmed run) | **Fixed** | BIBLE §16, the OPERATIONS `failed` row and the runner header now use AC-4's scope plus owner decision 7's words; the claim at step 7 (runner :389-409) precedes the graph read (:412). |
+| R2-NB2 (story Evidence "carry eight") | **Fixed** | The story now records the measured distribution; a fresh read-only Cypher agrees exactly: 9 keys 6,683, 8 keys 341, 7 keys 5, 6 keys 1 (7,030); the 6 unresolved are 5 × 7 keys and 1 × 6 (no `polarity`); only the nine documented keys appear. |
+| R2-NB3 (redactor URI / IPv4 rules and SessionExpired unpinned) | **Fixed** | SS29, SS30, SR73, SR74 pass at `194b5197`. Mutants: URI rule removed → SS29, SS30, SR73, SR75 fail; IPv4 rule removed → the same four; SessionExpired entry removed → SR74 (both cases); every other test green under each. The test plan now says what SR64 pins. |
+| R2-4 (stalled re-run nuance) | **Fixed** | OPERATIONS :732 and ADR 0002 :532-536; checked against `resourceSemaphore.js` (per-waiter 500 ms polling, no queue order, the 4 h wait starts after the lease). |
+| R2-5 (stale-lease row's "drop every lease") | **Fixed** | The row's title and body cover a backend-only restart and drop that option; its citations hold. |
+| R2-6 ("any absolute path") | **Fixed** | Every place now states the rule: a `/` at the start, or after whitespace, `'`, `"`, `[`, `(` or `=`; the real `redactPublicText` matches the wording. |
+| R2-7 (runner-side `stderrTail` redaction unpinned) | **Fixed** | SR75 (a scan port other than `scanStrict`) fails when runner :451 reverts to the raw tail. |
+| R2-8 (evidence wording) | **Fixed** | "On the working tree about a minute before `64885ce7`"; the 120 s time-out is now measured against the second pass's 204 ms for 7,030 rows. |
+| R2-9 (hand-run wording) | **Fixed** | BIBLE :653 and OPERATIONS :721 say "without the pass's lock" and cite `2026-09-28-lock-check-accepts-any-flock`. |
+| R2-10 (connection-error cause, optional) | **Declined, reason logged** | The suggested errno regex takes an upper-case host name as the errno (`…server at EDGEDB:7687` → `EDGEDB`); a safe version needs an allow-list at five call sites. Story Deviations record it. |
+| (found in round 3) OPERATIONS `refused` row "nothing changed" | **Fixed** (`194b5197`) | A `schema` refusal can follow the pass's own `CREATE CONSTRAINT` (runner :375-382; `SCHEMA_WAIT_MS` 60000), and the rule then stays. |
+
+### Carry-forwards (non-blocking; for story 3's docs tasks or a ledger row)
+
+The round-3 check found six wording nits. None is behaviour; none was fixed here, so that the reviewed commit is the one the final gate ran on:
+1. `src/api/index.js:515-517` still says "no config value, absolute path or credential" unqualified, citing the ADR, which no longer says that; the test plan's coverage row :91 has the same label.
+2. ADR 0002 :470 "A refused start never reaches the claim and changes nothing (AC-4)" — a `schema` refusal can leave the pass's own `tags_address` in place (OPERATIONS now says so).
+3. "No config value" stays broad: `neo4j.internal:7687` or `[::1]:7687` pass the redactor unchanged when `err.code` is outside the two connection codes (no current source emits them).
+4. ADR 0002 :857 "(so a hand-run `node reconcileTaggingEdges.js` cannot write)" lacks the lock-file qualifier the other places now carry.
+5. Story :331-333 (the round-1 Deviation note) still restates the old wording in the present tense; odd wrap at :326-328.
+6. Observation: the status route also shows an earlier empty pass (`20260928T032350Z-fa59e6da`, 0 events, 0 rows) that the Evidence does not mention.
+
+#### Harness friction
+1. **Step 10 found defects in four of round 1's own suggestions.** Round 1's verify passes tried to refute findings, not the replacement text the review asked for, and the Implementer adopted that text verbatim. This round found a defect in four of them:
+   - Blocking 5's BIBLE wording (R2-NB1);
+   - Blocking 3's "after which the re-run performs an ordinary pass" (R2-4);
+   - Blocking 1's path regex (R2-6);
+   - Nit 5's "a hand-run … is refused" (R2-9).
+
+   Step 10 caught them one round late, after the text had spread to as many as five documents. Filed as OPEN.md row `2026-09-28-review-suggested-wording-unverified`: a review's verify pass treats each asked sentence and each suggested regex as a claim to refute before the review is saved. No row covers this: a search of `ledger/` and OPEN.md finds only step 10 itself (`de7729ae`, CHANGELOG :87).
+2. **An adopted candidate test's kill claim holds only for the code it was checked against.** CAND-R5 killed M-R5a at `da787035`. The round-2 fix sent its input down the fixed-text path, and nothing in Test Design or Implementation re-runs the review's named mutants after the fix. So SR64 kept a description it no longer earns (R2-NB3), until this round's mutant pass caught it. Filed as OPEN.md row `2026-09-28-named-mutants-not-rerun-after-fix`: when a review hands named mutants to Test Design, the Implementer's after-gate, or the re-review, re-runs them on the fixed tree. No existing row covers it; `ledger/2026-09-21-single-run-satisfiability.md` is about proving browser tests satisfiable.
+3. **One read-only network contact.** Lens B ran `git fetch --dry-run` once, against this re-review's no-network rule. It updates no ref, and the duplicate checks used the existing `origin/staging` ref (`354eb966`). No row.
+4. **Round 1's two harness rows are filed:** `ledger/2026-09-28-live-and-evidence-runs-unrecorded.md` and `ledger/2026-09-28-conf-secret-masking-snippet.md` (both at `0548e41a`).
+
+### On PASS
+- **Story status flipped to `Done`** in this review commit (`engineering-team/stories/tagging-edges/2-gap-filling-pass-and-backfill.md`), so L1 holds.
+- **The round-2 findings are closed** (Round 3 above); the six carry-forwards are the owner's to place (story 3's docs tasks or a ledger row). None changes what the pass does to the graph.
+- **Completion detection** goes in the chat, not in this file.
+
+### Verdict
+**PASS**

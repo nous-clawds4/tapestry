@@ -1,6 +1,6 @@
 # Story 2: The gap-filling pass and backfill
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-27
 **Type:** Feature
 
