@@ -265,6 +265,10 @@ const suites = [
   { file: 'tagging-edges-runner.test.js' },
   { file: 'tagging-edges-state-routes.test.js' },
   { file: 'tagging-edges-wiring.test.js' },
+  { file: 'tagging-edges-realtime-plan.test.js' },
+  { file: 'tagging-edges-realtime-engine.test.js' },
+  { file: 'tagging-edges-realtime-routes.test.js' },
+  { file: 'tagging-edges-realtime-wrapper.test.js' },
   { file: 'tagging-edges-live.test.js', skipNote: 'no local Neo4j in the environment (NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD)' },
 ];
 

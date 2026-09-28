@@ -370,6 +370,9 @@ function classify(cypher, params) {
   if (/^SHOW\b/i.test(c)) return 'show';
   if (/^CREATE\s+CONSTRAINT\b/i.test(c)) return 'create-constraint';
   if (/\bSET\s+(\w+)\s*\.\s*address\s*=\s*\1\s*\.\s*address\b/i.test(c)) return 'lock';
+  // Story 3 (ADR tagging-edges/0003): READ_KEYS, the catch-up's (address, eventId) read — a MATCH over TAGS returning
+  // exactly those two columns. No story-2 statement has this shape.
+  if (/^MATCH\b/i.test(c) && !/\belementId\s*\(/i.test(c) && /\bRETURN\s+(\w+)\s*\.\s*address\s+AS\s+address\s*,\s*\1\s*\.\s*eventId\s+AS\s+eventId\s*;?$/i.test(c)) return 'read-keys';
   if (/\belementId\s*\(/i.test(c) && /\bAS\s+rid\b/i.test(c)) return params && params.addresses ? 'reread' : 'read-all';
   if (/\bOPTIONAL\s+MATCH\b/i.test(c) && /\bCREATE\b/i.test(c)) return 'create';
   if (/\bDELETE\b/i.test(c) && /\bCREATE\b/i.test(c)) return 'move';
@@ -464,6 +467,12 @@ function makeFakeNeo4j(opts = {}) {
       case 'read-all': {
         keys = ROW_KEYS;
         rows = [...view.store.values()].map((r) => { const c = deepCopy(r); return ROW_KEYS.map((k) => c[k]); });
+        break;
+      }
+      case 'read-keys': {
+        const valueOf = (r, k) => { const e = (r.props || []).find((p) => p[0] === k); return e ? (e[2] !== null ? e[2] : e[3]) : null; };
+        keys = ['address', 'eventId'];
+        rows = [...view.store.values()].map((r) => [valueOf(r, 'address'), valueOf(r, 'eventId')]);
         break;
       }
       case 'show': {
@@ -1844,6 +1853,511 @@ test('SWR60: the port refuses, before any transaction and before preimage, a row
     const p = propsOf(fake, u0.address);
     if (!p || p.polarity !== '0') problems.push(`${label}: stored polarity now ${show(p && p.polarity)}`);
     if (fake.st.store.size !== 1) problems.push(`${label}: store size ${fake.st.store.size}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+// ══ Story 3 (ADR tagging-edges/0003): the real-time path's wiring ═══════════════════════════════════════════════
+// Story: engineering-team/stories/tagging-edges/3-real-time-path.md (AC-3, AC-5, AC-6, AC-7). ADR:
+// engineering-team/decisions/tagging-edges/0003-real-time-path.md — § Where it runs, § Coexisting with the pass,
+// § Status and switch, C20, Implementation notes, and § Clarifications T20, T22–T24, T27, T28 and T30. Red until the
+// implementation lands: the supervisord program, the realtime/ folder, graph.js's READ_KEYS / readAt / readKeys, the
+// two routes and the lockHeld callers' { file } do not exist yet. Static reads, plus the fake driver above for readAt /
+// readKeys, and one spy on the library's allowErrorCode while the routes module loads (SWR71).
+
+const SUPERVISORD = path.join(REPO_ROOT, 'docker/supervisord.conf');
+const REALTIME_DIR = path.join(REPO_ROOT, 'src/pipeline/tagging-edges/realtime');
+const REALTIME_REL = 'src/pipeline/tagging-edges/realtime/';
+const REALTIME_LIB = path.join(REPO_ROOT, 'src/lib/tagging-edges/realtime.js');
+const REALTIME_API = path.join(REPO_ROOT, 'src/api/tagging-edges/realtime.js');
+const RUN_SH = path.join(REALTIME_DIR, 'run.sh');
+/** ADR 0003 Implementation notes → New files: the engine folder's four files. */
+const REALTIME_FILES = ['run.sh', 'index.js', 'subscription.js', 'store.js'];
+const REALTIME_PROGRAM = 'program:tagging-edges-realtime';
+/** ADR 0003 § Where it runs → "The program in docker/supervisord.conf", key by key. */
+const REALTIME_PROGRAM_KEYS = Object.freeze({
+  command: '/bin/bash /usr/local/lib/node_modules/brainstorm/src/pipeline/tagging-edges/realtime/run.sh',
+  user: 'root',
+  autostart: 'true',
+  autorestart: 'true',
+  startsecs: '2',
+  startretries: '100',
+  stopasgroup: 'true',
+  killasgroup: 'true',
+  stopwaitsecs: '10',
+  priority: '35',
+  stdout_logfile: '/var/log/supervisor/tagging-edges-realtime.log',
+  stdout_logfile_maxbytes: '5MB',
+  stdout_logfile_backups: '2',
+  stderr_logfile: '/var/log/supervisor/tagging-edges-realtime-error.log',
+  stderr_logfile_maxbytes: '5MB',
+  stderr_logfile_backups: '2',
+});
+/** test/task-queue-bullmq.test.js T9: no supervisord program named for a queue or worker process. */
+const T9_FORBIDDEN = /\[program:[^\]]*(queue|worker|bull|taskqueue)/i;
+/** The statements story 2 writes with (ADR 0002); story 3 adds no write statement (ADR 0003, binding 1). */
+const WRITE_STATEMENTS = ['LOCK', 'UPDATE', 'MOVE', 'REMOVE', 'CREATE_IF_ABSENT', 'CREATE_TAGS_CONSTRAINT'];
+const WRITE_CLAUSE_RE = /\b(CREATE|MERGE|SET|DELETE|REMOVE|DETACH|DROP|FOREACH|CALL)\b/i;
+/** ADR 0003 Implementation notes → graph.js: READ_KEYS is MATCH ()-[r:TAGS]->() RETURN r.address AS address, r.eventId AS eventId. */
+const READ_KEYS_RE = /^MATCH \( ?\) ?- ?\[ ?(\w+) ?: ?TAGS ?\] ?-> ?\( ?\) RETURN \1 ?\. ?address AS address ?, ?\1 ?\. ?eventId AS eventId ?;?$/i;
+const SECRET_RE = /PASSWORD|NSEC|PRIVATE_?KEY|SECRET/i;
+
+/** supervisord.conf as sections: [{ name, keys: { key: value } }] (";" comments dropped). */
+function supervisordSections(text) {
+  const out = [];
+  let cur = null;
+  for (const raw of String(text).split('\n')) {
+    const line = raw.trim();
+    const h = /^\[([^\]]+)\]$/.exec(line);
+    if (h) { cur = { name: h[1], keys: {} }; out.push(cur); continue; }
+    if (!cur || !line || /^[;#]/.test(line)) continue;
+    const m = /^([A-Za-z_][\w.]*)\s*=\s*(.*)$/.exec(line);
+    if (m) cur.keys[m[1]] = m[2].replace(/\s+;.*$/, '').trim();
+  }
+  return out;
+}
+function realtimeProgram() {
+  const text = safeRead(SUPERVISORD);
+  assert(text, 'docker/supervisord.conf not readable at its expected path');
+  const secs = supervisordSections(text).filter((s) => s.name === REALTIME_PROGRAM);
+  assert(secs.length > 0, `docker/supervisord.conf has no [${REALTIME_PROGRAM}] block yet (not implemented; ADR tagging-edges/0003 § Where it runs)`);
+  eq(secs.length, 1, `[${REALTIME_PROGRAM}] blocks in docker/supervisord.conf`);
+  return secs[0];
+}
+/** Every file under src/pipeline/tagging-edges/realtime/, relative to it (recursive). */
+function realtimeFiles() {
+  assert(fs.existsSync(REALTIME_DIR), `${REALTIME_REL} not implemented yet (ADR tagging-edges/0003 Implementation notes → New files: run.sh, index.js, subscription.js, store.js)`);
+  const out = [];
+  (function walk(dir, rel) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(path.join(dir, e.name), r); else out.push(r);
+    }
+  })(REALTIME_DIR, '');
+  const missing = REALTIME_FILES.filter((f) => !out.includes(f));
+  assert(missing.length === 0, `${REALTIME_REL} lacks ${missing.join(', ')} (ADR tagging-edges/0003 Implementation notes → New files); it holds ${show(out)}`);
+  return out;
+}
+/** JS source with its comments removed (string literals kept; a regex literal is not parsed, so at worst code is dropped). */
+function jsCodeOnly(src) {
+  let out = '';
+  let i = 0;
+  let q = null;
+  while (i < src.length) {
+    const c = src[i];
+    const n = src[i + 1];
+    if (q) {
+      out += c;
+      if (c === '\\') { out += n || ''; i += 2; continue; }
+      if (c === q) q = null;
+      i += 1;
+      continue;
+    }
+    if (c === '/' && n === '*') { const end = src.indexOf('*/', i + 2); i = end < 0 ? src.length : end + 2; out += ' '; continue; }
+    if (c === '/' && n === '/') { const end = src.indexOf('\n', i); i = end < 0 ? src.length : end; continue; }
+    if (c === '\'' || c === '"' || c === '`') q = c;
+    out += c;
+    i += 1;
+  }
+  return out;
+}
+/** Bash source with comment lines and trailing " # …" comments removed. */
+function shCodeOnly(src) {
+  return String(src).split('\n').filter((l) => !/^\s*#/.test(l)).map((l) => l.replace(/(^|\s)#(?![!{]).*$/, '$1')).join('\n');
+}
+function codeOf(file) {
+  const src = safeRead(file);
+  return file.endsWith('.sh') ? shCodeOnly(src) : jsCodeOnly(src);
+}
+/**
+ * The argument texts of every `name(` call in `code`: [{ args: [text, …], at }]. Parentheses are matched by depth;
+ * quotes are skipped.
+ */
+function callsOf(code, name) {
+  const out = [];
+  const re = new RegExp(`\\b${escapeRe(name)}\\s*\\(`, 'g');
+  let m;
+  while ((m = re.exec(code))) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    let q = null;
+    const start = i;
+    for (; i < code.length && depth > 0; i++) {
+      const c = code[i];
+      if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
+      if (c === '\'' || c === '"' || c === '`') q = c;
+      else if ('([{'.includes(c)) depth++;
+      else if (')]}'.includes(c)) depth--;
+    }
+    out.push({ at: m.index, args: splitTopLevel(code.slice(start, i - 1)) });
+  }
+  return out;
+}
+/**
+ * Whether the `file` option of a lockHeld call names `lockName`: the expression itself, or an identifier in it whose
+ * assignment or function body (in any of `sources`) names it. Returns the expression, or null when there is no file.
+ */
+function lockFileOf(call, sources) {
+  if (call.args.length < 2) return { expr: null, ok: false };
+  let obj = call.args[1];
+  const idOnly = /^[A-Za-z_$][\w$]*$/.exec(obj);
+  if (idOnly) {
+    const def = sources.map((s) => new RegExp(`\\b${escapeRe(obj)}\\s*=\\s*(\\{[^}]*\\})`).exec(s)).find(Boolean);
+    if (def) obj = def[1];
+  }
+  const t = String(obj).trim();
+  if (!t.startsWith('{') || !t.endsWith('}')) return { expr: null, obj };
+  let expr = null;
+  for (const prop of splitTopLevel(t.slice(1, -1))) {
+    const kv = /^(?:file|'file'|"file")\s*:\s*([\s\S]+)$/.exec(prop);
+    if (kv) expr = kv[1].trim();
+    else if (prop === 'file') expr = 'file';
+  }
+  return { expr, obj };
+}
+function namesLock(expr, lockName, sources) {
+  if (!expr) return false;
+  if (expr.includes(lockName)) return true;
+  const skip = new Set(['path', 'join', 'resolve', 'state', 'stateDir', 'require', 'process', 'env', 'deps', 'opts']);
+  for (const id of expr.match(/[A-Za-z_$][\w$]*/g) || []) {
+    if (skip.has(id)) continue;
+    const re = new RegExp(`(?:\\b${escapeRe(id)}\\s*[:=]\\s*[^;]*${escapeRe(lockName)}|function\\s+${escapeRe(id)}\\b[\\s\\S]{0,400}?${escapeRe(lockName)})`);
+    if (sources.some((s) => re.test(s))) return true;
+  }
+  return false;
+}
+
+test('SWR61: docker/supervisord.conf holds one [program:tagging-edges-realtime] block with the ADR\'s keys — command /bin/bash …/src/pipeline/tagging-edges/realtime/run.sh, user root, autostart and autorestart true, startsecs 2, startretries 100, stopasgroup and killasgroup true, stopwaitsecs 10, priority 35, and its own stdout / stderr logs with stdout_logfile_maxbytes and stderr_logfile_maxbytes 5MB and 2 backups each — and carries no secret (ADR tagging-edges/0003 § Where it runs → "The program"; AC-5 "starts with the instance and recovers from a crash by itself")', () => {
+  const sec = realtimeProgram();
+  const problems = [];
+  for (const [k, want] of Object.entries(REALTIME_PROGRAM_KEYS)) {
+    if (!(k in sec.keys)) problems.push(`${k} is missing (want ${want})`);
+    else if (sec.keys[k] !== want) problems.push(`${k} = ${show(sec.keys[k])}, want ${show(want)}`);
+  }
+  for (const [k, v] of Object.entries(sec.keys)) if (SECRET_RE.test(`${k}=${v}`)) problems.push(`${k} carries a secret-like value: ${k}=${v}`);
+  assert(problems.length === 0, `[${REALTIME_PROGRAM}]:\n        ${problems.join('\n        ')}`);
+});
+
+test('SWR62: the program\'s name matches none of the words the task-queue sentinel forbids (queue|worker|bull|taskqueue; test/task-queue-bullmq.test.js T9), and neither its command nor any file path under realtime/ carries the pass\'s pgrep pattern (the registry\'s script_relative_path), so the launcher never skips a pass because of the path (ADR tagging-edges/0003 § Where it runs; AC-5 "A pass started while the path runs is never refused or skipped")', () => {
+  const sec = realtimeProgram();
+  const pattern = taskEntry().script_relative_path;
+  eq(pattern, 'pipeline/tagging-edges/reconcileTaggingEdges', 'fixture: the pass\'s pgrep pattern (tasks.reconcileTaggingEdges.script_relative_path)');
+  const problems = [];
+  if (T9_FORBIDDEN.test(`[${sec.name}]`)) problems.push(`the program name [${sec.name}] matches T9's forbidden words`);
+  if (T9_FORBIDDEN.test(safeRead(SUPERVISORD))) problems.push('docker/supervisord.conf as a whole now fails test/task-queue-bullmq.test.js T9');
+  if (String(sec.keys.command || '').includes(pattern)) problems.push(`the program's command carries the pgrep pattern: ${sec.keys.command}`);
+  for (const f of realtimeFiles()) if (`${REALTIME_REL}${f}`.includes(pattern)) problems.push(`${REALTIME_REL}${f}'s path carries the pgrep pattern`);
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SWR63: no realtime code touches the pass\'s machinery or the shared credential readers — no file under realtime/ (nor src/lib/tagging-edges/realtime.js or src/api/tagging-edges/realtime.js) names pass.lock, neo4j-heavy, writeReport, writeHeld or a confirmation writer, or names reconcileTaggingEdges outside a require() of the runner module (ADR T20: the session id comes from the runner\'s makeRunId); and no engine file requires src/utils/config or src/lib/neo4j-driver or calls getConfigFromFile / getDriver (ADR tagging-edges/0003 § Coexisting with the pass: "never opens pass.lock … takes no neo4j-heavy lease, never enqueues a task, and never writes report.json, held/ or confirmation files"; § Where it runs: "never the shared getDriver()"; story "The shared config reader logs the values it reads")', () => {
+  const engine = realtimeFiles().map((f) => path.join(REALTIME_DIR, f));
+  const others = [REALTIME_LIB, REALTIME_API];
+  const missing = others.filter((f) => !fs.existsSync(f)).map((f) => path.relative(REPO_ROOT, f));
+  assert(missing.length === 0, `${missing.join(' and ')} not implemented yet (ADR tagging-edges/0003 Implementation notes → New files)`);
+  const RUNNER_REQUIRE_RE = /\brequire\s*\(\s*(['"`])[^'"`]*\/reconcileTaggingEdges(?:\.js)?\1\s*\)/g;
+  const everywhere = ['pass.lock', 'neo4j-heavy', 'writeReport', 'writeHeld', 'writeConfirmation', 'claimConfirmation', 'withdrawConfirmation'];
+  const problems = [];
+  for (const file of [...engine, ...others]) {
+    const rel = path.relative(REPO_ROOT, file);
+    const code = codeOf(file);
+    for (const w of everywhere) if (code.includes(w)) problems.push(`${rel} names ${w}`);
+    if (code.replace(RUNNER_REQUIRE_RE, 'require(<runner>)').includes('reconcileTaggingEdges')) problems.push(`${rel} names reconcileTaggingEdges outside a require() of the runner module`);
+  }
+  for (const file of engine) {
+    const rel = path.relative(REPO_ROOT, file);
+    const code = codeOf(file);
+    if (/\brequire\s*\(\s*['"`][^'"`]*utils\/config(?:\.js)?['"`]/.test(code)) problems.push(`${rel} requires the shared config reader (src/utils/config), which logs the values it reads`);
+    if (/\brequire\s*\(\s*['"`][^'"`]*lib\/neo4j-driver(?:\.js)?['"`]/.test(code)) problems.push(`${rel} requires the shared Neo4j helper (src/lib/neo4j-driver), which reads credentials through that reader`);
+    if (/\bgetConfigFromFile\s*\(/.test(code)) problems.push(`${rel} calls getConfigFromFile`);
+    if (/\bgetDriver\s*\(/.test(code)) problems.push(`${rel} calls the shared getDriver()`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SWR64: graph.js CYPHER gains one read, READ_KEYS — MATCH ()-[r:TAGS]->() RETURN r.address AS address, r.eventId AS eventId, with no write clause — and no write statement: the statements that write are still exactly LOCK, UPDATE, MOVE, REMOVE, CREATE_IF_ABSENT and CREATE_TAGS_CONSTRAINT (ADR tagging-edges/0003 Implementation notes → graph.js: "CYPHER gains one read: READ_KEYS … No write statement changes (binding 1)"; test orientation: "SWR13 gains READ_KEYS")', () => {
+  const c = cypherMap();
+  assert(typeof c.READ_KEYS === 'string' && c.READ_KEYS.trim() !== '',
+    `graph.js CYPHER has no READ_KEYS statement yet (not implemented; ADR tagging-edges/0003 Implementation notes → graph.js); it has ${Object.keys(c).join(', ')}`);
+  const s = statement('READ_KEYS');
+  assert(READ_KEYS_RE.test(s), `CYPHER.READ_KEYS should be MATCH ()-[r:TAGS]->() RETURN r.address AS address, r.eventId AS eventId; it is ${show(s)}`);
+  assert(!WRITE_CLAUSE_RE.test(s), `CYPHER.READ_KEYS is a read and must carry no write clause; it is ${show(s)}`);
+  const writers = uniq(allStatements().filter(([, t]) => WRITE_CLAUSE_RE.test(t)).map(([at]) => at.split(/[.[]/)[0]));
+  sameSet(writers, WRITE_STATEMENTS, 'the CYPHER entries that write (story 3 adds none)');
+});
+
+test('SWR65: the port\'s readAt(addresses, { timeoutMs }) runs READ_AT once, in one read transaction with that time-out, over $addresses with $scalarTypes, locking and writing nothing, and resolves the raw rows readAll gives for those addresses — one per address the graph holds, none for an address it does not (ADR tagging-edges/0003 Implementation notes → graph.js: "openGraph also returns readAt(addresses, {timeoutMs}) (running the existing READ_AT) … each an executeRead returning raw rows like readAll"; round step 1)', async () => {
+  const e0 = edgeFor(0); const e1 = edgeFor(1); const e2 = edgeFor(2);
+  const absent = edgeFor(9).address;
+  const fake = makeFakeNeo4j({ rows: [F.storedRow(e0), F.storedRow(e1), F.storedRow(e2)], people: [F.ALICE, F.BOB] });
+  const { at, all } = await onFakeGraph(fake, async (g) => {
+    assert(typeof g.readAt === 'function', `the port from openGraph must have readAt(addresses, { timeoutMs }) (ADR tagging-edges/0003 Implementation notes → graph.js); it has ${show(Object.keys(g))}`);
+    const got = await g.readAt([e0.address, e2.address, absent], { timeoutMs: 20000 });
+    const txBefore = fake.st.txs.length;
+    const everything = await g.readAll({ timeoutMs: 120000 });
+    return { at: { rows: got, txs: fake.st.txs.slice(0, txBefore) }, all: everything };
+  });
+  assert(Array.isArray(at.rows), `readAt must resolve to a plain array of READ_AT rows; got ${show(at.rows)}`);
+  const addrOf = (r) => { const p = (r && r.props || []).find((x) => x[0] === 'address'); return p ? p[2] : null; };
+  sameSet(at.rows.map(addrOf), [e0.address, e2.address], 'the addresses of the rows readAt resolved');
+  for (const r of at.rows) {
+    const gap = ROW_KEYS.filter((k) => !r || !(k in r));
+    assert(gap.length === 0, `each readAt row carries READ_AT's eight columns; a row lacks ${gap.join(', ')}: ${show(r)}`);
+  }
+  const byAddr = (rows) => rows.slice().sort((a, b) => (addrOf(a) < addrOf(b) ? -1 : 1));
+  same(byAddr(at.rows), byAddr(all.filter((r) => [e0.address, e2.address].includes(addrOf(r)))), 'readAt\'s rows against readAll\'s rows for the same addresses ("raw rows like readAll")');
+  const reads = at.txs.filter((t) => t.runs.some((x) => x.kind === 'reread'));
+  eq(reads.length, 1, 'transactions that ran READ_AT for readAt');
+  eq(reads[0].mode, 'READ', 'the transaction readAt ran in (executeRead)');
+  eq(reads[0].config && reads[0].config.timeout, 20000, 'the read transaction\'s time-out (readAt(…, { timeoutMs }))');
+  const run = reads[0].runs.find((x) => x.kind === 'reread');
+  sameSet(run.params.addresses || [], [e0.address, e2.address, absent], 'READ_AT\'s $addresses');
+  sameSet(run.params.scalarTypes || [], F.SCALAR_TYPES, 'READ_AT\'s $scalarTypes');
+  eq(at.txs.filter((t) => t.mode === 'WRITE').length, 0, 'write transactions opened by readAt()');
+  eq(at.txs.flatMap((t) => t.runs).filter((x) => x.kind === 'lock').length, 0, 'LOCK statements readAt ran (it is a plain read)');
+});
+
+test('SWR66: the port\'s readKeys({ timeoutMs }) runs READ_KEYS once, in one read transaction with that time-out, writing nothing, and resolves one plain { address, eventId } row per TAGS relationship, unfiltered — a relationship with no eventId, or no address, read with null for that value (never undefined), and one whose address is not a tagging address returned as it is (the engine ignores it, not the port) (ADR tagging-edges/0003 Implementation notes → graph.js: "readKeys({timeoutMs}) … an executeRead returning raw rows"; § Knowing what changed, catch-up step 1: "readKeys(): MATCH ()-[r:TAGS]->() RETURN r.address, r.eventId"; clarification T30: "plain { address, eventId } objects. Either value is null when the property is absent. The engine ignores rows whose address is not a tagging address")', async () => {
+  const e0 = edgeFor(0); const e1 = edgeFor(1); const e3 = edgeFor(3); const e4 = edgeFor(4); const e5 = edgeFor(5);
+  const nonTagging = F.storedRow(e5, { nonTaggingAddress: true });
+  const nonTaggingAddress = addressOfRow(nonTagging);
+  assert(typeof nonTaggingAddress === 'string' && nonTaggingAddress.startsWith('39998:'), `fixture: a non-tagging address (39998:…); got ${show(nonTaggingAddress)}`);
+  const fake = makeFakeNeo4j({
+    rows: [F.storedRow(e0), F.storedRow(e1), F.storedRow(e3, { missing: ['eventId'] }), F.storedRow(e4, { address: null }), nonTagging],
+    people: [F.ALICE, F.BOB],
+  });
+  const got = await onFakeGraph(fake, async (g) => {
+    assert(typeof g.readKeys === 'function', `the port from openGraph must have readKeys({ timeoutMs }) (ADR tagging-edges/0003 Implementation notes → graph.js); it has ${show(Object.keys(g))}`);
+    return g.readKeys({ timeoutMs: 15000 });
+  });
+  assert(Array.isArray(got), `readKeys must resolve to a plain array of rows; got ${show(got)}`);
+  for (const r of got) {
+    same(Object.keys(r || {}).sort(), ['address', 'eventId'], `each readKeys row is { address, eventId }; got ${show(r)}`);
+    assert(Object.getPrototypeOf(r) === Object.prototype, `each readKeys row is a plain object (T30), not a driver Record; got a ${r && r.constructor && r.constructor.name}`);
+    for (const k of ['address', 'eventId']) assert(r[k] === null || typeof r[k] === 'string', `readKeys row ${k} must be its string, or null when the property is absent (T30); got ${show(r[k])} in ${show(r)}`);
+  }
+  const key = (a, id) => `${a === null ? '<null>' : a}|${id === null ? '<null>' : id}`;
+  sameSet(got.map((r) => key(r.address, r.eventId)), [
+    key(e0.address, e0.eventId), key(e1.address, e1.eventId), key(e3.address, null), key(null, e4.eventId), key(nonTaggingAddress, e5.eventId),
+  ], 'the (address, eventId) rows readKeys resolved (one per TAGS relationship, none filtered: T30)');
+  eq(got.length, 5, 'rows readKeys resolved (one per TAGS relationship)');
+  const reads = fake.st.txs.filter((t) => t.runs.some((x) => x.kind === 'read-keys'));
+  eq(reads.length, 1, 'transactions that ran READ_KEYS');
+  eq(reads[0].mode, 'READ', 'the transaction READ_KEYS ran in (executeRead)');
+  eq(reads[0].config && reads[0].config.timeout, 15000, 'the read transaction\'s time-out (readKeys({ timeoutMs }))');
+  eq(norm(reads[0].runs.find((x) => x.kind === 'read-keys').cypher), statement('READ_KEYS'), 'the statement readKeys ran (CYPHER.READ_KEYS)');
+  eq(writeTxs(fake).length, 0, 'write transactions opened by readKeys()');
+});
+
+test('SWR67: src/api/index.js registers GET /api/tagging-edges/realtime/status as a public read (the handler alone) and POST /api/tagging-edges/realtime/switch behind adminApi.requireOwnerOnly, from require(\'./tagging-edges/realtime\'), each exactly once, after adminApi is required and after the pass\'s three routes — and neither path contains an owner-only substring from src/middleware/auth.js (ADR tagging-edges/0003 § Status and switch; Implementation notes → Changed files → src/api/index.js; AC-5 "any session that is not the owner\'s is refused", AC-6 "The status is a public read")', () => {
+  const src = codeOnly(safeRead(API_INDEX));
+  const mod = /(?:const|let|var)\s+(\w+)\s*=\s*require\(\s*['"]\.\/tagging-edges\/realtime(?:\.js)?['"]\s*\)/.exec(src);
+  assert(mod, 'src/api/index.js must require(\'./tagging-edges/realtime\') for the two real-time handlers (not implemented yet)');
+  const v = mod[1];
+  const routes = [
+    ['get', '/api/tagging-edges/realtime/status', [`${v}.handleRealtimeStatus`]],
+    ['post', '/api/tagging-edges/realtime/switch', ['adminApi.requireOwnerOnly', `${v}.handleRealtimeSwitch`]],
+  ];
+  const adminAt = src.search(/const\s+adminApi\s*=\s*require\(\s*['"]\.\/admin['"]\s*\)/);
+  const passAt = src.search(/app\.post\(\s*['"]\/api\/tagging-edges\/confirm-held-removals['"]/);
+  assert(adminAt >= 0, 'src/api/index.js must still require adminApi from ./admin');
+  assert(passAt >= 0, 'src/api/index.js must still register the pass\'s POST /api/tagging-edges/confirm-held-removals');
+  const problems = [];
+  for (const [method, p, args] of routes) {
+    const any = [...src.matchAll(new RegExp(`['"]${escapeRe(p)}['"]`, 'g'))];
+    if (any.length !== 1) { problems.push(`${p} must be registered exactly once; found ${any.length}`); continue; }
+    const m = new RegExp(`app\\.${method}\\(\\s*['"]${escapeRe(p)}['"]\\s*,([^;]*?)\\)\\s*;`).exec(src);
+    if (!m) { problems.push(`${p} must be registered with app.${method}(…)`); continue; }
+    const got = splitTopLevel(m[1]);
+    if (show(got) !== show(args)) problems.push(`${method.toUpperCase()} ${p} must be registered with ${args.join(', ')}; got ${got.join(', ')}`);
+    if (m.index < adminAt) problems.push(`${p} must be registered after adminApi is required`);
+    if (m.index < passAt) problems.push(`${p} must be registered after the pass's three routes`);
+  }
+  const auth = safeRead(AUTH_MW);
+  const gated = [...(stringsOfArray(auth, 'ownerOnlyEndpoints') || []), ...(stringsOfArray(auth, 'ownerOnlyGetEndpoints') || [])];
+  assert(gated.length > 0, 'could not read ownerOnlyEndpoints from src/middleware/auth.js');
+  for (const [, p] of routes) for (const g of gated) if (p.includes(g)) problems.push(`${p} contains the owner-only substring ${g} (auth.js would gate it by substring)`);
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SWR68: both lockHeld callers pass the lock file — the pass runner passes { file: <stateDir>/pass.lock } and the real-time engine passes { file: …/realtime/daemon.lock } — so neither accepts another file\'s flock (ADR tagging-edges/0003 C20: "the pass runner passes <stateDir>/pass.lock … the path passes <stateDir>/realtime/daemon.lock"; clarification T24: "the wiring test pins that both callers pass file")', () => {
+  const problems = [];
+  const runnerCode = jsCodeOnly(safeRead(RUNNER_PATH));
+  assert(runnerCode.trim(), 'src/pipeline/tagging-edges/reconcileTaggingEdges.js not readable');
+  const runnerCalls = callsOf(runnerCode, 'lockHeld');
+  if (!runnerCalls.length) problems.push('the runner makes no lockHeld(…) call');
+  for (const c of runnerCalls) {
+    const { expr } = lockFileOf(c, [runnerCode]);
+    if (!expr) problems.push(`the runner's lockHeld(${c.args.join(', ')}) passes no { file } (C20: { file: <stateDir>/pass.lock })`);
+    else if (!namesLock(expr, 'pass.lock', [runnerCode])) problems.push(`the runner's lockHeld { file: ${expr} } does not name pass.lock`);
+  }
+  let engineCode = [];
+  try { engineCode = realtimeFiles().filter((f) => f.endsWith('.js')).map((f) => jsCodeOnly(safeRead(path.join(REALTIME_DIR, f)))); }
+  catch (e) { problems.push(e.message); }
+  if (engineCode.length) {
+    const calls = engineCode.flatMap((code) => callsOf(code, 'lockHeld'));
+    if (!calls.length) problems.push(`no file under ${REALTIME_REL} calls lockHeld(…) (the engine refuses a hand run unless fd 8 holds daemon.lock's flock)`);
+    for (const c of calls) {
+      const { expr } = lockFileOf(c, engineCode);
+      if (!expr) problems.push(`the engine's lockHeld(${c.args.join(', ')}) passes no { file } (C20: { file: …/realtime/daemon.lock })`);
+      else if (!namesLock(expr, 'daemon.lock', engineCode)) problems.push(`the engine's lockHeld { file: ${expr} } does not name daemon.lock`);
+    }
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+/**
+ * Clarification T28, "Finding the engine": run.sh's own directory, "$(cd "$(dirname "$0")" && pwd)" — quoting,
+ * ${0}, "--" and pwd -P allowed; nothing else (not $BRAINSTORM_MODULE_SRC_DIR, not the install path).
+ */
+const SELF_DIR_SRC = String.raw`\$\(\s*cd\s+(?:--\s+)?"?\$\(\s*dirname\s+(?:--\s+)?"?\$(?:0|\{0\})"?\s*\)"?\s*&&\s*pwd(?:\s+-P)?\s*\)`;
+/** The right-hand sides of every assignment to the shell variable `name` in `code` (export/readonly/local/declare too). */
+function shAssignments(code, name) {
+  const re = new RegExp(`(?:^|[\\s;&|({])(?:export\\s+|readonly\\s+|local\\s+|declare\\s+(?:-\\w+\\s+)?)?${escapeRe(name)}=([^\\n;]*)`, 'g');
+  return [...code.matchAll(re)].map((m) => m[1].trim());
+}
+/**
+ * Whether node's `args` run index.js beside run.sh (T28 "Finding the engine"). Accepted: the inline
+ * "$(cd "$(dirname "$0")" && pwd)/index.js"; "$VAR/index.js" where every assignment of VAR is that directory; or
+ * "$VAR" where every assignment of VAR is that directory plus /index.js. Returns a problem text, or null.
+ */
+function indexBesideSelf(args, code) {
+  const T28 = '"$(cd "$(dirname "$0")" && pwd)/index.js"';
+  if (new RegExp(`(^|\\s)"?${SELF_DIR_SRC}\\/index\\.js"?(\\s|$)`).test(args)) return null;
+  const VAR = String.raw`\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))`;
+  const forms = [
+    [new RegExp(`(^|\\s)"?${VAR}\\/index\\.js"?(\\s|$)`), new RegExp(`^"?${SELF_DIR_SRC}"?$`), 'run.sh\'s own directory'],
+    [new RegExp(`(^|\\s)"?${VAR}"?(\\s|$)`), new RegExp(`^"?${SELF_DIR_SRC}\\/index\\.js"?$`), 'index.js in run.sh\'s own directory'],
+  ];
+  for (const [argRe, rhsRe, what] of forms) {
+    const v = argRe.exec(args);
+    if (!v) continue;
+    const name = v[2] || v[3];
+    const sets = shAssignments(code, name);
+    if (!sets.length) return `node runs $${name}, but run.sh never sets ${name} (T28: ${T28})`;
+    const wrong = sets.filter((rhs) => !rhsRe.test(rhs));
+    if (wrong.length) return `node runs $${name}, but ${name} is set to ${show(wrong)}, not ${what} (T28 "Finding the engine": ${T28})`;
+    return null;
+  }
+  return `node must run index.js from beside run.sh — ${T28}, inline or through a variable (T28 "Finding the engine"); its arguments are ${show(args.trim())}`;
+}
+
+test('SWR69: run.sh is bash and sources the conf only inside the per-start subshell that execs Node — ( . <conf> && exec node --max-old-space-size=384 <run.sh\'s own directory>/index.js ) &, with && (never ;) — never at top level, so the conf is re-read at every Node start; it finds index.js beside itself, "$(cd "$(dirname "$0")" && pwd)/index.js" (inline or through a variable); the conf defaults to /etc/brainstorm.conf through BRAINSTORM_CONF; it holds its single-instance flock on fd 8 (exec 8>> …/daemon.lock, flock -n 8), traps TERM, and touches no secret (ADR tagging-edges/0003 § Where it runs → "The wrapper run.sh"; clarification T23; clarification T28 "Finding the engine" and "Sourcing": "The Decision diagram\'s ; is corrected to &&"; AC-3 "A corrected identity takes effect at the latest after a restart")', () => {
+  const src = safeRead(RUN_SH);
+  assert(src, `${REALTIME_REL}run.sh not implemented yet (ADR tagging-edges/0003 Implementation notes → New files)`);
+  const first = src.split('\n')[0];
+  assert(/^#!\s*(\/bin\/bash|\/usr\/bin\/env\s+bash)\s*$/.test(first), `run.sh must be a bash script (#!/bin/bash); its first line is ${show(first)}`);
+  const code = shCodeOnly(src);
+  const problems = [];
+  // node's arguments may hold "$(…)" with one "$(…)" inside it: T28's "$(cd "$(dirname "$0")" && pwd)/index.js".
+  const SUB_RE = /\(\s*(?:\.|source)\s+("[^"]*"|'[^']*'|[^\s;&|()]+)\s*&&\s*exec\s+node\s+((?:\$\((?:[^()]|\$\([^()]*\))*\)|[^()])*?)\)\s*&(?!&)/g;
+  const subs = [...code.matchAll(SUB_RE)];
+  if (!subs.length) {
+    const semi = /\(\s*(?:\.|source)\s+("[^"]*"|'[^']*'|[^\s;&|()]+)\s*;\s*exec\s+node\b/.test(code);
+    problems.push(semi
+      ? 'run.sh joins the source and the exec with ";" — T28 corrects it to &&: ( . "<conf>" && exec node --max-old-space-size=384 …/index.js ) &, so a failed source never runs Node'
+      : 'run.sh must start Node as ( . "<conf>" && exec node --max-old-space-size=384 …/index.js ) & — the conf sourced inside the per-start subshell');
+  }
+  for (const s of subs) {
+    const target = s[1].replace(/^["']|["']$/g, '');
+    const args = s[2];
+    if (!/^(\/etc\/brainstorm\.conf|\$\{?\w+\}?|\$\{BRAINSTORM_CONF:[-=]\/etc\/brainstorm\.conf\})$/.test(target)) problems.push(`the subshell sources ${show(target)}, not the conf (/etc/brainstorm.conf or a variable holding it)`);
+    if (!/(^|\s)--max-old-space-size=384(\s|$)/.test(args)) problems.push(`the subshell's node must run with --max-old-space-size=384; its arguments are ${show(args.trim())}`);
+    const beside = indexBesideSelf(args, code);
+    if (beside) problems.push(`the subshell's node must run the engine's index.js: ${beside}`);
+  }
+  const rest = code.replace(SUB_RE, ' ');
+  const stray = [...rest.matchAll(/(^|[\s;&|{(])(?:\.|source)\s+("?[$/][^\s;&|)]*)/gm)].map((m) => m[2]).filter((t) => /conf/i.test(t));
+  if (stray.length) problems.push(`run.sh sources the conf outside the per-start subshell (at top level): ${show(stray)}`);
+  if (!/\$\{BRAINSTORM_CONF:[-=]\/etc\/brainstorm\.conf\}/.test(code)) problems.push('run.sh must take the conf from BRAINSTORM_CONF, default /etc/brainstorm.conf (T23: ${BRAINSTORM_CONF:-/etc/brainstorm.conf})');
+  if (!/\bexec\s+8>>\s*"?[^\s"]*daemon\.lock"?/.test(code)) problems.push('run.sh must open its daemon.lock on fd 8 (exec 8>>"$DIR/daemon.lock")');
+  if (!/\bflock\s+-n\s+8\b/.test(code)) problems.push('run.sh must take the single-instance lock without waiting (flock -n 8)');
+  if (!/\btrap\b[^\n]*\bTERM\b/.test(code)) problems.push('run.sh must trap TERM (and forward it to the Node child)');
+  const secrets = code.split('\n').filter((l) => SECRET_RE.test(l));
+  if (secrets.length) problems.push(`run.sh's commands must not touch a secret: ${show(secrets)}`);
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SWR70: run.sh calls flock, sleep and node by their bare names, through PATH — never through an absolute or relative path, never with command -p — and never replaces PATH or puts anything before it (appending "$PATH:…" is allowed), so the stub a test puts first on PATH is the one that runs (clarification T28 "PATH lookups": "run.sh calls flock and sleep through PATH (bare names), as it does node"; clarification T23: "It resolves node through PATH, so a test can run it with a stub node")', () => {
+  const src = safeRead(RUN_SH);
+  assert(src, `${REALTIME_REL}run.sh not implemented yet (ADR tagging-edges/0003 Implementation notes → New files)`);
+  const code = shCodeOnly(src);
+  const problems = [];
+  for (const cmd of ['flock', 'sleep', 'node']) {
+    if (!new RegExp(`(^|[\\s;&|({!])${cmd}(?=\\s)`, 'm').test(code)) problems.push(`run.sh never calls ${cmd} by its bare name (T28: through PATH)`);
+    const pathed = [...code.matchAll(new RegExp(`(?:^|[\\s;&|({!"'=])((?:[\\w.~$\\{\\}-]*\\/)+${cmd})(?=[\\s"';|&)]|$)`, 'gm'))].map((m) => m[1]);
+    if (pathed.length) problems.push(`run.sh calls ${cmd} through a path, not PATH: ${show(uniq(pathed))}`);
+  }
+  if (/(^|[\s;&|({!])command\s+-p\b/m.test(code)) problems.push('run.sh uses command -p, which looks commands up in a default PATH and skips the one it was given');
+  const pathSets = shAssignments(code, 'PATH').filter((rhs) => !/^"?\$(?:PATH|\{PATH\})(?=[:"]|$)/.test(rhs));
+  if (pathSets.length) problems.push(`run.sh replaces PATH or puts directories before it: PATH=${show(pathSets)} (only "$PATH:…" keeps the caller's lookup first)`);
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+const REALTIME_LIB_REQUIRE = '../src/lib/tagging-edges/realtime';
+const REALTIME_API_REQUIRE = '../src/api/tagging-edges/realtime';
+/** The require text the routes module uses for the library, from src/api/tagging-edges/ (clarification T27). */
+const LIB_FROM_API_RE = String.raw`\brequire\s*\(\s*['"\x60]\.\.\/\.\.\/lib\/tagging-edges\/realtime(?:\.js)?['"\x60]\s*\)`;
+
+test('SWR71: the routes module takes allowErrorCode from src/lib/tagging-edges/realtime.js — it requires ../../lib/tagging-edges/realtime for it (destructured, or read off the module) and defines no allowErrorCode of its own — and computeRealtimeStatus answers through that very function: with the library\'s export swapped for a spy while the routes module loads and answers, status.json\'s lastError.code and a counts.dbRefused.byReason key reach the spy, and the answer\'s lastError.code is what the spy returned (clarification T27: "The routes module imports allowErrorCode from src/lib/tagging-edges/realtime.js" and "it re-applies allowErrorCode to lastError.code and to the dbRefused.byReason keys"; AC-6 "never … a host name, an IP address or a port")', () => {
+  const missing = [REALTIME_LIB, REALTIME_API].filter((f) => !fs.existsSync(f)).map((f) => path.relative(REPO_ROOT, f));
+  assert(missing.length === 0, `${missing.join(' and ')} not implemented yet (ADR tagging-edges/0003 Implementation notes → New files; clarification T27)`);
+  const problems = [];
+  const code = jsCodeOnly(safeRead(REALTIME_API));
+  const destructured = new RegExp(String.raw`(?:const|let|var)\s*\{[^}]*\ballowErrorCode\b[^}]*\}\s*=\s*` + LIB_FROM_API_RE).test(code);
+  const asModule = new RegExp(String.raw`(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*` + LIB_FROM_API_RE).exec(code);
+  const readOff = asModule && new RegExp(`\\b${escapeRe(asModule[1])}\\s*\\.\\s*allowErrorCode\\b`).test(code);
+  if (!destructured && !readOff) problems.push('src/api/tagging-edges/realtime.js must take allowErrorCode from require(\'../../lib/tagging-edges/realtime\') — const { allowErrorCode } = require(…), or the module\'s .allowErrorCode (T27)');
+  if (/\bfunction\s+allowErrorCode\b|\b(?:const|let|var)\s+allowErrorCode\s*=/.test(code)) problems.push('src/api/tagging-edges/realtime.js defines an allowErrorCode of its own — a second copy of the allow-list (T27: the library\'s)');
+
+  let lib;
+  try { lib = require(REALTIME_LIB_REQUIRE); } catch (e) { throw new Error(`src/lib/tagging-edges/realtime.js does not load: ${firstLine(e.message)}`); }
+  assert(typeof lib.allowErrorCode === 'function', `src/lib/tagging-edges/realtime.js must export allowErrorCode (T2); its exports are ${show(Object.keys(lib))}`);
+  const libMod = require.cache[require.resolve(REALTIME_LIB_REQUIRE)];
+  const apiPath = require.resolve(REALTIME_API_REQUIRE);
+  const savedApi = require.cache[apiPath];
+  const cachedBefore = new Set(Object.keys(require.cache));
+  const realExports = libMod.exports;
+  const SPY_CODE = 'E_WIRING_SPY';
+  const seen = [];
+  const spy = function allowErrorCode(code) { seen.push(code); return SPY_CODE; };
+  const T = Date.parse('2026-09-28T12:00:00.000Z');
+  const at = (ms) => new Date(ms).toISOString();
+  const HOST_CODE = 'neo4j.internal:7687';
+  const DB_REASON = 'Neo.ClientError.Schema.ConstraintValidationFailed';
+  const status = {
+    statusVersion: 1, state: 'live', firstStartedAt: at(T - 3 * 86400000),
+    relay: { lastReadOkAt: at(T - 4000) }, subscription: { connected: true, since: at(T - 3600000), lastEventAt: at(T - 9000) },
+    lastReflectedAt: at(T - 9000), lastRound: { ms: 412, addresses: 3 },
+    catchUp: { underway: false, current: null, last: null },
+    counts: {
+      added: 1, changed: 0, removed: 0, unchanged: 5, peopleAdded: 0,
+      refused: { total: 0, byReason: {} }, leftInPlace: { total: 0, byReason: {} },
+      dbRefused: { total: 1, byReason: { [DB_REASON]: 1 } },
+    },
+    pending: 0, parked: 0, seen: 6, heard: 0, journal: { bytes: 0, skippedLines: 0 },
+    setupProblem: null, lastError: { at: at(T - 600000), stage: 'graph', code: HOST_CODE, text: 'the graph refused a write' },
+    preimageFile: null, process: { pid: 4242, startTime: 1 }, updatedAt: at(T - 5000),
+  };
+  let body;
+  delete require.cache[apiPath];
+  libMod.exports = { ...realExports, allowErrorCode: spy };
+  try {
+    const api = require(REALTIME_API_REQUIRE);
+    assert(typeof api.computeRealtimeStatus === 'function', `src/api/tagging-edges/realtime.js must export computeRealtimeStatus (T22); its exports are ${show(Object.keys(api))}`);
+    try {
+      body = api.computeRealtimeStatus({ status, switchRecord: { version: 1, on: true, changedAt: at(T - 86400000), changedBy: F.ALICE }, alive: true, now: T });
+    } catch (e) { problems.push(`computeRealtimeStatus threw: ${firstLine(e.message)}`); }
+  } finally {
+    libMod.exports = realExports;
+    for (const k of Object.keys(require.cache)) if (!cachedBefore.has(k)) delete require.cache[k];
+    if (savedApi) require.cache[apiPath] = savedApi;
+  }
+  if (body !== undefined) {
+    if (!seen.includes(HOST_CODE)) problems.push(`status.json's lastError.code (${HOST_CODE}) never reached the library's allowErrorCode; the spy saw ${show(seen)} (T27)`);
+    if (!seen.includes(DB_REASON)) problems.push(`the counts.dbRefused.byReason key (${DB_REASON}) never reached the library's allowErrorCode; the spy saw ${show(seen)} (T27)`);
+    const got = body && body.lastError && body.lastError.code;
+    if (got !== SPY_CODE) problems.push(`the answer's lastError.code should be what the library's allowErrorCode returned (${SPY_CODE}); it is ${show(got)}`);
   }
   assert(problems.length === 0, problems.join('\n        '));
 });

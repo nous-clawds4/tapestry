@@ -931,7 +931,9 @@ function subsectionLine(startRe, what) {
   return line;
 }
 
-t('S2C9 (re-aims story 1\'s status-line check): BIBLE §6\'s TAGS status line says what writes TAGS and how it runs — task reconcileTaggingEdges, GET /api/tagging-edges/status — and no longer says no pipeline writes it', () => {
+// Story 3 re-aims S2C9's last check (its BIBLE docs task: "§6's TAGS status line names the real-time path and drops
+// 'the real-time path … is not built yet'"). The other checks stand: the pass still writes TAGS as they say.
+t('S2C9 (re-aims story 1\'s status-line check; its last check re-aimed by story 3): BIBLE §6\'s TAGS status line says what writes TAGS and how it runs — task reconcileTaggingEdges, GET /api/tagging-edges/status — no longer says no pipeline writes it, and names the real-time path without saying it is not built yet (story 3 docs task, BIBLE)', () => {
   const line = subsectionLine(/^\*\*Status:\*\*/, 'a "**Status:**" line');
   const gaps = missing(line, [
     ['no longer say "no pipeline writes TAGS yet" (anywhere in the subsection)', () => !/no pipeline writes `?TAGS`? yet/i.test(socialSubsection())],
@@ -943,7 +945,9 @@ t('S2C9 (re-aims story 1\'s status-line check): BIBLE §6\'s TAGS status line sa
     ['name its lock class, neo4j-heavy', (l) => l.includes('neo4j-heavy')],
     ['say large removals are held for the owner to confirm', (l) => /\bhold|\bheld/i.test(l) && /owner/i.test(l) && /confirm/i.test(l)],
     ['name where it reports, GET /api/tagging-edges/status', (l) => /GET\s+`?\/api\/tagging-edges\/status\b/.test(l)],
-    ['say the real-time path (story 3) is not built yet', (l) => /real-time/i.test(l) && /not (yet )?built/i.test(l)],
+    ['name the real-time path (tagging-edges story 3)', (l) => /real-time path/i.test(l)],
+    ['no longer say the real-time path is not built yet (anywhere in the subsection)',
+      () => !/real-time path[^.]*\bnot (yet )?built\b/i.test(socialSubsection())],
   ]);
   assert(gaps.length === 0, `the TAGS status line should: ${gaps.join('; ')}\n        line: ${line}`);
 });

@@ -214,10 +214,10 @@ and work whatever anyone publishes.
 supervisord [program:tagging-edges-realtime]
   └─ bash src/pipeline/tagging-edges/realtime/run.sh     (flock -n 8 on realtime/daemon.lock; never exits; idles while
        │                                                  switch.json is not "on":true; backs off 1→30 s between runs)
-       └─ ( . /etc/brainstorm.conf; exec node --max-old-space-size=384 src/pipeline/tagging-edges/realtime/index.js )
+       └─ ( . /etc/brainstorm.conf && exec node --max-old-space-size=384 src/pipeline/tagging-edges/realtime/index.js )
             identities ─► subscribe (limit:0) ─► EOSE ─► first start: baseline │ else: catch-up ─► live rounds
             (graph and schema checked per write round; the subscription never waits for them)
-            round: ready prompts (live lane first) ─► graph readAt (t0) ─► strict relay scans at those addresses
+            round: ready prompts (T18 order) ─► graph readAt (t0) ─► strict relay scans at those addresses
                    (t1 > t0) ─► element scan ─► de-duplicate by id ─► decideAddress ─► gateAction
                    ─► writes through graph.js (≤ 25 rows / tx) ─► journal ─► post-pass re-look check
             every 1 s: switch poll (off ⇒ flush, exit within 5 s) · every 10 min: safety diff · ≤ 30 s: status.json
@@ -731,7 +731,7 @@ while the switch is off, and turning it back on catches up (AC-4). A missing or 
 - `pending`, `parked`, `seen` (the size of S), `heard` (the size of H), `journal {bytes, skippedLines}`;
 - `switchUnreadable`: true when `switch.json` is present but unreadable (read as off);
 - `setupProblem`: `null`, `{kind:'identity', identity, problem, source}` or `{kind:'schema', rule, problem}`;
-- `lastError {at, stage, code, text}`, `preimageFile`, `process {pid, startTime}`, `updatedAt`;
+- `lastError {at, stage, code, text}`, `preimageFile`, `process {pid, startTime, startedAt}`, `updatedAt`;
 - `stale`: true when `updatedAt` is older than 60 s while the process is alive (AC-6's minute, made visible).
 
 **All text is fixed.** It is chosen by stage or code. Error codes (`lastError.code`, `dbRefused.byReason` keys) pass an
@@ -957,40 +957,8 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
 **New files**
 
 - `src/lib/tagging-edges/realtime.js` (**pure**; the folder's purity and no-64-hex guards cover it; re-exported from
-  `src/lib/tagging-edges/index.js`):
-  - `LIMITS` (frozen):
-    ```
-    { roundAddresses: 500, roundCatchUpShare: 100, filtersPerScan: 200, writeRows: 25, elementIds: 1000,
-      backlogAddresses: 20000, catchUpChunk: 5000, roundKeptBytes: 16 MiB, roundScanMaxBytes: 8 MiB,
-      candidateScanMaxBytes: 8 MiB, argvFilterBytes: 100000, aTargetMaxBytes: 255, journalCompactBytes: 1 MiB,
-      journalFlushMs: 250 }
-    ```
-  - `subscriptionFilters({canonicalPubkey, localPubkey})`;
-  - `promptFromVersion(ev, identities)` → `{address, id}` or `null`;
-  - `resolveDeletion(ev, S, H)` → `[{address, prompt}]`, only for targets whose address's pubkey is the kind-5's
-    pubkey; `e` targets through S ∪ H, `a` targets that are tagging addresses of ≤ 255 bytes; plus the counts
-    `matchedNothing` and `foreign`;
-  - `addressScanFilters(addresses)` → arrays of ≤ 200 one-address filters, sized with `escapeFilterArgv`;
-  - the predicates:
-    - `isExpectedAddressEvent(ev, pairs)`;
-    - `isExpectedElementEvent(ev, ids)`;
-    - `isExpectedDeletionByE(ev, ids)`;
-    - `isExpectedDeletionByA(ev, addresses)`;
-  - `keepForRound(ev, request)`;
-  - `relayAtAddress(addressEvents, elementEvents, address, identities)`;
-  - `dedupeById(events)`;
-  - `elementScanFilters(ids)`;
-  - `arrivalsAndLookOnly(scanPairs, S, B, graphKeys, refusedSeen)`;
-  - `deletionCandidates(graphKeys, scannedIds, S, H)` and `deletionScanFilters(candidates)` (grouped by author);
-  - `mergePrompt(entry, prompt)` (O(1) per address);
-  - `gateAction(decision, ctx)`;
-  - `shrinkOnRead(maps, address, returnedId, captureSeq)` (drops only ids recorded before `captureSeq`) and
-    `compact(maps, scanned, completed, candidates)`, over S, H, B and `refusedSeen`;
-  - `discardSupersededRevokes(entry, knownVersionId)`;
-  - `passOverlaps(round, runs, isAliveFn, deadSeenAt)`;
-  - `replayJournalLine(state, line)` (streamed);
-  - `roundOrder(queue)` (live lane, re-looks, then catch-up work with its reserved share);
-  - `allowErrorCode(code)`.
+  `src/lib/tagging-edges/index.js`): the exports, signatures and shapes are fixed by T1–T19 and T25 (Clarifications,
+  below). They supersede the working names an earlier draft of this list used.
 - `src/pipeline/tagging-edges/realtime/run.sh`: the wrapper (§ Where it runs).
 - `src/pipeline/tagging-edges/realtime/index.js`: the engine.
   - `run(deps)` with injectable `{now, env, identities, openGraph, scan, subscribe, store, state, readReport, isAlive,
@@ -1117,6 +1085,380 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
 - An opt-in live suite: read-only checks of `readAt` and `readKeys`, and a `limit:0` websocket smoke test against the
   local relay.
 - `test/registry.js` registrations.
+
+## Clarifications (Test Design, 2026-09-28)
+
+Test Design fixes the interfaces the suites call, where the sections above name a function but not its exact shape.
+These are for the owner to ratify at the Test Design gate. Ids are lower-case 64-hex. Addresses are tagging addresses as
+`taggingToEdge` gives them (pubkey lower-cased). Times are milliseconds since the epoch unless a field says ISO.
+
+**T1 — Where `escapeFilterArgv` lives.** The purity guard lets `src/lib/tagging-edges/*.js` require only siblings, so
+`escapeFilterArgv(filter)` and `filterArgvBytes(filter)` live in `src/lib/tagging-edges/realtime.js`.
+- `escapeFilterArgv(filter)` is `JSON.stringify(filter)` with every `/` written `\/`.
+- `filterArgvBytes(filter)` is its UTF-8 byte length.
+- `src/lib/strfryScanStrict.js` requires them from `./tagging-edges/realtime` and re-exports `escapeFilterArgv`, so
+  `scanStrict` and the planner size filters with the one escape.
+
+**T2 — `realtime.js` exports** (pure; plain objects, `Map` and `Set` only):
+
+```
+LIMITS, escapeFilterArgv, filterArgvBytes, subscriptionFilters, promptFromVersion, newMaps, recordId,
+resolveDeletion, shrinkOnRead, compact, arrivalsAndLookOnly, deletionCandidates, deletionScanFilters,
+isExpectedDeletion, addressScanFilters, isExpectedAddressEvent, elementScanFilters, isExpectedElementEvent,
+dedupeById, relayAtAddress, mergePrompt, discardSupersededRevokes, gateAction, passOverlaps, roundOrder,
+journalLine, replayJournal, allowErrorCode
+```
+
+`LIMITS` holds exactly these keys: `roundAddresses` 500, `roundCatchUpShare` 100, `filtersPerScan` 200, `writeRows` 25,
+`elementIds` 1000, `backlogAddresses` 20000, `catchUpChunk` 5000, `roundKeptBytes`, `roundScanMaxBytes`,
+`candidateScanMaxBytes`, `argvFilterBytes` 100000, `aTargetMaxBytes` 255, `journalCompactBytes` and `journalFlushMs` 250.
+Its byte values are numbers: `roundKeptBytes`
+16777216, `roundScanMaxBytes` and `candidateScanMaxBytes` 8388608, `journalCompactBytes` 1048576.
+
+**T3 — The maps.** `newMaps()` → `{ S: Map, H: Map, B: Set, R: Map }`:
+- `S` holds seen ids;
+- `H` holds heard ids not yet completed;
+- `R` holds `refusedSeen`;
+- `B` is a Set of ids.
+
+Each `S`, `H` and `R` value is `{ a, seq }`. `recordId(maps, which, id, address, seq)` sets one entry
+(`which` is `'S' | 'H' | 'R'`). Moving an id from `H` to `S` is `recordId(maps, 'S', …)` plus `maps.H.delete(id)`.
+Functions that take `maps` mutate it and return a result object. Entries restored from `record.json` get `seq` 0.
+
+**T4 — `subscriptionFilters({ canonicalPubkey, localPubkey })`** →
+`[{ kinds: [39999], '#z': [39998:<c>:nostr-user-tag, 39998:<l>:nostr-user-tag] (distinct), limit: 0 }, { kinds:
+[5], limit: 0 }]`. It throws on an identity `checkIdentity` refuses.
+
+**T5 — `promptFromVersion(ev, identities)`** → `{ address, id }` or `null`.
+- It is `null` unless `ev` is kind 39999 and carries a `nostr-user-tag` stamp (either identity).
+- `address` is `taggingToEdge`'s `edge.address`, or its refusal's `address`; `null` when neither exists.
+- `id` is lower-cased.
+
+**T6 — `resolveDeletion(ev, maps, graphAddresses)`** → `{ prompts: [{ address, prompt }], matchedNothing, foreign }`.
+- `graphAddresses` is a `Set`. `prompt` is `{ type: 'revoke', kind5Id, created_at, by: 'e' | 'a', target }`.
+- An `e` target resolves through `maps.S` then `maps.H`.
+- An `a` target resolves only when it is a tagging address of ≤ 255 UTF-8 bytes and is known: an `S` or `H` entry has
+  that address, or `graphAddresses` has it.
+- A resolved target whose address's pubkey segment is not `ev.pubkey` (lower-cased) adds 1 to `foreign` and no prompt.
+- Prompts are de-duplicated by `(address, by, target)`.
+- `matchedNothing` is `prompts.length === 0 && foreign === 0`.
+- A non-deletion (not `isEvent`-shaped, or not kind 5) gives `{ prompts: [], matchedNothing: true, foreign: 0 }`.
+
+**T7 — `shrinkOnRead(maps, address, returnedId, captureSeq)`** → `{ dropped: [ids] }`. It deletes from `S`, `H`
+and `R` every entry with `.a === address`, `.seq <= captureSeq` and `id !== returnedId`, and deletes those ids from
+`B`. `returnedId` is `null` for an empty read.
+
+**T8 — `compact(maps, scannedIds, candidateIds, captureSeq)`.** Entries with `seq > captureSeq` are kept (recorded
+after the scan began). Of the others:
+- `S` and `R` keep only ids in `scannedIds`;
+- `H` keeps ids in `scannedIds` or `candidateIds` that are not in `S`;
+- `B` becomes `B ∩ scannedIds`.
+
+**T9 — `arrivalsAndLookOnly(scanPairs, maps, graphKeys)`** → `{ arrivals: [{ address, id }], lookOnly:
+[address] }`. `scanPairs` is `[[id, address]]`, and `graphKeys` is a `Map` from address to eventId.
+- Arrivals are pairs whose id is not in `S`.
+- `lookOnly` lists addresses, not already arrivals, where:
+  - (i) `graphKeys` holds another eventId; or
+  - (ii) `graphKeys` has no entry and the id is in `S` but not in `B`.
+
+  An `(id, address)` in `R` is excluded.
+
+**T10 — `deletionCandidates(graphKeys, scannedIds, maps)`** → `[{ address, id }]`, de-duplicated, tagging addresses
+only:
+- every `graphKeys` entry whose eventId is not in `scannedIds`;
+- every `S` or `H` id not in `scannedIds` whose address `graphKeys` holds with another eventId.
+
+**T11 — Deletion scans.** `deletionScanFilters(candidates)` → `[{ pubkey, by: 'e' | 'a', targets, filter }]`:
+- grouped by the address's pubkey segment;
+- `filter` is `{ kinds: [5], authors: [pubkey], '#e': ids }` or `{ kinds: [5], authors: [pubkey], '#a': addresses }`;
+- `a` targets only when ≤ 255 bytes;
+- each filter's `filterArgvBytes` is ≤ `LIMITS.argvFilterBytes`.
+
+`isExpectedDeletion(ev, { pubkey, by, targets })` is kind 5, a lower-cased pubkey equal to `pubkey`, and a tag of
+type `by` whose value is in `targets` (an `e` compared lower-cased, an `a` raw).
+
+**T12 — Address and element scans.**
+- `addressScanFilters(addresses)` → `[[filter]]`: chunks of ≤ 200 one-address filters `{ kinds: [39999],
+  authors: [pk], '#d': [d] }` whose `filterArgvBytes(chunk)` is ≤ the budget.
+- `isExpectedAddressEvent(ev, addresses)`: kind 39999, and some requested address whose pubkey equals `ev.pubkey`
+  lower-cased and whose `d` equals a `d` tag value of ≤ 255 bytes on `ev`.
+- `elementScanFilters(ids)` → `[{ kinds: [39999], ids: [≤ 1,000] }]`, each within the budget.
+- `isExpectedElementEvent(ev, ids)`: kind 39999 and a lower-cased id in `ids`.
+
+**T13 — `dedupeById(events)`** keeps the first event per lower-cased id.
+
+**T14 — `relayAtAddress(addressEvents, elementEvents, address, identities)`.** It keeps the address events whose
+`promptFromVersion(ev, identities).address === address`, adds `elementEvents`, de-duplicates by id, runs `readRelay`,
+and returns `byAddress.get(address) || null`: an edge, a refusal, `{ conflict: true, count }` or `null`.
+
+**T15 — Prompts and entries.**
+- A prompt is `{ type: 'version', id }`, `{ type: 'revoke', … }` (T6) or `{ type: 'look' }`.
+- An entry is `{ version: { id } | null, revokes: [revoke prompts], look: boolean }`.
+- `mergePrompt(entry | null, prompt)` → a new entry:
+  - `version` becomes the latest version prompt;
+  - `revokes` are de-duplicated by `(by, target)`, keeping the greatest `created_at`;
+  - `look` ORs.
+- `discardSupersededRevokes(entry, knownVersionId)` → an entry without the `by: 'e'` revokes whose target differs from
+  `knownVersionId`. `by: 'a'` revokes are kept.
+
+**T16 — `gateAction(decision, { address, storedRow, relayVersionId, entry, baseline })`.** `decision` is
+`decideAddress`'s answer. The result is `{ act: true }`, or `{ act: false, held: 'pre-existing' |
+'removal-not-prompted' }`.
+- A `create` is held (`'pre-existing'`) when `baseline.has(relayVersionId)`.
+- For a `remove`, a revoke is valid when either:
+  - it is `by: 'e'`; or
+  - it is `by: 'a'`, `storedFromRow(storedRow).wellFormed`, and `revokeApplies({ ...edge, from: author },
+    { id: kind5Id, kind: 5, pubkey: author, created_at, tags: [['a', address]] }).applies`, where `author` is the
+    address's pubkey segment.
+- A `not-on-relay` removal acts only with a valid revoke. A `non-tagging` removal acts with a valid revoke or
+  `entry.version`.
+- `look` never enables a removal.
+- Every other action acts.
+
+**T17 — `passOverlaps({ graphReadAt, commitAt }, runs, isAlive, deadSeenAt)`** → `[runId]`.
+- `runs` are report entries: `startedAt` and `endedAt` are ISO strings or null, plus `process`.
+- `isAlive(run)` is a boolean.
+- `deadSeenAt` maps a runId to milliseconds.
+- The rule is § Coexisting with the pass: a run not alive with `endedAt` null and no `deadSeenAt` entry does not
+  overlap. The caller records `deadSeenAt` first.
+
+**T18 — `roundOrder(queue)`.** `queue` is `[{ address, lane: 'live' | 'relook' | 'catchup', seq }]`. It returns
+addresses in round order, at most `LIMITS.roundAddresses`:
+1. up to `roundCatchUpShare` catch-up entries by `seq`;
+2. live entries by `seq`;
+3. re-looks by `seq`;
+4. the remaining catch-up entries.
+
+The kept-bytes share is the engine's.
+
+**T19 — The journal.** Each line is compact JSON with a `t` field:
+
+| Line | Fields |
+|---|---|
+| `{"t":"v","id","a"}` | a version heard |
+| `{"t":"d","a","p"}` | a revoke prompt `p` (T6) |
+| `{"t":"c","id","a"}` | completed |
+| `{"t":"x","a","dropped"}` | a read's shrink |
+| `{"t":"b","id"}` | a baseline drop |
+| `{"t":"f","id","a"}` | a refused id seen |
+| `{"t":"r","a","runId","p"}` | a re-look, `p` the entry (T15) |
+| `{"t":"rc","a","runId"}` | a re-look done |
+| `{"t":"p","a","code"}` | parked |
+| `{"t":"k","runId","at"}` | a dead pass seen |
+
+`journalLine(obj)` → the line (with its `\n`). `replayJournal(lines, record)` applies lines in order to the state
+restored from `record` (`null` for none). It returns `{ maps, pending: Map<address, entry>, rechecks: [{ a, runId,
+entry }], deadSeenAt, parked: Map<address, code>, skippedLines }`:
+- a line that does not parse, or has an unknown `t`, is skipped and counted;
+- `v` adds to `H` and merges a version prompt;
+- `c` moves the id to `S` and clears the entry's version when it matches;
+- `x` deletes the listed ids from every map;
+- `b` deletes from `B`.
+
+**T20 — The engine seam.** `src/pipeline/tagging-edges/realtime/index.js` exports `{ createEngine, run,
+defaultDeps }`. `createEngine(deps)` returns `{ start(), tick(), handleSignal(name), status() }`:
+- `await start()` reads the switch, record, journal and report (for `deadSeenAt`), resolves identities, and, when the
+  switch is on and the identities are good, subscribes.
+- `await tick()` does whatever is due at `deps.now()` and resolves `{}`, or `{ exit: code }` once it must stop:
+  0 for switch-off, and also for a signal handled through `handleSignal`.
+- `status()` returns the object last written to `status.json`.
+- `run(deps)` is `start()`, then `tick()` in a loop with `deps.sleep(ms)` (≤ 250 ms) until an exit. It leaves the
+  code on `deps.proc.exitCode` and never calls `process.exit`.
+
+`deps`:
+
+| Dep | Shape |
+|---|---|
+| `now()` | the clock |
+| `sleep(ms)` | a wait |
+| `env` | the environment |
+| `identities` | `{ canonicalZ(), getOwnerAssistantPubkey() }` (ADR 0002 C1) |
+| `openGraph(cfg)` | graph.js's port with `readSchema`, `readAt`, `readKeys`, `applyCreates`, `applyLocked`, `close` |
+| `scan(filter, { timeoutMs, isExpected, maxBytes, onEvent })` | `scanStrict`'s contract |
+| `subscribe({ url, filters, onEvent, onEose, onClose })` | → `{ close() }` |
+| `store` | T21 |
+| `state` | `{ readReport(), isAlive(record), appendPreimages(runId, records) }` |
+| `proc` | `{ pid, startTime, exitCode }` |
+| `randomId()` | 8 hex characters, for the session id |
+| `log(line)` | a log line |
+
+Subscription callbacks only buffer. `tick()` processes what they buffered. Tests drive time in small steps and assert
+only the bounds the criteria state (a change reflected within 1 minute of simulated time, off within 5 s, and so on),
+never the number of ticks.
+
+**T21 — The store.** `src/pipeline/tagging-edges/realtime/store.js` exports `createStore({ dir })`.
+- `dir` defaults to `path.join(state.stateDir(), 'realtime')`.
+- It returns:
+  - `readSwitch()` → `{ on, changedAt, changedBy }`, `null` when missing, or `{ unreadable: true }`;
+  - `writeSwitch(record)` writes it atomically, in the canonical compact form;
+  - `unlinkSwitch()`;
+  - `readStarted()` / `writeStarted(obj)`;
+  - `readRecord()` → the record, `null`, or `{ unreadable: true, reason: 'record-unreadable' }` (a sha256 or version
+    mismatch counts);
+  - `writeRecord(body)` adds `sha256` over the canonical body;
+  - `openJournal()` cuts `journal.jsonl` back to its last newline and fsyncs, then returns `{ lines: Iterable<string> }`
+    or `{ unreadable: true }`;
+  - `appendJournal(lines)` appends and fsyncs;
+  - `truncateJournal()`;
+  - `journalBytes()`;
+  - `readStatus()` / `writeStatus(obj)`.
+- Whole-file writes go through `state.writeAtomic`.
+
+**T22 — The routes module.** `src/api/tagging-edges/realtime.js` exports `{ computeRealtimeStatus, validateSwitch,
+handleRealtimeStatus, handleRealtimeSwitch }`.
+- `validateSwitch(body)` → `{ ok: true, on }` or `{ ok: false, status: 400, error }`.
+- The handlers take `(req, res, deps)`. `deps` defaults like `index.js`'s `withDeps`:
+
+  ```
+  { readFile, stateDir, isAlive, now, ownerPubkey | getOwnerPubkey, writeSwitch(record), unlinkSwitch() }
+  ```
+- The status handler reads `realtime/switch.json` and `realtime/status.json` under `stateDir()` through `readFile`.
+- `computeRealtimeStatus` returns the fields in § Status. `on` and `onSince` come from `switchRecord`, `running` from
+  `alive`, and `stale` is `alive && now - Date.parse(status.updatedAt) > 60000`.
+
+**T23 — The wrapper's test seams.** `run.sh` honours:
+- `TAGGING_EDGES_STATE_DIR` (as the pass does);
+- `BRAINSTORM_CONF` (default `/etc/brainstorm.conf`);
+- `TAGGING_EDGES_REALTIME_POLL_SECONDS` (default 2).
+
+It resolves `node` through `PATH`, so a test can run it with a stub `node`.
+
+**T24 — `lockHeld(fd, { file, readFile })`** (C20) reads `/proc/self/fdinfo/<fd>` through `readFile`. It stats `file`
+with `fs.statSync(file, { bigint: true })`. It is true only when a `FLOCK … WRITE` lock line is present and `ino:`
+equals the file's inode. A missing `file` argument keeps the old behaviour, so an old caller is not broken silently:
+the wiring test pins that both callers pass `file`.
+
+
+The suite writers' questions are settled here (T25–T31). They refine T1–T24 where those left a choice open.
+
+**T25 — Planner details.**
+- **Container types.** `scannedIds` and `candidateIds` are `Set`s. `targets`, `addresses` and `ids` are arrays.
+  `deadSeenAt` is a plain object from runId to milliseconds.
+- **`promptFromVersion`** returns `null` whenever there is no address (T5's "id is lower-cased" is moot: the contract
+  refuses upper-case hex at step 1, with no address).
+- **A `by: 'a'` prompt's `target`** is `revokeTargets`' normalised address (pubkey lower-cased).
+- **A kind-5 whose own pubkey is written in upper-case hex** is not `isEvent`-shaped, so it resolves nothing live.
+  strfry does act on it, and the next catch-up's author-scoped candidate scan finds it (`authors` matches by hex).
+  This adds to owner decision 5's corners: such a revoke is reflected at the next catch-up or safety diff (≤ 10 min).
+  No known client writes one.
+- **A round completes every address it decided,** whatever the action (`none`, `refused`, `create`, and so on),
+  except a conflict or a failure. It journals `c` for the relay's returned id, which enters S. A refused id also
+  enters R. So a refused version is not an arrival at the next catch-up.
+- **`gateAction`** treats a `null` `ctx.entry` as an empty entry.
+- **`mergePrompt`** keeps, for one `(by, target)`, the revoke with the greatest `created_at` and that revoke's
+  `kind5Id`.
+- **`passOverlaps` boundaries are strict:** `startedAt < commitAt`, and `endedAt > graphReadAt`.
+- **`roundOrder`** places an address queued in more than one lane once, at its earliest position.
+- **Record shapes:**
+  - `pending: [{ a, entry, lane, attempts, notBefore }]`;
+  - `rechecks: [{ a, runId, entry }]`;
+  - `parked: [{ a, code, attempts, nextAt }]`.
+- **Replay.** `replayJournal` deletes a pending entry that `c` leaves with no version, no revokes and no look.
+  Empty lines are ignored, not counted. Two `r` lines for one `(a, runId)` merge by `mergePrompt` rules.
+
+**T26 — Store details.**
+- **Methods** are synchronous (awaiting works).
+- **`switch.json`'s canonical form** is compact JSON with the keys in the order `version, on, changedAt, changedBy`.
+- **`readSwitch`** gives `{ unreadable: true }` unless the file parses to an object whose `on` is a boolean.
+- **The record's `sha256`** is taken over `JSON.stringify` of the record without `sha256`, with object keys sorted
+  recursively.
+- **`readStarted()` and `readStatus()`** give `null` for a missing file.
+- **`openJournal()`** gives `{ lines: [] }` for a missing `journal.jsonl` (not unreadable). Its lines exclude the
+  trailing newline, with no empty item after the last one.
+
+**T27 — Route details.**
+- **A failed off-write.** A `{on:false}` whose write fails unlinks `switch.json` and answers 200 `{ success: true, on:
+  false }` when the unlink succeeds, 500 otherwise.
+- **A failed on-write** answers 500, never `success: true`, and does not unlink.
+- **`computeRealtimeStatus`:**
+  - `state` is `'off'` whenever the switch is off, `runningSince` is `null` when not alive, and `onSince` is `null`
+    when off;
+  - `stale` is true when alive and `updatedAt` is missing, unparseable or older than 60 s;
+  - it re-applies `allowErrorCode` to `lastError.code` and to the `dbRefused.byReason` keys.
+- **Read errors.** A `status.json` that cannot be read, or does not parse, answers 200 with the switch fields,
+  `running`, and `statusUnreadable: true`.
+- **`session.authenticated !== true`** with the owner's pubkey answers 403.
+- **The default `writeSwitch`** is the store's, at `<stateDir>/realtime`.
+- **The routes module** imports `allowErrorCode` from `src/lib/tagging-edges/realtime.js`.
+
+**T28 — Wrapper details.**
+- **PATH lookups.** `run.sh` calls `flock` and `sleep` through `PATH` (bare names), as it does `node`.
+- **Finding the engine.** It finds `index.js` beside itself: `"$(cd "$(dirname "$0")" && pwd)/index.js"`.
+- **Sourcing.** The per-start subshell is `( . "$BRAINSTORM_CONF" && exec node … )`. The Decision diagram's `;` is
+  corrected to `&&`.
+- **Signals.** It runs its backoff sleeps in the background and `wait`s, so a TERM during a backoff exits within 1 s.
+- **Compatibility.** It stays bash-3.2-compatible.
+
+**T29 — Engine details.**
+- **Subscription callbacks.** `subscribe`'s callbacks are called asynchronously, never inside `subscribe()`:
+  `onEvent(event)`, `onEose()` and `onClose({ code, reason })`. A client-side `close()` fires no `onClose`.
+- **Sync or async.** Store and state methods may be synchronous; the engine awaits them.
+- **No sleeping in `tick()`.** `tick()` never awaits `deps.sleep`; `run()` owns every sleep.
+- **What `status.json` carries.** It holds every § Status field that the route does not derive:
+  - `state`, `firstStartedAt`;
+  - `relay`, `subscription`, `lastReflectedAt`, `lastRound`;
+  - `catchUp`, `counts`;
+  - `pending`, `parked`, `seen` and `heard` (numbers), `journal`;
+  - `setupProblem`, `lastError`, `preimageFile`;
+  - `process`, `updatedAt` (ISO).
+
+  The route derives `statusVersion`, `on`, `onSince`, `running`, `runningSince`, `switchUnreadable` and `stale`.
+- **`handleSignal('SIGTERM')`** leads to `{ exit: 0 }` within 5 s.
+- **Row order.** Creates, updates and moves are sorted by the desired edge's `(from, to)`; removals by the snapshot's
+  ends.
+- **Parking.** A row is parked after two rounds that each read its address and failed it with the same code. A
+  bisection inside one round is one attempt.
+- **The "no row succeeds" rule** applies after bisection: only when every single-row attempt in a round fails with one
+  code are those rows re-queued with backoff instead of parked. A good row in a batch with one bad row still lands in
+  the same round.
+
+**T30 — readKeys rows** are plain `{ address, eventId }` objects. Either value is `null` when the property is absent.
+The engine ignores rows whose address is not a tagging address.
+
+**T31 — Scan-strict details.**
+- **Streaming.** `onEvent` delivers each event as it is parsed, so events before a later failure have already been
+  delivered. The scan still rejects.
+- **`filter-too-large`** makes story 2's SS9 (the real `spawn` E2BIG on a 3.3 MB filter) unreachable. SS9 is re-aimed
+  to `filter-too-large`, and SS8 still pins `spawn` for a spawn that throws.
+- **Redaction.** The widened redactor may cut a tagging address whose `d` starts with 2–5 digits (the ADR's New debt).
+  Suites pin only letter-led `d` values.
+- **`lockHeld`** reads no `ino:` line as not held.
+
+**T32 — The last open choices.**
+- **`roundOrder`** de-duplicates first, then caps at 500, so a repeat takes none of the round's places.
+- **`mergePrompt`**, on a `created_at` tie for one `(by, target)`, keeps the revoke it already holds.
+- **A kind-5 a catch-up candidate scan keeps** becomes a revoke prompt `{ type: 'revoke', kind5Id: <its id,
+  lower-cased>, created_at, by, target }`. `by` and `target` come from the candidate it matched, so an upper-case
+  pubkey or id in the event does not stop it (T25).
+- **`status.json`'s `process`** is `{ pid, startTime, startedAt }`, with `startedAt` an ISO time. The route's
+  `runningSince` is `process.startedAt` while alive.
+- **Allow-listed keys.** When `dbRefused.byReason` keys collapse to `'error'` under `allowErrorCode`, their counts
+  are summed.
+- **A missing `status.json`** is not `statusUnreadable`. The route's `switchUnreadable` follows T26's `readSwitch`
+  rule.
+- **The default `writeSwitch`** writes under the handler's `deps.stateDir()`.
+- **T29's "no row succeeds" rule** applies to rows for two or more addresses. A lone row that fails with the same
+  non-transient code in two rounds is parked.
+- **The subscription buffer.** The engine drains it at every tick (≤ 250 ms apart), keeping only ids, addresses and
+  resolved prompts. What the relay delivers between two ticks is the one buffer outside the round's kept budget.
+
+**T33 — What the blind reference implementation found.** An implementation written from this ADR alone, without the
+tests, disagreed with the suites in one place (`status.process.startedAt`, T32; the test was corrected). Its authors
+flagged these readings, which are now fixed:
+- **Restored pending work.** `replayJournal`'s `pending` holds entries only (T15). A restart restores every pending
+  entry as catch-up work, with `attempts` 0 and due at once. `record.json` keeps `lane`, `attempts` and `notBefore`
+  for diagnostics only.
+- **Replaying a `v` line** also applies `discardSupersededRevokes` at that address, to the pending entry and its
+  re-looks, as the live path does. So a revoke discarded before a crash does not come back.
+- **`discardSupersededRevokes(entry, null)`** keeps every revoke, since an empty read keeps them (the gate rule). A
+  `null` entry is returned as is.
+- **Times.** Every time field in `status.json` and in the status answer is an ISO string.
+- **`statusUnreadable`** is present, as `true`, only when `status.json` cannot be read.
+
+**T34 — The wrapper's healthy-run seam.** `run.sh` honours `TAGGING_EDGES_REALTIME_HEALTHY_SECONDS` (default 60). It is
+used for both of the wrapper's 60 s rules:
+- an exit within that many seconds of start counts as a quick exit and backs off;
+- that many seconds of healthy running resets the backoff.
 
 ## Out of scope
 

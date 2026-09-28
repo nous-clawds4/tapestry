@@ -640,5 +640,5 @@ For Test Design:
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tagging-edges/0003-real-time-path.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tagging-edges/3-real-time-path.test-plan.md`
 - Review: (filled in after Review phase)
