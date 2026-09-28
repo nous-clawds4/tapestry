@@ -15,6 +15,18 @@
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { isOwner } = require('../../middleware/auth');
+
+// The router decides what this instance mirrors to and from other relays, so every
+// router mutation is owner-grade. Require the owner OR a genuinely-local operator
+// (req.localTrusted = loopback + no proxy header), mirroring wipe.js and the
+// publishEvent assistant-gate (ADR security-auth-exposure 0001/0002). Default-deny
+// already blocks the unauthenticated case; this also blocks an authenticated non-owner.
+function requireOwnerOrLocal(req, res) {
+  if (isOwner(req) || req.localTrusted) return true;
+  res.status(403).json({ success: false, error: 'Changing the relay router requires owner authentication' });
+  return false;
+}
 
 const ROUTER_CONFIG_PATH = '/etc/strfry-router-tapestry.config';
 const ROUTER_STATE_PATH = '/var/lib/brainstorm/router-state.json';
@@ -189,6 +201,7 @@ async function applyConfig(state) {
  * Full replacement of the streams array. Each stream may include `enabled`.
  */
 async function handleUpdateRouterConfig(req, res) {
+  if (!requireOwnerOrLocal(req, res)) return;
   try {
     const { streams } = req.body;
     if (!Array.isArray(streams)) {
@@ -242,6 +255,7 @@ async function handleUpdateRouterConfig(req, res) {
  * Toggle a single stream's enabled state without changing anything else.
  */
 async function handleToggleStream(req, res) {
+  if (!requireOwnerOrLocal(req, res)) return;
   try {
     const { name, enabled } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Missing stream name' });
@@ -309,6 +323,7 @@ async function handleListPlugins(req, res) {
  * POST /api/strfry/router-restart
  */
 async function handleRestartRouter(req, res) {
+  if (!requireOwnerOrLocal(req, res)) return;
   try {
     const result = await new Promise((resolve, reject) => {
       exec('supervisorctl restart strfry-router', { timeout: 10000 }, (err, stdout) => {
@@ -327,6 +342,7 @@ async function handleRestartRouter(req, res) {
  * Resets state to presets with their defaultEnabled flags.
  */
 async function handleRestoreDefaults(req, res) {
+  if (!requireOwnerOrLocal(req, res)) return;
   try {
     const presets = loadPresets();
     if (presets.length === 0) {

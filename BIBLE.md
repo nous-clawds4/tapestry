@@ -526,7 +526,7 @@ Base URL: `http://localhost:8080`
 | GET | `/api/assistant/attention` | Which of the signed-in viewer's Assistant Management actions need attention, for their own assistant — one read-only, session-shaped answer shared by the `/assistant` hub, the Assistant Alert and the action pages. Today it checks `identification-tags`: the offered taggings between a person and their assistant ("My Tapestry Assistant", "My Tapestry Owner"; "My Agent" and "My Human" are listed but parked and never read), each looked up by its replaceable address, local relay first, and each definition at its own author's address (ADR assistant-identification-tags/0001; identification-tags-authorship ADR 0001) |
 | POST | `/api/assistant/identification-tags/publish` | Have the signed-in viewer's own assistant sign and publish its offered identification tagging of them (today "My Tapestry Owner"; "My Human" is parked and a body naming it is refused): session-bound, refusals before any key is read, the definition looked up first at its author's address, local relay first, each relay reported. Another narrow, session-bound route in the shape of `publish-profile`; the generic signer and the other assistant-key signers are unchanged (§14 Assistant Keys; ADR assistant-identification-tags/0003) |
 | GET | `/api/strfry/router-status` | Router sync status |
-| POST | `/api/strfry/router-toggle` | Enable/disable a sync stream |
+| POST | `/api/strfry/router-toggle` | Enable/disable a sync stream. Owner/local-trusted only, like `router-config`, `router-restart` and `router-restore-defaults`. |
 | POST | `/api/strfry/negentropy-sync` | Trigger negentropy sync from a relay |
 | POST | `/api/strfry/wipe` | Wipe all strfry events (dangerous!) |
 
