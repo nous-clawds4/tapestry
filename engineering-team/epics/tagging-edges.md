@@ -11,8 +11,8 @@ strfry→Neo4j letter ingest (OPEN.md #136 stage 2), which it does not attempt.
 ## Goal
 
 **Neo4j carries one relationship per tagging, from the tagger to the tagged person, kept current in real time
-and repaired retroactively, and the owner can manage that pipeline from the control panel.** Today no tagging
-reaches Neo4j at all; every tag surface scans the relay per request.
+and repaired retroactively, and the owner can manage that pipeline from the control panel.** Before story 2 no
+tagging reached Neo4j at all; every tag surface still scans the relay per request.
 
 ## Stories
 
@@ -22,7 +22,7 @@ reaches Neo4j at all; every tag surface scans the relay per request.
    which version of a tagging stands, what a revoke removes; documented in BIBLE. No relationship is written yet.
 2. `2-gap-filling-pass-and-backfill.md` — the gap-filling pass and backfill: writes the relationships, enforces
    one-per-tagging in the database, repairs drift, refuses to mass-delete on a failed or empty relay read. Its first
-   run is the backfill.
+   run is the backfill. **Done**; on production since 2026-09-28 (PRs #780 / #781).
    **Carry-forwards from story 1's review** (owner-ratified 2026-09-27; `reviews/tagging-edges/1-tagging-edge-contract.md`
    § "Re-review", R2-NB1–3 and R2-4–10) — each becomes an acceptance criterion or a docs task of story 2:
    - *R2-NB1:* a `createdAt` that cannot be compared (NaN, undefined, a JSON-round-tripped Neo4j Integer) makes
@@ -37,10 +37,12 @@ reaches Neo4j at all; every tag surface scans the relay per request.
      clarification-9 line numbers and non-string-`d` wording; ADR 0001's stale "One known edge difference"
      sentence and step 5 (clarification 11); the test plan's trailing blank line; a retire-path case for the
      clarification-9 test.
-3. *(planned)* The real-time path — reflects new taggings, stance changes and revokes within seconds to
-   minutes, from every path an event can reach the relay, independently of the follows pipeline.
-4. *(planned)* The control panel — status, counts, relay-vs-graph drift, start / stop, gap-fill on demand;
-   owner-only.
+3. `3-real-time-path.md` — the real-time path: reflects new taggings, stance changes and revokes within a minute,
+   from every way an event can reach the relay, independently of the follows pipeline; catches up by itself after
+   downtime and never backfills. It ships turned off and carries the owner-only on/off control and its own status
+   (approved 2026-09-28). Story 2's review carry-forwards (six wording nits) are its docs tasks CF-1–CF-6.
+4. *(planned)* The control panel — status, counts, relay-vs-graph drift, gap-fill on demand, and a page on story
+   3's on/off control; owner-only.
 
 Order: 1 → 2 → 3 → 4 (4's page can start once 2's status shape is fixed).
 
