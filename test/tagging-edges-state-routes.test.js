@@ -47,8 +47,12 @@
  *   - The state directory starts as the wrapper leaves it — the directory alone — so state.js creates held/,
  *     claimed/ and preimages/ itself. writeHeld(runId, list) / readHeld(runId) → list; claimConfirmation(runId) → the
  *     claimed record (itself or as `.record`), nothing when there is none; withdrawConfirmation() → truthy when it
- *     withdrew a record, falsy (no throw) when there was none; isAlive takes the report record (`process: {pid,
- *     startTime}`); heldDigest(list) is the lower-case hex sha256.
+ *     withdrew a record, falsy (no throw) when there was none, and a throw on any other failure (RT31: the confirm
+ *     route answers it with 500 "withdraw-failed"); isAlive takes the report record (`process: {pid, startTime}`);
+ *     heldDigest(list) is the lower-case hex sha256.
+ *   - Review round 2 (2026-09-28): ST20 and ST21 swap fs.writeSync (short writes of 7 bytes, then ENOSPC) and
+ *     fs.fsyncSync (EIO) for the length of one call, and restore them in `finally`. On Node 22 writeFileSync never
+ *     calls fs.writeSync, so their short-write halves exercise writeFileSync's own loop only on Node 16.
  */
 
 const fs = require('fs');
@@ -1073,6 +1077,105 @@ test('ST19: lockHeld(fd) reads /proc/self/fdinfo/<fd> and is true only for a "FL
   });
 });
 
+// ─── review round 2 (2026-09-28): state-file robustness (review item 17) ─────────────────────────────────────
+/** Make fs.writeSync write at most `cap` bytes per call (a short write), or throw ENOSPC from call number `failOn`; restore after. */
+async function withShortWrites({ cap = 7, failOn = null }, fn) {
+  const prev = fs.writeSync;
+  const seen = { calls: 0, capped: 0 };
+  fs.writeSync = function shortWrite(fd, data, a, b, c) {
+    seen.calls++;
+    if (failOn !== null && seen.calls >= failOn) throw Object.assign(new Error('ENOSPC: no space left on device, write'), { code: 'ENOSPC', syscall: 'write' });
+    if (typeof data === 'string') {
+      const buf = Buffer.from(data, typeof b === 'string' ? b : 'utf8');
+      if (buf.length > cap) seen.capped++;
+      return prev.call(this, fd, buf, 0, Math.min(cap, buf.length), typeof a === 'number' ? a : null);
+    }
+    if (ArrayBuffer.isView(data)) {
+      const off = typeof a === 'number' ? a : 0;
+      const len = typeof b === 'number' ? b : data.byteLength - off;
+      if (len > cap) seen.capped++;
+      return prev.call(this, fd, data, off, Math.min(cap, len), c);
+    }
+    return prev.apply(this, arguments);
+  };
+  try { return await fn(seen); } finally { fs.writeSync = prev; }
+}
+
+test('ST20: writeReport and appendPreimages write every byte when the kernel writes fewer bytes than asked (short writes of 7 bytes) — report.json and the pre-image file read back whole. This guards the Node 16 path, where writeFileSync writes through fs.writeSync and loops; on Node 22 (CI) writeFileSync never calls fs.writeSync, so there it guards only against a regression to a bare fs.writeSync (story Deviations: state.js writes with writeFileSync; AC-7 "the latest report survives a restart"; review 2026-09-28, item 17)', async () => {
+  await withState(async ({ root }) => {
+    const st = loadState();
+    need(st, 'writeReport', STATE_LABEL);
+    need(st, 'appendPreimages', STATE_LABEL);
+    const doc = reportOf(heldLatest(RUN_HELD, heldList(3)), [doneLatest(RUN_OLD)]);
+    const recs = [preimage(1), preimage(2)];
+    const seen = await withShortWrites({ cap: 7 }, async (s) => {
+      await st.writeReport(doc);
+      await st.appendPreimages(RUN_HELD, recs);
+      return s;
+    });
+    const back = readJson(root, 'report.json');
+    same(back.latest, doc.latest, `report.json's latest after short writes (${seen.calls} fs.writeSync call(s), ${seen.capped} capped)`);
+    const lines = readText(root, `preimages/${RUN_HELD}.jsonl`).split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    same(lines, recs, 'the pre-image lines after short writes');
+  });
+});
+
+test('ST21: an appendPreimages that fails after its bytes reach the file — the fsync fails, or (where writeFileSync goes through fs.writeSync) a short write is followed by ENOSPC — throws and leaves the pre-image file exactly as it was, so no torn line is left for the next append to stick to (story Deviations: "cuts a torn pre-image tail back off on failure"; review 2026-09-28, item 17)', async () => {
+  await withState(async ({ root }) => {
+    const st = loadState();
+    need(st, 'appendPreimages', STATE_LABEL);
+    const file = `preimages/${RUN_HELD}.jsonl`;
+    await quietAsync(() => st.appendPreimages(RUN_HELD, [preimage(1), preimage(2)]));
+    const before = readText(root, file);
+    // (a) the bytes land, then the file's fsync fails (every Node version).
+    const prevFsync = fs.fsyncSync;
+    let armed = true;
+    let err = null;
+    fs.fsyncSync = function failingFsync() {
+      if (armed) { armed = false; throw Object.assign(new Error('EIO: i/o error, fsync'), { code: 'EIO', syscall: 'fsync' }); }
+      return prevFsync.apply(this, arguments);
+    };
+    try {
+      try { await st.appendPreimages(RUN_HELD, [preimage(3)]); } catch (e) { err = e; }
+    } finally { fs.fsyncSync = prevFsync; }
+    assert(err && err.code === 'EIO', `appendPreimages should throw the fsync's EIO; got ${brief(err && { code: err.code, message: err.message })}`);
+    eq(readText(root, file), before, `${file} after an append whose fsync failed (byte for byte)`);
+    // (b) a 7-byte write, then ENOSPC — only where writeFileSync goes through fs.writeSync (Node 16 and 20; Node 22 writes a string in C++).
+    let err2 = null;
+    const seen = await withShortWrites({ cap: 7, failOn: 2 }, async (s) => {
+      try { await st.appendPreimages(RUN_HELD, [preimage(4)]); } catch (e) { err2 = e; }
+      return s;
+    });
+    if (seen.calls > 0) {
+      assert(err2 && err2.code === 'ENOSPC', `appendPreimages should throw the ENOSPC; got ${brief(err2 && { code: err2.code, message: err2.message })}`);
+      eq(readText(root, file), before, `${file} after a short write then ENOSPC (byte for byte)`);
+    } else {
+      assert(!err2, `with no fs.writeSync call to fail, the append should succeed; got ${brief(err2 && err2.message)}`);
+    }
+  });
+});
+
+test('ST22: claimConfirmation builds the claimed name only from checked grammars — a run id outside RUN_ID_RE is refused before any file is touched, and a record whose nonce is not 32 lower-case hex (a ../ traversal) is still claimed, but into claimed/ under a safe name, never outside it (clarification C13; story Deviations; review 2026-09-28, item 17)', async () => {
+  await withState(async ({ root, trace }) => {
+    const st = loadState();
+    need(st, 'claimConfirmation', STATE_LABEL);
+    put(root, 'confirmation.json', confirmationRecord({ nonce: '../../../escaped' }));
+    trace.reset();
+    let threw = false;
+    try { await st.claimConfirmation('../../x'); } catch (_) { threw = true; }
+    assert(threw, 'claimConfirmation with a run id outside RUN_ID_RE should throw');
+    eq(trace.ops.length, 0, `files touched for a bad run id: ${showOps(trace.ops)}`);
+    trace.reset();
+    const rec = claimedRecordOf(await st.claimConfirmation(CLAIM_A));
+    assert(rec && rec.runId === RUN_HELD, `the record should still be claimed; got ${brief(rec)}`);
+    const renames = trace.ops.filter((o) => o.op === 'rename');
+    assert(renames.length === 1 && typeof renames[0].to === 'string' && /^claimed\/[^/]+\.json$/.test(renames[0].to), `the claim must rename into claimed/ and nowhere else; renames: ${showOps(renames)}`);
+    assert(!exists(root, 'confirmation.json'), 'confirmation.json is gone (claimed)');
+    const outside = snapshot(path.dirname(root)).filter((x) => /escaped/.test(x));
+    eq(outside.length, 0, `files named by the hostile nonce outside the state directory: ${outside.join(', ')}`);
+  });
+});
+
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
 // RT — src/api/tagging-edges/index.js and the task channels
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1596,6 +1699,59 @@ test('RT29: nothing a schedule entry carries reaches the pass\'s argv — its ar
   const { buildChildArgs } = require(PROCESSOR_MOD);
   const qp = buildQueryParamsFromArgs({ confirm: true, limit: 0, warmStart: true, runId: RUN_HELD });
   same(buildChildArgs(entry, null, qp), [], `buildChildArgs(entry, null, ${brief(qp)})`);
+});
+
+// ─── review round 2 (2026-09-28): the routes' failure paths (review item 16) ─────────────────────────────────
+test('RT30: GET status still serves the report when confirmation.json cannot be read — not JSON, or unreadable — naming the problem in confirmationPending ({ unreadable: <code> }) with no absolute path, rather than a 500 that hides the report (story Deviations; AC-7 "the owner can read its report"; review 2026-09-28, item 16)', async () => {
+  const problems = [];
+  for (const [what, spoil] of [['not JSON', (root) => put(root, 'confirmation.json', '{ not json')], ['unreadable (ELOOP)', (root) => unreadable(root, 'confirmation.json')]]) {
+    await withState(async ({ root }) => {
+      put(root, 'report.json', reportOf(heldLatest(RUN_HELD, heldList(2)), [doneLatest(RUN_OLD)]));
+      spoil(root);
+      const routes = loadRoutes();
+      need(routes, 'handleStatus', ROUTES_LABEL);
+      const res = await callHandler(routes.handleStatus, getReq(PATHS.status), routeDeps().deps);
+      if (res.statusCode !== 200) problems.push(`${what}: answered ${showRes(res)}`);
+      else {
+        if (!res.body.latest || res.body.latest.runId !== RUN_HELD) problems.push(`${what}: the report is not served (latest: ${brief(res.body.latest)})`);
+        const cp = res.body.confirmationPending;
+        if (!cp || typeof cp.unreadable !== 'string' || !cp.unreadable) problems.push(`${what}: confirmationPending should say it is unreadable, with a code; got ${brief(cp)}`);
+      }
+      if (leaksPath(res.body, root)) problems.push(`${what}: the answer carries an absolute path: ${showRes(res)}`);
+    });
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('RT31: POST confirm-held-removals answers 500 without enqueueing when the record cannot be written (naming the code and the file, no absolute path), and 500 "withdraw-failed" without enqueueing when a pass started and the withdrawal throws (story Deviations: the ADR\'s 409 assumes the withdraw worked; review 2026-09-28, item 16)', async () => {
+  const problems = [];
+  await withState(async (ctx) => {
+    await seed(ctx.root);
+    const routes = loadRoutes();
+    const bundle = routeDeps();
+    bundle.deps.writeConfirmation = () => { throw Object.assign(new Error(`ENOSPC: no space left on device, open '${path.join(ctx.root, 'confirmation.json.tmp')}'`), { code: 'ENOSPC' }); };
+    const r = await tryHandler(ctx, routes.handleConfirmHeldRemovals, confirmReq({ runId: RUN_HELD }), bundle);
+    if (r.res.statusCode !== 500) problems.push(`write fails: answered ${showRes(r.res)}, expected 500`);
+    if (!/ENOSPC/.test(brief(r.res.body)) || !/confirmation\.json/.test(brief(r.res.body))) problems.push(`write fails: the answer should name the code and confirmation.json; got ${showRes(r.res)}`);
+    if (leaksPath(r.res.body, ctx.root)) problems.push(`write fails: the answer carries an absolute path: ${showRes(r.res)}`);
+    if (r.enqueued.length) problems.push(`write fails: enqueued ${brief(r.enqueued)}`);
+  });
+  await withState(async (ctx) => {
+    const { latest } = await seed(ctx.root);
+    const routes = loadRoutes();
+    const st = loadState();
+    const bundle = routeDeps();
+    bundle.deps.writeConfirmation = (rec) => {
+      st.writeConfirmation(rec);
+      put(ctx.root, 'report.json', reportOf(pessimistic(RUN_NEW), [latest])); // a pass starts right after the write
+    };
+    bundle.deps.withdrawConfirmation = () => { throw Object.assign(new Error('EIO: i/o error, rename'), { code: 'EIO' }); };
+    const r = await tryHandler(ctx, routes.handleConfirmHeldRemovals, confirmReq({ runId: RUN_HELD }), bundle);
+    if (r.res.statusCode !== 500) problems.push(`withdraw throws: answered ${showRes(r.res)}, expected 500`);
+    if (!r.res.body || r.res.body.code !== 'withdraw-failed') problems.push(`withdraw throws: the answer's code should be "withdraw-failed"; got ${showRes(r.res)}`);
+    if (r.enqueued.length) problems.push(`withdraw throws: enqueued ${brief(r.enqueued)}`);
+  });
+  assert(problems.length === 0, problems.join('\n        '));
 });
 
 // ─── runner ───

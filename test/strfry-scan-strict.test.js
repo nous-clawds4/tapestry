@@ -655,6 +655,46 @@ test('SS27: with no maxBytes the reader rejects a stdout of 256 MiB + 1 byte as 
   rejectedWith(mod, over, 'too-large', `a stdout of ${DEFAULT_MAX_BYTES + 1} bytes of event lines, no maxBytes given`);
 });
 
+// ─── review round 2 (2026-09-28): no absolute path in the stderr tail ───────────────────────────────────────────
+
+/**
+ * strfry's own line when it cannot load its config file, verbatim: the container's strfry 1.1.0, run as
+ * `strfry --config=/nonexistent-review-probe.conf scan '{"limit":1}'`, exit 1 (review 2026-09-28, Blocking 1). The
+ * pass runs `strfry scan` with no --config, so in production the path is the default, /etc/strfry.conf.
+ */
+const REAL_CONFIG_ERROR = "strfry error: Failed to load config file '/nonexistent-review-probe.conf': filesystem error: open() failed: No such file or directory [/nonexistent-review-probe.conf]";
+/** An absolute path: a "/" that starts a word (at the start, or after a space, quote, bracket, parenthesis or "="). */
+const ABSOLUTE_PATH_RE = /(^|[\s'"[(=])\/[^\s'"\])]/;
+
+test('SS28: a failed scan\'s stderrTail names no absolute path — strfry\'s real "Failed to load config file" line, for the probe path and for the default /etc/strfry.conf, keeps its gist with each path redacted, because the public status route serves it (ADR 0002 "Who reads it": no config value, absolute path or credential; review 2026-09-28, Blocking 1)', async () => {
+  const mod = load();
+  const problems = [];
+  for (const [what, line] of [
+    ['the line strfry printed for --config=/nonexistent-review-probe.conf', REAL_CONFIG_ERROR],
+    ['the same line for the default config /etc/strfry.conf', REAL_CONFIG_ERROR.split('/nonexistent-review-probe.conf').join('/etc/strfry.conf')],
+  ]) {
+    const out = await withFake(MODES['stderr-error'](`${line}\n`), () => scanWith(mod, FILTER, { isExpected: IS_EXPECTED }));
+    let e;
+    try { e = rejectedWith(mod, out, 'exit', `${what} (exit 1)`); } catch (err) { problems.push(err.message); continue; }
+    const tail = e.stderrTail;
+    if (typeof tail !== 'string' || tail.length > 300) {
+      problems.push(`${what}: stderrTail should be a string of at most 300 characters; got ${show(tail)}`);
+      continue;
+    }
+    if (!tail.startsWith('strfry error: Failed to load config file') || !tail.includes('No such file or directory')) {
+      problems.push(`${what}: stderrTail should keep the error's gist ("strfry error: Failed to load config file …" and "No such file or directory"); got ${show(tail)}`);
+    }
+    for (const [field, value] of [['message', e.message], ['stderrTail', tail]]) {
+      const text = String(value);
+      const needles = ['/etc', '[/', '/nonexistent'].filter((n) => text.includes(n));
+      if (needles.length > 0 || ABSOLUTE_PATH_RE.test(text)) {
+        problems.push(`${what}: the ScanError's ${field} carries an absolute path${needles.length ? ` (${needles.join(', ')})` : ''}: ${show(text)}`);
+      }
+    }
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
 async function run() {
   console.log('\n--- strict strfry scan reader (epic tagging-edges, Story 2; ADR 0002 D2) ---');
   let pass = 0, fail = 0;

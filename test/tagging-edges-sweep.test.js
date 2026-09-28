@@ -1395,6 +1395,28 @@ test('SW54 (ADR graph.js; clarification C6): planPass\'s items are the graph por
   same(rm.snapshot, rowGone, 'the removal\'s .snapshot');
 });
 
+// ─── review round 2 (2026-09-28): a read that is not a list (AC-4, principle 4; review item 9) ───────────────
+test('SW55 (AC-4, principle 4): planPass refuses — throws, planning nothing — when the relay read or the graph read is not a list (undefined, null, an object, a string), or a stamp identity is unusable, rather than reading it as an empty relay and planning removals (story Deviations: "planPass throws on a non-array snapshotRows / relayEvents or a bad stamp identity"; review 2026-09-28, item 9)', () => {
+  const planPass = fn('planPass');
+  const { events, rows } = bulkOnce(60, 'sw55');
+  const problems = [];
+  const tryPlan = (what, args) => {
+    let plan = null;
+    try { plan = planPass(args); } catch (_) { return; }
+    const removals = plan && Array.isArray(plan.removals) ? plan.removals.length : '?';
+    const held = plan && Array.isArray(plan.held) ? plan.held.length : '?';
+    problems.push(`${what}: planned (removals ${removals}, held ${held}) instead of refusing`);
+  };
+  for (const [what, bad] of [['undefined', undefined], ['null', null], ['an object', { events }], ['a string', '']]) {
+    tryPlan(`relayEvents ${what}`, { snapshotRows: rows, relayEvents: bad, identities: IDENTITIES, confirmedHeld: null });
+    tryPlan(`snapshotRows ${what}`, { snapshotRows: bad, relayEvents: events, identities: IDENTITIES, confirmedHeld: null });
+  }
+  for (const [what, ids] of [['no identities', undefined], ['canonical upper-case', { ...IDENTITIES, canonicalPubkey: upperHex(IDENTITIES.canonicalPubkey.replace(/./g, 'a')) }], ['local empty', { ...IDENTITIES, localPubkey: '' }]]) {
+    tryPlan(what, { snapshotRows: rows, relayEvents: events, identities: ids, confirmedHeld: null });
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────
 async function run() {
   console.log('\n--- tagging-edges sweep planner tests (epic tagging-edges, Story 2) ---');

@@ -28,6 +28,8 @@
  *       ADR "The guard", runner steps 6 and 8)
  *   W — the bash wrapper reconcileTaggingEdges.sh, read as text (it sources /etc/brainstorm.conf and takes a kernel
  *       flock, so it is not run here). (AC-7; ADR D11-C, Implementation notes → the wrapper)
+ *   Review round 2 (2026-09-28): SWR58 drives the runner's run(deps) over the real port on the fake driver, with
+ *   in-memory state and scan ports; the runner (reconcileTaggingEdges.js) is required lazily through RUNNER_PATH.
  *
  * Stack-free and hermetic: no Neo4j, no strfry, no network, no write to the local graph or relay. Temp directories come
  * from fs.mkdtempSync(os.tmpdir()) and are removed; env changes live only in child processes; the swapped driver
@@ -69,6 +71,7 @@ const F = require('./helpers/taggingEdgesFixtures');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const GRAPH_PATH = path.join(REPO_ROOT, 'src/pipeline/tagging-edges/graph.js');
+const RUNNER_PATH = path.join(REPO_ROOT, 'src/pipeline/tagging-edges/reconcileTaggingEdges.js');
 const REGISTRY_PATH = path.join(REPO_ROOT, 'src/manage/taskQueue/taskRegistry.json');
 const SCHED_TASKS = path.join(REPO_ROOT, 'src/api/scheduled-tasks/index.js');
 const SCHED_VALIDATION = path.join(REPO_ROOT, 'src/api/scheduled-tasks/validation.js');
@@ -1663,6 +1666,186 @@ test('SWR53: readAll({ timeoutMs }) runs READ_ALL with $scalarTypes in one read 
   const entry = back && back.props.find((p) => p[0] === 'bigList');
   assert(entry && Array.isArray(entry[3]), `the list-valued key should come back as [key, type, null, raw list]; got ${show(entry)}`);
   eq(String(entry[3][0]), '9007199254740993', 'the list\'s element, 2^53+1, as read (a JS number would round it to …992)');
+});
+
+// ══ review round 2 (2026-09-28): the boot hook's "not created" codes (Blocking 2) ═════════════════════════════
+test('SWR55: ensureTagsConstraint answers at once — no CREATE, no wait — when a rule with another definition holds the name tags_address, resolving tagsAddress not present, so the runner refuses "schema" (story Deviations; AC-6; review 2026-09-28, Blocking 2)', async () => {
+  const schema = {
+    constraints: [...clone(BASE_CONSTRAINTS), tagsConstraint(CONSTRAINT_NAME, { properties: ['eventId'] })],
+    indexes: [...clone(BASE_INDEXES), tagsIndex(CONSTRAINT_NAME, 'ONLINE', { properties: ['eventId'] })],
+  };
+  const fake = makeFakeNeo4j({ schema });
+  const { out, clock } = await onFakeClock(() => onFakeGraph(fake, (g) => g.ensureTagsConstraint({ timeoutMs: 60000 })));
+  if (out === 'HUNG') throw new Error('ensureTagsConstraint should resolve; it did not settle');
+  if (out.error) throw new Error(`ensureTagsConstraint should resolve; it rejected: ${firstLine(out.error.message)}`);
+  eq(out.value && out.value.tagsAddress && out.value.tagsAddress.present, false, 'tagsAddress.present with the name taken by another definition');
+  eq(fake.st.creates, 0, 'CREATE_TAGS_CONSTRAINT sent (IF NOT EXISTS would do nothing)');
+  assert(clock.ms < 1000, `it should answer at once, not wait for an index that will never come; waited ${clock.ms} ms of fake time`);
+});
+
+test('SWR56: the boot hook logs the documented "not created: <code>" line when it cannot put the rule in place without an error — "name-taken" when a rule with another definition holds the name (OPERATIONS.md §12.8), "no-change" when its CREATE changed nothing (story Deviations) — sends no second CREATE and drops nothing (review 2026-09-28, Blocking 2)', async () => {
+  const taken = [...clone(BASE_CONSTRAINTS), tagsConstraint(CONSTRAINT_NAME, { properties: ['eventId'] })];
+  const takenIdx = [...clone(BASE_INDEXES), tagsIndex(CONSTRAINT_NAME, 'ONLINE', { properties: ['eventId'] })];
+  const problems = [];
+  for (const [code, constraints, indexes] of [['name-taken', taken, takenIdx], ['no-change', clone(BASE_CONSTRAINTS), clone(BASE_INDEXES)]]) {
+    const writes = [];
+    const st = await runBootHook({
+      runRead: async (cypher) => (/CONSTRAINT/i.test(norm(cypher)) ? clone(constraints) : clone(indexes)),
+      runWrite: async (cypher) => { writes.push(norm(cypher)); return []; }, // a CREATE that changes nothing
+    });
+    if (st.outcome.rejected) { problems.push(`${code}: rejected`); continue; }
+    const creates = writes.filter((w) => /^CREATE CONSTRAINT/i.test(w));
+    if (code === 'name-taken' && creates.length !== 0) problems.push(`${code}: sent ${creates.length} CREATE(s); IF NOT EXISTS would do nothing`);
+    if (code === 'no-change' && creates.length !== 1) problems.push(`${code}: sent ${creates.length} CREATE(s); expected exactly one`);
+    if (writes.some((w) => /\bDROP\b/i.test(w))) problems.push(`${code}: sent DROP`);
+    const lines = st.lines.filter((l) => l.includes('not created'));
+    if (lines.length !== 1) problems.push(`${code}: expected exactly one "not created" line; got ${show(st.lines)}`);
+    else if (!lines[0].startsWith(`${LOG_PREFIX}${code}`)) problems.push(`${code}: the line must read "${LOG_PREFIX}${code}" (the documented <code>); got ${show(lines[0])}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+// ══ review round 2 (2026-09-28): pre-images through the real port (principle 4; item 8) ══════════════════════
+test('SWR57: applyLocked hands preimage(batch) each C6 row as the caller sent it — its snapshot, extra key and value included, and any other key the caller put on the row — before that batch\'s transaction opens (ADR "The guard" step 1; story Deviations: "the caller\'s other keys are kept and reach preimage"; review 2026-09-28, item 8)', async () => {
+  const desired = edgeFor(0);
+  const snapshot = F.storedRow(edgeFor(0), { set: { polarity: '0' }, extra: { note: 'kept-by-preimage-91c2' } });
+  const row = { address: desired.address, snapshot, desired, story3Hint: 'caller-key-kept' };
+  const fake = makeFakeNeo4j({ rows: [snapshot], people: [F.ALICE, F.BOB] });
+  const seen = [];
+  const preimage = async (batch) => { seen.push(batch); fake.st.events.push({ e: 'preimage' }); };
+  await onFakeGraph(fake, (g) => g.applyLocked('update', [row], { timeoutMs: 60000, preimage }));
+  eq(seen.length, 1, 'preimage calls');
+  const got = seen[0][0] || {};
+  eq(got.story3Hint, 'caller-key-kept', 'a caller\'s own key on the row reaches preimage');
+  const snap = got.snapshot || got.row;
+  assert(snap && Array.isArray(snap.props), `preimage must see the row's snapshot (READ_ALL row); got ${show(Object.keys(got))}`);
+  assert(snap.props.some((p) => p[0] === 'note' && p[2] === 'kept-by-preimage-91c2'), `the snapshot preimage sees must still carry the extra key and its value; props: ${show(snap.props)}`);
+  const firstOpen = fake.st.events.findIndex((e) => e.e === 'tx-open');
+  const pre = fake.st.events.findIndex((e) => e.e === 'preimage');
+  assert(pre >= 0 && pre < firstOpen, `preimage must resolve before the transaction opens; events: ${show(fake.st.events.slice(0, 6))}`);
+  eq(propsOf(fake, desired.address).note, undefined, 'the extra key is dropped by the update (after its pre-image)');
+});
+
+test('SWR58: a real pass driven through the real graph port (openGraph over the fake driver) appends the pre-image of every edge carrying a key outside the nine — an update and a removal — with the key\'s type and value, before the transaction that drops it (ADR "The guard" step 1, owner decision 9; BIBLE §30; review 2026-09-28, item 8)', async () => {
+  let runner;
+  try { runner = require(RUNNER_PATH); } catch (e) { throw new Error(`reconcileTaggingEdges.js not implemented yet (require failed: ${firstLine(e.message)})`); }
+  const graph = loadGraph();
+  const X = F.makeTagging({ d: 'swr58-x', id: F.idOf('swr58:x') });
+  const Y = F.makeTagging({ d: 'swr58-y', id: F.idOf('swr58:y') });
+  const addr = (ev) => `39999:${ev.pubkey}:${ev.tags.find((t) => t[0] === 'd')[1]}`;
+  const rowX = F.storedRowFor(X, { extra: { note: 'private-note-3b7e' } });
+  const rowY = F.storedRowFor(Y, { extra: { legacyScore: 7 } });
+  const fake = makeFakeNeo4j({ rows: [rowX, rowY], people: [F.ALICE, F.BOB], schema: schemaWithTags() });
+  const records = [];
+  const reports = [];
+  const deps = {
+    now: (() => { let t = Date.UTC(2026, 8, 28, 1, 2, 3); return () => t++; })(),
+    randomId: () => '0a0b0c0d',
+    lock: { busy: false, held: () => true },
+    state: {
+      readReport: () => null,
+      writeReport: (doc) => { reports.push(JSON.parse(show(doc))); },
+      appendPreimages: (runId, recs) => {
+        fake.st.events.push({ e: 'preimage-append', addresses: recs.map((r) => r.address) });
+        records.push(...JSON.parse(show(recs)));
+        return `preimages/${runId}.jsonl`;
+      },
+      claimConfirmation: () => null,
+      prune: () => {},
+      processStartTime: () => '1',
+      heldDigest: () => 'f'.repeat(64),
+      writeHeld: () => {},
+      readHeld: () => null,
+    },
+    identities: { canonicalZ: () => F.STAMP(F.CANONICAL), getOwnerAssistantPubkey: () => F.LOCAL },
+    env: { NEO4J_URI: CREDS.uri, NEO4J_USER: CREDS.user, NEO4J_PASSWORD: CREDS.password, BRAINSTORM_RELAY_PUBKEY: F.LOCAL },
+    openGraph: (cfg) => graph.openGraph(cfg),
+    scan: async () => ({ events: [X], lines: 1, bytes: 1, elapsedMs: 1 }),
+    emit: () => {},
+    proc: { pid: 1, exitCode: undefined, startTime: '1' },
+    signals: null,
+  };
+  const out = await withFakeDriver(fake, () => runner.run(deps));
+  eq(out && out.outcome, 'done', `the pass's outcome (failure: ${show(out && out.failure)})`);
+  sameSet(records.map((r) => r.address), [addr(X), addr(Y)], 'pre-image records (the update and the removal, each carrying a key outside the nine)');
+  const recX = records.find((r) => r.address === addr(X));
+  assert(recX.props.some((p) => show(p) === show(['note', 'STRING NOT NULL', 'private-note-3b7e'])), `X's pre-image keeps [key, type, value]; props: ${show(recX.props)}`);
+  const recY = records.find((r) => r.address === addr(Y));
+  assert(recY.props.some((p) => show(p) === show(['legacyScore', 'INTEGER NOT NULL', '7'])), `Y's pre-image keeps [key, type, value]; props: ${show(recY.props)}`);
+  for (const [a, kind] of [[addr(X), 'update'], [addr(Y), 'remove']]) {
+    const iAppend = fake.st.events.findIndex((e) => e.e === 'preimage-append' && e.addresses.includes(a));
+    const tx = writeTxs(fake).find((t) => t.runs.some((r) => r.kind === kind));
+    const iOpen = fake.st.events.findIndex((e) => e.e === 'tx-open' && e.tx === (tx && tx.id));
+    assert(iAppend >= 0 && iOpen > iAppend, `${kind} ${a}: the pre-image must be appended before its transaction opens (append ${iAppend}, open ${iOpen})`);
+  }
+  eq(propsOf(fake, addr(X)).note, undefined, 'X lost the extra key');
+  eq(fake.st.store.has(addr(Y)), false, 'Y removed');
+  const last = reports[reports.length - 1].latest;
+  eq(last.relationships.preimagesWritten, 2, 'relationships.preimagesWritten');
+});
+
+// ══ review round 2 (2026-09-28): partial commits and the port's row checks (items 13, 14) ════════════════════
+test('SWR59: when applyCreates, re-running a refused batch one row per transaction, then meets an error that is not a uniqueness refusal, it rejects with err.partial — the rows that committed (applied, appliedAddresses), the refused row as a lost race, and the people added — so the runner can count them (ADR step 11 "with the partial counts"; story Deviations; review 2026-09-28, item 13)', async () => {
+  const rows = [0, 1, 2].map((i) => createRow(i));
+  const fake = makeFakeNeo4j({ people: [F.ALICE], conflicts: [rows[0].address] });
+  const session = fake.driver.session;
+  fake.driver.session = (...a) => {
+    const s = session(...a);
+    const executeWrite = s.executeWrite;
+    s.executeWrite = (work, cfg) => executeWrite((tx) => work({
+      run: (cypher, params) => {
+        if (params && Array.isArray(params.rows) && params.rows.length === 1 && params.rows[0].address === rows[2].address) {
+          return Promise.reject(Object.assign(new Error('fake: the third row failed for another reason'), { code: 'Neo.DatabaseError.General.UnknownError' }));
+        }
+        return tx.run(cypher, params);
+      },
+    }), cfg);
+    return s;
+  };
+  const err = await rejectionOf(() => onFakeGraph(fake, (g) => g.applyCreates(rows, { timeoutMs: 60000 })), 'a create fallback that fails on its third row');
+  eq(err.code, 'Neo.DatabaseError.General.UnknownError', 'the rejection is the non-uniqueness error');
+  assert(err.partial && typeof err.partial === 'object', `the rejection must carry err.partial (what committed before it); got ${show(err && Object.keys(err))}`);
+  eq(err.partial.applied, 1, 'err.partial.applied (row 1 committed in its own transaction)');
+  same(err.partial.appliedAddresses, [rows[1].address], 'err.partial.appliedAddresses');
+  eq(err.partial.lostRace, 1, 'err.partial.lostRace (row 0, refused by the uniqueness rule)');
+  eq(err.partial.nodesCreated, 1, 'err.partial.nodesCreated (Bob, added with row 1)');
+  eq(fake.st.store.has(rows[1].address), true, 'row 1 is in the graph');
+});
+
+test('SWR60: the port refuses, before any transaction and before preimage, a row with no address, without the snapshot or desired its kind needs, or whose desired is for another address — eight cases over update, move, remove and create (story Deviations: toPortRow, C6; review 2026-09-28, item 14)', async () => {
+  const problems = [];
+  const u0 = updateRow(0);
+  const other = edgeFor(1);
+  const without = (o, k) => { const c = { ...o }; delete c[k]; return c; };
+  const cases = [
+    ['update without address', 'update', without(u0, 'address')],
+    ['update without snapshot', 'update', without(u0, 'snapshot')],
+    ['update without desired', 'update', without(u0, 'desired')],
+    ['update with desired for another address', 'update', { ...u0, desired: other }],
+    ['move with desired for another address', 'move', { address: u0.address, snapshot: F.storedRow(edgeFor(0), { set: { polarity: '0' } }), desired: edgeFor(1, { target: F.CAROL }) }],
+    ['remove without snapshot', 'remove', without(removeRow(0), 'snapshot')],
+    ['create without desired', 'create', { address: edgeFor(7).address }],
+    ['create with desired for another address', 'create', { address: edgeFor(7).address, desired: edgeFor(8) }],
+  ];
+  for (const [label, kind, row] of cases) {
+    const fake = makeFakeNeo4j({ rows: [u0.snapshot], people: [F.ALICE, F.BOB] });
+    let calls = 0;
+    const preimage = async () => { calls += 1; };
+    let refused = false;
+    try {
+      await onFakeGraph(fake, (g) => (kind === 'create' ? g.applyCreates([row], { timeoutMs: 60000 }) : g.applyLocked(kind, [row], { timeoutMs: 60000, preimage })));
+    } catch (e) {
+      if (isHarnessError(e)) throw e;
+      refused = true;
+    }
+    if (!refused) problems.push(`${label}: not refused`);
+    if (fake.st.txs.length) problems.push(`${label}: ${fake.st.txs.length} transaction(s) opened`);
+    if (calls) problems.push(`${label}: preimage called ${calls} time(s)`);
+    const p = propsOf(fake, u0.address);
+    if (!p || p.polarity !== '0') problems.push(`${label}: stored polarity now ${show(p && p.polarity)}`);
+    if (fake.st.store.size !== 1) problems.push(`${label}: store size ${fake.st.store.size}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
 });
 
 async function run() {

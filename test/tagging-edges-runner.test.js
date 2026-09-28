@@ -22,6 +22,9 @@
  *             logging off. Only the paths that must not reach the graph are run (--lock-busy, and a hand run outside
  *             the wrapper's lock), with no NEO4J_* variables and no identity in the environment.
  *   static  — a read of the runner's source.
+ *   reader  — SR63 (review round 2) drives the real scanStrict (src/lib/strfryScanStrict.js) through the scan port,
+ *             its spawnImpl a child Node process that prints strfry's real config-error line and exits 1, and reads
+ *             the final report through the routes' pure computeStatus (src/api/tagging-edges/index.js).
  * Stack-free: no Neo4j, no strfry, no network, no signing. No test writes to the graph or the relay (principle 4).
  * Every pubkey is a fake 64-hex value from test/helpers/taggingEdgesFixtures.js: never a deployment's TA and never
  * the ADR 0015 literal. The canonical identity is a fake too — the runner reads it through an injected getter.
@@ -87,6 +90,7 @@ const SWEEP = path.join(REPO, 'src/lib/tagging-edges/sweep.js');
 const LIB_INDEX = path.join(REPO, 'src/lib/tagging-edges/index.js');
 const GRAPH = path.join(REPO, 'src/pipeline/tagging-edges/graph.js');
 const SCAN_STRICT = path.join(REPO, 'src/lib/strfryScanStrict.js');
+const ROUTES = path.join(REPO, 'src/api/tagging-edges/index.js');
 
 const { CANONICAL, LOCAL, OTHER_DEPLOY, ALICE, BOB, CAROL, STAMP, TAG_STAMP } = F;
 /** The pubkey in the fake SecureKeyStorage file (a fake; different from both identities). */
@@ -683,12 +687,13 @@ test('SR4: the real entry started with --lock-busy exits 0 and writes nothing in
   } finally { sb.cleanup(); }
 });
 
-test('SR5: the real entry run by hand, outside the wrapper\'s lock (no FLOCK WRITE on fd 9), writes nothing into its state directory', () => {
+test('SR5: the real entry run by hand, outside the wrapper\'s lock (no FLOCK WRITE on fd 9), exits 2 (refused, clarification C19) and writes nothing into its state directory', () => {
   needRunnerFile();
   const sb = childSandbox();
   try {
     const r = spawnSync(process.execPath, [RUNNER], { cwd: REPO, env: sb.env, encoding: 'utf8', timeout: 20000 });
     assert(!r.error && r.signal === null, `the entry did not exit on its own (error ${r.error && r.error.message}, signal ${r.signal})`);
+    eq(r.status, 2, `exit status of a hand run outside the lock (C19; stderr: ${String(r.stderr || '').slice(-300)})`);
     const left = fs.readdirSync(sb.stateDir);
     assert(left.length === 0, `a hand run outside the lock must refuse before writing (ADR 0002 step 1, "not-started-under-the-lock"); the state directory now holds ${show(left)}`);
   } finally { sb.cleanup(); }
@@ -1567,6 +1572,332 @@ test('SR62: relationships.strippedKeys names the dropped keys, never their value
   assert(Array.isArray(r.strippedKeys) && r.strippedKeys.length === 100, `relationships.strippedKeys should list 100 edges (at most 100; 120 dropped a key); got ${Array.isArray(r.strippedKeys) ? r.strippedKeys.length : show(r.strippedKeys)}`);
   const text = show(r.strippedKeys);
   assert(text.includes('note') && !text.includes('dropped-value-7c1e'), `strippedKeys names the key "note" and never its value; got ${text.slice(0, 200)}…`);
+});
+
+/* ══════════════════════════ review round 2 (2026-09-28): what the public status route can serve ══════════════════════════ */
+
+/** strfry's own line when it cannot load its config file (the container's strfry 1.1.0, exit 1; review Blocking 1). */
+const STRFRY_CONFIG_ERROR = "strfry error: Failed to load config file '/nonexistent-review-probe.conf': filesystem error: open() failed: No such file or directory [/nonexistent-review-probe.conf]";
+/** An absolute path: a "/" that starts a word (at the start, or after a space, quote, bracket, parenthesis or "="). */
+const ABSOLUTE_PATH_RE = /(^|[\s'"[(=])\/[^\s'"\])]/;
+/** The deployed tree in the container (CLAUDE.md), which a leaked require stack would name. */
+const DEPLOYED_SRC = '/usr/local/lib/node_modules/brainstorm/src';
+/** neo4j-driver 5's text for a connection that fails (neo4j-driver-bolt-connection, node-channel.js), before its cause. */
+const DRIVER_CONNECT_FAILED = 'Failed to connect to server. Please ensure that your database is listening on the correct host and port and that you have compatible encryption settings both on Neo4j server and driver. Note that the default encryption setting has changed in Neo4j 4.0.';
+
+/** spawnImpl for the real scanStrict: a real child process that writes `line` to stderr and exits `code`, as strfry does. */
+function strfryFailingWith(line, code = 1) {
+  return (cmd, args, opts) => require('child_process').spawn(process.execPath,
+    ['-e', `process.stderr.write(${JSON.stringify(`${line}\n`)}); process.exitCode = ${Number(code)};`],
+    Object.assign({}, opts, { env: { PATH: process.env.PATH } }));
+}
+/** Up to 80 characters either side of `at` in `s`, as one quoted line. */
+function around(s, at) { return show(`${at > 80 ? '…' : ''}${s.slice(Math.max(0, at - 80), at + 80)}${at + 80 < s.length ? '…' : ''}`); }
+/** The problem, if `text` names an absolute path (the needles of review Blocking 1, or any word starting with "/"). */
+function pathProblems(what, text) {
+  const s = String(text == null ? '' : text);
+  const needles = ['/etc', '[/', '/nonexistent', DEPLOYED_SRC].filter((n) => s.includes(n));
+  const m = ABSOLUTE_PATH_RE.exec(s);
+  if (needles.length === 0 && !m) return [];
+  const at = needles.length ? s.indexOf(needles[0]) : m.index;
+  return [`${what} carries an absolute path${needles.length ? ` (${needles.join(', ')})` : ''}: ${around(s, at)}`];
+}
+
+test('SR63: strfry\'s real config-error line, read through the real scanStrict, reaches neither the report nor the public status body as a path — failure.stderrTail, every report written, the events and computeStatus\'s answer carry no absolute path, and the pass still fails naming the relay read (ADR 0002 "Who reads it": no config value, absolute path or credential; review 2026-09-28, Blocking 1)', async () => {
+  let scanMod;
+  try { scanMod = require(SCAN_STRICT); } catch (e) { throw new Error(`src/lib/strfryScanStrict.js not loadable (require failed: ${firstLine(e)})`); }
+  let routes;
+  try { routes = require(ROUTES); } catch (e) { throw new Error(`src/api/tagging-edges/index.js not loadable (require failed: ${firstLine(e)})`); }
+  assert(typeof scanMod.scanStrict === 'function', `src/lib/strfryScanStrict.js must export scanStrict; it exports ${show(Object.keys(scanMod))}`);
+  assert(typeof routes.computeStatus === 'function', `src/api/tagging-edges/index.js must export computeStatus; it exports ${show(Object.keys(routes))}`);
+  await cases([
+    { name: 'the line for --config=/nonexistent-review-probe.conf', line: STRFRY_CONFIG_ERROR },
+    { name: 'the line for the default config, /etc/strfry.conf', line: STRFRY_CONFIG_ERROR.split('/nonexistent-review-probe.conf').join('/etc/strfry.conf') },
+  ], async (c) => {
+    const w = makeWorld(baseline());
+    w.deps.scan = (filter, opts) => {
+      w.log.push({ op: 'scan' });
+      return scanMod.scanStrict(filter, Object.assign({}, opts, { spawnImpl: strfryFailingWith(c.line) }));
+    };
+    await runPass(w);
+    const l = finalLatest(w);
+    expectOutcome(l, 'failed', c.name);
+    const f = l.failure || {};
+    same({ stage: f.stage, read: f.read, code: f.code }, { stage: 'read', read: 'relay', code: 'exit' }, `${c.name}: failure.stage / read / code`);
+    expectZeroWrites(w, c.name);
+    expectExit(w, 1, c.name);
+    const body = routes.computeStatus({ report: reportDocsOf(w).pop(), alive: false, confirmation: null, now: T0 });
+    const problems = [
+      ...pathProblems('failure.stderrTail', f.stderrTail),
+      ...pathProblems('a report written', show(reportDocsOf(w))),
+      ...pathProblems('an event', show(emitsOf(w).map((e) => e.meta))),
+      ...pathProblems('the status body (computeStatus)', show(body)),
+    ];
+    assert(problems.length === 0, problems.join('\n        '));
+  });
+});
+
+test('SR64: no config value or credential reaches the report a public route serves — a graph read whose error repeats NEO4J_URI (credentials in it) and a Bolt IPv4 host:port, and a driver that cannot be built from such a URI, leave neither in the report or the events (ADR "Who reads it"; story Deviations: fixed driver text, URIs and host:port replaced; review 2026-09-28, Non-blocking 4)', async () => {
+  const URI = 'bolt://neo4j:uri-secret-7f3a@neo4j.fake.invalid:7687';
+  await cases([
+    {
+      name: 'graph read error',
+      world: () => makeWorld(baseline({
+        env: { NEO4J_URI: URI },
+        readAllError: neoError('ServiceUnavailable', `Could not perform discovery for ${URI}: connect ECONNREFUSED 172.18.0.3:7687`),
+      })),
+      outcome: 'failed',
+    },
+    {
+      name: 'driver cannot be built',
+      world: () => {
+        const w = makeWorld(baseline({ env: { NEO4J_URI: URI } }));
+        w.deps.openGraph = (cfg) => { w.log.push({ op: 'openGraph' }); throw new Error(`Invalid URL: ${cfg.uri} (resolved 172.18.0.3:7687)`); };
+        return w;
+      },
+      outcome: 'refused',
+    },
+  ], async (c) => {
+    const w = await runPass(c.world());
+    const l = finalLatest(w);
+    expectOutcome(l, c.outcome, c.name);
+    const written = show(reportDocsOf(w)) + show(emitsOf(w).map((e) => e.meta));
+    for (const needle of ['uri-secret-7f3a', 'neo4j:uri-secret', URI, '172.18.0.3:7687', PASSWORD]) {
+      assert(!written.includes(needle), `${c.name}: the report or an event carries ${show(needle)}; failure: ${show(l.failure)}`);
+    }
+    assert(l.failure && typeof l.failure.message === 'string' && l.failure.message.length > 0, `${c.name}: failure.message should still say something; got ${show(l.failure)}`);
+  });
+});
+
+test('SR65: no host name or absolute path reaches the report a public route serves — a Neo4j host that does not resolve (the driver\'s "getaddrinfo ENOTFOUND <host>", on the schema read and on the graph read) and a module that cannot be found (MODULE_NOT_FOUND, its require stack naming absolute paths, on the relay read) leave neither in failure.message, the reports or the events, and the report still names the stage, the read and the code (ADR 0002 "Who reads it": no config value, absolute path or credential; review 2026-09-28, Non-blocking 4)', async () => {
+  const HOST = 'db-3c9d'; // short enough to survive today's 300-character cut whole (the driver's text before it is 286)
+  const notFound = () => neoError('ServiceUnavailable', `${DRIVER_CONNECT_FAILED} Caused by: getaddrinfo ENOTFOUND ${HOST}`);
+  const moduleNotFound = () => Object.assign(new Error([
+    "Cannot find module '../../lib/strfryScanStrict'",
+    'Require stack:',
+    `- ${DEPLOYED_SRC}/pipeline/tagging-edges/reconcileTaggingEdges.js`,
+  ].join('\n')), { code: 'MODULE_NOT_FOUND', requireStack: [`${DEPLOYED_SRC}/pipeline/tagging-edges/reconcileTaggingEdges.js`] });
+  await cases([
+    {
+      name: 'ENOTFOUND on the schema read',
+      want: { outcome: 'refused', stage: 'schema', read: undefined, code: 'ServiceUnavailable' },
+      patch: (w) => {
+        const open = w.deps.openGraph;
+        w.deps.openGraph = (cfg) => {
+          const p = open(cfg);
+          p.readSchema = async () => { w.log.push({ op: 'graph.readSchema' }); throw notFound(); };
+          return p;
+        };
+      },
+    },
+    { name: 'ENOTFOUND on the graph read', want: { outcome: 'failed', stage: 'read', read: 'graph', code: 'ServiceUnavailable' }, world: { readAllError: notFound() } },
+    {
+      name: 'MODULE_NOT_FOUND on the relay read',
+      want: { outcome: 'failed', stage: 'read', read: 'relay', code: 'MODULE_NOT_FOUND' },
+      patch: (w) => { w.deps.scan = async () => { w.log.push({ op: 'scan' }); throw moduleNotFound(); }; },
+    },
+  ], async (c) => {
+    const w = makeWorld(baseline(Object.assign({ env: { NEO4J_URI: `bolt://${HOST}:7687` } }, c.world || {})));
+    if (c.patch) c.patch(w);
+    await runPass(w);
+    const l = finalLatest(w);
+    expectOutcome(l, c.want.outcome, c.name);
+    const f = l.failure || {};
+    same({ stage: f.stage, read: f.read, code: f.code }, { stage: c.want.stage, read: c.want.read, code: c.want.code }, `${c.name}: failure.stage / read / code`);
+    assert(typeof f.message === 'string' && f.message.length > 0, `${c.name}: failure.message should still say something; got ${show(f)}`);
+    expectZeroWrites(w, c.name);
+    const problems = [];
+    for (const [what, text] of [['failure.message', f.message], ['a report written', show(reportDocsOf(w))], ['an event', show(emitsOf(w).map((e) => e.meta))]]) {
+      const at = String(text).indexOf(HOST);
+      if (at >= 0) problems.push(`${what} carries the Neo4j host name ${show(HOST)} (a config value): ${around(String(text), at)}`);
+      problems.push(...pathProblems(what, text));
+    }
+    assert(problems.length === 0, problems.join('\n        '));
+  });
+});
+
+/* ══════════════════════════ review round 2 (2026-09-28): reads without their list (principle 4) ══════════════════════════ */
+
+test('SR66 (AC-4, principle 4): a read that resolves without its list — a scan answer with no events array, null, or an array-like that is not an array; a graph read that is an object or an empty string — ends the pass failed, naming that read, with zero writes (never "the relay is empty"; review 2026-09-28, item 9)', async () => {
+  const kept = F.manyTaggings(60, { prefix: 'sr66' });
+  const graphAnswer = (answer) => (w) => {
+    const open = w.deps.openGraph;
+    w.deps.openGraph = (cfg) => { const p = open(cfg); p.readAll = async () => answer; return p; };
+  };
+  await cases([
+    { name: 'scan answers { lines: 0 } (no events list)', read: 'relay', patch: (w) => { w.deps.scan = async () => ({ lines: 0, bytes: 0, elapsedMs: 1 }); } },
+    { name: 'scan answers null', read: 'relay', patch: (w) => { w.deps.scan = async () => null; } },
+    { name: 'scan answers { events: { length: 0 } } (array-like, not a list)', read: 'relay', patch: (w) => { w.deps.scan = async () => ({ events: { length: 0 }, lines: 0, bytes: 0, elapsedMs: 1 }); } },
+    { name: 'graph read answers an object', read: 'graph', patch: graphAnswer({ rows: [] }) },
+    { name: 'graph read answers an empty string', read: 'graph', patch: graphAnswer('') },
+  ], async (c) => {
+    const w = makeWorld({ rows: rowsFor(kept), events: kept });
+    c.patch(w);
+    await runPass(w);
+    const l = finalLatest(w);
+    expectOutcome(l, 'failed', c.name);
+    eq(l.failure && l.failure.read, c.read, `${c.name}: failure.read`);
+    expectZeroWrites(w, c.name);
+    expectExit(w, 1, c.name);
+  });
+});
+
+/* ══════════════════════════ review round 2 (2026-09-28): stops, claims and a confirmed run that fails ══════════════════════════ */
+
+test('SR67: a confirmed run that fails partway still says it was confirmed — confirmation honoured, confirmed { confirmedRunId, removalsApplied = the removals that committed }, TASK_END confirmed — its claim is spent, the record it writes right after the claim already says so, and the next pass holds the rest again (AC-5 "its report says it was confirmed", AC-7, owner decision 7; review 2026-09-28, item 10)', async () => {
+  const s = heldScenario({ n: 400, prefix: 'cfail' });
+  const w = await runPass(makeWorld({
+    files: s.files, rows: s.rows, events: [],
+    onApply: ({ kind, kindIndex }) => {
+      if (kind === 'remove' && kindIndex === 1) throw neoError('Neo.DatabaseError.Transaction.TransactionCommitFailed', 'commit failed');
+    },
+  }));
+  const removeCalls = writesOf(w).filter((e) => e.kind === 'remove');
+  eq(removeCalls.length, 2, `removal calls (250 committed, then the failing one; got ${describeWrites(w)})`);
+  const committed = removeCalls[0].n;
+  const l = finalLatest(w);
+  expectOutcome(l, 'failed', 'a confirmed run whose second removal batch fails');
+  eq(l.failure && l.failure.stage, 'write', 'failure.stage');
+  same({ found: l.confirmation && l.confirmation.found, honoured: l.confirmation && l.confirmation.honoured }, { found: true, honoured: true }, 'confirmation');
+  assert(isPlainObject(l.confirmed), `a failed confirmed run must still say it was confirmed; confirmed = ${show(l.confirmed)}`);
+  eq(l.confirmed.confirmedRunId, RUN_HELD, 'confirmed.confirmedRunId');
+  eq(l.confirmed.removalsApplied, committed, 'confirmed.removalsApplied (the confirmed removals that committed)');
+  eq(rel(l).removed, committed, 'relationships.removed');
+  eq(s.files.pending, null, 'the confirmation is spent (claimed) although the run failed');
+  const end = emitsOf(w).filter((e) => e.type === 'TASK_END').pop();
+  assert(end && end.meta && end.meta.confirmed, `TASK_END should say the run was confirmed; got ${show(end && end.meta)}`);
+  expectExit(w, 1, 'a failed confirmed run');
+
+  // A kill between the claim and the graph read must already read "confirmed" (the stored record, before any graph read).
+  const iClaim = idx(w, 'state.claimConfirmation');
+  const iRead = idx(w, 'graph.readAll:called');
+  const between = w.log.slice(iClaim, iRead).filter((e) => e.op === 'state.writeReport' && e.ok).map((e) => latestOf(e.doc));
+  assert(between.some((r) => r && r.confirmed && r.confirmed.confirmedRunId === RUN_HELD && r.confirmation && r.confirmation.honoured === true
+    && r.outcome === 'failed' && r.stopped === true && r.reasonCode === 'stopped' && r.running === true),
+  `a record saying "confirmed" (and still reading failed / stopped / running) should be written between the claim and the graph read; written there: ${show(between.map((r) => r && { confirmed: r.confirmed, confirmation: r.confirmation, outcome: r.outcome }))}`);
+
+  // Owner decision 7: the next pass finds no record and holds what is left again.
+  const w2 = await runPass(makeWorld({ files: s.files, rows: rowsFor(s.evs.slice(committed)), events: [] }));
+  const l2 = finalLatest(w2);
+  eq(l2.confirmation && l2.confirmation.found, false, 'the next pass finds no confirmation (the failed run spent it)');
+  eq(l2.confirmed, null, 'the next pass is not confirmed');
+  expectOutcome(l2, 'done-removals-held', 'the next pass holds the remaining removals again');
+  eq(l2.held && l2.held.total, 400 - committed, 'held.total on the next pass');
+  eq(writtenAddresses(w2, 'remove').length, 0, 'removals applied by the next pass');
+});
+
+test('SR68: a SIGTERM that arrives before the claim (during the schema pre-flight) stops the pass without claiming — failed, stopped, reasonCode "signal", no graph read, no scan, zero writes, the confirmation still pending — and the next pass claims and honours it (story Deviations: "A stop asked for before step 7 ends the run without claiming"; review 2026-09-28, item 11)', async () => {
+  const s = heldScenario({ prefix: 'stop-before-claim' });
+  const pending = clone(s.files.pending);
+  const w = makeWorld({ files: s.files, rows: s.rows, events: [] });
+  const open = w.deps.openGraph;
+  w.deps.openGraph = (cfg) => {
+    const port = open(cfg);
+    const readSchema = port.readSchema;
+    port.readSchema = async () => { w.signals.fire('SIGTERM'); return readSchema(); };
+    return port;
+  };
+  await runPass(w);
+  const l = finalLatest(w);
+  expectOutcome(l, 'failed', 'stopped before the claim');
+  eq(l.stopped, true, 'stopped');
+  eq(l.reasonCode, 'signal', 'reasonCode');
+  eq(count(w, 'state.claimConfirmation'), 0, 'claims by a pass stopped before step 7');
+  same(s.files.pending, pending, 'the pending confirmation after a stop before the claim');
+  eq(count(w, 'graph.readAll:called'), 0, 'graph reads after the stop');
+  eq(count(w, 'scan'), 0, 'relay scans after the stop');
+  expectZeroWrites(w, 'a stop before the claim');
+  expectExit(w, 1, 'a stopped pass');
+  assert(count(w, 'graph.close') >= 1, 'the graph port should be closed');
+  const w2 = await runPass(makeWorld({ files: s.files, rows: s.rows, events: [] }));
+  const l2 = finalLatest(w2);
+  eq(l2.confirmation && l2.confirmation.honoured, true, `the next pass honours the confirmation (confirmation: ${show(l2.confirmation)})`);
+  sameSet(writtenAddresses(w2, 'remove'), s.list.map((h) => h.address), 'the next pass removes the confirmed held relationships');
+});
+
+test('SR69: a SIGTERM that arrives during the claim stops the pass before the graph read — the claim is spent and the report, failed and stopped, says the run was confirmed (story Deviations; owner decision 7; review 2026-09-28, item 11)', async () => {
+  const s = heldScenario({ prefix: 'stop-at-claim' });
+  const w = makeWorld({ files: s.files, rows: s.rows, events: [] });
+  const claim = w.deps.state.claimConfirmation;
+  w.deps.state.claimConfirmation = (runId) => { const r = claim(runId); w.signals.fire('SIGTERM'); return r; };
+  await runPass(w);
+  const l = finalLatest(w);
+  expectOutcome(l, 'failed', 'stopped right after the claim');
+  eq(l.reasonCode, 'signal', 'reasonCode');
+  eq(l.stopped, true, 'stopped');
+  eq(s.files.pending, null, 'the claim is spent');
+  eq(l.confirmation && l.confirmation.honoured, true, 'confirmation.honoured');
+  assert(isPlainObject(l.confirmed) && l.confirmed.confirmedRunId === RUN_HELD, `confirmed should name the confirmed run; got ${show(l.confirmed)}`);
+  eq(count(w, 'graph.readAll:called'), 0, 'graph reads after the stop');
+  expectZeroWrites(w, 'a stop right after the claim');
+});
+
+/* ══════════════════════════ review round 2 (2026-09-28): the schema pre-flight, partial commits, the start time ══════════════════════════ */
+
+// The fake's SHOW rows cannot express a rule with another definition holding the name tags_address, so the first case
+// is "still absent"; SWR55 pins the port's answer for the name clash (tagsAddress not present), which that case covers.
+test('SR70: when ensureTagsConstraint resolves but tags_address is still not in place — still absent after ensureTagsConstraint, or present but its owned index never came ONLINE — the pass is refused ("schema"): no graph read, no scan, no claim, zero writes, exit 2 (AC-6: "puts it in place before its first write, or ends as refused and writes nothing"; review 2026-09-28, item 12)', async () => {
+  await cases([
+    { name: 'still absent after ensureTagsConstraint', after: { tags: 'missing' } },
+    { name: 'present but never ONLINE', after: { tags: 'populating' } },
+  ], async (c) => {
+    const s = heldScenario({ prefix: 'schema-after' });
+    const pending = clone(s.files.pending);
+    const w = makeWorld({ files: s.files, rows: s.rows, events: [], schema: { tags: 'missing' } });
+    const open = w.deps.openGraph;
+    w.deps.openGraph = (cfg) => {
+      const port = open(cfg);
+      port.ensureTagsConstraint = async (opts) => {
+        w.log.push({ op: 'graph.ensureTagsConstraint', opts });
+        w.schema = Object.assign({}, w.schema, c.after, { tagsName: 'tags_address' });
+        return schemaView(w.schema);
+      };
+      return port;
+    };
+    await runPass(w);
+    const l = finalLatest(w);
+    expectOutcome(l, 'refused', c.name);
+    expectNames(l, 'schema', c.name);
+    eq(count(w, 'graph.ensureTagsConstraint'), 1, 'ensureTagsConstraint calls');
+    eq(count(w, 'graph.readAll:called'), 0, 'graph reads after a schema refusal');
+    eq(count(w, 'scan'), 0, 'relay scans after a schema refusal');
+    eq(count(w, 'state.claimConfirmation'), 0, 'claims after a schema refusal');
+    same(s.files.pending, pending, 'the pending confirmation after a schema refusal');
+    expectZeroWrites(w, c.name);
+    expectExit(w, 2, c.name);
+  });
+});
+
+test('SR71: a write call that rejects after part of it committed (err.partial, as graph.js attaches it) — the report counts that part: added, lostRace.create and peopleAdded from err.partial, attributed to its appliedAddresses (ADR step 11 "with the partial counts"; story Deviations; review 2026-09-28, item 13)', async () => {
+  const evs = F.manyTaggings(3, { prefix: 'partial' });
+  const addrs = evs.map(addressOf);
+  const w = await runPass(makeWorld({
+    rows: [], events: evs,
+    onApply: ({ kind, rows }) => {
+      if (kind !== 'create') return null;
+      const committed = rows.map(addrOf).filter((a) => a === addrs[1]);
+      throw Object.assign(neoError('Neo.DatabaseError.General.UnknownError', 'fallback row failed'), {
+        partial: { applied: 1, lostRace: 1, nodesCreated: 2, transientRetries: 0, appliedAddresses: committed },
+      });
+    },
+  }));
+  const l = finalLatest(w);
+  expectOutcome(l, 'failed', 'a create call that failed after one row committed');
+  eq(l.failure && l.failure.stage, 'write', 'failure.stage');
+  eq(rel(l).added, 1, 'relationships.added (the committed row, from err.partial)');
+  eq(rel(l).lostRace && rel(l).lostRace.create, 1, 'relationships.lostRace.create (from err.partial)');
+  eq(l.peopleAdded, 2, 'peopleAdded (from err.partial)');
+});
+
+test('SR72 (ADR D9, clarification C2): with proc = process itself (no startTime on it, as the real entry passes it), the pessimistic record takes its process start time from state.processStartTime(pid), so the status route can tell the run is alive (review 2026-09-28, item 15)', async () => {
+  const w = makeWorld(baseline());
+  delete w.proc.startTime; // the real `process` carries no startTime
+  await runPass(w);
+  const first = reportDocsOf(w)[0];
+  const p = latestOf(first);
+  eq(p.process && p.process.pid, PID, 'pessimistic process.pid');
+  eq(String(p.process && p.process.startTime), START_TIME, 'pessimistic process.startTime (from state.processStartTime(pid))');
+  assert(count(w, 'state.processStartTime') >= 1, 'state.processStartTime(pid) should be asked when proc carries no start time');
 });
 
 async function run() {
