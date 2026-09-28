@@ -115,7 +115,8 @@ Planning, `/node/39999:<TA>:nostr-user-tag-schema`. Firmware files and source we
   `039999`-style kind) deletes the version stored then (`events.cpp:339-355`; the pubkey is decoded
   case-insensitively, `EventUtils.h:49`) but does not refuse a version with `created_at` no later than the
   deletion's that arrives afterwards (`golpe.yaml:80` hashes the raw `a`; `events.cpp:313` checks arrivals under the
-  lower-case pubkey and decimal kind); the contract lower-cases the pubkey and gives `names-address`. *(Corrected in
+  lower-case pubkey and decimal kind). For the upper-case pubkey the contract lower-cases it and gives
+  `names-address`; for the `039999`-style kind it gives `not-named`, as above. *(Corrected in
   story 2's review round 1, 2026-09-28: this said an upper-case pubkey does not delete on the relay.)* Writers follow
   the relay's current state, so each divergence decides only whether the relay still holds the tagging.
 

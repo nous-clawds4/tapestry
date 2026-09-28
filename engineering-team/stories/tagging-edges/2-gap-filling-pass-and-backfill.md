@@ -328,9 +328,9 @@ For Test Design:
 - Review round 1 (2026-09-28): the runner's header comment is qualified the same way as BIBLE §16 and §11 (a failed
   read of the graph snapshot or the relay changes nothing; a failed verify re-read leaves committed batches standing;
   a hand-run of the Node file is refused), beyond the review's list of places.
-- Review round 1, Nit 6: the revokes ledger row's method parenthetical follows the Planning session's census script
-  and request logs (session scratch, not in the repo), which differ from the round-2 task brief in two details: the kind-5 reads ran at about 17:07Z on 2026-09-27, and "taggers" is the union across the three hosts
-  (2,402) of the authors of the `nostr-user-tag`-stamped taggings the contract accepts, not each host's own.
+- Review round 1, Nit 6: the revokes ledger row's method parenthetical follows the Planning census's own request logs:
+  the kind-5 reads ran at about 17:07Z on 2026-09-27, and "taggers" is the union across the three hosts (2,402) of the
+  authors of the `nostr-user-tag`-stamped taggings the contract accepts, not each host's own.
 
 ## Evidence
 
@@ -344,7 +344,8 @@ For Test Design:
 - **Graph snapshot around the backfill** (read-only Cypher), before → after: `FOLLOWS` / `MUTES` / `REPORTS` / `TAGS`
   0/0/0/0 → 0/0/0/7,030; relationships 4,989 → 12,019; nodes 4,467 → 10,663; `NostrUser` 3 → 6,199, none with a
   key other than `pubkey`, so the 3 pre-existing people are unchanged. After: no two `TAGS` share an address, every
-  `TAGS` joins two `NostrUser` nodes and carries exactly the nine keys, and every `createdAt` is INTEGER.
+  `TAGS` joins two `NostrUser` nodes and carries no key outside the nine (the 6 unresolved ones carry eight: a null
+  `tagAddress` / `tagSlug` is not stored), and every `createdAt` is INTEGER.
 - **What it does not show.** The local graph had no `FOLLOWS`, `MUTES` or `REPORTS`, so the run cannot evidence
   AC-8's clause that social relationships and scores do not move. The live sandbox's SL15 covers it: a scored fixture
   person with a `FOLLOWS` keeps its labels, properties and `FOLLOWS` after creates and moves that `planPass` plans and
