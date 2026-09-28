@@ -24,7 +24,8 @@
  *   static  — a read of the runner's source.
  *   reader  — SR63 (review round 2) drives the real scanStrict (src/lib/strfryScanStrict.js) through the scan port,
  *             its spawnImpl a child Node process that prints strfry's real config-error line and exits 1, and reads
- *             the final report through the routes' pure computeStatus (src/api/tagging-edges/index.js).
+ *             the final report through the routes' pure computeStatus (src/api/tagging-edges/index.js). SR75 (review
+ *             round 3) reads computeStatus the same way behind a fake scan port, so the runner's own redaction is tested.
  * Stack-free: no Neo4j, no strfry, no network, no signing. No test writes to the graph or the relay (principle 4).
  * Every pubkey is a fake 64-hex value from test/helpers/taggingEdgesFixtures.js: never a deployment's TA and never
  * the ADR 0015 literal. The canonical identity is a fake too — the runner reads it through an injected getter.
@@ -1898,6 +1899,108 @@ test('SR72 (ADR D9, clarification C2): with proc = process itself (no startTime 
   eq(p.process && p.process.pid, PID, 'pessimistic process.pid');
   eq(String(p.process && p.process.startTime), START_TIME, 'pessimistic process.startTime (from state.processStartTime(pid))');
   assert(count(w, 'state.processStartTime') >= 1, 'state.processStartTime(pid) should be asked when proc carries no start time');
+});
+
+/* ══════════════════════════ review round 3 (2026-09-28): error text that reaches the redactor ══════════════════════════ */
+
+/** The needles no report, event or status body may carry: a credentialed URI, its secret, a Bolt IPv4 host:port. */
+const R3_URI = 'bolt://neo4j:uri-secret-7f3a@neo4j.fake.invalid:7687';
+const R3_NEEDLES = ['uri-secret-7f3a', 'neo4j:uri-secret', R3_URI, '172.18.0.3:7687', PASSWORD];
+
+test('SR73: a Neo4j error outside the connection codes (so its text goes through the redactor, not a fixed text) that repeats a credentialed URI and an IPv4 host:port — on the schema read and on the graph read — leaves neither in failure.message, the reports or the events, and failure.message keeps the rest of the driver\'s text (ADR 0002 "Who reads it"; story Deviations: "every other error text … passes one redactor"; review round 3: SR64\'s ServiceUnavailable took the fixed-text path)', async () => {
+  const unknown = () => neoError('Neo.ClientError.General.Unknown', `Could not perform discovery for ${R3_URI}: connect ECONNREFUSED 172.18.0.3:7687`);
+  await cases([
+    {
+      name: 'on the schema read',
+      want: { outcome: 'refused', stage: 'schema', read: undefined },
+      patch: (w) => {
+        const open = w.deps.openGraph;
+        w.deps.openGraph = (cfg) => {
+          const p = open(cfg);
+          p.readSchema = async () => { w.log.push({ op: 'graph.readSchema' }); throw unknown(); };
+          return p;
+        };
+      },
+    },
+    { name: 'on the graph read', want: { outcome: 'failed', stage: 'read', read: 'graph' }, world: { readAllError: unknown() } },
+  ], async (c) => {
+    const w = makeWorld(baseline(Object.assign({ env: { NEO4J_URI: R3_URI } }, c.world || {})));
+    if (c.patch) c.patch(w);
+    await runPass(w);
+    const l = finalLatest(w);
+    expectOutcome(l, c.want.outcome, c.name);
+    const f = l.failure || {};
+    same({ stage: f.stage, read: f.read, code: f.code }, { stage: c.want.stage, read: c.want.read, code: 'Neo.ClientError.General.Unknown' }, `${c.name}: failure.stage / read / code`);
+    expectZeroWrites(w, c.name);
+    const problems = [];
+    for (const [what, text] of [['failure.message', f.message], ['a report written', show(reportDocsOf(w))], ['an event', show(emitsOf(w).map((e) => e.meta))]]) {
+      for (const needle of R3_NEEDLES) {
+        const at = String(text).indexOf(needle);
+        if (at >= 0) problems.push(`${what} carries ${show(needle)}: ${around(String(text), at)}`);
+      }
+    }
+    for (const kept of ['Could not perform discovery for', 'connect ECONNREFUSED']) {
+      if (typeof f.message !== 'string' || !f.message.includes(kept)) problems.push(`failure.message should keep the driver's text around what it replaces (${show(kept)}); got ${show(f.message)}`);
+    }
+    assert(problems.length === 0, problems.join('\n        '));
+  });
+});
+
+test('SR74: a SessionExpired error ends the pass with fixed text — the same failure.message whatever the driver\'s own text names (an IPv4 host:port, or a host name no redactor rule matches), and none of the driver\'s words or the host in it (story Deviations: a Neo4j connection error, ServiceUnavailable or SessionExpired, carries fixed text keyed by err.code; neo4j-driver\'s routing provider names the server address; review round 3)', async () => {
+  const seen = [];
+  await cases([
+    { name: 'naming an IPv4 host:port', message: 'No longer possible to write to server at 172.18.0.3:7687', host: '172.18.0.3' },
+    { name: 'naming a host name', message: 'No longer possible to write to server at neo4j.internal:7687', host: 'neo4j.internal' },
+  ], async (c) => {
+    const w = makeWorld(baseline({ readAllError: neoError('SessionExpired', c.message) }));
+    await runPass(w);
+    const l = finalLatest(w);
+    expectOutcome(l, 'failed', c.name);
+    const f = l.failure || {};
+    same({ stage: f.stage, read: f.read, code: f.code }, { stage: 'read', read: 'graph', code: 'SessionExpired' }, `${c.name}: failure.stage / read / code`);
+    expectZeroWrites(w, c.name);
+    assert(typeof f.message === 'string' && f.message.length > 0, `${c.name}: failure.message should say something; got ${show(f)}`);
+    const problems = [];
+    for (const [what, text] of [['failure.message', f.message], ['a report written', show(reportDocsOf(w))], ['an event', show(emitsOf(w).map((e) => e.meta))]]) {
+      for (const needle of [c.host, 'No longer possible']) {
+        const at = String(text).indexOf(needle);
+        if (at >= 0) problems.push(`${what} carries ${show(needle)} (the driver's text, not a fixed text): ${around(String(text), at)}`);
+      }
+    }
+    if (f.message.includes('<host>')) problems.push(`failure.message is the driver's text redacted, not a fixed text: ${show(f.message)}`);
+    assert(problems.length === 0, problems.join('\n        '));
+    seen.push(f.message);
+  });
+  assert(seen.length === 2 && seen[0] === seen[1], `both SessionExpired errors should give the same fixed failure.message; got ${show(seen)}`);
+});
+
+test('SR75: a scan port other than scanStrict that rejects with an unredacted stderrTail — strfry\'s config-error line naming /etc/strfry.conf, a credentialed URI and an IPv4 host:port, over 300 characters — reaches failure.stderrTail, the reports, the events and computeStatus\'s body redacted by the runner itself, at most 300 characters, its gist kept (story Deviations: "the runner also passes a scan port\'s stderrTail through it at the report, so a port other than scanStrict is covered"; review round 3: SR63\'s real scanStrict redacts first)', async () => {
+  let routes;
+  try { routes = require(ROUTES); } catch (e) { throw new Error(`src/api/tagging-edges/index.js not loadable (require failed: ${firstLine(e)})`); }
+  assert(typeof routes.computeStatus === 'function', `src/api/tagging-edges/index.js must export computeStatus; it exports ${show(Object.keys(routes))}`);
+  const tail = `${STRFRY_CONFIG_ERROR.split('/nonexistent-review-probe.conf').join('/etc/strfry.conf')} via ws://relay:pw-9e2d@10.1.2.3:7777 at 172.18.0.3:7777;${' because of a reason'.repeat(12)}`;
+  assert(tail.length > 300, `fixture: the tail should be over 300 characters; it is ${tail.length}`);
+  const err = Object.assign(new Error('strfry scan exited with code 1'), { code: 'exit', stderrTail: tail }); // a plain Error: not scanStrict's ScanError
+  const w = makeWorld(baseline({ scanError: err }));
+  await runPass(w);
+  const l = finalLatest(w);
+  expectOutcome(l, 'failed', 'a scan port rejecting with an unredacted stderrTail');
+  const f = l.failure || {};
+  same({ stage: f.stage, read: f.read, code: f.code }, { stage: 'read', read: 'relay', code: 'exit' }, 'failure.stage / read / code');
+  expectZeroWrites(w, 'a scan port rejecting with an unredacted stderrTail');
+  expectExit(w, 1, 'a failed relay read');
+  const problems = [];
+  if (typeof f.stderrTail !== 'string' || f.stderrTail.length > 300) problems.push(`failure.stderrTail should be a string of at most 300 characters; got ${show(f.stderrTail)}`);
+  else if (!f.stderrTail.startsWith('strfry error: Failed to load config file')) problems.push(`failure.stderrTail should keep the line's gist ("strfry error: Failed to load config file …"); got ${show(f.stderrTail)}`);
+  const body = routes.computeStatus({ report: reportDocsOf(w).pop(), alive: false, confirmation: null, now: T0 });
+  for (const [what, text] of [['failure.stderrTail', f.stderrTail], ['a report written', show(reportDocsOf(w))], ['an event', show(emitsOf(w).map((e) => e.meta))], ['the status body (computeStatus)', show(body)]]) {
+    problems.push(...pathProblems(what, text));
+    for (const needle of ['pw-9e2d', '10.1.2.3', '172.18.0.3:7777']) {
+      const at = String(text).indexOf(needle);
+      if (at >= 0) problems.push(`${what} carries ${show(needle)}: ${around(String(text), at)}`);
+    }
+  }
+  assert(problems.length === 0, problems.join('\n        '));
 });
 
 async function run() {

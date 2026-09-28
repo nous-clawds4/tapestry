@@ -3,11 +3,12 @@
 **Story:** `engineering-team/stories/tagging-edges/2-gap-filling-pass-and-backfill.md`
 **ADR:** `engineering-team/decisions/tagging-edges/0002-gap-filling-pass.md` (binding context: `tagging-edges/0001` as
 amended by 0002, and `src/lib/tagging-edges/contract.js`)
-**Date:** 2026-09-27 (round 2, after the review: 2026-09-28)
+**Date:** 2026-09-27 (round 2, after the review: 2026-09-28; round 3, after the re-review: 2026-09-28)
 
-Seven suites and one fixture helper, 382 tests, 301 of them new for story 2. Six suites are new. Story 1's contract
+Seven suites and one fixture helper, 387 tests, 306 of them new for story 2. Six suites are new. Story 1's contract
 suite gains 16 tests (S2C1–S2C16); one of them, S2C9, replaces story 1's "no pipeline writes TAGS yet" check. Round 2
-adds 23 tests after the review of 2026-09-28, and an exit-status check in SR5 (see "Round 2" under Validation). Every
+adds 23 tests after the review of 2026-09-28, and an exit-status check in SR5 (see "Round 2" under Validation). Round
+3 adds 5 after the re-review, which found that no test reached the redactor's URI or IPv4 rule (see "Round 3"). Every
 suite is stack-free except the live one, which is read-only by default and skips without a local Neo4j. Fixture
 pubkeys are fake 64-hex values. The canonical identity is a parameter of the contract, so a fake stands in for it and
 is kept different from the local one. No deployment's TA and no copy of the ADR 0015 literal appears.
@@ -16,8 +17,8 @@ is kept different from the local one. No deployment's TA and no copy of the ADR 
 |---|---|---|---|
 | `test/tagging-edge-contract.test.js` (extended) | 97 (81 story 1, 16 S2C) | R2-NB2, R2-10, the `stamp` export; BIBLE §6, §11, §16, Last updated | unit, doc |
 | `test/tagging-edges-sweep.test.js` | 55 (SW) | `src/lib/tagging-edges/sweep.js`, the pure planner | unit |
-| `test/strfry-scan-strict.test.js` | 28 (SS) | `src/lib/strfryScanStrict.js` | integration, fake strfry on PATH |
-| `test/tagging-edges-runner.test.js` | 72 (SR) | `src/pipeline/tagging-edges/reconcileTaggingEdges.js` | fake ports; child process; source |
+| `test/strfry-scan-strict.test.js` | 30 (SS) | `src/lib/strfryScanStrict.js` | integration, fake strfry on PATH |
+| `test/tagging-edges-runner.test.js` | 75 (SR) | `src/pipeline/tagging-edges/reconcileTaggingEdges.js` | fake ports; child process; source |
 | `test/tagging-edges-state-routes.test.js` | 54 (ST 22, RT 32) | `src/pipeline/tagging-edges/state.js`, `src/api/tagging-edges/index.js`, the task channels | unit on a temp dir; handlers with fake req/res |
 | `test/tagging-edges-wiring.test.js` | 60 (SWR) | registry, seed, both rule lists, setup script, boot-hook call, routes; `graph.js`; the wrapper | static; unit; fake driver |
 | `test/tagging-edges-live.test.js` | 16 (SL: 7 read-only, 9 sandbox) | `graph.js` and `sweep.js` against the local Neo4j | live, local stack only |
@@ -43,7 +44,7 @@ Test ids only; each suite's names are full sentences, and the test index below g
 | | SR29 (no kind-5 scan), SR38 | runner | fake ports |
 | | SWR14, SWR16 | wiring | static |
 | **AC-4** — a failed or incomplete read changes nothing and names the read; a bad identity refuses and names it | SW7, SW55 (a read that is not a list, or an unusable identity, refuses) | sweep | unit |
-| | SS1–SS28 | strfry-scan-strict | fake strfry |
+| | SS1–SS30 | strfry-scan-strict | fake strfry |
 | | SR9, SR14–SR20 (identities, each source), SR21–SR22, SR23–SR26, SR28, SR30–SR33, SR63 and SR65 (the read and the code still named), SR66 (a read that resolves without its list) | runner | fake ports; the real reader |
 | | SWR49 (a failed verify re-read commits nothing; with SR53, the partial stop of owner decision 8) | wiring | fake driver |
 | **AC-5** — over the limit, removals held and everything else applied; each pass judges its own; owner-only confirmation, one run, still-due entries only | SW4, SW36–SW39, SW43–SW49, SW53 | sweep | unit |
@@ -55,7 +56,7 @@ Test ids only; each suite's names are full sentences, and the test index below g
 | | SL6, SL7; SL10 (a second relationship at one address refused) | live | read-only; sandbox |
 | | S2C12 | contract | doc |
 | **AC-7** — every run leaves a report that survives a restart; the pass runs only as a task; never two at once; a stopped pass reads failed and stopped | ST1–ST5, ST9–ST10, ST16–ST20 (ST20: short writes); RT1–RT7, RT30 (the report served when confirmation.json is unreadable) | state-routes | temp dir; handlers |
-| | SR1–SR13 (SR5: a hand run exits 2), SR48–SR54, SR56–SR62, SR63–SR65 (what the public status route can serve), SR71 (partial commits counted), SR72 (the start time from `state.processStartTime`) | runner | fake ports; child process; source; the real reader |
+| | SR1–SR13 (SR5: a hand run exits 2), SR48–SR54, SR56–SR62, SR63–SR65 and SR73–SR75 (what the public status route can serve), SR71 (partial commits counted), SR72 (the start time from `state.processStartTime`) | runner | fake ports; child process; source; the real reader |
 | | SWR1, SWR3–SWR6, SWR50, SWR59 (`err.partial`) | wiring | static, fake driver |
 | **AC-8** — nothing else moves; a written relationship carries only the definition's values | SW3, SW18, SW22, SW27 | sweep | unit |
 | | SR48, SR62 | runner | fake ports |
@@ -69,7 +70,7 @@ Test ids only; each suite's names are full sentences, and the test index below g
 | ADR item | Tests |
 |---|---|
 | D1 — a Node runner behind a bash wrapper that `exec`s it | SWR5, SWR50, SR4, SR5 |
-| D2 — the strict reader; one scan over four `#z` stamps; no kind-5 read | SS1–SS28, SW9–SW11, SR29, SR59, SR63 |
+| D2 — the strict reader; one scan over four `#z` stamps; no kind-5 read | SS1–SS30, SW9–SW11, SR29, SR59, SR63 |
 | D3 and A1 — follow the relay's current version; parity with `standingEdge`, two divergences | SW29, SW33, SW34 |
 | D4 — lock, re-read, verify in JS, act | SW19–SW21, SWR17, SWR40–SWR44, SWR49, SL12 |
 | D5 — R2-NB1 by binding the pass | SW17, SW35, SL13 |
@@ -87,7 +88,7 @@ Test ids only; each suite's names are full sentences, and the test index below g
 | Keys outside the nine dropped after their pre-image (owner decision 9) | SW18, ST9, ST10, ST21, SR48, SR49, SR62, SWR57, SWR58 |
 | Resolution kept for the same version (owner decision 10) | SW22, SW30, SW31 |
 | The three routes (owner decision 13) | RT5–RT26, RT30, RT31, SWR11 |
-| No config value, absolute path or credential in what the public routes serve (ADR "Who reads it"; review Blocking 1, Non-blocking 4) | SS22–SS25, SS28, SR22, SR63–SR65 |
+| No config value, absolute path or credential in what the public routes serve (ADR "Who reads it"; review Blocking 1, Non-blocking 4; re-review round 3) | SS22–SS25, SS28–SS30, SR22, SR63–SR65, SR73–SR75 |
 | The schema pre-flight: the pass refuses `schema` unless `tags_address` is present and ONLINE (C4, C9) | SR23–SR26, SR70, SWR52, SWR55 |
 | Port rows (C6): the caller's other keys reach `preimage`; a malformed row, or one for another address, is refused before any transaction | SW54, SWR57, SWR60 |
 | What committed before a write failed is counted (`err.partial`, ADR step 11) | SR52, SR53, SR71, SWR59 |
@@ -108,19 +109,26 @@ Test ids only; each suite's names are full sentences, and the test index below g
   `storedFromRow`; SW19–SW21 `fingerprint`; SW22 `desiredFor`; SW23–SW32 `decideAddress`; SW33–SW35 parity and
   R2-NB1; SW36–SW39 `judgeRemovals`; SW40–SW51 `planPass`; SW52 the relay wins over a kind-5; SW53 `heldLines`; SW54
   the port's row shape; SW55 `planPass` refuses a read that is not a list, or an unusable identity.
-- **strfry-scan-strict, SS (28):** SS1–SS5 complete reads; SS6–SS18 one code for each kind of incomplete read; SS19
+- **strfry-scan-strict, SS (30):** SS1–SS5 complete reads; SS6–SS18 one code for each kind of incomplete read; SS19
   split UTF-8; SS20–SS21 size; SS22–SS25 `stderrTail`; SS26–SS27 the defaults; SS28 no absolute path in `stderrTail`
-  (strfry's real config-error line).
-- **tagging-edges-runner, SR (72):** SR1–SR3 surface, lazy requires, no 64-hex; SR4–SR7 lock busy, not under the lock;
+  (strfry's real config-error line). Round 3: SS29 `redactPublicText` called directly (a credentialed URI → `<uri>`,
+  an IPv4 host:port → `<host>`, a relative module name and a clock time kept, a 64-hex run cut); SS30 a URI and an
+  IPv4 host:port in a `strfry error:` line, through the real reader.
+- **tagging-edges-runner, SR (75):** SR1–SR3 surface, lazy requires, no 64-hex; SR4–SR7 lock busy, not under the lock;
   SR8–SR13 pessimistic record, `previous`, `runId`, events; SR14–SR20 identities; SR21–SR22 config and the pass's own
   driver; SR23–SR26 schema pre-flight; SR27–SR28 when the claim happens; SR29–SR35 reads and snapshot conflicts;
   SR36–SR40 apply order, batches, limit; SR41–SR47 confirmation flows; SR48–SR53 pre-images, stops, partial failure;
   SR54 exit codes; SR55–SR62 report fields, PROGRESS, time-outs, sort, `strippedKeys`. Round 2: SR63–SR65 what the
-  public status route can serve (strfry's config-error line through the real reader and `computeStatus`; a
-  credentialed URI and an IPv4 host:port; an unresolvable host and a missing module's require stack); SR66 reads that
+  public status route can serve (SR63 strfry's config-error line through the real reader and `computeStatus`; SR64 a
+  `ServiceUnavailable` graph error and a driver that cannot be built, each naming a credentialed URI and an IPv4
+  host:port — both take fixed text, so SR64 pins the fixed-text paths, not the redactor; SR65 an unresolvable host and
+  a missing module's require stack, the second through the redactor's path rule); SR66 reads that
   resolve without their list; SR67 a confirmed run that fails partway; SR68–SR69 a stop before and at the claim; SR70
   the schema pre-flight after `ensureTagsConstraint`; SR71 `err.partial`; SR72 the start time from
-  `state.processStartTime`.
+  `state.processStartTime`. Round 3: SR73 a Neo4j error outside the connection codes, naming a credentialed URI and an
+  IPv4 host:port, through the redactor (schema read and graph read); SR74 `SessionExpired`'s fixed text, the same
+  whatever host the driver names; SR75 the runner's own `stderrTail` redaction, behind a scan port that is not
+  `scanStrict`.
 - **tagging-edges-state-routes, ST (22) and RT (32):** ST1–ST5 the report store; ST6–ST8 held file and digest;
   ST9–ST10 pre-images; ST11–ST15 confirmation records and pruning; ST16–ST19 `/proc` and fdinfo; ST20–ST22 short
   writes, a torn pre-image tail, the claimed name's grammar; RT1–RT7 `computeStatus` and GET status; RT8–RT20 the
@@ -166,8 +174,11 @@ Test ids only; each suite's names are full sentences, and the test index below g
   - short writes, a failed fsync, and ENOSPC after a short write on a pre-image append (ST20, ST21).
 - [x] Limit boundaries (SW36, SW46), a base beside left-in-place rows (SW45), and no memory between passes (SW49).
 - [x] Reads that resolve without their list: undefined, null, an object, a string, an array-like (SW55, SR66).
-- [x] Error text a public route serves: strfry's real config-error line (SS28, SR63), a credentialed URI and an IPv4
-      host:port (SR64), an unresolvable Neo4j host and a missing module's require stack (SR65).
+- [x] Error text a public route serves: strfry's real config-error line (SS28, SR63); a credentialed URI and an IPv4
+      host:port — on the fixed-text paths (SR64: a `ServiceUnavailable` graph error, a driver that cannot be built),
+      through the redactor (SS29 directly, SS30 in `stderrTail`, SR73 a Neo4j error outside the connection codes) and
+      in a scan port's unredacted `stderrTail` (SR75); `SessionExpired` naming a host no rule matches (SR74); an
+      unresolvable Neo4j host and a missing module's require stack (SR65).
 - [x] The exit code of a `not-started-under-the-lock` refusal: 2 (C19), pinned by SR7 and SR5.
 - [ ] "Restart → stopped": the ADR says the Tester does not pin it. Liveness is covered (ST17, ST18, RT2).
 - [ ] The Dashboard banner and fix button in a browser: SWR8 checks the list only; there is no Playwright test.
@@ -203,7 +214,8 @@ Test ids only; each suite's names are full sentences, and the test index below g
   entry runs in a child process only for `--lock-busy` and for a hand run outside the lock, with no `NEO4J_*` and no
   identity in its environment. SR63 alone puts the real `scanStrict` behind the scan port, its `spawnImpl` a child Node
   process that prints strfry's config-error line and exits 1, and reads the final report through the routes'
-  `computeStatus`.
+  `computeStatus`. SR75 reads `computeStatus` the same way behind a fake scan port that rejects with an unredacted
+  `stderrTail`.
 - **Fake driver** (wiring): neo4j-driver's `driver` factory is swapped, for one test, for an in-memory graph. It
   answers the ADR's statements and SHOW with real Records, real ResultSummary counters and `neo4j.int` counts.
   - `ensureTagsConstraint` waits on a fake clock.
@@ -490,6 +502,35 @@ Round 2 adopts its candidate tests, renumbered into each suite's series, and add
 
   The review's verify passes showed, at `da787035`, that each adopted candidate kills the mutant its item names.
 
+### Round 3 (2026-09-28)
+
+The re-review of `19d3325c` found that no test reached the redactor's URI or IPv4 host:port rule, or pinned
+`SessionExpired`'s fixed text: SR64's graph error is `ServiceUnavailable`, which takes the fixed-text path before the
+redactor runs. It also found SR63 passes whichever side redacts `stderrTail`. Round 3 adds five tests:
+
+| Re-review finding | Test |
+|---|---|
+| No test pins the URI and IPv4 rules (round-1 NB4(b) still open) | SS29 (`redactPublicText` directly), SS30 (through the real reader's `stderrTail`), SR73 (a Neo4j error outside the connection codes, on the schema and graph reads) |
+| No test pins `SessionExpired`'s fixed text | SR74: two `SessionExpired` errors naming different hosts (an IPv4 host:port, and a name no rule matches) give the same `failure.message`, with no host, none of the driver's words and no `<host>` |
+| The runner's own `stderrTail` redaction is untested | SR75: a scan port that is not `scanStrict` rejects with an unredacted tail over 300 characters |
+
+SR74 pins that the text is fixed, not its wording: the wording is written only in the runner. SR64 is unchanged; its
+wording in the index and edge cases above now says what it pins.
+
+**Mutants.** Each ran in a fresh copy of `19d3325c` plus the five tests (a `git archive`, never the repo), one edit per
+copy, against the six stack-free suites, in a fresh process on Node v16.17.0 and v22.23.3 (identical results):
+
+| Mutant | Fails | Every other test |
+|---|---|---|
+| M1 the URI rule removed from `redactPublicText` | SS29, SS30, SR73, SR75 | passes |
+| M2 the IPv4 host:port rule removed | SS29, SS30, SR73, SR75 | passes |
+| M3 both removed (the re-review's mutant, which left all six suites green) | SS29, SS30, SR73, SR75 | passes |
+| M4 the `SessionExpired` entry removed from `CONNECTION_ERROR_TEXT` (green before round 3) | SR74 (both cases) | passes |
+| M5 the runner's `stderrTail` back to `String(err.stderrTail).slice(0, 300)` (green before round 3) | SR75 | passes |
+| M6 the absolute-path rule removed (a check, not a new pin) | SS28, SR63, SR65, SR75 | passes |
+
+Without a mutant, the seven suites pass on both Node versions (see Verification, Round 3).
+
 ## Verification
 
 ### Red phase (2026-09-27)
@@ -584,3 +625,21 @@ The four red tests are the Implementer's to turn green (review Blocking 1, Block
   `… not created: the CREATE changed nothing`, without `name-taken` / `no-change`.
 
 The other 19 new tests, and SR5's new exit-status check, pass on the current code.
+
+### Round 3 (2026-09-28)
+
+At `19d3325c` plus the five round-3 tests, each suite through its `run()` export with no `NEO4J_*` in the
+environment. Node v16.17.0 and v22.23.3 give identical counts:
+
+```
+tagging-edge-contract: 97 passed, 0 failed
+tagging-edges-sweep: 55 passed, 0 failed
+strfry-scan-strict: 30 passed, 0 failed
+tagging-edges-runner: 75 passed, 0 failed, 0 skipped
+tagging-edges-state-routes: 54 passed, 0 failed, 0 skipped
+tagging-edges-wiring: 60 passed, 0 failed
+tagging-edges-live: 0 passed, 0 failed, 16 skipped
+```
+
+The five new tests pass on the current code: they pin behaviour the round-1 fixes already have, and each fails
+against the mutant that removes the rule it pins (Validation, Round 3).

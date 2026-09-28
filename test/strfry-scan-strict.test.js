@@ -14,6 +14,7 @@
  * cut-short scan must never read as "the relay holds this" — or as "the relay holds nothing", which the pass would turn
  * into removals — so every way the ADR names for a scan to be incomplete rejects with its own code: spawn,
  * process-error, timeout, exit, signal, truncated, unparseable, not-an-event-line, duplicate, off-filter, too-large.
+ * SS29 (review round 3) also calls the exported `redactPublicText(s)` directly, the one redactor the runner shares.
  *
  * How: a FAKE `strfry` — a throwaway shell script put first on PATH (the pattern of test/setup-status.test.js
  * X1–X4) — records how it was called, writes prepared stderr, prints prepared stdout bytes (one pipe write per part,
@@ -693,6 +694,47 @@ test('SS28: a failed scan\'s stderrTail names no absolute path — strfry\'s rea
     }
   }
   assert(problems.length === 0, problems.join('\n        '));
+});
+
+// ─── review round 3 (2026-09-28): the redactor's URI and IPv4 host:port rules, pinned directly ─────────────────────
+
+/** A credentialed Bolt URI and a Bolt IPv4 host:port, as a Neo4j error repeats them (review round 3, first finding). */
+const CRED_URI = 'bolt://neo4j:uri-secret-7f3a@neo4j.fake.invalid:7687';
+const IPV4_HOST_PORT = '172.18.0.3:7687';
+
+test('SS29: redactPublicText, exported beside scanStrict, replaces a credentialed URI (its host an IPv4 address or a name) with <uri> and an IPv4 host:port with <host>, keeps a relative module name and a clock time, and cuts a 64-hex run to 8 characters (story Deviations: "the one redactor"; review round 3: no test reached the URI or IPv4 rule)', () => {
+  const mod = load();
+  assert(typeof mod.redactPublicText === 'function',
+    `src/lib/strfryScanStrict.js must export redactPublicText (story Deviations: "It exports scanStrict, ScanError and, since review round 1, redactPublicText"); its exports are ${show(Object.keys(mod))}`);
+  const key = pubkeyOf('ss:redact-key');
+  const problems = [];
+  for (const [what, input, want] of [
+    ['a credentialed URI whose host is a name', `Could not perform discovery for ${CRED_URI} (routing table empty)`, 'Could not perform discovery for <uri> (routing table empty)'],
+    ['a credentialed URI whose host is an IPv4 address', `No routing servers available at bolt://neo4j:pw-3b1c@${IPV4_HOST_PORT}`, 'No routing servers available at <uri>'],
+    ['an IPv4 host:port outside any URI', `connect ECONNREFUSED ${IPV4_HOST_PORT}`, 'connect ECONNREFUSED <host>'],
+    ['a relative module name (kept)', "Cannot find module '../../lib/x'", "Cannot find module '../../lib/x'"],
+    ['a clock time (kept: there is no name:port rule)', 'retry at 03:24:18 failed', 'retry at 03:24:18 failed'],
+    ['a 64-hex run', `rejected ${key} twice`, `rejected ${key.slice(0, 8)} twice`],
+  ]) {
+    let got;
+    try { got = mod.redactPublicText(input); } catch (e) { problems.push(`${what}: redactPublicText threw ${show(e.message)}`); continue; }
+    if (got !== want) problems.push(`${what}: redactPublicText(${show(input)})\n          expected: ${show(want)}\n          actual:   ${show(got)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SS30: a "strfry error:" line naming a credentialed URI and an IPv4 host:port reaches stderrTail with both replaced — <uri> and <host> — and the rest of the line kept (the report carries stderrTail to a public route; review round 3)', async () => {
+  const mod = load();
+  const line = `strfry error: could not reach ws://relay:pw-9e2d@10.1.2.3:7777 (connect 10.1.2.3:7777 refused)`;
+  const out = await withFake(MODES['stderr-error'](`INFO| starting\n${line}\n`), () => scanWith(mod, FILTER, { isExpected: IS_EXPECTED }));
+  const e = rejectedWith(mod, out, 'exit', 'stderr-error mode with a credentialed URI and an IPv4 host:port (exit 1)');
+  eq(e.stderrTail, 'strfry error: could not reach <uri> (connect <host> refused)',
+    'stderrTail: the "strfry error:" line with its URI replaced by <uri> and its IPv4 host:port by <host>');
+  for (const [field, value] of [['message', e.message], ['stderrTail', e.stderrTail]]) {
+    for (const needle of ['pw-9e2d', '10.1.2.3']) {
+      assert(!String(value).includes(needle), `the ScanError's ${field} carries ${show(needle)}: ${show(value)}`);
+    }
+  }
 });
 
 async function run() {
