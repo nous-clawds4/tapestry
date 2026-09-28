@@ -494,7 +494,7 @@ Base URL: `http://localhost:8080`
 | GET | `/api/strfry/scan/stream?filter=<json>` | Stream events as JSONL (no memory issues, nginx no-buffering) |
 | POST | `/api/strfry/publish` | Sign and publish an event |
 | GET | `/api/strfry/router-status` | Router sync status |
-| POST | `/api/strfry/router-toggle` | Enable/disable a sync stream |
+| POST | `/api/strfry/router-toggle` | Enable/disable a sync stream. Owner/local-trusted only, like `router-config`, `router-restart` and `router-restore-defaults`. |
 | POST | `/api/strfry/negentropy-sync` | Trigger negentropy sync from a relay |
 | POST | `/api/strfry/wipe` | Wipe all strfry events (dangerous!) |
 
