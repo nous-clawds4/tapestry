@@ -33,6 +33,38 @@ const ROUTER_STATE_PATH = '/var/lib/brainstorm/router-state.json';
 const PRESETS_PATH = path.resolve(__dirname, '../../../setup/router-presets.json');
 const PLUGINS_DIR = '/usr/local/lib/strfry/plugins';
 
+// ── Plugin path + relay URL validation (backport of #776) ─────────────────────
+//
+// pluginDown/pluginUp name a program the strfry-router process EXECUTES on every
+// event, and urls name the relays this instance mirrors to/from. They used to be
+// stored straight from client JSON and written into the router config unescaped
+// (a `"` or newline broke out; an arbitrary path became an executed program). The
+// server enforces SHAPE at the client-JSON ingress (handleUpdateRouterConfig), and
+// generateConfig JSON-escapes every value at the sink. For legal values
+// JSON.stringify is byte-identical to the old `"${value}"`.
+//
+// A plugin path is legal iff it is '' (none) or a `.js` file that is a DIRECT child
+// of PLUGINS_DIR — path.resolve collapses any `../` so traversal cannot escape. A
+// relay URL is legal iff it is ws:// or wss:// with no quote/backslash/whitespace/
+// control character.
+
+const CTRL_OR_QUOTE_RE = /["'\\]|[\x00-\x1f]/;
+
+function isLegalPluginPath(value) {
+  if (value === undefined || value === null || value === '') return true;
+  if (typeof value !== 'string') return false;
+  if (CTRL_OR_QUOTE_RE.test(value)) return false;
+  const base = path.basename(value);
+  if (!/^[A-Za-z0-9._-]+\.js$/.test(base)) return false;
+  return path.dirname(path.resolve(value)) === PLUGINS_DIR;
+}
+
+function isLegalRelayUrl(value) {
+  if (typeof value !== 'string') return false;
+  if (CTRL_OR_QUOTE_RE.test(value)) return false;
+  return /^wss?:\/\/\S+$/.test(value);
+}
+
 // ── State persistence ────────────────────────────────────────
 
 function loadState() {
@@ -100,8 +132,11 @@ function generateConfig(streams, connectionTimeout = 20) {
   let config = `connectionTimeout = ${connectionTimeout}\n\nstreams {\n`;
 
   for (const stream of enabled) {
+    // stream.name is an identifier, already constrained to ^\w+$ at ingress. Every
+    // other value is JSON.stringify'd so a quote/newline can never break out of its
+    // string (byte-identical to `"${value}"` for legal values).
     config += `\n    ${stream.name} {\n`;
-    config += `        dir = "${stream.dir}"\n\n`;
+    config += `        dir = ${JSON.stringify(stream.dir)}\n\n`;
 
     if (stream.filter) {
       const filterStr = JSON.stringify(stream.filter);
@@ -109,16 +144,16 @@ function generateConfig(streams, connectionTimeout = 20) {
     }
 
     if (stream.pluginDown) {
-      config += `        pluginDown = "${stream.pluginDown}"\n\n`;
+      config += `        pluginDown = ${JSON.stringify(stream.pluginDown)}\n\n`;
     }
     if (stream.pluginUp) {
-      config += `        pluginUp = "${stream.pluginUp}"\n\n`;
+      config += `        pluginUp = ${JSON.stringify(stream.pluginUp)}\n\n`;
     }
 
     if (stream.urls && stream.urls.length > 0) {
       config += `        urls = [\n`;
       for (const url of stream.urls) {
-        config += `            "${url}",\n`;
+        config += `            ${JSON.stringify(url)},\n`;
       }
       config += `        ]\n`;
     } else {
@@ -172,6 +207,24 @@ async function handleUpdateRouterConfig(req, res) {
       }
       if (s.urls && !Array.isArray(s.urls)) {
         return res.status(400).json({ success: false, error: `urls must be an array for "${s.name}"` });
+      }
+      // Each relay URL must be ws:// or wss:// with no quote/backslash/whitespace/
+      // control char — it is written into the router config and dials a relay.
+      if (Array.isArray(s.urls)) {
+        for (const u of s.urls) {
+          if (!isLegalRelayUrl(u)) {
+            const shown = typeof u === 'string' ? JSON.stringify(u) : typeof u;
+            return res.status(400).json({ success: false, error: `Invalid relay URL for "${s.name}": ${shown}. Use ws:// or wss:// with no quotes, whitespace or control characters.` });
+          }
+        }
+      }
+      // pluginDown/pluginUp name a program the router EXECUTES: allow only '' or a
+      // .js file directly inside PLUGINS_DIR (the set router-plugins lists).
+      if (!isLegalPluginPath(s.pluginDown)) {
+        return res.status(400).json({ success: false, error: `Invalid pluginDown for "${s.name}". Must be empty or a .js file directly inside ${PLUGINS_DIR}.` });
+      }
+      if (!isLegalPluginPath(s.pluginUp)) {
+        return res.status(400).json({ success: false, error: `Invalid pluginUp for "${s.name}". Must be empty or a .js file directly inside ${PLUGINS_DIR}.` });
       }
     }
 
@@ -340,6 +393,7 @@ async function initRouter() {
 }
 
 module.exports = {
+  generateConfig,
   handleUpdateRouterConfig,
   handleToggleStream,
   handleGetPresets,
