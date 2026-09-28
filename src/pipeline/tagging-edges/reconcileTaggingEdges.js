@@ -43,7 +43,7 @@ function defaultDeps(argv = process.argv.slice(2)) {
     lock: { busy: argv.includes('--lock-busy'), held: () => state.lockHeld(LOCK_FD) },
     state,
     identities: {
-      // The ADR 0015 literal, from its one server home — never copied here (precedent identificationTaggings.js canonicalZ()).
+      // The ADR 0015 literal, from its one server home — never copied here (precedent: the assistant identification-tags route's canonicalZ()).
       canonicalZ: () => require('../../api/profile-tags').NOSTR_USER_TAG_Z_TAG,
       getOwnerAssistantPubkey: () => require('../../utils/assistantKeys').getOwnerAssistantPubkey(),
     },
