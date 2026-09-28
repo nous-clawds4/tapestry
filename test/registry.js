@@ -258,6 +258,12 @@ const suites = [
   { file: 'assistant-identification-tags-page.test.js' },
   { file: 'assistant-taggings-publish.test.js' },
   { file: 'tagging-edge-contract.test.js' },
+  { file: 'tagging-edges-sweep.test.js' },
+  { file: 'strfry-scan-strict.test.js' },
+  { file: 'tagging-edges-runner.test.js' },
+  { file: 'tagging-edges-state-routes.test.js' },
+  { file: 'tagging-edges-wiring.test.js' },
+  { file: 'tagging-edges-live.test.js', skipNote: 'no local Neo4j in the environment (NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD)' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so

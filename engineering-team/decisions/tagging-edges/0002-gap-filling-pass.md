@@ -1090,6 +1090,75 @@ refused or failed. The report, not the job result, is authoritative.
   `properties()`, and a second pass reporting nothing added, changed or removed; then the staging backfill, whose
   report reads `done` with `added = taggingsRead − refused.total`, followed by a clean second pass.
 
+## Clarifications (Test Design, 2026-09-27)
+
+Test Design validated the suites against a blind reference implementation and mutation testing (test plan
+`engineering-team/stories/tagging-edges/2-gap-filling-pass-and-backfill.test-plan.md` § "Validation of the suite
+itself"). That work found interface details this ADR left open. They are settled here so the Implementer and the
+tests agree. Ratified by the owner at the Test Design gate (2026-09-27), including C2, C9 (`nostrUser_pubkey` need
+only be present), C12 and C13 as written:
+
+- **C1.** `deps.identities` is `{ canonicalZ(), getOwnerAssistantPubkey() }`; the second returns the result of
+  `src/utils/assistantKeys.js`'s helper. The runner reads the env and conf sources itself, from `deps.env`. (The test
+  uses the helper's own name, which the ADR names at :105.)
+- **C2.** `run(deps)` resolves to the final report and leaves the exit code on `deps.proc.exitCode`:
+  - 0 for done or held;
+  - 2 for refused;
+  - 1 for failed;
+  - 0 for `--lock-busy`.
+
+  It never calls `process.exit`. The `require.main` entry passes `process` as `proc`.
+- **C3.** A start outside the lock emits TASK_START, TASK_ERROR and then TASK_END `{ outcome: 'not-started',
+  reasonCode: 'not-started-under-the-lock', why }`, and touches no file.
+- **C4.** `ensureTagsConstraint({ timeoutMs })`:
+  - sends `CREATE_TAGS_CONSTRAINT` in its own auto-commit statement, and only when the rule is not present;
+  - then re-reads the SHOW rows until the owned index is ONLINE or `timeoutMs` passes;
+  - resolves to `schemaStatusFromRows`' answer from its last read;
+  - rejects with the Neo4j error when the CREATE fails.
+
+  The runner refuses `schema` unless `tagsAddress` is present and online.
+- **C5.** Each apply resolves `{ applied, lostRace, nodesCreated, transientRetries, appliedAddresses }`, with
+  `applied === appliedAddresses.length`. The report attributes `added`, `changedBy`, `removedBy`, `unresolved`,
+  `strippedKeys` and `confirmed.removalsApplied` to those rows only.
+- **C6.** Port row shapes:
+  - `applyLocked(kind, rows)` takes rows `{ address, snapshot, desired }`; a removal has no `desired`.
+  - `applyCreates` takes `{ address, desired }`.
+  - The port computes `fingerprint(snapshot)` and `toWriteProps(desired)` itself.
+  - `planPass` items are these rows; extra keys are ignored.
+- **C7.** A failed verify re-read rejects `applyLocked` with `err.read === 'graph-verify'`; the runner copies it to
+  `failure.read`.
+- **C8.** Runner step 8 checks every snapshot row for the eight READ_ALL columns itself (`props` an array), whatever
+  port supplied the rows.
+- **C9.** `schemaStatusFromRows` returns `{ tagsAddress, nostrUserPubkey }`, each `{ present, online, name,
+  underAnotherName }`.
+  - `present` means the definition is listed.
+  - `online` means its owned index is ONLINE.
+  - The pass needs `tags_address` present and online, and `nostrUser_pubkey` present.
+- **C10.** `handleConfirmHeldRemovals` reads the owner through an injected `getOwnerPubkey()`, defaulting to the
+  configured `BRAINSTORM_OWNER_PUBKEY`.
+- **C11.** The handlers make every read through the injected `readFile` (`readFileSync`-shaped; awaiting it works):
+  `report.json`, `confirmation.json`, the held file and `/proc/<pid>/stat`. They pass it on to `isAlive(record,
+  { readFile })`.
+- **C12.** `confirmationPending` carries every field of the record except `nonce`, and may add derived keys such as
+  `expired`. The nonce appears nowhere in the answer.
+- **C13.** The confirm route mints `nonce` as 32 lower-case hex characters (`crypto.randomBytes(16)`). The name
+  `claimed/<runId>-<nonce>.json` is then built only from checked grammars.
+- **C14.** Each PROGRESS event names its phase as `metadata.phase`, using the report's `phases[].phase` names, with its
+  `ms`. The events come in the ADR's nine-phase order.
+- **C15.** Every rewrite of the record before the final report keeps `outcome: 'failed'`, `stopped: true`,
+  `reasonCode: 'stopped'`, `running: true` and the run's `runId`. That covers each phase boundary and at least every
+  10 write batches.
+- **C16.** Within each write call, rows are ordered by the desired edge's `(from, to)`. The order is pinned only within
+  a batch.
+- **C17.** `readSchema()` and `readAll()`:
+  - `readSchema()` returns `{ constraints, indexes }`, the SHOW rows as plain objects, and writes nothing.
+  - `readAll({ timeoutMs })` runs READ_ALL in one `executeRead` with `{ timeout: timeoutMs }`.
+  - It resolves to a plain array of rows keyed by the eight columns, with driver values untouched, so Integers stay
+    lossless.
+- **C18.** `strippedKeys` holds one entry per edge that lost a key, names only, for the first 100 such edges.
+- **C19.** A start outside the lock (`not-started-under-the-lock`, runner step 1) exits **2** (refused), unlike
+  `--lock-busy`, which exits 0: a hand run should say it did nothing.
+
 ## Out of scope
 
 - The real-time path (story 3) and any control-panel page or button (story 4), except the bindings for story 3 above.
