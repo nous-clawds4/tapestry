@@ -10,8 +10,9 @@
  * What is served: counts, run ids, timestamps, relay- and graph-derived values (tagging addresses, event ids,
  * property-key names), the held list's digest, the pass's pid and process start time, reason text and redacted
  * error text. The stamp identities and the confirming owner appear only as 8-character prefixes, while a tagging
- * address carries its author's full pubkey; no config value, absolute path or credential appears (the runner
- * redacts error text before it enters the report). The held route never builds a path from request input.
+ * address carries its author's full pubkey; no config value or credential appears, and no absolute path that starts a
+ * word (a `/` at the start or after whitespace, a quote, `[`, `(` or `=`): the runner redacts error text before it
+ * enters the report. The held route never builds a path from request input.
  *
  * The display logic is the pure computeStatus(); validateConfirmation() is the pure half of the confirm
  * route. Handlers take their dependencies (readFile included) as a third argument, for tests.

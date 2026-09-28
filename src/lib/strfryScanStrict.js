@@ -22,9 +22,9 @@
  * and split into lines as it arrives. `bytes` counts the decoded text re-encoded as UTF-8 — the bytes
  * read, for valid UTF-8. No count is taken: a second process would read a second snapshot. The error's
  * stderrTail is redacted, because the pass's report carries it to a public route: the last `strfry error:` line
- * or the exit code, at most 300 characters, through redactPublicText() — any URI, absolute path and IPv4
- * host:port replaced, and every 64-hex run cut to 8 characters. (Amended in review round 1, 2026-09-28: paths
- * too; strfry names its config file's path when it cannot load it.)
+ * or the exit code, at most 300 characters, through redactPublicText() — any URI, any absolute path that starts a
+ * word (see redactPublicText) and any IPv4 host:port replaced, and every 64-hex run cut to 8 characters. (Amended in
+ * review round 1, 2026-09-28: paths too; strfry names its config file's path when it cannot load it.)
  */
 
 const DEFAULT_TIMEOUT_MS = 60000;
@@ -44,9 +44,10 @@ class ScanError extends Error {
 
 /**
  * Error text a public route may serve (the tagging-edges pass's report shares this one redactor): any URI (it may
- * carry credentials) → `<uri>`; then any absolute path, a `/` that starts a word (at the start, or after a space,
- * quote, bracket, parenthesis or `=`) → `<path>`; then any IPv4 host:port → `<host>`; and every run of 64 or more
- * hex characters cut to its first 8. A relative path (`../lib/x`) is kept. The caller bounds the length.
+ * carry credentials) → `<uri>`; then any absolute path that starts a word, a `/` at the start or after whitespace, a
+ * quote, `[`, `(` or `=` → `<path>` (a path after any other character, such as `file:/…`, `,/…` or `{/…`, is kept);
+ * then any IPv4 host:port → `<host>`; and every run of 64 or more hex characters cut to its first 8. A relative path
+ * (`../lib/x`) is kept. The caller bounds the length.
  */
 function redactPublicText(s) {
   return String(s)

@@ -529,7 +529,11 @@ worker's `neo4j-heavy` lease stays in Redis until its 4 h TTL (`src/manage/taskQ
 nothing clears leases at boot). BullMQ's defaults (`maxStalledCount` 1, `lockDuration` 30 s; no override in the repo)
 re-run the job once. The re-run, like every scoring run, waits behind the stale lease (cap 1) for up to 4 h; by then
 the orphaned pass has long finished, so neither the pgrep guard nor the lock refuses it, and it performs an ordinary
-pass. The Tester does not pin "restart → stopped". On SIGTERM or SIGINT the pass stops at the next batch boundary and
+pass — unless another heavy task, such as a scoring run, takes the freed slot first and outlasts the re-run's own 4 h
+wait; the re-run then fails `RESOURCE_CLASS_WAIT_TIMEOUT` (OPERATIONS §10.6), and the next scheduled or on-demand
+pass does the work. *(Amended in review round 3, 2026-09-28: waiters poll on their own, with no queue order
+(`resourceSemaphore.js` `acquire`, `ACQUIRE_LUA`), and the re-run's wait began after the dead pass took its lease.)*
+The Tester does not pin "restart → stopped". On SIGTERM or SIGINT the pass stops at the next batch boundary and
 writes `failed`, `stopped: true`, `reasonCode: 'signal'` (story 4's Stop can use this).
 
 **Who reads it.** `GET /api/tagging-edges/status` returns `{ reportVersion, running, latest, previous,
@@ -540,10 +544,13 @@ status GETs (`deploy-safety`, `status/neo4j-constraints`, `scheduled-tasks/list`
 graph-derived values (tagging addresses, event ids, property-key names), the held list's digest, the pass's pid and
 process start time (`process`, in the shape above), reason text and redacted error text. The stamp identities and the
 confirming owner appear only as 8-character prefixes, while a tagging address carries its author's full pubkey. No
-config value, absolute path or credential appears: for a filesystem error, `failure.message` carries `err.code` and the
-state-relative file name, never `err.message`; a Neo4j connection error (`ServiceUnavailable`, `SessionExpired`)
-carries fixed text; every other error text, strfry's `stderrTail` included, passes one redactor that replaces any URI,
-absolute path and IPv4 `host:port` and cuts every 64-hex run to 8 characters.
+config value or credential appears, and no absolute path that starts a word: for a filesystem error,
+`failure.message` carries `err.code` and the state-relative file name, never `err.message`; a Neo4j connection error
+(`ServiceUnavailable`, `SessionExpired`) carries fixed text; every other error text, strfry's `stderrTail` included,
+passes one redactor that replaces any URI, any absolute path that starts a word (a `/` at the start or after
+whitespace, a quote, `[`, `(` or `=`) and any IPv4 `host:port`, and cuts every 64-hex run to 8 characters. *(Amended
+in review round 3, 2026-09-28: this said "any … absolute path". A path after any other character, such as
+`file:/…`, `,/…` or `{/…`, passes unchanged; the re-review found no source the pass reads that prints one.)*
 
 The held route never builds a path from request input. Express URL-decodes query values and every unauthenticated
 GET reaches the handler (`src/middleware/auth.js:505`), so: `runId` is optional; when given, it must be a string (not an
@@ -764,8 +771,9 @@ Each goes into ADR 0001 in the same commit as this ADR, with an "Amended by `tag
 12. **The pass takes `neo4j-heavy`** (D10), with its costs: it waits behind scoring, scoring waits for it, a stale
     lease after a deploy can hold it for up to 4 h, and `deploy-safety` reads unsafe while its job is active.
 13. **Three new routes:** `GET /api/tagging-edges/status` and `GET /api/tagging-edges/held` as public reads of
-    counts, relay- and graph-derived values and redacted error text, with no config value, absolute path or credential
-    ("Who reads it"; *amended in review round 1, 2026-09-28*: this said relay-derived data and counts); the held route
+    counts, relay- and graph-derived values and redacted error text, with no config value or credential and no
+    absolute path that starts a word ("Who reads it"; *amended in review round 1, 2026-09-28*: this said relay-derived
+    data and counts; *wording amended in review round 3*: this said no absolute path); the held route
     serves only the latest report's list and builds no path from the request; and
     `POST /api/tagging-edges/confirm-held-removals` as owner-only (no admins, no loopback), a deliberate departure
     from the handoff's mutation template.
@@ -816,8 +824,10 @@ Test-file changes named here belong to Phase 3 (the Tester's lane); the Implemen
   `isExpected` — kind 39999 and a `z` among the requested stamps (`off-filter`); total bytes ≤ `maxBytes`
   (`too-large`). It keeps a 4 KiB stderr tail; the report takes only the last `strfry error:` line or the exit code,
   at most 300 characters, with any 64-hex run cut to 8 characters. *(Amended in review round 1, 2026-09-28.)* Any URI,
-  absolute path and IPv4 `host:port` in it are replaced too — strfry names its config file's path when it cannot load
-  it — by the one redactor (`redactPublicText`, exported beside `scanStrict`) the runner's `failure.message` shares.
+  any absolute path that starts a word (a `/` at the start or after whitespace, a quote, `[`, `(` or `=`; wording
+  amended in review round 3) and any IPv4 `host:port` in it are replaced too — strfry names its config file's path
+  when it cannot load it — by the one redactor (`redactPublicText`, exported beside `scanStrict`) the runner's
+  `failure.message` shares.
   No count is taken (a separate process is a separate snapshot). Skeleton: the settle-once / SIGKILL time-out of
   `status.js:57-86` with the line loop of `bDisposition.js:70-100` and the stderr tail of
   `dlist-curation/update.js:238-243`.

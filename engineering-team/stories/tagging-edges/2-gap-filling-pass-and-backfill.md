@@ -301,9 +301,10 @@ For Test Design:
   error (`ServiceUnavailable`, `SessionExpired`) also carries fixed text, keyed by `err.code` through a `Map` (so an
   inherited property name never matches), because the driver's text names the host; and every other error text,
   strfry's `stderrTail` included, passes one redactor, `redactPublicText`, which adds an absolute-path rule (a `/`
-  that starts a word) after the URI rule. A relative module name (`'../../lib/x'`) is kept: the round-2 tests flag
-  only absolute paths, and a stricter no-`/` rule would also cut ordinary text. No `name:port` rule, which would eat
-  times.
+  that starts a word: at the start, or after whitespace, a quote, `[`, `(` or `=`) after the URI rule. A path after
+  any other character (`file:/…`, `,/…`, `{/…`) passes unchanged. A relative module name (`'../../lib/x'`) is kept:
+  the round-2 tests flag only absolute paths, and a stricter no-`/` rule would also cut ordinary text. No `name:port`
+  rule, which would eat times.
 - A `done` report's `reason` names lost races and conflicting addresses left to the next pass when there are any;
   each write phase's `PROGRESS` also carries `applied` and `lostRace`; the driver is closed after `TASK_END`.
 - `defaultDeps().proc` is `process` and the entry calls `run({ proc: process })` (C2); the start time then comes
@@ -322,7 +323,8 @@ For Test Design:
   spawn gives no child (`spawn`), when the child had no stdout or its stdout errors (`process-error`); stderr errors
   are ignored. It exports `scanStrict`, `ScanError` and, since review round 1, `redactPublicText`: the one redactor
   lives in the lower layer, which the runner already depends on, rather than in a new file; the runner also passes a
-  scan port's `stderrTail` through it at the report, so a port other than `scanStrict` is covered. Invalid UTF-8
+  scan port's `stderrTail` through it at the report, so a port other than `scanStrict` is covered (SR75, review round
+  3). Invalid UTF-8
   still decodes as U+FFFD (ADR D2's `setEncoding`); the header says so.
 - The fresh-install seed is laid out one field per line like its neighbours (the ADR showed it on one line).
 - Review round 1 (2026-09-28): the runner's header comment is qualified the same way as BIBLE §16 and §11 (a failed
@@ -331,12 +333,39 @@ For Test Design:
 - Review round 1, Nit 6: the revokes ledger row's method parenthetical follows the Planning census's own request logs:
   the kind-5 reads ran at about 17:07Z on 2026-09-27, and "taggers" is the union across the three hosts (2,402) of the
   authors of the `nostr-user-tag`-stamped taggings the contract accepts, not each host's own.
+- Review round 3 (2026-09-28), judgment calls:
+  - The optional errno token for a Neo4j connection error (re-review nit 3) is not added. The suggested
+    `/\b(E[A-Z]{3,}|EAI_[A-Z]+)\b/` takes an upper-case host name for the token wherever the driver names the server
+    before any errno (`No longer possible to write to server at EDGEDB:7687` → `EDGEDB`, and a routing table listing
+    `EDGEDB:7687` the same). A safe version needs an errno allow-list and the error carried from five catch sites to
+    the `TASK_ERROR` event, and would land with no test (this round's tests were committed first). The report keeps
+    its fixed text.
+  - "Any absolute path" (re-review nits 2 and 9) is corrected in the documents, not by widening the rule: the
+    documents now say what the rule matches (a `/` at the start, or after whitespace, a quote, `[`, `(` or `=`). The
+    runner's `safeMessage` comment and ADR 0002's owner decision 13 said the same and are qualified too, beyond the
+    finding's list.
+  - "Changes nothing" on a failed read or plan (re-review non-blocking 5) follows AC-4's scope, and the next pass's
+    part follows owner decision 7's words ("holds the over-limit removals again"), since the next pass judges its own
+    read. The runner header also names a failed plan, which its old sentence left out.
+  - The hand-run sentence (re-review nit 11) also says what passes the check (an exclusive flock on any file on fd 9),
+    beside the ledger id the finding asked for.
+  - The e2e evidence (re-review nit 10): the finding's "64885ce7 matches the code the commit message describes" is
+    replaced by a checkable statement (the commit's message reports this run's figures), and the stale "the one later
+    implementation commit, `da787035`, changes only a comment" (`8784f2ed` changed code) is corrected in the same
+    sentence, in the story and OPERATIONS.
+  - The key counts (re-review non-blocking 6) were measured with a second read-only query beside the one named for
+    the round, restricted to relationships with no `tagAddress`, because the overall distribution cannot tell an
+    unresolved relationship from a named one with no `tagEventId` (`contract.js`: `tagEventId` is null for an
+    `a`-named tag).
 
 ## Evidence
 
-- **Local end-to-end run** (story Open question 7), 2026-09-28, on the local instance, taken at the code of commit
-  `64885ce7` before that commit was made; the one later implementation commit, `da787035`, changes only a comment.
-  Figures from `GET /api/tagging-edges/status`:
+- **Local end-to-end run** (story Open question 7), 2026-09-28, on the local instance, on the working tree about a
+  minute before commit `64885ce7` was made (the second pass ended at 03:25:01Z; the commit is 03:26:03Z). Nothing
+  records that tree (no tree hash or diff was saved); `64885ce7`'s message reports this run's figures. The later
+  implementation commits are `da787035` (a comment) and the review-round-2 fixes `8784f2ed`; the run was not repeated
+  after them (at 07:00Z the status route's latest report was still the second pass below). Figures from
+  `GET /api/tagging-edges/status`:
   - Backfill `20260928T032430Z-08965d1d`: `done` in 2,595 ms. Phases (ms): identities 30, schema 98, graph-read 7,
     relay-read 72 (10,405 events, 8,227,479 bytes), plan 47, write-creates 2,330 over 29 batches. Added 7,030 =
     `taggingsRead` 7,030 − `refused.total` 0; `peopleAdded` 6,196; `unresolved` 6, as the census found on each host.
@@ -344,8 +373,11 @@ For Test Design:
 - **Graph snapshot around the backfill** (read-only Cypher), before → after: `FOLLOWS` / `MUTES` / `REPORTS` / `TAGS`
   0/0/0/0 → 0/0/0/7,030; relationships 4,989 → 12,019; nodes 4,467 → 10,663; `NostrUser` 3 → 6,199, none with a
   key other than `pubkey`, so the 3 pre-existing people are unchanged. After: no two `TAGS` share an address, every
-  `TAGS` joins two `NostrUser` nodes and carries no key outside the nine (the 6 unresolved ones carry eight: a null
-  `tagAddress` / `tagSlug` is not stored), and every `createdAt` is INTEGER.
+  `TAGS` joins two `NostrUser` nodes and carries no key outside the nine (the 6 unresolved ones carry at most seven:
+  no `tagAddress` or `tagSlug`, and no `polarity` where the tagging has none), and every `createdAt` is INTEGER. Key
+  counts, measured on 2026-09-28 at 07:00Z (review round 3; read-only Cypher, `size(keys(r))` over every `TAGS`):
+  6,683 relationships carry nine keys, 341 eight, 5 seven and 1 six (7,030 in all); the 6 with no `tagAddress` are
+  those 5 and that 1, none has a `tagSlug`, and the one with six has no `polarity`.
 - **What it does not show.** The local graph had no `FOLLOWS`, `MUTES` or `REPORTS`, so the run cannot evidence
   AC-8's clause that social relationships and scores do not move. The live sandbox's SL15 covers it: a scored fixture
   person with a `FOLLOWS` keeps its labels, properties and `FOLLOWS` after creates and moves that `planPass` plans and

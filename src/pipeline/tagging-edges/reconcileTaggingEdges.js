@@ -10,9 +10,11 @@
  * Sequence (ADR 0002, Implementation notes): lock → runId → pessimistic report → identities → config
  * → schema pre-flight → claim any owner confirmation → READ graph → READ relay (one strict scan,
  * started only after the graph read resolved) → plan (pure) → creates, updates, moves, removals →
- * held file + final report. A refusal, or a failed read of the graph snapshot or the relay, changes
- * nothing; a batch's verify re-read that fails ends the run failed with the committed batches standing
- * (owner decision 8). The report says why.
+ * held file + final report. A refusal, a failed read of the graph snapshot or the relay, or a failed plan
+ * adds, changes or removes no relationship or person (AC-4); on a confirmed run a failed read or plan leaves
+ * the confirmation spent, since step 7 claims it before the reads, and the next pass holds the over-limit
+ * removals again (owner decision 7). A batch's verify re-read that fails ends the run failed with the
+ * committed batches standing (owner decision 8). The report says why.
  *
  * Exit codes: 0 done or done-removals-held (and a start refused because another pass holds the lock);
  * 2 refused; 1 failed.
@@ -81,8 +83,8 @@ const CONNECTION_ERROR_TEXT = new Map([
 
 /**
  * Error text for the report, which a public route serves: fixed text for a Neo4j connection error; otherwise
- * err.message through the one redactor strfry's stderrTail also passes (any URI, absolute path and IPv4
- * host:port replaced, every 64-hex run cut to 8 characters), at most 300 characters.
+ * err.message through the one redactor strfry's stderrTail also passes (any URI, any absolute path that starts a word
+ * and any IPv4 host:port replaced, every 64-hex run cut to 8 characters: see redactPublicText), at most 300 characters.
  */
 function safeMessage(err) {
   const code = err && typeof err.code === 'string' ? err.code : null;
