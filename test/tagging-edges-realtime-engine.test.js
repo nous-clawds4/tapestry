@@ -49,6 +49,10 @@
  * validating Tester's mutation pass over the A1 reference: A1-14 bounds the share's element reads as well as its
  * address scans, which RE67's by-address arrivals never exercise.
  *
+ * RE81 comes from story 3's review, round 1 (2026-09-29), conform item 1(e): the path passes its own time-out to
+ * readSchema, so graph.js's readSchema keeps no default for the pass (the wiring suite's SWR72 pins the port's side).
+ * It is red until the Implementer's round-1 fix. The fakes' readSchema logs the timeoutMs it is given for it.
+ *
  * Bounded memory (RE58) runs this same file in a CHILD Node process with --max-old-space-size=160
  * (`node test/tagging-edges-realtime-engine.test.js --re58-child <scenario>`), over lean fakes; it prints one
  * `RE58-RESULT {json}` line. The test is counted skipped, with a note, only when a node process cannot be spawned.
@@ -1187,6 +1191,23 @@ test('RE29: while a database rule is missing — tags_address absent or not ONLI
     await drive(proc, 11 * SEC, 500);
     eq(at(statusOf(proc), 'setupProblem'), null, 'the setup problem clears once the rule is in place');
   });
+});
+
+test('RE81: the path\'s schema check passes a transaction time-out of its own — every readSchema call it makes, while a rule is missing (the 15 s re-checks) and once it is in place (the round\'s check), carries a finite, positive timeoutMs, so it never leans on a default in graph.js\'s readSchema, which keeps none for the pass (review round 1, Blocking 1(e): "The path passes its own timeoutMs, and readSchema\'s default stays as it was"; ADR 0003: the pass\'s behaviour does not change; ADR § Failure handling, schema; test/tagging-edges-wiring.test.js SWR72 pins the port\'s side)', async () => {
+  const w = newWorld();
+  w.graph.schema.tags = 'missing';
+  const proc = await boot(w);
+  const X = tg('re81-x', { createdAt: NOW_S });
+  put(w, X);
+  await hold(proc, 40 * SEC, 'while tags_address is missing', 250);
+  eq(w.graph.writes.length, 0, 'fixture: graph write calls while the rule is missing');
+  w.graph.schema = { tags: 'online', nostrUser: true };
+  await within(proc, 16 * SEC, () => reflects(w, X), 'fixture: writes resume within 15 s of the rule appearing (RE29)');
+  const calls = w.graph.calls.filter((x) => x.proc === proc.n && x.op === 'readSchema');
+  assert(calls.length >= 3, `fixture: the path read the schema while waiting and again before its write (${calls.length} readSchema call(s))`);
+  const without = calls.filter((x) => !(typeof x.timeoutMs === 'number' && Number.isFinite(x.timeoutMs) && x.timeoutMs > 0));
+  assert(without.length === 0,
+    `review round 1, Blocking 1(e): the path passes its own time-out to readSchema — ${without.length} of its ${calls.length} readSchema call(s) passed none (timeoutMs ${preview(without.map((x) => (x.timeoutMs === undefined ? 'undefined' : x.timeoutMs)))}), leaning on graph.js's default — the one the pass's calls share, which stays as story 2 shipped it: none`);
 });
 
 test('RE30: a bad identity after the first start waits and writes nothing; after a restart with it corrected, the path catches up on what the relay stored meanwhile within 5 minutes (AC-3 "a corrected identity takes effect at the latest after a restart, and AC-4\'s bound then runs from that start")', async () => {

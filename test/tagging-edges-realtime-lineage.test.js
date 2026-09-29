@@ -37,6 +37,11 @@
  * compaction keeping what was learned after its capture, in older (RL26) and as a whole lineage (RL27, A1-7). Each also
  * fails on the round-1 engine: a discard, relative v lines, S ∪ H resolution, or a record with no lineage rows.
  *
+ * RL28 comes from story 3's review, round 1 (2026-09-29): it pins A1 clarification 23, which the code already does — a
+ * catch-up's compaction keeps in older what the path learned at an address since the catch-up's key read, so a version
+ * a round learned and wrote between that key read and the stamp scan's capture survives the compaction, and a revoke
+ * of the later top still removes the relationship recording it (clause ii).
+ *
  * Conventions (test/tagging-edges-realtime-engine.test.js): a test spawns a process (deps + createEngine), awaits
  * start(), then drive()s it: advance the fake clock by a step, await tick(), let scheduled callbacks run, repeat.
  * Assertions state only the bounds the criteria state, in simulated time ("within 60 s", "within 5 minutes"), never
@@ -1418,6 +1423,66 @@ test('RL27: a catch-up\'s compaction keeps the lineage of a version learned afte
   const storedAt = w.clock.t;
   await within(p2, MIN, () => absent(w, A), 'the relationship recording V is removed within 60 s of its revoke (the revoke resolves through V, the lineage\'s top: A1-3)', 100);
   assert(w.clock.t - storedAt <= MIN, 'within 60 s');
+});
+
+/* ═════════════ Review round 1 (2026-09-29): A1 clarification 23, the compaction cut with interleaved rounds ═════════════ */
+
+test('RL28: a catch-up\'s compaction keeps in older a version a round learned and wrote between the catch-up\'s key read and its scan\'s capture — v2 is heard while a restart\'s catch-up reads the graph\'s keys (which still record v1), and the round that runs before its stamp scan writes v2; v3 is heard after the capture and Alice revokes it by id at once (strfry deletes it); the address\'s one read before the compaction fails, so nothing re-learns v2 after the capture: the compaction that ends the catch-up keeps v2 in older under v3 in record.json\'s lineage row, and the relationship recording v2 is removed within 60 s of the revoke (ADR 0003 A1 clarification 23: "A catch-up\'s compaction therefore keeps in older the ids learned at an address since its key read, not only since the capture"; A1-7 with A1-11; A1-4 clause ii; AC-2)', async () => {
+  const w = newWorld();
+  const p1 = await boot(w);
+  const V1 = tg('rl28', { createdAt: NOW_S - 300 });
+  const A = addr(V1);
+  put(w, V1);
+  await within(p1, MIN, () => eventIdAt(w, A) === V1.id, 'fixture: v1 is created');
+  await drive(p1, 2 * SEC, 100);
+  await stop(w, p1, 'signal');
+  await w.advance(10 * SEC);
+  const V2 = version(V1, 'rl28:v2', { createdAt: NOW_S - 200, polarity: '-1' });
+  const V3 = version(V1, 'rl28:v3', { createdAt: NOW_S - 100 });
+  const K3 = del('rl28-k3', { e: [V3.id] });
+  const nm = namer({ v1: V1.id, v2: V2.id, v3: V3.id });
+  const p2 = w.spawn();
+  const bodies = recordBodies(p2);
+  // The start catch-up's key read (this process's first) takes 2 s of fake time; v2 is stored and heard meanwhile.
+  w.graph.readDelay = (op, { proc, nth }) => (op === 'readKeys' && proc === p2.n && nth === 1 ? 2 * SEC : null);
+  let stampedAt = null;
+  let timed = false;
+  const orig = w.relay.scan;
+  w.relay.scan = async (filter, opts, pr) => {
+    const res = await orig(filter, opts, pr);
+    if (stampedAt === null && pr && pr.n === p2.n && H.filterKind(filter) === 'stamp') {
+      // The stamp scan's capture is taken and its result selected (v2 at A): v3 is stored and heard now, then Alice
+      // revokes it by id (strfry deletes it: the relay then holds nothing at A).
+      stampedAt = w.clock.t;
+      put(w, V3);
+      const a = await waitClock(w, 300);
+      put(w, K3);
+      const b = await waitClock(w, 300);
+      timed = a && b;
+    }
+    return res;
+  };
+  // After the capture, A's reads fail until the compaction (record.json's first write here): no round re-learns v2 there
+  // after the capture, so only the window between the key read and the capture keeps it.
+  w.relay.scanFail = (filter, o, call) => (stampedAt !== null && bodies.length === 0 && call.proc === p2.n && H.filterTargets(filter, A) ? 'exit' : null);
+  await H.startEngine(p2);
+  await within(p2, 10 * SEC, () => w.graph.calls.some((x) => x.proc === p2.n && x.op === 'readKeys'), 'fixture: the start catch-up reads the graph\'s keys', 50);
+  put(w, V2); // stored while the key read is in flight
+  await within(p2, 2 * MIN, () => stampedAt !== null && bodies.length >= 1, 'fixture: the catch-up takes its stamp scan, then its compaction writes record.json', 100);
+  assert(timed, 'fixture: the driver ran ticks while the stamp scan was in flight (v3 and the kind-5 were drained)');
+  const revokedAt = stampedAt + 300;
+  const keyRead = w.graph.calls.find((x) => x.proc === p2.n && x.op === 'readKeys');
+  const stamp = w.relay.scans.find((x) => x.proc === p2.n && x.kind === 'stamp');
+  const wroteV2 = w.graph.writes.find((x) => x.proc === p2.n && x.result && Array.isArray(x.result.appliedAddresses) && x.result.appliedAddresses.includes(A)
+    && (x.rows || []).some((r) => r && r.address === A && r.desired && r.desired.eventId === V2.id));
+  assert(wroteV2 && wroteV2.commitSeq > keyRead.seq && wroteV2.commitSeq < stamp.seq,
+    `fixture: a round wrote v2 between the catch-up's key read and its stamp scan (A1-11: a due round runs between two of a catch-up's reads); ${wroteV2 ? `its write committed at seq ${wroteV2.commitSeq}, the key read at ${keyRead.seq}, the stamp scan at ${stamp.seq}` : 'no write of v2 committed'}`);
+  assert(scansOf(w, A, stamp.seq).some((s) => s.outcome === 'exit'), 'fixture: A\'s read after the capture failed before the compaction');
+  const row = lineageRowIn(bodies[0], A);
+  assert(row && row[1] === V3.id && Array.isArray(row[2]) && row[2].includes(V2.id),
+    `A1 clarification 23: the compaction ending the catch-up keeps v2 — learned and written between its key read and its capture — in older under v3; got ${show(row && [row[0].slice(0, 12), nm(row[1]), (row[2] || []).map(nm)])}`);
+  await within(p2, Math.max(0, revokedAt + MIN - w.clock.t), () => absent(w, A),
+    `the relationship recording v2 is removed within 60 s of Alice's revoke of v3 (clause ii: v3 is the top and v2 kept in its older); graph at A: ${nm(eventIdAt(w, A))}`, 100);
 });
 
 // ─── run ───────────────────────────────────────────────────────────────────────────────────────────────────────

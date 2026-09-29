@@ -27,6 +27,15 @@
  * (RX19). Clarification 11's one-single-time-out limit and per-case bounds are RX2's and RX3's; clarification 13 (the
  * pass-overlap ties) is the planner's RP53.
  *
+ * Review round 1 (engineering-team/reviews/tagging-edges/3-real-time-path.md, 2026-09-29) adds RX20–RX25. RX20–RX23 pin
+ * the A1 clarifications the owner ratified from it, which the code already does: a lone change through a total stall
+ * is never parked, and a never-answering address beside answering traffic still is after three (clarification 20:
+ * RX20, RX21); a live revoke lifts a time-out park (21: RX22); a one-id element time-out counts in failedReads.element
+ * (22: RX23). Clarification 23 is the lineage suite's RL28. RX24 and RX25 are red until the Implementer's round-1 fixes:
+ * a catch-up merges its work at a database-refusal park into the parked entry, as it does at a time-out park (conform
+ * item 1(f)); an unexpected error in a catch-up step ends that catch-up as failed and backs off, never wedging catch-ups
+ * (Blocking 2).
+ *
  * Intentionally failing until A1 lands (red phase). The engine and the planner module are require()d LAZILY, through
  * load() / loadLib() inside each test, so the suite always loads and each test fails for its own reason. Against the
  * round-1 working tree (T1–T34 without A1) the failures name the A1 rule the pre-A1 behaviour breaks: a start hold, a
@@ -1240,10 +1249,11 @@ const versionIs = (entry, id) => isPlainObject(entry) && (entry.version === id |
 /**
  * Store a never-answering address X so that it is marked to be read alone (A1-13): 200 fresh taggings answer in their
  * own scan, then X's group — three others stored just before it, and X — times out in the same round, so all four are
- * marked; the next round reads the three others alone (they answer) and then X alone (it times out). → { X, AX, mark }
+ * marked; the next round reads the three others alone (they answer) and then X alone (it times out). `X` defaults to a
+ * fresh tagging named `name`; a test may pass a version of its own (a newer version at an address the graph holds).
+ * → { X, AX, mark }
  */
-async function storeMarkedNeverAnswering(w, name) {
-  const X = fresh(name);
+async function storeMarkedNeverAnswering(w, name, X = fresh(name)) {
   const AX = addr(X);
   w.relay.neverAnswers.add(AX);
   const first = [];
@@ -1406,6 +1416,286 @@ test('RX19: a live delivery of a new version at an address while the round that 
   assert(retry && retry.at <= reparkedAt + 30 * MIN + 20 * SEC,
     `A1-13: X is retried at the 30-minute timer; ${retry ? `its next read came ${((retry.at - reparkedAt) / SEC).toFixed(0)} s after the re-park` : 'no scan named it within 30.5 minutes'}`);
   assert(isSingle(retry), `A1-13: X is still read alone at the timer; that read named ${H.scanAddresses(retry.filter).length} addresses`);
+});
+
+/* ═══════ Review round 1 (2026-09-29): A1 clarifications 20–22, conform item 1(f) and Blocking 2 ═══════ */
+
+/** Did some relay read of this process answer (outcome ok) after `from` and no later than `to` (fake times)? */
+function answeredBetween(w, proc, from, to) {
+  return w.relay.scans.some((x) => x.proc === proc.n && x.outcome === 'ok' && endOf(x) > from && endOf(x) <= to);
+}
+/**
+ * Wait until the first start's own catch-up (A1-10) has completed, and answer when it began: the 10-minute safety
+ * diff comes 10 minutes after that (ADR § What it hears, "The safety diff").
+ */
+async function firstCatchUpStart(proc) {
+  const done = () => at(statusOf(proc), 'catchUp.last.outcome') === 'done';
+  await within(proc, MIN, done, 'fixture: the first start\'s own catch-up completes (A1-10)', 250);
+  return Date.parse(at(statusOf(proc), 'catchUp.last.startedAt'));
+}
+
+test('RX20: a lone change through a total relay stall is never parked — a tagging stored alone as a 3-minute Redis-style stall begins is read alone (a one-address scan) and times out again and again while no relay read answers; none of those time-outs counts toward the three that park an address, so it backs off 5→60 s like any failed read, the status never shows it parked, each time-out counts in counts.failedReads.relay, and it is reflected within 60 s plus a round of the relay answering (A1 clarification 20: a single time-out counts toward the park only when the address is marked to be read alone, or some relay read has answered since it was queued or last timed out alone — "So a lone change through a Redis stall is never parked. It is reflected within clarification 11\'s bound once the relay answers"; A1 clarification 11 "After a Redis stall …"; decision 9 "after three while other relay reads answer"; A1 clarification 12; AC-1)', async () => {
+  const w = newWorld();
+  w.graph.keepRows = false;
+  const proc = await boot(w);
+  w.relay.scanWaits = true;
+  // Well clear of the next safety diff (10 minutes after the first start's catch-up): nothing but the lone change reads.
+  const t0 = w.clock.t;
+  const stallEnd = t0 + 3 * MIN;
+  w.relay.stallUntil = stallEnd; // every scan waits until then, or times out at its 20 s first
+  await drive(proc, 3 * SEC, 250); // the status settles
+  const failedBefore = num(statusOf(proc), 'counts.failedReads.relay') || 0;
+  const L = fresh('rx20-lone');
+  const AL = addr(L);
+  const mark = w.nextSeq();
+  await putNow(w, L);
+  let parkedMax = 0;
+  const watch = () => { parkedMax = Math.max(parkedMax, num(statusOf(proc), 'parked') || 0); };
+  await hold(proc, stallEnd - w.clock.t, 'a lone change through a 3-minute stall', 100, watch);
+  const during = readsNaming(w, proc, AL, mark);
+  const timeouts = during.filter((x) => x.outcome === 'timeout');
+  eq(parkedMax, 0, `A1 clarification 20: the status's parked, the most it showed while a lone change timed out ${timeouts.length} time(s) through a total stall — nothing answered, so no time-out counted toward the park`);
+  assert(timeouts.length >= 4, `fixture: the lone change's reads timed out ${timeouts.length} time(s) during the stall (with a park after the third, a fourth would not come)`);
+  assert(during.every(isSingle), `fixture: the lone change was read alone, one address per scan, every time; its scans named ${show(during.map((x) => H.scanAddresses(x.filter).length))} address(es)`);
+  const answered = w.relay.scans.filter((x) => x.proc === proc.n && x.seq > mark && x.outcome === 'ok' && endOf(x) < stallEnd);
+  eq(answered.length, 0, 'fixture: relay reads that answered before the stall ended (a total stall)');
+  await within(proc, MIN + 15 * SEC, () => { watch(); return holdsId(w, L); },
+    'A1 clarification 20 / 11: the lone change is reflected within 60 s plus a round of the relay answering (a park after three would hold it for 5 minutes)');
+  eq(parkedMax, 0, 'A1 clarification 20: the status\'s parked, the most it showed, until the lone change was reflected (never parked)');
+  await drive(proc, 3 * SEC, 250); // the status catches up
+  const failed = (num(statusOf(proc), 'counts.failedReads.relay') || 0) - failedBefore;
+  const all = readsNaming(w, proc, AL, mark).filter((x) => x.outcome === 'timeout').length;
+  eq(failed, all, 'A1 clarification 12: each single time-out counts in counts.failedReads.relay — the lone change\'s time-outs, counted');
+});
+
+test('RX21: a never-answering address beside answering traffic is still parked after three — stored alone, it is never read in a group (so never marked to be read alone), yet each of its one-address reads times out after another author\'s tagging was read and answered since it was queued or last timed out alone; its third such time-out parks it: no scan names it for the next 5 minutes, then it is read again at the park\'s timer; the status counts it parked, counts.dbRefused stays zero, and the other taggings are reflected (A1 clarification 20, its second case: "some relay read has answered since the address was queued, or since it last timed out alone"; decision 9 "after three while other relay reads answer"; A1-13 "parked like a refused write (5 min, …)"; A1 clarification 12)', async () => {
+  const w = newWorld();
+  w.graph.keepRows = false;
+  const proc = await boot(w);
+  w.relay.scanWaits = true;
+  w.relay.latencyMs = SEC; // each strfry process takes a second (waited), so a tagging can be stored while a read is in flight
+  const X = fresh('rx21-x');
+  const AX = addr(X);
+  w.relay.neverAnswers.add(AX);
+  const others = [fresh('rx21-b0')];
+  const mark = w.nextSeq();
+  await putNow(w, others[0]);
+  await within(proc, 10 * SEC, () => w.relay.scans.some((x) => x.proc === proc.n && x.seq > mark && x.outcome === 'pending' && scanNames(x, addr(others[0]))),
+    'fixture: the first other tagging\'s read is in flight', 50);
+  await putNow(w, X); // queued while that read is in flight, so it answers after X was queued
+  const queuedAt = w.clock.t;
+  const touts = () => readsNaming(w, proc, AX, mark).filter((x) => x.outcome === 'timeout');
+  let reacted = 0;
+  const r = await drive(proc, 3 * MIN, {
+    step: 100,
+    until: () => touts().length >= 3,
+    each: () => {
+      // Right after each of X's first two time-outs, another author's tagging: read (and answered) before X is due again.
+      while (reacted < Math.min(2, touts().length)) {
+        reacted += 1;
+        const b = fresh(`rx21-b${reacted}`);
+        others.push(b);
+        put(w, b);
+      }
+    },
+  });
+  assert(r.done, `fixture: X's reads timed out three times within 3 minutes (${touts().length} did)`);
+  const named = readsNaming(w, proc, AX, mark);
+  const grouped = named.filter((x) => !isSingle(x));
+  eq(grouped.length, 0, 'fixture: scans that named X together with another address (X was never read in a group, so never marked to be read alone)');
+  const t3 = touts().slice(0, 3);
+  const quiet = t3.map((x, i) => [i, i === 0 ? queuedAt : endOf(t3[i - 1]), endOf(x)]).filter(([, from, to]) => !answeredBetween(w, proc, from, to));
+  assert(quiet.length === 0, `fixture: before each of X's three time-outs another relay read answered since X was queued or last timed out; not before time-out(s) ${show(quiet.map(([i]) => i + 1))}`);
+  const third = t3[2];
+  const parkedAt = endOf(third);
+  await within(proc, 10 * SEC, () => num(statusOf(proc), 'parked') === 1,
+    'A1 clarification 20: X is parked after its third single time-out beside answering traffic — the status\'s parked', 250);
+  await drive(proc, Math.max(0, parkedAt + 5 * MIN + 30 * SEC - w.clock.t), 500);
+  const later = readsNaming(w, proc, AX, third.seq);
+  const early = later.filter((x) => x.at < parkedAt + 5 * MIN - 5 * SEC);
+  assert(early.length === 0, `A1 clarification 20 / A1-13: X's third counted time-out parks it for 5 minutes — ${early.length} scan(s) named it sooner: ${preview(early.map((x) => `${x.outcome} +${((x.at - parkedAt) / SEC).toFixed(1)} s`))}`);
+  assert(later[0] && later[0].at <= parkedAt + 5 * MIN + 15 * SEC,
+    `A1-13: X is read again at the park's timer, 5 minutes after the park; ${later[0] ? `its next read came ${((later[0].at - parkedAt) / SEC).toFixed(1)} s after` : 'no scan named it within 5.5 minutes'}`);
+  eq(num(statusOf(proc), 'counts.dbRefused.total'), 0, 'A1 clarification 12: counts.dbRefused.total (a time-out park is no database refusal)');
+  const missing = others.filter((ev) => !holdsId(w, ev)).map(addr);
+  eq(missing.length, 0, `fixture: the other authors' taggings, whose reads answered, are reflected; missing ${preview(missing)}`);
+});
+
+test('RX22: a live revoke lifts a time-out park at once — at an address the backfill wrote, a never-answering newer version is heard, marked and parked after three single time-outs; the author\'s kind-5 naming that version by id, delivered live, resolves there (it is the address\'s top) and lifts the park: (a) with the address still never answering, it is read again within a round of the delivery, alone (the read-alone mark kept) — not in the group the three other taggings stored with the kind-5 are read in — and that one more single time-out re-parks it at the next level, so no scan names it for the next 10 minutes; (b) with the address answering again, the relationship the backfill wrote is removed within 5 s of the delivery, not at the park\'s 5-minute timer (A1 clarification 21: "A live kind-5 from the address\'s author that resolves at an address parked for time-outs lifts the park, as a new version does. The lift costs at most one more single read"; A1 clarification 12; A1-13 "parked like a refused write (5 min, 30 min, then every 6 h)"; A1-4 clause ii; AC-2)', async () => {
+  await cases([
+    { name: 'the address still never answers', answers: false },
+    { name: 'the address answers again from the revoke on', answers: true },
+  ], async (c) => {
+    const tag = c.answers ? 'b' : 'a';
+    const w = newWorld();
+    w.graph.keepRows = false;
+    const X0 = fresh(`rx22${tag}-x0`, { createdAt: NOW_S - 100 });
+    const AX = addr(X0);
+    put(w, X0);
+    backfill(w, X0);
+    const proc = await boot(w);
+    w.relay.scanWaits = true;
+    const X1 = version(X0, `rx22${tag}-x1`);
+    const { mark } = await storeMarkedNeverAnswering(w, `rx22${tag}-x`, X1);
+    const singleTimeouts = () => readsNaming(w, proc, AX, mark).filter((x) => isSingle(x) && x.outcome === 'timeout');
+    await within(proc, 4 * MIN, () => singleTimeouts().length >= 3, 'fixture: the newer version is marked, and its reads alone time out three times', 250);
+    const parkedAt = endOf(singleTimeouts()[2]);
+    await within(proc, 10 * SEC, () => num(statusOf(proc), 'parked') === 1, 'fixture: the status shows the address parked after its third single time-out (A1-13)', 250);
+    await drive(proc, Math.max(0, parkedAt + 30 * SEC - w.clock.t), 500); // well inside the park's 5 minutes
+    eq(eventIdAt(w, AX), X0.id, 'fixture: the relationship the backfill wrote stands while the address is parked');
+    eq(readsNaming(w, proc, AX, singleTimeouts()[2].seq).length, 0, 'fixture: no scan named the parked address before the revoke');
+    const K = del(`rx22${tag}-k`, { author: X0.pubkey, e: [X1.id] });
+    const OTH = [0, 1, 2].map((i) => fresh(`rx22${tag}-o${i}`));
+    if (c.answers) w.relay.neverAnswers.delete(AX);
+    const mark2 = w.nextSeq();
+    const revokedAt = w.clock.t;
+    await putNow(w, K, ...OTH); // strfry deletes the newer version; the relay then holds nothing at the address
+    await within(proc, 5 * SEC, () => readsNaming(w, proc, AX, mark2).length > 0,
+      'A1 clarification 21: the live revoke lifts the time-out park at once — the address is read again within a round of its delivery, not at the park\'s timer', 100);
+    const again = readsNaming(w, proc, AX, mark2)[0];
+    assert(isSingle(again), `A1 clarification 21 / A1-13: the lifted address keeps its read-alone mark — its next read named ${H.scanAddresses(again.filter).length} addresses`);
+    if (c.answers) {
+      await within(proc, Math.max(0, revokedAt + 5 * SEC - w.clock.t), () => absent(w, AX),
+        'A1 clarification 21: the relationship the backfill wrote is removed within 5 s of the revoke\'s delivery (the revoke names the top, and the recorded version is in its older: clause ii)', 100);
+      return;
+    }
+    const othAddr = new Set(OTH.map(addr));
+    await within(proc, 30 * SEC, () => again.outcome === 'timeout', 'fixture: that read alone times out', 100);
+    const othRead = w.relay.scans.find((x) => x.proc === proc.n && x.seq > mark2 && x.kind === 'address' && x.outcome === 'ok' && H.scanAddresses(x.filter).some((a) => othAddr.has(a)));
+    assert(othRead && H.scanAddresses(othRead.filter).length >= 2 && !scanNames(othRead, AX),
+      `fixture: the three others stored with the revoke were read together, and without the lifted address; ${othRead ? `their read named ${H.scanAddresses(othRead.filter).length}` : 'they were not read'}`);
+    const reparkedAt = endOf(again);
+    await drive(proc, Math.max(0, reparkedAt + 10 * MIN - w.clock.t), 1000);
+    const later = readsNaming(w, proc, AX, again.seq);
+    assert(later.length === 0, `A1 clarification 21: "The lift costs at most one more single read" — that read's time-out re-parks the address at the next level (30 minutes); ${later.length} more scan(s) named it within 10 minutes: ${preview(later.map((x) => `${x.outcome} +${((x.at - reparkedAt) / SEC).toFixed(0)} s`))}`);
+    eq(eventIdAt(w, AX), X0.id, 'the relationship the backfill wrote stands: no read of the address answered');
+  });
+});
+
+test('RX23: a one-id element time-out counts in counts.failedReads.element, not in counts.failedReads.relay — an id-only tagging whose tag element\'s reads never answer: each round its address read answers, then its element, read alone (one id per scan), times out; each such time-out adds one to failedReads.element and none to failedReads.relay; and, its own address read having answered, each counts toward the park, so the third parks it — no scan names the address or the element for the next 5 minutes, dbRefused stays zero, and nothing is written there (A1 clarification 22: "A one-id element scan that times out counts in failedReads.element, as every element-read failure does. It still counts toward the park under clarification 20"; A1 clarification 12; § Failure handling "an element read fails"; AC-3; AC-6)', async () => {
+  const w = newWorld();
+  w.graph.keepRows = false;
+  const EL = F.makeElement({ id: idOf('rx23:el'), d: 'rx23-tag' });
+  put(w, EL);
+  const proc = await boot(w);
+  w.relay.scanWaits = true;
+  w.relay.neverAnswers.add(EL.id);
+  const X = fresh('rx23-x', { a: null, e: EL.id });
+  const AX = addr(X);
+  await drive(proc, 3 * SEC, 250); // the status settles
+  const st0 = statusOf(proc);
+  const before = { relay: num(st0, 'counts.failedReads.relay') || 0, element: num(st0, 'counts.failedReads.element') || 0 };
+  const mark = w.nextSeq();
+  const storedAt = w.clock.t;
+  await putNow(w, X);
+  const elReads = () => w.relay.scans.filter((x) => x.proc === proc.n && x.seq > mark && x.kind === 'element' && !!x.filter && H.scanIds(x.filter).includes(EL.id.toLowerCase()));
+  const touts = () => elReads().filter((x) => x.outcome === 'timeout');
+  await within(proc, 3 * MIN, () => touts().length >= 3, 'fixture: the tag element\'s reads time out three times', 250);
+  assert(elReads().every((x) => H.scanIds(x.filter).length === 1), `fixture: the element was read alone, one id per scan; its scans named ${show(elReads().map((x) => H.scanIds(x.filter).length))} id(s)`);
+  // Each element time-out follows an answered read of the tagging's own address (in its round), since it was queued or
+  // its element last timed out: so each counts toward the park (A1 clarification 20).
+  const t3 = touts().slice(0, 3);
+  const addrOk = readsNaming(w, proc, AX, mark).filter((x) => x.outcome === 'ok');
+  const unanswered = t3.filter((t, i) => !addrOk.some((x) => endOf(x) > (i === 0 ? storedAt : endOf(t3[i - 1])) && endOf(x) <= t.at));
+  eq(unanswered.length, 0, 'fixture: element time-outs with no answered read of the tagging\'s own address since it was queued or its element last timed out');
+  const third = t3[2];
+  const parkedAt = endOf(third);
+  await drive(proc, 5 * SEC, 250); // the status catches up
+  const st = statusOf(proc);
+  eq((num(st, 'counts.failedReads.element') || 0) - before.element, 3, 'A1 clarification 22: counts.failedReads.element after three one-id element time-outs');
+  eq((num(st, 'counts.failedReads.relay') || 0) - before.relay, 0, 'A1 clarification 22: counts.failedReads.relay after three one-id element time-outs (an element read is not a relay address read)');
+  eq(num(st, 'parked'), 1, 'A1 clarification 22 / 20: the third element time-out parks the address (the status\'s parked)');
+  eq(num(st, 'counts.dbRefused.total'), 0, 'A1 clarification 12: counts.dbRefused.total (a time-out park is no database refusal)');
+  await drive(proc, Math.max(0, parkedAt + 5 * MIN - 5 * SEC - w.clock.t), 1000);
+  const named = w.relay.scans.filter((x) => x.proc === proc.n && x.seq > third.seq && isRoundRead(x) && (scanNames(x, AX) || (!!x.filter && H.scanIds(x.filter).includes(EL.id.toLowerCase()))));
+  assert(named.length === 0, `A1 clarification 22 / A1-13: parked for 5 minutes after the third element time-out — ${named.length} scan(s) named the address or its element sooner: ${preview(named.map((x) => `${x.kind} ${x.outcome} +${((x.at - parkedAt) / SEC).toFixed(1)} s`))}`);
+  assert(absent(w, AX), 'nothing is written for the id-only tagging while its element read fails (RE23; ADR 0001 A8 amendment)');
+});
+
+test('RX24: a catch-up does not lift a database-refusal park — an address parked after two refused writes, three minutes before the 10-minute safety diff, with a newer version stored there whose live notice was lost: the diff completes, and its arrival at the parked address merges into the parked entry (record.json\'s parked row then names the newer version, under the refusal\'s code) instead of re-queuing the address; no write is attempted there until the park\'s timer, and at the timer, 5 minutes after the park, it is retried; the refusal is counted once (review round 1, Blocking 1(f): conform to § Failure handling "parked … retried after 5 min, 30 min, then every 6 h, at every start, at once on a new event at that address", and after the next successful write, as feedCatchUp already treats a time-out park under A1 clarification 12; A1-12; AC-3; AC-6)', async () => {
+  const w = newWorld();
+  const proc = await boot(w);
+  const cuAt = await firstCatchUpStart(proc);
+  await drive(proc, Math.max(0, cuAt + 7 * MIN - w.clock.t), 1000);
+  const CODE = 'Neo.ClientError.Statement.TypeError';
+  const P = fresh('rx24-p');
+  const AP = addr(P);
+  w.graph.failWrites = (kind, rows) => (rows.some((r) => r.address === AP)
+    ? H.neoError(CODE, `Property values can only be of primitive types (at ${H.NEO4J_URI})`) : null);
+  const mark = w.nextSeq();
+  await putNow(w, P);
+  const tries = () => w.graph.writes.filter((x) => x.seq > mark && x.addresses.includes(AP));
+  await within(proc, MIN, () => tries().length >= 2 && num(statusOf(proc), 'parked') === 1,
+    'fixture: the refused change is parked after two rounds that each failed its write with the same code (RE26)', 250);
+  const parkedAt = tries()[1].at;
+  const P2 = version(P, 'rx24-p:v2');
+  w.relay.loseNotice = (ev) => ev.id === P2.id;
+  put(w, P2); // only a catch-up learns it: an arrival at the parked address
+  const diffDone = () => {
+    const l = at(statusOf(proc), 'catchUp.last');
+    return isPlainObject(l) && l.outcome === 'done' && Date.parse(l.startedAt) > parkedAt;
+  };
+  await within(proc, 5 * MIN, diffDone, 'fixture: the 10-minute safety diff runs and completes while the address is parked', 250);
+  const diff = at(statusOf(proc), 'catchUp.last');
+  assert(Date.parse(diff.startedAt) < parkedAt + 5 * MIN - 5 * SEC,
+    `fixture: the safety diff began before the park's timer (${((Date.parse(diff.startedAt) - parkedAt) / SEC).toFixed(0)} s after the park)`);
+  const beforeTimer = tries().slice(2).filter((x) => x.at < parkedAt + 5 * MIN - 5 * SEC);
+  assert(beforeTimer.length === 0,
+    `review round 1, Blocking 1(f): the safety diff's catch-up must not lift a database-refusal park — ${beforeTimer.length} write attempt(s) at the parked address came before its 5-minute timer: ${preview(beforeTimer.map((x) => `${x.kind} +${((x.at - parkedAt) / SEC).toFixed(1)} s after the park${x.error ? ` (${x.error})` : ''}`))}`);
+  const row = parkedRowAt(w.store.record, AP);
+  assert(row && versionIs(row.entry, P2.id) && row.code === CODE,
+    `review round 1, Blocking 1(f); A1-12: the catch-up's arrival merges into the parked entry — record.json's parked row names the newer version ${short(P2.id)}… under ${CODE}; got ${show(row)}`);
+  await drive(proc, Math.max(0, parkedAt + 5 * MIN + 30 * SEC - w.clock.t), 500);
+  const retry = tries().slice(2)[0];
+  assert(retry && retry.at >= parkedAt + 5 * MIN - 5 * SEC && retry.at <= parkedAt + 5 * MIN + 15 * SEC,
+    `§ Failure handling: the parked address is retried at its timer, 5 minutes after the park; ${retry ? `its next write came ${((retry.at - parkedAt) / SEC).toFixed(1)} s after the park` : 'no write was attempted there within 5.5 minutes'}`);
+  eq(num(statusOf(proc), 'counts.dbRefused.total'), 1, 'counts.dbRefused.total (the refused change, counted once)');
+});
+
+test('RX25: an unexpected error in a catch-up step ends that catch-up and never wedges catch-ups — the 10-minute safety diff\'s key read answers a row the engine cannot read (its address throws when read: an unexpected error, not a failed read); that catch-up ends as failed (the status\'s catchUp.last outcome \'failed\', and a lastError with its stage), backs off (its next key read comes 5 to 60 s later, not at once), and a later catch-up runs and completes, after which the status says live, not catching-up (review round 1, Blocking 2: "end the catch-up on an unexpected step error, with failCatchUp(c, \'unexpected\', err) and its 5→60 s backoff"; ADR § Knowing what changed, the safety diff; § Status catchUp; AC-4; AC-6)', async () => {
+  const w = newWorld();
+  let armed = false;
+  let sprung = null;
+  const port0 = w.graph.port;
+  w.graph.port = (p) => {
+    const port = port0(p);
+    const readKeys = port.readKeys;
+    port.readKeys = async (opts) => {
+      const rows = await readKeys(opts);
+      if (!armed || p.killed || !Array.isArray(rows)) return rows;
+      armed = false;
+      sprung = { at: w.clock.t, seq: w.nextSeq() };
+      const unreadable = Object.defineProperty({ eventId: idOf('rx25:unreadable') }, 'address', {
+        enumerable: true,
+        get() { throw new TypeError('fixture: a key-read row whose address cannot be read'); },
+      });
+      return rows.concat([unreadable]);
+    };
+    return port;
+  };
+  const proc = await boot(w);
+  const cuAt = await firstCatchUpStart(proc);
+  armed = true; // the next key read is the safety diff's
+  await within(proc, 11 * MIN, () => sprung !== null, 'fixture: the safety diff reads the graph\'s keys', 1000);
+  assert(sprung.at >= cuAt + 10 * MIN - SEC, `fixture: the unreadable row went to the safety diff's key read (${((sprung.at - cuAt) / SEC).toFixed(0)} s after the first start's catch-up)`);
+  await within(proc, 5 * SEC, () => {
+    const l = at(statusOf(proc), 'catchUp.last');
+    return isPlainObject(l) && l.outcome === 'failed' && Date.parse(l.endedAt) >= sprung.at;
+  }, 'review round 1, Blocking 2: the catch-up that met an unexpected error in a step ends as failed (the status\'s catchUp.last outcome \'failed\') — one left running for good lets no catch-up run again, the safety diff included, until a restart, while the status says catching-up', 100);
+  const err = at(statusOf(proc), 'lastError');
+  assert(isPlainObject(err) && typeof err.stage === 'string' && err.stage.length > 0 && Date.parse(err.at) >= sprung.at,
+    `Blocking 2: the failure is the status's lastError, with its stage; got ${show(err)}`);
+  await within(proc, 90 * SEC, () => w.graph.calls.some((x) => x.proc === proc.n && x.op === 'readKeys' && x.seq > sprung.seq),
+    'Blocking 2: after backing off, the catch-up is tried again (its next key read)', 250);
+  const next = w.graph.calls.find((x) => x.proc === proc.n && x.op === 'readKeys' && x.seq > sprung.seq);
+  assert(next.at - sprung.at >= 5 * SEC && next.at - sprung.at <= MIN + SEC,
+    `Blocking 2: the failed catch-up backs off 5→60 s before it is tried again; its next key read came ${((next.at - sprung.at) / SEC).toFixed(1)} s after the failure`);
+  await within(proc, 2 * MIN, () => {
+    const l = at(statusOf(proc), 'catchUp.last');
+    return isPlainObject(l) && l.outcome === 'done' && Date.parse(l.startedAt) > sprung.at;
+  }, 'Blocking 2: a later catch-up runs and completes', 250);
+  await drive(proc, 3 * SEC, 250); // the status catches up
+  eq(at(statusOf(proc), 'state'), 'live', `Blocking 2: once a later catch-up has completed, the status says live — never catching-up for good\n        ${diag(proc)}`);
 });
 
 // ─── run ───────────────────────────────────────────────────────────────────────────────────────────────────────

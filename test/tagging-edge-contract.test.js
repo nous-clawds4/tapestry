@@ -1016,12 +1016,15 @@ t('S2C15: BIBLE §16 (What\'s Been Built) has an entry for the gap-filling pass,
     `the §16 entry should name the gap-filling pass and its task reconcileTaggingEdges; it reads: ${entry.trim().slice(0, 300)}`);
 });
 
-t('S2C16: BIBLE\'s Last updated line leads with story 2 — its newest entry (before the first "; prior:") names tagging-edges #2', () => {
+// Re-aimed at tagging-edges #3's review, round 1 (ledger row 2026-09-29-newest-entry-doc-tests-go-stale): the test
+// asks that some entry records story 2, not that the newest one does, so a later story's entry never has to name it.
+t('S2C16: BIBLE\'s Last updated line records story 2 — one of its entries (the texts between its "; prior:" separators), whichever it is, ends in the house form "— tagging-edges #2 / ADR 0002"', () => {
   const line = fs.readFileSync(BIBLE, 'utf-8').split('\n').find((l) => l.startsWith('**Last updated:**'));
   assert(line, 'BIBLE.md has a **Last updated:** line');
-  const head = line.split('; prior:')[0];
-  assert(/tagging-edges #2\b/.test(head),
-    `the newest Last updated entry should record story 2 in the house form "… — tagging-edges #2 / ADR 0002" (ADR 0002: "A new Last updated: line"); it reads: ${head.slice(0, 300)}`);
+  const entries = line.split('; prior:');
+  const entry = entries.find((e) => /—\s*tagging-edges #2 \/ ADR 0002\s*\)?\s*$/.test(e));
+  assert(entry,
+    `some Last updated entry should record story 2 in the house form "… — tagging-edges #2 / ADR 0002" (ADR 0002: "A new Last updated: line"); the line's ${entries.length} entries end: ${entries.map((e) => `…${e.trim().slice(-40)}`).slice(0, 5).join(' | ')}`);
 });
 
 t('AC-5: the glossary tells TAGS apart from HAS_TAG and NostrEventTag', () => {

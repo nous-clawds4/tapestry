@@ -30,6 +30,9 @@
  *       flock, so it is not run here). (AC-7; ADR D11-C, Implementation notes → the wrapper)
  *   Review round 2 (2026-09-28): SWR58 drives the runner's run(deps) over the real port on the fake driver, with
  *   in-memory state and scan ports; the runner (reconcileTaggingEdges.js) is required lazily through RUNNER_PATH.
+ *   Story 3's review, round 1 (2026-09-29), conform item 1(e): SWR72 reads each SHOW transaction's config on the fake
+ *   driver — readSchema keeps no default transaction time-out for the pass (as story 2 shipped it), and a caller's
+ *   timeoutMs bounds it (the real-time path's own; test/tagging-edges-realtime-engine.test.js RE81).
  *
  * Stack-free and hermetic: no Neo4j, no strfry, no network, no write to the local graph or relay. Temp directories come
  * from fs.mkdtempSync(os.tmpdir()) and are removed; env changes live only in child processes; the swapped driver
@@ -2360,6 +2363,89 @@ test('SWR71: the routes module takes allowErrorCode from src/lib/tagging-edges/r
     if (got !== SPY_CODE) problems.push(`the answer's lastError.code should be what the library's allowErrorCode returned (${SPY_CODE}); it is ${show(got)}`);
   }
   assert(problems.length === 0, problems.join('\n        '));
+});
+
+// ══ tagging-edges #3 review round 1 (2026-09-29): readSchema keeps no default transaction time-out for the pass ══════
+/** The fake's auto-commit transactions that ran a SHOW statement, in order. */
+const showTxs = (fake) => fake.st.txs.filter((t) => t.runs.some((r) => r.kind === 'show'));
+/** The transaction time-out a transaction was opened with (its config's `timeout`), or undefined. */
+const txTimeout = (t) => (t.config && typeof t.config === 'object' ? t.config.timeout : undefined);
+
+test('SWR72: readSchema keeps no default transaction time-out for the pass — readSchema() with no argument runs SHOW CONSTRAINTS and SHOW INDEXES with no time-out of its own, and so do ensureTagsConstraint\'s reads and a real pass\'s schema pre-flight and snapshot-conflict re-read through the real port; readSchema({ timeoutMs }) runs both with that time-out, which is how the real-time path bounds its own schema check (review round 1 of tagging-edges #3, Blocking 1(e): "conform. The path passes its own timeoutMs, and readSchema\'s default stays as it was"; ADR tagging-edges/0003: the pass\'s behaviour does not change; ADR 0002 runner steps 6 and 8; test/tagging-edges-realtime-engine.test.js RE81 pins the path\'s side)', async () => {
+  const problems = [];
+  const timedOf = (txs) => txs.filter((t) => txTimeout(t) !== undefined && txTimeout(t) !== null);
+  // (a) readSchema() with no argument.
+  {
+    const fake = makeFakeNeo4j({ schema: schemaWithTags() });
+    await onFakeGraph(fake, (g) => g.readSchema());
+    const txs = showTxs(fake);
+    eq(txs.length, 2, 'fixture: SHOW statements readSchema() ran (SHOW CONSTRAINTS, SHOW INDEXES)');
+    const timed = timedOf(txs);
+    if (timed.length) problems.push(`readSchema() ran ${timed.length} of its 2 SHOW statements with a transaction time-out (${show(timed.map(txTimeout))} ms)`);
+  }
+  // (b) ensureTagsConstraint's reads: the rule missing, so it reads, creates it, and reads again.
+  {
+    const fake = makeFakeNeo4j();
+    await onFakeGraph(fake, (g) => g.ensureTagsConstraint({ timeoutMs: 60000 }));
+    const txs = showTxs(fake);
+    assert(txs.length >= 4 && createRuns(fake).length === 1, `fixture: ensureTagsConstraint read the schema, created tags_address and read it again (${txs.length} SHOW statement(s), ${createRuns(fake).length} CREATE)`);
+    const timed = timedOf(txs);
+    if (timed.length) problems.push(`ensureTagsConstraint ran ${timed.length} of its ${txs.length} SHOW statements with a transaction time-out (${show(timed.map(txTimeout))} ms)`);
+  }
+  // (c) A real pass through the real port: its pre-flight finds tags_address missing (readSchema, then
+  // ensureTagsConstraint), and its graph read finds two relationships with one element id (a snapshot conflict), so it
+  // re-reads the schema (runner step 8).
+  {
+    let runner;
+    try { runner = require(RUNNER_PATH); } catch (e) { throw new Error(`reconcileTaggingEdges.js not loadable (require failed: ${firstLine(e.message)})`); }
+    const graph = loadGraph();
+    const X = F.makeTagging({ d: 'swr72-x', id: F.idOf('swr72:x') });
+    const Y = F.makeTagging({ d: 'swr72-y', id: F.idOf('swr72:y') });
+    const RID = '5:swr72:one-element-id';
+    const fake = makeFakeNeo4j({ rows: [F.storedRowFor(X, { rid: RID }), F.storedRowFor(Y, { rid: RID })], people: [F.ALICE, F.BOB] });
+    const deps = {
+      now: (() => { let t = Date.UTC(2026, 8, 29, 1, 2, 3); return () => t++; })(),
+      randomId: () => '0a0b0c72',
+      lock: { busy: false, held: () => true },
+      state: {
+        readReport: () => null,
+        writeReport: () => {},
+        appendPreimages: (runId) => `preimages/${runId}.jsonl`,
+        claimConfirmation: () => null,
+        prune: () => {},
+        processStartTime: () => '1',
+        heldDigest: () => 'f'.repeat(64),
+        writeHeld: () => {},
+        readHeld: () => null,
+      },
+      identities: { canonicalZ: () => F.STAMP(F.CANONICAL), getOwnerAssistantPubkey: () => F.LOCAL },
+      env: { NEO4J_URI: CREDS.uri, NEO4J_USER: CREDS.user, NEO4J_PASSWORD: CREDS.password, BRAINSTORM_RELAY_PUBKEY: F.LOCAL },
+      openGraph: (cfg) => graph.openGraph(cfg),
+      scan: async () => ({ events: [X, Y], lines: 2, bytes: 2, elapsedMs: 1 }),
+      emit: () => {},
+      proc: { pid: 1, exitCode: undefined, startTime: '1' },
+      signals: null,
+    };
+    await withFakeDriver(fake, () => runner.run(deps));
+    const readAll = fake.st.txs.find((t) => t.runs.some((r) => r.kind === 'read-all'));
+    const txs = showTxs(fake);
+    const before = txs.filter((t) => readAll && t.id < readAll.id);
+    const after = txs.filter((t) => readAll && t.id > readAll.id);
+    assert(readAll && before.length >= 4 && createRuns(fake).length === 1 && after.length >= 2,
+      `fixture: the pass ran its pre-flight (readSchema, then ensureTagsConstraint's create and reads), its graph read, and the conflict's schema re-read (${before.length} SHOW statement(s) before its graph read, ${after.length} after; ${createRuns(fake).length} CREATE)`);
+    const timed = timedOf(txs);
+    if (timed.length) {
+      problems.push(`a pass ran ${timed.length} of its ${txs.length} schema reads with a transaction time-out (${show(timed.map(txTimeout))} ms): ${timedOf(before).length} in its pre-flight, ${timedOf(after).length} in its conflict re-read`);
+    }
+  }
+  // (d) readSchema({ timeoutMs }) — the real-time path's call — runs both statements with that time-out.
+  {
+    const fake = makeFakeNeo4j({ schema: schemaWithTags() });
+    await onFakeGraph(fake, (g) => g.readSchema({ timeoutMs: 7000 }));
+    const got = showTxs(fake).map(txTimeout);
+    if (show(got) !== show([7000, 7000])) problems.push(`readSchema({ timeoutMs: 7000 }) should run both SHOW statements with a 7000 ms transaction time-out; they ran with ${show(got)}`);
+  }
+  assert(problems.length === 0, `review round 1, Blocking 1(e): the pass's schema reads keep no transaction time-out (story 2's behaviour), and a caller's timeoutMs bounds them:\n        ${problems.join('\n        ')}`);
 });
 
 async function run() {

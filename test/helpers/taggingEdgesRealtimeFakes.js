@@ -62,6 +62,10 @@
  *   - Driving: a process killed while start() or tick() is in flight (a torn append kills from inside a tick) ends
  *     that call and drive() ({ killed: true }), instead of the dead process's deps holding the tick until the real-time
  *     guard; a killed process is never ticked again.
+ *
+ * Added for story 3's review, round 1 (2026-09-29): the graph port's readSchema(opts) logs the `timeoutMs` it was
+ * given (undefined when none) in its `calls` entry, as readAt, readKeys and readAll already do, so a test can see that
+ * the path passes its own schema-read time-out (review Blocking 1(e)).
  */
 
 const crypto = require('crypto');
@@ -824,9 +828,9 @@ function makeGraph(w) {
   g.port = (proc) => {
     const dead = () => proc.killed;
     const methods = {
-      async readSchema() {
+      async readSchema(opts) {
         if (dead()) return hang();
-        const c = note('readSchema', proc);
+        const c = note('readSchema', proc, { timeoutMs: opts && opts.timeoutMs });
         await null;
         const d = readWait('readSchema', proc, c);
         if (d) await d;
