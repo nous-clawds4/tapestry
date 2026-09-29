@@ -2,7 +2,7 @@
 
 **Id:** 2026-09-29-empty-admin-list-phantom-admin
 **Type:** bug
-**Opened:** 2026-09-29 (Dictionary › Concepts rows fix, while checking what Active b-tags' "Showing" selector offers)
+**Opened:** 2026-09-29 (Dictionary › Concepts rows fix, PR #782, while checking what Active b-tags' "Showing" selector offers)
 **Status:** OPEN
 **Done:** —
 

@@ -2,7 +2,7 @@
 
 **Id:** 2026-09-29-mac-studio-has-no-trust-scores
 **Type:** meta
-**Opened:** 2026-09-29 (Dictionary › Concepts rows fix; the owner asked why the local Dictionary was empty)
+**Opened:** 2026-09-29 (Dictionary › Concepts rows fix, PR #782; the owner asked why the local Dictionary was empty)
 **Status:** OPEN
 **Done:** —
 
