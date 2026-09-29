@@ -200,6 +200,7 @@ const suites = [
   { file: 'inverse-queue-publish-candidates.test.js' },
   { file: 'publish-time-default-stamping.test.js' },
   { file: 'trusted-dictionary.test.js' },
+  { file: 'dictionary-concepts.test.js' },
   { file: 'adoption-twins.test.js' },
   { file: 'adoption-raw-event-view.test.js' },
   { file: 'state-on-concept-page.test.js' },

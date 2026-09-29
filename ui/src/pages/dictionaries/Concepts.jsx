@@ -5,22 +5,25 @@ import DispositionPanel from '../../components/DispositionPanel';
 import useProfiles from '../../hooks/useProfiles';
 import useCommunitySharedConcepts from '../../hooks/useCommunitySharedConcepts';
 import { usePov } from '../../context/PovContext';
-import { useConfig } from '../../context/ConfigContext';
 import DictIcon from './DictIcon';
 import {
   NEW_CONCEPT_PATH, authorLabel, displayName, entryPath, itemCountText, metricLabel, metricShort,
-  overrideBadge, povLine, useSharedByMe, useTrustedDictionary,
+  overrideBadge, povLine, useConceptDictionary, useDictionaryPerson,
 } from './conceptsDictionary';
 
 /**
  * Dictionary › Concepts, version 1 (handoff SPEC § 2; design: the Brainstorm
  * mock's Dictionary page). It replaces the navigation-scaffolding placeholder.
  *
- * The rows are the trusted dictionary (ADR shared-concepts-adoption/0005):
- * concept headers that at least N trusted people file items under, computed
- * by the server from the active point of view. The server sends each row's
- * `gum` and names the metric (`metric`, "gum1" in v1); this page sorts and
- * filters those values and never re-derives them (SPEC § 4).
+ * The rows are the person's own dictionary (the owner's correction of
+ * 2026-09-29): their concept headers that carry a real b-tag, wired to a
+ * shared concept or self-declared as one — exactly what Active b-tags lists
+ * under "Mine". The design's FAQ says so: "Every row on this page is a DList
+ * header authored by your local Assistant, carrying a b-tag…". The server
+ * scores each row with GUM₁ of the shared concept it points to and names the
+ * metric (`metric`, "gum1"); this page sorts and filters those values and
+ * never re-derives them (SPEC § 4). The trusted dictionary is not this list:
+ * in the design it is the rule an Assistant will use to clone concepts into it.
  *
  * Stubbed until Pins land (SPEC § 3): the owner's Add / Veto. The server
  * returns override: null, so no Added / Vetoed badge shows yet; the badge
@@ -29,11 +32,12 @@ import {
  * (a twin + DispositionPanel) instead of publishing a pin.
  */
 
-// Show groups (SPEC § 2.2). The subject groups — Nostr, Bitcoin, … — are version 2 (SPEC § 3).
+// Show groups (SPEC § 2.2). The subject groups — Nostr, Bitcoin, … — are version 2 (SPEC § 3). So is
+// Private: in the design it marks encrypted, local-only concepts, and a kept-private header (the
+// b-tag-deferred sentinel) carries no real b-tag, so it is never a row here.
 const SHOW_GROUPS = [
-  { key: 'firmware', label: 'Firmware', test: (e) => e.isFirmware },
-  { key: 'mine', label: 'Shared by me', test: (e, shared) => shared.has(e.coord) },
-  { key: 'private', label: 'Private', test: (e) => e.sentinelDeferred },
+  { key: 'firmware', label: () => 'Firmware', test: (e) => e.isFirmware },
+  { key: 'mine', label: (signedIn) => (signedIn ? 'Shared by me' : 'Shared by the owner'), test: (e) => e.selfDeclared },
 ];
 
 const byName = (a, b) => displayName(a).localeCompare(displayName(b), undefined, { sensitivity: 'base' })
@@ -52,50 +56,63 @@ const SORTS = {
 };
 const isGumSort = (sort) => sort === 'gumAsc' || sort === 'gumDesc';
 
-const EMPTY = new Set();
+// The design's minimum author rank for concept search (SPEC § 4), quoted in the FAQ's
+// "coming later" text. Nothing filters on it yet.
+const MIN_AUTHOR_RANK = 20;
 
 /**
- * The FAQ — the mock's copy, corrected so that every claim is true of version
- * 1 (owner decision, 2026-09-27). The technical "decide" answer is rewritten to
- * describe GUM₁, the rule the server runs; the Selection Bar answer is marked
- * as version 2.
+ * The FAQ — the design's copy (owner, 2026-09-29: "back to your wording").
+ * Sentences the design states as working today, but which are not built yet,
+ * are either marked "Coming in a later version" (kept verbatim) or put in the
+ * future tense. The technical "decide" answer starts with what version 1
+ * does, as SPEC § 2.3 asks. Each answer is a list of paragraphs.
  */
-function faqItems({ threshold, cutoff }) {
-  const min = threshold ?? 2;
+function faqItems({ cutoff }) {
   const cut = cutoff ?? 0.01;
   return [
     {
       q: 'What is a Concept?',
-      a: 'Concepts are the ideas your trusted community generally agrees on: restaurants, podcasters, relays, tags. Your Assistant keeps these Dictionary entries up to date automatically, in real time, based on input from your trusted community. Adding entries by hand, or vetoing ones your community endorses, comes in a later version. Your choice will then always win.',
+      a: ['Concepts are the ideas your trusted community generally agrees on: restaurants, podcasters, relays, tags. In a later version, your Assistant will keep these Dictionary entries up to date automatically, in real time, based on input from your trusted community. You can also add entries by hand now, and later veto ones your community endorses. Your choice always wins.'],
     },
     {
       q: 'What is a Concept? (technical)',
-      a: 'Every row on this page is a DList header (kind 39998) stored on this instance, authored by your Assistant or by someone else, that members of your trusted community file items under with a z-tag. In this version, community acceptance is inferred from those z-tag filings (GUM₁, below); b-tags and Pins are not read yet. When they are, your own Pins (+ to add, − to veto) will override the community’s. Adding and vetoing will use the Pin “Add to My Dictionary”. It is separate from “Spawns a Concept”, which asks your Assistant to curate a concept actively: to keep its own copies of the concept’s sets and elements too, not just its header.',
+      a: ['Every row on this page is a DList header authored by your local Assistant, carrying a b-tag that recognizes at least one other DList header as a shared concept. In a later version, community acceptance will be inferred from b-tags and publicly available Pins; for now, each row shows GUM₁ (below) for the shared concept it points to. Your own Pins (+ to add, − to veto) will override the community\'s. Adding and vetoing will use the Pin “Add to My Dictionary”. It is separate from “Spawns a Concept”, which asks your Assistant to curate a concept actively: to keep its own copies of the concept’s sets and elements too, not just its header.'],
     },
     {
       q: 'How does my Assistant decide what belongs in this Dictionary?',
-      a: `Your Assistant watches the people you trust. When enough of them — at least ${min} — have filed items under the same concept, your Assistant adds it to yours too. Adding a concept yourself, or vetoing one your community has added, comes in a later version.`,
+      a: [
+        'In this version your Assistant doesn’t decide on its own yet: the concepts here are the ones you have added or shared, and the ones this instance’s firmware came with.',
+        'Coming in a later version: Your Assistant watches the people you trust. When enough of them — weighted by how much you trust each one — have put the same concept in their own dictionaries, your Assistant adds it to yours too. You can always add a concept yourself, or veto one your community has added.',
+      ],
     },
     {
       q: 'How does my Assistant decide what belongs in this Dictionary? (technical)',
-      a: `Your Assistant reads every concept header stored on this instance (kind-39998 DList headers, its own and other people’s) and the events that point at each one with a z-tag: the items filed under it. For each header it computes the General Usage Metric GUM₁: the number of distinct authors of those items whose influence is above the verified cutoff (${cut}) from your point of view. The header’s own author and your Assistant never count, because self-filing is not community evidence. A concept is in this Dictionary when its GUM₁ is at least ${min}. Nothing is stored: the list is computed on every read, from your point of view when this instance holds your scores and from the house point of view otherwise, so a new filing shows up on your next visit. The cutoff and the minimum are settings of this instance for now. Two more metrics are planned: GUM₂, the sum of the rank scores of trusted users whose Assistants’ headers point at the shared concept with a b-tag, and GUM₃, the rank-weighted sum of “Add to My Dictionary” pinnings (an apply adds, a dispute subtracts). You will choose the metric and its cutoff on the Automated Assistant Tasks page.`,
+      a: [
+        `In this version your Assistant does not add or remove entries on its own. A concept is in your Dictionary when a kind-39998 header signed by your Assistant (or by you) carries a b-tag that points at a shared concept, or at itself when you shared it. The reserved b-tag-deferred and malformed b values don’t count. Each entry shows GUM₁ for the shared concept it points to: the number of distinct trusted authors — influence above the verified cutoff (${cut}), from your point of view — who file items under the concept with a z-tag; the concept's own author and your Assistant never count. Nothing is stored: the list and its scores are read afresh on every visit.`,
+        'Coming in a later version: Your Assistant monitors members of your community who have published the identities of their Brainstorm Assistants (using the Tag system), and looks for kind-39998 events those Assistants have published that carry a b-tag pointing at a shared concept header. It then computes a General Usage Metric for each shared concept, in one of three ways. GUM₁ (the default): the number of distinct trusted authors — influence above the verified cutoff, from your point of view — who file items under the concept with a z-tag; the concept\'s own author and your Assistant never count. GUM₂: for each user whose Assistant has wired to that shared concept header with a b-tag, add up their rank score, pulled from Trusted Assertions. GUM₃: for each pinning on “Add to My Dictionary”, add up the pinner\'s rank score — an apply adds it, a dispute subtracts it. If the selected metric is above the cutoff (default 2 for GUM₁, 1.50 for GUM₂ and GUM₃), your Assistant clones the shared concept: it publishes its own header with a b-tag pointing at the shared one. The choice of metric and the cutoff can be changed on the Automated Assistant Tasks page. Your own pins always override the result.',
+      ],
     },
     {
       q: 'How do I find new concepts?',
-      a: 'Use “Don’t see what you’re looking for?” above the list. It searches the DList headers on the community relay whose authors have Shared them: a header whose b-tag points to itself has been actively Shared by its author, and is marked Shared. In this version the results are not filtered by the author’s rank and show no usage scores yet. “Add to Dictionary” opens the adoption flow: choose one of your own concepts as the local twin, and your Assistant wires it to the shared concept with a b-tag. If nothing fits, Create New Concept.',
+      a: [
+        'Use “Don’t see what you’re looking for?” above the list. In this version it searches the DList headers on the community relay whose authors have Shared them: a result whose b-tag points to itself has been actively Shared by its author, and is marked Shared. “Add to Dictionary” opens the adoption flow: choose one of your own concepts as its local twin, and your Assistant wires it to the shared concept with a b-tag, which puts it on this list. For now only the owner of this instance can add from here. If nothing fits, Create New Concept.',
+        `Coming in a later version: You can search the DList headers published by trusted members of your community: those whose authors have a rank above ${MIN_AUTHOR_RANK} (adjustable on the Automated Assistant Tasks page). If a result is the target of b-tags from trusted members, you’ll see its GUM₂ and GUM₃ scores, calculated as described above (GUM₁ appears once the concept has items filed under it).`,
+      ],
     },
     {
       q: 'How does the Selection Bar work? (technical)',
-      a: 'Coming in version 2. Each option in the Selection Bar names a concept X that has a superset: the set of all X. An entry is shown under X when its concept header is an element of the superset for the concept of X — that is, when the header carries a class-thread n tag (HAS_ELEMENT) pointing at that superset, signed by a curator your Assistant trusts for that concept. Firmware is the superset of firmware concepts. Concepts My Assistant Curates Actively is derived instead: it lists the concepts pinned to “Spawns a Concept”, whose sets and elements your Assistant keeps its own copies of. An entry can appear under several options at once. Selecting several options shows the union: every entry that belongs to any of them. In this version, Show (under Search and sort) offers Firmware (the concepts in this instance’s firmware manifest), Shared by me and Private, and also shows the union of what you select.',
+      a: [
+        'Coming in a later version: Each option in the Selection Bar names a concept X that has a superset: the set of all X. An entry is shown under X when its concept header is an element of the superset for the concept of X — that is, when the header carries a class-thread n tag (HAS_ELEMENT) pointing at that superset, signed by a curator your Assistant trusts for that concept. Firmware is the superset of firmware concepts. Concepts My Assistant Curates Actively is derived instead: it lists the concepts pinned to “Spawns a Concept”, whose sets and elements your Assistant keeps its own copies of. An entry can appear under several options at once. Selecting several options shows the union: every entry that belongs to any of them.',
+        'In this version, Show (under Search and sort) offers Firmware (entries that are, or point at, a concept in this instance’s firmware manifest) and Shared by me (concepts you shared: their b-tag points to themselves), and shows the union of what you select.',
+      ],
     },
   ];
 }
 
 export default function DictionaryConcepts() {
   const { povParams } = usePov();
-  const { taPubkey } = useConfig();
-  const { data, error } = useTrustedDictionary(povParams);
-  const shared = useSharedByMe();
+  const person = useDictionaryPerson();
+  const { data, error, reload } = useConceptDictionary(person, povParams);
 
   const [faqShown, setFaqShown] = useState(false);
   const [faqOpen, setFaqOpen] = useState(-1);
@@ -109,27 +126,12 @@ export default function DictionaryConcepts() {
   const entries = useMemo(() => data?.entries || [], [data]);
   const metric = data?.metric || 'gum1';
   const pov = data?.pov || {};
-  const sharedCoords = shared.coords || EMPTY;
-
-  // Several authors can publish a header with the same name (on staging, four
-  // "nostr user tag" headers qualify). Those rows name their author.
-  const sameName = useMemo(() => {
-    const counts = new Map();
-    for (const e of entries) {
-      const k = displayName(e).toLowerCase();
-      counts.set(k, (counts.get(k) || 0) + 1);
-    }
-    return (e) => counts.get(displayName(e).toLowerCase()) > 1;
-  }, [entries]);
-  const bylineAuthors = useMemo(
-    () => [...new Set(entries.filter(sameName).map((e) => e.author).filter(Boolean))],
-    [entries, sameName],
-  );
-  const profiles = useProfiles(bylineAuthors);
+  const signedIn = person.signedIn;
+  const whose = signedIn ? 'your' : 'the owner’s';
 
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const shown = entries
-    .filter((e) => !groups.length || SHOW_GROUPS.some((g) => groups.includes(g.key) && g.test(e, sharedCoords)))
+    .filter((e) => !groups.length || SHOW_GROUPS.some((g) => groups.includes(g.key) && g.test(e)))
     .filter((e) => !words.length || words.every((w) => `${displayName(e)} ${e.plural || ''} ${e.description || ''}`.toLowerCase().includes(w)))
     .sort(SORTS[sort].cmp);
 
@@ -137,8 +139,8 @@ export default function DictionaryConcepts() {
   const total = entries.length;
   const countText = narrowed
     ? `${shown.length} of ${total} concept${total === 1 ? '' : 's'}`
-    : `${total} concept${total === 1 ? '' : 's'} in your Dictionary`;
-  const groupNames = SHOW_GROUPS.filter((g) => groups.includes(g.key)).map((g) => g.label);
+    : `${total} concept${total === 1 ? '' : 's'} in ${whose} Dictionary`;
+  const groupNames = SHOW_GROUPS.filter((g) => groups.includes(g.key)).map((g) => g.label(signedIn));
   const filterNote = toolsOpen ? '' : [
     groupNames.join(' or '),
     query.trim() ? `“${query.trim()}”` : '',
@@ -147,22 +149,30 @@ export default function DictionaryConcepts() {
   const toolsActive = toolsOpen || narrowed || sort !== 'az';
 
   const toggleGroup = (key) => setGroups((gs) => (gs.includes(key) ? gs.filter((k) => k !== key) : [...gs, key]));
-  const groupCount = (g) => {
-    if (g.key === 'mine' && (shared.failed || shared.coords === null)) return null;
-    return entries.filter((e) => g.test(e, sharedCoords)).length;
-  };
 
-  const faqs = faqItems({ threshold: pov.threshold, cutoff: pov.cutoff });
-  const inDictionary = useMemo(() => new Set(entries.map((e) => e.coord)), [entries]);
+  const faqs = faqItems({ cutoff: pov.cutoff });
+  // What the finder leaves out: the entries themselves and every shared concept they point to.
+  const inDictionary = useMemo(
+    () => new Set(entries.flatMap((e) => [e.coord, ...(e.targets || [])])),
+    [entries],
+  );
 
   return (
     <div className="page dict-page">
       <Breadcrumbs />
       <h1>📖 Concepts</h1>
       <p className="dict-lede">
-        The concepts your trusted community generally accepts. Your Assistant keeps these entries up to date
-        automatically.
+        The concepts your trusted community generally accepts. You can add entries yourself; in a later version
+        your Assistant will keep them up to date automatically, and you’ll be able to veto any entry.
       </p>
+      {!person.loading && !signedIn && (
+        <p className="dict-pov text-muted">You’re signed out, so this is the owner’s Dictionary. Sign in to see your own.</p>
+      )}
+      {signedIn && !person.assistant && (
+        <p className="dict-pov text-muted">
+          You have no assistant key on this instance, so your Dictionary shows only concepts you signed yourself.
+        </p>
+      )}
       {data && <p className="dict-pov text-muted">{povLine(pov)}</p>}
 
       {/* FAQ — closed by default (SPEC § 2.3). */}
@@ -184,7 +194,7 @@ export default function DictionaryConcepts() {
                   <span>{f.q}</span>
                   <span className={`dict-chev${faqOpen === i ? ' is-open' : ''}`}><DictIcon name="chevron" size={16} /></span>
                 </button>
-                {faqOpen === i && <p className="dict-faq-a">{f.a}</p>}
+                {faqOpen === i && f.a.map((para) => <p key={para.slice(0, 40)} className="dict-faq-a">{para}</p>)}
               </div>
             ))}
           </div>
@@ -224,22 +234,13 @@ export default function DictionaryConcepts() {
                   <span className="dict-menu-name">All entries</span>
                   <span className="dict-menu-count">{total}</span>
                 </label>
-                {SHOW_GROUPS.map((g) => {
-                  const n = groupCount(g);
-                  return (
-                    <label key={g.key} className="dict-menu-option">
-                      <input type="checkbox" checked={groups.includes(g.key)} onChange={() => toggleGroup(g.key)} />
-                      <span className="dict-menu-name">{g.label}</span>
-                      <span
-                        className="dict-menu-count"
-                        title={n !== null ? undefined
-                          : shared.failed ? 'Could not read what you have shared.' : 'Reading what you have shared…'}
-                      >
-                        {n === null ? (shared.failed ? '?' : '…') : n}
-                      </span>
-                    </label>
-                  );
-                })}
+                {SHOW_GROUPS.map((g) => (
+                  <label key={g.key} className="dict-menu-option">
+                    <input type="checkbox" checked={groups.includes(g.key)} onChange={() => toggleGroup(g.key)} />
+                    <span className="dict-menu-name">{g.label(signedIn)}</span>
+                    <span className="dict-menu-count">{entries.filter((e) => g.test(e)).length}</span>
+                  </label>
+                ))}
                 <div className="dict-menu-foot">
                   <span>Shows entries in any selected group.</span>
                   <button type="button" className="dict-pill-btn" onClick={() => setShowOpen(false)}>Done</button>
@@ -263,8 +264,7 @@ export default function DictionaryConcepts() {
           {isGumSort(sort) && (
             <p className="dict-gum-note">
               <strong>{metricLabel(metric)}:</strong> how many distinct people you trust (influence above the
-              verified cutoff, from your point of view) have filed items under this concept. At {pov.threshold ?? 2} or
-              more, the concept is in your Dictionary.
+              verified cutoff, from your point of view) file items under the shared concept each entry points to.
             </p>
           )}
         </div>
@@ -283,40 +283,39 @@ export default function DictionaryConcepts() {
           <DictIcon name="plus" /> Create New Concept
         </Link>
       </div>
-      {findOpen && <ConceptFinder inDictionary={inDictionary} taPubkey={taPubkey} />}
+      {findOpen && (
+        <ConceptFinder
+          inDictionary={inDictionary}
+          assistantPubkey={person.assistant}
+          assistantLabel={signedIn ? 'your Assistant' : 'the owner’s Assistant'}
+          canAdd={signedIn && person.isOwner}
+          onAdded={reload}
+        />
+      )}
 
-      {error && <div className="error">Could not assemble your Dictionary: {error}</div>}
+      {error && <div className="error">Could not assemble {whose} Dictionary: {error}</div>}
 
       {data && (
-        <ul className="dict-card dict-list" aria-label="Concepts in your Dictionary">
+        <ul className="dict-card dict-list" aria-label={`Concepts in ${whose} Dictionary`}>
           {shown.map((e) => {
-            const isShared = sharedCoords.has(e.coord);
             const badge = overrideBadge(e);
             return (
               <li key={e.coord}>
                 <Link
                   to={entryPath(e.coord)} state={{ entry: e, metric, pov }}
-                  className={`dict-row${isShared ? ' dict-row--shared' : ''}${e.override === 'vetoed' ? ' dict-row--vetoed' : ''}`}
+                  className={`dict-row${e.selfDeclared ? ' dict-row--shared' : ''}${e.override === 'vetoed' ? ' dict-row--vetoed' : ''}`}
                 >
                   <span className="dict-row-main">
                     <span className="dict-row-title">
                       <span className="dict-row-name">{displayName(e)}</span>
                       {e.isFirmware && <span className="dict-pill dict-pill--firmware">Firmware</span>}
-                      {isShared && (
-                        <span className="dict-marker dict-marker--shared" title="You authored this concept and shared it (its b-tag points to itself)">
-                          <DictIcon name="share" size={12} /> Shared by you
-                        </span>
-                      )}
-                      {e.sentinelDeferred && (
-                        <span className="dict-marker dict-marker--private" title="Kept private: marked as deliberately not shared with the community">
-                          <DictIcon name="lock" size={12} /> Private
+                      {e.selfDeclared && (
+                        <span className="dict-marker dict-marker--shared" title="Shared with the community: its b-tag points to itself">
+                          <DictIcon name="share" size={12} /> {signedIn ? 'Shared by you' : 'Shared by the owner'}
                         </span>
                       )}
                     </span>
                     {e.description && <span className="dict-row-desc">{e.description}</span>}
-                    {sameName(e) && (
-                      <span className="dict-row-by">by {authorLabel(e.author, { taPubkey, profiles })}</span>
-                    )}
                   </span>
                   <span className="dict-row-stats">
                     {isGumSort(sort) && <span className="dict-row-gum" title={metricLabel(metric)}>{e.gum}</span>}
@@ -330,7 +329,7 @@ export default function DictionaryConcepts() {
           {shown.length === 0 && (
             <li className="dict-empty">
               {total === 0
-                ? 'Nothing here yet: no concept has enough trusted people filing items under it.'
+                ? `Nothing here yet: none of ${whose} concepts carries a b-tag.`
                 : 'No concept matches.'}
             </li>
           )}
@@ -346,7 +345,7 @@ export default function DictionaryConcepts() {
  * whose b-tag points to themselves). Mounted only while open, so the relay is
  * asked only when someone looks.
  */
-function ConceptFinder({ inDictionary, taPubkey }) {
+function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, onAdded }) {
   const { rows } = useCommunitySharedConcepts();
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(null); // the community row being added
@@ -373,6 +372,7 @@ function ConceptFinder({ inDictionary, taPubkey }) {
         />
       </label>
       {status && <div className="dict-find-status" role="status">{status}</div>}
+      {!canAdd && <p className="dict-add-foot text-muted">For now only the owner of this instance can add a concept from here.</p>}
       {visible.length > 0 && (
         <ul className="dict-find-list">
           {visible.map((r) => (
@@ -385,15 +385,19 @@ function ConceptFinder({ inDictionary, taPubkey }) {
                   </span>
                 </span>
                 {r.description && <span className="dict-row-desc">{r.description}</span>}
-                <span className="dict-row-by">by {authorLabel(r.author, { taPubkey, profiles })}</span>
+                <span className="dict-row-by">by {authorLabel(r.author, { assistantPubkey, assistantLabel, profiles })}</span>
               </div>
-              <button
-                type="button" className="dict-add-btn" aria-expanded={adding?.uuid === r.uuid}
-                onClick={() => setAdding(adding?.uuid === r.uuid ? null : r)}
-              >
-                Add to Dictionary
-              </button>
-              {adding?.uuid === r.uuid && <AddToDictionary concept={r} onClose={() => setAdding(null)} />}
+              {canAdd && (
+                <button
+                  type="button" className="dict-add-btn" aria-expanded={adding?.uuid === r.uuid}
+                  onClick={() => setAdding(adding?.uuid === r.uuid ? null : r)}
+                >
+                  Add to Dictionary
+                </button>
+              )}
+              {canAdd && adding?.uuid === r.uuid && (
+                <AddToDictionary concept={r} onAdded={onAdded} onClose={() => setAdding(null)} />
+              )}
             </li>
           ))}
         </ul>
@@ -405,9 +409,10 @@ function ConceptFinder({ inDictionary, taPubkey }) {
 /**
  * Version 1's "Add to Dictionary": the existing adoption flow, not a pin
  * (SPEC § 2.4). The owner picks one of their own concepts as the local twin;
- * DispositionPanel then wires it to the shared concept with a pointer b-tag.
+ * DispositionPanel then wires it to the shared concept with a pointer b-tag,
+ * which makes the twin a row of the list, so the list reloads.
  */
-function AddToDictionary({ concept, onClose }) {
+function AddToDictionary({ concept, onAdded, onClose }) {
   const [twins, setTwins] = useState(null);
   const [twin, setTwin] = useState('');
 
@@ -440,7 +445,9 @@ function AddToDictionary({ concept, onClose }) {
       </select>
       {twin && (
         <div className="dict-add-panel">
-          <DispositionPanel key={twin} handle={twin} name={twinName} initialTarget={concept.uuid} onClose={onClose} />
+          <DispositionPanel
+            key={twin} handle={twin} name={twinName} initialTarget={concept.uuid} onActed={onAdded} onClose={onClose}
+          />
         </div>
       )}
       <p className="dict-add-foot text-muted">

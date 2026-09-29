@@ -65,6 +65,29 @@ export function personPubkeys(assistants, accountPubkey) {
 }
 
 /**
+ * The roster a person is resolved against: the instance's roster, plus the signed-in reader when it
+ * does not list them (an admin the response withholds), so "Mine" still reaches their account and
+ * their assistant. Shared by Active b-tags and the Concepts dictionary, whose rows are the same
+ * person's.
+ */
+export function scopeRosterFor(assistants, viewer) {
+  const list = Array.isArray(assistants) ? assistants : [];
+  if (!viewer || list.some((a) => a && a.accountPubkey === viewer.accountPubkey)) return list;
+  return [...list, {
+    accountPubkey: viewer.accountPubkey,
+    assistantPubkey: viewer.assistantPubkey,
+    role: 'admin',
+    displayName: 'Me',
+  }];
+}
+
+/** Whose view a page opens on: the signed-in reader's own account, else the owner's (story 3 AC-1, AC-2). */
+export function defaultPersonFor(assistants, viewer) {
+  if (viewer) return viewer.accountPubkey;
+  return (Array.isArray(assistants) ? assistants : []).find((a) => a && a.role === 'owner')?.accountPubkey || null;
+}
+
+/**
  * Does this author pass the current selection?
  *
  * `{ person: null, authorType: 'anyone' }` are the no-op values and narrow nothing. The two axes

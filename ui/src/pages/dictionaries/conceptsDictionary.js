@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useAssistantRoster } from '../../context/AssistantRosterContext';
+import { defaultPersonFor, personPubkeys, scopeRosterFor } from '../../utils/authorScope';
 
 /**
- * Dictionary › Concepts, version 1 — what the list and its entry page share
- * (handoff SPEC § 2). The data source is GET /api/trusted-dictionary
- * (ADR shared-concepts-adoption/0005). The server assembles every number:
- * each entry's `gum` is the value of the metric the response names in
- * `metric` ("gum1" in v1). Nothing here re-derives that arithmetic (SPEC § 4).
+ * Dictionary › Concepts — what the list and its entry page share (handoff
+ * SPEC § 2, as corrected by the owner on 2026-09-29).
+ *
+ * The rows are one person's dictionary: their concept headers that carry a
+ * real b-tag — exactly what Active b-tags lists under "Mine". The person is
+ * resolved here as Active b-tags resolves it (utils/authorScope): the
+ * signed-in reader, their account and the assistant this instance issued
+ * them; signed out, the owner. The data source is GET /api/dictionaries/concepts.
+ * The server assembles every number: each entry's `gum` is the value of the
+ * metric the response names in `metric` ("gum1"), for the shared concept the
+ * entry points to. Nothing here re-derives that arithmetic (SPEC § 4).
  */
 
 export const CONCEPTS_DICTIONARY_PATH = '/tapestry/dictionaries/concepts';
@@ -52,37 +60,65 @@ export function povLine(pov) {
   return 'Scored from the house point of view.';
 }
 
-/** A readable author label: your Assistant, a profile name, or a short pubkey. */
-export function authorLabel(pubkey, { taPubkey, profiles } = {}) {
+/** A readable author label: the person's own Assistant, a profile name, or a short pubkey. */
+export function authorLabel(pubkey, { assistantPubkey, assistantLabel = 'your Assistant', profiles } = {}) {
   if (!pubkey) return '';
-  if (taPubkey && pubkey === taPubkey) return 'your Assistant';
+  if (assistantPubkey && pubkey === assistantPubkey) return assistantLabel;
   const p = profiles?.[pubkey];
   const name = p && typeof p === 'object' ? (p.display_name || p.name) : null;
   return name || `${pubkey.slice(0, 8)}…`;
 }
 
 /**
- * GET /api/trusted-dictionary for the active point of view (the usePov()
- * read params, as TrustedDictionary passes them). Returns
- * { data: { entries, metric, pov } | null, error }. Pass enabled:false to skip
- * the read (the entry page already holds the row it was opened from).
+ * Whose Dictionary this is. `authors` is what the server reads: the person's
+ * account and, when they have one, their assistant. `signedIn` false means
+ * the page is showing the owner's. `isOwner` is true when the signed-in
+ * reader owns this instance; only they can add from the finder in this
+ * version (the b-disposition writes are owner-only).
  */
-export function useTrustedDictionary(povParams, { enabled = true } = {}) {
+export function useDictionaryPerson() {
+  const { assistants, viewer, loading } = useAssistantRoster();
+  return useMemo(() => {
+    if (loading) return { loading: true, account: null, assistant: null, authors: [], signedIn: false, isOwner: false };
+    const account = defaultPersonFor(assistants, viewer);
+    const authors = account ? personPubkeys(scopeRosterFor(assistants, viewer), account) : [];
+    const ownerAccount = assistants.find((a) => a.role === 'owner')?.accountPubkey || null;
+    return {
+      loading: false,
+      account,
+      assistant: authors[1] || null,
+      authors,
+      signedIn: Boolean(viewer),
+      isOwner: Boolean(viewer && ownerAccount && viewer.accountPubkey === ownerAccount),
+    };
+  }, [assistants, viewer, loading]);
+}
+
+/**
+ * GET /api/dictionaries/concepts for the person, scored from the active point
+ * of view (the usePov() read params). Returns
+ * { data: { entries, metric, pov } | null, error, reload }. Pass enabled:false
+ * to skip the read (the entry page already holds the row it was opened from).
+ */
+export function useConceptDictionary(person, povParams, { enabled = true } = {}) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [version, setVersion] = useState(0);
+  const authors = person?.loading ? '' : (person?.authors || []).join(',');
+  const settled = Boolean(person) && !person.loading;
   const wotPov = povParams?.wotPov;
   const userPubkey = povParams?.userPubkey;
 
   useEffect(() => {
-    if (!enabled) return undefined;
-    const params = new URLSearchParams();
-    if (wotPov) params.set('wotPov', wotPov);
-    if (userPubkey) params.set('userPubkey', userPubkey);
-    const query = params.toString() ? `?${params}` : '';
+    if (!enabled || !settled) return undefined;
     let cancelled = false;
     (async () => {
       try {
-        const resp = await fetch(`/api/trusted-dictionary${query}`);
+        if (!authors) throw new Error('This instance did not say whose Dictionary to show.');
+        const params = new URLSearchParams({ authors });
+        if (wotPov) params.set('wotPov', wotPov);
+        if (userPubkey) params.set('userPubkey', userPubkey);
+        const resp = await fetch(`/api/dictionaries/concepts?${params}`);
         const json = await resp.json();
         if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
         if (!cancelled) {
@@ -94,32 +130,7 @@ export function useTrustedDictionary(povParams, { enabled = true } = {}) {
       }
     })();
     return () => { cancelled = true; };
-  }, [wotPov, userPubkey, enabled]);
+  }, [authors, settled, wotPov, userPubkey, enabled, version]);
 
-  return { data, error };
-}
-
-/**
- * The owner's shared concepts — GET /api/shared-by-me, the source of the
- * "Shared by you" marker and the Shared by me filter (SPEC § 1). coords is
- * null until it loads. A failed read sets `failed`: the filter must then say
- * "unknown" rather than 0, which would claim the owner has shared nothing.
- */
-export function useSharedByMe() {
-  const [state, setState] = useState({ coords: null, failed: false });
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const resp = await fetch('/api/shared-by-me');
-        const json = await resp.json().catch(() => null);
-        if (!resp.ok || !json?.success) throw new Error(json?.error || `HTTP ${resp.status}`);
-        if (!cancelled) setState({ coords: new Set((json.concepts || []).map((c) => c.coord)), failed: false });
-      } catch {
-        if (!cancelled) setState({ coords: new Set(), failed: true });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-  return state;
+  return { data, error, reload: () => setVersion((v) => v + 1) };
 }

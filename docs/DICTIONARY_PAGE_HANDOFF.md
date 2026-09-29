@@ -1,6 +1,6 @@
 # Handoff — Dictionary page (Tapestry)
 
-**Status:** 🔴 OPEN: version 2 (§ 3–4) is not started. Version 1 (§ 2) shipped in PR #763, and has been in production since 2026-09-27 (promotion #766).
+**Status:** 🔴 OPEN: version 2 (§ 3–4) is not started. Version 1 (§ 2) shipped in PR #763, and has been in production since 2026-09-27 (promotion #766). Its rows were corrected on 2026-09-29 by PR #782 (see the metadata below).
 
 > **Repo metadata. Not part of the handoff text.**
 > - **Source.** The Claude Design export `brainstorm_dictionary_design.zip` (`handoff-dictionary/SPEC.md`), 2026-09-27. Everything below the rule is verbatim.
@@ -12,6 +12,11 @@
 >   - the FAQ corrected to what v1 does.
 >
 >   The page is `ui/src/pages/dictionaries/Concepts.jsx` and `ConceptEntry.jsx`. The arithmetic stays in `src/lib/trustedDictionary.js`, where a GUM₂/GUM₃ TODO marks the § 4 work.
+> - **Corrected 2026-09-29 (PR #782): the rows.** The owner: the page lists the reader's own dictionary, exactly what Active b-tags shows under "Mine", as the design's FAQ says ("Every row on this page is a DList header authored by your local Assistant, carrying a b-tag that recognizes at least one other DList header as a shared concept."). Version 1 had shipped the trusted dictionary instead, following § 1's "Version 1 data source" line below. That line is superseded:
+>   - The rows come from `GET /api/dictionaries/concepts`, for the person the page resolves as Active b-tags does (the signed-in reader, else the owner).
+>   - The trusted dictionary's GUM₁ now only scores each row, for the shared concept the row points to. In the design, a metric and its cutoff are the rule an Assistant will use to clone shared concepts into the dictionary; that automation is not built.
+>   - The FAQ is back to the design's wording. Answers describing unbuilt behaviour are put in the future tense or marked "Coming in a later version". The 2026-09-27 decision "the FAQ corrected to what v1 does" rewrote the design's definition of a row, and is withdrawn.
+>   - The mock's Private marker (encrypted, local-only concepts) is left for version 2. A kept-private header carries no real b-tag, so it is never a row.
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---
