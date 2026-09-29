@@ -26,13 +26,11 @@
  *            owner-gated snapshot mint (concept name, derivation marker,
  *            sentinel drop); the UI surface (page + route + nav + POV params);
  *            the F1/F2 contract untouched (regression, passes pre AND post).
- *   S5..S6 — Dictionary › Concepts v1: the handler's firmware seam, header
- *            projection and `metric` in the response; the page and its entry
- *            route replace the placeholder, read the server's `gum` rather
- *            than re-deriving it, and leave the Dictionaries index prose alone.
- *            (The H class runs against the live container, which carries
- *            these fields only once this change is deployed there — so the
- *            new fields are pinned here, in U and S.)
+ *   S5     — Dictionary › Concepts v1: the handler's firmware seam, header
+ *            projection and `metric` in the response. (S6 pinned the Concepts
+ *            page to this API until the owner's correction of 2026-09-29: the
+ *            page now lists the person's own dictionary, so its pins moved to
+ *            test/dictionary-concepts.test.js, S2 and S5.)
  *   H1..H5 — live-stack integration (SKIP when the stack is down; OPEN.md
  *            #144 nextStamp discipline on every fixture header/carrier write;
  *            Neo4j fixture rows written via the localTrusted loopback
@@ -78,10 +76,6 @@ const ADOPTION_LIB_JS = path.join(ROOT, 'src/lib/adoptionQueue.js');
 const APP_JSX = path.join(ROOT, 'ui/src/App.jsx');
 const LAYOUT_JSX = path.join(ROOT, 'ui/src/components/Layout.jsx');
 const PAGE_JSX = path.join(ROOT, 'ui/src/pages/shared-concepts/TrustedDictionary.jsx');
-const DICT_CONCEPTS_JSX = path.join(ROOT, 'ui/src/pages/dictionaries/Concepts.jsx');
-const DICT_ENTRY_JSX = path.join(ROOT, 'ui/src/pages/dictionaries/ConceptEntry.jsx');
-const DICT_HELPERS_JS = path.join(ROOT, 'ui/src/pages/dictionaries/conceptsDictionary.js');
-const DICT_PLACEHOLDERS_JSX = path.join(ROOT, 'ui/src/pages/dictionaries/Placeholders.jsx');
 
 const HOST_BASE = `http://localhost:${process.env.TAPESTRY_PORT || '7778'}`;
 const CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
@@ -369,40 +363,6 @@ test('S5: the handler classifies firmware at the seam, projects the description,
     'the dictionary header projection must keep the description tag');
   assert(/metric:\s*out\.metric/.test(mod),
     'GET /api/trusted-dictionary must return the core\'s metric field (SPEC § 4: "gum1" in v1)');
-});
-
-test('S6: Dictionary › Concepts — page + entry route replace the placeholder, render the server\'s gum, index prose untouched', () => {
-  const pageOnly = safeRead(DICT_CONCEPTS_JSX);
-  assert(pageOnly, 'ui/src/pages/dictionaries/Concepts.jsx is missing');
-  const helpers = safeRead(DICT_HELPERS_JS);
-  assert(helpers, 'ui/src/pages/dictionaries/conceptsDictionary.js (the pages\' shared reads) is missing');
-  const entry = safeRead(DICT_ENTRY_JSX);
-  assert(entry, 'ui/src/pages/dictionaries/ConceptEntry.jsx is missing');
-  const page = `${pageOnly}\n${helpers}`;
-  assert(/\/api\/trusted-dictionary/.test(page) && /usePov\s*\(/.test(pageOnly),
-    'the Concepts dictionary must read /api/trusted-dictionary with the active POV (usePov)');
-  assert(/\.gum\b/.test(pageOnly) && /metric/.test(pageOnly), 'the page must render the server-computed gum and its metric');
-  for (const [file, src] of [['Concepts.jsx', pageOnly], ['conceptsDictionary.js', helpers], ['ConceptEntry.jsx', entry]]) {
-    assert(!/qualifyingAuthorCount/.test(src),
-      `${file} must not re-derive the metric from the raw counts — it reads gum (SPEC § 4)`);
-  }
-  assert(/\/api\/shared-by-me/.test(page), "the 'Shared by you' marker reads /api/shared-by-me (SPEC § 1)");
-  assert(/useCommunitySharedConcepts/.test(pageOnly), '"Don\'t see what you\'re looking for?" searches useCommunitySharedConcepts');
-  const app = safeRead(APP_JSX) || '';
-  const dictBlock = app.slice(app.indexOf("path: 'dictionaries'"), app.indexOf("path: 'trusted-agents'"));
-  assert(/path:\s*['"`]concepts['"`][\s\S]*index:\s*true,\s*element:\s*<DictionaryConcepts\s*\/>/.test(dictBlock)
-    && /path:\s*['"`]:coord['"`],\s*element:\s*<DictionaryConceptEntry\s*\/>/.test(dictBlock),
-    "App.jsx must route dictionaries/concepts to the page and dictionaries/concepts/:coord to its entry page");
-  assert(/from\s+['"]\.\/pages\/dictionaries\/Concepts['"]/.test(app) && /from\s+['"]\.\/pages\/dictionaries\/ConceptEntry['"]/.test(app),
-    'App.jsx must import the Concepts page and its entry page');
-  const ph = safeRead(DICT_PLACEHOLDERS_JSX);
-  assert(ph, 'Placeholders.jsx unreadable');
-  assert(!/export function DictionaryConcepts\b/.test(ph), 'the DictionaryConcepts placeholder must be replaced, not kept beside the page');
-  assert(/export function DictionaryTags\b/.test(ph) && /export function DictionaryDLists\b/.test(ph),
-    'the Tags and DLists placeholders stay (SPEC § 5)');
-  assert(ph.includes('Being added by hand will override community-based criteria.')
-    && ph.includes('There are currently three dictionaries: Tags, DLists, and Concepts.'),
-    "the Dictionaries index keeps the owner's verbatim model statement (do not edit it)");
 });
 
 // ═══ H — live integration (SKIP when the stack is down) ════════════════
