@@ -484,13 +484,27 @@ test("H3: each row's gum agrees with the trusted dictionary from the same point 
   assert(cd.status === 200 && td.status === 200, `both reads must answer 200, got ${cd.status} / ${td.status}`);
   const members = new Map((td.json.entries || []).map((e) => [e.coord, e.gum]));
   const threshold = td.json.pov && Number.isFinite(td.json.pov.threshold) ? td.json.pov.threshold : 2;
+  // The trusted dictionary's candidates are the headers this relay holds. A shared concept whose
+  // header is absent can still have items filed under its coordinate, so it scores here without
+  // being a candidate there (on staging, 2026-09-29: the upstream nostr-event-tag, 5 trusted
+  // authors, header not synced). Only a present header must be a member once it reaches the
+  // threshold.
+  const shared = [...new Set(cd.json.entries.map((e) => e.sharedCoord).filter(Boolean))];
+  const present = new Set();
+  if (shared.length) {
+    const events = await scanStream({ kinds: [39998], authors: [...new Set(shared.map((c) => c.split(':')[1]))] });
+    for (const ev of events) {
+      const d = (ev.tags || []).find((t) => t[0] === 'd')?.[1];
+      if (d != null) present.add(`${ev.kind}:${ev.pubkey}:${d}`);
+    }
+  }
   for (const e of cd.json.entries) {
     if (!e.sharedCoord) { assert(e.gum === 0, `${e.coord}: no shared coordinate → gum 0`); continue; }
     if (members.has(e.sharedCoord)) {
       assert(e.gum === members.get(e.sharedCoord),
         `${e.coord}: gum ${e.gum} must equal the trusted dictionary's ${members.get(e.sharedCoord)} for ${e.sharedCoord}`);
-    } else {
-      assert(e.gum < threshold, `${e.coord}: ${e.sharedCoord} is not a trusted-dictionary member, so its gum must be below ${threshold}, got ${e.gum}`);
+    } else if (present.has(e.sharedCoord)) {
+      assert(e.gum < threshold, `${e.coord}: ${e.sharedCoord} is held here but not a trusted-dictionary member, so its gum must be below ${threshold}, got ${e.gum}`);
     }
   }
 });
