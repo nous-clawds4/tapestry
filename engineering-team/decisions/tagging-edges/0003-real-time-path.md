@@ -285,7 +285,8 @@ later. That 250 ms is a cap, not a reset: later prompts never postpone it.
 candidates) and compacts when the queue is empty. This catches a subscription that stays connected but stops
 delivering, revokes included, within about 10 minutes, except a version both stored and revoked by id while nothing
 was delivered, which waits for the pass (decision 5's first corner). Ledger row
-`2026-09-29-strfry-delete-hides-next-write` records one strfry trigger (owner decision 10). *(Amended by A1-16.)*
+`2026-09-29-strfry-delete-hides-next-write` records a strfry trigger (owner decision 10). *(Amended by A1-16 and A1
+clarification 24.)*
 
 ### Where it runs (D2-A)
 
@@ -618,7 +619,8 @@ Each failure is contained to what it touches:
   - A version heard in the last flush interval before a crash, and revoked by id before the restart, leaves nothing to
     find. It waits for the pass (owner decision 5).
   - Switch-off and SIGTERM flush the journal first, so an off or a deploy never opens that window.
-- **A bad setup** writes nothing. The subscription and the queue stay, and the status names the problem:
+- **A bad setup** writes nothing. The subscription and the queue stay (with a bad identity there is no
+  subscription: A1 clarification 25), and the status names the problem:
   - **Identity.** `resolveIdentities` refuses (either stamp missing, empty, not 64 hex, or has an upper-case letter).
     The state is `waiting-setup`. A corrected identity takes effect on the next Node start: a restart, or the switch
     off and on, since `brainstorm.conf` is re-read at every start.
@@ -808,8 +810,9 @@ beside it. The CF-2/3/4 wording lands with the implementation, as story 3 docs t
 - **Consequences, revokes (A7).** Note: "The real-time path reads kind-5 events (live, and by author-scoped `#e`/`#a`
   scans at catch-up) only as prompts, and as a condition without which a removal is held back (story 3 AC-3). A kind-5
   never causes a removal that the path's own later relay read at that address does not also call for."
-- **A3, "refuse to start".** Note: "The real-time path, a long-running process, starts, subscribes and waits in
-  `waiting-setup`, writing nothing, which meets this rule's purpose."
+- **A3, "refuse to start".** Note: "The real-time path, a long-running process, starts and waits in
+  `waiting-setup`, writing nothing, which meets this rule's purpose. With a bad identity it does not subscribe, since
+  its filter needs both identities." *(Corrected by A1 clarification 25.)*
 - **A8 / step 5, "any error counts as absent"** (:376, :480-481). Note: "This covers the element's content. A failed
   element read is not an absent element: the real-time path defers, and the pass fails the run."
 
@@ -1896,8 +1899,9 @@ These wait for the pass:
 - **The first bullet becomes:** "A subscription that stays connected but stops delivering: what it misses, revokes
   included, is reflected at the next safety diff (≤ 10 min), except a version both stored and revoked by id while
   nothing was delivered, which waits for the pass (decision 5's first corner). Ledger row
-  `2026-09-29-strfry-delete-hides-next-write` records one strfry trigger: the first write after a delete of the
-  relay's newest event is never delivered live."
+  `2026-09-29-strfry-delete-hides-next-write` records the strfry trigger: deleting the relay's K newest events
+  hides the next K writes from live subscriptions, and a wipe hides every write until the subscription reconnects."
+  *(Corrected by A1 clarification 24.)*
 - **A new bullet:** "A deletion drained while the read or stamp scan that first shows the path its target is still
   running (the target was stored while the path was not hearing it) resolves nothing then. The next safety diff finds
   it (≤ 10 min)."
@@ -2237,6 +2241,50 @@ Test Design gate on 2026-09-29.
 19. **`record.json`'s streamed write** repeats `state.writeAtomic`'s steps (temporary file, fsync, rename, directory
     fsync) row by row. The start reads it as a stream and hashes it as it goes; the parsed record may be held whole. The
     whole path's measured ceiling stays the Implementer's Evidence item (decision 9).
+
+**Clarifications 20–25** were raised by story 3's review, round 1. The owner ratified 20–23 on 2026-09-29. Items 24
+and 25 correct statements of fact.
+
+20. **Single time-outs and the park** (A1-13, decision 9).
+    - A one-address or one-id scan that times out counts toward the three that park an address only when either
+      holds:
+      - the address is marked to be read alone; or
+      - some relay read has answered since the address was queued, or since it last timed out alone.
+    - Otherwise the relay was not answering. The address backs off 5→60 s like any failed read, and its run of
+      time-outs stands.
+    - So a lone change through a Redis stall is never parked. It is reflected within clarification 11's bound once the
+      relay answers.
+    - While no relay read answers at all, a never-answering address is never parked. It retries at most once a
+      minute, and each retry costs a 20 s time-out.
+    - Decision 9's "each is parked after three" reads "after three while other relay reads answer".
+21. **A live revoke lifts a time-out park.** A live kind-5 from the address's author that resolves at an address
+    parked for time-outs lifts the park, as a new version does. The lift costs at most one more single read. *(Amends
+    clarification 12's list.)*
+22. **The counter for element singles.** A one-id element scan that times out counts in `failedReads.element`, as
+    every element-read failure does. It still counts toward the park under clarification 20. *(Amends clarification
+    12's "each single time-out counts in `failedReads.relay`" for element reads.)*
+23. **The compaction cut with interleaved rounds** (A1-7 with A1-11).
+    - Rounds run between a catch-up's reads, so a round may learn and write between the catch-up's key read and its
+      stamp scan's capture.
+    - A catch-up's compaction therefore keeps in `older` the ids learned at an address since its key read, not only
+      since the capture. The scan's own placement is the exception.
+    - This widens clause (ii) only by the versions the path learned in that window.
+24. **strfry's delete-hides-next-write defect** (decision 10; ledger row `2026-09-29-strfry-delete-hides-next-write`).
+    - strfry 1.1.0 gives a new event the largest level id plus one. A live monitor skips every event whose id is at
+      or below the last one it sent.
+    - So deleting the relay's K newest events hides the next K writes from live subscriptions. A wipe hides every write
+      until the subscription reconnects, or until the ids pass the old largest.
+    - Expiry cannot trigger it: the expiry cron skips the newest event.
+    - Until the path reconnects, only its 10-minute safety diff reflects changes. So OPERATIONS tells the operator to
+      restart the path after a relay wipe or a bulk delete.
+25. **A bad identity: no subscription.**
+    - With a bad identity the path starts and waits in `waiting-setup` without subscribing, since its filter needs
+      both identities.
+    - What the relay stores meanwhile is found by the catch-up at the next start with a usable identity, or counts as
+      pre-existing at a first start (decision 5).
+    - A bad schema rule keeps the subscription.
+    - *(Corrects § Failure handling's "The subscription and the queue stay", ADR 0001's A3 note, and this ADR's copy
+      of that note.)*
 
 ## Out of scope
 

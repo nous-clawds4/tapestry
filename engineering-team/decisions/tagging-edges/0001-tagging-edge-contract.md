@@ -221,8 +221,9 @@ and revoke rules below are meant to carry over unchanged. A one-line scope note 
   stamp pubkeys are lowercase 64-hex;** either one missing, empty, not 64 hex characters or containing an upper-case
   letter refuses the run and names that identity. A writer started without them would read every tagging as a
   non-tagging and retire every edge (step 2 plus the retirement rule). Story 2's mass-delete guard counts every
-  AC-3 removal per run. *(Amended by `tagging-edges/0003`.)* The real-time path, a long-running process, starts,
-  subscribes and waits in `waiting-setup`, writing nothing, which meets this rule's purpose.
+  AC-3 removal per run. *(Amended by `tagging-edges/0003`.)* The real-time path, a long-running process, starts
+  and waits in `waiting-setup`, writing nothing, which meets this rule's purpose. With a bad identity it does not
+  subscribe, since its filter needs both identities (`tagging-edges/0003` A1 clarification 25).
 - *(Amended by `tagging-edges/0002`.)* **R2-NB3.** A relationship at a tagging address is removed when the relay holds nothing at its
   address, or holds a version there the definition refuses, and only while it still holds the version the decision
   was made from, subject to the gap-filling pass's mass-removal limit *(amended by `tagging-edges/0003`: the
