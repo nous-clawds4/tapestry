@@ -247,3 +247,128 @@ Implementer's. The non-blocking items are cheap enough to take in the same round
 
 - [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED.*
 - [ ] Completion detection performed; `/close-book` offered if the book looks complete. *Not applicable.*
+
+## Re-review, round 2 (2026-09-29)
+
+**Diff:** `git diff bbbb6a24..3e3d9870`, without the review's own commits. It covers:
+- `d9d0ccf8`: ADR 0003 A1 clarifications 20–25, with 20–23 ratified by the owner, and ADR 0001's A3 note corrected;
+- `a5273b05`: the tests (RX20–RX25, RL28, SWR72, RE81, the new subscription suite RSUB1–8, S2C16 re-aimed);
+- `3e3d9870`: the fixes and docs.
+
+As round 1, the Reviewer's gate ran independently, reviewers worked read-only, and each finding had a skeptic. Every
+round-1 ask was re-derived as a fresh claim (reviewer.md step 10). That includes wording round 1 itself suggested and
+the Architect adopted, and it was checked against strfry 1.1.0's source in the container (commit `f31a1b9`).
+
+### Quality gates
+
+- [x] `npm test` (Node 22.23.3, clean committed tree): `20260929T230728Z-59268-f5cc [review2-tagging-edges-3]
+  started 2026-09-29T23:07:28.416Z on 3e3d9870 — FAIL, exit 1, 4515 passed, 30 failed, 168 skipped, 243/243 suites`.
+  - The 12 failing suites and 30 failures are identical to round 1's run, compared suite by suite.
+  - All 5 differences are this round's tests, all passing: wiring 72, engine 81, lineage 28, resilience 25, and the
+    new subscription suite at 8. That is +17 passes and no regression.
+- [x] Opt-in property campaign: 36 passed, 0 failed, 0 skipped.
+- [x] Live suite, read-only: 9 passed, 0 failed, 10 skipped, as round 1. SL19 is still unverified from the host.
+
+### Round 1's asks
+
+| Round 1 item | Status | Evidence |
+|---|---|---|
+| Blocking 1(a)–(d) | **Fixed** | Clarifications 20–23 match the code. RX20–RX23 and RL28 pin them. Each was checked against a mutant: `slow = true`, `slow = item.single`, merging instead of lifting, relay counting, and capture-only. |
+| Blocking 1(e) | **Fixed** | `readSchema()` with no argument is byte-identical to the base (`graph.js:233-242`). The path passes 30 s. SWR72 and RE81 were red at `a5273b05`. |
+| Blocking 1(f) | **Went too far**: new Blocking R2-3 | Merging a re-found version into a refusal park is right. Merging a *new* version or revoke delays it up to 6 h. |
+| Blocking 2 | **Partly fixed**: new Blocking R2-2 | The wedge is gone. But after the stamp scan the backoff never grows. |
+| Blocking 3 | **Partly fixed**: new Blocking R2-1 | Expiry is dropped, the restart advice is added, and the cites are right. The mechanism wording is wrong, and it was round 1's own suggestion. |
+| Blocking 4 | **Fixed** | ADR 0001's A3 note, ADR 0003:621 and :811 now match `index.js` (no subscription with a bad identity). |
+| Non-blocking 1, 2 | **Partly fixed** | OPERATIONS documents both correctly. The ADR's § Failure handling has neither (R2-NB5). |
+| Non-blocking 3, 6, 7, 8, 9, 10, 11, 12 | **Fixed** | Checked in the diff and by the new tests (RSUB1–8 cover the real client). |
+| Non-blocking 4 | **Partly fixed** | The 4 KB cap works: 4 ms on 1 MB, where uncapped text takes 3.6 s on 64 KB. But no test pins it, and the underscore note is not beside the ADR's New debt line, though § Deviations says it is (R2-NB3). |
+| Non-blocking 5 | **Partly fixed** | `statusUnreadable` and `started.json` are fixed. The staging-backfill pointer (OPERATIONS:754, :808) waits on docs-lane commit `2361dfb0`, and § Deviations does not say so (R2-NB4). |
+| Non-blocking 13 | n/a | Nothing was asked unless the owner wants the harness. |
+| Harness friction 1, 2 | **Filed** | Ledger rows `2026-09-29-newest-entry-doc-tests-go-stale` and `2026-09-29-test-plan-misses-injected-seams`. The first row's text is stale now that S2C16 is re-aimed (R2-NB8). |
+
+### Findings
+
+#### Blocking
+
+1. **R2-1: clarification 24 (ADR 0003:2272-2278), decision 10's corrected bullet (ADR 0003:1902-1903), the ledger row
+   `2026-09-29-strfry-delete-hides-next-write` (title, :21-29, :39, :48-50, and the fix shape at :55), OPERATIONS.md:843
+   and story :714-715 misstate strfry's mechanism.** This is round 1's suggested wording, adopted verbatim and labelled
+   "confirmed in strfry's source". The Reviewer re-read the source this round:
+   - **The largest id.** A new event takes the largest id plus one (`golpe/external/rasgueadb/main.h.tt:156-158`,
+     `modify.h.tt:155`). strfry writes a new event before it deletes what that event replaces or revokes
+     (`src/events.cpp:380`), and the expiry cron skips the newest event (`src/apps/relay/RelayCron.cpp:31`). So only an
+     operator's `strfry delete` or a wipe can lower the largest id.
+   - **Who misses a write.** The monitor thread lowers its cursor to the new largest id (`RelayReqMonitor.cpp:26-27`),
+     so a write that re-uses an id is still visited. Each subscription's monitor then skips any event at or below the
+     highest id it has passed (`ActiveMonitors.h:93-98`). That is the last event sent to it, the last event carrying
+     its filter's index key (for the path, a stamp `z` tag or kind 5, `ActiveMonitors.h:167-195`), or the newest event
+     when it subscribed (`RelayReqMonitor.cpp:41-43`). So "hides the next K writes from live subscriptions" is too broad:
+     it depends on the subscription.
+   - **The count.** The count is not K. At least K ids are re-used, and more where earlier deletes left gaps below the
+     newest event.
+   - **The debounce race.** If a write lands within the 100 ms change debounce of the delete (`RelayReqMonitor.cpp:10`),
+     the thread never lowers its cursor and never visits the re-used id (`:56`). Then *every* live subscription misses
+     it.
+   - **A wipe.** A subscription misses writes until the ids pass the point its own monitor had reached, which is at
+     most the old largest.
+
+   Correct and to keep: expiry, kind-5s and replaced versions never trigger it; the restart-after-a-wipe-or-bulk-delete
+   advice; the safety-diff backstop.
+
+   *Asked change:* the Architect rewords clarification 24 and decision 10's bullet to these facts. The Implementer
+   carries the same wording into the ledger row (title, mechanism, impact and fix shape: "as many harmless writes" is
+   not enough when there are gaps), OPERATIONS:843 and § Evidence. **Re-check the new wording against the cites
+   before adopting it; this list is a claim too.**
+2. **R2-2: `src/pipeline/tagging-edges/realtime/index.js:1253-1254` and `:1031-1033`: an unexpected error after the
+   stamp scan retries every 5 s, forever.** `cu.failures` and `cu.retrying` are reset as soon as the stamp scan
+   succeeds, so `failCatchUp` computes the first backoff every time. That is a full key read plus a full stamp scan
+   every 5 s: 121 of each in 10 minutes in the skeptic's reproduction. For comparison, an error in the key-read step
+   backs off 5, 10, 20, 40, 60 s. § Deviations (:866), OPERATIONS:794 and the comment at `:1099` all claim 5→60 s.
+   RX25 injects only in the key-read step and accepts any gap from 5 to 60 s, so it cannot see this. *Asked change:*
+   reset the failure count when a catch-up completes, not when its stamp scan succeeds. Pin it with a test that
+   injects after the stamp scan and asserts growing gaps.
+3. **R2-3: `index.js:1046-1055`: a catch-up merges a *new* version or revoke into a database-refusal park, so it waits
+   for the park's timer (up to 6 h).** ADR 0003 § Failure handling (:609-611) retries a refusal park "at once on a new
+   event at that address". That is also what round 1 asked to keep. Round 1's concern was the same parked version being
+   found again at every safety diff.
+   - The skeptic reproduced it: an acceptable v2 whose notice was lost is reflected after 350.2 min at `3e3d9870`,
+     against 5.0 min at `bbbb6a24`.
+   - RX24 pins the wait while citing the ADR's "at once on a new event", so its own citation contradicts it.
+
+   *Asked change:* a catch-up entry carrying a version id or a revoke the parked entry does not already hold lifts the
+   refusal park. One that holds nothing new merges. Re-aim RX24 into both cases. The Architect records this reading as
+   a clarification.
+
+#### Non-blocking
+
+1. **R2-NB1.** Clarification 20 and OPERATIONS:841 say a never-answering address in a total stall "retries at most once
+   a minute". It backs off 5→60 s first, then retries once a minute.
+2. **R2-NB2.** Two parts of round 1's Blocking 2 fix have no test: the `feedCatchUp` branch through `attempted()`, and
+   the rule that an `unexpected` failure is not counted in `failedReads.catchUp`.
+3. **R2-NB3.** Several gaps around the redactor:
+   - no test pins the 4 KB cap (`strfryScanStrict.js:74`), and it also changes story 2's pass report, which the
+     Deviation does not say;
+   - "too much is cut, never too little" (:69) holds only for the name rule;
+   - the redactor's known gaps are not beside the ADR's New debt line (ADR 0003:896), though § Deviations says they
+     are: underscore host names, host names that start with a digit, and credentials written without a scheme.
+4. **R2-NB4.** § Deviations should say that the staging-backfill pointer (OPERATIONS:754, :808) waits on the docs-lane
+   commit `2361dfb0`.
+5. **R2-NB5.** ADR 0003 § Failure handling (:583-640) has no line for journal appends that keep failing, and none for
+   the first start's version-buffer bound. OPERATIONS covers both. The Architect adds one line each.
+6. **R2-NB6.** OPERATIONS:847 gives "about 240,000" as the heap ceiling. § Evidence gives 200,000 when every address is
+   an arrival.
+7. **R2-NB7.** The planner's `mergeEntry` became stricter (`realtime.js:618`): a damaged record row now replays to no
+   prompt. No test pins it.
+8. **R2-NB8.** Stale texts:
+   - the compaction comment at `index.js:1061-1062` still says "after the capture";
+   - the subscription suite's header (:35) and test plan :143 name exports that `3e3d9870` removed;
+   - the ledger row `2026-09-29-newest-entry-doc-tests-go-stale` still says S2C16 was not re-aimed.
+9. **R2-NB9 (optional).** No test covers the new close logging (`index.js:846`). AC-6 holds anyway: the text is fixed
+   and redacted, and it goes only to the supervisor log.
+
+### Verdict (round 2)
+
+**CHANGES_REQUESTED.** Round 1's six ADR departures are settled, and the wedge is gone. But the round introduced two
+defects (R2-2 and R2-3) and carried a false mechanism statement into the ADR and the upstream-bound ledger row
+(R2-1). R2-1 is round 1's own suggestion, which is exactly what reviewer.md step 10 exists to catch. All three fixes
+are small.
