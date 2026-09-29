@@ -19,8 +19,8 @@
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { strfryScanStream } = require('../concept/bDisposition');
 const { computeQueue, computePublishCandidates, bestName } = require('../../lib/adoptionQueue');
-const { computeDictionary } = require('../../lib/trustedDictionary');
-const { dispositionOf } = require('../../lib/bValueForms');
+const { computeDictionary, computeConceptDictionary } = require('../../lib/trustedDictionary');
+const { classifyBValue, dispositionOf } = require('../../lib/bValueForms');
 const { runCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
 const { getManifest } = require('../normalize/firmware');
@@ -143,6 +143,48 @@ const tagAt = (ev, name, idx = 1) => {
 };
 
 /**
+ * The qualifying set for some carrier authors, from the requested point of
+ * view: the Neo4j seam both dictionary reads share (ADR 0005). House reads
+ * NostrUser.influence. Personalized reads the observer's
+ * NostrUserWotMetricsCard rows, and falls back to house, disclosed, when this
+ * instance holds no cards for the observer.
+ */
+async function resolveQualifying({ wotPov, userPubkey, authors, cutoff }) {
+  const wantPersonalized = wotPov === 'user' && typeof userPubkey === 'string' && /^[0-9a-f]{64}$/.test(userPubkey);
+  let branch = 'house';
+  let fellBackToHouse = false;
+  let observer = null;
+  let qualifying = new Set();
+  if (wantPersonalized) {
+    // Availability probe: personalized scoring exists only for observers this
+    // instance holds metrics cards for (W12's stance) — else house, disclosed.
+    const probe = await runCypher(
+      'MATCH (c:NostrUserWotMetricsCard {observer_pubkey: $observer}) RETURN count(c) AS n',
+      { observer: userPubkey },
+    );
+    if (probe.length && Number(probe[0].n) > 0) {
+      branch = 'personalized';
+      observer = userPubkey;
+    } else {
+      fellBackToHouse = true; // requested own POV; this instance has no cards for it
+    }
+  }
+  if (authors.length) {
+    const rows = branch === 'personalized'
+      ? await runCypher(
+        'MATCH (c:NostrUserWotMetricsCard {observer_pubkey: $observer}) WHERE c.observee_pubkey IN $authors AND c.influence > $cutoff RETURN c.observee_pubkey AS pubkey',
+        { observer: userPubkey, authors, cutoff },
+      )
+      : await runCypher(
+        'MATCH (u:NostrUser) WHERE u.pubkey IN $authors AND u.influence > $cutoff RETURN u.pubkey AS pubkey',
+        { authors, cutoff },
+      );
+    qualifying = new Set(rows.map((r) => r.pubkey));
+  }
+  return { qualifying, branch, observer, fellBackToHouse };
+}
+
+/**
  * The trusted dictionary (ADR shared-concepts-adoption/0005) — S3b with a
  * minimum-trusted-users threshold, computed at read time from the active POV.
  *
@@ -209,38 +251,7 @@ async function assembleTrustedDictionary({ wotPov, userPubkey } = {}) {
   // per-header exclusions (own author, the TA) live in the core; including
   // them here is harmless.
   const authors = [...new Set(zCarriers.map((ev) => ev.pubkey))].filter((p) => p && p !== taPubkey);
-
-  const wantPersonalized = wotPov === 'user' && typeof userPubkey === 'string' && /^[0-9a-f]{64}$/.test(userPubkey);
-  let branch = 'house';
-  let fellBackToHouse = false;
-  let observer = null;
-  let qualifying = new Set();
-  if (wantPersonalized) {
-    // Availability probe: personalized scoring exists only for observers this
-    // instance holds metrics cards for (W12's stance) — else house, disclosed.
-    const probe = await runCypher(
-      'MATCH (c:NostrUserWotMetricsCard {observer_pubkey: $observer}) RETURN count(c) AS n',
-      { observer: userPubkey },
-    );
-    if (probe.length && Number(probe[0].n) > 0) {
-      branch = 'personalized';
-      observer = userPubkey;
-    } else {
-      fellBackToHouse = true; // requested own POV; this instance has no cards for it
-    }
-  }
-  if (authors.length) {
-    const rows = branch === 'personalized'
-      ? await runCypher(
-        'MATCH (c:NostrUserWotMetricsCard {observer_pubkey: $observer}) WHERE c.observee_pubkey IN $authors AND c.influence > $cutoff RETURN c.observee_pubkey AS pubkey',
-        { observer: userPubkey, authors, cutoff },
-      )
-      : await runCypher(
-        'MATCH (u:NostrUser) WHERE u.pubkey IN $authors AND u.influence > $cutoff RETURN u.pubkey AS pubkey',
-        { authors, cutoff },
-      );
-    qualifying = new Set(rows.map((r) => r.pubkey));
-  }
+  const { qualifying, branch, observer, fellBackToHouse } = await resolveQualifying({ wotPov, userPubkey, authors, cutoff });
 
   const { entries, metric } = computeDictionary({ headers, zCarriers, qualifying, threshold, taPubkey });
 
@@ -295,6 +306,111 @@ async function handleTrustedDictionary(req, res) {
 }
 
 /**
+ * Dictionary › Concepts: one person's dictionary (the owner's correction of
+ * 2026-09-29, recorded in docs/DICTIONARY_PAGE_HANDOFF.md). Its rows are
+ * exactly what Active b-tags lists under "Mine": the person's concept headers
+ * (signed by their account, or by the assistant this instance issued them)
+ * that carry a real b-tag, wired to a shared concept or self-declared as one.
+ * The sentinel and malformed b values make no row (bValueForms, W16). The page
+ * resolves the person as Active b-tags does and sends their pubkeys as
+ * `authors`, so the two lists share one definition of "Mine".
+ *
+ * The trusted dictionary above is not this list. In the design it is the
+ * rule an Assistant will use to decide what to clone into a dictionary, so
+ * here it only scores rows: each carries GUM₁ of the shared concept it points
+ * to, from the same point of view. The arithmetic stays in the pure core.
+ */
+async function assembleConceptDictionary({ authors, wotPov, userPubkey } = {}) {
+  const taPubkey = getOwnerAssistantPubkey();
+  if (!taPubkey) throw new Error('TA pubkey unavailable');
+
+  const cutoff = parseFloat(getConfigFromFile('VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF', 0.01));
+  const threshold = parseInt(getConfigFromFile('TRUSTED_DICTIONARY_MIN_USERS', 2), 10);
+
+  const events = await strfryScanStream({ kinds: [39998], authors }, (ev) => ({
+    kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at,
+    tags: keepTags(ev, ['d', 'names', 'name', 'b', 'description']),
+  }));
+  const newest = new Map(); // coord → slim header
+  for (const ev of events) {
+    const d = ev.tags.find((t) => t[0] === 'd')?.[1];
+    if (d == null) continue;
+    const coord = `${ev.kind}:${ev.pubkey}:${d}`;
+    const prev = newest.get(coord);
+    if (!prev || (ev.created_at || 0) > (prev.created_at || 0)) newest.set(coord, ev);
+  }
+
+  const firmware = firmwareCoords(taPubkey);
+  const rows = [];
+  for (const [coord, ev] of newest) {
+    const bValues = ev.tags.filter((t) => t[0] === 'b').map((t) => t[1]);
+    const disp = dispositionOf(bValues, coord);
+    if (!disp.wired && !disp.selfDeclared) continue; // no real b: not in the dictionary
+    const targets = [...new Set(bValues.filter((v) => v !== coord
+      && (classifyBValue(v) === 'a-tag' || classifyBValue(v) === 'event-id')))];
+    rows.push({
+      coord,
+      name: bestName(ev),
+      plural: tagAt(ev, 'names', 2),
+      description: tagAt(ev, 'description'),
+      author: ev.pubkey,
+      selfDeclared: disp.selfDeclared,
+      targets,
+      // Scored by the shared concepts it points to by coordinate (an event-id b
+      // locates an event, not a concept anything is filed under), and by itself
+      // when it is one.
+      scoreCoords: [...(disp.selfDeclared ? [coord] : []), ...targets.filter((v) => classifyBValue(v) === 'a-tag')],
+      // Firmware: the row is a firmware concept, or points at one.
+      isFirmware: firmware.has(coord) || targets.some((v) => firmware.has(v)),
+    });
+  }
+
+  const coords = [...new Set(rows.flatMap((r) => [r.coord, ...r.scoreCoords]))];
+  const zCarriers = coords.length
+    ? await strfryScanStream({ '#z': coords }, (ev) => {
+      const z = keepTags(ev, ['z']);
+      return z.length ? { pubkey: ev.pubkey, id: ev.id, tags: z } : null;
+    })
+    : [];
+  const zAuthors = [...new Set(zCarriers.map((ev) => ev.pubkey))].filter((p) => p && p !== taPubkey);
+  const { qualifying, branch, observer, fellBackToHouse } = await resolveQualifying({ wotPov, userPubkey, authors: zAuthors, cutoff });
+
+  const { entries, metric } = computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey });
+
+  return {
+    entries,
+    metric,
+    pov: { branch, observer, fellBackToHouse, cutoff, threshold, computedAt: new Date().toISOString() },
+  };
+}
+
+/** `authors`: one person, as one or two hex pubkeys (their account, then their assistant if any). */
+function parseAuthors(raw) {
+  if (typeof raw !== 'string') return null; // ?authors[]=… arrives as an array
+  const list = [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))];
+  if (list.length < 1 || list.length > 2 || !list.every((p) => /^[0-9a-f]{64}$/.test(p))) return null;
+  return list;
+}
+
+async function handleConceptDictionary(req, res) {
+  try {
+    const authors = parseAuthors(req.query && req.query.authors);
+    if (!authors) {
+      return res.status(400).json({
+        success: false,
+        error: 'authors must be one or two comma-separated hex pubkeys: a person’s account, and their assistant when they have one',
+      });
+    }
+    const { wotPov, userPubkey } = req.query || {};
+    const out = await assembleConceptDictionary({ authors, wotPov, userPubkey });
+    return res.json({ success: true, metric: out.metric, authors, entries: out.entries, pov: out.pov });
+  } catch (error) {
+    console.error('concept-dictionary error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
  * The twin picker's population (story #7): MY WIREABLE concepts — graph
  * concept headers ∩ has a kind-39998 event. The graph is the identity source
  * (BIBLE §30); the event requirement exists because Adopt appends a
@@ -342,7 +458,8 @@ async function handleAdoptionTwins(req, res) {
 function registerAdoptionRoutes(app) {
   app.get('/api/adoption-queue', handleAdoptionQueue);
   app.get('/api/trusted-dictionary', handleTrustedDictionary);
+  app.get('/api/dictionaries/concepts', handleConceptDictionary);
   app.get('/api/adoption-twins', handleAdoptionTwins);
 }
 
-module.exports = { registerAdoptionRoutes, assembleTrustedDictionary };
+module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary };

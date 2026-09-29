@@ -8,7 +8,7 @@ import useProfiles from '../../hooks/useProfiles';
 import { useAssistantRoster } from '../../context/AssistantRosterContext';
 import { queryRelay } from '../../api/relay';
 import { SENTINEL, dispositionOf } from '../../utils/bDisposition';
-import { matchesScope } from '../../utils/authorScope';
+import { defaultPersonFor, matchesScope, scopeRosterFor } from '../../utils/authorScope';
 import { fetchFromRelays } from '../../utils/nostrPublish';
 
 // Where b-tag targets are looked up. Hardcoded for now — the future source is
@@ -125,27 +125,17 @@ export default function ActiveBTags() {
 
   // The default person: the reader's own account when signed in, else the owner's. Applied once
   // the roster has answered and only until the reader picks for themselves, so their choice is
-  // never overwritten by a later roster refresh (story 3 AC-1, AC-2).
-  const ownerAccount = useMemo(
-    () => assistants.find((a) => a.role === 'owner')?.accountPubkey || null,
-    [assistants],
-  );
+  // never overwritten by a later roster refresh (story 3 AC-1, AC-2). The Concepts dictionary
+  // opens on the same person through the same helper, so its rows are this page's "Mine".
+  const defaultPerson = useMemo(() => defaultPersonFor(assistants, viewer), [assistants, viewer]);
   useEffect(() => {
     if (rosterLoading || chosen) return;
-    setPerson(viewer ? viewer.accountPubkey : ownerAccount);
-  }, [rosterLoading, chosen, viewer, ownerAccount]);
+    setPerson(defaultPerson);
+  }, [rosterLoading, chosen, defaultPerson]);
 
   // The roster is the instance's view of itself; a signed-in reader it does not list (an admin an
   // unauthenticated-shaped response withholds) still has to be scopeable, so union `viewer` in.
-  const scopeRoster = useMemo(() => {
-    if (!viewer || assistants.some((a) => a.accountPubkey === viewer.accountPubkey)) return assistants;
-    return [...assistants, {
-      accountPubkey: viewer.accountPubkey,
-      assistantPubkey: viewer.assistantPubkey,
-      role: 'admin',
-      displayName: 'Me',
-    }];
-  }, [assistants, viewer]);
+  const scopeRoster = useMemo(() => scopeRosterFor(assistants, viewer), [assistants, viewer]);
 
   const visibleRows = useMemo(
     () => rows.filter((r) => matchesScope(r.authorPubkey, { person, authorType }, scopeRoster)),
