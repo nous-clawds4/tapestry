@@ -619,6 +619,14 @@ Each failure is contained to what it touches:
   - A version heard in the last flush interval before a crash, and revoked by id before the restart, leaves nothing to
     find. It waits for the pass (owner decision 5).
   - Switch-off and SIGTERM flush the journal first, so an off or a deploy never opens that window.
+- **Journal appends that keep failing** (a full disk, say). Lines wait in memory, unbounded, and rounds keep writing
+  to the graph; the status shows `lastError` with stage `journal`. The operator frees space or turns the switch off. A
+  crash meanwhile loses the lines not yet written (owner decision 5's second corner). *(Added at story 3's review,
+  round 2.)*
+- **A first start whose baseline keeps failing.** Every stamped version delivered since the REQ waits in its buffer,
+  bounded only by how long the baseline takes; the 20,000-target cap covers kind-5s only. Versions cannot be dropped,
+  since a dropped one would count as held since before the first start. Turning the switch off ends it, and the next
+  start is again a first start. *(Added at story 3's review, round 2.)*
 - **A bad setup** writes nothing. The subscription and the queue stay (with a bad identity there is no
   subscription: A1 clarification 25), and the status names the problem:
   - **Identity.** `resolveIdentities` refuses (either stamp missing, empty, not 64 hex, or has an upper-case letter).
@@ -896,7 +904,10 @@ and 11).
 - **New debt.**
   - The ceilings of owner decision 9, and the residuals of owner decision 10.
   - The corners of owner decision 5.
-  - The widened redactor may cut benign `word:NN` text from error messages (diagnostic loss only).
+  - The widened redactor may cut benign `word:NN` text from error messages (diagnostic loss only). It cuts its input
+    to 4 KB first. Some forms still pass it: host names containing an underscore (`tapestry_neo4j_1:7687`) or
+    starting with a digit, and credentials written without a scheme. No current source emits them. *(Added at story
+    3's review, round 2.)*
   - A new ledger row for the pass's shared 256 MiB scan cap: a publisher can make the pass's full read fail `too-large`
     with about 2,000 websocket-size (≤ 131,072-byte) stamped taggings; organic growth reaches it at roughly 300k.
 - **Firmware reinstall required?** No. No concept definition or firmware JSON changes, and no schema change.
@@ -1899,9 +1910,9 @@ These wait for the pass:
 - **The first bullet becomes:** "A subscription that stays connected but stops delivering: what it misses, revokes
   included, is reflected at the next safety diff (≤ 10 min), except a version both stored and revoked by id while
   nothing was delivered, which waits for the pass (decision 5's first corner). Ledger row
-  `2026-09-29-strfry-delete-hides-next-write` records the strfry trigger: deleting the relay's K newest events
-  hides the next K writes from live subscriptions, and a wipe hides every write until the subscription reconnects."
-  *(Corrected by A1 clarification 24.)*
+  `2026-09-29-strfry-delete-hides-next-write` records one strfry trigger: after an operator deletes the relay's
+  newest events, or wipes it, writes that re-use the deleted ids are missed by the subscriptions that had passed
+  them." *(Corrected by A1 clarification 24.)*
 - **A new bullet:** "A deletion drained while the read or stamp scan that first shows the path its target is still
   running (the target was stored while the path was not hearing it) resolves nothing then. The next safety diff finds
   it (≤ 10 min)."
@@ -2254,8 +2265,8 @@ and 25 correct statements of fact.
       time-outs stands.
     - So a lone change through a Redis stall is never parked. It is reflected within clarification 11's bound once the
       relay answers.
-    - While no relay read answers at all, a never-answering address is never parked. It retries at most once a
-      minute, and each retry costs a 20 s time-out.
+    - While no relay read answers at all, a never-answering address is never parked. It backs off 5→60 s, then
+      retries once a minute, and each retry costs a 20 s time-out.
     - Decision 9's "each is parked after three" reads "after three while other relay reads answer".
 21. **A live revoke lifts a time-out park.** A live kind-5 from the address's author that resolves at an address
     parked for time-outs lifts the park, as a new version does. The lift costs at most one more single read. *(Amends
@@ -2269,14 +2280,30 @@ and 25 correct statements of fact.
     - A catch-up's compaction therefore keeps in `older` the ids learned at an address since its key read, not only
       since the capture. The scan's own placement is the exception.
     - This widens clause (ii) only by the versions the path learned in that window.
-24. **strfry's delete-hides-next-write defect** (decision 10; ledger row `2026-09-29-strfry-delete-hides-next-write`).
-    - strfry 1.1.0 gives a new event the largest level id plus one. A live monitor skips every event whose id is at
-      or below the last one it sent.
-    - So deleting the relay's K newest events hides the next K writes from live subscriptions. A wipe hides every write
-      until the subscription reconnects, or until the ids pass the old largest.
-    - Expiry cannot trigger it: the expiry cron skips the newest event.
-    - Until the path reconnects, only its 10-minute safety diff reflects changes. So OPERATIONS tells the operator to
-      restart the path after a relay wipe or a bulk delete.
+24. **strfry's id re-use after an operator delete** (decision 10; ledger row
+    `2026-09-29-strfry-delete-hides-next-write`). Read in strfry 1.1.0's source, commit `f31a1b9`.
+    - **Ids.** Each new event takes the largest stored id plus one (`golpe/external/rasgueadb/main.h.tt`,
+      `modify.h.tt`).
+    - **What never lowers the largest id.** strfry writes a new event before it deletes what that event replaces or
+      revokes (`src/events.cpp`), and its expiry cron never deletes the newest event (`src/apps/relay/RelayCron.cpp`).
+      So kind-5s, replaced versions and expiry never lower it.
+    - **What does.** An operator's `strfry delete` or a wipe can. The next writes then re-use ids: at least one per
+      newest event deleted, and more where earlier deletions left gaps below them.
+    - **Who misses a re-used-id write.** The relay's live monitor lowers its cursor to the new largest id when it
+      next wakes (`src/apps/relay/RelayReqMonitor.cpp`). Each subscription then skips an event whose id is at or below
+      the highest id its own monitor has passed (`src/ActiveMonitors.h`). That is the last event sent to it, the last
+      event carrying its filter's index key (for the path, a stamp `z` tag or kind 5), or the relay's newest event
+      when it subscribed. So such a write is missed by the subscriptions that had passed its id, and delivered to the
+      others.
+    - **The debounce race.** If a write lands within the monitor's 100 ms change debounce of the delete, the monitor
+      never lowers its cursor for it, and every live subscription misses that write.
+    - **After a wipe,** a subscription misses writes until the ids pass the point its own monitor had reached, at most
+      the old largest id. A new REQ starts from the relay as it is, so re-subscribing ends it.
+    - **For the path,** what it misses is reflected at the next safety diff (≤ 10 min), except a version both stored
+      and revoked by id while missed (decision 5's first corner). OPERATIONS tells the operator to restart the path
+      after a relay wipe or a bulk delete.
+    - *(Rewritten at story 3's review, round 2. Round 1's version overstated it to every subscription and to exactly
+      K writes.)*
 25. **A bad identity: no subscription.**
     - With a bad identity the path starts and waits in `waiting-setup` without subscribing, since its filter needs
       both identities.
@@ -2285,6 +2312,14 @@ and 25 correct statements of fact.
     - A bad schema rule keeps the subscription.
     - *(Corrects § Failure handling's "The subscription and the queue stay", ADR 0001's A3 note, and this ADR's copy
       of that note.)*
+26. **A catch-up at a refusal park.**
+    - A catch-up's work at an address parked for a database refusal lifts the park when it carries a version id or a
+      revoke the parked entry does not already hold. That is a new event at the address (§ Failure handling, "at once
+      on a new event at that address").
+    - Work that brings nothing new merges into the parked entry. So the same refused version, found again at every
+      safety diff, costs no write.
+    - A time-out park merges either way (clarification 12). A live revoke still lifts it (clarification 21).
+    - *(A reading of the approved text, made at story 3's review, round 2.)*
 
 ## Out of scope
 
