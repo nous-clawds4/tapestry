@@ -605,12 +605,17 @@ function mergePrompt(entry, prompt) {
   return out;
 }
 
-/** Merge a whole entry into another by mergePrompt's rules (re-looks, restored pending work). */
+/**
+ * Merge a whole entry into another by mergePrompt's rules (re-looks, restored pending work). A version without a string
+ * id, and a revoke that is not a plain object, carry nothing (a damaged record.json row prompts nothing). The engine
+ * (src/pipeline/tagging-edges/realtime/index.js) keeps its own copy, since T2's exports do not list this one: the two
+ * apply the same rules, and a change to one is made to both.
+ */
 function mergeEntry(entry, more) {
   let e = mergePrompt(entry, null);
   if (!isObject(more)) return e;
-  if (isObject(more.version)) e = mergePrompt(e, { type: 'version', id: more.version.id });
-  for (const p of list(more.revokes)) if (isObject(p)) e = mergePrompt(e, { ...p, type: 'revoke' });
+  if (isObject(more.version) && isString(more.version.id)) e = mergePrompt(e, { type: 'version', id: more.version.id });
+  for (const p of list(more.revokes)) if (isObject(p) && !Array.isArray(p)) e = mergePrompt(e, { ...p, type: 'revoke' });
   if (more.look === true) e = mergePrompt(e, { type: 'look' });
   return e;
 }

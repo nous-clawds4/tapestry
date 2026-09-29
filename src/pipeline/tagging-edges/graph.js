@@ -225,10 +225,18 @@ function openGraph({ uri, user, password } = {}) {
     }
   }
 
-  async function readSchema({ timeoutMs = 30000 } = {}) {
+  /**
+   * SHOW CONSTRAINTS and SHOW INDEXES. With `timeoutMs` each runs under that transaction time-out (the real-time path
+   * passes its own); without it, under none, as story 2's pass reads the schema (ADR tagging-edges/0003: the pass's
+   * behaviour does not change).
+   */
+  async function readSchema({ timeoutMs } = {}) {
+    const runShow = (session, statement) => (timeoutMs == null
+      ? session.run(statement)
+      : session.run(statement, {}, { timeout: timeoutMs }));
     return withSession('read', async (session) => {
-      const c = await session.run(CYPHER.SHOW_CONSTRAINTS, {}, { timeout: timeoutMs });
-      const i = await session.run(CYPHER.SHOW_INDEXES, {}, { timeout: timeoutMs });
+      const c = await runShow(session, CYPHER.SHOW_CONSTRAINTS);
+      const i = await runShow(session, CYPHER.SHOW_INDEXES);
       return { constraints: recordsToPlain(c.records), indexes: recordsToPlain(i.records) };
     });
   }

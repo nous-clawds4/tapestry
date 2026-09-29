@@ -71,6 +71,7 @@ const STATUS_CHANGE_MS = 2 * SEC; // a change reaches status.json within this (t
 const STATUS_HEARTBEAT_MS = 30 * SEC;
 const SCHEMA_CACHE_MS = 5 * SEC;
 const SCHEMA_WAIT_MS = 15 * SEC;
+const SCHEMA_READ_TIMEOUT_MS = 30 * SEC; // the path's own bound: graph.js's readSchema keeps none, as the pass reads it
 const ROUND_SCAN_TIMEOUT_MS = 20 * SEC;
 const CANDIDATE_SCAN_TIMEOUT_MS = 60 * SEC;
 const CENSUS_TIMEOUT_MS = 10 * SEC; // A1-8: the census's one best-effort key read; the REQ waits at most this long
@@ -157,9 +158,22 @@ const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const errCode = (err) => (err && typeof err.code === 'string' ? err.code : '');
 /** 5 s, doubling, capped: the n-th consecutive failure's wait (n from 1). */
 const backoff = (n, from, cap) => Math.min(cap, from * 2 ** Math.max(0, n - 1));
-/** The wait before the n-th consecutive reconnect (n from 0): 1 s, doubling, at most 15 s (ADR "Keeping it alive"). */
+/**
+ * The wait before the n-th consecutive reconnect (n from 0): 1 s, doubling, at most 15 s (ADR "Keeping it alive"). The
+ * one copy of the schedule: subscription.js never reconnects by itself.
+ */
 const reconnectDelay = (n) => Math.min(15 * SEC, SEC * 2 ** Math.min(Math.max(0, n), 4));
 const turn = () => new Promise((resolve) => setImmediate(resolve));
+
+/**
+ * What the log says of a closed subscription: subscription.js's fixed reason (a relay refusing the filters shows as
+ * 'filter refused (…)', not only as a reconnect loop) and the socket's close code; any other text is redacted.
+ */
+function closeText(info) {
+  const reason = isPlainObject(info) && typeof info.reason === 'string' && info.reason !== ''
+    ? redactPublicText(info.reason).slice(0, 80) : 'no reason given';
+  return isPlainObject(info) && Number.isInteger(info.code) ? `${reason}, code ${info.code}` : reason;
+}
 
 /**
  * How a failure is handled (ADR § Failure handling): 'unavailable' (the graph is gone: wait and probe), 'auth'
@@ -213,7 +227,11 @@ function restoreCounts(prev) {
   return out;
 }
 
-/** Merge a whole entry into another by mergePrompt's rules (restored work, re-looks, a round's entry put back). */
+/**
+ * Merge a whole entry into another by mergePrompt's rules (restored work, re-looks, a round's entry put back). The
+ * planner's mergeEntry (src/lib/tagging-edges/realtime.js), which the journal's replay uses, is the same function: T2's
+ * exports do not list it, so each module keeps a copy, and a change to one is made to both.
+ */
 function mergeEntry(entry, more) {
   let e = mergePrompt(entry || null, null);
   if (!isPlainObject(more)) return e;
@@ -786,7 +804,7 @@ function makeEngine(deps) {
         filters: subFilters,
         onEvent: (ev) => push({ gen, ev }),
         onEose: () => push({ gen, eose: true }),
-        onClose: () => push({ gen, close: true }),
+        onClose: (info) => push({ gen, close: true, info }),
       });
     } catch (_) {
       sub = null;
@@ -822,8 +840,10 @@ function makeEngine(deps) {
         subscription.connected = false;
         sub = null;
         subGen += 1;
-        reconnectAt = now() + reconnectDelay(reconnectAttempts);
+        const wait = reconnectDelay(reconnectAttempts);
+        reconnectAt = now() + wait;
         reconnectAttempts += 1;
+        log(`the subscription closed (${closeText(m.info)}); reconnecting in ${wait / SEC} s`);
       }
     }
     if (baselineDropped) { baselineDropped = false; flushJournal(); }
@@ -849,6 +869,11 @@ function makeEngine(deps) {
   function graphDown(stage, err, countRead) {
     if (countRead) counts.failedReads.graph += 1;
     noteError(stage, err);
+    waitForGraph(err);
+  }
+
+  /** The state becomes waiting-graph, probed again after 5→15 s for an outage, 5→60 s for auth and other codes. */
+  function waitForGraph(err) {
     graphFailures += 1;
     graphWaiting = true;
     graphRetryAt = now() + backoff(graphFailures, 5 * SEC, errorClass(err) === 'unavailable' ? 15 * SEC : 60 * SEC);
@@ -871,7 +896,7 @@ function makeEngine(deps) {
     schemaCheckedAt = t;
     let s;
     try {
-      s = await g.readSchema();
+      s = await g.readSchema({ timeoutMs: SCHEMA_READ_TIMEOUT_MS });
     } catch (err) {
       graphDown('schema', err, true);
       return false;
@@ -990,14 +1015,19 @@ function makeEngine(deps) {
     if (cu.again) { if (!cu.requested) cu.requested = cu.again; cu.again = null; }
   }
 
+  /**
+   * A catch-up that failed: aborted without compaction, its outcome and stage in the status, and retried with 5→60 s
+   * backoff (ADR § The catch-up). A read that failed counts in failedReads.catchUp; an unexpected error in one of its
+   * steps (stage 'unexpected') is no failed read, and is the status's lastError under its own stage.
+   */
   function failCatchUp(c, stage, err) {
-    counts.failedReads.catchUp += 1;
-    noteError('catch-up', err);
-    if (['unavailable', 'auth'].includes(errorClass(err)) && stage === 'graph-keys') {
-      graphWaiting = true;
-      graphFailures += 1;
-      graphRetryAt = now() + backoff(graphFailures, 5 * SEC, errorClass(err) === 'unavailable' ? 15 * SEC : 60 * SEC);
+    if (stage === 'unexpected') {
+      noteError('unexpected', err);
+    } else {
+      counts.failedReads.catchUp += 1;
+      noteError('catch-up', err);
     }
+    if (stage === 'graph-keys' && ['unavailable', 'auth'].includes(errorClass(err))) waitForGraph(err);
     cu.failures += 1;
     cu.retrying = true;
     cu.retryAt = now() + backoff(cu.failures, 5 * SEC, 60 * SEC);
@@ -1014,14 +1044,16 @@ function makeEngine(deps) {
       c.backlog[c.next] = null;
       c.next += 1;
       const p = parked.get(address);
-      if (p && p.code === TIMEOUT_PARK) {
-        // A1 clarification 12: a catch-up does not lift a time-out park. Its arrival, look or found revoke merges into
-        // the parked entry, which waits for the park's timer, a start, or a live delivery of a new version there.
+      if (p) {
+        // A catch-up lifts no park. Its arrival, look or found revoke merges into the parked entry, which keeps its
+        // schedule: for a time-out park, its timer, a start, or a live event there (A1 clarifications 12 and 21); for a
+        // database refusal, 5 min, 30 min, then every 6 h, a start, a new event there, or the next successful write
+        // (§ Failure handling). A parked version never enters S, so every catch-up, the safety diff included, finds it
+        // again: lifting the park here would retry each refused address every 10 minutes.
         p.entry = mergeEntry(p.entry, entry);
         continue;
       }
       c.outstanding.add(address);
-      if (p) unpark(address, 'catchup');
       enqueue(address, 'catchup', { entry });
     }
     if (c.next >= c.backlog.length && c.outstanding.size === 0) {
@@ -1054,7 +1086,22 @@ function makeEngine(deps) {
 
   function attempted(address) {
     const c = cu.running;
-    if (c && c.outstanding && c.outstanding.delete(address)) feedCatchUp();
+    if (!c || !c.outstanding || !c.outstanding.delete(address)) return;
+    try {
+      feedCatchUp();
+    } catch (err) {
+      catchUpBroke(c, err);
+    }
+  }
+
+  /**
+   * An unexpected error in the running catch-up's own work (a step, or feeding its backlog after a round) ends that
+   * catch-up as failed, backed off 5→60 s, so a later catch-up runs: one left running would hold off every catch-up,
+   * the safety diff included, until a restart, while the status said catching-up.
+   */
+  function catchUpBroke(c, err) {
+    if (cu.running === c) failCatchUp(c, 'unexpected', err);
+    else noteError('unexpected', err);
   }
 
   /**
@@ -1139,7 +1186,12 @@ function makeEngine(deps) {
     if (!c || !c.step) return;
     const step = c.step;
     c.step = null;
-    await step(c);
+    try {
+      await step(c);
+    } catch (err) {
+      catchUpBroke(c, err);
+      return;
+    }
     if (cu.running === c && c.step) c.roundTurn = true;
   }
 

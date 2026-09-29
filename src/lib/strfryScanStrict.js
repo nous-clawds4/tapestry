@@ -45,6 +45,7 @@ const DEFAULT_TIMEOUT_MS = 60000;
 const DEFAULT_MAX_BYTES = 256 * 1024 * 1024;
 const STDERR_KEEP = 4096;
 const TAIL_MAX = 300;
+const REDACT_INPUT_MAX = 4096;
 const ID_RE = /^[0-9a-fA-F]{64}$/;
 
 class ScanError extends Error {
@@ -65,10 +66,19 @@ class ScanError extends Error {
  * `neo4j.internal:7687`, `redis:6379`; CF-3); and every run of 64 or more hex characters cut to its first 8. A
  * relative path (`../lib/x`) and a clock time (`03:24:18`) are kept. The name rule can also take a letter-led word
  * before `:<digits>`, such as a tagging address whose `d` starts with 2–5 digits (ADR 0003's New debt; T31): too
- * much is cut, never too little. The caller bounds the length.
+ * much is cut, never too little. A name with an underscore (`tapestry_neo4j_1:7687`) is not taken (the story's
+ * Deviations). Text past 4 KB is cut first, back to the last whitespace within it, so no rule runs on long input (the
+ * name rule is quadratic on long dotted or hyphenated text) and no token is split into a part the rules no longer
+ * recognise; the caller bounds the length it keeps.
  */
 function redactPublicText(s) {
-  return String(s)
+  let text = String(s);
+  if (text.length > REDACT_INPUT_MAX) {
+    let cut = REDACT_INPUT_MAX;
+    while (cut > 0 && !/\s/.test(text[cut - 1])) cut -= 1;
+    text = text.slice(0, cut);
+  }
+  return text
     .replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s'"]+/gi, '<uri>')
     .replace(/(^|[\s'"[(=])\/[^\s'"\])]+/g, '$1<path>')
     .replace(/\[[0-9a-f.]*:[0-9a-f:.]*(?:%[\w.-]+)?\]:\d+\b/gi, '<host>')

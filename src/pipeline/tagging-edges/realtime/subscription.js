@@ -21,10 +21,10 @@
  * Every callback comes from a later event-loop turn, never from inside subscribe() (T29). A delivery is a trigger,
  * never state (ADR binding 3), and the module keeps nothing beyond its one connection. It pings every 30 s and ends
  * the connection when a pong does not come within 10 s; a CLOSED or a NOTICE means the relay refused the filter, and
- * ends it too. It never reconnects by itself: the engine owns time (T20, T29), so after onClose it subscribes again,
- * waiting 1→15 s before its n-th consecutive reconnect, and follows every connect's EOSE with a catch-up (ADR § What
- * it hears, "Keeping it alive"): what was stored between two connections reached no subscription. reconnectDelayMs(n)
- * is that schedule; the engine keeps its own copy of it, since it loads this module (and `ws`) only lazily.
+ * ends it too. It never reconnects by itself: the engine owns time (T20, T29), so after onClose it logs the reason and
+ * code, subscribes again, waiting 1→15 s before its n-th consecutive reconnect (the engine's reconnectDelay, the one
+ * copy of that schedule), and follows every connect's EOSE with a catch-up (ADR § What it hears, "Keeping it alive"):
+ * what was stored between two connections reached no subscription.
  */
 
 const WebSocket = require('ws');
@@ -36,14 +36,6 @@ const PONG_TIMEOUT_MS = 10000;
 const HANDSHAKE_TIMEOUT_MS = 10000;
 /** How long close() waits for the relay's closing handshake before it drops the socket. */
 const CLOSE_GRACE_MS = 2000;
-const RECONNECT_MIN_MS = 1000;
-const RECONNECT_MAX_MS = 15000;
-
-/** The wait before the caller's `attempt`-th consecutive reconnect (from 0): 1 s, doubling, at most 15 s. */
-function reconnectDelayMs(attempt) {
-  const n = Number.isInteger(attempt) && attempt > 0 ? Math.min(attempt, 4) : 0;
-  return Math.min(RECONNECT_MAX_MS, RECONNECT_MIN_MS * 2 ** n);
-}
 
 /** The REQ's text: the caller's filters (an array, or one filter), each copied with `limit: 0` (live only). */
 function reqText(filters) {
@@ -164,4 +156,4 @@ function subscribe({
   };
 }
 
-module.exports = { subscribe, reconnectDelayMs, DEFAULT_RELAY_URL, SUBSCRIPTION_ID };
+module.exports = { subscribe };

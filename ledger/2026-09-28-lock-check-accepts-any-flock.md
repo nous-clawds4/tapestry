@@ -4,7 +4,7 @@
 **Type:** bug
 **Opened:** 2026-09-28 (tagging-edges #2 review, Nit 1)
 **Status:** DONE
-**Done:** 2026-09-28 (tagging-edges #3 on `feat/tagging-edges-3`; PR to follow) — ADR `tagging-edges/0003` C20: `lockHeld(fd, { file })` compares inodes, and both callers pass their lock file.
+**Done:** 2026-09-29 (tagging-edges #3, commit `bbbb6a24` on `feat/tagging-edges-3`; PR to follow) — ADR `tagging-edges/0003` C20: `lockHeld(fd, { file })` compares inodes, and both callers pass their lock file.
 
 **What was seen.** The runner refuses a start that does not hold the pass's kernel lock (ADR `tagging-edges/0002`
 step 1: `/proc/self/fdinfo/9` must show a `FLOCK … WRITE` lock). `lockHeld(9)` (`src/pipeline/tagging-edges/state.js`,
