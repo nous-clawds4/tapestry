@@ -88,9 +88,13 @@ Then "Alice tagged Bob as a Podcaster" is in my graph within a minute of reachin
 A few cases wait for the next pass:
 
 - a removal the relay makes with no event, such as a wipe or an expiry;
-- a newer version revoked by its id at once (in one import or sync), or while the path was not running, a deploy
-  included;
+- a newer version revoked by its id at once (in one import or sync), while the path was not running (a deploy
+  included), or while its connection to the relay was interrupted;
+- a relationship another writer recorded from a version the path never saw, when a newer version is revoked by its
+  id;
 - whatever reached the relay while the path was down, if the path has lost its record of where it left off.
+
+*(Amended at Architecture, 2026-09-29: ADR `tagging-edges/0003` Amendment A1, owner decisions 2 and 5.)*
 
 ## Acceptance criteria
 
@@ -157,6 +161,12 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
   *(Amended at Architecture, 2026-09-28, owner decisions 2, 3, 9 and 10 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate": a revoke is the tagging's
   author's deletion under strfry's rule applied to the recorded version; only the author's kind-5 prompts a look; a
   bulk revoke of N of one's own taggings counts as N changes; and the residuals beyond the minute.)*
+
+  *(Amended at Architecture, 2026-09-29, ADR `tagging-edges/0003` Amendment A1, owner decisions 2, 10 and 11: a
+  revoke by id counts when it names the version the relationship records, or the latest version the path has learned
+  at the address when the relationship records one it learned there before; a deletion drained while the read that
+  first shows the path its target is running is reflected at the next safety diff; and decision 11's lost-notice
+  removal.)*
 - [ ] **AC-3: a failed read, an unavailable graph, a bad setup or a crash loses nothing and removes nothing
       wrongly.**
   - **Failed or incomplete read.** Given a read the path depends on fails or comes back incomplete (an error, no
@@ -182,9 +192,12 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
     identity takes effect at the latest after a restart, and AC-4's bound then runs from that start.
   - **What a removal needs.** The path removes a relationship only in answer to an event about that tagging:
     - a new version stored at its address;
-    - or a deletion from the tagging's author naming its address or the event id its relationship records.
+    - or a deletion from the tagging's author naming its address, or naming the event id its relationship records,
+      or naming the event id of the latest version the path has seen at that address when the relationship records a
+      version the path saw there before it (ADR `tagging-edges/0003` owner decisions 2 and 11).
 
-    It then removes only when a successful read of the relay at that address, taken after the event, finds no
+    A deletion naming a version the path has since seen replaced at that address prompts nothing. It then removes only
+    when a successful read of the relay at that address, taken after the event, finds no
     accepted version there. A failed or incomplete read never leads to a removal, and neither does a read that no
     such event prompted: a read of everything that comes back empty (after a relay wipe, say) removes nothing. A
     tagging that leaves the relay with no such event keeps its relationship until the next pass, whose limit
@@ -192,6 +205,12 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
 
   *(Amended at Architecture, 2026-09-28, owner decision 5 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate": the crash corners of about 250 ms and before
   the first record is written.)*
+
+  *(Amended at Architecture, 2026-09-29, ADR `tagging-edges/0003` Amendment A1, owner decisions 2, 5 and 11: "What a
+  removal needs" admits the latest version the path saw at the address; decision 5's corners are widened to a
+  subscription that was reconnecting or not delivering, and to a version learned in the last flush interval before a
+  crash; and decision 11's lost-notice removal, where the relay's newest store left with no event and the pass would
+  make the same removal.)*
 - [ ] **AC-4: after downtime it catches up by itself within 5 minutes; no start ever backfills.**
   - **Given** the path has run on this instance before,
   - **when** it runs again after any downtime (a deploy, a restart, a crash of the path, the graph or the relay
@@ -382,7 +401,7 @@ are CF-1 to CF-6; the orientation sweep of 2026-09-28 found the extra places eac
 - **Removals with no event the path can tie to the tagging.** These all wait for the next pass (AC-3):
   - a relay wipe, an operator's delete, an expiry;
   - a newer version that the relay deleted by id before announcing it to subscribers. That happens while the path
-    was not running, or when the version and its revoke reach the relay in one write batch (a single import or sync
+    was not running, while the running path's subscription was reconnecting or had stopped delivering, or when the version and its revoke reach the relay in one write batch (a single import or sync
     run can carry both) or within the relay's ~100 ms change notice. The relay then announces only the kind-5, which
     names an id no relationship records, and nothing on the relay names the address.
 - **A version at a tagging's address that the definition refuses** (for example a republish carrying neither stamp)
@@ -432,7 +451,8 @@ approval (2026-09-28):
    bound is wanted for more, name it (for example 5 minutes per 10,000).
 7. **Decisions 1 and 2, two exceptions.**
    - **A version deleted before it is announced.** A newer version that the relay deletes by id before announcing it
-     waits for the next pass. That happens while the path was not running, or when the version and its revoke reach
+     waits for the next pass. That happens while the path was not running, while the running path's subscription was
+     reconnecting or had stopped delivering, or when the version and its revoke reach
      the relay in one import or sync batch or within the relay's ~100 ms change notice. The deletion names only an id
      the relay no longer holds and the graph never recorded, so nothing ties it to the address. The older
      relationship stays until the next pass (AC-1, AC-4, Out of scope).
@@ -443,11 +463,16 @@ approval (2026-09-28):
    installs, it is one until the owner enables the seeded entry.
 
    *(Amended at Architecture, 2026-09-28: owner decision 5 of ADR `tagging-edges/0003` § "Owner decisions needed at this gate" lists every corner that waits for the pass.)*
+
+   *(Amended at Architecture, 2026-09-29: ADR `tagging-edges/0003` Amendment A1 widens this exception to a running
+   path whose subscription was reconnecting or had stopped delivering; the owner re-confirms it with A1's decision 5.)*
 8. **Decision 3, every start.** The no-backfill rule holds at every start, not only the first. No catch-up creates a
    relationship for a version the relay has held since before the first start.
 9. **Decision 4, what may prompt a removal.** A removal answers one of two events: a new version stored at the
-   address, or a deletion from the tagging's author naming its address or the event id its relationship records. It
-   also needs a successful read of the relay at that address, taken after the event, that finds no accepted version
+   address, or a deletion from the tagging's author naming its address, or naming the event id its relationship
+   records, or naming the event id of the latest version the path has seen at that address when the relationship
+   records a version the path saw there before it. A deletion naming a version the path has since seen replaced at
+   that address prompts nothing. It also needs a successful read of the relay at that address, taken after the event, that finds no accepted version
    there (AC-3). So a wipe, a failed read, a read that no such event prompted (even one that comes back empty), or
    another author's kind-5 removes nothing in real time.
 
@@ -455,6 +480,8 @@ approval (2026-09-28):
    the new version at the address is one the definition refuses: for example, one that carries neither stamp, names
    no person or several people, or names no tag. The story does not require that removal; the next pass makes it
    (Out of scope). When the path does make it, there is no count limit. Confirm that, or bound it.
+
+   *(Amended at Architecture, 2026-09-29: ADR `tagging-edges/0003` Amendment A1, owner decisions 2 and 11.)*
 
 10. **An owner-only on/off control, with no page, is part of this story.** Otherwise, with the path shipping off,
     turning it on (and the staging evidence) would need a shell until story 4.
@@ -639,6 +666,7 @@ For Test Design:
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/tagging-edges/0003-real-time-path.md`
+- ADR: `engineering-team/decisions/tagging-edges/0003-real-time-path.md` (with Amendment A1, 2026-09-29: revokes by event id and the lineage, after the
+  Implementation kick-back)
 - Test plan: `engineering-team/stories/tagging-edges/3-real-time-path.test-plan.md`
 - Review: (filled in after Review phase)

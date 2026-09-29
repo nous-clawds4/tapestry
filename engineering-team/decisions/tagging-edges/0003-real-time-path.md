@@ -1,6 +1,6 @@
 # ADR 0003: The real-time path — hear every write, decide from strict reads, remove only on a revoke
 
-**Status:** Accepted
+**Status:** Accepted; amended by A1 (2026-09-29)
 **Date:** 2026-09-28
 **Story:** `engineering-team/stories/tagging-edges/3-real-time-path.md`
 
@@ -134,7 +134,7 @@ and the ADR review's probes. The strfry facts come from the 1.1.0 source in the 
 
 - **A. An address-keyed id diff.** The path keeps three maps:
   - S: completed or baseline tagging id → address;
-  - H: heard but not yet completed tagging id → address;
+  - H: heard but not yet completed tagging id → address; *(Amended by A1-1: the lineage replaces H.)*
   - B ⊆ S: the first-start baseline.
 
   At each catch-up and safety diff, one streamed strict stamp scan finds arrivals (ids not in S, back-dated ones and
@@ -168,7 +168,8 @@ and the ADR review's probes. The strfry facts come from the 1.1.0 source in the 
 
   A revoke the relay acts on always names a version it holds, and S ∪ H covers every stamped version on the relay,
   so nothing is missed. There is no graph read, no index, no deletion queue and no cross-author fan-out: an author
-  can name only their own known taggings, so a flood of kind-5s from anyone costs one set lookup per target.
+  can name only their own known taggings, so a flood of kind-5s from anyone costs one set lookup per target. *(Amended by A1-3 and A1-15: an `e` target resolves only
+  as its address's latest learned version.)*
 - **B. A graph lookup by event id** (`WHERE r.eventId IN $ids`, with a `tags_eventId` index later), plus looks
   prompted by other authors' deletions.
   - A type scan per 500 ids.
@@ -244,10 +245,10 @@ filters, both with `limit:0` and no `since`:
 **A result is a trigger, never state (binding 3).** Every decision reads the relay again.
 
 - **A stamped kind 39999.** The path keeps its id and address, from `taggingToEdge`'s `edge.address` or its
-  refusal's `address`. The address becomes a **version prompt** `{id}`, and the id enters H (journal `v`). Events
+  refusal's `address`. The address becomes a **version prompt** `{id}`, and the id enters H (journal `v`) *(amended by A1-2: it becomes its address's lineage top)*. Events
   with no address are dropped.
 - **A kind 5 is resolved on receipt, in memory, and never queued as such.** From `revokeTargets(ev)`:
-  - each lower-cased `e` target found in S ∪ H gives its address;
+  - each lower-cased `e` target found in S ∪ H gives its address *(amended by A1-3: only the lineage's top)*;
   - each `a` target that is a tagging address of at most 255 UTF-8 bytes (strfry acts on no longer value) gives its
     address, but only when the path knows it: S ∪ H records an id there (an address → ids index kept with the maps),
     or the address was among the graph's at the last `readKeys` (refreshed at every catch-up and safety diff, and
@@ -258,7 +259,7 @@ filters, both with `limit:0` and no `since`:
   Each remaining address gets a **revoke prompt** `{kind5Id, created_at, by: 'e' | 'a', target}`. That is the only
   part of the event kept, O(1) per address (journal `d`). A kind-5 none of whose targets resolved is counted once in
   `deletionsMatchedNothing` and forgotten.
-- **Why S ∪ H is enough.** The relay acts only on a version it holds, and S ∪ H covers every stamped version on the
+- **Why S ∪ H is enough.** *(Replaced by A1-3 and A1-15.)* The relay acts only on a version it holds, and S ∪ H covers every stamped version on the
   relay: the baseline, everything heard since, and every catch-up arrival. So a revoke the relay acts on always
   resolves. A kind-5 naming a recorded version that has already left the relay is found, if its author made it, by
   the next catch-up's candidate scan (D3 step 3).
@@ -269,7 +270,7 @@ filters, both with `limit:0` and no `since`:
 **Lanes and rounds.** A round's addresses are taken in this order:
 
 1. while catch-up work is pending, its share comes first: up to 100 addresses and up to one fifth of the round's kept
-   budget (3.2 MiB), read before any live or re-look address;
+   budget (3.2 MiB), read before any live or re-look address *(amended by A1-14)*;
 2. live version prompts and live revoke prompts (the live lane);
 3. re-looks;
 4. further catch-up work.
@@ -282,8 +283,9 @@ later. That 250 ms is a cap, not a reset: later prompts never postpone it.
 
 **The safety diff.** Every 10 minutes the path runs the full D3 diff (arrivals, look-only prompts and deletion
 candidates) and compacts when the queue is empty. This catches a subscription that stays connected but stops
-delivering, revokes included, within about 10 minutes. That stall is a residual for the owner (owner decision 10); no
-known strfry defect behaves this way.
+delivering, revokes included, within about 10 minutes, except a version both stored and revoked by id while nothing
+was delivered, which waits for the pass (decision 5's first corner). Ledger row
+`2026-09-29-strfry-delete-hides-next-write` records one strfry trigger (owner decision 10). *(Amended by A1-16.)*
 
 ### Where it runs (D2-A)
 
@@ -409,7 +411,8 @@ schedules one, and when a pass that overlapped a round ends or is first seen dea
 2. **Arrivals and look-only prompts.** One strict stamp scan (the two `nostr-user-tag` stamps), streamed through
    `scanStrict`'s new `onEvent`; it keeps `(id, address)` pairs.
    - **Arrivals** are scanned ids not in S. That includes heard ids still pending, and those whose prompt was dropped.
-     Each becomes a version prompt, back-dated history included. `created_at` is never used.
+     Each becomes a version prompt, back-dated history included. `created_at` is never used. *(Amended by A1-9:
+     every scanned pair is also learned, A1-2.)*
    - **Look-only prompts** come from comparing the scan with the graph keys:
      - (i) a scanned version at an address the graph records with a different event id;
      - (ii) a scanned version at an address the graph does not hold, whose id is in S but not in B;
@@ -419,7 +422,7 @@ schedules one, and when a pass that overlapped a round ends or is first seen dea
 3. **Deletion candidates.**
    - Graph-recorded event ids that the scan no longer finds.
    - Ids in S ∪ H that the scan no longer finds, at an address the graph holds with another event id. This covers a
-     heard version revoked while its prompt was dropped or its round had not run.
+     heard version revoked while its prompt was dropped or its round had not run. *(Amended by A1-9: lineage tops.)*
 
    They are grouped by their address's pubkey. Each author's ids, and separately its addresses, are split into filters
    sized to the argv budget after `escapeFilterArgv`, about 1,400 ids per filter, as `addressScanFilters` does. They are
@@ -433,15 +436,15 @@ schedules one, and when a pass that overlapped a round ends or is first seen dea
    Each kind-5 kept is cut to the targets it names, and becomes a revoke prompt at that address. A failed scan
    (`filter-too-large`, `too-large`, a time-out) is bisected down to one id or one address. Only a single-target scan
    that still fails is a contained failure (counted, backed off, retried at the next diff). It never aborts the
-   catch-up, and only that author's own kind-5 volume can cause it.
+   catch-up, and only that author's own kind-5 volume can cause it. *(Amended by A1-9: a found revoke is journaled.)*
 4. **Restore.** Pending entries, H, parked addresses, re-looks and `deadSeenAt` come back from `record.json` plus the
-   journal.
+   journal. *(Amended by A1-9 and A1-12.)*
 5. **Process** the queue in rounds (below). Arrivals are processed in chunks of 5,000 addresses. The catch-up is done
    once every address it queued has had one attempt, whether decided, parked or failed. A failed address stays pending
    with its backoff, but does not hold the catch-up open. The status records the outcome, duration and counts.
 6. **Compact.**
    - S becomes (S ∩ scanned) ∪ completed.
-   - H drops ids completed, or neither scanned nor candidates.
+   - H drops ids completed, or neither scanned nor candidates. *(Amended by A1-7.)*
    - B becomes B ∩ scanned, and `refusedSeen` becomes `refusedSeen` ∩ scanned.
 
 **A catch-up read fails** (the stamp scan or `readKeys`): that catch-up is aborted without compaction. The status gets
@@ -454,16 +457,17 @@ the catch-up is retried with 5→60 s backoff. It therefore completes within AC-
 **First start.** None of `started.json`, `record.json` or `status.json`'s `firstStartedAt` exists. Then:
 
 1. Once the identities resolve and the relay answers, subscribe and wait for EOSE. No graph contact and no schema check
-   happen first, so a Neo4j outage cannot delay the baseline.
+   happen first, so a Neo4j outage cannot delay the baseline. *(Amended by A1-8: the census comes first, at most 10 s.)*
 2. Take the stamp scan. Buffer every id delivered on the subscription since the REQ, from before or after the scan.
 3. S = the scanned `(id, address)` pairs, and B = the scanned ids minus every buffered id. A live delivery has a levId
    after the REQ's snapshot, so it was stored after the first start began.
 4. Write `record.json`, then `started.json`, then the status. Then process the buffer.
 
-It takes no action on the baseline versions and runs no candidate scan. If the subscription reconnects before
+It takes no action on the baseline versions and runs no candidate scan *(amended by A1-10: it then requests one
+catch-up)*. If the subscription reconnects before
 `record.json` is written, the first start restarts from step 1: that reconnect's gap was delivered to no subscription.
 
-**Lost record.** A first-start marker exists, but one of these holds:
+**Lost record.** *(Amended by A1-8: a census before its REQ.)* A first-start marker exists, but one of these holds:
 
 - `record.json` is missing, or fails parse, version or checksum;
 - the journal cannot be read;
@@ -485,7 +489,7 @@ startedAt, endedAt}`. What the relay stored during the gap waits for the next pa
   `x {a, dropped:[ids]}`, so a replay never drops a later `v`. strfry keeps one version per (kind, pubkey, first
   `d`), so a dropped id has left the relay, and its return is a new store. This runs at round step 8, after the gate:
   the gate reads the maps as they were before the round's read. A prompt heard for an address whose round is in
-  flight starts a fresh pending entry;
+  flight starts a fresh pending entry *(amended by A1-2: H is gone, and a read never shrinks a lineage)*;
 - compaction intersects them with a complete scan.
 
 So a re-sent older version after an id-only revoke (AC-2, AC-4) is an arrival at the next catch-up, and is created.
@@ -497,7 +501,7 @@ So a re-sent older version after an id-only revoke (AC-2, AC-4) is an arrival at
 - from an address scan, events whose identity `d` gives a requested address;
 - from the element read, events whose lower-cased id was requested.
 
-Every round scan has `maxBytes` 8 MiB. That is well above `maxEventSize`, so any single legitimate address fits, and a
+Every round scan has `maxBytes` 8 MiB (the catch-up share's scans: A1-14). That is well above `maxEventSize`, so any single legitimate address fits, and a
 scan over it is bisected like any `ScanError`.
 
 A round's kept events, the element read's included, are counted against a 16 MiB budget of JSON. Once the budget is
@@ -546,7 +550,7 @@ steps 2 and 3).
   look at every start, whatever prompted it. Updates and moves are never held, so a relationship the graph already
   holds follows the relay (story item 8, AC-4's last sentence).
 - **A revoke prompt** was built only from the address's author's kind-5 (D5-A). It satisfies the gate when:
-  - it names by `e` a version the relay held at that address (an id S or H recorded there when the kind-5 arrived,
+  - *(Replaced by A1-4 and A1-15.)* it names by `e` a version the relay held at that address (an id S or H recorded there when the kind-5 arrived,
     the stored `eventId` included), and no newer version has since been known at that address. A by-`e` prompt is
     discarded, in the entry and in any re-look, as soon as another version is heard at the address, found there by a
     catch-up scan, or returned there by a read. An empty read keeps it. So a revoke of an old version can never
@@ -582,7 +586,7 @@ Each failure is contained to what it touches:
 - **A relay read fails.** Any `ScanError` code counts: `spawn`, `process-error`, `timeout` (20 s per round scan),
   `exit`, `signal`, `truncated`, `unparseable`, `not-an-event-line`, `duplicate`, `off-filter`, `too-large` or
   `filter-too-large`.
-  - That scan's addresses are deferred and bisected, so the others proceed.
+  - That scan's addresses are deferred and bisected, so the others proceed. *(Time-outs: A1-13.)*
   - A single address backs off 5→10→20→40→60 s, and is reflected within 60 s plus one round of the relay answering in
     full again.
   - It is counted in `failedReads.relay`.
@@ -728,7 +732,7 @@ while the switch is off, and turning it back on catches up (AC-4). A missing or 
     byReason}`;
   - `heldPreExisting`, `removalsNotPrompted`, `relooks`, `conflicts`, `droppedOverBacklog`;
   - `countsReset?`, set when `status.json` was lost;
-- `pending`, `parked`, `seen` (the size of S), `heard` (the size of H), `journal {bytes, skippedLines}`;
+- `pending`, `parked`, `seen` (the size of S), `heard` (the size of H; *amended by A1-1*: addresses whose top is not in S), `journal {bytes, skippedLines}`;
 - `switchUnreadable`: true when `switch.json` is present but unreadable (read as off);
 - `setupProblem`: `null`, `{kind:'identity', identity, problem, source}` or `{kind:'schema', rule, problem}`;
 - `lastError {at, stage, code, text}`, `preimageFile`, `process {pid, startTime, startedAt}`, `updatedAt`;
@@ -814,7 +818,7 @@ beside it. The CF-2/3/4 wording lands with the implementation, as story 3 docs t
 - **Owner decision 2.** Note beside it, with the same text as A7's note.
 - **Binding 2, refined.**
   - A kind-5 prompts a look only from its own author, and only at addresses it names that the path knows: by `e`,
-    through the path's seen and heard maps; by `a`, a tagging address of at most 255 bytes where the path's maps or the
+    through the path's seen and heard maps *(amended by A1-3: only the latest version learned at the address)*; by `a`, a tagging address of at most 255 bytes where the path's maps or the
     graph's keys record a version.
   - Another author's kind-5 prompts nothing, since the relay does not act on it (owner decision 3).
   - A removal it prompts also needs the gate's revoke rule.
@@ -858,13 +862,17 @@ criteria, and the story says so beside each:
 - AC-5: decisions 9 and 10;
 - item 7 and Out of scope: decision 5's corners.
 
+Amendment A1 (2026-09-29) adds decision 11 and qualifies: AC-2 (decisions 2, 3, 9, 10 and 11); AC-3 (decisions 2, 5
+and 11); AC-4 (decisions 5, 9 and 10); item 7 and Out of scope (decision 5's corners, widened); item 9 (decisions 2
+and 11).
+
 ## How each acceptance criterion is met
 
 | AC | Met by |
 |---|---|
 | **AC-1** | D1's live subscription hears every writer, back-dated events included, within about 1–2 s. Rounds read graph-first, then relay-strict, de-duplicate, and `decideAddress` follows the relay's current version: create (people by bare keyed `MERGE`), update or move. Id-only resolution goes through the element read and the same-version rule. Lanes put live work first, with a reserved share for catch-up. Burst: about 145 s per 10,000, pessimistic. Except owner decisions 5, 9 and 10. |
-| **AC-2** | A kind-5 is resolved in memory to its author's addresses (S ∪ H by `e`; `a` directly). The revoke prompt (by id, or by address with `revokeApplies`) lets the removal through when the relay read finds nothing. Another accepted version is followed, and another author's or a non-revoke kind-5 changes nothing. No count limit. Except owner decisions 2, 3, 9 and 10. |
-| **AC-3** | Failure handling, per class. The gate: a `not-on-relay` removal needs a revoke; version and look-only prompts cannot remove on an empty read. Bounded scans, kept bytes and backlog. Bad setup is `waiting-setup`, with no writes and no DDL, resuming within 15 s of a rule. Except owner decision 5's crash corners. |
+| **AC-2** | A kind-5 is resolved in memory to its author's addresses (by `e`, the address's latest learned version; `a` directly; A1-3). The revoke prompt (by id, or by address with `revokeApplies`) lets the removal through when the relay read finds nothing. Another accepted version is followed, and another author's or a non-revoke kind-5 changes nothing. No count limit. Except owner decisions 2, 3, 9, 10 and 11. |
+| **AC-3** | Failure handling, per class. The gate: a `not-on-relay` removal needs a revoke; version and look-only prompts cannot remove on an empty read. Bounded scans, kept bytes and backlog. Bad setup is `waiting-setup`, with no writes and no DDL, resuming within 15 s of a rule. Except owner decisions 2, 5 and 11 (A1-4, A1-16). |
 | **AC-4** | Catch-up at every connect and start (deferred, never skipped), and after an overlapping pass: stamp-scan arrivals by id, look-only prompts against the graph, author-scoped deletion candidates, and journal restore, done when every queued address had one attempt, ≈ 240 s pessimistic. The first-start baseline minus live deliveries. B checked at every look, and shrunk by reads at an address. Lost record and identity-changed re-baseline with `not-established`. The full safety diff every 10 min. Except owner decisions 5, 9 and 10. |
 | **AC-5** | The switch file on the data volume; off within 5 s by exit. The bash wrapper never exits, so there is no FATAL, and the conf is re-read per start. A separate program from follows (it never reads the follows queue). No pass lock, and no pgrep match. The post-pass re-look and catch-up, with bounded dead-pass windows. Except owner decisions 9 and 10. |
 | **AC-6** | `status.json` (≤ 30 s heartbeat, `stale` flag) through a public route. Every listed field. Fixed text and allow-listed codes only. |
@@ -895,12 +903,15 @@ criteria, and the story says so beside each:
 Accepting items 2, 3, 5, 9 and 10 qualifies story 3's criteria (the Planning amendment above). Declining any kicks that
 part back to Planning.
 
+*Amendment A1-16 (2026-09-29) rewords decisions 2, 5, 9 and 10 and adds decision 11, for approval at the amendment's
+gate.*
+
 1. **AC-7's residuals.**
    - (i) A scoring statement fails only in a deadlock forming within the first ~100 rows of one of its 10k-row inner
      transactions and crossing a real-time transaction: about 4×10⁻⁶ per path transaction overlapping a scoring run.
    - (ii) The follows consumer drops an event when a small list write crosses the same two people as a path write
      within the same milliseconds (row `2026-09-27-stream-consumer-at-most-once`).
-2. **What counts as a revoke of the recorded version.** A `not-on-relay` removal needs the author's deletion naming a
+2. **What counts as a revoke of the recorded version.** *(Reworded by A1-16.)* A `not-on-relay` removal needs the author's deletion naming a
    version the relay held there by id, or the address with `revokeApplies` (strfry's rule applied to the recorded
    version). These cases wait for the pass:
    - a relationship whose stored `createdAt` is malformed (only an out-of-band write makes one; the pass repairs it),
@@ -915,7 +926,7 @@ part back to Planning.
    arrival, look-only prompt or safety diff. This keeps a flood of other people's kind-5s to one map lookup per target.
    The story allows either reading ("a look one of them prompts can still …").
 4. **Off within 5 s** (a 1 s poll, then up to a 2 s grace for an in-flight transaction, a journal flush, then exit).
-5. **Corners that wait for the pass.**
+5. **Corners that wait for the pass.** *(Reworded by A1-16.)*
    - A version stored and revoked by id before the relay announced it (story item 7, unchanged).
    - A version heard in the last ≤ 250 ms before a crash, and revoked by id before the restart.
    - A version held at the first start that left the relay and came back with the same id, with no read of its
@@ -932,7 +943,7 @@ part back to Planning.
 7. **A new supervisord program** (a bash wrapper idle while off, plus a Node child while on), rather than running inside
    the control panel.
 8. **Fold row `2026-09-28-lock-check-accepts-any-flock`** (C20).
-9. **Scale ceilings.**
+9. **Scale ceilings.** *(Reworded by A1-16.)*
    - AC-4's 5 minutes holds while the stamped taggings on the relay scan within the catch-up's slack: on the order of
      150 MB at staging's ~2 MB/s, against 6 MB today.
    - The 384 MB heap caps the path at roughly 0.8–1 M taggings.
@@ -943,7 +954,7 @@ part back to Planning.
    - Under a sustained live load a catch-up proceeds at 100 or more addresses per round, so AC-4's 5 minutes for a
      10,000 backlog holds only while rounds stay under about 2.3 s; the status's `lastRound` shows it.
    - The staging evidence records per-round times. Revisit at 250,000 `seen`, or a staging round above 12 s.
-10. **Residuals beyond the minute.**
+10. **Residuals beyond the minute.** *(Reworded by A1-16; decision 11 is new there.)*
     - A subscription that stays connected but stops delivering: what it misses, revokes included, is reflected at the
       next safety diff (≤ 10 min).
     - A follows Redis that accepts no connection: every strfry command connects to it first, so every relay read (the
@@ -1057,7 +1068,7 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
 - New suites:
   - **The pure planner.**
     - Upper-case `e` and pubkey.
-    - A version and its id-only revoke heard in one round (the revoke resolves through H and removes).
+    - A version and its id-only revoke heard in one round (the revoke resolves through the lineage's top and removes; A1-3).
     - A tagging stored during the first-start scan is created.
     - A re-sent older version after an id-only revoke is created after downtime.
     - A queued version prompt plus a wipe removes nothing.
@@ -1069,7 +1080,7 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
     - `refusedSeen` shrinking.
     - A by-id revoke, then a re-apply at the same address during an overlapping pass, then a wipe: the re-look
       removes nothing.
-    - A version heard after a round's scan spawned, then revoked by id: it stays in H and the revoke removes.
+    - A version heard after a round's scan spawned, then revoked by id: the lineage keeps it through that read, and the revoke removes (A1-2).
     - One author with 1,600 revoked ids and 1,600 addresses yields candidate scans that each fit the argv budget.
     - A kind-5 whose `a` targets hold nothing queues nothing.
   - **The engine.**
@@ -1115,7 +1126,7 @@ journalLine, replayJournal, allowErrorCode
 Its byte values are numbers: `roundKeptBytes`
 16777216, `roundScanMaxBytes` and `candidateScanMaxBytes` 8388608, `journalCompactBytes` 1048576.
 
-**T3 — The maps.** `newMaps()` → `{ S: Map, H: Map, B: Set, R: Map }`:
+**T3 — The maps.** *(Amended by A1-1 and A1-17.)* `newMaps()` → `{ S: Map, H: Map, B: Set, R: Map }`:
 - `S` holds seen ids;
 - `H` holds heard ids not yet completed;
 - `R` holds `refusedSeen`;
@@ -1134,7 +1145,7 @@ Functions that take `maps` mutate it and return a result object. Entries restore
 - `address` is `taggingToEdge`'s `edge.address`, or its refusal's `address`; `null` when neither exists.
 - `id` is lower-cased.
 
-**T6 — `resolveDeletion(ev, maps, graphAddresses)`** → `{ prompts: [{ address, prompt }], matchedNothing, foreign }`.
+**T6 — `resolveDeletion(ev, maps, graphAddresses)`** *(Amended by A1-17.)* → `{ prompts: [{ address, prompt }], matchedNothing, foreign }`.
 - `graphAddresses` is a `Set`. `prompt` is `{ type: 'revoke', kind5Id, created_at, by: 'e' | 'a', target }`.
 - An `e` target resolves through `maps.S` then `maps.H`.
 - An `a` target resolves only when it is a tagging address of ≤ 255 UTF-8 bytes and is known: an `S` or `H` entry has
@@ -1144,11 +1155,11 @@ Functions that take `maps` mutate it and return a result object. Entries restore
 - `matchedNothing` is `prompts.length === 0 && foreign === 0`.
 - A non-deletion (not `isEvent`-shaped, or not kind 5) gives `{ prompts: [], matchedNothing: true, foreign: 0 }`.
 
-**T7 — `shrinkOnRead(maps, address, returnedId, captureSeq)`** → `{ dropped: [ids] }`. It deletes from `S`, `H`
+**T7 — `shrinkOnRead(maps, address, returnedId, captureSeq)`** *(Amended by A1-17.)* → `{ dropped: [ids] }`. It deletes from `S`, `H`
 and `R` every entry with `.a === address`, `.seq <= captureSeq` and `id !== returnedId`, and deletes those ids from
 `B`. `returnedId` is `null` for an empty read.
 
-**T8 — `compact(maps, scannedIds, candidateIds, captureSeq)`.** Entries with `seq > captureSeq` are kept (recorded
+**T8 — `compact(maps, scannedIds, candidateIds, captureSeq)`.** *(Amended by A1-17.)* Entries with `seq > captureSeq` are kept (recorded
 after the scan began). Of the others:
 - `S` and `R` keep only ids in `scannedIds`;
 - `H` keeps ids in `scannedIds` or `candidateIds` that are not in `S`;
@@ -1163,7 +1174,7 @@ after the scan began). Of the others:
 
   An `(id, address)` in `R` is excluded.
 
-**T10 — `deletionCandidates(graphKeys, scannedIds, maps)`** → `[{ address, id }]`, de-duplicated, tagging addresses
+**T10 — `deletionCandidates(graphKeys, scannedIds, maps)`** *(Amended by A1-17.)* → `[{ address, id }]`, de-duplicated, tagging addresses
 only:
 - every `graphKeys` entry whose eventId is not in `scannedIds`;
 - every `S` or `H` id not in `scannedIds` whose address `graphKeys` holds with another eventId.
@@ -1191,7 +1202,7 @@ type `by` whose value is in `targets` (an `e` compared lower-cased, an `a` raw).
 `promptFromVersion(ev, identities).address === address`, adds `elementEvents`, de-duplicates by id, runs `readRelay`,
 and returns `byAddress.get(address) || null`: an edge, a refusal, `{ conflict: true, count }` or `null`.
 
-**T15 — Prompts and entries.**
+**T15 — Prompts and entries.** *(Amended by A1-5 and A1-17.)*
 - A prompt is `{ type: 'version', id }`, `{ type: 'revoke', … }` (T6) or `{ type: 'look' }`.
 - An entry is `{ version: { id } | null, revokes: [revoke prompts], look: boolean }`.
 - `mergePrompt(entry | null, prompt)` → a new entry:
@@ -1201,7 +1212,7 @@ and returns `byAddress.get(address) || null`: an edge, a refusal, `{ conflict: t
 - `discardSupersededRevokes(entry, knownVersionId)` → an entry without the `by: 'e'` revokes whose target differs from
   `knownVersionId`. `by: 'a'` revokes are kept.
 
-**T16 — `gateAction(decision, { address, storedRow, relayVersionId, entry, baseline })`.** `decision` is
+**T16 — `gateAction(decision, { address, storedRow, relayVersionId, entry, baseline })`.** *(Amended by A1-17.)* `decision` is
 `decideAddress`'s answer. The result is `{ act: true }`, or `{ act: false, held: 'pre-existing' |
 'removal-not-prompted' }`.
 - A `create` is held (`'pre-existing'`) when `baseline.has(relayVersionId)`.
@@ -1231,7 +1242,7 @@ addresses in round order, at most `LIMITS.roundAddresses`:
 
 The kept-bytes share is the engine's.
 
-**T19 — The journal.** Each line is compact JSON with a `t` field:
+**T19 — The journal.** *(Amended by A1-6 and A1-17.)* Each line is compact JSON with a `t` field:
 
 | Line | Fields |
 |---|---|
@@ -1255,7 +1266,7 @@ entry }], deadSeenAt, parked: Map<address, code>, skippedLines }`:
 - `x` deletes the listed ids from every map;
 - `b` deletes from `B`.
 
-**T20 — The engine seam.** `src/pipeline/tagging-edges/realtime/index.js` exports `{ createEngine, run,
+**T20 — The engine seam.** *(Amended by A1-17.)* `src/pipeline/tagging-edges/realtime/index.js` exports `{ createEngine, run,
 defaultDeps }`. `createEngine(deps)` returns `{ start(), tick(), handleSignal(name), status() }`:
 - `await start()` reads the switch, record, journal and report (for `deadSeenAt`), resolves identities, and, when the
   switch is on and the identities are good, subscribes.
@@ -1331,7 +1342,7 @@ the wiring test pins that both callers pass `file`.
 
 The suite writers' questions are settled here (T25–T31). They refine T1–T24 where those left a choice open.
 
-**T25 — Planner details.**
+**T25 — Planner details.** *(Amended by A1-17.)*
 - **Container types.** `scannedIds` and `candidateIds` are `Set`s. `targets`, `addresses` and `ids` are arrays.
   `deadSeenAt` is a plain object from runId to milliseconds.
 - **`promptFromVersion`** returns `null` whenever there is no address (T5's "id is lower-cased" is moot: the contract
@@ -1389,7 +1400,7 @@ The suite writers' questions are settled here (T25–T31). They refine T1–T24 
 - **Signals.** It runs its backoff sleeps in the background and `wait`s, so a TERM during a backoff exits within 1 s.
 - **Compatibility.** It stays bash-3.2-compatible.
 
-**T29 — Engine details.**
+**T29 — Engine details.** *(Amended by A1-17.)*
 - **Subscription callbacks.** `subscribe`'s callbacks are called asynchronously, never inside `subscribe()`:
   `onEvent(event)`, `onEose()` and `onClose({ code, reason })`. A client-side `close()` fires no `onClose`.
 - **Sync or async.** Store and state methods may be synchronous; the engine awaits them.
@@ -1442,7 +1453,7 @@ The engine ignores rows whose address is not a tagging address.
 - **The subscription buffer.** The engine drains it at every tick (≤ 250 ms apart), keeping only ids, addresses and
   resolved prompts. What the relay delivers between two ticks is the one buffer outside the round's kept budget.
 
-**T33 — What the blind reference implementation found.** An implementation written from this ADR alone, without the
+**T33 — What the blind reference implementation found.** *(Amended by A1-5 and A1-17.)* An implementation written from this ADR alone, without the
 tests, disagreed with the suites in one place (`status.process.startedAt`, T32; the test was corrected). Its authors
 flagged these readings, which are now fixed:
 - **Restored pending work.** `replayJournal`'s `pending` holds entries only (T15). A restart restores every pending
@@ -1459,6 +1470,677 @@ flagged these readings, which are now fixed:
 used for both of the wrapper's 60 s rules:
 - an exit within that many seconds of start counts as a quick exit and backs off;
 - that many seconds of healthy running resets the backoff.
+
+## Amendment A1 — revokes by event id, and what an empty read keeps (Implementation kick-back, 2026-09-29)
+
+**Why.** Implementation built the path to T1–T34, and every suite passed. Two conformance rounds against that code
+then confirmed that this ADR's rules for revokes by event id could not keep its own promise, "a revoke of an old
+version can never authorise removing a newer one that later leaves with no event" (§ gateAction):
+- **Wrongful removals.** The discards that were to keep the promise are event-driven. They cannot order versions, and
+  a prompt waits in many places: pending, in flight, parked, re-looks, a catch-up's backlog, the journal. A stale
+  by-id revoke survived in one of them, and removed a newer relationship once that version left with no event.
+- **Lost revokes.** An empty read's shrink (T7) dropped the heard ids that a late or gap-crossing revoke needs to
+  resolve, so those revokes waited for a pass.
+
+The owner sent the story back to Architecture. Every passage above that this amendment supersedes carries an
+"(Amended by A1-n.)" marker. Where any sentence above conflicts with A1, A1 governs.
+
+**How it was settled.** Three independent designs were each prototyped on the built code. Each was measured against:
+- the ten story suites;
+- the 132 reproduction scripts of both review rounds;
+- a property fuzzer over the suites' fakes, 8,000–16,000 seed-runs per design, in eight modes (healthy; latency with
+  interleaving; relay writes injected inside scans; passes; lost records; crashes and restarts).
+
+A judge chose one design on the evidence and grafted ideas from the other two. The result ran 16,000 fresh seed-runs
+(7.7 M operations) with no safety violation. Two red-teamers then attacked it. Their fixes were prototyped and
+re-measured, and a second pair of red-teamers attacked those. Its fixes are folded in too; A1-21 says which of them
+were prototyped and which Test Design pins first.
+
+What the fuzzer checked on every step:
+- no removal while the relay held an accepted version at the address;
+- no removal without an author's deletion that A1-4 accepts, or a refused version at the read;
+- no create for a baseline version;
+- every write carries the contract's properties;
+- off within 5 s, and no leak in the status;
+- bounded state;
+- in healthy runs, every change and revoke reflected within the minute, outside the corners below.
+
+**What stays.**
+- The bindings: `decideAddress` is unchanged, and versions are never ordered by content or `created_at`. A graph read
+  comes before a strict relay read. A delivery or a kind-5 only prompts.
+- No schema change and no strfry change.
+- Owner decisions 1, 3, 4, 6, 7 and 8, and the Planning decisions: the 1-minute bound, the 5-minute catch-up, no count
+  limit, no backfill, and it ships off.
+
+**The idea.** strfry keeps one version per address and tells a live subscriber about stores in store order. So the
+order in which the path *learns* versions at an address follows the relay's store order, without reading a
+`created_at`. The path learns from deliveries, and from reads placed at the moment they were taken.
+
+The path keeps, per address, the latest version it learned (the **top**) and a few versions it learned there before
+it (**older**):
+- A by-id deletion resolves only when it names the top. A deletion naming anything else was stored after a newer
+  version had replaced it, so strfry acted on nothing.
+- A resolved deletion authorises removing the relationship only when that relationship records the named version, or
+  a version learned there before it.
+
+Nothing is discarded anywhere, so no waiting place can keep a stale revoke that matters.
+
+### The rules
+
+**A1-1 — The lineage replaces H.** For each tagging address A the path keeps a lineage `L(A) = {top, older}`:
+- `top` is the latest version the path has learned at A, or `null` for an address only the census recorded (A1-8);
+- `older` is the set of versions it learned at A before `top` that the graph may still record. It is usually empty,
+  is allocated lazily, and never holds more than 8 ids (A1-7);
+- an index maps each top id to its address.
+
+`S` (completed and baseline ids), `B` and `R` (`refusedSeen`) keep every other role: arrivals, look-only prompts,
+held creates and refused versions. They also keep their read shrink (T7) and their compaction (T8). `H` is removed.
+The status's `heard` becomes the number of addresses whose top is not in `S`, kept as a counter.
+
+*(Supersedes: T3's map list and its H-to-S move; D3-A's map list, "H: heard but not yet completed" (:137); the
+record.json row's `heard` (:365); § Status's `heard`, "the size of H" (:731).)*
+
+**A1-2 — Learning.** The path learns version X at address A in three ways:
+1. A delivery of X is drained.
+2. A successful, conflict-free strict read of A returns X, as an edge or as a refusal. This holds even when the
+   graph's rows at A conflict, though nothing is decided there, and even when the round's element read for A then
+   fails or is deferred. A round learns every such read before its element checks.
+3. A stamp scan finds X at A: a catch-up's scan (arrivals included), a first start's baseline, or a lost record's
+   re-baseline.
+
+A delivery makes X the top, and the previous top joins `older`.
+
+A read or a scan is placed at its **capture**: a counter taken just before its strfry process is spawned, unique to it.
+- If the path learned anything at A after that capture, the read teaches nothing at A: neither X nor the graph's
+  version. Their order is unknown.
+- Otherwise X becomes the top, the previous top joins `older`, and X leaves `older`.
+- In that case, if the round's graph read (or the catch-up's key read) found the graph recording G ≠ X at A, G also
+  joins `older`. G was written from a relay read taken before that graph read, so X's current stay began after G was
+  held.
+
+Nothing else changes a lineage. An empty read changes nothing. Only the cap and compaction prune (A1-7). No
+`created_at` is read.
+
+*(Supersedes: § What it hears, "the id enters H (journal `v`)" (:246-248); § The catch-up step 2, "Each becomes a
+version prompt" (:411-412); § "S, H, B and refusedSeen shrink", bullet 2, as it applies to H (:481-488); T7 for H.)*
+
+**A1-3 — Resolution.**
+- A kind-5's lower-cased `e` target X resolves only while X is the top of its address's lineage, and then gives that
+  address. Any other `e` target resolves nothing.
+- An `a` target resolves at a tagging address of at most 255 UTF-8 bytes that a lineage holds, that `S` records an id
+  at, or that the graph's last keys hold.
+- The author check, the foreign count and de-duplication are unchanged.
+
+Why this is enough:
+- When a deletion is drained, every version stored at A before it on this connection has already been learned. So
+  if X is not the top, a later version had replaced X when the deletion was stored, and strfry acted on nothing.
+- A deletion stored across a reconnect, a restart or a first start's REQ-to-scan window is found by the catch-up
+  that follows (A1-9, A1-10).
+- The exceptions are decision 5's first corner (a version stored and revoked by id before any delivery of it reached
+  the path) and decision 10's new bullet (a deletion drained while the read that first shows the path its target is
+  still running).
+
+*(Supersedes: § What it hears, the `e` bullet and the `a` bullet's "S ∪ H records an id there" (:250-254); "Why
+S ∪ H is enough" (:261-264); D5-A's "A kind-5's e targets resolve through S ∪ H" and "S ∪ H covers every stamped
+version on the relay" (:165-170); T6's resolution bullets; "Binding 2, refined" (:815-818).)*
+
+**A1-4 — The gate.** A by-e revoke naming X satisfies the gate for removing the relationship at A that records G only
+when:
+- **(i)** X = G; or
+- **(ii)** X is the top of A's lineage, and G is in its `older`.
+
+Clause (ii) stands only if the owner accepts decision 11. If decision 11 is declined, clause (ii) is deleted.
+
+Further rules:
+- The gate reads a copy of the lineage taken when the round decides A. Versions heard while the round was in flight
+  count. This round's own read is not yet learned.
+- A relationship whose `eventId` is missing or not a string satisfies neither clause.
+- By-a revokes are unchanged: `revokeApplies` on a well-formed stored edge.
+- A not-on-relay removal still needs a revoke that satisfies the gate. A non-tagging removal needs such a revoke or a
+  version prompt at A. A look never removes.
+
+*(Supersedes: § gateAction's by-e bullet, from "it names by `e` a version the relay held at that address" through the
+closing sentence (:549-553), including "A by-e prompt is discarded … An empty read keeps it"; T16's "it is `by:
+'e'`".)*
+
+**A1-5 — No discards; bounded prompts.**
+- Nothing discards a revoke prompt for being stale. A stale by-e prompt is inert under A1-3 and A1-4.
+- Put-backs, re-looks, parked entries, restored work, a catch-up's work and backlog, and journal replay all carry
+  prompts unchanged.
+- `mergePrompt` still de-duplicates by `(by, target)`.
+- An entry keeps at most **8** by-e revokes, the most recently merged. Dropping one only withholds a removal.
+- Replaying `c` answers only the version prompt it names; an entry left with no version, no revokes and no look is
+  deleted.
+
+*(Supersedes: T15's `discardSupersededRevokes`; T33's two discard sentences; every discard site the implementation
+added in review round 1.)*
+
+**A1-6 — Record and journal.**
+
+`record.json`:
+- `heard` is replaced by `lineage: [[address, top | null, [older…]]]`, one row per lineage. The third element is
+  omitted when empty.
+- `epoch` names the journal generation the record goes with (below).
+- Parked rows gain `entry` (A1-12).
+- `pending` also carries a running catch-up's unfed backlog (A1-9).
+
+Journal lines. **Every line that changes a lineage is absolute and self-contained:**
+- `v {id, a, top, older}` sets `L(a)` to exactly `{top, older}`, and adds a version prompt for `id`. A first start's
+  buffered delivery that the scan's version outranks is one such line, carrying the final lineage.
+- `o {a, top, older}` sets `L(a)` exactly. It records a read's or a scan's learning, and a graph version joining
+  `older`.
+- `d` is also written for a catch-up's found revokes (A1-9).
+- `x` drops the ids it lists from `S`, `R` and `B` only.
+- `c`, `f`, `b`, `r`, `rc`, `p` and `k` are unchanged.
+- **The epoch.** Every compaction writes `record.json` with a new `epoch`, then truncates the journal and starts it
+  with `e {epoch}`. Replay applies only lines after the `e` line matching the record's epoch. So a truncation that
+  failed after a re-baseline cannot replay the older generation's lines over the new record.
+
+**Replay.**
+- Replay applies each line as it is read and never buffers the journal. If the streamed read fails part-way, the
+  state built so far stands, and the start reports `journal-unreadable`.
+- An absolute line never splits one change across two lines, so a torn append cannot invert a lineage by itself.
+- A replayed journal that lost lines can still leave a lineage behind the store order: the last flush interval
+  before a crash, a torn or damaged line, or a read that failed part-way. A stale top can then let clause (ii) act
+  on a stale deletion (decision 11's journal-fault triggers).
+- A start whose journal was not read whole (`journal-unreadable`) therefore demotes every restored top into its
+  `older`. The start catch-up's stamp scan re-learns the tops of addresses still on the relay within seconds.
+
+**Compaction cadence.** A round-end compaction runs once the journal passes the larger of 1 MB and a quarter of
+`record.json`'s size. Absolute lines are larger (up to about 0.8 KB with eight older ids), and this bounds how often
+a flood at one address rewrites the whole record.
+
+*(Supersedes: the state table's record.json row (:365); the journal table's `v` and `x` rows (:374, :377); T19's line
+table and its replay rules; T25's record shapes; § Journal rules as they applied to a read failing part-way.)*
+
+**A1-7 — Compaction and bounds.**
+- **The cap.** `older` never holds more than 8 ids. Learning a ninth drops the oldest-learned. Dropping an id only
+  withholds clause (ii).
+- **At a catch-up's compaction** (a safety diff included), `S`, `R` and `B` shrink as in T8, without H:
+  `compact(maps, scannedIds, captureSeq)`.
+- **A lineage is dropped** when all of these hold: its top is not in the stamp scan; the graph's keys did not hold its
+  address; no work waits there (pending, in flight, parked or a re-look); and nothing was learned there after the
+  scan's capture.
+- **Otherwise its `older` is cut** to the id the graph's keys recorded there, plus the ids learned there after the
+  scan's capture, whether or not work waits there.
+- **The pass exception.** While a pass may still write from an older read, no lineage is dropped and `older` is not
+  cut; only the cap applies. That means a run that overlapped one of the path's rounds and has not been seen to end, a
+  run alive at a report read taken with the catch-up's key read, or a run that ended after that key read.
+- **Other compactions** (a 1 MB journal) snapshot the lineage without pruning it.
+- **Bounds.** After a catch-up's compaction there is one lineage per address the relay or the graph holds, and `older`
+  holds at most the graph's recorded id plus what was learned since the capture. Between catch-ups, and during a
+  pass, `older` is capped at 8 ids per address, and an entry at 8 by-e revokes.
+
+*(Supersedes: § The catch-up step 6, "H drops ids completed, or neither scanned nor candidates" (:444); T8's H rule
+and its `candidateIds` parameter.)*
+
+**A1-8 — The census.** A start that takes a baseline (the first start, or a lost record's re-baseline) reads the
+graph's keys once, before its REQ:
+- one `readKeys` call, with no retry;
+- a 10 s deadline the engine enforces itself: a late answer is ignored. `readKeys`' `timeoutMs` bounds a transaction,
+  not a hung connection or the driver's retries;
+- each `(address, eventId)` at a tagging address the lineage does not hold joins `older` there, with no top;
+- the census is the graph read for the baseline scan's placement (A1-2). Wherever the scan places a version X other
+  than the census's id G, G joins `older` under X, including at addresses a restored lineage already holds.
+
+Why this is sound: every relationship the census reads was written from a relay read taken before the census.
+Everything the path learns afterwards was on the relay after it, whether a delivery on the REQ that follows or a
+version a later read or scan finds.
+
+A census that fails or is late records nothing, and the start proceeds (decision 5). Its entries reach `record.json`
+in the baseline's own snapshot, which follows at once; a crash before that snapshot repeats the whole start. Other
+starts take no census: their lineage is restored, and A1-2's graph learning places a graph version the path never saw
+wherever the relay holds another.
+
+*(Supersedes: § First start step 1, "No graph contact and no schema check happen first" (:456-457): a Neo4j outage now
+delays the baseline by at most 10 s. § Lost record (:466-476) gains the census.)*
+
+**A1-9 — The catch-up.**
+- **Step 2.** The stamp scan's pairs are learned at its capture (A1-2), arrivals included, with graph learning from
+  step 1's keys. They are journaled as `o` lines.
+- **Step 3, deletion candidates.**
+  - each graph event id the scan no longer finds (unchanged);
+  - each lineage top the scan no longer finds, at an address the graph holds with another event id. No other id could
+    pass the gate.
+- **Found revokes.** A kind-5 that a candidate scan keeps becomes a revoke prompt (T32). It is journaled as a `d` line
+  when the catch-up builds its work. If a compaction happens while the catch-up's backlog is unfed, that backlog is
+  written into `record.json`'s `pending`. So a found revoke survives a stop before its round, even if the relay later
+  loses the kind-5.
+- **Step 4.** Parked addresses come back with their prompts (A1-12).
+- **Step 6.** Compaction as in A1-7.
+
+*(Supersedes: § The catch-up step 2 (:411-412), step 3's second bullet (:421-422), "Each kind-5 kept … becomes a
+revoke prompt" (:433), step 4 (:437-438) and step 6 (:442-445); T10's second bullet; T32's candidate-scan prompt, which
+gains the `d` line.)*
+
+**A1-10 — First start.**
+1. The census (A1-8).
+2. Subscribe and wait for EOSE; take the stamp scan (steps 1–2, unchanged).
+3. `S` and `B` as before. The lineage learns the buffered deliveries in drain order, then places the scan's versions
+   (A1-2).
+4. Write `record.json`, `started.json` and the status. Process the buffer. Then request one catch-up (trigger
+   `start`).
+
+The first start itself still acts on no baseline version, and no catch-up creates a version in `B`.
+
+That catch-up does two things:
+- Its candidate scan finds a revoke stored after the REQ, or across a pre-record reconnect, when the revoked version
+  is the graph's recorded id or a lineage top. A revoke naming a version the path never learned waits for a pass
+  (decision 5).
+- Its look-only prompts bring a relationship the backfill left behind the relay up to the relay's version within
+  seconds, instead of at the first safety diff (decision 5, the owner's note).
+
+Review round 1's backlog-only catch-up folds into it. The buffer's 20,000-target cap stays.
+
+*(Supersedes: § First start step 4, and "It takes no action on the baseline versions and runs no candidate scan"
+(:461-463).)*
+
+**A1-11 — No start hold.** No round waits for a catch-up to finish. Restored work and live prompts run between a
+catch-up's reads, and while it fails or backs off (5→60 s), as AC-3's "other changes proceed meanwhile" requires.
+
+This is safe because a read never shrinks a lineage, and rule 2 names the top. A round that reads a restored address
+first still leaves the catch-up its candidate.
+
+Rounds and a catch-up's reads still take turns, one at a time (Throughput: "Sequential by design"). So while one of
+its reads runs, a round waits for it: normally under a second (0.5 s locally at 7,030 taggings), and at decision 9's
+scale ceiling about the stamp scan's duration.
+
+The state is `catching-up` only while a catch-up or a baseline runs.
+
+*(Supersedes: review round 1's start hold, and OPERATIONS §12.9's "the path applies nothing, new changes included".)*
+
+**A1-12 — Parked prompts persist.**
+- `record.json`'s parked rows are `{a, code, attempts, nextAt, entry}`.
+- Replay merges each row's `entry` into `pending` at its address. `parked` stays `Map<address, code>`, and the `p` line
+  is unchanged.
+- A start re-queues each parked address as catch-up work, carrying its prompts.
+
+*(Supersedes: T25's parked shape; § The catch-up step 4 (:437-438) and § Failure handling's "retried … at every
+start" (:605-606), which now carry the prompts.)*
+
+**A1-13 — Time-outs.**
+- **A group that times out.** A round scan of two or more addresses, or an element scan of two or more ids, that
+  fails with `timeout` is not bisected in its round. Its addresses are deferred, with no attempt counted (for an
+  element scan, the addresses that need those ids).
+- **Is it a stall?** If another scan in the same round answered, the relay is up, and the group's members are marked
+  to be read alone. If nothing else in the round answered, the next round first re-reads them as one group. Only if
+  that group times out too are they marked. So after a Redis stall the addresses come back in their usual groups.
+- **Read-alone marks.** A marked address is read alone: one address per scan, one element id per scan. The mark stays
+  until its own read succeeds. A lane's marked singles are read right after that lane's usual groups, so live and
+  re-look singles come before the catch-up's heavy reads and lane 4.
+- **A single that times out** is that address's own failure (5→60 s). A round reads no further marked single after
+  one has timed out; the rest wait for the next round, with no attempt counted. After three consecutive single
+  time-outs the address is parked like a refused write (5 min, 30 min, then every 6 h).
+- **The stall guard.** Two group time-outs in a round before any scan answers mean the relay is not answering. The
+  round then starts no more reads and defers the rest.
+- **Everything else.** Every other failure is bisected in the round, as now.
+
+So an address whose scans never answer delays the addresses read with it by two time-outs plus a round when other
+reads in its first round answered, and by three when its group was that round's only read: about 41 s locally, 61 s
+at 100 ms per strfry process and 100 s at 300 ms (decision 9). However many such addresses there are, each round
+spends at most one single time-out on them, and each is parked after three.
+
+*(Supersedes: § Failure handling, "That scan's addresses are deferred and bisected, so the others proceed" (:585), for
+time-outs; review round 1's stall guard.)*
+
+**A1-14 — The catch-up share.**
+- **The share's budget.** The share's scans run with `maxBytes` equal to what is left of its fifth of the round's kept
+  budget (3.2 MiB), address scans and element reads alike. So the share never keeps more than its fifth.
+- **No bisection under the share.** A share scan that fails `too-large` is not bisected. If the share has read nothing
+  yet this round, its first address (or id) is read alone under the remainder, so the share still advances whenever
+  one address fits. Then the share ends for the round: its remaining addresses and ids go to lane 4, unbisected.
+- **Lane 4** reads them after the live and re-look lanes (and their marked singles), under what the round has left,
+  with the usual 8 MiB single-scan cap. An element of a share address already read that no longer fits the share is
+  read there too, so no read address is left without its element.
+- **What that guarantees.** Live and re-look reads always keep at least 12.8 MiB, and the share costs at most two extra
+  strfry processes per round. A catch-up address heavier than the share waits for a round whose live and re-look reads
+  leave room. Kept memory stays below (16 + 8) MiB × 5.8.
+
+*(Supersedes: § Lanes and rounds item 1 (:271-272) for element reads; § Bounds' 8 MiB round-scan cap (:500) for share
+scans; review round 1's element-read change.)*
+
+**A1-15 — Why the lineage follows store order** (a new paragraph for § gateAction).
+
+What strfry guarantees: it keeps one version per address, tells a live subscriber about stores in store order, and
+tells nothing across a reconnect.
+
+What the lineage records:
+- A delivery is learned when it is drained. A read or a scan is learned at its capture.
+- A read teaches nothing at an address where anything was learned after its capture.
+- The graph's version joins `older` only below a version a read placed. The census's versions join only below
+  everything learned after the census.
+
+So a top is the latest store the path has seen at its address, and every id in `older` was stored or held there
+before it.
+
+When a by-id deletion of the top X is drained, nothing stored at A after X reached the path first. So strfry either
+held X when it stored the deletion, and deleted it, or X had already left with no event. Either way the author deleted
+the latest version stored at A, and an empty read after that follows from it, for a relationship recording X (clause
+i) or recording a version X replaced (clause ii).
+
+A version stored after the deletion is learned when it arrives, and becomes the top. After that, the deletion enables
+only clause (i). A version the path never learned is never in `older`.
+
+The lineage sees only stamped versions the contract can give an address. A republish at the same address without the
+stamp, or in a form the contract refuses at step 1, is a newer store the path never learns.
+
+So a revoke of an old version authorises removing a newer one only when the path never received the newer store's
+notice (decision 11).
+
+*(Supersedes: § gateAction's closing justification (:552-553), which discards enforced; it is now argued. Also
+D5-A's coverage claim, together with A1-3.)*
+
+**A1-16 — Owner decisions** (they replace decisions 2, 5, 9 and 10, and add decision 11). Accepted by the owner on
+2026-09-29, decision 11 included, as written.
+
+**(2) What counts as a revoke of the recorded version.** A not-on-relay removal needs the tagging's author's deletion
+naming one of these:
+- the address, with `revokeApplies`;
+- by id, the version the relationship records;
+- by id, the latest version the path has learned at that address, when the relationship records a version the path
+  learned there before it (clause ii; decision 11).
+
+These wait for the pass:
+- the four existing cases (a malformed stored `createdAt`, revoked by address; the graph ahead of the relay; an
+  address deletion whose kind is spelled with leading zeros or `+`; an upper-case pubkey address deletion, now read as
+  "that the path could not resolve when it was delivered: the path was down, or did not yet know the address");
+- a relationship whose stored `eventId` is missing or not an id (only an out-of-band write makes one), revoked by id;
+- a relationship recording a version the path never learned at that address, when its author revokes by id a newer
+  version the path did learn. Such a version was written by the pass or another writer from a relay read the path did
+  not share. The exceptions: a read or a scan showed the path the newer version while the graph recorded the older
+  one, or a census recorded the older one.
+
+**(5) Corners that wait for the pass.**
+- **The first corner becomes:** "A version stored and revoked by id before the path's subscription delivered it:
+  while the path was not running (a deploy included), while its subscription was reconnecting (backoff 1→15 s, longer
+  while the relay refuses connections) or connected but not delivering, or within one import or sync batch or the
+  relay's ~100 ms change notice (story item 7)."
+- **The second corner becomes:** "A version stored or learned in the last flush interval (≤ 250 ms) before a crash,
+  and revoked by id before the restart; or a revoke drained in that interval, when its kind-5 then leaves the relay
+  before the restart." A lineage learning lost in that interval can also end in a decision-11 removal.
+- **The fourth corner adds:** "At a first start the census can hold the REQ back by up to 10 s (normally tens of
+  milliseconds), which widens this window by as much."
+- **The first start adds:** "A revoke stored between the first REQ and the baseline scan, naming a version the path
+  never learned (the graph behind the relay at the switch-on). The extra pass after `firstStartedAt` settles it."
+- **The lost-record corner adds:** "If the re-baseline's census fails, or the surviving record's lineage at an address
+  predates the graph's version there, a relationship recording a version not on the relay at the re-baseline is not
+  removed on a by-id revoke of a later version until the pass."
+
+**(9) Ceilings.**
+- **Heap.** Measured on Node 22 at 200,000 taggings, `S` with its index takes 546 B per tagging. The lineage adds
+  about 113 B where an address keeps one version, and about 345 B where compaction keeps the graph's older id beside
+  it.
+- **The whole path.** Its peak is a compaction. With the whole body serialised and hashed at once, the reference
+  realisation's first start ran at 225,000 taggings and ran out of heap at 250,000, and a restart ran out at 235,000,
+  in the 384 MB heap. So `record.json` is written and hashed as a stream of
+  rows (A1-18), and the Implementer records the whole path's measured ceiling in the story's Evidence: a first start
+  with its census, a catch-up and a compaction.
+- **The revisit trigger** moves to 100,000 `seen` (from 250,000; today 7,030), a staging round above 12 s, or a stamp
+  scan above 20 s.
+- **Live work waits for a catch-up's reads** (A1-11): normally under a second, and at the scale ceiling about the
+  stamp scan's duration, at every safety diff.
+- **A never-answering address** delays the addresses read with it by two time-outs plus a round (three when its
+  group was its round's only read): about 41 s locally, 61 s at 100 ms per strfry process, 100 s at 300 ms and about
+  300 s at the pessimistic 1.3 s. Each round spends at most one single time-out on such addresses, and each is parked
+  after three (A1-13).
+- **Journal cadence.** Under a flood at one address the journal grows by up to about 0.8 KB per version, and a
+  round-end compaction runs once it passes the larger of 1 MB and a quarter of the record (A1-6).
+- **A catch-up heavier than the share** waits for rounds whose live and re-look reads leave room (A1-14).
+
+**(10) Residuals beyond the minute.**
+- **The first bullet becomes:** "A subscription that stays connected but stops delivering: what it misses, revokes
+  included, is reflected at the next safety diff (≤ 10 min), except a version both stored and revoked by id while
+  nothing was delivered, which waits for the pass (decision 5's first corner). Ledger row
+  `2026-09-29-strfry-delete-hides-next-write` records one strfry trigger: the first write after a delete of the
+  relay's newest event is never delivered live."
+- **A new bullet:** "A deletion drained while the read or stamp scan that first shows the path its target is still
+  running (the target was stored while the path was not hearing it) resolves nothing then. The next safety diff finds
+  it (≤ 10 min)."
+- **The Redis bullet** stands.
+
+**(11, new) A lost-notice removal: for the owner to accept or decline.**
+
+The case: the relationship records Y, and the path believes a later version X replaced Y. But the relay's last store
+at the address was newer than the path knows, and its notice never reached the path. That newest store then leaves
+the relay with no event (an operator's delete, an expiry or a wipe) before the path reads the address again or scans
+the relay. The author's by-id deletion of X then removes the relationship recording Y.
+
+It comes in three shapes:
+- **(a)** Y itself was stored again, as an older version re-sent, after the author's deletion of X. The removal is
+  one the path already owed for that deletion.
+- **(b)** Y is a version a read showed the path while X's older notice was still arriving, and Y's own notice was then
+  lost.
+- **(c)** A third version W, stored unheard, replaced the top X. The author's stale deletion of X acted on nothing,
+  and W left with no event before the path learned it. The deletion is found by the next catch-up's rule 2 or, if it
+  arrives while X is still the top, on delivery, and clause (ii) removes the relationship recording the older version.
+  A republish the path cannot see (unstamped, or refused at the contract's first step) counts as W and need not leave:
+  the removal then happens while the relay still holds it, as the pass's would.
+
+How notices are lost:
+- across a reconnect (the reconnect's catch-up is deferred up to 30 s, and longer while reads of that address fail);
+- while the path is not running;
+- within the relay's ~100 ms change notice around a read;
+- through strfry's delete-hides-next-write defect;
+- through a journal fault: a delivery drained but its journal line lost (the last flush interval before a crash, a
+  torn or damaged line, a journal read failing part-way), so the restart restores a lineage behind the store order.
+  A start that reports `journal-unreadable` demotes its restored tops (A1-6), so only a crash's last flush interval
+  and a damaged line remain.
+
+In every shape, the relay then holds nothing the path or the pass can read at the address, and the next pass makes the
+same removal. These are
+single-address removals that need the author's own deletion, never a mass one.
+
+**If declined,** clause (ii) is deleted. Every by-id revoke of a version the graph does not yet record then waits for
+the pass: a quick undo, a version heard and then revoked during a graph outage or failing reads, and a revoke across a
+reconnect gap. All of those then miss AC-2's minute. **The Architect recommends accepting.**
+
+**The safety-diff paragraph** (§ What it hears) takes decision 10's first bullet in place of "no known strfry defect
+behaves this way". The § Owner decisions preamble counts decision 11 among the decisions that qualify story criteria.
+
+**A1-17 — Interfaces for Test Design** (T-item changes).
+
+- **T2.** The exports drop `discardSupersededRevokes`, and add `learnVersion`, `learnOlder`, `lineageAt`,
+  `lineageValue`, `setLineage` and `pruneLineage`. `LIMITS` is unchanged. The two caps (8 older ids; 8 by-e revokes
+  per entry) are module constants.
+- **T3.**
+  - `newMaps()` → `{S, B, R, L}`, with `L: Map<address, {top: string | null, older: Set | null}>`. `recordId`'s
+    `which` is `'S' | 'R'`.
+  - `learnVersion(maps, address, id, {under})` returns whether the lineage changed. With `under` (a capture that a
+    later learning at the address outranks), it teaches nothing.
+  - `learnOlder(maps, address, id)` returns whether the lineage changed. Both respect the cap.
+  - `lineageAt(maps, address)` and `lineageValue(maps, address)` → `{top, older: []}`.
+  - `setLineage(maps, address, value | null)`.
+  - `pruneLineage(maps, {scannedIds, graphKeys, keep, keepOlder, learnedAfter})` → `{droppedAddresses}`.
+- **T6.** An `e` target resolves through the lineage's top. An `a` target resolves through a lineage, `S` or
+  `graphAddresses`.
+- **T7.** `S`, `R` and `B` only.
+- **T8.** `compact(maps, scannedIds, captureSeq)`.
+- **T10.** Rule 2 uses lineage tops.
+- **T15.** No `discardSupersededRevokes`. `mergePrompt` keeps at most 8 by-e revokes, the most recently merged.
+- **T16.** `ctx.lineage`, and A1-4.
+- **T19.**
+  - `v {id, a, top, older}` and `o {a, top, older}` are absolute;
+  - `x` covers `S`, `R` and `B`;
+  - `c` keeps revokes;
+  - parked rows' entries are merged into `pending`;
+  - the record has one lineage row per lineage, and an `epoch`;
+  - `e {epoch}` opens each journal generation, and replay applies only the record's generation;
+  - replay applies lines as it reads them, and a `journal-unreadable` start demotes restored tops.
+- **T20.** `start()` subscribes only when no baseline is due. At a baseline start, the census activity subscribes
+  when it ends.
+- **T25.** The record has lineage rows, parked rows with `entry`, and `pending` with the unfed backlog.
+- **T29.** The status's `heard` is a counter of addresses whose top is not in `S`. The engine enforces the census
+  deadline.
+- **T33.** The `v`-line discard sentences are removed.
+
+**A1-18 — Implementation settlements** (not rules; the Implementer's to do).
+- **Remove round 1's discard machinery:** `supersede`, `supersedeByRead`, `revokeSeqs` and `promptSeq`, `roundHeard`
+  and `current()`, putBack's fresh-version discard, the catch-up's scan discard, `complete()`'s re-journalling of `d`
+  after `c`, the start hold, and `discardSupersededRevokes`.
+- **Round 2's code defects.** Catch-up arrivals are learned (A1-2 and A1-9), which closes fuzzer-3. The item's
+  read-alone mark survives put-backs. A fake scan that times out must advance the fake clock by its `timeoutMs`.
+- **Status.**
+  - `lastReflectedAt` moves only for a decided, conflict-free address whose write applied, or whose decision needed
+    no write and was not held by the gate (review round 2, fix-verifier-9).
+  - `heard` is a counter.
+- **After a stop,** the final status says `subscription.connected: false` (seen in the local end-to-end run).
+- **`record.json`** is written and hashed as a stream of canonical rows, with no whole-body deep copy. Start reads it
+  the same way.
+- **The reference realisation** of A1 lives in the session scratchpad (`amend/d2/wt`). It is uncommitted and on no
+  branch, and it is not durable. The Implementer works from this text and the tests.
+
+**A1-19 — Docs and story changes.**
+
+*The story (a Planning amendment in this commit):*
+- **AC-3's "What a removal needs"** admits a deletion naming the latest version the path saw at the address, when the
+  relationship records a version it saw there before. A deletion naming a version since seen replaced prompts nothing.
+- **Item 9** takes the same two sentences.
+- **Item 7 and Out of scope** add "or while the running path's subscription was reconnecting or had stopped
+  delivering". The owner re-confirms item 7.
+- **The user-facing list** gains "a relationship another writer recorded from a version the path never saw, when a
+  newer version is revoked by its id".
+- **The amendment notes** beside AC-2 (decisions 2, 3, 9, 10 and 11), AC-3 (decisions 2, 5 and 11), AC-4 (decisions
+  5, 9 and 10) and item 9 (decisions 2 and 11).
+
+*This ADR (in this commit):*
+- the "(Amended by A1-n.)" markers;
+- the safety-diff paragraph;
+- the Planning-amendment list;
+- the AC-2 and AC-3 rows of "How each acceptance criterion is met";
+- the Implementation notes' planner test lines about H.
+
+*With the implementation (the Implementer's docs):*
+- **BIBLE §6 Revokes.** By id: "the version the relationship records, or the latest version the path has seen at that
+  address when the relationship records one it saw there before". The wait-for-pass parenthesis adds "or while the
+  path's connection to the relay was interrupted".
+- **OPERATIONS §12.9.**
+  - Delete the start-hold sentence.
+  - Say that a first start and a lost record's start read the graph's keys once, for at most 10 s.
+  - "What waits for a pass" takes decision 2's and decision 5's new cases.
+  - "Things to know" takes decision 10's stall exception and a line on decision 11.
+- **Ledger row `2026-09-29-strfry-delete-hides-next-write`.** Its real-time bullet takes decision 10's exception and
+  decision 11.
+- **ADR 0002's binding 2 note** (0002:603-605): "by e, only the latest version the path has learned at that address
+  (ADR 0003 A1-3)".
+- **The handoff Status line** records the kick-back and this amendment.
+
+**A1-20 — Test impact** (Phase 3's).
+
+*The planner suite:* about 29 re-aims and 3 deletions.
+- Mechanical re-aims:
+  - RP2 and RP3 (exports; `LIMITS` keys);
+  - RP8 (`newMaps`);
+  - RP15, RP26, RP62–RP64, RP69, RP78 and RP79 (build the lineage with `learnVersion`, not H);
+  - RP59 (absolute `v`/`o`);
+  - RP60 (`x` leaves the lineage alone);
+  - RP75 (parked entries).
+- Semantic re-aims:
+  - RP14, RP16, RP19, RP20, RP22 and RP72: an `e` target resolves only as its address's top. RP19's foreign count
+    covers only targets that resolve;
+  - RP23 and RP24: an empty read leaves the lineage alone;
+  - RP25: `compact` without H;
+  - RP30 and RP70: rule 2 names tops;
+  - RP61: `c` keeps revokes;
+  - RP67 and RP68: the gate's clauses;
+  - RP71: the control flips, so a kept `e:v1` cannot remove a pass-written v2.
+- Deletions: RP47, RP76 and RP77.
+- New planner cases:
+  - the lineage functions and the cap;
+  - a read placed under a later learning teaches nothing;
+  - `pruneLineage`'s pass exception.
+
+*The engine suite:*
+- RE7's re-aim: the first start's only graph contact before `started.json` is the census's one key read. A hung
+  census gives up at 10 s, and the start proceeds.
+- RE58's re-aim: its hand-written journal line takes the absolute `v` shape (`top`, `older`).
+- Retitles: RE18, RE19, RE54 and RE79.
+
+*New engine tests, one per scenario:*
+1. The stale by-e family, where the newer version is kept:
+   - a revoke drained during a round's scan, element read or write;
+   - one merged into the catch-up's unfed backlog;
+   - one arriving after the newer version was heard, with and without a pass writing it;
+   - review round 2's revoke-paths-2 modes.
+2. A reconnect gap with an empty read before the catch-up: removed within AC-4.
+3. A read between a revoke's store and its delivery: removed within the minute.
+4. A catch-up arrival revoked before its round: removed.
+5. Put-back and re-look carry.
+6. First-start revokes, buffered and across a reconnect: removed within 60 s.
+7. Parked revoke-gated removals across compaction and restart.
+8. A failing start catch-up beside a live change: reflected within 60 s.
+9. Time-outs:
+   - one never-answering address among 200 (the bound in A1-13);
+   - three or more never-answering singles: other authors' changes keep the minute, and each is parked after three;
+   - a Redis-style stall at ordinary traffic, after which addresses are re-read in their groups;
+   - a marked live single is read before lane 4.
+10. A padded share beside a live change: live keeps at least 12.8 MiB, the share costs at most two extra strfry
+    processes, and the share advances.
+11. A found revoke, then a restart, then a wipe: removed. The same with a compaction mid-catch-up.
+12. The census:
+    - it records a backfilled version;
+    - it is placed under the scan at a held address;
+    - a hung census.
+13. A read that cannot be placed teaches nothing.
+14. Journal faults:
+    - prefix and torn-append replay never invert a lineage;
+    - a `journal-unreadable` start demotes restored tops;
+    - a failed truncation after a re-baseline replays none of the older generation (the epoch).
+15. A flooded address: `older` and entry revokes stay at 8 or fewer.
+16. `lastReflectedAt` is not moved by a held decision.
+17. Replay exactness as a property.
+
+Decision 11's probes stay documentation, not pass/fail tests. If decision 11 is declined, they invert into "kept"
+tests.
+
+*The fuzzer.* Register it as an opt-in, deterministic suite outside the default gate
+(`test/tagging-edges-realtime-property.test.js`):
+- a fixed seed list, about 8 modes × 20 seeds × 150 steps, in a few minutes;
+- asserting the safety invariants, off within 5 s, no leak, bounds, and the healthy-mode minute checks with the
+  corners;
+- replaying the shrunk traces as fixtures.
+
+Its corner classifier is updated to decisions 2, 5, 10 and 11 as amended. The Tester decides the details.
+
+**A1-21 — How A1 was verified.** The scratch prototypes, probes and fuzz campaigns lived in the session scratchpad
+and are not durable; the rules above are the record.
+
+- **Three designs, measured.**
+  - One persisted a learn record: 8,000 seed-runs, no violation.
+  - One kept a lineage per address: 12,000 seed-runs, no violation.
+  - The minimal one re-used the entries' sequence numbers. It was not viable: re-recording a completed version above a
+    newer read removed the newer relationship, and `S` grew without bound.
+  - The judge took the lineage, and grafted the learn record's placement rule, its census, its parked persistence and
+    its element time-outs.
+- **The judged design.**
+  - 16,000 fresh seed-runs (7.7 M operations), with no violation of the safety invariants, off within 5 s, or no-leak.
+  - Every confirmed finding of review rounds 1 and 2 is closed, except those this amendment turns into corners or
+    decision 11, whose probes document them.
+  - The story suites fail only the intended re-aims of A1-20.
+- **The first red-team pass (15 findings, 2 blocking), fixed and prototyped.** The blocking two were an unbounded
+  `older` and a replay that could invert a lineage. The fixes, and what they measured, on 8,000 more seed-runs (3.8 M
+  operations, no safety violation):
+  - `older` ≤ 8 per address (178,290 ids at one flooded address before);
+  - an entry's by-e revokes ≤ 8 (3,000 before);
+  - journal-prefix inversions 0 (91 before);
+  - a torn append, an EIO part-way and a failed truncation keep the newer relationship (removed before);
+  - a 450 MB journal starts in 12 MB of heap (out of memory before);
+  - the first start's drain writes 1.6 MB (268 MB before);
+  - the share keeps 2.69 MiB before the live read (10.07 MiB before);
+  - the idle tick at 200,000 taggings takes 0.14 ms (8.88 ms before);
+  - replay exactness holds across 77,877 checks, with 0 mismatches.
+- **The second red-team pass (14 findings, 1 blocking), folded in above.** The blocking one was the share cap's
+  bisection storm. Two of its fixes were validated in a scratch copy of the engine: no bisection under the share
+  (A1-14), and live and re-look singles read after their own lanes (A1-13). The rest are specified here but not
+  prototyped, and Test Design pins them first:
+  - the stall-or-slow test and the regroup (A1-13);
+  - one single time-out per round, with parking after three (A1-13);
+  - the journal epoch, the demotion at `journal-unreadable`, and the compaction cadence (A1-6);
+  - the pass rule judged from a report read taken with the catch-up's key read (A1-7).
+- **What the last campaign still missed.** Two liveness misses, both pre-existing (identical on the code before A1)
+  and both corners as reworded:
+  - a crash inside the flush interval followed by a reconnect gap (decision 5's second corner);
+  - a lost journal plus a silent departure at an address a restored lineage held (the widened lost-record corner).
+- **Throughout:** no schema change, no strfry change, and no write outside `graph.js`'s port.
 
 ## Out of scope
 
