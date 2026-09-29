@@ -664,6 +664,268 @@ For Test Design:
   - a republish reads the current version first and publishes a strictly newer one (OPEN.md row 144);
   - nothing is published to an outside relay, directly or through a router stream.
 
+## Evidence
+
+### The local end-to-end run (open question 14)
+
+Two runs on the local stack: strfry 1.1.0 holding the 7,030 stamped census taggings, and Neo4j holding their 7,030
+`TAGS`.
+
+How the runs were set up:
+- **The program** was installed with `docker cp docker/supervisord.conf` plus `supervisorctl update`, and the backend
+  was restarted for the routes.
+- **The switch** was written inside the container through the store's own `writeSwitch`, the writer the owner route
+  calls. The route's owner check is covered by the routes suite; an unauthenticated `POST` answered 401.
+- **The test taggings** were signed by two throwaway keys (tagger `ed2a466b…`, target `01e6b509…`) and name an existing
+  tag element.
+- **Timing.** A harness inside the container stored each event, then polled Neo4j every 50 ms. Store time is the
+  relay's `OK`, the route's 200, or `strfry import`'s exit.
+
+**Run 2: 2026-09-29, 17:39–17:43Z, on the implementation with Amendment A1.**
+
+| Check | Result |
+|---|---|
+| Start over run 1's record (written before A1: no epoch, no lineage) | accepted; the start catch-up re-learned 7,030 tops in 181 ms |
+| Tagging, then a by-id revoke, through a websocket `EVENT` | 731 ms, then 436 ms |
+| Tagging, then an address revoke, through `POST /api/strfry/publish` | 662 ms, then 666 ms |
+| Tagging, then a by-id revoke, through `strfry import` | 683 ms, then 679 ms |
+| A tagging back-dated 5 years, then an address revoke | 721 ms, then 655 ms |
+| A new version (780 ms), then the author's by-id revoke of the replaced version | the relationship still records the new version 90 s later (A1-3) |
+| A new version, then at once its own by-id revoke (a quick undo) | removed in 570 ms (clause ii) |
+| Stopped; meanwhile two taggings (one back-dated 3 years) and a revoke stored; started | catch-up 649 ms (2 added, 1 removed), all reflected ~50 ms after `supervisorctl start` returned |
+| Neo4j stopped; a tagging and a revoke stored | `waiting-graph`, 2 pending; both reflected 10 s after Neo4j answered |
+| Another author's kind-5, by id and by address | nothing removed; `deletionsForeign` counted (strfry refuses the cross-author address one) |
+| A tagging deleted from the relay with no event (`strfry delete`, not the newest event) | kept; the author's by-id revoke then removed it in 645 ms |
+| Switch off | Node gone ~1.2 s after the write; status `off`, `subscription.connected: false` |
+
+At the end: `removalsNotPrompted` 0, every test relationship removed, `TAGS` 7,030 as before. The two throwaway people
+stay in the graph as local dev data.
+
+**Run 1: 2026-09-28, 23:46–23:59Z, on the implementation before A1.**
+- The first start took about 1 s; `seen` 7,030 became the baseline, and nothing was backfilled.
+- The three ways in, back-dated included, took 642–703 ms per tagging or revoke.
+- Catch-up after a stop: 494 ms. After Neo4j came back: about 4 s.
+- An unauthenticated switch `POST` got 401. Off came within 1.4 s.
+- It found a strfry defect, now ledger row `2026-09-29-strfry-delete-hides-next-write`:
+  - After `strfry delete` removed the relay's newest event, the next stored event, the author's by-id revoke, was
+    never delivered live. The path's next safety diff removed the relationship, 9 minutes after the revoke was stored
+    (owner decision 10).
+  - Reproduced without the path: a plain `limit:0` subscription got A and C, never B.
+
+### Decision 9's heap ceiling (A1-16 (9), A1 clarification 19)
+
+The setup:
+- Node 22, `--max-old-space-size=384` as the wrapper runs it;
+- the real `store.js` on disk, with a synthetic relay and graph that hold nothing per event;
+- the steps measured: a first start (census, baseline, record), its catch-up and compaction, a restart with a journal
+  at a quarter of the record, and the restart's catch-up and compaction.
+
+| Taggings | `record.json` | Every step |
+|---|---|---|
+| 100,000 | 37 MB | passes (peak 238 MB, the restart's catch-up) |
+| 200,000 | 74 MB | passes (peak 358 MB) |
+| 240,000 | 89 MB | passes, 4 runs of 4 (peak 382–387 MB) |
+| 245,000–250,000 | 91–93 MB | the restart's catch-up runs out of heap |
+
+- **The whole path's ceiling is 240,000 taggings.** A first start alone reaches about 350,000.
+- **The worst case,** every address holding a different graph id so every one is an arrival, caps at 200,000.
+- **What fills the heap:** the long-lived maps (`S`, `B`, the lineage and their indexes) take about 0.9 KB per tagging,
+  about 60% of the peak. A catch-up's transients take the rest.
+- **The margin:** the revisit trigger of 100,000 `seen` (today 7,030) leaves 2.4× below the ceiling.
+
+### Staging
+
+To come after Review and the merge: the owner turns the path on after the backfill, then runs one more pass (open
+question 14).
+
+## Deviations
+
+Judgement calls that stand in the implementation (implementer role, step 9). Round 1's calls that Amendment A1
+superseded, or that ADR `tagging-edges/0003` and its clarifications now state, are left out.
+
+*The pass's port and runner:*
+- `readAt` defaults to a 60 s time-out and `readKeys` to 120 s (as `applyLocked` and `readAll`), and `readSchema` to
+  30 s, which also bounds the pass's pre-flight and `ensureTagsConstraint`: the ADR sets no defaults.
+- `readKeys` returns each value as stored, `null` only when absent, like `readAll`; the path ignores a non-string
+  address, which is not a tagging address.
+- `lockHeld(fd, { file: null })` gives the pre-C20 answer, as a missing `file` does (T24 names only a missing one).
+- A pre-image record puts `writer` right after `runId`, and `preimageRecords` does not check its value: the ADR fixes
+  neither.
+- The runner's header and step-1 comment (CF-4) state C20's inode check instead of the old "any flock on fd 9"
+  caveat, which C20 makes false.
+
+*The wrapper (`run.sh`):*
+- Two stderr lines the ADR does not name (another instance holds `daemon.lock`; each backoff), so the supervisor log
+  shows something; neither carries a secret or an address.
+- The switch poll's sleeps also run in the background, each with fd 8 closed: a TERM to an idle wrapper exits at
+  once, and a sleep left behind never holds `daemon.lock`.
+- The TERM/INT trap ignores a second signal before forwarding TERM, so the wrapper forwards exactly one. Under
+  supervisord, `stopasgroup` also signals Node directly (a non-interactive bash has no job control, so Node is in the
+  wrapper's group); the engine ignores the second TERM.
+- No `set -e` / `-u`: the loop must outlive every failure of what it runs, and the conf is sourced as a plain `. conf`.
+- If `realtime/` or `daemon.lock` cannot be made or opened, `flock -n 8` fails and the wrapper takes the ADR's `sleep
+  30; exit 75` branch, which supervisord restarts indefinitely.
+
+*The subscription (`subscription.js`):*
+- Reconnecting, with its 1→15 s backoff, is the engine's; the module is one connection and exports
+  `reconnectDelayMs(n)`: the engine suite's fake is one-shot and counts re-subscribes, and a reconnect inside the
+  module could open two sockets.
+- `onClose` reasons are fixed text (`connection refused`, `connection dropped`, `filter refused (CLOSED)`, `filter
+  refused (NOTICE)`, `no pong`): the relay's own text can name a host and port (AC-6).
+- Filters are copied with `limit: 0` forced, never changed in place. A CLOSED ends the connection only when it names
+  the path's subscription id; unparseable frames, unknown message types and other subscriptions' events are ignored.
+- A 10 s handshake time-out, which the ADR does not name, so a hung upgrade does not wait on the OS's TCP time-out.
+- `close()` sends `CLOSE`, then a 1000 close frame, and drops the socket after a 2 s grace; `perMessageDeflate` is off
+  (the relay is on the loopback); every timer is unref'd.
+- Callbacks are not wrapped in try/catch, so an engine callback's throw reaches the engine's crash path instead of
+  being swallowed.
+- Test seams: optional `pingIntervalMs`, `pongTimeoutMs` and `handshakeTimeoutMs` keys on `subscribe`'s options.
+
+*The planner (`src/lib/tagging-edges/realtime.js`):*
+- The address index (address → ids) and the top index (top id → address) sit on the maps as non-enumerable
+  properties, so `newMaps()` shows exactly `{ S, B, R, L }` while an `a` or `e` target costs one lookup.
+- `compact`, `pruneLineage` and `deletionCandidates` throw a `TypeError` unless `scannedIds` is a Set: a failed scan
+  must never read as an empty relay (principle 4).
+- `replayJournal` also skips and counts a known line type that lacks its fields or has the wrong types (beyond
+  clarification 5's `v` and `o` rule), and restores only `deadSeenAt` keys matching `RUN_ID_RE` (which also keeps out
+  `__proto__`).
+- `passOverlaps` counts a run that is still alive as overlapping, even when its `endedAt` is at or before the graph
+  read (§ Coexisting with the pass, read literally): at worst one extra re-look.
+- Shapes the ADR leaves open: `recordId` returns the entry it set, `compact` returns `{ dropped: [ids] }`, and
+  `pruneLineage`'s `droppedAddresses` is a count (A1 clarification 1 allows a count or a list).
+- `addressScanFilters` and `deletionScanFilters` skip non-tagging addresses and de-duplicate; `deletionCandidates`
+  keeps only 64-hex ids (nothing else can go in an `#e` filter); `dedupeById` passes items with no string id through.
+
+*The strict scanner (`strfryScanStrict.js`):*
+- A filter `JSON.stringify` cannot write is refused as `ScanError` `spawn` before the spawn, as before story 3.
+- An `onEvent` that throws rejects the scan with the handler's own error, after SIGKILLing the child (SS40's first
+  choice); with `onEvent` the result keeps `events: []`; an `onEvent` that is not a function counts as absent (the fake
+  port's rules).
+- The redactor's bracketed-IPv6 rule also takes a zone id and an IPv4-mapped tail; IPv4 and IPv6 ports are `\d+`
+  (only the name rule has the 2–5-digit bound); names match case-insensitively.
+- The size check stringifies a filter twice (at most 100 KB), so the scanner and the planner share one escape (T1).
+
+*State and routes (`store.js`, `src/api/tagging-edges/realtime.js`):*
+- `store.js` exports `parseSwitch`, so the status route applies T26's one switch rule instead of a copy of it.
+- `readStarted()` and `readStatus()` return `{ unreadable: true }` for a file present but unreadable, and a
+  `status.json` that parses to a non-object counts as unreadable: a damaged marker never reads as a first start
+  (AC-4).
+- `writeSwitch` refuses an `on` that is not a boolean (`EBADSWITCH`), so the wrapper always finds a literal
+  `"on":true` or `"on":false`.
+- `record.json` stays one JSON object with T26's sha256, laid out one member and one row per line, so it is written,
+  hashed and read back as a stream (A1-18 fixes the streaming, not the layout); a file laid out otherwise is parsed
+  whole and checked by the same rule. `started.json` and `status.json` are pretty-printed; every file ends with one
+  newline.
+- An off-write that fails, followed by an unlink that succeeds, answers 200 `{ success: true, on: false,
+  takesEffectWithinSeconds: 5 }` with no `changedAt`: no file is left to carry one.
+- With the switch on and no state in `status.json`, the route's `state` is `null`: T27 fixes only `off`, and the route
+  makes none up.
+- `lastError.code` is re-checked against the allow-list only when present.
+- `appendJournal` adds a missing trailing newline, accepts a single string, and cuts a failed append back off (as
+  `state.appendPreimages` does); `truncateJournal` creates an empty journal when there is none, and then fsyncs the
+  directory, as an append that creates it does.
+- `store.js` keeps its own `ensureDir` and `fsyncDir` (mode 0700): `state.js` exports neither.
+
+*The engine (`src/pipeline/tagging-edges/realtime/index.js`):*
+- Element reads run right after each address chunk, not as one step after every address read, so a steady stream of
+  large events cannot keep an early id-only address deferred round after round; element bytes still count against
+  the round's budget and the share.
+- The round's budget counts every event a successful scan streamed, not only those kept; kept events drop `content`
+  and `sig`, which the contract never reads.
+- `relayAtAddress` gets only the elements its address's own taggings name: the same result, without work of the order
+  of addresses × elements per round.
+- `defaultDeps` adds `killScans()`, which tracks strfry children through `scanStrict`'s `spawnImpl`, for the off step
+  that SIGKILLs a running read; the engine calls it only when present (the fakes have none).
+- `run()` sleeps 25 ms, not 250 ms, while an activity is in flight, and a tick starts up to 16 activities that each
+  settle within one event-loop turn, so rounds follow each other closely (still ≤ 250 ms, T20).
+- An unreadable `status.json` counts as a first-start marker, so that start takes the lost-record path and is never a
+  first start; the first start opens the journal once, to cut a torn tail before its first append.
+- A catch-up's arrivals and look-only prompts are not journaled (its found revokes are, A1-9): the next catch-up finds
+  them again, and a compaction writes the unfed backlog into `pending`. Every catch-up, the safety diff included, is
+  done and compacts once each address it queued has had one attempt.
+- A catch-up retried after a failed read uses its own 5→60 s backoff and not the 30 s spacing, which applies to
+  connect, pass-end, backlog and safety-diff requests; the retry backoff resets when the graph comes back.
+- Any failed graph read (`readAt`, `readSchema`, or opening the driver) puts the path in `waiting-graph`, probing
+  5→15 s for `ServiceUnavailable`, `SessionExpired` and `TransientError`, and 5→60 s otherwise; a `readSchema` failure
+  counts in `failedReads.graph`.
+- A write that fails because its pre-image append failed (a local file-system error) is transient: it backs off, and
+  is never bisected or parked.
+- A re-park with the same code is not counted again in `dbRefused`.
+- `mergeEntry` is composed from the planner's `mergePrompt`, as the planner exports none; the runs to watch for overlap
+  are rebuilt at start from the persisted re-looks, so a pass that ends after a restart still gets its catch-up.
+- `crash(err)`, not part of T20's API, records `lastError` with stage `unexpected`, flushes the journal, writes the
+  status and ends the loop with code 1; `run()` registers it for `uncaughtException` when handed the process. The ADR
+  says Node exits on an uncaught error after writing the status, and the engine did not.
+- At a first start a buffered kind-5's foreign `a` targets are dropped, so they are not counted in `deletionsForeign`;
+  a kind-5 past the 20,000-target cap counts once in `droppedOverBacklog` (per kind-5, not per target).
+- A stop between a lost record's re-baseline and its first catch-up attempt shows `not-established` once (the status
+  written at the re-baseline) and does not carry it to the next start's catch-up.
+- The journal epoch is `max(now, last epoch + 1)`, the last epoch covering the record's and every `e` line replay
+  passed, so a new epoch is never one already in the file (A1 clarification 4 allows any value).
+- A catch-up's compaction adds the addresses learned after its capture to `keep` as well as passing `learnedAfter`
+  (A1 clarification 1 allows either).
+- For A1-7's pass exception, a run whose `endedAt` is null ended when the path first saw it dead (`deadSeenAt`), and a
+  run that ended (or was first seen dead) in the key read's own millisecond counts as ending after it, as A1
+  clarification 13 settles the graph read's ties.
+- A1-11's "between a catch-up's reads": each read is its own activity — the key read with its report read, the stamp
+  scan, then each author's candidate scan, and each half of a failed one (the bisection no longer runs inside one
+  read) — and a due round and the catch-up's next read strictly take turns, so neither starves the other.
+- Because a round can now run between a catch-up's key read and its stamp scan's capture, and write, the catch-up
+  notes what the path learns from its key read on (the scan's own placement aside), not only after the capture, and
+  its compaction keeps that as A1-7 keeps what was learned after the capture: the graph's keys it cuts `older` to may
+  predate that round's write.
+- A1-13's single time-out, with clarification 11's bound after a Redis stall: it counts toward the park only for an
+  address marked to be read alone, or when some relay read answered since that address was queued or last timed out
+  alone (this round or another). Otherwise the relay was not answering: it backs off 5→60 s like any failed read, and
+  its run of time-outs stands. The review proposed "another scan of the same round"; that never parks a
+  never-answering address whose rounds hold only it, beside traffic reflected in rounds of its own. While no other
+  relay read answers at all, a never-answering address is never parked: it retries at most once a minute, each retry
+  a 20 s time-out.
+- An element read alone that times out counts in `failedReads.element`, as every element read failure does
+  (clarification 12 says `failedReads.relay`); it still counts toward the park. OPERATIONS §12.9 says which.
+- A pass's re-look at an address parked for time-outs merges into the parked entry (and keeps its run, so the `rc`
+  line follows the address's completion) instead of queueing the address beside its park; at an address parked for a
+  database refusal, it lifts the park and is queued, as a new event there would be. `park()` merges any entry already
+  parked at the address (the higher level and the read-alone mark kept), and a parked address keeps the re-looks its
+  item carried.
+- A start whose record names a journal generation that a journal read whole never opens (a stop between a
+  compaction's record write and its `e` line) puts that `e` line first in its journal, so what it journals is
+  replayed next time. Nothing of that generation was durable, so the start does not demote its restored tops.
+- A start with a marker carries `lastError` (its code re-checked, its text re-derived from its stage), `lastReflectedAt`
+  and `lastRound` over from `status.json`, as it does the counts, until newer ones replace them.
+- A census that fails, or that the engine gives up on at 10 s, counts in `failedReads.graph` like any failed graph
+  read.
+- A live kind-5 that resolves at an address parked for time-outs lifts the park, as a new version does (clarification
+  12 names only a new version): the author's revoke is an event at that address, and the lift costs at most one more
+  single read.
+- The compaction cadence (A1-6) is also checked after the tick's journal flush, between activities, once a baseline
+  exists: during a graph outage no round reaches its end, and deliveries keep journaling.
+- `mergePrompt` refreshes a by-e revoke's recency only when the one merged has a newer `created_at` (clarification 6):
+  merging the same revoke again leaves its place.
+- Replay also skips and counts a `v` or `o` line whose `older` holds a member that is not a string.
+
+*Docs:*
+- BIBLE's Last-updated head also names "CF-3 from tagging-edges #2's review", since §11's redaction wording changed;
+  that keeps S2C16 green, which still expects story 2 at the head (reported for the Tester).
+- Ledger row `2026-09-27-strfry-redis-misses-websocket-writes` cites BIBLE's §13 diagram at `:946`, not the story's
+  `:936`, which this story's own BIBLE additions moved; its drifted epic cite is corrected too.
+- C20's knock-ons beyond the listed places: BIBLE §11's pass paragraph and OPERATIONS §12.8 "Running it" drop the
+  closed lock-check caveat and state the inode check (with its Linux 5.14 floor in OPERATIONS).
+- OPERATIONS §12.8 "Scheduling it" gains a line pointing to §12.9: a scheduled pass is the path's backstop.
+- The epic's guardrail adds that the real-time path waits in `waiting-setup` rather than refusing to start (ADR 0001
+  A3 note); without it, "the writer refuses" would be wrong for story 3.
+- The handoff's §3 gets a "Settled by `tagging-edges/0003`" sub-bullet; "persists nothing" keeps its qualifier (an
+  in-memory `seen` map), and "at most 500" is attributed to strfry's `maxFilterLimit`.
+- CF-3 keeps "no config value or credential" in every place, since the owner widened the redactor (decision 6); the
+  redactor's own descriptions name the widened host rule.
+- CF-6 keeps the review's words, "(0 events, 0 rows)", unchecked against the local stack.
+- OPERATIONS §12.9 "What waits for a pass" names a republish carrying neither stamp, not refused versions in general:
+  the path can remove a stamped refused version on its version prompt.
+- OPERATIONS §12.9 gives decision 9's stamp-scan trigger with `catchUp.last.durationMs` as its upper bound, since the
+  status shows no stamp-scan time of its own.
+- The ledger row `2026-09-29-strfry-delete-hides-next-write` keeps round 1's local figure (9 minutes to the safety
+  diff), labelled as measured on the code before A1; § Evidence records both runs.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tagging-edges/0003-real-time-path.md` (with Amendment A1, 2026-09-29: revokes by event id and the lineage, after the

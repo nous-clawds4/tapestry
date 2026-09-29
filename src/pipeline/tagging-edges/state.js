@@ -314,11 +314,19 @@ function isAlive(record, { readFile } = {}) {
   }
 }
 
-/** Does this process hold an exclusive flock on file descriptor `fd`? (/proc/self/fdinfo/<fd> shows `FLOCK … WRITE`.) */
-function lockHeld(fd, { readFile } = {}) {
+/**
+ * Does this process hold an exclusive flock on file descriptor `fd`? (/proc/self/fdinfo/<fd> shows `FLOCK … WRITE`.)
+ * With `file` (ADR tagging-edges/0003 C20), fd must also be that file: fdinfo's `ino:` must equal the file's inode,
+ * compared as strings (the lock line's pid reads 0 in the container's pid namespace, so it proves nothing). A missing
+ * file, a foreign inode or no `ino:` line reads as not held. Without `file` the old answer stands (clarification T24).
+ */
+function lockHeld(fd, { file, readFile } = {}) {
   try {
-    const text = String(syncRead(readFile)(`/proc/self/fdinfo/${fd}`));
-    return text.split('\n').some((l) => /^lock:/.test(l) && /\bFLOCK\b/.test(l) && /\bWRITE\b/.test(l));
+    const lines = String(syncRead(readFile)(`/proc/self/fdinfo/${fd}`)).split('\n');
+    const locked = lines.some((l) => /^lock:/.test(l) && /\bFLOCK\b/.test(l) && /\bWRITE\b/.test(l));
+    if (!locked || file === undefined || file === null) return locked;
+    const ino = lines.map((l) => /^ino:\s*(\d+)\s*$/.exec(l)).find(Boolean);
+    return !!ino && ino[1] === fs.statSync(file, { bigint: true }).ino.toString();
   } catch (_) {
     return false;
   }

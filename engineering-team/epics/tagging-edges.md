@@ -71,8 +71,11 @@ Order: 1 → 2 → 3 → 4 (4's page can start once 2's status shape is fixed).
 - **A writer refuses to start without both stamp pubkeys** (ADR 0001, review round). A writer started without one
   of the two stamp pubkeys would read every tagging that carries only the missing stamp as a non-tagging and retire
   its edge (without both, every edge); the writer refuses if *either* identity is missing or malformed — each must
-  be lowercase 64-hex (story 2 checks both at startup, ADR `tagging-edges/0002`) — and its mass-delete guard counts
-  every removal per run.
+  be lowercase 64-hex (story 2 checks both at startup, ADR `tagging-edges/0002`; story 3's real-time path waits in
+  `waiting-setup`, writing nothing, ADR `tagging-edges/0003`). The mass-delete limit is the gap-filling pass's: it
+  counts every removal per run. The real-time path's removals have no count limit (story 3's settled decision 4);
+  each answers a revoke by the tagging's author (or, for a refused version, a version stored at the address) and a
+  later successful relay read (ADR `tagging-edges/0003`, amending ADR 0001's R2-NB3 bullet).
 - **Known defects in the follows pipeline stay out of this epic** (the relay-websocket gap in the strfry patch,
   the Redis client that never reconnects, at-most-once delivery, the stream and reconcile writers disagreeing
   on REPORTS' shape): they have ledger rows and are not copied — OPEN.md rows

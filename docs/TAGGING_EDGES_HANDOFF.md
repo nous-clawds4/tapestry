@@ -1,6 +1,6 @@
 # Handoff — Tagging edges, stories 2–4 (Tapestry)
 
-**Status:** 🔴 OPEN: story 2 (the gap-filling pass, ADR `tagging-edges/0002`) is implemented, not yet reviewed or shipped; stories 3–4 are not started. Story 1, the `TAGS` edge contract, has been in production since 2026-09-27 (PRs #764 and #765).
+**Status:** 🔴 OPEN: story 3 (the real-time path, ADR `tagging-edges/0003`) is in implementation again after the Implementation kick-back of 2026-09-29 and the ADR's Amendment A1 (revokes by event id and the lineage, owner-accepted that day); it is not yet reviewed or shipped. Story 4 is not started. Story 2 (the gap-filling pass, ADR `tagging-edges/0002`) shipped to production on 2026-09-28 (PRs #780 and #781). Story 1, the `TAGS` edge contract, has been in production since 2026-09-27 (PRs #764 and #765).
 
 > **Repo metadata. Not part of the handoff text.**
 > - **Source.** The kickoff session of 2026-09-25 to 27 mapped the existing FOLLOWS / MUTES / REPORTS ETL read-only: seven area readers, an adversarial fact-check of 115 load-bearing claims (98 confirmed, 15 corrected, 2 unverifiable), and a completeness critique. It then took a read-only census of production, staging and tags.brainstorm.world, and shipped story 1. This file keeps that map, which otherwise lived only in the session.
@@ -101,8 +101,15 @@ strfry (C++ patch) → Redis list strfry:events → stream-consumer (supervisor)
   - *(Settled by `tagging-edges/0002`: a Node runner behind a `flock` wrapper, a new strict reader `src/lib/strfryScanStrict.js` rather than `scanLocalStrict`, and a frozen removal limit whose held removals the owner confirms.)*
 - **Recommended shape for story 3:** a websocket `REQ` subscriber to local strfry with `{kinds:[39999], "#z":[…]}` plus `{kinds:[5]}`.
   - It sees every write path, including websocket publishes the patch misses, and needs no strfry rebuild.
-  - The in-stack precedent is `nostr-search/src/ingest.js`, a `REQ` subscriber with reconnect and resync.
+  - The in-stack precedent, `nostr-search/src/ingest.js`, is thin. It subscribes with `{kinds:[0]}` and keeps no
+    high-water mark, sends no `since` and persists nothing: its only state, a `seen` map of `created_at` per pubkey
+    for de-duplication, lives in memory. Its reconnect waits a constant 1 s (each new `connect()` resets the doubled
+    backoff to 1 s). Its resync re-sends the same `REQ`, which the relay answers with at most 500 stored events
+    (strfry's `maxFilterLimit`). So it is no model for catching up after a gap.
   - Run it as its own supervisor program, so stopping taggings never stops follows.
+  - *(Settled by `tagging-edges/0003`: a `limit:0` subscription with no `since` as a trigger only, and catch-up by an
+    address-keyed id diff over a strict scan, since a `since` replay compares `created_at` and drops back-dated
+    history; its own supervisord program, `tagging-edges-realtime`, which ships off.)*
 - **Recommended shape for story 4:**
   - a new sub-tab beside ⚡ Streaming ETL, or an extracted, parameterised version of `StreamingETLPanel`;
   - counters the consumer writes explicitly (a Redis hash or a status file), not log scraping;

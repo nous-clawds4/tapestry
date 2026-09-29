@@ -476,10 +476,13 @@ The pass **claims** the record at runner step 7 — after its identity, config a
 lock — by `rename(confirmation.json → claimed/<runId>-<nonce>.json)`, atomic, so one claimant. It honours the claim
 only if the most recent earlier report whose `phases` include `graph-read` has that `runId` and is `done-removals-held`,
 the held file still hashes to `heldDigest`, and the record has not expired. Otherwise it runs unconfirmed and records
-`confirmation: { found: true, honoured: false, why }`. A refused start never reaches the claim and changes nothing
-(AC-4), so it neither spends nor invalidates a pending confirmation. A claim is spent whatever happens after it: a
-run that then fails or is stopped has used it, and the owner confirms the next held report (owner decision 7). A
-BullMQ stalled re-run after a deploy finds no record and holds again (fail-safe).
+`confirmation: { found: true, honoured: false, why }`. A refused start never reaches the claim and changes no
+relationship or person (AC-4), so it neither spends nor invalidates a pending confirmation. *(Wording amended by
+`tagging-edges/0003`, story 3 CF-2: this said "changes nothing". A `schema` refusal can leave in place the
+`tags_address` rule the pass's own pre-flight created, when the rule did not come ONLINE in time; OPERATIONS §12.8.)*
+A claim is spent whatever happens after it: a run that then fails or is stopped has used it, and the owner confirms
+the next held report (owner decision 7). A BullMQ stalled re-run after a deploy finds no record and holds again
+(fail-safe).
 
 No other channel exists. The registry entry declares `"arguments": false` and `"staticArgs": ""`, so
 `buildChildArgs` returns `[]`; the pass reads no confirmation from argv, env, job data or schedule args. A
@@ -557,9 +560,13 @@ config value or credential appears, and no absolute path that starts a word: for
 `failure.message` carries `err.code` and the state-relative file name, never `err.message`; a Neo4j connection error
 (`ServiceUnavailable`, `SessionExpired`) carries fixed text; every other error text, strfry's `stderrTail` included,
 passes one redactor that replaces any URI, any absolute path that starts a word (a `/` at the start or after
-whitespace, a quote, `[`, `(` or `=`) and any IPv4 `host:port`, and cuts every 64-hex run to 8 characters. *(Amended
+whitespace, a quote, `[`, `(` or `=`) and any `host:port` (an IPv4 address; a letter-led name, single-label or dotted,
+with a port of 2–5 digits; or a bracketed IPv6 address), and cuts every 64-hex run to 8 characters. *(Amended
 in review round 3, 2026-09-28: this said "any … absolute path". A path after any other character, such as
 `file:/…`, `,/…` or `{/…`, passes unchanged; the re-review found no source the pass reads that prints one.)*
+*(Amended by `tagging-edges/0003`, owner decision 6, story 3 CF-3: the host rule covered IPv4 only, so
+`neo4j.internal:7687` or `[::1]:7687` passed unchanged under an error code outside the two connection codes. The
+widened rule may also cut a benign `word:NN`, such as a tagging address whose `d` starts with 2–5 digits.)*
 
 The held route never builds a path from request input. Express URL-decodes query values and every unauthenticated
 GET reaches the handler (`src/middleware/auth.js:505`), so: `runId` is optional; when given, it must be a string (not an
@@ -594,11 +601,13 @@ in the same change as the measurement, and the read time-outs are checked the sa
    A kind-5 it receives is a trigger to re-read the addresses `revokeTargets` names (plus those of edges whose
    `eventId` it names), never a verdict by itself; so the real-time path never removes a relationship the next pass
    would restore. *(Amended by `tagging-edges/0003`, D5-A.)* A kind-5 prompts a look only from its own author, and
-   only at addresses it names that the path knows: by `e`, through the path's seen and heard maps; by `a`, a
-   tagging address of at most 255 bytes where those maps or the graph's keys record a version. Another author's
-   kind-5 prompts nothing. A removal it prompts also needs ADR 0003's revoke rule (`revokeApplies`' address branch
-   only on a well-formed stored edge, D5-B / A9). That is a restriction, never enough on its own: the relay read
-   still decides (A7).
+   only at addresses it names that the path knows: by `e`, only the latest version the path has learned at that
+   address (ADR 0003 A1-3); by `a`, a tagging address of at most 255 bytes that the path's lineage holds, where its
+   seen map records a version, or that the graph's keys hold. Another author's kind-5 prompts nothing. A removal it
+   prompts also needs ADR 0003's revoke rule (by `e`, the gate of A1-4; by `a`, `revokeApplies`' address branch only
+   on a well-formed stored edge, D5-B / A9). That is a restriction, never enough on its own: the relay read still
+   decides (A7). *(Amended by `tagging-edges/0003` A1-3 and A1-4, 2026-09-29: this said "by `e`, through the path's
+   seen and heard maps", "where those maps … record a version" for `a`, and named only the address branch.)*
 3. For each address it touches, story 3 reads the graph, then strictly scans the relay at that address
    (`{kinds:[39999], authors:[pk], '#d':[d]}` through `scanStrict`, filtered to the identity `d`). For an id-only
    tagging it also reads the element its `e` names by a strict scan `{kinds:[39999], ids:[e]}` and passes it as
@@ -796,7 +805,9 @@ Each goes into ADR 0001 in the same commit as this ADR, with an "Amended by `tag
 13. **Three new routes:** `GET /api/tagging-edges/status` and `GET /api/tagging-edges/held` as public reads of
     counts, relay- and graph-derived values and redacted error text, with no config value or credential and no
     absolute path that starts a word ("Who reads it"; *amended in review round 1, 2026-09-28*: this said relay-derived
-    data and counts; *wording amended in review round 3*: this said no absolute path); the held route
+    data and counts; *wording amended in review round 3*: this said no absolute path; *amended by
+    `tagging-edges/0003`*, CF-3: the redactor's host rule now covers host names and bracketed IPv6 addresses with a
+    port as well as IPv4); the held route
     serves only the latest report's list and builds no path from the request; and
     `POST /api/tagging-edges/confirm-held-removals` as owner-only (no admins, no loopback), a deliberate departure
     from the handoff's mutation template.
@@ -879,8 +890,10 @@ Test-file changes named here belong to Phase 3 (the Tester's lane); the Implemen
   2 refused, 1 failed; `--lock-busy` exits 0). `deps = { now, randomId, lock, state, identities, env, openGraph, scan,
   emit, proc, signals }`. Sequence:
   1. `--lock-busy`: emit `TASK_START`, `TASK_ERROR` and `TASK_END` `{ outcome: 'not-started', why: 'another pass is
-     running' }`; touch no file; exit 0. Otherwise verify `/proc/self/fdinfo/9` shows a `FLOCK … WRITE` lock, else
-     refuse `not-started-under-the-lock` the same way (so a hand-run `node reconcileTaggingEdges.js` cannot write).
+     running' }`; touch no file; exit 0. Otherwise verify `/proc/self/fdinfo/9` shows a `FLOCK … WRITE` lock (on
+     `pass.lock` itself, since C20), else refuse `not-started-under-the-lock` the same way (so a hand-run
+     `node reconcileTaggingEdges.js` without the pass's lock cannot write). *(Wording amended by `tagging-edges/0003`,
+     story 3 CF-4: the lock-file qualifier.)*
   2. `runId` = the UTC start time as `YYYYMMDDTHHMMSSZ`, `-`, and 8 lower-case hex characters from
      `crypto.randomBytes(4)` — exactly `RUN_ID_RE`; `TASK_START { runId }`.
   3. Read `report.json`; if its `latest.running` is true, that owner is dead (the lock is ours): set `running: false`,
