@@ -931,4 +931,4 @@ superseded, or that ADR `tagging-edges/0003` and its clarifications now state, a
 - ADR: `engineering-team/decisions/tagging-edges/0003-real-time-path.md` (with Amendment A1, 2026-09-29: revokes by event id and the lineage, after the
   Implementation kick-back)
 - Test plan: `engineering-team/stories/tagging-edges/3-real-time-path.test-plan.md`
-- Review: `engineering-team/reviews/tagging-edges/3-real-time-path.md` (round 1, 2026-09-29: CHANGES_REQUESTED)
+- Review: `engineering-team/reviews/tagging-edges/3-real-time-path.md`
