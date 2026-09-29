@@ -4,12 +4,11 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
 import { usePov } from '../../context/PovContext';
-import { useConfig } from '../../context/ConfigContext';
 import { classifyBValue } from '../../utils/bDisposition';
 import DictIcon from './DictIcon';
 import {
   CONCEPTS_DICTIONARY_PATH, coordParts, displayName, itemCountText, metricLabel, overrideBadge, povLine,
-  useSharedByMe, useTrustedDictionary,
+  useConceptDictionary, useDictionaryPerson,
 } from './conceptsDictionary';
 
 /**
@@ -19,8 +18,9 @@ import {
  * (SPEC § 3): the owner's add-to-dictionary pinning is version 2.
  *
  * The row arrives in router state when the page is opened from the list; a
- * direct visit reads /api/trusted-dictionary for the active point of view.
- * The header event and the sample items are plain reads of local strfry.
+ * direct visit reads the person's dictionary (/api/dictionaries/concepts) for
+ * the active point of view. The header event and the sample items are plain
+ * reads of local strfry.
  */
 
 const SAMPLE_SIZE = 8;
@@ -106,9 +106,8 @@ export default function DictionaryConceptEntry() {
   const location = useLocation();
   const passed = location.state?.entry?.coord === coord ? location.state : null;
   const { povParams } = usePov();
-  const { taPubkey } = useConfig();
-  const { data, error } = useTrustedDictionary(povParams, { enabled: !passed });
-  const shared = useSharedByMe();
+  const person = useDictionaryPerson();
+  const { data, error } = useConceptDictionary(person, povParams, { enabled: !passed });
   const header = useHeaderEvent(coord);
   const samples = useSampleItems(coord);
 
@@ -125,8 +124,8 @@ export default function DictionaryConceptEntry() {
   const plural = entry?.plural || tagValue(ev, 'names', 2);
   const description = entry?.description || tagValue(ev, 'description');
   const bTags = (ev?.tags || []).filter((t) => t[0] === 'b' && typeof t[1] === 'string');
-  const isShared = Boolean(shared.coords?.has(coord));
   const badge = overrideBadge(entry);
+  const whose = person.signedIn ? 'your' : 'the owner’s';
 
   return (
     <div className="page dict-page">
@@ -135,8 +134,11 @@ export default function DictionaryConceptEntry() {
 
       <div className="dict-entry-badges">
         {entry?.isFirmware && <span className="dict-pill dict-pill--firmware">Firmware</span>}
-        {isShared && <span className="dict-marker dict-marker--shared"><DictIcon name="share" size={12} /> Shared by you</span>}
-        {entry?.sentinelDeferred && <span className="dict-marker dict-marker--private"><DictIcon name="lock" size={12} /> Private</span>}
+        {entry?.selfDeclared && (
+          <span className="dict-marker dict-marker--shared">
+            <DictIcon name="share" size={12} /> {person.signedIn ? 'Shared by you' : 'Shared by the owner'}
+          </span>
+        )}
         {badge && <span className={badge.className}>{badge.label}</span>}
       </div>
       <h1 className="dict-entry-title">{singular}</h1>
@@ -161,19 +163,30 @@ export default function DictionaryConceptEntry() {
       {settled && !entry && (
         <p className="dict-notice">
           {error
-            ? `Could not read your Dictionary: ${error}`
-            : 'This concept is not in your Dictionary from the active point of view: fewer trusted people file items under it than the minimum.'}
+            ? `Could not read ${whose} Dictionary: ${error}`
+            : `This concept is not in ${whose} Dictionary, which lists only ${whose} own concepts that carry a b-tag.`}
         </p>
       )}
 
       {entry && (
         <div className="dict-card dict-entry-card">
           <div className="dict-field-label">Usage</div>
-          <p className="dict-entry-usage">
-            <span className="dict-row-gum">{entry.gum}</span> {metricLabel(metric)}
-            <span className="text-muted"> · all usage: {entry.totalAuthorCount} {entry.totalAuthorCount === 1 ? 'author' : 'authors'},
-              {' '}{entry.totalEventCount} {entry.totalEventCount === 1 ? 'filing' : 'filings'}</span>
-          </p>
+          {entry.sharedCoord ? (
+            <>
+              <p className="dict-entry-usage">
+                <span className="dict-row-gum">{entry.gum}</span> {metricLabel(metric)}
+                <span className="text-muted"> · all usage: {entry.totalAuthorCount} {entry.totalAuthorCount === 1 ? 'author' : 'authors'},
+                  {' '}{entry.totalEventCount} {entry.totalEventCount === 1 ? 'filing' : 'filings'}</span>
+              </p>
+              <p className="dict-pov text-muted">
+                {entry.sharedCoord === coord
+                  ? 'Scored as itself: it is the shared concept.'
+                  : <>Scored for the shared concept it points to: <span className="dict-mono">{entry.sharedCoord}</span></>}
+              </p>
+            </>
+          ) : (
+            <p className="text-muted">No score: its b-tag points at an event id, not a concept that items are filed under.</p>
+          )}
           {pov && <p className="dict-pov text-muted">{povLine(pov)}</p>}
         </div>
       )}
@@ -194,7 +207,9 @@ export default function DictionaryConceptEntry() {
         <p className="dict-mono dict-entry-coord">{coord}</p>
         <div className="dict-entry-author">
           <span className="dict-field-label">Author</span>
-          {author === taPubkey ? <span>Your Assistant</span> : <AuthorCell pubkey={author} profiles={profiles} size={20} />}
+          {author && author === person.assistant
+            ? <span>{person.signedIn ? 'Your Assistant' : 'The owner’s Assistant'}</span>
+            : <AuthorCell pubkey={author} profiles={profiles} size={20} />}
         </div>
         <div className="dict-field-label">b-tag target</div>
         {!header.done && <p className="text-muted">Reading the header…</p>}
