@@ -269,6 +269,9 @@ const suites = [
   { file: 'tagging-edges-realtime-engine.test.js' },
   { file: 'tagging-edges-realtime-routes.test.js' },
   { file: 'tagging-edges-realtime-wrapper.test.js' },
+  { file: 'tagging-edges-realtime-lineage.test.js' },
+  { file: 'tagging-edges-realtime-resilience.test.js' },
+  { file: 'tagging-edges-realtime-property.test.js', skipNote: 'the full fixed campaign is opt-in: set TAGGING_EDGES_PROPERTY=1' },
   { file: 'tagging-edges-live.test.js', skipNote: 'no local Neo4j in the environment (NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD)' },
 ];
 

@@ -41,6 +41,27 @@
  * story "What can be observed", item 7). A lean world (makeWorld({ lean: true })) keeps each held event's large strings
  * shared with the fixture and serialises on demand, and hands the journal out as a stream, so a child process with a
  * small heap measures the engine, not the fakes.
+ *
+ * Added for Amendment A1 (ADR 0003 A1-6, A1-8, A1-13, A1-18, A1-20's scenarios). Each is documented where it lives;
+ * none changes what a round-1 test sees unless the test sets it, except the first:
+ *   - A1-18's settlement: a scan that fails 'timeout' costs its `timeoutMs` of fake time (relay.timeoutsCostTime,
+ *     true by default; the round-1 suites pass unchanged either way).
+ *   - Scans (makeRelay): relay.neverAnswers (addresses or element ids whose scans never answer: each times out at its
+ *     timeoutMs), relay.stallUntil (a Redis-style stall: every scan waits until then, or times out if that is longer),
+ *     relay.latencyMs as the per-strfry-process cost, relay.scanWaits (a scan's cost waited on the clock, so ticks
+ *     and live deliveries interleave with it); each call records timeoutMs, cost, hang and stalledMs. scanAddresses()
+ *     and scanIds() name what a scan asks for.
+ *   - Live notices (makeRelay): relay.holdNotices / releaseNotices() (a notice sent late: a read can fall between a
+ *     store and its delivery), relay.loseNotice (a notice never sent) and relay.deleteHidesNextWrite (strfry's
+ *     delete-hides-next-write defect, ledger row 2026-09-29). A silent departure is the existing relay.remove(id).
+ *   - The graph (makeGraph): graph.readDelay (a read that answers late or never: the census and its 10 s deadline).
+ *     A pass writing from an older read is the existing w.passWrite(edge) with the older version's edge.
+ *   - The journal (makeStore): store.tearAppend (a crash mid-append), store.journalReadFailsAfter (a streamed read that
+ *     throws EIO part-way), store.truncateFails / crashOnTruncateFail (a failed truncation that leaves the lines),
+ *     store.faultLog, and the inspectors journalLines(), journalEntries(), epochLines(), recordEpoch(), recordLog.
+ *   - Driving: a process killed while start() or tick() is in flight (a torn append kills from inside a tick) ends
+ *     that call and drive() ({ killed: true }), instead of the dead process's deps holding the tick until the real-time
+ *     guard; a killed process is never ticked again.
  */
 
 const crypto = require('crypto');
@@ -68,6 +89,8 @@ const RUN_ID_RE = /^\d{8}T\d{6}Z-[0-9a-f]{8}$/;
 /** scanStrict's argv check (ADR 0003 step 2 and "New files"): over 100,000 bytes → ScanError 'filter-too-large'. */
 const ARGV_FILTER_BYTES = 100000;
 const DEFAULT_MAX_BYTES = 256 * 1024 * 1024;
+/** scanStrict's own default time-out (src/lib/strfryScanStrict.js), for a scan called without `timeoutMs`. */
+const SCAN_TIMEOUT_DEFAULT_MS = 60000;
 /** strfry's stderr always names the follows Redis (ADR § Status: never in status.json). */
 const STDERR_TAIL = 'strfry error: could not connect to redis:6379 (reading /etc/strfry.conf)';
 /** How long one start() / tick() may take in REAL time before drive() calls it hung. */
@@ -202,6 +225,26 @@ function filterTargets(filter, address) {
 }
 /** scanStrict's argv text (ADR T1: JSON with every `/` written `\/`). */
 function argvText(filter) { return JSON.stringify(filter).replace(/\//g, '\\/'); }
+/**
+ * The addresses a scan filter (or array) asks for, in order and de-duplicated: one `<kind>:<author lower-cased>:<d>`
+ * per author × `#d` value of each member that has both (the kind is the member's single kind, else 39999). A round's
+ * address scan of one address gives one (A1-13's "read alone").
+ */
+function scanAddresses(filter) {
+  const out = [];
+  for (const f of filtersOf(filter)) {
+    if (!f || !Array.isArray(f.authors) || !Array.isArray(f['#d'])) continue;
+    const kind = Array.isArray(f.kinds) && f.kinds.length === 1 ? f.kinds[0] : 39999;
+    for (const a of f.authors) for (const d of f['#d']) out.push(`${kind}:${String(a).toLowerCase()}:${d}`);
+  }
+  return [...new Set(out)];
+}
+/** The element ids a scan filter (or array) asks for (`ids`), lower-cased, in order and de-duplicated. */
+function scanIds(filter) {
+  const out = [];
+  for (const f of filtersOf(filter)) if (f && Array.isArray(f.ids)) for (const x of f.ids) out.push(String(x).toLowerCase());
+  return [...new Set(out)];
+}
 
 // ─── the clock ─────────────────────────────────────────────────────────────────────────────────────────────────
 function makeClock(t0) {
@@ -261,14 +304,52 @@ function shapeOk(ev) {
  * Hooks: onScan(filter, call), onSubscribe(sub), scanFail(filter, opts, call) → a ScanError code or null.
  * latencyMs     opt-in, 0 by default: each scan advances the fake clock by this many ms before it answers (the time a
  *               strfry process takes), so simulated time passes inside a round. Only a test that sets it sees that.
- * Each scan call records { seq, at, proc, kind, filter, outcome, n, bytes (streamed), maxBytes (as passed) }; `at` is
- * when the scan was called, before any latency.
+ *               It is A1-13's "per strfry process" cost: every scan call is one process, whatever it answers.
+ * Each scan call records { seq, at, proc, kind, filter, outcome, n, bytes (streamed), maxBytes (as passed), timeoutMs
+ * (as passed, or null), cost (the fake ms the scan took: latency, a stall's wait, a time-out), hang ('never-answers' |
+ * 'stall' | null: why it timed out without answering), stalledMs (a stall it waited out, when it did) }; `at` is when
+ * the scan was called, before any latency.
+ *
+ * Scan time-outs and stalls (ADR 0003 A1-13, A1-18):
+ *   timeoutsCostTime  true by default: a scan that fails 'timeout' through scanFail costs its `timeoutMs` in fake time
+ *               in all (scanStrict's 60 s default when none is passed), latency included, after streaming what it
+ *               streams (T31). false restores the instant failure the round-1 tests were written against.
+ *   neverAnswers  a Set of tagging addresses (`39999:<author>:<d>`, matched as filterTargets matches) and element ids
+ *               (64 hex, matched case-insensitively against a member's `ids`), empty by default. A scan that names
+ *               any of them never answers: it streams nothing and fails ScanError('timeout') once its `timeoutMs` has
+ *               passed (cost = timeoutMs, hang = 'never-answers'). Stamp, deletion and other scans never match.
+ *   stallUntil  null, or a fake time (ms): a Redis-style stall. A scan called before it waits until then (cost =
+ *               the wait, stalledMs) and then answers normally, from what the relay holds at that moment — unless the
+ *               wait is its `timeoutMs` or more: then it streams nothing and fails 'timeout' at its time-out (hang =
+ *               'stall'). A scan called at or after it is untouched. The subscription is not affected.
+ *   scanWaits   false by default (a scan's cost is advanced at once, inside the call). true, or a predicate
+ *               (filter, call) → boolean: that scan's cost is WAITED on the fake clock instead — it settles only once
+ *               drive() has advanced the clock by its cost, so ticks run and live deliveries are drained while it is
+ *               in flight (the engine's rounds span ticks). A scan in flight when its process is killed never settles.
+ *   A down relay fails every scan 'exit' first; then a hang; then a stall's wait, latency, onScan, scanFail. onScan is
+ *   called for a hanging scan too (call.hang set), before its time-out passes.
+ *
+ * Live-notice faults (story item 7, ADR owner decisions 10 and 11):
+ *   holdNotices  null by default; true, or a predicate (event) → boolean: a stored event's live deliveries are queued
+ *               in r.heldNotices instead of handed over (the relay's change notice, not yet sent). The event is
+ *               stored and scans find it. releaseNotices(pred?) hands the queued deliveries over in store order (those
+ *               the predicate accepts, when one is given) and answers how many; a delivery to a subscription closed
+ *               meanwhile is dropped then, as any delivery is.
+ *   loseNotice  null by default; a predicate (event) → boolean: that event's live notice is lost (never delivered to
+ *               any subscription; stored, and scans find it). Recorded in r.lostNotices { id, kind, at, why }.
+ *   deleteHidesNextWrite  false by default; true models strfry 1.1.0's defect (ledger row
+ *               2026-09-29-strfry-delete-hides-next-write): a silent remove() of the relay's NEWEST held event (in
+ *               store order) makes the next stored event's live notice lost (why 'delete-hides-next-write'). A kind 5
+ *               or a replacement never triggers it (each removes something older than itself).
+ *   muted still drops every notice without recording it.
  */
 function makeRelay(w) {
   const r = {
     held: new Map(), byKey: new Map(), dIndex: new Map(), k5: new Map(), eTomb: new Set(), aTomb: new Map(), seq: 0,
     subs: [], subCalls: [], scans: [], refusals: [],
     down: false, muted: false, batch: null, scanFail: null, onScan: null, onSubscribe: null, latencyMs: 0,
+    timeoutsCostTime: true, neverAnswers: new Set(), stallUntil: null, scanWaits: false,
+    holdNotices: null, heldNotices: [], loseNotice: null, lostNotices: [], deleteHidesNextWrite: false, hideNextWrite: false,
   };
 
   /** What the relay keeps of a stored event: a JSON copy, or, in a lean world, a copy sharing the fixture's strings. */
@@ -322,11 +403,25 @@ function makeRelay(w) {
   function notify(h) {
     if (r.batch) { r.batch.push(h); return; }
     if (r.muted) return;
+    const lost = h.noticeLost || (typeof r.loseNotice === 'function' && r.loseNotice(copyOut(h)) ? 'loseNotice' : null);
+    if (lost) { r.lostNotices.push({ id: h.ev.id, kind: h.ev.kind, at: w.clock.t, why: lost }); return; }
+    const held = r.holdNotices === true || (typeof r.holdNotices === 'function' && !!r.holdNotices(copyOut(h)));
     for (const sub of r.subs) {
       if (!sub.open || sub.proc.killed) continue;
-      if (sub.filters.some((f) => matchFilter(h.ev, f))) deliver(sub, h);
+      if (sub.filters.some((f) => matchFilter(h.ev, f))) {
+        if (held) r.heldNotices.push({ sub, h }); else deliver(sub, h);
+      }
     }
   }
+  r.releaseNotices = (pred) => {
+    const go = [];
+    const keep = [];
+    for (const x of r.heldNotices) (typeof pred === 'function' && !pred(copyOut(x.h)) ? keep : go).push(x);
+    r.heldNotices = keep;
+    go.sort((a, b) => a.h.seq - b.h.seq);
+    for (const x of go) deliver(x.sub, x.h);
+    return go.length;
+  };
   const refuse = (ev, reason) => { r.refusals.push({ id: ev && ev.id, reason }); return { stored: false, reason }; };
 
   r.store = (ev0) => {
@@ -368,7 +463,9 @@ function makeRelay(w) {
         drop(hid);
       }
     }
-    notify(insert(ev));
+    const entry = insert(ev);
+    if (r.hideNextWrite) { r.hideNextWrite = false; entry.noticeLost = 'delete-hides-next-write'; }
+    notify(entry);
     return { stored: true };
   };
   r.storeBatch = (evs) => {
@@ -379,7 +476,16 @@ function makeRelay(w) {
     for (const h of announced) if (h.ev.kind === 5 || r.held.get(h.ev.id.toLowerCase()) === h) notify(h);
     return out;
   };
-  r.remove = (id) => { drop(String(id).toLowerCase()); };
+  r.remove = (id) => {
+    const k = String(id).toLowerCase();
+    const h = r.held.get(k);
+    if (h && r.deleteHidesNextWrite) {
+      let newest = true;
+      for (const x of r.held.values()) if (x.seq > h.seq) { newest = false; break; }
+      if (newest) r.hideNextWrite = true;
+    }
+    drop(k);
+  };
   r.wipe = () => {
     r.held.clear(); r.byKey.clear(); r.dIndex.clear(); r.k5.clear(); r.eTomb.clear(); r.aTomb.clear();
   };
@@ -421,11 +527,23 @@ function makeRelay(w) {
     return out;
   }
 
+  /** Does a scan filter name a member of r.neverAnswers (an address it asks for, or an element id)? */
+  function namesNeverAnswering(filter) {
+    if (!(r.neverAnswers instanceof Set) || r.neverAnswers.size === 0) return false;
+    for (const x of r.neverAnswers) {
+      const s = String(x);
+      if (TAGGING_ADDRESS_RE.test(s)) { if (filterTargets(filter, s)) return true; }
+      else if (filtersOf(filter).some((f) => f && Array.isArray(f.ids) && f.ids.some((y) => hexEq(y, s)))) return true;
+    }
+    return false;
+  }
+
   /** scanStrict's contract: → { events, lines, bytes, elapsedMs } or a ScanError; `onEvent` streams (events not kept). */
   r.scan = async (filter, opts, proc) => {
     const call = {
       seq: w.nextSeq(), at: w.clock.t, proc: proc ? proc.n : null, kind: filterKind(filter), filter: w.keepScanFilters ? logcopy(filter) : null,
       outcome: 'pending', n: 0, bytes: 0, maxBytes: opts && typeof opts === 'object' && typeof opts.maxBytes === 'number' ? opts.maxBytes : null,
+      timeoutMs: opts && typeof opts === 'object' && typeof opts.timeoutMs === 'number' ? opts.timeoutMs : null, cost: 0, hang: null,
     };
     r.scans.push(call);
     await null;
@@ -435,7 +553,34 @@ function makeRelay(w) {
       throw new TypeError('scanStrict: opts.isExpected must be a function (a strict read checks every event)');
     }
     if (bytesOf(argvText(filter)) > ARGV_FILTER_BYTES) { call.outcome = 'filter-too-large'; throw scanError('filter-too-large'); }
-    if (r.latencyMs > 0) w.clock.advance(r.latencyMs);
+    const limit = typeof o.timeoutMs === 'number' && o.timeoutMs > 0 ? o.timeoutMs : SCAN_TIMEOUT_DEFAULT_MS;
+    const waits = !!proc && (r.scanWaits === true || (typeof r.scanWaits === 'function' && !!r.scanWaits(filter, call)));
+    // Fake time passing inside the scan: advanced at once (the default, no extra await), or waited on the clock.
+    const spend = (ms) => {
+      if (!(ms > 0)) return null;
+      call.cost += ms;
+      if (waits) return w.clock.sleep(ms).then(() => (proc.killed ? hang() : undefined));
+      w.clock.advance(ms);
+      return null;
+    };
+    if (!r.down) {
+      const stallWait = typeof r.stallUntil === 'number' && r.stallUntil > w.clock.t ? r.stallUntil - w.clock.t : 0;
+      const hung = namesNeverAnswering(filter) ? 'never-answers' : (stallWait > 0 && stallWait >= limit ? 'stall' : null);
+      if (hung) {
+        call.hang = hung;
+        if (r.onScan) r.onScan(filter, call);
+        const p = spend(limit);
+        if (p) await p;
+        call.outcome = 'timeout';
+        throw scanError('timeout');
+      }
+      if (stallWait > 0) {
+        call.stalledMs = stallWait;
+        const p = spend(stallWait);
+        if (p) await p;
+      }
+    }
+    if (r.latencyMs > 0) { const p = spend(r.latencyMs); if (p) await p; }
     if (r.onScan) r.onScan(filter, call);
     const injected = r.down ? 'exit' : (typeof r.scanFail === 'function' ? r.scanFail(filter, o, call) : null);
     const out = r.down ? [] : select(filter);
@@ -452,7 +597,11 @@ function makeRelay(w) {
       if (!ok) { call.outcome = 'off-filter'; throw scanError('off-filter'); }
       if (typeof o.onEvent === 'function') o.onEvent(ev); else events.push(ev);
     }
-    if (injected) { call.outcome = injected; throw scanError(injected); }
+    if (injected) {
+      if (injected === 'timeout' && r.timeoutsCostTime) { const p = spend(Math.max(0, limit - call.cost)); if (p) await p; }
+      call.outcome = injected;
+      throw scanError(injected);
+    }
     call.outcome = 'ok';
     call.n = out.length;
     return { events, lines: out.length, bytes, elapsedMs: 1 };
@@ -544,13 +693,21 @@ function rowFromEdge(edge, rid, rowOpts = {}) {
  * commits), beforeApply(kind, rows, rec) (awaited just before the transaction acts: another writer's move), latencyMs
  * (opt-in, 0 by default: each port call advances the fake clock by this many ms once it is logged, the time a
  * transaction takes; only a test that sets it sees simulated time pass inside a round).
+ * readDelay (ADR 0003 A1-8, the census's own 10 s deadline): null by default, or (op, { proc, nth, at }) → ms |
+ * Infinity | null, asked for every readSchema / readAt / readKeys / readAll call (`nth`: the 1-based count of `op`
+ * calls by that process, so `op === 'readKeys' && nth === 1` is a baseline start's census). A positive number: the call
+ * settles once the fake clock has reached `at + ms` (drive() advances it between ticks, so only a read the engine does
+ * not await inside one tick can wait: the census, a round's graph read), and then answers — or fails through
+ * down / failReads — from the graph as it is then. Infinity: the call never settles (a hung connection or a driver
+ * retrying). The call's `calls` entry gets `delayMs`, and `settledAt` once it settles; a read in flight when its process
+ * is killed never settles.
  */
 function makeGraph(w) {
   const g = {
     rows: new Map(), others: [], people: new Map(), ridSeq: 0,
     down: false, schema: { tags: 'online', nostrUser: true },
-    failReads: null, failWrites: null, beforeApply: null, keepRows: true, latencyMs: 0,
-    calls: [], writes: [], violations: [], unknownAccess: [], ddl: [],
+    failReads: null, failWrites: null, beforeApply: null, keepRows: true, latencyMs: 0, readDelay: null,
+    calls: [], writes: [], violations: [], unknownAccess: [], ddl: [], readCounts: new Map(),
   };
   g.nextRid = () => `5:fake:${String(++g.ridSeq).padStart(7, '0')}`;
   g.merge = (pk) => {
@@ -591,6 +748,22 @@ function makeGraph(w) {
     g.calls.push(e);
     if (g.latencyMs > 0) w.clock.advance(g.latencyMs);
     return e;
+  }
+  /** readDelay's wait for one read call (its `calls` entry `e`), or null when it answers at once (no extra await). */
+  function readWait(op, proc, e) {
+    const key = `${proc.n}:${op}`;
+    const nth = (g.readCounts.get(key) || 0) + 1;
+    g.readCounts.set(key, nth);
+    if (typeof g.readDelay !== 'function') return null;
+    const ms = g.readDelay(op, { proc: proc.n, nth, at: e.at });
+    if (ms === Infinity) { e.delayMs = Infinity; return hang(); }
+    if (typeof ms !== 'number' || !(ms > 0)) return null;
+    e.delayMs = ms;
+    return w.clock.sleep(ms).then(() => {
+      if (proc.killed) return hang();
+      e.settledAt = w.clock.t;
+      return undefined;
+    });
   }
   function checkRead(op) {
     if (g.down) throw serviceUnavailable();
@@ -653,18 +826,22 @@ function makeGraph(w) {
     const methods = {
       async readSchema() {
         if (dead()) return hang();
-        note('readSchema', proc);
+        const c = note('readSchema', proc);
         await null;
+        const d = readWait('readSchema', proc, c);
+        if (d) await d;
         checkRead('readSchema');
         return schemaView(g.schema);
       },
       async readAt(addresses, opts) {
         if (dead()) return hang();
-        note('readAt', proc, {
+        const c = note('readAt', proc, {
           n: Array.isArray(addresses) ? addresses.length : null, timeoutMs: opts && opts.timeoutMs,
           addresses: g.keepRows && Array.isArray(addresses) ? addresses.slice() : null,
         });
         await null;
+        const d = readWait('readAt', proc, c);
+        if (d) await d;
         checkRead('readAt');
         if (!Array.isArray(addresses)) throw invariant('readAt takes an array of addresses');
         const out = [];
@@ -677,8 +854,10 @@ function makeGraph(w) {
       },
       async readKeys(opts) {
         if (dead()) return hang();
-        note('readKeys', proc, { timeoutMs: opts && opts.timeoutMs });
+        const c = note('readKeys', proc, { timeoutMs: opts && opts.timeoutMs });
         await null;
+        const d = readWait('readKeys', proc, c);
+        if (d) await d;
         checkRead('readKeys');
         return [...g.rows.values(), ...g.others].map((row) => {
           const e = propOf(row, 'eventId');
@@ -757,8 +936,10 @@ function makeGraph(w) {
       },
       async readAll(opts) {
         if (dead()) return hang();
-        note('readAll', proc, { timeoutMs: opts && opts.timeoutMs });
+        const c = note('readAll', proc, { timeoutMs: opts && opts.timeoutMs });
         await null;
+        const d = readWait('readAll', proc, c);
+        if (d) await d;
         checkRead('readAll');
         return [...g.rows.values(), ...g.others].map(jcopy);
       },
@@ -786,12 +967,36 @@ function makeGraph(w) {
  * openJournal() answers { lines } as T21 / T26 give it: the lines without their newlines and no empty item after the
  * last one — an array, or in a lean world a one-pass iterator over the text (T21: "Iterable<string>"; the ADR's
  * "Replay is streamed line by line"), so a replay that holds the whole journal is the engine's cost, not the fake's.
+ *
+ * Journal faults (ADR 0003 A1-6; each fires for a live process only, and is logged in `faultLog`):
+ *   tearAppend  null, or { keepLines = 0, partialChars, when }: a crash mid-append. The next appendJournal whose
+ *               batch `when(lines, { proc })` accepts (every non-empty one when `when` is absent; `lines` are the
+ *               batch's lines without their newlines) writes only its first `keepLines` complete lines (at most all
+ *               but one) and the first `partialChars` characters of the next (default half of it, at least 1; never
+ *               its newline, so the file then ends in a partial line). Then the calling process is killed at once, as
+ *               a crash would (nothing it does afterwards reaches the world), and tearAppend goes back to null.
+ *               faultLog: { fault: 'torn-append', proc, seq, at, kept, partial, lost } (kept / lost: whole lines).
+ *               A test can also write a torn tail itself: `w.store.journal += '{"t":"v","id":"ab'`.
+ *   journalReadFailsAfter  null, or n: the next openJournal() (one call; the field then goes back to null) cuts a torn
+ *               tail as usual and answers { lines } that yield the file's first n lines and then throw an Error with
+ *               code 'EIO' — even when the file holds n lines or fewer (the read fails at that offset). The lines are
+ *               then always an iterator, never an array (T21: Iterable<string>). faultLog: { fault: 'journal-read',
+ *               proc, at, afterLines: n, handed } when it throws.
+ *   truncateFails  0 by default; n: the next n truncateJournal() calls throw an Error with code 'EIO' and leave the
+ *               journal's lines as they were. crashOnTruncateFail (false) also kills the calling process right before
+ *               the throw (a crash before the next successful compaction). faultLog: { fault: 'truncate', proc, seq,
+ *               at, keptLines }.
+ * Inspecting the journal and the record: journalLines() (every non-empty line of the file, a torn final fragment
+ * included, as text), journalEntries() (each parsed: the object, or { t: null, unparsed } for a line that is not a JSON
+ * object), epochLines() (the `e` entries, in file order), recordEpoch() (record.json's `epoch`, or null when there is
+ * no record or no `epoch`), and recordLog (every writeRecord: { seq, at, proc, epoch }).
  */
 function makeStore(w) {
   const s = {
     switch: { on: true, changedAt: iso(T0 - 60000), changedBy: 'b0b0b0b0' },
     started: null, startedSeq: null, record: null, recordSeq: null, recordUnreadable: false,
     journalUnreadableOpens: 0, status: null, statusWriteTimes: [], switchWrites: [],
+    tearAppend: null, journalReadFailsAfter: null, truncateFails: 0, crashOnTruncateFail: false, faultLog: [], recordLog: [],
   };
   // The journal's text, with its byte size kept alongside (a test may also assign the text directly).
   let journalText = '';
@@ -803,6 +1008,18 @@ function makeStore(w) {
   });
   const appendText = (t) => { journalText += t; journalSize += bytesOf(t); };
   s.setSwitch = (on) => { s.switch = { on: !!on, changedAt: iso(w.clock.t), changedBy: 'b0b0b0b0' }; };
+  const eio = (syscall) => Object.assign(new Error(`EIO: i/o error, ${syscall} 'realtime/journal.jsonl'`), { code: 'EIO', errno: -5, syscall });
+  /** A text's lines without their newlines; a final fragment with no newline is the last item. */
+  const splitLines = (text) => { const parts = text.split('\n'); if (parts[parts.length - 1] === '') parts.pop(); return parts; };
+  s.journalLines = () => splitLines(s.journal).filter((l) => l.length > 0);
+  s.journalEntries = () => s.journalLines().map((l) => {
+    try {
+      const o = JSON.parse(l);
+      return o && typeof o === 'object' && !Array.isArray(o) ? o : { t: null, unparsed: l };
+    } catch (_) { return { t: null, unparsed: l }; }
+  });
+  s.epochLines = () => s.journalEntries().filter((e) => e.t === 'e');
+  s.recordEpoch = () => (s.record && typeof s.record === 'object' && Object.prototype.hasOwnProperty.call(s.record, 'epoch') ? s.record.epoch : null);
   s.api = (proc) => {
     const dead = () => proc.killed;
     return {
@@ -823,12 +1040,29 @@ function makeStore(w) {
         s.record = Object.assign(b, { sha256 });
         s.recordSeq = w.nextSeq();
         s.recordUnreadable = false;
+        if (s.recordLog.length < 20000) s.recordLog.push({ seq: s.recordSeq, at: w.clock.t, proc: proc.n, epoch: b.epoch === undefined ? null : b.epoch });
       },
       openJournal() {
         if (s.journalUnreadableOpens > 0) { s.journalUnreadableOpens -= 1; return { unreadable: true }; }
         const cut = s.journal.lastIndexOf('\n');
         if (!dead() && cut + 1 !== s.journal.length) s.journal = s.journal.slice(0, cut + 1);
         const text = s.journal;
+        if (typeof s.journalReadFailsAfter === 'number' && !dead()) {
+          const afterLines = Math.max(0, Math.floor(s.journalReadFailsAfter));
+          s.journalReadFailsAfter = null;
+          const all = splitLines(text).filter((l) => l.length > 0);
+          function* failing() {
+            let handed = 0;
+            for (const l of all) {
+              if (handed >= afterLines) break;
+              handed += 1;
+              yield l;
+            }
+            s.faultLog.push({ fault: 'journal-read', proc: proc.n, at: w.clock.t, afterLines, handed });
+            throw eio('read');
+          }
+          return { lines: failing() };
+        }
         if (!w.lean) return { lines: text.split('\n').filter((l) => l.length > 0) };
         function* lines() {
           let i = 0;
@@ -843,9 +1077,35 @@ function makeStore(w) {
       },
       appendJournal(lines) {
         if (dead()) return;
-        appendText(Array.isArray(lines) ? lines.join('') : String(lines));
+        const text = Array.isArray(lines) ? lines.join('') : String(lines);
+        const t = s.tearAppend;
+        if (t && typeof t === 'object' && text.length > 0) {
+          const parts = splitLines(text);
+          if (parts.length > 0 && (typeof t.when !== 'function' || t.when(parts.slice(), { proc: proc.n }))) {
+            s.tearAppend = null;
+            const keep = Math.max(0, Math.min(Number.isInteger(t.keepLines) ? t.keepLines : 0, parts.length - 1));
+            const next = parts[keep];
+            const want = typeof t.partialChars === 'number' ? Math.floor(t.partialChars) : Math.max(1, Math.floor(next.length / 2));
+            const partial = next.slice(0, Math.max(0, Math.min(want, next.length - 1)));
+            const kept = parts.slice(0, keep);
+            appendText(kept.map((l) => `${l}\n`).join('') + partial);
+            s.faultLog.push({ fault: 'torn-append', proc: proc.n, seq: w.nextSeq(), at: w.clock.t, kept, partial, lost: parts.slice(keep) });
+            proc.kill();
+            return;
+          }
+        }
+        appendText(text);
       },
-      truncateJournal() { if (!dead()) s.journal = ''; },
+      truncateJournal() {
+        if (dead()) return;
+        if (s.truncateFails > 0) {
+          s.truncateFails -= 1;
+          s.faultLog.push({ fault: 'truncate', proc: proc.n, seq: w.nextSeq(), at: w.clock.t, keptLines: s.journalLines().length });
+          if (s.crashOnTruncateFail) proc.kill();
+          throw eio('open');
+        }
+        s.journal = '';
+      },
       journalBytes() { return journalSize; },
       readStatus() { return jcopy(s.status); },
       writeStatus(obj) {
@@ -918,6 +1178,9 @@ function makeWorld(o = {}) {
   w.makeDeps = (so = {}) => {
     const n = w.procs.length + 1;
     const proc = { n, world: w, killed: false, exited: null, engine: null, inCall: null };
+    let died;
+    /** Settles when the process is killed: an engine call in flight then is abandoned, as a crash abandons it. */
+    proc.died = new Promise((r) => { died = r; });
     const ids = so.identities || w.identities;
     proc.deps = {
       now: () => w.clock.t,
@@ -954,6 +1217,7 @@ function makeWorld(o = {}) {
     proc.kill = () => {
       proc.killed = true;
       for (const s of w.relay.subs) if (s.proc === proc) s.open = false;
+      died();
     };
     w.procs.push(proc);
     return proc;
@@ -1018,11 +1282,20 @@ async function killAll() {
 
 // ─── driving an engine ─────────────────────────────────────────────────────────────────────────────────────────
 const HUNG = Symbol('hung');
-async function guarded(fn, what) {
+const KILLED = Symbol('killed');
+/**
+ * Await fn() for at most TICK_GUARD_MS of real time; a rejection is rethrown naming T20. With `died` (a process's
+ * proc.died), a kill while fn() is in flight (a crash from inside it: a torn append, crashOnTruncateFail) abandons the
+ * call and answers { killed: true }, instead of waiting out the guard on the dead process's never-settling deps.
+ */
+async function guarded(fn, what, died) {
   let timer;
   const hung = new Promise((r) => { timer = setTimeout(() => r(HUNG), TICK_GUARD_MS); });
   try {
-    const out = await Promise.race([Promise.resolve().then(fn).then((value) => ({ value }), (error) => ({ error })), hung]);
+    const racers = [Promise.resolve().then(fn).then((value) => ({ value }), (error) => ({ error })), hung];
+    if (died) racers.push(died.then(() => KILLED));
+    const out = await Promise.race(racers);
+    if (out === KILLED) return { killed: true };
     if (out === HUNG) {
       throw new Error(`${what} did not settle within ${TICK_GUARD_MS / 1000} s of real time: the engine must not wait on deps.sleep or a real timer inside ${what} (ADR 0003 T20, T29: tests drive time through tick(); run() owns every sleep)`);
     }
@@ -1035,28 +1308,31 @@ async function guarded(fn, what) {
   }
 }
 
-/** Run one engine call guarded, with deps.sleep refused while it is in flight (T29). */
+/** Run one engine call guarded, with deps.sleep refused while it is in flight (T29); a kill mid-call ends it. */
 async function inCall(proc, fn, what) {
   proc.inCall = what;
-  try { return await guarded(fn, what); } finally { proc.inCall = null; }
+  try { return await guarded(fn, what, proc.died); } finally { proc.inCall = null; }
 }
 
-/** await engine.start() (guarded), then let the callbacks it scheduled run. */
+/** await engine.start() (guarded), then let the callbacks it scheduled run. A killed process is not started. */
 async function startEngine(proc) {
+  if (proc.killed) return;
   await inCall(proc, () => proc.engine.start(), 'start()');
   await flush();
 }
 
-/** One tick() (guarded). */
+/** One tick() (guarded). A killed process is not ticked: → { killed: true }. */
 async function tickOnce(proc) {
   if (proc.exited) return { exit: proc.exited.code };
+  if (proc.killed) return { killed: true };
   return inCall(proc, () => proc.engine.tick(), 'tick()');
 }
 
 /**
  * drive(proc, ms, step = 50 | { step, until, each }): advance the fake clock by `step`, tick(), let callbacks run;
- * repeat until `ms` of simulated time have passed, until() holds (checked before each step), or tick() answers an
- * exit. → { done, exit, at, elapsed } (elapsed: simulated ms since the call).
+ * repeat until `ms` of simulated time have passed, until() holds (checked before each step), tick() answers an
+ * exit, or the process is killed (a crash from inside a tick, or from `each`). → { done, exit, at, elapsed }
+ * (elapsed: simulated ms since the call), plus `killed: true` when it ended on a kill.
  */
 async function drive(proc, ms, opts = 50) {
   const o = typeof opts === 'number' ? { step: opts } : (opts || {});
@@ -1066,6 +1342,7 @@ async function drive(proc, ms, opts = 50) {
   const end = t0 + ms;
   for (;;) {
     if (o.until && o.until()) return { done: true, exit: undefined, at: w.clock.t, elapsed: w.clock.t - t0 };
+    if (proc.killed) return { done: false, exit: undefined, killed: true, at: w.clock.t, elapsed: w.clock.t - t0 };
     if (w.clock.t >= end) return { done: false, exit: undefined, at: w.clock.t, elapsed: w.clock.t - t0 };
     w.clock.advance(Math.min(step, end - w.clock.t));
     const out = await tickOnce(proc);
@@ -1081,12 +1358,12 @@ async function drive(proc, ms, opts = 50) {
 module.exports = {
   // constants
   T0, NOW_S, DAY_S, PASSWORD, NEO4J_URI, RELAY_URL, RANDOM_ID, RUN_ID_RE, STDERR_TAIL, ARGV_FILTER_BYTES, TICK_GUARD_MS,
-  DEFAULT_ENV, SIG, ROUND_KEPT_BYTES, ROUND_SCAN_MAX_BYTES,
+  DEFAULT_ENV, SIG, ROUND_KEPT_BYTES, ROUND_SCAN_MAX_BYTES, SCAN_TIMEOUT_DEFAULT_MS,
   // the world and its parts
   makeWorld, makeClock, makeRelay, makeGraph, makeStore, stateFor, killAll, strays,
   // driving
   flush, startEngine, tickOnce, drive, guarded,
   // helpers
-  matchFilter, filterKind, scanTouches, filterTargets, argvText, isTaggingAddress, propAddress, propOf, fingerprint,
+  matchFilter, filterKind, scanTouches, filterTargets, scanAddresses, scanIds, argvText, isTaggingAddress, propAddress, propOf, fingerprint,
   rowFromEdge, neoError, scanError, serviceUnavailable, iso, jcopy,
 };

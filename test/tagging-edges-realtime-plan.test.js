@@ -7,16 +7,25 @@
  *        changed while it was away", "What it decides and writes", "Coexisting with the pass", "Status and switch"),
  *        "Implementation notes → New files → realtime.js", the planner list under "Tests the Tester owns → New suites
  *        → The pure planner", and "Clarifications (Test Design, 2026-09-28)" T1–T19, which fix every interface this
- *        suite calls, T25, which settles the planner details they left open, and T33 (the blind reference
- *        implementation's readings: a replayed v line discards superseded revokes; discardSupersededRevokes with a
- *        null version or a null entry; pending holds entries only). Binding context: ADR
- *        tagging-edges/0002 (the pass's planner, src/lib/tagging-edges/sweep.js —
+ *        suite calls, T25, which settles the planner details they left open, and T33 (pending holds entries only),
+ *        all as "Amendment A1 — revokes by event id, and what an empty read keeps" amends them: A1-1 (the lineage
+ *        L(A) = {top, older} replaces H), A1-2 (learning, and a read placed at its capture), A1-3 (an e target
+ *        resolves only as its address's top), A1-4 (the gate's clauses (i) and (ii); owner decision 11 accepted),
+ *        A1-5 (no discards; at most 8 by-e revokes per entry), A1-6 (absolute v and o lines, the e epoch line),
+ *        A1-7 (the cap of 8 older ids, and pruneLineage), A1-8 (the census), A1-12 (parked prompts persist), and
+ *        A1-17, which fixes the interfaces this suite calls. A1-20 lists this suite's re-aims: RP2, RP3, RP8, RP14–
+ *        RP16, RP19, RP20, RP22–RP26, RP30, RP59–RP64, RP67–RP72, RP75, RP78 and RP79 are re-aimed; RP47, RP76 and
+ *        RP77 are deleted (A1-5: discardSupersededRevokes and replay's discard are gone); RP80–RP96 are new. Binding
+ *        context: ADR tagging-edges/0002 (the pass's planner, src/lib/tagging-edges/sweep.js —
  *        decideAddress, readRelay, storedFromRow, checkIdentity) and ADR tagging-edges/0001 as amended (the contract,
  *        src/lib/tagging-edges/contract.js — taggingToEdge, revokeTargets, revokeApplies).
  *
- * Intentionally failing until realtime.js lands (red phase). The module is require()d LAZILY inside each test through
- * load() / fn(), so this suite always loads and each test fails with "src/lib/tagging-edges/realtime.js not
- * implemented yet (require failed: …)" or "… does not export X() yet", never with a load error of its own.
+ * Intentionally failing until realtime.js lands (red phase), and now until it lands Amendment A1: the re-aimed and new
+ * tests fail with "… does not export learnVersion() yet" (an A1 export missing) or on the pre-A1 behaviour A1 forbids
+ * (an H in the maps, a by-e revoke that acts whatever it names, a replayed v line that discards). The module is
+ * require()d LAZILY inside each test through load() / fn(), so this suite always loads and each test fails with
+ * "src/lib/tagging-edges/realtime.js not implemented yet (require failed: …)" or "… does not export X() yet", never
+ * with a load error of its own.
  *
  * Pure and stack-free: no Neo4j, no strfry, no network, no filesystem writes, no clock (times are fixed numbers). The
  * one filesystem read is RP1's read of realtime.js's own source. Relay events and graph rows come from
@@ -24,17 +33,24 @@
  * Every pubkey is a fake 64-hex value from that helper — never a deployment's TA and never the ADR 0015 literal. The
  * canonical and local identities are kept different, as in story 2.
  *
- * What is pinned: T1–T19's names, argument orders, result shapes and rules, as T25 refines them. The container types
- * are T25's, passed and read strictly — no value that would work under another reading:
- *   Sets     `scannedIds` and `candidateIds` (T8, T10);
+ * What is pinned: T1–T19's names, argument orders, result shapes and rules, as T25 refines them and A1-17 amends
+ * them. The container types are T25's, passed and read strictly — no value that would work under another reading:
+ *   Sets     `scannedIds` (T8, T10, pruneLineage);
  *   arrays   `targets` (T11, given and returned), `addresses` and `ids` (T12);
  *   a plain object from runId to milliseconds — `deadSeenAt` (T17, and replayJournal's result, T19).
+ * A1-17 leaves pruneLineage's other containers open; this suite fixes them as graphKeys a Map from address to eventId
+ * (as T9 and T10 pass it), keep a Set of addresses, and learnedAfter a Map from address to a Set of ids. A lineage is
+ * read through lineageValue (A1-17: { top, older: [ids] }) and compared with older as a set; ctx.lineage is passed to
+ * gateAction in that shape, the copy A1-4 says the gate reads. learnVersion's options are passed as { under: false }
+ * for a delivery or a placed read, and { under: true } for a read placed under a later learning (A1-2).
  * A pending entry is compared on T15's three fields { version, revokes, look }; RP78 pins that replayJournal's pending
  * values are entries only, those three keys and no more (T33); RP79 that replayJournal keeps the first k time for a
  * run (ADR § Coexisting with the pass; added from the mutation pass). Filter budgets are checked against the
  * suite's own reference escape (JSON.stringify with every "/" written "\/", measured in UTF-8 bytes) and the literal
  * 100,000, never against the module's own filterArgvBytes or LIMITS, so a wrong helper cannot pass itself. Maps are
- * built through newMaps() and recordId() (T3), as the engine builds them.
+ * built through newMaps(), recordId() and learnVersion() / learnOlder() (T3 as amended), as the engine builds them.
+ * Journal lines are written in A1-6's absolute form (v {id, a, top, older}, o {a, top, older}); a record carries an
+ * epoch and its lines start with the matching e {epoch} line, as a compaction writes them.
  *
  * Hand-rolled in the project's existing test style — no new framework. Runs on Node 16 and 22.
  */
@@ -68,14 +84,17 @@ const RUN3 = '20260928T140000Z-4c5d6e7f';
 /** A fixed "now" for pass-overlap times (2026-09-28T12:00:00Z). */
 const T0 = Date.UTC(2026, 8, 28, 12, 0, 0);
 
-/** T2's export list, less LIMITS. */
+/** T2's export list as A1-17 amends it, less LIMITS: discardSupersededRevokes dropped, the six lineage functions added. */
 const T2_FUNCTIONS = [
   'escapeFilterArgv', 'filterArgvBytes', 'subscriptionFilters', 'promptFromVersion', 'newMaps', 'recordId',
+  'learnVersion', 'learnOlder', 'lineageAt', 'lineageValue', 'setLineage', 'pruneLineage',
   'resolveDeletion', 'shrinkOnRead', 'compact', 'arrivalsAndLookOnly', 'deletionCandidates', 'deletionScanFilters',
   'isExpectedDeletion', 'addressScanFilters', 'isExpectedAddressEvent', 'elementScanFilters', 'isExpectedElementEvent',
-  'dedupeById', 'relayAtAddress', 'mergePrompt', 'discardSupersededRevokes', 'gateAction', 'passOverlaps', 'roundOrder',
+  'dedupeById', 'relayAtAddress', 'mergePrompt', 'gateAction', 'passOverlaps', 'roundOrder',
   'journalLine', 'replayJournal', 'allowErrorCode',
 ];
+/** The names A1-17 drops from T2's list (A1-5: nothing discards a revoke prompt). */
+const T2_DROPPED = ['discardSupersededRevokes'];
 
 // ─── test harness ──────────────────────────────────────────────────────────────────────────────────────────────
 const tests = [];
@@ -202,16 +221,62 @@ const entryOf = ({ version = null, revokes = [], look = false } = {}) => ({ vers
 const revokeKey = (p) => `${p.by}|${p.target}`;
 const pairKey = (x) => `${x.address}|${x.id}`;
 
-/** A fresh maps object (T3) with entries recorded through recordId: { S: [[id, a, seq]], H, R, B: [ids] }. */
+/** learnVersion's options (A1-2, A1-17): a delivery, or a read or scan placed at its capture — and one placed under a later learning. */
+const PLACED = Object.freeze({ under: false });
+const UNDER = Object.freeze({ under: true });
+
+/**
+ * Teach lineages in order (A1-2): each row [address, top, older = []] learns its older ids oldest-first and then its
+ * top, as deliveries (learnVersion), so the top is the latest learned and older the ones it replaced. A null top is a
+ * census row (A1-8): its older ids join through learnOlder, with no top.
+ */
+function learnRows(m, rows) {
+  const { learnVersion, learnOlder } = need('learnVersion', 'learnOlder');
+  for (const [a, top, older = []] of rows) {
+    if (top === null) { for (const o of older) learnOlder(m, a, o); continue; }
+    for (const o of older) learnVersion(m, a, o, PLACED);
+    learnVersion(m, a, top, PLACED);
+  }
+  return m;
+}
+
+/**
+ * A fresh maps object (T3 as amended by A1-17) with entries recorded through recordId — { S: [[id, a, seq]], R, B:
+ * [ids] } — and lineages learned through learnRows — { L: [[address, top, [older…]]] }.
+ */
 function mapsWith(spec = {}) {
   const { newMaps, recordId } = need('newMaps', 'recordId');
   const m = newMaps();
-  for (const which of ['S', 'H', 'R']) {
+  for (const which of ['S', 'R']) {
     for (const [id, a, seq = 0] of spec[which] || []) recordId(m, which, id, a, seq);
   }
   for (const id of spec.B || []) m.B.add(id);
+  if (spec.L) learnRows(m, spec.L);
   return m;
 }
+
+/** The members of an `older` as lineageAt may hold it (A1-17 T3: a Set or null; A1-17: `older: []`): an array. */
+function membersOf(older, label) {
+  if (older === null || older === undefined) return [];
+  if (older instanceof Set) return [...older];
+  if (Array.isArray(older)) return older;
+  throw new Error(`${label}: older must be a Set, an array or null (T3 as amended, A1-17), got ${show(older)}`);
+}
+/**
+ * The lineage at an address, read through lineageValue (A1-17: → { top, older: [ids] }), as { top, older: sorted ids };
+ * null when the path keeps none there (lineageValue gives null, or an empty { top: null, older: [] } — A1-17 leaves
+ * which one open).
+ */
+function lin(maps, a) {
+  const v = fn('lineageValue')(maps, a);
+  if (v === null || v === undefined) return null;
+  assert(v && typeof v === 'object' && (v.top === null || typeof v.top === 'string') && Array.isArray(v.older),
+    `lineageValue must return { top: id | null, older: [ids] } (A1-17), got ${show(v)}`);
+  if (v.top === null && v.older.length === 0) return null;
+  return { top: v.top, older: [...v.older].sort() };
+}
+/** An expected lineage, in lin()'s form. */
+const L = (top, older = []) => ({ top, older: [...older].sort() });
 
 /** resolveDeletion's result, checked for T6's shape. */
 function resolved(r, label) {
@@ -231,9 +296,11 @@ function gateIs(r, want, label) {
 /** A report entry (ADR 0002 § The report): runId, ISO times, process. */
 const runEntry = (runId, startedAt, endedAt) => ({ runId, startedAt: iso(startedAt), endedAt: endedAt == null ? null : iso(endedAt), process: { pid: 4242, startTime: '987654' } });
 
-/** The T19 line objects. */
+/** The T19 line objects, as A1-6 amends them: v and o are absolute (the whole lineage at `a`); e opens a generation. */
 const J = {
-  v: (id, a) => ({ t: 'v', id, a }),
+  v: (id, a, top, older) => ({ t: 'v', id, a, top, older }),
+  o: (a, top, older) => ({ t: 'o', a, top, older }),
+  e: (epoch) => ({ t: 'e', epoch }),
   d: (a, p) => ({ t: 'd', a, p }),
   c: (id, a) => ({ t: 'c', id, a }),
   x: (a, dropped) => ({ t: 'x', a, dropped }),
@@ -247,12 +314,13 @@ const J = {
 const texts = (objs) => objs.map((o) => JSON.stringify(o));
 /** replayJournal's result, checked for T19's shape. */
 function replayed(out, label) {
-  assert(out && typeof out === 'object' && out.maps && out.maps.S instanceof Map && out.maps.H instanceof Map
-    && out.maps.B instanceof Set && out.maps.R instanceof Map,
-  `${label}: replayJournal must return { maps: { S: Map, H: Map, B: Set, R: Map }, pending, rechecks, deadSeenAt, parked, skippedLines } (T19), got ${show(out && Object.keys(out))}`);
+  assert(out && typeof out === 'object' && out.maps && out.maps.S instanceof Map && out.maps.L instanceof Map
+    && out.maps.B instanceof Set && out.maps.R instanceof Map && !('H' in out.maps),
+  `${label}: replayJournal must return { maps: { S: Map, B: Set, R: Map, L: Map } — no H — , pending, rechecks, deadSeenAt, parked, skippedLines } (T19; T3 as amended by A1-1 and A1-17), got maps with ${show(out && out.maps && Object.keys(out.maps))}`);
   assert(out.pending instanceof Map, `${label}: pending must be a Map<address, entry> (T19), got ${show(out.pending)}`);
   assert(Array.isArray(out.rechecks), `${label}: rechecks must be an array of { a, runId, entry } (T19), got ${show(out.rechecks)}`);
-  assert(out.parked instanceof Map, `${label}: parked must be a Map<address, code> (T19), got ${show(out.parked)}`);
+  assert(out.parked instanceof Map && [...out.parked.values()].every((c) => typeof c === 'string'),
+    `${label}: parked must be a Map<address, code> (T19; A1-12 "parked stays Map<address, code>"), got ${show(out.parked)}`);
   assert(isPlainObject(out.deadSeenAt), `${label}: deadSeenAt must be a plain object from runId to milliseconds (T19, T25), got ${out.deadSeenAt instanceof Map ? `a Map ${show(out.deadSeenAt)}` : show(out.deadSeenAt)}`);
   assert(Number.isInteger(out.skippedLines), `${label}: skippedLines must be an integer (T19), got ${show(out.skippedLines)}`);
   return out;
@@ -280,19 +348,25 @@ test('RP1: realtime.js sits in src/lib/tagging-edges/ and is pure CommonJS — i
   assert(problems.length === 0, `${REALTIME_REL}:\n        ${problems.join('\n        ')}`);
 });
 
-test('RP2: realtime.js exports every name T2 lists — LIMITS and the 27 functions (T2)', () => {
+test('RP2: realtime.js exports every name T2 lists as A1-17 amends it — LIMITS and the 32 functions, learnVersion, learnOlder, lineageAt, lineageValue, setLineage and pruneLineage among them — and no longer exports discardSupersededRevokes (T2 as amended by A1-17: "The exports drop discardSupersededRevokes, and add learnVersion, learnOlder, lineageAt, lineageValue, setLineage and pruneLineage"; A1-5 "Nothing discards a revoke prompt for being stale")', () => {
+  eq(T2_FUNCTIONS.length, 32, 'fixture: T2 as amended lists 32 functions besides LIMITS');
   const m = load();
   const missing = T2_FUNCTIONS.filter((f) => typeof m[f] !== 'function');
   if (!(m.LIMITS && typeof m.LIMITS === 'object')) missing.unshift('LIMITS (an object)');
-  same(missing, [], `${REALTIME_REL}: exports missing (T2)`);
+  const stillExported = T2_DROPPED.filter((f) => m[f] !== undefined);
+  same({ missing, stillExported }, { missing: [], stillExported: [] }, `${REALTIME_REL}: exports missing, and names A1-17 drops still exported (T2 as amended)`);
 });
 
-test('RP3: src/lib/tagging-edges/index.js re-exports every realtime.js name, as the same value (ADR 0003 Implementation notes: "re-exported from src/lib/tagging-edges/index.js")', () => {
+test('RP3: src/lib/tagging-edges/index.js re-exports every realtime.js name, as the same value — the six lineage functions included — and no dropped name (ADR 0003 Implementation notes: "re-exported from src/lib/tagging-edges/index.js"; T2 as amended by A1-17)', () => {
   const m = load();
   let index;
   try { index = require(LIB_INDEX); } catch (e) { throw new Error(`src/lib/tagging-edges/index.js failed to load: ${firstLine(e)}`); }
-  const notReexported = ['LIMITS', ...T2_FUNCTIONS].filter((k) => index[k] === undefined || index[k] !== m[k]);
-  same(notReexported, [], 'names src/lib/tagging-edges/index.js does not re-export from ./realtime');
+  const names = ['LIMITS', ...T2_FUNCTIONS];
+  const notInRealtime = names.filter((k) => m[k] === undefined);
+  const notReexported = names.filter((k) => m[k] !== undefined && index[k] !== m[k]);
+  const stillReexported = T2_DROPPED.filter((k) => index[k] !== undefined);
+  same({ notInRealtime, notReexported, stillReexported }, { notInRealtime: [], notReexported: [], stillReexported: [] },
+    'names realtime.js does not export yet, names src/lib/tagging-edges/index.js does not re-export from ./realtime, and dropped names it still re-exports');
 });
 
 test('RP4: LIMITS holds exactly the Implementation notes\' keys and values — the byte values as numbers — and is frozen (T2; ADR 0003 Implementation notes "LIMITS (frozen)")', () => {
@@ -351,31 +425,36 @@ test('RP7: filterArgvBytes is the escaped text\'s UTF-8 byte length — not its 
 });
 
 // ═══ T3: the maps ══════════════════════════════════════════════════════════════════════════════════════════════
-test('RP8: newMaps() gives fresh, empty { S: Map, H: Map, B: Set, R: Map }; recordId(maps, which, id, address, seq) sets one { a, seq } entry in the named map only, and re-recording replaces it; moving H to S is recordId(\'S\') plus H.delete (T3)', () => {
-  const { newMaps, recordId } = need('newMaps', 'recordId');
+test('RP8: newMaps() gives fresh, empty { S: Map, B: Set, R: Map, L: Map } — no H; recordId(maps, which, id, address, seq) sets one { a, seq } entry in S or R (which is \'S\' | \'R\'), re-recording replaces it, and it never touches the lineage; L\'s values are { top: string | null, older: Set | null } (T3 as amended by A1-17: "newMaps() → {S, B, R, L}, with L: Map<address, {top: string | null, older: Set | null}>. recordId\'s which is \'S\' | \'R\'"; A1-1 "H is removed"; A1-2 "Nothing else changes a lineage")', () => {
+  const { newMaps, recordId, learnVersion } = need('newMaps', 'recordId', 'learnVersion');
   const m = newMaps();
-  assert(m && m.S instanceof Map && m.H instanceof Map && m.R instanceof Map && m.B instanceof Set,
-    `newMaps() must return { S: Map, H: Map, B: Set, R: Map } (T3), got ${show(m)}`);
-  same([m.S.size, m.H.size, m.B.size, m.R.size], [0, 0, 0, 0], 'a new maps object is empty');
+  assert(m && m.S instanceof Map && m.L instanceof Map && m.R instanceof Map && m.B instanceof Set,
+    `newMaps() must return { S: Map, B: Set, R: Map, L: Map } (T3 as amended by A1-17), got ${show(m)}`);
+  eq('H' in m, false, 'newMaps() holds no H (A1-1: "H is removed")');
+  same([m.S.size, m.B.size, m.R.size, m.L.size], [0, 0, 0, 0], 'a new maps object is empty');
   const m2 = newMaps();
-  assert(m2.S !== m.S && m2.H !== m.H && m2.B !== m.B && m2.R !== m.R, 'each newMaps() call returns its own Maps and Set');
+  assert(m2.S !== m.S && m2.L !== m.L && m2.B !== m.B && m2.R !== m.R, 'each newMaps() call returns its own Maps and Set');
   const A = addr('rp-maps');
   const B2 = addr('rp-maps-2');
   const [i1, i2, i3] = [idOf('rp:maps:1'), idOf('rp:maps:2'), idOf('rp:maps:3')];
   recordId(m, 'S', i1, A, 3);
   same(m.S.get(i1), { a: A, seq: 3 }, "recordId(maps, 'S', …) sets S's entry");
-  same([m.H.size, m.R.size, m.B.size], [0, 0, 0], "recordId(maps, 'S', …) touches no other map");
-  recordId(m, 'H', i2, A, 4);
-  same(m.H.get(i2), { a: A, seq: 4 }, "recordId(maps, 'H', …) sets H's entry");
-  eq(m.S.has(i2), false, "recordId(maps, 'H', …) does not add to S");
+  same([m.R.size, m.B.size, m.L.size], [0, 0, 0], "recordId(maps, 'S', …) touches no other map — completing a version teaches the lineage nothing (A1-2)");
   recordId(m, 'R', i3, B2, 5);
   same(m.R.get(i3), { a: B2, seq: 5 }, "recordId(maps, 'R', …) sets R's entry (refusedSeen)");
+  same([m.S.has(i3), m.L.size], [false, 0], "recordId(maps, 'R', …) adds nothing to S or the lineage");
   recordId(m, 'S', i1, A, 9);
   same(m.S.get(i1), { a: A, seq: 9 }, 're-recording an id replaces its entry');
   eq(m.S.size, 1, 're-recording an id keeps one entry');
-  recordId(m, 'S', i2, A, 10);
-  m.H.delete(i2);
-  same([m.S.get(i2), m.H.has(i2)], [{ a: A, seq: 10 }, false], 'H → S: recordId(maps, \'S\', …) plus maps.H.delete(id)');
+  learnVersion(m, A, i2, PLACED);
+  const one = m.L.get(A);
+  assert(one && one.top === i2 && (one.older === null || one.older instanceof Set) && membersOf(one.older, 'L at A').length === 0,
+    `L's value at A after one version learned: { top: that id, older: null or an empty Set } (T3 as amended), got ${show(one)}`);
+  learnVersion(m, A, i1, PLACED);
+  const two = m.L.get(A);
+  assert(two && two.top === i1 && two.older instanceof Set, `L's value at A after a second version learned: { top: it, older: a Set } (T3 as amended), got ${show(two)}`);
+  sameSet([...two.older], [i2], 'L at A: older holds the replaced top');
+  same([m.S.get(i1), m.S.has(i2), m.R.size, m.B.size], [{ a: A, seq: 9 }, false, 1, 0], 'learning records nothing in S, R or B');
 });
 
 // ═══ T4: the subscription ══════════════════════════════════════════════════════════════════════════════════════
@@ -469,19 +548,27 @@ test('RP13: a version printed with upper-case hex — its id, its pubkey or both
 });
 
 // ═══ T6: a deletion resolved on receipt ════════════════════════════════════════════════════════════════════════
-test('RP14: a deletion\'s e target resolves through the seen map, then the heard map, to one revoke prompt { type: \'revoke\', kind5Id, created_at, by: \'e\', target } at that id\'s address — an upper-case e included, its target lower-cased (T6; ADR 0003 § What it hears "resolved on receipt, in memory"; AC-2)', () => {
+test('RP14: a deletion\'s e target resolves only while it is the top of its address\'s lineage — the latest version the path learned there, completed (in S) or not — to one revoke prompt { type: \'revoke\', kind5Id, created_at, by: \'e\', target } at that address, an upper-case e included, its target lower-cased; an id S alone records, an id in older, and a census id resolve nothing, and are not counted (T6 as amended by A1-3 and A1-17: "An e target resolves through the lineage\'s top"; "Any other e target resolves nothing"; A1-8; AC-2)', () => {
   const resolveDeletion = fn('resolveDeletion');
   const AS = addr('rp-rd-s');
   const AH = addr('rp-rd-h');
+  const AO = addr('rp-rd-o');
+  const AC = addr('rp-rd-c');
+  const AX = addr('rp-rd-x');
   const idS = idOf('rp:rd:s');
   const idH = idOf('rp:rd:h');
+  const [o1, o2, g, onlyS] = [idOf('rp:rd:o1'), idOf('rp:rd:o2'), idOf('rp:rd:g'), idOf('rp:rd:onlys')];
   hasLetters(idS, 'idS');
-  const maps = mapsWith({ S: [[idS, AS, 1]], H: [[idH, AH, 2]] });
+  const maps = mapsWith({
+    S: [[idS, AS, 1], [onlyS, AX, 1], [o1, AO, 1]],
+    L: [[AS, idS], [AH, idH], [AO, o2, [o1]], [AC, null, [g]]],
+  });
   const k5 = (e, tag, createdAt) => makeDeletion({ author: ALICE, e, id: idOf(`rp:rd:k5:${tag}`), createdAt });
   const rows = [
-    { name: 'an id the seen map records', ev: k5([idS], 's', 3000), address: AS, target: idS },
-    { name: 'an id only the heard map records', ev: k5([idH], 'h', 3100), address: AH, target: idH },
-    { name: 'an upper-case e', ev: k5([idS.toUpperCase()], 'up', 3200), address: AS, target: idS },
+    { name: 'the top at its address, also completed (in S)', ev: k5([idS], 's', 3000), address: AS, target: idS },
+    { name: 'the top at its address, learned but not yet completed', ev: k5([idH], 'h', 3100), address: AH, target: idH },
+    { name: 'an upper-case e naming a top', ev: k5([idS.toUpperCase()], 'up', 3200), address: AS, target: idS },
+    { name: 'the top that replaced an older version', ev: k5([o2], 'o2', 3250), address: AO, target: o2 },
   ];
   cases(rows, ({ ev, address, target }) => {
     const r = resolved(resolveDeletion(ev, maps, new Set()), 'resolveDeletion');
@@ -490,19 +577,25 @@ test('RP14: a deletion\'s e target resolves through the seen map, then the heard
     same(r.prompts[0].prompt, { type: 'revoke', kind5Id: ev.id, created_at: ev.created_at, by: 'e', target }, 'the revoke prompt');
     same([r.matchedNothing, r.foreign], [false, 0], '[matchedNothing, foreign]');
   });
+  cases([
+    { name: 'an id S alone records (the path learned no lineage there)', ev: k5([onlyS], 'onlys', 3300) },
+    { name: 'an id in older (a later version replaced it: strfry acted on nothing), though S records it', ev: k5([o1], 'o1', 3400) },
+    { name: 'a census id (older under no top)', ev: k5([g], 'g', 3500) },
+  ], ({ ev }) => same(resolveDeletion(ev, maps, new Set()), { prompts: [], matchedNothing: true, foreign: 0 }, 'resolveDeletion'));
 });
 
-test('RP15: a deletion\'s a target resolves only at an address the path knows — a seen or heard id there, or the graph\'s keys — to a by-a revoke prompt; a kind-5 whose a targets hold nothing queues nothing and matches nothing (T6; ADR 0003 § What it hears; planner list "A kind-5 whose a targets hold nothing queues nothing")', () => {
+test('RP15: a deletion\'s a target resolves only at an address the path knows — one a lineage holds (a census lineage with no top included), one S records an id at, or one the graph\'s keys hold — to a by-a revoke prompt; a kind-5 whose a targets hold nothing queues nothing and matches nothing (T6 as amended by A1-3 and A1-17: "An a target resolves through a lineage, S or graphAddresses"; A1-8; planner list "A kind-5 whose a targets hold nothing queues nothing")', () => {
   const resolveDeletion = fn('resolveDeletion');
   const AS = addr('rp-rd-as');
   const AH = addr('rp-rd-ah');
+  const AC = addr('rp-rd-ac');
   const AG = addr('rp-rd-ag');
   const AU = addr('rp-rd-au');
-  const maps = mapsWith({ S: [[idOf('rp:rd:as'), AS, 1]], H: [[idOf('rp:rd:ah'), AH, 2]] });
+  const maps = mapsWith({ S: [[idOf('rp:rd:as'), AS, 1]], L: [[AH, idOf('rp:rd:ah')], [AC, null, [idOf('rp:rd:ac:g')]]] });
   const graph = new Set([AG]);
-  const k = makeDeletion({ author: ALICE, a: [AS, AH, AG, AU], id: idOf('rp:rd:k5:a'), createdAt: 4000 });
+  const k = makeDeletion({ author: ALICE, a: [AS, AH, AC, AG, AU], id: idOf('rp:rd:k5:a'), createdAt: 4000 });
   const r = resolved(resolveDeletion(k, maps, graph), 'resolveDeletion (known and unknown addresses)');
-  sameSet(r.prompts.map((x) => x.address), [AS, AH, AG], 'addresses prompted (the unknown one queues nothing)');
+  sameSet(r.prompts.map((x) => x.address), [AS, AH, AC, AG], 'addresses prompted (the unknown one queues nothing)');
   for (const x of r.prompts) {
     same(x.prompt, { type: 'revoke', kind5Id: k.id, created_at: 4000, by: 'a', target: x.address }, `the revoke prompt at ${x.address}`);
   }
@@ -512,14 +605,14 @@ test('RP15: a deletion\'s a target resolves only at an address the path knows �
   same([r2.prompts, r2.matchedNothing, r2.foreign], [[], true, 0], '[prompts, matchedNothing, foreign] for a kind-5 naming only unknown addresses');
 });
 
-test('RP16: an a target counts only up to 255 UTF-8 bytes — an address of exactly 255 bytes resolves, one of 256 (still a tagging address) is ignored even when the path and the graph know it — while that version\'s e target still resolves (T6; ADR 0003 facts: strfry acts on no longer tag value; planner list "An a target over 255 bytes")', () => {
+test('RP16: an a target counts only up to 255 UTF-8 bytes — an address of exactly 255 bytes resolves, one of 256 (still a tagging address) is ignored even when the path and the graph know it — while that version\'s e target, the top at its address, still resolves (T6 as amended by A1-3: "An a target resolves at a tagging address of at most 255 UTF-8 bytes"; ADR 0003 facts: strfry acts on no longer tag value; planner list "An a target over 255 bytes")', () => {
   const resolveDeletion = fn('resolveDeletion');
   const A255 = addr('b'.repeat(184));
   const A256 = addr('b'.repeat(185));
   eq(Buffer.byteLength(A255, 'utf8'), 255, 'fixture: the 255-byte address');
   eq(Buffer.byteLength(A256, 'utf8'), 256, 'fixture: the 256-byte address');
   const [i255, i256] = [idOf('rp:rd:255'), idOf('rp:rd:256')];
-  const maps = mapsWith({ S: [[i255, A255, 1], [i256, A256, 1]] });
+  const maps = mapsWith({ S: [[i255, A255, 1], [i256, A256, 1]], L: [[A255, i255], [A256, i256]] });
   const graph = new Set([A255, A256]);
   const both = makeDeletion({ author: ALICE, a: [A255, A256], id: idOf('rp:rd:k5:len'), createdAt: 5000 });
   const r = resolved(resolveDeletion(both, maps, graph), 'resolveDeletion (255 and 256 bytes)');
@@ -565,37 +658,41 @@ test('RP18: a live a target spelling its pubkey in upper-case hex resolves at th
   same(r.prompts[0].prompt, { type: 'revoke', kind5Id: k.id, created_at: 6100, by: 'a', target: A }, 'the revoke prompt (target: the normalised address)');
 });
 
-test('RP19: another author\'s kind-5 prompts nothing — each of its targets that resolves to a known tagging of someone else adds 1 to foreign — and a target the path does not know costs nothing, not even a foreign count (T6; ADR 0003 D5-A, owner decision 3; AC-2 "a kind-5 from another author" removes nothing)', () => {
+test('RP19: another author\'s kind-5 prompts nothing — each of its targets that resolves to a known tagging of someone else adds 1 to foreign, an e target only as its address\'s top — and a target that does not resolve costs nothing, not even a foreign count: one the path does not know, an older id, or an id S alone records (T6 as amended by A1-3: "The author check, the foreign count and de-duplication are unchanged", counted over targets that resolve; ADR 0003 D5-A, owner decision 3; AC-2 "a kind-5 from another author" removes nothing)', () => {
   const resolveDeletion = fn('resolveDeletion');
   const A = addr('rp-rd-f');
   const AG = addr('rp-rd-fg');
-  const idA = idOf('rp:rd:f');
-  const maps = mapsWith({ S: [[idA, A, 1]] });
+  const AX = addr('rp-rd-fx');
+  const [idA, idOld, onlyS] = [idOf('rp:rd:f'), idOf('rp:rd:f:old'), idOf('rp:rd:f:onlys')];
+  const maps = mapsWith({ S: [[idA, A, 1], [idOld, A, 1], [onlyS, AX, 1]], L: [[A, idA, [idOld]]] });
   const graph = new Set([AG]);
   const k = makeDeletion({ author: BOB, e: [idA], a: [A, AG], id: idOf('rp:rd:k5:f'), createdAt: 7000 });
-  const r = resolved(resolveDeletion(k, maps, graph), 'resolveDeletion (Bob naming Alice\'s recorded id and her known addresses)');
+  const r = resolved(resolveDeletion(k, maps, graph), 'resolveDeletion (Bob naming Alice\'s top id and her known addresses)');
   same([r.prompts, r.foreign, r.matchedNothing], [[], 3, false], '[prompts, foreign, matchedNothing]');
   const unknown = makeDeletion({ author: BOB, e: [idOf('rp:rd:f:unknown')], a: [addr('rp-rd-f-unknown')], id: idOf('rp:rd:k5:f2'), createdAt: 7100 });
   const r2 = resolved(resolveDeletion(unknown, maps, graph), 'resolveDeletion (Bob naming what the path does not know)');
   same([r2.prompts, r2.foreign, r2.matchedNothing], [[], 0, true], '[prompts, foreign, matchedNothing]');
+  const stale = makeDeletion({ author: BOB, e: [idOld, onlyS], id: idOf('rp:rd:k5:f3'), createdAt: 7200 });
+  const r3 = resolved(resolveDeletion(stale, maps, graph), 'resolveDeletion (Bob naming Alice\'s older id and an id S alone records)');
+  same([r3.prompts, r3.foreign, r3.matchedNothing], [[], 0, true], '[prompts, foreign, matchedNothing]: e targets that are no top resolve nothing, so they are not counted foreign either');
 });
 
-test('RP20: prompts are de-duplicated by (address, by, target) — an id named in both cases, an address named in both pubkey spellings — while two ids at one address, or an e and an a at one address, stay separate prompts (T6)', () => {
+test('RP20: prompts are de-duplicated by (address, by, target) — the top named in both cases, an address named in both pubkey spellings — while an e and an a at one address stay separate prompts; an older id named beside them resolves nothing (T6 as amended by A1-3: the de-duplication unchanged, an e target only as its address\'s top)', () => {
   const resolveDeletion = fn('resolveDeletion');
   hasLetters(DAVE, 'DAVE');
   const A = addr('rp-rd-dd', DAVE);
   const [i1, i2] = [idOf('rp:rd:dd:1'), idOf('rp:rd:dd:2')];
-  hasLetters(i1, 'i1');
-  const maps = mapsWith({ S: [[i1, A, 1]], H: [[i2, A, 2]] });
+  hasLetters(i2, 'i2');
+  const maps = mapsWith({ S: [[i1, A, 1]], L: [[A, i2, [i1]]] });
   const k = makeDeletion({
     author: DAVE,
-    e: [i1, i1.toUpperCase(), i2],
+    e: [i2, i2.toUpperCase(), i1],
     a: [A, `39999:${DAVE.toUpperCase()}:rp-rd-dd`],
     id: idOf('rp:rd:k5:dd'),
     createdAt: 8000,
   });
   const r = resolved(resolveDeletion(k, maps, new Set([A])), 'resolveDeletion');
-  sameSet(r.prompts.map(promptKey), [`${A}|e|${i1}`, `${A}|e|${i2}`, `${A}|a|${A}`], 'prompts (address|by|target)');
+  sameSet(r.prompts.map(promptKey), [`${A}|e|${i2}`, `${A}|a|${A}`], 'prompts (address|by|target): i1 is older than the top i2 there, so it resolves nothing');
   same([r.matchedNothing, r.foreign], [false, 0], '[matchedNothing, foreign]');
 });
 
@@ -618,12 +715,12 @@ test('RP21: anything that is not a well-formed kind 5 gives { prompts: [], match
   cases(rows, ({ ev }) => same(resolveDeletion(ev, maps, graph), { prompts: [], matchedNothing: true, foreign: 0 }, 'resolveDeletion'));
 });
 
-test('RP22: one kind-5 naming its author\'s recorded id, an id nobody recorded and another author\'s recorded id gives one prompt, foreign 1 and matchedNothing false (T6: matchedNothing is prompts.length === 0 && foreign === 0)', () => {
+test('RP22: one kind-5 naming its author\'s top id, an id nobody recorded and another author\'s top id gives one prompt, foreign 1 and matchedNothing false (T6 as amended by A1-3: matchedNothing is prompts.length === 0 && foreign === 0)', () => {
   const resolveDeletion = fn('resolveDeletion');
   const AA = addr('rp-rd-mix');
   const AC = addr('rp-rd-mix', CAROL);
   const [ia, ic] = [idOf('rp:rd:mix:a'), idOf('rp:rd:mix:c')];
-  const maps = mapsWith({ S: [[ia, AA, 1], [ic, AC, 1]] });
+  const maps = mapsWith({ S: [[ia, AA, 1], [ic, AC, 1]], L: [[AA, ia], [AC, ic]] });
   const k = makeDeletion({ author: ALICE, e: [ia, idOf('rp:rd:mix:none'), ic], id: idOf('rp:rd:k5:mix'), createdAt: 9100 });
   const r = resolved(resolveDeletion(k, maps, new Set()), 'resolveDeletion');
   same(r.prompts.map(promptKey), [`${AA}|e|${ia}`], 'prompts');
@@ -631,65 +728,69 @@ test('RP22: one kind-5 naming its author\'s recorded id, an id nobody recorded a
 });
 
 // ═══ T7: a read's shrink ═══════════════════════════════════════════════════════════════════════════════════════
-test('RP23: shrinkOnRead drops, from S, H and R (refusedSeen), the ids recorded at the address at or before the capture, other than the id the read returned, and drops them from B; ids heard after the capture, the returned id and other addresses stay (T7; ADR 0003 § "S, H, B and refusedSeen shrink"; planner list "refusedSeen shrinking")', () => {
+test('RP23: shrinkOnRead drops, from S and R (refusedSeen), the ids recorded at the address at or before the capture, other than the id the read returned, and drops them from B; ids recorded after the capture, the returned id and other addresses stay; and it never shrinks the lineage — its top and older stay, ids the read dropped from S included (T7 as amended by A1-17: "S, R and B only"; A1-1: S, B and R "keep their read shrink (T7)"; A1-2: "Nothing else changes a lineage"; planner list "refusedSeen shrinking")', () => {
   const shrinkOnRead = fn('shrinkOnRead');
   const A = addr('rp-sh');
   const OTHER = addr('rp-sh-other');
   const id = (n) => idOf(`rp:sh:${n}`);
   const maps = mapsWith({
-    S: [[id('s-old'), A, 1], [id('s-ret'), A, 5], [id('s-other'), OTHER, 1]],
-    H: [[id('h-before'), A, 2], [id('h-after'), A, 10]],
+    S: [[id('s-old'), A, 1], [id('s-ret'), A, 5], [id('s-other'), OTHER, 1], [id('s-after'), A, 10]],
     R: [[id('r-at'), A, 3], [id('r-other'), OTHER, 3]],
     B: [id('s-old'), id('s-other')],
+    L: [[A, id('l-top'), [id('s-old'), id('s-ret')]]],
   });
+  same(lin(maps, A), L(id('l-top'), [id('s-old'), id('s-ret')]), 'fixture: the lineage at A');
   const r = shrinkOnRead(maps, A, id('s-ret'), 5);
   assert(r && Array.isArray(r.dropped), `shrinkOnRead must return { dropped: [ids] } (T7), got ${show(r)}`);
-  sameSet(uniq(r.dropped), [id('s-old'), id('h-before'), id('r-at')], 'dropped');
-  sameSet([...maps.S.keys()], [id('s-ret'), id('s-other')], 'S after the read (the returned id and the other address stay)');
-  sameSet([...maps.H.keys()], [id('h-after')], 'H after the read (an id heard after the capture may be stored after the scan\'s snapshot: kept)');
+  sameSet(uniq(r.dropped), [id('s-old'), id('r-at')], 'dropped');
+  sameSet([...maps.S.keys()], [id('s-ret'), id('s-other'), id('s-after')], 'S after the read (the returned id, an id recorded after the capture and the other address stay)');
   sameSet([...maps.R.keys()], [id('r-other')], 'R after the read');
   sameSet([...maps.B], [id('s-other')], 'B after the read (B only ever shrinks)');
+  same(lin(maps, A), L(id('l-top'), [id('s-old'), id('s-ret')]), 'the lineage at A after the read: unchanged (a read never shrinks a lineage)');
 });
 
-test('RP24: an empty read (returnedId null) drops every id recorded at the address up to the capture — an entry recorded at the capture itself included, one recorded after it kept (T7: seq <= captureSeq)', () => {
-  const shrinkOnRead = fn('shrinkOnRead');
+test('RP24: an empty read (returnedId null) drops the S, R and B ids recorded at the address up to the capture — an entry recorded at the capture itself included, one recorded after it kept — and changes nothing in the lineage, so a late deletion of the top still resolves after it (T7 as amended by A1-17: seq <= captureSeq, "S, R and B only"; A1-2: "An empty read changes nothing"; the A1 kick-back\'s "Lost revokes": an empty read\'s shrink dropped the ids a late revoke needs)', () => {
+  const { shrinkOnRead, resolveDeletion } = need('shrinkOnRead', 'resolveDeletion');
   const A = addr('rp-sh-empty');
   const id = (n) => idOf(`rp:sh:e:${n}`);
-  const maps = mapsWith({ S: [[id('at'), A, 5], [id('after'), A, 6]], H: [[id('h'), A, 4]], R: [[id('r'), A, 3]], B: [id('at'), id('after')] });
+  const maps = mapsWith({ S: [[id('at'), A, 5], [id('after'), A, 6]], R: [[id('r'), A, 3]], B: [id('at'), id('after')], L: [[A, id('top'), [id('at')]]] });
   const r = shrinkOnRead(maps, A, null, 5);
   assert(r && Array.isArray(r.dropped), `shrinkOnRead must return { dropped: [ids] } (T7), got ${show(r)}`);
-  sameSet(uniq(r.dropped), [id('at'), id('h'), id('r')], 'dropped');
+  sameSet(uniq(r.dropped), [id('at'), id('r')], 'dropped');
   sameSet([...maps.S.keys()], [id('after')], 'S');
-  same([maps.H.size, maps.R.size], [0, 0], '[H size, R size]');
+  eq(maps.R.size, 0, 'R size');
   sameSet([...maps.B], [id('after')], 'B');
+  same(lin(maps, A), L(id('top'), [id('at')]), 'the lineage at A: unchanged by the empty read');
+  const late = makeDeletion({ author: ALICE, e: [id('top')], id: idOf('rp:sh:e:k5'), createdAt: 3000 });
+  same(resolved(resolveDeletion(late, maps, new Set()), 'resolveDeletion').prompts.map(promptKey), [`${A}|e|${id('top')}`],
+    'a deletion of the top drained after the empty read still resolves at A');
 });
 
 // ═══ T8: compaction ════════════════════════════════════════════════════════════════════════════════════════════
-test('RP25: compact keeps every entry recorded after the scan began; otherwise S and R keep only scanned ids, H keeps scanned or candidate ids not in S, and B becomes B ∩ scanned — scannedIds and candidateIds given as plain Sets (T8; T25 container types; ADR 0003 § The catch-up step 6)', () => {
+test('RP25: compact(maps, scannedIds, captureSeq) keeps every S and R entry recorded after the scan began; otherwise S and R keep only scanned ids, and B becomes B ∩ scanned — scannedIds given as a plain Set — and it leaves the lineage to pruneLineage (T8 as amended by A1-17: "compact(maps, scannedIds, captureSeq)"; A1-7: "S, R and B shrink as in T8, without H"; T25 container types; ADR 0003 § The catch-up step 6)', () => {
   const compact = fn('compact');
   const A = addr('rp-cp');
   const id = (n) => idOf(`rp:cp:${n}`);
   const maps = mapsWith({
     S: [[id('s-scanned'), A, 1], [id('s-gone'), A, 1], [id('s-late'), A, 9], [id('b-scanned'), A, 0], [id('b-gone'), A, 0]],
-    H: [[id('h-scanned'), A, 2], [id('h-cand'), A, 2], [id('h-neither'), A, 2], [id('h-late'), A, 7], [id('s-scanned'), A, 2]],
     R: [[id('r-scanned'), A, 3], [id('r-gone'), A, 3], [id('r-late'), A, 8]],
     B: [id('b-scanned'), id('b-gone')],
+    L: [[A, id('l-gone'), [id('s-gone')]]],
   });
-  const scanned = new Set([id('s-scanned'), id('b-scanned'), id('h-scanned'), id('r-scanned')]);
-  const candidates = new Set([id('h-cand')]);
-  compact(maps, scanned, candidates, 5);
+  const scanned = new Set([id('s-scanned'), id('b-scanned'), id('r-scanned')]);
+  compact(maps, scanned, 5);
   sameSet([...maps.S.keys()], [id('s-scanned'), id('s-late'), id('b-scanned')], 'S: scanned ids, plus what was recorded after the scan began');
-  sameSet([...maps.H.keys()], [id('h-scanned'), id('h-cand'), id('h-late')], 'H: scanned or candidate ids not in S, plus what was heard after the scan began');
   sameSet([...maps.R.keys()], [id('r-scanned'), id('r-late')], 'R: scanned ids, plus what was recorded after the scan began');
   sameSet([...maps.B], [id('b-scanned')], 'B: B ∩ scanned');
+  same(lin(maps, A), L(id('l-gone'), [id('s-gone')]), 'the lineage: compact leaves it (pruneLineage prunes it, A1-7)');
 });
 
 // ═══ T9: arrivals and look-only prompts ════════════════════════════════════════════════════════════════════════
-test('RP26: an arrival is a scanned id not in S — one never heard (back-dated history arrives the same way) and one heard but still pending in H alike — while an id S records is no arrival (T9; ADR 0003 § The catch-up step 2; AC-4)', () => {
+test('RP26: an arrival is a scanned id not in S — one never learned (back-dated history arrives the same way) and one learned (its address\'s top) but not yet completed alike — while an id S records is no arrival (T9; A1-1: S keeps its role for arrivals; ADR 0003 § The catch-up step 2; AC-4)', () => {
   const arrivalsAndLookOnly = fn('arrivalsAndLookOnly');
   const [A1, A2, A3] = [addr('rp-ar-1'), addr('rp-ar-2'), addr('rp-ar-3')];
   const [n1, h1, s1] = [idOf('rp:ar:n1'), idOf('rp:ar:h1'), idOf('rp:ar:s1')];
-  const maps = mapsWith({ H: [[h1, A2, 3]], S: [[s1, A3, 1]] });
+  const maps = mapsWith({ S: [[s1, A3, 1]], L: [[A2, h1], [A3, s1]] });
   const r = arrivalsAndLookOnly([[n1, A1], [h1, A2], [s1, A3]], maps, new Map([[A3, s1]]));
   assert(r && Array.isArray(r.arrivals) && Array.isArray(r.lookOnly), `arrivalsAndLookOnly must return { arrivals: [{ address, id }], lookOnly: [address] } (T9), got ${show(r)}`);
   sameSet(r.arrivals.map(pairKey), [`${A1}|${n1}`, `${A2}|${h1}`], 'arrivals');
@@ -746,31 +847,31 @@ test('RP29: an arrival\'s address is never also a look-only prompt — not when 
 });
 
 // ═══ T10, T11: deletion candidates and their scans ═════════════════════════════════════════════════════════════
-test('RP30: deletion candidates are the graph\'s event ids the scan no longer finds, plus S or H ids it no longer finds at an address the graph holds with another id — de-duplicated, tagging addresses only; scanned ids and ids at addresses the graph does not hold are none — scannedIds given as a plain Set (T10; T25 container types; ADR 0003 § The catch-up step 3)', () => {
+test('RP30: deletion candidates are the graph\'s event ids the scan no longer finds, plus each lineage top the scan no longer finds at an address the graph holds with another id — never an older id, nor an id S alone records — de-duplicated, tagging addresses only; scanned ids and tops at addresses the graph does not hold are none — scannedIds given as a plain Set (T10 as amended by A1-17: "Rule 2 uses lineage tops"; A1-9: "each lineage top the scan no longer finds, at an address the graph holds with another event id. No other id could pass the gate"; T25 container types)', () => {
   const deletionCandidates = fn('deletionCandidates');
   const a = (n) => addr(`rp-dc-${n}`);
   const id = (n) => idOf(`rp:dc:${n}`);
   const graph = new Map([
     [a('g1'), id('g1')], // scanned: nothing
     [a('g2'), id('g2')], // not scanned: candidate
-    [a('g3'), id('g3')], // scanned; S records s3 there, not scanned: s3 is a candidate
-    [a('g4'), id('g4')], // scanned; H records h4 there, not scanned: h4 is a candidate
-    [a('g5'), id('s5')], // not scanned, and S records the same id there: one candidate
-    [a('g7'), id('g7')], // scanned; S records s7 there, scanned: nothing
-    [a('g8'), id('g8')], // scanned; S and H both record sh there, not scanned: one candidate
+    [a('g3'), id('g3')], // scanned; S records s3 there, not scanned, but no lineage top: nothing
+    [a('g4'), id('g4')], // scanned; the lineage top h4 there, not scanned: h4 is a candidate
+    [a('g5'), id('s5')], // not scanned, and the top is the same id: one candidate
+    [a('g7'), id('g7')], // scanned; the top s7 there, scanned: nothing
+    [a('g8'), id('g8')], // scanned; the top sh and older o8 there, neither scanned: sh only
     [`39998:${ALICE}:rp-dc-nt`, id('nt')], // not a tagging address: excluded
     ['not-an-address', id('junk')], // excluded
     [null, id('null')], // a relationship with no address: excluded
   ]);
   const maps = mapsWith({
-    S: [[id('s3'), a('g3'), 1], [id('s5'), a('g5'), 1], [id('s6'), a('g6'), 1], [id('s7'), a('g7'), 1], [id('sh'), a('g8'), 1]],
-    H: [[id('h4'), a('g4'), 2], [id('sh'), a('g8'), 3]],
+    S: [[id('s3'), a('g3'), 1], [id('s5'), a('g5'), 1], [id('s6'), a('g6'), 1], [id('s7'), a('g7'), 1], [id('o8'), a('g8'), 1]],
+    L: [[a('g4'), id('h4')], [a('g5'), id('s5')], [a('g6'), id('s6')], [a('g7'), id('s7')], [a('g8'), id('sh'), [id('o8')]]],
   });
   const scanned = new Set([id('g1'), id('g3'), id('g4'), id('g7'), id('s7'), id('g8')]);
   const out = deletionCandidates(graph, scanned, maps);
   assert(Array.isArray(out), `deletionCandidates must return [{ address, id }] (T10), got ${show(out)}`);
-  sameSet(out.map(pairKey), [`${a('g2')}|${id('g2')}`, `${a('g3')}|${id('s3')}`, `${a('g4')}|${id('h4')}`, `${a('g5')}|${id('s5')}`, `${a('g8')}|${id('sh')}`],
-    'candidates, each once (s6: the graph does not hold g6; nt, junk and null: not tagging addresses)');
+  sameSet(out.map(pairKey), [`${a('g2')}|${id('g2')}`, `${a('g4')}|${id('h4')}`, `${a('g5')}|${id('s5')}`, `${a('g8')}|${id('sh')}`],
+    'candidates, each once (s3: S alone records it; o8: older, in S too; s6: the graph does not hold g6; nt, junk and null: not tagging addresses)');
 });
 
 test('RP31: deletionScanFilters groups candidates by their address\'s author — each entry one pubkey, by e or a, its filter exactly { kinds: [5], authors: [pubkey], \'#e\' | \'#a\': targets } — covering each author\'s ids and distinct addresses exactly once, and nobody else\'s — each targets an array (T11; T25 container types; ADR 0003 § The catch-up step 3)', () => {
@@ -1087,16 +1188,8 @@ test('RP46: mergePrompt keeps the latest version prompt, de-duplicates revokes b
   same(e.revokes.find((p) => revokeKey(p) === `a|${A}`), a150, 'the by-a revoke kept is the newest, with its kind5Id');
 });
 
-test('RP47: discardSupersededRevokes drops the by-e revokes whose target is not the known version, and keeps the matching by-e revoke, every by-a revoke, the version and look (T15; ADR 0003 § gateAction "A by-e prompt is discarded … as soon as another version is heard")', () => {
-  const discardSupersededRevokes = fn('discardSupersededRevokes');
-  const [v1, v2, v3] = [idOf('rp:dsr:v1'), idOf('rp:dsr:v2'), idOf('rp:dsr:v3')];
-  const A = addr('rp-dsr');
-  const entry = entryOf({ version: v3, revokes: [revoke('e', v1), revoke('e', v2), revoke('a', A)], look: true });
-  const out = discardSupersededRevokes(entry, v2);
-  assert(out && Array.isArray(out.revokes), `discardSupersededRevokes must return an entry (T15), got ${show(out)}`);
-  sameSet(out.revokes.map(revokeKey), [`e|${v2}`, `a|${A}`], 'revokes kept');
-  same([out.version, out.look], [{ id: v3 }, true], '[version, look]');
-});
+// RP47 deleted (A1-5: "Nothing discards a revoke prompt for being stale"): discardSupersededRevokes is gone (RP2); a
+// stale by-e revoke is inert at the gate instead (RP71, RP91).
 
 // ═══ T16: the gate ═════════════════════════════════════════════════════════════════════════════════════════════
 const GA = addr('rp-gate');
@@ -1200,7 +1293,7 @@ test('RP52: an update, a move, a none and a leave always act — never held, not
 });
 
 // ═══ T17: rounds that overlap a pass ═══════════════════════════════════════════════════════════════════════════
-test('RP53: a pass overlaps a round when it started before the round committed and it ended after the graph read, is still alive, or is dead with endedAt null and first seen dead after the graph read; a dead run with no deadSeenAt does not; every boundary is strict — a pass that ended at the graph read, started at the commit, or was first seen dead at the graph read does not overlap — and deadSeenAt is a plain object (T17; T25 "passOverlaps boundaries are strict", container types; ADR 0003 § Coexisting with the pass "graphReadAt is earlier than deadSeenAt"; AC-5)', () => {
+test('RP53: a pass overlaps a round when it started before the round committed and it ended at or after the graph read, is still alive, or is dead with endedAt null and first seen dead at or after the graph read; a dead run with no deadSeenAt does not; the commit boundary is strict and the graph-read ties overlap — a pass that ended exactly at the graph read, or was first seen dead exactly then, overlaps, while one that started exactly at the commit does not — and deadSeenAt is a plain object (T17; A1 clarification 13: endedAt >= graphReadAt and graphReadAt <= deadSeenAt, startedAt < commitAt stays strict, amending T25 "passOverlaps boundaries are strict"; T25 container types; ADR 0003 § Coexisting with the pass; AC-5)', () => {
   const passOverlaps = fn('passOverlaps');
   const round = { graphReadAt: T0, commitAt: T0 + 500 };
   const rows = [
@@ -1213,13 +1306,17 @@ test('RP53: a pass overlaps a round when it started before the round committed a
     { name: 'dead with endedAt null, first seen dead after the graph read', run: runEntry(RUN, T0 - 60000, null), alive: false, seen: { [RUN]: T0 + 10 }, want: [RUN] },
     { name: 'dead with endedAt null, first seen dead before the graph read', run: runEntry(RUN, T0 - 60000, null), alive: false, seen: { [RUN]: T0 - 10 }, want: [] },
     { name: 'dead with endedAt null, no deadSeenAt', run: runEntry(RUN, T0 - 60000, null), alive: false, seen: {}, want: [] },
-    // T25: the boundaries are strict — startedAt < commitAt, endedAt > graphReadAt (and graphReadAt < deadSeenAt).
-    { name: 'ended exactly at the graph read', run: runEntry(RUN, T0 - 60000, T0), alive: false, seen: {}, want: [] },
+    // A1 clarification 13: startedAt < commitAt stays strict; the graph-read ties overlap — endedAt >= graphReadAt and
+    // graphReadAt <= deadSeenAt (a pass that wrote and ended inside the millisecond of the round's graph read may have
+    // written after it; a spurious re-look costs one read).
+    { name: 'ended exactly at the graph read (a tie overlaps)', run: runEntry(RUN, T0 - 60000, T0), alive: false, seen: {}, want: [RUN] },
+    { name: 'ended 1 ms before the graph read', run: runEntry(RUN, T0 - 60000, T0 - 1), alive: false, seen: {}, want: [] },
     { name: 'ended 1 ms after the graph read', run: runEntry(RUN, T0 - 60000, T0 + 1), alive: false, seen: {}, want: [RUN] },
     { name: 'started exactly at the commit, alive', run: runEntry(RUN, T0 + 500, null), alive: true, seen: {}, want: [] },
     { name: 'started exactly at the commit, ended later', run: runEntry(RUN, T0 + 500, T0 + 900), alive: false, seen: {}, want: [] },
     { name: 'started 1 ms before the commit, alive', run: runEntry(RUN, T0 + 499, null), alive: true, seen: {}, want: [RUN] },
-    { name: 'dead with endedAt null, first seen dead exactly at the graph read', run: runEntry(RUN, T0 - 60000, null), alive: false, seen: { [RUN]: T0 }, want: [] },
+    { name: 'dead with endedAt null, first seen dead exactly at the graph read (a tie overlaps)', run: runEntry(RUN, T0 - 60000, null), alive: false, seen: { [RUN]: T0 }, want: [RUN] },
+    { name: 'dead with endedAt null, first seen dead 1 ms before the graph read', run: runEntry(RUN, T0 - 60000, null), alive: false, seen: { [RUN]: T0 - 1 }, want: [] },
   ];
   cases(rows, ({ run, alive, seen, want }) => {
     const out = passOverlaps(round, [run], (r) => (r && r.runId === RUN ? alive : false), { ...seen });
@@ -1284,13 +1381,16 @@ test('RP57: a round holds at most 500 addresses — the catch-up share and the l
 });
 
 // ═══ T19: the journal ══════════════════════════════════════════════════════════════════════════════════════════
-test('RP58: journalLine writes each of the ten line types as one compact JSON line ending in its only newline, which parses back to the object — a newline or carriage return inside an address included (T19; ADR 0003 § Journal rules)', () => {
+test('RP58: journalLine writes each of the twelve line types as one compact JSON line ending in its only newline, which parses back to the object — a newline or carriage return inside an address included (T19 as amended by A1-6: v absolute, o and e added; ADR 0003 § Journal rules)', () => {
   const journalLine = fn('journalLine');
   const id = idOf('rp:jl');
   const A = addr('rp-jl');
   const rows = [
-    { name: 'v', o: J.v(id, A) },
-    { name: 'v, a d with a newline and a carriage return', o: J.v(id, addr('rp\njl\rx')) },
+    { name: 'v', o: J.v(id, A, id, [idOf('rp:jl:older')]) },
+    { name: 'v, a d with a newline and a carriage return', o: J.v(id, addr('rp\njl\rx'), id, []) },
+    { name: 'o', o: J.o(A, id, [idOf('rp:jl:older')]) },
+    { name: 'o, a census row (null top)', o: J.o(A, null, [id]) },
+    { name: 'e', o: J.e(3) },
     { name: 'd', o: J.d(A, revoke('e', id, 2000)) },
     { name: 'c', o: J.c(id, A) },
     { name: 'x', o: J.x(A, [id, idOf('rp:jl:2')]) },
@@ -1311,15 +1411,19 @@ test('RP58: journalLine writes each of the ten line types as one compact JSON li
   });
 });
 
-test('RP59: replayJournal from no record applies v (into H, and a version prompt), d (a revoke prompt), f (into refusedSeen), p (parked), k (a dead pass seen) and r (a re-look) (T19; ADR 0003 § Knowing what changed while it was away)', () => {
+test('RP59: replayJournal from no record applies an absolute v (its address\'s lineage set to the line\'s top and older, and a version prompt), an o (the lineage as written, no prompt), d (a revoke prompt), f (into refusedSeen), p (parked), k (a dead pass seen) and r (a re-look) (T19 as amended by A1-6 and A1-17: "v {id, a, top, older} and o {a, top, older} are absolute"; ADR 0003 § Knowing what changed while it was away)', () => {
   const replayJournal = fn('replayJournal');
-  const [i1, i2, i3] = [idOf('rp:rj:1'), idOf('rp:rj:2'), idOf('rp:rj:3')];
-  const [A, B2, C, D] = [addr('rp-rj-a'), addr('rp-rj-b'), addr('rp-rj-c'), addr('rp-rj-d')];
+  const [i1, i2, i3, i4, i5] = [idOf('rp:rj:1'), idOf('rp:rj:2'), idOf('rp:rj:3'), idOf('rp:rj:4'), idOf('rp:rj:5')];
+  const [A, B2, C, D, E] = [addr('rp-rj-a'), addr('rp-rj-b'), addr('rp-rj-c'), addr('rp-rj-d'), addr('rp-rj-e')];
   const rv = revoke('e', i1, 2500);
   const relookEntry = entryOf({ version: i3, revokes: [revoke('a', D, 2600)] });
-  const out = replayed(replayJournal(texts([J.v(i1, A), J.d(A, rv), J.f(i2, B2), J.p(C, 'ENOSPC'), J.k(RUN, 5555), J.r(D, RUN, relookEntry)]), null), 'replayJournal');
-  const h = out.maps.H.get(i1);
-  eq(h && h.a, A, 'v: H records the heard id at its address');
+  const out = replayed(replayJournal(texts([
+    J.v(i1, A, i1, []), J.d(A, rv), J.f(i2, B2), J.p(C, 'ENOSPC'), J.k(RUN, 5555), J.r(D, RUN, relookEntry), J.o(E, i5, [i4]),
+  ]), null), 'replayJournal');
+  same(lin(out.maps, A), L(i1), 'v: the lineage at its address as the line gives it (the heard id its top)');
+  eq(out.maps.S.has(i1), false, 'v: a heard id is not in S (only a c line completes it)');
+  same(lin(out.maps, E), L(i5, [i4]), 'o: the lineage as the line gives it');
+  eq(out.pending.has(E), false, 'o: no prompt (it records a read\'s or a scan\'s learning only)');
   const e = out.pending.get(A);
   assert(e && typeof e === 'object', `v and d: a pending entry at ${A}, got ${show(e)}`);
   same(e.version, { id: i1 }, 'v: the entry\'s version prompt');
@@ -1331,83 +1435,97 @@ test('RP59: replayJournal from no record applies v (into H, and a version prompt
   eq(out.skippedLines, 0, 'skippedLines');
 });
 
-test('RP60: an x line drops exactly the ids it lists from S, H, refusedSeen and B — a version heard at that address before it but not listed, or after it, survives (T19; ADR 0003 "journaled explicitly … so a replay never drops a later v")', () => {
+test('RP60: an x line drops exactly the ids it lists from S, refusedSeen and B, and leaves the lineage — ids it lists stay in older, and an unlisted S id and a later v survive (T19 as amended by A1-6 and A1-17: "x drops the ids it lists from S, R and B only"; ADR 0003 "journaled explicitly … so a replay never drops a later v")', () => {
   const replayJournal = fn('replayJournal');
   const A = addr('rp-rj-x');
   const id = (n) => idOf(`rp:rjx:${n}`);
-  const record = { version: 1, seen: [[id('s1'), A]], heard: [[id('h1'), A]], baseline: [id('s1')], refusedSeen: [[id('r1'), A]], pending: [], rechecks: [], deadSeenAt: {}, parked: [] };
-  const out = replayed(replayJournal(texts([J.v(id('h2'), A), J.x(A, [id('s1'), id('r1'), id('h1')]), J.v(id('h3'), A)]), record), 'replayJournal');
-  same([out.maps.S.has(id('s1')), out.maps.B.has(id('s1')), out.maps.R.has(id('r1')), out.maps.H.has(id('h1'))], [false, false, false, false], 'the listed ids are gone from S, B, refusedSeen and H');
-  sameSet([...out.maps.H.keys()], [id('h2'), id('h3')], 'H keeps the unlisted earlier id and the later one');
+  const record = { version: 1, epoch: 4, seen: [[id('s1'), A], [id('s2'), A]], lineage: [[A, id('h1'), [id('s1')]]], baseline: [id('s1')], refusedSeen: [[id('r1'), A]], pending: [], rechecks: [], deadSeenAt: {}, parked: [] };
+  const lines = [J.e(4), J.v(id('h2'), A, id('h2'), [id('s1'), id('h1')]), J.x(A, [id('s1'), id('r1'), id('h1')])];
+  const out = replayed(replayJournal(texts(lines), record), 'replayJournal (… x last)');
+  same([out.maps.S.has(id('s1')), out.maps.B.has(id('s1')), out.maps.R.has(id('r1'))], [false, false, false], 'the listed ids are gone from S, B and refusedSeen');
+  eq(out.maps.S.has(id('s2')), true, 'an unlisted S id stays');
+  same(lin(out.maps, A), L(id('h2'), [id('s1'), id('h1')]), 'the lineage after the x line: as the v line before it set it — the ids x listed still in older (x never shrinks a lineage)');
+  const later = replayed(replayJournal(texts([...lines, J.v(id('h3'), A, id('h3'), [id('s1'), id('h1'), id('h2')])]), record), 'replayJournal (… x, then v)');
+  same(lin(later.maps, A), L(id('h3'), [id('s1'), id('h1'), id('h2')]), 'a v line after the x line applies');
 });
 
-test('RP61: a c line moves the id to S and clears the entry\'s version only when it is that id — deleting the pending entry when that leaves no version, no revokes and no look, and keeping it, version null, when a revoke remains; a b line drops the id from B only (T19; T25 "replayJournal deletes a pending entry that c leaves with no version, no revokes and no look")', () => {
+test('RP61: a c line records the id in S and clears the entry\'s version only when it is that id — keeping every revoke, a by-e revoke naming a version since replaced included, and the lineage as it was — deleting the pending entry when that leaves no version, no revokes and no look; a b line drops the id from B only (T19 as amended by A1-17: "c keeps revokes"; A1-5: "Replaying c answers only the version prompt it names; an entry left with no version, no revokes and no look is deleted"; T25)', () => {
   const replayJournal = fn('replayJournal');
   const A = addr('rp-rj-c');
   const id = (n) => idOf(`rp:rjc:${n}`);
-  const one = replayed(replayJournal(texts([J.v(id('1'), A), J.c(id('1'), A)]), null), 'replay v, c');
+  const one = replayed(replayJournal(texts([J.v(id('1'), A, id('1'), []), J.c(id('1'), A)]), null), 'replay v, c');
   eq(one.maps.S.get(id('1')) && one.maps.S.get(id('1')).a, A, 'c: S records the id at its address');
-  eq(one.maps.H.has(id('1')), false, 'c: H no longer holds the id');
+  same(lin(one.maps, A), L(id('1')), 'c: the lineage keeps its top (completing teaches the lineage nothing)');
   assert(!one.pending.has(A), `c: the emptied entry is deleted from pending, got ${show(one.pending.get(A))}`);
   eq(one.pending.size, 0, 'c: pending holds nothing');
   const rv = revoke('a', A, 2800);
-  const kept = replayed(replayJournal(texts([J.v(id('1'), A), J.d(A, rv), J.c(id('1'), A)]), null), 'replay v, d, c');
+  const kept = replayed(replayJournal(texts([J.v(id('1'), A, id('1'), []), J.d(A, rv), J.c(id('1'), A)]), null), 'replay v, d, c');
   same(entryFields(kept.pending.get(A)), entryOf({ revokes: [rv] }), 'c: an entry left with a revoke stays pending, its version null');
-  const two = replayed(replayJournal(texts([J.v(id('1'), A), J.v(id('2'), A), J.c(id('1'), A)]), null), 'replay v, v, c');
+  const rvOld = revoke('e', id('0'), 2700);
+  const stale = replayed(replayJournal(texts([
+    J.v(id('0'), A, id('0'), []), J.d(A, rvOld), J.v(id('1'), A, id('1'), [id('0')]), J.c(id('1'), A),
+  ]), null), 'replay v, d (by e), v, c');
+  same(entryFields(stale.pending.get(A)), entryOf({ revokes: [rvOld] }), 'c: a by-e revoke naming a version since replaced is kept too (A1-5: the gate judges it, RP91)');
+  const two = replayed(replayJournal(texts([J.v(id('1'), A, id('1'), []), J.v(id('2'), A, id('2'), [id('1')]), J.c(id('1'), A)]), null), 'replay v, v, c');
   const e2 = two.pending.get(A);
   same(e2 && e2.version, { id: id('2') }, 'c of an older id keeps the newer version prompt');
-  sameSet([...two.maps.H.keys()], [id('2')], 'H keeps the newer heard id');
-  const record = { version: 1, seen: [[id('b1'), A], [id('b2'), A]], heard: [[id('h'), A]], baseline: [id('b1'), id('b2')], refusedSeen: [], pending: [], rechecks: [], deadSeenAt: {}, parked: [] };
-  const three = replayed(replayJournal(texts([J.b(id('b1')), J.c(id('h'), A)]), record), 'replay b, c over a record');
+  same(lin(two.maps, A), L(id('2'), [id('1')]), 'the lineage: the newer heard id is the top');
+  const record = { version: 1, epoch: 2, seen: [[id('b1'), A], [id('b2'), A]], lineage: [[A, id('h')]], baseline: [id('b1'), id('b2')], refusedSeen: [], pending: [], rechecks: [], deadSeenAt: {}, parked: [] };
+  const three = replayed(replayJournal(texts([J.e(2), J.b(id('b1')), J.c(id('h'), A)]), record), 'replay b, c over a record');
   sameSet([...three.maps.B], [id('b2')], 'b: B drops the id');
   eq(three.maps.S.has(id('b1')), true, 'b: S keeps the id');
-  same([three.maps.S.has(id('h')), three.maps.H.has(id('h'))], [true, false], 'c of a restored heard id: H → S');
+  same([three.maps.S.has(id('h')), lin(three.maps, A)], [true, L(id('h'))], 'c of a restored top: into S, the lineage unchanged');
 });
 
-test('RP62: a torn, garbled, non-object or unknown-type line is skipped and counted, and the lines after it still apply; an empty line is ignored, not counted; lines may come from any iterable (T19; T25 "Empty lines are ignored, not counted"; ADR 0003 § Journal rules "A line that fails to parse is skipped and counted")', () => {
+test('RP62: a torn, garbled, non-object or unknown-type line is skipped and counted, and the lines after it still apply; an empty line is ignored, not counted; lines may come from any iterable (T19; T25 "Empty lines are ignored, not counted"; ADR 0003 § Journal rules "A line that fails to parse is skipped and counted"; A1-6: the v lines absolute)', () => {
   const replayJournal = fn('replayJournal');
   const [A, B2] = [addr('rp-rj-g1'), addr('rp-rj-g2')];
   const [i1, i2] = [idOf('rp:rjg:1'), idOf('rp:rjg:2')];
-  const bad = [JSON.stringify(J.v(i2, B2)).slice(0, 20), 'garbage', 'null', '[1,2]', '{"t":"zz","a":"x"}', `{"id":"${i2}"}`];
+  const bad = [JSON.stringify(J.v(i2, B2, i2, [])).slice(0, 20), 'garbage', 'null', '[1,2]', '{"t":"zz","a":"x"}', `{"id":"${i2}"}`];
   function* lines() {
     yield '';
-    yield JSON.stringify(J.v(i1, A));
+    yield JSON.stringify(J.v(i1, A, i1, []));
     yield '';
     yield* bad;
     yield '';
     yield '';
-    yield JSON.stringify(J.v(i2, B2));
+    yield JSON.stringify(J.v(i2, B2, i2, []));
     yield '';
   }
   const out = replayed(replayJournal(lines(), null), 'replayJournal');
   eq(out.skippedLines, bad.length, `skippedLines (the ${bad.length} bad lines; the 5 empty lines are not counted)`);
-  sameSet([...out.maps.H.keys()], [i1, i2], 'H (the lines before and after the bad ones applied)');
+  same([lin(out.maps, A), lin(out.maps, B2)], [L(i1), L(i2)], 'the lineages (the lines before and after the bad ones applied)');
   const empties = replayed(replayJournal(['', '', ''], null), 'replayJournal (only empty lines)');
-  same([empties.skippedLines, empties.maps.H.size, empties.pending.size], [0, 0, 0], '[skippedLines, H size, pending size] for only empty lines');
+  same([empties.skippedLines, empties.maps.L.size, empties.pending.size], [0, 0, 0], '[skippedLines, L size, pending size] for only empty lines');
 });
 
-test('RP63: replayJournal restores the record\'s seen, heard and refusedSeen with seq 0, its baseline and deadSeenAt, and applies the lines on top (T19; T3 "Entries restored from record.json get seq 0")', () => {
-  const replayJournal = fn('replayJournal');
-  const [A, B2] = [addr('rp-rj-r1'), addr('rp-rj-r2')];
+test('RP63: replayJournal restores the record\'s seen and refusedSeen with seq 0, its lineage rows — [a, top] with older omitted when empty, [a, top, [older…]], and a census row with a null top — its baseline and deadSeenAt, and the top index with them, and applies its generation\'s lines on top (T19 as amended by A1-6 and A1-17: "the record has one lineage row per lineage", lineage: [[address, top | null, [older…]]] "The third element is omitted when empty"; A1-1 "an index maps each top id to its address"; T3 "Entries restored from record.json get seq 0")', () => {
+  const { replayJournal, resolveDeletion } = need('replayJournal', 'resolveDeletion');
+  const [A, B2, C] = [addr('rp-rj-r1'), addr('rp-rj-r2'), addr('rp-rj-r3')];
   const id = (n) => idOf(`rp:rjr:${n}`);
   const record = {
-    version: 1, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 3600000),
-    seen: [[id('s1'), A], [id('s2'), B2]], heard: [[id('h1'), A]], baseline: [id('s1')], refusedSeen: [[id('r1'), B2]],
+    version: 1, epoch: 7, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 3600000),
+    seen: [[id('s1'), A], [id('s2'), B2]], lineage: [[A, id('h1'), [id('s1')]], [B2, id('s2')], [C, null, [id('g')]]], baseline: [id('s1')], refusedSeen: [[id('r1'), B2]],
     pending: [], rechecks: [], deadSeenAt: { [RUN]: 7777 }, parked: [],
   };
   const out = replayed(replayJournal([], record), 'replayJournal (record only)');
   same(out.maps.S.get(id('s1')), { a: A, seq: 0 }, 'S from seen');
   same(out.maps.S.get(id('s2')), { a: B2, seq: 0 }, 'S from seen');
-  same(out.maps.H.get(id('h1')), { a: A, seq: 0 }, 'H from heard');
   same(out.maps.R.get(id('r1')), { a: B2, seq: 0 }, 'refusedSeen');
+  same(lin(out.maps, A), L(id('h1'), [id('s1')]), 'the lineage from its row with older');
+  same(lin(out.maps, B2), L(id('s2')), 'the lineage from its row without older');
+  same(lin(out.maps, C), L(null, [id('g')]), 'a census row: older under no top');
   sameSet([...out.maps.B], [id('s1')], 'B from baseline');
   same(out.deadSeenAt, { [RUN]: 7777 }, 'deadSeenAt, a plain object (T25)');
   eq(out.skippedLines, 0, 'skippedLines');
-  const on = replayed(replayJournal(texts([J.c(id('h1'), A), J.v(id('h2'), B2)]), record), 'replayJournal (record and lines)');
-  same([on.maps.S.has(id('h1')), on.maps.H.has(id('h1')), on.maps.H.has(id('h2'))], [true, false, true], 'lines applied on top of the record');
+  const eAt = (target, tag) => resolved(resolveDeletion(makeDeletion({ author: ALICE, e: [target], id: idOf(`rp:rjr:k5:${tag}`), createdAt: 9000 }), out.maps, new Set()), `resolveDeletion (${tag})`).prompts.map(promptKey);
+  same([eAt(id('h1'), 'h1'), eAt(id('s2'), 's2'), eAt(id('s1'), 's1'), eAt(id('g'), 'g')], [[`${A}|e|${id('h1')}`], [`${B2}|e|${id('s2')}`], [], []],
+    'the restored tops resolve at their addresses, and nothing else does (the top index comes back with the rows)');
+  const on = replayed(replayJournal(texts([J.e(7), J.c(id('h1'), A), J.v(id('h2'), B2, id('h2'), [id('s2')])]), record), 'replayJournal (record and lines)');
+  same([on.maps.S.has(id('h1')), lin(on.maps, A), lin(on.maps, B2)], [true, L(id('h1'), [id('s1')]), L(id('h2'), [id('s2')])], 'lines applied on top of the record');
 });
 
-test('RP64: re-looks are one per (address, runId), their entries merged by mergePrompt\'s rules — the latest version, per (by, target) the revoke with the greatest created_at and its own kind5Id, look ORed — and an rc line ends one (T19; T25 "Two r lines for one (a, runId) merge by mergePrompt rules"; T15; ADR 0003 "Re-looks are de-duplicated by (address, runId), merging their prompts")', () => {
+test('RP64: re-looks are one per (address, runId), their entries merged by mergePrompt\'s rules — the latest version, per (by, target) the revoke with the greatest created_at and its own kind5Id, look ORed — and an rc line ends one (T19; T25 "Two r lines for one (a, runId) merge by mergePrompt rules"; T15; ADR 0003 "Re-looks are de-duplicated by (address, runId), merging their prompts"; the replayed maps as A1-17 amends T3)', () => {
   const replayJournal = fn('replayJournal');
   const [A, B2] = [addr('rp-rj-rl'), addr('rp-rj-rl2')];
   const [i1, i2, i3] = [idOf('rp:rjrl:1'), idOf('rp:rjrl:2'), idOf('rp:rjrl:3')];
@@ -1470,61 +1588,70 @@ test('RP66: allowErrorCode turns anything else into \'error\' — a host name, h
 });
 
 // ═══ Scenarios (ADR 0003 "Tests the Tester owns → New suites → The pure planner") ══════════════════════════════
-test('RP67: a version and its id-only revoke heard in one round — the revoke resolves through H, and the round\'s empty read removes the older relationship (ADR 0003 planner list; AC-2; T5, T6, T15, T16)', () => {
-  const { promptFromVersion, recordId, mergePrompt, resolveDeletion, relayAtAddress, gateAction } = need('promptFromVersion', 'recordId', 'mergePrompt', 'resolveDeletion', 'relayAtAddress', 'gateAction');
+test('RP67: a version and its id-only revoke heard in one round — the revoke resolves as A\'s top, and the round\'s empty read removes the relationship recording the version the path learned there before it (clause ii); had the path never learned that version there, the removal waits for the pass (ADR 0003 planner list; AC-2; A1-2, A1-3, A1-4 clause (ii), owner decision 11 accepted; A1-16 decision 2; T5, T6, T15, T16)', () => {
+  const { promptFromVersion, learnVersion, lineageValue, mergePrompt, resolveDeletion, relayAtAddress, gateAction } = need('promptFromVersion', 'learnVersion', 'lineageValue', 'mergePrompt', 'resolveDeletion', 'relayAtAddress', 'gateAction');
   const { decideAddress } = sweep();
   const A = addr('rp-sc-one');
   const v0 = makeTagging({ d: 'rp-sc-one', id: idOf('rp:sc:one:v0'), createdAt: 1000 });
   const v1 = makeTagging({ d: 'rp-sc-one', id: idOf('rp:sc:one:v1'), createdAt: 2000, polarity: '-1' });
-  const maps = mapsWith({ S: [[v0.id, A, 1]] }); // the graph holds v0
+  const maps = mapsWith({ S: [[v0.id, A, 1]], L: [[A, v0.id]] }); // the graph holds v0, a version the path learned at A
   const p = promptFromVersion(v1, IDENTITIES);
   same(p, { address: A, id: v1.id }, 'v1 heard: its version prompt');
-  recordId(maps, 'H', p.id, p.address, 2);
+  learnVersion(maps, p.address, p.id, PLACED);
+  same(lin(maps, A), L(v1.id, [v0.id]), 'v1 delivered: the top, v0 older');
   let entry = mergePrompt(null, { type: 'version', id: p.id });
   const k5 = makeDeletion({ author: ALICE, e: [v1.id], id: idOf('rp:sc:one:k5'), createdAt: 2001 });
   const r = resolved(resolveDeletion(k5, maps, new Set([A])), 'resolveDeletion');
-  same(r.prompts.map(promptKey), [`${A}|e|${v1.id}`], 'the revoke resolves through H to A');
+  same(r.prompts.map(promptKey), [`${A}|e|${v1.id}`], 'the revoke resolves at A (v1 is the top)');
   entry = mergePrompt(entry, r.prompts[0].prompt);
   const row = storedRowFor(v0);
   const d = decideAddress(row, relayAtAddress([], [], A, IDENTITIES));
   same([d.action, d.reason], ['remove', 'not-on-relay'], 'the round reads nothing at A');
-  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry, baseline: maps.B }), { act: true }, 'the removal');
+  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry, baseline: maps.B, lineage: lineageValue(maps, A) }), { act: true }, 'the removal (clause ii: v1 the top, v0 in its older)');
+  const unseen = mapsWith({ L: [[A, v1.id]] }); // the path never learned v0 at A (another writer recorded it)
+  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry, baseline: unseen.B, lineage: lineageValue(unseen, A) }), { act: false, held: 'removal-not-prompted' },
+    'control: a relationship recording a version the path never learned at A waits for the pass (decision 2)');
 });
 
-test('RP68: a version heard after a round\'s scan spawned, then revoked by id — it stays in H through that read\'s shrink, and the revoke resolves and removes (ADR 0003 planner list; T7, T6, T16)', () => {
-  const { recordId, shrinkOnRead, resolveDeletion, mergePrompt, gateAction } = need('recordId', 'shrinkOnRead', 'resolveDeletion', 'mergePrompt', 'gateAction');
+test('RP68: a version heard after a round\'s scan spawned, then revoked by id — the read, placed under that later learning, teaches nothing, and its shrink leaves the lineage, so v1 stays the top; the revoke resolves and removes (clause ii); had the read been placed, v0 would be the top again and the revoke would resolve nothing (ADR 0003 planner list; A1-2: "If the path learned anything at A after that capture, the read teaches nothing at A"; A1-3; A1-4; T7, T6, T16)', () => {
+  const { learnVersion, lineageValue, shrinkOnRead, resolveDeletion, mergePrompt, gateAction } = need('learnVersion', 'lineageValue', 'shrinkOnRead', 'resolveDeletion', 'mergePrompt', 'gateAction');
   const { decideAddress } = sweep();
   const A = addr('rp-sc-late');
   const v0 = makeTagging({ d: 'rp-sc-late', id: idOf('rp:sc:late:v0'), createdAt: 1000 });
   const v1 = makeTagging({ d: 'rp-sc-late', id: idOf('rp:sc:late:v1'), createdAt: 2000 });
-  const maps = mapsWith({ S: [[v0.id, A, 1]] });
+  const maps = mapsWith({ S: [[v0.id, A, 1]], L: [[A, v0.id]] });
   const captureSeq = 5; // captured just before the scan at A spawned
-  recordId(maps, 'H', v1.id, A, 6); // heard after that
-  const s = shrinkOnRead(maps, A, v0.id, captureSeq); // the scan's snapshot still held v0
+  learnVersion(maps, A, v1.id, PLACED); // v1 delivered after that
+  // The scan's snapshot still held v0; v1 was learned after its capture, so the read is placed under it.
+  eq(learnVersion(maps, A, v0.id, UNDER), false, 'the read of v0, placed under v1\'s learning, teaches nothing');
+  const s = shrinkOnRead(maps, A, v0.id, captureSeq);
   same(s && s.dropped, [], 'the read at A drops nothing');
-  eq(maps.H.has(v1.id), true, 'v1 stays in H');
+  same(lin(maps, A), L(v1.id, [v0.id]), 'v1 stays the top, v0 in its older');
   const k5 = makeDeletion({ author: ALICE, e: [v1.id], id: idOf('rp:sc:late:k5'), createdAt: 2100 });
   const r = resolved(resolveDeletion(k5, maps, new Set([A])), 'resolveDeletion');
   same(r.prompts.map(promptKey), [`${A}|e|${v1.id}`], 'the revoke of v1 resolves at A');
   const entry = mergePrompt(mergePrompt(null, { type: 'version', id: v1.id }), r.prompts[0].prompt);
   const row = storedRowFor(v0);
   const d = decideAddress(row, null);
-  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry, baseline: maps.B }), { act: true }, 'the next round\'s removal');
+  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry, baseline: maps.B, lineage: lineageValue(maps, A) }), { act: true }, 'the next round\'s removal (clause ii)');
+  const placed = mapsWith({ S: [[v0.id, A, 1]], L: [[A, v0.id]] });
+  learnVersion(placed, A, v1.id, PLACED);
+  learnVersion(placed, A, v0.id, PLACED);
+  same(resolveDeletion(k5, placed, new Set([A])), { prompts: [], matchedNothing: true, foreign: 0 }, 'control: had the read been placed, v0 would be the top again and v1\'s revoke would resolve nothing');
 });
 
-test('RP69: a re-sent older version after an id-only revoke is created after downtime — the read that returned the newer version dropped the older one from S and B, so it is an arrival and its create is not held (ADR 0003 planner list; AC-2, AC-4; T7, T9, T16)', () => {
-  const { recordId, shrinkOnRead, arrivalsAndLookOnly, gateAction } = need('recordId', 'shrinkOnRead', 'arrivalsAndLookOnly', 'gateAction');
+test('RP69: a re-sent older version after an id-only revoke is created after downtime — the read that returned the newer version dropped the older one from S and B, so it is an arrival and its create is not held (ADR 0003 planner list; AC-2, AC-4; T7, T9, T16; A1-1: S and B keep their read shrink)', () => {
+  const { recordId, learnVersion, shrinkOnRead, arrivalsAndLookOnly, gateAction } = need('recordId', 'learnVersion', 'shrinkOnRead', 'arrivalsAndLookOnly', 'gateAction');
   const { decideAddress } = sweep();
   const A = addr('rp-sc-resent');
   const v1 = makeTagging({ d: 'rp-sc-resent', id: idOf('rp:sc:resent:v1'), createdAt: 1000 });
   const v2 = makeTagging({ d: 'rp-sc-resent', id: idOf('rp:sc:resent:v2'), createdAt: 2000, polarity: '-1' });
-  const maps = mapsWith({ S: [[v1.id, A, 0]], B: [v1.id] }); // v1 held at the first start
-  recordId(maps, 'H', v2.id, A, 1); // v2 stored after it
+  const maps = mapsWith({ S: [[v1.id, A, 0]], B: [v1.id], L: [[A, v1.id]] }); // v1 held at the first start (the baseline scan placed it)
+  learnVersion(maps, A, v2.id, PLACED); // v2 stored after it, and delivered
   const s = shrinkOnRead(maps, A, v2.id, 1);
   sameSet(uniq((s && s.dropped) || []), [v1.id], 'the read that returned v2 dropped v1');
   eq(maps.B.has(v1.id), false, 'B no longer holds v1');
   recordId(maps, 'S', v2.id, A, 2);
-  maps.H.delete(v2.id);
   // Downtime: v2 revoked by id, v1 re-sent. The catch-up's scan finds v1; the graph holds v2.
   const r = arrivalsAndLookOnly([[v1.id, A]], maps, new Map([[A, v2.id]]));
   sameSet(r.arrivals.map(pairKey), [`${A}|${v1.id}`], 'v1 is an arrival');
@@ -1536,13 +1663,13 @@ test('RP69: a re-sent older version after an id-only revoke is created after dow
   gateIs(gateAction(dCr, { address: A, storedRow: null, relayVersionId: v1.id, entry: entryOf({ version: v1.id }), baseline: new Set([v1.id]) }), { act: false, held: 'pre-existing' }, 'control: with v1 still in B the create would be held');
 });
 
-test('RP70: a version dropped over the backlog cap and then revoked by id is found by the catch-up — a deletion candidate in its author\'s #e scan, whose kind-5 the predicate keeps and resolveDeletion turns into a revoke that removes (ADR 0003 planner list; § The in-memory backlog; T10, T11, T6, T16)', () => {
-  const { deletionCandidates, deletionScanFilters, isExpectedDeletion, resolveDeletion, mergePrompt, gateAction } = need('deletionCandidates', 'deletionScanFilters', 'isExpectedDeletion', 'resolveDeletion', 'mergePrompt', 'gateAction');
+test('RP70: a version dropped over the backlog cap and then revoked by id is found by the catch-up — still learned as A\'s top, it is a deletion candidate (rule 2 names tops) in its author\'s #e scan, whose kind-5 the predicate keeps and resolveDeletion turns into a revoke that removes the relationship recording the version it replaced (clause ii) (ADR 0003 planner list; § The in-memory backlog; T10 as amended by A1-17 "Rule 2 uses lineage tops"; A1-9; A1-4; T11, T6, T16)', () => {
+  const { deletionCandidates, deletionScanFilters, isExpectedDeletion, resolveDeletion, mergePrompt, gateAction, lineageValue } = need('deletionCandidates', 'deletionScanFilters', 'isExpectedDeletion', 'resolveDeletion', 'mergePrompt', 'gateAction', 'lineageValue');
   const { decideAddress } = sweep();
   const A = addr('rp-sc-cap');
   const v0 = makeTagging({ d: 'rp-sc-cap', id: idOf('rp:sc:cap:v0'), createdAt: 1000 });
   const v1 = makeTagging({ d: 'rp-sc-cap', id: idOf('rp:sc:cap:v1'), createdAt: 2000 });
-  const maps = mapsWith({ S: [[v0.id, A, 1]], H: [[v1.id, A, 2]] }); // v1's prompt was dropped; its id is in H
+  const maps = mapsWith({ S: [[v0.id, A, 1]], L: [[A, v1.id, [v0.id]]] }); // v1's prompt was dropped; the delivery was still learned
   const graph = new Map([[A, v0.id]]);
   const cands = deletionCandidates(graph, new Set(), maps); // the relay holds neither now
   assert(Array.isArray(cands), `deletionCandidates must return an array (T10), got ${show(cands)}`);
@@ -1555,37 +1682,39 @@ test('RP70: a version dropped over the backlog cap and then revoked by id is fou
   const r = resolved(resolveDeletion(k5, maps, new Set([A])), 'resolveDeletion');
   same(r.prompts.map(promptKey), [`${A}|e|${v1.id}`], 'it becomes a by-e revoke at A');
   const row = storedRowFor(v0);
-  gateIs(gateAction(decideAddress(row, null), { address: A, storedRow: row, relayVersionId: null, entry: mergePrompt(null, r.prompts[0].prompt), baseline: maps.B }), { act: true }, 'the removal');
+  gateIs(gateAction(decideAddress(row, null), { address: A, storedRow: row, relayVersionId: null, entry: mergePrompt(null, r.prompts[0].prompt), baseline: maps.B, lineage: lineageValue(maps, A) }), { act: true }, 'the removal (clause ii: v1 the top, v0 in its older)');
 });
 
-test('RP71: a by-id revoke, then a re-apply at the same address during an overlapping pass, then a wipe — the re-look removes nothing, because the re-apply discarded the revoke (ADR 0003 planner list; § gateAction; T15, T16, T17)', () => {
-  const { resolveDeletion, mergePrompt, discardSupersededRevokes, passOverlaps, relayAtAddress, gateAction } = need('resolveDeletion', 'mergePrompt', 'discardSupersededRevokes', 'passOverlaps', 'relayAtAddress', 'gateAction');
+test('RP71: a by-id revoke, then a re-apply at the same address during an overlapping pass, then a wipe — the entry keeps the revoke (nothing is discarded), yet the re-look removes nothing: e:v1 names neither the version the pass recorded (v2) nor A\'s top (v2 again), so it satisfies neither clause; the author\'s revoke of v2 itself would remove (ADR 0003 planner list; § gateAction; A1-4 clauses (i) and (ii); A1-5 "A stale by-e prompt is inert under A1-3 and A1-4"; A1-20 "RP71: the control flips"; T15, T16, T17)', () => {
+  const { resolveDeletion, mergePrompt, learnVersion, lineageValue, passOverlaps, relayAtAddress, gateAction } = need('resolveDeletion', 'mergePrompt', 'learnVersion', 'lineageValue', 'passOverlaps', 'relayAtAddress', 'gateAction');
   const { decideAddress } = sweep();
   const A = addr('rp-sc-reapply');
   const v1 = makeTagging({ d: 'rp-sc-reapply', id: idOf('rp:sc:reapply:v1'), createdAt: 1000 });
   const v2 = makeTagging({ d: 'rp-sc-reapply', id: idOf('rp:sc:reapply:v2'), createdAt: 3000 });
-  const maps = mapsWith({ S: [[v1.id, A, 1]] });
+  const maps = mapsWith({ S: [[v1.id, A, 1]], L: [[A, v1.id]] });
   const k5 = makeDeletion({ author: ALICE, e: [v1.id], id: idOf('rp:sc:reapply:k5'), createdAt: 2000 });
   const r = resolved(resolveDeletion(k5, maps, new Set([A])), 'resolveDeletion');
-  eq(r.prompts.length, 1, 'the revoke resolves');
-  const withRevoke = mergePrompt(mergePrompt(null, r.prompts[0].prompt), { type: 'version', id: v2.id });
-  const entry = discardSupersededRevokes(withRevoke, v2.id);
-  same(entry.revokes, [], 'v2 heard at A: the by-id revoke of v1 is discarded');
+  eq(r.prompts.length, 1, 'the revoke resolves (v1 is the top)');
+  learnVersion(maps, A, v2.id, PLACED); // the re-apply v2 is delivered
+  const entry = mergePrompt(mergePrompt(null, r.prompts[0].prompt), { type: 'version', id: v2.id });
+  same(entry.revokes.map(revokeKey), [`e|${v1.id}`], 'v2 heard at A: the by-id revoke of v1 is kept in the entry (A1-5)');
   same(passOverlaps({ graphReadAt: T0, commitAt: T0 + 300 }, [runEntry(RUN, T0 - 5000, T0 + 200)], () => false, {}), [RUN], 'the round overlapped a pass: a re-look is scheduled');
   const row = storedRowFor(v2); // the pass wrote v2; then the relay was wiped
   const d = decideAddress(row, relayAtAddress([], [], A, IDENTITIES));
   same([d.action, d.reason], ['remove', 'not-on-relay'], 'the re-look reads nothing at A');
-  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry, baseline: maps.B }), { act: false, held: 'removal-not-prompted' }, 'the re-look');
-  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry: withRevoke, baseline: maps.B }), { act: true }, 'control: had the revoke been kept, it would have removed v2');
+  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry, baseline: maps.B, lineage: lineageValue(maps, A) }), { act: false, held: 'removal-not-prompted' }, 'the re-look: the kept e:v1 cannot remove the pass-written v2');
+  const k5v2 = makeDeletion({ author: ALICE, e: [v2.id], id: idOf('rp:sc:reapply:k5:v2'), createdAt: 4000 });
+  const r2 = resolved(resolveDeletion(k5v2, maps, new Set([A])), 'resolveDeletion (v2)');
+  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry: mergePrompt(entry, r2.prompts[0].prompt), baseline: maps.B, lineage: lineageValue(maps, A) }), { act: true }, 'control: the author\'s revoke of v2, the recorded version, removes it (clause i)');
 });
 
 // ═══ T25: the planner details the suite writers asked about ════════════════════════════════════════════════════
-test('RP72: a kind-5 whose own pubkey is written in upper-case hex is not isEvent-shaped, so it resolves nothing live — no prompt, no foreign count, matchedNothing — though the same kind-5 in lower-case hex resolves by e and by a; the catch-up\'s author-scoped predicate still keeps it (T25 "A kind-5 whose own pubkey is written in upper-case hex"; T6; T11; owner decision 5\'s corners)', () => {
+test('RP72: a kind-5 whose own pubkey is written in upper-case hex is not isEvent-shaped, so it resolves nothing live — no prompt, no foreign count, matchedNothing — though the same kind-5 in lower-case hex resolves by e (the address\'s top) and by a; the catch-up\'s author-scoped predicate still keeps it (T25 "A kind-5 whose own pubkey is written in upper-case hex"; T6 as amended by A1-3; T11; owner decision 5\'s corners)', () => {
   const { resolveDeletion, isExpectedDeletion } = need('resolveDeletion', 'isExpectedDeletion');
   hasLetters(DAVE, 'DAVE');
   const A = addr('rp-t25-upk5', DAVE);
   const idD = idOf('rp:t25:upk5');
-  const maps = mapsWith({ S: [[idD, A, 1]] });
+  const maps = mapsWith({ S: [[idD, A, 1]], L: [[A, idD]] });
   const graph = new Set([A]);
   const lower = makeDeletion({ author: DAVE, e: [idD], a: [A], id: idOf('rp:t25:upk5:k5'), createdAt: 9500 });
   const upper = { ...lower, pubkey: DAVE.toUpperCase() };
@@ -1648,14 +1777,14 @@ test('RP74: roundOrder places an address queued in more than one lane once, at i
   same(out, [...bySeq(l), ...bySeq(rOwn)], 'the 300 live addresses, then the 200 re-looks of other addresses: 500, the repeats taking no place');
 });
 
-test('RP75: replayJournal restores the record\'s pending [{ a, entry, lane, attempts, notBefore }], rechecks [{ a, runId, entry }] and parked [{ a, code, attempts, nextAt }] into pending Map<address, entry>, the rechecks list and parked Map<address, code>, and the journal\'s d, v, c, r, rc, p and k lines apply on top of them (T25 record shapes and "Replay"; T19)', () => {
+test('RP75: replayJournal restores the record\'s pending [{ a, entry, lane, attempts, notBefore }], rechecks [{ a, runId, entry }] and parked [{ a, code, attempts, nextAt, entry }] into pending Map<address, entry> — a parked row\'s entry merged in at its address — the rechecks list and parked Map<address, code>, and the journal\'s d, v, c, r, rc, p and k lines apply on top of them, c keeping revokes (T25 record shapes and "Replay", as A1-12 amends them: "record.json\'s parked rows are {a, code, attempts, nextAt, entry}. Replay merges each row\'s entry into pending at its address. parked stays Map<address, code>"; A1-17 T19, T25; A1-5)', () => {
   const replayJournal = fn('replayJournal');
   const [A, B2, C, D, E, F2] = ['a', 'b', 'c', 'd', 'e', 'f'].map((n) => addr(`rp-t25-rec-${n}`));
   const id = (n) => idOf(`rp:t25:rec:${n}`);
-  const [rvA, rvA2, rvC] = [revoke('a', A, 1000), revoke('a', A, 3000), revoke('e', id('c0'), 1500)];
+  const [rvA, rvA2, rvC, rvE] = [revoke('a', A, 1000), revoke('a', A, 3000), revoke('e', id('c0'), 1500), revoke('e', id('e0'), 1600)];
   const record = {
-    version: 1, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 60000),
-    seen: [[id('c0'), C]], heard: [[id('a'), A], [id('c'), C]], baseline: [], refusedSeen: [],
+    version: 1, epoch: 5, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 60000),
+    seen: [[id('c0'), C]], lineage: [[A, id('a')], [C, id('c'), [id('c0')]], [E, id('e0')]], baseline: [], refusedSeen: [],
     pending: [
       { a: A, entry: entryOf({ version: id('a'), revokes: [rvA] }), lane: 'live', attempts: 1, notBefore: T0 + 5000 },
       { a: B2, entry: entryOf({ look: true }), lane: 'catchup', attempts: 0, notBefore: 0 },
@@ -1666,7 +1795,7 @@ test('RP75: replayJournal restores the record\'s pending [{ a, entry, lane, atte
       { a: D, runId: RUN2, entry: entryOf({ version: id('d'), revokes: [rvC] }) },
     ],
     deadSeenAt: { [RUN2]: T0 - 100 },
-    parked: [{ a: E, code: 'ENOSPC', attempts: 2, nextAt: T0 + 60000 }],
+    parked: [{ a: E, code: 'ENOSPC', attempts: 2, nextAt: T0 + 60000, entry: entryOf({ revokes: [rvE] }) }],
   };
   const pendingOf = (out) => [...out.pending.entries()].reduce((o, [k, v]) => { o[k] = entryFields(v); return o; }, {});
   const recheckKey = (x) => `${x.a}|${x.runId}`;
@@ -1675,124 +1804,52 @@ test('RP75: replayJournal restores the record\'s pending [{ a, entry, lane, atte
   const restored = replayed(replayJournal([], record), 'replayJournal (record only)');
   same(pendingOf(restored), {
     [A]: entryOf({ version: id('a'), revokes: [rvA] }), [B2]: entryOf({ look: true }), [C]: entryOf({ version: id('c') }),
-  }, 'pending: each record entry\'s entry, keyed by its a');
+    [E]: entryOf({ revokes: [rvE] }),
+  }, 'pending: each record entry\'s entry, keyed by its a, and the parked row\'s entry at its address (A1-12)');
   same([...restored.rechecks].sort((x, y) => (recheckKey(x) < recheckKey(y) ? -1 : 1)), [...record.rechecks].sort((x, y) => (recheckKey(x) < recheckKey(y) ? -1 : 1)), 'rechecks: [{ a, runId, entry }] as the record holds them');
   same([...restored.parked.entries()], [[E, 'ENOSPC']], 'parked: Map<address, code>');
   same(restored.deadSeenAt, { [RUN2]: T0 - 100 }, 'deadSeenAt');
 
   // The record with lines on top.
   const out = replayed(replayJournal(texts([
+    J.e(5), // the record's generation
     J.d(A, rvA2), // a newer revoke of (a, A): replaces rvA, with its own kind5Id
     J.c(id('a'), A), // A's version completes; its revoke remains
-    J.v(id('b'), B2), // B gains a version; its look stays
+    J.v(id('b'), B2, id('b'), []), // B gains a version; its look stays
     J.c(id('c'), C), // C's version completes and nothing remains: the entry is deleted
     J.r(A, RUN, entryOf({ revokes: [rvA2] })), // merges into the restored re-look (A, RUN)
     J.rc(D, RUN2), // ends the restored re-look (D, RUN2)
     J.p(F2, 'Neo.ClientError.Schema.ConstraintValidationFailed'),
     J.k(RUN3, T0),
   ]), record), 'replayJournal (record and lines)');
-  same(pendingOf(out), { [A]: entryOf({ revokes: [rvA2] }), [B2]: entryOf({ version: id('b'), look: true }) }, 'pending after the lines (C deleted by c)');
+  same(pendingOf(out), { [A]: entryOf({ revokes: [rvA2] }), [B2]: entryOf({ version: id('b'), look: true }), [E]: entryOf({ revokes: [rvE] }) }, 'pending after the lines (C deleted by c; the parked address keeps its prompts)');
   same(out.rechecks, [{ a: A, runId: RUN, entry: entryOf({ revokes: [rvA2], look: true }) }], 'rechecks after the lines');
   same([...out.parked.entries()].sort(), [[E, 'ENOSPC'], [F2, 'Neo.ClientError.Schema.ConstraintValidationFailed']].sort(), 'parked after the lines');
   same(out.deadSeenAt, { [RUN2]: T0 - 100, [RUN3]: T0 }, 'deadSeenAt after the lines');
-  same([out.maps.S.has(id('a')), out.maps.H.has(id('a')), out.maps.S.has(id('c')), out.maps.H.has(id('c')), out.maps.H.has(id('b'))], [true, false, true, false, true], '[S has a, H has a, S has c, H has c, H has b]');
+  same([out.maps.S.has(id('a')), out.maps.S.has(id('c')), lin(out.maps, B2), lin(out.maps, C)], [true, true, L(id('b')), L(id('c'), [id('c0')])], '[S has a, S has c, the lineage at B, the lineage at C]');
   eq(out.skippedLines, 0, 'skippedLines');
 });
 
-// ═══ T33: what the blind reference implementation found ════════════════════════════════════════════════════════
-test('RP76: replaying a v line applies discardSupersededRevokes at that address with the line\'s id, to the pending entry and to its re-looks, as the live path does — a by-e revoke naming another id is gone after the replay (so a revoke discarded before a crash does not come back), while the by-e revoke naming the v line\'s own id and every by-a revoke stay, for entries the journal built and entries restored from record.json alike; entries at other addresses keep all theirs, and without the v line nothing is discarded (T33 "Replaying a v line also applies discardSupersededRevokes at that address, to the pending entry and its re-looks"; T15; T19; ADR 0003 § gateAction "A by-e prompt is discarded … as soon as another version is heard")', () => {
+// RP76 deleted (A1-5: "Put-backs, re-looks, parked entries, restored work, a catch-up's work and backlog, and journal
+// replay all carry prompts unchanged"; A1-17 T33: "The v-line discard sentences are removed"): its inversion is RP96.
+
+// RP77 deleted (A1-5: discardSupersededRevokes is gone, A1-17 T2, T15): RP2 pins that it is no longer exported.
+
+test('RP78: replayJournal\'s pending holds entries only — each value is a T15 entry with exactly the keys version, revokes and look — whether restored from record.json\'s rows (which carry a, lane, attempts and notBefore beside the entry: those are for diagnostics only), merged from a parked row\'s entry, built by the journal\'s v and d lines, or restored and then changed by lines (T33 "replayJournal\'s pending holds entries only (T15) … record.json keeps lane, attempts and notBefore for diagnostics only"; A1-12; T15; T19: pending is Map<address, entry>; T25 record shapes)', () => {
   const replayJournal = fn('replayJournal');
-  const [A, B2] = [addr('rp-t33-v-a'), addr('rp-t33-v-b')];
-  const id = (n) => idOf(`rp:t33:v:${n}`);
-  const [i1, i2, j1, j2] = [id('i1'), id('i2'), id('j1'), id('j2')];
-  const byKey = (e) => ((e && e.revokes) || []).map(revokeKey);
-  const rvE1 = revoke('e', i1, 2000); // names the older id at A: superseded once i2 is heard there
-  const rvE2 = revoke('e', i2, 2050); // names the id the v line hears: kept (T15)
-  const rvA = revoke('a', A, 2100); // by-a: kept (T15)
-  const rlE1 = revoke('e', i1, 2060);
-  const rlA = revoke('a', A, 2160);
-  const rvB = revoke('e', j1, 2200); // at another address: untouched
-  const rlB = revoke('e', j2, 2300);
-
-  // The journal alone: the live path heard i1, then the revokes, then i2 — and crashed before a compaction.
-  const before = [
-    J.v(i1, A), J.d(A, rvE1), J.d(A, rvE2), J.d(A, rvA),
-    J.r(A, RUN, entryOf({ version: i1, revokes: [rlE1, rlA], look: true })),
-    J.d(B2, rvB), J.r(B2, RUN, entryOf({ revokes: [rlB], look: true })),
-  ];
-  const control = replayed(replayJournal(texts(before), null), 'replayJournal (control: no v line for i2)');
-  sameSet(byKey(control.pending.get(A)), [`e|${i1}`, `e|${i2}`, `a|${A}`], 'control: without the v line, the pending entry at A keeps every revoke');
-  const controlRelook = control.rechecks.find((x) => x.a === A && x.runId === RUN);
-  sameSet(byKey(controlRelook && controlRelook.entry), [`e|${i1}`, `a|${A}`], 'control: without the v line, the re-look at A keeps every revoke');
-
-  const out = replayed(replayJournal(texts([...before, J.v(i2, A)]), null), 'replayJournal (… then v i2 at A)');
-  const e = out.pending.get(A);
-  assert(e && typeof e === 'object', `a pending entry at ${A}, got ${show(e)}`);
-  sameSet(byKey(e), [`e|${i2}`, `a|${A}`], 'the pending entry at A after the v line: the by-e revoke of i1 is gone, the one of i2 and the by-a revoke stay');
-  same(e.revokes.find((p) => revokeKey(p) === `a|${A}`), rvA, 'the by-a revoke kept whole');
-  same(e.version, { id: i2 }, 'the pending entry\'s version is the v line\'s');
-  const relook = out.rechecks.find((x) => x.a === A && x.runId === RUN);
-  assert(relook && relook.entry, `the re-look (A, RUN) is still there, got ${show(out.rechecks)}`);
-  sameSet(byKey(relook.entry), [`a|${A}`], 'the re-look at A after the v line: the by-e revoke of i1 is gone, the by-a revoke stays');
-  eq(relook.entry.look, true, 'the re-look\'s look stays');
-  sameSet(byKey(out.pending.get(B2)), [`e|${j1}`], 'the pending entry at another address keeps its revoke');
-  const relookB = out.rechecks.find((x) => x.a === B2 && x.runId === RUN);
-  sameSet(byKey(relookB && relookB.entry), [`e|${j2}`], 'the re-look at another address keeps its revoke');
-
-  // Entries restored from record.json: a v line after the record discards there too.
-  const record = {
-    version: 1, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 60000),
-    seen: [[i1, A]], heard: [], baseline: [], refusedSeen: [],
-    pending: [{ a: A, entry: entryOf({ version: i1, revokes: [rvE1, rvA] }), lane: 'live', attempts: 1, notBefore: T0 + 5000 }],
-    rechecks: [{ a: A, runId: RUN2, entry: entryOf({ revokes: [rlE1, rlA], look: true }) }],
-    deadSeenAt: {}, parked: [],
-  };
-  const restoredControl = replayed(replayJournal([], record), 'replayJournal (control: the record only)');
-  sameSet(byKey(restoredControl.pending.get(A)), [`e|${i1}`, `a|${A}`], 'control: the restored pending entry keeps every revoke');
-  const fromRecord = replayed(replayJournal(texts([J.v(i2, A)]), record), 'replayJournal (the record, then v i2 at A)');
-  sameSet(byKey(fromRecord.pending.get(A)), [`a|${A}`], 'the restored pending entry at A after the v line: only the by-a revoke');
-  const restoredRelook = fromRecord.rechecks.find((x) => x.a === A && x.runId === RUN2);
-  assert(restoredRelook && restoredRelook.entry, `the restored re-look (A, RUN2) is still there, got ${show(fromRecord.rechecks)}`);
-  sameSet(byKey(restoredRelook.entry), [`a|${A}`], 'the restored re-look at A after the v line: only the by-a revoke');
-});
-
-test('RP77: discardSupersededRevokes(entry, null) keeps every revoke — by-e revokes of several ids and by-a revokes alike — with the version and look, since an empty read keeps them (the gate rule); and a null entry is returned as is, whatever the version (T33 "discardSupersededRevokes(entry, null) keeps every revoke … A null entry is returned as is"; T15; T16)', () => {
-  const discardSupersededRevokes = fn('discardSupersededRevokes');
-  const [v1, v2, v3] = [idOf('rp:t33:dsr:v1'), idOf('rp:t33:dsr:v2'), idOf('rp:t33:dsr:v3')];
-  const A = addr('rp-t33-dsr');
-  const revokes = [revoke('e', v1, 100), revoke('e', v2, 200), revoke('a', A, 300)];
-  cases([
-    { name: 'with a version and look', entry: entryOf({ version: v3, revokes, look: true }) },
-    { name: 'with no version', entry: entryOf({ revokes }) },
-  ], ({ entry }) => {
-    const out = discardSupersededRevokes(JSON.parse(JSON.stringify(entry)), null);
-    assert(out && Array.isArray(out.revokes), `discardSupersededRevokes(entry, null) must return an entry (T15), got ${show(out)}`);
-    sameSet(out.revokes.map(exact), revokes.map(exact), 'every revoke kept, whole');
-    same([out.version, out.look], [entry.version, entry.look], '[version, look]');
-  });
-  cases([
-    { name: 'a null entry, a null version', version: null },
-    { name: 'a null entry, a version id', version: v1 },
-  ], ({ version }) => {
-    let out;
-    try { out = discardSupersededRevokes(null, version); } catch (e) { throw new Error(`discardSupersededRevokes(null, ${show(version)}) threw: ${firstLine(e)}`); }
-    eq(out, null, `discardSupersededRevokes(null, ${show(version)}) returns the null entry as is`);
-  });
-});
-
-test('RP78: replayJournal\'s pending holds entries only — each value is a T15 entry with exactly the keys version, revokes and look — whether restored from record.json\'s rows (which carry a, lane, attempts and notBefore beside the entry: those are for diagnostics only), built by the journal\'s v and d lines, or restored and then changed by lines (T33 "replayJournal\'s pending holds entries only (T15) … record.json keeps lane, attempts and notBefore for diagnostics only"; T15; T19: pending is Map<address, entry>; T25 record shapes)', () => {
-  const replayJournal = fn('replayJournal');
-  const [A, B2, C] = ['a', 'b', 'c'].map((n) => addr(`rp-t33-only-${n}`));
+  const [A, B2, C, P] = ['a', 'b', 'c', 'p'].map((n) => addr(`rp-t33-only-${n}`));
   const id = (n) => idOf(`rp:t33:only:${n}`);
   const rvA = revoke('a', A, 1000);
+  const rvP = revoke('a', P, 1200);
   const record = {
-    version: 1, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 60000),
-    seen: [], heard: [[id('a'), A]], baseline: [], refusedSeen: [],
+    version: 1, epoch: 2, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 60000),
+    seen: [], lineage: [[A, id('a')]], baseline: [], refusedSeen: [],
     pending: [
       { a: A, entry: entryOf({ version: id('a'), revokes: [rvA] }), lane: 'live', attempts: 3, notBefore: T0 + 5000 },
       { a: B2, entry: entryOf({ look: true }), lane: 'relook', attempts: 1, notBefore: T0 + 60000 },
     ],
-    rechecks: [], deadSeenAt: {}, parked: [],
+    rechecks: [], deadSeenAt: {},
+    parked: [{ a: P, code: 'ENOSPC', attempts: 1, nextAt: T0 + 300000, entry: entryOf({ revokes: [rvP] }) }],
   };
   const shapeProblems = (out, want) => {
     const p = [];
@@ -1810,21 +1867,21 @@ test('RP78: replayJournal\'s pending holds entries only — each value is a T15 
   };
   const problems = [];
   const restored = replayed(replayJournal([], record), 'replayJournal (the record only)');
-  problems.push(...shapeProblems(restored, { [A]: entryOf({ version: id('a'), revokes: [rvA] }), [B2]: entryOf({ look: true }) }).map((x) => `[restored] ${x}`));
-  const built = replayed(replayJournal(texts([J.v(id('c'), C), J.d(C, revoke('a', C, 1100))]), null), 'replayJournal (lines only)');
+  problems.push(...shapeProblems(restored, { [A]: entryOf({ version: id('a'), revokes: [rvA] }), [B2]: entryOf({ look: true }), [P]: entryOf({ revokes: [rvP] }) }).map((x) => `[restored] ${x}`));
+  const built = replayed(replayJournal(texts([J.v(id('c'), C, id('c'), []), J.d(C, revoke('a', C, 1100))]), null), 'replayJournal (lines only)');
   problems.push(...shapeProblems(built, { [C]: entryOf({ version: id('c'), revokes: [revoke('a', C, 1100)] }) }).map((x) => `[built by lines] ${x}`));
-  const changed = replayed(replayJournal(texts([J.v(id('b'), B2), J.c(id('a'), A)]), record), 'replayJournal (the record, then lines)');
-  problems.push(...shapeProblems(changed, { [A]: entryOf({ revokes: [rvA] }), [B2]: entryOf({ version: id('b'), look: true }) }).map((x) => `[restored, then changed] ${x}`));
+  const changed = replayed(replayJournal(texts([J.e(2), J.v(id('b'), B2, id('b'), []), J.c(id('a'), A)]), record), 'replayJournal (the record, then lines)');
+  problems.push(...shapeProblems(changed, { [A]: entryOf({ revokes: [rvA] }), [B2]: entryOf({ version: id('b'), look: true }), [P]: entryOf({ revokes: [rvP] }) }).map((x) => `[restored, then changed] ${x}`));
   assert(problems.length === 0, problems.join('\n        '));
 });
 
 // ═══ Found by the mutation pass over the blind reference implementation ═════════════════════════════════════════
-test('RP79: replayJournal keeps the FIRST k time for a run — deadSeenAt[runId] is when the path first saw the run not alive, so a later k line for the same run never moves it: of two k lines the first one\'s at stands, a record.json that already holds the run keeps its time against a later k line, and each run keeps its own first time; so a round that read the graph after the first sighting does not overlap the dead run, whatever later k lines say (ADR 0003 § Coexisting with the pass: "deadSeenAt[runId] is the first time this path saw the run not alive (journal k)", "a round that reads the graph after deadSeenAt cannot be overwritten by it"; T17; T19; T25: deadSeenAt a plain object from runId to milliseconds)', () => {
+test('RP79: replayJournal keeps the FIRST k time for a run — deadSeenAt[runId] is when the path first saw the run not alive, so a later k line for the same run never moves it: of two k lines the first one\'s at stands, a record.json that already holds the run keeps its time against a later k line, and each run keeps its own first time; so a round that read the graph after the first sighting does not overlap the dead run, whatever later k lines say (ADR 0003 § Coexisting with the pass: "deadSeenAt[runId] is the first time this path saw the run not alive (journal k)", "a round that reads the graph after deadSeenAt cannot be overwritten by it"; T17; T19; T25: deadSeenAt a plain object from runId to milliseconds; the record as A1-6 shapes it)', () => {
   const { replayJournal, passOverlaps } = need('replayJournal', 'passOverlaps');
   const twice = replayed(replayJournal(texts([J.k(RUN, T0 + 1000), J.k(RUN, T0 + 2000)]), null), 'replayJournal (two k lines for one run)');
   same(twice.deadSeenAt, { [RUN]: T0 + 1000 }, 'two k lines for one run: deadSeenAt keeps the first line\'s at, never the later one\'s');
-  const record = { version: 1, seen: [], heard: [], baseline: [], refusedSeen: [], pending: [], rechecks: [], deadSeenAt: { [RUN]: T0 + 1500 }, parked: [] };
-  const onRecord = replayed(replayJournal(texts([J.k(RUN, T0 + 3000), J.k(RUN2, T0 + 4000), J.k(RUN2, T0 + 5000)]), record), 'replayJournal (k lines over a record)');
+  const record = { version: 1, epoch: 9, seen: [], lineage: [], baseline: [], refusedSeen: [], pending: [], rechecks: [], deadSeenAt: { [RUN]: T0 + 1500 }, parked: [] };
+  const onRecord = replayed(replayJournal(texts([J.e(9), J.k(RUN, T0 + 3000), J.k(RUN2, T0 + 4000), J.k(RUN2, T0 + 5000)]), record), 'replayJournal (k lines over a record)');
   same(onRecord.deadSeenAt, { [RUN]: T0 + 1500, [RUN2]: T0 + 4000 },
     'the record\'s time stands against a later k line for its run, and a run first seen dead in the journal keeps its first line\'s at');
   // Why the first time (T17): a round whose graph read came after the path first saw the run dead cannot be overwritten
@@ -1832,6 +1889,479 @@ test('RP79: replayJournal keeps the FIRST k time for a run — deadSeenAt[runId]
   const runs = [runEntry(RUN, T0 - 60000, null)];
   same(passOverlaps({ graphReadAt: T0 + 1200, commitAt: T0 + 1300 }, runs, () => false, twice.deadSeenAt), [],
     'passOverlaps over the replayed deadSeenAt: a round that read the graph after the first k (T0 + 1000) but before the second (T0 + 2000)');
+});
+
+// ═══ Amendment A1: the lineage (A1-1, A1-2, A1-7, A1-8; A1-17 T3) ═══════════════════════════════════════════════
+test('RP80: learnVersion(maps, address, id, { under: false }) makes the id its address\'s top, the previous top joining older — the first version learned has no older; a version learned again leaves older as it becomes the top again, so the top never sits in its own older; learning the top again changes nothing — and it returns whether the lineage changed, leaves other addresses alone, and records nothing in S, R or B (A1-17 T3: "learnVersion(maps, address, id, {under}) returns whether the lineage changed"; A1-2: "A delivery makes X the top, and the previous top joins older", "X becomes the top, the previous top joins older, and X leaves older"; A1-1)', () => {
+  const { newMaps, learnVersion } = need('newMaps', 'learnVersion');
+  const m = newMaps();
+  const [A, A2] = [addr('rp-lv'), addr('rp-lv-2')];
+  const [v1, v2, v3, w] = ['v1', 'v2', 'v3', 'w'].map((n) => idOf(`rp:lv:${n}`));
+  eq(learnVersion(m, A, v1, PLACED), true, 'learning a first version changes the lineage');
+  same(lin(m, A), L(v1), 'the first version learned is the top, with no older');
+  eq(learnVersion(m, A, v2, PLACED), true, 'learning a second version changes the lineage');
+  same(lin(m, A), L(v2, [v1]), 'a later version becomes the top; the previous top joins older');
+  learnVersion(m, A, v3, PLACED);
+  same(lin(m, A), L(v3, [v1, v2]), 'a third: the top, both earlier ones older');
+  eq(learnVersion(m, A, v3, PLACED), false, 'learning the top again changes nothing');
+  same(lin(m, A), L(v3, [v1, v2]), 'the lineage after the top is learned again');
+  eq(learnVersion(m, A, v1, PLACED), true, 're-learning an older id (the version stored again) changes the lineage');
+  same(lin(m, A), L(v1, [v2, v3]), 'v1 is the top again: it leaves older, and v3 joins it');
+  learnVersion(m, A2, w, PLACED);
+  same([lin(m, A2), lin(m, A)], [L(w), L(v1, [v2, v3])], 'learning at another address leaves A alone');
+  same([m.S.size, m.R.size, m.B.size], [0, 0, 0], 'learning records nothing in S, R or B (completing is recordId\'s)');
+});
+
+test('RP81: a read placed under a later learning teaches nothing — learnVersion(…, { under: true }) returns false and leaves the lineage exactly as it was, at a known address and at one never learned (it makes no lineage there, so an a target there still resolves nothing), and no graph version joins under it; so a by-e revoke of the later top does not remove a relationship recording a version the path never learned there (it waits for the pass), while the same read placed — nothing learned after its capture — makes its version the top with the graph\'s version in older, and that version\'s revoke removes (A1-2: "If the path learned anything at A after that capture, the read teaches nothing at A: neither X nor the graph\'s version. Their order is unknown"; A1-17 T3 "With under … it teaches nothing"; A1-4; A1-16 decision 2)', () => {
+  const { newMaps, learnVersion, learnOlder, lineageValue, resolveDeletion, mergePrompt, gateAction } = need('newMaps', 'learnVersion', 'learnOlder', 'lineageValue', 'resolveDeletion', 'mergePrompt', 'gateAction');
+  const { decideAddress } = sweep();
+  const A = addr('rp-under');
+  const AF = addr('rp-under-fresh');
+  const G = makeTagging({ d: 'rp-under', id: idOf('rp:under:g'), createdAt: 1000 }); // the graph records G at A
+  const X = idOf('rp:under:x'); // the version the read returned
+  const Y = idOf('rp:under:y'); // delivered after the read's capture
+  const m = newMaps();
+  learnVersion(m, A, Y, PLACED);
+  eq(learnVersion(m, A, X, UNDER), false, 'under: learnVersion returns false');
+  same(lin(m, A), L(Y), 'under: the lineage at A is exactly as before — X is neither the top nor in older (and the caller joins no G under it)');
+  eq(learnVersion(m, AF, X, UNDER), false, 'under, at an address never learned: false');
+  eq(lin(m, AF), null, 'under makes no lineage at an address never learned');
+  const kA = makeDeletion({ author: ALICE, a: [AF], id: idOf('rp:under:k5:a'), createdAt: 3000 });
+  same(resolveDeletion(kA, m, new Set()), { prompts: [], matchedNothing: true, foreign: 0 }, 'so an a target at that address still resolves nothing');
+  const kY = makeDeletion({ author: ALICE, e: [Y], id: idOf('rp:under:k5:y'), createdAt: 3100 });
+  const rY = resolved(resolveDeletion(kY, m, new Set([A])), 'resolveDeletion (Y)');
+  same(rY.prompts.map(promptKey), [`${A}|e|${Y}`], 'the revoke of Y resolves (Y is the top)');
+  const row = storedRowFor(G);
+  const d = decideAddress(row, null);
+  same([d.action, d.reason], ['remove', 'not-on-relay'], 'fixture: an empty read at A plans a not-on-relay removal');
+  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry: mergePrompt(null, rY.prompts[0].prompt), baseline: new Set(), lineage: lineageValue(m, A) }),
+    { act: false, held: 'removal-not-prompted' }, 'under: G was never learned below Y, so the removal waits for the pass (decision 2)');
+  const p = newMaps();
+  eq(learnVersion(p, A, X, PLACED), true, 'placed: X is learned');
+  eq(learnOlder(p, A, G.id), true, 'placed: the graph\'s G joins older');
+  same(lin(p, A), L(X, [G.id]), 'placed: X the top, G in its older');
+  const kX = makeDeletion({ author: ALICE, e: [X], id: idOf('rp:under:k5:x'), createdAt: 3200 });
+  const rX = resolved(resolveDeletion(kX, p, new Set([A])), 'resolveDeletion (X)');
+  same(rX.prompts.map(promptKey), [`${A}|e|${X}`], 'placed: the revoke of X resolves');
+  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry: mergePrompt(null, rX.prompts[0].prompt), baseline: new Set(), lineage: lineageValue(p, A) }),
+    { act: true }, 'control, placed: X\'s revoke removes the relationship recording G (clause ii)');
+});
+
+test('RP82: learnOlder(maps, address, id) joins the graph\'s version to older below the top, returning true, and changes nothing, returning false, when the lineage already holds that id as its top or in older; at an address with no lineage it starts one with no top (a census entry), and a version placed there later becomes the top over it; it never changes the top, and an id it adds resolves no by-e deletion, while the address resolves an a target (A1-17 T3: "learnOlder(maps, address, id) returns whether the lineage changed"; A1-2: "G also joins older"; A1-8: "each (address, eventId) … joins older there, with no top", "Wherever the scan places a version X other than the census\'s id G, G joins older under X"; A1-3)', () => {
+  const { newMaps, learnVersion, learnOlder, resolveDeletion } = need('newMaps', 'learnVersion', 'learnOlder', 'resolveDeletion');
+  const m = newMaps();
+  const [A, AC] = [addr('rp-lo-g'), addr('rp-lo-census')];
+  const [X, G, Y, C, X2] = ['x', 'g', 'y', 'c', 'x2'].map((n) => idOf(`rp:lold:${n}`));
+  learnVersion(m, A, X, PLACED);
+  eq(learnOlder(m, A, G), true, 'the graph\'s G joins older: changed');
+  same(lin(m, A), L(X, [G]), 'X the top, G older');
+  eq(learnOlder(m, A, G), false, 'G again: already in older, unchanged');
+  eq(learnOlder(m, A, X), false, 'the top itself: unchanged (the top never sits in its own older)');
+  same(lin(m, A), L(X, [G]), 'the lineage after the no-op calls');
+  learnVersion(m, A, Y, PLACED);
+  same(lin(m, A), L(Y, [G, X]), 'a later delivery: Y the top; G and X older');
+  eq(learnOlder(m, AC, C), true, 'a census entry at an address with no lineage: changed');
+  same(lin(m, AC), L(null, [C]), 'a census lineage: C older, no top');
+  learnVersion(m, AC, X2, PLACED);
+  same(lin(m, AC), L(X2, [C]), 'the scan places X2 there: X2 the top over C (no null joins older)');
+  const eAt = (target, tag) => resolved(resolveDeletion(makeDeletion({ author: ALICE, e: [target], id: idOf(`rp:lold:k5:${tag}`), createdAt: 5000 }), m, new Set()), `resolveDeletion (${tag})`).prompts.map(promptKey);
+  same([eAt(G, 'g'), eAt(C, 'c'), eAt(X2, 'x2'), eAt(Y, 'y')], [[], [], [`${AC}|e|${X2}`], [`${A}|e|${Y}`]], 'by-e: only the tops resolve, never an id learnOlder added');
+  const census = newMaps();
+  learnOlder(census, AC, C);
+  const kA = makeDeletion({ author: ALICE, a: [AC], id: idOf('rp:lold:k5:a'), createdAt: 5100 });
+  same(resolved(resolveDeletion(kA, census, new Set()), 'resolveDeletion (a)').prompts.map(promptKey), [`${AC}|a|${AC}`], 'a census lineage alone lets an a target resolve there');
+});
+
+test('RP83: older never holds more than 8 ids — learning a ninth drops the oldest-learned, whether it joins as a replaced top or as the graph\'s version; a version learned again leaves older as it becomes the top, and the next versions learned keep dropping the oldest-learned; a dropped id no longer satisfies clause (ii), which only withholds a removal (A1-7: "older never holds more than 8 ids. Learning a ninth drops the oldest-learned. Dropping an id only withholds clause (ii)"; A1-17 T3: "Both respect the cap"; A1-2: "X leaves older"; A1-1)', () => {
+  const { newMaps, learnVersion, learnOlder, lineageValue, gateAction } = need('newMaps', 'learnVersion', 'learnOlder', 'lineageValue', 'gateAction');
+  const { decideAddress } = sweep();
+  const A = addr('rp-cap8');
+  const ev = (n) => makeTagging({ d: 'rp-cap8', id: idOf(`rp:cap8:v${n}`), createdAt: 1000 + n });
+  const v = (n) => ev(n).id;
+  const G = idOf('rp:cap8:g');
+  const m = newMaps();
+  for (let n = 1; n <= 9; n++) learnVersion(m, A, v(n), PLACED);
+  same(lin(m, A), L(v(9), [1, 2, 3, 4, 5, 6, 7, 8].map(v)), 'nine learned: the top and 8 older ids, none dropped yet');
+  learnVersion(m, A, v(10), PLACED);
+  same(lin(m, A), L(v(10), [2, 3, 4, 5, 6, 7, 8, 9].map(v)), 'a tenth: v9 joins older as the ninth id, and the oldest-learned (v1) is dropped');
+  learnVersion(m, A, v(5), PLACED);
+  // Whether v2 survives this step depends on whether v5 leaves older before v10 joins; A1-2 and A1-7 leave that order
+  // open, so only what holds either way is pinned here, and the next step is the same under both.
+  const relearned = lin(m, A);
+  assert(relearned && relearned.top === v(5), `v5 stored again: v5 is the top again, got ${show(relearned)}`);
+  const mustHave = [3, 4, 6, 7, 8, 9, 10].map(v);
+  const mayHave = new Set([...mustHave, v(2)]);
+  assert(relearned.older.length <= 8 && mustHave.every((x) => relearned.older.includes(x)) && relearned.older.every((x) => mayHave.has(x)),
+    `v5 stored again: older holds v3, v4, v6…v10 (v10 joined, v5 left it), perhaps v2, and at most 8 ids; got ${show(relearned.older)}`);
+  learnVersion(m, A, v(11), PLACED);
+  same(lin(m, A), L(v(11), [3, 4, 5, 6, 7, 8, 9, 10].map(v)), 'v11: v5 joins older, and v2, the oldest-learned, is gone (dropped now or at the step before)');
+  eq(learnOlder(m, A, G), true, 'the graph\'s G joins a full older: changed');
+  same(lin(m, A), L(v(11), [4, 5, 6, 7, 8, 9, 10].map(v).concat(G)), 'G joins as the ninth id: the oldest-learned (v3) is dropped');
+  const k11 = entryOf({ revokes: [revoke('e', v(11), 9000)] });
+  const gate = (n) => {
+    const row = storedRowFor(ev(n));
+    return gateAction(decideAddress(row, null), { address: A, storedRow: row, relayVersionId: null, entry: k11, baseline: new Set(), lineage: lineageValue(m, A) });
+  };
+  gateIs(gate(4), { act: true }, 'a relationship recording v4, still in older: v11\'s revoke removes it (clause ii)');
+  gateIs(gate(2), { act: false, held: 'removal-not-prompted' }, 'a relationship recording v2, dropped by the cap: held (the drop only withholds)');
+});
+
+test('RP84: lineageValue(maps, address) gives { top, older: [ids] } — a copy, as record.json and the journal carry it — and lineageAt the same top and older ids; setLineage(maps, address, { top, older }) sets a lineage exactly, replacing rather than merging, a census lineage\'s null top included, and setLineage(maps, address, null) removes it; the top index follows each change, so a by-e deletion resolves at the top setLineage names and nowhere else, and learning continues from the lineage set (A1-17 T3: "lineageAt(maps, address) and lineageValue(maps, address) → {top, older: []}", "setLineage(maps, address, value | null)"; A1-1: "an index maps each top id to its address"; A1-6: v and o lines set L(a) exactly)', () => {
+  const { newMaps, learnVersion, lineageAt, lineageValue, setLineage, resolveDeletion } = need('newMaps', 'learnVersion', 'lineageAt', 'lineageValue', 'setLineage', 'resolveDeletion');
+  const [A, AC, AU] = [addr('rp-lval'), addr('rp-lval-census'), addr('rp-lval-unknown')];
+  const [v1, v2, v3, w, g, x] = ['v1', 'v2', 'v3', 'w', 'g', 'x'].map((n) => idOf(`rp:lval:${n}`));
+  const m = newMaps();
+  for (const id of [v1, v2, v3]) learnVersion(m, A, id, PLACED);
+  const v = lineageValue(m, A);
+  assert(v && v.top === v3 && Array.isArray(v.older), `lineageValue must return { top, older: [ids] } (A1-17), got ${show(v)}`);
+  sameSet(v.older, [v1, v2], 'lineageValue\'s older');
+  v.older.push(idOf('rp:lval:junk'));
+  v.top = idOf('rp:lval:junk');
+  same(lin(m, A), L(v3, [v1, v2]), 'lineageValue returns a copy: changing it changes nothing in the maps');
+  const at = lineageAt(m, A);
+  assert(at && at.top === v3, `lineageAt must give the lineage's top (A1-17), got ${show(at)}`);
+  sameSet(membersOf(at.older, 'lineageAt'), [v1, v2], 'lineageAt\'s older ids');
+  const none = lineageAt(m, AU);
+  assert(none === null || none === undefined || (none.top === null && membersOf(none.older, 'lineageAt').length === 0), `lineageAt at an address with no lineage: none, got ${show(none)}`);
+  eq(lin(m, AU), null, 'lineageValue at an address with no lineage: none');
+  const eAt = (target, tag) => resolved(resolveDeletion(makeDeletion({ author: ALICE, e: [target], id: idOf(`rp:lval:k5:${tag}`), createdAt: 6000 }), m, new Set()), `resolveDeletion (${tag})`).prompts.map(promptKey);
+  const aAt = (target, tag) => resolved(resolveDeletion(makeDeletion({ author: ALICE, a: [target], id: idOf(`rp:lval:k5a:${tag}`), createdAt: 6000 }), m, new Set()), `resolveDeletion (${tag})`).prompts.map(promptKey);
+  setLineage(m, A, { top: w, older: [v1] });
+  same(lin(m, A), L(w, [v1]), 'setLineage sets the lineage exactly (v2 and v3 gone: replaced, not merged)');
+  same([eAt(v3, 'v3'), eAt(w, 'w'), eAt(v1, 'v1')], [[], [`${A}|e|${w}`], []], 'the top index follows: the old top v3 resolves nothing, the new top w resolves, older v1 nothing');
+  setLineage(m, AC, { top: null, older: [g] });
+  same(lin(m, AC), L(null, [g]), 'setLineage with a null top: a census lineage');
+  same([eAt(g, 'g'), aAt(AC, 'ac')], [[], [`${AC}|a|${AC}`]], 'a census lineage: its older id resolves nothing by e, the address resolves by a');
+  learnVersion(m, AC, x, PLACED);
+  same(lin(m, AC), L(x, [g]), 'learning continues from the lineage set');
+  setLineage(m, A, null);
+  eq(lin(m, A), null, 'setLineage(…, null) removes the lineage');
+  same([eAt(w, 'w-gone'), aAt(A, 'a-gone')], [[], []], 'after the removal, the former top resolves nothing, nor does the address (S and the graph know nothing there)');
+});
+
+/** pruneLineage's { droppedAddresses }: a count or a list of addresses — A1-17 leaves which open — compared with the expected addresses. */
+function droppedIs(r, want, label) {
+  assert(r && typeof r === 'object' && 'droppedAddresses' in r, `${label}: pruneLineage must return { droppedAddresses } (A1-17), got ${show(r)}`);
+  const d = r.droppedAddresses;
+  if (Array.isArray(d)) sameSet(d, want, `${label}: droppedAddresses`);
+  else eq(d, want.length, `${label}: droppedAddresses (a count)`);
+}
+
+test('RP85: pruneLineage drops a lineage when its top is not in the stamp scan (a census lineage has none), the graph\'s keys do not hold its address, and no work waits there — and keeps it when its top was scanned, when the graph holds the address, or when work waits there (keep); a dropped address\'s former top resolves no deletion and the address no a target; it returns { droppedAddresses } (A1-7: "A lineage is dropped when all of these hold: its top is not in the stamp scan; the graph\'s keys did not hold its address; no work waits there (pending, in flight, parked or a re-look)"; A1-17: "pruneLineage(maps, {scannedIds, graphKeys, keep, keepOlder, learnedAfter}) → {droppedAddresses}"; T25: scannedIds a Set; graphKeys a Map as T9 passes it; keep a Set of addresses)', () => {
+  const { pruneLineage, resolveDeletion } = need('pruneLineage', 'resolveDeletion');
+  const a = (n) => addr(`rp-prune-${n}`);
+  const id = (n) => idOf(`rp:prune:${n}`);
+  const maps = mapsWith({
+    L: [
+      [a('drop'), id('drop')], // not scanned, graph lacks it, no work: dropped
+      [a('census'), null, [id('census-g')]], // no top, graph lacks it now, no work: dropped
+      [a('scanned'), id('scanned')], // its top is on the relay: kept
+      [a('graph'), id('graph-top')], // the graph holds the address (another id): kept
+      [a('keep'), id('keep')], // work waits there: kept
+    ],
+  });
+  const scannedIds = new Set([id('scanned')]);
+  const graphKeys = new Map([[a('graph'), id('graph-g')]]);
+  const keep = new Set([a('keep')]);
+  const r = pruneLineage(maps, { scannedIds, graphKeys, keep, keepOlder: false, learnedAfter: new Map() });
+  droppedIs(r, [a('drop'), a('census')], 'pruneLineage');
+  same(['drop', 'census', 'scanned', 'graph', 'keep'].map((n) => lin(maps, a(n))), [null, null, L(id('scanned')), L(id('graph-top')), L(id('keep'))],
+    'lineages after the prune: drop and census gone; scanned, graph and keep kept');
+  same(resolveDeletion(makeDeletion({ author: ALICE, e: [id('drop')], a: [a('drop'), a('census')], id: idOf('rp:prune:k5'), createdAt: 7000 }), maps, new Set()), { prompts: [], matchedNothing: true, foreign: 0 },
+    'a dropped top resolves no deletion, and a dropped address no a target');
+});
+
+test('RP86: pruneLineage keeps a lineage where something was learned after the scan\'s capture — an address in learnedAfter — though its top is not in the scan, the graph does not hold it and no work waits there (A1-7: a lineage is dropped only when, besides the other three, "nothing was learned there after the scan\'s capture"; A1-17: pruneLineage takes learnedAfter — this suite passes it as a Map from address to a Set of the ids learned there after the capture)', () => {
+  const pruneLineage = fn('pruneLineage');
+  const A = addr('rp-prune-after');
+  const late = idOf('rp:prune:after:late'); // delivered after the stamp scan's capture: not in the scan
+  const maps = mapsWith({ L: [[A, late]] });
+  pruneLineage(maps, { scannedIds: new Set(), graphKeys: new Map(), keep: new Set(), keepOlder: false, learnedAfter: new Map([[A, new Set([late])]]) });
+  same(lin(maps, A), L(late), 'the lineage of a version learned after the capture is kept');
+});
+
+test('RP87: at every lineage it keeps, pruneLineage cuts older to the id the graph\'s keys recorded there plus the ids learned there after the scan\'s capture — where work waits there too — and never cuts a top (A1-7: "Otherwise its older is cut to the id the graph\'s keys recorded there, plus the ids learned there after the scan\'s capture, whether or not work waits there"; A1-17)', () => {
+  const pruneLineage = fn('pruneLineage');
+  const a = (n) => addr(`rp-cut-${n}`);
+  const id = (n) => idOf(`rp:cut:${n}`);
+  const maps = mapsWith({
+    L: [
+      [a('keep'), id('keep-top'), [id('keep-o1'), id('keep-g'), id('keep-o2'), id('keep-late')]], // work waits; graph keep-g; keep-late learned after
+      [a('scanned'), id('scanned-top'), [id('scanned-o1')]], // top scanned, graph lacks the address: older emptied
+      [a('graph'), id('graph-top'), [id('graph-o1'), id('graph-g')]], // the graph records graph-g: older [graph-g]
+      [a('graphtop'), id('graphtop-g'), [id('graphtop-o1')]], // the graph records the top itself: older emptied
+      [a('late'), id('late-top'), [id('late-o1'), id('late-o2')]], // top scanned; late-o2 learned after the capture: older [late-o2]
+    ],
+  });
+  const scannedIds = new Set([id('scanned-top'), id('late-top')]);
+  const graphKeys = new Map([[a('keep'), id('keep-g')], [a('graph'), id('graph-g')], [a('graphtop'), id('graphtop-g')]]);
+  const keep = new Set([a('keep')]);
+  const learnedAfter = new Map([[a('keep'), new Set([id('keep-late')])], [a('late'), new Set([id('late-o2')])]]);
+  const r = pruneLineage(maps, { scannedIds, graphKeys, keep, keepOlder: false, learnedAfter });
+  droppedIs(r, [], 'pruneLineage (nothing to drop)');
+  cases([
+    { name: 'work waits there: cut to the graph id and the id learned after the capture', a: a('keep'), want: L(id('keep-top'), [id('keep-g'), id('keep-late')]) },
+    { name: 'top scanned, the graph lacks the address: older emptied', a: a('scanned'), want: L(id('scanned-top')) },
+    { name: 'the graph records an older id: only it stays', a: a('graph'), want: L(id('graph-top'), [id('graph-g')]) },
+    { name: 'the graph records the top: older emptied', a: a('graphtop'), want: L(id('graphtop-g')) },
+    { name: 'an older id learned after the capture stays', a: a('late'), want: L(id('late-top'), [id('late-o2')]) },
+  ], ({ a: at, want }) => same(lin(maps, at), want, 'the lineage after the cut'));
+});
+
+test('RP88: while a pass may still write from an older read (keepOlder), pruneLineage drops no lineage and cuts no older — the same maps without it are dropped and cut (A1-7: "The pass exception. While a pass may still write from an older read, no lineage is dropped and older is not cut; only the cap applies"; A1-17: keepOlder)', () => {
+  const pruneLineage = fn('pruneLineage');
+  const a = (n) => addr(`rp-pass-${n}`);
+  const id = (n) => idOf(`rp:pass:${n}`);
+  const rows = [[a('drop'), id('drop'), [id('drop-o1')]], [a('cut'), id('cut-top'), [id('cut-o1'), id('cut-g')]]];
+  const args = (keepOlder) => ({ scannedIds: new Set([id('cut-top')]), graphKeys: new Map([[a('cut'), id('cut-g')]]), keep: new Set(), keepOlder, learnedAfter: new Map() });
+  const held = mapsWith({ L: rows });
+  const r = pruneLineage(held, args(true));
+  droppedIs(r, [], 'pruneLineage (keepOlder)');
+  same([lin(held, a('drop')), lin(held, a('cut'))], [L(id('drop'), [id('drop-o1')]), L(id('cut-top'), [id('cut-o1'), id('cut-g')])], 'keepOlder: every lineage kept whole');
+  const control = mapsWith({ L: rows });
+  droppedIs(pruneLineage(control, args(false)), [a('drop')], 'control: pruneLineage without keepOlder');
+  same([lin(control, a('drop')), lin(control, a('cut'))], [null, L(id('cut-top'), [id('cut-g')])], 'control: without keepOlder, dropped and cut');
+});
+
+test('RP89: an entry keeps at most 8 by-e revokes, the most recently merged — a ninth distinct by-e revoke drops the least recently merged, a by-e revoke merged again with a newer created_at counts as merged now, and by-a revokes, the version and look are kept whatever the count (A1-5: "An entry keeps at most 8 by-e revokes, the most recently merged. Dropping one only withholds a removal"; A1-17 T15; A1-7 Bounds)', () => {
+  const mergePrompt = fn('mergePrompt');
+  const A = addr('rp-cap-e');
+  const t = (n) => idOf(`rp:cap-e:t${n}`);
+  const v = idOf('rp:cap-e:v');
+  const byA = revoke('a', A, 50);
+  let e = mergePrompt(mergePrompt(mergePrompt(null, { type: 'version', id: v }), { type: 'look' }), byA);
+  for (let n = 1; n <= 9; n++) e = mergePrompt(e, revoke('e', t(n), 100 + n));
+  const eTargets = (x) => x.revokes.filter((p) => p.by === 'e').map((p) => p.target);
+  sameSet(eTargets(e), [2, 3, 4, 5, 6, 7, 8, 9].map(t), 'nine by-e revokes merged: the 8 most recently merged are kept (t1 dropped)');
+  same([e.version, e.look, e.revokes.filter((p) => p.by === 'a')], [{ id: v }, true, [byA]], 'the version, look and the by-a revoke are kept');
+  const t2new = revoke('e', t(2), 500);
+  e = mergePrompt(e, t2new);
+  same(e.revokes.filter((p) => p.by === 'e' && p.target === t(2)), [t2new], 'a newer revoke of t2 replaces it whole');
+  e = mergePrompt(e, revoke('e', t(10), 110));
+  sameSet(eTargets(e), [2, 4, 5, 6, 7, 8, 9, 10].map(t), 't10 merged: t3, now the least recently merged, is dropped; t2, merged again just now, stays');
+  same([e.version, e.look, e.revokes.filter((p) => p.by === 'a')], [{ id: v }, true, [byA]], 'the version, look and the by-a revoke still kept');
+});
+
+test('RP90: as versions are learned at an address, a by-e deletion resolves only for the one learned last — each earlier one stops resolving the moment a later one is learned, a version stored again resolves again, a read placed under a later learning changes nothing, and an id S alone records never resolves by e — while an a target resolves wherever a lineage (a census one included), S or the graph\'s keys know the address, and nowhere else; another author naming an older id is not even counted foreign (A1-3: "A kind-5\'s lower-cased e target X resolves only while X is the top of its address\'s lineage"; A1-17 T6: "An e target resolves through the lineage\'s top. An a target resolves through a lineage, S or graphAddresses"; A1-15)', () => {
+  const { newMaps, learnVersion, learnOlder, recordId, resolveDeletion } = need('newMaps', 'learnVersion', 'learnOlder', 'recordId', 'resolveDeletion');
+  const [A, AS, AG, AC, AU] = ['a', 's', 'g', 'c', 'u'].map((n) => addr(`rp-walk-${n}`));
+  const [v1, v2, v3, s, g] = ['v1', 'v2', 'v3', 's', 'g'].map((n) => idOf(`rp:walk:${n}`));
+  const graph = new Set([AG]);
+  const m = newMaps();
+  let k = 0;
+  const run = (o) => resolved(resolveDeletion(makeDeletion({ author: ALICE, id: idOf(`rp:walk:k5:${k++}`), createdAt: 8000, ...o }), m, graph), 'resolveDeletion');
+  const eAt = (target) => run({ e: [target] }).prompts.map(promptKey);
+  learnVersion(m, A, v1, PLACED);
+  same(eAt(v1), [`${A}|e|${v1}`], 'v1 learned: e:v1 resolves');
+  learnVersion(m, A, v2, PLACED);
+  same([eAt(v1), eAt(v2)], [[], [`${A}|e|${v2}`]], 'v2 learned: e:v1 resolves nothing (v2 replaced it), e:v2 resolves');
+  learnVersion(m, A, v1, PLACED);
+  same([eAt(v1), eAt(v2)], [[`${A}|e|${v1}`], []], 'v1 stored again: e:v1 resolves again, e:v2 nothing');
+  learnVersion(m, A, v3, UNDER);
+  same([eAt(v3), eAt(v1)], [[], [`${A}|e|${v1}`]], 'a read of v3 placed under a later learning: nothing changes');
+  recordId(m, 'S', v2, A, 1);
+  same(eAt(v2), [], 'an id S records, but not the top: e:v2 still resolves nothing');
+  recordId(m, 'S', s, AS, 1);
+  learnOlder(m, AC, g);
+  const r = run({ a: [A, AS, AG, AC, AU] });
+  sameSet(r.prompts.map((x) => x.address), [A, AS, AG, AC], 'a targets: a lineage, S, the graph and a census lineage; the unknown address nothing');
+  const bob = (o) => resolved(resolveDeletion(makeDeletion({ author: BOB, id: idOf(`rp:walk:k5:${k++}`), createdAt: 8100, ...o }), m, graph), 'resolveDeletion (Bob)');
+  same([bob({ e: [v2] }).foreign, bob({ e: [v2] }).matchedNothing], [0, true], 'Bob naming Alice\'s older v2: nothing resolves, so nothing is counted foreign');
+  same([bob({ e: [v1] }).foreign, bob({ e: [v1] }).prompts], [1, []], 'Bob naming Alice\'s top v1: foreign 1, no prompt');
+});
+
+test('RP91: gateAction\'s by-e rule — a by-e revoke naming X lets a removal of the relationship recording G act only when (i) X = G, or (ii) X is the top of ctx.lineage and G is in its older; it is held when X is in older or unknown to the lineage, when G was not learned before X, and when ctx.lineage is null or absent (clause i still counts); a relationship whose eventId is missing, not a string or not an id satisfies neither clause, even when that value sits in older; by-a revokes are unchanged; one revoke that holds is enough; a non-tagging removal still acts on a version prompt (A1-4: "(i) X = G; or (ii) X is the top of A\'s lineage, and G is in its older", "A relationship whose eventId is missing or not a string satisfies neither clause", "By-a revokes are unchanged"; A1-16 decision 2: "a relationship whose stored eventId is missing or not an id … revoked by id" waits for the pass; decision 11 accepted; A1-17 T16: ctx.lineage)', () => {
+  const gateAction = fn('gateAction');
+  const { decideAddress } = sweep();
+  const { taggingToEdge } = contract();
+  const G = GV1.id;
+  const X = idOf('rp:gate:ii:x');
+  const Y = idOf('rp:gate:ii:y');
+  hasLetters(G, 'G');
+  const byE = (...targets) => entryOf({ revokes: targets.map((t) => revoke('e', t, 5000)) });
+  const row = storedRowFor(GV1);
+  const rows = [
+    { name: 'clause (i): e:G, lineage null', entry: byE(G), lineage: null, want: { act: true } },
+    { name: 'clause (i): e:G, the lineage\'s top X with G older', entry: byE(G), lineage: { top: X, older: [G] }, want: { act: true } },
+    { name: 'clause (i): e:G, the lineage knowing nothing of G', entry: byE(G), lineage: { top: X, older: [] }, want: { act: true } },
+    { name: 'clause (ii): e:X, X the top, G in older', entry: byE(X), lineage: { top: X, older: [Y, G] }, want: { act: true } },
+    { name: 'e:X, X the top, G not learned before it', entry: byE(X), lineage: { top: X, older: [Y] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'e:X, X in older under the top Y, G older too', entry: byE(X), lineage: { top: Y, older: [X, G] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'e:X, X unknown to the lineage (top Y, G older)', entry: byE(X), lineage: { top: Y, older: [G] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'e:X, lineage null', entry: byE(X), lineage: null, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'e:X, a census lineage (no top, G older)', entry: byE(X), lineage: { top: null, older: [G] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'e:X, no lineage in ctx', entry: byE(X), omitLineage: true, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'a stale e:Y beside a clause (ii) e:X: one revoke that holds is enough', entry: byE(Y, X), lineage: { top: X, older: [Y, G] }, want: { act: true } },
+    { name: 'eventId missing', row: storedRowFor(GV1, { missing: ['eventId'] }), entry: byE(X), lineage: { top: X, older: [G] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'eventId not a string (an integer)', row: storedRowFor(GV1, { set: { eventId: 42 } }), entry: byE(X), lineage: { top: X, older: [G] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'eventId not an id (not hex), and that string in older', row: storedRowFor(GV1, { set: { eventId: 'not-an-id' } }), entry: byE(X), lineage: { top: X, older: ['not-an-id', G] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'eventId not an id (upper-case hex), and that string in older', row: storedRowFor(GV1, { set: { eventId: G.toUpperCase() } }), entry: byE(X), lineage: { top: X, older: [G.toUpperCase(), G] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'by a, newer than the stored version, lineage null (unchanged)', entry: entryOf({ revokes: [revoke('a', GA, 2000)] }), lineage: null, want: { act: true } },
+    { name: 'by a, older than the stored version, X the top with G older (unchanged)', entry: entryOf({ revokes: [revoke('a', GA, 999)] }), lineage: { top: X, older: [G] }, want: { act: false, held: 'removal-not-prompted' } },
+  ];
+  cases(rows, ({ row: r = row, entry, lineage, omitLineage, want }) => {
+    const d = decideAddress(r, null);
+    same([d.action, d.reason], ['remove', 'not-on-relay'], 'fixture: decideAddress plans a not-on-relay removal');
+    const ctx = { address: GA, storedRow: r, relayVersionId: null, entry, baseline: new Set() };
+    if (!omitLineage) ctx.lineage = lineage;
+    gateIs(gateAction(d, ctx), want, 'gateAction');
+  });
+  const nt = makeNonTagging({ address: GA, refusal: 'no-target', id: idOf('rp:gate:ii:nt'), createdAt: 3000 });
+  const dNt = decideAddress(row, taggingToEdge(nt, IDENTITIES));
+  same([dNt.action, dNt.reason], ['remove', 'non-tagging'], 'fixture: decideAddress plans a non-tagging removal');
+  cases([
+    { name: 'non-tagging: e:X failing both clauses, with a version prompt', entry: entryOf({ version: nt.id, revokes: [revoke('e', X, 5000)] }), lineage: { top: Y, older: [X] }, want: { act: true } },
+    { name: 'non-tagging: e:X failing both clauses, no version prompt', entry: byE(X), lineage: { top: Y, older: [X] }, want: { act: false, held: 'removal-not-prompted' } },
+    { name: 'non-tagging: e:X by clause (ii)', entry: byE(X), lineage: { top: X, older: [G] }, want: { act: true } },
+  ], ({ entry, lineage, want }) => gateIs(gateAction(dNt, { address: GA, storedRow: row, relayVersionId: nt.id, entry, baseline: new Set(), lineage }), want, 'gateAction'));
+});
+
+// ═══ Amendment A1: the journal and the record (A1-5, A1-6, A1-12; A1-17 T19, T25) ════════════════════════════════
+test('RP92: every replayed line that changes a lineage is absolute — a v {id, a, top, older} line sets L(a) to exactly its top and older and adds a version prompt for its id, which need not be the top (a first start\'s buffered delivery the scan\'s version outranks); an o {a, top, older} line sets L(a) exactly and prompts nothing, a null top (a census row) included; a later line replaces the lineage, never merges into it; so every prefix of the journal replays to exactly the last line\'s lineage at each address — lines written by journalLine — and the replayed top index resolves the tops alone (A1-6: "Every line that changes a lineage is absolute and self-contained", "v {id, a, top, older} sets L(a) to exactly {top, older}, and adds a version prompt for id. A first start\'s buffered delivery that the scan\'s version outranks is one such line", "An absolute line never splits one change across two lines"; A1-17 T19; A1-1)', () => {
+  const { journalLine, replayJournal, resolveDeletion } = need('journalLine', 'replayJournal', 'resolveDeletion');
+  const [A, B2, C] = [addr('rp-abs-a'), addr('rp-abs-b'), addr('rp-abs-c')];
+  const [X, Y, Z, G, W, Q, Z2] = ['x', 'y', 'z', 'g', 'w', 'q', 'z2'].map((n) => idOf(`rp:abs:${n}`));
+  const lines = [
+    J.v(Y, A, X, [Y]), // a first start: Y buffered, the scan's X outranks it
+    J.o(C, null, [G]), // a census row
+    J.o(B2, Z, []), // a scan's learning
+    J.o(A, X, [Y, G]), // the graph's G joins older under X
+    J.v(W, A, W, [Y, G, X]), // W delivered
+    J.o(C, Q, [G]), // the scan places Q over the census's G
+    J.o(A, W, [G]), // an exact o line: the lineage is set, not merged into (Y and X leave)
+    J.v(Z2, B2, Z2, []), // an exact v line: the lineage is set, not merged into (Z leaves)
+  ];
+  const text = lines.map((o) => {
+    const l = journalLine(o);
+    assert(typeof l === 'string' && l.endsWith('\n'), `journalLine must return one line ending in its newline (T19), got ${show(l)}`);
+    return l.slice(0, -1);
+  });
+  const want = (k, a) => {
+    const last = lines.slice(0, k).filter((o) => o.a === a).pop();
+    return last ? L(last.top, last.older) : null;
+  };
+  cases(Array.from({ length: lines.length + 1 }, (_, k) => ({ name: `the first ${k} line(s)`, k })), ({ k }) => {
+    const out = replayed(replayJournal(text.slice(0, k), null), `replayJournal (prefix ${k})`);
+    same([A, B2, C].map((a) => lin(out.maps, a)), [A, B2, C].map((a) => want(k, a)), 'the lineages at A, B and C: the last line\'s at each');
+    eq(out.skippedLines, 0, 'skippedLines');
+  });
+  const first = replayed(replayJournal(text.slice(0, 1), null), 'replayJournal (the first line)');
+  same([entryFields(first.pending.get(A)), lin(first.maps, A)], [entryOf({ version: Y }), L(X, [Y])], 'the buffered delivery\'s line: a version prompt for Y, and X the top over it');
+  const out = replayed(replayJournal(text, null), 'replayJournal (all lines)');
+  same([entryFields(out.pending.get(A)), entryFields(out.pending.get(B2)), out.pending.has(C)], [entryOf({ version: W }), entryOf({ version: Z2 }), false],
+    'pending: prompts from the v lines only (the latest at A, W; Z2 at B; none at C)');
+  const eAt = (target, tag) => resolved(resolveDeletion(makeDeletion({ author: ALICE, e: [target], id: idOf(`rp:abs:k5:${tag}`), createdAt: 9000 }), out.maps, new Set()), `resolveDeletion (${tag})`).prompts.map(promptKey);
+  same([W, Q, Z2, X, Y, G, Z].map((t, i) => eAt(t, String(i))), [[`${A}|e|${W}`], [`${C}|e|${Q}`], [`${B2}|e|${Z2}`], [], [], [], []], 'after the replay only the tops W, Q and Z2 resolve by e');
+});
+
+test('RP93: replay applies only the record\'s journal generation — the lines after the e {epoch} line matching record.epoch; lines before it, and an older generation\'s lines a failed truncation left behind, are not applied, and with no matching e line none is — so a truncation that failed after a re-baseline cannot replay the older generation over the new record (A1-6: "Every compaction writes record.json with a new epoch, then truncates the journal and starts it with e {epoch}. Replay applies only lines after the e line matching the record\'s epoch"; A1-17 T19: "e {epoch} opens each journal generation, and replay applies only the record\'s generation")', () => {
+  const replayJournal = fn('replayJournal');
+  const [A, B2, C, D] = ['a', 'b', 'c', 'd'].map((n) => addr(`rp-epoch-${n}`));
+  const id = (n) => idOf(`rp:epoch:${n}`);
+  const record = {
+    version: 1, epoch: 3, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 1000),
+    seen: [[id('x'), A]], lineage: [[A, id('x')]], baseline: [id('x')], refusedSeen: [], pending: [], rechecks: [], deadSeenAt: {}, parked: [],
+  };
+  const older = [ // generation 2: already folded into the record, and left behind when truncation failed
+    J.e(2), J.v(id('y'), A, id('y'), [id('x')]), J.d(A, revoke('e', id('y'), 2000)), J.o(B2, id('z'), []), J.f(id('r'), A), J.b(id('x')),
+  ];
+  const current = [J.e(3), J.v(id('w'), C, id('w'), []), J.d(C, revoke('a', C, 2100))];
+  const pendingKeys = (out) => [...out.pending.keys()].sort();
+  const both = replayed(replayJournal(texts([...older, ...current]), record), 'replayJournal (generation 2, then 3)');
+  same([lin(both.maps, A), lin(both.maps, B2), both.maps.R.has(id('r')), both.maps.B.has(id('x'))], [L(id('x')), null, false, true], 'generation 2\'s lines are not applied over the record');
+  same([lin(both.maps, C), pendingKeys(both)], [L(id('w')), [C]], 'generation 3\'s lines are');
+  same(entryFields(both.pending.get(C)), entryOf({ version: id('w'), revokes: [revoke('a', C, 2100)] }), 'the pending entry the record\'s generation built');
+  const stale = replayed(replayJournal(texts(older), record), 'replayJournal (only generation 2: the matching e line never written)');
+  same([lin(stale.maps, A), lin(stale.maps, B2), pendingKeys(stale), stale.maps.B.has(id('x'))], [L(id('x')), null, [], true], 'with no e line matching the record, no line applies');
+  const before = replayed(replayJournal(texts([J.v(id('v'), D, id('v'), []), J.e(3), J.o(B2, id('z'), [])]), record), 'replayJournal (a line before the matching e line)');
+  same([lin(before.maps, D), pendingKeys(before), lin(before.maps, B2)], [null, [], L(id('z'))], 'a line before the matching e line is not applied; the lines after it are');
+});
+
+test('RP94: a v line lacking its top or older — T19\'s old relative form — is skipped and counted and prompts nothing; so is an o line lacking older, with an older that is not an array, or with a top that is neither an id string nor null; the lines around them still apply (A1-6: "Every line that changes a lineage is absolute and self-contained"; A1-17 T19: "v {id, a, top, older} and o {a, top, older} are absolute"; T19: a malformed line is skipped and counted)', () => {
+  const replayJournal = fn('replayJournal');
+  const [A, B2, C] = [addr('rp-rel-a'), addr('rp-rel-b'), addr('rp-rel-c')];
+  const [i1, i2, i3] = [idOf('rp:rel:1'), idOf('rp:rel:2'), idOf('rp:rel:3')];
+  const bad = [
+    { t: 'v', id: i2, a: B2 },
+    { t: 'v', id: i2, a: B2, top: i2 },
+    { t: 'v', id: i2, a: B2, older: [] },
+    { t: 'o', a: B2, top: i2 },
+    { t: 'o', a: B2, top: i2, older: i1 },
+    { t: 'o', a: B2, top: 5, older: [] },
+  ];
+  const out = replayed(replayJournal(texts([J.v(i1, A, i1, []), ...bad, J.v(i3, C, i3, [])]), null), 'replayJournal');
+  eq(out.skippedLines, bad.length, `skippedLines (the ${bad.length} lines that are not absolute)`);
+  same([lin(out.maps, A), lin(out.maps, B2), lin(out.maps, C)], [L(i1), null, L(i3)], 'the lineages: the good lines applied, the bad ones not');
+  same([...out.pending.keys()].sort(), [A, C].sort(), 'pending: no version prompt from a skipped v line');
+});
+
+test('RP95: replay merges each parked row\'s entry into pending at its address — by mergePrompt\'s rules where the record also holds a pending row there — while parked stays Map<address, code>; a later p line changes only the code, and a c line answers only the version prompt, so a parked revoke-gated removal keeps its revokes across a restart (A1-12: "record.json\'s parked rows are {a, code, attempts, nextAt, entry}. Replay merges each row\'s entry into pending at its address. parked stays Map<address, code>, and the p line is unchanged"; A1-5; A1-17 T19, T25)', () => {
+  const replayJournal = fn('replayJournal');
+  const [P, Q] = [addr('rp-park-p'), addr('rp-park-q')];
+  const id = (n) => idOf(`rp:park:${n}`);
+  const [xOld, xNew, y, aQ] = [revoke('e', id('x'), 100), revoke('e', id('x'), 200), revoke('e', id('y'), 150), revoke('a', Q, 300)];
+  const record = {
+    version: 1, epoch: 1, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 1000),
+    seen: [], lineage: [[P, id('v')], [Q, id('q')]], baseline: [], refusedSeen: [],
+    pending: [{ a: P, entry: entryOf({ version: id('v'), revokes: [xOld] }), lane: 'live', attempts: 2, notBefore: T0 + 5000 }],
+    rechecks: [], deadSeenAt: {},
+    parked: [
+      { a: P, code: 'Neo.ClientError.Schema.ConstraintValidationFailed', attempts: 2, nextAt: T0 + 300000, entry: entryOf({ revokes: [xNew, y], look: true }) },
+      { a: Q, code: 'ENOSPC', attempts: 3, nextAt: T0 + 1800000, entry: entryOf({ revokes: [aQ] }) },
+    ],
+  };
+  const pendingOf = (out) => [...out.pending.entries()].reduce((o, [k, v]) => { o[k] = entryFields(v); return o; }, {});
+  const byKey = (e) => [...((e && e.revokes) || [])].sort((m, n) => (revokeKey(m) < revokeKey(n) ? -1 : 1));
+  const restored = replayed(replayJournal([], record), 'replayJournal (the record only)');
+  const p = restored.pending.get(P);
+  assert(p, `a pending entry at P, got ${show(pendingOf(restored))}`);
+  same([p.version, p.look, byKey(p)], [{ id: id('v') }, true, byKey({ revokes: [xNew, y] })], 'P: the pending row and the parked row\'s entry merged — the version, look ORed, per (by, target) the newer revoke');
+  same(entryFields(restored.pending.get(Q)), entryOf({ revokes: [aQ] }), 'Q: the parked row\'s entry, with no pending row');
+  same([...restored.parked.entries()].sort(), [[P, 'Neo.ClientError.Schema.ConstraintValidationFailed'], [Q, 'ENOSPC']].sort(), 'parked: Map<address, code>');
+  const out = replayed(replayJournal(texts([J.e(1), J.p(Q, 'Neo.DatabaseError.General.UnknownError'), J.c(id('v'), P)]), record), 'replayJournal (the record, then p and c lines)');
+  same(out.parked.get(Q), 'Neo.DatabaseError.General.UnknownError', 'a p line changes the code');
+  same(entryFields(out.pending.get(Q)), entryOf({ revokes: [aQ] }), 'Q keeps its prompts after the p line');
+  const p2 = out.pending.get(P);
+  same([p2 && p2.version, p2 && p2.look, byKey(p2)], [null, true, byKey({ revokes: [xNew, y] })], 'P after c: the version answered, the revokes and look kept');
+});
+
+test('RP96: journal replay carries prompts unchanged — a v line at an address discards no revoke: the pending entry and the re-looks there keep every by-e revoke, one naming a version the line\'s top replaced included, whether the journal built them or record.json restored them; the gate, not replay, decides what a stale revoke may do, and it holds this one (A1-5: "Nothing discards a revoke prompt for being stale … Put-backs, re-looks, parked entries, restored work … and journal replay all carry prompts unchanged"; A1-17 T33: "The v-line discard sentences are removed"; RP76, which pinned the discard, is deleted; A1-4)', () => {
+  const { replayJournal, lineageValue, gateAction } = need('replayJournal', 'lineageValue', 'gateAction');
+  const { decideAddress } = sweep();
+  const A = addr('rp-carry');
+  const v2ev = makeTagging({ d: 'rp-carry', id: idOf('rp:carry:i2'), createdAt: 3000 });
+  const [i1, i2] = [idOf('rp:carry:i1'), v2ev.id];
+  const byKey = (e) => ((e && e.revokes) || []).map(revokeKey);
+  const [rvE1, rvA, rlE1, rlA] = [revoke('e', i1, 2000), revoke('a', A, 2100), revoke('e', i1, 2060), revoke('a', A, 2160)];
+  const journal = [
+    J.v(i1, A, i1, []), J.d(A, rvE1), J.d(A, rvA),
+    J.r(A, RUN, entryOf({ version: i1, revokes: [rlE1, rlA], look: true })),
+    J.v(i2, A, i2, [i1]),
+  ];
+  const out = replayed(replayJournal(texts(journal), null), 'replayJournal (… then v i2 at A)');
+  const e = out.pending.get(A);
+  assert(e && typeof e === 'object', `a pending entry at ${A}, got ${show(e)}`);
+  sameSet(byKey(e), [`e|${i1}`, `a|${A}`], 'the pending entry at A after the v line: every revoke kept, e:i1 included');
+  same(e.version, { id: i2 }, 'the pending entry\'s version is the v line\'s');
+  const relook = out.rechecks.find((x) => x.a === A && x.runId === RUN);
+  assert(relook && relook.entry, `the re-look (A, RUN) is still there, got ${show(out.rechecks)}`);
+  sameSet(byKey(relook.entry), [`e|${i1}`, `a|${A}`], 'the re-look at A after the v line: every revoke kept');
+  const record = {
+    version: 1, epoch: 6, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 60000),
+    seen: [[i1, A]], lineage: [[A, i1]], baseline: [], refusedSeen: [],
+    pending: [{ a: A, entry: entryOf({ version: i1, revokes: [rvE1, rvA] }), lane: 'live', attempts: 1, notBefore: T0 + 5000 }],
+    rechecks: [{ a: A, runId: RUN2, entry: entryOf({ revokes: [rlE1, rlA], look: true }) }],
+    deadSeenAt: {}, parked: [],
+  };
+  const fromRecord = replayed(replayJournal(texts([J.e(6), J.v(i2, A, i2, [i1])]), record), 'replayJournal (the record, then v i2 at A)');
+  sameSet(byKey(fromRecord.pending.get(A)), [`e|${i1}`, `a|${A}`], 'the restored pending entry at A after the v line: every revoke kept');
+  const restoredRelook = fromRecord.rechecks.find((x) => x.a === A && x.runId === RUN2);
+  sameSet(byKey(restoredRelook && restoredRelook.entry), [`e|${i1}`, `a|${A}`], 'the restored re-look at A after the v line: every revoke kept');
+  same(lin(fromRecord.maps, A), L(i2, [i1]), 'the lineage the v line set');
+  const row = storedRowFor(v2ev); // the pass recorded i2; then the relay lost it with no event
+  const d = decideAddress(row, null);
+  gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry: fromRecord.pending.get(A), baseline: fromRecord.maps.B, lineage: lineageValue(fromRecord.maps, A) }),
+    { act: false, held: 'removal-not-prompted' }, 'the gate holds the carried e:i1 (i1 is neither the recorded i2 nor the top) and the by-a revoke older than i2');
 });
 
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────

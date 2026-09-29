@@ -1358,7 +1358,8 @@ The suite writers' questions are settled here (T25–T31). They refine T1–T24 
 - **`gateAction`** treats a `null` `ctx.entry` as an empty entry.
 - **`mergePrompt`** keeps, for one `(by, target)`, the revoke with the greatest `created_at` and that revoke's
   `kind5Id`.
-- **`passOverlaps` boundaries are strict:** `startedAt < commitAt`, and `endedAt > graphReadAt`.
+- **`passOverlaps` boundaries are strict:** `startedAt < commitAt`, and `endedAt > graphReadAt`. *(Amended by A1
+  clarification 13: ties at `endedAt` and `deadSeenAt` overlap.)*
 - **`roundOrder`** places an address queued in more than one lane once, at its earliest position.
 - **Record shapes:**
   - `pending: [{ a, entry, lane, attempts, notBefore }]`;
@@ -1775,10 +1776,14 @@ start" (:605-606), which now carry the prompts.)*
   round then starts no more reads and defers the rest.
 - **Everything else.** Every other failure is bisected in the round, as now.
 
-So an address whose scans never answer delays the addresses read with it by two time-outs plus a round when other
-reads in its first round answered, and by three when its group was that round's only read: about 41 s locally, 61 s
-at 100 ms per strfry process and 100 s at 300 ms (decision 9). However many such addresses there are, each round
-spends at most one single time-out on them, and each is parked after three.
+So an address whose scans never answer delays the addresses read with it:
+- by two time-outs plus a round when another read in its first round answered first: about 41 s locally, 61 s at
+  100 ms per strfry process, 100 s at 300 ms;
+- by three when its group was that round's only read: about 61 s locally, 80 s at 100 ms, 120 s at 300 ms and 320 s
+  at 1.3 s (decision 9).
+
+However many such addresses there are, each round spends at most one single time-out on them, and each is parked after
+three. *(Figures per case: A1 clarification 11.)*
 
 *(Supersedes: § Failure handling, "That scan's addresses are deferred and bisected, so the others proceed" (:585), for
 time-outs; review round 1's stall guard.)*
@@ -1879,10 +1884,10 @@ These wait for the pass:
   scan above 20 s.
 - **Live work waits for a catch-up's reads** (A1-11): normally under a second, and at the scale ceiling about the
   stamp scan's duration, at every safety diff.
-- **A never-answering address** delays the addresses read with it by two time-outs plus a round (three when its
-  group was its round's only read): about 41 s locally, 61 s at 100 ms per strfry process, 100 s at 300 ms and about
-  300 s at the pessimistic 1.3 s. Each round spends at most one single time-out on such addresses, and each is parked
-  after three (A1-13).
+- **A never-answering address** delays the addresses read with it by two time-outs plus a round (about 41 s locally,
+  61 s at 100 ms per strfry process, 100 s at 300 ms), or by three when its group was its round's only read (about
+  61 s, 80 s, 120 s, and 320 s at the pessimistic 1.3 s). Each round spends at most one single time-out on such
+  addresses, and each is parked after three (A1-13).
 - **Journal cadence.** Under a flood at one address the journal grows by up to about 0.8 KB per version, and a
   round-end compaction runs once it passes the larger of 1 MB and a quarter of the record (A1-6).
 - **A catch-up heavier than the share** waits for rounds whose live and re-look reads leave room (A1-14).
@@ -2141,6 +2146,97 @@ and are not durable; the rules above are the record.
   - a crash inside the flush interval followed by a reconnect gap (decision 5's second corner);
   - a lost journal plus a silent departure at an address a restored lineage held (the widened lost-record corner).
 - **Throughout:** no schema change, no strfry change, and no write outside `graph.js`'s port.
+
+### A1 clarifications (Test Design, 2026-09-29)
+
+The A1 suites pin these readings of A1 where its text left a choice. A scratch reference realisation of A1 and a
+mutation pass raised them. Items 11, 12 and 13 are behaviour choices; the rest are readings. The owner ratified all nineteen at the
+Test Design gate on 2026-09-29.
+
+1. **Interfaces.**
+   - `lineageAt(maps, address)` returns the live lineage or `null`; its `older` may be a Set or `null`.
+   - `lineageValue(maps, address)` returns a copy, `{top, older: [ids in learn order]}`.
+   - `learnVersion`'s options may be omitted (`under` false).
+   - `pruneLineage(maps, {scannedIds: Set, graphKeys: Map<address, eventId>, keep: Set<address>, keepOlder: boolean,
+     learnedAfter: Map<address, Set<id>>})` → `{droppedAddresses}`, a count or a list.
+   - `learnedAfter` also guards a drop (A1-7's fourth condition), whether or not the engine adds those addresses to
+     `keep` too.
+2. **The cap's order.** A re-learned id leaves `older` before the previous top joins it. So re-learning never drops an
+   id to make room for one that is leaving.
+3. **A malformed stored `eventId`** (missing, not a string, or not 64 lower-case hex characters) satisfies neither gate
+   clause. Decision 2's "not an id" governs A1-4's "not a string".
+4. **The epoch.**
+   - Any value, compared by equality. The reference used `max(now, last epoch + 1)`, so a new epoch is never one
+     already in the file.
+   - Each generation's first line is its `e` line. It may wait in the buffer until the next flush.
+   - With a record epoch and no matching `e` line, no journal line applies.
+   - Other generations' lines are not counted in `skippedLines`.
+   - A record without an epoch (none at all, or one written before A1) applies every line.
+5. **Journal lines.** An `o` line adds no prompt. A `v` line lacking `top` or `older`, and an `o` line with a malformed
+   `top` or `older`, are skipped and counted.
+6. **"Most recently merged"** (A1-5). Recency is the order in which the path received each `(by, target)` revoke. It is
+   refreshed when one with a newer `created_at` arrives for the same pair. A put-back never makes a round's revokes more
+   recent than a fresh item's.
+7. **A catch-up's work order.** Arrivals come first, then look-only prompts, then found revokes.
+8. **The census deadline** is an upper bound: an engine may give up sooner. "A late answer is ignored" cannot be seen
+   through the fakes, because the start's own catch-up re-learns the same ids at once.
+9. **Status.**
+   - The status written at a stop says `subscription.connected: false` (A1-18's settlement, pinned).
+   - `heard` counts addresses, not ids.
+   - The first start's catch-up (A1-10) brings a relationship the backfill left behind the relay up to the relay's
+     version within the minute.
+10. **The share** (A1-14).
+    - Each share scan's `maxBytes` is at most the share's remainder. Equal is the intended value; the suites pin "at
+      most".
+    - "Has read nothing yet" means no share scan has answered this round. A scan that answered with 0 bytes counts as
+      read.
+    - A share whose remainder reaches 0 ends, and its rest goes to lane 4. It is not deferred to the next round.
+11. **Time-outs** (A1-13).
+    - **The stall-or-slow test** counts only answers received before the group's own time-out.
+    - **Regroups** are read after their lane's usual groups. "First re-reads" means before marking, not first in the
+      round, since two regroups read first would trip the guard every round.
+    - **A guard trip caused by first-time groups** marks nothing: it is a stall. Regroups that trip it are marked.
+    - **An element group's time-out** always marks.
+    - **"No further single after one single time-out in a round"** counts any one-address or one-id scan that times
+      out.
+    - **Marked singles** are read in ascending order of their own consecutive time-outs, so newly marked co-members
+      go before a repeatedly slow single. Ties go by queue order.
+    - **The bounds are per case,** as A1-13 and decision 9 now state.
+    - **After a Redis stall,** taggings stored during it are reflected within 60 s plus a round of the relay answering
+      in full (§ Failure handling).
+    - **A known limit, for decision 9.** A1-13 cannot tell a Redis stall from a new never-answering address landing in
+      every round's usual group. Then the guard trips every round: measured with a fresh never-answering address
+      every 40 s, 21 of 300 other taggings were reflected in 15 minutes. It needs an address whose scans never answer,
+      which no known strfry behaviour produces for one address.
+12. **Time-out parks.**
+    - They are not counted in `dbRefused`. Each single time-out counts in `failedReads.relay`, and the park shows in
+      `parked`.
+    - A catch-up does not lift a time-out park. Its arrivals, looks and found revokes at the address merge into the
+      parked entry, and wait for the park's timer (5 min, 30 min, then every 6 h), a start, or a live delivery of a
+      new version at the address.
+    - A live delivery of a new version, while the round that parks the address holds it, lifts the park at once. The
+      fresh item keeps the read-alone mark and the park's level.
+    - A refused write's "retried at once after the next successful write" does not apply to time-out parks.
+13. **Pass-overlap ties overlap.** `endedAt >= graphReadAt` and `graphReadAt <= deadSeenAt`; `startedAt < commitAt`
+    stays strict. A same-millisecond tie costs one re-look; missing it could leave a relationship the pass wrote from
+    an older read. *(Amends T25's "passOverlaps boundaries are strict"; RP53 is re-aimed.)*
+14. **Flush, then compact.** A round's journal lines reach the journal before a round-end compaction snapshots.
+15. **The pass rule for A1-7** is judged from the latest report read: the one taken with the catch-up's key read, and
+    any later round-end or re-look read. A run that ends after the last read before the compaction is missed, which
+    only withholds clause (ii).
+16. **The corners, as the property suite's classifier reads them.**
+    - Decision 5's first corner includes a notice cut off by a dropped connection, the relay going down, or a SIGTERM.
+    - Its second corner combines with the first: a crash in the flush interval, followed by a reconnect gap.
+    - The widened lost-record corner applies where the re-baseline's scan found nothing at the address.
+    - Decision 2's upper-case case is judged when a first start's buffered deletion is drained.
+17. **The property suite** is registered in the default gate for its fast part: the fixtures plus a few seeds per mode,
+    about 8 s. The full fixed campaign runs with `TAGGING_EDGES_PROPERTY=1`. *(Refines A1-20's "outside the default
+    gate".)*
+18. **Decision 11's shape (a)** is indistinguishable, to the path, from clause (ii)'s quick undo. Its test documents the
+    accepted behaviour, and could not be inverted on its own if decision 11 were ever declined.
+19. **`record.json`'s streamed write** repeats `state.writeAtomic`'s steps (temporary file, fsync, rename, directory
+    fsync) row by row. The start reads it as a stream and hashes it as it goes; the parsed record may be held whole. The
+    whole path's measured ceiling stays the Implementer's Evidence item (decision 9).
 
 ## Out of scope
 

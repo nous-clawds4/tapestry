@@ -39,6 +39,16 @@
  * the 2 s stop grace, the journal flushes, parking's "same code", lost races and seen / heard. RE71 is the one test
  * that makes simulated time pass inside a round (the fakes' opt-in latencyMs).
  *
+ * Amendment A1 (ADR 0003 § Amendment A1, owner-accepted 2026-09-29 with decision 11; A1-20 "The engine suite") re-aims
+ * RE7 (A1-8: the census is a first start's only graph contact before started.json, and its own 10 s deadline, through
+ * the fakes' graph.readDelay), RE8 (A1-10: the first start's own catch-up brings a relationship the backfill left
+ * behind up to the relay's version), RE38 (A1-18: the final status's subscription is not connected), RE54 and RE67 (A1-14:
+ * the catch-up share's scans run under what is left of its fifth), RE58 (A1-6: its hand-written journal line takes the
+ * absolute v shape) and RE79 (A1-1: heard counts addresses), and retitles RE18 and RE19 (A1-3, A1-4, A1-5: H and
+ * discardSupersededRevokes are gone). A1-20's new scenarios live in their own suites, not here. RE80 comes from the
+ * validating Tester's mutation pass over the A1 reference: A1-14 bounds the share's element reads as well as its
+ * address scans, which RE67's by-address arrivals never exercise.
+ *
  * Bounded memory (RE58) runs this same file in a CHILD Node process with --max-old-space-size=160
  * (`node test/tagging-edges-realtime-engine.test.js --re58-child <scenario>`), over lean fakes; it prints one
  * `RE58-RESULT {json}` line. The test is counted skipped, with a note, only when a node process cannot be spawned.
@@ -482,25 +492,50 @@ test('RE6: a tagging stored after the subscription opened — before the baselin
   });
 });
 
-test('RE7: a first start takes its baseline while the graph is unavailable, and touches the graph not at all before started.json is written (ADR § First start step 1: "a Neo4j outage cannot delay the baseline"; AC-4)', async () => {
-  const w = newWorld();
-  w.graph.down = true;
-  put(w, tg('re7-p'));
-  const proc = w.spawn();
-  await H.startEngine(proc);
-  await within(proc, 30 * SEC, () => !!w.store.started, 'the first start writes started.json while every graph call fails', 50);
-  const early = w.graph.calls.filter((x) => x.seq < w.store.startedSeq);
-  assert(early.length === 0, `no graph contact and no schema check before the baseline (ADR § First start step 1); calls before started.json: ${show(early.map((x) => x.op))}`);
+test('RE7: a first start\'s only graph contact before started.json is the census — one key read, with no retry and no schema check, before the REQ — and the census holds the REQ at most 10 s: with the graph unavailable, with that key read never answering (the engine\'s own deadline) or answering only after 15 s (a late answer is ignored: still one REQ), the baseline and started.json follow, and a tagging stored after the start is created within 60 s (A1-8 "one readKeys call, with no retry", "a 10 s deadline the engine enforces itself: a late answer is ignored", "A census that fails or is late records nothing, and the start proceeds"; A1-10 step 1; A1-17 T20, T29; AC-4)', async () => {
+  await cases([
+    { name: 'the graph unavailable (every port call fails at once)', down: true },
+    { name: 'the census\'s key read never answers (a hung connection)', delay: Infinity },
+    { name: 'the census\'s key read answers after 15 s (late)', delay: 15 * SEC },
+  ], async (c) => {
+    const w = newWorld();
+    if (c.down) w.graph.down = true;
+    // nth 1 of readKeys in this process is the census (the fakes' readDelay: A1-8's hung or late census).
+    if (c.delay) w.graph.readDelay = (op, { nth }) => (op === 'readKeys' && nth === 1 ? c.delay : null);
+    put(w, tg('re7-p'));
+    const proc = w.spawn();
+    await H.startEngine(proc);
+    await within(proc, 30 * SEC, () => !!w.store.started, 'the first start writes started.json (A1-8: the start proceeds)', 50);
+    const early = w.graph.calls.filter((x) => x.seq < w.store.startedSeq);
+    same(early.map((x) => x.op), ['readKeys'], 'graph port calls before started.json: only the census\'s one key read, with no retry and no schema check (A1-8; A1-10 step 1)');
+    const census = early[0];
+    const sub = w.relay.subCalls[0];
+    assert(sub && census.seq < sub.seq, `the census comes before the REQ (A1-8: "reads the graph's keys once, before its REQ"); census at seq ${census.seq}, REQ ${sub ? `at seq ${sub.seq}` : 'never made'}`);
+    assert(sub.at - census.at <= 10 * SEC + 500, `the census holds the REQ at most 10 s (A1-8: "a 10 s deadline the engine enforces itself"; 0.5 s allowed for the tick); the REQ came ${sub.at - census.at} ms after the census's key read`);
+    w.graph.down = false;
+    await drive(proc, 10 * SEC, 250); // past a late census's answer (15 s after its key read)
+    eq(w.relay.subCalls.length, 1, `subscribe calls at the first start (A1-8: a late census answer is ignored, so it opens no second REQ)\n        ${diag(proc)}`);
+    const N = tg('re7-n', { createdAt: NOW_S + 60 });
+    put(w, N);
+    await within(proc, MIN, () => reflects(w, N), 'the start proceeded: a tagging stored after it is created within 60 s');
+  });
 });
 
-test('RE8: a deletion that prompts a look at pre-existing addresses creates nothing where the graph holds nothing (the backfill owns it), and brings a relationship the graph holds at an older version up to the relay\'s (AC-4: "never creates … even when a deletion … leads the path to read its address" and "a relationship the graph already holds … still follows the relay\'s version"; ADR gateAction; T16)', async () => {
+test('RE8: the first start\'s catch-up brings a relationship the backfill left behind the relay up to the relay\'s version within 60 s, and creates nothing where the graph holds nothing (the backfill owns it); a deletion that later prompts a look at those pre-existing addresses still creates nothing there, and brings a relationship the graph holds at an older version up to the relay\'s again (AC-4: "never creates … even when a deletion … leads the path to read its address" and "a relationship the graph already holds … still follows the relay\'s version"; A1-10 "Its look-only prompts bring a relationship the backfill left behind the relay up to the relay\'s version within seconds, instead of at the first safety diff"; ADR gateAction; T16)', async () => {
   const w = newWorld();
   const P4 = tg('re8-p4', { createdAt: NOW_S - 500 });
   const P5old = tg('re8-p5', { id: idOf('re8:p5:old'), createdAt: NOW_S - 900, polarity: '1' });
   const P5 = version(P5old, 're8:p5:new', { createdAt: NOW_S - 500, polarity: '-1' });
   put(w, P4, P5); // the relay holds P4 and P5 since before the first start
   backfill(w, P5old); // the graph is behind at P5's address, and lacks P4's
-  const proc = await boot(w);
+  const proc = w.spawn();
+  await H.startEngine(proc);
+  await within(proc, MIN, () => !!w.store.started && reflects(w, P5),
+    'the first start, then its catch-up (A1-10 step 4: trigger start), bring the relationship at P5\'s address up to the relay\'s version within 60 s of the start, with no deletion or safety diff', 100);
+  assert(absent(w, addr(P4)), `the first start's catch-up must not create the pre-existing ${addr(P4)} (AC-4; A1-10 "no catch-up creates a version in B")`);
+  // Another writer (a backfill re-run from an older read) puts the older version back: the graph is behind again.
+  backfill(w, P5old);
+  assert(reflects(w, P5old), 'fixture: the graph records the older version at P5\'s address again');
   // Alice's address deletion is older than both versions: the relay removes neither, but it names both addresses.
   put(w, del('re8-look', { a: [addr(P4), addr(P5)], createdAt: NOW_S - 700 }));
   assert(w.relay.holds(P4.id) && w.relay.holds(P5.id), 'fixture: the older address deletion removes nothing on the relay');
@@ -603,7 +638,7 @@ test('RE13: a burst of 10,000 changes stored at once — 9,000 new taggings from
   assert(wrong.length === 0, `${wrong.length} of the 9,000 are missing or wrong, e.g. ${preview(wrong.slice(0, 3).map(addr))}`);
 });
 
-test('RE54: a round keeps at most 16 MiB of events — facing 500 taggings of about 130 KB each at once, no round reads them all: every round\'s successful address and element reads stay within the 16 MiB budget plus one 8 MiB scan, every round scan passes maxBytes 8 MiB, and all 500 are still reflected within 5 minutes of the burst (AC-1 "bursts"; AC-3 bounded; ADR § What it decides "Bounds"; T2 LIMITS roundKeptBytes, roundScanMaxBytes)', async () => {
+test('RE54: a round keeps at most 16 MiB of events — facing 500 taggings of about 130 KB each at once, no round reads them all: every round\'s successful address and element reads stay within the 16 MiB budget plus one 8 MiB scan, every round scan — all live ones, as no catch-up runs meanwhile — passes maxBytes 8 MiB, and all 500 are still reflected within 5 minutes of the burst (AC-1 "bursts"; AC-3 bounded; ADR § What it decides "Bounds"; T2 LIMITS roundKeptBytes, roundScanMaxBytes; A1-14: a catch-up share\'s scans run under what is left of its fifth instead)', async () => {
   const w = newWorld({ lean: true });
   w.graph.keepRows = false;
   const proc = await boot(w);
@@ -624,7 +659,8 @@ test('RE54: a round keeps at most 16 MiB of events — facing 500 taggings of ab
   assert(worst <= H.ROUND_KEPT_BYTES + H.ROUND_SCAN_MAX_BYTES, `a round read ${(worst / MiB).toFixed(1)} MiB of events; the kept budget is 16 MiB, and once it is reached the round adds no more addresses (so at most one 8 MiB scan past it)`);
   const reading = perRound.filter((n) => n > 0).length;
   assert(reading >= 3, `the 500 taggings (about ${Math.round((500 * PAD_130K.length) / MiB)} MiB) were read in ${reading} round(s); a 16 MiB budget needs at least 3`);
-  same([...new Set(roundScans.map((x) => x.maxBytes))], [H.ROUND_SCAN_MAX_BYTES], 'maxBytes passed on every round scan (T2 LIMITS.roundScanMaxBytes: 8 MiB)');
+  eq(callsAfter(w, 'readKeys', mark).length, 0, 'fixture: catch-ups begun during the burst (every catch-up begins with readKeys); none is due, so every round scan is a live one');
+  same([...new Set(roundScans.map((x) => x.maxBytes))], [H.ROUND_SCAN_MAX_BYTES], 'maxBytes passed on every live round scan (T2 LIMITS.roundScanMaxBytes: 8 MiB)');
 });
 
 test('RE66: the element read stays within the round\'s kept budget — 60 taggings naming their tag only by id, whose tag elements are about 500 KB each (30 MiB in all), stored at once: no round reads more than the 16 MiB budget plus one 8 MiB scan of address and element events, the id-only addresses past the budget wait for later rounds, and all 60 are written resolved within 2 minutes (AC-1 "bursts", "a tag named only by id"; AC-3 bounded; ADR § What it decides "Bounds": "a round\'s kept events, the element read\'s included", "its remaining id-only addresses are deferred to the next round", step 3 "within the kept budget")', async () => {
@@ -737,7 +773,7 @@ test('RE17: a kind-5 that is no tagging revoke — an unpin, a curated-list copy
   assert((num(st, 'counts.deletionsMatchedNothing') || 0) >= 4, `counts.deletionsMatchedNothing counts each of the four (AC-6 "deletions that matched no relationship"); got ${show(at(st, 'counts.deletionsMatchedNothing'))}`);
 });
 
-test('RE18: a revoke by id of the older version, arriving with a newer version, removes nothing: the relationship follows the relay\'s version (AC-2 "the relay decides"; ADR discardSupersededRevokes; T15)', async () => {
+test('RE18: a revoke by id of the older version, arriving with a newer version, removes nothing: the newer version is its address\'s top when the kind-5 is drained, so the kind-5 resolves nothing, and the relationship follows the relay\'s version (AC-2 "the relay decides"; A1-3 "resolves only while X is the top of its address\'s lineage"; A1-5: no discard, a stale by-e prompt is inert)', async () => {
   const w = newWorld();
   const V1 = tg('re18-v');
   put(w, V1);
@@ -752,7 +788,7 @@ test('RE18: a revoke by id of the older version, arriving with a newer version, 
   eq(removes.length, 0, 'removal calls at the address');
 });
 
-test('RE19: a version heard but not yet written, then revoked by id at once, is removed within 60 s — the revoke resolves through the heard map (AC-2; ADR D5-A "e targets through S ∪ H")', async () => {
+test('RE19: a version heard but not yet written, then revoked by id at once, is removed within 60 s — the kind-5 names its address\'s top, and the relationship records the version learned there before it (AC-2 as amended by owner decision 2; A1-3; A1-4 clause (ii), owner decision 11)', async () => {
   const w = newWorld();
   const proc = await boot(w);
   const V1 = tg('re19-v', { createdAt: NOW_S });
@@ -1168,7 +1204,7 @@ test('RE30: a bad identity after the first start waits and writes nothing; after
   await within(p3, 5 * MIN, () => reflects(w, X), 'the tagging stored meanwhile is created within 5 minutes of the corrected start', 250);
 });
 
-test('RE58: memory stays bounded — in a child Node process capped at --max-old-space-size=160, over lean fakes: (a) 200 stamped taggings of about 130 KB in one burst are all reflected; (b) one author\'s 200 multi-d events of about 130 KB that all name one address are reflected at their own addresses, while the flooded address\'s read passes 8 MiB, fails and changes nothing; (c) a journal holding 300 lines as long as a max-size kind-5 is replayed — each skipped and counted — and a version-heard line after them still drives its removal; each without running out of memory (AC-3; ADR § What it decides "Bounds", § Knowing what changed "Journal rules"; owner decision 9)', async () => {
+test('RE58: memory stays bounded — in a child Node process capped at --max-old-space-size=160, over lean fakes: (a) 200 stamped taggings of about 130 KB in one burst are all reflected; (b) one author\'s 200 multi-d events of about 130 KB that all name one address are reflected at their own addresses, while the flooded address\'s read passes 8 MiB, fails and changes nothing; (c) a journal holding 300 lines as long as a max-size kind-5 is replayed — each skipped and counted — and an absolute version-heard line after them (A1-6: v {id, a, top, older}) still drives its removal; each without running out of memory (AC-3; ADR § What it decides "Bounds", § Knowing what changed "Journal rules"; A1-6 "Replay applies each line as it is read and never buffers the journal"; owner decision 9)', async () => {
   const probe = childProcess.spawnSync(process.execPath, ['-e', 'process.stdout.write("ok")'], { encoding: 'utf8', timeout: 30000 });
   if (probe.error || probe.stdout !== 'ok') {
     skip(`a node child process cannot be spawned here (${probe.error ? probe.error.code || firstLine(probe.error) : `status ${probe.status}`}), so the ${CHILD_HEAP_MB} MB heap runs are not possible`);
@@ -1487,7 +1523,7 @@ test('RE55: under a sustained live stream that alone fills every round — new v
   });
 });
 
-test('RE67: a catch-up\'s reserved share is bounded by bytes as well as by addresses — with 150 arrivals and 50 live versions of about 130 KB each after a restart, no round reads more than one fifth of the kept budget (3.2 MiB), plus one 8 MiB scan, of catch-up addresses before its first live address; all 200 are reflected within 5 minutes (AC-1; AC-4; ADR § What it hears "Lanes and rounds": the catch-up\'s share is "up to 100 addresses and up to one fifth of the round\'s kept budget (3.2 MiB), read before any live or re-look address"; T18 "The kept-bytes share is the engine\'s")', async () => {
+test('RE67: a catch-up\'s reserved share is bounded by bytes as well as by addresses — with 150 arrivals and 50 live versions of about 130 KB each after a restart, no round keeps more than one fifth of the kept budget (3.2 MiB) of catch-up addresses before its first live address, each of those share scans passing maxBytes no more than what is left of that fifth; all 200 are reflected within 5 minutes (AC-1; AC-4; A1-14 "The share\'s scans run with maxBytes equal to what is left of its fifth of the round\'s kept budget (3.2 MiB) … So the share never keeps more than its fifth"; ADR § What it hears "Lanes and rounds": the share is "read before any live or re-look address"; T18 "The kept-bytes share is the engine\'s")', async () => {
   const w = newWorld({ lean: true });
   w.graph.keepRows = false;
   const p1 = await boot(w);
@@ -1501,21 +1537,79 @@ test('RE67: a catch-up\'s reserved share is bounded by bytes as well as by addre
   const liveAddr = new Set(LIVE.map(addr));
   const mark = w.nextSeq();
   await withinAll(p2, 5 * MIN, () => ARR.concat(LIVE).filter((ev) => !holdsId(w, ev)).map(addr), 'all 200 are reflected within 5 minutes of the start', 500);
-  // Per round (graph read to graph read): the successful address scans before the first scan naming a live address.
+  // Per round (graph read to graph read): the address and element scans before the first scan naming a live address are
+  // the catch-up's share (no pass runs, so there are no re-looks; nothing times out, so there are no marked singles).
+  const FIFTH = H.ROUND_KEPT_BYTES / 5;
   const reads = w.graph.calls.filter((x) => x.seq > mark && x.op === 'readAt').map((x) => x.seq);
   const namesLive = (s) => (Array.isArray(s.filter) ? s.filter : [s.filter])
     .some((f) => f && Array.isArray(f.authors) && Array.isArray(f['#d']) && f.authors.some((a) => f['#d'].some((d) => liveAddr.has(`39999:${String(a).toLowerCase()}:${d}`))));
   const before = [];
+  const overCap = [];
   reads.forEach((from, i) => {
     const to = i + 1 < reads.length ? reads[i + 1] : Infinity;
-    const scans = w.relay.scans.filter((x) => x.seq > from && x.seq < to && x.kind === 'address');
-    const firstLive = scans.findIndex(namesLive);
+    const scans = w.relay.scans.filter((x) => x.seq > from && x.seq < to && (x.kind === 'address' || x.kind === 'element'));
+    const firstLive = scans.findIndex((s) => s.kind === 'address' && namesLive(s));
     if (firstLive < 0) return; // a round with no live address: no share to bound
-    before.push(scans.slice(0, firstLive).filter((x) => x.outcome === 'ok').reduce((n, x) => n + x.bytes, 0));
+    let kept = 0;
+    for (const s of scans.slice(0, firstLive)) {
+      if (!(typeof s.maxBytes === 'number' && s.maxBytes <= FIFTH - kept)) {
+        overCap.push(`a share ${s.kind} scan (${H.scanAddresses(s.filter).length} address(es), ${H.scanIds(s.filter).length} id(s)) passed maxBytes ${show(s.maxBytes)} with ${kept} bytes of the share already kept`);
+      }
+      if (s.outcome === 'ok') kept += s.bytes;
+    }
+    before.push(kept);
   });
-  assert(before.some((n) => n > 0), `fixture: a round read catch-up addresses before its live ones (bytes before the first live address, per round that read one: ${show(before)})`);
+  assert(before.some((n) => n > 0), `fixture: a round read catch-up addresses before its live ones (bytes kept before the first live address, per round that read one: ${show(before)})`);
+  assert(overCap.length === 0, `A1-14: "The share's scans run with maxBytes equal to what is left of its fifth" (${FIFTH} bytes less what the share kept): ${preview(overCap)}`);
   const worst = Math.max(...before);
-  assert(worst <= H.ROUND_KEPT_BYTES / 5 + H.ROUND_SCAN_MAX_BYTES, `a round read ${(worst / MiB).toFixed(1)} MiB of catch-up addresses before its first live address (the share is at most 3.2 MiB, so at most one 8 MiB scan past it)`);
+  assert(worst <= FIFTH, `a round kept ${(worst / MiB).toFixed(2)} MiB of catch-up addresses before its first live address; A1-14: "the share never keeps more than its fifth" (3.2 MiB, with no scan past it)`);
+});
+
+// Found by the validating Tester's mutation pass over the A1 reference (Test Design, 2026-09-29): RE67's arrivals name
+// their tags by address, so its share never reads a tag element; a share whose element reads kept the 8 MiB cap passed.
+test('RE80: the catch-up share\'s element reads are bounded by the share\'s bytes too — with 150 arrivals naming their tags only by id (tag elements of about 40 KB each, 4 MB for a share\'s 100) and 50 live versions of about 130 KB each after a restart, every element read the share makes before a round\'s first live address passes maxBytes no more than what is left of its fifth, no round keeps more than 3.2 MiB of catch-up events before that address, and all 200 are reflected within 5 minutes, each tag resolved from its element (AC-1; AC-4; A1-14 "The share\'s scans run with maxBytes equal to what is left of its fifth of the round\'s kept budget (3.2 MiB), address scans and element reads alike", "An element of a share address already read that no longer fits the share is read there too" — in lane 4)', async () => {
+  const w = newWorld({ lean: true });
+  w.graph.keepRows = false;
+  const ELS = [];
+  for (let i = 0; i < 150; i++) ELS.push(Object.assign(F.makeElement({ id: idOf(`re80:el:${i}`), d: `re80-tag-${i}` }), { content: 'e'.repeat(40 * 1024) }));
+  putAll(w, ELS);
+  const p1 = await boot(w);
+  await stop(w, p1, 'signal');
+  const ARR = ELS.map((el, i) => tg(`re80-arr-${i}`, { author: pubkeyOf(`re80:a${i % 30}`), a: null, e: el.id, createdAt: NOW_S + 100 - i }));
+  putAll(w, ARR); // stored while the path was down: the next start's catch-up arrivals, each naming its tag only by id
+  const p2 = await restart(w);
+  const LIVE = [];
+  for (let i = 0; i < 50; i++) LIVE.push(padded(F.makeTagging({ author: pubkeyOf(`re80:s${i}`), d: 're80-live', id: idOf(`re80:s${i}`), createdAt: NOW_S + 500 })));
+  putAll(w, LIVE);
+  const liveAddr = new Set(LIVE.map(addr));
+  const mark = w.nextSeq();
+  await withinAll(p2, 5 * MIN, () => ARR.filter((ev) => !reflects(w, ev, ELS)).concat(LIVE.filter((ev) => !holdsId(w, ev))).map(addr),
+    'all 200 are reflected within 5 minutes of the start, each tag resolved from its element', 500);
+  const FIFTH = H.ROUND_KEPT_BYTES / 5;
+  const reads = w.graph.calls.filter((x) => x.seq > mark && x.op === 'readAt').map((x) => x.seq);
+  const namesLive = (s) => H.scanAddresses(s.filter).some((a) => liveAddr.has(a));
+  const before = [];
+  const overCap = [];
+  let shareElementReads = 0;
+  reads.forEach((from, i) => {
+    const to = i + 1 < reads.length ? reads[i + 1] : Infinity;
+    const scans = w.relay.scans.filter((x) => x.seq > from && x.seq < to && x.proc === p2.n && (x.kind === 'address' || x.kind === 'element'));
+    const firstLive = scans.findIndex((s) => s.kind === 'address' && namesLive(s));
+    if (firstLive < 0) return; // a round with no live address: no share to bound
+    let kept = 0;
+    for (const s of scans.slice(0, firstLive)) {
+      if (s.kind === 'element') shareElementReads += 1;
+      if (!(typeof s.maxBytes === 'number' && s.maxBytes <= FIFTH - kept)) {
+        overCap.push(`a share ${s.kind} scan (${H.scanAddresses(s.filter).length} address(es), ${H.scanIds(s.filter).length} id(s)) passed maxBytes ${show(s.maxBytes)} with ${kept} bytes of the share already kept`);
+      }
+      if (s.outcome === 'ok') kept += s.bytes;
+    }
+    before.push(kept);
+  });
+  assert(shareElementReads >= 1, `fixture: a round's share read tag elements before its first live address (bytes kept before it, per round that read one: ${show(before)})`);
+  assert(overCap.length === 0, `A1-14: "The share's scans run with maxBytes equal to what is left of its fifth … address scans and element reads alike" (${FIFTH} bytes less what the share kept): ${preview(overCap)}`);
+  const worst = Math.max(...before);
+  assert(worst <= FIFTH, `a round kept ${(worst / MiB).toFixed(2)} MiB of catch-up events before its first live address; A1-14: "the share never keeps more than its fifth" (3.2 MiB)`);
 });
 
 test('RE56: a subscription that stays connected but stops delivering — a tagging, a revoke by id and a revoke by address stored meanwhile — is caught by the safety diff: all three are reflected within 10 minutes of their being stored, plus a round, with no reconnect (AC-1, AC-2 as qualified by owner decision 10; ADR § What it hears "The safety diff")', async () => {
@@ -1563,7 +1657,7 @@ test('RE57: a 10,000-change backlog stored while the path was stopped — 9,000 
 
 /* ═════════════════════════════════════════════════════ AC-5 ═════════════════════════════════════════════════════ */
 
-test('RE38: while busy, the switch going off — or becoming unreadable, or missing — or a SIGTERM makes tick() answer { exit: 0 } within 5 s; no write starts after that, and the status says off or stopped (AC-5 "off means off"; ADR "Off means off within 5 s", "a missing or unreadable switch.json reads as off"; T29 "handleSignal(\'SIGTERM\') leads to { exit: 0 } within 5 s")', async () => {
+test('RE38: while busy, the switch going off — or becoming unreadable, or missing — or a SIGTERM makes tick() answer { exit: 0 } within 5 s; no write starts after that, and the status says off or stopped, its subscription no longer connected (AC-5 "off means off"; ADR "Off means off within 5 s", "a missing or unreadable switch.json reads as off"; T29 "handleSignal(\'SIGTERM\') leads to { exit: 0 } within 5 s"; A1-18 "After a stop, the final status says subscription.connected: false")', async () => {
   await cases([
     { name: 'turned off', set: (w) => w.store.setSwitch(false) },
     { name: 'switch.json unreadable', set: (w) => { w.store.switch = { unreadable: true }; } },
@@ -1587,6 +1681,7 @@ test('RE38: while busy, the switch going off — or becoming unreadable, or miss
     eq(late.length, 0, `write calls started after the exit (AC-5: "the path writes nothing more"): ${show(late.map((x) => `${x.kind}×${x.n}`))}`);
     const state = at(statusOf(proc), 'state');
     assert(state === 'off' || state === 'stopped', `the status says off (AC-5 "its status says off"; ADR state off | stopped); got ${show(state)}`);
+    eq(at(statusOf(proc), 'subscription.connected'), false, 'the final status\'s subscription.connected (A1-18: "After a stop, the final status says subscription.connected: false")');
   });
 });
 
@@ -1894,15 +1989,18 @@ test('RE46: the status\'s counts survive a restart — the next process continue
   assert(!at(statusOf(p2), 'counts.countsReset'), 'countsReset is set only when status.json was lost');
 });
 
-test('RE79: the status\'s seen is the size of S and heard the size of H — three taggings in the first start\'s baseline, and two heard while the graph is unavailable (so not yet completed), give seen 3 and heard 2 (AC-6; ADR § Status: "seen (the size of S), heard (the size of H)"; T29 numbers)', async () => {
+test('RE79: the status\'s seen is the size of S, and heard counts the addresses whose latest learned version is not in S — three taggings in the first start\'s baseline, and two addresses heard while the graph is unavailable (so not yet completed), one of them in two versions, give seen 3 and heard 2 (AC-6; A1-1 "heard becomes the number of addresses whose top is not in S, kept as a counter"; ADR § Status "seen (the size of S)"; T29 numbers)', async () => {
   const w = newWorld();
   put(w, tg('re79-a'), tg('re79-b'), tg('re79-c'));
   const proc = await boot(w);
   w.graph.down = true;
-  put(w, tg('re79-n1', { createdAt: NOW_S }), tg('re79-n2', { createdAt: NOW_S }));
+  const N1 = tg('re79-n1', { createdAt: NOW_S });
+  put(w, N1, tg('re79-n2', { createdAt: NOW_S }));
+  await drive(proc, SEC, 250);
+  put(w, version(N1, 're79-n1:v2', { polarity: '-1' })); // a second version at the first address: still one address
   await drive(proc, 11 * SEC, 250); // status.json is rewritten within 10 s of any change
   const st = statusOf(proc);
-  same({ seen: num(st, 'seen'), heard: num(st, 'heard') }, { seen: 3, heard: 2 }, 'status seen = |S| (the three baseline ids) and heard = |H| (the two heard, not completed)');
+  same({ seen: num(st, 'seen'), heard: num(st, 'heard') }, { seen: 3, heard: 2 }, 'status seen = |S| (the three baseline ids) and heard = the addresses whose top is not in S (two addresses, three versions heard; A1-1)');
 });
 
 /* ═════════════════════════════════════════════════════ AC-7 ═════════════════════════════════════════════════════ */
@@ -2075,17 +2173,19 @@ const CHILD = {
     const V2 = version(V1, 're58j-v:v2', { polarity: '-1' });
     put(w, V2, del('re58j-k', { e: [V2.id] })); // V2 replaces V1, then Alice revokes V2: the relay holds nothing there
     // After what the first process journaled: 300 lines as long as a max-size kind-5 (a raw event, which no journal
-    // line type carries: an unknown t), then T19's line recording V2 as heard. Only that line ties V2 to the address.
+    // line type carries: an unknown t), then A1-6's absolute v line for V2 heard at the address: the lineage it sets is
+    // exactly {top V2, older [V1]}, as the first process would have journaled it (its baseline scan made V1 the top).
+    // Only that line ties V2 to the address.
     const lines = [];
     for (let i = 0; i < 300; i++) lines.push(maxSizeKind5Json(i));
-    lines.push(JSON.stringify({ t: 'v', id: V2.id, a: addr(V1) }));
+    lines.push(JSON.stringify({ t: 'v', id: V2.id, a: addr(V1), top: V2.id, older: [V1.id] }));
     w.store.journal = `${w.store.journal}${lines.join('\n')}\n`;
     lines.length = 0;
     const p2 = await restart(w);
     let skipped = 0;
     const sample = () => { skipped = Math.max(skipped, num(statusOf(p2), 'journal.skippedLines') || 0); };
     await within(p2, 5 * MIN, () => { sample(); return absent(w, addr(V1)); },
-      'the version-heard line after the 300 long lines lets the catch-up find the revoke and remove the relationship within 5 minutes of the start', 250);
+      'the absolute v line after the 300 long lines (A1-6) lets the catch-up find the revoke of its top and remove the relationship recording the older V1 (A1-9 step 3; A1-4 clause (ii)) within 5 minutes of the start', 250);
     await drive(p2, 5 * SEC, { step: 500, each: sample });
     eq(skipped, 300, 'status journal.skippedLines (T19: a line with an unknown t is skipped and counted)');
     return { skippedLines: skipped };
