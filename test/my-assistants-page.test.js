@@ -533,6 +533,39 @@ test('C9: the view-model imports no React, so Node can run it (ADR sub-decision 
   assert(!/from\s+['"]react['"]/.test(src), `${rel(VIEW_MODEL)} imports react`);
 });
 
+// Added after review 1 (engineering-team/reviews/my-assistants/1-the-my-assistants-page.md, blocking finding 1): a kind 0
+// is arbitrary JSON, so a name field can be a number, an array or blank. Such a profile is still listed (AC-4), with the
+// fallbacks — never an error for the whole page (AC-6).
+test('C10: a display_name or name that is not non-blank text is skipped — the row falls back, and nothing throws', async () => {
+  const { buildRows } = await vm();
+  const G1 = '71'.repeat(32), G2 = '72'.repeat(32), G3 = '73'.repeat(32), G4 = '74'.repeat(32), G5 = '75'.repeat(32);
+  const profiles = {
+    [G1]: { display_name: 42, name: 'Gil' },
+    [G2]: { display_name: ['x'], name: { first: 'y' } },
+    [G3]: { display_name: '   ', name: 'Hal' },
+    [G4]: { display_name: true },
+    [G5]: { display_name: '  Ivy  ' },
+  };
+  let built;
+  try {
+    built = buildRows({ rows: [G1, G2, G3, G4, G5].map((pk) => row(pk)), profiles });
+  } catch (err) {
+    throw new Error(`buildRows threw on a malformed profile: ${err.message}`);
+  }
+  const byPk = Object.fromEntries(built.map((r) => [r.pubkey, r]));
+  const want = { [G1]: 'Gil', [G2]: await npubShortOf(G2), [G3]: 'Hal', [G4]: await npubShortOf(G4), [G5]: 'Ivy' };
+  for (const [pk, name] of Object.entries(want)) {
+    assert(byPk[pk] && byPk[pk].name === name, `${pk.slice(0, 4)}…: name should be ${show(name)}, got ${show(byPk[pk] && byPk[pk].name)}`);
+    assert(typeof byPk[pk].initial === 'string' && byPk[pk].initial.length >= 1, `${pk.slice(0, 4)}…: an avatar letter; got ${show(byPk[pk].initial)}`);
+  }
+});
+
+test('C11: the avatar letter is a whole character, even when the name starts with an emoji', async () => {
+  const { buildRows } = await vm();
+  const [r] = buildRows({ rows: [row(T1)], profiles: { [T1]: { display_name: '🦊 Fox Assistant' } } });
+  assert(r && r.initial === '🦊', `initial should be the whole emoji 🦊, got ${show(r && r.initial)} (${r && [...(r.initial || '')].length} code points, ${r && (r.initial || '').length} UTF-16 units)`);
+});
+
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 // M — the menu (AC-1)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════

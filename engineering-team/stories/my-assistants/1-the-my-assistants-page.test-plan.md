@@ -160,3 +160,24 @@ Mutants were applied to the oracle one at a time. Each fails exactly the tests t
 A9 at first let the "don't wrap" mutant through: the list clips overflow, so the page never
 scrolled. It now also checks that no element in the list is wider than its box, and it catches the
 mutant.
+
+## Amendment after review 1 (2026-09-30)
+
+The review (`engineering-team/reviews/my-assistants/1-the-my-assistants-page.md`, blocking finding 1) found a gap the
+suites above missed. A kind 0 is arbitrary JSON, so a name field can be a number, an array, an object, a boolean or
+blank. The view-model took any truthy `display_name` as the name. Then `name.slice` threw, and one such profile
+turned the whole page into the error line. That breaks AC-4 (the profile should still be listed, with the fallbacks)
+and AC-6 (the error line is only for a failed read).
+
+| Criterion | Test | File | Level |
+|---|---|---|---|
+| AC-4, AC-6 | C10 (`display_name` of `42`, `['x']`, `true` or blank, and `name` as an object, are all skipped: the next field or the shortened npub is used; surrounding blanks are trimmed; nothing throws) | Node | unit |
+| AC-4 | C11 (the avatar letter is a whole character: 🦊, not half of it; review non-blocking finding 1) | Node | unit |
+| AC-4, AC-6 | A12 (with one profile's `display_name: 42, name: ['x']`, all four rows are listed, that one named by its npub; no error line) | Playwright | browser |
+
+**Fails on the reviewed implementation (`a63b3ae9`), for the right reasons:**
+- **C10:** `buildRows threw on a malformed profile: name.slice is not a function`.
+- **C11:** `initial should be the whole emoji 🦊, got "\ud83e"`.
+- **A12,** against `:7778`, which is running `a63b3ae9`'s build: `Expected: 4, Received: 0`. The page showed the error line.
+
+The Node suite now reports `50 passed, 2 failed`.

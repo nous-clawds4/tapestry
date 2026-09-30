@@ -29,6 +29,7 @@ const { nip19 } = require('nostr-tools');
  *   A9 — at 375 px, long names, URLs and NIP-05s wrap: the page doesn't scroll sideways and nothing is cut off.
  *   A10 — the frame: the design's type and a 1040 px column; /dictionary keeps its 720 px column.
  *   A11 — a refresh of /assistants renders the page, never "Page not found"; the page only reads (GET).
+ *   A12 — a profile whose name fields are not text is still listed, and the page shows no error (added after review 1).
  */
 
 const VIEWER = 'a1'.repeat(32);
@@ -386,5 +387,20 @@ test.describe('/assistants — the My Assistants page', () => {
     await expect(page.getByText(/Page not found/i)).toHaveCount(0);
     const writes = asked.requests.filter((r) => !r.startsWith('GET '));
     expect(writes, 'the page publishes, signs and stores nothing').toEqual([]);
+  });
+
+  // Added after review 1 (blocking finding 1): one malformed profile must not take the page down.
+  test('A12: a profile whose name fields are not text is still listed, and the others with it — no error line', async ({ page }) => {
+    await mockStack(page, {
+      session: CUSTOMER,
+      answers: [FULL],
+      profiles: { ...FULL_PROFILES, [A]: { display_name: 42, name: ['x'], website: 'brainstorm.world' } },
+    });
+    await page.goto(PAGE);
+    await expect(items(page)).toHaveCount(4);
+    await expect(main(page).getByText(WORDS.error)).toHaveCount(0);
+    await expect(main(page).getByText('4 Assistants', { exact: true })).toBeVisible();
+    await expect(list(page).getByText(npubShort(A), { exact: true }).first()).toBeVisible();
+    await expect(list(page).getByText('Bob', { exact: true })).toBeVisible();
   });
 });
