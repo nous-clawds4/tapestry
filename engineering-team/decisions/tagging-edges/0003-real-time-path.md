@@ -2295,8 +2295,9 @@ and 25 correct statements of fact.
       event carrying its filter's index key (for the path, a stamp `z` tag or kind 5), or the relay's newest event
       when it subscribed. So such a write is missed by the subscriptions that had passed its id, and delivered to the
       others.
-    - **The debounce race.** If a write lands within the monitor's 100 ms change debounce of the delete, the monitor
-      never lowers its cursor for it, and every live subscription misses that write.
+    - **The debounce race.** The monitor lowers its cursor on every wake, whatever woke it. If a write lands within
+      its 100 ms change debounce of the delete, and nothing else (a REQ, a CLOSE, a closed connection) woke the monitor
+      in between, it never lowers its cursor for that write, and every live subscription on that monitor misses it.
     - **After a wipe,** a subscription misses writes until the ids pass the point its own monitor had reached, at most
       the old largest id. A new REQ starts from the relay as it is, so re-subscribing ends it.
     - **For the path,** what it misses is reflected at the next safety diff (≤ 10 min), except a version both stored
