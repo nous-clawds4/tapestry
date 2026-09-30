@@ -29,7 +29,11 @@ Docker, with no network during the test run:
    git inside the volume.
 3. Run `npm ci` in `node:22-bookworm`, with network. `node:22-alpine` can't build `bufferutil` on arm64: node-gyp finds
    no Python.
-4. Run `npm test` with `--network none`, then `npm run -s gate:status -- --label …`.
+4. Run `GATE_LABEL=<label> npm test` with `--network none`. The label is set at run time; `gate:status -- --label`
+   only looks it up. Then read the verdict with `npm run -s gate:status -- --label <label>`.
+
+The copied tree must be owned by the container's user (`chown -R root:root` inside the volume), or git in the
+container refuses it as a dubious-ownership repo. Review 1 round 2 lost a restart to this, and another to the label.
 
 Result: 245/245 suites, every live suite skipped, nothing published (gate run `20260930T213125Z-20-ca8a`, PASS).
 
@@ -39,7 +43,8 @@ Result: 245/245 suites, every live suite skipped, nothing published (gate run `2
   at it for machines with enabled `up` or `both` router streams;
 - have the gate engine refuse the live publishing suites when `GET /api/strfry/router-status` shows an enabled tag
   stream;
-- disable the Mac Studio's tag streams (the owner's call: they were enabled on purpose on 2026-07-18).
+- disable the Mac Studio's tag streams. That's the owner's call: the flags have been set since 2026-07-18
+  (`/var/lib/brainstorm/router-state.json`), and nothing found records why.
 
 **Pointer:** `engineering-team/reviews/my-assistants/1-the-my-assistants-page.md` § Harness friction 1; OPEN.md row
 `2026-09-27-test-fixture-taggings-on-prod-relays` (its 2026-09-29 and 2026-09-30 updates).
