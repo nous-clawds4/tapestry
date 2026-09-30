@@ -1056,24 +1056,68 @@ test('ST18: isAlive is false for a zombie (Z) or dead (X) process, for a start t
   });
 });
 
-test('ST19: lockHeld(fd) reads /proc/self/fdinfo/<fd> and is true only for a "FLOCK … WRITE" lock line — false with no lock, a shared (READ) flock, a POSIX write lock, or no fdinfo file (ADR runner step 1)', async () => {
-  await withState(async () => {
+// ADR tagging-edges/0003 C20 re-aims this test's true cases: "ST19's existing true cases pass a `file` whose inode
+// matches". Every case now passes the lock file, and the fdinfo's ino: is that file's real inode.
+test('ST19: lockHeld(fd, { file }) reads /proc/self/fdinfo/<fd> and is true only for a "FLOCK … WRITE" lock line — false with no lock, a shared (READ) flock, a POSIX write lock, or no fdinfo file (ADR runner step 1; the lock file passed as ADR tagging-edges/0003 C20 asks, its inode matching)', async () => {
+  await withState(async ({ root }) => {
     const st = loadState();
     need(st, 'lockHeld', STATE_LABEL);
-    const W = 'FLOCK  ADVISORY  WRITE 4242 00:3e:5634551 0 EOF';
+    const file = path.join(root, 'pass.lock');
+    const ino = quiet(() => { fs.writeFileSync(file, ''); return fs.statSync(file, { bigint: true }).ino.toString(); });
+    const W = `FLOCK  ADVISORY  WRITE 4242 00:3e:${ino} 0 EOF`;
     const cases = [
-      ['a FLOCK WRITE line', fdinfo([W]), true],
-      ['a POSIX READ line, then a FLOCK WRITE line', fdinfo(['POSIX  ADVISORY  READ 4242 00:3e:5634551 0 EOF', W]), true],
-      ['no lock line', fdinfo([]), false],
-      ['a FLOCK READ (shared) line', fdinfo(['FLOCK  ADVISORY  READ 4242 00:3e:5634551 0 EOF']), false],
-      ['a POSIX WRITE line', fdinfo(['POSIX  ADVISORY  WRITE 4242 00:3e:5634551 0 EOF']), false],
+      ['a FLOCK WRITE line', fdinfoFor(ino, [W]), true],
+      ['a POSIX READ line, then a FLOCK WRITE line', fdinfoFor(ino, [`POSIX  ADVISORY  READ 4242 00:3e:${ino} 0 EOF`, W]), true],
+      ['no lock line', fdinfoFor(ino, []), false],
+      ['a FLOCK READ (shared) line', fdinfoFor(ino, [`FLOCK  ADVISORY  READ 4242 00:3e:${ino} 0 EOF`]), false],
+      ['a POSIX WRITE line', fdinfoFor(ino, [`POSIX  ADVISORY  WRITE 4242 00:3e:${ino} 0 EOF`]), false],
       ['no fdinfo file', {}, false],
     ];
     for (const [label, proc, want] of cases) {
       let got;
-      try { got = await st.lockHeld(9, { readFile: makeReadFile(proc) }); } catch (e) { got = `threw: ${firstLine(e.message)}`; }
-      eq(got, want, `lockHeld(9) with ${label}`);
+      try { got = await st.lockHeld(9, { file, readFile: makeReadFile(proc) }); } catch (e) { got = `threw: ${firstLine(e.message)}`; }
+      eq(got, want, `lockHeld(9, { file }) with ${label}`);
     }
+  });
+});
+
+/**
+ * /proc/self/fdinfo/9 for a descriptor whose `ino:` is `ino` (omitted when `withIno` is false), followed by the lock
+ * lines. As /proc prints it: pos, flags, mnt_id, ino, then one "lock:\t<n>: …" line per lock.
+ */
+function fdinfoFor(ino, lockLines, { withIno = true } = {}) {
+  const head = `pos:\t0\nflags:\t02100001\nmnt_id:\t1461\n${withIno ? `ino:\t${ino}\n` : ''}`;
+  const text = head + lockLines.map((l, i) => `lock:\t${i + 1}: ${l}\n`).join('');
+  return { '/proc/self/fdinfo/9': text, [`/proc/${process.pid}/fdinfo/9`]: text };
+}
+
+test('ST23: lockHeld(fd, { file }) is true only when a "FLOCK … WRITE" lock line is present AND fdinfo\'s ino: equals fs.statSync(file, { bigint: true }).ino — false for a foreign inode, a file that does not exist, or no ino: line, whatever the lock line says; the lock line\'s pid (0 in the container\'s pid namespace) does not matter; with no file argument the old answer stands (ADR tagging-edges/0003 C20, folding row 2026-09-28-lock-check-accepts-any-flock; clarification T24; clarification T31: "lockHeld reads no ino: line as not held")', async () => {
+  await withState(async ({ root }) => {
+    const st = loadState();
+    need(st, 'lockHeld', STATE_LABEL);
+    const file = path.join(root, 'realtime-daemon.lock');
+    const ino = quiet(() => { fs.writeFileSync(file, ''); return fs.statSync(file, { bigint: true }).ino.toString(); });
+    const foreign = (BigInt(ino) + BigInt(7919)).toString();
+    const missing = path.join(root, 'no-such-dir', 'daemon.lock');
+    const W = (i, pid = 4242) => `FLOCK  ADVISORY  WRITE ${pid} 00:3e:${i} 0 EOF`;
+    const cases = [
+      ['a FLOCK WRITE line and the file\'s own inode', { file }, fdinfoFor(ino, [W(ino)]), true],
+      ['a FLOCK WRITE line whose pid reads 0 (the container\'s pid namespace), the file\'s own inode', { file }, fdinfoFor(ino, [W(ino, 0)]), true],
+      ['a FLOCK WRITE line on a foreign inode (another file holds the flock)', { file }, fdinfoFor(foreign, [W(foreign)]), false],
+      ['a FLOCK WRITE line whose fdinfo ino: is foreign, though the lock line names the file\'s inode', { file }, fdinfoFor(foreign, [W(ino)]), false],
+      ['a FLOCK WRITE line and no ino: line', { file }, fdinfoFor(ino, [W(ino)], { withIno: false }), false],
+      ['a FLOCK WRITE line, and a file that does not exist', { file: missing }, fdinfoFor(ino, [W(ino)]), false],
+      ['a FLOCK READ line and the file\'s own inode', { file }, fdinfoFor(ino, [`FLOCK  ADVISORY  READ 4242 00:3e:${ino} 0 EOF`]), false],
+      ['no fdinfo file', { file }, {}, false],
+      ['no file argument, a FLOCK WRITE line on a foreign inode (the old caller\'s answer, T24)', {}, fdinfoFor(foreign, [W(foreign)]), true],
+    ];
+    const problems = [];
+    for (const [label, opts, proc, want] of cases) {
+      let got;
+      try { got = await st.lockHeld(9, { ...opts, readFile: makeReadFile(proc) }); } catch (e) { got = `threw: ${firstLine(e.message)}`; }
+      if (got !== want) problems.push(`lockHeld(9, { ${Object.keys(opts).join(', ')} }) with ${label}\n          expected: ${brief(want)}\n          actual:   ${brief(got)}`);
+    }
+    assert(problems.length === 0, problems.join('\n        '));
   });
 });
 

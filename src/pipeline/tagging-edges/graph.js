@@ -32,6 +32,8 @@ ${PROJECTION}`,
   READ_AT: `UNWIND $addresses AS a
 MATCH (s)-[r:TAGS {address: a}]->(t)
 ${PROJECTION}`,
+  // The real-time path's catch-up keys (ADR tagging-edges/0003): one (address, eventId) row per relationship.
+  READ_KEYS: 'MATCH ()-[r:TAGS]->() RETURN r.address AS address, r.eventId AS eventId',
   LOCK: 'UNWIND $addresses AS a MATCH ()-[r:TAGS {address: a}]->() SET r.address = r.address RETURN count(r) AS locked',
   UPDATE: 'UNWIND $rows AS row MATCH ()-[r:TAGS {address: row.address}]->() SET r = row.props RETURN count(r) AS n',
   MOVE: `UNWIND $rows AS row MATCH ()-[r:TAGS {address: row.address}]->() DELETE r
@@ -203,7 +205,7 @@ const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Open the pass's own driver (lossless integers; pool 4; 30 s acquisition and retry budgets).
- * → { readSchema, ensureTagsConstraint, readAll, applyLocked, applyCreates, close }
+ * → { readSchema, ensureTagsConstraint, readAll, readAt, readKeys, applyLocked, applyCreates, close }
  */
 function openGraph({ uri, user, password } = {}) {
   const n = neo4j();
@@ -223,10 +225,18 @@ function openGraph({ uri, user, password } = {}) {
     }
   }
 
-  async function readSchema() {
+  /**
+   * SHOW CONSTRAINTS and SHOW INDEXES. With `timeoutMs` each runs under that transaction time-out (the real-time path
+   * passes its own); without it, under none, as story 2's pass reads the schema (ADR tagging-edges/0003: the pass's
+   * behaviour does not change).
+   */
+  async function readSchema({ timeoutMs } = {}) {
+    const runShow = (session, statement) => (timeoutMs == null
+      ? session.run(statement)
+      : session.run(statement, {}, { timeout: timeoutMs }));
     return withSession('read', async (session) => {
-      const c = await session.run(CYPHER.SHOW_CONSTRAINTS);
-      const i = await session.run(CYPHER.SHOW_INDEXES);
+      const c = await runShow(session, CYPHER.SHOW_CONSTRAINTS);
+      const i = await runShow(session, CYPHER.SHOW_INDEXES);
       return { constraints: recordsToPlain(c.records), indexes: recordsToPlain(i.records) };
     });
   }
@@ -261,6 +271,29 @@ function openGraph({ uri, user, password } = {}) {
         { timeout: timeoutMs },
       );
       return recordsToRows(res.records);
+    });
+  }
+
+  /** The `TAGS` rows at `addresses` (the real-time path's graph read, ADR tagging-edges/0003): raw rows, as readAll's. */
+  async function readAt(addresses, { timeoutMs = 60000 } = {}) {
+    return withSession('read', async (session) => {
+      const res = await session.executeRead(
+        (tx) => tx.run(CYPHER.READ_AT, { addresses, scalarTypes: SCALAR_TYPES }),
+        { timeout: timeoutMs },
+      );
+      return recordsToRows(res.records);
+    });
+  }
+
+  /**
+   * Every `TAGS` relationship's (address, eventId), unfiltered (the real-time path's catch-up keys). → plain
+   * [{ address, eventId }], each value as stored, or null when the relationship lacks it (clarification T30).
+   */
+  async function readKeys({ timeoutMs = 120000 } = {}) {
+    return withSession('read', async (session) => {
+      const res = await session.executeRead((tx) => tx.run(CYPHER.READ_KEYS), { timeout: timeoutMs });
+      const value = (rec, k) => { const v = rec.get(k); return v === undefined ? null : v; };
+      return res.records.map((rec) => ({ address: value(rec, 'address'), eventId: value(rec, 'eventId') }));
     });
   }
 
@@ -393,7 +426,7 @@ function openGraph({ uri, user, password } = {}) {
     await driver.close();
   }
 
-  return { readSchema, ensureTagsConstraint, readAll, applyLocked, applyCreates, close };
+  return { readSchema, ensureTagsConstraint, readAll, readAt, readKeys, applyLocked, applyCreates, close };
 }
 
 const RETRY_CODES = Object.freeze([
