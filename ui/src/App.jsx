@@ -118,6 +118,8 @@ import DevelopersTrustedAssertions from './pages/developers/TrustedAssertions';
 import DevelopersRelayTools from './pages/developers/RelayTools';
 import SetupIndex from './pages/setup/Index';
 import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Placeholders';
+import DictionaryPage from './pages/dictionary/Index';
+import DictionaryEntryPage from './pages/dictionary/Entry';
 import AssistantManagementPage from './pages/assistant/Index';
 import EditAssistantProfilePage from './pages/assistant/EditProfile';
 import AssistantActionPage from './pages/assistant/ActionPage';
@@ -257,6 +259,15 @@ const router = createBrowserRouter([
   {
     path: '/setup/activate',
     element: <SetupActivate />,
+  },
+  {
+    // The Concepts dictionary in the Brainstorm design's styling; same list as /tapestry/dictionaries/concepts.
+    path: '/dictionary',
+    element: <DictionaryPage />,
+  },
+  {
+    path: '/dictionary/:coord',
+    element: <DictionaryEntryPage />,
   },
   {
     // The Assistant Management page (assistant-management #1, ADR 0001).

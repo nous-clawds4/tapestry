@@ -20,6 +20,10 @@ export const CONCEPTS_DICTIONARY_PATH = '/tapestry/dictionaries/concepts';
 export const NEW_CONCEPT_PATH = '/tapestry/concepts/new';
 export const entryPath = (coord) => `${CONCEPTS_DICTIONARY_PATH}/${encodeURIComponent(coord)}`;
 
+// The same list in the Brainstorm design's styling, outside the control panel (pages/dictionary/).
+export const DICTIONARY_PATH = '/dictionary';
+export const dictionaryEntryPath = (coord) => `${DICTIONARY_PATH}/${encodeURIComponent(coord)}`;
+
 // The metrics the server can name. Version 1 ships GUM₁ only; GUM₂ and GUM₃
 // (SPEC § 4) add their labels here when the server starts reporting them.
 const METRICS = {
