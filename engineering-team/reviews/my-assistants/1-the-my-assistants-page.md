@@ -1,5 +1,7 @@
 # Review: Story 1 — The My Assistants page, its menu link, and the list of your Assistants
 
+**Verdict:** **PASS** (after re-review; see "Re-review, round 2" at the bottom. Round 1 asked for changes over one blocking finding, which is fixed and pinned by new tests; three new non-blocking notes are listed there.)
+
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-09-30
 **Diff:** `git diff 58abd891..80276b46` on `feat/my-assistants` (base = `staging` at `58abd891`). Commits: `1f5a2caf` (story, book, epic, blueprint), `b4f45bf1` (ADR), `dac84487` (failing tests and test plan), `a63b3ae9` (the implementation, the focus here), `80276b46` (two ledger rows). 24 files, 2866 insertions, 45 deletions.
@@ -166,3 +168,215 @@ Not applicable this round. The story stays `Approved`: no status flip, and no co
 **CHANGES_REQUESTED**
 
 One blocking issue: Blocking 1 above (`ui/src/pages/assistants/myAssistants.js:72`, `:78`, `:88`; `ui/src/pages/assistants/Index.jsx:88-90`; the missing C-class case at `test/my-assistants-page.test.js:456-474`).
+
+## Re-review, round 2 (2026-09-30)
+
+**Reviewer:** Claude (acting as Reviewer)
+**Diff:** `git diff d48cbeed..00c2abfc` on `feat/my-assistants`. Commits:
+- `17f8aa70`, the Tester's amendment: C10, C11, A12 and the test plan's "Amendment after review 1";
+- `7dd30cb2`, the fix plus two Deviations bullets;
+- `abfabddd` and `00c2abfc`, the new `meta` ledger row and its rename to a valid id.
+
+6 files, 132 insertions, 7 deletions. Nothing under `src/` has changed since `a63b3ae9`. The only UI change is `ui/src/pages/assistants/myAssistants.js`.
+
+**In short:** the blocking finding is fixed.
+- **No crash left:** `buildRows` no longer throws on any profile value `fetchProfilesChunked` can return. That holds in a 798-row fuzz and in the browser on HEAD's build.
+- **Pinned:** C10 and A12 fail on a revert of the name guard, and C11 fails on a revert of the avatar letter. The amendment only adds tests.
+- **Gate:** the network-isolated gate passes on HEAD.
+- **Three new non-blocking notes:**
+  - A12 checks less than its test-plan row says;
+  - "whole character" means a whole code point;
+  - the new ledger row has two accuracy gaps.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`, reproduced as CI, with no network during the run.** This is round 1's recipe (`ledger/2026-09-30-npm-test-step-leaks-fixtures.md`), run on HEAD `00c2abfc`:
+  - a full clone, copied into a named volume with `COPYFILE_DISABLE=1 tar --no-xattrs`, then chowned to root (see R2-3);
+  - `npm ci` in `node:22-bookworm`, with network;
+  - `GATE_LABEL=review-my-assistants-r2 npm test` with `--network none` and `CI=true`, as Actions sets it.
+
+  Nothing ran against `localhost:7778` and nothing published. Verdict read with `npm run -s gate:status -- --label review-my-assistants-r2` (exit 0):
+
+  > `20260930T221058Z-20-1f63 [review-my-assistants-r2] started 2026-09-30T22:10:58.189Z on 00c2abfc — PASS, exit 0, 4204 passed, 0 failed, 591 skipped, 245/245 suites · /w/repo/tmp/gate-runs/20260930T221058Z-20-1f63.json`
+
+  - **The record:** `node: v22.23.3`, `git: { commit: 00c2abfc…, branch: feat/my-assistants, dirty: false }`.
+  - **Against round 1** (`20260930T213125Z-20-ca8a`, 4202/0/591): two more passes, C10 and C11.
+  - **Per suite:**
+    - `my-assistants-page`: PASS 50/0/2. The two H-class live cases skip with no network.
+    - `harness-lint`: PASS 76/0/0.
+    - `tagging-edges-realtime-wrapper` (round 1's Harness friction 2): PASS 22/0/0.
+  - **Cleanup:** the volume has been removed.
+- [x] **The story's suites on the host**, each through its `run()` export. I grepped each first for `strfry/publish`, `nak`, `POST`, `firmware/install` and `docker exec`:
+  - `my-assistants-page.test.js:616` is a source assertion, not a write;
+  - `stack-free-npm-test` G1 points the 12 live suites at a dead port;
+  - its G2 runs `tag-detail`, which only reads.
+
+  Results on Node v24.18.0:
+  - `test/my-assistants-page.test.js`: `{"pass":52,"fail":0,"skipped":0,"hExecuted":2}`. C10 and C11 are listed as PASS. H1 and R0-2 ran live, as anonymous GETs.
+  - `test/dictionary-concepts.test.js`: `{"pass":25,"fail":0,"skipped":0}`.
+  - `test/stack-free-npm-test.test.js`: `{"pass":7,"fail":0}`.
+- [x] **The container serves HEAD's UI.**
+  - **UI:** a fresh build of HEAD's `ui/` into a scratch `outDir` gives `index-BVZq3FiX.js`. All 28 files of that build are byte-identical (sha1) in the container's `/usr/local/lib/node_modules/brainstorm/dist/`, and `GET :7778/assistants` returns the same `index.html` bytes. That `dist/` also holds stale chunks from earlier builds, but the served entry is HEAD's.
+  - **Server:** the sha1 of `src/api/assistant/myAssistants.js` and of `src/lib/my-assistant-tags/index.js` equal HEAD's.
+- [x] **Playwright against the container.** The command was `BRAINSTORM_BASE_URL=http://localhost:7778 npx playwright test tests/brainstorm/my-assistants.spec.js tests/brainstorm/dictionary-concepts.spec.js --project=chromium`.
+  - **Result: 24 passed**, which is round 1's 23 plus A12.
+  - D6, the known flake, passed on this run.
+  - The global setup only checks that the server answers.
+- [x] `bash scripts/harness-lint.sh`: clean (0 violations) before writing this section. After it, the one violation is L1: this review now ends in PASS while the story is still `Approved`. The status change in the review commit clears it.
+- [x] **Hygiene sweeps** on the added lines:
+  - no `console.log`, `debugger`, TODO, `nsec` or quoted 64-hex literal;
+  - no raw control bytes in the six changed files.
+- [ ] _Lint, typecheck and build are not configured, so they were skipped._
+
+### Round 1's findings, checked as fresh claims
+
+**Blocking 1 (a malformed kind 0 takes down the list): fixed.**
+- **The fix** (`myAssistants.js:56-58`, `:76`):
+  - `textOf` keeps a value only when it's a string that isn't blank after `trim()`.
+  - The name is `textOf(display_name) || textOf(name) || npubShort`. So `name` is always a non-empty string, and neither `Array.from(name)[0]` (`:82`) nor `a.name.localeCompare` (`:92`) can throw.
+  - URL and NIP-05 moved from `valueOr(v)` to `textOf(v) || '—'`, which computes the same thing.
+- **What `buildRows` can receive:**
+  - `fetchProfilesChunked` hands on `data.profiles[pk]` as it is. Otherwise it gives `null`, or `PROFILE_LOOKUP_FAILED` (`ui/src/utils/profileBatch.js:72-80`).
+  - The server fills `data.profiles` from `JSON.parse(ev.content)` without validating it, and uses `{}` when parsing fails (`src/api/profiles/fetchProfiles.js:91`, `:112`).
+  - So a profile can be any JSON value.
+- **Fuzzed**, with a scratch ESM probe that imports the repo's view-model. It made 798 rows and ran them through one `buildRows` call, so the sort runs over all of them:
+  - **`display_name` × `name`**, over the same 28 values each:
+    - absent, `0`, `42`, `-1`, `1e21`, `true`, `false`;
+    - empty, a single space, a tab-and-newline-only string, `"  Ivy  "`;
+    - `[]`, `["x"]`, `[["x"]]`, `{}`, `{"first":"y"}`, `{"toString":"z"}`;
+    - emoji, combining marks, a zero-width space, and a string that starts with a lone surrogate.
+
+    Website and NIP-05 cycle through the same values.
+  - **The whole profile as one value:** `null`, `0`, `42`, `true`, `false`, `""`, `"str"`, `[]`, `["x"]`, `{}`, `{"__proto__":{"display_name":"P"}}`, `PROFILE_LOOKUP_FAILED`, and a missing key.
+  - **Result:** no throw, and 0 problems.
+    - Every name is a trimmed, non-empty string, and it's exactly what the rule picks: display_name, then name, then the npub.
+    - Every initial is non-empty, URL and NIP-05 are always strings, and Local is first.
+    - This covers the shapes round 1 asked about, and the brief's "blank `display_name` with a non-string `name`", which falls back to the npub.
+- **In the browser**, on HEAD's build at `:7778`. I appended two probes to a scratch clone's copy of the spec, never the repo's:
+  - R2X-1:
+    - Local = `{display_name:'   ', name:{first:'y'}}`;
+    - A = `42`;
+    - B = `{display_name:'🦊 Fox', website:7, nip05:['x']}`;
+    - C = `['x']`.
+  - R2X-2:
+    - Local = `'str'`;
+    - A = `{display_name:false, name:'  Ann  '}`;
+    - B = `{display_name:null, name:0}`;
+    - C = `{display_name:{}, name:[]}`.
+
+  Both show 4 rows, "4 Assistants", and no error line.
+  - Every unusable name shows the shortened npub.
+  - B's name shows as "🦊 Fox" with the avatar `🦊`, and A's as "Ann", trimmed.
+  - Every URL and NIP-05 shows "—".
+
+  A12 itself is round 1's `display_name: 42` repro, and it now passes.
+
+**Do C10, C11 and A12 pin it?** I tested four mutants, each in a scratch clone. Each ran the Node suite, then the whole `my-assistants.spec.js` against its own build, served by `vite preview` on :4174.
+
+| Mutant | Node suite | `my-assistants.spec.js` |
+|---|---|---|
+| M1: the name line reverted to `profile.display_name \|\| profile.name \|\| short`, `Array.from` kept | C10 fails: `a.name.localeCompare is not a function` | A12 fails: `Expected: 4, Received: 0`. The other 14 pass. |
+| M2: the letter reverted to `name.slice(0, 1)`, `textOf` kept | C11 fails: the initial is the lone high surrogate U+D83E | all 15 pass (A12 doesn't test the letter) |
+| M3: the name reverted, but coerced: `String(profile.display_name \|\| profile.name \|\| short)` | C10 fails: `name should be "Gil", got "42"` | all 15 pass (see R2-1) |
+| M4: `a63b3ae9`'s whole view-model | C10 and C11 fail; 50 passed, 2 failed | A12 fails: `Expected: 4, Received: 0` |
+
+- **M4 re-proves the test plan's claim** (`1-the-my-assistants-page.test-plan.md:178-183`, "Fails on the reviewed implementation"). It gives the same two Node messages and A12's 4 against 0. The UI diff since `a63b3ae9` is that one file, so M4's build stands in for `a63b3ae9`'s.
+- **Under M1, the throw comes from the sort, not from `.slice`**, because `Array.from(42)` is `[]`. A12 catches it only through that sort, so it depends on the comparator's call order. C10 catches M1 either way, because it checks the name's value.
+
+**The amendment weakened nothing.**
+- `git diff --numstat d48cbeed..HEAD -- test tests` shows 33/0 and 16/0. Those are additions only: C10 and C11 after C9, A12 at the end, and one header comment line.
+- The phases stayed separate. `17f8aa70` touches only the two suites and the test plan, and `7dd30cb2` only the view-model and the story.
+
+**Non-blocking 1 (the split-emoji avatar letter): fixed** at `:82`. C11 pins it, as M2 shows. R2-2 says what "whole character" means here.
+
+**Non-blocking 2 (the undocumented `zTag`): addressed.** Checked the story's § Deviations bullet (`1-the-my-assistants-page.md:196-199`):
+- `zTag` is at `src/api/assistant/myAssistants.js:40`.
+- It requires profile-tags' `NOSTR_USER_TAG_Z_TAG` lazily. The module's only top-level requires are `identification-tags` and `my-assistant-tags` (`:28-29`).
+- No test overrides `zTag`: `grep -rn zTag test tests` finds none in this story's suites.
+
+**The second new Deviations bullet** (`:200-201`), checked:
+- "A name field counts only when it's non-blank text (`textOf`, which URL and NIP-05 use too)": true (`:76`, `:84-85`).
+- "The avatar letter is a whole character (`Array.from`)": a whole code point (R2-2).
+- "Both fixes are pinned by C10, C11 and A12": true taken together. C10 and A12 pin the name, though A12 only its no-throw half (R2-1). C11 pins the letter.
+
+**Non-blocking 3 (AC-2's staging half): carried accurately.** It's in test plan `:64-65`, and in the book's unchecked frame box "locally and on staging" (`engineering-team/audits/my-assistants/book.md:29`). It still falls to `/cycle-staging`:
+- H1 and R0-2 with `BRAINSTORM_BASE_URL=https://staging.brainstorm.world`;
+- a direct load of `https://staging.brainstorm.world/assistants`.
+
+**Non-blocking 4 (the container UI): done.** It's byte-identical to HEAD's build (above).
+
+**Round 1's optional hardening was not taken.** It suggested keeping a throw in `buildRows` from reading as a failed read (`Index.jsx:88-90`). It was optional, and with the guard, no profile value in the fuzz reaches that path.
+
+**Harness friction 1 is now the new `meta` row.** I checked `ledger/2026-09-30-npm-test-step-leaks-fixtures.md` against round 1 and the sources:
+- **Form:**
+  - It has the template's fields (`engineering-team/templates/open-row.md`). The file is named by its id, and `**Id:**` repeats it.
+  - Type is `meta`, Opened has a date and a source, Status is OPEN, Done is —, and there's a Pointer.
+  - The id's slug has five words, and the id is 39 characters. The commit was at 22:08Z on 2026-09-30.
+  - The rename in `00c2abfc` was allowed: `abfabddd` is not on `origin/staging`, and nothing cites the old id.
+  - harness-lint is clean.
+- **The five places that say "run `npm test`"** (`:11-15`) are exact:
+  - `workflows/4-implementation.md:18` (step 1) and `:31` (step 7);
+  - `roles/implementer.md:19`, `:27`;
+  - `workflows/5-review.md:15`;
+  - `roles/reviewer.md:35`;
+  - `templates/review-checklist.md:9`.
+
+  "Nothing in the phase docs points to it" holds. No workflow, role, template, command or agent file names the fixture row, `router-status`, dcosl or `BRAINSTORM_PUBLISH_LOCAL_ONLY`.
+- **The facts** (`:17-21`) match the fixture row's 2026-09-29 and 2026-09-30 updates:
+  - the tag streams are `both` and enabled;
+  - `BRAINSTORM_PUBLISH_LOCAL_ONLY` governs only the browser client;
+  - six kind 39999 events reached dcosl.
+- **The recipe and its result** match round 1, and the fix shapes include both of round 1's suggestions.
+- **Two accuracy gaps:** see R2-3.
+
+### Scope
+
+The fix round adds nothing beyond what was asked.
+- **The view-model change** is:
+  - the asked guard;
+  - round 1's Non-blocking 1 (the avatar letter);
+  - renaming `valueOr` to `textOf`, with the same URL and NIP-05 output.
+- **The story** gains two Deviations bullets.
+- **The tests** are the asked C-class case, plus C11 and A12.
+- **The ledger row** is round 1's Harness friction 1.
+
+No server, CSS, route or copy change.
+
+### New findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **R2-1, `tests/brainstorm/my-assistants.spec.js:403`: A12 doesn't check the name it claims to.**
+   - `getByText(npubShort(A), { exact: true }).first()` is satisfied by the `.bsd-ma-npub` line, which every row shows (`ui/src/pages/assistants/Index.jsx:44`).
+   - So A12 doesn't check "that one named by its npub", which the test plan's A12 row claims (`1-the-my-assistants-page.test-plan.md:176`). M3 shows "42" as the name and still passes A12.
+   - C10 pins the name value, so coverage is intact.
+   - Optional (the Tester's file): scope the check to `.bsd-ma-name`, or trim the row's claim to "four rows, no error line".
+2. **R2-2, `ui/src/pages/assistants/myAssistants.js:82`: `Array.from` gives a whole code point, not a whole grapheme.**
+   - Examples, probed: 🇺🇸 gives `🇺`, 👨‍👩‍👧 gives `👨`, 👍🏽 gives `👍`, and "e" plus a combining acute gives `e`.
+   - None is a replacement box, so round 1's defect is gone. But "whole character" in the code comment, in C11's title and in the story (`:201`) overstates it.
+   - `Array.from` was round 1's own suggestion; `Intl.Segmenter` would give the whole grapheme. No action is needed unless the owner wants flags and families kept whole.
+   - Related, and not asked for: `trim()` doesn't strip zero-width or filler characters such as U+200B. A name made only of those is kept and looks blank, but the npub line still identifies the row.
+3. **R2-3, `ledger/2026-09-30-npm-test-step-leaks-fixtures.md`: two accuracy gaps in the new row.**
+   - **`:42`, "they were enabled on purpose on 2026-07-18":** the only evidence is `ledger/2026-09-27-test-fixture-taggings-on-prod-relays.md:89`. It says `router-state.json` has held the flags since 2026-07-18, and I found no record of why in `ledger/`, `OPEN.md`, `docs/`, `engineering-team/` or session memory. Say "enabled since 2026-07-18" and leave the reason to the owner.
+   - **`:32`, step 4, doesn't find the run as written:** `--label` on `gate:status` only selects a run by its label. The label is set at run time, with `GATE_LABEL=<label> npm test` (`engineering-team/README.md:61-62`). My first run had no label, and I restarted it.
+   - **Step 2 is missing a chown:** the tar copy keeps the host's uid 501, so git in the root container refuses the tree ("detected dubious ownership"). It works once the tree is chowned to root or marked `safe.directory`, which I did before `npm ci`. The gate record's `git` field and harness-lint's history checks both read git.
+
+   A small follow-up edit to the row, not blocking the story.
+
+#### Harness friction
+
+1. The two recipe gaps in R2-3 are the friction this round. The new row is their home, so there's no new row.
+
+### Close-out
+
+On this verdict, the story's `**Status:**` changes to Done in the review commit. The orchestrating session does that and runs completion detection; neither is recorded here.
+
+### Verdict (round 2)
+
+**PASS**
+
+Blocking 1 is fixed, and C10, C11 and A12 pin it. R2-1 to R2-3 are non-blocking.

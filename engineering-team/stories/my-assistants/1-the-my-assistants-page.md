@@ -1,6 +1,6 @@
 # Story 1: The My Assistants page, its menu link, and the list of your Assistants
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-30
 **Type:** Feature
 **Epic:** `my-assistants`
