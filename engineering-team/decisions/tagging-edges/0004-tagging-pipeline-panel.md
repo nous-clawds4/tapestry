@@ -647,6 +647,121 @@ This ADR's commit makes these changes in ADR 0003's text.
   - **The code is unchanged:** `flushJournal` (`realtime/index.js:441-452`), the all-or-none append
     (`store.js:401-419`), `stopStep` (`:2193-2213`), and the status write (`:604-608`).
 
+## Clarifications (Test Design, 2026-09-30)
+
+Test Design fixes the shapes the suites call where the sections above name a field but not its exact form. They are
+for the owner to ratify at the Test Design gate. Times are ISO strings as the routes give them. "Absent" means the
+field is `null`.
+
+**T1 — `passView(statusBody)`.** It returns `{ running, current, latest, earlier, empty, confirmation }`.
+- `running` is `statusBody.running === true`.
+- `current` is `null` unless running. While running it is `{ runId, startedAt, phases, finishing }`, taken from
+  `statusBody.latest`.
+- `latest` is `statusBody.latest` when not running, else `null`.
+- `earlier` is `statusBody.previous` in its order (newest first), or `[]`.
+- `empty` is true only when `statusBody.latest` is null and `earlier` is empty.
+- `confirmation` has the five states of § UI, checked in that order.
+- A null or non-object `statusBody` gives `null`.
+
+**T2 — `newestFinishedPass(statusBody)`** returns the record itself (the same object), or `null`.
+
+**T3 — `pathView(rtBody)`.** It returns:
+
+```
+{ on, running, onButNotRunning, started, state, warnings, countsSince, lastFigures,
+  counts, gauges, lastCatchUp, setupProblemKey, lastError }
+```
+
+- `started` is false when `firstStartedAt` is absent and `counts` is absent.
+- `state` is `null` when `onButNotRunning`. Otherwise it is `rtBody.state`, which is `'off'` whenever `on` is false.
+- `warnings` is an array, in this order, of those of `'stale'`, `'statusUnreadable'` and `'switchUnreadable'` whose
+  field is `true`.
+- `countsSince` is `null` when not started. Otherwise it is `{ from: 'first-start', at: firstStartedAt }`, or
+  `{ from: 'reset', at: null }` when `counts.countsReset === true`.
+- `lastFigures` is `{ updatedAt }` when `on` is false and `started`, else `null`.
+- `counts` is `null` when not started. Otherwise it is `{ added, changed, removed, unchanged, peopleAdded,
+  refusedLooks, failedReads: { relay, graph, element, catchUp, total }, dbRefused, removalsNotPrompted,
+  droppedOverBacklog }`, with each number as the status gives it (`refusedLooks` is `counts.refused.total`,
+  `dbRefused` is `counts.dbRefused.total`).
+- `gauges` is `{ parked, pending }`, or `null` when not started.
+- `lastCatchUp` is `catchUp.last`, or `null`.
+- `setupProblemKey` is `'identity:<problem>'`, `'schema:<rule>:<problem>'`, or `null`.
+- `lastError` is the status's `lastError`, or `null`.
+- A null or non-object `rtBody` gives `null`.
+
+**T4 — `scheduleView(listBody)`.** It returns:
+
+```
+{ verdict, enabledCount, disabledCount, intervalText, nextRunAt, unscheduled, weakerThanDaily }
+```
+
+- `verdict` is `'none'`, `'one'` or `'several'`.
+- `intervalText`, `nextRunAt`, `unscheduled` and `weakerThanDaily` describe the one enabled entry, and are `null`,
+  `null`, `false` and `false` otherwise.
+- `intervalText` is the trimmed cron when one wins. Otherwise it is the sum in the largest whole unit, one of `every
+  N day(s)`, `every N hour(s)` or `every N minute(s)`, or `every D days H hours M minutes` when no single unit
+  fits.
+- A null or non-object `listBody`, or one whose `entries` is not an array, gives `null`.
+
+**T5 — `driftView(counts, statusBody, rtBody)`.** `counts` is the drift-counts answer's body, or `null` when that read
+failed. It returns:
+
+```
+{ known, relay, graph, difference, explained, unexplained, explainedReason, explainedBy, leftToNextPass,
+  passRunning, newerUnfinished, pathRefusedLooks, parked, waitsForPass, pathUnknown }
+```
+
+- `relay` and `graph` are the answer's two count objects, or `{ known: false, code: null }` when `counts` is `null`.
+- `known` is true only when both are known.
+- `difference`, `explained` and `unexplained` are numbers or `null`. When not known, all three are `null`, and so
+  are `explainedBy` and `explainedReason`.
+- `explainedReason` is `null` when a finished pass explains, `'report-unavailable'` when `statusBody` is null, or
+  `'no-finished-pass'`.
+- `explainedBy` is `{ runId, endedAt, usedInsteadOfLatest }`. `usedInsteadOfLatest` is true when the explaining
+  pass is not the report's `latest`.
+- `leftToNextPass` is a number, or `null` without an explaining pass.
+- `passRunning`, `newerUnfinished`, `waitsForPass` and `pathUnknown` are booleans.
+- `pathRefusedLooks` and `parked` are numbers when the path is on, else `null`.
+
+**T6 — `explain(kind, code)`.** An unknown `kind` answers as an unknown code. `code` is returned as given, a
+non-string included. The text for an unknown code is exactly `not recognised`.
+
+**T7 — `readSection`.**
+- A 2xx whose body parses to anything but a plain object (an array, `null` or a string) is
+  `{ ok: false, code: 'bad-json', httpStatus, body }`.
+- `httpStatus` and `body` are `null` for `network` and `timeout`.
+- The time-out covers the whole read, the body included: a response whose `text()` never settles ends as `timeout`.
+- A `text()` that rejects ends as `network`, and `readSection` itself never rejects.
+- `fetchImpl` is called exactly once per read, and a failure is never retried.
+
+**T8 — The drift route's times.** `takenAt` is `new Date(d.now()).toISOString()` at the count's start. `ms` is
+`d.now()` at settle minus `d.now()` at start (so 0 with a fixed fake clock), and `limitMs` exactly for a lost race.
+`stamps` values are the first 8 characters of each resolved pubkey.
+
+**T9 — The panel's fixed words**, which the browser spec reads:
+- the sub-tab's accessible name is `Tagging pipeline`;
+- a figure the path has never produced reads `not yet available`;
+- an unknown count reads `unknown`;
+- an unrecognised code reads `not recognised`;
+- the Recount button's accessible name is `Recount`;
+- a section's retry button's accessible name is `Retry`.
+
+The section `data-testid`s and `data-state` values are as in § UI.
+
+**T11 — The drift route's seams.**
+- **`countFilter`** takes `resolveIdentities`' success shape, `{ canonicalPubkey, localPubkey }`, and keeps the
+  canonical stamp first.
+- **What `handleDriftCounts`' third argument may override:** `ownerPubkey` or `getOwnerPubkey`, `getAdminPubkeys`,
+  `identities` (the runner's nested shape), `env`, `countStrict`, `runCypher`, `now`, `limitMs`, `setTimer` and
+  `clearTimer`.
+- **A refused request resolves no identity**, as well as spawning nothing and running no Cypher.
+- **On an identity refusal,** the `stamps` value of the identity that did not resolve is `null`. The other one is
+  still given when it resolved.
+
+**T10 — AC-6's baseline.** The requests each existing Relays sub-tab sends under the browser spec's catch-all are
+recorded before the change, at `88af7df3` (its UI is `66d60cb5`'s), in
+`tests/brainstorm/fixtures/relay-subtab-requests.json`. The spec compares against that file.
+
 ## Out of scope
 
 - **Story 5's controls** and their confirm prompts. The widening of the switch to admins, and the run and stop

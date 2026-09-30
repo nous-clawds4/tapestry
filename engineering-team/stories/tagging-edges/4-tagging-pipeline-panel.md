@@ -285,5 +285,5 @@ None. The Product Owner's four proposals were ratified by the owner at Planning 
 
 - ADR: `engineering-team/decisions/tagging-edges/0004-tagging-pipeline-panel.md` (also amends ADR 0003 for C1, C2's ADR
   half, C3, C5 and C7)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.test-plan.md`
 - Review: (filled in after Review phase)

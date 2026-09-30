@@ -47,6 +47,13 @@
  * engineWith(): a fresh copy of the engine whose one planner import is wrapped, since nothing the fakes stand in for
  * can reach that code once the catch-up's reads have answered.
  *
+ * Review round 3 (same review, 2026-09-30, carry-forward C6; placed under story 4 of the epic) adds RX29 and RX30. They
+ * pin the two halves of A1 clarification 26 that RX24 and RX28 left unpinned, at a park for a refused REMOVAL: RX29, a
+ * refused removal's kind-5, found again at the safety diff, merges into the parked entry and waits for its timer (the
+ * revoke half of RX24 (a)); RX30, a newer version whose notice was lost, found by the diff at a park whose entry holds
+ * only the revoke, lifts it at that catch-up (the version half of RX28). Both pin the engine as it is, so they pass;
+ * each was shown red against a named mutant of bringsNew (story 3's test plan, § Review round 3).
+ *
  * Intentionally failing until A1 lands (red phase). The engine and the planner module are require()d LAZILY, through
  * load() / loadLib() inside each test, so the suite always loads and each test fails for its own reason. Against the
  * round-1 working tree (T1–T34 without A1) the failures name the A1 rule the pre-A1 behaviour breaks: a start hold, a
@@ -1905,6 +1912,98 @@ test('RX28: a revoke a catch-up finds, which the parked entry does not hold, lif
   await drive(proc, 5 * SEC, 250); // the status catches up
   eq(num(statusOf(proc), 'parked'), 0, 'A1 clarification 26: the status\'s parked once the lifted address\'s removal is written');
   eq(num(statusOf(proc), 'counts.dbRefused.total'), 1, 'counts.dbRefused.total (the refused update, counted once)');
+});
+
+/* ═══════════ Review round 3 (2026-09-30): carry-forward C6, A1 clarification 26's two unpinned halves ═══════════ */
+
+/**
+ * The setup RX29 and RX30 share: an address the backfill wrote (X0, which the first start takes as its baseline), and,
+ * three minutes before the 10-minute safety diff, the author's kind-5 naming X0 by id, delivered live. It resolves at
+ * the address (X0 is its top), so the parked entry holds its revoke; the database refuses the removal it gives, twice
+ * with the same code, and the address is parked. → { w, proc, X0, AX, K, CODE, tries, parkedAt, timerAt }
+ */
+async function parkRefusedRemoval(name) {
+  const w = newWorld();
+  const X0 = fresh(`${name}-x0`, { createdAt: NOW_S - 100 });
+  const AX = addr(X0);
+  put(w, X0);
+  backfill(w, X0);
+  const proc = await boot(w);
+  const cuAt = await firstCatchUpStart(proc);
+  await drive(proc, Math.max(0, cuAt + 7 * MIN - w.clock.t), 1000);
+  const CODE = 'Neo.ClientError.Statement.TypeError';
+  // The database refuses the removal at the address, in whatever call carries it; any other write there it accepts.
+  w.graph.failWrites = (kind, rows) => (kind === 'remove' && rows.some((r) => r.address === AX)
+    ? H.neoError(CODE, `Property values can only be of primitive types (at ${H.NEO4J_URI})`) : null);
+  const mark = w.nextSeq();
+  const K = del(`${name}-k`, { author: X0.pubkey, e: [X0.id] });
+  await putNow(w, K); // delivered live: strfry deletes X0, and the revoke resolves at the address
+  eq(w.relay.atAddress(AX), null, 'fixture: the relay holds nothing at the address once the kind-5 is stored');
+  const tries = () => w.graph.writes.filter((x) => x.seq > mark && x.addresses.includes(AX));
+  await within(proc, MIN, () => tries().length >= 2 && num(statusOf(proc), 'parked') === 1,
+    'fixture: the refused removal is parked after two rounds that each failed its write with the same code (RE26)', 250);
+  const bad = tries().slice(0, 2).filter((x) => x.kind !== 'remove' || !x.error);
+  eq(bad.length, 0, `fixture: the two refused writes at the address were removals the database refused (${show(tries().slice(0, 2).map((x) => `${x.kind}:${x.error}`))})`);
+  eq(eventIdAt(w, AX), X0.id, 'fixture: the relationship the backfill wrote stands while the address is parked');
+  const parkedAt = tries()[1].at;
+  return { w, proc, X0, AX, K, CODE, tries, parkedAt, timerAt: parkedAt + 5 * MIN };
+}
+/** When this process's catch-up that began after `after` started (its current one, else its last), or null. */
+function catchUpStartedAfter(proc, after) {
+  const cur = at(statusOf(proc), 'catchUp.current');
+  const l = at(statusOf(proc), 'catchUp.last');
+  const s = isPlainObject(cur) ? Date.parse(cur.startedAt) : (isPlainObject(l) ? Date.parse(l.startedAt) : NaN);
+  return s > after ? s : null;
+}
+/** A revoke kept in an entry names `id` by id (T15: revokes are { by, target, created_at, … }). */
+const holdsRevokeOf = (entry, id) => isPlainObject(entry) && Array.isArray(entry.revokes)
+  && entry.revokes.some((r) => isPlainObject(r) && r.by === 'e' && String(r.target).toLowerCase() === id.toLowerCase());
+
+test('RX29: a refused removal\'s kind-5, found again at the safety diff, merges into its park and waits for the timer — at an address the backfill wrote, the author\'s kind-5 naming that version by id is delivered live, so the parked entry holds its revoke; the database refuses the removal twice and the address is parked three minutes before the 10-minute safety diff; the diff\'s candidate scan finds that kind-5 again, and its revoke, one the parked entry already holds, brings nothing new, so it merges (record.json\'s parked row still holds the revoke, under the refusal\'s code): no write is attempted there before the park\'s timer, it is retried at the timer, 5 minutes after the park, and the refusal is counted once (A1 clarification 26: "lifts the park when it carries a version id or a revoke the parked entry does not already hold … A revoke for a (by, target) the entry keeps one for at least as late is held, whichever kind-5 it came from … Work that brings nothing new merges into the parked entry, which keeps its schedule"; § Failure handling "retried at 5 min, 30 min, then every 6 h"; review round 3, C6 (story 4 § Test tasks; ADR 0004 § Seams for Test Design); A1-12; AC-2; AC-6)', async () => {
+  const { w, proc, X0, AX, K, CODE, tries, parkedAt, timerAt } = await parkRefusedRemoval('rx29');
+  const diffDone = () => {
+    const l = at(statusOf(proc), 'catchUp.last');
+    return isPlainObject(l) && l.outcome === 'done' && Date.parse(l.startedAt) > parkedAt;
+  };
+  await within(proc, 5 * MIN, diffDone, 'fixture: the 10-minute safety diff runs and completes while the address is parked', 250);
+  const diffAt = Date.parse(at(statusOf(proc), 'catchUp.last.startedAt'));
+  assert(diffAt < timerAt - 5 * SEC,
+    `fixture: the safety diff began before the park's timer (${((diffAt - parkedAt) / SEC).toFixed(0)} s after the park)`);
+  const refound = w.relay.scans.filter((x) => x.proc === proc.n && x.at >= diffAt && x.kind === 'deletion' && x.outcome === 'ok'
+    && !!x.filter && (Array.isArray(x.filter) ? x.filter : [x.filter]).some((f) => H.matchFilter(K, f)));
+  assert(refound.length >= 1,
+    `fixture: the safety diff's candidate scan asks for the kind-5 ${short(K.id)}… again (the graph still records ${short(X0.id)}…, which the relay no longer holds); its deletion scans: ${show(w.relay.scans.filter((x) => x.proc === proc.n && x.at >= diffAt && x.kind === 'deletion').map((x) => x.outcome))}`);
+  const beforeTimer = tries().slice(2).filter((x) => x.at < timerAt - 5 * SEC);
+  assert(beforeTimer.length === 0,
+    `A1 clarification 26: the kind-5 found again carries a revoke the parked entry already holds (same (by, target), a created_at no later), so it brings nothing new: the safety diff's catch-up merges it and lifts nothing — ${beforeTimer.length} write attempt(s) at the parked address came before its 5-minute timer: ${preview(beforeTimer.map((x) => `${x.kind} +${((x.at - parkedAt) / SEC).toFixed(1)} s after the park${x.error ? ` (${x.error})` : ''}`))}`);
+  const row = parkedRowAt(w.store.record, AX);
+  assert(row && holdsRevokeOf(row.entry, X0.id) && row.code === CODE,
+    `A1 clarification 26; A1-12: the address stays parked under the refusal's code, its entry still holding the revoke (a merge of a revoke it already holds changes nothing by effect) — record.json's parked row holds the revoke of ${short(X0.id)}… under ${CODE}; got ${show(row)}`);
+  await drive(proc, Math.max(0, timerAt + 30 * SEC - w.clock.t), 500);
+  const retry = tries().slice(2)[0];
+  assert(retry && retry.at >= timerAt - 5 * SEC && retry.at <= timerAt + 15 * SEC,
+    `§ Failure handling: the parked address is retried at its timer, 5 minutes after the park; ${retry ? `its next write came ${((retry.at - parkedAt) / SEC).toFixed(1)} s after the park` : 'no write was attempted there within 5.5 minutes'}`);
+  eq(retry.kind, 'remove', 'the write retried at the timer (the removal the revoke gives)');
+  eq(num(statusOf(proc), 'counts.dbRefused.total'), 1, 'counts.dbRefused.total (the refused removal, counted once)');
+});
+
+test('RX30: a newer version, its notice lost, lifts a refused removal\'s park at the catch-up that finds it — at an address the backfill wrote, the author\'s kind-5 naming that version by id is delivered live, the database refuses the removal twice, and the address is parked three minutes before the 10-minute safety diff with an entry that holds only the revoke; the author then stores a newer version there, its live notice lost: the diff\'s arrival carries a version id the parked entry does not hold (a new event at the address) and lifts the park at that catch-up, and the newer version, which the database accepts, is written within a minute of that catch-up\'s start, long before the park\'s timer; nothing stays parked, and the refusal is counted once (A1 clarification 26: "lifts the park when it carries a version id or a revoke the parked entry does not already hold. That is a new event at the address"; "a version id other than the entry\'s"; § Failure handling "at once on a new event at that address"; review round 3, C6 (story 4 § Test tasks; ADR 0004 § Seams for Test Design); A1-12; AC-1; AC-3; AC-6)', async () => {
+  const { w, proc, X0, AX, tries, parkedAt, timerAt } = await parkRefusedRemoval('rx30');
+  const X1 = version(X0, 'rx30-x1');
+  w.relay.loseNotice = (ev) => ev.id === X1.id;
+  put(w, X1); // only a catch-up learns it: an arrival at the parked address, and a new event there
+  eq(w.relay.atAddress(AX) && w.relay.atAddress(AX).id, X1.id, 'fixture: the relay holds the newer version at the address, which the diff\'s stamp scan finds');
+  await within(proc, 5 * MIN, () => catchUpStartedAfter(proc, parkedAt) !== null, 'fixture: the 10-minute safety diff starts while the address is parked', 250);
+  const diffAt = catchUpStartedAfter(proc, parkedAt);
+  assert(diffAt < timerAt - 5 * SEC, `fixture: the safety diff began before the park's timer (${((diffAt - parkedAt) / SEC).toFixed(0)} s after the park)`);
+  eq(tries().slice(2).filter((x) => x.at < diffAt).length, 0, 'fixture: write attempts at the parked address between its park and the safety diff (nothing else lifts it)');
+  const bound = Math.min(diffAt + MIN, timerAt - 5 * SEC);
+  await within(proc, Math.max(0, bound - w.clock.t), () => holdsId(w, X1),
+    `A1 clarification 26: the diff's arrival carries a version id the parked entry (which holds only the revoke) does not hold, so it lifts the park at that catch-up, and the newer version is written within a minute of the catch-up's start (by +${((bound - diffAt) / SEC).toFixed(0)} s), not at the park's timer ${((timerAt - diffAt) / SEC).toFixed(0)} s after it; the graph records ${eventIdAt(w, AX) ? `${short(eventIdAt(w, AX))}…` : 'nothing'} there, and the write attempts at the address after the diff's start came at ${show(tries().slice(2).map((x) => `${x.kind} +${((x.at - diffAt) / SEC).toFixed(1)} s`))}`, 250);
+  await drive(proc, 5 * SEC, 250); // the status catches up
+  eq(num(statusOf(proc), 'parked'), 0, 'A1 clarification 26: the status\'s parked once the lifted address\'s newer version is written');
+  eq(parkedRowAt(w.store.record, AX), null, 'record.json holds no parked row at the address once the lift\'s write succeeded');
+  eq(num(statusOf(proc), 'counts.dbRefused.total'), 1, 'counts.dbRefused.total (the refused removal, counted once)');
 });
 
 // ─── run ───────────────────────────────────────────────────────────────────────────────────────────────────────
