@@ -1,6 +1,6 @@
 # The phases' "run `npm test`" step leaks tag fixtures to a public relay on the Mac Studio, and no phase doc says so
 
-**Id:** 2026-09-30-npm-test-step-leaks-on-mac-studio
+**Id:** 2026-09-30-npm-test-step-leaks-fixtures
 **Type:** meta
 **Opened:** 2026-09-30 (my-assistants #1, review 1's Harness friction 1)
 **Status:** OPEN
