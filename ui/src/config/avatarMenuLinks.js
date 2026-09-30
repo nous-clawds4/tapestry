@@ -108,6 +108,13 @@ export function personalLinks({ pubkey, assistantPubkey, classification, profile
       label: 'Dictionaries',
       to: '/tapestry/dictionaries',
     },
+    {
+      // The Concepts dictionary in the Brainstorm design's styling (the mock's account menu → Dictionary).
+      key: 'dictionary',
+      icon: '📘',
+      label: 'Dictionary',
+      to: '/dictionary',
+    },
   ];
 }
 
