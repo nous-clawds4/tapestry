@@ -241,6 +241,26 @@ function mergeEntry(entry, more) {
   return e;
 }
 
+/**
+ * A1 clarification 26: whether `more` (a catch-up's work at an address) carries a version id or a revoke that the
+ * parked entry `held` does not already hold, that is, one mergePrompt would put in its place. A version is held when it
+ * is the entry's version; a revoke, when the entry keeps one for the same (by, target) with a created_at at least as
+ * late (mergePrompt keeps that one). A look alone is nothing new.
+ */
+function bringsNew(held, more) {
+  if (!isPlainObject(more)) return false;
+  const h = isPlainObject(held) ? held : {};
+  if (isPlainObject(more.version) && typeof more.version.id === 'string'
+    && !(isPlainObject(h.version) && h.version.id === more.version.id)) return true;
+  const heldRevokes = Array.isArray(h.revokes) ? h.revokes.filter(isPlainObject) : [];
+  for (const p of Array.isArray(more.revokes) ? more.revokes : []) {
+    if (!isPlainObject(p)) continue;
+    const kept = heldRevokes.find((r) => r.by === p.by && r.target === p.target);
+    if (!kept || p.created_at > kept.created_at) return true;
+  }
+  return false;
+}
+
 /** The event id a snapshot row records (its eventId property as a string), or null. */
 function storedEventIdOf(row) {
   const s = storedFromRow(row);
@@ -675,7 +695,10 @@ function makeEngine(deps) {
     return changed;
   }
 
-  /** A1-7: ids learned at `address` after the running catch-up's capture; ids its lineage no longer holds go. */
+  /**
+   * A1-7 with A1 clarification 23: ids learned at `address` since the running catch-up's key read (its stamp scan's own
+   * placement aside); ids its lineage no longer holds go.
+   */
   function noteLearned(address, ids) {
     const at = learnedSince.ids;
     let m = at.get(address);
@@ -1002,6 +1025,9 @@ function makeEngine(deps) {
 
   function endCatchUp(c, outcome, extra = {}) {
     if (cu.running === c) { cu.running = null; learnedSince = null; }
+    // Only a completed catch-up ends a run of failures: one that failed after its reads answered (an unexpected error
+    // in its later steps or as its work is fed) keeps backing off 5→60 s, never a key read and stamp scan every 5 s.
+    if (outcome === 'done') { cu.failures = 0; cu.retrying = false; }
     const t = now();
     const last = { outcome, startedAt: iso(c.startedAt), endedAt: iso(t), durationMs: t - c.startedAt, reflected: reflectedSince(c), ...extra };
     if (outcome !== 'failed' && outcome !== 'stopped' && c.notEstablished) {
@@ -1045,13 +1071,18 @@ function makeEngine(deps) {
       c.next += 1;
       const p = parked.get(address);
       if (p) {
-        // A catch-up lifts no park. Its arrival, look or found revoke merges into the parked entry, which keeps its
-        // schedule: for a time-out park, its timer, a start, or a live event there (A1 clarifications 12 and 21); for a
-        // database refusal, 5 min, 30 min, then every 6 h, a start, a new event there, or the next successful write
-        // (§ Failure handling). A parked version never enters S, so every catch-up, the safety diff included, finds it
-        // again: lifting the park here would retry each refused address every 10 minutes.
-        p.entry = mergeEntry(p.entry, entry);
-        continue;
+        // A1 clarification 26: at a database-refusal park, work carrying a version id or a revoke the parked entry
+        // does not already hold is a new event at the address, so it lifts the park at once (§ Failure handling), as a
+        // live one does. Work that brings nothing new merges into the parked entry, which keeps its schedule (5 min,
+        // 30 min, then every 6 h, a start, a new event there, or the next successful write): a parked version never
+        // enters S, so every catch-up, the safety diff included, finds it again, and lifting for it would retry each
+        // refused address every 10 minutes. A time-out park merges either way; its timer, a start, or a live event
+        // there lifts it (A1 clarifications 12 and 21).
+        if (p.code === TIMEOUT_PARK || !bringsNew(p.entry, entry)) {
+          p.entry = mergeEntry(p.entry, entry);
+          continue;
+        }
+        unpark(address, 'catchup');
       }
       c.outstanding.add(address);
       enqueue(address, 'catchup', { entry });
@@ -1059,8 +1090,9 @@ function makeEngine(deps) {
     if (c.next >= c.backlog.length && c.outstanding.size === 0) {
       compact(maps, c.scannedIds, c.captureSeq);
       // A1-7: a lineage is kept where a gate may still need it; at every address kept, `older` is cut to the graph's
-      // recorded id plus the ids learned there after the capture, work waiting or not; while a pass may still write
-      // from an older read, nothing is pruned (the cap still holds).
+      // recorded id plus the ids learned there since the key read (A1 clarification 23: rounds run between the
+      // catch-up's reads; the scan's own placement aside), work waiting or not; while a pass may still write from an
+      // older read, nothing is pruned (the cap still holds).
       const keep = new Set([...pending.keys(), ...inFlight.keys(), ...parked.keys(), ...rechecks.keys()]);
       for (const [a, n] of learnSeq) if (n > c.captureSeq) keep.add(a);
       const learnedAfter = learnedSince && learnedSince.capture === c.captureSeq ? learnedSince.ids : new Map();
@@ -1250,8 +1282,6 @@ function makeEngine(deps) {
       return;
     }
     relayAnswered();
-    cu.failures = 0;
-    cu.retrying = false;
     if (stopping) { endCatchUp(c, 'stopped'); return; }
     const graphKeys = c.graphKeys;
     const scannedIds = new Set(pairs.map((p) => p[0]));

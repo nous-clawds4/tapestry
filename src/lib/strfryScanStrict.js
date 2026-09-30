@@ -65,11 +65,13 @@ class ScanError extends Error {
  * `<a.b.c.d>:<port>`, and a letter-led single-label or dotted name with a 2–5 digit port (`neo4j:7687`,
  * `neo4j.internal:7687`, `redis:6379`; CF-3); and every run of 64 or more hex characters cut to its first 8. A
  * relative path (`../lib/x`) and a clock time (`03:24:18`) are kept. The name rule can also take a letter-led word
- * before `:<digits>`, such as a tagging address whose `d` starts with 2–5 digits (ADR 0003's New debt; T31): too
- * much is cut, never too little. A name with an underscore (`tapestry_neo4j_1:7687`) is not taken (the story's
- * Deviations). Text past 4 KB is cut first, back to the last whitespace within it, so no rule runs on long input (the
- * name rule is quadratic on long dotted or hyphenated text) and no token is split into a part the rules no longer
- * recognise; the caller bounds the length it keeps.
+ * before `:<digits>`, such as a tagging address whose `d` starts with 2–5 digits (ADR 0003's New debt; T31): where a
+ * letter-led word before a 2–5-digit port may not be a host, the name rule cuts it anyway. That bias is the name
+ * rule's only: some forms still pass the redactor, a host name with an underscore (`tapestry_neo4j_1:7687`) or
+ * starting with a digit, and a credential written without a scheme (ADR 0003's New debt line on the redactor). Text
+ * past 4 KB is cut first, back to the last whitespace within it, so no rule runs on long input (the name rule is
+ * quadratic on long dotted or hyphenated text) and no token is split into a part the rules no longer recognise; input
+ * with no whitespace in its first 4 KB comes out empty. The caller bounds the length it keeps.
  */
 function redactPublicText(s) {
   let text = String(s);

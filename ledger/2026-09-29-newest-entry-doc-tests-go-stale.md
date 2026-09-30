@@ -10,13 +10,15 @@
 Last-updated entry, the text before the first `; prior:`, names `tagging-edges #2`. Story 3 had to write a new newest
 entry. It stays green only because that entry happens to mention "(CF-3 from tagging-edges #2's review)". The
 Implementer kept that wording partly to keep the test green, and reported the test for the Tester, but neither of
-story 3's Test Design rounds re-aimed it. A test that pins which entry is newest goes stale at the next story that
-updates the line. Until then it shapes what that story may write.
+story 3's Test Design rounds re-aimed it (the review's round-1 tests later did: below). A test that pins which entry
+is newest goes stale at the next story that updates the line. Until then it shapes what that story may write.
 
 **Fix shape.**
-- Re-aim S2C16 to "some Last-updated entry records tagging-edges #2 / ADR 0002", as S2C9 was re-aimed.
+- Re-aim S2C16 to "some Last-updated entry records tagging-edges #2 / ADR 0002", as S2C9 was re-aimed. *Done:* the
+  tests for story 3's review round 1 (`a5273b05`) re-aimed it; it now asks that some entry records story 2, whichever
+  is newest.
 - In the Tester's guidance (`engineering-team/workflows/3-test-design.md`), write doc tests as "an entry records X",
-  never "the newest entry is X".
+  never "the newest entry is X". Still open: this half is why the row stays open.
 
 **Pointer:** `engineering-team/reviews/tagging-edges/3-real-time-path.md` § Harness friction 1; story 3 § Deviations
 (Docs, first line).

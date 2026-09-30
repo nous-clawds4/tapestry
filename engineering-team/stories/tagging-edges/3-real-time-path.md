@@ -711,8 +711,14 @@ stay in the graph as local dev data.
     never delivered live. The path's next safety diff removed the relationship, 9 minutes after the revoke was stored
     (owner decision 10).
   - Reproduced without the path: a plain `limit:0` subscription got A and C, never B.
-  - Review round 1 confirmed the mechanism in strfry 1.1.0's source (A1 clarification 24): deleting the K newest
-    events hides the next K writes, and a wipe hides every write until the subscription reconnects.
+  - The mechanism, read in strfry 1.1.0's source at review rounds 1 and 2 (A1 clarification 24, rewritten at round
+    2): after an operator deletes the relay's newest events, or wipes it, the next writes re-use their ids, at least
+    one per event deleted and more where earlier deletions left gaps. A live subscription misses a write that re-uses
+    an id its own monitor had passed (for the path, one at or below the last kind-5 or stamped event it saw, or the
+    relay's newest event when it subscribed). A write stored within the monitor's 100 ms change debounce of the
+    delete is missed by every live subscription, unless a REQ or a CLOSE woke the relay's monitor in between. After a
+    wipe, a subscription misses writes until the ids pass that point, or until it re-subscribes. Kind-5s, replaced
+    versions and expiry never lower the largest id, so they never trigger it.
 
 ### Decision 9's heap ceiling (A1-16 (9), A1 clarification 19)
 
@@ -815,11 +821,15 @@ and 23 (a catch-up's compaction keeps the `older` ids learned since its key read
 - The redactor cuts its input to 4 KB before any rule runs, back to the last whitespace within it, so the name rule,
   quadratic on long dotted or hyphenated text, never runs on long input, and no URI, path, host:port or hex run is
   split into a part the rules no longer recognise; input with no whitespace in its first 4 KB comes out empty (review
-  round 1, Non-blocking 4). The callers still bound what they keep.
+  round 1, Non-blocking 4). The callers still bound what they keep. The cut also changes story 2's pass report, whose
+  error `message` passes the same redactor before its 300-character cut: an error text over 4 KB now keeps only what
+  its first 4 KB, cut back to whitespace, redacts to, and one with no whitespace in its first 4 KB is reported empty,
+  where before it gave its first 300 redacted characters. The report's `stderrTail` is unchanged: its line comes from
+  at most 4,096 characters of stderr. SS41 pins the cut.
 - The redactor's name rule does not take a host name with an underscore, such as a Compose-style container name
   (`tapestry_neo4j_1:7687`): an error naming one keeps it, in the path's log and in the pass's report. Widening the
-  rule is left as debt beside the ADR's New debt line on the name rule's reach, as the review suggested, not done in
-  this round.
+  rule is left as debt: ADR 0003's New debt line on the redactor names it, with host names that start with a digit
+  and credentials written without a scheme (added at review round 2, R2-NB3).
 - The size check stringifies a filter twice (at most 100 KB), so the scanner and the planner share one escape (T1).
 
 *State and routes (`store.js`, `src/api/tagging-edges/realtime.js`):*
@@ -861,7 +871,9 @@ and 23 (a catch-up's compaction keeps the `older` ids learned since its key read
   them again, and a compaction writes the unfed backlog into `pending`. Every catch-up, the safety diff included, is
   done and compacts once each address it queued has had one attempt.
 - A catch-up retried after a failed read uses its own 5→60 s backoff and not the 30 s spacing, which applies to
-  connect, pass-end, backlog and safety-diff requests; the retry backoff resets when the graph comes back.
+  connect, pass-end, backlog and safety-diff requests. The graph coming back ends the wait at once; only a catch-up
+  that completes resets the failure count (review round 2, R2-2), so every failure path, a failure after the stamp
+  scan answered included, backs off 5, 10, 20, 40, then 60 s.
 - An unexpected error in a catch-up's own work, in one of its reads' steps or in feeding its backlog after a round,
   ends that catch-up as `failed` with stage `unexpected` and the same 5→60 s backoff (review round 1, Blocking 2). It
   is the status's `lastError` under stage `unexpected`, not `catch-up`, and is not counted in `failedReads.catchUp`:
@@ -896,9 +908,14 @@ and 23 (a catch-up's compaction keeps the `older` ids learned since its key read
   read) — and a due round and the catch-up's next read strictly take turns, so neither starves the other.
 - A pass's re-look at an address parked for time-outs merges into the parked entry (and keeps its run, so the `rc`
   line follows the address's completion) instead of queueing the address beside its park; at an address parked for a
-  database refusal, it lifts the park and is queued, as a new event there would be (a catch-up does not: review round
-  1, conform item 1(f), merges its work into every park). `park()` merges any entry already parked at the address
-  (the higher level and the read-alone mark kept), and a parked address keeps the re-looks its item carried.
+  database refusal, it lifts the park and is queued, as a new event there would be. (A catch-up lifts a refusal park
+  only for a version or revoke the parked entry does not hold, A1 clarification 26.) `park()` merges any entry already
+  parked at the address (the higher level and the read-alone mark kept), and a parked address keeps the re-looks its
+  item carried.
+- A1 clarification 26's "a version id or a revoke the parked entry does not already hold" is read as one
+  `mergePrompt` would put in the entry: a version id other than the entry's, or a revoke with no kept revoke for its
+  `(by, target)` or a later `created_at` than the kept one. A revoke the entry keeps for that pair with a `created_at`
+  at least as late counts as held, whichever kind-5 it came from, since merging it changes nothing.
 - A start whose record names a journal generation that a journal read whole never opens (a stop between a
   compaction's record write and its `e` line) puts that `e` line first in its journal, so what it journals is
   replayed next time. Nothing of that generation was durable, so the start does not demote its restored tops.
@@ -933,14 +950,23 @@ and 23 (a catch-up's compaction keeps the `older` ids learned since its key read
 - OPERATIONS §12.9 gives decision 9's stamp-scan trigger with `catchUp.last.durationMs` as its upper bound, since the
   status shows no stamp-scan time of its own.
 - The ledger row `2026-09-29-strfry-delete-hides-next-write` keeps round 1's local figure (9 minutes to the safety
-  diff), labelled as measured on the code before A1; § Evidence records both runs. Review round 1 corrected the row by
-  A1 clarification 24, and adds `src/events.cpp` to its cites, read in the same strfry 1.1.0 source: a kind-5 or a
-  replaced version is written before what it deletes, so neither can trigger the defect, as the expiry cron cannot.
+  diff), labelled as measured on the code before A1; § Evidence records both runs. Review round 2 (R2-1) rewrote its
+  title, mechanism, impact and fix shape to A1 clarification 24 as rewritten at that round, each statement re-read in
+  strfry 1.1.0's source with line cites. Beyond the clarification's text, the row cites `cmd_delete.cpp` (a delete
+  takes the newest event too) and the change watcher's debounce, and says that a REQ or a CLOSE waking the relay's
+  monitor between the delete and a write lowers that monitor's cursor, so the debounce race misses the write on
+  every live subscription only when nothing else woke the monitor. Round 1's row also said "as many harmless writes";
+  it now says the harmless writes needed are the old largest id minus the new one, gaps included.
+- The staging-backfill pointer (OPERATIONS §12.8's "Staging backfill: not yet run" line, and §12.9's step 1, which
+  points to it and to story 2's Evidence) still reads as not run: the staging backfill ran on 2026-09-28, and its
+  evidence is the docs-lane commit `2361dfb0` (branch `docs/tagging-edges-2-staging-backfill-evidence`, not yet
+  pushed or merged). Both places read right once that commit lands (review round 2, R2-NB4).
 - Review round 1's Non-blocking 1 and 2 are documented, not bounded in code: OPERATIONS §12.9 says what the operator
   sees and does while journal appends keep failing (the unwritten lines kept in memory, rounds still writing) and
   while a first start's baseline scan keeps failing (its version buffer bounded only by that scan's duration). A
   journal cap would have to pause rounds; a buffer cap would drop versions, which would then count as held since
-  before the first start, or restart the baseline, which the operator's off already does.
+  before the first start, or restart the baseline, which the operator's off already does. ADR 0003 § Failure handling
+  now states both (review round 2, R2-NB5).
   §12.9 also gains Non-blocking 3, 5, 6, 7 and 9's operator text: the heap ceiling's crash loop, `statusUnreadable`
   and `running`, `started.json`, `leftInPlace` at 0, a 403 from the switch, a catch-up failed at stage `unexpected`,
   and the logged subscription closes.
