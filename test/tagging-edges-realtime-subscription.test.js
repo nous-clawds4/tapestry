@@ -32,9 +32,8 @@
  * The relay is a ws WebSocketServer (ws is a dependency) on 127.0.0.1, port 0, in this process; a refused connection
  * uses a port nothing listens on. The ping, pong and handshake time-outs run on subscribe()'s own seams
  * (pingIntervalMs, pongTimeoutMs, handshakeTimeoutMs), so each test takes well under a second of real time. The suite
- * never reads the module's other exports (reconnectDelayMs, DEFAULT_RELAY_URL, SUBSCRIPTION_ID): the subscription id is
- * the ADR's literal. Every server, client and socket a test opens is closed in `finally`, so the process exits by
- * itself.
+ * calls subscribe() only; the subscription id is the ADR's literal. Every server, client and socket a test opens is
+ * closed in `finally`, so the process exits by itself.
  *
  * The module is require()d LAZILY through load(), so the suite always loads. Stack-free and hermetic: loopback only, no
  * strfry, no Neo4j, no filesystem; the fixture events carry fake 64-hex pubkeys (never a deployment's TA, never the ADR

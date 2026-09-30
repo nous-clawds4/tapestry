@@ -53,6 +53,9 @@
  * readSchema, so graph.js's readSchema keeps no default for the pass (the wiring suite's SWR72 pins the port's side).
  * It is red until the Implementer's round-1 fix. The fakes' readSchema logs the timeoutMs it is given for it.
  *
+ * RE82 comes from the review's round 2, non-blocking R2-NB9: a subscription's close is logged through log() with its
+ * fixed reason and its close code, and nothing unredacted. It passes now.
+ *
  * Bounded memory (RE58) runs this same file in a CHILD Node process with --max-old-space-size=160
  * (`node test/tagging-edges-realtime-engine.test.js --re58-child <scenario>`), over lean fakes; it prints one
  * `RE58-RESULT {json}` line. The test is counted skipped, with a note, only when a node process cannot be spawned.
@@ -1384,6 +1387,45 @@ test('RE63: reconnects 3 s apart start at most one catch-up per 30 s — three d
   assert(starts.length >= 1, 'fixture: a reconnect\'s catch-up ran');
   const inWindow = starts.filter((t) => t < starts[0] + 30 * SEC);
   eq(inWindow.length, 1, `catch-ups started within 30 s of the first (readKeys at ${show(starts.map((t) => t - starts[0]))} ms from it)`);
+});
+
+test('RE82: a subscription that closes is logged through log() with its fixed reason and its close code, and nothing unredacted — for each fixed reason subscription.js reports, with a close code, the log gets a line naming both, and the path reconnects; a reason carrying a credentialed URI, a host:port, an IPv4 address and port and a 64-hex run (a client passing the relay\'s own text on) is logged with none of them, its code still named; and with no reason, the code alone (review round 2, R2-NB9: "No test covers the new close logging"; subscription.js: "after onClose it logs the reason and code"; ADR § What it hears, "Keeping it alive"; § Failure handling, "Logs": the widened redactPublicText; AC-6)', async () => {
+  const w = newWorld();
+  const proc = await boot(w);
+  const KEY = pubkeyOf('re82:key');
+  const FORBIDDEN = ['pw-re82', 'neo4j.re82.invalid', ':7687', '10.8.2.1', ':7777', KEY];
+  const CLOSES = [
+    { name: 'connection refused', info: { code: 1006, reason: 'connection refused' } },
+    { name: 'connection dropped', info: { code: 1001, reason: 'connection dropped' } },
+    { name: 'filter refused (CLOSED)', info: { code: 1006, reason: 'filter refused (CLOSED)' } },
+    { name: 'filter refused (NOTICE)', info: { code: 1006, reason: 'filter refused (NOTICE)' } },
+    { name: 'no pong', info: { code: 1006, reason: 'no pong' } },
+    { name: 'the relay\'s own text', info: { code: 4000, reason: `relay said bolt://neo4j:pw-re82@neo4j.re82.invalid:7687 at 10.8.2.1:7777 for ${KEY}` }, leaky: true },
+    { name: 'no reason', info: { code: 1011 } },
+  ];
+  const problems = [];
+  for (const c of CLOSES) {
+    const open = w.relay.openSubs();
+    assert(open.length === 1, `fixture: one open subscription before the close (${c.name}); ${open.length} open`);
+    const sub = open[0];
+    const logsBefore = w.logs.length;
+    const subsBefore = w.relay.subCalls.length;
+    sub.open = false; // the fake relay sends it nothing more
+    setImmediate(() => sub.onClose(c.info)); // T29: from a later turn
+    await within(proc, 30 * SEC, () => w.relay.subCalls.length > subsBefore, `the path reconnects after the close (${c.name})`, 100);
+    await drive(proc, 2 * SEC, 100); // the new subscription's EOSE
+    const lines = w.logs.slice(logsBefore);
+    const codeRe = new RegExp(`\\b${c.info.code}\\b`);
+    const naming = lines.filter((l) => codeRe.test(l) && (c.leaky || typeof c.info.reason !== 'string' || l.includes(c.info.reason)));
+    if (naming.length === 0) {
+      problems.push(`${c.name}: no log line names ${typeof c.info.reason === 'string' && !c.leaky ? `the reason ${show(c.info.reason)} and ` : ''}the close code ${c.info.code}; the lines logged: ${preview(lines)}`);
+    }
+    const leaked = lines.filter((l) => FORBIDDEN.some((f) => l.includes(f)));
+    if (leaked.length > 0) problems.push(`${c.name}: logged unredacted — ${preview(leaked)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+  const anyLeak = w.logs.filter((l) => FORBIDDEN.some((f) => l.includes(f)));
+  eq(anyLeak.length, 0, `log lines naming a credential, a host, an address or a 64-hex run (AC-6): ${preview(anyLeak)}`);
 });
 
 test('RE35: with the relay unavailable for 3 minutes (connections refused, every scan failing), the taggings stored meanwhile are reflected within 5 minutes of it answering again (AC-4 "the graph and the relay both being available again")', async () => {

@@ -52,6 +52,9 @@
  * Journal lines are written in A1-6's absolute form (v {id, a, top, older}, o {a, top, older}); a record carries an
  * epoch and its lines start with the matching e {epoch} line, as a compaction writes them.
  *
+ * Story 3's review, round 2 (engineering-team/reviews/tagging-edges/3-real-time-path.md, R2-NB7) adds RP97: a damaged
+ * record.json row (a version without a string id, a revoke that is an array) replays to no prompt. It passes now.
+ *
  * Hand-rolled in the project's existing test style — no new framework. Runs on Node 16 and 22.
  */
 
@@ -2362,6 +2365,38 @@ test('RP96: journal replay carries prompts unchanged — a v line at an address 
   const d = decideAddress(row, null);
   gateIs(gateAction(d, { address: A, storedRow: row, relayVersionId: null, entry: fromRecord.pending.get(A), baseline: fromRecord.maps.B, lineage: lineageValue(fromRecord.maps, A) }),
     { act: false, held: 'removal-not-prompted' }, 'the gate holds the carried e:i1 (i1 is neither the recorded i2 nor the top) and the by-a revoke older than i2');
+});
+
+// ═══ Review round 2 (2026-09-29) ════════════════════════════════════════════════════════════════════════════════
+test('RP97: a damaged record.json row replays to no prompt — a pending row, a parked row or a re-look whose entry holds a version without a string id ({ id: 7 }, { id: null }, { }) or a revoke that is an array ([\'e\', <id>], [\'a\', <address>]) restores neither: its address gets no version and no revoke from it, while a well-formed revoke or look in the same entry is kept, and the parked address stays parked (realtime.js mergeEntry: "A version without a string id, and a revoke that is not a plain object, carry nothing (a damaged record.json row prompts nothing)"; review round 2, R2-NB7; A1-12; T15; T19; T25 record shapes; T33)', () => {
+  const replayJournal = fn('replayJournal');
+  const [A, B2, C, D] = ['a', 'b', 'c', 'd'].map((n) => addr(`rp-damaged-${n}`));
+  const id = (n) => idOf(`rp:damaged:${n}`);
+  const good = revoke('e', id('b0'), 1300);
+  const record = {
+    version: 1, epoch: 3, firstStartedAt: iso(T0 - 86400000), identities: { canonical: CANONICAL, local: LOCAL }, compactedAt: iso(T0 - 60000),
+    seen: [], lineage: [[A, id('a')], [B2, id('b')], [C, id('c')], [D, id('d')]], baseline: [], refusedSeen: [],
+    pending: [
+      { a: A, entry: { version: { id: 7 }, revokes: [['e', id('a0')]], look: false }, lane: 'live', attempts: 1, notBefore: 0 },
+      { a: B2, entry: { version: { id: null }, revokes: [['a', B2], good], look: false }, lane: 'catchup', attempts: 0, notBefore: 0 },
+    ],
+    rechecks: [{ a: D, runId: RUN, entry: { version: { id: 12345 }, revokes: [['e', id('d0')]], look: true } }],
+    deadSeenAt: {},
+    parked: [{ a: C, code: 'ENOSPC', attempts: 1, nextAt: T0 + 300000, entry: { version: {}, revokes: [['e', id('c0')], ['a', C]], look: false } }],
+  };
+  const out = replayed(replayJournal([], record), 'replayJournal (a record with damaged rows)');
+  const promptsOf = (e) => (e && typeof e === 'object'
+    ? { version: e.version === undefined ? null : e.version, revokes: Array.isArray(e.revokes) ? e.revokes : e.revokes, look: e.look === true }
+    : { version: null, revokes: [], look: false });
+  const problems = [];
+  const want = (label, got, expected) => { if (exact(got) !== exact(expected)) problems.push(`${label}\n          expected: ${show(expected)}\n          actual:   ${show(got)}`); };
+  want('A (a pending row: a version { id: 7 } and a revoke [\'e\', id]) — no prompt', promptsOf(out.pending.get(A)), entryOf());
+  want('B (a pending row: a version { id: null }, a revoke [\'a\', B] and a well-formed by-e revoke) — the well-formed revoke only', promptsOf(out.pending.get(B2)), entryOf({ revokes: [good] }));
+  want('C (a parked row: a version { } and two array revokes) — no prompt', promptsOf(out.pending.get(C)), entryOf());
+  const relook = out.rechecks.find((x) => x.a === D && x.runId === RUN);
+  want('D (a re-look: a version { id: 12345 }, a revoke [\'e\', id], and look) — the look only', promptsOf(relook && relook.entry), entryOf({ look: true }));
+  eq(out.parked.get(C), 'ENOSPC', 'the parked address stays parked, under its code');
+  assert(problems.length === 0, problems.join('\n        '));
 });
 
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────

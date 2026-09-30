@@ -2,8 +2,8 @@
 
 **Story:** `engineering-team/stories/tagging-edges/3-real-time-path.md`
 **ADR:** `engineering-team/decisions/tagging-edges/0003-real-time-path.md` (Decision sections, clarifications T1–T34,
-Amendment A1, A1-1…A1-21, and A1 clarifications 1–25)
-**Date:** 2026-09-28; A1 pass 2026-09-29; review round 1 pass 2026-09-29
+Amendment A1, A1-1…A1-21, and A1 clarifications 1–26)
+**Date:** 2026-09-28; A1 pass 2026-09-29; review round 1 pass 2026-09-29; review round 2 pass 2026-09-29
 
 **Amendment A1 (2026-09-29).** Implementation was sent back to Architecture. The ADR gained Amendment A1: a lineage
 per address replaces H, a by-id revoke resolves only as its address's top, the gate has clauses (i) and (ii), and
@@ -36,6 +36,27 @@ adds 17 tests, 8 of them in a new suite, and re-aims one:
   `2026-09-29-newest-entry-doc-tests-go-stale`).
 
 § Review round 1 below has the coverage, the red phase and its validation.
+
+**Review round 2 (2026-09-29).** The review's second round asked for changes again: Blocking R2-1 to R2-3 and
+non-blocking R2-NB1 to R2-NB9. The Architect then committed `799bd9f6`: clarification 24 rewritten, clarification 26
+added, clarification 20 reworded, two § Failure handling bullets, and the redactor's gaps beside the New debt line.
+This pass re-aims RX24, adds six tests and drops two stale sentences:
+- **RX24 now has two cases, per clarification 26.**
+  - (a) The same refused version, found again at a safety diff, merges into the refusal park and waits for the park's
+    timer. It passes now.
+  - (b) A newer version whose notice was lost lifts the park at that catch-up. It is red now.
+- **RX28 is the revoke half of (b).** A revoke that the catch-up finds, and the parked entry does not hold, also lifts
+  the park. It is red now. It goes beyond the two cases asked for, so that a fix that handles versions only fails.
+- **RX26 pins R2-2, and is red now.** An unexpected error after the stamp scan, met on every try, backs off 5, 10, 20,
+  40, 60 and 60 s. A completed catch-up resets the count.
+- **Four pins of existing behaviour pass now:** RX27 (R2-NB2), SS41 (R2-NB3, the redactor's 4 KB cut), RP97
+  (R2-NB7) and RE82 (R2-NB9).
+- **R2-NB8's test part.** The subscription suite's header and this plan's subscription row no longer name the exports
+  that `3e3d9870` removed.
+- **No test changes for** clarification 24, clarification 20 or the two § Failure handling bullets. The coverage map
+  says why.
+
+§ Review round 2 below has the coverage, the red phase and its validation.
 
 ## Coverage map
 
@@ -119,29 +140,73 @@ Review round 1 adds tests to the criteria as follows:
 | **A1 clarification 21** a live revoke lifts a time-out park | the author's kind-5, resolving at the parked address, lifts the park at once, keeping the read-alone mark and the park's level; it costs one more single read (re-parked at 30 min), or removes the relationship at once once the address answers | RX22 | pass |
 | **A1 clarification 22** element singles count in `failedReads.element` | a one-id element time-out adds to `failedReads.element`, not `failedReads.relay`, and counts toward the park (parked after three) | RX23 | pass |
 | **A1 clarification 23** the compaction keeps what was learned since the key read | a version a round learned and wrote between a catch-up's key read and its capture stays in `older` through the compaction, so a revoke of the later top removes it (clause ii) | RL28 | pass |
-| **A1 clarification 24** strfry's defect as read in its source | docs only. The fakes model one newest deleted, hiding one write (`relay.deleteHidesNextWrite`: RL15). A wipe that deafens live delivery until a reconnect is a subscription that stops delivering, which the safety diff catches (RE56). | — | — |
+| **A1 clarification 24** strfry's defect as read in its source (rewritten at round 2: § Review round 2) | docs only. The fakes model one newest deleted, hiding one write (`relay.deleteHidesNextWrite`: RL15). A wipe that deafens live delivery until a reconnect is a subscription that stops delivering, which the safety diff catches (RE56). | — | — |
 | **A1 clarification 25** no subscription with a bad identity | already pinned: no subscribe call, scan or write, and `waiting-setup` | RE28, RE30 | pass |
 | **Blocking 1(e)** conform: `readSchema` keeps no default for the pass | the port: `readSchema()`, `ensureTagsConstraint`'s reads, and a real pass's pre-flight and snapshot-conflict re-read run their SHOW statements with no transaction time-out; `readSchema({ timeoutMs })` runs both with it | SWR72 | **red**: each runs with 30 s |
 | | the path: every `readSchema` call it makes passes a finite, positive `timeoutMs` | RE81 | **red**: it passes none |
-| **Blocking 1(f)** conform: a catch-up merges into a refusal park | at a safety diff, a database-refusal park is not re-queued: the catch-up's arrival merges into the parked entry (record.json's parked row names it), no write before the park's timer, a retry at it | RX24 | **red**: the diff's round writes 174.5 s after the park |
+| **Blocking 1(f)** conform: a catch-up merges into a refusal park (re-aimed at round 2 by clarification 26: § Review round 2) | at a safety diff, a database-refusal park is not re-queued: the catch-up's arrival merges into the parked entry (record.json's parked row names it), no write before the park's timer, a retry at it | RX24 | **red**: the diff's round writes 174.5 s after the park |
 | **Blocking 2** a catch-up step's unexpected error | the catch-up ends `failed` (status `catchUp.last`, a `lastError` with its stage), backs off 5→60 s, and a later catch-up completes; the status then says `live` | RX25 | **red**: `catching-up` for good |
 | **Blocking 3, 4** docs | the strfry defect's wording (24) and the bad-identity wording (25) | — | — |
 | **Non-blocking 8** the websocket client had no test | the real `subscription.js` against an in-process `ws` relay: the REQ, EOSE and EVENT order, other ids ignored, NOTICE and CLOSED, pings and pongs, refused and dropped connections, `close()`, T29's asynchronous callbacks | RSUB1–RSUB8 | pass |
 | **Harness friction 1** (ledger row `2026-09-29-newest-entry-doc-tests-go-stale`) | S2C16 asks that some Last-updated entry records story 2, whichever is newest | S2C16 (re-aimed) | pass |
 
+### Review round 2 (2026-09-29)
+
+This covers the review's round-2 items and the ADR text the Architect committed for them (`799bd9f6`). "Red now" means
+red on `feat/tagging-edges-3` at `799bd9f6`: the code the review read (`3e3d9870`) plus that ADR commit.
+
+Review round 2 adds tests to the criteria as follows:
+- AC-1 and AC-2: RX24 (b) and RX28. A change at a refusal-parked address whose notice was lost is reflected at the
+  next safety diff, not at the park's timer.
+- AC-3: RX24 (a), RX27 and RP97.
+- AC-4: RX26 and RX27. A catch-up that keeps failing backs off, and is tried again.
+- AC-6: RX27, RE82 and SS41.
+
+| Item | What it pins | Tests | Now |
+|---|---|---|---|
+| **A1 clarification 26** a catch-up at a refusal park | (a) the same refused version, found again at a safety diff, holds nothing new. It merges into the parked entry (record.json's parked row still names it), no write comes before the park's timer, it is retried at the timer, and `dbRefused` counts it once | RX24 (a) | pass |
+| | (b) a version id the parked entry does not hold lifts the park at that catch-up. The newer version is reflected within a minute of the diff's start, before the timer, and nothing stays parked | RX24 (b) | **red**: merged, and written only at the timer |
+| | a revoke the parked entry does not hold, found by the diff's candidate scan, lifts the park too. The relationship is removed within a minute of the diff's start (clause ii) | RX28 | **red**: merged, and removed only at the timer |
+| | a time-out park merges either way (clarification 12), and a live revoke still lifts it (clarification 21) | RX16, RX19, RX22 | pass (unchanged) |
+| **R2-2** the backoff after the stamp scan | an unexpected error after the stamp scan is met on every try, (a) in the candidate step or (b) as the catch-up's work is fed. The next key read comes 5, 10, 20, 40, 60 and 60 s after each failure. Once the error stops, the next try completes (`live`), and the first failure after that completion waits 5 s | RX26 | **red**: a flat 5 s |
+| **R2-NB2** the `attempted()` branch; `unexpected` is no failed read | the error is met as a round reports the catch-up's last address attempted. The catch-up ends `failed` at stage `unexpected`, `lastError.stage` is `unexpected`, `failedReads.catchUp` is unchanged, the next key read comes 5 s later, and that try completes | RX27 | pass |
+| **R2-NB3** the redactor's 4 KB cut (ADR § Consequences, New debt) | a credentialed URI, a host name with its port or an IPv4 address with its port straddles the 4,096th character: at every split, no 4-character piece of its password or host comes out. Input of at most 4 KB is redacted whole. Input with no whitespace in its first 4 KB comes out empty. A 1 MB input returns within 1 s, timed in a child process | SS41 | pass |
+| **R2-NB7** a damaged record row | a version without a string id, or a revoke that is an array, in a pending row, a parked row or a re-look, replays to no prompt. A well-formed revoke or look beside it is kept | RP97 | pass |
+| **R2-NB9** the close logging | each fixed close reason is logged through `log()` with its close code. A reason carrying a credential, a host:port, an IPv4 address and a 64-hex run is logged with none of them | RE82 | pass |
+| **R2-NB8** stale texts (the tests' part) | the subscription suite's header, and this plan's subscription row, no longer name removed exports | — | — |
+| **A1 clarification 24** (rewritten) strfry's id re-use | docs. The fakes model one case of it (below) | RL15, RE56 | pass (unchanged) |
+| **A1 clarification 20** (reworded) | "backs off 5→60 s, then retries once a minute". RX20's title already says it "backs off 5→60 s like any failed read", so no test changes | RX20 | pass |
+| **§ Failure handling**, the two new bullets | journal appends that keep failing, and a first start whose baseline keeps failing. Each states existing behaviour and changes no bound a test reads. Neither is pinned by this pass | — | — |
+| **R2-1, R2-NB1, R2-NB4–R2-NB6, R2-NB8's other parts** | docs (the Architect's and the Implementer's) | — | — |
+
+**Clarification 24 and the fakes.** Checked against strfry 1.1.0's source in the container (commit `f31a1b9`):
+- a new event takes the largest id plus one (`get_next_integer_key`, `golpe/external/rasgueadb/main.h.tt`);
+- strfry writes an event before it deletes what that event replaces or revokes (`src/events.cpp`);
+- the expiry cron skips the newest event (`src/apps/relay/RelayCron.cpp`);
+- the monitor thread lowers its cursor to the newest id each time it wakes, behind a 100 ms change debounce
+  (`src/apps/relay/RelayReqMonitor.cpp`);
+- a subscription's monitor skips an event at or below the highest id it has passed (`src/ActiveMonitors.h`).
+
+The fakes' `relay.deleteHidesNextWrite` models one case. Removing the relay's newest event loses the notice of the
+next stored event to every subscription. For the path, which has one subscription, that is either the case where its
+monitor had passed the deleted id, or the debounce race. The fakes do not model the other cases: a delete of several
+newest events, or one over gaps, which re-use more ids. For the path, each case is a lost notice. RL15 uses the
+fakes' case: a read that cannot be placed still teaches nothing. RE56 shows the safety diff reflecting what a
+subscription that stops delivering missed, with no reconnect.
+
 ## Suites and levels
 
 | Suite | Level | Tests | What it covers |
 |---|---|---|---|
-| `test/tagging-edges-realtime-plan.test.js` | unit (pure) | 93 (A1: 79 − 3 deleted + 17 new; 30 re-aimed) | Every export T2 lists, with T1–T19, T25, T32 and T33, table-driven. Purity and the no-64-hex guard. A1: the six lineage functions and their cap, placement under a later learning, `pruneLineage` and its pass exception, the gate's clauses, the 8 by-e revokes, absolute `v` / `o` lines, the epoch, parked entries. |
-| `test/tagging-edges-realtime-engine.test.js` | integration over fakes | 81 | The criteria end to end through the T20 seam. The fakes (`test/helpers/taggingEdgesRealtimeFakes.js`) model strfry 1.1.0's store and deletion rules, a live subscription, strict scans with failure injection, a graph port with fingerprint verify, the store, the pass's report, and a clock. Tests drive simulated time and assert only the criteria's bounds. RE58 runs the engine in a child Node with a 160 MB heap. A1: 80 (RE80 new); RE7, RE8, RE38, RE54, RE58, RE67 and RE79 re-aimed, RE18 and RE19 retitled. Review round 1: 81 (RE81 new, conform item 1(e): the path passes its own schema-read time-out). |
+| `test/tagging-edges-realtime-plan.test.js` | unit (pure) | 94 (A1: 79 − 3 deleted + 17 new; 30 re-aimed; review round 2: RP97 new) | Every export T2 lists, with T1–T19, T25, T32 and T33, table-driven. Purity and the no-64-hex guard. A1: the six lineage functions and their cap, placement under a later learning, `pruneLineage` and its pass exception, the gate's clauses, the 8 by-e revokes, absolute `v` / `o` lines, the epoch, parked entries. Review round 2: a damaged record row replays to no prompt (RP97). |
+| `test/tagging-edges-realtime-engine.test.js` | integration over fakes | 82 | The criteria end to end through the T20 seam. The fakes (`test/helpers/taggingEdgesRealtimeFakes.js`) model strfry 1.1.0's store and deletion rules, a live subscription, strict scans with failure injection, a graph port with fingerprint verify, the store, the pass's report, and a clock. Tests drive simulated time and assert only the criteria's bounds. RE58 runs the engine in a child Node with a 160 MB heap. A1: 80 (RE80 new); RE7, RE8, RE38, RE54, RE58, RE67 and RE79 re-aimed, RE18 and RE19 retitled. Review round 1: 81 (RE81 new, conform item 1(e): the path passes its own schema-read time-out). Review round 2: 82 (RE82 new, R2-NB9: the close logging). |
 | `test/tagging-edges-realtime-lineage.test.js` (A1, new) | integration over fakes | 28 | A1-20's engine scenarios 1–7, 11, 12, 13, 15 and 16: the stale by-e family, a reconnect gap, a read between a revoke's store and its delivery, catch-up arrivals, put-backs and re-looks, first-start revokes, parked revokes across compaction and restart, found revokes across a wipe, the census, a read that cannot be placed, a flooded address, `lastReflectedAt`. RL18–RL21 are clause (ii)'s intended case and decision 11's three shapes, as documentation. RL22–RL27 come from mutation passes. Review round 1: RL28, A1 clarification 23 (the compaction cut with interleaved rounds). |
-| `test/tagging-edges-realtime-resilience.test.js` (A1, new) | integration over fakes | 25 | A1-20's scenarios 8, 9, 10, 14 and 17: no start hold, A1-13's time-outs and stalls, the padded share, journal faults (torn appends, a read failing part-way, the demotion, the epoch), replay exactness over fixed seeds; then the compaction cadence, the pass exception, the final status, and the read-alone mark (RX15); then A1 clarifications 11 and 12 on time-out parks and the singles' order (RX16–RX19). Review round 1: A1 clarifications 20–22 (RX20–RX23), conform item 1(f) (RX24) and Blocking 2 (RX25). Time-out tests wait scan costs on the fake clock (`relay.scanWaits`). |
+| `test/tagging-edges-realtime-resilience.test.js` (A1, new) | integration over fakes | 28 | A1-20's scenarios 8, 9, 10, 14 and 17: no start hold, A1-13's time-outs and stalls, the padded share, journal faults (torn appends, a read failing part-way, the demotion, the epoch), replay exactness over fixed seeds; then the compaction cadence, the pass exception, the final status, and the read-alone mark (RX15); then A1 clarifications 11 and 12 on time-out parks and the singles' order (RX16–RX19). Review round 1: A1 clarifications 20–22 (RX20–RX23), conform item 1(f) (RX24) and Blocking 2 (RX25). Review round 2: RX24 re-aimed into two cases (A1 clarification 26), RX28 (26's revoke half), RX26 (R2-2, the backoff after the stamp scan) and RX27 (R2-NB2). Time-out tests wait scan costs on the fake clock (`relay.scanWaits`). |
 | `test/tagging-edges-realtime-property.test.js` (A1, new) | property over fakes, deterministic | 36: 28 by default + 8 opt-in | A1-20's fuzzer. By default (RF1–RF28, well under 30 s): an oracle self-check, the 17 fixtures in `test/fixtures/tagging-edges-realtime-property/` (16 shrunk traces and one hand-written flood) replayed with the verdict each must have under A1, fixture hygiene, determinism, and 3 seeds × 150 steps in each of the eight modes. With `TAGGING_EDGES_PROPERTY=1`, RF29–RF36 run the fuller campaign, 8 modes × 20 seeds × 150 steps (about 55 s here); otherwise they are skipped with that reason. It asserts I1–I4 (no removal while the relay held an accepted version; every removal justified by A1-4 in relay terms; no create for a baseline version; writes carry the contract's properties), off within 5 s, no status leak, the two caps, and in healthy modes the minute outside A1-16's corners. |
 | `test/tagging-edges-realtime-routes.test.js` | store (real temp dir) and routes (fake req/res) | 52 | T21, T22, T26, T27, T32, T33: the canonical switch form, the record checksum, the journal torn tail, the auth matrix, the status computation. |
 | `test/tagging-edges-realtime-wrapper.test.js` | child processes (bash) | 22 | T23, T28, T34: idle while off, conf re-read per start, backoff and its reset, TERM forwarding, the single-instance lock, pgrep safety. On macOS a perl `flock` shim stands in for util-linux `flock` on PATH. |
-| `test/tagging-edges-realtime-subscription.test.js` (review round 1, new) | the real module against an in-process `ws` relay on the loopback | 8 | Review non-blocking 8: `subscription.js`, the one websocket client, which every other suite fakes. The REQ with `limit:0` forced and the subscription id, EOSE then EVENT order, other subscription ids and stray frames ignored, NOTICE and CLOSED with their fixed reasons, pings and a missing pong, refused and dropped connections, `close()` sending CLOSE and firing no `onClose`, and T29's asynchronous callbacks. The ping, pong and handshake time-outs run on subscribe()'s own seams, so it takes about 3 s. It never reads the module's other exports. |
-| `test/strfry-scan-strict.test.js` (amended) | unit | +10, SS9 re-aimed | `onEvent` streaming and its completeness, array filters, `\/` escaping, `filter-too-large` before spawn, the widened redactor, a throwing handler. |
+| `test/tagging-edges-realtime-subscription.test.js` (review round 1, new) | the real module against an in-process `ws` relay on the loopback | 8 | Review non-blocking 8: `subscription.js`, the one websocket client, which every other suite fakes. The REQ with `limit:0` forced and the subscription id, EOSE then EVENT order, other subscription ids and stray frames ignored, NOTICE and CLOSED with their fixed reasons, pings and a missing pong, refused and dropped connections, `close()` sending CLOSE and firing no `onClose`, and T29's asynchronous callbacks. The ping, pong and handshake time-outs run on subscribe()'s own seams, so it takes about 3 s. |
+| `test/strfry-scan-strict.test.js` (amended) | unit | +11, SS9 re-aimed | `onEvent` streaming and its completeness, array filters, `\/` escaping, `filter-too-large` before spawn, the widened redactor, a throwing handler. Review round 2: the redactor's 4 KB cut (SS41). |
 | `test/tagging-edges-state-routes.test.js` (amended) | unit | +1 (ST23) | C20: `lockHeld` compares inodes. |
 | `test/tagging-edges-wiring.test.js` (amended) | static, and the port on a fake driver | +12 | The supervisord block, pgrep-safe names, no pass machinery in realtime code, `READ_KEYS` read-only, `readAt` / `readKeys`, the routes and their owner gate, both `lockHeld` callers passing `file`, `run.sh`'s shape. Review round 1: SWR72, conform item 1(e) (no default schema-read time-out for the pass). |
 | `test/tagging-edge-contract.test.js` | static | S2C9 re-aimed; S2C16 re-aimed (review round 1) | BIBLE §6's status line. S2C16: some Last-updated entry records story 2, whichever is newest. |
@@ -202,6 +267,16 @@ Review round 1 adds tests to the criteria as follows:
     and its capture, the address's one read after the capture failing (RL28).
   - *The websocket.* A relay that never pongs, refuses the upgrade, never completes the handshake, terminates or
     closes the socket, or sends NOTICE, CLOSED, other subscriptions' messages and stray frames (RSUB1–RSUB8).
+- **Review round 2.**
+  - *Refusal parks and catch-ups.* The same refused version found again at a safety diff; a newer version there with
+    its notice lost; a by-id revoke of the refused version with its notice lost, found by the diff's candidate scan
+    (RX24, RX28).
+  - *A catch-up that keeps failing after its reads answer.* An error in the candidate step, or in feeding its work,
+    on every try, and then once more after a completed try (RX26). The error met as a round reports the catch-up's
+    last address attempted (RX27).
+  - *Damaged and hostile text.* record.json rows whose version has no string id or whose revoke is an array (RP97).
+    Tokens straddling the redactor's 4 KB mark at every split, 4 KB with no whitespace, and 1 MB of dotted,
+    hyphenated text (SS41). A subscription close whose reason carries the relay's own text (RE82).
 
 ## Test infrastructure
 
@@ -357,6 +432,31 @@ ADR 0002". It passes now, and fails on a line where no entry does (checked in sc
 row also names (`engineering-team/workflows/3-test-design.md`: write "an entry records X") is outside the Tester's
 files here, and is left to that row.
 
+### Review round 2 (2026-09-29)
+
+Every earlier test keeps its id and its outcome, except RX24, which is re-aimed into two cases. Per suite, before →
+after:
+
+| Suite | Change | Before | After |
+|---|---|---|---|
+| plan | RP97 new (R2-NB7) | 93 | 94 |
+| engine | RE82 new (R2-NB9) | 81 | 82 |
+| resilience | RX24 re-aimed into cases (a) and (b) (clarification 26); RX26, RX27, RX28 new (R2-2, R2-NB2, clarification 26) | 25 | 28 |
+| strfry-scan-strict | SS41 new (R2-NB3) | 40 | 41 |
+| subscription | the header drops the removed exports' names (R2-NB8) | 8 | 8 |
+
+**RX24, re-aimed.** Round 1 pinned that a catch-up merges all its work at a refusal park, a newer version included.
+Clarification 26 lifts the park for a version id or a revoke that the parked entry does not hold. The round-1 test
+therefore became case (b) with its assertion inverted, and case (a) keeps the merge for the same refused version
+found again. The citation now matches what each case pins: clarification 26 and § Failure handling's "at once on a new
+event at that address". It no longer cites them for the wait.
+
+**A test-only seam, `engineWith(name, wrap)`** (the resilience suite, for RX26 and RX27). It loads a fresh copy of
+the engine whose one planner import `name` is wrapped. The planner module and the suite's own copy of the engine stay
+as they were. It exists because nothing the fakes stand in for can reach a catch-up's own code once its reads have
+answered. A dependency failure there is a failed read, or it is caught where it happens. It relies on the engine
+taking `deletionScanFilters` and `pruneLineage` from the planner (T2's exports, as A1-17 amends them) when it loads.
+
 ## Clarifications for the owner to ratify
 
 ADR 0003 § "Clarifications (Test Design, 2026-09-28)" holds T1–T34. They fix every interface the suites call:
@@ -432,6 +532,34 @@ None needs a ruling before the Implementer's round-1 fixes; each is the review's
 4. **RSUB1–RSUB8.** The five close reasons are `subscription.js`'s documented fixed texts, pinned exactly. The ADR
    fixes only that they carry nothing of the relay's text (AC-6). A rewording of one fails its test. The suite never
    reads the exports the review calls unused (non-blocking 9).
+
+### Review round 2 (2026-09-29): readings the new tests choose
+
+None needs a ruling before the Implementer's round-2 fixes. Each is the review's asked change, or clarification 26,
+read narrowly.
+1. **RX24 (b) and RX28: "at that catch-up".** This is read as reflected within a minute of the safety diff's start
+   (AC-1's minute, counted from when the path learns of the change) and before the park's timer. The tests do not
+   fix whether the lifted address becomes part of the catch-up's outstanding work or a fresh item, nor which lane it
+   takes.
+2. **RX24 (b): the database accepts the newer version.** The fixture refuses only the relationship the parked
+   version gives. So a lift that writes the newer version succeeds, and nothing stays parked. That a successful write
+   retries other refusal parks (§ Failure handling) is not exercised: the test parks only one address.
+3. **RX26: the error's place.** A wrapped planner import puts it there: `deletionScanFilters` hands the candidate step
+   a spec it cannot read (case a), and `pruneLineage` throws in the compaction that ends the catch-up's feed (case b).
+   A reset of the count anywhere before the catch-up completes fails case (b). The gaps are measured from each
+   failure to the next key read, with 2 s allowed for the tick. The last check reads "a completed catch-up resets the
+   count" as: the first failure after a completion waits 5 s.
+4. **RX27: the stages.** It pins `catchUp.last.stage` and `lastError.stage` as `unexpected`, as the story's Deviations
+   and OPERATIONS § status give them. RX25 leaves the stage open, and still does.
+5. **SS41: "never comes out whole".** This is read as: no 4-character piece of the token's password or host appears
+   in the output. A scheme alone, such as `bolt:/`, may remain. The 4 KB bound on the output holds for these inputs.
+   The rules can lengthen other text: `a:12` becomes `<host>`. The 1 s bound is timed in a child process with a 20 s
+   wall-clock limit, so a regression fails instead of hanging the suite. Without the cut, a 1 MB dotted input takes
+   hours in the name rule.
+6. **RE82: the line's wording.** It pins that one log line names both the fixed reason and the close code, and that
+   no line carries the forbidden text. The wording around them is the Implementer's.
+7. **RP97: "no prompt".** This is read as an entry with no version, no revokes and no look, or no entry at all. The
+   parked address stays parked under its code.
 
 ## Validation of the suite itself (2026-09-28)
 
@@ -767,14 +895,78 @@ review's reading of the code predicts.
   | a refused URL reported from inside `subscribe()` | RSUB8 |
   | BIBLE's line records story 2 in no entry | S2C16 |
 
+### Review round 2 (2026-09-29)
+
+**Red phase.** Run on branch `feat/tagging-edges-3` at `799bd9f6` (the code the review read, with the Architect's
+round-2 ADR text) plus this pass's test changes. Each suite ran in its own process through its `run()` export, on
+Node 22.23.3 x64. The five changed suites give the same outcomes on Node 16.17.0.
+
+```
+tagging-edges-realtime-plan          pass 94  fail 0
+tagging-edges-realtime-engine        pass 82  fail 0
+tagging-edges-realtime-lineage       pass 28  fail 0
+tagging-edges-realtime-resilience    pass 25  fail 3          — RX24, RX26, RX28
+tagging-edges-realtime-property      pass 28  fail 0  skip 8
+tagging-edges-realtime-routes        pass 52  fail 0
+tagging-edges-realtime-wrapper       pass 22  fail 0
+tagging-edges-realtime-subscription  pass 8   fail 0
+strfry-scan-strict                   pass 41  fail 0
+tagging-edge-contract                pass 97  fail 0
+tagging-edges-wiring                 pass 72  fail 0
+tagging-edges-runner                 pass 77  fail 0
+stack-free-npm-test                  pass 7   fail 0
+harness-lint                         pass 76  fail 0
+```
+
+Three tests are red, each on the behaviour the review asks to change. None is an import error:
+- **RX24, case (b) only** (clarification 26). The diff's catch-up merges the newer version into the refusal park, and
+  it is written only at the park's timer, 126 s after the diff began. Case (a) passes.
+- **RX28** (clarification 26). The same for the revoke the diff's candidate scan finds: the relationship the backfill
+  wrote stands until the timer.
+- **RX26** (R2-2), both cases. The next key read came 5.0 s after each of the six failures.
+
+The four new pins of existing behaviour pass: RX27, SS41, RP97 and RE82.
+
+**Validation, in scratch** (`r2fix/tester/` in the session scratchpad; never committed, not durable).
+- *A conform realisation.* A copy of the tree took two edits to the engine:
+  - the catch-up's failure count and retry flag reset when a catch-up completes, not when its stamp scan answers;
+  - `feedCatchUp` lifts a refusal park when the catch-up's entry carries a version id or a revoke the parked entry
+    does not hold, and merges otherwise. The lift goes through `unpark`, and the address joins the catch-up's
+    outstanding work.
+
+  On it the nine story-3 suites above were green: 94, 82, 28, 28, 28 (+8 skipped), 52, 22, 8 and 41. The opt-in
+  property campaign gave 36/0/0. So the three red tests ask for nothing beyond the review's fixes, and no earlier test
+  depends on the behaviour they change.
+- *A mutation pass.* Single-behaviour mutants, each killed by the test named:
+
+  | Mutant | Killed by |
+  |---|---|
+  | R2-2 fixed, R2-3 not: a catch-up merges everything at a refusal park | RX24 (b), RX28 |
+  | R2-3 fixed, R2-2 not: the count resets at the stamp scan | RX26 (a) and (b) |
+  | the count resets once the catch-up's reads are in, before its work is fed | RX26 (b) |
+  | the count never resets | RX26, both cases' last check (the failure after a completion waits 60 s) |
+  | a refusal park is lifted by a new version only | RX28 |
+  | a refusal park is lifted by a new revoke only | RX24 (b) |
+  | a refusal park is lifted by any catch-up work (the code before `3e3d9870`) | RX24 (a) |
+  | a time-out park is lifted by a catch-up's new version too | RX16, RX19 |
+  | an `unexpected` failure counts in `failedReads.catchUp` | RX27 |
+  | `attempted()` lets the error escape (the catch-up stays running) | RX27 |
+  | a failed `catchUp.last` records another stage for an unexpected error | RX27 |
+  | `mergeEntry` as it was before `3e3d9870` (a version with no string id, an array revoke, prompt) | RP97 |
+  | the close log omits the code | RE82 |
+  | the close log keeps the relay's text unredacted | RE82 |
+  | the redactor cuts at 4,096 without backing to whitespace | SS41 (a host's piece shows at 4 of 25 characters in) |
+  | the redactor does not cut at all | SS41 (the output passes 4 KB; the 1 MB child hits its 20 s limit) |
+
 ## Test index
 
 Rows are the tests' titles, cut at about 150 characters. The A1 pass rewrote the rows of the re-aimed and retitled
 tests, deleted RP47, RP76 and RP77 (their ids are not reused), and added RP80–RP96, RE80 and the lineage,
 resilience and property suites. The A1 clarifications pass re-aimed RP53 and added RX16–RX19. Review round 1 added
-RE81, RL28, RX20–RX25, SWR72 and the subscription suite (RSUB1–RSUB8), and re-aimed S2C16.
+RE81, RL28, RX20–RX25, SWR72 and the subscription suite (RSUB1–RSUB8), and re-aimed S2C16. Review round 2 re-aimed
+RX24 and added RP97, RE82, RX26–RX28 and SS41.
 
-### Pure planner (`src/lib/tagging-edges/realtime.js`) — `test/tagging-edges-realtime-plan.test.js` (93)
+### Pure planner (`src/lib/tagging-edges/realtime.js`) — `test/tagging-edges-realtime-plan.test.js` (94)
 
 | Id | Behaviour |
 |---|---|
@@ -871,8 +1063,9 @@ RE81, RL28, RX20–RX25, SWR72 and the subscription suite (RSUB1–RSUB8), and r
 | RP94 | a v line lacking its top or older — T19's old relative form — is skipped and counted and prompts nothing; so is an o line lacking older, with an ol… |
 | RP95 | replay merges each parked row's entry into pending at its address — by mergePrompt's rules where the record also holds a pending row there — while… |
 | RP96 | journal replay carries prompts unchanged — a v line at an address discards no revoke: the pending entry and the re-looks there keep every by-e revo… |
+| RP97 | a damaged record.json row replays to no prompt — a pending row, a parked row or a re-look whose entry holds a version without a string id ({ id: 7 }, … |
 
-### Engine (`realtime/index.js`, through the T20 seam over fakes) — `test/tagging-edges-realtime-engine.test.js` (81)
+### Engine (`realtime/index.js`, through the T20 seam over fakes) — `test/tagging-edges-realtime-engine.test.js` (82)
 
 | Id | Behaviour |
 |---|---|
@@ -927,6 +1120,7 @@ RE81, RL28, RX20–RX25, SWR72 and the subscription suite (RSUB1–RSUB8), and r
 | RE34 | a tagging stored while the subscription was dropped is reflected by the reconnect's catch-up within 5 minutes, and live delivery resumes |
 | RE62 | a second reconnect within 30 s of the last catch-up still gets its catch-up — deferred to the 30 s mark, never skipped: a tagging stored across the… |
 | RE63 | reconnects 3 s apart start at most one catch-up per 30 s — three drops within 6 s give one catch-up in the 30 s from the first |
+| RE82 | a subscription that closes is logged through log() with its fixed reason and its close code, and nothing unredacted — for each fixed reason subscripti… |
 | RE35 | with the relay unavailable for 3 minutes (connections refused, every scan failing), the taggings stored meanwhile are reflected within 5 minutes of… |
 | RE36 | a lost record — record.json missing or unreadable, the journal unreadable, or the identities changed — is not a first start: the status reports the… |
 | RE37 | past the backlog cap, live prompts are dropped and counted, and nothing is lost: 20,100 taggings stored while the graph is unavailable are all refl… |
@@ -991,7 +1185,7 @@ RE81, RL28, RX20–RX25, SWR72 and the subscription suite (RSUB1–RSUB8), and r
 | RL27 | a catch-up's compaction keeps the lineage of a version learned after its scan's capture, though its top is not in the scan, the graph's keys did no… |
 | RL28 | a catch-up's compaction keeps in older a version a round learned and wrote between the catch-up's key read and its scan's capture — v2 is heard while… |
 
-### Resilience (Amendment A1, engine over fakes) — `test/tagging-edges-realtime-resilience.test.js` (25)
+### Resilience (Amendment A1, engine over fakes) — `test/tagging-edges-realtime-resilience.test.js` (28)
 
 | Id | Behaviour |
 |---|---|
@@ -1018,8 +1212,11 @@ RE81, RL28, RX20–RX25, SWR72 and the subscription suite (RSUB1–RSUB8), and r
 | RX21 | a never-answering address beside answering traffic is still parked after three — stored alone, it is never read in a group (so never marked to be read… |
 | RX22 | a live revoke lifts a time-out park at once — at an address the backfill wrote, a never-answering newer version is heard, marked and parked after thre… |
 | RX23 | a one-id element time-out counts in counts.failedReads.element, not in counts.failedReads.relay — an id-only tagging whose tag element's reads never a… |
-| RX24 | a catch-up does not lift a database-refusal park — an address parked after two refused writes, three minutes before the 10-minute safety diff, with a… |
+| RX24 | a catch-up at a database-refusal park lifts it only for something new — an address parked after two refused writes, three minutes before the 10-minute… |
 | RX25 | an unexpected error in a catch-up step ends that catch-up and never wedges catch-ups — the 10-minute safety diff's key read answers a row the engine c… |
+| RX26 | an unexpected error after a catch-up's stamp scan backs off 5→60 s over consecutive failures, never a flat 5 s — with the error met on every try from … |
+| RX27 | an unexpected error met as a round reports a catch-up's last address attempted ends that catch-up failed, with its backoff, and is no failed read — at… |
+| RX28 | a revoke a catch-up finds, which the parked entry does not hold, lifts a database-refusal park at that catch-up — at an address the backfill wrote, a … |
 
 ### Property (Amendment A1, the fuzzer; RF29–RF36 opt-in) — `test/tagging-edges-realtime-property.test.js` (36)
 
@@ -1158,7 +1355,7 @@ RE81, RL28, RX20–RX25, SWR72 and the subscription suite (RSUB1–RSUB8), and r
 | RSUB7 | close() is the caller's end — on an open subscription it sends ["CLOSE", "tagging-edges-realtime"], then closes the socket (the relay sees a normal cl… |
 | RSUB8 | a URL the client refuses at once (it is not a URL) is reported like a refused connection, later — onClose({ reason: 'connection refused' }) from a lat… |
 
-### Strict scanner (story 2 suite, amended) — `test/strfry-scan-strict.test.js` (11)
+### Strict scanner (story 2 suite, amended) — `test/strfry-scan-strict.test.js` (12)
 
 | Id | Behaviour |
 |---|---|
@@ -1173,6 +1370,7 @@ RE81, RL28, RX20–RX25, SWR72 and the subscription suite (RSUB1–RSUB8), and r
 | SS38 | a "strfry error:" line naming host:port values the widened redactor covers — redis:6379 (which strfry's stderr always names), neo4j.internal:7687 a… |
 | SS39 | an off-filter rejection says the event was refused by the caller's isExpected — with and without onEvent |
 | SS40 | an onEvent that throws rejects the scan with the handler's own error and the scan never resolves — whether it throws on the first of four events (m… |
+| SS41 | redactPublicText cuts its input to 4 KB before any rule runs, and a cut never lets part of a token out — a credentialed URI, a host name with its port… |
 
 ### State (story 2 suite, amended) — `test/tagging-edges-state-routes.test.js` (1)
 

@@ -39,7 +39,9 @@
  * filter is now refused before spawn, never reaching the real spawn's E2BIG); SS28's title takes ADR 0002's current
  * wording (story 3 CF-1); SS29's clock-time case label no longer says there is no name:port rule. SS40 (added from the
  * mutation pass over story 3's blind reference implementation) pins that an onEvent that throws rejects the scan with
- * the handler's own error, never resolving.
+ * the handler's own error, never resolving. SS41 (story 3's review, round 2, R2-NB3) pins redactPublicText's 4 KB cut:
+ * no part of a token straddling the mark gets out, input with no whitespace in its first 4 KB comes out empty, and a
+ * 1 MB input returns within 1 s (timed in a child process, so a regression fails instead of hanging the suite).
  */
 
 const fs = require('fs');
@@ -1101,6 +1103,76 @@ test('SS40: an onEvent that throws rejects the scan with the handler\'s own erro
     if (!carries) problems.push(`${label}: the rejection should be the handler's own error (or one that names it); got ${describe(out)}`);
   }
   assert(problems.length === 0, problems.join('\n        '));
+});
+
+// ═══ Story 3's review, round 2 (2026-09-29): the redactor's 4 KB cut ═══════════════════════════════════════════════
+
+/** redactPublicText's input bound: 4 KB of text (ADR tagging-edges/0003, New debt: "It cuts its input to 4 KB first"). */
+const REDACT_CUT = 4096;
+/** Filler with none of the tokens' characters' 4-character runs, ending in whitespace, exactly `n` characters long. */
+const fillerOf = (n) => `${'qq qqq '.repeat(Math.ceil(n / 7)).slice(0, n - 1)} `;
+/** Every 4-character run of `s` (the pieces a leak would show). */
+const pieces4 = (s) => { const out = new Set(); for (let i = 0; i + 4 <= s.length; i += 1) out.add(s.slice(i, i + 4)); return [...out]; };
+
+test('SS41: redactPublicText cuts its input to 4 KB before any rule runs, and a cut never lets part of a token out — a credentialed URI, a host name with its port, or an IPv4 address with its port that straddles the 4,096th character, wherever the mark falls inside it, comes out with no 4-character piece of its secret or its host; an input of at most 4 KB is redacted whole, not cut; an input with no whitespace in its first 4 KB comes out empty, a credential inside it included; and a 1 MB input — dotted and hyphenated text (the name rule\'s slow case), with whitespace every 1,000 characters or none at all — returns within a generous 1 s with at most 4 KB of text (ADR tagging-edges/0003 § Consequences, New debt: "It cuts its input to 4 KB first"; strfryScanStrict.js: "Text past 4 KB is cut first, back to the last whitespace within it, so no rule runs on long input … and no token is split into a part the rules no longer recognise"; review round 2, R2-NB3: "no test pins the 4 KB cap")', () => {
+  const mod = load();
+  assert(typeof mod.redactPublicText === 'function', `src/lib/strfryScanStrict.js must export redactPublicText; its exports are ${show(Object.keys(mod))}`);
+  const redact = mod.redactPublicText;
+  const problems = [];
+  const TOKENS = [
+    { what: 'a credentialed URI', token: 'bolt://svcuser:Pw4kStraddle9@db-west.fake.invalid:7687', secret: ['Pw4kStraddle9', 'db-west.fake.invalid'] },
+    { what: 'a host name and port', token: 'db-west.fake.invalid:7687', secret: ['db-west.fake.invalid'] },
+    { what: 'an IPv4 address and port', token: '10.20.30.40:7687', secret: ['10.20.30.40'] },
+  ];
+  for (const { what, token, secret } of TOKENS) {
+    const bad = secret.flatMap(pieces4);
+    for (let k = 1; k < token.length; k += 1) {
+      const input = `${fillerOf(REDACT_CUT - k)}${token} and more text after it`;
+      let got;
+      try { got = redact(input); } catch (e) { problems.push(`${what}, ${k} of its characters within 4 KB: redactPublicText threw ${show(e.message)}`); continue; }
+      const seen = bad.filter((p) => got.includes(p));
+      if (seen.length > 0) problems.push(`${what}, ${k} of its ${token.length} characters within the first 4 KB: the output shows ${show(seen.slice(0, 4))} (its end: ${show(got.slice(-60))})`);
+      if (got.length > REDACT_CUT) problems.push(`${what}, split at ${k}: the output is ${got.length} characters, over 4 KB`);
+    }
+    const whole = `${fillerOf(REDACT_CUT - token.length)}${token}`;
+    const got = redact(whole);
+    if (!(got.endsWith('<uri>') || got.endsWith('<host>'))) problems.push(`${what} ending an input of exactly 4 KB: redacted whole, not cut (it should end in <uri> or <host>); its end: ${show(got.slice(-60))}`);
+  }
+  for (const [what, input] of [
+    ['5,000 characters with no whitespace', 'q'.repeat(5000)],
+    ['4 KB with no whitespace, then more text', `${'q'.repeat(REDACT_CUT)} and more text`],
+    ['a credentialed URI inside a long run with no whitespace', `${'q'.repeat(100)}bolt://svcuser:Pw4kStraddle9@db-west.fake.invalid:7687/${'q'.repeat(5000)} tail`],
+  ]) {
+    const got = redact(input);
+    if (got !== '') problems.push(`${what}: expected empty output, got ${got.length} characters (${show(got.slice(0, 60))}…)`);
+  }
+  // The 1 MB inputs run in a child Node process with a wall-clock limit: without the cut, the name rule takes hours on
+  // them (a synchronous regex no timer can interrupt), so a regression fails here in seconds instead of hanging.
+  const child = childProcess.spawnSync(process.execPath, ['-e', `
+    const { redactPublicText } = require(${JSON.stringify(require.resolve(MODULE_REQUIRE))});
+    const dotted = 'a-b.c-d.e-f.g-h.';
+    const out = [];
+    for (const [what, input] of [
+      ['1 MB of dotted, hyphenated text with whitespace every 1,000 characters', (dotted.repeat(62).slice(0, 999) + ' ').repeat(1049)],
+      ['1 MB of dotted, hyphenated text with no whitespace', dotted.repeat(65536)],
+    ]) {
+      const t0 = process.hrtime.bigint();
+      const got = redactPublicText(input);
+      out.push({ what, chars: input.length, ms: Number(process.hrtime.bigint() - t0) / 1e6, outChars: got.length });
+    }
+    process.stdout.write(JSON.stringify(out) + '\\n');
+  `], { encoding: 'utf8', timeout: 20000, maxBuffer: 1024 * 1024 });
+  if (child.error || child.status !== 0) {
+    problems.push(`the 1 MB inputs: the child ${child.error && child.error.code === 'ETIMEDOUT' ? 'did not finish within 20 s of real time' : `failed (status ${child.status}, signal ${child.signal}): ${clip(String(child.stderr || ''), 300)}`} — redactPublicText must cut long input before any rule runs`);
+  } else {
+    for (const r of JSON.parse(String(child.stdout).trim().split('\n').pop())) {
+      if (r.ms > 1000) problems.push(`${r.what} (${r.chars} characters): redactPublicText took ${r.ms.toFixed(0)} ms (the bound is a generous 1 s; the 4 KB cut makes it a few ms)`);
+      if (r.outChars > REDACT_CUT) problems.push(`${r.what}: the output is ${r.outChars} characters, over 4 KB`);
+    }
+  }
+  // The first ten and the last two (the 1 MB checks come last), with a count of those between.
+  const shown = problems.length > 12 ? [...problems.slice(0, 10), `… ${problems.length - 12} more …`, ...problems.slice(-2)] : problems;
+  assert(problems.length === 0, shown.join('\n        '));
 });
 
 async function run() {

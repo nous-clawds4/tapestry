@@ -36,6 +36,17 @@
  * item 1(f)); an unexpected error in a catch-up step ends that catch-up as failed and backs off, never wedging catch-ups
  * (Blocking 2).
  *
+ * Review round 2 (same review, 2026-09-29) re-aims RX24 and adds RX26–RX28. RX24 now has two cases, per A1
+ * clarification 26: (a) the same refused version found again at a safety diff merges into the refusal park and waits
+ * for its timer; (b) a newer version whose notice was lost lifts the park at that catch-up. RX28 is (b)'s revoke half:
+ * a revoke the catch-up finds, which the parked entry does not hold, lifts the park too. RX26 pins R2-2: an unexpected
+ * error after the stamp scan, met on every try, backs off 5, 10, 20, 40, 60, 60 s, and a completed catch-up resets the
+ * count. RX27 pins R2-NB2, which passes now: the error met through a round's attempted() ends the catch-up failed with
+ * its backoff, at stage 'unexpected', and it is not counted in failedReads.catchUp. RX24 (b), RX26 and RX28 are red
+ * until the Implementer's round-2 fixes. RX26 and RX27 put the error inside the catch-up's own work through
+ * engineWith(): a fresh copy of the engine whose one planner import is wrapped, since nothing the fakes stand in for
+ * can reach that code once the catch-up's reads have answered.
+ *
  * Intentionally failing until A1 lands (red phase). The engine and the planner module are require()d LAZILY, through
  * load() / loadLib() inside each test, so the suite always loads and each test fails for its own reason. Against the
  * round-1 working tree (T1–T34 without A1) the failures name the A1 rule the pre-A1 behaviour breaks: a start hold, a
@@ -1612,44 +1623,67 @@ test('RX23: a one-id element time-out counts in counts.failedReads.element, not 
   assert(absent(w, AX), 'nothing is written for the id-only tagging while its element read fails (RE23; ADR 0001 A8 amendment)');
 });
 
-test('RX24: a catch-up does not lift a database-refusal park — an address parked after two refused writes, three minutes before the 10-minute safety diff, with a newer version stored there whose live notice was lost: the diff completes, and its arrival at the parked address merges into the parked entry (record.json\'s parked row then names the newer version, under the refusal\'s code) instead of re-queuing the address; no write is attempted there until the park\'s timer, and at the timer, 5 minutes after the park, it is retried; the refusal is counted once (review round 1, Blocking 1(f): conform to § Failure handling "parked … retried after 5 min, 30 min, then every 6 h, at every start, at once on a new event at that address", and after the next successful write, as feedCatchUp already treats a time-out park under A1 clarification 12; A1-12; AC-3; AC-6)', async () => {
-  const w = newWorld();
-  const proc = await boot(w);
-  const cuAt = await firstCatchUpStart(proc);
-  await drive(proc, Math.max(0, cuAt + 7 * MIN - w.clock.t), 1000);
-  const CODE = 'Neo.ClientError.Statement.TypeError';
-  const P = fresh('rx24-p');
-  const AP = addr(P);
-  w.graph.failWrites = (kind, rows) => (rows.some((r) => r.address === AP)
-    ? H.neoError(CODE, `Property values can only be of primitive types (at ${H.NEO4J_URI})`) : null);
-  const mark = w.nextSeq();
-  await putNow(w, P);
-  const tries = () => w.graph.writes.filter((x) => x.seq > mark && x.addresses.includes(AP));
-  await within(proc, MIN, () => tries().length >= 2 && num(statusOf(proc), 'parked') === 1,
-    'fixture: the refused change is parked after two rounds that each failed its write with the same code (RE26)', 250);
-  const parkedAt = tries()[1].at;
-  const P2 = version(P, 'rx24-p:v2');
-  w.relay.loseNotice = (ev) => ev.id === P2.id;
-  put(w, P2); // only a catch-up learns it: an arrival at the parked address
-  const diffDone = () => {
-    const l = at(statusOf(proc), 'catchUp.last');
-    return isPlainObject(l) && l.outcome === 'done' && Date.parse(l.startedAt) > parkedAt;
-  };
-  await within(proc, 5 * MIN, diffDone, 'fixture: the 10-minute safety diff runs and completes while the address is parked', 250);
-  const diff = at(statusOf(proc), 'catchUp.last');
-  assert(Date.parse(diff.startedAt) < parkedAt + 5 * MIN - 5 * SEC,
-    `fixture: the safety diff began before the park's timer (${((Date.parse(diff.startedAt) - parkedAt) / SEC).toFixed(0)} s after the park)`);
-  const beforeTimer = tries().slice(2).filter((x) => x.at < parkedAt + 5 * MIN - 5 * SEC);
-  assert(beforeTimer.length === 0,
-    `review round 1, Blocking 1(f): the safety diff's catch-up must not lift a database-refusal park — ${beforeTimer.length} write attempt(s) at the parked address came before its 5-minute timer: ${preview(beforeTimer.map((x) => `${x.kind} +${((x.at - parkedAt) / SEC).toFixed(1)} s after the park${x.error ? ` (${x.error})` : ''}`))}`);
-  const row = parkedRowAt(w.store.record, AP);
-  assert(row && versionIs(row.entry, P2.id) && row.code === CODE,
-    `review round 1, Blocking 1(f); A1-12: the catch-up's arrival merges into the parked entry — record.json's parked row names the newer version ${short(P2.id)}… under ${CODE}; got ${show(row)}`);
-  await drive(proc, Math.max(0, parkedAt + 5 * MIN + 30 * SEC - w.clock.t), 500);
-  const retry = tries().slice(2)[0];
-  assert(retry && retry.at >= parkedAt + 5 * MIN - 5 * SEC && retry.at <= parkedAt + 5 * MIN + 15 * SEC,
-    `§ Failure handling: the parked address is retried at its timer, 5 minutes after the park; ${retry ? `its next write came ${((retry.at - parkedAt) / SEC).toFixed(1)} s after the park` : 'no write was attempted there within 5.5 minutes'}`);
-  eq(num(statusOf(proc), 'counts.dbRefused.total'), 1, 'counts.dbRefused.total (the refused change, counted once)');
+test('RX24: a catch-up at a database-refusal park lifts it only for something new — an address parked after two refused writes, three minutes before the 10-minute safety diff: (a) the diff finds the same refused version there again, and its arrival, holding nothing the parked entry does not, merges into it (record.json\'s parked row still names that version, under the refusal\'s code): no write is attempted there until the park\'s timer, it is retried at the timer, 5 minutes after the park, and the refusal is counted once; (b) a newer version was stored there with its live notice lost, so the diff\'s arrival carries a version id the parked entry does not hold and lifts the park at that catch-up: the newer version, which the database accepts, is reflected within a minute of the diff\'s start, long before the park\'s timer, nothing stays parked, and the refusal is counted once (A1 clarification 26: "lifts the park when it carries a version id or a revoke the parked entry does not already hold. That is a new event at the address … Work that brings nothing new merges into the parked entry. So the same refused version, found again at every safety diff, costs no write"; § Failure handling "retried at 5 min, 30 min, then every 6 h, at every start, and at once on a new event at that address"; review round 2, R2-3; A1-12; AC-1; AC-3; AC-6)', async () => {
+  await cases([
+    { name: '(a) the same refused version, found again', newer: false },
+    { name: '(b) a newer version, its notice lost', newer: true },
+  ], async (c) => {
+    const tag = c.newer ? 'b' : 'a';
+    const w = newWorld();
+    const proc = await boot(w);
+    const cuAt = await firstCatchUpStart(proc);
+    await drive(proc, Math.max(0, cuAt + 7 * MIN - w.clock.t), 1000);
+    const CODE = 'Neo.ClientError.Statement.TypeError';
+    const P = fresh(`rx24${tag}-p`);
+    const AP = addr(P);
+    // The database refuses the relationship P gives, in whatever call carries it; a newer version's it accepts.
+    w.graph.failWrites = (kind, rows) => (rows.some((r) => r.address === AP && isPlainObject(r.desired) && r.desired.eventId === P.id)
+      ? H.neoError(CODE, `Property values can only be of primitive types (at ${H.NEO4J_URI})`) : null);
+    const mark = w.nextSeq();
+    await putNow(w, P);
+    const tries = () => w.graph.writes.filter((x) => x.seq > mark && x.addresses.includes(AP));
+    await within(proc, MIN, () => tries().length >= 2 && num(statusOf(proc), 'parked') === 1,
+      'fixture: the refused change is parked after two rounds that each failed its write with the same code (RE26)', 250);
+    const parkedAt = tries()[1].at;
+    const timerAt = parkedAt + 5 * MIN;
+    const P2 = c.newer ? version(P, 'rx24b-p:v2') : null;
+    if (P2) {
+      w.relay.loseNotice = (ev) => ev.id === P2.id;
+      put(w, P2); // only a catch-up learns it: an arrival at the parked address, and a new event there
+    }
+    const diffDone = () => {
+      const l = at(statusOf(proc), 'catchUp.last');
+      return isPlainObject(l) && l.outcome === 'done' && Date.parse(l.startedAt) > parkedAt;
+    };
+    await within(proc, 5 * MIN, diffDone, 'fixture: the 10-minute safety diff runs and completes while the address is parked', 250);
+    const diff = at(statusOf(proc), 'catchUp.last');
+    const diffAt = Date.parse(diff.startedAt);
+    assert(diffAt < timerAt - 5 * SEC,
+      `fixture: the safety diff began before the park's timer (${((diffAt - parkedAt) / SEC).toFixed(0)} s after the park)`);
+    eq(w.relay.atAddress(AP) && w.relay.atAddress(AP).id, (P2 || P).id, `fixture: the relay holds ${c.newer ? 'the newer version' : 'the refused version'} at the address, which the diff's stamp scan finds (a parked version never enters S, so it is an arrival)`);
+    const lifted = tries().slice(2).filter((x) => x.at < diffAt);
+    eq(lifted.length, 0, 'fixture: write attempts at the parked address between its park and the safety diff (nothing else lifts it)');
+    if (!c.newer) {
+      const beforeTimer = tries().slice(2).filter((x) => x.at < timerAt - 5 * SEC);
+      assert(beforeTimer.length === 0,
+        `A1 clarification 26: the same refused version, found again, brings nothing new, so the safety diff's catch-up merges it and lifts nothing — ${beforeTimer.length} write attempt(s) at the parked address came before its 5-minute timer: ${preview(beforeTimer.map((x) => `${x.kind} +${((x.at - parkedAt) / SEC).toFixed(1)} s after the park${x.error ? ` (${x.error})` : ''}`))}`);
+      const row = parkedRowAt(w.store.record, AP);
+      assert(row && versionIs(row.entry, P.id) && row.code === CODE,
+        `A1 clarification 26; A1-12: the catch-up's arrival merges into the parked entry — record.json's parked row names the refused version ${short(P.id)}… under ${CODE}; got ${show(row)}`);
+      await drive(proc, Math.max(0, timerAt + 30 * SEC - w.clock.t), 500);
+      const retry = tries().slice(2)[0];
+      assert(retry && retry.at >= timerAt - 5 * SEC && retry.at <= timerAt + 15 * SEC,
+        `§ Failure handling: the parked address is retried at its timer, 5 minutes after the park; ${retry ? `its next write came ${((retry.at - parkedAt) / SEC).toFixed(1)} s after the park` : 'no write was attempted there within 5.5 minutes'}`);
+    } else {
+      const bound = Math.min(diffAt + MIN, timerAt - 5 * SEC);
+      await within(proc, Math.max(0, bound - w.clock.t), () => holdsId(w, P2),
+        `A1 clarification 26: the catch-up's arrival carries a version id the parked entry does not hold (a new event at the address), so it lifts the park at that catch-up, and the newer version is reflected within a minute of the safety diff's start (by +${((bound - diffAt) / SEC).toFixed(0)} s), not at the park's timer ${((timerAt - diffAt) / SEC).toFixed(0)} s after it; ${eventIdAt(w, AP) ? `the graph records ${short(eventIdAt(w, AP))}…` : 'the graph holds nothing'} there, and the write attempts at the address after the diff's start came at ${show(tries().slice(2).map((x) => `+${((x.at - diffAt) / SEC).toFixed(1)} s`))}`, 250);
+      await drive(proc, 5 * SEC, 250); // the status catches up
+      eq(num(statusOf(proc), 'parked'), 0, 'A1 clarification 26: the status\'s parked once the lifted address\'s newer version is written');
+      eq(parkedRowAt(w.store.record, AP), null, 'record.json holds no parked row at the address once the lift\'s write succeeded');
+    }
+    eq(num(statusOf(proc), 'counts.dbRefused.total'), 1, 'counts.dbRefused.total (the refused change, counted once)');
+  });
 });
 
 test('RX25: an unexpected error in a catch-up step ends that catch-up and never wedges catch-ups — the 10-minute safety diff\'s key read answers a row the engine cannot read (its address throws when read: an unexpected error, not a failed read); that catch-up ends as failed (the status\'s catchUp.last outcome \'failed\', and a lastError with its stage), backs off (its next key read comes 5 to 60 s later, not at once), and a later catch-up runs and completes, after which the status says live, not catching-up (review round 1, Blocking 2: "end the catch-up on an unexpected step error, with failCatchUp(c, \'unexpected\', err) and its 5→60 s backoff"; ADR § Knowing what changed, the safety diff; § Status catchUp; AC-4; AC-6)', async () => {
@@ -1696,6 +1730,181 @@ test('RX25: an unexpected error in a catch-up step ends that catch-up and never 
   }, 'Blocking 2: a later catch-up runs and completes', 250);
   await drive(proc, 3 * SEC, 250); // the status catches up
   eq(at(statusOf(proc), 'state'), 'live', `Blocking 2: once a later catch-up has completed, the status says live — never catching-up for good\n        ${diag(proc)}`);
+});
+
+/* ═══════════ Review round 2 (2026-09-29): Blocking R2-2 and non-blocking R2-NB2 (RX24 is re-aimed above) ═══════════ */
+
+/**
+ * A fresh copy of the engine whose planner import `name` is `wrap(original)`. The engine binds its planner imports
+ * when it loads, so only this copy sees the wrapper; the planner module and the suite's own copy of the engine are
+ * left as they were. It puts an unexpected error inside a catch-up's own work after its reads have answered, which
+ * nothing the fakes stand in for can reach: there, every dependency failure is a failed read, or is caught where it
+ * happens.
+ */
+function engineWith(name, wrap) {
+  load(); // the engine loads (else the red-phase message)
+  const lib = loadLib();
+  const original = lib[name];
+  assert(typeof original === 'function', `${LIB_REL} must export ${name}() (T2, as A1-17 amends it)`);
+  const key = require.resolve(ENGINE);
+  const cached = require.cache[key];
+  delete require.cache[key];
+  lib[name] = wrap(original);
+  try {
+    return require(ENGINE);
+  } finally {
+    lib[name] = original;
+    if (cached) require.cache[key] = cached; else delete require.cache[key];
+  }
+}
+/** The gaps a failed catch-up waits before its next try, one per consecutive failure (ADR § The catch-up: 5→60 s). */
+const CATCH_UP_BACKOFF_MS = Object.freeze([5, 10, 20, 40, 60, 60].map((s) => s * SEC));
+/** This process's first graph key read (a catch-up's step 1) after `seq`, or undefined. */
+const keyReadAfter = (w, proc, seq) => w.graph.calls.find((x) => x.proc === proc.n && x.op === 'readKeys' && x.seq > seq);
+/** This process's last graph key read before `seq`, or undefined. */
+function keyReadBefore(w, proc, seq) {
+  const before = w.graph.calls.filter((x) => x.proc === proc.n && x.op === 'readKeys' && x.seq < seq);
+  return before[before.length - 1];
+}
+
+test('RX26: an unexpected error after a catch-up\'s stamp scan backs off 5→60 s over consecutive failures, never a flat 5 s — with the error met on every try from the 10-minute safety diff on, (a) in the candidate step (a deletion-scan spec it cannot read) or (b) as the catch-up\'s work is fed (its compaction throws), each try ends failed after its key read and stamp scan answered, and its next key read comes 5, 10, 20, 40, 60 and 60 s after each of six failures in a row; once the error stops, the next try completes and the status says live; and the first failure after that completion waits 5 s again: the completion, not a stamp scan, resets the count (review round 2, R2-2: "reset the failure count when a catch-up completes, not when its stamp scan succeeds. Pin it with a test that injects after the stamp scan and asserts growing gaps"; ADR § Knowing what changed, "A catch-up read fails … retried with 5→60 s backoff"; the story\'s Deviations: an unexpected error in a catch-up\'s own work "ends that catch-up as failed with stage unexpected and the same 5→60 s backoff"; AC-4)', async () => {
+  await cases([
+    { name: '(a) in the candidate step', fn: 'deletionScanFilters' },
+    { name: '(b) as the work is fed', fn: 'pruneLineage' },
+  ], async (c) => {
+    let armed = 0; // how many more tries meet the error
+    let w = null;
+    const fails = [];
+    const met = () => { fails.push({ at: w.clock.t, seq: w.nextSeq() }); armed -= 1; };
+    const boom = () => new TypeError(`fixture: an unexpected error in a catch-up's own work (${c.name})`);
+    const mod = engineWith(c.fn, (original) => (...args) => {
+      if (armed <= 0) return original(...args);
+      if (c.fn === 'pruneLineage') { met(); throw boom(); }
+      // One deletion-scan spec, any read of which throws: the candidate step meets the error when it reads it.
+      let read = false;
+      return [new Proxy({}, { get() { if (!read) { read = true; met(); } throw boom(); } })];
+    });
+    w = newWorld({ loadEngine: () => mod });
+    const proc = await boot(w);
+    const cuAt = await firstCatchUpStart(proc);
+    const N = CATCH_UP_BACKOFF_MS.length;
+    armed = N;
+    await within(proc, 11 * MIN + 4 * MIN, () => fails.length >= N && !!keyReadAfter(w, proc, fails[N - 1].seq),
+      `fixture: ${N} catch-ups in a row, the 10-minute safety diff the first, meet the error, and a try follows the last`, 500);
+    assert(fails[0].at >= cuAt + 10 * MIN - SEC, `fixture: the first failure is the safety diff's (${((fails[0].at - cuAt) / SEC).toFixed(0)} s after the first start's catch-up)`);
+    const unanswered = fails.filter((f) => {
+      const k = keyReadBefore(w, proc, f.seq);
+      return !k || !w.relay.scans.some((x) => x.proc === proc.n && x.kind === 'stamp' && x.outcome === 'ok' && x.seq > k.seq && x.seq < f.seq);
+    });
+    eq(unanswered.length, 0, 'fixture: failures not preceded, in their own try, by a key read and a stamp scan that answered (the error is met after the stamp scan)');
+    const gaps = fails.slice(0, N).map((f) => keyReadAfter(w, proc, f.seq).at - f.at);
+    const off = gaps.map((g, i) => [i, g]).filter(([i, g]) => g < CATCH_UP_BACKOFF_MS[i] || g > CATCH_UP_BACKOFF_MS[i] + 2 * SEC);
+    assert(off.length === 0,
+      `R2-2: consecutive failed catch-ups back off 5→60 s — after failure 1…${N} the next key read should come ${show(CATCH_UP_BACKOFF_MS.map((ms) => `${ms / SEC} s`))} later (+2 s allowed for the tick); it came ${show(gaps.map((g) => `${(g / SEC).toFixed(1)} s`))}. A flat 5 s is a key read and a stamp scan every 5 s for as long as the error lasts`);
+    const lastFail = fails[N - 1];
+    await within(proc, 2 * MIN, () => {
+      const l = at(statusOf(proc), 'catchUp.last');
+      return isPlainObject(l) && l.outcome === 'done' && Date.parse(l.startedAt) > lastFail.at;
+    }, 'once the error stops, the next try completes', 250);
+    await drive(proc, 3 * SEC, 250); // the status catches up
+    eq(at(statusOf(proc), 'state'), 'live', `once a catch-up has completed, the status says live\n        ${diag(proc)}`);
+    armed = 1;
+    await within(proc, 11 * MIN, () => fails.length > N && !!keyReadAfter(w, proc, fails[N].seq),
+      'fixture: the next safety diff meets the error once, and a try follows it', 500);
+    const again = keyReadAfter(w, proc, fails[N].seq).at - fails[N].at;
+    assert(again >= CATCH_UP_BACKOFF_MS[0] && again <= CATCH_UP_BACKOFF_MS[0] + 2 * SEC,
+      `R2-2: a completed catch-up resets the count, so the next failure waits the first step, 5 s; its next key read came ${(again / SEC).toFixed(1)} s after it`);
+  });
+});
+
+test('RX27: an unexpected error met as a round reports a catch-up\'s last address attempted ends that catch-up failed, with its backoff, and is no failed read — at the 10-minute safety diff a tagging stored with its live notice lost is the catch-up\'s one arrival; a round writes it, and the catch-up\'s compaction, run once that round reports the address attempted (attempted(), feeding the catch-up\'s work), throws: the status\'s catchUp.last is failed with stage \'unexpected\', its lastError has stage \'unexpected\', counts.failedReads.catchUp is unchanged, the next key read comes 5 s later (the first step of 5→60 s), and that try completes, the status then saying live (review round 2, R2-NB2: "the feedCatchUp branch through attempted(), and the rule that an unexpected failure is not counted in failedReads.catchUp"; the story\'s Deviations: it "ends that catch-up as failed with stage unexpected and the same 5→60 s backoff … It is the status\'s lastError under stage unexpected, not catch-up, and is not counted in failedReads.catchUp"; OPERATIONS § status, catchUp; AC-4; AC-6)', async () => {
+  let armed = false;
+  let sprung = null;
+  let w = null;
+  const Q = fresh('rx27-q');
+  const mod = engineWith('pruneLineage', (original) => (...args) => {
+    if (!armed) return original(...args);
+    armed = false;
+    sprung = { at: w.clock.t, seq: w.nextSeq(), written: holdsId(w, Q) };
+    throw new TypeError('fixture: an unexpected error in a catch-up\'s compaction');
+  });
+  w = newWorld({ loadEngine: () => mod });
+  const proc = await boot(w);
+  const cuAt = await firstCatchUpStart(proc);
+  w.relay.loseNotice = (ev) => ev.id === Q.id;
+  put(w, Q); // only the safety diff learns it
+  await drive(proc, 5 * SEC, 250); // the status settles
+  const failedBefore = num(statusOf(proc), 'counts.failedReads.catchUp');
+  assert(typeof failedBefore === 'number', `fixture: the status counts failedReads.catchUp; got ${show(at(statusOf(proc), 'counts.failedReads'))}`);
+  armed = true;
+  await within(proc, 11 * MIN, () => sprung !== null, 'fixture: the safety diff\'s catch-up reaches its compaction', 500);
+  const keys = keyReadBefore(w, proc, sprung.seq);
+  assert(keys && keys.at >= cuAt + 10 * MIN - SEC, `fixture: the compaction that threw is the safety diff's (its key read ${keys ? `${((keys.at - cuAt) / SEC).toFixed(0)} s` : 'never'} after the first start's catch-up)`);
+  assert(sprung.written, 'fixture: the catch-up\'s arrival was written before its compaction ran — so the compaction ran as the round reported the address attempted, not in one of the catch-up\'s own steps');
+  await within(proc, 5 * SEC, () => {
+    const l = at(statusOf(proc), 'catchUp.last');
+    return isPlainObject(l) && l.outcome === 'failed' && Date.parse(l.endedAt) >= sprung.at;
+  }, 'R2-NB2: the catch-up that met the error through attempted() ends as failed (the status\'s catchUp.last outcome \'failed\')', 100);
+  eq(at(statusOf(proc), 'catchUp.last.stage'), 'unexpected', 'the failed catchUp.last\'s stage (an error in the path\'s own code)');
+  const err = at(statusOf(proc), 'lastError');
+  assert(isPlainObject(err) && err.stage === 'unexpected' && Date.parse(err.at) >= sprung.at,
+    `R2-NB2: the failure is the status's lastError under stage 'unexpected'; got ${show(err)}`);
+  eq(num(statusOf(proc), 'counts.failedReads.catchUp'), failedBefore, 'R2-NB2: counts.failedReads.catchUp after an unexpected failure (no read failed)');
+  await within(proc, 30 * SEC, () => !!keyReadAfter(w, proc, sprung.seq), 'the failed catch-up is tried again (its next key read)', 250);
+  const gap = keyReadAfter(w, proc, sprung.seq).at - sprung.at;
+  assert(gap >= CATCH_UP_BACKOFF_MS[0] && gap <= CATCH_UP_BACKOFF_MS[0] + 2 * SEC,
+    `R2-NB2: the failed catch-up backs off the first step, 5 s, before it is tried again; its next key read came ${(gap / SEC).toFixed(1)} s after the failure`);
+  await within(proc, MIN, () => {
+    const l = at(statusOf(proc), 'catchUp.last');
+    return isPlainObject(l) && l.outcome === 'done' && Date.parse(l.startedAt) > sprung.at;
+  }, 'the next try completes', 250);
+  await drive(proc, 3 * SEC, 250); // the status catches up
+  eq(at(statusOf(proc), 'state'), 'live', `once a later catch-up has completed, the status says live\n        ${diag(proc)}`);
+  assert(holdsId(w, Q), 'the arrival stays written');
+});
+
+test('RX28: a revoke a catch-up finds, which the parked entry does not hold, lifts a database-refusal park at that catch-up — at an address the backfill wrote, a newer version heard live is refused twice by the database and parked three minutes before the 10-minute safety diff; the author then revokes that version by id, the kind-5\'s live notice lost, so the relay holds nothing there: the diff\'s candidate scan finds the revoke, which lifts the park, and the relationship the backfill wrote is removed within a minute of the diff\'s start (the revoke names the lineage\'s top, the recorded version is in its older: clause ii), long before the park\'s timer; nothing stays parked, and the refusal is counted once (A1 clarification 26: "lifts the park when it carries a version id or a revoke the parked entry does not already hold"; § Failure handling "at once on a new event at that address"; review round 2, R2-3; A1-4 clause ii; A1-9; AC-2; AC-3)', async () => {
+  const w = newWorld();
+  const X0 = fresh('rx28-x0', { createdAt: NOW_S - 100 });
+  const AX = addr(X0);
+  put(w, X0);
+  backfill(w, X0);
+  const proc = await boot(w);
+  const cuAt = await firstCatchUpStart(proc);
+  await drive(proc, Math.max(0, cuAt + 7 * MIN - w.clock.t), 1000);
+  const CODE = 'Neo.ClientError.Statement.TypeError';
+  const X1 = version(X0, 'rx28-x1');
+  // The database refuses the relationship X1 gives (the update over X0's); a removal it accepts.
+  w.graph.failWrites = (kind, rows) => (rows.some((r) => r.address === AX && isPlainObject(r.desired) && r.desired.eventId === X1.id)
+    ? H.neoError(CODE, `Property values can only be of primitive types (at ${H.NEO4J_URI})`) : null);
+  const mark = w.nextSeq();
+  await putNow(w, X1);
+  const tries = () => w.graph.writes.filter((x) => x.seq > mark && x.addresses.includes(AX));
+  await within(proc, MIN, () => tries().length >= 2 && num(statusOf(proc), 'parked') === 1,
+    'fixture: the refused update is parked after two rounds that each failed its write with the same code (RE26)', 250);
+  const parkedAt = tries()[1].at;
+  const timerAt = parkedAt + 5 * MIN;
+  eq(eventIdAt(w, AX), X0.id, 'fixture: the relationship the backfill wrote stands while the address is parked');
+  const K = del('rx28-k', { author: X0.pubkey, e: [X1.id] });
+  w.relay.loseNotice = (ev) => ev.id === K.id;
+  put(w, K); // strfry deletes X1; only a catch-up's candidate scan finds the revoke
+  eq(w.relay.atAddress(AX), null, 'fixture: the relay holds nothing at the address once the kind-5 is stored');
+  const diffStarted = () => {
+    const cur = at(statusOf(proc), 'catchUp.current');
+    const l = at(statusOf(proc), 'catchUp.last');
+    const s = isPlainObject(cur) ? Date.parse(cur.startedAt) : (isPlainObject(l) ? Date.parse(l.startedAt) : NaN);
+    return s > parkedAt ? s : null;
+  };
+  await within(proc, 5 * MIN, () => diffStarted() !== null, 'fixture: the 10-minute safety diff starts while the address is parked', 250);
+  const diffAt = diffStarted();
+  assert(diffAt < timerAt - 5 * SEC, `fixture: the safety diff began before the park's timer (${((diffAt - parkedAt) / SEC).toFixed(0)} s after the park)`);
+  eq(tries().slice(2).filter((x) => x.at < diffAt).length, 0, 'fixture: write attempts at the parked address between its park and the safety diff (nothing else lifts it)');
+  const bound = Math.min(diffAt + MIN, timerAt - 5 * SEC);
+  await within(proc, Math.max(0, bound - w.clock.t), () => absent(w, AX),
+    `A1 clarification 26: the revoke the diff's candidate scan finds is one the parked entry does not hold (a new event at the address), so it lifts the park at that catch-up, and the relationship the backfill wrote is removed within a minute of the diff's start (by +${((bound - diffAt) / SEC).toFixed(0)} s), not at the park's timer ${((timerAt - diffAt) / SEC).toFixed(0)} s after it; the graph records ${eventIdAt(w, AX) ? `${short(eventIdAt(w, AX))}…` : 'nothing'} there, and the write attempts at the address after the diff's start came at ${show(tries().slice(2).map((x) => `${x.kind} +${((x.at - diffAt) / SEC).toFixed(1)} s`))}`, 250);
+  await drive(proc, 5 * SEC, 250); // the status catches up
+  eq(num(statusOf(proc), 'parked'), 0, 'A1 clarification 26: the status\'s parked once the lifted address\'s removal is written');
+  eq(num(statusOf(proc), 'counts.dbRefused.total'), 1, 'counts.dbRefused.total (the refused update, counted once)');
 });
 
 // ─── run ───────────────────────────────────────────────────────────────────────────────────────────────────────
