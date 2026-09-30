@@ -109,7 +109,28 @@ function faqItems({ cutoff }) {
   ];
 }
 
+/** The Tapestry control panel's page: the app's breadcrumbs and heading over the shared list. */
 export default function DictionaryConcepts() {
+  return (
+    <div className="page dict-page">
+      <Breadcrumbs />
+      <h1>📖 Concepts</h1>
+      <p className="dict-lede">
+        The concepts your trusted community generally accepts. You can add entries yourself; in a later version
+        your Assistant will keep them up to date automatically, and you’ll be able to veto any entry.
+      </p>
+      <ConceptsDictionaryBody />
+    </div>
+  );
+}
+
+/**
+ * Everything under the heading: whose list it is, the FAQ, search and sort, the finder and the
+ * rows. Both Dictionary pages render it, so they cannot drift: this one and the Brainstorm-styled
+ * /dictionary (pages/dictionary/Index.jsx), which passes `entryHref` so its rows open its own
+ * entry page.
+ */
+export function ConceptsDictionaryBody({ entryHref = entryPath }) {
   const { povParams } = usePov();
   const person = useDictionaryPerson();
   const { data, error, reload } = useConceptDictionary(person, povParams);
@@ -158,13 +179,7 @@ export default function DictionaryConcepts() {
   );
 
   return (
-    <div className="page dict-page">
-      <Breadcrumbs />
-      <h1>📖 Concepts</h1>
-      <p className="dict-lede">
-        The concepts your trusted community generally accepts. You can add entries yourself; in a later version
-        your Assistant will keep them up to date automatically, and you’ll be able to veto any entry.
-      </p>
+    <>
       {!person.loading && !signedIn && (
         <p className="dict-pov text-muted">You’re signed out, so this is the owner’s Dictionary. Sign in to see your own.</p>
       )}
@@ -302,7 +317,7 @@ export default function DictionaryConcepts() {
             return (
               <li key={e.coord}>
                 <Link
-                  to={entryPath(e.coord)} state={{ entry: e, metric, pov }}
+                  to={entryHref(e.coord)} state={{ entry: e, metric, pov }}
                   className={`dict-row${e.selfDeclared ? ' dict-row--shared' : ''}${e.override === 'vetoed' ? ' dict-row--vetoed' : ''}`}
                 >
                   <span className="dict-row-main">
@@ -335,7 +350,7 @@ export default function DictionaryConcepts() {
           )}
         </ul>
       )}
-    </div>
+    </>
   );
 }
 
