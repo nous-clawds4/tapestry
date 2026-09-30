@@ -17,6 +17,10 @@
 >   - The trusted dictionary's GUM₁ now only scores each row, for the shared concept the row points to. In the design, a metric and its cutoff are the rule an Assistant will use to clone shared concepts into the dictionary; that automation is not built.
 >   - The FAQ is back to the design's wording. Answers describing unbuilt behaviour are put in the future tense or marked "Coming in a later version". The 2026-09-27 decision "the FAQ corrected to what v1 does" rewrote the design's definition of a row, and is withdrawn.
 >   - The mock's Private marker (encrypted, local-only concepts) is left for version 2. A kept-private header carries no real b-tag, so it is never a row.
+> - **Added 2026-09-30: `/dictionary`.** The owner asked for the same page in the mock's styling, at `/dictionary`, with a Dictionary item beside Dictionaries in the avatar menus.
+>   - `ui/src/pages/dictionary/` renders the control panel pages' own bodies (`ConceptsDictionaryBody`, `ConceptEntryBody`) inside the mock's frame and a light skin (`styles.css`: `.bsd-*`, `.dict-skin-light`), so the two pages cannot drift. Its rows open `/dictionary/:coord`.
+>   - It keeps the control panel's lede rather than the mock's, which describes the Assistant's automatic upkeep and Veto as working today.
+>   - Figtree and IBM Plex Mono are self-hosted in `ui/public/fonts/` (SIL OFL 1.1).
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---
