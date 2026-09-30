@@ -959,8 +959,8 @@ and 23 (a catch-up's compaction keeps the `older` ids learned since its key read
   it now says the harmless writes needed are the old largest id minus the new one, gaps included.
 - The staging-backfill pointer (OPERATIONS §12.8's "Staging backfill: not yet run" line, and §12.9's step 1, which
   points to it and to story 2's Evidence) still reads as not run: the staging backfill ran on 2026-09-28, and its
-  evidence is the docs-lane commit `2361dfb0` (branch `docs/tagging-edges-2-staging-backfill-evidence`, not yet
-  pushed or merged). Both places read right once that commit lands (review round 2, R2-NB4).
+  evidence is the docs-lane commit `2361dfb0` (branch `docs/tagging-edges-2-staging-backfill-evidence`, merged
+  into staging on 2026-09-30, after this story). Both places read right from then on (review round 2, R2-NB4).
 - Review round 1's Non-blocking 1 and 2 are documented, not bounded in code: OPERATIONS §12.9 says what the operator
   sees and does while journal appends keep failing (the unwritten lines kept in memory, rounds still writing) and
   while a first start's baseline scan keeps failing (its version buffer bounded only by that scan's duration). A
