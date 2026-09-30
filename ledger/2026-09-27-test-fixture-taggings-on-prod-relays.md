@@ -78,3 +78,17 @@ carry them as edges, like any other tagging (`engineering-team/epics/tagging-edg
 **Pointer:** `engineering-team/epics/tagging-edges.md` (the census paragraph; the census JSONL is session scratch
 and not in the repo); OPEN.md rows 25, 128, 163, 191 and 293; ADR `event-tagging/0002` § Out of scope;
 `docs/CONFIGURATION.md` § Publish policy; `setup/router-presets.json`.
+
+**Update 2026-09-29: the Mac Studio is not in the safe state described above.** "This machine today has the guard on
+… and every router stream disabled" does not hold for the Mac Studio's stack. There are two dev machines, so it may
+describe the other one. Checked on the Mac Studio on 2026-09-29:
+- `/api/publish-policy` answers `allowExternalPublish:true`.
+- `GET /api/strfry/router-status` shows the `tag`, `nostrUserTag`, `tagPinning`, `taggingWithSpecificTag` and
+  `nostrEventTag` streams as `both` and enabled: kind 39999, `#z` = the upstream tag concepts. So are `WoT` (`both`)
+  and `trustedAssertions` (`up`).
+- `/var/lib/brainstorm/router-state.json` has held these flags since 2026-07-18.
+
+So a full local `npm test` on the Mac Studio sends the tag suites' fixtures to those streams' relays. The
+Dictionary › Concepts fix ran only its own suites there. `dictionary-concepts` publishes nothing. The
+`trusted-dictionary` fixtures are kind 39998 headers and kind 39999 items whose `z` points at those headers, and no
+enabled stream matches them.

@@ -11,8 +11,8 @@ strfry→Neo4j letter ingest (OPEN.md #136 stage 2), which it does not attempt.
 ## Goal
 
 **Neo4j carries one relationship per tagging, from the tagger to the tagged person, kept current in real time
-and repaired retroactively, and the owner can manage that pipeline from the control panel.** Today no tagging
-reaches Neo4j at all; every tag surface scans the relay per request.
+and repaired retroactively, and the owner can manage that pipeline from the control panel.** Before story 2 no
+tagging reached Neo4j at all; every tag surface still scans the relay per request.
 
 ## Stories
 
@@ -22,7 +22,7 @@ reaches Neo4j at all; every tag surface scans the relay per request.
    which version of a tagging stands, what a revoke removes; documented in BIBLE. No relationship is written yet.
 2. `2-gap-filling-pass-and-backfill.md` — the gap-filling pass and backfill: writes the relationships, enforces
    one-per-tagging in the database, repairs drift, refuses to mass-delete on a failed or empty relay read. Its first
-   run is the backfill.
+   run is the backfill. **Done**; on production since 2026-09-28 (PRs #780 / #781).
    **Carry-forwards from story 1's review** (owner-ratified 2026-09-27; `reviews/tagging-edges/1-tagging-edge-contract.md`
    § "Re-review", R2-NB1–3 and R2-4–10) — each becomes an acceptance criterion or a docs task of story 2:
    - *R2-NB1:* a `createdAt` that cannot be compared (NaN, undefined, a JSON-round-tripped Neo4j Integer) makes
@@ -37,10 +37,12 @@ reaches Neo4j at all; every tag surface scans the relay per request.
      clarification-9 line numbers and non-string-`d` wording; ADR 0001's stale "One known edge difference"
      sentence and step 5 (clarification 11); the test plan's trailing blank line; a retire-path case for the
      clarification-9 test.
-3. *(planned)* The real-time path — reflects new taggings, stance changes and revokes within seconds to
-   minutes, from every path an event can reach the relay, independently of the follows pipeline.
-4. *(planned)* The control panel — status, counts, relay-vs-graph drift, start / stop, gap-fill on demand;
-   owner-only.
+3. `3-real-time-path.md` — the real-time path: reflects new taggings, stance changes and revokes within a minute,
+   from every way an event can reach the relay, independently of the follows pipeline; catches up by itself after
+   downtime and never backfills. It ships turned off and carries the owner-only on/off control and its own status
+   (approved 2026-09-28). Story 2's review carry-forwards (six wording nits) are its docs tasks CF-1–CF-6.
+4. *(planned)* The control panel — status, counts, relay-vs-graph drift, gap-fill on demand, and a page on story
+   3's on/off control; owner-only.
 
 Order: 1 → 2 → 3 → 4 (4's page can start once 2's status shape is fixed).
 
@@ -69,8 +71,11 @@ Order: 1 → 2 → 3 → 4 (4's page can start once 2's status shape is fixed).
 - **A writer refuses to start without both stamp pubkeys** (ADR 0001, review round). A writer started without one
   of the two stamp pubkeys would read every tagging that carries only the missing stamp as a non-tagging and retire
   its edge (without both, every edge); the writer refuses if *either* identity is missing or malformed — each must
-  be lowercase 64-hex (story 2 checks both at startup, ADR `tagging-edges/0002`) — and its mass-delete guard counts
-  every removal per run.
+  be lowercase 64-hex (story 2 checks both at startup, ADR `tagging-edges/0002`; story 3's real-time path waits in
+  `waiting-setup`, writing nothing, ADR `tagging-edges/0003`). The mass-delete limit is the gap-filling pass's: it
+  counts every removal per run. The real-time path's removals have no count limit (story 3's settled decision 4);
+  each answers a revoke by the tagging's author (or, for a refused version, a version stored at the address) and a
+  later successful relay read (ADR `tagging-edges/0003`, amending ADR 0001's R2-NB3 bullet).
 - **Known defects in the follows pipeline stay out of this epic** (the relay-websocket gap in the strfry patch,
   the Redis client that never reconnects, at-most-once delivery, the stream and reconcile writers disagreeing
   on REPORTS' shape): they have ledger rows and are not copied — OPEN.md rows

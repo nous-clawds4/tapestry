@@ -28,6 +28,20 @@
  * each test through load(), so this suite always loads. Fixture pubkeys are fake 64-hex values from
  * test/helpers/taggingEdgesFixtures.js — never a deployment's TA and never the ADR 0015 literal.
  * Works on Node 16 and 22: no global fetch, no structuredClone, no node:test.
+ *
+ * Story 3 (the real-time path) amends the reader. Story: engineering-team/stories/tagging-edges/3-real-time-path.md;
+ * ADR: engineering-team/decisions/tagging-edges/0003-real-time-path.md — § Amendments → ADR 0002 "New files
+ * (src/lib/strfryScanStrict.js)", § Implementation notes → Changed files, owner decision 6 (CF-3), and § Clarifications
+ * T1. SS31–SS39 are its red-phase tests: the `onEvent` streaming option (events not kept; every completeness rule
+ * unchanged), filter arrays, the argv text written with `\/` and size-checked before spawn (`filter-too-large`,
+ * 100,000 bytes), `escapeFilterArgv` re-exported from src/lib/tagging-edges/realtime.js (required LAZILY, like the
+ * reader), the off-filter text, and the widened `redactPublicText`. SS9 is re-aimed by that size check (a 3.3 MB
+ * filter is now refused before spawn, never reaching the real spawn's E2BIG); SS28's title takes ADR 0002's current
+ * wording (story 3 CF-1); SS29's clock-time case label no longer says there is no name:port rule. SS40 (added from the
+ * mutation pass over story 3's blind reference implementation) pins that an onEvent that throws rejects the scan with
+ * the handler's own error, never resolving. SS41 (story 3's review, round 2, R2-NB3) pins redactPublicText's 4 KB cut:
+ * no part of a token straddling the mark gets out, input with no whitespace in its first 4 KB comes out empty, and a
+ * 1 MB input returns within 1 s (timed in a child process, so a regression fails instead of hanging the suite).
  */
 
 const fs = require('fs');
@@ -36,6 +50,7 @@ const path = require('path');
 const childProcess = require('child_process');
 const {
   IDENTITIES, ALICE, CAROL, OTHER_DEPLOY, D, STAMP, Z, fourStamps, idOf, pubkeyOf, makeTagging, makeElement, manyTaggings,
+  JACK, CANONICAL,
 } = require('./helpers/taggingEdgesFixtures');
 
 const MODULE_REQUIRE = '../src/lib/strfryScanStrict';
@@ -335,7 +350,11 @@ test('SS8: a spawn that throws rejects "spawn" — scanStrict itself never throw
   rejectedWith(mod, out, 'spawn', 'an injected spawnImpl that throws synchronously');
 });
 
-test('SS9: a filter too long for one command line (the real spawn throws E2BIG) rejects "spawn", and strfry never runs', async () => {
+// Re-aimed by story 3 (ADR tagging-edges/0003 § Amendments → ADR 0002 "New files": "The argv text … is size-checked
+// before spawn (`filter-too-large`)", for every caller). Story 2 pinned "spawn" here: the real spawn's E2BIG. Every
+// filter over 100,000 argv bytes is now refused before spawn, so a 3.3 MB filter never reaches E2BIG; SS8 still pins
+// "spawn" for a spawn that throws. Clarification T31 confirms the re-aim: "filter-too-large makes story 2's SS9 … unreachable."
+test('SS9: a filter too long for one command line (3.3 MB of JSON) is refused "filter-too-large" before spawn, and strfry never runs (story 2 pinned "spawn" — the real spawn\'s E2BIG; ADR tagging-edges/0003 re-aims it: every argv over 100,000 bytes is refused before spawn)', async () => {
   const mod = load();
   // ADR 0002 D2 (ii): "spawn throws E2BIG above about 1,955 ids". 50,000 ids is about 3.3 MB of argv on any host.
   const filter = { kinds: [39999], ids: Array.from({ length: 50000 }, (_, i) => idOf(i + 1)) };
@@ -344,7 +363,7 @@ test('SS9: a filter too long for one command line (the real spawn throws E2BIG) 
     out: await scanWith(mod, filter, { isExpected: ACCEPT_ALL }),
     invocations: fake.invocations(),
   }));
-  rejectedWith(mod, seen.out, 'spawn', 'a 3.3 MB filter on the command line');
+  rejectedWith(mod, seen.out, 'filter-too-large', 'a 3.3 MB filter on the command line (ADR 0003: over 100,000 argv bytes → filter-too-large, before spawn)');
   same(seen.invocations, [], 'strfry runs (it must not have started)');
 });
 
@@ -667,7 +686,7 @@ const REAL_CONFIG_ERROR = "strfry error: Failed to load config file '/nonexisten
 /** An absolute path: a "/" that starts a word (at the start, or after a space, quote, bracket, parenthesis or "="). */
 const ABSOLUTE_PATH_RE = /(^|[\s'"[(=])\/[^\s'"\])]/;
 
-test('SS28: a failed scan\'s stderrTail names no absolute path — strfry\'s real "Failed to load config file" line, for the probe path and for the default /etc/strfry.conf, keeps its gist with each path redacted, because the public status route serves it (ADR 0002 "Who reads it": no config value, absolute path or credential; review 2026-09-28, Blocking 1)', async () => {
+test('SS28: a failed scan\'s stderrTail names no absolute path that starts a word — strfry\'s real "Failed to load config file" line, for the probe path and for the default /etc/strfry.conf, keeps its gist with each path redacted, because the public status route serves it (ADR 0002 "Who reads it": no config value or credential, and no absolute path that starts a word; review 2026-09-28, Blocking 1; title per story 3 CF-1)', async () => {
   const mod = load();
   const problems = [];
   for (const [what, line] of [
@@ -713,7 +732,7 @@ test('SS29: redactPublicText, exported beside scanStrict, replaces a credentiale
     ['a credentialed URI whose host is an IPv4 address', `No routing servers available at bolt://neo4j:pw-3b1c@${IPV4_HOST_PORT}`, 'No routing servers available at <uri>'],
     ['an IPv4 host:port outside any URI', `connect ECONNREFUSED ${IPV4_HOST_PORT}`, 'connect ECONNREFUSED <host>'],
     ['a relative module name (kept)', "Cannot find module '../../lib/x'", "Cannot find module '../../lib/x'"],
-    ['a clock time (kept: there is no name:port rule)', 'retry at 03:24:18 failed', 'retry at 03:24:18 failed'],
+    ['a clock time (kept: the name:port rule of ADR tagging-edges/0003 needs a letter-led name)', 'retry at 03:24:18 failed', 'retry at 03:24:18 failed'],
     ['a 64-hex run', `rejected ${key} twice`, `rejected ${key.slice(0, 8)} twice`],
   ]) {
     let got;
@@ -735,6 +754,425 @@ test('SS30: a "strfry error:" line naming a credentialed URI and an IPv4 host:po
       assert(!String(value).includes(needle), `the ScanError's ${field} carries ${show(needle)}: ${show(value)}`);
     }
   }
+});
+
+// ═══ Story 3 (ADR tagging-edges/0003): streaming, filter arrays, the argv escape and size check, the wider redactor ═══
+
+const REALTIME_REQUIRE = '../src/lib/tagging-edges/realtime';
+/** src/lib/tagging-edges/realtime.js, lazily (clarification T1: escapeFilterArgv and filterArgvBytes live there). */
+function loadRealtime() {
+  let m;
+  try { m = require(REALTIME_REQUIRE); }
+  catch (e) {
+    throw new Error(`src/lib/tagging-edges/realtime.js not implemented yet (require('${REALTIME_REQUIRE}') failed: ${String(e.message).split(NL)[0]})`);
+  }
+  return m;
+}
+/** Clarification T1, the suite's own copy to compare with: JSON.stringify(filter) with every "/" written "\/". */
+const escapedArgv = (filter) => JSON.stringify(filter).split('/').join('\\/');
+const argvBytes = (filter) => Buffer.byteLength(escapedArgv(filter), 'utf8');
+/** ADR 0003 LIMITS.argvFilterBytes: an argv filter text over this many bytes is refused before spawn. */
+const ARGV_FILTER_BYTES = 100000;
+/** The launcher's pgrep guard for the pass: the registry's script_relative_path (ADR 0003 "The launcher's pgrep guard"). */
+const PASS_PGREP_PATTERN = 'pipeline/tagging-edges/reconcileTaggingEdges';
+
+/**
+ * A child process for spawnImpl that writes `stderr`, prints `stdout` and closes with `code` — no strfry and no shell,
+ * so a 100 KB argv meets no host limit. kill() closes it with that signal, as a killed process would.
+ */
+function scriptedChild({ stdout = '', stderr = '', code = 0 } = {}) {
+  const { EventEmitter } = require('events');
+  const { PassThrough } = require('stream');
+  const child = new EventEmitter();
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.stdin = null;
+  child.pid = 434343;
+  let closed = false;
+  const close = (c, s) => {
+    if (closed) return;
+    closed = true;
+    child.stdout.end();
+    child.stderr.end();
+    setImmediate(() => { child.emit('exit', c, s); child.emit('close', c, s); });
+  };
+  child.kill = (sig = 'SIGTERM') => { close(null, sig); return true; };
+  setImmediate(() => {
+    if (closed) return;
+    if (stderr) child.stderr.write(stderr);
+    if (stdout) child.stdout.write(stdout);
+    setImmediate(() => close(code, null));
+  });
+  return child;
+}
+/** A spawnImpl that records { cmd, args } of every call and answers with scriptedChild(answer). */
+function recordingSpawn(answer = {}) {
+  const calls = [];
+  const spawnImpl = (cmd, args, opts) => { calls.push({ cmd, args: Array.isArray(args) ? args.slice() : args, opts }); return scriptedChild(answer); };
+  spawnImpl.calls = calls;
+  return spawnImpl;
+}
+
+/**
+ * scanStrict with an onEvent collector: `{ out, got, at, late }` — `got` the events onEvent received in order, `at`
+ * the Date.now() of each call, `late` the calls that came after the scan had settled (50 ms of watching).
+ */
+async function streamWith(mod, filter, options, ms) {
+  const got = [];
+  const at = [];
+  const onEvent = (ev) => { got.push(ev); at.push(Date.now()); };
+  const out = await scanWith(mod, filter, { ...options, onEvent }, ms);
+  const settledCount = got.length;
+  await new Promise((r) => setTimeout(r, 50));
+  return { out, got, at, late: got.length - settledCount };
+}
+/** The streamed scan resolved; returns its value (events may be absent or empty — they are not kept). */
+function streamedResolution(out, label) {
+  assert(out !== 'HUNG' && out && 'value' in out, `${label}: expected scanStrict to resolve (a complete read); got ${describe(out)}`);
+  assert(out.value && typeof out.value === 'object', `${label}: expected { lines, bytes, elapsedMs }; got ${show(out.value)}`);
+  return out.value;
+}
+function notKept(v, label) {
+  const ev = v.events;
+  assert(ev === undefined || (Array.isArray(ev) && ev.length === 0),
+    `${label}: with onEvent the result keeps no events (ADR tagging-edges/0003: "events not kept"); it holds ${Array.isArray(ev) ? `${ev.length} event(s)` : show(ev)}`);
+}
+const idsOf = (evs) => evs.map((e) => e && e.id);
+
+test('SS31: with onEvent, each event goes to onEvent as its line is read — in the order strfry printed it, unchanged, an event from an early pipe write before a later write arrives — and none is kept: the result carries no events, only its line and byte counts, and nothing reaches onEvent after it resolves (ADR tagging-edges/0003 § Amendments, "New files": "An additive onEvent streaming option"; Implementation notes: "events not kept")', async () => {
+  const mod = load();
+  const s = await withFake(MODES.ok(), () => streamWith(mod, FILTER, { isExpected: IS_EXPECTED }));
+  const v = streamedResolution(s.out, 'ok mode with onEvent (four event lines, exit 0)');
+  same(s.got, OK_EVENTS, 'the events onEvent received, in order and unchanged');
+  notKept(v, 'ok mode with onEvent');
+  eq(v.lines, OK_EVENTS.length, 'lines: one per event line read');
+  eq(v.bytes, Buffer.byteLength(OK_STDOUT, 'utf8'), 'bytes: every stdout byte read');
+  eq(s.late, 0, 'onEvent calls after the scan resolved');
+
+  // Two pipe writes 0.3 s apart (the fake pauses between parts): a streaming reader hands over the first write's events
+  // before the second write exists; a reader that buffers until close hands all four over at once.
+  const parts = [linesOf(OK_EVENTS.slice(0, 2)), linesOf(OK_EVENTS.slice(2))];
+  const split = await withFake({ parts, finish: 0 }, () => streamWith(mod, FILTER, { isExpected: IS_EXPECTED }));
+  streamedResolution(split.out, 'two pipe writes 0.3 s apart, with onEvent');
+  same(idsOf(split.got), idsOf(OK_EVENTS), 'events onEvent received across the two writes');
+  const gap = split.at.length === 4 ? split.at[2] - split.at[1] : null;
+  assert(gap !== null && gap >= 200,
+    `onEvent should get the first write's events as their lines are read, about 0.3 s before the second write's; the gap between the 2nd and 3rd calls was ${show(gap)} ms`);
+
+  const events = manyTaggings(3000, { prefix: 'ss-stream' });
+  const big = await withFake({ parts: [linesOf(events)], finish: 0 }, () => streamWith(mod, FILTER, { isExpected: IS_EXPECTED }, 30000));
+  const vb = streamedResolution(big.out, '3,000 event lines with onEvent');
+  eq(big.got.length, events.length, 'events onEvent received from a 3,000-line scan');
+  eq(big.got.length && big.got[big.got.length - 1].id, events[events.length - 1].id, 'the last event onEvent received is the last printed');
+  notKept(vb, '3,000 event lines with onEvent');
+  eq(vb.lines, events.length, 'lines of the 3,000-line scan');
+});
+
+test('SS32: with onEvent every completeness rule still holds — a duplicate, a truncated last line, an off-filter event, a stdout over maxBytes, a line that is not JSON, one that is not an event, and a non-zero exit each still reject with their code; the events read before the failing line reached onEvent, and the line a rule refuses (the repeat, the unterminated line, the off-filter event) never does (ADR tagging-edges/0003: "every completeness rule unchanged"; clarification T31: "onEvent delivers each event as it is parsed, so events before a later failure have already been delivered. The scan still rejects.")', async () => {
+  const mod = load();
+  const offNote = makeTagging({ d: 'ss-stream-kind-1', id: idOf('ss:stream:kind1'), kind: 1, stamps: [] });
+  const size = Buffer.byteLength(OK_STDOUT, 'utf8');
+  const list = [
+    { what: 'the same event line twice, a tag element between (dup-id mode)', mode: MODES['dup-id'](TAGGING_CANON, TAGGING_CANON), isExpected: ACCEPT_ALL, code: 'duplicate', mustHave: [TAGGING_CANON, ELEMENT], once: TAGGING_CANON.id },
+    { what: 'four event lines, the last with no final newline (truncated mode)', mode: MODES.truncated(), isExpected: IS_EXPECTED, code: 'truncated', mustHave: OK_EVENTS.slice(0, 3), mustNot: [OK_EVENTS[3]] },
+    { what: 'a kind-1 note isExpected refuses, between two expected lines (off-filter mode)', mode: MODES['off-filter'](offNote), isExpected: IS_EXPECTED, code: 'off-filter', mustHave: [TAGGING_CANON], mustNot: [offNote] },
+    { what: `a ${size}-byte stdout with maxBytes ${size - 1}`, mode: MODES['too-large'](), isExpected: IS_EXPECTED, maxBytes: size - 1, code: 'too-large', mustHave: [] },
+    { what: 'a strfry log line between two event lines (logline mode)', mode: MODES.logline('strfry: a log line, not an event'), isExpected: IS_EXPECTED, code: 'unparseable', mustHave: [TAGGING_CANON] },
+    { what: 'a line that is a number, between two event lines (not-object mode)', mode: MODES['not-object']('42'), isExpected: ACCEPT_ALL, code: 'not-an-event-line', mustHave: [TAGGING_CANON] },
+    { what: 'four valid event lines, then exit 1 (fail mode)', mode: MODES.fail(), isExpected: IS_EXPECTED, code: 'exit', mustHave: OK_EVENTS },
+  ];
+  const problems = [];
+  for (const c of list) {
+    const opts = { isExpected: c.isExpected };
+    if (c.maxBytes !== undefined) opts.maxBytes = c.maxBytes;
+    const s = await withFake(c.mode, () => streamWith(mod, FILTER, opts));
+    try { rejectedWith(mod, s.out, c.code, `${c.what}, with onEvent`); } catch (e) { problems.push(e.message); }
+    const got = idsOf(s.got);
+    const want = idsOf(c.mustHave);
+    if (show(got.slice(0, want.length)) !== show(want)) {
+      problems.push(`${c.what}: onEvent should have received the ${want.length} event(s) read before the failing line, in order; it received ${got.length}: ${show(got.map((x) => String(x).slice(0, 8)))}`);
+    }
+    for (const ev of c.mustNot || []) {
+      if (got.includes(ev.id)) problems.push(`${c.what}: onEvent received the event the rule refuses (${ev.id.slice(0, 8)})`);
+    }
+    if (c.once && got.filter((x) => x === c.once).length > 1) problems.push(`${c.what}: onEvent received the repeated event twice`);
+    const printed = new Set(idsOf([...OK_EVENTS, offNote]));
+    const stray = got.filter((x) => !printed.has(x));
+    if (stray.length) problems.push(`${c.what}: onEvent received events strfry never printed: ${show(stray)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SS33: a filter may be an array of filters — strfry receives the array as its one filter argument (parsed back, equal to it; 2 and 200 one-address filters), and the scan reads its events as usual (ADR tagging-edges/0003 § Amendments: "The filter may be an array"; binding 3, batched: one {kinds:[39999], authors:[pk], "#d":[d]} per address, ≤ 200 per scan)', async () => {
+  const mod = load();
+  const two = [
+    { kinds: [39999], authors: [ALICE], '#d': [D] },
+    { kinds: [39999], authors: [CAROL], '#d': ['ss-array-second'] },
+  ];
+  const many = Array.from({ length: 200 }, (_, i) => ({ kinds: [39999], authors: [pubkeyOf(`ss:array:${i}`)], '#d': [`ss-array-${i}`] }));
+  for (const [label, filters] of [['a filter array of two one-address filters', two], ['a filter array of 200 one-address filters', many]]) {
+    const seen = await withFake(MODES.ok(), async (fake) => ({
+      out: await scanWith(mod, filters, { isExpected: ACCEPT_ALL }),
+      invocations: fake.invocations(), arg1: fake.arg1(), arg2: fake.arg2(),
+    }));
+    const r = resolvedWith(seen.out, `ok mode, ${label}`);
+    same(r.events, OK_EVENTS, `${label}: the events read`);
+    same(seen.invocations, [2], `${label}: strfry runs once, with two arguments`);
+    eq(seen.arg1, 'scan', `${label}: strfry's first argument`);
+    let passed;
+    try { passed = JSON.parse(seen.arg2); } catch { passed = undefined; }
+    assert(Array.isArray(passed), `${label}: strfry's second argument should be the filter array as JSON; it received ${show(clip(seen.arg2, 200))}`);
+    same(passed, filters, `${label}: the filter array strfry received (parsed from its second argument)`);
+  }
+});
+
+test('SS34: the filter strfry receives on argv writes every "/" as "\\/" — for an object and for an array — so a publisher\'s #d naming the pass\'s pgrep pattern never puts "pipeline/tagging-edges/reconcileTaggingEdges" on a command line; the text parses back to the filter, and a filter with no "/" is plain JSON (ADR tagging-edges/0003 § Where it runs: "scanStrict writes / as \\/ in the filter it puts on argv", AC-5; clarification T1)', async () => {
+  const mod = load();
+  const slashed = { kinds: [39999], authors: [ALICE], '#d': [PASS_PGREP_PATTERN, 'a/b//c'] };
+  const list = [
+    ['an object whose #d names the pgrep pattern', slashed],
+    ['an array whose filters carry "/" in #d', [slashed, { kinds: [39999], authors: [CAROL], '#d': [`x/${PASS_PGREP_PATTERN}/y`] }]],
+    ['a filter with no "/"', { kinds: [39999], authors: [ALICE], '#d': [D] }],
+  ];
+  const problems = [];
+  for (const [label, filter] of list) {
+    const spawnImpl = recordingSpawn();
+    const out = await scanWith(mod, filter, { isExpected: ACCEPT_ALL, spawnImpl });
+    try { resolvedWith(out, `${label} (an empty read)`); } catch (e) { problems.push(e.message); continue; }
+    if (spawnImpl.calls.length !== 1) { problems.push(`${label}: spawnImpl should be called once; it was called ${spawnImpl.calls.length} time(s)`); continue; }
+    const { cmd, args } = spawnImpl.calls[0];
+    if (cmd !== 'strfry' || !Array.isArray(args) || args.length !== 2 || args[0] !== 'scan') {
+      problems.push(`${label}: spawnImpl should get ('strfry', ['scan', <filter>]); it got (${show(cmd)}, ${show(args && clip(show(args), 200))})`);
+      continue;
+    }
+    if (args[1] !== escapedArgv(filter)) {
+      problems.push(`${label}: the filter argument should be JSON.stringify(filter) with every "/" written "\\/" (T1)\n          expected: ${clip(escapedArgv(filter), 300)}\n          actual:   ${clip(String(args[1]), 300)}`);
+    }
+    let parsed;
+    try { parsed = JSON.parse(args[1]); } catch { parsed = undefined; }
+    if (show(sortKeys(parsed)) !== show(sortKeys(filter))) problems.push(`${label}: the filter argument does not parse back to the filter; it parses to ${clip(show(parsed), 300)}`);
+    if (args.join(' ').includes(PASS_PGREP_PATTERN)) problems.push(`${label}: the command line carries the pass's pgrep pattern ${PASS_PGREP_PATTERN}, so the launcher would skip a pass (AC-5)`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SS35: the argv filter\'s byte size after the "\\/" escape is checked before spawn — over 100,000 bytes rejects ScanError "filter-too-large" with spawnImpl never called (a filter whose plain JSON fits but whose escaped text does not; 100,001 bytes; over in UTF-8 bytes but not in characters; an array over in total), and exactly 100,000 escaped bytes is spawned (ADR tagging-edges/0003 round step 2: "The byte size of the final argv text (after \\/ escaping) is checked inside scanStrict before spawning. Over 100,000 bytes it refuses"; LIMITS.argvFilterBytes)', async () => {
+  const mod = load();
+  const withD = (s) => ({ kinds: [39999], '#d': [s] });
+  const baseLen = argvBytes(withD(''));
+  const slashy = withD('a/'.repeat(40000));
+  const over1 = withD('x'.repeat(ARGV_FILTER_BYTES + 1 - baseLen));
+  const wide = withD('é'.repeat(60000));
+  const arr = [withD('x'.repeat(50000)), withD('y'.repeat(50000))];
+  const exact = withD('x'.repeat(ARGV_FILTER_BYTES - baseLen));
+  const exactSlashed = withD('/'.repeat(20000) + 'x'.repeat(ARGV_FILTER_BYTES - baseLen - 40000));
+  // The fixtures, checked with the suite's own copy of the escape.
+  assert(Buffer.byteLength(JSON.stringify(slashy), 'utf8') <= ARGV_FILTER_BYTES && argvBytes(slashy) > ARGV_FILTER_BYTES, 'fixture: slashy fits plain but not escaped');
+  assert(argvBytes(over1) === ARGV_FILTER_BYTES + 1, `fixture: over1 is 100,001 bytes (${argvBytes(over1)})`);
+  assert(escapedArgv(wide).length <= ARGV_FILTER_BYTES && argvBytes(wide) > ARGV_FILTER_BYTES, 'fixture: wide fits in characters but not in bytes');
+  assert(arr.every((f) => argvBytes(f) < ARGV_FILTER_BYTES) && argvBytes(arr) > ARGV_FILTER_BYTES, 'fixture: each array member fits, the array does not');
+  assert(argvBytes(exact) === ARGV_FILTER_BYTES && argvBytes(exactSlashed) === ARGV_FILTER_BYTES, 'fixture: the at-limit filters are exactly 100,000 escaped bytes');
+  const problems = [];
+  for (const [label, filter] of [
+    ['a #d of "a/" × 40,000 (80 KB plain, 120 KB escaped)', slashy],
+    ['a filter of 100,001 escaped bytes', over1],
+    ['a #d of "é" × 60,000 (60k characters, 120 KB of UTF-8)', wide],
+    ['an array of two 50 KB filters', arr],
+  ]) {
+    const spawnImpl = recordingSpawn();
+    const out = await scanWith(mod, filter, { isExpected: ACCEPT_ALL, spawnImpl });
+    try { rejectedWith(mod, out, 'filter-too-large', `${label} (${argvBytes(filter)} escaped bytes)`); } catch (e) { problems.push(e.message); }
+    if (spawnImpl.calls.length !== 0) problems.push(`${label}: spawnImpl was called ${spawnImpl.calls.length} time(s); the size check comes before spawn`);
+  }
+  for (const [label, filter] of [
+    ['a filter of exactly 100,000 bytes, no "/"', exact],
+    ['a filter of exactly 100,000 bytes after 20,000 "/" are escaped', exactSlashed],
+  ]) {
+    const spawnImpl = recordingSpawn();
+    const out = await scanWith(mod, filter, { isExpected: ACCEPT_ALL, spawnImpl });
+    try { resolvedWith(out, `${label} (at the limit: spawned, an empty read)`); } catch (e) { problems.push(e.message); }
+    if (spawnImpl.calls.length !== 1) problems.push(`${label}: spawnImpl should be called once at the limit; it was called ${spawnImpl.calls.length} time(s)`);
+    else if (spawnImpl.calls[0].args[1] !== escapedArgv(filter)) problems.push(`${label}: the argv filter should be the escaped text (${argvBytes(filter)} bytes); it was ${Buffer.byteLength(String(spawnImpl.calls[0].args[1]), 'utf8')} bytes, ${String(spawnImpl.calls[0].args[1]).includes('\\/') ? 'escaped' : 'not escaped'}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SS36: escapeFilterArgv is exported beside scanStrict and is the very function src/lib/tagging-edges/realtime.js exports — JSON.stringify(filter) with every "/" written "\\/", for an object, an array and a filter with no "/" (clarification T1: strfryScanStrict.js "requires them from ./tagging-edges/realtime and re-exports escapeFilterArgv, so scanStrict and the planner size filters with the one escape")', () => {
+  const mod = load();
+  assert(typeof mod.escapeFilterArgv === 'function',
+    `src/lib/strfryScanStrict.js must re-export escapeFilterArgv (clarification T1); its exports are ${show(Object.keys(mod))}`);
+  const rt = loadRealtime();
+  assert(typeof rt.escapeFilterArgv === 'function', `src/lib/tagging-edges/realtime.js must export escapeFilterArgv (T1, T2); its exports are ${show(Object.keys(rt))}`);
+  assert(mod.escapeFilterArgv === rt.escapeFilterArgv, 'strfryScanStrict.escapeFilterArgv must be realtime.js\'s own function, re-exported (T1: "the one escape"), not a copy');
+  const problems = [];
+  for (const [label, filter] of [
+    ['an object with "/" in #d and #a', { kinds: [39999], authors: [ALICE], '#d': ['a/b'], '#a': [`39999:${JACK}:x/y`] }],
+    ['an array', [{ kinds: [5], authors: [ALICE], '#e': [idOf('ss:esc')] }, { kinds: [39999], '#d': ['//'] }]],
+    ['a filter with no "/"', FILTER],
+  ]) {
+    let got;
+    try { got = mod.escapeFilterArgv(filter); } catch (e) { problems.push(`${label}: escapeFilterArgv threw ${show(e.message)}`); continue; }
+    if (got !== escapedArgv(filter)) problems.push(`${label}: escapeFilterArgv(filter)\n          expected: ${clip(escapedArgv(filter), 300)}\n          actual:   ${clip(show(got), 300)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+// Clarification T31, "Redaction": the widened rule may cut a tagging address whose d starts with 2–5 digits (the ADR's
+// New debt), so SS37 pins only letter-led d values (D is profile-tag-…) and leaves the digit-led case unpinned.
+/** A 64-hex pubkey that starts with a letter, so the name:port rule's "letter-led name" could reach it. */
+const LETTER_LED = `c${idOf('ss:letter-led').slice(1)}`;
+
+test('SS37: redactPublicText, widened for CF-3, replaces a letter-led host name with a port — dotted or single-label: neo4j.internal:7687, neo4j:7687, localhost:7687, redis:6379 — and a bracketed IPv6 host:port ([::1]:7687, [2001:db8::17]:7687) with <host>; bolt URIs stay <uri> and an IPv4 host:port <host>; a relative path, a clock time, and tagging addresses and stamps inside text keep everything but the 64-hex cut (ADR tagging-edges/0003 owner decision 6; Implementation notes: "<name>:<2-5 digits> (a letter-led single-label or dotted name) and [<ipv6>]:<port> with <host>"; story "For Test Design": neo4j.internal:7687 and [::1]:7687)', () => {
+  const mod = load();
+  assert(typeof mod.redactPublicText === 'function', `src/lib/strfryScanStrict.js must export redactPublicText; its exports are ${show(Object.keys(mod))}`);
+  const cut = (pk) => pk.slice(0, 8);
+  assert(/^[a-f]/.test(LETTER_LED) && /^[a-f]/.test(CANONICAL), 'fixture: the letter-led pubkeys start with a letter');
+  const problems = [];
+  for (const [what, input, want] of [
+    ['a dotted host name and port', 'connect ECONNREFUSED neo4j.internal:7687', 'connect ECONNREFUSED <host>'],
+    ['a single-label host name and port', 'Could not perform discovery for neo4j:7687', 'Could not perform discovery for <host>'],
+    ['localhost and port', 'connect ECONNREFUSED localhost:7687', 'connect ECONNREFUSED <host>'],
+    ['redis:6379, as strfry names it', "Couldn't connect to redis:6379 (retrying)", "Couldn't connect to <host> (retrying)"],
+    ['[::1]:7687', 'connect ECONNREFUSED [::1]:7687', 'connect ECONNREFUSED <host>'],
+    ['a longer bracketed IPv6 host:port', 'connect ETIMEDOUT [2001:db8::17]:7687 after 30 s', 'connect ETIMEDOUT <host> after 30 s'],
+    ['a bolt URI with a dotted host', 'Could not perform discovery for bolt://neo4j.internal:7687', 'Could not perform discovery for <uri>'],
+    ['a bolt URI with an IPv6 host', 'no routing servers at bolt://[::1]:7687', 'no routing servers at <uri>'],
+    ['a credentialed neo4j+s URI', 'failed: neo4j+s://neo4j:pw-51ab@db.example.com:7687 refused', 'failed: <uri> refused'],
+    ['an IPv4 host:port (still <host>)', 'connect ECONNREFUSED 172.18.0.3:7687', 'connect ECONNREFUSED <host>'],
+    ['a relative module name (kept)', "Cannot find module '../../lib/x'", "Cannot find module '../../lib/x'"],
+    ['a clock time (kept)', 'retry at 03:24:18 failed', 'retry at 03:24:18 failed'],
+    ['a tagging address by a letter-led author (only the 64-hex cut)', `refused 39999:${LETTER_LED}:${D} twice`, `refused 39999:${cut(LETTER_LED)}:${D} twice`],
+    ['a tagging address by a digit-led author (only the 64-hex cut)', `refused 39999:${ALICE}:${D}`, `refused 39999:${cut(ALICE)}:${D}`],
+    ['a tag address (only the 64-hex cut)', `tag 39999:${JACK}:podcaster not found`, `tag 39999:${cut(JACK)}:podcaster not found`],
+    ['a nostr-user-tag stamp (only the 64-hex cut)', `stamp 39998:${CANONICAL}:nostr-user-tag`, `stamp 39998:${cut(CANONICAL)}:nostr-user-tag`],
+  ]) {
+    let got;
+    try { got = mod.redactPublicText(input); } catch (e) { problems.push(`${what}: redactPublicText threw ${show(e.message)}`); continue; }
+    if (got !== want) problems.push(`${what}: redactPublicText(${show(input.length > 160 ? `${input.slice(0, 160)}…` : input)})\n          expected: ${show(want)}\n          actual:   ${show(got)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SS38: a "strfry error:" line naming host:port values the widened redactor covers — redis:6379 (which strfry\'s stderr always names), neo4j.internal:7687 and [::1]:7687 — reaches stderrTail with each replaced by <host> and the rest of the line kept, and none of them reaches the ScanError\'s message or stderrTail (ADR tagging-edges/0003 § Status and switch: "strfry stderr (which always names redis:6379)"; owner decision 6, CF-3)', async () => {
+  const mod = load();
+  const line = 'strfry error: could not reach redis:6379, then neo4j.internal:7687 and [::1]:7687';
+  const out = await withFake(MODES['stderr-error'](`INFO| starting\n${line}\n`), () => scanWith(mod, FILTER, { isExpected: IS_EXPECTED }));
+  const e = rejectedWith(mod, out, 'exit', 'stderr-error mode with three host:port values (exit 1)');
+  eq(e.stderrTail, 'strfry error: could not reach <host>, then <host> and <host>',
+    'stderrTail: the "strfry error:" line with redis:6379, neo4j.internal:7687 and [::1]:7687 each replaced by <host>');
+  for (const [field, value] of [['message', e.message], ['stderrTail', e.stderrTail]]) {
+    for (const needle of ['redis:6379', 'neo4j.internal', ':7687', '[::1]']) {
+      assert(!String(value).includes(needle), `the ScanError's ${field} carries ${show(needle)}: ${show(value)}`);
+    }
+  }
+});
+
+test('SS39: an off-filter rejection says the event was refused by the caller\'s isExpected — with and without onEvent (ADR tagging-edges/0003 Changed files: "the off-filter text becomes \'refused by the caller\'s isExpected\'"; § Amendments: "The off-filter rule becomes \'an event the caller\'s isExpected refuses\'")', async () => {
+  const mod = load();
+  const vetoed = makeTagging({ d: 'ss-veto-text', id: idOf('ss:veto-text') });
+  const isExpected = (ev) => IS_EXPECTED(ev) && ev.id !== vetoed.id;
+  const problems = [];
+  for (const [label, extra] of [['without onEvent', {}], ['with onEvent', { onEvent: () => {} }]]) {
+    const out = await withFake(MODES['off-filter'](vetoed), () => scanWith(mod, FILTER, { isExpected, ...extra }));
+    let e;
+    try { e = rejectedWith(mod, out, 'off-filter', `a tagging the injected isExpected vetoes, ${label}`); } catch (err) { problems.push(err.message); continue; }
+    if (!/refused by the caller'?s isExpected/i.test(String(e.message))) problems.push(`${label}: the off-filter message should say "refused by the caller's isExpected"; it says ${show(e.message)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+// ─── found by the mutation pass over story 3's blind reference implementation ──────────────────────────────────
+test('SS40: an onEvent that throws rejects the scan with the handler\'s own error and the scan never resolves — whether it throws on the first of four events (more lines follow) or on the last (the stdout complete and strfry exiting 0 after it): a failed handler is never swallowed, so a scan whose caller could not take an event never reads as a complete, partial or empty read (the reader\'s header: the caller\'s handler failed → reject, never an empty or partial read; ADR tagging-edges/0003: the onEvent streaming option with "every completeness rule unchanged"; clarification T31: "The scan still rejects"; story 2 AC-4: a read that fails changes nothing)', async () => {
+  const mod = load();
+  const problems = [];
+  for (const [label, throwOn] of [['thrown on the first event', 1], ['thrown on the last event', OK_EVENTS.length]]) {
+    const thrown = new Error(`onEvent handler failed (${label})`);
+    let calls = 0;
+    const onEvent = () => { calls += 1; if (calls === throwOn) throw thrown; };
+    const out = await scanWith(mod, FILTER, { isExpected: IS_EXPECTED, onEvent, spawnImpl: recordingSpawn({ stdout: OK_STDOUT }), timeoutMs: 5000 }, 3000);
+    if (calls < throwOn) {
+      problems.push(`${label}: onEvent was called ${calls} time(s) for ${OK_EVENTS.length} event lines, so it never threw — scanStrict should hand each event to onEvent as its line is read (ADR tagging-edges/0003: "An additive onEvent streaming option")`);
+      continue;
+    }
+    if (out === 'HUNG' || !out || !('error' in out)) {
+      problems.push(`${label}: expected scanStrict to reject with the handler's error; got ${describe(out)}`);
+      continue;
+    }
+    const e = out.error;
+    const carries = e === thrown || (e && e.cause === thrown) || (e && typeof e.message === 'string' && e.message.includes(thrown.message));
+    if (!carries) problems.push(`${label}: the rejection should be the handler's own error (or one that names it); got ${describe(out)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+// ═══ Story 3's review, round 2 (2026-09-29): the redactor's 4 KB cut ═══════════════════════════════════════════════
+
+/** redactPublicText's input bound: 4 KB of text (ADR tagging-edges/0003, New debt: "It cuts its input to 4 KB first"). */
+const REDACT_CUT = 4096;
+/** Filler with none of the tokens' characters' 4-character runs, ending in whitespace, exactly `n` characters long. */
+const fillerOf = (n) => `${'qq qqq '.repeat(Math.ceil(n / 7)).slice(0, n - 1)} `;
+/** Every 4-character run of `s` (the pieces a leak would show). */
+const pieces4 = (s) => { const out = new Set(); for (let i = 0; i + 4 <= s.length; i += 1) out.add(s.slice(i, i + 4)); return [...out]; };
+
+test('SS41: redactPublicText cuts its input to 4 KB before any rule runs, and a cut never lets part of a token out — a credentialed URI, a host name with its port, or an IPv4 address with its port that straddles the 4,096th character, wherever the mark falls inside it, comes out with no 4-character piece of its secret or its host; an input of at most 4 KB is redacted whole, not cut; an input with no whitespace in its first 4 KB comes out empty, a credential inside it included; and a 1 MB input — dotted and hyphenated text (the name rule\'s slow case), with whitespace every 1,000 characters or none at all — returns within a generous 1 s with at most 4 KB of text (ADR tagging-edges/0003 § Consequences, New debt: "It cuts its input to 4 KB first"; strfryScanStrict.js: "Text past 4 KB is cut first, back to the last whitespace within it, so no rule runs on long input … and no token is split into a part the rules no longer recognise"; review round 2, R2-NB3: "no test pins the 4 KB cap")', () => {
+  const mod = load();
+  assert(typeof mod.redactPublicText === 'function', `src/lib/strfryScanStrict.js must export redactPublicText; its exports are ${show(Object.keys(mod))}`);
+  const redact = mod.redactPublicText;
+  const problems = [];
+  const TOKENS = [
+    { what: 'a credentialed URI', token: 'bolt://svcuser:Pw4kStraddle9@db-west.fake.invalid:7687', secret: ['Pw4kStraddle9', 'db-west.fake.invalid'] },
+    { what: 'a host name and port', token: 'db-west.fake.invalid:7687', secret: ['db-west.fake.invalid'] },
+    { what: 'an IPv4 address and port', token: '10.20.30.40:7687', secret: ['10.20.30.40'] },
+  ];
+  for (const { what, token, secret } of TOKENS) {
+    const bad = secret.flatMap(pieces4);
+    for (let k = 1; k < token.length; k += 1) {
+      const input = `${fillerOf(REDACT_CUT - k)}${token} and more text after it`;
+      let got;
+      try { got = redact(input); } catch (e) { problems.push(`${what}, ${k} of its characters within 4 KB: redactPublicText threw ${show(e.message)}`); continue; }
+      const seen = bad.filter((p) => got.includes(p));
+      if (seen.length > 0) problems.push(`${what}, ${k} of its ${token.length} characters within the first 4 KB: the output shows ${show(seen.slice(0, 4))} (its end: ${show(got.slice(-60))})`);
+      if (got.length > REDACT_CUT) problems.push(`${what}, split at ${k}: the output is ${got.length} characters, over 4 KB`);
+    }
+    const whole = `${fillerOf(REDACT_CUT - token.length)}${token}`;
+    const got = redact(whole);
+    if (!(got.endsWith('<uri>') || got.endsWith('<host>'))) problems.push(`${what} ending an input of exactly 4 KB: redacted whole, not cut (it should end in <uri> or <host>); its end: ${show(got.slice(-60))}`);
+  }
+  for (const [what, input] of [
+    ['5,000 characters with no whitespace', 'q'.repeat(5000)],
+    ['4 KB with no whitespace, then more text', `${'q'.repeat(REDACT_CUT)} and more text`],
+    ['a credentialed URI inside a long run with no whitespace', `${'q'.repeat(100)}bolt://svcuser:Pw4kStraddle9@db-west.fake.invalid:7687/${'q'.repeat(5000)} tail`],
+  ]) {
+    const got = redact(input);
+    if (got !== '') problems.push(`${what}: expected empty output, got ${got.length} characters (${show(got.slice(0, 60))}…)`);
+  }
+  // The 1 MB inputs run in a child Node process with a wall-clock limit: without the cut, the name rule takes hours on
+  // them (a synchronous regex no timer can interrupt), so a regression fails here in seconds instead of hanging.
+  const child = childProcess.spawnSync(process.execPath, ['-e', `
+    const { redactPublicText } = require(${JSON.stringify(require.resolve(MODULE_REQUIRE))});
+    const dotted = 'a-b.c-d.e-f.g-h.';
+    const out = [];
+    for (const [what, input] of [
+      ['1 MB of dotted, hyphenated text with whitespace every 1,000 characters', (dotted.repeat(62).slice(0, 999) + ' ').repeat(1049)],
+      ['1 MB of dotted, hyphenated text with no whitespace', dotted.repeat(65536)],
+    ]) {
+      const t0 = process.hrtime.bigint();
+      const got = redactPublicText(input);
+      out.push({ what, chars: input.length, ms: Number(process.hrtime.bigint() - t0) / 1e6, outChars: got.length });
+    }
+    process.stdout.write(JSON.stringify(out) + '\\n');
+  `], { encoding: 'utf8', timeout: 20000, maxBuffer: 1024 * 1024 });
+  if (child.error || child.status !== 0) {
+    problems.push(`the 1 MB inputs: the child ${child.error && child.error.code === 'ETIMEDOUT' ? 'did not finish within 20 s of real time' : `failed (status ${child.status}, signal ${child.signal}): ${clip(String(child.stderr || ''), 300)}`} — redactPublicText must cut long input before any rule runs`);
+  } else {
+    for (const r of JSON.parse(String(child.stdout).trim().split('\n').pop())) {
+      if (r.ms > 1000) problems.push(`${r.what} (${r.chars} characters): redactPublicText took ${r.ms.toFixed(0)} ms (the bound is a generous 1 s; the 4 KB cut makes it a few ms)`);
+      if (r.outChars > REDACT_CUT) problems.push(`${r.what}: the output is ${r.outChars} characters, over 4 KB`);
+    }
+  }
+  // The first ten and the last two (the 1 MB checks come last), with a count of those between.
+  const shown = problems.length > 12 ? [...problems.slice(0, 10), `… ${problems.length - 12} more …`, ...problems.slice(-2)] : problems;
+  assert(problems.length === 0, shown.join('\n        '));
 });
 
 async function run() {

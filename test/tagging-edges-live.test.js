@@ -780,6 +780,161 @@ test('SL16: the sandbox deletes exactly its own fixtures — its TAGS addresses,
   return undefined;
 }, 'sandbox');
 
+// ═══ Story 3 (ADR tagging-edges/0003): the real-time path's reads, read-only (the default class) ════════════════
+// Story: engineering-team/stories/tagging-edges/3-real-time-path.md ("For Test Design → Live tests": never wipe the
+// local graph's dev TAGS; nothing is published). ADR: engineering-team/decisions/tagging-edges/0003-real-time-path.md
+// (Implementation notes → graph.js readAt / readKeys / READ_KEYS; § What it hears; clarification T4; test orientation:
+// "An opt-in live suite: read-only checks of readAt and readKeys, and a limit:0 websocket smoke test against the local
+// relay"). SL17–SL18 follow this file's skip rules (NEO4J_* from the environment, a local host only). SL19 sends one
+// REQ (a read) and one CLOSE to ws://127.0.0.1:7777 and nothing else, only when a WebSocket handshake completes there
+// from this host — the relay listens only on the container's loopback, so on a host it usually SKIPs. Each checks what it needs from the
+// modules BEFORE it looks for a stack, so the red phase shows on a host with no stack as well.
+
+const REALTIME_REQUIRE = '../src/lib/tagging-edges/realtime';
+const REALTIME_FILE = 'src/lib/tagging-edges/realtime.js';
+const LOCAL_RELAY = Object.freeze({ host: '127.0.0.1', port: 7777 });
+
+function loadRealtime(...names) {
+  let m;
+  try { m = require(REALTIME_REQUIRE); }
+  catch (e) { throw new Error(`${REALTIME_FILE} not implemented yet (require('${REALTIME_REQUIRE}') failed: ${firstLine(e.message)})`); }
+  const absent = names.filter((n) => typeof m[n] !== 'function');
+  if (absent.length) throw new Error(`${REALTIME_FILE} not implemented yet: it does not export ${absent.join(', ')} (ADR tagging-edges/0003 § Clarifications T2)`);
+  return m;
+}
+
+/**
+ * The port methods openGraph's port lacks, checked with no stack: neo4j-driver builds a driver without connecting, so
+ * a port opened on a placeholder local address answers typeof and is closed at once. No statement runs, nothing
+ * connects.
+ */
+async function portLacks(names) {
+  const graph = loadGraph('openGraph');
+  let g;
+  try { g = await graph.openGraph({ uri: 'bolt://127.0.0.1:1', user: 'neo4j', password: 'placeholder-never-sent' }); }
+  catch (e) { throw new Error(`${GRAPH_FILE}: openGraph could not build its port without connecting (${firstLine(e.message)})`); }
+  try { return names.filter((n) => !g || typeof g[n] !== 'function'); }
+  finally { try { if (g && typeof g.close === 'function') await g.close(); } catch (_) { /* closing is best-effort */ } }
+}
+
+/**
+ * A WebSocket to `url` once its handshake completes within `ms`, else null. A published port that forwards to an
+ * interface the relay does not listen on accepts the TCP connection and then drops it, so only a completed handshake
+ * counts as reachable. Nothing is sent.
+ */
+function openSocket(WebSocket, url, ms) {
+  return new Promise((resolve) => {
+    let ws;
+    try { ws = new WebSocket(url); } catch (_) { resolve(null); return; }
+    ws.on('error', () => { /* a failed handshake resolves null below; later errors are the test's to see */ });
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (!value) { try { ws.terminate(); } catch (_) { /* already gone */ } }
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish(null), ms);
+    ws.once('open', () => finish(ws));
+    ws.once('error', () => finish(null));
+    ws.once('close', () => finish(null));
+    ws.once('unexpected-response', () => finish(null));
+  });
+}
+
+const addrOfRow = (r) => { const p = ((r && r.props) || []).find((x) => x[0] === 'address'); return p ? p[2] : null; };
+
+test('SL17: readAt(addresses, { timeoutMs }) through the port openGraph builds, on the local graph and read-only — for up to 20 addresses the graph holds plus one it does not — resolves exactly the rows readAll gives for those addresses, with the eight columns, and none for the absent one [story 3 AC-1 (a round\'s graph read, t0); ADR tagging-edges/0003 Implementation notes → graph.js: readAt runs the existing READ_AT, "an executeRead returning raw rows like readAll"]', async () => {
+  const lacking = await portLacks(['readAt']);
+  assert(lacking.length === 0, `${GRAPH_FILE} not implemented yet: openGraph's port has no readAt(addresses, { timeoutMs }) (ADR tagging-edges/0003 Implementation notes → graph.js)`);
+  const L = await live();
+  if (!L.ok) return skip(L.reason);
+  const { g } = await openGraphDriver(L);
+  const { records } = await readRows(L, 'MATCH ()-[r:TAGS]->() WHERE r.address IS NOT NULL RETURN DISTINCT r.address AS address LIMIT 20');
+  if (!records.length) return skip(`the graph at ${L.where} holds no TAGS relationship to read`);
+  const addresses = records.map((r) => r.address);
+  const absent = `39999:${crypto.randomBytes(32).toString('hex')}:sl17-absent`;
+  const rows = await withTimeout(g.readAt([...addresses, absent], { timeoutMs: 30000 }), 60000, 'readAt on the local graph');
+  assert(Array.isArray(rows), `readAt must resolve to a plain array of READ_AT rows; got ${show(rows)}`);
+  const cols = ['rid', 'fromPubkey', 'fromPubkeyType', 'fromIsUser', 'toPubkey', 'toPubkeyType', 'toIsUser', 'props'];
+  for (const r of rows) {
+    const gap = cols.filter((k) => !r || !(k in r));
+    assert(gap.length === 0, `each readAt row carries READ_AT's eight columns; a row lacks ${gap.join(', ')}`);
+  }
+  assert(!rows.some((r) => addrOfRow(r) === absent), 'readAt returned a row for an address the graph does not hold');
+  const all = await withTimeout(g.readAll({ timeoutMs: 120000 }), 150000, 'readAll on the local graph');
+  const wanted = new Set(addresses);
+  const sorted = (xs) => xs.map(canonical).sort();
+  eq(sorted(rows), sorted(all.filter((r) => wanted.has(addrOfRow(r)))), `readAt's rows for ${addresses.length} address(es), against readAll's rows at those addresses`);
+  return undefined;
+});
+
+test('SL18: readKeys({ timeoutMs }) through the port openGraph builds, on the local graph and read-only, resolves one plain { address, eventId } row per TAGS relationship, unfiltered — null (never undefined) where the relationship lacks the property — the same (address, eventId) pairs, as many, as MATCH ()-[r:TAGS]->() RETURN r.address, r.eventId read directly [ADR tagging-edges/0003 § Knowing what changed, catch-up step 1 ("readKeys(): about 7k rows, 14–33 ms"); Implementation notes → graph.js READ_KEYS, readKeys; clarification T30: "plain { address, eventId } objects. Either value is null when the property is absent"]', async () => {
+  const { CYPHER } = loadGraph('CYPHER');
+  assert(CYPHER && typeof CYPHER.READ_KEYS === 'string' && CYPHER.READ_KEYS.trim() !== '',
+    `${GRAPH_FILE} not implemented yet: CYPHER has no READ_KEYS statement (ADR tagging-edges/0003 Implementation notes → graph.js)`);
+  const lacking = await portLacks(['readKeys']);
+  assert(lacking.length === 0, `${GRAPH_FILE} not implemented yet: openGraph's port has no readKeys({ timeoutMs }) (ADR tagging-edges/0003 Implementation notes → graph.js)`);
+  const L = await live();
+  if (!L.ok) return skip(L.reason);
+  const { g } = await openGraphDriver(L);
+  const t0 = Date.now();
+  const got = await withTimeout(g.readKeys({ timeoutMs: 60000 }), 90000, 'readKeys on the local graph');
+  const ms = Date.now() - t0;
+  assert(Array.isArray(got), `readKeys must resolve to a plain array of rows; got ${show(got)}`);
+  const odd = got.filter((r) => !r || Object.getPrototypeOf(r) !== Object.prototype || canonical(Object.keys(r).sort()) !== canonical(['address', 'eventId']));
+  assert(odd.length === 0, `each readKeys row is a plain { address, eventId } object (T30); ${odd.length} are not, e.g. ${show(odd[0])}`);
+  const undef = got.filter((r) => r.address === undefined || r.eventId === undefined);
+  assert(undef.length === 0, `a value the relationship lacks is null, never undefined (T30); ${undef.length} row(s) carry undefined, e.g. ${show(undef[0])}`);
+  const { records } = await readRows(L, 'MATCH ()-[r:TAGS]->() RETURN r.address AS address, r.eventId AS eventId');
+  const val = (v) => (v === null ? '<null>' : v === undefined ? '<undefined>' : String(v));
+  const key = (r) => `${val(r.address)}\t${val(r.eventId)}`;
+  eq(got.length, records.length, 'rows readKeys resolved, against the TAGS relationships read directly (none filtered: T30)');
+  eq(got.map(key).sort(), records.map(key).sort(), 'the (address, eventId) pairs readKeys resolved, against a direct read (null where the property is absent)');
+  const nulls = (rows, k) => rows.filter((r) => r[k] === null).length;
+  console.log(`        (readKeys: ${got.length} rows in ${ms} ms on ${L.where}; ${nulls(records, 'address')} without an address, ${nulls(records, 'eventId')} without an eventId)`);
+  return undefined;
+});
+
+test('SL19: a limit:0 REQ carrying the real-time path\'s two subscription filters, sent to the local relay at ws://127.0.0.1:7777 only when a WebSocket handshake completes there from this host, is answered with EOSE — neither filter refused (no CLOSED) — and no stored event before it, though the relay holds kind-5 events; then CLOSE and the socket closes. Nothing is published [ADR tagging-edges/0003 § What it hears: "A REQ with limit:0 answers EOSE at once"; clarification T4 subscriptionFilters; story "For Test Design → Live tests": nothing published]', async () => {
+  const rt = loadRealtime('subscriptionFilters');
+  const filters = rt.subscriptionFilters({ canonicalPubkey: F.CANONICAL, localPubkey: F.LOCAL });
+  assert(Array.isArray(filters) && filters.length === 2 && filters.every((f) => f && typeof f === 'object' && f.limit === 0),
+    `subscriptionFilters(identities) should give the two limit:0 filters (T4); got ${show(filters)}`);
+  let WebSocket;
+  try { WebSocket = require('ws'); } catch (e) { return skip(`the ws package is not installed on this host (${firstLine(e.message)}); run npm ci`); }
+  const url = `ws://${LOCAL_RELAY.host}:${LOCAL_RELAY.port}`;
+  const ws = await openSocket(WebSocket, url, 3000);
+  if (!ws) {
+    return skip(`${url} completes no WebSocket handshake from this host (the relay listens only on the container's loopback; a published port reaches another interface and is dropped) — run this suite inside the container to include the smoke test`);
+  }
+  const subId = `sl19-${crypto.randomBytes(4).toString('hex')}`;
+  const frames = [];
+  let answer;
+  try {
+    answer = await withTimeout(new Promise((resolve, reject) => {
+      ws.send(JSON.stringify(['REQ', subId, ...filters]));
+      ws.on('message', (data) => {
+        let msg;
+        try { msg = JSON.parse(String(data)); } catch (_) { return; }
+        frames.push(msg);
+        if (Array.isArray(msg) && msg[1] === subId && (msg[0] === 'EOSE' || msg[0] === 'CLOSED')) resolve(msg[0]);
+      });
+      ws.on('error', reject);
+      ws.on('close', () => resolve('socket closed'));
+    }), 10000, `the local relay's answer to a limit:0 REQ at ${url}`);
+  } finally {
+    try { if (ws.readyState === 1) ws.send(JSON.stringify(['CLOSE', subId])); } catch (_) { /* closing is best-effort */ }
+    try { ws.close(); } catch (_) { /* closing is best-effort */ }
+  }
+  const closed = frames.find((f) => Array.isArray(f) && f[0] === 'CLOSED' && f[1] === subId);
+  eq(answer, 'EOSE', `the relay's answer to REQ ${subId}${closed ? ` (CLOSED: ${show(closed[2])} — a relay filter policy such as filterValidation.requireAuthorOrTag refuses the path's filters)` : ''}`);
+  const upToEose = frames.slice(0, frames.findIndex((f) => Array.isArray(f) && f[0] === 'EOSE' && f[1] === subId));
+  eq(upToEose.filter((f) => Array.isArray(f) && f[0] === 'EVENT' && f[1] === subId).length, 0, 'stored events delivered before EOSE under limit:0');
+  return undefined;
+});
+
 // ─── runner ──────────────────────────────────────────────────────────────────────────────────────────────────────
 async function run() {
   console.log('\n--- tagging-edges live checks, local stack only (epic tagging-edges, Story 2) ---');

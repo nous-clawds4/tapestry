@@ -324,12 +324,15 @@ For Test Design:
   are ignored. It exports `scanStrict`, `ScanError` and, since review round 1, `redactPublicText`: the one redactor
   lives in the lower layer, which the runner already depends on, rather than in a new file; the runner also passes a
   scan port's `stderrTail` through it at the report, so a port other than `scanStrict` is covered (SR75, review round
-  3). Invalid UTF-8
-  still decodes as U+FFFD (ADR D2's `setEncoding`); the header says so.
+  3). Invalid UTF-8 still decodes as U+FFFD (ADR D2's `setEncoding`); the header says so.
 - The fresh-install seed is laid out one field per line like its neighbours (the ADR showed it on one line).
-- Review round 1 (2026-09-28): the runner's header comment is qualified the same way as BIBLE §16 and §11 (a failed
+- Review round 1 (2026-09-28): the runner's header comment was qualified the same way as BIBLE §16 and §11 (a failed
   read of the graph snapshot or the relay changes nothing; a failed verify re-read leaves committed batches standing;
-  a hand-run of the Node file is refused), beyond the review's list of places.
+  a hand-run of the Node file is refused), beyond the review's list of places. Round 3 qualified that last clause in
+  BIBLE and OPERATIONS (R2-9): a hand-run *without the pass's lock* is refused, citing row
+  `2026-09-28-lock-check-accepts-any-flock`. Story 3 carried the qualifier to ADR 0002's runner step 1 and the runner's
+  comments (CF-4), and its C20 closed that row: the check now compares the lock's inode with `pass.lock`'s (ADR
+  `tagging-edges/0003`).
 - Review round 1, Nit 6: the revokes ledger row's method parenthetical follows the Planning census's own request logs:
   the kind-5 reads ran at about 17:07Z on 2026-09-27, and "taggers" is the union across the three hosts (2,402) of the
   authors of the `nostr-user-tag`-stamped taggings the contract accepts, not each host's own.
@@ -364,8 +367,9 @@ For Test Design:
   minute before commit `64885ce7` was made (the second pass ended at 03:25:01Z; the commit is 03:26:03Z). Nothing
   records that tree (no tree hash or diff was saved); `64885ce7`'s message reports this run's figures. The later
   implementation commits are `da787035` (a comment) and the review-round-2 fixes `8784f2ed`; the run was not repeated
-  after them (at 07:00Z the status route's latest report was still the second pass below). Figures from
-  `GET /api/tagging-edges/status`:
+  after them (at 07:00Z the status route's latest report was still the second pass below). An earlier pass,
+  `20260928T032350Z-fa59e6da` (0 events, 0 rows), ran before the backfill; the status route showed it at review, and
+  the figures below do not count it. Figures from `GET /api/tagging-edges/status`:
   - Backfill `20260928T032430Z-08965d1d`: `done` in 2,595 ms. Phases (ms): identities 30, schema 98, graph-read 7,
     relay-read 72 (10,405 events, 8,227,479 bytes), plan 47, write-creates 2,330 over 29 batches. Added 7,030 =
     `taggingsRead` 7,030 − `refused.total` 0; `peopleAdded` 6,196; `unresolved` 6, as the census found on each host.

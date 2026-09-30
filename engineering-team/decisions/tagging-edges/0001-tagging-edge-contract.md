@@ -3,6 +3,9 @@
 **Status:** Accepted
 **Date:** 2026-09-26
 **Story:** `engineering-team/stories/tagging-edges/1-tagging-edge-contract.md`
+**Amended (2026-09-28):** by `tagging-edges/0003` — R2-NB3's limit is the pass's; the real-time path's reading of
+kind 5, its waiting in place of refusing to start, and a failed element read (notes beside the stamp-pubkey binding,
+R2-NB3, the revokes consequence, step 5 and clarification 11).
 **Amended (2026-09-27):** by `tagging-edges/0002` — the write guard (writers follow the relay's current version),
 kind-5 reading, writer-set properties, the stamp-pubkey binding, R2-NB3, step 5 (R2-8, R2-NB2), clarifications 10
 and 13, and the consequences on tag-element fetching and revokes. Carry-forwards R2-4 to R2-7 were applied with story
@@ -218,11 +221,15 @@ and revoke rules below are meant to carry over unchanged. A one-line scope note 
   stamp pubkeys are lowercase 64-hex;** either one missing, empty, not 64 hex characters or containing an upper-case
   letter refuses the run and names that identity. A writer started without them would read every tagging as a
   non-tagging and retire every edge (step 2 plus the retirement rule). Story 2's mass-delete guard counts every
-  AC-3 removal per run.
+  AC-3 removal per run. *(Amended by `tagging-edges/0003`.)* The real-time path, a long-running process, starts
+  and waits in `waiting-setup`, writing nothing, which meets this rule's purpose. With a bad identity it does not
+  subscribe, since its filter needs both identities (`tagging-edges/0003` A1 clarification 25).
 - *(Amended by `tagging-edges/0002`.)* **R2-NB3.** A relationship at a tagging address is removed when the relay holds nothing at its
   address, or holds a version there the definition refuses, and only while it still holds the version the decision
-  was made from, subject to the mass-removal limit. It stays while the relay holds an accepted version at its
-  address, even when a deletion names it.
+  was made from, subject to the gap-filling pass's mass-removal limit *(amended by `tagging-edges/0003`: the
+  real-time path's removals have no count limit, story 3's settled decision 4; each answers a revoke by the
+  tagging's author, or, for a refused version, a version stored at the address, and a later successful relay
+  read)*. It stays while the relay holds an accepted version at its address, even when a deletion names it.
 - *(Review round.)* **Callers pass only relay-verified events.** The module does not check signatures; strfry
   verifies them before storing, and every writer reads from the relay.
 
@@ -301,7 +308,10 @@ It is a pure function of the two events, so arrival order cannot change the answ
     deletion strfry honours, and a deletion strfry did not honour removes nothing (story 2 AC-3). Story 3 follows
     the same rule — a kind-5 prompts a re-read of the relay, never a removal by itself. Bringing kind 5 into the
     router stream is OPEN.md row `2026-09-27-revokes-do-not-travel`. Census evidence: 2 revokes on tags.brainstorm.world apply to taggings still
-    stored on production and staging.
+    stored on production and staging. *(Amended by `tagging-edges/0003`.)* The real-time path reads kind-5 events
+    (live, and by author-scoped `#e`/`#a` scans at catch-up) only as prompts, and as a condition without which a
+    removal is held back (story 3 AC-3). A kind-5 never causes a removal that the path's own later relay read at that
+    address does not also call for.
   - **An e-only revoke removes only the version it names.** An older version re-sent afterwards stands again, and
     strfry accepts it too. The UI revoke (`ui/src/hooks/useProfileTags.js:150-163`) should also name the address
     (NIP-09); that is OPEN.md row `2026-09-27-ui-revoke-names-id-only`. A kind-5 that names another kind-5 is ignored here (NIP-09), but strfry drops
@@ -373,7 +383,9 @@ It is a pure function of the two events, so arrival order cannot change the answ
        it passes the step-1 event check, its `id` is the `e` the tagging names, it is kind 39999, it has an identity
        `d` — the first `d` of 255 bytes or fewer, read as step 1 reads a tagging's own; a missing, empty or
        non-string one makes it unusable — and it carries `39998:<canonical>:tag` or `39998:<local>:tag` as a `z`.
-       Any error while looking it up or reading it counts as absent. A usable element gives `tagAddress = 39999:${el.pubkey}:${d}`; an
+       Any error while looking it up or reading it counts as absent *(amended by `tagging-edges/0003`: this covers
+       the element's content; a failed element read is not an absent element — the real-time path defers, and the
+       pass fails the run)*. A usable element gives `tagAddress = 39999:${el.pubkey}:${d}`; an
        unusable or absent one leaves `tagAddress` and `tagSlug` as `null`.
      - The module never searches for a tag by slug.
   6. **Stance.** `polarity` is the first `polarity` tag's `[1]` when that is a string, else `null`. Every string
@@ -478,7 +490,8 @@ Implementer and the tests agree. Ratified by the owner at the Test Design gate (
     orders a stored `createdAt` to decide a write and repairs any that is not an integer; any writer that orders
     stored edges must first guard `standsOver` against such values.
 11. **A supplied element resolves only if its `id` is the `e` the tagging names.** Any error while reading the
-    element counts as absent, so the tagging stays unresolved rather than being refused.
+    element counts as absent, so the tagging stays unresolved rather than being refused. *(Amended by
+    `tagging-edges/0003`: a failed read of the element is not an absent element; see step 5.)*
 12. **Address patterns match any character after the second colon**, line terminators included (the `s` flag), for
     tagging `a` values and for revoke addresses alike.
 13. **An event with an upper-case `id` or `pubkey` stays outside the contract** (NIP-01). strfry accepts such an

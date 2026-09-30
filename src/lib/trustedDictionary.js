@@ -4,7 +4,11 @@
  * 2026-08-05; scoring semantics ratified at /discuss 2026-08-07).
  *
  * computeDictionary({headers, zCarriers, qualifying, threshold, taPubkey})
- *   → { entries, metric }
+ *   → { entries, metric }                   — the trusted dictionary (below)
+ * computeConceptDictionary({rows, zCarriers, qualifying, taPubkey})
+ *   → { entries, metric }                   — Dictionary › Concepts (its own
+ *                                              doc comment, further down)
+ * usageByHeader(…)                          — the counting rule both share
  *
  * Headers arrive PRE-CLASSIFIED at the handler seam
  * ({coord, name, plural, description, author, isMine, isFirmware, bState})
@@ -23,7 +27,7 @@
  * decline governs adoption, not usage observability. Sorted by qualifying
  * count desc, then total events desc.
  *
- * The General Usage Metric (Dictionary › Concepts v1; handoff SPEC § 4):
+ * The General Usage Metric (handoff SPEC § 4):
  * every entry carries `gum`, the value of the metric the result names in
  * `metric`, so later metrics can arrive without changing the shape. Version
  * 1 has one — GUM₁, the qualifying-author count above — so `gum` equals
@@ -49,15 +53,25 @@
 // then reports the choice and `gum` carries that metric's value.
 const METRIC = 'gum1';
 
-function computeDictionary({ headers, zCarriers, qualifying, threshold, taPubkey } = {}) {
-  const hs = new Map(); // coord → { name, plural, description, author, isMine, isFirmware, bState }
+/**
+ * The counting rule, once, for both reads below. For every header coordinate
+ * the z-carriers file under:
+ *   items    — coord → Set of event ids, every author (the concept's size);
+ *   evidence — coord → { qa, aa, ev }: the distinct authors and events once
+ *              the header's own author and the TA are set aside, and those
+ *              authors who are in the qualifying set (qa.size is GUM₁).
+ *              A coordinate filed under only by its own author or the TA has
+ *              items but no evidence entry.
+ * `headers` needs only { coord, author }.
+ */
+function usageByHeader({ headers, zCarriers, qualifying, taPubkey } = {}) {
+  const hs = new Map(); // coord → header
   for (const h of Array.isArray(headers) ? headers : []) {
     if (h && typeof h.coord === 'string' && h.coord) hs.set(h.coord, h);
   }
   const q = qualifying instanceof Set ? qualifying : new Set(Array.isArray(qualifying) ? qualifying : []);
-  const n = Number.isFinite(threshold) ? threshold : 2;
 
-  const usage = new Map(); // coord → { qa:Set, aa:Set, ev:Set }
+  const evidence = new Map(); // coord → { qa:Set, aa:Set, ev:Set }
   const items = new Map(); // coord → Set of event ids, every author (the concept's size)
   for (const ev of Array.isArray(zCarriers) ? zCarriers : []) {
     if (!ev || typeof ev.pubkey !== 'string') continue;
@@ -69,13 +83,23 @@ function computeDictionary({ headers, zCarriers, qualifying, threshold, taPubkey
       it.add(ev.id);
       if (ev.pubkey === h.author) continue; // self-filed: internal filing, never usage
       if (taPubkey && ev.pubkey === taPubkey) continue; // the TA never counts
-      let u = usage.get(t[1]);
-      if (!u) { u = { qa: new Set(), aa: new Set(), ev: new Set() }; usage.set(t[1], u); }
+      let u = evidence.get(t[1]);
+      if (!u) { u = { qa: new Set(), aa: new Set(), ev: new Set() }; evidence.set(t[1], u); }
       u.aa.add(ev.pubkey);
       u.ev.add(ev.id);
       if (q.has(ev.pubkey)) u.qa.add(ev.pubkey);
     }
   }
+  return { items, evidence };
+}
+
+function computeDictionary({ headers, zCarriers, qualifying, threshold, taPubkey } = {}) {
+  const hs = new Map(); // coord → { name, plural, description, author, isMine, isFirmware, bState }
+  for (const h of Array.isArray(headers) ? headers : []) {
+    if (h && typeof h.coord === 'string' && h.coord) hs.set(h.coord, h);
+  }
+  const n = Number.isFinite(threshold) ? threshold : 2;
+  const { items, evidence: usage } = usageByHeader({ headers: [...hs.values()], zCarriers, qualifying, taPubkey });
 
   const entries = [];
   for (const [coord, u] of usage) {
@@ -104,4 +128,71 @@ function computeDictionary({ headers, zCarriers, qualifying, threshold, taPubkey
   return { entries, metric: METRIC };
 }
 
-module.exports = { computeDictionary };
+/** "kind:pubkey:d" → the pubkey: an a-tag coordinate names its own author. */
+const coordAuthor = (coord) => String(coord).split(':')[1];
+/** The row's display name, else its d-tag. */
+const sortName = (e) => (e.name || String(e.coord).split(':').slice(2).join(':')).toLowerCase();
+
+/**
+ * Dictionary › Concepts — one person's dictionary (the owner's correction of
+ * 2026-09-29). Rows arrive PRE-CLASSIFIED at the handler seam: the person's
+ * concept headers that carry a real b-tag, as
+ * {coord, name, plural, description, author, selfDeclared, targets,
+ *  scoreCoords, isFirmware}. `scoreCoords` are the shared concepts the row
+ * points to by coordinate — itself when self-declared.
+ *
+ * Each entry's `gum` is GUM₁ of the best-scoring of its scoreCoords: the
+ * number computeDictionary gives that concept (same exclusions, same
+ * qualifying set), named in `sharedCoord`. A row that points only at event
+ * ids scores 0 with sharedCoord null. `totalAuthorCount` / `totalEventCount`
+ * are that shared concept's evidence totals. `itemCount` counts every event
+ * z-filed under the row's OWN header. No threshold: the score describes an
+ * entry, it does not admit one. Sorted by name.
+ */
+function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey } = {}) {
+  const list = (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r.coord === 'string' && r.coord);
+  const coords = new Set();
+  for (const r of list) {
+    coords.add(r.coord);
+    for (const c of Array.isArray(r.scoreCoords) ? r.scoreCoords : []) {
+      if (typeof c === 'string' && c) coords.add(c);
+    }
+  }
+  const { items, evidence } = usageByHeader({
+    headers: [...coords].map((coord) => ({ coord, author: coordAuthor(coord) })),
+    zCarriers,
+    qualifying,
+    taPubkey,
+  });
+
+  const entries = list.map((r) => {
+    let best = null; // first wins a tie, so tag order decides between equals
+    for (const c of Array.isArray(r.scoreCoords) ? r.scoreCoords : []) {
+      if (typeof c !== 'string' || !c) continue;
+      const u = evidence.get(c) || null;
+      const gum = u ? u.qa.size : 0;
+      if (!best || gum > best.gum) best = { coord: c, gum, u };
+    }
+    return {
+      coord: r.coord,
+      name: r.name || null,
+      plural: r.plural || null,
+      description: r.description || null,
+      author: r.author,
+      targets: Array.isArray(r.targets) ? [...r.targets] : [],
+      selfDeclared: !!r.selfDeclared,
+      isFirmware: !!r.isFirmware,
+      itemCount: items.has(r.coord) ? items.get(r.coord).size : 0,
+      sharedCoord: best ? best.coord : null,
+      gum: best ? best.gum : 0, // GUM₁ of the shared concept
+      totalAuthorCount: best && best.u ? best.u.aa.size : 0,
+      totalEventCount: best && best.u ? best.u.ev.size : 0,
+      override: null, // version 2: the owner's add-to-dictionary pinning
+    };
+  });
+  entries.sort((a, b) => sortName(a).localeCompare(sortName(b)) || a.coord.localeCompare(b.coord));
+
+  return { entries, metric: METRIC };
+}
+
+module.exports = { computeDictionary, computeConceptDictionary, usageByHeader };

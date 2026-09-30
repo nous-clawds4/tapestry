@@ -21,7 +21,7 @@ stream consumer never sees it, and Neo4j reflects it only when a reconcile run
 (`src/pipeline/reconciliation/reconcile{Recent,Network,All,Author}.sh`) next covers that author. What does reach the
 queue: router streams, the UI's own publishes (`POST /api/strfry/publish` runs `strfry import`,
 `src/api/strfry/commands/publishEvent.js:102-111`) and negentropy syncs (`strfry sync`). The docs describe the push as
-following every write: BIBLE §13 draws `strfry (LMDB write) → redis_rpush("strfry:events")` (`BIBLE.md:926`), BIBLE §4
+following every write: BIBLE §13 draws `strfry (LMDB write) → redis_rpush("strfry:events")` (`BIBLE.md:946`), BIBLE §4
 says strfry pushes these kinds "after writing events to LMDB" (`BIBLE.md:158`), and the Streaming ETL panel says it
 processes them "as they arrive" (`ui/src/pages/settings/RelaySettings.jsx:1376`). How many events production receives
 this way was not measured.
@@ -31,10 +31,16 @@ this way was not measured.
 rebuild on every host (`Dockerfile:26-33`), and it inherits the no-reconnect defect in OPEN.md row
 `2026-09-27-strfry-redis-never-reconnects`. Or (b) retire the patch for a websocket subscription to
 `ws://127.0.0.1:7777`: strfry's `RelayReqMonitor` watches `data.mdb` (`src/apps/relay/RelayReqMonitor.cpp:8`), so a
-live subscription sees writes from every strfry process, websocket writes included. It needs a durable high-water mark
-and a `since` replay on reconnect (in-stack precedent: `nostr-search/src/ingest.js`). Correct the three passages above
-either way. The tagging-edges epic plans its own real-time path, "from every path an event can reach the relay", for
-taggings only (`engineering-team/epics/tagging-edges.md:26-27`); it does not cover these three kinds.
+live subscription sees writes from every strfry process, websocket writes included. Events stored while it is
+disconnected reach no subscription, so it needs a recovery read after every reconnect, and a `since` replay is not
+one: `since` compares `created_at`, not arrival, so it drops back-dated history (a sync or import can store old
+events today). Recovery needs a re-read that does not filter by `created_at`; the tagging real-time path diffs a
+strict scan by event id (ADR `tagging-edges/0003` D3). `nostr-search/src/ingest.js` is no precedent for it: it keeps
+no high-water mark, sends no `since` and persists nothing; its reconnect waits a constant 1 s; and its resync returns
+at most 500 events. *(Corrected 2026-09-28, tagging-edges #3: this recommended a durable high-water mark and a
+`since` replay, with `ingest.js` as the in-stack precedent.)* Correct the three passages above either way. The
+tagging-edges epic's real-time path (story 3), "from every way an event can reach the relay", covers taggings only
+(`engineering-team/epics/tagging-edges.md:40-41`); it does not cover these three kinds.
 
 **Pointer:** epic `engineering-team/epics/tagging-edges.md` § Key facts / guardrails (the "Known defects in the
 follows pipeline" bullet: "the relay-websocket gap in the strfry patch"); review

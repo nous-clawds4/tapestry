@@ -200,6 +200,7 @@ const suites = [
   { file: 'inverse-queue-publish-candidates.test.js' },
   { file: 'publish-time-default-stamping.test.js' },
   { file: 'trusted-dictionary.test.js' },
+  { file: 'dictionary-concepts.test.js' },
   { file: 'adoption-twins.test.js' },
   { file: 'adoption-raw-event-view.test.js' },
   { file: 'state-on-concept-page.test.js' },
@@ -265,6 +266,14 @@ const suites = [
   { file: 'tagging-edges-runner.test.js' },
   { file: 'tagging-edges-state-routes.test.js' },
   { file: 'tagging-edges-wiring.test.js' },
+  { file: 'tagging-edges-realtime-plan.test.js' },
+  { file: 'tagging-edges-realtime-engine.test.js' },
+  { file: 'tagging-edges-realtime-routes.test.js' },
+  { file: 'tagging-edges-realtime-wrapper.test.js' },
+  { file: 'tagging-edges-realtime-lineage.test.js' },
+  { file: 'tagging-edges-realtime-resilience.test.js' },
+  { file: 'tagging-edges-realtime-property.test.js', skipNote: 'the full fixed campaign is opt-in: set TAGGING_EDGES_PROPERTY=1' },
+  { file: 'tagging-edges-realtime-subscription.test.js' },
   { file: 'tagging-edges-live.test.js', skipNote: 'no local Neo4j in the environment (NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD)' },
 ];
 

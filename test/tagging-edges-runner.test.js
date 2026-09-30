@@ -1604,7 +1604,7 @@ function pathProblems(what, text) {
   return [`${what} carries an absolute path${needles.length ? ` (${needles.join(', ')})` : ''}: ${around(s, at)}`];
 }
 
-test('SR63: strfry\'s real config-error line, read through the real scanStrict, reaches neither the report nor the public status body as a path — failure.stderrTail, every report written, the events and computeStatus\'s answer carry no absolute path, and the pass still fails naming the relay read (ADR 0002 "Who reads it": no config value, absolute path or credential; review 2026-09-28, Blocking 1)', async () => {
+test('SR63: strfry\'s real config-error line, read through the real scanStrict, reaches neither the report nor the public status body as a path — failure.stderrTail, every report written, the events and computeStatus\'s answer carry no absolute path that starts a word, and the pass still fails naming the relay read (ADR 0002 "Who reads it": no config value or credential, and no absolute path that starts a word; review 2026-09-28, Blocking 1; title per story 3 CF-1)', async () => {
   let scanMod;
   try { scanMod = require(SCAN_STRICT); } catch (e) { throw new Error(`src/lib/strfryScanStrict.js not loadable (require failed: ${firstLine(e)})`); }
   let routes;
@@ -1670,7 +1670,7 @@ test('SR64: no config value or credential reaches the report a public route serv
   });
 });
 
-test('SR65: no host name or absolute path reaches the report a public route serves — a Neo4j host that does not resolve (the driver\'s "getaddrinfo ENOTFOUND <host>", on the schema read and on the graph read) and a module that cannot be found (MODULE_NOT_FOUND, its require stack naming absolute paths, on the relay read) leave neither in failure.message, the reports or the events, and the report still names the stage, the read and the code (ADR 0002 "Who reads it": no config value, absolute path or credential; review 2026-09-28, Non-blocking 4)', async () => {
+test('SR65: no host name or absolute path that starts a word reaches the report a public route serves — a Neo4j host that does not resolve (the driver\'s "getaddrinfo ENOTFOUND <host>", on the schema read and on the graph read) and a module that cannot be found (MODULE_NOT_FOUND, its require stack naming absolute paths, on the relay read) leave neither in failure.message, the reports or the events, and the report still names the stage, the read and the code (ADR 0002 "Who reads it": no config value or credential, and no absolute path that starts a word; review 2026-09-28, Non-blocking 4; title per story 3 CF-1)', async () => {
   const HOST = 'db-3c9d'; // short enough to survive today's 300-character cut whole (the driver's text before it is 286)
   const notFound = () => neoError('ServiceUnavailable', `${DRIVER_CONNECT_FAILED} Caused by: getaddrinfo ENOTFOUND ${HOST}`);
   const moduleNotFound = () => Object.assign(new Error([
@@ -2001,6 +2001,48 @@ test('SR75: a scan port other than scanStrict that rejects with an unredacted st
     }
   }
   assert(problems.length === 0, problems.join('\n        '));
+});
+
+/* ══════════════════════════ story 3 (ADR tagging-edges/0003): the runner after the extractions ══════════════════════════
+ * Story: engineering-team/stories/tagging-edges/3-real-time-path.md. ADR: engineering-team/decisions/tagging-edges/
+ * 0003-real-time-path.md — § Amendments → ADR 0002 ("The pre-image line shape. It gains writer ('pass' or 'realtime')")
+ * and Implementation notes → New files (identities.js, preimage.js) and Changed files (reconcileTaggingEdges.js: "use
+ * identities.js and preimage.js (records gain writer: 'pass'), re-export resolveIdentities … Behaviour is otherwise
+ * unchanged" — the tests above are that regression check). Red until the extractions land. */
+const IDENTITIES_MOD = path.join(REPO, 'src/pipeline/tagging-edges/identities.js');
+
+test('SR76: every pre-image record the pass appends carries writer: \'pass\' — an update\'s and a removal\'s — beside the fields it already had (runId, address, rid, fromPubkey, toPubkey, props), so a pre-image line says which writer dropped the keys (ADR tagging-edges/0003 § Amendments → ADR 0002: "The pre-image line shape. It gains writer (\'pass\' or \'realtime\')"; Implementation notes: "records gain writer: \'pass\'"; AC-7)', async () => {
+  // SR48's world: X (an update) and Y (a removal) each carry a key outside the nine; Z moves to a newer version.
+  const X = F.makeTagging({ d: 'pre-x', id: F.idOf('pre:x') });
+  const Y = F.makeTagging({ d: 'pre-y', id: F.idOf('pre:y') });
+  const Z1 = F.makeTagging({ d: 'pre-z', id: F.idOf('pre:z:v1'), createdAt: 900 });
+  const Z2 = F.makeTagging({ d: 'pre-z', id: F.idOf('pre:z:v2'), createdAt: 1100 });
+  const rowX = F.storedRowFor(X, { extra: { note: 'private-note-value' } });
+  const rowY = F.storedRowFor(Y, { extra: { legacyScore: 7 } });
+  const w = await runPass(makeWorld({ rows: [rowX, rowY, F.storedRowFor(Z1)], events: [X, Z2] }));
+  const records = w.log.filter((e) => e.op === 'state.appendPreimages').reduce((a, e) => a.concat(e.records || []), []);
+  sameSet(records.map((r) => r && r.address), [addressOf(X), addressOf(Y)], 'fixture: the pre-image records (only rows with a key outside the nine, as SR48)');
+  const problems = [];
+  for (const [ev, row, label] of [[X, rowX, 'the update'], [Y, rowY, 'the removal']]) {
+    const rec = records.find((r) => r && r.address === addressOf(ev));
+    if (!rec) { problems.push(`${label}: no pre-image record`); continue; }
+    if (rec.writer !== 'pass') problems.push(`${label} ${addressOf(ev)}: writer should be 'pass'; the record is ${show(rec)}`);
+    const kept = { runId: rec.runId, address: rec.address, rid: rec.rid, fromPubkey: rec.fromPubkey, toPubkey: rec.toPubkey };
+    const want = { runId: EXPECTED_RUN_ID, address: addressOf(ev), rid: row.rid, fromPubkey: ALICE, toPubkey: BOB };
+    if (show(sortKeys(kept)) !== show(sortKeys(want))) problems.push(`${label}: the record's other fields changed\n          expected: ${show(want)}\n          actual:   ${show(kept)}`);
+    if (!Array.isArray(rec.props) || rec.props.length === 0) problems.push(`${label}: the record's props should still be the stored [key, type, value] entries; got ${show(rec.props)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('SR77: the runner still exports resolveIdentities, and it is the very function src/pipeline/tagging-edges/identities.js exports — moved there and re-exported unchanged, so the pass and the real-time path judge the two stamp identities by one rule (ADR tagging-edges/0003 Implementation notes: "identities.js: resolveIdentities moved from the runner. The runner re-exports it, unchanged"; story 3 AC-3, bad setup; ADR 0001 A3)', () => {
+  const mod = load();
+  assert(typeof mod.resolveIdentities === 'function', `${RUNNER_REL} must still export resolveIdentities; it exports ${show(Object.keys(mod))}`);
+  let ids;
+  try { ids = require(IDENTITIES_MOD); }
+  catch (e) { throw new Error(`src/pipeline/tagging-edges/identities.js not implemented yet (require failed: ${firstLine(e)})`); }
+  assert(ids && typeof ids.resolveIdentities === 'function', `src/pipeline/tagging-edges/identities.js must export resolveIdentities; it exports ${show(Object.keys(ids || {}))}`);
+  assert(ids.resolveIdentities === mod.resolveIdentities, 'the runner\'s resolveIdentities must be identities.js\'s own function, re-exported — not a second copy of the rule');
 });
 
 async function run() {

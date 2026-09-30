@@ -1,11 +1,13 @@
 /**
- * A strict `strfry scan` reader (tagging-edges story 2, ADR tagging-edges/0002 D2).
+ * A strict `strfry scan` reader (tagging-edges story 2, ADR tagging-edges/0002 D2; amended by story 3,
+ * ADR tagging-edges/0003 § Amendments → ADR 0002 "New files").
  *
  * A read is complete only when every one of these holds; otherwise the promise rejects with a
  * ScanError naming which (its `code`), so a failed or partial scan can never read as "the relay
  * holds nothing":
  *
- *   spawn            spawn() threw, or gave no child process
+ *   filter-too-large  the filter's argv text passed LIMITS.argvFilterBytes (checked before spawn)
+ *   spawn            spawn() threw, gave no child process, or the filter is not JSON
  *   process-error    the child emitted 'error' (strfry absent included), had no stdout, or its stdout failed
  *   timeout          no 'close' within timeoutMs (the child is SIGKILLed)
  *   exit             it exited with a non-zero code
@@ -14,8 +16,17 @@
  *   unparseable      a non-empty line is not JSON
  *   not-an-event-line  a line parsed to something that is not an object with a 64-hex id
  *   duplicate        an id repeats (compared lower-cased)
- *   off-filter       an event the caller's isExpected() refuses
+ *   off-filter       an event the caller's isExpected refuses
  *   too-large        stdout passed maxBytes
+ *
+ * The filter is one filter or an array of them. It reaches strfry's argv as escapeFilterArgv() writes it — JSON
+ * with every `/` written `\/` (T1: the planner's own escape, re-exported here) — so no strfry command line carries
+ * the pass's pgrep pattern, whatever a publisher's `d` says (ADR 0003 § Where it runs; AC-5).
+ *
+ * With `onEvent`, each event is handed to it as its line is read and is not kept (`events` stays empty). Every rule
+ * above still holds, so events read before a later failure have already been handed over and the scan still rejects
+ * (T31); the line a rule refuses never is. An onEvent that throws rejects the scan with its own error, never an empty
+ * or partial read.
  *
  * stdout is decoded with setEncoding('utf8') (a multi-byte character split across pipe chunks is
  * reassembled, never replaced; a byte sequence that is not valid UTF-8 is decoded as U+FFFD, not refused)
@@ -23,14 +34,18 @@
  * read, for valid UTF-8. No count is taken: a second process would read a second snapshot. The error's
  * stderrTail is redacted, because the pass's report carries it to a public route: the last `strfry error:` line
  * or the exit code, at most 300 characters, through redactPublicText() — any URI, any absolute path that starts a
- * word (see redactPublicText) and any IPv4 host:port replaced, and every 64-hex run cut to 8 characters. (Amended in
- * review round 1, 2026-09-28: paths too; strfry names its config file's path when it cannot load it.)
+ * word, and any host:port (see redactPublicText) replaced, and every 64-hex run cut to 8 characters. (Amended in
+ * review round 1, 2026-09-28: paths too; strfry names its config file's path when it cannot load it. Widened by
+ * story 3, CF-3: named and IPv6 host:port too; strfry's stderr names redis:6379.)
  */
+
+const { LIMITS, escapeFilterArgv, filterArgvBytes } = require('./tagging-edges/realtime');
 
 const DEFAULT_TIMEOUT_MS = 60000;
 const DEFAULT_MAX_BYTES = 256 * 1024 * 1024;
 const STDERR_KEEP = 4096;
 const TAIL_MAX = 300;
+const REDACT_INPUT_MAX = 4096;
 const ID_RE = /^[0-9a-fA-F]{64}$/;
 
 class ScanError extends Error {
@@ -43,17 +58,34 @@ class ScanError extends Error {
 }
 
 /**
- * Error text a public route may serve (the tagging-edges pass's report shares this one redactor): any URI (it may
- * carry credentials) → `<uri>`; then any absolute path that starts a word, a `/` at the start or after whitespace, a
- * quote, `[`, `(` or `=` → `<path>` (a path after any other character, such as `file:/…`, `,/…` or `{/…`, is kept);
- * then any IPv4 host:port → `<host>`; and every run of 64 or more hex characters cut to its first 8. A relative path
- * (`../lib/x`) is kept. The caller bounds the length.
+ * Error text a public route may serve (the tagging-edges pass's report and the real-time path's log share this one
+ * redactor): any URI (it may carry credentials) → `<uri>`; then any absolute path that starts a word, a `/` at the
+ * start or after whitespace, a quote, `[`, `(` or `=` → `<path>` (a path after any other character, such as
+ * `file:/…`, `,/…` or `{/…`, is kept); then any host:port → `<host>`: a bracketed IPv6 `[<ipv6>]:<port>`, an IPv4
+ * `<a.b.c.d>:<port>`, and a letter-led single-label or dotted name with a 2–5 digit port (`neo4j:7687`,
+ * `neo4j.internal:7687`, `redis:6379`; CF-3); and every run of 64 or more hex characters cut to its first 8. A
+ * relative path (`../lib/x`) and a clock time (`03:24:18`) are kept. The name rule can also take a letter-led word
+ * before `:<digits>`, such as a tagging address whose `d` starts with 2–5 digits (ADR 0003's New debt; T31): where a
+ * letter-led word before a 2–5-digit port may not be a host, the name rule cuts it anyway. That bias is the name
+ * rule's only: some forms still pass the redactor, a host name with an underscore (`tapestry_neo4j_1:7687`) or
+ * starting with a digit, and a credential written without a scheme (ADR 0003's New debt line on the redactor). Text
+ * past 4 KB is cut first, back to the last whitespace within it, so no rule runs on long input (the name rule is
+ * quadratic on long dotted or hyphenated text) and no token is split into a part the rules no longer recognise; input
+ * with no whitespace in its first 4 KB comes out empty. The caller bounds the length it keeps.
  */
 function redactPublicText(s) {
-  return String(s)
+  let text = String(s);
+  if (text.length > REDACT_INPUT_MAX) {
+    let cut = REDACT_INPUT_MAX;
+    while (cut > 0 && !/\s/.test(text[cut - 1])) cut -= 1;
+    text = text.slice(0, cut);
+  }
+  return text
     .replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s'"]+/gi, '<uri>')
     .replace(/(^|[\s'"[(=])\/[^\s'"\])]+/g, '$1<path>')
+    .replace(/\[[0-9a-f.]*:[0-9a-f:.]*(?:%[\w.-]+)?\]:\d+\b/gi, '<host>')
     .replace(/\b\d{1,3}(?:\.\d{1,3}){3}:\d+\b/g, '<host>')
+    .replace(/\b[a-z][a-z0-9-]*(?:\.[a-z0-9-]+)*:\d{2,5}\b/gi, '<host>')
     .replace(/[0-9a-fA-F]{64,}/g, (m) => m.slice(0, 8));
 }
 
@@ -70,14 +102,30 @@ function summarizeStderr(stderr, exitCode) {
 }
 
 /**
- * `strfry scan <filter>` → Promise<{ events, lines, bytes, elapsedMs }>, or a ScanError.
- * @param {object} filter
- * @param {{ timeoutMs?: number, isExpected: (ev) => boolean, maxBytes?: number, spawnImpl?: Function }} opts
+ * `strfry scan <filter>` → Promise<{ events, lines, bytes, elapsedMs }>, or a ScanError. With `onEvent`, `events`
+ * is empty: each event went to onEvent (called synchronously, as its line is read).
+ * @param {object|object[]} filter
+ * @param {{ timeoutMs?: number, isExpected: (ev) => boolean, maxBytes?: number, onEvent?: (ev) => void,
+ *   spawnImpl?: Function }} opts
  */
-function scanStrict(filter, { timeoutMs = DEFAULT_TIMEOUT_MS, isExpected, maxBytes = DEFAULT_MAX_BYTES, spawnImpl } = {}) {
+function scanStrict(filter, { timeoutMs = DEFAULT_TIMEOUT_MS, isExpected, maxBytes = DEFAULT_MAX_BYTES, onEvent, spawnImpl } = {}) {
   if (typeof isExpected !== 'function') {
     return Promise.reject(new TypeError('scanStrict: opts.isExpected must be a function (a strict read checks every event)'));
   }
+  // The argv text is sized before spawn: an over-long command line is refused here (the planner bisects it), never
+  // left to the host's E2BIG. A filter JSON cannot write is refused as a spawn failure, as it always was.
+  let argv;
+  try {
+    const argvBytes = filterArgvBytes(filter);
+    if (argvBytes > LIMITS.argvFilterBytes) {
+      return Promise.reject(new ScanError('filter-too-large',
+        `strfry scan filter is ${argvBytes} bytes on the command line, over ${LIMITS.argvFilterBytes}`));
+    }
+    argv = escapeFilterArgv(filter);
+  } catch (_) {
+    return Promise.reject(new ScanError('spawn', 'could not start strfry scan: the filter is not JSON'));
+  }
+  const streaming = typeof onEvent === 'function';
   const spawn = spawnImpl || require('child_process').spawn;
   const started = Date.now();
   return new Promise((resolve, reject) => {
@@ -92,12 +140,15 @@ function scanStrict(filter, { timeoutMs = DEFAULT_TIMEOUT_MS, isExpected, maxByt
     const ids = new Set();
 
     const kill = () => { try { if (child) child.kill('SIGKILL'); } catch (_) { /* already gone */ } };
-    const fail = (code, message, exitCode = null) => {
+    const abort = (err) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       kill();
-      reject(new ScanError(code, message, summarizeStderr(stderr, exitCode)));
+      reject(err);
+    };
+    const fail = (code, message, exitCode = null) => {
+      if (!settled) abort(new ScanError(code, message, summarizeStderr(stderr, exitCode)));
     };
     const succeed = () => {
       if (settled) return;
@@ -121,13 +172,14 @@ function scanStrict(filter, { timeoutMs = DEFAULT_TIMEOUT_MS, isExpected, maxByt
       ids.add(id);
       let ok = false;
       try { ok = !!isExpected(ev); } catch (_) { ok = false; }
-      if (!ok) { fail('off-filter', `line ${lineCount} is outside the requested filter`); return false; }
-      events.push(ev);
+      if (!ok) { fail('off-filter', `line ${lineCount} was refused by the caller's isExpected`); return false; }
+      if (!streaming) { events.push(ev); return true; }
+      try { onEvent(ev); } catch (err) { abort(err); return false; } // the caller could not take it: never a read
       return true;
     };
 
     try {
-      child = spawn('strfry', ['scan', JSON.stringify(filter)], { stdio: ['ignore', 'pipe', 'pipe'] });
+      child = spawn('strfry', ['scan', argv], { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       settled = true;
       reject(new ScanError('spawn', `could not start strfry scan: ${(err && err.code) || 'error'}`));
@@ -181,4 +233,4 @@ function scanStrict(filter, { timeoutMs = DEFAULT_TIMEOUT_MS, isExpected, maxByt
   });
 }
 
-module.exports = { scanStrict, ScanError, redactPublicText };
+module.exports = { scanStrict, ScanError, redactPublicText, escapeFilterArgv };
