@@ -741,10 +741,65 @@ The setup:
   about 60% of the peak. A catch-up's transients take the rest.
 - **The margin:** the revisit trigger of 100,000 `seen` (today 7,030) leaves 2.4× below the ceiling.
 
+### SL19, the relay smoke test (review C8)
+
+SL19 had only skipped from the host, because the relay answers only on the container's loopback. It was run once
+inside the local `tapestry` container on 2026-09-30 at 05:04:33Z, at `origin/staging` `58abd891`, under Node v22.23.2,
+through the suite's `run()` export
+(`docker exec tapestry sh -c 'cd /usr/local/lib/node_modules/brainstorm && node -e "require(\"./test/tagging-edges-live.test.js\").run()"'`).
+SL19 passed: the path's two `limit:0` filters were answered with EOSE, with no CLOSED and no stored event before it,
+and nothing was published. The suite reported 1 passed, 0 failed, 18 skipped. The nine Neo4j read checks (SL1–SL7,
+SL17, SL18) skip unless `NEO4J_URI`, `NEO4J_USER` and `NEO4J_PASSWORD` name a reachable local stack, and that shell had
+no `NEO4J_URI` or `NEO4J_USER`. The nine write-sandbox tests (SL8–SL16) skip unless `TAGGING_EDGES_LIVE_WRITE_TESTS=1`,
+which was not set.
+
 ### Staging
 
-To come after Review and the merge: the owner turns the path on after the backfill, then runs one more pass (open
-question 14).
+Everything below was read from staging's public routes (`GET /api/tagging-edges/status`,
+`/api/tagging-edges/realtime/status`, `/api/scheduled-tasks/status`, `/api/strfry/scan/count`) and read-only Cypher.
+The owner ran the steps on 2026-09-30 (OPERATIONS §12.9, "The order on staging and production"), after the backfill of
+2026-09-28 (story 2 § Evidence).
+
+- **The daily entry** (`reconcileTaggingEdges`, every day, enabled) was added at about 14:26:18Z. Its first run
+  started at once: pass `20260930T142619Z-4db0d448`, `done` in 5,104 ms, added 3 (taggings stored since the
+  backfill), 7,023 unchanged, nothing held. The next run is due 2026-10-01 at 14:26Z.
+- **Switched on** at 14:26:35Z. First start 14:26:36Z, subscribed 14:26:36Z (0.8 s later). Its first catch-up was
+  `done` in 388 ms, reflecting nothing (read from `catchUp.last` at 14:32:40Z, before the 10-minute safety diff
+  replaced it). `state` `live`, no `setupProblem`, no `lastError`, `seen` 7,026.
+- **One more pass** after the first start: `20260930T142646Z-a7f04da9`, `done` in 1,259 ms. 7,026 unchanged, nothing
+  added, changed or removed, nothing held, no anomalies.
+- **Relay against graph** at about 14:33Z: 7,026 taggings carrying either stamp on the relay, and 7,026 `TAGS` at
+  7,026 distinct addresses.
+- **A live tagging.** The owner tagged a person `physician` from production's page. The tagging (`7854da66…`,
+  `created_at` 15:20:29Z) carries the canonical stamp beside production's local one, and staging's path matched it on
+  the canonical stamp (`zCanonical` true, `zLocal` false). It most likely reached staging's relay through the
+  `nostrUserTag` router stream from the DCoSL relays, the only enabled inbound stream on staging whose filter matches
+  it (`GET /api/strfry/router-status`); that delivery was not observed directly. The path heard it at 15:20:32.962Z
+  and reflected it at 15:20:33.465Z, in a 233 ms round of one address: `counts.added` 1, with no refusal, failed read
+  or error. The graph holds one relationship at its address with that event id.
+
+Still to come (open question 14): organic taggings over the following days with a status that shows no failures; a
+deploy's catch-up in the status; and a later pass that reports nothing a before-and-after read of the graph cannot
+trace to an Out-of-scope case. The scheduled pass of 2026-10-01 is the first candidate for the last.
+
+### Production
+
+The owner ran the same steps on production on 2026-09-30, 101 s before staging. No backfill had been run when the
+daily entry was added, so the entry's first run, which starts at once, was the backfill. It ended 0.7 s before the
+switch came on, so it finished before step 3, as step 2 asks; its figures were checked afterwards, at 14:32Z.
+
+- **The backfill:** pass `20260930T142438Z-7e3f2a03`, started by the new daily entry at 14:24:38Z, `done` in 14,503
+  ms. Added 7,033 = `taggingsRead` 7,033 − `refused.total` 0, `peopleAdded` 5,846, `unresolved` 6, nothing held.
+  Durations and margins are in OPERATIONS §12.8, "Measured durations". The next scheduled run is due 2026-10-01 at
+  14:24Z.
+- **Switched on** at 14:24:54Z. First start 14:24:54Z, subscribed 14:24:55Z (1.0 s later). Its first catch-up was
+  `done` in 468 ms, reflecting nothing (read from `catchUp.last` at 14:32:40Z). `state` `live`, no `setupProblem`, no
+  `lastError`, `seen` 7,033.
+- **One more pass:** `20260930T142511Z-3469ad38`, `done` in 2,050 ms. 7,033 unchanged, nothing added, changed or
+  removed, nothing held.
+- **Relay against graph** at about 14:33Z: 7,033 and 7,033, at 7,033 distinct addresses.
+- **The same live tagging**, published on production: heard at 15:20:31.941Z, reflected at 15:20:32.527Z, in a
+  315 ms round of one address. `counts.added` 1.
 
 ## Deviations
 
