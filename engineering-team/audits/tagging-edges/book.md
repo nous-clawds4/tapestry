@@ -43,7 +43,9 @@ authorized and taken the same day (numbers in story 1's Background).
       without operator action, from every path an event can reach the relay.
 - [ ] **Front-end controls.** The owner can see and manage the tagging pipeline from the control panel — its
       status, counts, the drift between relay and graph, start / stop, and a gap-fill run on demand — in the
-      style of the existing Streaming ETL controls.
+      style of the existing Streaming ETL controls. *(Amended 2026-09-30 at story 4's Planning, the owner: admins
+      may also see the panel, turn the real-time path on and off, run a pass and stop one; confirming held removals
+      stays the owner's. Delivered as story 4, the panel, and story 5, the controls.)*
 - [ ] **Nothing else moves.** Follows / mutes / reports ingestion is unchanged; no trust, point-of-view or
       count is stored on the new relationships (principles 1–3); nothing locally authored in Neo4j is destroyed
       (principle 4, BIBLE §30).

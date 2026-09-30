@@ -12,11 +12,12 @@ strfry→Neo4j letter ingest (OPEN.md #136 stage 2), which it does not attempt.
 
 **Neo4j carries one relationship per tagging, from the tagger to the tagged person, kept current in real time
 and repaired retroactively, and the owner can manage that pipeline from the control panel.** Before story 2 no
-tagging reached Neo4j at all; every tag surface still scans the relay per request.
+tagging reached Neo4j at all; every tag surface still scans the relay per request. *(Amended 2026-09-30 at story 4's
+Planning: admins may also see the panel and use every control but confirming held removals; see item 5.)*
 
 ## Stories
 
-`stories/tagging-edges/`. All four are features (Standard: all five phases).
+`stories/tagging-edges/`. All five are features (Standard: all five phases).
 
 1. `1-tagging-edge-contract.md` — what one relationship is: which events count, what the relationship carries,
    which version of a tagging stands, what a revoke removes; documented in BIBLE. No relationship is written yet.
@@ -42,8 +43,10 @@ tagging reached Neo4j at all; every tag surface still scans the relay per reques
    downtime and never backfills. It ships turned off and carries the owner-only on/off control and its own status
    (approved 2026-09-28). Story 2's review carry-forwards (six wording nits) are its docs tasks CF-1–CF-6.
    **Done**; on production since 2026-09-30 (PRs #785 / #786), and the owner turned it on on both hosts that day.
-4. *(planned)* The control panel — status, counts, relay-vs-graph drift, gap-fill on demand, and a page on story
-   3's on/off control; owner-only.
+4. `4-tagging-pipeline-panel.md` — the panel: a Relays sub-tab beside Streaming ETL, seen by the owner and admins,
+   showing the pass (status, history, held removals, the backstop schedule), the real-time path, and the drift
+   between relay and graph, explained. It changes nothing. *(Split from the planned control panel at Planning,
+   2026-09-30; the owner's decisions are in the story.)*
    **Carry-forwards from story 3's review** (placed by the owner 2026-09-30; `reviews/tagging-edges/3-real-time-path.md`
    § "Re-review, round 3", C1–C9). Each open one becomes a docs or test task of story 4. Repo line numbers were read
    at `origin/staging` `58abd891` (prefer the named sections if they have drifted); strfry's are from strfry 1.1.0 in
@@ -96,7 +99,17 @@ tagging reached Neo4j at all; every tag surface still scans the relay per reques
      order hides it. Done when strict, routes, strict, then plan all pass in one process, and `npm test`'s counts are
      unchanged.
 
-Order: 1 → 2 → 3 → 4 (4's page can start once 2's status shape is fixed).
+5. *(planned)* The controls, on story 4's panel: turn the real-time path on and off, run a pass now (never a second
+   while one is queued or running), and stop a pass, queued or running (a running one stops between batches); the
+   owner **or an admin** may do each, enforced by the server. Confirming held removals stays **owner only**. A
+   confirm prompt comes before turning the path off, stopping a pass, and confirming held removals. This widens story
+   3's owner-only switch route to admins (the Architect amends ADR 0003), and gives the pass run and stop controls
+   for the owner or an admin, where today it runs through the generic `/api/run-task` (open to any signed-in
+   session) and has no stop control (the Architect amends ADR 0002). Story 2's confirm route stays owner only.
+   *Proposed, not yet decided:* story 5 folds ledger `2026-09-28-confirm-route-joins-finishing-job`. *(The owner's
+   decisions at story 4's Planning, 2026-09-30, apart from that proposal.)*
+
+Order: 1 → 2 → 3 → 4 → 5 (4's page can start once 2's status shape is fixed; 5 builds on 4's panel).
 
 ## Key facts / guardrails
 
