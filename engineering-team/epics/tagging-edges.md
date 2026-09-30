@@ -74,7 +74,8 @@ Planning: admins may also see the panel and use every control but confirming hel
      found by a catch-up waits for the timer, though live it lifts the park at once. And "the same refused version,
      found again, costs no write" (ADR clarification 26, OPERATIONS §12.9's refusal-park bullet, the comment in
      `realtime/index.js` beside it) is bounded instead: when the parked entry lacks the refused id, the first catch-up
-     that finds it lifts the park once, for one write attempt. Docs, not code (the owner's placement).
+     that finds it lifts the park once, for one write attempt. Docs, not code (the owner's placement). *(That bound
+     has two exceptions, found at story 4's Architecture; the true bound is in ADR 0004 § Amendments to ADR 0003, C5.)*
    - *C6 (test; Tester):* pin clarification 26's two unpinned halves after RX28 in
      `test/tagging-edges-realtime-resilience.test.js`: a refused removal's kind-5, found again at a safety diff, merges
      (no write before the 5-minute timer); and a version arriving, notice lost, at a park for a refused removal lifts

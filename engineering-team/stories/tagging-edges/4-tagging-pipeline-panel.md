@@ -197,7 +197,8 @@ places in full, re-checked at `origin/staging` `58abd891`.
   clarification 24's debounce bullet into line with C2's ledger fix.
 - [ ] **C4.** "Per *newest* event deleted", and the test plan's wipe wording.
 - [ ] **C5 (Architect).** Clarification 26 adopts `bringsNew`'s effect reading, and "costs no write" is bounded to
-  one write attempt per park episode.
+  one write attempt per park episode. *(That bound has two exceptions, found at story 4's Architecture; the true
+  bound is in ADR 0004 § Amendments to ADR 0003, C5.)*
 - [ ] **C7 (Architect).** The widening the owner accepted on 2026-09-30:
   - the loss window while journal writes keep failing;
   - an off or a SIGTERM during that window;
@@ -282,6 +283,7 @@ None. The Product Owner's four proposals were ratified by the owner at Planning 
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tagging-edges/0004-tagging-pipeline-panel.md` (also amends ADR 0003 for C1, C2's ADR
+  half, C3, C5 and C7)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
