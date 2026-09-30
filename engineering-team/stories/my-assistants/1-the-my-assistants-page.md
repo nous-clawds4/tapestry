@@ -199,4 +199,4 @@ Small judgment calls made in Implementation (2026-09-30):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md`
 - Test plan: `engineering-team/stories/my-assistants/1-the-my-assistants-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/my-assistants/1-the-my-assistants-page.md`
