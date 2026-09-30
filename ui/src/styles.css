@@ -9298,3 +9298,257 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .dict-add-btn { width: 100%; }
   .dict-page h1.dict-entry-title { font-size: 24px; }
 }
+
+/* ─── /dictionary — the Brainstorm design's styling (bsd-) ──────────────────────────────────────
+   The Concepts dictionary outside the control panel, styled after the owner's Claude Design mock
+   (docs/DICTIONARY_PAGE_HANDOFF.md, account menu → Dictionary): a light page in
+   Figtree, a purple accent and cyan marks. The frame is .bsd-*. The list and entry markup is the
+   control panel's .dict-* (pages/dictionaries/), which .bsd-page re-colours by redefining the
+   variables those rules read, then .dict-skin-light matches the mock's measurements. The avatar
+   menu and the top bar's alerts get light overrides here too, on this page only.
+   Fonts are self-hosted from ui/public/fonts (Figtree and IBM Plex Mono, SIL Open Font License 1.1;
+   see the README there), and a browser fetches them only on a page that uses them. */
+@font-face {
+  font-family: 'Figtree'; font-style: normal; font-weight: 300 900; font-display: swap;
+  src: url('/fonts/figtree-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Figtree'; font-style: normal; font-weight: 300 900; font-display: swap;
+  src: url('/fonts/figtree-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap;
+  src: url('/fonts/ibm-plex-mono-500-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: swap;
+  src: url('/fonts/ibm-plex-mono-600-latin.woff2') format('woff2');
+}
+
+body:has(.bsd-page) { background: #f2f3f0; }
+.bsd-page {
+  /* The mock's palette, under the names the shared .dict-* rules and components read. */
+  --bg: #ffffff;
+  --bg-primary: #f2f3f0;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #fafaf9;
+  --border: #d6d9db;
+  --text: #0a0e18;
+  --text-primary: #2a303b;
+  --text-muted: #6b7480;
+  --accent: #7237ff;
+  --accent-hover: #612fd9;
+  --purple: #7237ff;
+  --red: #b42318;
+  --green: #047857;
+  --orange: #b45309;
+  --bsd-ink-2: #555d69;
+  --bsd-faint: #8c929e;
+  --bsd-line: #e8eae7;
+  --bsd-hairline: #f0f1ee;
+  --bsd-navy: #2b174f;
+  --bsd-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #f2f3f0 0%, #ffffff 100%);
+  color: var(--text);
+  font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.011em;
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.bsd-page a:hover { color: var(--accent-hover); }
+.bsd-page code { font-family: var(--bsd-mono); }
+.bsd-page :is(button, input, select, textarea) { font-family: inherit; } /* form controls don't inherit it by default */
+
+/* The bar: wordmark left, the top bar's alert centred, the avatar (or Sign in) right. */
+.bsd-nav {
+  position: sticky; top: 0; z-index: 40;
+  background: rgba(242, 243, 240, 0.78);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.bsd-nav-inner {
+  max-width: 1280px; margin: 0 auto; padding: 12px 24px;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+}
+.bsd-logo { grid-column: 1; grid-row: 1; justify-self: start; display: flex; align-items: center; min-height: 38px; }
+.bsd-logo img { display: block; height: 26px; width: auto; }
+.bsd-nav-auth { display: contents; }
+.bsd-nav-auth > .bs-setup-alert,
+.bsd-nav-auth > .bs-topbar-pill { grid-column: 2; grid-row: 1; justify-self: center; }
+.bsd-nav-auth > .bs-usermenu,
+.bsd-nav-auth > .bs-link-btn { grid-column: 3; grid-row: 1; justify-self: end; }
+
+/* The mock's amber banner. Its button is a shade darker than the mock's #d97706 so white text on it
+   passes AA (5.0:1; the mock's is 3.2:1) — the contrast rule of setup-status-and-alert #3 AC-1. */
+.bsd-page .bs-setup-alert {
+  gap: 10px; padding: 6px 6px 6px 14px;
+  border-color: rgba(217, 119, 6, 0.45); background: #fffbeb; color: #78350f;
+  font-size: 13px; font-weight: 700; letter-spacing: normal;
+  animation: bsd-glow-amber 2.6s ease-in-out infinite;
+}
+.bsd-page .bs-setup-alert:hover { color: #78350f; border-color: rgba(217, 119, 6, 0.65); background: #fef3c7; }
+.bsd-page .bs-setup-alert:focus-visible { outline-color: #b45309; }
+.bsd-page .bs-setup-alert-icon { color: #d97706; }
+.bsd-page .bs-setup-alert-count { color: #b45309; font-size: 12px; font-weight: 600; opacity: 1; }
+.bsd-page .bs-setup-alert-button { padding: 5px 12px; background: #b45309; color: #ffffff; font-size: 12px; }
+/* The Assistant Alert in the mock's "aurora" variant; the button is solid purple so its text passes AA. */
+.bsd-page .bs-topbar-pill.is-assistant,
+.bsd-page .bs-topbar-pill.is-assistant:hover {
+  gap: 10px; padding: 6px 6px 6px 14px;
+  border-color: rgba(114, 55, 255, 0.35);
+  background: linear-gradient(135deg, rgba(114, 55, 255, 0.10), rgba(19, 210, 229, 0.12)), #ffffff;
+  color: var(--bsd-navy); font-size: 13px; font-weight: 700; letter-spacing: normal;
+}
+.bsd-page .bs-topbar-pill.is-assistant:hover { border-color: rgba(114, 55, 255, 0.6); }
+.bsd-page .bs-topbar-pill:focus-visible { outline-color: var(--accent); }
+.bsd-page .bs-topbar-pill-count { color: var(--text-muted); font-size: 12px; font-weight: 600; opacity: 1; }
+.bsd-page .bs-topbar-pill.is-assistant .bs-topbar-pill-button { padding: 5px 12px; background: var(--accent); color: #ffffff; font-size: 12px; }
+@keyframes bsd-glow-amber {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0); }
+  50% { box-shadow: 0 0 22px 3px rgba(245, 158, 11, 0.42); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bsd-page .bs-setup-alert { animation: none; }
+}
+
+/* Sign in, and the avatar in the mock's gradient ring. */
+.bsd-page .bs-link-btn {
+  min-height: 38px; padding: 0 16px; border: 1px solid var(--border); border-radius: 999px;
+  background: #ffffff; color: var(--text-primary); font: inherit; font-size: 14px; font-weight: 600;
+}
+.bsd-page .bs-link-btn:hover { border-color: var(--accent); color: var(--accent); background: #ffffff; }
+.bsd-page .bs-usermenu-avatar-btn {
+  display: block; padding: 2px; outline: none;
+  background: linear-gradient(to top right, #2b174f, #13d2e5, #2b174f);
+  box-shadow: 0 0 0 1px rgba(114, 55, 255, 0.15);
+}
+.bsd-page .bs-usermenu-avatar-btn:hover,
+.bsd-page .bs-usermenu-avatar-btn:focus-visible { box-shadow: 0 0 0 3px rgba(114, 55, 255, 0.25); }
+.bsd-page .bs-usermenu-avatar { display: block; background: #ffffff; }
+.bsd-page .bs-usermenu-avatar-placeholder { display: flex; background: #f2f3f0; color: var(--accent); } /* after the rule above; an inline display:none still hides it */
+
+/* The avatar menu, in the mock's light panel. Its contents are the app's own menu, unchanged. */
+.bsd-page .bs-usermenu-dropdown {
+  top: calc(100% + 10px); width: 320px; max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 90px); overflow-y: auto;
+  border: 1px solid rgba(19, 210, 229, 0.35); border-radius: 16px;
+  background: linear-gradient(160deg, #fafafe 0%, #f3f7fb 55%, #eefbfc 100%);
+  box-shadow: 0 20px 40px -12px rgba(10, 14, 24, 0.18), 0 0 18px rgba(19, 210, 229, 0.08);
+  color: var(--text-primary); text-align: left;
+}
+.bsd-page .bs-usermenu-welcome,
+.bsd-page .bs-usermenu-section { border-bottom-color: #e1e3e0; }
+.bsd-page .bs-usermenu-dropdown-name { color: var(--text); font-weight: 700; }
+.bsd-page .bs-usermenu-dropdown-pubkey { font-family: var(--bsd-mono); color: var(--text-muted); opacity: 1; }
+.bsd-page .bs-usermenu-role-badge { border-color: rgba(217, 119, 6, 0.35); background: #fffbeb; color: #b45309; }
+.bsd-page .bs-usermenu-pov-switch-label { color: var(--bsd-faint); opacity: 1; font-weight: 600; }
+.bsd-page .bs-usermenu-pov-switch-btns { padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: #f2f3f0; }
+.bsd-page .bs-usermenu-pov-btn { border-radius: 999px; color: var(--text-primary); }
+.bsd-page .bs-usermenu-pov-btn.is-active { background: #ffffff; color: var(--accent); box-shadow: 0 1px 2px rgba(10, 14, 24, 0.08); }
+.bsd-page .bs-usermenu-link { color: var(--text-primary); font-size: 14px; border-radius: 8px; }
+.bsd-page .bs-usermenu-link:hover { background: rgba(114, 55, 255, 0.05); color: var(--text-primary); }
+.bsd-page .bs-usermenu-link.is-disabled { color: #9aa1ac; }
+.bsd-page .bs-usermenu-pins-btn,
+.bsd-page .bs-usermenu-settings-btn {
+  border: 1px solid var(--border); border-radius: 999px; background: #ffffff;
+  color: var(--text-primary); font-size: 14px;
+}
+.bsd-page .bs-usermenu-pins-btn:hover,
+.bsd-page .bs-usermenu-settings-btn:hover { background: #fafaf9; color: var(--text-primary); }
+.bsd-page .bs-usermenu-signout {
+  border: 1px solid rgba(220, 38, 38, 0.25); border-radius: 999px; color: #dc2626; font-size: 14px;
+}
+.bsd-page .bs-usermenu-signout:hover { background: rgba(220, 38, 38, 0.05); }
+
+/* The reading column and the page heading. */
+.bsd-main { width: 100%; max-width: 720px; margin: 0 auto; padding: 40px 24px 120px; }
+.bsd-eyebrow { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.bsd-eyebrow > span:first-child {
+  font-family: var(--bsd-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.25em;
+  text-transform: uppercase; color: #13d2e5;
+}
+.bsd-eyebrow-rule { height: 1px; width: 48px; background: rgba(19, 210, 229, 0.4); }
+.bsd-title { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--text); }
+.bsd-title-accent { color: var(--accent); }
+.bsd-lede { margin: 14px 0 0; max-width: 640px; font-size: 16px; line-height: 1.6; color: var(--bsd-ink-2); text-wrap: pretty; }
+
+/* The shared list and entry, at the mock's measurements. */
+.dict-skin-light.dict-page { max-width: none; --dict-cyan: #0e7490; } /* .dict-page sets its own cyan on the same element */
+.dict-skin-light .dict-pov { margin-top: 10px; font-size: 13px; color: var(--bsd-faint); }
+.dict-skin-light .dict-card { border-color: var(--border); border-radius: 16px; background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); }
+.dict-skin-light .dict-faq-wrap { margin-top: 22px; }
+.dict-skin-light .dict-faq { margin-top: 12px; }
+.dict-skin-light .dict-faq-item + .dict-faq-item { border-top-color: var(--bsd-line); }
+.dict-skin-light .dict-faq-q { padding: 14px 18px; }
+.dict-skin-light .dict-faq-q:hover { background: #fafaf9; }
+.dict-skin-light .dict-faq-a { padding: 0 18px 16px; color: var(--bsd-ink-2); text-wrap: pretty; }
+.dict-skin-light .dict-count-row { margin-top: 20px; }
+.dict-skin-light .dict-count { color: var(--bsd-navy); }
+.dict-skin-light .dict-filter-note { color: var(--bsd-faint); }
+.dict-skin-light .dict-tools-btn { background: #ffffff; border-color: var(--border); color: var(--text-muted); }
+.dict-skin-light .dict-tools-btn:hover,
+.dict-skin-light .dict-tools-btn.is-active { border-color: var(--border); color: var(--accent); }
+.dict-skin-light .dict-tools-btn[aria-expanded="true"] { border-color: var(--accent); background: rgba(114, 55, 255, 0.08); color: var(--accent); }
+.dict-skin-light .dict-panel { border-color: var(--bsd-line); border-radius: 14px; background: #fafaf9; }
+.dict-skin-light .dict-field-label { color: var(--bsd-faint); }
+.dict-skin-light .dict-input,
+.dict-skin-light .dict-select-btn { border-color: var(--border); background: #ffffff; color: var(--text); }
+.dict-skin-light .dict-input::placeholder { color: #9aa1ac; }
+.dict-skin-light .dict-menu { border-color: var(--border); background: #ffffff; box-shadow: 0 8px 24px -8px rgba(10, 14, 24, 0.18); }
+.dict-skin-light .dict-menu-option:hover { background: rgba(114, 55, 255, 0.05); }
+.dict-skin-light .dict-menu-count,
+.dict-skin-light .dict-menu-foot { color: var(--bsd-faint); }
+.dict-skin-light .dict-menu-foot { border-top-color: var(--bsd-hairline); }
+.dict-skin-light .dict-pill-btn--quiet { background: #ffffff; border-color: var(--border); color: var(--bsd-ink-2); font-weight: 600; }
+.dict-skin-light .dict-gum-note { color: var(--bsd-ink-2); }
+.dict-skin-light .dict-find-row { margin-top: 14px; }
+.dict-skin-light .dict-create-btn { background: #ffffff; border-color: var(--border); color: var(--bsd-navy); }
+.dict-skin-light .dict-create-btn:hover { border-color: var(--accent); color: var(--accent); }
+.dict-skin-light .dict-find-item { border-color: var(--bsd-line); background: #ffffff; }
+.dict-skin-light .dict-add-btn { color: #ffffff; }
+.dict-skin-light .dict-list > li + li { border-top-color: var(--bsd-hairline); }
+.dict-skin-light .dict-row { color: var(--text); }
+.dict-skin-light .dict-row:hover { background: #fafaf9; color: var(--text); }
+.dict-skin-light .dict-row--shared { background: linear-gradient(90deg, rgba(19, 210, 229, 0.07), rgba(114, 55, 255, 0.03) 60%, #ffffff); }
+.dict-skin-light .dict-row--shared:hover { background: linear-gradient(90deg, rgba(19, 210, 229, 0.11), rgba(114, 55, 255, 0.05) 60%, #fafaf9); }
+.dict-skin-light .dict-row-desc { color: var(--bsd-ink-2); }
+.dict-skin-light .dict-row-by { color: var(--bsd-faint); font-size: 11px; }
+.dict-skin-light .dict-row-gum,
+.dict-skin-light .dict-mono,
+.dict-skin-light .dict-json { font-family: var(--bsd-mono); }
+.dict-skin-light .dict-empty { color: #9aa1ac; }
+.dict-skin-light .dict-badge--added { background: var(--accent); color: #ffffff; }
+.dict-skin-light .dict-badge--vetoed { background: #fde8e7; color: #b42318; }
+.dict-skin-light .error { color: #b42318; background: #fef2f2; border-color: rgba(220, 38, 38, 0.3); border-radius: 10px; }
+/* Entry page */
+.dict-skin-light .dict-back { margin-bottom: 10px; color: var(--text-muted); }
+.dict-skin-light .dict-back:hover { color: var(--text); }
+.dict-skin-light h1.dict-entry-title { margin: 10px 0 0; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.dict-skin-light .dict-entry-sub { color: var(--bsd-faint); }
+.dict-skin-light .dict-entry-sub + .dict-lede { margin-top: 14px; max-width: 620px; font-size: 16px; color: var(--bsd-ink-2); text-wrap: pretty; }
+.dict-skin-light .dict-entry-actions { margin-top: 16px; }
+.dict-skin-light .dict-notice { border-color: rgba(217, 119, 6, 0.35); background: #fffbeb; color: #78350f; }
+.dict-skin-light .dict-entry-card { padding: 16px 18px; }
+.dict-skin-light .dict-entry-actions + .dict-entry-card,
+.dict-skin-light .dict-notice + .dict-entry-card { margin-top: 22px; }
+.dict-skin-light .dict-chip { border-color: var(--bsd-line); background: #fafaf9; color: var(--text-primary); }
+.dict-skin-light .dict-json { border-color: #151c2a; background: #151c2a; color: #e2e8f0; }
+
+@media (max-width: 680px) {
+  .bsd-nav-inner { padding: 10px 12px; gap: 8px; }
+}
+@media (max-width: 600px) {
+  .bsd-main { padding: 28px 16px 96px; }
+  .bsd-title,
+  .dict-skin-light h1.dict-entry-title { font-size: 28px; }
+}
+@media (max-width: 400px) {
+  .bsd-logo img { height: 21px; }
+}

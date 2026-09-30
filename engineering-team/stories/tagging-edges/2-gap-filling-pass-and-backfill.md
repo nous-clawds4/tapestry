@@ -386,7 +386,8 @@ For Test Design:
   AC-8's clause that social relationships and scores do not move. The live sandbox's SL15 covers it: a scored fixture
   person with a `FOLLOWS` keeps its labels, properties and `FOLLOWS` after creates and moves that `planPass` plans and
   the pass's own port writes to the real Neo4j (green at review, test plan § Verification).
-- **Staging backfill:** not yet run; OPERATIONS §12.8 "Measured durations" holds its line.
+- **Staging backfill** (Open question 7), run on 2026-09-28 after the staging deploy (PR #780); figures from staging's public `GET /api/tagging-edges/status`, read at 13:29Z. Pass `20260928T130902Z-13cedd2f`: `done` in 11,149 ms (write-creates 7,285 ms over 29 batches; relay read 3,024 ms, 10,404 events). Added 7,023 = `taggingsRead` 7,023 − `refused.total` 0; `peopleAdded` 5,837; `unresolved` 6, as the census found; nothing held. Beside it at 13:29Z: the relay held 7,023 taggings carrying either stamp (`GET /api/strfry/scan/count`), and the graph 7,023 `TAGS` at 7,023 distinct addresses (read-only Cypher). The second pass straight after has not been run yet. Durations and margins: OPERATIONS §12.8 "Measured durations".
+- **Production backfill:** not yet run (its status route showed no report at 13:29Z).
 
 ## Linked artifacts
 

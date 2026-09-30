@@ -1,11 +1,56 @@
 # Handoff — Tagging edges, stories 2–4 (Tapestry)
 
-**Status:** 🔴 OPEN: story 3 (the real-time path, ADR `tagging-edges/0003`) is implemented with the ADR's Amendment A1 (revokes by event id and the lineage, owner-accepted on 2026-09-29) and is in review (round 1 asked for changes; the ADR's A1 clarifications 20–25 and the round-1 fixes wait for round 2); it is not yet shipped. Story 4 is not started. Story 2 (the gap-filling pass, ADR `tagging-edges/0002`) shipped to production on 2026-09-28 (PRs #780 and #781). Story 1, the `TAGS` edge contract, has been in production since 2026-09-27 (PRs #764 and #765).
+**Status:** 🔴 OPEN: stories 1–3 are in production; story 4 (the control panel) is not started. Story 3, the real-time path (ADR `tagging-edges/0003` with Amendment A1), shipped on 2026-09-30 (PRs #785 and #786), switched off on both hosts until the owner turns it on. Story 2, the gap-filling pass, shipped on 2026-09-28 (PRs #780 and #781). Story 1, the `TAGS` edge contract, on 2026-09-27 (PRs #764 and #765). § 0 lists what is left.
 
 > **Repo metadata. Not part of the handoff text.**
 > - **Source.** The kickoff session of 2026-09-25 to 27 mapped the existing FOLLOWS / MUTES / REPORTS ETL read-only: seven area readers, an adversarial fact-check of 115 load-bearing claims (98 confirmed, 15 corrected, 2 unverifiable), and a completeness critique. It then took a read-only census of production, staging and tags.brainstorm.world, and shipped story 1. This file keeps that map, which otherwise lived only in the session.
 > - **Line numbers** were read at `origin/staging` `72469bde`; a docs-lane review checked every claim at `bb5db99a` (`engineering-team/reviews/tagging-edges/handoff-doc-2026-09-27.md`). Prefer the function names if lines have drifted.
 > - **When the book closes** (stories 2–4 done), flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
+
+---
+
+## 0. Where things stand, and what is next (2026-09-30)
+
+**Shipped.** Stories 1–3 run on staging and production.
+- The real-time path is installed but **off** on both hosts. Its public status answers `state: "off"`
+  (`GET /api/tagging-edges/realtime/status`).
+- Staging's backfill ran on 2026-09-28 (pass `20260928T130902Z-13cedd2f`; story 2 § Evidence).
+- Production's backfill has not run.
+
+**The owner's steps, staging first** (OPERATIONS §12.9, "The order on staging and production"):
+1. The backfill: done on staging.
+2. Add and enable the daily `reconcileTaggingEdges` entry in Scheduled Tasks. Existing hosts have none.
+3. Turn the real-time path on with the signed-in switch snippet (§12.9).
+4. Run one more pass.
+
+The status route then shows the first start and live counts. That, and a later pass that reports nothing it cannot
+explain, is story 3's staging evidence (story 3, open question 14). Production follows the same order, starting with
+its backfill (§12.8).
+
+**Open decision for the owner: C7.** It comes from story 3's review, round 3
+(`engineering-team/reviews/tagging-edges/3-real-time-path.md`). ADR 0003 § Failure handling's bullet on journal appends
+that keep failing (a full disk, say) files the loss under owner decision 5's crash corner, which is ratified as
+"≤ 250 ms before a crash". During such a spell, a crash or an off loses every line not yet written. The owner accepts
+that widening or asks for a bound, and the Architect then rewords the bullet.
+
+**Carry-forwards C1–C9** (same review, "Re-review, round 3"). They go in story 4's docs tasks or in ledger rows:
+- precision points in the strfry id re-use text;
+- clarification 26's readings, and two halves of it with no test;
+- SL19, the relay smoke test, never run (it needs the container);
+- a test-hygiene item.
+
+**Story 4, next** (the epic's entry): the control panel, owner only. It covers status, counts, relay-vs-graph drift,
+gap-fill on demand, and a page on story 3's on/off control. It reads story 2's `GET /api/tagging-edges/status` and
+`/held`, and story 3's `GET /api/tagging-edges/realtime/status`. It posts to the owner routes
+`POST /api/tagging-edges/confirm-held-removals` and `POST /api/tagging-edges/realtime/switch`. Start it with
+`/plan-feature` from `engineering-team/epics/tagging-edges.md`.
+
+**Ledger rows story 3 opened:**
+- `2026-09-28-pass-relay-read-byte-cap`;
+- `2026-09-29-strfry-delete-hides-next-write`;
+- `2026-09-29-newest-entry-doc-tests-go-stale`;
+- `2026-09-29-test-plan-misses-injected-seams`;
+- `2026-09-29-realtime-engine-round-split`.
 
 ---
 

@@ -100,7 +100,22 @@ function BTarget({ value, type, coord }) {
   return <code className="dict-mono">{value}</code>;
 }
 
+/** The Tapestry control panel's entry page: the app's breadcrumbs over the shared entry. */
 export default function DictionaryConceptEntry() {
+  return (
+    <div className="page dict-page">
+      <Breadcrumbs />
+      <ConceptEntryBody />
+    </div>
+  );
+}
+
+/**
+ * The entry itself, from the back link down. Both Dictionary entry pages render it: this one and
+ * the Brainstorm-styled /dictionary/:coord (pages/dictionary/Entry.jsx), which passes its own list
+ * as the back link.
+ */
+export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabel = 'Concepts' }) {
   const { coord: rawCoord } = useParams();
   const coord = decodeURIComponent(rawCoord || '');
   const location = useLocation();
@@ -128,9 +143,8 @@ export default function DictionaryConceptEntry() {
   const whose = person.signedIn ? 'your' : 'the owner’s';
 
   return (
-    <div className="page dict-page">
-      <Breadcrumbs />
-      <Link to={CONCEPTS_DICTIONARY_PATH} className="dict-back"><DictIcon name="back" /> Concepts</Link>
+    <>
+      <Link to={listHref} className="dict-back"><DictIcon name="back" /> {listLabel}</Link>
 
       <div className="dict-entry-badges">
         {entry?.isFirmware && <span className="dict-pill dict-pill--firmware">Firmware</span>}
@@ -226,6 +240,6 @@ export default function DictionaryConceptEntry() {
           <Link to={`/tapestry/shared-concepts/header/${encodeURIComponent(coord)}`}>Raw header event →</Link>
         </p>
       </div>
-    </div>
+    </>
   );
 }
