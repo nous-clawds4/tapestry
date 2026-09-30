@@ -1,5 +1,8 @@
 # Review: Story 3 — The real-time path
 
+**Verdict:** **PASS** (after re-review; see "Re-review, round 3" at the bottom. Rounds 1 and 2 asked for changes;
+every blocking item is fixed, and ten non-blocking points are carried forward.)
+
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-09-29
 **Diff:** `git diff 891abe11...HEAD` (HEAD `bbbb6a24`; commits `50681e6b` story, `5ccb7aba` ADR, `cc57f22e` tests,
@@ -372,3 +375,91 @@ the Architect adopted, and it was checked against strfry 1.1.0's source in the c
 defects (R2-2 and R2-3) and carried a false mechanism statement into the ADR and the upstream-bound ledger row
 (R2-1). R2-1 is round 1's own suggestion, which is exactly what reviewer.md step 10 exists to catch. All three fixes
 are small.
+
+## Re-review, round 3 (2026-09-30)
+
+**Diff:** `git diff 3e3d9870..38131061`, without the review's own commit `ea227cec`. It covers:
+- `799bd9f6` and `747752b8`: ADR 0003 clarification 24 rewritten, clarification 26 added, clarification 20's wording,
+  two § Failure handling bullets, and the redactor's gaps beside New debt;
+- `00523448`: tests (RX24 split, RX26–RX28, RE82, RP97, SS41, stale texts);
+- `38131061`: fixes and docs.
+
+The method was round 2's. Every round-2 fix was re-derived as a fresh claim, including the wording round 2 itself
+suggested. Every universal, count and citation in the strfry text was checked against strfry 1.1.0's source in the
+container (commit `f31a1b9`).
+
+### Quality gates
+
+- [x] `npm test` (Node 22.23.3, clean committed tree): `20260930T004706Z-57038-50d9 [review3-tagging-edges-3]
+  started 2026-09-30T00:47:06.426Z on 38131061 — FAIL, exit 1, 4521 passed, 30 failed, 168 skipped, 243/243 suites`.
+  - The 12 failing suites and 30 failures are identical by name to rounds 1 and 2.
+  - The four suite differences are this round's six new tests: strfry-scan-strict 41, plan 94, engine 82,
+    resilience 28. No regression.
+- [x] Opt-in property campaign: 36 passed, 0 failed, 0 skipped.
+- [x] Live suite, read-only: 9 passed, 0 failed, 10 skipped, as before.
+
+### Round 2's asks
+
+| Round 2 item | Status | Evidence |
+|---|---|---|
+| R2-1 (strfry mechanism) | **Fixed in substance** | The three errors round 2 blocked on are gone: "every subscription", "exactly K", and "a wipe deafens until reconnect". Every cite checks out: `main.h.tt:156-158`, `modify.h.tt:155`, `events.cpp:368-387`, `RelayCron.cpp:22,31`, `cmd_delete.cpp:45-76`, `RelayReqMonitor.cpp:10,21-27,41-43,50-58`, `ActiveMonitors.h:93-98,167-195`, and the debounce in `file_change_monitor.h:108`. Four precision points remain (C1–C4). |
+| R2-2 (backoff) | **Fixed** | The failure count resets only at a completed catch-up. RX26 was red at `00523448` (a flat 5.0 s) and passes now with 5, 10, 20, 40, 60, 60 s. The reviewers' own mutants are caught. |
+| R2-3 (refusal parks) | **Fixed** | `bringsNew` lifts a refusal park for a new version or revoke. RX24(b) and RX28 were red at `00523448` and pass now; RX24(a) (merge) passes. Two readings remain for the owner's record (C5), and two halves are unpinned (C6). |
+| R2-NB1–NB4, NB6–NB9 | **Fixed** | Clarification 20's wording; RX27 for the `attempted()` branch and the `unexpected` accounting; SS41 for the 4 KB cut; the redactor's gaps beside New debt; the staging-backfill pointer in § Deviations; the heap range; RP97; the stale texts; RE82. |
+| R2-NB5 (§ Failure handling) | **Partly fixed** | Both bullets were added. The first-start bullet checks out. The journal bullet is not accurate (C7). |
+
+### Carry-forwards (non-blocking; for the owner to place in story 4's docs tasks or a ledger row)
+
+1. **C1: strfry's mark is per index key, not per subscription.** This concerns clarification 24's "Who misses" bullet
+   (ADR 0003:2292), the ledger row (:36-40, :54-56), OPERATIONS:843 and § Evidence. strfry keeps the mark per
+   (filter, index-key value) and checks only the keys the write itself carries (`ActiveMonitors.h:93-98, :167-195`).
+   So a write is skipped at or below the last event sent to that subscription, the last event with *the same*
+   index key as the write, or the relay's newest event when it subscribed.
+2. **C2: `ledger/2026-09-29-strfry-delete-hides-next-write.md:44`.** The clause "the thread never sees the largest id
+   fall" is false when a delete freed more ids than the writes before the next wake re-use. The real reason: the
+   thread lowers its cursor only to the largest id present when it wakes, which already includes the write.
+3. **C3: the debounce condition.** Clarification 24's debounce bullet and § Evidence :718-719 say "within 100 ms".
+   The exact condition is the ledger's "stored after the delete and before the monitor thread next wakes (normally
+   within about 100 ms of the first change)". All three wakes (a REQ, a CLOSE, a closed connection) should be listed,
+   and a wake spares only the subscriptions on that thread.
+4. **C4: "at least one per event deleted"** in OPERATIONS:843 and § Evidence :715-716 should say "per *newest* event
+   deleted", as the ADR and the ledger do. Test plan :143 should take clarification 24's wipe wording.
+5. **C5: clarification 26's readings.**
+   - `bringsNew` (`index.js:250`) reads "a revoke the parked entry does not already hold" by effect: a revoke for the
+     same (by, target) with a created_at no later is held. So a second, back-dated kind-5 found by a catch-up waits
+     for the timer, though live it would lift the park at once. The Architect should state the effect reading in
+     clarification 26.
+   - "The same refused version, found again … costs no write" (ADR:2317; OPERATIONS:842; the comment at
+     `index.js:1074-1076`) fails when the parked entry lacks that version's id. The cost is bounded: one extra retry
+     per park episode. Record the refused id on the park, or reword the three places.
+6. **C6: two halves of clarification 26 are unpinned.** A refused removal's kind-5, found again at a safety diff,
+   should merge. A version arriving at a park for a refused removal should lift it. The Tester adds both.
+7. **C7: the § Failure handling journal bullet (ADR 0003:622), for the owner.** It says the status shows `lastError`
+   `journal`, but on a full disk `status.json` cannot be written either; OPERATIONS:845 correctly says the status goes
+   stale. It files the loss under decision 5's second corner, which the owner ratified as ≤ 250 ms before a crash, yet
+   the loss window here is the whole failing spell. And an off meanwhile also loses the unwritten lines. **This widens
+   an owner-ratified corner without ratification**, so the owner should acknowledge the widening or ask for a bound.
+   The Architect then rewords the bullet.
+8. **C8: SL19 has never run.** The relay smoke test skips from the host, because the relay answers only inside the
+   container. Both local end-to-end runs used the real subscription and filters against the real relay (EOSE and
+   deliveries), which is evidence for the same claim. Run SL19 once inside the container, or retire it in favour of
+   the end-to-end evidence.
+9. **C9: harness friction.** In one Node process, SS36 fails after the routes suite has loaded, because its
+   `forget()` list lacks `src/lib/strfryScanStrict.js` (first seen at Implementation). The registry's order avoids it
+   in the real gate. The Tester adds the file to the routes suite's FORGET list.
+
+### Verdict (round 3)
+
+**PASS**
+
+Every blocking item from rounds 1 and 2 is fixed and pinned by tests that were red before their fix. The gate shows
+no regression across three runs. The carry-forwards are precision points in prose, two unpinned halves of a
+clarification, and one owner acknowledgement (C7). None changes what the path does to the graph beyond what the
+ratified ADR allows, and none is a data-loss or security risk.
+
+## On PASS (same commit)
+
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection: book `tagging-edges` is not complete. Its acceptance frame still needs story 4, the
+  front end to manage the pipeline. No `/close-book` offer.
+

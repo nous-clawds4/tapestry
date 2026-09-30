@@ -1,6 +1,6 @@
 # Story 3: The real-time path
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-28
 **Type:** Feature
 
