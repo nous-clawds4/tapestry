@@ -1073,11 +1073,18 @@ function makeEngine(deps) {
       if (p) {
         // A1 clarification 26: at a database-refusal park, work carrying a version id or a revoke the parked entry
         // does not already hold is a new event at the address, so it lifts the park at once (§ Failure handling), as a
-        // live one does. Work that brings nothing new merges into the parked entry, which keeps its schedule (5 min,
-        // 30 min, then every 6 h, a start, a new event there, or the next successful write): a parked version never
-        // enters S, so every catch-up, the safety diff included, finds it again, and lifting for it would retry each
-        // refused address every 10 minutes. A time-out park merges either way; its timer, a start, or a live event
-        // there lifts it (A1 clarifications 12 and 21).
+        // live one does. "Does not already hold" is read by effect (bringsNew): a revoke for a (by, target) the entry
+        // keeps one for at least as late is held, so such a kind-5 found here waits, though live it lifts the park.
+        // Work that brings nothing new merges into the parked entry, which keeps its schedule (5 min, 30 min, then
+        // every 6 h, a start, a new event there, or the next successful write): a parked version never enters S, so
+        // every catch-up, the safety diff included, finds it again. When the entry holds that version's id, finding
+        // it again merges. When it does not (the park came from a revoke, a look or another version's prompt), the
+        // first catch-up that finds it lifts the park; refused again with the park's own code, the address re-parks
+        // one level higher, not counted again, with the id now held, so it costs one write attempt per park. Two
+        // exceptions: a refusal with another code is retried after 5 s and parks, counted, on the second; and T29's
+        // systemic case (two or more refused rows, one code, none landed) backs off 5→60 s until it no longer holds.
+        // A time-out park merges either way; its timer, a start, or a live event there lifts it
+        // (A1 clarifications 12 and 21).
         if (p.code === TIMEOUT_PARK || !bringsNew(p.entry, entry)) {
           p.entry = mergeEntry(p.entry, entry);
           continue;

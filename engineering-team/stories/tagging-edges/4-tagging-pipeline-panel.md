@@ -279,7 +279,97 @@ None. The Product Owner's four proposals were ratified by the owner at Planning 
 
 ## Evidence
 
-*(Filled in at Implementation and after the merge.)*
+### The gate (Implementation, 2026-09-30)
+
+Node 22.23.3, full `npm test`, read from the run records (`gate:status`). Suite by suite against the baseline:
+
+| Run | Tree | Passed | Failed | Skipped | Suites |
+|---|---|---|---|---|---|
+| Baseline | `88af7df3` | 4,533 | 33 | 177 | 244 |
+| Red | the failing tests (`e6f124ea`'s tree) | 4,558 | 201 | 177 | 250 |
+| Green | the implementation | 4,726 | 33 | 177 | 250 |
+
+- **All six new suites pass in full:** strfry-count-strict 23, tagging-edges-drift-route 27, tagging-pipeline-view 58,
+  tagging-pipeline-codes 39, tagging-pipeline-fetch 19 and tagging-pipeline-panel-source 25.
+- **tagging-edges-realtime-resilience** passes 30, RX29 and RX30 included.
+- **No other suite changed.** The 13 failing suites are the same live-stack suites in all three runs.
+- **The browser spec** passes 44 of 44 (B0–B40, B36a–d) against the panel built inside the container into the
+  gitignored `tmp/`, served on the host, with Node 22 and Chromium.
+
+### The local stack (2026-09-30)
+
+The backend was restarted at 22:17:11Z (`scripts/dev-refresh.sh`) and the UI rebuilt.
+
+- **`GET /api/tagging-edges/drift-counts`.**
+  - Signed out, it answered 401 `Not authenticated`.
+  - Signed in as the local owner, it answered 200: relay 7,030 (37 ms), graph 7,030 (6 ms), `stamps` `82b75e47` /
+    `8387ec0e`. Those match `GET /api/strfry/scan/count` over both stamps (7,030) and a read-only
+    `MATCH ()-[r:TAGS]->() RETURN count(r)` (7,030).
+  - With a foreign `Origin` it answered 403 `cross-site request refused`; with its own origin, 200.
+  - Two concurrent requests joined one count: the same `takenAt`.
+- **The panel**, opened in the built-in browser with the signed-in-UI stub (no key in the pane).
+  - The sub-tab "Tagging pipeline" sits directly after ⚡ Streaming ETL.
+  - The five sections drew from the local stack's real status, path and schedule reads:
+    - the latest pass `done` and two earlier ones;
+    - no held removals;
+    - the "no backstop" warning, since this instance has only the disabled seed entry;
+    - the path off, with its last figures, counts, gauges, last catch-up and last error, each explained.
+  - Drift showed `http-401` and "unknown", because the pane has no session. Fed the owner's answer above, it read 7,030
+    and 7,030, difference 0, explained 0 by pass `20260928T032501Z-472c2596`, and unexplained 0.
+
+After the merge: the owner and an admin view the panel on staging, and a drift count there is compared with direct
+counts (test plan § Test infrastructure).
+
+## Deviations
+
+Small judgement calls made at Implementation (2026-09-30), too small for an ADR amendment.
+
+- **View module (`ui/src/utils/taggingPipelineView.js`).**
+  - **Where the tones sit.** A `tone` (`ok` | `warn` | `bad` | `neutral`) is on `passView`, its `confirmation`,
+    `pathView`, `scheduleView` and `driftView`. None is on `explain` or the gauges.
+  - **How each tone is chosen:**
+    - the pass: `done` is ok, `done-removals-held` is warn, `refused` and `failed` are bad;
+    - the path: bad when on but not running, when its status is unreadable, or when stopped; warn when stale or
+      waiting; ok when live;
+    - the schedule: ok only for one scheduled entry that runs at least daily;
+    - drift: ok only when unexplained is 0.
+  - **A setup problem of an unknown kind** is keyed `<kind>:<problem>`, and shown as not recognised rather than hidden.
+  - **Malformed values.** A non-object `confirmationPending` reads as unreadable. A count marked known with no finite
+    number reads as unknown, never 0. A missing figure on a started path is `null` (not yet available).
+  - **Plain names and remedies.** Sentences name the database rules in plain words ("the one-per-tagging rule"). Their
+    remedies come from OPERATIONS §12.8–§12.9.
+- **`readSection`** also takes no options, or `null` options.
+- **`countStrict`.**
+  - It rejects `unparseable` once stdout passes 64 characters (no well-formed count is longer than 17), so a runaway
+    stdout is never held in memory.
+  - Its messages say `strfry scan --count`.
+- **The drift route.**
+  - A throw as a count starts answers 500 with an allow-listed code. A throw while a count settles becomes an unknown
+    count. Either way the request never hangs.
+  - To give the canonical prefix after a local refusal (T11), it wraps the identity getters without calling any of
+    them twice. It repeats `identities.js`'s private `CANONICAL_Z_RE`, which is worth exporting in a later clean-up.
+- **The panel.**
+  - **Files.** Seven files in `taggingPipeline/`: the panel, shared `parts.jsx`, and one per section.
+  - **Layout.** Earlier passes and held entries are table rows. Each distinct code's explanation is given once below
+    its table.
+  - **What the latest pass also shows:** its own `reason` text, its failure stage and read, and what became of the
+    owner's confirmation. The path also shows the catch-up under way and the pre-image file.
+  - **Explaining odd values.**
+    - An unreadable confirmation's code is explained under `countCode`.
+    - A held list naming a newer run that the status re-read does not confirm is a failure, with code `bad-json`, and
+      is not retried forever.
+    - A schedule answer with no list is a failed read, with code `bad-json`.
+  - **The held section with no pass report.** While there is no good pass report, it stays `loading`, and says so when
+    that report failed.
+  - **Drift** waits until the status and path reads have each answered once.
+  - **When the path is on but not running,** its last stored state is not shown at all.
+  - **Figures** sit in plain tables with the browser's default styling, which avoids a long stacked list without
+    adding a class or a length.
+- **Docs.**
+  - The panel and drift-counts paragraphs sit in OPERATIONS §12.8, and §12.9 points back to them.
+  - BIBLE §11's drift-counts row sits in the gap-filling pass's table.
+  - The handoff's Status line and a "Story 5, after it" paragraph were updated so they do not contradict § 0.
+  - The ledger row's § Impact took the C1 and C3 corrections too.
 
 ## Linked artifacts
 

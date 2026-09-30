@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AddOrEditEntryModal from './scheduledTasks/AddOrEditEntryModal.jsx';
 import { validateTagLetter, parseTagValues, mergeTagFilter, tagFiltersFromFilter, applyTagFilters } from '../../utils/tagFilterValidation';
 import { formatTimeToFire, deriveNextTaskLine } from '../../utils/nextTaskCountdown';
+import TaggingPipelinePanel from './taggingPipeline/TaggingPipelinePanel.jsx';
 
 const RELAY_GROUPS = [
   { key: 'aProfileRelays', label: 'Profile Relays', hint: 'Kind 0 profiles (purplepag.es, etc.)', restart: false },
@@ -2060,6 +2061,7 @@ const RELAY_TABS = [
   { key: 'sync', label: '🔃 Negentropy Sync' },
   { key: 'config', label: '📡 Relay Configuration' },
   { key: 'etl', label: '⚡ Streaming ETL' },
+  { key: 'tagging', label: 'Tagging pipeline' },
   { key: 'schedule', label: '📅 Scheduled Tasks' },
 ];
 
@@ -2111,6 +2113,8 @@ export default function RelaySettings({ settings, defaults, overrides, onSave, o
       )}
 
       {activeTab === 'etl' && <StreamingETLPanel />}
+
+      {activeTab === 'tagging' && <TaggingPipelinePanel onOpenTab={setActiveTab} />}
 
       {activeTab === 'schedule' && <ScheduledTasksPanel />}
     </>
