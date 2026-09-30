@@ -183,6 +183,6 @@ The owner's answers, 2026-09-30:
 3. **Build all three stories, then ship once.** The blueprint's words stay as they are (§ Copy).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
