@@ -193,6 +193,12 @@ Small judgment calls made in Implementation (2026-09-30):
 - **The loading line is announced as a status and the error line as an alert** (`role="status"`, `role="alert"`).
   That's for screen readers; nothing on screen changes.
 - **`NOSTR_USER_TAG_Z_TAG` needed no export.** It was already exported (the ADR's dated correction).
+- **The handler takes a third injectable dependency, `zTag`** (`src/api/assistant/myAssistants.js:40`), beside the
+  ADR's `getAssistantPubkeyFor` and `scan`. It returns profile-tags' `NOSTR_USER_TAG_Z_TAG`, lazily like the other
+  two, so the module loads without requiring profile-tags up front. Tests don't override it. Noted by review 1
+  (non-blocking).
+- **After review 1:** a name field counts only when it's non-blank text (`textOf`, which URL and NIP-05 use too), and
+  the avatar letter is a whole character (`Array.from`). Both fixes are pinned by C10, C11 and A12.
 - **Found in passing:** the existing `/dictionary` browser test D6 is flaky on `staging` itself (7 of 10 runs
   failed without this change). Logged as OPEN.md row `2026-09-30-dictionary-d6-reads-before-request`, not fixed here.
 

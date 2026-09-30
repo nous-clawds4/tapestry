@@ -48,9 +48,13 @@ export function npubShort(pubkey) {
   return `${npub.slice(0, 12)}…${npub.slice(-6)}`;
 }
 
-/** A trimmed profile value, or — when it is missing, empty or blank. */
-function valueOr(v) {
-  return typeof v === 'string' && v.trim() ? v.trim() : '—';
+/**
+ * A profile field as text: trimmed, or null when it is missing, blank or not a string. A kind 0 is arbitrary JSON, so a
+ * name can arrive as a number or an array; such a field is skipped rather than shown, and never throws (review 1 of
+ * my-assistants #1).
+ */
+function textOf(v) {
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
 /** "0 Assistants", "1 Assistant", "N Assistants". */
@@ -69,16 +73,16 @@ export function buildRows({ rows, profiles }) {
     const found = profiles ? profiles[row.pubkey] : null;
     const profile = found && found !== PROFILE_LOOKUP_FAILED ? found : {};
     const short = npubShort(row.pubkey);
-    const name = profile.display_name || profile.name || short;
+    const name = textOf(profile.display_name) || textOf(profile.name) || short;
     const tags = Array.isArray(row.tags) ? row.tags : [];
     const local = row.local === true;
     return {
       pubkey: row.pubkey,
       name,
-      initial: name.slice(0, 1),
+      initial: Array.from(name)[0], // a whole character, so a name that starts with an emoji keeps it whole
       npubShort: short,
-      url: valueOr(profile.website),
-      nip05: valueOr(profile.nip05),
+      url: textOf(profile.website) || '—',
+      nip05: textOf(profile.nip05) || '—',
       local,
       untagged: local && tags.length === 0,
       tags,
