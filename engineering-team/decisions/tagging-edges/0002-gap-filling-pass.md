@@ -4,6 +4,8 @@
 **Date:** 2026-09-27
 **Story:** `engineering-team/stories/tagging-edges/2-gap-filling-pass-and-backfill.md`
 **Amends:** `tagging-edges/0001` (see "Amendments to ADR 0001")
+**Amended (2026-09-28):** by `tagging-edges/0003` — the binding for story 3 (items 2–4), the R2-NB3 limit, the
+residuals, owner decision 2, the pre-image line, `scanStrict`'s contract, C16, and a new clarification C20.
 
 ## Context
 
@@ -356,7 +358,9 @@ since been replaced cannot be re-derived from the relay (BIBLE §30: precious).
 Every update, move and removal runs in one `executeWrite` transaction per batch of at most 250 addresses:
 
 1. **Pre-image**, before the transaction opens: for each row whose snapshot carries a key outside the nine, append
-   one line `{ runId, address, rid, fromPubkey, toPubkey, props: [[key, type, value], …] }` to
+   one line `{ runId, address, rid, fromPubkey, toPubkey, props: [[key, type, value], …] }` *(amended by
+   `tagging-edges/0003`: the line gains `writer`, `'pass'` or `'realtime'`; the real-time path writes under a
+   per-process session id in `RUN_ID_RE`'s grammar)* to
    `<stateDir>/preimages/<runId>.jsonl` (`value`: the snapshot's text for a scalar, its canonical serialisation
    otherwise) and fsync it before the transaction starts. If the append fails, the run fails with `stage: 'write'`
    before that batch. The file is served by no route, never capped, and pruned only by owner action; a lost race
@@ -395,7 +399,10 @@ then finds version 2 in the graph (written meanwhile by story 3), would verify a
 back. The Tester pins the order with a call-order test: the graph read resolves before the scan starts.
 
 **Residuals, accepted.** Each needs a tagging changed and revoked inside one pass's read-to-write window; the next
-pass corrects it, and a removal it makes counts toward that pass's limit.
+pass corrects it, and a removal it makes counts toward that pass's limit. *(Amended by `tagging-edges/0003`.)* Story 3
+re-looks every address it looked at during an overlapping pass once that pass ends, and runs one catch-up then, so
+both interleavings are repaired within about a minute of the pass ending, with or without a schedule. They remain as
+transient windows (story 3 AC-5).
 
 1. *In place.* The relay goes v1 → v2 → (v2 revoked by id) → v1 re-sent, and story 3 rewrites the relationship in
    place to exactly v1's state: the pass's verify passes and it writes v2.
@@ -413,8 +420,10 @@ decision 11). Story 3 may close both another way (binding 4).
 
 **Binding (R2-NB3):** a relationship at a tagging address is removed when the relay holds nothing at its address, or
 holds a version there the definition refuses — only while it still holds the version the decision was made from,
-and subject to the limit. A relationship stays while the relay holds an accepted version at its address, even when a
-deletion names it.
+and subject to the limit *(amended by `tagging-edges/0003`: the gap-filling pass's limit; the real-time path's
+removals have no count limit, story 3's settled decision 4, and each answers a revoke by the tagging's author, or,
+for a refused version, a version stored at the address, and a later successful relay read)*. A relationship stays
+while the relay holds an accepted version at its address, even when a deletion names it.
 
 The planner computes every action before anything is applied. `base` is the number of start-snapshot relationships
 at tagging addresses — the ones a pass may remove; those left in place under AC-3 are not counted, and the report
@@ -467,10 +476,13 @@ The pass **claims** the record at runner step 7 — after its identity, config a
 lock — by `rename(confirmation.json → claimed/<runId>-<nonce>.json)`, atomic, so one claimant. It honours the claim
 only if the most recent earlier report whose `phases` include `graph-read` has that `runId` and is `done-removals-held`,
 the held file still hashes to `heldDigest`, and the record has not expired. Otherwise it runs unconfirmed and records
-`confirmation: { found: true, honoured: false, why }`. A refused start never reaches the claim and changes nothing
-(AC-4), so it neither spends nor invalidates a pending confirmation. A claim is spent whatever happens after it: a
-run that then fails or is stopped has used it, and the owner confirms the next held report (owner decision 7). A
-BullMQ stalled re-run after a deploy finds no record and holds again (fail-safe).
+`confirmation: { found: true, honoured: false, why }`. A refused start never reaches the claim and changes no
+relationship or person (AC-4), so it neither spends nor invalidates a pending confirmation. *(Wording amended by
+`tagging-edges/0003`, story 3 CF-2: this said "changes nothing". A `schema` refusal can leave in place the
+`tags_address` rule the pass's own pre-flight created, when the rule did not come ONLINE in time; OPERATIONS §12.8.)*
+A claim is spent whatever happens after it: a run that then fails or is stopped has used it, and the owner confirms
+the next held report (owner decision 7). A BullMQ stalled re-run after a deploy finds no record and holds again
+(fail-safe).
 
 No other channel exists. The registry entry declares `"arguments": false` and `"staticArgs": ""`, so
 `buildChildArgs` returns `[]`; the pass reads no confirmation from argv, env, job data or schedule args. A
@@ -548,9 +560,13 @@ config value or credential appears, and no absolute path that starts a word: for
 `failure.message` carries `err.code` and the state-relative file name, never `err.message`; a Neo4j connection error
 (`ServiceUnavailable`, `SessionExpired`) carries fixed text; every other error text, strfry's `stderrTail` included,
 passes one redactor that replaces any URI, any absolute path that starts a word (a `/` at the start or after
-whitespace, a quote, `[`, `(` or `=`) and any IPv4 `host:port`, and cuts every 64-hex run to 8 characters. *(Amended
+whitespace, a quote, `[`, `(` or `=`) and any `host:port` (an IPv4 address; a letter-led name, single-label or dotted,
+with a port of 2–5 digits; or a bracketed IPv6 address), and cuts every 64-hex run to 8 characters. *(Amended
 in review round 3, 2026-09-28: this said "any … absolute path". A path after any other character, such as
 `file:/…`, `,/…` or `{/…`, passes unchanged; the re-review found no source the pass reads that prints one.)*
+*(Amended by `tagging-edges/0003`, owner decision 6, story 3 CF-3: the host rule covered IPv4 only, so
+`neo4j.internal:7687` or `[::1]:7687` passed unchanged under an error code outside the two connection codes. The
+widened rule may also cut a benign `word:NN`, such as a tagging address whose `d` starts with 2–5 digits.)*
 
 The held route never builds a path from request input. Express URL-decodes query values and every unauthenticated
 GET reaches the handler (`src/middleware/auth.js:505`), so: `runId` is optional; when given, it must be a string (not an
@@ -584,20 +600,33 @@ in the same change as the measurement, and the read time-outs are checked the sa
 2. **The relay wins.** Story 3 never removes a relationship while the relay holds an accepted version at its address.
    A kind-5 it receives is a trigger to re-read the addresses `revokeTargets` names (plus those of edges whose
    `eventId` it names), never a verdict by itself; so the real-time path never removes a relationship the next pass
-   would restore.
+   would restore. *(Amended by `tagging-edges/0003`, D5-A.)* A kind-5 prompts a look only from its own author, and
+   only at addresses it names that the path knows: by `e`, only the latest version the path has learned at that
+   address (ADR 0003 A1-3); by `a`, a tagging address of at most 255 bytes that the path's lineage holds, where its
+   seen map records a version, or that the graph's keys hold. Another author's kind-5 prompts nothing. A removal it
+   prompts also needs ADR 0003's revoke rule (by `e`, the gate of A1-4; by `a`, `revokeApplies`' address branch only
+   on a well-formed stored edge, D5-B / A9). That is a restriction, never enough on its own: the relay read still
+   decides (A7). *(Amended by `tagging-edges/0003` A1-3 and A1-4, 2026-09-29: this said "by `e`, through the path's
+   seen and heard maps", "where those maps … record a version" for `a`, and named only the address branch.)*
 3. For each address it touches, story 3 reads the graph, then strictly scans the relay at that address
    (`{kinds:[39999], authors:[pk], '#d':[d]}` through `scanStrict`, filtered to the identity `d`). For an id-only
    tagging it also reads the element its `e` names by a strict scan `{kinds:[39999], ids:[e]}` and passes it as
    `tagElementsById` (`contract.js:96`, :155; the writer fetches elements, ADR 0001:261-263); the same-version rule
    keeps an existing resolution when the element is gone. A websocket `REQ` result is a trigger, never state
-   (500-result cap). Story 3 decides with `decideAddress` and never orders versions (A1).
+   (500-result cap). Story 3 decides with `decideAddress` and never orders versions (A1). *(Amended by
+   `tagging-edges/0003`, batched shape.)* The strict relay read may be batched as a filter array of one
+   `{kinds:[39999], authors:[pk], '#d':[d]}` per address (≤ 200 per scan), narrowed to the identity `d`. The element
+   read may be batched as `{kinds:[39999], ids:[≤ 1,000]}`. A round's events are de-duplicated by id before
+   `readRelay`, and each address's graph read precedes its batch.
 4. Story 3 does not write `report.json` (it adds its own status beside it) and never takes the pass's lock
    exclusively. One option, not a binding: holding the lock file shared (`flock -s`) around each of its write
    transactions keeps real-time writes out of a running pass's window and so closes both race residuals, at the cost
    of real-time writes waiting out a pass; story 3 would then also revisit the wrapper's non-blocking start, which
    would refuse a pass that starts during a real-time write. Any hold on real-time removals is story 3's to design.
    If it needs an index on `TAGS.eventId`, it adds `tags_eventId` through the same boot-hook rollout and both
-   expected-rule lists.
+   expected-rule lists. *(Settled by `tagging-edges/0003`.)* Story 3 holds no pass lock of any kind, takes no
+   `neo4j-heavy` lease, writes no `report.json` and needs no `TAGS.eventId` index. It reads `report.json` only to
+   schedule post-pass re-looks and catch-ups.
 
 ## Amendments to ADR 0001
 
@@ -738,6 +767,9 @@ Each goes into ADR 0001 in the same commit as this ADR, with an "Amended by `tag
    makes AC-2's revoke-then-re-send outcome reachable, at the cost of one re-read per write batch.
 2. **Amend ADR 0001's kind-5 consequence** (A7) and bind story 3 to it: no writer reads kind 5 to decide a removal;
    a kind-5 only triggers a relay re-read. The cost: a deletion the relay did not honour removes nothing (AC-3).
+   *(Amended by `tagging-edges/0003`.)* The real-time path reads kind-5 events (live, and by author-scoped `#e`/`#a`
+   scans at catch-up) only as prompts, and as a condition without which a removal is held back (story 3 AC-3). A
+   kind-5 never causes a removal that the path's own later relay read at that address does not also call for.
 3. **R2-NB1 by binding the pass, not by guarding the contract** (D5): the pass never orders a stored `createdAt` and
    repairs a malformed one. The cost: `standsOver` stays unguarded, so a future writer that orders stored edges adds
    the guard first.
@@ -773,7 +805,9 @@ Each goes into ADR 0001 in the same commit as this ADR, with an "Amended by `tag
 13. **Three new routes:** `GET /api/tagging-edges/status` and `GET /api/tagging-edges/held` as public reads of
     counts, relay- and graph-derived values and redacted error text, with no config value or credential and no
     absolute path that starts a word ("Who reads it"; *amended in review round 1, 2026-09-28*: this said relay-derived
-    data and counts; *wording amended in review round 3*: this said no absolute path); the held route
+    data and counts; *wording amended in review round 3*: this said no absolute path; *amended by
+    `tagging-edges/0003`*, CF-3: the redactor's host rule now covers host names and bracketed IPv6 addresses with a
+    port as well as IPv4); the held route
     serves only the latest report's list and builds no path from the request; and
     `POST /api/tagging-edges/confirm-held-removals` as owner-only (no admins, no loopback), a deliberate departure
     from the handoff's mutation template.
@@ -827,7 +861,10 @@ Test-file changes named here belong to Phase 3 (the Tester's lane); the Implemen
   any absolute path that starts a word (a `/` at the start or after whitespace, a quote, `[`, `(` or `=`; wording
   amended in review round 3) and any IPv4 `host:port` in it are replaced too — strfry names its config file's path
   when it cannot load it — by the one redactor (`redactPublicText`, exported beside `scanStrict`) the runner's
-  `failure.message` shares.
+  `failure.message` shares. *(Amended by `tagging-edges/0003`.)* It gains an additive `onEvent` streaming option; the
+  filter may be an array; the argv text writes `/` as `\/` for every caller (an exported `escapeFilterArgv`) and is
+  size-checked before spawn (`filter-too-large`); the off-filter rule becomes "an event the caller's `isExpected`
+  refuses"; and `redactPublicText` is widened to hosts with ports (story 3 CF-3).
   No count is taken (a separate process is a separate snapshot). Skeleton: the settle-once / SIGKILL time-out of
   `status.js:57-86` with the line loop of `bDisposition.js:70-100` and the stderr tail of
   `dlist-curation/update.js:238-243`.
@@ -853,8 +890,10 @@ Test-file changes named here belong to Phase 3 (the Tester's lane); the Implemen
   2 refused, 1 failed; `--lock-busy` exits 0). `deps = { now, randomId, lock, state, identities, env, openGraph, scan,
   emit, proc, signals }`. Sequence:
   1. `--lock-busy`: emit `TASK_START`, `TASK_ERROR` and `TASK_END` `{ outcome: 'not-started', why: 'another pass is
-     running' }`; touch no file; exit 0. Otherwise verify `/proc/self/fdinfo/9` shows a `FLOCK … WRITE` lock, else
-     refuse `not-started-under-the-lock` the same way (so a hand-run `node reconcileTaggingEdges.js` cannot write).
+     running' }`; touch no file; exit 0. Otherwise verify `/proc/self/fdinfo/9` shows a `FLOCK … WRITE` lock (on
+     `pass.lock` itself, since C20), else refuse `not-started-under-the-lock` the same way (so a hand-run
+     `node reconcileTaggingEdges.js` without the pass's lock cannot write). *(Wording amended by `tagging-edges/0003`,
+     story 3 CF-4: the lock-file qualifier.)*
   2. `runId` = the UTC start time as `YYYYMMDDTHHMMSSZ`, `-`, and 8 lower-case hex characters from
      `crypto.randomBytes(4)` — exactly `RUN_ID_RE`; `TASK_START { runId }`.
   3. Read `report.json`; if its `latest.running` is true, that owner is dead (the lock is ours): set `running: false`,
@@ -1176,7 +1215,8 @@ only be present), C12 and C13 as written:
   `reasonCode: 'stopped'`, `running: true` and the run's `runId`. That covers each phase boundary and at least every
   10 write batches.
 - **C16.** Within each write call, rows are ordered by the desired edge's `(from, to)`. The order is pinned only within
-  a batch.
+  a batch. *(Amended by `tagging-edges/0003`.)* The real-time path sorts its own rows by `(from, to)` and calls the
+  port with ≤ 25 rows per call.
 - **C17.** `readSchema()` and `readAll()`:
   - `readSchema()` returns `{ constraints, indexes }`, the SHOW rows as plain objects, and writes nothing.
   - `readAll({ timeoutMs })` runs READ_ALL in one `executeRead` with `{ timeout: timeoutMs }`.
@@ -1185,6 +1225,11 @@ only be present), C12 and C13 as written:
 - **C18.** `strippedKeys` holds one entry per edge that lost a key, names only, for the first 100 such edges.
 - **C19.** A start outside the lock (`not-started-under-the-lock`, runner step 1) exits **2** (refused), unlike
   `--lock-busy`, which exits 0: a hand run should say it did nothing.
+- **C20** *(made by `tagging-edges/0003`; folds row `2026-09-28-lock-check-accepts-any-flock`)*. `state.lockHeld(fd,
+  { file })` also requires the `ino:` in `/proc/self/fdinfo/<fd>` to equal `fs.statSync(file, { bigint: true }).ino`
+  (compared as strings; the lock line's pid reads 0 in the container's pid namespace). A missing file, or a foreign
+  inode, reads as not held. Runner step 1 passes `<stateDir>/pass.lock`; the real-time path passes
+  `<stateDir>/realtime/daemon.lock`.
 
 ## Out of scope
 

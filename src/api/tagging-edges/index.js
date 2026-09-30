@@ -12,7 +12,9 @@
  * error text. The stamp identities and the confirming owner appear only as 8-character prefixes, while a tagging
  * address carries its author's full pubkey; no config value or credential appears, and no absolute path that starts a
  * word (a `/` at the start or after whitespace, a quote, `[`, `(` or `=`): the runner redacts error text before it
- * enters the report. The held route never builds a path from request input.
+ * enters the report, replacing any URI, any such path and any `host:port` (an IPv4 address; a letter-led name,
+ * single-label or dotted, with a 2–5-digit port; or a bracketed IPv6 address). The held route never builds a path from
+ * request input.
  *
  * The display logic is the pure computeStatus(); validateConfirmation() is the pure half of the confirm
  * route. Handlers take their dependencies (readFile included) as a third argument, for tests.
@@ -320,6 +322,7 @@ module.exports = {
   computeStatus,
   validateConfirmation,
   sameHost,
+  isJson,
   handleStatus,
   handleHeld,
   handleConfirmHeldRemovals,

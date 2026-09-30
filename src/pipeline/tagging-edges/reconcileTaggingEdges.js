@@ -5,7 +5,8 @@
  * Brings the graph's `TAGS` relationships into agreement with this instance's own relay, one tagging
  * at a time. The first run is the backfill; every later run repairs drift. Started through the task
  * system, by reconcileTaggingEdges.sh, which holds the pass's kernel flock on fd 9 and execs this file
- * (so the lock lives exactly as long as the pass); a hand-run of this file, without the lock, is refused.
+ * (so the lock lives exactly as long as the pass); a hand-run of this file without the pass's lock is refused (fd 9
+ * must hold an exclusive flock on pass.lock itself, its inode checked: ADR tagging-edges/0003 C20).
  *
  * Sequence (ADR 0002, Implementation notes): lock → runId → pessimistic report → identities → config
  * → schema pre-flight → claim any owner confirmation → READ graph → READ relay (one strict scan,
@@ -20,11 +21,13 @@
  * 2 refused; 1 failed.
  */
 
+const path = require('path');
 const {
-  TAGS_PROPERTY_KEYS, RUN_ID_RE, checkIdentity, sweepFilter, isExpectedScanEvent, groupSnapshot, planPass, canonicalValue,
-  removalKey,
+  RUN_ID_RE, sweepFilter, isExpectedScanEvent, groupSnapshot, planPass, removalKey,
 } = require('../../lib/tagging-edges/sweep');
-const { schemaStatusFromRows, SCALAR_TYPES, MAX_BATCH } = require('./graph');
+const { schemaStatusFromRows, MAX_BATCH } = require('./graph');
+const { resolveIdentities } = require('./identities');
+const { preimageRecords } = require('./preimage');
 const { redactPublicText } = require('../../lib/strfryScanStrict');
 
 const TASK_NAME = 'reconcileTaggingEdges';
@@ -37,7 +40,6 @@ const SAVE_EVERY_BATCHES = 10;
 const PREVIOUS_CAP = 9;
 const STRIPPED_KEYS_CAP = 100;
 const STOPPED_REASON = 'stopped before it finished (time-out, deploy or restart)';
-const CANONICAL_Z_RE = /^39998:(.*):nostr-user-tag$/s;
 
 /** The real dependencies, required lazily so this module loads stack-free. */
 function defaultDeps(argv = process.argv.slice(2)) {
@@ -45,7 +47,8 @@ function defaultDeps(argv = process.argv.slice(2)) {
   return {
     now: () => Date.now(),
     randomId: () => require('crypto').randomBytes(4).toString('hex'),
-    lock: { busy: argv.includes('--lock-busy'), held: () => state.lockHeld(LOCK_FD) },
+    // C20 (ADR tagging-edges/0003): fd 9's flock counts only when it is on pass.lock itself.
+    lock: { busy: argv.includes('--lock-busy'), held: () => state.lockHeld(LOCK_FD, { file: path.join(state.stateDir(), 'pass.lock') }) },
     state,
     identities: {
       // The ADR 0015 literal, from its one server home — never copied here (precedent: the assistant identification-tags route's canonicalZ()).
@@ -84,7 +87,8 @@ const CONNECTION_ERROR_TEXT = new Map([
 /**
  * Error text for the report, which a public route serves: fixed text for a Neo4j connection error; otherwise
  * err.message through the one redactor strfry's stderrTail also passes (any URI, any absolute path that starts a word
- * and any IPv4 host:port replaced, every 64-hex run cut to 8 characters: see redactPublicText), at most 300 characters.
+ * and any host:port replaced — an IPv4 address; a letter-led name, single-label or dotted, with a 2–5-digit port; or a
+ * bracketed IPv6 address — every 64-hex run cut to 8 characters: see redactPublicText), at most 300 characters.
  */
 function safeMessage(err) {
   const code = err && typeof err.code === 'string' ? err.code : null;
@@ -97,40 +101,6 @@ function safeMessage(err) {
 function fsFailure(stage, err, relFile) {
   const code = (err && err.code) || 'error';
   return { stage, code, message: `${code} ${relFile}` };
-}
-
-/**
- * Step 4. Both stamp identities, or the refusal naming which one is wrong and where it came from.
- * → { canonicalPubkey, localPubkey } | { refusal: { identity, problem, source } }
- */
-function resolveIdentities(deps) {
-  const ids = deps.identities || {};
-  let z;
-  try { z = ids.canonicalZ(); } catch (_) { z = undefined; }
-  const m = typeof z === 'string' ? CANONICAL_Z_RE.exec(z) : null;
-  const canonical = m ? m[1] : undefined;
-  const cp = checkIdentity(canonical);
-  if (cp) return { refusal: { identity: 'canonical', problem: cp, source: 'profile-tags' } };
-
-  const env = deps.env || {};
-  if (env.TA_PUBKEY !== undefined) {
-    const p = checkIdentity(env.TA_PUBKEY);
-    if (p) return { refusal: { identity: 'local', problem: p, source: 'env TA_PUBKEY' } };
-  }
-  if (env.BRAINSTORM_RELAY_PUBKEY !== undefined) {
-    const p = checkIdentity(env.BRAINSTORM_RELAY_PUBKEY);
-    if (p) return { refusal: { identity: 'local', problem: p, source: 'brainstorm.conf' } };
-  }
-  let helper;
-  try { helper = ids.getOwnerAssistantPubkey(); } catch (_) { helper = null; }
-  if (helper === null || helper === undefined) {
-    return { refusal: { identity: 'local', problem: 'missing', source: 'brainstorm.conf' } };
-  }
-  const source = env.TA_PUBKEY !== undefined ? 'env TA_PUBKEY'
-    : helper === env.BRAINSTORM_RELAY_PUBKEY ? 'brainstorm.conf' : 'secure-keys file';
-  const lp = checkIdentity(helper);
-  if (lp) return { refusal: { identity: 'local', problem: lp, source } };
-  return { canonicalPubkey: canonical, localPubkey: helper };
 }
 
 function emptyRelationships() {
@@ -218,7 +188,8 @@ async function runInner(depsIn) {
   const deps = { ...defaultDeps(), ...depsIn };
   const emit = (type, metadata) => { try { deps.emit(type, metadata); } catch (_) { /* best effort */ } };
 
-  // 1. The lock. A start that finds it held, or a hand-run outside the wrapper, touches no file.
+  // 1. The lock. A start that finds it held, or a hand-run without the pass's lock (fd 9's exclusive flock on
+  // pass.lock itself, C20), touches no file.
   if (deps.lock && deps.lock.busy) {
     const why = 'another pass is running';
     emit('TASK_START', {});
@@ -488,23 +459,9 @@ async function runInner(depsIn) {
     let unresolvedApplied = 0;
     let batchesSinceSave = 0;
     // The guard, step 1: a pre-image of every row whose snapshot carries a key outside the nine, appended and
-    // fsynced before its transaction opens. Built from the snapshot itself, so it holds for any caller's rows.
+    // fsynced before its transaction opens. Built from the snapshot itself (preimage.js), so it holds for any caller's rows.
     const preimage = async (batch) => {
-      const records = [];
-      for (const r of batch) {
-        const snap = r && (r.snapshot || r.row);
-        if (!snap || !Array.isArray(snap.props)) continue;
-        const props = snap.props.filter(Array.isArray);
-        if (!props.some((p) => !TAGS_PROPERTY_KEYS.includes(String(p[0])))) continue;
-        records.push({
-          runId,
-          address: r.address,
-          rid: snap.rid == null ? null : String(snap.rid),
-          fromPubkey: typeof snap.fromPubkey === 'string' ? snap.fromPubkey : canonicalValue(snap.fromPubkey),
-          toPubkey: typeof snap.toPubkey === 'string' ? snap.toPubkey : canonicalValue(snap.toPubkey),
-          props: props.map((p) => [p[0], p[1], SCALAR_TYPES.includes(p[1]) ? p[2] : canonicalValue(p[3])]),
-        });
-      }
+      const records = preimageRecords(runId, batch, { writer: 'pass' });
       if (records.length === 0) return;
       let file;
       try {
@@ -632,6 +589,7 @@ async function runInner(depsIn) {
   }
 }
 
+// resolveIdentities lives in identities.js (ADR tagging-edges/0003) and is re-exported here unchanged.
 module.exports = { run, defaultDeps, resolveIdentities, validateClaim, makeRunId, exitCodeFor, TASK_NAME, STOPPED_REASON };
 
 if (require.main === module) {

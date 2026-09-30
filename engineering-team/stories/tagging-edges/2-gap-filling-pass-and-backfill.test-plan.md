@@ -88,7 +88,7 @@ Test ids only; each suite's names are full sentences, and the test index below g
 | Keys outside the nine dropped after their pre-image (owner decision 9) | SW18, ST9, ST10, ST21, SR48, SR49, SR62, SWR57, SWR58 |
 | Resolution kept for the same version (owner decision 10) | SW22, SW30, SW31 |
 | The three routes (owner decision 13) | RT5–RT26, RT30, RT31, SWR11 |
-| No config value, absolute path or credential in what the public routes serve (ADR "Who reads it"; review Blocking 1, Non-blocking 4; re-review round 3) | SS22–SS25, SS28–SS30, SR22, SR63–SR65, SR73–SR75 |
+| No config value or credential, and no absolute path that starts a word, in what the public routes serve (ADR "Who reads it"; review Blocking 1, Non-blocking 4; re-review round 3; story 3 CF-1, CF-3: the redactor now also replaces a letter-led host name or a bracketed IPv6 address with a port, SS37–SS38) | SS22–SS25, SS28–SS30, SR22, SR63–SR65, SR73–SR75 |
 | The schema pre-flight: the pass refuses `schema` unless `tags_address` is present and ONLINE (C4, C9) | SR23–SR26, SR70, SWR52, SWR55 |
 | Port rows (C6): the caller's other keys reach `preimage`; a malformed row, or one for another address, is refused before any transaction | SW54, SWR57, SWR60 |
 | What committed before a write failed is counted (`err.partial`, ADR step 11) | SR52, SR53, SR71, SWR59 |
@@ -110,10 +110,10 @@ Test ids only; each suite's names are full sentences, and the test index below g
   R2-NB1; SW36–SW39 `judgeRemovals`; SW40–SW51 `planPass`; SW52 the relay wins over a kind-5; SW53 `heldLines`; SW54
   the port's row shape; SW55 `planPass` refuses a read that is not a list, or an unusable identity.
 - **strfry-scan-strict, SS (30):** SS1–SS5 complete reads; SS6–SS18 one code for each kind of incomplete read; SS19
-  split UTF-8; SS20–SS21 size; SS22–SS25 `stderrTail`; SS26–SS27 the defaults; SS28 no absolute path in `stderrTail`
-  (strfry's real config-error line). Round 3: SS29 `redactPublicText` called directly (a credentialed URI → `<uri>`,
-  an IPv4 host:port → `<host>`, a relative module name and a clock time kept, a 64-hex run cut); SS30 a URI and an
-  IPv4 host:port in a `strfry error:` line, through the real reader.
+  split UTF-8; SS20–SS21 size; SS22–SS25 `stderrTail`; SS26–SS27 the defaults; SS28 no absolute path that starts a
+  word in `stderrTail` (strfry's real config-error line). Round 3: SS29 `redactPublicText` called directly (a
+  credentialed URI → `<uri>`, an IPv4 host:port → `<host>`, a relative module name and a clock time kept, a 64-hex run
+  cut); SS30 a URI and an IPv4 host:port in a `strfry error:` line, through the real reader.
 - **tagging-edges-runner, SR (75):** SR1–SR3 surface, lazy requires, no 64-hex; SR4–SR7 lock busy, not under the lock;
   SR8–SR13 pessimistic record, `previous`, `runId`, events; SR14–SR20 identities; SR21–SR22 config and the pass's own
   driver; SR23–SR26 schema pre-flight; SR27–SR28 when the claim happens; SR29–SR35 reads and snapshot conflicts;
