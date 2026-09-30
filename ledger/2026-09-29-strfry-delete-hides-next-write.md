@@ -41,10 +41,13 @@ it to every subscription and to exactly as many writes as events deleted.)
   delivered to the others. It is stored, and a scan or a new REQ finds it.
 - **The debounce race.** A monitor thread wakes on a database change, which it hears 100 ms after the first change
   (`RelayReqMonitor.cpp:10`; `golpe/external/hoytech-cpp/hoytech/file_change_monitor.h:78-108`), or on a REQ, a CLOSE
-  or a closed connection it serves. A write stored after the delete but before the thread next wakes is seen with the
-  delete: the thread never sees the largest id fall, so it never visits the re-used id (`RelayReqMonitor.cpp:26-27`,
-  `:56-58`), and every subscription it serves misses that write. That is every live subscription, unless a REQ or a
-  CLOSE woke a thread in between.
+  or a closed connection it serves. A write that re-uses a freed id and is stored after the delete but before the
+  thread next wakes is seen with the delete: at that wake the thread lowers its cursor, if at all, only to the largest
+  id then present, which already includes the write, and its visit starts above the cursor, so it never visits the
+  re-used id (`RelayReqMonitor.cpp:26-27`, `:51-58`), and every subscription it serves misses that write. That is every
+  live subscription, unless a REQ or a CLOSE woke a thread in between. *(Corrected 2026-09-30, story 3's review C2:
+  this bullet said the thread never sees the largest id fall, which is false when the delete freed more ids than the
+  writes before the wake re-use.)*
 - **A wipe while the relay runs** re-uses ids from 1. A subscription then misses writes until the ids pass the point
   its own monitor had reached, at most the old largest id. A new REQ's monitor starts from the relay as it is
   (`RelayReqMonitor.cpp:41-43`), so re-subscribing ends it.
