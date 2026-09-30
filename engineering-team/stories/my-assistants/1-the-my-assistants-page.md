@@ -184,5 +184,5 @@ The owner's answers, 2026-09-30:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/my-assistants/1-the-my-assistants-page.test-plan.md`
 - Review: (filled in after Review phase)

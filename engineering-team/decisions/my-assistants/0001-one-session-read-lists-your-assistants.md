@@ -263,6 +263,9 @@ Sub-decisions:
     that constraint.
 - **Debt.** `profile-tags/index.js` must export `NOSTR_USER_TAG_Z_TAG`. That's a one-line
   addition to its exports, not a new literal anywhere.
+
+  *Corrected 2026-09-30 in Test Design:* it already exports it (`src/api/profile-tags/index.js:1865`),
+  so there's nothing to add. The same applies to the matching line in § Implementation notes.
 - **Firmware reinstall required?** No. No concept definition changes.
 
 ## Implementation notes

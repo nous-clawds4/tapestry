@@ -260,6 +260,7 @@ const suites = [
   { file: 'assistant-attention.test.js' },
   { file: 'assistant-identification-tags-page.test.js' },
   { file: 'assistant-taggings-publish.test.js' },
+  { file: 'my-assistants-page.test.js' },
   { file: 'tagging-edge-contract.test.js' },
   { file: 'tagging-edges-sweep.test.js' },
   { file: 'strfry-scan-strict.test.js' },
