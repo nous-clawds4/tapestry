@@ -182,6 +182,20 @@ The owner's answers, 2026-09-30:
    This is a change from the design, and AC-5 carries it.
 3. **Build all three stories, then ship once.** The blueprint's words stay as they are (§ Copy).
 
+## Deviations
+
+Small judgment calls made in Implementation (2026-09-30):
+
+- **Apostrophes are curly (’).** § Copy says "Apostrophes follow the rest of the app", and the app uses both. I
+  followed the design-styled pages: `/dictionary` uses ’, and so does the blueprint. The tests accept either.
+- **The route is also documented in `src/api/openapi.yaml`,** beside `/api/assistant/attention`. The ADR didn't
+  mention it, but every `/api/assistant/*` read is documented there.
+- **The loading line is announced as a status and the error line as an alert** (`role="status"`, `role="alert"`).
+  That's for screen readers; nothing on screen changes.
+- **`NOSTR_USER_TAG_Z_TAG` needed no export.** It was already exported (the ADR's dated correction).
+- **Found in passing:** the existing `/dictionary` browser test D6 is flaky on `staging` itself (7 of 10 runs
+  failed without this change). Logged as OPEN.md row `2026-09-30-dictionary-d6-reads-before-request`, not fixed here.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md`
 - Test plan: `engineering-team/stories/my-assistants/1-the-my-assistants-page.test-plan.md`
