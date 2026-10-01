@@ -203,4 +203,4 @@ Small judgment calls made in Implementation (2026-09-30):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md`
 - Test plan: `engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/my-assistants/3-the-treasure-map-on-the-page.md`
