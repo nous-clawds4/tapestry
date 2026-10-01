@@ -232,3 +232,37 @@ Sub-decisions:
 - The profile pages' own NIP-05 mark, and the Meili and admin copies of the check.
 - Following redirects, closing DNS rebinding, and rate limiting: the three open rows above.
 - A server-side cache of lookups.
+
+## Amendment 1 (2026-10-01, after review 1): a status belongs to the NIP-05 it was checked for; how often the page asks
+
+**Why.** Review 1 (`engineering-team/reviews/my-assistants/4-nip05-validity-and-profile-links.md`) found:
+- **NB1:** a status shown can belong to the previous NIP-05 for one render. When a drawn row's NIP-05 changes (a
+  refresh re-reads profiles), the row shows its old verdict beside the new identifier, or beside "—", until the effect
+  runs. That's a verdict the page doesn't have, which AC-1 and AC-2 forbid.
+- **NB2:** the Context and Consequences each say "one lookup per distinct (profile, NIP-05) per page load", while
+  sub-decision 4 keeps re-asking an unchecked answer. The owner chose at review 1's gate (2026-10-01) to fix both
+  before shipping.
+
+**Sub-decision 4, made exact.** A status is keyed to the (pubkey, NIP-05) it was asked for. When drawn for a pair, it
+shows:
+- that pair's kept answer, if any;
+- otherwise "Checking…";
+- with no NIP-05, nothing.
+
+It never shows an answer for another pair, not even for one render.
+
+**How often the page asks, stated exactly** (this replaces the Context's and Consequences' "one lookup per distinct
+(profile, NIP-05) per page load"):
+- **A definite answer (verified, invalid):** once per page load.
+- **Couldn't check:** asked again each time the status is drawn again, for example after a tab round trip, but not
+  on a refresh that keeps it drawn. A domain that was down can then come back.
+- **Requests in flight** for the same pair are shared, so there is never more than one per pair at a time.
+
+**NB3.** The rebinding row's "never returned to the caller" now has an exception: `status` says whether the fetched
+URL served a NIP-05 listing. With `https:` and certificate validation, a rebind still learns nothing about an internal
+service. The row now says so.
+
+**Tests.**
+- N7 records every DOM state while a drawn row's NIP-05 changes, in the list and in the section. It fails on any
+  verdict beside a NIP-05 not yet checked, or beside "—".
+- N6 pins the retry: a Couldn't check is asked once on load, not on the refresh, and once more after a tab round trip.
