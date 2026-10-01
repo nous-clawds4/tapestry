@@ -4,15 +4,16 @@
  * #2 (ADR my-assistants/0002 sub-decision 10) also the pure planning of the page's actions: which search results to
  * offer, which buttons a row gets and whether they work, and what a withdrawal names. Since my-assistants #3 (ADR
  * my-assistants/0003 sub-decision 4) also the Treasure Map's duties: what each entry asks of whom, per Assistant and
- * for the Duties tab.
+ * for the Duties tab. Since my-assistants #4 (ADR my-assistants/0004 sub-decision 3) also how a NIP-05 check's answer
+ * reads, and where a profile link goes.
  *
  * No React, and only `.js`-suffixed imports plus nostr-tools, so the Node runner loads it as it is
  * (test/my-assistants-page.test.js C-class, test/my-assistants-actions.test.js V-class,
- * test/my-assistants-map.test.js).
+ * test/my-assistants-map.test.js, test/my-assistants-nip05.test.js).
  *
  * The words are the stories' § Copy; change them there first:
- * engineering-team/stories/my-assistants/1-the-my-assistants-page.md § Copy, 2-tag-and-untag-from-the-page.md § Copy and
- * 3-the-treasure-map-on-the-page.md § Copy.
+ * engineering-team/stories/my-assistants/1-the-my-assistants-page.md § Copy, 2-tag-and-untag-from-the-page.md § Copy,
+ * 3-the-treasure-map-on-the-page.md § Copy and 4-nip05-validity-and-profile-links.md § Copy.
  */
 
 import { nip19 } from 'nostr-tools';
@@ -83,6 +84,17 @@ export const COPY = {
   notTaggedDutyTooltip: 'On your Treasure Map, but not tagged as one of your Assistants',
   sentenceLabel: 'On your Treasure Map',
   manageLink: 'Manage on Treasure Map →',
+  // my-assistants #4
+  nip05Verified: 'Verified',
+  nip05Invalid: 'Not valid',
+  nip05Unchecked: 'Couldn’t check',
+  nip05Checking: 'Checking…',
+  nip05VerifiedTitle: 'Its domain confirms this NIP-05 belongs to this profile.',
+  nip05InvalidTitle: 'Its domain doesn’t list this NIP-05 for this profile.',
+  nip05UncheckedTitle: 'Its domain didn’t answer, so this NIP-05 couldn’t be checked.',
+  viewProfile: 'View profile',
+  // The accessible name holds the visible words, so speech input can say them (ADR 0004 sub-decision 5).
+  viewProfileLabel: (name) => `View profile of ${name} (opens in a new tab)`,
 };
 
 /** The two tags' names, by key, in the order a row shows them (src/lib/my-assistant-tags owns the list). */
@@ -116,7 +128,9 @@ function textOf(v) {
 
 /**
  * What a profile shows: its name (display_name, else name, else the shortened npub), avatar letter, npub, URL and
- * NIP-05, with the fallbacks. `profile` is as fetchProfilesChunked answers, or a search hit (same fields).
+ * NIP-05, with the fallbacks. `profile` is as fetchProfilesChunked answers, or a search hit (same fields). `nip05Id` is
+ * the NIP-05 itself, or null when there is none, apart from the '—' shown in its place (my-assistants #4): a NIP-05 is
+ * checked only when there is one.
  */
 function cardFields(pubkey, found) {
   const profile = found && found !== PROFILE_LOOKUP_FAILED && typeof found === 'object' ? found : {};
@@ -129,6 +143,7 @@ function cardFields(pubkey, found) {
     npubShort: short,
     url: textOf(profile.website) || '—',
     nip05: textOf(profile.nip05) || '—',
+    nip05Id: textOf(profile.nip05),
   };
 }
 
@@ -393,4 +408,23 @@ export function dutyRows(duties, names, rows) {
     sentence: dutySentence(duty, names),
     raw: duty.entries.map((entry) => JSON.stringify(entry)).join('\n'),
   }));
+}
+
+// ── my-assistants #4: a NIP-05's status, and the profile link (ADR my-assistants/0004 sub-decision 3) ──────────────
+
+const NIP05_STATUSES = ['verified', 'invalid', 'unchecked'];
+
+/**
+ * How a GET /api/nip05/verify answer reads: its `status` when it is one of the three, else 'unchecked'. A missing
+ * answer, a failed request, an older server's answer without `status`, or anything unknown is never 'invalid': only
+ * a domain that answered can make a NIP-05 not valid (story AC-1).
+ */
+export function nip05StatusOf(answer) {
+  const status = answer && typeof answer === 'object' && !Array.isArray(answer) ? answer.status : null;
+  return NIP05_STATUSES.includes(status) ? status : 'unchecked';
+}
+
+/** An Assistant's Brainstorm profile page (`/user/:pubkey`, ui/src/App.jsx), which shows the tags on it. */
+export function profilePath(pubkey) {
+  return `/user/${pubkey}`;
 }

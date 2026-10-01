@@ -88,6 +88,8 @@ async function mockStack(page, { session = null, answers = [], profiles = {}, pr
   // The Treasure Map reads (my-assistants #3): none published, everywhere — so these tests stay hermetic.
   await page.route('**/api/strfry/scan**', (r) => json(r, { success: true, events: [] }));
   await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: [{ name: 'relay one', json: JSON.stringify({ nostrRelay: { websocketUrl: 'wss://one.example' } }) }] }));
+  // NIP-05 checks (my-assistants #4): answered "unchecked", so no lookup leaves the test.
+  await page.route('**/api/nip05/verify**', (r) => json(r, { verified: false, status: 'unchecked' }));
   await page.route('**/api/relay/external**', (r) => json(r, { success: true, events: [] }));
 
   await page.route('**/api/assistant/pubkey', (r) => json(r, { success: true, pubkey: OWNER_TA }));

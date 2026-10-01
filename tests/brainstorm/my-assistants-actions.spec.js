@@ -111,6 +111,8 @@ async function setup(page, { session = CUSTOMER, signer = 'viewer', holdSign = f
   // The Treasure Map reads (my-assistants #3): none published, so these tests stay hermetic.
   await page.route('**/api/strfry/scan**', (r) => json(r, { success: true, events: [] }));
   await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: [{ name: 'relay one', json: JSON.stringify({ nostrRelay: { websocketUrl: 'wss://one.example' } }) }] }));
+  // NIP-05 checks (my-assistants #4): answered "unchecked", so no lookup leaves the test.
+  await page.route('**/api/nip05/verify**', (r) => json(r, { verified: false, status: 'unchecked' }));
   await page.route('**/api/relay/external**', (r) => json(r, { success: true, events: [] }));
   await page.route('**/api/strfry/publish', async (r) => {
     const body = JSON.parse(r.request().postData() || '{}');

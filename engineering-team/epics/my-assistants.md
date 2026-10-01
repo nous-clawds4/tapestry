@@ -26,6 +26,9 @@ shipped to staging together (book decision 6).
 3. The Treasure Map on the page: each Assistant's "on your Treasure Map" status and its duties,
    the "On your Treasure Map, but not tagged" section, and the read-only **Duties** tab. Depends on
    #1; its Tag buttons depend on #2.
+4. `4-nip05-validity-and-profile-links.md`, added 2026-10-01 (book decision 14): each Assistant's NIP-05 shown as
+   Verified, Not valid or Couldn't check, and a link from every Assistant to its Brainstorm profile page. Depends on
+   #1–#3.
 
 ## Key facts / guardrails
 

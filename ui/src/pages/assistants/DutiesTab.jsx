@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { COPY, TREASURE_MAP_PATH } from './myAssistants';
+import ProfileLink from './ProfileLink';
 
 /**
  * The Duties tab (my-assistants #3, ADR my-assistants/0003 sub-decision 5; story AC-6, AC-7): every duty on your
  * Treasure Map, most generic first, read-only. A row shows its number, name, entry key, level, the Assistant listed
  * first (marked Not tagged when it isn't one of yours) and the Alternates; opened, all its Assistants labelled
  * Preferred then Alternate, the duty as a sentence, its raw entries, and a link to the Treasure Map page, where duties
- * are changed. One duty is open at a time.
+ * are changed. One duty is open at a time. Since my-assistants #4 (ADR my-assistants/0004) each of an open duty's
+ * Assistants has View profile.
  *
  * While the Map is being read, the loading line; none published, that line; unreadable, the error with Try again.
  *
@@ -62,6 +64,7 @@ function DutyRow({ duty, open, onToggle }) {
                     <span className="bsd-ma-duty-name">{assistant.name}</span>
                     {assistant.untagged && <NotTagged />}
                   </span>
+                  <ProfileLink pubkey={assistant.pubkey} name={assistant.name} />
                 </li>
               ))}
             </ol>

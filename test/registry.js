@@ -263,6 +263,7 @@ const suites = [
   { file: 'my-assistants-page.test.js' },
   { file: 'my-assistants-actions.test.js' },
   { file: 'my-assistants-map.test.js' },
+  { file: 'my-assistants-nip05.test.js' },
   { file: 'tagging-edge-contract.test.js' },
   { file: 'tagging-edges-sweep.test.js' },
   { file: 'strfry-scan-strict.test.js' },
