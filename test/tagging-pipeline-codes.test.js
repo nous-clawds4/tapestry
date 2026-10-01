@@ -26,10 +26,16 @@
  *               only.
  *   PC35–PC40 — FAMILIES examples (recognition only), the fixed fetch codes (own sentence, PC36), and the copy rules at
  *               run time (every sentence non-empty, no '!', no emoji, no bare "an error occurred", not its own code).
- *               PC37 is retired: EXPLANATIONS' frozen 17-kind shape is the view suite's TV2, and FAMILIES' entry shape
- *               its TV3; PC40 keeps only the copy rules TV3 lacks.
+ *               PC37 is retired: EXPLANATIONS' frozen 18-kind shape (17, plus T12's failureCode) is the view suite's
+ *               TV2, and FAMILIES' entry shape its TV3; PC40 keeps only the copy rules TV3 lacks.
  *   PC41      — story 4's review, round 1 (Non-blocking 10): 'EBADJSON', the status route's own damaged-file code, has
  *               its own countCode sentence that says the file is damaged, not the E-family's operating-system one.
+ *   PC42–PC49 — story 4's review, round 1, ADR 0004 T12: failureCode, a pass's own failure.code. PC42–PC45 extract it
+ *               from the producers exactly as T12's guard bullet says, each with a floor at today's count (3a672f68),
+ *               and pass now. PC46 asks an own EXPLANATIONS.failureCode sentence for each; PC47 the E-, Neo.- and
+ *               ServiceUnavailable/SessionExpired families under failureCode; PC48 a Security code read as credentials;
+ *               PC49 pins that countCode holds none of the pass-only codes (passes now). PC46–PC48 fail now: there is no
+ *               failureCode kind.
  *   PC18–PC40 FAIL now (red phase): ui/src/utils/taggingPipelineView.js does not exist yet. The loader turns the
  *   missing file into "<file> not implemented yet: it does not export <name> (ADR 0004 § …)", so the suite always
  *   loads and each test fails by name; a file that exists but fails to load says so instead.
@@ -68,6 +74,7 @@ const ROUTE_REL = 'src/api/tagging-edges/realtime.js';
 const GRAPH_REL = 'src/pipeline/tagging-edges/graph.js';
 const SWEEP_REL = 'src/lib/tagging-edges/sweep.js';
 const LIB_RT_REL = 'src/lib/tagging-edges/realtime.js';
+const IDENTITIES_REL = 'src/pipeline/tagging-edges/identities.js';
 const CONTRACT_REL = 'src/lib/tagging-edges/contract.js';
 const VIEW_REL = 'ui/src/utils/taggingPipelineView.js';
 
@@ -241,6 +248,52 @@ const extract = {
   },
   /** SCAN_ERROR_CODES plus identity, timeout, unparseable and error (allowErrorCode's fallback). */
   countCode() { return uniq([...extract.scanErrorCodes(), 'identity', 'timeout', 'unparseable', 'error']); },
+
+  /* ─── failureCode (T12): a pass's own failure.code, extracted from its producers ─── */
+
+  /**
+   * Every `code: '…'` literal in a failure object or a thrown error in the runner — a plain literal
+   * (`code: 'plan-error'`, `Object.assign(new Error(…), { code: 'incomplete' })`) or the literal fallback after a
+   * driver's own code (`code: (err && err.code) || 'no-status'`, `… || 'error'`).
+   */
+  failureCodeRunnerLiterals() {
+    return uniq(allMatches(source(RUNNER_REL), /\bcode:\s*(?:\([^()]*\)\s*\|\|\s*)?'([^']+)'/));
+  },
+  /** 'missing-' joined to each key of the config check: for (const key of ['NEO4J_URI', …]) … code: `missing-${key}`. */
+  failureCodeConfig() {
+    const src = source(RUNNER_REL);
+    const m = /for \(const (\w+) of \[([^\]]*)\]\)\s*\{[^}]*?\bcode:\s*`missing-\$\{\1\}`/.exec(src);
+    assert(m, `${RUNNER_REL} no longer builds code: \`missing-\${key}\` inside a for (const key of [...]) config check ` +
+      `(ADR 0004 T12, reconcileTaggingEdges.js:328-330) — follow the producer`);
+    return uniq(allMatches(m[2], /'([^']+)'/).map((k) => `missing-${k}`));
+  },
+  /** The two codes of the schema ternary: const code = … ? '…' : '…'; (reconcileTaggingEdges.js:352). */
+  failureCodeSchemaTernary() {
+    const m = /\bconst code = [^;\n]*\?\s*'([^']+)'\s*:\s*'([^']+)'\s*;/.exec(source(RUNNER_REL));
+    assert(m, `${RUNNER_REL} no longer chooses the schema refusal's code by a ternary const code = … ? '…' : '…'; ` +
+      `(ADR 0004 T12, reconcileTaggingEdges.js:352)`);
+    return uniq([m[1], m[2]]);
+  },
+  /** graph.js's invariant(): err.code = '…'. */
+  failureCodeGraph() {
+    return uniq(allMatches(source(GRAPH_REL), /\berr\.code\s*=\s*'([^']+)'/));
+  },
+  /** checkIdentity's returns plus identities.js's 'missing'; the runner's identity refusal carries code: problem. */
+  failureCodeIdentity() {
+    const runner = source(RUNNER_REL);
+    assert(/\bstage:\s*'identity'[^}]*\bcode:\s*problem\b/.test(runner),
+      `${RUNNER_REL}'s identity refusal no longer sets code: problem (ADR 0004 T12, reconcileTaggingEdges.js:319)`);
+    assert(/\bproblem:\s*'missing'/.test(source(IDENTITIES_REL)),
+      `${IDENTITIES_REL} no longer refuses with problem: 'missing' (ADR 0004 T12, identities.js:37)`);
+    return uniq([...extract.identityProblems(), 'missing']);
+  },
+  /** T12's inventory: the union of the six extractions above. */
+  failureCode() {
+    return uniq([
+      ...extract.failureCodeRunnerLiterals(), ...extract.failureCodeConfig(), ...extract.failureCodeSchemaTernary(),
+      ...extract.failureCodeGraph(), ...extract.failureCodeIdentity(), ...extract.scanErrorCodes(),
+    ]);
+  },
 };
 
 /* Today's counts (88af7df3), computed by running the extractions above against the current source. */
@@ -265,6 +318,13 @@ const FLOORS = {
   setupProblem: 8,
   scanErrorCodes: 12,
   countCode: 14,
+  // T12 (story 4's review, round 1), computed on 3a672f68.
+  failureCodeRunnerLiterals: 9,
+  failureCodeConfig: 2,
+  failureCodeSchemaTernary: 2,
+  failureCodeGraph: 1,
+  failureCodeIdentity: 4,
+  failureCode: 29,
 };
 
 /** The eight states AC-3 names: off, starting, waiting on a setup problem / the graph / the relay, catching up, live, stopped. */
@@ -592,6 +652,88 @@ test("PC41: countCode 'EBADJSON' — the status route's own code for a damaged f
     `EXPLANATIONS.countCode.EBADJSON must not be the E-family sentence (${show(family && family.sentence)}) — review Non-blocking 10`);
   assert(/damaged|cannot be (read|parsed)/i.test(r.text),
     `EXPLANATIONS.countCode.EBADJSON must say the file is damaged (/damaged|cannot be (read|parsed)/i); got ${show(r.text)}`);
+});
+
+/* ═══ PC42–PC49 — T12: failureCode, a pass's own failure code (story 4's review, round 1) ═══ */
+
+/** Every code T12 names by name under "Exact entries" (SCAN_ERROR_CODES is named as a whole, and checked by PC46). */
+const T12_NAMED = [
+  'missing', 'empty', 'upper-case', 'not-64-hex',
+  'missing-NEO4J_URI', 'missing-NEO4J_USER', 'driver',
+  'tags_address-missing', 'tags_address-not-online', 'nostrUser_pubkey-missing', 'no-status',
+  'incomplete', 'missing-column', 'uniqueness-not-holding',
+  'plan-error', 'invariant', 'signal', 'error',
+];
+
+test("PC42: failureCode — every code: '…' literal in a failure object or a thrown error in the runner (a plain literal, or the literal fallback after the driver's own code, `(err && err.code) || '…'`) yields at least today's 9 codes, plan-error, no-status, signal, driver and error among them [AC-5; review Blocking 1; ADR 0004 T12 \"The guard\"]", () => {
+  const codes = extract.failureCodeRunnerLiterals();
+  floor('failureCode (runner code literals)', codes, FLOORS.failureCodeRunnerLiterals, RUNNER_REL);
+  for (const c of ['plan-error', 'no-status', 'signal', 'driver', 'error', 'incomplete', 'missing-column', 'uniqueness-not-holding', 'nostrUser_pubkey-missing']) {
+    assert(codes.includes(c), `the runner's code literal ${show(c)} (ADR 0004 T12) was not extracted: ${show(codes)}`);
+  }
+});
+
+test("PC43: failureCode — 'missing-' joined to each key of the config check (for (const key of [...]) … code: `missing-${key}`) yields at least today's 2 codes, missing-NEO4J_URI and missing-NEO4J_USER; the schema ternary yields its 2 codes, tags_address-not-online and tags_address-missing [AC-5; ADR 0004 T12 \"The guard\"]", () => {
+  const config = extract.failureCodeConfig();
+  floor('failureCode (config check keys)', config, FLOORS.failureCodeConfig, `${RUNNER_REL} config check`);
+  for (const c of ['missing-NEO4J_URI', 'missing-NEO4J_USER']) assert(config.includes(c), `config code ${show(c)} not built: ${show(config)}`);
+  const schema = extract.failureCodeSchemaTernary();
+  floor('failureCode (schema ternary)', schema, FLOORS.failureCodeSchemaTernary, `${RUNNER_REL} schema ternary`);
+  for (const c of ['tags_address-not-online', 'tags_address-missing']) assert(schema.includes(c), `schema code ${show(c)} not extracted: ${show(schema)}`);
+});
+
+test("PC44: failureCode — graph.js's invariant() (err.code = '…') yields at least today's 1 code, invariant; checkIdentity's returns plus identities.js's 'missing' yield at least today's 4 (missing, empty, upper-case, not-64-hex), and the runner's identity refusal still carries code: problem [AC-5; ADR 0004 T12 \"The guard\"]", () => {
+  const graph = extract.failureCodeGraph();
+  floor('failureCode (graph.js invariant)', graph, FLOORS.failureCodeGraph, GRAPH_REL);
+  assert(graph.includes('invariant'), `graph.js's 'invariant' was not extracted: ${show(graph)}`);
+  const ids = extract.failureCodeIdentity();
+  floor('failureCode (identity problems)', ids, FLOORS.failureCodeIdentity, `${SWEEP_REL} checkIdentity + ${IDENTITIES_REL}`);
+  for (const c of ['missing', 'empty', 'upper-case', 'not-64-hex']) assert(ids.includes(c), `identity problem ${show(c)} not extracted: ${show(ids)}`);
+});
+
+test("PC45: failureCode — the inventory (the six extractions, SCAN_ERROR_CODES among them) holds at least today's 29 codes, every code T12 names by name, and every one of SCAN_ERROR_CODES [AC-5 \"every code the status carries today\"; ADR 0004 T12 \"Exact entries\", \"The guard\"]", () => {
+  const codes = extract.failureCode();
+  floor('failureCode', codes, FLOORS.failureCode, `${RUNNER_REL}, ${GRAPH_REL}, ${SWEEP_REL}, ${IDENTITIES_REL}, ${LIB_RT_REL}`);
+  const missing = [...T12_NAMED, ...extract.scanErrorCodes()].filter((c) => !codes.includes(c));
+  assert(missing.length === 0, `T12 names ${show(missing)} but the guard's extraction did not find them — the extraction and the ADR disagree: ${show(codes)}`);
+});
+
+test("PC46: every failureCode the producers can record today — the PC45 inventory — has its own sentence in EXPLANATIONS.failureCode (own property), and explain('failureCode', code) returns it with the code as given and recognised true [AC-5; review Blocking 1; ADR 0004 T12 \"Exact entries\": one sentence each; § UI \"one sentence per code the guard test lists\"; T6]", async () => {
+  await assertOwnSentence('failureCode', extract.failureCode());
+});
+
+test("PC47: the open families apply under failureCode — 'ENOSPC', 'EACCES', 'ECONNREFUSED', 'Neo.TransientError.General.DatabaseUnavailable', 'Neo.ClientError.Schema.ConstraintValidationFailed', 'Neo.ClientError.Security.Unauthorized', 'ServiceUnavailable' and 'SessionExpired' are each recognised by explain('failureCode', …) with the code as given, through a FAMILIES entry of kind failureCode, not an own entry [AC-5; ADR 0004 T12 \"The open families … also apply under failureCode\"; § UI FAMILIES; T6]", async () => {
+  const codes = ['ENOSPC', 'EACCES', 'ECONNREFUSED', 'Neo.TransientError.General.DatabaseUnavailable',
+    'Neo.ClientError.Schema.ConstraintValidationFailed', 'Neo.ClientError.Security.Unauthorized', 'ServiceUnavailable', 'SessionExpired'];
+  await assertRecognised('failureCode', codes);
+  const { FAMILIES } = await view('FAMILIES');
+  const fam = (Array.isArray(FAMILIES) ? FAMILIES : []).filter((f) => f && f.kind === 'failureCode' && f.test instanceof RegExp);
+  const uncovered = codes.filter((c) => !fam.some((f) => f.test.test(c)));
+  assert(uncovered.length === 0, `no FAMILIES entry of kind failureCode matches ${show(uncovered)} (T12: the E…, Neo.… and ServiceUnavailable / SessionExpired families apply under failureCode)`);
+});
+
+test("PC48: under failureCode a Neo.ClientError.Security.… code reads as a credentials problem — explain('failureCode', …).text for 'Neo.ClientError.Security.Unauthorized' and 'Neo.ClientError.Security.AuthenticationRateLimit' names the credentials or the password (/credential|password/i) — while a general Neo4j status ('Neo.TransientError.General.DatabaseUnavailable') does not get that sentence [AC-5; ADR 0004 T12 \"A Neo.ClientError.Security.… code reads as a credentials problem\"]", async () => {
+  const { explain } = await view('explain');
+  const security = ['Neo.ClientError.Security.Unauthorized', 'Neo.ClientError.Security.AuthenticationRateLimit'].map((c) => [c, explain('failureCode', c)]);
+  const bad = security.filter(([, r]) => !r || r.recognised !== true || !/credential|password/i.test(r.text));
+  assert(bad.length === 0, `under failureCode a Security code must read as a credentials problem (/credential|password/i; T12): ${bad.map(([c, r]) => `${c} -> ${show(r)}`).join('; ')}`);
+  const general = explain('failureCode', 'Neo.TransientError.General.DatabaseUnavailable');
+  assert(general && general.recognised === true && general.text !== security[0][1].text,
+    `a general Neo4j status under failureCode must be recognised and not read as the credentials sentence (FAMILIES order: Security first, T12); got ${show(general)}`);
+});
+
+test("PC49: countCode keeps its meaning (a count's or the path's lastError code) — EXPLANATIONS.countCode has no own entry for any pass-only failure code (the failureCode inventory less the countCode inventory and EBADJSON: plan-error, driver, no-status, missing-NEO4J_URI, invariant, not-64-hex, …), and explain('countCode', 'plan-error') is not recognised [ADR 0004 T12 \"countCode keeps its meaning\"]", async () => {
+  const { explain, EXPLANATIONS } = await view('explain', 'EXPLANATIONS');
+  const countCodes = new Set([...extract.countCode(), 'EBADJSON']);
+  const passOnly = extract.failureCode().filter((c) => !countCodes.has(c));
+  for (const c of ['plan-error', 'driver', 'no-status', 'missing-NEO4J_URI', 'invariant', 'not-64-hex']) {
+    assert(passOnly.includes(c), `${show(c)} should be a pass-only failure code (T12): ${show(passOnly)}`);
+  }
+  const table = (EXPLANATIONS && EXPLANATIONS.countCode) || {};
+  const leaked = passOnly.filter((c) => Object.prototype.hasOwnProperty.call(table, c));
+  assert(leaked.length === 0, `EXPLANATIONS.countCode must not hold the pass-only failure codes ${show(leaked)} — they are failureCode's (T12 "countCode keeps its meaning")`);
+  const r = explain('countCode', 'plan-error');
+  assert(r && r.recognised === false, `explain('countCode', 'plan-error') must not be recognised — plan-error is a pass's code, explained under failureCode (T12); got ${show(r)}`);
 });
 
 /* ─── Run ─── */

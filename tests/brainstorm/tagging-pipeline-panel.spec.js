@@ -58,7 +58,7 @@ const F = require('../../test/helpers/taggingPipelineFixtures');
  *
  *   Story 4 review round 1 (engineering-team/reviews/tagging-edges/4-tagging-pipeline-panel.md):
  *   B41 — drift while a pass runs says a pass is running, never that the latest pass did not finish.     [AC-4; NB1]
- *   B42 — a failed pass shows its failure code with its explanation under where it failed (ENOSPC); a
+ *   B42 — a failed pass shows its failure code with its failureCode explanation under where it failed (ENOSPC); a
  *         schema refusal for an unreachable Neo4j names Neo4j, not only the Dashboard fix.                [AC-2; Blocking 1, NB2]
  *   B43 — counts taken before the explaining pass ended: no "unexplained" figure, a Recount asked for;
  *         a Recount with newer counts brings the explained and unexplained lines back.                    [AC-4; NB3, T5]
@@ -67,6 +67,8 @@ const F = require('../../test/helpers/taggingPipelineFixtures');
  *   B46 — a re-poll that fails after a good read: error, the earlier figures kept, labelled with their time. [AC-5; ADR § UI "Failure"; F1]
  *   B47 — an answer to an older status request that lands after a newer one is dropped.                    [ADR § UI "Polling"; F1]
  *   B48 — a poll tick is skipped while the previous one is in flight.                                     [ADR § UI "Polling"; F1]
+ *   B49 — a pass-minted failure code (plan-error, on a plan failure) shows its own failureCode sentence under
+ *         where it failed, never "not recognised".                                                         [AC-2, AC-5; Blocking 1, T12]
  *
  * ── Hermetic by construction ──────────────────────────────────────────────────────────────────────────────────────
  * Every /api route is mocked. The catch-all is registered FIRST (so every later route wins) and answers 599
@@ -605,26 +607,50 @@ test.describe('The tagging pipeline panel (tagging-edges #4, ADR 0004)', () => {
     expect(text, 'not shown as pending').not.toMatch(PENDING_STRICT);
   });
 
-  test('B42: a failed pass shows its failure code with its explanation under where it failed (a write on a full disk, ENOSPC); a schema refusal because Neo4j cannot be reached shows ServiceUnavailable and names Neo4j, not only the Dashboard fix [AC-2 "The latest pass"; review round 1 Blocking 1, NB2]', async ({ page }) => {
+  test('B42: a failed pass shows its failure code with its explanation under where it failed (a write on a full disk, ENOSPC); a schema refusal because Neo4j cannot be reached shows ServiceUnavailable and names Neo4j, not only the Dashboard fix [AC-2 "The latest pass"; review round 1 Blocking 1, NB2; ADR 0004 T12]', async ({ page }) => {
     const m = await mock(page, { status: F.STATUS.WRITE_FAILED });
     await openAndSettle(page);
     let text = await textOf(page, 'tp-pass');
     const stage = explanation('failureStage', 'write');
-    const enospc = explanation('countCode', 'ENOSPC');
+    // A pass's own failure.code is explained under failureCode, never countCode (ADR 0004 T12).
+    const enospc = explanation('failureCode', 'ENOSPC');
     expect(text, 'where it failed (the write stage, explained)').toContain(stage);
     // Not codeRe('ENOSPC') alone: passReason 'write' names ENOSPC in its own sentence ("If the code is ENOSPC, …").
     const shown = new RegExp(`${codeRe('ENOSPC').source}\\W{0,40}${esc(enospc)}`).exec(text);
-    expect(shown, `the failure's code ENOSPC is shown beside its explanation, explain('countCode', 'ENOSPC') ("${enospc}") — review Blocking 1/NB2: PassSection's "Where it failed" shows no failure.code yet`).not.toBeNull();
+    expect(shown, `the failure's code ENOSPC is shown beside its explanation, explain('failureCode', 'ENOSPC') ("${enospc}") — review Blocking 1/NB2, T12: "Where it failed" shows failure.code explained under failureCode`).not.toBeNull();
     expect(shown.index, 'the code is shown under where it failed').toBeGreaterThan(text.indexOf(stage));
 
     await reopenWith(page, m, { status: F.STATUS.SCHEMA_UNREACHABLE });
     text = await textOf(page, 'tp-pass');
-    const unavailable = explanation('countCode', 'ServiceUnavailable');
+    const unavailable = explanation('failureCode', 'ServiceUnavailable');
     expect(text, `the failure's code ServiceUnavailable is shown beside its explanation ("${unavailable}")`).toMatch(new RegExp(`${codeRe('ServiceUnavailable').source}\\W{0,40}${esc(unavailable)}`));
     // Apart from the code's own explanation, the refusal's reason must not send the owner only to the Dashboard's
     // constraints fix: a schema refusal is also Neo4j being down or refusing the password.
     const rest = text.split(unavailable).join(' ');
     expect(rest, 'the schema refusal\'s reason names Neo4j being down or unreachable as a cause (review Blocking 1: passReason.schema names only the Dashboard constraints fix)').toMatch(NEO4J_DOWN);
+  });
+
+  test('B49: a pass-minted failure code — plan-error, on a pass that failed at the plan stage — is shown under where it failed with its own failureCode sentence, explain(\'failureCode\', \'plan-error\'), and the pass section never reads "not recognised" [AC-2 "The latest pass", AC-5 "Explanations"; review round 1 Blocking 1; ADR 0004 T12]', async ({ page }) => {
+    // The runner's plan failure (reconcileTaggingEdges.js:436): fail('plan', { stage: 'plan', code: 'plan-error', … }).
+    const planFailed = F.passRecord({
+      startedMinutesAgo: 9,
+      suffix: 'b1a4b1a4',
+      outcome: 'failed',
+      reasonCode: 'plan',
+      reason: 'planning failed',
+      failure: { stage: 'plan', code: 'plan-error', message: 'a planning step threw' },
+      phases: F.clone(F.LATEST_DONE.phases).slice(0, 3),
+    });
+    await mock(page, { status: F.statusBody({ latest: planFailed, previous: [F.LATEST_DONE] }) });
+    await openAndSettle(page);
+    const text = await textOf(page, 'tp-pass');
+    const stage = explanation('failureStage', 'plan');
+    const own = explanation('failureCode', 'plan-error');
+    expect(text, 'where it failed (the plan stage, explained)').toContain(stage);
+    const shown = new RegExp(`${codeRe('plan-error').source}\\W{0,40}${esc(own)}`).exec(text);
+    expect(shown, `the failure's code plan-error is shown beside its own sentence, explain('failureCode', 'plan-error') ("${own}") — T12: a pass mints its own codes, explained under failureCode`).not.toBeNull();
+    expect(shown.index, 'the code is shown under where it failed').toBeGreaterThan(text.indexOf(stage));
+    expect(text, 'a code the pass mints is never "not recognised" (T12; AC-5)').not.toContain(NOT_RECOGNISED);
   });
 
   test('B44: a pass says it applied the owner\'s confirmed removals only when it applied some (confirmed.removalsApplied > 0): a confirmed run that failed before applying any does not claim it [AC-2 "The latest pass"; review round 1 NB5]', async ({ page }) => {

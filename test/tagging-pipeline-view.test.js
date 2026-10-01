@@ -519,9 +519,11 @@ test('TV1: the module exports POLL_MS as 5000 and SCHEDULE_POLL_MS as 60000, the
 
 const KINDS = ['passOutcome', 'passReason', 'failureStage', 'failureRead', 'refusedReason', 'heldReason',
   'leftInPlaceReason', 'changeKind', 'confirmationWhy', 'pathState', 'setupProblem', 'lastErrorStage',
-  'catchUpOutcome', 'catchUpStage', 'notEstablishedReason', 'countCode', 'fetchCode'];
+  'catchUpOutcome', 'catchUpStage', 'notEstablishedReason', 'countCode', 'fetchCode',
+  // ADR 0004 T12 (story 4's review, round 1): a pass's own failure.code.
+  'failureCode'];
 
-test('TV2: EXPLANATIONS is a frozen map holding one code-to-sentence table for each of the seventeen kinds the ADR lists, and neither the map nor any kind\'s table can be changed [AC-5 "Explanations"; ADR 0004 § UI "a frozen map"]', async () => {
+test('TV2: EXPLANATIONS is a frozen map holding one code-to-sentence table for each of the eighteen kinds the ADR lists (the seventeen of § UI, and T12\'s failureCode), and neither the map nor any kind\'s table can be changed [AC-5 "Explanations"; ADR 0004 § UI "a frozen map"; T12]', async () => {
   const ex = await need('EXPLANATIONS', '§ UI');
   assert(ex && typeof ex === 'object' && !Array.isArray(ex), `EXPLANATIONS must be a plain object; got ${show(ex)}`);
   assert(Object.isFrozen(ex), 'EXPLANATIONS must be frozen (Object.isFrozen)');

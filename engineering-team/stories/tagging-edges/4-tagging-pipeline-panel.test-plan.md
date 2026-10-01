@@ -2,7 +2,8 @@
 
 **Story:** `engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.md`
 **ADR:** `engineering-team/decisions/tagging-edges/0004-tagging-pipeline-panel.md`, with § Clarifications (Test Design,
-2026-09-30) T1–T11, as amended at `c496d853` (review round 1: T5's `countsPredatePass`)
+2026-09-30) T1–T11, as amended at `c496d853` (review round 1: T5's `countsPredatePass`), and T12 at `3a672f68`
+(review round 1: `failureCode`)
 **Review:** `engineering-team/reviews/tagging-edges/4-tagging-pipeline-panel.md`, round 1 (§ Review round 1 below)
 **Date:** 2026-09-30
 
@@ -14,12 +15,12 @@ Seven new suites, and edits to two existing ones. Every Node suite exports `run(
 | Suite | Ids | Level | What it holds |
 |---|---|---|---|
 | `test/tagging-pipeline-view.test.js` | TV1–TV63 | unit (ESM by `import()`) | `taggingPipelineView.js`: `POLL_MS`, `EXPLANATIONS`, `FAMILIES`, `explain`, `passView`, `newestFinishedPass`, `pathView`, `scheduleView`, `driftView`, and the module's form |
-| `test/tagging-pipeline-codes.test.js` | PC1–PC41 | unit + source scan | The guard: every code the producers can write today has its own sentence |
+| `test/tagging-pipeline-codes.test.js` | PC1–PC49 | unit + source scan | The guard: every code the producers can write today has its own sentence |
 | `test/tagging-pipeline-fetch.test.js` | TF1–TF19 | unit (ESM) | `readSection` over a fake `fetchImpl` |
 | `test/strfry-count-strict.test.js` | SC1–SC22 | unit (fake `strfry` on `PATH`) | `countStrict` |
 | `test/tagging-edges-drift-route.test.js` | DR1–DR27 | unit (route with injected deps) + source | `GET /api/tagging-edges/drift-counts`: the gate, the counts, the answer, single flight, the registration |
 | `test/tagging-pipeline-panel-source.test.js` | PS1–PS25 | source (text and the `typescript` JSX parser) | The panel's files, `RELAY_TABS`, the render line, the timers, the requests, colours, lengths, emoji, `!`, class names |
-| `tests/brainstorm/tagging-pipeline-panel.spec.js` | B0–B48 (B36a–d) | browser (Playwright, every route stubbed) | What the owner and an admin see, every state AC-2 to AC-5 name, refresh, "changes nothing", AC-6's request baseline |
+| `tests/brainstorm/tagging-pipeline-panel.spec.js` | B0–B49 (B36a–d) | browser (Playwright, every route stubbed) | What the owner and an admin see, every state AC-2 to AC-5 name, refresh, "changes nothing", AC-6's request baseline |
 | `test/tagging-edges-realtime-resilience.test.js` | + RX29, RX30 | engine (fakes) | C6: clarification 26's two unpinned halves |
 | `test/tagging-edges-realtime-routes.test.js` | `FORGET` | — | C9: `src/lib/strfryScanStrict.js` added to the list |
 
@@ -35,10 +36,10 @@ records and status bodies `WRITE_FAILED`, `SCHEMA_UNREACHABLE`, `CONFIRMED_FAILE
 | Criterion | Tests |
 |---|---|
 | **AC-1** where, who, changes nothing | PS1, PS2, PS4, PS5, PS13, PS14; TF1 (every read a `GET`); B1 (owner: the sub-tab directly after Streaming ETL), B2 (admin), B3 (the other sub-tabs unchanged), B38 (a minute open with two Recounts: only `GET`s, exactly three drift-counts requests) |
-| **AC-2** the pass, held removals, the confirmation, the schedule | TV12–TV20 (running by `running` alone, `current`, `finishing`, `empty`, `earlier`, the five confirmation states), TV21–TV22 (newest finished pass), TV34–TV43 (the schedule's verdicts, intervals, cron rule); PC1–PC9, PC27; PS5, PS14, PS15 (the held URL with `runId`, `offset`, `limit=50`), PS25 (the schedule button calls `onOpenTab('schedule')`); B5–B18 and B40 (the held list's 404 restart); B42 (a failure's code with its explanation, and a schema refusal that names Neo4j), B44 (the confirmed-removals sentence only when some were applied) |
+| **AC-2** the pass, held removals, the confirmation, the schedule | TV12–TV20 (running by `running` alone, `current`, `finishing`, `empty`, `earlier`, the five confirmation states), TV21–TV22 (newest finished pass), TV34–TV43 (the schedule's verdicts, intervals, cron rule); PC1–PC9, PC27; PS5, PS14, PS15 (the held URL with `runId`, `offset`, `limit=50`), PS25 (the schedule button calls `onOpenTab('schedule')`); B5–B18 and B40 (the held list's 404 restart); B42 (a failure's code with its explanation, and a schema refusal that names Neo4j), B44 (the confirmed-removals sentence only when some were applied), B49 (a pass-minted code, `plan-error`, has its own sentence) |
 | **AC-3** the path | TV23–TV33 (`onButNotRunning`, warnings, `countsSince`, `lastFigures`, counts and gauges, `setupProblemKey`); PC10–PC15; B19–B26 (every state, the three warnings, "not yet available", counts reset, the last catch-up); B45 (a catch-up's reason labelled as why only when not established) |
 | **AC-4** drift | TV45–TV58 (the arithmetic, the story's 5/1/1 → 3, 3, 0 example, unknown, report unavailable, no finished pass, the one used instead, left to the next pass, the path on and off); TV59–TV62 (`countsPredatePass`), TV63 (`usedInsteadOfLatest` while a pass runs); SC1–SC22; DR1–DR27; TF13, TF19; B27–B34, B37; B41 (drift while a pass runs), B43 (counts that predate the explaining pass) |
-| **AC-5** refresh, states, colours, copy | TV1–TV11, PC35–PC41 (PC41: `EBADJSON`'s own sentence), TF1–TF19; PS9–PS12 (timers by name, each cleared on unmount), PS16–PS20 and PS22–PS24 (no colour literal, only the eight tokens, no length, no emoji, no `!`, only the listed classes, nothing added to `styles.css`); B4 (loading), B35 (refresh after `POLL_MS`), B36a–d (a failed read names itself and retries while the others stay ready), B37; B46 (a failed re-poll keeps the earlier figures under their read time), B47 (a late answer is dropped), B48 (a tick is skipped while a read is in flight) |
+| **AC-5** refresh, states, colours, copy | TV1–TV11, PC35–PC41 (PC41: `EBADJSON`'s own sentence), PC42–PC49 (T12: `failureCode`), TF1–TF19; PS9–PS12 (timers by name, each cleared on unmount), PS16–PS20 and PS22–PS24 (no colour literal, only the eight tokens, no length, no emoji, no `!`, only the listed classes, nothing added to `styles.css`); B4 (loading), B35 (refresh after `POLL_MS`), B36a–d (a failed read names itself and retries while the others stay ready), B37; B46 (a failed re-poll keeps the earlier figures under their read time), B47 (a late answer is dropped), B48 (a tick is skipped while a read is in flight) |
 | **AC-6** nothing else moves | PS3, PS7, PS8 (today's five `RELAY_TABS` entries and render lines, which pass now), PS13; B1, B39 (each existing sub-tab sends the same requests as the baseline) |
 | **Docs tasks** | The Reviewer checks them against the diff. No tests. |
 | **C6** | RX29 (a refused removal's kind-5 found again at the safety diff merges and waits for the timer), RX30 (a newer version with its notice lost lifts a removal park at the catch-up that finds it) |
@@ -140,6 +141,23 @@ scratch fails it.
 - The view suite's flags helper now holds five flags, so `countsPredatePass` must be a boolean in every case. That
   turns TV48–TV51 red for the same missing field (for example "`driftView(no report).countsPredatePass` must be a
   boolean (T5); got undefined").
+
+### T12 — `failureCode`
+
+ADR 0004 T12 (`3a672f68`) moves a pass's own `failure.code` out of `countCode` into its own kind. These tests pin it.
+
+| Test | What it checks | Now |
+|---|---|---|
+| PC42–PC45 | The extractions in T12's guard bullet, each with a floor at today's count: the runner's `code: '…'` literals, plain or after `(err && err.code) \|\|` (9). The config check's `missing-` keys (2). The schema ternary (2). `graph.js`'s `invariant` (1). `checkIdentity` plus `missing` (4). `SCAN_ERROR_CODES` (12). The union holds 29 codes, and every code T12 names is in it | pass now |
+| PC46 | Each of the 29 has its own `EXPLANATIONS.failureCode` entry (`hasOwnProperty`), which `explain('failureCode', c)` returns | fails now: "`EXPLANATIONS.failureCode` has no own sentence for 29 of 29 code(s) …" |
+| PC47 | The families under `failureCode`: `ENOSPC`, `EACCES`, `ECONNREFUSED`, two `Neo.…` statuses, a Security code, `ServiceUnavailable` and `SessionExpired` are recognised, each through a `failureCode` FAMILIES entry | fails now: "does not recognise 8 of 8 family input(s)" |
+| PC48 | Two `Neo.ClientError.Security.…` codes read as credentials (`/credential\|password/i`). A general Neo4j status does not get that sentence | fails now: "… -> not recognised" |
+| PC49 | `countCode` keeps its meaning: it has no own entry for a pass-only code (`plan-error`, `driver`, `no-status`, …), and `explain('countCode', 'plan-error')` is not recognised | pins |
+| TV2 | `EXPLANATIONS` has eighteen kinds, `failureCode` among them | fails now: "`EXPLANATIONS` lacks a table for the kind(s) ["failureCode"]" |
+| B42 | `ENOSPC` and `ServiceUnavailable` are matched against `explanation('failureCode', …)`, no longer `countCode` | fails now: "`explain('failureCode', 'ENOSPC')` is recognised" |
+| B49 | A plan failure's `plan-error` is shown under where it failed, beside its own `failureCode` sentence. The section never reads "not recognised" | fails now: "`explain('failureCode', 'plan-error')` is recognised" |
+
+PC38–PC40's copy rules cover the new table and families without change.
 
 **Findings with no test in this round.** They change copy, labels, comments or docs, and the Reviewer checks them
 against the diff. PC38 and PC39's copy rules still hold over every new sentence.
@@ -256,3 +274,26 @@ Each Node suite was run through `run()` on Node 22.23.3 and on host Node 16.17, 
 - B46–B48: the `noguard`, `noskip` and `nokeep` builds above.
 - The variants and their logs are under the session scratchpad `wf12/node/variants/` (generator `wf12/node/mutants.py`)
   and `wf12/browser/`.
+
+**T12's red phase** was confirmed on 2026-10-01, on `3a672f68` with the T12 test edits in the working tree. The Node
+suites ran through `run()` on Node 22.23.3 and on host Node 16.17, with the same results on both.
+
+| Suite | Result | The failures |
+|---|---|---|
+| tagging-pipeline-codes | 45 passed, 3 failed | PC46–PC48, each because `failureCode` has no table and no families. PC42–PC45 and PC49 pass. |
+| tagging-pipeline-view | 62 passed, 1 failed | TV2: "`EXPLANATIONS` lacks a table for the kind(s) ["failureCode"]" |
+| browser spec (current UI, built at `4722e0ac`'s `ui/src`) | 51 passed, 2 failed | B42 and B49, each at "`explain('failureCode', …)` is recognised" |
+
+**Proven not vacuous** (in the session scratchpad, `wf14/tester/`):
+- A reference view with a 29-entry `failureCode` table and four `failureCode` families passes the codes suite 48/48
+  and the view suite 63/63.
+- Each wrong version fails only its named test:
+  - one entry dropped (`plan-error`) fails PC46;
+  - the entries inherited through a prototype fail PC46;
+  - no `failureCode` families fails PC47 and PC48;
+  - a Security sentence that does not name credentials fails PC48, and so does the general Neo4j family checked first;
+  - `plan-error` added to `countCode` fails PC49.
+- The browser spec passes 53/53 against a reference build: that view, with `PassSection` explaining
+  `failure.code` under `failureCode`. Two wrong builds fail:
+  - `PassSection` still under `countCode` fails B42 and B49;
+  - `plan-error` missing from the table fails B49 alone.
