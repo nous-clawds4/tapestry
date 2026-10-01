@@ -19,7 +19,8 @@ const { REQUIRED_TAGGINGS } = require('../../src/lib/identification-tags');
  *   C1 — search: under 2 characters nothing; matches offered with a count; listed profiles left out; no match line.
  *   C2 — a pasted npub (and a hex key) offers that exact profile first, even when search does not find it.
  *   C3 — Tag from search: the signed tagging's shape, the result line, the refreshed list, the count, the search.
- *   C4 — rows open: click, Enter, Space; one at a time; aria-expanded; the untagged Local row is not a toggle.
+ *   C4 — rows open: click, Enter, Space; one at a time; aria-expanded; the untagged Local row opens too, with no
+ *        Change or Remove (re-aimed by my-assistants #3).
  *   C5 — Change: the apply then the withdrawal (their shapes and order); the row ends with the other chip; a row
  *        with both tags offers no Change.
  *   C6 — Remove: one withdrawal naming every id and address; the row leaves; a tagged Local row stays, Not tagged.
@@ -107,6 +108,10 @@ async function setup(page, { session = CUSTOMER, signer = 'viewer', holdSign = f
 
   page.on('request', (req) => { const u = new URL(req.url()); if (u.pathname.startsWith('/api/')) state.requests.push(`${req.method()} ${u.pathname}`); });
   await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: false }));
+  // The Treasure Map reads (my-assistants #3): none published, so these tests stay hermetic.
+  await page.route('**/api/strfry/scan**', (r) => json(r, { success: true, events: [] }));
+  await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: [{ name: 'relay one', json: JSON.stringify({ nostrRelay: { websocketUrl: 'wss://one.example' } }) }] }));
+  await page.route('**/api/relay/external**', (r) => json(r, { success: true, events: [] }));
   await page.route('**/api/strfry/publish', async (r) => {
     const body = JSON.parse(r.request().postData() || '{}');
     state.posted.push(body.event);
@@ -241,7 +246,7 @@ test.describe('/assistants — tagging actions', () => {
     await noSockets(state);
   });
 
-  test('C4: rows open by click, Enter and Space, one at a time; the untagged Local row is not a toggle', async ({ page }) => {
+  test('C4: rows open by click, Enter and Space, one at a time; the untagged Local row opens with no Change or Remove', async ({ page }) => {
     const state = await setup(page, { answers: [answerOf([rowOf(LOCAL, [], { local: true }), rowOf(A, ['tapestry']), rowOf(B, ['brainstorm'])])] });
     await page.goto(PAGE);
     await settled(page, 3);
@@ -259,8 +264,14 @@ test.describe('/assistants — tagging actions', () => {
     await expect(main(page).getByRole('button', { name: 'Remove Tag' })).toHaveCount(1);
     await page.keyboard.press('Space');
     await expect(toggle(b)).toHaveAttribute('aria-expanded', 'false');
+    // Re-aimed by my-assistants #3 (ADR 0003 sub-decision 4): every row opens now. The untagged Local row opens to its
+    // duties and Manage on Treasure Map, with no Change and no Remove; its prompt stays.
     const local = rowNamed(page, 'Zed Local');
-    await expect(local.locator('[aria-expanded]')).toHaveCount(0);
+    await toggle(local).click();
+    await expect(toggle(local)).toHaveAttribute('aria-expanded', 'true');
+    await expect(local.getByRole('button', { name: 'Remove Tag' })).toHaveCount(0);
+    await expect(local.getByRole('button', { name: /^Change to/ })).toHaveCount(0);
+    await expect(local.getByRole('link', { name: 'Manage on Treasure Map' })).toBeVisible();
     await expect(local.getByRole('link', { name: /Tag it as My Tapestry Assistant/ })).toBeVisible();
     await noSockets(state);
   });
@@ -524,6 +535,8 @@ test.describe('/assistants — tagging actions', () => {
     });
     await page.goto(PAGE);
     await settled(page, 1);
+    // Re-aimed by my-assistants #3: wait for the Treasure Map read to settle (its count shows) before counting.
+    await expect(main(page).getByText(/^\d+ on your Treasure Map$/)).toBeVisible();
     await expect(main(page).locator('[role="status"]'), 'one status region in the ready page, before any press').toHaveCount(1);
     await searchBox(page).fill('xa');
     await results(page).first().getByRole('button', { name: 'Tag: My Tapestry Assistant' }).click();

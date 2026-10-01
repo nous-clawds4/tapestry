@@ -280,14 +280,17 @@ test('V5: rowActions — one tag: Change to the other (enabled when its definiti
   assert(ab.change.toKey === 'tapestry' && ab.change.label === 'Change to My Tapestry Assistant', `got ${show(ab.change)}`);
 });
 
-test('V6: rowActions — a row with both tags offers no Change; an untagged Local row has no actions', async () => {
+test('V6: rowActions — a row with both tags offers no Change; the untagged Local row opens with no Change and no Remove', async () => {
   const m = await vm();
   const fn = need(m, 'rowActions', VIEW_MODEL, 'ADR 0002 sub-decision 10.');
   const [both] = m.buildRows({ rows: [serverRow(T1, ['brainstorm', 'tapestry'])], profiles: {} });
   const a = fn(both, FOUND);
   assert(a && a.change === null && a.remove && a.remove.label === 'Remove Tag', `got ${show(a)}`);
   const [local] = m.buildRows({ rows: [serverRow(LOCAL, [], { local: true, retract: {} })], profiles: {} });
-  assert(fn(local, FOUND) === null, `the untagged Local row has nothing to open; got ${show(fn(local, FOUND))}`);
+  // Re-aimed by my-assistants #3 (ADR 0003 sub-decision 4): every row opens now; the untagged Local row's panel holds
+  // its duties and Manage on Treasure Map, with no Change and no Remove.
+  const la = fn(local, FOUND);
+  assert(la && la.change === null && la.remove === null, `the untagged Local row has no Change and no Remove; got ${show(la)}`);
 });
 
 test('V7: tagAvailability and rowActions — a missing definition disables that tag with § Copy\'s reason; no definitions disables both', async () => {
@@ -410,6 +413,22 @@ test('O7: a tag whose definition is not found is never applied — refused befor
   const out = await a.tagProfile({ target: T2, tagKey: 'brainstorm', definitions: BRAINSTORM_MISSING, deps });
   assert(calls.length === 0, `nothing may be signed; got ${show(calls)}`);
   assert(typeof out.refused === 'string' && plain(out.refused).includes("hasn't been published yet"), `got ${show(out)}`);
+});
+
+// Added for my-assistants #3 (ADR 0003 sub-decision 6; review 2 of #2, non-blocking 1): the withdrawal is SENT to the
+// list it is reported against — the community relay included — not only reported against it.
+test('O9: a withdrawal is sent to deps.withdrawRelays and reported against the same list (Remove and Change)', async () => {
+  const a = await actions();
+  const WITHDRAW = [...RELAYS, 'wss://dcosl.brainstorm.world'];
+  const removed = fakeDeps();
+  const out = await a.removeTags({ row: await rowOf(['tapestry']), deps: { ...removed.deps, withdrawRelays: WITHDRAW } });
+  const sent = removed.calls.find((c) => c[0] === 'withdraw');
+  assert(sent && show(sent[1].relays) === show(WITHDRAW), `Remove: the withdrawal should be sent to ${show(WITHDRAW)}; got ${show(sent && sent[1].relays)}`);
+  assert(show(out.reports[0].rows.map((r) => r.relay)) === show(WITHDRAW), `Remove: reported against the same list; got ${show(out.reports[0].rows.map((r) => r.relay))}`);
+  const changed = fakeDeps();
+  await a.changeTag({ row: await rowOf(['tapestry']), toKey: 'brainstorm', definitions: FOUND, deps: { ...changed.deps, withdrawRelays: WITHDRAW } });
+  const w = changed.calls.find((c) => c[0] === 'withdraw');
+  assert(w && show(w[1].relays) === show(WITHDRAW), `Change: the withdrawal should be sent to ${show(WITHDRAW)}; got ${show(w && w[1].relays)}`);
 });
 
 // Added for ADR 0002 Amendment 1 (sub-decision 13, review 1 non-blocking 3): the slug comes from the definition.

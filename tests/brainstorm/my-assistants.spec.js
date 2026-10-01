@@ -74,7 +74,21 @@ async function mockStack(page, { session = null, answers = [], profiles = {}, pr
   const asked = { mine: 0, requests: [] };
   const rowKeys = new Set();
   for (const a of answers) for (const r of ((a.body && a.body.rows) || [])) rowKeys.add(r.pubkey);
-  page.on('request', (req) => { if (new URL(req.url()).pathname.startsWith('/api/')) asked.requests.push(`${req.method()} ${new URL(req.url()).pathname}`); });
+  // A read-only Cypher POST (the Treasure Map's relay list, my-assistants #3) is recorded as a READ: the server's own
+  // write guard (src/api/neo4j/queryPost.js WRITE_KEYWORDS) decides what a write is. Re-aimed by my-assistants #3.
+  const WRITE_KEYWORDS = /\b(CREATE|MERGE|DELETE|SET|REMOVE|DETACH|DROP|CALL\s*\{)\b/i;
+  page.on('request', (req) => {
+    const p = new URL(req.url()).pathname;
+    if (!p.startsWith('/api/')) return;
+    let cypherText = '';
+    try { cypherText = p === '/api/neo4j/query' ? (JSON.parse(req.postData() || '{}').cypher || '') : ''; } catch { /* not JSON */ }
+    const read = req.method() === 'POST' && p === '/api/neo4j/query' && cypherText && !WRITE_KEYWORDS.test(cypherText);
+    asked.requests.push(read ? `READ ${p}` : `${req.method()} ${p}`);
+  });
+  // The Treasure Map reads (my-assistants #3): none published, everywhere — so these tests stay hermetic.
+  await page.route('**/api/strfry/scan**', (r) => json(r, { success: true, events: [] }));
+  await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: [{ name: 'relay one', json: JSON.stringify({ nostrRelay: { websocketUrl: 'wss://one.example' } }) }] }));
+  await page.route('**/api/relay/external**', (r) => json(r, { success: true, events: [] }));
 
   await page.route('**/api/assistant/pubkey', (r) => json(r, { success: true, pubkey: OWNER_TA }));
   await page.route('**/api/owner/pubkey', (r) => json(r, { success: true, pubkey: OWNER }));
@@ -385,8 +399,8 @@ test.describe('/assistants — the My Assistants page', () => {
     await expect(heading(page)).toBeVisible();
     await expect(items(page)).toHaveCount(4);
     await expect(page.getByText(/Page not found/i)).toHaveCount(0);
-    const writes = asked.requests.filter((r) => !r.startsWith('GET '));
-    expect(writes, 'the page publishes, signs and stores nothing').toEqual([]);
+    const writes = asked.requests.filter((r) => !r.startsWith('GET ') && !r.startsWith('READ '));
+    expect(writes, 'the page publishes, signs and stores nothing (a read-only Cypher POST is a read)').toEqual([]);
   });
 
   // Added after review 1 (blocking finding 1): one malformed profile must not take the page down.
