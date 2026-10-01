@@ -12,32 +12,33 @@
  * whose apply reached no relay does not withdraw.
  *
  * The publishers are passed in (`deps`), never imported here: the page hands it the real ones, and the Node runner
- * hands it fakes (test/my-assistants-actions.test.js O-class). `deps`: { relays, applyTagging(args), withdrawTaggings
- * ({ ids, addresses }) }, each publisher resolving { signed, result } or throwing.
+ * hands it fakes (test/my-assistants-actions.test.js O-class). `deps`: { relays, withdrawRelays?, applyTagging(args),
+ * withdrawTaggings({ ids, addresses }) }, each publisher resolving { signed, result } or throwing. `relays` are the
+ * outside relays an apply is sent to; `withdrawRelays` those a withdrawal is sent to — the same plus the community
+ * relay, so it travels between instances (ADR my-assistants/0002 Amendment 1, sub-decision 11) — defaulting to `relays`.
  */
 
 import { describeTaggingPublish } from '../../utils/taggingPublishReport.js';
 import { TAG_NAMES, tagAvailability, withdrawalOf } from './myAssistants.js';
 
-const SLUGS = { brainstorm: 'my-brainstorm-assistant', tapestry: 'my-tapestry-assistant' };
-
 function refusalOf(err) {
   return (err && err.message) || 'The signature was refused.';
 }
 
-/** The definition's author, from its address 39999:<author>:<slug>. */
-function authorOf(definition) {
+/** The definition's author and slug, from its address 39999:<author>:<slug> — the one copy of both. */
+function addressParts(definition) {
   const parts = definition && typeof definition.address === 'string' ? definition.address.split(':') : [];
-  return parts.length >= 3 ? parts[1] : null;
+  return parts.length >= 3 ? { author: parts[1], slug: parts.slice(2).join(':') } : { author: null, slug: null };
 }
 
 async function applyTag({ target, tagKey, definitions, deps }) {
   const availability = tagAvailability(definitions)[tagKey];
   if (!availability || !availability.enabled) return { refused: availability ? availability.reason : 'Unknown tag.' };
   const definition = definitions[tagKey];
+  const { author, slug } = addressParts(definition);
   try {
     const { result } = await deps.applyTagging({
-      tag: { slug: SLUGS[tagKey], authorPubkey: authorOf(definition), eventId: definition.eventId },
+      tag: { slug, authorPubkey: author, eventId: definition.eventId },
       targetPubkey: target,
       polarity: 1,
     });
@@ -50,7 +51,8 @@ async function applyTag({ target, tagKey, definitions, deps }) {
 async function withdraw({ ids, addresses, subject, deps }) {
   try {
     const { result } = await deps.withdrawTaggings({ ids, addresses });
-    return { report: describeTaggingPublish({ name: subject, local: result.local, external: result.external, relays: deps.relays }) };
+    const relays = Array.isArray(deps.withdrawRelays) ? deps.withdrawRelays : deps.relays;
+    return { report: describeTaggingPublish({ name: subject, local: result.local, external: result.external, relays }) };
   } catch (err) {
     return { refused: refusalOf(err) };
   }

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useConfig } from '../../context/ConfigContext';
 import { fetchProfilesChunked } from '../../utils/profileBatch';
 import { PUBLISH_RELAYS } from '../../utils/nostrPublish';
+import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
 import { publishProfileTagAssertionWithReport, publishTaggingWithdrawalWithReport } from '../../utils/publishProfileTag';
 import { relayLine, publishTone } from '../../utils/taggingPublishReport';
 import { COPY, LIST_LABEL, TREASURE_MAP_PATH, buildRows, countText, rowActions } from './myAssistants';
@@ -28,6 +29,12 @@ import AssistantSearch from './AssistantSearch';
  * result area says what each relay did.
  */
 
+/**
+ * Where a withdrawal goes: the outside relays an apply goes to, plus the community relay, so the deletion reaches
+ * every instance's router and every reader of dcosl (ADR my-assistants/0002 Amendment 1, sub-decision 11).
+ */
+const WITHDRAW_RELAYS = [...new Set([...PUBLISH_RELAYS, ...CONCEPT_PUBLISH_RELAYS])];
+
 export default function MyAssistantsPage() {
   const { user, loading: authLoading, login } = useAuth();
   const { taPubkey } = useConfig();
@@ -37,6 +44,7 @@ export default function MyAssistantsPage() {
   const [busy, setBusy] = useState(null); // { kind: 'tag'|'change'|'remove', pubkey, key? } while a press publishes
   const [outcome, setOutcome] = useState(null); // { reports, refused?, refreshFailed? } of the last press
   const latest = useRef(0);
+  const outcomeRef = useRef(null);
 
   /** Read the list. A refresh keeps the rows on screen and reports whether it succeeded (ADR 0002 sub-decision 5). */
   const load = useCallback(async ({ refresh = false } = {}) => {
@@ -58,6 +66,16 @@ export default function MyAssistantsPage() {
     }
   }, []);
 
+  // A row that leaves the list is no longer open, so a profile tagged again comes back closed (Amendment 1, 13).
+  useEffect(() => {
+    if (openKey && !view.rows.some((row) => row.pubkey === openKey)) setOpenKey(null);
+  }, [view.rows, openKey]);
+
+  // After a press, focus moves to the result area, which says what happened (the pressed button may be disabled).
+  useEffect(() => {
+    if (outcome && outcomeRef.current) outcomeRef.current.focus();
+  }, [outcome]);
+
   const viewer = user ? user.pubkey : null;
   useEffect(() => {
     if (authLoading) return;
@@ -68,8 +86,9 @@ export default function MyAssistantsPage() {
   /** The real publishers, handed to the actions (assistantActions takes them as dependencies). */
   const deps = {
     relays: PUBLISH_RELAYS,
+    withdrawRelays: WITHDRAW_RELAYS,
     applyTagging: (args) => publishProfileTagAssertionWithReport({ ...args, localTaPubkey: taPubkey }),
-    withdrawTaggings: ({ ids, addresses }) => publishTaggingWithdrawalWithReport({ ids, addresses }),
+    withdrawTaggings: ({ ids, addresses }) => publishTaggingWithdrawalWithReport({ ids, addresses, relays: WITHDRAW_RELAYS }),
   };
 
   /** One press: publish, re-read the list, say what happened. Every action button is disabled meanwhile. */
@@ -92,7 +111,6 @@ export default function MyAssistantsPage() {
   const onTag = (pubkey, tagKey) => press({ kind: 'tag', pubkey, key: tagKey },
     () => tagProfile({ target: pubkey, tagKey, definitions, deps }));
   const phase = authLoading ? 'loading' : view.phase;
-  const listed = view.rows.some((row) => row.pubkey === openKey);
 
   return (
     <BrainstormDesignShell wide>
@@ -125,8 +143,10 @@ export default function MyAssistantsPage() {
         <>
           <AssistantSearch rows={view.rows} definitions={definitions} viewer={viewer} busy={busy} onTag={onTag} />
 
-          {outcome && (
-            <div className="bsd-ma-outcome" role="status">
+          {/* Always present while the page is ready, so a screen reader announces what a press did (Amendment 1, 13). */}
+          <div className="bsd-ma-outcome" role="status" tabIndex={-1} ref={outcomeRef}>
+            {outcome && (
+              <>
               {outcome.refused && <p className="bsd-ma-outcome-line is-error">{outcome.refused}</p>}
               {(outcome.reports || []).map((report, i) => (
                 <div key={i} className={`bsd-ma-outcome-report is-${publishTone(report)}`}>
@@ -139,8 +159,9 @@ export default function MyAssistantsPage() {
                 </div>
               ))}
               {outcome.refreshFailed && <p className="bsd-ma-outcome-line">{COPY.refreshFailed}</p>}
-            </div>
-          )}
+              </>
+            )}
+          </div>
 
           <div className="bsd-ma-count-row">
             <span className="bsd-ma-count">{countText(view.rows.length)}</span>
@@ -152,7 +173,7 @@ export default function MyAssistantsPage() {
                   <AssistantRow
                     key={row.pubkey}
                     row={row}
-                    open={listed && openKey === row.pubkey}
+                    open={openKey === row.pubkey}
                     onToggle={() => setOpenKey(openKey === row.pubkey ? null : row.pubkey)}
                     actions={rowActions(row, definitions)}
                     busy={busy}

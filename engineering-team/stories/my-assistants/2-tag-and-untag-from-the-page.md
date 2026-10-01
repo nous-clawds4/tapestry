@@ -176,6 +176,17 @@ Small judgment calls made in Implementation (2026-09-30):
   Brainstorm not yet; his Assistant's row carries one retractable event) and the page with mocks. A live press is for
   staging, with a real extension.
 
+After review 1, implementing ADR 0002 Amendment 1 (2026-09-30):
+
+- **Search results are tied to the query they answer** (`forQuery`), rather than to a "pending" flag set after the
+  query changes. A flag would still let the previous query's results show for one render. **Searching…** shows
+  whenever the current query has no answer of its own.
+- **The search card shows one reason line per unavailable tag,** not only the first. Each line is tied to its buttons
+  with `aria-describedby`. Today only Brainstorm can be unavailable, so it reads the same.
+- **The orchestration takes `withdrawRelays`** beside `relays`, defaulting to it. A withdrawal's report then lists
+  the relays it was actually sent to, dcosl included.
+- **The refresh still re-reads every row's profile.** Amendment 1, sub-decision 13, made that the rule.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
 - Test plan: `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md`

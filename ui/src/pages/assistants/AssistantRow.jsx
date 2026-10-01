@@ -62,6 +62,8 @@ function RowLine({ row, toggle }) {
 
 export default function AssistantRow({ row, open, onToggle, actions, busy, onChange, onRemove }) {
   const mine = busy && busy.pubkey === row.pubkey;
+  const reasonId = `bsd-ma-reason-${row.pubkey}`;
+  const changeBlocked = actions && actions.change && !actions.change.enabled;
   return (
     <li className={`bsd-ma-row${row.local ? ' is-local' : ''}${open ? ' is-open' : ''}`}>
       {actions ? (
@@ -79,6 +81,7 @@ export default function AssistantRow({ row, open, onToggle, actions, busy, onCha
                 type="button"
                 className="bsd-ma-btn"
                 disabled={!!busy || !actions.change.enabled}
+                aria-describedby={changeBlocked ? reasonId : undefined}
                 onClick={() => onChange(actions.change.toKey)}
               >
                 {mine && busy.kind === 'change' ? COPY.busy.change : actions.change.label}
@@ -88,7 +91,7 @@ export default function AssistantRow({ row, open, onToggle, actions, busy, onCha
               {mine && busy.kind === 'remove' ? COPY.busy.remove : actions.remove.label}
             </button>
           </div>
-          {actions.change && !actions.change.enabled && <p className="bsd-ma-reason">{actions.change.reason}</p>}
+          {changeBlocked && <p className="bsd-ma-reason" id={reasonId}>{actions.change.reason}</p>}
         </div>
       )}
       {row.untagged && (

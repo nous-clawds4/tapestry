@@ -38,6 +38,7 @@ export const COPY = {
   resultsLabel: 'Profiles you can tag',
   resultCount: (n) => `${n} untagged ${n === 1 ? 'profile' : 'profiles'}`,
   noMatch: 'No untagged profile matches.',
+  searching: 'Searching…',
   searchFailed: 'Search isn’t answering right now.',
   tagButton: (name) => `Tag: ${name}`,
   changeButton: (name) => `Change to ${name}`,

@@ -23,16 +23,15 @@ const RESULTS_LIMIT = 10;
 
 export default function AssistantSearch({ rows, definitions, viewer, busy, onTag }) {
   const [query, setQuery] = useState('');
-  const [found, setFound] = useState({ hits: [], exact: null, failed: false });
+  // `forQuery`: the query these results answer. Results show only while it is the current query, so an earlier
+  // query's results never show beside a new one — not even for the render before the new search starts.
+  const [found, setFound] = useState({ forQuery: '', hits: [], exact: null, failed: false });
   const seq = useRef(0);
 
   useEffect(() => {
     const q = query.trim();
     const mine = ++seq.current;
-    if (q.length < MIN_QUERY_LENGTH) {
-      setFound({ hits: [], exact: null, failed: false });
-      return undefined;
-    }
+    if (q.length < MIN_QUERY_LENGTH) return undefined;
     const timer = setTimeout(async () => {
       const key = parseExactKey(q);
       const params = new URLSearchParams({ q, limit: String(RESULTS_LIMIT), offset: '0' });
@@ -44,17 +43,18 @@ export default function AssistantSearch({ rows, definitions, viewer, busy, onTag
           .catch(() => ({ failed: true })),
       ]);
       if (mine !== seq.current) return;
-      setFound({ hits: search.hits || [], exact, failed: !!search.failed && !exact });
+      setFound({ forQuery: q, hits: search.hits || [], exact, failed: !!search.failed && !exact });
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query, viewer]);
 
+  const current = query.trim();
+  const pending = current.length >= MIN_QUERY_LENGTH && found.forQuery !== current;
   const candidates = useMemo(
-    () => searchCandidates({ query, hits: found.hits, exact: found.exact, rows }),
-    [query, found, rows],
+    () => (pending ? [] : searchCandidates({ query, hits: found.hits, exact: found.exact, rows })),
+    [pending, query, found, rows],
   );
   const availability = tagAvailability(definitions);
-  const firstUnavailable = TAG_KEYS.find((key) => !availability[key].enabled);
   const searching = query.trim().length >= MIN_QUERY_LENGTH;
 
   return (
@@ -73,12 +73,14 @@ export default function AssistantSearch({ rows, definitions, viewer, busy, onTag
       {searching && (
         <>
           <div className="bsd-ma-found">
-            {found.failed ? COPY.searchFailed : candidates.length > 0 ? COPY.resultCount(candidates.length) : COPY.noMatch}
+            {pending ? COPY.searching
+              : found.failed ? COPY.searchFailed
+                : candidates.length > 0 ? COPY.resultCount(candidates.length) : COPY.noMatch}
           </div>
-          {candidates.length > 0 && firstUnavailable && (
-            <p className="bsd-ma-reason">{availability[firstUnavailable].reason}</p>
-          )}
-          {candidates.length > 0 && (
+          {!pending && candidates.length > 0 && TAG_KEYS.filter((key) => !availability[key].enabled).map((key) => (
+            <p key={key} className="bsd-ma-reason" id={`bsd-ma-search-reason-${key}`}>{availability[key].reason}</p>
+          ))}
+          {!pending && candidates.length > 0 && (
             <ul className="bsd-ma-results" aria-label={COPY.resultsLabel}>
               {candidates.map((card) => (
                 <li key={card.pubkey} className="bsd-ma-result">
@@ -96,6 +98,7 @@ export default function AssistantSearch({ rows, definitions, viewer, busy, onTag
                           type="button"
                           className={`bsd-ma-btn${key === 'brainstorm' ? ' is-primary' : ''}`}
                           disabled={!!busy || !availability[key].enabled}
+                          aria-describedby={availability[key].enabled ? undefined : `bsd-ma-search-reason-${key}`}
                           onClick={() => onTag(card.pubkey, key)}
                         >
                           {pressed ? COPY.busy.tag : COPY.tagButton(TAG_NAMES[key])}
