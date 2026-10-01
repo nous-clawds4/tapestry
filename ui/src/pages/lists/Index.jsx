@@ -7,6 +7,8 @@ import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
+import { useAuth } from '../../context/AuthContext';
+import { ME, MY_ASSISTANT, viewerAuthorOptions, resolveAuthorFilter } from '../../utils/viewerAuthorScope';
 
 /**
  * Helper: extract a tag value from an event's tags array.
@@ -41,6 +43,7 @@ function shortPubkey(pk) {
 export default function DListsIndex() {
   const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [headers, setHeaders] = useState([]);
   const [itemCounts, setItemCounts] = useState({ counts: {}, totalItems: 0 });
   const [loading, setLoading] = useState(true);
@@ -167,11 +170,22 @@ export default function DListsIndex() {
       const k = Number(kindFilter);
       result = result.filter(r => r.kind === k);
     }
-    if (authorFilter) {
-      result = result.filter(r => r.author === authorFilter);
+    // Me / My Local Tapestry Assistant resolve from the signed-in user (ADR list-headers-disposition/0001).
+    const authorPk = resolveAuthorFilter(authorFilter, user);
+    if (authorPk) {
+      result = result.filter(r => r.author === authorPk);
     }
     return result;
-  }, [rows, kindFilter, authorFilter]);
+  }, [rows, kindFilter, authorFilter, user]);
+
+  // A Me / My Local Tapestry Assistant choice the current user can't resolve (signed out, no
+  // Assistant) goes back to All authors, so it can't silently re-apply at the next in-page sign-in
+  // (ADR list-headers-disposition/0001, Amendment 1).
+  useEffect(() => {
+    if ((authorFilter === ME || authorFilter === MY_ASSISTANT) && resolveAuthorFilter(authorFilter, user) === '') {
+      setAuthorFilter('');
+    }
+  }, [authorFilter, user]);
 
   const columns = [
     { key: 'singular', label: 'Name (singular)' },
@@ -273,6 +287,9 @@ export default function DListsIndex() {
             }}
           >
             <option value="">All authors</option>
+            {viewerAuthorOptions(user).map(o => (
+              <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>
+            ))}
             {authorOptions.map(pk => (
               <option key={pk} value={pk}>{authorDisplayName(pk)}</option>
             ))}
