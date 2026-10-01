@@ -1,6 +1,6 @@
 # Story 1: Me and My Local Tapestry Assistant in the List Headers Author selector
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-01
 **Type:** Feature
 **Epic:** `list-headers-disposition`
@@ -76,4 +76,4 @@ by approving the story:
 ## Linked artifacts
 - ADR: `engineering-team/decisions/list-headers-disposition/0001-me-and-my-assistant-from-the-signed-in-user.md`
 - Test plan: `engineering-team/stories/list-headers-disposition/1-author-selector-me-and-my-assistant.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/list-headers-disposition/1-author-selector-me-and-my-assistant.md`
