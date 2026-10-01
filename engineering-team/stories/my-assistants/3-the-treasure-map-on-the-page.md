@@ -177,9 +177,7 @@ Small judgment calls made in Implementation (2026-09-30):
   Your Assistant on this instance is in the list even untagged (book decision 5), and its own row already says Not
   tagged, so the Duties tab says the same. `dutyRows` uses the row's `untagged`.
 - **An open duty marks each untagged Assistant,** not only the first, as the blueprint does.
-- **An open row's panel follows the Map's state.** While the Map is read it says "Reading your Treasure Map…", and
-  after a failed read "Couldn't read your Treasure Map.", instead of duties. **Try again** appears once, under the
-  count. AC-7 names the states but not the panel.
+- **Try again appears once, under the count,** not again in an open row's panel.
 - **On the Duties tab, the introduction shows whenever the Map has been read,** with the "none published" line under
   it. The count, the column heads and the rows show only when a Map was found.
 - **Each duty carries `at` and `seenAt`,** the Map positions of its first entry and of each Assistant's first entry
@@ -199,6 +197,23 @@ Small judgment calls made in Implementation (2026-09-30):
   - **A forced local miss:** the page asked `/api/relay/external` with `strict=1` across the four general-purpose
     relays. They answered `success: true` with no event, so the page said "0 on your Treasure Map". His Treasure Map
     isn't on those public relays.
+
+After review 1 (2026-10-01):
+
+- **An open row's panel follows the Map's state.** This isn't a judgment call, as the round-1 list above had it. AC-7
+  ("no … duty claims anything" while the Map is read) and AC-1 (never "Not on Treasure Map" from a failed read)
+  require it. While the Map is read, the panel says "Reading your Treasure Map…"; after a failed read, "Couldn’t read
+  your Treasure Map."; never a duty count or the no-duties line. M3 and M4 now pin it (B1).
+- **With no general-purpose relay to ask, a local miss is unreadable,** never "none" (ADR 0003 Amendment 1, the owner's
+  decision at review 1's gate; book decision 13). Only this page reads strictly, so the hook's other callers are
+  unchanged.
+- **Only the selected tab carries `aria-controls`,** because only its panel is in the page (NB4).
+- **Not done in this pass, by the owner's choice at review 1's gate:**
+  - **NB2:** Try again doesn't re-read the general-purpose relay list after that read failed, so the error persists
+    until the page is reloaded. It's a defect in the shared hook, filed as OPEN.md row
+    `2026-10-01-treasure-map-retry-skips-relay-list`;
+  - **NB5:** until the not-tagged Assistants' profiles arrive, the section and the Duties tab show their short npubs
+    and "— · —" for a moment. It's cosmetic and accepted.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md`

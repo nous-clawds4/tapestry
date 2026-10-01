@@ -201,7 +201,7 @@ export default function MyAssistantsPage() {
               role="tab"
               id={`bsd-ma-tab-${key}`}
               aria-selected={tab === key ? 'true' : 'false'}
-              aria-controls={`bsd-ma-tabpanel-${key}`}
+              aria-controls={tab === key ? `bsd-ma-tabpanel-${key}` : undefined}
               tabIndex={tab === key ? 0 : -1}
               className={`bsd-ma-tab${tab === key ? ' is-selected' : ''}`}
               onClick={() => setTab(key)}

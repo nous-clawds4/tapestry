@@ -103,8 +103,9 @@ At story 3's review, 2026-10-01:
         or its kind 5 present.
 - [x] **Pin the withdrawal's send in a test** (review 2, non-blocking 1; folded into story 3's cycle, decision 12).
       Done in story 3 (ADR my-assistants/0003 sub-decision 6): O9 in `test/my-assistants-actions.test.js` pins that
-      the orchestration sends the withdrawal to the list it reports against. S2 in `test/my-assistants-map.test.js`
-      pins that the page forwards that list to the publisher. The original plan:
+      the orchestration sends the withdrawal to the list it reports against. S2 in `test/my-assistants-map.test.js`,
+      tightened after story 3's review 1, pins that the page hands that list on to the publisher's call. The original
+      plan:
       - Pass the withdrawal relays once through the orchestration's `deps`.
       - Add a Node test that the withdrawal is sent to, and reported against, a list including dcosl.
       - This is a small Tester and Implementer pass: in story 3's cycle, or on its own before shipping.

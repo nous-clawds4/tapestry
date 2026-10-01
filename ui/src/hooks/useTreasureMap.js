@@ -23,9 +23,12 @@ const LOADING = { status: 'loading', event: null, where: null, error: null, loca
  * arrives and skip the relays — OPEN.md row 260), and every failure is `error`, never `none`.
  * OPEN.md row 249's chore is to move the Treasure Map page onto this hook.
  *
- * `strict` (my-assistants #3, ADR my-assistants/0003 sub-decision 1) asks the relay step for `&strict=1`, so a relay
- * read that reached no relay answers `success: false` and is `error`, and `none` means at least one relay was read and
- * held nothing. Without it, an unreachable relay still reads as "nothing there" (OPEN.md row 314).
+ * `strict` (my-assistants #3, ADR my-assistants/0003 sub-decision 1 and Amendment 1) asks the relay step for
+ * `&strict=1`, so a relay read that reached no relay answers `success: false` and is `error`; and with no
+ * general-purpose relay to ask, a local miss is `error` too. Under `strict`, `none` means local strfry missed, at least
+ * one relay was read, and every relay that answered held no Treasure Map: a Map held only by a relay that couldn't be
+ * reached still reads as `none` when another relay answers (the endpoint's strict contract). Without `strict`, an
+ * unreachable relay, or no relay at all, still reads as "nothing there" (OPEN.md row 314).
  *
  * @param {string|null} pubkey  the signed-in user's pubkey (null → idle)
  * @param {{ strict?: boolean }} [options]
@@ -79,7 +82,12 @@ export default function useTreasureMap(pubkey, { strict = false } = {}) {
       setState({ ...LOADING, status: 'error', error: `Not in local strfry, and the general-purpose relay list could not be read: ${relaysError.message || relaysError}` });
       return undefined;
     }
-    if (relays.length === 0) { setState({ ...LOADING, status: 'none' }); return undefined; }
+    if (relays.length === 0) {
+      setState(strict
+        ? { ...LOADING, status: 'error', error: 'Not in local strfry, and no general-purpose relay is configured to search.' }
+        : { ...LOADING, status: 'none' });
+      return undefined;
+    }
     let cancelled = false;
     const filter = JSON.stringify({ kinds: [KIND_TREASURE_MAP], authors: [pubkey], limit: 1 });
     fetch(`/api/relay/external?filter=${encodeURIComponent(filter)}&relays=${encodeURIComponent(relaysKey)}${strict ? '&strict=1' : ''}`)
