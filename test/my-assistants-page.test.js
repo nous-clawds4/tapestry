@@ -173,7 +173,9 @@ async function answer(opts = {}, req = signedInReq()) {
   await handle(req, res, deps);
   return { res, body: res.body, calls };
 }
-const taggingScans = (calls) => calls.scan.filter((f) => Array.isArray(f.kinds) && f.kinds.includes(39999));
+// The taggings read is the kind 39999 scan carrying the canonical #z. Re-aimed by my-assistants #2 (ADR 0002 sub-decision 1),
+// which adds a second kind 39999 scan for the tag definitions (by their author and #d); that one is not a taggings read.
+const taggingScans = (calls) => calls.scan.filter((f) => Array.isArray(f.kinds) && f.kinds.includes(39999) && Array.isArray(f['#z']));
 const deletionScans = (calls) => calls.scan.filter((f) => Array.isArray(f.kinds) && f.kinds.includes(5));
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
