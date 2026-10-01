@@ -26,7 +26,10 @@ const { REQUIRED_TAGGINGS } = require('../../src/lib/identification-tags');
  *        list and in the section.
  *   N4 — the section: the status beside each NIP-05.
  *   N5 — the search results show no status, and no check is asked for them.
- *   N6 — a refresh after a press, or leaving the tab and coming back, asks no definite answer again.
+ *   N6 — a refresh after a press, or leaving the tab and coming back, asks no definite answer again; a Couldn't check
+ *        is asked again when it's drawn again (review 1, NB2).
+ *   N7 — a NIP-05 that changes under a row already drawn: never its old verdict, not even for one render — in the
+ *        list and in the section (review 1, NB1).
  *   P1 — an open row's View profile link (the untagged Local row too): /user/<pubkey>, a new tab, its accessible name;
  *        it opens the profile and leaves the row open.
  *   P2 — the section's View profile links.
@@ -95,7 +98,7 @@ function deferred() { let resolve; const promise = new Promise((r) => { resolve 
  * nip05: per-NIP-05 overrides of NIP05_ANSWERS. A value is an answer, { hold: promise, then: answer },
  * 'fail' (a 500) or 'abort' (the request fails).
  */
-async function setup(page, { answers = [answerOf(BASE_ROWS)], nip05 = {}, search = {} } = {}) {
+async function setup(page, { answers = [answerOf(BASE_ROWS)], nip05 = {}, search = {}, profilesAfterPress = {} } = {}) {
   const state = { reads: 0, posted: [], ws: 0, checks: [] };
   const ctx = page.context();
   await ctx.routeWebSocket(/.*/, (ws) => { state.ws++; ws.close(); });
@@ -139,7 +142,12 @@ async function setup(page, { answers = [answerOf(BASE_ROWS)], nip05 = {}, search
   await page.route('**/api/profiles**', (r) => {
     const keys = (new URL(r.request().url()).searchParams.get('pubkeys') || '').split(',').filter(Boolean);
     const out = {};
-    for (const k of keys) if (Object.prototype.hasOwnProperty.call(PROFILES, k)) out[k] = PROFILES[k];
+    // After a press (something posted), a profile in profilesAfterPress answers its changed kind 0 (review 1, NB1).
+    const changed = state.posted.length > 0 ? profilesAfterPress : {};
+    for (const k of keys) {
+      if (Object.prototype.hasOwnProperty.call(changed, k)) out[k] = changed[k];
+      else if (Object.prototype.hasOwnProperty.call(PROFILES, k)) out[k] = PROFILES[k];
+    }
     return json(r, { success: true, profiles: out });
   });
   await page.route('**/api/search/profiles/meili**', (r) => json(r, { success: true, hits: search[new URL(r.request().url()).searchParams.get('q') || ''] || [] }));
@@ -256,7 +264,7 @@ test.describe('/assistants — NIP-05 status and profile links', () => {
     await noSockets(state);
   });
 
-  test('N6: a refresh after a press, or a tab round trip, asks no definite answer again', async ({ page }) => {
+  test('N6: a refresh after a press, or a tab round trip, asks no definite answer again; an unchecked one is retried', async ({ page }) => {
     const state = await setup(page, {
       answers: [answerOf(BASE_ROWS), answerOf([...BASE_ROWS, rowOf(X, ['tapestry'])])],
       search: { xa: [{ pubkey: X, display_name: 'Xavi', nip05: 'xavi@ex.example' }] },
@@ -277,6 +285,68 @@ test.describe('/assistants — NIP-05 status and profile links', () => {
     for (const id of ['zed@ok.example', 'ava@bad.example', 'dee@dee.example', 'eve@eve.example', 'xavi@ex.example']) {
       expect(state.checks.filter((c) => c.nip05 === id).length, `${id} is checked once`).toBe(1);
     }
+    // Review 1, NB2 (ADR 0004 Amendment 1): a Couldn't check is asked again each time it's drawn again — once on the
+    // first load, not on the refresh (the row stays drawn), and once more after the tab round trip.
+    await expectStatus(rowNamed(page, 'Bea'), "Couldn't check");
+    expect(state.checks.filter((c) => c.nip05 === 'bea@down.example').length, 'bea@down.example: the first check, then one retry after the round trip').toBe(2);
+    await noSockets(state);
+  });
+
+  test('N7: a NIP-05 that changes under a row already drawn never shows its old verdict, in the list and in the section', async ({ page }) => {
+    const ava = deferred();
+    const eve = deferred();
+    const state = await setup(page, {
+      answers: [answerOf(BASE_ROWS), answerOf([...BASE_ROWS, rowOf(D, ['tapestry'])])],
+      nip05: { 'ava@new.example': { hold: ava.promise, then: VERIFIED }, 'eve@new.example': { hold: eve.promise, then: INVALID } },
+      // After Tag: Tapestry on Dee, Ava's NIP-05 changes, Bea's goes, and Eve's (still in the section) changes.
+      profilesAfterPress: {
+        [A]: { name: 'Ava', nip05: 'ava@new.example' },
+        [B]: { display_name: 'Bea' },
+        [E]: { display_name: 'Eve Elsewhere', nip05: 'eve@new.example' },
+      },
+    });
+    await page.goto(PAGE);
+    await settled(page, 4);
+    await expectStatus(rowNamed(page, 'Ava'), 'Not valid');
+    await expectStatus(rowNamed(page, 'Bea'), "Couldn't check");
+    await expectStatus(sectionItem(page, 'Eve Elsewhere'), 'Not valid');
+    // Record every state the rows and the section items reach: a one-render flash is a DOM state, so a change log
+    // sees it where sampling can't (review 1, harness friction 1).
+    await page.evaluate(() => {
+      window.__snaps = [];
+      const take = () => {
+        const texts = [...document.querySelectorAll('main li')].map((li) => li.innerText.replace(/\s+/g, ' '));
+        window.__snaps.push(texts.join(' | '));
+      };
+      window.__nip05Observer = new MutationObserver(take);
+      window.__nip05Observer.observe(document.querySelector('main'), { subtree: true, childList: true, characterData: true });
+    });
+    await section(page).getByRole('button', { name: 'Tag: Tapestry' }).first().click();
+    await settled(page, 5);
+    await expect(rowNamed(page, 'Ava')).toContainText('ava@new.example');
+    await expect(rowNamed(page, 'Ava').getByText('Checking…', { exact: true })).toBeVisible();
+    await expect(sectionItem(page, 'Eve Elsewhere')).toContainText('eve@new.example');
+    await expect(sectionItem(page, 'Eve Elsewhere').getByText('Checking…', { exact: true })).toBeVisible();
+    const held = await page.evaluate(() => window.__snaps.slice());
+    const VERDICT = "(✓\\s*)?(Verified|Not valid|Couldn['’]t check)";
+    const stale = [
+      [new RegExp(`ava@new\\.example\\s*${VERDICT}`), 'Ava\'s new NIP-05 beside a verdict before it was checked'],
+      [new RegExp(`eve@new\\.example\\s*${VERDICT}`), 'Eve\'s new NIP-05 beside a verdict before it was checked'],
+      [new RegExp(`NIP-05\\s*—\\s*${VERDICT}`), 'a verdict beside a row with no NIP-05'],
+    ];
+    expect(held.length, 'the change log recorded the refresh').toBeGreaterThan(0);
+    for (const [pattern, what] of stale) {
+      const seen = held.find((snap) => pattern.test(snap));
+      expect(seen, `${what}; seen: ${seen}`).toBeUndefined();
+    }
+    ava.resolve();
+    eve.resolve();
+    await expectStatus(rowNamed(page, 'Ava'), 'Verified');
+    await expectStatus(sectionItem(page, 'Eve Elsewhere'), 'Not valid');
+    const bea = rowNamed(page, 'Bea');
+    await expect(bea.getByText('Checking…')).toHaveCount(0);
+    expect(/NIP-05\s*—\s*(✓\s*)?(Verified|Not valid|Couldn['’]t check)/.test((await bea.innerText()).replace(/\s+/g, ' ')), 'Bea, with no NIP-05 now, shows no status').toBe(false);
+    await page.evaluate(() => window.__nip05Observer.disconnect());
     await noSockets(state);
   });
 

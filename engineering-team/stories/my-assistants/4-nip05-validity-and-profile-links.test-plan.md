@@ -157,3 +157,32 @@ Two of my own test faults surfaced and were fixed:
 
 One mutant can't be told apart from the oracle: `verifyNip05Identifier` returning `found.pubkey || null` instead of
 checking the outcome. A pubkey is only ever set when the domain answered, so the two are the same.
+
+## Amendment after review 1 (2026-10-01)
+
+The review passed, with three non-blocking findings. The owner chose to fix them before shipping (ADR 0004
+Amendment 1).
+
+**What changed in the tests:**
+- **NB1, new N7: a NIP-05 that changes under a drawn row.** After Tag: Tapestry on Dee in the section, the profiles
+  re-read with changes: Ava's NIP-05 changes, Bea's goes, and Eve's (still in the section) changes. Both new
+  identifiers' checks are held.
+  - A MutationObserver records every state of the page's rows and section items while the refresh lands.
+  - N7 fails on any recorded state with Ava's or Eve's new NIP-05 beside a verdict, or a verdict beside "—".
+  - Once released, Ava reads Verified and Eve Not valid, and Bea (no NIP-05 now) shows no status.
+  - This pins the honest-state rule on a third axis: a transition on a drawn surface, in the list and in the section
+    (ledger row `2026-10-01-honest-states-pinned-per-state`, update). Sampling can't see a one-render flash; the
+    change log does.
+- **NB2, N6 extended: the retry.** `bea@down.example` (Couldn't check) is asked twice: once on load, not on the
+  refresh after the press (the row stays drawn), and once more after the tab round trip.
+- **The setup:** `setup()` gains `profilesAfterPress`, profiles that answer differently once something has been posted.
+
+**Verified 2026-10-01** against the build of `d9185db9`, the code before the fix:
+- **N7 fails in 3 runs of 3:** "Ava's new NIP-05 beside a verdict before it was checked; seen: …".
+- **The other 10 pass,** N6's retry pin included, since that's how the code already behaves.
+- **The tests bite:**
+
+  | Mutant | Fails |
+  |---|---|
+  | cache every answer, Couldn't check included (review 1's U-D) | N6: `bea@down.example` asked 1 time, expected 2 |
+  | the code before the fix (a status kept apart from its key) | N7, 3 of 3 |
