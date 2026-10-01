@@ -154,6 +154,28 @@ The owner's answers, 2026-09-30:
 3. **Your own Assistant's untagged row keeps story 1's link to Identification Tags.** That page does both directions
    of the handshake. There's no one-press Tag button on the row.
 
+## Deviations
+
+Small judgment calls made in Implementation (2026-09-30):
+
+- **The untagged Local row is not a toggle,** per ADR 0002 sub-decision 9, which the owner approved at the ADR gate.
+  AC-3's "a row" is read as "a row with something to open". `rowActions` returns `null` for any row with no tags,
+  which in practice is only that one.
+- **Two lines of words that § Copy didn't give**, both new, in the page's tone:
+  - a search error reads "Search isn't answering right now." (ADR sub-decision 7 asked for "a short line");
+  - a refresh that fails after a press adds "The list couldn't be re-read; it may not show this yet." (sub-decision 5).
+- **`withdrawalOf(row, onlyKeys)` takes an optional list of tag keys,** so a change withdraws only the tag it replaces
+  through the same function that Remove uses.
+- **`publishTaggingWithdrawalWithReport` refuses an empty withdrawal** ("Nothing to withdraw…") before signing, so a
+  kind 5 naming nothing is never published.
+- **The page is three files,** `Index.jsx`, `AssistantRow.jsx` and `AssistantSearch.jsx`, as ADR 0002 § Implementation
+  notes allowed past ~300 lines.
+- **The search card's Brainstorm button is the filled one and Tapestry the outlined one,** as in the blueprint.
+- **A real press wasn't smoke-tested on this machine.** The router would upload the tagging to
+  `wss://dcosl.brainstorm.world`. `/cycle-local` checked the read on real data (Nous: Tapestry definition found,
+  Brainstorm not yet; his Assistant's row carries one retractable event) and the page with mocks. A live press is for
+  staging, with a real extension.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
 - Test plan: `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md`

@@ -122,3 +122,41 @@ export async function publishProfileTagAssertion({ tag, targetPubkey, polarity, 
   assertPublished(result);
   return signed;
 }
+
+/**
+ * Withdraw some of the signer's own taggings: one NIP-09 deletion naming each tagging event by id (`e`) and each of
+ * their replaceable addresses (`a`, 39999:<signer>:<d>), with `k` the kind they are. "Withdraw" means the taggings no
+ * longer count, as if never published — not a dispute (my-assistants #2, ADR my-assistants/0002 sub-decision 3).
+ * strfry deletes the named events on receipt; the My Assistants read honours the deletion either way.
+ *
+ * Signs only after getActiveSignerOrThrow (the session's account, issue #335), and, like the apply above, never throws
+ * on delivery: it returns publishEverywhere's result for the caller to describe.
+ *
+ * @param {{ ids: string[], addresses: string[], relays?: string[] }} args
+ * @returns {Promise<{signed: object, result: object}>}
+ */
+export async function publishTaggingWithdrawalWithReport({ ids, addresses, relays }) {
+  const idList = Array.isArray(ids) ? ids : [];
+  const addressList = Array.isArray(addresses) ? addresses : [];
+  if (idList.length === 0 && addressList.length === 0) {
+    throw new Error('Nothing to withdraw: no tagging was named.');
+  }
+  if (!window.nostr) {
+    throw new Error('No NIP-07 extension detected. Install one to publish tags.');
+  }
+  const authorPk = await getActiveSignerOrThrow();
+  const unsigned = {
+    kind: 5,
+    pubkey: authorPk,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ...idList.map((id) => ['e', id]),
+      ...addressList.map((address) => ['a', address]),
+      ['k', '39999'],
+    ],
+    content: 'withdrawn',
+  };
+  const signed = await window.nostr.signEvent(unsigned);
+  const result = relays ? await publishEverywhere(signed, relays) : await publishEverywhere(signed);
+  return { signed, result };
+}

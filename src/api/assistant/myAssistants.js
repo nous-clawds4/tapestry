@@ -18,15 +18,22 @@
  * One row per profile, with its tags in the list's order; the viewer's Assistant here is marked `local`, and added
  * untagged when they have not tagged it (book decision 5).
  *
+ * The answer also carries what the page's actions need (ADR my-assistants/0002 sub-decision 1): per row, `retract` —
+ * for each tag the row carries, every one of the viewer's tagging events for that (tag, profile), as ids and addresses,
+ * which is what a withdrawal names — and `definitions`, each tag's definition at its author's address, read from the
+ * same relays, with the id a new tagging points at.
+ *
  * Read-only: relays are only read, and nothing is signed, published or stored.
  *
  *   no session       → { success: true, signedIn: false }
- *   a session        → { success: true, signedIn: true, local: <hex>|null, rows: [{ pubkey, local, tags: [{ key, name }] }] }
+ *   a session        → { success: true, signedIn: true, local: <hex>|null,
+ *                        rows: [{ pubkey, local, tags: [{ key, name }], retract: { <key>: { ids, addresses } } }],
+ *                        definitions: { brainstorm: { address, found, eventId }, tapestry: { … } } }
  *   the local read throws → 500 { success: false, error: 'Could not load your Assistants' }
  */
 
 const { readPolarity, polarityBucket } = require('../../lib/identification-tags');
-const { MY_ASSISTANT_TAGS, slugKey } = require('../../lib/my-assistant-tags');
+const { MY_ASSISTANT_TAGS, slugKey, definitionAddress } = require('../../lib/my-assistant-tags');
 
 const HEX64 = /^[0-9a-f]{64}$/i;
 const TAG_ADDRESS = /^39999:([0-9a-f]{64}):(.+)$/i;
@@ -76,40 +83,84 @@ function isNewer(a, b) {
   return String(a.id) < String(b.id);
 }
 
-/** The viewer's newest tagging per (tag key, target), for the two tags only. */
-function newestStances({ viewer, taggings }) {
-  const newest = new Map();
+/** Every one of the viewer's taggings of the two tags, grouped per (tag key, target): `<key>|<target>` → events. */
+function stancesByPair({ viewer, taggings }) {
+  const byPair = new Map();
   for (const event of Array.isArray(taggings) ? taggings : []) {
     if (!event || event.kind !== 39999 || event.pubkey !== viewer) continue;
     const key = slugKey(slugOf(event, viewer));
     const target = tagValue(event, 'p');
     if (!key || typeof target !== 'string' || !HEX64.test(target)) continue;
     const pair = `${key}|${target.toLowerCase()}`;
-    if (isNewer(event, newest.get(pair))) newest.set(pair, event);
+    if (!byPair.has(pair)) byPair.set(pair, []);
+    byPair.get(pair).push(event);
+  }
+  return byPair;
+}
+
+/** The viewer's newest tagging per (tag key, target). */
+function newestStances(byPair) {
+  const newest = new Map();
+  for (const [pair, events] of byPair) {
+    let best = null;
+    for (const event of events) if (isNewer(event, best)) best = event;
+    newest.set(pair, best);
   }
   return newest;
+}
+
+/** What a withdrawal of one pair names: every event's id, and every distinct address (39999:<viewer>:<d>). */
+function retractionOf(events, viewer) {
+  return {
+    ids: events.map((e) => e.id),
+    addresses: [...new Set(events.map((e) => `39999:${viewer}:${tagValue(e, 'd')}`))],
+  };
 }
 
 /**
  * The rows, from the viewer's taggings and retractions. Pure.
  * @param {{viewer: string, local: ?string, taggings: Object[], deletions: Object[]}} input
- * @returns {Array<{pubkey: string, local: boolean, tags: Array<{key: string, name: string}>}>} in no promised order
+ * @returns {Array<{pubkey: string, local: boolean, tags: Array<{key: string, name: string}>,
+ *                  retract: Object<string, {ids: string[], addresses: string[]}>}>} in no promised order
  */
 function myAssistantRows({ viewer, local, taggings, deletions }) {
-  const byTarget = new Map();
-  for (const [pair, event] of newestStances({ viewer, taggings })) {
+  const byPair = stancesByPair({ viewer, taggings });
+  const byTarget = new Map(); // target → Map(key → retraction)
+  for (const [pair, event] of newestStances(byPair)) {
     if (isRetracted(event, deletions, viewer)) continue;
     if (polarityBucket(readPolarity(event)) !== 'apply') continue;
     const [key, target] = pair.split('|');
-    if (!byTarget.has(target)) byTarget.set(target, new Set());
-    byTarget.get(target).add(key);
+    if (!byTarget.has(target)) byTarget.set(target, new Map());
+    byTarget.get(target).set(key, retractionOf(byPair.get(pair), viewer));
   }
-  if (local && !byTarget.has(local)) byTarget.set(local, new Set());
-  return [...byTarget.entries()].map(([pubkey, keys]) => ({
-    pubkey,
-    local: !!local && pubkey === local,
-    tags: MY_ASSISTANT_TAGS.filter((t) => keys.has(t.key)).map((t) => ({ key: t.key, name: t.name })),
-  }));
+  if (local && !byTarget.has(local)) byTarget.set(local, new Map());
+  return [...byTarget.entries()].map(([pubkey, carried]) => {
+    const tags = MY_ASSISTANT_TAGS.filter((t) => carried.has(t.key));
+    return {
+      pubkey,
+      local: !!local && pubkey === local,
+      tags: tags.map((t) => ({ key: t.key, name: t.name })),
+      retract: Object.fromEntries(tags.map((t) => [t.key, carried.get(t.key)])),
+    };
+  });
+}
+
+/**
+ * Each tag's definition, from the events a definitions scan found: the newest at 39999:<author>:<slug>. Another
+ * author's event at the same slug is not this tag's definition. Pure.
+ * @returns {Object<string, {address: string, found: boolean, eventId: ?string}>} keyed by tag key
+ */
+function definitionsFrom(events) {
+  const out = {};
+  for (const tag of MY_ASSISTANT_TAGS) {
+    let best = null;
+    for (const event of Array.isArray(events) ? events : []) {
+      if (!event || event.kind !== 39999 || event.pubkey !== tag.author || tagValue(event, 'd') !== tag.slug) continue;
+      if (isNewer(event, best)) best = event;
+    }
+    out[tag.key] = { address: definitionAddress(tag), found: !!best, eventId: best ? best.id : null };
+  }
+  return out;
 }
 
 async function handleMyAssistants(req, res, deps = {}) {
@@ -123,9 +174,16 @@ async function handleMyAssistants(req, res, deps = {}) {
   try {
     const answered = await d.getAssistantPubkeyFor(viewer);
     const local = typeof answered === 'string' && HEX64.test(answered) ? answered.toLowerCase() : null;
-    const taggings = await d.scan({ kinds: [39999], authors: [viewer], '#z': [d.zTag()] });
+    const [taggings, definitionEvents] = await Promise.all([
+      d.scan({ kinds: [39999], authors: [viewer], '#z': [d.zTag()] }),
+      d.scan({
+        kinds: [39999],
+        authors: [...new Set(MY_ASSISTANT_TAGS.map((t) => t.author))],
+        '#d': MY_ASSISTANT_TAGS.map((t) => t.slug),
+      }),
+    ]);
     // Retractions are read only for the taggings that could count: by id, and by address.
-    const candidates = [...newestStances({ viewer, taggings }).values()];
+    const candidates = [...newestStances(stancesByPair({ viewer, taggings })).values()];
     let deletions = [];
     if (candidates.length > 0) {
       const [byId, byAddress] = await Promise.all([
@@ -134,7 +192,13 @@ async function handleMyAssistants(req, res, deps = {}) {
       ]);
       deletions = [...(byId || []), ...(byAddress || [])];
     }
-    return res.json({ success: true, signedIn: true, local, rows: myAssistantRows({ viewer, local, taggings, deletions }) });
+    return res.json({
+      success: true,
+      signedIn: true,
+      local,
+      rows: myAssistantRows({ viewer, local, taggings, deletions }),
+      definitions: definitionsFrom(definitionEvents),
+    });
   } catch (err) {
     console.error('[assistant/my-assistants] could not load the viewer\'s Assistants:', err && err.message ? err.message : err);
     return res.status(500).json({ success: false, error: 'Could not load your Assistants' });
@@ -146,4 +210,5 @@ module.exports = {
   myAssistantRows,
   slugOf,
   isRetracted,
+  definitionsFrom,
 };
