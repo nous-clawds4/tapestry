@@ -72,7 +72,7 @@ look-alikes, and check that the tags on each one are right.
 | Couldn't check, on pointing at it | Its domain didn’t answer, so this NIP-05 couldn’t be checked. |
 | While checking | Checking… |
 | Profile link | View profile ↗ |
-| Profile link, for a screen reader | View {name}’s profile (opens in a new tab) |
+| Profile link, for a screen reader | View profile of {name} (opens in a new tab). **Changed at the ADR gate** (ADR 0004 sub-decision 5): an accessible name must contain the visible words. |
 
 ## Concepts touched
 
@@ -104,6 +104,6 @@ The owner's answers, 2026-10-01:
    section, and the Duties tab's open duties.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
