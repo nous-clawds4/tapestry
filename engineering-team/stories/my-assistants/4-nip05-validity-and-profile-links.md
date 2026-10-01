@@ -105,5 +105,5 @@ The owner's answers, 2026-10-01:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.test-plan.md`
 - Review: (filled in after Review phase)

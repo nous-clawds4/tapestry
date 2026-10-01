@@ -109,6 +109,8 @@ async function setup(page, { answers = [answerOf(BASE_ROWS)], mapLocal = MAP, ma
     return json(r, { success: true, events: [] });
   });
   await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: relayList.map((url, i) => ({ name: `relay ${i}`, json: JSON.stringify({ nostrRelay: { websocketUrl: url } }) })) }));
+  // NIP-05 checks (my-assistants #4): answered "unchecked", so no lookup leaves the test.
+  await page.route('**/api/nip05/verify**', (r) => json(r, { verified: false, status: 'unchecked' }));
   await page.route('**/api/relay/external**', (r) => {
     state.relayUrls.push(r.request().url());
     const a = relayAnswers[Math.min(state.relayUrls.length - 1, relayAnswers.length - 1)];
