@@ -1,6 +1,6 @@
 # Story 2: Tag, re-tag and untag your Assistants from the My Assistants page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-30
 **Type:** Feature
 **Epic:** `my-assistants`
