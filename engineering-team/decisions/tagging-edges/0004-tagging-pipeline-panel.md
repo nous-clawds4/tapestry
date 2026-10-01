@@ -775,6 +775,32 @@ The section `data-testid`s and `data-state` values are as in § UI.
 - **On an identity refusal,** the `stamps` value of the identity that did not resolve is `null`. The other one is
   still given when it resolved.
 
+**T12 — `failureCode`, a pass's own failure code** *(added at story 4's review, round 1, 2026-10-01).* The panel shows a
+failed or refused pass's `failure.code` under where it failed (review Blocking 1). It is explained under its own kind,
+`failureCode`, added to `EXPLANATIONS`, not under `countCode`. AC-5 requires a sentence for every code the status
+carries today, and the pass mints its own.
+- **Exact entries, one sentence each:**
+  - **Identity:** the identity problems `missing`, `empty`, `upper-case` and `not-64-hex` (`checkIdentity`,
+    `sweep.js:61-67`, plus `identities.js`'s `missing`).
+  - **Config:** `missing-NEO4J_URI`, `missing-NEO4J_USER` and `driver` (`reconcileTaggingEdges.js:330`, `:337`).
+  - **Schema:** `tags_address-missing`, `tags_address-not-online`, `nostrUser_pubkey-missing` and `no-status`
+    (`:349-356`).
+  - **Reads:** `incomplete`, `missing-column` and `uniqueness-not-holding` (`:388-408`, `:421`).
+  - **The rest:** `plan-error` (`:436`), `invariant` (`graph.js:164-166`), `signal` (`:310`) and `error` (the
+    fallback at `:394`, `:405`, `:423`, `:487`, `:588`).
+  - **The relay read's codes:** every code in `SCAN_ERROR_CODES` (`src/lib/tagging-edges/realtime.js:68-71`).
+- **The open families** of `FAMILIES` (`E…`, `Neo.…`, `ServiceUnavailable` / `SessionExpired`) also apply under
+  `failureCode`, with sentences fitting a pass's failure. A `Neo.ClientError.Security.…` code reads as a credentials
+  problem.
+- **The guard** extracts these from the producers, with a floor for each:
+  - every `code: '…'` literal in a failure object or a thrown error in `reconcileTaggingEdges.js`;
+  - `missing-` joined to each key of the config check;
+  - the two codes of the schema ternary;
+  - `graph.js`'s `invariant`;
+  - `checkIdentity`'s returns, plus `missing`;
+  - `SCAN_ERROR_CODES`.
+- **`countCode` keeps its meaning:** a count's or the path's `lastError` code.
+
 **T10 — AC-6's baseline.** The requests each existing Relays sub-tab sends under the browser spec's catch-all are
 recorded before the change, at `88af7df3` (its UI is `66d60cb5`'s), in
 `tests/brainstorm/fixtures/relay-subtab-requests.json`. The spec compares against that file.
