@@ -1,8 +1,9 @@
 /**
  * A strict `strfry scan` reader (tagging-edges story 2, ADR tagging-edges/0002 D2; amended by story 3,
- * ADR tagging-edges/0003 § Amendments → ADR 0002 "New files").
+ * ADR tagging-edges/0003 § Amendments → ADR 0002 "New files"). countStrict, beside it, is described at the end of
+ * this comment.
  *
- * A read is complete only when every one of these holds; otherwise the promise rejects with a
+ * For scanStrict, a read is complete only when every one of these holds; otherwise the promise rejects with a
  * ScanError naming which (its `code`), so a failed or partial scan can never read as "the relay
  * holds nothing":
  *
@@ -31,12 +32,17 @@
  * stdout is decoded with setEncoding('utf8') (a multi-byte character split across pipe chunks is
  * reassembled, never replaced; a byte sequence that is not valid UTF-8 is decoded as U+FFFD, not refused)
  * and split into lines as it arrives. `bytes` counts the decoded text re-encoded as UTF-8 — the bytes
- * read, for valid UTF-8. No count is taken: a second process would read a second snapshot. The error's
+ * read, for valid UTF-8. scanStrict takes no separate count: a second process would read a second snapshot. The error's
  * stderrTail is redacted, because the pass's report carries it to a public route: the last `strfry error:` line
  * or the exit code, at most 300 characters, through redactPublicText() — any URI, any absolute path that starts a
  * word, and any host:port (see redactPublicText) replaced, and every 64-hex run cut to 8 characters. (Amended in
  * review round 1, 2026-09-28: paths too; strfry names its config file's path when it cannot load it. Widened by
  * story 3, CF-3: named and IPv6 host:port too; strfry's stderr names redis:6379.)
+ *
+ * countStrict is the strict `strfry scan --count` the drift route reads (tagging-edges story 4, ADR tagging-edges/0004
+ * § Server). It shares scanStrict's pre-spawn checks, its process codes (filter-too-large through signal in the table
+ * above), the escaped filter argv and the redacted stderrTail, but not the line rules: its `unparseable` means stdout
+ * was not one whole number. Its rules are at the function.
  */
 
 const { LIMITS, escapeFilterArgv, filterArgvBytes } = require('./tagging-edges/realtime');
@@ -47,6 +53,9 @@ const STDERR_KEEP = 4096;
 const TAIL_MAX = 300;
 const REDACT_INPUT_MAX = 4096;
 const ID_RE = /^[0-9a-fA-F]{64}$/;
+const DEFAULT_COUNT_TIMEOUT_MS = 10000;
+const COUNT_RE = /^\d+\n$/;
+const COUNT_OUT_MAX = 64;
 
 class ScanError extends Error {
   constructor(code, message, stderrTail = null) {
@@ -233,4 +242,102 @@ function scanStrict(filter, { timeoutMs = DEFAULT_TIMEOUT_MS, isExpected, maxByt
   });
 }
 
-module.exports = { scanStrict, ScanError, redactPublicText, escapeFilterArgv };
+/**
+ * `strfry scan --count <filter>` → Promise<number>, or a ScanError (tagging-edges story 4, ADR tagging-edges/0004
+ * § Server). The drift route's relay count: one number, where a full scanStrict would read every event.
+ *
+ * strfry prints the count and exits 0, and always writes log lines and its Redis connect to stderr, so stderr is never
+ * a failure on its own (it is summarised into stderrTail as scanStrict's is). The count is known only when stdout is
+ * exactly one line /^\d+\n$/ holding a safe integer. Anything else rejects 'unparseable', never 0: an empty stdout, a
+ * lone newline, a sign, or a second line. The codes are scanStrict's pre-spawn and process ones (filter-too-large,
+ * spawn, process-error, timeout, exit, signal) plus unparseable. scanStrict's closure rules are repeated here rather
+ * than shared, so the pass's reader stays as it is.
+ * @param {object|object[]} filter
+ * @param {{ timeoutMs?: number, spawnImpl?: Function }} opts
+ */
+function countStrict(filter, { timeoutMs = DEFAULT_COUNT_TIMEOUT_MS, spawnImpl } = {}) {
+  let argv;
+  try {
+    const argvBytes = filterArgvBytes(filter);
+    if (argvBytes > LIMITS.argvFilterBytes) {
+      return Promise.reject(new ScanError('filter-too-large',
+        `strfry scan filter is ${argvBytes} bytes on the command line, over ${LIMITS.argvFilterBytes}`));
+    }
+    argv = escapeFilterArgv(filter);
+  } catch (_) {
+    return Promise.reject(new ScanError('spawn', 'could not start strfry scan --count: the filter is not JSON'));
+  }
+  const spawn = spawnImpl || require('child_process').spawn;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timer = null;
+    let child = null;
+    let out = '';
+    let stderr = '';
+
+    const fail = (code, message, exitCode = null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { if (child) child.kill('SIGKILL'); } catch (_) { /* already gone */ }
+      reject(new ScanError(code, message, summarizeStderr(stderr, exitCode)));
+    };
+
+    try {
+      child = spawn('strfry', ['scan', '--count', argv], { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) {
+      settled = true;
+      reject(new ScanError('spawn', `could not start strfry scan --count: ${(err && err.code) || 'error'}`));
+      return;
+    }
+
+    if (!child || typeof child.on !== 'function') {
+      settled = true;
+      reject(new ScanError('spawn', 'could not start strfry scan --count: no child process'));
+      return;
+    }
+
+    timer = setTimeout(() => fail('timeout', `strfry scan --count timed out after ${timeoutMs}ms`), timeoutMs);
+
+    // As in scanStrict: a close without a read is a failure, never a count.
+    const reading = !!child.stdout;
+    if (reading) {
+      child.stdout.on('error', (err) => fail('process-error',
+        `strfry scan --count stdout failed: ${(err && err.code) || 'error'}`));
+      child.stdout.setEncoding('utf8');
+      child.stdout.on('data', (chunk) => {
+        if (settled) return;
+        out += chunk;
+        // No well-formed count is this long, so there is no need to keep reading it.
+        if (out.length > COUNT_OUT_MAX) {
+          fail('unparseable', `strfry scan --count printed more than ${COUNT_OUT_MAX} characters`);
+        }
+      });
+    }
+    if (child.stderr) {
+      child.stderr.on('error', () => { /* the tail is advisory; the count is judged on stdout */ });
+      child.stderr.setEncoding('utf8');
+      child.stderr.on('data', (chunk) => {
+        stderr = (stderr + chunk).slice(-STDERR_KEEP);
+      });
+    }
+    child.on('error', (err) => fail('process-error',
+      `strfry scan --count could not run: ${(err && err.code) || 'error'}`));
+    child.on('close', (code, signal) => {
+      if (settled) return;
+      if (signal !== null && signal !== undefined) { fail('signal', `strfry scan --count ended by ${signal}`); return; }
+      if (code !== 0) { fail('exit', `strfry scan --count exited with code ${code}`, code); return; }
+      if (!reading) { fail('process-error', 'strfry scan --count had no stdout to read'); return; }
+      const n = COUNT_RE.test(out) ? Number(out) : NaN;
+      if (!Number.isSafeInteger(n)) {
+        fail('unparseable', 'strfry scan --count did not print one whole number');
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      resolve(n);
+    });
+  });
+}
+
+module.exports = { scanStrict, countStrict, ScanError, redactPublicText, escapeFilterArgv };

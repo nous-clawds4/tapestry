@@ -546,7 +546,8 @@ wait; the re-run then fails `RESOURCE_CLASS_WAIT_TIMEOUT` (OPERATIONS §10.6), a
 pass does the work. *(Amended in review round 3, 2026-09-28: waiters poll on their own, with no queue order
 (`resourceSemaphore.js` `acquire`, `ACQUIRE_LUA`), and the re-run's wait began after the dead pass took its lease.)*
 The Tester does not pin "restart → stopped". On SIGTERM or SIGINT the pass stops at the next batch boundary and
-writes `failed`, `stopped: true`, `reasonCode: 'signal'` (story 4's Stop can use this).
+writes `failed`, `stopped: true`, `reasonCode: 'signal'` (story 4's Stop can use this). *(Since story 4's Planning,
+2026-09-30, the controls, Stop included, are story 5's. Noted at story 4's review, round 1.)*
 
 **Who reads it.** `GET /api/tagging-edges/status` returns `{ reportVersion, running, latest, previous,
 confirmationPending }` (the pending record without its nonce); `GET /api/tagging-edges/held?runId=&offset=&limit≤1000`

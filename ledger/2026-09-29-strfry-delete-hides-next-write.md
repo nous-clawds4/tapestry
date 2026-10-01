@@ -32,30 +32,45 @@ it to every subscription and to exactly as many writes as events deleted.)
   deletions (a kind-5, a replacement, an expiry, an older operator delete) left gaps below them.
 - **Who misses a re-used-id write.** A relay monitor thread keeps a cursor, the largest id it has visited. When it next
   wakes it lowers the cursor to the new largest id (`src/apps/relay/RelayReqMonitor.cpp:26-27`), and on a database
-  change it visits every event above the cursor (`:50-58`), so a write that re-uses an id is still visited. But each
-  subscription skips an event whose id is at or below the highest id its own monitor has passed
-  (`ActiveMonitors::process`, `src/ActiveMonitors.h:93-98`): the last event sent to it, the last event visited that
-  carries the same index key as one of its filters (a filter is indexed by its ids, else its authors, else its tags,
-  else its kinds: `src/ActiveMonitors.h:167-195`), or the relay's newest event when it subscribed
-  (`RelayReqMonitor.cpp:41-43`). So a re-used-id write is missed by the subscriptions that had passed its id, and
-  delivered to the others. It is stored, and a scan or a new REQ finds it.
-- **The debounce race.** A monitor thread wakes on a database change, which it hears 100 ms after the first change
-  (`RelayReqMonitor.cpp:10`; `golpe/external/hoytech-cpp/hoytech/file_change_monitor.h:78-108`), or on a REQ, a CLOSE
-  or a closed connection it serves. A write stored after the delete but before the thread next wakes is seen with the
-  delete: the thread never sees the largest id fall, so it never visits the re-used id (`RelayReqMonitor.cpp:26-27`,
-  `:56-58`), and every subscription it serves misses that write. That is every live subscription, unless a REQ or a
-  CLOSE woke a thread in between.
+  change it visits every event above the cursor (`:50-58`), so a thread that wakes after the delete and before the
+  write still visits a write that re-uses an id. But strfry keeps its skip marks per filter and index-key value, not
+  per subscription alone (`ActiveMonitors::process`, `src/ActiveMonitors.h:25-35`, `:93-98`, `:119-148`):
+  a filter is indexed by its ids, else its authors, else its tags, else its kinds, with one mark for each value
+  (`src/ActiveMonitors.h:167-195`), and a write is checked only under the values it carries itself. A subscription
+  skips a write whose id is at or below the last event sent to it, the relay's newest event when it subscribed
+  (`RelayReqMonitor.cpp:41-43`), or the last event visited that carries the write's own index-key value, sent or not
+  (a write carrying several such values is skipped this way only when each has been passed). So a re-used-id write
+  is missed by the subscriptions that had passed its id, and delivered to the others. It is stored, and a scan or a
+  new REQ finds it. *(Corrected 2026-09-30, story 4's Architecture, from story 3's review, round 3, C1: this bullet
+  said each subscription keeps one mark, the highest id its own monitor has passed.)*
+- **The debounce race.** strfry runs three monitor threads (`reqMonitor = 3`, `setup/strfry.conf.template`). A
+  database change wakes all three about 100 ms after the first change since the last change notice, and that first
+  change may precede the delete (`RelayReqMonitor.cpp:10`;
+  `golpe/external/hoytech-cpp/hoytech/file_change_monitor.h:78-108`); a busy thread wakes later. Three other messages
+  each wake only the thread serving their connection (`src/ThreadPool.h`): a REQ, at its EOSE
+  (`src/apps/relay/RelayReqWorker.cpp`), a CLOSE, and a closed connection. A write that re-uses a freed id and is
+  stored after the delete but before its thread next wakes is seen with the delete: at that wake the thread lowers its
+  cursor, if at all, only to the largest id then present, which already includes the write, and its visit starts
+  above the cursor, so it never visits the re-used id (`RelayReqMonitor.cpp:26-27`, `:51-58`), and every subscription
+  on that thread misses that write. A wake helps only when it falls between the delete and the write, and only for
+  the subscriptions on the thread it woke. *(Corrected 2026-09-30, story 3's review C2: this bullet said the thread
+  never sees the largest id fall, which is false when the delete freed more ids than the writes before the wake
+  re-use. Corrected again 2026-09-30, story 4's Architecture, from story 3's review, round 3, C3: it said every live
+  subscription misses the write unless a REQ or a CLOSE woke a thread in between; a wake spares only its own
+  thread's subscriptions, and a closed connection wakes one too.)*
 - **A wipe while the relay runs** re-uses ids from 1. A subscription then misses writes until the ids pass the point
   its own monitor had reached, at most the old largest id. A new REQ's monitor starts from the relay as it is
   (`RelayReqMonitor.cpp:41-43`), so re-subscribing ends it.
 
 **Impact.**
-- The real-time path: its filters are indexed by the stamps' `z` tags and by kind 5, and every kind-5 and stamped
+- The real-time path: its filters are indexed by the stamps' `z` values and by kind 5, and every kind-5 and stamped
   tagging is sent to it. So after an operator delete it misses each write that re-uses an id at or below the last
-  kind-5 or event carrying a stamp's `z` tag stored since it last subscribed, or the relay's newest event when it did;
-  after a wipe, every write until the ids pass that point; and, like every subscriber, a write caught in the debounce
-  race. Owner decision 10 of ADR `tagging-edges/0003`, as reworded by its Amendment A1 and corrected by A1
-  clarification 24, covers this ("a subscription that stays connected but stops delivering"): what it misses is
+  event sent to it (a kind-5 or a stamped tagging) or the relay's newest event when it last subscribed; a stamped
+  tagging is also hidden by the last event of any kind carrying its stamp (for a tagging carrying both stamps, once
+  each has been passed), and a kind-5 only by the other two. After a wipe, it misses every write until the ids pass
+  the point its monitor had reached; and, like every subscriber, a write caught in the debounce race on its thread.
+  Owner decision 10 of ADR `tagging-edges/0003`, as reworded by its Amendment A1 and corrected by A1 clarification 24,
+  covers this ("a subscription that stays connected but stops delivering"): what it misses is
   reflected at the next safety diff (≤ 10 min), except a version both stored and revoked by id while missed, which
   waits for the pass. OPERATIONS §12.9 tells the operator to restart the path
   (`supervisorctl restart tagging-edges-realtime`) after a relay wipe or a bulk delete. In the local run above, on the
@@ -65,11 +80,11 @@ it to every subscription and to exactly as many writes as events deleted.)
   address's newest version and it then leaves the relay with no event, the author's by-id deletion of the version the
   path last saw there removes the relationship, although that records an older version. The relay then holds nothing
   there the path or the pass can read, and the next pass would make the same removal.
-- Other live subscribers miss writes the same way, with no error: each a re-used-id write it had passed, and every one
-  a write caught in the debounce race. That includes nostr-search's ingest (`nostr-search/src/ingest.js`: a
-  `{kinds:[0]}` REQ kept open after EOSE, so a profile re-using an id at or below the last kind 0 stored since it
-  subscribed, or the relay's newest event then) and any client subscribed through the relay. After a wipe, each misses
-  writes until the ids pass its own point, or until it re-subscribes.
+- Other live subscribers miss writes the same way, with no error: each a re-used-id write it had passed, and a write
+  caught in the debounce race on its own thread. That includes nostr-search's ingest
+  (`nostr-search/src/ingest.js`: a `{kinds:[0]}` REQ kept open after EOSE, so a profile re-using an id at or below the
+  last kind 0 stored since it subscribed, or the relay's newest event then) and any client subscribed through the relay.
+  After a wipe, each misses writes until the ids pass its own point, or until it re-subscribes.
 
 **Fix shape.** Not designed. Ways to look at it:
 - report it upstream, with the cites above: strfry could never re-use an id, with `strfry delete` keeping the newest
