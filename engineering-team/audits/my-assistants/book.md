@@ -87,20 +87,54 @@ At story 3's review, 2026-10-01:
 
 ## Before shipping
 
-- [ ] **Nous publishes the My Brainstorm Assistant tag definition.** He uses the tag UI on tapestry.brainstorm.world,
+- [x] **Nous publishes the My Brainstorm Assistant tag definition.** He uses the tag UI on tapestry.brainstorm.world,
       as he did My Tapestry Assistant on 2026-09-22. The name "My Brainstorm Assistant" gives the slug
       `my-brainstorm-assistant`, which story 1's read is fixed to. Then check that
       `39999:15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270:my-brainstorm-assistant` is on the
       production, staging and dcosl relays.
-- [ ] **Turn on the `tagDeletions` router stream** (ADR my-assistants/0002 Amendment 1, sub-decision 12) on
+      - **Done 2026-10-01 15:49:53Z:** event `779f3a88…`, signed by Nous. Checked in the strfry of production, staging,
+        tags and the Mac Studio, and on both dcosl relays, read strictly. It's built like the My Tapestry Assistant
+        definition (the same three `z` tags). Its description is a word-for-word copy of My Tapestry Assistant's, so
+        it doesn't yet say "held by a Brainstorm service" (decision 4). The owner was told; a revision would replace it
+        at the same address.
+- [x] **Turn on the `tagDeletions` router stream** (ADR my-assistants/0002 Amendment 1, sub-decision 12) on
       staging, production and tags.brainstorm.world, and on the Mac Studio's local stack. The settings: `both`,
       `{"kinds":[5],"#k":["39999"],"limit":5}`, and the same URLs as that instance's `nostrUserTag` stream.
       Each instance needs the owner's OK at the time. Confirm with `GET /api/strfry/router-status` on each.
-- [ ] **Prove a withdrawal travels.** On staging, with a real extension, tag a profile.
+      - **Staging: on, 2026-10-01 14:26Z**, with the owner's OK.
+        - **How:** a loopback `POST /api/strfry/router-config` inside the container. The payload was the stored 12
+          streams, unchanged, plus `tagDeletions`.
+        - **Backup:** `/var/lib/brainstorm/router-state.json.bak-20261001-tagDeletions`.
+        - **Check:** `router-status` lists it enabled and `both`, and the router log shows it connected to both dcosl
+          URLs.
+      - **tags.brainstorm.world: on, 2026-10-01.** The owner added it in Router settings; this machine has no key for
+        that droplet. `router-status` lists it enabled and `both` with the intended filter and both dcosl URLs, and
+        the other 11 streams are unchanged. Its router log wasn't read.
+      - **Production (tapestry.brainstorm.world): on, 2026-10-01.** The owner added it in Router settings.
+        `router-status` lists it enabled and `both`, with the intended filter and both dcosl URLs, the same as
+        production's `nostrUserTag`. The router is running with 14 streams. No before-snapshot was taken there, so the
+        other streams weren't diffed.
+      - **The Mac Studio's local stack: on, 2026-10-01.** The owner added it in Router settings. `router-status`
+        lists it enabled and `both` with the intended filter, and the router log shows it connected to both dcosl
+        URLs. It has one URL more than this stack's `nostrUserTag`, which uses only `wss://dcosl.brainstorm.world`.
+        The owner chose to keep both.
+- [x] **Prove a withdrawal travels.** On staging, with a real extension, tag a profile.
       - **First** confirm the tagging has reached production's and tags.brainstorm.world's relays
         (`/api/strfry/scan` by its id). Otherwise "gone" proves nothing.
       - Then Remove it, and read those relays and `wss://dcosl.brainstorm.world` for the same id: it must be gone,
         or its kind 5 present.
+      - **Done 2026-10-01**, by the owner as Nous on staging's `/assistants`.
+        - **The withdrawal:** Remove withdrew Nous's My Tapestry Assistant tagging of his production Assistant
+          `a73a2980…` (tagging `c18e7de0…`, address `…:profile-tag-my-tapestry-assistant-a73a2980-15f7dafc`), with kind
+          5 `8b08e444…` (`e`, `a`, `k` = 39999) at 16:07:07Z.
+        - **This machine:** its router log shows the kind 5 arriving through `tagDeletions` at 16:07:08 and deleting
+          `c18e7de0…`, by `e` tag and by `a` address. So the tagging was here, and a withdrawal from another instance
+          removed it.
+        - **Every place checked:** in the strfry of staging, production, tags and this machine, and on both dcosl
+          relays (read strictly), the kind 5 is present and no tagging remains at that address.
+        - **What's indirect:** production's and tags' logs weren't readable from here, so on those two only the end
+          state was checked. The tagging pre-checked for the test (`bdde7b1b…`, on `e650874a…`) wasn't the one
+          removed, and is still in place everywhere.
 - [x] **Pin the withdrawal's send in a test** (review 2, non-blocking 1; folded into story 3's cycle, decision 12).
       Done in story 3 (ADR my-assistants/0003 sub-decision 6): O9 in `test/my-assistants-actions.test.js` pins that
       the orchestration sends the withdrawal to the list it reports against. S2 in `test/my-assistants-map.test.js`,
