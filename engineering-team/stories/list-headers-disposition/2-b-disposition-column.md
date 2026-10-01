@@ -79,6 +79,6 @@ the story:
    Name.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
