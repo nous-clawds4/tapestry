@@ -45,7 +45,9 @@ authorized and taken the same day (numbers in story 1's Background).
       status, counts, the drift between relay and graph, start / stop, and a gap-fill run on demand — in the
       style of the existing Streaming ETL controls. *(Amended 2026-09-30 at story 4's Planning, the owner: admins
       may also see the panel, turn the real-time path on and off, run a pass and stop one; confirming held removals
-      stays the owner's. Delivered as story 4, the panel, and story 5, the controls.)*
+      stays the owner's. Delivered as story 4, the panel, and story 5, the controls.)* *(Amended 2026-10-01 at story
+      5's Planning, the owner: the controls are split by what they act on. Story 5 is the real-time path's switch,
+      and story 6 is the pass's run, stop and confirm.)*
 - [ ] **Nothing else moves.** Follows / mutes / reports ingestion is unchanged; no trust, point-of-view or
       count is stored on the new relationships (principles 1–3); nothing locally authored in Neo4j is destroyed
       (principle 4, BIBLE §30).

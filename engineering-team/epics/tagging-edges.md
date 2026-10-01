@@ -13,11 +13,11 @@ strfry→Neo4j letter ingest (OPEN.md #136 stage 2), which it does not attempt.
 **Neo4j carries one relationship per tagging, from the tagger to the tagged person, kept current in real time
 and repaired retroactively, and the owner can manage that pipeline from the control panel.** Before story 2 no
 tagging reached Neo4j at all; every tag surface still scans the relay per request. *(Amended 2026-09-30 at story 4's
-Planning: admins may also see the panel and use every control but confirming held removals; see item 5.)*
+Planning: admins may also see the panel and use every control but confirming held removals; see items 5 and 6.)*
 
 ## Stories
 
-`stories/tagging-edges/`. All five are features (Standard: all five phases).
+`stories/tagging-edges/`. All six are features (Standard: all five phases).
 
 1. `1-tagging-edge-contract.md` — what one relationship is: which events count, what the relationship carries,
    which version of a tagging stands, what a revoke removes; documented in BIBLE. No relationship is written yet.
@@ -110,15 +110,11 @@ Planning: admins may also see the panel and use every control but confirming hel
      the routes suite in one process; the registry's order hides it. Done when strict, routes, strict, then plan all
      pass in one process, and `npm test`'s counts are unchanged.
 
-5. *(planned)* The controls, on story 4's panel: turn the real-time path on and off, run a pass now (never a second
-   while one is queued or running), and stop a pass, queued or running (a running one stops between batches); the
-   owner **or an admin** may do each, enforced by the server. Confirming held removals stays **owner only**. A
-   confirm prompt comes before turning the path off, stopping a pass, and confirming held removals. This widens story
-   3's owner-only switch route to admins (the Architect amends ADR 0003), and gives the pass run and stop controls
-   for the owner or an admin, where today it runs through the generic `/api/run-task` (open to any signed-in
-   session) and has no stop control (the Architect amends ADR 0002). Story 2's confirm route stays owner only.
-   *Proposed, not yet decided:* story 5 folds ledger `2026-09-28-confirm-route-joins-finishing-job`. *(The owner's
-   decisions at story 4's Planning, 2026-09-30, apart from that proposal.)*
+5. `5-real-time-path-switch.md` — the real-time path's switch on story 4's panel, for the owner **or an admin**,
+   enforced by the server (last change wins): a prompt before turning it off, a "starting" state instead of a false
+   alarm, and a record of who changed it, shown as the latest change and the last 10. This widens story 3's
+   owner-only switch route to admins (the Architect amends ADR 0003). *(Split from the planned controls at Planning,
+   2026-10-01, by what they act on; the owner's decisions are in the story.)* **Approved** 2026-10-01.
    **Carry-forwards from story 4's review** (placed by the owner 2026-10-01; `reviews/tagging-edges/4-tagging-pipeline-panel.md`
    § "Re-review, round 2", R2-1 to R2-14). Each becomes a docs, copy or test task of story 5. Line numbers are at
    `77ae0da4`; the review gives each one's evidence and ask in full.
@@ -139,6 +135,8 @@ Planning: admins may also see the panel and use every control but confirming hel
      at a time: `inflight` clears when an answer settles, and an abandoned graph count can run beside the next.
    - *R2-8 (docs, ADR):* ADR 0002 decision 14 ("Until story 4"), the handoff's "Recommended shape for story 4", and
      ADR 0003:917's note ("two public routes") still describe story 4 as owning work now story 5's, or read wrongly.
+     Since the split (2026-10-01), the switch is story 5's, and running, stopping and confirming are story 6's: ADR
+     0002 decision 14 and :550 / :1237 point at story 6.
    - *R2-9 (ADR):* T12's list of `error` fallbacks adds `fsFailure` (`reconcileTaggingEdges.js:102`).
    - *R2-10 (test):* browser case B50 for the held list's 404 restart when the status answer is overtaken.
    - *R2-11 (ADR, test):* ratify, or revert, T12's `ERR_` exclusion and the "`Security.Forbidden` is a permission"
@@ -149,7 +147,34 @@ Planning: admins may also see the panel and use every control but confirming hel
      inline ternaries).
    - *R2-14 (docs):* story 4 § Deviations' `CANONICAL_Z_RE` line cites row `2026-10-01-drift-copies-canonical-z-pattern`.
 
-Order: 1 → 2 → 3 → 4 → 5 (4's page can start once 2's status shape is fixed; 5 builds on 4's panel).
+6. *(planned)* The pass's controls, on story 4's panel. The owner's decisions at story 5's Planning (2026-10-01),
+   with story 4's (2026-09-30):
+   - **Run a pass now,** for the owner or an admin. It is refused plainly while any pass is running, or while a pass
+     someone asked for is waiting to start, even one waiting behind scoring for the shared heavy-task lock. The
+     backstop's future scheduled run never counts as waiting.
+   - **The general run-task route is closed for this pass** to anyone but the owner or an admin, so the limit is the
+     server's. Creating or enabling a Scheduled Tasks entry stays with the 2026-07-21 intake sweep. *Proposed by the
+     Product Owner, not yet decided:* direct local calls, which the house trust rule already treats as trusted
+     (`src/middleware/auth.js`), stay exempt from this gate.
+   - **Stop a pass** that someone asked for and that is still waiting (a pass held behind scoring counts as
+     waiting), or one that is running. A running pass stops
+     gracefully at its next safe point, with no force-stop.
+     - A stop never touches the daily schedule.
+     - A stopped pass shows its own outcome, "stopped on request by <who> at <time>", not "failed".
+   - **Everyone viewing sees the same state.** The server reports "a pass is waiting to start" and "a stop was
+     requested", so every viewer sees them, and a reload keeps them.
+   - **Confirm held removals from the panel,** for the owner only, after a prompt. The prompts before stopping a pass
+     and before confirming come from story 4's Planning.
+   - **An admin may stop a pass that is applying the owner's confirmation.** The stop prompt warns that the
+     confirmation will be used up.
+   - **Run and Confirm, when a pass is already waiting or running,** say so plainly and start nothing new. Story 6
+     folds ledger `2026-09-28-confirm-route-joins-finishing-job` (the few seconds after a pass ends) for both.
+   - **Who did it.** Every start, stop and confirmation records who and when. The panel shows the latest such action
+     for each pass, and a short history. The path's own record is story 5's.
+
+   The Architect amends ADR 0002 (run, stop and the stopped outcome). Story 2's confirm route stays owner only.
+
+Order: 1 → 2 → 3 → 4 → 5 → 6 (4's page can start once 2's status shape is fixed; 5 and 6 build on 4's panel).
 
 ## Key facts / guardrails
 
