@@ -216,6 +216,6 @@ After review 1 (2026-10-01):
     and "— · —" for a moment. It's cosmetic and accepted.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md`
-- Test plan: `engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.test-plan.md`
-- Review: `engineering-team/reviews/my-assistants/3-the-treasure-map-on-the-page.md`
+- ADR: `engineering-team/decisions/done/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md`
+- Test plan: `engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.test-plan.md`
+- Review: `engineering-team/reviews/done/my-assistants/3-the-treasure-map-on-the-page.md`

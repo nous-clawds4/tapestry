@@ -27,6 +27,6 @@ reaches the ledger.
   "router stream");
 - cite every open row found, or say that none was found.
 
-**Pointer:** `engineering-team/reviews/my-assistants/2-tag-and-untag-from-the-page.md` § Harness friction;
-`engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
+**Pointer:** `engineering-team/reviews/done/my-assistants/2-tag-and-untag-from-the-page.md` § Harness friction;
+`engineering-team/decisions/done/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
 § Amendment 1.

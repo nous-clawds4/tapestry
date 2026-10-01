@@ -12,9 +12,9 @@
 
 The story (`1a0d4504`) and ADR (`2a108aec`) were read as inputs.
 
-**Story:** `engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.md` (Approved; § Resolved at the story gate; the Implementer's § Deviations)
-**ADR:** `engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md` (Accepted)
-**Test plan:** `engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.test-plan.md`
+**Story:** `engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.md` (Approved; § Resolved at the story gate; the Implementer's § Deviations)
+**ADR:** `engineering-team/decisions/done/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md` (Accepted)
+**Test plan:** `engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.test-plan.md`
 **Book:** `engineering-team/audits/my-assistants/book.md` (acceptance frame, no PRD)
 
 **In short:** the code does what ADR 0003 says, sub-decision by sub-decision. The copy matches § Copy byte for byte.
@@ -281,7 +281,7 @@ logged omissions. M9 checks 375 px with the section and with an open duty.
 1. **B1: the open row's panel is the one place on the Assistants tab where a duty claim can show while the Map loads
    or after it fails, and nothing tests it.**
    `ui/src/pages/assistants/AssistantRow.jsx:72-75`; `tests/brainstorm/my-assistants-map.spec.js:189-222` (M3, M4);
-   `engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.test-plan.md:50` and `:162-183`.
+   `engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.test-plan.md:50` and `:162-183`.
    - **The code is right:** P1 and P6 above.
    - **What the story asks:**
      - AC-7: "While the Treasure Map is being read: no status, count or duty claims anything";
@@ -472,7 +472,7 @@ override after a spread (NB7).
 
 ### The amended records, checked
 
-- **ADR 0003 Amendment 1** (`decisions/my-assistants/0003-…:232-250`):
+- **ADR 0003 Amendment 1** (`decisions/done/my-assistants/0003-…:232-250`):
   - **Sub-decision 7** matches the code: `error` under `strict` only, and the page shows the error line with Try
     again (M3b).
   - **What `none` means under `strict`** ("local strfry missed, at least one general-purpose relay was read, and every

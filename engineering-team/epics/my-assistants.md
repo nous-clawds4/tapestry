@@ -1,6 +1,6 @@
 # Epic: my-assistants — the My Assistants page at `/assistants`
 
-**Status:** Active
+**Status:** Done
 **Created:** 2026-09-30
 **Book:** `engineering-team/audits/my-assistants/book.md` (no PRD — acceptance frame)
 **Blueprint:** the Claude Design artifact's "My Assistants" screen, kept as it stood at intake in

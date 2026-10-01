@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-30
-**Story:** `engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.md`
+**Story:** `engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.md`
 
 ## Context
 
@@ -231,7 +231,7 @@ Sub-decisions:
 
 ## Amendment 1 (2026-10-01, after review 1): with no relay to ask, a strict read is unreadable
 
-**Why.** Review 1 (`engineering-team/reviews/my-assistants/3-the-treasure-map-on-the-page.md`, non-blocking 3) found a
+**Why.** Review 1 (`engineering-team/reviews/done/my-assistants/3-the-treasure-map-on-the-page.md`, non-blocking 3) found a
 path sub-decision 1 didn't consider. When the graph names no general-purpose relay and local strfry misses, the hook
 answers `none` without reading any relay. The page then says "You haven’t published a Treasure Map yet" and "Not on
 Treasure Map" from a read that never happened, which is what AC-1 and AC-7 forbid. The owner chose at the review gate

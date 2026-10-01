@@ -5,9 +5,9 @@
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-09-30
 **Diff:** `git diff 58abd891..80276b46` on `feat/my-assistants` (base = `staging` at `58abd891`). Commits: `1f5a2caf` (story, book, epic, blueprint), `b4f45bf1` (ADR), `dac84487` (failing tests and test plan), `a63b3ae9` (the implementation, the focus here), `80276b46` (two ledger rows). 24 files, 2866 insertions, 45 deletions.
-**Story:** `engineering-team/stories/my-assistants/1-the-my-assistants-page.md` (Approved; owner's gate answers in § Resolved at the story gate; Implementer's § Deviations)
-**ADR:** `engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md` (Accepted; dated correction on `NOSTR_USER_TAG_Z_TAG`)
-**Test plan:** `engineering-team/stories/my-assistants/1-the-my-assistants-page.test-plan.md`
+**Story:** `engineering-team/stories/done/my-assistants/1-the-my-assistants-page.md` (Approved; owner's gate answers in § Resolved at the story gate; Implementer's § Deviations)
+**ADR:** `engineering-team/decisions/done/my-assistants/0001-one-session-read-lists-your-assistants.md` (Accepted; dated correction on `NOSTR_USER_TAG_Z_TAG`)
+**Test plan:** `engineering-team/stories/done/my-assistants/1-the-my-assistants-page.test-plan.md`
 **Book:** `engineering-team/audits/my-assistants/book.md` (acceptance frame, no PRD); epic `engineering-team/epics/my-assistants.md`
 
 **In short:** one blocking defect. The server rule, the endpoint, the frame lift, the menu and every AC-listed state are correct and well tested. But a single listed profile whose kind 0 has a non-string `display_name` or `name` (a number, a boolean, an object) makes the view-model throw. The page then shows "Couldn’t load your Assistants." with no rows, even though the taggings were read fine, and Try again repeats it every time. That breaks AC-4 ("still listed, with those fallbacks") and AC-6 (the error line is for when "the taggings can't be read"). The fix is a type guard of the kind `valueOr` already applies to URL and NIP-05, plus a C-class case.

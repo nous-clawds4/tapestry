@@ -26,5 +26,5 @@ flash; a change log can (a MutationObserver recording every DOM state, story 4's
 while…" rule, also pin the transition where a drawn surface's input changes, with a change-log assertion. The
 test-design note that a held answer plus sampling beats a change log is true for held states, not for transitions.
 
-**Pointer:** `engineering-team/reviews/my-assistants/3-the-treasure-map-on-the-page.md` § Harness friction 1 and
+**Pointer:** `engineering-team/reviews/done/my-assistants/3-the-treasure-map-on-the-page.md` § Harness friction 1 and
 blocking 1; the test plan's § Amendment after review 1.

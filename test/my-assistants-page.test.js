@@ -2,9 +2,9 @@
 /**
  * my-assistants #1: the My Assistants page, its menu link, and the list of your Assistants.
  *
- * Story: engineering-team/stories/my-assistants/1-the-my-assistants-page.md
- * ADR:   engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md
- * Plan:  engineering-team/stories/my-assistants/1-the-my-assistants-page.test-plan.md
+ * Story: engineering-team/stories/done/my-assistants/1-the-my-assistants-page.md
+ * ADR:   engineering-team/decisions/done/my-assistants/0001-one-session-read-lists-your-assistants.md
+ * Plan:  engineering-team/stories/done/my-assistants/1-the-my-assistants-page.test-plan.md
  * Browser half: tests/brainstorm/my-assistants.spec.js (what a viewer SEES: words, order, states, layout, menu).
  *
  * Classes:
@@ -535,7 +535,7 @@ test('C9: the view-model imports no React, so Node can run it (ADR sub-decision 
   assert(!/from\s+['"]react['"]/.test(src), `${rel(VIEW_MODEL)} imports react`);
 });
 
-// Added after review 1 (engineering-team/reviews/my-assistants/1-the-my-assistants-page.md, blocking finding 1): a kind 0
+// Added after review 1 (engineering-team/reviews/done/my-assistants/1-the-my-assistants-page.md, blocking finding 1): a kind 0
 // is arbitrary JSON, so a name field can be a number, an array or blank. Such a profile is still listed (AC-4), with the
 // fallbacks — never an error for the whole page (AC-6).
 test('C10: a display_name or name that is not non-blank text is skipped — the row falls back, and nothing throws', async () => {

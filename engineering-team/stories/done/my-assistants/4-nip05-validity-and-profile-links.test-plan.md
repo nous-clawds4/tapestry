@@ -1,7 +1,7 @@
 # Test Plan: Story 4 — Is each Assistant's NIP-05 genuine, and a way into each Assistant's profile
 
-**Story:** `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.md`
-**ADR:** `engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
+**Story:** `engineering-team/stories/done/my-assistants/4-nip05-validity-and-profile-links.md`
+**ADR:** `engineering-team/decisions/done/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
 **Date:** 2026-10-01
 
 Two new files and one addition to the earlier specs:

@@ -48,5 +48,5 @@ Result: 245/245 suites, every live suite skipped, nothing published (gate run `2
 - disable the Mac Studio's tag streams. That's the owner's call: the flags have been set since 2026-07-18
   (`/var/lib/brainstorm/router-state.json`), and nothing found records why.
 
-**Pointer:** `engineering-team/reviews/my-assistants/1-the-my-assistants-page.md` § Harness friction 1; OPEN.md row
+**Pointer:** `engineering-team/reviews/done/my-assistants/1-the-my-assistants-page.md` § Harness friction 1; OPEN.md row
 `2026-09-27-test-fixture-taggings-on-prod-relays` (its 2026-09-29 and 2026-09-30 updates).

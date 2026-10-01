@@ -108,5 +108,10 @@ not govern the router) and stopped it at suite 5 of 245 once it recalled this ro
   locally.
 - **No cleanup was done.** Publishing deletions is the owner's call.
 
+**Update 2026-10-01 (my-assistants book close): kind 5s from this machine now travel.** The Mac Studio's router has
+a `tagDeletions` stream (`both`, kind 5 with `#k` 39999, to both dcosl relays). From now on, a suite's own retraction
+reaches dcosl *if* it carries `k` 39999. The six fixtures already there are unchanged, and retracting the five signed
+with the committed dev key is still the owner's call.
+
 The session's instructions (Implementer role, workflow 4) say to run `npm test`. On this machine that instruction
 and this row conflict, and nothing in the workflow points here.

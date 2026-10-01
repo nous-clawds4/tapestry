@@ -4,9 +4,9 @@ const { nip19 } = require('nostr-tools');
 /**
  * my-assistants #1 — the My Assistants page, its menu link, and the list of your Assistants: what a viewer SEES.
  *
- * Story: engineering-team/stories/my-assistants/1-the-my-assistants-page.md
- * ADR:   engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md
- * Plan:  engineering-team/stories/my-assistants/1-the-my-assistants-page.test-plan.md
+ * Story: engineering-team/stories/done/my-assistants/1-the-my-assistants-page.md
+ * ADR:   engineering-team/decisions/done/my-assistants/0001-one-session-read-lists-your-assistants.md
+ * Plan:  engineering-team/stories/done/my-assistants/1-the-my-assistants-page.test-plan.md
  * Node half: test/my-assistants-page.test.js (the rule, the handler, the view-model, the menu list).
  *
  * Network-mocked, the dictionary-concepts.spec.js idiom: sign-in comes from /api/auth/status and
