@@ -103,6 +103,27 @@ The owner's answers, 2026-10-01:
 4. **The link appears everywhere an Assistant shows,** opening in a new tab: the list's open rows, the not-tagged
    section, and the Duties tab's open duties.
 
+## Deviations
+
+Small judgment calls made in Implementation (2026-10-01):
+
+- **Where the status sits.** In the list it's on its own line under the NIP-05, because a row's NIP-05 field stacks
+  its label and value. In the not-tagged section it follows the NIP-05 on the same line. Both read as "NIP-05, then
+  its status".
+- **Where the link sits.** In an open row it's after Manage on Treasure Map, before Change and Remove. In the section
+  it's first in each item's actions, before the Tag buttons. In an open duty it's at the end of each Assistant's line.
+- **An answer that is an array,** like any other answer without one of the three statuses, reads Couldn't check.
+- **openapi** documents `GET /api/nip05/verify` for the first time, under Profiles, in the "Search / Profiles"
+  section.
+- **Checked against real domains, from Node, reads only.**
+  - Nous's Brainstorm Assistant's NIP-05, `matrix_end_178d@brainstorm.world`, is listed for `4b7ba0a1…`. It reads
+    verified for that key and invalid for another.
+  - An unlisted name on the same domain reads invalid.
+  - A domain that doesn't exist reads unchecked.
+
+  The page itself was checked with the mocked answers, at desktop and 375 px. The local container wasn't updated
+  (it has no bind mount), so the server change reaches an instance only by deploy.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
 - Test plan: `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.test-plan.md`

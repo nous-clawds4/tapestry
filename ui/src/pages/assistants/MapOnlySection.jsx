@@ -1,4 +1,6 @@
 import { COPY, TAG_KEYS, tagAvailability } from './myAssistants';
+import Nip05Status from './Nip05Status';
+import ProfileLink from './ProfileLink';
 
 /**
  * "On your Treasure Map, but not tagged" (my-assistants #3, ADR my-assistants/0003 sub-decision 5; story AC-4): the
@@ -7,8 +9,10 @@ import { COPY, TAG_KEYS, tagAvailability } from './myAssistants';
  * while a tag is unpublished (its reason as their description), reported, then the list re-read; a tagged Assistant
  * moves into the list and out of here. With none, there is no section.
  *
- * Props: items ([{ pubkey, name, url, nip05, count }], mapOnlyAssistants with the profile fields); definitions (the
- * read's); busy ({ kind, pubkey, key } while a press publishes, else null); onTag(pubkey, tagKey).
+ * Since my-assistants #4 (ADR my-assistants/0004) each NIP-05 carries its status, and each Assistant has View profile.
+ *
+ * Props: items ([{ pubkey, name, url, nip05, nip05Id, count }], mapOnlyAssistants with the profile fields);
+ * definitions (the read's); busy ({ kind, pubkey, key } while a press publishes, else null); onTag(pubkey, tagKey).
  */
 export default function MapOnlySection({ items, definitions, busy, onTag }) {
   if (!Array.isArray(items) || items.length === 0) return null;
@@ -26,10 +30,13 @@ export default function MapOnlySection({ items, definitions, busy, onTag }) {
           <li key={item.pubkey} className="bsd-ma-maponly-item">
             <div className="bsd-ma-maponly-who">
               <span className="bsd-ma-name">{item.name}</span>
-              <span className="bsd-ma-maponly-meta">{item.url} · {item.nip05}</span>
+              <span className="bsd-ma-maponly-meta">
+                {item.url} · {item.nip05} <Nip05Status pubkey={item.pubkey} nip05Id={item.nip05Id} />
+              </span>
               <span className="bsd-ma-maponly-count">{COPY.sectionLine(item.count)}</span>
             </div>
             <div className="bsd-ma-maponly-actions">
+              <ProfileLink pubkey={item.pubkey} name={item.name} />
               {TAG_KEYS.map((key) => {
                 const pressed = busy && busy.kind === 'tag' && busy.pubkey === item.pubkey && busy.key === key;
                 return (

@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { COPY, IDENTIFICATION_TAGS_PATH, TREASURE_MAP_PATH } from './myAssistants';
+import Nip05Status from './Nip05Status';
+import ProfileLink from './ProfileLink';
 
 /**
  * One row of the My Assistants list (my-assistants #1; opening and its actions since #2, ADR my-assistants/0002
@@ -10,6 +12,9 @@ import { COPY, IDENTIFICATION_TAGS_PATH, TREASURE_MAP_PATH } from './myAssistant
  *
  * The status (On / Not on Treasure Map) shows only once the Map has been read — `found` or `none` — so nothing is
  * claimed while it loads or after a failed read (AC-7).
+ *
+ * Since my-assistants #4 (ADR my-assistants/0004) the NIP-05 carries its status (Nip05Status, text inside the toggle),
+ * and the open panel has View profile (ProfileLink, outside the toggle).
  *
  * Props: row (buildRows' shape); open; onToggle(); actions (rowActions' answer); busy ({ kind, pubkey } while a press
  * publishes, else null); onChange(toKey); onRemove(); mapStatus (useTreasureMap's status); duties (dutiesOf's answer).
@@ -53,6 +58,7 @@ function RowLine({ row, onMap }) {
       <span className="bsd-ma-field is-nip05">
         <span className="bsd-ma-label">{COPY.fieldNip05}</span>
         <span className="bsd-ma-value">{row.nip05}</span>
+        <Nip05Status pubkey={row.pubkey} nip05Id={row.nip05Id} />
       </span>
       <span className="bsd-ma-tags">
         {row.untagged
@@ -114,6 +120,7 @@ export default function AssistantRow({ row, open, onToggle, actions, busy, onCha
             <Duties mapStatus={mapStatus} duties={duties} />
             <div className="bsd-ma-panel-actions">
               <Link className="bsd-ma-btn bsd-ma-link-btn" to={TREASURE_MAP_PATH}>{COPY.manage}</Link>
+              <ProfileLink pubkey={row.pubkey} name={row.name} />
               {actions && actions.change && (
                 <button
                   type="button"
