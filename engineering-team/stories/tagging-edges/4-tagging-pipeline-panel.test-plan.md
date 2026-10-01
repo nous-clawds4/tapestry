@@ -2,7 +2,8 @@
 
 **Story:** `engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.md`
 **ADR:** `engineering-team/decisions/tagging-edges/0004-tagging-pipeline-panel.md`, with § Clarifications (Test Design,
-2026-09-30) T1–T11
+2026-09-30) T1–T11, as amended at `c496d853` (review round 1: T5's `countsPredatePass`)
+**Review:** `engineering-team/reviews/tagging-edges/4-tagging-pipeline-panel.md`, round 1 (§ Review round 1 below)
 **Date:** 2026-09-30
 
 ## The suites
@@ -12,18 +13,21 @@ Seven new suites, and edits to two existing ones. Every Node suite exports `run(
 
 | Suite | Ids | Level | What it holds |
 |---|---|---|---|
-| `test/tagging-pipeline-view.test.js` | TV1–TV58 | unit (ESM by `import()`) | `taggingPipelineView.js`: `POLL_MS`, `EXPLANATIONS`, `FAMILIES`, `explain`, `passView`, `newestFinishedPass`, `pathView`, `scheduleView`, `driftView`, and the module's form |
-| `test/tagging-pipeline-codes.test.js` | PC1–PC40 | unit + source scan | The guard: every code the producers can write today has its own sentence |
+| `test/tagging-pipeline-view.test.js` | TV1–TV63 | unit (ESM by `import()`) | `taggingPipelineView.js`: `POLL_MS`, `EXPLANATIONS`, `FAMILIES`, `explain`, `passView`, `newestFinishedPass`, `pathView`, `scheduleView`, `driftView`, and the module's form |
+| `test/tagging-pipeline-codes.test.js` | PC1–PC41 | unit + source scan | The guard: every code the producers can write today has its own sentence |
 | `test/tagging-pipeline-fetch.test.js` | TF1–TF19 | unit (ESM) | `readSection` over a fake `fetchImpl` |
 | `test/strfry-count-strict.test.js` | SC1–SC22 | unit (fake `strfry` on `PATH`) | `countStrict` |
 | `test/tagging-edges-drift-route.test.js` | DR1–DR27 | unit (route with injected deps) + source | `GET /api/tagging-edges/drift-counts`: the gate, the counts, the answer, single flight, the registration |
 | `test/tagging-pipeline-panel-source.test.js` | PS1–PS25 | source (text and the `typescript` JSX parser) | The panel's files, `RELAY_TABS`, the render line, the timers, the requests, colours, lengths, emoji, `!`, class names |
-| `tests/brainstorm/tagging-pipeline-panel.spec.js` | B0–B40 (B36a–d) | browser (Playwright, every route stubbed) | What the owner and an admin see, every state AC-2 to AC-5 name, refresh, "changes nothing", AC-6's request baseline |
+| `tests/brainstorm/tagging-pipeline-panel.spec.js` | B0–B48 (B36a–d) | browser (Playwright, every route stubbed) | What the owner and an admin see, every state AC-2 to AC-5 name, refresh, "changes nothing", AC-6's request baseline |
 | `test/tagging-edges-realtime-resilience.test.js` | + RX29, RX30 | engine (fakes) | C6: clarification 26's two unpinned halves |
 | `test/tagging-edges-realtime-routes.test.js` | `FORGET` | — | C9: `src/lib/strfryScanStrict.js` added to the list |
 
 Shared fixtures: `test/helpers/taggingPipelineFixtures.js`, which is CommonJS and deep-frozen. It holds realistic
-status, realtime, schedule, held and drift bodies for every state the criteria name. The AC-6 baseline is
+status, realtime, schedule, held and drift bodies for every state the criteria name. Review round 1 added the pass
+records and status bodies `WRITE_FAILED`, `SCHEMA_UNREACHABLE`, `CONFIRMED_FAILED` and `CONFIRMED_APPLIED`, the
+`catchUpLast()` helper with `REALTIME.CATCH_UP_FAILED_WITH_REASON` and `CATCH_UP_NOT_ESTABLISHED`, and
+`DRIFT.PREDATING` with `EXPECTED_DRIFT.PREDATING`. The AC-6 baseline is
 `tests/brainstorm/fixtures/relay-subtab-requests.json`, recorded at `88af7df3` (T10).
 
 ## Coverage map
@@ -31,10 +35,10 @@ status, realtime, schedule, held and drift bodies for every state the criteria n
 | Criterion | Tests |
 |---|---|
 | **AC-1** where, who, changes nothing | PS1, PS2, PS4, PS5, PS13, PS14; TF1 (every read a `GET`); B1 (owner: the sub-tab directly after Streaming ETL), B2 (admin), B3 (the other sub-tabs unchanged), B38 (a minute open with two Recounts: only `GET`s, exactly three drift-counts requests) |
-| **AC-2** the pass, held removals, the confirmation, the schedule | TV12–TV20 (running by `running` alone, `current`, `finishing`, `empty`, `earlier`, the five confirmation states), TV21–TV22 (newest finished pass), TV34–TV43 (the schedule's verdicts, intervals, cron rule); PC1–PC9, PC27; PS5, PS14, PS15 (the held URL with `runId`, `offset`, `limit=50`), PS25 (the schedule button calls `onOpenTab('schedule')`); B5–B18 and B40 (the held list's 404 restart) |
-| **AC-3** the path | TV23–TV33 (`onButNotRunning`, warnings, `countsSince`, `lastFigures`, counts and gauges, `setupProblemKey`); PC10–PC15; B19–B26 (every state, the three warnings, "not yet available", counts reset, the last catch-up) |
-| **AC-4** drift | TV45–TV58 (the arithmetic, the story's 5/1/1 → 3, 3, 0 example, unknown, report unavailable, no finished pass, the one used instead, left to the next pass, the path on and off); SC1–SC22; DR1–DR27; TF13, TF19; B27–B34, B37 |
-| **AC-5** refresh, states, colours, copy | TV1–TV11, PC35–PC40, TF1–TF19; PS9–PS12 (timers by name, each cleared on unmount), PS16–PS20 and PS22–PS24 (no colour literal, only the eight tokens, no length, no emoji, no `!`, only the listed classes, nothing added to `styles.css`); B4 (loading), B35 (refresh after `POLL_MS`), B36a–d (a failed read names itself and retries while the others stay ready), B37 |
+| **AC-2** the pass, held removals, the confirmation, the schedule | TV12–TV20 (running by `running` alone, `current`, `finishing`, `empty`, `earlier`, the five confirmation states), TV21–TV22 (newest finished pass), TV34–TV43 (the schedule's verdicts, intervals, cron rule); PC1–PC9, PC27; PS5, PS14, PS15 (the held URL with `runId`, `offset`, `limit=50`), PS25 (the schedule button calls `onOpenTab('schedule')`); B5–B18 and B40 (the held list's 404 restart); B42 (a failure's code with its explanation, and a schema refusal that names Neo4j), B44 (the confirmed-removals sentence only when some were applied) |
+| **AC-3** the path | TV23–TV33 (`onButNotRunning`, warnings, `countsSince`, `lastFigures`, counts and gauges, `setupProblemKey`); PC10–PC15; B19–B26 (every state, the three warnings, "not yet available", counts reset, the last catch-up); B45 (a catch-up's reason labelled as why only when not established) |
+| **AC-4** drift | TV45–TV58 (the arithmetic, the story's 5/1/1 → 3, 3, 0 example, unknown, report unavailable, no finished pass, the one used instead, left to the next pass, the path on and off); TV59–TV62 (`countsPredatePass`), TV63 (`usedInsteadOfLatest` while a pass runs); SC1–SC22; DR1–DR27; TF13, TF19; B27–B34, B37; B41 (drift while a pass runs), B43 (counts that predate the explaining pass) |
+| **AC-5** refresh, states, colours, copy | TV1–TV11, PC35–PC41 (PC41: `EBADJSON`'s own sentence), TF1–TF19; PS9–PS12 (timers by name, each cleared on unmount), PS16–PS20 and PS22–PS24 (no colour literal, only the eight tokens, no length, no emoji, no `!`, only the listed classes, nothing added to `styles.css`); B4 (loading), B35 (refresh after `POLL_MS`), B36a–d (a failed read names itself and retries while the others stay ready), B37; B46 (a failed re-poll keeps the earlier figures under their read time), B47 (a late answer is dropped), B48 (a tick is skipped while a read is in flight) |
 | **AC-6** nothing else moves | PS3, PS7, PS8 (today's five `RELAY_TABS` entries and render lines, which pass now), PS13; B1, B39 (each existing sub-tab sends the same requests as the baseline) |
 | **Docs tasks** | The Reviewer checks them against the diff. No tests. |
 | **C6** | RX29 (a refused removal's kind-5 found again at the safety diff merges and waits for the timer), RX30 (a newer version with its notice lost lifts a removal park at the catch-up that finds it) |
@@ -58,8 +62,12 @@ status, realtime, schedule, held and drift bodies for every state the criteria n
   (TF18).
 - **Single flight.** Two concurrent requests make one count; a request after it settles counts again (DR20).
 - **The schedule.** A cron with doubled spaces or tabs, and an entry with `cron` absent or `null` (TV38, TV42).
-- **Polling.** A poll that answers late is dropped. A tick is skipped while one is in flight. A drift count is never
-  on a timer (B38).
+- **Polling.** A drift count is never on a timer (B38). A poll that answers late is dropped (B47). A tick is skipped
+  while one is in flight (B48). A failed re-poll keeps the earlier figures, labelled with their read time (B46).
+  *(Corrected at review round 1: this line used to give B38 for all three polling rules, and B38 pins none of them.
+  Review friction 1.)*
+- **Counts older than the pass.** `countsPredatePass` compares `Date.parse` instants, strictly before, against the
+  explaining pass's `endedAt`, not a later failed latest's. A time that does not parse makes it false (TV59–TV61).
 
 ## Readings for the owner to ratify at this gate
 
@@ -90,6 +98,55 @@ ADR 0004's T1–T11 fix the shapes. The suites also take these readings, which t
    listed at the top of the spec. Each note is also checked absent where it must not show.
 10. **Held entries** show their address, and the page buttons are named Previous and Next (B10).
 11. **The schedule warning's button** is named after Scheduled Tasks (B13, B14).
+
+## Review round 1
+
+The review (`engineering-team/reviews/tagging-edges/4-tagging-pipeline-panel.md`, CHANGES_REQUESTED at `39d94811`)
+asked for these tests. "Fails now" means it fails on `c496d853` for the missing behaviour, with a message that says
+what is expected. "Pins" means the behaviour is already there: the test passes now, and a wrong version built in
+scratch fails it.
+
+| Test | Finding it answers | Now |
+|---|---|---|
+| TV59 | NB3, T5: `countsPredatePass` is true when the earlier `takenAt` is before the explaining pass's `endedAt` (the earlier one decides; instants, so an offset time counts by its instant); `tone` is `neutral`, and the figures are still computed | fails now |
+| TV60 | NB3, T5: false when the counts are later, when the earlier `takenAt` equals `endedAt` (strictly before), when only a later failed latest ended after them, and for an offset time whose instant is later | fails now |
+| TV61 | NB3, T5: false when a `takenAt` or the pass's `endedAt` does not parse (garbage, `null`, missing, `''`); the figures are still computed | fails now |
+| TV62 | NB3, T5: false without an explaining pass (no report, no finished pass, an empty report) and when a count is unknown or the counts are `null` | fails now |
+| TV63 | NB1, T5's note: while a pass runs, `passRunning` and `explainedBy.usedInsteadOfLatest` are both true, and the newest finished earlier pass explains, whether the running record is pessimistic or already reads `done` | pins |
+| PC41 | NB10: `EXPLANATIONS.countCode` has its own `EBADJSON` entry, which `explain` returns; it is not the E-family sentence and says the file is damaged. It first checks that the route still throws `EBADJSON` | fails now |
+| B41 | NB1: drift while a pass runs says a pass is running and the newest finished pass explains; never "did not finish" | fails now |
+| B42 | Blocking 1, NB2: a write failure shows `ENOSPC` beside `explain('countCode', 'ENOSPC')` under where it failed; a schema refusal shows `ServiceUnavailable` with its explanation, and the text names Neo4j down or unreachable | fails now (both halves, checked in a scratch copy of the spec) |
+| B43 | NB3, T5: counts that predate the explaining pass show no "Unexplained" figure and no warn tone, and ask for a Recount; after a Recount the explained and unexplained lines return | fails now (the Recount half passes now) |
+| B44 | NB5: the confirmed-removals sentence shows for `removalsApplied` 120, and not for a failed confirmed run with 0 | fails now (the 120 half passes now) |
+| B45 | NB11 part 3: a not-established catch-up labels its reason as why; a failed catch-up carrying one does not | fails now (the not-established half passes now) |
+| B46 | Friction 1: a failed re-poll sets `tp-pass` to error, keeps the earlier figures and outcome, and labels them with their read time | pins |
+| B47 | Friction 1: the late answer to the opening status read ("no pass yet") arrives after a newer answer and is dropped; the section never shows `empty` | pins |
+| B48 | Friction 1: while a status read hangs, two more ticks start no second status or path read; after it settles the next tick reads again | pins |
+
+**The pins are not vacuous.**
+- TV63 fails under three wrong `driftView`s: `usedInsteadOfLatest` taken from whether the latest is finished, a
+  running latest that reads `done` chosen to explain (which also fails TV22 and TV55), and `passRunning` taken from
+  the latest's outcome.
+- B46–B48 each fail under their own wrong build of `TaggingPipelinePanel.jsx`, and only there:
+  - `noguard` (the newest-answer check made `if (true)`) fails B47 alone: expected `ready`, received `empty`;
+  - `noskip` (the in-flight skip dropped) fails B48 alone: expected 1 status read, received 3;
+  - `nokeep` (a failure sets `body: null, readAt: null`) fails B46 alone: the earlier taggings figure (7064) is gone.
+
+**Readings taken in this round:**
+- `countsPredatePass` is strictly before, and compares `Date.parse` instants, never the strings (TV59, TV60).
+- B44 does not count a negated sentence ("applied none …") as the claim.
+- B48 holds the hang for two skipped ticks, not four, because the panel's read gives up at 15 s and reports a
+  time-out. The reason is a comment in the test.
+- The view suite's flags helper now holds five flags, so `countsPredatePass` must be a boolean in every case. That
+  turns TV48–TV51 red for the same missing field (for example "`driftView(no report).countsPredatePass` must be a
+  boolean (T5); got undefined").
+
+**Findings with no test in this round.** They change copy, labels, comments or docs, and the Reviewer checks them
+against the diff. PC38 and PC39's copy rules still hold over every new sentence.
+- Copy and labels: NB4, NB6 (the backlog relabel, ADR § UI `pathView` as amended), NB7, NB8, NB9, NB11 parts 1–2,
+  NB12, NB13, and the Neo4j-side wording of Blocking 1's four producers beyond what B42 checks.
+- Comments and docs: NB14–NB17.
+- Friction 2 is a ledger row. Friction 3, the held list left on "Loading", is a code ask with no test here.
 
 ## Test infrastructure
 
@@ -175,3 +232,27 @@ Suite by suite, the only differences are these:
 
 The 13 suites that fail in both runs are the same live-stack suites, failing identically (`capture-a-goal-and-see-it` …
 `summaries-element-count`). No existing suite changed.
+
+### Review round 1
+
+The round-1 red phase was confirmed on 2026-09-30, on `c496d853` with the round's test edits in the working tree.
+Each Node suite was run through `run()` on Node 22.23.3 and on host Node 16.17, with the same results on both.
+
+| Suite | Result | The failures |
+|---|---|---|
+| tagging-pipeline-view | 55 passed, 8 failed | TV59–TV62, and TV48–TV51 through the five-flag helper: "`countsPredatePass` must be true …" or "… must be false …", "got undefined". TV63 passes. |
+| tagging-pipeline-codes | 39 passed, 1 failed | PC41: "`EXPLANATIONS.countCode` must have its own 'EBADJSON' entry …" |
+| browser spec (the current build, `tmp/tp-wf12-current`) | 47 passed, 5 failed | Exactly B41–B45, each on its expected-behaviour message. B0–B40 still pass, B39's AC-6 baseline included. B46–B48 pass, and pass 9/9 with `--repeat-each=3`. |
+
+**Proven not vacuous.**
+- A correct T5 `driftView` (`min` of the two `Date.parse` times `<` `Date.parse(endedAt)`, NaN gives false, `tone`
+  neutral when true) passes the view suite 63/63. A correct `EBADJSON` sentence passes the codes suite 40/40, PC38 and
+  PC39 included.
+- Eleven wrong `countsPredatePass` versions are each caught by a named test among TV48–TV51 and TV59–TV62: `max` for
+  `min`, the latest record's `endedAt`, `<=`, a string compare, an unparseable time skipped or read as true, `tone`
+  not neutral, no known-counts gate, left undefined without a pass, the figures nulled, and the latest used when no
+  pass explains. Three wrong versions each fail TV63, and three fail PC41 (the E-family sentence, no "damaged", the
+  families looked up first).
+- B46–B48: the `noguard`, `noskip` and `nokeep` builds above.
+- The variants and their logs are under the session scratchpad `wf12/node/variants/` (generator `wf12/node/mutants.py`)
+  and `wf12/browser/`.

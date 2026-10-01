@@ -56,6 +56,18 @@ const F = require('../../test/helpers/taggingPipelineFixtures');
  *   B40 — the held list of a run that is no longer the latest: re-read the status, restart, no error.   [AC-2; ADR § UI "The held list"]
  *   B39 — the five existing sub-tabs send the requests of the baseline (T10).                          [AC-6]
  *
+ *   Story 4 review round 1 (engineering-team/reviews/tagging-edges/4-tagging-pipeline-panel.md):
+ *   B41 — drift while a pass runs says a pass is running, never that the latest pass did not finish.     [AC-4; NB1]
+ *   B42 — a failed pass shows its failure code with its explanation under where it failed (ENOSPC); a
+ *         schema refusal for an unreachable Neo4j names Neo4j, not only the Dashboard fix.                [AC-2; Blocking 1, NB2]
+ *   B43 — counts taken before the explaining pass ended: no "unexplained" figure, a Recount asked for;
+ *         a Recount with newer counts brings the explained and unexplained lines back.                    [AC-4; NB3, T5]
+ *   B44 — "applied the confirmed removals" only when confirmed.removalsApplied > 0.                      [AC-2; NB5]
+ *   B45 — a catch-up's not-established reason is labelled as "why" only on a not-established outcome.     [AC-3; NB11]
+ *   B46 — a re-poll that fails after a good read: error, the earlier figures kept, labelled with their time. [AC-5; ADR § UI "Failure"; F1]
+ *   B47 — an answer to an older status request that lands after a newer one is dropped.                    [ADR § UI "Polling"; F1]
+ *   B48 — a poll tick is skipped while the previous one is in flight.                                     [ADR § UI "Polling"; F1]
+ *
  * ── Hermetic by construction ──────────────────────────────────────────────────────────────────────────────────────
  * Every /api route is mocked. The catch-all is registered FIRST (so every later route wins) and answers 599
  * { success: false }: readSection treats any 2xx JSON object as good, so an unmocked route must never look like a good
@@ -167,6 +179,21 @@ const NO_FINISHED_WHY = /no finished pass|not finished|no pass (?:has )?finished
 const WAITS_FOR_PASS = /\b(?:changes|anything|edits|taggings)\b[^.]*\bsince\b[^.]*\b(?:wait|next pass)|\bwait\w*\b[^.]*\bfor the next pass|until the next pass|next pass will (?:pick|catch|reflect)/i;
 const EXPLAINED_NUM = /(?<![Uu]n)explained\W{0,5}-?\d/i;
 const LOADING = /loading|reading|fetching|waiting for|asking/i;
+// Story 4 review round 1.
+const DID_NOT_FINISH = /\b(?:did not|didn't|failed to|never|could not) (?:finish|complete|end)\w*\b|\blatest pass\b[^.]*\b(?:failed|was stopped|stopped)\b/i;
+const PASS_RUNNING = /\bpass is (?:still )?(?:running|under ?way|in progress)\b|\brunning pass\b|\bpass (?:that is |which is )?(?:still )?running\b/i;
+const NEWEST_FINISHED_EXPLAINS = /\b(?:newest|latest|last|most recent|previous|earlier) (?:finished|completed) pass\b|\bfinished pass\b[^.]*\bexplain|\bexplain\w*\b[^.]*\bfinished pass\b/i;
+const NEO4J_DOWN = /\bNeo4j\b[^.]*\b(?:down|unreachable|not running|not answering|not reachable|unavailable|(?:could not|cannot|can't|couldn't) be reached|not up|refus\w*|stopped)\b|\b(?:reach|connect(?:ed)? to|contact)\w*\b[^.]*\bNeo4j\b/i;
+const COUNTS_PREDATE = /\bbefore\b[^.]*\bpass\b[^.]*\b(?:ended|finished|completed|ran)\b|\bpredat\w*\b|\b(?:older|earlier) than\b[^.]*\bpass\b|\bpass\b[^.]*\b(?:ended|finished)\b[^.]*\bafter\b[^.]*\b(?:counts?|counted|taken|counting)\b/i;
+const ASK_RECOUNT = /\b(?:press|click|use|run|ask for|do|choose|select|try|needs?|request)\b[^.]{0,30}\bRecount\b|\bRecount\b[^.]{0,60}\b(?:to|for|so)\b[^.]{0,40}\b(?:count|figures?|explain\w*|current|fresh|new|up to date)\b/i;
+const APPLIED_REMOVALS = /\bapplied\b[^.]*\bremovals?\b|\bremovals?\b[^.]*\b(?:were|was|been|are) applied\b/i;
+const NEGATED = /\b(?:no|none|not|never|nothing|without|0)\b/i;
+/** The sentences that claim confirmed removals were applied (a negated sentence, "applied none of …", is no claim). */
+const appliedClaims = (text) => text.split(/(?<=\.)\s+/).filter((x) => APPLIED_REMOVALS.test(x) && !NEGATED.test(x));
+/** A code labelled as the reason ("Why: record-missing", "because record-missing", "Reason: record-missing"). */
+const whyLabel = (code) => new RegExp(`\\b(?:why|because|reason)\\b\\W{0,15}${esc(code)}(?![\\w-])`, 'i');
+/** A label that dates figures read earlier ("read at 12:00", "as of 12:00"), at the time `iso`. */
+const readAtLabel = (iso) => new RegExp(`\\b(?:read|fetched|loaded|received|as of|from)\\b[^.]{0,60}?(?:${timeRe(iso).source})`, 'i');
 
 /** An answer that is an HTTP failure: fail(500) → 500 { success: false }. */
 const fail = (status, body = { success: false, error: 'fixture failure' }) => ({ __http: status, body });
@@ -578,6 +605,38 @@ test.describe('The tagging pipeline panel (tagging-edges #4, ADR 0004)', () => {
     expect(text, 'not shown as pending').not.toMatch(PENDING_STRICT);
   });
 
+  test('B42: a failed pass shows its failure code with its explanation under where it failed (a write on a full disk, ENOSPC); a schema refusal because Neo4j cannot be reached shows ServiceUnavailable and names Neo4j, not only the Dashboard fix [AC-2 "The latest pass"; review round 1 Blocking 1, NB2]', async ({ page }) => {
+    const m = await mock(page, { status: F.STATUS.WRITE_FAILED });
+    await openAndSettle(page);
+    let text = await textOf(page, 'tp-pass');
+    const stage = explanation('failureStage', 'write');
+    const enospc = explanation('countCode', 'ENOSPC');
+    expect(text, 'where it failed (the write stage, explained)').toContain(stage);
+    // Not codeRe('ENOSPC') alone: passReason 'write' names ENOSPC in its own sentence ("If the code is ENOSPC, …").
+    const shown = new RegExp(`${codeRe('ENOSPC').source}\\W{0,40}${esc(enospc)}`).exec(text);
+    expect(shown, `the failure's code ENOSPC is shown beside its explanation, explain('countCode', 'ENOSPC') ("${enospc}") — review Blocking 1/NB2: PassSection's "Where it failed" shows no failure.code yet`).not.toBeNull();
+    expect(shown.index, 'the code is shown under where it failed').toBeGreaterThan(text.indexOf(stage));
+
+    await reopenWith(page, m, { status: F.STATUS.SCHEMA_UNREACHABLE });
+    text = await textOf(page, 'tp-pass');
+    const unavailable = explanation('countCode', 'ServiceUnavailable');
+    expect(text, `the failure's code ServiceUnavailable is shown beside its explanation ("${unavailable}")`).toMatch(new RegExp(`${codeRe('ServiceUnavailable').source}\\W{0,40}${esc(unavailable)}`));
+    // Apart from the code's own explanation, the refusal's reason must not send the owner only to the Dashboard's
+    // constraints fix: a schema refusal is also Neo4j being down or refusing the password.
+    const rest = text.split(unavailable).join(' ');
+    expect(rest, 'the schema refusal\'s reason names Neo4j being down or unreachable as a cause (review Blocking 1: passReason.schema names only the Dashboard constraints fix)').toMatch(NEO4J_DOWN);
+  });
+
+  test('B44: a pass says it applied the owner\'s confirmed removals only when it applied some (confirmed.removalsApplied > 0): a confirmed run that failed before applying any does not claim it [AC-2 "The latest pass"; review round 1 NB5]', async ({ page }) => {
+    const m = await mock(page, { status: F.STATUS.CONFIRMED_APPLIED });
+    await openAndSettle(page);
+    let text = await textOf(page, 'tp-pass');
+    expect(appliedClaims(text).length, `a confirmed run that applied ${F.CONFIRMED_APPLIED_RECORD.confirmed.removalsApplied} removals says it applied the confirmed removals`).toBeGreaterThan(0);
+    await reopenWith(page, m, { status: F.STATUS.CONFIRMED_FAILED });
+    text = await textOf(page, 'tp-pass');
+    expect(appliedClaims(text), 'a confirmed run that failed with confirmed.removalsApplied 0 (confirmation.honoured still true) does not say it applied the confirmed removals — review NB5: build the sentence from latest.confirmed').toEqual([]);
+  });
+
   /* ── AC-2: the backstop schedule ─────────────────────────────────────────────────────────────────────────────── */
 
   test('B13: with no enabled entry and a disabled one, the schedule warns the path has no backstop, mentions the disabled entry, and its button opens Scheduled Tasks [AC-2 "None enabled"]', async ({ page }) => {
@@ -762,6 +821,17 @@ test.describe('The tagging pipeline panel (tagging-edges #4, ADR 0004)', () => {
     expect(text, 'every code here is known').not.toContain(NOT_RECOGNISED);
   });
 
+  test('B45: the last catch-up\'s not-established reason is labelled as why only when its outcome is not-established; a failed catch-up carrying one does not label it as why it failed [AC-3 "Catch-up"; review round 1 NB11]', async ({ page }) => {
+    const m = await mock(page, { realtime: F.REALTIME.CATCH_UP_NOT_ESTABLISHED });
+    await openAndSettle(page);
+    let text = await textOf(page, 'tp-path');
+    expect(text, 'a not-established catch-up gives its reason as why').toMatch(whyLabel('record-missing'));
+    await reopenWith(page, m, { realtime: F.REALTIME.CATCH_UP_FAILED_WITH_REASON });
+    text = await textOf(page, 'tp-path');
+    expect(text, 'the failed catch-up\'s stage').toMatch(codeRe('stamp-scan'));
+    expect(text, 'a failed catch-up carrying a not-established reason still to report does not label it as why it failed — review NB11: PathSection labels catchUp.last.reason "Why:" whatever the outcome').not.toMatch(whyLabel('record-missing'));
+  });
+
   /* ── AC-4: drift ─────────────────────────────────────────────────────────────────────────────────────────────── */
 
   test('B27: the story\'s example — relay 7032, graph 7029: difference 3, explained 5 − 1 − 1 = 3 by the named pass, unexplained 0 [AC-4 "Example"]', async ({ page }) => {
@@ -852,6 +922,37 @@ test.describe('The tagging pipeline panel (tagging-edges #4, ADR 0004)', () => {
     expect(requestsTo(m.log, F.ROUTES.drift).length, 'one more count').toBe(2);
   });
 
+  test('B41: drift while a pass is running says a pass is running and that the newest finished pass explains the difference, never that the latest pass did not finish [AC-4; ADR 0004 T5 usedInsteadOfLatest; review round 1 NB1]', async ({ page }) => {
+    await mock(page, { status: F.STATUS.RUNNING, drift: F.DRIFT.EXAMPLE });
+    await openAndSettle(page);
+    const text = await textOf(page, 'tp-drift');
+    expect(text, 'the explaining pass is the newest finished one').toContain(F.LATEST_DONE.runId);
+    expect(text, 'a pass is running').toMatch(PASS_RUNNING);
+    expect(text, 'the newest finished pass explains the difference').toMatch(NEWEST_FINISHED_EXPLAINS);
+    expect(text, 'while a pass runs, drift does not say the latest pass did not finish — review NB1: DriftSection shows "did not finish" whenever usedInsteadOfLatest, a running pass included').not.toMatch(DID_NOT_FINISH);
+  });
+
+  test('B43: counts taken before the explaining pass ended show no "unexplained" figure: the panel says they predate that pass and asks for a Recount; a Recount with newer counts brings the explained and unexplained lines back [AC-4; ADR 0004 T5 countsPredatePass; review round 1 NB3]', async ({ page }) => {
+    const m = await mock(page, { status: F.STATUS.DRIFT_EXAMPLE, drift: F.DRIFT.PREDATING });
+    await openAndSettle(page);
+    const drift = section(page, 'tp-drift');
+    await expect(drift).toHaveAttribute('data-state', 'ready');
+    let text = await textOf(page, 'tp-drift');
+    expect(text, `the counts are shown (relay 7032, taken ${F.DRIFT.PREDATING.relay.takenAt})`).toMatch(numRe(7032));
+    expect(text, `the counts were taken before pass ${F.DRIFT_EXAMPLE_RECORD.runId} ended (T5 countsPredatePass) — review NB3: the panel presents them as unexplained instead`).toMatch(COUNTS_PREDATE);
+    expect(text, 'and it asks for a Recount').toMatch(ASK_RECOUNT);
+    expect(text, `no "unexplained" figure (arithmetic alone reads ${F.EXPECTED_DRIFT.PREDATING.unexplained})`).not.toMatch(/unexplained\W{0,5}-?\d/i);
+    expect(text, 'nor the arithmetic\'s remainder beside "unexplained"').not.toMatch(near('unexplained', F.EXPECTED_DRIFT.PREDATING.unexplained));
+    expect(await drift.getAttribute('style') || '', 'not in the warn tone (T5: tone neutral)').not.toMatch(/--orange|--red/);
+
+    m.set({ drift: F.DRIFT.EXAMPLE });
+    await drift.getByRole('button', { name: 'Recount', exact: true }).click();
+    await expect.poll(async () => near('unexplained', 0).test(await textOf(page, 'tp-drift')), { message: 'after a Recount with counts newer than the pass, "unexplained" reads 0 again' }).toBe(true);
+    text = await textOf(page, 'tp-drift');
+    expect(text, 'the explained part is shown again').toMatch(near('(?<![Uu]n)explained', 3));
+    expect(text, 'no "counts predate the pass" note any more').not.toMatch(COUNTS_PREDATE);
+  });
+
   /* ── AC-5: refresh and failures ──────────────────────────────────────────────────────────────────────────────── */
 
   test('B35: a change on the status routes shows within POLL_MS, without a reload [AC-5 "Refresh"; ADR 0004 § UI "Polling", § Seams page.clock]', async ({ page }) => {
@@ -913,6 +1014,95 @@ test.describe('The tagging pipeline panel (tagging-edges #4, ADR 0004)', () => {
     m.set({ drift: F.DRIFT.EXAMPLE });
     await drift.getByRole('button', { name: 'Retry', exact: true }).click();
     await expect(drift).toHaveAttribute('data-state', 'ready', { timeout: 10000 });
+  });
+
+  /* ── Polling (ADR 0004 § UI "Polling", "Failure"; review round 1 friction 1). These pin behaviour the panel has. ── */
+
+  test('B46: a re-poll that fails after a good read sets the pass section to error, keeps the earlier figures, and labels them with the time they were read [AC-5 "States"; ADR 0004 § UI "Failure"; review friction 1]', async ({ page }) => {
+    const m = await mock(page, { status: F.STATUS.LATEST_AND_NINE });
+    await openAndSettle(page);
+    const pass = section(page, 'tp-pass');
+    await expect(pass).toHaveAttribute('data-state', 'ready');
+    const readAt = await page.evaluate(() => new Date().toISOString()); // the page clock, a moment after the good read
+    expect(await textOf(page, 'tp-pass'), 'no "read at" label while the read is good').not.toMatch(readAtLabel(readAt));
+    await pauseClock(page);
+    m.set({ status: fail(500) });
+    await page.clock.runFor(POLL_MS);
+    await expect(pass, 'the failed re-poll sets error').toHaveAttribute('data-state', 'error', { timeout: 5000 });
+    const text = await textOf(page, 'tp-pass');
+    expect(text, 'the failure\'s code').toMatch(codeRe('http-500'));
+    const L = F.LATEST_FIGURES;
+    for (const [what, n] of [['taggings read', L.taggingsRead], ['added', L.added], ['removed', L.removed], ['unchanged', L.unchanged]]) {
+      expect(text, `the earlier read's ${what} (${n}) is kept`).toMatch(numRe(n));
+    }
+    expect(text, 'the earlier read\'s outcome is kept').toContain(explanation('passOutcome', 'done'));
+    expect(text, `the kept figures are labelled with the time they were read (${readAt})`).toMatch(readAtLabel(readAt));
+    await expect(section(page, 'tp-path'), 'the path section is untouched').toHaveAttribute('data-state', 'ready');
+  });
+
+  test('B47: an answer to an older status request that arrives after a newer one is dropped — the section shows the newer answer [ADR 0004 § UI "Polling"; review friction 1]', async ({ page }) => {
+    await trackStates(page);
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    let calls = 0;
+    let firstReq = null;
+    // The first status read (on opening) answers late with "no pass yet"; every later one answers at once, a clean pass.
+    await mock(page, {
+      status: (req) => {
+        calls += 1;
+        if (calls === 1) {
+          firstReq = req;
+          return gate.then(() => F.STATUS.NO_PASS);
+        }
+        return F.STATUS.CLEAN;
+      },
+    });
+    try {
+      await openPanel(page);
+      await expect.poll(() => calls, { message: 'the opening status read is in flight' }).toBeGreaterThanOrEqual(1);
+      await pauseClock(page);
+      await page.clock.runFor(POLL_MS);
+      await expect.poll(() => calls, { message: 'a poll tick sends a newer status read' }).toBeGreaterThanOrEqual(2);
+      await expect(section(page, 'tp-pass'), 'the newer answer (a clean pass) shows').toHaveAttribute('data-state', 'ready', { timeout: 5000 });
+      await expect(section(page, 'tp-pass')).toContainText(codeRe('done'));
+    } finally {
+      release();
+    }
+    await firstReq.response(); // the older answer has now reached the page
+    await wait(800);
+    await expect(section(page, 'tp-pass'), 'the older answer did not replace the newer one').toHaveAttribute('data-state', 'ready');
+    expect(await textOf(page, 'tp-pass'), 'the older answer ("no pass yet") is not shown').not.toMatch(NO_PASS_YET);
+    expect(await statesOf(page, 'tp-pass'), 'the section never took the older answer\'s state (empty), even briefly').not.toContain('empty');
+  });
+
+  test('B48: a poll tick is skipped while the previous one is in flight — no second status read starts until the first settles [ADR 0004 § UI "Polling"; review friction 1]', async ({ page }) => {
+    const m = await mock(page, { status: F.STATUS.CLEAN });
+    await openAndSettle(page);
+    await pauseClock(page);
+    await wait(300);
+    const mark = m.log.api.length;
+    const since = (route) => requestsTo({ api: m.log.api.slice(mark) }, route).length;
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    // The read hangs for longer than POLL_MS, until released. Two more ticks run while it hangs: a third would reach
+    // readSection's own 15 s time-out (taggingPipelineFetch.js), which settles the read as 'timeout'.
+    m.set({ status: () => gate.then(() => F.STATUS.CLEAN) });
+    try {
+      await page.clock.runFor(POLL_MS);
+      await expect.poll(() => since(F.ROUTES.status), { message: 'the first tick reads the status' }).toBe(1);
+      for (let i = 0; i < 2; i += 1) {
+        await page.clock.runFor(POLL_MS);
+        await wait(250);
+      }
+      expect(since(F.ROUTES.status), 'two more ticks while the first read hangs start no second status read').toBe(1);
+      expect(since(F.ROUTES.realtime), 'the whole tick is skipped: the path status is not re-read either').toBe(1);
+    } finally {
+      release();
+    }
+    await expect(section(page, 'tp-pass')).toHaveAttribute('data-state', 'ready');
+    await wait(500);
+    await page.clock.runFor(POLL_MS);
+    await expect.poll(() => since(F.ROUTES.status), { message: 'once the first read settles, the next tick reads again' }).toBe(2);
   });
 
   /* ── AC-2: the held list of a run that is no longer the latest ──────────────────────────────────────────────── */

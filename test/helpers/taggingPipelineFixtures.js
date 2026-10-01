@@ -318,6 +318,73 @@ const UNKNOWN_OUTCOME_RECORD = passRecord({
   reason: 'a future outcome this panel does not know',
 });
 
+/*
+ * Story 4 review round 1 (B42, B44). A pass that failed at the write stage on a full data volume: fsFailure's shape
+ * (reconcileTaggingEdges.js:101-104, :486), `ENOSPC <file>`.
+ */
+const WRITE_FAILED_RECORD = (() => {
+  const r = passRecord({
+    startedMinutesAgo: 12,
+    suffix: 'e05ce05c',
+    outcome: 'failed',
+    reasonCode: 'write',
+    reason: 'a write failed; every committed batch stands at one version of each tagging',
+    phases: clone(PHASES_DONE).slice(0, 4),
+  });
+  r.failure = { stage: 'write', code: 'ENOSPC', message: `ENOSPC preimages/${r.runId}.jsonl` };
+  return r;
+})();
+
+/*
+ * A schema refusal whose cause is Neo4j itself: readSchema is the pass's first contact with the database, so an
+ * unreachable Neo4j is refused as `schema` with the driver's code (reconcileTaggingEdges.js:340-349).
+ */
+const SCHEMA_UNREACHABLE_RECORD = passRecord({
+  startedMinutesAgo: 8,
+  suffix: '5c4e5c4e',
+  outcome: 'refused',
+  reasonCode: 'schema',
+  reason: 'the one-per-tagging rule could not be checked or created',
+  failure: { stage: 'schema', code: 'ServiceUnavailable', message: 'Could not perform discovery. No routing servers available.' },
+  taggingsRead: 0,
+  tagElementsRead: 0,
+  relationships: relationships({ atStart: 0 }),
+  identities: { canonical: CANONICAL_PREFIX, local: LOCAL_PREFIX },
+  reads: { graph: null, relay: null },
+  phases: [],
+});
+
+/*
+ * A confirmed run: the pass claimed the owner's confirmation of HELD_RECORD's list (confirmation.honoured is set at
+ * claim time, reconcileTaggingEdges.js:372-375) and then failed writing, so it applied none of the removals
+ * (confirmed.removalsApplied 0; runner SR67).
+ */
+const CONFIRMED_FAILED_RECORD = (() => {
+  const r = passRecord({
+    startedMinutesAgo: 6,
+    suffix: 'cf0fa110',
+    outcome: 'failed',
+    reasonCode: 'write',
+    reason: 'a write failed; every committed batch stands at one version of each tagging',
+    phases: clone(PHASES_DONE).slice(0, 4),
+    confirmation: { found: true, honoured: true },
+    relationships: relationships({ atStart: 700 }),
+  });
+  r.failure = { stage: 'write', code: 'SessionExpired', message: 'the session expired' };
+  r.confirmed = { confirmedRunId: HELD_RECORD.runId, heldCount: HELD_TOTAL, removalsApplied: 0, heldNoLongerDue: null };
+  return r;
+})();
+
+/* ... and a confirmed run that finished and applied every confirmed removal. */
+const CONFIRMED_APPLIED_RECORD = passRecord({
+  startedMinutesAgo: 6,
+  suffix: 'cf0dd0e0',
+  confirmation: { found: true, honoured: true },
+  confirmed: { confirmedRunId: HELD_RECORD.runId, heldCount: HELD_TOTAL, removalsApplied: HELD_TOTAL, heldNoLongerDue: 0 },
+  relationships: relationships({ atStart: 700, removed: HELD_TOTAL, removedBy: { 'not-on-relay': 100, 'non-tagging': 20 }, unchanged: 580 }),
+  limit: { base: 700, leftInPlaceExcluded: 0, baseAfterConfirmed: 580, removalsPlanned: HELD_TOTAL, floor: 50, fraction: '1/10', exceeded: false },
+});
+
 const STATUS = deepFreeze({
   /** The report holds no pass (AC-2 "No pass yet"). */
   NO_PASS: statusBody(),
@@ -347,6 +414,14 @@ const STATUS = deepFreeze({
   NO_FINISHED: statusBody({ latest: FAILED_READ_RECORD, previous: [REFUSED_RECORD] }),
   /** The latest pass carries an outcome and reason code the panel does not know. */
   UNKNOWN_OUTCOME: statusBody({ latest: UNKNOWN_OUTCOME_RECORD, previous: [] }),
+  /** The latest pass failed writing, on a full data volume (ENOSPC). */
+  WRITE_FAILED: statusBody({ latest: WRITE_FAILED_RECORD, previous: [LATEST_DONE] }),
+  /** The latest pass was refused at the schema check because Neo4j could not be reached (ServiceUnavailable). */
+  SCHEMA_UNREACHABLE: statusBody({ latest: SCHEMA_UNREACHABLE_RECORD, previous: [LATEST_DONE] }),
+  /** The latest pass claimed the owner's confirmation, then failed: it applied no removals. */
+  CONFIRMED_FAILED: statusBody({ latest: CONFIRMED_FAILED_RECORD, previous: [HELD_RECORD] }),
+  /** The latest pass claimed the owner's confirmation and applied all 120 confirmed removals. */
+  CONFIRMED_APPLIED: statusBody({ latest: CONFIRMED_APPLIED_RECORD, previous: [HELD_RECORD] }),
 });
 
 /* ── The real-time path's answers ────────────────────────────────────────────────────────────────────────────── */
@@ -394,6 +469,18 @@ const PATH_TIMES = Object.freeze({
   updatedAt: at(0.2),
   catchUpStartedAt: at(40),
 });
+
+/** A last catch-up as endCatchUp writes it (realtime/index.js:1026-1040), at PATH_TIMES.catchUpStartedAt, 4.2 s long. */
+function catchUpLast(extra = {}) {
+  return {
+    outcome: 'done',
+    startedAt: PATH_TIMES.catchUpStartedAt,
+    endedAt: new Date(Date.parse(PATH_TIMES.catchUpStartedAt) + 4200).toISOString(),
+    durationMs: 4200,
+    reflected: { added: 3, changed: 1, removed: 0, unchanged: 7020 },
+    ...extra,
+  };
+}
 
 /**
  * The realtime status route's answer, started and running and live unless overridden. `on`/`running` follow the
@@ -475,6 +562,13 @@ const REALTIME = deepFreeze({
   }),
   /** A running path whose state the panel does not know. */
   UNKNOWN_STATE: rtBody({ state: 'hibernating' }),
+  /**
+   * The last catch-up failed at its stamp scan while a not-established reason was still to be reported: endCatchUp
+   * keeps the reason on a failed or stopped catch-up (realtime/index.js:1033-1038). Story 4 review round 1 (B45).
+   */
+  CATCH_UP_FAILED_WITH_REASON: rtBody({ catchUp: { underway: false, current: null, last: catchUpLast({ outcome: 'failed', stage: 'stamp-scan', reason: 'record-missing' }) } }),
+  /** The last catch-up ran on a lost record: outcome not-established, with its reason. */
+  CATCH_UP_NOT_ESTABLISHED: rtBody({ catchUp: { underway: false, current: null, last: catchUpLast({ outcome: 'not-established', reason: 'record-missing' }) } }),
 });
 
 /** A running path in the given state (for 'off', the switch is off and the process is winding down). */
@@ -553,6 +647,12 @@ const DRIFT = deepFreeze({
   RELAY_TIMEOUT: driftCounts({ relay: 'timeout', graph: 7029 }),
   /** The second answer of a recount: the relay moved on. */
   RECOUNT: driftCounts({ relay: 7051, graph: 7043, takenAt: after(1) }),
+  /**
+   * Counts taken 40 minutes before NOW, before DRIFT_EXAMPLE_RECORD ended (25 minutes before NOW, plus 83 s): that
+   * pass cannot explain them (T5 countsPredatePass). Arithmetic alone would read difference 132, explained 3,
+   * unexplained 129. Story 4 review round 1 (B43).
+   */
+  PREDATING: driftCounts({ relay: 7032, graph: 6900, takenAt: at(40) }),
 });
 
 /** The arithmetic AC-4 names, for the fixtures above (a cross-check, not the panel's code). */
@@ -560,11 +660,13 @@ const EXPECTED_DRIFT = deepFreeze({
   EXAMPLE: { difference: 3, explained: 3, unexplained: 0 },
   UNEXPLAINED_8: { difference: 11, explained: 3, unexplained: 8 },
   LEFT_TO_NEXT: { leftToNextPass: 119 },
+  PREDATING: { difference: 132, explained: 3, unexplained: 129, countsPredatePass: true },
 });
 
 /* Freeze every exported record and list too (the STATUS/REALTIME/SCHEDULE/DRIFT bodies are frozen above). */
 [LATEST_DONE, EARLIER_NINE, HELD_RECORD, HELD_LIST, RUNNING_RECORD, DRIFT_EXAMPLE_RECORD, LEFT_TO_NEXT_RECORD,
-  FAILED_READ_RECORD, REFUSED_RECORD, UNKNOWN_OUTCOME_RECORD, PATH_TIMES, OTHER_ENTRY, PHASES_DONE].forEach(deepFreeze);
+  FAILED_READ_RECORD, REFUSED_RECORD, UNKNOWN_OUTCOME_RECORD, WRITE_FAILED_RECORD, SCHEMA_UNREACHABLE_RECORD,
+  CONFIRMED_FAILED_RECORD, CONFIRMED_APPLIED_RECORD, PATH_TIMES, OTHER_ENTRY, PHASES_DONE].forEach(deepFreeze);
 
 /* ── The routes ──────────────────────────────────────────────────────────────────────────────────────────────── */
 
@@ -586,11 +688,12 @@ module.exports = {
   // the pass
   STOPPED_REASON, CLEAN_REASON, passRecord, pessimisticRecord, statusBody, relationships,
   LATEST_FIGURES, LATEST_DONE, EARLIER_NINE, RUNNING_RECORD, HELD_RECORD, DRIFT_EXAMPLE_RECORD, LEFT_TO_NEXT_RECORD,
-  FAILED_READ_RECORD, REFUSED_RECORD, UNKNOWN_OUTCOME_RECORD, STATUS,
+  FAILED_READ_RECORD, REFUSED_RECORD, UNKNOWN_OUTCOME_RECORD, WRITE_FAILED_RECORD, SCHEMA_UNREACHABLE_RECORD,
+  CONFIRMED_FAILED_RECORD, CONFIRMED_APPLIED_RECORD, STATUS,
   // held
   HELD_TOTAL, HELD_PAGE, HELD_LIST, confirmation, heldAnswer,
   // the path
-  PATH_FIGURES, PATH_TIMES, PATH_STATES, pathCounts, rtBody, REALTIME, realtimeInState,
+  PATH_FIGURES, PATH_TIMES, PATH_STATES, pathCounts, catchUpLast, rtBody, REALTIME, realtimeInState,
   // the schedule
   TASK_ID, TASK_NAME, scheduleEntry, OTHER_ENTRY, SCHEDULE,
   // drift

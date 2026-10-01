@@ -28,6 +28,8 @@
  *               run time (every sentence non-empty, no '!', no emoji, no bare "an error occurred", not its own code).
  *               PC37 is retired: EXPLANATIONS' frozen 17-kind shape is the view suite's TV2, and FAMILIES' entry shape
  *               its TV3; PC40 keeps only the copy rules TV3 lacks.
+ *   PC41      — story 4's review, round 1 (Non-blocking 10): 'EBADJSON', the status route's own damaged-file code, has
+ *               its own countCode sentence that says the file is damaged, not the E-family's operating-system one.
  *   PC18–PC40 FAIL now (red phase): ui/src/utils/taggingPipelineView.js does not exist yet. The loader turns the
  *   missing file into "<file> not implemented yet: it does not export <name> (ADR 0004 § …)", so the suite always
  *   loads and each test fails by name; a file that exists but fails to load says so instead.
@@ -568,6 +570,28 @@ test("PC40: every FAMILIES sentence has no '!', no emoji and no \"an error occur
     else if (bareErrorOccurred(s)) bad.push(`${at}: sentence says "an error occurred" without saying what to do`);
   });
   assert(bad.length === 0, `FAMILIES sentences break the copy rules: ${bad.join('; ')}`);
+});
+
+/* ═══ PC41 — story 4's review, round 1 ═══ */
+
+test("PC41: countCode 'EBADJSON' — the status route's own code for a damaged file (src/api/tagging-edges/index.js readJson) — has its OWN entry in EXPLANATIONS.countCode, which explain('countCode', 'EBADJSON') returns; it is not the E-family sentence (an operating-system error), and it says the file is damaged (/damaged|cannot be (read|parsed)/i) [review Non-blocking 10; AC-5 \"Explanations\"; ADR 0004 § UI, \"one sentence per code\"; T6]", async () => {
+  const { explain, EXPLANATIONS, FAMILIES } = await view('explain', 'EXPLANATIONS', 'FAMILIES');
+  const route = source('src/api/tagging-edges/index.js');
+  assert(/code:\s*'EBADJSON'/.test(route),
+    `src/api/tagging-edges/index.js no longer throws code: 'EBADJSON' — follow the producer before changing this test`);
+  const table = EXPLANATIONS && EXPLANATIONS.countCode;
+  assert(!!table && Object.prototype.hasOwnProperty.call(table, 'EBADJSON') && typeof table.EBADJSON === 'string',
+    `EXPLANATIONS.countCode must have its own 'EBADJSON' entry: the file is damaged, and the owner can confirm again ` +
+    `(review Non-blocking 10); today it falls to the E-family pattern /^E[A-Z0-9_]+$/, whose sentence speaks of an ` +
+    `operating-system error and the relay and database containers`);
+  const r = explain('countCode', 'EBADJSON');
+  assert(r && r.recognised === true && r.code === 'EBADJSON' && r.text === table.EBADJSON,
+    `explain('countCode', 'EBADJSON') must answer with EXPLANATIONS.countCode.EBADJSON (the exact table first, T6); got ${show(r)}`);
+  const family = (Array.isArray(FAMILIES) ? FAMILIES : []).find((f) => f && f.kind === 'countCode' && f.test instanceof RegExp && f.test.test('EBADJSON'));
+  assert(!family || r.text !== family.sentence,
+    `EXPLANATIONS.countCode.EBADJSON must not be the E-family sentence (${show(family && family.sentence)}) — review Non-blocking 10`);
+  assert(/damaged|cannot be (read|parsed)/i.test(r.text),
+    `EXPLANATIONS.countCode.EBADJSON must say the file is damaged (/damaged|cannot be (read|parsed)/i); got ${show(r.text)}`);
 });
 
 /* ─── Run ─── */

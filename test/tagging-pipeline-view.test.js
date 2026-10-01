@@ -25,6 +25,12 @@
  *   TV23–TV33 pathView(rtBody) (T3).
  *   TV34–TV44 scheduleView(listBody) (T4 and § UI's "weaker than daily" rule).
  *   TV45–TV58 driftView(counts, statusBody, rtBody) (T5 and § UI).
+ *   TV59–TV63 driftView after story 4's review, round 1 (ADR 0004 T5 as amended at c496d853): countsPredatePass —
+ *             true only with an explaining pass, both counts known, and min(Date.parse(relay.takenAt),
+ *             Date.parse(graph.takenAt)) < Date.parse(explainedBy.endedAt); tone neutral when true; explained and
+ *             unexplained still computed (TV59–TV62; review Non-blocking 3) — and usedInsteadOfLatest true while a
+ *             pass runs (TV63; T5's note; review Non-blocking 1). The flags helper now holds five flags, so TV48–TV51
+ *             pin countsPredatePass's boolean too.
  *
  * Fixtures are modelled on the real shapes: the status route's computeStatus (src/api/tagging-edges/index.js:104-118),
  * the pass's records (src/pipeline/tagging-edges/reconcileTaggingEdges.js pessimisticRecord :126-150, finish), the
@@ -483,8 +489,11 @@ const listBody = (entries) => ({ success: true, entries });
 
 // ─── fixtures: the drift counts (GET /api/tagging-edges/drift-counts) ──────────────────────────────────────────────
 
-const FLAGS = ['passRunning', 'newerUnfinished', 'waitsForPass', 'pathUnknown'];
-/** T5: the four flags are booleans in every case, never null or undefined. */
+const FLAGS = ['passRunning', 'newerUnfinished', 'countsPredatePass', 'waitsForPass', 'pathUnknown'];
+/**
+ * T5: the five flags are booleans in every case, never null or undefined. countsPredatePass joined them at story 4's
+ * review, round 1 (ADR 0004 T5 as amended at c496d853), so every test that calls this helper also pins it.
+ */
 function flagsAreBooleans(v, what) {
   for (const k of FLAGS) assert(v && typeof v[k] === 'boolean', `${what}.${k} must be a boolean (T5); got ${show(v && v[k])}`);
 }
@@ -1181,6 +1190,133 @@ test('TV58: with the path status unreadable (rtBody null) driftView says the pat
   const v = driftView(driftCounts(known(7031), known(7028)), statusBody({ latest: heldRecord() }), null);
   fields(v, { pathUnknown: true, waitsForPass: false, pathRefusedLooks: null, parked: null, known: true, difference: 3, explained: 3, unexplained: 0 },
     'driftView(path status unreadable)');
+});
+
+/* TV59–TV63: driftView after story 4's review, round 1 (ADR 0004 T5 as amended at c496d853) */
+
+const T_COUNTS = '2026-09-30T16:00:00.000Z'; // known()'s default takenAt
+const T_PASS_AFTER = '2026-09-30T16:30:00.000Z'; // an explaining pass that ended after the counts were taken
+const T_LATER = '2026-09-30T17:00:00.000Z';
+/** driftView's countsPredatePass must be exactly true or false (T5: a boolean); says what was expected and why. */
+function predates(v, expected, what, why) {
+  assert(v && v.countsPredatePass === expected,
+    `${what}: countsPredatePass must be ${expected} — ${why} (ADR 0004 T5, amended at story 4's review, round 1); ` +
+    `got ${show(v && v.countsPredatePass)}`);
+}
+
+test('TV59: countsPredatePass is true when an explaining pass exists, both counts are known, and the earlier of the two takenAt times is before that pass\'s endedAt — both counts earlier, or only one of them (the earlier one decides), compared as Date.parse instants (an offset time counts by its instant); tone is then neutral, and difference, explained, unexplained and explainedBy are still computed [review Non-blocking 3; AC-4; ADR 0004 § UI; T5 "countsPredatePass", "tone is then neutral", "The two figures are still computed"]', async () => {
+  const driftView = await driftViewFn();
+  const pass = heldRecord({ endedAt: T_PASS_AFTER });
+  const body = statusBody({ latest: pass });
+  const cases = [
+    // [label, relay, graph, difference, explained, unexplained] — one combination whose remainder is 0 (tone would
+    // otherwise be ok) and others whose remainder is not (tone would otherwise be warn)
+    ['both counts before the pass ended', known(7031, T_COUNTS), known(7028, T_COUNTS), 3, 3, 0],
+    ['both before, a remainder left', known(7031, T_COUNTS), known(7020, T_COUNTS), 11, 3, 8],
+    ['only the relay count before (graph after)', known(7031, T_COUNTS), known(7020, T_LATER), 11, 3, 8],
+    ['only the graph count before (relay after)', known(7031, T_LATER), known(7028, T_COUNTS), 3, 3, 0],
+    // 18:00+02:00 is 16:00Z, before 16:30Z, though its text sorts after it: the times compare as Date.parse instants
+    ['an offset takenAt whose instant is before', known(7031, '2026-09-30T18:00:00+02:00'), known(7028, T_LATER), 3, 3, 0],
+  ];
+  for (const [label, relay, graph, difference, explained, unexplained] of cases) {
+    const what = `driftView(${label}; pass ended ${T_PASS_AFTER})`;
+    const v = driftView(driftCounts(relay, graph), body, rtLive());
+    predates(v, true, what, `the earlier takenAt (${[relay.takenAt, graph.takenAt].join(' / ')}) is before the explaining pass's endedAt, so that pass cannot explain these counts`);
+    assert(v.tone === 'neutral', `${what}: tone must be 'neutral' when the counts predate the explaining pass (T5); got ${show(v.tone)}`);
+    fields(v, {
+      known: true, difference, explained, unexplained, explainedReason: null,
+      explainedBy: { runId: pass.runId, endedAt: T_PASS_AFTER, usedInsteadOfLatest: false },
+    }, `${what} (the two figures are still computed, T5)`);
+    flagsAreBooleans(v, what);
+  }
+});
+
+test('TV60: countsPredatePass is false when the counts were taken after the explaining pass ended, when the earlier takenAt equals its endedAt (strictly before only), when the time compared is the explaining pass\'s endedAt and not a later failed latest\'s, and when an offset takenAt\'s instant is after it though its text sorts before [review Non-blocking 3; ADR 0004 T5 "the earlier of … is before Date.parse(explainedBy.endedAt)"]', async () => {
+  const driftView = await driftViewFn();
+  const counts = driftCounts(known(7031, T_COUNTS), known(7028, T_COUNTS));
+  const cases = [
+    ['counts after the pass ended (heldRecord ended 14:26:48Z)', counts, statusBody({ latest: heldRecord() })],
+    ['earlier takenAt equal to endedAt', driftCounts(known(7031, T_COUNTS), known(7028, T_LATER)), statusBody({ latest: heldRecord({ endedAt: T_COUNTS }) })],
+    // the explaining pass ended at 15:00Z, before the counts; the failed latest ended at 16:45Z, after them
+    ['a later failed latest, an earlier explaining pass', counts, statusBody({
+      latest: failedWriteRecord({ runId: '20260930T164000Z-feedf00d', startedAt: '2026-09-30T16:40:00.000Z', endedAt: '2026-09-30T16:45:00.000Z' }),
+      previous: [heldRecord({ endedAt: '2026-09-30T15:00:00.000Z' })],
+    })],
+    // 15:00-02:00 is 17:00Z, after 16:30Z, though its text sorts before it
+    ['an offset takenAt whose instant is after', driftCounts(known(7031, '2026-09-30T15:00:00-02:00'), known(7028, T_LATER)),
+      statusBody({ latest: heldRecord({ endedAt: T_PASS_AFTER }) })],
+  ];
+  for (const [label, c, body] of cases) {
+    const what = `driftView(${label})`;
+    const v = driftView(c, body, rtLive());
+    assert(v && v.explainedBy, `${what}: an explaining pass is expected in this fixture; got explainedBy ${show(v && v.explainedBy)}`);
+    predates(v, false, what, 'the counts were not taken before the explaining pass ended');
+    flagsAreBooleans(v, what);
+  }
+});
+
+test('TV61: a time that does not parse makes countsPredatePass false — a relay or graph takenAt that is garbage, null or missing (even when the other count is earlier than the pass), or an explaining pass whose endedAt is garbage or null — and the figures are still computed [review Non-blocking 3; ADR 0004 T5 "A time that does not parse makes it false"]', async () => {
+  const driftView = await driftViewFn();
+  const without = (c, k) => { const o = { ...c }; delete o[k]; return o; };
+  const early = known(7028, T_COUNTS);
+  const cases = [
+    ['relay takenAt garbage, graph earlier', known(7031, 'garbage'), early, T_PASS_AFTER],
+    ['relay takenAt null, graph earlier', known(7031, null), early, T_PASS_AFTER],
+    ['graph takenAt missing, relay earlier', known(7031, T_COUNTS), without(early, 'takenAt'), T_PASS_AFTER],
+    ['graph takenAt an empty string, relay earlier', known(7031, T_COUNTS), known(7028, ''), T_PASS_AFTER],
+    ['explaining pass endedAt garbage', known(7031, '2020-01-01T00:00:00.000Z'), known(7028, '2020-01-01T00:00:00.000Z'), 'not-a-time'],
+    ['explaining pass endedAt null', known(7031, '2020-01-01T00:00:00.000Z'), known(7028, '2020-01-01T00:00:00.000Z'), null],
+  ];
+  for (const [label, relay, graph, endedAt] of cases) {
+    const what = `driftView(${label})`;
+    const v = driftView(driftCounts(relay, graph), statusBody({ latest: heldRecord({ endedAt }) }), rtLive());
+    predates(v, false, what, 'a time that does not parse makes it false');
+    fields(v, { known: true, difference: 3, explained: 3, unexplained: 0 }, what);
+    flagsAreBooleans(v, what);
+  }
+});
+
+test('TV62: countsPredatePass is false without an explaining pass (report unavailable, or no finished pass while a refused or failed record ended after the counts) and when either count is unknown or the counts read failed, even with every takenAt before the pass ended [review Non-blocking 3; ADR 0004 T5 "true only when there is an explaining pass, both counts are known"]', async () => {
+  const driftView = await driftViewFn();
+  const after = (rec) => rec({ endedAt: '2026-09-30T16:45:00.000Z' });
+  const both = driftCounts(known(7031, T_COUNTS), known(7028, T_COUNTS));
+  const passAfter = statusBody({ latest: heldRecord({ endedAt: T_PASS_AFTER }) });
+  const cases = [
+    ['report unavailable', both, null],
+    ['no finished pass (refused latest, failed earlier, both ended after the counts)', both,
+      statusBody({ latest: after(refusedRecord), previous: [after(failedReadRecord)] })],
+    ['an empty report', both, statusBody({ latest: null, previous: [] })],
+    ['relay unknown, its takenAt earlier than the pass', driftCounts(unknown('timeout', T_COUNTS), known(7028, T_COUNTS)), passAfter],
+    ['graph unknown, its takenAt earlier than the pass', driftCounts(known(7031, T_COUNTS), unknown('ECONNREFUSED', T_COUNTS)), passAfter],
+    ['the counts read failed (counts null)', null, passAfter],
+  ];
+  for (const [label, c, body] of cases) {
+    const what = `driftView(${label})`;
+    const v = driftView(c, body, rtLive());
+    predates(v, false, what, 'it is true only with an explaining pass and both counts known');
+    flagsAreBooleans(v, what);
+  }
+});
+
+test('TV63: while a pass runs, driftView gives passRunning true AND explainedBy.usedInsteadOfLatest true, the explaining pass being the newest finished earlier one — whether the running latest\'s record is still pessimistic or already reads done — with the story example\'s figures [review Non-blocking 1; AC-4; ADR 0004 T5 "usedInsteadOfLatest … includes a pass that is still running (passRunning is then true too)"; T2]', async () => {
+  const driftView = await driftViewFn();
+  const fin = heldRecord({ runId: '20260930T142619Z-4db0d448', endedAt: '2026-09-30T14:26:24.500Z' });
+  const counts = driftCounts(known(7031), known(7028));
+  const runningLatests = [
+    ['is still pessimistic', pessimisticRecord({ phases: phasesUpTo('write-creates') })],
+    ['already reads done', doneRecord({ runId: '20260930T151500Z-5eed1e55', startedAt: '2026-09-30T15:15:00.000Z', endedAt: '2026-09-30T15:15:01.300Z' })],
+  ];
+  for (const [label, latest] of runningLatests) {
+    const what = `driftView(story example, a running latest that ${label})`;
+    const v = driftView(counts, statusBody({ running: true, latest, previous: [fin] }), rtLive());
+    assert(v && v.passRunning === true, `${what}: passRunning must be true while a pass runs (T5); got ${show(v && v.passRunning)}`);
+    assert(v.explainedBy && v.explainedBy.usedInsteadOfLatest === true,
+      `${what}: explainedBy.usedInsteadOfLatest must be true — a running latest is not the explaining pass (T5's note; T2); got ${show(v.explainedBy)}`);
+    fields(v, {
+      known: true, difference: 3, explained: 3, unexplained: 0, explainedReason: null,
+      explainedBy: { runId: fin.runId, endedAt: fin.endedAt, usedInsteadOfLatest: true },
+    }, what);
+  }
 });
 
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────
