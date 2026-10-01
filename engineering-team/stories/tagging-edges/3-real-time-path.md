@@ -791,10 +791,15 @@ The owner ran the steps on 2026-09-30 (OPERATIONS §12.9, "The order on staging 
   it (`GET /api/strfry/router-status`); that delivery was not observed directly. The path heard it at 15:20:32.962Z
   and reflected it at 15:20:33.465Z, in a 233 ms round of one address: `counts.added` 1, with no refusal, failed read
   or error. The graph holds one relationship at its address with that event id.
+- **A deploy's catch-up** (2026-10-01; story 4's deploy, run `36802662544`). The restarted process
+  (`runningSince` 01:47:47Z) ran its catch-up at once: `catchUp.last` `done`, 01:47:47.592Z to 01:48:16.185Z
+  (28,593 ms), reflecting nothing. Afterwards `state` was `live`, with no `setupProblem`, no `lastError` and no failed
+  reads. It was read at about 01:55Z, before the 10-minute safety diff replaced it at 01:57:47Z. The first catch-ups
+  of 2026-09-30 took under 0.5 s; why this one took longer was not examined.
 
-Still to come (open question 14): organic taggings over the following days with a status that shows no failures; a
-deploy's catch-up in the status; and a later pass that reports nothing a before-and-after read of the graph cannot
-trace to an Out-of-scope case. The scheduled pass of 2026-10-01 is the first candidate for the last.
+Still to come (open question 14): organic taggings over the following days with a status that shows no failures, and
+a later pass that reports nothing a before-and-after read of the graph cannot trace to an Out-of-scope case. The
+scheduled pass of 2026-10-01 is the first candidate for the last.
 
 ### Production
 
@@ -814,6 +819,16 @@ switch came on, so it finished before step 3, as step 2 asks; its figures were c
 - **Relay against graph** at about 14:33Z: 7,033 and 7,033, at 7,033 distinct addresses.
 - **The same live tagging**, published on production: heard at 15:20:31.941Z, reflected at 15:20:32.527Z, in a
   315 ms round of one address. `counts.added` 1.
+- **A deploy's catch-up** (2026-10-01; story 4's promotion, run `36803802426`). The restarted process (`runningSince`
+  02:02:21Z) ran its catch-up at once: `catchUp.last` `done`, 02:02:21.869Z to 02:02:57.647Z (35,778 ms), reflecting
+  nothing. Afterwards `state` was `live`, with no `setupProblem`, no `lastError` and no failed reads. It was read at
+  about 02:03Z, before the 10-minute safety diff replaced it at 02:12:21Z. The first catch-up of 2026-09-30 took
+  468 ms; why this one took longer was not examined.
+- **Against the stamp-scan ceiling** (OPERATIONS §12.9, "Ceilings": revisit the design when a stamp scan takes over
+  20 s). The status shows no stamp-scan time of its own, and a catch-up's `durationMs` is only an upper bound on one.
+  The two deploy catch-ups, 28.6 s and 35.8 s, do not separate the scan from the rest of the catch-up. Each process's
+  first 10-minute safety diff, which also scans, took 2,214 ms on staging (from 01:57:47.781Z) and 3,304 ms on
+  production (from 02:12:21.981Z). So none of these shows a stamp scan over 20 s.
 
 ## Deviations
 

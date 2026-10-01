@@ -318,8 +318,59 @@ The backend was restarted at 22:17:11Z (`scripts/dev-refresh.sh`) and the UI reb
   - Drift showed `http-401` and "unknown", because the pane has no session. Fed the owner's answer above, it read 7,030
     and 7,030, difference 0, explained 0 by pass `20260928T032501Z-472c2596`, and unexplained 0.
 
-After the merge: the owner and an admin view the panel on staging, and a drift count there is compared with direct
-counts (test plan § Test infrastructure).
+### Staging (2026-10-01)
+
+PR #791 merged to staging at 01:46:05Z (`fbd37968`), 11 s after `scripts/check-safe-to-merge.sh` exited 0. Deploy run
+`36802662544` succeeded in 98 s. The smoke test (`docs/SMOKE_TEST.md`) was clean apart from `get-user-data`'s 504 on
+the heavy test pubkey, which production shows too (OPEN.md row 61).
+
+- **The bundle.** The served `index-BBm0F9EO.js` carries "Tagging pipeline", `drift-counts` and `tp-drift`.
+- **`GET /api/tagging-edges/drift-counts`.**
+  - Signed out, it answered 401.
+  - Signed in as an admin (Virgil; `user-classification` `admin`), it answered 200: relay 7,032, graph 7,032. Those
+    match `GET /api/strfry/scan/count` over both stamps (7,032) and a read-only `MATCH ()-[r:TAGS]->() RETURN count(r)`
+    (7,032).
+  - With a foreign `Origin` it answered 403; two concurrent requests joined one count (the same `takenAt`).
+- **The panel, as an admin.** It was rendered headless (Playwright 1.56.1, Chromium) with the admin's session; the key
+  stayed in memory.
+  - The sub-tab "Tagging pipeline" sits between ⚡ Streaming ETL and 📅 Scheduled Tasks.
+  - Its four reads answered 200 (`status`, `realtime/status`, `scheduled-tasks/list`, `drift-counts`), and the console
+    showed no errors.
+  - The five sections drew from staging's real state:
+    - the latest pass `done` (`20260930T142646Z-a7f04da9`) and two earlier ones;
+    - no held removals;
+    - one enabled entry, every 1 day, next at 2026-10-01 14:26:18Z;
+    - the path on, running and `live`, with the deploy's catch-up `done` in 29 s;
+    - drift 7,032 and 7,032, difference 0, explained 0 by that pass, and unexplained 0. The pass read 7,026 and the
+      path has added 6 since.
+- **No pass queued (AC-1).** BullBoard's read route (`GET /admin/queues/api/queues`, as the admin) was read at
+  02:15:19Z and 02:15:34Z, before and after a panel view whose only requests were the panel's four GETs. Both times
+  the `reconcileTaggingEdges` queue held no waiting or active job, 0 failed and 1 completed, and one delayed job, the
+  same both times: the backstop's next run (`repeat:sched:entry-c2a4d900…`, due 14:26:18Z). See § Deviations, "At the
+  live evidence".
+- **The owner's view** is still to come: it needs the owner's key, which is on another machine.
+
+### Production (2026-10-01)
+
+Promotion PR #792 (bundle: #791 alone) merged to main at 02:00:40Z (`9a97de8f`), once the required checks were green,
+3 min 33 s after `scripts/check-safe-to-merge.sh` exited 0. Deploy run `36803802426` succeeded in 96 s. The smoke test
+was clean apart from the same `get-user-data` 504 (OPEN.md row 61); no 502 window showed.
+
+- **The bundle.** The served `index-BBm0F9EO.js`, the same build as staging's, carries the three strings.
+- **`GET /api/tagging-edges/drift-counts`.** Signed out 401. As an admin (Virgil), 200: relay 7,039 (142 ms), graph
+  7,039 (58 ms), `stamps` `82b75e47` / `919ba08a`; the direct counts read 7,039 and 7,039. A foreign `Origin` got 403;
+  two concurrent requests joined one count.
+- **The panel, as an admin,** rendered the same way: its four reads answered 200, and the console showed no errors.
+  - The latest pass `done` (`20260930T142511Z-3469ad38`), and the backfill before it.
+  - No held removals.
+  - One enabled entry, every 1 day, next at 2026-10-01 14:24:37Z.
+  - The path on, running and `live`, with the deploy's catch-up `done` in 36 s.
+  - Drift 7,039 and 7,039, difference 0, explained 0, unexplained 0. The pass read 7,033 and the path has added 6
+    since.
+- **No pass queued (AC-1),** read the same way at 02:15:35Z and 02:15:49Z. Both times there was no waiting or active
+  job, 0 failed and 1 completed, and the same one delayed job: the backstop's next run
+  (`repeat:sched:entry-9c44f402…`, due 14:24:37Z).
+- **The owner's view** is still to come, as on staging.
 
 ## Deviations
 
@@ -387,6 +438,14 @@ Small judgement calls made at Implementation (2026-09-30), too small for an ADR 
 - **The `failureCode` families** repeat the `countCode` regex literals instead of sharing constants.
 - **The `E…` family** excludes Node's own `ERR_…` codes, and a Neo4j Security code reads as credentials or permission.
   Both follow T12 as refined.
+
+### At the live evidence (2026-10-01)
+
+- **BullBoard's delayed job.** The test plan asks that BullBoard show the `reconcileTaggingEdges` queue with "no
+  waiting, delayed or active job before and after" (§ Test infrastructure, "Live evidence"). While a host's daily
+  backstop entry is enabled, the entry's next run is always one delayed job in that queue, so that wording cannot hold
+  on either host. The check recorded instead no waiting or active job, and the same single delayed job before and after
+  a panel view. A pass the panel had queued would have been a new job, waiting or active.
 
 ## Linked artifacts
 
