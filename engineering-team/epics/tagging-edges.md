@@ -46,7 +46,8 @@ Planning: admins may also see the panel and use every control but confirming hel
 4. `4-tagging-pipeline-panel.md` — the panel: a Relays sub-tab beside Streaming ETL, seen by the owner and admins,
    showing the pass (status, history, held removals, the backstop schedule), the real-time path, and the drift
    between relay and graph, explained. It changes nothing. *(Split from the planned control panel at Planning,
-   2026-09-30; the owner's decisions are in the story.)*
+   2026-09-30; the owner's decisions are in the story.)* **Done** (review PASS 2026-10-01, round 2); shipping to
+   staging.
    **Carry-forwards from story 3's review** (placed by the owner 2026-09-30; `reviews/tagging-edges/3-real-time-path.md`
    § "Re-review, round 3", C1–C9). Each open one becomes a docs or test task of story 4. Repo line numbers were read
    at `origin/staging` `58abd891` (prefer the named sections if they have drifted); strfry's are from strfry 1.1.0 in
@@ -116,6 +117,35 @@ Planning: admins may also see the panel and use every control but confirming hel
    session) and has no stop control (the Architect amends ADR 0002). Story 2's confirm route stays owner only.
    *Proposed, not yet decided:* story 5 folds ledger `2026-09-28-confirm-route-joins-finishing-job`. *(The owner's
    decisions at story 4's Planning, 2026-09-30, apart from that proposal.)*
+   **Carry-forwards from story 4's review** (placed by the owner 2026-10-01; `reviews/tagging-edges/4-tagging-pipeline-panel.md`
+   § "Re-review, round 2", R2-1 to R2-14). Each becomes a docs, copy or test task of story 5. Line numbers are at
+   `77ae0da4`; the review gives each one's evidence and ask in full.
+   - *R2-1 (copy, ADR):* explain the Neo4j driver's own codes, `N/A` (an error with no code, such as a connection
+     that opens but never answers) and `ProtocolError`, under `failureCode` and `countCode`, and name them in T12.
+     Reword `no-status`: an error that did not come from the driver.
+   - *R2-2 (copy):* `passOutcome.refused`, `passReason.read` and `passReason.plan` say "changed no relationship or
+     person", not "changed nothing", since a schema step may create the one-per-tagging rule.
+   - *R2-3 (copy, test):* a pass that never recorded its end (the pessimistic `stopped` record) shows its confirmed
+     removals as a lower bound from its last save, not "applied none / N". Add a browser case beside B44.
+   - *R2-4 (copy):* under `countsPredatePass`, drop "The explained part does not include them" from the path line
+     (`DriftSection.jsx:81-85`).
+   - *R2-5 (copy):* `passReason.stopped` puts the data-volume check first, and says the `TASK_ERROR` line may be
+     missing on a full disk.
+   - *R2-6 (panel, copy):* show `failure.message` and `failure.stderrTail` (already redacted) under "Where it failed",
+     and stop pointing pass failures at "the task log" or `strfry-error.log`.
+   - *R2-7 (docs, ADR):* the no-cors wording (`OPERATIONS.md:727`, ADR 0004 § Server) must not claim at most one count
+     at a time: `inflight` clears when an answer settles, and an abandoned graph count can run beside the next.
+   - *R2-8 (docs, ADR):* ADR 0002 decision 14 ("Until story 4"), the handoff's "Recommended shape for story 4", and
+     ADR 0003:917's note ("two public routes") still describe story 4 as owning work now story 5's, or read wrongly.
+   - *R2-9 (ADR):* T12's list of `error` fallbacks adds `fsFailure` (`reconcileTaggingEdges.js:102`).
+   - *R2-10 (test):* browser case B50 for the held list's 404 restart when the status answer is overtaken.
+   - *R2-11 (ADR, test):* ratify, or revert, T12's `ERR_` exclusion and the "`Security.Forbidden` is a permission"
+     reading. Bring ADR 0004 § UI's FAMILIES line into step with T12, and pin both under both kinds.
+   - *R2-12 (test plan):* add round 1's two unlisted readings (B47's opening read; B46's label only after a failure),
+     and fix TV48's title (five flags).
+   - *R2-13 (test):* the T12 guard's literal extraction notes, or checks, shapes it cannot see (`code: x || '…'`,
+     inline ternaries).
+   - *R2-14 (docs):* story 4 § Deviations' `CANONICAL_Z_RE` line cites row `2026-10-01-drift-copies-canonical-z-pattern`.
 
 Order: 1 → 2 → 3 → 4 → 5 (4's page can start once 2's status shape is fixed; 5 builds on 4's panel).
 

@@ -41,8 +41,8 @@ and C7 in ADR 0003 at story 4's Architecture (`88af7df3`); C1, C3, C4, C5 and C7
 §12.9, story 3, the ledger row, and C5's comment in `realtime/index.js`) at its implementation (`a2f38940`); C6, C9
 and C4's test-plan wording at its Test Design (`e6f124ea`).
 
-**Story 4, in progress** (`engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.md`, ADR
-`tagging-edges/0004`): the tagging pipeline panel, Settings › Relays › **Tagging pipeline**, the sub-tab directly
+**Story 4, done** (review PASS on 2026-10-01 after two rounds; shipping to staging;
+`engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.md`, ADR `tagging-edges/0004`): the tagging pipeline panel, Settings › Relays › **Tagging pipeline**, the sub-tab directly
 after ⚡ Streaming ETL, seen by the owner and admins. It shows the pass (running or not, the latest and earlier passes,
 the held removals, the backstop schedule), the real-time path, and the drift between relay and graph, explained
 against the newest finished pass. It changes nothing. It reads story 2's `GET /api/tagging-edges/status` and `/held`,
@@ -54,6 +54,10 @@ carry-forwards above.
 running or stopping a pass, for the owner or an admin; confirming held removals, for the owner only. Until then the
 Task Explorer runs a pass, and OPERATIONS §12.8–§12.9's console snippets confirm held removals and turn the path on
 and off.
+
+Story 5 also carries story 4's review carry-forwards R2-1 to R2-14 (`reviews/tagging-edges/4-tagging-pipeline-panel.md`
+§ "Re-review, round 2"; placed in the epic's item 5 by the owner on 2026-10-01): copy accuracy, docs wording and one
+missing test, none of them a change to data.
 
 **Ledger rows story 3 opened:**
 - `2026-09-28-pass-relay-read-byte-cap`;
