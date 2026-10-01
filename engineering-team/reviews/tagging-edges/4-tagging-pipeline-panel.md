@@ -244,3 +244,123 @@ copy and docs accuracy and should land in the same round.
   - the tests asked in non-blocking 1–3;
   - friction 1's polling cases, and the plan's correction.
 - **Implementer:** blocking 1 and non-blocking 1–14, 17 and 18, plus the ledger row in friction 2.
+
+## Re-review, round 2 (2026-10-01)
+
+**Diff:** `git diff a2f38940..77ae0da4`, six commits:
+- `c496d853`, the ADR: T5's `countsPredatePass`, the true bounds, the wording, and the story's AC-3 correction;
+- `053c1482`, the tests;
+- `4722e0ac`, the implementation;
+- `3a672f68`, the ADR's T12 `failureCode`;
+- `26736260`, the tests;
+- `77ae0da4`, the implementation.
+
+**Method.** Four lenses re-derived every round-1 ask as a fresh claim (reviewer rule 10), our own suggested wording
+included: the code, the copy, the docs and the tests. Each new finding then went to its own skeptic.
+
+### Quality gates
+
+- [x] **`npm test`**, run on a worktree at `77ae0da4` under Node 22.23.3:
+  `20261001T012400Z-14473-8d3d [te4-review2-77ae0da4] on 77ae0da4 — FAIL, exit 1, 4743 passed, 30 failed, 177 skipped,
+  250/250 suites`.
+  - Against round 1's run, the only differences are the new tests, all green: tagging-pipeline-view 58 → 63 and
+    tagging-pipeline-codes 39 → 48.
+  - The 12 failing suites are the baseline's live-stack suites.
+  - `git diff 053c1482..4722e0ac -- test tests` and `git diff 26736260..77ae0da4 -- test tests` are both empty.
+- [x] **The browser spec**, run by the reviewer on a fresh container build of `77ae0da4`: 53 passed, 0 failed, with
+  B41–B49 among them. This also answers the round's check that the spec had not yet run against the committed view.
+- [x] `scripts/harness-lint.sh` exits 0.
+
+### Round 1's asks
+
+| Round 1 item | Status | Evidence |
+|---|---|---|
+| **Blocking 1** (`passReason.schema`) | **Fixed in substance** | The sentence names each producer case at `reconcileTaggingEdges.js:341-356`, each with the remedy that works, and says "changed no relationship or person". `failure.code` is shown under "Where it failed", through the new `failureCode` kind (T12), with the Security family apart. B42 and B49 pin it. Residue: carry-forwards R2-1 and R2-2. |
+| NB1 (drift while a pass runs) | Fixed | `DriftSection.jsx:50-55` branches on `passRunning`. B41 pins it. |
+| NB2 (`failure.code` not shown) | Fixed | `PassSection.jsx:67-69`; B42, B49. |
+| NB3 (counts predating the pass) | Fixed | `countsPredatePass` (T5) and the Recount note; TV59–TV62, B43. One sentence is left over: R2-4. |
+| NB4 (pending confirmation) | Fixed | The copy now names the condition. |
+| NB5 ("applied" removals) | **Partly** | The sentence is built from `latest.confirmed`, and B44 pins it. For a pass that never recorded its end it can still be exact where it should be a lower bound: R2-3. |
+| NB6, NB7, NB9, NB10, NB11, NB12 | Fixed | Each sentence re-derived from its producer. |
+| NB8 (`passReason.stopped`) | **Partly** | The report-write case is added, but it points to a `TASK_ERROR` line that a full disk may also lose: R2-5. |
+| NB13 (log locations) | **Partly** | Every log is now named by its path. But "the task log" and `strfry-error.log` are not where a pass's error details are: R2-6. |
+| NB14 (single-flight comment) | Fixed | `drift.js` header. |
+| NB15 (the ADR's session bound) | Fixed | Checked against `neo4j-bolt-connection`'s `connection.recv_timeout_seconds` hint. |
+| NB16 (no-cors wording) | **Partly** | The new wording claims that at most one count runs at a time, which the code does not guarantee after a lost race: R2-7. |
+| NB17 (handoff, epic, ADR forward references) | Fixed | More places still name story 4 for work that is now story 5's: R2-8. |
+| NB18 (BIBLE row) | Fixed | |
+| Friction 1 (polling tests, plan claim) | Fixed | B46–B48 each fail on their own wrong build. The plan is corrected. Filed as ledger row `2026-10-01-test-plan-credits-unpinned-behaviour`. |
+| Friction 2 (ledger row) | Fixed | Row `2026-10-01-drift-copies-canonical-z-pattern`. No duplicate on `origin/staging`. |
+| Friction 3 (held list stuck on Loading) | **Partly** | The fix is in (`useRead` reports `kept`), but no test pins it: R2-10. |
+
+### Carry-forwards (non-blocking; for the owner to place in story 5 or a follow-up)
+
+None of these is blocking. Every one was verified by a skeptic who defaulted to refuting it.
+
+1. **R2-1. Driver codes read "not recognised".** The schema sentence's "Any other code has its own explanation beside
+   it" is not true for the Neo4j driver's own codes: `N/A`, its default for an error with no code, such as a
+   connection that opens but gets no answer within 30 s, and `ProtocolError`. **Ask:**
+   - add exact `failureCode` (and `countCode`) entries for both, worded for any graph stage;
+   - name them in T12's list;
+   - reword `no-status` (it means an error that did not come from the driver).
+2. **R2-2. `passOutcome.refused` still says "changed nothing".** A schema refusal may follow the pass's own
+   `CREATE CONSTRAINT`. **Ask:** use "changed no relationship or person", in `passReason.read` and `passReason.plan`
+   too.
+3. **R2-3. "It applied none / N of the confirmed removals" can be false.** A pass that never recorded its end (the
+   pessimistic `stopped` record) keeps only its last save, which happens every 10 batches. **Ask:**
+   - word the figure as a lower bound in that case;
+   - add a browser case next to B44.
+4. **R2-4. A dangling sentence under `countsPredatePass`.** The path line's "The explained part does not include them"
+   still shows when no explained part does (`DriftSection.jsx:81-85`).
+5. **R2-5. `passReason.stopped` leads with the wrong check.** Put the data-volume check first, and say the
+   `TASK_ERROR` line may be missing on a full disk and does not say why the write failed.
+6. **R2-6. The remedies point at logs that hold nothing.**
+   - **Where the details are.** A pass's error details are `failure.message` and, for a relay read,
+     `failure.stderrTail`, both already redacted on the public route.
+   - **Where the remedies point.** "The task log" is deleted by `launchChildTask.sh:493`, and `strfry-error.log` is
+     not where a pass's strfry stderr goes.
+   - **Ask.** Show those two fields under "Where it failed", and reword `passReason.error` and the `failureCode`
+     entries `plan-error`, `error`, `spawn`, `process-error`, `exit`, `unparseable` and `not-an-event-line`.
+7. **R2-7. The no-cors wording still claims a bound.** It says at most one count runs at a time, but `drift.js:155-184`
+   clears `inflight` when the answer settles, and an abandoned graph count can keep its session beside the next one.
+   **Ask:** reword `OPERATIONS.md:727` (Implementer) and `ADR 0004:247-249` (Architect).
+8. **R2-8. More places still give story 4 work that is now story 5's:**
+   - ADR 0002 decision 14 (`:815`, "Until story 4");
+   - the handoff's "Recommended shape for story 4" (`:171-175`);
+   - ADR 0003:917's note says "two public routes", where the panel reads three public routes, the schedule list, and
+     the gated drift-counts route.
+9. **R2-9. T12's list of `error` fallbacks** leaves out `fsFailure` (`reconcileTaggingEdges.js:102`).
+10. **R2-10. Friction 3's fix has no test.** **Ask:** add browser case B50: the held list's 404 restart, where an
+    overtaken status answer must not leave `tp-held` loading.
+11. **R2-11. Unratified spec text.** The `ERR_` exclusion and the reading that `Security.Forbidden` is a permission
+    were added to T12 in the implementation commit (`77ae0da4`). **Ask:**
+    - the owner or the Architect ratifies them;
+    - ADR 0004 § UI's `FAMILIES` line is brought into step with T12;
+    - the Tester pins an `ERR_` code under both kinds, and `Security.Forbidden`.
+12. **R2-12. Two readings are missing from the test plan's round-1 list:**
+    - B47: the opening read is not "the previous one" for the skip rule;
+    - B46: no read-time label shows while a read is good.
+
+    TV48's title also says four flags where there are five.
+13. **R2-13. The T12 guard's literal extraction** does not see a fallback written without parentheses, or an inline
+    ternary. **Ask:** note that in its doc comment, or add one shape check.
+14. **R2-14. A missing citation.** Story 4 § Deviations' `CANONICAL_Z_RE` line should cite its row,
+    `2026-10-01-drift-copies-canonical-z-pattern`.
+
+### Verdict (round 2)
+
+**PASS**
+
+- **The round-1 blocker is fixed.** The schema reason gives a remedy that works for each producer case, and the panel
+  now shows the code that tells them apart.
+- **Every round-1 ask** is fixed or partly fixed, and the residues are R2-1 to R2-14.
+- **The gate** differs from the baseline only by the new, green suites. The browser spec passes 53/53 on the committed
+  tree.
+- **None of the carry-forwards** changes what the panel or the route does to any data. All of them are copy accuracy,
+  docs wording, or a missing test for code that is in place.
+
+## On PASS (same commit)
+
+- [x] **Story `**Status:**` flipped to `Done` in place.**
+- [x] **Completion detection: book `tagging-edges` is not complete.** Its amended frame ("Front-end controls")
+  also needs story 5, the controls. No `/close-book` offer.

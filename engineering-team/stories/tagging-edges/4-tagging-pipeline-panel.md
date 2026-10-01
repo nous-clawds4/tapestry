@@ -1,6 +1,6 @@
 # Story 4: The tagging pipeline panel
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-30
 **Type:** Feature
 
