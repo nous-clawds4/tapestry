@@ -155,6 +155,6 @@ The owner's answers, 2026-09-30:
    of the handshake. There's no one-press Tag button on the row.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
