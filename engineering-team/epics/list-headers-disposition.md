@@ -17,15 +17,20 @@ rule, and leaves Concept Headers alone.
 
 ## Stories
 
-All four are features, so all take the five phases (Standard). They're built in this order.
+All five are features, so all take the five phases (Standard). They're built in this order. The
+original plan had four; story 3 was split in two at its planning gate (2026-10-01), because three
+actions over every row state ran well past five acceptance criteria.
 
 1. `1-author-selector-me-and-my-assistant.md`: **Me** and **My Local Tapestry Assistant** in the
-   Author selector. Read-only.
-2. The 🧭 b-disposition column. Read-only. Doesn't need #1.
-3. Disposition on **My Assistant** rows: the panel and its three actions, signed by the person's
-   own Assistant. Depends on #2.
-4. Disposition on **Me** rows: the same panel and actions, signed by the person's own browser
-   signer. Depends on #3.
+   Author selector. Read-only. Done.
+2. `2-b-disposition-column.md`: the 🧭 b-disposition column. Read-only. Done.
+3. `3-disposition-on-my-assistant-rows.md`: Disposition on **My Assistant** rows: the panel,
+   **Submit as a Shared Concept** and **Keep private**, signed by the person's own Assistant, plus
+   **Next undecided →**. Every one of the Assistant's rows gets the button, not only undecided
+   ones (owner, 2026-10-01). Depends on #1 and #2.
+4. **Wire to an external shared concept** on the same panel, under the same rule. Depends on #3.
+5. Disposition on **Me** rows: the same panel and all three actions, signed by the person's own
+   browser signer. Depends on #3 and #4.
 
 ## Key facts / guardrails
 
