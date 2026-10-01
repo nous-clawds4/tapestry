@@ -72,6 +72,13 @@ At story 2's review, 2026-09-30:
 10. **Withdrawals must travel between instances** (review 1 blocking 1; ADR 0002 Amendment 1). Each withdrawal also
     goes to dcosl, and every instance gets a tag-deletions router stream (§ Before shipping).
 
+At story 3's gate, 2026-09-30:
+
+11. **Several Assistants on one duty read as Preferred, then Alternates** (the design's and the draft protocol's
+    wording). This app itself uses only the first today.
+12. **The withdrawal-send test is folded into story 3's cycle.** The branch was brought up to date with staging
+    first (merge `7c83fdcb`).
+
 ## Before shipping
 
 - [ ] **Nous publishes the My Brainstorm Assistant tag definition.** He uses the tag UI on tapestry.brainstorm.world,
@@ -88,7 +95,8 @@ At story 2's review, 2026-09-30:
         (`/api/strfry/scan` by its id). Otherwise "gone" proves nothing.
       - Then Remove it, and read those relays and `wss://dcosl.brainstorm.world` for the same id: it must be gone,
         or its kind 5 present.
-- [ ] **Pin the withdrawal's send in a test** (review 2, non-blocking 1). Today only its report is tested.
+- [ ] **Pin the withdrawal's send in a test** (review 2, non-blocking 1; folded into story 3's cycle, decision 12).
+      Today only its report is tested.
       - Pass the withdrawal relays once through the orchestration's `deps`.
       - Add a Node test that the withdrawal is sent to, and reported against, a list including dcosl.
       - This is a small Tester and Implementer pass: in story 3's cycle, or on its own before shipping.
