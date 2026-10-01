@@ -376,4 +376,4 @@ Small judgement calls made at Implementation (2026-09-30), too small for an ADR 
 - ADR: `engineering-team/decisions/tagging-edges/0004-tagging-pipeline-panel.md` (also amends ADR 0003 for C1, C2's ADR
   half, C3, C5 and C7)
 - Test plan: `engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tagging-edges/4-tagging-pipeline-panel.md`
