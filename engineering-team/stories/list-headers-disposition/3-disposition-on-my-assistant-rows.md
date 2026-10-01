@@ -122,6 +122,6 @@ None. Two choices are confirmed by approving this story:
    own Assistant's rows, which now carry the **Disposition…** button.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
