@@ -1,6 +1,6 @@
 # Story 3: What each Assistant does — your Treasure Map on the My Assistants page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-09-30
 **Type:** Feature
 **Epic:** `my-assistants`

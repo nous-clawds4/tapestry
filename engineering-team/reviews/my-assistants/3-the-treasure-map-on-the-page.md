@@ -1,6 +1,6 @@
 # Review: Story 3 — What each Assistant does: your Treasure Map on the My Assistants page
 
-**Verdict:** **CHANGES_REQUESTED** (round 1; one blocking finding, test-only. See § Verdict.)
+**Verdict:** **PASS** (after re-review; see "Re-review, round 2" at the bottom. Round 1 asked for changes over one blocking finding, B1, which is fixed and pinned by tests that bite; NB1, NB3, NB4 and NB6 are fixed, NB2 is filed and NB5 accepted, and one round-2 note, NB7, asks for nothing.)
 
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-10-01
@@ -389,3 +389,157 @@ There is one blocking issue:
   `ui/src/pages/assistants/AssistantRow.jsx:72-75`, `tests/brainstorm/my-assistants-map.spec.js:189-222`.
 
 Everything else (NB1–NB6) can ride along with that pass or be filed.
+
+## Re-review, round 2 (2026-10-01)
+
+**Diff:** `git diff 9e955b3d..b45e9659` on `feat/my-assistants` (base = round 1's review commit): 11 files, 214
+insertions, 19 deletions. Commits:
+- `338c2876`: ADR 0003 Amendment 1 (sub-decision 7), book decision 13, and decision 12's merge hash corrected to
+  `167c043e` (NB6);
+- `a92900ab`: the Tester's pass. M3 and M4 now open a row and pin its panel, M3b is new, M7 checks `aria-controls`,
+  S2 is tightened, and the plan gains "Amendment after review 1". It touches nothing under `ui/` or `src/`;
+- `b45e9659`: the implementation. The hook's strict read now treats "no relay to ask" as an error, and its docstring
+  is corrected. Only the selected tab carries `aria-controls`. It also changes row 314's note, the book's S2 line and
+  the story's § Deviations, and adds two ledger rows. It touches nothing under `test/` or `tests/`.
+
+**The owner's decisions at round 1's gate**, as the coordinator's brief reports them (I didn't see the exchange):
+- fix B1, NB1, NB4 and NB6;
+- NB3: under the strict read, a local miss with no general-purpose relay to ask is "couldn't read", never "none"
+  (ADR 0003 Amendment 1, book decision 13);
+- NB2 is filed as a ledger row, and NB5 is accepted in § Deviations;
+- harness friction 1 is filed as a ledger row.
+
+**In short:** B1 is fixed and pinned by tests that bite, and so are the three small items the owner took. The
+isolated gate, the host suites and all 50 browser tests pass. Every claim in the amended records checks out against
+the code and the runs below, and nothing regressed. One note, with no change asked: S2 still accepts a contrived
+override after a spread (NB7).
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`, by the network-isolated CI reproduction**, as in round 1. A fresh full clone at `b45e9659` was
+  copied into a new named volume with `chown`. `npm ci` ran with network, then the gate ran with `--network none` and
+  `CI=true`, its output outside the tree. The verdict, read with
+  `npm run -s gate:status -- --label review-my-assistants-3-r2` (exit 0):
+
+  > `20261001T135438Z-21-ba1c [review-my-assistants-3-r2] started 2026-10-01T13:54:38.357Z on b45e9659 — PASS, exit 0, 4454 passed, 0 failed, 591 skipped, 253/253 suites · /w/repo/tmp/gate-runs/20261001T135438Z-21-ba1c.json`
+
+  - **The record:** `node: v22.23.3`, `git: { commit: b45e9659…, branch: feat/my-assistants, dirty: false }`.
+  - **Per suite:** `my-assistants-map` 14/0/0, `my-assistants-actions` 29/0/0, `my-assistants-page` 50/0/2,
+    `harness-lint` 76/0/0, `stack-free-npm-test` 6/0/1.
+  - **The same totals as round 1.** Round 2's new checks are browser tests (M3b, and the additions to M3, M4 and
+    M7), or they replace S2's body, so no Node count moves.
+  - **Cleanup:** the volume has been removed.
+- [x] **The story's suites on the host**, through `run()` (Node v24.18.0):
+  - `my-assistants-map` `{"pass":14,"fail":0}`;
+  - `my-assistants-actions` `{"pass":29,"fail":0}`;
+  - `my-assistants-page` `{"pass":52,"fail":0,"hExecuted":2}`.
+- [x] **Playwright**, HEAD's `ui/` built into a scratch `outDir` and served on :4176, the three specs (chromium):
+  **50 passed** (13 map, 15 page, 22 actions). With `--repeat-each=3`: **150 passed**.
+- [x] **The new checks bite.** HEAD's specs ran against three other builds, each served on its own port:
+
+  | Build | The three specs | Where it fails | Reading |
+  |---|---|---|---|
+  | round 1's mutant A: the panel's two guard lines deleted | 48 passed, 2 failed | M3 at `:205`, the panel's error line not found; M4 at `:245`, its loading line not found | bites, as the plan says |
+  | "keeps the claim": the panel shows the loading or error line, and still the heading, "No duties" and the not-listed line | 48 passed, 2 failed | M3 at `:206`, one "No duties"; M4 at `:249`, by its sampling ("sample 0 … Reading your Treasure Map… Duties on your Treasure Map No duties…") | bites, M4 by its sampling, as the plan says |
+  | `29aa28eb`'s build, round 1's code | 48 passed, 2 failed | M3b at `:220`, no error line, because the page said "none"; M7 at `:328`, the Duties tab's `aria-controls` names an id with 0 elements | M3b and M7 fail before the fix and pass now. M3 and M4 pass on it, because round 1's panel code was already right |
+
+- [x] **S2, against the forwarding variants.** In a scratch clone, the `withdrawTaggings:` line in `Index.jsx` was
+  swapped for each variant in turn, and the map suite run:
+  - **rejected:** round 1's mutant B (`relays` taken, then dropped); `relays: []`; a renamed parameter that isn't
+    passed on; `relays: PUBLISH_RELAYS`;
+  - **accepted:** HEAD's line; `(args) => …(args)`; `(args) => …({ ...args })`; a renamed parameter that is passed
+    on;
+  - **also accepted:** `(args) => publishTaggingWithdrawalWithReport({ ...args, relays: [] })` (NB7).
+- [x] **Phase separation:** the tests commit changes no file under `ui/` or `src/`, and the implementation commit
+  changes no test file.
+- [x] `bash scripts/harness-lint.sh`: clean (0 violations) at `b45e9659`, the two new ledger rows included.
+- [x] **Hygiene sweeps** on round 2's added lines: no 64-hex literal, `console.log`, `debugger`, TODO or `nsec`, and
+  no raw control bytes in the 11 files.
+- [ ] _Lint, typecheck and build are not configured, so they were skipped._
+
+### Each round-1 finding
+
+| Finding | The owner's call | What changed | Verified |
+|---|---|---|---|
+| **B1** the open panel untested | fix | M3 opens Ava after the failed read. Her panel must show the error line, with no "No duties", no not-listed line and no group label; after Try again, the same open panel shows "2 duties" (`tests/brainstorm/my-assistants-map.spec.js:202-212`). M4 opens Ava while the Map is held. Her panel must show the loading line, and four samples must find no duty count, group or not-listed line; released, it shows "2 duties" (`:242-257`). The plan's amendment adds the panel to AC-7, and § Deviations moves the panel out of the judgment calls (`story:203-206`). | Both mutants fail M3 and M4 at the intended assertions, and HEAD passes. |
+| **NB1** S2 too loose | fix | S2 parses the arrow and requires `relays` to reach the publisher's call, or the whole argument to be passed on (`test/my-assistants-map.test.js:238-250`). The book's line now says S2 "pins that the page hands that list on to the publisher's call" (`book.md:106-108`). | Mutant B fails S2 (above). The book's sentence is accurate, with NB7's caveat. |
+| **NB2** Try again skips the relay list | filed, not fixed | `ledger/2026-10-01-treasure-map-retry-skips-relay-list.md`, and § Deviations (`story:212-214`). | The row's account matches round 1's P3 and the hook (`useTreasureMap.js:37-40`), and so does its fix shape. |
+| **NB3** "none" with no relay read | strict with no relay to ask is an error | Under `strict`, a local miss with no general-purpose relay is `error` ("Not in local strfry, and no general-purpose relay is configured to search."); without it, `none` as before (`ui/src/hooks/useTreasureMap.js:85-90`). The docstring (`:26-31`), ADR Amendment 1 (`:232-250`), book decision 13 (`book.md:84-86`) and row 314's note all say so. | M3b passes on HEAD and fails on `29aa28eb`. It asks for no relay read. H1 still holds, so the two other callers are unchanged and still get `none` there. |
+| **NB4** a dangling `aria-controls` | fix | `aria-controls` is set only on the selected tab (`ui/src/pages/assistants/Index.jsx:204`). M7 checks that every tab's `aria-controls` resolves, with either tab selected (`spec:324-334`). | M7 fails on `29aa28eb` and passes now. |
+| **NB5** fallback names flash | accepted | § Deviations (`story:215-216`). | Recorded accurately. |
+| **NB6** the merge hash | fix | Decision 12 now cites `167c043e` (`book.md:80`). | `167c043e` is on the branch, with the parents and tree round 1 gave. |
+| **Harness friction 1** | filed | `ledger/2026-10-01-honest-states-pinned-per-state.md` | Its account matches both rounds, including "that mutant and a 'keeps the claim' mutant". The sibling row it cites, `2026-10-01-test-plan-credits-unpinned-behaviour`, exists. |
+
+### The amended records, checked
+
+- **ADR 0003 Amendment 1** (`decisions/my-assistants/0003-…:232-250`):
+  - **Sub-decision 7** matches the code: `error` under `strict` only, and the page shows the error line with Try
+    again (M3b).
+  - **What `none` means under `strict`** ("local strfry missed, at least one general-purpose relay was read, and every
+    relay that answered held no Treasure Map") is exactly true. The endpoint's strict mode answers `success: true`
+    only when at least one relay was read (`src/api/relay/fetchEvents.js:67-70`). The hook keeps only this author's
+    kind 10040 (`useTreasureMap.js:102`). An empty relay list never reaches the endpoint now, and the endpoint's 400
+    for a list with no `ws(s)://` URL is `success: false`, so that is `error` too.
+  - **"Which is what AC-1 and AC-7 forbid"** is the amendment's own framing. Round 1 left that call to the Architect,
+    and the owner has made it.
+- **The hook's docstring** (`useTreasureMap.js:26-31`) now says the same, and it's accurate for both modes.
+- **Row 314's note** (`OPEN.md:346`) now says that "none" still means only that every relay that answered held
+  nothing, and that a Map held only by an unreachable relay reads as "none" when another relay answers. That's
+  correct, and the overclaim from round 1 is gone.
+- **The book:**
+  - decision 13 is as the brief reports the owner's call;
+  - decision 12's hash is right;
+  - the S2 line is accurate (NB7 aside);
+  - § Before shipping keeps its three open items.
+- **The story's § Deviations:**
+  - "Try again appears once, under the count, not again in an open row's panel" matches `AssistantRow.jsx` and
+    `Index.jsx:249-254`;
+  - the new "After review 1" list states the panel as required by AC-7 and AC-1 (curly apostrophes in the quoted UI
+    words), Amendment 1, NB4, and NB2 and NB5 as not done by the owner's choice.
+
+  With no relay to ask, Try again re-scans local strfry, so a Map that later arrives locally is found. The relay list
+  itself isn't re-read: that's NB2's row.
+- **The test plan's amendment** (`test-plan:192-233`):
+  - its red/green claims match my runs: on `29aa28eb`'s build, the map spec has 10 passed and 2 failed (M3b, M7);
+  - its S2 sample lines and both mutant rows match too.
+
+  The coverage table itself isn't edited. The amendment's "Coverage, updated" paragraph carries the change, as story
+  2's plan amendment did.
+
+### Regressions
+
+None found. The implementation commit changes three hook lines' behaviour, under `strict` only, and one attribute in
+`Index.jsx`. Everything else is records.
+- The hook's non-strict path is unchanged, and `MyCuratedDLists.jsx` and `CuratedDListDetail.jsx` still pass
+  nothing (H1).
+- The relay step still waits for the relay list to settle (`:80`), so an empty list is never seen while the list
+  loads.
+- Stories 1 and 2's specs and suites pass unchanged.
+
+### Non-blocking (round 2)
+
+7. **NB7 (note only): S2's whole-argument branch accepts an override after the spread.**
+   `test/my-assistants-map.test.js:244`. `(args) => publishTaggingWithdrawalWithReport({ ...args, relays: [] })`
+   passes S2, because the check stops once it sees `...args`. That line would send the withdrawal to no outside
+   relay. It's contrived, and HEAD's line is the destructured form, which S2 checks exactly. No change is asked. If
+   S2 is touched again, the whole-argument branch could also reject a `relays` key after the spread.
+
+### Harness friction (round 2)
+
+None new. Both of round 1's items are handled: the first is filed as `2026-10-01-honest-states-pinned-per-state`,
+and the second is row 316's.
+
+### Close-out
+
+- **Story status:** for the caller. Per the brief, I edited only this file and committed nothing, so `**Status:**
+  Done` on the story is for the commit that carries this review (row 316). Until then, harness-lint reports exactly that
+  (`VIOLATION L1 … is PASS-final but story status is 'Approved'`, 1 violation), and the flip clears it.
+- **Completion detection:** reported in the chat, not here (template).
+
+### Verdict
+**PASS**
+
+B1 is fixed: M3 and M4 now pin the open row's panel in both honest states, and both round-1 mutants fail them. NB1,
+NB3 (as Amendment 1), NB4 and NB6 are fixed and verified, and NB2 and NB5 are recorded as the owner chose. The
+isolated gate is PASS on `b45e9659` (`20261001T135438Z-21-ba1c`), the host suites pass, and 50/50 browser tests pass
+(150/150 repeated). The amended ADR, docstring, row 314 note, book and § Deviations are accurate. Nothing regressed.
