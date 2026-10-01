@@ -67,6 +67,11 @@ At story 2's gate, 2026-09-30:
 9. **Your own Assistant's untagged row keeps its link to Identification Tags.** That page does both directions of the
    handshake. There's no one-press Tag button on the row.
 
+At story 2's review, 2026-09-30:
+
+10. **Withdrawals must travel between instances** (review 1 blocking 1; ADR 0002 Amendment 1). Each withdrawal also
+    goes to dcosl, and every instance gets a tag-deletions router stream (§ Before shipping).
+
 ## Before shipping
 
 - [ ] **Nous publishes the My Brainstorm Assistant tag definition.** He uses the tag UI on tapestry.brainstorm.world,
@@ -74,6 +79,13 @@ At story 2's gate, 2026-09-30:
       `my-brainstorm-assistant`, which story 1's read is fixed to. Then check that
       `39999:15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270:my-brainstorm-assistant` is on the
       production, staging and dcosl relays.
+- [ ] **Turn on the `tagDeletions` router stream** (ADR my-assistants/0002 Amendment 1, sub-decision 12) on
+      staging, production and tags.brainstorm.world, and on the Mac Studio's local stack. The settings: `both`,
+      `{"kinds":[5],"#k":["39999"],"limit":5}`, and the same URLs as that instance's `nostrUserTag` stream.
+      Each instance needs the owner's OK at the time. Confirm with `GET /api/strfry/router-status` on each.
+- [ ] **Prove a withdrawal travels.** On staging, with a real extension, tag a profile and then Remove it. Then read
+      production's and tags.brainstorm.world's relays (`/api/strfry/scan`) for the removed tagging's id: it must
+      be gone, or carry its kind 5. Also read `wss://dcosl.brainstorm.world` for the same id.
 
 ## Epics in this book
 - `my-assistants` — the My Assistants page, its menu link, the tagging actions and the Duties tab.

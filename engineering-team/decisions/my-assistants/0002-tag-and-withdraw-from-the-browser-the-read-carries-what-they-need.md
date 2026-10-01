@@ -279,3 +279,79 @@ Sub-decisions:
 - A server write route, server-side signing, or any change to `useProfileTags.revoke`.
 - Undo, confirmation dialogs, disputes, and bulk actions.
 - Publishing Nous' My Brainstorm Assistant definition: the book's § Before shipping.
+
+## Amendment 1 (2026-09-30, after review 1): withdrawals travel between instances
+
+**Why.** Review 1 (`engineering-team/reviews/my-assistants/2-tag-and-untag-from-the-page.md`, blocking 1) found that
+a withdrawal stays on the instance where it's pressed. This ADR missed that. It is the open row OPEN.md
+`2026-09-27-revokes-do-not-travel`:
+- **How taggings travel:** taggings move between instances through strfry-router streams to dcosl, filtered by the
+  concept `#z`. A kind 5 has no `z`, and no stream carries kind 5.
+- **What the browser reaches:** it publishes the withdrawal to this instance's relay and `PUBLISH_RELAYS`, and none of
+  those is dcosl.
+- **The result:**
+  - after Remove on staging, production's My Assistants, profile pages and Identification Tags check still count the
+    tagging;
+  - readers of dcosl still see it;
+  - a Change leaves both chips elsewhere.
+
+§ Consequences' "What it leaves" bullet above says otherwise, and is wrong. The owner chose, on 2026-09-30, to make
+deletions travel. These sub-decisions add to 1–10, and change only what they name.
+
+11. **A withdrawal is sent to the community relay too.** `withdrawTaggings` publishes to `PUBLISH_RELAYS` plus
+    `CONCEPT_PUBLISH_RELAYS` (`ui/src/utils/dispositionActions.js:8`, `wss://dcosl.brainstorm.world`), deduped. The
+    page builds that list from those two constants; it never re-types a URL.
+    - Readers of dcosl, and dcosl itself (a strfry that honours NIP-09 from the events' author), drop the tagging
+      at once.
+    - The apply keeps `PUBLISH_RELAYS`: taggings already reach dcosl through the router's `#z` streams.
+    - The withdrawal's report lists every relay it was given, dcosl included.
+
+12. **Every instance carries a tag-deletions stream,** beside its tag streams:
+
+    ```json
+    { "name": "tagDeletions", "dir": "both", "filter": { "kinds": [5], "#k": ["39999"], "limit": 5 }, "urls": <its nostrUserTag stream's urls> }
+    ```
+
+    - **What it carries:** deletions of kind 39999 events, both ways. The withdrawal's `['k', '39999']` (sub-decision 3)
+      is what puts it on the stream.
+    - **What happens on arrival:** another instance's strfry receives the kind 5 and deletes the named events from its
+      author. That instance's My Assistants read honours it anyway (ADR 0001 sub-decision 2).
+    - **Where it lives:** it's configured where the tag streams are, in each instance's router state, through the
+      owner's Router settings (or `POST /api/strfry/router-config`). It's not a preset, as they aren't.
+    - **This is ops, not code.** It's a step in the book's § Before shipping, for staging, production and
+      tags.brainstorm.world, and for the Mac Studio's local stack. Each needs the owner's OK at the time.
+    - **The runbook records it:** `docs/TAG_FEDERATION_OPS.md` gains a short section with the stream and its reason.
+    - **What it closes:** OPEN.md row `2026-09-27-revokes-do-not-travel`, for every kind 5 that carries `k` 39999.
+      UI revokes that carry only `e` (row `2026-09-27-ui-revoke-names-id-only`) still don't ride it. That row
+      stays open, and its fix shape now has a stream to ride.
+
+13. **What review 1's non-blocking findings change.**
+    - **Search:** while a query of 2 or more characters awaits its answer, the card shows **Searching…** (new copy) and
+      no results. Changing the query clears the previous results at once, so a stale result never shows with live
+      buttons.
+    - **The refresh re-reads every row's profile,** not only new pubkeys' (sub-decision 5 said new ones only). The
+      list is small and one chunk, and a changed name then shows too.
+    - **The result area is always present** in the ready phase, as an empty `role="status"` region whose content
+      changes, so screen readers announce it. After a press, focus moves to it (`tabIndex={-1}`).
+    - **Each disabled reason** is tied to its buttons with `aria-describedby`.
+    - **Open state:** when the open row leaves the list, it's no longer open; a re-tagged profile comes back closed.
+    - **Slugs:** `assistantActions.js` takes each tag's slug from its definition's address
+      (`39999:<author>:<slug>`), not a second copy.
+
+**Tests asked for in Phase 3:**
+- Review 1's blocking 2: Remove and Change with no extension, and with the wrong key. Nothing is signed or posted,
+  and the app's words are shown.
+- The withdrawal's report lists `wss://dcosl.brainstorm.world` among its relays, and the apply's report doesn't.
+- The failed re-read after a press: the rows are kept, and the report and the refresh note are shown.
+- **Searching…** before the answer, and no stale result after the query changes.
+- Review 1's test tidiness: C1b asserts no sockets; C9 checks signatures, not just posts; S1 lists the split files.
+
+**Consequences of the amendment.**
+- **The fix only works once every instance has the stream.**
+  - Until then, an instance without it keeps the withdrawn tagging, and its readers keep counting it.
+  - dcosl readers are covered from the first withdrawal (sub-decision 11).
+  - So the book ships with the stream enabled on the hosted instances, not before (§ Before shipping).
+- **dcosl's kind-5 volume is still unmeasured.** The `#k` filter narrows the download to tag deletions only.
+- **No live check on the Mac Studio until its stream is on and the owner presses on staging.** The cross-instance
+  path is proven only by a real press on one host, then a read of another host's relay for the deleted ids.
+  That check goes in the book's § Before shipping.
