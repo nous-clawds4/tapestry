@@ -105,13 +105,19 @@ const ROUTES_MOD = path.join(REPO, ROUTES_REL);
 const STATE_MOD = path.join(REPO, 'src/pipeline/tagging-edges/state.js');
 /** Where allowErrorCode lives (T2, T27). */
 const REALTIME_LIB_MOD = path.join(REPO, 'src/lib/tagging-edges/realtime.js');
-/** Forgotten before every load, so env read at load or call time is this test's, and no module outlives a fs window. */
+/**
+ * Forgotten before every load, so env read at load or call time is this test's, and no module outlives a fs window.
+ * strfryScanStrict.js re-exports realtime.js's escapeFilterArgv (T1: "the one escape"), so it is forgotten with it:
+ * otherwise a later suite in the same process gets a stale strfryScanStrict holding an older copy's function
+ * (SS36 and RP5 then fail; story 3's review, round 3, carry-forward C9).
+ */
 const FORGET = [
   STORE_MOD,
   ROUTES_MOD,
   STATE_MOD,
   path.join(REPO, 'src/api/tagging-edges/index.js'),
   REALTIME_LIB_MOD,
+  path.join(REPO, 'src/lib/strfryScanStrict.js'),
 ];
 
 const { CANONICAL, LOCAL, ALICE, BOB, CAROL, ADDRESS, idOf, pubkeyOf } = F;

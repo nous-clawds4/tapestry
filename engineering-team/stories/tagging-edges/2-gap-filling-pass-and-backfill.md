@@ -386,8 +386,22 @@ For Test Design:
   AC-8's clause that social relationships and scores do not move. The live sandbox's SL15 covers it: a scored fixture
   person with a `FOLLOWS` keeps its labels, properties and `FOLLOWS` after creates and moves that `planPass` plans and
   the pass's own port writes to the real Neo4j (green at review, test plan § Verification).
-- **Staging backfill** (Open question 7), run on 2026-09-28 after the staging deploy (PR #780); figures from staging's public `GET /api/tagging-edges/status`, read at 13:29Z. Pass `20260928T130902Z-13cedd2f`: `done` in 11,149 ms (write-creates 7,285 ms over 29 batches; relay read 3,024 ms, 10,404 events). Added 7,023 = `taggingsRead` 7,023 − `refused.total` 0; `peopleAdded` 5,837; `unresolved` 6, as the census found; nothing held. Beside it at 13:29Z: the relay held 7,023 taggings carrying either stamp (`GET /api/strfry/scan/count`), and the graph 7,023 `TAGS` at 7,023 distinct addresses (read-only Cypher). The second pass straight after has not been run yet. Durations and margins: OPERATIONS §12.8 "Measured durations".
-- **Production backfill:** not yet run (its status route showed no report at 13:29Z).
+- **Staging backfill** (Open question 7), run on 2026-09-28 after the staging deploy (PR #780); figures from staging's
+  public `GET /api/tagging-edges/status`, read at 13:29Z. Pass `20260928T130902Z-13cedd2f`: `done` in 11,149 ms
+  (write-creates 7,285 ms over 29 batches; relay read 3,024 ms, 10,404 events). Added 7,023 = `taggingsRead` 7,023 −
+  `refused.total` 0; `peopleAdded` 5,837; `unresolved` 6, as the census found; nothing held. Beside it at 13:29Z: the
+  relay held 7,023 taggings carrying either stamp (`GET /api/strfry/scan/count`), and the graph 7,023 `TAGS` at 7,023
+  distinct addresses (read-only Cypher). Durations and margins: OPERATIONS §12.8 "Measured durations". No second pass
+  ran straight after it. Staging's next pass ran on 2026-09-30, as the first run of its new daily entry:
+  `20260930T142619Z-4db0d448`, `done` in 5,104 ms, added 3 (taggings stored since the backfill), 7,023 unchanged,
+  nothing held (story 3 § Evidence, "Staging").
+- **Production backfill** (2026-09-30; production's public status route, read at 14:32Z). Pass
+  `20260930T142438Z-7e3f2a03` was started by the new daily entry's first run, which starts at once (OPERATIONS §12.8
+  "Scheduling it"), and was `done` in 14,503 ms. Phases (ms): identities 146, schema 513, graph-read 162, relay-read
+  5,885 (10,408 events, 8,230,705 bytes), plan 155, write-creates 7,600. Added 7,033 = `taggingsRead` 7,033 −
+  `refused.total` 0; `peopleAdded` 5,846; `unresolved` 6; nothing held. A pass after the real-time path's first start
+  (`20260930T142511Z-3469ad38`) found 7,033 unchanged, and at about 14:33Z the relay held 7,033 taggings carrying
+  either stamp and the graph 7,033 `TAGS` at 7,033 distinct addresses.
 
 ## Linked artifacts
 

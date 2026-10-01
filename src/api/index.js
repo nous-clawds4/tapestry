@@ -530,6 +530,13 @@ async function register(app) {
     app.get('/api/tagging-edges/realtime/status', taggingEdgesRealtime.handleRealtimeStatus);
     app.post('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOnly, taggingEdgesRealtime.handleRealtimeSwitch);
 
+    // ── The tagging pipeline panel's drift count (tagging-edges #4, ADR tagging-edges/0004 § Server) ──
+    // One owner-or-admin read (the handler re-checks: signed in, owner or admin, same host) that counts the relay
+    // taggings and the graph's TAGS relationships; it reads only and never starts a pass. A failed or timed-out count
+    // answers { known: false, code }, never 0. The path contains no auth-middleware endpoint substring.
+    const taggingEdgesDrift = require('./tagging-edges/drift');
+    app.get('/api/tagging-edges/drift-counts', adminApi.requireOwnerOrAdmin, taggingEdgesDrift.handleDriftCounts);
+
     // ── BullBoard (task queue operations UI) — owner+admin at /admin/queues ──
     // Story #13 / ADR 0010 (mount). Story #18 / ADR 0016 widened the gate from
     // owner-only to owner+admin via requireOwnerOrAdmin. Admin-management

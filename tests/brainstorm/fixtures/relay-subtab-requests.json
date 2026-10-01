@@ -1,0 +1,35 @@
+{
+  "note": "AC-6 baseline (ADR 0004 T10): the distinct API requests each existing Relays sub-tab sends from its click until 3000 ms later, under tests/brainstorm/tagging-pipeline-panel.spec.js's mocks (catch-all 599). Recorded with TP_RECORD_BASELINE=1 against the UI before story 4.",
+  "recordedAt": "88af7df3",
+  "settleMs": 3000,
+  "tabs": [
+    "🔄 Router Management",
+    "🔃 Negentropy Sync",
+    "📡 Relay Configuration",
+    "⚡ Streaming ETL",
+    "📅 Scheduled Tasks"
+  ],
+  "subTabs": {
+    "router": [
+      "GET /api/strfry/router-plugins",
+      "GET /api/strfry/router-status"
+    ],
+    "sync": [
+      "GET /api/strfry/negentropy-sync/status"
+    ],
+    "config": [],
+    "etl": [
+      "GET /api/streaming-etl/logs?lines=15",
+      "GET /api/streaming-etl/status"
+    ],
+    "schedule": [
+      "GET /api/deploy-safety/status",
+      "GET /api/get-customers",
+      "GET /api/grapevine/preferences",
+      "GET /api/scheduled-tasks/history?entryId=entry-search-index",
+      "GET /api/scheduled-tasks/history?entryId=entry-tagging-6h",
+      "GET /api/scheduled-tasks/history?entryId=entry-tagging-old",
+      "GET /api/scheduled-tasks/list"
+    ]
+  }
+}
