@@ -169,6 +169,37 @@ The owner's answers, 2026-09-30:
    wording. The first listed is **Preferred**, and the rest are **Alternate**, numbered when there's more than one.
 2. **The withdrawal-send test is folded into this cycle** (§ Also in this cycle).
 
+## Deviations
+
+Small judgment calls made in Implementation (2026-09-30):
+
+- **"Not tagged" also marks your untagged Assistant here on the Duties tab.** AC-6 says "when it isn't in your list".
+  Your Assistant on this instance is in the list even untagged (book decision 5), and its own row already says Not
+  tagged, so the Duties tab says the same. `dutyRows` uses the row's `untagged`.
+- **An open duty marks each untagged Assistant,** not only the first, as the blueprint does.
+- **An open row's panel follows the Map's state.** While the Map is read it says "Reading your Treasure Map…", and
+  after a failed read "Couldn't read your Treasure Map.", instead of duties. **Try again** appears once, under the
+  count. AC-7 names the states but not the panel.
+- **On the Duties tab, the introduction shows whenever the Map has been read,** with the "none published" line under
+  it. The count, the column heads and the rows show only when a Map was found.
+- **Each duty carries `at` and `seenAt`,** the Map positions of its first entry and of each Assistant's first entry
+  under it. They order the duties, and the not-tagged section follows the order in which the Map first names each
+  Assistant, across all keys.
+- **Left as they were, or left out, against the blueprint:**
+  - the tab switch has the accessible name "View", as in the blueprint's markup;
+  - the section's **Tag: Brainstorm** is the filled button and **Tag: Tapestry** the outlined one, as in the
+    blueprint and the search card;
+  - Change stays story 2's outlined button (the blueprint draws it as a text link);
+  - the blueprint's coloured dot per kind of duty is left out.
+- **The real Treasure Map read was smoke-tested through a preview, not by pressing anything.** A `vite preview` of
+  this build proxied `/api` to the local stack. Sign-in (as Nous) and the list were stubbed, and every WebSocket was
+  blocked.
+  - **Found locally:** his Treasure Map came from local strfry, with two delegates named from real profiles and four
+    duties.
+  - **A forced local miss:** the page asked `/api/relay/external` with `strict=1` across the four general-purpose
+    relays. They answered `success: true` with no event, so the page said "0 on your Treasure Map". His Treasure Map
+    isn't on those public relays.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md`
 - Test plan: `engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.test-plan.md`

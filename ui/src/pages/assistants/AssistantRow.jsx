@@ -1,14 +1,18 @@
 import { Link } from 'react-router-dom';
-import { COPY, IDENTIFICATION_TAGS_PATH } from './myAssistants';
+import { COPY, IDENTIFICATION_TAGS_PATH, TREASURE_MAP_PATH } from './myAssistants';
 
 /**
  * One row of the My Assistants list (my-assistants #1; opening and its actions since #2, ADR my-assistants/0002
- * sub-decision 9). A row with actions is a toggle: its main line is a button with aria-expanded, and the open row
- * shows Change to … (when it carries one tag) and Remove Tag. The untagged Local row has no actions in story 2, so it
- * is not a toggle; its prompt to Identification Tags stays visible beneath it, outside any button.
+ * sub-decision 9; its Treasure Map since #3, ADR my-assistants/0003 sub-decision 5). Every row is a toggle: its main
+ * line is a button with aria-expanded, and the open row shows the Assistant's duties on your Treasure Map with Manage on
+ * Treasure Map, then Change to … (when it carries one tag) and Remove Tag (when it carries any). The untagged Local
+ * row's prompt to Identification Tags stays visible beneath it, outside any button.
  *
- * Props: row (buildRows' shape); open; onToggle(); actions (rowActions' answer, or null); busy ({ kind, pubkey } while a
- * press publishes, else null); onChange(toKey); onRemove().
+ * The status (On / Not on Treasure Map) shows only once the Map has been read — `found` or `none` — so nothing is
+ * claimed while it loads or after a failed read (AC-7).
+ *
+ * Props: row (buildRows' shape); open; onToggle(); actions (rowActions' answer); busy ({ kind, pubkey } while a press
+ * publishes, else null); onChange(toKey); onRemove(); mapStatus (useTreasureMap's status); duties (dutiesOf's answer).
  */
 
 /** The blueprint's house mark on the Local badge. */
@@ -29,7 +33,7 @@ function Chevron() {
   );
 }
 
-function RowLine({ row, toggle }) {
+function RowLine({ row, onMap }) {
   return (
     <>
       <span className="bsd-ma-avatar" aria-hidden="true">{row.initial}</span>
@@ -54,44 +58,81 @@ function RowLine({ row, toggle }) {
         {row.untagged
           ? <span className="bsd-ma-untagged" title={COPY.notTaggedTooltip}>{COPY.notTagged}</span>
           : row.tags.map((tag) => <span key={tag.key} className={`bsd-ma-chip is-${tag.key}`}>{tag.name}</span>)}
+        {onMap !== null && (
+          <span className={`bsd-ma-onmap${onMap ? ' is-on' : ''}`}>
+            <span className="bsd-ma-onmap-dot" aria-hidden="true" />{onMap ? COPY.onMap : COPY.notOnMap}
+          </span>
+        )}
       </span>
-      {toggle && <Chevron />}
+      <Chevron />
     </>
   );
 }
 
-export default function AssistantRow({ row, open, onToggle, actions, busy, onChange, onRemove }) {
+/** The open row's duties: grouped, or the no-duties line; while the Map loads or after a failed read, that instead. */
+function Duties({ mapStatus, duties }) {
+  if (mapStatus === 'error') return <p className="bsd-ma-duties-note">{COPY.mapError}</p>;
+  if (mapStatus !== 'found' && mapStatus !== 'none') return <p className="bsd-ma-duties-note">{COPY.mapLoading}</p>;
+  const count = duties ? duties.count : 0;
+  return (
+    <>
+      <p className="bsd-ma-duties-head">
+        <span className="bsd-ma-duties-title">{COPY.dutiesHeading}</span>
+        <span className="bsd-ma-duties-count">{COPY.dutyCount(count)}</span>
+      </p>
+      {count === 0 && <p className="bsd-ma-duties-note">{COPY.noDuties}</p>}
+      {count > 0 && ['scores', 'lists', 'concepts'].filter((group) => duties[group].length > 0).map((group) => (
+        <div key={group} className="bsd-ma-duty-group">
+          <p className="bsd-ma-label">{COPY.groups[group]}</p>
+          <ul className="bsd-ma-duty-items">
+            {duties[group].map((duty) => (
+              <li key={duty.key} className="bsd-ma-duty-item">
+                <span className="bsd-ma-duty-name">{duty.title}</span>
+                <code className="bsd-ma-duty-key">{duty.key}</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </>
+  );
+}
+
+export default function AssistantRow({ row, open, onToggle, actions, busy, onChange, onRemove, mapStatus, duties }) {
   const mine = busy && busy.pubkey === row.pubkey;
   const reasonId = `bsd-ma-reason-${row.pubkey}`;
   const changeBlocked = actions && actions.change && !actions.change.enabled;
+  const onMap = mapStatus === 'found' || mapStatus === 'none' ? !!(duties && duties.count > 0) : null;
   return (
     <li className={`bsd-ma-row${row.local ? ' is-local' : ''}${open ? ' is-open' : ''}`}>
-      {actions ? (
-        <button type="button" className="bsd-ma-line bsd-ma-toggle" aria-expanded={open ? 'true' : 'false'} onClick={onToggle}>
-          <RowLine row={row} toggle />
-        </button>
-      ) : (
-        <div className="bsd-ma-line"><RowLine row={row} toggle={false} /></div>
-      )}
-      {open && actions && (
+      <button type="button" className="bsd-ma-line bsd-ma-toggle" aria-expanded={open ? 'true' : 'false'} onClick={onToggle}>
+        <RowLine row={row} onMap={onMap} />
+      </button>
+      {open && (
         <div className="bsd-ma-panel">
-          <div className="bsd-ma-panel-actions">
-            {actions.change && (
-              <button
-                type="button"
-                className="bsd-ma-btn"
-                disabled={!!busy || !actions.change.enabled}
-                aria-describedby={changeBlocked ? reasonId : undefined}
-                onClick={() => onChange(actions.change.toKey)}
-              >
-                {mine && busy.kind === 'change' ? COPY.busy.change : actions.change.label}
-              </button>
-            )}
-            <button type="button" className="bsd-ma-btn is-danger" disabled={!!busy} onClick={onRemove}>
-              {mine && busy.kind === 'remove' ? COPY.busy.remove : actions.remove.label}
-            </button>
+          <div className="bsd-ma-panel-box">
+            <Duties mapStatus={mapStatus} duties={duties} />
+            <div className="bsd-ma-panel-actions">
+              <Link className="bsd-ma-btn bsd-ma-link-btn" to={TREASURE_MAP_PATH}>{COPY.manage}</Link>
+              {actions && actions.change && (
+                <button
+                  type="button"
+                  className="bsd-ma-btn"
+                  disabled={!!busy || !actions.change.enabled}
+                  aria-describedby={changeBlocked ? reasonId : undefined}
+                  onClick={() => onChange(actions.change.toKey)}
+                >
+                  {mine && busy.kind === 'change' ? COPY.busy.change : actions.change.label}
+                </button>
+              )}
+              {actions && actions.remove && (
+                <button type="button" className="bsd-ma-btn is-danger" disabled={!!busy} onClick={onRemove}>
+                  {mine && busy.kind === 'remove' ? COPY.busy.remove : actions.remove.label}
+                </button>
+              )}
+            </div>
+            {changeBlocked && <p className="bsd-ma-reason" id={reasonId}>{actions.change.reason}</p>}
           </div>
-          {changeBlocked && <p className="bsd-ma-reason" id={reasonId}>{actions.change.reason}</p>}
         </div>
       )}
       {row.untagged && (

@@ -95,8 +95,10 @@ At story 3's gate, 2026-09-30:
         (`/api/strfry/scan` by its id). Otherwise "gone" proves nothing.
       - Then Remove it, and read those relays and `wss://dcosl.brainstorm.world` for the same id: it must be gone,
         or its kind 5 present.
-- [ ] **Pin the withdrawal's send in a test** (review 2, non-blocking 1; folded into story 3's cycle, decision 12).
-      Today only its report is tested.
+- [x] **Pin the withdrawal's send in a test** (review 2, non-blocking 1; folded into story 3's cycle, decision 12).
+      Done in story 3 (ADR my-assistants/0003 sub-decision 6): O9 in `test/my-assistants-actions.test.js` pins that
+      the orchestration sends the withdrawal to the list it reports against. S2 in `test/my-assistants-map.test.js`
+      pins that the page forwards that list to the publisher. The original plan:
       - Pass the withdrawal relays once through the orchestration's `deps`.
       - Add a Node test that the withdrawal is sent to, and reported against, a list including dcosl.
       - This is a small Tester and Implementer pass: in story 3's cycle, or on its own before shipping.

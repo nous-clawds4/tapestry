@@ -2,19 +2,24 @@
  * The My Assistants page, as data (my-assistants #1, ADR my-assistants/0001 sub-decision 5): its words, the two links
  * it reads from their owners, and how the server's rows become what a row shows and in what order. Since my-assistants
  * #2 (ADR my-assistants/0002 sub-decision 10) also the pure planning of the page's actions: which search results to
- * offer, which buttons a row gets and whether they work, and what a withdrawal names.
+ * offer, which buttons a row gets and whether they work, and what a withdrawal names. Since my-assistants #3 (ADR
+ * my-assistants/0003 sub-decision 4) also the Treasure Map's duties: what each entry asks of whom, per Assistant and
+ * for the Duties tab.
  *
  * No React, and only `.js`-suffixed imports plus nostr-tools, so the Node runner loads it as it is
- * (test/my-assistants-page.test.js C-class, test/my-assistants-actions.test.js V-class).
+ * (test/my-assistants-page.test.js C-class, test/my-assistants-actions.test.js V-class,
+ * test/my-assistants-map.test.js).
  *
  * The words are the stories' § Copy; change them there first:
- * engineering-team/stories/my-assistants/1-the-my-assistants-page.md § Copy, and 2-tag-and-untag-from-the-page.md § Copy.
+ * engineering-team/stories/my-assistants/1-the-my-assistants-page.md § Copy, 2-tag-and-untag-from-the-page.md § Copy and
+ * 3-the-treasure-map-on-the-page.md § Copy.
  */
 
 import { nip19 } from 'nostr-tools';
 import { PROFILE_LOOKUP_FAILED } from '../../utils/profileBatch.js';
 import { personalLinks } from '../../config/avatarMenuLinks.js';
 import { ASSISTANT_ACTIONS } from '../assistant/actions.js';
+import { classifyEntry } from '../../utils/treasureMap.js';
 
 export const COPY = {
   kicker: 'My Assistants',
@@ -46,6 +51,38 @@ export const COPY = {
   unavailable: (name) => `The ${name} tag hasn’t been published yet, so it can’t be applied.`,
   busy: { tag: 'Tagging…', change: 'Changing…', remove: 'Removing…' },
   refreshFailed: 'The list couldn’t be re-read; it may not show this yet.',
+  // my-assistants #3
+  onMap: 'On Treasure Map',
+  notOnMap: 'Not on Treasure Map',
+  onMapCount: (n) => `${n} on your Treasure Map`,
+  mapLoading: 'Reading your Treasure Map…',
+  mapNone: 'You haven’t published a Treasure Map yet, so no Assistant has duties.',
+  mapEmpty: 'Your Treasure Map lists no duties yet.',
+  mapError: 'Couldn’t read your Treasure Map.',
+  dutiesHeading: 'Duties on your Treasure Map',
+  dutyCount: (n) => (n === 0 ? 'No duties' : `${n} ${n === 1 ? 'duty' : 'duties'}`),
+  groups: { scores: 'Scores', lists: 'Lists', concepts: 'Concepts' },
+  noDuties: 'This Assistant isn’t listed on your Treasure Map, so clients won’t ask it for anything. Add it from your Treasure Map to give it duties.',
+  manage: 'Manage on Treasure Map',
+  sectionHeading: 'On your Treasure Map, but not tagged',
+  sectionText: 'These Assistants have duties on your Treasure Map, but you haven’t tagged them as yours. Tag them to add them to the table above.',
+  sectionLine: (n) => `${n} ${n === 1 ? 'duty' : 'duties'} on your Treasure Map`,
+  sectionTag: { brainstorm: 'Tag: Brainstorm', tapestry: 'Tag: Tapestry' },
+  tabs: { assistants: 'Assistants', duties: 'Duties' },
+  tabsLabel: 'View',
+  dutiesIntro: 'Every duty on your Treasure Map, from the most generic (a whole kind of Score or List) to the most granular (one exact Score, List or Concept). Within a duty, the first Assistant listed is preferred; the rest are alternates.',
+  dutiesCount: (n) => `${n} ${n === 1 ? 'duty' : 'duties'}`,
+  dutiesOrder: 'Most generic first',
+  columns: { rank: '#', duty: 'Duty', preferred: 'Preferred Assistant' },
+  alternatesLine: (names) => `Alternates: ${names.join(', ')}`,
+  assistantsFor: 'Assistants for this duty',
+  firstPreferred: 'First listed is preferred',
+  onlyProvider: 'Only provider',
+  preferred: 'Preferred',
+  alternate: (i, n) => (n > 1 ? `Alternate ${i}` : 'Alternate'),
+  notTaggedDutyTooltip: 'On your Treasure Map, but not tagged as one of your Assistants',
+  sentenceLabel: 'On your Treasure Map',
+  manageLink: 'Manage on Treasure Map →',
 };
 
 /** The two tags' names, by key, in the order a row shows them (src/lib/my-assistant-tags owns the list). */
@@ -179,13 +216,14 @@ export function tagAvailability(definitions) {
 }
 
 /**
- * A row's actions (AC-4, AC-5): Change to the other tag when the row carries exactly one, and Remove Tag. The
- * untagged Local row has none in this story, so it does not open (ADR 0002 sub-decision 9).
- * @returns {?{ change: ?{ toKey, label, enabled, reason }, remove: { label } }}
+ * A row's actions (AC-4, AC-5): Change to the other tag when the row carries exactly one, and Remove Tag. Every row
+ * opens since my-assistants #3 (ADR 0003 sub-decision 4): the untagged Local row's panel holds its duties and Manage on
+ * Treasure Map, with neither action.
+ * @returns {{ change: ?{ toKey, label, enabled, reason }, remove: ?{ label } }}
  */
 export function rowActions(row, definitions) {
   const keys = row && Array.isArray(row.tags) ? row.tags.map((t) => t.key) : [];
-  if (keys.length === 0) return null;
+  if (keys.length === 0) return { change: null, remove: null };
   let change = null;
   if (keys.length === 1) {
     const toKey = keys[0] === 'brainstorm' ? 'tapestry' : 'brainstorm';
@@ -213,4 +251,146 @@ export function withdrawalOf(row, onlyKeys) {
     for (const address of retraction.addresses || []) if (!addresses.includes(address)) addresses.push(address);
   }
   return { ids, addresses, subject: `Withdrawal of ${keys.map((k) => TAG_NAMES[k]).join(' and ')}` };
+}
+
+// ── my-assistants #3: your Treasure Map's duties (ADR my-assistants/0003 sub-decisions 2–4) ─────────────────────────
+
+/** The classes the app can place, and how each groups (sub-decision 2). Anything else is not a duty (AC-7). */
+const GROUP_OF = { ta: 'scores', tl: 'lists', dlist: 'concepts', designation: 'concepts' };
+const GROUP_RANK = { scores: 0, lists: 1, concepts: 2 };
+const LEVEL_RANK = { Scope: 0, Exact: 1 };
+
+/** A Score or List kind's subject, plural and singular, from its last digit (3038x / 3039x). */
+const SUBJECTS = {
+  2: ['profiles', 'profile'],
+  3: ['events', 'event'],
+  4: ['addressable events', 'addressable event'],
+  6: ['content categories', 'content category'],
+};
+function subjectOf(kind) {
+  return SUBJECTS[kind % 10] || ['items', 'item'];
+}
+
+/** One entry's duty: its group, level, name and "what" (story § Copy's table; ADR 0003 sub-decision 3). */
+function describeEntry(entry) {
+  const [things, thing] = subjectOf(entry.kind);
+  const named = entry.name !== null && entry.name !== '';
+  if (entry.cls === 'designation') {
+    return { level: 'Scope', title: 'All Concept headers', what: 'my Concept Graph — my DList headers and the items filed under them, except where this Map says otherwise.' };
+  }
+  if (entry.cls === 'dlist') {
+    // The list's d tag stands for its name: the header's display name would need a lookup per list (sub-decision 3).
+    return { level: 'Exact', title: `Curated DList: ${entry.name}`, what: `my curated copy of ${entry.name}: its header, and a copy of each item.` };
+  }
+  if (entry.cls === 'ta') {
+    if (!named) return { level: 'Scope', title: `All Scores about ${things}`, what: `every Score about ${things}, except where this Map says otherwise.` };
+    return {
+      level: 'Exact',
+      title: entry.name,
+      what: entry.name === 'rank' ? `a rank for every ${thing}, as seen from my trusted community.` : `a “${entry.name}” score for every ${thing}.`,
+    };
+  }
+  if (!named) return { level: 'Scope', title: `All Lists of ${things}`, what: `every Trusted List of ${things}, except where this Map says otherwise.` };
+  return { level: 'Exact', title: entry.name, what: `the Trusted List “${entry.name}” of ${things}.` };
+}
+
+/**
+ * Every duty on a Treasure Map (kind 10040): one per distinct entry key among the entries the app can place with a
+ * valid delegate, most generic first — Scope before Exact, then Scores, Lists, Concepts, then the Map's order.
+ * A duty's Assistants are its entries' delegates in the Map's order, without repeats: the first is Preferred, the rest
+ * Alternates. `at` is the Map position of the duty's first entry and `seenAt[i]` that of `assistants[i]`'s first entry
+ * under it. Never throws: no event, no tags, or garbage give [].
+ * @returns {Array<{ key, group, level, title, what, assistants: string[], entries: Array[], at: number, seenAt: number[] }>}
+ */
+export function treasureMapDuties(event) {
+  const tags = event && Array.isArray(event.tags) ? event.tags : [];
+  const byKey = new Map();
+  tags.forEach((tag, at) => {
+    const entry = classifyEntry(tag);
+    const group = GROUP_OF[entry.cls];
+    if (!group || !entry.pubkey) return;
+    let duty = byKey.get(entry.raw);
+    if (!duty) {
+      duty = { key: entry.raw, group, ...describeEntry(entry), assistants: [], entries: [], at, seenAt: [] };
+      byKey.set(entry.raw, duty);
+    }
+    if (!duty.assistants.includes(entry.pubkey)) {
+      duty.assistants.push(entry.pubkey);
+      duty.seenAt.push(at);
+    }
+    duty.entries.push(tag);
+  });
+  return [...byKey.values()].sort((a, b) => (LEVEL_RANK[a.level] - LEVEL_RANK[b.level])
+    || (GROUP_RANK[a.group] - GROUP_RANK[b.group])
+    || (a.at - b.at));
+}
+
+/** One Assistant's duties — as Preferred or as an Alternate — grouped, in duty order, with their count (AC-2, AC-3). */
+export function dutiesOf(pubkey, duties) {
+  const out = { scores: [], lists: [], concepts: [], count: 0 };
+  for (const duty of Array.isArray(duties) ? duties : []) {
+    if (!duty.assistants.includes(pubkey)) continue;
+    out[duty.group].push(duty);
+    out.count += 1;
+  }
+  return out;
+}
+
+/** The Assistants with duties who aren't in the list, each with its duty count, in the order the Map first names them (AC-4). */
+export function mapOnlyAssistants(duties, rows) {
+  const listed = new Set((Array.isArray(rows) ? rows : []).map((row) => row.pubkey));
+  const found = new Map();
+  for (const duty of Array.isArray(duties) ? duties : []) {
+    duty.assistants.forEach((pubkey, i) => {
+      if (listed.has(pubkey)) return;
+      const seen = found.get(pubkey) || { pubkey, count: 0, first: Infinity };
+      seen.count += 1;
+      seen.first = Math.min(seen.first, Array.isArray(duty.seenAt) ? duty.seenAt[i] : Infinity);
+      found.set(pubkey, seen);
+    });
+  }
+  return [...found.values()].sort((a, b) => a.first - b.first).map(({ pubkey, count }) => ({ pubkey, count }));
+}
+
+/** An Assistant's name: as the page shows it (`names`), else its shortened npub. */
+function nameOf(pubkey, names) {
+  return (names && names[pubkey]) || npubShort(pubkey);
+}
+
+/** The duty as a sentence: "I entrust {Preferred} to publish and maintain {what}", then " If it can’t, ask {Alternates}." */
+export function dutySentence(duty, names) {
+  const [preferred, ...alternates] = duty.assistants;
+  const sentence = `I entrust ${nameOf(preferred, names)} to publish and maintain ${duty.what}`;
+  if (alternates.length === 0) return sentence;
+  return `${sentence} If it can’t, ask ${alternates.map((pubkey) => nameOf(pubkey, names)).join(', then ')}.`;
+}
+
+/**
+ * The Duties tab's rows (AC-6), in duty order. An Assistant is marked untagged when the list doesn't hold it as one of
+ * yours: it isn't in the list, or it is your untagged Assistant here.
+ * @param {Object} names  { pubkey: the name the page shows }
+ * @param {Array<{ pubkey, untagged? }>} rows  the list's rows
+ */
+export function dutyRows(duties, names, rows) {
+  const byPubkey = new Map((Array.isArray(rows) ? rows : []).map((row) => [row.pubkey, row]));
+  const untagged = (pubkey) => !byPubkey.has(pubkey) || byPubkey.get(pubkey).untagged === true;
+  const alternateCount = (duty) => duty.assistants.length - 1;
+  return (Array.isArray(duties) ? duties : []).map((duty, i) => ({
+    rank: i + 1,
+    key: duty.key,
+    group: duty.group,
+    title: duty.title,
+    level: duty.level,
+    preferred: nameOf(duty.assistants[0], names),
+    untagged: untagged(duty.assistants[0]),
+    alternates: duty.assistants.slice(1).map((pubkey) => nameOf(pubkey, names)),
+    assistants: duty.assistants.map((pubkey, j) => ({
+      pubkey,
+      name: nameOf(pubkey, names),
+      untagged: untagged(pubkey),
+      label: j === 0 ? COPY.preferred : COPY.alternate(j, alternateCount(duty)),
+    })),
+    sentence: dutySentence(duty, names),
+    raw: duty.entries.map((entry) => JSON.stringify(entry)).join('\n'),
+  }));
 }

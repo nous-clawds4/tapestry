@@ -23,12 +23,17 @@ const LOADING = { status: 'loading', event: null, where: null, error: null, loca
  * arrives and skip the relays — OPEN.md row 260), and every failure is `error`, never `none`.
  * OPEN.md row 249's chore is to move the Treasure Map page onto this hook.
  *
+ * `strict` (my-assistants #3, ADR my-assistants/0003 sub-decision 1) asks the relay step for `&strict=1`, so a relay
+ * read that reached no relay answers `success: false` and is `error`, and `none` means at least one relay was read and
+ * held nothing. Without it, an unreachable relay still reads as "nothing there" (OPEN.md row 314).
+ *
  * @param {string|null} pubkey  the signed-in user's pubkey (null → idle)
+ * @param {{ strict?: boolean }} [options]
  * @returns {{ status: 'idle'|'loading'|'found'|'none'|'error', event: Object|null,
  *             where: 'local'|'relay'|null, relays: string[], error: string|null, refresh: Function }}
  *   `relays` is the general-purpose list the relay step searches — what "where it looked" names.
  */
-export default function useTreasureMap(pubkey) {
+export default function useTreasureMap(pubkey, { strict = false } = {}) {
   const { data: relayData, loading: relaysLoading, error: relaysError } = useCypher(GENERAL_PURPOSE_RELAYS);
   const [state, setState] = useState(pubkey ? LOADING : IDLE);
   const [nonce, setNonce] = useState(0);
@@ -77,7 +82,7 @@ export default function useTreasureMap(pubkey) {
     if (relays.length === 0) { setState({ ...LOADING, status: 'none' }); return undefined; }
     let cancelled = false;
     const filter = JSON.stringify({ kinds: [KIND_TREASURE_MAP], authors: [pubkey], limit: 1 });
-    fetch(`/api/relay/external?filter=${encodeURIComponent(filter)}&relays=${encodeURIComponent(relaysKey)}`)
+    fetch(`/api/relay/external?filter=${encodeURIComponent(filter)}&relays=${encodeURIComponent(relaysKey)}${strict ? '&strict=1' : ''}`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
@@ -96,7 +101,7 @@ export default function useTreasureMap(pubkey) {
         if (!cancelled) setState({ ...LOADING, status: 'error', error: `Not in local strfry, and the relay search failed: ${err?.message || err}` });
       });
     return () => { cancelled = true; };
-  }, [state.localMiss, relaysLoading, relaysError, relaysKey, pubkey]);
+  }, [state.localMiss, relaysLoading, relaysError, relaysKey, pubkey, strict]);
 
   return { status: state.status, event: state.event, where: state.where, relays, error: state.error, refresh };
 }

@@ -13,9 +13,11 @@
  *
  * The publishers are passed in (`deps`), never imported here: the page hands it the real ones, and the Node runner
  * hands it fakes (test/my-assistants-actions.test.js O-class). `deps`: { relays, withdrawRelays?, applyTagging(args),
- * withdrawTaggings({ ids, addresses }) }, each publisher resolving { signed, result } or throwing. `relays` are the
- * outside relays an apply is sent to; `withdrawRelays` those a withdrawal is sent to — the same plus the community
+ * withdrawTaggings({ ids, addresses, relays }) }, each publisher resolving { signed, result } or throwing. `relays` are
+ * the outside relays an apply is sent to; `withdrawRelays` those a withdrawal is sent to — the same plus the community
  * relay, so it travels between instances (ADR my-assistants/0002 Amendment 1, sub-decision 11) — defaulting to `relays`.
+ * A withdrawal is handed the list it is reported against, so what is sent and what is said are one list (ADR
+ * my-assistants/0003 sub-decision 6).
  */
 
 import { describeTaggingPublish } from '../../utils/taggingPublishReport.js';
@@ -50,8 +52,8 @@ async function applyTag({ target, tagKey, definitions, deps }) {
 
 async function withdraw({ ids, addresses, subject, deps }) {
   try {
-    const { result } = await deps.withdrawTaggings({ ids, addresses });
     const relays = Array.isArray(deps.withdrawRelays) ? deps.withdrawRelays : deps.relays;
+    const { result } = await deps.withdrawTaggings({ ids, addresses, relays });
     return { report: describeTaggingPublish({ name: subject, local: result.local, external: result.external, relays }) };
   } catch (err) {
     return { refused: refusalOf(err) };
