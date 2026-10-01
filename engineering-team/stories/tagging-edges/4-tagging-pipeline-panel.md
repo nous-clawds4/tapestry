@@ -372,6 +372,22 @@ Small judgement calls made at Implementation (2026-09-30), too small for an ADR 
   - The handoff's Status line and a "Story 5, after it" paragraph were updated so they do not contradict § 0.
   - The ledger row's § Impact took the C1 and C3 corrections too.
 
+### After the review, round 1 (2026-10-01)
+
+- **Log paths.** Remedies name each log by its path in the `tapestry` container, taken from `docker/supervisord.conf`.
+  The relay's is `strfry-error.log`, since strfry runs there and has no container of its own. Neo4j's is `neo4j.log`.
+  Sentences that spoke of "the relay and database containers" now say the `tapestry` container.
+- **The schema reason** names its codes inside one sentence, with each remedy, rather than leaving every schema code to
+  its own line.
+- **One sentence where two producers share a `failureCode` (T12).**
+  - `signal` covers both the pass's own stop and a relay read ended by a signal: the stage shown beside it tells which.
+  - `timeout` names the relay read, the only producer of a bare `timeout` for a pass.
+  - `missing-column` covers both the graph read and a write's re-read.
+- **`tags_address-missing`** names its one known cause: another rule holds the name.
+- **The `failureCode` families** repeat the `countCode` regex literals instead of sharing constants.
+- **The `E…` family** excludes Node's own `ERR_…` codes, and a Neo4j Security code reads as credentials or permission.
+  Both follow T12 as refined.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tagging-edges/0004-tagging-pipeline-panel.md` (also amends ADR 0003 for C1, C2's ADR

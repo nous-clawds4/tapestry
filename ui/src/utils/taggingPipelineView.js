@@ -40,7 +40,7 @@ export const EXPLANATIONS = Object.freeze({
   passReason: Object.freeze({
     identity: 'A tagging stamp identity is missing or not a valid key, so the pass changed nothing. The details name which one and where it is read from.',
     config: 'The database settings are missing or the database driver could not be opened, so the pass changed nothing. Check NEO4J_URI and NEO4J_USER in brainstorm.conf.',
-    schema: 'A start check on the database failed, so the pass changed no relationship or person. The pass\'s code says which case. ServiceUnavailable or SessionExpired: Neo4j is down or cannot be reached. A Neo.ClientError.Security code: Neo4j refused the password. Fix either one first, then run the pass again. tags_address-not-online: the one-per-tagging rule is still being built. Wait a few minutes, then run the pass again. tags_address-missing: the pass could not create the one-per-tagging rule. Raise it with the owner. The control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container, says why at its last start. nostrUser_pubkey-missing: the NostrUser pubkey rule is missing. Run the constraints fix on the Dashboard, then run the pass again. Any other code has its own explanation beside it.',
+    schema: 'A start check on the database failed, so the pass changed no relationship or person. The pass\'s code says which case. ServiceUnavailable or SessionExpired: Neo4j is down or cannot be reached. A Neo.ClientError.Security code: Neo4j refused the credentials or the permission the pass needs. Fix either one first, then run the pass again. tags_address-not-online: the one-per-tagging rule is not online yet, usually because Neo4j is still building it. Wait a few minutes, then run the pass again, and raise it with the owner if it stays offline. tags_address-missing: the pass could not create the one-per-tagging rule. Raise it with the owner. The control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container, says why at its last start. nostrUser_pubkey-missing: the NostrUser pubkey rule is missing. Run the constraints fix on the Dashboard, then run the pass again. Any other code has its own explanation beside it.',
     read: 'A read of the graph or the relay failed, so the pass changed nothing. The next pass tries again. Any owner confirmation this pass claimed is used up, so held removals need confirming again.',
     plan: 'Planning the changes failed, so the pass changed nothing. The next pass tries again. Any owner confirmation this pass claimed is used up, so held removals need confirming again.',
     write: 'A write failed, either to the graph or of a safety copy of rows to the data volume. Batches written before it stand, and the next pass finishes the rest. Any owner confirmation this pass claimed is used up, so held removals need confirming again. If the code is ENOSPC, free space on the data volume.',
@@ -187,6 +187,46 @@ export const EXPLANATIONS = Object.freeze({
     // The status route's own code for a state file that is not valid JSON (src/api/tagging-edges/index.js readJson).
     EBADJSON: 'A file of the pass\'s state on the data volume is damaged and cannot be parsed. If it is the owner\'s confirmation, the owner can confirm again, which replaces it.',
   }),
+  // A failed or refused pass's own failure.code (ADR 0004 T12), shown under where it failed. The runner
+  // (reconcileTaggingEdges.js) mints most of these; graph.js's invariant, checkIdentity's problems and the strict
+  // relay reader's ScanError codes (SCAN_ERROR_CODES) reach it too. The E…, Neo.… and connection codes are families below.
+  failureCode: Object.freeze({
+    // Identity (refuse('identity', …): the problem checkIdentity or resolveIdentities found).
+    missing: 'A tagging stamp identity has no value at its source, so the pass changed nothing. The reason names the identity and its source. For the local identity, set it there (TA_PUBKEY, or BRAINSTORM_RELAY_PUBKEY in /etc/brainstorm.conf, or the assistant\'s key), then run the pass again. The canonical identity comes from the code itself, so raise that with the owner.',
+    empty: 'A tagging stamp identity is blank at its source, so the pass changed nothing. The reason names the identity and its source. Set it there, then run the pass again.',
+    'upper-case': 'A tagging stamp identity is written in upper case hex, and the pass needs lower case, so it changed nothing. The reason names the identity and its source. Correct it there, then run the pass again.',
+    'not-64-hex': 'A tagging stamp identity is not a 64-character hex key, so the pass changed nothing. The reason names the identity and its source. Correct it there, then run the pass again.',
+    // Config (the settings check, then the pass's own driver).
+    'missing-NEO4J_URI': 'NEO4J_URI is not set, so the pass could not reach the database and changed nothing. Set it in /etc/brainstorm.conf in the tapestry container, then run the pass again.',
+    'missing-NEO4J_USER': 'NEO4J_USER is not set, so the pass could not sign in to the database and changed nothing. Set it in /etc/brainstorm.conf in the tapestry container, then run the pass again.',
+    driver: 'The Neo4j driver could not be built from NEO4J_URI, so the pass changed nothing. Check that NEO4J_URI in /etc/brainstorm.conf in the tapestry container is a Neo4j address such as bolt://localhost:7687, then run the pass again.',
+    // Schema (the start check on the uniqueness rules).
+    'tags_address-missing': 'The pass could not create the one-per-tagging rule, so it changed no relationship or person. One cause is another rule that already holds its name, tags_address. Raise it with the owner. The control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container, says why at its last start.',
+    'tags_address-not-online': 'The one-per-tagging rule exists but its index was not online within the 60 seconds the pass waited, so it changed no relationship or person. Usually Neo4j is still building it: wait a few minutes, then run the pass again. If it stays offline, its index may have failed, so raise it with the owner.',
+    'nostrUser_pubkey-missing': 'The NostrUser pubkey rule is missing from the database, so the pass changed no relationship or person. Run the constraints fix on the Dashboard, then run the pass again.',
+    'no-status': 'Checking or creating the one-per-tagging rule failed with an error that carried no code, most often from Neo4j, so the pass changed no relationship or person. Check that Neo4j is running in the tapestry container, and read its log, /var/log/supervisor/neo4j.log. Then run the pass again.',
+    // Reads (the graph read, its schema re-check, the relay read and a write's re-read).
+    incomplete: 'The graph or the relay answered a read with no list of results, so the pass did not trust it and changed nothing. The next pass tries again. If it repeats, check that Neo4j and the relay are running in the tapestry container.',
+    'missing-column': 'A row the graph returned lacks a column the pass reads, so the pass stopped rather than use it. If it stopped while writing, batches written before it stand. The next pass tries again. If it repeats, report it as a bug.',
+    'uniqueness-not-holding': 'The graph read found two relationships at one tagging address, or the same relationship twice because a write landed during the read, and a re-check found the one-per-tagging rule not in force, so the pass changed nothing. Run the pass again. Its start check creates the rule if it is missing, and names the problem if it cannot.',
+    // The rest: the planner, the graph writer's own checks, a stop signal, and the fallback for a code-less error.
+    'plan-error': 'Planning the changes failed, so the pass changed nothing. This is a fault in the pass\'s own code, and the task log has the details. The next pass tries again. If it repeats, report it as a bug.',
+    invariant: 'A safety check in the graph writer refused a batch, so that batch was not written. Batches written before it stand. This is a fault in the pass\'s own code, so report it as a bug. The next pass tries again.',
+    signal: 'A signal ended the pass, or ended the strfry command reading the relay. The stage beside it says which. A stop signal ends the pass at a safe point between its steps. Anything written before it stands, and the next pass finishes the rest.',
+    error: 'The step failed without a code that says why. The task log has the details, and the next pass tries again.',
+    // The relay read's codes (strfryScanStrict's ScanError, SCAN_ERROR_CODES), at the relay read.
+    spawn: 'The pass could not start the strfry command that reads the relay, so it changed nothing. The next pass tries again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
+    'process-error': 'The strfry command that reads the relay could not run, or its output could not be read, so the pass changed nothing. The next pass tries again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
+    timeout: 'The relay read ran past its time limit, so the pass changed nothing. The next pass tries again. If it repeats, check that the relay is answering in the tapestry container.',
+    exit: 'The strfry command that reads the relay ended with a failure code, so the pass changed nothing. The next pass tries again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
+    truncated: 'The relay read\'s output stopped part-way through a line, so the pass did not trust it and changed nothing. The next pass tries again.',
+    unparseable: 'The relay read printed a line that is not JSON, so the pass did not trust it and changed nothing. The next pass tries again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
+    'not-an-event-line': 'The relay read printed a line that is not an event, so the pass did not trust it and changed nothing. The next pass tries again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
+    duplicate: 'The relay read returned the same event twice, so the pass did not trust it and changed nothing. The next pass tries again.',
+    'off-filter': 'The relay read returned an event the pass did not ask for, so the pass did not trust it and changed nothing. The next pass tries again.',
+    'too-large': 'The relay read\'s output passed its size limit, so the read stopped and the pass changed nothing. The next pass fails the same way until fewer or smaller events match, so check the relay for a flood of large events.',
+    'filter-too-large': 'The relay filter was too long to hand to strfry, so the read never started and the pass changed nothing. The next pass fails the same way, so report it as a bug.',
+  }),
   // Why one of the panel's own reads failed (readSection's codes; http-<status> is a family below).
   fetchCode: Object.freeze({
     network: 'The request did not reach the server. Check the connection, then try again.',
@@ -203,15 +243,25 @@ export const EXPLANATIONS = Object.freeze({
 export const FAMILIES = Object.freeze([
   Object.freeze({ kind: 'fetchCode', test: /^http-\d{3}$/,
     sentence: 'The server answered with this HTTP status instead of the figures. For 401 or 403, sign in again as the owner or an admin, from the instance\'s own address. For any other status, try again. If it repeats, check the control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container.' }),
-  Object.freeze({ kind: 'countCode', test: /^E[A-Z0-9_]+$/,
+  Object.freeze({ kind: 'countCode', test: /^E(?!RR_)[A-Z0-9_]+$/,
     sentence: 'The operating system reported this error code, for example a refused connection or a full disk. Try again. If it repeats, check that the relay and Neo4j are running in the tapestry container, and that the data volume has free space.' }),
-  // A Security code is a credentials problem, not an outage, so it is told apart before the general Neo4j family.
+  // A Security code is a credentials or permission problem, not an outage, so it is told apart before the general
+  // Neo4j family. The E family excludes Node's own ERR_* codes, which are not the operating system's.
   Object.freeze({ kind: 'countCode', test: /^Neo\.ClientError\.Security\.[A-Za-z]+$/,
-    sentence: 'Neo4j refused the credentials it was given. Check NEO4J_USER and NEO4J_PASSWORD in /etc/brainstorm.conf in the tapestry container against the database\'s own, then try again.' }),
+    sentence: 'Neo4j refused the request on security grounds: the credentials it was given, or the permission that user has. Check NEO4J_USER and NEO4J_PASSWORD in /etc/brainstorm.conf in the tapestry container against the database\'s own, and that user\'s role, then try again.' }),
   Object.freeze({ kind: 'countCode', test: /^Neo\.(ClientError|TransientError|DatabaseError)\.[A-Za-z]+\.[A-Za-z]+$/,
     sentence: 'Neo4j answered with this status. A transient one usually clears on a retry, so try again. If another repeats, check that Neo4j is running, and read its log, /var/log/supervisor/neo4j.log in the tapestry container.' }),
   Object.freeze({ kind: 'countCode', test: /^(ServiceUnavailable|SessionExpired)$/,
     sentence: 'Neo4j could not be reached, or it dropped the session. Check that Neo4j is running in the tapestry container, then try again.' }),
+  // The same open families under a pass's own failure code (ADR 0004 T12), Security again before the general family.
+  Object.freeze({ kind: 'failureCode', test: /^E(?!RR_)[A-Z0-9_]+$/,
+    sentence: 'The operating system reported this error code, for example a full disk or a refused permission. If the pass failed writing its report, its held list or a safety copy, check that the data volume has free space and is writable. Otherwise check that the relay and Neo4j are running in the tapestry container. Then run the pass again.' }),
+  Object.freeze({ kind: 'failureCode', test: /^Neo\.ClientError\.Security\.[A-Za-z]+$/,
+    sentence: 'Neo4j refused the pass on security grounds: the credentials it gave, or the permission that user has, for example to create a uniqueness rule. Check NEO4J_USER and NEO4J_PASSWORD in /etc/brainstorm.conf in the tapestry container against the database\'s own, and that user\'s role, then run the pass again.' }),
+  Object.freeze({ kind: 'failureCode', test: /^Neo\.(ClientError|TransientError|DatabaseError)\.[A-Za-z]+\.[A-Za-z]+$/,
+    sentence: 'Neo4j answered the pass with this status. A transient one usually clears by the next pass. If another repeats, check that Neo4j is running, and read its log, /var/log/supervisor/neo4j.log in the tapestry container.' }),
+  Object.freeze({ kind: 'failureCode', test: /^(ServiceUnavailable|SessionExpired)$/,
+    sentence: 'Neo4j could not be reached, or it dropped the pass\'s session. Check that Neo4j is running in the tapestry container, then run the pass again.' }),
   Object.freeze({ kind: 'confirmationWhy', test: /^held-file-unreadable /,
     sentence: 'The held list the owner confirmed could not be read from the data volume, so this pass did not honour the confirmation. The code after it says why.' }),
   Object.freeze({ kind: 'confirmationWhy', test: /^claim failed: /,

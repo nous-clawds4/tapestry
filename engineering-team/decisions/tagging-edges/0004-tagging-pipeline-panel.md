@@ -790,8 +790,10 @@ carries today, and the pass mints its own.
     fallback at `:394`, `:405`, `:423`, `:487`, `:588`).
   - **The relay read's codes:** every code in `SCAN_ERROR_CODES` (`src/lib/tagging-edges/realtime.js:68-71`).
 - **The open families** of `FAMILIES` (`E…`, `Neo.…`, `ServiceUnavailable` / `SessionExpired`) also apply under
-  `failureCode`, with sentences fitting a pass's failure. A `Neo.ClientError.Security.…` code reads as a credentials
-  problem.
+  `failureCode`, with sentences fitting a pass's failure. A `Neo.ClientError.Security.…` code reads as a credentials or
+  permission problem (`Security.Forbidden` is a permission). The `E…` family excludes Node's own `ERR_…` codes, here
+  and under `countCode`, since those are not the operating system's. *(Wording refined at the T12 implementation's
+  check, 2026-10-01.)*
 - **The guard** extracts these from the producers, with a floor for each:
   - every `code: '…'` literal in a failure object or a thrown error in `reconcileTaggingEdges.js`;
   - `missing-` joined to each key of the config check;

@@ -65,7 +65,7 @@ function LatestPass({ latest, tone }) {
           Where it failed: <Explained kind="failureStage" code={failure.stage} />
           {failure.read && <> Which read: <Explained kind="failureRead" code={failure.read} /></>}
           {failure.code !== null && failure.code !== undefined && (
-            <> Code: <Explained kind="countCode" code={failure.code} /></>
+            <> Code: <Explained kind="failureCode" code={failure.code} /></>
           )}
         </p>
       )}
