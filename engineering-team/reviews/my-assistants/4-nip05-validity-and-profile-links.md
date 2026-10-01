@@ -1,7 +1,8 @@
 # Review: Story 4 — Is each Assistant's NIP-05 genuine, and a way into each Assistant's profile
 
-**Verdict:** **PASS** (no blocking findings; three non-blocking, NB1–NB3. NB1 is a three-line fix worth taking before
-production.)
+**Verdict:** **PASS** (after re-review; see "Re-review, round 2" at the bottom. Round 1 passed with three
+non-blocking findings, NB1–NB3; the owner had all three fixed before shipping, and the fixes are verified. One round-2
+note, NB4, asks for a tighter N7 and doesn't block.)
 
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-10-01
@@ -416,3 +417,196 @@ tests (180/180 repeated). Every server mutant and four of the five UI mutants ar
 widen, and the profile pages are untouched.
 
 NB1 (a one-render stale verdict) is worth the three-line fix before production. NB2 and NB3 are record corrections.
+
+## Re-review, round 2 (2026-10-01)
+
+**Diff:** `git diff a07b94e8..8c458947` on `feat/my-assistants` (base = round 1's review commit, which also flipped the
+story to Done): 7 files, 174 insertions, 11 deletions. Commits:
+- `393db55e`: ADR 0004 Amendment 1 (sub-decision 4 made exact; how often the page asks, stated exactly), the NB3
+  update to the DNS-rebinding row, and harness friction 1 as an update to `2026-10-01-honest-states-pinned-per-state`;
+- `bded09e0`: the Tester's pass. N7 is new, N6 is extended, `setup()` gains `profilesAfterPress`, and the plan gains
+  "Amendment after review 1". It touches nothing under `ui/` or `src/`;
+- `8c458947`: the implementation. `useNip05Status` keeps `{ key, status }` (`Nip05Status.jsx:43-55`), and the story
+  gains "After review 1" in § Deviations. It touches nothing under `test/` or `tests/`.
+
+**The owner's decision at round 1's gate**, as the coordinator's brief reports it (I didn't see the exchange): fix
+NB1, NB2 and NB3 before shipping.
+
+**In short:** NB1 is fixed. A status is now drawn only for the (pubkey, NIP-05) it was asked for, and the no-NIP-05
+case returns nothing during render, before any state is read. N7 pins this in the list and in the section: it fails
+3 of 3 on `d9185db9`'s build and passes on HEAD. N6 now pins the retry, and it fails my round-1 U-D. NB2 and NB3
+are corrected in the records, accurately. The isolated gate, the host suites and all 61 browser tests pass
+(183/183 repeated), and nothing regressed. One note doesn't block: N7 checks that a verdict sits directly against
+the new NIP-05, so a render that keeps the old verdict after "Checking…" passes it (NB4).
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`, by the network-isolated CI reproduction**, as in round 1. A fresh full clone at `8c458947` went
+  into a new named volume with `chown`. `npm ci` ran with network, then the gate ran with `--network none` and
+  `CI=true`, its output in a host file outside the tree. The verdict, read with
+  `npm run -s gate:status -- --label review-my-assistants-4-r2` (exit 0):
+
+  > `20261001T201614Z-20-2e0f [review-my-assistants-4-r2] started 2026-10-01T20:16:14.913Z on 8c458947 — PASS, exit 0, 4467 passed, 0 failed, 591 skipped, 254/254 suites · /w/repo/tmp/gate-runs/20261001T201614Z-20-2e0f.json`
+
+  - **The record:** `node: v22.23.3`, `git: { commit: 8c458947…, branch: feat/my-assistants, dirty: false }`.
+  - **Per suite:** `my-assistants-nip05` 13/0/0, `nip05-ssrf-guard` 21/0/0, `nip05-checkmark-verification` 4/0/0,
+    `my-assistants-map` 14/0/0, `my-assistants-actions` 29/0/0, `my-assistants-page` 50/0/2, `harness-lint` 76/0/0,
+    `stack-free-npm-test` 6/0/1.
+  - **The same totals as round 1.** Round 2's new checks are browser tests, so no Node count moves.
+  - **Cleanup:** the volume has been removed.
+- [x] **The six host suites**, through `run()` (Node v24.18.0): `my-assistants-nip05` 13/0, `nip05-ssrf-guard` 21/0,
+  `nip05-checkmark-verification` 4/0, `my-assistants-map` 14/0, `my-assistants-actions` 29/0, `my-assistants-page`
+  52/0 (`hExecuted` 2).
+- [x] **Playwright** (chromium), the four specs:
+  - HEAD's `ui/` built into a scratch `outDir` and served on :4176: **61 passed** (11 for this story). With
+    `--repeat-each=3`: **183 passed**;
+  - `d9185db9`'s `ui/` (a `git archive`, checked file by file against the commit) served on :4177: **60 passed, 1
+    failed**. The failure is N7, at `tests/brainstorm/my-assistants-nip05.spec.js:340`: "Ava's new NIP-05 beside a
+    verdict before it was checked". The recorded state reads "ava@new.example Not valid" and "NIP-05 — Couldn’t
+    check";
+  - N7 alone on that build with `--repeat-each=3`: **3 failed of 3**, as the plan says. N6's retry pin passes there,
+    as the plan says, because round 1's code already retried.
+- [x] **Mutants**, in a scratch export of `8c458947`, never in the repo. Each one was built separately and served on
+  :4178, against HEAD's story spec.
+
+  | Mutant | Fails | Reading |
+  |---|---|---|
+  | 1: every answer cached, Couldn’t check included (round 1's U-D; `Nip05Status.jsx:31`) | N6: "bea@down.example: the first check, then one retry after the round trip" | bites: NB2's retry is pinned |
+  | 2: the key match dropped, `if (answered) return answered.status` (`:53`) | N7: "Checking…" never appears, because the old verdict holds for the whole hold | bites |
+  | 3: the no-NIP-05 guard dropped (`:52`) | N1 (Cy shows "Checking…"), N7 | bites |
+  | 4: the section keeps `d9185db9`'s hook, the list the new one (`MapOnlySection.jsx:2`) | N7: "Eve's new NIP-05 beside a verdict before it was checked" | bites: the section half is pinned on its own |
+  | 5: "keeps the claim": "Checking…" plus the previous verdict beside it, during a transition (`Nip05Status.jsx:63-66`) | nothing | **survives:** NB4 |
+  | 6: nothing cached, `known.set` removed (`:31`) | N6: "zed@ok.example is checked once" | bites |
+
+  Mutant 4 matters because every failure on `d9185db9` stops at Ava's assertion, before Eve's is reached; it shows
+  the section's pattern bites by itself.
+- [x] **Probes.** My round-1 probes, re-run against HEAD's build:
+  - **R2:** "ava@bad.example Not valid", then straight to "ava@new.example Checking…";
+  - **R3:** "ava@bad.example Not valid", then straight to "—";
+  - **R5:** three runs, no frame with a stale verdict;
+  - **R1:** `bea@down.example` asked 4 times across three tab round trips; Zed, Ava and Dee once each. The retry and
+    the definite-answer cache are unchanged.
+
+  N7's own change log, logged on mutant 5's build, holds "ava@new.example Checking… Not valid" and
+  "eve@new.example Checking…Not valid" for the whole hold. On HEAD it holds "ava@new.example Checking…" and
+  "eve@new.example Checking…", with no verdict in either item.
+- [x] **Phase separation:** `bded09e0` changes only the spec and the test plan, and `8c458947` only
+  `Nip05Status.jsx` and the story.
+- [x] `bash scripts/harness-lint.sh`: clean (0 violations) at `8c458947`.
+- [x] **Hygiene sweeps** on round 2's added lines: no 64-hex literal, `console.log`, `debugger`, TODO or `nsec`, and
+  no raw control bytes in the 7 files.
+- [ ] _Lint, typecheck and build are not configured, so they were skipped._
+
+### The fix, against Amendment 1
+
+`useNip05Status` (`Nip05Status.jsx:43-55`):
+- `key` is computed during render, `null` with no NIP-05 (`:44`). With no key it returns `null` before reading any
+  state (`:52`), so "— Not valid" can't be drawn.
+- The state holds the last answer with the key it was asked for (`:45`, `:49`). It's drawn only when that key is the
+  current one (`:53`). Otherwise the hook returns the cached definite answer for the current key, or "checking"
+  (`:54`).
+- An answer that arrives after the key changed is dropped twice over: its effect was cancelled (`:50`), and its key
+  wouldn't match anyway.
+
+That's sub-decision 4 as Amendment 1 states it: "that pair's kept answer, if any; otherwise 'Checking…'; with no
+NIP-05, nothing", never another pair's answer.
+
+**The retry and the cache don't regress.** `checkNip05`, the `known` cache (definite answers only) and the in-flight
+sharing are untouched (`:21-36`). The effect still asks on mount and on a key change, so:
+- a definite answer is drawn at once from `known` with no request (N6: Zed, Ava, Dee, Eve and Xavi once each);
+- a Couldn’t check is asked again when it's drawn again, and not on a refresh that keeps it drawn (N6: exactly 2;
+  R1: 4 across three round trips);
+- a key that flips back to a pair with a known answer shows that answer at once, and one without shows "Checking…"
+  and asks.
+
+`useNip05Status` has no caller outside `Nip05Status.jsx`. The profile pages' `useNip05Verification` is a separate
+hook and untouched.
+
+### Each round-1 finding
+
+| Finding | The owner's call | What changed | Verified |
+|---|---|---|---|
+| **NB1** the old verdict for one render | fix | `useNip05Status` keys its answer (`Nip05Status.jsx:43-55`). N7 changes Ava's, Bea's and Eve's kind 0s after a press, holds the new checks, and fails on a verdict beside an unchecked new NIP-05 or beside "—" (`spec:295-351`). | N7 fails 3/3 on `d9185db9` and passes on HEAD; mutants 2, 3 and 4 fail it; R2, R3 and R5 are clean on HEAD. NB4 is the one survivor. |
+| **NB2** "one lookup per page load" vs the retry | state it exactly, and pin it | Amendment 1's "How often the page asks" replaces the Context's and Consequences' sentence. N6 asks for exactly 2 asks of `bea@down.example` (`spec:289-291`). | Mutant 1 (my U-D) fails N6; mutant 6 fails it too. The three bullets match the code and R1. |
+| **NB3** the rebinding row | add a sentence | "Update 2026-10-01" in `ledger/2026-09-20-nip05-guard-leaves-dns-rebinding-open.md:26-31`, and Amendment 1's NB3 paragraph. | Accurate. It matches round 1's analysis (https, certificate validation, no TLS override in `src/` or `setup/`). |
+| **Harness friction 1** | filed as an update | "Update 2026-10-01 … a third axis, the transition" in `ledger/2026-10-01-honest-states-pinned-per-state.md:21-27`. | Accurate, and it cites N7 as the change-log example. |
+
+### The amended records, checked
+
+- **ADR 0004 Amendment 1** (`decisions/my-assistants/0004-…:236-268`):
+  - "Why" restates NB1 and NB2 accurately;
+  - "Sub-decision 4, made exact" matches the code (above);
+  - "How often the page asks" is exactly what N6 and R1 show;
+  - the NB3 paragraph is accurate;
+  - "Tests" says N7 "fails on any verdict beside a NIP-05 not yet checked, or beside '—'". That's stronger than N7
+    is: a verdict after "Checking…" isn't caught (NB4).
+- **The DNS-rebinding row's update** is accurate. "One bit more" is a fair description of "served a listing" against
+  "didn't".
+- **The honest-states row's update** is accurate. Its original paragraph already asks for "a mutant that keeps X"; the
+  plan's amendment didn't run one against N7, which is how NB4 got through.
+- **The test plan's "Amendment after review 1"** (`test-plan:161-188`):
+  - its red/green claims match my runs: N7 fails 3/3 on `d9185db9` and the other 10 pass there;
+  - its two mutant rows match my mutants 1 and the `d9185db9` build;
+  - "N7 fails on any recorded state with Ava's or Eve's new NIP-05 beside a verdict" overstates in the same way as
+    the ADR (NB4).
+- **The story's "After review 1"** (`story:128-135`) is accurate, with one imprecision and no change asked. "When a
+  drawn row's NIP-05 changes, it shows 'Checking…'" is true unless the new NIP-05 already has a definite answer for
+  that pubkey, in which case it shows that answer at once. That's correct behaviour.
+
+### Regressions
+
+None found. The only code change is the hook's body.
+- The other 50 browser tests (stories 1–3) pass, and so do N1–N6 and P1–P4.
+- The host suites and the isolated gate have the same counts as round 1.
+- Nothing under `src/` changed, so the endpoint, the guard and the profile pages are as round 1 found them.
+
+### Non-blocking (round 2)
+
+4. **NB4: N7 doesn't catch a render that keeps the old verdict beside "Checking…".**
+   `tests/brainstorm/my-assistants-nip05.spec.js:331-340`; test plan `:171`; ADR 0004 Amendment 1, "Tests"
+   (`:266-267`).
+   - **Why:** N7's patterns need the verdict directly after the new NIP-05 (`ava@new\.example\s*` then a verdict). A
+     render of "Checking…" followed by the previous verdict puts a word in between.
+   - **Seen:** mutant 5 draws "ava@new.example Checking… Not valid" and "eve@new.example Checking…Not valid" for the
+     whole hold, and every test passes.
+   - **Why it doesn't block:**
+     - HEAD's code is right: the hook can't return two statuses, and the component draws one;
+     - the realistic regressions are caught: dropping the key match, dropping the no-NIP-05 guard, and the section on
+       the old hook (mutants 2–4);
+     - the survivor has to add a "previous answer" display, a deliberate UX change.
+   - **But** "show the last result while re-checking" is a common pattern. Amendment 1 forbids exactly that ("never
+     another pair's answer"), and the honest-states row asks for this mutant.
+   - **Suggested** (the Tester's files only):
+     - in N7, for each recorded state, split it into its items, and require no verdict word anywhere in an item that
+       holds `ava@new.example` or `eve@new.example`. Both checks are held for the whole recording, so any verdict
+       there is a claim the page doesn't have. On HEAD those items read "… ava@new.example Checking… My Tapestry
+       Assistant On Treasure Map" and "Eve Elsewhere — · eve@new.example Checking… 1 duty …", with no verdict word;
+     - add the "keeps the claim" mutant to the amendment's table;
+     - reword the ADR's and plan's "beside" sentences to "anywhere in that item", or leave them once the test matches
+       them.
+
+     It can ride along with any later Tester pass, or be filed as a ledger row.
+
+### Harness friction (round 2)
+
+1. **The honest-states row's own advice wasn't applied to the test it inspired.** That row asks for "a mutant that
+   keeps X" for every "never claim X while…" check. N7 was written for that row's new third axis, but its mutant
+   table has no keeps-X mutant, and NB4 is what one finds. No new row is needed. If the row is touched again, its
+   transition paragraph could add: assert per item (no verdict anywhere in the item), not by adjacency to the
+   identifier.
+2. **The Reviewer wiring says commit and flip the status; this brief said neither.** Row 316 again. Nothing new.
+
+### Close-out
+
+- **Story status:** already `Done`, flipped in round 1's review commit `a07b94e8`. This round leaves it as is.
+  harness-lint is clean.
+- **Completion detection:** reported in the chat, not here (template).
+
+### Verdict
+**PASS**
+
+NB1 is fixed. A status is drawn only for the (pubkey, NIP-05) it was asked for, and N7 pins this in the list and the
+section: it fails 3/3 on `d9185db9`, and mutants 2–4 fail it. NB2 and NB3 are corrected in the records, accurately,
+and N6 now pins the retry, failing my round-1 U-D. The retry and the definite-answer cache are unchanged. The
+isolated gate is PASS on `8c458947` (`20261001T201614Z-20-2e0f`), the host suites pass, and 61/61 browser tests pass
+(183/183 repeated). Nothing regressed. NB4 asks for a tighter N7 and doesn't block.
