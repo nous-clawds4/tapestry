@@ -583,6 +583,9 @@ async function register(app) {
     // Alert and the action pages (assistant-identification-tags #1, ADR 0001). Session-shaped, read-only.
     const assistantAttentionApi = require('./assistant/attention');
     app.get('/api/assistant/attention', assistantAttentionApi.handleAssistantAttention);
+    // The viewer's Assistants — every profile they tagged My Brainstorm / My Tapestry Assistant, and their Assistant
+    // here — for the My Assistants page (my-assistants #1, ADR 0001). Session-shaped, read-only, no parameters.
+    app.get('/api/assistant/my-assistants', require('./assistant/myAssistants').handleMyAssistants);
     // Your Assistant signs its two identification taggings of you — a narrow, session-bound route in the shape of
     // publish-profile; the generic signer is unchanged (assistant-identification-tags #3, ADR 0003).
     const identificationTaggingsApi = require('./assistant/identificationTaggings');

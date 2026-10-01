@@ -1,0 +1,127 @@
+// Account-menu entry (design markup, line 289 of the unpacked template):
+//               <button sc-camel-on-click="{{ menuGoAssistants }}" style="{{ mlAssistants }}" style-hover="background:rgba(114,55,255,.05);"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 8V4H8"></path><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M2 14h2"></path><path d="M20 14h2"></path><path d="M15 13v2"></path><path d="M9 13v2"></path></svg>My Assistants</button>
+
+// Data constants the screen reads (dc-script.js lines 174-181):
+const TM_ASSIST = { ...TA_ASSISTANTS, ...Object.fromEntries(TA_ACCOUNTS.map((a, i) => ["acct" + i, a])) };
+const TM_CATCH_ROWS = [{ key: "*", label: "Everything" }, { key: "3038x", label: "All Scores" }, { key: "3039x", label: "All Lists" }, { key: "3038x:tag", label: "All Tag-based Scores" }, { key: "3038x:dlist", label: "All DList-based Scores" }, { key: "3039x:tag", label: "All Tag-based Lists" }, { key: "3039x:dlist", label: "All DList-based Lists" }, { key: "39998", label: "All Concepts" }];
+const TM_CATCH_DEFAULT = { "*": ["brainstorm", ""] };
+const MA_TAGS = { b: "My Brainstorm Assistant", t: "My Tapestry Assistant" };
+const MA_LOCAL = "brainstorm";
+const MA_POOL = { ...TM_ASSIST, old: { name: "Alice's old Assistant", url: "old.brainstorm.world", pk: "9b4e2a7c1f6d3085e9b4c2a7f1d6e30b8c5a2f9e4d1b7c6a3e0f8d2b5c9a1e4f" } };
+const MA_NIP05 = { brainstorm: "alice@brainstorm.world", tapestry: "alice@tapestry.brainstorm.world", alice: "alice@straycat.brainstorm.social", staging: "alice@staging.brainstorm.world", tags: "tags@brainstorm.world", old: "alice@old.brainstorm.world", acct0: "bob@bob.brainstorm.social", acct1: "carol@carol.brainstorm.social", acct2: "dave@dave.brainstorm.social", acct3: "assistant@nosfabrica.com" };
+const MA_DEFAULT = { brainstorm: "b", tapestry: "t", staging: "t", alice: "t", old: "t" };
+
+// mdVals (Duties tab) and maVals (Assistants tab), dc-script.js lines 1503-1615:
+  mdVals(s, tags) {
+    const view = s.maView ?? "assistants";
+    const seg = on => ({ height: 32, padding: "0 16px", borderRadius: 999, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: on ? 700 : 500, background: on ? "#ffffff" : "transparent", color: on ? "#2b174f" : "#6b7480", boxShadow: on ? "0 1px 2px rgba(0,0,0,.08)" : "none" });
+    const E = this.tmEntries(s); const byKey = {}; E.forEach(e => { (byKey[e.key] = byKey[e.key] || []).push(e); });
+    const tier = k => { const p = tmkParse(k); return p.all ? 0 : p.fam && !p.kind ? 1 : p.exact ? 3 : 2; };
+    const keys = Object.keys(byKey).sort((a, b) => tier(a) - tier(b) || tmkCmp(b, a));
+    const nameN = {}; Object.values(MA_POOL).forEach(a => { nameN[a.name] = (nameN[a.name] || 0) + 1; });
+    const nm = a => nameN[a.name] > 1 ? a.name + " (" + a.url + ")" : a.name;
+    const levelOf = k => { const p = tmkParse(k); return p.all ? ["Catch-all", "#2b174f", "#ede9fe"] : p.exact ? ["Exact", "#047857", "#d1fae5"] : p.fam ? ["Family", "#0e7490", "rgba(19,210,229,.14)"] : ["Scope", "#555d69", "#f0f1ee"]; };
+    const site = s.mdSite || "";
+    const ov = s.tmOrder || {};
+    const setCatch = (k, list) => { const ca = { ...(s.tmCatch ?? TM_CATCH_DEFAULT) }; const ids = list.map(e => e.id); ca[k] = ids.length === 1 ? [ids[0], ""] : ids; this.setState({ tmCatch: ca }); };
+    const save = (k, sec, list) => sec === "catch" ? setCatch(k, list) : this.setState({ tmOrder: { ...ov, [k]: list.map(e => e.id) } });
+    const addTo = (k, sec, L, id) => { if (sec === "catch") return setCatch(k, [...L, { id, a: MA_POOL[id] }]);
+      const secList = sec === "scores" ? (s.taList ?? TA_PRESETS[s.taView ?? "multi"]) : sec === "lists" ? (s.tlList ?? TL_PRESETS[s.tlView ?? "multi"]) : this.ccSets(s).list;
+      const pos = secList.indexOf(id); const jumps = pos >= 0 && L.some(e => secList.indexOf(e.id) > pos);
+      this.dutySet(s, sec, id, k, true);
+      if (ov[k] || jumps) this.setState({ tmOrder: { ...ov, [k]: [...L.map(e => e.id), id] } }); };
+    const dropFrom = (k, sec, L, j) => sec === "catch" ? setCatch(k, L.filter((_, x) => x !== j)) : this.dutySet(s, sec, L[j].id, k, false);
+    const SECS = { catch: ["Catch-all assignments on My Treasure Map", "treasure"], scores: ["Edit Scores", "tm-assertions"], lists: ["Edit Lists", "tm-lists"], concepts: ["Edit Concepts", "tm-categories"] };
+    const iconBtn = (off, danger) => ({ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 999, border: "1px solid #d6d9db", background: "#ffffff", color: danger ? "#dc2626" : "#2b174f", cursor: off ? "default" : "pointer", opacity: off ? 0.35 : 1, padding: 0 });
+    const panel = (k, L, i, over) => { const open = s.mdOpen === k; const sec = L[0].sec; const isCatch = sec === "catch";
+      const mv = (j, d) => { const l = L.slice(); [l[j], l[j + d]] = [l[j + d], l[j]]; save(k, sec, l); };
+      const list = L.map((e, j) => ({ label: j ? (L.length > 2 ? "Alternate " + j : "Alternate") : "Preferred", name: nm(e.a), home: !!site && e.a.url === site, untagged: !tags[e.id],
+        labelStyle: { flex: "0 0 86px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: j ? "#6b7480" : "#7237ff" },
+        canPref: j > 0, makePref: () => { const l = L.slice(); const [x] = l.splice(j, 1); l.unshift(x); save(k, sec, l); },
+        up: () => j > 0 && mv(j, -1), down: () => j < L.length - 1 && mv(j, 1), noUp: j === 0, noDown: j === L.length - 1,
+        upStyle: iconBtn(j === 0), downStyle: iconBtn(j === L.length - 1),
+        remove: () => L.length > 1 && dropFrom(k, sec, L, j), noRemove: L.length < 2, rmStyle: iconBtn(L.length < 2, true),
+        removeTitle: L.length < 2 ? "A duty needs at least one Assistant" : "Remove from this duty" }));
+      const cand = Object.keys(MA_POOL).filter(id => !L.some(e => e.id === id)).sort((a, b) => (!tags[a]) - (!tags[b]));
+      const addFull = isCatch && L.length >= 2;
+      return { open, openStr: String(open), chev: { flexShrink: 0, transition: "transform .2s", transform: open ? "rotate(180deg)" : "none" },
+        toggle: () => this.setState({ mdOpen: open ? null : k }),
+        wrapStyle: { borderTop: i ? "1px solid #f0f1ee" : "none", background: over ? "#faf8ff" : "#ffffff" },
+        rowStyle: { display: "flex", alignItems: "center", gap: "10px 16px", flexWrap: "wrap", width: "100%", padding: "14px 18px", border: "none", background: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" },
+        list, custom: !isCatch && !!ov[k], orderNote: L.length > 1 ? "First listed is preferred" : "Only provider",
+        canAdd: !addFull, addFull,
+        addOpts: [{ v: "", n: "+ Add an Assistant as an Alternate…" }, ...cand.map(id => ({ v: id, n: nm(MA_POOL[id]) + (tags[id] ? "" : " · not tagged") }))],
+        add: e => { const id = e.target.value; if (!id) return; addTo(k, sec, L, id); },
+        sentence: "I entrust " + nm(L[0].a) + " to publish and maintain " + tmkEnglish(k) + (L.length > 1 ? " If it can’t, ask " + L.slice(1).map(e => nm(e.a)).join(", then ") + "." : ""),
+        raw: L.map(e => '["' + tmkShort(k) + '", "' + e.a.pk.slice(0, 6) + "…" + e.a.pk.slice(-4) + '"]').join(",\n"),
+        secLabel: SECS[sec][0], goSec: () => this.nav(SECS[sec][1]),
+        reset: () => { const n = { ...ov }; delete n[k]; this.setState({ tmOrder: n }); } }; };
+    const urls = [...new Set(E.map(e => e.a.url))];
+    const rows = keys.map((k, i) => { const L = byKey[k]; const P = L[0]; const dom = e => ((MA_NIP05[e.id] || "").split("@")[1] || ""); const H = site ? L.find(e => dom(e) === site || dom(e).endsWith("." + site)) : null; const p = H || P; const over = !!H && H !== P; const local = p.id === MA_LOCAL; const lv = levelOf(k); const catchRow = TM_CATCH_ROWS.find(r => r.key === k);
+      return { rank: i + 1, title: catchRow ? catchRow.label : taName(k), key: tmkShort(k), dot: taDot(k), level: lv[0],
+        levelStyle: { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", borderRadius: 999, padding: "2px 7px", color: lv[1], background: lv[2], whiteSpace: "nowrap" },
+        pref: nm(p.a), initial: p.a.name.replace(/^Alice's /, "")[0], home: !!H, untagged: !tags[p.id], overrides: over, prefName: nm(P.a),
+        avStyle: { display: "flex", width: 22, height: 22, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 999, background: H ? "#7237ff" : "#2b174f", color: "#ffffff", fontSize: 11, fontWeight: 700 },
+        hasAlt: L.filter(e => e !== p && e !== P).length > 0, altLabel: "Other alternates:", alts: L.filter(e => e !== p && e !== P).map(e => nm(e.a)).join(", "),
+        ...panel(k, L, i, over) }; });
+    rows.forEach(r => { if (!site) r.altLabel = "Alternates:"; });
+    const overN = rows.filter(r => r.overrides).length, homeN = rows.filter(r => r.home).length;
+    return { maIsAssist: view === "assistants", maIsDuties: view === "duties", maIsAssistStr: String(view === "assistants"), maIsDutiesStr: String(view === "duties"),
+      maShowAssist: () => this.setState({ maView: "assistants" }), maShowDuties: () => this.setState({ maView: "duties" }),
+      maSegA: seg(view === "assistants"), maSegD: seg(view === "duties"),
+      mdRows: rows, mdEmpty: !rows.length,
+      mdSite: site, mdSetSite: e => this.setState({ mdSite: e.target.value }),
+      mdSites: [{ v: "", n: "A client following the Treasure Map order" }, ...urls.map(u => ({ v: u, n: "A client that adopts " + u }))],
+      mdColLabel: site ? "Used by a client that adopts " + site : "Preferred Assistant",
+      mdSiteNote: site ? "A client that adopts " + site + " as its provider may use that provider’s Assistant wherever you’ve listed it for a duty, even as an Alternate. Here that’s " + homeN + " of " + rows.length + " duties" + (overN ? ", " + overN + " of them in place of your Preferred." : ".") : "Some clients adopt one provider as their parent. Pick one to see where its Assistant would be used instead of your Preferred.", mdCount: rows.length + (rows.length === 1 ? " duty" : " duties") };
+  }
+
+  maVals(s) {
+    const tags = s.maTags ?? MA_DEFAULT;
+    const setTag = (id, t) => { const n = { ...tags }; if (t) n[id] = t; else delete n[id]; this.setState({ maTags: n }); };
+    const E = this.tmEntries(s);
+    const duties = id => E.filter(e => e.id === id);
+    const SEC = [["catch", "Fallback (catch-all)"], ["scores", "Scores"], ["lists", "Lists"], ["concepts", "Concepts"]];
+    const npub = pk => "npub1" + pk.slice(0, 10) + "…" + pk.slice(-6);
+    const dutyText = n => n ? n + (n === 1 ? " duty" : " duties") : "No duties";
+    const chip = t => t === "b"
+      ? { display: "inline-flex", fontSize: 11, fontWeight: 700, borderRadius: 999, padding: "3px 9px", background: "rgba(114,55,255,.10)", color: "#5b21d6", whiteSpace: "nowrap" }
+      : { display: "inline-flex", fontSize: 11, fontWeight: 700, borderRadius: 999, padding: "3px 9px", background: "rgba(19,210,229,.14)", color: "#0e7490", whiteSpace: "nowrap" };
+    const ids = Object.keys(tags).filter(id => MA_POOL[id]).sort((a, b) => (b === MA_LOCAL) - (a === MA_LOCAL));
+    const rows = ids.map((id, i) => {
+      const a = MA_POOL[id]; const d = duties(id); const on = d.length > 0; const open = s.maOpen === id; const local = id === MA_LOCAL; const t = tags[id];
+      const groups = SEC.map(([k, label]) => ({ label, items: d.filter(e => e.sec === k).map(e => k === "catch"
+        ? { n: (TM_CATCH_ROWS.find(r => r.key === e.key) || {}).label || e.key, hint: "answers what no other Assistant covers", dot: { width: 8, height: 8, borderRadius: 999, background: "#9aa1ac", flexShrink: 0 } }
+        : { n: taName(e.key), hint: taHint(e.key), dot: taDot(e.key) }) })).filter(g => g.items.length);
+      return { name: a.name, url: a.url, nip05: MA_NIP05[id] || "—", npub: npub(a.pk), initial: a.name.replace(/^Alice's /, "")[0], local, open, openStr: String(open),
+        wrapStyle: { borderTop: i ? "1px solid #f0f1ee" : "none", background: local ? "#faf8ff" : "#ffffff", boxShadow: local ? "inset 0 0 0 1.5px rgba(114,55,255,.45)" : "none", borderRadius: local && i === 0 ? "16px 16px 0 0" : 0 },
+        avStyle: { display: "flex", width: 36, height: 36, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 999, background: local ? "#7237ff" : "#2b174f", color: "#ffffff", fontSize: 14, fontWeight: 700, boxShadow: local ? "0 0 0 3px rgba(114,55,255,.18)" : "none" },
+        tagLabel: MA_TAGS[t], tagStyle: chip(t),
+        onLabel: on ? "On Treasure Map" : "Not on Treasure Map",
+        onStyle: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: on ? "#047857" : "#8c929e", whiteSpace: "nowrap" },
+        onDot: { width: 7, height: 7, borderRadius: 999, background: on ? "#10b981" : "transparent", border: on ? "none" : "1.5px solid #b4bac3", boxSizing: "border-box" },
+        chev: { flexShrink: 0, transition: "transform .2s", transform: open ? "rotate(180deg)" : "none" },
+        toggle: () => this.setState({ maOpen: open ? null : id }),
+        groups, noDuties: !on, dutyText: dutyText(d.length),
+        swapLabel: "Change to " + MA_TAGS[t === "b" ? "t" : "b"], swap: () => setTag(id, t === "b" ? "t" : "b"),
+        untag: () => { setTag(id, null); this.setState({ maOpen: null }); } };
+    });
+    const q = (s.maQ || "").trim().toLowerCase();
+    const found = q.length < 2 ? [] : Object.keys(MA_POOL).filter(id => !tags[id]).filter(id => { const a = MA_POOL[id]; return [a.name, a.url, MA_NIP05[id] || "", a.pk, npub(a.pk)].some(x => x.toLowerCase().includes(q)); })
+      .map(id => { const a = MA_POOL[id]; return { name: a.name, url: a.url, nip05: MA_NIP05[id] || "no NIP-05", initial: a.name.replace(/^Alice's /, "")[0], tagB: () => setTag(id, "b"), tagT: () => setTag(id, "t") }; });
+    const untagged = [...new Set(E.map(e => e.id))].filter(id => !tags[id] && MA_POOL[id]).map((id, i) => { const a = MA_POOL[id];
+      return { name: a.name, url: a.url, nip05: MA_NIP05[id] || "no NIP-05", dutyText: dutyText(duties(id).length) + " on your Treasure Map",
+        rowStyle: { display: "flex", alignItems: "center", gap: "10px 14px", flexWrap: "wrap", padding: "12px 16px", borderTop: i ? "1px solid #f0f1ee" : "none" },
+        tagB: () => setTag(id, "b"), tagT: () => setTag(id, "t") }; });
+    const onN = rows.filter(r => !r.noDuties).length;
+    return {
+      ...this.mdVals(s, tags),
+      isMyAssistants: s.screen === "my-assistants", goTreasureLink: e => { e && e.preventDefault(); this.nav("treasure"); },
+      maQ: s.maQ || "", maSetQ: e => this.setState({ maQ: e.target.value }), maHasQ: q.length >= 2,
+      maFound: found, maFoundCount: found.length ? found.length + (found.length === 1 ? " untagged profile" : " untagged profiles") : "No untagged profile matches.",
+      maRows: rows, maEmpty: !rows.length,
+      maCount: rows.length + (rows.length === 1 ? " Assistant" : " Assistants"), maOnCount: onN + " on your Treasure Map",
+      maUntagged: untagged, maHasUntagged: untagged.length > 0,
+    };
+  }
+

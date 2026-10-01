@@ -120,12 +120,13 @@ import SetupIndex from './pages/setup/Index';
 import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Placeholders';
 import DictionaryPage from './pages/dictionary/Index';
 import DictionaryEntryPage from './pages/dictionary/Entry';
+import MyAssistantsPage from './pages/assistants/Index';
 import AssistantManagementPage from './pages/assistant/Index';
 import EditAssistantProfilePage from './pages/assistant/EditProfile';
 import AssistantActionPage from './pages/assistant/ActionPage';
 import IdentificationTagsPage from './pages/assistant/IdentificationTags';
 import { ASSISTANT_ACTIONS } from './pages/assistant/actions';
-import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH } from './config/avatarMenuLinks';
+import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MY_ASSISTANTS_PATH } from './config/avatarMenuLinks';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
@@ -268,6 +269,12 @@ const router = createBrowserRouter([
   {
     path: '/dictionary/:coord',
     element: <DictionaryEntryPage />,
+  },
+  {
+    // My Assistants: every profile the viewer tagged as one of their Assistants, in the Brainstorm design's styling
+    // (my-assistants #1, ADR 0001).
+    path: MY_ASSISTANTS_PATH,
+    element: <MyAssistantsPage />,
   },
   {
     // The Assistant Management page (assistant-management #1, ADR 0001).

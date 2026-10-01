@@ -352,6 +352,66 @@ paths:
                                   address: { type: string }
         '500':
           description: The check could not run
+  /api/assistant/my-assistants:
+    get:
+      tags: [Auth]
+      summary: The signed-in viewer's Assistants, for the My Assistants page
+      description: >-
+        Read-only. Answers for the session's viewer and takes no parameters. `rows` holds one entry per profile the
+        viewer has tagged My Brainstorm Assistant or My Tapestry Assistant, whoever authored the tag's definition:
+        their newest stance on that profile under that tag applies it and is not retracted (NIP-09). Taggings are read
+        from this instance's relay and the configured tag-federation relays. The Assistant this instance holds for the
+        viewer is `local`; its row is marked `local` and is listed even when untagged (`tags` empty). Rows come in no
+        promised order. Each row's `retract` names, for each tag it carries, every one of the viewer's tagging events for
+        that profile under that tag (ids and addresses): what a withdrawal publishes. `definitions` gives each tag's
+        definition at its author's address, from the same relays, with the event id a new tagging points at
+        (my-assistants #2, ADR 0002). Without a session it answers `{ success: true, signedIn: false }`.
+      responses:
+        '200':
+          description: The viewer's Assistants, or signedIn false without a session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signedIn:
+                    type: boolean
+                  local:
+                    type: string
+                    nullable: true
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pubkey: { type: string }
+                        local: { type: boolean }
+                        tags:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              key: { type: string, enum: [brainstorm, tapestry] }
+                              name: { type: string }
+                        retract:
+                          type: object
+                          additionalProperties:
+                            type: object
+                            properties:
+                              ids: { type: array, items: { type: string } }
+                              addresses: { type: array, items: { type: string } }
+                  definitions:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        address: { type: string }
+                        found: { type: boolean }
+                        eventId: { type: string, nullable: true }
+        '500':
+          description: The local relay could not be read
   /api/assistant/identification-tags/publish:
     post:
       tags: [Auth]
