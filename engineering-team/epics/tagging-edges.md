@@ -47,7 +47,8 @@ Planning: admins may also see the panel and use every control but confirming hel
    showing the pass (status, history, held removals, the backstop schedule), the real-time path, and the drift
    between relay and graph, explained. It changes nothing. *(Split from the planned control panel at Planning,
    2026-09-30; the owner's decisions are in the story.)* **Done** (review PASS 2026-10-01, round 2); on production
-   since 2026-10-01 (PRs #791 / #792). The owner's view of the panel on each host is the evidence still to come.
+   since 2026-10-01 (PRs #791 / #792). Its evidence is complete (2026-10-01): the owner and an admin saw the panel,
+   Recount was pressed on production, and a user who is neither was refused Settings on staging.
    **Carry-forwards from story 3's review** (placed by the owner 2026-09-30; `reviews/tagging-edges/3-real-time-path.md`
    § "Re-review, round 3", C1–C9). Each open one becomes a docs or test task of story 4. Repo line numbers were read
    at `origin/staging` `58abd891` (prefer the named sections if they have drifted); strfry's are from strfry 1.1.0 in

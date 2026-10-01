@@ -348,7 +348,7 @@ the heavy test pubkey, which production shows too (OPEN.md row 61).
   the `reconcileTaggingEdges` queue held no waiting or active job, 0 failed and 1 completed, and one delayed job, the
   same both times: the backstop's next run (`repeat:sched:entry-c2a4d900…`, due 14:26:18Z). See § Deviations, "At the
   live evidence".
-- **The owner's view** is still to come: it needs the owner's key, which is on another machine.
+- **The owner's view:** see "The owner's checks" below.
 
 ### Production (2026-10-01)
 
@@ -370,7 +370,22 @@ was clean apart from the same `get-user-data` 504 (OPEN.md row 61); no 502 windo
 - **No pass queued (AC-1),** read the same way at 02:15:35Z and 02:15:49Z. Both times there was no waiting or active
   job, 0 failed and 1 completed, and the same one delayed job: the backstop's next run
   (`repeat:sched:entry-9c44f402…`, due 14:24:37Z).
-- **The owner's view** is still to come, as on staging.
+- **The owner's view:** see "The owner's checks" below.
+
+### The owner's checks (2026-10-01)
+
+The owner ran these by hand on 2026-10-01 and reported them.
+- **As the owner (straycat) and as an admin (Nous).** The owner saw the Tagging pipeline sub-tab in Settings, with a
+  little over 7,000 taggings, on staging and on a second host. They named that host tags.brainstorm.world. tags does
+  not serve the panel: at 19:19Z its bundle `index-D8gNJNSr.js` had no "Tagging pipeline", and the three tagging-edges
+  routes answered 404. Production is the only other host that does, so the second host was production.
+- **As a signed-in user who is neither owner nor admin, on staging.** Settings said they were signed in as a customer
+  and refused access. The gate (`ui/src/pages/settings/Index.jsx:35`) shows only its lock and returns before the
+  sub-tab bar is drawn, so no sub-tab is offered.
+- **Recount, as an admin on production.** Pressing it changed both "counted at" times.
+
+Read here alongside them (19:20Z, headless, signed out): on both hosts, Settings showed only its lock ("Settings are
+only available to the owner"). It offered no sub-tab, and the panel made no request.
 
 ## Deviations
 
