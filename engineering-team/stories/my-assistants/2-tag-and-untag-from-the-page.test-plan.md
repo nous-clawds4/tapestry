@@ -155,3 +155,42 @@ Each mutant was applied to the oracle alone, and each fails the tests named:
 "Search from 1 character" at first passed C1: the mock had no results for one letter, so nothing showed either way.
 C1 now gives a 1-character fixture, and asserts that no search is asked for and no no-match line shows. It catches
 that mutant, and the unmutated oracle still passes C1.
+
+## Amendment after review 1 (2026-09-30), for ADR 0002 Amendment 1
+
+Review 1 (`engineering-team/reviews/my-assistants/2-tag-and-untag-from-the-page.md`) found two blocking gaps:
+- withdrawals don't travel between instances;
+- no test covers the withdrawal's signer guard.
+
+It also found several non-blocking ones. The owner chose to make deletions travel, and ADR 0002 Amendment 1 says how.
+The tests below pin what this phase can see in the browser and in Node. The router stream (sub-decision 12) is ops,
+and is proven on staging per the book's § Before shipping.
+
+| Ask | Tests | File |
+|---|---|---|
+| Blocking 2: the withdrawal's signer guard | C9 now runs **Tag, Change and Remove** each with no extension and with the wrong key: nothing signed (`window.__signed` empty), nothing posted, the app's words shown, the row unchanged | spec |
+| Sub-decision 11: withdrawals reach the community relay | C13 (after Tag, `wss://dcosl.brainstorm.world` is not in the result area; after Remove, it is listed once) | spec |
+| Sub-decision 13: the failed re-read | C14 (re-read 500 after a press: rows kept, the press's report shown, the refresh note shown, no error line) | spec |
+| Sub-decision 13: Searching…, no stale result | C15 (held search: **Searching…** shown, no results, no no-match line; a changed query never shows the previous results, sampled every 100 ms while the new search is held) | spec |
+| Sub-decision 13: the result area | C16 (exactly one `role="status"` region in the ready page before any press; after a press it holds the report and has focus) | spec |
+| Sub-decision 13: reasons tied to buttons | C7 (the disabled Tag and Change-to buttons have the reason as their accessible description) | spec |
+| Sub-decision 13: open state | C17 (a row removed while open comes back closed when re-tagged) | spec |
+| Sub-decision 13: slugs from the definition | O8 (the apply's slug and author come from the definition's address; no slug literal in `assistantActions.js`) | Node |
+| Review tidiness | C1b asserts no sockets; C9 checks signatures as well as posts; S1 also scans `AssistantRow.jsx` and `AssistantSearch.jsx` | both |
+
+The spec's mock gained a `searchHold` option, to hold a query's search answer.
+
+**On `67563473`** (the reviewed implementation, served at `:7778`):
+- **Node:** 27 passed, 1 failed. O8 fails: `got {"slug":"my-tapestry-assistant",…}`, the re-typed slug.
+- **Playwright:** 18 passed, 5 failed.
+  - C7: accessible description `""`.
+  - C13: `the withdrawal lists the community relay`, expected 1, received 0.
+  - C15: **Searching…** not found.
+  - C16: status regions before a press, expected 1, received 0.
+  - C17: `aria-expanded`, expected "false", received "true".
+- **Already passing, as regression pins:**
+  - C9 for Change and Remove: the guard exists today. Review 1's mutant M1, which removes it, now fails them.
+  - C14: the refresh note exists today. Review 1's M2 now fails it.
+
+**An oracle was not built for this amendment.** The changes are small and UI-local, and Phase 4 comes next in the
+same session. The implementation's own run is the proof that the tests can pass. The next review re-runs mutants.

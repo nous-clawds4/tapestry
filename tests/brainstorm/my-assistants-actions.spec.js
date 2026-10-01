@@ -29,7 +29,16 @@ const { REQUIRED_TAGGINGS } = require('../../src/lib/identification-tags');
  *   C10 — no relay took it: an error line, the list unchanged, the button usable again.
  *   C11 — a half-done change: both lines said; the list shows what the relays now say (both chips).
  *   C12 — the refresh keeps the rows on screen: no loading line while the re-read is held.
+ *
+ * Added for ADR 0002 Amendment 1 (review 1):
+ *   C9 — also for Remove and Change: no extension, the wrong key → nothing signed or posted (blocking 2).
+ *   C13 — a withdrawal's report lists the community relay (wss://dcosl.brainstorm.world); an apply's does not.
+ *   C14 — a failed re-read after a press: the rows are kept, the report shows, and the refresh note says so.
+ *   C15 — Searching… until the search answers; a changed query never shows the previous query's results.
+ *   C16 — the result area is always there (role="status"), and focus moves to it after a press.
+ *   C17 — a row removed while open comes back closed when it is tagged again.
  */
+const COMMUNITY = 'wss://dcosl.brainstorm.world';
 
 const VIEWER = 'a1'.repeat(32);
 const LOCAL = 'a2'.repeat(32);
@@ -76,7 +85,7 @@ function deferred() { let resolve; const promise = new Promise((r) => { resolve 
  * publish: (event, n) → the /api/strfry/publish answer for the n-th post (default success).
  * search: { [query]: hits }.
  */
-async function setup(page, { session = CUSTOMER, signer = 'viewer', holdSign = false, answers, publish, search = {} } = {}) {
+async function setup(page, { session = CUSTOMER, signer = 'viewer', holdSign = false, answers, publish, search = {}, searchHold = {} } = {}) {
   const state = { reads: 0, posted: [], ws: 0, requests: [] };
   await page.routeWebSocket(/.*/, (ws) => { state.ws++; ws.close(); });
   await page.addInitScript(({ signer, holdSign, viewer, other }) => {
@@ -124,8 +133,9 @@ async function setup(page, { session = CUSTOMER, signer = 'viewer', holdSign = f
     for (const k of keys) if (Object.prototype.hasOwnProperty.call(PROFILES, k)) out[k] = PROFILES[k];
     return json(r, { success: true, profiles: out });
   });
-  await page.route('**/api/search/profiles/meili**', (r) => {
+  await page.route('**/api/search/profiles/meili**', async (r) => {
     const q = new URL(r.request().url()).searchParams.get('q') || '';
+    if (searchHold[q]) await searchHold[q];
     const hits = search[q] || [];
     return json(r, { success: true, hits });
   });
@@ -185,10 +195,11 @@ test.describe('/assistants — tagging actions', () => {
   });
 
   test('C1b: signed out, there is no search box', async ({ page }) => {
-    await setup(page, { session: null, answers: [{ body: { success: true, signedIn: false } }] });
+    const state = await setup(page, { session: null, answers: [{ body: { success: true, signedIn: false } }] });
     await page.goto(PAGE);
     await expect(page.getByRole('heading', { level: 1, name: 'Your Assistants.' })).toBeVisible();
     await expect(searchBox(page)).toHaveCount(0);
+    await noSockets(state);
   });
 
   test('C2: a pasted npub, or a hex key, offers that exact profile first even when search does not find it', async ({ page }) => {
@@ -313,10 +324,15 @@ test.describe('/assistants — tagging actions', () => {
     await searchBox(page).fill('xa');
     await expect(results(page).first().getByRole('button', { name: 'Tag: My Brainstorm Assistant' })).toBeDisabled();
     await expect(results(page).first().getByRole('button', { name: 'Tag: My Tapestry Assistant' })).toBeEnabled();
+    // Amendment 1 (sub-decision 13): the reason is tied to the disabled button.
+    await expect(results(page).first().getByRole('button', { name: 'Tag: My Brainstorm Assistant' }))
+      .toHaveAccessibleDescription(re("The My Brainstorm Assistant tag hasn't been published yet, so it can't be applied."));
     await expect(main(page).getByText(re("The My Brainstorm Assistant tag hasn't been published yet, so it can't be applied.")).first()).toBeVisible();
     const a = rowNamed(page, 'Ava');
     await toggle(a).click();
     await expect(a.getByRole('button', { name: 'Change to My Brainstorm Assistant' })).toBeDisabled();
+    await expect(a.getByRole('button', { name: 'Change to My Brainstorm Assistant' }))
+      .toHaveAccessibleDescription(re("The My Brainstorm Assistant tag hasn't been published yet, so it can't be applied."));
     await expect(a.getByText(re("The My Brainstorm Assistant tag hasn't been published yet"))).toBeVisible();
     await expect(a.getByRole('button', { name: 'Remove Tag' })).toBeEnabled();
     expect(await signed(page)).toEqual([]);
@@ -347,18 +363,37 @@ test.describe('/assistants — tagging actions', () => {
     await noSockets(state);
   });
 
-  for (const [label, signer, words] of [['no extension', 'none', /No NIP-07 extension detected/], ['the wrong key in it', 'other', /different account/]]) {
-    test(`C9 (${label}): nothing signed or posted, and the page says why`, async ({ page }) => {
-      const state = await setup(page, { signer, answers: [answerOf([rowOf(A, ['tapestry'])])], search: { xa: [{ pubkey: X, display_name: 'Xavi' }] } });
-      await page.goto(PAGE);
-      await settled(page, 1);
+  const PRESSES = {
+    tag: async (page) => {
       await searchBox(page).fill('xa');
       await results(page).first().getByRole('button', { name: 'Tag: My Tapestry Assistant' }).click();
-      await expect(main(page).getByText(words).first()).toBeVisible();
-      expect(state.posted, 'nothing posted').toEqual([]);
-      await settled(page, 1);
-      await noSockets(state);
-    });
+    },
+    change: async (page) => {
+      const a = rowNamed(page, 'Ava');
+      await toggle(a).click();
+      await a.getByRole('button', { name: 'Change to My Brainstorm Assistant' }).click();
+    },
+    remove: async (page) => {
+      const a = rowNamed(page, 'Ava');
+      await toggle(a).click();
+      await a.getByRole('button', { name: 'Remove Tag' }).click();
+    },
+  };
+  for (const [label, signer, words] of [['no extension', 'none', /No NIP-07 extension detected/], ['the wrong key in it', 'other', /different account/]]) {
+    for (const press of ['tag', 'change', 'remove']) {
+      test(`C9 (${press}, ${label}): nothing signed or posted, and the page says why`, async ({ page }) => {
+        const state = await setup(page, { signer, answers: [answerOf([rowOf(A, ['tapestry'])])], search: { xa: [{ pubkey: X, display_name: 'Xavi' }] } });
+        await page.goto(PAGE);
+        await settled(page, 1);
+        await PRESSES[press](page);
+        await expect(main(page).getByText(words).first()).toBeVisible();
+        expect(await signed(page), 'nothing signed').toEqual([]);
+        expect(state.posted, 'nothing posted').toEqual([]);
+        await settled(page, 1);
+        await expect(rowNamed(page, 'Ava').getByText('My Tapestry Assistant', { exact: true })).toBeVisible();
+        await noSockets(state);
+      });
+    }
   }
 
   test('C10: no relay took it — an error line, the list unchanged, and the button usable again', async ({ page }) => {
@@ -414,6 +449,106 @@ test.describe('/assistants — tagging actions', () => {
     }
     hold.resolve();
     await settled(page, 2);
+    await noSockets(state);
+  });
+
+  test('C13: a withdrawal is reported to the community relay too; an apply is not', async ({ page }) => {
+    const state = await setup(page, {
+      answers: [answerOf([rowOf(A, ['tapestry'])]), answerOf([rowOf(A, ['tapestry']), rowOf(X, ['tapestry'])]), answerOf([rowOf(X, ['tapestry'])])],
+      search: { xa: [{ pubkey: X, display_name: 'Xavi' }] },
+    });
+    await page.goto(PAGE);
+    await settled(page, 1);
+    await searchBox(page).fill('xa');
+    await results(page).first().getByRole('button', { name: 'Tag: My Tapestry Assistant' }).click();
+    await settled(page, 2);
+    await expect(main(page).getByText(/"My Tapestry Assistant" was saved/)).toBeVisible();
+    await expect(main(page).getByText(COMMUNITY, { exact: true }), 'an apply is not sent to the community relay').toHaveCount(0);
+    const a = rowNamed(page, 'Ava');
+    await toggle(a).click();
+    await a.getByRole('button', { name: 'Remove Tag' }).click();
+    await settled(page, 1);
+    await expect(main(page).getByText(/"Withdrawal of My Tapestry Assistant" was saved/)).toBeVisible();
+    await expect(main(page).getByText(COMMUNITY, { exact: true }), 'the withdrawal lists the community relay').toHaveCount(1);
+    await noSockets(state);
+  });
+
+  test('C14: a failed re-read after a press keeps the rows, shows the report, and says the list was not re-read', async ({ page }) => {
+    const state = await setup(page, {
+      answers: [answerOf([rowOf(A, ['tapestry'])]), { status: 500, body: { success: false, error: 'Could not load your Assistants' } }],
+      search: { xa: [{ pubkey: X, display_name: 'Xavi' }] },
+    });
+    await page.goto(PAGE);
+    await settled(page, 1);
+    await searchBox(page).fill('xa');
+    await results(page).first().getByRole('button', { name: 'Tag: My Tapestry Assistant' }).click();
+    await expect(main(page).getByText(/"My Tapestry Assistant" was saved/)).toBeVisible();
+    await expect(main(page).getByText(re("The list couldn't be re-read; it may not show this yet."))).toBeVisible();
+    await settled(page, 1);
+    await expect(main(page).getByText(re("Couldn't load your Assistants\\."))).toHaveCount(0);
+    await noSockets(state);
+  });
+
+  test('C15: Searching… until the answer; a changed query never shows the previous query\'s results', async ({ page }) => {
+    const first = deferred();
+    const second = deferred();
+    const state = await setup(page, {
+      answers: [answerOf([rowOf(A, ['tapestry'])])],
+      search: { xa: [{ pubkey: X, display_name: 'Xavi' }], yo: [{ pubkey: Y, display_name: 'Yara the Unranked' }] },
+      searchHold: { xa: first.promise, yo: second.promise },
+    });
+    await page.goto(PAGE);
+    await settled(page, 1);
+    await searchBox(page).fill('xa');
+    await expect(main(page).getByText('Searching…', { exact: true })).toBeVisible();
+    await expect(main(page).getByText('No untagged profile matches.', { exact: true })).toHaveCount(0);
+    await expect(results(page)).toHaveCount(0);
+    first.resolve();
+    await expect(results(page)).toHaveCount(1);
+    await searchBox(page).fill('yo');
+    for (let i = 0; i < 6; i++) {
+      const text = await page.evaluate(() => (document.querySelector('main') || {}).innerText || '');
+      expect(text.includes('Xavi'), `sample ${i}: the previous query's result must not show`).toBe(false);
+      await page.waitForTimeout(100);
+    }
+    await expect(main(page).getByText('Searching…', { exact: true })).toBeVisible();
+    second.resolve();
+    await expect(results(page).first()).toContainText('Yara the Unranked');
+    await noSockets(state);
+  });
+
+  test('C16: the result area is always there, and focus moves to it after a press', async ({ page }) => {
+    const state = await setup(page, {
+      answers: [answerOf([rowOf(A, ['tapestry'])]), answerOf([rowOf(A, ['tapestry']), rowOf(X, ['tapestry'])])],
+      search: { xa: [{ pubkey: X, display_name: 'Xavi' }] },
+    });
+    await page.goto(PAGE);
+    await settled(page, 1);
+    await expect(main(page).locator('[role="status"]'), 'one status region in the ready page, before any press').toHaveCount(1);
+    await searchBox(page).fill('xa');
+    await results(page).first().getByRole('button', { name: 'Tag: My Tapestry Assistant' }).click();
+    await settled(page, 2);
+    const region = main(page).locator('[role="status"]');
+    await expect(region).toContainText('"My Tapestry Assistant" was saved');
+    expect(await region.evaluate((el) => el === document.activeElement || el.contains(document.activeElement)), 'focus is in the result area').toBe(true);
+    await noSockets(state);
+  });
+
+  test('C17: a row removed while open comes back closed when it is tagged again', async ({ page }) => {
+    const state = await setup(page, {
+      answers: [answerOf([rowOf(A, ['tapestry']), rowOf(B, ['tapestry'])]), answerOf([rowOf(B, ['tapestry'])]), answerOf([rowOf(A, ['tapestry']), rowOf(B, ['tapestry'])])],
+      search: { av: [{ pubkey: A, name: 'Ava' }] },
+    });
+    await page.goto(PAGE);
+    await settled(page, 2);
+    const a = rowNamed(page, 'Ava');
+    await toggle(a).click();
+    await a.getByRole('button', { name: 'Remove Tag' }).click();
+    await settled(page, 1);
+    await searchBox(page).fill('av');
+    await results(page).first().getByRole('button', { name: 'Tag: My Tapestry Assistant' }).click();
+    await settled(page, 2);
+    await expect(toggle(rowNamed(page, 'Ava'))).toHaveAttribute('aria-expanded', 'false');
     await noSockets(state);
   });
 });

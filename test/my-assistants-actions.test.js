@@ -412,12 +412,24 @@ test('O7: a tag whose definition is not found is never applied — refused befor
   assert(typeof out.refused === 'string' && plain(out.refused).includes("hasn't been published yet"), `got ${show(out)}`);
 });
 
+// Added for ADR 0002 Amendment 1 (sub-decision 13, review 1 non-blocking 3): the slug comes from the definition.
+test('O8: the apply\'s slug comes from the definition\'s address, not a second copy of the slugs', async () => {
+  const a = await actions();
+  const { deps, calls } = fakeDeps();
+  const renamed = { ...FOUND, tapestry: { ...FOUND.tapestry, address: `39999:${NOUS}:renamed-tapestry-slug` } };
+  await a.tagProfile({ target: T2, tagKey: 'tapestry', definitions: renamed, deps });
+  assert(calls.length === 1 && calls[0][1].tag.slug === 'renamed-tapestry-slug' && calls[0][1].tag.authorPubkey === NOUS,
+    `the apply should take slug and author from 39999:<author>:<slug>; got ${show(calls[0] && calls[0][1].tag)}`);
+  const src = safeRead(ACTIONS);
+  assert(!/['"]my-(brainstorm|tapestry)-assistant['"]/.test(src), `${rel(ACTIONS)} re-types a slug`);
+});
+
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 // S — source sentinels
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 test('S1: no 64-hex literal in the lib, the server module, the view-model, the orchestration or the page', () => {
-  for (const f of [LIB, MODULE, VIEW_MODEL, ACTIONS, path.join(PAGE_DIR, 'Index.jsx')]) {
+  for (const f of [LIB, MODULE, VIEW_MODEL, ACTIONS, path.join(PAGE_DIR, 'Index.jsx'), path.join(PAGE_DIR, 'AssistantRow.jsx'), path.join(PAGE_DIR, 'AssistantSearch.jsx')]) {
     const src = safeRead(f);
     assert(src, `${rel(f)} does not exist`);
     const hex = src.match(/[0-9a-f]{64}/i);
