@@ -60,6 +60,21 @@ At story 1's gate, the same day:
    prompts you to tag it. This is a change from the design.
 6. **Build all three stories, then ship once.** The page never goes out promising a missing piece.
 
+At story 2's gate, 2026-09-30:
+
+7. **Remove Tag withdraws the tagging.** It's retracted, as if the profile was never tagged. It's not a dispute.
+8. **Nous publishes My Brainstorm Assistant before the book ships** (see § Before shipping).
+9. **Your own Assistant's untagged row keeps its link to Identification Tags.** That page does both directions of the
+   handshake. There's no one-press Tag button on the row.
+
+## Before shipping
+
+- [ ] **Nous publishes the My Brainstorm Assistant tag definition.** He uses the tag UI on tapestry.brainstorm.world,
+      as he did My Tapestry Assistant on 2026-09-22. The name "My Brainstorm Assistant" gives the slug
+      `my-brainstorm-assistant`, which story 1's read is fixed to. Then check that
+      `39999:15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270:my-brainstorm-assistant` is on the
+      production, staging and dcosl relays.
+
 ## Epics in this book
 - `my-assistants` — the My Assistants page, its menu link, the tagging actions and the Duties tab.
 
