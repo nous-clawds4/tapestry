@@ -9,6 +9,7 @@ import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 import { useAuth } from '../../context/AuthContext';
 import { ME, MY_ASSISTANT, viewerAuthorOptions, resolveAuthorFilter } from '../../utils/viewerAuthorScope';
+import { listHeaderDisposition, MARKS, COLUMN_TITLE } from '../../utils/listHeaderDisposition';
 
 /**
  * Helper: extract a tag value from an event's tags array.
@@ -116,6 +117,9 @@ export default function DListsIndex() {
       // Neo4j uuid: replaceable events use a-tag, non-replaceable use event id
       const uuid = ev.kind >= 30000 ? parentRef : ev.id;
 
+      // 🧭 b-disposition, from the event's own b-tags (ADR list-headers-disposition/0002)
+      const disp = listHeaderDisposition(ev);
+
       return {
         id: ev.id,
         routeId,
@@ -128,6 +132,8 @@ export default function DListsIndex() {
         age: formatAge(ev.created_at),
         itemCount,
         inNeo4j: neo4jUuids.has(uuid),
+        disposition: disp.state,
+        _dispositionMarks: disp.marks,
       };
     });
   }, [headers, itemCounts, neo4jUuids]);
@@ -190,6 +196,20 @@ export default function DListsIndex() {
   const columns = [
     { key: 'singular', label: 'Name (singular)' },
     { key: 'plural', label: 'Name (plural)' },
+    {
+      // Read-only: nothing in the cell is an action, so a click opens the list like the rest of the row.
+      key: 'disposition',
+      label: <span title={COLUMN_TITLE} style={{ cursor: 'help' }}>🧭</span>,
+      render: (_val, row) => (
+        <span style={{ display: 'inline-flex', gap: '0.2rem' }}>
+          {row._dispositionMarks.map(m => (
+            <span key={m.state} title={m.title} className={m === MARKS.undecided ? 'text-muted' : undefined}>
+              {m.glyph}
+            </span>
+          ))}
+        </span>
+      ),
+    },
     { key: 'kind', label: 'Kind' },
     {
       key: 'authorShort',
