@@ -80,5 +80,5 @@ the story:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/list-headers-disposition/2-b-disposition-column.test-plan.md`
 - Review: (filled in after Review phase)
