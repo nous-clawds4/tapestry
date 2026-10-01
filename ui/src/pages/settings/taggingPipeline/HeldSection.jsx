@@ -6,14 +6,19 @@
 
 import { Explained, Loading, ReadFailed, Section, TONE_COLOUR, counted, figure, when } from './parts.jsx';
 
-/** The owner's confirmation, in passView's five states. The server decides whether it has expired. */
+/**
+ * The owner's confirmation, in passView's five states. The server decides whether it has expired. A pending one is
+ * claimed by the first pass to pass its start checks before it expires, and that pass may still not honour it
+ * (validateClaim in reconcileTaggingEdges.js, OPERATIONS §12.8): the pass section says which.
+ */
 function ConfirmationLine({ confirmation }) {
   const c = confirmation;
   if (!c || c.state === 'none') return <p className="settings-hint">No confirmation from the owner is waiting.</p>;
   if (c.state === 'pending') {
     return (
       <p style={{ color: TONE_COLOUR.warn }}>
-        The owner's confirmation of pass {c.runId} is pending until {when(c.expiresAt)}. The next pass honours it.
+        The owner's confirmation of pass {c.runId} is pending until {when(c.expiresAt)}. The first pass to pass its
+        start checks before then claims it, and the pass section then says whether that pass honoured it.
       </p>
     );
   }

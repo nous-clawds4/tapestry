@@ -2,7 +2,9 @@
  * Drift between the relay and the graph, explained (tagging-edges Story 4 AC-4; ADR tagging-edges/0004 § UI
  * driftView): the relay taggings and the graph relationships as counted on opening or on Recount, their
  * difference, the part the newest finished pass explains, and the unexplained remainder with what is named beside
- * it. An unknown count reads "unknown", never 0, and no difference is taken from it.
+ * it. An unknown count reads "unknown", never 0, and no difference is taken from it. Counts taken before the
+ * explaining pass ended (driftView's countsPredatePass, T5) are not explained by it: the section says so and asks for
+ * a Recount instead of showing an explained part and a remainder.
  */
 
 import { Explained, Loading, NOT_YET, ReadFailed, Section, TONE_COLOUR, counted, figure, when } from './parts.jsx';
@@ -47,7 +49,9 @@ function ExplainedPart({ view, pass }) {
       </p>
       {view.explainedBy.usedInsteadOfLatest && (
         <p className="settings-hint">
-          The latest pass did not finish, so the newest finished pass explains the difference instead.
+          {view.passRunning
+            ? 'A pass is running, so the newest finished pass explains the difference.'
+            : 'The latest pass did not finish, so the newest finished pass explains the difference instead.'}
         </p>
       )}
     </div>
@@ -67,7 +71,11 @@ function Named({ view, known }) {
       )}
       {view.passRunning && <p>A pass is running, so the graph count moves while it writes.</p>}
       {view.newerUnfinished && (
-        <p>A newer pass that did not finish got as far as planning its changes, so it may have written after that pass.</p>
+        <p>
+          {view.passRunning
+            ? 'A newer pass, running or ended early, got as far as planning its changes, so it may have written after that pass.'
+            : 'A newer pass that did not finish got as far as planning its changes, so it may have written after that pass.'}
+        </p>
       )}
       {view.pathUnknown && <p>The path's figures are not available, so they are not named here.</p>}
       {!view.pathUnknown && !view.waitsForPass && (
@@ -96,13 +104,23 @@ export default function DriftSection({ read, view, pass, onCount }) {
       {failed && <ReadFailed what="The relay and graph counts" error={read.error} onRetry={onCount} />}
       <CountLine label="Relay taggings" count={view.relay} />
       <CountLine label="Graph relationships" count={view.graph} />
-      {view.known ? (
+      {view.known && view.countsPredatePass && (
+        <div>
+          <p>Difference (relay minus graph): {figure(view.difference)}.</p>
+          <p>
+            These counts were taken before pass {view.explainedBy.runId} ended at {when(view.explainedBy.endedAt)}, so
+            that pass cannot explain them. Press Recount to count again.
+          </p>
+        </div>
+      )}
+      {view.known && !view.countsPredatePass && (
         <div>
           <p>Difference (relay minus graph): {figure(view.difference)}.</p>
           <ExplainedPart view={view} pass={pass} />
           <p style={{ color: TONE_COLOUR[view.tone] }}>Unexplained: {figure(view.unexplained)}.</p>
         </div>
-      ) : (
+      )}
+      {!view.known && (
         <p className="settings-hint">No difference is shown while a count is unknown.</p>
       )}
       <Named view={view} known={view.known} />

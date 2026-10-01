@@ -32,7 +32,7 @@ export const EXPLANATIONS = Object.freeze({
   // The pass's outcome (finish(…) and the pessimistic first record).
   passOutcome: Object.freeze({
     done: 'The pass finished, and no removals were held. Any lost races or conflicting addresses it names wait for the next pass.',
-    'done-removals-held': 'The pass finished, but held back removals over the safety limit until the owner confirms them.',
+    'done-removals-held': 'The pass finished, but more removals were due than the safety limit allows, so it held all of them for the owner to confirm. On a run the owner had confirmed, it held every removal the owner had not confirmed. It made the other changes it could.',
     refused: 'A start check failed, so the pass changed nothing. The reason says which check.',
     failed: 'The pass ended before it finished. The reason says where, and the next pass repairs what it left.',
   }),
@@ -40,13 +40,13 @@ export const EXPLANATIONS = Object.freeze({
   passReason: Object.freeze({
     identity: 'A tagging stamp identity is missing or not a valid key, so the pass changed nothing. The details name which one and where it is read from.',
     config: 'The database settings are missing or the database driver could not be opened, so the pass changed nothing. Check NEO4J_URI and NEO4J_USER in brainstorm.conf.',
-    schema: 'A database uniqueness rule the pass needs is not in place, so it changed nothing. Run the constraints fix on the Dashboard, then run the pass again.',
+    schema: 'A start check on the database failed, so the pass changed no relationship or person. The pass\'s code says which case. ServiceUnavailable or SessionExpired: Neo4j is down or cannot be reached. A Neo.ClientError.Security code: Neo4j refused the password. Fix either one first, then run the pass again. tags_address-not-online: the one-per-tagging rule is still being built. Wait a few minutes, then run the pass again. tags_address-missing: the pass could not create the one-per-tagging rule. Raise it with the owner. The control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container, says why at its last start. nostrUser_pubkey-missing: the NostrUser pubkey rule is missing. Run the constraints fix on the Dashboard, then run the pass again. Any other code has its own explanation beside it.',
     read: 'A read of the graph or the relay failed, so the pass changed nothing. The next pass tries again. Any owner confirmation this pass claimed is used up, so held removals need confirming again.',
     plan: 'Planning the changes failed, so the pass changed nothing. The next pass tries again. Any owner confirmation this pass claimed is used up, so held removals need confirming again.',
     write: 'A write failed, either to the graph or of a safety copy of rows to the data volume. Batches written before it stand, and the next pass finishes the rest. Any owner confirmation this pass claimed is used up, so held removals need confirming again. If the code is ENOSPC, free space on the data volume.',
     report: 'The pass could not write its report or its held list to the data volume. Check the volume has free space, then run the pass again.',
     error: 'A fault in the pass\'s own code ended it. The task log has the details, and the next pass tries again.',
-    stopped: 'A time-out, a deploy or a restart stopped the pass before it finished. The next pass repairs what it left.',
+    stopped: 'The pass never recorded its end. Either a time-out, a container restart or a deploy stopped it before it finished, or it reached its end but could not write its final report to the data volume. The next pass repairs anything it left. In the second case, the pass\'s TASK_ERROR event in /var/log/brainstorm/taskQueue/events.jsonl, in the tapestry container, carries reportWriteFailed. Free space on the data volume, then run the pass again.',
     signal: 'A stop signal ended the pass at a safe point between its steps. Anything written before it stands, and the next pass finishes the rest.',
     'removals-held': 'More removals were due than the safety limit allows, so the pass held them for the owner to confirm. It applied the other changes it could.',
     done: 'The pass finished with nothing held. Any lost races or conflicting addresses wait for the next pass.',
@@ -97,7 +97,7 @@ export const EXPLANATIONS = Object.freeze({
     newer: 'The relay holds a newer version of the tagging, and the relationship now records it.',
     older: 'The relay\'s current version is older than the one recorded, and the relationship now follows the relay.',
     moved: 'The relationship did not join the NostrUser nodes the tagging names, so the pass moved it to them.',
-    refreshed: 'The version is the same, and the pass brought the relationship\'s tag or stamps up to date.',
+    refreshed: 'The version is the same, and the pass rewrote the relationship to match it. Its tag or stamps were out of date, or it carried properties a tagging relationship does not have. The pass kept a safety copy of those properties on the data volume before removing them.',
     repaired: 'The stored relationship was malformed, and the pass rewrote it from the relay\'s version.',
   }),
   // Why a pass did not honour the owner's confirmation (validateClaim's why).
@@ -117,7 +117,7 @@ export const EXPLANATIONS = Object.freeze({
     'waiting-setup': 'The path found a setup problem and writes nothing until it is fixed. The setup problem below says what to fix.',
     'waiting-graph': 'The path cannot reach the graph. It waits and retries, and loses nothing.',
     'waiting-relay': 'The path lost its relay subscription. It waits and retries, and loses nothing.',
-    'catching-up': 'The path is reading what the relay stored while it was away, and still applies live changes meanwhile.',
+    'catching-up': 'The path is reading the relay\'s taggings and the graph\'s to find changes it missed. It does this at each start and reconnect, every 10 minutes, after dropping changes over its backlog, when a pass that overlapped its work ends, and when the graph comes back. It still applies live changes meanwhile. The exception is a re-read of the relay after the path lost its record: live changes then wait for that read.',
     live: 'The path is subscribed to the relay and reflects each change as it arrives.',
     stopped: 'The path ended after a crash or a stop signal, and reflects nothing until it starts again. After a crash, its last error says why.',
   }),
@@ -142,14 +142,14 @@ export const EXPLANATIONS = Object.freeze({
     config: 'The path could not open the database driver. Check NEO4J_URI and NEO4J_USER in brainstorm.conf.',
     'catch-up': 'A read made while catching up failed. The path retries it with a growing wait.',
     baseline: 'The first start\'s reading of the relay failed. The path retries it with a growing wait.',
-    journal: 'The path could not write its journal to the data volume. Check the volume has free space. Changes it could not record wait for the next pass.',
+    journal: 'The path could not write its journal to the data volume. It keeps the lines it could not write in memory, and keeps writing to the graph. Free space on the volume: the next write that succeeds saves the kept lines. If the path stops before then, those lines are lost. Its next start\'s catch-up then finds again what the relay still holds, and the rest waits for the next pass.',
     record: 'The path could not write its record file to the data volume. Check the volume has free space.',
     status: 'The path could not write its status file, so this page may show old figures. Check the data volume has free space.',
-    unexpected: 'A fault in the path\'s own code stopped what it was doing. The path\'s log has the details.',
+    unexpected: 'A fault in the path\'s own code stopped what it was doing. The path\'s log, /var/log/supervisor/tagging-edges-realtime.log in the tapestry container, has the details.',
   }),
   // How the path's last catch-up ended (endCatchUp).
   catchUpOutcome: Object.freeze({
-    done: 'The path read what the relay stored while it was away, and reflected it.',
+    done: 'The catch-up finished. The path compared the relay\'s taggings with the graph\'s and reflected the changes it had missed, apart from any at a parked address.',
     failed: 'The catch-up failed at the stage named beside it. The path retries it with a growing wait.',
     stopped: 'The path stopped before the catch-up finished. Its next start runs it again.',
     'not-established': 'The path lost its record of what it had seen, and read the relay afresh. What the relay stored during the gap waits for the next pass.',
@@ -170,26 +170,28 @@ export const EXPLANATIONS = Object.freeze({
   // Why a count or a read failed: the strict reader's codes, plus the drift route's own (identity,
   // timeout, unparseable) and allowErrorCode's fallback. A path's lastError code is one of these too.
   countCode: Object.freeze({
-    spawn: 'The strfry command could not be started. Try again, and check the relay container if it repeats.',
-    'process-error': 'The strfry command could not run, or its output could not be read. Try again, and check the relay container if it repeats.',
+    spawn: 'The strfry command could not be started. Try again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
+    'process-error': 'The strfry command could not run, or its output could not be read. Try again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
     timeout: 'The operation ran past its time limit, so its result is unknown. Try again, and check that the relay and Neo4j are answering if it repeats.',
-    exit: 'The strfry command ended with a failure code. Try again, and check the relay\'s log if it repeats.',
+    exit: 'The strfry command ended with a failure code. Try again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
     signal: 'A signal ended the strfry command before it finished. Try again.',
     truncated: 'The strfry command\'s output stopped part-way through a line. Try again.',
-    unparseable: 'The answer came back in an unexpected form, so it is not used as a figure. Try again, and check the relay and database containers if it repeats.',
-    'not-an-event-line': 'The strfry command printed a line that is not an event. Try again, and check the relay\'s log if it repeats.',
+    unparseable: 'The answer came back in an unexpected form, so it is not used as a figure. Try again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log, and Neo4j\'s, /var/log/supervisor/neo4j.log, both in the tapestry container.',
+    'not-an-event-line': 'The strfry command printed a line that is not an event. Try again. If it repeats, check the relay\'s log, /var/log/supervisor/strfry-error.log in the tapestry container.',
     duplicate: 'The strfry command printed the same event twice, so the read is not trusted. Try again.',
     'off-filter': 'The strfry command returned an event the read did not ask for, so the read is not trusted. Try again.',
     'too-large': 'The strfry command\'s output passed its size limit, so the read stopped. A retry fails the same way until fewer or smaller events match, so check the relay for a flood of large events.',
     'filter-too-large': 'The relay filter was too long to hand to strfry, so the read never started. A retry with the same filter fails the same way, so report it as a bug.',
     identity: 'A tagging stamp identity could not be resolved, so the relay was not counted. Check the Tapestry Assistant key.',
-    error: 'The operation failed with a code that is not passed on. Try again. If this is the path\'s last error, the path\'s log has the details.',
+    error: 'The operation failed with a code that is not passed on. Try again. If this is the path\'s last error, the path\'s log, /var/log/supervisor/tagging-edges-realtime.log in the tapestry container, has the details.',
+    // The status route's own code for a state file that is not valid JSON (src/api/tagging-edges/index.js readJson).
+    EBADJSON: 'A file of the pass\'s state on the data volume is damaged and cannot be parsed. If it is the owner\'s confirmation, the owner can confirm again, which replaces it.',
   }),
   // Why one of the panel's own reads failed (readSection's codes; http-<status> is a family below).
   fetchCode: Object.freeze({
     network: 'The request did not reach the server. Check the connection, then try again.',
     timeout: 'The server took too long to answer, so the panel stopped waiting. Try again.',
-    'bad-json': 'The server\'s answer was not the data the panel expects. Try again, and check the control panel\'s log if it repeats.',
+    'bad-json': 'The server\'s answer was not the data the panel expects. Try again. If it repeats, check the control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container.',
   }),
 });
 
@@ -200,13 +202,16 @@ export const EXPLANATIONS = Object.freeze({
  */
 export const FAMILIES = Object.freeze([
   Object.freeze({ kind: 'fetchCode', test: /^http-\d{3}$/,
-    sentence: 'The server answered with this HTTP status instead of the figures. For 401 or 403, sign in again as the owner or an admin, from the instance\'s own address. For any other status, try again, and check the control panel\'s log if it repeats.' }),
+    sentence: 'The server answered with this HTTP status instead of the figures. For 401 or 403, sign in again as the owner or an admin, from the instance\'s own address. For any other status, try again. If it repeats, check the control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container.' }),
   Object.freeze({ kind: 'countCode', test: /^E[A-Z0-9_]+$/,
-    sentence: 'The operating system reported this error code, for example a refused connection or a full disk. Try again, and check the relay and database containers and the data volume\'s free space if it repeats.' }),
+    sentence: 'The operating system reported this error code, for example a refused connection or a full disk. Try again. If it repeats, check that the relay and Neo4j are running in the tapestry container, and that the data volume has free space.' }),
+  // A Security code is a credentials problem, not an outage, so it is told apart before the general Neo4j family.
+  Object.freeze({ kind: 'countCode', test: /^Neo\.ClientError\.Security\.[A-Za-z]+$/,
+    sentence: 'Neo4j refused the credentials it was given. Check NEO4J_USER and NEO4J_PASSWORD in /etc/brainstorm.conf in the tapestry container against the database\'s own, then try again.' }),
   Object.freeze({ kind: 'countCode', test: /^Neo\.(ClientError|TransientError|DatabaseError)\.[A-Za-z]+\.[A-Za-z]+$/,
-    sentence: 'Neo4j answered with this status. A transient one usually clears on a retry. Any other needs a look at the database.' }),
+    sentence: 'Neo4j answered with this status. A transient one usually clears on a retry, so try again. If another repeats, check that Neo4j is running, and read its log, /var/log/supervisor/neo4j.log in the tapestry container.' }),
   Object.freeze({ kind: 'countCode', test: /^(ServiceUnavailable|SessionExpired)$/,
-    sentence: 'Neo4j could not be reached, or it dropped the session. Check that the database is running, then try again.' }),
+    sentence: 'Neo4j could not be reached, or it dropped the session. Check that Neo4j is running in the tapestry container, then try again.' }),
   Object.freeze({ kind: 'confirmationWhy', test: /^held-file-unreadable /,
     sentence: 'The held list the owner confirmed could not be read from the data volume, so this pass did not honour the confirmation. The code after it says why.' }),
   Object.freeze({ kind: 'confirmationWhy', test: /^claim failed: /,
@@ -450,6 +455,8 @@ export function scheduleView(listBody) {
 /** A fresh unknown count per call, so a caller that changes a returned count changes no later result. */
 const unknownCount = () => ({ known: false, code: null });
 const isKnownCount = (c) => isObject(c) && c.known === true && num(c.count) !== null;
+/** A server time as epoch ms, or null when it is not a string Date.parse reads. */
+const instant = (t) => (typeof t === 'string' ? num(Date.parse(t)) : null);
 
 /**
  * Drift between the relay and the graph, explained (AC-4; T5). `counts` is the drift-counts answer, or null
@@ -457,7 +464,8 @@ const isKnownCount = (c) => isObject(c) && c.known === true && num(c.count) !== 
  * comes from the newest finished pass (its refused taggings, minus the removals it held, minus the
  * relationships it left in place); the remainder is "unexplained". An unknown count gives no difference,
  * never 0. What the pass left to the next one, and the path's refused looks and parked addresses, are named
- * beside the remainder and never subtracted.
+ * beside the remainder and never subtracted. `countsPredatePass` is true when the earlier count was taken before
+ * the explaining pass ended (server times only): the tone is then neutral, and the figures are still computed.
  */
 export function driftView(counts, statusBody, rtBody) {
   const relay = isObject(counts) && isObject(counts.relay) ? counts.relay : unknownCount();
@@ -478,6 +486,7 @@ export function driftView(counts, statusBody, rtBody) {
     leftToNextPass: null,
     passRunning: !!report && report.running === true,
     newerUnfinished: false,
+    countsPredatePass: false,
     pathRefusedLooks: null,
     parked: null,
     waitsForPass: false,
@@ -516,6 +525,13 @@ export function driftView(counts, statusBody, rtBody) {
   view.explained = refused - held - (num(rel.leftInPlace) || 0);
   view.unexplained = view.difference - view.explained;
   view.explainedBy = { runId: pass.runId, endedAt: pass.endedAt, usedInsteadOfLatest: pass !== report.latest };
-  view.tone = view.unexplained === 0 ? 'ok' : 'warn';
+  // Counts taken before the explaining pass ended cannot be explained by it (T5). Server times only; a time that
+  // does not parse gives false.
+  const relayAt = instant(relay.takenAt);
+  const graphAt = instant(graph.takenAt);
+  const endedAt = instant(pass.endedAt);
+  view.countsPredatePass = relayAt !== null && graphAt !== null && endedAt !== null && Math.min(relayAt, graphAt) < endedAt;
+  if (view.countsPredatePass) view.tone = 'neutral';
+  else view.tone = view.unexplained === 0 ? 'ok' : 'warn';
   return view;
 }

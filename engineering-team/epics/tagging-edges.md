@@ -51,54 +51,61 @@ Planning: admins may also see the panel and use every control but confirming hel
    § "Re-review, round 3", C1–C9). Each open one becomes a docs or test task of story 4. Repo line numbers were read
    at `origin/staging` `58abd891` (prefer the named sections if they have drifted); strfry's are from strfry 1.1.0 in
    the container.
-   - *C1 (docs):* strfry's skip mark is per index-key value, not per subscription (`ActiveMonitors.h:93-98, :167-195`).
+   - *C1 (docs):* **done 2026-09-30 on story 4's branch, pending merge** (ADR 0003 at `88af7df3`, the other places at
+     `a2f38940`). strfry's skip mark is per index-key value, not per subscription (`ActiveMonitors.h:93-98, :167-195`).
      A write is skipped at or below the last event sent to that subscription, the last event visited carrying the
      write's own index-key value, or the relay's newest event when it subscribed. For the path, a stamped tagging is
      also hidden by the last event carrying its stamp; a kind-5 only by the other two. Reword ADR 0003 clarification
-     24's "Who misses" bullet, ledger `2026-09-29-strfry-delete-hides-next-write` (its "Who misses" bullet and
-     § Impact), OPERATIONS §12.9's safety-diff bullet and story 3 § Evidence.
+     24's "Who misses" bullet, ledger `2026-09-29-strfry-delete-hides-next-write` (its "Who misses" bullet and §
+     Impact), OPERATIONS §12.9's safety-diff bullet and story 3 § Evidence.
    - *C2 (docs):* **done 2026-09-30** in the ledger row's debounce bullet (the cursor falls only to the largest id
      present at the wake, which already includes the write). Align ADR 0003 clarification 24's debounce bullet with it
      under C3.
-   - *C3 (docs):* the debounce race's exact condition is a write stored after the delete and before its monitor
-     thread next wakes (normally about 100 ms after the first change, which may precede the delete). Name all three
-     other wakes (a REQ at its EOSE, a CLOSE, a closed connection); one helps only when it falls between the delete
-     and the write, and only for that thread's subscriptions (strfry runs three). Fix ADR 0003 clarification 24,
-     story 3 § Evidence, OPERATIONS §12.9's safety-diff bullet ("within 100 ms") and the ledger row's debounce bullet.
-   - *C4 (docs):* "at least one per event deleted" should read "per *newest* event deleted" (OPERATIONS §12.9, story 3
-     § Evidence), as the ADR and the ledger row say. Story 3's test plan takes clarification 24's wipe wording in
-     place of "a wipe that deafens live delivery until a reconnect", and says it is the fakes that lose the write to
-     every subscription.
-   - *C5 (docs; Architect):* clarification 26 adopts `bringsNew`'s effect reading, already in story 3 § Deviations: a
-     found revoke is held when the parked entry keeps one for its (by, target) at least as late, so a back-dated kind-5
-     found by a catch-up waits for the timer, though live it lifts the park at once. And "the same refused version,
-     found again, costs no write" (ADR clarification 26, OPERATIONS §12.9's refusal-park bullet, the comment in
-     `realtime/index.js` beside it) is bounded instead: when the parked entry lacks the refused id, the first catch-up
-     that finds it lifts the park once, for one write attempt. Docs, not code (the owner's placement). *(That bound
-     has two exceptions, found at story 4's Architecture; the true bound is in ADR 0004 § Amendments to ADR 0003, C5.)*
-   - *C6 (test; Tester):* pin clarification 26's two unpinned halves after RX28 in
+   - *C3 (docs):* **done 2026-09-30 on story 4's branch, pending merge** (ADR 0003 at `88af7df3`, the other places at
+     `a2f38940`). The debounce race's exact condition is a write stored after the delete and before its monitor thread
+     next wakes (normally about 100 ms after the first change, which may precede the delete). Name all three other wakes
+     (a REQ at its EOSE, a CLOSE, a closed connection); one helps only when it falls between the delete and the write,
+     and only for that thread's subscriptions (strfry runs three). Fix ADR 0003 clarification 24, story 3 § Evidence,
+     OPERATIONS §12.9's safety-diff bullet ("within 100 ms") and the ledger row's debounce bullet.
+   - *C4 (docs):* **done 2026-09-30 on story 4's branch, pending merge** (OPERATIONS §12.9 and story 3 at `a2f38940`,
+     the test plan at `e6f124ea`). "At least one per event deleted" should read "per *newest* event deleted" (OPERATIONS
+     §12.9, story 3 § Evidence), as the ADR and the ledger row say. Story 3's test plan takes clarification 24's wipe
+     wording in place of "a wipe that deafens live delivery until a reconnect", and says it is the fakes that lose the
+     write to every subscription.
+   - *C5 (docs; Architect):* **done 2026-09-30 on story 4's branch, pending merge** (ADR 0003 at `88af7df3`, OPERATIONS
+     §12.9 and the `realtime/index.js` comment at `a2f38940`). Clarification 26 adopts `bringsNew`'s effect reading,
+     already in story 3 § Deviations: a found revoke is held when the parked entry keeps one for its (by, target) at
+     least as late, so a back-dated kind-5 found by a catch-up waits for the timer, though live it lifts the park at
+     once. And "the same refused version, found again, costs no write" (ADR clarification 26, OPERATIONS §12.9's
+     refusal-park bullet, the comment in `realtime/index.js` beside it) is bounded instead: when the parked entry lacks
+     the refused id, the first catch-up that finds it lifts the park once, for one write attempt. Docs, not code (the
+     owner's placement). *(That bound has two exceptions, found at story 4's Architecture; the true bound is in ADR 0004
+     § Amendments to ADR 0003, C5.)*
+   - *C6 (test; Tester):* **done 2026-09-30 on story 4's branch, pending merge** (RX29 and RX30, and story 3's test
+     plan, at `e6f124ea`). Pin clarification 26's two unpinned halves after RX28 in
      `test/tagging-edges-realtime-resilience.test.js`: a refused removal's kind-5, found again at a safety diff, merges
-     (no write before the 5-minute timer); and a version arriving, notice lost, at a park for a refused removal lifts
-     it at the catch-up that finds it, and is written within a minute of that catch-up's start. Update story 3's test
-     plan (its resilience index and a review-round-3 block).
-   - *C7 (docs; Architect):* **the owner accepted the widening on 2026-09-30.** While journal appends keep failing (a
-     full data volume), a crash, an off or a SIGTERM loses every line not yet written, not only the last ≤ 250 ms that
-     owner decision 5's second corner names; and once the volume is out of space `status.json` cannot be written
-     either, so the status goes `stale` rather than showing `lastError` (which names `journal`, or `record` after a
-     failed compaction, while it can still be written). The same spell also adds occasions for decision
-     11's lost-notice removal (a journal line lost); it is not a new kind of removal, and the next pass would make the
-     same one. Reword ADR 0003 § Failure handling's journal bullet and its crash bullet ("so an off or a deploy never
-     opens that window" holds only while appends succeed), decision 5 and A1's rewording of it, decision 11's journal
-     trigger, § Replay's journal-fault bullet and A1-16's "only a crash's last flush interval and a damaged line
-     remain"; OPERATIONS §12.9 (the off paragraph, "What a deploy does" ("it flushes its journal first"), "What waits
-     for a pass", the lost-notice-removal bullet, the journal bullet); and add an amendment note to story 3.
+     (no write before the 5-minute timer); and a version arriving, notice lost, at a park for a refused removal lifts it
+     at the catch-up that finds it, and is written within a minute of that catch-up's start. Update story 3's test plan
+     (its resilience index and a review-round-3 block).
+   - *C7 (docs; Architect):* **the owner accepted the widening on 2026-09-30**, and it is **done 2026-09-30 on story 4's
+     branch, pending merge** (ADR 0003 at `88af7df3`, OPERATIONS §12.9 and story 3's amendment note at `a2f38940`).
+     While journal appends keep failing (a full data volume), a crash, an off or a SIGTERM loses every line not yet
+     written, not only the last ≤ 250 ms that owner decision 5's second corner names; and once the volume is out of
+     space `status.json` cannot be written either, so the status goes `stale` rather than showing `lastError` (which
+     names `journal`, or `record` after a failed compaction, while it can still be written). The same spell also adds
+     occasions for decision 11's lost-notice removal (a journal line lost); it is not a new kind of removal, and the
+     next pass would make the same one. Reword ADR 0003 § Failure handling's journal bullet and its crash bullet ("so an
+     off or a deploy never opens that window" holds only while appends succeed), decision 5 and A1's rewording of it,
+     decision 11's journal trigger, § Replay's journal-fault bullet and A1-16's "only a crash's last flush interval and
+     a damaged line remain"; OPERATIONS §12.9 (the off paragraph, "What a deploy does" ("it flushes its journal first"),
+     "What waits for a pass", the lost-notice-removal bullet, the journal bullet); and add an amendment note to story 3.
    - *C8:* **done 2026-09-30.** SL19 passed inside the local container (story 3 § Evidence, "SL19, the relay smoke
      test"). Nothing left for story 4.
-   - *C9 (test; Tester):* add `src/lib/strfryScanStrict.js` to the `FORGET` list in
-     `test/tagging-edges-realtime-routes.test.js`. Without it, SS36 (`test/strfry-scan-strict.test.js`) and RP5
-     (`test/tagging-edges-realtime-plan.test.js`) fail when run after the routes suite in one process; the registry's
-     order hides it. Done when strict, routes, strict, then plan all pass in one process, and `npm test`'s counts are
-     unchanged.
+   - *C9 (test; Tester):* **done 2026-09-30 on story 4's branch, pending merge** (`e6f124ea`). Add
+     `src/lib/strfryScanStrict.js` to the `FORGET` list in `test/tagging-edges-realtime-routes.test.js`. Without it,
+     SS36 (`test/strfry-scan-strict.test.js`) and RP5 (`test/tagging-edges-realtime-plan.test.js`) fail when run after
+     the routes suite in one process; the registry's order hides it. Done when strict, routes, strict, then plan all
+     pass in one process, and `npm test`'s counts are unchanged.
 
 5. *(planned)* The controls, on story 4's panel: turn the real-time path on and off, run a pass now (never a second
    while one is queued or running), and stop a pass, queued or running (a running one stops between batches); the

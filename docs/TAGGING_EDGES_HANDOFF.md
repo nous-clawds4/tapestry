@@ -1,11 +1,11 @@
-# Handoff — Tagging edges, stories 2–4 (Tapestry)
+# Handoff — Tagging edges, stories 2–5 (Tapestry)
 
 **Status:** 🔴 OPEN: stories 1–3 are in production, and story 4 (the tagging pipeline panel) is in progress. Story 3, the real-time path (ADR `tagging-edges/0003` with Amendment A1), shipped on 2026-09-30 (PRs #785 and #786), and the owner turned it on on both hosts that day. Story 2, the gap-filling pass, shipped on 2026-09-28 (PRs #780 and #781). Story 1, the `TAGS` edge contract, on 2026-09-27 (PRs #764 and #765). § 0 lists what is left.
 
 > **Repo metadata. Not part of the handoff text.**
 > - **Source.** The kickoff session of 2026-09-25 to 27 mapped the existing FOLLOWS / MUTES / REPORTS ETL read-only: seven area readers, an adversarial fact-check of 115 load-bearing claims (98 confirmed, 15 corrected, 2 unverifiable), and a completeness critique. It then took a read-only census of production, staging and tags.brainstorm.world, and shipped story 1. This file keeps that map, which otherwise lived only in the session.
 > - **Line numbers** were read at `origin/staging` `72469bde`; a docs-lane review checked every claim at `bb5db99a` (`engineering-team/reviews/tagging-edges/handoff-doc-2026-09-27.md`). Prefer the function names if lines have drifted.
-> - **When the book closes** (stories 2–4 done), flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
+> - **When the book closes** (stories 2–5 done), flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---
 
@@ -30,13 +30,16 @@ before-and-after read of the graph cannot trace to an Out-of-scope case. The sch
 candidate for the last. Read it from `GET /api/tagging-edges/status` on each host, and record it in story 3
 § Evidence.
 
-**C7: decided.** The owner accepted the widening of decision 5's crash corner on 2026-09-30. The Architect reworded
-ADR `tagging-edges/0003` at story 4's Architecture; its other places (OPERATIONS §12.9, story 3) are story 4's docs
-tasks.
+**C7: decided and done on story 4's branch, pending merge.** The owner accepted the widening of decision 5's crash
+corner on 2026-09-30. The Architect reworded ADR `tagging-edges/0003` at story 4's Architecture (`88af7df3`), and its
+other places (OPERATIONS §12.9, story 3) were reworded in story 4's implementation (`a2f38940`).
 
-**Carry-forwards C1–C9: placed.** All nine are placed under story 4 (`engineering-team/epics/tagging-edges.md`,
+**Carry-forwards C1–C9: done.** All nine were placed under story 4 (`engineering-team/epics/tagging-edges.md`,
 item 4, "Carry-forwards from story 3's review"). C2's ledger half is fixed and C8 is done (SL19 passed inside the local
-container); the other seven are story 4's docs or test tasks.
+container). The other seven were done on story 4's branch, `feat/tagging-edges-4`, and are pending merge: C1, C3, C5
+and C7 in ADR 0003 at story 4's Architecture (`88af7df3`); C1, C3, C4, C5 and C7 in their other places (OPERATIONS
+§12.9, story 3, the ledger row, and C5's comment in `realtime/index.js`) at its implementation (`a2f38940`); C6, C9
+and C4's test-plan wording at its Test Design (`e6f124ea`).
 
 **Story 4, in progress** (`engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.md`, ADR
 `tagging-edges/0004`): the tagging pipeline panel, Settings › Relays › **Tagging pipeline**, the sub-tab directly
@@ -66,7 +69,7 @@ and off.
 | What | Where |
 |---|---|
 | The book and its acceptance frame | [`engineering-team/audits/tagging-edges/book.md`](../engineering-team/audits/tagging-edges/book.md) |
-| The epic: stories 2–4, guardrails, **story-2 carry-forwards** | [`engineering-team/epics/tagging-edges.md`](../engineering-team/epics/tagging-edges.md) |
+| The epic: stories 2–5, guardrails, **story-2 carry-forwards** | [`engineering-team/epics/tagging-edges.md`](../engineering-team/epics/tagging-edges.md) |
 | The contract every writer must use (binding) | [ADR `tagging-edges/0001`](../engineering-team/decisions/tagging-edges/0001-tagging-edge-contract.md): "Binding for later stories", and clarifications 1–13 |
 | The edge as documented | BIBLE §6 "Social Graph Relationships (NostrUser → NostrUser)" |
 | The code | `src/lib/tagging-edges/` (`taggingToEdge`, `standingEdge`, `revokeApplies`, `revokeTargets`) and `test/tagging-edge-contract.test.js` |

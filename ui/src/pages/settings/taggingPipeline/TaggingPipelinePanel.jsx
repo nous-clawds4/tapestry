@@ -45,7 +45,8 @@ const NO_LIST = { runId: null, offset: 0, state: 'loading', page: null, error: n
 /**
  * One section's read: { state, body, error, readAt } and a function that reads again. A failure after a good
  * answer keeps that answer's body and time. An answer to a request older than the newest is dropped, and so is
- * every answer after unmount. The function resolves to readSection's result either way.
+ * every answer after unmount. The function resolves to readSection's result either way, with `kept`: true when
+ * that answer is the one the section now shows, false when it was dropped.
  */
 function useRead(url) {
   const [read, setRead] = useState(NOT_READ);
@@ -55,11 +56,12 @@ function useRead(url) {
     const mine = ++newest.current;
     if (showLoading) setRead((r) => ({ ...r, state: 'loading' }));
     const result = await readSection(url);
-    if (mine === newest.current) {
+    const kept = mine === newest.current;
+    if (kept) {
       if (result.ok) setRead({ state: 'ready', body: result.body, error: null, readAt: new Date().toISOString() });
       else setRead((r) => ({ ...r, state: 'error', error: result }));
     }
-    return result;
+    return { ...result, kept };
   }, [url]);
   return [read, run];
 }
@@ -104,7 +106,9 @@ export default function TaggingPipelinePanel({ onOpenTab }) {
   /**
    * One page of the held list for `runId`. An answer for another run, or a 404 naming the latest run id, means a
    * newer pass wrote the report since the status was read: re-read the status, and the list restarts for the new
-   * latest pass (the effect below) instead of showing a failure.
+   * latest pass (the effect below) instead of showing a failure. That holds only when the status answer that names
+   * another run is the one the panel kept: one dropped for a newer read (a poll tick that may then fail) moves
+   * nothing, so the list shows its own failure rather than staying on loading.
    */
   const readHeld = useCallback(async (runId, offset) => {
     const mine = ++heldNewest.current;
@@ -117,9 +121,10 @@ export default function TaggingPipelinePanel({ onOpenTab }) {
     if (moved) {
       const s = await readStatus();
       if (mine !== heldNewest.current) return;
-      if (s.ok && !(s.body.latest && s.body.latest.runId === runId)) return;
-      // The status could not be read, or still names this run: say so rather than asking again. The failure shown
-      // is the held list's own answer: its 404, or 'bad-json' for a 200 that names another run.
+      if (s.ok && s.kept && !(s.body.latest && s.body.latest.runId === runId)) return;
+      // The status could not be read, its answer was dropped, or it still names this run: say so rather than
+      // asking again. The failure shown is the held list's own answer: its 404, or 'bad-json' for a 200 that names
+      // another run.
       const error = r.ok ? { code: 'bad-json' } : r;
       setHeld({ runId, offset, state: 'error', page: null, error });
       return;

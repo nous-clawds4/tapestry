@@ -6,7 +6,7 @@
  * (the pessimistic "failed, stopped" one) is never shown as a result.
  */
 
-import { Explained, Loading, ReadFailed, Section, TONE_COLOUR, figure, took, when } from './parts.jsx';
+import { Explained, Loading, ReadFailed, Section, TONE_COLOUR, counted, figure, took, when } from './parts.jsx';
 
 /** A pass record's figures, in the order the story names them. */
 function passFigures(r) {
@@ -22,6 +22,30 @@ function passFigures(r) {
     ['Left in place', rel.leftInPlace],
     ['People added', r.peopleAdded],
   ];
+}
+
+/**
+ * What a pass did with the owner's confirmation it honoured, from `latest.confirmed` (reconcileTaggingEdges.js step
+ * 7 and its removals). `confirmation.honoured` is set when the pass claims the confirmation, before its reads, so a
+ * pass that fails afterwards keeps it with `removalsApplied` 0: the sentence says what was applied, never more.
+ * `heldNoLongerDue` is null until the pass has planned its changes.
+ */
+function ConfirmedLine({ confirmed }) {
+  const c = confirmed && typeof confirmed === 'object' ? confirmed : null;
+  if (!c) return <p>It honoured the owner's confirmation.</p>;
+  const applied = typeof c.removalsApplied === 'number' && Number.isFinite(c.removalsApplied) ? c.removalsApplied : null;
+  let appliedText;
+  if (applied === null) appliedText = 'How many of them it applied is not recorded.';
+  else if (applied === 0) appliedText = 'It applied none of the confirmed removals.';
+  else appliedText = `It applied ${figure(applied)} of the confirmed removals.`;
+  const gone = typeof c.heldNoLongerDue === 'number' && c.heldNoLongerDue > 0 ? c.heldNoLongerDue : null;
+  return (
+    <p>
+      It honoured the owner's confirmation of {counted(c.heldCount, 'removal', 'removals')} held by pass{' '}
+      {String(c.confirmedRunId)}. {appliedText}
+      {gone !== null && ` By its own read, ${figure(gone)} of them were no longer due for removal.`}
+    </p>
+  );
 }
 
 function LatestPass({ latest, tone }) {
@@ -40,11 +64,12 @@ function LatestPass({ latest, tone }) {
         <p>
           Where it failed: <Explained kind="failureStage" code={failure.stage} />
           {failure.read && <> Which read: <Explained kind="failureRead" code={failure.read} /></>}
+          {failure.code !== null && failure.code !== undefined && (
+            <> Code: <Explained kind="countCode" code={failure.code} /></>
+          )}
         </p>
       )}
-      {confirmation && confirmation.honoured === true && (
-        <p>It applied removals the owner had confirmed.</p>
-      )}
+      {confirmation && confirmation.honoured === true && <ConfirmedLine confirmed={latest.confirmed} />}
       {confirmation && confirmation.why && (
         <p>It did not honour the owner's confirmation. Why: <Explained kind="confirmationWhy" code={confirmation.why} /></p>
       )}

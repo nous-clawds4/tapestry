@@ -65,7 +65,7 @@ function WhatItHasDone({ view, body }) {
           ['Failed reads', failedReads],
           ['Database refusals', n(c.dbRefused)],
           ['Removals it was not prompted to make, left to the next pass', n(c.removalsNotPrompted)],
-          ['Changes dropped over the backlog, left to the next pass', n(c.droppedOverBacklog)],
+          ['Changes dropped over the backlog, picked up by a catch-up', n(c.droppedOverBacklog)],
         ]}
       />
       <p>As it stands now:</p>
@@ -89,7 +89,15 @@ function CatchUp({ view, body }) {
           Last catch-up: <Explained kind="catchUpOutcome" code={last.outcome} /> It started at {when(last.startedAt)}{' '}
           and took {took(last.durationMs)}.
           {last.stage && <> Where it failed: <Explained kind="catchUpStage" code={last.stage} /></>}
-          {last.reason && <> Why: <Explained kind="notEstablishedReason" code={last.reason} /></>}
+          {last.reason && last.outcome === 'not-established' && (
+            <> Why: <Explained kind="notEstablishedReason" code={last.reason} /></>
+          )}
+          {last.reason && last.outcome !== 'not-established' && (
+            <>
+              {' '}It carries a lost record that the next catch-up to complete reports:{' '}
+              <Explained kind="notEstablishedReason" code={last.reason} />
+            </>
+          )}
         </p>
       ) : (
         <p>Last catch-up: none yet.</p>
@@ -126,7 +134,10 @@ function Problems({ view, body }) {
           </>
         ) : 'none.'}
       </p>
-      <p>Pre-image file of removed relationships: {body.preimageFile ? <code>{String(body.preimageFile)}</code> : 'none.'}</p>
+      <p>
+        Safety copies of relationships that held extra properties, saved before a change or removal dropped them:{' '}
+        {body.preimageFile ? <code>{String(body.preimageFile)}</code> : 'none.'}
+      </p>
     </div>
   );
 }

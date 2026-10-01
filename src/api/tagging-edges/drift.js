@@ -12,8 +12,13 @@
  * and the stamp identities appear only as 8-character prefixes.
  *
  * It reads only: `strfry scan` writes nothing, the Cypher is a MATCH … RETURN, and nothing is enqueued, so it never
- * starts a pass. One count runs at a time: a request that passes the gate while one is in flight joins it and gets
- * the same answer. A refused request resolves no identity, spawns nothing, runs no Cypher and never joins a count.
+ * starts a pass. Single flight (ADR tagging-edges/0004 § Server): a request that passes the gate while an answer is
+ * pending joins it and gets the same answer, takenAt included. The answer is pending until each count has settled or
+ * lost its race; inflight is then cleared in a finally, so the next request starts new counts. A count that lost its
+ * race is abandoned, not stopped: countStrict SIGKILLs its strfry child at its own 10 s time-out, but the Cypher keeps
+ * its session until Neo4j ends it (the 10 s timeout is sent to the server; the client sets no deadline of its own),
+ * so a later request's count can run beside it. A refused request resolves no identity, spawns nothing, runs no
+ * Cypher and never joins a count.
  *
  * gateOwnerOrAdmin() and countFilter() are the pure halves. The handler takes its dependencies as a third argument,
  * for tests.
