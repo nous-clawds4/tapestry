@@ -228,3 +228,23 @@ Sub-decisions:
 - The Curated DList header-name lookup (sub-decision 3), unless the gate asks for it.
 - Fixing row 314 for the hook's other callers, or the endpoint's non-strict default.
 - Any change to how this app *uses* a Treasure Map (first occurrence still wins in its readers).
+
+## Amendment 1 (2026-10-01, after review 1): with no relay to ask, a strict read is unreadable
+
+**Why.** Review 1 (`engineering-team/reviews/my-assistants/3-the-treasure-map-on-the-page.md`, non-blocking 3) found a
+path sub-decision 1 didn't consider. When the graph names no general-purpose relay and local strfry misses, the hook
+answers `none` without reading any relay. The page then says "You haven’t published a Treasure Map yet" and "Not on
+Treasure Map" from a read that never happened, which is what AC-1 and AC-7 forbid. The owner chose at the review gate
+(2026-10-01) to treat that as unreadable.
+
+**Sub-decision 7.** With `strict`, a local miss and no general-purpose relay to ask is `error`, never `none`. The page
+shows "Couldn’t read your Treasure Map." with Try again. Without `strict` the hook behaves as before, so its other
+callers are unchanged.
+
+**What `none` means under `strict`, stated exactly:** local strfry missed, at least one general-purpose relay was read,
+and every relay that answered held no Treasure Map. A Map held only by a relay that couldn't be reached still reads as
+`none` when another relay answers. That is the endpoint's strict contract (`success: true` when at least one relay was
+read), and it isn't changed here.
+
+**Tests.** A browser case: no general-purpose relay and a local miss give the error line and Try again on both tabs,
+never the none line, and no relay read is asked for.

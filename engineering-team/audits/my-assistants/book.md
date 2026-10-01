@@ -77,7 +77,13 @@ At story 3's gate, 2026-09-30:
 11. **Several Assistants on one duty read as Preferred, then Alternates** (the design's and the draft protocol's
     wording). This app itself uses only the first today.
 12. **The withdrawal-send test is folded into story 3's cycle.** The branch was brought up to date with staging
-    first (merge `7c83fdcb`).
+    first (merge `167c043e`).
+
+At story 3's review, 2026-10-01:
+
+13. **With no relay to ask, the page says it couldn't read the Treasure Map** (review 1 non-blocking 3; ADR
+    my-assistants/0003 Amendment 1). Under the strict read, a local miss with no general-purpose relay is an error,
+    never "you haven't published one".
 
 ## Before shipping
 
