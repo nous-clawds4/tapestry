@@ -248,8 +248,14 @@ None, once the owner ratifies the Product Owner's proposals below by approving t
   - a direct request from a user who is neither owner nor admin is refused, and gets no "who";
   - the path catches up after. Production's path is not switched for evidence.
 
+**Accepted at Architecture (2026-10-01, the owner):** ADR `tagging-edges/0005`'s two residuals, each needing a failing
+data volume. In them, AC-5's "The history recorded before it survives" and the test task "the earlier history is
+intact" do not hold (ADR 0005 § Consequences):
+- **(a)** an off fallback after a failed pre-fold;
+- **(b)** a history file that gives a read error.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

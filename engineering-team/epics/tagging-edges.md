@@ -114,7 +114,8 @@ Planning: admins may also see the panel and use every control but confirming hel
    enforced by the server (last change wins): a prompt before turning it off, a "starting" state instead of a false
    alarm, and a record of who changed it, shown as the latest change and the last 10. This widens story 3's
    owner-only switch route to admins (the Architect amends ADR 0003). *(Split from the planned controls at Planning,
-   2026-10-01, by what they act on; the owner's decisions are in the story.)* **Approved** 2026-10-01.
+   2026-10-01, by what they act on; the owner's decisions are in the story.)* **Approved** 2026-10-01; ADR
+   `tagging-edges/0005` accepted 2026-10-01.
    **Carry-forwards from story 4's review** (placed by the owner 2026-10-01; `reviews/tagging-edges/4-tagging-pipeline-panel.md`
    § "Re-review, round 2", R2-1 to R2-14). Each becomes a docs, copy or test task of story 5. Line numbers are at
    `77ae0da4`; the review gives each one's evidence and ask in full.

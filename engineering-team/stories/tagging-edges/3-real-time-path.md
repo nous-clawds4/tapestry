@@ -251,6 +251,14 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
   - **Off by default; owner switch.** The path ships turned off on every instance, fresh installs included. The
     owner turns it on and off per instance from the instance itself, without a shell; any session that is not the
     owner's is refused and changes nothing. The choice survives restarts and deploys.
+    *(Amended at story 5's Architecture, 2026-10-01, from story 5's Planning (the owner, 2026-10-01).
+    - **Who may switch.** The owner or an admin turns the path on and off, enforced by the server, and the last
+      change wins. A session that is neither the owner's nor an admin's is refused and changes nothing.
+    - **The record.** Each change records who (owner or admin, and an 8-character key) and when. Only a signed-in
+      owner or admin may read who.
+    - **Off still means off.** An off that cannot be recorded still takes effect, and its answer says so.
+
+    See story 5 and ADR `tagging-edges/0005`. The wording of `:101` and `:444` stands as story 3 shipped it.)*
   - **Off means off.** Within a few seconds of the owner turning it off (the ADR states the bound):
     - the path writes nothing more (a transaction already committing may finish);
     - any catch-up under way stops;

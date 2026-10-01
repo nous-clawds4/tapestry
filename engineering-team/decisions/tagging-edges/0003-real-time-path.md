@@ -8,7 +8,9 @@
 
 Story 2's gap-filling pass (ADR `tagging-edges/0002`) writes `TAGS` only when it runs: on demand, or from a schedule
 entry that no public host has. Story 3 makes a tagging change that reaches this instance's relay, by any way in,
-show up within a minute, catch up by itself after downtime, and ship turned off behind an owner-only switch. The
+show up within a minute, catch up by itself after downtime, and ship turned off behind an owner-only switch *(owner or
+admin since story 5: enforced by the server, last change wins, each change recording who and when; ADR
+`tagging-edges/0005`)*. The
 story's seven criteria, and its settled and confirmed items 1–15, are the requirements. In short:
 
 - **AC-1** — a stored tagging is reflected within 1 minute, whatever way it came in and whatever its `created_at`.
@@ -20,7 +22,7 @@ story's seven criteria, and its settled and confirmed items 1–15, are the requ
 - **AC-4** — after any downtime the path catches up within 5 minutes, back-dated history included. No start ever
   creates a relationship for a version held since before the first start. A lost record is never treated as a
   first start.
-- **AC-5** — it ships off. The owner-only switch survives deploys, and off means off. It recovers alone, is
+- **AC-5** — it ships off. The owner-only switch *(owner or admin since story 5, ADR `tagging-edges/0005`)* survives deploys, and off means off. It recovers alone, is
   independent of follows, and never refuses or blocks a pass. The graph never goes back to an older relay read,
   except in ADR 0002's two accepted interleavings.
 - **AC-6** — a status, readable without a shell, at most a minute stale, that never shows a credential or a
@@ -199,7 +201,9 @@ and the ADR review's probes. The strfry facts come from the 1.1.0 source in the 
 ### D8 — Status and switch
 
 - **A. Files in `<stateDir>/realtime/`, and two new routes.** A public `GET …/realtime/status` and an owner-only
-  `POST …/realtime/switch`. The Node process polls the switch file. Error text is fixed text only.
+  `POST …/realtime/switch`. The Node process polls the switch file. Error text is fixed text only. *(Since story 5
+  the POST is owner or admin, and a gated GET on the same path serves who changed it; ADR `tagging-edges/0005` D5,
+  D6.)*
 - **B. A `realtime` key in `GET /api/tagging-edges/status`.** It changes story 2's pinned response.
 - **C. The route signals the process by pid.** That risks pid reuse and cross-process coupling, to gain about 3 s.
 
@@ -223,7 +227,8 @@ supervisord [program:tagging-edges-realtime]
                    ─► writes through graph.js (≤ 25 rows / tx) ─► journal ─► post-pass re-look check
             every 1 s: switch poll (off ⇒ flush, exit within 5 s) · every 10 min: safety diff · ≤ 30 s: status.json
 GET  /api/tagging-edges/realtime/status          public
-POST /api/tagging-edges/realtime/switch {on}     owner only → switch.json
+POST /api/tagging-edges/realtime/switch {on}     owner or admin → switch.json, switch-history.json (story 5)
+GET  /api/tagging-edges/realtime/switch          owner or admin: who changed it and when (story 5)
 ```
 
 ### What it hears (D1-A, D5-A)
@@ -363,7 +368,8 @@ never touches it.
 
 | File | Shape | Written |
 |---|---|---|
-| `switch.json` | `{"version":1,"on":true,"changedAt":ISO,"changedBy":"<8-char prefix>"}`, canonical compact form | by the owner route only |
+| `switch.json` | `{"version":1,"on":true,"changedAt":ISO,"changedBy":"<8-char prefix>"}`, canonical compact form. *(Version 2 since story 5 adds `role` and `onSince`; a version 1 record reads as the owner's change. ADR `tagging-edges/0005` D1.)* | by the owner route only *(owner or admin since story 5)* |
+| `switch-history.json` | `{version:1, changes:[{on, at, role, key}]}`, newest first, at most 10; null `at`, `role` and `key` mark a change not recorded. *(Story 5, ADR `tagging-edges/0005` D1.)* | by the switch route: first a best-effort pre-fold of changes already made, then the new change, only after `switch.json` is written (ADR `tagging-edges/0005` D2) |
 | `started.json` | `{version:1, firstStartedAt}` | once, after `record.json` |
 | `record.json` | `{version:1, firstStartedAt, identities:{canonical, local}, compactedAt, seen:[[id, address]], heard:[[id, address]], baseline:[ids ⊆ seen], refusedSeen:[[id, address]], pending:[{address, lane, prompts, attempts, notBefore}], rechecks:[{address, runId, prompts}], deadSeenAt:{runId: at}, parked:[…], sha256}` | at compaction, atomically |
 | `journal.jsonl` | one line per fact (below) | flushed and fsynced by a 250 ms timer whenever lines are buffered, in every state including the waiting ones; also at round end, on switch-off and on SIGTERM. `b` lines are fsynced at once. While appends keep failing (a full data volume), lines, `b` lines included, wait in memory: § Failure handling, "Journal appends that keep failing". |
@@ -725,6 +731,20 @@ three. Neither path contains an `ownerOnlyEndpoints` substring.
 - If the atomic write for `{on:false}` fails (for example ENOSPC), it unlinks `switch.json`, which needs no free
   space and reads as off, and answers accordingly.
 
+*(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D2, D4, D5, D6, D9, D11.)* Since story 5:
+- **Who.** The POST is registered with `adminApi.requireOwnerOrAdmin`, and re-checked through `ownerOrAdmin(req, d)`
+  (`src/api/tagging-edges/index.js`): an authenticated session whose pubkey is the configured owner or an admin. It
+  returns the caller's role.
+- **What it writes.** In one serialised step it writes the canonical `switch.json`, version 2: the state, the change's
+  `changedAt`, `changedBy` (the caller's 8-character prefix) and `role`, and `onSince`, the last off-to-on time, which
+  an on while on keeps. A best-effort pre-fold first brings `switch-history.json` up to date with changes already
+  made. The new change joins the history (the last 10) only after `switch.json` is written.
+- **What it answers.** `recorded: true`, or `recorded: false` for an off that fell back to the unlink. A failed on,
+  or a read error on the current switch for an on, answers 500 with an allow-listed `code`.
+- **`GET /api/tagging-edges/realtime/switch`,** behind the same gate with `sameHost` included, serves the switch's
+  record: `{success, on, switchUnreadable, historyUnreadable, state, latest, history}`. It writes nothing. The public
+  status never carries who.
+
 **Off means off within 5 s.** Node checks `switch.json` every 1 s and at every round boundary. On off it:
 
 1. stops scheduling;
@@ -744,7 +764,8 @@ while the switch is off, and turning it back on catches up (AC-4). A missing or 
 `state.isAlive(process)`. It returns:
 
 - `statusVersion`; `on` and `onSince` (from `switch.json`, so the answer says off at once); `running` and
-  `runningSince`;
+  `runningSince`; *(since story 5, `onSince` is the last off-to-on time, and the route also derives `inStartWindow`;
+  ADR `tagging-edges/0005` D4, D7)*
 - `state`: `off | starting | waiting-setup | waiting-graph | waiting-relay | catching-up | live | stopped`;
 - `firstStartedAt`;
 - `relay {lastReadOkAt}`, `subscription {connected, since, lastEventAt}`, `lastReflectedAt`, `lastRound {ms,
@@ -916,7 +937,11 @@ and 11).
   - Real-time `TAGS` on every host once the owner turns it on, with no strfry change and no schema change.
   - Story 4's page reads two public routes and posts to one owner route. *(Since story 4's Planning, 2026-09-30, the
     split: story 4's panel only reads; the owner-route post, the switch, is story 5's. Noted at story 4's review,
-    round 1.)*
+    round 1.)* *(Amended at story 5's Architecture, 2026-10-01, from story 4's review, round 2, R2-8; ADR
+    `tagging-edges/0005`: story 4's panel reads five routes and posts nothing. They are three public tagging-edges
+    reads (`status`, `realtime/status`, `held`), the schedule list (`/api/scheduled-tasks/list`), and the gated
+    `drift-counts`. Story 5 adds the switch's POST, widened to owner or admin, and its gated GET of who changed it.
+    The pass's run, stop and confirm are story 6's.)*
   - The pass's two race residuals shrink from "until the next pass" to about a minute after each pass.
 - **Constrains.**
   - The path depends on the pass's port and pure modules staying the single place for `TAGS` Cypher and decisions.
@@ -1057,6 +1082,8 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
   app.get('/api/tagging-edges/realtime/status', taggingEdgesRealtime.handleRealtimeStatus);
   app.post('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOnly, taggingEdgesRealtime.handleRealtimeSwitch);
   ```
+  *(Since story 5 the POST is mounted with `adminApi.requireOwnerOrAdmin`, and `app.get` on the same path serves the
+  switch's record behind the same gate; ADR `tagging-edges/0005` D5, D6.)*
 - `docker/supervisord.conf`: the program block (§ Where it runs).
 
 **Docs (story docs tasks, plus these)**
@@ -1068,7 +1095,9 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
   - §16 entry;
   - the Last-updated line.
 - **OPERATIONS:** a new §12.9 covering:
-  - the switch snippet: a signed-in `fetch` from the owner's browser;
+  - the switch snippet: a signed-in `fetch` from the owner's browser; *(since story 5 the panel's control is the way
+    to switch, for the owner or an admin, and the snippet still works for both and is recorded the same; ADR
+    `tagging-edges/0005`)*
   - the status fields;
   - deploy behaviour;
   - the order: backfill → add and enable the daily schedule → turn on → one more pass;
@@ -1097,7 +1126,8 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
   - SWR13 gains `READ_KEYS`; SWR14/15 still hold;
   - new sentinels: the program block (the `stdout_logfile_maxbytes` names); a wrapper that never exits and re-sources
     per start; no path file or argv matching the pass's pgrep pattern; no `pass.lock` / `neo4j-heavy` / `writeReport`
-    in realtime code; the two routes, with owner-only on the POST.
+    in realtime code; the two routes, with owner-only on the POST. *(Since story 5: `requireOwnerOrAdmin` on the
+    POST and on the new GET of the switch path; SWR67 revised. ADR `tagging-edges/0005` D5, D6.)*
 - `test/strfry-scan-strict.test.js`:
   - `onEvent`, array filters, `\/` escaping, `filter-too-large`;
   - the widened redactor (`neo4j.internal:7687`, `neo4j:7687`, `[::1]:7687`, `localhost:7687`);
@@ -1133,7 +1163,9 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
     - Journal torn-tail recovery.
     - The 250 ms flush timer in a waiting state.
   - **The routes.** The auth matrix (loopback 401, admin 403, cross-site 403, non-JSON 415), the unlink on a failed
-    off-write, and the error-code allow-list (`err.code = 'neo4j.internal'` → `'error'`).
+    off-write, and the error-code allow-list (`err.code = 'neo4j.internal'` → `'error'`). *(Since story 5 an admin
+    is admitted. The refused callers are loopback with no session (401), a stranger or `authenticated !== true`
+    (403), cross-site (403) and non-JSON (415); ADR `tagging-edges/0005` D5.)*
 - An opt-in live suite: read-only checks of `readAt` and `readKeys`, and a `limit:0` websocket smoke test against the
   local relay.
 - `test/registry.js` registrations.
@@ -1341,7 +1373,10 @@ never the number of ticks.
 **T21 — The store.** `src/pipeline/tagging-edges/realtime/store.js` exports `createStore({ dir })`.
 - `dir` defaults to `path.join(state.stateDir(), 'realtime')`.
 - It returns:
-  - `readSwitch()` → `{ on, changedAt, changedBy }`, `null` when missing, or `{ unreadable: true }`;
+  - `readSwitch()` → `{ on, changedAt, changedBy }`, `null` when missing, or `{ unreadable: true }`; *(since story 5
+    it also gives `version`, `role`, `onSince` and, on a read error, `readError`. The store adds
+    `readSwitchHistory()`, `writeSwitchHistory(obj)` and the pure `parseSwitchHistory(text)`; ADR
+    `tagging-edges/0005` D1)*
   - `writeSwitch(record)` writes it atomically, in the canonical compact form;
   - `unlinkSwitch()`;
   - `readStarted()` / `writeStarted(obj)`;
@@ -1357,13 +1392,16 @@ never the number of ticks.
 - Whole-file writes go through `state.writeAtomic`.
 
 **T22 — The routes module.** `src/api/tagging-edges/realtime.js` exports `{ computeRealtimeStatus, validateSwitch,
-handleRealtimeStatus, handleRealtimeSwitch }`.
+handleRealtimeStatus, handleRealtimeSwitch }`. *(Story 5 adds `switchEntry`, `switchRecord`, `foldHistory` and
+`handleRealtimeSwitchRecord`; ADR `tagging-edges/0005` D3, D6.)*
 - `validateSwitch(body)` → `{ ok: true, on }` or `{ ok: false, status: 400, error }`.
 - The handlers take `(req, res, deps)`. `deps` defaults like `index.js`'s `withDeps`:
 
   ```
   { readFile, stateDir, isAlive, now, ownerPubkey | getOwnerPubkey, writeSwitch(record), unlinkSwitch() }
   ```
+  *(Story 5 adds `getAdminPubkeys`, `readSwitch()`, `readSwitchHistory()` and `writeSwitchHistory(obj)`; ADR
+  `tagging-edges/0005` D2, D5.)*
 - The status handler reads `realtime/switch.json` and `realtime/status.json` under `stateDir()` through `readFile`.
 - `computeRealtimeStatus` returns the fields in § Status. `on` and `onSince` come from `switchRecord`, `running` from
   `alive`, and `stale` is `alive && now - Date.parse(status.updatedAt) > 60000`.
@@ -1413,6 +1451,10 @@ The suite writers' questions are settled here (T25–T31). They refine T1–T24 
 - **Methods** are synchronous (awaiting works).
 - **`switch.json`'s canonical form** is compact JSON with the keys in the order `version, on, changedAt, changedBy`.
 - **`readSwitch`** gives `{ unreadable: true }` unless the file parses to an object whose `on` is a boolean.
+- *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D1.)* `switch.json` is version 2 since story 5, with the keys in the order `version, on,
+  changedAt, changedBy, role, onSince`. A version 1 record keeps its four keys and reads as the owner's change. No key
+  but `on` may hold the text `"on":true`, because the wrapper matches that substring anywhere on the line
+  (`run.sh:44`). A read error other than `ENOENT` adds `readError`.
 - **The record's `sha256`** is taken over `JSON.stringify` of the record without `sha256`, with object keys sorted
   recursively.
 - **`readStarted()` and `readStatus()`** give `null` for a missing file.
@@ -1433,6 +1475,15 @@ The suite writers' questions are settled here (T25–T31). They refine T1–T24 
 - **`session.authenticated !== true`** with the owner's pubkey answers 403.
 - **The default `writeSwitch`** is the store's, at `<stateDir>/realtime`.
 - **The routes module** imports `allowErrorCode` from `src/lib/tagging-edges/realtime.js`.
+- *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D2, D4, D5, D7, D11.)* Since story 5:
+  - a failed off-write answers 200 `{ success: true, on: false, recorded: false }` when the unlink succeeds;
+  - a failed on-write answers 500 with an allow-listed `code`, and so does a read error on the current switch for an
+    on;
+  - `onSince` is the switch's `onSince` (its `changedAt` for a version 1 record) while on, and `null` when off;
+  - `inStartWindow` is true when the path is on, within 60 s of `onSince` by the route's clock, and no process started
+    at or after `onSince` is alive;
+  - `session.authenticated !== true` answers 403 for the owner's or an admin's pubkey;
+  - the default record methods are the store's, at `<stateDir>/realtime`.
 
 **T28 — Wrapper details.**
 - **PATH lookups.** `run.sh` calls `flock` and `sleep` through `PATH` (bare names), as it does `node`.
@@ -1456,6 +1507,7 @@ The suite writers' questions are settled here (T25–T31). They refine T1–T24 
   - `process`, `updatedAt` (ISO).
 
   The route derives `statusVersion`, `on`, `onSince`, `running`, `runningSince`, `switchUnreadable` and `stale`.
+  *(Story 5 adds `inStartWindow`; ADR `tagging-edges/0005` D7.)*
 - **`handleSignal('SIGTERM')`** leads to `{ exit: 0 }` within 5 s.
 - **Row order.** Creates, updates and moves are sorted by the desired edge's `(from, to)`; removals by the snapshot's
   ends.
