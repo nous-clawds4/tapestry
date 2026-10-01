@@ -170,6 +170,6 @@ The owner's answers, 2026-09-30:
 2. **The withdrawal-send test is folded into this cycle** (§ Also in this cycle).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
