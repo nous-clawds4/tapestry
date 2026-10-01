@@ -1,49 +1,63 @@
-# Handoff — Tagging edges, stories 2–4 (Tapestry)
+# Handoff — Tagging edges, stories 2–5 (Tapestry)
 
-**Status:** 🔴 OPEN: stories 1–3 are in production; story 4 (the control panel) is not started. Story 3, the real-time path (ADR `tagging-edges/0003` with Amendment A1), shipped on 2026-09-30 (PRs #785 and #786), switched off on both hosts until the owner turns it on. Story 2, the gap-filling pass, shipped on 2026-09-28 (PRs #780 and #781). Story 1, the `TAGS` edge contract, on 2026-09-27 (PRs #764 and #765). § 0 lists what is left.
+**Status:** 🔴 OPEN: stories 1–3 are in production, and story 4 (the tagging pipeline panel) is in progress. Story 3, the real-time path (ADR `tagging-edges/0003` with Amendment A1), shipped on 2026-09-30 (PRs #785 and #786), and the owner turned it on on both hosts that day. Story 2, the gap-filling pass, shipped on 2026-09-28 (PRs #780 and #781). Story 1, the `TAGS` edge contract, on 2026-09-27 (PRs #764 and #765). § 0 lists what is left.
 
 > **Repo metadata. Not part of the handoff text.**
 > - **Source.** The kickoff session of 2026-09-25 to 27 mapped the existing FOLLOWS / MUTES / REPORTS ETL read-only: seven area readers, an adversarial fact-check of 115 load-bearing claims (98 confirmed, 15 corrected, 2 unverifiable), and a completeness critique. It then took a read-only census of production, staging and tags.brainstorm.world, and shipped story 1. This file keeps that map, which otherwise lived only in the session.
 > - **Line numbers** were read at `origin/staging` `72469bde`; a docs-lane review checked every claim at `bb5db99a` (`engineering-team/reviews/tagging-edges/handoff-doc-2026-09-27.md`). Prefer the function names if lines have drifted.
-> - **When the book closes** (stories 2–4 done), flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
+> - **When the book closes** (stories 2–5 done), flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---
 
 ## 0. Where things stand, and what is next (2026-09-30)
 
-**Shipped.** Stories 1–3 run on staging and production.
-- The real-time path is installed but **off** on both hosts. Its public status answers `state: "off"`
-  (`GET /api/tagging-edges/realtime/status`).
-- Staging's backfill ran on 2026-09-28 (pass `20260928T130902Z-13cedd2f`; story 2 § Evidence).
-- Production's backfill has not run.
+**Shipped and switched on.** Stories 1–3 run on staging and production. On 2026-09-30 the owner ran OPERATIONS
+§12.9's steps on both hosts (story 3 § Evidence, "Staging" and "Production"):
+- Production's backfill ran (pass `20260930T142438Z-7e3f2a03`, 7,033 added). It was the first run of the new daily
+  entry, which starts at once (OPERATIONS §13.2).
+- Each host has a daily, enabled `reconcileTaggingEdges` entry. The next runs are due 2026-10-01 at about 14:24Z
+  (production) and 14:26Z (staging).
+- The real-time path is **on** on both hosts, `state: "live"` (`GET /api/tagging-edges/realtime/status`). The pass
+  after its first start found every relationship unchanged, and each relay's count of stamped taggings equalled its
+  graph's `TAGS` count (at about 14:33Z: 7,026 on staging, 7,033 on production; each is one more after the live
+  tagging below).
+- A live tagging the owner published (`created_at` 15:20:29Z) reached each graph within 5 s of that time (3.5 s on
+  production, 4.5 s on staging), with no pass.
 
-**The owner's steps, staging first** (OPERATIONS §12.9, "The order on staging and production"):
-1. The backfill: done on staging.
-2. Add and enable the daily `reconcileTaggingEdges` entry in Scheduled Tasks. Existing hosts have none.
-3. Turn the real-time path on with the signed-in switch snippet (§12.9).
-4. Run one more pass.
+**What story 3's staging evidence still waits for** (story 3, open question 14): organic taggings over the following
+days with a status that shows no failures; a deploy's catch-up in the status; and a later pass that reports nothing a
+before-and-after read of the graph cannot trace to an Out-of-scope case. The scheduled pass of 2026-10-01 is the first
+candidate for the last. Read it from `GET /api/tagging-edges/status` on each host, and record it in story 3
+§ Evidence.
 
-The status route then shows the first start and live counts. That, and a later pass that reports nothing it cannot
-explain, is story 3's staging evidence (story 3, open question 14). Production follows the same order, starting with
-its backfill (§12.8).
+**C7: decided and done on story 4's branch, pending merge.** The owner accepted the widening of decision 5's crash
+corner on 2026-09-30. The Architect reworded ADR `tagging-edges/0003` at story 4's Architecture (`88af7df3`), and its
+other places (OPERATIONS §12.9, story 3) were reworded in story 4's implementation (`a2f38940`).
 
-**Open decision for the owner: C7.** It comes from story 3's review, round 3
-(`engineering-team/reviews/tagging-edges/3-real-time-path.md`). ADR 0003 § Failure handling's bullet on journal appends
-that keep failing (a full disk, say) files the loss under owner decision 5's crash corner, which is ratified as
-"≤ 250 ms before a crash". During such a spell, a crash or an off loses every line not yet written. The owner accepts
-that widening or asks for a bound, and the Architect then rewords the bullet.
+**Carry-forwards C1–C9: done.** All nine were placed under story 4 (`engineering-team/epics/tagging-edges.md`,
+item 4, "Carry-forwards from story 3's review"). C2's ledger half is fixed and C8 is done (SL19 passed inside the local
+container). The other seven were done on story 4's branch, `feat/tagging-edges-4`, and are pending merge: C1, C3, C5
+and C7 in ADR 0003 at story 4's Architecture (`88af7df3`); C1, C3, C4, C5 and C7 in their other places (OPERATIONS
+§12.9, story 3, the ledger row, and C5's comment in `realtime/index.js`) at its implementation (`a2f38940`); C6, C9
+and C4's test-plan wording at its Test Design (`e6f124ea`).
 
-**Carry-forwards C1–C9** (same review, "Re-review, round 3"). They go in story 4's docs tasks or in ledger rows:
-- precision points in the strfry id re-use text;
-- clarification 26's readings, and two halves of it with no test;
-- SL19, the relay smoke test, never run (it needs the container);
-- a test-hygiene item.
+**Story 4, done** (review PASS on 2026-10-01 after two rounds; shipping to staging;
+`engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.md`, ADR `tagging-edges/0004`): the tagging pipeline panel, Settings › Relays › **Tagging pipeline**, the sub-tab directly
+after ⚡ Streaming ETL, seen by the owner and admins. It shows the pass (running or not, the latest and earlier passes,
+the held removals, the backstop schedule), the real-time path, and the drift between relay and graph, explained
+against the newest finished pass. It changes nothing. It reads story 2's `GET /api/tagging-edges/status` and `/held`,
+story 3's `GET /api/tagging-edges/realtime/status`, and `GET /api/scheduled-tasks/list`, all public; and one new
+route, `GET /api/tagging-edges/drift-counts`, for a signed-in owner or admin only. Story 4 also carries the
+carry-forwards above.
 
-**Story 4, next** (the epic's entry): the control panel, owner only. It covers status, counts, relay-vs-graph drift,
-gap-fill on demand, and a page on story 3's on/off control. It reads story 2's `GET /api/tagging-edges/status` and
-`/held`, and story 3's `GET /api/tagging-edges/realtime/status`. It posts to the owner routes
-`POST /api/tagging-edges/confirm-held-removals` and `POST /api/tagging-edges/realtime/switch`. Start it with
-`/plan-feature` from `engineering-team/epics/tagging-edges.md`.
+**Story 5, after it** (the epic's item 5, planned): the controls on story 4's panel. Turning the path on and off, and
+running or stopping a pass, for the owner or an admin; confirming held removals, for the owner only. Until then the
+Task Explorer runs a pass, and OPERATIONS §12.8–§12.9's console snippets confirm held removals and turn the path on
+and off.
+
+Story 5 also carries story 4's review carry-forwards R2-1 to R2-14 (`reviews/tagging-edges/4-tagging-pipeline-panel.md`
+§ "Re-review, round 2"; placed in the epic's item 5 by the owner on 2026-10-01): copy accuracy, docs wording and one
+missing test, none of them a change to data.
 
 **Ledger rows story 3 opened:**
 - `2026-09-28-pass-relay-read-byte-cap`;
@@ -59,7 +73,7 @@ gap-fill on demand, and a page on story 3's on/off control. It reads story 2's `
 | What | Where |
 |---|---|
 | The book and its acceptance frame | [`engineering-team/audits/tagging-edges/book.md`](../engineering-team/audits/tagging-edges/book.md) |
-| The epic: stories 2–4, guardrails, **story-2 carry-forwards** | [`engineering-team/epics/tagging-edges.md`](../engineering-team/epics/tagging-edges.md) |
+| The epic: stories 2–5, guardrails, **story-2 carry-forwards** | [`engineering-team/epics/tagging-edges.md`](../engineering-team/epics/tagging-edges.md) |
 | The contract every writer must use (binding) | [ADR `tagging-edges/0001`](../engineering-team/decisions/tagging-edges/0001-tagging-edge-contract.md): "Binding for later stories", and clarifications 1–13 |
 | The edge as documented | BIBLE §6 "Social Graph Relationships (NostrUser → NostrUser)" |
 | The code | `src/lib/tagging-edges/` (`taggingToEdge`, `standingEdge`, `revokeApplies`, `revokeTargets`) and `test/tagging-edge-contract.test.js` |
@@ -115,7 +129,10 @@ strfry (C++ patch) → Redis list strfry:events → stream-consumer (supervisor)
   - It shows status, PID and uptime (parsed from `supervisorctl`), queue depth (`LLEN`), and processed/errors counts **scraped from the stdout log**, polled every 10 s.
   - Its Start/Stop/Restart buttons have no confirm.
   - The control POST is **not owner-gated**: any signed-in session passes. It falls in the class scoped by the open 2026-07-21 intake entry "gate authenticated-non-owner access to admin mutations", whose inventory does not name this route yet.
-- **Reconcile tasks have no dedicated UI.** The React control panel can only schedule them, as entries in the neighbouring **📅 Scheduled Tasks** sub-tab (`ScheduledTasksPanel`, `scheduledTasks/AddOrEditEntryModal.jsx`, `src/api/scheduled-tasks/`). The legacy Task Explorer (`/legacy/task-explorer.html`) can run registry tasks on demand through `POST /api/run-task` (not `reconcileAuthor`, whose `--pubkey` it cannot pass), and the legacy home page still carries Batch Transfer and Reconciliation buttons wired to the routes in § 2.2. Job-level inspection is BullBoard at `/admin/queues`.
+- **Settings › Relays › Tagging pipeline** (tagging-edges story 4, ADR `tagging-edges/0004`), the sub-tab directly after ⚡ Streaming ETL: `TaggingPipelinePanel` in `ui/src/pages/settings/taggingPipeline/`, with its logic in `ui/src/utils/taggingPipelineView.js` and `ui/src/utils/taggingPipelineFetch.js`.
+  - It shows the tagging pass, the real-time path and the drift between relay and graph, and changes nothing; story 5 adds its controls.
+  - Its reads are the public status, held, realtime-status and scheduled-tasks list routes, plus `GET /api/tagging-edges/drift-counts`, the one read gated to a signed-in owner or admin.
+- **Reconcile tasks have no dedicated control UI.** The Tagging pipeline panel above shows the tagging pass but runs nothing until story 5. The React control panel can only schedule them, as entries in the neighbouring **📅 Scheduled Tasks** sub-tab (`ScheduledTasksPanel`, `scheduledTasks/AddOrEditEntryModal.jsx`, `src/api/scheduled-tasks/`). The legacy Task Explorer (`/legacy/task-explorer.html`) can run registry tasks on demand through `POST /api/run-task` (not `reconcileAuthor`, whose `--pubkey` it cannot pass), and the legacy home page still carries Batch Transfer and Reconciliation buttons wired to the routes in § 2.2. Job-level inspection is BullBoard at `/admin/queues`.
 - **House idiom for an operator panel:**
   - a `settings-section` / `settings-group` card with a coloured status dot and `btn-small` actions;
   - green/red flash banners;

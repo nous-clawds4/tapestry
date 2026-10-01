@@ -275,6 +275,12 @@ const suites = [
   { file: 'tagging-edges-realtime-property.test.js', skipNote: 'the full fixed campaign is opt-in: set TAGGING_EDGES_PROPERTY=1' },
   { file: 'tagging-edges-realtime-subscription.test.js' },
   { file: 'tagging-edges-live.test.js', skipNote: 'no local Neo4j in the environment (NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD)' },
+  { file: 'strfry-count-strict.test.js' },
+  { file: 'tagging-edges-drift-route.test.js' },
+  { file: 'tagging-pipeline-view.test.js' },
+  { file: 'tagging-pipeline-codes.test.js' },
+  { file: 'tagging-pipeline-fetch.test.js' },
+  { file: 'tagging-pipeline-panel-source.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so

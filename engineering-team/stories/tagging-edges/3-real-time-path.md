@@ -466,6 +466,15 @@ approval (2026-09-28):
 
    *(Amended at Architecture, 2026-09-29: ADR `tagging-edges/0003` Amendment A1 widens this exception to a running
    path whose subscription was reconnecting or had stopped delivering; the owner re-confirms it with A1's decision 5.)*
+
+   *(Amended at story 4's Architecture, 2026-09-30, from story 3's review, round 3, carry-forward C7: the owner
+   accepted the widening on 2026-09-30. While journal appends keep failing (a full data volume), a crash, a switch-off
+   or a SIGTERM loses every journal line not yet written, not only the last flush interval's, and what the restart's
+   catch-up cannot find again waits for the pass: decision 5's second corner covers the whole spell, and its third
+   corner a version held at the first start whose `b` line was lost. Once the volume is out of space the status
+   cannot be written either, so it goes `stale` instead of naming the error. The lost lines also add occasions for
+   decision 11's lost-notice removal; it is not a new kind of removal, and the next pass would make the same one. ADR
+   `tagging-edges/0003` § Failure handling, "Journal appends that keep failing".)*
 8. **Decision 3, every start.** The no-backfill rule holds at every start, not only the first. No catch-up creates a
    relationship for a version the relay has held since before the first start.
 9. **Decision 4, what may prompt a removal.** A removal answers one of two events: a new version stored at the
@@ -712,13 +721,18 @@ stay in the graph as local dev data.
     (owner decision 10).
   - Reproduced without the path: a plain `limit:0` subscription got A and C, never B.
   - The mechanism, read in strfry 1.1.0's source at review rounds 1 and 2 (A1 clarification 24, rewritten at round
-    2): after an operator deletes the relay's newest events, or wipes it, the next writes re-use their ids, at least
-    one per event deleted and more where earlier deletions left gaps. A live subscription misses a write that re-uses
-    an id its own monitor had passed (for the path, one at or below the last kind-5 or stamped event it saw, or the
-    relay's newest event when it subscribed). A write stored within the monitor's 100 ms change debounce of the
-    delete is missed by every live subscription, unless a REQ or a CLOSE woke the relay's monitor in between. After a
-    wipe, a subscription misses writes until the ids pass that point, or until it re-subscribes. Kind-5s, replaced
-    versions and expiry never lower the largest id, so they never trigger it.
+    2, and corrected at story 4 from round 3's carry-forwards C1, C3 and C4): after an operator deletes the
+    relay's newest events, or wipes it, the next writes re-use their ids, at least one per newest event deleted and
+    more where earlier deletions left gaps. strfry keeps its skip marks per filter and index-key value, not per
+    subscription alone. A live subscription misses a write that re-uses an id at or below the last event sent to it,
+    the relay's newest event when it subscribed, or the last event its monitor visited that carries the write's own
+    index-key value. For the path, a stamped tagging is also hidden by the last event of any kind carrying its stamp,
+    and a kind-5 only by the other two. strfry runs three monitor threads. A write stored after the delete but before
+    its thread next wakes (a database change wakes all three about 100 ms after the first change, which may precede
+    the delete) is missed by every live subscription on that thread. A REQ (at its EOSE), a CLOSE or a closed
+    connection wakes only its own thread, and helps only when it falls between the delete and the write. After a
+    wipe, a subscription misses writes until the ids pass the point its monitor had reached, or until it
+    re-subscribes. Kind-5s, replaced versions and expiry never lower the largest id, so they never trigger it.
 
 ### Decision 9's heap ceiling (A1-16 (9), A1 clarification 19)
 
@@ -741,10 +755,65 @@ The setup:
   about 60% of the peak. A catch-up's transients take the rest.
 - **The margin:** the revisit trigger of 100,000 `seen` (today 7,030) leaves 2.4× below the ceiling.
 
+### SL19, the relay smoke test (review C8)
+
+SL19 had only skipped from the host, because the relay answers only on the container's loopback. It was run once
+inside the local `tapestry` container on 2026-09-30 at 05:04:33Z, at `origin/staging` `58abd891`, under Node v22.23.2,
+through the suite's `run()` export
+(`docker exec tapestry sh -c 'cd /usr/local/lib/node_modules/brainstorm && node -e "require(\"./test/tagging-edges-live.test.js\").run()"'`).
+SL19 passed: the path's two `limit:0` filters were answered with EOSE, with no CLOSED and no stored event before it,
+and nothing was published. The suite reported 1 passed, 0 failed, 18 skipped. The nine Neo4j read checks (SL1–SL7,
+SL17, SL18) skip unless `NEO4J_URI`, `NEO4J_USER` and `NEO4J_PASSWORD` name a reachable local stack, and that shell had
+no `NEO4J_URI` or `NEO4J_USER`. The nine write-sandbox tests (SL8–SL16) skip unless `TAGGING_EDGES_LIVE_WRITE_TESTS=1`,
+which was not set.
+
 ### Staging
 
-To come after Review and the merge: the owner turns the path on after the backfill, then runs one more pass (open
-question 14).
+Everything below was read from staging's public routes (`GET /api/tagging-edges/status`,
+`/api/tagging-edges/realtime/status`, `/api/scheduled-tasks/status`, `/api/strfry/scan/count`) and read-only Cypher.
+The owner ran the steps on 2026-09-30 (OPERATIONS §12.9, "The order on staging and production"), after the backfill of
+2026-09-28 (story 2 § Evidence).
+
+- **The daily entry** (`reconcileTaggingEdges`, every day, enabled) was added at about 14:26:18Z. Its first run
+  started at once: pass `20260930T142619Z-4db0d448`, `done` in 5,104 ms, added 3 (taggings stored since the
+  backfill), 7,023 unchanged, nothing held. The next run is due 2026-10-01 at 14:26Z.
+- **Switched on** at 14:26:35Z. First start 14:26:36Z, subscribed 14:26:36Z (0.8 s later). Its first catch-up was
+  `done` in 388 ms, reflecting nothing (read from `catchUp.last` at 14:32:40Z, before the 10-minute safety diff
+  replaced it). `state` `live`, no `setupProblem`, no `lastError`, `seen` 7,026.
+- **One more pass** after the first start: `20260930T142646Z-a7f04da9`, `done` in 1,259 ms. 7,026 unchanged, nothing
+  added, changed or removed, nothing held, no anomalies.
+- **Relay against graph** at about 14:33Z: 7,026 taggings carrying either stamp on the relay, and 7,026 `TAGS` at
+  7,026 distinct addresses.
+- **A live tagging.** The owner tagged a person `physician` from production's page. The tagging (`7854da66…`,
+  `created_at` 15:20:29Z) carries the canonical stamp beside production's local one, and staging's path matched it on
+  the canonical stamp (`zCanonical` true, `zLocal` false). It most likely reached staging's relay through the
+  `nostrUserTag` router stream from the DCoSL relays, the only enabled inbound stream on staging whose filter matches
+  it (`GET /api/strfry/router-status`); that delivery was not observed directly. The path heard it at 15:20:32.962Z
+  and reflected it at 15:20:33.465Z, in a 233 ms round of one address: `counts.added` 1, with no refusal, failed read
+  or error. The graph holds one relationship at its address with that event id.
+
+Still to come (open question 14): organic taggings over the following days with a status that shows no failures; a
+deploy's catch-up in the status; and a later pass that reports nothing a before-and-after read of the graph cannot
+trace to an Out-of-scope case. The scheduled pass of 2026-10-01 is the first candidate for the last.
+
+### Production
+
+The owner ran the same steps on production on 2026-09-30, 101 s before staging. No backfill had been run when the
+daily entry was added, so the entry's first run, which starts at once, was the backfill. It ended 0.7 s before the
+switch came on, so it finished before step 3, as step 2 asks; its figures were checked afterwards, at 14:32Z.
+
+- **The backfill:** pass `20260930T142438Z-7e3f2a03`, started by the new daily entry at 14:24:38Z, `done` in 14,503
+  ms. Added 7,033 = `taggingsRead` 7,033 − `refused.total` 0, `peopleAdded` 5,846, `unresolved` 6, nothing held.
+  Durations and margins are in OPERATIONS §12.8, "Measured durations". The next scheduled run is due 2026-10-01 at
+  14:24Z.
+- **Switched on** at 14:24:54Z. First start 14:24:54Z, subscribed 14:24:55Z (1.0 s later). Its first catch-up was
+  `done` in 468 ms, reflecting nothing (read from `catchUp.last` at 14:32:40Z). `state` `live`, no `setupProblem`, no
+  `lastError`, `seen` 7,033.
+- **One more pass:** `20260930T142511Z-3469ad38`, `done` in 2,050 ms. 7,033 unchanged, nothing added, changed or
+  removed, nothing held.
+- **Relay against graph** at about 14:33Z: 7,033 and 7,033, at 7,033 distinct addresses.
+- **The same live tagging**, published on production: heard at 15:20:31.941Z, reflected at 15:20:32.527Z, in a
+  315 ms round of one address. `counts.added` 1.
 
 ## Deviations
 
@@ -955,8 +1024,10 @@ and 23 (a catch-up's compaction keeps the `older` ids learned since its key read
   strfry 1.1.0's source with line cites. Beyond the clarification's text, the row cites `cmd_delete.cpp` (a delete
   takes the newest event too) and the change watcher's debounce, and says that a REQ or a CLOSE waking the relay's
   monitor between the delete and a write lowers that monitor's cursor, so the debounce race misses the write on
-  every live subscription only when nothing else woke the monitor. Round 1's row also said "as many harmless writes";
-  it now says the harmless writes needed are the old largest id minus the new one, gaps included.
+  every live subscription only when nothing else woke the monitor (corrected at story 4's Architecture, from story 3's
+  review, round 3, C3: a wake spares only its own thread's subscriptions, and a closed connection wakes one too).
+  Round 1's row also said "as many harmless writes"; it now says the harmless writes needed are the old largest id
+  minus the new one, gaps included.
 - The staging-backfill pointer (OPERATIONS §12.8's "Staging backfill: not yet run" line, and §12.9's step 1, which
   points to it and to story 2's Evidence) still reads as not run: the staging backfill ran on 2026-09-28, and its
   evidence is the docs-lane commit `2361dfb0` (branch `docs/tagging-edges-2-staging-backfill-evidence`, merged
