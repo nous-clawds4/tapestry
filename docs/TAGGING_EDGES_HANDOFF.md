@@ -15,8 +15,9 @@
 §12.9's steps on both hosts (story 3 § Evidence, "Staging" and "Production"):
 - Production's backfill ran (pass `20260930T142438Z-7e3f2a03`, 7,033 added). It was the first run of the new daily
   entry, which starts at once (OPERATIONS §13.2).
-- Each host has a daily, enabled `reconcileTaggingEdges` entry. The next runs are due 2026-10-01 at about 14:24Z
-  (production) and 14:26Z (staging).
+- Each host has a daily, enabled `reconcileTaggingEdges` entry, due each day at about 14:24Z (production) and 14:26Z
+  (staging). Their first runs at the daily time, on 2026-10-01, found nothing to do (each entry's first run came at
+  once when it was added, on 2026-09-30).
 - The real-time path is **on** on both hosts, `state: "live"` (`GET /api/tagging-edges/realtime/status`). The pass
   after its first start found every relationship unchanged, and each relay's count of stamped taggings equalled its
   graph's `TAGS` count (at about 14:33Z: 7,026 on staging, 7,033 on production; each is one more after the live
@@ -24,11 +25,15 @@
 - A live tagging the owner published (`created_at` 15:20:29Z) reached each graph within 5 s of that time (3.5 s on
   production, 4.5 s on staging), with no pass.
 
-**What story 3's staging evidence still waits for** (story 3, open question 14): organic taggings over the following
-days with a status that shows no failures, and a later pass that reports nothing a before-and-after read of the graph
-cannot trace to an Out-of-scope case. The scheduled pass of 2026-10-01 is the first candidate for the last. Read it
-from `GET /api/tagging-edges/status` on each host, and record it in story 3 § Evidence. A deploy's catch-up is
-recorded there already: story 4's deploys ran one on each host on 2026-10-01, each `done` and reflecting nothing.
+**Story 3's evidence is in** (story 3 § Evidence, open question 14), with one day of organic taggings rather than the
+several the question names:
+- Story 4's deploys each ran a catch-up on 2026-10-01; each was `done` and reflected nothing.
+- On 2026-10-01 the path reflected 32 additions and 3 removals on each host, with no refusal, failed read or database
+  refusal.
+- That day's runs at the daily time added, changed and removed nothing.
+
+Still to do: another read of `GET /api/tagging-edges/realtime/status` in a few days, for open question 14's "the
+following days", unless the owner accepts one day.
 
 **C7: decided and done; shipped with story 4.** The owner accepted the widening of decision 5's crash
 corner on 2026-09-30. The Architect reworded ADR `tagging-edges/0003` at story 4's Architecture (`88af7df3`), and its
@@ -49,10 +54,11 @@ against the newest finished pass. It changes nothing. It reads story 2's `GET /a
 story 3's `GET /api/tagging-edges/realtime/status`, and `GET /api/scheduled-tasks/list`, all public; and one new
 route, `GET /api/tagging-edges/drift-counts`, for a signed-in owner or admin only. Story 4 also carries the
 carry-forwards above. Its evidence on both hosts is in the story's § Evidence: an admin's view of the panel, and drift
-counts that match direct counts (7,032 on staging, 7,039 on production). The owner's view of the panel on each host is
-still to come.
+counts that match direct counts (7,032 on staging, 7,039 on production). It also holds the owner's checks of
+2026-10-01: the owner's and an admin's views, Recount pressed on production, and a user who is neither refused
+Settings on staging.
 
-**Story 5, after it** (the epic's item 5, planned): the controls on story 4's panel. Turning the path on and off, and
+**Story 5, next** (the epic's item 5; Planning began 2026-10-01): the controls on story 4's panel. Turning the path on and off, and
 running or stopping a pass, for the owner or an admin; confirming held removals, for the owner only. Until then the
 Task Explorer runs a pass, and OPERATIONS §12.8–§12.9's console snippets confirm held removals and turn the path on
 and off.
