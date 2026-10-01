@@ -124,6 +124,15 @@ Small judgment calls made in Implementation (2026-10-01):
   The page itself was checked with the mocked answers, at desktop and 375 px. The local container wasn't updated
   (it has no bind mount), so the server change reaches an instance only by deploy.
 
+
+After review 1 (2026-10-01), fixed before shipping by the owner's choice:
+
+- **A status belongs to the NIP-05 it was checked for** (NB1; ADR 0004 Amendment 1). Each answer is kept with its
+  (pubkey, NIP-05) and drawn only for that pair. When a drawn row's NIP-05 changes, it shows "Checking…", never the
+  old verdict (N7).
+- **How often the page asks is now stated exactly** (NB2): a definite answer once per page load; a Couldn't check again
+  each time it's drawn again (N6).
+- **The DNS-rebinding row says what `status` adds** (NB3).
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
 - Test plan: `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.test-plan.md`

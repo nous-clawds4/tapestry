@@ -35,17 +35,23 @@ function checkNip05(pubkey, nip05Id) {
   return asked;
 }
 
-/** null with no NIP-05; 'checking' until the answer; then 'verified', 'invalid' or 'unchecked'. */
+/**
+ * null with no NIP-05; 'checking' until the answer; then 'verified', 'invalid' or 'unchecked'. An answer is kept with
+ * the (pubkey, NIP-05) it was asked for, and drawn only for that pair: when a drawn row's NIP-05 changes, its old
+ * verdict is never shown beside the new one, not even for one render (ADR my-assistants/0004 Amendment 1).
+ */
 export function useNip05Status(pubkey, nip05Id) {
-  const [status, setStatus] = useState(() => (nip05Id ? known.get(`${pubkey}|${nip05Id}`) || 'checking' : null));
+  const key = nip05Id ? `${pubkey}|${nip05Id}` : null;
+  const [answered, setAnswered] = useState(null); // { key, status } of the last answer this status received
   useEffect(() => {
-    if (!nip05Id) { setStatus(null); return undefined; }
+    if (!key) return undefined;
     let cancelled = false;
-    setStatus(known.get(`${pubkey}|${nip05Id}`) || 'checking');
-    checkNip05(pubkey, nip05Id).then((answered) => { if (!cancelled) setStatus(answered); });
+    checkNip05(pubkey, nip05Id).then((status) => { if (!cancelled) setAnswered({ key, status }); });
     return () => { cancelled = true; };
-  }, [pubkey, nip05Id]);
-  return status;
+  }, [key, pubkey, nip05Id]);
+  if (!key) return null;
+  if (answered && answered.key === key) return answered.status;
+  return known.get(key) || 'checking';
 }
 
 const SHOWN = {
