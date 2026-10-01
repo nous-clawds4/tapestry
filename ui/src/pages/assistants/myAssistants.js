@@ -12,7 +12,7 @@
  * test/my-assistants-map.test.js, test/my-assistants-nip05.test.js).
  *
  * The words are the stories' § Copy; change them there first:
- * engineering-team/stories/my-assistants/1-the-my-assistants-page.md § Copy, 2-tag-and-untag-from-the-page.md § Copy,
+ * engineering-team/stories/done/my-assistants/1-the-my-assistants-page.md § Copy, 2-tag-and-untag-from-the-page.md § Copy,
  * 3-the-treasure-map-on-the-page.md § Copy and 4-nip05-validity-and-profile-links.md § Copy.
  */
 

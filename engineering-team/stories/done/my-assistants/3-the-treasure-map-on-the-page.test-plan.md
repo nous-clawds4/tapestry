@@ -1,7 +1,7 @@
 # Test Plan: Story 3 — What each Assistant does: your Treasure Map on the My Assistants page
 
-**Story:** `engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.md`
-**ADR:** `engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md`
+**Story:** `engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.md`
+**ADR:** `engineering-team/decisions/done/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md`
 **Date:** 2026-09-30
 
 Two new files, one addition, and four re-aims:
@@ -191,7 +191,7 @@ The Node half's mutants are the current code itself: H1, S1, S2, V6 and O9 fail 
 
 ## Amendment after review 1 (2026-10-01)
 
-Review 1 (`engineering-team/reviews/my-assistants/3-the-treasure-map-on-the-page.md`) found one gap (B1) and three
+Review 1 (`engineering-team/reviews/done/my-assistants/3-the-treasure-map-on-the-page.md`) found one gap (B1) and three
 small items the owner chose to fix in this pass (NB1, NB3, NB4). NB3's behaviour is ADR 0003 Amendment 1.
 
 **What changed in the tests:**

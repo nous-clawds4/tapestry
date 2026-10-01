@@ -13,9 +13,9 @@
 
 19 files, 2259 insertions, 112 deletions.
 
-**Story:** `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.md` (Approved; § Resolved at the story gate; the Implementer's § Deviations)
-**ADR:** `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md` (Accepted), with ADR 0001 for the read
-**Test plan:** `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md`
+**Story:** `engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.md` (Approved; § Resolved at the story gate; the Implementer's § Deviations)
+**ADR:** `engineering-team/decisions/done/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md` (Accepted), with ADR 0001 for the read
+**Test plan:** `engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.test-plan.md`
 **Book:** `engineering-team/audits/my-assistants/book.md` (acceptance frame, no PRD)
 
 **In short:** the code does what ADR 0002 says, sub-decision by sub-decision. The isolated gate, the host suites and all 38 browser tests pass. Two things block.
@@ -257,7 +257,7 @@ No PRD. The copy matches § Copy (above). The search card, toggle, panel and Rem
 ### Blocking
 
 1. **The withdrawal never reaches where the tagging went, so Remove and Change don't do what book decision 7 and AC-5 say on the instances this book ships to.**
-   `ui/src/pages/assistants/Index.jsx:72` → `ui/src/utils/publishProfileTag.js:160`; `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md:236-240`; `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.md:79-80`.
+   `ui/src/pages/assistants/Index.jsx:72` → `ui/src/utils/publishProfileTag.js:160`; `engineering-team/decisions/done/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md:236-240`; `engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.md:79-80`.
    - **Where the withdrawal goes:** this instance's relay, and `PUBLISH_RELAYS`, through `publishEverywhere`'s default. Those are purplepag.es, wot.grapevine.network, relay.primal.net, nos.lol and relay.damus.io (`ui/src/utils/nostrPublish.js:42-48`).
    - **Where the tagging goes:**
      - It carries the canonical nostr-user-tag `z` (`publishProfileTag.js:101`).
@@ -285,7 +285,7 @@ No PRD. The copy matches § Copy (above). The search card, toggle, panel and Rem
      - **(a) Make the withdrawal travel.** At least, also send it to the relays the tagging streams use (dcosl), so dcosl deletes the tagging and read-union reads stop seeing it. Then add kind 5 to the tag streams (the row's `#k` shape) so hoarding instances get it too. That second step is router state, so it's the owner's call. Any code here needs a test that pins where the withdrawal is sent.
      - **(b) Narrow the promise, accurately.** Amend AC-5's definition and ADR § Consequences to say a withdrawal takes effect on the instance where it's pressed, and on the relays that took the kind 5. Say it doesn't yet reach other instances or dcosl's copy, nor the readers that federate to dcosl, until `2026-09-27-revokes-do-not-travel` is fixed. Cite the row in the story and in the book (§ Before shipping, or a known-limitations line), and have the owner re-confirm decision 7 under that meaning.
 2. **Nothing tests the withdrawal's signer guard, on the one new signed-write path.**
-   `ui/src/utils/publishProfileTag.js:147`; `tests/brainstorm/my-assistants-actions.spec.js:350-362`; `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md:33-34`.
+   `ui/src/utils/publishProfileTag.js:147`; `tests/brainstorm/my-assistants-actions.spec.js:350-362`; `engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.test-plan.md:33-34`.
    - The guard is there and correct.
    - AC-7 asks, "for every tag, change and remove", that a missing extension, or one on a different key, publishes nothing, and that the page says why. The browser tests press only Tag for this (C9), and the O-class runs fake publishers.
    - Change is covered indirectly. Its apply goes first, through the guarded apply publisher (C9), and O3 pins that a refused apply withdraws nothing.
@@ -588,7 +588,7 @@ None.
 1. **The one test of the new send checks the report, not the send.**
    `ui/src/pages/assistants/Index.jsx:89`, `:91`; `ui/src/pages/assistants/assistantActions.js:53-54`;
    `tests/brainstorm/my-assistants-actions.spec.js:455-474`;
-   `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md:172`.
+   `engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.test-plan.md:172`.
    - **What survives.** M3 sends the withdrawal to the default relays, so not to dcosl, and leaves
      `deps.withdrawRelays` as it is. Every Node test and all 23 browser tests still pass.
    - **Why it survives.** C13 reads the report, which lists `deps.withdrawRelays`. The send uses a second reference to
@@ -612,7 +612,7 @@ None.
      - relabel the plan's row;
      - in the book's live proof, check that the Remove's report shows `wss://dcosl.brainstorm.world accepted`.
 2. **Amendment 1 says more than the router and dcosl deliver.**
-   `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md:304`,
+   `engineering-team/decisions/done/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md:304`,
    `:324`, `:354`.
    - **The stream is live-only, in both directions** (strfry `src/apps/mesh/cmd_router.cpp` in the container).
      - The download asks with `limit` forced to 0 (`:166`).

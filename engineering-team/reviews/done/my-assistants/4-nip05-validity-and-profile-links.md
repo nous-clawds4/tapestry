@@ -15,9 +15,9 @@ note, NB4, asks for a tighter N7 and doesn't block.)
 - `d9185db9`, the implementation, the openapi entry and the story's § Deviations. It touches nothing under `test/` or
   `tests/`.
 
-**Story:** `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.md` (Approved; § Resolved at the story gate; § Copy as changed at the ADR gate; the Implementer's § Deviations)
-**ADR:** `engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md` (Accepted)
-**Test plan:** `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.test-plan.md`
+**Story:** `engineering-team/stories/done/my-assistants/4-nip05-validity-and-profile-links.md` (Approved; § Resolved at the story gate; § Copy as changed at the ADR gate; the Implementer's § Deviations)
+**ADR:** `engineering-team/decisions/done/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md` (Accepted)
+**Test plan:** `engineering-team/stories/done/my-assistants/4-nip05-validity-and-profile-links.test-plan.md`
 **Book:** `engineering-team/audits/my-assistants/book.md` (acceptance frame, no PRD; decision 14 adds this story)
 
 **In short:** the code does what ADR 0004 says, sub-decision by sub-decision. The copy matches § Copy byte for byte,
@@ -533,7 +533,7 @@ hook and untouched.
 
 ### The amended records, checked
 
-- **ADR 0004 Amendment 1** (`decisions/my-assistants/0004-…:236-268`):
+- **ADR 0004 Amendment 1** (`decisions/done/my-assistants/0004-…:236-268`):
   - "Why" restates NB1 and NB2 accurately;
   - "Sub-decision 4, made exact" matches the code (above);
   - "How often the page asks" is exactly what N6 and R1 show;

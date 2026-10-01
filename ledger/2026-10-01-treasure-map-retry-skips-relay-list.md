@@ -19,5 +19,5 @@ hook's other callers (`MyCuratedDLists.jsx`, `CuratedDListDetail.jsx`) offer non
 **Fix shape.** Have `refresh` also refetch the relay list when it errored (additive, harmless to the other callers),
 with a browser case: the Cypher read fails once, then Try again finds the Treasure Map.
 
-**Pointer:** `engineering-team/reviews/my-assistants/3-the-treasure-map-on-the-page.md` § Findings, non-blocking 2 and
+**Pointer:** `engineering-team/reviews/done/my-assistants/3-the-treasure-map-on-the-page.md` § Findings, non-blocking 2 and
 probe P3.

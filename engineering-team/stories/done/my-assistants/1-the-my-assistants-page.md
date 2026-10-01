@@ -203,6 +203,6 @@ Small judgment calls made in Implementation (2026-09-30):
   failed without this change). Logged as OPEN.md row `2026-09-30-dictionary-d6-reads-before-request`, not fixed here.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md`
-- Test plan: `engineering-team/stories/my-assistants/1-the-my-assistants-page.test-plan.md`
-- Review: `engineering-team/reviews/my-assistants/1-the-my-assistants-page.md`
+- ADR: `engineering-team/decisions/done/my-assistants/0001-one-session-read-lists-your-assistants.md`
+- Test plan: `engineering-team/stories/done/my-assistants/1-the-my-assistants-page.test-plan.md`
+- Review: `engineering-team/reviews/done/my-assistants/1-the-my-assistants-page.md`

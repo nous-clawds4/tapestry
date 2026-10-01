@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — The My Assistants page, its menu link, and the list of your Assistants
 
-**Story:** `engineering-team/stories/my-assistants/1-the-my-assistants-page.md`
-**ADR:** `engineering-team/decisions/my-assistants/0001-one-session-read-lists-your-assistants.md`
+**Story:** `engineering-team/stories/done/my-assistants/1-the-my-assistants-page.md`
+**ADR:** `engineering-team/decisions/done/my-assistants/0001-one-session-read-lists-your-assistants.md`
 **Date:** 2026-09-30
 
 Two files:
@@ -163,7 +163,7 @@ mutant.
 
 ## Amendment after review 1 (2026-09-30)
 
-The review (`engineering-team/reviews/my-assistants/1-the-my-assistants-page.md`, blocking finding 1) found a gap the
+The review (`engineering-team/reviews/done/my-assistants/1-the-my-assistants-page.md`, blocking finding 1) found a gap the
 suites above missed. A kind 0 is arbitrary JSON, so a name field can be a number, an array, an object, a boolean or
 blank. The view-model took any truthy `display_name` as the name. Then `name.slice` threw, and one such profile
 turned the whole page into the error line. That breaks AC-4 (the profile should still be listed, with the fallbacks)

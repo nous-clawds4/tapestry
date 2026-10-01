@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09-30
-**Story:** `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.md`
+**Story:** `engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.md`
 
 ## Context
 
@@ -282,7 +282,7 @@ Sub-decisions:
 
 ## Amendment 1 (2026-09-30, after review 1): withdrawals travel between instances
 
-**Why.** Review 1 (`engineering-team/reviews/my-assistants/2-tag-and-untag-from-the-page.md`, blocking 1) found that
+**Why.** Review 1 (`engineering-team/reviews/done/my-assistants/2-tag-and-untag-from-the-page.md`, blocking 1) found that
 a withdrawal stays on the instance where it's pressed. This ADR missed that. It is the open row OPEN.md
 `2026-09-27-revokes-do-not-travel`:
 - **How taggings travel:** taggings move between instances through strfry-router streams to dcosl, filtered by the

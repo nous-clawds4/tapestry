@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-01
-**Story:** `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.md`
+**Story:** `engineering-team/stories/done/my-assistants/4-nip05-validity-and-profile-links.md`
 
 ## Context
 
@@ -235,7 +235,7 @@ Sub-decisions:
 
 ## Amendment 1 (2026-10-01, after review 1): a status belongs to the NIP-05 it was checked for; how often the page asks
 
-**Why.** Review 1 (`engineering-team/reviews/my-assistants/4-nip05-validity-and-profile-links.md`) found:
+**Why.** Review 1 (`engineering-team/reviews/done/my-assistants/4-nip05-validity-and-profile-links.md`) found:
 - **NB1:** a status shown can belong to the previous NIP-05 for one render. When a drawn row's NIP-05 changes (a
   refresh re-reads profiles), the row shows its old verdict beside the new identifier, or beside "—", until the effect
   runs. That's a verdict the page doesn't have, which AC-1 and AC-2 forbid.

@@ -190,6 +190,6 @@ After review 1, implementing ADR 0002 Amendment 1 (2026-09-30):
 - **The refresh still re-reads every row's profile.** Amendment 1, sub-decision 13, made that the rule.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
-- Test plan: `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md`
-- Review: `engineering-team/reviews/my-assistants/2-tag-and-untag-from-the-page.md`
+- ADR: `engineering-team/decisions/done/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
+- Test plan: `engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.test-plan.md`
+- Review: `engineering-team/reviews/done/my-assistants/2-tag-and-untag-from-the-page.md`

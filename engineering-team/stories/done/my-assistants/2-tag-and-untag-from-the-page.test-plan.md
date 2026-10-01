@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — Tag, re-tag and untag your Assistants from the My Assistants page
 
-**Story:** `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.md`
-**ADR:** `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
+**Story:** `engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.md`
+**ADR:** `engineering-team/decisions/done/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
 **Date:** 2026-09-30
 
 Two new files and one re-aim:
@@ -158,7 +158,7 @@ that mutant, and the unmutated oracle still passes C1.
 
 ## Amendment after review 1 (2026-09-30), for ADR 0002 Amendment 1
 
-Review 1 (`engineering-team/reviews/my-assistants/2-tag-and-untag-from-the-page.md`) found two blocking gaps:
+Review 1 (`engineering-team/reviews/done/my-assistants/2-tag-and-untag-from-the-page.md`) found two blocking gaps:
 - withdrawals don't travel between instances;
 - no test covers the withdrawal's signer guard.
 

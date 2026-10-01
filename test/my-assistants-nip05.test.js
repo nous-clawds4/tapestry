@@ -2,9 +2,9 @@
 /**
  * my-assistants #4: is each Assistant's NIP-05 genuine, and a way into each Assistant's profile.
  *
- * Story: engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.md
- * ADR:   engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md
- * Plan:  engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.test-plan.md
+ * Story: engineering-team/stories/done/my-assistants/4-nip05-validity-and-profile-links.md
+ * ADR:   engineering-team/decisions/done/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md
+ * Plan:  engineering-team/stories/done/my-assistants/4-nip05-validity-and-profile-links.test-plan.md
  * Browser half: tests/brainstorm/my-assistants-nip05.spec.js.
  *
  * Classes:

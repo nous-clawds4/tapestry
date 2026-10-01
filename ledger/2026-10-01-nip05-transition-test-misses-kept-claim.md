@@ -19,6 +19,6 @@ still held, not just right after the identifier. Add the keeps-the-claim mutant 
 it needs a Tester pass and a short review, no implementation change. This is the "mutant that keeps X" the row
 `2026-10-01-honest-states-pinned-per-state` already asks for.
 
-**Pointer:** `engineering-team/reviews/my-assistants/4-nip05-validity-and-profile-links.md` § Re-review, round 2
-(NB4); `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.test-plan.md` § Amendment after
+**Pointer:** `engineering-team/reviews/done/my-assistants/4-nip05-validity-and-profile-links.md` § Re-review, round 2
+(NB4); `engineering-team/stories/done/my-assistants/4-nip05-validity-and-profile-links.test-plan.md` § Amendment after
 review 1.

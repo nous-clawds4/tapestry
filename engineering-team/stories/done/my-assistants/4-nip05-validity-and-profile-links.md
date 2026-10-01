@@ -134,6 +134,6 @@ After review 1 (2026-10-01), fixed before shipping by the owner's choice:
   each time it's drawn again (N6).
 - **The DNS-rebinding row says what `status` adds** (NB3).
 ## Linked artifacts
-- ADR: `engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
-- Test plan: `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.test-plan.md`
-- Review: `engineering-team/reviews/my-assistants/4-nip05-validity-and-profile-links.md`
+- ADR: `engineering-team/decisions/done/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
+- Test plan: `engineering-team/stories/done/my-assistants/4-nip05-validity-and-profile-links.test-plan.md`
+- Review: `engineering-team/reviews/done/my-assistants/4-nip05-validity-and-profile-links.md`

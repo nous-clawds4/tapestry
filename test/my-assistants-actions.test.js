@@ -2,9 +2,9 @@
 /**
  * my-assistants #2: tag, re-tag and untag your Assistants from the My Assistants page.
  *
- * Story: engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.md
- * ADR:   engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md
- * Plan:  engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md
+ * Story: engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.md
+ * ADR:   engineering-team/decisions/done/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md
+ * Plan:  engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.test-plan.md
  * Browser half: tests/brainstorm/my-assistants-actions.spec.js (what a viewer does and sees: search, Tag, open, Change,
  * Remove, the signed events, the result lines, the refresh).
  *
