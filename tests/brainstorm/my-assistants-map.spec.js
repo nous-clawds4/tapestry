@@ -20,8 +20,10 @@ const { REQUIRED_TAGGINGS } = require('../../src/lib/identification-tags');
  *   M2 — none published (a local miss; the strict relay read reached a relay and found nothing): every row "Not on
  *        Treasure Map", "0 on your Treasure Map", the Duties tab's none line; the relay read asked with strict=1.
  *   M3 — unreadable (a local miss; the strict read reached no relay): never "Not on Treasure Map"; the error line and
- *        Try again on both tabs; Try again reads again and the statuses appear.
- *   M4 — while the map loads: rows show with no status and no map count; the Duties tab's loading line.
+ *        Try again on both tabs, and in an open row's panel; Try again reads again and the statuses appear.
+ *   M3b — no general-purpose relay to ask and a local miss: unreadable, never "none" (ADR 0003 Amendment 1).
+ *   M4 — while the map loads: rows show with no status and no map count; an open row's panel says it's reading and
+ *        claims no duty; the Duties tab's loading line.
  *   M5 — every row opens: the untagged Local row shows its duties (none here) and Manage, with no Change or Remove.
  *   M6 — on the map but not tagged: the section, each Assistant's name, URL · NIP-05 and duty count, and its Tag
  *        buttons (signed as story 2's are, posted, reported, refreshed into the list, out of the section).
@@ -85,7 +87,7 @@ function deferred() { let resolve; const promise = new Promise((r) => { resolve 
  * mapLocal: the event local strfry holds (or null); mapHold: a promise the local read waits on;
  * relayAnswers: /api/relay/external's answers in order (the last repeats).
  */
-async function setup(page, { answers = [answerOf(BASE_ROWS)], mapLocal = MAP, mapHold = null, relayAnswers = [{ success: true, events: [] }] } = {}) {
+async function setup(page, { answers = [answerOf(BASE_ROWS)], mapLocal = MAP, mapHold = null, relayAnswers = [{ success: true, events: [] }], relayList = ['wss://one.example'] } = {}) {
   const state = { reads: 0, posted: [], ws: 0, relayUrls: [], mapReads: 0 };
   await page.routeWebSocket(/.*/, (ws) => { state.ws++; ws.close(); });
   await page.addInitScript((viewer) => {
@@ -106,7 +108,7 @@ async function setup(page, { answers = [answerOf(BASE_ROWS)], mapLocal = MAP, ma
     }
     return json(r, { success: true, events: [] });
   });
-  await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: [{ name: 'relay one', json: JSON.stringify({ nostrRelay: { websocketUrl: 'wss://one.example' } }) }] }));
+  await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: relayList.map((url, i) => ({ name: `relay ${i}`, json: JSON.stringify({ nostrRelay: { websocketUrl: url } }) })) }));
   await page.route('**/api/relay/external**', (r) => {
     state.relayUrls.push(r.request().url());
     const a = relayAnswers[Math.min(state.relayUrls.length - 1, relayAnswers.length - 1)];
@@ -197,9 +199,32 @@ test.describe('/assistants — the Treasure Map', () => {
     await expect(main(page).getByText(re("Couldn't read your Treasure Map."))).toBeVisible();
     await expect(main(page).getByText(re("You haven't published a Treasure Map yet"))).toHaveCount(0);
     await tab(page, 'Assistants').click();
+    // Review 1, B1: an open row's panel says the Map couldn't be read — never that the Assistant has no duties.
+    const ava = rowNamed(page, 'Ava');
+    await toggle(ava).click();
+    await expect(ava.getByText(re("Couldn't read your Treasure Map."))).toBeVisible();
+    await expect(ava.getByText(/No duties/)).toHaveCount(0);
+    await expect(ava.getByText(re("isn't listed on your Treasure Map"))).toHaveCount(0);
+    await expect(ava.getByText(/^(Scores|Lists|Concepts)$/)).toHaveCount(0);
     await main(page).getByRole('button', { name: 'Try again' }).click();
     await expect(main(page).getByText('2 on your Treasure Map', { exact: true })).toBeVisible();
-    await expect(rowNamed(page, 'Ava').getByText('On Treasure Map', { exact: true })).toBeVisible();
+    await expect(ava.getByText('On Treasure Map', { exact: true })).toBeVisible();
+    await expect(ava).toContainText('2 duties');
+    await noSockets(state);
+  });
+
+  test('M3b: no general-purpose relay to ask and nothing locally — unreadable, never "none" (ADR 0003 Amendment 1)', async ({ page }) => {
+    const state = await setup(page, { mapLocal: null, relayList: [] });
+    await page.goto(PAGE);
+    await settled(page, 3);
+    await expect(main(page).getByText(re("Couldn't read your Treasure Map."))).toBeVisible();
+    await expect(main(page).getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(main(page).getByText(STATUS_RE)).toHaveCount(0);
+    await expect(main(page).getByText(/on your Treasure Map$/)).toHaveCount(0);
+    await tab(page, 'Duties').click();
+    await expect(main(page).getByText(re("Couldn't read your Treasure Map."))).toBeVisible();
+    await expect(main(page).getByText(re("You haven't published a Treasure Map yet"))).toHaveCount(0);
+    expect(state.relayUrls, 'no relay to ask, so no relay read').toEqual([]);
     await noSockets(state);
   });
 
@@ -214,10 +239,22 @@ test.describe('/assistants — the Treasure Map', () => {
       expect(/\d+ on your Treasure Map/.test(text), `sample ${i}: no map count while the map loads`).toBe(false);
       await page.waitForTimeout(100);
     }
+    // Review 1, B1: an open row's panel says the Map is being read — no duty count, no group, no "isn't listed".
+    const ava = rowNamed(page, 'Ava');
+    await toggle(ava).click();
+    await expect(ava.getByText('Reading your Treasure Map…', { exact: true })).toBeVisible();
+    for (let i = 0; i < 4; i++) {
+      const panel = await ava.innerText();
+      expect(/No duties|\d+ dut(y|ies)\b|isn['’]t listed on your Treasure Map|(^|\n)(Scores|Lists|Concepts)\s*(\n|$)/i.test(panel),
+        `sample ${i}: the open panel claims nothing while the map loads; got ${JSON.stringify(panel)}`).toBe(false);
+      await page.waitForTimeout(100);
+    }
     await tab(page, 'Duties').click();
     await expect(main(page).getByText('Reading your Treasure Map…', { exact: true })).toBeVisible();
     hold.resolve();
     await expect(main(page).getByText('4 duties', { exact: true })).toBeVisible();
+    await tab(page, 'Assistants').click();
+    await expect(ava).toContainText('2 duties');
     await noSockets(state);
   });
 
@@ -284,8 +321,17 @@ test.describe('/assistants — the Treasure Map', () => {
     await expect(page.getByRole('tablist')).toBeVisible();
     await expect(tab(page, 'Assistants')).toHaveAttribute('aria-selected', 'true');
     await expect(tab(page, 'Duties')).toHaveAttribute('aria-selected', 'false');
+    // Review 1, NB4: a tab's aria-controls, when it has one, names a panel that is in the page.
+    const controlsResolve = async (when) => {
+      for (const name of ['Assistants', 'Duties']) {
+        const id = await tab(page, name).getAttribute('aria-controls');
+        if (id) await expect(page.locator(`[id="${id}"]`), `${when}: ${name}'s aria-controls names ${id}`).toHaveCount(1);
+      }
+    };
+    await controlsResolve('Assistants selected');
     await tab(page, 'Duties').click();
     await expect(tab(page, 'Duties')).toHaveAttribute('aria-selected', 'true');
+    await controlsResolve('Duties selected');
     await expect(page.getByPlaceholder('Search by name, NIP-05, URL or npub')).toHaveCount(0);
     await expect(list(page)).toHaveCount(0);
     await tab(page, 'Duties').focus();

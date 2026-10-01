@@ -188,3 +188,46 @@ Two edits checked the method:
   section has entries only once a map is found. That's expected, not a gap.
 
 The Node half's mutants are the current code itself: H1, S1, S2, V6 and O9 fail on it, as listed above.
+
+## Amendment after review 1 (2026-10-01)
+
+Review 1 (`engineering-team/reviews/my-assistants/3-the-treasure-map-on-the-page.md`) found one gap (B1) and three
+small items the owner chose to fix in this pass (NB1, NB3, NB4). NB3's behaviour is ADR 0003 Amendment 1.
+
+**What changed in the tests:**
+- **B1, the open row's panel.** This plan pinned each honest state once per state, not once per place on the page
+  that can show it, so the open panel was missed. Now:
+  - **M3** opens a row after the failed read. Its panel must say "Couldn’t read your Treasure Map." and show no "No
+    duties", no "isn’t listed" line and no group. Once Try again reads the Map, the same open panel shows "2 duties".
+  - **M4** opens a row while the Map is held, and samples its text four times. It must say "Reading your Treasure
+    Map…" and claim no duty count, no group and no "isn’t listed" line. Released, it shows "2 duties".
+- **NB3, new M3b:** with no general-purpose relay to ask and nothing locally, the page shows the error line and Try
+  again on both tabs. It shows no status, no count and never the none line, and it asks for no relay read.
+- **NB4, M7:** each tab's `aria-controls`, when it has one, must name an element in the page, with either tab selected.
+- **NB1, S2:** the relays must reach the publisher's call, not only the arrow's parameters. Accepted:
+  - the whole argument passed on (`(args) => publish(args)` or `{ ...args }`);
+  - a destructured `relays` (or `relays: name`) handed on as `relays` (or `relays: name`).
+
+**Coverage, updated:** AC-7's row adds the open panel (M3, M4) and the no-relay case (M3b). AC-1's row adds M3b.
+AC-5's row adds M7's `aria-controls` check.
+
+**Verified 2026-10-01**, against the build of `29aa28eb` (unchanged under `ui/` since):
+- **Node `my-assistants-map`:** 14/14. The tightened S2 accepts the page's current line. Checked on sample lines,
+  it rejects:
+  - the review's mutant B, `({ ids, addresses, relays }) => publish({ ids, addresses })`;
+  - `relays: []`;
+  - a renamed parameter that isn't passed on;
+  - any `*_RELAYS` constant.
+
+  It accepts both whole-argument shapes.
+- **The map spec:** 10 passed and 2 failed, as intended:
+  - M3b fails: the error line isn't found, because the page says "none";
+  - M7 fails: "Duties's aria-controls names bsd-ma-tabpanel-duties" resolved to 0 elements.
+
+  M3 and M4 pass, because the panel code is right.
+- **The tests bite:**
+
+  | Mutant | Fails |
+  |---|---|
+  | the panel's two guard lines deleted (the review's mutant A) | M3, M4 |
+  | the panel shows the loading or error line and still the no-duties line | M3, M4 (M4 by its sampling) |

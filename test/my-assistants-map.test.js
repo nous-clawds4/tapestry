@@ -235,8 +235,19 @@ test('S2: the page\'s withdrawal publisher sends to the relays it is handed, and
   const line = (src.match(/withdrawTaggings\s*:\s*([^\n]+)/) || [])[1] || '';
   assert(line, 'ui/src/pages/assistants/Index.jsx has no withdrawTaggings dependency');
   assert(!/[A-Z_]+_RELAYS\b/.test(line), `withdrawTaggings should forward the relays it is given, not name a list; got ${show(line.trim())}`);
-  const forwards = /\brelays\b/.test(line) || /\.\.\.\w+/.test(line) || /\(\s*(\w+)\s*\)\s*=>\s*publishTaggingWithdrawalWithReport\(\s*\1\s*\)/.test(line);
-  assert(forwards, `withdrawTaggings should pass its relays on; got ${show(line.trim())}`);
+  // Tightened after review 1 (NB1): the relays must reach the publisher's call, not only the parameter list. Accepted
+  // shapes: the whole argument passed on — `(args) => publish(args)` or `publish({ ...args })` — or a destructured
+  // `relays` (or `relays: name`) handed on in the call as `relays` or `relays: name`.
+  const call = line.match(/\(\s*([^)]*?)\s*\)\s*=>\s*publishTaggingWithdrawalWithReport\(\s*(.*?)\s*\)\s*,?\s*$/);
+  assert(call, `withdrawTaggings should be an arrow that calls publishTaggingWithdrawalWithReport; got ${show(line.trim())}`);
+  const [, params, arg] = call;
+  const whole = /^\w+$/.test(params) && (arg === params || arg.includes(`...${params}`));
+  const given = params.match(/(?:^|[{,\s])relays\s*(?::\s*(\w+))?\s*(?=[,}])/);
+  const givenName = given ? (given[1] || 'relays') : null;
+  const passed = arg.match(/(?:^|[{,\s])relays\s*(?::\s*(\w+))?\s*(?=[,}])/);
+  const passedName = passed ? (passed[1] || 'relays') : null;
+  const forwards = whole || (givenName !== null && passedName === givenName);
+  assert(forwards, `withdrawTaggings should hand the relays it is given to publishTaggingWithdrawalWithReport; got ${show(line.trim())}`);
   assert(/withdrawRelays\s*:/.test(src), 'the page should still hand assistantActions a withdrawRelays list');
 });
 
