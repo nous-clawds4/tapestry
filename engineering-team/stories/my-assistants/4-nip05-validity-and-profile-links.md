@@ -1,6 +1,6 @@
 # Story 4: Is each Assistant's NIP-05 genuine, and a way into each Assistant's profile
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-01
 **Type:** Feature
 **Epic:** `my-assistants`
@@ -127,4 +127,4 @@ Small judgment calls made in Implementation (2026-10-01):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0004-nip05-status-from-the-verify-endpoint-and-plain-profile-links.md`
 - Test plan: `engineering-team/stories/my-assistants/4-nip05-validity-and-profile-links.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/my-assistants/4-nip05-validity-and-profile-links.md`
