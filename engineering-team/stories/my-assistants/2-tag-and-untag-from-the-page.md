@@ -179,4 +179,4 @@ Small judgment calls made in Implementation (2026-09-30):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md`
 - Test plan: `engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/my-assistants/2-tag-and-untag-from-the-page.md`
