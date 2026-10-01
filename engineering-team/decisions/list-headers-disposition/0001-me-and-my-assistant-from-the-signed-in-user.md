@@ -187,3 +187,14 @@ separates them on demand", offered here as two separate choices. `authorScope.js
 - Any server change. Both endpoints this relies on exist and are unchanged.
 - Reconciling `useAuth().user` and the roster's `viewer` into one source app-wide.
 - Remembering the selection across visits (story 1, out of scope).
+
+## Amendment 1 (2026-10-01, found in Test Design)
+
+The reset after sign-out stays as decided. Its stated reason in § Consequences ("Sign-out with an entry
+selected") was wrong. At sign-out, the browser already shows the first entry, **All authors**, over an
+unfiltered table, because the resolver turns a reserved value with no user into `''`. A page without the reset
+looks the same at that moment. The reset matters at the **next sign-in on the same page**. Without it, the stale
+`@me` or `@my-assistant` value comes back with the entries and filters the table again, though nobody chose it.
+
+Found when a no-reset mutant passed a sign-out-only check. The test plan's L9 now signs back in, and that
+mutant fails it.
