@@ -914,7 +914,9 @@ and 11).
 
 - **Enables.**
   - Real-time `TAGS` on every host once the owner turns it on, with no strfry change and no schema change.
-  - Story 4's page reads two public routes and posts to one owner route.
+  - Story 4's page reads two public routes and posts to one owner route. *(Since story 4's Planning, 2026-09-30, the
+    split: story 4's panel only reads; the owner-route post, the switch, is story 5's. Noted at story 4's review,
+    round 1.)*
   - The pass's two race residuals shrink from "until the next pass" to about a minute after each pass.
 - **Constrains.**
   - The path depends on the pass's port and pure modules staying the single place for `TAGS` Cypher and decisions.

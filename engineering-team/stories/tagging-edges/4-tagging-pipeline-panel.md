@@ -120,8 +120,9 @@ The page changes nothing. The controls come with story 5.
     counts:
     - added, changed, removed, unchanged and people added;
     - refused taggings, failed reads and database refusals;
-    - the changes it left to the next pass: removals it was not prompted to make, and changes dropped over the
-      backlog.
+    - the removals it was not prompted to make, which are left to the next pass, and the changes dropped over the
+      backlog, which a catch-up picks up. *(Corrected at the review, round 1, 2026-10-01: dropped changes are not left
+      to a pass, ADR 0003 § The in-memory backlog.)*
 
     The counts run from the first start. When they were reset because the path's status was lost, the panel says
     so, and that they run from the reset.

@@ -187,7 +187,10 @@ What we trade away: the code lists exist twice, which a guard test holds togethe
 - **Debt.**
   - The panel's copy and colours follow the guardrails, and its neighbours do not. The difference is visible and was
     accepted at Planning.
-  - A stalled Neo4j can hold a lost-race graph count's session for up to 30 s (§ Server, "Single flight").
+  - A lost-race graph count's session is bounded only by Neo4j's own 10 s `tx_timeout`, plus up to 30 s waiting for a
+    pooled connection. A Neo4j that accepts the connection and then never answers holds it with no client-side limit:
+    neo4j-driver 5.28.1 sets a read time-out only when the server sends the hint `connection.recv_timeout_seconds` (§ Server, "Single
+    flight"). *(Amended at story 4's review, round 1, 2026-10-01.)*
 - **Firmware reinstall required? No.** No concept, schema or firmware changes.
 
 ## Implementation notes
@@ -241,8 +244,9 @@ pure halves `gateOwnerOrAdmin(req, d)` and `countFilter(identities)`.
      - It refuses a cross-origin CORS fetch. That fetch carries `Origin`, and the app's origin-reflecting CORS
        (`bin/control-panel.js:114-119`) would otherwise let a foreign page read the answer with the viewer's cookie.
      - It passes the panel's own same-origin GET, which carries no `Origin`, and a same-host `Origin`.
-     - It also passes a no-cors cross-site GET, which carries no `Origin`. That GET can start at most one count
-       (single flight), only reads, and cannot read the answer.
+     - It also passes a no-cors cross-site GET, which carries no `Origin`. Such GETs can keep at most one count
+       running at a time, since a request that arrives while a count runs shares it, but repeated ones can start one
+       count after another. They only read, and cannot read the answer. *(Amended at story 4's review, round 1, 2026-10-01.)*
 
   A refused request spawns nothing, runs no Cypher and never joins a count.
 - **The relay count.**
@@ -280,8 +284,10 @@ pure halves `gateOwnerOrAdmin(req, d)` and `countFilter(identities)`.
   - The promise always resolves to the answer shape, since every failure inside becomes an unknown count. `inflight`
     is cleared in a `finally`.
   - Strfry processes never pile up, because a timed-out count is SIGKILLed at 10 s.
-  - A Cypher whose race was lost keeps its session until the server's 10 s timeout, or for up to 30 s of connection
-    acquisition. A later recount may then open another session from the pool of 20. This is accepted.
+  - A Cypher whose race was lost keeps its session until Neo4j enforces its 10 s `tx_timeout` (the client sends it
+    as metadata and sets no read deadline of its own), or for up to 30 s of connection acquisition. A Neo4j that
+    accepts the connection and never answers holds the session with no limit. A later recount may then open another
+    session from the pool of 20. This is accepted. *(Amended at story 4's review, round 1, 2026-10-01.)*
 - **Registration** (`src/api/index.js`, beside `:521-522`):
 
   ```js
@@ -360,7 +366,9 @@ Its named exports:
       labelled "refused taggings, counted at each look".
     - Failed reads are `counts.failedReads.{relay, graph, element, catchUp}`, each shown, with their sum.
     - Database refusals are `counts.dbRefused.total`.
-    - Left to the next pass are `counts.removalsNotPrompted` and `counts.droppedOverBacklog`.
+    - Left to the next pass is `counts.removalsNotPrompted`. Changes dropped over the backlog,
+      `counts.droppedOverBacklog`, are picked up by a catch-up, not left to a pass (ADR 0003 § The in-memory backlog).
+      *(Amended at story 4's review, round 1, 2026-10-01.)*
     - The gauges are `parked` and `pending`.
     - The times are `firstStartedAt` and `lastReflectedAt`, and the last catch-up is
       `catchUp.last.{outcome, startedAt, durationMs}`.
@@ -708,7 +716,7 @@ failed. It returns:
 
 ```
 { known, relay, graph, difference, explained, unexplained, explainedReason, explainedBy, leftToNextPass,
-  passRunning, newerUnfinished, pathRefusedLooks, parked, waitsForPass, pathUnknown }
+  passRunning, newerUnfinished, countsPredatePass, pathRefusedLooks, parked, waitsForPass, pathUnknown }
 ```
 
 - `relay` and `graph` are the answer's two count objects, or `{ known: false, code: null }` when `counts` is `null`.
@@ -718,9 +726,18 @@ failed. It returns:
 - `explainedReason` is `null` when a finished pass explains, `'report-unavailable'` when `statusBody` is null, or
   `'no-finished-pass'`.
 - `explainedBy` is `{ runId, endedAt, usedInsteadOfLatest }`. `usedInsteadOfLatest` is true when the explaining
-  pass is not the report's `latest`.
+  pass is not the report's `latest`, which includes a pass that is still running (`passRunning` is then true too).
+  The panel's wording says which: a running pass, or a latest pass that did not finish.
 - `leftToNextPass` is a number, or `null` without an explaining pass.
-- `passRunning`, `newerUnfinished`, `waitsForPass` and `pathUnknown` are booleans.
+- `passRunning`, `newerUnfinished`, `countsPredatePass`, `waitsForPass` and `pathUnknown` are booleans.
+- `countsPredatePass` is true only when there is an explaining pass, both counts are known, and the earlier of
+  `Date.parse(relay.takenAt)` and `Date.parse(graph.takenAt)` is before `Date.parse(explainedBy.endedAt)`. All three
+  are server times, so no client clock is read. A time that does not parse makes it false.
+  - When it is true, the explaining pass ended after the counts were taken, so it cannot explain them. `tone` is then
+    `neutral`.
+  - The panel does not present `explained` and `unexplained` as findings. It says the counts predate that pass, and
+    asks for a Recount. The two figures are still computed.
+  *(Amended at story 4's review, round 1, 2026-10-01.)*
 - `pathRefusedLooks` and `parked` are numbers when the path is on, else `null`.
 
 **T6 — `explain(kind, code)`.** An unknown `kind` answers as an unknown code. `code` is returned as given, a
