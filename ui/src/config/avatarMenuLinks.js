@@ -45,6 +45,12 @@ export const ASSISTANT_MANAGEMENT_PATH = '/assistant';
 export const MY_ASSISTANT_PATH = `${ASSISTANT_MANAGEMENT_PATH}/profile/edit`;
 
 /**
+ * The My Assistants page — every profile the viewer tagged as one of their Assistants, and their Assistant here
+ * (my-assistants #1, ADR my-assistants/0001). Not to be confused with ASSISTANT_MANAGEMENT_PATH (/assistant).
+ */
+export const MY_ASSISTANTS_PATH = '/assistants';
+
+/**
  * May this signed-in user create an assistant of their own here? An Admin or an
  * active Customer may: they are the roles POST /api/assistant/provision-key
  * accepts, less the Owner, whose assistant is the instance's Tapestry Assistant,
@@ -95,6 +101,14 @@ export function personalLinks({ pubkey, assistantPubkey, classification, profile
       label: 'My Treasure Map',
       // Already per-viewer: the page filters kind 10040 on the signed-in pubkey.
       to: '/tapestry/grapevine/treasure-map',
+    },
+    {
+      // Every Assistant the viewer has tagged as theirs, in the Brainstorm design's styling (the mock's account menu
+      // → My Assistants; my-assistants #1).
+      key: 'my-assistants',
+      icon: '👥',
+      label: 'My Assistants',
+      to: MY_ASSISTANTS_PATH,
     },
     {
       key: 'my-trusted-agents',

@@ -116,24 +116,28 @@ function handleNip05Lookup(req, res) {
 }
 
 /**
- * Resolve a NIP-05 identifier against its own domain.
- * Fetches https://<domain>/.well-known/nostr.json?name=<name> and returns the
- * hex pubkey the domain attests for that name, or null. 5-second timeout.
- * (Same shape as the verifyNip05 helpers in src/api/admin and the meili search
- * proxy — kept local rather than refactored across all three, which is out of
- * scope for story #6.)
+ * Look a NIP-05 identifier up on its own domain, and say what happened (my-assistants #4, ADR my-assistants/0004
+ * sub-decision 1). Fetches https://<domain>/.well-known/nostr.json?name=<name>, 5-second timeout.
+ * (Same shape as the verifyNip05 helpers in src/api/admin and the meili search proxy, which are kept local rather than
+ * refactored across all three; that's out of scope for story #6 and for my-assistants #4.)
  *
- * The domain comes from user-supplied input and this route is unauthenticated,
- * so the request goes through guardedFetch (src/utils/ssrfGuard): a host that is
- * or resolves to a non-public address is refused before anything leaves the
- * process, and redirects are not followed. A refusal is indistinguishable from
- * any other failed lookup — null, as before.
+ * The domain comes from user-supplied input and this route is unauthenticated, so the request goes through
+ * guardedFetch (src/utils/ssrfGuard): a host that is or resolves to a non-public address is refused before anything
+ * leaves the process, and redirects are not followed.
+ *
+ * @returns {Promise<{ outcome: 'malformed'|'unreachable'|'answered', pubkey: string|null }>}
+ *   - 'malformed': not a NIP-05 identifier (NIP05_LOOKUP_RE); nothing is fetched.
+ *   - 'unreachable': no readable listing was reached. A refused host, a network error, the abort, a non-ok response
+ *     (any 3xx included), a body that isn't JSON, or JSON whose `names` isn't a plain object.
+ *   - 'answered': the domain served a listing. `pubkey` is what it lists for the name (or its lowercase form) when
+ *     that is 64-hex, else null.
  */
-async function verifyNip05Identifier(nip05Address) {
+async function lookupNip05(nip05Address) {
   const match = String(nip05Address || '').match(NIP05_LOOKUP_RE);
-  if (!match) return null;
+  if (!match) return { outcome: 'malformed', pubkey: null };
   const name = match[1] || '_';
   const domain = match[2];
+  let json;
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
@@ -142,34 +146,48 @@ async function verifyNip05Identifier(nip05Address) {
       { signal: controller.signal }
     );
     clearTimeout(timer);
-    if (!resp || !resp.ok) return null;
-    const json = await resp.json();
-    const pubkey = json.names?.[name] || json.names?.[name.toLowerCase()];
-    if (!pubkey || !HEX_PUBKEY_RE.test(pubkey)) return null;
-    return pubkey;
+    if (!resp || !resp.ok) return { outcome: 'unreachable', pubkey: null };
+    json = await resp.json();
   } catch {
-    return null;
+    return { outcome: 'unreachable', pubkey: null };
   }
+  const names = json && json.names;
+  if (!names || typeof names !== 'object' || Array.isArray(names)) return { outcome: 'unreachable', pubkey: null };
+  const listed = names[name] || names[name.toLowerCase()];
+  return { outcome: 'answered', pubkey: typeof listed === 'string' && HEX_PUBKEY_RE.test(listed) ? listed : null };
+}
+
+/**
+ * Resolve a NIP-05 identifier against its own domain: the hex pubkey the domain attests for that name, or null.
+ * Every failure is null, as it always was; lookupNip05 is the one that says which failure.
+ */
+async function verifyNip05Identifier(nip05Address) {
+  const found = await lookupNip05(nip05Address);
+  return found.outcome === 'answered' ? found.pubkey : null;
 }
 
 /**
  * GET /api/nip05/verify?nip05=<addr>&pubkey=<hex>
- * Returns { verified: true } ONLY if the identifier's domain attests the
- * SAME pubkey as the one supplied. Fail-closed: any missing input, bad
- * pubkey, lookup error, timeout, or mismatch yields { verified: false }.
+ * Returns { verified, status } (my-assistants #4, ADR my-assistants/0004 sub-decision 2):
+ *   - 'verified': the identifier's domain attests the SAME pubkey as the one supplied;
+ *   - 'invalid': the identifier is malformed, or its domain answered and doesn't list this pubkey for it;
+ *   - 'unchecked': no readable answer (lookupNip05's 'unreachable'), a missing or malformed `pubkey`, or an error.
+ * `verified` is true exactly when `status` is 'verified', so it stays fail-closed for its existing readers
+ * (useNip05Verification on the profile pages).
  */
 async function handleNip05Verify(req, res) {
   res.set('Cache-Control', 'no-store');
   const nip05 = typeof req.query.nip05 === 'string' ? req.query.nip05 : '';
   const pubkey = typeof req.query.pubkey === 'string' ? req.query.pubkey.toLowerCase() : '';
-  if (!nip05 || !HEX_PUBKEY_RE.test(pubkey)) {
-    return res.json({ verified: false });
-  }
+  const answer = (status) => res.json({ verified: status === 'verified', status });
+  if (!HEX_PUBKEY_RE.test(pubkey)) return answer('unchecked');
   try {
-    const attested = await verifyNip05Identifier(nip05);
-    return res.json({ verified: !!attested && attested.toLowerCase() === pubkey });
+    const found = await lookupNip05(nip05);
+    if (found.outcome === 'unreachable') return answer('unchecked');
+    if (found.outcome === 'answered' && found.pubkey && found.pubkey.toLowerCase() === pubkey) return answer('verified');
+    return answer('invalid');
   } catch {
-    return res.json({ verified: false });
+    return answer('unchecked');
   }
 }
 
@@ -183,5 +201,6 @@ module.exports = {
   handleNip05Lookup,
   handleNip05Verify,
   verifyNip05Identifier,
+  lookupNip05,
   validateNip05,
 };

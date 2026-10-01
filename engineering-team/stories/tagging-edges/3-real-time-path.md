@@ -797,9 +797,8 @@ The owner ran the steps on 2026-09-30 (OPERATIONS §12.9, "The order on staging 
   reads. It was read at about 01:55Z, before the 10-minute safety diff replaced it at 01:57:47Z. The first catch-ups
   of 2026-09-30 took under 0.5 s; why this one took longer was not examined.
 
-Still to come (open question 14): organic taggings over the following days with a status that shows no failures, and
-a later pass that reports nothing a before-and-after read of the graph cannot trace to an Out-of-scope case. The
-scheduled pass of 2026-10-01 is the first candidate for the last.
+Open question 14's remaining staging items, organic taggings with no failures and a later pass that reports nothing
+untraceable, are in "The first runs at the daily time, and a day of taggings" below.
 
 ### Production
 
@@ -829,6 +828,39 @@ switch came on, so it finished before step 3, as step 2 asks; its figures were c
   The two deploy catch-ups, 28.6 s and 35.8 s, do not separate the scan from the rest of the catch-up. Each process's
   first 10-minute safety diff, which also scans, took 2,214 ms on staging (from 01:57:47.781Z) and 3,304 ms on
   production (from 02:12:21.981Z). So none of these shows a stamp scan over 20 s.
+
+### The first runs at the daily time, and a day of taggings (2026-10-01)
+
+Read from both hosts' public routes and read-only Cypher at about 19:20–19:31Z on 2026-10-01.
+- **The first runs at the daily time.** Each daily entry's second run, its first at the due time, started on time
+  (each entry's first run came at once when it was added, on 2026-09-30). Neither pass added, changed or removed anything; both
+  held nothing, refused nothing, met no conflicts and reported "the graph agrees with the relay". So open question 14's
+  "a later pass" has nothing to trace.
+  - Production: `20261001T142438Z-79016d8d`, `done` in 7,210 ms, all 7,040 taggings read unchanged.
+  - Staging: `20261001T142619Z-de346fcb`, `done` in 2,562 ms, all 7,033 taggings read unchanged.
+- **A day of taggings.** On each host the path's counts, which run from its first start, read: added 38, removed 3
+  (all three "not on relay"), with 6 people added. Production also shows changed 1 (newer), which it already showed
+  at 02:03Z. Overnight both read added 6 and removed 0 (staging at 02:24Z, production at 02:03Z), so 32 additions
+  and 3 removals came during the day.
+  The last was reflected at 19:04:57.895Z on staging and 19:04:58.040Z on production.
+  - Both read no refusals, nothing left in place, no failed reads (relay, graph, element, catch-up) and no database
+    refusals.
+  - Both read no removals it was not prompted to make, no deletion that matched nothing or was foreign, and no lost
+    races.
+  - Nothing was parked or pending, and `state` was `live`.
+- **Relay against graph** at 19:21Z: 7,061 and 7,061 on staging, 7,068 and 7,068 on production.
+- **Deploys in between.** Both processes restarted between the overnight reads and these.
+  - Production was redeployed by PR #794's promotion: deploy run `36806060638` ended at 02:30:50Z, and
+    `runningSince` reads 02:30:53.337Z. Its counts read the same at 02:31Z as at 02:03Z: added 6, changed 1,
+    removed 0.
+  - Staging was redeployed by another change: PR #795's deploy run `36874849010` ended at 14:16:43Z, and
+    `runningSince` reads 14:16:44.722Z.
+  - The counts carried across both restarts, and staging's scheduled pass ten minutes after its deploy found nothing
+    to do.
+
+That covers open question 14's staging items except the length of the organic-tagging record: one day, where the
+question asks for "the following days". Another read of the status in a few days is due, unless the owner accepts one
+day.
 
 ## Deviations
 

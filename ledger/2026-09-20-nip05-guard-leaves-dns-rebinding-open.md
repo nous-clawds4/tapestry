@@ -23,6 +23,13 @@ successful rebind yields is therefore an existence/timing signal, not content â€
 "constrained oracle" posture the Story #6 review accepted as non-blocking. The guard did remove the
 whole trivial case: direct IP literals and stable internal names.
 
+**Update 2026-10-01 (my-assistants #4, ADR my-assistants/0004 Amendment 1):** the lookup's result is no longer
+entirely withheld. `GET /api/nip05/verify` now answers a `status`, `verified | invalid | unchecked`, which says whether
+the fetched URL served a JSON NIP-05 listing with a `names` object. That's one bit more than before. With `https:`
+hardcoded and certificate validation, a rebind to an internal address still fails the TLS handshake, unless that host
+presents a valid certificate for the attacker's hostname. So it still learns nothing about an internal service; the
+posture above holds.
+
 **Fix shape when taken up:** evaluate adding `undici` as a direct dependency and give `guardedFetch`
 a dispatcher whose `connect` uses the address the guard already vetted, rather than re-resolving.
 Worth pairing with the redirect row above, since both live in `guardedFetch`.

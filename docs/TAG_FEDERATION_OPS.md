@@ -107,4 +107,34 @@ Then load `https://staging.brainstorm.world/tapestry` (or the tags UI) and confi
 
 ---
 
+## Tag deletions travel too (added 2026-09-30)
+
+The tag streams above carry kind `39999` events filtered by `#z`. A kind-`5` deletion has no `z`, so no stream carries
+it: a tagging withdrawn on one instance stays counted on the others. That's OPEN.md row
+`2026-09-27-revokes-do-not-travel`.
+
+Every instance that runs the tag streams also runs this one, with the **same URLs as its `nostrUserTag` stream**:
+
+```json
+{ "name": "tagDeletions", "dir": "both", "filter": { "kinds": [5], "#k": ["39999"], "limit": 5 }, "urls": <copy this instance's nostrUserTag urls> }
+```
+
+- **What it carries:** deletions of kind-`39999` events, which is what `#k` 39999 selects. That's every kind-39999
+  item, not only tags. The My Assistants page's Remove and Change publish exactly that (ADR my-assistants/0002
+  Amendment 1).
+- **What it can miss:** a router stream carries only what's published while both ends are connected. A deletion
+  published while a router is restarting never arrives, and every router config change restarts it. dcosl runs strfry
+  1.0.4, which honours a deletion's `e` ids but not its `a` addresses.
+  - My Assistants' withdrawals name every id, so dcosl can honour them.
+  - A missed deletion still needs a catch-up: the open part of OPEN.md row `2026-09-27-revokes-do-not-travel`.
+- **What it doesn't:** UI revokes that name only `e` and carry no `k` (OPEN.md row
+  `2026-09-27-ui-revoke-names-id-only`).
+- **How to add it:** through the owner's Router settings, or `POST /api/strfry/router-config` with the full stream
+  list. Add it beside the existing streams, and never drop any.
+- **Check:** `GET /api/strfry/router-status` lists `tagDeletions` as enabled and `both`.
+- **Where:** staging, production, tags.brainstorm.world, and any dev stack that runs the tag streams. Each is the
+  owner's call at the time (`engineering-team/audits/my-assistants/book.md` § Before shipping).
+
+---
+
 _Owner: Vinney + David, 2026-06-17 evening. Code side (Half 1 read-union + search-is-local fix) is on `feat/b-tag-primitive`, unpushed at time of writing._

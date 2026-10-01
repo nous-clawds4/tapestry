@@ -1,0 +1,208 @@
+  <sc-if value="{{ isMyAssistants }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="My Assistants" style="flex:1;width:100%;">
+      <main style="max-width:1040px;margin:0 auto;padding:40px 24px 120px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.25em;color:#13d2e5;text-transform:uppercase;white-space:nowrap;">My Assistants</span>
+          <div style="height:1px;width:48px;background:rgba(19,210,229,.4);"></div>
+        </div>
+        <h1 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-0.02em;line-height:1.1;color:#0a0e18;">Your <span style="color:#7237ff;">Assistants</span>.</h1>
+        <p style="margin:14px 0 0;max-width:640px;font-size:16px;color:#555d69;line-height:1.6;text-wrap:pretty;">Every profile you’ve tagged <strong style="color:#0a0e18;">My Brainstorm Assistant</strong> or <strong style="color:#0a0e18;">My Tapestry Assistant</strong>. Open a row to see what that Assistant does according to your <a href="#" sc-camel-on-click="{{ goTreasureLink }}" style="font-weight:600;color:#7237ff;text-decoration:none;white-space:nowrap;">Treasure Map</a>.</p>
+
+        <div role="tablist" aria-label="View" style="margin-top:22px;display:inline-flex;gap:2px;padding:3px;border-radius:999px;border:1px solid #d6d9db;background:#f2f3f0;">
+          <button role="tab" aria-selected="{{ maIsAssistStr }}" sc-camel-on-click="{{ maShowAssist }}" style="{{ maSegA }}">Assistants</button>
+          <button role="tab" aria-selected="{{ maIsDutiesStr }}" sc-camel-on-click="{{ maShowDuties }}" style="{{ maSegD }}">Duties</button>
+        </div>
+        <sc-if value="{{ maIsAssist }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:18px;border-radius:14px;border:1px solid #e8eae7;background:#fafaf9;padding:12px 14px;">
+          <div style="font-size:11px;font-weight:700;color:#8c929e;text-transform:uppercase;letter-spacing:.06em;">Find a profile to tag as an Assistant</div>
+          <input value="{{ maQ }}" sc-camel-on-change="{{ maSetQ }}" placeholder="Search by name, NIP-05, URL or npub" style="margin-top:6px;height:clamp(36px, calc(62px - 2.4vw), 44px);padding:0 12px;border-radius:10px;border:1px solid #d6d9db;background:#ffffff;font-family:inherit;font-size:14px;color:#0a0e18;box-sizing:border-box;min-width:0;width:100%;">
+          <sc-if value="{{ maHasQ }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:8px;font-size:12px;color:#6b7480;">{{ maFoundCount }}</div>
+            <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ maFound }}" as="f" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;padding:10px 12px;border-radius:12px;border:1px solid #e8eae7;background:#ffffff;">
+                  <span style="display:flex;width:32px;height:32px;flex-shrink:0;align-items:center;justify-content:center;border-radius:999px;background:#2b174f;color:#ffffff;font-size:13px;font-weight:700;">{{ f.initial }}</span>
+                  <div style="flex:1 1 220px;min-width:0;">
+                    <div style="font-size:14px;font-weight:600;color:#0a0e18;">{{ f.name }}</div>
+                    <div style="margin-top:2px;font-size:12px;color:#6b7480;overflow-wrap:anywhere;">{{ f.nip05 }} · {{ f.url }}</div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button sc-camel-on-click="{{ f.tagB }}" style="height:clamp(34px, calc(62px - 2.4vw), 44px);padding:0 12px;border-radius:999px;border:none;background:#7237ff;color:#ffffff;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;" style-hover="background:#612fd9;">Tag: My Brainstorm Assistant</button>
+                    <button sc-camel-on-click="{{ f.tagT }}" style="height:clamp(34px, calc(62px - 2.4vw), 44px);padding:0 12px;border-radius:999px;border:1px solid #d6d9db;background:#ffffff;color:#2b174f;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;" style-hover="border-color:#7237ff;color:#7237ff;">Tag: My Tapestry Assistant</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="margin-top:22px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:14px;font-weight:600;color:#2b174f;white-space:nowrap;">{{ maCount }}</span>
+          <span style="font-size:12px;color:#8c929e;white-space:nowrap;">{{ maOnCount }}</span>
+        </div>
+        <div style="margin-top:10px;border-radius:16px;border:1px solid #d6d9db;background:#ffffff;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden;">
+          <sc-for list="{{ maRows }}" as="r" hint-placeholder-count="5">
+            <div style="{{ r.wrapStyle }}">
+              <button sc-camel-on-click="{{ r.toggle }}" aria-expanded="{{ r.openStr }}" style="display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;width:100%;background:none;border:none;padding:14px 18px;cursor:pointer;font-family:inherit;text-align:left;">
+                <span style="{{ r.avStyle }}">{{ r.initial }}</span>
+                <span style="flex:1 1 240px;min-width:0;display:flex;flex-direction:column;gap:3px;line-height:1.3;">
+                  <span style="display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap;line-height:1.3;"><span style="display:block;font-size:15px;font-weight:600;color:#0a0e18;line-height:1.3;">{{ r.name }}</span><sc-if value="{{ r.local }}" hint-placeholder-val="{{ false }}"><span title="The Assistant hosted on the instance you’re using right now" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:2px 8px;background:#7237ff;color:#ffffff;"><svg width="10" height="10" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Local</span></sc-if></span>
+                  <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.3;color:#8c929e;overflow-wrap:anywhere;">{{ r.npub }}</span>
+                </span>
+                <span style="flex:1 1 150px;min-width:0;display:flex;flex-direction:column;gap:2px;line-height:1.35;"><span style="font-size:10px;font-weight:700;color:#9aa1ac;text-transform:uppercase;letter-spacing:.06em;">URL</span><span style="font-size:13px;color:#2a303b;overflow-wrap:anywhere;">{{ r.url }}</span></span>
+                <span style="flex:1 1 170px;min-width:0;display:flex;flex-direction:column;gap:2px;line-height:1.35;"><span style="font-size:10px;font-weight:700;color:#9aa1ac;text-transform:uppercase;letter-spacing:.06em;">NIP-05</span><span style="font-size:13px;color:#2a303b;overflow-wrap:anywhere;">{{ r.nip05 }}</span></span>
+                <span style="flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:14px;">
+                  <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;line-height:1.3;">
+                    <span style="{{ r.tagStyle }}">{{ r.tagLabel }}</span>
+                    <span style="{{ r.onStyle }}"><span style="{{ r.onDot }}"></span>{{ r.onLabel }}</span>
+                  </span>
+                  <svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#9aa1ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="{{ r.chev }}"><path d="m6 9 6 6 6-6"></path></svg>
+                </span>
+              </button>
+              <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:4px 18px 18px;">
+                  <div style="border-radius:12px;border:1px solid #e8eae7;background:#fafaf9;padding:14px 16px;">
+                    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;"><span style="font-size:14px;font-weight:700;color:#0a0e18;">Duties on your Treasure Map</span><span style="font-size:12px;color:#8c929e;">{{ r.dutyText }}</span></div>
+                    <sc-if value="{{ r.noDuties }}" hint-placeholder-val="{{ false }}">
+                      <p style="margin:6px 0 0;font-size:13px;color:#555d69;line-height:1.55;text-wrap:pretty;">This Assistant isn’t listed on your Treasure Map, so clients won’t ask it for anything. Add it from your Treasure Map to give it duties.</p>
+                    </sc-if>
+                    <sc-for list="{{ r.groups }}" as="g" hint-placeholder-count="2">
+                      <div style="margin-top:12px;">
+                        <div style="font-size:11px;font-weight:700;color:#8c929e;text-transform:uppercase;letter-spacing:.06em;">{{ g.label }}</div>
+                        <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
+                          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 10px;border-radius:8px;background:#ffffff;border:1px solid #f0f1ee;">
+                              <span style="{{ it.dot }}"></span>
+                              <span style="flex:1 1 200px;min-width:0;font-size:13px;font-weight:600;color:#0a0e18;">{{ it.n }}</span>
+                              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8c929e;overflow-wrap:anywhere;">{{ it.hint }}</span>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </sc-for>
+                    <div style="margin-top:14px;display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;">
+                      <button sc-camel-on-click="{{ goTreasure }}" style="height:clamp(34px, calc(62px - 2.4vw), 44px);padding:0 14px;border-radius:999px;border:1px solid #d6d9db;background:#ffffff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#2b174f;white-space:nowrap;" style-hover="border-color:#7237ff;color:#7237ff;">Manage on Treasure Map</button>
+                      <button sc-camel-on-click="{{ r.swap }}" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#7237ff;min-height:clamp(34px, calc(62px - 2.4vw), 44px);" style-hover="color:#612fd9;">{{ r.swapLabel }}</button>
+                      <button sc-camel-on-click="{{ r.untag }}" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#dc2626;min-height:clamp(34px, calc(62px - 2.4vw), 44px);">Remove Tag</button>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ maEmpty }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:18px;font-size:13px;color:#9aa1ac;">You haven’t tagged any Assistants yet. Search above to find one.</p></sc-if>
+        </div>
+
+        <sc-if value="{{ maHasUntagged }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:40px;max-width:760px;">
+            <h2 style="margin:0;font-size:20px;font-weight:700;letter-spacing:-0.01em;color:#0a0e18;">On your Treasure Map, but not tagged</h2>
+            <p style="margin:6px 0 0;font-size:14px;color:#555d69;line-height:1.55;text-wrap:pretty;">These Assistants have duties on your Treasure Map, but you haven’t tagged them as yours. Tag them to add them to the table above.</p>
+            <div style="margin-top:12px;border-radius:14px;border:1px solid #d6d9db;background:#ffffff;overflow:hidden;">
+              <sc-for list="{{ maUntagged }}" as="u" hint-placeholder-count="1">
+                <div style="{{ u.rowStyle }}">
+                  <div style="flex:1 1 240px;min-width:0;">
+                    <div style="font-size:14px;font-weight:600;color:#0a0e18;">{{ u.name }}</div>
+                    <div style="margin-top:2px;font-size:12px;color:#6b7480;overflow-wrap:anywhere;">{{ u.url }} · {{ u.nip05 }}</div>
+                    <div style="margin-top:2px;font-size:12px;color:#8c929e;">{{ u.dutyText }}</div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button sc-camel-on-click="{{ u.tagB }}" style="height:clamp(32px, calc(62px - 2.4vw), 44px);padding:0 12px;border-radius:999px;border:none;background:#7237ff;color:#ffffff;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;" style-hover="background:#612fd9;">Tag: Brainstorm</button>
+                    <button sc-camel-on-click="{{ u.tagT }}" style="height:clamp(32px, calc(62px - 2.4vw), 44px);padding:0 12px;border-radius:999px;border:1px solid #d6d9db;background:#ffffff;color:#2b174f;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;" style-hover="border-color:#7237ff;color:#7237ff;">Tag: Tapestry</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+        </sc-if>
+        <sc-if value="{{ maIsDuties }}" hint-placeholder-val="{{ false }}">
+          <p style="margin:18px 0 0;max-width:680px;font-size:14px;color:#555d69;line-height:1.6;text-wrap:pretty;">Every duty on your Treasure Map, from the most generic (a catch-all that covers everything) to the most granular (one exact Score or List). When a client needs something, the most specific matching duty wins. Within a duty, the first Assistant listed is preferred; the rest are alternates.</p>
+          <div style="margin-top:16px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:14px;font-weight:600;color:#2b174f;white-space:nowrap;">{{ mdCount }}</span>
+            <span style="font-size:12px;color:#8c929e;white-space:nowrap;">Most generic first</span>
+          </div>
+          <div style="margin-top:12px;border-radius:14px;border:1px solid #e8eae7;background:#fafaf9;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;">
+            <label style="flex:0 1 320px;min-width:0;display:flex;flex-direction:column;gap:4px;"><span style="font-size:11px;font-weight:700;color:#8c929e;text-transform:uppercase;letter-spacing:.06em;">Show which Assistant a client uses</span>
+              <sc-raw-select value="{{ mdSite }}" sc-camel-on-change="{{ mdSetSite }}" style="height:clamp(36px, calc(62px - 2.4vw), 44px);padding:0 8px;border-radius:10px;border:1px solid #d6d9db;background:#ffffff;font-family:inherit;font-size:14px;color:#0a0e18;min-width:0;width:100%;">
+                <sc-for list="{{ mdSites }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.n }}</option></sc-for>
+              </sc-raw-select>
+            </label>
+            <p style="flex:1 1 260px;margin:0;font-size:13px;color:#555d69;line-height:1.55;text-wrap:pretty;">{{ mdSiteNote }}</p>
+          </div>
+          <div style="margin-top:10px;border-radius:16px;border:1px solid #d6d9db;background:#ffffff;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:10px 18px;background:#fafaf9;border-bottom:1px solid #e8eae7;font-size:10px;font-weight:700;color:#8c929e;text-transform:uppercase;letter-spacing:.06em;">
+              <span style="flex:0 0 28px;text-align:right;">#</span>
+              <span style="flex:1 1 280px;min-width:0;">Duty</span>
+              <span style="flex:1 1 260px;min-width:0;">{{ mdColLabel }}</span>
+              <span style="flex:0 0 16px;"></span>
+            </div>
+            <sc-for list="{{ mdRows }}" as="d" hint-placeholder-count="8">
+              <div style="{{ d.wrapStyle }}">
+              <button sc-camel-on-click="{{ d.toggle }}" aria-expanded="{{ d.openStr }}" style="{{ d.rowStyle }}">
+                <span style="flex:0 0 28px;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:#9aa1ac;text-align:right;">{{ d.rank }}</span>
+                <span style="flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:3px;line-height:1.35;">
+                  <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="{{ d.dot }}"></span><span style="font-size:14px;font-weight:600;color:#0a0e18;">{{ d.title }}</span><span style="{{ d.levelStyle }}">{{ d.level }}</span></span>
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8c929e;overflow-wrap:anywhere;">{{ d.key }}</span>
+                </span>
+                <span style="flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:4px;line-height:1.35;">
+                  <span style="display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;">
+                    <span style="{{ d.avStyle }}">{{ d.initial }}</span>
+                    <span style="font-size:13px;font-weight:600;color:#0a0e18;">{{ d.pref }}</span>
+                    <sc-if value="{{ d.home }}" hint-placeholder-val="{{ false }}"><span title="The adopted provider's Assistant" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:2px 7px;background:#7237ff;color:#ffffff;">Adopted</span></sc-if>
+                    <sc-if value="{{ d.untagged }}" hint-placeholder-val="{{ false }}"><span title="On your Treasure Map, but not tagged as one of your Assistants" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:2px 7px;background:#fef3c7;color:#92400e;">Not tagged</span></sc-if>
+                  </span>
+                  <sc-if value="{{ d.overrides }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#5b21d6;">Used instead of your Preferred: {{ d.prefName }}</span></sc-if>
+                  <sc-if value="{{ d.hasAlt }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#6b7480;">{{ d.altLabel }} {{ d.alts }}</span></sc-if>
+                </span>
+                <svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#9aa1ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="{{ d.chev }}"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
+              <sc-if value="{{ d.open }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:2px 18px 18px;">
+                  <div style="border-radius:12px;border:1px solid #e8eae7;background:#fafaf9;padding:14px 16px;">
+                    <div style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;">
+                      <span style="font-size:14px;font-weight:700;color:#0a0e18;">Assistants for this duty</span>
+                      <span style="font-size:12px;color:#8c929e;">{{ d.orderNote }}</span>
+                      <sc-if value="{{ d.custom }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:2px 7px;background:#ede9fe;color:#5b21d6;">Custom order</span></sc-if>
+                    </div>
+                    <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+                      <sc-for list="{{ d.list }}" as="a" hint-placeholder-count="2">
+                        <div style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:8px 10px;border-radius:10px;background:#ffffff;border:1px solid #f0f1ee;">
+                          <span style="{{ a.labelStyle }}">{{ a.label }}</span>
+                          <span style="flex:1 1 220px;min-width:0;display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;line-height:1.35;">
+                            <span style="font-size:13px;font-weight:600;color:#0a0e18;">{{ a.name }}</span>
+                            <sc-if value="{{ a.home }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:2px 7px;background:#7237ff;color:#ffffff;">Adopted</span></sc-if>
+                            <sc-if value="{{ a.untagged }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:2px 7px;background:#fef3c7;color:#92400e;">Not tagged</span></sc-if>
+                          </span>
+                          <span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                            <sc-if value="{{ a.canPref }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ a.makePref }}" style="height:30px;padding:0 10px;border-radius:999px;border:1px solid #d6d9db;background:#ffffff;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:#2b174f;white-space:nowrap;" style-hover="border-color:#7237ff;color:#7237ff;">Make preferred</button></sc-if>
+                            <button sc-camel-on-click="{{ a.up }}" disabled="{{ a.noUp }}" aria-label="Move up" style="{{ a.upStyle }}"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg></button>
+                            <button sc-camel-on-click="{{ a.down }}" disabled="{{ a.noDown }}" aria-label="Move down" style="{{ a.downStyle }}"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+                            <button sc-camel-on-click="{{ a.remove }}" disabled="{{ a.noRemove }}" aria-label="Remove from this duty" title="{{ a.removeTitle }}" style="{{ a.rmStyle }}"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+                          </span>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ d.canAdd }}" hint-placeholder-val="{{ true }}">
+                      <sc-raw-select value="" sc-camel-on-change="{{ d.add }}" aria-label="Add an Assistant to this duty" style="margin-top:8px;height:clamp(36px, calc(62px - 2.4vw), 44px);padding:0 8px;border-radius:10px;border:1px dashed #b4bac3;background:#ffffff;font-family:inherit;font-size:13px;color:#2b174f;min-width:0;width:100%;max-width:420px;">
+                        <sc-for list="{{ d.addOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.n }}</option></sc-for>
+                      </sc-raw-select>
+                    </sc-if>
+                    <sc-if value="{{ d.addFull }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:12px;color:#8c929e;">Catch-all duties take one Preferred and one Alternate.</p></sc-if>
+                    <div style="margin-top:14px;font-size:11px;font-weight:700;color:#8c929e;text-transform:uppercase;letter-spacing:.06em;">On your Treasure Map</div>
+                    <p style="margin:4px 0 0;font-size:13px;color:#2a303b;line-height:1.55;text-wrap:pretty;">{{ d.sentence }}</p>
+                    <pre style="margin:8px 0 0;padding:10px 12px;border-radius:10px;background:#0a0e18;color:#e8eae7;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;">{{ d.raw }}</pre>
+                    <div style="margin-top:12px;display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center;">
+                      <button sc-camel-on-click="{{ d.goSec }}" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#7237ff;min-height:32px;" style-hover="color:#612fd9;">{{ d.secLabel }} →</button>
+                      <sc-if value="{{ d.custom }}" hint-placeholder-val="{{ false }}"><button sc-camel-on-click="{{ d.reset }}" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#6b7480;min-height:32px;" style-hover="color:#2a303b;">Reset to the section order</button></sc-if>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ mdEmpty }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:18px;font-size:13px;color:#9aa1ac;">Your Treasure Map doesn’t list any duties yet.</p></sc-if>
+          </div>
+        </sc-if>
+      </main>
+    </section>
+  </sc-if>
