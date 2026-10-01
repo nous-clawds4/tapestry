@@ -39,6 +39,8 @@ README).
       Assistants that are on the Treasure Map but not tagged are listed separately.
 - [ ] The **Duties** tab lists the duties on the person's Treasure Map, read-only, covering the
       entry types the app understands today.
+- [ ] Each Assistant's NIP-05 shows whether its domain confirms it (Verified, Not valid, Couldn't check), and every
+      Assistant on the page links to its Brainstorm profile page (added with story 4, decision 14).
 - [ ] The book is shipped to staging. Production only on the owner's explicit go.
 
 ## Decisions at intake
@@ -84,6 +86,12 @@ At story 3's review, 2026-10-01:
 13. **With no relay to ask, the page says it couldn't read the Treasure Map** (review 1 non-blocking 3; ADR
     my-assistants/0003 Amendment 1). Under the strict read, a local miss with no general-purpose relay is an error,
     never "you haven't published one".
+
+After the shipping checks, 2026-10-01:
+
+14. **Story 4 joins the book before it closes:** each Assistant's NIP-05 shown as Verified, Not valid or Couldn't
+    check, and a link from every Assistant to its Brainstorm profile page, opening in a new tab. The owner asked for
+    it to check whether Assistants' tags are right. It ships to staging, then to production with stories 1–3.
 
 ## Before shipping
 
