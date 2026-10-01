@@ -1,6 +1,6 @@
 # Story 2: The 🧭 b-disposition column on List Headers
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-01
 **Type:** Feature
 **Epic:** `list-headers-disposition`
@@ -81,4 +81,4 @@ the story:
 ## Linked artifacts
 - ADR: `engineering-team/decisions/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md`
 - Test plan: `engineering-team/stories/list-headers-disposition/2-b-disposition-column.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/list-headers-disposition/2-b-disposition-column.md`
