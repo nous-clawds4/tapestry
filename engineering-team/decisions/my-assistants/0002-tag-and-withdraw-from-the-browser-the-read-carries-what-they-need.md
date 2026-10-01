@@ -355,3 +355,16 @@ deletions travel. These sub-decisions add to 1–10, and change only what they n
 - **No live check on the Mac Studio until its stream is on and the owner presses on staging.** The cross-instance
   path is proven only by a real press on one host, then a read of another host's relay for the deleted ids.
   That check goes in the book's § Before shipping.
+
+**Correction noted at review 2 (2026-09-30).** Amendment 1 says more than the router and dcosl deliver.
+- **A router stream is live-only.** It carries events published while both ends are connected (strfry
+  `cmd_router.cpp`). A deletion published while a router is restarting never arrives, and every router config change
+  restarts it.
+- **`#k` 39999 covers more than tags.** It selects deletions of any kind-39999 item, tags and taggings included.
+- **dcosl honours only the `e` half.** It runs strfry 1.0.4, which predates deletion by address (`a`). The
+  withdrawal names every id, so dcosl can honour it.
+- **So the stream narrows the gap but doesn't close it.** OPEN.md row `2026-09-27-revokes-do-not-travel` stays open
+  for the catch-up, and sub-decision 12's "What it closes" is withdrawn. The row is updated with this book's partial
+  fix when the stream ships.
+- **Review 2's non-blocking 1:** the send to dcosl is in the code and its report is tested, but no test pins the send
+  itself. The book's § Before shipping carries that test.

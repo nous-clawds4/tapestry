@@ -83,9 +83,15 @@ At story 2's review, 2026-09-30:
       staging, production and tags.brainstorm.world, and on the Mac Studio's local stack. The settings: `both`,
       `{"kinds":[5],"#k":["39999"],"limit":5}`, and the same URLs as that instance's `nostrUserTag` stream.
       Each instance needs the owner's OK at the time. Confirm with `GET /api/strfry/router-status` on each.
-- [ ] **Prove a withdrawal travels.** On staging, with a real extension, tag a profile and then Remove it. Then read
-      production's and tags.brainstorm.world's relays (`/api/strfry/scan`) for the removed tagging's id: it must
-      be gone, or carry its kind 5. Also read `wss://dcosl.brainstorm.world` for the same id.
+- [ ] **Prove a withdrawal travels.** On staging, with a real extension, tag a profile.
+      - **First** confirm the tagging has reached production's and tags.brainstorm.world's relays
+        (`/api/strfry/scan` by its id). Otherwise "gone" proves nothing.
+      - Then Remove it, and read those relays and `wss://dcosl.brainstorm.world` for the same id: it must be gone,
+        or its kind 5 present.
+- [ ] **Pin the withdrawal's send in a test** (review 2, non-blocking 1). Today only its report is tested.
+      - Pass the withdrawal relays once through the orchestration's `deps`.
+      - Add a Node test that the withdrawal is sent to, and reported against, a list including dcosl.
+      - This is a small Tester and Implementer pass: in story 3's cycle, or on its own before shipping.
 
 ## Epics in this book
 - `my-assistants` — the My Assistants page, its menu link, the tagging actions and the Duties tab.

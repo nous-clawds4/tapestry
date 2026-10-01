@@ -189,7 +189,9 @@ The spec's mock gained a `searchHold` option, to hold a query's search answer.
   - C16: status regions before a press, expected 1, received 0.
   - C17: `aria-expanded`, expected "false", received "true".
 - **Already passing, as regression pins:**
-  - C9 for Change and Remove: the guard exists today. Review 1's mutant M1, which removes it, now fails them.
+  - C9 for Change and Remove: the guard exists today. Review 1's mutant M1 (the withdrawal's guard removed) now fails
+    C9 Remove with the wrong key. Removing the extension check too fails both Remove cases, and removing the apply's
+    guard fails Tag and Change with the wrong key (review 2, M1b and M1c). *Corrected 2026-09-30 by review 2.*
   - C14: the refresh note exists today. Review 1's M2 now fails it.
 
 **An oracle was not built for this amendment.** The changes are small and UI-local, and Phase 4 comes next in the

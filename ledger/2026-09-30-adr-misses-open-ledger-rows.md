@@ -6,8 +6,9 @@
 **Status:** OPEN
 **Done:** —
 
-ADR my-assistants/0002 chose a NIP-09 kind 5 as its withdrawal, and said in § Consequences that the withdrawn
-tagging would stop showing "on the profile pages' Tagging Activity" and everywhere the read looks.
+ADR my-assistants/0002 chose a NIP-09 kind 5 as its withdrawal. Its § Consequences said: "Withdrawal makes strfry
+delete the named events locally, so the profile pages' Tagging Activity stops showing them as well." It said nothing
+about other instances.
 
 OPEN.md row `2026-09-27-revokes-do-not-travel`, open since 2026-09-27, already showed that a kind 5 never leaves its
 instance:

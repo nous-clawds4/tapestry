@@ -182,9 +182,11 @@ After review 1, implementing ADR 0002 Amendment 1 (2026-09-30):
   query changes. A flag would still let the previous query's results show for one render. **Searching…** shows
   whenever the current query has no answer of its own.
 - **The search card shows one reason line per unavailable tag,** not only the first. Each line is tied to its buttons
-  with `aria-describedby`. Today only Brainstorm can be unavailable, so it reads the same.
+  with `aria-describedby`. Today only Brainstorm is unavailable, so it reads the same. Tapestry would be too if its
+  definition went missing.
 - **The orchestration takes `withdrawRelays`** beside `relays`, defaulting to it. A withdrawal's report then lists
-  the relays it was actually sent to, dcosl included.
+  the relays it was sent to, dcosl included. That holds because the page passes the same constant to the publisher
+  and to the report; no test pins the send itself (review 2, non-blocking 1; book § Before shipping).
 - **The refresh still re-reads every row's profile.** Amendment 1, sub-decision 13, made that the rule.
 
 ## Linked artifacts

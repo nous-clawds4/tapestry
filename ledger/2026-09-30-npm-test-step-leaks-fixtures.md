@@ -34,6 +34,8 @@ Docker, with no network during the test run:
 
 The copied tree must be owned by the container's user (`chown -R root:root` inside the volume), or git in the
 container refuses it as a dubious-ownership repo. Review 1 round 2 lost a restart to this, and another to the label.
+Redirect the gate's output to a file **outside** the copied tree. A log inside it makes the run's record start
+`dirty`, which cost my-assistants #2's review a restart.
 
 Result: 245/245 suites, every live suite skipped, nothing published (gate run `20260930T213125Z-20-ca8a`, PASS).
 
