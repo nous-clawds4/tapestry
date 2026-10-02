@@ -43,10 +43,11 @@ const CURATION_OPTIONS = [
   'Update the expected format for list items',
 ];
 
-const ITEMS_FAQ = {
-  q: 'Who decides which items belong on this list?',
-  a: 'Your trusted, extended community. Anyone can file an item under this concept, but this list only shows items filed by people your community trusts: those ranked above your verified cutoff, from your point of view. Items you or your Assistant filed always show. The list is read fresh each time you open this page. Coming in a later version: the more trusted people file the same item, the more firmly it belongs, and you will be able to add or exclude items yourself, with your choice always winning.',
-};
+const ITEMS_FAQ_Q = 'Who decides which items belong on this list?';
+/** The answer, in the reader's voice: "your" when signed in, "the owner's" when it is the owner's Dictionary. */
+const itemsFaqAnswer = (signedIn) => (signedIn
+  ? 'Your trusted, extended community. Anyone can file an item under this concept, but this list only shows items filed by people your community trusts: those ranked above your verified cutoff, from your point of view. Items you or your Assistant filed always show. The list is read fresh each time you open this page. Coming in a later version: the more trusted people file the same item, the more firmly it belongs, and you will be able to add or exclude items yourself, with your choice always winning.'
+  : 'The owner’s trusted, extended community. Anyone can file an item under this concept, but this list only shows items filed by people the community trusts: those ranked above the verified cutoff, from the point of view in use. Items the owner or the owner’s Assistant filed always show. The list is read fresh each time this page opens. Coming in a later version: the more trusted people file the same item, the more firmly it belongs, and the Dictionary’s owner will be able to add or exclude items by hand, with their choice always winning.');
 
 async function scan(filter) {
   const resp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(JSON.stringify(filter))}`);
@@ -107,7 +108,7 @@ function Disclosure({ id, label, children }) {
   return (
     <div className="dict-card dict-entry-card dict-disclosure">
       <button
-        type="button" className="dict-disclosure-btn" aria-expanded={open} aria-controls={id}
+        type="button" className="dict-disclosure-btn" aria-expanded={open} aria-controls={open ? id : undefined}
         onClick={() => setOpen(!open)}
       >
         {label} <span className={`dict-chev${open ? ' is-open' : ''}`}><DictIcon name="chevron" /></span>
@@ -155,6 +156,8 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
   const { data, error } = useConceptDictionary(person, povParams, { enabled: !passed });
 
   const entry = passed ? passed.entry : (data?.entries || []).find((e) => e.coord === coord) || null;
+  const metric = passed ? passed.metric : data?.metric;
+  // Until the row is known, nothing that depends on it is said (or asked for).
   const settled = Boolean(passed) || data !== null;
   const sharedCoord = entry?.sharedCoord || null;
   const sharedIsSelf = sharedCoord === coord;
@@ -162,13 +165,15 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
   const header = useHeaderEvent(coord);
   const shared = useHeaderEvent(sharedCoord && !sharedIsSelf ? sharedCoord : null);
   const sharedEvent = sharedIsSelf ? header.event : shared.event;
-  const items = useConceptItems({ coord, shared: sharedCoord, person, povParams });
-  const map = useTreasureMap(person.loading ? null : person.account);
+  const items = useConceptItems({ coord, shared: sharedCoord, person, povParams, enabled: settled });
+  // Strict: a Map no relay could be asked for is unreadable, never "none" (my-assistants ADR 0003 Amendment 1).
+  const map = useTreasureMap(person.loading ? null : person.account, { strict: true });
 
   const { pubkey: author, d } = coordParts(coord);
   const sharedAuthor = sharedCoord ? coordParts(sharedCoord).pubkey : null;
   const mapSettled = !person.loading && map.status !== 'loading';
-  const curator = mapSettled ? conceptCurator(map.event?.tags, [d, sharedCoord ? coordParts(sharedCoord).d : null], person.assistant) : null;
+  const mapError = map.status === 'error';
+  const curator = mapSettled && !mapError ? conceptCurator(map.event?.tags, coord, person.assistant) : null;
 
   // Items: keyword, sort and page, all in the page (the server returns the whole trusted list).
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -180,20 +185,9 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
   const [faqOpen, setFaqOpen] = useState(false);
 
   const all = useMemo(() => (items.data?.items || []).map((it, i) => ({ ...it, n: i + 1 })), [items.data]);
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    let list = needle ? all.filter((it) => it.name.toLowerCase().includes(needle)) : all;
-    if (sort !== 'none') {
-      list = [...list].sort((a, b) => (sort === 'az' ? 1 : -1) * a.name.localeCompare(b.name, undefined, { numeric: true }));
-    }
-    return list;
-  }, [all, q, sort]);
-  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
-  const pg = Math.min(pageNo, pages - 1);
-  const from = pg * PAGE_SIZE;
-  const visible = shown.slice(from, from + PAGE_SIZE);
+  const filers = useMemo(() => [...new Set(all.map((it) => it.author))], [all]);
 
-  const profiles = useProfiles([...new Set([author, sharedAuthor, curator?.pubkey, ...visible.map((it) => it.author)].filter(Boolean))]);
+  const profiles = useProfiles([...new Set([author, sharedAuthor, curator?.pubkey, ...filers].filter(Boolean))]);
   const whose = person.signedIn ? 'your' : 'the owner’s';
   const Whose = person.signedIn ? 'Your' : 'The owner’s';
   const nameOf = (pubkey) => {
@@ -209,6 +203,18 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
     return p && typeof p === 'object' && typeof p.nip05 === 'string' && p.nip05 ? p.nip05 : null;
   };
 
+  // The keyword matches the item's name and who filed it, as the design's search does.
+  const needle = q.trim().toLowerCase();
+  let shown = needle ? all.filter((it) => `${it.name} ${nameOf(it.author)}`.toLowerCase().includes(needle)) : all;
+  if (sort !== 'none') {
+    shown = [...shown].sort((a, b) => (sort === 'az' ? 1 : -1) * a.name.localeCompare(b.name, undefined, { numeric: true }));
+  }
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const pg = Math.min(pageNo, pages - 1);
+  const from = pg * PAGE_SIZE;
+  const visible = shown.slice(from, from + PAGE_SIZE);
+  const setAside = items.data ? items.data.totalCount - items.data.keptCount : 0;
+
   const ev = header.event;
   const singular = entry ? displayName(entry) : (tagValue(ev, 'names') || tagValue(ev, 'name') || d);
   const plural = entry?.plural || tagValue(ev, 'names', 2);
@@ -220,7 +226,10 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
   const curatorWhy = !curator ? null
     : curator.why === 'assigned' ? `Assigned to this Concept on ${whose} Treasure Map`
       : curator.why === 'catch-all' ? `${Whose} Treasure Map’s catch-all Assistant: no Assistant is assigned to this Concept specifically`
-        : `${Whose} local Assistant: ${whose} Treasure Map has no Assistant for this`;
+        : map.status === 'found' ? `${Whose} local Assistant: ${whose} Treasure Map has no Assistant for this`
+          : `${Whose} local Assistant: no Treasure Map was found for ${person.signedIn ? 'you' : 'the owner'}`;
+  const curatorSummary = curator ? nameOf(curator.pubkey)
+    : mapError ? 'Could not read the Treasure Map' : mapSettled ? 'No Assistant' : 'Reading…';
 
   return (
     <>
@@ -248,7 +257,7 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
       )}
 
       {/* Items — the trusted list, with search, sort and pages. */}
-      <div className="dict-card dict-items" aria-label="Items">
+      <section className="dict-card dict-items" aria-label="Items">
         <div className="dict-items-head">
           <div className="dict-items-title">
             <span className="dict-items-name">Items</span>
@@ -257,7 +266,7 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
             </span>
           </div>
           <button
-            type="button" className="dict-link-btn dict-items-tools-btn" aria-expanded={toolsOpen} aria-controls="dict-items-tools"
+            type="button" className="dict-link-btn dict-items-tools-btn" aria-expanded={toolsOpen} aria-controls={toolsOpen ? 'dict-items-tools' : undefined}
             onClick={() => setToolsOpen(!toolsOpen)}
           >
             <DictIcon name="search" /> Search &amp; sort <span className={`dict-chev${toolsOpen ? ' is-open' : ''}`}><DictIcon name="chevron" /></span>
@@ -290,15 +299,21 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
             </div>
           </div>
         )}
-        <div className="dict-items-row dict-items-row--head" aria-hidden="true"><span>#</span><span>Item</span><span>Filed by</span></div>
-        {items.error && <p className="dict-items-msg">Could not read the items: {items.error}</p>}
-        {items.data && visible.map((it) => (
-          <div key={it.address || it.id} className="dict-items-row">
-            <span className="dict-items-n">{it.n}</span>
-            <span className="dict-items-item">{it.name}</span>
-            <Link to={`${profileBase}/${it.author}`} title={npubOf(it.author)} className="dict-items-by">{nameOf(it.author)}</Link>
+        <div role="table" aria-label="Items">
+          <div className="dict-items-row dict-items-row--head" role="row">
+            <span role="columnheader">#</span><span role="columnheader">Item</span><span role="columnheader">Filed by</span>
           </div>
-        ))}
+          {items.data && visible.map((it) => (
+            <div key={it.address || it.id} className="dict-items-row" role="row">
+              <span className="dict-items-n" role="cell">{it.n}</span>
+              <span className="dict-items-item" role="cell">{it.name}</span>
+              <span role="cell" className="dict-items-by-cell">
+                <Link to={`${profileBase}/${it.author}`} title={npubOf(it.author)} className="dict-items-by">{nameOf(it.author)}</Link>
+              </span>
+            </div>
+          ))}
+        </div>
+        {items.error && <p className="dict-items-msg">Could not read the items: {items.error}</p>}
         {items.data && shown.length === 0 && (
           <p className="dict-items-msg">
             {q.trim() ? `No items match “${q.trim()}”.` : 'No items filed by people your community trusts yet.'}
@@ -306,19 +321,22 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
         )}
         <div className="dict-items-foot">
           <span className="dict-items-range">
-            {shown.length ? `${from + 1}–${from + visible.length} of ${shown.length.toLocaleString()}` : '0 items'}
+            {!items.data ? '' : shown.length ? `${from + 1}–${from + visible.length} of ${shown.length.toLocaleString()}` : '0 items'}
           </span>
           <div className="dict-items-pager">
             <button type="button" className="dict-pill-btn dict-pill-btn--quiet" disabled={pg === 0} onClick={() => setPageNo(pg - 1)}>Previous</button>
             <button type="button" className="dict-pill-btn dict-pill-btn--quiet" disabled={pg >= pages - 1} onClick={() => setPageNo(pg + 1)}>Next</button>
           </div>
         </div>
-      </div>
+      </section>
       {items.data && (
         <p className="dict-pov text-muted">
           {itemsPovLine(items.data.pov)}
-          {items.data.totalCount > all.length
-            ? ` ${(items.data.totalCount - all.length).toLocaleString()} more filed by people below the verified cutoff ${items.data.totalCount - all.length === 1 ? 'is' : 'are'} not shown.`
+          {items.data.truncated
+            ? ` Showing the first ${all.length.toLocaleString()} of ${items.data.keptCount.toLocaleString()} items.`
+            : ''}
+          {setAside > 0
+            ? ` ${setAside.toLocaleString()} more filed by people below the verified cutoff ${setAside === 1 ? 'is' : 'are'} not shown.`
             : ''}
           {' '}Item pages arrive in a later version.
         </p>
@@ -326,10 +344,13 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
 
       {/* Curation — who curates this concept, and the switches still to come. */}
       <div className="dict-card dict-entry-card dict-curation">
-        <button type="button" className="dict-curation-btn" aria-expanded={curOpen} aria-controls="dict-curation" onClick={() => setCurOpen(!curOpen)}>
+        <button
+          type="button" className="dict-curation-btn" aria-expanded={curOpen} aria-controls={curOpen ? 'dict-curation' : undefined}
+          onClick={() => setCurOpen(!curOpen)}
+        >
           <span className="dict-items-title">
             <span className="dict-items-name">Curation</span>
-            <span className="dict-items-count">{curator ? nameOf(curator.pubkey) : mapSettled ? 'No Assistant' : 'Reading…'}</span>
+            <span className="dict-items-count">{curatorSummary}</span>
           </span>
           <span className={`dict-chev${curOpen ? ' is-open' : ''}`}><DictIcon name="chevron" size={16} /></span>
         </button>
@@ -347,19 +368,23 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
                 </div>
               </div>
             ) : (
-              <p className="dict-items-msg">{!mapSettled ? 'Reading the Treasure Map…' : `No Assistant curates this for ${whose} Dictionary.`}</p>
+              <p className="dict-items-msg">
+                {!mapSettled ? 'Reading the Treasure Map…'
+                  : mapError ? `Could not read ${whose} Treasure Map: ${map.error}`
+                    : `No Assistant curates this for ${whose} Dictionary.`}
+              </p>
             )}
             <div className="dict-switches">
               {CURATION_OPTIONS.map((label) => (
                 <div key={label} className="dict-switch-row">
                   <span className="dict-switch-label">{label}</span>
-                  <button type="button" role="switch" aria-checked="false" aria-label={label} className="dict-switch" disabled>
+                  <button type="button" role="switch" aria-checked="false" aria-label={label} aria-describedby="dict-curation-note" className="dict-switch" disabled>
                     <span className="dict-switch-knob" />
                   </button>
                 </div>
               ))}
             </div>
-            <p className="dict-entry-note text-muted">These settings arrive in a later version.</p>
+            <p id="dict-curation-note" className="dict-entry-note text-muted">These settings arrive in a later version.</p>
           </div>
         )}
       </div>
@@ -367,7 +392,7 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
       {/* FAQ — closed by default. */}
       <div className="dict-faq-wrap">
         <button
-          type="button" className="dict-link-btn" aria-expanded={faqShown} aria-controls="dict-entry-faq"
+          type="button" className="dict-link-btn" aria-expanded={faqShown} aria-controls={faqShown ? 'dict-entry-faq' : undefined}
           onClick={() => setFaqShown(!faqShown)}
         >
           Frequently asked questions <span className={`dict-chev${faqShown ? ' is-open' : ''}`}><DictIcon name="chevron" /></span>
@@ -375,11 +400,14 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
         {faqShown && (
           <div id="dict-entry-faq" className="dict-card dict-faq">
             <div className="dict-faq-item">
-              <button type="button" className="dict-faq-q" aria-expanded={faqOpen} onClick={() => setFaqOpen(!faqOpen)}>
-                <span>{ITEMS_FAQ.q}</span>
+              <button
+                type="button" className="dict-faq-q" aria-expanded={faqOpen} aria-controls={faqOpen ? 'dict-entry-faq-a' : undefined}
+                onClick={() => setFaqOpen(!faqOpen)}
+              >
+                <span>{ITEMS_FAQ_Q}</span>
                 <span className={`dict-chev${faqOpen ? ' is-open' : ''}`}><DictIcon name="chevron" size={16} /></span>
               </button>
-              {faqOpen && <p className="dict-faq-a">{ITEMS_FAQ.a}</p>}
+              {faqOpen && <p id="dict-entry-faq-a" className="dict-faq-a">{itemsFaqAnswer(person.signedIn)}</p>}
             </div>
           </div>
         )}
@@ -389,7 +417,9 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
       <div className="dict-strip dict-author-strip">
         <span className="dict-avatar dict-avatar--soft">{initialOf(sharedCoord ? nameOf(sharedAuthor) : nameOf(author))}</span>
         <div className="dict-strip-text dict-author-text">
-          {sharedCoord ? (
+          {!settled ? (
+            <span>Reading {whose} Dictionary…</span>
+          ) : sharedCoord ? (
             <span>
               A Shared Community Concept, authored by{' '}
               <Link to={`${profileBase}/${sharedAuthor}`} className="dict-strip-link">{nameOf(sharedAuthor)}</Link>
@@ -398,7 +428,8 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
           ) : (
             <span>{entry ? 'Its b-tag points at an event id, not at a shared concept that items are filed under.' : 'Not in this Dictionary, so it is not scored.'}</span>
           )}
-          {entry && sharedCoord && (
+          {/* GUM₁ counts distinct trusted authors filing under the shared concept; another metric needs its own words. */}
+          {entry && sharedCoord && metric === 'gum1' && (
             <span>
               <strong>{members} {members === 1 ? 'member' : 'members'}</strong> of {whose} trusted, extended community {members === 1 ? 'files' : 'file'} items under it.
             </span>
@@ -416,7 +447,9 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
       </p>
 
       <Disclosure id="dict-community-header" label="Community Concept header">
-        {sharedCoord ? (
+        {!settled ? (
+          <p className="text-muted">Reading {whose} Dictionary…</p>
+        ) : sharedCoord ? (
           <>
             <p className="dict-mono dict-shared-coord">{sharedCoord}</p>
             <div className="dict-field-label dict-disclosure-label">Authored by</div>

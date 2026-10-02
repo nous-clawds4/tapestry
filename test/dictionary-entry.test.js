@@ -6,9 +6,10 @@
  * trusts (the qualifying set GUM₁ counts), plus the reader's own filings. What has no backend yet is
  * shown disabled with a note: the Trusted Curation Method, the Curation switches, Veto, item pages.
  *
- *   I1..I7 — pure: trustedItems in src/lib/trustedDictionary.js.
+ *   I1..I11 — pure: trustedItems in src/lib/trustedDictionary.js (I8–I10: a curation copy and its
+ *             original are one item; I11: the response cap).
  *   C1..C3 — pure: conceptCurator in ui/src/utils/treasureMap.js (dynamic import).
- *   E1..E5 — structural pins, read off comment-stripped source: the route and its seam, the
+ *   E1..E6 — structural pins, read off comment-stripped source: the route and its seam, the
  *            client read, the design's sections in order, the disabled controls with their notes,
  *            and the dropped sample chips.
  *
@@ -113,16 +114,19 @@ test('I5: a regular (non-addressable) event is one item per id', () => {
   assert(out.items.every((i) => i.address === null), 'a regular event has no address');
 });
 
-test('I6: the name falls back names → name → d → a short id', () => {
+test('I6: the name falls back names → name → title → d → a short id', () => {
   const withNames = item(TRUSTED, SHARED, { name: 'plain', d: 'slug' });
   withNames.tags.push(['names', 'singular', 'plural']);
+  const titled = item(TRUSTED, SHARED, { d: 'tl-pin-1', kind: 30000 });
+  titled.tags.push(['title', 'A pin export']);
   const dOnly = item(TRUSTED, SHARED, { d: 'only-d' });
   const bare = item(TRUSTED, SHARED, { kind: 9999 });
-  const out = lib().trustedItems({ zCarriers: [withNames, dOnly, bare], coords: [SHARED], qualifying: [TRUSTED] });
+  const out = lib().trustedItems({ zCarriers: [withNames, titled, dOnly, bare], coords: [SHARED], qualifying: [TRUSTED] });
   const names = out.items.map((i) => i.name);
   assert(names[0] === 'singular', `names wins, got ${names[0]}`);
-  assert(names[1] === 'only-d', `then d, got ${names[1]}`);
-  assert(names[2] === `${bare.id.slice(0, 8)}…`, `then a short id, got ${names[2]}`);
+  assert(names[1] === 'A pin export', `then title (a NIP-51 list has no name), got ${names[1]}`);
+  assert(names[2] === 'only-d', `then d, got ${names[2]}`);
+  assert(names[3] === `${bare.id.slice(0, 8)}…`, `then a short id, got ${names[3]}`);
 });
 
 test('I7: filing order is oldest first, ties broken by id', () => {
@@ -130,6 +134,53 @@ test('I7: filing order is oldest first, ties broken by id', () => {
   const early = item(TRUSTED, SHARED, { name: 'early', d: 'e', at: 5 });
   const out = lib().trustedItems({ zCarriers: [late, early], coords: [SHARED], qualifying: [TRUSTED] });
   assert(out.items.map((i) => i.name).join() === 'early,late', 'oldest first');
+});
+
+/** A curation copy as src/api/dlist-curation/updateEvents.js composes it: kind 39999, d copy-…, z my header, q → original. */
+function copyOf(original, { assistant = MY_TA, header = OWN, at } = {}) {
+  n += 1;
+  const ref = original.kind === 39999 ? `39999:${original.pubkey}:${original.tags.find((t) => t[0] === 'd')[1]}` : original.id;
+  const tags = [['d', `copy-${n.toString(16).padStart(64, '0')}`], ['z', header]];
+  if (ref !== original.id) tags.push(['q', ref, '']);
+  tags.push(['q', original.id, '', original.pubkey]);
+  const name = original.tags.find((t) => t[0] === 'name');
+  if (name) tags.push([...name]);
+  return { id: n.toString(16).padStart(64, '0'), kind: 39999, pubkey: assistant, created_at: at ?? n, tags };
+}
+
+test('I8: a curation copy and its trusted original are one item: the original, with its filer', () => {
+  const fido = item(TRUSTED, SHARED, { name: 'Fido', d: 'fido' });
+  const out = lib().trustedItems({ zCarriers: [fido, copyOf(fido)], coords: [OWN, SHARED], qualifying: [TRUSTED], own: [ME, MY_TA] });
+  assert(out.items.length === 1, `one item, got ${out.items.map((i) => `${i.name} by ${i.author.slice(0, 4)}`)}`);
+  assert(out.items[0].author === TRUSTED, 'the original stays: it carries the real filer');
+  assert(out.totalCount === 1, `counted once, got ${out.totalCount}`);
+});
+
+test('I9: when the original\'s filer is not trusted, the reader\'s own copy is the item', () => {
+  const rex = item(STRANGER, SHARED, { name: 'Rex', d: 'rex' });
+  const regular = item(STRANGER, SHARED, { name: 'Spot', kind: 9999 });
+  const out = lib().trustedItems({
+    zCarriers: [rex, copyOf(rex), regular, copyOf(regular)], coords: [OWN, SHARED], qualifying: [TRUSTED], own: [ME, MY_TA],
+  });
+  assert(out.items.length === 2 && out.items.every((i) => i.author === MY_TA), 'the Assistant\'s copies stand in, once each');
+  assert(out.totalCount === 2, `two items in all, got ${out.totalCount}`);
+});
+
+test('I10: only a curation copy collapses; any other event that quotes an item is its own item', () => {
+  const fido = item(TRUSTED, SHARED, { name: 'Fido', d: 'fido' });
+  const quote = item(TRUSTED, SHARED, { name: 'Fido, again', d: 'fido-again' });
+  quote.tags.push(['q', `39999:${TRUSTED}:fido`, '']);
+  const out = lib().trustedItems({ zCarriers: [fido, quote], coords: [SHARED], qualifying: [TRUSTED] });
+  assert(out.items.length === 2, 'a q tag alone does not make a copy');
+});
+
+test('I11: at most `limit` items come back, oldest first; the counts still cover all', () => {
+  const zCarriers = Array.from({ length: 5 }, (_, i) => item(TRUSTED, SHARED, { name: `n${i}`, d: `n${i}`, at: 100 + i }));
+  const out = lib().trustedItems({ zCarriers, coords: [SHARED], qualifying: [TRUSTED], limit: 3 });
+  assert(out.items.map((i) => i.name).join() === 'n0,n1,n2', `the first three, got ${out.items.map((i) => i.name)}`);
+  assert(out.truncated === true && out.keptCount === 5 && out.totalCount === 5, 'truncated, with keptCount and totalCount whole');
+  const whole = lib().trustedItems({ zCarriers, coords: [SHARED], qualifying: [TRUSTED] });
+  assert(whole.truncated === false && whole.items.length === 5, 'under the default cap, nothing is cut');
 });
 
 // ═══ C — conceptCurator ═══════════════════════════════════════════════════════════
@@ -144,24 +195,26 @@ async function treasureMap() {
   return _tm;
 }
 
-test('C1: an Assistant assigned to the concept on the Treasure Map curates it', async () => {
+test('C1: the Assistant whose Map entry addresses exactly this header curates it; a same-d entry for another header does not', async () => {
   const { conceptCurator: curatorFor } = await treasureMap();
-  const tags = [['39998:dlist-header', TRUSTED], ['39998:relay', STRANGER]];
-  const out = curatorFor(tags, ['relay'], MY_TA);
-  assert(out && out.pubkey === STRANGER && out.why === 'assigned', `the per-concept entry wins, got ${JSON.stringify(out)}`);
+  const tags = [['39998:dlist-header', TRUSTED], ['39998:relay', MY_TA]];
+  const out = curatorFor(tags, OWN, null);
+  assert(out && out.pubkey === MY_TA && out.why === 'assigned', `["39998:relay", MY_TA] empowers ${OWN}, got ${JSON.stringify(out)}`);
+  const elsewhere = curatorFor([['39998:relay', STRANGER]], OWN, MY_TA);
+  assert(elsewhere && elsewhere.why === 'local', `["39998:relay", STRANGER] empowers another header, got ${JSON.stringify(elsewhere)}`);
 });
 
 test('C2: else the Map\'s blanket DList-header Assistant (the catch-all)', async () => {
   const { conceptCurator: curatorFor } = await treasureMap();
-  const out = curatorFor([['39998:dlist-header', TRUSTED], ['39998:other', STRANGER]], ['relay'], MY_TA);
+  const out = curatorFor([['39998:dlist-header', TRUSTED], ['39998:other', STRANGER]], OWN, MY_TA);
   assert(out && out.pubkey === TRUSTED && out.why === 'catch-all', `got ${JSON.stringify(out)}`);
 });
 
 test('C3: else the local Assistant; with none, no curator', async () => {
   const { conceptCurator: curatorFor } = await treasureMap();
-  const local = curatorFor([], ['relay'], MY_TA);
+  const local = curatorFor([], OWN, MY_TA);
   assert(local && local.pubkey === MY_TA && local.why === 'local', `got ${JSON.stringify(local)}`);
-  assert(curatorFor(undefined, ['relay'], null) === null, 'no Map and no assistant → null');
+  assert(curatorFor(undefined, OWN, null) === null, 'no Map and no assistant → null');
 });
 
 // ═══ E — structural ═══════════════════════════════════════════════════════════
@@ -181,8 +234,8 @@ test('E2: the entry reads its Items through useConceptItems, with the person and
   const helpersSrc = flat(code(src(HELPERS_JS)));
   const entry = flat(code(src(ENTRY_JSX)));
   assert(/['"`]\/api\/dictionaries\/concepts\/items/.test(helpersSrc), 'useConceptItems reads /api/dictionaries/concepts/items');
-  assert(/useConceptItems\(\{\s*coord,\s*shared:\s*sharedCoord,\s*person,\s*povParams\s*\}\)/.test(entry),
-    'the page passes its coordinate, the shared concept, the person and the active point of view');
+  assert(/useConceptItems\(\{\s*coord,\s*shared:\s*sharedCoord,\s*person,\s*povParams,\s*enabled:\s*settled\s*\}\)/.test(entry),
+    'the page passes its coordinate, the shared concept, the person and the active point of view, once the row is known');
   assert(!/\/api\/strfry\/scan[^]*#z/.test(entry), 'the page no longer samples items from strfry itself');
 });
 
@@ -233,6 +286,17 @@ test('E5: the sample chips and the Usage card are gone; the links moved into the
   const dict = flat(code(src(DICTIONARY_ENTRY_JSX)));
   assert(/<ConceptEntryBody listHref=\{DICTIONARY_PATH\} listLabel="Dictionary" profileBase="\/user" \/>/.test(dict),
     '/dictionary/:coord links Filed by names to the Main side\'s profile pages');
+});
+
+test('E6: nothing is said from a read that has not happened, or failed', () => {
+  const entry = flat(code(src(ENTRY_JSX)));
+  assert(/useTreasureMap\([^)]*\{\s*strict:\s*true\s*\}\)/.test(entry), 'the Treasure Map is read strictly');
+  assert(/mapSettled && !mapError \? conceptCurator\(/.test(entry), 'a failed Map read names no curator');
+  assert(/Could not read \$\{whose\} Treasure Map: \$\{map\.error\}/.test(entry), 'and says so');
+  assert(/!settled \? \( <span>Reading \{whose\} Dictionary…<\/span>/.test(entry), 'the author strip waits for the row');
+  assert(/!settled \? \( <p className="text-muted">Reading \{whose\} Dictionary…<\/p>/.test(entry), 'so does the Community header panel');
+  assert(/entry && sharedCoord && metric === 'gum1' &&/.test(entry), 'the members sentence is GUM₁\'s, and only shown for it');
+  assert(/!items\.data \? ''/.test(entry), 'the pager says nothing until the items arrive');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

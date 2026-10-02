@@ -424,7 +424,7 @@ async function assembleConceptItems({ coord, shared, authors, wotPov, userPubkey
   const coords = [...new Set([coord, shared].filter(Boolean))];
   const zCarriers = await strfryScanStream({ '#z': coords }, (ev) => ({
     id: ev.id, kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at,
-    tags: keepTags(ev, ['z', 'd', 'names', 'name']),
+    tags: keepTags(ev, ['z', 'd', 'names', 'name', 'title', 'q']),
   }));
   const own = new Set(authors);
   const filers = [...new Set(zCarriers.map((ev) => ev.pubkey))].filter((p) => p && !own.has(p));

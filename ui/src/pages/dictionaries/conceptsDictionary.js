@@ -152,9 +152,10 @@ export function itemsPovLine(pov) {
 /**
  * GET /api/dictionaries/concepts/items: an entry's Items, filed under its own header (`coord`) and
  * the shared concept it points to (`shared`), by people trusted from the active point of view, plus
- * the person's own filings. Returns { data: { items, filerCount, totalCount, pov } | null, error }.
+ * the person's own filings. Returns { data: { items, keptCount, truncated, filerCount, totalCount, pov } | null,
+ * error }. Pass enabled:false until `shared` is known, so the page asks once.
  */
-export function useConceptItems({ coord, shared, person, povParams }) {
+export function useConceptItems({ coord, shared, person, povParams, enabled = true }) {
   const [state, setState] = useState({ data: null, error: null });
   const authors = person?.loading ? '' : (person?.authors || []).join(',');
   const settled = Boolean(person) && !person.loading;
@@ -162,7 +163,7 @@ export function useConceptItems({ coord, shared, person, povParams }) {
   const userPubkey = povParams?.userPubkey;
 
   useEffect(() => {
-    if (!settled || !coord) return undefined;
+    if (!enabled || !settled || !coord) return undefined;
     let cancelled = false;
     setState({ data: null, error: null });
     (async () => {
@@ -176,8 +177,16 @@ export function useConceptItems({ coord, shared, person, povParams }) {
         const json = await resp.json();
         if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
         if (!cancelled) {
+          const items = json.items || [];
           setState({
-            data: { items: json.items || [], filerCount: json.filerCount || 0, totalCount: json.totalCount || 0, pov: json.pov || {} },
+            data: {
+              items,
+              keptCount: Number.isFinite(json.keptCount) ? json.keptCount : items.length,
+              truncated: Boolean(json.truncated),
+              filerCount: json.filerCount || 0,
+              totalCount: json.totalCount || 0,
+              pov: json.pov || {},
+            },
             error: null,
           });
         }
@@ -186,7 +195,7 @@ export function useConceptItems({ coord, shared, person, povParams }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [coord, shared, authors, settled, wotPov, userPubkey]);
+  }, [coord, shared, authors, settled, wotPov, userPubkey, enabled]);
 
   return state;
 }

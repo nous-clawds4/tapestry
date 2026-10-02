@@ -212,25 +212,25 @@ export function removeDListEntry(event, kind, d) {
  * The DList Curation panel's collapsed-line label: every per-DList entry on the Map counts, mine
  * or another assistant's (ADR 0005 sub-decision 2).
  */
-/**
- * Who curates a concept for a person, by their Treasure Map (Dictionary entry page): the Assistant
- * assigned to the concept (a `39998:<d>` entry for one of `ds`, its d-tags), else the Map's blanket
- * Assistant for all their DList headers (`39998:dlist-header`, assistant-designation.md), else
- * `localAssistant`. Returns { pubkey, why: 'assigned' | 'catch-all' | 'local' } or null. Never throws.
- */
-export function conceptCurator(tags, ds, localAssistant) {
-  const wanted = new Set((Array.isArray(ds) ? ds : []).filter(Boolean));
-  const assigned = findDListEntries(tags).find((e) => e.kind === 39998 && wanted.has(e.d));
-  if (assigned) return { pubkey: assigned.pubkey, why: 'assigned' };
-  const blanket = (Array.isArray(tags) ? tags : []).map(classifyEntry).find((r) => r.cls === 'designation' && r.pubkey);
-  if (blanket) return { pubkey: blanket.pubkey, why: 'catch-all' };
-  return localAssistant ? { pubkey: localAssistant, why: 'local' } : null;
-}
-
 export function describeDListCuration(entries) {
   const count = Array.isArray(entries) ? entries.length : 0;
   const label = count === 0 ? 'None yet' : count === 1 ? '1 DList curated' : `${count} DLists curated`;
   return { count, label };
+}
+
+/**
+ * Who curates a concept for a person, by their Treasure Map (Dictionary entry page). A per-DList
+ * entry `["39998:<d>", <assistant>]` empowers the header `39998:<assistant>:<d>`, so the concept at
+ * `coord` is assigned when one entry addresses exactly it; else the Map's blanket Assistant for all
+ * the person's DList headers (`39998:dlist-header`, assistant-designation.md) curates it; else
+ * `localAssistant`. Returns { pubkey, why: 'assigned' | 'catch-all' | 'local' } or null. Never throws.
+ */
+export function conceptCurator(tags, coord, localAssistant) {
+  const assigned = findDListEntries(tags).find((e) => e.kind === 39998 && `39998:${e.pubkey}:${e.d}` === coord);
+  if (assigned) return { pubkey: assigned.pubkey, why: 'assigned' };
+  const blanket = (Array.isArray(tags) ? tags : []).map(classifyEntry).find((r) => r.cls === 'designation' && r.pubkey);
+  if (blanket) return { pubkey: blanket.pubkey, why: 'catch-all' };
+  return localAssistant ? { pubkey: localAssistant, why: 'local' } : null;
 }
 
 /* ── Map Entries for per-DList entries (dlist-curation #6, ADR 0006) ────────── */

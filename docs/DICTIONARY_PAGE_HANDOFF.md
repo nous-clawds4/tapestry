@@ -22,9 +22,13 @@
 >   - It keeps the control panel's lede rather than the mock's, which describes the Assistant's automatic upkeep and Veto as working today.
 >   - Figtree and IBM Plex Mono are self-hosted in `ui/public/fonts/` (SIL OFL 1.1).
 > - **Added 2026-10-01: the entry page follows the design's Dictionary entry screen.** The owner asked for the entry page to mirror the Claude Design artifact's (account menu → Dictionary → an entry). Decisions: a direct build; Items from trusted filers only; unbacked controls shown disabled with a note; the sample chips dropped and the links kept.
->   - **Items** come from `GET /api/dictionaries/concepts/items` (`trustedItems` in `src/lib/trustedDictionary.js`). They are the events `z`-filed under the entry's own header and its shared concept, by filers in GUM₁'s qualifying set from the active point of view, plus the reader's own filings. They are in filing order, ten to a page, with keyword search and A→Z / Z→A sort.
->   - **Curation** names the curating Assistant from the person's Treasure Map. It is the Assistant assigned to the concept, else the blanket `39998:dlist-header` Assistant, else the local Assistant (`conceptCurator` in `ui/src/utils/treasureMap.js`).
->   - **The author strip** states GUM₁ as "N members of your trusted, extended community file items under it". The mock's "Recognized by N members" would need a count of trusted members whose Assistants `b`-point to the concept, which is GUM₂-shaped (§ 4).
+>   - **Items** come from `GET /api/dictionaries/concepts/items` (`trustedItems` in `src/lib/trustedDictionary.js`).
+>     - They are the events `z`-filed under the entry's own header and its shared concept, by filers in GUM₁'s qualifying set from the active point of view, plus the reader's own filings.
+>     - A curation copy and its original count as one item (assistant-designation.md § Curation copies): the original when its filer is trusted, else the copy.
+>     - They are in filing order, ten to a page, with keyword search (item and filer) and A→Z / Z→A sort. One read returns at most 1,000; the page says when more were kept.
+>     - A consequence to know: a shared concept's own seed items show only when their author clears the cutoff. Community headers are often authored by Assistants, which have no trust score, so their seed items are usually set aside, and the page says how many.
+>   - **Curation** names the curating Assistant from the person's Treasure Map, read strictly. It is the Assistant whose per-DList entry addresses exactly this header, else the blanket `39998:dlist-header` Assistant, else the local Assistant (`conceptCurator` in `ui/src/utils/treasureMap.js`). A Map that cannot be read names no one and says so.
+>   - **The author strip** states GUM₁ as "N members of your trusted, extended community file items under it", and only when the server reports `gum1`. The mock's "Recognized by N members" would need a count of trusted members whose Assistants `b`-point to the concept, which is GUM₂-shaped (§ 4).
 >   - **Shown, disabled, with a "later version" note:** the Trusted Curation Method (Customize), the four Curation switches, Veto / Restore, and the item pages (the mock's Dictionary item screen). Items rows are not links yet.
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 

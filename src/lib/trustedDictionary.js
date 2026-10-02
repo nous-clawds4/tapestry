@@ -8,8 +8,8 @@
  * computeConceptDictionary({rows, zCarriers, qualifying, taPubkey})
  *   → { entries, metric }                   — Dictionary › Concepts (its own
  *                                              doc comment, further down)
- * trustedItems({zCarriers, coords, qualifying, own})
- *   → { items, filerCount, totalCount }     — one entry's Items table
+ * trustedItems({zCarriers, coords, qualifying, own, limit})
+ *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items
  * usageByHeader(…)                          — the counting rule both share
  *
  * Headers arrive PRE-CLASSIFIED at the handler seam
@@ -197,14 +197,21 @@ function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey } = {}
   return { entries, metric: METRIC };
 }
 
-/** The item's display name: its names, else name, else d-tag, else a short id. */
+/** The item's display name: its names, else name, else title, else d-tag, else a short id. */
 function itemName(ev) {
-  for (const n of ['names', 'name', 'd']) {
+  for (const n of ['names', 'name', 'title', 'd']) {
     const t = (ev.tags || []).find((x) => x && x[0] === n && typeof x[1] === 'string' && x[1].trim() !== '');
     if (t) return t[1];
   }
   return `${String(ev.id || '').slice(0, 8)}…`;
 }
+
+/** The most items one read returns; the counts still cover every item. */
+const ITEMS_LIMIT = 1000;
+
+/** A curation copy (assistant-designation.md § Curation copies): a kind-39999 item whose d is "copy-<sha256>". */
+const isCurationCopy = (ev) => ev.kind === 39999
+  && (ev.tags || []).some((t) => t && t[0] === 'd' && typeof t[1] === 'string' && t[1].startsWith('copy-'));
 
 /**
  * A Dictionary entry's Items: the events z-filed under the entry's concept
@@ -215,14 +222,19 @@ function itemName(ev) {
  * their own filings always stay, since a point of view trusts itself.
  *
  * An addressable item (kind 30000–39999) is one item however many versions
- * arrive: the newest wins. Items are in filing order, oldest first, so an
- * item keeps its number as new ones arrive. `totalCount` is every distinct
- * item before the trust filter, so the page can say how many it set aside.
+ * arrive: the newest wins. A curation copy and the original its `q` tags name
+ * are one item too (assistant-designation.md: "a reader merging items across
+ * related lists … treats a copy and its original as one item"): the original
+ * stays when its filer is kept, else the copy does. Items are in filing order,
+ * oldest first, so an item keeps its number as new ones arrive. At most
+ * `limit` are returned (`truncated` says when more were kept); `filerCount`
+ * and `totalCount` (every distinct item before the trust filter) cover all.
  */
-function trustedItems({ zCarriers, coords, qualifying, own } = {}) {
+function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT } = {}) {
   const cs = new Set((Array.isArray(coords) ? coords : []).filter((c) => typeof c === 'string' && c));
   const q = qualifying instanceof Set ? qualifying : new Set(Array.isArray(qualifying) ? qualifying : []);
   const mine = new Set(Array.isArray(own) ? own : []);
+  const kept = (ev) => q.has(ev.pubkey) || mine.has(ev.pubkey);
 
   const all = new Map(); // item key → newest event
   for (const ev of Array.isArray(zCarriers) ? zCarriers : []) {
@@ -235,10 +247,27 @@ function trustedItems({ zCarriers, coords, qualifying, own } = {}) {
     if (!prev || (ev.created_at || 0) > (prev.created_at || 0)) all.set(key, ev);
   }
 
+  // A copy names its original by address (a kind-39999 original) and by version id.
+  const keyOf = new Map(); // address or id → item key
+  for (const [key, ev] of all) {
+    keyOf.set(ev.id, key);
+    keyOf.set(key, key);
+  }
+  for (const [key, ev] of [...all]) {
+    if (!all.has(key) || !isCurationCopy(ev)) continue;
+    const original = (ev.tags || [])
+      .filter((t) => t && t[0] === 'q' && typeof t[1] === 'string')
+      .map((t) => keyOf.get(t[1]))
+      .find((k) => k && k !== key && all.has(k));
+    if (!original) continue;
+    if (kept(all.get(original)) || !kept(ev)) all.delete(key);
+    else all.delete(original);
+  }
+
   const items = [];
   const filers = new Set();
   for (const [key, ev] of all) {
-    if (!q.has(ev.pubkey) && !mine.has(ev.pubkey)) continue;
+    if (!kept(ev)) continue;
     filers.add(ev.pubkey);
     items.push({
       id: ev.id,
@@ -251,7 +280,14 @@ function trustedItems({ zCarriers, coords, qualifying, own } = {}) {
   }
   items.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
 
-  return { items, filerCount: filers.size, totalCount: all.size };
+  const cap = Number.isFinite(limit) && limit > 0 ? limit : ITEMS_LIMIT;
+  return {
+    items: items.slice(0, cap),
+    keptCount: items.length,
+    truncated: items.length > cap,
+    filerCount: filers.size,
+    totalCount: all.size,
+  };
 }
 
 module.exports = { computeDictionary, computeConceptDictionary, usageByHeader, trustedItems };

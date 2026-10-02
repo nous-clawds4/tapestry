@@ -9308,7 +9308,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .dict-items-n { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .dict-items-item { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
-.dict-items-by { justify-self: start; font-size: 13px; color: var(--text-muted); text-decoration: none; overflow-wrap: anywhere; }
+.dict-items-by-cell { justify-self: start; min-width: 0; }
+.dict-items-by { font-size: 13px; color: var(--text-muted); text-decoration: none; overflow-wrap: anywhere; }
 .dict-items-by:hover { color: var(--accent); text-decoration: underline; }
 .dict-items-msg { margin: 0; padding: 14px 18px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
 .dict-curation .dict-items-msg { padding: 12px 0 0; border-top: none; }
@@ -9381,7 +9382,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .dict-page h1.dict-entry-title { font-size: 24px; }
   .dict-items-row { grid-template-columns: 36px minmax(0, 1fr); row-gap: 2px; }
   .dict-items-row--head > span:last-child { display: none; }
-  .dict-items-by { grid-column: 2; }
+  .dict-items-by-cell { grid-column: 2; }
 }
 
 /* ─── /dictionary — the Brainstorm design's styling (bsd-) ──────────────────────────────────────
