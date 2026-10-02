@@ -1,6 +1,6 @@
 # Story 5: Disposition on Me rows — the same three actions, signed by your own browser signer
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-01
 **Type:** Feature
 **Epic:** `list-headers-disposition`
@@ -103,4 +103,4 @@ None.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/list-headers-disposition/0005-me-rows-prepare-sign-commit.md`
 - Test plan: `engineering-team/stories/list-headers-disposition/5-disposition-on-me-rows.test-plan.md`
-- Review: `engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md` (CHANGES_REQUESTED)
+- Review: `engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md`
