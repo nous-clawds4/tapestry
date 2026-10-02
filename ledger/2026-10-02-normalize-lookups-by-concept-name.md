@@ -6,9 +6,10 @@
 **Status:** OPEN
 **Done:** —
 
-**What was seen.** About twenty Cypher lookups resolve a concept by its name (`h.name = $concept … LIMIT 1`, or the
-same with `$name`): 19 in `src/api/normalize/index.js`, one in `src/api/property/index.js` and one in
-`src/firmware/install.js`, at the edit-concept branch. Find them with `git grep -n 'h\.name = \$' -- src`.
+**What was seen.** Twenty Cypher lookups resolve a concept by its name (`h.name = $concept … LIMIT 1`, or the same
+with `$name`): 18 in `src/api/normalize/index.js`, one in `src/api/property/index.js` and one in
+`src/firmware/install.js`, at the edit-concept branch. Find them with `git grep -n 'h\.name = \$' -- src` (that grep
+also matches a comment in `src/lib/conceptHeaderEdit.js`).
 
 Their callers pass names:
 - the brain's `*_CONCEPT_NAME` constants: `tapestry owner goal`, `tapestry external resource`, `tapestry work
