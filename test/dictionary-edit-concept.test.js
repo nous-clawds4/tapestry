@@ -436,6 +436,14 @@ test('S4: a firmware concept warns that a reinstall undoes the edit, from the ro
     'the Dictionary row says whether its own header is a firmware one (a row that only points at one isn\'t rebuilt)');
 });
 
+test('S4b: firmwareHeader reaches the Dictionary\'s entries (computeConceptDictionary passes it through)', () => {
+  const { computeConceptDictionary } = require(path.join(ROOT, 'src/lib/trustedDictionary.js'));
+  const row = (d, firmwareHeader) => ({ coord: `39998:${ASSISTANT}:${d}`, name: d, author: ASSISTANT, selfDeclared: true, targets: [], scoreCoords: [`39998:${ASSISTANT}:${d}`], isFirmware: true, firmwareHeader });
+  const out = computeConceptDictionary({ rows: [row('set', true), row('twin', false)], zCarriers: [], qualifying: new Set(), taPubkey: ASSISTANT });
+  const by = Object.fromEntries((out.entries || []).map((e) => [e.coord.split(':')[2], e.firmwareHeader]));
+  assert(by.set === true && by.twin === false, `the flag survives the assembly: ${show(by)}`);
+});
+
 test('S5: the page reads the header as the server does: first d tag, newest', () => {
   const s = flat(code(src(PAGE_JSX)));
   assert(/\.filter\(\(ev\) => ev && ev\.pubkey === pubkey && ev\.kind === 39998 && firstD\(ev\) === d\)/.test(s), 'exactly this address');
