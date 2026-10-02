@@ -197,3 +197,124 @@ rule in the shared module. The only new structure is the host that keeps the pic
 - Checking a target against known Shared Concepts (the owner's decision).
 - **Me** rows (story 5).
 - Changing Concept Headers' panel or `useCommunitySharedConcepts`.
+
+## Amendment 1 (2026-10-01, review round 1)
+
+Story 4's review (`engineering-team/reviews/list-headers-disposition/4-wire-on-my-assistant-rows.md`) found the Wire
+target unbounded (blocking 1). The owner then decided, at that gate (2026-10-01):
+- both recommended ride-alongs go in: the relay read-back, and comparing addresses by parts;
+- Wire targets must be **list headers only**.
+
+Everything above stands except where a rule below adds to it.
+
+### What changes, and why
+
+1. **The target is bounded (blocking 1).**
+   - The relay rejects any tag value over 1024 bytes (`maxTagValSize = 1024` in the container's strfry config), and
+     `strfry import` still exits 0 (`publishEvent.js:84`, `dlist-curation/update.js:311`).
+   - So an unbounded target let the graph import a version the relay never stored, and the panel reported success.
+   - `prepare` now requires, in this order:
+     - `typeof req.body.target === 'string'`;
+     - after trimming, no character in Unicode categories **Cc** (control) or **Cf** (format, such as an RTL override);
+     - at most **1024 UTF-8 bytes**;
+     - the list-header address form below.
+2. **Targets are list headers (owner decision).**
+   - The target must match `^39998:([0-9a-f]{64}):(.+)$` exactly. So the kind is the literal `39998`: `039998` and
+     other kinds are refused.
+   - A kind-9998 header has no `kind:pubkey:d-tag` address: it isn't replaceable and has no `d`. So "list headers
+     only", for an address, means kind 39998.
+   - Wiring to a 9998 header by event id stays out of scope, as it is on Concept Headers.
+3. **The own-address check compares parts (owner ride-along).** The target is the header's own address when its
+   pubkey equals the caller's Assistant pubkey **and** its d-tag equals the URL's d-tag. With the canonical-kind rule
+   in 2, a leading-zero self-pointer is refused as "not a list header's address" before this check even runs.
+4. **Read back from the relay before writing the graph (owner ride-along, all three actions).**
+   - After `publishLocal(signed)`, the handler re-reads the event by id: `isStored(id)`.
+   - **Stored:** it goes on to `importToGraph`, as before.
+   - **Not stored:** it answers **502**,
+     `"The relay didn't keep the new version, so nothing was saved"`, and does **not** touch the graph.
+   - **The read itself fails:** it answers **502**,
+     `"Sent to the relay, but couldn't confirm it was kept — the graph wasn't changed"`, and does not touch the graph.
+
+   This is the read-back rule of `dlist-curation/update.js:309-326`, where a read that fails claims nothing. It
+   applies to Submit, Keep private and Wire alike, because the silent-rejection gap was never specific to Wire.
+
+### Implementation notes (additions)
+
+**`src/api/list-headers/myAssistantDisposition.js`**
+
+`prepare` for `b-append` becomes:
+
+```js
+prepare: (req, selfCoord, keys, dTag) => {
+  const raw = req.body ? req.body.target : undefined;
+  if (typeof raw !== 'string') return { error: NOT_A_LIST_HEADER };
+  const target = raw.trim();
+  if (/[\p{Cc}\p{Cf}]/u.test(target)) return { error: BAD_CHARACTERS };
+  if (Buffer.byteLength(target, 'utf8') > MAX_TARGET_BYTES) return { error: TOO_LONG };
+  const t = target.match(/^39998:([0-9a-f]{64}):(.+)$/);
+  if (!t) return { error: NOT_A_LIST_HEADER };
+  if (t[1] === keys.pubkey && t[2] === dTag) return { error: OWN_ADDRESS };
+  return { target };
+}
+```
+
+- **The messages are module constants:**
+  - `MAX_TARGET_BYTES = 1024`;
+  - `NOT_A_LIST_HEADER = "The target must be a list header's address (39998:pubkey:d-tag)"`;
+  - `TOO_LONG = 'The target is too long — the relay keeps tag values of at most 1024 bytes'`;
+  - `BAD_CHARACTERS = "The target contains characters an address can't have"`;
+  - `OWN_ADDRESS`, the existing sentence.
+- **Step 4b's call becomes** `spec.prepare(req, selfCoord, keys, dTag)`.
+- **A new injected dependency,** `isStored(id)` → `true` / `false`, or a throw when the read fails. The default is
+  `(await require('../concept/bDisposition').strfryScanStream({ ids: [id] })).some((e) => e && e.id === id)`.
+- **Steps 8 and 9 become:**
+  1. `await d.publishLocal(signed)`;
+  2. `let stored; try { stored = await d.isStored(signed.id); } catch { return 502 couldn't-confirm }`;
+  3. `if (!stored) return 502 not-kept`;
+  4. then `await d.importToGraph(signed, selfCoord)` and the `done` answer.
+
+  The two 502s carry no key and no event body.
+- `classifyBValue` is no longer needed by the module. Remove its import if nothing else uses it.
+
+**`ui/src/pages/lists/ListHeaderDispositionPanel.jsx`**
+- The client-side check mirrors `prepare` in the same order, with the same sentences.
+- The byte length uses `new TextEncoder().encode(t).length`.
+- The own-address check compares `row.author` and the row's d-tag (from `row.routeId`'s third part) against the
+  parsed target's pubkey and d.
+- None of these four refusals sends a request.
+
+**`src/lib/headerDispositionCompose.js`**
+- `composeWire`'s guard returns
+  `{ refused: "That's this header's own address — use Submit as a Shared Concept instead" }`, a sentence rather than
+  `'self'` (the review's non-blocking 4). It still can't be reached through the handler.
+
+### Consequences (additions)
+
+- **The graph can't get ahead of the relay through these endpoints:** a version the relay didn't keep is never
+  imported. The person sees a refusal, not "Saved here".
+- **Wire refuses addresses of other kinds** (notes, list elements, profiles) that Concept Headers' Wire accepts.
+  That's the owner's decision, and the panel says why.
+- **Each re-sign costs one more relay read by id.** That's cheap: the local strfry, read by id.
+- **The pick-list is unchanged.** Every Shared Concept it offers is already kind 39998
+  (`useCommunitySharedConcepts.js`: `SELF_DECLARED_KINDS = [39998]`).
+- **Firmware reinstall required?** No.
+
+### Seams for the Tester (additions)
+
+- **`deps()`** must inject `isStored`, "stored" unless a test says otherwise. The default reads strfry from the
+  container path.
+- **Handler cases:**
+  - non-string targets (a number, an array, an object with a `toString`, `null`, a missing body);
+  - a Cc character (NUL, ESC, TAB inside the address), and a Cf character (U+202E, U+200B);
+  - exactly 1024 bytes, which passes the size check, and 1025 bytes, which is refused, including multibyte
+    characters so bytes ≠ characters;
+  - kind 1, kind 39999, `039998`, and kind 9998;
+  - the own address, given with the same parts.
+
+  Each is answered 400 before the lookup.
+- **Read-back, for each of the three actions:**
+  - not stored gives 502 with no `importToGraph`;
+  - a throwing read gives 502 with no `importToGraph`;
+  - stored gives the old success path.
+- **Browser:** the panel's mirrored refusals (one per message), each with no request, plus a server 502 shown in
+  the panel with the row unchanged.
