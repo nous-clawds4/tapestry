@@ -335,7 +335,9 @@ So an "on" while on never moves the window (AC-3), and an off followed by an on 
 **D6. Who may read who: GET on the switch path.**
 - **The mount.** `app.get('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOrAdmin,
   taggingEdgesRealtime.handleRealtimeSwitchRecord)`, beside the POST, re-checked with `ownerOrAdmin` (`sameHost`
-  included). So no foreign page can read who through the reflecting CORS.
+  included). Like the POST, it is refused when `Origin` names a hostname other than `Host`'s, so another site cannot
+  read who through the reflecting CORS. *(Clarified at story 5's review, round 1, 2026-10-02, requested change 10:
+  this said no foreign page can read who. It now states the rule as `sameHost` is written.)*
 - **What it reads.** It reads through the injected `readFile`, as the status route does (`realtime.js:131-160`):
   `switch-history.json` first, then `switch.json`. Each file's read error other than `ENOENT` is caught on its own and
   mapped as the store maps it, which matches the status route's catch (`realtime.js:136-142`).
@@ -436,7 +438,16 @@ reads as turned off by the owner (f0178122…).
   - `failed`: any other non-2xx, with `body.code`.
 
   A failed off says the path could not be turned off and is still on as before. A failed on says the path's state is
-  unchanged, and to check that the data volume has free space and is writable.
+  unchanged, and to check that the data volume has free space and is readable and writable (a failed on can also be
+  a switch that could not be read, D2 step 2; clarified at story 5's review, round 1).
+
+  *(Refined at story 5's review, round 1, 2026-10-02, requested change 6.)* A `failed` answer with no `body.code`, such
+  as a proxy's 502 or a 404 from an older backend, is none of the switch handler's 500s, which all carry `code` (D11).
+  So it cannot say what became of the change. It gets its own sentence for each target, which claims nothing about the
+  path's state, says the state shown is from the path's next read, and points at the remedy of the fetchCode
+  `http-<status>` family (`FAMILIES`): try again, and if it repeats, check the control panel's log. The data-volume
+  sentence stays for a failure that carries the handler's `code`. With requested change 4, the `refused` and `failed`
+  sentences speak of the attempt in the past tense, since they stay under the control beside later reads.
 - **`switchRecordView(recordRead, rtBody)`** shows the latest change and the history only when the record read is
   current, its `on` equals `rtBody.on`, and its `switchUnreadable` agrees. Otherwise it says the record is being
   refreshed, or could not be read, and it never renders a kept body's latest line after a failed record read. One
@@ -469,7 +480,9 @@ off" button exists at a time.
     cases for the next pass;
   - what keeps the graph in step meanwhile. A `BackstopVerdict` component is extracted from `ScheduleSection.jsx:44-67`
     and used by both, so the two cannot drift apart. With no schedule view, it says the backstop could not be
-    checked.
+    checked. *(Clarified at story 5's review, round 1, 2026-10-02, requested change 5: while the schedule list's
+    first read has not answered, it says instead that the backstop is still being checked, as D14 shows no warning
+    while loading. "Could not be checked" stays for a failed read.)*
 - **The first-start variant says:**
   - what the path has gathered so far is dropped;
   - the next "Turn on" is a first start again;
@@ -589,7 +602,7 @@ off" button exists at a time.
 - **R2-1 pins:** exact entries for `N/A` and `ProtocolError` under both kinds, added as guard floors because no
   producer mints them literally.
 
-### Docs (the Implementer)
+### Docs (the Implementer; line numbers at `c557177f`, before story 5's edits to these files)
 
 - **OPERATIONS.**
   - **§12.8 `:725`:**
@@ -614,7 +627,7 @@ off" button exists at a time.
 - **The story's own copy and docs tasks,** and R2-1's copy, R2-2 to R2-6, R2-7's OPERATIONS half, R2-8's handoff half
   and R2-14, are the Implementer's (story 5 § Carry-forwards).
 
-## Amendments to ADRs 0002, 0003 and 0004, and story 3
+## Amendments to ADRs 0002, 0003 and 0004, and story 3 (line numbers at `c557177f`, before this commit's in-place amendments)
 
 This ADR's commit makes these changes in place, as dated notes beside the text they amend, each citing this ADR. The
 original text stays, so the history reads in order. That covers the story's Architect
@@ -662,7 +675,8 @@ Story 5's Planning (the owner, 2026-10-01) changed AC-5's rules:
   or admin may read who.
 - **Off still means off.** An off that cannot be recorded still takes effect, and its answer says so.
 
-See story 5 and this ADR. The wording of `:101` and `:444` stands as story 3 shipped it.
+See story 5 and this ADR. Two places keep the wording story 3 shipped: the definition of "on" before the
+acceptance criteria, and Open question 5, the owner's decision 5 ("It ships turned off").
 
 ### ADR 0004 (story 5's changes to the panel; R2-1, R2-7, R2-9, R2-11)
 

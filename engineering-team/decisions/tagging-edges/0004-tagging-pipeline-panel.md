@@ -252,12 +252,14 @@ pure halves `gateOwnerOrAdmin(req, d)` and `countFilter(identities)`.
        *(Amended at story 5's Architecture, 2026-10-01, from story 4's review, round 2, R2-7; ADR `tagging-edges/0005`.
        "At most one count at a time" overstates it:
        - A no-cors request joins an answer still pending, so a new pair of counts starts only after the previous
-         answer has settled (`drift.js:184`). Repeated requests can therefore start one pair after another, as fast
-         as answers settle.
+         answer has settled (the `inflight` join in `handleDriftCounts`, `drift.js:169`). Repeated requests can
+         therefore start one pair after another, as fast as answers settle.
        - A count that lost its race is abandoned, not stopped. The relay count's strfry child is killed at its own 10 s
          limit, but a graph count keeps its session until Neo4j ends it.
        - So abandoned graph counts can run beside newer ones, bounded by the driver's pool of 20
          (`src/lib/neo4j-driver.js:35-38`). They only read, and nobody can read their answer.)*
+       *(Clarified at story 5's review, round 1, 2026-10-02, requested change 11: the code is cited by name, with its
+       line at `ee170bf0`.)*
 
   A refused request spawns nothing, runs no Cypher and never joins a count.
 - **The relay count.**
@@ -342,8 +344,9 @@ Its named exports:
   - `^held-file-unreadable ` and `^claim failed: ` (confirmationWhy, with the rest shown as the code).
 
   *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005`, from story 4's review, round 2, R2-11: in step with T12 and
-  `taggingPipelineView.js:243-269`.)* The countCode families, and the same again under failureCode (T12), are checked
-  in this order:
+  `FAMILIES` in `taggingPipelineView.js`, `:254-280`.)* *(Clarified at story 5's review, round 1, 2026-10-02,
+  requested change 11: the code is cited by name, with its lines at `ee170bf0`.)* The countCode families, and the
+  same again under failureCode (T12), are checked in this order:
   - `^E(?!RR_)[A-Z0-9_]+$`, an operating-system code. It excludes Node's own `ERR_…` codes.
   - `^Neo\.ClientError\.Security\.[A-Za-z]+$`, credentials or permission. It comes before the general Neo4j family.
   - `^Neo\.(ClientError|TransientError|DatabaseError)\.[A-Za-z]+\.[A-Za-z]+$`.
@@ -831,8 +834,11 @@ carries today, and the pass mints its own.
       - `ProtocolError` is a Bolt protocol fault: a version mismatch, or something other than Neo4j at the Bolt
         port.
     - **The same two get countCode entries,** as floors. Today every countCode source either passes `allowErrorCode`,
-      which turns both into `error` (`drift.js:118`, `:133`; `realtime.js:103`; the engine `:623`), or carries only
-      filesystem codes (the confirmation read, `index.js:175`).
+      which turns both into `error` (`raceCount`'s two calls, `drift.js:103` and `:118`, which settle both of
+      `countBoth`'s counts; `computeRealtimeStatus`'s `lastError` re-check, `realtime.js:134`; the engine `:623`), or
+      carries only filesystem codes (`handleStatus`'s `confirmation.json` read, `index.js:204`). *(Clarified at story
+      5's review, round 1, 2026-10-02, requested change 11: the code is cited by name, with its lines at `ee170bf0`.
+      The engine's line still resolves.)*
     - **`fsFailure`** (`reconcileTaggingEdges.js:102`) joins the `error` fallbacks. It is stored through `fail()` at
       `:548` (via `:486`) and at `:569`. The one at `:245` is never stored, because the report write itself failed.
     - **`passReason.schema`'s** "Any other code has its own explanation beside it" becomes: explained beside it, or
