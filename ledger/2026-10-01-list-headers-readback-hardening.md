@@ -6,7 +6,8 @@
 **Status:** OPEN
 **Done:** —
 
-**What was seen.** These are all non-blocking. Each affects only the caller's own Assistant's header.
+**What was seen.** These are all non-blocking. Each affects only the caller's own header: their Assistant's, and since
+story 5 also their account's (see the update below).
 
 1. **The read-back matches by id only.** `isStored(id)` in `src/api/list-headers/myAssistantDisposition.js` asks
    the relay whether an event with that id exists.
@@ -25,3 +26,9 @@
 
 **Pointer:** `engineering-team/reviews/list-headers-disposition/4-wire-on-my-assistant-rows.md` § Re-review, round 2
 § Findings.
+
+**Update 2026-10-01 (list-headers-disposition #5 review).** Story 5's Me path (`src/api/list-headers/meDisposition.js`)
+reuses the same `isStored`, the same Wire target check and the same relay-then-graph tail. So all three items now
+apply to headers the person signed in their browser too, not only to Assistant headers. The fix shapes are unchanged;
+a fix to `isStored` or the target check in `myAssistantDisposition.js` covers both paths. Pointer:
+`engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md` § Findings.

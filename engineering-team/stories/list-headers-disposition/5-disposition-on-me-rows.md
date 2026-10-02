@@ -103,4 +103,4 @@ None.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/list-headers-disposition/0005-me-rows-prepare-sign-commit.md`
 - Test plan: `engineering-team/stories/list-headers-disposition/5-disposition-on-me-rows.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md` (CHANGES_REQUESTED)
