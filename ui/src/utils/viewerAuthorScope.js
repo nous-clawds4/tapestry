@@ -47,3 +47,15 @@ export function resolveAuthorFilter(value, user) {
   if (value === MY_ASSISTANT) return signedIn && isPubkey(user.assistantPubkey) ? user.assistantPubkey : '';
   return value || '';
 }
+
+/**
+ * Whose row is this, for the signed-in user: 'me' (their account wrote it), 'my-assistant' (the
+ * Assistant this instance holds for them wrote it), or null. Same inputs and the same no-fallback rule
+ * as above (ADR list-headers-disposition/0003): anyone else's Assistant is never 'my-assistant'.
+ */
+export function authorRole(authorPubkey, user) {
+  if (!isPubkey(authorPubkey) || !user || !isPubkey(user.pubkey)) return null;
+  if (authorPubkey === user.pubkey) return 'me';
+  if (isPubkey(user.assistantPubkey) && authorPubkey === user.assistantPubkey) return 'my-assistant';
+  return null;
+}

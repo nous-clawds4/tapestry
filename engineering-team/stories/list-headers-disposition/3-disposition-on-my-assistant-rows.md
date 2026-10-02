@@ -121,6 +121,13 @@ None. Two choices are confirmed by approving this story:
 2. **Story 2's AC 6 ("no action in the cell") is narrowed.** It still holds for every row except the person's
    own Assistant's rows, which now carry the **Disposition…** button.
 
+## Deviations
+
+- The 🧭 cell's flex span gained `alignItems: 'center'`, so the **Disposition…** button lines up with the marks
+  beside it. Story 2's marks are otherwise unchanged.
+- **Keep private** carries a tooltip when it *can* be chosen: "Mark as deliberately unaffiliated (never
+  broadcast).", copied from Concept Headers' panel. The ADR only specified the tooltip for when it can't.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md`
 - Test plan: `engineering-team/stories/list-headers-disposition/3-disposition-on-my-assistant-rows.test-plan.md`

@@ -8,7 +8,8 @@ import AuthorCell from '../../components/AuthorCell';
 import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 import { useAuth } from '../../context/AuthContext';
-import { ME, MY_ASSISTANT, viewerAuthorOptions, resolveAuthorFilter } from '../../utils/viewerAuthorScope';
+import { ME, MY_ASSISTANT, viewerAuthorOptions, resolveAuthorFilter, authorRole } from '../../utils/viewerAuthorScope';
+import ListHeaderDispositionPanel from './ListHeaderDispositionPanel';
 import { listHeaderDisposition, MARKS, COLUMN_TITLE } from '../../utils/listHeaderDisposition';
 
 /**
@@ -55,6 +56,9 @@ export default function DListsIndex() {
   // Filters
   const [kindFilter, setKindFilter] = useState('');
   const [authorFilter, setAuthorFilter] = useState('');
+
+  // The open Disposition panel, by row routeId (ADR list-headers-disposition/0003).
+  const [panelId, setPanelId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,20 +197,43 @@ export default function DListsIndex() {
     }
   }, [authorFilter, user]);
 
+  // Disposition on the signed-in person's own Assistant's rows (ADR list-headers-disposition/0003).
+  const isMyAssistantHeader = (row) => row.kind === 39998 && authorRole(row.author, user) === 'my-assistant';
+  const addressOf = (ev) => `${ev.kind}:${ev.pubkey}:${getTag(ev, 'd')}`;
+  // The signed version replaces the header it re-signs, so the 🧭 cell updates without a reload.
+  const onActed = (event) => {
+    if (!event) return;
+    setHeaders(prev => prev.map(h => (
+      addressOf(h) === addressOf(event) && event.created_at > h.created_at ? event : h
+    )));
+  };
+  const nextUndecided = (afterId) => filteredRows.find(r =>
+    isMyAssistantHeader(r) && r.disposition === MARKS.undecided.state && r.routeId !== afterId) || null;
+  const panelRow = panelId ? rows.find(r => r.routeId === panelId) || null : null;
+
   const columns = [
     { key: 'singular', label: 'Name (singular)' },
     { key: 'plural', label: 'Name (plural)' },
     {
-      // Read-only: nothing in the cell is an action, so a click opens the list like the rest of the row.
+      // The marks are read-only. Only the person's own Assistant's rows add a Disposition… button,
+      // which stops its click so it doesn't also open the list.
       key: 'disposition',
       label: <span title={COLUMN_TITLE} style={{ cursor: 'help' }}>🧭</span>,
       render: (_val, row) => (
-        <span style={{ display: 'inline-flex', gap: '0.2rem' }}>
+        <span style={{ display: 'inline-flex', gap: '0.2rem', alignItems: 'center' }}>
           {row._dispositionMarks.map(m => (
             <span key={m.state} title={m.title} className={m === MARKS.undecided ? 'text-muted' : undefined}>
               {m.glyph}
             </span>
           ))}
+          {isMyAssistantHeader(row) && (
+            <button
+              className="btn" style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem' }}
+              onClick={(e) => { e.stopPropagation(); setPanelId(row.routeId); }}
+            >
+              Disposition…
+            </button>
+          )}
         </span>
       ),
     },
@@ -322,6 +349,20 @@ export default function DListsIndex() {
           ? `${rows.length} lists`
           : `${filteredRows.length} of ${rows.length} lists`}
       </p>
+
+      {panelRow && (
+        <ListHeaderDispositionPanel
+          key={panelRow.routeId}
+          row={panelRow}
+          onActed={onActed}
+          hasNext={!!nextUndecided(panelRow.routeId)}
+          onNext={() => {
+            const next = nextUndecided(panelRow.routeId);
+            setPanelId(next ? next.routeId : null);
+          }}
+          onClose={() => setPanelId(null)}
+        />
+      )}
 
       <DataTable
         columns={columns}

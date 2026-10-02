@@ -648,6 +648,9 @@ async function register(app) {
     //    gated in-handler like its b-disposition siblings below (ADR shared-concepts-adoption/0001) ──
     const { handleConceptSelfDeclare } = require('./concept/selfDeclare.js');
     app.post('/api/concept/:handle/self-declare', handleConceptSelfDeclare);
+    // epic: list-headers-disposition — Story 3: the same actions on List Headers, signed only by the
+    // caller's own Assistant (ADR list-headers-disposition/0003).
+    require('./list-headers/myAssistantDisposition').register(app);
 
     // ── b-disposition: wire-external + keep-private (ADR shared-concepts-adoption/0001) — owner-only,
     //    gated in-handler (isOwner || localTrusted — the publishEvent.js:37 pattern) so loopback
