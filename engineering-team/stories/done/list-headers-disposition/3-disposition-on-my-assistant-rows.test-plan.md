@@ -1,7 +1,7 @@
 # Test Plan: Story 3 — Disposition on My Assistant rows
 
-**Story:** `engineering-team/stories/list-headers-disposition/3-disposition-on-my-assistant-rows.md`
-**ADR:** `engineering-team/decisions/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md`
+**Story:** `engineering-team/stories/done/list-headers-disposition/3-disposition-on-my-assistant-rows.md`
+**ADR:** `engineering-team/decisions/done/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md`
 **Date:** 2026-10-01
 
 Two files:
@@ -144,7 +144,7 @@ corrected tree, where the unmutated control passes.
 
 ## Review round 1 (ADR 0003 Amendment 1)
 
-The review (`engineering-team/reviews/list-headers-disposition/3-disposition-on-my-assistant-rows.md`) asked for
+The review (`engineering-team/reviews/done/list-headers-disposition/3-disposition-on-my-assistant-rows.md`) asked for
 three fixes and recommended a fourth. These tests pin them:
 
 | Ask | Tests | Level |

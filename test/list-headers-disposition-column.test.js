@@ -1,9 +1,9 @@
 /**
  * list-headers-disposition #2: the 🧭 b-disposition column on List Headers.
  *
- * Story: engineering-team/stories/list-headers-disposition/2-b-disposition-column.md
- * ADR:   engineering-team/decisions/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md
- * Plan:  engineering-team/stories/list-headers-disposition/2-b-disposition-column.test-plan.md
+ * Story: engineering-team/stories/done/list-headers-disposition/2-b-disposition-column.md
+ * ADR:   engineering-team/decisions/done/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md
+ * Plan:  engineering-team/stories/done/list-headers-disposition/2-b-disposition-column.test-plan.md
  * Browser half: tests/brainstorm/list-headers-disposition-column.spec.js (what a viewer sees on /tapestry/lists).
  *
  *   D1..D12 — the pure classifier in ui/src/utils/listHeaderDisposition.js, loaded by dynamic import, over

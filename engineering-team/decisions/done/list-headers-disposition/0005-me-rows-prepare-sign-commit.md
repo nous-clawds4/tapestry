@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-01
-**Story:** `engineering-team/stories/list-headers-disposition/5-disposition-on-me-rows.md`
+**Story:** `engineering-team/stories/done/list-headers-disposition/5-disposition-on-me-rows.md`
 
 ## Context
 
@@ -260,7 +260,7 @@ We chose **Option A**.
 
 ## Amendment 1 (2026-10-01, review round 1)
 
-Story 5's review (`engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md`) found one blocking
+Story 5's review (`engineering-team/reviews/done/list-headers-disposition/5-disposition-on-me-rows.md`) found one blocking
 defect: the panel outlives a sign-out. The owner then decided, at that gate (2026-10-01), that all three non-blocking
 items ride along.
 

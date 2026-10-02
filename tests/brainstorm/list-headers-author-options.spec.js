@@ -4,9 +4,9 @@ const { test, expect } = require('@playwright/test');
  * list-headers-disposition #1 — Me and My Local Tapestry Assistant in the List Headers Author selector: what a
  * viewer SEES on /tapestry/lists.
  *
- * Story: engineering-team/stories/list-headers-disposition/1-author-selector-me-and-my-assistant.md
- * ADR:   engineering-team/decisions/list-headers-disposition/0001-me-and-my-assistant-from-the-signed-in-user.md
- * Plan:  engineering-team/stories/list-headers-disposition/1-author-selector-me-and-my-assistant.test-plan.md
+ * Story: engineering-team/stories/done/list-headers-disposition/1-author-selector-me-and-my-assistant.md
+ * ADR:   engineering-team/decisions/done/list-headers-disposition/0001-me-and-my-assistant-from-the-signed-in-user.md
+ * Plan:  engineering-team/stories/done/list-headers-disposition/1-author-selector-me-and-my-assistant.test-plan.md
  * Node half: test/list-headers-author-options.test.js (the pure rules).
  *
  * Network-mocked and hermetic: a catch-all answers every /api call these tests don't name (so a `vite preview`

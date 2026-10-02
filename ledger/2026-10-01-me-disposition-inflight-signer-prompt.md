@@ -25,4 +25,4 @@ code path by reading it.
 `signEvent`, and again after it returns, with a "nothing was saved" sentence. Add a browser case that holds the
 prepare answer, signs out, then releases it, and counts `signEvent` calls.
 
-**Pointer:** `engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md` § Re-review, round 2.
+**Pointer:** `engineering-team/reviews/done/list-headers-disposition/5-disposition-on-me-rows.md` § Re-review, round 2.

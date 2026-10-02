@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-01
-**Story:** `engineering-team/stories/list-headers-disposition/3-disposition-on-my-assistant-rows.md`
+**Story:** `engineering-team/stories/done/list-headers-disposition/3-disposition-on-my-assistant-rows.md`
 
 ## Context
 
@@ -292,7 +292,7 @@ and the eventual Concept Headers fix, one place to read them.
 
 ## Amendment 1 (2026-10-01, review round 1)
 
-The story 3 review (`engineering-team/reviews/list-headers-disposition/3-disposition-on-my-assistant-rows.md`)
+The story 3 review (`engineering-team/reviews/done/list-headers-disposition/3-disposition-on-my-assistant-rows.md`)
 found two security gaps in this design and one usability gap. This amendment closes them. Everything above
 stands except where a rule below adds to it.
 

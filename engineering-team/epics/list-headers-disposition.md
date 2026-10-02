@@ -1,6 +1,6 @@
 # Epic: list-headers-disposition — dispositioning headers on List Headers, signed only by you or your own Assistant
 
-**Status:** Active
+**Status:** Done
 **Created:** 2026-10-01
 **Book:** `engineering-team/audits/list-headers-disposition/book.md` (no PRD — acceptance frame)
 
@@ -27,10 +27,14 @@ actions over every row state ran well past five acceptance criteria.
 3. `3-disposition-on-my-assistant-rows.md`: Disposition on **My Assistant** rows: the panel,
    **Submit as a Shared Concept** and **Keep private**, signed by the person's own Assistant, plus
    **Next undecided →**. Every one of the Assistant's rows gets the button, not only undecided
-   ones (owner, 2026-10-01). Depends on #1 and #2.
-4. **Wire to an external shared concept** on the same panel, under the same rule. Depends on #3.
-5. Disposition on **Me** rows: the same panel and all three actions, signed by the person's own
-   browser signer. Depends on #3 and #4.
+   ones (owner, 2026-10-01). Depends on #1 and #2. Done.
+4. `4-wire-on-my-assistant-rows.md`: **Wire to an external shared concept** on the same panel, under
+   the same rule. Depends on #3. Done.
+5. `5-disposition-on-me-rows.md`: Disposition on **Me** rows: the same panel and all three actions,
+   signed by the person's own browser signer. Depends on #3 and #4. Done.
+
+All five shipped to staging on 2026-10-02 (PR #801), and the book closed the same day. The folders are under
+`stories/done/`, `decisions/done/` and `reviews/done/`.
 
 ## Key facts / guardrails
 

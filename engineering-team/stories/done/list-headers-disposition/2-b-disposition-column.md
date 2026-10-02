@@ -79,6 +79,6 @@ the story:
    Name.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md`
-- Test plan: `engineering-team/stories/list-headers-disposition/2-b-disposition-column.test-plan.md`
-- Review: `engineering-team/reviews/list-headers-disposition/2-b-disposition-column.md`
+- ADR: `engineering-team/decisions/done/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md`
+- Test plan: `engineering-team/stories/done/list-headers-disposition/2-b-disposition-column.test-plan.md`
+- Review: `engineering-team/reviews/done/list-headers-disposition/2-b-disposition-column.md`

@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — Me and My Local Tapestry Assistant in the List Headers Author selector
 
-**Story:** `engineering-team/stories/list-headers-disposition/1-author-selector-me-and-my-assistant.md`
-**ADR:** `engineering-team/decisions/list-headers-disposition/0001-me-and-my-assistant-from-the-signed-in-user.md`
+**Story:** `engineering-team/stories/done/list-headers-disposition/1-author-selector-me-and-my-assistant.md`
+**ADR:** `engineering-team/decisions/done/list-headers-disposition/0001-me-and-my-assistant-from-the-signed-in-user.md`
 **Date:** 2026-10-01
 
 Two files:

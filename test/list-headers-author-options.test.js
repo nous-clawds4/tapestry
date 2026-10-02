@@ -1,9 +1,9 @@
 /**
  * list-headers-disposition #1: Me and My Local Tapestry Assistant in the List Headers Author selector.
  *
- * Story: engineering-team/stories/list-headers-disposition/1-author-selector-me-and-my-assistant.md
- * ADR:   engineering-team/decisions/list-headers-disposition/0001-me-and-my-assistant-from-the-signed-in-user.md
- * Plan:  engineering-team/stories/list-headers-disposition/1-author-selector-me-and-my-assistant.test-plan.md
+ * Story: engineering-team/stories/done/list-headers-disposition/1-author-selector-me-and-my-assistant.md
+ * ADR:   engineering-team/decisions/done/list-headers-disposition/0001-me-and-my-assistant-from-the-signed-in-user.md
+ * Plan:  engineering-team/stories/done/list-headers-disposition/1-author-selector-me-and-my-assistant.test-plan.md
  * Browser half: tests/brainstorm/list-headers-author-options.spec.js (what a viewer sees on /tapestry/lists).
  *
  *   P1..P9 — the pure rules in ui/src/utils/viewerAuthorScope.js, loaded by dynamic import (the idiom

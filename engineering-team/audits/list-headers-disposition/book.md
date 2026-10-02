@@ -1,9 +1,9 @@
 # Book of Work: List Headers disposition, signed only by you or your own Assistant
 
 **Slug:** list-headers-disposition
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-01
-**Closed:** —
+**Closed:** 2026-10-02
 
 ## Intent anchor
 
@@ -24,19 +24,19 @@ The owner's answer to the five decisions below, verbatim:
 
 *Proposed 2026-10-01 with story 1. It's confirmed when the owner approves story 1.*
 
-- [ ] On List Headers, the Author selector offers **Me** and **My Local Tapestry Assistant** at the
+- [x] On List Headers, the Author selector offers **Me** and **My Local Tapestry Assistant** at the
       top. Each shows only the signed-in person's own headers, or only their own Assistant's.
-- [ ] A 🧭 column shows each header's b-disposition: wired, self-declared, kept private, or not yet
+- [x] A 🧭 column shows each header's b-disposition: wired, self-declared, kept private, or not yet
       decided. A header that can't be re-published (kind 9998) shows "—".
-- [ ] On rows that the signed-in person or their own Assistant wrote, a Disposition panel offers
+- [x] On rows that the signed-in person or their own Assistant wrote, a Disposition panel offers
       **Submit as a Shared Concept**, **Keep private**, and **Wire to an external shared
       concept**. The person's own signer signs **Me** rows. The person's own Assistant signs
       **My Assistant** rows.
-- [ ] Nobody can make somebody else's key or somebody else's Assistant sign anything through this
+- [x] Nobody can make somebody else's key or somebody else's Assistant sign anything through this
       feature: not an admin, not the owner, and not a caller with no session.
-- [ ] Concept Headers and its disposition buttons are unchanged. The Concept Headers fix and the
+- [x] Concept Headers and its disposition buttons are unchanged. The Concept Headers fix and the
       same flaw in New DList's **Sign as Assistant** are each recorded as a ledger row.
-- [ ] The book is shipped to staging. Production only on the owner's explicit go.
+- [x] The book is shipped to staging. Production only on the owner's explicit go.
 
 ## Decisions at intake
 
@@ -66,7 +66,9 @@ this instance holds for the signed-in person, and by no one else's.
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high. The owner confirmed the frame with story 1. Every bullet maps to Done stories whose
+  final reviews passed. The book shipped to staging via PR #801 (merge `02a0d5a0`), and the smoke checks ran on the
+  live instance. It is not in production.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/list-headers-disposition/audit.md`

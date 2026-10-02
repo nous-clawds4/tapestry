@@ -1,7 +1,7 @@
 # Test Plan: Story 4 — Wire to an external shared concept on My Assistant rows
 
-**Story:** `engineering-team/stories/list-headers-disposition/4-wire-on-my-assistant-rows.md`
-**ADR:** `engineering-team/decisions/list-headers-disposition/0004-wire-on-my-assistant-rows.md` (extends ADR 0003 and
+**Story:** `engineering-team/stories/done/list-headers-disposition/4-wire-on-my-assistant-rows.md`
+**ADR:** `engineering-team/decisions/done/list-headers-disposition/0004-wire-on-my-assistant-rows.md` (extends ADR 0003 and
 its Amendment 1)
 **Date:** 2026-10-01
 

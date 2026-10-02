@@ -1,7 +1,7 @@
 # Test Plan: Story 5 — Disposition on Me rows, signed by your own browser signer
 
-**Story:** `engineering-team/stories/list-headers-disposition/5-disposition-on-me-rows.md`
-**ADR:** `engineering-team/decisions/list-headers-disposition/0005-me-rows-prepare-sign-commit.md` (reuses ADR 0003 and
+**Story:** `engineering-team/stories/done/list-headers-disposition/5-disposition-on-me-rows.md`
+**ADR:** `engineering-team/decisions/done/list-headers-disposition/0005-me-rows-prepare-sign-commit.md` (reuses ADR 0003 and
 0004 and their Amendments 1)
 **Date:** 2026-10-01
 
