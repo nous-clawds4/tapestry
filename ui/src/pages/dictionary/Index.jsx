@@ -61,9 +61,17 @@ export default function DictionaryPage() {
         The concepts your trusted community generally accepts. You can add entries yourself; in a later version
         your Assistant will keep them up to date automatically, and you’ll be able to veto any entry.
       </p>
-      {unknown && (
+      {/* Only once the reader's Assistants are known can a link be said to name none of them. */}
+      {unknown && person.signedIn && mine.status === 'ready' && (
         <p className="dict-pov text-muted bsd-managed-note">
           The link named a Dictionary that isn’t one of your Assistants’, so this is your own.
+        </p>
+      )}
+      {person.signedIn && mine.status === 'error' && (
+        <p className="dict-pov text-muted bsd-managed-note" role="status">
+          Couldn’t load your Assistants, so this is your own Dictionary
+          {asked ? ', not the one the link named' : ''}.{' '}
+          <button type="button" className="dict-link-btn bsd-managed-retry" onClick={mine.reload}>Try again</button>
         </p>
       )}
       <div className="dict-page dict-skin-light">

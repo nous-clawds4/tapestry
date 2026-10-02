@@ -222,8 +222,9 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
   const bTags = (ev?.tags || []).filter((t) => t[0] === 'b' && typeof t[1] === 'string');
   const badge = overrideBadge(entry);
   const members = entry?.gum || 0;
-  const backHref = typeof location.state?.listHref === 'string' && location.state.listHref.startsWith(listHref)
-    ? location.state.listHref : listHref;
+  const fromList = location.state?.listHref;
+  const backHref = typeof fromList === 'string' && (fromList === listHref || fromList.startsWith(`${listHref}?`))
+    ? fromList : listHref;
   // The header is the reader's Assistant's, the reader's own, or (from "Managed by") another Assistant's.
   const ownHeaderLabel = !author ? `${Whose} header`
     : author === person.assistant ? `${Whose} Assistant’s header`

@@ -50,6 +50,7 @@ export function managerOptions({ rows, profiles, person }) {
       initial: 'Y',
       detail: 'You have no Assistant on this instance',
       local: true,
+      self: true, // the reader's own Dictionary, not an Assistant's: no Local pill, and counted as a Dictionary
       authors: Array.isArray(person.authors) && person.authors.length ? person.authors : [person.account],
     });
   }
@@ -91,32 +92,56 @@ export function parseManagedBy(value, options) {
 export const conceptKey = (entry) => (entry && entry.sharedCoord) || (entry && entry.coord) || null;
 
 /**
+ * Every concept an entry stands for: the shared concept it is scored for, each b target, and itself
+ * when it is self-declared (or points nowhere a concept can be named). Two entries are the same row
+ * when these overlap, so a header whose b-tags list the same targets in another order still joins.
+ */
+export function conceptKeys(entry) {
+  if (!entry) return [];
+  const keys = new Set();
+  if (entry.sharedCoord) keys.add(entry.sharedCoord);
+  for (const t of Array.isArray(entry.targets) ? entry.targets : []) if (typeof t === 'string' && t) keys.add(t);
+  if (entry.selfDeclared || keys.size === 0) keys.add(entry.coord);
+  return [...keys].filter(Boolean);
+}
+
+/**
  * The union of several Assistants' Dictionaries. `reads` is one per Assistant, in the picker's
  * order: { key, entries } for a read that answered, { key, error } for one that failed. Entries that
- * stand for the same shared concept are one row: the first Assistant's entry (the local one when it
- * has it), with `support` = { count, of, keys } — how many of the reader's Assistants carry it, out
- * of all of them. `failed` lists the keys whose read failed; they count in `of` but support nothing.
+ * stand for an overlapping set of concepts (conceptKeys) are one row: the first Assistant's entry
+ * (the local one when it has it), with `support` = { count, of, keys } — how many of the reader's
+ * Assistants carry it, out of all of them. `failed` lists the keys whose read failed; they count in
+ * `of` but support nothing. `answered` is how many reads answered.
  */
 export function mergeDictionaries(reads) {
   const list = Array.isArray(reads) ? reads : [];
   const of = list.length;
-  const byConcept = new Map(); // concept key → { entry, keys:Set }
   const failed = [];
+  const rows = []; // { entry, keys:Set (Assistants), concepts:Set }
+  const rowOf = new Map(); // concept key → row
   for (const read of list) {
     if (!read || !Array.isArray(read.entries)) { if (read && read.key) failed.push(read.key); continue; }
     for (const entry of read.entries) {
-      const k = conceptKey(entry);
-      if (!k) continue;
-      const row = byConcept.get(k);
-      if (row) row.keys.add(read.key);
-      else byConcept.set(k, { entry, keys: new Set([read.key]) });
+      const concepts = conceptKeys(entry);
+      if (!concepts.length) continue;
+      // Every row this entry touches becomes one row: the earliest, with the others folded in.
+      const touched = [...new Set(concepts.map((k) => rowOf.get(k)).filter(Boolean))].sort((a, b) => a.at - b.at);
+      let row = touched[0];
+      if (!row) { row = { at: rows.length, entry, keys: new Set(), concepts: new Set() }; rows.push(row); }
+      for (const other of touched.slice(1)) {
+        other.keys.forEach((k) => row.keys.add(k));
+        other.concepts.forEach((c) => { row.concepts.add(c); rowOf.set(c, row); });
+        other.merged = true;
+      }
+      row.keys.add(read.key);
+      for (const c of concepts) { row.concepts.add(c); rowOf.set(c, row); }
     }
   }
-  const entries = [...byConcept.values()].map(({ entry, keys }) => ({
+  const entries = rows.filter((r) => !r.merged).map(({ entry, keys }) => ({
     ...entry,
     support: { count: keys.size, of, keys: [...keys] },
   }));
-  return { entries, failed };
+  return { entries, failed, answered: of - failed.length };
 }
 
 /**

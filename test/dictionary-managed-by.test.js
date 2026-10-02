@@ -6,7 +6,7 @@
  * cross-instance read); the union ships with "n of m Assistants" support counts; signed out it is
  * a plain label; the choice lives in the URL (?managedBy=<npub> or all).
  *
- *   M1..M9 — pure: ui/src/pages/dictionaries/managedDictionary.js (dynamic import).
+ *   M1..M11 — pure: ui/src/pages/dictionaries/managedDictionary.js (dynamic import).
  *   S1..S4 — structural pins, read off comment-stripped source.
  *
  * The browser half is tests/brainstorm/dictionary-concepts.spec.js D12–D15.
@@ -74,6 +74,7 @@ test('M2: managerOptions — a reader with no Assistant here still has their own
   const person = { account: ACCOUNT, assistant: null, authors: [ACCOUNT] };
   const opts = (await m()).managerOptions({ rows: [ROWS[0]], profiles: PROFILES, person });
   assert(opts[0].key === ACCOUNT && opts[0].local && JSON.stringify(opts[0].authors) === JSON.stringify([ACCOUNT]), JSON.stringify(opts[0]));
+  assert(opts[0].self === true, 'marked as the reader\'s own, not an Assistant (no Local pill; the union counts Dictionaries)');
   assert(opts[1].key === REMOTE, 'then the tagged Assistant');
 });
 
@@ -154,6 +155,32 @@ test('M9: mergeDictionaries — an Assistant carrying the same concept twice cou
   assert(out.entries.length === 1 && out.entries[0].support.count === 1 && out.entries[0].support.of === 1, JSON.stringify(out.entries));
 });
 
+test('M10: mergeDictionaries — headers whose b-tags list the same targets in another order are one row', async () => {
+  const { mergeDictionaries } = await m();
+  const A = `39998:${OTHER}:a`;
+  const B = `39998:${OTHER}:b`;
+  // Tied scores keep tag order, so the server names A for one and B for the other.
+  const out = mergeDictionaries([
+    { key: LOCAL, entries: [{ coord: `39998:${LOCAL}:x`, sharedCoord: A, targets: [A, B] }] },
+    { key: REMOTE, entries: [{ coord: `39998:${REMOTE}:x`, sharedCoord: B, targets: [B, A] }] },
+  ]);
+  assert(out.entries.length === 1, `one row, got ${out.entries.length}`);
+  assert(out.entries[0].support.count === 2 && out.entries[0].coord === `39998:${LOCAL}:x`, JSON.stringify(out.entries[0]));
+});
+
+test('M11: mergeDictionaries — a later entry that bridges two rows folds them into the first', async () => {
+  const { mergeDictionaries } = await m();
+  const A = `39998:${OTHER}:a`;
+  const B = `39998:${OTHER}:b`;
+  const out = mergeDictionaries([
+    { key: LOCAL, entries: [{ coord: `39998:${LOCAL}:a`, sharedCoord: A, targets: [A] }, { coord: `39998:${LOCAL}:b`, sharedCoord: B, targets: [B] }] },
+    { key: REMOTE, entries: [{ coord: `39998:${REMOTE}:ab`, sharedCoord: A, targets: [A, B] }] },
+    { key: OTHER, error: 'HTTP 500' },
+  ]);
+  assert(out.entries.length === 1 && out.entries[0].support.count === 2 && out.entries[0].support.of === 3, JSON.stringify(out.entries));
+  assert(out.answered === 2, `two reads answered, got ${out.answered}`);
+});
+
 // ═══ S — structural ═══════════════════════════════════════════════════════════
 
 test('S1: /dictionary keeps the choice in the URL and passes it to the shared body', () => {
@@ -178,7 +205,10 @@ test('S3: the body reads one Assistant or the union through the same endpoint, a
   assert(/useConceptDictionary\(person, povParams, \{ enabled: !managed \}\)/.test(s), 'no choice → the reader\'s own read, as before');
   assert(/useAssistantDictionaries\(assistantsMode \? managed\.sets : \[\], povParams/.test(s), 'Assistant reads from the active point of view');
   assert(/mergeDictionaries\(many\.data\.reads\)/.test(s), 'the union is mergeDictionaries');
-  assert(/\{e\.support\.count\} of \{e\.support\.of\} Assistants/.test(s), 'rows say "n of m Assistants"');
+  assert(/\{e\.support\.count\} of \{e\.support\.of\} \{unionNoun\}/.test(s) && /\? 'Dictionaries' : 'Assistants'/.test(s),
+    'rows say "n of m Assistants" (Dictionaries when the reader\'s own concepts are one of them)');
+  assert(/if \(merged\.answered === 0\) error =/.test(s) && /if \(read\.error\) error = read\.error;/.test(s),
+    'a failed read is an error, never an empty Dictionary');
   assert(/canAdd=\{signedIn && person\.isOwner && !managed\}/.test(s), 'Add to Dictionary only on the reader\'s own list');
   assert(/listHref: `\$\{location\.pathname\}\$\{location\.search\}`/.test(s), 'an entry knows the list it came from');
   assert(/'General Usage Metric \(lowest first\)'/.test(s) && /'General Usage Metric \(highest first\)'/.test(s), 'the design\'s sort labels');
@@ -186,7 +216,7 @@ test('S3: the body reads one Assistant or the union through the same endpoint, a
 
 test('S4: the entry page returns to that list and names another Assistant\'s header', () => {
   const s = flat(code(src(ENTRY_JSX)));
-  assert(/location\.state\.listHref\.startsWith\(listHref\)/.test(s), 'back only to a list under the same path');
+  assert(/fromList === listHref \|\| fromList\.startsWith\(`\$\{listHref\}\?`\)/.test(s), 'back only to the same list, with its query');
   assert(/<Link to=\{backHref\} className="dict-back">/.test(s), 'the back link uses it');
   assert(/`\$\{nameOf\(author\)\}’s header`/.test(s), 'another Assistant\'s header carries its name');
 });

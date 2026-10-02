@@ -145,24 +145,33 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
   const many = useAssistantDictionaries(assistantsMode ? managed.sets : [], povParams, { enabled: assistantsMode });
 
   // The list's data, whichever Dictionary it is: the reader's own, one Assistant's, or the union.
+  // A read that failed is an error and nothing else: no count, no list, no "nothing here" (it never
+  // looked), as the entry page's E6 rule asks.
   let data = null;
   let error = null;
   let failed = [];
-  if (!managed) ({ data, error } = own);
-  else if (assistantsMode && many.data) {
+  if (!managed) {
+    error = own.error;
+    data = own.error ? null : own.data;
+  } else if (assistantsMode && many.data) {
     if (managed.all) {
       const merged = mergeDictionaries(many.data.reads);
-      data = { entries: merged.entries, metric: many.data.metric, pov: many.data.pov };
       failed = merged.failed;
+      if (merged.answered === 0) error = 'none of the reads answered';
+      else data = { entries: merged.entries, metric: many.data.metric, pov: many.data.pov };
     } else {
       const read = many.data.reads[0];
-      if (read.error) { error = read.error; data = { entries: [], metric: 'gum1', pov: {} }; }
+      if (read.error) error = read.error;
       else data = { entries: read.entries, metric: read.metric, pov: read.pov };
     }
   }
   const reload = managed ? many.reload : own.reload;
   const optionName = (key) => managed?.options?.find((o) => o.key === key)?.name || null;
   const remote = assistantsMode && !managed.all ? managed.current : null;
+  // In the union, is any Dictionary another instance's Assistant's, read here only from this relay?
+  const unionHasRemote = Boolean(managed?.all && managed.options?.some((o) => !o.local));
+  // A reader with no Assistant here has their own concepts in the union: count Dictionaries, not Assistants.
+  const unionNoun = managed?.all && managed.options?.some((o) => o.self) ? 'Dictionaries' : 'Assistants';
 
   const [faqShown, setFaqShown] = useState(false);
   const [faqOpen, setFaqOpen] = useState(-1);
@@ -193,7 +202,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
   const countText = narrowed
     ? `${shown.length} of ${total} concept${total === 1 ? '' : 's'}`
     : managed?.all
-      ? `${total} concept${total === 1 ? '' : 's'} across your ${managed.sets.length} Assistants`
+      ? `${total} concept${total === 1 ? '' : 's'} across your ${managed.sets.length} ${unionNoun}`
       : `${total} concept${total === 1 ? '' : 's'} in ${listOf}`;
   // Who shared a self-declared entry: the reader (or the owner), else the Assistant that authored it.
   const sharedBy = (e) => {
@@ -232,7 +241,13 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
           Read from this instance’s relay: {remote.name} may keep more of its Dictionary on its own instance.
         </p>
       )}
-      {failed.length > 0 && (
+      {unionHasRemote && (
+        <p className="dict-pov text-muted">
+          Read from this instance’s relay: your other Assistants may keep more of their Dictionaries on their own
+          instances, so a count can be low.
+        </p>
+      )}
+      {data && failed.length > 0 && (
         <p className="dict-pov text-muted">
           Couldn’t read the Dictionar{failed.length === 1 ? 'y' : 'ies'} of {failed.map((k) => optionName(k) || 'an Assistant').join(', ')}, so
           {failed.length === 1 ? ' its' : ' their'} entries are missing below.
@@ -268,7 +283,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
 
       {/* Count, filter note and the search-and-sort toggle — closed by default (SPEC § 2.2). */}
       <div className="dict-count-row">
-        <span className="dict-count">{data ? countText : managed ? 'Assembling the Dictionary…' : 'Assembling your Dictionary…'}</span>
+        <span className="dict-count">
+          {data ? countText : error ? '' : managed ? 'Assembling the Dictionary…' : 'Assembling your Dictionary…'}
+        </span>
         {filterNote && <span className="dict-filter-note">{filterNote}</span>}
         <span className="dict-spacer" />
         <button
@@ -359,7 +376,12 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
         />
       )}
 
-      {error && <div className="error">Could not assemble {listOf}: {error}</div>}
+      {error && (
+        <div className="error">
+          {managed?.all ? `Couldn’t read any of your Assistants’ Dictionaries.` : `Could not assemble ${listOf}: ${error}`}{' '}
+          <button type="button" className="dict-link-btn" onClick={reload}>Try again</button>
+        </div>
+      )}
 
       {data && (
         <ul className="dict-card dict-list" aria-label={`Concepts in ${listOf}`}>
@@ -377,9 +399,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
                       {e.support && (
                         <span
                           className={`dict-support${e.support.count === e.support.of ? ' is-all' : ''}`}
-                          title={`Supported by ${e.support.count} of your ${e.support.of} Assistants`}
+                          title={`Supported by ${e.support.count} of your ${e.support.of} ${unionNoun}`}
                         >
-                          {e.support.count} of {e.support.of} Assistants
+                          {e.support.count} of {e.support.of} {unionNoun}
                         </span>
                       )}
                       {e.isFirmware && <span className="dict-pill dict-pill--firmware">Firmware</span>}

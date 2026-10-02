@@ -144,12 +144,14 @@ export function useConceptDictionary(person, povParams, { enabled = true } = {})
 
 /**
  * The signed-in reader's Assistants (GET /api/assistant/my-assistants): their local Assistant and
- * every profile they tagged as one. { status: 'idle' | 'loading' | 'ready' | 'error', rows }.
- * Signed out it stays idle: the list is the reader's own.
+ * every profile they tagged as one. { status: 'idle' | 'loading' | 'ready' | 'error', rows, reload }.
+ * Signed out it stays idle: the list is the reader's own. It is read again for another account.
  */
 export function useMyAssistants(person) {
   const [state, setState] = useState({ status: 'idle', rows: [] });
+  const [version, setVersion] = useState(0);
   const signedIn = Boolean(person && !person.loading && person.signedIn);
+  const account = signedIn ? person.account : null;
   useEffect(() => {
     if (!signedIn) { setState({ status: 'idle', rows: [] }); return undefined; }
     let cancelled = false;
@@ -165,8 +167,8 @@ export function useMyAssistants(person) {
       }
     })();
     return () => { cancelled = true; };
-  }, [signedIn]);
-  return state;
+  }, [signedIn, account, version]);
+  return { ...state, reload: () => setVersion((v) => v + 1) };
 }
 
 /**
@@ -195,12 +197,13 @@ export function useAssistantDictionaries(sets, povParams, { enabled = true } = {
       }));
       if (cancelled) return;
       const answered = reads.find((r) => !r.error);
-      setData({ reads, metric: answered?.metric || 'gum1', pov: answered?.pov || {} });
+      setData({ signature, reads, metric: answered?.metric || 'gum1', pov: answered?.pov || {} });
     })();
     return () => { cancelled = true; };
   }, [signature, wotPov, userPubkey, enabled, version]);
 
-  return { data, reload: () => setVersion((v) => v + 1) };
+  // Reads for another choice are never shown with this one (a back/forward renders before the effect).
+  return { data: data && data.signature === signature ? data : null, reload: () => setVersion((v) => v + 1) };
 }
 
 /** One line on whose point of view filtered an entry's Items. */

@@ -46,7 +46,11 @@ const { test, expect } = require('@playwright/test');
  *   D13 — "All of my Assistants": one row per shared concept, with "n of m Assistants".
  *   D14 — a link to another Assistant's Dictionary reads only that one; its entry returns to it
  *         and names the Assistant's header.
- *   D15 — signed out it is a label; a link naming someone else's Assistant falls back, and says so.
+ *   D15 — signed out it is a label, and an unreadable link says nothing about "your own"; signed in, a
+ *         link naming someone else's Assistant falls back, and says so.
+ *   D16 — an Assistant's Dictionary that cannot be read is an error with Try again, never "0 concepts".
+ *   D17 — when the reader's Assistants cannot be read, the page says so and offers Try again.
+ *   D18 — the menu works from the keyboard: focus moves in, arrows move, Escape returns to the trigger.
  */
 
 const OWNER = '1'.repeat(64);
@@ -405,6 +409,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(row('customer thing').locator('.dict-support')).toHaveText('2 of 2 Assistants');
     await expect(row('remote only').locator('.dict-support')).toHaveText('1 of 2 Assistants');
     await expect(page.getByRole('button', { name: /^Managed by All of my Assistants/ })).toBeVisible();
+    await expect(page.getByText(/^Read from this instance’s relay: your other Assistants may keep more/)).toBeVisible();
   });
 
   test('D14: a link to another Assistant’s Dictionary reads only that one, and its entry comes back to it', async ({ page }) => {
@@ -425,6 +430,9 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.goto(PAGE);
     await expect(page.locator('.bsd-managed')).toHaveText('Managed by The owner’s Assistant');
     await expect(page.getByRole('button', { name: /^Managed by/ })).toHaveCount(0);
+    await page.goto(`${PAGE}?managedBy=nprofile1notavalidkey`);
+    await expect(page.getByText(/concepts? in the owner’s Dictionary/)).toBeVisible();
+    await expect(page.getByText(/so this is your own/)).toHaveCount(0);
 
     const page2 = await page.context().newPage();
     const asked = await mockStack(page2, { session: CUSTOMER });
@@ -433,6 +441,65 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page2.getByText('The link named a Dictionary that isn’t one of your Assistants’, so this is your own.')).toBeVisible();
     await expect(page2.getByText('1 concept in your Dictionary')).toBeVisible();
     expect(asked.at(-1)).toBe(`${CUST},${CUST_TA}`);
+  });
+
+  test('D16: an Assistant’s Dictionary that cannot be read is an error, never an empty Dictionary', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    let fail = true;
+    await page.route('**/api/dictionaries/concepts?**', (r) => {
+      const authors = new URL(r.request().url()).searchParams.get('authors');
+      if (fail && authors === REMOTE_TA) return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'boom' }) });
+      return r.fallback();
+    });
+    await page.goto(`${PAGE}?managedBy=${REMOTE_TA}`);
+    await expect(page.getByText('Could not assemble Robin’s Dictionary: boom')).toBeVisible();
+    await expect(page.getByText(/concepts? in Robin’s Dictionary/)).toHaveCount(0);
+    await expect(page.getByText(/holds no concept headers from Robin/)).toHaveCount(0);
+    fail = false;
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
+  });
+
+  test('D17: when the reader’s Assistants cannot be read, the page says so, and Try again reads them', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    let fail = true;
+    await page.route('**/api/assistant/my-assistants', (r) => (fail
+      ? r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'down' }) })
+      : r.fallback()));
+    await page.goto(`${PAGE}?managedBy=${REMOTE_TA}`);
+    await expect(page.getByText('Couldn’t load your Assistants, so this is your own Dictionary, not the one the link named.')).toBeVisible();
+    await expect(page.getByText('1 concept in your Dictionary')).toBeVisible();
+    fail = false;
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Managed by Robin/ })).toBeVisible();
+  });
+
+  test('D18: the menu works from the keyboard', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    await page.goto(PAGE);
+    const trigger = page.getByRole('button', { name: /^Managed by Baz’s Assistant/ });
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    const items = page.getByRole('menuitemradio');
+    await expect(items.nth(0), 'focus moves to the chosen option').toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(items.nth(2)).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(items.nth(0), 'wraps to the top').toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(trigger, 'Escape returns focus to the trigger').toBeFocused();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\?managedBy=npub1/);
+    await expect(page.getByRole('button', { name: /^Managed by Robin/ }), 'a pick returns focus to the trigger').toBeFocused();
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {
