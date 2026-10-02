@@ -38,6 +38,15 @@ const { test, expect } = require('@playwright/test');
  *         names the Assistant the Treasure Map assigns; what has no backend is disabled; the GUM₁
  *         sentence; the header panels open.
  *   D11 — a Treasure Map that cannot be read names no curator and says so.
+ *
+ * "Managed by" on /dictionary (test/dictionary-managed-by.test.js holds the pure rules):
+ *
+ *   D12 — a signed-in reader picks another of their Assistants: the URL names it, the list is its
+ *         Dictionary (read for that Assistant alone), and the page says it reads this relay.
+ *   D13 — "All of my Assistants": one row per shared concept, with "n of m Assistants".
+ *   D14 — a link to another Assistant's Dictionary reads only that one; its entry returns to it
+ *         and names the Assistant's header.
+ *   D15 — signed out it is a label; a link naming someone else's Assistant falls back, and says so.
  */
 
 const OWNER = '1'.repeat(64);
@@ -45,6 +54,7 @@ const OWNER_TA = '2'.repeat(64);
 const CUST = '3'.repeat(64);
 const CUST_TA = '4'.repeat(64);
 const ADMIN_NO_TA = '5'.repeat(64);
+const REMOTE_TA = '8'.repeat(64); // an Assistant the customer tagged, hosted elsewhere
 const FOREIGN = `39998:${'f'.repeat(64)}:shared-thing`;
 const SENTINEL = 'b-tag-deferred';
 
@@ -61,6 +71,8 @@ const HEADERS = [
   ['customer-thing', 'customer thing', CUST_TA, FOREIGN],
   ['admin-thing', 'admin thing', ADMIN_NO_TA, FOREIGN],
   ['deferred-one', 'deferred one', OWNER_TA, SENTINEL],
+  ['remote-thing', 'remote thing', REMOTE_TA, FOREIGN], // the same shared concept as "customer thing"
+  ['remote-only', 'remote only', REMOTE_TA, `39998:${'e'.repeat(64)}:elsewhere`],
 ];
 const ALL_NAMES = HEADERS.map((h) => h[1]);
 
@@ -127,6 +139,25 @@ async function names(page) {
   return out;
 }
 
+
+/** The customer's Assistants: their local one and Robin, tagged, with names. Call after mockStack (and mockEntry). */
+async function mockAssistants(page) {
+  const json = (r, body) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  await page.route('**/api/assistant/my-assistants', (r) => json(r, {
+    success: true, signedIn: true, local: CUST_TA,
+    rows: [
+      { pubkey: CUST_TA, local: true, tags: [{ key: 'tapestry', name: 'My Tapestry Assistant' }] },
+      { pubkey: REMOTE_TA, local: false, tags: [{ key: 'brainstorm', name: 'My Brainstorm Assistant' }] },
+    ],
+  }));
+  await page.route('**/api/profiles**', (r) => json(r, {
+    success: true,
+    profiles: {
+      [CUST_TA]: { name: 'Baz’s Assistant', nip05: 'baz-assistant@here.example' },
+      [REMOTE_TA]: { name: 'Robin', website: 'robin.example' },
+    },
+  }));
+}
 
 const TRUSTED_FILER = '6'.repeat(64);
 const CURATOR = '7'.repeat(64);
@@ -339,6 +370,69 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.getByRole('button', { name: /^Curation/ }).click();
     await expect(curation.getByText(/^Could not read the owner’s Treasure Map: /)).toBeVisible();
     await expect(curation.getByText('Curated by')).toHaveCount(0);
+  });
+
+  test('D12: a signed-in reader picks another of their Assistants, and the list is its Dictionary', async ({ page }) => {
+    const asked = await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    await page.goto(PAGE);
+    await expect(page.getByRole('heading', { level: 1, name: 'Your Dictionary.' })).toBeVisible();
+    const trigger = page.getByRole('button', { name: /^Managed by Baz’s Assistant/ });
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    const menu = page.getByRole('menu', { name: 'Whose Dictionary to show' });
+    await expect(menu.getByRole('menuitemradio')).toHaveText([/Baz’s Assistant\s*Local/, /Robin/, /All of my Assistants/]);
+    await expect(menu.getByRole('menuitemradio', { name: /Baz’s Assistant/ })).toHaveAttribute('aria-checked', 'true');
+    await menu.getByRole('menuitemradio', { name: /Robin/ }).click();
+    await expect(page).toHaveURL(/\?managedBy=npub1/);
+    await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
+    expect(asked.at(-1), 'Robin’s Dictionary is read for Robin alone').toBe(REMOTE_TA);
+    expect(await names(page)).toEqual(['remote thing', 'remote only']);
+    await expect(page.getByText('Read from this instance’s relay: Robin may keep more of its Dictionary on its own instance.')).toBeVisible();
+    await page.getByRole('button', { name: /^Managed by Robin/ }).click();
+    await page.getByRole('menuitemradio', { name: /Baz’s Assistant/ }).click();
+    await expect(page).toHaveURL(/\/dictionary$/);
+    await expect(page.getByText('1 concept in your Dictionary')).toBeVisible();
+  });
+
+  test('D13: All of my Assistants — one row per shared concept, with its support', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    await page.goto(`${PAGE}?managedBy=all`);
+    await expect(page.getByText('2 concepts across your 2 Assistants')).toBeVisible();
+    expect(await names(page)).toEqual(['customer thing', 'remote only']);
+    const row = (name) => list(page).locator('.dict-row', { has: page.locator('.dict-row-name', { hasText: new RegExp(`^${name}$`) }) });
+    await expect(row('customer thing').locator('.dict-support')).toHaveText('2 of 2 Assistants');
+    await expect(row('remote only').locator('.dict-support')).toHaveText('1 of 2 Assistants');
+    await expect(page.getByRole('button', { name: /^Managed by All of my Assistants/ })).toBeVisible();
+  });
+
+  test('D14: a link to another Assistant’s Dictionary reads only that one, and its entry comes back to it', async ({ page }) => {
+    const asked = await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockAssistants(page);
+    await page.goto(`${PAGE}?managedBy=${REMOTE_TA}`);
+    await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
+    expect(asked, 'never the reader’s own Dictionary first').toEqual([REMOTE_TA]);
+    await list(page).getByRole('link', { name: /^remote thing/ }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'remote thing' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Dictionary', exact: true })).toHaveAttribute('href', `/dictionary?managedBy=${REMOTE_TA}`);
+    await expect(page.getByRole('button', { name: 'Robin’s header' })).toBeVisible();
+  });
+
+  test('D15: signed out it is a label; a link naming someone else’s Assistant falls back, and says so', async ({ page }) => {
+    await mockStack(page);
+    await page.goto(PAGE);
+    await expect(page.locator('.bsd-managed')).toHaveText('Managed by The owner’s Assistant');
+    await expect(page.getByRole('button', { name: /^Managed by/ })).toHaveCount(0);
+
+    const page2 = await page.context().newPage();
+    const asked = await mockStack(page2, { session: CUSTOMER });
+    await mockAssistants(page2);
+    await page2.goto(`${PAGE}?managedBy=${'9'.repeat(64)}`);
+    await expect(page2.getByText('The link named a Dictionary that isn’t one of your Assistants’, so this is your own.')).toBeVisible();
+    await expect(page2.getByText('1 concept in your Dictionary')).toBeVisible();
+    expect(asked.at(-1)).toBe(`${CUST},${CUST_TA}`);
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

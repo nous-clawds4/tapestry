@@ -222,6 +222,13 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
   const bTags = (ev?.tags || []).filter((t) => t[0] === 'b' && typeof t[1] === 'string');
   const badge = overrideBadge(entry);
   const members = entry?.gum || 0;
+  const backHref = typeof location.state?.listHref === 'string' && location.state.listHref.startsWith(listHref)
+    ? location.state.listHref : listHref;
+  // The header is the reader's Assistant's, the reader's own, or (from "Managed by") another Assistant's.
+  const ownHeaderLabel = !author ? `${Whose} header`
+    : author === person.assistant ? `${Whose} Assistant’s header`
+      : (person.authors || []).includes(author) ? `${Whose} header`
+        : `${nameOf(author)}’s header`;
 
   const curatorWhy = !curator ? null
     : curator.why === 'assigned' ? `Assigned to this Concept on ${whose} Treasure Map`
@@ -233,7 +240,8 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
 
   return (
     <>
-      <Link to={listHref} className="dict-back"><DictIcon name="back" /> {listLabel}</Link>
+      {/* Back to the list it was opened from, with its "Managed by" choice, else to the list. */}
+      <Link to={backHref} className="dict-back"><DictIcon name="back" /> {listLabel}</Link>
 
       <div className="dict-entry-badges">
         {entry?.isFirmware && <span className="dict-pill dict-pill--firmware">Firmware</span>}
@@ -469,7 +477,7 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
         )}
       </Disclosure>
 
-      <Disclosure id="dict-own-header" label={author && author === person.assistant ? `${Whose} Assistant’s header` : `${Whose} header`}>
+      <Disclosure id="dict-own-header" label={ownHeaderLabel}>
         <p className="dict-mono dict-entry-coord">{coord}</p>
         <div className="dict-field-label dict-disclosure-label">Recognizes the shared concept</div>
         {!header.done && <p className="text-muted">Reading the header…</p>}
