@@ -7,6 +7,10 @@ import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
+import { useAuth } from '../../context/AuthContext';
+import { ME, MY_ASSISTANT, viewerAuthorOptions, resolveAuthorFilter, authorRole } from '../../utils/viewerAuthorScope';
+import { ListHeaderDispositionHost } from './ListHeaderDispositionPanel';
+import { listHeaderDisposition, MARKS, COLUMN_TITLE } from '../../utils/listHeaderDisposition';
 
 /**
  * Helper: extract a tag value from an event's tags array.
@@ -41,6 +45,7 @@ function shortPubkey(pk) {
 export default function DListsIndex() {
   const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [headers, setHeaders] = useState([]);
   const [itemCounts, setItemCounts] = useState({ counts: {}, totalItems: 0 });
   const [loading, setLoading] = useState(true);
@@ -51,6 +56,9 @@ export default function DListsIndex() {
   // Filters
   const [kindFilter, setKindFilter] = useState('');
   const [authorFilter, setAuthorFilter] = useState('');
+
+  // The open Disposition panel, by row routeId (ADR list-headers-disposition/0003).
+  const [panelId, setPanelId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +121,9 @@ export default function DListsIndex() {
       // Neo4j uuid: replaceable events use a-tag, non-replaceable use event id
       const uuid = ev.kind >= 30000 ? parentRef : ev.id;
 
+      // 🧭 b-disposition, from the event's own b-tags (ADR list-headers-disposition/0002)
+      const disp = listHeaderDisposition(ev);
+
       return {
         id: ev.id,
         routeId,
@@ -125,6 +136,8 @@ export default function DListsIndex() {
         age: formatAge(ev.created_at),
         itemCount,
         inNeo4j: neo4jUuids.has(uuid),
+        disposition: disp.state,
+        _dispositionMarks: disp.marks,
       };
     });
   }, [headers, itemCounts, neo4jUuids]);
@@ -167,15 +180,74 @@ export default function DListsIndex() {
       const k = Number(kindFilter);
       result = result.filter(r => r.kind === k);
     }
-    if (authorFilter) {
-      result = result.filter(r => r.author === authorFilter);
+    // Me / My Local Tapestry Assistant resolve from the signed-in user (ADR list-headers-disposition/0001).
+    const authorPk = resolveAuthorFilter(authorFilter, user);
+    if (authorPk) {
+      result = result.filter(r => r.author === authorPk);
     }
     return result;
-  }, [rows, kindFilter, authorFilter]);
+  }, [rows, kindFilter, authorFilter, user]);
+
+  // A Me / My Local Tapestry Assistant choice the current user can't resolve (signed out, no
+  // Assistant) goes back to All authors, so it can't silently re-apply at the next in-page sign-in
+  // (ADR list-headers-disposition/0001, Amendment 1).
+  useEffect(() => {
+    if ((authorFilter === ME || authorFilter === MY_ASSISTANT) && resolveAuthorFilter(authorFilter, user) === '') {
+      setAuthorFilter('');
+    }
+  }, [authorFilter, user]);
+
+  // Disposition on the signed-in person's own headers: their Assistant's (ADR list-headers-disposition/0003)
+  // and their account's (ADR 0005). Who would sign: 'me', 'my-assistant', or null for no button.
+  const rowSigner = (row) => {
+    const role = row.kind === 39998 ? authorRole(row.author, user) : null;
+    return role === 'me' || role === 'my-assistant' ? role : null;
+  };
+  const addressOf = (ev) => `${ev.kind}:${ev.pubkey}:${getTag(ev, 'd')}`;
+  // The signed version replaces the header it re-signs, so the 🧭 cell updates without a reload.
+  const onActed = (event) => {
+    if (!event) return;
+    setHeaders(prev => prev.map(h => (
+      addressOf(h) === addressOf(event) && event.created_at > h.created_at ? event : h
+    )));
+  };
+  // Next walks one signer's rows at a time (owner decision, story 5): a Me walk asks the browser signer at
+  // each step and an Assistant walk never does, so they don't interleave.
+  const nextUndecided = (afterId, signer) => (signer ? filteredRows.find(r =>
+    rowSigner(r) === signer && r.disposition === MARKS.undecided.state && r.routeId !== afterId) : null) || null;
+  const panelRow = panelId ? rows.find(r => r.routeId === panelId) || null : null;
+  // The panel exists only while its row is the viewer's. Signing out, or in as someone else, in the page closes it,
+  // and it doesn't come back by itself at the next sign-in (ADR list-headers-disposition/0005, Amendment 1 §1).
+  useEffect(() => {
+    if (panelRow && !rowSigner(panelRow)) setPanelId(null);
+  }, [panelRow, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = [
     { key: 'singular', label: 'Name (singular)' },
     { key: 'plural', label: 'Name (plural)' },
+    {
+      // The marks are read-only. Only the person's own rows — their Assistant's or their account's — add a
+      // Disposition… button, which stops its click so it doesn't also open the list.
+      key: 'disposition',
+      label: <span title={COLUMN_TITLE} style={{ cursor: 'help' }}>🧭</span>,
+      render: (_val, row) => (
+        <span style={{ display: 'inline-flex', gap: '0.2rem', alignItems: 'center' }}>
+          {row._dispositionMarks.map(m => (
+            <span key={m.state} title={m.title} className={m === MARKS.undecided ? 'text-muted' : undefined}>
+              {m.glyph}
+            </span>
+          ))}
+          {rowSigner(row) && (
+            <button
+              className="btn" style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem' }}
+              onClick={(e) => { e.stopPropagation(); setPanelId(row.routeId); }}
+            >
+              Disposition…
+            </button>
+          )}
+        </span>
+      ),
+    },
     { key: 'kind', label: 'Kind' },
     {
       key: 'authorShort',
@@ -273,6 +345,9 @@ export default function DListsIndex() {
             }}
           >
             <option value="">All authors</option>
+            {viewerAuthorOptions(user).map(o => (
+              <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>
+            ))}
             {authorOptions.map(pk => (
               <option key={pk} value={pk}>{authorDisplayName(pk)}</option>
             ))}
@@ -285,6 +360,20 @@ export default function DListsIndex() {
           ? `${rows.length} lists`
           : `${filteredRows.length} of ${rows.length} lists`}
       </p>
+
+      {panelRow && rowSigner(panelRow) && (
+        <ListHeaderDispositionHost
+          row={panelRow}
+          signer={rowSigner(panelRow)}
+          onActed={onActed}
+          hasNext={!!nextUndecided(panelRow.routeId, rowSigner(panelRow))}
+          onNext={() => {
+            const next = nextUndecided(panelRow.routeId, rowSigner(panelRow));
+            setPanelId(next ? next.routeId : null);
+          }}
+          onClose={() => setPanelId(null)}
+        />
+      )}
 
       <DataTable
         columns={columns}
