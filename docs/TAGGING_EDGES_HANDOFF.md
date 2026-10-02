@@ -191,6 +191,11 @@ strfry (C++ patch) → Redis list strfry:events → stream-consumer (supervisor)
   - counters the consumer writes explicitly (a Redis hash or a status file), not log scraping;
   - a drift figure: `GET /api/strfry/scan/count` with the `nostr-user-tag` `#z` against the `TAGS` edge count;
   - owner-gated POSTs.
+  - *(Settled by `tagging-edges/0004`: a new sub-tab, Settings › Relays › Tagging pipeline, that reads the pass's
+    report and the path's status through their routes, and counts drift through a new owner-or-admin route,
+    `GET /api/tagging-edges/drift-counts`; story 4 sends only GETs. The POSTs went to the next two stories, split at
+    story 5's Planning: the real-time path's switch, for the owner or an admin, is story 5's (`tagging-edges/0005`),
+    and the pass's run, stop and confirm are story 6's.)*
 
 ## 4. Decisions story 2 will ask the owner
 

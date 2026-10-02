@@ -1,22 +1,24 @@
 /**
  * Settings › Relays › Tagging pipeline (tagging-edges Story 4 / ADR tagging-edges/0004 § UI).
  *
- * A read-only panel for the tagging pipeline: the gap-filling pass, its held removals, the backstop schedule, the
- * real-time path, and the drift between the relay and the graph. Every request it sends is a GET, and it changes
- * nothing; the controls are story 5's.
+ * A panel for the tagging pipeline: the gap-filling pass, its held removals, the backstop schedule, the real-time
+ * path, and the drift between the relay and the graph. Every request it sends is a GET, and it changes nothing,
+ * apart from the real-time path's switch (story 5; ADR tagging-edges/0005 D12): one POST through sendSwitch, for the
+ * owner or an admin. The pass's run, stop and confirm are story 6's.
  *
  * Each section reads its own route through readSection, so it loads, fails and retries on its own, and keeps what
- * it last read when a later read fails. The pass and path status are re-read every POLL_MS, a tick being skipped
- * while the previous one is in flight; the schedule list every SCHEDULE_POLL_MS; the drift counts only on opening
- * and on Recount. Only the newest request's answer is kept for each read. Every derivation lives in
- * taggingPipelineView.js; this file only fetches and renders.
+ * it last read when a later read fails. The pass and path status, and the switch's record, are re-read every
+ * POLL_MS, a tick being skipped while the previous one is in flight; the schedule list every SCHEDULE_POLL_MS; the
+ * drift counts only on opening and on Recount. Only the newest request's answer is kept for each read. Every
+ * derivation lives in taggingPipelineView.js; this file only fetches, sends the switch's change and renders.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  POLL_MS, SCHEDULE_POLL_MS, driftView, newestFinishedPass, passView, pathView, scheduleView,
+  POLL_MS, SCHEDULE_POLL_MS, driftView, newestFinishedPass, passView, pathView, scheduleView, switchOutcome,
+  switchRecordView,
 } from '../../../utils/taggingPipelineView.js';
-import { readSection } from '../../../utils/taggingPipelineFetch.js';
+import { readSection, sendSwitch } from '../../../utils/taggingPipelineFetch.js';
 import PassSection from './PassSection.jsx';
 import HeldSection from './HeldSection.jsx';
 import ScheduleSection from './ScheduleSection.jsx';
@@ -29,6 +31,8 @@ const SCHEDULE_PATH = '/api/scheduled-tasks/list';
 const DRIFT_PATH = '/api/tagging-edges/drift-counts';
 const HELD_PATH = '/api/tagging-edges/held';
 const HELD_PAGE_SIZE = 50;
+/** The switch's record (GET, owner or admin; ADR 0005 D6). sendSwitch posts a change to the same path. */
+const SWITCH_PATH = '/api/tagging-edges/realtime/switch';
 
 function heldUrl(runId, offset) {
   return `${HELD_PATH}?runId=${encodeURIComponent(runId)}&offset=${offset}&limit=${HELD_PAGE_SIZE}`;
@@ -41,6 +45,7 @@ function answered(read) {
   return read.state !== 'loading' || read.body !== null || read.error !== null;
 }
 const NO_LIST = { runId: null, offset: 0, state: 'loading', page: null, error: null };
+const NO_CHANGE = { target: null, pending: false, outcome: null };
 
 /**
  * One section's read: { state, body, error, readAt } and a function that reads again. A failure after a good
@@ -71,20 +76,29 @@ export default function TaggingPipelinePanel({ onOpenTab }) {
   const [realtime, readRealtime] = useRead(REALTIME_PATH);
   const [schedule, readSchedule] = useRead(SCHEDULE_PATH);
   const [drift, readDrift] = useRead(DRIFT_PATH);
+  const [record, readRecord] = useRead(SWITCH_PATH);
   const [held, setHeld] = useState(NO_LIST);
+  const [change, setChange] = useState(NO_CHANGE);
   const heldNewest = useRef(0);
   const polling = useRef(false);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     readStatus();
     readRealtime();
     readSchedule();
     readDrift();
+    readRecord();
     const pollId = setInterval(async () => {
       if (polling.current) return;
       polling.current = true;
       try {
-        await Promise.allSettled([readStatus(), readRealtime()]);
+        await Promise.allSettled([readStatus(), readRealtime(), readRecord()]);
       } finally {
         polling.current = false;
       }
@@ -95,7 +109,29 @@ export default function TaggingPipelinePanel({ onOpenTab }) {
       clearInterval(scheduleId);
       heldNewest.current += 1;
     };
-  }, [readStatus, readRealtime, readSchedule, readDrift]);
+  }, [readStatus, readRealtime, readSchedule, readDrift, readRecord]);
+
+  /**
+   * Turn the real-time path on or off (ADR 0005 D12). The control is disabled while the change is pending. With no
+   * answer the panel can read (sendSwitch's 15 s race, a network failure, or a 2xx with bad JSON) the outcome is
+   * unknown: pending clears at once and the path status and the record are re-read without waiting, so the 15 s
+   * holds even when those reads hang. With an answer, pending clears once both re-reads have settled, so the state
+   * shown is the one after the change. After the panel closes, nothing more is read or set.
+   */
+  const switchPath = useCallback(async (on) => {
+    setChange({ target: on, pending: true, outcome: null });
+    const result = await sendSwitch(on);
+    if (!mounted.current) return;
+    const outcome = switchOutcome(result, on);
+    if (outcome.outcome === 'unknown') {
+      setChange({ target: on, pending: false, outcome });
+      readRealtime();
+      readRecord();
+      return;
+    }
+    await Promise.allSettled([readRealtime(), readRecord()]);
+    if (mounted.current) setChange({ target: on, pending: false, outcome });
+  }, [readRealtime, readRecord]);
 
   const pass = status.body ? passView(status.body) : null;
   // The held list belongs to the latest pass, and is read only when that pass is not running and held removals.
@@ -140,6 +176,7 @@ export default function TaggingPipelinePanel({ onOpenTab }) {
 
   const path = realtime.body ? pathView(realtime.body) : null;
   const sched = schedule.body ? scheduleView(schedule.body) : null;
+  const recordView = switchRecordView(record, realtime.body);
   // A failed drift-counts read makes both counts unknown. Until the pass and path status have each answered once,
   // drift stays loading rather than saying their figures are not available.
   const drifted = drift.state === 'loading' || !answered(status) || !answered(realtime)
@@ -151,7 +188,7 @@ export default function TaggingPipelinePanel({ onOpenTab }) {
       <h2>Tagging pipeline</h2>
       <p className="settings-hint">
         The gap-filling pass and the real-time path keep one TAGS relationship in the graph for each tagging on the
-        relay. This page shows how they are doing. It changes nothing.
+        relay. This page shows how they are doing. Apart from the real-time path's switch, it changes nothing.
       </p>
       <PassSection read={status} view={pass} onRetry={() => readStatus({ showLoading: true })} />
       <HeldSection
@@ -168,7 +205,18 @@ export default function TaggingPipelinePanel({ onOpenTab }) {
         onRetry={() => readSchedule({ showLoading: true })}
         onOpenSchedule={() => onOpenTab('schedule')}
       />
-      <PathSection read={realtime} view={path} onRetry={() => readRealtime({ showLoading: true })} />
+      <PathSection
+        read={realtime}
+        view={path}
+        onRetry={() => readRealtime({ showLoading: true })}
+        statusRead={status}
+        sched={sched}
+        record={record}
+        recordView={recordView}
+        onRetryRecord={() => readRecord({ showLoading: true })}
+        change={change}
+        onSwitch={switchPath}
+      />
       <DriftSection
         read={drift}
         view={drifted}

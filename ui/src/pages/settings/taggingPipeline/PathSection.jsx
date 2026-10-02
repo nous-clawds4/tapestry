@@ -1,19 +1,30 @@
 /**
  * The real-time path (tagging-edges Story 4 AC-3; ADR tagging-edges/0004 § UI pathView): whether it is on and
  * whether its process is alive, its state explained, its warnings, what it has done since its first start (or a
- * reset), its gauges now, its last catch-up and its problems.
+ * reset), its gauges now, its last catch-up and its problems. Story 5 (ADR tagging-edges/0005 D7, D12) adds its
+ * switch, the record of who switched it, and the starting window.
  *
  * Liveness first: a path switched on whose process is not alive shows no current state, since the stored one may
- * still read live. A figure the path has never produced reads "not yet available", never 0.
+ * still read live. Within the starting window it is starting, never failed, and a process from before the "on"
+ * does not count as running. A figure the path has never produced reads "not yet available", never 0.
  */
 
 import { Explained, Figures, Loading, NOT_YET, ReadFailed, Section, TONE_COLOUR, figure, took, when } from './parts.jsx';
+import PathSwitch, { SwitchRecord } from './PathSwitch.jsx';
 
 function Warning({ tone, children }) {
   return <p style={{ color: TONE_COLOUR[tone] }}>{children}</p>;
 }
 
 function OnLine({ view, body }) {
+  // Starting first: within the window the panel never says the process is running, nor gives its running-since.
+  if (view.starting) {
+    return (
+      <p>
+        The path was switched on at {when(body.onSince)} and is starting, which can take up to about 30 seconds.
+      </p>
+    );
+  }
   if (view.on && view.running) {
     return (
       <p>
@@ -142,8 +153,15 @@ function Problems({ view, body }) {
   );
 }
 
-/** `read` is the path status read ({ state, body, error, readAt }); `view` is pathView of its body, or null. */
-export default function PathSection({ read, view, onRetry }) {
+/**
+ * `read` is the path status read ({ state, body, error, readAt }); `view` is pathView of its body, or null. The
+ * switch (story 5): `statusRead` is the pass status read, `sched` scheduleView of the schedule list or null,
+ * `record` the switch record's read and `recordView` switchRecordView of it, `change` the panel's change state and
+ * `onSwitch(on)` sends one. The control and the record render only once the path status has a body.
+ */
+export default function PathSection({
+  read, view, onRetry, statusRead, sched, record, recordView, onRetryRecord, change, onSwitch,
+}) {
   const title = 'The real-time path';
   if (!view || read.state === 'loading') {
     return (
@@ -164,6 +182,8 @@ export default function PathSection({ read, view, onRetry }) {
     <Section testId="tp-path" state={state} title={title} tone={view.tone}>
       {failed && <ReadFailed what="The path status" error={read.error} readAt={read.readAt} onRetry={onRetry} />}
       <OnLine view={view} body={body} />
+      <PathSwitch view={view} body={body} statusRead={statusRead} sched={sched} change={change} onSwitch={onSwitch} />
+      <SwitchRecord read={record} view={recordView} onRetry={onRetryRecord} />
       {view.state !== null && (
         <p style={{ color: TONE_COLOUR[view.tone] }}>State: <Explained kind="pathState" code={view.state} /></p>
       )}

@@ -414,7 +414,8 @@ Small judgement calls made at Implementation (2026-09-30), too small for an ADR 
   - A throw as a count starts answers 500 with an allow-listed code. A throw while a count settles becomes an unknown
     count. Either way the request never hangs.
   - To give the canonical prefix after a local refusal (T11), it wraps the identity getters without calling any of
-    them twice. It repeats `identities.js`'s private `CANONICAL_Z_RE`, which is worth exporting in a later clean-up.
+    them twice. It repeats `identities.js`'s private `CANONICAL_Z_RE`, which is worth exporting in a later clean-up
+    (ledger row `2026-10-01-drift-copies-canonical-z-pattern`).
 - **The panel.**
   - **Files.** Seven files in `taggingPipeline/`: the panel, shared `parts.jsx`, and one per section.
   - **Layout.** Earlier passes and held entries are table rows. Each distinct code's explanation is given once below

@@ -1,7 +1,7 @@
 /**
  * The held removals (tagging-edges Story 4 AC-2 "Held removals"; ADR tagging-edges/0004 § UI "The held list"): the
  * latest pass's held list, a page at a time, why each was held, and the owner's confirmation as the status reports
- * it. It offers no way to confirm; that control is story 5's.
+ * it. It offers no way to confirm; that control is story 6's.
  */
 
 import { Explained, Loading, ReadFailed, Section, TONE_COLOUR, counted, figure, when } from './parts.jsx';

@@ -17,7 +17,8 @@
  * request input.
  *
  * The display logic is the pure computeStatus(); validateConfirmation() is the pure half of the confirm
- * route. Handlers take their dependencies (readFile included) as a third argument, for tests.
+ * route. Handlers take their dependencies (readFile included) as a third argument, for tests. sameHost(), isJson() and
+ * ownerOrAdmin() are also the real-time switch's and the drift count's (ADR tagging-edges/0005 D5).
  */
 
 const path = require('path');
@@ -157,6 +158,34 @@ function sameHost(req) {
 function isJson(req) {
   const ct = req && req.headers ? req.headers['content-type'] : undefined;
   return typeof ct === 'string' && /^application\/json(\s*;|$)/i.test(ct.trim());
+}
+
+/**
+ * The owner-or-admin re-check behind requireOwnerOrAdmin (ADR tagging-edges/0005 D5), shared by the drift count and the
+ * real-time switch and its record. Pure but for d.ownerPubkey() and d.getAdminPubkeys(), checked in the drift route's
+ * order: a session pubkey (401, calling neither lookup; loopback is not admitted), a signed-in owner or admin (403), and
+ * the cross-site rule (403). The owner is a lowercase 64-hex pubkey and is checked first; admins are compared as
+ * isAdminPubkey compares them (includes, case-sensitive). An owner lookup that throws admits no owner, and an admin
+ * lookup that throws admits no admin. The role comes from configuration at the time of the request, never from session
+ * flags.
+ * → { ok: true, role: 'owner' | 'admin', pubkey } | { ok: false, status, error }
+ */
+function ownerOrAdmin(req, d) {
+  const session = req && req.session;
+  if (!session || typeof session.pubkey !== 'string' || session.pubkey === '') {
+    return { ok: false, status: 401, error: 'Not authenticated' };
+  }
+  let owner = null;
+  try { owner = d.ownerPubkey(); } catch (_) { owner = null; }
+  let admins = [];
+  try { admins = d.getAdminPubkeys(); } catch (_) { admins = []; }
+  const isOwner = typeof owner === 'string' && OWNER_RE.test(owner) && session.pubkey === owner;
+  const isAdmin = Array.isArray(admins) && admins.includes(session.pubkey);
+  if (session.authenticated !== true || !(isOwner || isAdmin)) {
+    return { ok: false, status: 403, error: 'Owner or admin access required' };
+  }
+  if (!sameHost(req)) return { ok: false, status: 403, error: 'cross-site request refused' };
+  return { ok: true, role: isOwner ? 'owner' : 'admin', pubkey: session.pubkey };
 }
 
 function fsError(res, err) {
@@ -323,6 +352,7 @@ module.exports = {
   validateConfirmation,
   sameHost,
   isJson,
+  ownerOrAdmin,
   handleStatus,
   handleHeld,
   handleConfirmHeldRemovals,

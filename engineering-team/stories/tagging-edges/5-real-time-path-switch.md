@@ -254,6 +254,100 @@ intact" do not hold (ADR 0005 § Consequences):
 - **(a)** an off fallback after a failed pre-fold;
 - **(b)** a history file that gives a read error.
 
+## Evidence
+
+### The local stack (2026-10-01)
+
+The backend was restarted at 01:39:06Z on 2026-10-02 (`scripts/dev-refresh.sh`), and the UI was rebuilt
+(`index-BccDuG5m.js`). Read through the real routes, signed in as the local owner, whose key stayed in memory:
+- **Signed out,** `GET` and `POST /api/tagging-edges/realtime/switch` answered 401. The public status's members are
+  story 3's plus `inStartWindow`.
+- **Before any story-5 change,** the record read `recorded`, with the latest change being the owner's off of
+  2026-09-29 (`f0178122`): the version 1 record, read as the owner's.
+- **A foreign `Origin`** got 403 `cross-site request refused`.
+- **Turning on.** It answered 200 `recorded: true`. The next status read showed `on`, `inStartWindow: true`, not
+  running.
+  - The process started 0.6 s after the change, so the next read showed it running and `live`, with `inStartWindow`
+    false. It stayed so for 60 s of reads.
+  - The record then held the on, with the earlier off folded in below it. The public status never carried the key.
+- **Turning off from the panel,** rendered headless.
+  - "Turn off" opened the inline prompt. Its normal variant said, correctly for this instance, that no enabled entry
+    runs the pass.
+  - Its "Turn off" sent exactly one `POST {"on":false}`.
+  - The panel then read "The path is off", "The path was turned off", and "Turned off by the owner (f0178122…)", with
+    three changes in the history. The console showed no errors.
+- **The path was left off,** as it was before.
+
+## Deviations
+
+Small judgement calls made at Implementation (2026-10-01), too small for an ADR amendment.
+
+- **Server.**
+  - **An unexpected throw.** A throw inside the serialised change outside the cases D2 and D11 name (for example the
+    clock) answers 500 `could not change the switch: <code>`, with an allow-listed `code`.
+  - **The read-error 500** for an on whose switch cannot be read also carries an allow-listed `code`, like D11's other
+    500s (SR24 allows it).
+  - **A reader that throws** inside the step, instead of returning `readError`, is mapped as the store maps it. This
+    is a safeguard only: the store's readers never throw.
+  - **"ISO time"** means `YYYY-MM-DDTHH:MM:SS[.fraction]Z` that `Date.parse` accepts, the form `toISOString` writes. It
+    is one rule for the status's `onSince`, `switchEntry` and history-entry validity.
+  - **`switchEntry` follows D3 literally.** A version 1 record needs `role` absent to read as the owner's, so `role:
+    null` reads as not recorded. An off counts as recorded only when its `onSince` is exactly null.
+  - **History entries are served reduced** to `{on, at, role, key}`, so extra members in a hand-edited file never
+    reach the GET.
+  - **`ownerOrAdmin` calls both lookups before deciding,** as the drift gate did. The owner still wins the role.
+  - **The record GET's 500** carries only its sentence, with no separate `code`, as the status route does.
+  - **"Base differs from the stored valid entries"** compares `(on, at, role, key)` in order. So a stored history
+    with repeats, or over 10 entries, gets one pre-fold that rewrites it deduplicated and capped.
+  - **`canonicalSwitch`** checks only what D1 names for version 2: a boolean `on`, and a role of owner or admin.
+- **Panel.**
+  - **The control and record** live in a new `taggingPipeline/PathSwitch.jsx`: the control, the off prompt, the
+    warning beside "Turn on", the outcome line and the record. `BackstopVerdict` is a named export of
+    `ScheduleSection.jsx`, which renders it where `:44-67` stood.
+  - **Copy.**
+    - The starting line: "The path was switched on at … and is starting, which can take up to about 30 seconds."
+    - While pending: "Turning the path on…" or "…off…", disabled, with `aria-busy="true"`.
+    - The prompt's heading is an `h4`, "Turn the real-time path off?", in a `settings-group` with a token warn
+      border.
+  - **The first-start prompt** keeps the shared line "The path stops reflecting changes within a few seconds", which
+    is true in both variants. It drops only the normal variant's kept, caught-up and backstop lines.
+  - **A failed change with no `body.code`** (a 404, or a 502 HTML page) shows `readSection`'s own `http-<status>` as
+    its code.
+  - **The last change's outcome sentence** stays under the control until the next change or a close, and is in the
+    past tense ("The path was turned off.").
+  - **`switchRecordView`** reads loading while the path status has no body. A ready record whose state is not one of
+    D3's four reads as failed, with `bad-json`, as `ScheduleSection.jsx` does.
+  - **The record's layout.** A "Latest change:" label appears only for the recorded and unrecorded-off states. The
+    list is headed "Recent changes, newest first:".
+  - **R2-1.** `N/A` and `ProtocolError` get countCode entries worded for counts and the path, and failureCode entries
+    worded for any graph stage. The failureCode ones add that batches written before a write failure stand.
+    `no-status` asks for a bug report.
+  - **R2-2** also covers every read-stage and plan-stage failureCode sentence. The identity and config sentences keep
+    "changed nothing", because those checks run before the schema step.
+  - **R2-4.** The path line's "The explained part does not include them" shows only where an explained part is shown.
+    So it is also dropped when a count is unknown.
+  - **R2-5.** `passReason.stopped` leads with the report write and the data volume. It says the `TASK_ERROR` line
+    carries `reportWriteFailed`, and may itself be missing on a full disk.
+  - **R2-6.** "Where it failed" is followed by "Its error message: …" and, for a relay read, "The relay command's last
+    output: …". The countCode pointers to `strfry-error.log` stay: they explain the drift count and the path's last
+    error, not a pass.
+  - **The panel's hint** reads "Apart from the real-time path's switch, it changes nothing."
+- **Docs.**
+  - **OPERATIONS §12.9's opening** now says "Once the owner or an admin turns it on", a line the ADR's list left out.
+  - **§12.9's state-file list** names `switch-history.json` beside `switch.json`.
+  - **§12.9 gains a "Who changed it" paragraph** after the switch's answer: the record, the unrecorded off, the version
+    1 reading, the gated GET, and ADR 0005's residuals.
+  - **`inStartWindow`** is its own table row after `running`, `runningSince`.
+  - **The 403 text** also names `BRAINSTORM_ADMIN_PUBKEYS` (OPERATIONS §10.2's list), and says both lists are re-read
+    on every request.
+  - **§12.9 gives a failed on's remedy:** a 500 with a `code`; check that the data volume has free space and is
+    writable.
+  - **BIBLE §16's story-3 entry** keeps "Owner-only switch", with "(owner or admin since story 5, below)". Story 4's
+    "sends only GETs" stands as built.
+  - **The new §16 entry** is dated 2026-10-01, the implementation date, as story 4's was.
+  - **The handoff's "Recommended shape for story 4" block** keeps its bullets and gains a "Settled by
+    `tagging-edges/0004`" note, the form the story 2 and story 3 blocks use.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md`
