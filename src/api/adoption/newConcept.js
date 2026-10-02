@@ -2,13 +2,17 @@
  * POST /api/dictionaries/concepts/new — Create New Concept on /dictionary, signed by the caller's own
  * Assistant (the owner's decision of 2026-10-02).
  *
- *   body: { singular, plural, description?, target? }
+ *   body: { singular, plural, description?, target?, copyFrom? }
  *
  * A concept here is a DList header (kind 39998): d (the singular name's slug, src/lib/dtag.js
  * headerDTag), names, an optional description, and one pointer b-tag. Without `target` the b points to
  * the header itself, so it is shared as it is created. With `target` (a list header's address, from the
  * Dictionary's "Don't see what you're looking for?" finder) it points there, so the header is wired to
- * that shared concept and joins the caller's Dictionary in one step. Every signed-in person (owner,
+ * that shared concept and joins the caller's Dictionary in one step. With `copyFrom` too (the id of the
+ * shared header's version the page showed), the header is a copy of that version: every tag of it but
+ * the ones src/lib/conceptHeaderCopy.js leaves out or replaces (the owner's rule of 2026-10-02). That
+ * version is read by its id from this instance's relay, else the community relay, and must verify and be
+ * at the target's address; one that can't be read is refused (409 `source-missing`), never guessed at. Every signed-in person (owner,
  * admin or customer) creates through here, and the header is always their own Assistant's: no
  * nostr-extension path and no fallback to another key.
  *
@@ -28,6 +32,7 @@
 'use strict';
 
 const { headerDTag } = require('../../lib/dtag');
+const { copiedHeaderTags } = require('../../lib/conceptHeaderCopy');
 const { sameHost, firstD, defaultDeps: dispositionDeps } = require('../list-headers/myAssistantDisposition');
 
 const ROUTE = '/api/dictionaries/concepts/new';
@@ -45,13 +50,21 @@ const DESCRIPTION_CONTROL_RE = /(?![\n\r\t])\p{Cc}/u;
 const ADDRESS_FORMAT_RE = /[\p{Cc}\p{Cf}]/u;
 
 const NO_ASSISTANT = 'You have no Tapestry Assistant on this instance, so there is no key to create the concept with';
+// The community relay the finder searches (ui/src/hooks/useCommunitySharedConcepts.js COMMUNITY_RELAYS; the
+// server's own constant in src/api/concept/sharingState.js).
+const COMMUNITY_RELAY = 'wss://dcosl.brainstorm.world';
+const EVENT_ID_RE = /^[0-9a-f]{64}$/;
 
 /**
  * The unsigned header, exactly as Create New Concept's preview shows it (ui/src/pages/dictionary/
- * newConceptDraft.js conceptHeaderDraft; the suite holds the two equal). `fields` are already checked.
+ * newConceptDraft.js conceptHeaderDraft, and with a `source` the shared copiedHeaderTags; the suite holds
+ * them equal). `fields` are already checked.
  */
-function composeConceptHeader({ singular, plural, description, signer, target, now }) {
+function composeConceptHeader({ singular, plural, description, signer, target, now, source }) {
   const d = headerDTag(singular);
+  if (source && target) {
+    return { kind: HEADER_KIND, created_at: now, content: '', tags: copiedHeaderTags({ source, d, singular, plural, description, target }) };
+  }
   const tags = [['d', d], ['names', singular, plural]];
   if (description) tags.push(['description', description]);
   tags.push(['b', target || `${HEADER_KIND}:${signer}:${d}`, 'pointer']);
@@ -68,9 +81,12 @@ function readFields(body) {
   const plural = text(b.plural);
   const description = text(b.description);
   const target = text(b.target);
-  if (singular === null || plural === null || description === null || target === null) {
-    return { error: 'singular, plural, description and target must be text' };
+  const copyFrom = text(b.copyFrom);
+  if (singular === null || plural === null || description === null || target === null || copyFrom === null) {
+    return { error: 'singular, plural, description, target and copyFrom must be text' };
   }
+  if (copyFrom && !target) return { error: 'copyFrom names the shared header to copy, so it needs a target' };
+  if (copyFrom && !EVENT_ID_RE.test(copyFrom)) return { error: "copyFrom must be the shared header's event id" };
   if (!singular || !plural) return { error: 'Both the singular and the plural name are needed' };
   if (CONTROL_RE.test(singular) || CONTROL_RE.test(plural)) return { error: "A name can't contain control characters" };
   if (DESCRIPTION_CONTROL_RE.test(description)) return { error: "The description can't contain control characters" };
@@ -86,7 +102,7 @@ function readFields(body) {
     }
     if (!LIST_HEADER_ADDRESS_RE.test(target)) return { error: "The shared concept must be a list header's address (39998:pubkey:d-tag)" };
   }
-  return { fields: { singular, plural, description, target: target || null } };
+  return { fields: { singular, plural, description, target: target || null, copyFrom: copyFrom || null } };
 }
 
 function defaultDeps() {
@@ -100,8 +116,33 @@ function defaultDeps() {
     publishLocal: d.publishLocal,
     isStored: d.isStored,
     verify: d.verify,
+    // One relay, read strictly: every event it serves for the filter, signatures re-checked (relaySource).
+    readCommunity: async (filter) => {
+      const r = await require('../_shared/relaySource').readRelayEvents(COMMUNITY_RELAY, filter);
+      return r && r.status === 'ok' ? r.events : [];
+    },
     now: d.now,
   };
+}
+
+/**
+ * The shared header's version `id`, at `target`, verified: from this instance's relay, else the community
+ * relay. { event } or { code, error }.
+ */
+async function readSource(d, id, target) {
+  const pubkey = target.split(':')[1];
+  const pick = (events) => (Array.isArray(events) ? events : []).find((ev) => ev && ev.id === id) || null;
+  let ev = pick(await d.scanAll({ ids: [id] }));
+  if (!ev) {
+    try { ev = pick(await d.readCommunity({ ids: [id], kinds: [HEADER_KIND], authors: [pubkey] })); } catch { ev = null; }
+  }
+  if (!ev) {
+    return { code: 'source-missing', error: "The shared concept's header the page showed isn't on this instance's relay or the community relay now, so it can't be copied" };
+  }
+  if (ev.kind !== HEADER_KIND || `${HEADER_KIND}:${ev.pubkey}:${firstD(ev)}` !== target || !d.verify(ev)) {
+    return { code: 'source-mismatch', error: "The header named to copy isn't a verified version of the shared concept's header" };
+  }
+  return { event: ev };
 }
 
 function createNewConceptHandler(deps = {}) {
@@ -121,8 +162,7 @@ function createNewConceptHandler(deps = {}) {
       const { fields, error } = readFields(req.body);
       if (error) return res.status(400).json({ success: false, error });
 
-      const template = composeConceptHeader({ ...fields, signer: keys.pubkey, now: d.now() });
-      const dTag = template.tags[0][1];
+      const dTag = headerDTag(fields.singular);
       const coord = `${HEADER_KIND}:${keys.pubkey}:${dTag}`;
       if (fields.target === coord) {
         return res.status(400).json({ success: false, error: "That's your Assistant's own concept at this name, so there's nothing to wire it to" });
@@ -139,6 +179,14 @@ function createNewConceptHandler(deps = {}) {
           error: 'Your Assistant already has a concept header at this name on this instance, so creating it would replace it',
         });
       }
+
+      let source = null;
+      if (fields.copyFrom) {
+        const read = await readSource(d, fields.copyFrom, fields.target);
+        if (!read.event) return res.status(read.code === 'source-missing' ? 409 : 400).json({ success: false, code: read.code, error: read.error });
+        source = read.event;
+      }
+      const template = composeConceptHeader({ ...fields, signer: keys.pubkey, now: d.now(), source });
 
       const signed = d.sign(template, keys.privkey);
       if (!signed || signed.pubkey !== keys.pubkey) {

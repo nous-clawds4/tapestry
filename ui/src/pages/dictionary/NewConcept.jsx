@@ -10,6 +10,7 @@ import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
 import { COMMUNITY_RELAYS } from '../../hooks/useCommunitySharedConcepts';
 import { ASSISTANT_COPY } from '../assistant/actions';
 import { classifyBroadcast, outcomeMessage } from '@tapestry/broadcast-outcome';
+import { copiedHeaderTags } from '@tapestry/concept-header-copy';
 import { MAX_D_BYTES, conceptHeaderDraft, draftPreview, fieldsFromHeader, wireProblem, wireTarget } from './newConceptDraft';
 
 /** Creates the header with the signed-in person's own Assistant (src/api/adoption/newConcept.js). */
@@ -89,7 +90,18 @@ export default function DictionaryNewConceptPage() {
   const edit = (set) => (e) => { setTouched(true); set(e.target.value); };
 
   const signer = person.signedIn ? person.assistant : null;
-  const draft = conceptHeaderDraft({ singular, plural, description, pubkey: signer, target });
+  const plain = conceptHeaderDraft({ singular, plural, description, pubkey: signer, target });
+  // Wired to a shared concept whose header was read: a copy of that header, by the rule the server signs with.
+  const source = target && shared.event ? shared.event : null;
+  const draft = source
+    ? {
+      ...plain,
+      event: {
+        ...plain.event,
+        tags: copiedHeaderTags({ source, d: plain.d, singular: singular.trim(), plural: plural.trim(), description: description.trim(), target }),
+      },
+    }
+    : plain;
   const locked = Boolean(undelivered); // the header exists: what's left is its broadcast
   // Wired to its own address would only be the plain, self-shared concept under another name.
   const selfTarget = Boolean(target && draft.coord === target);
@@ -126,7 +138,7 @@ export default function DictionaryNewConceptPage() {
       const resp = await fetch(NEW_CONCEPT_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ singular, plural, description, ...(target ? { target } : {}) }),
+        body: JSON.stringify({ singular, plural, description, ...(target ? { target } : {}), ...(source ? { copyFrom: source.id } : {}) }),
       });
       let data = {};
       try { data = await resp.json(); } catch { data = {}; }
@@ -161,7 +173,7 @@ export default function DictionaryNewConceptPage() {
         <h1 className="dict-entry-title">Create New Concept</h1>
         <p className="dict-lede dict-new-lede">
           {target
-            ? 'Your Assistant publishes a concept of your own, wired to the shared concept below: its b-tag points to it, so it joins your Dictionary as that concept. Its names and description start as the shared concept’s; change them if you like.'
+            ? `Your Assistant publishes a concept of your own, wired to the shared concept below: its b-tag points to it, so it joins your Dictionary as that concept. Its names and description start as the shared concept’s; change them if you like. Its other tags are copied from the shared concept’s header, except the ones about that event rather than the concept: json, concept-graph, client, alt, and the expiration, protected and proof-of-work tags.`
             : 'Define a new concept: its singular and plural names, and a description. Your Assistant publishes the header, marked as shared, so others can find it and adopt it.'}
         </p>
         {signInNote && <p className="dict-notice">{signInNote}</p>}

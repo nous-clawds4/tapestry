@@ -7,8 +7,10 @@
  * the header is signed by that person's own Assistant, for plain Create New Concept too; someone with
  * no Assistant here is told so, with no fallback to their own key.
  *
- *   E1..E13 — the endpoint, POST /api/dictionaries/concepts/new (src/api/adoption/newConcept.js),
+ *   E1..E18 — the endpoint, POST /api/dictionaries/concepts/new (src/api/adoption/newConcept.js),
  *             through createNewConceptHandler with every side effect injected.
+ *   C1..C4  — the copy rule, src/lib/conceptHeaderCopy.js (the owner's rule of 2026-10-02: every tag of the
+ *             shared header but json and the others it leaves out).
  *   P1..P4  — the page's pure helpers (ui/src/pages/dictionary/newConceptDraft.js, dynamic import),
  *             and the server's header equal to the page's preview.
  *   S1..S4  — structural pins, read off comment-stripped source.
@@ -76,7 +78,12 @@ async function run(over = {}) {
   const deps = {
     requireAuth: over.requireAuth || (() => SESSION),
     getAssistantKeys: async (pk) => { calls.keysFor.push(pk); return 'keys' in over ? over.keys : { pubkey: ASSISTANT, privkey: '9'.repeat(64) }; },
-    scanAll: async (filter) => { calls.scans.push(filter); return over.existing ? [].concat(over.existing) : []; },
+    scanAll: async (filter) => {
+      calls.scans.push(filter);
+      if (Array.isArray(filter.ids)) return (over.local || []).filter((ev) => filter.ids.includes(ev.id));
+      return over.existing ? [].concat(over.existing) : [];
+    },
+    readCommunity: async (filter) => { calls.community = (calls.community || []).concat([filter]); return (over.community || []).filter((ev) => filter.ids.includes(ev.id)); },
     sign: (template, privkey) => { calls.signed.push({ template, privkey }); return (over.sign || fakeSign(ASSISTANT))(template, privkey); },
     publishLocal: async (ev) => { calls.published.push(ev); },
     isStored: over.isStored || (async (id) => { calls.readBack.push(id); return true; }),
@@ -93,6 +100,63 @@ async function run(over = {}) {
   await mod().createNewConceptHandler(deps)(req, res);
   return { status, body, calls };
 }
+
+// ═══ C — the copy rule ═══════════════════════════════════════════════════════
+
+const COPY = path.join(ROOT, 'src/lib/conceptHeaderCopy.js');
+const SHARER = 'e'.repeat(64);
+const SHARED_GH = `39998:${SHARER}:github-accounts`;
+/** The shared header the owner saw copied without its required and field-type tags (staging, 2026-10-02). */
+const GH = {
+  id: '7'.repeat(64), kind: 39998, pubkey: SHARER, created_at: 1700000000, content: '', sig: 'a'.repeat(128),
+  tags: [
+    ['d', 'github-accounts'], ['names', 'GitHub Account', 'GitHub Accounts'], ['description', 'A list of github handles/accounts'],
+    ['required', 'github-username'], ['field-type', 'github-username', 'text'], ['b', SHARED_GH, 'pointer'],
+  ],
+};
+
+test('C1: every tag of the shared header is copied; d, names, description and b are the copy\'s own', () => {
+  const { copiedHeaderTags } = require(COPY);
+  const tags = copiedHeaderTags({ source: GH, d: 'github-account', singular: 'GitHub Account', plural: 'GitHub Accounts', description: 'A list of github handles/accounts', target: SHARED_GH });
+  assert(show(tags) === show([
+    ['d', 'github-account'], ['names', 'GitHub Account', 'GitHub Accounts'], ['description', 'A list of github handles/accounts'],
+    ['required', 'github-username'], ['field-type', 'github-username', 'text'], ['b', SHARED_GH, 'pointer'],
+  ]), show(tags));
+});
+
+test('C2: json, concept-graph, client, alt, expiration, "-" and nonce are left out; slug is the copy\'s own d-tag', () => {
+  const { copiedHeaderTags, COPY_SKIPPED } = require(COPY);
+  assert(show(COPY_SKIPPED) === show(['json', 'concept-graph', 'client', 'alt', 'expiration', '-', 'nonce']), show(COPY_SKIPPED));
+  const source = { ...GH, tags: [
+    ['d', 'dog-breed'], ['names', 'dog breed', 'dog breeds'], ['slug', 'dog-breed'], ['concept-graph', `39999:${SHARER}:dog-breed-concept-graph`],
+    ['json', '{"word":{}}'], ['description', 'Breeds.'], ['client', 'Brainstorm'], ['alt', 'A concept.'], ['expiration', '1800000000'],
+    ['-'], ['nonce', '1', '20'], ['optional', 'title'], ['allowed', 'e'], ['t', 'dogs'], ['b', `39998:${SHARER}:dog-breed`, 'pointer'],
+  ] };
+  const tags = copiedHeaderTags({ source, d: 'hound', singular: 'hound', plural: 'hounds', description: 'Breeds.', target: `39998:${SHARER}:dog-breed` });
+  assert(show(tags) === show([
+    ['d', 'hound'], ['names', 'hound', 'hounds'], ['slug', 'hound'], ['description', 'Breeds.'],
+    ['optional', 'title'], ['allowed', 'e'], ['t', 'dogs'], ['b', `39998:${SHARER}:dog-breed`, 'pointer'],
+  ]), show(tags));
+});
+
+test('C3: the copy has one b-tag, pointing at the shared concept, whatever b-tags the source has', () => {
+  const { copiedHeaderTags } = require(COPY);
+  const source = { ...GH, tags: [['d', 'x'], ['b', `39998:${'1'.repeat(64)}:else`, 'pointer'], ['names', 'x', 'xs'], ['b', 'b-tag-deferred']] };
+  const tags = copiedHeaderTags({ source, d: 'x', singular: 'x', plural: 'xs', description: '', target: SHARED_GH });
+  assert(show(tags) === show([['d', 'x'], ['b', SHARED_GH, 'pointer'], ['names', 'x', 'xs']]), show(tags));
+  const none = copiedHeaderTags({ source: { tags: [['d', 'x'], ['required', 'a']] }, d: 'x', singular: 'x', plural: 'xs', description: 'D.', target: SHARED_GH });
+  assert(show(none) === show([['d', 'x'], ['names', 'x', 'xs'], ['description', 'D.'], ['required', 'a'], ['b', SHARED_GH, 'pointer']]),
+    `names, description and b the source lacks are placed: ${show(none)}`);
+});
+
+test('C4: a blank description leaves the source\'s out; extra values of names and description are kept', () => {
+  const { copiedHeaderTags } = require(COPY);
+  const source = { tags: [['d', 'x'], ['names', 'x', 'xs', 'extra'], ['description', 'Old.', 'en']] };
+  const blank = copiedHeaderTags({ source, d: 'x', singular: 'y', plural: 'ys', description: '', target: SHARED_GH });
+  assert(show(blank) === show([['d', 'x'], ['names', 'y', 'ys', 'extra'], ['b', SHARED_GH, 'pointer']]), show(blank));
+  const kept = copiedHeaderTags({ source, d: 'x', singular: 'y', plural: 'ys', description: 'New.', target: SHARED_GH });
+  assert(show(kept[2]) === show(['description', 'New.', 'en']), show(kept));
+});
 
 // ═══ E — the endpoint ════════════════════════════════════════════════════════
 
@@ -236,6 +300,34 @@ test('E12: the route is registered with the adoption routes, and no auth list ga
   }
 });
 
+test('E17: with copyFrom, the header is a copy of that version of the shared header, read here or from the community relay', async () => {
+  const { copiedHeaderTags } = require(COPY);
+  const body = { singular: 'GitHub Account', plural: 'GitHub Accounts', description: 'A list of github handles/accounts', target: SHARED_GH, copyFrom: GH.id };
+  const expected = copiedHeaderTags({ source: GH, d: 'github-account', singular: body.singular, plural: body.plural, description: body.description, target: SHARED_GH });
+  const here = await run({ body, local: [GH] });
+  assert(here.status === 200 && show(here.calls.signed[0].template.tags) === show(expected), `${here.status} ${show(here.body).slice(0, 120)}`);
+  assert(!here.calls.community, 'found here, so the community relay isn\'t asked');
+  const there = await run({ body, community: [GH] });
+  assert(there.status === 200 && show(there.calls.signed[0].template.tags) === show(expected), `from the community relay: ${there.status} ${show(there.body).slice(0, 120)}`);
+  assert(show(there.calls.community) === show([{ ids: [GH.id], kinds: [39998], authors: [SHARER] }]), show(there.calls.community));
+  const plain = await run({ body: { ...body, copyFrom: undefined } });
+  assert(show(plain.calls.signed[0].template.tags.map((t) => t[0])) === show(['d', 'names', 'description', 'b']), 'no copyFrom: the fields alone, as before');
+});
+
+test('E18: a version that can\'t be read, isn\'t at the target, or doesn\'t verify is refused, never guessed at', async () => {
+  const body = { singular: 'GitHub Account', plural: 'GitHub Accounts', target: SHARED_GH, copyFrom: GH.id };
+  const missing = await run({ body });
+  assert(missing.status === 409 && missing.body.code === 'source-missing' && missing.calls.signed.length === 0, `${missing.status} ${show(missing.body)}`);
+  const elsewhere = await run({ body, local: [{ ...GH, tags: [['d', 'other'], ...GH.tags.slice(1)] }] });
+  assert(elsewhere.status === 400 && elsewhere.body.code === 'source-mismatch', `${elsewhere.status} ${show(elsewhere.body)}`);
+  const forged = await run({ body, local: [GH], verify: (ev) => ev.id !== GH.id });
+  assert(forged.status === 400 && forged.body.code === 'source-mismatch' && forged.calls.signed.length === 0, `${forged.status} ${show(forged.body)}`);
+  for (const bad of [{ ...body, target: undefined }, { ...body, copyFrom: 'abc' }]) {
+    const r = await run({ body: bad });
+    assert(r.status === 400 && /copyFrom/.test(r.body.error) && r.calls.scans.length === 0, `${show(bad).slice(0, 80)} → ${show(r.body)}`);
+  }
+});
+
 // ═══ P — the page's helpers ═══════════════════════════════════════════════════
 
 test('P1: ?wire= is used only when it is a list header\'s address this relay can look up', async () => {
@@ -294,6 +386,12 @@ test('P3: the server signs exactly the page\'s preview, plain and wired', async 
 
 test('S1: the page reads ?wire= and starts from the shared header, read here and on the community relay', () => {
   const s = flat(code(src(PAGE_JSX)));
+  assert(/from '@tapestry\/concept-header-copy';/.test(s) && /tags: copiedHeaderTags\(\{ source, d: plain\.d,/.test(s),
+    'the wired preview is the copy rule the server signs with');
+  assert(/\.\.\.\(source \? \{ copyFrom: source\.id \} : \{\}\)/.test(s), 'and the request names the version it showed');
+  const vite = src(path.join(ROOT, 'ui/vite.config.js'));
+  assert(/'@tapestry\/concept-header-copy': conceptHeaderCopyCore/.test(vite) && /\/src\\\/lib\\\/conceptHeaderCopy\//.test(vite), 'the alias, built as CommonJS');
+  assert(!/require\(/.test(code(src(COPY))), 'zero requires, so the browser can take it');
   assert(/const target = wireTarget\(wireParam\);/.test(s) && /params\.get\(DICTIONARY_WIRE_PARAM\)/.test(s), 'the wire target comes from the URL');
   assert(/Promise\.allSettled\(\[scan\(filter\), fetchFromRelays\(filter, COMMUNITY_RELAYS\)\]\)/.test(s), 'both relays, the newest wins');
   assert(/if \(!shared\.event \|\| touched\) return;/.test(s), 'the shared header never overwrites what the person typed');

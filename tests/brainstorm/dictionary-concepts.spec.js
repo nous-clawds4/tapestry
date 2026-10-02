@@ -84,8 +84,9 @@ const { test, expect } = require('@playwright/test');
  * Create New Concept from the finder, wired (test/dictionary-wired-create.test.js holds the endpoint):
  *
  *   D29 — a signed-in customer finds a shared concept, and Add to Dictionary offers Create New Concept
- *         wired to it: /dictionary/new?wire=… starts from its names and description, the preview's
- *         b-tag points to it, and their Assistant creates it. The owner gets the twin picker and the
+ *         wired to it: /dictionary/new?wire=… starts from its names and description, the preview is a
+ *         copy of its header (all but json, concept-graph and the like; its own d, slug and b), the
+ *         request names the version copied, and their Assistant creates it. The owner gets the twin picker and the
  *         same link; signed out, the finder says to sign in.
  *   D30 — signed in with no Assistant here: the page says so, points to Account Setup, and can't create;
  *         the finder's Add says the same rather than "Your Assistant adds…".
@@ -227,7 +228,11 @@ const SHARED_COORD = `39998:${SHARER}:${SHARED_D}`;
 /** A concept someone shared (its b-tag points to itself), on the community relay. */
 const SHARED_HEADER = {
   id: 'a'.repeat(64), kind: 39998, pubkey: SHARER, created_at: 1700000000, content: '', sig: 'b'.repeat(128),
-  tags: [['d', SHARED_D], ['names', 'Taco Truck', 'Taco Trucks'], ['description', 'Trucks that sell tacos.'], ['b', SHARED_COORD, 'pointer']],
+  tags: [
+    ['d', SHARED_D], ['names', 'Taco Truck', 'Taco Trucks'], ['slug', SHARED_D], ['json', '{"word":{"slug":"x"}}'],
+    ['concept-graph', `39999:${SHARER}:${SHARED_D}-concept-graph`], ['description', 'Trucks that sell tacos.'],
+    ['required', 'url'], ['field-type', 'url', 'url'], ['b', SHARED_COORD, 'pointer'],
+  ],
 };
 const slugOf = (name) => name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -898,6 +903,14 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByText('Header your Assistant publishes (wired: its b-tag points to the shared concept)')).toBeVisible();
     await expect(page.locator('.dict-new-preview')).toContainText(`["b","${SHARED_COORD}","pointer"]`);
     await page.getByLabel('Singular name').fill('Taco Truck in Nashville');
+    // A copy of the shared header: its tags, but the copy's own d, slug, names and b, and no json or concept-graph.
+    const preview = page.locator('.dict-new-preview');
+    await expect(preview).toContainText('["d","taco-truck-in-nashville"]');
+    await expect(preview).toContainText('["slug","taco-truck-in-nashville"]');
+    await expect(preview).toContainText('["required","url"]');
+    await expect(preview).toContainText('["field-type","url","url"]');
+    await expect(preview).not.toContainText('"json"');
+    await expect(preview).not.toContainText('concept-graph');
     await page.getByLabel('Plural name').fill('Taco Trucks in Nashville');
     await page.getByRole('button', { name: 'Create concept' }).click();
     const coord = `39998:${CUST_TA}:taco-truck-in-nashville`;
@@ -905,6 +918,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByText('Wired here. External publishing is off for this deployment, so it was not sent onward.')).toBeVisible();
     expect(created).toEqual([{
       singular: 'Taco Truck in Nashville', plural: 'Taco Trucks in Nashville', description: 'Trucks that sell tacos.', target: SHARED_COORD,
+      copyFrom: SHARED_HEADER.id,
     }]);
 
     // The owner: the twin picker, and the same link under it.
