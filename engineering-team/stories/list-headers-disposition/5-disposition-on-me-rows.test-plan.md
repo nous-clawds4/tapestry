@@ -208,6 +208,9 @@ amendment), with these tests on top.
 - **Playwright,** on a build of `7458c334`: E11, E12 and E13 fail, and the other 30 pass.
   - E11 and E12 fail on "signed out, the panel is gone" (expected 0 headings, received 1).
   - E13 fails on "the cancelled sentence" (not found).
+- **The isolated full gate** (`20261002T030755Z-20-8577`, on `7458c334` plus these three files, `--network none`):
+  FAIL, 4555 passed, 2 failed, 594 skipped, 258/258 suites. **The only failing suite is this one** (18/2/1: MA1 and
+  MA2). The guard suites pass: `gate-result-record` 33/0/1, `harness-lint` 76/0/0, `stack-free-npm-test` 6/0/1.
 
 **The tests can pass, and they bite.** A throwaway build of Amendment 1 was made outside the repo:
 - the two sentences and the date check in `meDisposition.js`;
