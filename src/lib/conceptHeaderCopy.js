@@ -9,11 +9,14 @@
  *     `json`           the owner's exception: the shared author's derived naming record, not the concept;
  *     `concept-graph`  points at the shared author's own derived graph (39999:<their key>:…-concept-graph),
  *                      which the copy would otherwise claim (the curation copies leave it out too);
+ *     `z`              files the header as an item under another concept: copied, the copy would be filed
+ *                      there too, listed twice in that concept's Items and counted as a filer (owner, 2026-10-02);
  *     `client`, `alt`  facts about the shared event (which app published it, a summary of that event);
  *     `expiration`, `-`, `nonce`  event mechanics: an expiry date, a protected-event marker relays refuse
  *                      from anyone else, and a proof of work that no longer holds.
- * Everything else (required / optional / recommended, field-type, allowed, display, image, t, founder, …)
- * is copied as it is.
+ * Everything else (required / optional / recommended, field-type, allowed, display, image, t, name, title,
+ * titles, founder, claims, …) is copied as it is: the owner kept name / title / titles and founder / claims
+ * when asked (2026-10-02).
  *
  * Pure CJS, zero requires: the server's endpoint (src/api/adoption/newConcept.js) composes with it, and
  * the browser imports the same code through the `@tapestry/concept-header-copy` alias (ui/vite.config.js),
@@ -22,7 +25,7 @@
 
 'use strict';
 
-const COPY_SKIPPED = ['json', 'concept-graph', 'client', 'alt', 'expiration', '-', 'nonce'];
+const COPY_SKIPPED = ['json', 'concept-graph', 'z', 'client', 'alt', 'expiration', '-', 'nonce'];
 
 const isTag = (t) => Array.isArray(t) && t.length > 0 && typeof t[0] === 'string';
 

@@ -12,7 +12,8 @@
  * shared header's version the page showed), the header is a copy of that version: every tag of it but
  * the ones src/lib/conceptHeaderCopy.js leaves out or replaces (the owner's rule of 2026-10-02). That
  * version is read by its id from this instance's relay, else the community relay, and must verify and be
- * at the target's address; one that can't be read is refused (409 `source-missing`), never guessed at. Every signed-in person (owner,
+ * at the target's address; one that isn't there any more is refused (409 `source-missing`), and so is one
+ * the community relay couldn't be asked for (502 `source-unreachable`): never guessed at. Every signed-in person (owner,
  * admin or customer) creates through here, and the header is always their own Assistant's: no
  * nostr-extension path and no fallback to another key.
  *
@@ -117,9 +118,10 @@ function defaultDeps() {
     isStored: d.isStored,
     verify: d.verify,
     // One relay, read strictly: every event it serves for the filter, signatures re-checked (relaySource).
+    // { status: 'ok' | 'unreachable', events }: a relay that couldn't be read is never an empty answer.
     readCommunity: async (filter) => {
       const r = await require('../_shared/relaySource').readRelayEvents(COMMUNITY_RELAY, filter);
-      return r && r.status === 'ok' ? r.events : [];
+      return { status: r && r.status === 'ok' ? 'ok' : 'unreachable', events: (r && r.events) || [] };
     },
     now: d.now,
   };
@@ -134,7 +136,12 @@ async function readSource(d, id, target) {
   const pick = (events) => (Array.isArray(events) ? events : []).find((ev) => ev && ev.id === id) || null;
   let ev = pick(await d.scanAll({ ids: [id] }));
   if (!ev) {
-    try { ev = pick(await d.readCommunity({ ids: [id], kinds: [HEADER_KIND], authors: [pubkey] })); } catch { ev = null; }
+    let read;
+    try { read = await d.readCommunity({ ids: [id], kinds: [HEADER_KIND], authors: [pubkey] }); } catch { read = null; }
+    if (!read || read.status !== 'ok') {
+      return { code: 'source-unreachable', error: "Couldn't reach the community relay to read the shared concept's header, so nothing was created. Try again" };
+    }
+    ev = pick(read.events);
   }
   if (!ev) {
     return { code: 'source-missing', error: "The shared concept's header the page showed isn't on this instance's relay or the community relay now, so it can't be copied" };
@@ -183,7 +190,10 @@ function createNewConceptHandler(deps = {}) {
       let source = null;
       if (fields.copyFrom) {
         const read = await readSource(d, fields.copyFrom, fields.target);
-        if (!read.event) return res.status(read.code === 'source-missing' ? 409 : 400).json({ success: false, code: read.code, error: read.error });
+        if (!read.event) {
+          const status = read.code === 'source-missing' ? 409 : read.code === 'source-unreachable' ? 502 : 400;
+          return res.status(status).json({ success: false, code: read.code, error: read.error });
+        }
         source = read.event;
       }
       const template = composeConceptHeader({ ...fields, signer: keys.pubkey, now: d.now(), source });

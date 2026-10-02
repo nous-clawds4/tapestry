@@ -18,10 +18,11 @@ export const NEW_CONCEPT_API = '/api/dictionaries/concepts/new';
 
 /**
  * The shared concept's header, for `?wire=`: the newest of this instance's relay and the community relay,
- * so the form can start from its names and description. { event, done }.
+ * so the form can start from its names and description and the copy from its tags. { event, done, reload }.
  */
 function useSharedHeader(target) {
   const [state, setState] = useState({ event: null, done: !target });
+  const [version, setVersion] = useState(0);
   useEffect(() => {
     if (!target) { setState({ event: null, done: true }); return undefined; }
     let cancelled = false;
@@ -37,8 +38,8 @@ function useSharedHeader(target) {
       if (!cancelled) setState({ event: newest, done: true });
     })();
     return () => { cancelled = true; };
-  }, [target]);
-  return state;
+  }, [target, version]);
+  return { ...state, reload: () => setVersion((v) => v + 1) };
 }
 
 /**
@@ -143,6 +144,12 @@ export default function DictionaryNewConceptPage() {
       let data = {};
       try { data = await resp.json(); } catch { data = {}; }
       if (resp.status === 409 && data.code === 'exists') { setExisting(data.coord || draft.coord); return; }
+      if (resp.status === 409 && data.code === 'source-missing') {
+        // The version the preview showed has been replaced: read the shared header again, so the preview and
+        // the next request are of the current one.
+        shared.reload();
+        throw new Error('The shared concept’s header changed after this page read it. The page has read it again: check the preview, then create the concept.');
+      }
       if (!resp.ok || !data.success) throw new Error(data.error || `HTTP ${resp.status}`);
       const signed = data.event;
       // Broadcast only what was signed as the Assistant this page names.
@@ -173,7 +180,7 @@ export default function DictionaryNewConceptPage() {
         <h1 className="dict-entry-title">Create New Concept</h1>
         <p className="dict-lede dict-new-lede">
           {target
-            ? `Your Assistant publishes a concept of your own, wired to the shared concept below: its b-tag points to it, so it joins your Dictionary as that concept. Its names and description start as the shared concept’s; change them if you like. Its other tags are copied from the shared concept’s header, except the ones about that event rather than the concept: json, concept-graph, client, alt, and the expiration, protected and proof-of-work tags.`
+            ? `Your Assistant publishes a concept of your own, wired to the shared concept below: its b-tag points to it, so it joins your Dictionary as that concept. Its names and description start as the shared concept’s; change them if you like.${source ? ' Its other tags are copied from the shared concept’s header, except json, concept-graph, the z tags that file it under other concepts, and the ones about that event rather than the concept: client, alt, and the expiration, protected and proof-of-work tags.' : ''}`
             : 'Define a new concept: its singular and plural names, and a description. Your Assistant publishes the header, marked as shared, so others can find it and adopt it.'}
         </p>
         {signInNote && <p className="dict-notice">{signInNote}</p>}

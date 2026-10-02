@@ -7,7 +7,7 @@
  * the header is signed by that person's own Assistant, for plain Create New Concept too; someone with
  * no Assistant here is told so, with no fallback to their own key.
  *
- *   E1..E18 — the endpoint, POST /api/dictionaries/concepts/new (src/api/adoption/newConcept.js),
+ *   E1..E19 — the endpoint, POST /api/dictionaries/concepts/new (src/api/adoption/newConcept.js),
  *             through createNewConceptHandler with every side effect injected.
  *   C1..C4  — the copy rule, src/lib/conceptHeaderCopy.js (the owner's rule of 2026-10-02: every tag of the
  *             shared header but json and the others it leaves out).
@@ -83,7 +83,11 @@ async function run(over = {}) {
       if (Array.isArray(filter.ids)) return (over.local || []).filter((ev) => filter.ids.includes(ev.id));
       return over.existing ? [].concat(over.existing) : [];
     },
-    readCommunity: async (filter) => { calls.community = (calls.community || []).concat([filter]); return (over.community || []).filter((ev) => filter.ids.includes(ev.id)); },
+    readCommunity: async (filter) => {
+      calls.community = (calls.community || []).concat([filter]);
+      if (over.communityDown) return { status: 'unreachable', events: [] };
+      return { status: 'ok', events: (over.community || []).filter((ev) => filter.ids.includes(ev.id)) };
+    },
     sign: (template, privkey) => { calls.signed.push({ template, privkey }); return (over.sign || fakeSign(ASSISTANT))(template, privkey); },
     publishLocal: async (ev) => { calls.published.push(ev); },
     isStored: over.isStored || (async (id) => { calls.readBack.push(id); return true; }),
@@ -124,18 +128,19 @@ test('C1: every tag of the shared header is copied; d, names, description and b 
   ]), show(tags));
 });
 
-test('C2: json, concept-graph, client, alt, expiration, "-" and nonce are left out; slug is the copy\'s own d-tag', () => {
+test('C2: json, concept-graph, z, client, alt, expiration, "-" and nonce are left out; slug is the copy\'s own d-tag', () => {
   const { copiedHeaderTags, COPY_SKIPPED } = require(COPY);
-  assert(show(COPY_SKIPPED) === show(['json', 'concept-graph', 'client', 'alt', 'expiration', '-', 'nonce']), show(COPY_SKIPPED));
+  assert(show(COPY_SKIPPED) === show(['json', 'concept-graph', 'z', 'client', 'alt', 'expiration', '-', 'nonce']), show(COPY_SKIPPED));
   const source = { ...GH, tags: [
     ['d', 'dog-breed'], ['names', 'dog breed', 'dog breeds'], ['slug', 'dog-breed'], ['concept-graph', `39999:${SHARER}:dog-breed-concept-graph`],
     ['json', '{"word":{}}'], ['description', 'Breeds.'], ['client', 'Brainstorm'], ['alt', 'A concept.'], ['expiration', '1800000000'],
-    ['-'], ['nonce', '1', '20'], ['optional', 'title'], ['allowed', 'e'], ['t', 'dogs'], ['b', `39998:${SHARER}:dog-breed`, 'pointer'],
+    ['-'], ['nonce', '1', '20'], ['z', `39998:${SHARER}:animal`], ['optional', 'title'], ['allowed', 'e'], ['t', 'dogs'],
+    ['name', 'Dog Breed'], ['founder', SHARER], ['b', `39998:${SHARER}:dog-breed`, 'pointer'],
   ] };
   const tags = copiedHeaderTags({ source, d: 'hound', singular: 'hound', plural: 'hounds', description: 'Breeds.', target: `39998:${SHARER}:dog-breed` });
   assert(show(tags) === show([
     ['d', 'hound'], ['names', 'hound', 'hounds'], ['slug', 'hound'], ['description', 'Breeds.'],
-    ['optional', 'title'], ['allowed', 'e'], ['t', 'dogs'], ['b', `39998:${SHARER}:dog-breed`, 'pointer'],
+    ['optional', 'title'], ['allowed', 'e'], ['t', 'dogs'], ['name', 'Dog Breed'], ['founder', SHARER], ['b', `39998:${SHARER}:dog-breed`, 'pointer'],
   ]), show(tags));
 });
 
@@ -326,6 +331,17 @@ test('E18: a version that can\'t be read, isn\'t at the target, or doesn\'t veri
     const r = await run({ body: bad });
     assert(r.status === 400 && /copyFrom/.test(r.body.error) && r.calls.scans.length === 0, `${show(bad).slice(0, 80)} → ${show(r.body)}`);
   }
+});
+
+test('E19: a community relay that can\'t be reached is said so (502), never "not there"', async () => {
+  const body = { singular: 'GitHub Account', plural: 'GitHub Accounts', target: SHARED_GH, copyFrom: GH.id };
+  const r = await run({ body, communityDown: true });
+  assert(r.status === 502 && r.body.code === 'source-unreachable' && r.calls.signed.length === 0, `${r.status} ${show(r.body)}`);
+  const page = flat(code(src(PAGE_JSX)));
+  assert(/if \(resp\.status === 409 && data\.code === 'source-missing'\) \{ shared\.reload\(\);/.test(page),
+    'a replaced version: the page reads the shared header again, rather than resend the same copyFrom');
+  assert(/\$\{source \? ' Its other tags are copied from the shared concept’s header/.test(page),
+    'the lede says tags are copied only when there is a header to copy');
 });
 
 // ═══ P — the page's helpers ═══════════════════════════════════════════════════
