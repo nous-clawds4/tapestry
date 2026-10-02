@@ -109,7 +109,9 @@ export function conceptKeys(entry) {
  * The union of several Assistants' Dictionaries. `reads` is one per Assistant, in the picker's
  * order: { key, entries } for a read that answered, { key, error } for one that failed. An entry
  * supports every row whose concepts it overlaps (conceptKeys), and starts a row of its own only when
- * it overlaps none; rows are never merged, so no Assistant's entry is hidden behind another's. A
+ * it overlaps none; rows are never merged. With several b-tags on a header the rows depend on the
+ * order of `reads` (an entry that overlaps an earlier row supports it instead of getting its own), so
+ * a count is a lower bound — as the page says of these counts anyway. A
  * row's entry is the first Assistant's (the local one when it has it), with `support` = { count, of,
  * keys } — how many of the reader's Assistants carry it, out of all of them. `failed` lists the keys
  * whose read failed; they count in `of` but support nothing. `answered` is how many reads answered.
