@@ -370,4 +370,4 @@ Small judgement calls made at Implementation (2026-10-01), too small for an ADR 
 
 - ADR: `engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md`
 - Test plan: `engineering-team/stories/tagging-edges/5-real-time-path-switch.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tagging-edges/5-real-time-path-switch.md`
