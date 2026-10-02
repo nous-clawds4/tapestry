@@ -13,10 +13,11 @@ import {
  * /dictionary/:coord/items/:item — one item of a Dictionary entry, as the design's "Dictionary item"
  * screen: its name, "Item N in <concept>", a description, who filed it, and the raw Nostr event.
  *
- * `:item` is the item's address (kind:pubkey:d) or its event id, as the entry's Items table names
- * it. Opened from that table, the row arrives in router state (the item, its number, the entry), so
- * nothing needs reading but the event. A direct visit reads the person's dictionary for the entry,
- * then the entry's Items for the number, from the active point of view.
+ * `:item` is the item's address (kind:pubkey:d) or its event id. Opened from the entry's Items table,
+ * the row arrives in router state (the item, its number, the entry), so nothing needs reading but the
+ * event. A direct visit reads the person's dictionary for the entry, then the entry's Items for the
+ * number, from the active point of view. The page says only what those reads establish: that the item
+ * isn't trusted needs the whole Items read, the entry known, and the event filed under the concept.
  */
 
 const ADDRESS = /^(\d+):([0-9a-f]{64}):(.+)$/;
@@ -52,10 +53,18 @@ function useItemEvent(ref) {
   return state;
 }
 
+/** The item's key as the entry's Items name it (trustedItems): kind:pubkey:d when addressable, else its id. */
+function itemKey(ev) {
+  if (!ev) return null;
+  const d = (ev.tags || []).find((t) => t && t[0] === 'd')?.[1];
+  return ev.kind >= 30000 && ev.kind < 40000 && typeof d === 'string' ? `${ev.kind}:${ev.pubkey}:${d}` : ev.id;
+}
+
 export default function DictionaryItemPage() {
+  // The router has decoded both params already: decoding again would break a d-tag with a "%" in it.
   const { coord: rawCoord, item: rawItem } = useParams();
-  const coord = decodeURIComponent(rawCoord || '');
-  const ref = decodeURIComponent(rawItem || '');
+  const coord = rawCoord || '';
+  const ref = rawItem || '';
   const location = useLocation();
   const st = location.state;
   const passed = st?.item && (st.item.address || st.item.id) === ref ? st : null;
@@ -64,16 +73,17 @@ export default function DictionaryItemPage() {
 
   // The entry: from the row, else the person's dictionary (and its header, for the names, if it isn't in it).
   const dict = useConceptDictionary(person, povParams, { enabled: !passed?.entry });
-  const entry = passed?.entry || (dict.data?.entries || []).find((e) => e.coord === coord) || null;
+  const entry = passed?.entry || (dict.error ? null : (dict.data?.entries || []).find((e) => e.coord === coord)) || null;
   const header = useHeaderEvent(entry ? null : coord);
   const itemEvent = useItemEvent(ref);
 
-  // The item's number: from the row, else its place in the entry's Items (read once the entry is known).
-  const settled = Boolean(passed?.entry) || dict.data !== null;
-  const items = useConceptItems({ coord, shared: entry?.sharedCoord || null, person, povParams, enabled: !passed && settled });
-  const listed = passed ? passed.item : (items.data?.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === ref) || null;
+  // The entry's Items (for the number and the trust verdict): read on a direct visit, once the entry is known.
+  const items = useConceptItems({ coord, shared: entry?.sharedCoord || null, person, povParams, enabled: !passed && Boolean(entry) });
 
   const ev = itemEvent.event;
+  const key = itemKey(ev);
+  const listed = passed ? passed.item
+    : (items.data && key ? (items.data.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === key) : null) || null;
   const author = ev?.pubkey || passed?.item?.author || null;
   const profiles = useProfiles(author ? [author] : []);
   const whose = person.signedIn ? 'your' : 'the owner’s';
@@ -92,31 +102,55 @@ export default function DictionaryItemPage() {
   const concept = entry ? displayName(entry) : (tagOf(header.event, 'names') || tagOf(header.event, 'name') || coordParts(coord).d);
   const plural = (entry?.plural || header.event?.tags?.find((t) => t[0] === 'names')?.[2] || 'items').toLowerCase();
   const name = (ev && (tagOf(ev, 'names') || tagOf(ev, 'name') || tagOf(ev, 'title') || tagOf(ev, 'd'))) || passed?.item?.name || ref;
-  const own = Boolean(author && (person.authors || []).includes(author));
-  const itemsKnown = Boolean(passed) || items.data !== null;
 
-  // The event's own description, else what the Items list establishes about it: who filed it here.
+  // What this page knows, and may therefore say. Only a known entry names every concept its Items are
+  // filed under; only a complete, successful read of those Items can say an item is not among them.
+  const own = Boolean(author && (person.authors || []).includes(author));
+  const concepts = [coord, entry?.sharedCoord].filter(Boolean);
+  const filedHere = ev && entry ? (ev.tags || []).some((t) => t && t[0] === 'z' && concepts.includes(t[1])) : null;
+  const complete = Boolean(items.data) && !items.data.truncated;
+  const readError = dict.error ? `Couldn’t read ${whose} Dictionary (${dict.error}), so this page can’t say where the item stands in it.`
+    : items.error ? `Couldn’t read the entry’s Items (${items.error}), so this page can’t say where the item stands in them.`
+      : null;
+  const notInDictionary = !passed && !dict.error && dict.data !== null && !entry;
+  const filer = author === person.assistant ? `${whose} Assistant` : person.signedIn ? 'you' : 'the owner';
+
   let description = tagOf(ev, 'description');
-  if (!description && ev && itemsKnown) {
-    if (!listed) description = `${name} is filed under ${concept}, but not by anyone ${whose} community trusts, so it isn’t in the entry’s Items.`;
-    else if (own) description = `${name} is one of the ${plural} ${person.signedIn ? 'you' : 'the owner'} filed under ${concept}.`;
-    else description = `${name} is one of the ${plural} ${whose} trusted community has filed under ${concept}.`;
+  if (!description && ev && !readError) {
+    if (listed) {
+      description = own
+        ? `${name} is one of the ${plural} ${filer} filed under ${concept}.`
+        : `${name} is one of the ${plural} ${whose} trusted community has filed under ${concept}.`;
+    } else if (filedHere === false) {
+      description = `${name} isn’t filed under ${concept}.`;
+    } else if (filedHere && complete && !own) {
+      description = `${name} is filed under ${concept}, but not by anyone ${whose} community trusts, so it isn’t in the entry’s Items.`;
+    } else if (filedHere && items.data?.truncated) {
+      description = `${name} is filed under ${concept}, beyond the first ${(items.data.items || []).length.toLocaleString()} Items this page reads.`;
+    }
   }
+  const subtitle = listed ? `Item ${listed.n} in ${concept}` : filedHere ? `Filed under ${concept}` : null;
 
   // Back to the entry, with what it was opened with, so it shows at once and keeps its own way back.
+  const entryPath = dictionaryEntryPath(coord);
   const entryState = passed?.entry ? { entry: passed.entry, metric: passed.metric, pov: passed.pov, listHref: passed.listHref } : undefined;
-  const entryHref = typeof passed?.entryHref === 'string' && passed.entryHref.startsWith(dictionaryEntryPath(coord))
-    ? passed.entryHref : dictionaryEntryPath(coord);
+  const fromEntry = passed?.entryHref;
+  const entryHref = typeof fromEntry === 'string' && (fromEntry === entryPath || fromEntry.startsWith(`${entryPath}?`))
+    ? fromEntry : entryPath;
 
   return (
     <DictionaryShell>
       <div className="dict-page dict-skin-light">
         <Link to={entryHref} state={entryState} className="dict-back"><DictIcon name="back" /> {concept}</Link>
         <h1 className="dict-entry-title">{name}</h1>
-        <p className="dict-entry-sub text-muted">
-          {listed ? `Item ${listed.n} in ${concept}` : `An item in ${concept}`}
-        </p>
+        {subtitle && <p className="dict-entry-sub text-muted">{subtitle}</p>}
         {description && <p className="dict-lede">{description}</p>}
+        {readError && <p className="dict-notice">{readError}</p>}
+        {notInDictionary && (
+          <p className="dict-notice">
+            {`This concept isn’t in ${whose} Dictionary, so this page can’t place the item in its Items.`}
+          </p>
+        )}
         {itemEvent.done && itemEvent.error && <p className="dict-notice">{itemEvent.error}</p>}
 
         {author && (
@@ -129,7 +163,7 @@ export default function DictionaryItemPage() {
               </span>
             </div>
             <Link to={`/user/${author}`} className="dict-pill-btn dict-pill-btn--quiet dict-filed-by-link" title={npubOf(author)}>
-              View Nostr profile <DictIcon name="external" size={12} />
+              View Nostr profile
             </Link>
           </div>
         )}

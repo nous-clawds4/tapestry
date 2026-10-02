@@ -9,7 +9,7 @@ import { classifyBValue } from '../../utils/bDisposition';
 import { conceptCurator } from '../../utils/treasureMap';
 import DictIcon from './DictIcon';
 import {
-  CONCEPTS_DICTIONARY_PATH, controlPanelItemPath, coordParts, displayName, itemsPovLine, overrideBadge,
+  CONCEPTS_DICTIONARY_PATH, controlPanelItemPath, coordParts, displayName, itemsPovLine, overrideBadge, safeDecode,
   useConceptDictionary, useConceptItems, useDictionaryPerson,
 } from './conceptsDictionary';
 
@@ -20,7 +20,7 @@ import {
  * authored the shared concept and how many trusted members file under it; and the two headers.
  *
  * What has no backend yet is shown and disabled, with a note: the Trusted Curation Method, the
- * Curation switches, Veto / Restore (Pins, SPEC § 3) and the item pages.
+ * Curation switches and Veto / Restore (Pins, SPEC § 3). Each Items row opens its item (`itemHref`).
  *
  * The row arrives in router state when the page is opened from the list; a direct visit reads the
  * person's dictionary (/api/dictionaries/concepts) for the active point of view. The Items come
@@ -150,7 +150,7 @@ export function ConceptEntryBody({
   listHref = CONCEPTS_DICTIONARY_PATH, listLabel = 'Concepts', profileBase = '/tapestry/users', itemHref = controlPanelItemPath,
 }) {
   const { coord: rawCoord } = useParams();
-  const coord = decodeURIComponent(rawCoord || '');
+  const coord = safeDecode(rawCoord);
   const location = useLocation();
   const navigate = useNavigate();
   const passed = location.state?.entry?.coord === coord ? location.state : null;
@@ -322,7 +322,13 @@ export function ConceptEntryBody({
             return (
               <div
                 key={it.address || it.id} className="dict-items-row dict-items-row--link" role="row"
-                onClick={(e) => { if (!e.target.closest('a')) navigate(to, { state }); }}
+                onClick={(e) => {
+                  // The row is a convenience for the mouse; the name is the link. A modified click (new tab),
+                  // a click on a link, or the end of a text selection is left to the browser.
+                  if (e.target.closest('a') || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                  if (window.getSelection && String(window.getSelection()).length > 0) return;
+                  navigate(to, { state });
+                }}
               >
                 <span className="dict-items-n" role="cell">{it.n}</span>
                 <span className="dict-items-item" role="cell"><Link to={to} state={state} className="dict-items-item-link">{it.name}</Link></span>

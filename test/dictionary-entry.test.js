@@ -9,7 +9,7 @@
  *   I1..I11 — pure: trustedItems in src/lib/trustedDictionary.js (I8–I10: a curation copy and its
  *             original are one item; I11: the response cap).
  *   C1..C3 — pure: conceptCurator in ui/src/utils/treasureMap.js (dynamic import).
- *   E1..E9 — structural pins, read off comment-stripped source: the route and its seam, the
+ *   E1..E10 — structural pins, read off comment-stripped source: the route and its seam, the
  *            client read, the design's sections in order, the disabled controls with their notes,
  *            and the dropped sample chips.
  *
@@ -307,7 +307,7 @@ test('E7: every Items row opens its item: /dictionary\'s own page, else the Simp
   const dict = flat(code(src(DICTIONARY_ENTRY_JSX)));
   assert(/itemHref = controlPanelItemPath/.test(entry), 'the control panel entry links to the existing item page by default');
   assert(/<Link to=\{to\} state=\{state\} className="dict-items-item-link">\{it\.name\}<\/Link>/.test(entry), 'the item name is a real link');
-  assert(/onClick=\{\(e\) => \{ if \(!e\.target\.closest\('a'\)\) navigate\(to, \{ state \}\); \}\}/.test(entry), 'and the whole row opens it, leaving the Filed by link alone');
+  assert(/if \(e\.target\.closest\('a'\) \|\|/.test(entry) && /navigate\(to, \{ state \}\);/.test(entry), 'and the whole row opens it, leaving the Filed by link alone (E10: and modified clicks)');
   assert(/controlPanelItemPath = \(coord, item\) => `\/tapestry\/lists\/items\/\$\{encodeURIComponent\(item\.kind === 39999 && item\.address \? item\.address : item\.id\)\}`/.test(helpers),
     'Simple Lists opens a kind-39999 item by address and anything else by id (itemRouteId)');
   assert(/dictionaryItemPath = \(coord, item\) => `\$\{dictionaryEntryPath\(coord\)\}\/items\/\$\{encodeURIComponent\(item\.address \|\| item\.id\)\}`/.test(helpers), '/dictionary/:coord/items/:item');
@@ -321,16 +321,33 @@ test('E8: the item page is the design\'s screen: back to the concept, "Item N in
   assert(/`Item \$\{listed\.n\} in \$\{concept\}`/.test(item), '"Item N in <concept>"');
   assert(/<span className="dict-field-label">Filed by<\/span>/.test(item) && /View Nostr profile/.test(item), 'Filed by, with the profile link');
   assert(/<Disclosure id="dict-item-raw" label="Raw Nostr event">/.test(item), 'the raw event, collapsed');
-  assert(/passed\.entryHref\.startsWith\(dictionaryEntryPath\(coord\)\)/.test(item), 'back only to this entry\'s page');
+  assert(/fromEntry === entryPath \|\| fromEntry\.startsWith\(`\$\{entryPath\}\?`\)/.test(item), 'back only to this entry\'s page (and its query)');
 });
 
 test('E9: the item page says only what the Items list establishes', () => {
   const item = flat(code(src(DICTIONARY_ITEM_JSX)));
   assert(/let description = tagOf\(ev, 'description'\);/.test(item), 'the event\'s own description first');
-  assert(/if \(!description && ev && itemsKnown\)/.test(item), 'otherwise nothing until the Items are known');
-  assert(/but not by anyone \$\{whose\} community trusts, so it isn’t in the entry’s Items\./.test(item), 'an item outside the trusted list is said to be outside it');
-  assert(/useConceptItems\(\{ coord, shared: entry\?\.sharedCoord \|\| null, person, povParams, enabled: !passed && settled \}\)/.test(item),
+  assert(/if \(!description && ev && !readError\)/.test(item), 'nothing is said beside a failed read');
+  assert(/\} else if \(filedHere && complete && !own\) \{ description = `\$\{name\} is filed under \$\{concept\}, but not by anyone \$\{whose\} community trusts/.test(item),
+    '"not trusted" needs the event filed under the concept, a complete Items read, and someone other than the reader');
+  assert(/const filedHere = ev && entry \? \(ev\.tags \|\| \[\]\)\.some\(\(t\) => t && t\[0\] === 'z' && concepts\.includes\(t\[1\]\)\) : null;/.test(item),
+    '"filed under" is read off the event\'s z tags, against every concept a known entry names');
+  assert(/const complete = Boolean\(items\.data\) && !items\.data\.truncated;/.test(item), 'a capped read is not complete');
+  assert(/\.find\(\(it\) => \(it\.address \|\| it\.id\) === key\)/.test(item), 'items are matched by the event\'s own key, however the page was opened');
+  assert(/useConceptItems\(\{ coord, shared: entry\?\.sharedCoord \|\| null, person, povParams, enabled: !passed && Boolean\(entry\) \}\)/.test(item),
     'a direct visit reads the Items from the active point of view, once the entry is known');
+});
+
+test('E10: a "%" in an item\'s d-tag cannot crash a page, and a modified click on a row is the browser\'s', () => {
+  const item = flat(code(src(DICTIONARY_ITEM_JSX)));
+  assert(!/decodeURIComponent\(/.test(item), 'the item page reads the router\'s already-decoded params as given');
+  assert(/export function safeDecode\(raw\) \{ try \{ return decodeURIComponent\(raw \|\| ''\); \} catch \{ return raw \|\| ''; \} \}/.test(flat(code(src(HELPERS_JS)))), 'safeDecode never throws');
+  assert(/const coord = safeDecode\(rawCoord\);/.test(flat(code(src(ENTRY_JSX)))), 'the entry page decodes safely');
+  assert(/try \{ decodedId = decodeURIComponent\(id\); \} catch/.test(flat(code(src(path.join(UI, 'pages/events/DListItemDetail.jsx'))))),
+    'the Simple Lists item page, which control-panel rows now open, decodes safely');
+  const entry = flat(code(src(ENTRY_JSX)));
+  assert(/e\.button !== 0 \|\| e\.metaKey \|\| e\.ctrlKey \|\| e\.shiftKey \|\| e\.altKey\) return;/.test(entry), 'a modified click on a row is left to the browser');
+  assert(/String\(window\.getSelection\(\)\)\.length > 0\) return;/.test(entry), 'so is the end of a text selection');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

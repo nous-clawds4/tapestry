@@ -60,6 +60,9 @@ const { test, expect } = require('@playwright/test');
  *         raw event; its back link returns to the entry.
  *   D21 — a direct visit works out the number from the Items, and says when an item is filed by
  *         someone the community doesn't trust.
+ *   D22 — it says no more than it knows: an event filed elsewhere isn't "untrusted", a failed
+ *         Dictionary read is named, and a "%" in a d-tag doesn't crash the page.
+ *   D23 — a modified click on a row (new tab) doesn't navigate this tab.
  */
 
 const OWNER = '1'.repeat(64);
@@ -175,6 +178,7 @@ async function mockAssistants(page) {
 const TRUSTED_FILER = '6'.repeat(64);
 const UNTRUSTED_FILER = '9'.repeat(64);
 const UNTRUSTED_ITEM = 'e'.repeat(64);
+const ELSEWHERE_ITEM = 'c'.repeat(64);
 const CURATOR = '7'.repeat(64);
 
 /** The entry page's own reads, on top of mockStack: its Items, the two headers, the Treasure Map. */
@@ -198,7 +202,9 @@ async function mockEntry(page, { map = 'assigned' } = {}) {
       const listed = items.find((it) => it.id === id);
       const ev = listed
         ? { id, kind: 9999, pubkey: TRUSTED_FILER, created_at: listed.createdAt, content: '', tags: [['z', FOREIGN], ['name', listed.name]] }
-        : id === UNTRUSTED_ITEM ? { id, kind: 9999, pubkey: UNTRUSTED_FILER, created_at: 5, content: '', tags: [['z', FOREIGN], ['name', 'mystery']] } : null;
+        : id === UNTRUSTED_ITEM ? { id, kind: 9999, pubkey: UNTRUSTED_FILER, created_at: 5, content: '', tags: [['z', FOREIGN], ['name', 'mystery']] }
+          : id === ELSEWHERE_ITEM ? { id, kind: 9999, pubkey: UNTRUSTED_FILER, created_at: 6, content: '', tags: [['z', `39998:${'d'.repeat(64)}:other`], ['name', 'stray']] }
+            : null;
       return json(r, { success: true, events: ev ? [ev] : [] });
     }
     if ((filter.kinds || []).includes(10040)) {
@@ -581,8 +587,47 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
 
     await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${UNTRUSTED_ITEM}`);
     await expect(page.getByRole('heading', { level: 1, name: 'mystery' })).toBeVisible();
-    await expect(page.getByText('An item in cat breed')).toBeVisible();
+    await expect(page.getByText('Filed under cat breed')).toBeVisible();
     await expect(page.getByText('mystery is filed under cat breed, but not by anyone the owner’s community trusts, so it isn’t in the entry’s Items.')).toBeVisible();
+  });
+
+  test('D22: the item page says no more than it knows', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    // Filed under another concept: not "untrusted", and not "in" this one.
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${ELSEWHERE_ITEM}`);
+    await expect(page.getByText('stray isn’t filed under cat breed.')).toBeVisible();
+    await expect(page.getByText(/not by anyone/)).toHaveCount(0);
+    await expect(page.getByText(/Filed under cat breed|Item \d+ in/)).toHaveCount(0);
+
+    // A "%" in a d-tag: the router has decoded it once; the page must not decode it again and crash.
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${encodeURIComponent(`39999:${TRUSTED_FILER}:50%off`)}`);
+    await expect(page.getByRole('heading', { level: 1, name: `39999:${TRUSTED_FILER}:50%off` })).toBeVisible();
+    await expect(page.getByText('No event found for this item on this relay.').first()).toBeVisible();
+    await expect(page.getByText(/Unexpected Application Error|URI malformed/)).toHaveCount(0);
+
+    // The person's Dictionary can't be read: say so, and nothing about trust.
+    const page2 = await page.context().newPage();
+    await mockStack(page2);
+    await mockEntry(page2);
+    await page2.route('**/api/dictionaries/concepts?**', (r) => r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'boom' }) }));
+    await page2.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${UNTRUSTED_ITEM}`);
+    await expect(page2.getByText(/^Couldn’t read the owner’s Dictionary \(boom\)/)).toBeVisible();
+    await expect(page2.getByText(/not by anyone/)).toHaveCount(0);
+  });
+
+  test('D23: a modified click on an Items row is left to the browser', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}`);
+    const row = page.locator('.dict-items .dict-items-row', { has: page.getByRole('link', { name: 'item 02' }) });
+    await row.locator('.dict-items-n').click({ modifiers: ['ControlOrMeta'] });
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL(new RegExp(`/dictionary/${encodeURIComponent(coord)}$`));
+    await row.locator('.dict-items-n').click();
+    await expect(page.getByRole('heading', { level: 1, name: 'item 02' })).toBeVisible();
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

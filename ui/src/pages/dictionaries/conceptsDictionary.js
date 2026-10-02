@@ -46,6 +46,15 @@ export const OVERRIDE_BADGES = {
 };
 export const overrideBadge = (entry) => OVERRIDE_BADGES[entry?.override] || null;
 
+/**
+ * A route param as the page should read it. React Router has already decoded it, so decoding again
+ * would turn a d-tag's literal "%" into a crash (URIError) or a different value; this decodes only
+ * what still decodes, so an older doubly-encoded link keeps working and nothing throws.
+ */
+export function safeDecode(raw) {
+  try { return decodeURIComponent(raw || ''); } catch { return raw || ''; }
+}
+
 /** "kind:pubkey:d" → parts; d may itself contain colons. */
 export function coordParts(coord) {
   const [kind, pubkey, ...rest] = String(coord || '').split(':');
