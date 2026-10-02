@@ -6,9 +6,9 @@
 **Status:** OPEN
 **Done:** —
 
-**What was seen.** Twelve Cypher lookups in `src/api/normalize/index.js` resolve a concept by
-`h.name = $concept … LIMIT 1`. They are at lines 1772, 1917, 2032, 2180, 2447, 2744, 3071, 3415, 3582, 4720, 5135
-and 5268 at the edit-concept branch.
+**What was seen.** About twenty Cypher lookups resolve a concept by its name (`h.name = $concept … LIMIT 1`, or the
+same with `$name`): 19 in `src/api/normalize/index.js`, one in `src/api/property/index.js` and one in
+`src/firmware/install.js`, at the edit-concept branch. Find them with `git grep -n 'h\.name = \$' -- src`.
 
 Their callers pass names:
 - the brain's `*_CONCEPT_NAME` constants: `tapestry owner goal`, `tapestry external resource`, `tapestry work
@@ -21,7 +21,7 @@ its case, makes every lookup fail with "Concept … not found". The `ensure*` pa
 at the same d-tag and silently undo the rename. Two concepts with the same name make `LIMIT 1` pick either one.
 
 **What is already closed.** Edit a concept (`POST /api/dictionaries/concepts/edit`) refuses:
-- a singular-name change for the names in `NAME_KEYED_CONCEPTS` (`src/lib/conceptHeaderEdit.js`, kept in step with
+- a singular-name change for the names in `NAME_KEYED_CONCEPTS`, and a rename of any concept onto one of them (`src/lib/conceptHeaderEdit.js`, kept in step with
   the code's literal names by `test/dictionary-edit-concept.test.js` L10);
 - any rename onto another of the Assistant's concepts' names.
 

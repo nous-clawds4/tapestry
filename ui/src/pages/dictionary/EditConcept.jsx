@@ -114,7 +114,10 @@ export default function DictionaryEditConceptPage() {
   const locked = Boolean(undelivered);
   const canSave = mine && Boolean(draft) && dirty && !busy && !locked && !changed;
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const set = (key) => (e) => {
+    if (key === 'singular') setTaken(null); // a taken name's alert goes once the name changes
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+  };
   const addProperty = () => {
     const value = newValue.trim();
     if (!value) return;

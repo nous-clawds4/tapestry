@@ -127,11 +127,19 @@ function createEditConceptHandler(deps = {}) {
             error: `The server finds "${was}" by its name, so renaming it would break what uses it. Its plural, description and Item Property Tags can still be changed`,
           });
         }
+        // Nor onto a name the server would then take for one of its own concepts (one not created yet).
+        if (nameKeyed(fields.singular)) {
+          return res.status(400).json({
+            success: false, code: 'name-keyed',
+            error: `This instance finds a concept named "${fields.singular}" by that name for its own features, so no other concept can take it`,
+          });
+        }
         const wanted = fields.singular.toLowerCase();
         const others = await d.scanAll({ kinds: [HEADER_KIND], authors: [keys.pubkey] });
+        const singularOf = (ev) => String(((ev.tags || []).find((t) => Array.isArray(t) && t[0] === 'names') || [])[1] || '').trim().toLowerCase();
+        // The name first, then the signature, so only a match is verified.
         const taken = (Array.isArray(others) ? others : []).find((ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND
-          && firstD(ev) !== dTag && d.verify(ev)
-          && String(((ev.tags || []).find((t) => Array.isArray(t) && t[0] === 'names') || [])[1] || '').trim().toLowerCase() === wanted);
+          && firstD(ev) !== dTag && singularOf(ev) === wanted && d.verify(ev));
         if (taken) {
           return res.status(409).json({
             success: false, code: 'name-taken', coord: `${HEADER_KIND}:${keys.pubkey}:${firstD(taken)}`,

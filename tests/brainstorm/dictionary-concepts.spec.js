@@ -1098,6 +1098,16 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByRole('note').filter({ hasText: 'finds “shared concept” by its name' })).toBeVisible();
     await expect(page.getByLabel('Plural name')).toBeEditable();
 
+    // Created without a description, so its json holds a default one: opening it changes nothing.
+    const plain = await page.context().newPage();
+    await mockStack(plain, { session: CUSTOMER });
+    await mockEntry(plain);
+    const json = JSON.stringify({ conceptHeader: { description: 'Customer Thing is a concept.', oNames: { singular: 'customer thing', plural: 'customer things' } } });
+    await mockEdit(plain, { base: { ...EDIT_BASE, tags: [['d', EDIT_D], ['names', 'customer thing', 'customer things'], ['json', json], ['b', FOREIGN, 'pointer']] } });
+    await plain.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await expect(plain.getByLabel('Singular name')).toHaveValue('customer thing');
+    await expect(plain.getByRole('button', { name: 'Save changes' }), 'nothing to save until something changes').toBeDisabled();
+
     // A name another concept has: refused, with a link to it.
     const other = coordOf(CUST_TA, 'cat');
     const t = await page.context().newPage();

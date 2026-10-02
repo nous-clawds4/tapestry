@@ -101,21 +101,28 @@ function nameKeyed(singular) {
 }
 
 /**
- * The `json` tag with its conceptHeader's names and description following the edit, or the tag as it
- * was when it isn't an object with a conceptHeader, or when nothing in it changes.
+ * The `json` tag with its conceptHeader following what the edit changed, measured against the header's
+ * own tags (`was`, headerFields of the base), never against the json: a json can hold values the tags
+ * don't (a concept created without a description has a default one there), and an edit that doesn't
+ * touch the names or the description must leave it exactly as it is. The tag is returned as it was when
+ * it isn't an object with a conceptHeader, or when the edit changes neither.
  */
-function editedJson(tag, fields) {
+function editedJson(tag, fields, was) {
+  const namesChanged = fields.singular !== was.singular || fields.plural !== was.plural;
+  const descChanged = fields.description !== was.description;
+  if (!namesChanged && !descChanged) return [...tag];
   let obj;
   try { obj = JSON.parse(tag[1]); } catch { return [...tag]; }
   const ch = obj && typeof obj === 'object' && obj.conceptHeader && typeof obj.conceptHeader === 'object' ? obj.conceptHeader : null;
   if (!ch) return [...tag];
-  const names = ch.oNames && typeof ch.oNames === 'object' ? ch.oNames : {};
-  const sameNames = names.singular === fields.singular && names.plural === fields.plural;
-  const sameDesc = fields.description ? ch.description === fields.description : ch.description === undefined;
-  if (sameNames && sameDesc) return [...tag];
-  ch.oNames = { ...names, singular: fields.singular, plural: fields.plural };
-  if (fields.description) ch.description = fields.description;
-  else delete ch.description;
+  if (namesChanged) {
+    const names = ch.oNames && typeof ch.oNames === 'object' ? ch.oNames : {};
+    ch.oNames = { ...names, singular: fields.singular, plural: fields.plural };
+  }
+  if (descChanged) {
+    if (fields.description) ch.description = fields.description;
+    else delete ch.description;
+  }
   return [tag[0], JSON.stringify(obj), ...tag.slice(2)];
 }
 
@@ -127,6 +134,7 @@ function editedJson(tag, fields) {
  */
 function composeEdit(base, fields, now) {
   const baseTags = (base && Array.isArray(base.tags) ? base.tags : []).filter(isTag);
+  const was = headerFields(base);
   const namesTag = (old) => ['names', fields.singular, fields.plural, ...(old ? old.slice(3) : [])];
   const descTag = (old) => (fields.description ? [['description', fields.description, ...(old ? old.slice(2) : [])]] : []);
   const propTags = (fields.properties || []).map((t) => [...t]);
@@ -138,7 +146,7 @@ function composeEdit(base, fields, now) {
     if (t[0] === 'names') { if (!names) { out.push(namesTag(t)); names = true; } continue; }
     if (t[0] === 'description') { if (!desc) { out.push(...descTag(t)); desc = true; } continue; }
     if (isProperty(t)) { if (!props) { out.push(...propTags); props = true; } continue; }
-    if (t[0] === 'json' && typeof t[1] === 'string') { out.push(editedJson(t, fields)); continue; }
+    if (t[0] === 'json' && typeof t[1] === 'string') { out.push(editedJson(t, fields, was)); continue; }
     out.push([...t]);
   }
   const after = (pred) => {

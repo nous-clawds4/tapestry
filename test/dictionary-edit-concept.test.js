@@ -7,8 +7,8 @@
  * own Assistant signs the new version; firmware concepts can be edited, with a warning that a firmware
  * reinstall rebuilds their headers.
  *
- *   L1..L10  — the edit rule, src/lib/conceptHeaderEdit.js (shared by the server and the page).
- *   E1..E15  — POST /api/dictionaries/concepts/edit (src/api/adoption/editConcept.js), every side effect injected.
+ *   L1..L11  — the edit rule, src/lib/conceptHeaderEdit.js (shared by the server and the page).
+ *   E1..E16  — POST /api/dictionaries/concepts/edit (src/api/adoption/editConcept.js), every side effect injected.
  *   S1..S7   — structural pins, read off comment-stripped source.
  *
  * The browser half is tests/brainstorm/dictionary-concepts.spec.js D32–D36.
@@ -208,6 +208,23 @@ test('L10: NAME_KEYED_CONCEPTS names every concept the code looks up by a litera
     'exact names, as the Cypher lookups are');
 });
 
+test('L11: the json copy changes only with what the edit changes, measured against the header\'s tags, not the json', () => {
+  const { headerFields, checkEditFields, composeEdit, changesTags } = lib();
+  // Created without a description: the json holds a default one, and the header has no description tag.
+  const json = JSON.stringify({ word: { slug: 'w' }, conceptHeader: { description: 'Dog Breed is a concept.', oNames: { singular: 'dog breed', plural: 'dog breeds' } } });
+  const base = { ...BASE, tags: [['d', 'dog-breed'], ['names', 'dog breed', 'dog breeds'], ['json', json], ['b', SHARED, 'pointer']] };
+  const same = composeEdit(base, checkEditFields(headerFields(base)).fields, NOW);
+  assert(!changesTags(base, same), `opening and saving changes nothing: ${show(same.tags)}`);
+  const renamed = composeEdit(base, checkEditFields({ ...headerFields(base), singular: 'breed', plural: 'breeds' }).fields, NOW);
+  const r = JSON.parse(renamed.tags.find((t) => t[0] === 'json')[1]).conceptHeader;
+  assert(show(r.oNames) === show({ singular: 'breed', plural: 'breeds' }) && r.description === 'Dog Breed is a concept.',
+    `a rename leaves the json's default description: ${show(r)}`);
+  const described = composeEdit(base, checkEditFields({ ...headerFields(base), description: 'Breeds of dog.' }).fields, NOW);
+  const dsc = JSON.parse(described.tags.find((t) => t[0] === 'json')[1]).conceptHeader;
+  assert(dsc.description === 'Breeds of dog.' && show(dsc.oNames) === show({ singular: 'dog breed', plural: 'dog breeds' }),
+    `a description edit leaves the names: ${show(dsc)}`);
+});
+
 // ═══ E — the endpoint ════════════════════════════════════════════════════════
 
 const fakeSign = (pubkey) => (template, privkey) => ({ ...template, pubkey, id: `${privkey.slice(0, 4)}${'0'.repeat(60)}`, sig: 'f'.repeat(128) });
@@ -348,6 +365,11 @@ test('E13: a concept the server finds by name keeps its singular name; the rest 
   assert(renamed.status === 400 && renamed.body.code === 'name-keyed' && renamed.calls.signed.length === 0, `even a case change: ${show(renamed.body)}`);
   const kept = await run({ stored: [keyed], body: { coord, basedOn: BASE.id, ...EDIT, singular: 'shared concept', plural: 'Shared Concepts' } });
   assert(kept.status === 200 && kept.body.success, `the plural, description and properties can change: ${kept.status} ${show(kept.body)}`);
+});
+
+test('E16: no concept can be renamed onto a name the server keeps for its own concepts', async () => {
+  const r = await run({ body: { coord: COORD, basedOn: BASE.id, ...EDIT, singular: 'tapestry work record' } });
+  assert(r.status === 400 && r.body.code === 'name-keyed' && r.calls.signed.length === 0, `${r.status} ${show(r.body)}`);
 });
 
 test('E14: a singular name another of the Assistant\'s concepts has is refused, whatever its case; the concept\'s own isn\'t', async () => {
