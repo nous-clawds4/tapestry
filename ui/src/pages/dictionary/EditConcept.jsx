@@ -9,7 +9,7 @@ import { publishToRelays } from '../../utils/nostrPublish';
 import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
 import { ASSISTANT_COPY } from '../assistant/actions';
 import { classifyBroadcast, outcomeMessage } from '@tapestry/broadcast-outcome';
-import { PROPERTY_REQUIREMENTS, changesTags, checkEditFields, composeEdit, headerFields } from '@tapestry/concept-header-edit';
+import { PROPERTY_REQUIREMENTS, changesTags, checkEditFields, composeEdit, headerFields, nameKeyed } from '@tapestry/concept-header-edit';
 
 /** Saves the new version with the signed-in person's own Assistant (src/api/adoption/editConcept.js). */
 export const EDIT_CONCEPT_API = '/api/dictionaries/concepts/edit';
@@ -37,6 +37,21 @@ function useLatestHeader(coord) {
     return () => { cancelled = true; };
   }, [coord]);
   return state;
+}
+
+/** Is this header one a firmware reinstall rebuilds? Decided by the server from the address. null until known. */
+function useFirmware(coord) {
+  const [firmware, setFirmware] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setFirmware(null);
+    fetch(`/api/dictionaries/concepts/firmware?coord=${encodeURIComponent(coord)}`)
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setFirmware(Boolean(data && data.success && data.firmware)); })
+      .catch(() => { if (!cancelled) setFirmware(null); });
+    return () => { cancelled = true; };
+  }, [coord]);
+  return firmware;
 }
 
 /** The new version as the preview shows it: the event, one tag per line. */
@@ -71,6 +86,7 @@ export default function DictionaryEditConceptPage() {
   const dict = useConceptDictionary(person, povParams, { enabled: !passed?.entry });
   const entry = passed?.entry || (dict.data?.entries || []).find((e) => e.coord === coord) || null;
   const read = useLatestHeader(coord);
+  const firmware = useFirmware(coord);
   const { pubkey: author, d } = coordParts(coord);
 
   const [base, setBase] = useState(null); // the version being edited: the one read, or the latest after a conflict
@@ -79,6 +95,7 @@ export default function DictionaryEditConceptPage() {
   const [newValue, setNewValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [taken, setTaken] = useState(null); // another concept of the Assistant's with the singular name asked for
   const [changed, setChanged] = useState(null); // the latest version, when it isn't the one being edited
   const [undelivered, setUndelivered] = useState(null); // { event, message } when the broadcast didn't land
 
@@ -88,6 +105,9 @@ export default function DictionaryEditConceptPage() {
   }, [read.event]); // the read arriving, not each render
 
   const mine = person.signedIn && Boolean(author) && author === person.assistant;
+  // The server finds some concepts by their name: their singular name stays (the rest can change).
+  const baseSingular = base ? headerFields(base).singular : '';
+  const lockedName = nameKeyed(baseSingular);
   const check = form ? checkEditFields(form) : { error: null };
   const draft = base && check.fields ? composeEdit(base, check.fields, Math.floor(Date.now() / 1000)) : null;
   const dirty = Boolean(base && draft && changesTags(base, draft));
@@ -112,7 +132,7 @@ export default function DictionaryEditConceptPage() {
     try { result = await publishToRelays(signed, CONCEPT_PUBLISH_RELAYS); } catch { result = null; }
     const outcome = classifyBroadcast(result);
     let message = outcomeMessage({ outcome, verb: 'save' });
-    if (graph === 'failed') message += ' This instance’s graph wasn’t updated, so the control panel may still show the old version.';
+    if (graph === 'failed') message += ' This instance’s graph wasn’t fully updated, so the control panel may show the old version, or an incomplete one.';
     if (outcome === 'not-delivered') { setUndelivered({ event: signed, message, graph }); return; }
     navigate(entryPath, { state: { notice: message, listHref: passed?.listHref } });
   };
@@ -121,6 +141,7 @@ export default function DictionaryEditConceptPage() {
     if (!canSave) return;
     setBusy(true);
     setError(null);
+    setTaken(null);
     try {
       const resp = await fetch(EDIT_CONCEPT_API, {
         method: 'POST',
@@ -130,6 +151,7 @@ export default function DictionaryEditConceptPage() {
       let data = {};
       try { data = await resp.json(); } catch { data = {}; }
       if (resp.status === 409 && data.code === 'changed' && data.event) { setChanged(data.event); return; }
+      if (resp.status === 409 && data.code === 'name-taken' && data.coord) { setTaken({ coord: data.coord, name: check.fields.singular }); return; }
       if (!resp.ok || !data.success) throw new Error(data.error || `HTTP ${resp.status}`);
       if (data.unchanged) { navigate(entryPath, { state: { notice: 'No changes to save.', listHref: passed?.listHref } }); return; }
       const signed = data.event;
@@ -182,7 +204,7 @@ export default function DictionaryEditConceptPage() {
             {ASSISTANT_COPY.noAssistantLine} <Link to="/setup">{ASSISTANT_COPY.noAssistantLink}</Link>
           </p>
         )}
-        {entry?.firmwareHeader && (
+        {(firmware || entry?.firmwareHeader) && (
           <p className="dict-notice dict-edit-warning" role="note">
             This is a firmware concept. A firmware reinstall rebuilds its header from the built-in definition, which
             will undo these edits.
@@ -190,7 +212,7 @@ export default function DictionaryEditConceptPage() {
         )}
         {selfShared && (
           <p className="dict-entry-note text-muted">
-            It’s shared, so the new version is what others see when they look for shared concepts.
+            It’s shared, so the new version is what others see once it reaches the community relay.
           </p>
         )}
         {!read.done && <p className="text-muted">Reading the concept’s header…</p>}
@@ -202,13 +224,19 @@ export default function DictionaryEditConceptPage() {
               <div className="dict-new-names">
                 <label className="dict-field">
                   <span className="dict-field-label">Singular name</span>
-                  <input className="dict-input" value={form.singular} onChange={set('singular')} />
+                  <input className="dict-input" value={form.singular} onChange={set('singular')} readOnly={lockedName} aria-readonly={lockedName} />
                 </label>
                 <label className="dict-field">
                   <span className="dict-field-label">Plural name</span>
                   <input className="dict-input" value={form.plural} onChange={set('plural')} />
                 </label>
               </div>
+              {lockedName && (
+                <p className="dict-entry-note text-muted dict-new-hint" role="note">
+                  This instance finds “{baseSingular}” by its name, so renaming it would break what uses it. Its plural,
+                  description and Item Property Tags can still be changed.
+                </p>
+              )}
               <label className="dict-field dict-new-desc">
                 <span className="dict-field-label">Description</span>
                 <textarea className="dict-input dict-new-textarea" rows={3} value={form.description} onChange={set('description')} />
@@ -265,10 +293,16 @@ export default function DictionaryEditConceptPage() {
                 (your changes here will be replaced).
               </p>
             )}
+            {taken && (
+              <p className="dict-notice" role="alert">
+                Your Assistant already has a concept named “{taken.name}”, and this instance finds concepts by name, so two
+                would be ambiguous. Choose another name, or <Link to={dictionaryEntryPath(taken.coord)}>open that concept</Link>.
+              </p>
+            )}
             {error && <p className="error" role="alert">Couldn’t save the concept: {error}</p>}
             {undelivered && (
               <p className="dict-notice" role="status">
-                Saved on this instance. {undelivered.message}{' '}
+                {undelivered.message}{' '}
                 <button type="button" className="dict-link-btn" onClick={retry} disabled={busy}>Try again</button>{' '}
                 <Link to={entryPath}>Open the concept</Link>
               </p>

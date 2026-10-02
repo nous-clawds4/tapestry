@@ -102,8 +102,10 @@ const { test, expect } = require('@playwright/test');
  *         what the broadcast did.
  *   D34 — a header that changed meanwhile isn't overwritten: the page says so, and starts again from the
  *         latest version only when asked.
- *   D35 — a firmware concept warns that a reinstall undoes the edit; signed out, or someone else's
- *         header, the page says why it can't edit.
+ *   D35 — a firmware concept warns that a reinstall undoes the edit, a Dictionary row or not; signed
+ *         out, or someone else's header, the page says why it can't edit.
+ *   D36 — a concept the server finds by name keeps its singular name; a name another concept has is
+ *         refused with a link to it; the graph's and the broadcast's outcomes are each said once.
  */
 
 const OWNER = '1'.repeat(64);
@@ -269,7 +271,7 @@ const EDIT_BASE = {
  * endpoint, which answers `changed` (a 409 with that newer version) or signs as `assistant`. A local-only
  * publish policy, so no socket is opened. Returns the edit requests' bodies.
  */
-async function mockEdit(page, { base = EDIT_BASE, assistant = CUST_TA, changed = null } = {}) {
+async function mockEdit(page, { base = EDIT_BASE, assistant = CUST_TA, changed = null, taken = null, graph = 'none', firmware = false } = {}) {
   const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   const asked = [];
   await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: false }));
@@ -280,14 +282,16 @@ async function mockEdit(page, { base = EDIT_BASE, assistant = CUST_TA, changed =
     }
     return r.fallback();
   });
+  await page.route('**/api/dictionaries/concepts/firmware**', (r) => json(r, { success: true, firmware }));
   await page.route('**/api/dictionaries/concepts/edit', (r) => {
     const body = JSON.parse(r.request().postData() || '{}');
     asked.push(body);
     if (changed) return json(r, { success: false, code: 'changed', event: changed, error: 'changed' }, 409);
+    if (taken) return json(r, { success: false, code: 'name-taken', coord: taken, error: 'taken' }, 409);
     const tags = [['d', base.tags[0][1]], ['names', body.singular, body.plural]];
     if (body.description) tags.push(['description', body.description]);
     tags.push(...body.properties, ...base.tags.filter((t) => t[0] === 'b'));
-    return json(r, { success: true, coord: EDIT_COORD, graph: 'none', event: { ...base, id: '8c'.repeat(32), pubkey: assistant, created_at: base.created_at + 1, tags } });
+    return json(r, { success: true, coord: EDIT_COORD, graph, event: { ...base, id: '8c'.repeat(32), pubkey: assistant, created_at: base.created_at + 1, tags } });
   });
   return asked;
 }
@@ -1056,6 +1060,15 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
     await expect(page.getByRole('note')).toContainText('This is a firmware concept. A firmware reinstall rebuilds its header from the built-in definition, which will undo these edits.');
 
+    // A firmware header that isn't a Dictionary row (no real b): the server says so from its address.
+    const loose = await page.context().newPage();
+    await mockStack(loose, { session: CUSTOMER });
+    await mockEntry(loose);
+    const set = { ...EDIT_BASE, tags: [['d', 'set'], ['names', 'set', 'sets']] };
+    await mockEdit(loose, { base: set, firmware: true });
+    await loose.goto(`${PAGE}/${encodeURIComponent(`39998:${CUST_TA}:set`)}/edit`);
+    await expect(loose.getByRole('note').filter({ hasText: 'This is a firmware concept.' })).toBeVisible();
+
     const out = await page.context().newPage();
     await mockStack(out);
     await mockEntry(out);
@@ -1072,6 +1085,40 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await owner.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
     await expect(owner.getByText('This concept’s header was published by someone other than your Assistant, so your Assistant can’t edit it.')).toBeVisible();
     await expect(owner.getByLabel('Singular name')).toBeDisabled();
+  });
+
+  test('D36: name-keyed and taken names, and the graph’s and broadcast’s outcomes said once', async ({ page }) => {
+    // A concept the server finds by name: its singular name stays, the rest can change.
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    const keyed = { ...EDIT_BASE, tags: [['d', 'shared-concept'], ['names', 'shared concept', 'shared concepts'], ['b', FOREIGN, 'pointer']] };
+    await mockEdit(page, { base: keyed });
+    await page.goto(`${PAGE}/${encodeURIComponent(`39998:${CUST_TA}:shared-concept`)}/edit`);
+    await expect(page.getByLabel('Singular name')).toHaveAttribute('readonly', '');
+    await expect(page.getByRole('note').filter({ hasText: 'finds “shared concept” by its name' })).toBeVisible();
+    await expect(page.getByLabel('Plural name')).toBeEditable();
+
+    // A name another concept has: refused, with a link to it.
+    const other = coordOf(CUST_TA, 'cat');
+    const t = await page.context().newPage();
+    await mockStack(t, { session: CUSTOMER });
+    await mockEntry(t);
+    await mockEdit(t, { taken: other });
+    await t.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await t.getByLabel('Singular name').fill('cat');
+    await t.getByRole('button', { name: 'Save changes' }).click();
+    await expect(t.getByRole('alert')).toContainText('Your Assistant already has a concept named “cat”');
+    await expect(t.getByRole('link', { name: 'open that concept' })).toHaveAttribute('href', `/dictionary/${encodeURIComponent(other)}`);
+
+    // The graph didn't follow: the entry says so, after the broadcast's outcome.
+    const g = await page.context().newPage();
+    await mockStack(g, { session: CUSTOMER });
+    await mockEntry(g);
+    await mockEdit(g, { graph: 'failed' });
+    await g.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await g.getByLabel('Description').fill('Changed.');
+    await g.getByRole('button', { name: 'Save changes' }).click();
+    await expect(g.getByText('Saved here. External publishing is off for this deployment, so it was not sent onward. This instance’s graph wasn’t fully updated, so the control panel may show the old version, or an incomplete one.')).toBeVisible();
   });
 
   test('D31: the page and the finder say what they can’t do', async ({ page }) => {

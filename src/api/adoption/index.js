@@ -565,11 +565,26 @@ async function handleAdoptionTwins(req, res) {
   }
 }
 
+/**
+ * GET /api/dictionaries/concepts/firmware?coord=… — is this header one a firmware reinstall rebuilds?
+ * Decided from the address (firmwareCoords), so the edit page can warn for any header, a Dictionary row
+ * or not. A public read: the firmware manifest is the instance's own published firmware.
+ */
+function handleConceptFirmware(req, res) {
+  const coord = typeof req.query.coord === 'string' ? req.query.coord : '';
+  if (!/^39998:[0-9a-f]{64}:.+$/.test(coord)) {
+    return res.status(400).json({ success: false, error: "coord must be a list header's address (39998:pubkey:d-tag)" });
+  }
+  const taPubkey = getOwnerAssistantPubkey();
+  return res.json({ success: true, coord, firmware: Boolean(taPubkey) && firmwareCoords(taPubkey).has(coord) });
+}
+
 function registerAdoptionRoutes(app) {
   app.get('/api/adoption-queue', handleAdoptionQueue);
   app.get('/api/trusted-dictionary', handleTrustedDictionary);
   app.get('/api/dictionaries/concepts', handleConceptDictionary);
   app.get('/api/dictionaries/concepts/items', handleConceptItems);
+  app.get('/api/dictionaries/concepts/firmware', handleConceptFirmware);
   app.get('/api/adoption-twins', handleAdoptionTwins);
   // Create New Concept, signed by the caller's own Assistant (./newConcept.js).
   require('./newConcept').register(app);
@@ -577,4 +592,7 @@ function registerAdoptionRoutes(app) {
   require('./editConcept').register(app);
 }
 
-module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary, assembleConceptItems, recognitionInputs };
+module.exports = {
+  registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary, assembleConceptItems, recognitionInputs,
+  firmwareCoords, handleConceptFirmware,
+};

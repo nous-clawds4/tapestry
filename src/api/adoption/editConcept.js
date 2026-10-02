@@ -2,7 +2,8 @@
  * POST /api/dictionaries/concepts/edit — edit a Dictionary concept: the caller's own Assistant
  * publishes a new version of a header it wrote (the owner's request of 2026-10-02).
  *
- *   body: { coord, basedOn, singular, plural, description?, properties? }
+ *   body: { coord, basedOn, singular, plural, description?, properties? }  (an omitted description or
+ *   property list is removed, as an empty one is: the edit page always sends both)
  *
  * `coord` is the header's address (39998:<the caller's Assistant>:<d>). `basedOn` is the id of the
  * version the edit page loaded. `properties` is the Item Property Tags, whole (src/lib/conceptHeaderEdit.js
@@ -13,8 +14,12 @@
  * the header must be that Assistant's, then the fields. Then the header's latest version: every match on
  * this instance's relay that is verifiably the Assistant's header at exactly this address (strfry places
  * an event by its first d tag but matches #d on any, and the relay can hold unverified imports), the
- * newest of them. None: 404. Not the one the page loaded: 409 `changed`, with the latest, so the page can
- * start again from it rather than overwrite it. No change: answered without signing. Then sign with those
+ * newest of them. None: 404 (409 `unverified` when the relay holds one there that doesn't verify). Not the
+ * one the page loaded: 409 `changed`, with the latest, so the page can start again from it rather than
+ * overwrite it. A rename is refused for a concept the server finds by its name (NAME_KEYED_CONCEPTS:
+ * 400 `name-keyed`), and when another of the Assistant's headers already has that singular name (409
+ * `name-taken`, with its address), because the server's name lookups would then find either one. No
+ * change: answered without signing. Then sign with those
  * keys, the local relay, and a read-back by id. Last, the graph: if this instance's graph has a node for
  * the header, the new version is imported over it (BIBLE §30: the graph is the definitive self, so it
  * must not keep the old names); a header with no node gets none. Nothing is broadcast here; the browser
@@ -27,7 +32,7 @@
 
 'use strict';
 
-const { checkEditFields, composeEdit, changesTags } = require('../../lib/conceptHeaderEdit');
+const { checkEditFields, composeEdit, changesTags, nameKeyed } = require('../../lib/conceptHeaderEdit');
 const { sameHost, firstD, defaultDeps: dispositionDeps } = require('../list-headers/myAssistantDisposition');
 
 const ROUTE = '/api/dictionaries/concepts/edit';
@@ -92,14 +97,47 @@ function createEditConceptHandler(deps = {}) {
       const dTag = m[2];
       const matches = await d.scanAll({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
       const atThisAddress = (ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND && firstD(ev) === dTag && d.verify(ev);
-      const latest = (Array.isArray(matches) ? matches : []).filter(atThisAddress)
+      const found = Array.isArray(matches) ? matches : [];
+      const latest = found.filter(atThisAddress)
         .reduce((a, b) => (!a || (b.created_at || 0) > (a.created_at || 0) ? b : a), null);
-      if (!latest) return res.status(404).json({ success: false, error: `Your Assistant has no header ${coord} on this instance` });
+      if (!latest) {
+        const unverified = found.some((ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND && firstD(ev) === dTag);
+        if (unverified) {
+          return res.status(409).json({
+            success: false, code: 'unverified',
+            error: "This instance's relay holds a header at this address that doesn't verify as your Assistant's, so it can't be edited here",
+          });
+        }
+        return res.status(404).json({ success: false, error: `Your Assistant has no header ${coord} on this instance` });
+      }
       if (latest.id !== basedOn) {
         return res.status(409).json({
           success: false, code: 'changed', event: latest,
           error: 'This concept changed after the edit page loaded it, so nothing was saved',
         });
+      }
+
+      // A rename: never of a concept the server finds by name, and never onto another concept's name.
+      const oldSingular = ((latest.tags || []).find((t) => Array.isArray(t) && t[0] === 'names') || [])[1];
+      const was = typeof oldSingular === 'string' ? oldSingular.trim() : '';
+      if (fields.singular !== was) {
+        if (nameKeyed(was)) {
+          return res.status(400).json({
+            success: false, code: 'name-keyed',
+            error: `The server finds "${was}" by its name, so renaming it would break what uses it. Its plural, description and Item Property Tags can still be changed`,
+          });
+        }
+        const wanted = fields.singular.toLowerCase();
+        const others = await d.scanAll({ kinds: [HEADER_KIND], authors: [keys.pubkey] });
+        const taken = (Array.isArray(others) ? others : []).find((ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND
+          && firstD(ev) !== dTag && d.verify(ev)
+          && String(((ev.tags || []).find((t) => Array.isArray(t) && t[0] === 'names') || [])[1] || '').trim().toLowerCase() === wanted);
+        if (taken) {
+          return res.status(409).json({
+            success: false, code: 'name-taken', coord: `${HEADER_KIND}:${keys.pubkey}:${firstD(taken)}`,
+            error: `Your Assistant already has a concept named "${fields.singular}", and the server finds concepts by name, so two would be ambiguous`,
+          });
+        }
       }
 
       const template = composeEdit(latest, fields, d.now());

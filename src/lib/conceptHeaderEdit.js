@@ -8,8 +8,18 @@
  *   - `description`: replaced, or removed when left blank;
  *   - the Item Property Tags, `["required" | "optional" | "recommended", value, …]`: the new list
  *     replaces the old one, where the old one stood.
+ *   - the header's `json` copy of its names and description (a header made by the control panel's
+ *     create-concept carries `["json", {word, conceptHeader: {description, oNames, …}}]`, and the
+ *     Tapestries pickers and the concept graph summary read it): `conceptHeader.oNames` and
+ *     `conceptHeader.description` follow the edit. Everything else in it is kept: `oSlugs`, `oKeys` and
+ *     `oLabels` are identities (the derived graph's slug, schema keys, Neo4j labels), and `oTitles` and
+ *     `word` were derived from the name the concept was created with.
  * What it can't: the d-tag (the concept's address, so its items and anything wired to it keep pointing
  * at it), the b-tags (shared or wired), the content, and every other tag, all kept in their order.
+ *
+ * The server finds some concepts by their singular name (`MATCH … h.name = $concept`): the names in
+ * NAME_KEYED_CONCEPTS. Renaming one would break what looks it up, so their singular name can't be
+ * edited; the rest of them can.
  *
  * Pure CJS, zero requires (the broadcastOutcome / trustedDictionary idiom): the server's edit endpoint
  * (src/api/adoption/editConcept.js) composes with it, and the browser imports the same code through
@@ -21,7 +31,18 @@
 
 const PROPERTY_REQUIREMENTS = ['required', 'optional', 'recommended'];
 const MAX_PROPERTIES = 200;
+// Concepts the server looks up by their singular name, so a rename would break their features: the
+// `*_CONCEPT_NAME` constants in src/api/normalize/index.js and src/api/adoption, the literal
+// `concept:` names the UI passes to the normalize API, and the audit's core concepts
+// (test/dictionary-edit-concept.test.js keeps this list in step with the code).
+const NAME_KEYED_CONCEPTS = [
+  'adoption disposition', 'concept header', 'goal set', 'property', 'relationship', 'set', 'shared concept', 'superset',
+  'tapestry external resource', 'tapestry owner goal', 'tapestry priority signal', 'tapestry proposal',
+  'tapestry restore drill', 'tapestry work record', 'trusted dictionary snapshot',
+];
 const CONTROL_RE = /\p{Cc}/u;
+// Bidirectional overrides and isolates can make a name read differently from what it is.
+const BIDI_RE = /[\u202A-\u202E\u2066-\u2069]/u;
 // A description is typed in a text area, so it may keep its line breaks and tabs.
 const DESCRIPTION_CONTROL_RE = /(?![\n\r\t])\p{Cc}/u;
 
@@ -55,6 +76,7 @@ function checkEditFields(input) {
   if (singular === null || plural === null || description === null) return { error: 'The names and the description must be text' };
   if (!singular || !plural) return { error: 'Both the singular and the plural name are needed' };
   if (CONTROL_RE.test(singular) || CONTROL_RE.test(plural)) return { error: "A name can't contain control characters" };
+  if (BIDI_RE.test(singular) || BIDI_RE.test(plural)) return { error: "A name can't contain text-direction controls" };
   if (DESCRIPTION_CONTROL_RE.test(description)) return { error: "The description can't contain control characters" };
   const raw = b.properties === undefined || b.properties === null ? [] : b.properties;
   if (!Array.isArray(raw)) return { error: 'The Item Property Tags must be a list' };
@@ -73,6 +95,30 @@ function checkEditFields(input) {
   return { fields: { singular, plural, description, properties } };
 }
 
+/** Is this header's singular name one the server looks it up by? (Exactly: the lookups are exact.) */
+function nameKeyed(singular) {
+  return NAME_KEYED_CONCEPTS.includes(typeof singular === 'string' ? singular.trim() : '');
+}
+
+/**
+ * The `json` tag with its conceptHeader's names and description following the edit, or the tag as it
+ * was when it isn't an object with a conceptHeader, or when nothing in it changes.
+ */
+function editedJson(tag, fields) {
+  let obj;
+  try { obj = JSON.parse(tag[1]); } catch { return [...tag]; }
+  const ch = obj && typeof obj === 'object' && obj.conceptHeader && typeof obj.conceptHeader === 'object' ? obj.conceptHeader : null;
+  if (!ch) return [...tag];
+  const names = ch.oNames && typeof ch.oNames === 'object' ? ch.oNames : {};
+  const sameNames = names.singular === fields.singular && names.plural === fields.plural;
+  const sameDesc = fields.description ? ch.description === fields.description : ch.description === undefined;
+  if (sameNames && sameDesc) return [...tag];
+  ch.oNames = { ...names, singular: fields.singular, plural: fields.plural };
+  if (fields.description) ch.description = fields.description;
+  else delete ch.description;
+  return [tag[0], JSON.stringify(obj), ...tag.slice(2)];
+}
+
 /**
  * The new version of `base` with `fields` (already checked): { kind, created_at, content, tags }.
  * Each edited tag takes the place of the first one it replaces; one that wasn't there goes after the
@@ -82,7 +128,7 @@ function checkEditFields(input) {
 function composeEdit(base, fields, now) {
   const baseTags = (base && Array.isArray(base.tags) ? base.tags : []).filter(isTag);
   const namesTag = (old) => ['names', fields.singular, fields.plural, ...(old ? old.slice(3) : [])];
-  const descTags = fields.description ? [['description', fields.description]] : [];
+  const descTag = (old) => (fields.description ? [['description', fields.description, ...(old ? old.slice(2) : [])]] : []);
   const propTags = (fields.properties || []).map((t) => [...t]);
   const out = [];
   let names = false;
@@ -90,8 +136,9 @@ function composeEdit(base, fields, now) {
   let props = false;
   for (const t of baseTags) {
     if (t[0] === 'names') { if (!names) { out.push(namesTag(t)); names = true; } continue; }
-    if (t[0] === 'description') { if (!desc) { out.push(...descTags); desc = true; } continue; }
+    if (t[0] === 'description') { if (!desc) { out.push(...descTag(t)); desc = true; } continue; }
     if (isProperty(t)) { if (!props) { out.push(...propTags); props = true; } continue; }
+    if (t[0] === 'json' && typeof t[1] === 'string') { out.push(editedJson(t, fields)); continue; }
     out.push([...t]);
   }
   const after = (pred) => {
@@ -100,7 +147,7 @@ function composeEdit(base, fields, now) {
     return at + 1;
   };
   if (!names) out.splice(after((t) => t[0] === 'd'), 0, namesTag(null));
-  if (!desc && descTags.length) out.splice(after((t) => t[0] === 'd' || t[0] === 'names'), 0, ...descTags);
+  if (!desc && fields.description) out.splice(after((t) => t[0] === 'd' || t[0] === 'names'), 0, ...descTag(null));
   if (!props && propTags.length) out.splice(after((t) => t[0] === 'd' || t[0] === 'names' || t[0] === 'description'), 0, ...propTags);
   const baseAt = base && Number.isInteger(base.created_at) ? base.created_at : 0;
   return {
@@ -116,4 +163,6 @@ function changesTags(base, composed) {
   return JSON.stringify((base && base.tags) || []) !== JSON.stringify(composed.tags);
 }
 
-module.exports = { PROPERTY_REQUIREMENTS, MAX_PROPERTIES, headerFields, checkEditFields, composeEdit, changesTags };
+module.exports = {
+  PROPERTY_REQUIREMENTS, MAX_PROPERTIES, NAME_KEYED_CONCEPTS, nameKeyed, headerFields, checkEditFields, composeEdit, changesTags,
+};

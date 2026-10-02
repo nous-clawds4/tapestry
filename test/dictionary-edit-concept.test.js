@@ -7,11 +7,11 @@
  * own Assistant signs the new version; firmware concepts can be edited, with a warning that a firmware
  * reinstall rebuilds their headers.
  *
- *   L1..L7   — the edit rule, src/lib/conceptHeaderEdit.js (shared by the server and the page).
- *   E1..E12  — POST /api/dictionaries/concepts/edit (src/api/adoption/editConcept.js), every side effect injected.
- *   S1..S6   — structural pins, read off comment-stripped source.
+ *   L1..L10  — the edit rule, src/lib/conceptHeaderEdit.js (shared by the server and the page).
+ *   E1..E15  — POST /api/dictionaries/concepts/edit (src/api/adoption/editConcept.js), every side effect injected.
+ *   S1..S7   — structural pins, read off comment-stripped source.
  *
- * The browser half is tests/brainstorm/dictionary-concepts.spec.js D32–D35.
+ * The browser half is tests/brainstorm/dictionary-concepts.spec.js D32–D36.
  */
 
 'use strict';
@@ -151,6 +151,63 @@ test('L7: the same values are no change', () => {
   assert(changesTags(BASE, composeEdit(BASE, checkEditFields(EDIT).fields, NOW)), 'an edit is a change');
 });
 
+test('L8: the json copy of the names and description follows the edit; its identities are kept', () => {
+  const { checkEditFields, composeEdit } = lib();
+  const json = {
+    word: { slug: 'concept-header-for-the-concept-of-dogs', name: 'concept header for the concept of dogs', wordTypes: ['word', 'conceptHeader'] },
+    conceptHeader: {
+      description: 'A dog.', oNames: { singular: 'dog', plural: 'dogs' }, oSlugs: { singular: 'dog', plural: 'dogs' },
+      oKeys: { singular: 'dog', plural: 'dogs' }, oTitles: { singular: 'Dog', plural: 'Dogs' }, oLabels: { singular: 'Dog', plural: 'Dogs' },
+    },
+  };
+  const base = { ...BASE, tags: [['d', 'dog'], ['names', 'dog', 'dogs'], ['json', JSON.stringify(json)], ['description', 'A dog.']] };
+  const out = composeEdit(base, checkEditFields({ ...EDIT, singular: 'hound', plural: 'hounds' }).fields, NOW);
+  const after = JSON.parse(out.tags.find((t) => t[0] === 'json')[1]);
+  assert(show(after.conceptHeader.oNames) === show({ singular: 'hound', plural: 'hounds' }) && after.conceptHeader.description === 'Good dogs.',
+    `names and description follow: ${show(after.conceptHeader)}`);
+  for (const k of ['oSlugs', 'oKeys', 'oTitles', 'oLabels']) assert(show(after.conceptHeader[k]) === show(json.conceptHeader[k]), `${k} kept`);
+  assert(show(after.word) === show(json.word), 'word kept');
+  const blank = JSON.parse(composeEdit(base, checkEditFields({ ...EDIT, description: '' }).fields, NOW).tags.find((t) => t[0] === 'json')[1]);
+  assert(!('description' in blank.conceptHeader), 'a removed description leaves the json too');
+  // No change in them: the tag stays byte for byte, so an edit of only the properties is only that.
+  const spaced = { ...base, tags: [['d', 'dog'], ['names', 'dog', 'dogs'], ['json', JSON.stringify(json, null, 2)], ['description', 'A dog.']] };
+  const propsOnly = composeEdit(spaced, checkEditFields({ singular: 'dog', plural: 'dogs', description: 'A dog.', properties: [['optional', 'x']] }).fields, NOW);
+  assert(propsOnly.tags.find((t) => t[0] === 'json')[1] === JSON.stringify(json, null, 2), 'an untouched json keeps its exact text');
+});
+
+test('L9: a json tag that isn\'t a concept header\'s is left alone; a description tag keeps its further values; text-direction controls are refused', () => {
+  const { checkEditFields, composeEdit } = lib();
+  for (const raw of ['{not json', JSON.stringify({ other: true }), JSON.stringify([1, 2])]) {
+    const out = composeEdit({ ...BASE, tags: [['d', 'dog'], ['names', 'dog', 'dogs'], ['json', raw]] }, checkEditFields(EDIT).fields, NOW);
+    assert(out.tags.find((t) => t[0] === 'json')[1] === raw, `left alone: ${raw}`);
+  }
+  const out = composeEdit({ ...BASE, tags: [['d', 'dog'], ['description', 'A dog.', 'en']] }, checkEditFields(EDIT).fields, NOW);
+  assert(show(out.tags.find((t) => t[0] === 'description')) === show(['description', 'Good dogs.', 'en']), show(out.tags));
+  assert(/text-direction/.test(checkEditFields({ ...EDIT, singular: 'dog\u202Egod' }).error || ''), 'a bidi override in a name');
+});
+
+test('L10: NAME_KEYED_CONCEPTS names every concept the code looks up by a literal name', () => {
+  const { NAME_KEYED_CONCEPTS, nameKeyed } = lib();
+  const found = new Set();
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { if (e.name !== 'node_modules' && e.name !== 'dist') walk(p); continue; }
+      if (!/\.(c?js|jsx|mjs)$/.test(e.name)) continue;
+      const text = code(fs.readFileSync(p, 'utf8'));
+      for (const m of text.matchAll(/_CONCEPT_NAME = '([^']+)'/g)) found.add(m[1]);
+      for (const m of text.matchAll(/\bconcept: '([a-z][a-z ]*)'/g)) found.add(m[1]);
+    }
+  };
+  walk(path.join(ROOT, 'src'));
+  walk(UI);
+  assert(found.size >= 10, `the scan must find the code's literal names (found ${found.size})`);
+  const missing = [...found].filter((n) => !NAME_KEYED_CONCEPTS.includes(n));
+  assert(missing.length === 0, `looked up by name in the code but renamable: ${missing.join(', ')}`);
+  assert(nameKeyed('shared concept') && nameKeyed(' tapestry owner goal ') && !nameKeyed('dog') && !nameKeyed('Shared concept'),
+    'exact names, as the Cypher lookups are');
+});
+
 // ═══ E — the endpoint ════════════════════════════════════════════════════════
 
 const fakeSign = (pubkey) => (template, privkey) => ({ ...template, pubkey, id: `${privkey.slice(0, 4)}${'0'.repeat(60)}`, sig: 'f'.repeat(128) });
@@ -284,6 +341,33 @@ test('E12: the route is registered with the adoption routes, and no auth list ga
   assert(!/getOwnerAssistantKeys|getOwnerAssistantPubkey/.test(code(src(MODULE))), 'no owner-key helper');
 });
 
+test('E13: a concept the server finds by name keeps its singular name; the rest of it can change', async () => {
+  const keyed = { ...BASE, tags: [['d', 'shared-concept'], ['names', 'shared concept', 'shared concepts']] };
+  const coord = `39998:${ASSISTANT}:shared-concept`;
+  const renamed = await run({ stored: [keyed], body: { coord, basedOn: BASE.id, ...EDIT, singular: 'Shared concept', plural: 'shared concepts' } });
+  assert(renamed.status === 400 && renamed.body.code === 'name-keyed' && renamed.calls.signed.length === 0, `even a case change: ${show(renamed.body)}`);
+  const kept = await run({ stored: [keyed], body: { coord, basedOn: BASE.id, ...EDIT, singular: 'shared concept', plural: 'Shared Concepts' } });
+  assert(kept.status === 200 && kept.body.success, `the plural, description and properties can change: ${kept.status} ${show(kept.body)}`);
+});
+
+test('E14: a singular name another of the Assistant\'s concepts has is refused, whatever its case; the concept\'s own isn\'t', async () => {
+  const cat = { ...BASE, id: '6'.repeat(64), tags: [['d', 'cat'], ['names', 'Cat', 'cats']] };
+  const deps = { stored: [BASE, cat] };
+  const r = await run({ ...deps, body: { coord: COORD, basedOn: BASE.id, ...EDIT, singular: 'cat' } });
+  assert(r.status === 409 && r.body.code === 'name-taken' && r.body.coord === `39998:${ASSISTANT}:cat`, `${r.status} ${show(r.body)}`);
+  assert(r.calls.signed.length === 0, 'nothing signed');
+  assert(show(r.calls.scans[1]) === show({ kinds: [39998], authors: [ASSISTANT] }), `every header of the Assistant's is checked: ${show(r.calls.scans)}`);
+  const own = await run({ ...deps, body: { coord: COORD, basedOn: BASE.id, ...EDIT, singular: 'DOG' } });
+  assert(own.status === 200, `its own name in another case is fine: ${own.status} ${show(own.body)}`);
+  const forged = await run({ ...deps, verify: (ev) => ev.id !== cat.id, body: { coord: COORD, basedOn: BASE.id, ...EDIT, singular: 'cat' } });
+  assert(forged.status === 200, 'an unverified header doesn\'t hold a name');
+});
+
+test('E15: a header at the address that doesn\'t verify is named as such, never "no header"', async () => {
+  const r = await run({ verify: () => false });
+  assert(r.status === 409 && r.body.code === 'unverified' && r.calls.signed.length === 0, `${r.status} ${show(r.body)}`);
+});
+
 // ═══ S — structural ═══════════════════════════════════════════════════════════
 
 test('S1: the page and the server compose with the same module (the preview is what is signed)', () => {
@@ -320,7 +404,12 @@ test('S3: saving: the version loaded, the server\'s conflict answer, the Assista
 
 test('S4: a firmware concept warns that a reinstall undoes the edit, from the row\'s own header only', () => {
   const s = flat(code(src(PAGE_JSX)));
-  assert(/\{entry\?\.firmwareHeader && \(/.test(s) && /A firmware reinstall rebuilds its header from the built-in definition/.test(s), 'the warning');
+  assert(/\{\(firmware \|\| entry\?\.firmwareHeader\) && \(/.test(s) && /A firmware reinstall rebuilds its header from the built-in definition/.test(s), 'the warning');
+  assert(/fetch\(`\/api\/dictionaries\/concepts\/firmware\?coord=\$\{encodeURIComponent\(coord\)\}`\)/.test(s),
+    'from the address, so a header that isn\'t a Dictionary row is warned of too (review 1, S2)');
+  const idx = flat(code(src(ADOPTION_INDEX)));
+  assert(/app\.get\('\/api\/dictionaries\/concepts\/firmware', handleConceptFirmware\);/.test(idx)
+    && /firmware: Boolean\(taPubkey\) && firmwareCoords\(taPubkey\)\.has\(coord\)/.test(idx), 'the read, from the firmware manifest');
   assert(/firmwareHeader: firmware\.has\(coord\),/.test(flat(code(src(ADOPTION_INDEX)))),
     'the Dictionary row says whether its own header is a firmware one (a row that only points at one isn\'t rebuilt)');
 });
@@ -335,6 +424,13 @@ test('S6: the broadcast outcome has words for a save', () => {
   const fresh = ['published', 'kept-local', 'not-delivered'].map((o) => outcomeMessage({ outcome: o, verb: 'save' }));
   assert(new Set(fresh).size === 3 && fresh.every((m) => /^Saved/.test(m)), show(fresh));
   assert(!fresh.some((m) => /shared concept|Wired/.test(m)), 'not the submit or wire words');
+});
+
+test('S7: the page keeps a name-keyed concept\'s singular name, names a taken name, and says each outcome once', () => {
+  const s = flat(code(src(PAGE_JSX)));
+  assert(/const lockedName = nameKeyed\(baseSingular\);/.test(s) && /readOnly=\{lockedName\}/.test(s), 'the singular name is read-only for a name-keyed concept');
+  assert(/if \(resp\.status === 409 && data\.code === 'name-taken' && data\.coord\) \{ setTaken\(/.test(s), 'a taken name links to the other concept');
+  assert(!/Saved on this instance\./.test(s), 'the not-delivered line doesn\'t repeat "Saved" (review 1, N1)');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════
