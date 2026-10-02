@@ -256,6 +256,8 @@ export function ConceptEntryBody({
         )}
         {badge && <span className={badge.className}>{badge.label}</span>}
       </div>
+      {/* What happened just before arriving here, said once (Create New Concept's broadcast outcome). */}
+      {typeof location.state?.notice === 'string' && <p className="dict-notice dict-notice--ok" role="status">{location.state.notice}</p>}
       <h1 className="dict-entry-title">{singular}</h1>
       <p className="dict-entry-sub text-muted">{plural ? `Plural: ${plural}` : 'No plural name'}</p>
       {description && <p className="dict-lede">{description}</p>}

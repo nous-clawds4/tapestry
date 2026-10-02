@@ -136,7 +136,7 @@ export default function DictionaryConcepts() {
  * { all, sets, current, options } — one other Assistant's Dictionary, or the union of all of them.
  * Without it the list is the reader's own, read as it always was.
  */
-export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }) {
+export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, newConceptHref = NEW_CONCEPT_PATH }) {
   const { povParams } = usePov();
   const person = useDictionaryPerson();
   const location = useLocation();
@@ -362,7 +362,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
           Don’t see what you’re looking for? <span className={`dict-chev${findOpen ? ' is-open' : ''}`}><DictIcon name="chevron" /></span>
         </button>
         <span className="dict-spacer" />
-        <Link to={NEW_CONCEPT_PATH} className="dict-create-btn">
+        <Link to={newConceptHref} className="dict-create-btn">
           <DictIcon name="plus" /> Create New Concept
         </Link>
       </div>
@@ -372,6 +372,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
           assistantPubkey={person.assistant}
           assistantLabel={signedIn ? 'your Assistant' : 'the owner’s Assistant'}
           canAdd={signedIn && person.isOwner && !managed}
+          newConceptHref={newConceptHref}
           onAdded={reload}
         />
       )}
@@ -442,7 +443,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
  * whose b-tag points to themselves). Mounted only while open, so the relay is
  * asked only when someone looks.
  */
-function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, onAdded }) {
+function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, onAdded, newConceptHref }) {
   const { rows } = useCommunitySharedConcepts();
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(null); // the community row being added
@@ -493,7 +494,7 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
                 </button>
               )}
               {canAdd && adding?.uuid === r.uuid && (
-                <AddToDictionary concept={r} onAdded={onAdded} onClose={() => setAdding(null)} />
+                <AddToDictionary concept={r} onAdded={onAdded} onClose={() => setAdding(null)} newConceptHref={newConceptHref} />
               )}
             </li>
           ))}
@@ -509,7 +510,7 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
  * DispositionPanel then wires it to the shared concept with a pointer b-tag,
  * which makes the twin a row of the list, so the list reloads.
  */
-function AddToDictionary({ concept, onAdded, onClose }) {
+function AddToDictionary({ concept, onAdded, onClose, newConceptHref = NEW_CONCEPT_PATH }) {
   const [twins, setTwins] = useState(null);
   const [twin, setTwin] = useState('');
 
@@ -548,7 +549,7 @@ function AddToDictionary({ concept, onAdded, onClose }) {
         </div>
       )}
       <p className="dict-add-foot text-muted">
-        No matching concept of your own? <Link to={NEW_CONCEPT_PATH}>Create New Concept</Link>, then come back to wire it.
+        No matching concept of your own? <Link to={newConceptHref}>Create New Concept</Link>, then come back to wire it.
       </p>
     </div>
   );

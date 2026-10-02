@@ -23,6 +23,8 @@ export const entryPath = (coord) => `${CONCEPTS_DICTIONARY_PATH}/${encodeURIComp
 // The same list in the Brainstorm design's styling, outside the control panel (pages/dictionary/).
 export const DICTIONARY_PATH = '/dictionary';
 export const dictionaryEntryPath = (coord) => `${DICTIONARY_PATH}/${encodeURIComponent(coord)}`;
+// Create New Concept in the design's styling (pages/dictionary/NewConcept.jsx).
+export const DICTIONARY_NEW_PATH = `${DICTIONARY_PATH}/new`;
 
 // An entry's item: on /dictionary its own page (pages/dictionary/Item.jsx), by the item's address or
 // event id; in the control panel the Simple Lists item page, which opens a kind-39999 item by address

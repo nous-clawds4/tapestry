@@ -189,7 +189,7 @@ test('S1: /dictionary keeps the choice in the URL and passes it to the shared bo
   assert(/useSearchParams\(\)/.test(s) && /params\.get\(MANAGED_BY_PARAM\)/.test(s), 'the choice is read from ?managedBy=');
   assert(/next\.delete\(MANAGED_BY_PARAM\)/.test(s), 'the local Assistant is the URL with no value');
   assert(/<ManagedBy person=\{person\}/.test(s), 'the picker sits beside the title');
-  assert(/<ConceptsDictionaryBody entryHref=\{dictionaryEntryPath\} managed=\{managed\} \/>/.test(s), 'the body gets the choice');
+  assert(/<ConceptsDictionaryBody entryHref=\{dictionaryEntryPath\} managed=\{managed\}( newConceptHref=\{DICTIONARY_NEW_PATH\})? \/>/.test(s), 'the body gets the choice');
   assert(/useMyAssistants\(person\)/.test(s), 'the Assistants are the reader\'s own (GET /api/assistant/my-assistants)');
   assert(/['"`]\/api\/assistant\/my-assistants['"`]/.test(code(src(HELPERS_JS))), 'read through the My Assistants endpoint');
 });

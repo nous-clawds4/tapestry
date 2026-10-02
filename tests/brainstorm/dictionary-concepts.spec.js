@@ -63,6 +63,15 @@ const { test, expect } = require('@playwright/test');
  *   D22 — it says no more than it knows: an event filed elsewhere isn't "untrusted", a failed
  *         Dictionary read is named, and a "%" in a d-tag doesn't crash the page.
  *   D23 — a modified click on a row (new tab) doesn't navigate this tab.
+ *
+ * Create New Concept (the design's screen; test/dictionary-new-concept.test.js holds the draft rule):
+ *
+ *   D24 — a signed-in customer creates a concept: the preview is the shared header, it is signed with
+ *         their own key (NIP-07) and published, and the page opens its entry saying what the
+ *         broadcast did.
+ *   D25 — a header the signer already has at that name is never replaced: nothing is published.
+ *   D26 — the owner's Assistant signs on the server; a different extension key is refused; signed
+ *         out, the form is disabled.
  */
 
 const OWNER = '1'.repeat(64);
@@ -173,6 +182,37 @@ async function mockAssistants(page) {
       [REMOTE_TA]: { name: 'Robin', website: 'robin.example' },
     },
   }));
+}
+
+/**
+ * Create New Concept's reads and writes: a stand-in NIP-07 extension holding `key`, the existing-header
+ * check (`existing` → the signer already has one), the publish, and a local-only publish policy so no
+ * socket is opened. Returns the publish bodies.
+ */
+async function mockCreate(page, { key, existing = false } = {}) {
+  const json = (r, body) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  const published = [];
+  await page.addInitScript((pk) => {
+    window.nostr = {
+      getPublicKey: async () => pk,
+      signEvent: async (ev) => ({ ...ev, pubkey: pk, id: '1'.repeat(64), sig: '2'.repeat(128) }),
+    };
+  }, key);
+  await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: false }));
+  await page.route('**/api/strfry/scan**', (r) => {
+    const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
+    if ((filter.kinds || []).includes(39998) && filter['#d'] && existing) {
+      return json(r, { success: true, events: [{ id: '3'.repeat(64), kind: 39998, pubkey: filter.authors[0], created_at: 1, content: '', tags: [['d', filter['#d'][0]]] }] });
+    }
+    return json(r, { success: true, events: [] });
+  });
+  await page.route('**/api/strfry/publish', (r) => {
+    const body = JSON.parse(r.request().postData() || '{}');
+    published.push(body);
+    const ev = body.signAs === 'assistant' ? { ...body.event, pubkey: OWNER_TA, id: '4'.repeat(64), sig: '5'.repeat(128) } : body.event;
+    return json(r, { success: true, event: ev });
+  });
+  return published;
 }
 
 const TRUSTED_FILER = '6'.repeat(64);
@@ -628,6 +668,78 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page).toHaveURL(new RegExp(`/dictionary/${encodeURIComponent(coord)}$`));
     await row.locator('.dict-items-n').click();
     await expect(page.getByRole('heading', { level: 1, name: 'item 02' })).toBeVisible();
+  });
+
+  test('D24: a signed-in customer creates a shared concept, signed with their own key', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const published = await mockCreate(page, { key: CUST });
+    await page.goto(PAGE);
+    await page.getByRole('link', { name: 'Create New Concept' }).click();
+    await expect(page).toHaveURL(/\/dictionary\/new$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Create New Concept' })).toBeVisible();
+    const create = page.getByRole('button', { name: 'Create concept' });
+    await expect(create, 'both names first').toBeDisabled();
+    await page.getByLabel('Singular name').fill('Taco Truck in Nashville');
+    await page.getByLabel('Plural name').fill('Taco Trucks in Nashville');
+    await page.getByLabel('Description').fill('Trucks that sell tacos.');
+    const coord = `39998:${CUST}:taco-truck-in-nashville`;
+    await expect(page.getByLabel('Header preview')).toContainText(`["b","${coord}","pointer"]`);
+    await expect(page.getByText('Header you publish (shared: its b-tag points to itself)')).toBeVisible();
+    await expect(page.getByText(/You publish the header, signed with your nostr extension, and share it, so others can find it and adopt it\./)).toBeVisible();
+    await expect(page.getByText(/Private/)).toHaveCount(0);
+    await create.click();
+    await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(coord)}`);
+    await expect(page.getByText('Saved here. External publishing is off for this deployment, so it was not sent onward.')).toBeVisible();
+    expect(published, 'one publish').toHaveLength(1);
+    expect(published[0].signAs).toBe('client');
+    expect(published[0].event.pubkey).toBe(CUST);
+    expect(published[0].event.tags).toEqual([
+      ['d', 'taco-truck-in-nashville'], ['names', 'Taco Truck in Nashville', 'Taco Trucks in Nashville'],
+      ['description', 'Trucks that sell tacos.'], ['b', coord, 'pointer'],
+    ]);
+  });
+
+  test('D25: a header the signer already has at that name is never replaced', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const published = await mockCreate(page, { key: CUST, existing: true });
+    await page.goto(`${PAGE}/new`);
+    await page.getByLabel('Singular name').fill('Bird');
+    await page.getByLabel('Plural name').fill('Birds');
+    await page.getByRole('button', { name: 'Create concept' }).click();
+    await expect(page.getByRole('alert')).toContainText('You already have a concept header at this name');
+    await expect(page.getByRole('link', { name: 'open the existing one' })).toHaveAttribute('href', `/dictionary/${encodeURIComponent(`39998:${CUST}:bird`)}`);
+    expect(published, 'nothing published').toHaveLength(0);
+  });
+
+  test('D26: the owner’s Assistant signs on the server; another key is refused; signed out it is disabled', async ({ page }) => {
+    await mockStack(page, { session: { pubkey: OWNER, assistantPubkey: OWNER_TA, classification: 'owner' } });
+    const published = await mockCreate(page, { key: OWNER });
+    await page.goto(`${PAGE}/new`);
+    await expect(page.getByText('Header your Assistant publishes (shared: its b-tag points to itself)')).toBeVisible();
+    await page.getByLabel('Singular name').fill('Bird');
+    await page.getByLabel('Plural name').fill('Birds');
+    await page.getByRole('button', { name: 'Create concept' }).click();
+    await expect(page).toHaveURL(new RegExp(`/dictionary/${encodeURIComponent(`39998:${OWNER_TA}:bird`)}$`));
+    expect(published[0].signAs).toBe('assistant');
+    expect(published[0].event.sig, 'the server signs it').toBeUndefined();
+    expect(published[0].event.tags.at(-1)).toEqual(['b', `39998:${OWNER_TA}:bird`, 'pointer']);
+
+    const page2 = await page.context().newPage();
+    await mockStack(page2, { session: CUSTOMER });
+    const none = await mockCreate(page2, { key: 'f'.repeat(64) });
+    await page2.goto(`${PAGE}/new`);
+    await page2.getByLabel('Singular name').fill('Bird');
+    await page2.getByLabel('Plural name').fill('Birds');
+    await page2.getByRole('button', { name: 'Create concept' }).click();
+    await expect(page2.getByRole('alert')).toContainText('Your nostr extension holds a different key from the account you’re signed in with.');
+    expect(none).toHaveLength(0);
+
+    const page3 = await page.context().newPage();
+    await mockStack(page3);
+    await page3.goto(`${PAGE}/new`);
+    await expect(page3.getByText('Sign in to create a concept.')).toBeVisible();
+    await expect(page3.getByLabel('Singular name')).toBeDisabled();
+    await expect(page3.getByRole('button', { name: 'Create concept' })).toBeDisabled();
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

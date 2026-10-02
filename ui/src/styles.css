@@ -9367,6 +9367,19 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   width: 28px; height: 28px; font-size: 12px; background: rgba(114, 55, 255, 0.12); color: var(--accent); border: 1px solid var(--border);
 }
 .dict-veto-note { margin: 6px 0 0; }
+.dict-notice--ok { border-color: rgba(4, 120, 87, 0.35); }
+/* Create New Concept (the design's screen). */
+.dict-new-lede { max-width: 620px; }
+.dict-new-card { margin-top: 24px; padding: 18px; overflow: visible; }
+.dict-new-fields { border: none; margin: 0; padding: 0; min-width: 0; }
+.dict-new-names { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.dict-new-desc { margin-top: 12px; }
+.dict-new-textarea { min-height: 0; padding: 10px 12px; resize: vertical; line-height: 1.5; font-family: inherit; }
+.dict-new-preview-label { display: block; margin-top: 14px; }
+.dict-new-preview { margin-top: 4px; }
+.dict-new-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.dict-new-cancel { display: inline-flex; align-items: center; text-decoration: none; }
+.dict-new-card .dict-add-btn:disabled { opacity: 0.4; cursor: default; }
 /* The item page's "Filed by" card (the design's Dictionary item screen). */
 .dict-filed-by { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
 .dict-avatar--lg { width: 40px; height: 40px; font-size: 14px; }
@@ -9679,6 +9692,7 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .dict-skin-light .dict-entry-sub { color: var(--bsd-faint); }
 .dict-skin-light .dict-entry-sub + .dict-lede { margin-top: 14px; max-width: 620px; font-size: 16px; color: var(--bsd-ink-2); text-wrap: pretty; }
 .dict-skin-light .dict-notice { border-color: rgba(217, 119, 6, 0.35); background: #fffbeb; color: #78350f; }
+.dict-skin-light .dict-notice--ok { border-color: rgba(4, 120, 87, 0.3); background: #ecfdf5; color: #065f46; }
 .dict-skin-light .dict-entry-card { padding: 16px 18px; }
 .dict-skin-light .dict-notice + .dict-items { margin-top: 16px; }
 .dict-skin-light .dict-json { border-color: #151c2a; background: #151c2a; color: #e2e8f0; }
