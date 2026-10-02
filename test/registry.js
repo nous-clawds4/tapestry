@@ -202,6 +202,7 @@ const suites = [
   { file: 'trusted-dictionary.test.js' },
   { file: 'dictionary-concepts.test.js' },
   { file: 'dictionary-entry.test.js' },
+  { file: 'dictionary-managed-by.test.js' },
   { file: 'adoption-twins.test.js' },
   { file: 'adoption-raw-event-view.test.js' },
   { file: 'state-on-concept-page.test.js' },

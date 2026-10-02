@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import DispositionPanel from '../../components/DispositionPanel';
 import useProfiles from '../../hooks/useProfiles';
@@ -8,8 +8,9 @@ import { usePov } from '../../context/PovContext';
 import DictIcon from './DictIcon';
 import {
   NEW_CONCEPT_PATH, authorLabel, displayName, entryPath, itemCountText, metricLabel, metricShort,
-  overrideBadge, povLine, useConceptDictionary, useDictionaryPerson,
+  overrideBadge, povLine, useAssistantDictionaries, useConceptDictionary, useDictionaryPerson,
 } from './conceptsDictionary';
+import { mergeDictionaries } from './managedDictionary';
 
 /**
  * Dictionary › Concepts, version 1 (handoff SPEC § 2; design: the Brainstorm
@@ -46,11 +47,11 @@ const SORTS = {
   az: { label: () => 'Alphabetical (A to Z)', note: () => '', cmp: byName },
   za: { label: () => 'Reverse alphabetical (Z to A)', note: () => 'Z to A', cmp: (a, b) => byName(b, a) },
   gumAsc: {
-    label: (m) => `${metricLabel(m)} (lowest first)`, note: (m) => `${metricShort(m)}, lowest first`,
+    label: () => 'General Usage Metric (lowest first)', note: () => 'Usage, lowest first',
     cmp: (a, b) => a.gum - b.gum || byName(a, b),
   },
   gumDesc: {
-    label: (m) => `${metricLabel(m)} (highest first)`, note: (m) => `${metricShort(m)}, highest first`,
+    label: () => 'General Usage Metric (highest first)', note: () => 'Usage, highest first',
     cmp: (a, b) => b.gum - a.gum || byName(a, b),
   },
 };
@@ -129,11 +130,48 @@ export default function DictionaryConcepts() {
  * rows. Both Dictionary pages render it, so they cannot drift: this one and the Brainstorm-styled
  * /dictionary (pages/dictionary/Index.jsx), which passes `entryHref` so its rows open its own
  * entry page.
+ *
+ * `managed` is /dictionary's "Managed by" choice when it is not the reader's own Dictionary
+ * (managedDictionary.js managedView): { pending } while the reader's Assistants load, else
+ * { all, sets, current, options } — one other Assistant's Dictionary, or the union of all of them.
+ * Without it the list is the reader's own, read as it always was.
  */
-export function ConceptsDictionaryBody({ entryHref = entryPath }) {
+export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }) {
   const { povParams } = usePov();
   const person = useDictionaryPerson();
-  const { data, error, reload } = useConceptDictionary(person, povParams);
+  const location = useLocation();
+  const own = useConceptDictionary(person, povParams, { enabled: !managed });
+  const assistantsMode = Boolean(managed && !managed.pending);
+  const many = useAssistantDictionaries(assistantsMode ? managed.sets : [], povParams, { enabled: assistantsMode });
+
+  // The list's data, whichever Dictionary it is: the reader's own, one Assistant's, or the union.
+  // A read that failed is an error and nothing else: no count, no list, no "nothing here" (it never
+  // looked), as the entry page's E6 rule asks.
+  let data = null;
+  let error = null;
+  let failed = [];
+  if (!managed) {
+    error = own.error;
+    data = own.error ? null : own.data;
+  } else if (assistantsMode && many.data) {
+    if (managed.all) {
+      const merged = mergeDictionaries(many.data.reads);
+      failed = merged.failed;
+      if (merged.answered === 0) error = 'none of the reads answered';
+      else data = { entries: merged.entries, metric: many.data.metric, pov: many.data.pov };
+    } else {
+      const read = many.data.reads[0];
+      if (read.error) error = read.error;
+      else data = { entries: read.entries, metric: read.metric, pov: read.pov };
+    }
+  }
+  const reload = managed ? many.reload : own.reload;
+  const optionName = (key) => managed?.options?.find((o) => o.key === key)?.name || null;
+  const remote = assistantsMode && !managed.all ? managed.current : null;
+  // In the union, is any Dictionary another instance's Assistant's, read here only from this relay?
+  const unionHasRemote = Boolean(managed?.all && managed.options?.some((o) => !o.local));
+  // A reader with no Assistant here has their own concepts in the union: count Dictionaries, not Assistants.
+  const unionNoun = managed?.all && managed.options?.some((o) => o.self) ? 'Dictionaries' : 'Assistants';
 
   const [faqShown, setFaqShown] = useState(false);
   const [faqOpen, setFaqOpen] = useState(-1);
@@ -149,6 +187,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
   const pov = data?.pov || {};
   const signedIn = person.signedIn;
   const whose = signedIn ? 'your' : 'the owner’s';
+  // Whose list this is, in words: the reader's Dictionary, one Assistant's, or all of their Assistants'.
+  const listOf = managed?.all ? 'your Assistants’ Dictionaries'
+    : remote ? `${remote.name}’s Dictionary` : `${whose} Dictionary`;
 
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const shown = entries
@@ -160,7 +201,14 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
   const total = entries.length;
   const countText = narrowed
     ? `${shown.length} of ${total} concept${total === 1 ? '' : 's'}`
-    : `${total} concept${total === 1 ? '' : 's'} in ${whose} Dictionary`;
+    : managed?.all
+      ? `${total} concept${total === 1 ? '' : 's'} across your ${managed.sets.length} ${unionNoun}`
+      : `${total} concept${total === 1 ? '' : 's'} in ${listOf}`;
+  // Who shared a self-declared entry: the reader (or the owner), else the Assistant that authored it.
+  const sharedBy = (e) => {
+    if ((person.authors || []).includes(e.author)) return signedIn ? 'Shared by you' : 'Shared by the owner';
+    return `Shared by ${optionName(e.author) || 'its Assistant'}`;
+  };
   const groupNames = SHOW_GROUPS.filter((g) => groups.includes(g.key)).map((g) => g.label(signedIn));
   const filterNote = toolsOpen ? '' : [
     groupNames.join(' or '),
@@ -183,9 +231,26 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
       {!person.loading && !signedIn && (
         <p className="dict-pov text-muted">You’re signed out, so this is the owner’s Dictionary. Sign in to see your own.</p>
       )}
-      {signedIn && !person.assistant && (
+      {signedIn && !person.assistant && !managed && (
         <p className="dict-pov text-muted">
           You have no assistant key on this instance, so your Dictionary shows only concepts you signed yourself.
+        </p>
+      )}
+      {remote && (
+        <p className="dict-pov text-muted">
+          Read from this instance’s relay: {remote.name} may keep more of its Dictionary on its own instance.
+        </p>
+      )}
+      {unionHasRemote && (
+        <p className="dict-pov text-muted">
+          Read from this instance’s relay: your other Assistants may keep more of their Dictionaries on their own
+          instances, so a count can be low.
+        </p>
+      )}
+      {data && failed.length > 0 && (
+        <p className="dict-pov text-muted">
+          Couldn’t read the Dictionar{failed.length === 1 ? 'y' : 'ies'} of {failed.map((k) => optionName(k) || 'an Assistant').join(', ')}, so
+          {failed.length === 1 ? ' its' : ' their'} entries are missing below.
         </p>
       )}
       {data && <p className="dict-pov text-muted">{povLine(pov)}</p>}
@@ -218,7 +283,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
 
       {/* Count, filter note and the search-and-sort toggle — closed by default (SPEC § 2.2). */}
       <div className="dict-count-row">
-        <span className="dict-count">{data ? countText : 'Assembling your Dictionary…'}</span>
+        <span className="dict-count">
+          {data ? countText : error ? '' : managed ? 'Assembling the Dictionary…' : 'Assembling your Dictionary…'}
+        </span>
         {filterNote && <span className="dict-filter-note">{filterNote}</span>}
         <span className="dict-spacer" />
         <button
@@ -278,8 +345,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
           </label>
           {isGumSort(sort) && (
             <p className="dict-gum-note">
-              <strong>{metricLabel(metric)}:</strong> how many distinct people you trust (influence above the
-              verified cutoff, from your point of view) file items under the shared concept each entry points to.
+              <strong>General Usage Metric ({metricShort(metric)}):</strong> how many distinct people you trust
+              (influence above the verified cutoff, from your point of view) file items under the shared concept
+              each entry points to.
             </p>
           )}
         </div>
@@ -303,30 +371,43 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
           inDictionary={inDictionary}
           assistantPubkey={person.assistant}
           assistantLabel={signedIn ? 'your Assistant' : 'the owner’s Assistant'}
-          canAdd={signedIn && person.isOwner}
+          canAdd={signedIn && person.isOwner && !managed}
           onAdded={reload}
         />
       )}
 
-      {error && <div className="error">Could not assemble {whose} Dictionary: {error}</div>}
+      {error && (
+        <div className="error">
+          {managed?.all ? `Couldn’t read any of your Assistants’ Dictionaries.` : `Could not assemble ${listOf}: ${error}`}{' '}
+          <button type="button" className="dict-link-btn" onClick={reload}>Try again</button>
+        </div>
+      )}
 
       {data && (
-        <ul className="dict-card dict-list" aria-label={`Concepts in ${whose} Dictionary`}>
+        <ul className="dict-card dict-list" aria-label={`Concepts in ${listOf}`}>
           {shown.map((e) => {
             const badge = overrideBadge(e);
             return (
               <li key={e.coord}>
                 <Link
-                  to={entryHref(e.coord)} state={{ entry: e, metric, pov }}
+                  to={entryHref(e.coord)} state={{ entry: e, metric, pov, listHref: `${location.pathname}${location.search}` }}
                   className={`dict-row${e.selfDeclared ? ' dict-row--shared' : ''}${e.override === 'vetoed' ? ' dict-row--vetoed' : ''}`}
                 >
                   <span className="dict-row-main">
                     <span className="dict-row-title">
                       <span className="dict-row-name">{displayName(e)}</span>
+                      {e.support && (
+                        <span
+                          className={`dict-support${e.support.count === e.support.of ? ' is-all' : ''}`}
+                          title={`Supported by ${e.support.count} of your ${e.support.of} ${unionNoun}`}
+                        >
+                          {e.support.count} of {e.support.of} {unionNoun}
+                        </span>
+                      )}
                       {e.isFirmware && <span className="dict-pill dict-pill--firmware">Firmware</span>}
                       {e.selfDeclared && (
                         <span className="dict-marker dict-marker--shared" title="Shared with the community: its b-tag points to itself">
-                          <DictIcon name="share" size={12} /> {signedIn ? 'Shared by you' : 'Shared by the owner'}
+                          <DictIcon name="share" size={12} /> {sharedBy(e)}
                         </span>
                       )}
                     </span>
@@ -343,9 +424,10 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
           })}
           {shown.length === 0 && (
             <li className="dict-empty">
-              {total === 0
-                ? `Nothing here yet: none of ${whose} concepts carries a b-tag.`
-                : 'No concept matches.'}
+              {total > 0 ? 'No concept matches.'
+                : remote ? `This instance’s relay holds no concept headers from ${remote.name} that carry a b-tag. Its Dictionary may live on its own instance.`
+                  : managed?.all ? 'Nothing here yet: none of your Assistants’ concepts on this relay carries a b-tag.'
+                    : `Nothing here yet: none of ${whose} concepts carries a b-tag.`}
             </li>
           )}
         </ul>
