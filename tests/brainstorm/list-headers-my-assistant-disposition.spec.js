@@ -27,6 +27,8 @@ const { test, expect } = require('@playwright/test');
  *   M9 — AC 5: "kept here" when external publishing is off (no socket at all); "didn't reach" when the relay
  *        rejects it — and the row still shows the new state, because it's saved here.
  *   M10 — AC 6: Next undecided → walks the viewer's own Assistant's undecided rows; at the end only Done.
+ *   W1..W7 — story 4 (Wire; ADR 0004): the Wire section and its pick-list; Wire with its outcome; already wired;
+ *        a second target; the panel's own refusals, with no request; Next keeps the pick-list without a second read.
  *   M11 — AC 1 on a real-sized list (review round 1, ADR 0003 Amendment 1 §4): Disposition… on the last of 70 rows
  *        opens a panel the person can see — inside the viewport, below the fixed top bar — and Next keeps it there.
  */
@@ -37,6 +39,19 @@ const VIEWER = 'a1'.repeat(32);
 const VIEWER_TA = 'a2'.repeat(32);
 const STRANGER = '9'.repeat(64);
 const THEIRS = `39998:${'8'.repeat(64)}:somebody-elses-concept`;
+const ANOTHER = `39998:${'ab'.repeat(32)}:another-concept`;
+// story 4: the community relay's Shared Concepts, as GET /api/relay/external returns them (self-declared headers).
+function sharedConcept(address, name, description) {
+  const [kind, pubkey, d] = address.split(':');
+  return {
+    id: `${pubkey.slice(0, 8)}${'0'.repeat(56)}`, pubkey, kind: Number(kind), created_at: 1789000000, content: '', sig: '0'.repeat(128),
+    tags: [['d', d], ['names', name, `${name}s`], ['description', description], ['b', address, 'pointer']],
+  };
+}
+const COMMUNITY_CONCEPTS = [
+  sharedConcept(THEIRS, 'somebody elses concept', 'A concept somebody else shares'),
+  sharedConcept(ANOTHER, 'another concept', 'Another shared concept'),
+];
 const SENTINEL = 'b-tag-deferred';
 const COMMUNITY = 'wss://dcosl.brainstorm.world';
 
@@ -77,9 +92,9 @@ const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'applic
 /**
  * relay: 'accept' | 'reject' | 'drop'; policy: 'open' | 'local-only'; refuse: { status, error } for both actions.
  */
-async function mockStack(page, { session = null, relay = 'accept', policy = 'open', refuse = null, extraOwnRows = 0 } = {}) {
+async function mockStack(page, { session = null, relay = 'accept', policy = 'open', refuse = null, extraOwnRows = 0, communityHold = null } = {}) {
   const headers = fixtures(extraOwnRows);
-  const state = { headers, posts: [], scans: 0, sockets: [], events: [] };
+  const state = { headers, posts: [], scans: 0, sockets: [], events: [], communityReads: 0 };
   let configAnswered;
   const config = new Promise((resolve) => { configAnswered = resolve; });
   let owner = false;
@@ -115,6 +130,12 @@ async function mockStack(page, { session = null, relay = 'accept', policy = 'ope
   await page.route('**/api/dlists/item-counts', (r) => json(r, { success: true, counts: {}, totalItems: 0 }));
   await page.route('**/api/neo4j/event-uuids', (r) => json(r, { success: true, uuids: [] }));
   await page.route('**/api/shared-concepts/**', (r) => json(r, { success: true, rows: [] }));
+  // story 4: the Wire pick-list reads the community relay through the server.
+  await page.route('**/api/relay/external**', async (r) => {
+    state.communityReads++;
+    if (communityHold) await communityHold;
+    return json(r, { success: true, events: COMMUNITY_CONCEPTS });
+  });
   await page.route('**/api/strfry/scan**', async (r) => {
     let filter = {};
     try { filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}'); } catch { /* not JSON */ }
@@ -133,11 +154,13 @@ async function mockStack(page, { session = null, relay = 'accept', policy = 'ope
   }));
 
   // The stand-in server: story 3's rules over the held headers, signed "by" the session's own Assistant.
-  await page.route(/\/api\/list-headers\/my-assistant\/([^/]+)\/(self-declare|b-defer)$/, (r) => {
-    const m = new URL(r.request().url()).pathname.match(/\/api\/list-headers\/my-assistant\/([^/]+)\/(self-declare|b-defer)$/);
+  await page.route(/\/api\/list-headers\/my-assistant\/([^/]+)\/(self-declare|b-defer|b-append)$/, (r) => {
+    const m = new URL(r.request().url()).pathname.match(/\/api\/list-headers\/my-assistant\/([^/]+)\/(self-declare|b-defer|b-append)$/);
     const handle = decodeURIComponent(m[1]);
     const action = m[2];
-    state.posts.push({ method: r.request().method(), handle, action });
+    let body = {};
+    try { body = r.request().postDataJSON() || {}; } catch { /* no body */ }
+    state.posts.push(action === 'b-append' ? { method: r.request().method(), handle, action, target: body.target } : { method: r.request().method(), handle, action });
     if (refuse) return json(r, { success: false, error: refuse.error }, refuse.status);
     const i = state.headers.findIndex((e) => e.kind === 39998 && `39998:${e.pubkey}:${e.tags.find((t) => t[0] === 'd')[1]}` === handle);
     if (i < 0) return json(r, { success: false, error: 'not found' }, 404);
@@ -145,7 +168,13 @@ async function mockStack(page, { session = null, relay = 'accept', policy = 'ope
     const bs = cur.tags.filter((t) => t[0] === 'b').map((t) => t[1]);
     const real = bs.some((v) => v !== SENTINEL);
     let tags;
-    if (action === 'self-declare') {
+    if (action === 'b-append') {
+      const target = String(body.target || '').trim();
+      if (!/^\d+:[0-9a-f]{64}:.+$/.test(target)) return json(r, { success: false, error: 'The target must be a header address (kind:pubkey:d-tag)' }, 400);
+      if (target === handle) return json(r, { success: false, error: "That's this header's own address — use Submit as a Shared Concept instead" }, 400);
+      if (bs.includes(target)) return json(r, { success: true, result: 'already-wired', event: cur });
+      tags = [...cur.tags.filter((t) => !(t[0] === 'b' && t[1] === SENTINEL)), ['b', target, 'pointer']];
+    } else if (action === 'self-declare') {
       if (bs.includes(handle)) return json(r, { success: true, result: 'already-declared', event: cur });
       tags = [...cur.tags.filter((t) => !(t[0] === 'b' && t[1] === SENTINEL)), ['b', handle, 'pointer']];
     } else {
@@ -155,7 +184,7 @@ async function mockStack(page, { session = null, relay = 'accept', policy = 'ope
     }
     const signed = { ...cur, tags, created_at: cur.created_at + 1, id: `${'5'.repeat(60)}${String(state.posts.length).padStart(4, '0')}` };
     state.headers[i] = signed;
-    return json(r, { success: true, result: action === 'self-declare' ? 'declared' : 'deferred', event: signed });
+    return json(r, { success: true, result: { 'self-declare': 'declared', 'b-defer': 'deferred', 'b-append': 'wired' }[action], event: signed });
   });
   return state;
 }
@@ -337,5 +366,121 @@ test.describe('List Headers — Disposition on My Assistant rows (list-headers-d
     await page.getByRole('button', { name: /Keep private/ }).click();
     await page.getByRole('button', { name: /Next undecided/ }).click();
     await expect.poll(() => inView('ta undecided a'), { message: 'Amendment 1 §4: after Next, the panel for the next undecided row is inside the viewport' }).toBe(true);
+  });
+  // ── story 4 — Wire (ADR 0004) ──
+
+  const wireField = (page) => page.getByPlaceholder(/kind:pubkey:d-tag/);
+  const wireButton = (page) => page.getByRole('button', { name: /^Wire$/ });
+  /** Put a target in the Wire field, failing with a sentence (not a fill timeout) when there is no Wire section. */
+  async function fillTarget(page, value) {
+    await expect(wireField(page), 'story 4 AC 1: the panel has a Wire address field').toBeVisible();
+    await wireField(page).fill(value);
+  }
+  async function pick(page, name) {
+    const button = page.getByRole('button', { name });
+    await expect(button, `story 4 AC 1: the pick-list offers "${name}"`).toBeVisible();
+    await button.click();
+  }
+
+  test('W1 (story 4 AC 1): the Wire section — searching, then the community\'s Shared Concepts by name with their descriptions; picking one fills the field; Wire waits for a target', async ({ page }) => {
+    let release;
+    const hold = new Promise((r) => { release = r; });
+    await open(page, { session: OWNER_SESSION, communityHold: hold });
+    await openPanel(page, 'ta undecided a');
+    await expect(page.getByText(/or wire to an external shared concept/), 'story 4 AC 1: the Wire section').toBeVisible();
+    await expect(page.getByText('Searching the community relay…'), 'story 4 AC 1: while the list loads').toBeVisible();
+    await expect(wireButton(page), 'story 4 AC 1: Wire can\'t be clicked with an empty field').toBeDisabled();
+    release();
+    const pick = page.getByRole('button', { name: 'somebody elses concept' });
+    await expect(pick, 'story 4 AC 1: a Shared Concept by name').toBeVisible();
+    await expect(pick, 'story 4 AC 1: its description on hover').toHaveAttribute('title', 'A concept somebody else shares');
+    await expect(page.getByRole('button', { name: 'another concept' })).toBeVisible();
+    await expect(page.getByText('Searching the community relay…')).toHaveCount(0);
+    await pick.click();
+    await expect(wireField(page), 'story 4 AC 1: picking puts its address in the field').toHaveValue(THEIRS);
+    await expect(wireButton(page)).toBeEnabled();
+  });
+
+  test('W2 (story 4 AC 2): Wire — the b-append call with the target, one EVENT carrying the pointer b, "Wired", 🔗 without a reload, then Next / Done', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION });
+    const scansBefore = state.scans;
+    await openPanel(page, 'ta undecided a');
+    await pick(page, 'somebody elses concept');
+    await wireButton(page).click();
+    await expect(page.getByText('Wired — broadcast to the community relay.'), 'story 4 AC 2: "published"').toBeVisible();
+    expect(state.posts, 'story 4 AC 2: one b-append call, with the target').toEqual([{ method: 'POST', handle: addr(OWNER_TA, 'ta undecided a'), action: 'b-append', target: THEIRS }]);
+    const sent = state.events.filter((e) => e.url.startsWith(COMMUNITY));
+    expect(sent.length, 'story 4 AC 2: sent to the community relay once').toBe(1);
+    expect(sent[0].event.tags).toContainEqual(['b', THEIRS, 'pointer']);
+    await expect.poll(() => marks(page, 'ta undecided a'), { message: 'story 4 AC 2: the row shows 🔗 without a reload' }).toEqual(['🔗']);
+    expect(state.scans).toBe(scansBefore);
+    await expect(page.getByRole('button', { name: /Next undecided/ }), 'story 4 AC 2: Next, as after the other actions').toBeVisible();
+    await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
+  });
+
+  test('W3 (story 4 AC 2): wiring a self-declared row shows 🔗 🤝; wiring a kept-private row drops the marker; a second target keeps the first', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION });
+    await openPanel(page, 'ta self');
+    await fillTarget(page, THEIRS);
+    await wireButton(page).click();
+    await expect.poll(() => marks(page, 'ta self'), { message: 'story 4 AC 2: self-declared + wired' }).toEqual(['🔗', '🤝']);
+    await page.getByRole('button', { name: 'Done' }).click();
+    await openPanel(page, 'ta private');
+    await fillTarget(page, THEIRS);
+    await wireButton(page).click();
+    await expect.poll(() => marks(page, 'ta private'), { message: 'story 4 AC 2: the marker is dropped' }).toEqual(['🔗']);
+    await page.getByRole('button', { name: 'Done' }).click();
+    await openPanel(page, 'ta wired');
+    await fillTarget(page, ANOTHER);
+    await wireButton(page).click();
+    await expect(page.getByText('Wired — broadcast to the community relay.')).toBeVisible();
+    const wired = state.headers.find((e) => nameOf(e) === 'ta wired');
+    const bs = wired.tags.filter((t) => t[0] === 'b').map((t) => t[1]);
+    expect(bs, 'story 4 AC 2: both wirings are kept').toEqual(expect.arrayContaining([THEIRS, ANOTHER]));
+  });
+
+  test('W4 (story 4 AC 3): already wired to that target — the existing event is re-sent and the panel says so', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION });
+    const existing = state.headers.find((e) => nameOf(e) === 'ta wired');
+    await openPanel(page, 'ta wired');
+    await fillTarget(page, THEIRS);
+    await wireButton(page).click();
+    await expect(page.getByText('Already wired — re-broadcast to the community relay.'), 'story 4 AC 3').toBeVisible();
+    expect(state.events.filter((e) => e.url.startsWith(COMMUNITY)).map((e) => e.event.id), 'story 4 AC 3: the EXISTING version is re-sent').toEqual([existing.id]);
+  });
+
+  test('W5 (story 4 AC 4): a target that isn\'t a header address, or is the header\'s own, is refused in the panel — with no request', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION });
+    await openPanel(page, 'ta undecided a');
+    await fillTarget(page, 'not an address');
+    await wireButton(page).click();
+    await expect(page.getByText('The target must be a header address (kind:pubkey:d-tag)'), 'story 4 AC 4: not an address').toBeVisible();
+    await fillTarget(page, addr(OWNER_TA, 'ta undecided a'));
+    await wireButton(page).click();
+    await expect(page.getByText(/own address.*Submit as a Shared Concept/), 'story 4 AC 4: its own address points to Submit').toBeVisible();
+    expect(state.posts, 'ADR 0004: the panel refuses these itself — no request is sent').toEqual([]);
+    await expect.poll(() => marks(page, 'ta undecided a')).toEqual(['○']);
+  });
+
+  test('W6 (story 4 AC 2): Wire when external publishing is off — saved here, not sent onward, and the panel says so', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, policy: 'local-only' });
+    await openPanel(page, 'ta undecided a');
+    await fillTarget(page, THEIRS);
+    await wireButton(page).click();
+    await expect(page.getByText('Wired here. External publishing is off for this deployment, so it was not sent onward.'), 'story 4 AC 2: kept here').toBeVisible();
+    expect(state.sockets.filter((u) => u.startsWith(COMMUNITY)), 'local-only opens no socket to the community relay').toEqual([]);
+    await expect.poll(() => marks(page, 'ta undecided a')).toEqual(['🔗']);
+  });
+
+  test('W7 (ADR 0004): Next keeps the pick-list — one community read for the whole panel session', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION });
+    await openPanel(page, 'ta undecided a');
+    await expect(page.getByRole('button', { name: 'somebody elses concept' })).toBeVisible();
+    await page.getByRole('button', { name: /Keep private/ }).click();
+    await page.getByRole('button', { name: /Next undecided/ }).click();
+    await expect(page.getByText(/Disposition: ta undecided b/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'somebody elses concept' }), 'ADR 0004: the list is still there after Next').toBeVisible();
+    await expect(page.getByText('Searching the community relay…'), 'ADR 0004: no "Searching…" again after Next').toHaveCount(0);
+    expect(state.communityReads, 'ADR 0004: one community read for the whole panel session').toBe(1);
   });
 });

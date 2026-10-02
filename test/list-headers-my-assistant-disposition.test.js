@@ -12,6 +12,9 @@
  *             process with stand-in parts, produce the same tags as the shared module for the same headers.
  *   H1..H12 — the handler, src/api/list-headers/myAssistantDisposition.js, through injected deps: every refusal,
  *             who signs (the SESSION's own Assistant, never another's), what is saved, what never leaks.
+ *   W1..W4, P3, HW1..HW6 — story 4 (ADR 0004): Wire. The pure composeWire; parity with Concept Headers'
+ *             handleBAppend; the handler's b-append action, which keeps every story-3 refusal and adds step 4b (the
+ *             target is checked before the relay is read).
  *   H13..H15, S5 — review round 1 (ADR 0003 Amendment 1): another site is refused first; the relay's latest header
  *             is verified (author, kind, first d, signature) before anything is signed or answered "already"; the
  *             handle is decoded once; the module carries the same-host check and no second decode.
@@ -93,6 +96,7 @@ const ALL_SECRETS = Object.values(SK);
 const SENTINEL = 'b-tag-deferred';
 const THEIRS = `39998:${'9'.repeat(64)}:somebody-elses-concept`;
 const AN_EVENT_ID = 'e7'.repeat(32);
+const ANOTHER = `39998:${'ab'.repeat(32)}:another-concept`; // story 4: a second wiring target
 const NOW = 1790000000;
 
 function header(pubkey, d, bTags = [], { created_at = NOW - 3600, extra = [] } = {}) {
@@ -172,7 +176,9 @@ async function run1(action, handle, opts, depOpts) {
   assert(typeof createMyAssistantDispositionHandler === 'function', 'ADR 0003: createMyAssistantDispositionHandler must be exported');
   const { d, calls } = deps(depOpts);
   const res = response();
-  await createMyAssistantDispositionHandler(action, d)(request(handle, opts), res);
+  const req = request(handle, opts);
+  if (opts && opts.body !== undefined) req.body = opts.body; // story 4: b-append reads its target from the body
+  await createMyAssistantDispositionHandler(action, d)(req, res);
   return { res, calls };
 }
 
@@ -250,6 +256,7 @@ const PARITY_CASES = [
   ['marker only', [['b', SENTINEL]]],
   ['marker and wired', [['b', SENTINEL], ['b', THEIRS, 'pointer']]],
   ['unreadable only', [['b', 'not-a-coordinate']]],
+  ['wired to another target', [['b', ANOTHER, 'pointer']]],
   ['self-declared', 'SELF'],
   ['self-declared, inherit type', 'SELF_INHERIT'],
 ];
@@ -268,17 +275,17 @@ function oldHandlerOutputs() {
     stub('src/utils/assistantKeys.js', { getOwnerAssistantPubkey: () => TA });
     stub('src/middleware/auth.js', { isOwner: () => true });
     const { handleConceptSelfDeclare } = require(path.join(ROOT, 'src/api/concept/selfDeclare.js'));
-    const { handleBDefer } = require(path.join(ROOT, 'src/api/concept/bDisposition.js'));
+    const { handleBDefer, handleBAppend } = require(path.join(ROOT, 'src/api/concept/bDisposition.js'));
     const cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));
     (async () => {
       const out = [];
       for (const c of cases) {
         const row = {};
-        for (const [name, fn] of [['self', handleConceptSelfDeclare], ['defer', handleBDefer]]) {
+        for (const [name, fn] of [['self', handleConceptSelfDeclare], ['defer', handleBDefer], ['wire', handleBAppend]]) {
           current = c.header; signedTags = null;
           let body = null;
           const res = { status() { return res; }, json(b) { body = b; return res; } };
-          await fn({ params: { handle: encodeURIComponent(c.handle) }, body: {}, session: {} }, res);
+          await fn({ params: { handle: encodeURIComponent(c.handle) }, body: { target: c.target }, session: {} }, res);
           row[name] = { success: body && body.success, result: body && body.result, error: body && body.error, tags: signedTags };
         }
         out.push(row);
@@ -290,7 +297,7 @@ function oldHandlerOutputs() {
     const d = 'parity';
     const self = addr(OWNER_TA, d);
     const bTags = b === 'SELF' ? [['b', self, 'pointer']] : b === 'SELF_INHERIT' ? [['b', self, 'inherit']] : b;
-    return { handle: self, header: header(OWNER_TA, d, bTags) };
+    return { handle: self, header: header(OWNER_TA, d, bTags), target: THEIRS };
   });
   const r = cp.spawnSync(process.execPath, ['-e', script], { cwd: ROOT, input: JSON.stringify(cases), encoding: 'utf8', timeout: 30000 });
   assert(r.status === 0, `the parity harness could not run Concept Headers' handlers: ${(r.stderr || '').split('\n').slice(0, 3).join(' | ')}`);
@@ -338,7 +345,7 @@ test('H1: no signed-in session — 401, and nothing else happens (story AC 4)', 
 
 test('H2: a call from inside the container with no session — 401 through the real sign-in check (book decision 2)', async () => {
   const { createMyAssistantDispositionHandler } = handlerMod();
-  for (const action of ['self-declare', 'b-defer']) {
+  for (const action of ['self-declare', 'b-defer', 'b-append']) { // b-append: story 4
     const { d, calls } = deps({ realAuth: true, headers: { [`${OWNER_TA}:recipes`]: header(OWNER_TA, 'recipes') } });
     const res = response();
     await createMyAssistantDispositionHandler(action, d)(request(addr(OWNER_TA, 'recipes'), { localTrusted: true }), res);
@@ -462,6 +469,128 @@ test('H12: no answer on any path carries an Assistant\'s private key (ADR 0003)'
   for (const [action, handle, opts, depOpts] of paths) noLeak((await run1(action, handle, opts, depOpts)).res, `H12 ${action} ${handle.slice(0, 12)}…`);
 });
 
+// ── story 4 — Wire (ADR 0004) ───────────────────────────────────────────────
+
+const WIRE = (target) => ({ ...asCustomerWire, body: { target } });
+const asCustomerWire = { session: signedIn(CUST) };
+
+test('W1: Wire adds a pointer b to the target after every earlier tag, without touching the input (story 4 AC 2)', () => {
+  const { composeWire } = compose();
+  assert(typeof composeWire === 'function', 'ADR 0004: headerDispositionCompose.js must export composeWire');
+  const h = header(CUST_TA, 'recipes');
+  const before = JSON.stringify(h.tags);
+  const out = composeWire(h, addr(CUST_TA, 'recipes'), THEIRS);
+  assert(out && show(out.tags) === show([...h.tags, ['b', THEIRS, 'pointer']]), `story 4 AC 2: earlier tags then ['b', <target>, 'pointer'] — got ${show(out)}`);
+  assert(JSON.stringify(h.tags) === before, 'ADR 0004: composeWire must not mutate header.tags');
+});
+
+test('W2: Wire drops the keep-private marker and keeps every real b — a second target is added beside the first (story 4 AC 2)', () => {
+  const { composeWire } = compose();
+  const out = composeWire(header(CUST_TA, 'r', [['b', SENTINEL], ['b', ANOTHER, 'pointer'], ['b', addr(CUST_TA, 'r'), 'pointer']]), addr(CUST_TA, 'r'), THEIRS);
+  assert(out && Array.isArray(out.tags), `expected { tags }, got ${show(out)}`);
+  const bs = out.tags.filter((t) => t[0] === 'b').map((t) => t[1]);
+  assert(!bs.includes(SENTINEL), `story 4 AC 2: the marker is dropped — got ${show(bs)}`);
+  assert(bs.includes(ANOTHER) && bs.includes(addr(CUST_TA, 'r')) && bs.includes(THEIRS), `story 4 AC 2: the earlier wiring and the self-declaration stay, and the new target is added — got ${show(bs)}`);
+});
+
+test('W3: Wire to a target already wired, whatever the b type, is "already" (story 4 AC 3)', () => {
+  const { composeWire } = compose();
+  for (const type of [['pointer'], ['inherit'], []]) {
+    const out = composeWire(header(CUST_TA, 'r', [['b', THEIRS, ...type]]), addr(CUST_TA, 'r'), THEIRS);
+    assert(out && out.already === true && !out.tags, `story 4 AC 3: already wired (type ${show(type)}) means nothing new — got ${show(out)}`);
+  }
+});
+
+test('W4: Wire to the header\'s own address is refused by the composition too (ADR 0004 guard)', () => {
+  const { composeWire } = compose();
+  const out = composeWire(header(CUST_TA, 'r'), addr(CUST_TA, 'r'), addr(CUST_TA, 'r'));
+  assert(out && out.refused && !out.tags, `ADR 0004: the own address is never composed into a wiring — got ${show(out)}`);
+});
+
+test('P3: Wire composes exactly what Concept Headers\' b-append signs, case by case (ADR 0004 parity)', () => {
+  const { composeWire } = compose();
+  const { cases, outputs } = oldHandlerOutputs();
+  cases.forEach((c, i) => {
+    const old = outputs[i].wire;
+    const neu = composeWire(c.header, c.handle, c.target);
+    const label = PARITY_CASES[i][0];
+    if (old.result === 'already-wired') assert(neu && neu.already === true, `ADR 0004 parity (${label}): Concept Headers says already-wired; the shared module says ${show(neu)}`);
+    else assert(neu && show(neu.tags) === show(old.tags), `ADR 0004 parity (${label}): Concept Headers signs ${show(old.tags)}; the shared module composes ${show(neu && neu.tags)}`);
+  });
+});
+
+test('HW1: Wire keeps every story-3 refusal — another site, no session, no Assistant, a bad handle, kind 9998, another Assistant\'s header, a missing or unverifiable header (story 4 AC 5)', async () => {
+  const found = { [`${CUST_TA}:recipes`]: custHeader() };
+  const cases = [
+    ['another site', custHandle, { ...WIRE(THEIRS), origin: 'https://evil.example' }, { headers: found }, 403],
+    ['no session', custHandle, { body: { target: THEIRS } }, { headers: found }, 401],
+    ['no Assistant here', custHandle, { session: signedIn(GUEST), body: { target: THEIRS } }, { headers: found }, 403],
+    ['a bad handle', 'not-a-handle', WIRE(THEIRS), { headers: found }, 400],
+    ['kind 9998', `9998:${CUST_TA}:recipes`, WIRE(THEIRS), { headers: found }, 400],
+    ['the Owner\'s Assistant\'s header', addr(OWNER_TA, 'x'), WIRE(THEIRS), { headers: { [`${OWNER_TA}:x`]: header(OWNER_TA, 'x') } }, 403],
+    ['a missing header', custHandle, WIRE(THEIRS), { headers: {} }, 404],
+    ['an unverifiable header', custHandle, WIRE(THEIRS), { headers: found, verify: () => false }, 409],
+  ];
+  for (const [label, handle, opts, depOpts, status] of cases) {
+    const { res, calls } = await run1('b-append', handle, opts, depOpts);
+    assert(res.statusCode === status && res.body && res.body.success === false, `story 4 AC 5: ${label} must answer ${status}, got ${res.statusCode} ${show(res.body)}`);
+    for (const n of ['sign', 'publishLocal', 'importToGraph']) assert(called(calls, n).length === 0, `story 4 AC 5: ${label} must not reach ${n}`);
+    noLeak(res, `HW1 ${label}`);
+  }
+});
+
+test('HW2: a target that isn\'t a header address, or is the header\'s own, is refused (400) before the relay is read (story 4 AC 4, ADR 0004 step 4b)', async () => {
+  const found = { [`${CUST_TA}:recipes`]: custHeader() };
+  for (const target of ['not-an-address', '', '   ', '39998:short:x', AN_EVENT_ID, undefined]) {
+    const { res, calls } = await run1('b-append', custHandle, { ...asCustomerWire, body: target === undefined ? {} : { target } }, { headers: found });
+    assert(res.statusCode === 400 && res.body && /header address/i.test(res.body.error || ''), `story 4 AC 4: target ${show(target)} must answer 400 "…header address…", got ${res.statusCode} ${show(res.body)}`);
+    assert(called(calls, 'scanLatest').length === 0 && called(calls, 'sign').length === 0, `ADR 0004: target ${show(target)} is refused before the relay is read`);
+  }
+  const own = await run1('b-append', custHandle, WIRE(custHandle), { headers: found });
+  assert(own.res.statusCode === 400 && /own address/i.test(own.res.body.error || '') && /Submit as a Shared Concept/.test(own.res.body.error || ''),
+    `story 4 AC 4: the header's own address must answer 400, pointing to Submit as a Shared Concept — got ${own.res.statusCode} ${show(own.res.body)}`);
+  assert(called(own.calls, 'scanLatest').length === 0, 'ADR 0004: the own address is refused before the relay is read');
+});
+
+test('HW3: Wire signs with the CALLER\'s own Assistant, drops the marker, adds the pointer b, saves to the relay then the graph, answers "wired" (story 4 AC 2)', async () => {
+  const h = custHeader([['b', SENTINEL]]);
+  const { res, calls } = await run1('b-append', custHandle, WIRE(`  ${THEIRS}  `), { headers: { [`${CUST_TA}:recipes`]: h } });
+  const signs = called(calls, 'sign');
+  assert(signs.length === 1 && signs[0][2] === SK[CUST_TA], 'story 4 AC 2: exactly one signature, by the customer\'s OWN Assistant');
+  const tags = signs[0][1].tags;
+  assert(!tags.some((t) => t[0] === 'b' && t[1] === SENTINEL) && tags.some((t) => t[0] === 'b' && t[1] === THEIRS && t[2] === 'pointer'),
+    `story 4 AC 2: the marker dropped, ['b', <trimmed target>, 'pointer'] added — got ${show(tags)}`);
+  const order = calls.map((c) => c[0]).filter((n) => ['verify', 'sign', 'publishLocal', 'importToGraph'].includes(n));
+  assert(show(order) === show(['verify', 'sign', 'publishLocal', 'importToGraph']), `story 4 AC 2 / Amendment 1: verify, sign, relay, graph — got ${show(order)}`);
+  assert(res.body && res.body.success === true && res.body.result === 'wired' && res.body.event && res.body.event.pubkey === CUST_TA, `story 4 AC 2: { result: 'wired' } — got ${show(res.body)}`);
+  noLeak(res, 'HW3');
+});
+
+test('HW4: already wired to that target — nothing signed, the existing event answered "already-wired"; an unverifiable header is still refused first (story 4 AC 3)', async () => {
+  const h = custHeader([['b', THEIRS, 'pointer']]);
+  let r = await run1('b-append', custHandle, WIRE(THEIRS), { headers: { [`${CUST_TA}:recipes`]: h } });
+  assert(r.res.body && r.res.body.result === 'already-wired' && r.res.body.event && r.res.body.event.id === h.id && called(r.calls, 'sign').length === 0,
+    `story 4 AC 3: { result: 'already-wired', event: <existing> }, nothing signed — got ${show(r.res.body)}`);
+  r = await run1('b-append', custHandle, WIRE(THEIRS), { headers: { [`${CUST_TA}:recipes`]: h }, verify: () => false });
+  assert(r.res.statusCode === 409, `Amendment 1 §1: an unverifiable already-wired header is refused, not answered "already-wired" — got ${r.res.statusCode} ${show(r.res.body)}`);
+});
+
+test('HW5: a second target is added beside the first — both kept (story 4 AC 2)', async () => {
+  const h = custHeader([['b', ANOTHER, 'pointer']]);
+  const { res, calls } = await run1('b-append', custHandle, WIRE(THEIRS), { headers: { [`${CUST_TA}:recipes`]: h } });
+  const tags = (called(calls, 'sign')[0] || [])[1];
+  const bs = tags ? tags.tags.filter((t) => t[0] === 'b').map((t) => t[1]) : [];
+  assert(res.body && res.body.result === 'wired' && bs.includes(ANOTHER) && bs.includes(THEIRS), `story 4 AC 2: both wirings kept — got ${show(bs)} ${show(res.body)}`);
+});
+
+test('HW6: the two story-3 actions ignore a body — a target sent to Submit or Keep private changes nothing (ADR 0004)', async () => {
+  const h = custHeader();
+  const r = await run1('self-declare', custHandle, WIRE(THEIRS), { headers: { [`${CUST_TA}:recipes`]: h } });
+  const tags = (called(r.calls, 'sign')[0] || [])[1];
+  assert(r.res.body && r.res.body.result === 'declared' && tags && !tags.tags.some((t) => t[0] === 'b' && t[1] === THEIRS),
+    `ADR 0004: Submit with a target in the body still only self-declares — got ${show(tags && tags.tags)}`);
+});
+
 // ── review round 1 (ADR 0003 Amendment 1) ───────────────────────────────────
 
 test('H13: a request from another site is refused first — 403 before the sign-in check, nothing else happens; same-host and no-Origin requests go on (Amendment 1 §2)', async () => {
@@ -546,13 +675,17 @@ test('S2: the latest header is read without a shell — strfryScanStream, not st
   assert(!/\bstrfryScan\b(?!Stream)/.test(src) && !/\bexec\s*\(/.test(src), 'ADR 0003: no shell-quoted strfryScan and no exec in the handler module');
 });
 
-test('S3: register(app) mounts exactly the two POST routes', () => {
+test('S3: register(app) mounts exactly the three POST routes (story 4 added b-append)', () => {
   const { register } = handlerMod();
   assert(typeof register === 'function', 'ADR 0003: register(app) must be exported');
   const mounted = [];
   const app = { post: (p, h) => mounted.push(['post', p, typeof h]), get: (p) => mounted.push(['get', p]), put: (p) => mounted.push(['put', p]), delete: (p) => mounted.push(['delete', p]), use: () => {} };
   register(app);
-  const want = [['post', '/api/list-headers/my-assistant/:handle/self-declare', 'function'], ['post', '/api/list-headers/my-assistant/:handle/b-defer', 'function']];
+  const want = [
+    ['post', '/api/list-headers/my-assistant/:handle/self-declare', 'function'],
+    ['post', '/api/list-headers/my-assistant/:handle/b-defer', 'function'],
+    ['post', '/api/list-headers/my-assistant/:handle/b-append', 'function'],
+  ];
   assert(show(mounted.sort()) === show(want.sort()), `ADR 0003: register mounts ${show(want)}, got ${show(mounted)}`);
 });
 
@@ -623,7 +756,7 @@ test('L1 (live): a no-session call from inside the container gets 401, and the h
   const d = await someTaHeaderD(ta);
   assert(d, 'the local stack has at least one kind-39998 header by its Assistant');
   const before = await latestId(ta, d);
-  for (const action of ['self-declare', 'b-defer']) {
+  for (const action of ['self-declare', 'b-defer', 'b-append']) { // b-append: story 4
     // Through the shared helper (ADR honest-test-gate/0001 §6; review round 2, blocking 4): it reports the real HTTP
     // status, or "no response" — never a status the stack didn't send.
     const r = loopbackRequest({ container: CONTAINER, method: 'POST', url: `${CONTAINER_BASE}${ROUTE(addr(ta, d), action)}`, body: {}, timeoutS: 20 });

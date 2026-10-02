@@ -85,5 +85,5 @@ None.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/list-headers-disposition/0004-wire-on-my-assistant-rows.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/list-headers-disposition/4-wire-on-my-assistant-rows.test-plan.md`
 - Review: (filled in after Review phase)
