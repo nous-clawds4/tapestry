@@ -19,7 +19,7 @@
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { strfryScanStream } = require('../concept/bDisposition');
 const { computeQueue, computePublishCandidates, bestName } = require('../../lib/adoptionQueue');
-const { computeDictionary, computeConceptDictionary } = require('../../lib/trustedDictionary');
+const { computeDictionary, computeConceptDictionary, trustedItems } = require('../../lib/trustedDictionary');
 const { classifyBValue, dispositionOf } = require('../../lib/bValueForms');
 const { runCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
@@ -410,6 +410,50 @@ async function handleConceptDictionary(req, res) {
   }
 }
 
+const COORD = /^\d+:[0-9a-f]{64}:.+$/;
+
+/**
+ * One Dictionary entry's Items: what is z-filed under the entry's own header
+ * (`coord`) and the shared concept it points to (`shared`, optional), kept
+ * when the filer is trusted from the active point of view or is the reader
+ * (`authors`, as the dictionary read takes them). The rule is trustedItems in
+ * src/lib/trustedDictionary.js; the trusted set resolves here, as GUM₁'s does.
+ */
+async function assembleConceptItems({ coord, shared, authors, wotPov, userPubkey } = {}) {
+  const cutoff = parseFloat(getConfigFromFile('VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF', 0.01));
+  const coords = [...new Set([coord, shared].filter(Boolean))];
+  const zCarriers = await strfryScanStream({ '#z': coords }, (ev) => ({
+    id: ev.id, kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at,
+    tags: keepTags(ev, ['z', 'd', 'names', 'name', 'title', 'q']),
+  }));
+  const own = new Set(authors);
+  const filers = [...new Set(zCarriers.map((ev) => ev.pubkey))].filter((p) => p && !own.has(p));
+  const { qualifying, branch, observer, fellBackToHouse } = await resolveQualifying({ wotPov, userPubkey, authors: filers, cutoff });
+  const out = trustedItems({ zCarriers, coords, qualifying, own: authors });
+  return { ...out, pov: { branch, observer, fellBackToHouse, cutoff, computedAt: new Date().toISOString() } };
+}
+
+async function handleConceptItems(req, res) {
+  try {
+    const { coord, shared, wotPov, userPubkey } = req.query || {};
+    const authors = parseAuthors(req.query && req.query.authors);
+    if (typeof coord !== 'string' || !COORD.test(coord) || (shared != null && (typeof shared !== 'string' || !COORD.test(shared)))) {
+      return res.status(400).json({ success: false, error: 'coord (and shared, when given) must be concept coordinates: kind:pubkey:d' });
+    }
+    if (!authors) {
+      return res.status(400).json({
+        success: false,
+        error: 'authors must be one or two comma-separated hex pubkeys: a person’s account, and their assistant when they have one',
+      });
+    }
+    const out = await assembleConceptItems({ coord, shared, authors, wotPov, userPubkey });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    console.error('concept-items error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 /**
  * The twin picker's population (story #7): MY WIREABLE concepts — graph
  * concept headers ∩ has a kind-39998 event. The graph is the identity source
@@ -459,7 +503,8 @@ function registerAdoptionRoutes(app) {
   app.get('/api/adoption-queue', handleAdoptionQueue);
   app.get('/api/trusted-dictionary', handleTrustedDictionary);
   app.get('/api/dictionaries/concepts', handleConceptDictionary);
+  app.get('/api/dictionaries/concepts/items', handleConceptItems);
   app.get('/api/adoption-twins', handleAdoptionTwins);
 }
 
-module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary };
+module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary, assembleConceptItems };
