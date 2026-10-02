@@ -365,6 +365,8 @@ async function assembleConceptDictionary({ authors, wotPov, userPubkey } = {}) {
       scoreCoords: [...(disp.selfDeclared ? [coord] : []), ...targets.filter((v) => classifyBValue(v) === 'a-tag')],
       // Firmware: the row is a firmware concept, or points at one.
       isFirmware: firmware.has(coord) || targets.some((v) => firmware.has(v)),
+      // The row's own header is one a firmware reinstall rebuilds (the edit page warns of it).
+      firmwareHeader: firmware.has(coord),
     });
   }
 
@@ -571,6 +573,8 @@ function registerAdoptionRoutes(app) {
   app.get('/api/adoption-twins', handleAdoptionTwins);
   // Create New Concept, signed by the caller's own Assistant (./newConcept.js).
   require('./newConcept').register(app);
+  // Edit a concept: a new version of a header the caller's own Assistant wrote (./editConcept.js).
+  require('./editConcept').register(app);
 }
 
 module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary, assembleConceptItems, recognitionInputs };

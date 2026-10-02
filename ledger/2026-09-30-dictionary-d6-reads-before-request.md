@@ -3,8 +3,8 @@
 **Id:** 2026-09-30-dictionary-d6-reads-before-request
 **Type:** bug
 **Opened:** 2026-09-30 (my-assistants #1, Implementation)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-02 — every `asked.at(-1)` check in the spec (D1–D6 among them) now waits with `expect.poll` (the Dictionary concept-edit PR to `staging`). D6 had failed once in a full WebKit run that day.
 
 `tests/brainstorm/dictionary-concepts.spec.js` D6 ("a signed-in customer sees their own dictionary as
 “Your Dictionary.”") waits for the h1 and then asserts `asked.at(-1)`, the `authors` the page sent to
