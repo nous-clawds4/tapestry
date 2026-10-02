@@ -9381,7 +9381,10 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .dict-add-btn { width: 100%; }
   .dict-page h1.dict-entry-title { font-size: 24px; }
   .dict-items-row { grid-template-columns: 36px minmax(0, 1fr); row-gap: 2px; }
-  .dict-items-row--head > span:last-child { display: none; }
+  /* Folded under the item on phones: the column header stays for screen readers, out of sight. */
+  .dict-items-row--head > span:last-child {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
   .dict-items-by-cell { grid-column: 2; }
 }
 

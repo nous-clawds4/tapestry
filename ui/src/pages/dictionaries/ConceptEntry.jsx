@@ -175,7 +175,7 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
   const mapError = map.status === 'error';
   const curator = mapSettled && !mapError ? conceptCurator(map.event?.tags, coord, person.assistant) : null;
 
-  // Items: keyword, sort and page, all in the page (the server returns the whole trusted list).
+  // Items: keyword, sort and page, all in the page, over the items the read returned (at most its cap).
   const [toolsOpen, setToolsOpen] = useState(false);
   const [q, setQ] = useState('');
   const [sort, setSort] = useState('none');
@@ -257,7 +257,7 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
       )}
 
       {/* Items — the trusted list, with search, sort and pages. */}
-      <section className="dict-card dict-items" aria-label="Items">
+      <section className="dict-card dict-items">
         <div className="dict-items-head">
           <div className="dict-items-title">
             <span className="dict-items-name">Items</span>
@@ -316,7 +316,9 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
         {items.error && <p className="dict-items-msg">Could not read the items: {items.error}</p>}
         {items.data && shown.length === 0 && (
           <p className="dict-items-msg">
-            {q.trim() ? `No items match “${q.trim()}”.` : 'No items filed by people your community trusts yet.'}
+            {q.trim()
+              ? `No items match “${q.trim()}”${items.data.truncated ? ` among the first ${all.length.toLocaleString()}` : ''}.`
+              : `No items filed by people ${person.signedIn ? 'your' : 'the'} community trusts yet.`}
           </p>
         )}
         <div className="dict-items-foot">
