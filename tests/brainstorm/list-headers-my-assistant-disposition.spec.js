@@ -34,6 +34,20 @@ const { test, expect } = require('@playwright/test');
  *        a second target; the panel's own refusals, with no request; Next keeps the pick-list without a second read.
  *   M11 — AC 1 on a real-sized list (review round 1, ADR 0003 Amendment 1 §4): Disposition… on the last of 70 rows
  *        opens a panel the person can see — inside the viewport, below the fixed top bar — and Next keeps it there.
+ *
+ * Story 5 (Me rows; ADR 0005 — prepare, sign in the browser, commit). Story 5 AC 1 changes M1: the account's own
+ * kind-39998 rows now carry the button too. The browser signer is a stub installed with addInitScript that logs
+ * every signEvent call, so "the signer is asked once" and "never asked" are counted, not inferred.
+ *   E1 — AC 2: Submit on a Me row: prepare then commit, one signature by the account, one EVENT, 🤝 with no reload.
+ *   E2 — AC 2: Keep private on a Me row: one signature, nothing sent to any relay, 🔒.
+ *   E3 — AC 2: Wire on a Me row: prepare and commit both carry the target, one signature, one EVENT, 🔗.
+ *   E4 — AC 2: already self-declared / private / wired: the signer is never asked, nothing is committed.
+ *   E5 — AC 3: no signer in the browser — for each action, the sentence, no commit, the row unchanged.
+ *   E6 — AC 3: declined in the signer — asked once, the sentence, no commit.
+ *   E7 — AC 3: a signer on another account — not asked; and one that signs as another account — no commit.
+ *   E8 — AC 4: a refusal at prepare never asks the signer; a refusal at commit leaves the row unchanged.
+ *   E9 — AC 5: Next from a Me row walks only Me rows; from an Assistant row only Assistant rows, never signing.
+ *   E10 — AC 2: Submit on a Me row when external publishing is off says so and keeps it here.
  */
 
 const OWNER = '1'.repeat(64);
@@ -85,6 +99,14 @@ function fixtures(extraOwnRows = 0) {
     h('owner own list', { pubkey: OWNER }),
     h('viewer ta undecided', { pubkey: VIEWER_TA }),
     h('stranger list', { pubkey: STRANGER }),
+    // story 5: rows the accounts wrote with their own keys (Me rows).
+    h('owner own b', { pubkey: OWNER }),
+    h('owner own self', { pubkey: OWNER, b: [addr(OWNER, 'owner own self')] }),
+    h('owner own wired', { pubkey: OWNER, b: [THEIRS] }),
+    h('owner own private', { pubkey: OWNER, b: [SENTINEL] }),
+    h('owner own 9998', { pubkey: OWNER, kind: 9998 }),
+    h('viewer own list', { pubkey: VIEWER }),
+    h('guest own list', { pubkey: GUEST.pubkey }),
     // M11: a real-sized list of the viewer's own Assistant's undecided rows (the Owner has 183 on the Mac Studio).
     ...Array.from({ length: extraOwnRows }, (_, i) => h(`ta bulk ${String(i + 1).padStart(3, '0')}`)),
   ];
@@ -95,9 +117,10 @@ const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'applic
 /**
  * relay: 'accept' | 'reject' | 'drop'; policy: 'open' | 'local-only'; refuse: { status, error } for both actions.
  */
-async function mockStack(page, { session = null, relay = 'accept', policy = 'open', refuse = null, extraOwnRows = 0, communityHold = null } = {}) {
+async function mockStack(page, { session = null, relay = 'accept', policy = 'open', refuse = null, refuseCommit = null, signer = null, extraOwnRows = 0, communityHold = null } = {}) {
   const headers = fixtures(extraOwnRows);
-  const state = { headers, posts: [], scans: 0, sockets: [], events: [], communityReads: 0 };
+  const state = { headers, posts: [], mePosts: [], commits: [], scans: 0, sockets: [], events: [], communityReads: 0 };
+  if (signer) await stubSigner(page, signer, session ? session.pubkey : null);
   let configAnswered;
   const config = new Promise((resolve) => { configAnswered = resolve; });
   let owner = false;
@@ -168,32 +191,96 @@ async function mockStack(page, { session = null, relay = 'accept', policy = 'ope
     const i = state.headers.findIndex((e) => e.kind === 39998 && `39998:${e.pubkey}:${e.tags.find((t) => t[0] === 'd')[1]}` === handle);
     if (i < 0) return json(r, { success: false, error: 'not found' }, 404);
     const cur = state.headers[i];
-    const bs = cur.tags.filter((t) => t[0] === 'b').map((t) => t[1]);
-    const real = bs.some((v) => v !== SENTINEL);
-    let tags;
-    if (action === 'b-append') {
-      if (typeof body.target !== 'string') return json(r, { success: false, error: "The target must be a list header's address (39998:pubkey:d-tag)" }, 400);
-      const target = body.target.trim();
-      if (/[\p{Cc}\p{Cf}]/u.test(target)) return json(r, { success: false, error: "The target contains characters an address can't have" }, 400);
-      if (Buffer.byteLength(target, 'utf8') > 1024) return json(r, { success: false, error: 'The target is too long — the relay keeps tag values of at most 1024 bytes' }, 400);
-      if (!/^39998:[0-9a-f]{64}:.+$/.test(target)) return json(r, { success: false, error: "The target must be a list header's address (39998:pubkey:d-tag)" }, 400);
-      if (target === handle) return json(r, { success: false, error: "That's this header's own address — use Submit as a Shared Concept instead" }, 400);
-      if (bs.includes(target)) return json(r, { success: true, result: 'already-wired', event: cur });
-      tags = [...cur.tags.filter((t) => !(t[0] === 'b' && t[1] === SENTINEL)), ['b', target, 'pointer']];
-    } else if (action === 'self-declare') {
-      if (bs.includes(handle)) return json(r, { success: true, result: 'already-declared', event: cur });
-      tags = [...cur.tags.filter((t) => !(t[0] === 'b' && t[1] === SENTINEL)), ['b', handle, 'pointer']];
-    } else {
-      if (real) return json(r, { success: false, error: 'this header already carries a real b — deferral applies only to unaffiliated headers' });
-      if (bs.includes(SENTINEL)) return json(r, { success: true, result: 'already-deferred', event: cur });
-      tags = [...cur.tags, ['b', SENTINEL]];
-    }
+    const c = standInRules(cur, handle, action, body);
+    if (c.answer) return json(r, c.answer.body, c.answer.status);
+    const { tags } = c;
     const signed = { ...cur, tags, created_at: cur.created_at + 1, id: `${'5'.repeat(60)}${String(state.posts.length).padStart(4, '0')}` };
     state.headers[i] = signed;
     return json(r, { success: true, result: { 'self-declare': 'declared', 'b-defer': 'deferred', 'b-append': 'wired' }[action], event: signed });
   });
+  // story 5 (ADR 0005): the Me routes. prepare answers the template (or "already"); commit takes back only the
+  // account's signature of exactly that change. The real checks are the Node suite's; this stand-in keeps the page honest.
+  await page.route(/\/api\/list-headers\/me\/([^/]+)\/(self-declare|b-defer|b-append)\/(prepare|commit)$/, (r) => {
+    const m = new URL(r.request().url()).pathname.match(/\/api\/list-headers\/me\/([^/]+)\/(self-declare|b-defer|b-append)\/(prepare|commit)$/);
+    const handle = decodeURIComponent(m[1]);
+    const [action, phase] = [m[2], m[3]];
+    let body = {};
+    try { body = r.request().postDataJSON() || {}; } catch { /* no body */ }
+    state.mePosts.push(action === 'b-append' ? { handle, action, phase, target: body.target } : { handle, action, phase });
+    if (phase === 'commit') state.commits.push(body.event);
+    if (refuse) return json(r, { success: false, error: refuse.error }, refuse.status);
+    if (phase === 'commit' && refuseCommit) return json(r, { success: false, error: refuseCommit.error }, refuseCommit.status);
+    if (!session) return json(r, { success: false, error: 'authentication required' }, 401);
+    if (handle.split(':')[1] !== session.pubkey) return json(r, { success: false, error: 'You can only disposition headers you wrote' }, 403);
+    const i = state.headers.findIndex((e) => e.kind === 39998 && `39998:${e.pubkey}:${e.tags.find((t) => t[0] === 'd')[1]}` === handle);
+    if (i < 0) return json(r, { success: false, error: 'not found' }, 404);
+    const cur = state.headers[i];
+    const c = standInRules(cur, handle, action, body);
+    const changed = "The signed version isn't exactly this action's change to the current header, so nothing was saved";
+    if (c.answer) return phase === 'commit' && c.answer.status === 200 ? json(r, { success: false, error: changed }, 409) : json(r, c.answer.body, c.answer.status);
+    if (phase === 'prepare') {
+      return json(r, { success: true, result: 'sign', template: { kind: 39998, content: cur.content, tags: c.tags, created_at: cur.created_at + 1, pubkey: session.pubkey } });
+    }
+    const ev = body.event;
+    if (!ev || typeof ev !== 'object' || ev.pubkey !== session.pubkey) {
+      return json(r, { success: false, error: "That version wasn't signed by the account you're signed in with, so nothing was saved" }, 403);
+    }
+    if (ev.kind !== 39998 || ev.content !== cur.content || JSON.stringify(ev.tags) !== JSON.stringify(c.tags)) return json(r, { success: false, error: changed }, 409);
+    state.headers[i] = ev;
+    return json(r, { success: true, result: { 'self-declare': 'declared', 'b-defer': 'deferred', 'b-append': 'wired' }[action], event: ev });
+  });
   return state;
 }
+
+/**
+ * Stories 3–5's rules, for both stand-ins: { answer: { status, body } } for a refusal or an "already", or { tags } for the
+ * new version.
+ */
+function standInRules(cur, handle, action, body) {
+  const answer = (b, status = 200) => ({ answer: { status, body: b } });
+  const bs = cur.tags.filter((t) => t[0] === 'b').map((t) => t[1]);
+  const real = bs.some((v) => v !== SENTINEL);
+  if (action === 'b-append') {
+    if (typeof body.target !== 'string') return answer({ success: false, error: "The target must be a list header's address (39998:pubkey:d-tag)" }, 400);
+    const target = body.target.trim();
+    if (/[\p{Cc}\p{Cf}]/u.test(target)) return answer({ success: false, error: "The target contains characters an address can't have" }, 400);
+    if (Buffer.byteLength(target, 'utf8') > 1024) return answer({ success: false, error: 'The target is too long — the relay keeps tag values of at most 1024 bytes' }, 400);
+    if (!/^39998:[0-9a-f]{64}:.+$/.test(target)) return answer({ success: false, error: "The target must be a list header's address (39998:pubkey:d-tag)" }, 400);
+    if (target === handle) return answer({ success: false, error: "That's this header's own address — use Submit as a Shared Concept instead" }, 400);
+    if (bs.includes(target)) return answer({ success: true, result: 'already-wired', event: cur });
+    return { tags: [...cur.tags.filter((t) => !(t[0] === 'b' && t[1] === SENTINEL)), ['b', target, 'pointer']] };
+  }
+  if (action === 'self-declare') {
+    if (bs.includes(handle)) return answer({ success: true, result: 'already-declared', event: cur });
+    return { tags: [...cur.tags.filter((t) => !(t[0] === 'b' && t[1] === SENTINEL)), ['b', handle, 'pointer']] };
+  }
+  if (real) return answer({ success: false, error: 'this header already carries a real b — deferral applies only to unaffiliated headers' });
+  if (bs.includes(SENTINEL)) return answer({ success: true, result: 'already-deferred', event: cur });
+  return { tags: [...cur.tags, ['b', SENTINEL]] };
+}
+
+/**
+ * story 5: the browser signer (NIP-07), stubbed. mode 'ok' signs as `pubkey`; 'decline' rejects like a person saying
+ * no; 'other' is on another account; 'liar' says `pubkey` but signs as another account; 'none' is no signer at all.
+ * Every signEvent call is logged in window.__signLog, so a test counts prompts instead of inferring them.
+ */
+const OTHER_ACCOUNT = 'd4'.repeat(32);
+async function stubSigner(page, mode, pubkey) {
+  await page.addInitScript(({ mode, pubkey, other }) => {
+    window.__signLog = [];
+    if (mode === 'none') { try { delete window.nostr; } catch { /* not there */ } return; }
+    window.nostr = {
+      getPublicKey: async () => (mode === 'other' ? other : pubkey),
+      signEvent: async (template) => {
+        window.__signLog.push(template);
+        if (mode === 'decline') throw new Error('User rejected the request');
+        const n = window.__signLog.length;
+        return { ...template, pubkey: mode === 'liar' ? other : pubkey, id: String(n).padStart(64, 'e'), sig: 'b'.repeat(128) };
+      },
+    };
+  }, { mode, pubkey, other: OTHER_ACCOUNT });
+}
+const signLog = (page) => page.evaluate(() => window.__signLog || []);
 
 const PAGE = '/tapestry/lists';
 
@@ -225,11 +312,13 @@ async function openPanel(page, name) {
 const fixtureNames = fixtures().map(nameOf);
 
 test.describe('List Headers — Disposition on My Assistant rows (list-headers-disposition #3)', () => {
-  test('M1 (AC 1): Disposition… on every row the viewer\'s own Assistant wrote, and nowhere else', async ({ browser }) => {
+  test('M1 (AC 1; story 5 AC 1): Disposition… on every 39998 row the viewer\'s own Assistant or own account wrote, and nowhere else', async ({ browser }) => {
+    // Story 5 AC 1: the account's own kind-39998 rows (Me rows) carry the button too, whatever their state; its 9998 rows don't.
+    const OWNER_ME = ['owner own list', 'owner own b', 'owner own self', 'owner own wired', 'owner own private'];
     const expectations = [
-      ['the Owner', OWNER_SESSION, ['ta undecided a', 'ta wired', 'ta self', 'ta private', 'ta undecided b']],
-      ['a customer', CUSTOMER, ['viewer ta undecided']],
-      ['a guest with no Assistant here', GUEST, []],
+      ['the Owner', OWNER_SESSION, ['ta undecided a', 'ta wired', 'ta self', 'ta private', 'ta undecided b', ...OWNER_ME]],
+      ['a customer', CUSTOMER, ['viewer ta undecided', 'viewer own list']],
+      ['a guest with no Assistant here', GUEST, ['guest own list']],
       ['a signed-out visitor', null, []],
     ];
     for (const [who, session, own] of expectations) {
@@ -514,5 +603,199 @@ test.describe('List Headers — Disposition on My Assistant rows (list-headers-d
     await expect(page.getByText("The relay didn't keep the new version, so nothing was saved"), 'Amendment 1 §4: the refusal is shown').toBeVisible();
     await expect.poll(() => marks(page, 'ta undecided a'), { message: 'Amendment 1 §4: the row is unchanged' }).toEqual(['○']);
     expect(state.events, 'Amendment 1 §4: nothing is sent to the community relay').toEqual([]);
+  });
+
+  // ── story 5 — Me rows: prepare, sign in the browser, commit (ADR 0005) ──
+
+  const ME_ROW = 'owner own list';
+  const steps = (state) => state.mePosts.map((p) => `${p.action}/${p.phase}`);
+
+  test('E1 (story 5 AC 2): Submit on a Me row — prepare, ONE signature by the account, commit, one EVENT by the account, 🤝 without a reload', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, signer: 'ok' });
+    const scansBefore = state.scans;
+    await openPanel(page, ME_ROW);
+    await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+    await expect(page.getByText('Submitted as a shared concept — published to the community relay.'), 'story 5 AC 2: "published"').toBeVisible();
+    expect(steps(state), 'ADR 0005: prepare, then commit').toEqual(['self-declare/prepare', 'self-declare/commit']);
+    expect(state.mePosts.every((p) => p.handle === addr(OWNER, ME_ROW)), 'ADR 0005: both for this header').toBe(true);
+    expect(state.posts, 'story 5: a Me row never uses the Assistant routes').toEqual([]);
+    const signed = await signLog(page);
+    expect(signed.length, 'story 5 AC 2: the browser signer is asked once').toBe(1);
+    expect(signed[0], 'ADR 0005: what is signed is the server\'s template, by the account').toMatchObject({ kind: 39998, pubkey: OWNER });
+    expect(signed[0].tags).toContainEqual(['b', addr(OWNER, ME_ROW), 'pointer']);
+    expect(state.commits[0] && state.commits[0].pubkey, 'ADR 0005: the commit carries the signed version').toBe(OWNER);
+    const sent = state.events.filter((e) => e.url.startsWith(COMMUNITY));
+    expect(sent.length, 'story 5 AC 2: sent to the community relay once').toBe(1);
+    expect(sent[0].event.pubkey, 'story 5: the account is the author of what is sent').toBe(OWNER);
+    expect(sent[0].event.tags).toContainEqual(['b', addr(OWNER, ME_ROW), 'pointer']);
+    await expect.poll(() => marks(page, ME_ROW), { message: 'story 5 AC 2: 🤝 without a reload' }).toEqual(['🤝']);
+    expect(state.scans).toBe(scansBefore);
+  });
+
+  test('E2 (story 5 AC 2): Keep private on a Me row — one signature, nothing sent to any relay, 🔒', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, signer: 'ok' });
+    await openPanel(page, ME_ROW);
+    await page.getByRole('button', { name: /Keep private/ }).click();
+    await expect(page.getByText(/^Kept private/), 'story 5 AC 2: the panel confirms').toBeVisible();
+    expect(steps(state)).toEqual(['b-defer/prepare', 'b-defer/commit']);
+    expect((await signLog(page)).length, 'story 5 AC 2: one signature').toBe(1);
+    await expect.poll(() => marks(page, ME_ROW), { message: 'story 5 AC 2: 🔒' }).toEqual(['🔒']);
+    await page.waitForTimeout(300);
+    expect(state.events, 'story 5 AC 2: Keep private is never sent to a relay').toEqual([]);
+  });
+
+  test('E3 (story 5 AC 2): Wire on a Me row — prepare and commit both carry the target, one signature, one EVENT, 🔗', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, signer: 'ok' });
+    await openPanel(page, ME_ROW);
+    await pick(page, 'somebody elses concept');
+    await wireButton(page).click();
+    await expect(page.getByText('Wired — broadcast to the community relay.'), 'story 5 AC 2: "Wired"').toBeVisible();
+    expect(state.mePosts, 'ADR 0005: the target goes with prepare and with commit').toEqual([
+      { handle: addr(OWNER, ME_ROW), action: 'b-append', phase: 'prepare', target: THEIRS },
+      { handle: addr(OWNER, ME_ROW), action: 'b-append', phase: 'commit', target: THEIRS },
+    ]);
+    const signed = await signLog(page);
+    expect(signed.length, 'story 5 AC 2: one signature').toBe(1);
+    expect(signed[0].tags).toContainEqual(['b', THEIRS, 'pointer']);
+    const sent = state.events.filter((e) => e.url.startsWith(COMMUNITY));
+    expect(sent.length).toBe(1);
+    expect(sent[0].event.pubkey).toBe(OWNER);
+    await expect.poll(() => marks(page, ME_ROW), { message: 'story 5 AC 2: 🔗' }).toEqual(['🔗']);
+  });
+
+  test('E4 (story 5 AC 2): already self-declared, already private, already wired — the signer is never asked and nothing is committed', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, signer: 'ok' });
+    const existing = state.headers.find((e) => nameOf(e) === 'owner own self');
+    await openPanel(page, 'owner own self');
+    await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+    await expect(page.getByText('Already shared — re-broadcast to the community relay.'), 'story 5 AC 2: already shared').toBeVisible();
+    expect(state.events.filter((e) => e.url.startsWith(COMMUNITY)).map((e) => e.event.id), 'the EXISTING version is re-sent').toEqual([existing.id]);
+    await page.getByRole('button', { name: /✕|Close/ }).first().click();
+    await openPanel(page, 'owner own private');
+    await page.getByRole('button', { name: /Keep private/ }).click();
+    await expect(page.getByText('Already kept private — nothing new was signed.'), 'story 5 AC 2: already private').toBeVisible();
+    await page.getByRole('button', { name: /✕|Close/ }).first().click();
+    await openPanel(page, 'owner own wired');
+    await fillTarget(page, THEIRS);
+    await wireButton(page).click();
+    await expect(page.getByText('Already wired — re-broadcast to the community relay.'), 'story 5 AC 2: already wired').toBeVisible();
+    expect(steps(state), 'ADR 0005: only prepare — nothing to commit').toEqual(['self-declare/prepare', 'b-defer/prepare', 'b-append/prepare']);
+    expect(await signLog(page), 'story 5 AC 2: when nothing new is needed, the signer isn\'t asked at all').toEqual([]);
+  });
+
+  test('E5 (story 5 AC 3): no signer in the browser — each action says so, commits nothing, and leaves the row as it was', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, signer: 'none' });
+    const sentence = 'Signing your own headers needs a NIP-07 browser signer — nothing was saved';
+    await openPanel(page, ME_ROW);
+    await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+    await expect(page.getByText(sentence), 'story 5 AC 3: Submit with no signer').toBeVisible();
+    await expect.poll(() => steps(state)).toEqual(['self-declare/prepare']);
+    await page.getByRole('button', { name: /Keep private/ }).click();
+    await expect.poll(() => steps(state), { message: 'story 5 AC 3: Keep private was tried' }).toEqual(['self-declare/prepare', 'b-defer/prepare']);
+    await expect(page.getByText(sentence), 'story 5 AC 3: Keep private with no signer').toBeVisible();
+    await fillTarget(page, THEIRS);
+    await wireButton(page).click();
+    await expect.poll(() => steps(state), { message: 'story 5 AC 3: Wire was tried' }).toEqual(['self-declare/prepare', 'b-defer/prepare', 'b-append/prepare']);
+    await expect(page.getByText(sentence), 'story 5 AC 3: Wire with no signer').toBeVisible();
+    expect(state.events, 'story 5 AC 3: nothing sent').toEqual([]);
+    await expect.poll(() => marks(page, ME_ROW), { message: 'story 5 AC 3: the row is unchanged' }).toEqual(['○']);
+  });
+
+  test('E6 (story 5 AC 3): declined in the signer — asked once, the sentence, no commit, the row unchanged', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, signer: 'decline' });
+    await openPanel(page, ME_ROW);
+    await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+    await expect(page.getByText('Signing was cancelled in your signer — nothing was saved'), 'story 5 AC 3: declined').toBeVisible();
+    expect((await signLog(page)).length, 'story 5 AC 3: the person was asked once').toBe(1);
+    expect(steps(state), 'story 5 AC 3: no commit').toEqual(['self-declare/prepare']);
+    expect(state.events).toEqual([]);
+    await expect.poll(() => marks(page, ME_ROW)).toEqual(['○']);
+  });
+
+  test('E7 (story 5 AC 3): a signer on another account isn\'t asked to sign; one that signs as another account is never committed', async ({ browser }) => {
+    for (const [mode, asked] of [['other', 0], ['liar', 1]]) {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      const state = await open(page, { session: OWNER_SESSION, signer: mode });
+      await openPanel(page, ME_ROW);
+      await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+      await expect(page.getByText(/Your signer is on a different account/), `story 5 AC 3 (${mode}): the mismatch sentence`).toBeVisible();
+      expect((await signLog(page)).length, `story 5 AC 3 (${mode}): signEvent calls`).toBe(asked);
+      expect(steps(state), `story 5 AC 3 (${mode}): no commit`).toEqual(['self-declare/prepare']);
+      expect(state.events, `story 5 AC 3 (${mode}): nothing sent`).toEqual([]);
+      await expect.poll(() => marks(page, ME_ROW)).toEqual(['○']);
+      await ctx.close();
+    }
+  });
+
+  test('E8 (story 5 AC 4): a refusal at prepare never asks the signer; a refusal at commit shows, and the row is unchanged', async ({ browser }) => {
+    {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      const error = "The stored header couldn't be verified, so nothing was signed";
+      const state = await open(page, { session: OWNER_SESSION, signer: 'ok', refuse: { status: 409, error } });
+      await openPanel(page, ME_ROW);
+      await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+      await expect(page.getByText(error), 'story 5 AC 4: the prepare refusal is shown').toBeVisible();
+      expect(await signLog(page), 'ADR 0005: a doomed request never prompts the person').toEqual([]);
+      expect(steps(state)).toEqual(['self-declare/prepare']);
+      await ctx.close();
+    }
+    {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      const error = "The relay didn't keep the new version, so nothing was saved";
+      const state = await open(page, { session: OWNER_SESSION, signer: 'ok', refuseCommit: { status: 502, error } });
+      await openPanel(page, ME_ROW);
+      await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+      await expect(page.getByText(error), 'story 5 AC 4: the commit refusal is shown').toBeVisible();
+      expect(steps(state)).toEqual(['self-declare/prepare', 'self-declare/commit']);
+      expect(state.events, 'story 5 AC 4: nothing sent after a refused commit').toEqual([]);
+      await expect.poll(() => marks(page, ME_ROW), { message: 'story 5 AC 4: the row is unchanged' }).toEqual(['○']);
+      await ctx.close();
+    }
+  });
+
+  test('E9 (story 5 AC 5): Next from a Me row walks only Me rows; from an Assistant row only Assistant rows, never asking the signer', async ({ browser }) => {
+    {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      await open(page, { session: OWNER_SESSION, signer: 'ok' });
+      await openPanel(page, ME_ROW);
+      await page.getByRole('button', { name: /Keep private/ }).click();
+      await page.getByRole('button', { name: /Next undecided/ }).click();
+      await expect(page.getByText(/^Disposition: owner own b$/), 'story 5 AC 5: Next opens the next undecided Me row, not an Assistant row').toBeVisible();
+      await page.getByRole('button', { name: /Keep private/ }).click();
+      await expect(page.getByRole('button', { name: 'Done' }), 'story 5 AC 5: only Done').toBeVisible();
+      await expect(page.getByRole('button', { name: /Next undecided/ }), 'story 5 AC 5: the Assistant\'s undecided rows aren\'t offered from a Me walk').toHaveCount(0);
+      expect((await signLog(page)).length, 'one signature per Me action').toBe(2);
+      await ctx.close();
+    }
+    {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      const state = await open(page, { session: OWNER_SESSION, signer: 'ok' });
+      await openPanel(page, 'ta undecided a');
+      await page.getByRole('button', { name: /Keep private/ }).click();
+      await page.getByRole('button', { name: /Next undecided/ }).click();
+      await expect(page.getByText(/^Disposition: ta undecided b$/), 'story 5 AC 5: from an Assistant row, Next stays on Assistant rows').toBeVisible();
+      await page.getByRole('button', { name: /Keep private/ }).click();
+      await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /Next undecided/ }), 'story 5 AC 5: undecided Me rows aren\'t offered from an Assistant walk').toHaveCount(0);
+      expect(await signLog(page), 'an Assistant walk never asks the browser signer').toEqual([]);
+      expect(state.mePosts, 'an Assistant walk never uses the Me routes').toEqual([]);
+      await ctx.close();
+    }
+  });
+
+  test('E10 (story 5 AC 2): Submit on a Me row when external publishing is off — saved here, not sent onward, and the panel says so', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, signer: 'ok', policy: 'local-only' });
+    await openPanel(page, ME_ROW);
+    await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+    await expect(page.getByText('Saved here. External publishing is off for this deployment, so it was not sent onward.'), 'story 5 AC 2: kept here').toBeVisible();
+    expect(state.sockets.filter((u) => u.startsWith(COMMUNITY)), 'local-only opens no socket to the community relay').toEqual([]);
+    expect(steps(state), 'ADR 0005: still prepare, sign, commit').toEqual(['self-declare/prepare', 'self-declare/commit']);
+    expect((await signLog(page)).length, 'story 5 AC 2: one signature').toBe(1);
+    await expect.poll(() => marks(page, ME_ROW)).toEqual(['🤝']);
   });
 });
