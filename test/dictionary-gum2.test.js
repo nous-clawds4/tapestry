@@ -9,9 +9,12 @@
  *   - each trusted recognizer adds their influence (0–1) from the active point of view;
  *   - it is shown on the entry strip and sortable on the list; GUM₁ stays the Dictionary's metric.
  *
- *   R1..R8 — pure: recognitionByConcept and computeConceptDictionary in src/lib/trustedDictionary.js.
- *   O1..O5 — pure: ownersFromTaggings in src/api/adoption/assistantOwners.js.
- *   S1..S3 — structural pins, read off comment-stripped source.
+ *   R1..R10 — pure: recognitionByConcept and computeConceptDictionary in src/lib/trustedDictionary.js
+ *             (R9: nobody's claim takes recognition away; R10: GUM₁ is untouched by the shared trust read).
+ *   O1..O5  — pure: ownersFromTaggings in src/api/adoption/assistantOwners.js.
+ *   I1..I2  — the reads, with fake dependencies: recognitionInputs (src/api/adoption/index.js) and
+ *             resolveOwners, including scanning long lists in parts.
+ *   S1..S5  — structural pins, read off comment-stripped source.
  *
  * The browser half is tests/brainstorm/dictionary-concepts.spec.js D28.
  */
@@ -66,7 +69,8 @@ test('R1: each trusted recognizer adds their influence; recognizedBy counts them
     ownersOf: owners([[ALICE_TA, [ALICE]]]), exclude: [], influence,
   });
   const r = out.get(C);
-  assert(r.gum2 === 0.75 && r.recognizedBy === 2 && r.recognizers === 2, JSON.stringify(r));
+  // ALICE_TA stands for itself and ALICE: three recognizers, of whom ALICE and BOB are trusted.
+  assert(r.gum2 === 0.75 && r.recognizedBy === 2 && r.recognizers === 3, JSON.stringify(r));
 });
 
 test('R2: a person counts once, however many of their headers or Assistants recognize it', () => {
@@ -126,6 +130,23 @@ test('R8: computeConceptDictionary carries GUM₂ for the shared concept each en
   assert(!('gum2' in without.entries[0]) && !('recognizedBy' in without.entries[0]), 'no recognition read, no GUM₂ fields (the page then says nothing)');
 });
 
+test('R9: nobody\'s "My Assistant" claim takes a person\'s own recognition away', () => {
+  const EVE = hex('e'); // untrusted
+  const out = lib().recognitionByConcept({
+    sharedCoords: [C], pointers: [ptr(BOB, 'dog', [C]), ptr(ALICE, 'dog', [C])],
+    ownersOf: owners([[BOB, [EVE]]]), exclude: [], influence,
+  });
+  assert(out.get(C).recognizedBy === 2 && out.get(C).gum2 === 0.75, `BOB still counts: ${JSON.stringify(out.get(C))}`);
+});
+
+test('R10: GUM₁ is the same however many other pubkeys the shared trust read was asked about', () => {
+  const rows = [{ coord: `39998:${READER_TA}:dog`, name: 'dog', author: READER_TA, targets: [C], scoreCoords: [C], selfDeclared: false, isFirmware: false }];
+  const zCarriers = [{ pubkey: ALICE, id: hex('f'), tags: [['z', C]] }, { pubkey: CAROL, id: hex('0'), tags: [['z', C]] }];
+  const narrow = lib().computeConceptDictionary({ rows, zCarriers, qualifying: new Set([ALICE]) });
+  const wide = lib().computeConceptDictionary({ rows, zCarriers, qualifying: new Set([ALICE, BOB, READER, AUTHOR]) });
+  assert(narrow.entries[0].gum === 1 && wide.entries[0].gum === 1, `GUM₁ ${narrow.entries[0].gum} vs ${wide.entries[0].gum}`);
+});
+
 // ═══ O — ownersFromTaggings ═══════════════════════════════════════════════════
 
 const Z = '39998:nous:nostr-user-tag';
@@ -171,11 +192,59 @@ test('O5: several people can claim one Assistant; nobody owns themselves', () =>
   assert(!out.has(CAROL), 'a self-tagging is not ownership');
 });
 
+// ═══ I — the reads, with fakes ═══════════════════════════════════════════════
+
+/** A fake strfry: answers each filter from `events`, the way a scan would, and records the filters. */
+function fakeScan(events) {
+  const asked = [];
+  const scan = async (filter, project) => {
+    asked.push(filter);
+    const hit = (ev) => (!filter.kinds || filter.kinds.includes(ev.kind))
+      && (!filter.authors || filter.authors.includes(ev.pubkey))
+      && Object.entries(filter).filter(([k]) => k.startsWith('#')).every(([k, vals]) => (ev.tags || []).some((t) => t[0] === k.slice(1) && vals.includes(t[1])));
+    return events.filter(hit).map((ev) => project(ev)).filter(Boolean);
+  };
+  return { scan, asked };
+}
+
+test('I1: recognitionInputs finds the b-pointers, their signers\' owners, the reader to leave out, and who to ask about', async () => {
+  const { recognitionInputs } = require(ADOPTION_JS);
+  const dogs = [`39998:${AUTHOR}:dog`, ...Array.from({ length: 450 }, (_, i) => `39998:${AUTHOR}:c${i}`)];
+  const events = [
+    { id: hex('1'), kind: 39998, pubkey: ALICE_TA, created_at: 5, tags: [['d', 'dog'], ['b', dogs[0]]] },
+    { id: hex('2'), kind: 39998, pubkey: BOB, created_at: 6, tags: [['d', 'late'], ['b', dogs[449]]] },
+    tagging(ALICE, ALICE_TA, { at: 7 }),
+  ];
+  const { scan, asked } = fakeScan(events);
+  const deps = { scan, zTag: () => Z, roster: async () => [{ accountPubkey: READER, assistantPubkey: READER_TA }] };
+  const out = await recognitionInputs({ rows: [{ scoreCoords: dogs }], authors: [READER, READER_TA] }, deps);
+  assert(asked.filter((f) => f['#b']).length === 2, `the 451 concepts are scanned in two parts, got ${asked.filter((f) => f['#b']).length}`);
+  assert(out.pointers.length === 2, `two pointers, got ${out.pointers.length}`);
+  assert(JSON.stringify(out.ownersOf.get(ALICE_TA)) === JSON.stringify([ALICE]), 'ALICE owns ALICE_TA by her tagging');
+  assert(out.exclude.includes(READER) && out.exclude.includes(READER_TA), 'the reader and their Assistant are left out');
+  assert(out.candidates.includes(ALICE) && out.candidates.includes(ALICE_TA) && out.candidates.includes(BOB), JSON.stringify(out.candidates));
+});
+
+test('I2: resolveOwners reads taggings by #p (in parts), and only their signers\' deletions', async () => {
+  const { resolveOwners } = require(OWNERS_JS);
+  const many = Array.from({ length: 900 }, (_, i) => i.toString(16).padStart(64, '0'));
+  const t = tagging(ALICE, many[850]);
+  const retract = { id: hex('d'), kind: 5, pubkey: ALICE, created_at: 999, tags: [['e', t.id]] };
+  const keep = tagging(BOB, many[5]);
+  const { scan, asked } = fakeScan([t, retract, keep]);
+  const out = await resolveOwners(many, { scan, zTag: () => Z, roster: async () => { throw new Error('roster down'); } });
+  assert(asked.filter((f) => f['#p']).length === 3, `900 pubkeys in three parts, got ${asked.filter((f) => f['#p']).length}`);
+  assert(!out.has(many[850]), 'ALICE\'s retracted claim makes no owner');
+  assert(JSON.stringify(out.get(many[5])) === JSON.stringify([BOB]), 'BOB\'s claim stands, and a failed roster read is just no roster');
+  assert(asked.filter((f) => f.kinds && f.kinds[0] === 5).every((f) => f.authors.every((a) => a === ALICE || a === BOB)), 'deletions only by the taggers');
+});
+
 // ═══ S — structural ═══════════════════════════════════════════════════════════
 
 test('S1: the Dictionary read finds b-pointers on this relay, resolves owners, and reads trust once for both metrics', () => {
   const s = flat(code(src(ADOPTION_JS)));
-  assert(/strfryScanStream\(\{ kinds: \[39998\], '#b': sharedCoords \}/.test(s), 'headers that b-point at the scored concepts, from this instance\'s relay');
+  assert(/for \(const part of chunks\(sharedCoords, SCAN_CHUNK\)\) \{ found\.push\(\.\.\.await deps\.scan\(\{ kinds: \[39998\], '#b': part \}/.test(s)
+    && /scan: strfryScanStream,/.test(s), 'headers that b-point at the scored concepts, from this instance\'s relay, in parts');
   assert(/await resolveOwners\(\[\.\.\.signers, \.\.\.conceptAuthors, \.\.\.authors\]/.test(s), 'owners of the signers, the concepts\' authors and the reader');
   assert(/const asked = \[\.\.\.new Set\(\[\.\.\.zAuthors, \.\.\.\(gum2Inputs \? gum2Inputs\.candidates : \[\]\)\]\)\];/.test(s), 'one trust read: GUM₁\'s filers and GUM₂\'s recognizers');
   assert(/RETURN u\.pubkey AS pubkey, u\.influence AS influence/.test(s) && /RETURN c\.observee_pubkey AS pubkey, c\.influence AS influence/.test(s), 'influence from the house or the personalized point of view');
@@ -194,6 +263,16 @@ test('S3: the entry strip says the design\'s "Recognized by N members", with the
   assert(/entry && sharedCoord && typeof entry\.recognizedBy === 'number' &&/.test(s), 'only when GUM₂ was read');
   assert(/Recognized by <strong>\{entry\.recognizedBy\} \{entry\.recognizedBy === 1 \? 'member' : 'members'\}<\/strong> of \{whose\} trusted, extended community/.test(s), 'the design\'s words');
   assert(/\(GUM₂ \{typeof entry\.gum2 === 'number' \? entry\.gum2\.toFixed\(2\) : '0\.00'\}\)/.test(s), 'and the score');
+});
+
+test('S4: the public read\'s roster is the owner and customers, never the admin list', () => {
+  const s = flat(code(src(ADOPTION_JS)));
+  assert(/listInstanceAssistants\(\{ includeAdmins: false \}\)/.test(s) && !/includeAdmins: true/.test(s), 'ADR author-scoped-inspection/0001');
+});
+
+test('S5: a list read without GUM₂ offers no GUM₂ sort', () => {
+  const s = flat(code(src(CONCEPTS_JSX)));
+  assert(/const hasGum2 = entries\.some\(\(e\) => typeof e\.gum2 === 'number'\);/.test(s) && /\.filter\(\(\[key\]\) => hasGum2 \|\| !isGum2Sort\(key\)\)/.test(s), 'hidden when unread');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

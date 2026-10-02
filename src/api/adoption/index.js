@@ -402,17 +402,40 @@ async function assembleConceptDictionary({ authors, wotPov, userPubkey } = {}) {
   };
 }
 
+/** GUM₂'s real reads: this instance's strfry, the canonical nostr-user-tag z, and the roster. */
+function recognitionDeps() {
+  return {
+    scan: strfryScanStream,
+    zTag: () => require('../profile-tags').NOSTR_USER_TAG_Z_TAG,
+    // Not admins: this read is public, and the admin list is the owner's to read (ADR author-scoped-inspection/0001).
+    roster: () => require('../../utils/assistantKeys').listInstanceAssistants({ includeAdmins: false }),
+  };
+}
+
+// strfry takes a filter as one command-line argument (bDisposition strfryScanStream), and Linux caps an
+// argument at 128 KiB: long value lists are scanned in parts.
+const SCAN_CHUNK = 400;
+const chunks = (list, size) => {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+};
+
 /**
  * What GUM₂ needs, read from this instance's relay: the newest kind-39998 headers whose `b` points
  * at a concept the rows are scored for, the owners of their signers (assistantOwners), the reader to
- * leave out, and every recognizer whose trust must be read.
+ * leave out, and every recognizer whose trust must be read. `deps` are the reads (tests pass fakes):
+ * { scan(filter, project), zTag(), roster() }.
  */
-async function recognitionInputs({ rows, authors }) {
+async function recognitionInputs({ rows, authors }, deps = recognitionDeps()) {
   const sharedCoords = [...new Set(rows.flatMap((r) => r.scoreCoords))];
   if (!sharedCoords.length) return { sharedCoords, pointers: [], ownersOf: new Map(), exclude: authors, candidates: [] };
-  const found = await strfryScanStream({ kinds: [39998], '#b': sharedCoords }, (ev) => ({
-    kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at, tags: keepTags(ev, ['d', 'b']),
-  }));
+  const found = [];
+  for (const part of chunks(sharedCoords, SCAN_CHUNK)) {
+    found.push(...await deps.scan({ kinds: [39998], '#b': part }, (ev) => ({
+      kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at, tags: keepTags(ev, ['d', 'b']),
+    })));
+  }
   const newest = new Map();
   for (const ev of found) {
     const d = ev.tags.find((t) => t[0] === 'd')?.[1];
@@ -424,12 +447,9 @@ async function recognitionInputs({ rows, authors }) {
   const pointers = [...newest].map(([coord, ev]) => ({ coord, pubkey: ev.pubkey, b: ev.tags.filter((t) => t[0] === 'b').map((t) => t[1]) }));
   const signers = [...new Set(pointers.map((p) => p.pubkey))];
   const conceptAuthors = sharedCoords.map((c) => String(c).split(':')[1]);
-  const ownersOf = await resolveOwners([...signers, ...conceptAuthors, ...authors], {
-    scan: strfryScanStream,
-    zTag: () => require('../profile-tags').NOSTR_USER_TAG_Z_TAG,
-    roster: () => require('../../utils/assistantKeys').listInstanceAssistants({ includeAdmins: true }),
-  });
-  const ownersList = (pk) => (ownersOf.get(pk) && ownersOf.get(pk).length ? ownersOf.get(pk) : [pk]);
+  const ownersOf = await resolveOwners([...signers, ...conceptAuthors, ...authors], deps);
+  // As recognitionByConcept reads it: a pubkey stands for itself and whoever owns it.
+  const ownersList = (pk) => [pk, ...((ownersOf.get(pk) || []).filter((x) => x !== pk))];
   const exclude = [...new Set(authors.flatMap((a) => [a, ...ownersList(a)]))];
   const candidates = [...new Set(pointers.flatMap((p) => ownersList(p.pubkey)))];
   return { sharedCoords, pointers, ownersOf, exclude, candidates };
@@ -558,4 +578,4 @@ function registerAdoptionRoutes(app) {
   app.get('/api/adoption-twins', handleAdoptionTwins);
 }
 
-module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary, assembleConceptItems };
+module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary, assembleConceptItems, recognitionInputs };

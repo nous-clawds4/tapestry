@@ -99,8 +99,8 @@ function faqItems({ cutoff }) {
     {
       q: 'How does my Assistant decide what belongs in this Dictionary? (technical)',
       a: [
-        `In this version your Assistant does not add or remove entries on its own. A concept is in your Dictionary when a kind-39998 header signed by your Assistant (or by you) carries a b-tag that points at a shared concept, or at itself when you shared it. The reserved b-tag-deferred and malformed b values don’t count. Each entry shows GUM₁ for the shared concept it points to: the number of distinct trusted authors — influence above the verified cutoff (${cut}), from your point of view — who file items under the concept with a z-tag; the concept's own author and your Assistant never count. Each entry also shows GUM₂, its recognition: the trusted members whose own concept headers, or their Assistants’ (an Assistant belongs to whoever tagged it as their Assistant, or to its account on this instance), carry a b-tag pointing at the shared concept, each counted once by their influence; the concept's author and you never count. GUM₂ is read from this instance's relay, and nothing adds or removes entries by it yet. Nothing is stored: the list and its scores are read afresh on every visit.`,
-        'Coming in a later version: Your Assistant monitors members of your community who have published the identities of their Brainstorm Assistants (using the Tag system), and looks for kind-39998 events those Assistants have published that carry a b-tag pointing at a shared concept header. It then computes a General Usage Metric for each shared concept, in one of three ways. GUM₁ (the default): the number of distinct trusted authors — influence above the verified cutoff, from your point of view — who file items under the concept with a z-tag; the concept\'s own author and your Assistant never count. GUM₂: for each user whose Assistant has wired to that shared concept header with a b-tag, add up their rank score, pulled from Trusted Assertions. GUM₃: for each pinning on “Add to My Dictionary”, add up the pinner\'s rank score — an apply adds it, a dispute subtracts it. If the selected metric is above the cutoff (default 2 for GUM₁, 1.50 for GUM₂ and GUM₃), your Assistant clones the shared concept: it publishes its own header with a b-tag pointing at the shared one. The choice of metric and the cutoff can be changed on the Automated Assistant Tasks page. Your own pins always override the result.',
+        `In this version your Assistant does not add or remove entries on its own. A concept is in your Dictionary when a kind-39998 header signed by your Assistant (or by you) carries a b-tag that points at a shared concept, or at itself when you shared it. The reserved b-tag-deferred and malformed b values don’t count. Each entry shows GUM₁ for the shared concept it points to: the number of distinct trusted authors — influence above the verified cutoff (${cut}), from your point of view — who file items under the concept with a z-tag; the concept's own author and your Assistant never count. Each entry also shows GUM₂, its recognition: the trusted members whose own concept headers, or their Assistants’ (an Assistant belongs to whoever tagged it as their Assistant, or to its account on this instance), carry a b-tag pointing at the shared concept, each counted once by their influence (0 to 1: their Trusted Assertions rank divided by 100); the concept's author and you never count. GUM₂ is read from this instance's relay, and nothing adds or removes entries by it yet. Nothing is stored: the list and its scores are read afresh on every visit.`,
+        'Coming in a later version: Your Assistant monitors members of your community who have published the identities of their Brainstorm Assistants (using the Tag system), and looks for kind-39998 events those Assistants have published that carry a b-tag pointing at a shared concept header. It then computes a General Usage Metric for each shared concept, in one of three ways. GUM₁ (the default): the number of distinct trusted authors — influence above the verified cutoff, from your point of view — who file items under the concept with a z-tag; the concept\'s own author and your Assistant never count. GUM₂: for each user whose Assistant has wired to that shared concept header with a b-tag, add up their rank score, pulled from Trusted Assertions (as their influence, 0 to 1, so a rank of 40 adds 0.40). GUM₃: for each pinning on “Add to My Dictionary”, add up the pinner\'s rank score — an apply adds it, a dispute subtracts it. If the selected metric is above the cutoff (default 2 for GUM₁, 1.50 for GUM₂ and GUM₃), your Assistant clones the shared concept: it publishes its own header with a b-tag pointing at the shared one. The choice of metric and the cutoff can be changed on the Automated Assistant Tasks page. Your own pins always override the result.',
       ],
     },
     {
@@ -193,6 +193,8 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
   const [findOpen, setFindOpen] = useState(false);
 
   const entries = useMemo(() => data?.entries || [], [data]);
+  // GUM₂ is offered only when the read carried it (the server leaves it out when its own reads fail).
+  const hasGum2 = entries.some((e) => typeof e.gum2 === 'number');
   const metric = data?.metric || 'gum1';
   const pov = data?.pov || {};
   const signedIn = person.signedIn;
@@ -350,7 +352,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
           <label className="dict-field dict-field--sort">
             <span className="dict-field-label">Order by</span>
             <select className="dict-input" value={sort} onChange={(e) => setSort(e.target.value)}>
-              {Object.entries(SORTS).map(([key, s]) => <option key={key} value={key}>{s.label(metric)}</option>)}
+              {Object.entries(SORTS)
+                .filter(([key]) => hasGum2 || !isGum2Sort(key))
+                .map(([key, s]) => <option key={key} value={key}>{s.label(metric)}</option>)}
             </select>
           </label>
           {isGumSort(sort) && !isGum2Sort(sort) && (

@@ -49,8 +49,8 @@
 // GUM₂ is recognitionByConcept, below (2026-10-02). TODO(GUM₃ — handoff SPEC § 4): add it here, still
 // server-side, each with its inputs resolved at the handler seam (as the
 // qualifying set is) and its own cutoff (default 1.50) as the membership test:
-//   gum2 — the sum of rank scores (Trusted Assertions, active POV) of trusted
-//          users whose Assistants' headers b-point to the shared concept;
+//   gum2 — built: recognitionByConcept sums the trusted recognizers' influence
+//          (0–1; a Trusted Assertions rank is influence × 100) from the active POV;
 //   gum3 — the rank-weighted sum of `add-to-dictionary` pinnings (apply +,
 //          dispute −), once the Pins wire format lands.
 // The owner picks the metric and cutoff (Automated Assistant Tasks); `metric`
@@ -214,8 +214,9 @@ const recognitionFields = (r) => ({ gum2: r ? r.gum2 : 0, recognizedBy: r ? r.re
  *   sharedCoords — the concepts to score;
  *   pointers     — newest kind-39998 headers, as { coord, pubkey, b: [values] };
  *   ownersOf     — Map signer → its owners (who tagged it as their Assistant, or own it on this
- *                  instance's roster); a signer nobody owns stands for itself, so a person's own
- *                  header counts as theirs;
+ *                  instance's roster). A header stands for its signer AND the signer's owners: a
+ *                  person's own header counts as theirs, and nobody's claim can take that away
+ *                  (anyone can publish a "My Assistant" tag, so a claim only ever adds);
  *   exclude      — the reader (their account and Assistant): recognition is other people's;
  *   influence    — Map pubkey → influence, holding only the trusted (above the verified cutoff).
  * Also never counted: the concept's own header, and its author with that author's owners (the
@@ -225,7 +226,7 @@ const recognitionFields = (r) => ({ gum2: r ? r.gum2 : 0, recognizedBy: r ? r.re
 function recognitionByConcept({ sharedCoords, pointers, ownersOf, exclude, influence } = {}) {
   const owners = (pk) => {
     const o = ownersOf instanceof Map ? ownersOf.get(pk) : null;
-    return Array.isArray(o) && o.length ? o : [pk];
+    return [pk, ...(Array.isArray(o) ? o.filter((x) => x !== pk) : [])];
   };
   const inf = influence instanceof Map ? influence : new Map();
   const reader = new Set(Array.isArray(exclude) ? exclude : []);

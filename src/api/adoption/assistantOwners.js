@@ -12,6 +12,8 @@
 
 const { myAssistantRows } = require('../assistant/myAssistants');
 
+const CHUNK = 400;
+
 /**
  * Map assistant pubkey → [owner pubkeys], from kind-39999 nostr-user-tag taggings, the kind-5
  * deletions their signers published, and the roster ([{ accountPubkey, assistantPubkey }]).
@@ -49,17 +51,25 @@ async function resolveOwners(pubkeys, deps) {
   const list = [...new Set((Array.isArray(pubkeys) ? pubkeys : []).filter((p) => /^[0-9a-f]{64}$/.test(p || '')))];
   if (!list.length) return new Map();
   const full = (ev) => ({ id: ev.id, kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at, tags: ev.tags || [] });
-  const taggings = await deps.scan({ kinds: [39999], '#z': [deps.zTag()], '#p': list }, full);
+  // In parts: strfry takes a filter as one command-line argument, which Linux caps at 128 KiB.
+  const scanIn = async (key, values, filter) => {
+    const out = [];
+    for (let i = 0; i < values.length; i += CHUNK) out.push(...await deps.scan({ ...filter, [key]: values.slice(i, i + CHUNK) }, full));
+    return out;
+  };
+  const taggings = await scanIn('#p', list, { kinds: [39999], '#z': [deps.zTag()] });
   const ids = taggings.map((ev) => ev.id);
   const addresses = [...new Set(taggings.map((ev) => {
     const d = (ev.tags || []).find((t) => t && t[0] === 'd')?.[1];
     return typeof d === 'string' ? `39999:${ev.pubkey}:${d}` : null;
   }).filter(Boolean))];
   const taggers = [...new Set(taggings.map((ev) => ev.pubkey))];
-  const deletions = taggers.length ? [
-    ...(ids.length ? await deps.scan({ kinds: [5], authors: taggers, '#e': ids }, full) : []),
-    ...(addresses.length ? await deps.scan({ kinds: [5], authors: taggers, '#a': addresses }, full) : []),
-  ] : [];
+  const deletions = [];
+  for (let i = 0; i < taggers.length; i += CHUNK) {
+    const authors = taggers.slice(i, i + CHUNK);
+    deletions.push(...await scanIn('#e', ids.filter((id, k) => authors.includes(taggings[k].pubkey)), { kinds: [5], authors }));
+    deletions.push(...await scanIn('#a', addresses.filter((a) => authors.includes(a.split(':')[1])), { kinds: [5], authors }));
+  }
   let roster = [];
   try { roster = await deps.roster(); } catch { roster = []; }
   return ownersFromTaggings({ taggings, deletions, roster });
