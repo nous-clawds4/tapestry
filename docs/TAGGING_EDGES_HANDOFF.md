@@ -60,7 +60,8 @@ Settings on staging.
 
 **Stories 5 and 6, next.** At story 5's Planning (2026-10-01) the owner split the controls on story 4's panel by
 what they act on:
-- **Story 5** (`engineering-team/stories/tagging-edges/5-real-time-path-switch.md`, approved 2026-10-01) is the real-time
+- **Story 5** (`engineering-team/stories/tagging-edges/5-real-time-path-switch.md`, review PASS 2026-10-01 after two rounds; not
+  yet shipped) is the real-time
   path's switch for the owner or an admin, with a prompt before off and a record of who changed it.
 - **Story 6** (the epic's item 6, planned) is the pass's controls: Run and Stop for the owner or an admin, and Confirm
   for the owner only.

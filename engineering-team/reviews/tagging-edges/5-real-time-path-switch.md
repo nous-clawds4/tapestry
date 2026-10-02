@@ -233,3 +233,99 @@ Requested changes 1–13 are accuracy fixes, asked in the same round. Back to `/
 - the Architect for the ADR notes in requested changes 5, 6, 10 and 11;
 - the Implementer for the rest.
 
+
+## Re-review, round 2 (2026-10-01)
+
+**Diff:** `git diff ee170bf0..442c9dec`:
+- the ADR notes, `e7b488ed`;
+- the tests, `43dfbb78`;
+- the implementation, `c7ceb404`;
+- the test plan, `078aa6c3`;
+- the evidence, `442c9dec`.
+
+**How it was reviewed.**
+- Three checkers re-derived every review-1 item from commands and code, as reviewer rule 10 asks; no adopted wording
+  was taken on trust.
+- A fourth hunted for new problems in the fix round.
+- A fifth ran the gates independently.
+- Every finding went to a skeptic.
+- Of 16 findings, 15 stood, all non-blocking, and 1 was refuted. After deduplication they are the 10 carry-forwards
+  below.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`, run by the Reviewer:** `20261002T032541Z-14421-8456 [story5-review2] … on 442c9dec — FAIL, exit
+  1, 4956 passed, 30 failed, 168 skipped, 255/255 suites`, on a clean tree.
+  - **Matches the fix round's run.** It is identical, suite by suite, to `20261002T030856Z-37748-d97b` on
+    `078aa6c3`.
+  - **Only the standing set fails.** The 12 standing live-stack suites fail, with the same counts as the pre-story
+    baseline `20261002T023413Z-26270-9616` on `c557177f`.
+  - **`gate-result-record` passes,** 34 of 34.
+- [x] **Story suites, run independently** through `run()` on Node 22.23.3: 13 suites, 644 passed, 0 failed.
+  - Host Node 16.17.0 gives the same, except that `stack-free-npm-test` skips G2 (carry-forward 1).
+  - `git diff 43dfbb78..442c9dec -- test tests` is empty.
+- [x] **`npm run test:playwright`:** `tests/brainstorm/tagging-pipeline-panel.spec.js` passes 86 of 86, twice, with
+  no retries, against the UI built inside the container from the committed tree at `442c9dec`. B82, the round's new
+  case, passes.
+- [x] **`scripts/harness-lint.sh`:** exit 0.
+
+### Review 1's asks
+
+| Item | Now |
+|---|---|
+| Blocking 1, SR34 against C9 | Fixed. No file C9 scans matches its pattern. SR34's rows carry literal statuses and assert exactly what they did. A failed on answering 200 still fails SR34. |
+| Blocking 2, the evidence | Fixed. Every number, run id and suite name in § Evidence "The gate" matches the run records, and the 12 standing suites match story 3's record `20260930T004706Z-57038-50d9`. |
+| Requested 1–6, the panel copy | Fixed. Each new sentence was re-derived from the code it explains; none is false. PC55, TV82 and B82 fail on the old copy. |
+| Requested 7–11, the docs and ADR notes | Fixed. Every re-pointed ADR 0004 citation lands on its named construct at `442c9dec`. |
+| Requested 12, the SR4 pins | Fixed. Each row fails under its own mutation, and only there. |
+| Requested 13, the evidence markers | Fixed. The dirty explanation was reproduced: a fresh worktree made the same way shows exactly `?? node_modules`. |
+
+### Carry-forwards (non-blocking; for the owner to place)
+
+1. **The test plan's "the same results on both" Node versions** (`5-real-time-path-switch.test-plan.md:286`, `:294`)
+   is not true of `stack-free-npm-test`: on Node 16 it skips G2. Say so.
+2. **C9 is described more broadly than its regex**
+   (`test/tagging-edges-switch-record.test.js:71-72`, `:1362-1363`; test plan `:262-266`).
+   - C9 refuses the `? 200 : 500` spelling in the files it scans. The row's literal status, not C9, is what keeps SR34
+     from deriving its status in another spelling. Say that.
+   - The "When." bullet should read "no file C9 scans", since C9's own file matched at both commits.
+3. **The test plan's PC55 reading** is narrower than the regex's real exemption (`test/tagging-pipeline-codes.test.js:930`).
+   State the exemption as the code has it.
+4. **The pending-schedule flag counts only the first read**
+   (`ui/src/pages/settings/taggingPipeline/TaggingPipelinePanel.jsx:214`).
+   - During a Retry after a failed read, the Schedule section shows loading while an open off prompt still says the
+     backstop could not be checked.
+   - Count any read that is loading as pending, or word ADR 0005 D13's note to match. D14 shows nothing during any
+     loading, so the note's analogy does not hold as built.
+5. **Story 5 § Deviations still gives the failed-on remedy as "free space and is writable"** (`:411-412`, also `:397`).
+   OPERATIONS §12.9, the panel and D12 now say "read or written … readable and writable".
+6. **The `no-status` premise could be tightened** (`ui/src/utils/taggingPipelineView.js:215`):
+   - it reads, at first, as "failures that Neo4j answers with a code";
+   - it leaves out the driver's own internal-invariant throws, which are driver bugs.
+
+   Optional: name "a fault in the driver itself" beside "another library", and match ADR 0004 T12.
+7. **ADR 0005 D5's "a removed admin is refused on their next request"** (`:332-333`) lacks §12.9's caveat. A removal
+   that empties settings.json's `adminPubkeys` falls back to `BRAINSTORM_ADMIN_PUBKEYS`, which may still name that
+   admin. Add a dated note.
+8. **The 403 explanation gives only the mismatched-hostname branch** of `sameHost` (`BIBLE.md:671`,
+   `OPERATIONS.md:788`, ADR 0005 D6's note). `sameHost` also refuses an `Origin` that does not parse, such as
+   `Origin: null`. In `ownerOrAdmin` it is the last check, so "goes on to the other checks" is slightly off. Word it
+   as the code is.
+9. **The round-1 notes carry two dates.** The six ADR notes say 2026-10-02 (UTC). The test plan and story 5 say
+   2026-10-01 (local), the convention requested change 13 chose. Use one.
+10. **§ Evidence's browser line** (`5-real-time-path-switch.md:301-302`) names no commit. This re-review's own run on
+    `442c9dec` (86 of 86, twice) can be cited.
+
+### Harness friction
+
+1. None new this round. Round 1's is filed as ledger row `2026-10-02-gate-baseline-hides-story-regressions`.
+
+## Verdict (round 2)
+
+**PASS**
+
+Every blocking item and every requested change from round 1 is fixed. Each was confirmed against the code and the run
+records, not taken from the fix round's account. The story's suites pass, the browser spec passes 86 of 86, and the
+full gate shows only the 12 standing live-stack failures, the same as before the story. The 10 carry-forwards are
+wording, date and one minor UI corner, none a change to data or to who may act. The ratified staging evidence (story 5
+§ Evidence, "After the merge to staging") must exist before staging is promoted to main.

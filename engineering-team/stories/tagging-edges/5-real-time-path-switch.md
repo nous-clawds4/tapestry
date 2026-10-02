@@ -1,6 +1,6 @@
 # Story 5: The real-time path's switch, on the panel
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-01
 **Type:** Feature
 
