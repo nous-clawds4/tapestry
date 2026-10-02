@@ -15,8 +15,8 @@
  * The rules of the My Assistant disposition endpoints (src/api/list-headers/myAssistantDisposition.js,
  * ADR list-headers-disposition/0003 and its Amendment 1), in order: the same host (another site is
  * refused), a verified session (requireAuth), the CALLER's own Assistant keys (none: refused, never the
- * owner's), the fields, then never replace — any header the Assistant already has at that d-tag on this
- * instance's relay stops it (409, with its address) — then sign with those keys, the local relay, and a
+ * owner's), the fields, then never replace — a verified header the Assistant already has at that d-tag on
+ * this instance's relay stops it (409, with its address) — then sign with those keys, the local relay, and a
  * read-back by id (strfry import exits 0 even when it rejects an event). Nothing is broadcast here; the
  * browser sends the header to the community relay, as the disposition actions do. No graph node is made:
  * as before this endpoint, a Dictionary concept is a header, not a Neo4j concept.
@@ -28,13 +28,16 @@
 'use strict';
 
 const { headerDTag } = require('../../lib/dtag');
-const { sameHost, defaultDeps: dispositionDeps } = require('../list-headers/myAssistantDisposition');
+const { sameHost, firstD, defaultDeps: dispositionDeps } = require('../list-headers/myAssistantDisposition');
 
 const ROUTE = '/api/dictionaries/concepts/new';
 const HEADER_KIND = 39998;
-// The relay keeps tag values of at most 1024 bytes (maxTagValSize), and its import exits 0 when it rejects
-// one, so every value is bounded here (ADR list-headers-disposition/0004, Amendment 1).
-const MAX_VALUE_BYTES = 1024;
+// strfry looks up tag values of at most 255 bytes (MAX_INDEXED_TAG_VAL_SIZE, its src/constants.h): a filter
+// carrying a longer one fails outright. The Dictionary reads every row's own address and its b-target in
+// one #z filter, so either one longer than that would make the reader's whole Dictionary unreadable. Both
+// are bounded here; `names` and `description` aren't looked up, so only the relay's event size bounds them.
+const MAX_FILTER_VALUE_BYTES = 255;
+const MAX_D_BYTES = MAX_FILTER_VALUE_BYTES - `${HEADER_KIND}:`.length - 64 - 1; // 184: the address stays lookupable
 const LIST_HEADER_ADDRESS_RE = /^39998:([0-9a-f]{64}):(.+)$/;
 const CONTROL_RE = /\p{Cc}/u;
 // A description is typed in a text area, so it may keep its line breaks and tabs.
@@ -69,15 +72,18 @@ function readFields(body) {
     return { error: 'singular, plural, description and target must be text' };
   }
   if (!singular || !plural) return { error: 'Both the singular and the plural name are needed' };
-  for (const [label, v] of [['singular name', singular], ['plural name', plural], ['description', description]]) {
-    if (bytes(v) > MAX_VALUE_BYTES) return { error: `The ${label} is too long — the relay keeps tag values of at most 1024 bytes` };
-  }
   if (CONTROL_RE.test(singular) || CONTROL_RE.test(plural)) return { error: "A name can't contain control characters" };
   if (DESCRIPTION_CONTROL_RE.test(description)) return { error: "The description can't contain control characters" };
-  if (!headerDTag(singular)) return { error: 'The singular name needs at least one Latin letter or digit, which make its header’s d-tag' };
+  const d = headerDTag(singular);
+  if (!d) return { error: 'The singular name needs at least one Latin letter or digit, which make its header’s d-tag' };
+  if (bytes(d) > MAX_D_BYTES) {
+    return { error: `The singular name is too long: its d-tag would be ${bytes(d)} characters, and this relay can look up at most ${MAX_D_BYTES}` };
+  }
   if (target) {
     if (ADDRESS_FORMAT_RE.test(target)) return { error: "The shared concept's address contains characters an address can't have" };
-    if (bytes(target) > MAX_VALUE_BYTES) return { error: "The shared concept's address is too long — the relay keeps tag values of at most 1024 bytes" };
+    if (bytes(target) > MAX_FILTER_VALUE_BYTES) {
+      return { error: `The shared concept's address is longer than this relay can look up (${MAX_FILTER_VALUE_BYTES} bytes), so a concept wired to it couldn't be read back` };
+    }
     if (!LIST_HEADER_ADDRESS_RE.test(target)) return { error: "The shared concept must be a list header's address (39998:pubkey:d-tag)" };
   }
   return { fields: { singular, plural, description, target: target || null } };
@@ -92,6 +98,7 @@ function defaultDeps() {
     sign: d.sign,
     publishLocal: d.publishLocal,
     isStored: d.isStored,
+    verify: d.verify,
     now: d.now,
   };
 }
@@ -116,10 +123,15 @@ function createNewConceptHandler(deps = {}) {
       const template = composeConceptHeader({ ...fields, signer: keys.pubkey, now: d.now() });
       const dTag = template.tags[0][1];
       const coord = `${HEADER_KIND}:${keys.pubkey}:${dTag}`;
+      if (fields.target === coord) {
+        return res.status(400).json({ success: false, error: "That's your Assistant's own concept at this name, so there's nothing to wire it to" });
+      }
 
-      // Never replace: a kind-39998 event at the same d-tag would.
+      // Never replace: a kind-39998 event at the same d-tag would. Only a header that is verifiably the
+      // Assistant's at exactly this address counts (the relay can hold unverified imports, and #d matches any
+      // d tag): anything else is not what the new header would replace.
       const existing = await d.scanLatest({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
-      if (existing) {
+      if (existing && existing.pubkey === keys.pubkey && existing.kind === HEADER_KIND && firstD(existing) === dTag && d.verify(existing)) {
         return res.status(409).json({
           success: false, code: 'exists', coord,
           error: 'Your Assistant already has a concept header at this name on this instance, so creating it would replace it',
@@ -150,4 +162,4 @@ function register(app) {
   app.post(ROUTE, createNewConceptHandler());
 }
 
-module.exports = { ROUTE, composeConceptHeader, readFields, createNewConceptHandler, register };
+module.exports = { ROUTE, MAX_FILTER_VALUE_BYTES, MAX_D_BYTES, composeConceptHeader, readFields, createNewConceptHandler, register };

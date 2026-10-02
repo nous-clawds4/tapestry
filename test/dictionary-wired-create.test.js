@@ -7,11 +7,11 @@
  * the header is signed by that person's own Assistant, for plain Create New Concept too; someone with
  * no Assistant here is told so, with no fallback to their own key.
  *
- *   E1..E12 — the endpoint, POST /api/dictionaries/concepts/new (src/api/adoption/newConcept.js),
+ *   E1..E13 — the endpoint, POST /api/dictionaries/concepts/new (src/api/adoption/newConcept.js),
  *             through createNewConceptHandler with every side effect injected.
- *   P1..P3  — the page's pure helpers (ui/src/pages/dictionary/newConceptDraft.js, dynamic import),
+ *   P1..P4  — the page's pure helpers (ui/src/pages/dictionary/newConceptDraft.js, dynamic import),
  *             and the server's header equal to the page's preview.
- *   S1..S3  — structural pins, read off comment-stripped source.
+ *   S1..S4  — structural pins, read off comment-stripped source.
  *
  * The browser half is tests/brainstorm/dictionary-concepts.spec.js D24–D27 and D29–D30.
  */
@@ -30,6 +30,7 @@ const UI = path.join(ROOT, 'ui/src');
 const DRAFT_JS = path.join(UI, 'pages/dictionary/newConceptDraft.js');
 const PAGE_JSX = path.join(UI, 'pages/dictionary/NewConcept.jsx');
 const DICT_JS = path.join(UI, 'pages/dictionaries/conceptsDictionary.js');
+const CONCEPTS_JSX = path.join(UI, 'pages/dictionaries/Concepts.jsx');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
@@ -79,6 +80,7 @@ async function run(over = {}) {
     sign: (template, privkey) => { calls.signed.push({ template, privkey }); return (over.sign || fakeSign(ASSISTANT))(template, privkey); },
     publishLocal: async (ev) => { calls.published.push(ev); },
     isStored: over.isStored || (async (id) => { calls.readBack.push(id); return true; }),
+    verify: over.verify || (() => true),
     now: () => NOW,
   };
   const req = {
@@ -124,8 +126,9 @@ test('E4: the keys are the caller\'s own: looked up for the session\'s pubkey, a
   assert(!/getOwnerAssistantKeys|getOwnerAssistantPubkey/.test(code(src(MODULE))), 'no owner-key helper anywhere in the module');
 });
 
-test('E5: the fields are checked before the relay is read: names, slug, control characters, sizes, the target', async () => {
+test('E5: the fields are checked before the relay is read: names, slug, control characters, lookup sizes, the target', async () => {
   const big = 'x'.repeat(1025);
+  const addr = (n) => { const head = `39998:${'d'.repeat(64)}:`; return head + 'x'.repeat(n - head.length); };
   const bad = [
     [{ singular: 'Taco', plural: '' }, /Both the singular and the plural name/],
     [{ singular: '   ', plural: 'Tacos' }, /Both the singular and the plural name/],
@@ -134,12 +137,11 @@ test('E5: the fields are checked before the relay is read: names, slug, control 
     [{ singular: 'Ta\u0000co', plural: 'Tacos' }, /control characters/],
     [{ singular: 'Taco', plural: 'Ta\ncos' }, /control characters/],
     [{ singular: 'Taco', plural: 'Tacos', description: 'bell\u0007' }, /description can't contain control characters/],
-    [{ singular: big, plural: 'Tacos' }, /singular name is too long/],
-    [{ singular: 'Taco', plural: 'Tacos', description: big }, /description is too long/],
+    [{ singular: 'a'.repeat(185), plural: 'Tacos' }, /its d-tag would be 185 characters, and this relay can look up at most 184/],
+    [{ singular: 'Taco', plural: 'Tacos', target: addr(256) }, /longer than this relay can look up \(255 bytes\)/],
     [{ singular: 'Taco', plural: 'Tacos', target: '39999:' + 'd'.repeat(64) + ':x' }, /must be a list header's address/],
     [{ singular: 'Taco', plural: 'Tacos', target: '39998:abc:x' }, /must be a list header's address/],
     [{ singular: 'Taco', plural: 'Tacos', target: `${SHARED}​` }, /characters an address can't have/],
-    [{ singular: 'Taco', plural: 'Tacos', target: `39998:${'d'.repeat(64)}:${big}` }, /address is too long/],
     [null, /Both the singular and the plural name/],
   ];
   for (const [body, re] of bad) {
@@ -151,13 +153,25 @@ test('E5: the fields are checked before the relay is read: names, slug, control 
   assert(ok.status === 200, `a description may keep line breaks and tabs: ${ok.status} ${show(ok.body)}`);
   const emoji = await run({ body: { singular: 'Family 👨‍👩‍👧', plural: 'Families' } });
   assert(emoji.status === 200, `a name may carry an emoji sequence (its joiners are format characters): ${show(emoji.body)}`);
+  // At the bounds: a 184-character d-tag keeps the header's own address at 255 bytes; a 255-byte target is lookupable.
+  const edge = await run({ body: { singular: 'a'.repeat(184), plural: 'As', target: addr(255) } });
+  assert(edge.status === 200 && Buffer.byteLength(edge.body.coord) === 255, `at the bounds: ${edge.status} ${show(edge.body).slice(0, 120)}`);
+  // Names and the description aren't looked up: only the relay's event size bounds them.
+  const long = await run({ body: { singular: 'Taco', plural: big, description: big.repeat(4) } });
+  assert(long.status === 200, `a long plural and description are kept: ${long.status} ${show(long.body).slice(0, 160)}`);
 });
 
-test('E6: never replace: any header the Assistant has at that d-tag stops it, with that header\'s address', async () => {
-  const r = await run({ existing: { id: '1'.repeat(64), kind: 39998, pubkey: ASSISTANT, tags: [['d', 'taco-truck']] } });
+test('E6: never replace: a verified header of the Assistant\'s at that d-tag stops it, with its address', async () => {
+  const stored = { id: '1'.repeat(64), kind: 39998, pubkey: ASSISTANT, tags: [['d', 'taco-truck']] };
+  const r = await run({ existing: stored });
   assert(r.status === 409 && r.body.code === 'exists' && r.body.coord === `39998:${ASSISTANT}:taco-truck`, `got ${r.status} ${show(r.body)}`);
   assert(show(r.calls.scans) === show([{ kinds: [39998], authors: [ASSISTANT], '#d': ['taco-truck'] }]), `scanned ${show(r.calls.scans)}`);
   assert(r.calls.signed.length === 0 && r.calls.published.length === 0, 'nothing signed or published');
+  // What the new header wouldn't replace doesn't stop it: an unverifiable import, or a match on a second d tag.
+  const forged = await run({ existing: stored, verify: () => false });
+  assert(forged.status === 200, `an unverified stored event isn't the Assistant's header: ${forged.status} ${show(forged.body)}`);
+  const second = await run({ existing: { ...stored, tags: [['d', 'other'], ['d', 'taco-truck']] } });
+  assert(second.status === 200, `a header whose first d is another isn't at this address: ${second.status} ${show(second.body)}`);
 });
 
 test('E7: created plainly, the header is shared: its b-tag points to itself', async () => {
@@ -174,6 +188,12 @@ test('E8: with a target, the header is wired: its b-tag points to the shared con
   const t = r.calls.signed[0].template;
   assert(show(t.tags) === show([['d', 'taco-truck'], ['names', 'Taco Truck', 'Taco Trucks'], ['b', SHARED, 'pointer']]), show(t.tags));
   assert(r.body.coord === `39998:${ASSISTANT}:taco-truck`, `the new header's own address: ${r.body.coord}`);
+});
+
+test('E13: a target that is the header\'s own address is refused (it would be the plain concept)', async () => {
+  const r = await run({ body: { singular: 'Taco Truck', plural: 'Taco Trucks', target: `39998:${ASSISTANT}:taco-truck` } });
+  assert(r.status === 400 && /own concept at this name/.test(r.body.error), `${r.status} ${show(r.body)}`);
+  assert(r.calls.scans.length === 0 && r.calls.signed.length === 0, 'nothing read or signed');
 });
 
 test('E9: the relay\'s keeping is read back: a miss or a failed read claims nothing', async () => {
@@ -213,12 +233,28 @@ test('E12: the route is registered with the adoption routes, and no auth list ga
 
 // ═══ P — the page's helpers ═══════════════════════════════════════════════════
 
-test('P1: ?wire= is used only when it is a list header\'s address', async () => {
-  const { wireTarget } = await draftMod();
+test('P1: ?wire= is used only when it is a list header\'s address this relay can look up', async () => {
+  const { wireTarget, wireProblem } = await draftMod();
   assert(wireTarget(SHARED) === SHARED && wireTarget(`  ${SHARED} `) === SHARED, 'an address, trimmed');
   for (const v of [null, '', 'taco', `39999:${'d'.repeat(64)}:x`, `39998:${'d'.repeat(63)}:x`, `39998:${'d'.repeat(64)}:`]) {
-    assert(wireTarget(v) === null, `${show(v)} is not one`);
+    assert(wireTarget(v) === null && wireProblem(v) === 'not-an-address', `${show(v)} is not one`);
   }
+  const head = `39998:${'d'.repeat(64)}:`;
+  const at = head + 'x'.repeat(255 - head.length);
+  assert(wireTarget(at) === at && wireProblem(at) === null, 'a 255-byte address is lookupable');
+  assert(wireTarget(`${at}x`) === null && wireProblem(`${at}x`) === 'too-long', 'a 256-byte one is not, and says so');
+  const multi = head + 'é'.repeat(Math.ceil((256 - head.length) / 2));
+  assert(wireProblem(multi) === 'too-long', 'the bound is in bytes, not characters');
+});
+
+test('P4: a singular name whose d-tag would make an unlookupable address isn\'t ready', async () => {
+  const { conceptHeaderDraft, lookupable, MAX_D_BYTES } = await draftMod();
+  const { MAX_D_BYTES: serverMax, MAX_FILTER_VALUE_BYTES } = mod();
+  assert(MAX_D_BYTES === 184 && serverMax === 184 && MAX_FILTER_VALUE_BYTES === 255, 'the page and the server share the bound');
+  const ok = conceptHeaderDraft({ singular: 'a'.repeat(184), plural: 'As', pubkey: ASSISTANT });
+  assert(ok.ready && !ok.tooLong && lookupable(ok.coord), 'at 184 the address is 255 bytes and ready');
+  const over = conceptHeaderDraft({ singular: 'a'.repeat(185), plural: 'As', pubkey: ASSISTANT });
+  assert(!over.ready && over.tooLong && !lookupable(over.coord), 'at 185 it is not');
 });
 
 test('P2: the form starts from the shared header\'s names and description', async () => {
@@ -266,10 +302,22 @@ test('S2: the finder\'s path is /dictionary/new?wire=<address>', () => {
   assert(/export const dictionaryWirePath = \(coord\) => `\$\{DICTIONARY_NEW_PATH\}\?\$\{DICTIONARY_WIRE_PARAM\}=\$\{encodeURIComponent\(coord\)\}`;/.test(s), 'the path');
 });
 
-test('S3: no Assistant: the form is disabled, and the page names Account Setup', () => {
+test('S3: no Assistant: the form is disabled, and the page names Account Setup; so does the finder', () => {
   const s = flat(code(src(PAGE_JSX)));
   assert(/const noAssistant = !person\.loading && person\.signedIn && !person\.assistant;/.test(s), 'signed in with no Assistant here');
   assert(/<fieldset disabled=\{!signer \|\| busy \|\| locked\}/.test(s), 'no signer, no form');
+  const finder = flat(code(src(CONCEPTS_JSX)));
+  assert(/hasAssistant=\{Boolean\(assistantPubkey\)\}/.test(finder) && /\{ASSISTANT_COPY\.noAssistantLine\} <Link to="\/setup">\{ASSISTANT_COPY\.noAssistantLink\}<\/Link>/.test(finder),
+    'the finder doesn\'t promise "Your Assistant adds…" to a reader who has none');
+});
+
+test('S4: the finder offers Add only for an address this relay can look up, and the page refuses its own address', () => {
+  const finder = flat(code(src(CONCEPTS_JSX)));
+  assert(/\{canAdd && lookupable\(r\.uuid\) && \(\s*<button/.test(finder) && /\{canAdd && !lookupable\(r\.uuid\) && \(/.test(finder),
+    'no Add for an unlookupable address, and a line saying why');
+  const s = flat(code(src(PAGE_JSX)));
+  assert(/const selfTarget = Boolean\(target && draft\.coord === target\);/.test(s) && /draft\.ready && !selfTarget && !busy && !locked/.test(s),
+    'wired to its own address is not created');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

@@ -87,7 +87,11 @@ const { test, expect } = require('@playwright/test');
  *         wired to it: /dictionary/new?wire=… starts from its names and description, the preview's
  *         b-tag points to it, and their Assistant creates it. The owner gets the twin picker and the
  *         same link; signed out, the finder says to sign in.
- *   D30 — signed in with no Assistant here: the page says so, points to Account Setup, and can't create.
+ *   D30 — signed in with no Assistant here: the page says so, points to Account Setup, and can't create;
+ *         the finder's Add says the same rather than "Your Assistant adds…".
+ *   D31 — the page says what it can't do: a link that names no address, an address too long for the
+ *         relay to look up (255 bytes), a shared header it can't find, a name whose d-tag is too long;
+ *         and the finder offers no Add for a concept whose address is too long.
  */
 
 const OWNER = '1'.repeat(64);
@@ -885,6 +889,49 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByLabel('Singular name')).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Create concept' })).toBeDisabled();
     expect(created).toHaveLength(0);
+
+    await page.goto(PAGE);
+    await page.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
+    await page.getByRole('searchbox').fill('taco');
+    await page.getByRole('button', { name: 'Add to Dictionary' }).click();
+    await expect(page.locator('.dict-add')).toContainText('You don\'t have a Tapestry Assistant on this instance yet.');
+    await expect(page.locator('.dict-add')).not.toContainText('Your Assistant adds');
+  });
+
+  test('D31: the page and the finder say what they can’t do', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const created = await mockCreate(page, { assistant: CUST_TA });
+    await page.goto(`${PAGE}/new?wire=taco`);
+    await expect(page.getByText('This link doesn’t name a shared concept (a list header’s address), so this creates a concept of its own.')).toBeVisible();
+    await expect(page.locator('.dict-new-wired')).toHaveCount(0);
+
+    const head = `39998:${SHARER}:`;
+    const long = head + 'x'.repeat(256 - head.length);
+    await page.goto(`${PAGE}/new?wire=${encodeURIComponent(long)}`);
+    await expect(page.getByText(/This shared concept’s address is longer than this instance’s relay can look up \(255 bytes\)/)).toBeVisible();
+    await page.getByLabel('Singular name').fill('Bird');
+    await page.getByLabel('Plural name').fill('Birds');
+    await expect(page.locator('.dict-new-preview'), 'a concept of its own').toContainText(`["b","39998:${CUST_TA}:bird","pointer"]`);
+
+    await page.getByLabel('Singular name').fill('a'.repeat(185));
+    await expect(page.getByText('The singular name is too long: its d-tag would be 185 characters, and this instance’s relay can look up at most 184.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create concept' })).toBeDisabled();
+
+    await page.route('**/api/relay/external**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, events: [] }) }));
+    await page.goto(`${PAGE}/new?wire=${encodeURIComponent(SHARED_COORD)}`);
+    await expect(page.getByText('Its header wasn’t found on this instance’s relay or the community relay, so fill in the names yourself.')).toBeVisible();
+    await expect(page.getByLabel('Singular name')).toHaveValue('');
+    expect(created).toHaveLength(0);
+
+    // The finder: a concept whose address is too long is listed, without Add.
+    const longHeader = { ...SHARED_HEADER, id: 'c'.repeat(64), tags: [['d', long.slice(head.length)], ['names', 'Taco Stand', 'Taco Stands'], ['b', long, 'pointer']] };
+    await page.route('**/api/relay/external**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, events: [longHeader] }) }));
+    await page.goto(PAGE);
+    await page.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
+    await page.getByRole('searchbox').fill('taco');
+    await expect(page.locator('.dict-find-name', { hasText: 'Taco Stand' })).toBeVisible();
+    await expect(page.getByText('Its address is too long for this instance’s relay to look up, so it can’t be added.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add to Dictionary' })).toHaveCount(0);
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

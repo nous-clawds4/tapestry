@@ -11,6 +11,8 @@ import {
   overrideBadge, povLine, useAssistantDictionaries, useConceptDictionary, useDictionaryPerson,
 } from './conceptsDictionary';
 import { mergeDictionaries } from './managedDictionary';
+import { lookupable } from '../dictionary/newConceptDraft';
+import { ASSISTANT_COPY } from '../assistant/actions';
 
 /**
  * Dictionary › Concepts, version 1 (handoff SPEC § 2; design: the Brainstorm
@@ -399,7 +401,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
           assistantLabel={signedIn ? 'your Assistant' : 'the owner’s Assistant'}
           canAdd={signedIn && !managed}
           isOwner={person.isOwner}
-          cantAdd={!signedIn ? 'Sign in to add a concept from here.' : 'Adding works on your own Dictionary: choose yourself under Managed by.'}
+          cantAdd={!signedIn ? 'Sign in to add a concept from here.' : 'Adding works on your own Dictionary: choose your local Assistant under Managed by.'}
           onAdded={reload}
         />
       )}
@@ -517,7 +519,10 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
                 {r.description && <span className="dict-row-desc">{r.description}</span>}
                 <span className="dict-row-by">by {authorLabel(r.author, { assistantPubkey, assistantLabel, profiles })}</span>
               </div>
-              {canAdd && (
+              {canAdd && !lookupable(r.uuid) && (
+                <span className="dict-add-foot text-muted">Its address is too long for this instance’s relay to look up, so it can’t be added.</span>
+              )}
+              {canAdd && lookupable(r.uuid) && (
                 <button
                   type="button" className="dict-add-btn" aria-expanded={adding?.uuid === r.uuid}
                   onClick={() => setAdding(adding?.uuid === r.uuid ? null : r)}
@@ -526,7 +531,7 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
                 </button>
               )}
               {canAdd && adding?.uuid === r.uuid && (
-                <AddToDictionary concept={r} isOwner={isOwner} onAdded={onAdded} onClose={() => setAdding(null)} />
+                <AddToDictionary concept={r} isOwner={isOwner} hasAssistant={Boolean(assistantPubkey)} onAdded={onAdded} onClose={() => setAdding(null)} />
               )}
             </li>
           ))}
@@ -543,7 +548,7 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
  * The owner can also pick one of their graph concepts as the local twin, which DispositionPanel then
  * wires with a pointer b-tag (the adoption flow, SPEC § 2.4), and the list reloads.
  */
-function AddToDictionary({ concept, isOwner, onAdded, onClose }) {
+function AddToDictionary({ concept, isOwner, hasAssistant, onAdded, onClose }) {
   const [twins, setTwins] = useState(null);
   const [twin, setTwin] = useState('');
 
@@ -572,10 +577,16 @@ function AddToDictionary({ concept, isOwner, onAdded, onClose }) {
   if (!isOwner) {
     return (
       <div className="dict-add">
-        <p className="dict-add-lede">
-          Your Assistant adds <strong>{name}</strong> by publishing a concept of your own, wired to it (its b-tag
-          points to the shared concept).
-        </p>
+        {hasAssistant ? (
+          <p className="dict-add-lede">
+            Your Assistant adds <strong>{name}</strong> by publishing a concept of your own, wired to it (its b-tag
+            points to the shared concept).
+          </p>
+        ) : (
+          <p className="dict-add-lede">
+            {ASSISTANT_COPY.noAssistantLine} <Link to="/setup">{ASSISTANT_COPY.noAssistantLink}</Link>
+          </p>
+        )}
         <p className="dict-add-foot">{create}, wired to this one.</p>
       </div>
     );

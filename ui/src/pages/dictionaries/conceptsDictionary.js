@@ -97,8 +97,9 @@ export function authorLabel(pubkey, { assistantPubkey, assistantLabel = 'your As
  * Whose Dictionary this is. `authors` is what the server reads: the person's
  * account and, when they have one, their assistant. `signedIn` false means
  * the page is showing the owner's. `isOwner` is true when the signed-in
- * reader owns this instance; only they can add from the finder in this
- * version (the b-disposition writes are owner-only).
+ * reader owns this instance; only they get the finder's twin picker (the
+ * b-disposition writes are owner-only). Anyone signed in can create a concept
+ * wired to a finder result, signed by their own Assistant.
  */
 export function useDictionaryPerson() {
   const { assistants, viewer, loading } = useAssistantRoster();

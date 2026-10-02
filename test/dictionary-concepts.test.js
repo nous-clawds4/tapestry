@@ -399,7 +399,8 @@ test('S6: Add to Dictionary is offered to any signed-in reader; only the owner g
   const page = flat(code(src(DICT_CONCEPTS_JSX)));
   assert(/canAdd=\{signedIn && !managed\}/.test(page) && /isOwner=\{person\.isOwner\}/.test(page),
     'the finder gets canAdd = signed in, on the reader\'s own list (dictionary-managed-by S3), and whether they own the instance (dictionary-wired-create)');
-  assert(/\{canAdd && \(\s*<button/.test(page), 'the Add to Dictionary button renders only when canAdd');
+  assert(/\{canAdd && lookupable\(r\.uuid\) && \(\s*<button/.test(page),
+    'the Add to Dictionary button renders only when canAdd (and for an address the relay can look up: dictionary-wired-create S4)');
   assert(/if \(!isOwner\) return undefined;/.test(page) && /if \(!isOwner\) \{ return \(/.test(page),
     'a reader who isn\'t the owner reads no twins and gets no picker, only Create New Concept, wired to the result');
 });

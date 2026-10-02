@@ -10,7 +10,7 @@ import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
 import { COMMUNITY_RELAYS } from '../../hooks/useCommunitySharedConcepts';
 import { ASSISTANT_COPY } from '../assistant/actions';
 import { classifyBroadcast, outcomeMessage } from '@tapestry/broadcast-outcome';
-import { conceptHeaderDraft, draftPreview, fieldsFromHeader, wireTarget } from './newConceptDraft';
+import { MAX_D_BYTES, conceptHeaderDraft, draftPreview, fieldsFromHeader, wireProblem, wireTarget } from './newConceptDraft';
 
 /** Creates the header with the signed-in person's own Assistant (src/api/adoption/newConcept.js). */
 export const NEW_CONCEPT_API = '/api/dictionaries/concepts/new';
@@ -64,7 +64,7 @@ export default function DictionaryNewConceptPage() {
   const [params] = useSearchParams();
   const wireParam = params.get(DICTIONARY_WIRE_PARAM);
   const target = wireTarget(wireParam);
-  const badWire = wireParam !== null && !target;
+  const badWire = wireParam !== null ? wireProblem(wireParam) : null;
   const shared = useSharedHeader(target);
   const sharedAuthor = target ? target.split(':')[1] : null;
   const profiles = useProfiles(sharedAuthor ? [sharedAuthor] : []);
@@ -91,7 +91,9 @@ export default function DictionaryNewConceptPage() {
   const signer = person.signedIn ? person.assistant : null;
   const draft = conceptHeaderDraft({ singular, plural, description, pubkey: signer, target });
   const locked = Boolean(undelivered); // the header exists: what's left is its broadcast
-  const canCreate = person.signedIn && Boolean(signer) && draft.ready && !busy && !locked;
+  // Wired to its own address would only be the plain, self-shared concept under another name.
+  const selfTarget = Boolean(target && draft.coord === target);
+  const canCreate = person.signedIn && Boolean(signer) && draft.ready && !selfTarget && !busy && !locked;
   // A name with no Latin letter or digit has no slug, so it can't name the header's d-tag yet.
   const noSlug = Boolean(singular.trim()) && !draft.d;
 
@@ -169,9 +171,15 @@ export default function DictionaryNewConceptPage() {
             <Link to="/setup">{ASSISTANT_COPY.noAssistantLink}</Link>
           </p>
         )}
-        {badWire && (
+        {badWire === 'not-an-address' && (
           <p className="dict-notice" role="status">
             This link doesn’t name a shared concept (a list header’s address), so this creates a concept of its own.
+          </p>
+        )}
+        {badWire === 'too-long' && (
+          <p className="dict-notice" role="status">
+            This shared concept’s address is longer than this instance’s relay can look up (255 bytes), so a concept
+            wired to it couldn’t be read back into your Dictionary. This creates a concept of its own instead.
           </p>
         )}
 
@@ -209,6 +217,17 @@ export default function DictionaryNewConceptPage() {
             {noSlug && (
               <p className="dict-entry-note text-muted dict-new-hint" role="status">
                 The singular name needs at least one Latin letter or digit, which make its header’s d-tag.
+              </p>
+            )}
+            {draft.tooLong && (
+              <p className="dict-entry-note text-muted dict-new-hint" role="status">
+                The singular name is too long: its d-tag would be {draft.d.length} characters, and this instance’s relay can
+                look up at most {MAX_D_BYTES}.
+              </p>
+            )}
+            {selfTarget && (
+              <p className="dict-entry-note text-muted dict-new-hint" role="status">
+                That is your Assistant’s own concept at this name, so there’s nothing to wire it to. Give yours another name.
               </p>
             )}
           </fieldset>
