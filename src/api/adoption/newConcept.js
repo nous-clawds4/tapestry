@@ -94,7 +94,8 @@ function defaultDeps() {
   return {
     requireAuth: d.requireAuth,
     getAssistantKeys: d.getAssistantKeys,
-    scanLatest: d.scanLatest,
+    // Every match, not the newest: #d matches any d tag, so the newest match can live at another address.
+    scanAll: (filter) => require('../concept/bDisposition').strfryScanStream(filter),
     sign: d.sign,
     publishLocal: d.publishLocal,
     isStored: d.isStored,
@@ -127,11 +128,12 @@ function createNewConceptHandler(deps = {}) {
         return res.status(400).json({ success: false, error: "That's your Assistant's own concept at this name, so there's nothing to wire it to" });
       }
 
-      // Never replace: a kind-39998 event at the same d-tag would. Only a header that is verifiably the
-      // Assistant's at exactly this address counts (the relay can hold unverified imports, and #d matches any
-      // d tag): anything else is not what the new header would replace.
-      const existing = await d.scanLatest({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
-      if (existing && existing.pubkey === keys.pubkey && existing.kind === HEADER_KIND && firstD(existing) === dTag && d.verify(existing)) {
+      // Never replace: a kind-39998 event at the same d-tag would. Any match that is verifiably the Assistant's
+      // header at exactly this address stops it. strfry places an event by its first d tag but matches #d on
+      // every d tag, and the relay can hold unverified imports, so each match is checked, not just the newest.
+      const matches = await d.scanAll({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
+      const atThisAddress = (ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND && firstD(ev) === dTag && d.verify(ev);
+      if ((Array.isArray(matches) ? matches : []).some(atThisAddress)) {
         return res.status(409).json({
           success: false, code: 'exists', coord,
           error: 'Your Assistant already has a concept header at this name on this instance, so creating it would replace it',

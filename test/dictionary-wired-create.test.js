@@ -76,7 +76,7 @@ async function run(over = {}) {
   const deps = {
     requireAuth: over.requireAuth || (() => SESSION),
     getAssistantKeys: async (pk) => { calls.keysFor.push(pk); return 'keys' in over ? over.keys : { pubkey: ASSISTANT, privkey: '9'.repeat(64) }; },
-    scanLatest: async (filter) => { calls.scans.push(filter); return over.existing || null; },
+    scanAll: async (filter) => { calls.scans.push(filter); return over.existing ? [].concat(over.existing) : []; },
     sign: (template, privkey) => { calls.signed.push({ template, privkey }); return (over.sign || fakeSign(ASSISTANT))(template, privkey); },
     publishLocal: async (ev) => { calls.published.push(ev); },
     isStored: over.isStored || (async (id) => { calls.readBack.push(id); return true; }),
@@ -170,8 +170,13 @@ test('E6: never replace: a verified header of the Assistant\'s at that d-tag sto
   // What the new header wouldn't replace doesn't stop it: an unverifiable import, or a match on a second d tag.
   const forged = await run({ existing: stored, verify: () => false });
   assert(forged.status === 200, `an unverified stored event isn't the Assistant's header: ${forged.status} ${show(forged.body)}`);
-  const second = await run({ existing: { ...stored, tags: [['d', 'other'], ['d', 'taco-truck']] } });
+  const elsewhere = { ...stored, id: '2'.repeat(64), created_at: 9, tags: [['d', 'other'], ['d', 'taco-truck']] };
+  const second = await run({ existing: elsewhere });
   assert(second.status === 200, `a header whose first d is another isn't at this address: ${second.status} ${show(second.body)}`);
+  // ...but it can't hide the real one: every match is checked, not just the newest (review round 2, R2-1).
+  const both = await run({ existing: [{ ...stored, created_at: 1 }, elsewhere] });
+  assert(both.status === 409 && both.body.code === 'exists', `a newer event elsewhere doesn't let the genuine header be replaced: ${both.status} ${show(both.body)}`);
+  assert(both.calls.signed.length === 0, 'nothing signed');
 });
 
 test('E7: created plainly, the header is shared: its b-tag points to itself', async () => {

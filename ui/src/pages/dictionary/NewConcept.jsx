@@ -227,7 +227,7 @@ export default function DictionaryNewConceptPage() {
             )}
             {selfTarget && (
               <p className="dict-entry-note text-muted dict-new-hint" role="status">
-                That is your Assistant’s own concept at this name, so there’s nothing to wire it to. Give yours another name.
+                That is already your Assistant’s concept, so it’s in your Dictionary as it is.
               </p>
             )}
           </fieldset>
