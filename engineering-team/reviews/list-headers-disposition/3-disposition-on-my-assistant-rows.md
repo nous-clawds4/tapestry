@@ -163,3 +163,134 @@ list.
 
 ## On PASS (same commit)
 - [ ] Not applicable: the verdict is CHANGES_REQUESTED, and the story stays **Approved**.
+
+## Re-review, round 2 (2026-10-01)
+
+**Diff:** `git diff 738ee546..36f82e87` (base = round 1's review commit). The commits:
+- `f05bcfd8`: ADR 0003 Amendment 1;
+- `b0500705`: the Tester's pass. It adds H13–H15, S5 and M11, points `request()` at Express's already-decoded
+  parameters, and injects `verify` through `deps()`. It touches nothing under `src/` or `ui/`;
+- `36f82e87`: the implementation, touching `myAssistantDisposition.js` and `ListHeaderDispositionPanel.jsx`
+  only. It touches nothing under `test/` or `tests/`.
+
+**The owner's decision at round 1's gate,** verbatim: "Go ahead with the fix round for story 3". The three
+blocking asks and the recommended non-blocking 1 (the double decode) were all taken up in Amendment 1.
+
+**In short:**
+- Every round-1 ask is fixed, and I checked each fix as a fresh claim below.
+- But this round ran the *full* gate for the first time in this book, in a network-isolated CI reproduction. It
+  fails one guard suite, because of a pattern in this story's own test file (blocking 4). The fix is test-only.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`, reproduced as CI, with no network during the run.** I used the recipe in ledger row
+      `2026-09-30-npm-test-step-leaks-fixtures`:
+  1. a full `--no-local` clone of `feat/list-headers-disposition` at `36f82e87`;
+  2. copied into a Docker named volume with `COPYFILE_DISABLE=1 tar --no-xattrs`, then `chown -R root:root`;
+  3. `npm ci` in `node:22-bookworm`, with network;
+  4. `GATE_LABEL=review-lhd-3-r2 npm test` with `--network none` and `CI=true`, its log outside the tree.
+
+  Nothing ran against `localhost:7778` and nothing published. The verdict, read with
+  `npm run -s gate:status -- --label review-lhd-3-r2`:
+
+  > `20261002T004748Z-20-fc5d [review-lhd-3-r2] started 2026-10-02T00:47:48.613Z on 36f82e87 — FAIL, exit 1, 4518 passed, 1 failed, 593 skipped, 257/257 suites; failed: gate-result-record · /w/repo/tmp/gate-runs/20261002T004748Z-20-fc5d.json`
+
+  - **The record:** `node: v22.23.3`, `git: { commit: 36f82e87…, branch: feat/list-headers-disposition, dirty: false }`.
+  - **This book's suites, all PASS:**
+
+    | Suite | Pass / fail / skipped |
+    |---|---|
+    | `list-headers-author-options` | 9 / 0 / 0 |
+    | `list-headers-disposition-column` | 12 / 0 / 0 |
+    | `list-headers-my-assistant-disposition` | 31 / 0 / 2 (the two live tests skip with no network) |
+    | `harness-lint` | 76 / 0 / 0 |
+    | `stack-free-npm-test` | 6 / 0 / 1 |
+
+  - **The one failure** is `gate-result-record` C9 (blocking 4 below). Its offender list names only this story's
+    suite, so the failure is new on this branch.
+  - The volume has been removed.
+- [x] **The host suites,** each through `run()` after a publish-marker check: `list-headers-my-assistant-disposition`
+      33/0/0, with both live refusals executed against the redeployed handler. The other five suites are unchanged
+      from round 1.
+- [x] **Playwright, all three List Headers specs on a fresh `git archive 36f82e87` build:** 145 passed with
+      `--repeat-each=5` (29 tests ×5, M11 included).
+
+### Each round-1 ask, re-derived
+
+| Ask | Status | Evidence |
+|---|---|---|
+| **B1:** verify the looked-up header before re-signing | **Fixed** | See below |
+| **B2:** refuse other sites first | **Fixed** | See below |
+| **B3:** the panel must open in view on a long list | **Fixed** | See below |
+| **NB1:** decode the handle once | **Fixed** | H15 and mutant r5. A malformed `%` in a live URL now gets Express's own 400 before the handler runs |
+| **NB2:** several `d` tags | **Fixed** | Covered by B1's first-`d` check |
+
+- **B1:**
+  - the check sits at `myAssistantDisposition.js:114-125`, after the lookup and before `compose`, so it covers the
+    "already" and "refused" answers too;
+  - **tests:** H14 covers six cases × both actions; mutants r2–r4 each fail H14;
+  - **live, in the container, against the real local fixture header with the deployed verifier:**
+    - the genuine header goes on (`already-declared`);
+    - a forged copy gets 409 and nothing is signed. The sign, save and import parts were rigged to throw, and
+      none did;
+  - **the independent pass, round 2, also with the deployed verifier:** changed content, an added tag, a bumped
+    `created_at`, an upper-cased id, `kind` as a string, another author, and a first `d` other than the URL's all
+    get 409. A tampered event carrying a cached `verifiedSymbol` passes a direct `verifyEvent` but fails after the
+    JSON round-trip, which is why that form matters.
+- **B2:**
+  - `sameHost` (`:46-54`), a verbatim copy of `dlist-curation/update.js:107-115`, is called at `:89`, before
+    `requireAuth`;
+  - **tests:** H13 and S5; mutant r1 fails both;
+  - **live, in the container, no session:** a foreign `Origin` gets 403 before the sign-in check;
+  - **the independent pass's matrix:** `Origin: null`, an empty Origin, a subdomain, a trailing dot, duplicate
+    Origins, an IDN lookalike, and a missing Host all get 403. Upper-case Origin or Host, and a Host with a port,
+    are accepted correctly. The same holds even when reached through the middleware bypass reported privately in
+    round 1, because the check is inside the handler.
+- **B3:**
+  - the panel centres itself on mount (`ListHeaderDispositionPanel.jsx:19-23`);
+  - **tests:** M11 (70 rows, then Next); today's UI build fails it;
+  - **re-measured on `:7778` as the Owner** (183 buttons), the same click as round 1 on the last row,
+    `key migration test`: the window scrolled from 12,318 to 0, and the panel heading sits at 332 px in a 768 px
+    viewport, below the fixed bar. Round 1 measured −12,136.
+
+### Findings
+
+#### Blocking
+4. **`test/list-headers-my-assistant-disposition.test.js` (L1): the suite formats curl's status itself.** Its
+   no-session in-container check runs `docker exec … curl -w '%{http_code}'`.
+   - The house rule, ADR honest-test-gate/0001 §6, is that every suite reaching the stack through `docker exec`
+     goes through `test/helpers/stackHttp.js`, which never reports a status the stack didn't send.
+   - The guard `test/gate-result-record.test.js` C9 (`:410-425`) matches the literal `%{http_code}` and fails the
+     whole gate. CI's stack-free job would fail the PR the same way.
+   - It was missed because Test Design and Implementation ran only the suites this story touches (the
+     publish-leak rule), never the guard suites that inspect other test files.
+   - **Asked change (test-only, so the Tester's lane):**
+     - re-aim L1 at `loopbackRequest({ method: 'POST', url, body: {} })` from `./helpers/stackHttp`;
+     - assert `r.status === 401`, using `describeResponse(r)` in the failure message, so a dead stack reads as
+       "no response", not as a status;
+     - keep the "header unchanged" check;
+     - then re-run the isolated full gate.
+
+#### Non-blocking, residual and accepted (from the independent pass, round 2; no change asked)
+1. **Rolling back to an older genuine version** is still possible: plant a forged deletion so the local relay
+   drops the real latest header, then import an older *genuine* version. Every check passes, because the
+   Assistant really did write it. It needs the unverified import path, an old copy of the header, and the person
+   to act. The root cause is that import path, which is already in the private report.
+2. **A newer forged header now blocks a row** (409) until it's removed. That's the correct refusal. The
+   displacement is the import path's harm, not this handler's.
+3. **`sameHost` ignores port and scheme,** and **a request with no `Origin` goes on to the sign-in check.** Both
+   are the house rule; H13 pins "other port" as allowed on purpose.
+4. **The Submit / Keep private race** (round 1's non-blocking 3) is unchanged and was out of scope.
+
+#### Harness friction
+1. **The full gate first ran in Review, round 2,** and caught a guard failure that every earlier phase's
+   touched-suites-only runs couldn't see. I've added a dated note to ledger row
+   `2026-09-30-npm-test-step-leaks-fixtures`: the isolated recipe belongs in Test Design and Implementation too,
+   whenever a story adds or edits a suite.
+
+### Verdict
+**CHANGES_REQUESTED**
+
+All of round 1's asks are fixed and hold up, under my checks and the independent pass's. One new blocking item
+remains, and it's test-only: the story's own suite trips the gate's honest-status guard (blocking 4). Round 3
+needs the Tester's re-aim of L1 and a green isolated full gate. No source change is asked.
