@@ -1,8 +1,12 @@
 /**
  * tagging-edges #4 — the tagging pipeline panel: realistic answers for the five reads the panel makes.
+ * tagging-edges #5 — the real-time path's switch on the panel: the switch's record (GET) and its change (POST).
  *
  * Story: engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.md
  * ADR:   engineering-team/decisions/tagging-edges/0004-tagging-pipeline-panel.md (§ Seams, T1–T10)
+ * Story: engineering-team/stories/tagging-edges/5-real-time-path-switch.md
+ * ADR:   engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md (D3, D6, D7, D11; § Seams "Browser
+ *        fixtures")
  *
  * Each body has the shape its route answers today (read at 88af7df3):
  *   - GET /api/tagging-edges/status           computeStatus (src/api/tagging-edges/index.js:101-118): no `success` key;
@@ -13,6 +17,11 @@
  *     engine's statusObject (src/pipeline/tagging-edges/realtime/index.js:560-584): no `success` key.
  *   - GET /api/scheduled-tasks/list           handleList (src/api/scheduled-tasks/index.js:302-321).
  *   - GET /api/tagging-edges/drift-counts     the new route (ADR 0004 § Server, "The answer").
+ *   - GET /api/tagging-edges/realtime/switch  story 5's record (ADR 0005 D6): { success, on, switchUnreadable,
+ *     historyUnreadable, state, latest, history }, each change { on, at, role, key } (D3).
+ *   - POST /api/tagging-edges/realtime/switch story 5's change (ADR 0005 D11): { success, on, changedAt, recorded,
+ *     takesEffectWithinSeconds }, or a refusal / failure body with `code`.
+ *   - The realtime status gains `inStartWindow` (ADR 0005 D7), false unless a fixture says otherwise.
  *
  * CommonJS, no dependencies: the browser spec (tests/brainstorm/tagging-pipeline-panel.spec.js) and any Node suite
  * can require it. Every exported body, record and list is frozen deep; take a copy (`clone`) before changing one.
@@ -31,6 +40,8 @@ const ADMIN = hex('d');                 // an admin (in getAdminPubkeys)
 const CUSTOMER = hex('c');              // a signed-in customer: neither owner nor admin
 const CANONICAL_PREFIX = '82b75e47';    // the ADR 0015 literal's first 8 characters
 const LOCAL_PREFIX = '8387ec0e';        // this deployment's TA, first 8 characters
+const OWNER_KEY = OWNER.slice(0, 8);    // 'aaaaaaaa': who the switch's record names (ADR 0005 D1: pubkey.slice(0, 8))
+const ADMIN_KEY = ADMIN.slice(0, 8);    // 'dddddddd'
 
 /* ── Times ───────────────────────────────────────────────────────────────────────────────────────────────────── */
 
@@ -385,6 +396,47 @@ const CONFIRMED_APPLIED_RECORD = passRecord({
   limit: { base: 700, leftInPlaceExcluded: 0, baseAfterConfirmed: 580, removalsPlanned: HELD_TOTAL, floor: 50, fraction: '1/10', exceeded: false },
 });
 
+/*
+ * Story 4 review round 2, R2-3 (a story 5 carry-forward). A confirmed run that never recorded its end: the pass died
+ * (a time-out, a restart or a deploy) after claiming the owner's confirmation, so its record is the pessimistic
+ * "failed, stopped" one as of its last save, and it is no longer alive. The record is saved every 10 write batches,
+ * so `confirmed.removalsApplied` counts what it had applied by its last save: a lower bound, not the total.
+ */
+function stoppedConfirmedRecord({ suffix, removalsApplied }) {
+  const r = pessimisticRecord({ startedMinutesAgo: 50, suffix, phases: clone(PHASES_DONE) });
+  r.running = false;
+  r.confirmation = { found: true, honoured: true };
+  r.confirmed = { confirmedRunId: HELD_RECORD.runId, heldCount: HELD_TOTAL, removalsApplied, heldNoLongerDue: 0 };
+  r.relationships = relationships({
+    atStart: 700,
+    removed: removalsApplied,
+    removedBy: { 'not-on-relay': removalsApplied, 'non-tagging': 0 },
+  });
+  return r;
+}
+/** ... it had applied 60 of the 120 confirmed removals by its last save. */
+const STOPPED_CONFIRMED_RECORD = stoppedConfirmedRecord({ suffix: '5709ed60', removalsApplied: 60 });
+/** ... it had applied none of them by its last save (it may have applied some after). */
+const STOPPED_CONFIRMED_NONE_RECORD = stoppedConfirmedRecord({ suffix: '5709ed00', removalsApplied: 0 });
+
+/*
+ * Story 4 review round 2, R2-6 (a story 5 carry-forward). A relay read whose strfry command ended with a failure
+ * code: the runner keeps the error's redacted `message` and, for the relay read, its redacted `stderrTail`
+ * (reconcileTaggingEdges.js:422-425; strfryScanStrict.js summarizeStderr). The panel shows both under "Where it
+ * failed".
+ */
+const RELAY_EXIT_MESSAGE = 'strfry scan exited with code 1';
+const RELAY_EXIT_STDERR_TAIL = 'strfry error: unable to open the database at <path>: Resource temporarily unavailable';
+const RELAY_EXIT_RECORD = passRecord({
+  startedMinutesAgo: 7,
+  suffix: 'e7e7e7e7',
+  outcome: 'failed',
+  reasonCode: 'read',
+  reason: 'the relay read failed',
+  failure: { stage: 'read', read: 'relay', code: 'exit', message: RELAY_EXIT_MESSAGE, stderrTail: RELAY_EXIT_STDERR_TAIL },
+  phases: clone(PHASES_DONE).slice(0, 2),
+});
+
 const STATUS = deepFreeze({
   /** The report holds no pass (AC-2 "No pass yet"). */
   NO_PASS: statusBody(),
@@ -422,6 +474,12 @@ const STATUS = deepFreeze({
   CONFIRMED_FAILED: statusBody({ latest: CONFIRMED_FAILED_RECORD, previous: [HELD_RECORD] }),
   /** The latest pass claimed the owner's confirmation and applied all 120 confirmed removals. */
   CONFIRMED_APPLIED: statusBody({ latest: CONFIRMED_APPLIED_RECORD, previous: [HELD_RECORD] }),
+  /** R2-3: a confirmed pass that never recorded its end, 60 removals applied by its last save; no pass is alive. */
+  STOPPED_CONFIRMED: statusBody({ latest: STOPPED_CONFIRMED_RECORD, previous: [HELD_RECORD] }),
+  /** R2-3: ... none applied by its last save. */
+  STOPPED_CONFIRMED_NONE: statusBody({ latest: STOPPED_CONFIRMED_NONE_RECORD, previous: [HELD_RECORD] }),
+  /** R2-6: the latest pass failed at the relay read, its strfry command having exited with a failure code. */
+  RELAY_EXIT: statusBody({ latest: RELAY_EXIT_RECORD, previous: [LATEST_DONE] }),
 });
 
 /* ── The real-time path's answers ────────────────────────────────────────────────────────────────────────────── */
@@ -484,7 +542,9 @@ function catchUpLast(extra = {}) {
 
 /**
  * The realtime status route's answer, started and running and live unless overridden. `on`/`running` follow the
- * route's rules: state is 'off' whenever `on` is false; onSince/runningSince only when on/running.
+ * route's rules: state is 'off' whenever `on` is false; onSince/runningSince only when on/running. Story 5 adds
+ * `inStartWindow` (ADR 0005 D7), the server's verdict that the path was switched on less than 60 s ago and no process
+ * started since: false here unless overridden.
  */
 function rtBody({ on = true, running = true, state = 'live', started = true, ...o } = {}) {
   const pass = started ? {
@@ -528,8 +588,54 @@ function rtBody({ on = true, running = true, state = 'live', started = true, ...
     ...pass,
     switchUnreadable: false,
     stale: false,
+    inStartWindow: false,
     ...o,
   };
+}
+
+/*
+ * Story 5's times (ADR 0005 D4, D7). NOW is 12:00:00, so every switch time inside the 60 s starting window prints as
+ * 11:59; the process that completes the start (STARTED) starts at NOW, so its running-since prints as 12:00.
+ */
+const SWITCH_TIMES = Object.freeze({
+  /** The owner turned the path off; its last figures were written at 09:41:07 (OFF_WITH_FIGURES). */
+  offAt: '2026-09-30T09:41:02.000Z',
+  /** The last change the path reflected before it went off. */
+  lastReflectedBeforeOff: '2026-09-30T09:40:55.000Z',
+  /** The last catch-up before it went off. */
+  catchUpBeforeOff: '2026-09-30T09:20:00.000Z',
+  /** The switch went from off to on 15 s before NOW: inside the 60 s window. */
+  startOnAt: at(0.25),
+  /** A quick off, 9 s before that on (STARTING_OLD_PROCESS). */
+  quickOffAt: at(0.4),
+  /** An "on" pressed while the path was already on (ON_WHILE_ON): it moves no onSince. */
+  onWhileOnAt: at(2),
+  /**
+   * The process that completes the start (STARTED): it starts 15 s after startOnAt, at NOW. Its running-since prints
+   * as 12:00, a minute apart from onSince's 11:59, so a check can tell the two times apart.
+   */
+  processStartedAt: NOW,
+});
+
+/**
+ * The path as it is while it starts (ADR 0005 § Seams "Browser fixtures"): switched on 15 s ago, inside the window,
+ * the new process not yet alive. status.json is still the old process's, written when it went off.
+ */
+function startingBody(o = {}) {
+  return rtBody({
+    running: false,
+    state: 'off',
+    inStartWindow: true,
+    onSince: SWITCH_TIMES.startOnAt,
+    lastReflectedAt: SWITCH_TIMES.lastReflectedBeforeOff,
+    updatedAt: '2026-09-30T09:41:07.000Z',
+    catchUp: {
+      underway: false,
+      current: null,
+      last: catchUpLast({ startedAt: SWITCH_TIMES.catchUpBeforeOff, endedAt: new Date(Date.parse(SWITCH_TIMES.catchUpBeforeOff) + 4200).toISOString() }),
+    },
+    ...o,
+  });
 }
 
 /** The eight states AC-3 names, as the engine's currentState() and the route's forced 'off' give them. */
@@ -569,6 +675,125 @@ const REALTIME = deepFreeze({
   CATCH_UP_FAILED_WITH_REASON: rtBody({ catchUp: { underway: false, current: null, last: catchUpLast({ outcome: 'failed', stage: 'stamp-scan', reason: 'record-missing' }) } }),
   /** The last catch-up ran on a lost record: outcome not-established, with its reason. */
   CATCH_UP_NOT_ESTABLISHED: rtBody({ catchUp: { underway: false, current: null, last: catchUpLast({ outcome: 'not-established', reason: 'record-missing' }) } }),
+
+  /* ── Story 5 (ADR 0005 D7, D8; § Seams "Browser fixtures") ── */
+  /** Switched on 15 s ago (inStartWindow), the new process not yet alive; the old status.json still reads 'off'. */
+  STARTING: startingBody(),
+  /**
+   * A quick off then on: switched on 15 s ago (inStartWindow) while the process from before that "on" is still alive
+   * (runningSince 11:02, before onSince) and its stored state still reads 'live'. It does not count as running.
+   */
+  STARTING_OLD_PROCESS: rtBody({ running: true, state: 'live', inStartWindow: true, onSince: SWITCH_TIMES.startOnAt }),
+  /**
+   * The start completed: a process started after the "on" (at SWITCH_TIMES.processStartedAt) is alive, so the window
+   * is over (inStartWindow false).
+   */
+  STARTED: rtBody({
+    onSince: SWITCH_TIMES.startOnAt,
+    runningSince: SWITCH_TIMES.processStartedAt,
+    process: { pid: 6161, startTime: 991199, startedAt: SWITCH_TIMES.processStartedAt },
+  }),
+  /** An "on" while already on: the same onSince as ON_LIVE (08:14:58), not in the window, running and live. */
+  ON_WHILE_ON: rtBody(),
+  /** On, running, during its first start: firstStartedAt not yet served, though counts are (ADR 0005 D8). */
+  FIRST_STARTING: rtBody({ state: 'starting', firstStartedAt: null }),
+});
+
+/* ── The switch's record and its change (story 5; ADR 0005 D3, D6, D11) ─────────────────────────────────────── */
+
+/** One change as the record serves it (D3): who is a role and an 8-hex key; a change not recorded has all three null. */
+const ownerChange = (on, iso) => ({ on, at: iso, role: 'owner', key: OWNER_KEY });
+const adminChange = (on, iso, key = ADMIN_KEY) => ({ on, at: iso, role: 'admin', key });
+const unrecordedChange = (on) => ({ on, at: null, role: null, key: null });
+
+/** The GET's answer (D6): { success, on, switchUnreadable, historyUnreadable, state, latest, history }. */
+function recordBody({ state = 'recorded', on, latest = null, history = [], switchUnreadable = false, historyUnreadable = false } = {}) {
+  return { success: true, on, switchUnreadable, historyUnreadable, state, latest, history };
+}
+
+const sameChange = (a, b) => !!a && !!b && a.on === b.on && a.at === b.at && a.role === b.role && a.key === b.key;
+
+/**
+ * The record after a change the server recorded (D2, D3): the change is the latest, and the history is that change
+ * on top of the list the record showed before, an entry equal to the one before it dropped, at most 10 (foldHistory).
+ */
+function foldRecord(prev, change) {
+  const before = prev && Array.isArray(prev.history) ? prev.history : [];
+  const history = [];
+  for (const e of [change, ...before]) if (!sameChange(e, history[history.length - 1])) history.push(e);
+  return recordBody({ state: 'recorded', on: change.on, latest: change, history: history.slice(0, 10) });
+}
+
+/** Ten changes, newest first, alternating on and off: the owner's, then nine admins' (each its own key, d1d1d1d1…). */
+const HISTORY_TEN = Array.from({ length: 10 }, (_, i) => (i === 0
+  ? ownerChange(true, at(3))
+  : adminChange(i % 2 === 0, at(3 + i * 7), `d${i}`.repeat(4))));
+
+function withLatest(changes, o = {}) {
+  return recordBody({ on: changes[0].on, latest: changes[0], history: changes, ...o });
+}
+
+const RECORD = deepFreeze({
+  /** The owner turned it on at ON_LIVE's onSince (08:14:58), after turning it off earlier. */
+  ON_BY_OWNER: withLatest([ownerChange(true, PATH_TIMES.onSince), ownerChange(false, '2026-09-30T08:02:00.000Z'), adminChange(true, '2026-09-29T16:30:00.000Z')]),
+  /** The owner turned it off at 09:41 (OFF_WITH_FIGURES). */
+  OFF_BY_OWNER: withLatest([ownerChange(false, SWITCH_TIMES.offAt), ownerChange(true, PATH_TIMES.onSince)]),
+  /** An admin turned it off at 09:41. */
+  OFF_BY_ADMIN: withLatest([adminChange(false, SWITCH_TIMES.offAt), ownerChange(true, PATH_TIMES.onSince)]),
+  /** The owner turned it on 15 s ago (STARTING). */
+  STARTING: withLatest([ownerChange(true, SWITCH_TIMES.startOnAt), ownerChange(false, SWITCH_TIMES.offAt), ownerChange(true, PATH_TIMES.onSince)]),
+  /** An admin turned it on 15 s ago, after the owner had turned it off (another viewer's change). */
+  STARTING_BY_ADMIN: withLatest([adminChange(true, SWITCH_TIMES.startOnAt), ownerChange(false, SWITCH_TIMES.offAt), ownerChange(true, PATH_TIMES.onSince)]),
+  /** A quick off (an admin) then on (the owner) (STARTING_OLD_PROCESS). */
+  STARTING_OLD_PROCESS: withLatest([ownerChange(true, SWITCH_TIMES.startOnAt), adminChange(false, SWITCH_TIMES.quickOffAt), ownerChange(true, PATH_TIMES.onSince)]),
+  /** An admin pressed "on" at 11:58 while the owner's "on" of 08:14:58 held (ON_WHILE_ON). */
+  ON_WHILE_ON: withLatest([adminChange(true, SWITCH_TIMES.onWhileOnAt), ownerChange(true, PATH_TIMES.onSince)]),
+  /** The last ten changes, newest first (on, with the path switched on 3 minutes ago). */
+  HISTORY_TEN: withLatest(HISTORY_TEN),
+  /** A record that holds the state but not who or when (a hand edit that broke changedBy): recorded, role null. */
+  NULL_ROLE: withLatest([unrecordedChange(true), ownerChange(false, SWITCH_TIMES.offAt), ownerChange(true, PATH_TIMES.onSince)]),
+  /** An off the server could not record (switch.json unlinked); the history recorded before it survives. */
+  UNRECORDED_OFF: recordBody({
+    state: 'unrecorded-off',
+    on: false,
+    latest: unrecordedChange(false),
+    history: [unrecordedChange(false), ownerChange(true, PATH_TIMES.onSince), adminChange(false, '2026-09-30T08:02:00.000Z')],
+  }),
+  /** An instance never switched: the path ships off, and nothing is recorded. */
+  NEVER_SWITCHED: recordBody({ state: 'never-switched', on: false, latest: null, history: [] }),
+  /** switch.json cannot be read (it counts as off): no latest change, the stored history still served. */
+  SWITCH_UNREADABLE: recordBody({
+    state: 'switch-unreadable',
+    on: false,
+    switchUnreadable: true,
+    latest: null,
+    history: [ownerChange(true, PATH_TIMES.onSince), adminChange(false, '2026-09-30T08:02:00.000Z')],
+  }),
+  /** The history file cannot be read: the latest change still shown, and the history is that change alone. */
+  HISTORY_UNREADABLE: withLatest([ownerChange(true, PATH_TIMES.onSince)], { historyUnreadable: true }),
+});
+
+/** The record that agrees with a realtime status body (the browser mock's default for GET .../realtime/switch). */
+function recordFor(rt) {
+  if (rt && rt.switchUnreadable === true) return RECORD.SWITCH_UNREADABLE;
+  if (rt && rt.on === true) return RECORD.ON_BY_OWNER;
+  return RECORD.OFF_BY_OWNER;
+}
+
+/** The POST's answers (ADR 0005 D11; the refusal bodies are the drift route's, D5), each { status, body }. */
+const SWITCH_ANSWER = deepFreeze({
+  ON: { status: 200, body: { success: true, on: true, changedAt: NOW, recorded: true, takesEffectWithinSeconds: 5 } },
+  OFF: { status: 200, body: { success: true, on: false, changedAt: NOW, recorded: true, takesEffectWithinSeconds: 5 } },
+  /** An off whose write failed: switch.json unlinked ("off means off"), not recorded. */
+  OFF_UNRECORDED: { status: 200, body: { success: true, on: false, recorded: false, takesEffectWithinSeconds: 5 } },
+  /** A lapsed session. */
+  REFUSED_401: { status: 401, body: { success: false, error: 'Not authenticated' } },
+  /** A viewer who is no longer the owner or an admin. */
+  REFUSED_403: { status: 403, body: { success: false, error: 'Owner or admin access required' } },
+  /** An on whose switch write failed on a full data volume: nothing changed. */
+  FAILED_ON: { status: 500, body: { success: false, error: 'could not write the switch: ENOSPC', code: 'ENOSPC' } },
+  /** An off that could neither be written nor removed: the path is still on. */
+  FAILED_OFF: { status: 500, body: { success: false, error: 'could not write or remove the switch: EIO, EIO', code: 'EIO', unlinkCode: 'EIO' } },
 });
 
 /** A running path in the given state (for 'off', the switch is off and the process is winding down). */
@@ -666,7 +891,8 @@ const EXPECTED_DRIFT = deepFreeze({
 /* Freeze every exported record and list too (the STATUS/REALTIME/SCHEDULE/DRIFT bodies are frozen above). */
 [LATEST_DONE, EARLIER_NINE, HELD_RECORD, HELD_LIST, RUNNING_RECORD, DRIFT_EXAMPLE_RECORD, LEFT_TO_NEXT_RECORD,
   FAILED_READ_RECORD, REFUSED_RECORD, UNKNOWN_OUTCOME_RECORD, WRITE_FAILED_RECORD, SCHEMA_UNREACHABLE_RECORD,
-  CONFIRMED_FAILED_RECORD, CONFIRMED_APPLIED_RECORD, PATH_TIMES, OTHER_ENTRY, PHASES_DONE].forEach(deepFreeze);
+  CONFIRMED_FAILED_RECORD, CONFIRMED_APPLIED_RECORD, PATH_TIMES, OTHER_ENTRY, PHASES_DONE,
+  STOPPED_CONFIRMED_RECORD, STOPPED_CONFIRMED_NONE_RECORD, RELAY_EXIT_RECORD, HISTORY_TEN].forEach(deepFreeze);
 
 /* ── The routes ──────────────────────────────────────────────────────────────────────────────────────────────── */
 
@@ -676,11 +902,13 @@ const ROUTES = Object.freeze({
   realtime: '/api/tagging-edges/realtime/status',
   schedule: '/api/scheduled-tasks/list',
   drift: '/api/tagging-edges/drift-counts',
+  /** Story 5 (ADR 0005 D6, D12): GET reads the switch's record; POST is the panel's one change. */
+  switch: '/api/tagging-edges/realtime/switch',
 });
 
 module.exports = {
   // who
-  OWNER, ADMIN, CUSTOMER, CANONICAL_PREFIX, LOCAL_PREFIX,
+  OWNER, ADMIN, CUSTOMER, CANONICAL_PREFIX, LOCAL_PREFIX, OWNER_KEY, ADMIN_KEY,
   // time
   NOW, at, after, runIdAt,
   // helpers
@@ -690,10 +918,14 @@ module.exports = {
   LATEST_FIGURES, LATEST_DONE, EARLIER_NINE, RUNNING_RECORD, HELD_RECORD, DRIFT_EXAMPLE_RECORD, LEFT_TO_NEXT_RECORD,
   FAILED_READ_RECORD, REFUSED_RECORD, UNKNOWN_OUTCOME_RECORD, WRITE_FAILED_RECORD, SCHEMA_UNREACHABLE_RECORD,
   CONFIRMED_FAILED_RECORD, CONFIRMED_APPLIED_RECORD, STATUS,
+  STOPPED_CONFIRMED_RECORD, STOPPED_CONFIRMED_NONE_RECORD, RELAY_EXIT_RECORD, RELAY_EXIT_MESSAGE, RELAY_EXIT_STDERR_TAIL,
   // held
   HELD_TOTAL, HELD_PAGE, HELD_LIST, confirmation, heldAnswer,
   // the path
   PATH_FIGURES, PATH_TIMES, PATH_STATES, pathCounts, catchUpLast, rtBody, REALTIME, realtimeInState,
+  // the switch (story 5)
+  SWITCH_TIMES, startingBody, ownerChange, adminChange, unrecordedChange, recordBody, foldRecord, HISTORY_TEN, RECORD,
+  recordFor, SWITCH_ANSWER,
   // the schedule
   TASK_ID, TASK_NAME, scheduleEntry, OTHER_ENTRY, SCHEDULE,
   // drift

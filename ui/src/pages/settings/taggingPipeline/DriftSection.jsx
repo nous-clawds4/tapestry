@@ -58,7 +58,10 @@ function ExplainedPart({ view, pass }) {
   );
 }
 
-/** What the explained part leaves out: the pass's leftovers, a running pass, and the path's own figures. */
+/**
+ * What the explained part leaves out: the pass's leftovers, a running pass, and the path's own figures. The path
+ * line says the explained part leaves them out only where an explained part is shown (story 4 review round 2, R2-4).
+ */
 function Named({ view, known }) {
   const since = view.explainedBy ? 'since that pass' : 'since the last pass';
   return (
@@ -81,7 +84,8 @@ function Named({ view, known }) {
       {!view.pathUnknown && !view.waitsForPass && (
         <p>
           The path is on. Refused taggings, counted at each look: {figure(view.pathRefusedLooks, NOT_YET)}. Addresses
-          parked: {figure(view.parked, NOT_YET)}. The explained part does not include them.
+          parked: {figure(view.parked, NOT_YET)}.
+          {known && !view.countsPredatePass && ' The explained part does not include them.'}
         </p>
       )}
       {view.waitsForPass && <p>The path is off, so changes on the relay {since} wait for the next pass.</p>}

@@ -87,6 +87,42 @@
  *   - An answer "carries" a leak when its JSON holds an absolute path that starts a word, a URI, the full owner
  *     pubkey (either case), the state directory, or one of the address needles below.
  *
+ * Story 5 (engineering-team/stories/tagging-edges/5-real-time-path-switch.md — AC-3, AC-4, AC-5) and ADR
+ * engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md (D1, D4, D5, D7, D11, and D2 where an answer
+ * depends on it; "Seams for Test Design": the store, computeRealtimeStatus, the handler's dependencies) extend this
+ * suite:
+ *   - RS25–RS31, with RS2, RS19, RS21 and RS22 extended: switch.json version 2 ({ version, on, changedAt, changedBy,
+ *     role, onSince }, in that key order), EBADSWITCH for a version 2 record without a valid role, parseSwitch's
+ *     version / role / onSince, readError beside unreadable, switch-history.json's methods (readSwitchHistory,
+ *     writeSwitchHistory, parseSwitchHistory), and the modes: files 0600 inside a 0700 realtime/ the store makes (RS31).
+ *   - RR29–RR31, with RR2 and RR27 extended: inStartWindow (D7), onSince as the last off-to-on time (D4), and the public
+ *     status gaining exactly inStartWindow and no "who" (D6).
+ *   - RR32: AC-5's "It lasts", end to end on the default dependencies (identity lookups only) under a temporary
+ *     TAGGING_EDGES_STATE_DIR — two POSTs, then handleRealtimeSwitchRecord on its default readFile and stateDir, then a
+ *     fresh require and a fresh createStore({}). RR33: withDeps' record defaults follow an injected stateDir(), with
+ *     TAGGING_EDGES_STATE_DIR pointed at a decoy that must stay empty.
+ *   - statusBundle (every GET status test) also injects the store-backed dependencies the status route could take
+ *     (readSwitch, readSwitchHistory, writeSwitchHistory, readStatus) as sentinels that record their call and throw
+ *     "the status route reads through the injected readFile (ADR 0005 D6; T32)"; callStatus fails on any such call,
+ *     so a route reading through the store fails loudly instead of reading FAKE_ROOT, the production directory.
+ *   - Revised by design (ADR 0005 Consequences), IDs kept: RR10 (an admin is admitted), RR15 (the version 2 record, the
+ *     fold, and the answer's recorded), RR23 (version 2 bytes and the history file on the default deps). RR16 and RR17
+ *     keep their rows and gain story-5 rows (recorded: false, code, unlinkCode).
+ *   - switchBundle injects readSwitch (default: missing), readSwitchHistory (default: missing) and writeSwitchHistory (a
+ *     spy; default: succeeds) beside writeSwitch and unlinkSwitch, so no POST test reaches FAKE_ROOT's real store (ADR
+ *     0005 Seams: FAKE_ROOT is the production state directory). calls.order keeps story 3's switch writes only;
+ *     calls.seq records every record dependency in call order. RR23 and RR32 alone run every default, under a
+ *     temporary TAGGING_EDGES_STATE_DIR; RR33 runs the record defaults under an injected temporary stateDir().
+ *   Choices where ADR 0005 leaves a detail open (recorded for the owner in the Test Design return):
+ *   - parseSwitchHistory may be store.js's export (as parseSwitch is) or the store's own method.
+ *   - A read error is produced by a directory in the file's place; its code is the platform's (EISDIR here).
+ *   - "No readError" means the member is absent or null.
+ *   - A running process whose runningSince is missing or unparseable is not shown to have started for this "on", so
+ *     inStartWindow stays true within the window (D7: "not both running and started at or after onSince").
+ *   - A 500's body is pinned by success, its error sentence, code and unlinkCode, not as a whole; a 200's is exact.
+ *   - The fold (D2 step 5) is pinned as the LAST history write after writeSwitch; a pre-fold before it may hold only
+ *     changes already made (never the new one).
+ *
  * Hand-rolled in the project's existing test style — no new framework. Works on Node 16 and 22.
  */
 
@@ -143,6 +179,8 @@ const STORE_METHODS = [
   'readSwitch', 'writeSwitch', 'unlinkSwitch', 'readStarted', 'writeStarted', 'readRecord', 'writeRecord',
   'openJournal', 'appendJournal', 'truncateJournal', 'journalBytes', 'readStatus', 'writeStatus',
 ];
+/** Story 5's store methods (ADR 0005 D1). */
+const HISTORY_METHODS = ['readSwitchHistory', 'writeSwitchHistory'];
 const ROUTE_EXPORTS = ['computeRealtimeStatus', 'validateSwitch', 'handleRealtimeStatus', 'handleRealtimeSwitch'];
 const JOURNAL = 'journal.jsonl';
 const REL_JOURNAL = `realtime/${JOURNAL}`;
@@ -262,8 +300,24 @@ function storeAt(dir) {
 }
 /** Call one store method, awaited (T26: the methods are synchronous, and awaiting works; RS22 pins the first half). */
 async function call(store, name, ...args) {
-  if (typeof store[name] !== 'function') throw new Error(`createStore() gives no ${name}() yet (T21)`);
+  if (typeof store[name] !== 'function') throw new Error(`createStore() gives no ${name}() yet (T21${HISTORY_METHODS.includes(name) ? '; ADR 0005 D1: "readSwitchHistory() and writeSwitchHistory(obj)"' : ''})`);
   return store[name](...args);
+}
+/**
+ * parseSwitchHistory(text) (ADR 0005 D1: pure, named under the store): store.js's export, as parseSwitch is, or the
+ * store's own method — the ADR leaves which open.
+ */
+function parseHistoryFn(store) {
+  const mod = loadStore();
+  if (typeof mod.parseSwitchHistory === 'function') return mod.parseSwitchHistory;
+  if (store && typeof store.parseSwitchHistory === 'function') return store.parseSwitchHistory;
+  throw new Error(`${STORE_REL} gives no parseSwitchHistory(text) yet (ADR 0005 D1: "parseSwitchHistory(text) is pure"); it exports ${show(Object.keys(mod))}`);
+}
+/** The code this platform gives for reading a directory as a file (EISDIR here): ADR 0005's "something other than a file at the path". */
+function dirReadCode(dir) {
+  const probe = path.join(dir, '.dir-read-probe');
+  fs.mkdirSync(probe);
+  try { fs.readFileSync(probe, 'utf8'); return null; } catch (e) { return e.code; } finally { fs.rmdirSync(probe); }
 }
 function routeFn(name) { return need(loadRoutes(), name, ROUTES_REL, 'T22'); }
 
@@ -455,6 +509,33 @@ const SW_OFF = { version: 1, on: false, changedAt: iso(T0 - MIN), changedBy: OWN
 const reorder = (rec) => ({ changedBy: rec.changedBy, on: rec.on, changedAt: rec.changedAt, version: rec.version });
 /** T26: switch.json's canonical text — compact, keys in the order version, on, changedAt, changedBy. */
 const canonicalSwitch = (rec) => JSON.stringify({ version: rec.version, on: rec.on, changedAt: rec.changedAt, changedBy: rec.changedBy });
+
+// Story 5 (ADR 0005 D1): switch.json version 2 and switch-history.json.
+const OWNER8 = OWNER.slice(0, 8);
+const ADMIN8 = ADMIN.slice(0, 8);
+/** ADR 0005 D1: version 2's key order. */
+const SWITCH2_KEYS = ['version', 'on', 'changedAt', 'changedBy', 'role', 'onSince'];
+/** ADR 0005 D1: switch.json version 2's canonical text — compact, keys in the order version, on, changedAt, changedBy, role, onSince. */
+const canonicalSwitch2 = (rec) => JSON.stringify(SWITCH2_KEYS.reduce((o, k) => { o[k] = rec[k]; return o; }, {}));
+/** The same record with its keys reversed (canonical form ⇒ the same bytes). */
+const reverseKeys = (rec) => Object.keys(rec).reverse().reduce((o, k) => { o[k] = rec[k]; return o; }, {});
+/** Turned on by the owner two days ago. */
+const SW2_ON = { version: 2, on: true, changedAt: iso(T0 - 2 * DAY), changedBy: OWNER8, role: 'owner', onSince: iso(T0 - 2 * DAY) };
+/** An admin's "on" an hour ago while already on: changedAt moved, onSince did not (ADR 0005 D4). */
+const SW2_ON_AGAIN = { version: 2, on: true, changedAt: iso(T0 - HOUR), changedBy: ADMIN8, role: 'admin', onSince: iso(T0 - 2 * DAY) };
+/** Turned off by an admin a minute ago. */
+const SW2_OFF = { version: 2, on: false, changedAt: iso(T0 - MIN), changedBy: ADMIN8, role: 'admin', onSince: null };
+/** ADR 0005 D1: a history entry { on, at, role, key }; a change not recorded has null at, role and key. */
+const entryOf = (rec) => ({ on: rec.on, at: rec.changedAt, role: rec.role, key: rec.changedBy });
+const UNRECORDED_OFF = { on: false, at: null, role: null, key: null };
+/** switch-history.json (ADR 0005 D1: { version: 1, changes }, newest first). */
+const HIST_A = { version: 1, changes: [entryOf(SW2_OFF), entryOf(SW2_ON_AGAIN), entryOf(SW2_ON)] };
+const HIST_B = { version: 1, changes: [UNRECORDED_OFF, ...HIST_A.changes] };
+/** Ten entries, alternating on and off, newest first (the cap, ADR 0005 D1). */
+const HIST_10 = {
+  version: 1,
+  changes: Array.from({ length: 10 }, (_, i) => ({ on: i % 2 === 1, at: iso(T0 - (i + 1) * HOUR), role: i % 3 ? 'admin' : 'owner', key: i % 3 ? ADMIN8 : OWNER8 })),
+};
 
 const JL = (o) => `${JSON.stringify(o)}\n`;
 const HEARD = idOf('rs-heard');
@@ -668,6 +749,8 @@ function switchReq(body, o = {}) {
   });
 }
 const statusReq = () => fakeReq({ method: 'GET', url: STATUS_PATH, headers: { host: HOST } });
+/** GET on the switch path (ADR 0005 D6), same host, no Origin. */
+const recordReq = (session) => fakeReq({ method: 'GET', url: SWITCH_PATH, headers: { host: HOST }, session });
 function fakeRes() {
   const res = { statusCode: 200, body: undefined, finished: false, headers: {} };
   let done;
@@ -718,17 +801,33 @@ function leakProblems(label, res, extraNeedles = []) {
   return p;
 }
 
-/** The switch handler's deps: every call recorded; the owner by getter unless told otherwise. */
+/** An admin's full pubkey in an answer (ADR 0005 D11: "No answer carries a full pubkey"); leakProblems covers the owner's. */
+function adminLeakProblems(label, res) {
+  const text = typeof res.body === 'string' ? res.body : JSON.stringify(res.body === undefined ? null : res.body);
+  return [ADMIN, ADMIN.toUpperCase()].filter((k) => text.includes(k)).map(() => `${label}: the answer carries an admin's full pubkey: ${show(text)}`);
+}
+/**
+ * The switch handler's deps: every call recorded; the owner by getter unless told otherwise.
+ * Story 5 (ADR 0005 Seams, "Use the shared switchBundle"): the record dependencies are injected too — readSwitch
+ * (o.prev; default: missing, null), readSwitchHistory (o.hist; default: missing, null) and writeSwitchHistory (a spy;
+ * fails with o.historyWriteError) — because stateDir() is FAKE_ROOT, the production state directory, and the defaults
+ * are the store's under it (inside the container they would read the live switch.json and overwrite the live
+ * switch-history.json). o.admins replaces the admin list (an array, or a function that may throw). calls.order keeps
+ * story 3's writeSwitch / unlinkSwitch sequence; calls.seq records every record dependency in call order.
+ */
 function switchBundle(o = {}) {
-  const calls = { readFile: [], writeSwitch: [], unlinkSwitch: 0, order: [], queue: 0 };
+  const calls = { readFile: [], writeSwitch: [], unlinkSwitch: 0, order: [], queue: 0, readSwitch: 0, readSwitchHistory: 0, writeSwitchHistory: [], seq: [] };
   const deps = {
     readFile: (p) => { calls.readFile.push(String(p)); throw enoent(String(p)); },
     stateDir: () => FAKE_ROOT,
     isAlive: () => false,
     now: () => T0,
     getOwnerPubkey: () => OWNER,
-    writeSwitch: async (record) => { calls.writeSwitch.push(clone(record)); calls.order.push('writeSwitch'); if (o.writeError) throw o.writeError; },
-    unlinkSwitch: async () => { calls.unlinkSwitch++; calls.order.push('unlinkSwitch'); if (o.unlinkError) throw o.unlinkError; },
+    writeSwitch: async (record) => { calls.writeSwitch.push(clone(record)); calls.order.push('writeSwitch'); calls.seq.push('writeSwitch'); if (o.writeError) throw o.writeError; },
+    unlinkSwitch: async () => { calls.unlinkSwitch++; calls.order.push('unlinkSwitch'); calls.seq.push('unlinkSwitch'); if (o.unlinkError) throw o.unlinkError; },
+    readSwitch: () => { calls.readSwitch++; calls.seq.push('readSwitch'); return has(o, 'prev') ? clone(o.prev) : null; },
+    readSwitchHistory: () => { calls.readSwitchHistory++; calls.seq.push('readSwitchHistory'); return has(o, 'hist') ? clone(o.hist) : null; },
+    writeSwitchHistory: (obj) => { calls.writeSwitchHistory.push(clone(obj)); calls.seq.push('writeSwitchHistory'); if (o.historyWriteError) throw o.historyWriteError; },
     isQueueAvailable: async () => { calls.queue++; return true; },
     runViaQueueAsync: async () => { calls.queue++; return { success: true, jobId: 'x' }; },
     getAdminPubkeys: () => [ADMIN],
@@ -736,7 +835,34 @@ function switchBundle(o = {}) {
   };
   if (has(o, 'owner')) deps.getOwnerPubkey = o.owner;
   if (has(o, 'ownerString')) { delete deps.getOwnerPubkey; deps.ownerPubkey = o.ownerString; }
+  if (has(o, 'admins')) {
+    deps.getAdminPubkeys = typeof o.admins === 'function' ? o.admins : () => o.admins;
+    deps.isAdminPubkey = (pk) => { const list = deps.getAdminPubkeys(); return Array.isArray(list) && list.includes(pk); };
+  }
   return { deps, calls };
+}
+/** Each history write in call order, and whether writeSwitch had been called before it (ADR 0005 D2: pre-fold, then switch, then fold). */
+function historyWrites(calls) {
+  const out = [];
+  let h = 0;
+  let switched = false;
+  for (const op of calls.seq) {
+    if (op === 'writeSwitch') switched = true;
+    if (op === 'writeSwitchHistory') out.push({ obj: calls.writeSwitchHistory[h++], afterSwitch: switched });
+  }
+  return out;
+}
+/** History writes that hold an entry for the change made at `at` (ISO) — the request's own change. */
+const holdsChangeAt = (w, at) => !!(w.obj && Array.isArray(w.obj.changes) && w.obj.changes.some((e) => e && e.at === at));
+/** ADR 0005 D2 step 5 when writeSwitch failed: "run no fold", and the attempted change is recorded nowhere. */
+function noFoldProblems(r, at) {
+  const p = [];
+  const writes = historyWrites(r.calls);
+  const after = writes.filter((w) => w.afterSwitch);
+  if (after.length) p.push(`the history was written after the failed writeSwitch (ADR 0005 D2 step 5: "run no fold"): ${show(after.map((w) => w.obj))}`);
+  const holding = writes.filter((w) => holdsChangeAt(w, at));
+  if (holding.length) p.push(`a history write holds the attempted change (at ${at}), which switch.json never held (ADR 0005 D2's invariant): ${show(holding.map((w) => w.obj))}`);
+  return p;
 }
 async function callSwitch(req, bundle) {
   const h = routeFn('handleRealtimeSwitch');
@@ -758,16 +884,31 @@ function refusalProblems(label, r, statuses) {
   if (r.calls.writeSwitch.length) p.push(`${label}: called writeSwitch(${show(r.calls.writeSwitch)})`);
   if (r.calls.unlinkSwitch) p.push(`${label}: called unlinkSwitch()`);
   if (r.calls.readFile.length) p.push(`${label}: read ${show(r.calls.readFile)} before refusing`);
+  // Story 5 (ADR 0005 D5): "No refusal reads, writes or unlinks a file … so it changes and records nothing."
+  if (r.calls.readSwitch) p.push(`${label}: called readSwitch() before refusing (ADR 0005 D5)`);
+  if (r.calls.readSwitchHistory) p.push(`${label}: called readSwitchHistory() before refusing (ADR 0005 D5)`);
+  if (r.calls.writeSwitchHistory.length) p.push(`${label}: called writeSwitchHistory(${show(r.calls.writeSwitchHistory)}) — a refusal records nothing (ADR 0005 D5)`);
   if (r.kills.length) p.push(`${label}: sent a signal ${show(r.kills)}`);
   if (r.calls.queue) p.push(`${label}: touched the task queue`);
   p.push(...leakProblems(label, r.res));
   return p;
 }
-/** The status handler's deps over `files`; alive answers `alive` for a record carrying PID. */
+/** What a store-backed dependency of the status route says when it is called: the route reads through readFile. */
+const STATUS_READS_THROUGH = 'the status route reads through the injected readFile (ADR 0005 D6; T32)';
+/** The store-backed dependencies the status route could take (ADR 0005 D1's record methods, and the store's readStatus). */
+const STATUS_STORE_SENTINELS = ['readSwitch', 'readSwitchHistory', 'writeSwitchHistory', 'readStatus'];
+/**
+ * The status handler's deps over `files`; alive answers `alive` for a record carrying PID. stateDir() is FAKE_ROOT,
+ * the production state directory, so (story 5, ADR 0005 Seams) every store-backed dependency the route could take is
+ * injected as a sentinel that records its call and THROWS: a route that read through the store instead of the
+ * injected readFile would otherwise read the live switch.json under FAKE_ROOT. callStatus fails loudly on any call,
+ * even one the route swallowed.
+ */
 function statusBundle({ files = {}, alive = false, async = false, noIsAlive = false, now = T0 } = {}) {
   const readFile = makeReadFile(files, { async });
   const aliveCalls = [];
   const writes = [];
+  const storeCalls = [];
   const deps = {
     readFile,
     stateDir: () => FAKE_ROOT,
@@ -777,12 +918,19 @@ function statusBundle({ files = {}, alive = false, async = false, noIsAlive = fa
     writeSwitch: async (rec) => { writes.push(['writeSwitch', clone(rec)]); },
     unlinkSwitch: async () => { writes.push(['unlinkSwitch']); },
   };
+  for (const name of STATUS_STORE_SENTINELS) {
+    deps[name] = () => { storeCalls.push(name); throw new Error(`${STATUS_READS_THROUGH}: it called ${name}()`); };
+  }
   if (noIsAlive) delete deps.isAlive;
-  return { deps, readFile, aliveCalls, writes };
+  return { deps, readFile, aliveCalls, writes, storeCalls };
 }
 async function callStatus(bundle) {
   const h = routeFn('handleRealtimeStatus');
-  return callHandler(h, statusReq(), bundle.deps);
+  const res = await callHandler(h, statusReq(), bundle.deps);
+  if (bundle.storeCalls && bundle.storeCalls.length) {
+    throw new Error(`${STATUS_READS_THROUGH}, never through the store under stateDir() (FAKE_ROOT, the production directory): it called ${show(bundle.storeCalls.map((n) => `${n}()`))}`);
+  }
+  return res;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -797,10 +945,18 @@ test('RS1: createStore({ dir }) gives every method T21 names — readSwitch, wri
   });
 });
 
-test('RS2: writeSwitch writes <dir>/switch.json in the canonical compact form — one JSON object, no whitespace outside strings, exactly { version, on, changedAt, changedBy } with the keys in that order (the text is JSON.stringify of them, one trailing newline at most), "on":true (or "on":false) literally present for the wrapper\'s pure-bash match, the same bytes whatever the record\'s key order — and readSwitch gives { on, changedAt, changedBy } back (ADR § "Knowing what changed…" state-file table; § "Where it runs": the wrapper matches the canonical "on":true; T21; T26: key order version, on, changedAt, changedBy)', async () => {
-  await cases([{ name: 'on', rec: SW_ON }, { name: 'off', rec: SW_OFF }], async (c) => {
+test('RS2: writeSwitch writes <dir>/switch.json in the canonical compact form — one JSON object, no whitespace outside strings, exactly { version, on, changedAt, changedBy } with the keys in that order (the text is JSON.stringify of them, one trailing newline at most), "on":true (or "on":false) literally present for the wrapper\'s pure-bash match, the same bytes whatever the record\'s key order — and readSwitch gives { on, changedAt, changedBy } back (ADR § "Knowing what changed…" state-file table; § "Where it runs": the wrapper matches the canonical "on":true; T21; T26: key order version, on, changedAt, changedBy); story 5 adds version 2 rows — an owner\'s on, an admin\'s on while on, an admin\'s off — written exactly as { version: 2, on, changedAt, changedBy, role, onSince } in that key order, with "on": appearing once (no other key may hold the text "on":true), and readSwitch giving all six back (ADR 0005 D1; Constraints: run.sh:44; T26 as amended)', async () => {
+  await cases([
+    { name: 'on', rec: SW_ON },
+    { name: 'off', rec: SW_OFF },
+    { name: 'version 2, the owner\'s on (story 5)', rec: SW2_ON, v2: true },
+    { name: 'version 2, an admin\'s on while on (story 5)', rec: SW2_ON_AGAIN, v2: true },
+    { name: 'version 2, an admin\'s off (story 5)', rec: SW2_OFF, v2: true },
+  ], async (c) => {
     await withDir(async ({ dir }) => {
       const file = path.join(dir, 'switch.json');
+      const canonical = c.v2 ? canonicalSwitch2 : canonicalSwitch;
+      const backKeys = c.v2 ? SWITCH2_KEYS : ['on', 'changedAt', 'changedBy'];
       await call(storeAt(dir), 'writeSwitch', clone(c.rec));
       assert(fs.existsSync(file), `writeSwitch wrote no ${path.basename(dir)}/switch.json (files: ${show(fs.readdirSync(dir))})`);
       const bytes = fs.readFileSync(file);
@@ -814,15 +970,16 @@ test('RS2: writeSwitch writes <dir>/switch.json in the canonical compact form �
         if (JSON.stringify(parsed) !== body) problems.push(`switch.json is not compact (whitespace outside strings): ${show(text)}`);
         if (exact(parsed) !== exact(c.rec)) problems.push(`switch.json should hold exactly ${show(c.rec)}; holds ${show(parsed)}`);
       }
-      if (body !== canonicalSwitch(c.rec)) problems.push(`switch.json should be exactly the canonical text (T26: keys in the order version, on, changedAt, changedBy)\n          expected: ${show(canonicalSwitch(c.rec))}\n          actual:   ${show(body)}`);
+      if (body !== canonical(c.rec)) problems.push(`switch.json should be exactly the canonical text (${c.v2 ? 'ADR 0005 D1: keys in the order version, on, changedAt, changedBy, role, onSince' : 'T26: keys in the order version, on, changedAt, changedBy'})\n          expected: ${show(canonical(c.rec))}\n          actual:   ${show(body)}`);
       if (c.rec.on === true && !body.includes('"on":true')) problems.push(`switch.json lacks the literal "on":true the wrapper matches: ${show(text)}`);
       if (c.rec.on === false && (body.includes('"on":true') || !body.includes('"on":false'))) problems.push(`an off switch.json should carry "on":false and never "on":true: ${show(text)}`);
-      await call(storeAt(dir), 'writeSwitch', reorder(clone(c.rec)));
+      if (c.v2 && body.split('"on":').length !== 2) problems.push(`"on": should appear exactly once in switch.json (ADR 0005 Constraints: no key but on may hold the text "on":true): ${show(text)}`);
+      await call(storeAt(dir), 'writeSwitch', (c.v2 ? reverseKeys : reorder)(clone(c.rec)));
       const again = fs.readFileSync(file);
       if (!again.equals(bytes)) problems.push(`the same record with its keys in another order gave other bytes (not canonical):\n          first:  ${show(text)}\n          second: ${show(again.toString('utf8'))}`);
       const back = await call(storeAt(dir), 'readSwitch');
-      if (!back || exact(pick(back, ['on', 'changedAt', 'changedBy'])) !== exact(pick(c.rec, ['on', 'changedAt', 'changedBy']))) {
-        problems.push(`readSwitch() should give { on, changedAt, changedBy } of what was written; gave ${show(back)}`);
+      if (!back || exact(pick(back, backKeys)) !== exact(pick(c.rec, backKeys))) {
+        problems.push(`readSwitch() should give ${c.v2 ? '{ version, on, changedAt, changedBy, role, onSince } (ADR 0005 D1)' : '{ on, changedAt, changedBy }'} of what was written; gave ${show(back)}`);
       }
       assert(problems.length === 0, problems.join('\n        '));
     });
@@ -1124,20 +1281,23 @@ test('RS18: writeStatus writes <dir>/status.json, whose JSON holds every field w
   });
 });
 
-test('RS19: every whole-file write is atomic — with each rename onto the target failing, writeSwitch, writeStarted, writeRecord and writeStatus each fail loudly and leave the old file byte for byte, and the matching read still gives the old value (ADR state-file table: "atomically"; T21: "Whole-file writes go through state.writeAtomic"; tested by outcome, T21 has no injection seam)', async () => {
+test('RS19: every whole-file write is atomic — with each rename onto the target failing, writeSwitch, writeStarted, writeRecord and writeStatus each fail loudly and leave the old file byte for byte, and the matching read still gives the old value (ADR state-file table: "atomically"; T21: "Whole-file writes go through state.writeAtomic"; tested by outcome, T21 has no injection seam); story 5 extends it to writeSwitch of a version 2 record and to writeSwitchHistory over switch-history.json (ADR 0005 D1: "pretty JSON, written with state.writeAtomic"; Seams "The store": RS19 extended)', async () => {
   const rows = [
     { name: 'writeSwitch', file: 'switch.json', read: 'readSwitch', v1: SW_ON, v2: SW_OFF, key: (r) => pick(r, ['on', 'changedAt']) },
     { name: 'writeStarted', file: 'started.json', read: 'readStarted', v1: { version: 1, firstStartedAt: iso(T0 - DAY) }, v2: { version: 1, firstStartedAt: iso(T0) }, key: (r) => pick(r, ['firstStartedAt']) },
     { name: 'writeRecord', file: 'record.json', read: 'readRecord', v1: recordBody(), v2: recordBody({ compactedAt: iso(T0), seen: [] }), key: (r) => withoutSha(r) },
     { name: 'writeStatus', file: 'status.json', read: 'readStatus', v1: fullStatus(), v2: fullStatus({ state: 'stopped', seen: 1 }), key: (r) => pick(r, ['state', 'seen']) },
+    { name: 'writeSwitch, version 2 (story 5)', method: 'writeSwitch', file: 'switch.json', read: 'readSwitch', v1: SW2_ON, v2: SW2_OFF, key: (r) => pick(r, ['on', 'changedAt']) },
+    { name: 'writeSwitchHistory (story 5)', method: 'writeSwitchHistory', file: 'switch-history.json', read: 'readSwitchHistory', v1: HIST_A, v2: HIST_B, key: (r) => pick(r, ['version', 'changes']) },
   ];
   await cases(rows, async (c) => {
+    const method = c.method || c.name;
     await withDir(async ({ root, dir }) => {
       const file = path.join(dir, c.file);
-      await call(storeAt(dir), c.name, clone(c.v1));
-      assert(fs.existsSync(file), `${c.name} wrote no ${c.file}`);
+      await call(storeAt(dir), method, clone(c.v1));
+      assert(fs.existsSync(file), `${method} wrote no ${c.file}`);
       const old = fs.readFileSync(file);
-      const t = await traced(root, { failRenameOnto: [`realtime/${c.file}`] }, async () => call(storeAt(dir), c.name, clone(c.v2)));
+      const t = await traced(root, { failRenameOnto: [`realtime/${c.file}`] }, async () => call(storeAt(dir), method, clone(c.v2)));
       const problems = [];
       if (!t.error) problems.push(`${c.name} succeeded although every rename onto ${c.file} failed — it did not write through a temp file and a rename (observed ${show(t.ops)})`);
       if (!fs.readFileSync(file).equals(old)) problems.push(`${c.file} changed although its rename failed:\n          before: ${show(old)}\n          after:  ${show(fs.readFileSync(file))}`);
@@ -1161,7 +1321,7 @@ test('RS20: createStore({}) defaults its directory to <stateDir>/realtime — TA
   }, { makeRealtime: false });
 });
 
-test('RS21: the store writes only inside its own directory — the pass\'s report.json, held/ and pass.lock beside it are left byte for byte, and no file appears outside realtime/ (AC-6 "separate from the pass\'s report … without changing it"; ADR 0002 binding 4 as settled by ADR 0003: the path never writes report.json; T21)', async () => {
+test('RS21: the store writes only inside its own directory — the pass\'s report.json, held/ and pass.lock beside it are left byte for byte, and no file appears outside realtime/ (AC-6 "separate from the pass\'s report … without changing it"; ADR 0002 binding 4 as settled by ADR 0003: the path never writes report.json; T21); story 5 extends it to a version 2 writeSwitch and to writeSwitchHistory / readSwitchHistory, whose file is realtime/switch-history.json — and unlinkSwitch, the off fallback, leaves that history file byte for byte (ADR 0005 D1: "Both files are in <stateDir>/realtime/"; Option A: "The off fallback\'s unlink leaves the history file intact"; Seams "The store": RS21 extended)', async () => {
   await withDir(async ({ root, dir }) => {
     fs.writeFileSync(path.join(root, 'report.json'), `${JSON.stringify({ reportVersion: 1, latest: null, previous: [] }, null, 2)}\n`);
     fs.mkdirSync(path.join(root, 'held'));
@@ -1169,6 +1329,9 @@ test('RS21: the store writes only inside its own directory — the pass\'s repor
     fs.writeFileSync(path.join(root, 'pass.lock'), '');
     const before = snapshot(root, 'realtime');
     const store = storeAt(dir);
+    const problems = [];
+    /** Story 5's calls: a missing method is a problem, and the story-3 checks below still run. */
+    const story5 = async (name, ...args) => { try { return await call(store, name, ...args); } catch (e) { problems.push(`${name}: ${firstLine(e)}`); return undefined; } };
     await call(store, 'writeSwitch', clone(SW_ON));
     await call(store, 'writeStarted', { version: 1, firstStartedAt: iso(T0) });
     await call(store, 'writeRecord', recordBody());
@@ -1177,12 +1340,24 @@ test('RS21: the store writes only inside its own directory — the pass\'s repor
     linesOf(await call(store, 'openJournal'), 'the open');
     await call(store, 'appendJournal', [L_V]);
     await call(store, 'truncateJournal');
+    await call(store, 'writeSwitch', clone(SW2_ON));
+    await story5('writeSwitchHistory', clone(HIST_A));
+    await story5('readSwitchHistory');
+    const histFile = path.join(dir, 'switch-history.json');
+    const histBefore = fs.existsSync(histFile) ? fs.readFileSync(histFile) : null;
+    if (histBefore === null) problems.push(`writeSwitchHistory wrote no realtime/switch-history.json (ADR 0005 D1); realtime/ holds ${show(fs.readdirSync(dir))}`);
     await call(store, 'unlinkSwitch');
-    same(snapshot(root, 'realtime'), before, 'the state directory outside realtime/ (file → base64 bytes)');
+    if (histBefore !== null) {
+      const histAfter = fs.existsSync(histFile) ? fs.readFileSync(histFile) : null;
+      if (histAfter === null || !histAfter.equals(histBefore)) problems.push(`unlinkSwitch() changed switch-history.json (ADR 0005: the off fallback's unlink leaves the history intact)\n          before: ${show(histBefore)}\n          after:  ${show(histAfter)}`);
+    }
+    const after = snapshot(root, 'realtime');
+    if (exact(after) !== exact(before)) problems.push(`the state directory outside realtime/ (file → base64 bytes) changed\n          expected: ${show(before)}\n          actual:   ${show(after)}`);
+    assert(problems.length === 0, problems.join('\n        '));
   });
 });
 
-test('RS22: every store method is synchronous — none returns a promise or other thenable — writeSwitch, readSwitch, unlinkSwitch, writeStarted, readStarted, writeRecord, readRecord, openJournal, appendJournal, journalBytes, truncateJournal, writeStatus and readStatus (T26: "Methods are synchronous (awaiting works)")', async () => {
+test('RS22: every store method is synchronous — none returns a promise or other thenable — writeSwitch, readSwitch, unlinkSwitch, writeStarted, readStarted, writeRecord, readRecord, openJournal, appendJournal, journalBytes, truncateJournal, writeStatus and readStatus (T26: "Methods are synchronous (awaiting works)"); story 5 adds writeSwitchHistory and readSwitchHistory (ADR 0005 D1: "readSwitchHistory() and writeSwitchHistory(obj) are synchronous"; Seams "The store": RS22 extended)', async () => {
   await withDir(async ({ dir }) => {
     const store = storeAt(dir);
     const steps = [
@@ -1191,10 +1366,11 @@ test('RS22: every store method is synchronous — none returns a promise or othe
       ['writeRecord', [recordBody()]], ['readRecord', []],
       ['openJournal', []], ['appendJournal', [[L_V]]], ['journalBytes', []], ['truncateJournal', []],
       ['writeStatus', [fullStatus()]], ['readStatus', []],
+      ['writeSwitchHistory', [clone(HIST_A)]], ['readSwitchHistory', []],
     ];
     const problems = [];
     for (const [name, args] of steps) {
-      if (typeof store[name] !== 'function') { problems.push(`createStore() gives no ${name}() yet (T21)`); continue; }
+      if (typeof store[name] !== 'function') { problems.push(`createStore() gives no ${name}() yet (T21${HISTORY_METHODS.includes(name) ? '; ADR 0005 D1' : ''})`); continue; }
       let out;
       try { out = store[name](...args); } catch (e) { problems.push(`${name}() threw: ${firstLine(e)}`); continue; }
       if (isThenable(out)) {
@@ -1259,6 +1435,210 @@ test('RS24: with no journal.jsonl (a first start) openJournal() gives { lines: [
   });
 });
 
+// ─── story 5: switch.json version 2 and switch-history.json (ADR 0005 D1; Seams "The store") ─────────────────────
+
+test('RS25: createStore({ dir }) also gives readSwitchHistory and writeSwitchHistory, and store.js gives the pure parseSwitchHistory(text) [story 5 AC-5 "the last 10 changes"; ADR 0005 D1 Store, "New methods"; T21 as amended by ADR 0005]', async () => {
+  await withDir(async ({ dir }) => {
+    const store = storeAt(dir);
+    const problems = [];
+    const missing = HISTORY_METHODS.filter((m) => typeof store[m] !== 'function');
+    if (missing.length) problems.push(`createStore({ dir }) lacks ${show(missing)} (ADR 0005 D1); it has ${show(Object.keys(store))}`);
+    try { parseHistoryFn(store); } catch (e) { problems.push(firstLine(e)); }
+    assert(problems.length === 0, problems.join('\n        '));
+  });
+});
+
+test('RS26: writeSwitchHistory(obj) writes <dir>/switch-history.json beside switch.json — pretty JSON holding exactly the { version: 1, changes } it was given (a change not recorded, with null at, role and key, included; ten entries included), with no group or other permission bits, switch.json untouched — and readSwitchHistory() from a fresh store gives it back; with no history file readSwitchHistory() gives null [story 5 AC-5 "It lasts", "Who may read it"; ADR 0005 D1: "{version:1, changes:[{on, at, role, key}]} … pretty JSON, written with state.writeAtomic", "A missing file gives null"; Consequences: "files written 0600 inside a 0700 directory"]', async () => {
+  await withDir(async ({ dir }) => {
+    const store = storeAt(dir);
+    for (const m of HISTORY_METHODS) assert(typeof store[m] === 'function', `createStore() gives no ${m}() yet (ADR 0005 D1)`);
+    const problems = [];
+    const none = await call(store, 'readSwitchHistory');
+    if (none !== null) problems.push(`readSwitchHistory() with no switch-history.json should give null (ADR 0005 D1: "A missing file gives null"); gave ${show(none)}`);
+    const swFile = path.join(dir, 'switch.json');
+    fs.writeFileSync(swFile, canonicalSwitch2(SW2_OFF));
+    const swBefore = fs.readFileSync(swFile);
+    const file = path.join(dir, 'switch-history.json');
+    for (const [name, hist] of [['four changes, the newest not recorded', HIST_B], ['ten changes', HIST_10]]) {
+      try { await call(store, 'writeSwitchHistory', clone(hist)); } catch (e) { problems.push(`[${name}] writeSwitchHistory() threw: ${firstLine(e)}`); continue; }
+      if (!fs.existsSync(file)) { problems.push(`[${name}] writeSwitchHistory wrote no <dir>/switch-history.json (files: ${show(fs.readdirSync(dir))})`); continue; }
+      const text = fs.readFileSync(file, 'utf8');
+      let parsed;
+      try { parsed = JSON.parse(text); } catch (e) { problems.push(`[${name}] switch-history.json is not JSON: ${show(text)}`); continue; }
+      if (exact(parsed) !== exact(hist)) problems.push(`[${name}] switch-history.json should hold exactly what was written\n          expected: ${show(hist)}\n          actual:   ${show(parsed)}`);
+      if (!text.trim().includes('\n')) problems.push(`[${name}] switch-history.json should be pretty JSON (ADR 0005 D1), not one line: ${show(text)}`);
+      const mode = fs.statSync(file).mode & 0o777;
+      if (mode & 0o077) problems.push(`[${name}] switch-history.json is mode ${mode.toString(8)}: who changed the switch is readable beyond the file's owner (ADR 0005 Consequences: "files written 0600")`);
+      const back = await call(storeAt(dir), 'readSwitchHistory');
+      if (!back || back.unreadable === true || exact(pick(back, ['version', 'changes'])) !== exact(hist)) problems.push(`[${name}] readSwitchHistory() from a fresh store should give ${show(hist)} back; gave ${show(back)}`);
+    }
+    if (!fs.readFileSync(swFile).equals(swBefore)) problems.push(`writeSwitchHistory changed switch.json: ${show(fs.readFileSync(swFile))}`);
+    assert(problems.length === 0, problems.join('\n        '));
+  });
+});
+
+test('RS27: readSwitchHistory() and parseSwitchHistory(text) tell damage from a read error — text that does not parse or has the wrong shape (not JSON, empty, torn mid-write, JSON null, an array, no changes, changes an object, a string or null) gives { unreadable: true } with no readError; something other than a file at the path gives { unreadable: true, readError: <its code> }; a parseable history whose changes is an array of entries that are not valid is not unreadable (an entry\'s validity is switchRecord\'s); neither throws [ADR 0005 D1: "Readers tell a read error from damage. A missing file gives null. A read error other than ENOENT gives { unreadable: true, readError: code }. Text that does not parse, or has the wrong shape, gives { unreadable: true }"; D3: historyUnreadable when the file "does not parse, or its changes is not an array", and "a parseable history with no valid entries" apart]', async () => {
+  const junk = { version: 1, changes: [{ on: 'yes' }, 7, null, { on: true, at: 'yesterday', role: 'stranger', key: 'zz' }] };
+  await cases([
+    { name: 'not JSON', text: 'history', want: 'damaged' },
+    { name: 'empty', text: '', want: 'damaged' },
+    { name: 'torn mid-write', text: '{\n  "version": 1,\n  "changes": [\n    { "on": tr', want: 'damaged' },
+    { name: 'JSON null', text: 'null', want: 'damaged' },
+    { name: 'an array', text: JSON.stringify(HIST_A.changes), want: 'damaged' },
+    { name: 'no changes', text: '{"version":1}', want: 'damaged' },
+    { name: 'changes an object', text: '{"version":1,"changes":{"0":{"on":true}}}', want: 'damaged' },
+    { name: 'changes a string', text: '{"version":1,"changes":"[]"}', want: 'damaged' },
+    { name: 'changes null', text: '{"version":1,"changes":null}', want: 'damaged' },
+    { name: 'a directory in its place (a read error)', dirInPlace: true, want: 'read-error' },
+    { name: 'parseable, with no valid entries', text: JSON.stringify(junk, null, 2), want: 'parsed' },
+  ], async (c) => {
+    await withDir(async ({ dir }) => {
+      const file = path.join(dir, 'switch-history.json');
+      if (c.dirInPlace) fs.mkdirSync(file); else fs.writeFileSync(file, c.text);
+      const store = storeAt(dir);
+      const problems = [];
+      const readers = [];
+      if (typeof store.readSwitchHistory !== 'function') problems.push('createStore() gives no readSwitchHistory() yet (ADR 0005 D1)');
+      else {
+        try { readers.push(['readSwitchHistory()', await store.readSwitchHistory()]); } catch (e) { problems.push(`readSwitchHistory() threw instead of answering: ${firstLine(e)}`); }
+      }
+      if (!c.dirInPlace) {
+        let parse = null;
+        try { parse = parseHistoryFn(store); } catch (e) { problems.push(firstLine(e)); }
+        if (parse) { try { readers.push(['parseSwitchHistory(text)', parse(c.text)]); } catch (e) { problems.push(`parseSwitchHistory(text) threw instead of answering: ${firstLine(e)}`); } }
+      }
+      const code = c.want === 'read-error' ? dirReadCode(dir) : null;
+      for (const [who, v] of readers) {
+        if (c.want === 'damaged') {
+          if (!v || v.unreadable !== true) problems.push(`${who} should give { unreadable: true }; gave ${show(v)}`);
+          else if (v.readError != null) problems.push(`${who} gave a readError for damaged text, which is not a read error: ${show(v)}`);
+        } else if (c.want === 'read-error') {
+          if (!v || v.unreadable !== true || v.readError !== code) problems.push(`${who} should give { unreadable: true, readError: ${show(code)} }; gave ${show(v)}`);
+        } else if (!v || v.unreadable === true || !Array.isArray(v.changes)) {
+          problems.push(`${who} should give the parsed history (changes an array), not unreadable — an entry's validity is switchRecord's (ADR 0005 D3); gave ${show(v)}`);
+        }
+      }
+      assert(problems.length === 0, problems.join('\n          '));
+    });
+  });
+});
+
+test('RS28: writeSwitch refuses a version 2 record whose role is not "owner" or "admin" — missing, null, empty, "stranger", "Owner" or "ADMIN" — throwing EBADSWITCH and leaving switch.json byte for byte (or absent), as it does for a non-boolean on; and a record with no version still serialises as version 1, exactly { version: 1, on, changedAt, changedBy } (story 3\'s writers stay valid) [ADR 0005 D1: "canonicalSwitch keeps throwing EBADSWITCH for a non-boolean on. It also throws for a version 2 record whose role is not \'owner\' or \'admin\'. A record with no version still serialises as version 1"]', async () => {
+  const withoutRole = () => { const r = clone(SW2_ON); delete r.role; return r; };
+  const noVersion = { on: true, changedAt: SW_ON.changedAt, changedBy: SW_ON.changedBy };
+  await cases([
+    { name: 'role missing', rec: withoutRole(), throws: true },
+    { name: 'role null', rec: { ...SW2_ON, role: null }, throws: true },
+    { name: 'role empty', rec: { ...SW2_ON, role: '' }, throws: true },
+    { name: 'role "stranger"', rec: { ...SW2_ON, role: 'stranger' }, throws: true },
+    { name: 'role "Owner"', rec: { ...SW2_ON, role: 'Owner' }, throws: true },
+    { name: 'role "ADMIN", an off', rec: { ...SW2_OFF, role: 'ADMIN' }, throws: true },
+    { name: 'a non-boolean on, version 2', rec: { ...SW2_ON, on: 'true' }, throws: true },
+    { name: 'no version (story 3\'s shape)', rec: noVersion, text: canonicalSwitch({ version: 1, ...noVersion }) },
+  ], async (c) => {
+    for (const prior of [null, SW_OFF]) {
+      const label = prior ? 'over an earlier switch.json' : 'with no switch.json';
+      await withDir(async ({ dir }) => {
+        const file = path.join(dir, 'switch.json');
+        if (prior) await call(storeAt(dir), 'writeSwitch', clone(prior));
+        const old = prior ? fs.readFileSync(file) : null;
+        let err = null;
+        try { await call(storeAt(dir), 'writeSwitch', clone(c.rec)); } catch (e) { if (/gives no/.test(e.message)) throw e; err = e; }
+        const now = fs.existsSync(file) ? fs.readFileSync(file) : null;
+        if (c.throws) {
+          assert(err && err.code === 'EBADSWITCH', `${label}: writeSwitch(${show(c.rec)}) should throw EBADSWITCH (ADR 0005 D1); ${err ? `it threw ${show(err.code)}: ${firstLine(err)}` : `it wrote ${show(now)}`}`);
+          if (prior) assert(now && now.equals(old), `${label}: switch.json changed although the write was refused\n          before: ${show(old)}\n          after:  ${show(now)}`);
+          else assert(now === null, `${label}: a refused write left switch.json ${show(now)}`);
+        } else {
+          assert(!err, `${label}: writeSwitch(${show(c.rec)}) threw: ${err && firstLine(err)}`);
+          eq(now === null ? null : strip(now.toString('utf8')), c.text, `${label}: a record with no version should serialise as version 1 (ADR 0005 D1)`);
+        }
+      });
+    }
+  });
+});
+
+test('RS29: parseSwitch(text) and readSwitch() also give version — the raw parsed value: 2, 1, the string "2", and nothing when the file holds none (never defaulted) — and role and onSince: a version 2 owner\'s on and an admin\'s off give all six fields back, and the pre-story-5 version 1 record gives version 1 with no role or onSince [ADR 0005 D1: "parseSwitch, and so readSwitch, also returns version (the raw parsed value), role and onSince"; D3 reads version === 1 with no role as the pre-story-5 record; D10\'s local text]', async () => {
+  const parseSwitch = need(loadStore(), 'parseSwitch', STORE_REL, 'T32');
+  const D10 = { version: 1, on: false, changedAt: '2026-09-29T17:43:18.937Z', changedBy: 'f0178122' };
+  const rows = [
+    { name: 'version 2, the owner\'s on', text: canonicalSwitch2(SW2_ON), want: SW2_ON },
+    { name: 'version 2, an admin\'s off', text: canonicalSwitch2(SW2_OFF), want: SW2_OFF },
+    { name: 'version 1, D10\'s local record', text: JSON.stringify(D10), want: D10, none: ['role', 'onSince'] },
+    { name: 'no version', text: JSON.stringify({ on: true, changedAt: SW_ON.changedAt, changedBy: OWNER8 }), want: { on: true, changedAt: SW_ON.changedAt, changedBy: OWNER8 }, none: ['version', 'role', 'onSince'] },
+    { name: 'version the string "2"', text: JSON.stringify({ ...SW2_ON, version: '2' }), want: { ...SW2_ON, version: '2' } },
+  ];
+  const problems = [];
+  for (const r of rows) {
+    let got;
+    try { got = parseSwitch(r.text); } catch (e) { problems.push(`[${r.name}] parseSwitch threw: ${firstLine(e)}`); continue; }
+    if (!got || got.unreadable === true || exact(pick(got, Object.keys(r.want))) !== exact(r.want)) problems.push(`[${r.name}] parseSwitch should give ${show(r.want)} (ADR 0005 D1: version as parsed, role and onSince); gave ${show(got)}`);
+    for (const k of r.none || []) if (got && got[k] != null) problems.push(`[${r.name}] parseSwitch gave ${k} ${show(got[k])}, which the file does not hold (ADR 0005 D1: the raw parsed value)`);
+  }
+  await withDir(async ({ dir }) => {
+    for (const rec of [SW2_ON, SW2_OFF]) {
+      await call(storeAt(dir), 'writeSwitch', clone(rec));
+      const back = await call(storeAt(dir), 'readSwitch');
+      if (!back || exact(pick(back, SWITCH2_KEYS)) !== exact(rec)) problems.push(`readSwitch() after writeSwitch(${show(rec)}) should give all six fields back (ADR 0005 D1); gave ${show(back)}`);
+    }
+  });
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('RS30: readSwitch() tells a read error from damage — something other than a file at switch.json gives { unreadable: true, readError: <its code> }, never on; text that does not parse, or is not an object whose on is a boolean, gives { unreadable: true } with no readError; a missing file still gives null [ADR 0005 D1: "readSwitch gains the same readError field. The engine still sees unreadable and treats it as off, as today"; D2 step 2 keys on it]', async () => {
+  await cases([
+    { name: 'a directory in its place (a read error)', dirInPlace: true },
+    { name: 'not JSON', text: 'on' },
+    { name: 'torn mid-write', text: '{"version":2,"on":tr' },
+    { name: '"on":"true", version 2', text: canonicalSwitch2({ ...SW2_ON, on: 'true' }) },
+    { name: 'missing', missing: true },
+  ], async (c) => {
+    await withDir(async ({ dir }) => {
+      const file = path.join(dir, 'switch.json');
+      if (c.dirInPlace) fs.mkdirSync(file); else if (!c.missing) fs.writeFileSync(file, c.text);
+      let r;
+      try { r = await call(storeAt(dir), 'readSwitch'); } catch (e) {
+        if (/not implemented yet|gives no/.test(e.message)) throw e;
+        throw new Error(`readSwitch() threw instead of answering: ${firstLine(e)}`);
+      }
+      if (c.missing) { eq(r, null, 'readSwitch() with no switch.json'); return; }
+      assert(r && r.unreadable === true && r.on !== true, `readSwitch() should give { unreadable: true }, never on; gave ${show(r)}`);
+      if (c.dirInPlace) {
+        const code = dirReadCode(dir);
+        assert(r.readError === code, `readSwitch() should give { unreadable: true, readError: ${show(code)} } for a read error (ADR 0005 D1); gave ${show(r)}`);
+      } else {
+        assert(r.readError == null, `readSwitch() gave a readError for damaged text, which is not a read error (ADR 0005 D1): ${show(r)}`);
+      }
+    });
+  });
+});
+
+test('RS31: who and when sit in files written 0600 inside a 0700 directory — writeSwitch of a version 2 record and writeSwitchHistory, each the first write into a realtime/ that does not exist yet, leave the file with no group or other permission bits and the realtime/ directory the store made with mode 0700 [story 5 AC-5 "Who may read it. Only a signed-in owner or admin may read who made a change"; ADR 0005 Consequences: "Who and when live on the data volume, in files written 0600 inside a 0700 directory"; D1: "Both files are in <stateDir>/realtime/"]', async () => {
+  await cases([
+    { name: 'writeSwitch, the owner\'s version 2 on', method: 'writeSwitch', file: 'switch.json', value: SW2_ON },
+    { name: 'writeSwitch, an admin\'s version 2 off', method: 'writeSwitch', file: 'switch.json', value: SW2_OFF },
+    { name: 'writeSwitchHistory (story 5)', method: 'writeSwitchHistory', file: 'switch-history.json', value: HIST_A },
+  ], async (c) => {
+    await withDir(async ({ dir }) => {
+      assert(!fs.existsSync(dir), 'fixture: realtime/ should not exist before the store writes');
+      await call(storeAt(dir), c.method, clone(c.value));
+      const problems = [];
+      const file = path.join(dir, c.file);
+      if (!fs.existsSync(dir)) problems.push(`${c.method} made no realtime/ directory (ADR 0005 D1)`);
+      else {
+        const dirMode = fs.statSync(dir).mode & 0o777;
+        if (dirMode !== 0o700) problems.push(`the realtime/ directory the store made is mode ${dirMode.toString(8)}, not 700 (ADR 0005 Consequences: "inside a 0700 directory")`);
+      }
+      if (!fs.existsSync(file)) problems.push(`${c.method} wrote no realtime/${c.file} (realtime/ holds ${show(fs.existsSync(dir) ? fs.readdirSync(dir) : null)})`);
+      else {
+        const mode = fs.statSync(file).mode & 0o777;
+        if (mode & 0o077) problems.push(`realtime/${c.file} is mode ${mode.toString(8)}: who changed the switch is readable beyond the file's owner (ADR 0005 Consequences: "files written 0600")`);
+      }
+      assert(problems.length === 0, problems.join('\n          '));
+    }, { makeRealtime: false });
+  });
+});
+
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
 // RR — the routes module, src/api/tagging-edges/realtime.js (T22)
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1269,7 +1649,7 @@ test('RR1: src/api/tagging-edges/realtime.js exports computeRealtimeStatus, vali
   assert(missing.length === 0, `${ROUTES_REL} lacks ${show(missing)}; it exports ${show(Object.keys(mod))}`);
 });
 
-test('RR2: computeRealtimeStatus takes on and onSince from the switch record alone — on: true gives on with onSince = its changedAt (as readSwitch or the raw file gives it); on: false, no switch.json (null) and an unreadable one all give off with onSince null; switchUnreadable is true only for { unreadable: true } (AC-5, AC-6 "whether the path is on … and since when"; ADR § "Status and switch"; T22; T27: "onSince is null when off")', () => {
+test('RR2: computeRealtimeStatus takes on and onSince from the switch record alone — on: true gives on with onSince = its changedAt (as readSwitch or the raw file gives it); on: false, no switch.json (null) and an unreadable one all give off with onSince null; switchUnreadable is true only for { unreadable: true } (AC-5, AC-6 "whether the path is on … and since when"; ADR § "Status and switch"; T22; T27: "onSince is null when off"); story 5 adds rows — while on, onSince is the switch\'s onSince when that is an ISO time (version 2: the last off-to-on time, so an on while on does not move it), else its changedAt when that is an ISO time, else null; off gives null whatever the record holds; readSwitch\'s read error reads off and unreadable (story 5 AC-3; ADR 0005 D4: "The status\'s onSince becomes … This replaces realtime.js:97"; D1 readError)', () => {
   const compute = routeFn('computeRealtimeStatus');
   const rows = [
     { name: 'the raw switch.json, on', sw: SW_ON, on: true, since: SW_ON.changedAt, unreadable: false },
@@ -1277,6 +1657,14 @@ test('RR2: computeRealtimeStatus takes on and onSince from the switch record alo
     { name: 'off', sw: SW_OFF, on: false, since: null, unreadable: false },
     { name: 'no switch.json (null)', sw: null, on: false, since: null, unreadable: false },
     { name: 'unreadable', sw: { unreadable: true }, on: false, since: null, unreadable: true },
+    { name: 'version 2, an admin\'s on while on: the switch\'s onSince, not its changedAt (story 5)', sw: SW2_ON_AGAIN, on: true, since: SW2_ON_AGAIN.onSince, unreadable: false },
+    { name: 'version 2 in readSwitch()\'s shape, the owner\'s on (story 5)', sw: pick(SW2_ON, SWITCH2_KEYS), on: true, since: SW2_ON.onSince, unreadable: false },
+    { name: 'version 2, on, onSince not an ISO time: changedAt (story 5)', sw: { ...SW2_ON_AGAIN, onSince: 'two days ago' }, on: true, since: SW2_ON_AGAIN.changedAt, unreadable: false },
+    { name: 'version 2, on, onSince null: changedAt (story 5)', sw: { ...SW2_ON_AGAIN, onSince: null }, on: true, since: SW2_ON_AGAIN.changedAt, unreadable: false },
+    { name: 'on, neither onSince nor changedAt an ISO time: null (story 5)', sw: { ...SW2_ON, changedAt: 'yesterday', onSince: 'last week' }, on: true, since: null, unreadable: false },
+    { name: 'version 1, on, changedAt not an ISO time: null (story 5)', sw: { ...SW_ON, changedAt: 'yesterday' }, on: true, since: null, unreadable: false },
+    { name: 'version 2, off, carrying a stray onSince: null (story 5)', sw: { ...SW2_OFF, onSince: iso(T0 - DAY) }, on: false, since: null, unreadable: false },
+    { name: 'a read error, as readSwitch() gives it (story 5)', sw: { unreadable: true, readError: 'EIO' }, on: false, since: null, unreadable: true },
   ];
   const problems = [];
   for (const r of rows) {
@@ -1443,22 +1831,37 @@ test('RR9: POST switch with no session answers 401 — a loopback (req.localTrus
   assert(problems.length === 0, problems.join('\n        '));
 });
 
-test('RR10: POST switch from any session that is not the owner\'s answers 403 and changes nothing — a signed-in stranger (also on loopback), an admin (session flags and the house admin helpers both saying admin), the owner\'s pubkey in upper case or with a trailing space, and the owner\'s pubkey on a session whose authenticated is false, the string "true" or absent (AC-5; ADR § "Status and switch": "A non-owner, or an admin → 403", "re-checks session.authenticated === true"; the confirm route\'s pattern; T22; T27: "session.authenticated !== true with the owner\'s pubkey answers 403")', async () => {
+test('RR10: POST switch from any session that is neither a signed-in owner\'s nor a signed-in admin\'s answers 403 { success: false, error: "Owner or admin access required" } and changes and records nothing — a signed-in stranger (also on loopback), a stranger whose session claims admin flags (isAdmin, admin, role "admin") with no admin-list entry, the owner\'s pubkey in upper case or with a trailing space, an admin in upper case, an admin list holding the admin in upper case, the owner\'s or an admin\'s pubkey on a session whose authenticated is false, the string "true", 1 or absent, and a stranger or an admin when the admin lookup throws — while an admin, signed in from the same host, is now admitted and the change is written [story 5 AC-4 "It accepts a change only from a signed-in owner or admin", "It refuses everyone else, and changes and records nothing"; ADR 0005 D5 (the drift route\'s order and bodies; the role from configuration, never session flags) and Consequences "Tests that fail by design: RR10" — revised from story 3\'s owner-only rule; DR4\'s rows; T27 as amended: authenticated !== true with the owner\'s or an admin\'s pubkey answers 403]', async () => {
+  const throwsAdmins = () => { throw new Error('could not source /etc/brainstorm.conf'); };
   const rows = [
-    ['a signed-in stranger', { session: { authenticated: true, pubkey: STRANGER } }, [403]],
-    ['a stranger on loopback', { session: { authenticated: true, pubkey: STRANGER }, localTrusted: true, ip: '127.0.0.1' }, [403]],
-    ['an admin', { session: { authenticated: true, pubkey: ADMIN, isAdmin: true, admin: true, role: 'admin' } }, [403]],
-    ['the owner in upper case', { session: { authenticated: true, pubkey: OWNER.toUpperCase() } }, [403]],
-    ['the owner with a trailing space', { session: { authenticated: true, pubkey: `${OWNER} ` } }, [403]],
-    ['the owner, authenticated false', { session: { authenticated: false, pubkey: OWNER } }, [403]],
-    ['the owner, authenticated "true"', { session: { authenticated: 'true', pubkey: OWNER } }, [403]],
-    ['the owner, authenticated absent', { session: { pubkey: OWNER } }, [403]],
-    ['the owner, authenticated 1', { session: { authenticated: 1, pubkey: OWNER } }, [403]],
+    ['a signed-in stranger', { session: { authenticated: true, pubkey: STRANGER } }, {}],
+    ['a stranger on loopback', { session: { authenticated: true, pubkey: STRANGER }, localTrusted: true, ip: '127.0.0.1' }, {}],
+    ['a stranger whose session claims admin flags', { session: { authenticated: true, pubkey: STRANGER, isAdmin: true, admin: true, role: 'admin' } }, {}],
+    ['the owner in upper case', { session: { authenticated: true, pubkey: OWNER.toUpperCase() } }, {}],
+    ['the owner with a trailing space', { session: { authenticated: true, pubkey: `${OWNER} ` } }, {}],
+    ['an admin in upper case', { session: { authenticated: true, pubkey: ADMIN.toUpperCase() } }, {}],
+    ['an admin list holding the admin in upper case', { session: { authenticated: true, pubkey: ADMIN } }, { admins: [ADMIN.toUpperCase()] }],
+    ['the owner, authenticated false', { session: { authenticated: false, pubkey: OWNER } }, {}],
+    ['the owner, authenticated "true"', { session: { authenticated: 'true', pubkey: OWNER } }, {}],
+    ['the owner, authenticated absent', { session: { pubkey: OWNER } }, {}],
+    ['the owner, authenticated 1', { session: { authenticated: 1, pubkey: OWNER } }, {}],
+    ['an admin, authenticated false', { session: { authenticated: false, pubkey: ADMIN } }, {}],
+    ['an admin, authenticated "true"', { session: { authenticated: 'true', pubkey: ADMIN } }, {}],
+    ['an admin, authenticated 1', { session: { authenticated: 1, pubkey: ADMIN } }, {}],
+    ['an admin, authenticated absent', { session: { pubkey: ADMIN } }, {}],
+    ['a stranger when the admin lookup throws', { session: { authenticated: true, pubkey: STRANGER } }, { admins: throwsAdmins }],
+    ['an admin when the admin lookup throws', { session: { authenticated: true, pubkey: ADMIN } }, { admins: throwsAdmins }],
   ];
   const problems = [];
-  for (const [label, o, statuses] of rows) {
-    problems.push(...refusalProblems(label, await callSwitch(switchReq({ on: true }, o), switchBundle()), statuses));
+  for (const [label, o, bundle] of rows) {
+    const r = await callSwitch(switchReq({ on: true }, o), switchBundle(bundle));
+    problems.push(...refusalProblems(label, r, [403]), ...adminLeakProblems(label, r.res));
+    if (r.res.statusCode === 403 && (!r.res.body || r.res.body.error !== 'Owner or admin access required')) problems.push(`${label}: the 403 should say "Owner or admin access required" (ADR 0005 D5: the drift route's bodies); it is ${show(r.res.body)}`);
   }
+  // Story 5: an admin is admitted (ADR 0005 Consequences: "RR10: an admin may now switch"). RR15 pins the record.
+  const admitted = await callSwitch(switchReq({ on: true }, { session: { authenticated: true, pubkey: ADMIN } }), switchBundle());
+  if (admitted.res.statusCode !== 200) problems.push(`a signed-in admin, same host, answered ${showRes(admitted.res)}; expected 200 (story 5 AC-4: "It accepts a change only from a signed-in owner or admin")`);
+  if (admitted.calls.writeSwitch.length !== 1) problems.push(`a signed-in admin's on should write the switch once; writeSwitch was called ${admitted.calls.writeSwitch.length} times`);
   assert(problems.length === 0, problems.join('\n        '));
 });
 
@@ -1522,39 +1925,52 @@ test('RR14: POST switch from the owner whose on is not a boolean answers 400 bef
   assert(problems.length === 0, problems.join('\n        '));
 });
 
-test('RR15: the owner, from the same host, with JSON, turns the path on and off — writeSwitch is called once with exactly { version: 1, on, changedAt: now as ISO, changedBy: the owner\'s 8-character prefix }, nothing is unlinked, no signal is sent and nothing is enqueued, and the answer is 200 { success: true, on, changedAt, takesEffectWithinSeconds: 5 } without the owner\'s full pubkey — with no Origin, a same-host Origin, and the owner given as a string (AC-5 "the owner turns it on and off per instance from the instance itself, without a shell"; ADR § "Status and switch"; T22)', async () => {
+test('RR15: the owner or an admin, from the same host, with JSON, turns the path on and off — writeSwitch is called once with exactly the version 2 record { version: 2, on, changedAt: now as ISO, changedBy: the caller\'s 8-character prefix, role: "owner" or "admin" (from configuration, the owner checked first — never from session flags), onSince: now for an on from a missing switch, null for an off }; nothing is unlinked, no signal is sent and nothing is enqueued; the history then gains exactly that change — the last history write comes after writeSwitch and is { version: 1, changes: [{ on, at, role, key }] }, and no write before it holds the new change — and the answer is exactly 200 { success: true, on, changedAt, recorded: true, takesEffectWithinSeconds: 5 }, with no full pubkey — with no Origin, a same-host Origin, and the owner given as a string [story 5 AC-4, AC-5 "Every change records who made it (owner or admin, and a shortened key) and when"; ADR 0005 D1, D2 step 5 and its invariant, D4, D5, D11, and Consequences "Tests that fail by design: RR15" — revised from story 3\'s { version: 1, on, changedAt, changedBy: the owner\'s prefix } and its answer without recorded]', async () => {
   const rows = [
-    { name: 'on, no Origin', on: true, o: {} },
-    { name: 'off, no Origin', on: false, o: {} },
-    { name: 'on, a same-host Origin', on: true, o: { origin: `https://${HOST}` } },
-    { name: 'off, the owner as a string', on: false, o: {}, bundle: { ownerString: OWNER } },
+    { name: 'the owner, on, no Origin', on: true, o: {}, by: OWNER, role: 'owner' },
+    { name: 'the owner, off, no Origin', on: false, o: {}, by: OWNER, role: 'owner' },
+    { name: 'the owner, on, a same-host Origin', on: true, o: { origin: `https://${HOST}` }, by: OWNER, role: 'owner' },
+    { name: 'the owner, off, the owner as a string', on: false, o: {}, bundle: { ownerString: OWNER }, by: OWNER, role: 'owner' },
+    { name: 'an admin, on, no Origin', on: true, o: { session: { authenticated: true, pubkey: ADMIN } }, by: ADMIN, role: 'admin' },
+    { name: 'an admin, off, a same-host Origin', on: false, o: { origin: `https://${HOST}`, session: { authenticated: true, pubkey: ADMIN } }, by: ADMIN, role: 'admin' },
+    { name: 'an admin whose session claims owner flags is recorded as an admin', on: true, o: { session: { authenticated: true, pubkey: ADMIN, isOwner: true, owner: true, role: 'owner' } }, by: ADMIN, role: 'admin' },
+    { name: 'the owner, also on the admin list, is recorded as the owner', on: false, o: {}, bundle: { admins: [ADMIN, OWNER] }, by: OWNER, role: 'owner' },
   ];
   await cases(rows, async (c) => {
     const r = await callSwitch(switchReq({ on: c.on }, c.o), switchBundle(c.bundle || {}));
     const problems = [];
-    const want = { version: 1, on: c.on, changedAt: iso(T0), changedBy: OWNER.slice(0, 8) };
+    const want = { version: 2, on: c.on, changedAt: iso(T0), changedBy: c.by.slice(0, 8), role: c.role, onSince: c.on ? iso(T0) : null };
     if (r.res.statusCode !== 200) problems.push(`answered ${showRes(r.res)}, expected 200`);
     if (r.calls.writeSwitch.length !== 1) problems.push(`writeSwitch should be called once; was called ${r.calls.writeSwitch.length} times`);
-    else if (exact(r.calls.writeSwitch[0]) !== exact(want)) problems.push(`writeSwitch should get ${show(want)}; got ${show(r.calls.writeSwitch[0])}`);
+    else if (exact(r.calls.writeSwitch[0]) !== exact(want)) problems.push(`writeSwitch should get exactly ${show(want)} (ADR 0005 D1, D4); got ${show(r.calls.writeSwitch[0])}`);
     if (r.calls.unlinkSwitch) problems.push('unlinkSwitch was called');
     if (r.kills.length) problems.push(`a signal was sent: ${show(r.kills)}`);
     if (r.calls.queue) problems.push('the task queue was touched');
-    const b = r.res.body || {};
-    const got = pick(b, ['success', 'on', 'changedAt', 'takesEffectWithinSeconds']);
-    const wantAnswer = { success: true, on: c.on, changedAt: iso(T0), takesEffectWithinSeconds: 5 };
-    if (exact(got) !== exact(wantAnswer)) problems.push(`the answer should carry ${show(wantAnswer)}; it is ${show(b)}`);
-    problems.push(...leakProblems(c.name, r.res));
+    const writes = historyWrites(r.calls);
+    const entry = { on: c.on, at: iso(T0), role: c.role, key: c.by.slice(0, 8) };
+    const early = writes.filter((w) => !w.afterSwitch && holdsChangeAt(w, iso(T0)));
+    if (early.length) problems.push(`a history write before writeSwitch holds the new change (ADR 0005 D2: "the history never receives the new change before switch.json does"): ${show(early.map((w) => w.obj))}`);
+    const last = writes.length ? writes[writes.length - 1] : null;
+    const fold = { version: 1, changes: [entry] };
+    if (!last || !last.afterSwitch) problems.push(`the history should be written after writeSwitch with the change (ADR 0005 D2 step 5, the fold); history writes were ${show(writes)}; call order ${show(r.calls.seq)}`);
+    else if (exact(last.obj) !== exact(fold)) problems.push(`the fold should write exactly ${show(fold)} (ADR 0005 D1, D2 step 5; nothing stored before); wrote ${show(last.obj)}`);
+    const wantAnswer = { success: true, on: c.on, changedAt: iso(T0), recorded: true, takesEffectWithinSeconds: 5 };
+    if (exact(r.res.body) !== exact(wantAnswer)) problems.push(`the answer should be exactly ${show(wantAnswer)} (ADR 0005 D11); it is ${show(r.res.body)}`);
+    problems.push(...leakProblems(c.name, r.res), ...adminLeakProblems(c.name, r.res));
     assert(problems.length === 0, problems.join('\n          '));
   });
 });
 
-test('RR16: when writing an off switch fails — for lack of space (ENOSPC), an i/o error, or an error whose code is off the allow-list and whose message names a URI and a path — the route unlinks switch.json, which needs no free space and reads as off, and answers 200 { success: true, on: false }, naming no absolute path from the error (AC-5 "off means off"; ADR § "Status and switch": "If the atomic write for {on:false} fails (for example ENOSPC), it unlinks switch.json … and answers accordingly"; T22; T27: "A {on:false} whose write fails unlinks switch.json and answers 200 { success: true, on: false } when the unlink succeeds")', async () => {
+test('RR16: when writing an off switch fails — for lack of space (ENOSPC), an i/o error, or an error whose code is off the allow-list and whose message names a URI and a path — the route unlinks switch.json, which needs no free space and reads as off, and answers 200 { success: true, on: false }, naming no absolute path from the error (AC-5 "off means off"; ADR § "Status and switch": "If the atomic write for {on:false} fails (for example ENOSPC), it unlinks switch.json … and answers accordingly"; T22; T27: "A {on:false} whose write fails unlinks switch.json and answers 200 { success: true, on: false } when the unlink succeeds"); story 5 adds rows — an admin\'s off over the owner\'s recorded on, and the owner\'s off with nothing stored — whose answer is exactly 200 { success: true, on: false, recorded: false, takesEffectWithinSeconds: 5 }, with no history write after the failed writeSwitch and none holding the attempted off [story 5 AC-4 "An off still takes effect when the server cannot record it", AC-5 "The one exception … Its answer says the change could not be recorded"; ADR 0005 D2 step 5 "Call unlinkSwitch() … and run no fold. Answer as an off that was not recorded", D11]', async () => {
+  const enospc = () => Object.assign(new Error(`ENOSPC: no space left on device, write '${SWITCH_FILE}.tmp-4242-0a1b2c3d'`), { code: 'ENOSPC' });
   await cases([
-    { name: 'ENOSPC', err: () => Object.assign(new Error(`ENOSPC: no space left on device, write '${SWITCH_FILE}.tmp-4242-0a1b2c3d'`), { code: 'ENOSPC' }) },
+    { name: 'ENOSPC', err: enospc },
     { name: 'EIO', err: () => Object.assign(new Error(`EIO: i/o error, rename '${SWITCH_FILE}.tmp-4242-0a1b2c3d' -> '${SWITCH_FILE}'`), { code: 'EIO' }) },
     { name: 'an odd code with a URI and a path in its message', err: () => Object.assign(new Error(`connect ECONNREFUSED bolt://neo4j.internal:7687 at ${SWITCH_FILE}`), { code: ODD_CODE }) },
+    { name: 'an admin\'s off over the owner\'s recorded on, ENOSPC (story 5)', err: enospc, story5: true, o: { session: { authenticated: true, pubkey: ADMIN } }, bundle: { prev: SW2_ON, hist: { version: 1, changes: [entryOf(SW2_ON)] } } },
+    { name: 'the owner\'s off with nothing stored, an odd code (story 5)', err: () => Object.assign(new Error(`connect ECONNREFUSED bolt://neo4j.internal:7687 at ${SWITCH_FILE}`), { code: ODD_CODE }), story5: true },
   ], async (c) => {
-    const r = await callSwitch(switchReq({ on: false }), switchBundle({ writeError: c.err() }));
+    const r = await callSwitch(switchReq({ on: false }, c.o || {}), switchBundle({ writeError: c.err(), ...(c.bundle || {}) }));
     const problems = [];
     if (r.calls.writeSwitch.length !== 1) problems.push(`writeSwitch should be tried once; was called ${r.calls.writeSwitch.length} times`);
     if (r.calls.unlinkSwitch !== 1) problems.push(`unlinkSwitch should be called once after the failed write; was called ${r.calls.unlinkSwitch} times`);
@@ -1565,21 +1981,34 @@ test('RR16: when writing an off switch fails — for lack of space (ENOSPC), an 
     if (b.success !== true) problems.push(`the answer should say success: true (the path is off); it is ${show(b)}`);
     if (r.kills.length) problems.push(`a signal was sent: ${show(r.kills)}`);
     problems.push(...leakProblems(`a failed off-write (${c.name})`, r.res));
+    if (c.story5) {
+      const wantAnswer = { success: true, on: false, recorded: false, takesEffectWithinSeconds: 5 };
+      if (exact(r.res.body) !== exact(wantAnswer)) problems.push(`the answer should be exactly ${show(wantAnswer)} (ADR 0005 D11: "An off that was not recorded"); it is ${show(r.res.body)}`);
+      problems.push(...noFoldProblems(r, iso(T0)), ...adminLeakProblems(c.name, r.res));
+    }
     assert(problems.length === 0, problems.join('\n          '));
   });
 });
 
-test('RR17: a switch write that fails otherwise never answers success — turning on with ENOSPC answers 500, does not say on and unlinks nothing; an off-write whose unlink also fails answers 500; and an error whose code is not on the allow-list (neo4j.internal:7687) or whose message names a path or URI reaches the answer as none of those (AC-5; AC-6 "never … the address the database … is reached at, error text included"; ADR § "Status and switch" and the error-code allow-list; "Tests the Tester owns → The routes": err.code = \'neo4j.internal\' → \'error\'; T22; T27: "A failed on-write answers 500, never success: true, and does not unlink", an off-write whose unlink fails too answers 500)', async () => {
+test('RR17: a switch write that fails otherwise never answers success — turning on with ENOSPC answers 500, does not say on and unlinks nothing; an off-write whose unlink also fails answers 500; and an error whose code is not on the allow-list (neo4j.internal:7687) or whose message names a path or URI reaches the answer as none of those (AC-5; AC-6 "never … the address the database … is reached at, error text included"; ADR § "Status and switch" and the error-code allow-list; "Tests the Tester owns → The routes": err.code = \'neo4j.internal\' → \'error\'; T22; T27: "A failed on-write answers 500, never success: true, and does not unlink", an off-write whose unlink fails too answers 500); story 5 adds rows — each 500 keeps its sentence and gains code, the write\'s error code through the allow-list, plus unlinkCode on the double failure; a failed on runs no fold and records the attempted on nowhere, an admin\'s included; and an on whose switch.json gives a read error answers 500 "could not read the switch: <code>" and changes and records nothing [story 5 AC-4 "Refused or failed … Turning on fails, for example, when the server cannot write the switch"; ADR 0005 D2 steps 2 and 5, D11: "500s keep their sentences (realtime.js:188, :194) and gain code, passed through allowErrorCode, plus unlinkCode on the double failure. A read error on prev for an on answers 500 could not read the switch: <code>"]', async () => {
   const enospc = () => Object.assign(new Error(`ENOSPC: no space left on device, write '${SWITCH_FILE}.tmp-1-ab'`), { code: 'ENOSPC' });
   const odd = () => Object.assign(new Error('connect ECONNREFUSED bolt://neo4j.internal:7687 at /var/lib/brainstorm/tagging-edges/realtime'), { code: ODD_CODE });
+  const eacces = () => Object.assign(new Error(`EACCES: permission denied, unlink '${SWITCH_FILE}'`), { code: 'EACCES' });
+  const adminO = { session: { authenticated: true, pubkey: ADMIN } };
   const rows = [
     { name: 'on, ENOSPC', on: true, bundle: { writeError: enospc() }, noUnlink: true },
     { name: 'on, an odd code with a URI and a path in its message', on: true, bundle: { writeError: odd() }, noUnlink: true },
-    { name: 'off, the write and the unlink both failing', on: false, bundle: { writeError: enospc(), unlinkError: Object.assign(new Error(`EACCES: permission denied, unlink '${SWITCH_FILE}'`), { code: 'EACCES' }) } },
+    { name: 'off, the write and the unlink both failing', on: false, bundle: { writeError: enospc(), unlinkError: eacces() } },
     { name: 'off, an odd code on both', on: false, bundle: { writeError: odd(), unlinkError: odd() } },
+    { name: 'an admin\'s on, ENOSPC: code (story 5)', on: true, o: adminO, bundle: { writeError: enospc(), prev: SW2_OFF, hist: { version: 1, changes: [entryOf(SW2_OFF)] } }, noUnlink: true, story5: { error: 'could not write the switch: ENOSPC', code: 'ENOSPC', noFold: true } },
+    { name: 'on, an odd code: code "error" (story 5)', on: true, bundle: { writeError: odd() }, noUnlink: true, story5: { error: 'could not write the switch: error', code: 'error', noFold: true } },
+    { name: 'off, the write and the unlink both failing: code and unlinkCode (story 5)', on: false, bundle: { writeError: enospc(), unlinkError: eacces() }, story5: { error: 'could not write or remove the switch: ENOSPC, EACCES', code: 'ENOSPC', unlinkCode: 'EACCES', noFold: true } },
+    { name: 'an admin\'s off, an odd code on both (story 5)', on: false, o: adminO, bundle: { writeError: odd(), unlinkError: odd() }, story5: { error: 'could not write or remove the switch: error, error', code: 'error', unlinkCode: 'error', noFold: true } },
+    { name: 'on, switch.json gives a read error EIO (story 5)', on: true, bundle: { prev: { unreadable: true, readError: 'EIO' } }, noUnlink: true, story5: { error: 'could not read the switch: EIO', nothing: true } },
+    { name: 'an admin\'s on, switch.json gives a read error with an odd code (story 5)', on: true, o: adminO, bundle: { prev: { unreadable: true, readError: ODD_CODE } }, noUnlink: true, story5: { error: 'could not read the switch: error', nothing: true } },
   ];
   await cases(rows, async (c) => {
-    const r = await callSwitch(switchReq({ on: c.on }), switchBundle(c.bundle));
+    const r = await callSwitch(switchReq({ on: c.on }, c.o || {}), switchBundle(c.bundle));
     const problems = [];
     if (r.res.statusCode !== 500) problems.push(`answered ${showRes(r.res)}, expected 500 (T27)`);
     const b = r.res.body || {};
@@ -1587,6 +2016,23 @@ test('RR17: a switch write that fails otherwise never answers success — turnin
     if (c.on && b.on === true) problems.push(`answered on: true although the write failed: ${show(b)}`);
     if (c.noUnlink && r.calls.unlinkSwitch) problems.push('unlinkSwitch was called for a failed on-write (that would turn the path off, which the owner did not ask)');
     problems.push(...leakProblems(c.name, r.res));
+    const s5 = c.story5;
+    if (s5) {
+      if (b.success !== false) problems.push(`the answer should say success: false; it is ${show(b)}`);
+      if (b.error !== s5.error) problems.push(`the error should keep its sentence: ${show(s5.error)} (ADR 0005 D11); it is ${show(b.error)}`);
+      if (has(s5, 'code') && b.code !== s5.code) problems.push(`the answer should carry code ${show(s5.code)} (ADR 0005 D11: "gain code, passed through allowErrorCode"); it is ${show(b)}`);
+      if (has(s5, 'unlinkCode') && b.unlinkCode !== s5.unlinkCode) problems.push(`the answer should carry unlinkCode ${show(s5.unlinkCode)} on the double failure (ADR 0005 D11); it is ${show(b)}`);
+      if (b.recorded === true) problems.push(`a failed change answered recorded: true: ${show(b)}`);
+      if (s5.noFold) problems.push(...noFoldProblems(r, iso(T0)));
+      if (s5.nothing) {
+        const touched = [];
+        if (r.calls.writeSwitch.length) touched.push(`writeSwitch(${show(r.calls.writeSwitch)})`);
+        if (r.calls.unlinkSwitch) touched.push('unlinkSwitch()');
+        if (r.calls.writeSwitchHistory.length) touched.push(`writeSwitchHistory(${show(r.calls.writeSwitchHistory)})`);
+        if (touched.length) problems.push(`an on whose switch.json gives a read error should change and record nothing (ADR 0005 D2 step 2); it called ${touched.join(', ')}`);
+      }
+      problems.push(...adminLeakProblems(c.name, r.res));
+    }
     assert(problems.length === 0, problems.join('\n          '));
   });
 });
@@ -1729,7 +2175,7 @@ test('RR22: GET status when a read fails other than "missing" answers 200 and le
   });
 });
 
-test('RR23: on their default deps — as Express calls them, (req, res, next) — the owner\'s POST writes <TAGGING_EDGES_STATE_DIR>/realtime/switch.json through the store: the canonical compact text (keys in the order version, on, changedAt, changedBy; "on":true literally, for the wrapper), byte for byte what the store\'s own writeSwitch writes for that record; GET status reads it back as on with onSince = changedAt; and a POST off then writes the canonical off text and reads off, state "off", onSince null — with no answer naming the state directory (AC-5 "the choice survives restarts and deploys": the file lives on the data volume; T21 default dir; T22 "deps default like index.js\'s withDeps"; T26 canonical form; T27: "The default writeSwitch is the store\'s, at <stateDir>/realtime")', async () => {
+test('RR23: on their default deps — as Express calls them, (req, res, next), the owner and admin lists injected, against a temporary TAGGING_EDGES_STATE_DIR only — the owner\'s POST on writes <TAGGING_EDGES_STATE_DIR>/realtime/switch.json through the store as version 2: the canonical compact text { version: 2, on, changedAt, changedBy, role, onSince } ("on":true literally, for the wrapper), byte for byte what the store\'s own writeSwitch writes for that record; GET status reads it back as on with onSince = that on\'s time; an admin\'s on while on then writes role "admin" and the same onSince, which GET status still serves; a POST off writes the canonical off text with onSince null and reads off, state "off", onSince null; switch-history.json beside it then holds the three changes, newest first; nothing appears outside realtime/; and no answer names the state directory [story 5 AC-5 "It lasts", AC-3 "An on while the path is already on does not restart the window"; ADR 0005 D1, D2, D4, Seams: "Default-dependency coverage (RR23 revised) runs only against a temporary TAGGING_EDGES_STATE_DIR", "withDeps\' defaults keep following d.stateDir()"; Consequences "Tests that fail by design: RR23" — revised from story 3\'s version 1 bytes; T21 default dir; T22; T26 as amended; T27]', async () => {
   await withDir(async ({ root }) => {
     await withEnv({ TAGGING_EDGES_STATE_DIR: root }, async () => {
       const next = function next() {};
@@ -1737,13 +2183,17 @@ test('RR23: on their default deps — as Express calls them, (req, res, next) �
       const handleStatus = need(require(ROUTES_MOD), 'handleRealtimeStatus', ROUTES_REL, 'T22');
       const problems = [];
       const file = path.join(root, 'realtime', 'switch.json');
-      /** The switch.json the route left, checked against the canonical text and against the store's own bytes. */
+      /** Only the lists are injected: every record dependency is the default, the store's under the temporary stateDir(). */
+      const deps = (now) => ({ getOwnerPubkey: () => OWNER, getAdminPubkeys: () => [ADMIN], now: () => now });
+      const adminO = { session: { authenticated: true, pubkey: ADMIN } };
+      const needles = [root, fs.realpathSync(root), ADMIN, ADMIN.toUpperCase()];
+      /** The switch.json the route left, checked against the canonical version 2 text and against the store's own bytes. */
       const checkFile = async (label, rec) => {
         if (!fs.existsSync(file)) { problems.push(`${label} wrote no <stateDir>/realtime/switch.json (the state directory holds ${show(Object.keys(snapshot(root)))})`); return; }
         const bytes = fs.readFileSync(file);
         const text = bytes.toString('utf8');
         const body = text.endsWith('\n') ? text.slice(0, -1) : text;
-        if (body !== canonicalSwitch(rec)) problems.push(`${label}: switch.json should be the canonical text (T26)\n          expected: ${show(canonicalSwitch(rec))}\n          actual:   ${show(text)}`);
+        if (body !== canonicalSwitch2(rec)) problems.push(`${label}: switch.json should be the canonical version 2 text (ADR 0005 D1)\n          expected: ${show(canonicalSwitch2(rec))}\n          actual:   ${show(text)}`);
         if (rec.on && !body.includes('"on":true')) problems.push(`${label}: switch.json lacks the literal "on":true: ${show(text)}`);
         if (!rec.on && body.includes('"on":true')) problems.push(`${label}: switch.json still carries "on":true`);
         const other = fs.mkdtempSync(path.join(os.tmpdir(), 'tagging-edges-realtime-rr23-'));
@@ -1755,21 +2205,47 @@ test('RR23: on their default deps — as Express calls them, (req, res, next) �
           fs.rmSync(other, { recursive: true, force: true });
         }
       };
-      const onRes = await callHandler(handleSwitch, switchReq({ on: true }), { getOwnerPubkey: () => OWNER, now: () => T0 });
+      const onRes = await callHandler(handleSwitch, switchReq({ on: true }), deps(T0));
       if (onRes.statusCode !== 200) problems.push(`POST on answered ${showRes(onRes)}, expected 200`);
-      problems.push(...leakProblems('POST on', onRes, [root, fs.realpathSync(root)]));
-      await checkFile('POST on', { version: 1, on: true, changedAt: iso(T0), changedBy: OWNER.slice(0, 8) });
+      problems.push(...leakProblems('POST on', onRes, needles));
+      await checkFile('POST on', { version: 2, on: true, changedAt: iso(T0), changedBy: OWNER8, role: 'owner', onSince: iso(T0) });
       const read1 = await callHandler(handleStatus, statusReq(), next);
       if (read1.statusCode !== 200) problems.push(`GET status (deps = next) answered ${showRes(read1)}, expected 200`);
       else if (!read1.body || read1.body.on !== true || read1.body.onSince !== iso(T0)) problems.push(`GET status should read on since ${iso(T0)}; read ${show(read1.body)}`);
-      problems.push(...leakProblems('GET status after on', read1, [root, fs.realpathSync(root)]));
-      const offRes = await callHandler(handleSwitch, switchReq({ on: false }), { getOwnerPubkey: () => OWNER, now: () => T0 + MIN });
+      problems.push(...leakProblems('GET status after on', read1, needles));
+      const againRes = await callHandler(handleSwitch, switchReq({ on: true }, adminO), deps(T0 + 30 * SEC));
+      if (againRes.statusCode !== 200) problems.push(`an admin's POST on while on answered ${showRes(againRes)}, expected 200`);
+      problems.push(...leakProblems('an admin\'s POST on while on', againRes, needles));
+      await checkFile('an admin\'s POST on while on', { version: 2, on: true, changedAt: iso(T0 + 30 * SEC), changedBy: ADMIN8, role: 'admin', onSince: iso(T0) });
+      const readAgain = await callHandler(handleStatus, statusReq(), next);
+      if (!readAgain.body || readAgain.body.on !== true || readAgain.body.onSince !== iso(T0)) problems.push(`GET status after an on while on should still read on since ${iso(T0)} (ADR 0005 D4: an on while on never moves onSince); read ${showRes(readAgain)}`);
+      problems.push(...leakProblems('GET status after the on while on', readAgain, needles));
+      const offRes = await callHandler(handleSwitch, switchReq({ on: false }), deps(T0 + MIN));
       if (offRes.statusCode !== 200) problems.push(`POST off answered ${showRes(offRes)}, expected 200`);
-      await checkFile('POST off', { version: 1, on: false, changedAt: iso(T0 + MIN), changedBy: OWNER.slice(0, 8) });
+      problems.push(...leakProblems('POST off', offRes, needles));
+      await checkFile('POST off', { version: 2, on: false, changedAt: iso(T0 + MIN), changedBy: OWNER8, role: 'owner', onSince: null });
       const read2 = await callHandler(handleStatus, statusReq(), next);
       const b2 = read2.body || {};
       if (b2.on !== false || b2.onSince !== null || b2.state !== 'off') problems.push(`GET status after POST off should read on: false, onSince null, state "off" (T27); read ${showRes(read2)}`);
-      problems.push(...leakProblems('GET status after off', read2, [root, fs.realpathSync(root)]));
+      problems.push(...leakProblems('GET status after off', read2, needles));
+      // The history, through the default writeSwitchHistory under the temporary stateDir() (ADR 0005 D1, D2).
+      const histFile = path.join(root, 'realtime', 'switch-history.json');
+      const wantHist = {
+        version: 1,
+        changes: [
+          { on: false, at: iso(T0 + MIN), role: 'owner', key: OWNER8 },
+          { on: true, at: iso(T0 + 30 * SEC), role: 'admin', key: ADMIN8 },
+          { on: true, at: iso(T0), role: 'owner', key: OWNER8 },
+        ],
+      };
+      if (!fs.existsSync(histFile)) problems.push(`the three changes left no <stateDir>/realtime/switch-history.json (ADR 0005 D1; the state directory holds ${show(Object.keys(snapshot(root)))})`);
+      else {
+        let hist = null;
+        try { hist = JSON.parse(fs.readFileSync(histFile, 'utf8')); } catch (e) { problems.push(`switch-history.json is not JSON: ${firstLine(e)}`); }
+        if (hist && exact(hist) !== exact(wantHist)) problems.push(`switch-history.json should hold the three changes, newest first (ADR 0005 D1, D2)\n          expected: ${show(wantHist)}\n          actual:   ${show(hist)}`);
+      }
+      const outside = Object.keys(snapshot(root, 'realtime'));
+      if (outside.length) problems.push(`files appeared outside realtime/: ${show(outside)} (ADR 0005 D1: both files are in <stateDir>/realtime/)`);
       assert(problems.length === 0, problems.join('\n        '));
     });
   }, { makeRealtime: false });
@@ -1864,7 +2340,7 @@ test('RR26: src/api/tagging-edges/realtime.js takes allowErrorCode from src/lib/
   assert(problems.length === 0, problems.join('\n        '));
 });
 
-test('RR27: every time field the status answer carries is an ISO string — onSince (the switch\'s changedAt), runningSince (process.startedAt), firstStartedAt, relay.lastReadOkAt, subscription.since and lastEventAt, lastReflectedAt, catchUp.current.startedAt, catchUp.last.startedAt and endedAt, lastError.at, process.startedAt and updatedAt — or null where the field is unset (onSince while off, runningSince while not alive), from computeRealtimeStatus and from GET status alike (T33: "Every time field in status.json and in the status answer is an ISO string"; T32: process.startedAt an ISO time, runningSince its value while alive; T27: onSince null when off, runningSince null when not alive; ADR § "Status and switch" field list)', async () => {
+test('RR27: every time field the status answer carries is an ISO string — onSince (the switch\'s changedAt), runningSince (process.startedAt), firstStartedAt, relay.lastReadOkAt, subscription.since and lastEventAt, lastReflectedAt, catchUp.current.startedAt, catchUp.last.startedAt and endedAt, lastError.at, process.startedAt and updatedAt — or null where the field is unset (onSince while off, runningSince while not alive), from computeRealtimeStatus and from GET status alike (T33: "Every time field in status.json and in the status answer is an ISO string"; T32: process.startedAt an ISO time, runningSince its value while alive; T27: onSince null when off, runningSince null when not alive; ADR § "Status and switch" field list); story 5 adds version 2 rows, where onSince is the switch\'s onSince — the last off-to-on time — not its changedAt (ADR 0005 D4)', async () => {
   const compute = routeFn('computeRealtimeStatus');
   const rows = [
     { name: 'computeRealtimeStatus, live, on, alive', via: 'compute', status: fullStatus(), sw: SW_ON, alive: true },
@@ -1872,6 +2348,9 @@ test('RR27: every time field the status answer carries is an ISO string — onSi
     { name: 'computeRealtimeStatus, live, off, not alive', via: 'compute', status: fullStatus(), sw: SW_OFF, alive: false },
     { name: 'GET status, live, on, alive', via: 'route', status: fullStatus(), sw: SW_ON, alive: true },
     { name: 'GET status, a catch-up under way, off, not alive', via: 'route', status: waitingStatus(), sw: SW_OFF, alive: false },
+    { name: 'computeRealtimeStatus, live, version 2 on while on, alive (story 5)', via: 'compute', status: fullStatus(), sw: SW2_ON_AGAIN, alive: true },
+    { name: 'GET status, live, version 2 on while on, alive (story 5)', via: 'route', status: fullStatus(), sw: SW2_ON_AGAIN, alive: true },
+    { name: 'GET status, a catch-up under way, version 2 off, not alive (story 5)', via: 'route', status: waitingStatus(), sw: SW2_OFF, alive: false },
   ];
   await cases(rows, async (c) => {
     let body;
@@ -1895,6 +2374,7 @@ test('RR27: every time field the status answer carries is an ISO string — onSi
       if (v === undefined) { if (held) problems.push(`${p} is missing from the answer`); continue; }
       if (!isIsoTime(v)) problems.push(`${p} should be an ISO time string (T33); is ${show(v)}`);
     }
+    if (c.sw.version === 2 && c.sw.on && body.onSince !== c.sw.onSince) problems.push(`onSince should be the version 2 switch's onSince ${show(c.sw.onSince)}, the last off-to-on time, not its changedAt ${show(c.sw.changedAt)} (ADR 0005 D4); is ${show(body.onSince)}`);
     assert(problems.length === 0, problems.join('\n          '));
   });
 });
@@ -1927,9 +2407,253 @@ test('RR28: dbRefused.byReason keys that collapse to \'error\' under allowErrorC
   });
 });
 
+// ─── story 5: the starting window, the last off-to-on time, and no "who" on the public status (ADR 0005 D4, D6, D7, D11) ───
+
+test('RR29: computeRealtimeStatus derives inStartWindow on the server\'s clock — a boolean, true exactly when the path is on, its onSince parses, 0 ≤ now − onSince < 60 000 ms, and the process is not both running and started at or after onSince: 59 999 ms true and 60 000 ms false, 0 ms true; a process started at onSince or later is running for this on (false); one started before it (an old process still stopping), or whose start is unparseable or unknown, is not (true, with running still true: liveness alone); now before onSince (a clock stepped back) false; off, a stray onSince on an off, missing or unreadable false; onSince from a version 2 switch\'s onSince — so an on while on does not restart the window — and from a version 1 switch\'s changedAt — from computeRealtimeStatus and from GET status alike (deps.now) [story 5 AC-3 "The starting window counts from the time the server recorded the switch last going from off to on … Every viewer sees it, and it survives a reload", "Within the window … A process that started before that on does not count as running", "Past 60 seconds", "An on while the path is already on does not restart the window"; ADR 0005 D4, D7: START_WINDOW_MS 60 000, "running stays liveness alone"; Seams "Pure server functions … computeRealtimeStatus"]', async () => {
+  const compute = routeFn('computeRealtimeStatus');
+  /** A version 2 on whose onSince was `agoMs` before T0 (and whose changedAt was `changedAgoMs` before it). */
+  const v2on = (agoMs, changedAgoMs = agoMs) => ({ version: 2, on: true, changedAt: iso(T0 - changedAgoMs), changedBy: OWNER8, role: 'owner', onSince: iso(T0 - agoMs) });
+  const proc = (startedAt) => fullStatus({ process: { pid: PID, startTime: START_TIME, startedAt } });
+  const S10 = 10 * SEC;
+  const rows = [
+    { name: '59 999 ms after the on, not running', sw: v2on(59999), alive: false, want: true, since: iso(T0 - 59999) },
+    { name: '60 000 ms after the on, not running', sw: v2on(60000), alive: false, want: false, since: iso(T0 - 60000) },
+    { name: 'at the moment of the on (0 ms)', sw: v2on(0), alive: false, want: true, since: iso(T0) },
+    { name: 'running, started exactly at onSince', sw: v2on(S10), status: proc(iso(T0 - S10)), alive: true, want: false },
+    { name: 'running, started after onSince', sw: v2on(S10), status: proc(iso(T0 - 4 * SEC)), alive: true, want: false },
+    { name: 'running, started 1 ms before onSince (an old process still stopping)', sw: v2on(S10), status: proc(iso(T0 - S10 - 1)), alive: true, want: true, running: true },
+    { name: 'running, started long before onSince', sw: v2on(S10), status: fullStatus(), alive: true, want: true, running: true },
+    { name: 'running, its start unparseable', sw: v2on(S10), status: proc('not a time'), alive: true, want: true, running: true },
+    { name: 'running, its start unknown (an empty status)', sw: v2on(S10), status: {}, alive: true, want: true, running: true },
+    { name: 'now before onSince (a clock stepped back)', sw: { ...v2on(0), changedAt: iso(T0 + SEC), onSince: iso(T0 + SEC) }, alive: false, want: false },
+    { name: 'version 2, off 10 s ago', sw: { ...SW2_OFF, changedAt: iso(T0 - S10) }, alive: false, want: false, since: null },
+    { name: 'version 2, off, carrying a stray onSince 10 s ago', sw: { ...SW2_OFF, changedAt: iso(T0 - S10), onSince: iso(T0 - S10) }, alive: false, want: false, since: null },
+    { name: 'no switch.json', sw: null, alive: false, want: false },
+    { name: 'an unreadable switch.json', sw: { unreadable: true }, alive: false, want: false },
+    { name: 'version 1, on 30 s ago: onSince is its changedAt', sw: { version: 1, on: true, changedAt: iso(T0 - 30 * SEC), changedBy: OWNER8 }, alive: false, want: true, since: iso(T0 - 30 * SEC) },
+    { name: 'version 1, on 2 min ago', sw: { version: 1, on: true, changedAt: iso(T0 - 2 * MIN), changedBy: OWNER8 }, alive: false, want: false, since: iso(T0 - 2 * MIN) },
+    { name: 'version 2, an on while on 10 s ago after a first on 5 min ago: not restarted', sw: v2on(5 * MIN, S10), alive: false, want: false, since: iso(T0 - 5 * MIN) },
+    { name: 'version 2, onSince not a time, changedAt 20 s ago', sw: { ...v2on(20 * SEC), onSince: 'soon' }, alive: false, want: true, since: iso(T0 - 20 * SEC) },
+    { name: 'version 2, neither onSince nor changedAt a time', sw: { ...v2on(0), changedAt: 'now', onSince: 'soon' }, alive: false, want: false, since: null },
+  ];
+  const problems = [];
+  for (const r of rows) {
+    let body;
+    try { body = compute({ status: clone(has(r, 'status') ? r.status : fullStatus()), switchRecord: clone(r.sw), alive: r.alive, now: T0 }); } catch (e) { problems.push(`[${r.name}] threw: ${firstLine(e)}`); continue; }
+    if (!body || body.inStartWindow !== r.want) problems.push(`[${r.name}] inStartWindow should be ${r.want} (ADR 0005 D7); is ${show(body && body.inStartWindow)}`);
+    if (body && has(r, 'since') && body.onSince !== r.since) problems.push(`[${r.name}] onSince should be ${show(r.since)} (ADR 0005 D4); is ${show(body.onSince)}`);
+    if (body && r.running && body.running !== true) problems.push(`[${r.name}] running should stay true — liveness alone (ADR 0005 D7) — while inStartWindow says the process is not this on's; is ${show(body.running)}`);
+  }
+  // GET status: the same verdict from the handler, on deps.now(), for every viewer (it is in the body).
+  const routeRows = [
+    { name: 'GET status, 20 s after the on, an older process alive', sw: v2on(20 * SEC), now: T0, want: true },
+    { name: 'GET status, 60 s after the same on, that process alive', sw: v2on(20 * SEC), now: T0 + 40 * SEC, want: false },
+    { name: 'GET status, a version 1 on 5 s ago, an older process alive', sw: { version: 1, on: true, changedAt: iso(T0 - 5 * SEC), changedBy: OWNER8 }, now: T0, want: true },
+  ];
+  for (const r of routeRows) {
+    const files = { [SWITCH_FILE]: r.sw.version === 2 ? canonicalSwitch2(r.sw) : canonicalSwitch(r.sw), [STATUS_FILE]: JSON.stringify(fullStatus()) };
+    let res;
+    try { res = await callStatus(statusBundle({ files, alive: true, now: r.now })); } catch (e) { problems.push(`[${r.name}] ${firstLine(e)}`); continue; }
+    const b = res.body || {};
+    if (res.statusCode !== 200) problems.push(`[${r.name}] answered ${showRes(res)}, expected 200`);
+    if (b.inStartWindow !== r.want) problems.push(`[${r.name}] inStartWindow should be ${r.want} (ADR 0005 D7); is ${show(b.inStartWindow)}`);
+    if (b.running !== true) problems.push(`[${r.name}] running should be true (liveness alone); is ${show(b.running)}`);
+  }
+  assert(problems.length === 0, problems.join('\n        '));
+});
+
+test('RR30: the public status gains exactly one member, inStartWindow, and carries no "who" — for a version 2 switch changed by an admin or by the owner, the answer\'s members are story 3\'s (§ Status, T29: the pass-through fields, statusVersion, on, onSince, running, runningSince, switchUnreadable, stale) plus inStartWindow, none named role, changedBy, key or who; no string in it is the changer\'s key or a full pubkey, nor "admin" or "owner"; counts.changedBy (the reflection labels) is kept — from computeRealtimeStatus and from GET status alike [story 5 AC-5 "Who may read it … A signed-out reader … gets no who from any route. The public status may still say when"; ADR 0005 D6 "No who anywhere public … The fields are named role and key, never changedBy, because the public status already carries counts.changedBy", D7, Consequences "The public status gains exactly one field, inStartWindow" and "The status never carries who"]', async () => {
+  const compute = routeFn('computeRealtimeStatus');
+  const want = [...PASS_THROUGH, 'statusVersion', 'on', 'onSince', 'running', 'runningSince', 'switchUnreadable', 'stale', 'inStartWindow'].sort();
+  const status = fullStatus();
+  const statusText = JSON.stringify(status);
+  assert(![OWNER8, ADMIN8, '"owner"', '"admin"'].some((k) => statusText.includes(k)), 'fixture: status.json should hold neither key nor role');
+  await cases([
+    { name: 'computeRealtimeStatus, an admin\'s on while on', via: 'compute', sw: SW2_ON_AGAIN, alive: true },
+    { name: 'computeRealtimeStatus, an admin\'s off', via: 'compute', sw: SW2_OFF, alive: false },
+    { name: 'computeRealtimeStatus, the owner\'s on', via: 'compute', sw: SW2_ON, alive: true },
+    { name: 'GET status, an admin\'s on while on', via: 'route', sw: SW2_ON_AGAIN, alive: true },
+    { name: 'GET status, an admin\'s off', via: 'route', sw: SW2_OFF, alive: false },
+  ], async (c) => {
+    let body;
+    if (c.via === 'compute') body = compute({ status: clone(status), switchRecord: clone(c.sw), alive: c.alive, now: T0 });
+    else {
+      const res = await callStatus(statusBundle({ files: { [SWITCH_FILE]: canonicalSwitch2(c.sw), [STATUS_FILE]: statusText }, alive: c.alive }));
+      assert(res.statusCode === 200, `answered ${showRes(res)}, expected 200`);
+      body = res.body;
+    }
+    assert(body && typeof body === 'object', `the answer should be an object; is ${show(body)}`);
+    const problems = [];
+    const keys = Object.keys(body).filter((k) => body[k] !== undefined).sort();
+    const missing = want.filter((k) => !keys.includes(k));
+    const extra = keys.filter((k) => !want.includes(k));
+    if (missing.length || extra.length) problems.push(`the answer's members should be story 3's plus inStartWindow, exactly (ADR 0005 Consequences); missing ${show(missing)}, extra ${show(extra)}`);
+    const whoKeys = ['role', 'changedBy', 'key', 'who'].filter((k) => has(body, k));
+    if (whoKeys.length) problems.push(`the public status carries ${show(whoKeys)} (ADR 0005 D6: no who anywhere public)`);
+    const text = JSON.stringify(body);
+    for (const needle of [c.sw.changedBy, OWNER, ADMIN, OWNER.toUpperCase(), ADMIN.toUpperCase()]) if (text.includes(needle)) problems.push(`the public status carries ${needle === c.sw.changedBy ? "the changer's key" : 'a full pubkey'} ${show(needle)}: ${around(text, text.indexOf(needle))}`);
+    const roles = stringsIn(body).filter((s) => s === 'owner' || s === 'admin');
+    if (roles.length) problems.push(`the public status carries the role ${show(roles)} (ADR 0005 D6)`);
+    if (exact(body.counts && body.counts.changedBy) !== exact(status.counts.changedBy)) problems.push(`counts.changedBy (the reflection labels) should pass through as ${show(status.counts.changedBy)}; is ${show(body.counts && body.counts.changedBy)}`);
+    assert(problems.length === 0, problems.join('\n          '));
+  });
+});
+
+test('RR31: every accepted POST is a change, and the record\'s onSince is the last off-to-on time — an on while on carries the previous onSince (version 2) or its changedAt (the pre-story-5 version 1 record), so the window does not restart; an on from off, from a missing switch, from a damaged one, or from an on record carrying no time starts it now; an off writes null; changedAt, changedBy and role always move, a same-state off included — each written once as the exact version 2 record and answered exactly 200 { success: true, on, changedAt, recorded: true, takesEffectWithinSeconds: 5 } [story 5 AC-3 "An on while the path is already on does not restart the window", the story\'s "A change is a request to turn the switch on or off that the server accepts"; ADR 0005 D4 "Every accepted request is a change … onSince is the last off-to-on time", D11]', async () => {
+  await cases([
+    { name: 'an admin\'s on while on (version 2): its onSince carried', on: true, by: ADMIN, role: 'admin', prev: SW2_ON, onSince: SW2_ON.onSince },
+    { name: 'the owner\'s on while on (version 1): its changedAt carried', on: true, by: OWNER, role: 'owner', prev: { version: 1, on: true, changedAt: SW_ON.changedAt, changedBy: OWNER8 }, onSince: SW_ON.changedAt },
+    { name: 'an on while on, the record carrying no time: now', on: true, by: OWNER, role: 'owner', prev: { on: true }, onSince: iso(T0) },
+    { name: 'an admin\'s on from off: now', on: true, by: ADMIN, role: 'admin', prev: SW2_OFF, onSince: iso(T0) },
+    { name: 'an on from a missing switch: now', on: true, by: OWNER, role: 'owner', prev: null, onSince: iso(T0) },
+    { name: 'an on over a damaged switch: now', on: true, by: OWNER, role: 'owner', prev: { unreadable: true }, onSince: iso(T0) },
+    { name: 'an admin\'s off from on: null', on: false, by: ADMIN, role: 'admin', prev: SW2_ON_AGAIN, onSince: null },
+    { name: 'an admin\'s off while the owner\'s off stands: still a change', on: false, by: ADMIN, role: 'admin', prev: { ...SW2_OFF, changedBy: OWNER8, role: 'owner' }, onSince: null },
+  ], async (c) => {
+    const o = c.by === ADMIN ? { session: { authenticated: true, pubkey: ADMIN } } : {};
+    const r = await callSwitch(switchReq({ on: c.on }, o), switchBundle({ prev: c.prev }));
+    const problems = [];
+    const want = { version: 2, on: c.on, changedAt: iso(T0), changedBy: c.by.slice(0, 8), role: c.role, onSince: c.onSince };
+    if (r.res.statusCode !== 200) problems.push(`answered ${showRes(r.res)}, expected 200`);
+    if (r.calls.writeSwitch.length !== 1) problems.push(`writeSwitch should be called once; was called ${r.calls.writeSwitch.length} times`);
+    else if (exact(r.calls.writeSwitch[0]) !== exact(want)) problems.push(`writeSwitch should get exactly ${show(want)} (ADR 0005 D4); got ${show(r.calls.writeSwitch[0])}`);
+    const wantAnswer = { success: true, on: c.on, changedAt: iso(T0), recorded: true, takesEffectWithinSeconds: 5 };
+    if (exact(r.res.body) !== exact(wantAnswer)) problems.push(`the answer should be exactly ${show(wantAnswer)} (ADR 0005 D11); it is ${show(r.res.body)}`);
+    problems.push(...leakProblems(c.name, r.res), ...adminLeakProblems(c.name, r.res));
+    assert(problems.length === 0, problems.join('\n          '));
+  });
+});
+
+test('RR32: "It lasts", end to end on the default dependencies, against a temporary TAGGING_EDGES_STATE_DIR only — with only the owner and admin lookups injected (no clock, readFile, stateDir or record method), the owner\'s POST on and then an admin\'s POST off each answer 200 recorded: true; handleRealtimeSwitchRecord, on its default readFile and stateDir, then answers the owner exactly 200 { success: true, on: false, switchUnreadable: false, historyUnreadable: false, state: "recorded", latest: the admin\'s off, history: [the admin\'s off, the owner\'s on] } at the times the POSTs answered, and writes nothing; after a fresh require (a restart) it answers an admin the same; and a fresh createStore({}) reads the same switch.json (version 2, the admin\'s off) and the same two-entry switch-history.json [story 5 AC-5 "It lasts. The record survives restarts and deploys", "What the panel shows: the latest change … the last 10 changes, newest first", "Who may read it"; ADR 0005 D1 ("Both files are in <stateDir>/realtime/ on the data volume"), D2, D3, D6 ("It writes nothing, and answers 200 …"), D11; Seams: "Default-dependency coverage … runs only against a temporary TAGGING_EDGES_STATE_DIR"]', async () => {
+  await withDir(async ({ root }) => {
+    await withEnv({ TAGGING_EDGES_STATE_DIR: root }, async () => {
+      const mod = loadRoutes();
+      const handleSwitch = need(mod, 'handleRealtimeSwitch', ROUTES_REL, 'T22');
+      const problems = [];
+      /** Only the identity lookups, as the drift route's defaults would give them; every other dependency is the default. */
+      const identity = () => ({ getOwnerPubkey: () => OWNER, getAdminPubkeys: () => [ADMIN] });
+      const adminSession = { authenticated: true, pubkey: ADMIN };
+      const needles = [root, fs.realpathSync(root), ADMIN, ADMIN.toUpperCase()];
+      /** A POST on the defaults → the change's changedAt from its answer (ADR 0005 D11), or null. */
+      const post = async (label, on, o) => {
+        const res = await callHandler(handleSwitch, switchReq({ on }, o), identity());
+        if (res.statusCode !== 200 || !res.body || res.body.recorded !== true) problems.push(`${label} answered ${showRes(res)}, expected 200 with recorded: true (ADR 0005 D11)`);
+        problems.push(...leakProblems(label, res, needles));
+        const at = res.body && isIsoTime(res.body.changedAt) ? res.body.changedAt : null;
+        if (at === null) problems.push(`${label}: the answer should carry the change's changedAt, an ISO time (ADR 0005 D11); it is ${show(res.body)}`);
+        return at;
+      };
+      const ownerAt = await post('the owner\'s POST on', true, {});
+      const adminAt = await post('an admin\'s POST off', false, { session: adminSession });
+      const ownerEntry = { on: true, at: ownerAt, role: 'owner', key: OWNER8 };
+      const adminEntry = { on: false, at: adminAt, role: 'admin', key: ADMIN8 };
+      const want = { success: true, on: false, switchUnreadable: false, historyUnreadable: false, state: 'recorded', latest: adminEntry, history: [adminEntry, ownerEntry] };
+      const before = snapshot(root);
+      /** The gated GET on its default readFile and stateDir; false when the export is missing (a named failure). */
+      const getRecord = async (label, routes, session) => {
+        let handler;
+        try {
+          handler = need(routes, 'handleRealtimeSwitchRecord', ROUTES_REL, 'ADR 0005 D6: the owner-or-admin GET on the switch path; T22 as amended');
+        } catch (e) { problems.push(`${label}: ${firstLine(e)}`); return false; }
+        const res = await callHandler(handler, recordReq(session), identity());
+        if (res.statusCode !== 200) problems.push(`${label} answered ${showRes(res)}, expected 200 (ADR 0005 D6)`);
+        else if (exact(res.body) !== exact(want)) problems.push(`${label}: the record read back on the default readFile and stateDir should be exactly what the two changes left (AC-5 "It lasts"; ADR 0005 D3, D6)\n          expected: ${show(want)}\n          actual:   ${show(res.body)}`);
+        problems.push(...leakProblems(label, res, needles));
+        return true;
+      };
+      if (await getRecord('GET on the switch path, the owner', mod, ownerSession())) {
+        await getRecord('GET on the switch path after a fresh require (a restart), an admin', loadRoutes(), adminSession);
+      }
+      const after = snapshot(root);
+      if (exact(after) !== exact(before)) problems.push(`the GET changed the state directory (ADR 0005 D6: "It writes nothing")\n          before: ${show(Object.keys(before))}\n          after:  ${show(Object.keys(after))}`);
+      // A fresh store over the default directory: the same two files, as a restart or a deploy finds them.
+      const store = storeAt(undefined);
+      const wantSwitch = { version: 2, on: false, changedAt: adminAt, changedBy: ADMIN8, role: 'admin', onSince: null };
+      let sw;
+      try { sw = await call(store, 'readSwitch'); } catch (e) { problems.push(`a fresh store's readSwitch(): ${firstLine(e)}`); }
+      if (!sw || exact(pick(sw, SWITCH2_KEYS)) !== exact(wantSwitch)) problems.push(`a fresh createStore({})'s readSwitch() should give the admin's off, version 2 ${show(wantSwitch)} (ADR 0005 D1); gave ${show(sw)}`);
+      const wantHist = { version: 1, changes: [adminEntry, ownerEntry] };
+      let hist;
+      try { hist = await call(store, 'readSwitchHistory'); } catch (e) { problems.push(`a fresh store's readSwitchHistory(): ${firstLine(e)}`); }
+      if (hist !== undefined && (!hist || exact(pick(hist, ['version', 'changes'])) !== exact(wantHist))) problems.push(`a fresh createStore({})'s readSwitchHistory() should give the two changes, newest first ${show(wantHist)} (ADR 0005 D1, D2); gave ${show(hist)}`);
+      assert(problems.length === 0, problems.join('\n        '));
+    });
+  }, { makeRealtime: false });
+});
+
+test('RR33: withDeps\' defaults follow an injected stateDir() — with stateDir() injected as a temporary directory, TAGGING_EDGES_STATE_DIR pointed at a second (decoy) one, and readSwitch, readSwitchHistory, writeSwitchHistory, writeSwitch and unlinkSwitch left to their defaults, the owner\'s POST on writes <stateDir>/realtime/switch.json and <stateDir>/realtime/switch-history.json and nothing else; an admin\'s on while on then carries the onSince the default readSwitch read there; the owner\'s off leaves three changes in that history, which the default readSwitchHistory read there; the owner\'s off whose (injected) write fails is unlinked there by the default unlinkSwitch, the history left byte for byte; and nothing ever appears under the decoy [ADR 0005 Seams: "withDeps\' defaults keep following d.stateDir(), as T27 does for writeSwitch", "The default record dependencies are the store\'s under it"; D1 ("Both files are in <stateDir>/realtime/"), D2, D4; Option A ("The off fallback\'s unlink leaves the history file intact"); T27]', async () => {
+  await withDir(async ({ root }) => {
+    const decoy = fs.mkdtempSync(path.join(os.tmpdir(), 'tagging-edges-realtime-rr33-decoy-'));
+    try {
+      await withEnv({ TAGGING_EDGES_STATE_DIR: decoy }, async () => {
+        const handleSwitch = routeFn('handleRealtimeSwitch');
+        const problems = [];
+        /** stateDir() and the identity lookups and clock injected; every record dependency left to its default. */
+        const deps = (now, extra = {}) => ({ stateDir: () => root, getOwnerPubkey: () => OWNER, getAdminPubkeys: () => [ADMIN], now: () => now, ...extra });
+        const adminO = { session: { authenticated: true, pubkey: ADMIN } };
+        const needles = [root, fs.realpathSync(root), decoy, fs.realpathSync(decoy)];
+        const SW_REL = 'realtime/switch.json';
+        const HIST_REL = 'realtime/switch-history.json';
+        const swFile = path.join(root, SW_REL);
+        const histFile = path.join(root, HIST_REL);
+        const post = async (label, on, o, d) => {
+          const res = await callHandler(handleSwitch, switchReq({ on }, o), d);
+          if (res.statusCode !== 200 || !res.body || res.body.success !== true) problems.push(`${label} answered ${showRes(res)}, expected 200 success`);
+          problems.push(...leakProblems(label, res, needles));
+          return res;
+        };
+        /** What lies under the injected stateDir() and under the decoy, against the files expected. */
+        const where = (label, expected) => {
+          const inRoot = Object.keys(snapshot(root)).sort();
+          const extra = inRoot.filter((k) => !expected.includes(k));
+          if (extra.length) problems.push(`${label}: files appeared under the injected stateDir() beyond ${show(expected)}: ${show(extra)}`);
+          const lacking = expected.filter((k) => !inRoot.includes(k));
+          if (lacking.length) problems.push(`${label}: no ${show(lacking)} under the injected stateDir() (ADR 0005 Seams: "withDeps' defaults keep following d.stateDir()"); it holds ${show(inRoot)}`);
+          const inDecoy = Object.keys(snapshot(decoy));
+          if (inDecoy.length) problems.push(`${label}: files appeared under TAGGING_EDGES_STATE_DIR instead of the injected stateDir() — a default followed state.stateDir(), not d.stateDir(): ${show(inDecoy)}`);
+        };
+        const fileIs = (label, rec) => {
+          const text = fs.existsSync(swFile) ? fs.readFileSync(swFile, 'utf8') : null;
+          if (text === null || strip(text) !== canonicalSwitch2(rec)) problems.push(`${label}: <stateDir>/${SW_REL} should be the canonical version 2 text ${show(canonicalSwitch2(rec))} (ADR 0005 D1, D4); is ${show(text)}`);
+        };
+        await post('the owner\'s POST on', true, {}, deps(T0));
+        where('after the owner\'s on', [SW_REL, HIST_REL]);
+        fileIs('after the owner\'s on', { version: 2, on: true, changedAt: iso(T0), changedBy: OWNER8, role: 'owner', onSince: iso(T0) });
+        await post('an admin\'s POST on while on', true, adminO, deps(T0 + 30 * SEC));
+        fileIs('after an admin\'s on while on (the default readSwitch read the owner\'s onSince under the injected stateDir())', { version: 2, on: true, changedAt: iso(T0 + 30 * SEC), changedBy: ADMIN8, role: 'admin', onSince: iso(T0) });
+        await post('the owner\'s POST off', false, {}, deps(T0 + MIN));
+        where('after three changes', [SW_REL, HIST_REL]);
+        fileIs('after the owner\'s off', { version: 2, on: false, changedAt: iso(T0 + MIN), changedBy: OWNER8, role: 'owner', onSince: null });
+        const wantHist = {
+          version: 1,
+          changes: [
+            { on: false, at: iso(T0 + MIN), role: 'owner', key: OWNER8 },
+            { on: true, at: iso(T0 + 30 * SEC), role: 'admin', key: ADMIN8 },
+            { on: true, at: iso(T0), role: 'owner', key: OWNER8 },
+          ],
+        };
+        let hist = null;
+        if (fs.existsSync(histFile)) { try { hist = JSON.parse(fs.readFileSync(histFile, 'utf8')); } catch (e) { problems.push(`<stateDir>/${HIST_REL} is not JSON: ${firstLine(e)}`); } }
+        if (exact(hist) !== exact(wantHist)) problems.push(`<stateDir>/${HIST_REL} should hold the three changes, newest first — the default readSwitchHistory and writeSwitchHistory both under the injected stateDir() (ADR 0005 D1, D2)\n          expected: ${show(wantHist)}\n          actual:   ${show(hist)}`);
+        // The off fallback: only writeSwitch injected (failing); the default unlinkSwitch must remove the injected stateDir()'s switch.json.
+        const histBefore = fs.existsSync(histFile) ? fs.readFileSync(histFile) : null;
+        const enospc = Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' });
+        const fallback = await post('the owner\'s POST off whose write fails', false, {}, deps(T0 + 2 * MIN, { writeSwitch: () => { throw enospc; } }));
+        if (fallback.statusCode === 200 && fs.existsSync(swFile)) problems.push(`the off fallback answered 200 but left <stateDir>/${SW_REL} in place — the default unlinkSwitch did not follow the injected stateDir(): ${show(fs.readFileSync(swFile, 'utf8'))}`);
+        const histAfter = fs.existsSync(histFile) ? fs.readFileSync(histFile) : null;
+        if (histBefore !== null && (histAfter === null || !histAfter.equals(histBefore))) problems.push(`the off fallback changed <stateDir>/${HIST_REL} (ADR 0005 Option A: the unlink leaves the history intact; D2 step 5: "run no fold")\n          before: ${show(histBefore)}\n          after:  ${show(histAfter)}`);
+        where('after the off fallback', histBefore === null ? [] : [HIST_REL]);
+        assert(problems.length === 0, problems.join('\n        '));
+      });
+    } finally {
+      fs.rmSync(decoy, { recursive: true, force: true });
+    }
+  }, { makeRealtime: false });
+});
+
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────
 async function run() {
-  console.log('\n--- tagging-edges real-time store and routes tests (epic tagging-edges, Story 3 — T21, T22, T26, T27, T32, T33) ---');
+  console.log('\n--- tagging-edges real-time store and routes tests (epic tagging-edges, Story 3 — T21, T22, T26, T27, T32, T33; Story 5 — ADR 0005) ---');
   let pass = 0, fail = 0;
   const failures = [];
   for (const [name, fn] of tests) {

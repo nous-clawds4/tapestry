@@ -36,6 +36,24 @@
  *               ServiceUnavailable/SessionExpired families under failureCode; PC48 a Security code read as credentials;
  *               PC49 pins that countCode holds none of the pass-only codes (passes now). PC46–PC48 fail now: there is no
  *               failureCode kind.
+ *   PC50–PC54 — story 5's carry-forwards from story 4's review, round 2 (engineering-team/stories/tagging-edges/
+ *               5-real-time-path-switch.md § Carry-forwards; ADR engineering-team/decisions/tagging-edges/
+ *               0005-real-time-path-switch.md § Seams "R2-1 pins", "R2-11 pins", and § Amendments → ADR 0004 :789-796).
+ *               PC50–PC51 (R2-1): the Neo4j driver's own 'N/A' and 'ProtocolError' have exact entries under failureCode
+ *               and countCode, floors named here because no producer in this repo mints either literally (the driver's
+ *               error.js does); they fail until the entries exist. PC52–PC53 (R2-11, ratified at ADR 0005): an ERR_ code
+ *               reads "not recognised" under both kinds, and Neo.ClientError.Security.Forbidden reads as the Security
+ *               family under both; they pin behaviour story 4's implementation already has, so they pass now. PC54
+ *               (R2-13): a shape check over every value the runner gives a code, so a literal written in a shape the
+ *               runner-literal extraction cannot see (a fallback without parentheses, an inline ternary) fails here by
+ *               name; it proves itself on a synthetic source first, and passes now on the runner.
+ *   PC55      — story 5's R2-1, the reworded no-status sentence (ADR 0005 § Amendments → ADR 0004 :786-787): an error
+ *               that carried no code is a bug in the schema check's own code or in a library, never Neo4j's answer, so
+ *               explain('failureCode', 'no-status') names a bug or reporting one (/bug/i) and neither tells the reader
+ *               to check that Neo4j is running nor sends them to Neo4j's log. It fails until the sentence is reworded.
+ *               Story 5's review, round 1, requested 1: it also refuses the false premise that every error the driver
+ *               raises carries a code (ADR 0004 T12: the driver's own argument and configuration checks throw plain,
+ *               code-less TypeError and Error). A claim about errors from Neo4j's answer, or the server's, passes.
  *   PC18–PC40 FAIL now (red phase): ui/src/utils/taggingPipelineView.js does not exist yet. The loader turns the
  *   missing file into "<file> not implemented yet: it does not export <name> (ADR 0004 § …)", so the suite always
  *   loads and each test fails by name; a file that exists but fails to load says so instead.
@@ -135,6 +153,57 @@ function floor(kind, codes, n, where) {
 /* ─── The extractions (ADR 0004 § Seams for Test Design → "The guard test") ─── */
 
 const NOT_STARTED = ['lock-busy', 'not-started-under-the-lock'];
+
+/** T12's runner-literal extraction: `code: '…'`, or `code: (…) || '…'` (failureCodeRunnerLiterals; PC54 shows its blind spots). */
+const RUNNER_CODE_LITERAL = /\bcode:\s*(?:\([^()]*\)\s*\|\|\s*)?'([^']+)'/;
+
+/**
+ * R2-13's shape check. Every value `src` gives a code — a `code:` property (not a member read such as `err.code :` in
+ * a ternary), or an assignment to `code` or `<x>.code` — read to its end (a `,` or `;` outside brackets, or the bracket
+ * that closes around it), with strings copied whole. Returns { values, literals, templates }: the value expressions, and
+ * each string literal in them that is not a comparand (`=== '…'`, `'…' !==`), and each template literal.
+ * Not followed: a value that is an identifier or a call (`code: problem`, which failureCodeIdentity follows), and other
+ * producers (graph.js's `code:` properties are the rule-creation outcome's, which the runner turns into the schema
+ * ternary's codes; its `err.code = '…'` is failureCodeGraph's).
+ */
+function codeValueLiterals(src) {
+  const values = [];
+  const literals = [];
+  const templates = [];
+  const starts = /(?<![.\w$])code\s*:(?!:)|\bcode\s*=(?![=>])/g;
+  let m;
+  while ((m = starts.exec(src)) !== null) {
+    let i = m.index + m[0].length;
+    let depth = 0;
+    let expr = '';
+    while (i < src.length) {
+      const c = src[i];
+      if (c === "'" || c === '"' || c === '`') {
+        let j = i + 1;
+        while (j < src.length && src[j] !== c) { if (src[j] === '\\') j++; j++; }
+        expr += src.slice(i, j + 1);
+        i = j + 1;
+        continue;
+      }
+      if (c === '(' || c === '[' || c === '{') depth++;
+      else if (c === ')' || c === ']' || c === '}') { if (depth === 0) break; depth--; }
+      else if (depth === 0 && (c === ',' || c === ';')) break;
+      expr += c;
+      i++;
+    }
+    values.push(expr.trim());
+    const lit = /'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g;
+    let s;
+    while ((s = lit.exec(expr)) !== null) {
+      const before = expr.slice(0, s.index);
+      const after = expr.slice(s.index + s[0].length);
+      if (/[=!]==?\s*$/.test(before) || /^\s*[=!]==?/.test(after)) continue; // a comparand, not a code
+      if (s[3] !== undefined) templates.push(s[0]);
+      else literals.push(s[1] !== undefined ? s[1] : s[2]);
+    }
+  }
+  return { values, literals: uniq(literals), templates: uniq(templates) };
+}
 
 const extract = {
   /** finish('…' and the pessimistic record's outcome: 'failed'. */
@@ -255,9 +324,14 @@ const extract = {
    * Every `code: '…'` literal in a failure object or a thrown error in the runner — a plain literal
    * (`code: 'plan-error'`, `Object.assign(new Error(…), { code: 'incomplete' })`) or the literal fallback after a
    * driver's own code (`code: (err && err.code) || 'no-status'`, `… || 'error'`).
+   *
+   * What this extraction cannot see (R2-13): a fallback written without parentheses (`code: err.code || 'x'`,
+   * `code: err && err.code || 'x'`), an inline ternary (`code: c ? 'a' : 'b'`), and a literal given to a code by
+   * assignment (`const code = … || 'x'`, `err.code = 'x'`). PC54's shape check (codeValueLiterals) reads every value
+   * the runner gives a code and fails by name when such a literal is outside this guard's inventory.
    */
   failureCodeRunnerLiterals() {
-    return uniq(allMatches(source(RUNNER_REL), /\bcode:\s*(?:\([^()]*\)\s*\|\|\s*)?'([^']+)'/));
+    return uniq(allMatches(source(RUNNER_REL), RUNNER_CODE_LITERAL));
   },
   /** 'missing-' joined to each key of the config check: for (const key of ['NEO4J_URI', …]) … code: `missing-${key}`. */
   failureCodeConfig() {
@@ -325,6 +399,9 @@ const FLOORS = {
   failureCodeGraph: 1,
   failureCodeIdentity: 4,
   failureCode: 29,
+  // R2-13 (story 5), computed on 8a082b75: the values the runner gives a code, and the distinct literals among them.
+  codeValues: 20,
+  codeValueLiterals: 11,
 };
 
 /** The eight states AC-3 names: off, starting, waiting on a setup problem / the graph / the relay, catching up, live, stopped. */
@@ -734,6 +811,130 @@ test("PC49: countCode keeps its meaning (a count's or the path's lastError code)
   assert(leaked.length === 0, `EXPLANATIONS.countCode must not hold the pass-only failure codes ${show(leaked)} — they are failureCode's (T12 "countCode keeps its meaning")`);
   const r = explain('countCode', 'plan-error');
   assert(r && r.recognised === false, `explain('countCode', 'plan-error') must not be recognised — plan-error is a pass's code, explained under failureCode (T12); got ${show(r)}`);
+});
+
+/* ═══ PC50–PC54 — story 5's carry-forwards from story 4's review, round 2 (R2-1, R2-11, R2-13) ═══ */
+
+/** The Neo4j driver's own codes (node_modules/neo4j-driver-core/lib/error.js): N/A, its default, and ProtocolError. */
+const DRIVER_CODES = ['N/A', 'ProtocolError'];
+
+test("PC50: the Neo4j driver's own codes 'N/A' (its default for an error that carries no code) and 'ProtocolError' each have their own entry under failureCode AND under countCode, which explain(kind, code) returns with the code as given — floors named here, since no producer in this repo mints either literally [R2-1; story 5 § Carry-forwards; ADR 0005 § Seams \"R2-1 pins\", § Amendments → ADR 0004 :789-790]", async () => {
+  for (const kind of ['failureCode', 'countCode']) {
+    try {
+      await assertOwnSentence(kind, DRIVER_CODES);
+    } catch (e) {
+      throw new Error(`R2-1 (ADR 0005 § Amendments → ADR 0004 T12 "The driver's own N/A and ProtocolError … each gets an exact ` +
+        `entry under failureCode", "The same two codes also get countCode entries"): ${e.message}`);
+    }
+  }
+});
+
+test("PC51: under failureCode, 'N/A' reads as the driver's unclassified error with NEO4J_URI named as a setting to check, and 'ProtocolError' as a Bolt protocol fault — neither is the bare 'error' fallback's sentence [R2-1; ADR 0005 § Amendments → ADR 0004 :789-790: \"N/A … Most often no connection was had within the 30 s acquisition limit, or NEO4J_URI or TLS is set wrong\", \"ProtocolError is a Bolt protocol fault\"]", async () => {
+  const { explain, EXPLANATIONS } = await view('explain', 'EXPLANATIONS');
+  const na = explain('failureCode', 'N/A');
+  const pe = explain('failureCode', 'ProtocolError');
+  const fallback = EXPLANATIONS && EXPLANATIONS.failureCode && EXPLANATIONS.failureCode.error;
+  assert(na && na.recognised === true && /NEO4J_URI/.test(na.text) && na.text !== fallback,
+    `explain('failureCode', 'N/A') must be recognised and name NEO4J_URI as a setting to check (R2-1; ADR 0005 § Amendments); got ${show(na)}`);
+  assert(pe && pe.recognised === true && /Bolt/i.test(pe.text) && pe.text !== fallback,
+    `explain('failureCode', 'ProtocolError') must be recognised and read as a Bolt protocol fault (R2-1; ADR 0005 § Amendments); got ${show(pe)}`);
+});
+
+test("PC52: a code of Node's own ERR_ family — ERR_INVALID_ARG_TYPE, ERR_STREAM_PREMATURE_CLOSE, ERR_SOCKET_CLOSED — reads exactly { code, text: 'not recognised', recognised: false } under countCode and under failureCode, while an operating-system code (EIO, ENOSPC) is still recognised by the E family under both [R2-11; ADR 0005 § Seams \"R2-11 pins\"; § Amendments → ADR 0004 :326-331 and :792-796, \"The ERR_ exclusion\" ratified]", async () => {
+  const { explain } = await view('explain');
+  const bad = [];
+  for (const kind of ['countCode', 'failureCode']) {
+    for (const code of ['ERR_INVALID_ARG_TYPE', 'ERR_STREAM_PREMATURE_CLOSE', 'ERR_SOCKET_CLOSED']) {
+      const r = explain(kind, code);
+      if (!r || r.recognised !== false || r.text !== 'not recognised' || r.code !== code) bad.push(`${kind}:${code} -> ${show(r)} (expected not recognised)`);
+    }
+    for (const code of ['EIO', 'ENOSPC']) {
+      const r = explain(kind, code);
+      if (!r || r.recognised !== true || r.code !== code) bad.push(`${kind}:${code} -> ${show(r)} (expected the E family)`);
+    }
+  }
+  assert(bad.length === 0, `R2-11's ERR_ exclusion (the E family is the operating system's, ^E(?!RR_)…): ${bad.join('; ')}`);
+});
+
+test("PC53: Neo.ClientError.Security.Forbidden reads as the Security family under countCode and under failureCode — recognised, the same sentence as Neo.ClientError.Security.Unauthorized's, one that names the permission (/permission/i), and not the general Neo4j family's sentence (Neo.ClientError.Statement.SyntaxError) [R2-11; ADR 0005 § Seams \"R2-11 pins\"; § Amendments → ADR 0004 :792-796, \"Security.Forbidden as a permission\" ratified]", async () => {
+  const { explain } = await view('explain');
+  const bad = [];
+  for (const kind of ['countCode', 'failureCode']) {
+    const f = explain(kind, 'Neo.ClientError.Security.Forbidden');
+    const u = explain(kind, 'Neo.ClientError.Security.Unauthorized');
+    const g = explain(kind, 'Neo.ClientError.Statement.SyntaxError');
+    if (!f || f.recognised !== true || f.code !== 'Neo.ClientError.Security.Forbidden') bad.push(`${kind}: Forbidden not recognised -> ${show(f)}`);
+    else {
+      if (!u || f.text !== u.text) bad.push(`${kind}: Forbidden's sentence is not the Security family's (Unauthorized's) -> ${show(f.text)} vs ${show(u && u.text)}`);
+      if (!/permission/i.test(f.text)) bad.push(`${kind}: Forbidden's sentence does not name the permission -> ${show(f.text)}`);
+      if (g && f.text === g.text) bad.push(`${kind}: Forbidden reads as the general Neo4j family -> ${show(f.text)}`);
+    }
+  }
+  assert(bad.length === 0, `R2-11's Security reading (the Security family comes before the general Neo4j family): ${bad.join('; ')}`);
+});
+
+test("PC54: every literal the runner gives a code, in any shape — a code: property or an assignment to code or <x>.code, a fallback without parentheses or an inline ternary included, comparands left out — is in this guard's failureCode inventory, and its only template code is the config check's `missing-${key}`; the check first proves it finds both of R2-13's blind shapes, which the runner-literal extraction misses, on a synthetic source [R2-13; story 5 § Carry-forwards; ADR 0004 T12 \"The guard\"]", () => {
+  const synthetic = [
+    "fail('read', { stage: 'read', code: err.code || 'no-parens-fallback', message: m });",
+    "fail('read', { stage: 'read', code: err && err.code || 'and-fallback' });",
+    "refuse('schema', { stage: 'schema', code: ready ? 'ternary-a' : 'ternary-b', message: 'x, y' });",
+    "const code = err.code || 'const-fallback';",
+    "err.code = 'assigned';",
+    "const known = err && typeof err.code === 'string' ? err.code : null;",
+    "const other = ok ? err.code : 'member-read';",
+    'throw Object.assign(new Error(m), { code: `tpl-${k}` });',
+  ].join(NL);
+  const seen = codeValueLiterals(synthetic);
+  const want = ['no-parens-fallback', 'and-fallback', 'ternary-a', 'ternary-b', 'const-fallback', 'assigned'];
+  assert(show([...seen.literals].sort()) === show([...want].sort()),
+    `the shape check must find exactly ${show(want)} in the synthetic source (comparands and member reads left out); found ${show(seen.literals)}`);
+  assert(show(seen.templates) === show(['`tpl-${k}`']), `the shape check must find the template code; found ${show(seen.templates)}`);
+  const blind = allMatches(synthetic, RUNNER_CODE_LITERAL).filter((c) => want.includes(c));
+  assert(blind.length === 0, `R2-13's premise: the runner-literal extraction should miss these shapes, yet it found ${show(blind)}`);
+
+  const runner = codeValueLiterals(source(RUNNER_REL));
+  floor('code values (the runner)', runner.values, FLOORS.codeValues, `${RUNNER_REL} code: / code =`);
+  floor('code literals (the runner)', runner.literals, FLOORS.codeValueLiterals, `${RUNNER_REL} code: / code =`);
+  const inventory = new Set(extract.failureCode());
+  const unseen = runner.literals.filter((c) => !inventory.has(c));
+  assert(unseen.length === 0,
+    `${RUNNER_REL} gives a code the literal(s) ${show(unseen)} in a shape the guard's extractions do not read — extend the ` +
+    `extraction (failureCodeRunnerLiterals, or a dedicated one like the schema ternary's) so each gets its own ` +
+    `failureCode sentence (R2-13; ADR 0004 T12 "The guard")`);
+  const config = extract.failureCodeConfig();
+  const loopVar = (/for \(const (\w+) of \[[^\]]*\]\)\s*\{[^}]*?\bcode:\s*`missing-\$\{\1\}`/.exec(source(RUNNER_REL)) || [])[1];
+  const strayTemplates = runner.templates.filter((t) => t !== `\`missing-\${${loopVar}}\``);
+  assert(config.length > 0 && strayTemplates.length === 0,
+    `${RUNNER_REL} builds a code from a template the guard cannot enumerate: ${show(strayTemplates)} — only the config ` +
+    `check's \`missing-\${key}\` is followed (failureCodeConfig; R2-13)`);
+});
+
+/* ═══ PC55 — R2-1's reworded no-status sentence (ADR 0005 § Amendments → ADR 0004 :786-787) ═══ */
+
+test("PC55: under failureCode, 'no-status' — an error that carried no code, so a fault in the schema check's own code or in a library other than the driver, never Neo4j's answer — reads as a bug (/bug/i: it names one, or reporting one), and does not send the reader to Neo4j as the cause: it does not tell them to check that Neo4j is running, nor to read Neo4j's log; and it does not rest on the false premise that every error the Neo4j driver raises carries a code, since the driver's own checks throw code-less TypeError and Error [R2-1; story 5 § Carry-forwards; story 5's review, round 1, requested 1; ADR 0004 T12 (amended); ADR 0005 § Amendments → ADR 0004 :786-787, \"It never comes from Neo4j's answer\", \"Its sentence says so, and points at reporting a bug, not at Neo4j\"]", async () => {
+  const { explain } = await view('explain');
+  const r = explain('failureCode', 'no-status');
+  assert(r && r.recognised === true && r.code === 'no-status' && typeof r.text === 'string',
+    `explain('failureCode', 'no-status') must be recognised, with the code as given (ADR 0004 T12); got ${show(r)}`);
+  const bad = [];
+  if (!/bug/i.test(r.text)) bad.push('it names no bug and does not point at reporting one (/bug/i)');
+  if (/\b(check|make sure|ensure|confirm|verify)\s+(that\s+|whether\s+|if\s+)?neo4j\b[^.;]*\brunning\b/i.test(r.text)) {
+    bad.push('it tells the reader to check that Neo4j is running');
+  }
+  if (/neo4j\.log/i.test(r.text)) bad.push("it sends the reader to Neo4j's log");
+  // Review round 1, requested 1. Only the unqualified claim is refused: a subject that limits the errors to Neo4j's
+  // answer or the server's ("every error the driver builds from Neo4j's answer carries a code") is true, and passes.
+  const universal = new RegExp('\\b(?:(?:every|each|any) error|all (?:the )?errors)\\b([^.]*?)\\bdriver\\b([^.]*?)'
+    + '\\bcarr(?:y|ies)\\b[^.]*?\\bcodes?\\b', 'i');
+  const claim = universal.exec(r.text);
+  if (claim && !/\banswer|\bserver|neo4j's|\bfrom neo4j\b/i.test(claim[1] + claim[2])) {
+    bad.push(`it says ${show(claim[0])}, which is false: the driver's own checks of what it is passed and of its ` +
+      'configuration throw plain TypeError and Error with no code (ADR 0004 T12, amended at story 5: "The driver\'s ' +
+      'code-less errors are plain `TypeError` or `Error` throws"); state the premise truly and keep the conclusion');
+  }
+  assert(bad.length === 0,
+    `R2-1 (ADR 0005 § Amendments → ADR 0004 :786-787: no-status "never comes from Neo4j's answer"; its sentence "points at ` +
+    `reporting a bug, not at Neo4j"): ${bad.join('; ')} — got ${show(r.text)}`);
 });
 
 /* ─── Run ─── */

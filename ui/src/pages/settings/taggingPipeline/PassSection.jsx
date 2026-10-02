@@ -28,15 +28,23 @@ function passFigures(r) {
  * What a pass did with the owner's confirmation it honoured, from `latest.confirmed` (reconcileTaggingEdges.js step
  * 7 and its removals). `confirmation.honoured` is set when the pass claims the confirmation, before its reads, so a
  * pass that fails afterwards keeps it with `removalsApplied` 0: the sentence says what was applied, never more.
- * `heldNoLongerDue` is null until the pass has planned its changes.
+ * `heldNoLongerDue` is null until the pass has planned its changes. A pass that never recorded its end (`ended`
+ * false: its pessimistic record, saved every 10 write batches) holds only what it had applied by its last save, so
+ * the figure is a lower bound (story 4 review round 2, R2-3).
  */
-function ConfirmedLine({ confirmed }) {
+function ConfirmedLine({ confirmed, ended }) {
   const c = confirmed && typeof confirmed === 'object' ? confirmed : null;
   if (!c) return <p>It honoured the owner's confirmation.</p>;
   const applied = typeof c.removalsApplied === 'number' && Number.isFinite(c.removalsApplied) ? c.removalsApplied : null;
   let appliedText;
   if (applied === null) appliedText = 'How many of them it applied is not recorded.';
-  else if (applied === 0) appliedText = 'It applied none of the confirmed removals.';
+  else if (!ended && applied === 0) {
+    appliedText = 'It never recorded its end, and by its last save it had applied none of the confirmed removals. '
+      + 'It may have applied some after that save.';
+  } else if (!ended) {
+    appliedText = `It never recorded its end, and by its last save it had applied ${figure(applied)} of the confirmed `
+      + 'removals, so it applied at least that many.';
+  } else if (applied === 0) appliedText = 'It applied none of the confirmed removals.';
   else appliedText = `It applied ${figure(applied)} of the confirmed removals.`;
   const gone = typeof c.heldNoLongerDue === 'number' && c.heldNoLongerDue > 0 ? c.heldNoLongerDue : null;
   return (
@@ -48,9 +56,17 @@ function ConfirmedLine({ confirmed }) {
   );
 }
 
+/**
+ * A failure's own text (R2-6), both redacted already: its error message, and a relay read's `stderrTail`. That is the
+ * last `strfry error:` line strfry printed, or else, for an `exit` failure only, `exit code N` (strfryScanStrict.js
+ * summarizeStderr), so it is often absent.
+ */
+const said = (v) => typeof v === 'string' && v !== '';
+
 function LatestPass({ latest, tone }) {
   const failure = latest.failure && typeof latest.failure === 'object' ? latest.failure : null;
   const confirmation = latest.confirmation && typeof latest.confirmation === 'object' ? latest.confirmation : null;
+  const ended = latest.endedAt !== null && latest.endedAt !== undefined;
   return (
     <div>
       <p style={{ color: TONE_COLOUR[tone] }}>
@@ -69,7 +85,13 @@ function LatestPass({ latest, tone }) {
           )}
         </p>
       )}
-      {confirmation && confirmation.honoured === true && <ConfirmedLine confirmed={latest.confirmed} />}
+      {failure && said(failure.message) && <p className="settings-hint">Its error message: {failure.message}</p>}
+      {failure && said(failure.stderrTail) && (
+        <p className="settings-hint">The relay command's last error line, or its exit code: {failure.stderrTail}</p>
+      )}
+      {confirmation && confirmation.honoured === true && (
+        <ConfirmedLine confirmed={latest.confirmed} ended={ended} />
+      )}
       {confirmation && confirmation.why && (
         <p>It did not honour the owner's confirmation. Why: <Explained kind="confirmationWhy" code={confirmation.why} /></p>
       )}

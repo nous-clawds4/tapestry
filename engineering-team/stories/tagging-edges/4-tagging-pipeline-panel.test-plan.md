@@ -141,6 +141,12 @@ scratch fails it.
 - The view suite's flags helper now holds five flags, so `countsPredatePass` must be a boolean in every case. That
   turns TV48–TV51 red for the same missing field (for example "`driftView(no report).countsPredatePass` must be a
   boolean (T5); got undefined").
+- B47: the opening status read is not "the previous one" for the skip rule. While it hangs, the next poll tick still
+  reads, and the opening read's late answer is then dropped as overtaken.
+- B46: a read-time label shows only after a read fails. While reads are good, the section shows no read-time label.
+
+*(Added at story 5's Test Design, 2026-10-01, from story 4's review, round 2, R2-12: these two readings were taken in
+round 1 but not listed. TV48's title, which still said four flags, is fixed in `test/tagging-pipeline-view.test.js`.)*
 
 ### T12 — `failureCode`
 
