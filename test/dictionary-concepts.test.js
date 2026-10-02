@@ -395,11 +395,14 @@ test('S5: routes, placeholders, and the Dictionaries index prose (from trusted-d
     "the Dictionaries index keeps the owner's verbatim model statement (do not edit it)");
 });
 
-test('S6: Add to Dictionary is offered only to a signed-in owner (the b-disposition writes are owner-only)', () => {
+test('S6: Add to Dictionary is offered to any signed-in reader; only the owner gets the twin picker (the b-disposition writes are owner-only)', () => {
   const page = flat(code(src(DICT_CONCEPTS_JSX)));
-  assert(/canAdd=\{signedIn && person\.isOwner( && !managed)?\}/.test(page),
-    'the finder gets canAdd = signed in AND the owner (and, on /dictionary, the reader\'s own list: dictionary-managed-by S3)');
-  assert(/\{canAdd && \(\s*<button/.test(page), 'the Add to Dictionary button renders only when canAdd');
+  assert(/canAdd=\{signedIn && !managed\}/.test(page) && /isOwner=\{person\.isOwner\}/.test(page),
+    'the finder gets canAdd = signed in, on the reader\'s own list (dictionary-managed-by S3), and whether they own the instance (dictionary-wired-create)');
+  assert(/\{canAdd && lookupable\(r\.uuid\) && \(\s*<button/.test(page),
+    'the Add to Dictionary button renders only when canAdd (and for an address the relay can look up: dictionary-wired-create S4)');
+  assert(/if \(!isOwner\) return undefined;/.test(page) && /if \(!isOwner\) \{ return \(/.test(page),
+    'a reader who isn\'t the owner reads no twins and gets no picker, only Create New Concept, wired to the result');
 });
 
 // ═══ S7..S9 — /dictionary: the same list in the design's styling ═══════════════

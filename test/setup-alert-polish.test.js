@@ -49,7 +49,6 @@ const RAW_PUBLISH_ALLOWED = [
   'pages/tapestries/useCreateTapestry.js',
   'pages/tapestries/AddConceptToTapestry.jsx',
   'pages/tapestries/RemoveConceptFromTapestry.jsx',
-  'pages/dictionary/NewConcept.jsx', // kind 39998 only: a new shared concept header (Create New Concept)
 ];
 
 const tests = [];

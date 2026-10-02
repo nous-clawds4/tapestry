@@ -569,6 +569,8 @@ function registerAdoptionRoutes(app) {
   app.get('/api/dictionaries/concepts', handleConceptDictionary);
   app.get('/api/dictionaries/concepts/items', handleConceptItems);
   app.get('/api/adoption-twins', handleAdoptionTwins);
+  // Create New Concept, signed by the caller's own Assistant (./newConcept.js).
+  require('./newConcept').register(app);
 }
 
 module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary, assembleConceptItems, recognitionInputs };
