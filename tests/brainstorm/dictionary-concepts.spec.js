@@ -53,6 +53,13 @@ const { test, expect } = require('@playwright/test');
  *   D18 — the menu works from the keyboard: focus moves in, arrows move, Escape returns to the trigger.
  *   D19 — focus leaving for nowhere (Safari, pressing an option) leaves the menu open, so a pick lands;
  *         Escape on the trigger closes it.
+ *
+ * The item page (the design's Dictionary item screen):
+ *
+ *   D20 — an Items row opens /dictionary/:coord/items/:item: "Item N in <concept>", who filed it, the
+ *         raw event; its back link returns to the entry.
+ *   D21 — a direct visit works out the number from the Items, and says when an item is filed by
+ *         someone the community doesn't trust.
  */
 
 const OWNER = '1'.repeat(64);
@@ -166,6 +173,8 @@ async function mockAssistants(page) {
 }
 
 const TRUSTED_FILER = '6'.repeat(64);
+const UNTRUSTED_FILER = '9'.repeat(64);
+const UNTRUSTED_ITEM = 'e'.repeat(64);
 const CURATOR = '7'.repeat(64);
 
 /** The entry page's own reads, on top of mockStack: its Items, the two headers, the Treasure Map. */
@@ -183,6 +192,15 @@ async function mockEntry(page, { map = 'assigned' } = {}) {
   });
   await page.route('**/api/strfry/scan**', (r) => {
     const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
+    if (Array.isArray(filter.ids)) {
+      // An item page reads its event by id: a listed item, or one filed by someone untrusted.
+      const id = filter.ids[0];
+      const listed = items.find((it) => it.id === id);
+      const ev = listed
+        ? { id, kind: 9999, pubkey: TRUSTED_FILER, created_at: listed.createdAt, content: '', tags: [['z', FOREIGN], ['name', listed.name]] }
+        : id === UNTRUSTED_ITEM ? { id, kind: 9999, pubkey: UNTRUSTED_FILER, created_at: 5, content: '', tags: [['z', FOREIGN], ['name', 'mystery']] } : null;
+      return json(r, { success: true, events: ev ? [ev] : [] });
+    }
     if ((filter.kinds || []).includes(10040)) {
       if (map === 'unreadable') return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'strfry is down' }) });
       // ["39998:cat-breed", OWNER_TA] empowers 39998:<OWNER_TA>:cat-breed, the entry D10 opens.
@@ -521,6 +539,50 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await robin.focus();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('menu'), 'Escape on the trigger closes it').toHaveCount(0);
+  });
+
+  test('D20: an Items row opens its item page, which says where it is and who filed it', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}`);
+    const card = page.locator('.dict-items');
+    await expect(card.locator('.dict-items-count')).toHaveText('23 items');
+    const link = card.getByRole('link', { name: 'item 03' });
+    const id = String(3).padStart(64, '0');
+    await expect(link).toHaveAttribute('href', `/dictionary/${encodeURIComponent(coord)}/items/${id}`);
+    await card.locator('.dict-items-row', { has: page.getByRole('link', { name: 'item 04' }) }).locator('.dict-items-n').click();
+    await expect(page.getByRole('heading', { level: 1, name: 'item 04' }), 'a click anywhere on the row opens it').toBeVisible();
+    await page.goBack();
+    await link.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'item 03' })).toBeVisible();
+    await expect(page.getByText('Item 3 in cat breed')).toBeVisible();
+    await expect(page.getByText('item 03 is one of the items the owner’s trusted community has filed under cat breed.')).toBeVisible();
+    await expect(page.locator('.dict-filed-by-name')).toHaveText('Trusty');
+    await expect(page.getByRole('link', { name: /View Nostr profile/ })).toHaveAttribute('href', `/user/${TRUSTED_FILER}`);
+    await page.getByRole('button', { name: 'Raw Nostr event' }).click();
+    await expect(page.locator('#dict-item-raw .dict-json')).toContainText('["name","item 03"]');
+    const back = page.getByRole('link', { name: 'cat breed', exact: true });
+    await expect(back).toHaveAttribute('href', `/dictionary/${encodeURIComponent(coord)}`);
+    await back.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'cat breed' })).toBeVisible();
+    await expect(page.locator('.dict-items .dict-items-count')).toHaveText('23 items');
+  });
+
+  test('D21: a direct visit works out the item’s number, and says when it isn’t in the trusted Items', async ({ page }) => {
+    await mockStack(page);
+    const itemsAsked = await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    const id5 = String(5).padStart(64, '0');
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${id5}`);
+    await expect(page.getByText('Item 5 in cat breed')).toBeVisible();
+    expect(itemsAsked, 'the Items are read once, for the entry and its shared concept').toHaveLength(1);
+    expect(itemsAsked[0]).toMatchObject({ coord, shared: FOREIGN });
+
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${UNTRUSTED_ITEM}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'mystery' })).toBeVisible();
+    await expect(page.getByText('An item in cat breed')).toBeVisible();
+    await expect(page.getByText('mystery is filed under cat breed, but not by anyone the owner’s community trusts, so it isn’t in the entry’s Items.')).toBeVisible();
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

@@ -16,6 +16,8 @@ export default function DictIcon({ name, size = 14 }) {
       return <svg {...common}><path d="M12 5v14" /><path d="M5 12h14" /></svg>;
     case 'check':
       return <svg {...common} strokeWidth={2.6}><path d="M20 6 9 17l-5-5" /></svg>;
+    case 'external':
+      return <svg {...common}><path d="M7 17 17 7" /><path d="M8 7h9v9" /></svg>;
     case 'back':
       return <svg {...common}><path d="m15 18-6-6 6-6" /></svg>;
     case 'share':
