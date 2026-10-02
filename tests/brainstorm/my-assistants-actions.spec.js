@@ -5,9 +5,9 @@ const { REQUIRED_TAGGINGS } = require('../../src/lib/identification-tags');
 /**
  * my-assistants #2 — tag, re-tag and untag your Assistants from /assistants: what a viewer does and sees.
  *
- * Story: engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.md
- * ADR:   engineering-team/decisions/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md
- * Plan:  engineering-team/stories/my-assistants/2-tag-and-untag-from-the-page.test-plan.md
+ * Story: engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.md
+ * ADR:   engineering-team/decisions/done/my-assistants/0002-tag-and-withdraw-from-the-browser-the-read-carries-what-they-need.md
+ * Plan:  engineering-team/stories/done/my-assistants/2-tag-and-untag-from-the-page.test-plan.md
  * Node half: test/my-assistants-actions.test.js (the read's new fields, the pure planning, the orchestration).
  *
  * SAFETY — nothing here may reach a relay (ADR 0002 § Consequences). Every test:

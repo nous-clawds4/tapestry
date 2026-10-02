@@ -98,6 +98,18 @@ export function useDictionaryPerson() {
   }, [assistants, viewer, loading]);
 }
 
+/** One read of GET /api/dictionaries/concepts: the Dictionary of `authors` (one person, or one Assistant). */
+export async function fetchConceptDictionary(authors, povParams) {
+  if (!authors || !authors.length) throw new Error('This instance did not say whose Dictionary to show.');
+  const params = new URLSearchParams({ authors: authors.join(',') });
+  if (povParams?.wotPov) params.set('wotPov', povParams.wotPov);
+  if (povParams?.userPubkey) params.set('userPubkey', povParams.userPubkey);
+  const resp = await fetch(`/api/dictionaries/concepts?${params}`);
+  const json = await resp.json();
+  if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
+  return { entries: json.entries || [], metric: json.metric || 'gum1', pov: json.pov || {} };
+}
+
 /**
  * GET /api/dictionaries/concepts for the person, scored from the active point
  * of view (the usePov() read params). Returns
@@ -118,17 +130,8 @@ export function useConceptDictionary(person, povParams, { enabled = true } = {})
     let cancelled = false;
     (async () => {
       try {
-        if (!authors) throw new Error('This instance did not say whose Dictionary to show.');
-        const params = new URLSearchParams({ authors });
-        if (wotPov) params.set('wotPov', wotPov);
-        if (userPubkey) params.set('userPubkey', userPubkey);
-        const resp = await fetch(`/api/dictionaries/concepts?${params}`);
-        const json = await resp.json();
-        if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
-        if (!cancelled) {
-          setError(null);
-          setData({ entries: json.entries || [], metric: json.metric || 'gum1', pov: json.pov || {} });
-        }
+        const out = await fetchConceptDictionary(authors ? authors.split(',') : [], { wotPov, userPubkey });
+        if (!cancelled) { setError(null); setData(out); }
       } catch (err) {
         if (!cancelled) { setError(err.message); setData({ entries: [], metric: 'gum1', pov: {} }); }
       }
@@ -137,4 +140,129 @@ export function useConceptDictionary(person, povParams, { enabled = true } = {})
   }, [authors, settled, wotPov, userPubkey, enabled, version]);
 
   return { data, error, reload: () => setVersion((v) => v + 1) };
+}
+
+/**
+ * The signed-in reader's Assistants (GET /api/assistant/my-assistants): their local Assistant and
+ * every profile they tagged as one. { status: 'idle' | 'loading' | 'ready' | 'error', rows, reload }.
+ * Signed out it stays idle: the list is the reader's own. It is read again for another account.
+ */
+export function useMyAssistants(person) {
+  const [state, setState] = useState({ status: 'idle', rows: [] });
+  const [version, setVersion] = useState(0);
+  const signedIn = Boolean(person && !person.loading && person.signedIn);
+  const account = signedIn ? person.account : null;
+  useEffect(() => {
+    if (!signedIn) { setState({ status: 'idle', rows: [] }); return undefined; }
+    let cancelled = false;
+    setState({ status: 'loading', rows: [] });
+    (async () => {
+      try {
+        const resp = await fetch('/api/assistant/my-assistants');
+        const json = await resp.json();
+        if (!resp.ok || !json || json.success !== true) throw new Error(json?.error || `HTTP ${resp.status}`);
+        if (!cancelled) setState({ status: 'ready', rows: json.signedIn === true && Array.isArray(json.rows) ? json.rows : [] });
+      } catch {
+        if (!cancelled) setState({ status: 'error', rows: [] });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [signedIn, account, version]);
+  return { ...state, reload: () => setVersion((v) => v + 1) };
+}
+
+/**
+ * The Dictionaries of several Assistants (the picker's choice: one Assistant, or all of them), each a
+ * read of GET /api/dictionaries/concepts from the active point of view. `sets` is [{ key, authors }].
+ * Returns { data: { reads: [{ key, entries } | { key, error }], metric, pov } | null, reload }.
+ */
+export function useAssistantDictionaries(sets, povParams, { enabled = true } = {}) {
+  const [data, setData] = useState(null);
+  const [version, setVersion] = useState(0);
+  const signature = (sets || []).map((s) => `${s.key}=${(s.authors || []).join(',')}`).join(';');
+  const wotPov = povParams?.wotPov;
+  const userPubkey = povParams?.userPubkey;
+
+  useEffect(() => {
+    if (!enabled || !signature) return undefined;
+    let cancelled = false;
+    setData(null);
+    const list = signature.split(';').map((part) => {
+      const [key, authors] = part.split('=');
+      return { key, authors: authors ? authors.split(',') : [] };
+    });
+    (async () => {
+      const reads = await Promise.all(list.map(async ({ key, authors }) => {
+        try { return { key, ...(await fetchConceptDictionary(authors, { wotPov, userPubkey })) }; } catch (err) { return { key, error: err.message }; }
+      }));
+      if (cancelled) return;
+      const answered = reads.find((r) => !r.error);
+      setData({ signature, reads, metric: answered?.metric || 'gum1', pov: answered?.pov || {} });
+    })();
+    return () => { cancelled = true; };
+  }, [signature, wotPov, userPubkey, enabled, version]);
+
+  // Reads for another choice are never shown with this one (a back/forward renders before the effect).
+  return { data: data && data.signature === signature ? data : null, reload: () => setVersion((v) => v + 1) };
+}
+
+/** One line on whose point of view filtered an entry's Items. */
+export function itemsPovLine(pov) {
+  if (!pov) return '';
+  if (pov.branch === 'personalized') return 'Trusted from your point of view.';
+  if (pov.fellBackToHouse) {
+    return 'Your personalized scores are not computed on this instance, so trust is judged from the house point of view.';
+  }
+  return 'Trusted from the house point of view.';
+}
+
+/**
+ * GET /api/dictionaries/concepts/items: an entry's Items, filed under its own header (`coord`) and
+ * the shared concept it points to (`shared`), by people trusted from the active point of view, plus
+ * the person's own filings. Returns { data: { items, keptCount, truncated, filerCount, totalCount, pov } | null,
+ * error }. Pass enabled:false until `shared` is known, so the page asks once.
+ */
+export function useConceptItems({ coord, shared, person, povParams, enabled = true }) {
+  const [state, setState] = useState({ data: null, error: null });
+  const authors = person?.loading ? '' : (person?.authors || []).join(',');
+  const settled = Boolean(person) && !person.loading;
+  const wotPov = povParams?.wotPov;
+  const userPubkey = povParams?.userPubkey;
+
+  useEffect(() => {
+    if (!enabled || !settled || !coord) return undefined;
+    let cancelled = false;
+    setState({ data: null, error: null });
+    (async () => {
+      try {
+        if (!authors) throw new Error('This instance did not say whose Dictionary to show.');
+        const params = new URLSearchParams({ coord, authors });
+        if (shared && shared !== coord) params.set('shared', shared);
+        if (wotPov) params.set('wotPov', wotPov);
+        if (userPubkey) params.set('userPubkey', userPubkey);
+        const resp = await fetch(`/api/dictionaries/concepts/items?${params}`);
+        const json = await resp.json();
+        if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
+        if (!cancelled) {
+          const items = json.items || [];
+          setState({
+            data: {
+              items,
+              keptCount: Number.isFinite(json.keptCount) ? json.keptCount : items.length,
+              truncated: Boolean(json.truncated),
+              filerCount: json.filerCount || 0,
+              totalCount: json.totalCount || 0,
+              pov: json.pov || {},
+            },
+            error: null,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) setState({ data: null, error: err.message });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coord, shared, authors, settled, wotPov, userPubkey, enabled]);
+
+  return state;
 }

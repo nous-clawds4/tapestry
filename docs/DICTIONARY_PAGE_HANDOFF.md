@@ -21,6 +21,27 @@
 >   - `ui/src/pages/dictionary/` renders the control panel pages' own bodies (`ConceptsDictionaryBody`, `ConceptEntryBody`) inside the mock's frame and a light skin (`styles.css`: `.bsd-*`, `.dict-skin-light`), so the two pages cannot drift. Its rows open `/dictionary/:coord`.
 >   - It keeps the control panel's lede rather than the mock's, which describes the Assistant's automatic upkeep and Veto as working today.
 >   - Figtree and IBM Plex Mono are self-hosted in `ui/public/fonts/` (SIL OFL 1.1).
+> - **Added 2026-10-01: the entry page follows the design's Dictionary entry screen.** The owner asked for the entry page to mirror the Claude Design artifact's (account menu → Dictionary → an entry). Decisions: a direct build; Items from trusted filers only; unbacked controls shown disabled with a note; the sample chips dropped and the links kept.
+>   - **Items** come from `GET /api/dictionaries/concepts/items` (`trustedItems` in `src/lib/trustedDictionary.js`).
+>     - They are the events `z`-filed under the entry's own header and its shared concept, by filers in GUM₁'s qualifying set from the active point of view, plus the reader's own filings.
+>     - A curation copy and its original count as one item (assistant-designation.md § Curation copies): the original when its filer is trusted, else the copy.
+>     - They are in filing order, ten to a page, with keyword search (item and filer) and A→Z / Z→A sort. One read returns at most 1,000; the page says when more were kept.
+>     - A consequence to know: a shared concept's own seed items show only when their author clears the cutoff. Community headers are often authored by Assistants, which have no trust score, so their seed items are usually set aside, and the page says how many.
+>   - **Curation** names the curating Assistant from the person's Treasure Map, read strictly. It is the Assistant whose per-DList entry addresses exactly this header, else the blanket `39998:dlist-header` Assistant, else the local Assistant (`conceptCurator` in `ui/src/utils/treasureMap.js`). A Map that cannot be read names no one and says so.
+>   - **The author strip** states GUM₁ as "N members of your trusted, extended community file items under it", and only when the server reports `gum1`. The mock's "Recognized by N members" would need a count of trusted members whose Assistants `b`-point to the concept, which is GUM₂-shaped (§ 4).
+>   - **Shown, disabled, with a "later version" note:** the Trusted Curation Method (Customize), the four Curation switches, Veto / Restore, and the item pages (the mock's Dictionary item screen). Items rows are not links yet.
+> - **Added 2026-10-01: "Managed by" on the list page.** The owner asked for the list page to match the design's Dictionary screen. The rest of the page already did, so the gap was the design's "Managed by" beside the title. Decisions: a direct build; each Assistant's Dictionary is read from this instance's relay only; the union ships now; signed out it is a plain label; the choice lives in the URL.
+>   - **Who's in it.** The signed-in reader's Assistants come from `GET /api/assistant/my-assistants`: the local Assistant and every profile they tagged as one. The local Assistant's Dictionary is the reader's own (account plus Assistant, as before). Another Assistant's is its own headers, read by the same `GET /api/dictionaries/concepts`. Rules: `ui/src/pages/dictionaries/managedDictionary.js`.
+>   - **The union** ("All of my Assistants") is one row per shared concept, with "n of m Assistants".
+>     - An entry supports every row whose concepts overlap its own (its scored shared concept, any `b` target, or itself when self-declared), so tied `b`-tags in a different order don't split a row.
+>     - An entry starts a row only when it overlaps none, and rows never merge. The local Assistant's entry stands for a shared row.
+>     - For headers with several `b`-tags the result depends on the order the Dictionaries are read (the local Assistant's first). An entry that overlaps an earlier row supports it rather than getting a row of its own, so a count is a lower bound; the page already says counts can be low. No header on the local relay carried more than one `b`-tag on 2026-10-01.
+>     - A failed read counts in *m*, and the page names it.
+>     - The page says the counts come from this relay only, so they can be low.
+>   - **A read that fails is an error with Try again**, never an empty Dictionary. That covers one Assistant's read, all of the union's, the reader's own, and the list of Assistants itself.
+>   - **The URL** is `?managedBy=<npub>` or `?managedBy=all`; no value means the reader's own Dictionary. An entry opened from the list returns to it, and a remote Assistant's header is named for that Assistant.
+>   - **Kept as before, though the mock differs:** the lede; the finder heading (the search is not trust-filtered); and the "General Usage Metric" note, which describes GUM₁ (the mock's describes GUM₂). The sort menu takes the mock's "General Usage Metric" labels. Show's extra groups (Private, Curates Actively, subject groups) stay version 2.
+>   - **Only on `/dictionary`.** The control panel's Concepts page has no picker and still shows the reader's own Dictionary. Add to Dictionary is offered only there and on `/dictionary`'s own view.
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---

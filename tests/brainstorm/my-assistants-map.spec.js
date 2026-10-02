@@ -4,9 +4,9 @@ const { REQUIRED_TAGGINGS } = require('../../src/lib/identification-tags');
 /**
  * my-assistants #3 — what each Assistant does: your Treasure Map on /assistants. What a viewer SEES.
  *
- * Story: engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.md
- * ADR:   engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md
- * Plan:  engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.test-plan.md
+ * Story: engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.md
+ * ADR:   engineering-team/decisions/done/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md
+ * Plan:  engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.test-plan.md
  * Node half: test/my-assistants-map.test.js (the duties, per Assistant, the Duties tab's rows, the hook's option).
  *
  * The Treasure Map is read as the hook reads it (ADR 0003): local strfry first (/api/strfry/scan, kinds [10040]),

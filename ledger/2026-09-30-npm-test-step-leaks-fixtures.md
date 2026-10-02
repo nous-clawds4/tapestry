@@ -48,5 +48,12 @@ Result: 245/245 suites, every live suite skipped, nothing published (gate run `2
 - disable the Mac Studio's tag streams. That's the owner's call: the flags have been set since 2026-07-18
   (`/var/lib/brainstorm/router-state.json`), and nothing found records why.
 
-**Pointer:** `engineering-team/reviews/my-assistants/1-the-my-assistants-page.md` § Harness friction 1; OPEN.md row
+**Pointer:** `engineering-team/reviews/done/my-assistants/1-the-my-assistants-page.md` § Harness friction 1; OPEN.md row
 `2026-09-27-test-fixture-taggings-on-prod-relays` (its 2026-09-29 and 2026-09-30 updates).
+
+**Update 2026-10-01 (list-headers-disposition #3, review round 2).** The isolated recipe above ran for the first
+time in that book at Review round 2. It caught a gate failure the earlier phases couldn't see:
+`gate-result-record` C9 flagged the story's new suite for formatting curl's status itself. Test Design and
+Implementation had run only the suites they touched, as the publish-leak rule requires, so the guard suites that
+inspect *other* test files never ran. Add to the fix shape: run the isolated recipe at Test Design and at
+Implementation too, whenever a story adds or edits a suite, not only at Review.

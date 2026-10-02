@@ -28,4 +28,4 @@ It passed in these runs, but it can race the same way.
 before the assertion. Do the same in D5.
 
 **Pointer:** `tests/brainstorm/dictionary-concepts.spec.js` D5, D6; found while running the
-my-assistants #1 suites (`engineering-team/stories/my-assistants/1-the-my-assistants-page.md` § Deviations).
+my-assistants #1 suites (`engineering-team/stories/done/my-assistants/1-the-my-assistants-page.md` § Deviations).

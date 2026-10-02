@@ -338,7 +338,7 @@ test('S1: the route, its validation, and the seam it shares with the trusted dic
     'Firmware: the row is a firmware concept or points at one');
   assert(/computeConceptDictionary\(/.test(s), 'the arithmetic is delegated to the pure core');
   const uses = (s.match(/await resolveQualifying\(/g) || []).length;
-  assert(uses === 2, `both dictionary reads resolve the qualifying set through one seam (resolveQualifying), found ${uses} calls`);
+  assert(uses === 3, `the three dictionary reads (trusted dictionary, a person's dictionary, an entry's Items) resolve the qualifying set through one seam (resolveQualifying), found ${uses} calls`);
 });
 
 test('S2: the pages read the person\'s dictionary, not the trusted dictionary', () => {
@@ -397,7 +397,8 @@ test('S5: routes, placeholders, and the Dictionaries index prose (from trusted-d
 
 test('S6: Add to Dictionary is offered only to a signed-in owner (the b-disposition writes are owner-only)', () => {
   const page = flat(code(src(DICT_CONCEPTS_JSX)));
-  assert(/canAdd=\{signedIn && person\.isOwner\}/.test(page), 'the finder gets canAdd = signed in AND the owner');
+  assert(/canAdd=\{signedIn && person\.isOwner( && !managed)?\}/.test(page),
+    'the finder gets canAdd = signed in AND the owner (and, on /dictionary, the reader\'s own list: dictionary-managed-by S3)');
   assert(/\{canAdd && \(\s*<button/.test(page), 'the Add to Dictionary button renders only when canAdd');
 });
 
@@ -421,7 +422,7 @@ test('S8: /dictionary renders the control panel pages\' own bodies, so the two c
   const concepts = flat(code(src(DICT_CONCEPTS_JSX)));
   const conceptEntry = flat(code(src(DICT_ENTRY_JSX)));
   assert(/import \{ ConceptsDictionaryBody \} from ['"]\.\.\/dictionaries\/Concepts['"]/.test(page)
-    && /<ConceptsDictionaryBody entryHref=\{dictionaryEntryPath\} \/>/.test(page),
+    && /<ConceptsDictionaryBody entryHref=\{dictionaryEntryPath\}( managed=\{managed\})? \/>/.test(page),
     '/dictionary renders ConceptsDictionaryBody from the control panel page, its rows opening /dictionary/:coord');
   assert(/import \{ ConceptEntryBody \} from ['"]\.\.\/dictionaries\/ConceptEntry['"]/.test(entry)
     && /<ConceptEntryBody listHref=\{DICTIONARY_PATH\}/.test(entry),

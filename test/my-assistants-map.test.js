@@ -2,9 +2,9 @@
 /**
  * my-assistants #3: what each Assistant does — your Treasure Map on the My Assistants page.
  *
- * Story: engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.md
- * ADR:   engineering-team/decisions/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md
- * Plan:  engineering-team/stories/my-assistants/3-the-treasure-map-on-the-page.test-plan.md
+ * Story: engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.md
+ * ADR:   engineering-team/decisions/done/my-assistants/0003-the-pages-treasure-map-is-the-shared-hook-read-strictly.md
+ * Plan:  engineering-team/stories/done/my-assistants/3-the-treasure-map-on-the-page.test-plan.md
  * Browser half: tests/brainstorm/my-assistants-map.spec.js (the map states, tabs, row duties, the not-tagged
  * section, the Duties tab).
  *

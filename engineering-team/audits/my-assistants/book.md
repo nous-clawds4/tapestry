@@ -1,9 +1,9 @@
 # Book of Work: My Assistants — `/assistants`, built to the Claude Design blueprint
 
 **Slug:** my-assistants
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-09-30
-**Closed:** —
+**Closed:** 2026-10-01
 
 ## Intent anchor
 
@@ -26,22 +26,22 @@ README).
 
 *Proposed 2026-09-30 with story 1. It's confirmed when the owner approves story 1.*
 
-- [ ] A **My Assistants** item in the avatar menu opens `/assistants`, locally and on staging. The
+- [x] A **My Assistants** item in the avatar menu opens `/assistants`, locally and on staging. The
       page is in the Brainstorm design's styling and follows the blueprint.
-- [ ] The **Assistants** tab lists every profile the signed-in person has tagged **My Brainstorm
+- [x] The **Assistants** tab lists every profile the signed-in person has tagged **My Brainstorm
       Assistant** or **My Tapestry Assistant**, and marks the one hosted on this instance as
       **Local**. The Local one is listed even when the person hasn't tagged it, marked as not
       tagged, with a prompt to tag it.
-- [ ] From the page, a person can find a profile and tag it as either kind of Assistant, switch
+- [x] From the page, a person can find a profile and tag it as either kind of Assistant, switch
       which tag it carries, and remove the tag. A **My Brainstorm Assistant** tag definition exists
       for those taggings to point at.
-- [ ] Each Assistant shows whether it's on the person's Treasure Map and what its duties there are.
+- [x] Each Assistant shows whether it's on the person's Treasure Map and what its duties there are.
       Assistants that are on the Treasure Map but not tagged are listed separately.
-- [ ] The **Duties** tab lists the duties on the person's Treasure Map, read-only, covering the
+- [x] The **Duties** tab lists the duties on the person's Treasure Map, read-only, covering the
       entry types the app understands today.
-- [ ] Each Assistant's NIP-05 shows whether its domain confirms it (Verified, Not valid, Couldn't check), and every
+- [x] Each Assistant's NIP-05 shows whether its domain confirms it (Verified, Not valid, Couldn't check), and every
       Assistant on the page links to its Brainstorm profile page (added with story 4, decision 14).
-- [ ] The book is shipped to staging. Production only on the owner's explicit go.
+- [x] The book is shipped to staging. Production only on the owner's explicit go.
 
 ## Decisions at intake
 
@@ -157,7 +157,7 @@ After the shipping checks, 2026-10-01:
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high (every frame bullet maps to Done stories with PASS reviews; shipped to staging via PRs #795 and #797; the § Before shipping items were proven on the live instances)
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/my-assistants/audit.md`
