@@ -156,11 +156,12 @@ function Problems({ view, body }) {
 /**
  * `read` is the path status read ({ state, body, error, readAt }); `view` is pathView of its body, or null. The
  * switch (story 5): `statusRead` is the pass status read, `sched` scheduleView of the schedule list or null,
- * `record` the switch record's read and `recordView` switchRecordView of it, `change` the panel's change state and
- * `onSwitch(on)` sends one. The control and the record render only once the path status has a body.
+ * `schedPending` true while that list's first read has not answered, `record` the switch record's read and
+ * `recordView` switchRecordView of it, `change` the panel's change state and `onSwitch(on)` sends one. The control
+ * and the record render only once the path status has a body.
  */
 export default function PathSection({
-  read, view, onRetry, statusRead, sched, record, recordView, onRetryRecord, change, onSwitch,
+  read, view, onRetry, statusRead, sched, schedPending, record, recordView, onRetryRecord, change, onSwitch,
 }) {
   const title = 'The real-time path';
   if (!view || read.state === 'loading') {
@@ -182,7 +183,15 @@ export default function PathSection({
     <Section testId="tp-path" state={state} title={title} tone={view.tone}>
       {failed && <ReadFailed what="The path status" error={read.error} readAt={read.readAt} onRetry={onRetry} />}
       <OnLine view={view} body={body} />
-      <PathSwitch view={view} body={body} statusRead={statusRead} sched={sched} change={change} onSwitch={onSwitch} />
+      <PathSwitch
+        view={view}
+        body={body}
+        statusRead={statusRead}
+        sched={sched}
+        schedPending={schedPending}
+        change={change}
+        onSwitch={onSwitch}
+      />
       <SwitchRecord read={record} view={recordView} onRetry={onRetryRecord} />
       {view.state !== null && (
         <p style={{ color: TONE_COLOUR[view.tone] }}>State: <Explained kind="pathState" code={view.state} /></p>

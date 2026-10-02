@@ -192,7 +192,7 @@ export const EXPLANATIONS = Object.freeze({
     EBADJSON: 'A file of the pass\'s state on the data volume is damaged and cannot be parsed. If it is the owner\'s confirmation, the owner can confirm again, which replaces it.',
     // The Neo4j driver's own codes (node_modules/neo4j-driver-core/lib/error.js). No source passes either through
     // today (allowErrorCode turns both into error), so these are floors against a future one (ADR 0005 § Amendments).
-    'N/A': 'The Neo4j driver reported an error it did not classify. Most often it could not get a connection within its 30-second limit, or NEO4J_URI or its TLS setting in /etc/brainstorm.conf in the tapestry container is wrong. Check that Neo4j is running and that those settings are right, then try again.',
+    'N/A': 'The Neo4j driver reported an error it did not classify. Most often it could not get a connection within its 30-second limit, or NEO4J_URI in /etc/brainstorm.conf in the tapestry container is wrong: its address, or its scheme, which alone chooses TLS (bolt:// for none, bolt+s:// or neo4j+s:// for TLS). Check that Neo4j is running and that NEO4J_URI is right, then try again.',
     ProtocolError: 'The Neo4j driver hit a Bolt protocol fault: a protocol version mismatch, or something other than Neo4j answering at the Bolt port. Check that NEO4J_URI in /etc/brainstorm.conf in the tapestry container names Neo4j\'s Bolt address, then try again.',
   }),
   // A failed or refused pass's own failure.code (ADR 0004 T12), shown under where it failed. The runner
@@ -212,7 +212,7 @@ export const EXPLANATIONS = Object.freeze({
     'tags_address-missing': 'The pass could not create the one-per-tagging rule, so it changed no relationship or person. One cause is another rule that already holds its name, tags_address. Raise it with the owner. The control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container, says why at its last start.',
     'tags_address-not-online': 'The one-per-tagging rule exists but its index was not online within the 60 seconds the pass waited, so it changed no relationship or person. Usually Neo4j is still building it: wait a few minutes, then run the pass again. If it stays offline, its index may have failed, so raise it with the owner.',
     'nostrUser_pubkey-missing': 'The NostrUser pubkey rule is missing from the database, so the pass changed no relationship or person. Run the constraints fix on the Dashboard, then run the pass again.',
-    'no-status': 'Checking or creating the one-per-tagging rule failed with an error that carried no code, so the pass changed no relationship or person. Every error the Neo4j driver raises carries a code, so this one came from a fault in the schema check\'s own code, what it passes to the driver included, or in another library, never from Neo4j\'s answer. Report it as a bug, with the error message shown below it.',
+    'no-status': 'Checking or creating the one-per-tagging rule failed with an error that carried no code, so the pass changed no relationship or person. The Neo4j driver gives every failure Neo4j answers with a code, N/A when there is no other, and the only errors it throws without one come from its own checks of what it is passed and of its settings. So this one came from a fault in the schema check\'s own code, what it passes to the driver included, or in another library, never from Neo4j\'s answer. Report it as a bug, with the error message shown below it.',
     // Reads (the graph read, its schema re-check, the relay read and a write's re-read).
     incomplete: 'The graph or the relay answered a read with no list of results, so the pass did not trust it and changed no relationship or person. The next pass tries again. If it repeats, check that Neo4j and the relay are running in the tapestry container.',
     'missing-column': 'A row the graph returned lacks a column the pass reads, so the pass stopped rather than use it. If it stopped while writing, batches written before it stand. The next pass tries again. If it repeats, report it as a bug.',
@@ -223,16 +223,16 @@ export const EXPLANATIONS = Object.freeze({
     signal: 'A signal ended the pass, or ended the strfry command reading the relay. The stage beside it says which. A stop signal ends the pass at a safe point between its steps. Anything written before it stands, and the next pass finishes the rest.',
     error: 'The step failed without a code that says why. The error message shown below it has the details, and the next pass tries again.',
     // The Neo4j driver's own codes (node_modules/neo4j-driver-core/lib/error.js), raw at any graph stage.
-    'N/A': 'The Neo4j driver ended the step with an error it did not classify. Most often it could not get a connection within its 30-second limit, or NEO4J_URI or its TLS setting in /etc/brainstorm.conf in the tapestry container is wrong. Check that Neo4j is running and that those settings are right, then run the pass again. If it failed while writing, batches written before it stand.',
+    'N/A': 'The Neo4j driver ended the step with an error it did not classify. Most often it could not get a connection within its 30-second limit, or NEO4J_URI in /etc/brainstorm.conf in the tapestry container is wrong: its address, or its scheme, which alone chooses TLS (bolt:// for none, bolt+s:// or neo4j+s:// for TLS). Check that Neo4j is running and that NEO4J_URI is right, then run the pass again. If it failed while writing, batches written before it stand.',
     ProtocolError: 'The Neo4j driver hit a Bolt protocol fault: a protocol version mismatch, or something other than Neo4j answering at the Bolt port. Check that NEO4J_URI in /etc/brainstorm.conf in the tapestry container names Neo4j\'s Bolt address, then run the pass again. If it failed while writing, batches written before it stand.',
     // The relay read's codes (strfryScanStrict's ScanError, SCAN_ERROR_CODES), at the relay read.
     spawn: 'The pass could not start the strfry command that reads the relay, so it changed no relationship or person. The next pass tries again. If it repeats, the error message shown below it says why.',
-    'process-error': 'The strfry command that reads the relay could not run, or its output could not be read, so the pass changed no relationship or person. The next pass tries again. If it repeats, the error message and the command\'s last output, shown below it, say why.',
+    'process-error': 'The strfry command that reads the relay could not run, or its output could not be read, so the pass changed no relationship or person. The next pass tries again. If it repeats, the error message shown below it says what failed. When the command ran far enough to print an error line, that line is shown below it too.',
     timeout: 'The relay read ran past its time limit, so the pass changed no relationship or person. The next pass tries again. If it repeats, check that the relay is answering in the tapestry container.',
-    exit: 'The strfry command that reads the relay ended with a failure code, so the pass changed no relationship or person. The next pass tries again. If it repeats, the command\'s last output, shown below it, says why.',
+    exit: 'The strfry command that reads the relay ended with a failure code, so the pass changed no relationship or person. The next pass tries again. If it repeats, the command\'s last error line, shown below it, may say why. When it printed none, only its exit code is shown there.',
     truncated: 'The relay read\'s output stopped part-way through a line, so the pass did not trust it and changed no relationship or person. The next pass tries again.',
-    unparseable: 'The relay read printed a line that is not JSON, so the pass did not trust it and changed no relationship or person. The next pass tries again. If it repeats, the command\'s last output, shown below it, may say why.',
-    'not-an-event-line': 'The relay read printed a line that is not an event, so the pass did not trust it and changed no relationship or person. The next pass tries again. If it repeats, the command\'s last output, shown below it, may say why.',
+    unparseable: 'The relay read printed a line that is not JSON, so the pass did not trust it and changed no relationship or person. The next pass tries again. If it repeats, the command\'s last error line, shown below it when it printed one, may say why.',
+    'not-an-event-line': 'The relay read printed a line that is not an event, so the pass did not trust it and changed no relationship or person. The next pass tries again. If it repeats, the command\'s last error line, shown below it when it printed one, may say why.',
     duplicate: 'The relay read returned the same event twice, so the pass did not trust it and changed no relationship or person. The next pass tries again.',
     'off-filter': 'The relay read returned an event the pass did not ask for, so the pass did not trust it and changed no relationship or person. The next pass tries again.',
     'too-large': 'The relay read\'s output passed its size limit, so the read stopped and the pass changed no relationship or person. The next pass fails the same way until fewer or smaller events match, so check the relay for a flood of large events.',
@@ -477,7 +477,10 @@ export function turnOnWarning(statusRead) {
   return statusRead.state === 'error' ? 'could-not-check' : null;
 }
 
-/** One sentence per outcome of a change, for each target (ADR 0005 D12). */
+/**
+ * One sentence per outcome of a change, for each target (ADR 0005 D12). The sentence stays under the control beside
+ * later reads, so refused and failed speak of the attempt, in the past tense (story 5's review, round 1, requested 4).
+ */
 const SWITCH_OUTCOME = Object.freeze({
   done: Object.freeze({
     on: 'The path was turned on.',
@@ -492,13 +495,23 @@ const SWITCH_OUTCOME = Object.freeze({
     off: 'The outcome of turning the path off is unknown: no answer came back that the panel could read. The path\'s state shown here is from its next read.',
   }),
   refused: Object.freeze({
-    on: 'The server refused to turn the path on, so its state is unchanged. Sign in again as the owner or an admin, from the instance\'s own address, then try again.',
-    off: 'The server refused to turn the path off, so its state is unchanged. Sign in again as the owner or an admin, from the instance\'s own address, then try again.',
+    on: 'The server refused to turn the path on, so its state was unchanged by this attempt. Sign in again as the owner or an admin, from the instance\'s own address, then try again.',
+    off: 'The server refused to turn the path off, so its state was unchanged by this attempt. Sign in again as the owner or an admin, from the instance\'s own address, then try again.',
   }),
   failed: Object.freeze({
-    on: 'The path could not be turned on, and its state is unchanged. Check that the data volume has free space and is writable, then try again.',
-    off: 'The path could not be turned off, and it is still on as before. Check that the data volume has free space and is writable, then try again.',
+    on: 'The path could not be turned on, and its state was unchanged by this attempt. Check that the data volume has free space and is readable and writable, then try again.',
+    off: 'The path could not be turned off, and it was still on after this attempt, as before. Check that the data volume has free space and is writable, then try again.',
   }),
+});
+/**
+ * A failed change whose answer carries no `code` (ADR 0005 D12, refined at story 5's review, round 1, requested 6):
+ * every 500 the switch handler gives carries one (D11), so this answer is none of them (a proxy's 502, a 404 from an
+ * older backend, or a 400 or 415 refusal made before any change). It does not say what became of the change, so the
+ * sentence claims no state, and points at the remedy of fetchCode's http-<status> family.
+ */
+const FAILED_WITHOUT_CODE = Object.freeze({
+  on: 'The server answered with an error status that does not say whether the path was turned on. The path\'s state shown here is from its next read. Try again. If it repeats, check the control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container.',
+  off: 'The server answered with an error status that does not say whether the path was turned off. The path\'s state shown here is from its next read. Try again. If it repeats, check the control panel\'s log, /var/log/supervisor/brainstorm.log in the tapestry container.',
 });
 const SWITCH_TONE = Object.freeze({ done: 'ok', 'done-unrecorded': 'warn', unknown: 'warn', refused: 'bad', failed: 'bad' });
 
@@ -509,13 +522,16 @@ const SWITCH_TONE = Object.freeze({ done: 'ok', 'done-unrecorded': 'warn', unkno
  * - done-unrecorded: ok, and `recorded === false` (an off that took effect but could not be recorded);
  * - unknown: no answer the panel could read (timeout, network, or a 2xx whose JSON is bad);
  * - refused: a 401 or 403, with its HTTP status;
- * - failed: any other non-2xx, with the answer's own `code` (else readSection's http-<status>).
+ * - failed: any other non-2xx, with the answer's own `code`; an answer with none carries readSection's
+ *   http-<status> instead, and the sentence for an answer that did not come from the switch's failures.
  */
 export function switchOutcome(result, target) {
   const r = isObject(result) ? result : {};
+  const key = target === true ? 'on' : 'off';
   let outcome = 'unknown';
   let code = null;
   let httpStatus = null;
+  let text = null;
   if (r.ok === true) {
     outcome = isObject(r.body) && r.body.recorded === false ? 'done-unrecorded' : 'done';
   } else if (r.code === 'http-401' || r.code === 'http-403') {
@@ -524,9 +540,12 @@ export function switchOutcome(result, target) {
   } else if (typeof r.code === 'string' && /^http-\d{3}$/.test(r.code)) {
     outcome = 'failed';
     httpStatus = num(r.httpStatus);
-    code = isObject(r.body) && typeof r.body.code === 'string' && r.body.code !== '' ? r.body.code : r.code;
+    const answerCode = isObject(r.body) && typeof r.body.code === 'string' && r.body.code !== '' ? r.body.code : null;
+    code = answerCode === null ? r.code : answerCode;
+    if (answerCode === null) text = FAILED_WITHOUT_CODE[key];
   }
-  return { outcome, text: SWITCH_OUTCOME[outcome][target === true ? 'on' : 'off'], tone: SWITCH_TONE[outcome], code, httpStatus };
+  if (text === null) text = SWITCH_OUTCOME[outcome][key];
+  return { outcome, text, tone: SWITCH_TONE[outcome], code, httpStatus };
 }
 
 const RECORD_WHAT = 'The record of who switched the path';

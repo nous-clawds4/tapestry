@@ -211,6 +211,7 @@ export default function TaggingPipelinePanel({ onOpenTab }) {
         onRetry={() => readRealtime({ showLoading: true })}
         statusRead={status}
         sched={sched}
+        schedPending={!answered(schedule)}
         record={record}
         recordView={recordView}
         onRetryRecord={() => readRecord({ showLoading: true })}

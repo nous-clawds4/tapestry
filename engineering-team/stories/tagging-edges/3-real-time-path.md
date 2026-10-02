@@ -258,7 +258,8 @@ absent stance included, carrying the canonical stamp, this deployment's own, or 
       owner or admin may read who.
     - **Off still means off.** An off that cannot be recorded still takes effect, and its answer says so.
 
-    See story 5 and ADR `tagging-edges/0005`. The wording of `:101` and `:444` stands as story 3 shipped it.)*
+    See story 5 and ADR `tagging-edges/0005`. Two places keep the wording story 3 shipped: the definition of "on"
+    before the acceptance criteria, and Open question 5, the owner's decision 5 ("It ships turned off").)*
   - **Off means off.** Within a few seconds of the owner turning it off (the ADR states the bound):
     - the path writes nothing more (a transaction already committing may finish);
     - any catch-up under way stops;

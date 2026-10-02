@@ -15,10 +15,16 @@ function Warning({ children }) {
 }
 
 /**
- * What the backstop schedule's verdict is, in words, from scheduleView's result. With no view (the list has not
- * been read), it says the backstop could not be checked.
+ * What the backstop schedule's verdict is, in words, from scheduleView's result. With no view, it says the backstop
+ * is still being checked while the schedule list's first read has not answered (`pending`), and otherwise that it
+ * could not be checked: the read failed, or its answer was not a list (ADR 0005 D13, clarified at story 5's review).
  */
-export function BackstopVerdict({ view }) {
+export function BackstopVerdict({ view, pending = false }) {
+  if (!view && pending) {
+    return (
+      <p className="settings-hint">The backstop is still being checked: the schedule list has not answered yet.</p>
+    );
+  }
   if (!view) {
     return <Warning>The backstop could not be checked, because the schedule list could not be read.</Warning>;
   }

@@ -56,7 +56,11 @@ function ConfirmedLine({ confirmed, ended }) {
   );
 }
 
-/** A failure's own text (R2-6): its error message, or a relay read's last strfry output, both redacted already. */
+/**
+ * A failure's own text (R2-6), both redacted already: its error message, and a relay read's `stderrTail`. That is the
+ * last `strfry error:` line strfry printed, or else, for an `exit` failure only, `exit code N` (strfryScanStrict.js
+ * summarizeStderr), so it is often absent.
+ */
 const said = (v) => typeof v === 'string' && v !== '';
 
 function LatestPass({ latest, tone }) {
@@ -83,7 +87,7 @@ function LatestPass({ latest, tone }) {
       )}
       {failure && said(failure.message) && <p className="settings-hint">Its error message: {failure.message}</p>}
       {failure && said(failure.stderrTail) && (
-        <p className="settings-hint">The relay command's last output: {failure.stderrTail}</p>
+        <p className="settings-hint">The relay command's last error line, or its exit code: {failure.stderrTail}</p>
       )}
       {confirmation && confirmation.honoured === true && (
         <ConfirmedLine confirmed={latest.confirmed} ended={ended} />

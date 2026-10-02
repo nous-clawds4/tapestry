@@ -14,8 +14,11 @@ import { offPromptVariant, turnOnWarning } from '../../../utils/taggingPipelineV
 import { ReadFailed, TONE_COLOUR, when } from './parts.jsx';
 import { BackstopVerdict } from './ScheduleSection.jsx';
 
-/** The normal prompt's middle (story 5 AC-2 "Normally"): what is kept, and what keeps the graph in step meanwhile. */
-function WhileOff({ sched }) {
+/**
+ * The normal prompt's middle (story 5 AC-2 "Normally"): what is kept, and what keeps the graph in step meanwhile.
+ * `schedPending` is true while the schedule list's first read has not answered.
+ */
+function WhileOff({ sched, schedPending }) {
   return (
     <div>
       <p>
@@ -23,7 +26,7 @@ function WhileOff({ sched }) {
         from the few cases it leaves to the next pass.
       </p>
       <p>Meanwhile, only a pass keeps the graph in step:</p>
-      <BackstopVerdict view={sched} />
+      <BackstopVerdict view={sched} pending={schedPending} />
     </div>
   );
 }
@@ -45,7 +48,7 @@ function BeforeFirstStart() {
  * The off prompt (ADR 0005 D13): a heading, the variant's text (D8), and "Turn off" and "Cancel". Focus moves to
  * Cancel when it opens, through an effect, with no timer.
  */
-function OffPrompt({ variant, sched, onConfirm, onCancel }) {
+function OffPrompt({ variant, sched, schedPending, onConfirm, onCancel }) {
   const cancel = useRef(null);
   useEffect(() => {
     if (cancel.current) cancel.current.focus();
@@ -54,7 +57,7 @@ function OffPrompt({ variant, sched, onConfirm, onCancel }) {
     <div className="settings-group" style={{ borderColor: TONE_COLOUR.warn }}>
       <h4>Turn the real-time path off?</h4>
       <p>The path stops reflecting changes within a few seconds.</p>
-      {variant === 'first-start' ? <BeforeFirstStart /> : <WhileOff sched={sched} />}
+      {variant === 'first-start' ? <BeforeFirstStart /> : <WhileOff sched={sched} schedPending={schedPending} />}
       {variant === 'unknown' && (
         <p>
           The path's status cannot be read, so the panel could not check whether its first start has completed. If it
@@ -104,10 +107,10 @@ function Outcome({ outcome }) {
 
 /**
  * `view` is pathView of the path status body; `statusRead` is the pass status read (for the warning beside "Turn
- * on"); `sched` is scheduleView of the schedule list, or null; `change` is the panel's { target, pending, outcome };
- * `onSwitch(on)` sends a change.
+ * on"); `sched` is scheduleView of the schedule list, or null, and `schedPending` is true while that list's first
+ * read has not answered; `change` is the panel's { target, pending, outcome }; `onSwitch(on)` sends a change.
  */
-export default function PathSwitch({ view, body, statusRead, sched, change, onSwitch }) {
+export default function PathSwitch({ view, body, statusRead, sched, schedPending, change, onSwitch }) {
   const [asking, setAsking] = useState(false);
   // A read that shows the path off closes the prompt: there is nothing left to turn off.
   useEffect(() => {
@@ -126,6 +129,7 @@ export default function PathSwitch({ view, body, statusRead, sched, change, onSw
       <OffPrompt
         variant={offPromptVariant(body)}
         sched={sched}
+        schedPending={schedPending}
         onConfirm={() => { setAsking(false); onSwitch(false); }}
         onCancel={() => setAsking(false)}
       />

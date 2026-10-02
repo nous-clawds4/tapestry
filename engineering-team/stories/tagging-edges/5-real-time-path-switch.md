@@ -256,9 +256,10 @@ intact" do not hold (ADR 0005 § Consequences):
 
 ## Evidence
 
-### The gate (Implementation, 2026-10-02)
+### The gate (Implementation, 2026-10-01)
 
-Node 22.23.3, full `npm test`, read from the run records (`gate:status`), and compared suite by suite:
+Node 22.23.3, full `npm test`, read from the run records (`gate:status`), and compared suite by suite. The run ids
+are UTC, so they read 2026-10-02.
 
 | Run | Tree | Passed | Failed | Skipped | Suites |
 |---|---|---|---|---|---|
@@ -273,6 +274,11 @@ Node 22.23.3, full `npm test`, read from the run records (`gate:status`), and co
   pass, fail and skip counts in both.
 - **The browser spec** passes 85 of 85, against the panel built inside the container into the gitignored `tmp/`,
   served on the host, with Node 22 and Chromium.
+- **A baseline worktree's record reads `dirty`** (`dirtyCount: 1`). Its one untracked entry is its `node_modules`
+  symlink into the main checkout, which `.gitignore`'s `node_modules/` does not match, since git sees a symlink as a
+  file. Its `ui/node_modules` symlink is ignored by `ui/.gitignore`. No tracked file changed.
+  - The `b6726818` worktree has since been removed. Its log names module paths only under the main checkout's
+    `node_modules`, and the `c557177f` worktree, made the same way, shows exactly that one entry.
 
 ### The local stack (2026-10-01)
 
@@ -295,6 +301,15 @@ The backend was restarted at 01:39:06Z on 2026-10-02 (`scripts/dev-refresh.sh`),
   - The panel then read "The path is off", "The path was turned off", and "Turned off by the owner (f0178122…)", with
     three changes in the history. The console showed no errors.
 - **The path was left off,** as it was before.
+
+### After the merge to staging (not yet run)
+
+The evidence ratified with this story (§ Open questions) that only staging can give. A Staging section holding it
+must exist here before staging is promoted to main:
+- the owner and an admin each turn the path off, through the prompt, and on, and the history shows both;
+- a direct request from someone who is neither owner nor admin is refused, and gets no "who";
+- the path catches up after;
+- production's path is not switched for evidence.
 
 ## Deviations
 
@@ -331,8 +346,16 @@ Small judgement calls made at Implementation (2026-10-01), too small for an ADR 
     is true in both variants. It drops only the normal variant's kept, caught-up and backstop lines.
   - **A failed change with no `body.code`** (a 404, or a 502 HTML page) shows `readSection`'s own `http-<status>` as
     its code.
-  - **The last change's outcome sentence** stays under the control until the next change or a close, and is in the
-    past tense ("The path was turned off.").
+  - **The last change's outcome sentence** stays under the control until the next change or a close, so it speaks of
+    the attempt, never of the path's state now:
+    - `done` and `done-unrecorded` report the change ("The path was turned off.");
+    - `refused`, and a `failed` change that carries the switch's own `code`, state the path as it was at the attempt,
+      in the past tense;
+    - a `failed` change with no `code` claims no state, and says the state shown is from the next read (ADR 0005
+      D12, refined at the review);
+    - `unknown` stays in the present tense, and defers to the next read.
+
+    *(Corrected at story 5's review, round 1, requested change 4: this called every outcome sentence past tense.)*
   - **`switchRecordView`** reads loading while the path status has no body. A ready record whose state is not one of
     D3's four reads as failed, with `bad-json`, as `ScheduleSection.jsx` does.
   - **The record's layout.** A "Latest change:" label appears only for the recorded and unrecorded-off states. The
@@ -347,7 +370,7 @@ Small judgement calls made at Implementation (2026-10-01), too small for an ADR 
   - **R2-5.** `passReason.stopped` leads with the report write and the data volume. It says the `TASK_ERROR` line
     carries `reportWriteFailed`, and may itself be missing on a full disk.
   - **R2-6.** "Where it failed" is followed by "Its error message: …" and, for a relay read, "The relay command's last
-    output: …". The countCode pointers to `strfry-error.log` stay: they explain the drift count and the path's last
+    error line, or its exit code: …". The countCode pointers to `strfry-error.log` stay: they explain the drift count and the path's last
     error, not a pass.
   - **The panel's hint** reads "Apart from the real-time path's switch, it changes nothing."
 - **Docs.**
@@ -356,8 +379,11 @@ Small judgement calls made at Implementation (2026-10-01), too small for an ADR 
   - **§12.9 gains a "Who changed it" paragraph** after the switch's answer: the record, the unrecorded off, the version
     1 reading, the gated GET, and ADR 0005's residuals.
   - **`inStartWindow`** is its own table row after `running`, `runningSince`.
-  - **The 403 text** also names `BRAINSTORM_ADMIN_PUBKEYS` (OPERATIONS §10.2's list), and says both lists are re-read
-    on every request.
+  - **The 403 text** also names the admin list the server checks (`getAdminPubkeys`, `src/utils/config.js`):
+    `adminPubkeys` in `/var/lib/brainstorm/settings.json` when that list is not empty, the list `POST /api/admin/add`
+    and `/api/admin/remove` write, and only otherwise `BRAINSTORM_ADMIN_PUBKEYS` in `brainstorm.conf`. It says the
+    owner's key and the admin list are re-read on every request. *(Corrected at story 5's review, round 1, requested
+    change 7: this named only `BRAINSTORM_ADMIN_PUBKEYS`.)*
   - **§12.9 gives a failed on's remedy:** a 500 with a `code`; check that the data volume has free space and is
     writable.
   - **BIBLE §16's story-3 entry** keeps "Owner-only switch", with "(owner or admin since story 5, below)". Story 4's
