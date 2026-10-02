@@ -168,7 +168,7 @@ test('M10: mergeDictionaries — headers whose b-tags list the same targets in a
   assert(out.entries[0].support.count === 2 && out.entries[0].coord === `39998:${LOCAL}:x`, JSON.stringify(out.entries[0]));
 });
 
-test('M11: mergeDictionaries — a later entry that bridges two rows folds them into the first', async () => {
+test('M11: mergeDictionaries — an entry that bridges two rows supports both, and never hides either', async () => {
   const { mergeDictionaries } = await m();
   const A = `39998:${OTHER}:a`;
   const B = `39998:${OTHER}:b`;
@@ -177,7 +177,8 @@ test('M11: mergeDictionaries — a later entry that bridges two rows folds them 
     { key: REMOTE, entries: [{ coord: `39998:${REMOTE}:ab`, sharedCoord: A, targets: [A, B] }] },
     { key: OTHER, error: 'HTTP 500' },
   ]);
-  assert(out.entries.length === 1 && out.entries[0].support.count === 2 && out.entries[0].support.of === 3, JSON.stringify(out.entries));
+  assert(out.entries.length === 2, `both of the local Assistant's entries stay, got ${out.entries.map((e) => e.coord)}`);
+  assert(out.entries.every((e) => e.support.count === 2 && e.support.of === 3), JSON.stringify(out.entries.map((e) => e.support)));
   assert(out.answered === 2, `two reads answered, got ${out.answered}`);
 });
 

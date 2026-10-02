@@ -33,7 +33,8 @@
 > - **Added 2026-10-01: "Managed by" on the list page.** The owner asked for the list page to match the design's Dictionary screen. The rest of the page already did, so the gap was the design's "Managed by" beside the title. Decisions: a direct build; each Assistant's Dictionary is read from this instance's relay only; the union ships now; signed out it is a plain label; the choice lives in the URL.
 >   - **Who's in it.** The signed-in reader's Assistants come from `GET /api/assistant/my-assistants`: the local Assistant and every profile they tagged as one. The local Assistant's Dictionary is the reader's own (account plus Assistant, as before). Another Assistant's is its own headers, read by the same `GET /api/dictionaries/concepts`. Rules: `ui/src/pages/dictionaries/managedDictionary.js`.
 >   - **The union** ("All of my Assistants") is one row per shared concept, with "n of m Assistants".
->     - Entries join when the concepts they point to overlap (their scored shared concept or any `b` target), so tied `b`-tags in a different order don't split a row. The local Assistant's entry stands for a shared row.
+>     - An entry supports every row whose concepts overlap its own (its scored shared concept, any `b` target, or itself when self-declared), so tied `b`-tags in a different order don't split a row.
+>     - An entry starts a row only when it overlaps none, and rows never merge, so no Assistant's entry is hidden behind another's. The local Assistant's entry stands for a shared row.
 >     - A failed read counts in *m*, and the page names it.
 >     - The page says the counts come from this relay only, so they can be low.
 >   - **A read that fails is an error with Try again**, never an empty Dictionary. That covers one Assistant's read, all of the union's, the reader's own, and the list of Assistants itself.

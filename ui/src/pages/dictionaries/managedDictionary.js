@@ -107,37 +107,35 @@ export function conceptKeys(entry) {
 
 /**
  * The union of several Assistants' Dictionaries. `reads` is one per Assistant, in the picker's
- * order: { key, entries } for a read that answered, { key, error } for one that failed. Entries that
- * stand for an overlapping set of concepts (conceptKeys) are one row: the first Assistant's entry
- * (the local one when it has it), with `support` = { count, of, keys } — how many of the reader's
- * Assistants carry it, out of all of them. `failed` lists the keys whose read failed; they count in
- * `of` but support nothing. `answered` is how many reads answered.
+ * order: { key, entries } for a read that answered, { key, error } for one that failed. An entry
+ * supports every row whose concepts it overlaps (conceptKeys), and starts a row of its own only when
+ * it overlaps none; rows are never merged, so no Assistant's entry is hidden behind another's. A
+ * row's entry is the first Assistant's (the local one when it has it), with `support` = { count, of,
+ * keys } — how many of the reader's Assistants carry it, out of all of them. `failed` lists the keys
+ * whose read failed; they count in `of` but support nothing. `answered` is how many reads answered.
  */
 export function mergeDictionaries(reads) {
   const list = Array.isArray(reads) ? reads : [];
   const of = list.length;
   const failed = [];
-  const rows = []; // { entry, keys:Set (Assistants), concepts:Set }
-  const rowOf = new Map(); // concept key → row
+  const rows = []; // { entry, keys:Set (Assistants) }
+  const rowsOf = new Map(); // concept key → Set of rows
   for (const read of list) {
     if (!read || !Array.isArray(read.entries)) { if (read && read.key) failed.push(read.key); continue; }
     for (const entry of read.entries) {
       const concepts = conceptKeys(entry);
       if (!concepts.length) continue;
-      // Every row this entry touches becomes one row: the earliest, with the others folded in.
-      const touched = [...new Set(concepts.map((k) => rowOf.get(k)).filter(Boolean))].sort((a, b) => a.at - b.at);
-      let row = touched[0];
-      if (!row) { row = { at: rows.length, entry, keys: new Set(), concepts: new Set() }; rows.push(row); }
-      for (const other of touched.slice(1)) {
-        other.keys.forEach((k) => row.keys.add(k));
-        other.concepts.forEach((c) => { row.concepts.add(c); rowOf.set(c, row); });
-        other.merged = true;
+      const touched = new Set(concepts.flatMap((k) => [...(rowsOf.get(k) || [])]));
+      if (touched.size === 0) {
+        const row = { entry, keys: new Set([read.key]) };
+        rows.push(row);
+        for (const c of concepts) rowsOf.set(c, new Set([row]));
+      } else {
+        for (const row of touched) row.keys.add(read.key);
       }
-      row.keys.add(read.key);
-      for (const c of concepts) { row.concepts.add(c); rowOf.set(c, row); }
     }
   }
-  const entries = rows.filter((r) => !r.merged).map(({ entry, keys }) => ({
+  const entries = rows.map(({ entry, keys }) => ({
     ...entry,
     support: { count: keys.size, of, keys: [...keys] },
   }));

@@ -8,7 +8,9 @@ import { ALL, ALL_LABEL } from '../dictionaries/managedDictionary';
  * list of Assistants is the signed-in reader's own.
  *
  * Keyboard: opening moves focus to the chosen option; Arrow keys, Home and End move between options;
- * Escape, a pick, or tabbing away closes the menu, and Escape and a pick return focus to the trigger.
+ * Escape (from the menu or the trigger), a pick, or tabbing away closes the menu, and Escape and a
+ * pick return focus to the trigger. Focus leaving for nowhere (Safari blurs a pressed button without
+ * focusing it) is not leaving the menu, or a mouse or touch pick would close it before it lands.
  */
 export default function ManagedBy({ person, status, options, choice, onPick }) {
   const [open, setOpen] = useState(false);
@@ -56,13 +58,13 @@ export default function ManagedBy({ person, status, options, choice, onPick }) {
     else if (e.key === 'ArrowUp') go(at - 1);
     else if (e.key === 'Home') go(0);
     else if (e.key === 'End') go(items.length - 1);
-    else if (e.key === 'Escape') { e.preventDefault(); close(true); }
   };
 
   return (
     <div
       className="bsd-managed-wrap" ref={wrap}
-      onBlur={(e) => { if (open && !wrap.current.contains(e.relatedTarget)) setOpen(false); }}
+      onBlur={(e) => { if (open && e.relatedTarget && !wrap.current.contains(e.relatedTarget)) setOpen(false); }}
+      onKeyDown={(e) => { if (open && e.key === 'Escape') { e.preventDefault(); close(true); } }}
     >
       <button
         type="button" ref={trigger} className="bsd-managed bsd-managed-btn" aria-haspopup="menu" aria-expanded={open}

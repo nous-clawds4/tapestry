@@ -51,6 +51,8 @@ const { test, expect } = require('@playwright/test');
  *   D16 — an Assistant's Dictionary that cannot be read is an error with Try again, never "0 concepts".
  *   D17 — when the reader's Assistants cannot be read, the page says so and offers Try again.
  *   D18 — the menu works from the keyboard: focus moves in, arrows move, Escape returns to the trigger.
+ *   D19 — focus leaving for nowhere (Safari, pressing an option) leaves the menu open, so a pick lands;
+ *         Escape on the trigger closes it.
  */
 
 const OWNER = '1'.repeat(64);
@@ -500,6 +502,25 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\?managedBy=npub1/);
     await expect(page.getByRole('button', { name: /^Managed by Robin/ }), 'a pick returns focus to the trigger').toBeFocused();
+  });
+
+  test('D19: focus leaving for nowhere keeps the menu open, so a mouse pick lands; Escape on the trigger closes it', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    await page.goto(PAGE);
+    const trigger = page.getByRole('button', { name: /^Managed by Baz’s Assistant/ });
+    await trigger.click();
+    await expect(page.getByRole('menu')).toBeVisible();
+    // Safari blurs a pressed button without focusing it: focus goes nowhere before the click lands.
+    await page.evaluate(() => document.activeElement && document.activeElement.blur());
+    await expect(page.getByRole('menu'), 'still open').toBeVisible();
+    await page.getByRole('menuitemradio', { name: /Robin/ }).click();
+    await expect(page).toHaveURL(/\?managedBy=npub1/);
+    const robin = page.getByRole('button', { name: /^Managed by Robin/ });
+    await robin.click();
+    await robin.focus();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu'), 'Escape on the trigger closes it').toHaveCount(0);
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {
