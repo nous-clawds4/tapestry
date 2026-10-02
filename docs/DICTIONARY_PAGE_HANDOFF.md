@@ -42,6 +42,16 @@
 >   - **The URL** is `?managedBy=<npub>` or `?managedBy=all`; no value means the reader's own Dictionary. An entry opened from the list returns to it, and a remote Assistant's header is named for that Assistant.
 >   - **Kept as before, though the mock differs:** the lede; the finder heading (the search is not trust-filtered); and the "General Usage Metric" note, which describes GUM₁ (the mock's describes GUM₂). The sort menu takes the mock's "General Usage Metric" labels. Show's extra groups (Private, Curates Actively, subject groups) stay version 2.
 >   - **Only on `/dictionary`.** The control panel's Concepts page has no picker and still shows the reader's own Dictionary. Add to Dictionary is offered only there and on `/dictionary`'s own view.
+> - **Added 2026-10-02: the item page.** The owner asked for the design's Dictionary item screen. It is a direct build.
+>   - **Where it is.** Each row of an entry's Items now opens its item. On `/dictionary` that is `/dictionary/:coord/items/:item` (`ui/src/pages/dictionary/Item.jsx`). The page shows the item's name, "Item N in ⟨concept⟩", a description, who filed it (with "View Nostr profile", the in-app profile page) and the raw Nostr event. In the control panel, the row opens the existing Simple Lists item page (`/tapestry/lists/items/:id`).
+>   - **How it's read.** Opened from the table, the row's state carries the item, its number and the entry, so only the event (and its filer's profile) is read. A direct visit reads the person's Dictionary, then the entry's Items, for the number.
+>   - **The description** is the event's own `description` tag. Failing that, it says only what the reads establish:
+>     - who filed the item under the concept, when it's in the Items, matched by its own key however the page was opened;
+>     - that it isn't filed under the concept at all, from its `z` tags against the entry's concepts;
+>     - or that its filer isn't trusted, which needs the entry known, a complete (uncapped) Items read, and a filer other than the reader.
+>
+>     A failed read is named instead.
+>   - **Route params are read as the router decoded them**, so a `%` in a d-tag can't crash the page. The entry page and the Simple Lists item page decode only what still decodes.
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---

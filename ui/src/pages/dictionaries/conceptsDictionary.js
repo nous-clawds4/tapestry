@@ -24,6 +24,12 @@ export const entryPath = (coord) => `${CONCEPTS_DICTIONARY_PATH}/${encodeURIComp
 export const DICTIONARY_PATH = '/dictionary';
 export const dictionaryEntryPath = (coord) => `${DICTIONARY_PATH}/${encodeURIComponent(coord)}`;
 
+// An entry's item: on /dictionary its own page (pages/dictionary/Item.jsx), by the item's address or
+// event id; in the control panel the Simple Lists item page, which opens a kind-39999 item by address
+// and anything else by id (utils/treasureMap itemRouteId).
+export const dictionaryItemPath = (coord, item) => `${dictionaryEntryPath(coord)}/items/${encodeURIComponent(item.address || item.id)}`;
+export const controlPanelItemPath = (coord, item) => `/tapestry/lists/items/${encodeURIComponent(item.kind === 39999 && item.address ? item.address : item.id)}`;
+
 // The metrics the server can name. Version 1 ships GUM₁ only; GUM₂ and GUM₃
 // (SPEC § 4) add their labels here when the server starts reporting them.
 const METRICS = {
@@ -39,6 +45,15 @@ export const OVERRIDE_BADGES = {
   vetoed: { label: 'Vetoed by you −', className: 'dict-badge dict-badge--vetoed' },
 };
 export const overrideBadge = (entry) => OVERRIDE_BADGES[entry?.override] || null;
+
+/**
+ * A route param as the page should read it. React Router has already decoded it, so decoding again
+ * would turn a d-tag's literal "%" into a crash (URIError) or a different value; this decodes only
+ * what still decodes, so an older doubly-encoded link keeps working and nothing throws.
+ */
+export function safeDecode(raw) {
+  try { return decodeURIComponent(raw || ''); } catch { return raw || ''; }
+}
 
 /** "kind:pubkey:d" → parts; d may itself contain colons. */
 export function coordParts(coord) {
