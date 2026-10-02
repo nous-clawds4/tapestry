@@ -19,6 +19,15 @@
  *
  * Against the tree before the Implementer (88af7df3): the tests that pin today's RelaySettings sub-tabs, imports and
  * render lines, and today's styles.css, PASS; every test about the new files fails by name ("… not implemented yet").
+ *
+ * tagging-edges #5 (the real-time path's switch on the panel):
+ * Story: engineering-team/stories/tagging-edges/5-real-time-path-switch.md (AC-1, AC-2, AC-6; Test tasks "Story 4's
+ *        GET-only pins are revised, not deleted")
+ * ADR:   engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md (§ Constraints, D12, D13, § Seams
+ *        "Static pins")
+ * PS13 now allows exactly one non-GET, sendSwitch's POST; PS14's paths gain the switch path. PS10, PS11 and PS12 stand
+ * as written. PS26–PS28 pin the static facts ADR 0005 fixes. Against 8a082b75 (before story 5's Implementer), PS13,
+ * PS14 and PS26–PS28 fail by name; every other test passes.
  */
 
 const fs = require('fs');
@@ -152,12 +161,15 @@ const JS_COLOUR_KEY_RE = /colou?r|background|border|outline|fill|stroke|shadow/i
 const ALLOWED_TOKENS = ['--green', '--orange', '--red', '--text', '--text-muted', '--border', '--bg-secondary', '--bg-tertiary'];
 const SECTION_IDS = ['tp-pass', 'tp-held', 'tp-schedule', 'tp-path', 'tp-drift'];
 const SECTION_STATES = ['loading', 'ready', 'empty', 'error'];
+/** Story 5's one route: GET reads the switch's record, POST is the panel's one change (ADR 0005 D6, D12). */
+const SWITCH_PATH = '/api/tagging-edges/realtime/switch';
 const READ_PATHS = [
   '/api/tagging-edges/status',
   '/api/tagging-edges/realtime/status',
   '/api/scheduled-tasks/list',
   '/api/tagging-edges/held',
   '/api/tagging-edges/drift-counts',
+  SWITCH_PATH, // story 5 (ADR 0005 § Consequences "PS14 gains the one switch path")
 ];
 
 // ─── RelaySettings: today's shape, read from the file at 88af7df3 (UI as at 66d60cb5) ───────────────────────────────
@@ -290,6 +302,49 @@ function localFunctions(sf, name) {
   return out;
 }
 const normText = (sf, n) => n.getText(sf).replace(/\s+/g, '');
+/** Is node `n` inside `anc` (or `anc` itself)? */
+function within(n, anc) { for (let p = n; p; p = p.parent) if (p === anc) return true; return false; }
+/** Does the file export `name`: `export function name`, `export const name = …`, or `export { name }`? */
+function isExported(sf, name) {
+  const t = ts();
+  const hasExport = (node) => (node.modifiers || []).some((m) => m.kind === t.SyntaxKind.ExportKeyword);
+  for (const s of sf.statements) {
+    if (t.isFunctionDeclaration(s) && s.name && s.name.text === name && hasExport(s)) return true;
+    if (t.isVariableStatement(s) && hasExport(s) && s.declarationList.declarations.some((d) => t.isIdentifier(d.name) && d.name.text === name)) return true;
+    if (t.isExportDeclaration(s) && !s.moduleSpecifier && s.exportClause && t.isNamedExports(s.exportClause)
+      && s.exportClause.elements.some((e) => e.name.text === name)) return true;
+  }
+  return false;
+}
+/** The text a string expression stands for: a literal, or a same-file const whose initializer is one. */
+function literalValue(sf, e, depth = 2) {
+  const t = ts();
+  e = unparen(e);
+  if (!e) return null;
+  if (t.isStringLiteral(e) || t.isNoSubstitutionTemplateLiteral(e)) return e.text;
+  if (t.isIdentifier(e) && depth > 0) {
+    const inits = localInits(sf, e.text);
+    if (inits.length === 1) return literalValue(sf, inits[0], depth - 1);
+  }
+  return null;
+}
+/** The names a file imports from `target` (a module path, with or without its extension), unaliased, plus namespaces. */
+function importsFrom(file, target) {
+  const t = ts();
+  const sf = parse(file);
+  const out = { names: new Set(), namespaces: new Set() };
+  if (!sf) return out;
+  const noExt = target.replace(/\.(jsx?|mjs)$/, '');
+  for (const s of sf.statements) {
+    if (!t.isImportDeclaration(s) || !t.isStringLiteral(s.moduleSpecifier)) continue;
+    const resolved = path.resolve(path.dirname(file), s.moduleSpecifier.text);
+    if (resolved !== target && resolved !== noExt) continue;
+    const nb = s.importClause && s.importClause.namedBindings;
+    if (nb && t.isNamedImports(nb)) for (const el of nb.elements) { if (!el.propertyName || el.propertyName.text === el.name.text) out.names.add(el.name.text); }
+    else if (nb && t.isNamespaceImport(nb)) out.namespaces.add(nb.name.text);
+  }
+  return out;
+}
 
 // ═══════════════════════════════ PS — the panel file and its wiring into RelaySettings ═══════════════════════════════
 
@@ -624,21 +679,31 @@ test('PS12: the five sections carry their hooks — data-testid tp-pass, tp-held
 
 // ═══════════════════════════════ PS — reads only ═══════════════════════════════════════════════════════════════════
 
-test('PS13: every request is a GET — no method other than GET (no method: \'POST\' | \'PUT\' | \'PATCH\' | \'DELETE\'), no such verb as a string, and no .post/.put/.patch/.delete call and no sendBeacon anywhere in the panel folder or the two utils; readSection sends method: \'GET\' [AC-1 "It changes nothing"; AC-6 "The panel adds reads, never a new way to change them"; ADR 0004 § UI "Every request the panel sends is a GET"; taggingPipelineFetch.js]', async () => {
+test('PS13: every request is a GET but one — the method \'POST\' inside sendSwitch in ui/src/utils/taggingPipelineFetch.js, which sends to the literal \'/api/tagging-edges/realtime/switch\'. Anywhere else in the panel folder or the two utils: no method other than the literal \'GET\', no POST/PUT/PATCH/DELETE as a string, no .post/.put/.patch/.delete call and no sendBeacon; readSection still sends method: \'GET\' [story 5 AC-6 "The panel\'s reads still change nothing", Test tasks "PS13 … allow exactly this control\'s request"; ADR 0005 D12, § Consequences "PS13 allows exactly sendSwitch\'s POST", § Seams "Static pins"; ADR 0004 § UI "Every request the panel sends is a GET"]', async () => {
   const t = ts();
   const files = scopeFiles();
+  const fsf = parse(FETCH);
+  const isStr = (n) => t.isStringLiteral(n) || t.isNoSubstitutionTemplateLiteral(n);
+  // sendSwitch (ADR 0005 D12): `export function sendSwitch(on, { fetchImpl, timeoutMs = 15000 })`, or a const arrow.
+  const sendSwitch = localFunctions(fsf, 'sendSwitch');
+  const inSendSwitch = (n) => sendSwitch.some((fn) => within(n, fn));
+  // The one allowed non-GET: a `method: 'POST'` property written inside sendSwitch, in the fetch util.
+  const allowedPosts = [];
+  const isAllowedPost = (sf, n) => sf === fsf && t.isPropertyAssignment(n) && propName(n) === 'method'
+    && isStr(unparen(n.initializer)) && unparen(n.initializer).text === 'POST' && inSendSwitch(n);
   const bad = [];
   for (const f of files) {
     const sf = parse(f);
     walk(sf, (n) => {
-      if ((t.isStringLiteral(n) || t.isNoSubstitutionTemplateLiteral(n)) && /^(post|put|patch|delete)$/i.test(n.text.trim())) {
-        bad.push(`${where(sf, n)} the verb ${j(n.text)}`);
+      if (isStr(n) && /^(post|put|patch|delete)$/i.test(n.text.trim())) {
+        const p = n.parent;
+        const allowed = p && isAllowedPost(sf, p) && unparen(p.initializer) === n;
+        if (!allowed) bad.push(`${where(sf, n)} the verb ${j(n.text)}${sf === fsf && inSendSwitch(n) ? ' (inside sendSwitch, but not as its method: \'POST\')' : ''}`);
       }
       if (t.isPropertyAssignment(n) && propName(n) === 'method') {
         const v = unparen(n.initializer);
-        if (!((t.isStringLiteral(v) || t.isNoSubstitutionTemplateLiteral(v)) && v.text === 'GET')) {
-          bad.push(`${where(sf, n)} ${n.getText(sf)}`);
-        }
+        if (isAllowedPost(sf, n)) allowedPosts.push(n);
+        else if (!(isStr(v) && v.text === 'GET')) bad.push(`${where(sf, n)} ${n.getText(sf)}`);
       }
       if (t.isCallExpression(n) && t.isPropertyAccessExpression(n.expression) && /^(post|put|patch|delete)$/i.test(n.expression.name.text)) {
         bad.push(`${where(sf, n)} ${n.expression.getText(sf)}(…)`);
@@ -648,8 +713,7 @@ test('PS13: every request is a GET — no method other than GET (no method: \'PO
       }
     });
   }
-  assert(!bad.length, `non-GET requests (or a method that is not the literal 'GET'): ${bad.join('; ')}`);
-  const fsf = parse(FETCH);
+  assert(!bad.length, `non-GET requests other than sendSwitch's one POST (or a method that is not the literal 'GET'): ${bad.join('; ')} (ADR 0005 § Consequences: "PS13 allows exactly sendSwitch's POST")`);
   let getMethod = false;
   walk(fsf, (n) => {
     if (t.isPropertyAssignment(n) && propName(n) === 'method') {
@@ -657,10 +721,24 @@ test('PS13: every request is a GET — no method other than GET (no method: \'PO
       if (t.isStringLiteral(v) && v.text === 'GET') getMethod = true;
     }
   });
-  assert(getMethod, `${rel(FETCH)} must call fetchImpl(url, { method: 'GET', signal }) (ADR 0004 § UI "readSection")`);
+  assert(getMethod, `${rel(FETCH)} must call fetchImpl(url, { method: 'GET', signal }) (ADR 0004 § UI "readSection"; ADR 0005 D12 "readSection is untouched")`);
+  // The one POST: sendSwitch, exported, with exactly one method: 'POST', sending to the literal switch path.
+  if (!sendSwitch.length) {
+    throw notYet(FETCH, `it defines no sendSwitch — ADR 0005 D12: taggingPipelineFetch.js exports sendSwitch(on, { fetchImpl, timeoutMs = 15000 }), which sends POST to '${SWITCH_PATH}', the panel's one non-GET`);
+  }
+  assert(sendSwitch.length === 1, `${rel(FETCH)} defines sendSwitch ${sendSwitch.length} times; expected once`);
+  assert(isExported(fsf, 'sendSwitch'), `${rel(FETCH)} must export sendSwitch (ADR 0005 D12; the panel calls it)`);
+  assert(allowedPosts.length === 1,
+    `sendSwitch must carry exactly one method: 'POST' (ADR 0005 D12: it sends POST with Content-Type: application/json and the body {"on":…}); found ${allowedPosts.length}`);
+  let namesSwitch = false;
+  walk(sendSwitch[0], (n) => {
+    if (literalValue(fsf, n, 2) === SWITCH_PATH && (isStr(n) || t.isIdentifier(n))) namesSwitch = true;
+  });
+  assert(namesSwitch,
+    `sendSwitch must send to the literal '${SWITCH_PATH}' — written in it, or a same-file const it names (ADR 0005 D12; § Seams "PS13 allows exactly one non-GET: the method 'POST' inside sendSwitch, to the literal switch path")`);
 });
 
-test('PS14: the panel reads the five routes by their paths — /api/tagging-edges/status, /api/tagging-edges/realtime/status, /api/scheduled-tasks/list, /api/tagging-edges/held and /api/tagging-edges/drift-counts — and names no other /api/ path [AC-1; AC-2; AC-3; AC-4; AC-6; ADR 0004 § UI "Polling", "The held list", "Drift"; § Out of scope "Story 5\'s controls"]', async () => {
+test('PS14: the panel names its routes by their paths — the five reads /api/tagging-edges/status, /api/tagging-edges/realtime/status, /api/scheduled-tasks/list, /api/tagging-edges/held and /api/tagging-edges/drift-counts, and story 5\'s switch path /api/tagging-edges/realtime/switch (its record\'s GET and its change\'s POST) — and names no other /api/ path [AC-1; AC-2; AC-3; AC-4; AC-6; story 5 Test tasks "PS14\'s allow-list of paths adds the switch route, plus any read route the Architecture adds for AC-5\'s record, and nothing else"; ADR 0005 D6, D12, § Consequences "PS14 gains the one switch path"; ADR 0004 § UI "Polling", "The held list", "Drift"]', async () => {
   const files = scopeFiles();
   const seen = new Set();
   const other = [];
@@ -677,8 +755,8 @@ test('PS14: the panel reads the five routes by their paths — /api/tagging-edge
     }
   }
   const missing = READ_PATHS.filter((p) => !seen.has(p));
-  assert(!missing.length, `the panel folder and utils never name ${j(missing)} as a literal path (ADR 0004 § UI)`);
-  assert(!other.length, `the panel names /api/ paths beyond its five reads: ${other.join('; ')} — write each read's full path; story 5's controls are out of scope`);
+  assert(!missing.length, `the panel folder and utils never name ${j(missing)} as a literal path (ADR 0004 § UI; ADR 0005 D12: the record read is useRead('${SWITCH_PATH}') and sendSwitch posts to it)`);
+  assert(!other.length, `the panel names /api/ paths beyond its five reads and the switch path: ${other.join('; ')} — write each route's full path; the pass's controls are story 6's`);
 });
 
 test('PS15: the held list is read 50 at a time — the expression that builds each /api/tagging-edges/held URL carries runId=, offset= and limit=50 in its query (limit=${X} with X a const equal to 50 counts), or, when the path is written bare, the function that sends it builds runId, offset and limit (50) with an object or URLSearchParams [AC-2 "Held removals… every held removal is reachable"; ADR 0004 § UI "The held list": /held?runId=<latest.runId>&offset=<n>&limit=50]', async () => {
@@ -1095,9 +1173,117 @@ test('PS25: the schedule warning\'s button opens the Scheduled Tasks sub-tab —
     `no onOpenTab('schedule') call in ${rel(PANEL_DIR)}/ — the schedule warning's button must call it (ADR 0004 § UI); onOpenTab calls found: ${j(calls.map((c) => `${c.at} ${c.text}`))}`);
 });
 
+// ═══════════════════════════════ PS — story 5: the switch's control and prompt (ADR 0005 § Seams "Static pins") ═══════
+
+const SCHEDULE_SECTION = path.join(PANEL_DIR, 'ScheduleSection.jsx');
+
+test('PS26: the off prompt is the panel\'s own inline confirmation — no file in the panel folder imports or renders ConfirmDialog, or calls window.confirm / window.alert / window.prompt (or a bare confirm() / alert()); and the panel folder or the view module carries the labels "Turn off", "Turn on" and "Cancel" as literal text [AC-1 "Turn off" while on, "Turn on" while off; AC-2 "Pressing Turn off opens a prompt before anything changes"; ADR 0005 D12 "It reads Turn off while on, and Turn on while off", D13 "An inline confirmation inside tp-path replaces the control while open… the buttons Turn off and Cancel"; "Why not the alternatives": ConfirmDialog nests block content in a <p>, window.confirm freezes the page\'s timers]', async () => {
+  const t = ts();
+  const files = panelFiles();
+  const bad = [];
+  for (const f of files) {
+    const sf = parse(f);
+    for (const s of sf.statements) {
+      if (t.isImportDeclaration(s) && t.isStringLiteral(s.moduleSpecifier) && /(?:^|\/)ConfirmDialog(?:\.jsx?)?$/.test(s.moduleSpecifier.text)) {
+        bad.push(`${where(sf, s)} imports ${s.moduleSpecifier.text}`);
+      }
+    }
+    walk(sf, (n) => {
+      if ((t.isJsxSelfClosingElement(n) || t.isJsxOpeningElement(n)) && n.tagName.getText(sf) === 'ConfirmDialog') bad.push(`${where(sf, n)} <ConfirmDialog>`);
+      if (!t.isCallExpression(n)) return;
+      const c = unparen(n.expression);
+      if (t.isIdentifier(c) && ['confirm', 'alert'].includes(c.text)) bad.push(`${where(sf, n)} ${c.text}(…)`);
+      if (t.isPropertyAccessExpression(c) && ['confirm', 'alert', 'prompt'].includes(c.name.text)
+        && t.isIdentifier(c.expression) && ['window', 'globalThis', 'self'].includes(c.expression.text)) bad.push(`${where(sf, n)} ${c.getText(sf)}(…)`);
+    });
+  }
+  assert(!bad.length, `the off prompt must be the panel's own inline confirmation inside tp-path, not ${bad.join('; ')} (ADR 0005 D13 "Why not the alternatives")`);
+  const texts = new Set();
+  for (const f of files.concat([VIEW])) {
+    const sf = parse(f);
+    if (!sf) continue;
+    for (const lt of literalTexts(sf)) texts.add(lt.text.replace(/\s+/g, ' ').trim());
+  }
+  const labels = ['Turn off', 'Turn on', 'Cancel'];
+  const missing = labels.filter((l) => !texts.has(l));
+  if (missing.length) {
+    throw notYet(PANEL_DIR, `no literal text ${j(missing)} in the panel folder or the view module — ADR 0005 D12/D13: the control reads "Turn off" while on and "Turn on" while off; the inline prompt's buttons are "Turn off" and "Cancel"`);
+  }
+});
+
+test('PS27: one BackstopVerdict component tells both the backstop schedule section and the off prompt what keeps the graph in step — declared once in the panel folder, rendered as <BackstopVerdict …> in ScheduleSection.jsx, and rendered at least twice across the folder in all (the prompt\'s render site may sit in any file, ScheduleSection.jsx included), so the two cannot drift apart [AC-2 "what keeps the graph in step meanwhile… described as story 4\'s backstop section describes each of its schedule states"; ADR 0005 D13 "A BackstopVerdict component is extracted from ScheduleSection.jsx:44-67 and used by both, so the two cannot drift apart"]', async () => {
+  const t = ts();
+  const files = panelFiles();
+  const decls = [];
+  const uses = [];
+  for (const f of files) {
+    const sf = parse(f);
+    walk(sf, (n) => {
+      if (t.isFunctionDeclaration(n) && n.name && n.name.text === 'BackstopVerdict') decls.push(where(sf, n));
+      if (t.isVariableDeclaration(n) && t.isIdentifier(n.name) && n.name.text === 'BackstopVerdict' && n.initializer) decls.push(where(sf, n));
+      if ((t.isJsxSelfClosingElement(n) || t.isJsxOpeningElement(n)) && n.tagName.getText(sf) === 'BackstopVerdict') uses.push({ file: f, at: where(sf, n) });
+    });
+  }
+  if (!decls.length) {
+    throw notYet(PANEL_DIR, 'no BackstopVerdict component is declared in the panel folder — ADR 0005 D13: it is extracted from ScheduleSection.jsx:44-67 and used by both the schedule section and the off prompt');
+  }
+  assert(decls.length === 1, `BackstopVerdict is declared ${decls.length} times (${decls.join(', ')}); one component, so the two cannot drift apart`);
+  const inSchedule = uses.filter((u) => u.file === SCHEDULE_SECTION);
+  assert(inSchedule.length > 0, `${rel(SCHEDULE_SECTION)} does not render <BackstopVerdict>: the backstop section must use the extracted component (ADR 0005 D13); uses found: ${j(uses.map((u) => u.at))}`);
+  // Where the prompt's render site sits is the Implementer's choice (ScheduleSection.jsx may export the prompt's
+  // part too), so only the count across the folder is pinned: one site for the section, one for the prompt.
+  assert(uses.length >= 2, `<BackstopVerdict> is rendered ${uses.length} time(s) in ${rel(PANEL_DIR)}/ — expected at least 2, the backstop section's and the off prompt's (inside tp-path), in any file of the folder (ADR 0005 D13 "used by both"); uses found: ${j(uses.map((u) => u.at))}`);
+});
+
+test('PS28: the 15 s limit on a change is the fetch util\'s, and the panel gains no timer — the panel folder imports sendSwitch from ui/src/utils/taggingPipelineFetch.js (unaliased, or as a namespace member) and calls it; it calls fetch nowhere itself (no fetch(), window.fetch(), new XMLHttpRequest); and its only timers are its two poll intervals, setInterval(…, POLL_MS) and setInterval(…, SCHEDULE_POLL_MS) — no setTimeout, requestAnimationFrame or requestIdleCallback, the prompt\'s focus included [AC-1 "If the server has not answered within 15 seconds, the control is enabled again"; ADR 0005 § Constraints "The panel folder gains no new timer, and the 15 s race stays in taggingPipelineFetch.js"; D12 sendSwitch(on, { fetchImpl, timeoutMs = 15000 }); D13 "Focus moves to Cancel on open, through a useEffect, with no timer"]', async () => {
+  const t = ts();
+  const files = panelFiles();
+  const bad = [];
+  // Timers: exactly the two poll intervals the panel has today (TaggingPipelinePanel.jsx).
+  const timers = allCalls(files, ['setInterval', 'setTimeout', 'requestAnimationFrame', 'requestIdleCallback']);
+  const periods = [];
+  for (const { sf, node, name } of timers) {
+    const d = node.arguments[1] && unparen(node.arguments[1]);
+    const delayName = d && (t.isIdentifier(d) ? d.text : (t.isPropertyAccessExpression(d) ? d.name.text : null));
+    if (name === 'setInterval' && ['POLL_MS', 'SCHEDULE_POLL_MS'].includes(delayName)) periods.push(delayName);
+    else bad.push(`${where(sf, node)} ${name}(…${d ? `, ${d.getText(sf)}` : ''})`);
+  }
+  const sortedPeriods = periods.slice().sort();
+  if (j(sortedPeriods) !== j(['POLL_MS', 'SCHEDULE_POLL_MS'])) bad.push(`the poll intervals are ${j(periods)}, expected one setInterval each with POLL_MS and SCHEDULE_POLL_MS`);
+  // No request of its own: every request goes through the fetch util's race.
+  for (const f of files) {
+    const sf = parse(f);
+    walk(sf, (n) => {
+      if (t.isCallExpression(n)) {
+        const c = unparen(n.expression);
+        if (t.isIdentifier(c) && c.text === 'fetch') bad.push(`${where(sf, n)} fetch(…)`);
+        if (t.isPropertyAccessExpression(c) && c.name.text === 'fetch' && t.isIdentifier(c.expression) && ['window', 'globalThis', 'self'].includes(c.expression.text)) bad.push(`${where(sf, n)} ${c.getText(sf)}(…)`);
+      }
+      if (t.isNewExpression(n) && t.isIdentifier(n.expression) && n.expression.text === 'XMLHttpRequest') bad.push(`${where(sf, n)} new XMLHttpRequest`);
+    });
+  }
+  assert(!bad.length, `${bad.join('; ')} — the panel folder gains no timer, and its requests go through taggingPipelineFetch.js, whose race holds the 15 s limit (ADR 0005 § Constraints, D12, D13)`);
+  // sendSwitch: imported from the fetch util and called.
+  let imported = false;
+  let called = false;
+  for (const f of files) {
+    const { names, namespaces } = importsFrom(f, FETCH);
+    if (names.has('sendSwitch')) imported = true;
+    const sf = parse(f);
+    walk(sf, (n) => {
+      if (!t.isCallExpression(n)) return;
+      const c = unparen(n.expression);
+      if (t.isIdentifier(c) && c.text === 'sendSwitch' && names.has('sendSwitch')) called = true;
+      if (t.isPropertyAccessExpression(c) && c.name.text === 'sendSwitch' && t.isIdentifier(c.expression) && namespaces.has(c.expression.text)) { imported = true; called = true; }
+    });
+  }
+  if (!imported) throw notYet(PANEL_DIR, `no file imports sendSwitch from ${rel(FETCH)} — ADR 0005 D12: the control sends its change through sendSwitch, which shares readSection's 15 s race`);
+  assert(called, `sendSwitch is imported into ${rel(PANEL_DIR)}/ but never called (ADR 0005 D12)`);
+});
+
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────────
 async function run() {
-  console.log('\n--- tagging pipeline panel: source sentinels (epic tagging-edges, Story 4 — ADR 0004 § UI, § Seams "Static checks") ---');
+  console.log('\n--- tagging pipeline panel: source sentinels (epic tagging-edges, Stories 4–5 — ADR 0004 § UI, § Seams "Static checks"; ADR 0005 § Seams "Static pins") ---');
   let pass = 0, fail = 0;
   const failures = [];
   for (const [name, fn] of tests) {

@@ -27,10 +27,9 @@
 const { allowErrorCode } = require('../../lib/tagging-edges/realtime');
 const { stamp } = require('../../lib/tagging-edges/contract');
 const { resolveIdentities } = require('../../pipeline/tagging-edges/identities');
-const { sameHost } = require('./index');
+const { ownerOrAdmin } = require('./index');
 
 const LIMIT_MS = 10000;
-const OWNER_RE = /^[0-9a-f]{64}$/;
 const CANONICAL_Z_RE = /^39998:(.*):nostr-user-tag$/s;
 const TAGS_COUNT = 'MATCH ()-[r:TAGS]->() RETURN count(r) AS n';
 
@@ -64,28 +63,14 @@ function withDeps(deps) {
 }
 
 /**
- * Pure but for the injected readers. Who may ask for a count, checked in this order before anything is counted:
- * a session pubkey (401; loopback is not admitted), a signed-in owner or admin (403), and the cross-site rule (403).
- * The owner is a lowercase 64-hex pubkey; admins are compared as isAdminPubkey compares them (includes, case-sensitive).
- * An owner lookup that throws admits no owner, and an admin lookup that throws admits no admin.
+ * Pure but for the injected readers. Who may ask for a count, checked before anything is counted by the shared
+ * ownerOrAdmin (index.js; ADR tagging-edges/0005 D5): a session pubkey (401; loopback is not admitted), a signed-in
+ * owner or admin (403), and the cross-site rule (403), in that order.
  * → null when admitted, else { status, error }
  */
 function gateOwnerOrAdmin(req, d) {
-  const session = req && req.session;
-  if (!session || typeof session.pubkey !== 'string' || session.pubkey === '') {
-    return { status: 401, error: 'Not authenticated' };
-  }
-  let owner = null;
-  try { owner = d.ownerPubkey(); } catch (_) { owner = null; }
-  let admins = [];
-  try { admins = d.getAdminPubkeys(); } catch (_) { admins = []; }
-  const isOwner = typeof owner === 'string' && OWNER_RE.test(owner) && session.pubkey === owner;
-  const isAdmin = Array.isArray(admins) && admins.includes(session.pubkey);
-  if (session.authenticated !== true || !(isOwner || isAdmin)) {
-    return { status: 403, error: 'Owner or admin access required' };
-  }
-  if (!sameHost(req)) return { status: 403, error: 'cross-site request refused' };
-  return null;
+  const gate = ownerOrAdmin(req, d);
+  return gate.ok ? null : { status: gate.status, error: gate.error };
 }
 
 /** Pure. One relay filter over both nostr-user-tag stamps, the canonical one first; one z when they are the same. */

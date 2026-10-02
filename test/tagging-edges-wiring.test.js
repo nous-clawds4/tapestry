@@ -33,6 +33,17 @@
  *   Story 3's review, round 1 (2026-09-29), conform item 1(e): SWR72 reads each SHOW transaction's config on the fake
  *   driver — readSchema keeps no default transaction time-out for the pass (as story 2 shipped it), and a caller's
  *   timeoutMs bounds it (the real-time path's own; test/tagging-edges-realtime-engine.test.js RE81).
+ *   Story 5 (2026-10-01; engineering-team/stories/tagging-edges/5-real-time-path-switch.md, ADR tagging-edges/0005 D5,
+ *   D6, Consequences and Seams "The wiring"): SWR67 is revised in place — the switch path now carries a POST and a
+ *   GET, each behind adminApi.requireOwnerOrAdmin, so it counts registrations per method, not the path literal. Red
+ *   until story 5 lands: the POST is still behind requireOwnerOnly and the GET (handleRealtimeSwitchRecord) is not
+ *   registered. SWR73 is new (D5 "The re-check" and "Shared helpers", Consequences "The owner-or-admin check exists
+ *   once"): a static read of the three tagging-edges route modules, comments removed and identifiers matched, pinning
+ *   that src/api/tagging-edges/index.js defines and exports ownerOrAdmin, and that realtime.js and drift.js take it
+ *   from there, call it (drift.js's gateOwnerOrAdmin as its delegate) and hold no owner or admin comparison of their
+ *   own. Red until story 5 lands: index.js has no ownerOrAdmin, and both routes still compare for themselves.
+ *   SWR74 is new (D5 "Shared helpers"): realtime.js's defaultDeps gains the lazy getAdminPubkeys provider, which no
+ *   suite exercises because every admin test injects the lookup.
  *
  * Stack-free and hermetic: no Neo4j, no strfry, no network, no write to the local graph or relay. Temp directories come
  * from fs.mkdtempSync(os.tmpdir()) and are removed; env changes live only in child processes; the swapped driver
@@ -2152,34 +2163,47 @@ test('SWR66: the port\'s readKeys({ timeoutMs }) runs READ_KEYS once, in one rea
   eq(writeTxs(fake).length, 0, 'write transactions opened by readKeys()');
 });
 
-test('SWR67: src/api/index.js registers GET /api/tagging-edges/realtime/status as a public read (the handler alone) and POST /api/tagging-edges/realtime/switch behind adminApi.requireOwnerOnly, from require(\'./tagging-edges/realtime\'), each exactly once, after adminApi is required and after the pass\'s three routes — and neither path contains an owner-only substring from src/middleware/auth.js (ADR tagging-edges/0003 § Status and switch; Implementation notes → Changed files → src/api/index.js; AC-5 "any session that is not the owner\'s is refused", AC-6 "The status is a public read")', () => {
+test('SWR67 (revised for story 5 — ADR tagging-edges/0005 D5, D6): src/api/index.js registers, from require(\'./tagging-edges/realtime\'), GET /api/tagging-edges/realtime/status as a public read (the handler alone), and on /api/tagging-edges/realtime/switch both POST (handleRealtimeSwitch) and GET (handleRealtimeSwitchRecord), each behind adminApi.requireOwnerOrAdmin — counting registrations per method, not the path literal, each exactly once and neither path registered by any other method — all after adminApi is required and after the pass\'s three routes; and neither path contains an owner-only substring from src/middleware/auth.js (ADR tagging-edges/0005 D5 "The mount", D6 "The mount", Consequences "SWR67: it now counts the app.get and app.post registrations of the switch path, once each, not the path literal", Seams "The wiring"; story 5 AC-4 "The server decides", AC-5 "Who may read it"; ADR tagging-edges/0003 § Status and switch; story 3 AC-6 "The status is a public read")', () => {
   const src = codeOnly(safeRead(API_INDEX));
   const mod = /(?:const|let|var)\s+(\w+)\s*=\s*require\(\s*['"]\.\/tagging-edges\/realtime(?:\.js)?['"]\s*\)/.exec(src);
-  assert(mod, 'src/api/index.js must require(\'./tagging-edges/realtime\') for the two real-time handlers (not implemented yet)');
+  assert(mod, 'src/api/index.js must require(\'./tagging-edges/realtime\') for the real-time handlers');
   const v = mod[1];
+  const STATUS_PATH = '/api/tagging-edges/realtime/status';
+  const SWITCH_PATH = '/api/tagging-edges/realtime/switch';
   const routes = [
-    ['get', '/api/tagging-edges/realtime/status', [`${v}.handleRealtimeStatus`]],
-    ['post', '/api/tagging-edges/realtime/switch', ['adminApi.requireOwnerOnly', `${v}.handleRealtimeSwitch`]],
+    ['get', STATUS_PATH, [`${v}.handleRealtimeStatus`]],
+    ['post', SWITCH_PATH, ['adminApi.requireOwnerOrAdmin', `${v}.handleRealtimeSwitch`]],
+    ['get', SWITCH_PATH, ['adminApi.requireOwnerOrAdmin', `${v}.handleRealtimeSwitchRecord`]],
   ];
+  /** Express's registration methods: each path is counted under every one, so a stray mount is seen too. */
+  const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'all', 'use'];
   const adminAt = src.search(/const\s+adminApi\s*=\s*require\(\s*['"]\.\/admin['"]\s*\)/);
   const passAt = src.search(/app\.post\(\s*['"]\/api\/tagging-edges\/confirm-held-removals['"]/);
   assert(adminAt >= 0, 'src/api/index.js must still require adminApi from ./admin');
   assert(passAt >= 0, 'src/api/index.js must still register the pass\'s POST /api/tagging-edges/confirm-held-removals');
   const problems = [];
+  const registrations = (method, p) => [...src.matchAll(new RegExp(`\\bapp\\s*\\.\\s*${method}\\s*\\(\\s*['"\`]${escapeRe(p)}['"\`]`, 'g'))].length;
+  for (const p of uniq(routes.map(([, rp]) => rp))) {
+    const want = new Set(routes.filter(([, rp]) => rp === p).map(([m]) => m));
+    for (const method of METHODS) {
+      const n = registrations(method, p);
+      if (want.has(method) && n !== 1) problems.push(`${method.toUpperCase()} ${p} must be registered exactly once, with app.${method}(…); found ${n}`);
+      if (!want.has(method) && n !== 0) problems.push(`${p} must not be registered with app.${method}(…) — it carries only ${[...want].map((m) => m.toUpperCase()).join(' and ')}; found ${n}`);
+    }
+  }
   for (const [method, p, args] of routes) {
-    const any = [...src.matchAll(new RegExp(`['"]${escapeRe(p)}['"]`, 'g'))];
-    if (any.length !== 1) { problems.push(`${p} must be registered exactly once; found ${any.length}`); continue; }
+    if (registrations(method, p) !== 1) continue;
     const m = new RegExp(`app\\.${method}\\(\\s*['"]${escapeRe(p)}['"]\\s*,([^;]*?)\\)\\s*;`).exec(src);
-    if (!m) { problems.push(`${p} must be registered with app.${method}(…)`); continue; }
+    if (!m) { problems.push(`${method.toUpperCase()} ${p} must be registered as app.${method}('${p}', …);`); continue; }
     const got = splitTopLevel(m[1]);
     if (show(got) !== show(args)) problems.push(`${method.toUpperCase()} ${p} must be registered with ${args.join(', ')}; got ${got.join(', ')}`);
-    if (m.index < adminAt) problems.push(`${p} must be registered after adminApi is required`);
-    if (m.index < passAt) problems.push(`${p} must be registered after the pass's three routes`);
+    if (m.index < adminAt) problems.push(`${method.toUpperCase()} ${p} must be registered after adminApi is required`);
+    if (m.index < passAt) problems.push(`${method.toUpperCase()} ${p} must be registered after the pass's three routes`);
   }
   const auth = safeRead(AUTH_MW);
   const gated = [...(stringsOfArray(auth, 'ownerOnlyEndpoints') || []), ...(stringsOfArray(auth, 'ownerOnlyGetEndpoints') || [])];
   assert(gated.length > 0, 'could not read ownerOnlyEndpoints from src/middleware/auth.js');
-  for (const [, p] of routes) for (const g of gated) if (p.includes(g)) problems.push(`${p} contains the owner-only substring ${g} (auth.js would gate it by substring)`);
+  for (const p of uniq(routes.map(([, rp]) => rp))) for (const g of gated) if (p.includes(g)) problems.push(`${p} contains the owner-only substring ${g} (auth.js would gate it by substring)`);
   assert(problems.length === 0, problems.join('\n        '));
 });
 
@@ -2446,6 +2470,205 @@ test('SWR72: readSchema keeps no default transaction time-out for the pass — r
     if (show(got) !== show([7000, 7000])) problems.push(`readSchema({ timeoutMs: 7000 }) should run both SHOW statements with a 7000 ms transaction time-out; they ran with ${show(got)}`);
   }
   assert(problems.length === 0, `review round 1, Blocking 1(e): the pass's schema reads keep no transaction time-out (story 2's behaviour), and a caller's timeoutMs bounds them:\n        ${problems.join('\n        ')}`);
+});
+
+// ══ tagging-edges #5 (2026-10-01): the owner-or-admin check exists once ═════════════════════════════════════════════
+// ADR tagging-edges/0005 D5 ("The re-check", "Shared helpers") and Consequences ("The owner-or-admin check exists
+// once"). Static reads of the three tagging-edges route modules with their comments removed. Identifiers and calls are
+// matched, not lines, so formatting, quoting and the local name a module binds ownerOrAdmin to are free. What
+// ownerOrAdmin answers is test/tagging-edges-switch-record.test.js SR41–SR45's; the drift route's is the DR suite's.
+
+const TE_ROUTES_INDEX = path.join(REPO_ROOT, 'src/api/tagging-edges/index.js');
+const TE_ROUTES_DRIFT = path.join(REPO_ROOT, 'src/api/tagging-edges/drift.js');
+const JS_ID = String.raw`[A-Za-z_$][\w$]*`;
+/** A require() of the tagging-edges index module from beside it: './index', './index.js', '.', './', '../tagging-edges' or '../tagging-edges/index'. */
+const TE_INDEX_REQUIRE = String.raw`\brequire\s*\(\s*['"\x60](?:\.\/index(?:\.js)?|\.\/?|\.\.\/tagging-edges(?:\/index(?:\.js)?|\/)?)['"\x60]\s*\)`;
+/** An operand that is a literal: a string, null, undefined, a boolean or a number. */
+const LITERAL_START_RE = /^(?:['"`]|null\b|undefined\b|true\b|false\b|-?\d)/;
+const LITERAL_END_RE = /(?:['"`]|\bnull|\bundefined|\btrue|\bfalse|\d)$/;
+
+/** The index just past the bracket that closes the one open before `i` (quotes skipped). */
+function pastClose(code, i) {
+  let depth = 1;
+  let q = null;
+  for (; i < code.length && depth > 0; i++) {
+    const c = code[i];
+    if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
+    if (c === '\'' || c === '"' || c === '`') q = c;
+    else if ('([{'.includes(c)) depth++;
+    else if (')]}'.includes(c)) depth--;
+  }
+  return i;
+}
+/**
+ * `name`'s own definition in `code` — function name(…) {…}, or const / let / var name = (…) => … or = function (…) {…},
+ * async allowed — as { at, text }, from its start to the end of its body; null when the module does not define it.
+ */
+function definitionOf(code, name) {
+  const n = escapeRe(name);
+  const m = new RegExp(String.raw`\b(?:async\s+)?function\s*\*?\s*${n}\s*\(|\b(?:const|let|var)\s+${n}\s*=\s*(?:async\s*)?(?:function\b\s*\*?\s*(?:${JS_ID})?\s*)?\(`).exec(code);
+  if (!m) return null;
+  let i = pastClose(code, m.index + m[0].length);
+  i += /^\s*(?:=>)?\s*/.exec(code.slice(i))[0].length;
+  if (code[i] === '{') return { at: m.index, text: code.slice(m.index, pastClose(code, i + 1)) };
+  let depth = 0;
+  let q = null;
+  for (; i < code.length; i++) {
+    const c = code[i];
+    if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
+    if (c === '\'' || c === '"' || c === '`') q = c;
+    else if ('([{'.includes(c)) depth++;
+    else if (')]}'.includes(c)) { if (depth === 0) break; depth--; }
+    else if ((c === ';' || c === ',') && depth === 0) break;
+  }
+  return { at: m.index, text: code.slice(m.index, i) };
+}
+/** Whether the module exports `name`: a key or shorthand of module.exports = { … }, or exports.name = / module.exports.name =. */
+function exportsName(code, name) {
+  const n = escapeRe(name);
+  if (new RegExp(String.raw`\bexports\s*\.\s*${n}\s*=(?!=)`).test(code)) return true;
+  const m = /\bmodule\s*\.\s*exports\s*=\s*\{/.exec(code);
+  if (!m) return false;
+  const start = m.index + m[0].length;
+  return splitTopLevel(code.slice(start, pastClose(code, start) - 1)).some((p) => new RegExp(String.raw`^(?:${n}|['"]${n}['"])\s*(?::|\(|$)`).test(p));
+}
+/**
+ * How `code` reaches the tagging-edges index module's ownerOrAdmin: the local names bound to it (destructured, renamed
+ * or not, or read off the require), the variables holding the module itself, and the offsets of the calls that reach it
+ * — through a bound name, through such a variable (idx.ownerOrAdmin(…)), or inline (require('./index').ownerOrAdmin(…)).
+ */
+function indexOwnerOrAdminOf(code) {
+  const names = new Set();
+  for (const m of code.matchAll(new RegExp(String.raw`\b(?:const|let|var)\s*\{([^}]*)\}\s*=\s*${TE_INDEX_REQUIRE}`, 'g'))) {
+    for (const prop of m[1].split(',')) {
+      const pm = new RegExp(String.raw`^\s*ownerOrAdmin\s*(?::\s*(${JS_ID}))?\s*(?:=[\s\S]*)?$`).exec(prop);
+      if (pm) names.add(pm[1] || 'ownerOrAdmin');
+    }
+  }
+  for (const m of code.matchAll(new RegExp(String.raw`\b(?:const|let|var)\s+(${JS_ID})\s*=\s*${TE_INDEX_REQUIRE}\s*\.\s*ownerOrAdmin\b`, 'g'))) names.add(m[1]);
+  const modules = [...code.matchAll(new RegExp(String.raw`\b(?:const|let|var)\s+(${JS_ID})\s*=\s*${TE_INDEX_REQUIRE}`, 'g'))].map((m) => m[1]).filter((v) => !names.has(v));
+  const callRes = [
+    ...[...names].map((nm) => new RegExp(String.raw`(?<![\w$.])${escapeRe(nm)}\s*\(`, 'g')),
+    ...modules.map((v) => new RegExp(String.raw`(?<![\w$.])${escapeRe(v)}\s*\??\.\s*ownerOrAdmin\s*\(`, 'g')),
+    new RegExp(String.raw`${TE_INDEX_REQUIRE}\s*\.\s*ownerOrAdmin\s*\(`, 'g'),
+  ];
+  const calls = [];
+  for (const re of callRes) {
+    for (const m of code.matchAll(re)) {
+      if (/\bfunction\s*\*?\s*$/.test(code.slice(Math.max(0, m.index - 20), m.index))) continue; // a definition, not a call
+      calls.push(m.index);
+    }
+  }
+  return { names: [...names], modules, calls };
+}
+/** A short whole-word excerpt of `code` around offset `at`, whitespace collapsed. */
+function excerptAt(code, at) {
+  const t = code.slice(Math.max(0, at - 48), at + 48).replace(/\s+/g, ' ');
+  return `…${t.replace(/^\S*\s/, '').replace(/\s\S*$/, '').trim()}…`;
+}
+/**
+ * The places `code` compares a value matched by `operand` (a RegExp source) with something that is not a literal
+ * (===, !==, == or != on either side; typeof x === '…' and x === '' are not comparisons with a value), looks it up in
+ * a list (.includes / .indexOf / .lastIndexOf / .has) or tests it against a pattern (.test(x)). → [{ at, excerpt }],
+ * `at` the operator's offset (the operand's, for a look-up), so one comparison is one place whichever side matched.
+ */
+function comparisonsOf(code, operand) {
+  const out = [];
+  for (const m of code.matchAll(new RegExp(operand, 'g'))) {
+    const end = m.index + m[0].length;
+    const before = code.slice(Math.max(0, m.index - 120), m.index);
+    const after = code.slice(end, end + 120);
+    if (/\.\s*(?:includes|indexOf|lastIndexOf|has|test)\s*\(\s*$/.test(before)) { out.push({ at: m.index, excerpt: excerptAt(code, m.index) }); continue; }
+    if (/\btypeof\s*$/.test(before)) continue;
+    const right = /^(\s*)(?:===|!==|==|!=)(?!=)\s*([\s\S]*)$/.exec(after);
+    if (right && !LITERAL_START_RE.test(right[2])) { const at = end + right[1].length; out.push({ at, excerpt: excerptAt(code, at) }); continue; }
+    const left = /(\S+)\s*((?:===|!==|==|!=)\s*)$/.exec(before);
+    if (left && !LITERAL_END_RE.test(left[1])) { const at = m.index - left[2].length; out.push({ at, excerpt: excerptAt(code, at) }); }
+  }
+  return out;
+}
+/**
+ * A route module's own owner or admin check, beside the shared ownerOrAdmin: a call of the admin lookup other than
+ * defaultDeps' lazy provider (getAdminPubkeys: () => require('…/utils/config').getAdminPubkeys(), as drift.js:41), a
+ * call of isAdminPubkey, or a comparison of
+ * the session's pubkey, or of the configured owner (a name assigned from an ownerPubkey() call, or the call itself),
+ * with a value. → [finding, …], one per place
+ */
+function ownRoleChecksOf(code) {
+  const found = [];
+  // The lazy provider, in either spelling: require('…/utils/config').getAdminPubkeys(), or the body of a dependency
+  // entry getAdminPubkeys: () => …getAdminPubkeys() (through a lazy-require helper such as config()).
+  const consumers = code
+    .replace(new RegExp(String.raw`(\bgetAdminPubkeys\s*:\s*(?:async\s*)?\(\s*\)\s*=>\s*[^,;\n]*?)\bgetAdminPubkeys\s*\(`, 'g'), '$1<lazy admin lookup>(')
+    .replace(new RegExp(String.raw`\brequire\s*\(\s*['"\x60][^'"\x60]*['"\x60]\s*\)\s*\.\s*getAdminPubkeys\s*\(`, 'g'), 'require(<config>).<lazy admin lookup>(');
+  const adminCalls = (consumers.match(/\bgetAdminPubkeys\s*\(/g) || []).length;
+  if (adminCalls > 0) found.push(`it calls the admin lookup getAdminPubkeys() itself (${adminCalls}×) — only defaultDeps' lazy provider, getAdminPubkeys: () => require('…/utils/config').getAdminPubkeys(), may call it; the lookup is ownerOrAdmin's`);
+  if (/\bisAdminPubkey\s*\(/.test(code)) found.push('it calls isAdminPubkey() — an admin check of its own');
+  const SESSION_PUBKEY = String.raw`\bsession\s*\??\.\s*pubkey\b`;
+  const sessionNames = new Set();
+  for (const m of code.matchAll(new RegExp(String.raw`\b(?:const|let|var)\s+(${JS_ID})\s*=\s*(?:${JS_ID}\s*\??\.\s*)?${SESSION_PUBKEY}`, 'g'))) sessionNames.add(m[1]);
+  for (const m of code.matchAll(new RegExp(String.raw`\b(?:const|let|var)\s*\{([^}]*)\}\s*=\s*(?:${JS_ID}\s*\??\.\s*)?session\b(?!\s*\??\.)`, 'g'))) {
+    for (const prop of m[1].split(',')) {
+      const pm = new RegExp(String.raw`^\s*pubkey\s*(?::\s*(${JS_ID}))?`).exec(prop);
+      if (pm) sessionNames.add(pm[1] || 'pubkey');
+    }
+  }
+  const ownerNames = new Set();
+  for (const m of code.matchAll(new RegExp(String.raw`\b(${JS_ID})\s*=(?![=>])[^;\n]*?\bownerPubkey\s*\(`, 'g'))) ownerNames.add(m[1]);
+  const asOperand = (ids) => [...ids].map((id) => String.raw`(?<![\w$.])${escapeRe(id)}\b`);
+  const places = new Map();
+  const mark = (list, kind) => {
+    for (const { at, excerpt } of list) {
+      const p = places.get(at) || { kinds: new Set(), excerpt };
+      p.kinds.add(kind);
+      places.set(at, p);
+    }
+  };
+  mark(comparisonsOf(code, [SESSION_PUBKEY, ...asOperand(sessionNames)].join('|')), 'session');
+  mark(comparisonsOf(code, [String.raw`(?<![\w$.])(?:${JS_ID}\s*\??\.\s*)?ownerPubkey\s*\(\s*\)`, ...asOperand(ownerNames)].join('|')), 'owner');
+  for (const at of [...places.keys()].sort((x, y) => x - y)) {
+    const { kinds, excerpt } = places.get(at);
+    const what = kinds.size === 2 ? 'the session\'s pubkey against the configured owner' : kinds.has('session') ? 'the session\'s pubkey' : 'the configured owner';
+    found.push(`it checks ${what} itself: «${excerpt}»`);
+  }
+  return found;
+}
+
+test('SWR73: the owner-or-admin check exists once — src/api/tagging-edges/index.js defines ownerOrAdmin(req, d), which itself consults d.getAdminPubkeys(), and exports it; src/api/tagging-edges/realtime.js and src/api/tagging-edges/drift.js each take ownerOrAdmin from the tagging-edges index module (require(\'./index\'), destructured or read off the module) and call it — drift.js\'s gateOwnerOrAdmin, kept, as its delegate — and neither defines an ownerOrAdmin of its own or holds its own owner or admin check: no call of the admin lookup beyond defaultDeps\' lazy provider, no isAdminPubkey, and no comparison of the session\'s pubkey or the configured owner with a value (ADR tagging-edges/0005 D5 "The re-check": "A new ownerOrAdmin(req, d) in src/api/tagging-edges/index.js, beside sameHost and isJson, is exported", "Shared helpers": "drift.js\'s gateOwnerOrAdmin becomes a delegate"; Consequences: "The owner-or-admin check exists once … The drift route and the switch share it")', () => {
+  const missing = [TE_ROUTES_INDEX, REALTIME_API, TE_ROUTES_DRIFT].filter((f) => !fs.existsSync(f)).map((f) => path.relative(REPO_ROOT, f));
+  assert(missing.length === 0, `${missing.join(', ')} not found — the tagging-edges route modules (ADR tagging-edges/0005 D5)`);
+  const problems = [];
+  const index = codeOf(TE_ROUTES_INDEX);
+  const shared = definitionOf(index, 'ownerOrAdmin');
+  if (!shared) problems.push('src/api/tagging-edges/index.js defines no ownerOrAdmin(req, d) — the one owner-or-admin re-check belongs there, beside sameHost and isJson (D5 "The re-check")');
+  else if (!/\bgetAdminPubkeys\s*\(/.test(shared.text)) problems.push('src/api/tagging-edges/index.js\'s ownerOrAdmin never calls d.getAdminPubkeys() — the admin half of the check must live in it (D5: "nor in d.getAdminPubkeys()")');
+  if (!exportsName(index, 'ownerOrAdmin')) problems.push('src/api/tagging-edges/index.js does not export ownerOrAdmin (D5: "is exported")');
+  for (const file of [REALTIME_API, TE_ROUTES_DRIFT]) {
+    const rel = path.relative(REPO_ROOT, file);
+    const code = codeOf(file);
+    if (definitionOf(code, 'ownerOrAdmin')) problems.push(`${rel} defines an ownerOrAdmin of its own — a second copy of the check (Consequences: it "exists once", in src/api/tagging-edges/index.js)`);
+    const via = indexOwnerOrAdminOf(code);
+    if (via.calls.length === 0) {
+      problems.push(via.names.length > 0 || via.modules.length > 0
+        ? `${rel} takes the tagging-edges index module (${[...via.names, ...via.modules].join(', ')}) but never calls its ownerOrAdmin (D5)`
+        : `${rel} does not take ownerOrAdmin from the tagging-edges index module — e.g. const { …, ownerOrAdmin } = require('./index') — nor call it (D5 "Shared helpers"; Consequences "The drift route and the switch share it")`);
+    }
+    for (const f of ownRoleChecksOf(code)) problems.push(`${rel} holds its own owner or admin check — ${f}`);
+    if (file === TE_ROUTES_DRIFT) {
+      const gate = definitionOf(code, 'gateOwnerOrAdmin');
+      if (!gate) problems.push(`${rel} no longer defines gateOwnerOrAdmin — it stays, as a delegate keeping its null-on-admit contract (D5 "Shared helpers"; the DR suite is its check)`);
+      else if (!via.calls.some((at) => at >= gate.at && at < gate.at + gate.text.length)) problems.push(`${rel}'s gateOwnerOrAdmin does not delegate to the index module's ownerOrAdmin — it must call it (D5 "Shared helpers": "drift.js's gateOwnerOrAdmin becomes a delegate")`);
+    }
+  }
+  assert(problems.length === 0, `the owner-or-admin check must exist once — ownerOrAdmin(req, d) in src/api/tagging-edges/index.js, which the switch and the drift route call and do not repeat (ADR tagging-edges/0005 D5, Consequences):\n        ${problems.join('\n        ')}`);
+});
+
+test('SWR74: src/api/tagging-edges/realtime.js\'s defaultDeps gains getAdminPubkeys, a lazy provider of the configured admin list, required inside the provider as drift.js\'s is — every suite that admits an admin injects the lookup, so without this default the switch would refuse every admin in production while the suites stay green (ADR tagging-edges/0005 D5 "Shared helpers": "realtime.js\'s defaultDeps (:40-48) gains getAdminPubkeys, required lazily as drift.js:41 does")', () => {
+  assert(fs.existsSync(REALTIME_API), `${path.relative(REPO_ROOT, REALTIME_API)} not found (ADR tagging-edges/0005 D5)`);
+  const defaults = definitionOf(codeOf(REALTIME_API), 'defaultDeps');
+  assert(defaults, 'src/api/tagging-edges/realtime.js defines no defaultDeps — the handlers\' real dependencies (ADR 0003 T22, ADR 0005 D5)');
+  const provider = /\bgetAdminPubkeys\s*:\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*require\(\s*['"][./]*utils\/config['"]\s*\)\s*\.\s*getAdminPubkeys\s*\(\s*\)/;
+  assert(provider.test(defaults.text), 'src/api/tagging-edges/realtime.js\'s defaultDeps has no getAdminPubkeys: () => require(\'../../utils/config\').getAdminPubkeys() — the lazy admin-list provider ownerOrAdmin consults for a real request (ADR 0005 D5 "Shared helpers"); without it an admin lookup throws, which admits no admin');
 });
 
 async function run() {

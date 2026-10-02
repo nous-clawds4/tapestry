@@ -12,6 +12,11 @@
  *        T28 (the wrapper's details: flock and sleep through PATH, index.js beside run.sh, `&&` in the per-start
  *        subshell, backoff sleeps in the background, bash-3.2-compatible), and T34 (the healthy-run seam
  *        TAGGING_EDGES_REALTIME_HEALTHY_SECONDS; RW22, added from the mutation pass over the blind reference).
+ * Story 5 (engineering-team/stories/tagging-edges/5-real-time-path-switch.md; ADR tagging-edges/0005 D1, D4, the
+ *        Constraints and Seams "The wrapper"): RW23–RW24 run the wrapper on switch.json version 2 — `role` and
+ *        `onSince` after `changedBy` — as the owner-or-admin route writes it. Story 5 leaves run.sh unchanged (ADR 0005
+ *        Constraints: "The engine and run.sh stay unchanged"; "No key of switch.json other than on may hold the text
+ *        "on":true"), so these two pass before and after story 5: they pin that the wrapper keeps reading version 2.
  *
  * Intentionally failing until run.sh lands (red phase). The script is looked up LAZILY inside each test through
  * load(), so this suite always loads, and each test fails with "… run.sh not implemented yet" rather than an error of
@@ -93,6 +98,10 @@ const HEALTHY_RESET_SEQUENCE = [1, 2, 4, 1];
 const CHANGED_AT = '2026-09-28T12:00:00.000Z';
 /** switch.json's changedBy is an 8-character prefix of the owner's pubkey — here a fixture's, never a real one. */
 const CHANGED_BY = F.ALICE.slice(0, 8);
+/** RW23–RW24 (ADR tagging-edges/0005 D1): since story 5 an admin may switch too — another fixture's prefix. */
+const ADMIN_BY = F.BOB.slice(0, 8);
+/** RW24 (ADR tagging-edges/0005 D4): a version 2 "on" carries its last off-to-on time, an ISO time. */
+const ON_SINCE = '2026-09-28T11:00:00.000Z';
 const UNSET = '<unset>';
 
 /** Every window the suite waits, in milliseconds (POLL_SECONDS = 1). */
@@ -336,6 +345,13 @@ function writeAtomic(file, content) {
 }
 /** switch.json in the canonical compact form the owner route writes (ADR § D3's table). */
 const canonicalSwitch = (on) => JSON.stringify({ version: 1, on, changedAt: CHANGED_AT, changedBy: CHANGED_BY });
+/**
+ * switch.json version 2, as story 5's owner-or-admin route writes it (ADR tagging-edges/0005 D1, D4): the canonical
+ * compact form, keys in the order version, on, changedAt, changedBy, role, onSince — `"onSince":null` when off, an ISO
+ * time when on.
+ */
+const canonicalSwitchV2 = (on, { role = 'owner', by = CHANGED_BY, onSince = on ? ON_SINCE : null } = {}) =>
+  JSON.stringify({ version: 2, on, changedAt: CHANGED_AT, changedBy: by, role, onSince });
 const switchPath = (stateDir) => path.join(stateDir, 'realtime', 'switch.json');
 const writeSwitch = (stateDir, on) => writeAtomic(switchPath(stateDir), canonicalSwitch(on));
 /**
@@ -799,10 +815,45 @@ async function scenarioHealthyReset() {
   }
 }
 
+/**
+ * RW23–RW24 (story 5; ADR tagging-edges/0005 D1): two wrappers on switch.json version 2 — an admin's off line, and an
+ * owner's on line. After the off window, the owner's version 2 on line is written over the admin's off (last change
+ * wins), and the idle wrapper's next start is observed.
+ */
+async function scenarioV2() {
+  const conf = writeConf(path.join(ROOT, 'v2', 'brainstorm.conf'), { marker: 'v2' });
+  const mk = (name, line) => {
+    const stateDir = mkState('v2', name);
+    writeAtomic(switchPath(stateDir), line);
+    return { line, h: spawnWrapper({ label: `version 2 ${name}`, stateDir, conf, stubDir: mkStub('run', 'v2', name) }) };
+  };
+  const off = mk('off', canonicalSwitchV2(false, { role: 'admin', by: ADMIN_BY }));
+  const on = mk('on', canonicalSwitchV2(true));
+  try {
+    const onStarted = waitFor(() => on.h.starts.length >= 1, MS.firstStart);
+    await delay(MS.offWindow);
+    const offWindow = { line: off.line, ...snap(off.h) };
+    let flipped = { line: null, wrapperExited: off.h.exited };
+    if (!off.h.exited) {
+      const before = off.h.starts.length;
+      const line = canonicalSwitchV2(true);
+      writeAtomic(switchPath(off.h.stateDir), line);
+      const t = Date.now();
+      const started = await waitFor(() => off.h.starts.length > before, MS.flipOn);
+      flipped = { line, before, started, ms: started ? off.h.starts[before].at - t : null, wrapper: snap(off.h) };
+    }
+    const atStart = { line: on.line, started: await onStarted, ...snap(on.h) };
+    return { offWindow, atStart, flipped };
+  } finally {
+    await Promise.all([off, on].map((w) => kill(w.h)));
+  }
+}
+
 const SCENARIOS = {
   off: scenarioOff, on: scenarioOn, quick: scenarioQuick, source: scenarioSource,
   switchOff: scenarioSwitchOff, signals: scenarioSignals, lock: scenarioLock,
   backoffFast: scenarioBackoffFast, termInBackoff: scenarioTermInBackoff, healthyReset: scenarioHealthyReset,
+  v2: scenarioV2,
 };
 let STARTED = null;
 /** Start every scenario at once (the first time one is needed); each settles to { ok, value } or { ok: false, error }. */
@@ -1225,6 +1276,32 @@ test('RW22: a healthy run resets the backoff — with T34\'s seam TAGGING_EDGES_
   }
   if (w.exited) problems.push(`the wrapper exited: ${show(w.exited)}`);
   assert(problems.length === 0, `${problems.join('\n        ')}${tailOf(w)}`);
+});
+
+// ─── switch.json version 2 (story 5; ADR tagging-edges/0005 D1, Seams "The wrapper") ────────────────────────────────
+test('RW23: a version 2 off line — {"version":2,"on":false,"changedAt":…,"changedBy":<8 hex>,"role":"admin","onSince":null}, an admin\'s off as story 5\'s owner-or-admin route writes it — reads off: the wrapper starts no node within 3 s, and it idles, never exits (ADR tagging-edges/0005 D1 "switch.json, version 2", Constraints "No key of switch.json other than on may hold the text "on":true" and "The engine and run.sh stay unchanged", Seams "The wrapper"; story 5 AC-6 "The path stops and starts as story 3 defines"; story 3 AC-5 "Off means off")', async () => {
+  const o = await need('v2');
+  const w = o.offWindow;
+  const problems = [];
+  if (w.starts.length !== 0) problems.push(`node was started ${w.starts.length} time(s) within ${MS.offWindow} ms with switch.json ${w.line}\n        expected: 0 starts — a version 2 line whose "on" is false reads off, whatever its role and onSince\n        actual:   ${w.starts.length}, first argv ${argvOf(w.starts[0])}`);
+  if (w.exited !== null) problems.push(`the wrapper exited while off (${show(w.exited)}) — it must idle and never exit, so supervisord never restarts or FATALs it`);
+  assert(problems.length === 0, `${problems.join('\n        ')}${tailOf(w)}`);
+});
+
+test('RW24: a version 2 on line — {"version":2,"on":true,"changedAt":…,"changedBy":<8 hex>,"role":"owner","onSince":<ISO>} — reads on: read at the wrapper\'s start, node starts within 5 s; written over an admin\'s version 2 off line while the wrapper idles (the last change wins), node starts within 4 s at a 1 s poll (ADR tagging-edges/0005 D1 "switch.json, version 2", D4 "onSince", Constraints "The engine and run.sh stay unchanged", Seams "The wrapper"; story 5 AC-3 "Turning on", AC-4 "Last change wins"; story 3 AC-5)', async () => {
+  const o = await need('v2');
+  const f = o.flipped;
+  await cases([
+    { name: 'read at the wrapper\'s start', w: o.atStart, started: o.atStart.started, within: MS.firstStart, line: o.atStart.line },
+    { name: 'written over an admin\'s version 2 off line while idle', w: f.wrapper || o.offWindow, started: f.started, within: MS.flipOn, line: f.line, exitedBefore: f.wrapperExited, startsBefore: f.before },
+  ], async (c) => {
+    assert(!c.exitedBefore, `fixture: the wrapper had already exited before the switch went on: ${show(c.exitedBefore)}${tailOf(c.w)}`);
+    assert(!c.startsBefore, `fixture: the wrapper was not idle before the switch went on — it had started node ${c.startsBefore} time(s) on the admin's version 2 off line (see RW23)${tailOf(c.w)}`);
+    const problems = [];
+    if (!c.started) problems.push(`node was not started within ${c.within} ms of switch.json becoming ${c.line}\n        expected: a start within ${secs(c.within)} — a version 2 line whose "on" is true reads on\n        actual:   none`);
+    if (c.w.exited) problems.push(`the wrapper exited: ${show(c.w.exited)}`);
+    assert(problems.length === 0, `${problems.join('\n        ')}${tailOf(c.w)}`);
+  });
 });
 
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -30,6 +30,48 @@
 >   - **Curation** names the curating Assistant from the person's Treasure Map, read strictly. It is the Assistant whose per-DList entry addresses exactly this header, else the blanket `39998:dlist-header` Assistant, else the local Assistant (`conceptCurator` in `ui/src/utils/treasureMap.js`). A Map that cannot be read names no one and says so.
 >   - **The author strip** states GUM₁ as "N members of your trusted, extended community file items under it", and only when the server reports `gum1`. The mock's "Recognized by N members" would need a count of trusted members whose Assistants `b`-point to the concept, which is GUM₂-shaped (§ 4).
 >   - **Shown, disabled, with a "later version" note:** the Trusted Curation Method (Customize), the four Curation switches, Veto / Restore, and the item pages (the mock's Dictionary item screen). Items rows are not links yet.
+> - **Added 2026-10-01: "Managed by" on the list page.** The owner asked for the list page to match the design's Dictionary screen. The rest of the page already did, so the gap was the design's "Managed by" beside the title. Decisions: a direct build; each Assistant's Dictionary is read from this instance's relay only; the union ships now; signed out it is a plain label; the choice lives in the URL.
+>   - **Who's in it.** The signed-in reader's Assistants come from `GET /api/assistant/my-assistants`: the local Assistant and every profile they tagged as one. The local Assistant's Dictionary is the reader's own (account plus Assistant, as before). Another Assistant's is its own headers, read by the same `GET /api/dictionaries/concepts`. Rules: `ui/src/pages/dictionaries/managedDictionary.js`.
+>   - **The union** ("All of my Assistants") is one row per shared concept, with "n of m Assistants".
+>     - An entry supports every row whose concepts overlap its own (its scored shared concept, any `b` target, or itself when self-declared), so tied `b`-tags in a different order don't split a row.
+>     - An entry starts a row only when it overlaps none, and rows never merge. The local Assistant's entry stands for a shared row.
+>     - For headers with several `b`-tags the result depends on the order the Dictionaries are read (the local Assistant's first). An entry that overlaps an earlier row supports it rather than getting a row of its own, so a count is a lower bound; the page already says counts can be low. No header on the local relay carried more than one `b`-tag on 2026-10-01.
+>     - A failed read counts in *m*, and the page names it.
+>     - The page says the counts come from this relay only, so they can be low.
+>   - **A read that fails is an error with Try again**, never an empty Dictionary. That covers one Assistant's read, all of the union's, the reader's own, and the list of Assistants itself.
+>   - **The URL** is `?managedBy=<npub>` or `?managedBy=all`; no value means the reader's own Dictionary. An entry opened from the list returns to it, and a remote Assistant's header is named for that Assistant.
+>   - **Kept as before, though the mock differs:** the lede; the finder heading (the search is not trust-filtered); and the "General Usage Metric" note, which describes GUM₁ (the mock's describes GUM₂). The sort menu takes the mock's "General Usage Metric" labels. Show's extra groups (Private, Curates Actively, subject groups) stay version 2.
+>   - **Only on `/dictionary`.** The control panel's Concepts page has no picker and still shows the reader's own Dictionary. Add to Dictionary is offered only there and on `/dictionary`'s own view.
+> - **Added 2026-10-02: the item page.** The owner asked for the design's Dictionary item screen. It is a direct build.
+>   - **Where it is.** Each row of an entry's Items now opens its item. On `/dictionary` that is `/dictionary/:coord/items/:item` (`ui/src/pages/dictionary/Item.jsx`). The page shows the item's name, "Item N in ⟨concept⟩", a description, who filed it (with "View Nostr profile", the in-app profile page) and the raw Nostr event. In the control panel, the row opens the existing Simple Lists item page (`/tapestry/lists/items/:id`).
+>   - **How it's read.** Opened from the table, the row's state carries the item, its number and the entry, so only the event (and its filer's profile) is read. A direct visit reads the person's Dictionary, then the entry's Items, for the number.
+>   - **The description** is the event's own `description` tag. Failing that, it says only what the reads establish:
+>     - who filed the item under the concept, when it's in the Items, matched by its own key however the page was opened;
+>     - that it isn't filed under the concept at all, from its `z` tags against the entry's concepts;
+>     - or that its filer isn't trusted, which needs the entry known, a complete (uncapped) Items read, and a filer other than the reader.
+>
+>     A failed read is named instead.
+>   - **Route params are read as the router decoded them**, so a `%` in a d-tag can't crash the page. The entry page and the Simple Lists item page decode only what still decodes.
+> - **Added 2026-10-02: Create New Concept.** The owner asked for the design's Create New Concept screen at `/dictionary/new` (`ui/src/pages/dictionary/NewConcept.jsx`). `/dictionary`'s Create New Concept button opens it; the control panel's still opens the New Concept page.
+>   - **A "concept" here is a DList header** (kind 39998), not the owner-only Neo4j concept skeleton: "concept" is the word readers know (owner, 2026-10-02).
+>   - **Who can create.** Any signed-in reader. The owner's header is signed by their Assistant on the server (`signAs: 'assistant'`, which the server allows only the owner). Anyone else signs with their own key in their nostr extension (NIP-07), which must match the signed-in account, exactly as the New DList page publishes. No server change was needed.
+>   - **What is published.** `["d", <singular's slug>]`, `["names", singular, plural]`, an optional `["description", …]`, and `["b", <its own coordinate>, "pointer"]`. So it is shared as it is created and joins the signer's Dictionary. The preview is the exact event (`newConceptDraft.js`).
+>   - **What happens next.** The header is published to local strfry, then broadcast to the community relay. The page reports what the broadcast did (`broadcastOutcome`), and an undelivered broadcast offers Try again for that same event; the form is locked once the header exists.
+>   - **No overwrite.** If this instance's relay already holds a header by the signer at that d-tag, the page stops and links to it rather than replace it. A header only the community relay holds isn't checked.
+>   - **No graph node.** The header gets no Neo4j node, so the Add to Dictionary finder's twin picker (which lists graph concepts) won't offer it. The finder's own "Create New Concept, then come back to wire it" link still opens the control panel's New Concept page.
+>   - **Left out:** the design's Private option (owner's decision: version 2).
+> - **Added 2026-10-02: GUM₂, recognition.** The owner chose GUM₂ next, with these rules:
+>   - **Who owns an Assistant.** Whoever tagged it My Brainstorm/Tapestry Assistant, by My Assistants' own rule (newest stance, not retracted, an apply), or whose Assistant it is on this instance's roster. Each owner counts once per concept (`src/api/adoption/assistantOwners.js`).
+>   - **What counts as recognition.** A person's own concept header, or one of their Assistants' headers, carrying a `b` pointing at the concept.
+>   - **Who's left out.** The concept's author (and the author's owners), and the reader.
+>   - **The score.** Each trusted recognizer adds their influence (0–1) from the active point of view (`recognitionByConcept` in `src/lib/trustedDictionary.js`). The trust read is the one GUM₁ uses, now also returning influence.
+>   - **For the owner to confirm: the scale.** § 4 says "rank scores". A Trusted Assertions rank is influence × 100, and GUM₂ sums influence instead, the only scale on which § 4's 1.50 cutoff makes sense. A rank of 40 adds 0.40.
+>   - **A claim only adds.** A header stands for its signer and the signer's owners, so nobody's "My Assistant" tag can take a person's own recognition away.
+>   - **The roster is customers and the owner, not admins.** This read is public, and the admin list is the owner's to read (ADR author-scoped-inspection/0001).
+>   - **What the server sends.** Each entry carries `gum2` and `recognizedBy`; `metric` stays `gum1`.
+>   - **If a read fails.** If GUM₂'s own reads fail (the `b`-pointers or the owners), the fields are left out and the list offers no GUM₂ sort. The trust read is shared with GUM₁, so if that fails, the whole Dictionary does, as before. Long value lists are scanned in parts of at most 400 values and 60,000 bytes, so they stay under strfry's one-argument command-line limit (128 KiB) even with 1 KB tag values. A GUM₂ sort chosen on another read falls back to A to Z on a read without GUM₂.
+>   - **Where it shows.** The entry strip says the design's "Recognized by N members of … trusted, extended community (GUM₂ x.xx)" above the GUM₁ filing line. The list's sort adds "General Usage Metric: recognition (lowest/highest first)", and the GUM₁ sorts are renamed "…: filing".
+>   - **Limits.** Everything is read from this instance's relay, which the strfry router syncs with the community relays for DList headers, so recognition elsewhere can be missed. The 1.50 cutoff isn't used yet: nothing adds entries automatically.
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---

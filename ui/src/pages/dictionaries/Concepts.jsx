@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import DispositionPanel from '../../components/DispositionPanel';
 import useProfiles from '../../hooks/useProfiles';
@@ -8,8 +8,9 @@ import { usePov } from '../../context/PovContext';
 import DictIcon from './DictIcon';
 import {
   NEW_CONCEPT_PATH, authorLabel, displayName, entryPath, itemCountText, metricLabel, metricShort,
-  overrideBadge, povLine, useConceptDictionary, useDictionaryPerson,
+  overrideBadge, povLine, useAssistantDictionaries, useConceptDictionary, useDictionaryPerson,
 } from './conceptsDictionary';
+import { mergeDictionaries } from './managedDictionary';
 
 /**
  * Dictionary › Concepts, version 1 (handoff SPEC § 2; design: the Brainstorm
@@ -46,15 +47,25 @@ const SORTS = {
   az: { label: () => 'Alphabetical (A to Z)', note: () => '', cmp: byName },
   za: { label: () => 'Reverse alphabetical (Z to A)', note: () => 'Z to A', cmp: (a, b) => byName(b, a) },
   gumAsc: {
-    label: (m) => `${metricLabel(m)} (lowest first)`, note: (m) => `${metricShort(m)}, lowest first`,
+    label: () => 'General Usage Metric: filing (lowest first)', note: () => 'Filing, lowest first',
     cmp: (a, b) => a.gum - b.gum || byName(a, b),
   },
   gumDesc: {
-    label: (m) => `${metricLabel(m)} (highest first)`, note: (m) => `${metricShort(m)}, highest first`,
+    label: () => 'General Usage Metric: filing (highest first)', note: () => 'Filing, highest first',
     cmp: (a, b) => b.gum - a.gum || byName(a, b),
   },
+  // GUM₂ (server: recognitionByConcept) — shown and sortable; GUM₁ stays the Dictionary's metric.
+  gum2Asc: {
+    label: () => 'General Usage Metric: recognition (lowest first)', note: () => 'Recognition, lowest first',
+    cmp: (a, b) => (a.gum2 ?? 0) - (b.gum2 ?? 0) || byName(a, b),
+  },
+  gum2Desc: {
+    label: () => 'General Usage Metric: recognition (highest first)', note: () => 'Recognition, highest first',
+    cmp: (a, b) => (b.gum2 ?? 0) - (a.gum2 ?? 0) || byName(a, b),
+  },
 };
-const isGumSort = (sort) => sort === 'gumAsc' || sort === 'gumDesc';
+const isGum2Sort = (sort) => sort === 'gum2Asc' || sort === 'gum2Desc';
+const isGumSort = (sort) => sort === 'gumAsc' || sort === 'gumDesc' || isGum2Sort(sort);
 
 // The design's minimum author rank for concept search (SPEC § 4), quoted in the FAQ's
 // "coming later" text. Nothing filters on it yet.
@@ -88,8 +99,8 @@ function faqItems({ cutoff }) {
     {
       q: 'How does my Assistant decide what belongs in this Dictionary? (technical)',
       a: [
-        `In this version your Assistant does not add or remove entries on its own. A concept is in your Dictionary when a kind-39998 header signed by your Assistant (or by you) carries a b-tag that points at a shared concept, or at itself when you shared it. The reserved b-tag-deferred and malformed b values don’t count. Each entry shows GUM₁ for the shared concept it points to: the number of distinct trusted authors — influence above the verified cutoff (${cut}), from your point of view — who file items under the concept with a z-tag; the concept's own author and your Assistant never count. Nothing is stored: the list and its scores are read afresh on every visit.`,
-        'Coming in a later version: Your Assistant monitors members of your community who have published the identities of their Brainstorm Assistants (using the Tag system), and looks for kind-39998 events those Assistants have published that carry a b-tag pointing at a shared concept header. It then computes a General Usage Metric for each shared concept, in one of three ways. GUM₁ (the default): the number of distinct trusted authors — influence above the verified cutoff, from your point of view — who file items under the concept with a z-tag; the concept\'s own author and your Assistant never count. GUM₂: for each user whose Assistant has wired to that shared concept header with a b-tag, add up their rank score, pulled from Trusted Assertions. GUM₃: for each pinning on “Add to My Dictionary”, add up the pinner\'s rank score — an apply adds it, a dispute subtracts it. If the selected metric is above the cutoff (default 2 for GUM₁, 1.50 for GUM₂ and GUM₃), your Assistant clones the shared concept: it publishes its own header with a b-tag pointing at the shared one. The choice of metric and the cutoff can be changed on the Automated Assistant Tasks page. Your own pins always override the result.',
+        `In this version your Assistant does not add or remove entries on its own. A concept is in your Dictionary when a kind-39998 header signed by your Assistant (or by you) carries a b-tag that points at a shared concept, or at itself when you shared it. The reserved b-tag-deferred and malformed b values don’t count. Each entry shows GUM₁ for the shared concept it points to: the number of distinct trusted authors — influence above the verified cutoff (${cut}), from your point of view — who file items under the concept with a z-tag; the concept's own author and your Assistant never count. Each entry also shows GUM₂, its recognition: the trusted members whose own concept headers, or their Assistants’ (an Assistant belongs to whoever tagged it as their Assistant, or to its account on this instance), carry a b-tag pointing at the shared concept, each counted once by their influence (0 to 1: their Trusted Assertions rank divided by 100); the concept's author and you never count. GUM₂ is read from this instance's relay, and nothing adds or removes entries by it yet. Nothing is stored: the list and its scores are read afresh on every visit.`,
+        'Coming in a later version: Your Assistant monitors members of your community who have published the identities of their Brainstorm Assistants (using the Tag system), and looks for kind-39998 events those Assistants have published that carry a b-tag pointing at a shared concept header. It then computes a General Usage Metric for each shared concept, in one of three ways. GUM₁ (the default): the number of distinct trusted authors — influence above the verified cutoff, from your point of view — who file items under the concept with a z-tag; the concept\'s own author and your Assistant never count. GUM₂: for each user whose Assistant has wired to that shared concept header with a b-tag, add up their rank score, pulled from Trusted Assertions (as their influence, 0 to 1, so a rank of 40 adds 0.40). GUM₃: for each pinning on “Add to My Dictionary”, add up the pinner\'s rank score — an apply adds it, a dispute subtracts it. If the selected metric is above the cutoff (default 2 for GUM₁, 1.50 for GUM₂ and GUM₃), your Assistant clones the shared concept: it publishes its own header with a b-tag pointing at the shared one. The choice of metric and the cutoff can be changed on the Automated Assistant Tasks page. Your own pins always override the result.',
       ],
     },
     {
@@ -129,11 +140,48 @@ export default function DictionaryConcepts() {
  * rows. Both Dictionary pages render it, so they cannot drift: this one and the Brainstorm-styled
  * /dictionary (pages/dictionary/Index.jsx), which passes `entryHref` so its rows open its own
  * entry page.
+ *
+ * `managed` is /dictionary's "Managed by" choice when it is not the reader's own Dictionary
+ * (managedDictionary.js managedView): { pending } while the reader's Assistants load, else
+ * { all, sets, current, options } — one other Assistant's Dictionary, or the union of all of them.
+ * Without it the list is the reader's own, read as it always was.
  */
-export function ConceptsDictionaryBody({ entryHref = entryPath }) {
+export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, newConceptHref = NEW_CONCEPT_PATH }) {
   const { povParams } = usePov();
   const person = useDictionaryPerson();
-  const { data, error, reload } = useConceptDictionary(person, povParams);
+  const location = useLocation();
+  const own = useConceptDictionary(person, povParams, { enabled: !managed });
+  const assistantsMode = Boolean(managed && !managed.pending);
+  const many = useAssistantDictionaries(assistantsMode ? managed.sets : [], povParams, { enabled: assistantsMode });
+
+  // The list's data, whichever Dictionary it is: the reader's own, one Assistant's, or the union.
+  // A read that failed is an error and nothing else: no count, no list, no "nothing here" (it never
+  // looked), as the entry page's E6 rule asks.
+  let data = null;
+  let error = null;
+  let failed = [];
+  if (!managed) {
+    error = own.error;
+    data = own.error ? null : own.data;
+  } else if (assistantsMode && many.data) {
+    if (managed.all) {
+      const merged = mergeDictionaries(many.data.reads);
+      failed = merged.failed;
+      if (merged.answered === 0) error = 'none of the reads answered';
+      else data = { entries: merged.entries, metric: many.data.metric, pov: many.data.pov };
+    } else {
+      const read = many.data.reads[0];
+      if (read.error) error = read.error;
+      else data = { entries: read.entries, metric: read.metric, pov: read.pov };
+    }
+  }
+  const reload = managed ? many.reload : own.reload;
+  const optionName = (key) => managed?.options?.find((o) => o.key === key)?.name || null;
+  const remote = assistantsMode && !managed.all ? managed.current : null;
+  // In the union, is any Dictionary another instance's Assistant's, read here only from this relay?
+  const unionHasRemote = Boolean(managed?.all && managed.options?.some((o) => !o.local));
+  // A reader with no Assistant here has their own concepts in the union: count Dictionaries, not Assistants.
+  const unionNoun = managed?.all && managed.options?.some((o) => o.self) ? 'Dictionaries' : 'Assistants';
 
   const [faqShown, setFaqShown] = useState(false);
   const [faqOpen, setFaqOpen] = useState(-1);
@@ -145,29 +193,43 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
   const [findOpen, setFindOpen] = useState(false);
 
   const entries = useMemo(() => data?.entries || [], [data]);
+  // GUM₂ is offered only when the read carried it (the server leaves it out when its own reads fail);
+  // a GUM₂ sort chosen on another read falls back to A to Z here.
+  const hasGum2 = entries.some((e) => typeof e.gum2 === 'number');
+  const order = !hasGum2 && isGum2Sort(sort) ? 'az' : sort;
   const metric = data?.metric || 'gum1';
   const pov = data?.pov || {};
   const signedIn = person.signedIn;
   const whose = signedIn ? 'your' : 'the owner’s';
+  // Whose list this is, in words: the reader's Dictionary, one Assistant's, or all of their Assistants'.
+  const listOf = managed?.all ? 'your Assistants’ Dictionaries'
+    : remote ? `${remote.name}’s Dictionary` : `${whose} Dictionary`;
 
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const shown = entries
     .filter((e) => !groups.length || SHOW_GROUPS.some((g) => groups.includes(g.key) && g.test(e)))
     .filter((e) => !words.length || words.every((w) => `${displayName(e)} ${e.plural || ''} ${e.description || ''}`.toLowerCase().includes(w)))
-    .sort(SORTS[sort].cmp);
+    .sort(SORTS[order].cmp);
 
   const narrowed = groups.length > 0 || words.length > 0;
   const total = entries.length;
   const countText = narrowed
     ? `${shown.length} of ${total} concept${total === 1 ? '' : 's'}`
-    : `${total} concept${total === 1 ? '' : 's'} in ${whose} Dictionary`;
+    : managed?.all
+      ? `${total} concept${total === 1 ? '' : 's'} across your ${managed.sets.length} ${unionNoun}`
+      : `${total} concept${total === 1 ? '' : 's'} in ${listOf}`;
+  // Who shared a self-declared entry: the reader (or the owner), else the Assistant that authored it.
+  const sharedBy = (e) => {
+    if ((person.authors || []).includes(e.author)) return signedIn ? 'Shared by you' : 'Shared by the owner';
+    return `Shared by ${optionName(e.author) || 'its Assistant'}`;
+  };
   const groupNames = SHOW_GROUPS.filter((g) => groups.includes(g.key)).map((g) => g.label(signedIn));
   const filterNote = toolsOpen ? '' : [
     groupNames.join(' or '),
     query.trim() ? `“${query.trim()}”` : '',
-    SORTS[sort].note(metric),
+    SORTS[order].note(metric),
   ].filter(Boolean).join(' · ');
-  const toolsActive = toolsOpen || narrowed || sort !== 'az';
+  const toolsActive = toolsOpen || narrowed || order !== 'az';
 
   const toggleGroup = (key) => setGroups((gs) => (gs.includes(key) ? gs.filter((k) => k !== key) : [...gs, key]));
 
@@ -183,9 +245,26 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
       {!person.loading && !signedIn && (
         <p className="dict-pov text-muted">You’re signed out, so this is the owner’s Dictionary. Sign in to see your own.</p>
       )}
-      {signedIn && !person.assistant && (
+      {signedIn && !person.assistant && !managed && (
         <p className="dict-pov text-muted">
           You have no assistant key on this instance, so your Dictionary shows only concepts you signed yourself.
+        </p>
+      )}
+      {remote && (
+        <p className="dict-pov text-muted">
+          Read from this instance’s relay: {remote.name} may keep more of its Dictionary on its own instance.
+        </p>
+      )}
+      {unionHasRemote && (
+        <p className="dict-pov text-muted">
+          Read from this instance’s relay: your other Assistants may keep more of their Dictionaries on their own
+          instances, so a count can be low.
+        </p>
+      )}
+      {data && failed.length > 0 && (
+        <p className="dict-pov text-muted">
+          Couldn’t read the Dictionar{failed.length === 1 ? 'y' : 'ies'} of {failed.map((k) => optionName(k) || 'an Assistant').join(', ')}, so
+          {failed.length === 1 ? ' its' : ' their'} entries are missing below.
         </p>
       )}
       {data && <p className="dict-pov text-muted">{povLine(pov)}</p>}
@@ -218,7 +297,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
 
       {/* Count, filter note and the search-and-sort toggle — closed by default (SPEC § 2.2). */}
       <div className="dict-count-row">
-        <span className="dict-count">{data ? countText : 'Assembling your Dictionary…'}</span>
+        <span className="dict-count">
+          {data ? countText : error ? '' : managed ? 'Assembling the Dictionary…' : 'Assembling your Dictionary…'}
+        </span>
         {filterNote && <span className="dict-filter-note">{filterNote}</span>}
         <span className="dict-spacer" />
         <button
@@ -272,14 +353,25 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
           </label>
           <label className="dict-field dict-field--sort">
             <span className="dict-field-label">Order by</span>
-            <select className="dict-input" value={sort} onChange={(e) => setSort(e.target.value)}>
-              {Object.entries(SORTS).map(([key, s]) => <option key={key} value={key}>{s.label(metric)}</option>)}
+            <select className="dict-input" value={order} onChange={(e) => setSort(e.target.value)}>
+              {Object.entries(SORTS)
+                .filter(([key]) => hasGum2 || !isGum2Sort(key))
+                .map(([key, s]) => <option key={key} value={key}>{s.label(metric)}</option>)}
             </select>
           </label>
-          {isGumSort(sort) && (
+          {isGumSort(order) && !isGum2Sort(order) && (
             <p className="dict-gum-note">
-              <strong>{metricLabel(metric)}:</strong> how many distinct people you trust (influence above the
-              verified cutoff, from your point of view) file items under the shared concept each entry points to.
+              <strong>General Usage Metric, filing ({metricShort(metric)}):</strong> how many distinct people you trust
+              (influence above the verified cutoff, from your point of view) file items under the shared concept
+              each entry points to.
+            </p>
+          )}
+          {isGum2Sort(order) && (
+            <p className="dict-gum-note">
+              <strong>General Usage Metric, recognition (GUM₂):</strong> the people you trust (influence above the
+              verified cutoff, from your point of view) whose own concept headers, or their Assistants’, recognize
+              the shared concept each entry points to, each counted by their influence, so it’s a decimal. The
+              concept’s author and you don’t count.
             </p>
           )}
         </div>
@@ -294,7 +386,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
           Don’t see what you’re looking for? <span className={`dict-chev${findOpen ? ' is-open' : ''}`}><DictIcon name="chevron" /></span>
         </button>
         <span className="dict-spacer" />
-        <Link to={NEW_CONCEPT_PATH} className="dict-create-btn">
+        <Link to={newConceptHref} className="dict-create-btn">
           <DictIcon name="plus" /> Create New Concept
         </Link>
       </div>
@@ -303,37 +395,55 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
           inDictionary={inDictionary}
           assistantPubkey={person.assistant}
           assistantLabel={signedIn ? 'your Assistant' : 'the owner’s Assistant'}
-          canAdd={signedIn && person.isOwner}
+          canAdd={signedIn && person.isOwner && !managed}
           onAdded={reload}
         />
       )}
 
-      {error && <div className="error">Could not assemble {whose} Dictionary: {error}</div>}
+      {error && (
+        <div className="error">
+          {managed?.all ? `Couldn’t read any of your Assistants’ Dictionaries.` : `Could not assemble ${listOf}: ${error}`}{' '}
+          <button type="button" className="dict-link-btn" onClick={reload}>Try again</button>
+        </div>
+      )}
 
       {data && (
-        <ul className="dict-card dict-list" aria-label={`Concepts in ${whose} Dictionary`}>
+        <ul className="dict-card dict-list" aria-label={`Concepts in ${listOf}`}>
           {shown.map((e) => {
             const badge = overrideBadge(e);
             return (
               <li key={e.coord}>
                 <Link
-                  to={entryHref(e.coord)} state={{ entry: e, metric, pov }}
+                  to={entryHref(e.coord)} state={{ entry: e, metric, pov, listHref: `${location.pathname}${location.search}` }}
                   className={`dict-row${e.selfDeclared ? ' dict-row--shared' : ''}${e.override === 'vetoed' ? ' dict-row--vetoed' : ''}`}
                 >
                   <span className="dict-row-main">
                     <span className="dict-row-title">
                       <span className="dict-row-name">{displayName(e)}</span>
+                      {e.support && (
+                        <span
+                          className={`dict-support${e.support.count === e.support.of ? ' is-all' : ''}`}
+                          title={`Supported by ${e.support.count} of your ${e.support.of} ${unionNoun}`}
+                        >
+                          {e.support.count} of {e.support.of} {unionNoun}
+                        </span>
+                      )}
                       {e.isFirmware && <span className="dict-pill dict-pill--firmware">Firmware</span>}
                       {e.selfDeclared && (
                         <span className="dict-marker dict-marker--shared" title="Shared with the community: its b-tag points to itself">
-                          <DictIcon name="share" size={12} /> {signedIn ? 'Shared by you' : 'Shared by the owner'}
+                          <DictIcon name="share" size={12} /> {sharedBy(e)}
                         </span>
                       )}
                     </span>
                     {e.description && <span className="dict-row-desc">{e.description}</span>}
                   </span>
                   <span className="dict-row-stats">
-                    {isGumSort(sort) && <span className="dict-row-gum" title={metricLabel(metric)}>{e.gum}</span>}
+                    {isGumSort(order) && !isGum2Sort(order) && <span className="dict-row-gum" title={metricLabel(metric)}>{e.gum}</span>}
+                    {isGum2Sort(order) && (
+                      <span className="dict-row-gum" title={`GUM₂ · recognized by ${e.recognizedBy ?? 0}`}>
+                        {typeof e.gum2 === 'number' ? e.gum2.toFixed(2) : '—'}
+                      </span>
+                    )}
                     <span className="dict-row-count">{itemCountText(e.itemCount)}</span>
                     {badge && <span className={badge.className}>{badge.label}</span>}
                   </span>
@@ -343,9 +453,10 @@ export function ConceptsDictionaryBody({ entryHref = entryPath }) {
           })}
           {shown.length === 0 && (
             <li className="dict-empty">
-              {total === 0
-                ? `Nothing here yet: none of ${whose} concepts carries a b-tag.`
-                : 'No concept matches.'}
+              {total > 0 ? 'No concept matches.'
+                : remote ? `This instance’s relay holds no concept headers from ${remote.name} that carry a b-tag. Its Dictionary may live on its own instance.`
+                  : managed?.all ? 'Nothing here yet: none of your Assistants’ concepts on this relay carries a b-tag.'
+                    : `Nothing here yet: none of ${whose} concepts carries a b-tag.`}
             </li>
           )}
         </ul>
@@ -466,6 +577,8 @@ function AddToDictionary({ concept, onAdded, onClose }) {
         </div>
       )}
       <p className="dict-add-foot text-muted">
+        {/* A twin must be a concept with a node in the graph (the twin picker lists only those), which is what
+            the control panel's New Concept page makes; /dictionary/new publishes a shared header instead. */}
         No matching concept of your own? <Link to={NEW_CONCEPT_PATH}>Create New Concept</Link>, then come back to wire it.
       </p>
     </div>

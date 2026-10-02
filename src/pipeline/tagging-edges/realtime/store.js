@@ -1,12 +1,16 @@
 /**
  * The real-time path's durable state (tagging-edges story 3, ADR tagging-edges/0003 § "Knowing what changed while it
- * was away" and its amendment A1; clarifications T21 and T26).
+ * was away" and its amendment A1; clarifications T21 and T26; story 5, ADR tagging-edges/0005 D1).
  *
  * Everything lives in <stateDir>/realtime/, on the `tapestry-data` volume beside the pass's report.json, which this
  * module never touches:
  *
- *   switch.json     {"version":1,"on":true,"changedAt":ISO,"changedBy":"<8-char prefix>"}, canonical compact form
- *                   (the wrapper matches its literal "on":true); written by the owner route only
+ *   switch.json     {"version":2,"on":true,"changedAt":ISO,"changedBy":"<8-char prefix>","role":"owner"|"admin",
+ *                   "onSince":ISO|null}, canonical compact form (the wrapper matches its literal "on":true, so no other
+ *                   key may hold that text); written by the owner-or-admin route only. A version 1 record (story 3's,
+ *                   no role or onSince) still reads, as the owner's change.
+ *   switch-history.json  { version: 1, changes: [{ on, at, role, key }] }, the last 10 changes newest first, pretty
+ *                   JSON, best effort beside switch.json (ADR 0005 D2); a change not recorded has null at, role and key
  *   started.json    { version: 1, firstStartedAt }, written once, after record.json
  *   record.json     the compacted state (its lineage rows and journal epoch included, A1-6) plus a sha256 over its
  *                   canonical body (object keys sorted recursively); written, hashed and read back as a stream of
@@ -19,7 +23,8 @@
  * Whole-file writes go through state.writeAtomic (temp file, fsync, rename, directory fsync); record.json takes the
  * same steps itself, streamed. Every method is synchronous (T26). A file that is present but cannot be read or parsed
  * reads as { unreadable: true } (record.json adds its reason), never as missing, so a damaged marker is never taken for
- * a first start (AC-4).
+ * a first start (AC-4). switch.json and switch-history.json also tell a read error from damage: a read error other
+ * than ENOENT adds readError, its code (ADR 0005 D1).
  */
 
 const fs = require('fs');
@@ -52,21 +57,43 @@ function fsyncDir(dir) {
 const isObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /**
- * switch.json's text → { on, changedAt, changedBy }, or { unreadable: true } unless it parses to an object whose `on`
- * is a boolean (T26). The status route reads the file through its own readFile and applies this same rule (T32).
+ * switch.json's text → { version, on, changedAt, changedBy, role, onSince } (version as parsed, never defaulted), or
+ * { unreadable: true } unless it parses to an object whose `on` is a boolean (T26; ADR 0005 D1). The status and record
+ * routes read the file through their own readFile and apply this same rule (T32).
  */
 function parseSwitch(text) {
   let parsed;
   try { parsed = JSON.parse(Buffer.isBuffer(text) ? text.toString('utf8') : String(text)); } catch (_) { return { unreadable: true }; }
   if (!isObject(parsed) || typeof parsed.on !== 'boolean') return { unreadable: true };
-  return { on: parsed.on, changedAt: parsed.changedAt, changedBy: parsed.changedBy };
+  return { version: parsed.version, on: parsed.on, changedAt: parsed.changedAt, changedBy: parsed.changedBy, role: parsed.role, onSince: parsed.onSince };
 }
 
-/** switch.json's canonical text: compact, keys in the order version, on, changedAt, changedBy (T26). */
+const badSwitch = (message) => Object.assign(new Error(message), { code: 'EBADSWITCH' });
+
+/**
+ * switch.json's canonical text: compact, keys in the order version, on, changedAt, changedBy (T26), and for version 2
+ * then role and onSince (ADR 0005 D1). A record with no version serialises as version 1; a version 2 record needs a role
+ * of 'owner' or 'admin'.
+ */
 function canonicalSwitch(record) {
   const r = record || {};
-  if (typeof r.on !== 'boolean') throw Object.assign(new Error('switch.json needs a boolean on'), { code: 'EBADSWITCH' });
+  if (typeof r.on !== 'boolean') throw badSwitch('switch.json needs a boolean on');
+  if (r.version === 2) {
+    if (r.role !== 'owner' && r.role !== 'admin') throw badSwitch('a version 2 switch.json needs the role owner or admin');
+    return `${JSON.stringify({ version: 2, on: r.on, changedAt: r.changedAt, changedBy: r.changedBy, role: r.role, onSince: r.onSince })}\n`;
+  }
   return `${JSON.stringify({ version: r.version === undefined ? 1 : r.version, on: r.on, changedAt: r.changedAt, changedBy: r.changedBy })}\n`;
+}
+
+/**
+ * switch-history.json's text → the parsed { version, changes } as it is (which entries are valid is the record's rule,
+ * ADR 0005 D3), or { unreadable: true } unless it parses to an object whose `changes` is an array (D1).
+ */
+function parseSwitchHistory(text) {
+  let parsed;
+  try { parsed = JSON.parse(Buffer.isBuffer(text) ? text.toString('utf8') : String(text)); } catch (_) { return { unreadable: true }; }
+  if (!isObject(parsed) || !Array.isArray(parsed.changes)) return { unreadable: true };
+  return parsed;
 }
 
 /** A copy of `v` with object keys sorted at every level; arrays keep their order. */
@@ -233,13 +260,15 @@ function* fileLines(file, limit) {
 
 /**
  * The store over `dir` (default <stateDir>/realtime, TAGGING_EDGES_STATE_DIR read when the store is made).
- * → readSwitch, writeSwitch, unlinkSwitch, readStarted, writeStarted, readRecord, writeRecord, openJournal,
- *   appendJournal, truncateJournal, journalBytes, readStatus, writeStatus (T21).
+ * → readSwitch, writeSwitch, unlinkSwitch, readSwitchHistory, writeSwitchHistory, readStarted, writeStarted,
+ *   readRecord, writeRecord, openJournal, appendJournal, truncateJournal, journalBytes, readStatus, writeStatus (T21;
+ *   ADR 0005 D1).
  */
 function createStore({ dir } = {}) {
   const root = dir || path.join(state.stateDir(), 'realtime');
   const file = (name) => path.join(root, name);
   const SWITCH = file('switch.json');
+  const SWITCH_HISTORY = file('switch-history.json');
   const STARTED = file('started.json');
   const RECORD = file('record.json');
   const JOURNAL = file('journal.jsonl');
@@ -267,14 +296,24 @@ function createStore({ dir } = {}) {
     }
   };
 
-  function readSwitch() {
+  /** A file through `parse`: null when missing, { unreadable: true, readError } on any other read error (D1). */
+  const readParsed = (p, parse) => {
     let text;
-    try { text = readText(SWITCH); } catch (_) { return { unreadable: true }; }
-    return text === null ? null : parseSwitch(text);
-  }
+    try { text = readText(p); } catch (err) { return { unreadable: true, readError: (err && err.code) || 'error' }; }
+    return text === null ? null : parse(text);
+  };
+
+  function readSwitch() { return readParsed(SWITCH, parseSwitch); }
 
   function writeSwitch(record) {
     state.writeAtomic(SWITCH, canonicalSwitch(record));
+  }
+
+  function readSwitchHistory() { return readParsed(SWITCH_HISTORY, parseSwitchHistory); }
+
+  /** Write the whole { version, changes } object (ADR 0005 D1, D2). */
+  function writeSwitchHistory(obj) {
+    state.writeAtomic(SWITCH_HISTORY, `${JSON.stringify(obj, null, 2)}\n`);
   }
 
   /** Remove switch.json, which then reads as off: the route's fallback when an off-write fails (it needs no space). */
@@ -454,6 +493,8 @@ function createStore({ dir } = {}) {
     readSwitch,
     writeSwitch,
     unlinkSwitch,
+    readSwitchHistory,
+    writeSwitchHistory,
     readStarted,
     writeStarted,
     readRecord,
@@ -467,4 +508,4 @@ function createStore({ dir } = {}) {
   };
 }
 
-module.exports = { createStore, parseSwitch };
+module.exports = { createStore, parseSwitch, parseSwitchHistory };

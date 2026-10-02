@@ -179,7 +179,9 @@ What we trade away: the code lists exist twice, which a guard test holds togethe
 ## Consequences
 
 - **What it enables.** Story 5's ADR can attach its controls to this panel, and reuse this ADR's owner-or-admin gate
-  helper for them.
+  helper for them. *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D5: the gate is extracted as `ownerOrAdmin(req, d)` in
+  `src/api/tagging-edges/index.js`, which also returns the caller's role. `gateOwnerOrAdmin` delegates to it, with its
+  contract unchanged: null on admit.)*
 - **What it constrains.** A new outcome, reason code, path state, error stage or setup problem added to the pass or
   the path needs a sentence in the panel's table. The guard test fails until it has one. Until then the panel shows
   the code with "not recognised".
@@ -247,6 +249,17 @@ pure halves `gateOwnerOrAdmin(req, d)` and `countFilter(identities)`.
      - It also passes a no-cors cross-site GET, which carries no `Origin`. Such GETs can keep at most one count
        running at a time, since a request that arrives while a count runs shares it, but repeated ones can start one
        count after another. They only read, and cannot read the answer. *(Amended at story 4's review, round 1, 2026-10-01.)*
+       *(Amended at story 5's Architecture, 2026-10-01, from story 4's review, round 2, R2-7; ADR `tagging-edges/0005`.
+       "At most one count at a time" overstates it:
+       - A no-cors request joins an answer still pending, so a new pair of counts starts only after the previous
+         answer has settled (the `inflight` join in `handleDriftCounts`, `drift.js:169`). Repeated requests can
+         therefore start one pair after another, as fast as answers settle.
+       - A count that lost its race is abandoned, not stopped. The relay count's strfry child is killed at its own 10 s
+         limit, but a graph count keeps its session until Neo4j ends it.
+       - So abandoned graph counts can run beside newer ones, bounded by the driver's pool of 20
+         (`src/lib/neo4j-driver.js:35-38`). They only read, and nobody can read their answer.)*
+       *(Clarified at story 5's review, round 1, 2026-10-02, requested change 11: the code is cited by name, with its
+       line at `ee170bf0`.)*
 
   A refused request spawns nothing, runs no Cypher and never joins a count.
 - **The relay count.**
@@ -330,6 +343,15 @@ Its named exports:
     `ServiceUnavailable` and `SessionExpired` (countCode, and a `lastError`'s code);
   - `^held-file-unreadable ` and `^claim failed: ` (confirmationWhy, with the rest shown as the code).
 
+  *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005`, from story 4's review, round 2, R2-11: in step with T12 and
+  `FAMILIES` in `taggingPipelineView.js`, `:254-280`.)* *(Clarified at story 5's review, round 1, 2026-10-02,
+  requested change 11: the code is cited by name, with its lines at `ee170bf0`.)* The countCode families, and the
+  same again under failureCode (T12), are checked in this order:
+  - `^E(?!RR_)[A-Z0-9_]+$`, an operating-system code. It excludes Node's own `ERR_…` codes.
+  - `^Neo\.ClientError\.Security\.[A-Za-z]+$`, credentials or permission. It comes before the general Neo4j family.
+  - `^Neo\.(ClientError|TransientError|DatabaseError)\.[A-Za-z]+\.[A-Za-z]+$`.
+  - `^(ServiceUnavailable|SessionExpired)$`.
+
   The Implementer writes one sentence per code the guard test lists, from each code's producer (§ Seams), following
   `product-team/guardrails/language.md`:
   - a sentence never repeats its code;
@@ -344,7 +366,8 @@ Its named exports:
   - `earlier` is the report's other entries, newest first.
   - `empty` is true only when `statusBody.latest` is null and `previous` is empty, so a running first pass is not
     empty. The pass section then says that no pass has run yet, and names the two ways one starts: an enabled
-    Scheduled Tasks entry ("Reconcile tagging relationships"), or the Task Explorer (until story 5).
+    Scheduled Tasks entry ("Reconcile tagging relationships"), or the Task Explorer (until story 5). *(Until story 6:
+    the pass's controls are story 6's since story 5's Planning, 2026-10-01; ADR `tagging-edges/0005`.)*
   - `confirmation` is checked in this order:
     1. `{ state: 'none' }` when `confirmationPending` is null;
     2. `{ state: 'unreadable', code }` when it has `unreadable`;
@@ -360,6 +383,9 @@ Its named exports:
   taken from `latest` (only when not running) and then `...previous`, or `null` if none.
 - **`pathView(rtBody)`**:
   - **Running.** `onButNotRunning` is `on && !running`, and in that case the stored `state` is not shown as current.
+    *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D7: `pathView` also gives `starting` (`on && inStartWindow`) and
+    `runningForThisOn` (`running && !starting`). `onButNotRunning` becomes `on && !running && !starting`, and the
+    stored `state` is not shown while starting either.)*
   - **Warnings** come from `stale`, `statusUnreadable` and `switchUnreadable`, as the server reports them.
   - **Counts and gauges are separate.**
     - The counts are `counts.{added, changed, removed, unchanged, peopleAdded}`, and `counts.refused.total`,
@@ -379,7 +405,8 @@ Its named exports:
   - **Nulls.**
     - Before the first start (`firstStartedAt` null and no `counts`), every figure reads "not yet available".
     - After it, `lastError`, `setupProblem`, `catchUp.current` and `preimageFile` read "none" when null.
-    - `onSince` and `runningSince` are shown only when `on` and `running` are true.
+    - `onSince` and `runningSince` are shown only when `on` and `running` are true. *(Since story 5: while
+      starting, `onSince` is shown and `runningSince` is not; ADR `tagging-edges/0005` D7.)*
     - `lastFigures` is set, with `updatedAt`, when `on` is false and figures exist.
   - **A setup problem** is keyed `identity:<problem>` or `schema:<rule>:<problem>` (for example
     `schema:tags_address:not-online`). Its `identity` and `source`, or its `rule`, are shown as they are.
@@ -465,7 +492,8 @@ TaggingPipelinePanel({ onOpenTab })`.
   - A failed drift-counts read makes both counts unknown.
 - **Polling.**
   - A timer of `POLL_MS` re-reads the status and the realtime status with `Promise.allSettled`, and is cleared on
-    unmount (the `StreamingETLPanel` precedent, `:1358-1363`).
+    unmount (the `StreamingETLPanel` precedent, `:1358-1363`). *(Since story 5 it also re-reads the switch's record;
+    ADR `tagging-edges/0005` D12.)*
   - A tick is skipped while the previous one is in flight. Each section keeps only the newest answer, and an answer to
     an older request is dropped.
   - 5 s leaves the request's own time inside AC-5's "within 10 seconds of the status routes showing it".
@@ -498,7 +526,8 @@ TaggingPipelinePanel({ onOpenTab })`.
   - If a layout needs a length no class gives, that is a `design.md:17` deviation the owner must accept, recorded
     under Debt. It is not the Implementer's choice.
 - **Copy.** No emoji and no exclamation marks. Every code is shown through `explain`. Every request the panel sends is
-  a `GET`.
+  a `GET`. *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D12: apart from the switch's failure code, shown beside `switchOutcome`'s
+  sentence for its target; and apart from `sendSwitch`'s one POST.)*
 
 **`ui/src/pages/settings/RelaySettings.jsx`** gets three edits and nothing else:
 1. the import;
@@ -682,6 +711,8 @@ field is `null`.
 
 - `started` is false when `firstStartedAt` is absent and `counts` is absent.
 - `state` is `null` when `onButNotRunning`. Otherwise it is `rtBody.state`, which is `'off'` whenever `on` is false.
+  *(Since story 5 the shape also has `starting` and `runningForThisOn`, and `state` is `null` while starting too; ADR
+  `tagging-edges/0005` D7.)*
 - `warnings` is an array, in this order, of those of `'stale'`, `'statusUnreadable'` and `'switchUnreadable'` whose
   field is `true`.
 - `countsSince` is `null` when not started. Otherwise it is `{ from: 'first-start', at: firstStartedAt }`, or
@@ -784,16 +815,50 @@ carries today, and the pass mints its own.
     `sweep.js:61-67`, plus `identities.js`'s `missing`).
   - **Config:** `missing-NEO4J_URI`, `missing-NEO4J_USER` and `driver` (`reconcileTaggingEdges.js:330`, `:337`).
   - **Schema:** `tags_address-missing`, `tags_address-not-online`, `nostrUser_pubkey-missing` and `no-status`
-    (`:349-356`).
+    (`:349-356`). *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005`, R2-1: `no-status` is an error that carried no `code`.
+    - Every Neo4jError the driver makes carries a code, `N/A` when none was given
+      (`node_modules/neo4j-driver-core/lib/error.js:245-247`; `newError` is the driver's only constructor of
+      Neo4jError).
+    - The driver's code-less errors are plain `TypeError` or `Error` throws from its own checks of arguments and
+      configuration (`internal/util.js:142`, `:207`, `:221`; `driver.js:822-910`).
+    - So `no-status` is a fault in the schema check's own code, including what that code passes to the driver, or in
+      a library other than the driver. It never comes from Neo4j's answer.
+    - Its sentence says so, and points at reporting a bug, not at Neo4j.)*
   - **Reads:** `incomplete`, `missing-column` and `uniqueness-not-holding` (`:388-408`, `:421`).
   - **The rest:** `plan-error` (`:436`), `invariant` (`graph.js:164-166`), `signal` (`:310`) and `error` (the
-    fallback at `:394`, `:405`, `:423`, `:487`, `:588`).
+    fallback at `:394`, `:405`, `:423`, `:487`, `:588`). *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005`, R2-1 and R2-9.)*
+    - **The driver's own `N/A` and `ProtocolError`** (`error.js:86-96`) reach `failure.code` raw at any graph stage.
+      Each gets an exact failureCode entry, worded for any graph stage:
+      - `N/A` is the driver's unclassified error. Most often no connection was had within the 30 s acquisition
+        limit, or `NEO4J_URI` or TLS is set wrong.
+      - `ProtocolError` is a Bolt protocol fault: a version mismatch, or something other than Neo4j at the Bolt
+        port.
+    - **The same two get countCode entries,** as floors. Today every countCode source either passes `allowErrorCode`,
+      which turns both into `error` (`raceCount`'s two calls, `drift.js:103` and `:118`, which settle both of
+      `countBoth`'s counts; `computeRealtimeStatus`'s `lastError` re-check, `realtime.js:134`; the engine `:623`), or
+      carries only filesystem codes (`handleStatus`'s `confirmation.json` read, `index.js:204`). *(Clarified at story
+      5's review, round 1, 2026-10-02, requested change 11: the code is cited by name, with its lines at `ee170bf0`.
+      The engine's line still resolves.)*
+    - **`fsFailure`** (`reconcileTaggingEdges.js:102`) joins the `error` fallbacks. It is stored through `fail()` at
+      `:548` (via `:486`) and at `:569`. The one at `:245` is never stored, because the report write itself failed.
+    - **`passReason.schema`'s** "Any other code has its own explanation beside it" becomes: explained beside it, or
+      shown as not recognised.
   - **The relay read's codes:** every code in `SCAN_ERROR_CODES` (`src/lib/tagging-edges/realtime.js:68-71`).
 - **The open families** of `FAMILIES` (`E…`, `Neo.…`, `ServiceUnavailable` / `SessionExpired`) also apply under
   `failureCode`, with sentences fitting a pass's failure. A `Neo.ClientError.Security.…` code reads as a credentials or
   permission problem (`Security.Forbidden` is a permission). The `E…` family excludes Node's own `ERR_…` codes, here
   and under `countCode`, since those are not the operating system's. *(Wording refined at the T12 implementation's
-  check, 2026-10-01.)*
+  check, 2026-10-01.)* *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005`, R2-11: both readings are ratified.)*
+  - **The `ERR_` exclusion.** The E family's sentence says the operating system reported the code, which is false for
+    Node's own `ERR_*` family. No Linux errno starts with `ERR_`, so the exclusion drops no real operating-system
+    code.
+  - **`Security.Forbidden` is a permission:** a missing privilege, where `Unauthorized` is bad credentials.
+    - The pass's boot-retry credential list leaves `Forbidden` out (`graph.js:432-443`), as does the path's list of
+      auth failure codes (`realtime/index.js:91-95`).
+    - Both Security sentences already name the credentials, or the permission that user has.
+  - **The repo's own `EBADJSON`, `EBADRUNID`, `EBADHELD` and `EBADSWITCH`** match `^E…` too. `EBADJSON` has an exact
+    entry, and the others reach a code only through a bug, so nothing changes.
+  - **The Tester pins** an `ERR_` code under both kinds, and `Neo.ClientError.Security.Forbidden`.
 - **The guard** extracts these from the producers, with a floor for each:
   - every `code: '…'` literal in a failure object or a thrown error in `reconcileTaggingEdges.js`;
   - `missing-` joined to each key of the config check;
@@ -810,7 +875,8 @@ recorded before the change, at `88af7df3` (its UI is `66d60cb5`'s), in
 ## Out of scope
 
 - **Story 5's controls** and their confirm prompts. The widening of the switch to admins, and the run and stop
-  controls, are for story 5's ADR.
+  controls, are for story 5's ADR. *(Amended at story 5's Architecture, 2026-10-01: the switch, its prompt and its
+  widening to admins are story 5's, ADR `tagging-edges/0005`. The pass's run, stop and confirm are story 6's.)*
 - **A cron parser.** A cron entry's frequency is judged only by the rule in `scheduleView`.
 - **A panel read that shows a queued pass,** and any change to the gate on the scheduled-tasks routes. The latter is
   the 2026-07-21 intake entry's.

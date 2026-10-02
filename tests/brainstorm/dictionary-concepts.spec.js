@@ -38,6 +38,47 @@ const { test, expect } = require('@playwright/test');
  *         names the Assistant the Treasure Map assigns; what has no backend is disabled; the GUM₁
  *         sentence; the header panels open.
  *   D11 — a Treasure Map that cannot be read names no curator and says so.
+ *
+ * "Managed by" on /dictionary (test/dictionary-managed-by.test.js holds the pure rules):
+ *
+ *   D12 — a signed-in reader picks another of their Assistants: the URL names it, the list is its
+ *         Dictionary (read for that Assistant alone), and the page says it reads this relay.
+ *   D13 — "All of my Assistants": one row per shared concept, with "n of m Assistants".
+ *   D14 — a link to another Assistant's Dictionary reads only that one; its entry returns to it
+ *         and names the Assistant's header.
+ *   D15 — signed out it is a label, and an unreadable link says nothing about "your own"; signed in, a
+ *         link naming someone else's Assistant falls back, and says so.
+ *   D16 — an Assistant's Dictionary that cannot be read is an error with Try again, never "0 concepts".
+ *   D17 — when the reader's Assistants cannot be read, the page says so and offers Try again.
+ *   D18 — the menu works from the keyboard: focus moves in, arrows move, Escape returns to the trigger.
+ *   D19 — focus leaving for nowhere (Safari, pressing an option) leaves the menu open, so a pick lands;
+ *         Escape on the trigger closes it.
+ *
+ * The item page (the design's Dictionary item screen):
+ *
+ *   D20 — an Items row opens /dictionary/:coord/items/:item: "Item N in <concept>", who filed it, the
+ *         raw event; its back link returns to the entry.
+ *   D21 — a direct visit works out the number from the Items, and says when an item is filed by
+ *         someone the community doesn't trust.
+ *   D22 — it says no more than it knows: an event filed elsewhere isn't "untrusted", a failed
+ *         Dictionary read is named, and a "%" in a d-tag doesn't crash the page.
+ *   D23 — a modified click on a row (new tab) doesn't navigate this tab.
+ *
+ * Create New Concept (the design's screen; test/dictionary-new-concept.test.js holds the draft rule):
+ *
+ *   D24 — a signed-in customer creates a concept: the preview is the shared header, it is signed with
+ *         their own key (NIP-07) and published, and the page opens its entry saying what the
+ *         broadcast did.
+ *   D25 — a header this instance's relay holds for the signer at that name isn't replaced: nothing is published.
+ *   D26 — the owner's Assistant signs on the server; a different extension key is refused; signed
+ *         out, the form is disabled.
+ *   D27 — a broadcast that doesn't land: the form locks, Try again re-broadcasts that event, and the
+ *         page opens that event's concept.
+ *
+ * GUM₂, recognition (test/dictionary-gum2.test.js holds the rule):
+ *
+ *   D28 — the list sorts by recognition, with each row's GUM₂; the entry strip says "Recognized by N
+ *         members of … trusted, extended community (GUM₂ x.xx)" above the filing line.
  */
 
 const OWNER = '1'.repeat(64);
@@ -45,6 +86,7 @@ const OWNER_TA = '2'.repeat(64);
 const CUST = '3'.repeat(64);
 const CUST_TA = '4'.repeat(64);
 const ADMIN_NO_TA = '5'.repeat(64);
+const REMOTE_TA = '8'.repeat(64); // an Assistant the customer tagged, hosted elsewhere
 const FOREIGN = `39998:${'f'.repeat(64)}:shared-thing`;
 const SENTINEL = 'b-tag-deferred';
 
@@ -61,8 +103,12 @@ const HEADERS = [
   ['customer-thing', 'customer thing', CUST_TA, FOREIGN],
   ['admin-thing', 'admin thing', ADMIN_NO_TA, FOREIGN],
   ['deferred-one', 'deferred one', OWNER_TA, SENTINEL],
+  ['remote-thing', 'remote thing', REMOTE_TA, FOREIGN], // the same shared concept as "customer thing"
+  ['remote-only', 'remote only', REMOTE_TA, `39998:${'e'.repeat(64)}:elsewhere`],
 ];
 const ALL_NAMES = HEADERS.map((h) => h[1]);
+/** GUM₂ by header d-tag, as the server would send it (recognitionByConcept). */
+const RECOGNITION = { 'cat-breed': { gum2: 0.75, recognizedBy: 2 }, dog: { gum2: 1.5, recognizedBy: 3 } };
 
 /** The server's rule over the fixtures: the requested authors' headers that carry a real b. */
 function dictionaryFor(authors) {
@@ -76,6 +122,7 @@ function dictionaryFor(authors) {
         targets: selfDeclared ? [] : [b], selfDeclared, isFirmware: false,
         itemCount: 0, sharedCoord: selfDeclared ? coord : b, gum: 0,
         totalAuthorCount: 0, totalEventCount: 0, override: null,
+        ...(RECOGNITION[d] || { gum2: 0, recognizedBy: 0 }),
       };
     });
 }
@@ -128,7 +175,60 @@ async function names(page) {
 }
 
 
+/** The customer's Assistants: their local one and Robin, tagged, with names. Call after mockStack (and mockEntry). */
+async function mockAssistants(page) {
+  const json = (r, body) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  await page.route('**/api/assistant/my-assistants', (r) => json(r, {
+    success: true, signedIn: true, local: CUST_TA,
+    rows: [
+      { pubkey: CUST_TA, local: true, tags: [{ key: 'tapestry', name: 'My Tapestry Assistant' }] },
+      { pubkey: REMOTE_TA, local: false, tags: [{ key: 'brainstorm', name: 'My Brainstorm Assistant' }] },
+    ],
+  }));
+  await page.route('**/api/profiles**', (r) => json(r, {
+    success: true,
+    profiles: {
+      [CUST_TA]: { name: 'Baz’s Assistant', nip05: 'baz-assistant@here.example' },
+      [REMOTE_TA]: { name: 'Robin', website: 'robin.example' },
+    },
+  }));
+}
+
+/**
+ * Create New Concept's reads and writes: a stand-in NIP-07 extension holding `key`, the existing-header
+ * check (`existing` → the signer already has one), the publish, and a local-only publish policy so no
+ * socket is opened. Returns the publish bodies.
+ */
+async function mockCreate(page, { key, existing = false, external = false } = {}) {
+  const json = (r, body) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  const published = [];
+  await page.addInitScript((pk) => {
+    window.nostr = {
+      getPublicKey: async () => pk,
+      signEvent: async (ev) => ({ ...ev, pubkey: pk, id: '1'.repeat(64), sig: '2'.repeat(128) }),
+    };
+  }, key);
+  await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: external }));
+  await page.route('**/api/strfry/scan**', (r) => {
+    const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
+    if ((filter.kinds || []).includes(39998) && filter['#d'] && existing) {
+      return json(r, { success: true, events: [{ id: '3'.repeat(64), kind: 39998, pubkey: filter.authors[0], created_at: 1, content: '', tags: [['d', filter['#d'][0]]] }] });
+    }
+    return json(r, { success: true, events: [] });
+  });
+  await page.route('**/api/strfry/publish', (r) => {
+    const body = JSON.parse(r.request().postData() || '{}');
+    published.push(body);
+    const ev = body.signAs === 'assistant' ? { ...body.event, pubkey: OWNER_TA, id: '4'.repeat(64), sig: '5'.repeat(128) } : body.event;
+    return json(r, { success: true, event: ev });
+  });
+  return published;
+}
+
 const TRUSTED_FILER = '6'.repeat(64);
+const UNTRUSTED_FILER = '9'.repeat(64);
+const UNTRUSTED_ITEM = 'e'.repeat(64);
+const ELSEWHERE_ITEM = 'c'.repeat(64);
 const CURATOR = '7'.repeat(64);
 
 /** The entry page's own reads, on top of mockStack: its Items, the two headers, the Treasure Map. */
@@ -146,6 +246,17 @@ async function mockEntry(page, { map = 'assigned' } = {}) {
   });
   await page.route('**/api/strfry/scan**', (r) => {
     const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
+    if (Array.isArray(filter.ids)) {
+      // An item page reads its event by id: a listed item, or one filed by someone untrusted.
+      const id = filter.ids[0];
+      const listed = items.find((it) => it.id === id);
+      const ev = listed
+        ? { id, kind: 9999, pubkey: TRUSTED_FILER, created_at: listed.createdAt, content: '', tags: [['z', FOREIGN], ['name', listed.name]] }
+        : id === UNTRUSTED_ITEM ? { id, kind: 9999, pubkey: UNTRUSTED_FILER, created_at: 5, content: '', tags: [['z', FOREIGN], ['name', 'mystery']] }
+          : id === ELSEWHERE_ITEM ? { id, kind: 9999, pubkey: UNTRUSTED_FILER, created_at: 6, content: '', tags: [['z', `39998:${'d'.repeat(64)}:other`], ['name', 'stray']] }
+            : null;
+      return json(r, { success: true, events: ev ? [ev] : [] });
+    }
     if ((filter.kinds || []).includes(10040)) {
       if (map === 'unreadable') return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'strfry is down' }) });
       // ["39998:cat-breed", OWNER_TA] empowers 39998:<OWNER_TA>:cat-breed, the entry D10 opens.
@@ -339,6 +450,365 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.getByRole('button', { name: /^Curation/ }).click();
     await expect(curation.getByText(/^Could not read the owner’s Treasure Map: /)).toBeVisible();
     await expect(curation.getByText('Curated by')).toHaveCount(0);
+  });
+
+  test('D12: a signed-in reader picks another of their Assistants, and the list is its Dictionary', async ({ page }) => {
+    const asked = await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    await page.goto(PAGE);
+    await expect(page.getByRole('heading', { level: 1, name: 'Your Dictionary.' })).toBeVisible();
+    const trigger = page.getByRole('button', { name: /^Managed by Baz’s Assistant/ });
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    const menu = page.getByRole('menu', { name: 'Whose Dictionary to show' });
+    await expect(menu.getByRole('menuitemradio')).toHaveText([/Baz’s Assistant\s*Local/, /Robin/, /All of my Assistants/]);
+    await expect(menu.getByRole('menuitemradio', { name: /Baz’s Assistant/ })).toHaveAttribute('aria-checked', 'true');
+    await menu.getByRole('menuitemradio', { name: /Robin/ }).click();
+    await expect(page).toHaveURL(/\?managedBy=npub1/);
+    await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
+    expect(asked.at(-1), 'Robin’s Dictionary is read for Robin alone').toBe(REMOTE_TA);
+    expect(await names(page)).toEqual(['remote thing', 'remote only']);
+    await expect(page.getByText('Read from this instance’s relay: Robin may keep more of its Dictionary on its own instance.')).toBeVisible();
+    await page.getByRole('button', { name: /^Managed by Robin/ }).click();
+    await page.getByRole('menuitemradio', { name: /Baz’s Assistant/ }).click();
+    await expect(page).toHaveURL(/\/dictionary$/);
+    await expect(page.getByText('1 concept in your Dictionary')).toBeVisible();
+  });
+
+  test('D13: All of my Assistants — one row per shared concept, with its support', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    await page.goto(`${PAGE}?managedBy=all`);
+    await expect(page.getByText('2 concepts across your 2 Assistants')).toBeVisible();
+    expect(await names(page)).toEqual(['customer thing', 'remote only']);
+    const row = (name) => list(page).locator('.dict-row', { has: page.locator('.dict-row-name', { hasText: new RegExp(`^${name}$`) }) });
+    await expect(row('customer thing').locator('.dict-support')).toHaveText('2 of 2 Assistants');
+    await expect(row('remote only').locator('.dict-support')).toHaveText('1 of 2 Assistants');
+    await expect(page.getByRole('button', { name: /^Managed by All of my Assistants/ })).toBeVisible();
+    await expect(page.getByText(/^Read from this instance’s relay: your other Assistants may keep more/)).toBeVisible();
+  });
+
+  test('D14: a link to another Assistant’s Dictionary reads only that one, and its entry comes back to it', async ({ page }) => {
+    const asked = await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockAssistants(page);
+    await page.goto(`${PAGE}?managedBy=${REMOTE_TA}`);
+    await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
+    expect(asked, 'never the reader’s own Dictionary first').toEqual([REMOTE_TA]);
+    await list(page).getByRole('link', { name: /^remote thing/ }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'remote thing' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Dictionary', exact: true })).toHaveAttribute('href', `/dictionary?managedBy=${REMOTE_TA}`);
+    await expect(page.getByRole('button', { name: 'Robin’s header' })).toBeVisible();
+  });
+
+  test('D15: signed out it is a label; a link naming someone else’s Assistant falls back, and says so', async ({ page }) => {
+    await mockStack(page);
+    await page.goto(PAGE);
+    await expect(page.locator('.bsd-managed')).toHaveText('Managed by The owner’s Assistant');
+    await expect(page.getByRole('button', { name: /^Managed by/ })).toHaveCount(0);
+    await page.goto(`${PAGE}?managedBy=nprofile1notavalidkey`);
+    await expect(page.getByText(/concepts? in the owner’s Dictionary/)).toBeVisible();
+    await expect(page.getByText(/so this is your own/)).toHaveCount(0);
+
+    const page2 = await page.context().newPage();
+    const asked = await mockStack(page2, { session: CUSTOMER });
+    await mockAssistants(page2);
+    await page2.goto(`${PAGE}?managedBy=${'9'.repeat(64)}`);
+    await expect(page2.getByText('The link named a Dictionary that isn’t one of your Assistants’, so this is your own.')).toBeVisible();
+    await expect(page2.getByText('1 concept in your Dictionary')).toBeVisible();
+    expect(asked.at(-1)).toBe(`${CUST},${CUST_TA}`);
+  });
+
+  test('D16: an Assistant’s Dictionary that cannot be read is an error, never an empty Dictionary', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    let fail = true;
+    await page.route('**/api/dictionaries/concepts?**', (r) => {
+      const authors = new URL(r.request().url()).searchParams.get('authors');
+      if (fail && authors === REMOTE_TA) return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'boom' }) });
+      return r.fallback();
+    });
+    await page.goto(`${PAGE}?managedBy=${REMOTE_TA}`);
+    await expect(page.getByText('Could not assemble Robin’s Dictionary: boom')).toBeVisible();
+    await expect(page.getByText(/concepts? in Robin’s Dictionary/)).toHaveCount(0);
+    await expect(page.getByText(/holds no concept headers from Robin/)).toHaveCount(0);
+    fail = false;
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
+  });
+
+  test('D17: when the reader’s Assistants cannot be read, the page says so, and Try again reads them', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    let fail = true;
+    await page.route('**/api/assistant/my-assistants', (r) => (fail
+      ? r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'down' }) })
+      : r.fallback()));
+    await page.goto(`${PAGE}?managedBy=${REMOTE_TA}`);
+    await expect(page.getByText('Couldn’t load your Assistants, so this is your own Dictionary, not the one the link named.')).toBeVisible();
+    await expect(page.getByText('1 concept in your Dictionary')).toBeVisible();
+    fail = false;
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Managed by Robin/ })).toBeVisible();
+  });
+
+  test('D18: the menu works from the keyboard', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    await page.goto(PAGE);
+    const trigger = page.getByRole('button', { name: /^Managed by Baz’s Assistant/ });
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    const items = page.getByRole('menuitemradio');
+    await expect(items.nth(0), 'focus moves to the chosen option').toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(items.nth(2)).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(items.nth(0), 'wraps to the top').toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(trigger, 'Escape returns focus to the trigger').toBeFocused();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\?managedBy=npub1/);
+    await expect(page.getByRole('button', { name: /^Managed by Robin/ }), 'a pick returns focus to the trigger').toBeFocused();
+  });
+
+  test('D19: focus leaving for nowhere keeps the menu open, so a mouse pick lands; Escape on the trigger closes it', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockAssistants(page);
+    await page.goto(PAGE);
+    const trigger = page.getByRole('button', { name: /^Managed by Baz’s Assistant/ });
+    await trigger.click();
+    await expect(page.getByRole('menu')).toBeVisible();
+    // Safari blurs a pressed button without focusing it: focus goes nowhere before the click lands.
+    await page.evaluate(() => document.activeElement && document.activeElement.blur());
+    await expect(page.getByRole('menu'), 'still open').toBeVisible();
+    await page.getByRole('menuitemradio', { name: /Robin/ }).click();
+    await expect(page).toHaveURL(/\?managedBy=npub1/);
+    const robin = page.getByRole('button', { name: /^Managed by Robin/ });
+    await robin.click();
+    await robin.focus();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu'), 'Escape on the trigger closes it').toHaveCount(0);
+  });
+
+  test('D20: an Items row opens its item page, which says where it is and who filed it', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}`);
+    const card = page.locator('.dict-items');
+    await expect(card.locator('.dict-items-count')).toHaveText('23 items');
+    const link = card.getByRole('link', { name: 'item 03' });
+    const id = String(3).padStart(64, '0');
+    await expect(link).toHaveAttribute('href', `/dictionary/${encodeURIComponent(coord)}/items/${id}`);
+    await card.locator('.dict-items-row', { has: page.getByRole('link', { name: 'item 04' }) }).locator('.dict-items-n').click();
+    await expect(page.getByRole('heading', { level: 1, name: 'item 04' }), 'a click anywhere on the row opens it').toBeVisible();
+    await page.goBack();
+    await link.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'item 03' })).toBeVisible();
+    await expect(page.getByText('Item 3 in cat breed')).toBeVisible();
+    await expect(page.getByText('item 03 is one of the items the owner’s trusted community has filed under cat breed.')).toBeVisible();
+    await expect(page.locator('.dict-filed-by-name')).toHaveText('Trusty');
+    await expect(page.getByRole('link', { name: /View Nostr profile/ })).toHaveAttribute('href', `/user/${TRUSTED_FILER}`);
+    await page.getByRole('button', { name: 'Raw Nostr event' }).click();
+    await expect(page.locator('#dict-item-raw .dict-json')).toContainText('["name","item 03"]');
+    const back = page.getByRole('link', { name: 'cat breed', exact: true });
+    await expect(back).toHaveAttribute('href', `/dictionary/${encodeURIComponent(coord)}`);
+    await back.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'cat breed' })).toBeVisible();
+    await expect(page.locator('.dict-items .dict-items-count')).toHaveText('23 items');
+  });
+
+  test('D21: a direct visit works out the item’s number, and says when it isn’t in the trusted Items', async ({ page }) => {
+    await mockStack(page);
+    const itemsAsked = await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    const id5 = String(5).padStart(64, '0');
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${id5}`);
+    await expect(page.getByText('Item 5 in cat breed')).toBeVisible();
+    expect(itemsAsked, 'the Items are read once, for the entry and its shared concept').toHaveLength(1);
+    expect(itemsAsked[0]).toMatchObject({ coord, shared: FOREIGN });
+
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${UNTRUSTED_ITEM}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'mystery' })).toBeVisible();
+    await expect(page.locator('.dict-entry-sub')).toHaveText('Filed under cat breed');
+    await expect(page.getByText('mystery is filed under cat breed, but not by anyone the owner’s community trusts, so it isn’t in the entry’s Items.')).toBeVisible();
+  });
+
+  test('D22: the item page says no more than it knows', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    // Filed under another concept: not "untrusted", and not "in" this one.
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${ELSEWHERE_ITEM}`);
+    await expect(page.getByText('stray isn’t filed under cat breed.')).toBeVisible();
+    await expect(page.getByText(/not by anyone/)).toHaveCount(0);
+    await expect(page.getByText(/Filed under cat breed|Item \d+ in/)).toHaveCount(0);
+
+    // A "%" in a d-tag: the router has decoded it once; the page must not decode it again and crash.
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${encodeURIComponent(`39999:${TRUSTED_FILER}:50%off`)}`);
+    await expect(page.getByRole('heading', { level: 1, name: `39999:${TRUSTED_FILER}:50%off` })).toBeVisible();
+    await expect(page.getByText('No event found for this item on this relay.').first()).toBeVisible();
+    await expect(page.getByText(/Unexpected Application Error|URI malformed/)).toHaveCount(0);
+
+    // The person's Dictionary can't be read: say so, and nothing about trust.
+    const page2 = await page.context().newPage();
+    await mockStack(page2);
+    await mockEntry(page2);
+    await page2.route('**/api/dictionaries/concepts?**', (r) => r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'boom' }) }));
+    await page2.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${UNTRUSTED_ITEM}`);
+    await expect(page2.getByText(/^Couldn’t read the owner’s Dictionary \(boom\)/)).toBeVisible();
+    await expect(page2.getByText(/not by anyone/)).toHaveCount(0);
+  });
+
+  test('D23: a modified click on an Items row is left to the browser', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}`);
+    const row = page.locator('.dict-items .dict-items-row', { has: page.getByRole('link', { name: 'item 02' }) });
+    await row.locator('.dict-items-n').click({ modifiers: ['ControlOrMeta'] });
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL(new RegExp(`/dictionary/${encodeURIComponent(coord)}$`));
+    await row.locator('.dict-items-n').click();
+    await expect(page.getByRole('heading', { level: 1, name: 'item 02' })).toBeVisible();
+  });
+
+  test('D24: a signed-in customer creates a shared concept, signed with their own key', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const published = await mockCreate(page, { key: CUST });
+    await page.goto(PAGE);
+    await page.getByRole('link', { name: 'Create New Concept' }).click();
+    await expect(page).toHaveURL(/\/dictionary\/new$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Create New Concept' })).toBeVisible();
+    const create = page.getByRole('button', { name: 'Create concept' });
+    await expect(create, 'both names first').toBeDisabled();
+    await page.getByLabel('Singular name').fill('Taco Truck in Nashville');
+    await page.getByLabel('Plural name').fill('Taco Trucks in Nashville');
+    await page.getByLabel('Description').fill('Trucks that sell tacos.');
+    const coord = `39998:${CUST}:taco-truck-in-nashville`;
+    await expect(page.locator('.dict-new-preview')).toContainText(`["b","${coord}","pointer"]`);
+    await expect(page.getByText('Header you publish (shared: its b-tag points to itself)')).toBeVisible();
+    await expect(page.getByText(/You publish the header, signed with your nostr extension and marked as shared, so others can find it and adopt it\./)).toBeVisible();
+    await expect(page.getByText(/Private/)).toHaveCount(0);
+    await create.click();
+    await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(coord)}`);
+    await expect(page.getByText('Saved here. External publishing is off for this deployment, so it was not sent onward.')).toBeVisible();
+    expect(published, 'one publish').toHaveLength(1);
+    expect(published[0].signAs).toBe('client');
+    expect(published[0].event.pubkey).toBe(CUST);
+    expect(published[0].event.tags).toEqual([
+      ['d', 'taco-truck-in-nashville'], ['names', 'Taco Truck in Nashville', 'Taco Trucks in Nashville'],
+      ['description', 'Trucks that sell tacos.'], ['b', coord, 'pointer'],
+    ]);
+  });
+
+  test('D25: a header this instance’s relay holds for the signer at that name isn’t replaced', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const published = await mockCreate(page, { key: CUST, existing: true });
+    await page.goto(`${PAGE}/new`);
+    await page.getByLabel('Singular name').fill('Bird');
+    await page.getByLabel('Plural name').fill('Birds');
+    await page.getByRole('button', { name: 'Create concept' }).click();
+    await expect(page.getByRole('alert')).toContainText('This instance’s relay already holds your concept header at this name');
+    await expect(page.getByRole('link', { name: 'open the existing one' })).toHaveAttribute('href', `/dictionary/${encodeURIComponent(`39998:${CUST}:bird`)}`);
+    expect(published, 'nothing published').toHaveLength(0);
+  });
+
+  test('D26: the owner’s Assistant signs on the server; another key is refused; signed out it is disabled', async ({ page }) => {
+    await mockStack(page, { session: { pubkey: OWNER, assistantPubkey: OWNER_TA, classification: 'owner' } });
+    const published = await mockCreate(page, { key: OWNER });
+    await page.goto(`${PAGE}/new`);
+    await expect(page.getByText('Header your Assistant publishes (shared: its b-tag points to itself)')).toBeVisible();
+    await page.getByLabel('Singular name').fill('Bird');
+    await page.getByLabel('Plural name').fill('Birds');
+    await page.getByRole('button', { name: 'Create concept' }).click();
+    await expect(page).toHaveURL(new RegExp(`/dictionary/${encodeURIComponent(`39998:${OWNER_TA}:bird`)}$`));
+    expect(published[0].signAs).toBe('assistant');
+    expect(published[0].event.sig, 'the server signs it').toBeUndefined();
+    expect(published[0].event.tags.at(-1)).toEqual(['b', `39998:${OWNER_TA}:bird`, 'pointer']);
+
+    const page2 = await page.context().newPage();
+    await mockStack(page2, { session: CUSTOMER });
+    const none = await mockCreate(page2, { key: 'f'.repeat(64) });
+    await page2.goto(`${PAGE}/new`);
+    await page2.getByLabel('Singular name').fill('Bird');
+    await page2.getByLabel('Plural name').fill('Birds');
+    await page2.getByRole('button', { name: 'Create concept' }).click();
+    await expect(page2.getByRole('alert')).toContainText('Your nostr extension holds a different key from the account you’re signed in with.');
+    expect(none).toHaveLength(0);
+
+    const page3 = await page.context().newPage();
+    await mockStack(page3);
+    await page3.goto(`${PAGE}/new`);
+    await expect(page3.getByText('Sign in to create a concept.')).toBeVisible();
+    await expect(page3.getByLabel('Singular name')).toBeDisabled();
+    await expect(page3.getByRole('button', { name: 'Create concept' })).toBeDisabled();
+  });
+
+  test('D27: a broadcast that doesn’t land locks the form; Try again re-broadcasts it and opens its concept', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const published = await mockCreate(page, { key: CUST, external: true });
+    // A stand-in relay: refuses while window.__relayOk is false, then accepts. No real socket is opened.
+    await page.addInitScript(() => {
+      window.__relayOk = false;
+      window.WebSocket = class {
+        constructor(url) {
+          this.url = url; this.readyState = 0;
+          setTimeout(() => {
+            if (window.__relayOk) { this.readyState = 1; this.onopen?.({}); }
+            else { this.readyState = 3; this.onerror?.({}); this.onclose?.({ code: 1006, reason: '' }); }
+          }, 5);
+        }
+        send(raw) {
+          const msg = JSON.parse(raw);
+          if (msg[0] === 'EVENT') setTimeout(() => this.onmessage?.({ data: JSON.stringify(['OK', msg[1].id, true, '']) }), 5);
+        }
+        close() { this.readyState = 3; }
+        addEventListener(type, fn) { this[`on${type}`] = fn; }
+        removeEventListener() {}
+      };
+      window.WebSocket.CONNECTING = 0; window.WebSocket.OPEN = 1; window.WebSocket.CLOSING = 2; window.WebSocket.CLOSED = 3;
+    });
+    await page.goto(`${PAGE}/new`);
+    await page.getByLabel('Singular name').fill('Bird');
+    await page.getByLabel('Plural name').fill('Birds');
+    await page.getByRole('button', { name: 'Create concept' }).click();
+    const status = page.getByRole('status').filter({ hasText: 'Created on this instance.' });
+    await expect(status).toContainText("didn't reach the community relay"); // broadcastOutcome's own wording
+    await expect(page.getByLabel('Singular name'), 'the form is locked once the header exists').toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Create concept' })).toBeDisabled();
+    expect(published).toHaveLength(1);
+    await page.evaluate(() => { window.__relayOk = true; });
+    await status.getByRole('button', { name: 'Try again' }).click();
+    const coord = `39998:${CUST}:bird`;
+    await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(coord)}`);
+    await expect(page.getByText('Submitted as a shared concept — published to the community relay.')).toBeVisible();
+    expect(published, 'Try again re-broadcasts; it does not publish again').toHaveLength(1);
+    await page.reload();
+    await expect(page.getByText('Submitted as a shared concept')).toHaveCount(0);
+  });
+
+  test('D28: GUM₂ — the list sorts by recognition, and the entry strip says who recognizes it', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page);
+    await page.goto(PAGE);
+    await page.getByRole('button', { name: 'Search and sort' }).click();
+    await page.getByLabel('Order by').selectOption({ label: 'General Usage Metric: recognition (highest first)' });
+    expect(await list(page).locator('.dict-row-name').allTextContents()).toEqual(['dog', 'cat breed', 'owner signed']);
+    expect(await list(page).locator('.dict-row-gum').allTextContents()).toEqual(['1.50', '0.75', '0.00']);
+    await expect(page.getByText(/General Usage Metric, recognition \(GUM₂\):/)).toBeVisible();
+
+    await list(page).getByRole('link', { name: /^cat breed/ }).click();
+    const strip = page.locator('.dict-author-strip');
+    await expect(strip).toContainText('Recognized by 2 members of the owner’s trusted, extended community (GUM₂ 0.75).');
+    await expect(strip).toContainText('0 members of the owner’s trusted, extended community file items under it.');
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

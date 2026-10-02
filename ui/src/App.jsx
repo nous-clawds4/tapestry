@@ -120,6 +120,8 @@ import SetupIndex from './pages/setup/Index';
 import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Placeholders';
 import DictionaryPage from './pages/dictionary/Index';
 import DictionaryEntryPage from './pages/dictionary/Entry';
+import DictionaryItemPage from './pages/dictionary/Item';
+import DictionaryNewConceptPage from './pages/dictionary/NewConcept';
 import MyAssistantsPage from './pages/assistants/Index';
 import AssistantManagementPage from './pages/assistant/Index';
 import EditAssistantProfilePage from './pages/assistant/EditProfile';
@@ -267,8 +269,18 @@ const router = createBrowserRouter([
     element: <DictionaryPage />,
   },
   {
+    // Create New Concept, as the design's screen: a shared DList header (pages/dictionary/NewConcept.jsx).
+    path: '/dictionary/new',
+    element: <DictionaryNewConceptPage />,
+  },
+  {
     path: '/dictionary/:coord',
     element: <DictionaryEntryPage />,
+  },
+  {
+    // One item of an entry's Items, as the design's "Dictionary item" screen (by address or event id).
+    path: '/dictionary/:coord/items/:item',
+    element: <DictionaryItemPage />,
   },
   {
     // My Assistants: every profile the viewer tagged as one of their Assistants, in the Brainstorm design's styling

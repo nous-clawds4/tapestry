@@ -522,13 +522,16 @@ async function register(app) {
     app.get('/api/tagging-edges/held', taggingEdges.handleHeld);
     app.post('/api/tagging-edges/confirm-held-removals', adminApi.requireOwnerOnly, taggingEdges.handleConfirmHeldRemovals);
 
-    // ── The tagging real-time path (tagging-edges #3, ADR tagging-edges/0003 § "Status and switch") ──
+    // ── The tagging real-time path (tagging-edges #3, ADR tagging-edges/0003 § "Status and switch"; #5, ADR 0005) ──
     // One public status read — fixed text and allow-listed error codes only, from realtime/status.json and
-    // switch.json — and one owner-only switch (no admins, no loopback) that writes realtime/switch.json; it sends no
-    // signal and enqueues nothing. Neither path contains an ownerOnlyEndpoints substring.
+    // switch.json, never who switched it — and, on the switch path, an owner-or-admin switch (no loopback; the handler
+    // re-checks: signed in, owner or admin, same host) that writes realtime/switch.json with who and when, plus the
+    // history file, and an owner-or-admin read of that record (who and when, the last 10 changes). The switch sends
+    // no signal and enqueues nothing. Neither path contains an ownerOnlyEndpoints substring.
     const taggingEdgesRealtime = require('./tagging-edges/realtime');
     app.get('/api/tagging-edges/realtime/status', taggingEdgesRealtime.handleRealtimeStatus);
-    app.post('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOnly, taggingEdgesRealtime.handleRealtimeSwitch);
+    app.post('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOrAdmin, taggingEdgesRealtime.handleRealtimeSwitch);
+    app.get('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOrAdmin, taggingEdgesRealtime.handleRealtimeSwitchRecord);
 
     // ── The tagging pipeline panel's drift count (tagging-edges #4, ADR tagging-edges/0004 § Server) ──
     // One owner-or-admin read (the handler re-checks: signed in, owner or admin, same host) that counts the relay

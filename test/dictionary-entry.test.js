@@ -9,7 +9,7 @@
  *   I1..I11 — pure: trustedItems in src/lib/trustedDictionary.js (I8–I10: a curation copy and its
  *             original are one item; I11: the response cap).
  *   C1..C3 — pure: conceptCurator in ui/src/utils/treasureMap.js (dynamic import).
- *   E1..E6 — structural pins, read off comment-stripped source: the route and its seam, the
+ *   E1..E10 — structural pins, read off comment-stripped source: the route and its seam, the
  *            client read, the design's sections in order, the disabled controls with their notes,
  *            and the dropped sample chips.
  *
@@ -29,6 +29,8 @@ const UI = path.join(ROOT, 'ui/src');
 const ENTRY_JSX = path.join(UI, 'pages/dictionaries/ConceptEntry.jsx');
 const HELPERS_JS = path.join(UI, 'pages/dictionaries/conceptsDictionary.js');
 const DICTIONARY_ENTRY_JSX = path.join(UI, 'pages/dictionary/Entry.jsx');
+const DICTIONARY_ITEM_JSX = path.join(UI, 'pages/dictionary/Item.jsx');
+const APP_JSX = path.join(UI, 'App.jsx');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
@@ -271,7 +273,7 @@ test('E4: what has no backend is shown disabled, each with its note', () => {
   assert(/These settings arrive in a later version\./.test(entry), 'with a note under the switches');
   assert(/disabled aria-describedby="dict-veto-note"/.test(entry) && /Vetoing and restoring entries by hand arrive with Pins, in a later version\./.test(entry),
     'Veto stays disabled with its note (Pins, SPEC § 3)');
-  assert(/Item pages arrive in a later version\./.test(entry), 'the rows are not links yet, and the page says so');
+  assert(!/Item pages arrive in a later version\./.test(entry), 'item pages exist now (E7), so the page no longer says they are coming');
   for (const label of ['Publish Trusted List of items', 'Publish Trusted Lists of Tagged Items', 'Organize items into subsets', 'Update the expected format for list items']) {
     assert(entry.includes(`'${label}'`), `the design's switch "${label}" is listed`);
   }
@@ -284,7 +286,7 @@ test('E5: the sample chips and the Usage card are gone; the links moved into the
   assert(/\{members\} \{members === 1 \? 'member' : 'members'\}/.test(entry), 'the strip states the GUM₁ count as members');
   assert(/Open the concept →/.test(entry) && (entry.match(/Raw header event →/g) || []).length === 2, 'both header panels keep their links');
   const dict = flat(code(src(DICTIONARY_ENTRY_JSX)));
-  assert(/<ConceptEntryBody listHref=\{DICTIONARY_PATH\} listLabel="Dictionary" profileBase="\/user" \/>/.test(dict),
+  assert(/<ConceptEntryBody listHref=\{DICTIONARY_PATH\} listLabel="Dictionary" profileBase="\/user"( itemHref=\{dictionaryItemPath\})? \/>/.test(dict),
     '/dictionary/:coord links Filed by names to the Main side\'s profile pages');
 });
 
@@ -297,6 +299,55 @@ test('E6: nothing is said from a read that has not happened, or failed', () => {
   assert(/!settled \? \( <p className="text-muted">Reading \{whose\} Dictionary…<\/p>/.test(entry), 'so does the Community header panel');
   assert(/entry && sharedCoord && metric === 'gum1' &&/.test(entry), 'the members sentence is GUM₁\'s, and only shown for it');
   assert(/!items\.data \? ''/.test(entry), 'the pager says nothing until the items arrive');
+});
+
+test('E7: every Items row opens its item: /dictionary\'s own page, else the Simple Lists item page', () => {
+  const entry = flat(code(src(ENTRY_JSX)));
+  const helpers = flat(code(src(HELPERS_JS)));
+  const dict = flat(code(src(DICTIONARY_ENTRY_JSX)));
+  assert(/itemHref = controlPanelItemPath/.test(entry), 'the control panel entry links to the existing item page by default');
+  assert(/<Link to=\{to\} state=\{state\} className="dict-items-item-link">\{it\.name\}<\/Link>/.test(entry), 'the item name is a real link');
+  assert(/if \(e\.target\.closest\('a'\) \|\|/.test(entry) && /navigate\(to, \{ state \}\);/.test(entry), 'and the whole row opens it, leaving the Filed by link alone (E10: and modified clicks)');
+  assert(/controlPanelItemPath = \(coord, item\) => `\/tapestry\/lists\/items\/\$\{encodeURIComponent\(item\.kind === 39999 && item\.address \? item\.address : item\.id\)\}`/.test(helpers),
+    'Simple Lists opens a kind-39999 item by address and anything else by id (itemRouteId)');
+  assert(/dictionaryItemPath = \(coord, item\) => `\$\{dictionaryEntryPath\(coord\)\}\/items\/\$\{encodeURIComponent\(item\.address \|\| item\.id\)\}`/.test(helpers), '/dictionary/:coord/items/:item');
+  assert(/itemHref=\{dictionaryItemPath\}/.test(dict), '/dictionary/:coord passes its own item path');
+  assert(/path: '\/dictionary\/:coord\/items\/:item', element: <DictionaryItemPage \/>/.test(flat(code(src(APP_JSX)))), 'the item route exists');
+});
+
+test('E8: the item page is the design\'s screen: back to the concept, "Item N in", Filed by, the raw event', () => {
+  const item = flat(code(src(DICTIONARY_ITEM_JSX)));
+  assert(/<Link to=\{entryHref\} state=\{entryState\} className="dict-back"><DictIcon name="back" \/> \{concept\}<\/Link>/.test(item), 'the back link is named for the concept');
+  assert(/`Item \$\{listed\.n\} in \$\{concept\}`/.test(item), '"Item N in <concept>"');
+  assert(/<span className="dict-field-label">Filed by<\/span>/.test(item) && /View Nostr profile/.test(item), 'Filed by, with the profile link');
+  assert(/<Disclosure id="dict-item-raw" label="Raw Nostr event">/.test(item), 'the raw event, collapsed');
+  assert(/fromEntry === entryPath \|\| fromEntry\.startsWith\(`\$\{entryPath\}\?`\)/.test(item), 'back only to this entry\'s page (and its query)');
+});
+
+test('E9: the item page says only what the Items list establishes', () => {
+  const item = flat(code(src(DICTIONARY_ITEM_JSX)));
+  assert(/let description = tagOf\(ev, 'description'\);/.test(item), 'the event\'s own description first');
+  assert(/if \(!description && ev && !readError\)/.test(item), 'nothing is said beside a failed read');
+  assert(/\} else if \(filedHere && complete && !own\) \{ description = `\$\{name\} is filed under \$\{concept\}, but not by anyone \$\{whose\} community trusts/.test(item),
+    '"not trusted" needs the event filed under the concept, a complete Items read, and someone other than the reader');
+  assert(/const filedHere = ev && entry \? \(ev\.tags \|\| \[\]\)\.some\(\(t\) => t && t\[0\] === 'z' && concepts\.includes\(t\[1\]\)\) : null;/.test(item),
+    '"filed under" is read off the event\'s z tags, against every concept a known entry names');
+  assert(/const complete = Boolean\(items\.data\) && !items\.data\.truncated;/.test(item), 'a capped read is not complete');
+  assert(/\.find\(\(it\) => \(it\.address \|\| it\.id\) === key\)/.test(item), 'items are matched by the event\'s own key, however the page was opened');
+  assert(/useConceptItems\(\{ coord, shared: entry\?\.sharedCoord \|\| null, person, povParams, enabled: !passed && Boolean\(entry\) \}\)/.test(item),
+    'a direct visit reads the Items from the active point of view, once the entry is known');
+});
+
+test('E10: a "%" in an item\'s d-tag cannot crash a page, and a modified click on a row is the browser\'s', () => {
+  const item = flat(code(src(DICTIONARY_ITEM_JSX)));
+  assert(!/decodeURIComponent\(/.test(item), 'the item page reads the router\'s already-decoded params as given');
+  assert(/export function safeDecode\(raw\) \{ try \{ return decodeURIComponent\(raw \|\| ''\); \} catch \{ return raw \|\| ''; \} \}/.test(flat(code(src(HELPERS_JS)))), 'safeDecode never throws');
+  assert(/const coord = safeDecode\(rawCoord\);/.test(flat(code(src(ENTRY_JSX)))), 'the entry page decodes safely');
+  assert(/try \{ decodedId = decodeURIComponent\(id\); \} catch/.test(flat(code(src(path.join(UI, 'pages/events/DListItemDetail.jsx'))))),
+    'the Simple Lists item page, which control-panel rows now open, decodes safely');
+  const entry = flat(code(src(ENTRY_JSX)));
+  assert(/e\.button !== 0 \|\| e\.metaKey \|\| e\.ctrlKey \|\| e\.shiftKey \|\| e\.altKey\) return;/.test(entry), 'a modified click on a row is left to the browser');
+  assert(/String\(window\.getSelection\(\)\)\.length > 0\) return;/.test(entry), 'so is the end of a text selection');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

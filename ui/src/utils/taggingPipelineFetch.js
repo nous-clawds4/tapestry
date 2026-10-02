@@ -1,14 +1,19 @@
 /**
- * The Tagging pipeline panel's one read primitive (tagging-edges Story 4 /
- * ADR 0004 § UI, § Clarifications T7). Every section of the panel reads its
- * route through readSection, so each section loads, fails and retries on its
- * own, and a failure always arrives as a short code, never as raw text or a
- * stack trace (a non-2xx answer's parsed JSON rides along only for /held's
- * latestRunId). Plain ESM in Node 16 syntax so the Node harness can
- * dynamic-import it; it can't parse JSX (the nextTaskCountdown precedent).
+ * The Tagging pipeline panel's request primitives (tagging-edges Story 4 /
+ * ADR 0004 § UI, § Clarifications T7; Story 5 / ADR 0005 D12). Every section
+ * of the panel reads its route through readSection, so each section loads,
+ * fails and retries on its own, and a failure always arrives as a short code,
+ * never as raw text or a stack trace (a non-2xx answer's parsed JSON rides
+ * along only for /held's latestRunId and the switch's failure code). Plain
+ * ESM in Node 16 syntax so the Node harness can dynamic-import it; it can't
+ * parse JSX (the nextTaskCountdown precedent).
  *
- * Every request is a GET: the panel only reads.
+ * Every request is a GET but one: sendSwitch's POST, the real-time path's
+ * switch (story 5). Both share one race, so the switch's 15 s limit is the
+ * reads' own.
  */
+
+const SWITCH_PATH = '/api/tagging-edges/realtime/switch';
 
 /**
  * Read one section's route.
@@ -21,7 +26,7 @@
  *   latestRunId, never rendered raw), else null. `httpStatus` and `body` are
  *   null for `network` and `timeout`.
  *
- * The time-out is this function's own timer racing the whole read, the body
+ * The time-out is this module's own timer racing the whole read, the body
  * included, so a fetchImpl that ignores `signal` still ends as `timeout`.
  * The 15 s default leaves the server's 10 s count its margin. fetchImpl is
  * called exactly once; nothing is retried; the promise never rejects.
@@ -35,28 +40,53 @@
 export async function readSection(url, opts) {
   // `opts || {}` rather than a default parameter, so a null opts still resolves.
   const { fetchImpl = globalThis.fetch, timeoutMs = 15000 } = opts || {};
+  return raced(timeoutMs, (signal) => attempt(url, fetchImpl, { method: 'GET', signal }));
+}
+
+/**
+ * Turn the real-time path on or off (ADR 0005 D12): one POST of `{"on":…}` as
+ * JSON to the switch route, with the default same-origin credentials. It
+ * resolves readSection's result shapes, through the same race and the same
+ * 15 s default, so an answer that never comes ends as `timeout`. It is never
+ * retried, and the promise never rejects.
+ *
+ * @param {boolean} on
+ * @param {{ fetchImpl?: Function, timeoutMs?: number }} [opts]
+ */
+export async function sendSwitch(on, opts) {
+  const { fetchImpl = globalThis.fetch, timeoutMs = 15000 } = opts || {};
+  return raced(timeoutMs, (signal) => attempt(SWITCH_PATH, fetchImpl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ on }),
+    signal,
+  }));
+}
+
+/** Race one request against `timeoutMs`; the request gets the abort signal the time-out fires. */
+async function raced(timeoutMs, request) {
   const controller = new AbortController();
   let timer;
   const timedOut = new Promise((resolve) => {
     timer = setTimeout(() => {
       // Settle as timeout first, so a fetchImpl that rejects on abort can't
-      // turn this read into `network`.
+      // turn this request into `network`.
       resolve(failure('timeout'));
       controller.abort();
     }, timeoutMs);
   });
   try {
-    return await Promise.race([attempt(url, fetchImpl, controller.signal), timedOut]);
+    return await Promise.race([request(controller.signal), timedOut]);
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function attempt(url, fetchImpl, signal) {
+async function attempt(url, fetchImpl, init) {
   let res;
   let text;
   try {
-    res = await fetchImpl(url, { method: 'GET', signal });
+    res = await fetchImpl(url, init);
     text = await res.text();
   } catch {
     // No answer, or an answer whose body could not be read.

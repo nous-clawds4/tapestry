@@ -31,6 +31,37 @@
  *             unexplained still computed (TV59–TV62; review Non-blocking 3) — and usedInsteadOfLatest true while a
  *             pass runs (TV63; T5's note; review Non-blocking 1). The flags helper now holds five flags, so TV48–TV51
  *             pin countsPredatePass's boolean too.
+ *   TV64–TV81 Story 5 (engineering-team/stories/tagging-edges/5-real-time-path-switch.md; ADR
+ *             engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md D7, D8, D12, D14 and § Seams "The
+ *             view module"), still clock-free (TV4):
+ *             TV64–TV67 pathView's starting window (D7: starting, runningForThisOn, onButNotRunning and state while
+ *             starting, the server's inStartWindow verdict only); TV68 offPromptVariant (D8); TV69 turnOnWarning
+ *             (D14); TV70–TV77 switchRecordView (D12: each record state's own sentence, and the two consistency
+ *             cases); TV78–TV81 switchOutcome (D12: each outcome against each target).
+ *   TV82      Story 5's review, round 1, requested 6: a failed change with no body.code (a body-less 404 or 502)
+ *             names no data-volume remedy, claims no state and says the state shown is from the next read; one
+ *             carrying the handler's code keeps the remedy. It fails until a code-less failure has its own sentence.
+ *   R2-12 (story 5 § Carry-forwards): TV48's title now says five flags, as the helper holds (a title-only edit).
+ *
+ * Story 5's readings where ADR 0005 leaves a detail open (reported at the Test Design gate):
+ *   - switchRecordView's and switchOutcome's answer shapes are not fixed, so these tests read them shape-free: every
+ *     string value in the answer, deep (keys are never read). switchOutcome must name exactly one of D12's five outcomes
+ *     as a string value, and its sentence is its string values holding a space.
+ *   - The history the record shows is found as an array in the answer whose rows carry the record's history newest
+ *     first: a recorded row its key and its time, a row not recorded neither (D12). The list may be the whole history
+ *     or all of it but the latest, which has its own line (AC-5: the latest change plus the last 10).
+ *   - The panel prints a time in the viewer's locale (parts.jsx when()) and the view module reads no clock, so the form
+ *     a time takes in the answer is the view's choice: "when" is checked as the record's instant present in the answer
+ *     in any form that reads back to it — a string value s with Date.parse(s) === Date.parse(at), a number equal to
+ *     it, or the ISO text inside a longer string (carriesTime; TV70, TV75, and every history row TV70–TV72 and TV74
+ *     find). A row not recorded carries none of the history's times in any of those forms, and no ISO-looking text.
+ *   - switchOutcome's target is the boolean the panel sent (sendSwitch(on, …)).
+ *   - TV80–TV81 pin only words D12 itself gives the sentences: the refused one's "sign in again" and "owner or an
+ *     admin" (its "from the instance's own address" is checked as the sentence naming where, in any of address, URL,
+ *     origin, site, host, domain or page), the failed on's "unchanged", "free space" and "writable", and the failed
+ *     off's "could not be turned off" and "still on".
+ *   - turnOnWarning's "none" is null, undefined or 'none'.
+ *   - A record read is "current" when its state is 'ready'; a failed read keeps its body (useRead) but is not current.
  *
  * Fixtures are modelled on the real shapes: the status route's computeStatus (src/api/tagging-edges/index.js:104-118),
  * the pass's records (src/pipeline/tagging-edges/reconcileTaggingEdges.js pessimisticRecord :126-150, finish), the
@@ -178,15 +209,15 @@ async function importView() {
 }
 
 /** Loads the view module and checks it exports `name`; throws a message that says what is missing. */
-async function need(name, where) {
+async function need(name, where, adr = 'ADR 0004') {
   const { mod, err } = await importView();
   if (err) {
     const why = (err && (err.code || String(err.message).split(NL)[0])) || 'error';
-    throw new Error(`${VIEW_REL} not implemented yet: it does not export ${name} (ADR 0004 ${where}; the module cannot ` +
+    throw new Error(`${VIEW_REL} not implemented yet: it does not export ${name} (${adr} ${where}; the module cannot ` +
       `be imported by Node: ${why})`);
   }
   if (mod[name] === undefined) {
-    throw new Error(`${VIEW_REL} not implemented yet: it does not export ${name} (ADR 0004 ${where})`);
+    throw new Error(`${VIEW_REL} not implemented yet: it does not export ${name} (${adr} ${where})`);
   }
   return mod[name];
 }
@@ -201,6 +232,16 @@ const newestFn = () => fn('newestFinishedPass', '§ UI, T2');
 const pathViewFn = () => fn('pathView', '§ UI, T3');
 const scheduleViewFn = () => fn('scheduleView', '§ UI, T4');
 const driftViewFn = () => fn('driftView', '§ UI, T5');
+/** Story 5's new exports (ADR 0005): the same loader, citing ADR 0005. */
+const fn5 = async (name, where) => {
+  const f = await need(name, where, 'ADR 0005');
+  assert(typeof f === 'function', `${VIEW_REL} exports ${name}, but it is not a function (ADR 0005 ${where})`);
+  return f;
+};
+const offPromptVariantFn = () => fn5('offPromptVariant', 'D8');
+const turnOnWarningFn = () => fn5('turnOnWarning', 'D14');
+const switchRecordViewFn = () => fn5('switchRecordView', 'D12');
+const switchOutcomeFn = () => fn5('switchOutcome', 'D12');
 
 /** Runs `body` with Date.now answering `at` and counting its calls; restores it in finally. */
 async function withClock(at, body) {
@@ -502,6 +543,161 @@ const unknown = (code, takenAt = '2026-09-30T16:00:00.000Z', ms = 10000) => ({ k
 function driftCounts(relay, graph) {
   return { success: true, limitMs: 10000, relay, graph, stamps: { canonical: '82b75e47', local: '8e901369' } };
 }
+
+// ─── fixtures (story 5): the starting window (ADR 0005 D7) ─────────────────────────────────────────────────────────
+
+/** The server's recorded off-to-on time for the starting fixtures (the status's onSince, ADR 0005 D4). */
+const ON_AT = '2026-10-01T14:02:11.000Z';
+
+/**
+ * STARTING (ADR 0005 § Seams, "Browser fixtures"): on, the server's inStartWindow true, its process not running yet.
+ * The stored state is whatever the last process wrote (here 'stopped').
+ */
+function rtStarting(over = {}) {
+  return rtLive({ onSince: ON_AT, inStartWindow: true, running: false, runningSince: null, state: 'stopped', ...over });
+}
+
+/** STARTING_OLD_PROCESS: on, in the window, a process alive that started before that on (a quick off then on). */
+function rtStartingOldProcess(over = {}) {
+  const startedAt = '2026-10-01T13:40:00.000Z';
+  return rtLive({
+    onSince: ON_AT, inStartWindow: true, running: true, runningSince: startedAt, state: 'live',
+    process: { pid: 28230, startTime: '1413313189', startedAt }, ...over,
+  });
+}
+
+// ─── fixtures (story 5): the switch's record (GET /api/tagging-edges/realtime/switch, ADR 0005 D3, D6) ─────────────
+
+const KEY_ADMIN = 'ab12cd34'; // the story's AC-5 example
+const KEY_OWNER = 'f0178122'; // ADR 0005 D10's local owner key
+const KEY_ADMIN2 = '0badc0de';
+const KEYS = [KEY_ADMIN, KEY_OWNER, KEY_ADMIN2];
+const AT_LATEST = '2026-10-01T14:02:11.000Z';
+
+/** One change as D3 serves it: { on, at, role, key }; a change not recorded has at, role and key null. */
+const entryOf = (on, at, role, key) => ({ on, at, role, key });
+const unrecorded = (on) => entryOf(on, null, null, null);
+
+/**
+ * The GET's answer (D6): { success, on, switchUnreadable, historyUnreadable, state, latest, history }. By default an
+ * admin turned the path off; the history, newest first, holds an earlier owner's on, an off not recorded, and an
+ * admin's on (ADR 0005 D3: the history's first row is the latest change).
+ */
+function recordBody(over = {}) {
+  const latest = entryOf(false, AT_LATEST, 'admin', KEY_ADMIN);
+  return {
+    success: true, on: false, switchUnreadable: false, historyUnreadable: false, state: 'recorded', latest,
+    history: [
+      latest,
+      entryOf(true, '2026-10-01T09:30:00.000Z', 'owner', KEY_OWNER),
+      unrecorded(false),
+      entryOf(true, '2026-09-29T17:43:18.937Z', 'admin', KEY_ADMIN2),
+    ],
+    ...over,
+  };
+}
+
+/** The panel's reads (useRead): { state, body, error, readAt }. A failure after a good answer keeps that body. */
+const READ_LOADING = { state: 'loading', body: null, error: null, readAt: null };
+const readyRead = (body) => ({ state: 'ready', body: clone(body), error: null, readAt: '2026-10-01T14:02:15.000Z' });
+function failedRead(keptBody = null, error = { ok: false, code: 'http-500', httpStatus: 500, body: null }) {
+  return { state: 'error', body: keptBody === null ? null : clone(keptBody), error, readAt: keptBody === null ? null : '2026-10-01T14:02:15.000Z' };
+}
+
+// ─── reading story 5's answers shape-free (ADR 0005 D12 fixes their content, not their field names) ───────────────
+
+/** Every string value inside `v`, deep (array elements and object values; keys are never read). `skip` is not entered. */
+function stringsIn(v, skip = null, out = [], seen = new Set()) {
+  if (typeof v === 'string') { out.push(v); return out; }
+  if (v && typeof v === 'object') {
+    if (seen.has(v) || (skip && v === skip)) return out;
+    seen.add(v);
+    for (const x of Array.isArray(v) ? v : Object.values(v)) stringsIn(x, skip, out, seen);
+  }
+  return out;
+}
+/** Every array inside `v`, deep, `v` itself included. */
+function arraysIn(v, out = [], seen = new Set()) {
+  if (v && typeof v === 'object' && !seen.has(v)) {
+    seen.add(v);
+    if (Array.isArray(v)) out.push(v);
+    for (const x of Array.isArray(v) ? v : Object.values(v)) arraysIn(x, out, seen);
+  }
+  return out;
+}
+/** Every string and every number inside `v`, deep (array elements and object values; keys are never read). `skip` is not entered. */
+function leavesIn(v, skip = null, out = [], seen = new Set()) {
+  if (typeof v === 'string' || typeof v === 'number') { out.push(v); return out; }
+  if (v && typeof v === 'object') {
+    if (seen.has(v) || (skip && v === skip)) return out;
+    seen.add(v);
+    for (const x of Array.isArray(v) ? v : Object.values(v)) leavesIn(x, skip, out, seen);
+  }
+  return out;
+}
+/**
+ * Does `v` (outside `skip`) carry the record's time `at` (ISO, as D3 serves it)? The view may pass a time through in any
+ * form that reads back to the same instant: a string value s with Date.parse(s) === Date.parse(at), a number equal to
+ * Date.parse(at), or the ISO text itself inside a longer string. The view reads no clock (TV4) and the panel prints the
+ * time in the viewer's locale (parts.jsx when()), so the form is the view's choice; the instant is not.
+ */
+function carriesTime(v, at, skip = null) {
+  const ms = Date.parse(at);
+  return leavesIn(v, skip).some((x) => (typeof x === 'number' ? x === ms : x.includes(at) || Date.parse(x) === ms));
+}
+const ISO_TIME = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+/**
+ * Does one shown row carry `entry`: a recorded change's key and time (any form, carriesTime), or, for a change not
+ * recorded, no key and no time — no ISO-looking text and none of `history`'s recorded times in any form?
+ */
+function rowCarries(row, entry, history) {
+  const s = stringsIn(row);
+  if (entry.key) return s.some((x) => x.includes(entry.key)) && carriesTime(row, entry.at);
+  const times = history.filter((e) => e.at).map((e) => e.at);
+  return !s.some((x) => ISO_TIME.test(x) || KEYS.some((k) => x.includes(k))) && !times.some((at) => carriesTime(row, at));
+}
+/**
+ * The history the answer shows: an array whose rows carry the record's history newest first — the whole history, or
+ * all of it but the latest change, which has its own line. null when the answer shows none.
+ */
+function shownHistory(v, history) {
+  for (const want of [history, history.slice(1)]) {
+    if (want.length === 0 || !want.some((e) => e.key)) continue;
+    const hit = arraysIn(v).find((a) => a.length === want.length && want.every((e, i) => rowCarries(a[i], e, history)));
+    if (hit) return hit;
+  }
+  return null;
+}
+/** The answer's text outside the shown history (the latest line and any note), joined. */
+const textOutside = (v, history) => stringsIn(v, history || null).join(' | ');
+/** The answer's sentences outside the shown history: its string values that hold a space. */
+const sentencesOutside = (v, history) => stringsIn(v, history || null).filter((s) => /\s/.test(s)).sort();
+/** No sentence in a story 5 answer carries '!' (AC-6, story 4's copy rules; ADR 0005 D13 "no !"). */
+function noBang(v, what) {
+  const bad = stringsIn(v).filter((s) => s.includes('!'));
+  assert(bad.length === 0, `${what}: its sentences must have no "!" (story 4's copy rules, ADR 0005 D13); got ${show(bad)}`);
+}
+/** After a failed record read, or with a skewed pair, nothing of the record's body is shown (ADR 0005 D12). */
+function showsNothingOfTheRecord(v, what) {
+  const all = stringsIn(v);
+  const keys = KEYS.filter((k) => all.some((s) => s.includes(k)));
+  assert(keys.length === 0, `${what}: it must not show the record's latest change or history, so no key appears (ADR 0005 ` +
+    `D12 "never renders a kept body's latest line"); found ${show(keys)} in ${show(v)}`);
+  const turned = all.filter((s) => /turned (on|off) by/i.test(s));
+  assert(turned.length === 0, `${what}: no "Turned … by" line may show (ADR 0005 D12); got ${show(turned)}`);
+}
+
+const OUTCOMES = ['done', 'done-unrecorded', 'unknown', 'refused', 'failed'];
+/** The outcome switchOutcome names: exactly one of D12's five, as a string value of its answer. */
+function outcomeOf(r, what) {
+  assert(r && typeof r === 'object', `${what}: switchOutcome must give an answer that names its outcome and carries its ` +
+    `sentence (ADR 0005 D12); got ${show(r)}`);
+  const names = [...new Set(stringsIn(r).filter((s) => OUTCOMES.includes(s)))];
+  assert(names.length === 1, `${what}: the answer must name exactly one of ${show(OUTCOMES)} (ADR 0005 D12); got ${show(r)}`);
+  return names[0];
+}
+/** switchOutcome's sentence: its string values that hold a space (a code such as http-500 holds none). */
+const sentenceOf = (r) => stringsIn(r).filter((s) => /\s/.test(s)).join(' ');
 
 // ─── tests ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -1074,7 +1270,7 @@ test('TV47: the difference is relay minus graph and can be negative; unexplained
   fields(v, { known: true, difference: -6, explained: 3, unexplained: -9 }, 'driftView(graph ahead)');
 });
 
-test('TV48: an unknown count is never 0 — with either count unknown (a timeout, an ECONNREFUSED, an unparseable answer) known is false and the difference, explained part, remainder, explainedBy and explainedReason are all null, with the answer\'s count objects passed through, and the four flags still booleans [AC-4 "Unknown, never 0"; ADR 0004 § UI "Unknown counts"; T5]', async () => {
+test('TV48: an unknown count is never 0 — with either count unknown (a timeout, an ECONNREFUSED, an unparseable answer) known is false and the difference, explained part, remainder, explainedBy and explainedReason are all null, with the answer\'s count objects passed through, and the five flags still booleans [AC-4 "Unknown, never 0"; ADR 0004 § UI "Unknown counts"; T5]', async () => {
   const driftView = await driftViewFn();
   const cases = [
     driftCounts(known(7026), unknown('timeout')),
@@ -1319,6 +1515,452 @@ test('TV63: while a pass runs, driftView gives passRunning true AND explainedBy.
       explainedBy: { runId: fin.runId, endedAt: fin.endedAt, usedInsteadOfLatest: true },
     }, what);
   }
+});
+
+/* TV64–TV67: pathView's starting window (story 5 AC-3; ADR 0005 D7) */
+
+test('TV64: within the starting window (on, and the status\'s inStartWindow true) a path whose process is not running yet is starting, not failed — starting true, onButNotRunning false, runningForThisOn false, state null whatever the stored state, and a tone that is not bad — on a first start too [story 5 AC-3 "Within the window … the panel says the path is starting, never that it has failed"; ADR 0005 D7 "pathView", § Seams "The view module"]', async () => {
+  const pathView = await pathViewFn();
+  const cases = [
+    ['STARTING, stored state stopped', rtStarting()],
+    ['STARTING, stored state live', rtStarting({ state: 'live' })],
+    ['STARTING, no stored state', rtStarting({ state: null })],
+    ['a first start in its window (no firstStartedAt, no counts)', rtNeverStarted({ on: true, onSince: ON_AT, inStartWindow: true, state: null })],
+  ];
+  for (const [label, body] of cases) {
+    const what = `pathView(${label}) [ADR 0005 D7]`;
+    const v = pathView(body);
+    fields(v, { on: true, running: false, starting: true, onButNotRunning: false, runningForThisOn: false, state: null }, what);
+    assert(v.tone !== 'bad', `${what}: a path that is starting has not failed, so its tone is not bad (story 5 AC-3); got ${show(v.tone)}`);
+  }
+});
+
+test('TV65: within the window, a process that started before that on (a quick off then on, STARTING_OLD_PROCESS) does not count as running for this on — running stays liveness (true), but starting is true, runningForThisOn false, onButNotRunning false and state null, even though the stored state reads live [story 5 AC-3 "A process that started before that on does not count as running"; ADR 0005 D7 "running stays liveness alone", "runningForThisOn = running && !starting"]', async () => {
+  const pathView = await pathViewFn();
+  const v = pathView(rtStartingOldProcess());
+  fields(v, { on: true, running: true, starting: true, runningForThisOn: false, onButNotRunning: false, state: null },
+    'pathView(STARTING_OLD_PROCESS) [ADR 0005 D7]');
+  assert(v.tone !== 'bad', `pathView(STARTING_OLD_PROCESS): starting is not failed, so its tone is not bad (story 5 AC-3); got ${show(v.tone)}`);
+});
+
+test('TV66: outside the window starting is false — past 60 seconds with no process the path is onButNotRunning again (story 4\'s red), a running process is this on\'s (runningForThisOn true, its state shown), a status without inStartWindow (a story-4 server) reads as before, and only inStartWindow === true counts (not "true", 1 or null) [story 5 AC-3 "Past 60 seconds … story 4\'s warning, as today"; ADR 0005 D7 "starting = on && rtBody.inStartWindow === true"]', async () => {
+  const pathView = await pathViewFn();
+  fields(pathView(rtStarting({ inStartWindow: false })),
+    { on: true, running: false, starting: false, onButNotRunning: true, runningForThisOn: false, state: null },
+    'pathView(on, past the window, no process) [ADR 0005 D7]');
+  fields(pathView(rtLive({ running: false, runningSince: null })),
+    { starting: false, onButNotRunning: true, runningForThisOn: false, state: null },
+    'pathView(on, no inStartWindow, no process: a story-4 server) [ADR 0005 D7]');
+  fields(pathView(rtLive({ inStartWindow: false })),
+    { on: true, running: true, starting: false, runningForThisOn: true, onButNotRunning: false, state: 'live' },
+    'pathView(on, past the window, running) [ADR 0005 D7]');
+  fields(pathView(rtLive()),
+    { starting: false, runningForThisOn: true, onButNotRunning: false, state: 'live' },
+    'pathView(on, no inStartWindow, running: a story-4 server) [ADR 0005 D7]');
+  for (const odd of ['true', 1, null]) {
+    fields(pathView(rtStarting({ inStartWindow: odd })), { starting: false, onButNotRunning: true, state: null },
+      `pathView(inStartWindow ${show(odd)}: only true counts) [ADR 0005 D7]`);
+  }
+});
+
+test('TV67: the window applies only while on — an off path with a stray inStartWindow is off, not starting — and the verdict is the server\'s alone: with the client clock stubbed far ahead or to 1970 the flag decides, the same body gives every viewer and every reload the same view, and Date.now is never called [story 5 AC-3 "Every viewer sees it, and it survives a reload"; ADR 0005 D7 "a verdict on the public status", § Constraints "The view module stays clock-free"; TV4]', async () => {
+  const pathView = await pathViewFn();
+  fields(pathView(rtOffAfterRunning({ inStartWindow: true })), { on: false, starting: false, onButNotRunning: false, state: 'off' },
+    'pathView(off, a stray inStartWindow) [ADR 0005 D7 "starting = on && …"]');
+  for (const at of [Date.parse('2099-01-01T00:00:00Z'), 0]) {
+    await withClock(at, async (calls) => {
+      const first = pathView(rtStarting());
+      const again = pathView(rtStarting());
+      fields(first, { starting: true, onButNotRunning: false }, `pathView(STARTING, client clock ${at}) [ADR 0005 D7]`);
+      same(again, first, `pathView(STARTING) read twice (a second viewer, a reload) [story 5 AC-3]`);
+      fields(pathView(rtStarting({ inStartWindow: false })), { starting: false, onButNotRunning: true },
+        `pathView(past the window, client clock ${at}) [ADR 0005 D7]`);
+      assert(calls.n === 0, `pathView must not call Date.now (ADR 0005 D7: the window is the server's verdict); it was called ${calls.n} time(s)`);
+    });
+  }
+});
+
+/* TV68: offPromptVariant (story 5 AC-2; ADR 0005 D8) */
+
+test('TV68: offPromptVariant is "unknown" when the status is unreadable (checked first), "normal" when firstStartedAt is a string, and "first-start" otherwise — never keyed on state "starting" (every start reports it) or on the path having counts (pathView\'s started, true during a first start) [story 5 AC-2 "Before the path has completed its first start"; ADR 0005 D8]', async () => {
+  const variant = await offPromptVariantFn();
+  const pathView = await pathViewFn();
+  const firstStartCatchingUp = rtLive({ firstStartedAt: null, state: 'catching-up' });
+  assert(pathView(firstStartCatchingUp).started === true,
+    'fixture check: a first start with counts already reads started in pathView (the case D8 must not key on)');
+  const cases = [
+    ['live, past its first start', rtLive(), 'normal'],
+    ['a later start: state starting, firstStartedAt a string', rtLive({ state: 'starting' }), 'normal'],
+    ['within the starting window, past its first start', rtStarting(), 'normal'],
+    ['statusUnreadable not exactly true', rtLive({ statusUnreadable: 'true' }), 'normal'],
+    ['a first start under way: state starting, no firstStartedAt', rtNeverStarted({ on: true, onSince: ON_AT, inStartWindow: true, state: 'starting' }), 'first-start'],
+    ['a first start catching up, with counts (pathView: started), no firstStartedAt', firstStartCatchingUp, 'first-start'],
+    ['firstStartedAt missing', (() => { const b = rtLive(); delete b.firstStartedAt; return b; })(), 'first-start'],
+    ['firstStartedAt not a string', rtLive({ firstStartedAt: 1727706396170 }), 'first-start'],
+    ['status unreadable, firstStartedAt null', rtNeverStarted({ on: true, onSince: ON_AT, state: null, statusUnreadable: true }), 'unknown'],
+    ['status unreadable, checked before a firstStartedAt string', rtLive({ statusUnreadable: true }), 'unknown'],
+  ];
+  const wrong = [];
+  for (const [label, body, want] of cases) {
+    const got = variant(body);
+    if (got !== want) wrong.push(`${label}: expected ${show(want)}, got ${show(got)}`);
+  }
+  assert(wrong.length === 0, `offPromptVariant (ADR 0005 D8): ${wrong.join('; ')}`);
+});
+
+/* TV69: turnOnWarning (story 5 AC-1; ADR 0005 D14) */
+
+test('TV69: turnOnWarning(statusRead) is "no-finished-pass" when the status body is present and holds no finished pass (a refused and a failed pass, an empty report, a running first pass, or a kept body after a failed read), "could-not-check" when the status read failed with no body, and none while loading or when a finished pass exists (none is null, undefined or "none") [story 5 AC-1 "A warning beside Turn on"; ADR 0005 D14]', async () => {
+  const warning = await turnOnWarningFn();
+  const none = (w) => w === null || w === undefined || w === 'none';
+  const cases = [
+    ['a refused latest and a failed earlier pass', readyRead(statusBody({ latest: refusedRecord(), previous: [failedReadRecord()] })), 'no-finished-pass'],
+    ['an empty report', readyRead(statusBody({ latest: null, previous: [] })), 'no-finished-pass'],
+    ['a running first pass', readyRead(statusBody({ running: true, latest: pessimisticRecord(), previous: [] })), 'no-finished-pass'],
+    ['a failed read keeping a body with no finished pass', failedRead(statusBody({ latest: refusedRecord() })), 'no-finished-pass'],
+    ['a failed first read (http-500, no body)', failedRead(null), 'could-not-check'],
+    ['a failed first read (network, no body)', failedRead(null, { ok: false, code: 'network', httpStatus: null, body: null }), 'could-not-check'],
+    ['the first read still loading', READ_LOADING, 'none'],
+    ['a done latest pass', readyRead(statusBody({ latest: doneRecord() })), 'none'],
+    ['a done-removals-held latest pass', readyRead(statusBody({ latest: heldRecord() })), 'none'],
+    ['a failed latest after a finished one', readyRead(statusBody({ latest: failedWriteRecord(), previous: [heldRecord()] })), 'none'],
+    ['a running pass after a finished one', readyRead(statusBody({ running: true, latest: pessimisticRecord(), previous: [doneRecord()] })), 'none'],
+    ['a failed read keeping a body with a finished pass', failedRead(statusBody({ latest: doneRecord() })), 'none'],
+  ];
+  const wrong = [];
+  for (const [label, read, want] of cases) {
+    const got = warning(read);
+    const ok = want === 'none' ? none(got) : got === want;
+    if (!ok) wrong.push(`${label}: expected ${want === 'none' ? 'none (null, undefined or "none")' : show(want)}, got ${show(got)}`);
+  }
+  assert(wrong.length === 0, `turnOnWarning (ADR 0005 D14): ${wrong.join('; ')}`);
+});
+
+/* TV70–TV77: switchRecordView (story 5 AC-5; ADR 0005 D3, D12) */
+
+test('TV70: a recorded change with a role reads "Turned off by an admin" or "Turned on by the owner", with its shortened key and its time, and the history shows newest first, each recorded row with its key and time and a row not recorded with neither [story 5 AC-5 "What the panel shows": "Turned off by an admin (ab12cd34…) at 14:02", "the last 10 changes, newest first"; ADR 0005 D12 "recorded, with a role", "History rows that were not recorded render without who or when"]', async () => {
+  const view = await switchRecordViewFn();
+  const ownerOn = entryOf(true, '2026-10-01T15:10:00.000Z', 'owner', KEY_OWNER);
+  const cases = [
+    ['an admin turned it off', recordBody(), rtOffAfterRunning(), /turned off by an admin/i, /by the owner/i, KEY_ADMIN],
+    ['the owner turned it on', recordBody({
+      on: true, latest: ownerOn,
+      history: [ownerOn, entryOf(false, AT_LATEST, 'admin', KEY_ADMIN), unrecorded(true), entryOf(false, '2026-09-29T17:43:18.937Z', 'admin', KEY_ADMIN2)],
+    }), rtLive(), /turned on by the owner/i, /by an admin/i, KEY_OWNER],
+  ];
+  for (const [label, body, rt, says, notSays, key] of cases) {
+    const what = `switchRecordView(recorded: ${label}) [ADR 0005 D12]`;
+    const v = view(readyRead(body), rt);
+    const shown = shownHistory(v, body.history);
+    assert(shown, `${what}: the history must be shown newest first, each recorded row with its key and time and a row not ` +
+      `recorded with neither (story 5 AC-5; D12); got ${show(v)}`);
+    const top = textOutside(v, shown);
+    assert(says.test(top), `${what}: the latest change must read ${says} (story 5 AC-5); got ${show(top)}`);
+    assert(!notSays.test(top), `${what}: the latest change must not read ${notSays}; got ${show(top)}`);
+    assert(top.includes(key), `${what}: the latest change must show its shortened key ${key} (story 5 AC-5 "a shortened key"); got ${show(top)}`);
+    assert(carriesTime(v, body.latest.at, shown), `${what}: the latest change must carry its time ${body.latest.at}, which the ` +
+      `panel prints (story 5 AC-5 "and when"), in any form that reads back to that instant — a string s with ` +
+      `Date.parse(s) === ${Date.parse(body.latest.at)}, that number, or the ISO text in a sentence; got ${show(top)}`);
+    assert(!/not recorded|no change has been recorded/i.test(top), `${what}: a recorded change is not "not recorded"; got ${show(top)}`);
+    noBang(v, what);
+  }
+});
+
+test('TV71: a recorded change with a null role (a switch.json that names no role, D3) reads turned on, or turned off, with who and when not recorded — no "by the owner" or "by an admin" and no key in its line — while the history still shows [ADR 0005 D3 "Anything else readable is a change not recorded", D12 "recorded, with a null role: turned on (or off); who and when were not recorded"]', async () => {
+  const view = await switchRecordViewFn();
+  for (const on of [true, false]) {
+    const latest = unrecorded(on);
+    const body = recordBody({
+      on, latest,
+      history: [latest, entryOf(!on, '2026-10-01T09:30:00.000Z', 'owner', KEY_OWNER), entryOf(on, '2026-09-29T17:43:18.937Z', 'admin', KEY_ADMIN2)],
+    });
+    const what = `switchRecordView(recorded, null role, ${on ? 'on' : 'off'}) [ADR 0005 D12]`;
+    const v = view(readyRead(body), on ? rtLive() : rtOffAfterRunning());
+    const shown = shownHistory(v, body.history);
+    assert(shown, `${what}: the history must still be shown (D12); got ${show(v)}`);
+    const top = textOutside(v, shown);
+    assert(new RegExp(`turned ${on ? 'on' : 'off'}`, 'i').test(top) && /not recorded/i.test(top),
+      `${what}: it must say the path was turned ${on ? 'on' : 'off'} and that who and when were not recorded (D12); got ${show(top)}`);
+    assert(!/by (the owner|an admin)/i.test(top), `${what}: it names no role (D12); got ${show(top)}`);
+    assert(!KEYS.some((k) => top.includes(k)), `${what}: its line shows no key (D12); got ${show(top)}`);
+    noBang(v, what);
+  }
+});
+
+test('TV72: an off the server could not record (state unrecorded-off) reads turned off, with the change not recorded — never an earlier "Turned on by …" as the latest, no key in its line — the history recorded before it still shows, and its sentence is its own, not the null-role recorded off\'s [story 5 AC-5 "The one exception"; ADR 0005 D3 "unrecorded-off", D12 "unrecorded-off: turned off, but the change was not recorded"]', async () => {
+  const view = await switchRecordViewFn();
+  const latest = unrecorded(false);
+  const history = [latest, entryOf(true, '2026-10-01T09:30:00.000Z', 'owner', KEY_OWNER), entryOf(false, '2026-09-30T20:00:00.000Z', 'admin', KEY_ADMIN2)];
+  const body = recordBody({ on: false, state: 'unrecorded-off', latest, history });
+  const what = 'switchRecordView(unrecorded-off) [ADR 0005 D12]';
+  const v = view(readyRead(body), rtOffAfterRunning());
+  const shown = shownHistory(v, history);
+  assert(shown, `${what}: the history recorded before it survives and shows (story 5 AC-5); got ${show(v)}`);
+  const top = textOutside(v, shown);
+  assert(/turned off/i.test(top) && /not recorded/i.test(top), `${what}: it must say turned off, and that the change was not recorded (D12); got ${show(top)}`);
+  assert(!/turned on/i.test(top), `${what}: an earlier "Turned on by …" is never the latest change (story 5 AC-5); got ${show(top)}`);
+  assert(!/by (the owner|an admin)/i.test(top) && !KEYS.some((k) => top.includes(k)), `${what}: its line names no role and no key; got ${show(top)}`);
+  const nullRoleOff = view(readyRead({ ...body, state: 'recorded' }), rtOffAfterRunning());
+  const a = sentencesOutside(v, shown);
+  const b = sentencesOutside(nullRoleOff, shownHistory(nullRoleOff, history));
+  assert(show(a) !== show(b), `${what}: its sentence must be its own, not the null-role recorded off's (D12 "One sentence per state"); both read ${show(a)}`);
+  noBang(v, what);
+});
+
+test('TV73: on an instance never switched (state never-switched) the record says no change has been recorded, with no latest line and no history [story 5 AC-5 "When no change is recorded … the panel says no change has been recorded and the history is empty"; ADR 0005 D3 "never-switched", D12]', async () => {
+  const view = await switchRecordViewFn();
+  const body = recordBody({ on: false, state: 'never-switched', latest: null, history: [] });
+  const what = 'switchRecordView(never-switched) [ADR 0005 D12]';
+  const v = view(readyRead(body), rtNeverStarted());
+  const all = textOutside(v, null);
+  assert(/no change has been recorded/i.test(all), `${what}: it must say no change has been recorded (story 5 AC-5); got ${show(v)}`);
+  assert(!/turned (on|off)/i.test(all), `${what}: it shows no change; got ${show(all)}`);
+  noBang(v, what);
+});
+
+test('TV74: when switch.json cannot be read (state switch-unreadable, the status agreeing) the record says the on/off record cannot be read, shows no latest line and is not "no change has been recorded" [ADR 0005 D3 "switch-unreadable", D12 "switch-unreadable: the on/off record cannot be read"]', async () => {
+  const view = await switchRecordViewFn();
+  const history = [entryOf(true, '2026-10-01T09:30:00.000Z', 'owner', KEY_OWNER), entryOf(false, '2026-09-30T20:00:00.000Z', 'admin', KEY_ADMIN)];
+  const body = recordBody({ on: false, switchUnreadable: true, state: 'switch-unreadable', latest: null, history });
+  const what = 'switchRecordView(switch-unreadable) [ADR 0005 D12]';
+  const v = view(readyRead(body), rtOffAfterRunning({ switchUnreadable: true }));
+  const top = textOutside(v, shownHistory(v, history));
+  assert(/(cannot|could not|can't) be read/i.test(top), `${what}: it must say the on/off record cannot be read (D12); got ${show(top)}`);
+  assert(!/turned (on|off) by/i.test(top), `${what}: it shows no latest change (D3: latest is null); got ${show(top)}`);
+  assert(!/no change has been recorded/i.test(top), `${what}: an unreadable switch is not "no change has been recorded"; got ${show(top)}`);
+  noBang(v, what);
+});
+
+test('TV75: when the history file cannot be read (historyUnreadable) the latest change is still shown — "Turned off by an admin", its key — and a sentence says the history cannot be read [ADR 0005 D3 "historyUnreadable", D12 "historyUnreadable: the history cannot be read, with the latest change still shown"]', async () => {
+  const view = await switchRecordViewFn();
+  const latest = entryOf(false, AT_LATEST, 'admin', KEY_ADMIN);
+  const body = recordBody({ historyUnreadable: true, latest, history: [latest] });
+  const what = 'switchRecordView(recorded, historyUnreadable) [ADR 0005 D12]';
+  const v = view(readyRead(body), rtOffAfterRunning());
+  const all = stringsIn(v);
+  assert(all.some((s) => /history/i.test(s) && /(cannot|could not|can't) be read/i.test(s)),
+    `${what}: a sentence must say the history cannot be read (D12); got ${show(all)}`);
+  const joined = all.join(' | ');
+  assert(/turned off by an admin/i.test(joined) && joined.includes(KEY_ADMIN) && carriesTime(v, AT_LATEST),
+    `${what}: the latest change is still shown, with its role, key and time (D12; the time in any form that reads back ` +
+    `to ${AT_LATEST}: a string s with Date.parse(s) === ${Date.parse(AT_LATEST)}, that number, or the ISO text in a ` +
+    `sentence); got ${show(leavesIn(v))}`);
+  noBang(v, what);
+});
+
+test('TV76: a skewed pair shows nothing of the record and says it is being refreshed — a current record read whose on differs from the status\'s (the record still on, the status off), or whose switchUnreadable disagrees with the status\'s either way — while the same record with an agreeing status does show [ADR 0005 D12 "only when the record read is current, its on equals rtBody.on, and its switchUnreadable agrees. Otherwise it says the record is being refreshed"; § Seams "the two consistency cases"]', async () => {
+  const view = await switchRecordViewFn();
+  const ownerOn = entryOf(true, '2026-10-01T15:10:00.000Z', 'owner', KEY_OWNER);
+  const onBody = recordBody({ on: true, latest: ownerOn, history: [ownerOn, entryOf(false, AT_LATEST, 'admin', KEY_ADMIN)] });
+  const control = view(readyRead(onBody), rtLive());
+  assert(stringsIn(control).some((s) => s.includes(KEY_OWNER)),
+    `control: the same record with an agreeing status must show its latest change (D12); got ${show(control)}`);
+  const unreadableBody = recordBody({ on: false, switchUnreadable: true, state: 'switch-unreadable', latest: null,
+    history: [entryOf(false, AT_LATEST, 'admin', KEY_ADMIN)] });
+  const cases = [
+    ['the record on, the status off', onBody, rtOffAfterRunning()],
+    ['the record\'s switch readable, the status\'s unreadable', recordBody(), rtOffAfterRunning({ switchUnreadable: true })],
+    ['the record\'s switch unreadable, the status\'s readable', unreadableBody, rtOffAfterRunning()],
+  ];
+  for (const [label, body, rt] of cases) {
+    const what = `switchRecordView(skewed pair: ${label}) [ADR 0005 D12]`;
+    const v = view(readyRead(body), rt);
+    showsNothingOfTheRecord(v, what);
+    assert(/refresh/i.test(stringsIn(v).join(' | ')), `${what}: it must say the record is being refreshed (D12); got ${show(v)}`);
+    noBang(v, what);
+  }
+});
+
+test('TV77: a failed record read after a good one (useRead keeps the old body) never renders that body\'s latest line or history and says the record could not be read — for an http-500 and for a refused 403 — a failed first read says so too, a first read still loading shows no change, and Date.now is never called [ADR 0005 D12 "it never renders a kept body\'s latest line after a failed record read"; § Seams "a failed record read after a good one"; TV4]', async () => {
+  const view = await switchRecordViewFn();
+  const body = recordBody();
+  const rt = rtOffAfterRunning();
+  await withClock(Date.parse('2099-01-01T00:00:00Z'), async (calls) => {
+    const refused = { ok: false, code: 'http-403', httpStatus: 403, body: { success: false, error: 'Owner or admin access required' } };
+    for (const [label, read] of [['http-500, body kept', failedRead(body)], ['http-403, body kept', failedRead(body, refused)],
+      ['network, no body yet', failedRead(null, { ok: false, code: 'network', httpStatus: null, body: null })]]) {
+      const what = `switchRecordView(a failed record read: ${label}) [ADR 0005 D12]`;
+      const v = view(read, rt);
+      showsNothingOfTheRecord(v, what);
+      assert(/(could not|cannot|can't) be read/i.test(stringsIn(v).join(' | ')), `${what}: it must say the record could not be read (D12); got ${show(v)}`);
+      noBang(v, what);
+    }
+    const loading = view(READ_LOADING, rt);
+    showsNothingOfTheRecord(loading, 'switchRecordView(the first record read, still loading) [ADR 0005 D12]');
+    assert(calls.n === 0, `switchRecordView must not call Date.now (the view module is clock-free, ADR 0005 § Constraints); it was called ${calls.n} time(s)`);
+  });
+});
+
+/* TV78–TV81: switchOutcome (story 5 AC-1, AC-4, AC-5; ADR 0005 D11, D12) */
+
+const recordedAnswer = (on) => ({ success: true, on, changedAt: '2026-10-01T15:10:00.000Z', recorded: true, takesEffectWithinSeconds: 5 });
+
+test('TV78: an answered change is done — ok with recorded true, or with no recorded field (not false) — with a sentence of its own for each target; an ok with recorded false is done-unrecorded, whose off sentence says the path is off and the change was not recorded [story 5 AC-5 "Its answer says the change could not be recorded"; ADR 0005 D11, D12 "done: ok, and recorded is not false", "done-unrecorded: ok, and recorded === false"]', async () => {
+  const outcome = await switchOutcomeFn();
+  const sentences = {};
+  for (const on of [true, false]) {
+    for (const [label, body] of [['recorded true', recordedAnswer(on)], ['no recorded field', (() => { const b = recordedAnswer(on); delete b.recorded; return b; })()]]) {
+      const what = `switchOutcome({ ok: true, ${label} }, ${on}) [ADR 0005 D12]`;
+      const r = outcome({ ok: true, body }, on);
+      assert(outcomeOf(r, what) === 'done', `${what}: expected done; got ${show(r)}`);
+      assert(sentenceOf(r).trim() !== '', `${what}: it must carry a sentence (D12 "each with a fixed sentence for its target"); got ${show(r)}`);
+      noBang(r, what);
+      sentences[on] = sentenceOf(r);
+    }
+  }
+  assert(sentences[true] !== sentences[false], `switchOutcome done: the sentence for turning on must differ from turning off's (D12 "for its target"); both ${show(sentences[true])}`);
+  for (const on of [false, true]) {
+    const what = `switchOutcome({ ok: true, recorded: false }, ${on}) [ADR 0005 D12]`;
+    const r = outcome({ ok: true, body: { success: true, on: false, recorded: false, takesEffectWithinSeconds: 5 } }, on);
+    assert(outcomeOf(r, what) === 'done-unrecorded', `${what}: expected done-unrecorded; got ${show(r)}`);
+    if (on === false) {
+      const s = sentenceOf(r);
+      assert(/\boff\b/i.test(s) && /(not|n't)( be(en)?)? recorded/i.test(s),
+        `${what}: the off takes effect, so its sentence says the path is off and the change was not recorded (story 5 AC-4, AC-5); got ${show(s)}`);
+    }
+    noBang(r, what);
+  }
+});
+
+test('TV79: with no usable answer — a timeout, a network failure, or a 2xx whose JSON is bad — the outcome is unknown for either target, and its sentence says so [story 5 AC-1 "If the server has not answered within 15 seconds … the panel says the outcome is unknown"; ADR 0005 D12 "unknown: timeout, network, or bad JSON"]', async () => {
+  const outcome = await switchOutcomeFn();
+  const results = [
+    { ok: false, code: 'timeout', httpStatus: null, body: null },
+    { ok: false, code: 'network', httpStatus: null, body: null },
+    { ok: false, code: 'bad-json', httpStatus: 200, body: null },
+  ];
+  for (const on of [true, false]) {
+    for (const res of results) {
+      const what = `switchOutcome(${res.code}, ${on}) [ADR 0005 D12]`;
+      const r = outcome(res, on);
+      assert(outcomeOf(r, what) === 'unknown', `${what}: expected unknown; got ${show(r)}`);
+      assert(/unknown/i.test(sentenceOf(r)), `${what}: its sentence must say the outcome is unknown (story 5 AC-1); got ${show(sentenceOf(r))}`);
+      noBang(r, what);
+    }
+  }
+});
+
+test('TV80: a 401 or 403 is refused for either target — signed out, neither owner nor admin, or cross-site, with or without a JSON body — and its own sentence says to sign in again as the owner or an admin, from the instance\'s own address, which a failed change\'s sentence does not [story 5 AC-4 "A refusal can come from a lapsed session, or from a viewer who is no longer owner or admin"; ADR 0005 D12 "refused: http-401 or http-403. Its own sentence says to sign in again as the owner or an admin, from the instance\'s own address"]', async () => {
+  const outcome = await switchOutcomeFn();
+  const refusals = [
+    { ok: false, code: 'http-401', httpStatus: 401, body: { success: false, error: 'Not authenticated' } },
+    { ok: false, code: 'http-403', httpStatus: 403, body: { success: false, error: 'Owner or admin access required' } },
+    { ok: false, code: 'http-403', httpStatus: 403, body: { success: false, error: 'cross-site request refused' } },
+    { ok: false, code: 'http-403', httpStatus: 403, body: null },
+  ];
+  for (const on of [true, false]) {
+    const failed = sentenceOf(outcome({ ok: false, code: 'http-500', httpStatus: 500, body: { success: false, error: 'x', code: 'EIO' } }, on));
+    assert(!/sign in again/i.test(failed), `switchOutcome(http-500, ${on}): a failed change is not told to sign in again (D12: refused has its own sentence); got ${show(failed)}`);
+    for (const res of refusals) {
+      const what = `switchOutcome(${res.code} ${show(res.body && res.body.error)}, ${on}) [ADR 0005 D12]`;
+      const r = outcome(res, on);
+      assert(outcomeOf(r, what) === 'refused', `${what}: expected refused; got ${show(r)}`);
+      const s = sentenceOf(r);
+      assert(/sign in again/i.test(s) && /owner or an admin/i.test(s),
+        `${what}: its sentence must say to sign in again as the owner or an admin (D12); got ${show(s)}`);
+      assert(/\b(address|URL|origin|site|host|domain|page)\b/i.test(s),
+        `${what}: its sentence must point at the instance's own address — in any of the words address, URL, origin, site, ` +
+        `host, domain or page, since D12 fixes that it says so but not the word (D12 "from the instance's own address"); got ${show(s)}`);
+      noBang(r, what);
+    }
+  }
+});
+
+test('TV81: any other non-2xx is failed, carrying the answer\'s body.code — a failed on says the path\'s state is unchanged and to check the data volume has free space and is writable; a failed off says the path could not be turned off and is still on as before; a 400, 415, 404 or a 502 with no JSON is failed too [story 5 AC-4 "Refused or failed … the panel shows the reason and the path\'s state unchanged"; ADR 0005 D11 (the 500s gain code), D12 "failed: any other non-2xx, with body.code"]', async () => {
+  const outcome = await switchOutcomeFn();
+  const onFailed = { ok: false, code: 'http-500', httpStatus: 500, body: { success: false, error: 'could not write the switch', code: 'ENOSPC' } };
+  let what = 'switchOutcome(http-500 ENOSPC, true) [ADR 0005 D12]';
+  let r = outcome(onFailed, true);
+  assert(outcomeOf(r, what) === 'failed', `${what}: expected failed; got ${show(r)}`);
+  assert(stringsIn(r).includes('ENOSPC'), `${what}: it must carry the answer's code ENOSPC (D12 "with body.code"); got ${show(r)}`);
+  let s = sentenceOf(r);
+  assert(/unchanged/i.test(s) && /free space/i.test(s) && /writable/i.test(s),
+    `${what}: a failed on says the path's state is unchanged, and to check that the data volume has free space and is writable (D12); got ${show(s)}`);
+  noBang(r, what);
+  const offFailed = { ok: false, code: 'http-500', httpStatus: 500, body: { success: false, error: 'could not turn the path off', code: 'EIO', unlinkCode: 'EACCES' } };
+  what = 'switchOutcome(http-500 EIO, false) [ADR 0005 D12]';
+  r = outcome(offFailed, false);
+  assert(outcomeOf(r, what) === 'failed', `${what}: expected failed; got ${show(r)}`);
+  assert(stringsIn(r).includes('EIO'), `${what}: it must carry the answer's code EIO (D12 "with body.code"); got ${show(r)}`);
+  s = sentenceOf(r);
+  assert(/could not be turned off/i.test(s) && /still on/i.test(s),
+    `${what}: a failed off says the path could not be turned off and is still on as before (D12); got ${show(s)}`);
+  noBang(r, what);
+  const others = [
+    { ok: false, code: 'http-400', httpStatus: 400, body: { success: false, error: 'the body must be {"on": true} or {"on": false}' } },
+    { ok: false, code: 'http-415', httpStatus: 415, body: { success: false, error: 'the body must be JSON' } },
+    { ok: false, code: 'http-404', httpStatus: 404, body: null },
+    { ok: false, code: 'http-502', httpStatus: 502, body: null },
+  ];
+  for (const on of [true, false]) {
+    for (const res of others) {
+      what = `switchOutcome(${res.code}, ${on}) [ADR 0005 D12]`;
+      r = outcome(res, on);
+      assert(outcomeOf(r, what) === 'failed', `${what}: expected failed (any other non-2xx); got ${show(r)}`);
+    }
+  }
+});
+
+test('TV82: a failed change whose answer carries no body.code did not come from the switch handler — a body-less 404 (an older backend) or a 502 with no JSON (a proxy), for either target — so its sentence names no data-volume remedy ("free space", "writable"), claims no state ("unchanged", "still on", "as before", is or was on or off), and says the state shown is from the next read; an answer that carries the handler\'s body.code (the 500s, D11) keeps the data-volume remedy for either target [story 5 AC-4 "Refused or failed … the panel shows the reason"; ADR 0005 D11 (every 500 the handler gives carries code), D12 "failed: any other non-2xx, with body.code"; story 5\'s review, round 1, requested 6]', async () => {
+  // Review round 1, requested 6. Every 500 handleRealtimeSwitch gives carries an allow-listed code, and its refusals
+  // (401, 403, 400, 415) answer before the change is made, so an answer with no body at all never came from the switch
+  // and cannot say what the path's state is. The 400 and 415 bodies carry no code either; their sentence is not pinned.
+  const outcome = await switchOutcomeFn();
+  const noCode = [
+    { ok: false, code: 'http-404', httpStatus: 404, body: null },
+    { ok: false, code: 'http-502', httpStatus: 502, body: null },
+  ];
+  // A state named as fact; "whether the path is on or off" asks rather than claims, so it passes.
+  const claimsState = new RegExp('\\bunchanged\\b|\\bstill (on|off)\\b|\\bas before\\b'
+    + '|\\b(remains|remained|stays|stayed) (on|off)\\b'
+    + '|(?<!\\b(?:whether|if)\\b[^.]{0,40})\\b(is|was) (now )?(on|off)\\b', 'i');
+  const answer500 = (body) => ({ ok: false, code: 'http-500', httpStatus: 500, body: { success: false, ...body } });
+  const handler = [
+    answer500({ error: 'could not write the switch: ENOSPC', code: 'ENOSPC' }),
+    answer500({ error: 'could not write or remove the switch: EIO, EACCES', code: 'EIO', unlinkCode: 'EACCES' }),
+  ];
+  const bad = [];
+  for (const on of [true, false]) {
+    for (const res of noCode) {
+      const what = `switchOutcome(${res.code}, no body, ${on})`;
+      const r = outcome(res, on);
+      if (outcomeOf(r, what) !== 'failed') {
+        bad.push(`${what}: expected failed (any other non-2xx); got ${show(r)}`);
+        continue;
+      }
+      const t = sentenceOf(r);
+      if (/free space|writable/i.test(t)) {
+        bad.push(`${what}: names the data-volume remedy, though the answer never came from the switch; got ${show(t)}`);
+      }
+      const claim = claimsState.exec(t);
+      if (claim) {
+        bad.push(`${what}: claims the path's state (${show(claim[0])}), which a code-less answer cannot tell; ` +
+          `got ${show(t)}`);
+      }
+      if (!/\bnext\b[^.]*\bread/i.test(t)) {
+        bad.push(`${what}: does not say the state shown is from the next read; got ${show(t)}`);
+      }
+      noBang(r, what);
+    }
+    for (const res of handler) {
+      const what = `switchOutcome(http-500 ${res.body.code}, ${on})`;
+      const r = outcome(res, on);
+      if (outcomeOf(r, what) !== 'failed') {
+        bad.push(`${what}: expected failed; got ${show(r)}`);
+        continue;
+      }
+      if (!stringsIn(r).includes(res.body.code)) {
+        bad.push(`${what}: does not carry the answer's code ${res.body.code}; got ${show(r)}`);
+      }
+      const t = sentenceOf(r);
+      if (!/free space/i.test(t) || !/writable/i.test(t)) {
+        bad.push(`${what}: an answer carrying the handler's code keeps the data-volume remedy (free space, ` +
+          `writable); got ${show(t)}`);
+      }
+    }
+  }
+  assert(bad.length === 0, 'a code-less failure has its own sentence per target (ADR 0005 D12, refined at review round '
+    + `1; story 5's review, requested 6):\n      - ${bad.join('\n      - ')}`);
 });
 
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────

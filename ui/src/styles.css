@@ -9250,6 +9250,13 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .dict-badge--vetoed { background: rgba(248, 81, 73, 0.15); color: var(--red); }
 .dict-marker { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; }
 .dict-marker--shared { color: var(--dict-cyan); }
+.dict-support {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em; border-radius: 999px; padding: 2px 7px;
+  white-space: nowrap; flex-shrink: 0; background: var(--bg-tertiary); color: var(--text-muted);
+}
+.dict-support.is-all { background: rgba(114, 55, 255, 0.1); color: var(--accent); }
+.dict-skin-light .dict-support { background: #f0f1ee; color: var(--bsd-ink-2); }
+.dict-skin-light .dict-support.is-all { background: rgba(114, 55, 255, 0.1); color: #5b21d6; }
 .dict-marker--private { color: var(--text-muted); }
 
 /* Entry page */
@@ -9307,6 +9314,10 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .dict-items-n { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.dict-items-row--link { cursor: pointer; }
+.dict-items-row--link:hover { background: var(--bg-tertiary); }
+.dict-items-item-link { color: inherit; text-decoration: none; }
+.dict-items-item-link:hover, .dict-items-item-link:focus-visible { color: var(--accent); }
 .dict-items-item { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 .dict-items-by-cell { justify-self: start; min-width: 0; }
 .dict-items-by { font-size: 13px; color: var(--text-muted); text-decoration: none; overflow-wrap: anywhere; }
@@ -9356,6 +9367,27 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   width: 28px; height: 28px; font-size: 12px; background: rgba(114, 55, 255, 0.12); color: var(--accent); border: 1px solid var(--border);
 }
 .dict-veto-note { margin: 6px 0 0; }
+.dict-notice--ok { border-color: rgba(4, 120, 87, 0.35); }
+/* Create New Concept (the design's screen). */
+.dict-new-lede { max-width: 620px; }
+.dict-new-card { margin-top: 24px; padding: 18px; overflow: visible; }
+.dict-new-fields { border: none; margin: 0; padding: 0; min-width: 0; }
+.dict-new-names { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.dict-new-desc { margin-top: 12px; }
+.dict-new-textarea { min-height: 0; padding: 10px 12px; resize: vertical; line-height: 1.5; font-family: inherit; }
+.dict-new-preview-label { display: block; margin-top: 14px; }
+.dict-new-preview { margin-top: 4px; }
+.dict-new-figure { margin: 0; }
+.dict-new-hint { margin: 8px 0 0; }
+.dict-new-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.dict-new-cancel { display: inline-flex; align-items: center; text-decoration: none; }
+.dict-new-card .dict-add-btn:disabled { opacity: 0.4; cursor: default; }
+/* The item page's "Filed by" card (the design's Dictionary item screen). */
+.dict-filed-by { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+.dict-avatar--lg { width: 40px; height: 40px; font-size: 14px; }
+.dict-filed-by-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.dict-filed-by-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap; font-size: 12px; font-weight: 600; }
+.dict-filed-by-link:hover { border-color: var(--accent); color: var(--accent); }
 .dict-switches { margin-top: 12px; display: flex; flex-direction: column; }
 .dict-switch-row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; }
 .dict-switch-row + .dict-switch-row { border-top: 1px solid var(--border); }
@@ -9567,6 +9599,45 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .bsd-title { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; color: var(--text); }
 .bsd-title-accent { color: var(--accent); }
 .bsd-lede { margin: 14px 0 0; max-width: 640px; font-size: 16px; line-height: 1.6; color: var(--bsd-ink-2); text-wrap: pretty; }
+.bsd-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+/* "Managed by" beside the Dictionary's title: a quiet trigger, and a menu of the reader's Assistants. */
+.bsd-managed-wrap { position: relative; min-width: 0; }
+.bsd-managed {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 0;
+  font-size: 13px; line-height: 1.4; color: var(--bsd-faint);
+}
+.bsd-managed-btn { background: none; border: none; cursor: pointer; font-family: inherit; min-height: 32px; }
+.bsd-managed-btn:hover { color: var(--bsd-ink-2); }
+.bsd-managed-name { font-weight: 600; color: var(--bsd-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.bsd-managed-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; width: 300px; max-width: calc(100vw - 48px); z-index: 20;
+  border-radius: 14px; border: 1px solid var(--border); background: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(10, 14, 24, 0.15); overflow: hidden;
+}
+.bsd-managed-option {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: none;
+  background: #ffffff; cursor: pointer; font-family: inherit; text-align: left;
+}
+.bsd-managed-option + .bsd-managed-option { border-top: 1px solid var(--bsd-hairline); }
+.bsd-managed-option.is-union { background: #fafaf9; border-top-color: var(--bsd-line); }
+.bsd-managed-option:hover { background: #fafaf9; }
+.bsd-managed-option.is-on { background: #faf8ff; }
+.bsd-managed-avatar {
+  display: flex; width: 28px; height: 28px; flex-shrink: 0; align-items: center; justify-content: center;
+  border-radius: 999px; background: var(--bsd-navy); color: #ffffff; font-size: 12px; font-weight: 700;
+}
+.bsd-managed-avatar.is-local { background: var(--accent); }
+.bsd-managed-avatar.is-union { background: #13d2e5; color: #0a0e18; font-size: 14px; }
+.bsd-managed-text { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.bsd-managed-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bsd-managed-option-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.bsd-managed-local {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px;
+  padding: 2px 7px; background: rgba(114, 55, 255, 0.1); color: #5b21d6;
+}
+.bsd-managed-detail { font-size: 11px; color: var(--bsd-faint); overflow-wrap: anywhere; }
+.bsd-managed-check { flex-shrink: 0; display: inline-flex; color: var(--accent); }
+.bsd-managed-note { margin-top: 10px; }
 
 /* The shared list and entry, at the mock's measurements. */
 .dict-skin-light.dict-page { max-width: none; --dict-cyan: #0e7490; } /* .dict-page sets its own cyan on the same element */
@@ -9623,6 +9694,7 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .dict-skin-light .dict-entry-sub { color: var(--bsd-faint); }
 .dict-skin-light .dict-entry-sub + .dict-lede { margin-top: 14px; max-width: 620px; font-size: 16px; color: var(--bsd-ink-2); text-wrap: pretty; }
 .dict-skin-light .dict-notice { border-color: rgba(217, 119, 6, 0.35); background: #fffbeb; color: #78350f; }
+.dict-skin-light .dict-notice--ok { border-color: rgba(4, 120, 87, 0.3); background: #ecfdf5; color: #065f46; }
 .dict-skin-light .dict-entry-card { padding: 16px 18px; }
 .dict-skin-light .dict-notice + .dict-items { margin-top: 16px; }
 .dict-skin-light .dict-json { border-color: #151c2a; background: #151c2a; color: #e2e8f0; }
@@ -9649,6 +9721,8 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .dict-skin-light .dict-author-text { color: var(--text-muted); }
 .dict-skin-light .dict-author-text strong { color: var(--text-primary); }
 .dict-skin-light .dict-avatar--soft { border-color: var(--bsd-line); }
+.dict-skin-light .dict-items-row--link:hover { background: #fafaf9; }
+.dict-skin-light .dict-filed-by + .dict-disclosure { margin-top: 12px; }
 .dict-skin-light .dict-switch-row + .dict-switch-row { border-top-color: var(--bsd-hairline); }
 .dict-skin-light .dict-switch { background: var(--border); opacity: 1; }
 .dict-skin-light .dict-shared-coord { color: var(--bsd-navy); }
@@ -9659,6 +9733,8 @@ body:has(.bsd-page) { background: #f2f3f0; }
 }
 @media (max-width: 600px) {
   .bsd-main { padding: 28px 16px 96px; }
+  /* The title row wraps, so "Managed by" starts at the left: its menu opens from there, inside the gutter. */
+  .bsd-managed-menu { left: 0; right: auto; max-width: calc(100vw - 32px); }
   .bsd-title,
   .dict-skin-light h1.dict-entry-title { font-size: 28px; }
 }

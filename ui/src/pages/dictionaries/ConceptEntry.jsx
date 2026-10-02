@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
@@ -9,7 +9,7 @@ import { classifyBValue } from '../../utils/bDisposition';
 import { conceptCurator } from '../../utils/treasureMap';
 import DictIcon from './DictIcon';
 import {
-  CONCEPTS_DICTIONARY_PATH, coordParts, displayName, itemsPovLine, overrideBadge,
+  CONCEPTS_DICTIONARY_PATH, controlPanelItemPath, coordParts, displayName, itemsPovLine, overrideBadge, safeDecode,
   useConceptDictionary, useConceptItems, useDictionaryPerson,
 } from './conceptsDictionary';
 
@@ -20,7 +20,7 @@ import {
  * authored the shared concept and how many trusted members file under it; and the two headers.
  *
  * What has no backend yet is shown and disabled, with a note: the Trusted Curation Method, the
- * Curation switches, Veto / Restore (Pins, SPEC § 3) and the item pages.
+ * Curation switches and Veto / Restore (Pins, SPEC § 3). Each Items row opens its item (`itemHref`).
  *
  * The row arrives in router state when the page is opened from the list; a direct visit reads the
  * person's dictionary (/api/dictionaries/concepts) for the active point of view. The Items come
@@ -49,7 +49,7 @@ const itemsFaqAnswer = (signedIn) => (signedIn
   ? 'Your trusted, extended community. Anyone can file an item under this concept, but this list only shows items filed by people your community trusts: those ranked above your verified cutoff, from your point of view. Items you or your Assistant filed always show. The list is read fresh each time you open this page. Coming in a later version: the more trusted people file the same item, the more firmly it belongs, and you will be able to add or exclude items yourself, with your choice always winning.'
   : 'The owner’s trusted, extended community. Anyone can file an item under this concept, but this list only shows items filed by people the community trusts: those ranked above the verified cutoff, from the point of view in use. Items the owner or the owner’s Assistant filed always show. The list is read fresh each time this page opens. Coming in a later version: the more trusted people file the same item, the more firmly it belongs, and the Dictionary’s owner will be able to add or exclude items by hand, with their choice always winning.');
 
-async function scan(filter) {
+export async function scan(filter) {
   const resp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(JSON.stringify(filter))}`);
   const json = await resp.json();
   if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
@@ -62,7 +62,7 @@ const tagValue = (ev, name, idx = 1) => {
 };
 
 /** The newest event at the coordinate (the HeaderEvent page's read). A null coord reads nothing. */
-function useHeaderEvent(coord) {
+export function useHeaderEvent(coord) {
   const [state, setState] = useState({ event: null, error: null, done: false });
   useEffect(() => {
     if (!coord) { setState({ event: null, error: null, done: true }); return undefined; }
@@ -103,7 +103,7 @@ function BTarget({ value, type, coord }) {
 }
 
 /** A card whose body opens under a small uppercase heading (the design's header panels). */
-function Disclosure({ id, label, children }) {
+export function Disclosure({ id, label, children }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="dict-card dict-entry-card dict-disclosure">
@@ -119,17 +119,17 @@ function Disclosure({ id, label, children }) {
 }
 
 /** An event as JSON, one tag per line (the design's header panels). */
-const eventJson = (ev) => {
+export const eventJson = (ev) => {
   const tags = Array.isArray(ev.tags) ? ev.tags : [];
   const list = tags.length ? `[\n${tags.map((t) => `    ${JSON.stringify(t)}`).join(',\n')}\n  ]` : '[]';
   // A function replacer, so a `$` in a tag is never read as a replacement pattern.
   return JSON.stringify({ ...ev, tags: '\u0000tags' }, null, 2).replace('"\\u0000tags"', () => list);
 };
 
-const npubOf = (pubkey) => {
+export const npubOf = (pubkey) => {
   try { return nip19.npubEncode(pubkey); } catch { return pubkey; }
 };
-const initialOf = (name) => (String(name || '?').replace(/^the owner’s /i, '').trim()[0] || '?').toUpperCase();
+export const initialOf = (name) => (String(name || '?').replace(/^the owner’s /i, '').trim()[0] || '?').toUpperCase();
 
 /** The Tapestry control panel's entry page: the app's breadcrumbs over the shared entry. */
 export default function DictionaryConceptEntry() {
@@ -146,10 +146,21 @@ export default function DictionaryConceptEntry() {
  * the Brainstorm-styled /dictionary/:coord (pages/dictionary/Entry.jsx), which passes its own list
  * as the back link and its own profile pages for the Filed by links.
  */
-export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabel = 'Concepts', profileBase = '/tapestry/users' }) {
+export function ConceptEntryBody({
+  listHref = CONCEPTS_DICTIONARY_PATH, listLabel = 'Concepts', profileBase = '/tapestry/users', itemHref = controlPanelItemPath,
+}) {
   const { coord: rawCoord } = useParams();
-  const coord = decodeURIComponent(rawCoord || '');
+  const coord = safeDecode(rawCoord);
   const location = useLocation();
+  const navigate = useNavigate();
+  // A notice arrives once: keep it for this visit, and take it out of the history entry so a reload or
+  // a Back to this entry doesn't say it again.
+  const [notice] = useState(() => (typeof location.state?.notice === 'string' ? location.state.notice : null));
+  useEffect(() => {
+    if (typeof location.state?.notice !== 'string') return;
+    const { notice: _said, ...rest } = location.state;
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: Object.keys(rest).length ? rest : null });
+  }, [location, navigate]);
   const passed = location.state?.entry?.coord === coord ? location.state : null;
   const { povParams } = usePov();
   const person = useDictionaryPerson();
@@ -222,6 +233,14 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
   const bTags = (ev?.tags || []).filter((t) => t[0] === 'b' && typeof t[1] === 'string');
   const badge = overrideBadge(entry);
   const members = entry?.gum || 0;
+  const fromList = location.state?.listHref;
+  const backHref = typeof fromList === 'string' && (fromList === listHref || fromList.startsWith(`${listHref}?`))
+    ? fromList : listHref;
+  // The header is the reader's Assistant's, the reader's own, or (from "Managed by") another Assistant's.
+  const ownHeaderLabel = !author ? `${Whose} header`
+    : author === person.assistant ? `${Whose} Assistant’s header`
+      : (person.authors || []).includes(author) ? `${Whose} header`
+        : `${nameOf(author)}’s header`;
 
   const curatorWhy = !curator ? null
     : curator.why === 'assigned' ? `Assigned to this Concept on ${whose} Treasure Map`
@@ -233,7 +252,8 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
 
   return (
     <>
-      <Link to={listHref} className="dict-back"><DictIcon name="back" /> {listLabel}</Link>
+      {/* Back to the list it was opened from, with its "Managed by" choice, else to the list. */}
+      <Link to={backHref} className="dict-back"><DictIcon name="back" /> {listLabel}</Link>
 
       <div className="dict-entry-badges">
         {entry?.isFirmware && <span className="dict-pill dict-pill--firmware">Firmware</span>}
@@ -244,6 +264,8 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
         )}
         {badge && <span className={badge.className}>{badge.label}</span>}
       </div>
+      {/* What happened just before arriving here (Create New Concept's broadcast outcome), said once. */}
+      {notice && <p className="dict-notice dict-notice--ok" role="status">{notice}</p>}
       <h1 className="dict-entry-title">{singular}</h1>
       <p className="dict-entry-sub text-muted">{plural ? `Plural: ${plural}` : 'No plural name'}</p>
       {description && <p className="dict-lede">{description}</p>}
@@ -303,15 +325,29 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
           <div className="dict-items-row dict-items-row--head" role="row">
             <span role="columnheader">#</span><span role="columnheader">Item</span><span role="columnheader">Filed by</span>
           </div>
-          {items.data && visible.map((it) => (
-            <div key={it.address || it.id} className="dict-items-row" role="row">
-              <span className="dict-items-n" role="cell">{it.n}</span>
-              <span className="dict-items-item" role="cell">{it.name}</span>
-              <span role="cell" className="dict-items-by-cell">
-                <Link to={`${profileBase}/${it.author}`} title={npubOf(it.author)} className="dict-items-by">{nameOf(it.author)}</Link>
-              </span>
-            </div>
-          ))}
+          {items.data && visible.map((it) => {
+            // The item's page, told what it was opened from, so it needs no read of its own to say so.
+            const to = itemHref(coord, it);
+            const state = { item: it, entry, metric, pov: passed ? passed.pov : data?.pov, listHref: backHref, entryHref: `${location.pathname}${location.search}` };
+            return (
+              <div
+                key={it.address || it.id} className="dict-items-row dict-items-row--link" role="row"
+                onClick={(e) => {
+                  // The row is a convenience for the mouse; the name is the link. A modified click (new tab),
+                  // a click on a link, or the end of a text selection is left to the browser.
+                  if (e.target.closest('a') || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                  if (window.getSelection && String(window.getSelection()).length > 0) return;
+                  navigate(to, { state });
+                }}
+              >
+                <span className="dict-items-n" role="cell">{it.n}</span>
+                <span className="dict-items-item" role="cell"><Link to={to} state={state} className="dict-items-item-link">{it.name}</Link></span>
+                <span role="cell" className="dict-items-by-cell">
+                  <Link to={`${profileBase}/${it.author}`} title={npubOf(it.author)} className="dict-items-by">{nameOf(it.author)}</Link>
+                </span>
+              </div>
+            );
+          })}
         </div>
         {items.error && <p className="dict-items-msg">Could not read the items: {items.error}</p>}
         {items.data && shown.length === 0 && (
@@ -340,7 +376,6 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
           {setAside > 0
             ? ` ${setAside.toLocaleString()} more filed by people below the verified cutoff ${setAside === 1 ? 'is' : 'are'} not shown.`
             : ''}
-          {' '}Item pages arrive in a later version.
         </p>
       )}
 
@@ -430,6 +465,15 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
           ) : (
             <span>{entry ? 'Its b-tag points at an event id, not at a shared concept that items are filed under.' : 'Not in this Dictionary, so it is not scored.'}</span>
           )}
+          {/* GUM₂ (recognitionByConcept): the trusted members whose own or Assistants' headers recognize the shared
+              concept — the design's "Recognized by N members" — with its influence-weighted score beside it. */}
+          {entry && sharedCoord && typeof entry.recognizedBy === 'number' && (
+            <span className="dict-recognized">
+              Recognized by <strong>{entry.recognizedBy} {entry.recognizedBy === 1 ? 'member' : 'members'}</strong> of {whose} trusted,
+              extended community
+              <span className="dict-strip-faint"> (GUM₂ {typeof entry.gum2 === 'number' ? entry.gum2.toFixed(2) : '0.00'})</span>.
+            </span>
+          )}
           {/* GUM₁ counts distinct trusted authors filing under the shared concept; another metric needs its own words. */}
           {entry && sharedCoord && metric === 'gum1' && (
             <span>
@@ -469,7 +513,7 @@ export function ConceptEntryBody({ listHref = CONCEPTS_DICTIONARY_PATH, listLabe
         )}
       </Disclosure>
 
-      <Disclosure id="dict-own-header" label={author && author === person.assistant ? `${Whose} Assistant’s header` : `${Whose} header`}>
+      <Disclosure id="dict-own-header" label={ownHeaderLabel}>
         <p className="dict-mono dict-entry-coord">{coord}</p>
         <div className="dict-field-label dict-disclosure-label">Recognizes the shared concept</div>
         {!header.done && <p className="text-muted">Reading the header…</p>}
