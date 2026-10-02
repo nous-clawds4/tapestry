@@ -176,6 +176,33 @@ Planning: admins may also see the panel and use every control but confirming hel
 
    The Architect amends ADR 0002 (run, stop and the stopped outcome). Story 2's confirm route stays owner only.
 
+   **Carry-forwards from story 5's review** (placed by the owner 2026-10-01;
+   `reviews/tagging-edges/5-real-time-path-switch.md` § "Re-review, round 2", carry-forwards 1–10). Each becomes a docs,
+   copy or test task of story 6. Line numbers are at `442c9dec`; the review gives each one's evidence in full.
+   - *C5-1 (test plan):* story 5's test plan (`:286`, `:294`) says the Node suites gave the same results on Node 16 and
+     22. `stack-free-npm-test` skips G2 on Node 16; say so.
+   - *C5-2 (test comments, test plan):* say what C9 checks: the `? 200 : 500` spelling in the files it scans. SR34's
+     literal statuses, not C9, keep it from deriving a status in another spelling
+     (`test/tagging-edges-switch-record.test.js:71-72`, `:1362-1363`; test plan `:262-266`). The "When." bullet
+     reads "no file C9 scans".
+   - *C5-3 (test plan):* state PC55's exemption as its regex has it (`test/tagging-pipeline-codes.test.js:930`).
+   - *C5-4 (panel, ADR):* the off prompt's pending-schedule flag counts only the first read. During a Retry after a
+     failed read, it should also say the backstop is still being checked (`TaggingPipelinePanel.jsx:214`). Or word ADR
+     0005 D13's note to match the code.
+   - *C5-5 (docs):* story 5 § Deviations (`:397`, `:411-412`) gives the failed-on remedy as "free space and is
+     writable". Match OPERATIONS §12.9: "read or written … readable and writable".
+   - *C5-6 (copy, optional):* tighten `no-status`'s premise (`taggingPipelineView.js:215`). Name a fault in the driver
+     itself beside another library, and match ADR 0004 T12.
+   - *C5-7 (ADR):* ADR 0005 D5 (`:332-333`) gains §12.9's caveat. A removal that empties settings.json's
+     `adminPubkeys` falls back to `BRAINSTORM_ADMIN_PUBKEYS`.
+   - *C5-8 (docs, ADR):* the 403 explanation names `sameHost`'s other refusal, an `Origin` that does not parse (such as
+     `Origin: null`) (`BIBLE.md:671`, `OPERATIONS.md:788`, ADR 0005 D6's note). In `ownerOrAdmin`, `sameHost` is the
+     last check.
+   - *C5-9 (docs):* use one date for story 5's round-1 notes. The ADR notes say 2026-10-02 (UTC); the story and test
+     plan say 2026-10-01.
+   - *C5-10 (docs):* story 5 § Evidence's browser line (`:301-302`) names the commit and run: the re-review's 86 of 86
+     on `442c9dec`, twice.
+
 Order: 1 → 2 → 3 → 4 → 5 → 6 (4's page can start once 2's status shape is fixed; 5 and 6 build on 4's panel).
 
 ## Key facts / guardrails
