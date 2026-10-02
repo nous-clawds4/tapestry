@@ -5,10 +5,11 @@
  *   POST /api/list-headers/my-assistant/:handle/b-defer        Keep private
  *
  * The owner's rule: nobody can trigger somebody else's Assistant to publish anything. So, in order:
- * a verified session (requireAuth — a no-session call from inside the container has none, whatever
- * the middleware stamped), then the CALLER's own Assistant keys, then the header's author must be that
- * Assistant, then the latest version, then the shared tag rules, then sign with those keys, then local
- * strfry, then the graph. There is no owner, admin or loopback path here, and no Owner-only key helper:
+ * the same host (another site is refused), a verified session (requireAuth — a no-session call from
+ * inside the container has none, whatever the middleware stamped), then the CALLER's own Assistant keys,
+ * then the header's author must be that Assistant, then the latest version, which must itself verify
+ * (author, kind, first d, signature), then the shared tag rules, then sign with those keys, then local
+ * strfry, then the graph (ADR list-headers-disposition/0003 and its Amendment 1). There is no owner, admin or loopback path here, and no Owner-only key helper:
  * Concept Headers' endpoints (src/api/concept/selfDeclare.js, bDisposition.js) keep those until their
  * own fix (OPEN.md row `2026-10-01-concept-headers-disposition-owner-signer`).
  *
@@ -36,6 +37,27 @@ const ACTIONS = {
 // stack-free test can load this module.
 const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';
 
+/**
+ * The cross-site rule of src/api/dlist-curation/update.js:107-115 (ADR curated-dlist-update/0006), copied until
+ * ledger row 326 (the house-wide cross-origin posture) centralises it. A browser always sends Origin on a
+ * cross-site POST; with no Origin the request goes on to the other checks (ADR list-headers-disposition/0003,
+ * Amendment 1 §2).
+ */
+function sameHost(req) {
+  const headers = (req && req.headers) || {};
+  if (headers.origin === undefined) return true;
+  try {
+    return new URL(String(headers.origin)).hostname.toLowerCase() === new URL(`http://${headers.host}`).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+function firstD(event) {
+  const tag = (event && Array.isArray(event.tags) ? event.tags : []).find((t) => Array.isArray(t) && t[0] === 'd');
+  return tag ? tag[1] : null;
+}
+
 function newest(events) {
   return (events || []).reduce((a, b) => (!a || b.created_at > a.created_at ? b : a), null);
 }
@@ -49,6 +71,10 @@ function defaultDeps() {
     sign: (template, privkeyHex) => require(NOSTR_TOOLS_PATH).finalizeEvent(template, Uint8Array.from(Buffer.from(privkeyHex, 'hex'))),
     publishLocal: (event) => require('../normalize/helpers').publishToStrfry(event),
     importToGraph: (event, uuid) => require('../normalize/helpers').importEventDirect(event, uuid),
+    // A JSON round-trip, so a cached verifiedSymbol can't vouch for the event (publishEvent.js:88).
+    verify: (event) => {
+      try { return require(NOSTR_TOOLS_PATH).verifyEvent(JSON.parse(JSON.stringify(event))) === true; } catch { return false; }
+    },
     now: () => Math.floor(Date.now() / 1000),
   };
 }
@@ -60,6 +86,8 @@ function createMyAssistantDispositionHandler(action, deps = {}) {
 
   return async function handleMyAssistantDisposition(req, res) {
     try {
+      if (!sameHost(req)) return res.status(403).json({ success: false, error: 'a request from another site is refused' });
+
       const sessionPubkey = d.requireAuth(req, res);
       if (!sessionPubkey) return; // requireAuth has answered 401
 
@@ -68,7 +96,8 @@ function createMyAssistantDispositionHandler(action, deps = {}) {
         return res.status(403).json({ success: false, error: 'You have no Tapestry Assistant on this instance' });
       }
 
-      const m = decodeURIComponent((req.params && req.params.handle) || '').match(HANDLE_RE);
+      // Express has already decoded req.params; decoding again would turn a d-tag of "a%41" into "aA".
+      const m = String((req.params && req.params.handle) || '').match(HANDLE_RE);
       if (!m) return res.status(400).json({ success: false, error: 'handle must be kind:pubkey:d-tag' });
       if (Number(m[1]) !== HEADER_KIND) {
         return res.status(400).json({ success: false, error: 'only kind-39998 list headers can be dispositioned' });
@@ -81,6 +110,19 @@ function createMyAssistantDispositionHandler(action, deps = {}) {
       const selfCoord = `${HEADER_KIND}:${keys.pubkey}:${dTag}`;
       const header = await d.scanLatest({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
       if (!header) return res.status(404).json({ success: false, error: `No header ${selfCoord} on this instance` });
+
+      // The relay can hold unverified events (io.js imports with --no-verify), so what the lookup returns is
+      // checked before anything is signed — or answered "already", which the browser would then broadcast
+      // (Amendment 1 §1).
+      const failed = header.pubkey !== keys.pubkey ? 'author'
+        : header.kind !== HEADER_KIND ? 'kind'
+          : firstD(header) !== dTag ? 'd-tag'
+            : !d.verify(header) ? 'signature'
+              : null;
+      if (failed) {
+        console.error(`list-headers/my-assistant/${action}: stored header failed the ${failed} check; nothing signed`);
+        return res.status(409).json({ success: false, error: "The stored header couldn't be verified as your Assistant's, so nothing was signed" });
+      }
 
       const composed = spec.compose(header, selfCoord);
       // Domain refusal: HTTP 200 { success: false }, the house contract (bDisposition.js handleBDefer).

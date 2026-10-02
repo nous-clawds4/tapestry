@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MARKS } from '../../utils/listHeaderDisposition';
 import { submitAndBroadcast, keepPrivate } from '../../utils/myAssistantDisposition';
 
@@ -16,6 +16,12 @@ export default function ListHeaderDispositionPanel({ row, onActed, hasNext, onNe
   const [message, setMessage] = useState(null);
   const [acted, setActed] = useState(false);
 
+  // The panel renders above the table, which can be thousands of pixels away from the row that opened it.
+  // Centre it on mount (Next remounts it, keyed by row): 'start' would tuck it under the fixed top bar, and
+  // sticky positioning has no effect inside .main-content (ADR list-headers-disposition/0003, Amendment 1 §4).
+  const panelRef = useRef(null);
+  useEffect(() => { panelRef.current?.scrollIntoView?.({ block: 'center' }); }, []);
+
   const hasRealB = row._dispositionMarks.some(m => m === MARKS.wired || m === MARKS.selfDeclared);
 
   const run = async (fn) => {
@@ -30,7 +36,7 @@ export default function ListHeaderDispositionPanel({ row, onActed, hasNext, onNe
   };
 
   return (
-    <div style={{
+    <div ref={panelRef} style={{
       border: '1px solid var(--border, #444)', borderRadius: '8px', padding: '1rem',
       marginBottom: '1rem', backgroundColor: 'var(--bg-secondary, #1a1a2e)',
     }}>
