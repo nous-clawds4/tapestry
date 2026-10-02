@@ -67,6 +67,12 @@
  *   - ownerOrAdmin(req, d) is given d with ownerPubkey() and getAdminPubkeys() (drift.js's shape after withDeps), plus
  *     getOwnerPubkey as the same function, as the DR suite's bundle does.
  *
+ * Review round 1 (engineering-team/reviews/tagging-edges/5-real-time-path-switch.md):
+ *   - Blocking 1: SR34's case rows each name their own first status (status1), which the assertion reads. It is never
+ *     derived from the expected body, which gate-result-record's C9 refuses in every test file (row 263).
+ *   - Requested 12: SR4 gains two pins for readings the implementation already has, an off with no onSince and a
+ *     version 1 record with role null, each a change not recorded.
+ *
  * Hand-rolled in the project's existing test style — no new framework. Works on Node 16 and 22.
  */
 
@@ -591,7 +597,7 @@ test('SR3: the change made before story 5 reads as the owner\'s, with its stored
   });
 });
 
-test('SR4: anything else readable is a change not recorded — { on, at: null, role: null, key: null } with the record\'s own on — for a version-2 record with no role, a null role, or a role other than "owner" or "admin"; one whose on contradicts its onSince (on with onSince null, missing or not a time; off with an ISO onSince); a changedBy that is a full pubkey, 7 characters, not hex or missing; a changedAt that is not a time or missing; and a version-1 record with a bad key or time [AC-5; ADR 0005 D3: "Anything else readable is a change not recorded … a version 2 record without a role, and one whose on contradicts its onSince"; D1: key is 8 hex digits]', async () => {
+test('SR4: anything else readable is a change not recorded — { on, at: null, role: null, key: null } with the record\'s own on — for a version-2 record with no role, a null role, or a role other than "owner" or "admin"; one whose on contradicts its onSince (on with onSince null, missing or not a time; off with an ISO onSince or none); a changedBy that is a full pubkey, 7 characters, not hex or missing; a changedAt that is not a time or missing; and a version-1 record with a bad key or time, or with a null role [AC-5; ADR 0005 D3: "Anything else readable is a change not recorded … a version 2 record without a role, and one whose on contradicts its onSince"; D1: key is 8 hex digits]', async () => {
   const switchEntry = routeFn('switchEntry');
   const on = rec2(true, T0, 'owner', OWNER, T0);
   const off = rec2(false, T0, 'admin', ADMIN, null);
@@ -606,6 +612,9 @@ test('SR4: anything else readable is a change not recorded — { on, at: null, r
     { name: 'on with no onSince', r: without(on, 'onSince') },
     { name: 'on with onSince not a time', r: { ...on, onSince: 'yesterday' } },
     { name: 'off with an ISO onSince', r: { ...off, onSince: iso(T0 - HOUR) } },
+    // Review round 1, requested 12: pins for two readings story 5 § Deviations logs ("switchEntry follows D3
+    // literally"). An off is recorded only when its onSince is exactly null, so a missing one is not recorded.
+    { name: 'off with no onSince', r: without(off, 'onSince') },
     { name: 'a full pubkey as changedBy', r: { ...on, changedBy: OWNER } },
     { name: 'a 7-character changedBy', r: { ...on, changedBy: OK.slice(0, 7) } },
     { name: 'a changedBy that is not hex', r: { ...off, changedBy: 'zzzzzzzz' } },
@@ -615,6 +624,8 @@ test('SR4: anything else readable is a change not recorded — { on, at: null, r
     { name: 'version 1 with a full pubkey as changedBy', r: { version: 1, on: false, changedAt: iso(T0), changedBy: OWNER } },
     { name: 'version 1 with a changedAt that is not a time', r: { version: 1, on: true, changedAt: '2026-13-45 noon', changedBy: OK } },
     { name: 'version 1 with no changedBy', r: { version: 1, on: false, changedAt: iso(T0) } },
+    // A version 1 record reads as the owner's only with role absent (D3, D10), so role: null is not recorded.
+    { name: 'version 1 with a null role', r: { version: 1, on: false, changedAt: iso(T0), changedBy: OK, role: null } },
   ], (c) => {
     same(switchEntry(c.r), { on: c.r.on, at: null, role: null, key: null }, `switchEntry(${show(c.r)})`);
   });
@@ -1315,7 +1326,7 @@ test('SR34: two changes at once are serialised — two POSTs issued without awai
     {
       name: 'the owner turns it on, an admin on at once',
       first: { on: true, o: {} }, second: { on: true, o: { session: adminSession() } },
-      want1: recordedAnswer(true, T0), want2: recordedAnswer(true, T0 + 5 * SEC),
+      status1: 200, want1: recordedAnswer(true, T0), want2: recordedAnswer(true, T0 + 5 * SEC),
       sw: rec2(true, T0 + 5 * SEC, 'admin', ADMIN, T0),
       hist: [ent(true, T0 + 5 * SEC, 'admin', ADMIN), ent(true, T0, 'owner', OWNER)],
       landed: ['A:writeSwitch', 'A:fold', 'B:writeSwitch', 'B:fold'],
@@ -1323,7 +1334,7 @@ test('SR34: two changes at once are serialised — two POSTs issued without awai
     {
       name: 'the owner turns it on, an admin off at once',
       first: { on: true, o: {} }, second: { on: false, o: { session: adminSession() } },
-      want1: recordedAnswer(true, T0), want2: recordedAnswer(false, T0 + 5 * SEC),
+      status1: 200, want1: recordedAnswer(true, T0), want2: recordedAnswer(false, T0 + 5 * SEC),
       sw: rec2(false, T0 + 5 * SEC, 'admin', ADMIN, null),
       hist: [ent(false, T0 + 5 * SEC, 'admin', ADMIN), ent(true, T0, 'owner', OWNER)],
       landed: ['A:writeSwitch', 'A:fold', 'B:writeSwitch', 'B:fold'],
@@ -1331,7 +1342,8 @@ test('SR34: two changes at once are serialised — two POSTs issued without awai
     {
       name: 'the owner\'s on fails slowly, an admin\'s on at once',
       first: { on: true, o: { writeError: enospc } }, second: { on: true, o: { session: adminSession() } },
-      want1: { success: false, error: 'could not write the switch: ENOSPC', code: 'ENOSPC' }, want2: recordedAnswer(true, T0 + 5 * SEC),
+      status1: 500, want1: { success: false, error: 'could not write the switch: ENOSPC', code: 'ENOSPC' },
+      want2: recordedAnswer(true, T0 + 5 * SEC),
       sw: rec2(true, T0 + 5 * SEC, 'admin', ADMIN, T0 + 5 * SEC),
       hist: [ent(true, T0 + 5 * SEC, 'admin', ADMIN)],
       landed: ['B:writeSwitch', 'B:fold'],
@@ -1347,8 +1359,11 @@ test('SR34: two changes at once are serialised — two POSTs issued without awai
     const [ra, rb] = await Promise.all([pa, pb]);
     checkNoStrays(c.name);
     const p = [];
-    const status1 = c.want1.success ? 200 : 500;
-    if (ra.statusCode !== status1 || exact(ra.body) !== exact(c.want1)) p.push(`the first should answer ${status1} ${show(c.want1)}; answered ${showRes(ra)}`);
+    // Each row names its own first status (review round 1, blocking 1): gate-result-record's C9 refuses deriving a
+    // status from a body's success flag in any test file (row 263), so it is never derived from want1 here.
+    if (ra.statusCode !== c.status1 || exact(ra.body) !== exact(c.want1)) {
+      p.push(`the first should answer ${c.status1} ${show(c.want1)}; answered ${showRes(ra)}`);
+    }
     if (rb.statusCode !== 200 || exact(rb.body) !== exact(c.want2)) p.push(`the second should answer 200 ${show(c.want2)}; answered ${showRes(rb)}`);
     if (exact(landed) !== exact(c.landed)) p.push(`the writes should land in order ${show(c.landed)}; they landed ${show(landed)}`);
     const w2 = switchArgs(b.calls)[0];

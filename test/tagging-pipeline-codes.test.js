@@ -51,6 +51,9 @@
  *               that carried no code is a bug in the schema check's own code or in a library, never Neo4j's answer, so
  *               explain('failureCode', 'no-status') names a bug or reporting one (/bug/i) and neither tells the reader
  *               to check that Neo4j is running nor sends them to Neo4j's log. It fails until the sentence is reworded.
+ *               Story 5's review, round 1, requested 1: it also refuses the false premise that every error the driver
+ *               raises carries a code (ADR 0004 T12: the driver's own argument and configuration checks throw plain,
+ *               code-less TypeError and Error). A claim about errors from Neo4j's answer, or the server's, passes.
  *   PC18–PC40 FAIL now (red phase): ui/src/utils/taggingPipelineView.js does not exist yet. The loader turns the
  *   missing file into "<file> not implemented yet: it does not export <name> (ADR 0004 § …)", so the suite always
  *   loads and each test fails by name; a file that exists but fails to load says so instead.
@@ -908,7 +911,7 @@ test("PC54: every literal the runner gives a code, in any shape — a code: prop
 
 /* ═══ PC55 — R2-1's reworded no-status sentence (ADR 0005 § Amendments → ADR 0004 :786-787) ═══ */
 
-test("PC55: under failureCode, 'no-status' — an error that carried no code, so a fault in the schema check's own code or in a library other than the driver, never Neo4j's answer — reads as a bug (/bug/i: it names one, or reporting one), and does not send the reader to Neo4j as the cause: it does not tell them to check that Neo4j is running, nor to read Neo4j's log [R2-1; story 5 § Carry-forwards; ADR 0005 § Amendments → ADR 0004 :786-787, \"It never comes from Neo4j's answer\", \"Its sentence says so, and points at reporting a bug, not at Neo4j\"]", async () => {
+test("PC55: under failureCode, 'no-status' — an error that carried no code, so a fault in the schema check's own code or in a library other than the driver, never Neo4j's answer — reads as a bug (/bug/i: it names one, or reporting one), and does not send the reader to Neo4j as the cause: it does not tell them to check that Neo4j is running, nor to read Neo4j's log; and it does not rest on the false premise that every error the Neo4j driver raises carries a code, since the driver's own checks throw code-less TypeError and Error [R2-1; story 5 § Carry-forwards; story 5's review, round 1, requested 1; ADR 0004 T12 (amended); ADR 0005 § Amendments → ADR 0004 :786-787, \"It never comes from Neo4j's answer\", \"Its sentence says so, and points at reporting a bug, not at Neo4j\"]", async () => {
   const { explain } = await view('explain');
   const r = explain('failureCode', 'no-status');
   assert(r && r.recognised === true && r.code === 'no-status' && typeof r.text === 'string',
@@ -919,6 +922,16 @@ test("PC55: under failureCode, 'no-status' — an error that carried no code, so
     bad.push('it tells the reader to check that Neo4j is running');
   }
   if (/neo4j\.log/i.test(r.text)) bad.push("it sends the reader to Neo4j's log");
+  // Review round 1, requested 1. Only the unqualified claim is refused: a subject that limits the errors to Neo4j's
+  // answer or the server's ("every error the driver builds from Neo4j's answer carries a code") is true, and passes.
+  const universal = new RegExp('\\b(?:(?:every|each|any) error|all (?:the )?errors)\\b([^.]*?)\\bdriver\\b([^.]*?)'
+    + '\\bcarr(?:y|ies)\\b[^.]*?\\bcodes?\\b', 'i');
+  const claim = universal.exec(r.text);
+  if (claim && !/\banswer|\bserver|neo4j's|\bfrom neo4j\b/i.test(claim[1] + claim[2])) {
+    bad.push(`it says ${show(claim[0])}, which is false: the driver's own checks of what it is passed and of its ` +
+      'configuration throw plain TypeError and Error with no code (ADR 0004 T12, amended at story 5: "The driver\'s ' +
+      'code-less errors are plain `TypeError` or `Error` throws"); state the premise truly and keep the conclusion');
+  }
   assert(bad.length === 0,
     `R2-1 (ADR 0005 § Amendments → ADR 0004 :786-787: no-status "never comes from Neo4j's answer"; its sentence "points at ` +
     `reporting a bug, not at Neo4j"): ${bad.join('; ')} — got ${show(r.text)}`);

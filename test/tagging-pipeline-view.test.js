@@ -38,6 +38,9 @@
  *             starting, the server's inStartWindow verdict only); TV68 offPromptVariant (D8); TV69 turnOnWarning
  *             (D14); TV70–TV77 switchRecordView (D12: each record state's own sentence, and the two consistency
  *             cases); TV78–TV81 switchOutcome (D12: each outcome against each target).
+ *   TV82      Story 5's review, round 1, requested 6: a failed change with no body.code (a body-less 404 or 502)
+ *             names no data-volume remedy, claims no state and says the state shown is from the next read; one
+ *             carrying the handler's code keeps the remedy. It fails until a code-less failure has its own sentence.
  *   R2-12 (story 5 § Carry-forwards): TV48's title now says five flags, as the helper holds (a title-only edit).
  *
  * Story 5's readings where ADR 0005 leaves a detail open (reported at the Test Design gate):
@@ -1896,6 +1899,68 @@ test('TV81: any other non-2xx is failed, carrying the answer\'s body.code — a 
       assert(outcomeOf(r, what) === 'failed', `${what}: expected failed (any other non-2xx); got ${show(r)}`);
     }
   }
+});
+
+test('TV82: a failed change whose answer carries no body.code did not come from the switch handler — a body-less 404 (an older backend) or a 502 with no JSON (a proxy), for either target — so its sentence names no data-volume remedy ("free space", "writable"), claims no state ("unchanged", "still on", "as before", is or was on or off), and says the state shown is from the next read; an answer that carries the handler\'s body.code (the 500s, D11) keeps the data-volume remedy for either target [story 5 AC-4 "Refused or failed … the panel shows the reason"; ADR 0005 D11 (every 500 the handler gives carries code), D12 "failed: any other non-2xx, with body.code"; story 5\'s review, round 1, requested 6]', async () => {
+  // Review round 1, requested 6. Every 500 handleRealtimeSwitch gives carries an allow-listed code, and its refusals
+  // (401, 403, 400, 415) answer before the change is made, so an answer with no body at all never came from the switch
+  // and cannot say what the path's state is. The 400 and 415 bodies carry no code either; their sentence is not pinned.
+  const outcome = await switchOutcomeFn();
+  const noCode = [
+    { ok: false, code: 'http-404', httpStatus: 404, body: null },
+    { ok: false, code: 'http-502', httpStatus: 502, body: null },
+  ];
+  // A state named as fact; "whether the path is on or off" asks rather than claims, so it passes.
+  const claimsState = new RegExp('\\bunchanged\\b|\\bstill (on|off)\\b|\\bas before\\b'
+    + '|\\b(remains|remained|stays|stayed) (on|off)\\b'
+    + '|(?<!\\b(?:whether|if)\\b[^.]{0,40})\\b(is|was) (now )?(on|off)\\b', 'i');
+  const answer500 = (body) => ({ ok: false, code: 'http-500', httpStatus: 500, body: { success: false, ...body } });
+  const handler = [
+    answer500({ error: 'could not write the switch: ENOSPC', code: 'ENOSPC' }),
+    answer500({ error: 'could not write or remove the switch: EIO, EACCES', code: 'EIO', unlinkCode: 'EACCES' }),
+  ];
+  const bad = [];
+  for (const on of [true, false]) {
+    for (const res of noCode) {
+      const what = `switchOutcome(${res.code}, no body, ${on})`;
+      const r = outcome(res, on);
+      if (outcomeOf(r, what) !== 'failed') {
+        bad.push(`${what}: expected failed (any other non-2xx); got ${show(r)}`);
+        continue;
+      }
+      const t = sentenceOf(r);
+      if (/free space|writable/i.test(t)) {
+        bad.push(`${what}: names the data-volume remedy, though the answer never came from the switch; got ${show(t)}`);
+      }
+      const claim = claimsState.exec(t);
+      if (claim) {
+        bad.push(`${what}: claims the path's state (${show(claim[0])}), which a code-less answer cannot tell; ` +
+          `got ${show(t)}`);
+      }
+      if (!/\bnext\b[^.]*\bread/i.test(t)) {
+        bad.push(`${what}: does not say the state shown is from the next read; got ${show(t)}`);
+      }
+      noBang(r, what);
+    }
+    for (const res of handler) {
+      const what = `switchOutcome(http-500 ${res.body.code}, ${on})`;
+      const r = outcome(res, on);
+      if (outcomeOf(r, what) !== 'failed') {
+        bad.push(`${what}: expected failed; got ${show(r)}`);
+        continue;
+      }
+      if (!stringsIn(r).includes(res.body.code)) {
+        bad.push(`${what}: does not carry the answer's code ${res.body.code}; got ${show(r)}`);
+      }
+      const t = sentenceOf(r);
+      if (!/free space/i.test(t) || !/writable/i.test(t)) {
+        bad.push(`${what}: an answer carrying the handler's code keeps the data-volume remedy (free space, ` +
+          `writable); got ${show(t)}`);
+      }
+    }
+  }
+  assert(bad.length === 0, 'a code-less failure has its own sentence per target (ADR 0005 D12, refined at review round '
+    + `1; story 5's review, requested 6):\n      - ${bad.join('\n      - ')}`);
 });
 
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────

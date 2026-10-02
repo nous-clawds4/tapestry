@@ -108,6 +108,9 @@ const F = require('../../test/helpers/taggingPipelineFixtures');
  *   B77 — a record that disagrees with the path status shows no who until they agree.                        [AC-5]
  *   B78 — a failed record read after a good one: no kept "who".                                               [AC-5]
  *   B79 — an answer that lands after the panel closed starts no read.                                        [AC-1]
+ *   Story 5's review, round 1:
+ *   B82 — the prompt while the schedule list's first read loads: still being checked, no verdict and no "could not
+ *         be checked"; once the read answers, the verdict, in the prompt already open.                         [AC-2]
  *
  * ── Hermetic by construction ──────────────────────────────────────────────────────────────────────────────────────
  * Every /api route is mocked, story 5's switch included (GET its record, POST a change, on one route; the default
@@ -290,6 +293,10 @@ const PROMPT_KEPT = /\bkept\b|\bkeeps\b/i;
 const PROMPT_CATCH_UP = /\bcaught up\b|\bcatch(?:es)?[- ]?up\b/i;
 const PROMPT_BACK_ON = /\bTurn on\b|\b(?:turned|switched) (?:it |the path )?(?:back )?on\b/i;
 const PROMPT_NEXT_PASS = /\bnext pass\b/i;
+/** The backstop still being checked: the schedule list's read is still loading (review round 1, requested 5). */
+const BACKSTOP_CHECKING = new RegExp('\\b(?:backstop|schedul\\w*)\\b[^.]*'
+  + '\\b(?:(?:still )?being (?:checked|read)|(?:still )?loading)\\b'
+  + '|\\b(?:still )?(?:checking|reading|loading)\\b[^.]*\\b(?:backstop|schedul\\w*)\\b', 'i');
 const BACKSTOP_UNCHECKED = /\bbackstop\b[^.]*(?:could not|couldn't|cannot|can't) be (?:checked|read|confirmed)|\b(?:could not|couldn't|cannot|can't|unable to) (?:check|read|confirm)\b[^.]*\b(?:backstop|schedul\w*)\b/i;
 const FIRST_DROPPED = /\b(?:dropped|discarded|thrown away|lost|deleted|cleared)\b/i;
 const FIRST_START_AGAIN = /\bfirst start\b[^.]*\bagain\b|\bagain\b[^.]*\bfirst start\b/i;
@@ -1754,6 +1761,48 @@ test.describe('The real-time path\'s switch on the panel (tagging-edges #5, ADR 
     expect(text, 'and what it holds is kept').toMatch(PROMPT_KEPT);
     await p.cancel.click();
     expect(m.log.nonGet).toEqual([]);
+  });
+
+  test('B82: while the schedule list\'s first read is still loading, the prompt neither says the backstop could not be checked nor claims any verdict, and says the backstop is still being checked; once the read answers, the prompt already open shows the real verdict, without being reopened [AC-2 "When the schedule cannot be read, it says the backstop could not be checked"; ADR 0005 D13 (a pending read, review round 1), D14 "none while loading"; story 5\'s review, round 1, requested 5]', async ({ page }) => {
+    // The schedule list's read is held, then released. It must settle well within readSection's own 15 s time-out
+    // (taggingPipelineFetch.js), which would turn the held read into a failed one.
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const one = F.SCHEDULE.ONE;
+    const ONE_VERDICT = [/\b6\s?(?:hours?|hrs?|h)\b/i, clockRe(one.entries[1].timer.nextRunAt)];
+    const VERDICTS = [NO_BACKSTOP, NOT_SCHEDULED, WEAKER_THAN_DAILY, SEVERAL_COUNT, ...ONE_VERDICT];
+    const m = await mock(page, { schedule: () => gate.then(() => one) });
+    let p;
+    try {
+      await openAndSettle(page, ['tp-schedule']);
+      await expect(section(page, 'tp-schedule'), 'the schedule list\'s first read is still in flight')
+        .toHaveAttribute('data-state', 'loading');
+      p = await openPrompt(page);
+      const text = await p.text();
+      expect(text, 'a read still loading has not failed: the prompt does not say the backstop could not be checked')
+        .not.toMatch(BACKSTOP_UNCHECKED);
+      for (const re of VERDICTS) expect(text, `no verdict from a list not yet read (${re})`).not.toMatch(re);
+      expect(text, 'it says the backstop is still being checked').toMatch(BACKSTOP_CHECKING);
+      expect(text, 'the rest of the normal prompt stands: it stops within seconds').toMatch(PROMPT_STOPS);
+      expect(text, 'and what it holds is kept').toMatch(PROMPT_KEPT);
+    } finally {
+      release();
+    }
+    await expect(section(page, 'tp-schedule'), 'the schedule list answers once released')
+      .toHaveAttribute('data-state', 'ready', { timeout: 10000 });
+    await expect(p.cancel, 'the prompt is still open: nothing closed it').toBeVisible();
+    for (const re of ONE_VERDICT) {
+      const message = `the open prompt now shows the real verdict (${re}), without being reopened`;
+      await expect.poll(() => p.text(), { message, timeout: 5000 }).toMatch(re);
+    }
+    const after = await p.text();
+    expect(after, 'no longer "still being checked"').not.toMatch(BACKSTOP_CHECKING);
+    expect(after, 'and never "could not be checked"').not.toMatch(BACKSTOP_UNCHECKED);
+    for (const re of [NO_BACKSTOP, NOT_SCHEDULED, WEAKER_THAN_DAILY]) {
+      expect(after, `the verdict is one entry's, not another (${re})`).not.toMatch(re);
+    }
+    await p.cancel.click();
+    expect(m.log.nonGet, 'opening and cancelling the prompt sends nothing').toEqual([]);
   });
 
   test('B58: before the path has completed its first start, the prompt says instead that what it has gathered so far is dropped, that the next "Turn on" is a first start again, and that a pass should run after the path shows live [AC-2 "Before the path has completed its first start"; ADR 0005 D8 offPromptVariant "first-start" (firstStartedAt not served), D13; OPERATIONS §12.9\'s order]', async ({ page }) => {
