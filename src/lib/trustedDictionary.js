@@ -142,7 +142,9 @@ const sortName = (e) => (e.name || String(e.coord).split(':').slice(2).join(':')
  * 2026-09-29). Rows arrive PRE-CLASSIFIED at the handler seam: the person's
  * concept headers that carry a real b-tag, as
  * {coord, name, plural, description, author, selfDeclared, targets,
- *  scoreCoords, isFirmware}. `scoreCoords` are the shared concepts the row
+ *  scoreCoords, isFirmware, firmwareHeader}. `isFirmware` marks a row that is a
+ * firmware concept or points at one; `firmwareHeader` only a row whose own
+ * header a firmware reinstall rebuilds. `scoreCoords` are the shared concepts the row
  * points to by coordinate — itself when self-declared.
  *
  * Each entry's `gum` is GUM₁ of the best-scoring of its scoreCoords: the
@@ -186,6 +188,7 @@ function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey, recog
       targets: Array.isArray(r.targets) ? [...r.targets] : [],
       selfDeclared: !!r.selfDeclared,
       isFirmware: !!r.isFirmware,
+      firmwareHeader: !!r.firmwareHeader,
       itemCount: items.has(r.coord) ? items.get(r.coord).size : 0,
       sharedCoord: best ? best.coord : null,
       gum: best ? best.gum : 0, // GUM₁ of the shared concept
