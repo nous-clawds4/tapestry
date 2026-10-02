@@ -44,6 +44,18 @@ function composeKeepPrivate(header) {
 }
 
 /**
+ * Wire to an external shared concept (ADR list-headers-disposition/0004): every earlier tag except the
+ * keep-private marker, plus a pointer b to the target. Already wired to that target (any b type) means
+ * nothing new; the header's own address is Submit's lane and is never composed here.
+ */
+function composeWire(header, selfCoord, target) {
+  const tags = tagsOf(header);
+  if (target === selfCoord) return { refused: 'self' };
+  if (tags.some((t) => t[0] === 'b' && t[1] === target)) return { already: true };
+  return { tags: [...stripSentinel(tags), ['b', target, 'pointer']] };
+}
+
+/**
  * A re-sign's created_at: strictly newer than the version it replaces, or a same-second pair ties and
  * strfry's replaceable-event tie-break can drop the newer one (bDisposition.js resignWithTags).
  */
@@ -51,4 +63,4 @@ function nextCreatedAt(prevCreatedAt, now) {
   return Math.max(now, (prevCreatedAt || 0) + 1);
 }
 
-module.exports = { composeSelfDeclare, composeKeepPrivate, nextCreatedAt, KEEP_PRIVATE_REFUSAL };
+module.exports = { composeSelfDeclare, composeKeepPrivate, composeWire, nextCreatedAt, KEEP_PRIVATE_REFUSAL };

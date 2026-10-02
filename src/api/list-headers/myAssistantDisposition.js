@@ -1,13 +1,14 @@
 /**
- * list-headers-disposition #3 — Disposition on My Assistant rows (ADR list-headers-disposition/0003).
+ * list-headers-disposition #3–#4 — Disposition on My Assistant rows (ADR list-headers-disposition/0003, 0004).
  *
  *   POST /api/list-headers/my-assistant/:handle/self-declare   Submit as a Shared Concept
  *   POST /api/list-headers/my-assistant/:handle/b-defer        Keep private
+ *   POST /api/list-headers/my-assistant/:handle/b-append       Wire to an external shared concept  { target }
  *
  * The owner's rule: nobody can trigger somebody else's Assistant to publish anything. So, in order:
  * the same host (another site is refused), a verified session (requireAuth — a no-session call from
  * inside the container has none, whatever the middleware stamped), then the CALLER's own Assistant keys,
- * then the header's author must be that Assistant, then the latest version, which must itself verify
+ * then the header's author must be that Assistant, then (Wire only) the target, then the latest version, which must itself verify
  * (author, kind, first d, signature), then the shared tag rules, then sign with those keys, then local
  * strfry, then the graph (ADR list-headers-disposition/0003 and its Amendment 1). There is no owner, admin or loopback path here, and no Owner-only key helper:
  * Concept Headers' endpoints (src/api/concept/selfDeclare.js, bDisposition.js) keep those until their
@@ -20,17 +21,32 @@
 
 'use strict';
 
-const { composeSelfDeclare, composeKeepPrivate, nextCreatedAt } = require('../../lib/headerDispositionCompose');
+const { composeSelfDeclare, composeKeepPrivate, composeWire, nextCreatedAt } = require('../../lib/headerDispositionCompose');
+const { classifyBValue } = require('../../lib/bValueForms');
 
 const HEADER_KIND = 39998;
 const HANDLE_RE = /^(\d+):([0-9a-f]{64}):(.+)$/;
 const ROUTES = {
   'self-declare': '/api/list-headers/my-assistant/:handle/self-declare',
   'b-defer': '/api/list-headers/my-assistant/:handle/b-defer',
+  'b-append': '/api/list-headers/my-assistant/:handle/b-append',
 };
 const ACTIONS = {
   'self-declare': { compose: composeSelfDeclare, done: 'declared', already: 'already-declared' },
   'b-defer': { compose: (header) => composeKeepPrivate(header), done: 'deferred', already: 'already-deferred' },
+  // Wire (ADR list-headers-disposition/0004). prepare() reads and checks the target from the JSON body
+  // before the relay is read, so a typo costs no lookup.
+  'b-append': {
+    prepare: (req, selfCoord) => {
+      const target = String((req.body && req.body.target) || '').trim();
+      if (classifyBValue(target) !== 'a-tag') return { error: 'The target must be a header address (kind:pubkey:d-tag)' };
+      if (target === selfCoord) return { error: "That's this header's own address — use Submit as a Shared Concept instead" };
+      return { target };
+    },
+    compose: (header, selfCoord, input) => composeWire(header, selfCoord, input.target),
+    done: 'wired',
+    already: 'already-wired',
+  },
 };
 
 // Same container path the other server modules use (src/api/dlist-curation/index.js); lazy so a
@@ -108,6 +124,9 @@ function createMyAssistantDispositionHandler(action, deps = {}) {
 
       const dTag = m[3];
       const selfCoord = `${HEADER_KIND}:${keys.pubkey}:${dTag}`;
+      const prep = spec.prepare ? spec.prepare(req, selfCoord) : {};
+      if (prep.error) return res.status(400).json({ success: false, error: prep.error });
+
       const header = await d.scanLatest({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
       if (!header) return res.status(404).json({ success: false, error: `No header ${selfCoord} on this instance` });
 
@@ -124,7 +143,7 @@ function createMyAssistantDispositionHandler(action, deps = {}) {
         return res.status(409).json({ success: false, error: "The stored header couldn't be verified as your Assistant's, so nothing was signed" });
       }
 
-      const composed = spec.compose(header, selfCoord);
+      const composed = spec.compose(header, selfCoord, prep);
       // Domain refusal: HTTP 200 { success: false }, the house contract (bDisposition.js handleBDefer).
       if (composed.refused) return res.json({ success: false, error: composed.refused });
       if (composed.already) return res.json({ success: true, result: spec.already, event: header });

@@ -9,7 +9,7 @@ import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 import { useAuth } from '../../context/AuthContext';
 import { ME, MY_ASSISTANT, viewerAuthorOptions, resolveAuthorFilter, authorRole } from '../../utils/viewerAuthorScope';
-import ListHeaderDispositionPanel from './ListHeaderDispositionPanel';
+import { ListHeaderDispositionHost } from './ListHeaderDispositionPanel';
 import { listHeaderDisposition, MARKS, COLUMN_TITLE } from '../../utils/listHeaderDisposition';
 
 /**
@@ -351,8 +351,7 @@ export default function DListsIndex() {
       </p>
 
       {panelRow && (
-        <ListHeaderDispositionPanel
-          key={panelRow.routeId}
+        <ListHeaderDispositionHost
           row={panelRow}
           onActed={onActed}
           hasNext={!!nextUndecided(panelRow.routeId)}

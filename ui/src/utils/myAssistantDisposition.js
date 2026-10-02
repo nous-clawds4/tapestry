@@ -9,11 +9,11 @@ import { CONCEPT_PUBLISH_RELAYS } from './dispositionActions';
  * actually did. Mirrors utils/dispositionActions.js, which stays Concept Headers' until its fix.
  */
 
-async function postDisposition(handle, action) {
+async function postDisposition(handle, action, body = {}) {
   const resp = await fetch(`/api/list-headers/my-assistant/${encodeURIComponent(handle)}/${action}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: '{}',
+    body: JSON.stringify(body),
   });
   const data = await resp.json();
   if (!data.success) throw new Error(data.error || 'Disposition failed.');
@@ -33,6 +33,21 @@ export async function submitAndBroadcast(handle) {
   }
   return {
     message: outcomeMessage({ outcome: classifyBroadcast(result), verb: 'submit', already: data.result === 'already-declared' }),
+    event: data.event,
+  };
+}
+
+/** Wire to an external shared concept, then broadcast (ADR list-headers-disposition/0004). Returns { message, event }. */
+export async function wireAndBroadcast(handle, target) {
+  const data = await postDisposition(handle, 'b-append', { target });
+  let result = null;
+  try {
+    result = await publishToRelays(data.event, CONCEPT_PUBLISH_RELAYS);
+  } catch {
+    result = null; // classifies as not-delivered — the honest direction
+  }
+  return {
+    message: outcomeMessage({ outcome: classifyBroadcast(result), verb: 'wire', already: data.result === 'already-wired' }),
     event: data.event,
   };
 }
