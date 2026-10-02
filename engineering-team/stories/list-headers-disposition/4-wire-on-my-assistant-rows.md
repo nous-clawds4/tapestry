@@ -84,6 +84,6 @@ and nobody else can make it, or anyone else's, sign.
 None.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/list-headers-disposition/0004-wire-on-my-assistant-rows.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
