@@ -15,6 +15,9 @@
  *   W1..W4, P3, HW1..HW6 — story 4 (ADR 0004): Wire. The pure composeWire; parity with Concept Headers'
  *             handleBAppend; the handler's b-append action, which keeps every story-3 refusal and adds step 4b (the
  *             target is checked before the relay is read).
+ *   HW7..HW12, W5 — story 4 review round 1 (ADR 0004 Amendment 1): the target is a string with no control or format
+ *             characters, at most 1024 UTF-8 bytes, a list header's address (literal kind 39998), not the header's own
+ *             (by parts); every action reads its new version back from the relay before writing the graph.
  *   H13..H15, S5 — review round 1 (ADR 0003 Amendment 1): another site is refused first; the relay's latest header
  *             is verified (author, kind, first d, signature) before anything is signed or answered "already"; the
  *             handle is decoded once; the module carries the same-host check and no second decode.
@@ -130,9 +133,11 @@ function response() {
 }
 
 /** Injected deps that record every call. `headers` is what scanLatest finds, keyed by `${author}:${d}`. */
-function deps({ headers = {}, publishThrows = false, realAuth = false, verify = () => true } = {}) {
+function deps({ headers = {}, publishThrows = false, realAuth = false, verify = () => true, stored = true } = {}) {
   const calls = [];
   const d = {
+    // The relay read-back (ADR 0004 Amendment 1 §4): "stored" unless a test says otherwise; 'throws' simulates a failed read.
+    isStored: async (id) => { calls.push(['isStored', id]); if (stored === 'throws') throw new Error('strfry scan failed'); return stored; },
     // The signature check is injected (ADR 0003 Amendment 1 §1); "valid" unless a test says otherwise, because the
     // default verifier loads nostr-tools from the container path, which the host doesn't have.
     verify: (ev) => { calls.push(['verify', ev]); return verify(ev); },
@@ -543,7 +548,7 @@ test('HW2: a target that isn\'t a header address, or is the header\'s own, is re
   const found = { [`${CUST_TA}:recipes`]: custHeader() };
   for (const target of ['not-an-address', '', '   ', '39998:short:x', AN_EVENT_ID, undefined]) {
     const { res, calls } = await run1('b-append', custHandle, { ...asCustomerWire, body: target === undefined ? {} : { target } }, { headers: found });
-    assert(res.statusCode === 400 && res.body && /header address/i.test(res.body.error || ''), `story 4 AC 4: target ${show(target)} must answer 400 "…header address…", got ${res.statusCode} ${show(res.body)}`);
+    assert(res.statusCode === 400 && res.body && /list header['’]s address/i.test(res.body.error || ''), `story 4 AC 4 / Amendment 1: target ${show(target)} must answer 400 "…list header's address…", got ${res.statusCode} ${show(res.body)}`);
     assert(called(calls, 'scanLatest').length === 0 && called(calls, 'sign').length === 0, `ADR 0004: target ${show(target)} is refused before the relay is read`);
   }
   const own = await run1('b-append', custHandle, WIRE(custHandle), { headers: found });
@@ -589,6 +594,92 @@ test('HW6: the two story-3 actions ignore a body — a target sent to Submit or 
   const tags = (called(r.calls, 'sign')[0] || [])[1];
   assert(r.res.body && r.res.body.result === 'declared' && tags && !tags.tags.some((t) => t[0] === 'b' && t[1] === THEIRS),
     `ADR 0004: Submit with a target in the body still only self-declares — got ${show(tags && tags.tags)}`);
+});
+
+// ── story 4 review round 1 (ADR 0004 Amendment 1) ───────────────────────────
+
+const LIST_HEADER = /list header['’]s address/i;
+const found = () => ({ [`${CUST_TA}:recipes`]: custHeader() });
+async function refusedBeforeLookup(target, sentence, label) {
+  const { res, calls } = await run1('b-append', custHandle, { ...asCustomerWire, body: target === undefined ? {} : { target } }, { headers: found() });
+  assert(res.statusCode === 400 && res.body && res.body.success === false && sentence.test(res.body.error || ''),
+    `Amendment 1: ${label} must answer 400 matching ${sentence}, got ${res.statusCode} ${show(res.body)}`);
+  assert(called(calls, 'scanLatest').length === 0 && called(calls, 'sign').length === 0, `Amendment 1: ${label} is refused before the relay is read`);
+}
+
+test('W5: composeWire\'s own-address guard is a sentence that names Submit, not a bare code (ADR 0004 Amendment 1)', () => {
+  const { composeWire } = compose();
+  const out = composeWire(header(CUST_TA, 'r'), addr(CUST_TA, 'r'), addr(CUST_TA, 'r'));
+  assert(out && typeof out.refused === 'string' && /Submit as a Shared Concept/.test(out.refused), `Amendment 1: the guard says to use Submit — got ${show(out)}`);
+});
+
+test('HW7: a target that isn\'t a string is refused (400) before the lookup — numbers, arrays, objects with a toString, null, a missing body (Amendment 1 §1)', async () => {
+  for (const [label, target] of [['a number', 39998], ['an array', [THEIRS]], ['an object with a toString', { toString: () => THEIRS }], ['null', null], ['a missing body', undefined]]) {
+    await refusedBeforeLookup(target, LIST_HEADER, label);
+  }
+});
+
+test('HW8: a target with a control or format character is refused (400) before the lookup — NUL, ESC, TAB, an RTL override, a zero-width space (Amendment 1 §1)', async () => {
+  const sentence = /characters an address can['’]t have/i;
+  for (const [label, code] of [['NUL', 0], ['ESC', 27], ['TAB', 9], ['RTL override', 0x202e], ['zero-width space', 0x200b]]) {
+    const target = `39998:${'9'.repeat(64)}:some${String.fromCharCode(code)}concept`;
+    await refusedBeforeLookup(target, sentence, `a target with ${label}`);
+  }
+});
+
+test('HW9: the target is at most 1024 UTF-8 bytes — bytes, not characters (Amendment 1 §1)', async () => {
+  const prefix = `39998:${'9'.repeat(64)}:`; // 71 bytes
+  const exactly = prefix + 'x'.repeat(1024 - prefix.length);
+  const { res } = await run1('b-append', custHandle, WIRE(exactly), { headers: found() });
+  assert(res.statusCode === 200 && res.body && res.body.result === 'wired', `Amendment 1: exactly 1024 bytes passes the size check, got ${res.statusCode} ${show(res.body)}`);
+  const tooLong = /too long/i;
+  await refusedBeforeLookup(prefix + 'x'.repeat(1025 - prefix.length), tooLong, '1025 bytes');
+  const multibyte = prefix + 'é'.repeat(477); // 548 characters, 1025 bytes
+  assert(multibyte.length < 1024 && Buffer.byteLength(multibyte, 'utf8') === 1025, 'fixture: fewer than 1024 characters but 1025 bytes');
+  await refusedBeforeLookup(multibyte, tooLong, '548 characters that are 1025 bytes');
+});
+
+test('HW10: only a list header\'s address — the literal kind 39998 — can be wired (Amendment 1 §2, owner decision)', async () => {
+  for (const [label, target] of [
+    ['kind 1', `1:${'9'.repeat(64)}:x`],
+    ['kind 39999', `39999:${'9'.repeat(64)}:x`],
+    ['a leading zero', `039998:${'9'.repeat(64)}:x`],
+    ['kind 9998', `9998:${'9'.repeat(64)}:x`],
+  ]) {
+    await refusedBeforeLookup(target, LIST_HEADER, label);
+  }
+});
+
+test('HW11: the own-address check compares pubkey and d-tag — padded or not (Amendment 1 §3)', async () => {
+  for (const target of [custHandle, `  ${custHandle}  `]) {
+    await refusedBeforeLookup(target, /own address[\s\S]*Submit as a Shared Concept/, `the own address ${show(target)}`);
+  }
+});
+
+test('HW12: every action reads the new version back from the relay before writing the graph — not kept or a failed read is 502 with the graph untouched (Amendment 1 §4)', async () => {
+  const cases = [
+    ['self-declare', asCustomer],
+    ['b-defer', asCustomer],
+    ['b-append', WIRE(THEIRS)],
+  ];
+  for (const [action, opts] of cases) {
+    let r = await run1(action, custHandle, opts, { headers: found() });
+    const order = r.calls.map((c) => c[0]).filter((n) => ['sign', 'publishLocal', 'isStored', 'importToGraph'].includes(n));
+    assert(show(order) === show(['sign', 'publishLocal', 'isStored', 'importToGraph']), `Amendment 1 §4 (${action}): sign, relay, read back, graph — got ${show(order)}`);
+    const signedId = called(r.calls, 'sign').length ? r.res.body.event.id : null;
+    assert(called(r.calls, 'isStored')[0][1] === signedId, `Amendment 1 §4 (${action}): the read-back asks for the signed event's id`);
+
+    r = await run1(action, custHandle, opts, { headers: found(), stored: false });
+    assert(r.res.statusCode === 502 && r.res.body && r.res.body.success === false && /didn['’]t keep/i.test(r.res.body.error || ''),
+      `Amendment 1 §4 (${action}): not kept must answer 502 "…didn't keep…", got ${r.res.statusCode} ${show(r.res.body)}`);
+    assert(called(r.calls, 'importToGraph').length === 0, `Amendment 1 §4 (${action}): not kept — the graph is not touched`);
+    noLeak(r.res, `HW12 ${action} not kept`);
+
+    r = await run1(action, custHandle, opts, { headers: found(), stored: 'throws' });
+    assert(r.res.statusCode === 502 && r.res.body && /couldn['’]t confirm/i.test(r.res.body.error || ''),
+      `Amendment 1 §4 (${action}): a failed read-back must answer 502 "…couldn't confirm…", got ${r.res.statusCode} ${show(r.res.body)}`);
+    assert(called(r.calls, 'importToGraph').length === 0, `Amendment 1 §4 (${action}): a failed read-back — the graph is not touched`);
+  }
 });
 
 // ── review round 1 (ADR 0003 Amendment 1) ───────────────────────────────────

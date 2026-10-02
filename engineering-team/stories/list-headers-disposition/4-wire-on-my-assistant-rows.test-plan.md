@@ -112,3 +112,51 @@ least one test:
 | n4: the target not trimmed | HW3 |
 | n5: "already-wired" answered before verification | HW4, H14 |
 | n6: Wire writes the `inherit` type | W1, P3, HW3 |
+
+## Review round 1 (ADR 0004 Amendment 1)
+
+| Ask | Tests | Level |
+|---|---|---|
+| The target is a string (§1) | **HW7**: a number, an array, an object with a `toString`, `null`, a missing body. Each gets 400 before the lookup. | unit |
+| No control or format characters (§1) | **HW8**: NUL, ESC, TAB, U+202E, U+200B; browser **W8**, with no request | unit + browser |
+| At most 1024 UTF-8 *bytes* (§1) | **HW9**: exactly 1024 bytes passes; 1025 fails; 548 multibyte characters that are 1025 bytes fail. Browser **W8**. | unit + browser |
+| Only list headers: the literal kind 39998 (§2, owner decision) | **HW10**: kind 1, 39999, `039998`, 9998; browser **W8**, and **W5** with its new sentence | unit + browser |
+| The own address compared by parts (§3) | **HW11**: plain and padded. It already passes on today's code as a guard: with the exact-kind rule, comparing parts and comparing strings agree. | unit |
+| Read back before the graph, for all three actions (§4) | **HW12**: the order is sign, relay, read back, graph. The read asks for the signed id. Not kept gives 502 with no graph write; a failed read gives 502 with no graph write. Browser **W9** shows the 502 with the row unchanged; it already passes on today's code, since the panel already shows server errors. | unit + browser |
+| The guard sentence (review non-blocking 4) | **W5**, Node | unit |
+
+**Re-aimed in this phase:**
+- **HW2** expects the new "…list header's address…" sentence.
+- **Browser W5** expects it too.
+- **`deps()`** injects `isStored`, "stored" unless a test says otherwise.
+- **The browser stand-in server** applies the amended target rules.
+
+### Verification, round 1
+
+**The new tests fail with the current code.** Confirmed 2026-10-01 at `994e0666`, plus these tests.
+
+- **Node, on the host:** 44 passed, 7 failed:
+  - HW2, HW7: the old sentence;
+  - W5: `{"refused":"self"}`;
+  - HW8, HW9, HW10: control characters, 1025 bytes and kind 1 were all `wired`;
+  - HW12: no read-back, so the order was `sign, publishLocal, importToGraph`.
+- **Playwright,** on a build of `994e0666`: 18 passed, 2 failed. W5 has the old sentence. W8's oversized target sent a request.
+- **The isolated full gate** (`20261002T014752Z-20-0616`, on `994e0666` plus these files): FAIL, 4530 passed, 7 failed,
+  593 skipped. **The only failing suite is this one** (42/7/2).
+
+**The tests can pass, and they catch the defects they're meant to catch.** Amendment 1 was applied to a throwaway
+build outside the repo. It isn't committed.
+
+- **Node:** 49 of 49 pass (L1 and L2 skip, because the oracle isn't deployed).
+- **Playwright:** 190 of 190 for all three specs with `--repeat-each=5`.
+
+| Mutant | Fails |
+|---|---|
+| m1: the panel without the byte check | browser W8 (`no request is sent`) |
+| r1: no type check (the target turned into a string) | HW7 |
+| r2: no control or format check | HW8 |
+| r3: characters counted instead of bytes | HW9 |
+| r4: any kind | HW10 |
+| r5: no read-back | HW12 |
+| r6: the graph written before the read-back | HW12 |
+| r7: a failed read-back still writes the graph | HW12 |

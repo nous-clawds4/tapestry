@@ -27,6 +27,9 @@ const { test, expect } = require('@playwright/test');
  *   M9 — AC 5: "kept here" when external publishing is off (no socket at all); "didn't reach" when the relay
  *        rejects it — and the row still shows the new state, because it's saved here.
  *   M10 — AC 6: Next undecided → walks the viewer's own Assistant's undecided rows; at the end only Done.
+ *   W8..W9 — story 4 review round 1 (ADR 0004 Amendment 1): the panel's mirrored target bounds (another kind, too
+ *        long in bytes, a format character), each with no request; a server 502 from the relay read-back, shown with the
+ *        row unchanged.
  *   W1..W7 — story 4 (Wire; ADR 0004): the Wire section and its pick-list; Wire with its outcome; already wired;
  *        a second target; the panel's own refusals, with no request; Next keeps the pick-list without a second read.
  *   M11 — AC 1 on a real-sized list (review round 1, ADR 0003 Amendment 1 §4): Disposition… on the last of 70 rows
@@ -169,8 +172,11 @@ async function mockStack(page, { session = null, relay = 'accept', policy = 'ope
     const real = bs.some((v) => v !== SENTINEL);
     let tags;
     if (action === 'b-append') {
-      const target = String(body.target || '').trim();
-      if (!/^\d+:[0-9a-f]{64}:.+$/.test(target)) return json(r, { success: false, error: 'The target must be a header address (kind:pubkey:d-tag)' }, 400);
+      if (typeof body.target !== 'string') return json(r, { success: false, error: "The target must be a list header's address (39998:pubkey:d-tag)" }, 400);
+      const target = body.target.trim();
+      if (/[\p{Cc}\p{Cf}]/u.test(target)) return json(r, { success: false, error: "The target contains characters an address can't have" }, 400);
+      if (Buffer.byteLength(target, 'utf8') > 1024) return json(r, { success: false, error: 'The target is too long — the relay keeps tag values of at most 1024 bytes' }, 400);
+      if (!/^39998:[0-9a-f]{64}:.+$/.test(target)) return json(r, { success: false, error: "The target must be a list header's address (39998:pubkey:d-tag)" }, 400);
       if (target === handle) return json(r, { success: false, error: "That's this header's own address — use Submit as a Shared Concept instead" }, 400);
       if (bs.includes(target)) return json(r, { success: true, result: 'already-wired', event: cur });
       tags = [...cur.tags.filter((t) => !(t[0] === 'b' && t[1] === SENTINEL)), ['b', target, 'pointer']];
@@ -454,7 +460,7 @@ test.describe('List Headers — Disposition on My Assistant rows (list-headers-d
     await openPanel(page, 'ta undecided a');
     await fillTarget(page, 'not an address');
     await wireButton(page).click();
-    await expect(page.getByText('The target must be a header address (kind:pubkey:d-tag)'), 'story 4 AC 4: not an address').toBeVisible();
+    await expect(page.getByText("The target must be a list header's address (39998:pubkey:d-tag)"), 'story 4 AC 4 / Amendment 1: not a list header\'s address').toBeVisible();
     await fillTarget(page, addr(OWNER_TA, 'ta undecided a'));
     await wireButton(page).click();
     await expect(page.getByText(/own address.*Submit as a Shared Concept/), 'story 4 AC 4: its own address points to Submit').toBeVisible();
@@ -482,5 +488,31 @@ test.describe('List Headers — Disposition on My Assistant rows (list-headers-d
     await expect(page.getByRole('button', { name: 'somebody elses concept' }), 'ADR 0004: the list is still there after Next').toBeVisible();
     await expect(page.getByText('Searching the community relay…'), 'ADR 0004: no "Searching…" again after Next').toHaveCount(0);
     expect(state.communityReads, 'ADR 0004: one community read for the whole panel session').toBe(1);
+  });
+  test('W8 (Amendment 1): the panel refuses another kind, a target too long in bytes, and a hidden format character — each with no request', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION });
+    await openPanel(page, 'ta undecided a');
+    const cases = [
+      [`1:${'9'.repeat(64)}:a-note`, "The target must be a list header's address (39998:pubkey:d-tag)"],
+      [`39998:${'9'.repeat(64)}:${'é'.repeat(477)}`, 'The target is too long — the relay keeps tag values of at most 1024 bytes'],
+      [`39998:${'9'.repeat(64)}:some${String.fromCharCode(0x202e)}concept`, "The target contains characters an address can't have"],
+    ];
+    for (const [target, sentence] of cases) {
+      await fillTarget(page, target);
+      await wireButton(page).click();
+      await expect(page.getByText(sentence), `Amendment 1: the panel says "${sentence}"`).toBeVisible();
+    }
+    expect(state.posts, 'Amendment 1: the panel refuses these itself — no request is sent').toEqual([]);
+    await expect.poll(() => marks(page, 'ta undecided a')).toEqual(['○']);
+  });
+
+  test('W9 (Amendment 1 §4): when the relay doesn\'t keep the new version, the panel says so and the row is unchanged', async ({ page }) => {
+    const state = await open(page, { session: OWNER_SESSION, refuse: { status: 502, error: "The relay didn't keep the new version, so nothing was saved" } });
+    await openPanel(page, 'ta undecided a');
+    await fillTarget(page, THEIRS);
+    await wireButton(page).click();
+    await expect(page.getByText("The relay didn't keep the new version, so nothing was saved"), 'Amendment 1 §4: the refusal is shown').toBeVisible();
+    await expect.poll(() => marks(page, 'ta undecided a'), { message: 'Amendment 1 §4: the row is unchanged' }).toEqual(['○']);
+    expect(state.events, 'Amendment 1 §4: nothing is sent to the community relay').toEqual([]);
   });
 });
