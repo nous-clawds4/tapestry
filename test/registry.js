@@ -266,6 +266,7 @@ const suites = [
   { file: 'my-assistants-nip05.test.js' },
   { file: 'list-headers-author-options.test.js' },
   { file: 'list-headers-disposition-column.test.js' },
+  { file: 'list-headers-my-assistant-disposition.test.js', skipNote: 'control panel not reachable (live refusals)' },
   { file: 'tagging-edge-contract.test.js' },
   { file: 'tagging-edges-sweep.test.js' },
   { file: 'strfry-scan-strict.test.js' },
