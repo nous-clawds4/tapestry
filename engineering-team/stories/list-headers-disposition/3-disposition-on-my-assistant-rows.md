@@ -1,6 +1,6 @@
 # Story 3: Disposition on My Assistant rows — Submit as a Shared Concept and Keep private, signed by your own Assistant
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-01
 **Type:** Feature
 **Epic:** `list-headers-disposition`

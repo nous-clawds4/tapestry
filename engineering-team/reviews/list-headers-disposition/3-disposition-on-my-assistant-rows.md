@@ -294,3 +294,67 @@ blocking asks and the recommended non-blocking 1 (the double decode) were all ta
 All of round 1's asks are fixed and hold up, under my checks and the independent pass's. One new blocking item
 remains, and it's test-only: the story's own suite trips the gate's honest-status guard (blocking 4). Round 3
 needs the Tester's re-aim of L1 and a green isolated full gate. No source change is asked.
+
+## Re-review, round 3 (2026-10-01)
+
+**Diff:** `git diff 4e6589e0..8e3771da` (base = round 2's review commit): one commit, `8e3771da`. It touches the
+suite and its test plan only, and nothing under `src/` or `ui/`.
+
+**The owner's decision at round 2's gate,** verbatim: "Go ahead with round 3 for story 3".
+
+**The re-aim, checked as a fresh claim:**
+- L1 now calls `loopbackRequest({ container, method: 'POST', url, body: {}, timeoutS: 20 })` from
+  `test/helpers/stackHttp.js` and asserts `r.status === 401`, with `describeResponse(r)` in the failure message.
+- The "header unchanged" check is kept.
+- The file no longer contains `%{http_code}` or `__STATUS__`, which is what C9 matches
+  (`test/gate-result-record.test.js:417-418`).
+- Nothing else in the suite changed.
+
+**The Tester's own isolated gate** ran on an uncommitted copy and was stopped when the owner moved on to Review. Its
+record was never read, and the run below, on the commit, replaces it.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`, reproduced as CI, with no network during the run.** The same recipe as round 2, on a clean
+      `--no-local` clone at `8e3771da` (0 porcelain lines). The verdict, read with
+      `npm run -s gate:status -- --label review-lhd-3-r3`:
+
+  > `20261002T005559Z-19-7f8b [review-lhd-3-r3] started 2026-10-02T00:55:59.267Z on 8e3771da — PASS, exit 0, 4519 passed, 0 failed, 593 skipped, 257/257 suites · /w/repo/tmp/gate-runs/20261002T005559Z-19-7f8b.json`
+
+  - **The record:** `node: v22.23.3`, `git: { commit: 8e3771da…, branch: feat/list-headers-disposition, dirty: false }`.
+  - **Against round 2** (`20261002T004748Z-20-fc5d`, 4518 passed, 1 failed): the one failure, C9, now passes.
+    Nothing else moved.
+  - **Per suite:**
+
+    | Suite | Verdict | Pass / fail / skipped |
+    |---|---|---|
+    | `list-headers-my-assistant-disposition` | PASS | 31 / 0 / 2 (the live pair skips with no network) |
+    | `list-headers-disposition-column` | PASS | 12 / 0 / 0 |
+    | `list-headers-author-options` | PASS | 9 / 0 / 0 |
+    | `gate-result-record` | PASS | 33 / 0 / 1 |
+    | `harness-lint` | PASS | 76 / 0 / 0 |
+    | `stack-free-npm-test` | PASS | 6 / 0 / 1 |
+
+  - The volume has been removed.
+- [x] **On the host,** each suite checked for publish markers first (none):
+  - `list-headers-my-assistant-disposition` passes 33/0/0, and L1 executes live through the helper: 401 for both
+    actions, and the header unchanged;
+  - `gate-result-record` passes 34/0/0, C9 included.
+- [x] **Browser:** no UI change since round 2's 145 of 145 on a fresh `36f82e87` build, so nothing to re-run.
+
+### Findings
+
+- **Blocking:** none. Round 2's blocking item 4 is fixed.
+- **Non-blocking:** round 2's accepted residuals stand, unchanged.
+- **Harness friction:** none new.
+
+### Verdict
+**PASS**
+
+Story 3 meets its six acceptance criteria and ADR 0003 with Amendment 1:
+- the server signs only with the signed-in person's own Assistant;
+- it refuses other sites first;
+- it never re-signs, or answers "already" for, a header it can't verify as that Assistant's;
+- the panel opens in view on a real-sized list.
+
+The full isolated gate is green on the commit, and an independent adversarial pass found no way around the rule.
