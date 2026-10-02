@@ -257,3 +257,95 @@ We chose **Option A**.
 - Choosing a signer.
 - Concept Headers.
 - The filed read-back hardening items.
+
+## Amendment 1 (2026-10-01, review round 1)
+
+Story 5's review (`engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md`) found one blocking
+defect: the panel outlives a sign-out. The owner then decided, at that gate (2026-10-01), that all three non-blocking
+items ride along.
+
+Everything above stands except where a rule below adds to it or replaces it.
+
+### What changes, and why
+
+1. **The panel exists only while its row is the viewer's (blocking 1).**
+   - Signing out in the page, or signing in as someone else, leaves `panelId` set. So `rowSigner(panelRow)` becomes
+     `null`, and two things go wrong:
+     - `nextUndecided(afterId, null)` matches every row that isn't the viewer's, so **Next** opened another person's
+       row for a signed-out viewer;
+     - the panel's actions are `undefined`, so its buttons throw.
+   - **The rule:**
+     - the panel is shown only while `rowSigner(panelRow)` is set;
+     - when it stops being set, `panelId` is cleared, so the panel doesn't come back by itself at the next sign-in.
+       This is the same rule as the Author selector's reset in ADR 0001 Amendment 1;
+     - `nextUndecided` never matches a missing signer.
+2. **The stored-header refusal has its own sentence on Me rows (non-blocking 3; replaces "the same sentence" in
+   step 5b).**
+   - On a Me row there is no Assistant. At commit, the person has already signed, so "nothing was signed" would be
+     untrue.
+   - The 409 reads `"The stored header couldn't be verified as yours, so nothing was saved"`, in both phases.
+3. **A header dated too far ahead is refused before anyone signs (non-blocking 1).**
+   - The relay accepts ordinary publishes up to 900 s ahead, and `strfry import` doesn't check timestamps at all. So a
+     person's own header can be dated more than 600 s ahead.
+   - In that case `nextCreatedAt(header.created_at, now)` exceeds the commit's limit of now + 600. The person was
+     prompted to sign a version no commit could accept, and then got a misleading "isn't exactly this action's change".
+   - **The rule:** in both phases, when `nextCreatedAt(header.created_at, d.now()) > d.now() + 600`, answer **409**:
+     `"The stored header is dated more than 10 minutes ahead, so a newer version can't be saved yet — nothing was saved"`.
+   - **Where it runs:**
+     - in prepare, after the "already" and refusal answers and before the template;
+     - in commit, after the account check and the header-changed check, and before the exact-change check.
+   - So an "already" answer is unaffected, and a doomed request never prompts.
+4. **Every failure inside the signer says nothing was saved (non-blocking 2).**
+   - `getActiveSignerOrThrow()` calls `getPublicKey()`. Only a missing signer was mapped. A decline there, or any odd
+     rejection (a string, `undefined`), reached the panel raw. A non-`Error` even made the panel's own `catch` throw,
+     which left it stuck busy.
+   - **The rule, in `signAsMe`:**
+     - no signer gives the no-signer sentence;
+     - a `SignerMismatchError` keeps its text;
+     - **anything else** from `getActiveSignerOrThrow()` gives `"Signing was cancelled in your signer — nothing was saved"`,
+       the same as a rejection from `signEvent`.
+   - **The panel's `run`** always clears `busy`. It shows `err.message` when there is one, and otherwise
+     `"That didn't work — try again."`. That sentence makes no claim about what was saved, because `run` also serves
+     the Assistant actions.
+
+### Implementation notes (additions)
+
+**`ui/src/pages/lists/Index.jsx`**
+- `nextUndecided` becomes:
+  ```js
+  const nextUndecided = (afterId, signer) => (signer ? filteredRows.find(r =>
+    rowSigner(r) === signer && r.disposition === MARKS.undecided.state && r.routeId !== afterId) : null) || null;
+  ```
+- The host renders only when `panelRow && rowSigner(panelRow)`.
+- An effect clears the panel when its row stops being the viewer's:
+  ```js
+  useEffect(() => { if (panelRow && !rowSigner(panelRow)) setPanelId(null); }, [panelRow, user]);
+  ```
+
+**`src/api/list-headers/meDisposition.js`**
+- Two new constants: `UNVERIFIED_HEADER` (§2) and `TOO_FAR_AHEAD` (§3).
+- Step 5b answers `409 UNVERIFIED_HEADER`.
+- The §3 check uses the existing `MAX_AHEAD_SECONDS`, at the two places named above.
+
+**`ui/src/utils/meDisposition.js`**
+- `signAsMe`'s first `catch`:
+  - `err instanceof SignerMismatchError` → rethrow;
+  - `err && err.message === 'No NIP-07 extension detected.'` → `NO_SIGNER`;
+  - otherwise → `DECLINED`.
+
+**`ui/src/pages/lists/ListHeaderDispositionPanel.jsx`**
+- `run`'s `catch` becomes:
+  ```js
+  catch (err) { setBusy(false); setMessage(err && err.message ? err.message : "That didn't work — try again."); }
+  ```
+
+**Tests (Phase 3 decides the suites):**
+- **Browser:**
+  - act on a Me row, then sign out: the panel is gone and no other row's panel can open;
+  - sign out with the panel open: the panel is gone, with no page error;
+  - sign back in: the panel doesn't come back;
+  - a decline at `getPublicKey`, and a non-`Error` rejection: the cancelled sentence, `busy` cleared, no commit.
+- **Node:**
+  - the §2 sentence in both phases;
+  - the §3 refusal in both phases, with no template, no prompt and nothing written. A header exactly at the limit
+    still prepares.
