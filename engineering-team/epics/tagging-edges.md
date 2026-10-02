@@ -115,8 +115,8 @@ Planning: admins may also see the panel and use every control but confirming hel
    alarm, and a record of who changed it, shown as the latest change and the last 10. This widens story 3's
    owner-only switch route to admins (the Architect amends ADR 0003). *(Split from the planned controls at Planning,
    2026-10-01, by what they act on; the owner's decisions are in the story.)* **Done** (review PASS 2026-10-01, round 2; ADR
-   `tagging-edges/0005`). Its review's 10 carry-forwards are for the owner to place (`reviews/tagging-edges/5-real-time-path-switch.md`
-   § "Re-review, round 2").
+   `tagging-edges/0005`). On staging since 2026-10-02 (PR #805),
+   with its staging evidence complete. Its review's 10 carry-forwards are placed under story 6 (C5-1..C5-10).
    **Carry-forwards from story 4's review** (placed by the owner 2026-10-01; `reviews/tagging-edges/4-tagging-pipeline-panel.md`
    § "Re-review, round 2", R2-1 to R2-14). Each becomes a docs, copy or test task of story 5. Line numbers are at
    `77ae0da4`; the review gives each one's evidence and ask in full.
