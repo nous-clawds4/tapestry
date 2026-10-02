@@ -338,7 +338,7 @@ test('S1: the route, its validation, and the seam it shares with the trusted dic
     'Firmware: the row is a firmware concept or points at one');
   assert(/computeConceptDictionary\(/.test(s), 'the arithmetic is delegated to the pure core');
   const uses = (s.match(/await resolveQualifying\(/g) || []).length;
-  assert(uses === 2, `both dictionary reads resolve the qualifying set through one seam (resolveQualifying), found ${uses} calls`);
+  assert(uses === 3, `the three dictionary reads (trusted dictionary, a person's dictionary, an entry's Items) resolve the qualifying set through one seam (resolveQualifying), found ${uses} calls`);
 });
 
 test('S2: the pages read the person\'s dictionary, not the trusted dictionary', () => {

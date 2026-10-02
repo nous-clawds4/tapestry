@@ -29,6 +29,15 @@ const { test, expect } = require('@playwright/test');
  *   D7 — a row's entry opens on /dictionary/:coord, and its back link returns to /dictionary.
  *   D8 — the avatar menu offers Dictionary (/dictionary), right after Dictionaries.
  *   D9 — with a setup step left, the Setup Alert sits centred in the bar and the avatar at its right.
+ *
+ * The entry page, laid out as the design's Dictionary entry screen (test/dictionary-entry.test.js
+ * holds the pure rule and the structural pins):
+ *
+ *   D10 — the Items table asks once, for the entry's own header, its shared concept and the
+ *         person; it pages ten at a time, searches (name and filer) and sorts; the Curation card
+ *         names the Assistant the Treasure Map assigns; what has no backend is disabled; the GUM₁
+ *         sentence; the header panels open.
+ *   D11 — a Treasure Map that cannot be read names no curator and says so.
  */
 
 const OWNER = '1'.repeat(64);
@@ -116,6 +125,49 @@ async function names(page) {
     if (await list(page).locator('.dict-row-name', { hasText: new RegExp(`^${name}$`) }).count() > 0) out.push(name);
   }
   return out;
+}
+
+
+const TRUSTED_FILER = '6'.repeat(64);
+const CURATOR = '7'.repeat(64);
+
+/** The entry page's own reads, on top of mockStack: its Items, the two headers, the Treasure Map. */
+async function mockEntry(page, { map = 'assigned' } = {}) {
+  const json = (r, body) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  const itemsAsked = [];
+  const items = Array.from({ length: 22 }, (_, i) => ({
+    id: String(i + 1).padStart(64, '0'), address: null, kind: 9999, author: TRUSTED_FILER,
+    name: `item ${String(i + 1).padStart(2, '0')}`, createdAt: i + 1,
+  }));
+  items.push({ id: 'f'.repeat(64), address: null, kind: 9999, author: TRUSTED_FILER, name: 'zebra', createdAt: 99 });
+  await page.route('**/api/dictionaries/concepts/items**', (r) => {
+    itemsAsked.push(Object.fromEntries(new URL(r.request().url()).searchParams));
+    return json(r, { success: true, items, filerCount: 1, totalCount: 25, pov: { branch: 'house', fellBackToHouse: false } });
+  });
+  await page.route('**/api/strfry/scan**', (r) => {
+    const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
+    if ((filter.kinds || []).includes(10040)) {
+      if (map === 'unreadable') return r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'strfry is down' }) });
+      // ["39998:cat-breed", OWNER_TA] empowers 39998:<OWNER_TA>:cat-breed, the entry D10 opens.
+      return json(r, { success: true, events: [{ id: 'a'.repeat(64), kind: 10040, pubkey: OWNER, created_at: 1, content: '', tags: [['39998:cat-breed', OWNER_TA]] }] });
+    }
+    if ((filter.kinds || []).includes(39998)) {
+      const [author] = filter.authors || [];
+      const [d] = filter['#d'] || [];
+      return json(r, { success: true, events: [{ id: `${d}`.padEnd(64, '0').slice(0, 64), kind: 39998, pubkey: author, created_at: 1, content: '', tags: [['d', d], ['names', d.replace('-', ' '), `${d}s`], ['b', FOREIGN]] }] });
+    }
+    return json(r, { success: true, events: [] });
+  });
+  await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: [] }));
+  await page.route('**/api/profiles**', (r) => json(r, {
+    success: true,
+    profiles: {
+      [CURATOR]: { name: 'Curio', nip05: 'curio@example.com' },
+      ['f'.repeat(64)]: { name: 'Fiona', nip05: 'fiona.example' },
+      [TRUSTED_FILER]: { name: 'Trusty' },
+    },
+  }));
+  return itemsAsked;
 }
 
 test.describe('Dictionary › Concepts — whose dictionary', () => {
@@ -214,6 +266,79 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     expect(i, 'Dictionaries is still in the menu').toBeGreaterThanOrEqual(0);
     expect(labels[i + 1]).toMatch(/Dictionary$/);
     await expect(links.nth(i + 1)).toHaveAttribute('href', '/dictionary');
+  });
+
+  test('D10: the entry page — Items, Curation, disabled controls and the header panels', async ({ page }) => {
+    await mockStack(page);
+    const itemsAsked = await mockEntry(page);
+    const coord = coordOf(OWNER_TA, 'cat-breed');
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}`);
+
+    const card = page.locator('.dict-items');
+    await expect(card.locator('.dict-items-count')).toHaveText('23 items');
+    expect(itemsAsked, 'asked once, after the row is known').toHaveLength(1);
+    expect(itemsAsked[0], 'the own header, its shared concept, and the owner’s pair').toMatchObject({
+      coord, shared: FOREIGN, authors: `${OWNER},${OWNER_TA}`,
+    });
+    await expect(page.getByRole('table', { name: 'Items' }).getByRole('columnheader')).toHaveText(['#', 'Item', 'Filed by']);
+    const rows = card.locator('.dict-items-row:not(.dict-items-row--head)');
+    await expect(rows).toHaveCount(10);
+    await expect(card.locator('.dict-items-range')).toHaveText('1–10 of 23');
+    await expect(rows.first().locator('.dict-items-by')).toHaveAttribute('href', `/user/${TRUSTED_FILER}`);
+    await expect(rows.first().locator('.dict-items-by')).toHaveText('Trusty');
+    await card.getByRole('button', { name: 'Next' }).click();
+    await expect(card.locator('.dict-items-range')).toHaveText('11–20 of 23');
+    await card.getByRole('button', { name: 'Next' }).click();
+    await expect(rows).toHaveCount(3);
+    await expect(card.getByRole('button', { name: 'Next' })).toBeDisabled();
+
+    await card.getByRole('button', { name: /Search & sort/ }).click();
+    await card.getByPlaceholder('Search items').fill('zeb');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first().locator('.dict-items-n')).toHaveText('23');
+    await card.getByPlaceholder('Search items').fill('trusty');
+    await expect(rows, 'the keyword matches who filed it too').toHaveCount(10);
+    await card.getByPlaceholder('Search items').fill('nothing like it');
+    await expect(card.getByText('No items match “nothing like it”.')).toBeVisible();
+    await card.getByPlaceholder('Search items').fill('');
+    await card.locator('select').selectOption('za');
+    await expect(rows.first().locator('.dict-items-item')).toHaveText('zebra');
+    await expect(card.getByRole('button', { name: 'Customize' })).toBeDisabled();
+    await expect(page.getByText(/2 more filed by people below the verified cutoff are not shown\./)).toBeVisible();
+
+    await page.getByRole('button', { name: /^Curation/ }).click();
+    const curation = page.locator('.dict-curation');
+    await expect(curation.locator('.dict-strip-name')).toContainText('The owner’s Assistant');
+    await expect(curation.getByText('Assigned to this Concept on the owner’s Treasure Map')).toBeVisible();
+    const switches = curation.getByRole('switch');
+    await expect(switches).toHaveCount(4);
+    for (let i = 0; i < 4; i++) {
+      await expect(switches.nth(i)).toBeDisabled();
+      await expect(switches.nth(i)).toHaveAttribute('aria-checked', 'false');
+    }
+
+    const strip = page.locator('.dict-author-strip');
+    await expect(strip).toContainText('A Shared Community Concept, authored by Fiona');
+    await expect(strip).toContainText('0 members of the owner’s trusted, extended community file items under it.');
+    await expect(strip.getByRole('button', { name: 'Veto' })).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Community Concept header' }).click();
+    await expect(page.locator('#dict-community-header')).toContainText(FOREIGN);
+    await expect(page.locator('#dict-community-header .dict-json')).toContainText('["d","shared-thing"]');
+    await page.getByRole('button', { name: 'The owner’s Assistant’s header' }).click();
+    await expect(page.locator('#dict-own-header')).toContainText(coord);
+    await expect(page.locator('#dict-own-header').getByRole('link', { name: 'Open the concept →' })).toBeVisible();
+  });
+
+  test('D11: a Treasure Map that cannot be read names no curator, and says so', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page, { map: 'unreadable' });
+    await page.goto(`${PAGE}/${encodeURIComponent(coordOf(OWNER_TA, 'cat-breed'))}`);
+    const curation = page.locator('.dict-curation');
+    await expect(curation.locator('.dict-items-count')).toHaveText('Could not read the Treasure Map');
+    await page.getByRole('button', { name: /^Curation/ }).click();
+    await expect(curation.getByText(/^Could not read the owner’s Treasure Map: /)).toBeVisible();
+    await expect(curation.getByText('Curated by')).toHaveCount(0);
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {
