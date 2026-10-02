@@ -5,7 +5,7 @@ import DictIcon from '../dictionaries/DictIcon';
 import useProfiles from '../../hooks/useProfiles';
 import { npubOf, scan } from '../dictionaries/ConceptEntry';
 import { DICTIONARY_PATH, DICTIONARY_WIRE_PARAM, dictionaryEntryPath, useDictionaryPerson } from '../dictionaries/conceptsDictionary';
-import { fetchFromRelays, publishToRelays } from '../../utils/nostrPublish';
+import { publishToRelays } from '../../utils/nostrPublish';
 import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
 import { COMMUNITY_RELAYS } from '../../hooks/useCommunitySharedConcepts';
 import { ASSISTANT_COPY } from '../assistant/actions';
@@ -17,25 +17,40 @@ import { MAX_D_BYTES, conceptHeaderDraft, draftPreview, fieldsFromHeader, wirePr
 export const NEW_CONCEPT_API = '/api/dictionaries/concepts/new';
 
 /**
+ * The community relay, read strictly (`strict=1`): a relay that couldn't be read is an error, never an
+ * empty answer, so the page can't mistake "unreachable" for "not there" (the lenient read answers
+ * `{success: true, events: []}` for both).
+ */
+async function readCommunityStrict(filter) {
+  const params = new URLSearchParams({ filter: JSON.stringify(filter), relays: COMMUNITY_RELAYS.join(','), strict: '1' });
+  const resp = await fetch(`/api/relay/external?${params}`);
+  const data = await resp.json();
+  if (!data || data.success !== true) throw new Error((data && data.error) || `HTTP ${resp.status}`);
+  return Array.isArray(data.events) ? data.events : [];
+}
+
+/**
  * The shared concept's header, for `?wire=`: the newest of this instance's relay and the community relay,
- * so the form can start from its names and description and the copy from its tags. { event, done, reload }.
+ * so the form can start from its names and description and the copy from its tags.
+ * { event, done, unreadable, reload }: `unreadable` when neither relay has it and the community relay
+ * couldn't be read, so whether it has a header there isn't known.
  */
 function useSharedHeader(target) {
-  const [state, setState] = useState({ event: null, done: !target });
+  const [state, setState] = useState({ event: null, done: !target, unreadable: false });
   const [version, setVersion] = useState(0);
   useEffect(() => {
-    if (!target) { setState({ event: null, done: true }); return undefined; }
+    if (!target) { setState({ event: null, done: true, unreadable: false }); return undefined; }
     let cancelled = false;
-    setState({ event: null, done: false });
+    setState({ event: null, done: false, unreadable: false });
     const [, pubkey, ...rest] = target.split(':');
     const d = rest.join(':');
     const filter = { kinds: [39998], authors: [pubkey], '#d': [d] };
     const own = (ev) => ev && ev.kind === 39998 && ev.pubkey === pubkey && (ev.tags || []).find((t) => t[0] === 'd')?.[1] === d;
     (async () => {
-      const reads = await Promise.allSettled([scan(filter), fetchFromRelays(filter, COMMUNITY_RELAYS)]);
+      const reads = await Promise.allSettled([scan(filter), readCommunityStrict(filter)]);
       const events = reads.flatMap((r) => (r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : [])).filter(own);
       const newest = events.reduce((a, b) => (!a || (b.created_at || 0) > (a.created_at || 0) ? b : a), null);
-      if (!cancelled) setState({ event: newest, done: true });
+      if (!cancelled) setState({ event: newest, done: true, unreadable: !newest && reads[1].status === 'rejected' });
     })();
     return () => { cancelled = true; };
   }, [target, version]);
@@ -106,7 +121,10 @@ export default function DictionaryNewConceptPage() {
   const locked = Boolean(undelivered); // the header exists: what's left is its broadcast
   // Wired to its own address would only be the plain, self-shared concept under another name.
   const selfTarget = Boolean(target && draft.coord === target);
-  const canCreate = person.signedIn && Boolean(signer) && draft.ready && !selfTarget && !busy && !locked;
+  // Wired: never before the shared header's read has settled, and never without its tags when the community
+  // relay couldn't be read (the copy would silently lack them: the owner's report of 2026-10-02).
+  const sharedSettled = !target || (shared.done && !shared.unreadable);
+  const canCreate = person.signedIn && Boolean(signer) && draft.ready && !selfTarget && sharedSettled && !busy && !locked;
   // A name with no Latin letter or digit has no slug, so it can't name the header's d-tag yet.
   const noSlug = Boolean(singular.trim()) && !draft.d;
 
@@ -209,9 +227,16 @@ export default function DictionaryNewConceptPage() {
               {sharedName || (shared.done ? target : 'Reading the shared concept…')}
               {sharedBy && <span className="dict-strip-faint"> · shared by {sharedBy}</span>}
             </span>
-            {shared.done && !shared.event && (
+            {shared.done && !shared.event && !shared.unreadable && (
               <span className="dict-entry-note text-muted">
                 Its header wasn’t found on this instance’s relay or the community relay, so fill in the names yourself.
+              </span>
+            )}
+            {shared.unreadable && (
+              <span className="dict-entry-note" role="alert">
+                Couldn’t reach the community relay to read its header, so its tags can’t be copied now, and creating the
+                concept would leave them out.{' '}
+                <button type="button" className="dict-link-btn" onClick={shared.reload}>Try again</button>
               </span>
             )}
           </div>

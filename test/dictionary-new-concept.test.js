@@ -112,7 +112,7 @@ test('S2: who signs — the signed-in person\'s own Assistant, on the server, wh
   assert(/export const NEW_CONCEPT_API = '\/api\/dictionaries\/concepts\/new';/.test(s) && /await fetch\(NEW_CONCEPT_API, \{/.test(s),
     'created through the endpoint that signs with the caller\'s own Assistant key');
   assert(!/window\.nostr/.test(s) && !/\/api\/strfry\/publish/.test(s) && !/signAs/.test(s), 'no NIP-07 path and no raw publish');
-  assert(/const canCreate = person\.signedIn && Boolean\(signer\) && draft\.ready && !selfTarget && !busy && !locked;/.test(s),
+  assert(/const canCreate = person\.signedIn && Boolean\(signer\) && draft\.ready && !selfTarget && sharedSettled && !busy && !locked;/.test(s),
     'signed in, with an Assistant and both names, not wired to itself (dictionary-wired-create S4), and not yet created');
   assert(/ASSISTANT_COPY\.noAssistantLine/.test(s) && /<Link to="\/setup">\{ASSISTANT_COPY\.noAssistantLink\}<\/Link>/.test(s),
     'no Assistant here: the page says so and points to Account Setup (owner, 2026-10-02: no fallback)');
