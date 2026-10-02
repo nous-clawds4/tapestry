@@ -72,6 +72,8 @@ const { test, expect } = require('@playwright/test');
  *   D25 — a header the signer already has at that name is never replaced: nothing is published.
  *   D26 — the owner's Assistant signs on the server; a different extension key is refused; signed
  *         out, the form is disabled.
+ *   D27 — a broadcast that doesn't land: the form locks, Try again re-broadcasts that event, and the
+ *         page opens that event's concept.
  */
 
 const OWNER = '1'.repeat(64);
@@ -189,7 +191,7 @@ async function mockAssistants(page) {
  * check (`existing` → the signer already has one), the publish, and a local-only publish policy so no
  * socket is opened. Returns the publish bodies.
  */
-async function mockCreate(page, { key, existing = false } = {}) {
+async function mockCreate(page, { key, existing = false, external = false } = {}) {
   const json = (r, body) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   const published = [];
   await page.addInitScript((pk) => {
@@ -198,7 +200,7 @@ async function mockCreate(page, { key, existing = false } = {}) {
       signEvent: async (ev) => ({ ...ev, pubkey: pk, id: '1'.repeat(64), sig: '2'.repeat(128) }),
     };
   }, key);
-  await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: false }));
+  await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: external }));
   await page.route('**/api/strfry/scan**', (r) => {
     const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
     if ((filter.kinds || []).includes(39998) && filter['#d'] && existing) {
@@ -683,9 +685,9 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.getByLabel('Plural name').fill('Taco Trucks in Nashville');
     await page.getByLabel('Description').fill('Trucks that sell tacos.');
     const coord = `39998:${CUST}:taco-truck-in-nashville`;
-    await expect(page.getByLabel('Header preview')).toContainText(`["b","${coord}","pointer"]`);
+    await expect(page.locator('.dict-new-preview')).toContainText(`["b","${coord}","pointer"]`);
     await expect(page.getByText('Header you publish (shared: its b-tag points to itself)')).toBeVisible();
-    await expect(page.getByText(/You publish the header, signed with your nostr extension, and share it, so others can find it and adopt it\./)).toBeVisible();
+    await expect(page.getByText(/You publish the header, signed with your nostr extension and marked as shared, so others can find it and adopt it\./)).toBeVisible();
     await expect(page.getByText(/Private/)).toHaveCount(0);
     await create.click();
     await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(coord)}`);
@@ -706,7 +708,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.getByLabel('Singular name').fill('Bird');
     await page.getByLabel('Plural name').fill('Birds');
     await page.getByRole('button', { name: 'Create concept' }).click();
-    await expect(page.getByRole('alert')).toContainText('You already have a concept header at this name');
+    await expect(page.getByRole('alert')).toContainText('This instance’s relay already holds your concept header at this name');
     await expect(page.getByRole('link', { name: 'open the existing one' })).toHaveAttribute('href', `/dictionary/${encodeURIComponent(`39998:${CUST}:bird`)}`);
     expect(published, 'nothing published').toHaveLength(0);
   });
@@ -740,6 +742,49 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page3.getByText('Sign in to create a concept.')).toBeVisible();
     await expect(page3.getByLabel('Singular name')).toBeDisabled();
     await expect(page3.getByRole('button', { name: 'Create concept' })).toBeDisabled();
+  });
+
+  test('D27: a broadcast that doesn’t land locks the form; Try again re-broadcasts it and opens its concept', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const published = await mockCreate(page, { key: CUST, external: true });
+    // A stand-in relay: refuses while window.__relayOk is false, then accepts. No real socket is opened.
+    await page.addInitScript(() => {
+      window.__relayOk = false;
+      window.WebSocket = class {
+        constructor(url) {
+          this.url = url; this.readyState = 0;
+          setTimeout(() => {
+            if (window.__relayOk) { this.readyState = 1; this.onopen?.({}); }
+            else { this.readyState = 3; this.onerror?.({}); this.onclose?.({ code: 1006, reason: '' }); }
+          }, 5);
+        }
+        send(raw) {
+          const msg = JSON.parse(raw);
+          if (msg[0] === 'EVENT') setTimeout(() => this.onmessage?.({ data: JSON.stringify(['OK', msg[1].id, true, '']) }), 5);
+        }
+        close() { this.readyState = 3; }
+        addEventListener(type, fn) { this[`on${type}`] = fn; }
+        removeEventListener() {}
+      };
+      window.WebSocket.CONNECTING = 0; window.WebSocket.OPEN = 1; window.WebSocket.CLOSING = 2; window.WebSocket.CLOSED = 3;
+    });
+    await page.goto(`${PAGE}/new`);
+    await page.getByLabel('Singular name').fill('Bird');
+    await page.getByLabel('Plural name').fill('Birds');
+    await page.getByRole('button', { name: 'Create concept' }).click();
+    const status = page.getByRole('status').filter({ hasText: 'Created on this instance.' });
+    await expect(status).toContainText("didn't reach the community relay"); // broadcastOutcome's own wording
+    await expect(page.getByLabel('Singular name'), 'the form is locked once the header exists').toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Create concept' })).toBeDisabled();
+    expect(published).toHaveLength(1);
+    await page.evaluate(() => { window.__relayOk = true; });
+    await status.getByRole('button', { name: 'Try again' }).click();
+    const coord = `39998:${CUST}:bird`;
+    await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(coord)}`);
+    await expect(page.getByText('Submitted as a shared concept — published to the community relay.')).toBeVisible();
+    expect(published, 'Try again re-broadcasts; it does not publish again').toHaveLength(1);
+    await page.reload();
+    await expect(page.getByText('Submitted as a shared concept')).toHaveCount(0);
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

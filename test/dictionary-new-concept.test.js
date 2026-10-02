@@ -6,9 +6,9 @@
  * (its b-tag points to itself); there is no Private option in this version.
  *
  *   N1..N5 — pure: ui/src/pages/dictionary/newConceptDraft.js (dynamic import).
- *   S1..S4 — structural pins, read off comment-stripped source.
+ *   S1..S5 — structural pins, read off comment-stripped source.
  *
- * The browser half is tests/brainstorm/dictionary-concepts.spec.js D24–D26.
+ * The browser half is tests/brainstorm/dictionary-concepts.spec.js D24–D27.
  */
 
 'use strict';
@@ -109,7 +109,7 @@ test('S2: who signs — the owner\'s Assistant on the server, anyone else with t
   assert(/const byAssistant = Boolean\(person\.isOwner && person\.assistant\);/.test(s), 'only the owner signs as the Assistant (the server allows only them)');
   assert(/\{ event: unsigned, signAs: 'assistant' \}/.test(s) && /signAs: 'client' \}/.test(s), 'the two publish bodies');
   assert(/if \(pubkey !== person\.account\) throw new Error/.test(s), 'the extension\'s key must be the signed-in account\'s');
-  assert(/const canCreate = person\.signedIn && Boolean\(signer\) && draft\.ready && !busy;/.test(s), 'signed in, with both names');
+  assert(/const canCreate = person\.signedIn && Boolean\(signer\) && draft\.ready && !busy && !locked;/.test(s), 'signed in, with both names, and not yet created');
 });
 
 test('S3: it never replaces a header the signer already has, and says what the broadcast did', () => {
@@ -126,6 +126,17 @@ test('S3: it never replaces a header the signer already has, and says what the b
 test('S4: no Private option in this version', () => {
   const s = code(src(PAGE_JSX));
   assert(!/Private/.test(s) && !/type="checkbox"/.test(s), 'the design\'s Private checkbox is left out (owner, 2026-10-02)');
+});
+
+test('S5: once published, the page holds to that event: its concept, its Try again, the form locked', () => {
+  const s = flat(code(src(PAGE_JSX)));
+  assert(/const coordOf = \(signed\) => `39998:\$\{signed\.pubkey\}:\$\{\(signed\.tags \|\| \[\]\)\.find\(\(t\) => t\[0\] === 'd'\)\?\.\[1\] \|\| ''\}`;/.test(s),
+    'the concept opened is the published event\'s, not the form\'s');
+  assert(/const locked = Boolean\(undelivered\);/.test(s) && /<fieldset disabled=\{!person\.signedIn \|\| busy \|\| locked\}/.test(s), 'the form is locked once the header exists');
+  assert(/if \(byAssistant && signed\.pubkey !== pubkey\) \{ throw new Error/.test(s), 'the owner\'s server-signed event is checked before it is broadcast');
+  const body = flat(code(src(CONCEPTS_JSX)));
+  assert(/No matching concept of your own\? <Link to=\{NEW_CONCEPT_PATH\}>Create New Concept<\/Link>, then come back to wire it\./.test(body),
+    'the finder\'s "wire it" link keeps the New Concept page: a twin needs a graph node, which /dictionary/new does not make');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

@@ -153,6 +153,14 @@ export function ConceptEntryBody({
   const coord = safeDecode(rawCoord);
   const location = useLocation();
   const navigate = useNavigate();
+  // A notice arrives once: keep it for this visit, and take it out of the history entry so a reload or
+  // a Back to this entry doesn't say it again.
+  const [notice] = useState(() => (typeof location.state?.notice === 'string' ? location.state.notice : null));
+  useEffect(() => {
+    if (typeof location.state?.notice !== 'string') return;
+    const { notice: _said, ...rest } = location.state;
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: Object.keys(rest).length ? rest : null });
+  }, [location, navigate]);
   const passed = location.state?.entry?.coord === coord ? location.state : null;
   const { povParams } = usePov();
   const person = useDictionaryPerson();
@@ -256,8 +264,8 @@ export function ConceptEntryBody({
         )}
         {badge && <span className={badge.className}>{badge.label}</span>}
       </div>
-      {/* What happened just before arriving here, said once (Create New Concept's broadcast outcome). */}
-      {typeof location.state?.notice === 'string' && <p className="dict-notice dict-notice--ok" role="status">{location.state.notice}</p>}
+      {/* What happened just before arriving here (Create New Concept's broadcast outcome), said once. */}
+      {notice && <p className="dict-notice dict-notice--ok" role="status">{notice}</p>}
       <h1 className="dict-entry-title">{singular}</h1>
       <p className="dict-entry-sub text-muted">{plural ? `Plural: ${plural}` : 'No plural name'}</p>
       {description && <p className="dict-lede">{description}</p>}

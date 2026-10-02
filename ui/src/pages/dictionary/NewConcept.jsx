@@ -19,8 +19,10 @@ import { conceptHeaderDraft, draftPreview } from './newConceptDraft';
  * which the server allows the owner only); any other signed-in reader signs with their own key in
  * their nostr extension (NIP-07), as the New DList page lets them. Both publish through
  * POST /api/strfry/publish, then broadcast to the community relay (CONCEPT_PUBLISH_RELAYS), and the
- * page says what the broadcast did (broadcastOutcome). A header the signer already has at that
- * d-tag is never replaced: the page stops and links to it.
+ * page says what the broadcast did (broadcastOutcome). If this instance's relay already holds a header
+ * by the signer at that d-tag, the page stops and links to it rather than replace it (a header only the
+ * community relay holds isn't checked). Once a header is published the form is locked: Try again
+ * re-broadcasts that event, and the page opens that event's concept, whatever the fields say.
  */
 export default function DictionaryNewConceptPage() {
   const navigate = useNavigate();
@@ -31,19 +33,25 @@ export default function DictionaryNewConceptPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [existing, setExisting] = useState(null); // the coord of a header the signer already has here
-  const [undelivered, setUndelivered] = useState(null); // { event, message } when the broadcast didn't land
+  const [undelivered, setUndelivered] = useState(null); // { event, message, coord } when the broadcast didn't land
 
   const byAssistant = Boolean(person.isOwner && person.assistant);
   const signer = byAssistant ? person.assistant : person.account;
   const draft = conceptHeaderDraft({ singular, plural, description, pubkey: signer });
-  const canCreate = person.signedIn && Boolean(signer) && draft.ready && !busy;
+  const locked = Boolean(undelivered); // the header exists: what's left is its broadcast
+  const canCreate = person.signedIn && Boolean(signer) && draft.ready && !busy && !locked;
+  // A name with no Latin letter or digit has no slug, so it can't name the header's d-tag yet.
+  const noSlug = Boolean(singular.trim()) && !draft.d;
+
+  // The concept the published event IS: its own signer and d-tag, never the form's current values.
+  const coordOf = (signed) => `39998:${signed.pubkey}:${(signed.tags || []).find((t) => t[0] === 'd')?.[1] || ''}`;
 
   const finish = async (signed) => {
     let result = null;
     try { result = await publishToRelays(signed, CONCEPT_PUBLISH_RELAYS); } catch { result = null; }
     const outcome = classifyBroadcast(result);
     const message = outcomeMessage({ outcome, verb: 'submit' });
-    const coord = `39998:${signed.pubkey}:${draft.d}`;
+    const coord = coordOf(signed);
     if (outcome === 'not-delivered') { setUndelivered({ event: signed, message, coord }); return; }
     navigate(dictionaryEntryPath(coord), { state: { notice: message } });
   };
@@ -76,7 +84,12 @@ export default function DictionaryNewConceptPage() {
       });
       const data = await resp.json();
       if (!resp.ok || !data.success) throw new Error(data.error || `HTTP ${resp.status}`);
-      await finish(data.event || body.event);
+      const signed = data.event || body.event;
+      // The Assistant's key is the server's to use: broadcast only what it signed as the expected key.
+      if (byAssistant && signed.pubkey !== pubkey) {
+        throw new Error('The server signed with a different key from your Assistant’s, so the header was not shared onward.');
+      }
+      await finish(signed);
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -103,13 +116,13 @@ export default function DictionaryNewConceptPage() {
         <p className="dict-lede dict-new-lede">
           Define a new concept: its singular and plural names, and a description.{' '}
           {byAssistant
-            ? 'Your Assistant publishes the header and shares it, so others can find it and adopt it.'
-            : 'You publish the header, signed with your nostr extension, and share it, so others can find it and adopt it.'}
+            ? 'Your Assistant publishes the header, marked as shared, so others can find it and adopt it.'
+            : 'You publish the header, signed with your nostr extension and marked as shared, so others can find it and adopt it.'}
         </p>
         {signedOutNote && <p className="dict-notice">{signedOutNote}</p>}
 
         <form className="dict-card dict-new-card" onSubmit={(e) => { e.preventDefault(); create(); }}>
-          <fieldset disabled={!person.signedIn || busy} className="dict-new-fields">
+          <fieldset disabled={!person.signedIn || busy || locked} className="dict-new-fields">
             <div className="dict-new-names">
               <label className="dict-field">
                 <span className="dict-field-label">Singular name</span>
@@ -124,17 +137,24 @@ export default function DictionaryNewConceptPage() {
               <span className="dict-field-label">Description</span>
               <textarea className="dict-input dict-new-textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What belongs in this concept?" />
             </label>
+            {noSlug && (
+              <p className="dict-entry-note text-muted dict-new-hint">
+                The singular name needs at least one Latin letter or digit, which make its header’s d-tag.
+              </p>
+            )}
           </fieldset>
 
-          <div className="dict-field-label dict-new-preview-label">
-            {byAssistant ? 'Header your Assistant publishes' : 'Header you publish'} (shared: its b-tag points to itself)
-          </div>
-          <pre className="dict-json dict-new-preview" aria-label="Header preview">{draftPreview(draft.event)}</pre>
+          <figure className="dict-new-figure">
+            <figcaption className="dict-field-label dict-new-preview-label">
+              {byAssistant ? 'Header your Assistant publishes' : 'Header you publish'} (shared: its b-tag points to itself)
+            </figcaption>
+            <pre className="dict-json dict-new-preview">{draftPreview(locked ? undelivered.event : draft.event)}</pre>
+          </figure>
 
           {existing && (
             <p className="dict-notice" role="alert">
-              {byAssistant ? 'Your Assistant already has' : 'You already have'} a concept header at this name, so creating it would
-              replace it. Choose another name, or <Link to={dictionaryEntryPath(existing)}>open the existing one</Link>.
+              This instance’s relay already holds {byAssistant ? 'your Assistant’s' : 'your'} concept header at this name, so creating it
+              would replace it. Choose another name, or <Link to={dictionaryEntryPath(existing)}>open the existing one</Link>.
             </p>
           )}
           {error && <p className="error" role="alert">Couldn’t create the concept: {error}</p>}

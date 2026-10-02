@@ -9377,6 +9377,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .dict-new-textarea { min-height: 0; padding: 10px 12px; resize: vertical; line-height: 1.5; font-family: inherit; }
 .dict-new-preview-label { display: block; margin-top: 14px; }
 .dict-new-preview { margin-top: 4px; }
+.dict-new-figure { margin: 0; }
+.dict-new-hint { margin: 8px 0 0; }
 .dict-new-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
 .dict-new-cancel { display: inline-flex; align-items: center; text-decoration: none; }
 .dict-new-card .dict-add-btn:disabled { opacity: 0.4; cursor: default; }

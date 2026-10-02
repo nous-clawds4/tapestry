@@ -372,7 +372,6 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
           assistantPubkey={person.assistant}
           assistantLabel={signedIn ? 'your Assistant' : 'the owner’s Assistant'}
           canAdd={signedIn && person.isOwner && !managed}
-          newConceptHref={newConceptHref}
           onAdded={reload}
         />
       )}
@@ -443,7 +442,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
  * whose b-tag points to themselves). Mounted only while open, so the relay is
  * asked only when someone looks.
  */
-function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, onAdded, newConceptHref }) {
+function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, onAdded }) {
   const { rows } = useCommunitySharedConcepts();
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(null); // the community row being added
@@ -494,7 +493,7 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
                 </button>
               )}
               {canAdd && adding?.uuid === r.uuid && (
-                <AddToDictionary concept={r} onAdded={onAdded} onClose={() => setAdding(null)} newConceptHref={newConceptHref} />
+                <AddToDictionary concept={r} onAdded={onAdded} onClose={() => setAdding(null)} />
               )}
             </li>
           ))}
@@ -510,7 +509,7 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
  * DispositionPanel then wires it to the shared concept with a pointer b-tag,
  * which makes the twin a row of the list, so the list reloads.
  */
-function AddToDictionary({ concept, onAdded, onClose, newConceptHref = NEW_CONCEPT_PATH }) {
+function AddToDictionary({ concept, onAdded, onClose }) {
   const [twins, setTwins] = useState(null);
   const [twin, setTwin] = useState('');
 
@@ -549,7 +548,9 @@ function AddToDictionary({ concept, onAdded, onClose, newConceptHref = NEW_CONCE
         </div>
       )}
       <p className="dict-add-foot text-muted">
-        No matching concept of your own? <Link to={newConceptHref}>Create New Concept</Link>, then come back to wire it.
+        {/* A twin must be a concept with a node in the graph (the twin picker lists only those), which is what
+            the control panel's New Concept page makes; /dictionary/new publishes a shared header instead. */}
+        No matching concept of your own? <Link to={NEW_CONCEPT_PATH}>Create New Concept</Link>, then come back to wire it.
       </p>
     </div>
   );
