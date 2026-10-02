@@ -289,3 +289,104 @@ and the eventual Concept Headers fix, one place to read them.
 - Any change to Concept Headers' endpoints, panel or actions.
 - Server-side broadcasting.
 - Fixing the page's `…:null` link for d-less headers.
+
+## Amendment 1 (2026-10-01, review round 1)
+
+The story 3 review (`engineering-team/reviews/list-headers-disposition/3-disposition-on-my-assistant-rows.md`)
+found two security gaps in this design and one usability gap. This amendment closes them. Everything above
+stands except where a rule below adds to it.
+
+### What changes, and why
+
+1. **Check the header before re-signing it.**
+   - Step 5 trusted the relay's latest header. But events can enter the relay unverified: `src/api/io.js:363`
+     imports with `strfry import --no-verify`.
+   - So a forged event claiming to be the caller's Assistant would be re-signed with the real key. The
+     re-signed version would carry the forger's content and tags.
+   - Before composing, the handler now refuses (409, nothing signed) unless:
+     - `header.pubkey === keys.pubkey`;
+     - `header.kind === 39998`;
+     - the header's *first* `d` tag equals the URL's d-tag (a multi-`d` event can't stand in for another
+       address);
+     - the event verifies.
+   - The check runs before both answers, `already-*` as well as a re-sign. Otherwise an `already` answer would
+     hand an unverified event to the browser to broadcast.
+2. **Refuse cross-site requests first.**
+   - The session cookie sets no `sameSite` (`bin/control-panel.js:210-219`), and CORS reflects any origin with
+     credentials (`:114-119`).
+   - The newer signing routes guard this per endpoint with `sameHost(req)`:
+     `src/api/dlist-curation/update.js:107-115` (ADR curated-dlist-update/0006 §1), copied into
+     `src/api/tagging-edges/index.js:147`, both "until ledger row 326 centralises it".
+   - This handler gets the same check, copied verbatim with the same comment, as its first step, before
+     `requireAuth`.
+   - **A third copy, not a new shared module.** Row 326 owns centralising it. A shared module used by only one
+     of three callers would be a fourth state, not a fix.
+3. **Decode the handle once.** Express already decodes `req.params`. The extra `decodeURIComponent` turned a
+   d-tag of `a%41` into `aA`, and a lone `%` into a 500. The handler now uses `req.params.handle` as Express
+   gives it.
+4. **Bring the panel into view.**
+   - The panel renders above the table. On a real list it opened up to 12,136 px above the viewport.
+   - The page scrolls the window, and the 48 px `.app-header` is `position: fixed`
+     (`ui/src/styles.css:643-655`). Two other options were rejected:
+     - `block: 'start'` would tuck the panel under the header;
+     - `position: sticky` doesn't work here, because `.main-content` has `overflow-y: auto`
+       (`styles.css:136-141`) and so becomes the sticky container though it isn't the element that scrolls.
+   - The panel scrolls itself to the centre of the viewport when it mounts:
+     `scrollIntoView({ block: 'center' })`, with no `smooth`, so it's immediate and testable.
+   - **Next undecided →** remounts the panel (it is keyed by `routeId`), so the same effect runs again.
+
+### Implementation notes (additions)
+
+**`src/api/list-headers/myAssistantDisposition.js`**
+- A `sameHost(req)` function, copied verbatim from `dlist-curation/update.js:107-115` with the "copied until
+  ledger row 326 centralises it" comment, as in `tagging-edges/index.js:142-146`.
+- **The handler order becomes:**
+  - **0.** `if (!sameHost(req)) return res.status(403).json({ success: false, error: 'a request from another site is refused' })`.
+  - **1 to 3.** As before, except step 3 matches `HANDLE_RE` against `String(req.params.handle || '')`, with
+    no `decodeURIComponent`.
+  - **4 and 5.** As before (the author check, then the lookup, then 404 when nothing is found).
+  - **5b.** When `header.pubkey !== keys.pubkey || header.kind !== 39998 || firstD(header) !== dTag || !d.verify(header)`,
+    answer 409
+    `{ success: false, error: "The stored header couldn't be verified as your Assistant's, so nothing was signed" }`.
+    Log which check failed, by name only, with no event body and no key.
+  - **6 to 9.** As before.
+- **A new injected dependency,** `verify(event)` → boolean. The default is
+  `require(NOSTR_TOOLS_PATH).verifyEvent(JSON.parse(JSON.stringify(event))) === true`, inside a try/catch that
+  returns `false` (the `src/api/strfry/commands/publishEvent.js:88` form).
+- `firstD(event)` is the value of the first tag whose name is `d`, or `null`.
+
+**`ui/src/pages/lists/ListHeaderDispositionPanel.jsx`**
+- A `ref` on the panel's outer `div`.
+- `useEffect(() => { ref.current?.scrollIntoView?.({ block: 'center' }); }, [])`.
+- Nothing else changes in the panel or the page.
+
+### Consequences (additions)
+
+- **A forged or foreign event in the relay can no longer be laundered through this endpoint.** It answers 409,
+  and the person sees the refusal in the panel. The live relay holds no such event today (284 headers checked,
+  0 failing verification), so the check costs nothing on real data.
+- **Requests with no `Origin` header still reach the session check:** `curl`, and in-container calls. That's
+  the house rule (`update.js:102-106`), and it changes nothing for book decision 2: such calls still have no
+  session.
+- **After Done, the window stays where the panel was,** so a person who opened a row far down the list is now
+  near the top. **Next undecided →** carries batch work. Restoring their place is not built.
+- **The same unverified-lookup gap exists in Concept Headers' handlers** (`bDisposition.js:128-129`,
+  `selfDeclare.js`). It is reported privately and left to its deferred fix, as is their panel's identical
+  placement (`ConceptList.jsx:350` above `:397`).
+- **Firmware reinstall required?** No.
+
+### Seams for the Tester (additions)
+
+- **The handler, through `deps`:**
+  - a foreign `Origin` gets 403 before `requireAuth` is even called; a same-host `Origin` and a missing
+    `Origin` both proceed;
+  - a lookup that returns a forged signature (`verify` → false), another author, kind 9998, or a first `d`
+    that differs from the URL each gets 409 with nothing signed, saved or imported, for both actions;
+  - an `already` answer also requires verification.
+- **The existing H tests' `request()` helper** passes `encodeURIComponent(handle)` as `req.params.handle`,
+  which is the raw path, not what Express hands over. It must pass the *decoded* handle. That is a Phase 3
+  re-aim, not an Implementer edit. Add a case where a d-tag containing `%41` is looked up exactly as given.
+- **Structure:** `sameHost` is called before `requireAuth` in the handler body, and the module contains no
+  `decodeURIComponent`.
+- **Browser:** with 60 or more of the viewer's own Assistant's rows, clicking **Disposition…** on the last row
+  leaves the panel's heading inside the viewport, and so does **Next undecided →** from there.
