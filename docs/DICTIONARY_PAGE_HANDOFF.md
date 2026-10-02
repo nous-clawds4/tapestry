@@ -60,6 +60,18 @@
 >   - **No overwrite.** If this instance's relay already holds a header by the signer at that d-tag, the page stops and links to it rather than replace it. A header only the community relay holds isn't checked.
 >   - **No graph node.** The header gets no Neo4j node, so the Add to Dictionary finder's twin picker (which lists graph concepts) won't offer it. The finder's own "Create New Concept, then come back to wire it" link still opens the control panel's New Concept page.
 >   - **Left out:** the design's Private option (owner's decision: version 2).
+> - **Added 2026-10-02: GUM₂, recognition.** The owner chose GUM₂ next, with these rules:
+>   - **Who owns an Assistant.** Whoever tagged it My Brainstorm/Tapestry Assistant, by My Assistants' own rule (newest stance, not retracted, an apply), or whose Assistant it is on this instance's roster. Each owner counts once per concept (`src/api/adoption/assistantOwners.js`).
+>   - **What counts as recognition.** A person's own concept header, or one of their Assistants' headers, carrying a `b` pointing at the concept.
+>   - **Who's left out.** The concept's author (and the author's owners), and the reader.
+>   - **The score.** Each trusted recognizer adds their influence (0–1) from the active point of view (`recognitionByConcept` in `src/lib/trustedDictionary.js`). The trust read is the one GUM₁ uses, now also returning influence.
+>   - **For the owner to confirm: the scale.** § 4 says "rank scores". A Trusted Assertions rank is influence × 100, and GUM₂ sums influence instead, the only scale on which § 4's 1.50 cutoff makes sense. A rank of 40 adds 0.40.
+>   - **A claim only adds.** A header stands for its signer and the signer's owners, so nobody's "My Assistant" tag can take a person's own recognition away.
+>   - **The roster is customers and the owner, not admins.** This read is public, and the admin list is the owner's to read (ADR author-scoped-inspection/0001).
+>   - **What the server sends.** Each entry carries `gum2` and `recognizedBy`; `metric` stays `gum1`.
+>   - **If a read fails.** If GUM₂'s own reads fail (the `b`-pointers or the owners), the fields are left out and the list offers no GUM₂ sort. The trust read is shared with GUM₁, so if that fails, the whole Dictionary does, as before. Long value lists are scanned in parts of at most 400 values and 60,000 bytes, so they stay under strfry's one-argument command-line limit (128 KiB) even with 1 KB tag values. A GUM₂ sort chosen on another read falls back to A to Z on a read without GUM₂.
+>   - **Where it shows.** The entry strip says the design's "Recognized by N members of … trusted, extended community (GUM₂ x.xx)" above the GUM₁ filing line. The list's sort adds "General Usage Metric: recognition (lowest/highest first)", and the GUM₁ sorts are renamed "…: filing".
+>   - **Limits.** Everything is read from this instance's relay, which the strfry router syncs with the community relays for DList headers, so recognition elsewhere can be missed. The 1.50 cutoff isn't used yet: nothing adds entries automatically.
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---

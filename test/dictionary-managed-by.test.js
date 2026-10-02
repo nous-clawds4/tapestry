@@ -212,7 +212,8 @@ test('S3: the body reads one Assistant or the union through the same endpoint, a
     'a failed read is an error, never an empty Dictionary');
   assert(/canAdd=\{signedIn && person\.isOwner && !managed\}/.test(s), 'Add to Dictionary only on the reader\'s own list');
   assert(/listHref: `\$\{location\.pathname\}\$\{location\.search\}`/.test(s), 'an entry knows the list it came from');
-  assert(/'General Usage Metric \(lowest first\)'/.test(s) && /'General Usage Metric \(highest first\)'/.test(s), 'the design\'s sort labels');
+  assert(/'General Usage Metric: filing \(lowest first\)'/.test(s) && /'General Usage Metric: filing \(highest first\)'/.test(s),
+    'the design\'s "General Usage Metric" sort labels, named for the metric now that there are two (dictionary-gum2 S2)');
 });
 
 test('S4: the entry page returns to that list and names another Assistant\'s header', () => {
