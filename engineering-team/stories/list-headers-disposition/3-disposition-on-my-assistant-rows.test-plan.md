@@ -194,3 +194,20 @@ throwaway build outside the repo. It isn't committed.
 The first S5 draft compared against the *first* `requireAuth(` in the file, which is the default dependency, not
 the handler's call. So it failed on a correct oracle. It now looks inside the handler factory's body. That was a
 test fault, caught on the oracle before the gate.
+
+## Review round 2 → round 3 (test-only)
+
+Review round 2's blocking item 4: L1 formatted curl's status itself (`docker exec … curl -w '%{http_code}'`). The
+gate guard `test/gate-result-record.test.js` C9 forbids that, under ADR honest-test-gate/0001 §6.
+
+- **The re-aim:** L1 now calls `loopbackRequest({ container, method: 'POST', url, body: {}, timeoutS: 20 })` from
+  `test/helpers/stackHttp.js`, and asserts `r.status === 401` with `describeResponse(r)` in its message. The
+  "header unchanged" check stays. Nothing else in the suite changes, and no source file changes.
+- **Checked on the host:**
+  - the suite passes 33/0/0, with both live refusals executed against the deployed handler;
+  - `gate-result-record` passes 34/0/0, C9 included;
+  - the suite has no remaining `%{http_code}` or `__STATUS__`;
+  - pointed at a dead port, the helper reports "no response from the stack", so L1 fails honestly when the stack
+    is down, instead of reading a status that was never sent.
+- **The isolated full gate (ledger row `2026-09-30-npm-test-step-leaks-fixtures` recipe)** runs on a clone with
+  the re-aimed suite copied in. The record is therefore `dirty: 1`. Review re-runs it on the commit.

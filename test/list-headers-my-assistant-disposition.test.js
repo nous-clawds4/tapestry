@@ -20,7 +20,8 @@
  *   U1      — authorRole in ui/src/utils/viewerAuthorScope.js (ADR 0001's predicate, added by ADR 0003).
  *   R1      — Concept Headers' gates are unchanged (passes before and after).
  *   L1..L2  — LIVE, refusals only, skipped without the local stack: a no-session call from inside the container
- *             gets 401 and changes nothing; a guest session with no Assistant gets 403. Neither can publish.
+ *             gets 401 and changes nothing (through test/helpers/stackHttp.js, the house's honest-status helper —
+ *             review round 2); a guest session with no Assistant gets 403. Neither can publish.
  *
  * EXPECTED NOW (pre-implementation): K, P, H, S, U and L FAIL (missing modules / missing routes); R1 PASSES.
  */
@@ -29,6 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 const { pathToFileURL } = require('url');
+const { loopbackRequest, describeResponse } = require('./helpers/stackHttp');
 
 const ROOT = path.resolve(__dirname, '..');
 const COMPOSE = path.join(ROOT, 'src/lib/headerDispositionCompose.js');
@@ -622,9 +624,10 @@ test('L1 (live): a no-session call from inside the container gets 401, and the h
   assert(d, 'the local stack has at least one kind-39998 header by its Assistant');
   const before = await latestId(ta, d);
   for (const action of ['self-declare', 'b-defer']) {
-    const out = cp.execFileSync('docker', ['exec', CONTAINER, 'curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', '-m', '20', '-X', 'POST',
-      '-H', 'Content-Type: application/json', '-d', '{}', `${CONTAINER_BASE}${ROUTE(addr(ta, d), action)}`], { encoding: 'utf8', timeout: 30000 }).trim();
-    assert(out === '401', `book decision 2: a no-session loopback ${action} must answer 401, got ${out}`);
+    // Through the shared helper (ADR honest-test-gate/0001 §6; review round 2, blocking 4): it reports the real HTTP
+    // status, or "no response" — never a status the stack didn't send.
+    const r = loopbackRequest({ container: CONTAINER, method: 'POST', url: `${CONTAINER_BASE}${ROUTE(addr(ta, d), action)}`, body: {}, timeoutS: 20 });
+    assert(r.status === 401, `book decision 2: a no-session loopback ${action} must answer 401, got ${describeResponse(r)}`);
   }
   assert((await latestId(ta, d)) === before, 'book decision 2: the header must be unchanged after refused calls');
 });
