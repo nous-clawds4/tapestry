@@ -28,6 +28,8 @@ export const DICTIONARY_NEW_PATH = `${DICTIONARY_PATH}/new`;
 // Create New Concept for a shared concept the finder found: the new header is wired to it.
 export const DICTIONARY_WIRE_PARAM = 'wire';
 export const dictionaryWirePath = (coord) => `${DICTIONARY_NEW_PATH}?${DICTIONARY_WIRE_PARAM}=${encodeURIComponent(coord)}`;
+// Edit a concept: a new version of a header the reader's own Assistant wrote (pages/dictionary/EditConcept.jsx).
+export const dictionaryEditPath = (coord) => `${dictionaryEntryPath(coord)}/edit`;
 
 // An entry's item: on /dictionary its own page (pages/dictionary/Item.jsx), by the item's address or
 // event id; in the control panel the Simple Lists item page, which opens a kind-39999 item by address

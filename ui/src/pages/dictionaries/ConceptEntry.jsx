@@ -148,6 +148,7 @@ export default function DictionaryConceptEntry() {
  */
 export function ConceptEntryBody({
   listHref = CONCEPTS_DICTIONARY_PATH, listLabel = 'Concepts', profileBase = '/tapestry/users', itemHref = controlPanelItemPath,
+  editHref = null,
 }) {
   const { coord: rawCoord } = useParams();
   const coord = safeDecode(rawCoord);
@@ -242,6 +243,9 @@ export function ConceptEntryBody({
       : (person.authors || []).includes(author) ? `${Whose} header`
         : `${nameOf(author)}’s header`;
 
+  // Edit: only a signed-in reader, only on a header their own Assistant wrote (it signs the new version).
+  const canEdit = Boolean(editHref && person.signedIn && author && author === person.assistant);
+
   const curatorWhy = !curator ? null
     : curator.why === 'assigned' ? `Assigned to this Concept on ${whose} Treasure Map`
       : curator.why === 'catch-all' ? `${Whose} Treasure Map’s catch-all Assistant: no Assistant is assigned to this Concept specifically`
@@ -266,7 +270,18 @@ export function ConceptEntryBody({
       </div>
       {/* What happened just before arriving here (Create New Concept's broadcast outcome), said once. */}
       {notice && <p className="dict-notice dict-notice--ok" role="status">{notice}</p>}
-      <h1 className="dict-entry-title">{singular}</h1>
+      <div className="dict-entry-titlerow">
+        <h1 className="dict-entry-title">{singular}</h1>
+        {canEdit && (
+          <Link
+            to={editHref(coord)} state={{ entry, listHref: backHref }}
+            className="dict-pill-btn dict-pill-btn--quiet dict-entry-edit"
+            title="Edit this concept’s names, description and Item Property Tags"
+          >
+            <DictIcon name="edit" /> Edit
+          </Link>
+        )}
+      </div>
       <p className="dict-entry-sub text-muted">{plural ? `Plural: ${plural}` : 'No plural name'}</p>
       {description && <p className="dict-lede">{description}</p>}
 

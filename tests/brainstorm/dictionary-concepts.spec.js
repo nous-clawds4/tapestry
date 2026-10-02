@@ -92,6 +92,20 @@ const { test, expect } = require('@playwright/test');
  *   D31 — the page says what it can't do: a link that names no address, an address too long for the
  *         relay to look up (255 bytes), a shared header it can't find, a name whose d-tag is too long;
  *         and the finder offers no Add for a concept whose address is too long.
+ *
+ * Edit a concept (test/dictionary-edit-concept.test.js holds the rule and the endpoint):
+ *
+ *   D32 — Edit shows beside the title only for a signed-in reader, on a header their own Assistant wrote:
+ *         not signed out, not on another Assistant's header (Managed by), not in the control panel.
+ *   D33 — the edit page starts from the header; names, description and Item Property Tags change; the
+ *         preview keeps the d and b tags; Save sends the version it started from, and the entry says
+ *         what the broadcast did.
+ *   D34 — a header that changed meanwhile isn't overwritten: the page says so, and starts again from the
+ *         latest version only when asked.
+ *   D35 — a firmware concept warns that a reinstall undoes the edit, a Dictionary row or not; signed
+ *         out, or someone else's header, the page says why it can't edit.
+ *   D36 — a concept the server finds by name keeps its singular name; a name another concept has is
+ *         refused with a link to it; the graph's and the broadcast's outcomes are each said once.
  */
 
 const OWNER = '1'.repeat(64);
@@ -244,6 +258,44 @@ async function mockCreate(page, { assistant, existing = false, external = false,
   return created;
 }
 
+/** The header an edit starts from: the customer's Assistant's "customer thing", wired to FOREIGN. */
+const EDIT_D = 'customer-thing';
+const EDIT_COORD = `39998:${CUST_TA}:${EDIT_D}`;
+const EDIT_BASE = {
+  id: '6a'.repeat(32), kind: 39998, pubkey: CUST_TA, created_at: 1700000000, content: '', sig: '7b'.repeat(64),
+  tags: [['d', EDIT_D], ['names', 'customer thing', 'customer things'], ['description', 'A thing.'], ['required', 'name'], ['b', FOREIGN, 'pointer']],
+};
+
+/**
+ * Edit's reads and write, on top of mockStack and mockEntry: the header at EDIT_COORD (`base`), and the edit
+ * endpoint, which answers `changed` (a 409 with that newer version) or signs as `assistant`. A local-only
+ * publish policy, so no socket is opened. Returns the edit requests' bodies.
+ */
+async function mockEdit(page, { base = EDIT_BASE, assistant = CUST_TA, changed = null, taken = null, graph = 'none', firmware = false } = {}) {
+  const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  const asked = [];
+  await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: false }));
+  await page.route('**/api/strfry/scan**', (r) => {
+    const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
+    if ((filter.kinds || []).includes(39998) && (filter['#d'] || [])[0] === base.tags[0][1] && (filter.authors || [])[0] === base.pubkey) {
+      return json(r, { success: true, events: [base] });
+    }
+    return r.fallback();
+  });
+  await page.route('**/api/dictionaries/concepts/firmware**', (r) => json(r, { success: true, firmware }));
+  await page.route('**/api/dictionaries/concepts/edit', (r) => {
+    const body = JSON.parse(r.request().postData() || '{}');
+    asked.push(body);
+    if (changed) return json(r, { success: false, code: 'changed', event: changed, error: 'changed' }, 409);
+    if (taken) return json(r, { success: false, code: 'name-taken', coord: taken, error: 'taken' }, 409);
+    const tags = [['d', base.tags[0][1]], ['names', body.singular, body.plural]];
+    if (body.description) tags.push(['description', body.description]);
+    tags.push(...body.properties, ...base.tags.filter((t) => t[0] === 'b'));
+    return json(r, { success: true, coord: EDIT_COORD, graph, event: { ...base, id: '8c'.repeat(32), pubkey: assistant, created_at: base.created_at + 1, tags } });
+  });
+  return asked;
+}
+
 const TRUSTED_FILER = '6'.repeat(64);
 const UNTRUSTED_FILER = '9'.repeat(64);
 const UNTRUSTED_ITEM = 'e'.repeat(64);
@@ -305,7 +357,7 @@ test.describe('Dictionary › Concepts — whose dictionary', () => {
     const asked = await mockStack(page);
     await page.goto(URL_);
     await expect(page.getByText(/concepts? in the owner’s Dictionary/)).toBeVisible();
-    expect(asked.at(-1), 'signed out → the owner and the owner’s assistant').toBe(`${OWNER},${OWNER_TA}`);
+    await expect.poll(() => asked.at(-1), { message: 'signed out → the owner and the owner’s assistant' }).toBe(`${OWNER},${OWNER_TA}`);
     expect(await names(page)).toEqual(['cat breed', 'dog', 'owner signed']);
     await expect(page.getByText('You’re signed out, so this is the owner’s Dictionary.')).toBeVisible();
     await expect(list(page).getByText('Shared by the owner')).toBeVisible();
@@ -315,7 +367,7 @@ test.describe('Dictionary › Concepts — whose dictionary', () => {
     const asked = await mockStack(page, { session: { pubkey: CUST, assistantPubkey: CUST_TA, classification: 'customer' } });
     await page.goto(URL_);
     await expect(page.getByText(/concepts? in your Dictionary/)).toBeVisible();
-    expect(asked.at(-1), 'a customer → their account and their assistant').toBe(`${CUST},${CUST_TA}`);
+    await expect.poll(() => asked.at(-1), { message: 'a customer → their account and their assistant' }).toBe(`${CUST},${CUST_TA}`);
     expect(await names(page)).toEqual(['customer thing']);
     await page.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
     await expect(page.getByText(/only the owner of this instance can add/)).toHaveCount(0);
@@ -326,7 +378,7 @@ test.describe('Dictionary › Concepts — whose dictionary', () => {
     const asked = await mockStack(page, { session: { pubkey: OWNER, assistantPubkey: OWNER_TA, classification: 'owner' } });
     await page.goto(URL_);
     await expect(page.getByText(/concepts? in your Dictionary/)).toBeVisible();
-    expect(asked.at(-1), 'the owner → the owner and the owner’s assistant').toBe(`${OWNER},${OWNER_TA}`);
+    await expect.poll(() => asked.at(-1), { message: 'the owner → the owner and the owner’s assistant' }).toBe(`${OWNER},${OWNER_TA}`);
     expect(await names(page)).toEqual(['cat breed', 'dog', 'owner signed']);
     await expect(list(page).getByText('Shared by you')).toBeVisible();
     await page.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
@@ -337,7 +389,7 @@ test.describe('Dictionary › Concepts — whose dictionary', () => {
     const asked = await mockStack(page, { session: { pubkey: ADMIN_NO_TA, assistantPubkey: null, classification: 'admin' } });
     await page.goto(URL_);
     await expect(page.getByText(/concepts? in your Dictionary/)).toBeVisible();
-    expect(asked.at(-1), 'no assistant → the account only').toBe(ADMIN_NO_TA);
+    await expect.poll(() => asked.at(-1), { message: 'no assistant → the account only' }).toBe(ADMIN_NO_TA);
     expect(await names(page)).toEqual(['admin thing']);
     await expect(page.getByText('You have no assistant key on this instance')).toBeVisible();
   });
@@ -354,7 +406,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.goto(PAGE);
     await expect(page.getByRole('heading', { level: 1, name: 'The owner’s Dictionary.' })).toBeVisible();
     await expect(page.getByText(/concepts? in the owner’s Dictionary/)).toBeVisible();
-    expect(asked.at(-1), 'signed out → the owner and the owner’s assistant').toBe(`${OWNER},${OWNER_TA}`);
+    await expect.poll(() => asked.at(-1), { message: 'signed out → the owner and the owner’s assistant' }).toBe(`${OWNER},${OWNER_TA}`);
     expect(await names(page)).toEqual(['cat breed', 'dog', 'owner signed']);
     await expect(list(page).getByRole('link', { name: /^cat breed/ }))
       .toHaveAttribute('href', `/dictionary/${encodeURIComponent(coordOf(OWNER_TA, 'cat-breed'))}`);
@@ -363,10 +415,11 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
   });
 
   test('D6: a signed-in customer sees their own dictionary as “Your Dictionary.”', async ({ page }) => {
+    // The h1 can read before the request has left, so each test waits for it (OPEN.md row `2026-09-30-dictionary-d6-reads-before-request`).
     const asked = await mockStack(page, { session: CUSTOMER });
     await page.goto(PAGE);
     await expect(page.getByRole('heading', { level: 1, name: 'Your Dictionary.' })).toBeVisible();
-    expect(asked.at(-1), 'a customer → their account and their assistant').toBe(`${CUST},${CUST_TA}`);
+    await expect.poll(() => asked.at(-1), { message: 'a customer → their account and their assistant' }).toBe(`${CUST},${CUST_TA}`);
     expect(await names(page)).toEqual(['customer thing']);
   });
 
@@ -485,7 +538,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await menu.getByRole('menuitemradio', { name: /Robin/ }).click();
     await expect(page).toHaveURL(/\?managedBy=npub1/);
     await expect(page.getByText('2 concepts in Robin’s Dictionary')).toBeVisible();
-    expect(asked.at(-1), 'Robin’s Dictionary is read for Robin alone').toBe(REMOTE_TA);
+    await expect.poll(() => asked.at(-1), { message: 'Robin’s Dictionary is read for Robin alone' }).toBe(REMOTE_TA);
     expect(await names(page)).toEqual(['remote thing', 'remote only']);
     await expect(page.getByText('Read from this instance’s relay: Robin may keep more of its Dictionary on its own instance.')).toBeVisible();
     await page.getByRole('button', { name: /^Managed by Robin/ }).click();
@@ -896,6 +949,186 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.getByRole('button', { name: 'Add to Dictionary' }).click();
     await expect(page.locator('.dict-add')).toContainText('You don\'t have a Tapestry Assistant on this instance yet.');
     await expect(page.locator('.dict-add')).not.toContainText('Your Assistant adds');
+  });
+
+  test('D32: Edit sits beside the title only for the reader’s own Assistant’s header', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockEdit(page);
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    const edit = page.locator('.dict-entry-titlerow').getByRole('link', { name: 'Edit' });
+    await expect(edit).toBeVisible();
+    await expect(edit).toHaveAttribute('href', `/dictionary/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await expect(edit).toHaveClass(/dict-pill-btn--quiet/);
+
+    // Signed out, on the owner's Assistant's header: no Edit.
+    const out = await page.context().newPage();
+    await mockStack(out);
+    await mockEntry(out);
+    await out.goto(`${PAGE}/${encodeURIComponent(coordOf(OWNER_TA, 'cat-breed'))}`);
+    await expect(out.locator('.dict-entry-title')).toHaveText('cat breed');
+    await expect(out.getByRole('link', { name: 'Edit' })).toHaveCount(0);
+
+    // Signed in, on another Assistant's header (from Managed by): no Edit.
+    const other = await page.context().newPage();
+    await mockStack(other, { session: CUSTOMER });
+    await mockEntry(other);
+    await other.goto(`${PAGE}/${encodeURIComponent(coordOf(REMOTE_TA, 'remote-thing'))}`);
+    await expect(other.locator('.dict-entry-title')).toBeVisible();
+    await expect(other.getByRole('link', { name: 'Edit' })).toHaveCount(0);
+
+    // The control panel's entry page: no Edit, even for the reader's own Assistant's header.
+    const panel = await page.context().newPage();
+    await mockStack(panel, { session: CUSTOMER });
+    await mockEntry(panel);
+    await panel.goto(`/tapestry/dictionaries/concepts/${encodeURIComponent(EDIT_COORD)}`);
+    await expect(panel.locator('.dict-entry-title')).toBeVisible();
+    await expect(panel.getByRole('link', { name: 'Edit' })).toHaveCount(0);
+  });
+
+  test('D33: the edit page changes names, description and Item Property Tags, and keeps the rest', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    const asked = await mockEdit(page);
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await page.locator('.dict-entry-titlerow').getByRole('link', { name: 'Edit' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Edit concept' })).toBeVisible();
+    await expect(page.getByLabel('Singular name')).toHaveValue('customer thing');
+    await expect(page.getByLabel('Plural name')).toHaveValue('customer things');
+    await expect(page.getByLabel('Description')).toHaveValue('A thing.');
+    const props = page.getByRole('list', { name: 'Item Property Tags' });
+    await expect(props.getByRole('listitem')).toHaveCount(1);
+    const save = page.getByRole('button', { name: 'Save changes' });
+    await expect(save, 'nothing changed yet').toBeDisabled();
+
+    await page.getByLabel('Singular name').fill('Customer Thing');
+    await page.getByLabel('Plural name').fill('Customer Things');
+    await page.getByLabel('Description').fill('A better thing.');
+    await props.getByRole('button', { name: 'Remove required name' }).click();
+    await page.getByLabel('Requirement').selectOption('optional');
+    await page.getByLabel('New Item Property Tag').fill('url');
+    await page.getByLabel('New Item Property Tag').press('Enter');
+    await expect(props.getByRole('listitem')).toHaveCount(1);
+    await expect(props).toContainText('optional');
+    const preview = page.locator('.dict-new-preview');
+    await expect(preview).toContainText(`["d","${EDIT_D}"]`);
+    await expect(preview).toContainText('["names","Customer Thing","Customer Things"]');
+    await expect(preview).toContainText('["optional","url"]');
+    await expect(preview).toContainText(`["b","${FOREIGN}","pointer"]`);
+    await expect(preview).not.toContainText('["required","name"]');
+    await save.click();
+
+    await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(EDIT_COORD)}`);
+    await expect(page.getByText('Saved here. External publishing is off for this deployment, so it was not sent onward.')).toBeVisible();
+    expect(asked).toEqual([{
+      coord: EDIT_COORD, basedOn: EDIT_BASE.id, singular: 'Customer Thing', plural: 'Customer Things', description: 'A better thing.',
+      properties: [['optional', 'url']],
+    }]);
+  });
+
+  test('D34: a header that changed meanwhile isn’t overwritten, and starting again is the reader’s choice', async ({ page }) => {
+    const newer = { ...EDIT_BASE, id: '9d'.repeat(32), created_at: EDIT_BASE.created_at + 9, tags: [['d', EDIT_D], ['names', 'renamed thing', 'renamed things'], ['b', FOREIGN, 'pointer']] };
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    const asked = await mockEdit(page, { changed: newer });
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await page.getByLabel('Description').fill('Mine.');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('This concept changed after this page loaded it, so nothing was saved.');
+    await expect(page.getByLabel('Description'), 'the reader’s text is still there until they choose').toHaveValue('Mine.');
+    await expect(page.getByLabel('Description')).toBeDisabled();
+    await alert.getByRole('button', { name: 'Start again from the latest version' }).click();
+    await expect(page.getByLabel('Singular name')).toHaveValue('renamed thing');
+    await expect(page.getByLabel('Description')).toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    expect(asked).toHaveLength(1);
+  });
+
+  test('D35: a firmware concept warns; signed out or someone else’s header, the page says why it can’t edit', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockEdit(page);
+    // The Dictionary read says the row's own header is a firmware one (the server's firmwareHeader).
+    await page.route('**/api/dictionaries/concepts**', (r) => {
+      const url = new URL(r.request().url());
+      if (url.pathname !== '/api/dictionaries/concepts') return r.fallback();
+      const authors = (url.searchParams.get('authors') || '').split(',').filter(Boolean);
+      const entries = dictionaryFor(authors).map((e) => (e.coord === EDIT_COORD ? { ...e, isFirmware: true, firmwareHeader: true } : e));
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, metric: 'gum1', authors, entries, pov: { branch: 'house' } }) });
+    });
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await expect(page.getByRole('note')).toContainText('This is a firmware concept. A firmware reinstall rebuilds its header from the built-in definition, which will undo these edits.');
+
+    // A firmware header that isn't a Dictionary row (no real b): the server says so from its address.
+    const loose = await page.context().newPage();
+    await mockStack(loose, { session: CUSTOMER });
+    await mockEntry(loose);
+    const set = { ...EDIT_BASE, tags: [['d', 'set'], ['names', 'set', 'sets']] };
+    await mockEdit(loose, { base: set, firmware: true });
+    await loose.goto(`${PAGE}/${encodeURIComponent(`39998:${CUST_TA}:set`)}/edit`);
+    await expect(loose.getByRole('note').filter({ hasText: 'This is a firmware concept.' })).toBeVisible();
+
+    const out = await page.context().newPage();
+    await mockStack(out);
+    await mockEntry(out);
+    await mockEdit(out);
+    await out.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await expect(out.getByText('Sign in to edit this concept.')).toBeVisible();
+    await expect(out.getByLabel('Singular name')).toBeDisabled();
+    await expect(out.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+
+    const owner = await page.context().newPage();
+    await mockStack(owner, { session: { pubkey: OWNER, assistantPubkey: OWNER_TA, classification: 'owner' } });
+    await mockEntry(owner);
+    await mockEdit(owner);
+    await owner.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await expect(owner.getByText('This concept’s header was published by someone other than your Assistant, so your Assistant can’t edit it.')).toBeVisible();
+    await expect(owner.getByLabel('Singular name')).toBeDisabled();
+  });
+
+  test('D36: name-keyed and taken names, and the graph’s and broadcast’s outcomes said once', async ({ page }) => {
+    // A concept the server finds by name: its singular name stays, the rest can change.
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    const keyed = { ...EDIT_BASE, tags: [['d', 'shared-concept'], ['names', 'shared concept', 'shared concepts'], ['b', FOREIGN, 'pointer']] };
+    await mockEdit(page, { base: keyed });
+    await page.goto(`${PAGE}/${encodeURIComponent(`39998:${CUST_TA}:shared-concept`)}/edit`);
+    await expect(page.getByLabel('Singular name')).toHaveAttribute('readonly', '');
+    await expect(page.getByRole('note').filter({ hasText: 'finds “shared concept” by its name' })).toBeVisible();
+    await expect(page.getByLabel('Plural name')).toBeEditable();
+
+    // Created without a description, so its json holds a default one: opening it changes nothing.
+    const plain = await page.context().newPage();
+    await mockStack(plain, { session: CUSTOMER });
+    await mockEntry(plain);
+    const json = JSON.stringify({ conceptHeader: { description: 'Customer Thing is a concept.', oNames: { singular: 'customer thing', plural: 'customer things' } } });
+    await mockEdit(plain, { base: { ...EDIT_BASE, tags: [['d', EDIT_D], ['names', 'customer thing', 'customer things'], ['json', json], ['b', FOREIGN, 'pointer']] } });
+    await plain.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await expect(plain.getByLabel('Singular name')).toHaveValue('customer thing');
+    await expect(plain.getByRole('button', { name: 'Save changes' }), 'nothing to save until something changes').toBeDisabled();
+
+    // A name another concept has: refused, with a link to it.
+    const other = coordOf(CUST_TA, 'cat');
+    const t = await page.context().newPage();
+    await mockStack(t, { session: CUSTOMER });
+    await mockEntry(t);
+    await mockEdit(t, { taken: other });
+    await t.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await t.getByLabel('Singular name').fill('cat');
+    await t.getByRole('button', { name: 'Save changes' }).click();
+    await expect(t.getByRole('alert')).toContainText('Your Assistant already has a concept named “cat”');
+    await expect(t.getByRole('link', { name: 'open that concept' })).toHaveAttribute('href', `/dictionary/${encodeURIComponent(other)}`);
+
+    // The graph didn't follow: the entry says so, after the broadcast's outcome.
+    const g = await page.context().newPage();
+    await mockStack(g, { session: CUSTOMER });
+    await mockEntry(g);
+    await mockEdit(g, { graph: 'failed' });
+    await g.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}/edit`);
+    await g.getByLabel('Description').fill('Changed.');
+    await g.getByRole('button', { name: 'Save changes' }).click();
+    await expect(g.getByText('Saved here. External publishing is off for this deployment, so it was not sent onward. This instance’s graph wasn’t fully updated, so the control panel may show the old version, or an incomplete one.')).toBeVisible();
   });
 
   test('D31: the page and the finder say what they can’t do', async ({ page }) => {

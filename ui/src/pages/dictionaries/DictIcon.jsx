@@ -25,6 +25,8 @@ export default function DictIcon({ name, size = 14 }) {
           <path d="m8.6 13.5 6.8 4" /><path d="m15.4 6.5-6.8 4" />
         </svg>
       );
+    case 'edit':
+      return <svg {...common} strokeWidth={2}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>;
     case 'lock':
       return <svg {...common}><rect width="16" height="11" x="4" y="11" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>;
     default:

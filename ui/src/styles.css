@@ -9383,6 +9383,34 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .dict-new-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
 .dict-new-cancel { display: inline-flex; align-items: center; text-decoration: none; }
 .dict-new-card .dict-add-btn:disabled { opacity: 0.4; cursor: default; }
+/* The entry's title row: the name, and (for the reader's own Assistant's header) a quiet Edit pill. */
+.dict-entry-titlerow { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+.dict-entry-titlerow h1.dict-entry-title { min-width: 0; }
+.dict-entry-edit {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap;
+  font-size: 12px; font-weight: 600; margin-top: 8px;
+}
+.dict-entry-edit:hover { border-color: var(--accent); color: var(--accent); }
+/* Edit concept: the Item Property Tags (the New DList page's). */
+.dict-edit-props { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.dict-edit-props-help { margin: 0; }
+.dict-edit-prop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dict-edit-prop {
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px;
+  min-width: 0; flex-wrap: wrap;
+}
+.dict-edit-prop-req {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px;
+  background: var(--bg-tertiary); color: var(--text-muted);
+}
+.dict-edit-prop-req--required { background: rgba(114, 55, 255, 0.12); color: var(--accent); }
+.dict-edit-prop-value { flex: 1 1 auto; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.dict-edit-prop-extra { font-size: 12px; overflow-wrap: anywhere; }
+.dict-edit-prop-remove { font-size: 18px; line-height: 1; padding: 0 4px; }
+.dict-edit-prop-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.dict-edit-prop-select { flex: 0 0 auto; width: auto; }
+.dict-edit-prop-input { flex: 1 1 180px; min-width: 0; }
+.dict-edit-warning { border-color: rgba(180, 83, 9, 0.4); }
 /* Create New Concept from the finder: the shared concept the new header is wired to. */
 .dict-new-wired { margin-top: 18px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
 .dict-new-wired-name { font-size: 15px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }

@@ -122,6 +122,7 @@ import DictionaryPage from './pages/dictionary/Index';
 import DictionaryEntryPage from './pages/dictionary/Entry';
 import DictionaryItemPage from './pages/dictionary/Item';
 import DictionaryNewConceptPage from './pages/dictionary/NewConcept';
+import DictionaryEditConceptPage from './pages/dictionary/EditConcept';
 import MyAssistantsPage from './pages/assistants/Index';
 import AssistantManagementPage from './pages/assistant/Index';
 import EditAssistantProfilePage from './pages/assistant/EditProfile';
@@ -281,6 +282,11 @@ const router = createBrowserRouter([
     // One item of an entry's Items, as the design's "Dictionary item" screen (by address or event id).
     path: '/dictionary/:coord/items/:item',
     element: <DictionaryItemPage />,
+  },
+  {
+    // Edit a concept: its names, description and Item Property Tags, signed by the reader's own Assistant.
+    path: '/dictionary/:coord/edit',
+    element: <DictionaryEditConceptPage />,
   },
   {
     // My Assistants: every profile the viewer tagged as one of their Assistants, in the Brainstorm design's styling
