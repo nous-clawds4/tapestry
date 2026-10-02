@@ -35,3 +35,9 @@ the missing same-host check, and an unverified header being re-signed.
 
 **Pointer:** `engineering-team/reviews/list-headers-disposition/3-disposition-on-my-assistant-rows.md` § Harness
 friction.
+
+**Update 2026-10-01 (list-headers-disposition #4 review).** One more item for the signing-endpoint checklist:
+**bound every request-supplied value that becomes a tag.** Give it a type, a size within the relay's
+`maxTagValSize`, and no control or format characters. `strfry import` exits 0 when it rejects an event, so an
+oversize tag passes `publishToStrfry` as success, and the graph then disagrees with the relay. Story 4's Wire target
+had no bound until its review.
