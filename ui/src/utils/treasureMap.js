@@ -218,6 +218,21 @@ export function describeDListCuration(entries) {
   return { count, label };
 }
 
+/**
+ * Who curates a concept for a person, by their Treasure Map (Dictionary entry page). A per-DList
+ * entry `["39998:<d>", <assistant>]` empowers the header `39998:<assistant>:<d>`, so the concept at
+ * `coord` is assigned when one entry addresses exactly it; else the Map's blanket Assistant for all
+ * the person's DList headers (`39998:dlist-header`, assistant-designation.md) curates it; else
+ * `localAssistant`. Returns { pubkey, why: 'assigned' | 'catch-all' | 'local' } or null. Never throws.
+ */
+export function conceptCurator(tags, coord, localAssistant) {
+  const assigned = findDListEntries(tags).find((e) => e.kind === 39998 && `39998:${e.pubkey}:${e.d}` === coord);
+  if (assigned) return { pubkey: assigned.pubkey, why: 'assigned' };
+  const blanket = (Array.isArray(tags) ? tags : []).map(classifyEntry).find((r) => r.cls === 'designation' && r.pubkey);
+  if (blanket) return { pubkey: blanket.pubkey, why: 'catch-all' };
+  return localAssistant ? { pubkey: localAssistant, why: 'local' } : null;
+}
+
 /* ── Map Entries for per-DList entries (dlist-curation #6, ADR 0006) ────────── */
 
 const A_TAG_FORM = /^\d+:[0-9a-f]{64}:.+$/;
