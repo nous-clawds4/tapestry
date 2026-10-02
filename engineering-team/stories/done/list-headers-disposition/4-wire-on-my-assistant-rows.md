@@ -84,6 +84,6 @@ and nobody else can make it, or anyone else's, sign.
 None.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/list-headers-disposition/0004-wire-on-my-assistant-rows.md`
-- Test plan: `engineering-team/stories/list-headers-disposition/4-wire-on-my-assistant-rows.test-plan.md`
-- Review: `engineering-team/reviews/list-headers-disposition/4-wire-on-my-assistant-rows.md`
+- ADR: `engineering-team/decisions/done/list-headers-disposition/0004-wire-on-my-assistant-rows.md`
+- Test plan: `engineering-team/stories/done/list-headers-disposition/4-wire-on-my-assistant-rows.test-plan.md`
+- Review: `engineering-team/reviews/done/list-headers-disposition/4-wire-on-my-assistant-rows.md`

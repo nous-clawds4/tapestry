@@ -4,9 +4,9 @@ const { test, expect } = require('@playwright/test');
  * list-headers-disposition #3 — Disposition on My Assistant rows: what a signed-in person SEES and DOES on
  * /tapestry/lists.
  *
- * Story: engineering-team/stories/list-headers-disposition/3-disposition-on-my-assistant-rows.md
- * ADR:   engineering-team/decisions/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md
- * Plan:  engineering-team/stories/list-headers-disposition/3-disposition-on-my-assistant-rows.test-plan.md
+ * Story: engineering-team/stories/done/list-headers-disposition/3-disposition-on-my-assistant-rows.md
+ * ADR:   engineering-team/decisions/done/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md
+ * Plan:  engineering-team/stories/done/list-headers-disposition/3-disposition-on-my-assistant-rows.test-plan.md
  * Node half: test/list-headers-my-assistant-disposition.test.js (the rules, the handler, who signs, live refusals).
  *
  * Hermetic. A catch-all answers every /api call these tests don't name, and EVERY WebSocket is mocked

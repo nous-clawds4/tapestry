@@ -3,9 +3,9 @@ const { test, expect } = require('@playwright/test');
 /**
  * list-headers-disposition #2 — the 🧭 b-disposition column on List Headers: what a viewer SEES on /tapestry/lists.
  *
- * Story: engineering-team/stories/list-headers-disposition/2-b-disposition-column.md
- * ADR:   engineering-team/decisions/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md
- * Plan:  engineering-team/stories/list-headers-disposition/2-b-disposition-column.test-plan.md
+ * Story: engineering-team/stories/done/list-headers-disposition/2-b-disposition-column.md
+ * ADR:   engineering-team/decisions/done/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md
+ * Plan:  engineering-team/stories/done/list-headers-disposition/2-b-disposition-column.test-plan.md
  * Node half: test/list-headers-disposition-column.test.js (the pure classifier + the drift guard).
  *
  * Network-mocked and hermetic, like story 1's spec: a catch-all answers every /api call these tests don't name;

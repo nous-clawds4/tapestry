@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-01
-**Story:** `engineering-team/stories/list-headers-disposition/1-author-selector-me-and-my-assistant.md`
+**Story:** `engineering-team/stories/done/list-headers-disposition/1-author-selector-me-and-my-assistant.md`
 
 ## Context
 

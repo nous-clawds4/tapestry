@@ -2,9 +2,9 @@
  * list-headers-disposition #3: Disposition on My Assistant rows — Submit as a Shared Concept and Keep private,
  * signed only by the caller's own Assistant.
  *
- * Story: engineering-team/stories/list-headers-disposition/3-disposition-on-my-assistant-rows.md
- * ADR:   engineering-team/decisions/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md
- * Plan:  engineering-team/stories/list-headers-disposition/3-disposition-on-my-assistant-rows.test-plan.md
+ * Story: engineering-team/stories/done/list-headers-disposition/3-disposition-on-my-assistant-rows.md
+ * ADR:   engineering-team/decisions/done/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md
+ * Plan:  engineering-team/stories/done/list-headers-disposition/3-disposition-on-my-assistant-rows.test-plan.md
  * Browser half: tests/brainstorm/list-headers-my-assistant-disposition.spec.js
  *
  *   K1..K7  — the pure tag composition in src/lib/headerDispositionCompose.js.

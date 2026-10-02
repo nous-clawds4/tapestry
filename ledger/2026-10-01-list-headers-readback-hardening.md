@@ -24,11 +24,11 @@ story 5 also their account's (see the update below).
    import into the graph only if the event is still the newest for its address, or serialise disposition requests
    per address.
 
-**Pointer:** `engineering-team/reviews/list-headers-disposition/4-wire-on-my-assistant-rows.md` § Re-review, round 2
+**Pointer:** `engineering-team/reviews/done/list-headers-disposition/4-wire-on-my-assistant-rows.md` § Re-review, round 2
 § Findings.
 
 **Update 2026-10-01 (list-headers-disposition #5 review).** Story 5's Me path (`src/api/list-headers/meDisposition.js`)
 reuses the same `isStored`, the same Wire target check and the same relay-then-graph tail. So all three items now
 apply to headers the person signed in their browser too, not only to Assistant headers. The fix shapes are unchanged;
 a fix to `isStored` or the target check in `myAssistantDisposition.js` covers both paths. Pointer:
-`engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md` § Findings.
+`engineering-team/reviews/done/list-headers-disposition/5-disposition-on-me-rows.md` § Findings.

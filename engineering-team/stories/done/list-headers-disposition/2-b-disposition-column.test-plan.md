@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — The 🧭 b-disposition column on List Headers
 
-**Story:** `engineering-team/stories/list-headers-disposition/2-b-disposition-column.md`
-**ADR:** `engineering-team/decisions/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md`
+**Story:** `engineering-team/stories/done/list-headers-disposition/2-b-disposition-column.md`
+**ADR:** `engineering-team/decisions/done/list-headers-disposition/0002-disposition-column-from-the-events-own-tags.md`
 **Date:** 2026-10-01
 
 Two files:

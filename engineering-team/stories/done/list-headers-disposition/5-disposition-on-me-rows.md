@@ -101,6 +101,6 @@ key is ever involved.
 None.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/list-headers-disposition/0005-me-rows-prepare-sign-commit.md`
-- Test plan: `engineering-team/stories/list-headers-disposition/5-disposition-on-me-rows.test-plan.md`
-- Review: `engineering-team/reviews/list-headers-disposition/5-disposition-on-me-rows.md`
+- ADR: `engineering-team/decisions/done/list-headers-disposition/0005-me-rows-prepare-sign-commit.md`
+- Test plan: `engineering-team/stories/done/list-headers-disposition/5-disposition-on-me-rows.test-plan.md`
+- Review: `engineering-team/reviews/done/list-headers-disposition/5-disposition-on-me-rows.md`

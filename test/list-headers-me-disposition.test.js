@@ -3,9 +3,9 @@
  * signer), commit (the server re-derives the change and accepts only that exact change, signed by the session
  * account).
  *
- * Story: engineering-team/stories/list-headers-disposition/5-disposition-on-me-rows.md
- * ADR:   engineering-team/decisions/list-headers-disposition/0005-me-rows-prepare-sign-commit.md
- * Plan:  engineering-team/stories/list-headers-disposition/5-disposition-on-me-rows.test-plan.md
+ * Story: engineering-team/stories/done/list-headers-disposition/5-disposition-on-me-rows.md
+ * ADR:   engineering-team/decisions/done/list-headers-disposition/0005-me-rows-prepare-sign-commit.md
+ * Plan:  engineering-team/stories/done/list-headers-disposition/5-disposition-on-me-rows.test-plan.md
  * Browser half: tests/brainstorm/list-headers-my-assistant-disposition.spec.js (E1..E8).
  *
  * Signatures are REAL: a throwaway key signs the headers and the commits through nostr-tools, and the injected

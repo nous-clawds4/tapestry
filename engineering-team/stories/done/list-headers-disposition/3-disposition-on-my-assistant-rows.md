@@ -129,6 +129,6 @@ None. Two choices are confirmed by approving this story:
   broadcast).", copied from Concept Headers' panel. The ADR only specified the tooltip for when it can't.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md`
-- Test plan: `engineering-team/stories/list-headers-disposition/3-disposition-on-my-assistant-rows.test-plan.md`
-- Review: `engineering-team/reviews/list-headers-disposition/3-disposition-on-my-assistant-rows.md`
+- ADR: `engineering-team/decisions/done/list-headers-disposition/0003-my-assistant-disposition-endpoints-and-panel.md`
+- Test plan: `engineering-team/stories/done/list-headers-disposition/3-disposition-on-my-assistant-rows.test-plan.md`
+- Review: `engineering-team/reviews/done/list-headers-disposition/3-disposition-on-my-assistant-rows.md`

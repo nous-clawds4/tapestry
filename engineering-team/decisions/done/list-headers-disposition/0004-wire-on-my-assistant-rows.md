@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-01
-**Story:** `engineering-team/stories/list-headers-disposition/4-wire-on-my-assistant-rows.md`
+**Story:** `engineering-team/stories/done/list-headers-disposition/4-wire-on-my-assistant-rows.md`
 
 ## Context
 
@@ -200,7 +200,7 @@ rule in the shared module. The only new structure is the host that keeps the pic
 
 ## Amendment 1 (2026-10-01, review round 1)
 
-Story 4's review (`engineering-team/reviews/list-headers-disposition/4-wire-on-my-assistant-rows.md`) found the Wire
+Story 4's review (`engineering-team/reviews/done/list-headers-disposition/4-wire-on-my-assistant-rows.md`) found the Wire
 target unbounded (blocking 1). The owner then decided, at that gate (2026-10-01):
 - both recommended ride-alongs go in: the relay read-back, and comparing addresses by parts;
 - Wire targets must be **list headers only**.
