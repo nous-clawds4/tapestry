@@ -25,6 +25,9 @@ export const DICTIONARY_PATH = '/dictionary';
 export const dictionaryEntryPath = (coord) => `${DICTIONARY_PATH}/${encodeURIComponent(coord)}`;
 // Create New Concept in the design's styling (pages/dictionary/NewConcept.jsx).
 export const DICTIONARY_NEW_PATH = `${DICTIONARY_PATH}/new`;
+// Create New Concept for a shared concept the finder found: the new header is wired to it.
+export const DICTIONARY_WIRE_PARAM = 'wire';
+export const dictionaryWirePath = (coord) => `${DICTIONARY_NEW_PATH}?${DICTIONARY_WIRE_PARAM}=${encodeURIComponent(coord)}`;
 
 // An entry's item: on /dictionary its own page (pages/dictionary/Item.jsx), by the item's address or
 // event id; in the control panel the Simple Lists item page, which opens a kind-39999 item by address

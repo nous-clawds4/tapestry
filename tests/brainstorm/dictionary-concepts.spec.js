@@ -16,7 +16,7 @@ const { test, expect } = require('@playwright/test');
  * asked for, so a page that sent the wrong person would show the wrong rows.
  *
  *   D1 — signed out: the owner's pair is asked for, and the page says it is the owner's.
- *   D2 — a signed-in customer: their account and their assistant, "your", and no Add.
+ *   D2 — a signed-in customer: their account and their assistant, "your", and no owner-only note.
  *   D3 — the signed-in owner: the owner's pair, and Add to Dictionary is offered.
  *   D4 — signed in with no assistant: the account alone, and the page says so.
  *
@@ -66,12 +66,13 @@ const { test, expect } = require('@playwright/test');
  *
  * Create New Concept (the design's screen; test/dictionary-new-concept.test.js holds the draft rule):
  *
- *   D24 — a signed-in customer creates a concept: the preview is the shared header, it is signed with
- *         their own key (NIP-07) and published, and the page opens its entry saying what the
- *         broadcast did.
- *   D25 — a header this instance's relay holds for the signer at that name isn't replaced: nothing is published.
- *   D26 — the owner's Assistant signs on the server; a different extension key is refused; signed
- *         out, the form is disabled.
+ *   D24 — a signed-in customer creates a concept: the preview is the shared header, their own
+ *         Assistant signs it on the server (POST /api/dictionaries/concepts/new), and the page opens
+ *         its entry saying what the broadcast did.
+ *   D25 — a header this instance's relay holds for the Assistant at that name isn't replaced: the
+ *         server refuses, and the page links to it.
+ *   D26 — the owner's Assistant signs the same way; an event signed by another key isn't broadcast;
+ *         signed out, the form is disabled.
  *   D27 — a broadcast that doesn't land: the form locks, Try again re-broadcasts that event, and the
  *         page opens that event's concept.
  *
@@ -79,6 +80,14 @@ const { test, expect } = require('@playwright/test');
  *
  *   D28 — the list sorts by recognition, with each row's GUM₂; the entry strip says "Recognized by N
  *         members of … trusted, extended community (GUM₂ x.xx)" above the filing line.
+ *
+ * Create New Concept from the finder, wired (test/dictionary-wired-create.test.js holds the endpoint):
+ *
+ *   D29 — a signed-in customer finds a shared concept, and Add to Dictionary offers Create New Concept
+ *         wired to it: /dictionary/new?wire=… starts from its names and description, the preview's
+ *         b-tag points to it, and their Assistant creates it. The owner gets the twin picker and the
+ *         same link; signed out, the finder says to sign in.
+ *   D30 — signed in with no Assistant here: the page says so, points to Account Setup, and can't create.
  */
 
 const OWNER = '1'.repeat(64);
@@ -194,35 +203,41 @@ async function mockAssistants(page) {
   }));
 }
 
+const SHARER = 'ab'.repeat(32);
+const SHARED_D = 'taco-truck';
+const SHARED_COORD = `39998:${SHARER}:${SHARED_D}`;
+/** A concept someone shared (its b-tag points to itself), on the community relay. */
+const SHARED_HEADER = {
+  id: 'a'.repeat(64), kind: 39998, pubkey: SHARER, created_at: 1700000000, content: '', sig: 'b'.repeat(128),
+  tags: [['d', SHARED_D], ['names', 'Taco Truck', 'Taco Trucks'], ['description', 'Trucks that sell tacos.'], ['b', SHARED_COORD, 'pointer']],
+};
+const slugOf = (name) => name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
 /**
- * Create New Concept's reads and writes: a stand-in NIP-07 extension holding `key`, the existing-header
- * check (`existing` → the signer already has one), the publish, and a local-only publish policy so no
- * socket is opened. Returns the publish bodies.
+ * Create New Concept's reads and writes: the shared header on the community relay (through the
+ * server's /api/relay/external), this relay's scans, the create endpoint signing as `assistant`
+ * (`existing` → it refuses with 409; `signer` → it signs as another key), and a local-only publish
+ * policy unless `external`, so no socket is opened. Returns the create requests' bodies.
  */
-async function mockCreate(page, { key, existing = false, external = false } = {}) {
-  const json = (r, body) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-  const published = [];
-  await page.addInitScript((pk) => {
-    window.nostr = {
-      getPublicKey: async () => pk,
-      signEvent: async (ev) => ({ ...ev, pubkey: pk, id: '1'.repeat(64), sig: '2'.repeat(128) }),
-    };
-  }, key);
+async function mockCreate(page, { assistant, existing = false, external = false, signer = null } = {}) {
+  const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  const created = [];
   await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: external }));
-  await page.route('**/api/strfry/scan**', (r) => {
-    const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
-    if ((filter.kinds || []).includes(39998) && filter['#d'] && existing) {
-      return json(r, { success: true, events: [{ id: '3'.repeat(64), kind: 39998, pubkey: filter.authors[0], created_at: 1, content: '', tags: [['d', filter['#d'][0]]] }] });
-    }
-    return json(r, { success: true, events: [] });
-  });
-  await page.route('**/api/strfry/publish', (r) => {
+  await page.route('**/api/relay/external**', (r) => json(r, { success: true, events: [SHARED_HEADER] }));
+  await page.route('**/api/strfry/scan**', (r) => json(r, { success: true, events: [] }));
+  await page.route('**/api/dictionaries/concepts/new', (r) => {
     const body = JSON.parse(r.request().postData() || '{}');
-    published.push(body);
-    const ev = body.signAs === 'assistant' ? { ...body.event, pubkey: OWNER_TA, id: '4'.repeat(64), sig: '5'.repeat(128) } : body.event;
-    return json(r, { success: true, event: ev });
+    created.push(body);
+    const d = slugOf(body.singular || '');
+    if (existing) return json(r, { success: false, code: 'exists', coord: `39998:${assistant}:${d}`, error: 'exists' }, 409);
+    const pubkey = signer || assistant;
+    const tags = [['d', d], ['names', body.singular, body.plural]];
+    if (body.description) tags.push(['description', body.description]);
+    tags.push(['b', body.target || `39998:${pubkey}:${d}`, 'pointer']);
+    const event = { kind: 39998, pubkey, created_at: 1790000000, content: '', tags, id: '4'.repeat(64), sig: '5'.repeat(128) };
+    return json(r, { success: true, event, coord: `39998:${pubkey}:${d}` });
   });
-  return published;
+  return created;
 }
 
 const TRUSTED_FILER = '6'.repeat(64);
@@ -292,15 +307,15 @@ test.describe('Dictionary › Concepts — whose dictionary', () => {
     await expect(list(page).getByText('Shared by the owner')).toBeVisible();
   });
 
-  test('D2: a signed-in customer sees their own dictionary, and no Add', async ({ page }) => {
+  test('D2: a signed-in customer sees their own dictionary, and no owner-only note', async ({ page }) => {
     const asked = await mockStack(page, { session: { pubkey: CUST, assistantPubkey: CUST_TA, classification: 'customer' } });
     await page.goto(URL_);
     await expect(page.getByText(/concepts? in your Dictionary/)).toBeVisible();
     expect(asked.at(-1), 'a customer → their account and their assistant').toBe(`${CUST},${CUST_TA}`);
     expect(await names(page)).toEqual(['customer thing']);
     await page.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
-    await expect(page.getByText('For now only the owner of this instance can add a concept from here.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Add to Dictionary' })).toHaveCount(0);
+    await expect(page.getByText(/only the owner of this instance can add/)).toHaveCount(0);
+    await expect(page.getByText('Sign in to add a concept from here.')).toHaveCount(0);
   });
 
   test('D3: the signed-in owner sees their dictionary, marked as theirs', async ({ page }) => {
@@ -311,7 +326,7 @@ test.describe('Dictionary › Concepts — whose dictionary', () => {
     expect(await names(page)).toEqual(['cat breed', 'dog', 'owner signed']);
     await expect(list(page).getByText('Shared by you')).toBeVisible();
     await page.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
-    await expect(page.getByText('For now only the owner of this instance can add a concept from here.')).toHaveCount(0);
+    await expect(page.getByText(/only the owner of this instance can add/)).toHaveCount(0);
   });
 
   test('D4: signed in with no assistant, the account alone, and the page says so', async ({ page }) => {
@@ -680,9 +695,9 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByRole('heading', { level: 1, name: 'item 02' })).toBeVisible();
   });
 
-  test('D24: a signed-in customer creates a shared concept, signed with their own key', async ({ page }) => {
+  test('D24: a signed-in customer creates a shared concept, signed by their own Assistant', async ({ page }) => {
     await mockStack(page, { session: CUSTOMER });
-    const published = await mockCreate(page, { key: CUST });
+    const created = await mockCreate(page, { assistant: CUST_TA });
     await page.goto(PAGE);
     await page.getByRole('link', { name: 'Create New Concept' }).click();
     await expect(page).toHaveURL(/\/dictionary\/new$/);
@@ -692,57 +707,51 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.getByLabel('Singular name').fill('Taco Truck in Nashville');
     await page.getByLabel('Plural name').fill('Taco Trucks in Nashville');
     await page.getByLabel('Description').fill('Trucks that sell tacos.');
-    const coord = `39998:${CUST}:taco-truck-in-nashville`;
+    const coord = `39998:${CUST_TA}:taco-truck-in-nashville`;
     await expect(page.locator('.dict-new-preview')).toContainText(`["b","${coord}","pointer"]`);
-    await expect(page.getByText('Header you publish (shared: its b-tag points to itself)')).toBeVisible();
-    await expect(page.getByText(/You publish the header, signed with your nostr extension and marked as shared, so others can find it and adopt it\./)).toBeVisible();
+    await expect(page.getByText('Header your Assistant publishes (shared: its b-tag points to itself)')).toBeVisible();
+    await expect(page.getByText(/Your Assistant publishes the header, marked as shared, so others can find it and adopt it\./)).toBeVisible();
     await expect(page.getByText(/Private/)).toHaveCount(0);
     await create.click();
     await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(coord)}`);
     await expect(page.getByText('Saved here. External publishing is off for this deployment, so it was not sent onward.')).toBeVisible();
-    expect(published, 'one publish').toHaveLength(1);
-    expect(published[0].signAs).toBe('client');
-    expect(published[0].event.pubkey).toBe(CUST);
-    expect(published[0].event.tags).toEqual([
-      ['d', 'taco-truck-in-nashville'], ['names', 'Taco Truck in Nashville', 'Taco Trucks in Nashville'],
-      ['description', 'Trucks that sell tacos.'], ['b', coord, 'pointer'],
+    expect(created, 'one request, with the fields and no target').toEqual([
+      { singular: 'Taco Truck in Nashville', plural: 'Taco Trucks in Nashville', description: 'Trucks that sell tacos.' },
     ]);
   });
 
-  test('D25: a header this instance’s relay holds for the signer at that name isn’t replaced', async ({ page }) => {
+  test('D25: a header this instance’s relay holds for the Assistant at that name isn’t replaced', async ({ page }) => {
     await mockStack(page, { session: CUSTOMER });
-    const published = await mockCreate(page, { key: CUST, existing: true });
+    const created = await mockCreate(page, { assistant: CUST_TA, existing: true });
     await page.goto(`${PAGE}/new`);
     await page.getByLabel('Singular name').fill('Bird');
     await page.getByLabel('Plural name').fill('Birds');
     await page.getByRole('button', { name: 'Create concept' }).click();
-    await expect(page.getByRole('alert')).toContainText('This instance’s relay already holds your concept header at this name');
-    await expect(page.getByRole('link', { name: 'open the existing one' })).toHaveAttribute('href', `/dictionary/${encodeURIComponent(`39998:${CUST}:bird`)}`);
-    expect(published, 'nothing published').toHaveLength(0);
+    await expect(page.getByRole('alert')).toContainText('This instance’s relay already holds your Assistant’s concept header at this name');
+    await expect(page.getByRole('link', { name: 'open the existing one' })).toHaveAttribute('href', `/dictionary/${encodeURIComponent(`39998:${CUST_TA}:bird`)}`);
+    expect(created, 'the server was asked once, and refused').toHaveLength(1);
   });
 
-  test('D26: the owner’s Assistant signs on the server; another key is refused; signed out it is disabled', async ({ page }) => {
+  test('D26: the owner’s Assistant signs the same way; another key’s event isn’t broadcast; signed out it is disabled', async ({ page }) => {
     await mockStack(page, { session: { pubkey: OWNER, assistantPubkey: OWNER_TA, classification: 'owner' } });
-    const published = await mockCreate(page, { key: OWNER });
+    const created = await mockCreate(page, { assistant: OWNER_TA });
     await page.goto(`${PAGE}/new`);
     await expect(page.getByText('Header your Assistant publishes (shared: its b-tag points to itself)')).toBeVisible();
     await page.getByLabel('Singular name').fill('Bird');
     await page.getByLabel('Plural name').fill('Birds');
     await page.getByRole('button', { name: 'Create concept' }).click();
     await expect(page).toHaveURL(new RegExp(`/dictionary/${encodeURIComponent(`39998:${OWNER_TA}:bird`)}$`));
-    expect(published[0].signAs).toBe('assistant');
-    expect(published[0].event.sig, 'the server signs it').toBeUndefined();
-    expect(published[0].event.tags.at(-1)).toEqual(['b', `39998:${OWNER_TA}:bird`, 'pointer']);
+    expect(created).toEqual([{ singular: 'Bird', plural: 'Birds', description: '' }]);
 
     const page2 = await page.context().newPage();
     await mockStack(page2, { session: CUSTOMER });
-    const none = await mockCreate(page2, { key: 'f'.repeat(64) });
+    await mockCreate(page2, { assistant: CUST_TA, signer: 'f'.repeat(64) });
     await page2.goto(`${PAGE}/new`);
     await page2.getByLabel('Singular name').fill('Bird');
     await page2.getByLabel('Plural name').fill('Birds');
     await page2.getByRole('button', { name: 'Create concept' }).click();
-    await expect(page2.getByRole('alert')).toContainText('Your nostr extension holds a different key from the account you’re signed in with.');
-    expect(none).toHaveLength(0);
+    await expect(page2.getByRole('alert')).toContainText('The server signed with a different key from your Assistant’s.');
+    await expect(page2).toHaveURL(/\/dictionary\/new$/);
 
     const page3 = await page.context().newPage();
     await mockStack(page3);
@@ -754,7 +763,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
 
   test('D27: a broadcast that doesn’t land locks the form; Try again re-broadcasts it and opens its concept', async ({ page }) => {
     await mockStack(page, { session: CUSTOMER });
-    const published = await mockCreate(page, { key: CUST, external: true });
+    const created = await mockCreate(page, { assistant: CUST_TA, external: true });
     // A stand-in relay: refuses while window.__relayOk is false, then accepts. No real socket is opened.
     await page.addInitScript(() => {
       window.__relayOk = false;
@@ -784,13 +793,13 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(status).toContainText("didn't reach the community relay"); // broadcastOutcome's own wording
     await expect(page.getByLabel('Singular name'), 'the form is locked once the header exists').toBeDisabled();
     await expect(page.getByRole('button', { name: 'Create concept' })).toBeDisabled();
-    expect(published).toHaveLength(1);
+    expect(created).toHaveLength(1);
     await page.evaluate(() => { window.__relayOk = true; });
     await status.getByRole('button', { name: 'Try again' }).click();
-    const coord = `39998:${CUST}:bird`;
+    const coord = `39998:${CUST_TA}:bird`;
     await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(coord)}`);
     await expect(page.getByText('Submitted as a shared concept — published to the community relay.')).toBeVisible();
-    expect(published, 'Try again re-broadcasts; it does not publish again').toHaveLength(1);
+    expect(created, 'Try again re-broadcasts; it does not create again').toHaveLength(1);
     await page.reload();
     await expect(page.getByText('Submitted as a shared concept')).toHaveCount(0);
   });
@@ -809,6 +818,73 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     const strip = page.locator('.dict-author-strip');
     await expect(strip).toContainText('Recognized by 2 members of the owner’s trusted, extended community (GUM₂ 0.75).');
     await expect(strip).toContainText('0 members of the owner’s trusted, extended community file items under it.');
+  });
+
+  test('D29: from the finder, Create New Concept is wired to the shared concept, and the reader’s Assistant creates it', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const created = await mockCreate(page, { assistant: CUST_TA });
+    await page.goto(PAGE);
+    await page.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
+    await page.getByRole('searchbox').fill('taco');
+    await page.getByRole('button', { name: 'Add to Dictionary' }).click();
+    await expect(page.getByText(/Your Assistant adds Taco Truck by publishing a concept of your own, wired to it/)).toBeVisible();
+    await expect(page.getByLabel('Your twin concept'), 'the twin picker is the owner’s').toHaveCount(0);
+    const link = page.locator('.dict-add').getByRole('link', { name: 'Create New Concept' });
+    await expect(link).toHaveAttribute('href', `/dictionary/new?wire=${encodeURIComponent(SHARED_COORD)}`);
+    await link.click();
+
+    await expect(page).toHaveURL(new RegExp(`/dictionary/new\\?wire=${encodeURIComponent(SHARED_COORD)}$`));
+    await expect(page.getByLabel('Singular name'), 'it starts from the shared concept').toHaveValue('Taco Truck');
+    await expect(page.getByLabel('Plural name')).toHaveValue('Taco Trucks');
+    await expect(page.getByLabel('Description')).toHaveValue('Trucks that sell tacos.');
+    await expect(page.locator('.dict-new-wired')).toContainText('Taco Truck');
+    await expect(page.getByText('Header your Assistant publishes (wired: its b-tag points to the shared concept)')).toBeVisible();
+    await expect(page.locator('.dict-new-preview')).toContainText(`["b","${SHARED_COORD}","pointer"]`);
+    await page.getByLabel('Singular name').fill('Taco Truck in Nashville');
+    await page.getByLabel('Plural name').fill('Taco Trucks in Nashville');
+    await page.getByRole('button', { name: 'Create concept' }).click();
+    const coord = `39998:${CUST_TA}:taco-truck-in-nashville`;
+    await expect(page).toHaveURL(`${new URL(page.url()).origin}/dictionary/${encodeURIComponent(coord)}`);
+    await expect(page.getByText('Wired here. External publishing is off for this deployment, so it was not sent onward.')).toBeVisible();
+    expect(created).toEqual([{
+      singular: 'Taco Truck in Nashville', plural: 'Taco Trucks in Nashville', description: 'Trucks that sell tacos.', target: SHARED_COORD,
+    }]);
+
+    // The owner: the twin picker, and the same link under it.
+    const owner = await page.context().newPage();
+    await mockStack(owner, { session: { pubkey: OWNER, assistantPubkey: OWNER_TA, classification: 'owner' } });
+    await mockCreate(owner, { assistant: OWNER_TA });
+    await owner.route('**/api/adoption-twins', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, twins: [] }) }));
+    await owner.goto(PAGE);
+    await owner.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
+    await owner.getByRole('searchbox').fill('taco');
+    await owner.getByRole('button', { name: 'Add to Dictionary' }).click();
+    await expect(owner.getByLabel('Your twin concept')).toBeVisible();
+    await expect(owner.locator('.dict-add-foot')).toContainText('No matching concept of your own? Create New Concept, wired to this one.');
+    await expect(owner.locator('.dict-add').getByRole('link', { name: 'Create New Concept' }))
+      .toHaveAttribute('href', `/dictionary/new?wire=${encodeURIComponent(SHARED_COORD)}`);
+
+    // Signed out: no Add, and the finder says to sign in.
+    const out = await page.context().newPage();
+    await mockStack(out);
+    await mockCreate(out, { assistant: OWNER_TA });
+    await out.goto(PAGE);
+    await out.getByRole('button', { name: /Don’t see what you’re looking for\?/ }).click();
+    await expect(out.getByText('Sign in to add a concept from here.')).toBeVisible();
+    await out.getByRole('searchbox').fill('taco');
+    await expect(out.locator('.dict-find-name', { hasText: 'Taco Truck' })).toBeVisible();
+    await expect(out.getByRole('button', { name: 'Add to Dictionary' })).toHaveCount(0);
+  });
+
+  test('D30: signed in with no Assistant here, the page says so, points to Account Setup, and can’t create', async ({ page }) => {
+    await mockStack(page, { session: { pubkey: ADMIN_NO_TA, assistantPubkey: null, classification: 'admin' } });
+    const created = await mockCreate(page, { assistant: null });
+    await page.goto(`${PAGE}/new?wire=${encodeURIComponent(SHARED_COORD)}`);
+    await expect(page.getByText('You don\'t have a Tapestry Assistant on this instance yet.', { exact: false })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Go to Account Setup →' })).toHaveAttribute('href', '/setup');
+    await expect(page.getByLabel('Singular name')).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Create concept' })).toBeDisabled();
+    expect(created).toHaveLength(0);
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

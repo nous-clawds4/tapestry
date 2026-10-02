@@ -1,47 +1,105 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import DictionaryShell from './DictionaryShell';
 import DictIcon from '../dictionaries/DictIcon';
-import { scan } from '../dictionaries/ConceptEntry';
-import { DICTIONARY_PATH, dictionaryEntryPath, useDictionaryPerson } from '../dictionaries/conceptsDictionary';
-import { publishToRelays } from '../../utils/nostrPublish';
+import useProfiles from '../../hooks/useProfiles';
+import { npubOf, scan } from '../dictionaries/ConceptEntry';
+import { DICTIONARY_PATH, DICTIONARY_WIRE_PARAM, dictionaryEntryPath, useDictionaryPerson } from '../dictionaries/conceptsDictionary';
+import { fetchFromRelays, publishToRelays } from '../../utils/nostrPublish';
 import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
+import { COMMUNITY_RELAYS } from '../../hooks/useCommunitySharedConcepts';
+import { ASSISTANT_COPY } from '../assistant/actions';
 import { classifyBroadcast, outcomeMessage } from '@tapestry/broadcast-outcome';
-import { conceptHeaderDraft, draftPreview } from './newConceptDraft';
+import { conceptHeaderDraft, draftPreview, fieldsFromHeader, wireTarget } from './newConceptDraft';
+
+/** Creates the header with the signed-in person's own Assistant (src/api/adoption/newConcept.js). */
+export const NEW_CONCEPT_API = '/api/dictionaries/concepts/new';
+
+/**
+ * The shared concept's header, for `?wire=`: the newest of this instance's relay and the community relay,
+ * so the form can start from its names and description. { event, done }.
+ */
+function useSharedHeader(target) {
+  const [state, setState] = useState({ event: null, done: !target });
+  useEffect(() => {
+    if (!target) { setState({ event: null, done: true }); return undefined; }
+    let cancelled = false;
+    setState({ event: null, done: false });
+    const [, pubkey, ...rest] = target.split(':');
+    const d = rest.join(':');
+    const filter = { kinds: [39998], authors: [pubkey], '#d': [d] };
+    const own = (ev) => ev && ev.kind === 39998 && ev.pubkey === pubkey && (ev.tags || []).find((t) => t[0] === 'd')?.[1] === d;
+    (async () => {
+      const reads = await Promise.allSettled([scan(filter), fetchFromRelays(filter, COMMUNITY_RELAYS)]);
+      const events = reads.flatMap((r) => (r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : [])).filter(own);
+      const newest = events.reduce((a, b) => (!a || (b.created_at || 0) > (a.created_at || 0) ? b : a), null);
+      if (!cancelled) setState({ event: newest, done: true });
+    })();
+    return () => { cancelled = true; };
+  }, [target]);
+  return state;
+}
 
 /**
  * /dictionary/new — Create New Concept, as the design's screen: singular and plural names, a
  * description, and a live preview of the header that is published. A concept here is a DList header
- * (kind 39998), shared as it is created (its b-tag points to itself), so it joins the signer's
- * Dictionary and others can adopt it. No Private option in this version (owner, 2026-10-02).
+ * (kind 39998). Created plainly it is shared as it is created (its b-tag points to itself), so it joins
+ * the person's Dictionary and others can adopt it. Opened from the finder for a shared concept
+ * (`?wire=<its address>`), the form starts from that concept's names and description, and the header's
+ * b-tag points to it instead: wired to it, it joins the person's Dictionary as that concept, with no
+ * twin to pick. No Private option in this version (owner, 2026-10-02).
  *
- * Who signs: the owner's header is signed by their Assistant on this instance (`signAs: 'assistant'`,
- * which the server allows the owner only); any other signed-in reader signs with their own key in
- * their nostr extension (NIP-07), as the New DList page lets them. Both publish through
- * POST /api/strfry/publish, then broadcast to the community relay (CONCEPT_PUBLISH_RELAYS), and the
- * page says what the broadcast did (broadcastOutcome). If this instance's relay already holds a header
- * by the signer at that d-tag, the page stops and links to it rather than replace it (a header only the
- * community relay holds isn't checked). Once a header is published the form is locked: Try again
- * re-broadcasts that event, and the page opens that event's concept, whatever the fields say.
+ * Who signs: the signed-in person's own Assistant on this instance, whoever they are — owner, admin or
+ * customer (owner, 2026-10-02). The server signs with the caller's own Assistant key and no other
+ * (POST /api/dictionaries/concepts/new); someone with no Assistant here is told so, with the way to
+ * set one up, and can't create. The page then broadcasts the header to the community relay
+ * (CONCEPT_PUBLISH_RELAYS) and says what the broadcast did (broadcastOutcome). If this instance's relay
+ * already holds a header by the Assistant at that d-tag, the server refuses and the page links to it
+ * rather than replace it (a header only the community relay holds isn't checked). Once a header is
+ * published the form is locked: Try again re-broadcasts that event, and the page opens that event's
+ * concept, whatever the fields say.
  */
 export default function DictionaryNewConceptPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const wireParam = params.get(DICTIONARY_WIRE_PARAM);
+  const target = wireTarget(wireParam);
+  const badWire = wireParam !== null && !target;
+  const shared = useSharedHeader(target);
+  const sharedAuthor = target ? target.split(':')[1] : null;
+  const profiles = useProfiles(sharedAuthor ? [sharedAuthor] : []);
   const person = useDictionaryPerson();
   const [singular, setSingular] = useState('');
   const [plural, setPlural] = useState('');
   const [description, setDescription] = useState('');
+  const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const [existing, setExisting] = useState(null); // the coord of a header the signer already has here
+  const [existing, setExisting] = useState(null); // the coord of a header the Assistant already has here
   const [undelivered, setUndelivered] = useState(null); // { event, message, coord } when the broadcast didn't land
 
-  const byAssistant = Boolean(person.isOwner && person.assistant);
-  const signer = byAssistant ? person.assistant : person.account;
-  const draft = conceptHeaderDraft({ singular, plural, description, pubkey: signer });
+  // Start from the shared concept's names and description, unless the person has already typed.
+  useEffect(() => {
+    if (!shared.event || touched) return;
+    const start = fieldsFromHeader(shared.event);
+    setSingular(start.singular);
+    setPlural(start.plural);
+    setDescription(start.description);
+  }, [shared.event]); // the shared header arriving, not each keystroke
+  const edit = (set) => (e) => { setTouched(true); set(e.target.value); };
+
+  const signer = person.signedIn ? person.assistant : null;
+  const draft = conceptHeaderDraft({ singular, plural, description, pubkey: signer, target });
   const locked = Boolean(undelivered); // the header exists: what's left is its broadcast
   const canCreate = person.signedIn && Boolean(signer) && draft.ready && !busy && !locked;
   // A name with no Latin letter or digit has no slug, so it can't name the header's d-tag yet.
   const noSlug = Boolean(singular.trim()) && !draft.d;
+
+  const sharedName = shared.event ? fieldsFromHeader(shared.event).singular : null;
+  const p = sharedAuthor ? profiles?.[sharedAuthor] : null;
+  const sharedBy = sharedAuthor
+    ? (p && typeof p === 'object' && (p.display_name || p.name)) || `${npubOf(sharedAuthor).slice(0, 12)}…`
+    : null;
 
   // The concept the published event IS: its own signer and d-tag, never the form's current values.
   const coordOf = (signed) => `39998:${signed.pubkey}:${(signed.tags || []).find((t) => t[0] === 'd')?.[1] || ''}`;
@@ -50,7 +108,7 @@ export default function DictionaryNewConceptPage() {
     let result = null;
     try { result = await publishToRelays(signed, CONCEPT_PUBLISH_RELAYS); } catch { result = null; }
     const outcome = classifyBroadcast(result);
-    const message = outcomeMessage({ outcome, verb: 'submit' });
+    const message = outcomeMessage({ outcome, verb: target ? 'wire' : 'submit' });
     const coord = coordOf(signed);
     if (outcome === 'not-delivered') { setUndelivered({ event: signed, message, coord }); return; }
     navigate(dictionaryEntryPath(coord), { state: { notice: message } });
@@ -63,30 +121,18 @@ export default function DictionaryNewConceptPage() {
     setExisting(null);
     setUndelivered(null);
     try {
-      let pubkey = signer;
-      if (!byAssistant) {
-        if (!window.nostr) throw new Error('No nostr extension (NIP-07) found to sign with.');
-        pubkey = await window.nostr.getPublicKey();
-        if (pubkey !== person.account) throw new Error('Your nostr extension holds a different key from the account you’re signed in with.');
-      }
-      const { event, coord } = conceptHeaderDraft({ singular, plural, description, pubkey });
-      // Never replace a header the signer already has: a kind-39998 event at the same d-tag would.
-      const found = await scan({ kinds: [39998], authors: [pubkey], '#d': [draft.d] });
-      if (found.length > 0) { setExisting(coord); return; }
-      const unsigned = { ...event, created_at: Math.floor(Date.now() / 1000) };
-      const body = byAssistant
-        ? { event: unsigned, signAs: 'assistant' }
-        : { event: await window.nostr.signEvent({ ...unsigned, pubkey }), signAs: 'client' };
-      const resp = await fetch('/api/strfry/publish', {
+      const resp = await fetch(NEW_CONCEPT_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ singular, plural, description, ...(target ? { target } : {}) }),
       });
-      const data = await resp.json();
+      let data = {};
+      try { data = await resp.json(); } catch { data = {}; }
+      if (resp.status === 409 && data.code === 'exists') { setExisting(data.coord || draft.coord); return; }
       if (!resp.ok || !data.success) throw new Error(data.error || `HTTP ${resp.status}`);
-      const signed = data.event || body.event;
-      // The Assistant's key is the server's to use: broadcast only what it signed as the expected key.
-      if (byAssistant && signed.pubkey !== pubkey) {
+      const signed = data.event;
+      // Broadcast only what was signed as the Assistant this page names.
+      if (!signed || signed.pubkey !== signer) {
         throw new Error('The server signed with a different key from your Assistant’s. The header is stored on this instance, but it was not shared onward.');
       }
       await finish(signed);
@@ -103,10 +149,8 @@ export default function DictionaryNewConceptPage() {
     try { await finish(undelivered.event); } finally { setBusy(false); }
   };
 
-  const signedOutNote = person.loading ? null
-    : !person.signedIn ? 'Sign in to create a concept.'
-      : !signer ? 'This instance didn’t say which key to sign with.'
-        : null;
+  const signInNote = person.loading ? null : !person.signedIn ? 'Sign in to create a concept.' : null;
+  const noAssistant = !person.loading && person.signedIn && !person.assistant;
 
   return (
     <DictionaryShell>
@@ -114,28 +158,53 @@ export default function DictionaryNewConceptPage() {
         <Link to={DICTIONARY_PATH} className="dict-back"><DictIcon name="back" /> Dictionary</Link>
         <h1 className="dict-entry-title">Create New Concept</h1>
         <p className="dict-lede dict-new-lede">
-          Define a new concept: its singular and plural names, and a description.{' '}
-          {byAssistant
-            ? 'Your Assistant publishes the header, marked as shared, so others can find it and adopt it.'
-            : 'You publish the header, signed with your nostr extension and marked as shared, so others can find it and adopt it.'}
+          {target
+            ? 'Your Assistant publishes a concept of your own, wired to the shared concept below: its b-tag points to it, so it joins your Dictionary as that concept. Its names and description start as the shared concept’s; change them if you like.'
+            : 'Define a new concept: its singular and plural names, and a description. Your Assistant publishes the header, marked as shared, so others can find it and adopt it.'}
         </p>
-        {signedOutNote && <p className="dict-notice">{signedOutNote}</p>}
+        {signInNote && <p className="dict-notice">{signInNote}</p>}
+        {noAssistant && (
+          <p className="dict-notice" role="status">
+            {ASSISTANT_COPY.noAssistantLine}{' '}
+            <Link to="/setup">{ASSISTANT_COPY.noAssistantLink}</Link>
+          </p>
+        )}
+        {badWire && (
+          <p className="dict-notice" role="status">
+            This link doesn’t name a shared concept (a list header’s address), so this creates a concept of its own.
+          </p>
+        )}
+
+        {target && (
+          <div className="dict-card dict-new-wired" aria-label="Wired to">
+            <span className="dict-field-label">Wired to</span>
+            <span className="dict-new-wired-name">
+              {sharedName || (shared.done ? target : 'Reading the shared concept…')}
+              {sharedBy && <span className="dict-strip-faint"> · shared by {sharedBy}</span>}
+            </span>
+            {shared.done && !shared.event && (
+              <span className="dict-entry-note text-muted">
+                Its header wasn’t found on this instance’s relay or the community relay, so fill in the names yourself.
+              </span>
+            )}
+          </div>
+        )}
 
         <form className="dict-card dict-new-card" onSubmit={(e) => { e.preventDefault(); create(); }}>
-          <fieldset disabled={!person.signedIn || busy || locked} className="dict-new-fields">
+          <fieldset disabled={!signer || busy || locked} className="dict-new-fields">
             <div className="dict-new-names">
               <label className="dict-field">
                 <span className="dict-field-label">Singular name</span>
-                <input className="dict-input" value={singular} onChange={(e) => setSingular(e.target.value)} placeholder="e.g. Taco Truck in Nashville" />
+                <input className="dict-input" value={singular} onChange={edit(setSingular)} placeholder="e.g. Taco Truck in Nashville" />
               </label>
               <label className="dict-field">
                 <span className="dict-field-label">Plural name</span>
-                <input className="dict-input" value={plural} onChange={(e) => setPlural(e.target.value)} placeholder="e.g. Taco Trucks in Nashville" />
+                <input className="dict-input" value={plural} onChange={edit(setPlural)} placeholder="e.g. Taco Trucks in Nashville" />
               </label>
             </div>
             <label className="dict-field dict-new-desc">
               <span className="dict-field-label">Description</span>
-              <textarea className="dict-input dict-new-textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What belongs in this concept?" />
+              <textarea className="dict-input dict-new-textarea" rows={3} value={description} onChange={edit(setDescription)} placeholder="What belongs in this concept?" />
             </label>
             {noSlug && (
               <p className="dict-entry-note text-muted dict-new-hint" role="status">
@@ -146,15 +215,17 @@ export default function DictionaryNewConceptPage() {
 
           <figure className="dict-new-figure">
             <figcaption className="dict-field-label dict-new-preview-label">
-              {byAssistant ? 'Header your Assistant publishes' : 'Header you publish'} (shared: its b-tag points to itself)
+              {target
+                ? 'Header your Assistant publishes (wired: its b-tag points to the shared concept)'
+                : 'Header your Assistant publishes (shared: its b-tag points to itself)'}
             </figcaption>
             <pre className="dict-json dict-new-preview">{draftPreview(locked ? undelivered.event : draft.event)}</pre>
           </figure>
 
           {existing && (
             <p className="dict-notice" role="alert">
-              This instance’s relay already holds {byAssistant ? 'your Assistant’s' : 'your'} concept header at this name, so creating it
-              would replace it. Choose another name, or <Link to={dictionaryEntryPath(existing)}>open the existing one</Link>.
+              This instance’s relay already holds your Assistant’s concept header at this name, so creating it would
+              replace it. Choose another name, or <Link to={dictionaryEntryPath(existing)}>open the existing one</Link>.
             </p>
           )}
           {error && <p className="error" role="alert">Couldn’t create the concept: {error}</p>}

@@ -3,7 +3,9 @@
  *
  * The owner's decisions: any signed-in reader can create a concept, which here means publishing a
  * DList header (kind 39998), not the owner-only Neo4j concept skeleton; it is shared as it is created
- * (its b-tag points to itself); there is no Private option in this version.
+ * (its b-tag points to itself); there is no Private option in this version. Since 2026-10-02 (later
+ * the same day) the header is always signed by the person's own Assistant, and the finder can open
+ * the page wired to a shared concept: test/dictionary-wired-create.test.js holds that endpoint and route.
  *
  *   N1..N5 — pure: ui/src/pages/dictionary/newConceptDraft.js (dynamic import).
  *   S1..S5 — structural pins, read off comment-stripped source.
@@ -104,22 +106,24 @@ test('S1: /dictionary/new exists, and /dictionary\'s Create New Concept opens it
   assert(/<Link to=\{newConceptHref\} className="dict-create-btn">/.test(body), 'the button follows the prop');
 });
 
-test('S2: who signs — the owner\'s Assistant on the server, anyone else with their own key (NIP-07), and it must be theirs', () => {
+test('S2: who signs — the signed-in person\'s own Assistant, on the server, whoever they are; no extension, no fallback', () => {
   const s = flat(code(src(PAGE_JSX)));
-  assert(/const byAssistant = Boolean\(person\.isOwner && person\.assistant\);/.test(s), 'only the owner signs as the Assistant (the server allows only them)');
-  assert(/\{ event: unsigned, signAs: 'assistant' \}/.test(s) && /signAs: 'client' \}/.test(s), 'the two publish bodies');
-  assert(/if \(pubkey !== person\.account\) throw new Error/.test(s), 'the extension\'s key must be the signed-in account\'s');
-  assert(/const canCreate = person\.signedIn && Boolean\(signer\) && draft\.ready && !busy && !locked;/.test(s), 'signed in, with both names, and not yet created');
+  assert(/const signer = person\.signedIn \? person\.assistant : null;/.test(s), 'the signer is the reader\'s own Assistant (owner, 2026-10-02)');
+  assert(/export const NEW_CONCEPT_API = '\/api\/dictionaries\/concepts\/new';/.test(s) && /await fetch\(NEW_CONCEPT_API, \{/.test(s),
+    'created through the endpoint that signs with the caller\'s own Assistant key');
+  assert(!/window\.nostr/.test(s) && !/\/api\/strfry\/publish/.test(s) && !/signAs/.test(s), 'no NIP-07 path and no raw publish');
+  assert(/const canCreate = person\.signedIn && Boolean\(signer\) && draft\.ready && !busy && !locked;/.test(s), 'signed in, with an Assistant and both names, and not yet created');
+  assert(/ASSISTANT_COPY\.noAssistantLine/.test(s) && /<Link to="\/setup">\{ASSISTANT_COPY\.noAssistantLink\}<\/Link>/.test(s),
+    'no Assistant here: the page says so and points to Account Setup (owner, 2026-10-02: no fallback)');
 });
 
-test('S3: it won\'t replace a header this instance\'s relay holds for the signer, and says what the broadcast did', () => {
+test('S3: it won\'t replace a header this instance\'s relay holds for the Assistant, and says what the broadcast did', () => {
   const s = flat(code(src(PAGE_JSX)));
-  const scanAt = s.indexOf("await scan({ kinds: [39998], authors: [pubkey], '#d': [draft.d] })");
-  const publishAt = s.indexOf("fetch('/api/strfry/publish'");
-  assert(scanAt > 0 && publishAt > scanAt, 'the existing-header check comes before the publish');
-  assert(/if \(found\.length > 0\) \{ setExisting\(coord\); return; \}/.test(s), 'and stops');
+  assert(/if \(resp\.status === 409 && data\.code === 'exists'\) \{ setExisting\(data\.coord \|\| draft\.coord\); return; \}/.test(s),
+    'the server\'s refusal stops it, and the page links to the existing header');
   assert(/publishToRelays\(signed, CONCEPT_PUBLISH_RELAYS\)/.test(s), 'shared to the community relay');
-  assert(/classifyBroadcast\(result\)/.test(s) && /outcomeMessage\(\{ outcome, verb: 'submit' \}\)/.test(s), 'the broadcast outcome is read, not assumed');
+  assert(/classifyBroadcast\(result\)/.test(s) && /outcomeMessage\(\{ outcome, verb: target \? 'wire' : 'submit' \}\)/.test(s),
+    'the broadcast outcome is read, not assumed, in the words for what was made');
   assert(/if \(outcome === 'not-delivered'\) \{ setUndelivered/.test(s), 'an undelivered broadcast stays here, with Try again');
 });
 
@@ -132,11 +136,11 @@ test('S5: once published, the page holds to that event: its concept, its Try aga
   const s = flat(code(src(PAGE_JSX)));
   assert(/const coordOf = \(signed\) => `39998:\$\{signed\.pubkey\}:\$\{\(signed\.tags \|\| \[\]\)\.find\(\(t\) => t\[0\] === 'd'\)\?\.\[1\] \|\| ''\}`;/.test(s),
     'the concept opened is the published event\'s, not the form\'s');
-  assert(/const locked = Boolean\(undelivered\);/.test(s) && /<fieldset disabled=\{!person\.signedIn \|\| busy \|\| locked\}/.test(s), 'the form is locked once the header exists');
-  assert(/if \(byAssistant && signed\.pubkey !== pubkey\) \{ throw new Error/.test(s), 'the owner\'s server-signed event is checked before it is broadcast');
+  assert(/const locked = Boolean\(undelivered\);/.test(s) && /<fieldset disabled=\{!signer \|\| busy \|\| locked\}/.test(s), 'the form is locked once the header exists');
+  assert(/if \(!signed \|\| signed\.pubkey !== signer\) \{ throw new Error/.test(s), 'the server-signed event is checked before it is broadcast');
   const body = flat(code(src(CONCEPTS_JSX)));
-  assert(/No matching concept of your own\? <Link to=\{NEW_CONCEPT_PATH\}>Create New Concept<\/Link>, then come back to wire it\./.test(body),
-    'the finder\'s "wire it" link keeps the New Concept page: a twin needs a graph node, which /dictionary/new does not make');
+  assert(/No matching concept of your own\? \{create\}, wired to this one\./.test(body) && /<Link to=\{dictionaryWirePath\(concept\.uuid\)\} className="dict-add-create">Create New Concept<\/Link>/.test(body),
+    'the finder\'s Create New Concept opens /dictionary/new wired to the result (the owner, 2026-10-02), not the control panel\'s New Concept page');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

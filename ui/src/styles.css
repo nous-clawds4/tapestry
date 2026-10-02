@@ -9212,6 +9212,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .dict-add { flex: 1 1 100%; display: flex; flex-direction: column; gap: 8px; }
 .dict-add-lede, .dict-add-foot { font-size: 13px; line-height: 1.5; }
 .dict-add-lede { color: var(--text-muted); }
+.dict-add-create { font-weight: 600; }
 .dict-add-panel > div { margin-bottom: 0 !important; }
 
 .dict-list { list-style: none; margin: 10px 0 0; padding: 0; }
@@ -9382,6 +9383,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .dict-new-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
 .dict-new-cancel { display: inline-flex; align-items: center; text-decoration: none; }
 .dict-new-card .dict-add-btn:disabled { opacity: 0.4; cursor: default; }
+/* Create New Concept from the finder: the shared concept the new header is wired to. */
+.dict-new-wired { margin-top: 18px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+.dict-new-wired-name { font-size: 15px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 /* The item page's "Filed by" card (the design's Dictionary item screen). */
 .dict-filed-by { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
 .dict-avatar--lg { width: 40px; height: 40px; font-size: 14px; }
