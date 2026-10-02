@@ -112,7 +112,7 @@ test('S2: who signs — the owner\'s Assistant on the server, anyone else with t
   assert(/const canCreate = person\.signedIn && Boolean\(signer\) && draft\.ready && !busy && !locked;/.test(s), 'signed in, with both names, and not yet created');
 });
 
-test('S3: it never replaces a header the signer already has, and says what the broadcast did', () => {
+test('S3: it won\'t replace a header this instance\'s relay holds for the signer, and says what the broadcast did', () => {
   const s = flat(code(src(PAGE_JSX)));
   const scanAt = s.indexOf("await scan({ kinds: [39998], authors: [pubkey], '#d': [draft.d] })");
   const publishAt = s.indexOf("fetch('/api/strfry/publish'");

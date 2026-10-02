@@ -69,7 +69,7 @@ const { test, expect } = require('@playwright/test');
  *   D24 — a signed-in customer creates a concept: the preview is the shared header, it is signed with
  *         their own key (NIP-07) and published, and the page opens its entry saying what the
  *         broadcast did.
- *   D25 — a header the signer already has at that name is never replaced: nothing is published.
+ *   D25 — a header this instance's relay holds for the signer at that name isn't replaced: nothing is published.
  *   D26 — the owner's Assistant signs on the server; a different extension key is refused; signed
  *         out, the form is disabled.
  *   D27 — a broadcast that doesn't land: the form locks, Try again re-broadcasts that event, and the
@@ -701,7 +701,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     ]);
   });
 
-  test('D25: a header the signer already has at that name is never replaced', async ({ page }) => {
+  test('D25: a header this instance’s relay holds for the signer at that name isn’t replaced', async ({ page }) => {
     await mockStack(page, { session: CUSTOMER });
     const published = await mockCreate(page, { key: CUST, existing: true });
     await page.goto(`${PAGE}/new`);

@@ -87,7 +87,7 @@ export default function DictionaryNewConceptPage() {
       const signed = data.event || body.event;
       // The Assistant's key is the server's to use: broadcast only what it signed as the expected key.
       if (byAssistant && signed.pubkey !== pubkey) {
-        throw new Error('The server signed with a different key from your Assistant’s, so the header was not shared onward.');
+        throw new Error('The server signed with a different key from your Assistant’s. The header is stored on this instance, but it was not shared onward.');
       }
       await finish(signed);
     } catch (err) {
@@ -138,7 +138,7 @@ export default function DictionaryNewConceptPage() {
               <textarea className="dict-input dict-new-textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What belongs in this concept?" />
             </label>
             {noSlug && (
-              <p className="dict-entry-note text-muted dict-new-hint">
+              <p className="dict-entry-note text-muted dict-new-hint" role="status">
                 The singular name needs at least one Latin letter or digit, which make its header’s d-tag.
               </p>
             )}
