@@ -195,4 +195,6 @@ function register(app) {
   for (const action of Object.keys(ROUTES)) app.post(ROUTES[action], createMyAssistantDispositionHandler(action));
 }
 
-module.exports = { createMyAssistantDispositionHandler, register, ROUTES };
+// The building blocks are exported unchanged for the Me rows' handler, which reuses them as they are
+// (./meDisposition.js, ADR list-headers-disposition/0005).
+module.exports = { createMyAssistantDispositionHandler, register, ROUTES, sameHost, firstD, HANDLE_RE, HEADER_KIND, ACTIONS, defaultDeps };

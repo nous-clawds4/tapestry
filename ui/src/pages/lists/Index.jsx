@@ -197,8 +197,12 @@ export default function DListsIndex() {
     }
   }, [authorFilter, user]);
 
-  // Disposition on the signed-in person's own Assistant's rows (ADR list-headers-disposition/0003).
-  const isMyAssistantHeader = (row) => row.kind === 39998 && authorRole(row.author, user) === 'my-assistant';
+  // Disposition on the signed-in person's own headers: their Assistant's (ADR list-headers-disposition/0003)
+  // and their account's (ADR 0005). Who would sign: 'me', 'my-assistant', or null for no button.
+  const rowSigner = (row) => {
+    const role = row.kind === 39998 ? authorRole(row.author, user) : null;
+    return role === 'me' || role === 'my-assistant' ? role : null;
+  };
   const addressOf = (ev) => `${ev.kind}:${ev.pubkey}:${getTag(ev, 'd')}`;
   // The signed version replaces the header it re-signs, so the 🧭 cell updates without a reload.
   const onActed = (event) => {
@@ -207,16 +211,18 @@ export default function DListsIndex() {
       addressOf(h) === addressOf(event) && event.created_at > h.created_at ? event : h
     )));
   };
-  const nextUndecided = (afterId) => filteredRows.find(r =>
-    isMyAssistantHeader(r) && r.disposition === MARKS.undecided.state && r.routeId !== afterId) || null;
+  // Next walks one signer's rows at a time (owner decision, story 5): a Me walk asks the browser signer at
+  // each step and an Assistant walk never does, so they don't interleave.
+  const nextUndecided = (afterId, signer) => filteredRows.find(r =>
+    rowSigner(r) === signer && r.disposition === MARKS.undecided.state && r.routeId !== afterId) || null;
   const panelRow = panelId ? rows.find(r => r.routeId === panelId) || null : null;
 
   const columns = [
     { key: 'singular', label: 'Name (singular)' },
     { key: 'plural', label: 'Name (plural)' },
     {
-      // The marks are read-only. Only the person's own Assistant's rows add a Disposition… button,
-      // which stops its click so it doesn't also open the list.
+      // The marks are read-only. Only the person's own rows — their Assistant's or their account's — add a
+      // Disposition… button, which stops its click so it doesn't also open the list.
       key: 'disposition',
       label: <span title={COLUMN_TITLE} style={{ cursor: 'help' }}>🧭</span>,
       render: (_val, row) => (
@@ -226,7 +232,7 @@ export default function DListsIndex() {
               {m.glyph}
             </span>
           ))}
-          {isMyAssistantHeader(row) && (
+          {rowSigner(row) && (
             <button
               className="btn" style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem' }}
               onClick={(e) => { e.stopPropagation(); setPanelId(row.routeId); }}
@@ -353,10 +359,11 @@ export default function DListsIndex() {
       {panelRow && (
         <ListHeaderDispositionHost
           row={panelRow}
+          signer={rowSigner(panelRow)}
           onActed={onActed}
-          hasNext={!!nextUndecided(panelRow.routeId)}
+          hasNext={!!nextUndecided(panelRow.routeId, rowSigner(panelRow))}
           onNext={() => {
-            const next = nextUndecided(panelRow.routeId);
+            const next = nextUndecided(panelRow.routeId, rowSigner(panelRow));
             setPanelId(next ? next.routeId : null);
           }}
           onClose={() => setPanelId(null)}

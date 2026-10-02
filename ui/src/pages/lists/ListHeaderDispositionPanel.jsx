@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MARKS } from '../../utils/listHeaderDisposition';
 import { submitAndBroadcast, keepPrivate, wireAndBroadcast } from '../../utils/myAssistantDisposition';
+import { submitAsMe, keepPrivateAsMe, wireAsMe } from '../../utils/meDisposition';
 import useCommunitySharedConcepts from '../../hooks/useCommunitySharedConcepts';
 
 const REAL_B_REASON = 'this header already carries a real b — deferral applies only to unaffiliated headers';
@@ -22,14 +23,22 @@ export function ListHeaderDispositionHost(props) {
   return <ListHeaderDispositionPanel key={props.row.routeId} {...props} communityRows={rows} />;
 }
 
+// Who signs the new version (ADR list-headers-disposition/0005): the person's own Assistant, on the server,
+// for their Assistant's rows; the person's browser signer for rows their own account wrote.
+const ACTIONS_BY_SIGNER = {
+  'my-assistant': { submit: submitAndBroadcast, keep: keepPrivate, wire: wireAndBroadcast },
+  me: { submit: submitAsMe, keep: keepPrivateAsMe, wire: wireAsMe },
+};
+
 /**
- * The List Headers disposition panel for one of the signed-in person's own Assistant's headers
- * (ADR list-headers-disposition/0003). Modelled on components/DispositionPanel.jsx, which stays
- * Concept Headers'. Submit as a Shared Concept, Keep private, and Wire (story 4, ADR 0004).
- * The server signs with the person's own Assistant only; `onActed(event)` hands the signed version
- * back so the row shows its new state without a reload.
+ * The List Headers disposition panel for one of the signed-in person's own headers: their Assistant's
+ * (ADR list-headers-disposition/0003) or their account's (`signer` 'me', ADR 0005). Modelled on
+ * components/DispositionPanel.jsx, which stays Concept Headers'. Submit as a Shared Concept, Keep private,
+ * and Wire (story 4, ADR 0004). `onActed(event)` hands the signed version back so the row shows its new
+ * state without a reload.
  */
-export default function ListHeaderDispositionPanel({ row, onActed, hasNext, onNext, onClose, communityRows }) {
+export default function ListHeaderDispositionPanel({ row, signer = 'my-assistant', onActed, hasNext, onNext, onClose, communityRows }) {
+  const actions = ACTIONS_BY_SIGNER[signer];
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const [acted, setActed] = useState(false);
@@ -63,7 +72,7 @@ export default function ListHeaderDispositionPanel({ row, onActed, hasNext, onNe
     if (!parts) { setMessage(NOT_A_LIST_HEADER); return; }
     const ownD = row.routeId.split(':').slice(2).join(':');
     if (parts[1] === row.author && parts[2] === ownD) { setMessage(OWN_ADDRESS); return; }
-    run((handle) => wireAndBroadcast(handle, t));
+    run((handle) => actions.wire(handle, t));
   };
 
   return (
@@ -78,11 +87,11 @@ export default function ListHeaderDispositionPanel({ row, onActed, hasNext, onNe
 
       {!acted && (
         <div style={{ display: 'flex', gap: '0.5rem', margin: '0.75rem 0', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" disabled={busy} onClick={() => run(submitAndBroadcast)}>
+          <button className="btn btn-primary" disabled={busy} onClick={() => run(actions.submit)}>
             🤝 Submit as a Shared Concept
           </button>
           <button
-            className="btn" disabled={busy || hasRealB} onClick={() => run(keepPrivate)}
+            className="btn" disabled={busy || hasRealB} onClick={() => run(actions.keep)}
             title={hasRealB ? REAL_B_REASON : 'Mark as deliberately unaffiliated (never broadcast).'}
           >
             🔒 Keep private
