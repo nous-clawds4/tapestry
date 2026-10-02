@@ -587,7 +587,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
 
     await page.goto(`${PAGE}/${encodeURIComponent(coord)}/items/${UNTRUSTED_ITEM}`);
     await expect(page.getByRole('heading', { level: 1, name: 'mystery' })).toBeVisible();
-    await expect(page.getByText('Filed under cat breed')).toBeVisible();
+    await expect(page.locator('.dict-entry-sub')).toHaveText('Filed under cat breed');
     await expect(page.getByText('mystery is filed under cat breed, but not by anyone the owner’s community trusts, so it isn’t in the entry’s Items.')).toBeVisible();
   });
 

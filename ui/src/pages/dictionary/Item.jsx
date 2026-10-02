@@ -126,7 +126,7 @@ export default function DictionaryItemPage() {
     } else if (filedHere && complete && !own) {
       description = `${name} is filed under ${concept}, but not by anyone ${whose} community trusts, so it isn’t in the entry’s Items.`;
     } else if (filedHere && items.data?.truncated) {
-      description = `${name} is filed under ${concept}, beyond the first ${(items.data.items || []).length.toLocaleString()} Items this page reads.`;
+      description = `${name} is filed under ${concept}, but it isn’t among the first ${(items.data.items || []).length.toLocaleString()} Items this page reads.`;
     }
   }
   const subtitle = listed ? `Item ${listed.n} in ${concept}` : filedHere ? `Filed under ${concept}` : null;
