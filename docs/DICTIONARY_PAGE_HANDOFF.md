@@ -52,6 +52,14 @@
 >
 >     A failed read is named instead.
 >   - **Route params are read as the router decoded them**, so a `%` in a d-tag can't crash the page. The entry page and the Simple Lists item page decode only what still decodes.
+> - **Added 2026-10-02: Create New Concept.** The owner asked for the design's Create New Concept screen at `/dictionary/new` (`ui/src/pages/dictionary/NewConcept.jsx`). `/dictionary`'s Create New Concept button opens it; the control panel's still opens the New Concept page.
+>   - **A "concept" here is a DList header** (kind 39998), not the owner-only Neo4j concept skeleton: "concept" is the word readers know (owner, 2026-10-02).
+>   - **Who can create.** Any signed-in reader. The owner's header is signed by their Assistant on the server (`signAs: 'assistant'`, which the server allows only the owner). Anyone else signs with their own key in their nostr extension (NIP-07), which must match the signed-in account, exactly as the New DList page publishes. No server change was needed.
+>   - **What is published.** `["d", <singular's slug>]`, `["names", singular, plural]`, an optional `["description", …]`, and `["b", <its own coordinate>, "pointer"]`. So it is shared as it is created and joins the signer's Dictionary. The preview is the exact event (`newConceptDraft.js`).
+>   - **What happens next.** The header is published to local strfry, then broadcast to the community relay. The page reports what the broadcast did (`broadcastOutcome`), and an undelivered broadcast offers Try again for that same event; the form is locked once the header exists.
+>   - **No overwrite.** If this instance's relay already holds a header by the signer at that d-tag, the page stops and links to it rather than replace it. A header only the community relay holds isn't checked.
+>   - **No graph node.** The header gets no Neo4j node, so the Add to Dictionary finder's twin picker (which lists graph concepts) won't offer it. The finder's own "Create New Concept, then come back to wire it" link still opens the control panel's New Concept page.
+>   - **Left out:** the design's Private option (owner's decision: version 2).
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---

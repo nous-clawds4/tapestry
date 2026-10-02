@@ -121,6 +121,7 @@ import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Pl
 import DictionaryPage from './pages/dictionary/Index';
 import DictionaryEntryPage from './pages/dictionary/Entry';
 import DictionaryItemPage from './pages/dictionary/Item';
+import DictionaryNewConceptPage from './pages/dictionary/NewConcept';
 import MyAssistantsPage from './pages/assistants/Index';
 import AssistantManagementPage from './pages/assistant/Index';
 import EditAssistantProfilePage from './pages/assistant/EditProfile';
@@ -266,6 +267,11 @@ const router = createBrowserRouter([
     // The Concepts dictionary in the Brainstorm design's styling; same list as /tapestry/dictionaries/concepts.
     path: '/dictionary',
     element: <DictionaryPage />,
+  },
+  {
+    // Create New Concept, as the design's screen: a shared DList header (pages/dictionary/NewConcept.jsx).
+    path: '/dictionary/new',
+    element: <DictionaryNewConceptPage />,
   },
   {
     path: '/dictionary/:coord',

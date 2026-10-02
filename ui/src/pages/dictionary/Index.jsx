@@ -4,7 +4,9 @@ import DictionaryShell, { Eyebrow } from './DictionaryShell';
 import ManagedBy from './ManagedBy';
 import useProfiles from '../../hooks/useProfiles';
 import { ConceptsDictionaryBody } from '../dictionaries/Concepts';
-import { dictionaryEntryPath, useDictionaryPerson, useMyAssistants } from '../dictionaries/conceptsDictionary';
+import {
+  DICTIONARY_NEW_PATH, dictionaryEntryPath, useDictionaryPerson, useMyAssistants,
+} from '../dictionaries/conceptsDictionary';
 import {
   MANAGED_BY_PARAM, managedByParam, managedView, managerOptions, parseManagedBy,
 } from '../dictionaries/managedDictionary';
@@ -75,7 +77,7 @@ export default function DictionaryPage() {
         </p>
       )}
       <div className="dict-page dict-skin-light">
-        <ConceptsDictionaryBody entryHref={dictionaryEntryPath} managed={managed} />
+        <ConceptsDictionaryBody entryHref={dictionaryEntryPath} managed={managed} newConceptHref={DICTIONARY_NEW_PATH} />
       </div>
     </DictionaryShell>
   );

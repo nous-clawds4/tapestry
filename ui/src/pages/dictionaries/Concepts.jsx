@@ -136,7 +136,7 @@ export default function DictionaryConcepts() {
  * { all, sets, current, options } — one other Assistant's Dictionary, or the union of all of them.
  * Without it the list is the reader's own, read as it always was.
  */
-export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }) {
+export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, newConceptHref = NEW_CONCEPT_PATH }) {
   const { povParams } = usePov();
   const person = useDictionaryPerson();
   const location = useLocation();
@@ -362,7 +362,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null }
           Don’t see what you’re looking for? <span className={`dict-chev${findOpen ? ' is-open' : ''}`}><DictIcon name="chevron" /></span>
         </button>
         <span className="dict-spacer" />
-        <Link to={NEW_CONCEPT_PATH} className="dict-create-btn">
+        <Link to={newConceptHref} className="dict-create-btn">
           <DictIcon name="plus" /> Create New Concept
         </Link>
       </div>
@@ -548,6 +548,8 @@ function AddToDictionary({ concept, onAdded, onClose }) {
         </div>
       )}
       <p className="dict-add-foot text-muted">
+        {/* A twin must be a concept with a node in the graph (the twin picker lists only those), which is what
+            the control panel's New Concept page makes; /dictionary/new publishes a shared header instead. */}
         No matching concept of your own? <Link to={NEW_CONCEPT_PATH}>Create New Concept</Link>, then come back to wire it.
       </p>
     </div>

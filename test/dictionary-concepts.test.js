@@ -422,7 +422,7 @@ test('S8: /dictionary renders the control panel pages\' own bodies, so the two c
   const concepts = flat(code(src(DICT_CONCEPTS_JSX)));
   const conceptEntry = flat(code(src(DICT_ENTRY_JSX)));
   assert(/import \{ ConceptsDictionaryBody \} from ['"]\.\.\/dictionaries\/Concepts['"]/.test(page)
-    && /<ConceptsDictionaryBody entryHref=\{dictionaryEntryPath\}( managed=\{managed\})? \/>/.test(page),
+    && /<ConceptsDictionaryBody entryHref=\{dictionaryEntryPath\}( managed=\{managed\})?( newConceptHref=\{DICTIONARY_NEW_PATH\})? \/>/.test(page),
     '/dictionary renders ConceptsDictionaryBody from the control panel page, its rows opening /dictionary/:coord');
   assert(/import \{ ConceptEntryBody \} from ['"]\.\.\/dictionaries\/ConceptEntry['"]/.test(entry)
     && /<ConceptEntryBody listHref=\{DICTIONARY_PATH\}/.test(entry),
