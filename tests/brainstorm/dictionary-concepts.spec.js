@@ -74,6 +74,11 @@ const { test, expect } = require('@playwright/test');
  *         out, the form is disabled.
  *   D27 — a broadcast that doesn't land: the form locks, Try again re-broadcasts that event, and the
  *         page opens that event's concept.
+ *
+ * GUM₂, recognition (test/dictionary-gum2.test.js holds the rule):
+ *
+ *   D28 — the list sorts by recognition, with each row's GUM₂; the entry strip says "Recognized by N
+ *         members of … trusted, extended community (GUM₂ x.xx)" above the filing line.
  */
 
 const OWNER = '1'.repeat(64);
@@ -102,6 +107,8 @@ const HEADERS = [
   ['remote-only', 'remote only', REMOTE_TA, `39998:${'e'.repeat(64)}:elsewhere`],
 ];
 const ALL_NAMES = HEADERS.map((h) => h[1]);
+/** GUM₂ by header d-tag, as the server would send it (recognitionByConcept). */
+const RECOGNITION = { 'cat-breed': { gum2: 0.75, recognizedBy: 2 }, dog: { gum2: 1.5, recognizedBy: 3 } };
 
 /** The server's rule over the fixtures: the requested authors' headers that carry a real b. */
 function dictionaryFor(authors) {
@@ -115,6 +122,7 @@ function dictionaryFor(authors) {
         targets: selfDeclared ? [] : [b], selfDeclared, isFirmware: false,
         itemCount: 0, sharedCoord: selfDeclared ? coord : b, gum: 0,
         totalAuthorCount: 0, totalEventCount: 0, override: null,
+        ...(RECOGNITION[d] || { gum2: 0, recognizedBy: 0 }),
       };
     });
 }
@@ -785,6 +793,22 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     expect(published, 'Try again re-broadcasts; it does not publish again').toHaveLength(1);
     await page.reload();
     await expect(page.getByText('Submitted as a shared concept')).toHaveCount(0);
+  });
+
+  test('D28: GUM₂ — the list sorts by recognition, and the entry strip says who recognizes it', async ({ page }) => {
+    await mockStack(page);
+    await mockEntry(page);
+    await page.goto(PAGE);
+    await page.getByRole('button', { name: 'Search and sort' }).click();
+    await page.getByLabel('Order by').selectOption({ label: 'General Usage Metric: recognition (highest first)' });
+    expect(await list(page).locator('.dict-row-name').allTextContents()).toEqual(['dog', 'cat breed', 'owner signed']);
+    expect(await list(page).locator('.dict-row-gum').allTextContents()).toEqual(['1.50', '0.75', '0.00']);
+    await expect(page.getByText(/General Usage Metric, recognition \(GUM₂\):/)).toBeVisible();
+
+    await list(page).getByRole('link', { name: /^cat breed/ }).click();
+    const strip = page.locator('.dict-author-strip');
+    await expect(strip).toContainText('Recognized by 2 members of the owner’s trusted, extended community (GUM₂ 0.75).');
+    await expect(strip).toContainText('0 members of the owner’s trusted, extended community file items under it.');
   });
 
   test('D9: with a setup step left, the Setup Alert is centred in the bar and the avatar sits at its right', async ({ page }) => {

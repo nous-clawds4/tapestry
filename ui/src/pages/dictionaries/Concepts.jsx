@@ -47,15 +47,25 @@ const SORTS = {
   az: { label: () => 'Alphabetical (A to Z)', note: () => '', cmp: byName },
   za: { label: () => 'Reverse alphabetical (Z to A)', note: () => 'Z to A', cmp: (a, b) => byName(b, a) },
   gumAsc: {
-    label: () => 'General Usage Metric (lowest first)', note: () => 'Usage, lowest first',
+    label: () => 'General Usage Metric: filing (lowest first)', note: () => 'Filing, lowest first',
     cmp: (a, b) => a.gum - b.gum || byName(a, b),
   },
   gumDesc: {
-    label: () => 'General Usage Metric (highest first)', note: () => 'Usage, highest first',
+    label: () => 'General Usage Metric: filing (highest first)', note: () => 'Filing, highest first',
     cmp: (a, b) => b.gum - a.gum || byName(a, b),
   },
+  // GUM₂ (server: recognitionByConcept) — shown and sortable; GUM₁ stays the Dictionary's metric.
+  gum2Asc: {
+    label: () => 'General Usage Metric: recognition (lowest first)', note: () => 'Recognition, lowest first',
+    cmp: (a, b) => (a.gum2 ?? 0) - (b.gum2 ?? 0) || byName(a, b),
+  },
+  gum2Desc: {
+    label: () => 'General Usage Metric: recognition (highest first)', note: () => 'Recognition, highest first',
+    cmp: (a, b) => (b.gum2 ?? 0) - (a.gum2 ?? 0) || byName(a, b),
+  },
 };
-const isGumSort = (sort) => sort === 'gumAsc' || sort === 'gumDesc';
+const isGum2Sort = (sort) => sort === 'gum2Asc' || sort === 'gum2Desc';
+const isGumSort = (sort) => sort === 'gumAsc' || sort === 'gumDesc' || isGum2Sort(sort);
 
 // The design's minimum author rank for concept search (SPEC § 4), quoted in the FAQ's
 // "coming later" text. Nothing filters on it yet.
@@ -89,7 +99,7 @@ function faqItems({ cutoff }) {
     {
       q: 'How does my Assistant decide what belongs in this Dictionary? (technical)',
       a: [
-        `In this version your Assistant does not add or remove entries on its own. A concept is in your Dictionary when a kind-39998 header signed by your Assistant (or by you) carries a b-tag that points at a shared concept, or at itself when you shared it. The reserved b-tag-deferred and malformed b values don’t count. Each entry shows GUM₁ for the shared concept it points to: the number of distinct trusted authors — influence above the verified cutoff (${cut}), from your point of view — who file items under the concept with a z-tag; the concept's own author and your Assistant never count. Nothing is stored: the list and its scores are read afresh on every visit.`,
+        `In this version your Assistant does not add or remove entries on its own. A concept is in your Dictionary when a kind-39998 header signed by your Assistant (or by you) carries a b-tag that points at a shared concept, or at itself when you shared it. The reserved b-tag-deferred and malformed b values don’t count. Each entry shows GUM₁ for the shared concept it points to: the number of distinct trusted authors — influence above the verified cutoff (${cut}), from your point of view — who file items under the concept with a z-tag; the concept's own author and your Assistant never count. Each entry also shows GUM₂, its recognition: the trusted members whose own concept headers, or their Assistants’ (an Assistant belongs to whoever tagged it as their Assistant, or to its account on this instance), carry a b-tag pointing at the shared concept, each counted once by their influence; the concept's author and you never count. GUM₂ is read from this instance's relay, and nothing adds or removes entries by it yet. Nothing is stored: the list and its scores are read afresh on every visit.`,
         'Coming in a later version: Your Assistant monitors members of your community who have published the identities of their Brainstorm Assistants (using the Tag system), and looks for kind-39998 events those Assistants have published that carry a b-tag pointing at a shared concept header. It then computes a General Usage Metric for each shared concept, in one of three ways. GUM₁ (the default): the number of distinct trusted authors — influence above the verified cutoff, from your point of view — who file items under the concept with a z-tag; the concept\'s own author and your Assistant never count. GUM₂: for each user whose Assistant has wired to that shared concept header with a b-tag, add up their rank score, pulled from Trusted Assertions. GUM₃: for each pinning on “Add to My Dictionary”, add up the pinner\'s rank score — an apply adds it, a dispute subtracts it. If the selected metric is above the cutoff (default 2 for GUM₁, 1.50 for GUM₂ and GUM₃), your Assistant clones the shared concept: it publishes its own header with a b-tag pointing at the shared one. The choice of metric and the cutoff can be changed on the Automated Assistant Tasks page. Your own pins always override the result.',
       ],
     },
@@ -343,11 +353,19 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
               {Object.entries(SORTS).map(([key, s]) => <option key={key} value={key}>{s.label(metric)}</option>)}
             </select>
           </label>
-          {isGumSort(sort) && (
+          {isGumSort(sort) && !isGum2Sort(sort) && (
             <p className="dict-gum-note">
-              <strong>General Usage Metric ({metricShort(metric)}):</strong> how many distinct people you trust
+              <strong>General Usage Metric, filing ({metricShort(metric)}):</strong> how many distinct people you trust
               (influence above the verified cutoff, from your point of view) file items under the shared concept
               each entry points to.
+            </p>
+          )}
+          {isGum2Sort(sort) && (
+            <p className="dict-gum-note">
+              <strong>General Usage Metric, recognition (GUM₂):</strong> the people you trust (influence above the
+              verified cutoff, from your point of view) whose own concept headers, or their Assistants’, recognize
+              the shared concept each entry points to, each counted by their influence, so it’s a decimal. The
+              concept’s author and you don’t count.
             </p>
           )}
         </div>
@@ -414,7 +432,12 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
                     {e.description && <span className="dict-row-desc">{e.description}</span>}
                   </span>
                   <span className="dict-row-stats">
-                    {isGumSort(sort) && <span className="dict-row-gum" title={metricLabel(metric)}>{e.gum}</span>}
+                    {isGumSort(sort) && !isGum2Sort(sort) && <span className="dict-row-gum" title={metricLabel(metric)}>{e.gum}</span>}
+                    {isGum2Sort(sort) && (
+                      <span className="dict-row-gum" title={`GUM₂ · recognized by ${e.recognizedBy ?? 0}`}>
+                        {typeof e.gum2 === 'number' ? e.gum2.toFixed(2) : '—'}
+                      </span>
+                    )}
                     <span className="dict-row-count">{itemCountText(e.itemCount)}</span>
                     {badge && <span className={badge.className}>{badge.label}</span>}
                   </span>

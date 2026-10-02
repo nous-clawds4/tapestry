@@ -8,6 +8,8 @@
  * computeConceptDictionary({rows, zCarriers, qualifying, taPubkey})
  *   → { entries, metric }                   — Dictionary › Concepts (its own
  *                                              doc comment, further down)
+ * recognitionByConcept({sharedCoords, pointers, ownersOf, exclude, influence})
+ *   → Map coord → { gum2, recognizedBy, recognizers } — GUM₂ (its own doc comment)
  * trustedItems({zCarriers, coords, qualifying, own, limit})
  *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items
  * usageByHeader(…)                          — the counting rule both share
@@ -44,7 +46,7 @@
 
 'use strict';
 
-// TODO(GUM₂ / GUM₃ — handoff SPEC § 4, version 2): add them here, still
+// GUM₂ is recognitionByConcept, below (2026-10-02). TODO(GUM₃ — handoff SPEC § 4): add it here, still
 // server-side, each with its inputs resolved at the handler seam (as the
 // qualifying set is) and its own cutoff (default 1.50) as the membership test:
 //   gum2 — the sum of rank scores (Trusted Assertions, active POV) of trusted
@@ -151,7 +153,7 @@ const sortName = (e) => (e.name || String(e.coord).split(':').slice(2).join(':')
  * z-filed under the row's OWN header. No threshold: the score describes an
  * entry, it does not admit one. Sorted by name.
  */
-function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey } = {}) {
+function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey, recognition } = {}) {
   const list = (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r.coord === 'string' && r.coord);
   const coords = new Set();
   for (const r of list) {
@@ -190,11 +192,61 @@ function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey } = {}
       totalAuthorCount: best && best.u ? best.u.aa.size : 0,
       totalEventCount: best && best.u ? best.u.ev.size : 0,
       override: null, // version 2: the owner's add-to-dictionary pinning
+      // GUM₂ of the same shared concept, when the seam resolved recognition (recognitionByConcept).
+      ...(recognition instanceof Map ? recognitionFields(best ? recognition.get(best.coord) : null) : {}),
     };
   });
   entries.sort((a, b) => sortName(a).localeCompare(sortName(b)) || a.coord.localeCompare(b.coord));
 
   return { entries, metric: METRIC };
+}
+
+const recognitionFields = (r) => ({ gum2: r ? r.gum2 : 0, recognizedBy: r ? r.recognizedBy : 0 });
+
+/**
+ * GUM₂ (handoff SPEC § 4, owner's rules of 2026-10-02): for each shared concept, the trusted members
+ * who recognize it — whose own concept header, or one of whose Assistants' headers, carries a `b`
+ * pointing at it — each counted once by their influence from the active point of view (0–1, so the
+ * sum is a decimal). `recognizedBy` is how many of them there are: the design's "Recognized by N
+ * members".
+ *
+ * Inputs arrive resolved at the handler seam, as GUM₁'s qualifying set does:
+ *   sharedCoords — the concepts to score;
+ *   pointers     — newest kind-39998 headers, as { coord, pubkey, b: [values] };
+ *   ownersOf     — Map signer → its owners (who tagged it as their Assistant, or own it on this
+ *                  instance's roster); a signer nobody owns stands for itself, so a person's own
+ *                  header counts as theirs;
+ *   exclude      — the reader (their account and Assistant): recognition is other people's;
+ *   influence    — Map pubkey → influence, holding only the trusted (above the verified cutoff).
+ * Also never counted: the concept's own header, and its author with that author's owners (the
+ * author recognizing their own concept is not community recognition). `recognizers` counts every
+ * distinct recognizer before the trust filter.
+ */
+function recognitionByConcept({ sharedCoords, pointers, ownersOf, exclude, influence } = {}) {
+  const owners = (pk) => {
+    const o = ownersOf instanceof Map ? ownersOf.get(pk) : null;
+    return Array.isArray(o) && o.length ? o : [pk];
+  };
+  const inf = influence instanceof Map ? influence : new Map();
+  const reader = new Set(Array.isArray(exclude) ? exclude : []);
+  const out = new Map();
+  for (const c of new Set((Array.isArray(sharedCoords) ? sharedCoords : []).filter((x) => typeof x === 'string' && x))) {
+    const author = coordAuthor(c);
+    const excluded = new Set([...reader, author, ...owners(author)]);
+    const recognizers = new Set();
+    for (const p of Array.isArray(pointers) ? pointers : []) {
+      if (!p || p.coord === c || !Array.isArray(p.b) || !p.b.includes(c)) continue;
+      for (const o of owners(p.pubkey)) if (!excluded.has(o)) recognizers.add(o);
+    }
+    let sum = 0;
+    let trusted = 0;
+    for (const o of recognizers) {
+      const v = inf.get(o);
+      if (typeof v === 'number' && Number.isFinite(v)) { sum += v; trusted += 1; }
+    }
+    out.set(c, { gum2: Math.round(sum * 100) / 100, recognizedBy: trusted, recognizers: recognizers.size });
+  }
+  return out;
 }
 
 /** The item's display name: its names, else name, else title, else d-tag, else a short id. */
@@ -290,4 +342,4 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
   };
 }
 
-module.exports = { computeDictionary, computeConceptDictionary, usageByHeader, trustedItems };
+module.exports = { computeDictionary, computeConceptDictionary, usageByHeader, trustedItems, recognitionByConcept };

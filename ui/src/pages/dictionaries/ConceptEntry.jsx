@@ -465,6 +465,15 @@ export function ConceptEntryBody({
           ) : (
             <span>{entry ? 'Its b-tag points at an event id, not at a shared concept that items are filed under.' : 'Not in this Dictionary, so it is not scored.'}</span>
           )}
+          {/* GUM₂ (recognitionByConcept): the trusted members whose own or Assistants' headers recognize the shared
+              concept — the design's "Recognized by N members" — with its influence-weighted score beside it. */}
+          {entry && sharedCoord && typeof entry.recognizedBy === 'number' && (
+            <span className="dict-recognized">
+              Recognized by <strong>{entry.recognizedBy} {entry.recognizedBy === 1 ? 'member' : 'members'}</strong> of {whose} trusted,
+              extended community
+              <span className="dict-strip-faint"> (GUM₂ {typeof entry.gum2 === 'number' ? entry.gum2.toFixed(2) : '0.00'})</span>.
+            </span>
+          )}
           {/* GUM₁ counts distinct trusted authors filing under the shared concept; another metric needs its own words. */}
           {entry && sharedCoord && metric === 'gum1' && (
             <span>
