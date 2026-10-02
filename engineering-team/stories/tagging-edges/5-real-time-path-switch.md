@@ -326,14 +326,39 @@ The backend was restarted at 01:39:06Z on 2026-10-02 (`scripts/dev-refresh.sh`),
     three changes in the history. The console showed no errors.
 - **The path was left off,** as it was before.
 
-### After the merge to staging (not yet run)
+### Staging (2026-10-02, times UTC)
 
-The evidence ratified with this story (§ Open questions) that only staging can give. A Staging section holding it
-must exist here before staging is promoted to main:
-- the owner and an admin each turn the path off, through the prompt, and on, and the history shows both;
-- a direct request from someone who is neither owner nor admin is refused, and gets no "who";
-- the path catches up after;
-- production's path is not switched for evidence.
+PR #805 merged to staging at 04:00:58Z on 2026-10-02 (`967442e1`), 7 s after `scripts/check-safe-to-merge.sh` exited 0,
+once the PR's Test run was green. Deploy run `36962683151` succeeded in 93 s. The smoke test (`docs/SMOKE_TEST.md`)
+was clean apart from `get-user-data`'s 504 on the heavy test pubkey (OPEN.md row 61).
+
+- **Read-only checks.**
+  - The served `index-BRzB0cj_.js` carries the switch, its prompt and the pending-schedule line.
+  - Signed out, `GET /api/tagging-edges/realtime/switch` answered 401.
+  - The public status's members are story 3's plus `inStartWindow`. It carries no role, key or "owner"/"admin".
+  - As an admin, the record answered `recorded`. Its latest change was the owner's switch-on of 2026-09-30
+    (`e5272de9`), the version 1 record read as the owner's. A foreign `Origin` got 403.
+  - Rendered headless as an admin, the panel showed "Turn off" and that latest change. Its tagging-pipeline requests
+    were five GETs, with no POST.
+- **The admin half** (Virgil, as an admin, through the panel's own control and prompt, at about 04:05Z):
+  - **The prompt** named staging's daily entry and its next run. Confirming sent one `POST {"on":false}`, answered
+    `recorded: true`.
+  - **Off.** The status read off within 2 s. The panel read "The path is off" and "Turned off by an admin
+    (f0178122…)".
+  - **On,** at 04:05:57Z: one `POST {"on":true}`. The panel read "…is starting, which can take up to about 30 seconds",
+    and the status `inStartWindow: true`, with no process yet.
+  - **The restart.** The process was up 1.4 s later. Its catch-up was `done` in 692 ms, reflecting nothing.
+  - **History,** newest first: admin on, admin off, owner on. The path was off for about 15 s. The console showed no
+    errors.
+- **The owner's half** (the owner, signed in as themselves on another machine, about 23:14Z on 2026-10-02).
+  - **What the owner reported.** They followed the same steps through the prompt, off and then on, and saw what was
+    expected.
+  - **The record, read afterwards as an admin,** holds the owner's off at 23:13:43Z and on at 23:14:11Z (`e5272de9`),
+    above the admin's two changes and the owner's switch-on of 2026-09-30: five changes in all.
+  - **The restart.** The process was up 1.3 s after the on. Its catch-up was `done` in 2,632 ms, reflecting nothing,
+    with no failed reads. `state` is `live`.
+- **A user who is neither,** reported by the owner: signed in on staging as a regular account, Settings refused them.
+- **Production's path** was not switched for evidence.
 
 ## Deviations
 
