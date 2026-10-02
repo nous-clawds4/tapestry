@@ -141,3 +141,56 @@ fails at least one test:
 A first run of the server mutants showed H2 and U1 failing in *every* mutant. The cause was my scratch tree,
 which had no `node_modules` (the real sign-in check needs it) and no `ui/`. The table above is from the
 corrected tree, where the unmutated control passes.
+
+## Review round 1 (ADR 0003 Amendment 1)
+
+The review (`engineering-team/reviews/list-headers-disposition/3-disposition-on-my-assistant-rows.md`) asked for
+three fixes and recommended a fourth. These tests pin them:
+
+| Ask | Tests | Level |
+|---|---|---|
+| A request from another site is refused first, before the sign-in check; same-host and no-`Origin` requests go on (Amendment 1 §2) | **H13**, **S5** | unit |
+| The relay's latest header must verify before anything is signed, saved, or answered "already" (§1). Covered cases: a forged signature; another author; kind 9998; a first `d` that differs from the URL; already self-declared or private but forged. All answer 409 with nothing signed, and a sound header is verified exactly once | **H14** | unit |
+| The handle is used as Express decoded it: `a%41` stays `a%41`, and a lone `%` is a 404, not a 500 (§3) | **H15**, **S5** | unit |
+| On a 70-row list, **Disposition…** on the last row opens a panel inside the viewport, below the fixed 48 px bar, and **Next undecided →** keeps it there (§4) | **M11** | browser |
+
+**Re-aimed helpers.** These are test changes, so they belong to this phase:
+- `request()` now passes the *decoded* handle as `req.params.handle`, which is what Express hands over. It used to
+  pass the raw path segment. It also takes `origin` and `host`.
+- `deps()` now injects `verify`, "valid" unless a test says otherwise. The default verifier loads nostr-tools from
+  the container path, which the host doesn't have.
+- The browser fixtures take an `extraOwnRows` count.
+
+All 29 earlier Node tests and all 10 earlier browser tests still pass after the re-aim.
+
+### Verification, round 1
+
+**The new tests fail with the current code.** Confirmed 2026-10-01 at `f05bcfd8`, plus these tests.
+
+- **Node:** 29 passed, 4 failed:
+  - H13: `a foreign Origin (self-declare) must answer 403 …, got 200 … "declared"`;
+  - H14: `a forged signature (self-declare) must answer 409 …, got 200 … "declared"`;
+  - H15: `a d-tag of "a%41" is looked up as "a%41", not "aA" — got ["aA"]`;
+  - S5: `the module defines sameHost(req)…`.
+- **Playwright,** on a build of `f05bcfd8`: 10 passed, 1 failed. M11 fails with
+  `the panel for "ta bulk 070" is inside the viewport after the click`.
+
+**The tests can pass, and they catch the defects they're meant to catch.** Amendment 1 was applied to the
+throwaway build outside the repo. It isn't committed.
+
+- **Node:** 31 of 31 pass (L1 and L2 were skipped, because the oracle isn't in the container).
+- **Playwright:** 145 of 145 for all three List Headers specs with `--repeat-each=5`.
+
+| Mutant | Fails |
+|---|---|
+| r1: the same-host check after the sign-in check | H13, S5 |
+| r2: "already" answered before verification | H14 |
+| r3: no first-`d` check | H14 |
+| r4: no author check on the looked-up header | H14 |
+| r5: the second decode put back | H15, S5 |
+| r6: the verifier without the JSON round-trip | S5 |
+| today's UI (no scroll into view) | M11 |
+
+The first S5 draft compared against the *first* `requireAuth(` in the file, which is the default dependency, not
+the handler's call. So it failed on a correct oracle. It now looks inside the handler factory's body. That was a
+test fault, caught on the oracle before the gate.

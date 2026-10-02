@@ -27,6 +27,8 @@ const { test, expect } = require('@playwright/test');
  *   M9 — AC 5: "kept here" when external publishing is off (no socket at all); "didn't reach" when the relay
  *        rejects it — and the row still shows the new state, because it's saved here.
  *   M10 — AC 6: Next undecided → walks the viewer's own Assistant's undecided rows; at the end only Done.
+ *   M11 — AC 1 on a real-sized list (review round 1, ADR 0003 Amendment 1 §4): Disposition… on the last of 70 rows
+ *        opens a panel the person can see — inside the viewport, below the fixed top bar — and Next keeps it there.
  */
 
 const OWNER = '1'.repeat(64);
@@ -46,7 +48,7 @@ const NOW = 1790000000;
 const dOf = (name) => `d-${name.replace(/\s+/g, '-')}`;
 const addr = (pubkey, name) => `39998:${pubkey}:${dOf(name)}`;
 
-function fixtures() {
+function fixtures(extraOwnRows = 0) {
   let seq = 0;
   const h = (name, { kind = 39998, pubkey = OWNER_TA, b = [] } = {}) => {
     seq++;
@@ -65,6 +67,8 @@ function fixtures() {
     h('owner own list', { pubkey: OWNER }),
     h('viewer ta undecided', { pubkey: VIEWER_TA }),
     h('stranger list', { pubkey: STRANGER }),
+    // M11: a real-sized list of the viewer's own Assistant's undecided rows (the Owner has 183 on the Mac Studio).
+    ...Array.from({ length: extraOwnRows }, (_, i) => h(`ta bulk ${String(i + 1).padStart(3, '0')}`)),
   ];
 }
 const nameOf = (ev) => ev.tags.find((t) => t[0] === 'names')[1];
@@ -73,8 +77,8 @@ const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'applic
 /**
  * relay: 'accept' | 'reject' | 'drop'; policy: 'open' | 'local-only'; refuse: { status, error } for both actions.
  */
-async function mockStack(page, { session = null, relay = 'accept', policy = 'open', refuse = null } = {}) {
-  const headers = fixtures();
+async function mockStack(page, { session = null, relay = 'accept', policy = 'open', refuse = null, extraOwnRows = 0 } = {}) {
+  const headers = fixtures(extraOwnRows);
   const state = { headers, posts: [], scans: 0, sockets: [], events: [] };
   let configAnswered;
   const config = new Promise((resolve) => { configAnswered = resolve; });
@@ -316,5 +320,22 @@ test.describe('List Headers — Disposition on My Assistant rows (list-headers-d
     await page.getByRole('button', { name: /Keep private/ }).click();
     await expect(page.getByRole('button', { name: 'Done' }), 'story AC 6: Done is offered').toBeVisible();
     await expect(page.getByRole('button', { name: /Next undecided/ }), 'story AC 6: no undecided row left — no Next').toHaveCount(0);
+  });
+  test('M11 (AC 1, Amendment 1 §4): on a long list, Disposition… on the last row opens a panel inside the viewport, and Next keeps it there', async ({ page }) => {
+    await open(page, { session: OWNER_SESSION, extraOwnRows: 70 });
+    const last = 'ta bulk 070';
+    const button = await dispositionButton(page, last);
+    await button.scrollIntoViewIfNeeded();
+    await button.click();
+    const inView = async (name) => {
+      const box = await page.getByText(new RegExp(`^Disposition: ${name}$`)).boundingBox();
+      const vp = page.viewportSize();
+      // Below the 48 px fixed top bar (.app-header) and above the bottom edge.
+      return !!box && box.y >= 48 && box.y + box.height <= vp.height;
+    };
+    await expect.poll(() => inView(last), { message: `Amendment 1 §4: the panel for "${last}" is inside the viewport after the click` }).toBe(true);
+    await page.getByRole('button', { name: /Keep private/ }).click();
+    await page.getByRole('button', { name: /Next undecided/ }).click();
+    await expect.poll(() => inView('ta undecided a'), { message: 'Amendment 1 §4: after Next, the panel for the next undecided row is inside the viewport' }).toBe(true);
   });
 });

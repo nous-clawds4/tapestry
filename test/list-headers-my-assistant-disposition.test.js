@@ -12,6 +12,9 @@
  *             process with stand-in parts, produce the same tags as the shared module for the same headers.
  *   H1..H12 — the handler, src/api/list-headers/myAssistantDisposition.js, through injected deps: every refusal,
  *             who signs (the SESSION's own Assistant, never another's), what is saved, what never leaks.
+ *   H13..H15, S5 — review round 1 (ADR 0003 Amendment 1): another site is refused first; the relay's latest header
+ *             is verified (author, kind, first d, signature) before anything is signed or answered "already"; the
+ *             handle is decoded once; the module carries the same-host check and no second decode.
  *   S1..S4  — structure the ADR pins: no owner/admin/loopback/TA-only identifiers; the shell-free scan; the two
  *             routes; their registration.
  *   U1      — authorRole in ui/src/utils/viewerAuthorScope.js (ADR 0001's predicate, added by ADR 0003).
@@ -98,9 +101,14 @@ function header(pubkey, d, bTags = [], { created_at = NOW - 3600, extra = [] } =
 }
 const addr = (pubkey, d) => `39998:${pubkey}:${d}`;
 
-/** A request as Express hands it to the handler. */
-function request(handle, { session = null, localTrusted = false } = {}) {
-  const req = { params: { handle: encodeURIComponent(handle) }, body: {}, headers: {} };
+/**
+ * A request as Express hands it to the handler. Express has already decoded req.params, so the handle arrives
+ * decoded (ADR 0003 Amendment 1 §3; re-aimed in review round 1 — it used to pass the raw, encoded path segment).
+ * `origin` is set only when given: a missing Origin is what curl and in-container calls send.
+ */
+function request(handle, { session = null, localTrusted = false, origin, host = 'localhost:7778' } = {}) {
+  const req = { params: { handle }, body: {}, headers: { host } };
+  if (origin !== undefined) req.headers.origin = origin;
   if (session) req.session = session;
   else req.session = {};
   if (localTrusted) req.localTrusted = true;
@@ -116,9 +124,12 @@ function response() {
 }
 
 /** Injected deps that record every call. `headers` is what scanLatest finds, keyed by `${author}:${d}`. */
-function deps({ headers = {}, publishThrows = false, realAuth = false } = {}) {
+function deps({ headers = {}, publishThrows = false, realAuth = false, verify = () => true } = {}) {
   const calls = [];
   const d = {
+    // The signature check is injected (ADR 0003 Amendment 1 §1); "valid" unless a test says otherwise, because the
+    // default verifier loads nostr-tools from the container path, which the host doesn't have.
+    verify: (ev) => { calls.push(['verify', ev]); return verify(ev); },
     getAssistantKeys: async (pk) => { calls.push(['getAssistantKeys', pk]); return KEYS[pk] || null; },
     scanLatest: async (filter) => {
       calls.push(['scanLatest', filter]);
@@ -447,6 +458,73 @@ test('H12: no answer on any path carries an Assistant\'s private key (ADR 0003)'
     ['self-declare', custHandle, asCustomer, {}],
   ];
   for (const [action, handle, opts, depOpts] of paths) noLeak((await run1(action, handle, opts, depOpts)).res, `H12 ${action} ${handle.slice(0, 12)}…`);
+});
+
+// ── review round 1 (ADR 0003 Amendment 1) ───────────────────────────────────
+
+test('H13: a request from another site is refused first — 403 before the sign-in check, nothing else happens; same-host and no-Origin requests go on (Amendment 1 §2)', async () => {
+  const h = { [`${CUST_TA}:recipes`]: custHeader() };
+  for (const action of ['self-declare', 'b-defer']) {
+    const { res, calls } = await run1(action, custHandle, { ...asCustomer, origin: 'https://evil.example' }, { headers: h });
+    assert(res.statusCode === 403 && res.body && res.body.success === false && /another site/i.test(res.body.error || ''),
+      `Amendment 1 §2: a foreign Origin (${action}) must answer 403 "…another site…", got ${res.statusCode} ${show(res.body)}`);
+    assert(calls.length === 0, `Amendment 1 §2: a foreign Origin (${action}) must be refused before requireAuth or anything else — got ${show(calls.map((c) => c[0]))}`);
+  }
+  for (const [label, origin] of [['same host', 'http://localhost:7778'], ['same host, other port', 'http://localhost:5173'], ['no Origin', undefined]]) {
+    const { res } = await run1('self-declare', custHandle, { ...asCustomer, origin }, { headers: { [`${CUST_TA}:recipes`]: custHeader() } });
+    assert(res.statusCode === 200 && res.body && res.body.result === 'declared', `Amendment 1 §2: ${label} goes on to the other checks, got ${res.statusCode} ${show(res.body)}`);
+  }
+});
+
+test('H14: the relay\'s latest header must verify — signature, author, kind and first d — before anything is signed, saved, or answered "already" (Amendment 1 §1)', async () => {
+  const sentence = /couldn['’]t be verified as your Assistant['’]s, so nothing was signed/;
+  const cases = [
+    ['a forged signature', custHeader(), () => false],
+    ['another author', { ...custHeader(), pubkey: OWNER_TA }, () => true],
+    ['kind 9998', { ...custHeader(), kind: 9998 }, () => true],
+    ['a first d tag that is not the URL\'s', { ...custHeader(), tags: [['d', 'other'], ['d', 'recipes'], ['names', 'thing', 'things']] }, () => true],
+    ['an already self-declared header with a forged signature', custHeader([['b', custHandle, 'pointer']]), () => false],
+    ['an already private header with a forged signature', custHeader([['b', SENTINEL]]), () => false],
+  ];
+  for (const [label, found, verify] of cases) {
+    for (const action of ['self-declare', 'b-defer']) {
+      const { res, calls } = await run1(action, custHandle, asCustomer, { headers: { [`${CUST_TA}:recipes`]: found }, verify });
+      assert(res.statusCode === 409 && res.body && res.body.success === false && sentence.test(res.body.error || ''),
+        `Amendment 1 §1: ${label} (${action}) must answer 409 "…couldn't be verified as your Assistant's, so nothing was signed", got ${res.statusCode} ${show(res.body)}`);
+      for (const n of ['sign', 'publishLocal', 'importToGraph']) assert(called(calls, n).length === 0, `Amendment 1 §1: ${label} (${action}) must not reach ${n}`);
+      noLeak(res, `H14 ${label}`);
+    }
+  }
+  // And a sound header is checked once, with the header itself.
+  const sound = custHeader();
+  const { res, calls } = await run1('self-declare', custHandle, asCustomer, { headers: { [`${CUST_TA}:recipes`]: sound } });
+  const v = called(calls, 'verify');
+  assert(res.body && res.body.result === 'declared' && v.length === 1 && v[0][1] === sound, `Amendment 1 §1: a sound header is verified once, then signed — got ${show(res.body)}, verify calls ${v.length}`);
+});
+
+test('H15: the handle is used exactly as Express decoded it — no second decode (Amendment 1 §3)', async () => {
+  const d1 = 'a%41';
+  const h1 = header(CUST_TA, d1);
+  let r = await run1('self-declare', addr(CUST_TA, d1), asCustomer, { headers: { [`${CUST_TA}:${d1}`]: h1 } });
+  const scan = called(r.calls, 'scanLatest')[0];
+  assert(scan && show(scan[1]['#d']) === show([d1]), `Amendment 1 §3: a d-tag of "a%41" is looked up as "a%41", not "aA" — got ${show(scan && scan[1]['#d'])}`);
+  assert(r.res.body && r.res.body.result === 'declared', `Amendment 1 §3: and that header is the one signed — got ${show(r.res.body)}`);
+  r = await run1('self-declare', addr(CUST_TA, '50%'), asCustomer, { headers: {} });
+  assert(r.res.statusCode === 404, `Amendment 1 §3: a lone % in the d-tag is just a character — 404 for a missing header, never a 500 — got ${r.res.statusCode} ${show(r.res.body)}`);
+});
+
+test('S5: the module carries the same-host check, calls it before requireAuth, and never decodes the handle again (Amendment 1)', () => {
+  let src = '';
+  try { src = code(fs.readFileSync(HANDLER, 'utf8')); } catch { throw new Error(`${rel(HANDLER)} must exist`); }
+  assert(/function\s+sameHost\s*\(\s*req\s*\)/.test(src), 'Amendment 1 §2: the module defines sameHost(req), copied from dlist-curation/update.js');
+  // Within the handler factory's body: the default deps above it also mention requireAuth.
+  const start = src.search(/function\s+createMyAssistantDispositionHandler\s*\(/);
+  const body = start >= 0 ? src.slice(start) : '';
+  const sh = body.search(/\bsameHost\s*\(\s*req\s*\)/);
+  const ra = body.search(/\brequireAuth\s*\(\s*req\b/);
+  assert(sh >= 0 && ra >= 0 && sh < ra, 'Amendment 1 §2: inside the handler, sameHost(req) is called before requireAuth(req, …)');
+  assert(!/\bdecodeURIComponent\b/.test(src), 'Amendment 1 §3: no decodeURIComponent anywhere in the module');
+  assert(/verifyEvent\s*\(\s*JSON\.parse\s*\(\s*JSON\.stringify\s*\(/.test(src), 'Amendment 1 §1: the default verifier checks a JSON round-trip with verifyEvent');
 });
 
 // ── S — structure ───────────────────────────────────────────────────────────
