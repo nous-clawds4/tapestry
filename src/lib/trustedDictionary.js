@@ -8,6 +8,8 @@
  * computeConceptDictionary({rows, zCarriers, qualifying, taPubkey})
  *   → { entries, metric }                   — Dictionary › Concepts (its own
  *                                              doc comment, further down)
+ * trustedItems({zCarriers, coords, qualifying, own})
+ *   → { items, filerCount, totalCount }     — one entry's Items table
  * usageByHeader(…)                          — the counting rule both share
  *
  * Headers arrive PRE-CLASSIFIED at the handler seam
@@ -195,4 +197,61 @@ function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey } = {}
   return { entries, metric: METRIC };
 }
 
-module.exports = { computeDictionary, computeConceptDictionary, usageByHeader };
+/** The item's display name: its names, else name, else d-tag, else a short id. */
+function itemName(ev) {
+  for (const n of ['names', 'name', 'd']) {
+    const t = (ev.tags || []).find((x) => x && x[0] === n && typeof x[1] === 'string' && x[1].trim() !== '');
+    if (t) return t[1];
+  }
+  return `${String(ev.id || '').slice(0, 8)}…`;
+}
+
+/**
+ * A Dictionary entry's Items: the events z-filed under the entry's concept
+ * (its own header and the shared concept it points to, `coords`) by people the
+ * active point of view trusts. `qualifying` is the trusted set resolved at the
+ * handler seam (resolveQualifying: influence above the verified cutoff), the
+ * same one GUM₁ counts. `own` is the reader (their account and assistant):
+ * their own filings always stay, since a point of view trusts itself.
+ *
+ * An addressable item (kind 30000–39999) is one item however many versions
+ * arrive: the newest wins. Items are in filing order, oldest first, so an
+ * item keeps its number as new ones arrive. `totalCount` is every distinct
+ * item before the trust filter, so the page can say how many it set aside.
+ */
+function trustedItems({ zCarriers, coords, qualifying, own } = {}) {
+  const cs = new Set((Array.isArray(coords) ? coords : []).filter((c) => typeof c === 'string' && c));
+  const q = qualifying instanceof Set ? qualifying : new Set(Array.isArray(qualifying) ? qualifying : []);
+  const mine = new Set(Array.isArray(own) ? own : []);
+
+  const all = new Map(); // item key → newest event
+  for (const ev of Array.isArray(zCarriers) ? zCarriers : []) {
+    if (!ev || typeof ev.pubkey !== 'string' || typeof ev.id !== 'string') continue;
+    if (!(ev.tags || []).some((t) => t && t[0] === 'z' && cs.has(t[1]))) continue;
+    const d = (ev.tags || []).find((t) => t && t[0] === 'd')?.[1];
+    const addressable = ev.kind >= 30000 && ev.kind < 40000 && typeof d === 'string';
+    const key = addressable ? `${ev.kind}:${ev.pubkey}:${d}` : ev.id;
+    const prev = all.get(key);
+    if (!prev || (ev.created_at || 0) > (prev.created_at || 0)) all.set(key, ev);
+  }
+
+  const items = [];
+  const filers = new Set();
+  for (const [key, ev] of all) {
+    if (!q.has(ev.pubkey) && !mine.has(ev.pubkey)) continue;
+    filers.add(ev.pubkey);
+    items.push({
+      id: ev.id,
+      address: key === ev.id ? null : key,
+      kind: ev.kind,
+      author: ev.pubkey,
+      name: itemName(ev),
+      createdAt: ev.created_at || 0,
+    });
+  }
+  items.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+
+  return { items, filerCount: filers.size, totalCount: all.size };
+}
+
+module.exports = { computeDictionary, computeConceptDictionary, usageByHeader, trustedItems };

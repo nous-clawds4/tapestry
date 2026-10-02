@@ -138,3 +138,55 @@ export function useConceptDictionary(person, povParams, { enabled = true } = {})
 
   return { data, error, reload: () => setVersion((v) => v + 1) };
 }
+
+/** One line on whose point of view filtered an entry's Items. */
+export function itemsPovLine(pov) {
+  if (!pov) return '';
+  if (pov.branch === 'personalized') return 'Trusted from your point of view.';
+  if (pov.fellBackToHouse) {
+    return 'Your personalized scores are not computed on this instance, so trust is judged from the house point of view.';
+  }
+  return 'Trusted from the house point of view.';
+}
+
+/**
+ * GET /api/dictionaries/concepts/items: an entry's Items, filed under its own header (`coord`) and
+ * the shared concept it points to (`shared`), by people trusted from the active point of view, plus
+ * the person's own filings. Returns { data: { items, filerCount, totalCount, pov } | null, error }.
+ */
+export function useConceptItems({ coord, shared, person, povParams }) {
+  const [state, setState] = useState({ data: null, error: null });
+  const authors = person?.loading ? '' : (person?.authors || []).join(',');
+  const settled = Boolean(person) && !person.loading;
+  const wotPov = povParams?.wotPov;
+  const userPubkey = povParams?.userPubkey;
+
+  useEffect(() => {
+    if (!settled || !coord) return undefined;
+    let cancelled = false;
+    setState({ data: null, error: null });
+    (async () => {
+      try {
+        if (!authors) throw new Error('This instance did not say whose Dictionary to show.');
+        const params = new URLSearchParams({ coord, authors });
+        if (shared && shared !== coord) params.set('shared', shared);
+        if (wotPov) params.set('wotPov', wotPov);
+        if (userPubkey) params.set('userPubkey', userPubkey);
+        const resp = await fetch(`/api/dictionaries/concepts/items?${params}`);
+        const json = await resp.json();
+        if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
+        if (!cancelled) {
+          setState({
+            data: { items: json.items || [], filerCount: json.filerCount || 0, totalCount: json.totalCount || 0, pov: json.pov || {} },
+            error: null,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) setState({ data: null, error: err.message });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coord, shared, authors, settled, wotPov, userPubkey]);
+
+  return state;
+}
