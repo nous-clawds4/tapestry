@@ -266,7 +266,12 @@ regression outside them:
 - **When.** No test file matched C9's pattern at `c557177f` or `8a082b75`. From `b6726818` to `ee170bf0`, that one
   line did.
 - **Fixed in review round 1.** `gate-result-record` passes 34 / 0 again through `run()`, on Node 22.23.3 and on host
-  Node 16.17.0. The full-gate numbers for this round are added after the next gate.
+  Node 16.17.0.
+- **The full gate after the round.** Run `20261002T030856Z-37748-d97b` on `078aa6c3` was compared suite by suite with
+  run `20261002T023413Z-26270-9616` on `c557177f`, from before the story.
+  - `gate-result-record` passes 34 in both.
+  - The only suites that differ are the story's own, all green and larger, plus the new switch-record suite.
+  - The same 12 standing live-stack suites fail in both, with identical counts (story 5 § Evidence, "The gate").
 
 **How the tests were checked.**
 - Two independent critics re-ran every unit suite and reviewed the diff: one for coverage, one for right reason and

@@ -258,27 +258,51 @@ intact" do not hold (ADR 0005 § Consequences):
 
 ### The gate (Implementation, 2026-10-01)
 
-Node 22.23.3, full `npm test`, read from the run records (`gate:status`), and compared suite by suite. The run ids
-are UTC, so they read 2026-10-02.
+Node 22.23.3, full `npm test`, read from the run records (`gate:status`). The run ids are UTC, so they read
+2026-10-02.
+
+*(Rewritten at review round 1: the first comparison used a baseline at the failing-tests commit `b6726818`. That
+baseline already held SR34's C9 offender, so `gate-result-record` was red in both runs and was miscounted as a
+standing failure. The comparison below uses a baseline from before the story.)*
 
 | Run | Tree | Passed | Failed | Skipped | Suites |
 |---|---|---|---|---|---|
-| Baseline `20261002T011428Z-15776-09c0` | the failing tests, `b6726818` (a worktree) | 4,850 | 135 | 168 | 255 |
-| After `20261002T014217Z-58918-138e` | the implementation, `5d14cc16` | 4,954 | 31 | 168 | 255 |
+| Before the story `20261002T023413Z-26270-9616` | `c557177f`, the story's commit (a worktree) | 4,860 | 30 | 168 | 254 |
+| After review round 1 `20261002T030856Z-37748-d97b` | `078aa6c3` | 4,956 | 30 | 168 | 255 |
 
-- **All seven story suites pass,** each red in the baseline: realtime-routes 64, switch-record 47, wiring 74,
-  view 81, codes 54, fetch 24, panel-source 28.
-- **`my-assistants-page` also passes now** (52, against 51 and 1 failure). Its baseline failure came from the backend
-  process that predated #795; the local backend was restarted at 01:39:06Z before the after run.
-- **No other suite changed.** The 13 that fail in both runs are this host's standing live-stack set, with identical
-  pass, fail and skip counts in both.
-- **The browser spec** passes 85 of 85, against the panel built inside the container into the gitignored `tmp/`,
+- **The story's suites.** Each is green in both runs, larger after:
+  - realtime-routes, 52 → 64;
+  - wiring, 72 → 74;
+  - wrapper, 22 → 24;
+  - view, 63 → 82;
+  - codes, 48 → 54;
+  - fetch, 19 → 24;
+  - panel-source, 25 → 28.
+
+  The new switch-record suite passes 47.
+- **`gate-result-record` passes 34 in both.** SR34's C9 offender, present from `b6726818` to `ee170bf0`, is fixed in
+  review round 1. While it was there, the suite failed 33 / 1, as in the earlier runs `20261002T014217Z-58918-138e` on
+  `5d14cc16` and `20261002T015414Z-31270-e1b3` on `ad473772`.
+- **No other suite changed.** The same 12 fail in both runs, with identical pass, fail and skip counts. They are this
+  host's standing live-stack set, the same 12 as story 3's review records (for example
+  `20260930T004706Z-57038-50d9`):
+  - capture-a-goal-and-see-it, 24 / 3;
+  - structures-the-brain-can-trust, 22 / 2;
+  - break-a-goal-into-pieces, 25 / 5;
+  - attach-the-world, 23 / 6;
+  - sessions-read-the-brain, 29 / 1;
+  - teach-it-what-matters, 26 / 1;
+  - the-brain-survives, 30 / 1;
+  - return-the-four-on-every-read-surface, 49 / 5;
+  - show-the-four-on-the-goal-screens-that-already-exist, 33 / 2, with 2 skipped;
+  - not-yet-shared-filter, 16 / 1;
+  - concept-count-canonical, 17 / 2;
+  - summaries-element-count, 12 / 1.
+- **The browser spec** passes 86 of 86, against the panel built inside the container into the gitignored `tmp/`,
   served on the host, with Node 22 and Chromium.
 - **A baseline worktree's record reads `dirty`** (`dirtyCount: 1`). Its one untracked entry is its `node_modules`
   symlink into the main checkout, which `.gitignore`'s `node_modules/` does not match, since git sees a symlink as a
   file. Its `ui/node_modules` symlink is ignored by `ui/.gitignore`. No tracked file changed.
-  - The `b6726818` worktree has since been removed. Its log names module paths only under the main checkout's
-    `node_modules`, and the `c557177f` worktree, made the same way, shows exactly that one entry.
 
 ### The local stack (2026-10-01)
 
