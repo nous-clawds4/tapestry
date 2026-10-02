@@ -59,7 +59,10 @@ export default function ListHeaderDispositionPanel({ row, signer = 'my-assistant
       setMessage(text); setActed(true); setBusy(false);
       onActed?.(event);
     } catch (err) {
-      setMessage(err.message); setBusy(false);
+      // Never left busy, whatever was thrown. The fallback claims nothing about what was saved: run also serves the
+      // Assistant actions (ADR list-headers-disposition/0005, Amendment 1 §4).
+      setBusy(false);
+      setMessage(err && err.message ? err.message : "That didn't work — try again.");
     }
   };
 

@@ -213,9 +213,14 @@ export default function DListsIndex() {
   };
   // Next walks one signer's rows at a time (owner decision, story 5): a Me walk asks the browser signer at
   // each step and an Assistant walk never does, so they don't interleave.
-  const nextUndecided = (afterId, signer) => filteredRows.find(r =>
-    rowSigner(r) === signer && r.disposition === MARKS.undecided.state && r.routeId !== afterId) || null;
+  const nextUndecided = (afterId, signer) => (signer ? filteredRows.find(r =>
+    rowSigner(r) === signer && r.disposition === MARKS.undecided.state && r.routeId !== afterId) : null) || null;
   const panelRow = panelId ? rows.find(r => r.routeId === panelId) || null : null;
+  // The panel exists only while its row is the viewer's. Signing out, or in as someone else, in the page closes it,
+  // and it doesn't come back by itself at the next sign-in (ADR list-headers-disposition/0005, Amendment 1 §1).
+  useEffect(() => {
+    if (panelRow && !rowSigner(panelRow)) setPanelId(null);
+  }, [panelRow, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = [
     { key: 'singular', label: 'Name (singular)' },
@@ -356,7 +361,7 @@ export default function DListsIndex() {
           : `${filteredRows.length} of ${rows.length} lists`}
       </p>
 
-      {panelRow && (
+      {panelRow && rowSigner(panelRow) && (
         <ListHeaderDispositionHost
           row={panelRow}
           signer={rowSigner(panelRow)}

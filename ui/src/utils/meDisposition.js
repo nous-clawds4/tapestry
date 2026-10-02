@@ -30,8 +30,10 @@ async function signAsMe(template) {
   try {
     await getActiveSignerOrThrow();
   } catch (err) {
+    if (err instanceof SignerMismatchError) throw err; // keeps its own sentence
     if (err && err.message === 'No NIP-07 extension detected.') throw new Error(NO_SIGNER);
-    throw err; // SignerMismatchError keeps its own sentence
+    // A decline at the account step, or any odd rejection, is a cancel like one at signEvent (ADR 0005 Amendment 1 §4).
+    throw new Error(DECLINED);
   }
   let signed;
   try {

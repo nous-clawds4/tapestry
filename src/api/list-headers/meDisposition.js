@@ -34,6 +34,11 @@ const MAX_AHEAD_SECONDS = 600;
 const NOT_THE_ACCOUNT = "That version wasn't signed by the account you're signed in with, so nothing was saved";
 const NOT_THE_CHANGE = "The signed version isn't exactly this action's change to the current header, so nothing was saved";
 const DOES_NOT_VERIFY = "The signed version doesn't verify, so nothing was saved";
+// Amendment 1 §2: a Me row has no Assistant, and at commit the person has already signed — nothing was *saved*.
+const UNVERIFIED_HEADER = "The stored header couldn't be verified as yours, so nothing was saved";
+// Amendment 1 §3: the relay accepts publishes up to 900 s ahead and strfry import checks no timestamp, so a person's
+// own header can be dated past what a commit accepts. Refused before anyone is asked to sign.
+const TOO_FAR_AHEAD = "The stored header is dated more than 10 minutes ahead, so a newer version can't be saved yet — nothing was saved";
 
 function routeFor(action, phase) {
   return `/api/list-headers/me/:handle/${action}/${phase}`;
@@ -79,15 +84,18 @@ function createMeDispositionHandler(action, phase, deps = {}) {
               : null;
       if (failed) {
         console.error(`list-headers/me/${action}/${phase}: stored header failed the ${failed} check; nothing prepared or saved`);
-        return res.status(409).json({ success: false, error: "The stored header couldn't be verified as your Assistant's, so nothing was signed" });
+        return res.status(409).json({ success: false, error: UNVERIFIED_HEADER });
       }
 
       const composed = spec.compose(header, selfCoord, prep);
+      // A new version must be newer than the header, and a commit takes nothing more than MAX_AHEAD_SECONDS ahead.
+      const tooFarAhead = () => nextCreatedAt(header.created_at, d.now()) > d.now() + MAX_AHEAD_SECONDS;
 
       if (phase === 'prepare') {
         // Domain refusal: HTTP 200 { success: false }, the house contract (bDisposition.js handleBDefer).
         if (composed.refused) return res.json({ success: false, error: composed.refused });
         if (composed.already) return res.json({ success: true, result: spec.already, event: header });
+        if (tooFarAhead()) return res.status(409).json({ success: false, error: TOO_FAR_AHEAD });
         return res.json({
           success: true,
           result: 'sign',
@@ -109,6 +117,7 @@ function createMeDispositionHandler(action, phase, deps = {}) {
       // "already" or a refusal now means the header changed since prepare: what the person signed is no longer
       // this action's change, so it is not used.
       if (composed.refused || composed.already) return res.status(409).json({ success: false, error: NOT_THE_CHANGE });
+      if (tooFarAhead()) return res.status(409).json({ success: false, error: TOO_FAR_AHEAD });
       const exact = ev.kind === HEADER_KIND
         && ev.content === (header.content || '')
         && JSON.stringify(ev.tags) === JSON.stringify(composed.tags)
