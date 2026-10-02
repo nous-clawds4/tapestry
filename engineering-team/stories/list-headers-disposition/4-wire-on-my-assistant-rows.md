@@ -1,6 +1,6 @@
 # Story 4: Wire to an external shared concept on My Assistant rows
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-01
 **Type:** Feature
 **Epic:** `list-headers-disposition`

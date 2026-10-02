@@ -146,3 +146,97 @@ makes the panel report a save the relay silently refused, and leaves the graph d
 
 ## On PASS (same commit)
 - [ ] Not applicable: the verdict is CHANGES_REQUESTED, and the story stays **Approved**.
+
+## Re-review, round 2 (2026-10-01)
+
+**Diff:** `git diff a031442d..2633e4d5` (base = round 1's review commit). The commits:
+- `994e0666`: ADR 0004 Amendment 1;
+- `484c8028`: the Tester's pass. It adds HW7–HW12 and W5, adds browser W8 and W9, re-aims HW2 and browser W5, and
+  adds `isStored` to `deps()`;
+- `2633e4d5`: the implementation, touching `myAssistantDisposition.js`, `headerDispositionCompose.js` and
+  `ListHeaderDispositionPanel.jsx` only. It touches nothing under `test/` or `tests/`.
+
+**The owner's decisions at round 1's gate:**
+- "Go ahead with the fix round for story 4";
+- both ride-alongs: "Read back from the relay (Recommended), Compare addresses by parts (Recommended)";
+- target kinds: "List headers only (39998/9998)". Amendment 1 §2 records why that means the literal kind 39998 for
+  an address.
+
+**In short:** the blocking item and both ride-alongs are fixed, and I checked each as a fresh claim. The full
+isolated gate passes on the commit. The independent pass re-attacked the bounds and the read-back, against the real
+relay too, and found nothing blocking.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`, reproduced as CI, with no network during the run,** on a clean `--no-local` clone at
+      `2633e4d5`:
+
+  > `20261002T015743Z-20-5116 [review-lhd-4-r2] started 2026-10-02T01:57:43.205Z on 2633e4d5 — PASS, exit 0, 4537 passed, 0 failed, 593 skipped, 257/257 suites · /w/repo/tmp/gate-runs/20261002T015743Z-20-5116.json`
+
+  - **The record:** `node: v22.23.3`, `git: { commit: 2633e4d5…, branch: feat/list-headers-disposition, dirty: false }`.
+  - **This book's suite:** `list-headers-my-assistant-disposition` passes 49/0/2.
+  - **The guard suites** all pass: `gate-result-record` 33/0/1, `harness-lint` 76/0/0, `stack-free-npm-test` 6/0/1.
+  - The total matches the Implementer's own run (`20261002T015439Z-20-1def`).
+- [x] **Playwright,** all three List Headers specs on a fresh `git archive 2633e4d5` build: **190 passed with
+      `--repeat-each=5`** (38 tests ×5).
+- [x] **On the host** (independent pass): the suite passes 51/0/0, with both live refusals executed against the
+      deployed handler, which matches the branch.
+
+### Each round-1 ask, re-derived
+
+| Ask | Status | Evidence |
+|---|---|---|
+| **Blocking 1:** bound the target | **Fixed** | See below |
+| **Ride-along: read back before the graph** | **Fixed** | See below |
+| **Ride-along: own address by parts** | **Fixed** | `039998:<own>:<d>`, kind 9998, kind 39999 and an upper-case pubkey get the list-header-address 400; the own address gets the own-address 400, exact or padded. The caller's own pubkey with a *different* d is allowed: wiring to a sibling header is correct. |
+| **Non-blocking 4:** the guard sentence | **Fixed** | `composeWire` now returns the own-address sentence (W5). |
+
+- **Blocking 1.** `prepare` checks type, then control or format characters, then UTF-8 bytes, then the
+  list-header form (`myAssistantDisposition.js`).
+  - **Tests:** HW7–HW10 and browser W8; mutants r1–r4 and m1 each fail.
+  - **The independent pass:** 1024 bytes passes and 1025 fails. A 1024-byte value ending in a 3-byte `€` passes,
+    and the 1025-byte one fails. Trimming happens before counting. NEL, DEL, an internal BOM, zero-width
+    characters, an RTL override, LRI, a soft hyphen and U+E0041 are all refused, and U+2028 and U+2029 fall to the
+    address pattern. Non-strings, including objects with a `toString`, get 400 and never a 500.
+- **The read-back.** Every action now reads its new version back by id before the graph follows.
+  - **Tests:** HW12, for all three actions, and browser W9; mutants r5–r7 each fail.
+  - **Real path in Implementation:** one real Wire on the local b-coverage fixture. The read-back found it, and
+    only then did the graph follow. The independent pass confirmed that relay and graph hold the same id
+    `7a07b6db…` with the same three b-values.
+  - **The deployed `isStored` against the real relay** (the independent pass, read-only): an id that exists is
+    stored; an absent id gets 502 "didn't keep"; a malformed id gets 502 "couldn't confirm". The relay's
+    remaining silent-rejection limits (`maxEventSize`, `maxNumTags`, `rejectEventsNewerThanSeconds`) all now
+    surface as 502, not as a false save.
+
+### Findings
+
+#### Blocking
+None.
+
+#### Non-blocking (filed together as OPEN.md row `2026-10-01-list-headers-readback-hardening`)
+1. **The read-back matches by id only.** Submit's and Keep private's ids are predictable. If the unverified import
+   path (already in the private report) let someone plant an event with a predicted id, our import would be
+   skipped as a duplicate while `isStored` still said yes.
+   - It affects only the caller's own header, and needs that access plus exact timing.
+   - **Fix shape:** `isStored` should also verify the event it finds, rather than comparing `sig`: two identical
+     same-second requests can legitimately share an id with different signatures.
+2. **A lone surrogate** (`\ud800`) passes `prepare`. The relay would most likely reject the event, which the
+   read-back turns into a 502, so it's harmless. Adding `\p{Cs}`, or using `isWellFormed()`, would refuse it up
+   front with the right message.
+3. **A narrowed race remains.** If request A's read-back succeeds and a concurrent request B then replaces A in the
+   relay, the two graph writes can finish in either order. Only the caller's own header, under concurrent
+   requests.
+
+#### Harness friction
+- None new. The checklist items from story 3's and this story's round 1 (the same-host check, verify before
+  re-signing, bounding request values, the isolated gate at Test Design) all held.
+
+### Verdict
+**PASS**
+
+Story 4 meets its five acceptance criteria and ADR 0004 with Amendment 1:
+- Wire signs only with the caller's own Assistant;
+- it accepts only a bounded, well-formed list-header address that isn't the header's own;
+- every action now proves the relay kept its new version before the graph follows.
+
+The isolated gate is green on the commit, and the independent pass found no way around the rule.
