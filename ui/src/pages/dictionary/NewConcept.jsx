@@ -166,7 +166,7 @@ export default function DictionaryNewConceptPage() {
         // The version the preview showed has been replaced: read the shared header again, so the preview and
         // the next request are of the current one.
         shared.reload();
-        throw new Error('The shared concept’s header changed after this page read it. The page has read it again: check the preview, then create the concept.');
+        throw new Error('The shared concept’s header changed after this page read it, so the page is reading it again: check the preview, then create the concept.');
       }
       if (!resp.ok || !data.success) throw new Error(data.error || `HTTP ${resp.status}`);
       const signed = data.event;

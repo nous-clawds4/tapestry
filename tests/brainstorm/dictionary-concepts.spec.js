@@ -957,11 +957,9 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     let release;
     const gate = new Promise((ok) => { release = ok; });
     let reads = 0;
-    let relayDown = false;
     await page.route('**/api/relay/external**', async (r) => {
       reads += 1;
       if (reads === 1) await gate;
-      if (relayDown) return json(r, { success: false, events: [], error: 'Could not read wss://dcosl.brainstorm.world', unreachable: ['wss://dcosl.brainstorm.world'] });
       return json(r, { success: true, events: [SHARED_HEADER] });
     });
     await page.goto(`${PAGE}/new?wire=${encodeURIComponent(SHARED_COORD)}`);
