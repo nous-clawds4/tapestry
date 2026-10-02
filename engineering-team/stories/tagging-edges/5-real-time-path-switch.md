@@ -257,5 +257,5 @@ intact" do not hold (ADR 0005 § Consequences):
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tagging-edges/5-real-time-path-switch.test-plan.md`
 - Review: (filled in after Review phase)

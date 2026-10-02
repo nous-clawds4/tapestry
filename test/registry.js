@@ -273,6 +273,7 @@ const suites = [
   { file: 'tagging-edges-realtime-plan.test.js' },
   { file: 'tagging-edges-realtime-engine.test.js' },
   { file: 'tagging-edges-realtime-routes.test.js' },
+  { file: 'tagging-edges-switch-record.test.js' },
   { file: 'tagging-edges-realtime-wrapper.test.js' },
   { file: 'tagging-edges-realtime-lineage.test.js' },
   { file: 'tagging-edges-realtime-resilience.test.js' },

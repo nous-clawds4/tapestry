@@ -12,6 +12,13 @@
  *      an injected fake fetchImpl that answers minimal Response-like objects
  *      ({ ok, status, text() }); no request leaves the process.
  *
+ * TF20–TF24 — tagging-edges Story 5 (engineering-team/stories/tagging-edges/5-real-time-path-switch.md; ADR
+ *      engineering-team/decisions/tagging-edges/0005-real-time-path-switch.md D12 and § Seams "The fetch util"):
+ *      sendSwitch(on, { fetchImpl, timeoutMs = 15000 }), the panel's one POST. It sends exactly one request to
+ *      /api/tagging-edges/realtime/switch, shares readSection's race, resolves readSection's result shapes and never
+ *      rejects. readSection is untouched, so TF1 (every read sends GET) stands as it is. Each TF20+ test fails by
+ *      name through loadSwitch() until the module exports sendSwitch.
+ *
  * Stack-free; runs on Node 16 (the host gate, no global fetch) and Node 22.
  * RED until the module exists: each test fails by name through loadFetch().
  */
@@ -354,6 +361,160 @@ test('TF19: a response whose body never arrives (text() never settles) ends as {
   assert(out.body === null, `hanging body: a timeout result has no answer body: expected body null; got ${show(out.body)}`);
   assert(elapsed >= 20, `the timeout must wait for timeoutMs (30 ms); readSection settled after only ${elapsed} ms`);
   assert(f.calls.length === 1, `expected one fetchImpl call; got ${f.calls.length}`);
+});
+
+/* ───────────────────────── TF20–TF24 — sendSwitch (story 5) ───────────────────────── */
+
+const SWITCH_URL = '/api/tagging-edges/realtime/switch';
+
+/** Loads the module and checks it exports sendSwitch; the failure says what ADR 0005 expects. */
+async function loadSwitch(bust) {
+  const mod = await loadFetch(bust);
+  if (typeof mod.sendSwitch !== 'function') {
+    throw new Error(
+      `${MODULE_REL} does not export sendSwitch yet (ADR 0005 D12: sendSwitch(on, { fetchImpl, timeoutMs = 15000 }) ` +
+      `POSTs {"on":…} to ${SWITCH_URL} through readSection's race, resolves readSection's result shapes and never rejects)`
+    );
+  }
+  return mod;
+}
+
+async function send(mod, on, opts, ms = 2000) {
+  return guarded(mod.sendSwitch(on, opts), ms, `sendSwitch(${show(on)})`);
+}
+
+/** The switch's recorded answer (ADR 0005 D11). */
+const recordedAnswer = (on) => ({ success: true, on, changedAt: '2026-10-01T15:10:00.000Z', recorded: true, takesEffectWithinSeconds: 5 });
+
+test('TF20: sendSwitch(on) calls the given fetchImpl exactly once, with the switch path and { method: \'POST\', headers: { \'Content-Type\': \'application/json\' }, body: \'{"on":true}\' (or \'{"on":false}\'), signal } — an unaborted AbortSignal, and no other option but the default same-origin credentials [story 5 AC-1; ADR 0005 D12 "sendSwitch", § Seams "The fetch util"]', async () => {
+  const mod = await loadSwitch();
+  for (const on of [true, false]) {
+    const f = fakeFetch(response(200, JSON.stringify(recordedAnswer(on))));
+    await send(mod, on, { fetchImpl: f });
+    const label = `sendSwitch(${on})`;
+    assert(f.calls.length === 1, `${label}: expected fetchImpl to be called exactly once (a change is never retried); it was called ${f.calls.length} times`);
+    const [url, init] = f.calls[0];
+    assert(url === SWITCH_URL, `${label}: expected the url ${show(SWITCH_URL)}; got ${show(url)}`);
+    assert(init && typeof init === 'object', `${label}: expected a second argument { method, headers, body, signal }; got ${show(init)}`);
+    assert(init.method === 'POST', `${label}: expected method 'POST' (ADR 0005 D12); got ${show(init.method)}`);
+    assert(sameJson(init.headers, { 'Content-Type': 'application/json' }),
+      `${label}: expected headers { 'Content-Type': 'application/json' } (ADR 0005 D12); got ${show(init.headers)}`);
+    assert(init.body === JSON.stringify({ on }), `${label}: expected the body ${show(JSON.stringify({ on }))}; got ${show(init.body)}`);
+    const sig = init.signal;
+    assert(sig && typeof sig === 'object' && typeof sig.aborted === 'boolean' && typeof sig.addEventListener === 'function',
+      `${label}: expected init.signal to be an AbortSignal (readSection's race); got ${show(sig)}`);
+    assert(sig.aborted === false, `${label}: the signal handed to fetchImpl must not already be aborted`);
+    const extra = Object.keys(init).filter((k) => !['method', 'headers', 'body', 'signal', 'credentials'].includes(k));
+    assert(extra.length === 0, `${label}: the request carries no option beyond method, headers, body and signal (ADR 0005 D12); found ${show(extra)}`);
+    assert(init.credentials === undefined || init.credentials === 'same-origin',
+      `${label}: credentials stay the default same-origin (ADR 0005 D12); got ${show(init.credentials)}`);
+  }
+});
+
+test('TF21: sendSwitch resolves readSection\'s result shapes — a 2xx JSON object is { ok: true, body } with recorded passed through (true or false); a 401, 403 or 500 is { ok: false, code: \'http-<status>\', httpStatus, body } with the parsed body (its code, ENOSPC, included); a 502 HTML page has body null; a 2xx that is not a JSON object is bad-json — each after exactly one call [story 5 AC-4 "the panel shows the reason"; ADR 0005 D12 "It resolves readSection\'s result shapes"]', async () => {
+  const mod = await loadSwitch();
+  for (const body of [recordedAnswer(true), { success: true, on: false, recorded: false, takesEffectWithinSeconds: 5 }]) {
+    const f = fakeFetch(response(200, JSON.stringify(body)));
+    const out = await send(mod, body.on, { fetchImpl: f });
+    assert(out && out.ok === true && sameJson(out.body, body), `a 200 answering ${show(body)}: expected { ok: true, body }; got ${show(out)}`);
+    assert(f.calls.length === 1, `a 200: expected one fetchImpl call; got ${f.calls.length}`);
+  }
+  const failures = [
+    [401, { success: false, error: 'Not authenticated' }],
+    [403, { success: false, error: 'Owner or admin access required' }],
+    [403, { success: false, error: 'cross-site request refused' }],
+    [500, { success: false, error: 'could not write the switch', code: 'ENOSPC' }],
+  ];
+  for (const [status, body] of failures) {
+    const f = fakeFetch(response(status, JSON.stringify(body)));
+    const out = await send(mod, true, { fetchImpl: f });
+    const label = `a ${status} answering ${show(body)}`;
+    expectFailure(out, `http-${status}`, status, label);
+    assert(sameJson(out.body, body), `${label}: expected the parsed body ${show(body)}; got ${show(out.body)}`);
+    assert(f.calls.length === 1, `${label}: a change is never retried: fetchImpl called ${f.calls.length} times`);
+  }
+  const html = fakeFetch(response(502, '<html><body>Bad Gateway</body></html>'));
+  const gw = await send(mod, false, { fetchImpl: html });
+  expectFailure(gw, 'http-502', 502, 'a 502 HTML page');
+  assert(gw.body === null, `a 502 HTML page: expected body null; got ${show(gw.body)}`);
+  for (const text of ['<!doctype html><html></html>', '[1]', '']) {
+    const out = await send(mod, true, { fetchImpl: fakeFetch(response(200, text)) });
+    expectFailure(out, 'bad-json', 200, `a 200 whose text is ${show(text)}`);
+  }
+});
+
+test('TF22: a switch request that never settles ends as { ok: false, code: \'timeout\', httpStatus: null, body: null } shortly after timeoutMs (30 ms here), not before — whether fetchImpl ignores its signal, rejects on abort, or answers headers whose body never arrives — after one call [story 5 AC-1 "If the server has not answered within 15 seconds … the outcome is unknown"; ADR 0005 D12 "It shares readSection\'s race"; § Seams "It resolves timeout at timeoutMs"]', async () => {
+  const mod = await loadSwitch();
+  const abortRejecting = (_url, init) => new Promise((_res, rej) => {
+    const sig = init && init.signal;
+    if (sig && typeof sig.addEventListener === 'function') {
+      sig.addEventListener('abort', () => { const e = new Error('The operation was aborted'); e.name = 'AbortError'; rej(e); });
+    }
+  });
+  const cases = [
+    ['ignores its signal', () => new Promise(() => {})],
+    ['rejects on abort', abortRejecting],
+    ['answers, but its body never arrives', () => ({ ok: true, status: 200, text: () => new Promise(() => {}) })],
+  ];
+  for (const [label, answer] of cases) {
+    const f = fakeFetch(answer);
+    const started = Date.now();
+    let out;
+    try {
+      out = await send(mod, true, { fetchImpl: f, timeoutMs: 30 }, 1500);
+    } catch (e) {
+      throw new Error(`a fetchImpl that ${label}: sendSwitch must resolve as timeout, never reject (ADR 0005 D12); ${e.message}`);
+    }
+    const elapsed = Date.now() - started;
+    expectFailure(out, 'timeout', null, `a fetchImpl that ${label}`);
+    assert(out.body === null, `a fetchImpl that ${label}: a timeout has no answer body; got ${show(out.body)}`);
+    assert(elapsed >= 20, `a fetchImpl that ${label}: the timeout must wait for timeoutMs (30 ms); it settled after ${elapsed} ms`);
+    assert(elapsed < 1000, `a fetchImpl that ${label}: with timeoutMs 30 the timeout must come well within a second; it took ${elapsed} ms`);
+    assert(f.calls.length === 1, `a fetchImpl that ${label}: expected one call; got ${f.calls.length}`);
+  }
+});
+
+test('TF23: sendSwitch never rejects — a fetchImpl that rejects (the network is down), one that throws synchronously, and an answer whose text() rejects each resolve to { ok: false, code: \'network\', httpStatus: null, body: null }, after one call [story 5 AC-1; ADR 0005 D12 "never rejects"; § Seams "It … never rejects"]', async () => {
+  const mod = await loadSwitch();
+  const cases = [
+    ['rejects', () => Promise.reject(new TypeError('Failed to fetch'))],
+    ['throws synchronously', () => { throw new TypeError('fetch is not a function'); }],
+    ['answers, but text() rejects', () => ({ ok: true, status: 200, text: () => Promise.reject(new TypeError('body stream error')) })],
+  ];
+  for (const [label, answer] of cases) {
+    const f = fakeFetch(answer);
+    let out;
+    try {
+      out = await send(mod, false, { fetchImpl: f });
+    } catch (e) {
+      throw new Error(`a fetchImpl that ${label}: sendSwitch must resolve to { ok: false, code: 'network' }, never reject (ADR 0005 D12); it rejected with ${e.message}`);
+    }
+    expectFailure(out, 'network', null, `a fetchImpl that ${label}`);
+    assert(out.body === null, `a fetchImpl that ${label}: a network result has no answer body; got ${show(out.body)}`);
+    assert(f.calls.length === 1, `a fetchImpl that ${label}: a change is never retried: fetchImpl called ${f.calls.length} times`);
+  }
+});
+
+test('TF24: sendSwitch\'s defaults — with no fetchImpl it calls globalThis.fetch as it is when called, with the same POST; with no timeoutMs its race is 15 000 ms, the 15 seconds after which the panel says the outcome is unknown [story 5 AC-1 "within 15 seconds"; ADR 0005 D12 "sendSwitch(on, { fetchImpl, timeoutMs = 15000 })"]', async () => {
+  const mod = await loadSwitch();
+  const had = Object.prototype.hasOwnProperty.call(globalThis, 'fetch');
+  const savedFetch = globalThis.fetch;
+  const realSetTimeout = globalThis.setTimeout;
+  const calls = [];
+  const delays = [];
+  try {
+    globalThis.fetch = (url, init) => { calls.push([url, init]); return Promise.resolve(response(200, JSON.stringify(recordedAnswer(true)))); };
+    globalThis.setTimeout = function spiedSetTimeout(fn, ms, ...rest) { delays.push(ms); return realSetTimeout(fn, ms, ...rest); };
+    const out = await send(mod, true, {});
+    assert(calls.length === 1, `with no fetchImpl, sendSwitch must call the globalThis.fetch present at call time; it was called ${calls.length} times`);
+    assert(calls[0][0] === SWITCH_URL && calls[0][1] && calls[0][1].method === 'POST' && calls[0][1].body === '{"on":true}',
+      `expected globalThis.fetch(${show(SWITCH_URL)}, { method: 'POST', body: '{"on":true}', … }); got ${show(calls[0])}`);
+    assert(out && out.ok === true, `expected { ok: true, body } through the default fetch; got ${show(out)}`);
+    assert(delays.includes(15000), `with no timeoutMs, sendSwitch's race must be 15000 ms (ADR 0005 D12; story 5 AC-1); the timers set were ${show(delays)}`);
+  } finally {
+    globalThis.setTimeout = realSetTimeout;
+    if (had) globalThis.fetch = savedFetch; else delete globalThis.fetch;
+  }
 });
 
 /* ─── Run ─── */
