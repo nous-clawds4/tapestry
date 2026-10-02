@@ -256,6 +256,24 @@ intact" do not hold (ADR 0005 § Consequences):
 
 ## Evidence
 
+### The gate (Implementation, 2026-10-02)
+
+Node 22.23.3, full `npm test`, read from the run records (`gate:status`), and compared suite by suite:
+
+| Run | Tree | Passed | Failed | Skipped | Suites |
+|---|---|---|---|---|---|
+| Baseline `20261002T011428Z-15776-09c0` | the failing tests, `b6726818` (a worktree) | 4,850 | 135 | 168 | 255 |
+| After `20261002T014217Z-58918-138e` | the implementation, `5d14cc16` | 4,954 | 31 | 168 | 255 |
+
+- **All seven story suites pass,** each red in the baseline: realtime-routes 64, switch-record 47, wiring 74,
+  view 81, codes 54, fetch 24, panel-source 28.
+- **`my-assistants-page` also passes now** (52, against 51 and 1 failure). Its baseline failure came from the backend
+  process that predated #795; the local backend was restarted at 01:39:06Z before the after run.
+- **No other suite changed.** The 13 that fail in both runs are this host's standing live-stack set, with identical
+  pass, fail and skip counts in both.
+- **The browser spec** passes 85 of 85, against the panel built inside the container into the gitignored `tmp/`,
+  served on the host, with Node 22 and Chromium.
+
 ### The local stack (2026-10-01)
 
 The backend was restarted at 01:39:06Z on 2026-10-02 (`scripts/dev-refresh.sh`), and the UI was rebuilt
