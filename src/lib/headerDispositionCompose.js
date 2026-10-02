@@ -43,6 +43,8 @@ function composeKeepPrivate(header) {
   return { tags: [...tags, ['b', SENTINEL]] };
 }
 
+const OWN_ADDRESS_REFUSAL = "That's this header's own address — use Submit as a Shared Concept instead";
+
 /**
  * Wire to an external shared concept (ADR list-headers-disposition/0004): every earlier tag except the
  * keep-private marker, plus a pointer b to the target. Already wired to that target (any b type) means
@@ -50,7 +52,7 @@ function composeKeepPrivate(header) {
  */
 function composeWire(header, selfCoord, target) {
   const tags = tagsOf(header);
-  if (target === selfCoord) return { refused: 'self' };
+  if (target === selfCoord) return { refused: OWN_ADDRESS_REFUSAL };
   if (tags.some((t) => t[0] === 'b' && t[1] === target)) return { already: true };
   return { tags: [...stripSentinel(tags), ['b', target, 'pointer']] };
 }
@@ -63,4 +65,4 @@ function nextCreatedAt(prevCreatedAt, now) {
   return Math.max(now, (prevCreatedAt || 0) + 1);
 }
 
-module.exports = { composeSelfDeclare, composeKeepPrivate, composeWire, nextCreatedAt, KEEP_PRIVATE_REFUSAL };
+module.exports = { composeSelfDeclare, composeKeepPrivate, composeWire, nextCreatedAt, KEEP_PRIVATE_REFUSAL, OWN_ADDRESS_REFUSAL };

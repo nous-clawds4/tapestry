@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { MARKS } from '../../utils/listHeaderDisposition';
 import { submitAndBroadcast, keepPrivate, wireAndBroadcast } from '../../utils/myAssistantDisposition';
-import { classifyBValue } from '../../utils/bDisposition';
 import useCommunitySharedConcepts from '../../hooks/useCommunitySharedConcepts';
 
 const REAL_B_REASON = 'this header already carries a real b — deferral applies only to unaffiliated headers';
-// The server's two step-4b refusals (ADR list-headers-disposition/0004), shown here without asking it.
-const NOT_AN_ADDRESS = 'The target must be a header address (kind:pubkey:d-tag)';
+// The server's step-4b refusals (ADR list-headers-disposition/0004 and its Amendment 1), checked here in the
+// same order with the same sentences, so a bad target never sends a request.
+const NOT_A_LIST_HEADER = "The target must be a list header's address (39998:pubkey:d-tag)";
+const TOO_LONG = 'The target is too long — the relay keeps tag values of at most 1024 bytes';
+const BAD_CHARACTERS = "The target contains characters an address can't have";
 const OWN_ADDRESS = "That's this header's own address — use Submit as a Shared Concept instead";
+const MAX_TARGET_BYTES = 1024;
 
 /**
  * Holds the Wire pick-list for a whole panel session (ADR list-headers-disposition/0004): the panel
@@ -54,8 +57,12 @@ export default function ListHeaderDispositionPanel({ row, onActed, hasNext, onNe
   // The panel checks the two things the server would refuse before the relay is read, without asking it.
   const doWire = () => {
     const t = target.trim();
-    if (classifyBValue(t) !== 'a-tag') { setMessage(NOT_AN_ADDRESS); return; }
-    if (t === row.routeId) { setMessage(OWN_ADDRESS); return; }
+    if (/[\p{Cc}\p{Cf}]/u.test(t)) { setMessage(BAD_CHARACTERS); return; }
+    if (new TextEncoder().encode(t).length > MAX_TARGET_BYTES) { setMessage(TOO_LONG); return; }
+    const parts = t.match(/^39998:([0-9a-f]{64}):(.+)$/);
+    if (!parts) { setMessage(NOT_A_LIST_HEADER); return; }
+    const ownD = row.routeId.split(':').slice(2).join(':');
+    if (parts[1] === row.author && parts[2] === ownD) { setMessage(OWN_ADDRESS); return; }
     run((handle) => wireAndBroadcast(handle, t));
   };
 

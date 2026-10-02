@@ -10,7 +10,8 @@
  * inside the container has none, whatever the middleware stamped), then the CALLER's own Assistant keys,
  * then the header's author must be that Assistant, then (Wire only) the target, then the latest version, which must itself verify
  * (author, kind, first d, signature), then the shared tag rules, then sign with those keys, then local
- * strfry, then the graph (ADR list-headers-disposition/0003 and its Amendment 1). There is no owner, admin or loopback path here, and no Owner-only key helper:
+ * strfry, then a read-back by id (strfry import exits 0 even when it rejects an event), and only then the
+ * graph (ADR list-headers-disposition/0003 and its Amendment 1; 0004 and its Amendment 1). There is no owner, admin or loopback path here, and no Owner-only key helper:
  * Concept Headers' endpoints (src/api/concept/selfDeclare.js, bDisposition.js) keep those until their
  * own fix (OPEN.md row `2026-10-01-concept-headers-disposition-owner-signer`).
  *
@@ -21,8 +22,7 @@
 
 'use strict';
 
-const { composeSelfDeclare, composeKeepPrivate, composeWire, nextCreatedAt } = require('../../lib/headerDispositionCompose');
-const { classifyBValue } = require('../../lib/bValueForms');
+const { composeSelfDeclare, composeKeepPrivate, composeWire, nextCreatedAt, OWN_ADDRESS_REFUSAL } = require('../../lib/headerDispositionCompose');
 
 const HEADER_KIND = 39998;
 const HANDLE_RE = /^(\d+):([0-9a-f]{64}):(.+)$/;
@@ -31,16 +31,32 @@ const ROUTES = {
   'b-defer': '/api/list-headers/my-assistant/:handle/b-defer',
   'b-append': '/api/list-headers/my-assistant/:handle/b-append',
 };
+// The Wire target's bounds (ADR list-headers-disposition/0004, Amendment 1). The relay keeps tag values of at
+// most 1024 bytes (maxTagValSize) and its import exits 0 when it rejects one, so an unbounded target could reach
+// the graph while the relay kept nothing. Targets are list headers only: the literal kind 39998 (owner decision).
+const MAX_TARGET_BYTES = 1024;
+const LIST_HEADER_ADDRESS_RE = /^39998:([0-9a-f]{64}):(.+)$/;
+const CONTROL_OR_FORMAT_RE = /[\p{Cc}\p{Cf}]/u;
+const NOT_A_LIST_HEADER = "The target must be a list header's address (39998:pubkey:d-tag)";
+const TOO_LONG = 'The target is too long — the relay keeps tag values of at most 1024 bytes';
+const BAD_CHARACTERS = "The target contains characters an address can't have";
+
 const ACTIONS = {
   'self-declare': { compose: composeSelfDeclare, done: 'declared', already: 'already-declared' },
   'b-defer': { compose: (header) => composeKeepPrivate(header), done: 'deferred', already: 'already-deferred' },
-  // Wire (ADR list-headers-disposition/0004). prepare() reads and checks the target from the JSON body
-  // before the relay is read, so a typo costs no lookup.
+  // Wire (ADR list-headers-disposition/0004 and its Amendment 1). prepare() reads and checks the target from
+  // the JSON body before the relay is read, so a bad target costs no lookup. The own address is compared by
+  // parts: the caller's Assistant pubkey and the URL's d-tag.
   'b-append': {
-    prepare: (req, selfCoord) => {
-      const target = String((req.body && req.body.target) || '').trim();
-      if (classifyBValue(target) !== 'a-tag') return { error: 'The target must be a header address (kind:pubkey:d-tag)' };
-      if (target === selfCoord) return { error: "That's this header's own address — use Submit as a Shared Concept instead" };
+    prepare: (req, selfCoord, keys, dTag) => {
+      const raw = req.body ? req.body.target : undefined;
+      if (typeof raw !== 'string') return { error: NOT_A_LIST_HEADER };
+      const target = raw.trim();
+      if (CONTROL_OR_FORMAT_RE.test(target)) return { error: BAD_CHARACTERS };
+      if (Buffer.byteLength(target, 'utf8') > MAX_TARGET_BYTES) return { error: TOO_LONG };
+      const parts = target.match(LIST_HEADER_ADDRESS_RE);
+      if (!parts) return { error: NOT_A_LIST_HEADER };
+      if (parts[1] === keys.pubkey && parts[2] === dTag) return { error: OWN_ADDRESS_REFUSAL };
       return { target };
     },
     compose: (header, selfCoord, input) => composeWire(header, selfCoord, input.target),
@@ -91,6 +107,8 @@ function defaultDeps() {
     verify: (event) => {
       try { return require(NOSTR_TOOLS_PATH).verifyEvent(JSON.parse(JSON.stringify(event))) === true; } catch { return false; }
     },
+    // The read-back (Amendment 1 §4): is the event with this id in the local relay now?
+    isStored: async (id) => (await require('../concept/bDisposition').strfryScanStream({ ids: [id] })).some((e) => e && e.id === id),
     now: () => Math.floor(Date.now() / 1000),
   };
 }
@@ -124,7 +142,7 @@ function createMyAssistantDispositionHandler(action, deps = {}) {
 
       const dTag = m[3];
       const selfCoord = `${HEADER_KIND}:${keys.pubkey}:${dTag}`;
-      const prep = spec.prepare ? spec.prepare(req, selfCoord) : {};
+      const prep = spec.prepare ? spec.prepare(req, selfCoord, keys, dTag) : {};
       if (prep.error) return res.status(400).json({ success: false, error: prep.error });
 
       const header = await d.scanLatest({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
@@ -155,6 +173,15 @@ function createMyAssistantDispositionHandler(action, deps = {}) {
         created_at: nextCreatedAt(header.created_at, d.now()),
       }, keys.privkey);
       await d.publishLocal(signed);
+      // strfry import exits 0 even when it rejects an event, so read the new version back before the graph
+      // follows it; a read that fails claims nothing (dlist-curation/update.js readBack, ADR 0004 Amendment 1 §4).
+      let stored;
+      try {
+        stored = await d.isStored(signed.id);
+      } catch {
+        return res.status(502).json({ success: false, error: "Sent to the relay, but couldn't confirm it was kept — the graph wasn't changed" });
+      }
+      if (!stored) return res.status(502).json({ success: false, error: "The relay didn't keep the new version, so nothing was saved" });
       await d.importToGraph(signed, selfCoord);
       return res.json({ success: true, result: spec.done, event: signed });
     } catch (error) {
