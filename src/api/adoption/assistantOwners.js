@@ -12,7 +12,25 @@
 
 const { myAssistantRows } = require('../assistant/myAssistants');
 
-const CHUNK = 400;
+/**
+ * strfry takes a filter as one command-line argument, which Linux caps at 128 KiB, and a tag value can
+ * be up to 1 KB: a long list is scanned in parts of at most 400 values and 60,000 bytes.
+ */
+const PART_COUNT = 400;
+const PART_BYTES = 60000;
+function parts(values) {
+  const out = [];
+  let cur = [];
+  let size = 0;
+  for (const v of values) {
+    const n = Buffer.byteLength(JSON.stringify(v)) + 1;
+    if (cur.length && (cur.length >= PART_COUNT || size + n > PART_BYTES)) { out.push(cur); cur = []; size = 0; }
+    cur.push(v);
+    size += n;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
 
 /**
  * Map assistant pubkey → [owner pubkeys], from kind-39999 nostr-user-tag taggings, the kind-5
@@ -51,10 +69,9 @@ async function resolveOwners(pubkeys, deps) {
   const list = [...new Set((Array.isArray(pubkeys) ? pubkeys : []).filter((p) => /^[0-9a-f]{64}$/.test(p || '')))];
   if (!list.length) return new Map();
   const full = (ev) => ({ id: ev.id, kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at, tags: ev.tags || [] });
-  // In parts: strfry takes a filter as one command-line argument, which Linux caps at 128 KiB.
   const scanIn = async (key, values, filter) => {
     const out = [];
-    for (let i = 0; i < values.length; i += CHUNK) out.push(...await deps.scan({ ...filter, [key]: values.slice(i, i + CHUNK) }, full));
+    for (const part of parts(values)) out.push(...await deps.scan({ ...filter, [key]: part }, full));
     return out;
   };
   const taggings = await scanIn('#p', list, { kinds: [39999], '#z': [deps.zTag()] });
@@ -65,8 +82,7 @@ async function resolveOwners(pubkeys, deps) {
   }).filter(Boolean))];
   const taggers = [...new Set(taggings.map((ev) => ev.pubkey))];
   const deletions = [];
-  for (let i = 0; i < taggers.length; i += CHUNK) {
-    const authors = taggers.slice(i, i + CHUNK);
+  for (const authors of parts(taggers)) {
     deletions.push(...await scanIn('#e', ids.filter((id, k) => authors.includes(taggings[k].pubkey)), { kinds: [5], authors }));
     deletions.push(...await scanIn('#a', addresses.filter((a) => authors.includes(a.split(':')[1])), { kinds: [5], authors }));
   }
@@ -75,4 +91,4 @@ async function resolveOwners(pubkeys, deps) {
   return ownersFromTaggings({ taggings, deletions, roster });
 }
 
-module.exports = { ownersFromTaggings, resolveOwners };
+module.exports = { ownersFromTaggings, resolveOwners, parts };

@@ -193,8 +193,10 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
   const [findOpen, setFindOpen] = useState(false);
 
   const entries = useMemo(() => data?.entries || [], [data]);
-  // GUM₂ is offered only when the read carried it (the server leaves it out when its own reads fail).
+  // GUM₂ is offered only when the read carried it (the server leaves it out when its own reads fail);
+  // a GUM₂ sort chosen on another read falls back to A to Z here.
   const hasGum2 = entries.some((e) => typeof e.gum2 === 'number');
+  const order = !hasGum2 && isGum2Sort(sort) ? 'az' : sort;
   const metric = data?.metric || 'gum1';
   const pov = data?.pov || {};
   const signedIn = person.signedIn;
@@ -207,7 +209,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
   const shown = entries
     .filter((e) => !groups.length || SHOW_GROUPS.some((g) => groups.includes(g.key) && g.test(e)))
     .filter((e) => !words.length || words.every((w) => `${displayName(e)} ${e.plural || ''} ${e.description || ''}`.toLowerCase().includes(w)))
-    .sort(SORTS[sort].cmp);
+    .sort(SORTS[order].cmp);
 
   const narrowed = groups.length > 0 || words.length > 0;
   const total = entries.length;
@@ -225,9 +227,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
   const filterNote = toolsOpen ? '' : [
     groupNames.join(' or '),
     query.trim() ? `“${query.trim()}”` : '',
-    SORTS[sort].note(metric),
+    SORTS[order].note(metric),
   ].filter(Boolean).join(' · ');
-  const toolsActive = toolsOpen || narrowed || sort !== 'az';
+  const toolsActive = toolsOpen || narrowed || order !== 'az';
 
   const toggleGroup = (key) => setGroups((gs) => (gs.includes(key) ? gs.filter((k) => k !== key) : [...gs, key]));
 
@@ -351,20 +353,20 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
           </label>
           <label className="dict-field dict-field--sort">
             <span className="dict-field-label">Order by</span>
-            <select className="dict-input" value={sort} onChange={(e) => setSort(e.target.value)}>
+            <select className="dict-input" value={order} onChange={(e) => setSort(e.target.value)}>
               {Object.entries(SORTS)
                 .filter(([key]) => hasGum2 || !isGum2Sort(key))
                 .map(([key, s]) => <option key={key} value={key}>{s.label(metric)}</option>)}
             </select>
           </label>
-          {isGumSort(sort) && !isGum2Sort(sort) && (
+          {isGumSort(order) && !isGum2Sort(order) && (
             <p className="dict-gum-note">
               <strong>General Usage Metric, filing ({metricShort(metric)}):</strong> how many distinct people you trust
               (influence above the verified cutoff, from your point of view) file items under the shared concept
               each entry points to.
             </p>
           )}
-          {isGum2Sort(sort) && (
+          {isGum2Sort(order) && (
             <p className="dict-gum-note">
               <strong>General Usage Metric, recognition (GUM₂):</strong> the people you trust (influence above the
               verified cutoff, from your point of view) whose own concept headers, or their Assistants’, recognize
@@ -436,8 +438,8 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
                     {e.description && <span className="dict-row-desc">{e.description}</span>}
                   </span>
                   <span className="dict-row-stats">
-                    {isGumSort(sort) && !isGum2Sort(sort) && <span className="dict-row-gum" title={metricLabel(metric)}>{e.gum}</span>}
-                    {isGum2Sort(sort) && (
+                    {isGumSort(order) && !isGum2Sort(order) && <span className="dict-row-gum" title={metricLabel(metric)}>{e.gum}</span>}
+                    {isGum2Sort(order) && (
                       <span className="dict-row-gum" title={`GUM₂ · recognized by ${e.recognizedBy ?? 0}`}>
                         {typeof e.gum2 === 'number' ? e.gum2.toFixed(2) : '—'}
                       </span>

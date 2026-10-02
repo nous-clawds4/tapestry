@@ -20,7 +20,7 @@ const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { strfryScanStream } = require('../concept/bDisposition');
 const { computeQueue, computePublishCandidates, bestName } = require('../../lib/adoptionQueue');
 const { computeDictionary, computeConceptDictionary, trustedItems, recognitionByConcept } = require('../../lib/trustedDictionary');
-const { resolveOwners } = require('./assistantOwners');
+const { resolveOwners, parts: scanParts } = require('./assistantOwners');
 const { classifyBValue, dispositionOf } = require('../../lib/bValueForms');
 const { runCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
@@ -412,14 +412,6 @@ function recognitionDeps() {
   };
 }
 
-// strfry takes a filter as one command-line argument (bDisposition strfryScanStream), and Linux caps an
-// argument at 128 KiB: long value lists are scanned in parts.
-const SCAN_CHUNK = 400;
-const chunks = (list, size) => {
-  const out = [];
-  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
-  return out;
-};
 
 /**
  * What GUM₂ needs, read from this instance's relay: the newest kind-39998 headers whose `b` points
@@ -431,7 +423,8 @@ async function recognitionInputs({ rows, authors }, deps = recognitionDeps()) {
   const sharedCoords = [...new Set(rows.flatMap((r) => r.scoreCoords))];
   if (!sharedCoords.length) return { sharedCoords, pointers: [], ownersOf: new Map(), exclude: authors, candidates: [] };
   const found = [];
-  for (const part of chunks(sharedCoords, SCAN_CHUNK)) {
+  // In parts by count and bytes: strfry takes a filter as one command-line argument (assistantOwners parts).
+  for (const part of scanParts(sharedCoords)) {
     found.push(...await deps.scan({ kinds: [39998], '#b': part }, (ev) => ({
       kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at, tags: keepTags(ev, ['d', 'b']),
     })));

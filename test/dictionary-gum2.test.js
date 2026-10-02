@@ -12,8 +12,8 @@
  *   R1..R10 — pure: recognitionByConcept and computeConceptDictionary in src/lib/trustedDictionary.js
  *             (R9: nobody's claim takes recognition away; R10: GUM₁ is untouched by the shared trust read).
  *   O1..O5  — pure: ownersFromTaggings in src/api/adoption/assistantOwners.js.
- *   I1..I2  — the reads, with fake dependencies: recognitionInputs (src/api/adoption/index.js) and
- *             resolveOwners, including scanning long lists in parts.
+ *   I1..I3  — the reads, with fake dependencies: recognitionInputs (src/api/adoption/index.js) and
+ *             resolveOwners, including scanning long lists in parts by count and by bytes.
  *   S1..S5  — structural pins, read off comment-stripped source.
  *
  * The browser half is tests/brainstorm/dictionary-concepts.spec.js D28.
@@ -239,11 +239,30 @@ test('I2: resolveOwners reads taggings by #p (in parts), and only their signers\
   assert(asked.filter((f) => f.kinds && f.kinds[0] === 5).every((f) => f.authors.every((a) => a === ALICE || a === BOB)), 'deletions only by the taggers');
 });
 
+test('I3: every scan stays under strfry\'s one-argument limit (128 KiB), however long the tags: values come in parts of at most 60,000 bytes', async () => {
+  const { resolveOwners, parts } = require(OWNERS_JS);
+  const longD = 'x'.repeat(1000); // a tag value can be up to 1 KB
+  const target = hex('8');
+  const taggings = Array.from({ length: 130 }, (_, i) => ({
+    id: i.toString(16).padStart(64, '0'), kind: 39999, pubkey: (i + 1).toString(16).padStart(64, '1'), created_at: i,
+    tags: [['d', `${longD}${i}`], ['z', Z], ['p', target]],
+  }));
+  const { scan, asked } = fakeScan(taggings);
+  await resolveOwners([target], { scan, zTag: () => Z, roster: async () => [] });
+  const sizes = asked.map((f) => Buffer.byteLength(JSON.stringify(f)));
+  // A part's values (≤ 60,000 bytes) plus its authors (another part, ≤ 60,000) and the filter's other keys.
+  assert(Math.max(...sizes) < 128 * 1024, `the largest filter is ${Math.max(...sizes)} bytes`);
+  assert(asked.every((f) => Object.entries(f).filter(([k]) => k.startsWith('#') || k === 'authors')
+    .every(([, v]) => Buffer.byteLength(JSON.stringify(v)) <= 60000 + 2)), 'no value list over 60,000 bytes');
+  assert(asked.filter((f) => f['#a']).length >= 3, 'the long addresses are read in several parts');
+  assert(parts(Array.from({ length: 401 }, (_, i) => String(i))).length === 2, 'and never more than 400 values a part');
+});
+
 // ═══ S — structural ═══════════════════════════════════════════════════════════
 
 test('S1: the Dictionary read finds b-pointers on this relay, resolves owners, and reads trust once for both metrics', () => {
   const s = flat(code(src(ADOPTION_JS)));
-  assert(/for \(const part of chunks\(sharedCoords, SCAN_CHUNK\)\) \{ found\.push\(\.\.\.await deps\.scan\(\{ kinds: \[39998\], '#b': part \}/.test(s)
+  assert(/for \(const part of scanParts\(sharedCoords\)\) \{ found\.push\(\.\.\.await deps\.scan\(\{ kinds: \[39998\], '#b': part \}/.test(s)
     && /scan: strfryScanStream,/.test(s), 'headers that b-point at the scored concepts, from this instance\'s relay, in parts');
   assert(/await resolveOwners\(\[\.\.\.signers, \.\.\.conceptAuthors, \.\.\.authors\]/.test(s), 'owners of the signers, the concepts\' authors and the reader');
   assert(/const asked = \[\.\.\.new Set\(\[\.\.\.zAuthors, \.\.\.\(gum2Inputs \? gum2Inputs\.candidates : \[\]\)\]\)\];/.test(s), 'one trust read: GUM₁\'s filers and GUM₂\'s recognizers');
