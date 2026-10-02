@@ -48,6 +48,11 @@ const { test, expect } = require('@playwright/test');
  *   E8 — AC 4: a refusal at prepare never asks the signer; a refusal at commit leaves the row unchanged.
  *   E9 — AC 5: Next from a Me row walks only Me rows; from an Assistant row only Assistant rows, never signing.
  *   E10 — AC 2: Submit on a Me row when external publishing is off says so and keeps it here.
+ *   Review round 1 (ADR 0005 Amendment 1):
+ *   E11 — §1: act on a Me row, then sign out in the page: the panel is gone, no Next, no button on any row, no error.
+ *   E12 — §1: sign out with the panel open: gone, with no page error; signing back in doesn't bring it back.
+ *   E13 — §4: a decline (or a non-Error rejection) at the signer's account step: the cancelled sentence, the panel not
+ *         left busy, the signer never asked to sign, nothing committed.
  */
 
 const OWNER = '1'.repeat(64);
@@ -120,6 +125,9 @@ const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'applic
 async function mockStack(page, { session = null, relay = 'accept', policy = 'open', refuse = null, refuseCommit = null, signer = null, extraOwnRows = 0, communityHold = null } = {}) {
   const headers = fixtures(extraOwnRows);
   const state = { headers, posts: [], mePosts: [], commits: [], scans: 0, sockets: [], events: [], communityReads: 0 };
+  // Review round 1 (Amendment 1 §1): the session can end and start again in the page. Every auth answer below reads
+  // `session`, so signing out makes the page signed-out and signing in restores the same account.
+  const signedInAs = session;
   if (signer) await stubSigner(page, signer, session ? session.pubkey : null);
   let configAnswered;
   const config = new Promise((resolve) => { configAnswered = resolve; });
@@ -178,6 +186,9 @@ async function mockStack(page, { session = null, relay = 'accept', policy = 'ope
     pubkey: session ? session.pubkey : null,
     assistantPubkey: session ? session.assistantPubkey : null,
   }));
+  await page.route('**/api/auth/logout', (r) => { session = null; return json(r, { success: true }); });
+  await page.route('**/api/auth/verify-user', (r) => json(r, { authorized: true, challenge: 'list-headers-test-challenge' }));
+  await page.route('**/api/auth/login-user', (r) => { session = signedInAs; return json(r, { success: true }); });
 
   // The stand-in server: story 3's rules over the held headers, signed "by" the session's own Assistant.
   await page.route(/\/api\/list-headers\/my-assistant\/([^/]+)\/(self-declare|b-defer|b-append)$/, (r) => {
@@ -262,6 +273,8 @@ function standInRules(cur, handle, action, body) {
 /**
  * story 5: the browser signer (NIP-07), stubbed. mode 'ok' signs as `pubkey`; 'decline' rejects like a person saying
  * no; 'other' is on another account; 'liar' says `pubkey` but signs as another account; 'none' is no signer at all.
+ * Review round 1 (Amendment 1 §4): 'pk-decline' rejects at the account step (getPublicKey) with an Error;
+ * 'pk-undefined' rejects there with no error object at all.
  * Every signEvent call is logged in window.__signLog, so a test counts prompts instead of inferring them.
  */
 const OTHER_ACCOUNT = 'd4'.repeat(32);
@@ -270,7 +283,11 @@ async function stubSigner(page, mode, pubkey) {
     window.__signLog = [];
     if (mode === 'none') { try { delete window.nostr; } catch { /* not there */ } return; }
     window.nostr = {
-      getPublicKey: async () => (mode === 'other' ? other : pubkey),
+      getPublicKey: async () => {
+        if (mode === 'pk-decline') throw new Error('User rejected');
+        if (mode === 'pk-undefined') return Promise.reject(undefined); // eslint-disable-line prefer-promise-reject-errors
+        return mode === 'other' ? other : pubkey;
+      },
       signEvent: async (template) => {
         window.__signLog.push(template);
         if (mode === 'decline') throw new Error('User rejected the request');
@@ -797,5 +814,65 @@ test.describe('List Headers — Disposition on My Assistant rows (list-headers-d
     expect(steps(state), 'ADR 0005: still prepare, sign, commit').toEqual(['self-declare/prepare', 'self-declare/commit']);
     expect((await signLog(page)).length, 'story 5 AC 2: one signature').toBe(1);
     await expect.poll(() => marks(page, ME_ROW)).toEqual(['🤝']);
+  });
+
+  // ── review round 1 — ADR 0005 Amendment 1 ──
+
+  async function signOut(page) {
+    await page.locator('.header-user .user-button').click();
+    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await expect(page.locator('.header-user'), 'signed out in the page').toHaveCount(0);
+  }
+  const panelHeadings = (page) => page.getByText(/^Disposition: /);
+
+  test('E11 (Amendment 1 §1): act on a Me row, then sign out in the page — the panel is gone, there is no Next, no row has the button, and nothing throws', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    const state = await open(page, { session: OWNER_SESSION, signer: 'ok' });
+    await openPanel(page, ME_ROW);
+    await page.getByRole('button', { name: /Keep private/ }).click();
+    await expect(page.getByText(/^Kept private/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Next undecided/ }), 'signed in, Next is offered').toBeVisible();
+    await signOut(page);
+    await expect(panelHeadings(page), 'Amendment 1 §1: signed out, the panel is gone').toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Next undecided/ }), 'Amendment 1 §1: no Next can open another person\'s row').toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Disposition…/ }), 'story 5 AC 1: signed out, no row has the button').toHaveCount(0);
+    expect(errors, 'Amendment 1 §1: nothing throws').toEqual([]);
+    expect(steps(state), 'only the Keep private made before signing out').toEqual(['b-defer/prepare', 'b-defer/commit']);
+    expect(state.posts).toEqual([]);
+  });
+
+  test('E12 (Amendment 1 §1): sign out with the panel open — gone with no page error; signing back in doesn\'t bring it back', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    const state = await open(page, { session: OWNER_SESSION, signer: 'ok' });
+    await openPanel(page, ME_ROW);
+    await signOut(page);
+    await expect(panelHeadings(page), 'Amendment 1 §1: signed out, the panel is gone').toHaveCount(0);
+    expect(errors, 'Amendment 1 §1: nothing throws').toEqual([]);
+    await page.getByRole('button', { name: 'Sign in with Nostr' }).click();
+    await expect(page.locator('.header-user .user-button'), 'signed back in, in the page').toBeVisible();
+    await expect(await dispositionButton(page, ME_ROW), 'signed in again, the row has its button back').toHaveCount(1);
+    await page.waitForTimeout(300); // let a stale panel come back, if it is going to
+    await expect(panelHeadings(page), 'Amendment 1 §1: the panel doesn\'t come back by itself at the next sign-in').toHaveCount(0);
+    expect(state.mePosts, 'nothing was prepared or committed').toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test('E13 (Amendment 1 §4): a decline at the signer\'s account step, or a rejection with no error object — the cancelled sentence, the panel not left busy, no signature, no commit', async ({ browser }) => {
+    for (const mode of ['pk-decline', 'pk-undefined']) {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      const state = await open(page, { session: OWNER_SESSION, signer: mode });
+      await openPanel(page, ME_ROW);
+      await page.getByRole('button', { name: /Submit as a Shared Concept/ }).click();
+      await expect(page.getByText('Signing was cancelled in your signer — nothing was saved'), `Amendment 1 §4 (${mode}): the cancelled sentence`).toBeVisible();
+      await expect(page.getByRole('button', { name: /Submit as a Shared Concept/ }), `Amendment 1 §4 (${mode}): the panel isn't left busy`).toBeEnabled();
+      await expect(page.getByRole('button', { name: /Keep private/ })).toBeEnabled();
+      expect(await signLog(page), `Amendment 1 §4 (${mode}): the signer was never asked to sign`).toEqual([]);
+      expect(steps(state), `Amendment 1 §4 (${mode}): no commit`).toEqual(['self-declare/prepare']);
+      await expect.poll(() => marks(page, ME_ROW)).toEqual(['○']);
+      await ctx.close();
+    }
   });
 });

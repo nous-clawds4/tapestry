@@ -182,3 +182,62 @@ test.
 | the button on the account's 9998 rows | browser M1 |
 | Wire's commit without the target | browser E3 |
 | Keep private broadcast | browser E2 |
+
+## Review round 1 (ADR 0005 Amendment 1)
+
+| Ask | Tests | Level |
+|---|---|---|
+| §1: the panel exists only while its row is the viewer's; `panelId` is cleared, so the panel doesn't return at the next sign-in; Next never matches a missing signer (blocking 1) | browser **E11** (act, then sign out: panel gone, no Next, no row button, no page error), **E12** (sign out with the panel open: gone, no page error; sign back in: it doesn't return, the row's button does) | browser |
+| §2: the Me rows' own stored-header sentence, in both phases (non-blocking 3) | **MA1**: all three actions × both phases, 409 "…couldn't be verified as yours, so nothing was saved", never "Assistant" | unit |
+| §3: a header dated too far ahead is refused in both phases before anyone signs; at commit, after the account check (non-blocking 1) | **MA2**: prepare for all three actions answers 409 with no template, nothing written. A version signed anyway gets the same sentence at commit, not "isn't exactly this action's change". Another key's version still gets 403 first. | unit |
+| §3: the limit itself still works; "already" is unaffected | **MA3**: a header at now + 599 prepares a version at now + 600, and it commits. An already self-declared header dated now + 700 still answers "already". It passes on today's code, as a guard. | unit |
+| §4: any failure at the signer's account step gives the cancelled sentence; the panel never stays busy (non-blocking 2) | browser **E13**: `getPublicKey` rejecting with an `Error`, and with `undefined`. Each shows the cancelled sentence, the buttons are enabled again, there are zero `signEvent` calls, and no commit. | browser |
+
+**Spec infrastructure added:**
+- `mockStack`'s session can now end and start again in the page: `/api/auth/logout`, `verify-user` and `login-user`
+  are mocked, and every auth answer reads the current session.
+- The signer stub gains the `pk-decline` and `pk-undefined` modes.
+
+### Verification, round 1
+
+**The new tests fail with the current code.** Confirmed 2026-10-01 at `7458c334` (the code of `3487301d` plus the
+amendment), with these tests on top.
+- **Node, on the host:** 19 passed, 2 failed:
+  - MA1 got the old sentence, "…as your Assistant's, so nothing was signed";
+  - MA2's prepare answered 200 `sign` with a template at now + 701.
+- **Playwright,** on a build of `7458c334`: E11, E12 and E13 fail, and the other 30 pass.
+  - E11 and E12 fail on "signed out, the panel is gone" (expected 0 headings, received 1).
+  - E13 fails on "the cancelled sentence" (not found).
+
+**The tests can pass, and they bite.** A throwaway build of Amendment 1 was made outside the repo:
+- the two sentences and the date check in `meDisposition.js`;
+- the `signAsMe` mapping;
+- the tolerant `run` catch;
+- the render guard, the clearing effect and Next's signer guard in `Index.jsx`.
+
+Results:
+- **Node:** 21 of 21, with ML1 live.
+- **Playwright:** 33 of 33. All three List Headers specs pass 255 of 255 with `--repeat-each=5`.
+- **Story 3 and 4's Node suite** still passes 51 of 51.
+
+| Mutant | Fails |
+|---|---|
+| the sentence still "…as your Assistant's…" | MA1 |
+| no date check | MA2 |
+| the date check at prepare only | MA2 |
+| `>=` instead of `>` | MA3 |
+| the date check before the "already" answer | MA3 |
+| the date check before the account check at commit | MA2 |
+| no clearing effect (render guard kept) | browser E12 |
+| neither the effect nor the render guard (today's code) | browser E11, E12 |
+| the effect without `user` in its dependencies | browser E12 |
+| signer errors passed through raw | browser E13 |
+| only `Error` objects mapped | browser E13 |
+| `undefined` passed through, and `run`'s catch not tolerant | browser E13 |
+
+**Two mutants survive, and both are equivalent:**
+- no render guard, with the effect kept;
+- no signer guard in Next, with the effect and render guard kept.
+
+The effect closes the panel as soon as its row loses its signer, so neither guarded state can be reached. Both guards
+stay as defence in depth, as the amendment specifies.

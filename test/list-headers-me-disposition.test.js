@@ -19,6 +19,9 @@
  *              (broken, or another key's relabelled); a header that changed between prepare and commit (MC5), and
  *              the re-derivation that makes a same change acceptable (MC5b); the read-back 502s; Wire's target.
  *   SM1..SM4 — structure: no private-key handling and no old bypasses; same-host first; six routes; registration.
+ *   MA1..MA3 — review round 1 (ADR 0005 Amendment 1): the Me rows' own stored-header sentence (§2); a header dated
+ *              too far ahead refused in both phases before anyone signs, after the account check (§3); the limit
+ *              itself still prepares and commits, and "already" is unaffected.
  *   ML1      — LIVE (skipped without the stack): a no-session call from inside the container to each of the six
  *              routes gets 401 and the header is unchanged, through test/helpers/stackHttp.js.
  *
@@ -355,6 +358,61 @@ test('MC7: Wire\'s commit re-derives from the target it is given — a different
   const { res, calls } = await run('b-append', 'commit', MY_HANDLE, { body: { target: other, event: signed } }, { latest: latestOf(h) });
   assert(res.statusCode === 409, `story 5 AC 4: a commit whose target differs from the signed one must answer 409, got ${res.statusCode} ${show(res.body)}`);
   nothingWritten(calls, 'story 5 AC 4: a different target');
+});
+
+// ── MA — review round 1 (ADR 0005 Amendment 1) ───────────────────────────────
+
+const UNVERIFIED_HEADER = /couldn['’]t be verified as yours, so nothing was saved/;
+const TOO_FAR_AHEAD = /dated more than 10 minutes ahead, so a newer version can['’]t be saved yet — nothing was saved/;
+
+test('MA1 (Amendment 1 §2): on Me rows, an unverifiable stored header gets its own sentence — "as yours … nothing was saved" — in both phases', async () => {
+  const tampered = { ...myHeader('recipes'), content: 'changed after signing' };
+  for (const phase of ['prepare', 'commit']) {
+    for (const action of ['self-declare', 'b-defer', 'b-append']) {
+      const body = action === 'b-append' ? { target: THEIRS, event: {} } : { event: {} };
+      const { res, calls } = await run(action, phase, MY_HANDLE, { body }, { latest: latestOf(tampered) });
+      const error = (res.body && res.body.error) || '';
+      assert(res.statusCode === 409 && UNVERIFIED_HEADER.test(error) && !/Assistant/.test(error),
+        `Amendment 1 §2: ${action} ${phase} must answer 409 "The stored header couldn't be verified as yours, so nothing was saved", got ${res.statusCode} ${show(error)}`);
+      nothingWritten(calls, `Amendment 1 §2: ${action} ${phase}`);
+    }
+  }
+});
+
+test('MA2 (Amendment 1 §3): a header dated so far ahead that its next version would pass now + 600 is refused in both phases — no template, nothing written — after the account check', async () => {
+  const ahead = myHeader('recipes', [], { created_at: NOW + 700 });
+  for (const action of ['self-declare', 'b-defer', 'b-append']) {
+    const body = action === 'b-append' ? { target: THEIRS } : {};
+    const { res, calls } = await run(action, 'prepare', MY_HANDLE, { body }, { latest: latestOf(ahead) });
+    assert(res.statusCode === 409 && res.body && !res.body.template && TOO_FAR_AHEAD.test(res.body.error || ''),
+      `Amendment 1 §3: ${action} prepare must answer 409 "…dated more than 10 minutes ahead…" with no template, got ${res.statusCode} ${show(res.body)}`);
+    nothingWritten(calls, `Amendment 1 §3: ${action} prepare`);
+  }
+  // At commit: a version the person signed anyway (exactly what an unamended prepare would have offered) gets the same
+  // sentence, not "isn't exactly this action's change".
+  const signed = nt.finalizeEvent({ kind: 39998, content: ahead.content, tags: [['d', 'recipes'], ['names', 'thing', 'things'], ['b', MY_HANDLE, 'pointer']], created_at: NOW + 701 }, SK_ME);
+  let r = await run('self-declare', 'commit', MY_HANDLE, { body: { event: signed } }, { latest: latestOf(ahead) });
+  assert(r.res.statusCode === 409 && TOO_FAR_AHEAD.test((r.res.body && r.res.body.error) || ''),
+    `Amendment 1 §3: commit on a header dated too far ahead must answer 409 "…dated more than 10 minutes ahead…", got ${r.res.statusCode} ${show(r.res.body)}`);
+  nothingWritten(r.calls, 'Amendment 1 §3: commit');
+  // The account check still comes first at commit.
+  const byOther = nt.finalizeEvent({ kind: 39998, content: ahead.content, tags: [['d', 'recipes']], created_at: NOW + 701 }, SK_OTHER);
+  r = await run('self-declare', 'commit', MY_HANDLE, { body: { event: byOther } }, { latest: latestOf(ahead) });
+  assert(r.res.statusCode === 403, `Amendment 1 §3: at commit, the account check runs first — another key's version gets 403, got ${r.res.statusCode} ${show(r.res.body)}`);
+});
+
+test('MA3 (Amendment 1 §3): at the limit a header still prepares and commits; an "already" answer is unaffected by the date', async () => {
+  const atLimit = myHeader('recipes', [], { created_at: NOW + 599 });
+  const p = await run('self-declare', 'prepare', MY_HANDLE, {}, { latest: latestOf(atLimit) });
+  assert(p.res.statusCode === 200 && p.res.body && p.res.body.result === 'sign' && p.res.body.template && p.res.body.template.created_at === NOW + 600,
+    `Amendment 1 §3: a header at now + 599 prepares a version at now + 600, got ${p.res.statusCode} ${show(p.res.body)}`);
+  const signed = nt.finalizeEvent({ ...p.res.body.template }, SK_ME);
+  const c = await run('self-declare', 'commit', MY_HANDLE, { body: { event: signed } }, { latest: latestOf(atLimit) });
+  assert(c.res.statusCode === 200 && c.res.body && c.res.body.result === 'declared', `Amendment 1 §3: and that version commits, got ${c.res.statusCode} ${show(c.res.body)}`);
+  const aheadDone = myHeader('recipes', [['b', MY_HANDLE, 'pointer']], { created_at: NOW + 700 });
+  const a = await run('self-declare', 'prepare', MY_HANDLE, {}, { latest: latestOf(aheadDone) });
+  assert(a.res.statusCode === 200 && a.res.body && a.res.body.result === 'already-declared',
+    `Amendment 1 §3: an already self-declared header answers "already" whatever its date, got ${a.res.statusCode} ${show(a.res.body)}`);
 });
 
 // ── SM — structure ────────────────────────────────────────────────────────────
