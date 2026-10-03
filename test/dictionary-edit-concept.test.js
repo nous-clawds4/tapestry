@@ -427,7 +427,8 @@ test('S3: saving: the version loaded, the server\'s conflict answer, the Assista
 test('S4: a firmware concept warns that a reinstall undoes the edit, from the row\'s own header only', () => {
   const s = flat(code(src(PAGE_JSX)));
   assert(/\{\(firmware \|\| entry\?\.firmwareHeader\) && \(/.test(s) && /A firmware reinstall rebuilds its header from the built-in definition/.test(s), 'the warning');
-  assert(/fetch\(`\/api\/dictionaries\/concepts\/firmware\?coord=\$\{encodeURIComponent\(coord\)\}`\)/.test(s),
+  assert(/import \{ scan, useFirmware \} from '\.\.\/dictionaries\/sharedHeader';/.test(s)
+    && /fetch\(`\/api\/dictionaries\/concepts\/firmware\?coord=\$\{encodeURIComponent\(coord\)\}`\)/.test(flat(code(src(path.join(UI, 'pages/dictionaries/sharedHeader.js'))))),
     'from the address, so a header that isn\'t a Dictionary row is warned of too (review 1, S2)');
   const idx = flat(code(src(ADOPTION_INDEX)));
   assert(/app\.get\('\/api\/dictionaries\/concepts\/firmware', handleConceptFirmware\);/.test(idx)

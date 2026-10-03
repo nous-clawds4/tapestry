@@ -9391,6 +9391,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   font-size: 12px; font-weight: 600; margin-top: 8px;
 }
 .dict-entry-edit:hover { border-color: var(--accent); color: var(--accent); }
+/* Re-Sync, on the entry page: the warning, and the tags removed and added. */
+.dict-resync { margin-top: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.dict-resync-title { margin: 0; font-size: 16px; font-weight: 700; }
+.dict-resync-diff { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.dict-resync-list ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dict-resync-list li code { display: block; font-size: 12px; padding: 4px 8px; border-radius: 8px; background: var(--bg-tertiary); overflow-wrap: anywhere; }
 /* Edit concept: the Item Property Tags (the New DList page's). */
 .dict-edit-props { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
 .dict-edit-props-help { margin: 0; }

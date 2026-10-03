@@ -64,118 +64,153 @@ function defaultDeps() {
   };
 }
 
+/**
+ * The caller's Assistant's keys and the header's address from the body, checked: { keys, coord, dTag } or
+ * { status, body } to answer with. Shared by Edit and Re-Sync (./resyncConcept.js).
+ */
+async function callerAndAddress(d, req, res, verb) {
+  if (!sameHost(req)) return { status: 403, body: { success: false, error: 'a request from another site is refused' } };
+  const sessionPubkey = d.requireAuth(req, res);
+  if (!sessionPubkey) return { answered: true }; // requireAuth has answered 401
+  const keys = await d.getAssistantKeys(sessionPubkey);
+  if (!keys || !keys.pubkey || !keys.privkey) {
+    return { status: 403, body: { success: false, code: 'no-assistant', error: `You have no Tapestry Assistant on this instance, so there is no key to ${verb} with` } };
+  }
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const coord = typeof body.coord === 'string' ? body.coord : '';
+  const m = coord.match(LIST_HEADER_ADDRESS_RE);
+  if (!m) return { status: 400, body: { success: false, error: "coord must be a list header's address (39998:pubkey:d-tag)" } };
+  if (m[1] !== keys.pubkey) {
+    return { status: 403, body: { success: false, code: 'not-yours', error: `Only the Assistant that published this header can ${verb} it, and yours didn’t` } };
+  }
+  if (Buffer.byteLength(coord, 'utf8') > MAX_FILTER_VALUE_BYTES) {
+    return { status: 400, body: { success: false, error: `This header's address is longer than this relay can look up (${MAX_FILTER_VALUE_BYTES} bytes)` } };
+  }
+  const basedOn = typeof body.basedOn === 'string' ? body.basedOn : '';
+  if (!EVENT_ID_RE.test(basedOn)) return { status: 400, body: { success: false, error: `basedOn must be the id of the version being ${verb === 'edit' ? 'edited' : 're-synced'}` } };
+  return { keys, coord, dTag: m[2], basedOn, body };
+}
+
+/**
+ * The header's latest version: the newest verified header of the Assistant's at exactly this address, and
+ * it must be the one the page loaded. { latest } or { status, body }.
+ */
+async function latestVersion(d, keys, coord, dTag, basedOn, verb) {
+  const matches = await d.scanAll({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
+  const atThisAddress = (ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND && firstD(ev) === dTag && d.verify(ev);
+  const found = Array.isArray(matches) ? matches : [];
+  const latest = found.filter(atThisAddress)
+    .reduce((a, b) => (!a || (b.created_at || 0) > (a.created_at || 0) ? b : a), null);
+  if (!latest) {
+    const unverified = found.some((ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND && firstD(ev) === dTag);
+    if (unverified) {
+      return { status: 409, body: {
+        success: false, code: 'unverified',
+        error: `This instance's relay holds a header at this address that doesn't verify as your Assistant's, so it can't be ${verb === 'edit' ? 'edited' : 're-synced'} here`,
+      } };
+    }
+    return { status: 404, body: { success: false, error: `Your Assistant has no header ${coord} on this instance` } };
+  }
+  if (latest.id !== basedOn) {
+    return { status: 409, body: {
+      success: false, code: 'changed', event: latest,
+      error: `This concept changed after the ${verb === 'edit' ? 'edit page' : 'page'} loaded it, so nothing was saved`,
+    } };
+  }
+  return { latest };
+}
+
+/**
+ * A rename's refusal, or null: never of a concept the server finds by name, never onto such a name, and
+ * never onto another of the Assistant's concepts' names (in any case). { status, body } or null.
+ */
+async function renameRefusal(d, keys, dTag, latest, singular) {
+  const oldSingular = ((latest.tags || []).find((t) => Array.isArray(t) && t[0] === 'names') || [])[1];
+  const was = typeof oldSingular === 'string' ? oldSingular.trim() : '';
+  if (singular === was) return null;
+  if (nameKeyed(was)) {
+    return { status: 400, body: {
+      success: false, code: 'name-keyed',
+      error: `The server finds "${was}" by its name, so renaming it would break what uses it. Its plural, description and Item Property Tags can still be changed`,
+    } };
+  }
+  // Nor onto a name the server would then take for one of its own concepts (one not created yet).
+  if (nameKeyed(singular)) {
+    return { status: 400, body: {
+      success: false, code: 'name-keyed',
+      error: `This instance finds a concept named "${singular}" by that name for its own features, so no other concept can take it`,
+    } };
+  }
+  const wanted = singular.toLowerCase();
+  const others = await d.scanAll({ kinds: [HEADER_KIND], authors: [keys.pubkey] });
+  const singularOf = (ev) => String(((ev.tags || []).find((t) => Array.isArray(t) && t[0] === 'names') || [])[1] || '').trim().toLowerCase();
+  // The name first, then the signature, so only a match is verified.
+  const taken = (Array.isArray(others) ? others : []).find((ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND
+    && firstD(ev) !== dTag && singularOf(ev) === wanted && d.verify(ev));
+  if (taken) {
+    return { status: 409, body: {
+      success: false, code: 'name-taken', coord: `${HEADER_KIND}:${keys.pubkey}:${firstD(taken)}`,
+      error: `Your Assistant already has a concept named "${singular}", and the server finds concepts by name, so two would be ambiguous`,
+    } };
+  }
+  return null;
+}
+
+/**
+ * Sign, the local relay, the read-back, then the graph where it holds the header: { status, body }.
+ */
+async function signAndFollow(d, keys, template, coord, label) {
+  const signed = d.sign(template, keys.privkey);
+  if (!signed || signed.pubkey !== keys.pubkey) {
+    return { status: 500, body: { success: false, error: "The Assistant's key didn't sign as its own pubkey, so nothing was published" } };
+  }
+  await d.publishLocal(signed);
+  let stored;
+  try {
+    stored = await d.isStored(signed.id);
+  } catch {
+    return { status: 502, body: { success: false, error: "Sent to the relay, but couldn't confirm it was kept — the graph wasn't changed" } };
+  }
+  if (!stored) return { status: 502, body: { success: false, error: "The relay didn't keep the new version, so nothing was saved" } };
+
+  // The graph follows the relay only where it already holds the header.
+  let graph = 'none';
+  try {
+    if (await d.graphHas(coord)) {
+      await d.importToGraph(signed, coord);
+      graph = 'updated';
+    }
+  } catch (err) {
+    console.error(`${label}: graph update failed:`, err.message);
+    graph = 'failed';
+  }
+  return { status: 200, body: { success: true, event: signed, coord, graph } };
+}
+
 function createEditConceptHandler(deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   return async function handleEditConcept(req, res) {
     try {
-      if (!sameHost(req)) return res.status(403).json({ success: false, error: 'a request from another site is refused' });
-
-      const sessionPubkey = d.requireAuth(req, res);
-      if (!sessionPubkey) return; // requireAuth has answered 401
-
-      const keys = await d.getAssistantKeys(sessionPubkey);
-      if (!keys || !keys.pubkey || !keys.privkey) {
-        return res.status(403).json({ success: false, code: 'no-assistant', error: 'You have no Tapestry Assistant on this instance, so there is no key to edit with' });
-      }
-
-      const body = req.body && typeof req.body === 'object' ? req.body : {};
-      const coord = typeof body.coord === 'string' ? body.coord : '';
-      const m = coord.match(LIST_HEADER_ADDRESS_RE);
-      if (!m) return res.status(400).json({ success: false, error: "coord must be a list header's address (39998:pubkey:d-tag)" });
-      if (m[1] !== keys.pubkey) {
-        return res.status(403).json({ success: false, code: 'not-yours', error: 'Only the Assistant that published this header can edit it, and yours didn’t' });
-      }
-      if (Buffer.byteLength(coord, 'utf8') > MAX_FILTER_VALUE_BYTES) {
-        return res.status(400).json({ success: false, error: `This header's address is longer than this relay can look up (${MAX_FILTER_VALUE_BYTES} bytes)` });
-      }
-      const basedOn = typeof body.basedOn === 'string' ? body.basedOn : '';
-      if (!EVENT_ID_RE.test(basedOn)) return res.status(400).json({ success: false, error: 'basedOn must be the id of the version being edited' });
+      const who = await callerAndAddress(d, req, res, 'edit');
+      if (who.answered) return;
+      if (who.status) return res.status(who.status).json(who.body);
+      const { keys, coord, dTag, basedOn, body } = who;
 
       const { fields, error } = checkEditFields(body);
       if (error) return res.status(400).json({ success: false, error });
 
-      const dTag = m[2];
-      const matches = await d.scanAll({ kinds: [HEADER_KIND], authors: [keys.pubkey], '#d': [dTag] });
-      const atThisAddress = (ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND && firstD(ev) === dTag && d.verify(ev);
-      const found = Array.isArray(matches) ? matches : [];
-      const latest = found.filter(atThisAddress)
-        .reduce((a, b) => (!a || (b.created_at || 0) > (a.created_at || 0) ? b : a), null);
-      if (!latest) {
-        const unverified = found.some((ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND && firstD(ev) === dTag);
-        if (unverified) {
-          return res.status(409).json({
-            success: false, code: 'unverified',
-            error: "This instance's relay holds a header at this address that doesn't verify as your Assistant's, so it can't be edited here",
-          });
-        }
-        return res.status(404).json({ success: false, error: `Your Assistant has no header ${coord} on this instance` });
-      }
-      if (latest.id !== basedOn) {
-        return res.status(409).json({
-          success: false, code: 'changed', event: latest,
-          error: 'This concept changed after the edit page loaded it, so nothing was saved',
-        });
-      }
+      const v = await latestVersion(d, keys, coord, dTag, basedOn, 'edit');
+      if (!v.latest) return res.status(v.status).json(v.body);
+      const { latest } = v;
 
-      // A rename: never of a concept the server finds by name, and never onto another concept's name.
-      const oldSingular = ((latest.tags || []).find((t) => Array.isArray(t) && t[0] === 'names') || [])[1];
-      const was = typeof oldSingular === 'string' ? oldSingular.trim() : '';
-      if (fields.singular !== was) {
-        if (nameKeyed(was)) {
-          return res.status(400).json({
-            success: false, code: 'name-keyed',
-            error: `The server finds "${was}" by its name, so renaming it would break what uses it. Its plural, description and Item Property Tags can still be changed`,
-          });
-        }
-        // Nor onto a name the server would then take for one of its own concepts (one not created yet).
-        if (nameKeyed(fields.singular)) {
-          return res.status(400).json({
-            success: false, code: 'name-keyed',
-            error: `This instance finds a concept named "${fields.singular}" by that name for its own features, so no other concept can take it`,
-          });
-        }
-        const wanted = fields.singular.toLowerCase();
-        const others = await d.scanAll({ kinds: [HEADER_KIND], authors: [keys.pubkey] });
-        const singularOf = (ev) => String(((ev.tags || []).find((t) => Array.isArray(t) && t[0] === 'names') || [])[1] || '').trim().toLowerCase();
-        // The name first, then the signature, so only a match is verified.
-        const taken = (Array.isArray(others) ? others : []).find((ev) => ev && ev.pubkey === keys.pubkey && ev.kind === HEADER_KIND
-          && firstD(ev) !== dTag && singularOf(ev) === wanted && d.verify(ev));
-        if (taken) {
-          return res.status(409).json({
-            success: false, code: 'name-taken', coord: `${HEADER_KIND}:${keys.pubkey}:${firstD(taken)}`,
-            error: `Your Assistant already has a concept named "${fields.singular}", and the server finds concepts by name, so two would be ambiguous`,
-          });
-        }
-      }
+      const refused = await renameRefusal(d, keys, dTag, latest, fields.singular);
+      if (refused) return res.status(refused.status).json(refused.body);
 
       const template = composeEdit(latest, fields, d.now());
       if (!changesTags(latest, template)) return res.json({ success: true, unchanged: true, event: latest, coord });
 
-      const signed = d.sign(template, keys.privkey);
-      if (!signed || signed.pubkey !== keys.pubkey) {
-        return res.status(500).json({ success: false, error: "The Assistant's key didn't sign as its own pubkey, so nothing was published" });
-      }
-      await d.publishLocal(signed);
-      let stored;
-      try {
-        stored = await d.isStored(signed.id);
-      } catch {
-        return res.status(502).json({ success: false, error: "Sent to the relay, but couldn't confirm it was kept — the graph wasn't changed" });
-      }
-      if (!stored) return res.status(502).json({ success: false, error: "The relay didn't keep the new version, so nothing was saved" });
-
-      // The graph follows the relay only where it already holds the header.
-      let graph = 'none';
-      try {
-        if (await d.graphHas(coord)) {
-          await d.importToGraph(signed, coord);
-          graph = 'updated';
-        }
-      } catch (err) {
-        console.error('dictionaries/concepts/edit: graph update failed:', err.message);
-        graph = 'failed';
-      }
-      return res.json({ success: true, event: signed, coord, graph });
+      const out = await signAndFollow(d, keys, template, coord, 'dictionaries/concepts/edit');
+      return res.status(out.status).json(out.body);
     } catch (err) {
       console.error('dictionaries/concepts/edit error:', err.message);
       return res.status(500).json({ success: false, error: err.message });
@@ -187,4 +222,6 @@ function register(app) {
   app.post(ROUTE, createEditConceptHandler());
 }
 
-module.exports = { ROUTE, createEditConceptHandler, register };
+module.exports = {
+  ROUTE, createEditConceptHandler, register, defaultDeps, callerAndAddress, latestVersion, renameRefusal, signAndFollow, HEADER_KIND,
+};

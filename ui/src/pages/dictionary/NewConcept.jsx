@@ -3,11 +3,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import DictionaryShell from './DictionaryShell';
 import DictIcon from '../dictionaries/DictIcon';
 import useProfiles from '../../hooks/useProfiles';
-import { npubOf, scan } from '../dictionaries/ConceptEntry';
+import { npubOf } from '../dictionaries/ConceptEntry';
+import { useSharedHeader } from '../dictionaries/sharedHeader';
 import { DICTIONARY_PATH, DICTIONARY_WIRE_PARAM, dictionaryEntryPath, useDictionaryPerson } from '../dictionaries/conceptsDictionary';
 import { publishToRelays } from '../../utils/nostrPublish';
 import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
-import { COMMUNITY_RELAYS } from '../../hooks/useCommunitySharedConcepts';
 import { ASSISTANT_COPY } from '../assistant/actions';
 import { classifyBroadcast, outcomeMessage } from '@tapestry/broadcast-outcome';
 import { copiedHeaderTags } from '@tapestry/concept-header-copy';
@@ -15,47 +15,6 @@ import { MAX_D_BYTES, conceptHeaderDraft, draftPreview, fieldsFromHeader, wirePr
 
 /** Creates the header with the signed-in person's own Assistant (src/api/adoption/newConcept.js). */
 export const NEW_CONCEPT_API = '/api/dictionaries/concepts/new';
-
-/**
- * The community relay, read strictly (`strict=1`): a relay that couldn't be read is an error, never an
- * empty answer, so the page can't mistake "unreachable" for "not there" (the lenient read answers
- * `{success: true, events: []}` for both).
- */
-async function readCommunityStrict(filter) {
-  const params = new URLSearchParams({ filter: JSON.stringify(filter), relays: COMMUNITY_RELAYS.join(','), strict: '1' });
-  const resp = await fetch(`/api/relay/external?${params}`);
-  const data = await resp.json();
-  if (!data || data.success !== true) throw new Error((data && data.error) || `HTTP ${resp.status}`);
-  return Array.isArray(data.events) ? data.events : [];
-}
-
-/**
- * The shared concept's header, for `?wire=`: the newest of this instance's relay and the community relay,
- * so the form can start from its names and description and the copy from its tags.
- * { event, done, unreadable, reload }: `unreadable` when neither relay has it and the community relay
- * couldn't be read, so whether it has a header there isn't known.
- */
-function useSharedHeader(target) {
-  const [state, setState] = useState({ event: null, done: !target, unreadable: false });
-  const [version, setVersion] = useState(0);
-  useEffect(() => {
-    if (!target) { setState({ event: null, done: true, unreadable: false }); return undefined; }
-    let cancelled = false;
-    setState({ event: null, done: false, unreadable: false });
-    const [, pubkey, ...rest] = target.split(':');
-    const d = rest.join(':');
-    const filter = { kinds: [39998], authors: [pubkey], '#d': [d] };
-    const own = (ev) => ev && ev.kind === 39998 && ev.pubkey === pubkey && (ev.tags || []).find((t) => t[0] === 'd')?.[1] === d;
-    (async () => {
-      const reads = await Promise.allSettled([scan(filter), readCommunityStrict(filter)]);
-      const events = reads.flatMap((r) => (r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : [])).filter(own);
-      const newest = events.reduce((a, b) => (!a || (b.created_at || 0) > (a.created_at || 0) ? b : a), null);
-      if (!cancelled) setState({ event: newest, done: true, unreadable: !newest && reads[1].status === 'rejected' });
-    })();
-    return () => { cancelled = true; };
-  }, [target, version]);
-  return { ...state, reload: () => setVersion((v) => v + 1) };
-}
 
 /**
  * /dictionary/new — Create New Concept, as the design's screen: singular and plural names, a

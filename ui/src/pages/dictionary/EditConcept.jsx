@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import DictionaryShell from './DictionaryShell';
 import DictIcon from '../dictionaries/DictIcon';
-import { scan } from '../dictionaries/ConceptEntry';
+import { scan, useFirmware } from '../dictionaries/sharedHeader';
 import { coordParts, dictionaryEntryPath, displayName, useConceptDictionary, useDictionaryPerson } from '../dictionaries/conceptsDictionary';
 import { usePov } from '../../context/PovContext';
 import { publishToRelays } from '../../utils/nostrPublish';
@@ -37,21 +37,6 @@ function useLatestHeader(coord) {
     return () => { cancelled = true; };
   }, [coord]);
   return state;
-}
-
-/** Is this header one a firmware reinstall rebuilds? Decided by the server from the address. null until known. */
-function useFirmware(coord) {
-  const [firmware, setFirmware] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    setFirmware(null);
-    fetch(`/api/dictionaries/concepts/firmware?coord=${encodeURIComponent(coord)}`)
-      .then((r) => r.json())
-      .then((data) => { if (!cancelled) setFirmware(Boolean(data && data.success && data.firmware)); })
-      .catch(() => { if (!cancelled) setFirmware(null); });
-    return () => { cancelled = true; };
-  }, [coord]);
-  return firmware;
 }
 
 /** The new version as the preview shows it: the event, one tag per line. */

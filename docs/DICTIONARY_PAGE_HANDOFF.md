@@ -112,6 +112,18 @@
 >     - A header at the address that doesn't verify (the relay accepts unverified imports: OPEN.md row `2026-10-02-io-import-unverified-any-session`) can't be edited, and the server says so.
 >   - **Firmware concepts can be edited (owner's decision),** with a warning that a firmware reinstall rebuilds the header from the built-in definition and will undo the edit. Firmware is decided from the address by `GET /api/dictionaries/concepts/firmware?coord=` (the manifest's `firmwareCoords`), so a firmware header that isn't a Dictionary row is warned of too. Dictionary rows also carry `firmwareHeader`, which is narrower than `isFirmware`: that one also marks rows that only point at a firmware concept.
 >   - **The broadcast.** The new version goes to the community relay, and the page reports it with the new `save` wording in `broadcastOutcome`.
+> - **Added 2026-10-02: Re-Sync.** The owner asked for a Re-Sync button next to Edit. It rebuilds the local header from scratch from the shared concept it is wired to: for example to pick up a change to the shared concept, or to finish an earlier copy that lacked tags, such as staging's GitHub Account and its `field-type`.
+>   - **Where it shows.** A quiet pill beside Edit, on `/dictionary/:coord` only. It appears for a signed-in reader, on a header their own Assistant wrote that is wired to another header: its first pointer b-tag to another list header (`wiredTarget`). A self-shared header has nothing to sync from.
+>   - **The confirmation is inline (owner's decision).** A panel under the description warns that the header is completely overwritten. It summarises the change as tags removed and tags added: a changed tag is the old one removed and the new one added, and repeats count (`tagDiff`). The raw headers stay at the bottom of the page. When nothing would change, it says "Already in sync".
+>   - **What is written** (`resyncedHeaderTags` in `src/lib/conceptHeaderCopy.js`, the rule the summary is made from):
+>     - the shared header's names, description and tags, by the copy rule above;
+>     - the local address `d`;
+>     - the local `json`, `concept-graph` and `z`, which the owner chose to keep, with the kept `json`'s names and description following the new ones;
+>     - one `b`, at the shared concept.
+>
+>     None of the shared header's own `b` tags is copied, and the local header's other `b` pointers go. So the shared concept is its one parent, whether or not that concept points to itself (the owner's rule).
+>   - **Who signs.** `POST /api/dictionaries/concepts/resync` (`src/api/adoption/resyncConcept.js`), with the caller's own Assistant. It uses Edit's checks: the version the page showed (409 `changed`), the rename guards (`name-keyed`, `name-taken`), the read-back and the graph update. It reads the shared version by id as Create New Concept does (`source-missing`, `source-mismatch`, `source-unreachable`), and it must be at the header's wired target (else 400 `not-wired` or `source-mismatch`). Nothing changing is answered without signing.
+>   - **Shared reads.** Create, Edit and Re-Sync share their reads in `ui/src/pages/dictionaries/sharedHeader.js`: this relay, the community relay read strictly, and the firmware check.
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---

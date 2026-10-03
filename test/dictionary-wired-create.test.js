@@ -409,8 +409,10 @@ test('S1: the page reads ?wire= and starts from the shared header, read here and
   assert(/'@tapestry\/concept-header-copy': conceptHeaderCopyCore/.test(vite) && /\/src\\\/lib\\\/conceptHeaderCopy\//.test(vite), 'the alias, built as CommonJS');
   assert(!/require\(/.test(code(src(COPY))), 'zero requires, so the browser can take it');
   assert(/const target = wireTarget\(wireParam\);/.test(s) && /params\.get\(DICTIONARY_WIRE_PARAM\)/.test(s), 'the wire target comes from the URL');
-  assert(/Promise\.allSettled\(\[scan\(filter\), readCommunityStrict\(filter\)\]\)/.test(s), 'both relays, the newest wins');
-  assert(/relays: COMMUNITY_RELAYS\.join\(','\), strict: '1'/.test(s) && /if \(!data \|\| data\.success !== true\) throw new Error/.test(s),
+  const reads = flat(code(src(path.join(UI, 'pages/dictionaries/sharedHeader.js'))));
+  assert(/import \{ useSharedHeader \} from '\.\.\/dictionaries\/sharedHeader';/.test(s), 'the page reads the shared header with the shared hook');
+  assert(/Promise\.allSettled\(\[scan\(filter\), readCommunityStrict\(filter\)\]\)/.test(reads), 'both relays, the newest wins');
+  assert(/relays: COMMUNITY_RELAYS\.join\(','\), strict: '1'/.test(reads) && /if \(!data \|\| data\.success !== true\) throw new Error/.test(reads),
     'the community relay is read strictly: unreachable is an error, never "not there" (review 2, R2-M1)');
   assert(/const sharedSettled = !target \|\| \(shared\.done && !shared\.unreadable\);/.test(s) && /!selfTarget && sharedSettled && !busy/.test(s),
     'no wired create before the shared header\'s read settles, nor when the community relay couldn\'t be read');

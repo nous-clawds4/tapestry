@@ -18,14 +18,24 @@
  * titles, founder, claims, …) is copied as it is: the owner kept name / title / titles and founder / claims
  * when asked (2026-10-02).
  *
- * Pure CJS, zero requires: the server's endpoint (src/api/adoption/newConcept.js) composes with it, and
- * the browser imports the same code through the `@tapestry/concept-header-copy` alias (ui/vite.config.js),
- * so Create New Concept's preview is exactly what is signed.
+ * Re-Sync (the owner's request of 2026-10-02) rebuilds a wired header from the shared concept it points
+ * to with the same rule, from scratch: the shared header's names, description and tags replace the
+ * local ones, and only the local header's own address (`d`) and its own KEPT_LOCAL tags stay. Those are
+ * `json`, `concept-graph` and `z`: the kinds the copy never takes from the shared header, because they
+ * are about the header's own author (its naming record, its own derived graph, where it is filed). The
+ * owner chose to keep them (2026-10-02). The kept `json`'s names and description follow the new ones,
+ * as an Edit's do.
+ *
+ * Pure CJS, zero requires: the server's endpoints (src/api/adoption/newConcept.js, resyncConcept.js)
+ * compose with it, and the browser imports the same code through the `@tapestry/concept-header-copy`
+ * alias (ui/vite.config.js), so a preview or a summary of changes is exactly what is signed.
  */
 
 'use strict';
 
 const COPY_SKIPPED = ['json', 'concept-graph', 'z', 'client', 'alt', 'expiration', '-', 'nonce'];
+const KEPT_LOCAL = ['json', 'concept-graph', 'z'];
+const LIST_HEADER_ADDRESS_RE = /^39998:[0-9a-f]{64}:.+$/;
 
 const isTag = (t) => Array.isArray(t) && t.length > 0 && typeof t[0] === 'string';
 
@@ -65,4 +75,90 @@ function copiedHeaderTags({ source, d, singular, plural, description, target }) 
   return out;
 }
 
-module.exports = { COPY_SKIPPED, copiedHeaderTags };
+const firstValue = (event, name) => {
+  const t = (event && Array.isArray(event.tags) ? event.tags : []).find((x) => isTag(x) && x[0] === name);
+  return t && typeof t[1] === 'string' ? t[1] : null;
+};
+
+/**
+ * The shared concept a header is wired to: its first pointer b-tag (typed "pointer", or untyped) whose
+ * value is another list header's address. null for a header that is itself the shared concept, or has no
+ * such b-tag. Re-Sync rebuilds from it, and leaves the header with that one b-tag.
+ */
+function wiredTarget(event) {
+  const d = firstValue(event, 'd');
+  const self = event && typeof event.pubkey === 'string' && d !== null ? `39998:${event.pubkey}:${d}` : null;
+  const b = (event && Array.isArray(event.tags) ? event.tags : []).find((t) => isTag(t) && t[0] === 'b'
+    && typeof t[1] === 'string' && LIST_HEADER_ADDRESS_RE.test(t[1]) && t[1] !== self
+    && (t[2] === undefined || t[2] === '' || t[2] === 'pointer'));
+  return b ? b[1] : null;
+}
+
+/** The `json` tag with its conceptHeader's names and description set, when they differ (else as it was). */
+function syncedJson(tag, { singular, plural, description }) {
+  let obj;
+  try { obj = JSON.parse(tag[1]); } catch { return [...tag]; }
+  const ch = obj && typeof obj === 'object' && obj.conceptHeader && typeof obj.conceptHeader === 'object' ? obj.conceptHeader : null;
+  if (!ch) return [...tag];
+  const names = ch.oNames && typeof ch.oNames === 'object' ? ch.oNames : {};
+  const sameNames = names.singular === singular && names.plural === plural;
+  const sameDesc = description ? ch.description === description : ch.description === undefined;
+  if (sameNames && sameDesc) return [...tag];
+  if (!sameNames) ch.oNames = { ...names, singular, plural };
+  if (!sameDesc) { if (description) ch.description = description; else delete ch.description; }
+  return [tag[0], JSON.stringify(obj), ...tag.slice(2)];
+}
+
+/**
+ * Re-Sync: `local` (the header being rebuilt) as a fresh copy of `source` (the shared header it is wired
+ * to, at `target`). Names and description are the source's (a source without a names tag keeps the
+ * local names); `d` stays the local one; the local KEPT_LOCAL tags stay, after the copied names, slug and
+ * description, in their own order, with a kept `json` following the new names and description.
+ */
+function resyncedHeaderTags({ local, source, target }) {
+  const d = firstValue(local, 'd') || '';
+  const sourceNames = (source && Array.isArray(source.tags) ? source.tags : []).find((t) => isTag(t) && t[0] === 'names');
+  const localNames = (local && Array.isArray(local.tags) ? local.tags : []).find((t) => isTag(t) && t[0] === 'names');
+  const names = sourceNames || localNames || ['names', d, d];
+  const singular = typeof names[1] === 'string' ? names[1] : d;
+  const plural = typeof names[2] === 'string' ? names[2] : singular;
+  const description = firstValue(source, 'description') || '';
+  const out = copiedHeaderTags({ source, d, singular, plural, description, target });
+  const kept = (local && Array.isArray(local.tags) ? local.tags : []).filter((t) => isTag(t) && KEPT_LOCAL.includes(t[0]))
+    .map((t) => (t[0] === 'json' && typeof t[1] === 'string' ? syncedJson(t, { singular, plural, description }) : [...t]));
+  let at = 0;
+  out.forEach((t, i) => { if (['d', 'names', 'slug', 'description'].includes(t[0])) at = i + 1; });
+  out.splice(at, 0, ...kept);
+  return out;
+}
+
+/**
+ * What a new version changes, tag by tag, as Re-Sync's summary shows it: { removed, added }. A tag is the
+ * same only when every value is; a changed one (a different b, a renamed names) is the old one removed and
+ * the new one added. Repeats count: two identical tags where there was one is one added.
+ */
+function tagDiff(before, after) {
+  const key = (t) => JSON.stringify(t);
+  const count = (tags) => {
+    const m = new Map();
+    for (const t of tags) m.set(key(t), (m.get(key(t)) || 0) + 1);
+    return m;
+  };
+  const a = (Array.isArray(before) ? before : []).filter(isTag);
+  const b = (Array.isArray(after) ? after : []).filter(isTag);
+  const left = count(b);
+  const removed = [];
+  for (const t of a) {
+    const n = left.get(key(t)) || 0;
+    if (n > 0) left.set(key(t), n - 1); else removed.push(t);
+  }
+  const right = count(a);
+  const added = [];
+  for (const t of b) {
+    const n = right.get(key(t)) || 0;
+    if (n > 0) right.set(key(t), n - 1); else added.push(t);
+  }
+  return { removed, added };
+}
+
+module.exports = { COPY_SKIPPED, KEPT_LOCAL, copiedHeaderTags, wiredTarget, resyncedHeaderTags, tagDiff };

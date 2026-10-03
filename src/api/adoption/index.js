@@ -590,6 +590,8 @@ function registerAdoptionRoutes(app) {
   require('./newConcept').register(app);
   // Edit a concept: a new version of a header the caller's own Assistant wrote (./editConcept.js).
   require('./editConcept').register(app);
+  // Re-Sync a concept from the shared concept it is wired to (./resyncConcept.js).
+  require('./resyncConcept').register(app);
 }
 
 module.exports = {
