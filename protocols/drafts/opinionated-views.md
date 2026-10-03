@@ -4,6 +4,7 @@
 > **Sources:** the Tapestry Dictionary's GitHub Accounts views (staging, 2026-10-03: `ui/src/pages/dictionary/github.js`, `useGithubAccount.js`, `GithubAccount.jsx`, `Item.jsx`; design record `docs/DICTIONARY_PAGE_HANDOFF.md`, the 2026-10-03 bullet); the owner's notes to the Brainstorm team (2026-10-03); [Content Categories](./content-categories.md); [Shared Concepts](./shared-concepts.md) § Declared affiliation; NIP-89 (prior art).
 > **Why this exists:** Brainstorm is about to show DList items in its search results, starting with GitHub Accounts, and Tapestry has built the first such view. This draft names the parts, so that each platform can build its own views for the same categories. It also sets out how views could later be shared as nostr events.
 > **Boundary note:** §§ 1–6 are a convention with no wire format: each platform's views stay in its own code. They live here because § 7's wire format builds on them, and because two independent codebases (Tapestry and Brainstorm) share them. Tapestry's own view code belongs in the BIBLE once it settles.
+> **State (2026-10-03):** §§ 1–6 are ready for phase-1 builds, starting with Brainstorm's GitHub Accounts views. § 7 and open questions 1 and 3–7 wait until a second platform has built from a brief. Questions about how DList items get into search results at all are out of scope; they are worksheet [W26](../worksheet.md#w26--dlist-items-in-search-results).
 > **Related:** the uppercase `Z` tag idea (auxiliary events of a DList header) is worksheet [W25](../worksheet.md#w25--uppercase-z-auxiliary-events-of-a-dlist-header). This draft doesn't depend on it.
 
 ---
@@ -43,7 +44,7 @@ This draft supplies the shared vocabulary for those choices, rules every view fo
 | Tier | Built | Covers | Example |
 |---|---|---|---|
 | **Generic** | once per platform | every item of every category | name, description, who published it, raw event |
-| **Schema-driven** | once per platform | every DList whose header declares its fields | each field the header names in `required` / `allowed`, labeled, formatted by `field-type` |
+| **Schema-driven** | once per platform | every DList item | the default DList card (§ 2.1): title, the DList's name, description, the header's `required` fields, the filer |
 | **Opinionated** | by hand, per category | the categories the platform chooses | GitHub Accounts in GitHub's idiom |
 
 - Every platform MUST have the generic tier. Opinionated views fall back to it (§ 5, rule 2).

@@ -317,3 +317,18 @@ A `#Z` query would then find every auxiliary event of a header at once.
 - **Roles.** Is the role (the third element) free text, or the coordinate of the role's own concept (`39998:<pubkey>:opinionated-view`), so that roles can be curated like everything else?
 
 **Refs:** [opinionated-views](./drafts/opinionated-views.md) § 7.2; [tapestry-concepts](./drafts/tapestry-concepts.md) § Core nodes of a concept; [class-thread-relationships](./drafts/class-thread-relationships.md) (direction principle); [W2](#w2--single-char-tag-namespace-registry); [W18](#w18--descriptor-tag-letters-k--z--t); [W21](#w21--category-hints-on-taggings-z--k).
+
+## W26 — DList items in search results
+
+**Status:** Open · raised 2026-10-03
+
+[Opinionated Views](./drafts/opinionated-views.md) says how a DList item looks once it is in a search result. Nothing yet says whether it gets there. Four questions, raised while scoping that draft and deliberately left out of it (owner, 2026-10-03):
+
+1. **Which DLists are searched?** Every header on the relay, the House's Dictionary, or the viewer's own Dictionary.
+2. **What does a query match?** The item's name, its description, its field values, or the header's names ("GitHub Accounts" matching "github").
+3. **How do results rank from the viewer's point of view?** By the number of trusted filers, or by membership in a Trusted List spawned from the DList ([spawning](./drafts/spawning.md)).
+4. **Where do they appear?** A chip per DList, or one "Lists" chip. [content-categories](./drafts/content-categories.md) § 3.2 says the chips come from a display Pin, `search-chips`, but [pins](./drafts/pins.md) § 8.2 doesn't define it: its only display Pin is `profile-page-tags`.
+
+Parts exist: content-categories (the categories and the chip idea), [filters-on-dlists](./drafts/filters-on-dlists.md) (a stub proposing a `dlists` field on relay filters, with the viewer passed for trust filtering), spawning and [trusted-lists](./drafts/trusted-lists.md) (ranked lists). Nothing ties them together for search. It is as much a product question (what's in the first version, and for whom) as a protocol one.
+
+**Refs:** opinionated-views § 2.1 (the default DList card) and its State line; content-categories § 3.2; pins § 8.2; filters-on-dlists; spawning.
