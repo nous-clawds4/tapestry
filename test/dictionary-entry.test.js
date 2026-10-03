@@ -6,8 +6,9 @@
  * trusts (the qualifying set GUM₁ counts), plus the reader's own filings. What has no backend yet is
  * shown disabled with a note: the Trusted Curation Method, the Curation switches, Veto, item pages.
  *
- *   I1..I11 — pure: trustedItems in src/lib/trustedDictionary.js (I8–I10: a curation copy and its
- *             original are one item; I11: the response cap).
+ *   I1..I13 — pure: trustedItems in src/lib/trustedDictionary.js (I8–I10: a curation copy and its
+ *             original are one item; I11: the response cap; I12: each item's description and properties;
+ *             I13: they survive the Items read's scan projection, itemCarrier).
  *   C1..C3 — pure: conceptCurator in ui/src/utils/treasureMap.js (dynamic import).
  *   E1..E10 — structural pins, read off comment-stripped source: the route and its seam, the
  *            client read, the design's sections in order, the disabled controls with their notes,
@@ -185,6 +186,38 @@ test('I11: at most `limit` items come back, oldest first; the counts still cover
   assert(whole.truncated === false && whole.items.length === 5, 'under the default cap, nothing is cut');
 });
 
+test('I12: each item carries its own description and its property tags, bounded; names and indexed tags are not properties', () => {
+  const ev = item(TRUSTED, SHARED, { name: 'wds4', d: 'wds4-x' });
+  ev.tags.push(['description', '  David Strayhorn '], ['github-username', 'wds4'], ['github-username', 'second'], ['title', 't'],
+    ['json', '{}'], ['e', 'f'.repeat(64)], ['website', 'x'.repeat(400)], ['empty', '  ']);
+  const [it] = lib().trustedItems({ zCarriers: [ev], coords: [SHARED], qualifying: [TRUSTED] }).items;
+  assert(it.description === 'David Strayhorn', `the description, trimmed; got ${JSON.stringify(it.description)}`);
+  assert(JSON.stringify(Object.keys(it.properties)) === JSON.stringify(['github-username', 'website']),
+    `properties: not d/z/e, not name/title/description/json, not empty; got ${JSON.stringify(Object.keys(it.properties))}`);
+  assert(it.properties['github-username'] === 'wds4', 'the first of a name counts');
+  assert(it.properties.website.length === 300, 'a value is bounded');
+  const many = item(TRUSTED, SHARED, { d: 'many' });
+  for (let i = 0; i < 30; i += 1) many.tags.push([`p${i}`, 'v']);
+  const [m] = lib().trustedItems({ zCarriers: [many], coords: [SHARED], qualifying: [TRUSTED] }).items;
+  assert(Object.keys(m.properties).length === 20, 'at most twenty properties');
+  assert(m.description === null, 'no description tag, null');
+});
+
+test('I13: the Items read\'s scan keeps each item\'s description and property tags (itemCarrier), and the handler uses it', () => {
+  const raw = item(TRUSTED, SHARED, { d: 'vitorpamplona-ni5x31' });
+  raw.tags.push(['description', 'Vitor'], ['github-username', 'vitorpamplona'], ['json', '{"big":"' + 'x'.repeat(5000) + '"}']);
+  const carrier = lib().itemCarrier(raw);
+  assert(!carrier.tags.some((t) => t[0] === 'json' || t[0] === 'github-username' || t[0] === 'description'),
+    'the carrier holds only the tags trustedItems reads');
+  const [it] = lib().trustedItems({ zCarriers: [carrier], coords: [SHARED], qualifying: [TRUSTED] }).items;
+  assert(it.description === 'Vitor', `the description survives the scan; got ${JSON.stringify(it.description)}`);
+  assert(it.properties['github-username'] === 'vitorpamplona', `the property survives the scan; got ${JSON.stringify(it.properties)}`);
+  assert(it.name === 'vitorpamplona-ni5x31', 'and the name is still read off the kept tags');
+  const handler = flat(code(src(ADOPTION_API_JS)));
+  assert(/const zCarriers = await strfryScanStream\(\{ '#z': coords \}, \(ev\) => itemCarrier\(ev\)\);/.test(handler),
+    'assembleConceptItems projects each carrier with itemCarrier');
+});
+
 // ═══ C — conceptCurator ═══════════════════════════════════════════════════════════
 
 const TREASURE_MAP_JS = path.join(UI, 'utils/treasureMap.js');
@@ -286,7 +319,7 @@ test('E5: the sample chips and the Usage card are gone; the links moved into the
   assert(/\{members\} \{members === 1 \? 'member' : 'members'\}/.test(entry), 'the strip states the GUM₁ count as members');
   assert(/Open the concept →/.test(entry) && (entry.match(/Raw header event →/g) || []).length === 2, 'both header panels keep their links');
   const dict = flat(code(src(DICTIONARY_ENTRY_JSX)));
-  assert(/<ConceptEntryBody (key=\{coord\} )?listHref=\{DICTIONARY_PATH\} listLabel="Dictionary" profileBase="\/user"( itemHref=\{dictionaryItemPath\})?( editHref=\{dictionaryEditPath\})?( resync)? \/>/.test(dict),
+  assert(/<ConceptEntryBody (key=\{coord\} )?listHref=\{DICTIONARY_PATH\} listLabel="Dictionary" profileBase="\/user"( itemHref=\{dictionaryItemPath\})?( editHref=\{dictionaryEditPath\})?( resync)?( dlistViews)? \/>/.test(dict),
     '/dictionary/:coord links Filed by names to the Main side\'s profile pages');
 });
 
@@ -315,12 +348,18 @@ test('E7: every Items row opens its item: /dictionary\'s own page, else the Simp
   assert(/path: '\/dictionary\/:coord\/items\/:item', element: <DictionaryItemPage \/>/.test(flat(code(src(APP_JSX)))), 'the item route exists');
 });
 
-test('E8: the item page is the design\'s screen: back to the concept, "Item N in", Filed by, the raw event', () => {
+test('E8: the item page is the design\'s screen: back to the concept, "Item N in", then a quiet footer: the filer, the raw event', () => {
   const item = flat(code(src(DICTIONARY_ITEM_JSX)));
   assert(/<Link to=\{entryHref\} state=\{entryState\} className="dict-back"><DictIcon name="back" \/> \{concept\}<\/Link>/.test(item), 'the back link is named for the concept');
   assert(/`Item \$\{listed\.n\} in \$\{concept\}`/.test(item), '"Item N in <concept>"');
-  assert(/<span className="dict-field-label">Filed by<\/span>/.test(item) && /View Nostr profile/.test(item), 'Filed by, with the profile link');
-  assert(/<Disclosure id="dict-item-raw" label="Raw Nostr event">/.test(item), 'the raw event, collapsed');
+  assert(/<footer className="dict-item-foot"> \{author && \( <p className="dict-item-filer"> Filed by <span className="dict-item-filer-name">\{nameOf\(author\)\}<\/span>/.test(item),
+    'the filer\'s name in one line, in the footer (owner, 2026-10-03: less prominent than the design\'s card)');
+  assert(/<Link to=\{`\/user\/\$\{author\}`\} title=\{npubOf\(author\)\}>View Nostr profile<\/Link> <\/p> \)\}/.test(item)
+    && /<\/p> \)\} <Disclosure id="dict-item-raw" label="Raw Nostr event">/.test(item) && /<\/Disclosure> <\/footer>/.test(item),
+    'the profile link, then the raw event, collapsed, in the same footer');
+  assert(!/dict-filed-by/.test(item), 'the Filed by card is gone');
+  assert(/\.dict-item-foot \{ margin-top: 44px; padding-top: 18px; border-top: 1px solid var\(--bsd-line\); \}/.test(flat(src(path.join(UI, 'styles.css')))),
+    'set apart by a divider');
   assert(/fromEntry === entryPath \|\| fromEntry\.startsWith\(`\$\{entryPath\}\?`\)/.test(item), 'back only to this entry\'s page (and its query)');
 });
 

@@ -1,23 +1,31 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import DictionaryShell from './DictionaryShell';
+import { GithubAccountHead, GithubProfile, GithubRepos } from './GithubAccount';
+import { githubLogin, githubRowOf, githubRows, isGithubAccounts, normalizeLogin } from './github';
+import useGithubAccount from './useGithubAccount';
 import DictIcon from '../dictionaries/DictIcon';
 import useProfiles from '../../hooks/useProfiles';
 import { usePov } from '../../context/PovContext';
-import { Disclosure, eventJson, initialOf, npubOf, scan, useHeaderEvent } from '../dictionaries/ConceptEntry';
+import { Disclosure, eventJson, npubOf, scan, useHeaderEvent } from '../dictionaries/ConceptEntry';
 import {
   coordParts, dictionaryEntryPath, displayName, useConceptDictionary, useConceptItems, useDictionaryPerson,
 } from '../dictionaries/conceptsDictionary';
 
 /**
  * /dictionary/:coord/items/:item — one item of a Dictionary entry, as the design's "Dictionary item"
- * screen: its name, "Item N in <concept>", a description, who filed it, and the raw Nostr event.
+ * screen: its name, "Item N in <concept>", a description, then, below a divider, who filed it and the raw
+ * Nostr event.
  *
  * `:item` is the item's address (kind:pubkey:d) or its event id. Opened from the entry's Items table,
  * the row arrives in router state (the item, its number, the entry), so nothing needs reading but the
  * event. A direct visit reads the person's dictionary for the entry, then the entry's Items for the
  * number, from the active point of view. The page says only what those reads establish: that the item
  * isn't trusted needs the whole Items read, the entry known, and the event filed under the concept.
+ *
+ * Some DLists have a page of their own around the same reads: an item of the GitHub Accounts DList
+ * (recognised by its shared concept, whichever instance's header the page is on) shows the account as
+ * GitHub does (GithubAccount.jsx).
  */
 
 const ADDRESS = /^(\d+):([0-9a-f]{64}):(.+)$/;
@@ -27,6 +35,8 @@ const tagOf = (ev, name) => {
   const t = (ev?.tags || []).find((x) => x[0] === name && typeof x[1] === 'string' && x[1].trim() !== '');
   return t ? t[1] : null;
 };
+
+const bTargets = (ev) => (ev?.tags || []).filter((t) => t && t[0] === 'b' && typeof t[1] === 'string').map((t) => t[1]);
 
 /** The item's newest event: by address (newest version), else by id. */
 function useItemEvent(ref) {
@@ -82,10 +92,19 @@ export default function DictionaryItemPage() {
 
   const ev = itemEvent.event;
   const key = itemKey(ev);
+  // The concepts this page is about: its header, the shared concept that header points to, and its b targets.
+  const pageConcepts = [coord, entry?.sharedCoord, ...(entry?.targets || []), ...bTargets(header.event)].filter(Boolean);
+  // Until the event arrives, the row it was opened from names the login, so the page doesn't change face.
+  const login = !isGithubAccounts(pageConcepts) ? null : ev ? githubLogin(ev) : normalizeLogin(passed?.item?.login);
+  const gh = useGithubAccount(login);
+  // A GitHub account's number is its row's in the entry's Items, where its filings are one row (githubRows).
   const listed = passed ? passed.item
-    : (items.data && key ? (items.data.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === key) : null) || null;
+    : items.data && key && login ? githubRowOf(githubRows(items.data.items), key)
+      : (items.data && key ? (items.data.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === key) : null) || null;
   const author = ev?.pubkey || passed?.item?.author || null;
-  const profiles = useProfiles(author ? [author] : []);
+  // Everyone else who filed the same account (its row's other filers).
+  const others = login && Array.isArray(listed?.filers) ? listed.filers.filter((p) => typeof p === 'string' && p !== author) : [];
+  const profiles = useProfiles(author ? [author, ...others] : []);
   const whose = person.signedIn ? 'your' : 'the owner’s';
   const Whose = person.signedIn ? 'Your' : 'The owner’s';
   const nameOf = (pubkey) => {
@@ -96,12 +115,10 @@ export default function DictionaryItemPage() {
     const name = p && typeof p === 'object' ? (p.display_name || p.name) : null;
     return name || `${npubOf(pubkey).slice(0, 12)}…`;
   };
-  const p = author ? profiles?.[author] : null;
-  const nip05 = p && typeof p === 'object' && typeof p.nip05 === 'string' && p.nip05 ? p.nip05 : null;
 
   const concept = entry ? displayName(entry) : (tagOf(header.event, 'names') || tagOf(header.event, 'name') || coordParts(coord).d);
   const plural = (entry?.plural || header.event?.tags?.find((t) => t[0] === 'names')?.[2] || 'items').toLowerCase();
-  const name = (ev && (tagOf(ev, 'names') || tagOf(ev, 'name') || tagOf(ev, 'title') || tagOf(ev, 'd'))) || passed?.item?.name || ref;
+  const name = login || (ev && (tagOf(ev, 'names') || tagOf(ev, 'name') || tagOf(ev, 'title') || tagOf(ev, 'd'))) || passed?.item?.name || ref;
 
   // What this page knows, and may therefore say. Only a known entry names every concept its Items are
   // filed under; only a complete, successful read of those Items can say an item is not among them.
@@ -130,6 +147,9 @@ export default function DictionaryItemPage() {
     }
   }
   const subtitle = listed ? `Item ${listed.n} in ${concept}` : filedHere ? `Filed under ${concept}` : null;
+  // A GitHub account's title is its GitHub name, which a filer's description often just repeats.
+  const ghTitle = login && gh.status === 'ok' ? (gh.user.name || login) : login;
+  const lede = description && !(ghTitle && description.trim().toLowerCase() === ghTitle.toLowerCase()) ? description : null;
 
   // Back to the entry, with what it was opened with, so it shows at once and keeps its own way back.
   const entryPath = dictionaryEntryPath(coord);
@@ -142,9 +162,13 @@ export default function DictionaryItemPage() {
     <DictionaryShell>
       <div className="dict-page dict-skin-light">
         <Link to={entryHref} state={entryState} className="dict-back"><DictIcon name="back" /> {concept}</Link>
-        <h1 className="dict-entry-title">{name}</h1>
-        {subtitle && <p className="dict-entry-sub text-muted">{subtitle}</p>}
-        {description && <p className="dict-lede">{description}</p>}
+        {login ? <GithubAccountHead login={login} gh={gh} subtitle={subtitle} /> : (
+          <>
+            <h1 className="dict-entry-title">{name}</h1>
+            {subtitle && <p className="dict-entry-sub text-muted">{subtitle}</p>}
+          </>
+        )}
+        {lede && <p className="dict-lede">{lede}</p>}
         {readError && <p className="dict-notice">{readError}</p>}
         {notInDictionary && (
           <p className="dict-notice">
@@ -152,27 +176,35 @@ export default function DictionaryItemPage() {
           </p>
         )}
         {itemEvent.done && itemEvent.error && <p className="dict-notice">{itemEvent.error}</p>}
+        {login && <GithubProfile login={login} gh={gh} />}
+        {login && <GithubRepos login={login} gh={gh} />}
 
-        {author && (
-          <div className="dict-card dict-entry-card dict-filed-by">
-            <span className="dict-avatar dict-avatar--soft dict-avatar--lg" aria-hidden="true">{initialOf(nameOf(author))}</span>
-            <div className="dict-strip-text">
-              <span className="dict-field-label">Filed by</span>
-              <span className="dict-filed-by-name">
-                {nameOf(author)}{nip05 && <span className="dict-strip-faint"> · {nip05}</span>}
-              </span>
-            </div>
-            <Link to={`/user/${author}`} className="dict-pill-btn dict-pill-btn--quiet dict-filed-by-link" title={npubOf(author)}>
-              View Nostr profile
-            </Link>
-          </div>
-        )}
-
-        <Disclosure id="dict-item-raw" label="Raw Nostr event">
-          {!itemEvent.done && <p className="text-muted">Reading the event…</p>}
-          {ev && <pre className="dict-json">{eventJson(ev)}</pre>}
-          {itemEvent.done && !ev && <p className="text-muted">{itemEvent.error}</p>}
-        </Disclosure>
+        {/* The item's Nostr record, set apart and quiet: who filed it, and the raw event. */}
+        <footer className="dict-item-foot">
+          {author && (
+            <p className="dict-item-filer">
+              Filed by <span className="dict-item-filer-name">{nameOf(author)}</span>
+              <span aria-hidden="true"> · </span>
+              <Link to={`/user/${author}`} title={npubOf(author)}>View Nostr profile</Link>
+            </p>
+          )}
+          {others.length > 0 && (
+            <p className="dict-item-filer">
+              Also filed by{' '}
+              {others.map((p, i) => (
+                <span key={p}>
+                  {i > 0 && ', '}
+                  <Link to={`/user/${p}`} title={npubOf(p)} className="dict-item-filer-other">{nameOf(p)}</Link>
+                </span>
+              ))}
+            </p>
+          )}
+          <Disclosure id="dict-item-raw" label="Raw Nostr event">
+            {!itemEvent.done && <p className="text-muted">Reading the event…</p>}
+            {ev && <pre className="dict-json">{eventJson(ev)}</pre>}
+            {itemEvent.done && !ev && <p className="text-muted">{itemEvent.error}</p>}
+          </Disclosure>
+        </footer>
       </div>
     </DictionaryShell>
   );
