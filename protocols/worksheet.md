@@ -291,3 +291,29 @@ Tags need parent–child relationships in which the child's domain is a subset o
   The owner's inclination is a **third party**. That argues against `s`, which is authorship-gated, and for a community-curated relationship list, judged per point of view like any other list. To be discussed.
 
 **Refs:** [class-thread-relationships](./drafts/class-thread-relationships.md); [stamping](./drafts/stamping.md) (breadth queries must expand); tags review point 8; pins § 6.2; [W14](#w14--subsetancestor-stamping-z-expansion-across-class-thread-structure).
+
+## W25 — Uppercase `Z`: auxiliary events of a DList header
+
+**Status:** Open · raised 2026-10-03
+
+A DList header grows up. It starts with items only, then gains subsets, a JSON Schema, opinionated view briefs and other structural nodes. Those events are *about* the header, but they aren't items of it:
+
+- A `z` tag makes an event an item, so `z` can't carry this.
+- Tapestry's core nodes ([tapestry-concepts](./drafts/tapestry-concepts.md) § Core nodes of a concept) are tied to their header by deterministic `d` tags and by their payload (`word.coreMemberOf`). That works only when the header's own author publishes them. A third party's JSON Schema or view brief for someone else's header has no dedicated, relay-indexed way to say which header it serves.
+
+**Suggested (owner, 2026-10-03):** lowercase `z` marks items of the DList; uppercase `Z` marks auxiliary events specific to it, with the event's role as the third element:
+
+```json
+["Z", "<a-tag of the DList header>", "opinionated-view"]
+```
+
+A `#Z` query would then find every auxiliary event of a header at once.
+
+**To settle before drafting:**
+
+- **Earlier rejections.** `Z` was rejected twice on 2026-09-27: as a descriptor on Trusted Lists and pinning contexts (W18), and as a category hint on taggings (W21). Both meant "this event is about category X but isn't a member of it", which is close to this meaning. A draft must say what is different here (for example, structural events written *for* a concept, against hints attached to assertions), and whether the reasons for those rejections still apply.
+- **The direction convention.** Class Thread Relationships reserves uppercase letters for parent-claims-child inverses, and says not to assign them speculatively. This `Z` points the other way: the auxiliary event names its header. NIP-22's convention, where uppercase marks the root scope, fits it better. Either one convention gives way, or the letter needs another rationale. Record the outcome in the W2 registry.
+- **The need.** Opinionated Views works without `Z`: briefs are items of an *Opinionated Views* DList (`z`), name their category in a plain tag, and are filtered client-side (opinionated-views § 7.2). So `Z` has to earn its place in the general case, such as third-party core nodes for any header, where client-side filtering doesn't scale. The alternative that needs no new letter is an `a` tag with a role marker. Relays index it today, but `a` already means many things, so `#a` also returns every mention of the header.
+- **Roles.** Is the role (the third element) free text, or the coordinate of the role's own concept (`39998:<pubkey>:opinionated-view`), so that roles can be curated like everything else?
+
+**Refs:** [opinionated-views](./drafts/opinionated-views.md) § 7.2; [tapestry-concepts](./drafts/tapestry-concepts.md) § Core nodes of a concept; [class-thread-relationships](./drafts/class-thread-relationships.md) (direction principle); [W2](#w2--single-char-tag-namespace-registry); [W18](#w18--descriptor-tag-letters-k--z--t); [W21](#w21--category-hints-on-taggings-z--k).
