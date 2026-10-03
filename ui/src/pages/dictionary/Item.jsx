@@ -154,6 +154,15 @@ export default function DictionaryItemPage() {
   const entryHref = typeof fromEntry === 'string' && (fromEntry === entryPath || fromEntry.startsWith(`${entryPath}?`))
     ? fromEntry : entryPath;
 
+  const rawEvent = (
+    <Disclosure id="dict-item-raw" label="Raw Nostr event">
+      {!itemEvent.done && <p className="text-muted">Reading the event…</p>}
+      {ev && <pre className="dict-json">{eventJson(ev)}</pre>}
+      {itemEvent.done && !ev && <p className="text-muted">{itemEvent.error}</p>}
+    </Disclosure>
+  );
+
+  // A GitHub account's page ends with its Nostr record, set apart and quiet: who filed it, and the raw event.
   return (
     <DictionaryShell>
       <div className="dict-page dict-skin-light">
@@ -175,7 +184,7 @@ export default function DictionaryItemPage() {
         {login && <GithubProfile login={login} gh={gh} />}
         {login && <GithubRepos login={login} gh={gh} />}
 
-        {author && (
+        {author && !login && (
           <div className="dict-card dict-entry-card dict-filed-by">
             <span className="dict-avatar dict-avatar--soft dict-avatar--lg" aria-hidden="true">{initialOf(nameOf(author))}</span>
             <div className="dict-strip-text">
@@ -190,11 +199,18 @@ export default function DictionaryItemPage() {
           </div>
         )}
 
-        <Disclosure id="dict-item-raw" label="Raw Nostr event">
-          {!itemEvent.done && <p className="text-muted">Reading the event…</p>}
-          {ev && <pre className="dict-json">{eventJson(ev)}</pre>}
-          {itemEvent.done && !ev && <p className="text-muted">{itemEvent.error}</p>}
-        </Disclosure>
+        {login ? (
+          <footer className="dict-item-foot">
+            {author && (
+              <p className="dict-item-filer">
+                Filed by <span className="dict-item-filer-name">{nameOf(author)}</span>
+                <span aria-hidden="true"> · </span>
+                <Link to={`/user/${author}`} title={npubOf(author)}>View Nostr profile</Link>
+              </p>
+            )}
+            {rawEvent}
+          </footer>
+        ) : rawEvent}
       </div>
     </DictionaryShell>
   );
