@@ -1,10 +1,10 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
-> **Sources:** the Tapestry Dictionary's GitHub Accounts views (staging, 2026-10-03: `ui/src/pages/dictionary/github.js`, `useGithubAccount.js`, `GithubAccount.jsx`, `Item.jsx`; design record `docs/DICTIONARY_PAGE_HANDOFF.md`, the 2026-10-03 bullet); the owner's notes to the Brainstorm team (2026-10-03); [Content Categories](./content-categories.md); [Shared Concepts](./shared-concepts.md) § Declared affiliation; NIP-89 (prior art).
+> **Sources:** the Tapestry Dictionary's GitHub Accounts views (staging, 2026-10-03: `ui/src/pages/dictionary/github.js`, `useGithubAccount.js`, `GithubAccount.jsx`, `Item.jsx`; design record `docs/DICTIONARY_PAGE_HANDOFF.md`, the 2026-10-03 bullet); the owner's notes to the Brainstorm team (2026-10-03); the V4V Songs community header and three sample items, supplied by the owner (Appendix B); [Content Categories](./content-categories.md); [Shared Concepts](./shared-concepts.md) § Declared affiliation; NIP-89 (prior art).
 > **Why this exists:** Brainstorm is about to show DList items in its search results, starting with GitHub Accounts, and Tapestry has built the first such view. This draft names the parts, so that each platform can build its own views for the same categories. It also sets out how views could later be shared as nostr events.
 > **Boundary note:** §§ 1–6 are a convention with no wire format: each platform's views stay in its own code. They live here because § 7's wire format builds on them, and because two independent codebases (Tapestry and Brainstorm) share them. Tapestry's own view code belongs in the BIBLE once it settles.
-> **State (2026-10-03):** §§ 1–6 are ready for phase-1 builds, starting with Brainstorm's GitHub Accounts views. § 7 and open questions 1 and 3–7 wait until a second platform has built from a brief. Questions about how DList items get into search results at all are out of scope; they are worksheet [W26](../worksheet.md#w26--dlist-items-in-search-results).
+> **State (2026-10-03):** §§ 1–6 are ready for phase-1 builds, starting with Brainstorm's GitHub Accounts views. Appendix B (V4V Songs, playback only) is the first brief written before any build. § 7 and open questions 1 and 3–7 wait until a second platform has built from a brief. Questions about how DList items get into search results at all are out of scope; they are worksheet [W26](../worksheet.md#w26--dlist-items-in-search-results).
 > **Related:** the uppercase `Z` tag idea (auxiliary events of a DList header) is worksheet [W25](../worksheet.md#w25--uppercase-z-auxiliary-events-of-a-dlist-header). This draft doesn't depend on it.
 
 ---
@@ -363,3 +363,141 @@ Read, don't run:
 ### Changes
 
 - **2026-10-03:** first version, from Tapestry's build.
+
+---
+
+## Appendix B — View brief: V4V Songs
+
+*Written before any platform built it (2026-10-03), from the community header and three sample items. Playback only: paying the artist is left for a later version (see "Not in this version").*
+
+**Why this category needs a view.** Without one, a V4V Song gets the default DList card (§ 2.1): its title, then "t: 4d338528-…", "artist: …" and a long `op3.dev` link. With one, it gets cover art, the artist and a play button, and every surface still costs no API reads: the item carries everything a player needs.
+
+### Category
+
+- **Type:** DList.
+- **H:** `39998:77599c5c4a7ba08456679d812a414037f4b01c975fb4f577187df11d189f80d3:b504f5a8-949f-4d31-ad14-8afcebde2b34`. Names: *V4V Song* / *V4V Songs*. Description: "Value-for-value enabled music tracks from Podcast Index".
+- H carries a `b` tag pointing at itself, declaring itself the canonical header. An instance's own V4V Song header points to H with a `b` tag (§ 4.2).
+- H's fields:
+
+  ```json
+  ["required", "t"], ["required", "title"], ["required", "artist"], ["required", "url"], ["required", "duration"],
+  ["required", "feedId"], ["required", "feedGuid"], ["required", "artwork"], ["required", "alt"]
+  ```
+- The sample items are kind `9999`, so they are referenced by event id, not by address. Each `z`-points straight at H.
+
+### The fields
+
+| Tag | Holds | Check |
+|---|---|---|
+| `title` | the song's title | non-empty text |
+| `artist` | the artist's name as the feed gives it; may contain " / " (`Tilted Halo / T ' Halo`) | non-empty text |
+| `url` | the audio file (MP3 in the samples), usually behind an OP3 prefix: `https://op3.dev/e,pg=<feedGuid>/<file URL>` | `https://` only. Use it exactly as given: the prefix counts plays for the artist |
+| `duration` | the length in whole seconds, as a string (`"219"`) | a non-negative integer. Show it as `m:ss` (`3:39`), or `h:mm:ss` from an hour up |
+| `artwork` | the cover image | `https://` only |
+| `t` | the track's ID. In every sample it equals the file name in `url` (`…/track/<t>.mp3`) | an opaque string; never shown |
+| `feedGuid` | the release's feed GUID (Podcasting 2.0 `podcast:guid`); also the `pg=` value in the OP3 prefix | an opaque string |
+| `feedId` | Podcast Index's numeric ID for the release's feed | a positive integer |
+| `alt` | NIP-31 text: "Song: ⟨title⟩ by ⟨artist⟩" | text. Use it as the accessible name |
+
+A **release** is the set of items sharing a `feedGuid`: an album, an EP or a single.
+
+### Subject key
+
+- **Use the view** when the item has a `title` and an `https://` `url`. Otherwise it gets the default card (§ 2.1).
+- **Identity:** `feedGuid` plus `t`, the pair Podcasting 2.0 uses to name one track. Filings with the same pair are one song: the earliest stands for the entry, and the entry names every filer (§ 5, rule 1). An item missing either value stands alone.
+- **By the DList NIP,** `["required", "t"]` makes each item a *string* item, so the subject is the `t` value (Content Categories § 5.1).
+
+### Sources
+
+**Nostr, from the item:** every field above, the filer, and the raw event. Displaying a song needs nothing else.
+
+**From the Items read (no external reads):**
+
+- *From this release:* other items with the same `feedGuid`.
+- *More by this artist:* other items whose `artist` matches, compared case-insensitively.
+
+Both come from the active point of view's read, like the Items table. They never search beyond it.
+
+**Contacted by the listener's browser:**
+
+- **The artwork's host,** when the image loads. Load it lazily.
+- **The audio's hosts, only when the listener presses play.** With an OP3 prefix, that is first `op3.dev`, which counts the play and redirects, then the file's own host. Set the player to load nothing in advance (`preload="none"` on an HTML `<audio>` element). That way a page of twenty cards contacts no audio host, and counts no plays that never happened.
+
+**Link out:** Podcast Index's page for the release, `https://podcastindex.org/podcast/<feedId>`.
+
+**API reads:** none.
+
+### Surfaces
+
+**`page`**, top to bottom:
+
+1. **Head.**
+   - The artwork, large and square.
+   - The title as the heading, with the artist beneath.
+   - "Item N in V4V Songs".
+   - The duration.
+2. **Player.**
+   - Play / pause, a seek bar, and the elapsed and total time. A platform's native audio controls are enough.
+   - Never autoplay.
+   - Where the platform supports it, give the device the song's title, artist and artwork (the Media Session API in browsers), so lock-screen and headset controls show and control it.
+3. **From this release:** the release's other songs, each a `row`, when the Items read has any.
+4. **More by ⟨artist⟩:** the same, by artist, leaving out songs already listed above.
+5. **Link:** "This release on Podcast Index".
+6. **The Nostr record**, quiet, below a divider: "Filed by ⟨name⟩ · View Nostr profile"; "Also filed by ⟨names⟩"; a disclosure, "Raw Nostr event" (§ 5, rule 3).
+
+**`row`** (one line in the Items table, or in the page's lists):
+
+- The artwork at about 40 px, with a play / pause button over it.
+- The title, linking to the item's page, with the artist beneath.
+- The duration, at the end of the line.
+
+**`card`** (a search result):
+
+- The artwork, square, with a play / pause button over it.
+- The title, linking to the item's page; the artist; the duration; and the category label "V4V Song".
+
+**`thumbnail`:** the artwork, 32–48 px; the `alt` text as its accessible name.
+
+**On every surface:**
+
+- **One song at a time.** Starting a song pauses any other song playing on the page.
+- **Keep playing while browsing (optional).** A platform MAY keep a small docked player going as the listener moves between pages.
+
+### Idiom
+
+- **The look of a music player:** square cover art, a round play button, times written `m:ss`.
+- **The category mark:** a music note. Leave the lightning bolt, the usual value-for-value sign, for the version that can pay: showing it now would promise something the view can't do.
+
+### Failures
+
+| Failure | What to show |
+|---|---|
+| no `title`, or a `url` that isn't `https://` | the default card (§ 2.1) |
+| the audio fails to load or play | "Couldn't play this song: its host didn't answer." Keep the rest of the page, plus a plain link to the file |
+| the artwork fails to load | a music-note placeholder, in the same square |
+| `duration` isn't a whole number | leave the duration out; the player shows the file's own length once it loads |
+
+### Privacy and safety
+
+- **Before play:** a viewer's browser contacts only the artwork's host.
+- **On play:** it contacts `op3.dev` (when the URL carries the prefix) and the file's host. Both see the listener's IP address, so the page says so near the player: "Playing loads the song from its host."
+- **Referrers:** send no referrer where the platform can. An `<audio>` element has no setting of its own for this, so use a page-wide referrer policy.
+- **Links:** accept only `https://` for `url` and `artwork`. Never strip or rewrite the OP3 prefix.
+- **Text:** `title`, `artist` and `alt` are shown as text, never as HTML.
+
+### Not in this version
+
+**Paying the artist.** A V4V song names who gets paid, and in what shares, in its feed's value block (Podcasting 2.0 `podcast:value`), not in the item. A later version would:
+
+- read the value block by `feedId` or `feedGuid`: from the Podcast Index API, which needs a key and secret and so a server; or from the feed itself, which browsers generally can't fetch from another site;
+- pay through the listener's own Lightning wallet (WebLN, or Nostr Wallet Connect), streaming sats while the song plays, or sending a one-off "boost".
+
+Until then, a view MUST NOT suggest that playing pays anyone.
+
+### Reference
+
+None yet. The first platform to build from this brief adds its files here.
+
+### Changes
+
+- **2026-10-03:** first version, from the community header and three sample items (Musica Ancap, Tilted Halo, sabu). Playback only.
