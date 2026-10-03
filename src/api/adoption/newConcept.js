@@ -117,14 +117,19 @@ function defaultDeps() {
     publishLocal: d.publishLocal,
     isStored: d.isStored,
     verify: d.verify,
-    // One relay, read strictly: every event it serves for the filter, signatures re-checked (relaySource).
-    // { status: 'ok' | 'unreachable', events }: a relay that couldn't be read is never an empty answer.
-    readCommunity: async (filter) => {
-      const r = await require('../_shared/relaySource').readRelayEvents(COMMUNITY_RELAY, filter);
-      return { status: r && r.status === 'ok' ? 'ok' : 'unreachable', events: (r && r.events) || [] };
-    },
+    readCommunity,
     now: d.now,
   };
+}
+
+/**
+ * The community relay, read strictly: every event it serves for the filter, signatures re-checked
+ * (relaySource). { status: 'ok' | 'unreachable', events }: a relay that couldn't be read is never an
+ * empty answer.
+ */
+async function readCommunity(filter) {
+  const r = await require('../_shared/relaySource').readRelayEvents(COMMUNITY_RELAY, filter);
+  return { status: r && r.status === 'ok' ? 'ok' : 'unreachable', events: (r && r.events) || [] };
 }
 
 /**
@@ -222,4 +227,6 @@ function register(app) {
   app.post(ROUTE, createNewConceptHandler());
 }
 
-module.exports = { ROUTE, MAX_FILTER_VALUE_BYTES, MAX_D_BYTES, composeConceptHeader, readFields, createNewConceptHandler, register };
+module.exports = {
+  ROUTE, MAX_FILTER_VALUE_BYTES, MAX_D_BYTES, composeConceptHeader, readFields, createNewConceptHandler, register, readSource, readCommunity,
+};

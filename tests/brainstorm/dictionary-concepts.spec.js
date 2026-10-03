@@ -109,6 +109,18 @@ const { test, expect } = require('@playwright/test');
  *         out, or someone else's header, the page says why it can't edit.
  *   D36 — a concept the server finds by name keeps its singular name; a name another concept has is
  *         refused with a link to it; the graph's and the broadcast's outcomes are each said once.
+ *
+ * Re-Sync (test/dictionary-resync-concept.test.js holds the rule and the endpoint):
+ *
+ *   D38 — Re-Sync sits beside Edit on the reader's own wired header (not signed out, not on a
+ *         self-shared one); its panel warns of the overwrite and lists the tags removed and added; Re-Sync
+ *         names both versions, and the entry says what happened.
+ *   D39 — already in sync is said so, with nothing to press; an unreachable community relay is said so,
+ *         with Try again.
+ *   D40 — a header that changed meanwhile: nothing saved, the panel stays open and says so; a shared
+ *         header whose names the server won't sign can't be re-synced, and the page says why.
+ *   D41 — no state crosses entries (the panel's link to another concept opens it afresh); Cancel after a
+ *         saved but undelivered Re-Sync shows the saved version, without a "try again" it can't offer.
  */
 
 const OWNER = '1'.repeat(64);
@@ -299,6 +311,39 @@ async function mockEdit(page, { base = EDIT_BASE, assistant = CUST_TA, changed =
     if (body.description) tags.push(['description', body.description]);
     tags.push(...body.properties, ...base.tags.filter((t) => t[0] === 'b'));
     return json(r, { success: true, coord: EDIT_COORD, graph, event: { ...base, id: '8c'.repeat(32), pubkey: assistant, created_at: base.created_at + 1, tags } });
+  });
+  return asked;
+}
+
+/** The shared concept EDIT_BASE is wired to (FOREIGN), as it is now: renamed, described, with a field-type. */
+const SHARED_FOREIGN = {
+  id: 'd1'.repeat(32), kind: 39998, pubkey: 'f'.repeat(64), created_at: 1700000500, content: '', sig: 'e2'.repeat(64),
+  tags: [['d', 'shared-thing'], ['names', 'shared thing', 'shared things'], ['description', 'A shared thing.'],
+    ['required', 'name'], ['field-type', 'name', 'text'], ['b', FOREIGN, 'pointer']],
+};
+
+/**
+ * Re-Sync's reads and write, on top of mockStack, mockEntry and mockEdit: the shared header on this relay
+ * (unless `sharedLocal` is false) and the community relay (unless `communityDown`), and the endpoint,
+ * which signs as `assistant`. Returns the requests' bodies.
+ */
+async function mockResync(page, { shared = SHARED_FOREIGN, sharedLocal = true, communityDown = false, assistant = CUST_TA } = {}) {
+  const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  const asked = [];
+  await page.route('**/api/strfry/scan**', (r) => {
+    const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
+    if ((filter.authors || [])[0] === shared.pubkey && (filter['#d'] || [])[0] === shared.tags[0][1]) {
+      return json(r, { success: true, events: sharedLocal ? [shared] : [] });
+    }
+    return r.fallback();
+  });
+  await page.route('**/api/relay/external**', (r) => (communityDown
+    ? json(r, { success: false, events: [], error: 'Could not read wss://dcosl.brainstorm.world', unreachable: ['wss://dcosl.brainstorm.world'] })
+    : json(r, { success: true, events: [shared] })));
+  await page.route('**/api/dictionaries/concepts/resync', (r) => {
+    const body = JSON.parse(r.request().postData() || '{}');
+    asked.push(body);
+    return json(r, { success: true, coord: EDIT_COORD, graph: 'none', event: { ...EDIT_BASE, id: '5f'.repeat(32), pubkey: assistant, created_at: EDIT_BASE.created_at + 1 } });
   });
   return asked;
 }
@@ -1214,6 +1259,157 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await g.getByLabel('Description').fill('Changed.');
     await g.getByRole('button', { name: 'Save changes' }).click();
     await expect(g.getByText('Saved here. External publishing is off for this deployment, so it was not sent onward. This instance’s graph wasn’t fully updated, so the control panel may show the old version, or an incomplete one.')).toBeVisible();
+  });
+
+  test('D38: Re-Sync beside Edit: the warning, the tags removed and added, and both versions named', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockEdit(page);
+    const asked = await mockResync(page);
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    const row = page.locator('.dict-entry-titlerow');
+    await expect(row.getByRole('link', { name: 'Edit' })).toBeVisible();
+    const open = row.getByRole('button', { name: 'Re-Sync' });
+    await expect(open).toHaveClass(/dict-pill-btn--quiet/);
+    await open.click();
+    const panel = page.getByRole('region', { name: 'Re-Sync' });
+    await expect(panel.getByRole('note').first()).toContainText('Re-Sync completely overwrites this concept’s header');
+    await expect(panel.getByRole('note').first()).toContainText('shared thing');
+    const removed = panel.getByRole('list', { name: 'Tags removed' });
+    const added = panel.getByRole('list', { name: 'Tags added' });
+    await expect(removed).toContainText('["names","customer thing","customer things"]');
+    await expect(removed).toContainText('["description","A thing."]');
+    await expect(added).toContainText('["names","shared thing","shared things"]');
+    await expect(added).toContainText('["field-type","name","text"]');
+    await expect(removed, 'the b-tag is the same, so it isn’t listed').not.toContainText('"b"');
+    await panel.getByRole('button', { name: 'Re-Sync' }).click();
+    await expect(page.getByText('Re-synced from shared thing. Saved here. External publishing is off for this deployment, so it was not sent onward.')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Re-Sync' })).toHaveCount(0);
+    expect(asked).toEqual([{ coord: EDIT_COORD, basedOn: EDIT_BASE.id, copyFrom: SHARED_FOREIGN.id }]);
+
+    // Signed out: no Re-Sync. A self-shared header of the reader's: Edit, but nothing to re-sync from.
+    const out = await page.context().newPage();
+    await mockStack(out);
+    await mockEntry(out);
+    await mockEdit(out);
+    await out.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await expect(out.locator('.dict-entry-title')).toBeVisible();
+    await expect(out.getByRole('button', { name: 'Re-Sync' })).toHaveCount(0);
+    const self = await page.context().newPage();
+    await mockStack(self, { session: CUSTOMER });
+    await mockEntry(self);
+    await mockEdit(self, { base: { ...EDIT_BASE, tags: [['d', EDIT_D], ['names', 'customer thing', 'customer things'], ['b', EDIT_COORD, 'pointer']] } });
+    await self.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await expect(self.locator('.dict-entry-titlerow').getByRole('link', { name: 'Edit' })).toBeVisible();
+    await expect(self.getByRole('button', { name: 'Re-Sync' })).toHaveCount(0);
+  });
+
+  test('D39: already in sync is said so; an unreachable community relay is said so, with Try again', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    const synced = { ...EDIT_BASE, tags: [['d', EDIT_D], ['names', 'shared thing', 'shared things'], ['description', 'A shared thing.'],
+      ['required', 'name'], ['field-type', 'name', 'text'], ['b', FOREIGN, 'pointer']] };
+    await mockEdit(page, { base: synced });
+    const asked = await mockResync(page);
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await page.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const panel = page.getByRole('region', { name: 'Re-Sync' });
+    await expect(panel.getByText('Already in sync: a Re-Sync would change nothing.')).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Re-Sync' })).toBeDisabled();
+    await panel.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('region', { name: 'Re-Sync' })).toHaveCount(0);
+    expect(asked).toHaveLength(0);
+
+    const down = await page.context().newPage();
+    await mockStack(down, { session: CUSTOMER });
+    await mockEntry(down);
+    await mockEdit(down);
+    await mockResync(down, { sharedLocal: false, communityDown: true });
+    await down.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await down.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const p2 = down.getByRole('region', { name: 'Re-Sync' });
+    await expect(p2.getByRole('alert')).toContainText('Couldn’t reach the community relay to read the shared concept’s header');
+    await expect(p2.getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(p2.getByRole('button', { name: 'Re-Sync' })).toBeDisabled();
+  });
+
+  test('D40: a changed header keeps the panel open and says nothing was saved; names that can’t be copied are named', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockEdit(page);
+    await mockResync(page);
+    await page.route('**/api/dictionaries/concepts/resync', (r) => r.fulfill({
+      status: 409, contentType: 'application/json',
+      body: JSON.stringify({ success: false, code: 'changed', event: EDIT_BASE, error: 'changed' }),
+    }));
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await page.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const panel = page.getByRole('region', { name: 'Re-Sync' });
+    await panel.getByRole('list', { name: 'Tags added' }).waitFor();
+    await panel.getByRole('button', { name: 'Re-Sync' }).click();
+    await expect(panel.getByRole('status').filter({ hasText: 'This concept changed after this page read it, so nothing was saved.' })).toBeVisible();
+    await expect(panel.getByRole('list', { name: 'Tags added' })).toContainText('["field-type","name","text"]');
+
+    const bad = await page.context().newPage();
+    await mockStack(bad, { session: CUSTOMER });
+    await mockEntry(bad);
+    await mockEdit(bad);
+    await mockResync(bad, { shared: { ...SHARED_FOREIGN, tags: SHARED_FOREIGN.tags.map((t) => (t[0] === 'names' ? ['names', 'shared \u202Egniht', 'shared things'] : t)) } });
+    await bad.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await bad.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const p2 = bad.getByRole('region', { name: 'Re-Sync' });
+    await expect(p2.getByRole('alert')).toContainText("The names and description a Re-Sync would write can’t be used as they are: A name can't contain text-direction controls.");
+    await expect(p2.getByRole('button', { name: 'Re-Sync' })).toBeDisabled();
+  });
+
+  test('D41: nothing of one entry reaches another; Cancel after an undelivered Re-Sync says what was saved', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockEdit(page);
+    await mockResync(page);
+    const other = coordOf(CUST_TA, 'cat');
+    await page.route('**/api/dictionaries/concepts/resync', (r) => r.fulfill({
+      status: 409, contentType: 'application/json',
+      body: JSON.stringify({ success: false, code: 'name-taken', coord: other, error: 'taken' }),
+    }));
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await page.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const panel = page.getByRole('region', { name: 'Re-Sync' });
+    await panel.getByRole('list', { name: 'Tags added' }).waitFor();
+    await panel.getByRole('button', { name: 'Re-Sync' }).click();
+    await panel.getByRole('link', { name: 'Open that concept' }).click();
+    await expect(page).toHaveURL(new RegExp(`/dictionary/${encodeURIComponent(other)}$`));
+    await expect(page.locator('.dict-entry-title')).toHaveText('cat');
+    await expect(page.getByRole('region', { name: 'Re-Sync' })).toHaveCount(0);
+    await expect(page.getByText('nothing was saved')).toHaveCount(0);
+
+    // External publishing on, and a community relay that refuses: saved here, not delivered.
+    const u = await page.context().newPage();
+    await mockStack(u, { session: CUSTOMER });
+    await mockEntry(u);
+    await mockEdit(u);
+    await mockResync(u);
+    await u.route('**/api/publish-policy', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, allowExternalPublish: true }) }));
+    await u.addInitScript(() => {
+      window.WebSocket = class {
+        constructor(url) { this.url = url; this.readyState = 0; setTimeout(() => { this.readyState = 3; this.onerror?.({}); this.onclose?.({ code: 1006, reason: '' }); }, 5); }
+        send() {}
+        close() { this.readyState = 3; }
+        addEventListener(type, fn) { this[`on${type}`] = fn; }
+        removeEventListener() {}
+      };
+      window.WebSocket.CONNECTING = 0; window.WebSocket.OPEN = 1; window.WebSocket.CLOSING = 2; window.WebSocket.CLOSED = 3;
+    });
+    await u.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await u.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const p2 = u.getByRole('region', { name: 'Re-Sync' });
+    await p2.getByRole('list', { name: 'Tags added' }).waitFor();
+    await p2.getByRole('button', { name: 'Re-Sync' }).click();
+    await expect(p2.getByRole('status').filter({ hasText: "didn't reach the community relay" })).toBeVisible();
+    await p2.getByRole('button', { name: 'Cancel' }).click();
+    await expect(u.getByRole('region', { name: 'Re-Sync' })).toHaveCount(0);
+    await expect(u.getByText('Re-synced from shared thing. Saved on this instance, but it didn’t reach the community relay.')).toBeVisible();
+    await expect(u.getByText('try again')).toHaveCount(0);
   });
 
   test('D31: the page and the finder say what they can’t do', async ({ page }) => {

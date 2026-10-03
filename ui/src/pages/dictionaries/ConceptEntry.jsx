@@ -8,6 +8,9 @@ import { usePov } from '../../context/PovContext';
 import { classifyBValue } from '../../utils/bDisposition';
 import { conceptCurator } from '../../utils/treasureMap';
 import DictIcon from './DictIcon';
+import ResyncPanel from './ResyncPanel';
+import { scan } from './sharedHeader';
+import { wiredTarget } from '@tapestry/concept-header-copy';
 import {
   CONCEPTS_DICTIONARY_PATH, controlPanelItemPath, coordParts, displayName, itemsPovLine, overrideBadge, safeDecode,
   useConceptDictionary, useConceptItems, useDictionaryPerson,
@@ -49,12 +52,8 @@ const itemsFaqAnswer = (signedIn) => (signedIn
   ? 'Your trusted, extended community. Anyone can file an item under this concept, but this list only shows items filed by people your community trusts: those ranked above your verified cutoff, from your point of view. Items you or your Assistant filed always show. The list is read fresh each time you open this page. Coming in a later version: the more trusted people file the same item, the more firmly it belongs, and you will be able to add or exclude items yourself, with your choice always winning.'
   : 'The owner’s trusted, extended community. Anyone can file an item under this concept, but this list only shows items filed by people the community trusts: those ranked above the verified cutoff, from the point of view in use. Items the owner or the owner’s Assistant filed always show. The list is read fresh each time this page opens. Coming in a later version: the more trusted people file the same item, the more firmly it belongs, and the Dictionary’s owner will be able to add or exclude items by hand, with their choice always winning.');
 
-export async function scan(filter) {
-  const resp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(JSON.stringify(filter))}`);
-  const json = await resp.json();
-  if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
-  return json.events || json.data || [];
-}
+// This instance's relay: the shared read (./sharedHeader.js), re-exported for the pages that take it from here.
+export { scan };
 
 const tagValue = (ev, name, idx = 1) => {
   const t = (ev?.tags || []).find((x) => x[0] === name);
@@ -64,10 +63,13 @@ const tagValue = (ev, name, idx = 1) => {
 /** The newest event at the coordinate (the HeaderEvent page's read). A null coord reads nothing. */
 export function useHeaderEvent(coord) {
   const [state, setState] = useState({ event: null, error: null, done: false });
+  const [version, setVersion] = useState(0);
   useEffect(() => {
     if (!coord) { setState({ event: null, error: null, done: true }); return undefined; }
     let cancelled = false;
-    setState({ event: null, error: null, done: false });
+    // A reload of the same address keeps the version shown until the new one arrives, so nothing that
+    // depends on it blinks out; another address starts empty.
+    setState((st) => ({ event: version > 0 && st.coord === coord ? st.event : null, error: null, done: false, coord }));
     const { kind, pubkey, d } = coordParts(coord);
     (async () => {
       try {
@@ -76,14 +78,14 @@ export function useHeaderEvent(coord) {
         }
         const events = await scan({ kinds: [Number(kind)], authors: [pubkey], '#d': [d] });
         const newest = events.reduce((a, b) => (!a || b.created_at > a.created_at ? b : a), null);
-        if (!cancelled) setState({ event: newest, error: newest ? null : 'No event found at this coordinate.', done: true });
+        if (!cancelled) setState({ event: newest, error: newest ? null : 'No event found at this coordinate.', done: true, coord });
       } catch (err) {
-        if (!cancelled) setState({ event: null, error: err.message, done: true });
+        if (!cancelled) setState({ event: null, error: err.message, done: true, coord });
       }
     })();
     return () => { cancelled = true; };
-  }, [coord]);
-  return state;
+  }, [coord, version]);
+  return { ...state, reload: () => setVersion((v) => v + 1) };
 }
 
 /** One b value, said plainly. */
@@ -148,7 +150,7 @@ export default function DictionaryConceptEntry() {
  */
 export function ConceptEntryBody({
   listHref = CONCEPTS_DICTIONARY_PATH, listLabel = 'Concepts', profileBase = '/tapestry/users', itemHref = controlPanelItemPath,
-  editHref = null,
+  editHref = null, resync = false,
 }) {
   const { coord: rawCoord } = useParams();
   const coord = safeDecode(rawCoord);
@@ -156,16 +158,18 @@ export function ConceptEntryBody({
   const navigate = useNavigate();
   // A notice arrives once: keep it for this visit, and take it out of the history entry so a reload or
   // a Back to this entry doesn't say it again.
-  const [notice] = useState(() => (typeof location.state?.notice === 'string' ? location.state.notice : null));
+  const [notice, setNotice] = useState(() => (typeof location.state?.notice === 'string' ? location.state.notice : null));
   useEffect(() => {
     if (typeof location.state?.notice !== 'string') return;
     const { notice: _said, ...rest } = location.state;
     navigate(`${location.pathname}${location.search}`, { replace: true, state: Object.keys(rest).length ? rest : null });
   }, [location, navigate]);
-  const passed = location.state?.entry?.coord === coord ? location.state : null;
+  // After a Re-Sync the row passed from the list is out of date: read the Dictionary instead.
+  const [fresh, setFresh] = useState(false);
+  const passed = !fresh && location.state?.entry?.coord === coord ? location.state : null;
   const { povParams } = usePov();
   const person = useDictionaryPerson();
-  const { data, error } = useConceptDictionary(person, povParams, { enabled: !passed });
+  const { data, error, reload: reloadDictionary } = useConceptDictionary(person, povParams, { enabled: !passed });
 
   const entry = passed ? passed.entry : (data?.entries || []).find((e) => e.coord === coord) || null;
   const metric = passed ? passed.metric : data?.metric;
@@ -245,6 +249,19 @@ export function ConceptEntryBody({
 
   // Edit: only a signed-in reader, only on a header their own Assistant wrote (it signs the new version).
   const canEdit = Boolean(editHref && person.signedIn && author && author === person.assistant);
+  // Re-Sync: the same, on a header wired to another one (there is a shared concept to rebuild it from).
+  const canResync = Boolean(resync && canEdit && ev && ev.pubkey === author && wiredTarget(ev));
+  const [resyncOpen, setResyncOpen] = useState(false);
+  const [resyncNote, setResyncNote] = useState(null);
+  const closeResync = () => { setResyncOpen(false); setResyncNote(null); };
+  const resyncStale = (message) => { setResyncNote(message); header.reload(); };
+  const resynced = (message) => {
+    closeResync();
+    setNotice(message);
+    setFresh(true);
+    header.reload();
+    reloadDictionary();
+  };
 
   const curatorWhy = !curator ? null
     : curator.why === 'assigned' ? `Assigned to this Concept on ${whose} Treasure Map`
@@ -281,9 +298,25 @@ export function ConceptEntryBody({
             <DictIcon name="edit" /> Edit
           </Link>
         )}
+        {canResync && (
+          <button
+            type="button" className="dict-pill-btn dict-pill-btn--quiet dict-entry-edit" aria-expanded={resyncOpen}
+            onClick={() => (resyncOpen ? closeResync() : setResyncOpen(true))}
+            title="Rebuild this concept’s header from the shared concept it is wired to"
+          >
+            <DictIcon name="sync" /> Re-Sync
+          </button>
+        )}
       </div>
       <p className="dict-entry-sub text-muted">{plural ? `Plural: ${plural}` : 'No plural name'}</p>
       {description && <p className="dict-lede">{description}</p>}
+      {/* Re-Sync's warning and summary of changes, under the concept it would change. */}
+      {canResync && resyncOpen && (
+        <ResyncPanel
+          key={ev.id} coord={coord} header={ev} assistant={person.assistant} note={resyncNote}
+          onCancel={closeResync} onDone={resynced} onStale={resyncStale}
+        />
+      )}
 
       {settled && !entry && (
         <p className="dict-notice">

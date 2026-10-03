@@ -428,7 +428,7 @@ test('S8: /dictionary renders the control panel pages\' own bodies, so the two c
     && /<ConceptsDictionaryBody entryHref=\{dictionaryEntryPath\}( managed=\{managed\})?( newConceptHref=\{DICTIONARY_NEW_PATH\})? \/>/.test(page),
     '/dictionary renders ConceptsDictionaryBody from the control panel page, its rows opening /dictionary/:coord');
   assert(/import \{ ConceptEntryBody \} from ['"]\.\.\/dictionaries\/ConceptEntry['"]/.test(entry)
-    && /<ConceptEntryBody listHref=\{DICTIONARY_PATH\}/.test(entry),
+    && /<ConceptEntryBody (key=\{coord\} )?listHref=\{DICTIONARY_PATH\}/.test(entry),
     '/dictionary/:coord renders ConceptEntryBody, its back link going to /dictionary');
   assert(/export function ConceptsDictionaryBody\(/.test(concepts) && /<ConceptsDictionaryBody \/>/.test(concepts),
     'the control panel list renders the same exported body');
