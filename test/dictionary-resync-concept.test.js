@@ -9,8 +9,8 @@
  * to show the confirmation inline on the entry page.
  *
  *   R1..R6  — the rule, src/lib/conceptHeaderCopy.js (resyncedHeaderTags, tagDiff, wiredTarget).
- *   E1..E9  — POST /api/dictionaries/concepts/resync (src/api/adoption/resyncConcept.js), every side effect injected.
- *   S1..S3  — structural pins, read off comment-stripped source.
+ *   E1..E11 — POST /api/dictionaries/concepts/resync (src/api/adoption/resyncConcept.js), every side effect injected.
+ *   S1..S4  — structural pins, read off comment-stripped source.
  *
  * The browser half is tests/brainstorm/dictionary-concepts.spec.js D38–D39.
  */
@@ -249,6 +249,25 @@ test('E8: an unverifiable header at the address is said so; another site is refu
   assert(status === 403, `another site: ${status}`);
 });
 
+test('E10: names or a description Edit would refuse are never signed, whoever wrote them (review 1, M1)', async () => {
+  const bad = [['names', '', ''], ['names', 'GitHub ‮tnuoccA', 'GitHub Accounts'], ['names', 'Git\nHub', 'GitHub Accounts'], ['names', 'GitHub Account', '']];
+  for (const names of bad) {
+    const source = { ...SOURCE, tags: SOURCE.tags.map((t) => (t[0] === 'names' ? names : t)) };
+    const r = await run({ local: [source] });
+    assert(r.status === 400 && r.body.code === 'source-invalid' && r.calls.signed.length === 0, `${show(names)} → ${r.status} ${show(r.body)}`);
+  }
+  const desc = { ...SOURCE, tags: SOURCE.tags.map((t) => (t[0] === 'description' ? ['description', 'bell\u0007'] : t)) };
+  const r = await run({ local: [desc] });
+  assert(r.status === 400 && r.body.code === 'source-invalid', show(r.body));
+});
+
+test('E11: a version that differs only in tag order is already in sync, as the page says', async () => {
+  const { resyncedHeaderTags } = copy();
+  const synced = { ...LOCAL, tags: resyncedHeaderTags({ local: LOCAL, source: SOURCE, target: SHARED }).slice().reverse() };
+  const r = await run({ stored: [synced], body: { coord: COORD, basedOn: synced.id, copyFrom: SOURCE.id } });
+  assert(r.status === 200 && r.body.unchanged === true && r.calls.signed.length === 0, show(r.body).slice(0, 120));
+});
+
 test('E9: the route is registered, and no auth list gates it to owners or customers', () => {
   const m = mod();
   assert(m.ROUTE === '/api/dictionaries/concepts/resync', m.ROUTE);
@@ -283,16 +302,28 @@ test('S2: the panel warns, summarises from the server\'s own rule, and names the
   assert(/Re-Sync completely overwrites this concept’s header/.test(s), 'the overwrite warning');
   assert(/label="Tags removed"/.test(s) && /label="Tags added"/.test(s), 'the two lists');
   assert(/body: JSON\.stringify\(\{ coord, basedOn: header\.id, copyFrom: shared\.event\.id \}\)/.test(s), 'the request names both versions');
-  assert(/const canResync = Boolean\(proposed\) && !unchanged && !busy && !undelivered && shared\.done && !shared\.unreadable;/.test(s),
-    'never before both versions are read, nor when nothing would change');
+  assert(/const canResync = Boolean\(proposed\) && !invalid && !unchanged && !busy && !undelivered && shared\.done && !shared\.unreadable;/.test(s),
+    'never before both versions are read, nor when nothing would change, nor with names the server would refuse');
 });
 
 test('S3: the panel handles each refusal, and broadcasts only what its Assistant signed', () => {
   const s = flat(code(src(PANEL_JSX)));
-  assert(/if \(resp\.status === 409 && data\.code === 'changed'\) \{ onStale\(\);/.test(s), 'the local header changed: read it again');
+  assert(/if \(resp\.status === 409 && data\.code === 'changed'\) \{ onStale\('This concept changed after this page read it, so nothing was saved\./.test(s),
+    'the local header changed: the page reads it again and says nothing was saved (review 1, S1)');
   assert(/if \(resp\.status === 409 && data\.code === 'source-missing'\) \{ shared\.reload\(\);/.test(s), 'the shared one changed: read it again');
   assert(/if \(!signed \|\| signed\.pubkey !== assistant\) \{/.test(s) && /outcomeMessage\(\{ outcome, verb: 'save' \}\)/.test(s), 'signature and broadcast outcome');
   assert(/\{firmware && \(/.test(s), 'the firmware warning');
+});
+
+test('S4: a changed header keeps the panel open with its note; Cancel after a saved version shows it; a reload keeps the header shown', () => {
+  const body = flat(code(src(ENTRY_BODY_JSX)));
+  assert(/const resyncStale = \(message\) => \{ setResyncNote\(message\); header\.reload\(\); \};/.test(body) && /note=\{resyncNote\}/.test(body),
+    'the note lives on the page, so the panel, starting afresh on the new version, still says it (review 1, S1)');
+  assert(/setState\(\(st\) => \(\{ event: version > 0 \? st\.event : null, error: null, done: false \}\)\);/.test(body),
+    'a reload keeps the version shown until the new one arrives, so the panel isn\'t closed by it');
+  const s = flat(code(src(PANEL_JSX)));
+  assert(/onClick=\{undelivered \? \(\) => onDone\(undelivered\.message\) : onCancel\}/.test(s), 'Cancel after a saved, undelivered version does what Done does (review 1, S2)');
+  assert(/checkEditFields\(\{ singular: named\[1\], plural: named\[2\], description: described\[1\] \}\)\.error/.test(s), 'the page checks the names as the server does');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

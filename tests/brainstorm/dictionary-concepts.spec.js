@@ -117,6 +117,8 @@ const { test, expect } = require('@playwright/test');
  *         names both versions, and the entry says what happened.
  *   D39 — already in sync is said so, with nothing to press; an unreachable community relay is said so,
  *         with Try again.
+ *   D40 — a header that changed meanwhile: nothing saved, the panel stays open and says so; a shared
+ *         header whose names the server won't sign can't be re-synced, and the page says why.
  */
 
 const OWNER = '1'.repeat(64);
@@ -1326,6 +1328,35 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     const p2 = down.getByRole('region', { name: 'Re-Sync' });
     await expect(p2.getByRole('alert')).toContainText('Couldn’t reach the community relay to read the shared concept’s header');
     await expect(p2.getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(p2.getByRole('button', { name: 'Re-Sync' })).toBeDisabled();
+  });
+
+  test('D40: a changed header keeps the panel open and says nothing was saved; names that can’t be copied are named', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockEdit(page);
+    await mockResync(page);
+    await page.route('**/api/dictionaries/concepts/resync', (r) => r.fulfill({
+      status: 409, contentType: 'application/json',
+      body: JSON.stringify({ success: false, code: 'changed', event: EDIT_BASE, error: 'changed' }),
+    }));
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await page.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const panel = page.getByRole('region', { name: 'Re-Sync' });
+    await panel.getByRole('list', { name: 'Tags added' }).waitFor();
+    await panel.getByRole('button', { name: 'Re-Sync' }).click();
+    await expect(panel.getByRole('status').filter({ hasText: 'This concept changed after this page read it, so nothing was saved.' })).toBeVisible();
+    await expect(panel.getByRole('list', { name: 'Tags added' })).toContainText('["field-type","name","text"]');
+
+    const bad = await page.context().newPage();
+    await mockStack(bad, { session: CUSTOMER });
+    await mockEntry(bad);
+    await mockEdit(bad);
+    await mockResync(bad, { shared: { ...SHARED_FOREIGN, tags: SHARED_FOREIGN.tags.map((t) => (t[0] === 'names' ? ['names', 'shared \u202Egniht', 'shared things'] : t)) } });
+    await bad.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await bad.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const p2 = bad.getByRole('region', { name: 'Re-Sync' });
+    await expect(p2.getByRole('alert')).toContainText("The shared concept’s header can’t be copied as it is: A name can't contain text-direction controls.");
     await expect(p2.getByRole('button', { name: 'Re-Sync' })).toBeDisabled();
   });
 

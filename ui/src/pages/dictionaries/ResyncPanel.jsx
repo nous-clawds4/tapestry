@@ -5,6 +5,7 @@ import { publishToRelays } from '../../utils/nostrPublish';
 import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
 import { classifyBroadcast, outcomeMessage } from '@tapestry/broadcast-outcome';
 import { resyncedHeaderTags, tagDiff, wiredTarget } from '@tapestry/concept-header-copy';
+import { checkEditFields } from '@tapestry/concept-header-edit';
 import { useFirmware, useSharedHeader } from './sharedHeader';
 import { dictionaryEntryPath } from './conceptsDictionary';
 
@@ -37,10 +38,11 @@ function TagList({ tags, label }) {
  * and says what the broadcast did.
  *
  * Props: coord (the header's address), header (its version the page shows), assistant (the reader's
- * Assistant's pubkey), onCancel, onDone(message) when saved or already in sync, onStale() when the
- * header changed meanwhile (the page reads it again).
+ * Assistant's pubkey), note (what the page says above the summary, e.g. after the header changed),
+ * onCancel, onDone(message) when saved or already in sync, onStale() when the header changed meanwhile
+ * (the page reads it again and keeps the panel open with a note).
  */
-export default function ResyncPanel({ coord, header, assistant, onCancel, onDone, onStale }) {
+export default function ResyncPanel({ coord, header, assistant, note, onCancel, onDone, onStale }) {
   const target = wiredTarget(header);
   const shared = useSharedHeader(target);
   const firmware = useFirmware(coord);
@@ -55,7 +57,11 @@ export default function ResyncPanel({ coord, header, assistant, onCancel, onDone
   const diff = proposed ? tagDiff(header.tags, proposed) : null;
   const contentCleared = Boolean(header.content);
   const unchanged = Boolean(diff) && diff.removed.length === 0 && diff.added.length === 0 && !contentCleared;
-  const canResync = Boolean(proposed) && !unchanged && !busy && !undelivered && shared.done && !shared.unreadable;
+  // The shared header's names and description must pass the checks Edit applies, as the server requires.
+  const named = proposed ? (proposed.find((t) => t[0] === 'names') || []) : [];
+  const described = proposed ? (proposed.find((t) => t[0] === 'description') || []) : [];
+  const invalid = proposed ? checkEditFields({ singular: named[1], plural: named[2], description: described[1] }).error : null;
+  const canResync = Boolean(proposed) && !invalid && !unchanged && !busy && !undelivered && shared.done && !shared.unreadable;
 
   const p = sharedAuthor ? profiles?.[sharedAuthor] : null;
   const sharedBy = p && typeof p === 'object' ? (p.display_name || p.name) : null;
@@ -85,8 +91,9 @@ export default function ResyncPanel({ coord, header, assistant, onCancel, onDone
       let data = {};
       try { data = await resp.json(); } catch { data = {}; }
       if (resp.status === 409 && data.code === 'changed') {
-        onStale();
-        throw new Error('This concept changed after this page read it, so nothing was saved. The page is reading it again: check the changes, then Re-Sync.');
+        // The page reads the header again and keeps this panel open with its note; this panel starts afresh.
+        onStale('This concept changed after this page read it, so nothing was saved. The summary below is what a Re-Sync would change now.');
+        return;
       }
       if (resp.status === 409 && data.code === 'source-missing') {
         shared.reload();
@@ -129,6 +136,7 @@ export default function ResyncPanel({ coord, header, assistant, onCancel, onDone
           undo a Re-Sync.
         </p>
       )}
+      {note && <p className="dict-notice" role="status">{note}</p>}
       {!shared.done && <p className="text-muted">Reading the shared concept’s header…</p>}
       {shared.unreadable && (
         <p className="dict-notice" role="alert">
@@ -140,6 +148,11 @@ export default function ResyncPanel({ coord, header, assistant, onCancel, onDone
         <p className="dict-notice">
           The shared concept’s header wasn’t found on this instance’s relay or the community relay, so there’s nothing
           to re-sync from.
+        </p>
+      )}
+      {invalid && (
+        <p className="dict-notice" role="alert">
+          The shared concept’s header can’t be copied as it is: {invalid}. Its author would have to correct it first.
         </p>
       )}
       {diff && unchanged && <p className="dict-entry-note" role="status">Already in sync: a Re-Sync would change nothing.</p>}
@@ -166,7 +179,8 @@ export default function ResyncPanel({ coord, header, assistant, onCancel, onDone
       )}
       <div className="dict-new-actions">
         <button type="button" className="dict-add-btn" onClick={resync} disabled={!canResync}>{busy ? 'Re-Syncing…' : 'Re-Sync'}</button>
-        <button type="button" className="dict-pill-btn dict-pill-btn--quiet" onClick={onCancel} disabled={busy}>Cancel</button>
+        {/* Once a new version is saved, closing the panel must show it, as Done does. */}
+        <button type="button" className="dict-pill-btn dict-pill-btn--quiet" onClick={undelivered ? () => onDone(undelivered.message) : onCancel} disabled={busy}>Cancel</button>
       </div>
     </section>
   );

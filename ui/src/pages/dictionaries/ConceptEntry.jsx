@@ -67,7 +67,8 @@ export function useHeaderEvent(coord) {
   useEffect(() => {
     if (!coord) { setState({ event: null, error: null, done: true }); return undefined; }
     let cancelled = false;
-    setState({ event: null, error: null, done: false });
+    // A reload keeps the version shown until the new one arrives, so nothing that depends on it blinks out.
+    setState((st) => ({ event: version > 0 ? st.event : null, error: null, done: false }));
     const { kind, pubkey, d } = coordParts(coord);
     (async () => {
       try {
@@ -250,8 +251,11 @@ export function ConceptEntryBody({
   // Re-Sync: the same, on a header wired to another one (there is a shared concept to rebuild it from).
   const canResync = Boolean(resync && canEdit && ev && ev.pubkey === author && wiredTarget(ev));
   const [resyncOpen, setResyncOpen] = useState(false);
+  const [resyncNote, setResyncNote] = useState(null);
+  const closeResync = () => { setResyncOpen(false); setResyncNote(null); };
+  const resyncStale = (message) => { setResyncNote(message); header.reload(); };
   const resynced = (message) => {
-    setResyncOpen(false);
+    closeResync();
     setNotice(message);
     setFresh(true);
     header.reload();
@@ -296,7 +300,7 @@ export function ConceptEntryBody({
         {canResync && (
           <button
             type="button" className="dict-pill-btn dict-pill-btn--quiet dict-entry-edit" aria-expanded={resyncOpen}
-            onClick={() => setResyncOpen(!resyncOpen)}
+            onClick={() => (resyncOpen ? closeResync() : setResyncOpen(true))}
             title="Rebuild this concept’s header from the shared concept it is wired to"
           >
             <DictIcon name="sync" /> Re-Sync
@@ -308,8 +312,8 @@ export function ConceptEntryBody({
       {/* Re-Sync's warning and summary of changes, under the concept it would change. */}
       {canResync && resyncOpen && (
         <ResyncPanel
-          key={ev.id} coord={coord} header={ev} assistant={person.assistant}
-          onCancel={() => setResyncOpen(false)} onDone={resynced} onStale={header.reload}
+          key={ev.id} coord={coord} header={ev} assistant={person.assistant} note={resyncNote}
+          onCancel={closeResync} onDone={resynced} onStale={resyncStale}
         />
       )}
 

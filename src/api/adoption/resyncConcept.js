@@ -16,15 +16,17 @@
  * exactly that address must be the one the page showed (409 `changed`). Then the shared concept: the
  * header's wiredTarget (400 `not-wired` without one), and `copyFrom` read as Create New Concept reads it
  * (./newConcept.js readSource: this instance's relay, else the community relay strictly; it must verify and
- * be at that target, else 409 `source-missing`, 400 `source-mismatch` or 502 `source-unreachable`). A
- * rename it brings is refused as Edit refuses one (`name-keyed`, `name-taken`). No change: answered
- * without signing. Then sign, the local relay, the read-back, and the graph where it holds the header.
+ * be at that target, else 409 `source-missing`, 400 `source-mismatch` or 502 `source-unreachable`). The
+ * names and description it brings must pass Edit's field checks (400 `source-invalid`), and a rename it
+ * brings is refused as Edit refuses one (`name-keyed`, `name-taken`). No tag removed or added (the
+ * page's "Already in sync"): answered without signing. Then sign, the local relay, the read-back, and the graph where it holds the header.
  * Nothing is broadcast here; the browser sends the new version to the community relay.
  */
 
 'use strict';
 
-const { resyncedHeaderTags, wiredTarget } = require('../../lib/conceptHeaderCopy');
+const { resyncedHeaderTags, wiredTarget, tagDiff } = require('../../lib/conceptHeaderCopy');
+const { checkEditFields } = require('../../lib/conceptHeaderEdit');
 const edit = require('./editConcept');
 const { readSource, readCommunity } = require('./newConcept');
 
@@ -72,11 +74,23 @@ function createResyncConceptHandler(deps = {}) {
       }
 
       const template = composeResync(latest, read.event, target, d.now());
+      // The names and description come from someone else's header: they meet the checks Edit and Create
+      // apply to a person's own (both names, no control or text-direction characters), or nothing is signed.
       const names = template.tags.find((t) => t[0] === 'names') || [];
-      const refused = await edit.renameRefusal(d, keys, dTag, latest, typeof names[1] === 'string' ? names[1].trim() : '');
+      const desc = template.tags.find((t) => t[0] === 'description') || [];
+      const checked = checkEditFields({ singular: names[1], plural: names[2], description: desc[1] });
+      if (checked.error) {
+        return res.status(400).json({
+          success: false, code: 'source-invalid',
+          error: `The shared concept's header can't be copied as it is: ${checked.error}`,
+        });
+      }
+      const refused = await edit.renameRefusal(d, keys, dTag, latest, checked.fields.singular);
       if (refused) return res.status(refused.status).json(refused.body);
 
-      if (JSON.stringify(latest.tags || []) === JSON.stringify(template.tags) && (latest.content || '') === '') {
+      // No change is what the page's summary calls one: no tag removed or added (order alone isn't one).
+      const diff = tagDiff(latest.tags || [], template.tags);
+      if (!diff.removed.length && !diff.added.length && (latest.content || '') === '') {
         return res.json({ success: true, unchanged: true, event: latest, coord });
       }
       const out = await edit.signAndFollow(d, keys, template, coord, 'dictionaries/concepts/resync');
