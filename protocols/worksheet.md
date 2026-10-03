@@ -332,3 +332,26 @@ A `#Z` query would then find every auxiliary event of a header at once.
 Parts exist: content-categories (the categories and the chip idea), [filters-on-dlists](./drafts/filters-on-dlists.md) (a stub proposing a `dlists` field on relay filters, with the viewer passed for trust filtering), spawning and [trusted-lists](./drafts/trusted-lists.md) (ranked lists). Nothing ties them together for search. It is as much a product question (what's in the first version, and for whom) as a protocol one.
 
 **Refs:** opinionated-views § 2.1 (the default DList card) and its State line; content-categories § 3.2; pins § 8.2; filters-on-dlists; spawning.
+
+## W27 — Declarative rendering hints for DList headers
+
+**Status:** Open · raised 2026-10-03
+
+[Opinionated Views](./drafts/opinionated-views.md) § 2 gives every platform a **schema-driven** tier: one renderer, built once, that shows any DList item from what its header carries. Today that is `names`, `required` and `field-type` (§ 2.1). Clients have started publishing richer header tags for that tier, marked provisional:
+
+- `["display", <role>, <declared field>]`: which declared field is an item's `title`, `summary`, `image`, `link` or `media`. A hint names only a declared field, and readers ignore unknown roles;
+- a header-level `["image", <url>]` (NIP-51's tag): one picture for every item of the list;
+- `["link", <template id>, <relay>, <placeholder>, <field>, …]`: an RFC 6570 level-1 template, pinned by event id, held as an item of a self-declared **URL Templates** concept.
+
+They are live on `wss://dcosl.brainstorm.world` (a GitHub Accounts copy, `39998:5a251bba…:github-accounts`; the concept `39998:2efaa715…:url-templates`), published by Brainstorm-UI, which documents them in its `docs/dictionary/dlist-presentation-conventions.md` (PR #151).
+
+**Question:** adopt, rename or reject these before a third client mints its own names. A longer note sets them against prior art (Hydra's `IriTemplate`, JSON Forms' UI schema, Siren's actions, Adaptive Cards' host config, Naked Objects) and proposes roles not layout, one template store with two ways to bind, a closed action vocabulary, views as trust-resolved data, and explicit fallback levels: [`docs/DECLARATIVE_DLIST_RENDERING.md`](../docs/DECLARATIVE_DLIST_RENDERING.md).
+
+To settle:
+
+- **Home:** a section of Opinionated Views (these are its schema-driven tier's inputs), or a sibling draft.
+- **Roles:** the five above, or fewer to start.
+- **Templates:** header-level `link`, the type-level templates of the field-types proposal on `feat/tags`, or both over one store.
+- **Housekeeping:** the `field-type` and field-types-as-a-DList entries exist only on `feat/tags`, where they are numbered W17 and W18; on this branch those numbers name other entries (ledger row `2026-10-03-worksheet-numbers-diverge-across-branches`).
+
+**Refs:** [opinionated-views](./drafts/opinionated-views.md) §§ 2.1, 5, 7; [decentralized-lists](./nips/decentralized-lists.md) § List declaration; [decentralized-lists-compat](./drafts/decentralized-lists-compat.md) (`item-kind`, the precedent for additive header tags); [W25](#w25--uppercase-z-auxiliary-events-of-a-dlist-header); [W26](#w26--dlist-items-in-search-results); `docs/DECLARATIVE_DLIST_RENDERING.md`.
