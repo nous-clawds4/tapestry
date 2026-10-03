@@ -12,6 +12,7 @@
  *   → Map coord → { gum2, recognizedBy, recognizers } — GUM₂ (its own doc comment)
  * trustedItems({zCarriers, coords, qualifying, own, limit})
  *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items
+ * itemCarrier(ev)                           — a z-carrier as the Items read's scan keeps it
  * usageByHeader(…)                          — the counting rule both share
  *
  * Headers arrive PRE-CLASSIFIED at the handler seam
@@ -293,6 +294,23 @@ function itemProperties(ev) {
   return out;
 }
 
+// The tags trustedItems reads off a z-carrier: its filing, its address, its name, and a curation copy's q.
+const ITEM_CARRIER_TAGS = ['z', 'd', 'names', 'name', 'title', 'q'];
+
+/**
+ * A z-carrier as the Items read keeps it from the scan (assembleConceptItems): only the tags
+ * trustedItems reads, with the item's own words (itemDescription, itemProperties) computed and bounded
+ * here, from all its tags, so a scan never holds every tag of every event.
+ */
+function itemCarrier(ev) {
+  return {
+    id: ev.id, kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at,
+    tags: (ev.tags || []).filter((t) => Array.isArray(t) && ITEM_CARRIER_TAGS.includes(t[0])),
+    description: itemDescription(ev),
+    properties: itemProperties(ev),
+  };
+}
+
 /** A curation copy (assistant-designation.md § Curation copies): a kind-39999 item whose d is "copy-<sha256>". */
 const isCurationCopy = (ev) => ev.kind === 39999
   && (ev.tags || []).some((t) => t && t[0] === 'd' && typeof t[1] === 'string' && t[1].startsWith('copy-'));
@@ -360,8 +378,9 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
       kind: ev.kind,
       author: ev.pubkey,
       name: itemName(ev),
-      description: itemDescription(ev),
-      properties: itemProperties(ev),
+      // As itemCarrier computed them in the scan, else from the event's own tags.
+      description: ev.description !== undefined ? ev.description : itemDescription(ev),
+      properties: ev.properties !== undefined ? ev.properties : itemProperties(ev),
       createdAt: ev.created_at || 0,
     });
   }
@@ -377,4 +396,4 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
   };
 }
 
-module.exports = { computeDictionary, computeConceptDictionary, usageByHeader, trustedItems, recognitionByConcept };
+module.exports = { computeDictionary, computeConceptDictionary, usageByHeader, trustedItems, itemCarrier, recognitionByConcept };

@@ -6,8 +6,9 @@
  * trusts (the qualifying set GUM₁ counts), plus the reader's own filings. What has no backend yet is
  * shown disabled with a note: the Trusted Curation Method, the Curation switches, Veto, item pages.
  *
- *   I1..I12 — pure: trustedItems in src/lib/trustedDictionary.js (I8–I10: a curation copy and its
- *             original are one item; I11: the response cap; I12: each item's description and properties).
+ *   I1..I13 — pure: trustedItems in src/lib/trustedDictionary.js (I8–I10: a curation copy and its
+ *             original are one item; I11: the response cap; I12: each item's description and properties;
+ *             I13: they survive the Items read's scan projection, itemCarrier).
  *   C1..C3 — pure: conceptCurator in ui/src/utils/treasureMap.js (dynamic import).
  *   E1..E10 — structural pins, read off comment-stripped source: the route and its seam, the
  *            client read, the design's sections in order, the disabled controls with their notes,
@@ -200,6 +201,21 @@ test('I12: each item carries its own description and its property tags, bounded;
   const [m] = lib().trustedItems({ zCarriers: [many], coords: [SHARED], qualifying: [TRUSTED] }).items;
   assert(Object.keys(m.properties).length === 20, 'at most twenty properties');
   assert(m.description === null, 'no description tag, null');
+});
+
+test('I13: the Items read\'s scan keeps each item\'s description and property tags (itemCarrier), and the handler uses it', () => {
+  const raw = item(TRUSTED, SHARED, { d: 'vitorpamplona-ni5x31' });
+  raw.tags.push(['description', 'Vitor'], ['github-username', 'vitorpamplona'], ['json', '{"big":"' + 'x'.repeat(5000) + '"}']);
+  const carrier = lib().itemCarrier(raw);
+  assert(!carrier.tags.some((t) => t[0] === 'json' || t[0] === 'github-username' || t[0] === 'description'),
+    'the carrier holds only the tags trustedItems reads');
+  const [it] = lib().trustedItems({ zCarriers: [carrier], coords: [SHARED], qualifying: [TRUSTED] }).items;
+  assert(it.description === 'Vitor', `the description survives the scan; got ${JSON.stringify(it.description)}`);
+  assert(it.properties['github-username'] === 'vitorpamplona', `the property survives the scan; got ${JSON.stringify(it.properties)}`);
+  assert(it.name === 'vitorpamplona-ni5x31', 'and the name is still read off the kept tags');
+  const handler = flat(code(src(ADOPTION_API_JS)));
+  assert(/const zCarriers = await strfryScanStream\(\{ '#z': coords \}, \(ev\) => itemCarrier\(ev\)\);/.test(handler),
+    'assembleConceptItems projects each carrier with itemCarrier');
 });
 
 // ═══ C — conceptCurator ═══════════════════════════════════════════════════════════

@@ -24,21 +24,19 @@ export function normalizeLogin(raw) {
   return LOGIN.test(s) ? s : null;
 }
 
-/** The item's GitHub login: its first `github-username` tag that is one, else null. */
+/**
+ * The item's GitHub login: its first `github-username` tag, when that is a login, else null. The first
+ * tag only, as the Items read's `properties` keep the first of each name, so both pages read the same.
+ */
 export function githubLogin(ev) {
-  for (const t of Array.isArray(ev?.tags) ? ev.tags : []) {
-    if (Array.isArray(t) && t[0] === GITHUB_USERNAME_TAG) {
-      const login = normalizeLogin(t[1]);
-      if (login) return login;
-    }
-  }
-  return null;
+  const t = (Array.isArray(ev?.tags) ? ev.tags : []).find((x) => Array.isArray(x) && x[0] === GITHUB_USERNAME_TAG);
+  return t ? normalizeLogin(t[1]) : null;
 }
 
 /**
  * The GitHub Accounts DList's Items, one row per account: the filings of one login (in any case) are one
- * row, which the earliest filing stands for (its id, address and filer), naming every filer in filing
- * order and taking the first description any filing gives. A filing with no login is a row of its own.
+ * row, which the earliest filing stands for (its id, address, filer and description), naming every filer
+ * in filing order. A filing with no login is a row of its own.
  * Items arrive from the Items read (trustedItems: oldest first, each with its `properties`); rows are
  * numbered in that order.
  */
@@ -52,7 +50,6 @@ export function githubRows(items) {
     if (row) {
       row.filings.push(it);
       if (!row.filers.includes(it.author)) row.filers.push(it.author);
-      if (!row.description && it.description) row.description = it.description;
       continue;
     }
     const fresh = { ...it, login, description: it.description || null, filers: [it.author], filings: [it] };
@@ -189,4 +186,4 @@ const LANGUAGE_COLORS = {
   'Jupyter Notebook': '#da5b0b', Vue: '#41b883', Svelte: '#ff3e00', Elixir: '#6e4a7e', Haskell: '#5e5086',
   Lua: '#000080', Nix: '#7e7eff', Zig: '#ec915c', Clojure: '#db5855', Scala: '#c22d40', Nim: '#ffc200',
 };
-export const languageColor = (language) => LANGUAGE_COLORS[language] || '#8c929e';
+export const languageColor = (language) => (Object.hasOwn(LANGUAGE_COLORS, language) ? LANGUAGE_COLORS[language] : '#8c929e');

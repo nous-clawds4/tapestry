@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import DictionaryShell from './DictionaryShell';
 import { GithubAccountHead, GithubProfile, GithubRepos } from './GithubAccount';
-import { githubLogin, githubRowOf, githubRows, isGithubAccounts } from './github';
+import { githubLogin, githubRowOf, githubRows, isGithubAccounts, normalizeLogin } from './github';
 import useGithubAccount from './useGithubAccount';
 import DictIcon from '../dictionaries/DictIcon';
 import useProfiles from '../../hooks/useProfiles';
@@ -94,7 +94,8 @@ export default function DictionaryItemPage() {
   const key = itemKey(ev);
   // The concepts this page is about: its header, the shared concept that header points to, and its b targets.
   const pageConcepts = [coord, entry?.sharedCoord, ...(entry?.targets || []), ...bTargets(header.event)].filter(Boolean);
-  const login = isGithubAccounts(pageConcepts) ? githubLogin(ev) : null;
+  // Until the event arrives, the row it was opened from names the login, so the page doesn't change face.
+  const login = !isGithubAccounts(pageConcepts) ? null : ev ? githubLogin(ev) : normalizeLogin(passed?.item?.login);
   const gh = useGithubAccount(login);
   // A GitHub account's number is its row's in the entry's Items, where its filings are one row (githubRows).
   const listed = passed ? passed.item

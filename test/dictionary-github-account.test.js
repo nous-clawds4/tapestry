@@ -73,10 +73,11 @@ test('G2: the login is the item\'s github-username, as GitHub would accept it', 
   eq(normalizeLogin('a'.repeat(39)), 'a'.repeat(39), 'thirty-nine characters is the limit');
 });
 
-test('G3: githubLogin reads the first github-username tag that is a login', async () => {
+test('G3: githubLogin reads the first github-username tag, when it is a login', async () => {
   const { githubLogin } = await gh();
   eq(githubLogin(item(['github-username', 'wds4'])), 'wds4', 'the tag');
-  eq(githubLogin(item(['github-username', 'not a login'], ['github-username', 'wds4'])), 'wds4', 'a bad value is passed over');
+  eq(githubLogin(item(['github-username', 'not a login'], ['github-username', 'wds4'])), null, 'the first tag only, as the Items read keeps it');
+  eq(githubLogin(item(['github-username', 'wds4'], ['github-username', 'other'])), 'wds4', 'the first of several');
   eq(githubLogin(item(['description', 'wds4'])), null, 'no tag, no login');
   eq(githubLogin(null), null, 'no event');
 });
@@ -160,6 +161,7 @@ test('G9: an unknown language is grey', async () => {
   const { languageColor } = await gh();
   eq(languageColor('JavaScript'), '#f1e05a', 'a known one');
   eq(languageColor('Befunge'), '#8c929e', 'an unknown one');
+  eq(languageColor('constructor'), '#8c929e', 'not an inherited property');
 });
 
 test('G10: the Items are one row per account: the earliest filing stands for it, every filer named', async () => {
@@ -180,7 +182,7 @@ test('G10: the Items are one row per account: the earliest filing stands for it,
     'filings of one login (any case) are one row, numbered in order; a filing with no login is its own row');
   eq(rows[1].id, '2'.repeat(64), 'the earliest filing stands for the row');
   eq(rows[1].filers, ['b'.repeat(64), 'c'.repeat(64)], 'every filer, once each, in filing order');
-  eq(rows[1].description, 'Vitor', 'the first description any filing gives');
+  eq(rows[1].description, null, 'the standing filing\'s own description only, never another filer\'s');
   eq(rows[1].filings.length, 3, 'all three filings are kept');
   eq(githubRowOf(rows, `39999:${'c'.repeat(64)}:3`).n, 2, 'a later filing finds its account\'s row');
   eq(githubRowOf(rows, '4'.repeat(64)), null, 'by address when it has one');
@@ -191,7 +193,8 @@ test('S1: the GitHub page is chosen by the shared concept, from the entry or its
   const page = flat(code(src(ITEM_JSX)));
   assert(/const pageConcepts = \[coord, entry\?\.sharedCoord, \.\.\.\(entry\?\.targets \|\| \[\]\), \.\.\.bTargets\(header\.event\)\]\.filter\(Boolean\);/.test(page),
     'the page\'s concepts: its header, the shared concept, the entry\'s targets, and the header\'s b tags');
-  assert(/const login = isGithubAccounts\(pageConcepts\) \? githubLogin\(ev\) : null;/.test(page), 'a GitHub login only on the GitHub Accounts DList');
+  assert(/const login = !isGithubAccounts\(pageConcepts\) \? null : ev \? githubLogin\(ev\) : normalizeLogin\(passed\?\.item\?\.login\);/.test(page),
+    'a GitHub login only on the GitHub Accounts DList: the event\'s, or until it arrives, the row\'s it was opened from');
   assert(/const gh = useGithubAccount\(login\);/.test(page), 'read once the login is known');
 });
 

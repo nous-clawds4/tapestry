@@ -289,7 +289,7 @@ test('E9: the route is registered, and no auth list gates it to owners or custom
 // ═══ S — structural ═══════════════════════════════════════════════════════════
 
 test('S1: Re-Sync sits beside Edit, on /dictionary only, for the reader\'s own Assistant\'s wired header', () => {
-  assert(/editHref=\{dictionaryEditPath\} resync \/>/.test(flat(code(src(ENTRY_PAGE_JSX)))), '/dictionary asks for it');
+  assert(/editHref=\{dictionaryEditPath\} resync( dlistViews)? \/>/.test(flat(code(src(ENTRY_PAGE_JSX)))), '/dictionary asks for it');
   const body = flat(code(src(ENTRY_BODY_JSX)));
   assert(/editHref = null, resync = false,/.test(body), 'the control panel\'s entry page doesn\'t');
   assert(/const canResync = Boolean\(resync && canEdit && ev && ev\.pubkey === author && wiredTarget\(ev\)\);/.test(body), 'the condition');

@@ -441,11 +441,12 @@ export function ConceptEntryBody({
         <p className="dict-pov text-muted">
           {itemsPovLine(items.data.pov)}
           {items.data.truncated
-            ? ` Showing the first ${all.length.toLocaleString()} of ${items.data.keptCount.toLocaleString()} items.`
+            ? ` Showing the first ${(items.data.items || []).length.toLocaleString()} of ${items.data.keptCount.toLocaleString()} items.`
             : ''}
           {setAside > 0
             ? ` ${setAside.toLocaleString()} more filed by people below the verified cutoff ${setAside === 1 ? 'is' : 'are'} not shown.`
             : ''}
+          {githubList ? ' Avatars are loaded from GitHub by your browser.' : ''}
         </p>
       )}
 
