@@ -25,6 +25,11 @@ export const DICTIONARY_PATH = '/dictionary';
 export const dictionaryEntryPath = (coord) => `${DICTIONARY_PATH}/${encodeURIComponent(coord)}`;
 // Create New Concept in the design's styling (pages/dictionary/NewConcept.jsx).
 export const DICTIONARY_NEW_PATH = `${DICTIONARY_PATH}/new`;
+// Create New Concept for a shared concept the finder found: the new header is wired to it.
+export const DICTIONARY_WIRE_PARAM = 'wire';
+export const dictionaryWirePath = (coord) => `${DICTIONARY_NEW_PATH}?${DICTIONARY_WIRE_PARAM}=${encodeURIComponent(coord)}`;
+// Edit a concept: a new version of a header the reader's own Assistant wrote (pages/dictionary/EditConcept.jsx).
+export const dictionaryEditPath = (coord) => `${dictionaryEntryPath(coord)}/edit`;
 
 // An entry's item: on /dictionary its own page (pages/dictionary/Item.jsx), by the item's address or
 // event id; in the control panel the Simple Lists item page, which opens a kind-39999 item by address
@@ -94,8 +99,9 @@ export function authorLabel(pubkey, { assistantPubkey, assistantLabel = 'your As
  * Whose Dictionary this is. `authors` is what the server reads: the person's
  * account and, when they have one, their assistant. `signedIn` false means
  * the page is showing the owner's. `isOwner` is true when the signed-in
- * reader owns this instance; only they can add from the finder in this
- * version (the b-disposition writes are owner-only).
+ * reader owns this instance; only they get the finder's twin picker (the
+ * b-disposition writes are owner-only). Anyone signed in can create a concept
+ * wired to a finder result, signed by their own Assistant.
  */
 export function useDictionaryPerson() {
   const { assistants, viewer, loading } = useAssistantRoster();

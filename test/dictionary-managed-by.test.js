@@ -210,7 +210,7 @@ test('S3: the body reads one Assistant or the union through the same endpoint, a
     'rows say "n of m Assistants" (Dictionaries when the reader\'s own concepts are one of them)');
   assert(/if \(merged\.answered === 0\) error =/.test(s) && /if \(read\.error\) error = read\.error;/.test(s),
     'a failed read is an error, never an empty Dictionary');
-  assert(/canAdd=\{signedIn && person\.isOwner && !managed\}/.test(s), 'Add to Dictionary only on the reader\'s own list');
+  assert(/canAdd=\{signedIn && !managed\}/.test(s), 'Add to Dictionary only on the reader\'s own list');
   assert(/listHref: `\$\{location\.pathname\}\$\{location\.search\}`/.test(s), 'an entry knows the list it came from');
   assert(/'General Usage Metric: filing \(lowest first\)'/.test(s) && /'General Usage Metric: filing \(highest first\)'/.test(s),
     'the design\'s "General Usage Metric" sort labels, named for the metric now that there are two (dictionary-gum2 S2)');

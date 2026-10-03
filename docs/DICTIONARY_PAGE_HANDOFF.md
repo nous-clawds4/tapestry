@@ -1,6 +1,26 @@
 # Handoff — Dictionary page (Tapestry)
 
-**Status:** 🔴 OPEN: version 2 (§ 3–4) is not started. Version 1 (§ 2) shipped in PR #763, and has been in production since 2026-09-27 (promotion #766). Its rows were corrected on 2026-09-29 by PR #782 (see the metadata below).
+**Status:** 🔴 OPEN: version 2 (§ 3–4) is partly built. Version 1 (§ 2) shipped in PR #763 (production since 2026-09-27, promotion #766; rows corrected by #782 on 2026-09-29).
+- **Shipped on 2026-10-02**, each a direct build reviewed by a fresh Reviewer (details in the metadata bullets below):
+  - the design's entry page (#800);
+  - Managed by (#804);
+  - the item page (#806);
+  - Create New Concept (#807);
+  - GUM₂ (#808);
+  - Create New Concept from the finder, wired (#810), copying the shared header's tags (#814);
+  - Edit a concept (#811, with #812);
+  - Re-Sync (#815).
+
+  #800–#808 reached production on 2026-10-02 (#809). #810–#815 go to production in the promotion that carries this status line.
+- **Still open:**
+  - Add / Veto as pinnings, and GUM₃ (both wait on the Pins wire format, § 3);
+  - the Dictionary rule settings: metric, cutoffs and minimum author rank (§ 4);
+  - subject groups in Show (needs the list of groups);
+  - Private concepts;
+  - `field-type` on the Edit page (OPEN.md row `2026-10-02-edit-concept-field-type`).
+- **The owner's to decide:**
+  - the GUM₂ scale (influence 0–1; see the GUM₂ bullet);
+  - who may import (OPEN.md row `2026-10-02-io-import-unverified-any-session`).
 
 > **Repo metadata. Not part of the handoff text.**
 > - **Source.** The Claude Design export `brainstorm_dictionary_design.zip` (`handoff-dictionary/SPEC.md`), 2026-09-27. Everything below the rule is verbatim.
@@ -69,9 +89,62 @@
 >   - **A claim only adds.** A header stands for its signer and the signer's owners, so nobody's "My Assistant" tag can take a person's own recognition away.
 >   - **The roster is customers and the owner, not admins.** This read is public, and the admin list is the owner's to read (ADR author-scoped-inspection/0001).
 >   - **What the server sends.** Each entry carries `gum2` and `recognizedBy`; `metric` stays `gum1`.
->   - **If a read fails.** If GUM₂'s own reads fail (the `b`-pointers or the owners), the fields are left out and the list offers no GUM₂ sort. The trust read is shared with GUM₁, so if that fails, the whole Dictionary does, as before. Long value lists are scanned in parts of at most 400 values and 60,000 bytes, so they stay under strfry's one-argument command-line limit (128 KiB) even with 1 KB tag values. A GUM₂ sort chosen on another read falls back to A to Z on a read without GUM₂.
+>   - **If a read fails.** If GUM₂'s own reads fail (the `b`-pointers or the owners), the fields are left out and the list offers no GUM₂ sort. The trust read is shared with GUM₁, so if that fails, the whole Dictionary does, as before. Long value lists are scanned in parts of at most 400 values and 60,000 bytes, so they stay under strfry's one-argument command-line limit (128 KiB). (Corrected 2026-10-02: strfry can't look up a single value longer than 255 bytes at all — `MAX_INDEXED_TAG_VAL_SIZE` — so such a value fails its scan whatever the part size; GUM₂ then leaves its fields out, as above.) A GUM₂ sort chosen on another read falls back to A to Z on a read without GUM₂.
 >   - **Where it shows.** The entry strip says the design's "Recognized by N members of … trusted, extended community (GUM₂ x.xx)" above the GUM₁ filing line. The list's sort adds "General Usage Metric: recognition (lowest/highest first)", and the GUM₁ sorts are renamed "…: filing".
 >   - **Limits.** Everything is read from this instance's relay, which the strfry router syncs with the community relays for DList headers, so recognition elsewhere can be missed. The 1.50 cutoff isn't used yet: nothing adds entries automatically.
+> - **Added 2026-10-02: Create New Concept from the finder, wired, signed by the reader's own Assistant.** The owner asked that the finder's "No matching concept of your own? Create New Concept" open `/dictionary/new` rather than the control panel's New Concept page. A concept made there has no graph node, so the twin picker could never offer it. So the link opens `/dictionary/new?wire=<the shared concept's address>` instead, and the new header is wired to the shared concept at creation.
+>   - **What is published.** The same header as plain Create New Concept, except its `b` points to the shared concept instead of to itself. The form starts from the shared concept's names and description, read from this instance's relay and the community relay (newest wins), and the reader can change them. The new concept joins the reader's Dictionary as that concept, with no twin to pick.
+>   - **Who sees it.** Every signed-in reader (owner, admin or customer), on their own Dictionary: Add to Dictionary now opens for all of them. The owner still gets the twin picker, with the link under it; anyone else gets the link alone. Signed out, the finder says "Sign in to add a concept from here."
+>   - **A copy, not just the names (owner, 2026-10-02, after the GitHub Account copy on staging lacked the shared header's `required` and `field-type`).** The wired header copies every tag of the shared header (`src/lib/conceptHeaderCopy.js`, shared by the server and the page's preview through the `@tapestry/concept-header-copy` alias).
+>     - **Replaced:** `d`, `slug` (the copy's own d-tag), `names` and `description` (the form's), and `b` (one, pointing at the shared concept).
+>     - **Left out:** `json` (the owner's exception), `concept-graph` (the shared author's own derived graph), `z` (it would file the copy under another concept as well), `client` and `alt` (facts about the shared event), and `expiration`, `-` and `nonce` (event mechanics).
+>     - **Copied as they are (owner's decision):** `name` / `title` / `titles` and `founder` / `claims`, so a renamed copy keeps the shared header's extra display names.
+>     - **When it can't copy.**
+>       - **The page waits.** It reads the community relay strictly (`/api/relay/external?…&strict=1`) and offers Create only once the shared header's read has settled.
+>       - **Community relay unreachable.** If that relay can't be reached and this instance's relay doesn't hold the header, the page says so with Try again, rather than offer a create that would leave the tags out. The server likewise answers 502 `source-unreachable` when it can't read the version named.
+>       - **Version replaced.** If the version the page showed has been replaced, the server answers 409 `source-missing`, and the page reads the shared header again before Create is offered.
+>     - **Which version.** The page sends `copyFrom`, the id of the version its preview showed. The server reads it from this instance's relay, else the community relay, and copies it only if it verifies and is at the target's address. Otherwise it refuses: `source-missing` (409), `source-mismatch` (400), or `source-unreachable` (502) when the community relay can't be read.
+>     - **Earlier copies aren't updated.** A copy made before this, such as staging's GitHub Account, keeps the tags it has.
+>   - **Who signs: always the reader's own Assistant (owner, 2026-10-02), for plain Create New Concept too.** This replaces the NIP-07 path above. A new endpoint, `POST /api/dictionaries/concepts/new` (`src/api/adoption/newConcept.js`), follows the My Assistant disposition endpoints' rules: same host, a verified session, the caller's own Assistant key (never the owner's as a fallback), checked fields, then no replacing, sign, local strfry, and a read-back by id. The browser broadcasts, as before.
+>   - **No Assistant.** Someone with no Assistant here sees the Assistant pages' "You don't have a Tapestry Assistant on this instance yet" line and the link to Account Setup, and can't create. There is no fallback to their own key (owner's decision).
+>   - **No overwrite** is now the server's rule (409 with the existing header's address), on a verified header of the Assistant's at that d-tag on this instance's relay. The check and the write aren't atomic: two requests at once can still both pass, as before.
+>   - **Bounds.** strfry can't look up a tag value longer than 255 bytes (`MAX_INDEXED_TAG_VAL_SIZE`). A filter with one fails outright, and the Dictionary looks up every row's own address and its `b` target in one filter. So the server, the page and the finder all refuse:
+>     - a target address over 255 bytes;
+>     - a d-tag over 184 characters, which keeps the header's own address within 255.
+>
+>     Names and the description aren't looked up, so only the relay's event size bounds them. A target equal to the header's own address is refused, since it would only be the plain concept.
+>   - **Still no graph node,** as before. With external publishing off, a concept made here lives only in this instance's relay: no graph node, no remote copy.
+>   - **The control panel.** Its Concepts page uses the same finder, so its link opens `/dictionary/new?wire=…` too. Its own Create New Concept button still opens the New Concept page.
+> - **Added 2026-10-02: Edit a concept.** The owner asked that a signed-in person can edit any concept whose header their own Assistant wrote. Edit is a button on the entry page that is easy to find but doesn't draw attention: a quiet pill with a pencil beside the title, on `/dictionary/:coord` only (the control panel's entry page has none). It opens `/dictionary/:coord/edit` (`ui/src/pages/dictionary/EditConcept.jsx`).
+>   - **The fields** are the New DList page's: singular and plural names, description, and Item Property Tags, the `["required" | "optional" | "recommended", value, …]` entries saying what tags items should have (owner's decision). All are filled in from the header's latest version. Each property tag is kept whole, so further values survive.
+>   - **What an edit can't change.** The d-tag: the address stays, so items and wirings keep pointing at it. The b-tags (shared or wired), the content, and every other tag are kept, in their order. The rule is one pure module, `src/lib/conceptHeaderEdit.js`. The server composes with it, and the page previews with it through the `@tapestry/concept-header-edit` alias, so the preview is exactly what is signed.
+>   - **The `json` copy follows the edit.** A header made by the control panel carries a `json` tag. Its `conceptHeader.oNames` and `conceptHeader.description` are what the Tapestries concept pickers and `/api/concept-graph/summaries` read, so each follows the edit when the edit changes it. That is measured against the header's own tags, not the `json`: a concept created without a description keeps the default one in its `json` until a description is set.
+>     - `oSlugs`, `oKeys` and `oLabels` are identities (the derived graph's slug, schema keys, Neo4j labels), so they are kept.
+>     - So are `oTitles` and `word`, which were derived from the name the concept was created with.
+>     - An untouched `json` keeps its exact text.
+>   - **Names the server looks up.** The server finds some concepts by their singular name (`h.name = $concept`). These are `NAME_KEYED_CONCEPTS` in `src/lib/conceptHeaderEdit.js`, and a test keeps that list in step with the code's literal names. Their singular name can't be edited (the page shows it read-only), though the rest can. Nor can another concept be renamed to one of these names, even before the instance has created it.
+>   - **No duplicate names.** A singular name another of the Assistant's concepts already has, in any case, is refused with a link to that concept. OPEN.md row `2026-10-02-normalize-lookups-by-concept-name` is the deeper fix: look concepts up by address, not name.
+>   - **Who signs.** Always the signed-in person's own Assistant, through `POST /api/dictionaries/concepts/edit` (`src/api/adoption/editConcept.js`). It applies Create New Concept's rules, then reads the header's latest version: the newest verified header of that Assistant's at exactly this address.
+>   - **No overwriting.** If the latest version isn't the one the page loaded, the server answers 409 `changed` with the latest version. The page says nothing was saved and starts again from the latest only when asked. No change is answered without signing.
+>   - **The graph.** After the read-back, if this instance's graph has a node for the header, the new version is imported over it (BIBLE §30), so the node's name and its tag nodes follow. A header with no node gets none.
+>     - If that import fails, the page says the control panel may show the old version or an incomplete one. `importEventDirect` sets the new id before it rebuilds the tag nodes, so a partial failure can look in sync to the event-sync check.
+>     - Two saves from the same loaded version aren't atomic: the later one wins.
+>     - A header at the address that doesn't verify (the relay accepts unverified imports: OPEN.md row `2026-10-02-io-import-unverified-any-session`) can't be edited, and the server says so.
+>   - **Firmware concepts can be edited (owner's decision),** with a warning that a firmware reinstall rebuilds the header from the built-in definition and will undo the edit. Firmware is decided from the address by `GET /api/dictionaries/concepts/firmware?coord=` (the manifest's `firmwareCoords`), so a firmware header that isn't a Dictionary row is warned of too. Dictionary rows also carry `firmwareHeader`, which is narrower than `isFirmware`: that one also marks rows that only point at a firmware concept.
+>   - **The broadcast.** The new version goes to the community relay, and the page reports it with the new `save` wording in `broadcastOutcome`.
+> - **Added 2026-10-02: Re-Sync.** The owner asked for a Re-Sync button next to Edit. It rebuilds the local header from scratch from the shared concept it is wired to: for example to pick up a change to the shared concept, or to finish an earlier copy that lacked tags, such as staging's GitHub Account and its `field-type`.
+>   - **Where it shows.** A quiet pill beside Edit, on `/dictionary/:coord` only. It appears for a signed-in reader, on a header their own Assistant wrote that is wired to another header: its first pointer b-tag to another list header (`wiredTarget`). A self-shared header has nothing to sync from.
+>   - **The confirmation is inline (owner's decision).** A panel under the description warns that the header is completely overwritten. It summarises the change as tags removed and tags added: a changed tag is the old one removed and the new one added, and repeats count (`tagDiff`). The raw headers stay at the bottom of the page. When nothing would change, it says "Already in sync".
+>   - **What is written** (`resyncedHeaderTags` in `src/lib/conceptHeaderCopy.js`, the rule the summary is made from):
+>     - the shared header's names, description and tags, by the copy rule above;
+>     - the local address `d`;
+>     - the local `json`, `concept-graph` and `z`, which the owner chose to keep, with the kept `json`'s names and description following the new ones;
+>     - one `b`, at the shared concept.
+>
+>     None of the shared header's own `b` tags is copied, and the local header's other `b` pointers go. So the shared concept is its one parent, whether or not that concept points to itself (the owner's rule).
+>   - **Who signs.** `POST /api/dictionaries/concepts/resync` (`src/api/adoption/resyncConcept.js`), with the caller's own Assistant. It uses Edit's checks: the version the page showed (409 `changed`), the rename guards (`name-keyed`, `name-taken`), the read-back and the graph update. It reads the shared version by id as Create New Concept does (`source-missing`, `source-mismatch`, `source-unreachable`), and it must be at the header's wired target (else 400 `not-wired` or `source-mismatch`). The shared names and description, trimmed, must pass Edit's field checks, the same ones a person's own pass: both names, no control characters, and no text-direction characters in the names. Otherwise the server answers 400 `source-invalid`, and the panel says why and offers no Re-Sync. "Nothing changing" is the summary's measure, no tag removed or added (order alone isn't a change), and it is answered without signing.
+>   - **If the header changed meanwhile** (409 `changed`), the panel stays open, says nothing was saved, and shows the summary for the new version.
+>   - **Shared reads.** Create, Edit and Re-Sync share their reads in `ui/src/pages/dictionaries/sharedHeader.js`: this relay, the community relay read strictly, and the firmware check.
 > - **When version 2 ships**, flip the Status to ✅ ADDRESSED. `/whats-open` lists this file while it reads 🔴.
 
 ---

@@ -7,10 +7,12 @@ import useCommunitySharedConcepts from '../../hooks/useCommunitySharedConcepts';
 import { usePov } from '../../context/PovContext';
 import DictIcon from './DictIcon';
 import {
-  NEW_CONCEPT_PATH, authorLabel, displayName, entryPath, itemCountText, metricLabel, metricShort,
+  NEW_CONCEPT_PATH, authorLabel, dictionaryWirePath, displayName, entryPath, itemCountText, metricLabel, metricShort,
   overrideBadge, povLine, useAssistantDictionaries, useConceptDictionary, useDictionaryPerson,
 } from './conceptsDictionary';
 import { mergeDictionaries } from './managedDictionary';
+import { lookupable } from '../dictionary/newConceptDraft';
+import { ASSISTANT_COPY } from '../assistant/actions';
 
 /**
  * Dictionary › Concepts, version 1 (handoff SPEC § 2; design: the Brainstorm
@@ -29,8 +31,10 @@ import { mergeDictionaries } from './managedDictionary';
  * Stubbed until Pins land (SPEC § 3): the owner's Add / Veto. The server
  * returns override: null, so no Added / Vetoed badge shows yet; the badge
  * code is in place for when it does. The Veto control lives on the entry
- * page. "Add to Dictionary" in the finder opens the existing adoption flow
- * (a twin + DispositionPanel) instead of publishing a pin.
+ * page. "Add to Dictionary" in the finder adds without a pin: any signed-in
+ * reader can create a concept of their own wired to the shared one, signed by
+ * their own Assistant (/dictionary/new?wire=…), and the owner can also wire
+ * one of their graph concepts as its twin (the adoption flow, DispositionPanel).
  */
 
 // Show groups (SPEC § 2.2). The subject groups — Nostr, Bitcoin, … — are version 2 (SPEC § 3). So is
@@ -106,7 +110,7 @@ function faqItems({ cutoff }) {
     {
       q: 'How do I find new concepts?',
       a: [
-        'Use “Don’t see what you’re looking for?” above the list. In this version it searches the DList headers on the community relay whose authors have Shared them: a result whose b-tag points to itself has been actively Shared by its author, and is marked Shared. “Add to Dictionary” opens the adoption flow: choose one of your own concepts as its local twin, and your Assistant wires it to the shared concept with a b-tag, which puts it on this list. For now only the owner of this instance can add from here. If nothing fits, Create New Concept.',
+        'Use “Don’t see what you’re looking for?” above the list. In this version it searches the DList headers on the community relay whose authors have Shared them: a result whose b-tag points to itself has been actively Shared by its author, and is marked Shared. “Add to Dictionary” offers Create New Concept, wired to the result: your Assistant publishes a concept of your own whose b-tag points to the shared concept, which puts it on this list. The owner of this instance can instead choose one of their own concepts as its local twin, and their Assistant wires it.',
         `Coming in a later version: You can search the DList headers published by trusted members of your community: those whose authors have a rank above ${MIN_AUTHOR_RANK} (adjustable on the Automated Assistant Tasks page). If a result is the target of b-tags from trusted members, you’ll see its GUM₂ and GUM₃ scores, calculated as described above (GUM₁ appears once the concept has items filed under it).`,
       ],
     },
@@ -395,7 +399,9 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
           inDictionary={inDictionary}
           assistantPubkey={person.assistant}
           assistantLabel={signedIn ? 'your Assistant' : 'the owner’s Assistant'}
-          canAdd={signedIn && person.isOwner && !managed}
+          canAdd={signedIn && !managed}
+          isOwner={person.isOwner}
+          cantAdd={!signedIn ? 'Sign in to add a concept from here.' : 'Adding works on your own Dictionary: choose your local Assistant under Managed by.'}
           onAdded={reload}
         />
       )}
@@ -471,7 +477,7 @@ export function ConceptsDictionaryBody({ entryHref = entryPath, managed = null, 
  * whose b-tag points to themselves). Mounted only while open, so the relay is
  * asked only when someone looks.
  */
-function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, onAdded }) {
+function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, isOwner, cantAdd, onAdded }) {
   const { rows } = useCommunitySharedConcepts();
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(null); // the community row being added
@@ -498,7 +504,7 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
         />
       </label>
       {status && <div className="dict-find-status" role="status">{status}</div>}
-      {!canAdd && <p className="dict-add-foot text-muted">For now only the owner of this instance can add a concept from here.</p>}
+      {!canAdd && <p className="dict-add-foot text-muted">{cantAdd}</p>}
       {visible.length > 0 && (
         <ul className="dict-find-list">
           {visible.map((r) => (
@@ -513,7 +519,10 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
                 {r.description && <span className="dict-row-desc">{r.description}</span>}
                 <span className="dict-row-by">by {authorLabel(r.author, { assistantPubkey, assistantLabel, profiles })}</span>
               </div>
-              {canAdd && (
+              {canAdd && !lookupable(r.uuid) && (
+                <span className="dict-add-foot text-muted">Its address is too long for this instance’s relay to look up, so it can’t be added.</span>
+              )}
+              {canAdd && lookupable(r.uuid) && (
                 <button
                   type="button" className="dict-add-btn" aria-expanded={adding?.uuid === r.uuid}
                   onClick={() => setAdding(adding?.uuid === r.uuid ? null : r)}
@@ -522,7 +531,7 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
                 </button>
               )}
               {canAdd && adding?.uuid === r.uuid && (
-                <AddToDictionary concept={r} onAdded={onAdded} onClose={() => setAdding(null)} />
+                <AddToDictionary concept={r} isOwner={isOwner} hasAssistant={Boolean(assistantPubkey)} onAdded={onAdded} onClose={() => setAdding(null)} />
               )}
             </li>
           ))}
@@ -533,16 +542,18 @@ function ConceptFinder({ inDictionary, assistantPubkey, assistantLabel, canAdd, 
 }
 
 /**
- * Version 1's "Add to Dictionary": the existing adoption flow, not a pin
- * (SPEC § 2.4). The owner picks one of their own concepts as the local twin;
- * DispositionPanel then wires it to the shared concept with a pointer b-tag,
- * which makes the twin a row of the list, so the list reloads.
+ * "Add to Dictionary" for a shared concept the finder found. Anyone signed in can create a concept of
+ * their own wired to it: /dictionary/new?wire=<its address>, where their own Assistant publishes a
+ * header whose b-tag points to it, so it joins their Dictionary (the owner's decision, 2026-10-02).
+ * The owner can also pick one of their graph concepts as the local twin, which DispositionPanel then
+ * wires with a pointer b-tag (the adoption flow, SPEC § 2.4), and the list reloads.
  */
-function AddToDictionary({ concept, onAdded, onClose }) {
+function AddToDictionary({ concept, isOwner, hasAssistant, onAdded, onClose }) {
   const [twins, setTwins] = useState(null);
   const [twin, setTwin] = useState('');
 
   useEffect(() => {
+    if (!isOwner) return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -555,15 +566,37 @@ function AddToDictionary({ concept, onAdded, onClose }) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [isOwner]);
 
   const twinName = twins?.find((t) => t.handle === twin)?.name;
+  const name = concept.name || concept.uuid;
+  const create = (
+    <Link to={dictionaryWirePath(concept.uuid)} className="dict-add-create">Create New Concept</Link>
+  );
+
+  if (!isOwner) {
+    return (
+      <div className="dict-add">
+        {hasAssistant ? (
+          <p className="dict-add-lede">
+            Your Assistant adds <strong>{name}</strong> by publishing a concept of your own, wired to it (its b-tag
+            points to the shared concept).
+          </p>
+        ) : (
+          <p className="dict-add-lede">
+            {ASSISTANT_COPY.noAssistantLine} <Link to="/setup">{ASSISTANT_COPY.noAssistantLink}</Link>
+          </p>
+        )}
+        <p className="dict-add-foot">{create}, wired to this one.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="dict-add">
       <p className="dict-add-lede">
         In this version, your Assistant adds a shared concept by wiring one of your own concepts to it (a pointer
-        b-tag). Choose your twin for <strong>{concept.name || concept.uuid}</strong>, then Wire.
+        b-tag). Choose your twin for <strong>{name}</strong>, then Wire.
       </p>
       <select className="dict-input" value={twin} onChange={(e) => setTwin(e.target.value)} aria-label="Your twin concept">
         <option value="">{twins === null ? 'Loading your concepts…' : 'Choose one of your concepts as its twin…'}</option>
@@ -577,9 +610,7 @@ function AddToDictionary({ concept, onAdded, onClose }) {
         </div>
       )}
       <p className="dict-add-foot text-muted">
-        {/* A twin must be a concept with a node in the graph (the twin picker lists only those), which is what
-            the control panel's New Concept page makes; /dictionary/new publishes a shared header instead. */}
-        No matching concept of your own? <Link to={NEW_CONCEPT_PATH}>Create New Concept</Link>, then come back to wire it.
+        No matching concept of your own? {create}, wired to this one.
       </p>
     </div>
   );

@@ -286,7 +286,7 @@ test('E5: the sample chips and the Usage card are gone; the links moved into the
   assert(/\{members\} \{members === 1 \? 'member' : 'members'\}/.test(entry), 'the strip states the GUM₁ count as members');
   assert(/Open the concept →/.test(entry) && (entry.match(/Raw header event →/g) || []).length === 2, 'both header panels keep their links');
   const dict = flat(code(src(DICTIONARY_ENTRY_JSX)));
-  assert(/<ConceptEntryBody listHref=\{DICTIONARY_PATH\} listLabel="Dictionary" profileBase="\/user"( itemHref=\{dictionaryItemPath\})? \/>/.test(dict),
+  assert(/<ConceptEntryBody (key=\{coord\} )?listHref=\{DICTIONARY_PATH\} listLabel="Dictionary" profileBase="\/user"( itemHref=\{dictionaryItemPath\})?( editHref=\{dictionaryEditPath\})?( resync)? \/>/.test(dict),
     '/dictionary/:coord links Filed by names to the Main side\'s profile pages');
 });
 
