@@ -208,6 +208,7 @@ const suites = [
   { file: 'dictionary-wired-create.test.js' },
   { file: 'dictionary-edit-concept.test.js' },
   { file: 'dictionary-resync-concept.test.js' },
+  { file: 'dictionary-github-account.test.js' },
   { file: 'adoption-twins.test.js' },
   { file: 'adoption-raw-event-view.test.js' },
   { file: 'state-on-concept-page.test.js' },
