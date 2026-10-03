@@ -5,39 +5,56 @@ import DictIcon from '../dictionaries/DictIcon';
 import useProfiles from '../../hooks/useProfiles';
 import { npubOf, scan } from '../dictionaries/ConceptEntry';
 import { DICTIONARY_PATH, DICTIONARY_WIRE_PARAM, dictionaryEntryPath, useDictionaryPerson } from '../dictionaries/conceptsDictionary';
-import { fetchFromRelays, publishToRelays } from '../../utils/nostrPublish';
+import { publishToRelays } from '../../utils/nostrPublish';
 import { CONCEPT_PUBLISH_RELAYS } from '../../utils/dispositionActions';
 import { COMMUNITY_RELAYS } from '../../hooks/useCommunitySharedConcepts';
 import { ASSISTANT_COPY } from '../assistant/actions';
 import { classifyBroadcast, outcomeMessage } from '@tapestry/broadcast-outcome';
+import { copiedHeaderTags } from '@tapestry/concept-header-copy';
 import { MAX_D_BYTES, conceptHeaderDraft, draftPreview, fieldsFromHeader, wireProblem, wireTarget } from './newConceptDraft';
 
 /** Creates the header with the signed-in person's own Assistant (src/api/adoption/newConcept.js). */
 export const NEW_CONCEPT_API = '/api/dictionaries/concepts/new';
 
 /**
+ * The community relay, read strictly (`strict=1`): a relay that couldn't be read is an error, never an
+ * empty answer, so the page can't mistake "unreachable" for "not there" (the lenient read answers
+ * `{success: true, events: []}` for both).
+ */
+async function readCommunityStrict(filter) {
+  const params = new URLSearchParams({ filter: JSON.stringify(filter), relays: COMMUNITY_RELAYS.join(','), strict: '1' });
+  const resp = await fetch(`/api/relay/external?${params}`);
+  const data = await resp.json();
+  if (!data || data.success !== true) throw new Error((data && data.error) || `HTTP ${resp.status}`);
+  return Array.isArray(data.events) ? data.events : [];
+}
+
+/**
  * The shared concept's header, for `?wire=`: the newest of this instance's relay and the community relay,
- * so the form can start from its names and description. { event, done }.
+ * so the form can start from its names and description and the copy from its tags.
+ * { event, done, unreadable, reload }: `unreadable` when neither relay has it and the community relay
+ * couldn't be read, so whether it has a header there isn't known.
  */
 function useSharedHeader(target) {
-  const [state, setState] = useState({ event: null, done: !target });
+  const [state, setState] = useState({ event: null, done: !target, unreadable: false });
+  const [version, setVersion] = useState(0);
   useEffect(() => {
-    if (!target) { setState({ event: null, done: true }); return undefined; }
+    if (!target) { setState({ event: null, done: true, unreadable: false }); return undefined; }
     let cancelled = false;
-    setState({ event: null, done: false });
+    setState({ event: null, done: false, unreadable: false });
     const [, pubkey, ...rest] = target.split(':');
     const d = rest.join(':');
     const filter = { kinds: [39998], authors: [pubkey], '#d': [d] };
     const own = (ev) => ev && ev.kind === 39998 && ev.pubkey === pubkey && (ev.tags || []).find((t) => t[0] === 'd')?.[1] === d;
     (async () => {
-      const reads = await Promise.allSettled([scan(filter), fetchFromRelays(filter, COMMUNITY_RELAYS)]);
+      const reads = await Promise.allSettled([scan(filter), readCommunityStrict(filter)]);
       const events = reads.flatMap((r) => (r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : [])).filter(own);
       const newest = events.reduce((a, b) => (!a || (b.created_at || 0) > (a.created_at || 0) ? b : a), null);
-      if (!cancelled) setState({ event: newest, done: true });
+      if (!cancelled) setState({ event: newest, done: true, unreadable: !newest && reads[1].status === 'rejected' });
     })();
     return () => { cancelled = true; };
-  }, [target]);
-  return state;
+  }, [target, version]);
+  return { ...state, reload: () => setVersion((v) => v + 1) };
 }
 
 /**
@@ -89,11 +106,25 @@ export default function DictionaryNewConceptPage() {
   const edit = (set) => (e) => { setTouched(true); set(e.target.value); };
 
   const signer = person.signedIn ? person.assistant : null;
-  const draft = conceptHeaderDraft({ singular, plural, description, pubkey: signer, target });
+  const plain = conceptHeaderDraft({ singular, plural, description, pubkey: signer, target });
+  // Wired to a shared concept whose header was read: a copy of that header, by the rule the server signs with.
+  const source = target && shared.event ? shared.event : null;
+  const draft = source
+    ? {
+      ...plain,
+      event: {
+        ...plain.event,
+        tags: copiedHeaderTags({ source, d: plain.d, singular: singular.trim(), plural: plural.trim(), description: description.trim(), target }),
+      },
+    }
+    : plain;
   const locked = Boolean(undelivered); // the header exists: what's left is its broadcast
   // Wired to its own address would only be the plain, self-shared concept under another name.
   const selfTarget = Boolean(target && draft.coord === target);
-  const canCreate = person.signedIn && Boolean(signer) && draft.ready && !selfTarget && !busy && !locked;
+  // Wired: never before the shared header's read has settled, and never without its tags when the community
+  // relay couldn't be read (the copy would silently lack them: the owner's report of 2026-10-02).
+  const sharedSettled = !target || (shared.done && !shared.unreadable);
+  const canCreate = person.signedIn && Boolean(signer) && draft.ready && !selfTarget && sharedSettled && !busy && !locked;
   // A name with no Latin letter or digit has no slug, so it can't name the header's d-tag yet.
   const noSlug = Boolean(singular.trim()) && !draft.d;
 
@@ -126,11 +157,17 @@ export default function DictionaryNewConceptPage() {
       const resp = await fetch(NEW_CONCEPT_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ singular, plural, description, ...(target ? { target } : {}) }),
+        body: JSON.stringify({ singular, plural, description, ...(target ? { target } : {}), ...(source ? { copyFrom: source.id } : {}) }),
       });
       let data = {};
       try { data = await resp.json(); } catch { data = {}; }
       if (resp.status === 409 && data.code === 'exists') { setExisting(data.coord || draft.coord); return; }
+      if (resp.status === 409 && data.code === 'source-missing') {
+        // The version the preview showed has been replaced: read the shared header again, so the preview and
+        // the next request are of the current one.
+        shared.reload();
+        throw new Error('The shared concept’s header changed after this page read it, so the page is reading it again: check the preview, then create the concept.');
+      }
       if (!resp.ok || !data.success) throw new Error(data.error || `HTTP ${resp.status}`);
       const signed = data.event;
       // Broadcast only what was signed as the Assistant this page names.
@@ -161,7 +198,7 @@ export default function DictionaryNewConceptPage() {
         <h1 className="dict-entry-title">Create New Concept</h1>
         <p className="dict-lede dict-new-lede">
           {target
-            ? 'Your Assistant publishes a concept of your own, wired to the shared concept below: its b-tag points to it, so it joins your Dictionary as that concept. Its names and description start as the shared concept’s; change them if you like.'
+            ? `Your Assistant publishes a concept of your own, wired to the shared concept below: its b-tag points to it, so it joins your Dictionary as that concept. Its names and description start as the shared concept’s; change them if you like.${source ? ' Its other tags are copied from the shared concept’s header, except json, concept-graph, the z tags that file it under other concepts, and the ones about that event rather than the concept: client, alt, and the expiration, protected and proof-of-work tags.' : ''}`
             : 'Define a new concept: its singular and plural names, and a description. Your Assistant publishes the header, marked as shared, so others can find it and adopt it.'}
         </p>
         {signInNote && <p className="dict-notice">{signInNote}</p>}
@@ -190,9 +227,16 @@ export default function DictionaryNewConceptPage() {
               {sharedName || (shared.done ? target : 'Reading the shared concept…')}
               {sharedBy && <span className="dict-strip-faint"> · shared by {sharedBy}</span>}
             </span>
-            {shared.done && !shared.event && (
+            {shared.done && !shared.event && !shared.unreadable && (
               <span className="dict-entry-note text-muted">
                 Its header wasn’t found on this instance’s relay or the community relay, so fill in the names yourself.
+              </span>
+            )}
+            {shared.unreadable && (
+              <span className="dict-entry-note" role="alert">
+                Couldn’t reach the community relay to read its header, so its tags can’t be copied now, and creating the
+                concept would leave them out.{' '}
+                <button type="button" className="dict-link-btn" onClick={shared.reload}>Try again</button>
               </span>
             )}
           </div>

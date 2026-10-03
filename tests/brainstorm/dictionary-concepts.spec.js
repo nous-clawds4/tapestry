@@ -84,9 +84,12 @@ const { test, expect } = require('@playwright/test');
  * Create New Concept from the finder, wired (test/dictionary-wired-create.test.js holds the endpoint):
  *
  *   D29 — a signed-in customer finds a shared concept, and Add to Dictionary offers Create New Concept
- *         wired to it: /dictionary/new?wire=… starts from its names and description, the preview's
- *         b-tag points to it, and their Assistant creates it. The owner gets the twin picker and the
+ *         wired to it: /dictionary/new?wire=… starts from its names and description, the preview is a
+ *         copy of its header (all but json, concept-graph and the like; its own d, slug and b), the
+ *         request names the version copied, and their Assistant creates it. The owner gets the twin picker and the
  *         same link; signed out, the finder says to sign in.
+ *   D37 — the copy is never skipped: Create waits for the shared header's read; an unreachable community
+ *         relay is said so, with Try again, and no create; a replaced version is read again first.
  *   D30 — signed in with no Assistant here: the page says so, points to Account Setup, and can't create;
  *         the finder's Add says the same rather than "Your Assistant adds…".
  *   D31 — the page says what it can't do: a link that names no address, an address too long for the
@@ -227,7 +230,11 @@ const SHARED_COORD = `39998:${SHARER}:${SHARED_D}`;
 /** A concept someone shared (its b-tag points to itself), on the community relay. */
 const SHARED_HEADER = {
   id: 'a'.repeat(64), kind: 39998, pubkey: SHARER, created_at: 1700000000, content: '', sig: 'b'.repeat(128),
-  tags: [['d', SHARED_D], ['names', 'Taco Truck', 'Taco Trucks'], ['description', 'Trucks that sell tacos.'], ['b', SHARED_COORD, 'pointer']],
+  tags: [
+    ['d', SHARED_D], ['names', 'Taco Truck', 'Taco Trucks'], ['slug', SHARED_D], ['json', '{"word":{"slug":"x"}}'],
+    ['concept-graph', `39999:${SHARER}:${SHARED_D}-concept-graph`], ['description', 'Trucks that sell tacos.'],
+    ['required', 'url'], ['field-type', 'url', 'url'], ['b', SHARED_COORD, 'pointer'],
+  ],
 };
 const slugOf = (name) => name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -898,6 +905,14 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByText('Header your Assistant publishes (wired: its b-tag points to the shared concept)')).toBeVisible();
     await expect(page.locator('.dict-new-preview')).toContainText(`["b","${SHARED_COORD}","pointer"]`);
     await page.getByLabel('Singular name').fill('Taco Truck in Nashville');
+    // A copy of the shared header: its tags, but the copy's own d, slug, names and b, and no json or concept-graph.
+    const preview = page.locator('.dict-new-preview');
+    await expect(preview).toContainText('["d","taco-truck-in-nashville"]');
+    await expect(preview).toContainText('["slug","taco-truck-in-nashville"]');
+    await expect(preview).toContainText('["required","url"]');
+    await expect(preview).toContainText('["field-type","url","url"]');
+    await expect(preview).not.toContainText('"json"');
+    await expect(preview).not.toContainText('concept-graph');
     await page.getByLabel('Plural name').fill('Taco Trucks in Nashville');
     await page.getByRole('button', { name: 'Create concept' }).click();
     const coord = `39998:${CUST_TA}:taco-truck-in-nashville`;
@@ -905,6 +920,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByText('Wired here. External publishing is off for this deployment, so it was not sent onward.')).toBeVisible();
     expect(created).toEqual([{
       singular: 'Taco Truck in Nashville', plural: 'Taco Trucks in Nashville', description: 'Trucks that sell tacos.', target: SHARED_COORD,
+      copyFrom: SHARED_HEADER.id,
     }]);
 
     // The owner: the twin picker, and the same link under it.
@@ -931,6 +947,75 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await out.getByRole('searchbox').fill('taco');
     await expect(out.locator('.dict-find-name', { hasText: 'Taco Truck' })).toBeVisible();
     await expect(out.getByRole('button', { name: 'Add to Dictionary' })).toHaveCount(0);
+  });
+
+  test('D37: Create never skips the copy: it waits for the read, refuses an unreachable relay, and re-reads a replaced version', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    const created = await mockCreate(page, { assistant: CUST_TA });
+    const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    // A slow community read: Create waits for it.
+    let release;
+    const gate = new Promise((ok) => { release = ok; });
+    let reads = 0;
+    await page.route('**/api/relay/external**', async (r) => {
+      reads += 1;
+      if (reads === 1) await gate;
+      return json(r, { success: true, events: [SHARED_HEADER] });
+    });
+    await page.goto(`${PAGE}/new?wire=${encodeURIComponent(SHARED_COORD)}`);
+    await page.getByLabel('Singular name').fill('Taco Truck');
+    await page.getByLabel('Plural name').fill('Taco Trucks');
+    await expect(page.getByRole('button', { name: 'Create concept' }), 'not while the shared header is being read').toBeDisabled();
+    release();
+    await expect(page.locator('.dict-new-preview')).toContainText('["required","url"]');
+    await expect(page.getByRole('button', { name: 'Create concept' })).toBeEnabled();
+    expect(new URL(page.url()).searchParams.get('wire')).toBe(SHARED_COORD);
+
+    // The community relay unreachable (and this instance's relay without the header): said so, and no create.
+    const down = await page.context().newPage();
+    await mockStack(down, { session: CUSTOMER });
+    await mockCreate(down, { assistant: CUST_TA });
+    let up = false;
+    await down.route('**/api/relay/external**', (r) => (up
+      ? json(r, { success: true, events: [SHARED_HEADER] })
+      : json(r, { success: false, events: [], error: 'Could not read wss://dcosl.brainstorm.world', unreachable: ['wss://dcosl.brainstorm.world'] })));
+    await down.goto(`${PAGE}/new?wire=${encodeURIComponent(SHARED_COORD)}`);
+    const alert = down.getByRole('alert').filter({ hasText: 'Couldn’t reach the community relay' });
+    await expect(alert).toContainText('so its tags can’t be copied now');
+    await expect(down.getByText('Its header wasn’t found')).toHaveCount(0);
+    await down.getByLabel('Singular name').fill('Taco Truck');
+    await down.getByLabel('Plural name').fill('Taco Trucks');
+    await expect(down.getByRole('button', { name: 'Create concept' })).toBeDisabled();
+    up = true;
+    await alert.getByRole('button', { name: 'Try again' }).click();
+    await expect(down.locator('.dict-new-preview')).toContainText('["field-type","url","url"]');
+    await expect(down.getByRole('button', { name: 'Create concept' })).toBeEnabled();
+
+    // A replaced version: the server says so, the page reads the header again before Create is offered again.
+    const stale = await page.context().newPage();
+    await mockStack(stale, { session: CUSTOMER });
+    const asked = await mockCreate(stale, { assistant: CUST_TA });
+    let staleReads = 0;
+    let hold;
+    await stale.route('**/api/relay/external**', async (r) => {
+      staleReads += 1;
+      if (staleReads === 2) await new Promise((ok) => { hold = ok; });
+      return json(r, { success: true, events: [SHARED_HEADER] });
+    });
+    await stale.route('**/api/dictionaries/concepts/new', (r) => {
+      asked.push(JSON.parse(r.request().postData() || '{}'));
+      return json(r, { success: false, code: 'source-missing', error: 'gone' }, 409);
+    });
+    await stale.goto(`${PAGE}/new?wire=${encodeURIComponent(SHARED_COORD)}`);
+    await expect(stale.locator('.dict-new-preview')).toContainText('["required","url"]');
+    await stale.getByRole('button', { name: 'Create concept' }).click();
+    await expect(stale.getByRole('alert').filter({ hasText: 'changed after this page read it' })).toBeVisible();
+    await expect(stale.getByRole('button', { name: 'Create concept' }), 'not until it has been read again').toBeDisabled();
+    await expect.poll(() => staleReads).toBe(2);
+    hold();
+    await expect(stale.getByRole('button', { name: 'Create concept' })).toBeEnabled();
+    expect(asked.every((b) => b.copyFrom === SHARED_HEADER.id), 'every request names the version it copies').toBe(true);
+    expect(created).toHaveLength(0);
   });
 
   test('D30: signed in with no Assistant here, the page says so, points to Account Setup, and can’t create', async ({ page }) => {
