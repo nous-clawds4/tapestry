@@ -11,7 +11,7 @@
   - Edit a concept (#811, with #812);
   - Re-Sync (#815).
 
-  #800–#808 reached production on 2026-10-02 (#809); #810–#815 were promoted the same day.
+  #800–#808 reached production on 2026-10-02 (#809). #810–#815 go to production in the promotion that carries this status line.
 - **Still open:**
   - Add / Veto as pinnings, and GUM₃ (both wait on the Pins wire format, § 3);
   - the Dictionary rule settings: metric, cutoffs and minimum author rank (§ 4);
