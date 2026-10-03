@@ -80,12 +80,12 @@ A view set names its category by the category's canonical identifier ([Content C
 
 Many headers can stand for the same concept. Every Tapestry instance, for example, makes its own "GitHub Account" header, and each one points to one shared header. A view bound to a single instance's header would miss the items filed under all the others.
 
-So a DList view binds to one header coordinate **H**, usually a shared concept. The view applies to an item when the item's `z` names one of:
+So a DList view binds to one header coordinate **H**: a widely recognized community header (a shared concept). The view applies to an item when the item's `z` names one of:
 
 - **H** itself (this includes items stamped with H's handle, per [Stamping](./stamping.md));
-- a header carrying a `b` tag that names H. A pointer-typed `b` declares affiliation ([Shared Concepts](./shared-concepts.md) § Declared affiliation); an inherit-typed `b` defers to H's definition ([Inherit-From](./inherit-from.md)). Either counts.
+- a header carrying a `b` tag that names H directly. A pointer-typed `b` declares affiliation ([Shared Concepts](./shared-concepts.md) § Declared affiliation); an inherit-typed `b` defers to H's definition ([Inherit-From](./inherit-from.md)). Either counts.
 
-Platforms SHOULD follow that one hop. They MAY follow `b` edges further (Shared Concepts § Reach), but they aren't required to.
+**This draft covers only that simple case:** a personal header with one `b` to the community header, followed one hop. A swarm of headers whose `b` tags point at one another is out of scope here. How to process one is an open question. [Shared Concepts](./shared-concepts.md) covers that ground: § Reach (every header connected through `b` edges, followed transitively) and § Clouds (the headers an observer resolves a shared concept to). Worksheet W1 tracks it.
 
 A binding names a category; it makes no claim about trust. Which items appear, and in what order, is still decided by the active point of view's read (§ 5, rule 1).
 
@@ -197,7 +197,7 @@ A NIP-89 handler announcement (kind `31990`) says *which app* can open a given e
 ## 8. Open questions
 
 1. **Surfaces.** Are four enough? Should `card` be split into a search-result card and a grid tile?
-2. **Affiliated headers.** Content Categories § 2 gives each header its own identifier, while § 4.2 here treats affiliated headers as one category for views. Should Content Categories say so too?
+2. ~~**Affiliated headers as one category.**~~ Out of scope (owner, 2026-10-03). This draft handles only one hop: a personal header with one `b` to a community header (§ 4.2). Swarms of mutually pointing headers belong to [Shared Concepts](./shared-concepts.md) § Clouds.
 3. **`category` vs `context`.** The Pins draft's `["context", <coordinate>]` ([#762](https://github.com/nous-clawds4/tapestry/issues/762)) also names a category, but by coordinate. For profiles, event kinds and external types, that coordinate is a deployment's own `content-category` item. Briefs cross deployments, so they need identifiers that belong to no deployment. Unify the two once #762 settles?
 4. **Saying "built from".** How does a platform record which briefs it built from? A pointer-typed `b` from a platform record to the brief, or something else?
 5. **Advertising coverage.** Should a platform publish which view sets it has: a NIP-89 extension for DList categories, or an event of its own?
