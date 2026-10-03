@@ -3,12 +3,13 @@
  * account as GitHub does — avatar, name and login, View on GitHub, the public profile and the recently
  * active repositories — read by the reader's browser from GitHub's public REST API.
  *
- *   G1..G9 — pure: ui/src/pages/dictionary/github.js (dynamic import): the login read off the item, the
+ *   G1..G10 — pure: ui/src/pages/dictionary/github.js (dynamic import): the login read off the item, the
  *            DList recognised by its shared concept, the API's answer checked field by field, the
- *            repositories chosen, and a failed read named.
- *   S1..S4 — structural pins, read off comment-stripped source: the page is chosen by the shared concept
+ *            repositories chosen, a failed read named, and the Items as one row per account.
+ *   S1..S6 — structural pins, read off comment-stripped source: the page is chosen by the shared concept
  *            whichever instance's header it's on, the reads are unsigned and send no referrer, the
- *            avatar costs no API read, and every other item keeps the generic page. (The footer every item
+ *            avatar costs no API read, every other item keeps the generic page, the entry page lists one
+ *            row per account (S5), and the item page agrees on its number (S6). (The footer every item
  *            page shares, filer and raw event, is pinned by test/dictionary-entry.test.js E8.)
  */
 
@@ -161,6 +162,31 @@ test('G9: an unknown language is grey', async () => {
   eq(languageColor('Befunge'), '#8c929e', 'an unknown one');
 });
 
+test('G10: the Items are one row per account: the earliest filing stands for it, every filer named', async () => {
+  const { githubRows, githubRowOf } = await gh();
+  const it = (id, author, login, description) => ({
+    id: id.repeat(64), address: `39999:${author.repeat(64)}:${id}`, author: author.repeat(64), name: `${login}-x`,
+    description: description || null, properties: login ? { 'github-username': login } : {},
+  });
+  const rows = githubRows([
+    it('1', 'a', 'wds4', 'David Strayhorn'),
+    it('2', 'b', 'vitorpamplona'),
+    it('3', 'c', 'VitorPamplona', 'Vitor'),
+    it('4', 'a', null, 'no login'),
+    it('5', 'b', 'vitorpamplona'),
+    it('6', 'd', 'bad login!'),
+  ]);
+  eq(rows.map((r) => [r.n, r.login, r.filers.length]), [[1, 'wds4', 1], [2, 'vitorpamplona', 2], [3, null, 1], [4, null, 1]],
+    'filings of one login (any case) are one row, numbered in order; a filing with no login is its own row');
+  eq(rows[1].id, '2'.repeat(64), 'the earliest filing stands for the row');
+  eq(rows[1].filers, ['b'.repeat(64), 'c'.repeat(64)], 'every filer, once each, in filing order');
+  eq(rows[1].description, 'Vitor', 'the first description any filing gives');
+  eq(rows[1].filings.length, 3, 'all three filings are kept');
+  eq(githubRowOf(rows, `39999:${'c'.repeat(64)}:3`).n, 2, 'a later filing finds its account\'s row');
+  eq(githubRowOf(rows, '4'.repeat(64)), null, 'by address when it has one');
+  eq(githubRows(null), [], 'no items');
+});
+
 test('S1: the GitHub page is chosen by the shared concept, from the entry or its header\'s b tags', () => {
   const page = flat(code(src(ITEM_JSX)));
   assert(/const pageConcepts = \[coord, entry\?\.sharedCoord, \.\.\.\(entry\?\.targets \|\| \[\]\), \.\.\.bTargets\(header\.event\)\]\.filter\(Boolean\);/.test(page),
@@ -189,9 +215,30 @@ test('S3: GitHub is read unsigned, with no cookies and no referrer; a partial an
 
 test('S4: the avatar costs no API read and falls back to the initial; links out open safely', () => {
   const view = flat(code(src(GITHUB_JSX)));
-  assert(/src=\{avatarUrl\(login\)\}/.test(view) && /referrerPolicy="no-referrer" onError=\{\(\) => setFailed\(true\)\}/.test(view), 'the avatar by login, with a fallback');
+  assert(/src=\{avatarUrl\(login, px \* 2\)\}/.test(view) && /referrerPolicy="no-referrer" onError=\{\(\) => setFailed\(true\)\}/.test(view), 'the avatar by login, with a fallback');
   assert(/const out = \{ target: '_blank', rel: 'noopener noreferrer' \};/.test(view), 'external links');
   assert(/View on GitHub/.test(view), 'the link to the profile');
+});
+
+test('S5: the entry page lists the GitHub Accounts DList one row per account, on /dictionary only', () => {
+  const body = flat(code(src(path.join(UI, 'pages/dictionaries/ConceptEntry.jsx'))));
+  const entry = flat(code(src(path.join(UI, 'pages/dictionary/Entry.jsx'))));
+  assert(/const githubList = dlistViews && isGithubAccounts\(\[coord, sharedCoord, \.\.\.\(entry\?\.targets \|\| \[\]\), \.\.\.headerB\]\);/.test(body),
+    'recognised by its shared concept, as the item page does');
+  assert(/editHref = null, resync = false, dlistViews = false,/.test(body) && /resync dlistViews \/>/.test(entry), 'off by default; /dictionary turns it on');
+  assert(/const all = useMemo\(\(\) => \(githubList \? githubRows\(items\.data\?\.items\)/.test(body), 'one row per account');
+  assert(/\{githubList && it\.login \? <GithubItemCell row=\{it\} to=\{to\} state=\{state\} \/>/.test(body), 'avatar, login and description');
+  assert(/\{it\.filers\?\.length > 1 && \(/.test(body) && /also filed by \{it\.filers\.slice\(1\)\.map\(nameOf\)\.join\(', '\)\}/.test(body),
+    'every other filer, said to a screen reader too');
+  assert(/\{githubList && <span className="dict-entry-mark" aria-hidden="true"><GithubMark size=\{30\} \/><\/span>\}/.test(body), 'the mark by the title');
+});
+
+test('S6: the item page numbers a GitHub account by its row, and names its other filers', () => {
+  const page = flat(code(src(ITEM_JSX)));
+  assert(/: items\.data && key && login \? githubRowOf\(githubRows\(items\.data\.items\), key\)/.test(page), 'its row, on a direct visit');
+  assert(/const others = login && Array\.isArray\(listed\?\.filers\) \? listed\.filers\.filter\(\(p\) => typeof p === 'string' && p !== author\) : \[\];/.test(page),
+    'the row\'s other filers');
+  assert(/\{others\.length > 0 && \( <p className="dict-item-filer"> Also filed by/.test(page), 'named in the footer');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

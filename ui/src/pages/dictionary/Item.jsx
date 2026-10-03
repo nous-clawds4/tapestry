@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import DictionaryShell from './DictionaryShell';
 import { GithubAccountHead, GithubProfile, GithubRepos } from './GithubAccount';
-import { githubLogin, isGithubAccounts } from './github';
+import { githubLogin, githubRowOf, githubRows, isGithubAccounts } from './github';
 import useGithubAccount from './useGithubAccount';
 import DictIcon from '../dictionaries/DictIcon';
 import useProfiles from '../../hooks/useProfiles';
@@ -96,10 +96,14 @@ export default function DictionaryItemPage() {
   const pageConcepts = [coord, entry?.sharedCoord, ...(entry?.targets || []), ...bTargets(header.event)].filter(Boolean);
   const login = isGithubAccounts(pageConcepts) ? githubLogin(ev) : null;
   const gh = useGithubAccount(login);
+  // A GitHub account's number is its row's in the entry's Items, where its filings are one row (githubRows).
   const listed = passed ? passed.item
-    : (items.data && key ? (items.data.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === key) : null) || null;
+    : items.data && key && login ? githubRowOf(githubRows(items.data.items), key)
+      : (items.data && key ? (items.data.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === key) : null) || null;
   const author = ev?.pubkey || passed?.item?.author || null;
-  const profiles = useProfiles(author ? [author] : []);
+  // Everyone else who filed the same account (its row's other filers).
+  const others = login && Array.isArray(listed?.filers) ? listed.filers.filter((p) => typeof p === 'string' && p !== author) : [];
+  const profiles = useProfiles(author ? [author, ...others] : []);
   const whose = person.signedIn ? 'your' : 'the owner’s';
   const Whose = person.signedIn ? 'Your' : 'The owner’s';
   const nameOf = (pubkey) => {
@@ -181,6 +185,17 @@ export default function DictionaryItemPage() {
               Filed by <span className="dict-item-filer-name">{nameOf(author)}</span>
               <span aria-hidden="true"> · </span>
               <Link to={`/user/${author}`} title={npubOf(author)}>View Nostr profile</Link>
+            </p>
+          )}
+          {others.length > 0 && (
+            <p className="dict-item-filer">
+              Also filed by{' '}
+              {others.map((p, i) => (
+                <span key={p}>
+                  {i > 0 && ', '}
+                  <Link to={`/user/${p}`} title={npubOf(p)} className="dict-item-filer-other">{nameOf(p)}</Link>
+                </span>
+              ))}
             </p>
           )}
           <Disclosure id="dict-item-raw" label="Raw Nostr event">

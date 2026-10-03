@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { avatarUrl, compactCount, joinedLabel, languageColor, profileUrl, updatedLabel } from './github';
 
 /**
@@ -42,15 +43,30 @@ function Glyph({ name }) {
 
 const out = { target: '_blank', rel: 'noopener noreferrer' };
 
-/** The avatar from github.com; the login's initial when it can't be loaded. */
-function GithubAvatar({ login }) {
+/** The avatar from github.com; the login's initial when it can't be loaded. `small` is an Items row's. */
+function GithubAvatar({ login, small = false }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <span className="dict-gh-avatar dict-gh-avatar--none" aria-hidden="true">{login.slice(0, 1).toUpperCase()}</span>;
+  const cls = `dict-gh-avatar${small ? ' dict-gh-avatar--sm' : ''}`;
+  if (failed) return <span className={`${cls} dict-gh-avatar--none`} aria-hidden="true">{login.slice(0, 1).toUpperCase()}</span>;
+  const px = small ? 32 : 88;
   return (
     <img
-      className="dict-gh-avatar" src={avatarUrl(login)} alt="" width="88" height="88"
+      className={cls} src={avatarUrl(login, px * 2)} alt="" width={px} height={px}
       referrerPolicy="no-referrer" onError={() => setFailed(true)}
     />
+  );
+}
+
+/** An Items row's account (githubRows): its avatar, its login (the link to its item page), and the filer's description. */
+export function GithubItemCell({ row, to, state }) {
+  return (
+    <span className="dict-gh-item">
+      <GithubAvatar key={row.login} login={row.login} small />
+      <span className="dict-gh-item-text">
+        <Link to={to} state={state} className="dict-items-item-link">{row.login}</Link>
+        {row.description && <span className="dict-gh-item-desc">{row.description}</span>}
+      </span>
+    </span>
   );
 }
 

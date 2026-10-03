@@ -35,6 +35,37 @@ export function githubLogin(ev) {
   return null;
 }
 
+/**
+ * The GitHub Accounts DList's Items, one row per account: the filings of one login (in any case) are one
+ * row, which the earliest filing stands for (its id, address and filer), naming every filer in filing
+ * order and taking the first description any filing gives. A filing with no login is a row of its own.
+ * Items arrive from the Items read (trustedItems: oldest first, each with its `properties`); rows are
+ * numbered in that order.
+ */
+export function githubRows(items) {
+  const rows = [];
+  const byLogin = new Map();
+  for (const it of Array.isArray(items) ? items : []) {
+    if (!it || typeof it !== 'object') continue;
+    const login = normalizeLogin(it.properties?.[GITHUB_USERNAME_TAG]);
+    const row = login ? byLogin.get(login.toLowerCase()) : null;
+    if (row) {
+      row.filings.push(it);
+      if (!row.filers.includes(it.author)) row.filers.push(it.author);
+      if (!row.description && it.description) row.description = it.description;
+      continue;
+    }
+    const fresh = { ...it, login, description: it.description || null, filers: [it.author], filings: [it] };
+    rows.push(fresh);
+    if (login) byLogin.set(login.toLowerCase(), fresh);
+  }
+  return rows.map((r, i) => ({ ...r, n: i + 1 }));
+}
+
+/** The row of githubRows that a filing (by its key: address, else id) belongs to, else null. */
+export const githubRowOf = (rows, key) => (Array.isArray(rows) && key
+  ? rows.find((r) => (r.filings || [r]).some((f) => (f.address || f.id) === key)) || null : null);
+
 /** Whether a page's concepts (its header, the shared concept it points to, its b targets) include the GitHub Accounts DList. */
 export const isGithubAccounts = (concepts) => Array.isArray(concepts) && concepts.includes(GITHUB_ACCOUNTS);
 

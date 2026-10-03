@@ -121,6 +121,12 @@ const { test, expect } = require('@playwright/test');
  *         header whose names the server won't sign can't be re-synced, and the page says why.
  *   D41 — no state crosses entries (the panel's link to another concept opens it afresh); Cancel after a
  *         saved but undelivered Re-Sync shows the saved version, without a "try again" it can't offer.
+ *
+ * A DList's own look (test/dictionary-github-account.test.js holds the rules):
+ *
+ *   D42 — the GitHub Accounts DList's entry shows GitHub's mark and one row per account (avatar, login,
+ *         the filer's description, "+1 more" for a second filer); search finds a row by any of its
+ *         filers; the merged row opens its earliest filing, numbered as its row, naming the other filer.
  */
 
 const OWNER = '1'.repeat(64);
@@ -1410,6 +1416,66 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(u.getByRole('region', { name: 'Re-Sync' })).toHaveCount(0);
     await expect(u.getByText('Re-synced from shared thing. Saved on this instance, but it didn’t reach the community relay.')).toBeVisible();
     await expect(u.getByText('try again')).toHaveCount(0);
+  });
+
+  test('D42: the GitHub Accounts entry lists one row per account, and its item page agrees', async ({ page }) => {
+    await mockStack(page);
+    const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    const SHARED_GH = '39998:b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450:github-accounts';
+    const coord = coordOf(OWNER_TA, 'github-account');
+    const A = '6'.repeat(64);
+    const B = '7'.repeat(64);
+    const filing = (n, author, login, description) => ({
+      id: String(n).padStart(64, '0'), address: `39999:${author}:${login}-${n}`, kind: 39999, author, name: `${login}-${n}`,
+      createdAt: n, description, properties: { 'github-username': login },
+    });
+    const items = [filing(1, A, 'wds4', 'David Strayhorn'), filing(2, A, 'vitorpamplona', null), filing(3, B, 'VitorPamplona', null)];
+    const entry = {
+      coord, name: 'GitHub Account', plural: 'GitHub Accounts', description: 'A list of github handles/accounts', author: OWNER_TA,
+      targets: [SHARED_GH], selfDeclared: false, isFirmware: false, firmwareHeader: false, itemCount: 0, sharedCoord: SHARED_GH, gum: 2,
+    };
+    // GitHub is never reached: its API answers 404 and the avatars fall back to initials.
+    await page.route('https://api.github.com/**', (r) => json(r, { message: 'Not Found' }, 404));
+    await page.route('https://github.com/**', (r) => r.fulfill({ status: 404, body: '' }));
+    await page.route('**/api/dictionaries/concepts**', (r) => (new URL(r.request().url()).pathname.endsWith('/items')
+      ? json(r, { success: true, items, keptCount: 3, truncated: false, filerCount: 2, totalCount: 3, pov: { branch: 'house', fellBackToHouse: false } })
+      : json(r, { success: true, metric: 'gum1', authors: [OWNER, OWNER_TA], entries: [entry], pov: { branch: 'house', cutoff: 0.01 } })));
+    await page.route('**/api/profiles**', (r) => json(r, { success: true, profiles: { [A]: { name: 'Avi' }, [B]: { name: 'Vinney' } } }));
+    await page.route('**/api/strfry/scan**', (r) => {
+      const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
+      if ((filter.kinds || []).includes(39998)) {
+        return json(r, { success: true, events: [{ id: 'e'.repeat(64), kind: 39998, pubkey: OWNER_TA, created_at: 1, content: '', tags: [['d', 'github-account'], ['names', 'GitHub Account', 'GitHub Accounts'], ['b', SHARED_GH, 'pointer']] }] });
+      }
+      if ((filter.kinds || []).includes(39999)) {
+        const it = items.find((x) => x.address === `39999:${filter.authors[0]}:${filter['#d'][0]}`);
+        return json(r, { success: true, events: it ? [{ id: it.id, kind: 39999, pubkey: it.author, created_at: it.createdAt, content: '', tags: [['d', it.name], ['z', SHARED_GH], ['github-username', it.properties['github-username']]] }] : [] });
+      }
+      return json(r, { success: true, events: [] });
+    });
+    await page.goto(`${PAGE}/${encodeURIComponent(coord)}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'GitHub Account' })).toBeVisible();
+    await expect(page.locator('.dict-entry-titlerow .dict-entry-mark')).toBeVisible();
+    const card = page.locator('.dict-items');
+    await expect(card.locator('.dict-items-count')).toHaveText('2 items');
+    const rows = card.locator('.dict-items-row--link');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0).locator('.dict-items-item-link')).toHaveText('wds4');
+    await expect(rows.nth(0).locator('.dict-gh-item-desc')).toHaveText('David Strayhorn');
+    await expect(rows.nth(0).locator('.dict-gh-avatar--none'), 'an avatar that can\'t load is the initial').toHaveText('W');
+    await expect(rows.nth(1).locator('.dict-items-item-link'), 'two filings of one login, in any case, are one row').toHaveText('vitorpamplona');
+    await expect(rows.nth(1).locator('.dict-items-by')).toHaveText('Avi');
+    await expect(rows.nth(1).locator('.dict-items-more')).toContainText('+1 more');
+    await page.getByRole('button', { name: /Search & sort/ }).click();
+    await page.getByPlaceholder('Search items').fill('vinney');
+    await expect(rows, 'a row is found by any of its filers').toHaveCount(1);
+    await rows.nth(0).locator('.dict-items-item-link').click();
+    await expect(page.getByRole('heading', { level: 1, name: 'vitorpamplona' })).toBeVisible();
+    await expect(page.getByText('Item 2 in GitHub Account')).toBeVisible();
+    await expect(page.getByText('GitHub has no account named vitorpamplona. It may have been renamed or deleted.')).toBeVisible();
+    await expect(page.locator('.dict-item-filer-name')).toHaveText('Avi');
+    await expect(page.locator('.dict-item-filer').filter({ hasText: 'Also filed by' }).getByRole('link', { name: 'Vinney' }))
+      .toHaveAttribute('href', `/user/${B}`);
+    await expect(page.getByRole('link', { name: 'View on GitHub' })).toHaveAttribute('href', 'https://github.com/vitorpamplona');
   });
 
   test('D31: the page and the finder say what they can’t do', async ({ page }) => {

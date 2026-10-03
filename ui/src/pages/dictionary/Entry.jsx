@@ -8,7 +8,8 @@ import { DICTIONARY_PATH, dictionaryEditPath, dictionaryItemPath } from '../dict
  * control panel entry page's ConceptEntryBody, so the two show the same entry; only the frame, the
  * skin, the back link (to /dictionary), the Filed by links (to the Main side's /user pages) and the item
  * links (to /dictionary/:coord/items/:item) differ, and only here does the reader's own Assistant's
- * header offer Edit (/dictionary/:coord/edit) and, when it is wired to a shared concept, Re-Sync.
+ * header offer Edit (/dictionary/:coord/edit) and, when it is wired to a shared concept, Re-Sync. Here too
+ * a DList with a look of its own gets it (`dlistViews`): the GitHub Accounts DList, one row per account.
  */
 export default function DictionaryEntryPage() {
   // One body per concept: moving to another entry (a link in the Re-Sync panel, Back) starts afresh, so no
@@ -17,7 +18,7 @@ export default function DictionaryEntryPage() {
   return (
     <DictionaryShell>
       <div className="dict-page dict-skin-light">
-        <ConceptEntryBody key={coord} listHref={DICTIONARY_PATH} listLabel="Dictionary" profileBase="/user" itemHref={dictionaryItemPath} editHref={dictionaryEditPath} resync />
+        <ConceptEntryBody key={coord} listHref={DICTIONARY_PATH} listLabel="Dictionary" profileBase="/user" itemHref={dictionaryItemPath} editHref={dictionaryEditPath} resync dlistViews />
       </div>
     </DictionaryShell>
   );

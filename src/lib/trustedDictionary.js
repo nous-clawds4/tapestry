@@ -265,6 +265,34 @@ function itemName(ev) {
 /** The most items one read returns; the counts still cover every item. */
 const ITEMS_LIMIT = 1000;
 
+// An item's own words, bounded: its description, and the property tags its header's Item Property Tags
+// (required / optional / recommended) name. A property is any tag but a single-letter (indexed) one and
+// those that name or describe the item; the first of each name counts.
+const NOT_PROPERTIES = new Set(['names', 'name', 'title', 'description', 'json', 'alt', 'client']);
+const MAX_ITEM_PROPERTIES = 20;
+const MAX_ITEM_TEXT = 300;
+const textTag = (t) => Array.isArray(t) && typeof t[0] === 'string' && typeof t[1] === 'string' && t[1].trim() !== '';
+
+/** The item's own description tag, trimmed and bounded, else null. */
+function itemDescription(ev) {
+  const t = (ev.tags || []).find((x) => textTag(x) && x[0] === 'description');
+  return t ? t[1].trim().slice(0, MAX_ITEM_TEXT) : null;
+}
+
+/** The item's property tags as {name: value}: what it carries, for a DList's own page to show. */
+function itemProperties(ev) {
+  const out = {};
+  let n = 0;
+  for (const t of ev.tags || []) {
+    if (n >= MAX_ITEM_PROPERTIES) break;
+    if (!textTag(t) || t[0].length < 2 || t[0].length > 64 || NOT_PROPERTIES.has(t[0])) continue;
+    if (Object.prototype.hasOwnProperty.call(out, t[0])) continue;
+    out[t[0]] = t[1].trim().slice(0, MAX_ITEM_TEXT);
+    n += 1;
+  }
+  return out;
+}
+
 /** A curation copy (assistant-designation.md § Curation copies): a kind-39999 item whose d is "copy-<sha256>". */
 const isCurationCopy = (ev) => ev.kind === 39999
   && (ev.tags || []).some((t) => t && t[0] === 'd' && typeof t[1] === 'string' && t[1].startsWith('copy-'));
@@ -282,7 +310,8 @@ const isCurationCopy = (ev) => ev.kind === 39999
  * are one item too (assistant-designation.md: "a reader merging items across
  * related lists … treats a copy and its original as one item"): the original
  * stays when its filer is kept, else the copy does. Items are in filing order,
- * oldest first, so an item keeps its number as new ones arrive. At most
+ * oldest first, so an item keeps its number as new ones arrive. Each carries
+ * its name, its own description and its property tags (itemProperties). At most
  * `limit` are returned (`truncated` says when more were kept); `filerCount`
  * and `totalCount` (every distinct item before the trust filter) cover all.
  */
@@ -331,6 +360,8 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
       kind: ev.kind,
       author: ev.pubkey,
       name: itemName(ev),
+      description: itemDescription(ev),
+      properties: itemProperties(ev),
       createdAt: ev.created_at || 0,
     });
   }

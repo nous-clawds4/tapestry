@@ -9838,6 +9838,18 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .dict-gh-repo-foot > span { display: inline-flex; align-items: center; gap: 5px; }
 .dict-gh-repo-foot .dict-gh-glyph { width: 13px; height: 13px; }
 .dict-gh-lang { display: inline-block; width: 10px; height: 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(10, 14, 24, 0.12); }
+/* The GitHub Accounts DList's entry page (ConceptEntry.jsx, dlistViews): its mark by the title, one row per account. */
+.dict-entry-mark { display: inline-flex; flex-shrink: 0; color: #1f2328; }
+.dict-skin-light .dict-entry-mark { margin-top: 10px; } /* level with the title, which has this margin */
+.dict-gh-item { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dict-skin-light .dict-gh-avatar--sm { width: 32px; height: 32px; border-color: var(--bsd-line); box-shadow: none; }
+.dict-skin-light .dict-gh-avatar--sm.dict-gh-avatar--none { font-size: 13px; }
+.dict-gh-item-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dict-gh-item-desc {
+  font-size: 12px; font-weight: 500; color: var(--bsd-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dict-items-more { font-size: 12px; color: var(--bsd-faint); white-space: nowrap; }
+.dict-item-filer a.dict-item-filer-other { color: var(--bsd-ink-2); }
 @media (max-width: 600px) {
   .dict-gh-avatar { width: 64px; height: 64px; }
   .dict-gh-avatar--none { font-size: 26px; }
