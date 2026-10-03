@@ -47,8 +47,37 @@ This draft supplies the shared vocabulary for those choices, rules every view fo
 | **Opinionated** | by hand, per category | the categories the platform chooses | GitHub Accounts in GitHub's idiom |
 
 - Every platform MUST have the generic tier. Opinionated views fall back to it (§ 5, rule 2).
-- The schema-driven tier is RECOMMENDED for any platform that shows DLists in search. There will always be far more DLists than anyone can build views for. A header's `required` and `allowed` tags, plus Tapestry's `field-type` tag (`["field-type", "github-username", "text"]`, not yet in any spec; open question 8), already say enough to render a decent card.
+- The schema-driven tier is RECOMMENDED for any platform that shows DLists in search. There will always be far more DLists than anyone can build views for. What a header and its items already carry is enough for a decent card (§ 2.1).
 - Profiles and NIP-defined event kinds mostly have opinionated views already: most clients have a profile card, a note renderer, a listing card. This draft just gives them a name. DLists are the new case.
+
+### 2.1 The default DList card
+
+A DList item whose category has no opinionated view gets this card. It uses only what nearly every header and item already carries.
+
+1. **Title:** the item's `name`; else its `title`; else its `d` tag; else the first field shown in step 4.
+2. **Category label:** the header's singular name (the first value of its `names` tag), e.g. "GitHub Account", "V4V Song".
+3. **Description:** the item's `description`, cut to a line or two.
+4. **Fields:** each field the header names in `required`, in the header's order, as "label: value".
+   - The label is the field's tag name. The header's description of the field (the third element of its `required` tag, per the DList NIP) MAY serve as a tooltip.
+   - The value is the item's first non-blank value of that tag. A field the item lacks is skipped, and so is a field already used as the title.
+   - Item-reference fields (`p`, `e`, `a`, `i`) aren't shown as text: they name the subject (below).
+   - Show at most three fields on a `card`.
+5. **Who's behind it:** the filer, by profile name, and how many people the viewer trusts have filed the same subject: "Filed by Alice and 3 others you trust". The count comes from the active point of view's read (§ 5, rule 1).
+
+The card links to the item's `page`.
+
+**The subject** follows Content Categories § 5.1:
+
+- When the header's `required` names `p`, `e`, `a` or `i`, the item points at its subject: a pubkey, an event, an external identifier. The card SHOULD present the subject with the platform's own view of it (a profile's name and picture, an event's title). Items with the same subject value count as filings of the same subject.
+- Otherwise the item *is* the subject, and the card names only its own filer.
+
+**`field-type`.** Some headers pair a field with a type: `["field-type", "<field>", "<type>"]`, e.g. `["field-type", "github-username", "text"]`.
+
+- Few headers carry it: 10 of 384 on one community relay, in October 2026. The only type seen in use is `text`.
+- Treat `text`, a missing type and an unknown type alike: show the value as plain text. The one exception is a value that begins `https://`, which becomes a link (§ 5, rule 6).
+- A fuller vocabulary (`url`, `image`, `date`, …) waits until headers actually use one.
+
+**On a `row`:** the title, then one field or the description, then the filer. The category label is left out, since the table already names it.
 
 ## 3. Surfaces
 
@@ -203,7 +232,7 @@ A NIP-89 handler announcement (kind `31990`) says *which app* can open a given e
 5. **Advertising coverage.** Should a platform publish which view sets it has: a NIP-89 extension for DList categories, or an event of its own?
 6. **Reference code.** May a brief link to reference code (a commit URL in an `r` tag)? Proposal: yes, labeled "read, don't run".
 7. **The Opinionated Views header.** Who publishes the shared `opinionated-view` header: firmware, or a community handle (worksheet W1)?
-8. **The schema-driven tier.** Should this draft, or Content Categories, define a `field-type` vocabulary (`text`, `url`, `image`, `date`, …) so that schema-driven views agree across platforms?
+8. ~~**The schema-driven tier.**~~ Resolved (owner, 2026-10-03): the default DList card (§ 2.1). It records current `field-type` practice only (`text`, plus links for `https://` values). A fuller vocabulary waits until more headers use `field-type`.
 
 ---
 
