@@ -256,6 +256,10 @@ test('E10: names or a description Edit would refuse are never signed, whoever wr
     const r = await run({ local: [source] });
     assert(r.status === 400 && r.body.code === 'source-invalid' && r.calls.signed.length === 0, `${show(names)} → ${r.status} ${show(r.body)}`);
   }
+  const padded = { ...SOURCE, tags: SOURCE.tags.map((t) => (t[0] === 'names' ? ['names', ' GitHub Account ', ' GitHub Accounts'] : t)) };
+  const trimmed = await run({ local: [padded] });
+  assert(trimmed.status === 200 && show(trimmed.calls.signed[0].template.tags.find((t) => t[0] === 'names')) === show(['names', 'GitHub Account', 'GitHub Accounts']),
+    `padded names are signed trimmed, as Edit trims: ${show(trimmed.body).slice(0, 100)}`);
   const desc = { ...SOURCE, tags: SOURCE.tags.map((t) => (t[0] === 'description' ? ['description', 'bell\u0007'] : t)) };
   const r = await run({ local: [desc] });
   assert(r.status === 400 && r.body.code === 'source-invalid', show(r.body));
@@ -319,10 +323,13 @@ test('S4: a changed header keeps the panel open with its note; Cancel after a sa
   const body = flat(code(src(ENTRY_BODY_JSX)));
   assert(/const resyncStale = \(message\) => \{ setResyncNote\(message\); header\.reload\(\); \};/.test(body) && /note=\{resyncNote\}/.test(body),
     'the note lives on the page, so the panel, starting afresh on the new version, still says it (review 1, S1)');
-  assert(/setState\(\(st\) => \(\{ event: version > 0 \? st\.event : null, error: null, done: false \}\)\);/.test(body),
-    'a reload keeps the version shown until the new one arrives, so the panel isn\'t closed by it');
+  assert(/setState\(\(st\) => \(\{ event: version > 0 && st\.coord === coord \? st\.event : null, error: null, done: false, coord \}\)\);/.test(body),
+    'a reload of the same address keeps the version shown; another address starts empty (review 2, R2-S1)');
+  assert(/<ConceptEntryBody key=\{coord\} listHref/.test(flat(code(src(ENTRY_PAGE_JSX)))), 'one body per concept, so no state crosses entries (review 2, R2-S1)');
   const s = flat(code(src(PANEL_JSX)));
-  assert(/onClick=\{undelivered \? \(\) => onDone\(undelivered\.message\) : onCancel\}/.test(s), 'Cancel after a saved, undelivered version does what Done does (review 1, S2)');
+  assert(/onClick=\{undelivered \? \(\) => onDone\(undelivered\.leftAs\) : onCancel\}/.test(s), 'Cancel after a saved, undelivered version does what Done does (review 1, S2)');
+  assert(/const leftAs = `Re-synced from \$\{sharedName\}\. Saved on this instance, but it didn’t reach the community relay\.`;/.test(s),
+    'and the entry page isn\'t told to "try again" where it can\'t (review 2)');
   assert(/checkEditFields\(\{ singular: named\[1\], plural: named\[2\], description: described\[1\] \}\)\.error/.test(s), 'the page checks the names as the server does');
 });
 

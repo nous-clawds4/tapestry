@@ -67,8 +67,9 @@ export function useHeaderEvent(coord) {
   useEffect(() => {
     if (!coord) { setState({ event: null, error: null, done: true }); return undefined; }
     let cancelled = false;
-    // A reload keeps the version shown until the new one arrives, so nothing that depends on it blinks out.
-    setState((st) => ({ event: version > 0 ? st.event : null, error: null, done: false }));
+    // A reload of the same address keeps the version shown until the new one arrives, so nothing that
+    // depends on it blinks out; another address starts empty.
+    setState((st) => ({ event: version > 0 && st.coord === coord ? st.event : null, error: null, done: false, coord }));
     const { kind, pubkey, d } = coordParts(coord);
     (async () => {
       try {
@@ -77,9 +78,9 @@ export function useHeaderEvent(coord) {
         }
         const events = await scan({ kinds: [Number(kind)], authors: [pubkey], '#d': [d] });
         const newest = events.reduce((a, b) => (!a || b.created_at > a.created_at ? b : a), null);
-        if (!cancelled) setState({ event: newest, error: newest ? null : 'No event found at this coordinate.', done: true });
+        if (!cancelled) setState({ event: newest, error: newest ? null : 'No event found at this coordinate.', done: true, coord });
       } catch (err) {
-        if (!cancelled) setState({ event: null, error: err.message, done: true });
+        if (!cancelled) setState({ event: null, error: err.message, done: true, coord });
       }
     })();
     return () => { cancelled = true; };

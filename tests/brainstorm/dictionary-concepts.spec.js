@@ -119,6 +119,8 @@ const { test, expect } = require('@playwright/test');
  *         with Try again.
  *   D40 — a header that changed meanwhile: nothing saved, the panel stays open and says so; a shared
  *         header whose names the server won't sign can't be re-synced, and the page says why.
+ *   D41 — no state crosses entries (the panel's link to another concept opens it afresh); Cancel after a
+ *         saved but undelivered Re-Sync shows the saved version, without a "try again" it can't offer.
  */
 
 const OWNER = '1'.repeat(64);
@@ -1356,8 +1358,58 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await bad.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
     await bad.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
     const p2 = bad.getByRole('region', { name: 'Re-Sync' });
-    await expect(p2.getByRole('alert')).toContainText("The shared concept’s header can’t be copied as it is: A name can't contain text-direction controls.");
+    await expect(p2.getByRole('alert')).toContainText("The names and description a Re-Sync would write can’t be used as they are: A name can't contain text-direction controls.");
     await expect(p2.getByRole('button', { name: 'Re-Sync' })).toBeDisabled();
+  });
+
+  test('D41: nothing of one entry reaches another; Cancel after an undelivered Re-Sync says what was saved', async ({ page }) => {
+    await mockStack(page, { session: CUSTOMER });
+    await mockEntry(page);
+    await mockEdit(page);
+    await mockResync(page);
+    const other = coordOf(CUST_TA, 'cat');
+    await page.route('**/api/dictionaries/concepts/resync', (r) => r.fulfill({
+      status: 409, contentType: 'application/json',
+      body: JSON.stringify({ success: false, code: 'name-taken', coord: other, error: 'taken' }),
+    }));
+    await page.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await page.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const panel = page.getByRole('region', { name: 'Re-Sync' });
+    await panel.getByRole('list', { name: 'Tags added' }).waitFor();
+    await panel.getByRole('button', { name: 'Re-Sync' }).click();
+    await panel.getByRole('link', { name: 'Open that concept' }).click();
+    await expect(page).toHaveURL(new RegExp(`/dictionary/${encodeURIComponent(other)}$`));
+    await expect(page.locator('.dict-entry-title')).toHaveText('cat');
+    await expect(page.getByRole('region', { name: 'Re-Sync' })).toHaveCount(0);
+    await expect(page.getByText('nothing was saved')).toHaveCount(0);
+
+    // External publishing on, and a community relay that refuses: saved here, not delivered.
+    const u = await page.context().newPage();
+    await mockStack(u, { session: CUSTOMER });
+    await mockEntry(u);
+    await mockEdit(u);
+    await mockResync(u);
+    await u.route('**/api/publish-policy', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, allowExternalPublish: true }) }));
+    await u.addInitScript(() => {
+      window.WebSocket = class {
+        constructor(url) { this.url = url; this.readyState = 0; setTimeout(() => { this.readyState = 3; this.onerror?.({}); this.onclose?.({ code: 1006, reason: '' }); }, 5); }
+        send() {}
+        close() { this.readyState = 3; }
+        addEventListener(type, fn) { this[`on${type}`] = fn; }
+        removeEventListener() {}
+      };
+      window.WebSocket.CONNECTING = 0; window.WebSocket.OPEN = 1; window.WebSocket.CLOSING = 2; window.WebSocket.CLOSED = 3;
+    });
+    await u.goto(`${PAGE}/${encodeURIComponent(EDIT_COORD)}`);
+    await u.locator('.dict-entry-titlerow').getByRole('button', { name: 'Re-Sync' }).click();
+    const p2 = u.getByRole('region', { name: 'Re-Sync' });
+    await p2.getByRole('list', { name: 'Tags added' }).waitFor();
+    await p2.getByRole('button', { name: 'Re-Sync' }).click();
+    await expect(p2.getByRole('status').filter({ hasText: "didn't reach the community relay" })).toBeVisible();
+    await p2.getByRole('button', { name: 'Cancel' }).click();
+    await expect(u.getByRole('region', { name: 'Re-Sync' })).toHaveCount(0);
+    await expect(u.getByText('Re-synced from shared thing. Saved on this instance, but it didn’t reach the community relay.')).toBeVisible();
+    await expect(u.getByText('try again')).toHaveCount(0);
   });
 
   test('D31: the page and the finder say what they can’t do', async ({ page }) => {

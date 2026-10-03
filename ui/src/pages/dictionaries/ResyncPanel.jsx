@@ -73,7 +73,12 @@ export default function ResyncPanel({ coord, header, assistant, note, onCancel, 
     const outcome = classifyBroadcast(result);
     let message = `Re-synced from ${sharedName}. ${outcomeMessage({ outcome, verb: 'save' })}`;
     if (graph === 'failed') message += ' This instance’s graph wasn’t fully updated, so the control panel may show the old version, or an incomplete one.';
-    if (outcome === 'not-delivered') { setUndelivered({ event: signed, message, graph }); return; }
+    if (outcome === 'not-delivered') {
+      // Left without a retry (Done, Cancel), the entry page can't resend it: it says so, without "try again".
+      const leftAs = `Re-synced from ${sharedName}. Saved on this instance, but it didn’t reach the community relay.`;
+      setUndelivered({ event: signed, message, graph, leftAs });
+      return;
+    }
     onDone(message);
   };
 
@@ -152,7 +157,7 @@ export default function ResyncPanel({ coord, header, assistant, note, onCancel, 
       )}
       {invalid && (
         <p className="dict-notice" role="alert">
-          The shared concept’s header can’t be copied as it is: {invalid}. Its author would have to correct it first.
+          The names and description a Re-Sync would write can’t be used as they are: {invalid}. The shared concept’s author would have to correct them first.
         </p>
       )}
       {diff && unchanged && <p className="dict-entry-note" role="status">Already in sync: a Re-Sync would change nothing.</p>}
@@ -174,13 +179,13 @@ export default function ResyncPanel({ coord, header, assistant, note, onCancel, 
         <p className="dict-notice" role="status">
           {undelivered.message}{' '}
           <button type="button" className="dict-link-btn" onClick={retry} disabled={busy}>Try again</button>{' '}
-          <button type="button" className="dict-link-btn" onClick={() => onDone(undelivered.message)}>Done</button>
+          <button type="button" className="dict-link-btn" onClick={() => onDone(undelivered.leftAs)}>Done</button>
         </p>
       )}
       <div className="dict-new-actions">
         <button type="button" className="dict-add-btn" onClick={resync} disabled={!canResync}>{busy ? 'Re-Syncing…' : 'Re-Sync'}</button>
         {/* Once a new version is saved, closing the panel must show it, as Done does. */}
-        <button type="button" className="dict-pill-btn dict-pill-btn--quiet" onClick={undelivered ? () => onDone(undelivered.message) : onCancel} disabled={busy}>Cancel</button>
+        <button type="button" className="dict-pill-btn dict-pill-btn--quiet" onClick={undelivered ? () => onDone(undelivered.leftAs) : onCancel} disabled={busy}>Cancel</button>
       </div>
     </section>
   );

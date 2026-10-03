@@ -82,7 +82,7 @@ function createResyncConceptHandler(deps = {}) {
       if (checked.error) {
         return res.status(400).json({
           success: false, code: 'source-invalid',
-          error: `The shared concept's header can't be copied as it is: ${checked.error}`,
+          error: `The names and description a Re-Sync would write can't be used as they are: ${checked.error}`,
         });
       }
       const refused = await edit.renameRefusal(d, keys, dTag, latest, checked.fields.singular);

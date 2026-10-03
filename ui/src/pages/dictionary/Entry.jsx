@@ -1,3 +1,4 @@
+import { useParams } from 'react-router-dom';
 import DictionaryShell from './DictionaryShell';
 import { ConceptEntryBody } from '../dictionaries/ConceptEntry';
 import { DICTIONARY_PATH, dictionaryEditPath, dictionaryItemPath } from '../dictionaries/conceptsDictionary';
@@ -10,10 +11,13 @@ import { DICTIONARY_PATH, dictionaryEditPath, dictionaryItemPath } from '../dict
  * header offer Edit (/dictionary/:coord/edit) and, when it is wired to a shared concept, Re-Sync.
  */
 export default function DictionaryEntryPage() {
+  // One body per concept: moving to another entry (a link in the Re-Sync panel, Back) starts afresh, so no
+  // state of one concept (its header, an open Re-Sync, a note) shows on another's page.
+  const { coord } = useParams();
   return (
     <DictionaryShell>
       <div className="dict-page dict-skin-light">
-        <ConceptEntryBody listHref={DICTIONARY_PATH} listLabel="Dictionary" profileBase="/user" itemHref={dictionaryItemPath} editHref={dictionaryEditPath} resync />
+        <ConceptEntryBody key={coord} listHref={DICTIONARY_PATH} listLabel="Dictionary" profileBase="/user" itemHref={dictionaryItemPath} editHref={dictionaryEditPath} resync />
       </div>
     </DictionaryShell>
   );

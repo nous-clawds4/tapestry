@@ -120,9 +120,10 @@ function resyncedHeaderTags({ local, source, target }) {
   const sourceNames = (source && Array.isArray(source.tags) ? source.tags : []).find((t) => isTag(t) && t[0] === 'names');
   const localNames = (local && Array.isArray(local.tags) ? local.tags : []).find((t) => isTag(t) && t[0] === 'names');
   const names = sourceNames || localNames || ['names', d, d];
-  const singular = typeof names[1] === 'string' ? names[1] : d;
-  const plural = typeof names[2] === 'string' ? names[2] : singular;
-  const description = firstValue(source, 'description') || '';
+  // Trimmed, as Edit trims what a person types.
+  const singular = typeof names[1] === 'string' ? names[1].trim() : d;
+  const plural = typeof names[2] === 'string' ? names[2].trim() : singular;
+  const description = (firstValue(source, 'description') || '').trim();
   const out = copiedHeaderTags({ source, d, singular, plural, description, target });
   const kept = (local && Array.isArray(local.tags) ? local.tags : []).filter((t) => isTag(t) && KEPT_LOCAL.includes(t[0]))
     .map((t) => (t[0] === 'json' && typeof t[1] === 'string' ? syncedJson(t, { singular, plural, description }) : [...t]));
