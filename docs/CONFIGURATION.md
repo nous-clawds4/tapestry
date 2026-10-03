@@ -170,13 +170,48 @@ The strfry-router daemon syncs configurable streams of nostr events between this
 |------|------|
 | `setup/router-presets.json` | Shipped preset definitions (in-repo, read-only). Each entry has `name`, `description`, `dir` (`down` \| `up` \| `both`), `filter`, `urls`, optional plugin paths, and `defaultEnabled`. |
 | `/var/lib/brainstorm/router-state.json` | Per-instance enabled/disabled state for each stream (on the `tapestry-data` Docker volume — persists across container rebuilds). |
-| `/etc/strfry-router-tapestry.config` | Generated config consumed by the strfry-router daemon. Rewritten on every toggle/restart. |
+| `/etc/strfry-router-tapestry.config` | Generated config consumed by the strfry-router daemon. Rewritten from `router-state.json` on every save, toggle, restore-defaults, restart and startup, after the checks below. |
 
 The Router Management tab at `/tapestry/settings/relays` is the UI: it shows configured streams from `router-state.json`, and a **📋 Presets** button reveals additional presets from `router-presets.json` that haven't been added yet. Clicking "+ Add" on a preset inserts it into the operator's state with `enabled` matching its `defaultEnabled`; toggling enabled/disabled rewrites the daemon config and restarts `strfry-router` via `supervisorctl`.
 
+### Checks on router values
+
+Every path that writes `/etc/strfry-router-tapestry.config` applies the same checks to each enabled stream (`src/api/strfry/routerConfig.js`):
+
+- **Plugins** (`pluginDown`, `pluginUp`): empty, or an absolute path to an existing regular `.js` file with a plain name directly in `/usr/local/lib/strfry/plugins`, after symlinks are resolved. The **📋 plugin list** (`GET /api/strfry/router-plugins`) offers only files that pass.
+- **Relay URLs**: `ws://` or `wss://` with a host and no quotes, whitespace or control characters. Loopback, private, link-local and docker-service hosts (for example `ws://127.0.0.1:7777`) are accepted on purpose: only the owner, an admin or a local caller can set them.
+- **Name and direction**: letters, digits and underscores; `down`, `up` or `both`.
+
+Where a value fails:
+
+| Where it comes from | What happens |
+|---|---|
+| Saving streams (`POST /api/strfry/router-config`) | Refused with 400. Nothing is written and the router is not restarted. |
+| Saved state (`router-state.json`), when the config is rebuilt on toggle, restore-defaults, restart or startup | That stream is left out of the config, as if disabled, and the server log names it and the reason (`[router] Leaving stream …`). The toggle/restart/restore response lists it under `skipped`. The other streams are written and the router restarts as usual. `router-state.json` is not rewritten, so the stream still shows as saved until you fix or re-save it. |
+| Presets (`setup/router-presets.json`) | The preset is ignored with a warning (`[router] Ignoring preset …`): it is not listed, restored or seeded on first boot. |
+
+A router restart (`POST /api/strfry/router-restart`) rebuilds the config from saved state before restarting.
+
+### Auditing saved plugin paths
+
+Streams saved before the plugin checks existed (PR #776, 2026-09-28) may hold a plugin path the checks would now refuse. Since this change such a stream is left out of the router config automatically, but it is worth confirming what each instance has saved.
+
+The file is `/var/lib/brainstorm/router-state.json` inside the `tapestry` container (on the `tapestry-data` volume). This lists every `pluginDown` / `pluginUp` value and marks each one `ok` or `REVIEW`. `REVIEW` means it is not an existing plain `.js` file directly in `/usr/local/lib/strfry/plugins` after symlinks are resolved:
+
+```bash
+docker exec tapestry node -e 'const fs=require("fs"),p=require("path"),D="/usr/local/lib/strfry/plugins";let n=0;for(const s of JSON.parse(fs.readFileSync("/var/lib/brainstorm/router-state.json","utf8")).streams||[])for(const f of["pluginDown","pluginUp"]){const v=s[f];if(!v)continue;n++;let ok=false;try{const r=fs.realpathSync(v);ok=p.isAbsolute(v)&&p.dirname(p.resolve(v))===D&&p.dirname(r)===fs.realpathSync(D)&&/^[A-Za-z0-9._-]+\.js$/.test(p.basename(v))&&fs.statSync(r).isFile()}catch{}console.log(ok?"ok    ":"REVIEW",s.name,f,JSON.stringify(v),s.enabled===false?"(disabled)":"")}console.log(n+" plugin value(s) checked")'
+```
+
+An instance whose streams use no plugin prints only `0 plugin value(s) checked`. For a `REVIEW` line:
+
+1. Keep a copy first: `docker cp tapestry:/var/lib/brainstorm/router-state.json ./router-state.$(date +%F).json`.
+2. If you recognise the plugin, install it into `/usr/local/lib/strfry/plugins` (a regular file, not a symlink to elsewhere) and re-save the stream in **Settings → Relays**, choosing it from the plugin list.
+3. Otherwise, edit the stream in **Settings → Relays**, set its plugin to none (or remove the stream), and save.
+4. If you don't know where the value came from, leave the stream disabled, keep the copy of the file (and of whatever the path names), and raise it with the maintainers as `SECURITY.md` describes.
+
 ### Adding a new preset
 
-1. Append an entry to `setup/router-presets.json` following the existing shape. Use `defaultEnabled: false` unless there's a clear reason an arriving operator should start syncing immediately.
+1. Append an entry to `setup/router-presets.json` following the existing shape. Use `defaultEnabled: false` unless there's a clear reason an arriving operator should start syncing immediately. The entry must pass the checks above, or it is ignored with a warning; `test/strfry-router-saved-state.test.js` (R1) fails if a shipped preset would be dropped.
 2. Deploy. Operators discover the new preset via the **📋 Presets** button → "+ Add". This is the established pattern — see commit `bb4c83e7` for an example of two presets added this way.
 3. If documenting customer-facing impact, note that the preset is opt-in: existing instances won't start syncing the new kind(s) until an operator clicks Add and enables it.
 
