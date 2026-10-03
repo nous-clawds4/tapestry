@@ -7,14 +7,15 @@ import useGithubAccount from './useGithubAccount';
 import DictIcon from '../dictionaries/DictIcon';
 import useProfiles from '../../hooks/useProfiles';
 import { usePov } from '../../context/PovContext';
-import { Disclosure, eventJson, initialOf, npubOf, scan, useHeaderEvent } from '../dictionaries/ConceptEntry';
+import { Disclosure, eventJson, npubOf, scan, useHeaderEvent } from '../dictionaries/ConceptEntry';
 import {
   coordParts, dictionaryEntryPath, displayName, useConceptDictionary, useConceptItems, useDictionaryPerson,
 } from '../dictionaries/conceptsDictionary';
 
 /**
  * /dictionary/:coord/items/:item — one item of a Dictionary entry, as the design's "Dictionary item"
- * screen: its name, "Item N in <concept>", a description, who filed it, and the raw Nostr event.
+ * screen: its name, "Item N in <concept>", a description, then, below a divider, who filed it and the raw
+ * Nostr event.
  *
  * `:item` is the item's address (kind:pubkey:d) or its event id. Opened from the entry's Items table,
  * the row arrives in router state (the item, its number, the entry), so nothing needs reading but the
@@ -109,8 +110,6 @@ export default function DictionaryItemPage() {
     const name = p && typeof p === 'object' ? (p.display_name || p.name) : null;
     return name || `${npubOf(pubkey).slice(0, 12)}…`;
   };
-  const p = author ? profiles?.[author] : null;
-  const nip05 = p && typeof p === 'object' && typeof p.nip05 === 'string' && p.nip05 ? p.nip05 : null;
 
   const concept = entry ? displayName(entry) : (tagOf(header.event, 'names') || tagOf(header.event, 'name') || coordParts(coord).d);
   const plural = (entry?.plural || header.event?.tags?.find((t) => t[0] === 'names')?.[2] || 'items').toLowerCase();
@@ -154,15 +153,6 @@ export default function DictionaryItemPage() {
   const entryHref = typeof fromEntry === 'string' && (fromEntry === entryPath || fromEntry.startsWith(`${entryPath}?`))
     ? fromEntry : entryPath;
 
-  const rawEvent = (
-    <Disclosure id="dict-item-raw" label="Raw Nostr event">
-      {!itemEvent.done && <p className="text-muted">Reading the event…</p>}
-      {ev && <pre className="dict-json">{eventJson(ev)}</pre>}
-      {itemEvent.done && !ev && <p className="text-muted">{itemEvent.error}</p>}
-    </Disclosure>
-  );
-
-  // A GitHub account's page ends with its Nostr record, set apart and quiet: who filed it, and the raw event.
   return (
     <DictionaryShell>
       <div className="dict-page dict-skin-light">
@@ -184,33 +174,21 @@ export default function DictionaryItemPage() {
         {login && <GithubProfile login={login} gh={gh} />}
         {login && <GithubRepos login={login} gh={gh} />}
 
-        {author && !login && (
-          <div className="dict-card dict-entry-card dict-filed-by">
-            <span className="dict-avatar dict-avatar--soft dict-avatar--lg" aria-hidden="true">{initialOf(nameOf(author))}</span>
-            <div className="dict-strip-text">
-              <span className="dict-field-label">Filed by</span>
-              <span className="dict-filed-by-name">
-                {nameOf(author)}{nip05 && <span className="dict-strip-faint"> · {nip05}</span>}
-              </span>
-            </div>
-            <Link to={`/user/${author}`} className="dict-pill-btn dict-pill-btn--quiet dict-filed-by-link" title={npubOf(author)}>
-              View Nostr profile
-            </Link>
-          </div>
-        )}
-
-        {login ? (
-          <footer className="dict-item-foot">
-            {author && (
-              <p className="dict-item-filer">
-                Filed by <span className="dict-item-filer-name">{nameOf(author)}</span>
-                <span aria-hidden="true"> · </span>
-                <Link to={`/user/${author}`} title={npubOf(author)}>View Nostr profile</Link>
-              </p>
-            )}
-            {rawEvent}
-          </footer>
-        ) : rawEvent}
+        {/* The item's Nostr record, set apart and quiet: who filed it, and the raw event. */}
+        <footer className="dict-item-foot">
+          {author && (
+            <p className="dict-item-filer">
+              Filed by <span className="dict-item-filer-name">{nameOf(author)}</span>
+              <span aria-hidden="true"> · </span>
+              <Link to={`/user/${author}`} title={npubOf(author)}>View Nostr profile</Link>
+            </p>
+          )}
+          <Disclosure id="dict-item-raw" label="Raw Nostr event">
+            {!itemEvent.done && <p className="text-muted">Reading the event…</p>}
+            {ev && <pre className="dict-json">{eventJson(ev)}</pre>}
+            {itemEvent.done && !ev && <p className="text-muted">{itemEvent.error}</p>}
+          </Disclosure>
+        </footer>
       </div>
     </DictionaryShell>
   );

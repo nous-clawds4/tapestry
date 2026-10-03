@@ -738,7 +738,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByRole('heading', { level: 1, name: 'item 03' })).toBeVisible();
     await expect(page.getByText('Item 3 in cat breed')).toBeVisible();
     await expect(page.getByText('item 03 is one of the items the owner’s trusted community has filed under cat breed.')).toBeVisible();
-    await expect(page.locator('.dict-filed-by-name')).toHaveText('Trusty');
+    await expect(page.locator('.dict-item-filer-name')).toHaveText('Trusty');
     await expect(page.getByRole('link', { name: /View Nostr profile/ })).toHaveAttribute('href', `/user/${TRUSTED_FILER}`);
     await page.getByRole('button', { name: 'Raw Nostr event' }).click();
     await expect(page.locator('#dict-item-raw .dict-json')).toContainText('["name","item 03"]');

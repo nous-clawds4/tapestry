@@ -6,10 +6,10 @@
  *   G1..G9 — pure: ui/src/pages/dictionary/github.js (dynamic import): the login read off the item, the
  *            DList recognised by its shared concept, the API's answer checked field by field, the
  *            repositories chosen, and a failed read named.
- *   S1..S5 — structural pins, read off comment-stripped source: the page is chosen by the shared concept
+ *   S1..S4 — structural pins, read off comment-stripped source: the page is chosen by the shared concept
  *            whichever instance's header it's on, the reads are unsigned and send no referrer, the
- *            avatar costs no API read, every other item keeps the generic page, and the page ends with its
- *            Nostr record (the filer in a line, the raw event) below a divider.
+ *            avatar costs no API read, and every other item keeps the generic page. (The footer every item
+ *            page shares, filer and raw event, is pinned by test/dictionary-entry.test.js E8.)
  */
 
 'use strict';
@@ -192,17 +192,6 @@ test('S4: the avatar costs no API read and falls back to the initial; links out 
   assert(/src=\{avatarUrl\(login\)\}/.test(view) && /referrerPolicy="no-referrer" onError=\{\(\) => setFailed\(true\)\}/.test(view), 'the avatar by login, with a fallback');
   assert(/const out = \{ target: '_blank', rel: 'noopener noreferrer' \};/.test(view), 'external links');
   assert(/View on GitHub/.test(view), 'the link to the profile');
-});
-
-test('S5: a GitHub account\'s page ends with its Nostr record, set apart: the filer in one line, then the raw event', () => {
-  const page = flat(code(src(ITEM_JSX)));
-  assert(/\{author && !login && \( <div className="dict-card dict-entry-card dict-filed-by">/.test(page), 'the Filed by card is the generic page\'s only');
-  assert(/<footer className="dict-item-foot"> \{author && \( <p className="dict-item-filer"> Filed by <span className="dict-item-filer-name">\{nameOf\(author\)\}<\/span>/.test(page),
-    'the filer\'s name in a line, in the footer');
-  assert(/<Link to=\{`\/user\/\$\{author\}`\} title=\{npubOf\(author\)\}>View Nostr profile<\/Link> <\/p> \)\} \{rawEvent\} <\/footer> \) : rawEvent\}/.test(page),
-    'its Nostr profile link, then the raw event; elsewhere the raw event alone');
-  const css = flat(src(path.join(UI, 'styles.css')));
-  assert(/\.dict-item-foot \{ margin-top: 44px; padding-top: 18px; border-top: 1px solid var\(--bsd-line\); \}/.test(css), 'set apart by a divider');
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

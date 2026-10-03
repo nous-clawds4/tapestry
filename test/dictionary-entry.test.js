@@ -315,12 +315,17 @@ test('E7: every Items row opens its item: /dictionary\'s own page, else the Simp
   assert(/path: '\/dictionary\/:coord\/items\/:item', element: <DictionaryItemPage \/>/.test(flat(code(src(APP_JSX)))), 'the item route exists');
 });
 
-test('E8: the item page is the design\'s screen: back to the concept, "Item N in", Filed by, the raw event', () => {
+test('E8: the item page is the design\'s screen: back to the concept, "Item N in", then a quiet footer: the filer, the raw event', () => {
   const item = flat(code(src(DICTIONARY_ITEM_JSX)));
   assert(/<Link to=\{entryHref\} state=\{entryState\} className="dict-back"><DictIcon name="back" \/> \{concept\}<\/Link>/.test(item), 'the back link is named for the concept');
   assert(/`Item \$\{listed\.n\} in \$\{concept\}`/.test(item), '"Item N in <concept>"');
-  assert(/<span className="dict-field-label">Filed by<\/span>/.test(item) && /View Nostr profile/.test(item), 'Filed by, with the profile link');
-  assert(/<Disclosure id="dict-item-raw" label="Raw Nostr event">/.test(item), 'the raw event, collapsed');
+  assert(/<footer className="dict-item-foot"> \{author && \( <p className="dict-item-filer"> Filed by <span className="dict-item-filer-name">\{nameOf\(author\)\}<\/span>/.test(item),
+    'the filer\'s name in one line, in the footer (owner, 2026-10-03: less prominent than the design\'s card)');
+  assert(/<Link to=\{`\/user\/\$\{author\}`\} title=\{npubOf\(author\)\}>View Nostr profile<\/Link> <\/p> \)\} <Disclosure id="dict-item-raw" label="Raw Nostr event">/.test(item),
+    'the profile link, then the raw event, collapsed, in the same footer');
+  assert(!/dict-filed-by/.test(item), 'the Filed by card is gone');
+  assert(/\.dict-item-foot \{ margin-top: 44px; padding-top: 18px; border-top: 1px solid var\(--bsd-line\); \}/.test(flat(src(path.join(UI, 'styles.css')))),
+    'set apart by a divider');
   assert(/fromEntry === entryPath \|\| fromEntry\.startsWith\(`\$\{entryPath\}\?`\)/.test(item), 'back only to this entry\'s page (and its query)');
 });
 
