@@ -328,7 +328,7 @@ test('S4: a changed header keeps the panel open with its note; Cancel after a sa
   assert(/<ConceptEntryBody key=\{coord\} listHref/.test(flat(code(src(ENTRY_PAGE_JSX)))), 'one body per concept, so no state crosses entries (review 2, R2-S1)');
   const s = flat(code(src(PANEL_JSX)));
   assert(/onClick=\{undelivered \? \(\) => onDone\(undelivered\.leftAs\) : onCancel\}/.test(s), 'Cancel after a saved, undelivered version does what Done does (review 1, S2)');
-  assert(/const leftAs = `Re-synced from \$\{sharedName\}\. Saved on this instance, but it didn’t reach the community relay\.`;/.test(s),
+  assert(/const leftAs = `Re-synced from \$\{sharedName\}\. Saved on this instance, but it didn’t reach the community relay\.\$\{graph === 'failed' \? ' This instance’s graph wasn’t fully updated/.test(s),
     'and the entry page isn\'t told to "try again" where it can\'t (review 2)');
   assert(/checkEditFields\(\{ singular: named\[1\], plural: named\[2\], description: described\[1\] \}\)\.error/.test(s), 'the page checks the names as the server does');
 });

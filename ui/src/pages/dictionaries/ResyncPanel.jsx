@@ -75,7 +75,7 @@ export default function ResyncPanel({ coord, header, assistant, note, onCancel, 
     if (graph === 'failed') message += ' This instance’s graph wasn’t fully updated, so the control panel may show the old version, or an incomplete one.';
     if (outcome === 'not-delivered') {
       // Left without a retry (Done, Cancel), the entry page can't resend it: it says so, without "try again".
-      const leftAs = `Re-synced from ${sharedName}. Saved on this instance, but it didn’t reach the community relay.`;
+      const leftAs = `Re-synced from ${sharedName}. Saved on this instance, but it didn’t reach the community relay.${graph === 'failed' ? ' This instance’s graph wasn’t fully updated, so the control panel may show the old version, or an incomplete one.' : ''}`;
       setUndelivered({ event: signed, message, graph, leftAs });
       return;
     }
@@ -157,7 +157,7 @@ export default function ResyncPanel({ coord, header, assistant, note, onCancel, 
       )}
       {invalid && (
         <p className="dict-notice" role="alert">
-          The names and description a Re-Sync would write can’t be used as they are: {invalid}. The shared concept’s author would have to correct them first.
+          The names and description a Re-Sync would write can’t be used as they are: {invalid}.
         </p>
       )}
       {diff && unchanged && <p className="dict-entry-note" role="status">Already in sync: a Re-Sync would change nothing.</p>}
