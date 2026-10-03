@@ -1,6 +1,26 @@
 # Handoff — Dictionary page (Tapestry)
 
-**Status:** 🔴 OPEN: version 2 (§ 3–4) is not started. Version 1 (§ 2) shipped in PR #763, and has been in production since 2026-09-27 (promotion #766). Its rows were corrected on 2026-09-29 by PR #782 (see the metadata below).
+**Status:** 🔴 OPEN: version 2 (§ 3–4) is partly built. Version 1 (§ 2) shipped in PR #763 (production since 2026-09-27, promotion #766; rows corrected by #782 on 2026-09-29).
+- **Shipped on 2026-10-02**, each a direct build reviewed by a fresh Reviewer (details in the metadata bullets below):
+  - the design's entry page (#800);
+  - Managed by (#804);
+  - the item page (#806);
+  - Create New Concept (#807);
+  - GUM₂ (#808);
+  - Create New Concept from the finder, wired (#810), copying the shared header's tags (#814);
+  - Edit a concept (#811, with #812);
+  - Re-Sync (#815).
+
+  #800–#808 reached production on 2026-10-02 (#809). #810–#815 go to production in the promotion that carries this status line.
+- **Still open:**
+  - Add / Veto as pinnings, and GUM₃ (both wait on the Pins wire format, § 3);
+  - the Dictionary rule settings: metric, cutoffs and minimum author rank (§ 4);
+  - subject groups in Show (needs the list of groups);
+  - Private concepts;
+  - `field-type` on the Edit page (OPEN.md row `2026-10-02-edit-concept-field-type`).
+- **The owner's to decide:**
+  - the GUM₂ scale (influence 0–1; see the GUM₂ bullet);
+  - who may import (OPEN.md row `2026-10-02-io-import-unverified-any-session`).
 
 > **Repo metadata. Not part of the handoff text.**
 > - **Source.** The Claude Design export `brainstorm_dictionary_design.zip` (`handoff-dictionary/SPEC.md`), 2026-09-27. Everything below the rule is verbatim.
