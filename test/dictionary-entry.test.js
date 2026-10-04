@@ -262,7 +262,7 @@ test('E1: GET /api/dictionaries/concepts/items: validated, trust resolved at the
   assert(/strfryScanStream\(\s*\{\s*['"]#z['"]:\s*coords\s*\}/.test(s), 'items are read by z → the entry\'s coordinates');
   assert(/await resolveQualifying\(\{\s*wotPov,\s*userPubkey,\s*authors:\s*filers,\s*cutoff\s*\}\)/.test(s),
     'the trusted set comes from resolveQualifying, the seam GUM₁ uses, from the active point of view');
-  assert(/trustedItems\(\{\s*zCarriers,\s*coords,\s*qualifying,\s*own:\s*authors\s*\}\)/.test(s), 'the rule is trustedItems');
+  assert(/trustedItems\(\{\s*zCarriers,\s*coords,\s*qualifying,\s*own:\s*authors,\s*match\s*\}\)/.test(s), 'the rule is trustedItems (with `match`: test/dictionary-v4v-song.test.js S7)');
 });
 
 test('E2: the entry reads its Items through useConceptItems, with the person and the point of view', () => {
@@ -366,15 +366,16 @@ test('E8: the item page is the design\'s screen: back to the concept, "Item N in
 test('E9: the item page says only what the Items list establishes', () => {
   const item = flat(code(src(DICTIONARY_ITEM_JSX)));
   assert(/let description = tagOf\(ev, 'description'\);/.test(item), 'the event\'s own description first');
-  assert(/if \(!description && ev && !readError\)/.test(item), 'nothing is said beside a failed read');
+  assert(/if \(!description && ev && !readError && !listed\)/.test(item), 'nothing is said beside a failed read, nor of an item in the Items (its head numbers it)');
+  assert(!/is one of the/.test(item), 'no "one of the ⟨plural⟩" sentence (owner, 2026-10-04)');
   assert(/\} else if \(filedHere && complete && !own\) \{ description = `\$\{name\} is filed under \$\{concept\}, but not by anyone \$\{whose\} community trusts/.test(item),
     '"not trusted" needs the event filed under the concept, a complete Items read, and someone other than the reader');
   assert(/const filedHere = ev && entry \? \(ev\.tags \|\| \[\]\)\.some\(\(t\) => t && t\[0\] === 'z' && concepts\.includes\(t\[1\]\)\) : null;/.test(item),
     '"filed under" is read off the event\'s z tags, against every concept a known entry names');
-  assert(/const complete = Boolean\(items\.data\) && !items\.data\.truncated;/.test(item), 'a capped read is not complete');
+  assert(/const complete = Boolean\(read\.data\) && !read\.data\.truncated;/.test(item), 'a capped read is not complete');
   assert(/\.find\(\(it\) => \(it\.address \|\| it\.id\) === key\)/.test(item), 'items are matched by the event\'s own key, however the page was opened');
-  assert(/useConceptItems\(\{ coord, shared: entry\?\.sharedCoord \|\| null, person, povParams, enabled: \(!passed \|\| v4vPage\) && Boolean\(entry\) \}\)/.test(item),
-    'a direct visit reads the Items from the active point of view, once the entry is known (a song\'s page, however opened)');
+  assert(/useConceptItems\(\{ coord, shared: entry\?\.sharedCoord \|\| null, person, povParams, enabled: !passed && Boolean\(entry\) && /.test(item),
+    'a direct visit reads the Items from the active point of view, once the entry is known (a song reads only its own: test/dictionary-v4v-song.test.js S1)');
 });
 
 test('E10: a "%" in an item\'s d-tag cannot crash a page, and a modified click on a row is the browser\'s', () => {

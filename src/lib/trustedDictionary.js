@@ -13,6 +13,7 @@
  * trustedItems({zCarriers, coords, qualifying, own, limit})
  *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items
  * itemCarrier(ev)                           — a z-carrier as the Items read's scan keeps it
+ * parseItemMatch(raw)                        — the Items read's `match` parameter, checked
  * usageByHeader(…)                          — the counting rule both share
  *
  * Headers arrive PRE-CLASSIFIED at the handler seam
@@ -297,6 +298,33 @@ function itemProperties(ev) {
   return out;
 }
 
+// `match` on the Items read: at most this many name:value pairs (a song's page sends two: its release and its artist).
+const MAX_ITEM_MATCHES = 4;
+const MATCH_NAME = /^[^\s:]{2,64}$/;
+
+/**
+ * The Items read's `match` parameter (a string or a list of them), each "name:value": an item is kept
+ * when any named property (itemProperties) equals its value, trimmed and in any case. Returns the pairs
+ * as [name, value] with the value trimmed, bounded as properties are and lower-cased; null when there are
+ * none; an Error saying what is wrong when one isn't a property name and a value.
+ */
+function parseItemMatch(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const list = Array.isArray(raw) ? raw : [raw];
+  if (list.length > MAX_ITEM_MATCHES) return new Error(`match takes at most ${MAX_ITEM_MATCHES} name:value pairs`);
+  const out = [];
+  for (const m of list) {
+    const i = typeof m === 'string' ? m.indexOf(':') : -1;
+    const name = i > 0 ? m.slice(0, i) : '';
+    const value = i > 0 ? m.slice(i + 1).trim() : '';
+    if (!(name === 't' || MATCH_NAME.test(name)) || NOT_PROPERTIES.has(name) || !value) {
+      return new Error('match must be name:value, the name an item property tag (not a naming tag) and the value not blank');
+    }
+    out.push([name, value.slice(0, MAX_ITEM_TEXT).toLowerCase()]);
+  }
+  return out;
+}
+
 // The tags trustedItems reads off a z-carrier: its filing, its address, its name, and a curation copy's q.
 const ITEM_CARRIER_TAGS = ['z', 'd', 'names', 'name', 'title', 'q'];
 
@@ -335,8 +363,14 @@ const isCurationCopy = (ev) => ev.kind === 39999
  * its name, its own title and description, and its property tags (itemProperties). At most
  * `limit` are returned (`truncated` says when more were kept); `filerCount`
  * and `totalCount` (every distinct item before the trust filter) cover all.
+ *
+ * `match` (parseItemMatch's pairs) keeps only the items with a matching
+ * property, before the cap: then `items`, `keptCount` and `truncated` cover
+ * the matching items alone, so a page that needs a few items (a song's
+ * release, its artist) never reads them all. `filerCount` and `totalCount`
+ * still cover every item.
  */
-function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT } = {}) {
+function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT, match = null } = {}) {
   const cs = new Set((Array.isArray(coords) ? coords : []).filter((c) => typeof c === 'string' && c));
   const q = qualifying instanceof Set ? qualifying : new Set(Array.isArray(qualifying) ? qualifying : []);
   const mine = new Set(Array.isArray(own) ? own : []);
@@ -370,12 +404,15 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
     else all.delete(original);
   }
 
+  const pairs = Array.isArray(match) && match.length ? match : null;
+  const wanted = (it) => !pairs || pairs.some(([name, value]) => typeof it.properties[name] === 'string'
+    && it.properties[name].trim().toLowerCase() === value);
   const items = [];
   const filers = new Set();
   for (const [key, ev] of all) {
     if (!kept(ev)) continue;
     filers.add(ev.pubkey);
-    items.push({
+    const item = {
       id: ev.id,
       address: key === ev.id ? null : key,
       kind: ev.kind,
@@ -387,7 +424,8 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
       description: ev.description !== undefined ? ev.description : itemDescription(ev),
       properties: ev.properties !== undefined ? ev.properties : itemProperties(ev),
       createdAt: ev.created_at || 0,
-    });
+    };
+    if (wanted(item)) items.push(item);
   }
   items.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
 
@@ -401,4 +439,6 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
   };
 }
 
-module.exports = { computeDictionary, computeConceptDictionary, usageByHeader, trustedItems, itemCarrier, recognitionByConcept };
+module.exports = {
+  computeDictionary, computeConceptDictionary, usageByHeader, trustedItems, itemCarrier, parseItemMatch, recognitionByConcept,
+};

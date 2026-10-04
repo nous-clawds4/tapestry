@@ -3,8 +3,8 @@
 **Id:** 2026-10-04-song-page-rereads-whole-items
 **Type:** cleanup
 **Opened:** 2026-10-04 (the V4V Songs views, review 1 non-blocking; pushed to `staging`)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-04 (the owner: never read the whole list; V4V Songs follow-up on `staging`)
 
 **What was seen.** The V4V Songs item page lists the release's other songs and more by the artist from the entry's
 Items, so `Item.jsx` turns the Items read on for a song's page however it was opened (`enabled: (!passed || v4vPage)`).
@@ -18,3 +18,5 @@ every visit from the table does.
 table's answer in router state when it is small enough; history state is cloned on every entry, so not 620 KB.
 
 **Pointer:** `ui/src/pages/dictionary/Item.jsx` (`useConceptItems`, `enabled`); `docs/DICTIONARY_PAGE_HANDOFF.md` (the 2026-10-04 bullet).
+
+**Resolution.** Not a cache: a song's page no longer reads the whole Items at all. It asks the Items read for the items of its release and its artist (`match`, `parseItemMatch` in `src/lib/trustedDictionary.js`; `songMatch` in `ui/src/pages/dictionary/v4v.js`), which also gives its other filers and its trust standing. Its number needs every row, so it shows only when the page was opened from the Items table. Pins: `test/dictionary-v4v-song.test.js` V9–V11, S1, S7; Playwright D43.

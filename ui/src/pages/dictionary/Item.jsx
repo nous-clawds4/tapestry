@@ -5,7 +5,7 @@ import { GithubAccountHead, GithubProfile, GithubRepos } from './GithubAccount';
 import { githubLogin, githubRowOf, githubRows, isGithubAccounts, normalizeLogin } from './github';
 import useGithubAccount from './useGithubAccount';
 import { V4vPlayer, V4vSongHead, V4vSongLists } from './V4vSong';
-import { isV4vSongs, relatedSongs, songOf, v4vRowOf, v4vRows } from './v4v';
+import { isV4vSongs, relatedSongs, songMatch, songOf, v4vRowOf, v4vRows } from './v4v';
 import DictIcon from '../dictionaries/DictIcon';
 import useProfiles from '../../hooks/useProfiles';
 import { usePov } from '../../context/PovContext';
@@ -101,10 +101,6 @@ export default function DictionaryItemPage() {
   const pageConcepts = [coord, entry?.sharedCoord, ...(entry?.targets || []), ...bTargets(header.event)].filter(Boolean);
   const v4vPage = isV4vSongs(pageConcepts);
 
-  // The entry's Items (for the number and the trust verdict): read on a direct visit, once the entry is known;
-  // and on a song's page however it was opened, for the release's other songs and more by the artist.
-  const items = useConceptItems({ coord, shared: entry?.sharedCoord || null, person, povParams, enabled: (!passed || v4vPage) && Boolean(entry) });
-
   const ev = itemEvent.event;
   const key = itemKey(ev);
   // Until the event arrives, the row it was opened from names the login, so the page doesn't change face.
@@ -112,12 +108,28 @@ export default function DictionaryItemPage() {
   const gh = useGithubAccount(login);
   // A song, likewise: the event's, else the row's it was opened from. Its filings are one row (v4vRows).
   const song = !v4vPage ? null : ev ? songOf(ev) : passed?.item?.song || null;
-  const songRows = v4vPage && items.data ? v4vRows(items.data.items) : null;
+
+  // The entry's Items (for the number and the trust verdict): read on a direct visit, once the entry is known.
+  // A song's page never reads them all: it waits for its event, and a song asks only for what it shows (below).
+  const items = useConceptItems({
+    coord, shared: entry?.sharedCoord || null, person, povParams,
+    enabled: !passed && Boolean(entry) && (!v4vPage || (itemEvent.done && !song)),
+  });
+  // A song's page reads the filings of its release and of its artist (`match`): its two lists, who else filed
+  // the song, and whether its own filing is trusted. Its number, which needs every row, comes only from the
+  // Items table's row it was opened from.
+  const songItems = useConceptItems({
+    coord, shared: entry?.sharedCoord || null, person, povParams, match: songMatch(song), enabled: Boolean(entry && song),
+  });
+  const read = song ? songItems : items;
+  const songRows = songItems.data ? v4vRows(songItems.data.items) : null;
+  const songRow = song && songRows && key ? v4vRowOf(songRows, key) : null;
   // A GitHub account's number is its row's in the entry's Items, where its filings are one row (githubRows).
   const listed = passed ? passed.item
     : items.data && key && login ? githubRowOf(githubRows(items.data.items), key)
-      : items.data && key && v4vPage ? v4vRowOf(songRows, key)
-        : (items.data && key ? (items.data.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === key) : null) || null;
+      : song ? (songRow && { ...songRow, n: null })
+        : items.data && key && v4vPage ? v4vRowOf(v4vRows(items.data.items), key)
+          : (items.data && key ? (items.data.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === key) : null) || null;
   const author = ev?.pubkey || passed?.item?.author || null;
   // Everyone else who filed the same account or song (its row's other filers).
   const others = (login || song) && Array.isArray(listed?.filers) ? listed.filers.filter((p) => typeof p === 'string' && p !== author) : [];
@@ -134,7 +146,6 @@ export default function DictionaryItemPage() {
   };
 
   const concept = entry ? displayName(entry) : (tagOf(header.event, 'names') || tagOf(header.event, 'name') || coordParts(coord).d);
-  const plural = (entry?.plural || header.event?.tags?.find((t) => t[0] === 'names')?.[2] || 'items').toLowerCase();
   const name = login || (ev && (tagOf(ev, 'names') || tagOf(ev, 'name') || tagOf(ev, 'title') || tagOf(ev, 'd'))) || passed?.item?.name || ref;
 
   // What this page knows, and may therefore say. Only a known entry names every concept its Items are
@@ -142,33 +153,32 @@ export default function DictionaryItemPage() {
   const own = Boolean(author && (person.authors || []).includes(author));
   const concepts = [coord, entry?.sharedCoord].filter(Boolean);
   const filedHere = ev && entry ? (ev.tags || []).some((t) => t && t[0] === 'z' && concepts.includes(t[1])) : null;
-  const complete = Boolean(items.data) && !items.data.truncated;
-  // Opened from a row, the page already knows where the item stands; a song's page reads the Items anyway,
-  // for its lists, and a failure of that read is said there.
+  const complete = Boolean(read.data) && !read.data.truncated;
+  // One notice for a failed Items read. Opened from a row, the page already knows where the item stands, so
+  // only a song's lists are lost; otherwise the page can't place the item (nor, for a song, list anything).
   const readError = dict.error ? `Couldn’t read ${whose} Dictionary (${dict.error}), so this page can’t say where the item stands in it.`
-    : items.error && !passed ? `Couldn’t read the entry’s Items (${items.error}), so this page can’t say where the item stands in them.`
+    : read.error && !passed ? (song
+      ? `Couldn’t read the entry’s Items (${read.error}), so this page can’t say where the song stands in them, or list the release’s other songs or more by the artist.`
+      : `Couldn’t read the entry’s Items (${read.error}), so this page can’t say where the item stands in them.`)
       : null;
-  const songListsError = items.error
-    ? `Couldn’t read the entry’s Items (${items.error}), so this page can’t list the release’s other songs or more by the artist.`
+  const songListsError = song && read.error && passed
+    ? `Couldn’t read the entry’s Items (${read.error}), so this page can’t list the release’s other songs or more by the artist.`
     : null;
   const notInDictionary = !passed && !dict.error && dict.data !== null && !entry;
-  const filer = author === person.assistant ? `${whose} Assistant` : person.signedIn ? 'you' : 'the owner';
 
+  // The event's own description; else, only when the item isn't in the Items, why not.
   let description = tagOf(ev, 'description');
-  if (!description && ev && !readError) {
-    if (listed) {
-      description = own
-        ? `${name} is one of the ${plural} ${filer} filed under ${concept}.`
-        : `${name} is one of the ${plural} ${whose} trusted community has filed under ${concept}.`;
-    } else if (filedHere === false) {
+  if (!description && ev && !readError && !listed) {
+    if (filedHere === false) {
       description = `${name} isn’t filed under ${concept}.`;
     } else if (filedHere && complete && !own) {
       description = `${name} is filed under ${concept}, but not by anyone ${whose} community trusts, so it isn’t in the entry’s Items.`;
-    } else if (filedHere && items.data?.truncated) {
-      description = `${name} is filed under ${concept}, but it isn’t among the first ${(items.data.items || []).length.toLocaleString()} Items this page reads.`;
+    } else if (filedHere && read.data?.truncated) {
+      description = `${name} is filed under ${concept}, but it isn’t among the first ${(read.data.items || []).length.toLocaleString()} Items this page reads.`;
     }
   }
-  const subtitle = listed ? `Item ${listed.n} in ${concept}` : filedHere ? `Filed under ${concept}` : null;
+  // A song opened from anywhere but the Items table is in the Items, unnumbered.
+  const subtitle = listed?.n ? `Item ${listed.n} in ${concept}` : listed || filedHere ? `Filed under ${concept}` : null;
   // A GitHub account's title is its GitHub name, which a filer's description often just repeats.
   const ghTitle = login && gh.status === 'ok' ? (gh.user.name || login) : login;
   const lede = description && !(ghTitle && description.trim().toLowerCase() === ghTitle.toLowerCase()) ? description : null;
@@ -180,15 +190,16 @@ export default function DictionaryItemPage() {
   const entryHref = typeof fromEntry === 'string' && (fromEntry === entryPath || fromEntry.startsWith(`${entryPath}?`))
     ? fromEntry : entryPath;
 
-  // A song's page lists the release's other songs and more by the artist, from the entry's Items, never
-  // beyond them; each opens its own page, told what this one was opened with.
+  // A song's page lists the release's other songs and more by the artist, from that read; each opens its
+  // own page, told what this one was opened with. Their rows' numbers count only that read's rows, so none
+  // is passed on.
   const related = songRows ? relatedSongs(songRows, song, key || passed?.item?.address || passed?.item?.id) : null;
   const linkFor = (row) => ({
     to: dictionaryItemPath(coord, row),
-    state: { item: row, entry, metric: passed?.metric, pov: passed?.pov, listHref: passed?.listHref, entryHref: passed?.entryHref },
+    state: { item: { ...row, n: null }, entry, metric: passed?.metric, pov: passed?.pov, listHref: passed?.listHref, entryHref: passed?.entryHref },
   });
-  const songLimit = items.data?.truncated
-    ? `Songs from this release and by this artist are found among the first ${(items.data.items || []).length.toLocaleString()} of the ${items.data.keptCount.toLocaleString()} items.`
+  const songLimit = songItems.data?.truncated
+    ? `These lists show the first ${(songItems.data.items || []).length.toLocaleString()} of the ${songItems.data.keptCount.toLocaleString()} items from this release and by this artist.`
     : null;
 
   return (

@@ -6,9 +6,11 @@
  *   V1..V8 — pure: ui/src/pages/dictionary/v4v.js (dynamic import): the DList recognised by its shared
  *            concept, a song read off the item field by field, its duration written m:ss, the release's
  *            Podcast Index link, the Items as one row per song (feed GUID + track ID), the page's two
- *            lists, and (V7, V8) the Items read carrying what a row needs, whole.
- *   S1..S6 — structural pins, read off comment-stripped source: the page is chosen by the shared concept
- *            and reads the Items even when opened from a row (S1); nothing loads before play, and one song
+ *            lists, and (V7, V8) the Items read carrying what a row needs, whole; (V9..V11) a song's page
+ *            asks the Items read only for its release and its artist (`match`), never the whole list.
+ *   S1..S7 — structural pins, read off comment-stripped source: the page is chosen by the shared concept
+ *            and reads only the matching Items, numbering a song only from the table's row (S1); the read
+ *            sends `match` and the server checks it (S7); nothing loads before play, and one song
  *            plays at a time (S2); no referrer, lazy artwork (S3); the entry page lists one row per song
  *            and its play buttons don't open the row (S4); the page's parts in the brief's order (S5);
  *            and nothing says playing pays anyone (S6).
@@ -182,15 +184,72 @@ test('V8: a row never plays or loads a link the Items read may have cut', async 
   eq(songOfItem(row(URL_, ART)).url, URL_, 'a shorter link is whole');
 });
 
-test('S1: the page is chosen by the shared concept, and reads the Items for its lists even when opened from a row', () => {
+test('V9: the Items read\'s `match` keeps only the matching items, before the cap, in any case', () => {
+  const { trustedItems, itemCarrier } = lib();
+  const ev = (n, author, props) => itemCarrier({
+    id: String(n).repeat(64), kind: 9999, pubkey: author.repeat(64), created_at: n, content: '',
+    tags: [['z', H], ['title', `S${n}`], ...Object.entries(props)],
+  });
+  const zCarriers = [
+    ev(1, 'a', { feedGuid: GUID, artist: 'Musica Ancap' }),
+    ev(2, 'a', { feedGuid: 'other', artist: ' MUSICA ANCAP ' }),
+    ev(3, 'b', { feedGuid: GUID.toUpperCase(), artist: 'Someone' }),
+    ev(4, 'c', { feedGuid: GUID, artist: 'Musica Ancap' }),
+    ev(5, 'a', { feedGuid: 'third', artist: 'Other' }),
+  ];
+  const match = [['feedGuid', GUID], ['artist', 'musica ancap']];
+  const out = trustedItems({ zCarriers, coords: [H], qualifying: ['a'.repeat(64), 'b'.repeat(64)], match });
+  eq(out.items.map((it) => it.title), ['S1', 'S2', 'S3'], 'either pair, trimmed and in any case; never an untrusted filing (S4)');
+  eq([out.keptCount, out.truncated, out.filerCount, out.totalCount], [3, false, 2, 5], 'kept and truncated count the matches; filers and total, everything');
+  const capped = trustedItems({ zCarriers, coords: [H], qualifying: ['a'.repeat(64), 'b'.repeat(64)], match, limit: 2 });
+  eq([capped.items.length, capped.keptCount, capped.truncated], [2, 3, true], 'the cap applies after the match, so a match is never lost behind other items');
+  eq(trustedItems({ zCarriers, coords: [H], qualifying: ['a'.repeat(64)] }).items.length, 3, 'without match, every trusted item, as before');
+});
+
+test('V10: the server checks `match`: a property name and a value, at most four', () => {
+  const { parseItemMatch } = lib();
+  eq(parseItemMatch(undefined), null, 'none given');
+  eq(parseItemMatch(['feedGuid: ABC-1 ', 'artist:Musica Ancap']), [['feedGuid', 'abc-1'], ['artist', 'musica ancap']], 'trimmed and lower-cased');
+  eq(parseItemMatch('t:4d33'), [['t', '4d33']], 't is a property; one value may come alone');
+  eq(parseItemMatch(`artist:${'x'.repeat(400)}`)[0][1].length, 300, 'bounded as the properties are');
+  for (const bad of ['artist', 'artist:', 'artist:  ', ':x', 'title:x', 'description:x', 'e:x', 'has space:x', ['a1:x', 'b1:x', 'c1:x', 'd1:x', 'e1:x'], [42]]) {
+    assert(parseItemMatch(bad) instanceof Error, `refused: ${JSON.stringify(bad)}`);
+  }
+});
+
+test('V11: a song asks for its release and its artist', async () => {
+  const { songMatch, songOf } = await v4v();
+  eq(songMatch(songOf(sample())), [`feedGuid:${GUID}`, 'artist:Musica Ancap'], 'both, when it has both');
+  eq(songMatch(songOf({ tags: [['title', 'x'], ['url', URL_], ['artist', 'Solo']] })), ['artist:Solo'], 'what it has');
+  eq(songMatch(songOf({ tags: [['title', 'x'], ['url', URL_]] })), [], 'nothing to ask for');
+  eq(songMatch(null), [], 'no song');
+});
+
+test('S1: the page is chosen by the shared concept; a song reads only its release\'s and artist\'s Items, and is numbered only by the table\'s row', () => {
   const page = flat(code(src(ITEM_JSX)));
   assert(/const v4vPage = isV4vSongs\(pageConcepts\);/.test(page), 'recognised by its shared concept, as the GitHub page is');
-  assert(/enabled: \(!passed \|\| v4vPage\) && Boolean\(entry\)/.test(page), 'the Items read, which the release and artist lists come from');
   assert(/const song = !v4vPage \? null : ev \? songOf\(ev\) : passed\?\.item\?\.song \|\| null;/.test(page),
     'a song only on the V4V Songs DList: the event\'s, or until it arrives, the row\'s it was opened from');
-  assert(/items\.data && key && v4vPage \? v4vRowOf\(songRows, key\)/.test(page), 'numbered by its row on a direct visit, a song or not, as the table numbers it');
-  assert(/: items\.error && !passed \? `Couldn’t read the entry’s Items/.test(page), 'opened from a row, a failed Items read doesn\'t unsay the row\'s place');
+  assert(/enabled: !passed && Boolean\(entry\) && \(!v4vPage \|\| \(itemEvent\.done && !song\)\),/.test(page),
+    'the whole Items: a direct visit only, and on this DList only once the event is known not to be a song');
+  assert(/match: songMatch\(song\), enabled: Boolean\(entry && song\),/.test(page), 'a song asks for its release and its artist only');
+  assert(/: song \? \(songRow && \{ \.\.\.songRow, n: null \}\)/.test(page), 'that read\'s rows are not the table\'s, so they give no number');
+  assert(/state: \{ item: \{ \.\.\.row, n: null \},/.test(page), 'nor do the lists\' rows passed on');
+  assert(/const subtitle = listed\?\.n \? `Item \$\{listed\.n\} in \$\{concept\}` : listed \|\| filedHere \? `Filed under \$\{concept\}` : null;/.test(page),
+    'unnumbered, a song in the Items is "Filed under" its concept');
+  assert(/: read\.error && !passed \? \(song/.test(page) && /const songListsError = song && read\.error && passed/.test(page),
+    'one notice for a failed read: the lists\' when opened from a row, else the page\'s');
   assert(/error=\{songListsError\}/.test(page), 'the lists say when that read failed');
+});
+
+test('S7: the Items read takes `match`, checked by the server, and the hook sends it', () => {
+  const api = flat(code(src(path.join(ROOT, 'src/api/adoption/index.js'))));
+  assert(/const match = parseItemMatch\(req\.query && req\.query\.match\); if \(match instanceof Error\) return res\.status\(400\)/.test(api), 'a malformed match is a 400');
+  assert(/assembleConceptItems\(\{ coord, shared, authors, wotPov, userPubkey, match \}\)/.test(api) && /trustedItems\(\{ zCarriers, coords, qualifying, own: authors, match \}\)/.test(api),
+    'and reaches trustedItems');
+  const hook = flat(code(src(path.join(UI, 'pages/dictionaries/conceptsDictionary.js'))));
+  assert(/if \(matchKey\) for \(const m of JSON\.parse\(matchKey\)\) params\.append\('match', m\);/.test(hook), 'each pair is one match parameter');
+  assert(/\[coord, shared, authors, settled, wotPov, userPubkey, matchKey, enabled\]/.test(hook), 'a new array with the same pairs doesn\'t read again');
 });
 
 test('S2: nothing loads before play, never autoplays, and one song plays at a time', () => {

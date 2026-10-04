@@ -98,6 +98,15 @@ export function songOfItem(it) {
   return songFrom({ ...p, title: it?.title, url: whole(p.url), artwork: whole(p.artwork) });
 }
 
+/**
+ * What a song's page asks the Items read for (its `match`): the filings of its release and of its artist,
+ * never the whole list. The answer holds the page's two lists, the song's other filings, and its own.
+ */
+export function songMatch(song) {
+  if (!song) return [];
+  return [song.feedGuid && `feedGuid:${song.feedGuid}`, song.artist && `artist:${song.artist}`].filter(Boolean);
+}
+
 /** One song's identity: its release's feed GUID and its track ID, the pair Podcasting 2.0 names a track by. Null without both. */
 export const songKey = (song) => (song && song.feedGuid && song.t ? `${song.feedGuid}\n${song.t}` : null);
 

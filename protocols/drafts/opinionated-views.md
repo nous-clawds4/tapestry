@@ -418,15 +418,16 @@ Where an item repeats a tag, read its first non-blank value, as § 2.1 does. A *
 - **Keep `title` as itself.** A read that folds it into a general display name (name, else title, else `d`, …) can't tell an item with a title from one showing a fallback.
 - **Never play or load a link the read may have cut.** If the read bounds the length of values, a `url` or `artwork` value at that bound may be cut, and a cut link is a wrong one. Treat it as missing on that surface; the item's page, which reads the whole event, has it.
 
-**From the Items read (no external reads):**
+**From the category's items (no external reads):**
 
 - *From this release:* other items with the same `feedGuid`.
 - *More by this artist:* other items whose `artist` matches, compared case-insensitively after trimming.
 
-Both come from the active point of view's read, like the Items table. They never search beyond it.
+Both come from the active point of view's read, like the Items table, and never search beyond it.
 
-- **In the Items' order** (§ 5, rule 1). Show ten of each, then the rest on request: one artist can have hundreds (one deployment's first 1,000 V4V Songs held 173 by one artist).
-- **When the read stops short.** A list read is often capped (that deployment's returns the first 1,000 of 22,556). The lists then cover only what it returned, and the page says so: "Songs from this release and by this artist are found among the first ⟨1,000⟩ of the ⟨22,556⟩ items."
+- **Ask for these items only.** Read the items whose `feedGuid` or `artist` matches the song's, from that read: never the whole list. One deployment's list is 22,556 items, and its first 1,000 alone are 620 KB. The same answer says who else filed the song (its other filings share its `feedGuid`), and whether its own filing is among the trusted ones.
+- **In the Items' order** (§ 5, rule 1). Show ten of each, then the rest on request: one artist can have hundreds (that deployment's first 1,000 V4V Songs held 173 by one artist).
+- **When the read stops short.** If even the matching read is capped, the lists cover only what it returned, and the page says so: "These lists show the first ⟨1,000⟩ of the ⟨1,204⟩ items from this release and by this artist."
 
 **Contacted by the listener's browser:**
 
@@ -444,7 +445,7 @@ Both come from the active point of view's read, like the Items table. They never
 1. **Head.**
    - The artwork, large and square.
    - The title as the heading, with the artist beneath.
-   - "Item N in ⟨concept⟩", the concept's name as the platform shows it (Tapestry: "Item 1 in V4V Song").
+   - "Item N in ⟨concept⟩", the concept's name as the platform shows it (Tapestry: "Item 1 in V4V Song"). N is the song's place in the whole list, so show it only when the page already has it, as when it was opened from the Items table, whose row carries it. Never read the whole list just to number a song: say "Filed under ⟨concept⟩" instead.
    - The duration.
 2. **Player.**
    - Play / pause, a seek bar, and the elapsed and total time. A platform's native audio controls are enough.
@@ -452,7 +453,7 @@ Both come from the active point of view's read, like the Items table. They never
    - Where the platform supports it, give the device the song's title, artist and artwork (the Media Session API in browsers), so lock-screen and headset controls show and control it. When the player leaves the page, clear it.
 3. **From this release:** the release's other songs, each a `row`, when the Items read has any.
 4. **More by ⟨artist⟩:** the same, by artist, leaving out songs already listed above.
-   - Both lists keep the Items' order and show ten, then "Show all ⟨N⟩"; when the read stopped short, a line says how far they reach (Sources).
+   - Both lists keep the Items' order and show ten, then "Show all ⟨N⟩"; when the matching read stopped short, a line says how far they reach (Sources).
    - A song opened from these lists opens its own page at the top.
 5. **Link:** "This release on Podcast Index".
 6. **The Nostr record**, quiet, below a divider: "Filed by ⟨name⟩ · View Nostr profile"; "Also filed by ⟨names⟩"; a disclosure, "Raw Nostr event" (§ 5, rule 3).
@@ -489,10 +490,10 @@ Both come from the active point of view's read, like the Items table. They never
 | no `title`, or a `url` that isn't `https://` | the default card (§ 2.1) |
 | the audio fails to load or play | "Couldn't play this song: its host didn't answer." Keep the rest of the page, plus a plain link to the file |
 | a row's song fails to load or play | the play button becomes a failure mark, titled "Couldn't play this song: its host didn't answer." and named the same, plus "Try ⟨title⟩ again"; pressing it tries again |
-| the Items read fails | the page keeps what it has, and says the lists can't be shown: "Couldn't read the entry's Items (⟨reason⟩), so this page can't list the release's other songs or more by the artist." |
+| the matching read fails | one notice. Opened from the Items table, the page still has its place: "Couldn't read the entry's Items (⟨reason⟩), so this page can't list the release's other songs or more by the artist." Otherwise: "… so this page can't say where the song stands in them, or list the release's other songs or more by the artist." |
 | the artwork fails to load | a music-note placeholder, in the same square |
 | `duration` isn't a whole number | leave the duration out; the player shows the file's own length once it loads |
-| the list read stopped short | the page's lists say how far they reach (Sources) |
+| the matching read stopped short | the page's lists say how far they reach (Sources) |
 
 ### Privacy and safety
 
@@ -521,8 +522,7 @@ Read, don't run. Tapestry (staging, 2026-10-04) built the `page` and the `row`; 
 - `ui/src/pages/dictionary/v4v.js`: the pure rules (recognising H, each field's check, the duration, one row per song, the page's two lists).
 - `V4vSong.jsx`: the head, the player, the lists and the row; one song at a time; the Media Session; the referrer policy while a player is shown.
 - `Item.jsx`: choosing the view. `ui/src/pages/dictionaries/ConceptEntry.jsx`: the Items table's rows.
-- Not from this brief: under the head, Tapestry keeps its generic item page's sentence about where the item stands ("⟨title⟩ is one of the ⟨plural⟩ … filed under ⟨concept⟩"), since V4V items carry no `description` to show there.
-- `src/lib/trustedDictionary.js` (`itemProperties`, `trustedItems`): the list read, carrying `t` and `title`.
+- `src/lib/trustedDictionary.js` (`itemProperties`, `trustedItems`, `parseItemMatch`): the list read, carrying `t` and `title`, and its `match` parameter (`match=feedGuid:<guid>&match=artist:<name>` on `GET /api/dictionaries/concepts/items`), which answers with the matching items only.
 - Tests: `test/dictionary-v4v-song.test.js`; the browser test D43 in `tests/brainstorm/dictionary-concepts.spec.js`.
 
 ### Changes
@@ -538,3 +538,4 @@ Read, don't run. Tapestry (staging, 2026-10-04) built the `page` and the `row`; 
   7. **The referrer policy in a single-page app** (Privacy and safety).
   8. **Smaller points:** the music note's source and where it shows (Idiom); `preload` is a hint (Sources); clearing the Media Session (Surfaces); H's size (Category).
   9. **What the head says and what fails** (after review): the head's line is "Item N in ⟨concept⟩", as Appendix A's is, not a fixed "V4V Songs"; a failed row's button name ends "Try ⟨title⟩ again"; a failed Items read is a failure of its own (Surfaces, Failures).
+  10. **Ask only for the songs the page shows** (the owner, after using it): a song's page reads the items of its release and its artist, never the whole list, which also says who else filed it. So it numbers a song only when it already has the number, from the Items table's row, and otherwise says "Filed under ⟨concept⟩". A failed read gets one notice (Sources, Surfaces, Failures).

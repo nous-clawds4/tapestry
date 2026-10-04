@@ -131,7 +131,9 @@ const { test, expect } = require('@playwright/test');
  *         row per song (artwork, title, artist, duration, "+1 more"); no audio host is contacted before
  *         play; a row's play button plays without opening the row, one song at a time, with no referrer;
  *         a song that can't play says so; the item page's head, player, release and artist lists and
- *         Podcast Index link; the page's own referrer policy comes back once no player is shown.
+ *         Podcast Index link; the page's own referrer policy comes back once no player is shown. A song's page
+ *         reads only its release's and artist's items (`match`), never the whole list, so it is numbered only
+ *         when opened from the table; a failed read gets one notice.
  */
 
 const OWNER = '1'.repeat(64);
@@ -748,7 +750,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await link.click();
     await expect(page.getByRole('heading', { level: 1, name: 'item 03' })).toBeVisible();
     await expect(page.getByText('Item 3 in cat breed')).toBeVisible();
-    await expect(page.getByText('item 03 is one of the items the owner’s trusted community has filed under cat breed.')).toBeVisible();
+    await expect(page.getByText(/is one of the/), 'no "one of the ⟨plural⟩" sentence: the head numbers it (owner, 2026-10-04)').toHaveCount(0);
     await expect(page.locator('.dict-item-filer-name')).toHaveText('Trusty');
     await expect(page.getByRole('link', { name: /View Nostr profile/ })).toHaveAttribute('href', `/user/${TRUSTED_FILER}`);
     await page.getByRole('button', { name: 'Raw Nostr event' }).click();
@@ -1516,11 +1518,21 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
       coord, name: 'V4V Song', plural: 'V4V Songs', description: 'Value-for-value enabled music tracks from Podcast Index', author: OWNER_TA,
       targets: [H], selfDeclared: false, isFirmware: false, firmwareHeader: false, itemCount: 0, sharedCoord: H, gum: 2,
     };
+    // The Items read, as the server answers it: with `match`, only the items with a matching property (trimmed, any case).
     let itemsFail = false;
-    await page.route('**/api/dictionaries/concepts**', (r) => (!new URL(r.request().url()).pathname.endsWith('/items')
-      ? json(r, { success: true, metric: 'gum1', authors: [OWNER, OWNER_TA], entries: [entry], pov: { branch: 'house', cutoff: 0.01 } })
-      : itemsFail ? json(r, { success: false, error: 'scan timed out' }, 500)
-        : json(r, { success: true, items, keptCount: 5, truncated: false, filerCount: 2, totalCount: 5, pov: { branch: 'house', fellBackToHouse: false } })));
+    const itemsAsked = [];
+    await page.route('**/api/dictionaries/concepts**', (r) => {
+      const u = new URL(r.request().url());
+      if (!u.pathname.endsWith('/items')) {
+        return json(r, { success: true, metric: 'gum1', authors: [OWNER, OWNER_TA], entries: [entry], pov: { branch: 'house', cutoff: 0.01 } });
+      }
+      const match = u.searchParams.getAll('match');
+      itemsAsked.push(match);
+      if (itemsFail) return json(r, { success: false, error: 'scan timed out' }, 500);
+      const pairs = match.map((m) => [m.slice(0, m.indexOf(':')), m.slice(m.indexOf(':') + 1).trim().toLowerCase()]);
+      const kept = pairs.length ? items.filter((it) => pairs.some(([n, v]) => (it.properties[n] || '').trim().toLowerCase() === v)) : items;
+      return json(r, { success: true, items: kept, keptCount: kept.length, truncated: false, filerCount: 2, totalCount: 5, pov: { branch: 'house', fellBackToHouse: false } });
+    });
     await page.route('**/api/profiles**', (r) => json(r, { success: true, profiles: { [A]: { name: 'Avi' }, [B]: { name: 'Vinney' } } }));
     await page.route('**/api/strfry/scan**', (r) => {
       const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
@@ -1607,6 +1619,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.getByPlaceholder('Search items').fill('vinney');
     await expect(rows, 'a song is found by any of its filers').toHaveCount(3);
     const heard = audioHosts().length;
+    let asked = itemsAsked.length;
     await rows.nth(0).locator('.dict-items-item-link').click();
     await expect(page.getByRole('heading', { level: 1, name: 'Donde No Llega el Comercio' })).toBeVisible();
     await expect(page.locator('.dict-v4v-artist')).toHaveText('Musica Ancap');
@@ -1625,13 +1638,18 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.locator('.dict-item-filer').filter({ hasText: 'Also filed by' }).getByRole('link', { name: 'Vinney' })).toHaveAttribute('href', `/user/${B}`);
     await expect(page.getByText(/\b(pay|sats|boost|zap)\b/i)).toHaveCount(0);
     expect(audioHosts().length, 'the page\'s player contacts no audio host before play').toBe(heard);
+    expect(itemsAsked.slice(asked), 'the song\'s page asks only for its release and its artist, never the whole list')
+      .toEqual([[`feedGuid:${R1}`, 'artist:Musica Ancap']]);
+    asked = itemsAsked.length;
 
     // A song whose host doesn't answer: the page keeps everything, says so, and links to the file.
     await page.setViewportSize({ width: 1100, height: 600 });
     await release.locator('.dict-items-item-link').click();
     await expect(page.getByRole('heading', { level: 1, name: 'Segunda' })).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.scrollY), 'another song opened from a list starts at its top').toBe(0);
-    await expect(page.getByText('Item 2 in V4V Song')).toBeVisible();
+    await expect(page.getByText('Filed under V4V Song'), 'opened from a list, unnumbered: a number needs every row').toBeVisible();
+    await expect(page.getByText(/^Item \d+ in/)).toHaveCount(0);
+    expect(itemsAsked.length, 'the same release and artist: no new read').toBe(asked);
     await page.locator('audio.dict-v4v-audio').evaluate((a) => a.play().catch(() => null));
     await expect(page.getByText('Couldn’t play this song: its host didn’t answer.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'The song’s file' })).toHaveAttribute('href', 'https://media.example/track/missing.mp3');
@@ -1644,9 +1662,31 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByRole('heading', { level: 1, name: 'Donde No Llega el Comercio' })).toBeVisible();
     await expect(page.getByText('Couldn’t read the entry’s Items (scan timed out), so this page can’t list the release’s other songs or more by the artist.')).toBeVisible();
     await expect(page.getByText('Item 1 in V4V Song')).toBeVisible();
-    await expect(page.getByText(/can’t say where the item stands/)).toHaveCount(0);
+    await expect(page.getByText(/can’t say where the (item|song) stands/)).toHaveCount(0);
     await expect(page.locator('.dict-v4v-list')).toHaveCount(0);
     itemsFail = false;
+
+    // A direct visit to a song: its release's and artist's items only; unnumbered, it is "Filed under".
+    asked = itemsAsked.length;
+    await page.goto(`${entryPath}/items/${idOf(4)}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Tercera' })).toBeVisible();
+    await expect(page.getByText('Filed under V4V Song')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'More by MUSICA ANCAP' }).locator('.dict-items-item-link'))
+      .toHaveText(['Donde No Llega el Comercio', 'Segunda']);
+    expect(itemsAsked.slice(asked), 'never the whole list').toEqual([[`feedGuid:${R2}`, 'artist:MUSICA ANCAP']]);
+    // That read failing: one notice, for what the page can't say and can't list.
+    itemsFail = true;
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Tercera' })).toBeVisible();
+    await expect(page.getByText('Couldn’t read the entry’s Items (scan timed out), so this page can’t say where the song stands in them, or list the release’s other songs or more by the artist.')).toBeVisible();
+    await expect(page.locator('.dict-notice', { hasText: 'Couldn’t read the entry’s Items' })).toHaveCount(1);
+    itemsFail = false;
+    // An item of this DList that isn't a song keeps the generic page, numbered by the whole read as the table numbers it.
+    asked = itemsAsked.length;
+    await page.goto(`${entryPath}/items/${idOf(5)}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Not a song' })).toBeVisible();
+    await expect(page.getByText('Item 4 in V4V Song')).toBeVisible();
+    expect(itemsAsked.slice(asked)).toEqual([[]]);
 
     // Once no player is shown, the page's own referrer policy is back: moving within the app, not reloading.
     await page.locator('.dict-back').click();

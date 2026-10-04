@@ -3,8 +3,8 @@
 **Id:** 2026-10-04-song-page-items-failure-notices
 **Type:** cleanup
 **Opened:** 2026-10-04 (the V4V Songs views, review 2 non-blocking; commit deb7f11 on `staging`)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-04 (V4V Songs follow-up on `staging`)
 
 **What was seen.** Review 2 passed the V4V Songs views and left two small points:
 - **Two notices.** On a direct visit to a song (not opened from a row), a failed Items read shows the page's
@@ -19,3 +19,5 @@
 the lede ("… is one of the …") after the failed read.
 
 **Pointer:** `ui/src/pages/dictionary/Item.jsx` (`readError`, `songListsError`); D43.
+
+**Resolution.** A failed read now gets one notice: the lists' when the page was opened from the Items table, else one sentence for both what the page can't say and what it can't list (D43 checks there is exactly one). The lede half no longer applies: the "is one of the" sentence is gone (ledger row `2026-10-04-generic-item-lede-lowercases-plural`).
