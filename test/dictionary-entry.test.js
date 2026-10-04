@@ -340,7 +340,7 @@ test('E7: every Items row opens its item: /dictionary\'s own page, else the Simp
   const dict = flat(code(src(DICTIONARY_ENTRY_JSX)));
   assert(/itemHref = controlPanelItemPath/.test(entry), 'the control panel entry links to the existing item page by default');
   assert(/<Link to=\{to\} state=\{state\} className="dict-items-item-link">\{it\.name\}<\/Link>/.test(entry), 'the item name is a real link');
-  assert(/if \(e\.target\.closest\('a'\) \|\|/.test(entry) && /navigate\(to, \{ state \}\);/.test(entry), 'and the whole row opens it, leaving the Filed by link alone (E10: and modified clicks)');
+  assert(/if \(e\.target\.closest\('a, button, audio'\) \|\|/.test(entry) && /navigate\(to, \{ state \}\);/.test(entry), 'and the whole row opens it, leaving the Filed by link alone, and a song\'s play button (E10: and modified clicks)');
   assert(/controlPanelItemPath = \(coord, item\) => `\/tapestry\/lists\/items\/\$\{encodeURIComponent\(item\.kind === 39999 && item\.address \? item\.address : item\.id\)\}`/.test(helpers),
     'Simple Lists opens a kind-39999 item by address and anything else by id (itemRouteId)');
   assert(/dictionaryItemPath = \(coord, item\) => `\$\{dictionaryEntryPath\(coord\)\}\/items\/\$\{encodeURIComponent\(item\.address \|\| item\.id\)\}`/.test(helpers), '/dictionary/:coord/items/:item');
@@ -373,8 +373,8 @@ test('E9: the item page says only what the Items list establishes', () => {
     '"filed under" is read off the event\'s z tags, against every concept a known entry names');
   assert(/const complete = Boolean\(items\.data\) && !items\.data\.truncated;/.test(item), 'a capped read is not complete');
   assert(/\.find\(\(it\) => \(it\.address \|\| it\.id\) === key\)/.test(item), 'items are matched by the event\'s own key, however the page was opened');
-  assert(/useConceptItems\(\{ coord, shared: entry\?\.sharedCoord \|\| null, person, povParams, enabled: !passed && Boolean\(entry\) \}\)/.test(item),
-    'a direct visit reads the Items from the active point of view, once the entry is known');
+  assert(/useConceptItems\(\{ coord, shared: entry\?\.sharedCoord \|\| null, person, povParams, enabled: \(!passed \|\| v4vPage\) && Boolean\(entry\) \}\)/.test(item),
+    'a direct visit reads the Items from the active point of view, once the entry is known (a song\'s page, however opened)');
 });
 
 test('E10: a "%" in an item\'s d-tag cannot crash a page, and a modified click on a row is the browser\'s', () => {

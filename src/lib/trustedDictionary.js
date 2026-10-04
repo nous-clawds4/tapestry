@@ -266,19 +266,22 @@ function itemName(ev) {
 /** The most items one read returns; the counts still cover every item. */
 const ITEMS_LIMIT = 1000;
 
-// An item's own words, bounded: its description, and the property tags its header's Item Property Tags
-// (required / optional / recommended) name. A property is any tag but a single-letter (indexed) one and
-// those that name or describe the item; the first of each name counts.
+// An item's own words, bounded: its description, its title, and the property tags its header's Item
+// Property Tags (required / optional / recommended) name. A property is any tag but a single-letter
+// (indexed) one and those that name or describe the item; the first of each name counts. `t` is the one
+// single-letter property: a header that names it in `required` makes it the item's own string key
+// (Content Categories § 5.1), as V4V Songs' track ID is.
 const NOT_PROPERTIES = new Set(['names', 'name', 'title', 'description', 'json', 'alt', 'client']);
 const MAX_ITEM_PROPERTIES = 20;
 const MAX_ITEM_TEXT = 300;
 const textTag = (t) => Array.isArray(t) && typeof t[0] === 'string' && typeof t[1] === 'string' && t[1].trim() !== '';
 
-/** The item's own description tag, trimmed and bounded, else null. */
-function itemDescription(ev) {
-  const t = (ev.tags || []).find((x) => textTag(x) && x[0] === 'description');
+/** The item's own tag of that name (its first non-blank one), trimmed and bounded, else null. */
+function itemText(ev, name) {
+  const t = (ev.tags || []).find((x) => textTag(x) && x[0] === name);
   return t ? t[1].trim().slice(0, MAX_ITEM_TEXT) : null;
 }
+const itemDescription = (ev) => itemText(ev, 'description');
 
 /** The item's property tags as {name: value}: what it carries, for a DList's own page to show. */
 function itemProperties(ev) {
@@ -286,7 +289,7 @@ function itemProperties(ev) {
   let n = 0;
   for (const t of ev.tags || []) {
     if (n >= MAX_ITEM_PROPERTIES) break;
-    if (!textTag(t) || t[0].length < 2 || t[0].length > 64 || NOT_PROPERTIES.has(t[0])) continue;
+    if (!textTag(t) || (t[0].length < 2 && t[0] !== 't') || t[0].length > 64 || NOT_PROPERTIES.has(t[0])) continue;
     if (Object.prototype.hasOwnProperty.call(out, t[0])) continue;
     out[t[0]] = t[1].trim().slice(0, MAX_ITEM_TEXT);
     n += 1;
@@ -329,7 +332,7 @@ const isCurationCopy = (ev) => ev.kind === 39999
  * related lists … treats a copy and its original as one item"): the original
  * stays when its filer is kept, else the copy does. Items are in filing order,
  * oldest first, so an item keeps its number as new ones arrive. Each carries
- * its name, its own description and its property tags (itemProperties). At most
+ * its name, its own title and description, and its property tags (itemProperties). At most
  * `limit` are returned (`truncated` says when more were kept); `filerCount`
  * and `totalCount` (every distinct item before the trust filter) cover all.
  */
@@ -378,6 +381,8 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
       kind: ev.kind,
       author: ev.pubkey,
       name: itemName(ev),
+      // Its own title tag, which `name` may pass over for a names or name tag (a DList's own look reads it).
+      title: itemText(ev, 'title'),
       // As itemCarrier computed them in the scan, else from the event's own tags.
       description: ev.description !== undefined ? ev.description : itemDescription(ev),
       properties: ev.properties !== undefined ? ev.properties : itemProperties(ev),

@@ -10,6 +10,8 @@ import { conceptCurator } from '../../utils/treasureMap';
 import DictIcon from './DictIcon';
 import { GithubItemCell, GithubMark } from '../dictionary/GithubAccount';
 import { githubRows, isGithubAccounts } from '../dictionary/github';
+import { MusicNote, V4vItemCell } from '../dictionary/V4vSong';
+import { isV4vSongs, v4vRows } from '../dictionary/v4v';
 import ResyncPanel from './ResyncPanel';
 import { scan } from './sharedHeader';
 import { wiredTarget } from '@tapestry/concept-header-copy';
@@ -185,9 +187,11 @@ export function ConceptEntryBody({
   const sharedEvent = sharedIsSelf ? header.event : shared.event;
   const items = useConceptItems({ coord, shared: sharedCoord, person, povParams, enabled: settled });
   // A DList with a look of its own (`dlistViews`, /dictionary only), recognised by its shared concept: the
-  // GitHub Accounts DList lists one row per account (githubRows), with its avatar and login.
+  // GitHub Accounts DList lists one row per account (githubRows), with its avatar and login; the V4V Songs
+  // DList, one row per song (v4vRows), with its artwork, a play button, its artist and its duration.
   const headerB = (header.event?.tags || []).filter((t) => t && t[0] === 'b' && typeof t[1] === 'string').map((t) => t[1]);
   const githubList = dlistViews && isGithubAccounts([coord, sharedCoord, ...(entry?.targets || []), ...headerB]);
+  const v4vList = dlistViews && isV4vSongs([coord, sharedCoord, ...(entry?.targets || []), ...headerB]);
   // Strict: a Map no relay could be asked for is unreadable, never "none" (my-assistants ADR 0003 Amendment 1).
   const map = useTreasureMap(person.loading ? null : person.account, { strict: true });
 
@@ -207,7 +211,8 @@ export function ConceptEntryBody({
   const [faqOpen, setFaqOpen] = useState(false);
 
   const all = useMemo(() => (githubList ? githubRows(items.data?.items)
-    : (items.data?.items || []).map((it, i) => ({ ...it, n: i + 1 }))), [items.data, githubList]);
+    : v4vList ? v4vRows(items.data?.items)
+      : (items.data?.items || []).map((it, i) => ({ ...it, n: i + 1 }))), [items.data, githubList, v4vList]);
   const filers = useMemo(() => [...new Set(all.flatMap((it) => it.filers || [it.author]))], [all]);
 
   const profiles = useProfiles([...new Set([author, sharedAuthor, curator?.pubkey, ...filers].filter(Boolean))]);
@@ -227,12 +232,14 @@ export function ConceptEntryBody({
   };
 
   // The keyword matches the item's name and who filed it, as the design's search does; an account, its
-  // login, the filer's description and every filer. A→Z sorts accounts by login.
+  // login, the filer's description and every filer; a song, its title, its artist and every filer. A→Z
+  // sorts accounts by login, songs by title.
   const needle = q.trim().toLowerCase();
-  const label = (it) => (githubList && it.login) || it.name;
+  const label = (it) => (githubList && it.login) || (v4vList && it.song?.title) || it.name;
   const haystack = (it) => (githubList
     ? `${label(it)} ${it.description || ''} ${(it.filers || [it.author]).map(nameOf).join(' ')}`
-    : `${it.name} ${nameOf(it.author)}`);
+    : v4vList && it.song ? `${label(it)} ${it.song.artist || ''} ${(it.filers || [it.author]).map(nameOf).join(' ')}`
+      : `${it.name} ${nameOf(it.author)}`);
   let shown = needle ? all.filter((it) => haystack(it).toLowerCase().includes(needle)) : all;
   if (sort !== 'none') {
     shown = [...shown].sort((a, b) => (sort === 'az' ? 1 : -1) * label(a).localeCompare(label(b), undefined, { numeric: true }));
@@ -301,6 +308,7 @@ export function ConceptEntryBody({
       {notice && <p className="dict-notice dict-notice--ok" role="status">{notice}</p>}
       <div className="dict-entry-titlerow">
         {githubList && <span className="dict-entry-mark" aria-hidden="true"><GithubMark size={30} /></span>}
+        {v4vList && <span className="dict-entry-mark" aria-hidden="true"><MusicNote size={30} /></span>}
         <h1 className="dict-entry-title">{singular}</h1>
         {canEdit && (
           <Link
@@ -395,8 +403,9 @@ export function ConceptEntryBody({
                 key={it.address || it.id} className="dict-items-row dict-items-row--link" role="row"
                 onClick={(e) => {
                   // The row is a convenience for the mouse; the name is the link. A modified click (new tab),
-                  // a click on a link, or the end of a text selection is left to the browser.
-                  if (e.target.closest('a') || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                  // a click on a link, or the end of a text selection is left to the browser, and a button
+                  // in the row (a song's play) does its own job.
+                  if (e.target.closest('a, button, audio') || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
                   if (window.getSelection && String(window.getSelection()).length > 0) return;
                   navigate(to, { state });
                 }}
@@ -404,7 +413,8 @@ export function ConceptEntryBody({
                 <span className="dict-items-n" role="cell">{it.n}</span>
                 <span className="dict-items-item" role="cell">
                   {githubList && it.login ? <GithubItemCell row={it} to={to} state={state} />
-                    : <Link to={to} state={state} className="dict-items-item-link">{it.name}</Link>}
+                    : v4vList && it.song ? <V4vItemCell row={it} to={to} state={state} />
+                      : <Link to={to} state={state} className="dict-items-item-link">{it.name}</Link>}
                 </span>
                 <span role="cell" className="dict-items-by-cell">
                   <Link to={`${profileBase}/${it.author}`} title={npubOf(it.author)} className="dict-items-by">{nameOf(it.author)}</Link>
@@ -447,6 +457,7 @@ export function ConceptEntryBody({
             ? ` ${setAside.toLocaleString()} more filed by people below the verified cutoff ${setAside === 1 ? 'is' : 'are'} not shown.`
             : ''}
           {githubList ? ' Avatars are loaded from GitHub by your browser.' : ''}
+          {v4vList ? ' Cover art is loaded from each song’s host by your browser, and pressing play loads the song from its host.' : ''}
         </p>
       )}
 

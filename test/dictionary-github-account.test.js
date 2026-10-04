@@ -200,8 +200,8 @@ test('S1: the GitHub page is chosen by the shared concept, from the entry or its
 
 test('S2: every other item keeps the generic page', () => {
   const page = flat(code(src(ITEM_JSX)));
-  assert(/\{login \? <GithubAccountHead login=\{login\} gh=\{gh\} subtitle=\{subtitle\} \/> : \( <> <h1 className="dict-entry-title">\{name\}<\/h1>/.test(page),
-    'the GitHub head, else the generic title');
+  assert(/\{login \? <GithubAccountHead login=\{login\} gh=\{gh\} subtitle=\{subtitle\} \/> : song \? <V4vSongHead song=\{song\} subtitle=\{subtitle\} \/> : \( <> <h1 className="dict-entry-title">\{name\}<\/h1>/.test(page),
+    'the GitHub head, else a song\'s (test/dictionary-v4v-song.test.js), else the generic title');
   assert(/\{login && <GithubProfile login=\{login\} gh=\{gh\} \/>\}/.test(page) && /\{login && <GithubRepos login=\{login\} gh=\{gh\} \/>\}/.test(page),
     'the profile and repositories only for a GitHub account');
   assert(/const name = login \|\| \(ev && /.test(page), 'a GitHub item is named by its login, not its d-tag');
@@ -239,8 +239,8 @@ test('S5: the entry page lists the GitHub Accounts DList one row per account, on
 test('S6: the item page numbers a GitHub account by its row, and names its other filers', () => {
   const page = flat(code(src(ITEM_JSX)));
   assert(/: items\.data && key && login \? githubRowOf\(githubRows\(items\.data\.items\), key\)/.test(page), 'its row, on a direct visit');
-  assert(/const others = login && Array\.isArray\(listed\?\.filers\) \? listed\.filers\.filter\(\(p\) => typeof p === 'string' && p !== author\) : \[\];/.test(page),
-    'the row\'s other filers');
+  assert(/const others = \(login \|\| song\) && Array\.isArray\(listed\?\.filers\) \? listed\.filers\.filter\(\(p\) => typeof p === 'string' && p !== author\) : \[\];/.test(page),
+    'the row\'s other filers (an account\'s, or a song\'s)');
   assert(/\{others\.length > 0 && \( <p className="dict-item-filer"> Also filed by/.test(page), 'named in the footer');
 });
 
