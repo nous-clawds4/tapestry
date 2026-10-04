@@ -2716,6 +2716,8 @@ all phases). Each action page leans **Product Team** first, as the `/setup` step
 
 ## 2026-10-03 — The V4V Songs item page and rows in Tapestry's Dictionary, built from its view brief (feature)
 
+**PICKED UP** 2026-10-04 → built directly on `staging`, as the GitHub Accounts views were (fa6d37b, with 1b696ff for the brief; reviewed by a fresh Reviewer: review 1 CHANGES_REQUESTED, answered in deb7f11; review 2 PASS). Record: `docs/DICTIONARY_PAGE_HANDOFF.md` (the 2026-10-04 bullet). The brief's findings: `protocols/drafts/opinionated-views.md` Appendix B § Changes (2026-10-04). Loose ends: ledger rows `2026-10-04-*`.
+
 **Origin:** the Opinionated Views session of 2026-10-03, which wrote `protocols/drafts/opinionated-views.md` and its two view briefs: Appendix A (GitHub Accounts, from Tapestry's build) and Appendix B (V4V Songs, written before any build).
 
 **Raw request (verbatim, 2026-10-03):**
