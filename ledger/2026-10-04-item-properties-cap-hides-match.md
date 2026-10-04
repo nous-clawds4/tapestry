@@ -10,7 +10,7 @@
 order. `match` compares against those properties, so a song whose `feedGuid` or `artist` tag comes after 20 other
 property tags isn't matched by its own release or artist. Its own trusted filing then doesn't come back, and on a direct
 visit with a complete read the page says it is "filed under V4V Song, but not by anyone … community trusts". V4V items
-carry eight properties, so no real item is near the cap; the same cap is behind the GitHub case in ledger row
+carry seven properties (`t`, `artist`, `url`, `duration`, `feedId`, `feedGuid`, `artwork`), so no real item is near the cap; the same cap is behind the GitHub case in ledger row
 `2026-10-03-github-login-rule-edge-cases`.
 
 **Fix shape.** Keep the properties a header's Item Property Tags declare (or the names a `match` asks for) outside the

@@ -1697,6 +1697,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.locator('.dict-v4v-list')).toHaveCount(0);
     await expect(page.getByText(/These lists show/)).toHaveCount(0);
     expect(itemsAsked.slice(asked), 'its own url, never an empty match').toEqual([['url:https://media.example/track/bare.mp3']]);
+    await expect(page.getByText(/not by anyone .* community trusts/), 'its own trusted filing came back through its url').toHaveCount(0);
 
     // Once no player is shown, the page's own referrer policy is back: moving within the app, not reloading.
     await page.locator('.dict-back').click();
