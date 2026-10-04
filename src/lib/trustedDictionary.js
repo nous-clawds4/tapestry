@@ -269,8 +269,8 @@ const ITEMS_LIMIT = 1000;
 // An item's own words, bounded: its description, its title, and the property tags its header's Item
 // Property Tags (required / optional / recommended) name. A property is any tag but a single-letter
 // (indexed) one and those that name or describe the item; the first of each name counts. `t` is the one
-// single-letter property: a header that names it in `required` makes it the item's own string key
-// (Content Categories § 5.1), as V4V Songs' track ID is.
+// single-letter tag kept, on every item: on most events it is a hashtag, but a header that names it in
+// `required` makes it the item's own string key (Content Categories § 5.1), as V4V Songs' track ID is.
 const NOT_PROPERTIES = new Set(['names', 'name', 'title', 'description', 'json', 'alt', 'client']);
 const MAX_ITEM_PROPERTIES = 20;
 const MAX_ITEM_TEXT = 300;

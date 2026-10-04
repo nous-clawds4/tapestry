@@ -1516,9 +1516,11 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
       coord, name: 'V4V Song', plural: 'V4V Songs', description: 'Value-for-value enabled music tracks from Podcast Index', author: OWNER_TA,
       targets: [H], selfDeclared: false, isFirmware: false, firmwareHeader: false, itemCount: 0, sharedCoord: H, gum: 2,
     };
-    await page.route('**/api/dictionaries/concepts**', (r) => (new URL(r.request().url()).pathname.endsWith('/items')
-      ? json(r, { success: true, items, keptCount: 5, truncated: false, filerCount: 2, totalCount: 5, pov: { branch: 'house', fellBackToHouse: false } })
-      : json(r, { success: true, metric: 'gum1', authors: [OWNER, OWNER_TA], entries: [entry], pov: { branch: 'house', cutoff: 0.01 } })));
+    let itemsFail = false;
+    await page.route('**/api/dictionaries/concepts**', (r) => (!new URL(r.request().url()).pathname.endsWith('/items')
+      ? json(r, { success: true, metric: 'gum1', authors: [OWNER, OWNER_TA], entries: [entry], pov: { branch: 'house', cutoff: 0.01 } })
+      : itemsFail ? json(r, { success: false, error: 'scan timed out' }, 500)
+        : json(r, { success: true, items, keptCount: 5, truncated: false, filerCount: 2, totalCount: 5, pov: { branch: 'house', fellBackToHouse: false } })));
     await page.route('**/api/profiles**', (r) => json(r, { success: true, profiles: { [A]: { name: 'Avi' }, [B]: { name: 'Vinney' } } }));
     await page.route('**/api/strfry/scan**', (r) => {
       const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
@@ -1604,6 +1606,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.getByRole('button', { name: /Search & sort/ }).click();
     await page.getByPlaceholder('Search items').fill('vinney');
     await expect(rows, 'a song is found by any of its filers').toHaveCount(3);
+    const heard = audioHosts().length;
     await rows.nth(0).locator('.dict-items-item-link').click();
     await expect(page.getByRole('heading', { level: 1, name: 'Donde No Llega el Comercio' })).toBeVisible();
     await expect(page.locator('.dict-v4v-artist')).toHaveText('Musica Ancap');
@@ -1621,6 +1624,7 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.locator('.dict-item-filer-name')).toHaveText('Avi');
     await expect(page.locator('.dict-item-filer').filter({ hasText: 'Also filed by' }).getByRole('link', { name: 'Vinney' })).toHaveAttribute('href', `/user/${B}`);
     await expect(page.getByText(/\b(pay|sats|boost|zap)\b/i)).toHaveCount(0);
+    expect(audioHosts().length, 'the page\'s player contacts no audio host before play').toBe(heard);
 
     // A song whose host doesn't answer: the page keeps everything, says so, and links to the file.
     await page.setViewportSize({ width: 1100, height: 600 });
@@ -1631,6 +1635,18 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await page.locator('audio.dict-v4v-audio').evaluate((a) => a.play().catch(() => null));
     await expect(page.getByText('Couldn’t play this song: its host didn’t answer.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'The song’s file' })).toHaveAttribute('href', 'https://media.example/track/missing.mp3');
+
+    // Opened from a row whose Items read then fails: the row's place stands, and the lists say what failed.
+    await page.locator('.dict-back').click();
+    await expect(rows.first()).toBeVisible();
+    itemsFail = true;
+    await rows.nth(0).locator('.dict-items-item-link').click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Donde No Llega el Comercio' })).toBeVisible();
+    await expect(page.getByText('Couldn’t read the entry’s Items (scan timed out), so this page can’t list the release’s other songs or more by the artist.')).toBeVisible();
+    await expect(page.getByText('Item 1 in V4V Song')).toBeVisible();
+    await expect(page.getByText(/can’t say where the item stands/)).toHaveCount(0);
+    await expect(page.locator('.dict-v4v-list')).toHaveCount(0);
+    itemsFail = false;
 
     // Once no player is shown, the page's own referrer policy is back: moving within the app, not reloading.
     await page.locator('.dict-back').click();

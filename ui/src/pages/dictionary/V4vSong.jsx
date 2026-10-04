@@ -227,12 +227,14 @@ function SongList({ id, title, rows, linkFor }) {
 
 /**
  * The release's other songs, more by the artist, and the release on Podcast Index. The lists come from
- * the Items read (relatedSongs), never beyond it; `limit` says so when that read stopped short.
+ * the Items read (relatedSongs), never beyond it; `limit` says so when that read stopped short, and
+ * `error` when it failed.
  */
-export function V4vSongLists({ song, related, linkFor, limit }) {
+export function V4vSongLists({ song, related, linkFor, limit, error }) {
   const release = podcastIndexUrl(song.feedId);
   return (
     <div className="dict-v4v-more">
+      {error && <p className="dict-notice">{error}</p>}
       {related && <SongList key={`release-${song.url}`} id="dict-v4v-release" title="From this release" rows={related.release} linkFor={linkFor} />}
       {related && song.artist && (
         <SongList key={`artist-${song.url}`} id="dict-v4v-artist" title={`More by ${song.artist}`} rows={related.artist} linkFor={linkFor} />

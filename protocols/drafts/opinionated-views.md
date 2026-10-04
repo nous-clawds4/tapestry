@@ -444,7 +444,7 @@ Both come from the active point of view's read, like the Items table. They never
 1. **Head.**
    - The artwork, large and square.
    - The title as the heading, with the artist beneath.
-   - "Item N in V4V Songs".
+   - "Item N in ⟨concept⟩", the concept's name as the platform shows it (Tapestry: "Item 1 in V4V Song").
    - The duration.
 2. **Player.**
    - Play / pause, a seek bar, and the elapsed and total time. A platform's native audio controls are enough.
@@ -488,7 +488,8 @@ Both come from the active point of view's read, like the Items table. They never
 |---|---|
 | no `title`, or a `url` that isn't `https://` | the default card (§ 2.1) |
 | the audio fails to load or play | "Couldn't play this song: its host didn't answer." Keep the rest of the page, plus a plain link to the file |
-| a row's song fails to load or play | the play button becomes a failure mark, named and titled "Couldn't play this song: its host didn't answer."; pressing it tries again |
+| a row's song fails to load or play | the play button becomes a failure mark, titled "Couldn't play this song: its host didn't answer." and named the same, plus "Try ⟨title⟩ again"; pressing it tries again |
+| the Items read fails | the page keeps what it has, and says the lists can't be shown: "Couldn't read the entry's Items (⟨reason⟩), so this page can't list the release's other songs or more by the artist." |
 | the artwork fails to load | a music-note placeholder, in the same square |
 | `duration` isn't a whole number | leave the duration out; the player shows the file's own length once it loads |
 | the list read stopped short | the page's lists say how far they reach (Sources) |
@@ -520,6 +521,7 @@ Read, don't run. Tapestry (staging, 2026-10-04) built the `page` and the `row`; 
 - `ui/src/pages/dictionary/v4v.js`: the pure rules (recognising H, each field's check, the duration, one row per song, the page's two lists).
 - `V4vSong.jsx`: the head, the player, the lists and the row; one song at a time; the Media Session; the referrer policy while a player is shown.
 - `Item.jsx`: choosing the view. `ui/src/pages/dictionaries/ConceptEntry.jsx`: the Items table's rows.
+- Not from this brief: under the head, Tapestry keeps its generic item page's sentence about where the item stands ("⟨title⟩ is one of the ⟨plural⟩ … filed under ⟨concept⟩"), since V4V items carry no `description` to show there.
 - `src/lib/trustedDictionary.js` (`itemProperties`, `trustedItems`): the list read, carrying `t` and `title`.
 - Tests: `test/dictionary-v4v-song.test.js`; the browser test D43 in `tests/brainstorm/dictionary-concepts.spec.js`.
 
@@ -535,3 +537,4 @@ Read, don't run. Tapestry (staging, 2026-10-04) built the `page` and the `row`; 
   6. **The `row`:** play plays in place, the button's accessible names, its failure, "+N more", search and sort, and the note under the table (Surfaces, Failures, Privacy and safety).
   7. **The referrer policy in a single-page app** (Privacy and safety).
   8. **Smaller points:** the music note's source and where it shows (Idiom); `preload` is a hint (Sources); clearing the Media Session (Surfaces); H's size (Category).
+  9. **What the head says and what fails** (after review): the head's line is "Item N in ⟨concept⟩", as Appendix A's is, not a fixed "V4V Songs"; a failed row's button name ends "Try ⟨title⟩ again"; a failed Items read is a failure of its own (Surfaces, Failures).

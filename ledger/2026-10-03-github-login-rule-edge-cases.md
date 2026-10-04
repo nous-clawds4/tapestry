@@ -16,8 +16,14 @@ still split them; each side then shows the plain page, nothing worse:
 Also cosmetic: once the Items read is truncated (over 1,000 filings), "No items match … among the first N" counts
 merged rows, not filings (`ui/src/pages/dictionaries/ConceptEntry.jsx`, the Items' empty-search message).
 
+Also (seen 2026-10-04, the V4V Songs review): on a direct visit, `Item.jsx` numbers an item by `githubRows` only when
+the item has a login; an item without one is numbered by its raw index, while the table numbers it by `githubRows`, so
+once any account above it has merged filings the two numbers differ. The V4V branch tests the page's concept
+(`v4vPage`), not the item, and doesn't have this.
+
 **Fix shape.** `githubLogin` skips blank and non-string values as `itemProperties` does; read `github-username`
 outside the 20-property cap (or raise the cap for names a header's Item Property Tags declare). Count filings in the
-truncated empty-search sentence.
+truncated empty-search sentence. Number by `githubRows` whenever the page is the GitHub Accounts DList's
+(`isGithubAccounts(pageConcepts)`), login or not.
 
 **Pointer:** `docs/DICTIONARY_PAGE_HANDOFF.md` (the 2026-10-03 GitHub Accounts bullet); `test/dictionary-github-account.test.js` G3, G10.

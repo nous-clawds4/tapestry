@@ -188,7 +188,9 @@ test('S1: the page is chosen by the shared concept, and reads the Items for its 
   assert(/enabled: \(!passed \|\| v4vPage\) && Boolean\(entry\)/.test(page), 'the Items read, which the release and artist lists come from');
   assert(/const song = !v4vPage \? null : ev \? songOf\(ev\) : passed\?\.item\?\.song \|\| null;/.test(page),
     'a song only on the V4V Songs DList: the event\'s, or until it arrives, the row\'s it was opened from');
-  assert(/items\.data && key && song \? v4vRowOf\(songRows, key\)/.test(page), 'numbered by its row on a direct visit');
+  assert(/items\.data && key && v4vPage \? v4vRowOf\(songRows, key\)/.test(page), 'numbered by its row on a direct visit, a song or not, as the table numbers it');
+  assert(/: items\.error && !passed \? `Couldn’t read the entry’s Items/.test(page), 'opened from a row, a failed Items read doesn\'t unsay the row\'s place');
+  assert(/error=\{songListsError\}/.test(page), 'the lists say when that read failed');
 });
 
 test('S2: nothing loads before play, never autoplays, and one song plays at a time', () => {
@@ -233,8 +235,9 @@ test('S5: the page shows the head, the player, the release, more by the artist, 
 });
 
 test('S6: playback only: nothing says or shows that playing pays anyone', () => {
-  const view = code(src(V4V_JSX));
-  assert(!/\b(pay|pays|paid|sats?|boost|zap|lightning|webln)\b|⚡/i.test(view), 'no payment words or lightning mark in the views');
+  for (const file of [V4V_JSX, V4V_JS, ITEM_JSX, ENTRY_JSX]) {
+    assert(!/\b(pay|pays|paid|sats?|boost|zap|lightning|webln)\b|⚡/i.test(code(src(file))), `no payment words or lightning mark: ${path.relative(ROOT, file)}`);
+  }
 });
 
 // ═══ runner ══════════════════════════════════════════════════════════════════

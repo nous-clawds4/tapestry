@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigationType, useParams } from 'react-router-dom';
 import DictionaryShell from './DictionaryShell';
 import { GithubAccountHead, GithubProfile, GithubRepos } from './GithubAccount';
 import { githubLogin, githubRowOf, githubRows, isGithubAccounts, normalizeLogin } from './github';
@@ -89,12 +89,14 @@ export default function DictionaryItemPage() {
   const entry = passed?.entry || (dict.error ? null : (dict.data?.entries || []).find((e) => e.coord === coord)) || null;
   const header = useHeaderEvent(entry ? null : coord);
   const itemEvent = useItemEvent(ref);
-  // A song's lists open other items in this same page: each of those starts at its top.
+  // A song's lists open other items in this same page: each of those starts at its top (Back and Forward
+  // are left to the browser).
+  const navigationType = useNavigationType();
   const shownRef = useRef(null);
   useEffect(() => {
-    if (shownRef.current !== null && shownRef.current !== ref) window.scrollTo(0, 0);
+    if (shownRef.current !== null && shownRef.current !== ref && navigationType !== 'POP') window.scrollTo(0, 0);
     shownRef.current = ref;
-  }, [ref]);
+  }, [ref, navigationType]);
   // The concepts this page is about: its header, the shared concept that header points to, and its b targets.
   const pageConcepts = [coord, entry?.sharedCoord, ...(entry?.targets || []), ...bTargets(header.event)].filter(Boolean);
   const v4vPage = isV4vSongs(pageConcepts);
@@ -114,7 +116,7 @@ export default function DictionaryItemPage() {
   // A GitHub account's number is its row's in the entry's Items, where its filings are one row (githubRows).
   const listed = passed ? passed.item
     : items.data && key && login ? githubRowOf(githubRows(items.data.items), key)
-      : items.data && key && song ? v4vRowOf(songRows, key)
+      : items.data && key && v4vPage ? v4vRowOf(songRows, key)
         : (items.data && key ? (items.data.items || []).map((it, i) => ({ ...it, n: i + 1 })).find((it) => (it.address || it.id) === key) : null) || null;
   const author = ev?.pubkey || passed?.item?.author || null;
   // Everyone else who filed the same account or song (its row's other filers).
@@ -141,9 +143,14 @@ export default function DictionaryItemPage() {
   const concepts = [coord, entry?.sharedCoord].filter(Boolean);
   const filedHere = ev && entry ? (ev.tags || []).some((t) => t && t[0] === 'z' && concepts.includes(t[1])) : null;
   const complete = Boolean(items.data) && !items.data.truncated;
+  // Opened from a row, the page already knows where the item stands; a song's page reads the Items anyway,
+  // for its lists, and a failure of that read is said there.
   const readError = dict.error ? `Couldn’t read ${whose} Dictionary (${dict.error}), so this page can’t say where the item stands in it.`
-    : items.error ? `Couldn’t read the entry’s Items (${items.error}), so this page can’t say where the item stands in them.`
+    : items.error && !passed ? `Couldn’t read the entry’s Items (${items.error}), so this page can’t say where the item stands in them.`
       : null;
+  const songListsError = items.error
+    ? `Couldn’t read the entry’s Items (${items.error}), so this page can’t list the release’s other songs or more by the artist.`
+    : null;
   const notInDictionary = !passed && !dict.error && dict.data !== null && !entry;
   const filer = author === person.assistant ? `${whose} Assistant` : person.signedIn ? 'you' : 'the owner';
 
@@ -181,7 +188,7 @@ export default function DictionaryItemPage() {
     state: { item: row, entry, metric: passed?.metric, pov: passed?.pov, listHref: passed?.listHref, entryHref: passed?.entryHref },
   });
   const songLimit = items.data?.truncated
-    ? `Songs from this release and by this artist are found among the first ${(items.data.items || []).length.toLocaleString()} of the ${items.data.keptCount.toLocaleString()} Items.`
+    ? `Songs from this release and by this artist are found among the first ${(items.data.items || []).length.toLocaleString()} of the ${items.data.keptCount.toLocaleString()} items.`
     : null;
 
   return (
@@ -205,7 +212,7 @@ export default function DictionaryItemPage() {
         {login && <GithubProfile login={login} gh={gh} />}
         {login && <GithubRepos login={login} gh={gh} />}
         {song && <V4vPlayer key={song.url} song={song} />}
-        {song && <V4vSongLists song={song} related={related} linkFor={linkFor} limit={songLimit} />}
+        {song && <V4vSongLists song={song} related={related} linkFor={linkFor} limit={songLimit} error={songListsError} />}
 
         {/* The item's Nostr record, set apart and quiet: who filed it, and the raw event. */}
         <footer className="dict-item-foot">
