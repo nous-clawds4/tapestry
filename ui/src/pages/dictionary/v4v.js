@@ -100,11 +100,13 @@ export function songOfItem(it) {
 
 /**
  * What a song's page asks the Items read for (its `match`): the filings of its release and of its artist,
- * never the whole list. The answer holds the page's two lists, the song's other filings, and its own.
+ * never the whole list. The answer holds the page's two lists, the song's other filings, and its own. A
+ * song with neither (anyone may file one) asks for its own `url`, so its own filing still comes back.
  */
 export function songMatch(song) {
   if (!song) return [];
-  return [song.feedGuid && `feedGuid:${song.feedGuid}`, song.artist && `artist:${song.artist}`].filter(Boolean);
+  const pairs = [song.feedGuid && `feedGuid:${song.feedGuid}`, song.artist && `artist:${song.artist}`].filter(Boolean);
+  return pairs.length ? pairs : [`url:${song.url}`];
 }
 
 /** One song's identity: its release's feed GUID and its track ID, the pair Podcasting 2.0 names a track by. Null without both. */

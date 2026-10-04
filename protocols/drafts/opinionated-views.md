@@ -425,7 +425,7 @@ Where an item repeats a tag, read its first non-blank value, as § 2.1 does. A *
 
 Both come from the active point of view's read, like the Items table, and never search beyond it.
 
-- **Ask for these items only.** Read the items whose `feedGuid` or `artist` matches the song's, from that read: never the whole list. One deployment's list is 22,556 items, and its first 1,000 alone are 620 KB. The same answer says who else filed the song (its other filings share its `feedGuid`), and whether its own filing is among the trusted ones.
+- **Ask for these items only.** Read the items whose `feedGuid` or `artist` matches the song's, from that read: never the whole list. One deployment's list is 22,556 items, and its first 1,000 alone are 620 KB. The same answer says who else filed the song (its other filings share its `feedGuid`), and whether its own filing is among the trusted ones. A song with neither field (anyone may file one) asks for the items with its own `url`: it has no lists, but its own filing still comes back. Never ask with nothing to match, which is the whole list again.
 - **In the Items' order** (§ 5, rule 1). Show ten of each, then the rest on request: one artist can have hundreds (that deployment's first 1,000 V4V Songs held 173 by one artist).
 - **When the read stops short.** If even the matching read is capped, the lists cover only what it returned, and the page says so: "These lists show the first ⟨1,000⟩ of the ⟨1,204⟩ items from this release and by this artist."
 
@@ -490,7 +490,7 @@ Both come from the active point of view's read, like the Items table, and never 
 | no `title`, or a `url` that isn't `https://` | the default card (§ 2.1) |
 | the audio fails to load or play | "Couldn't play this song: its host didn't answer." Keep the rest of the page, plus a plain link to the file |
 | a row's song fails to load or play | the play button becomes a failure mark, titled "Couldn't play this song: its host didn't answer." and named the same, plus "Try ⟨title⟩ again"; pressing it tries again |
-| the matching read fails | one notice. Opened from the Items table, the page still has its place: "Couldn't read the entry's Items (⟨reason⟩), so this page can't list the release's other songs or more by the artist." Otherwise: "… so this page can't say where the song stands in them, or list the release's other songs or more by the artist." |
+| the matching read fails | one notice. Opened from a row (the Items table's, or the page's own lists'), the page still knows the song is in the Items: "Couldn't read the entry's Items (⟨reason⟩), so this page can't list the release's other songs or more by the artist." Otherwise: "… so this page can't say where the song stands in them, or list the release's other songs or more by the artist." |
 | the artwork fails to load | a music-note placeholder, in the same square |
 | `duration` isn't a whole number | leave the duration out; the player shows the file's own length once it loads |
 | the matching read stopped short | the page's lists say how far they reach (Sources) |
@@ -538,4 +538,4 @@ Read, don't run. Tapestry (staging, 2026-10-04) built the `page` and the `row`; 
   7. **The referrer policy in a single-page app** (Privacy and safety).
   8. **Smaller points:** the music note's source and where it shows (Idiom); `preload` is a hint (Sources); clearing the Media Session (Surfaces); H's size (Category).
   9. **What the head says and what fails** (after review): the head's line is "Item N in ⟨concept⟩", as Appendix A's is, not a fixed "V4V Songs"; a failed row's button name ends "Try ⟨title⟩ again"; a failed Items read is a failure of its own (Surfaces, Failures).
-  10. **Ask only for the songs the page shows** (the owner, after using it): a song's page reads the items of its release and its artist, never the whole list, which also says who else filed it. So it numbers a song only when it already has the number, from the Items table's row, and otherwise says "Filed under ⟨concept⟩". A failed read gets one notice (Sources, Surfaces, Failures).
+  10. **Ask only for the songs the page shows** (the owner, after using it): a song's page reads the items of its release and its artist, never the whole list, which also says who else filed it. So it numbers a song only when it already has the number, from the Items table's row, and otherwise says "Filed under ⟨concept⟩". A failed read gets one notice (Sources, Surfaces, Failures). After review: a song with neither `feedGuid` nor `artist` asks for its own `url`, never for nothing (Sources).

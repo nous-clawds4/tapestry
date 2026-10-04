@@ -23,7 +23,8 @@ import {
  * the row arrives in router state (the item, its number, the entry), so nothing needs reading but the
  * event. A direct visit reads the person's dictionary for the entry, then the entry's Items for the
  * number, from the active point of view. The page says only what those reads establish: that the item
- * isn't trusted needs the whole Items read, the entry known, and the event filed under the concept.
+ * isn't trusted needs a complete read of the Items it could be among (the whole Items, or for a song, its
+ * release's and artist's), the entry known, and the event filed under the concept.
  *
  * Some DLists have a page of their own around the same reads, each recognised by its shared concept,
  * whichever instance's header the page is on: an item of the GitHub Accounts DList shows the account as
@@ -113,13 +114,14 @@ export default function DictionaryItemPage() {
   // A song's page never reads them all: it waits for its event, and a song asks only for what it shows (below).
   const items = useConceptItems({
     coord, shared: entry?.sharedCoord || null, person, povParams,
-    enabled: !passed && Boolean(entry) && (!v4vPage || (itemEvent.done && !song)),
+    enabled: !passed && Boolean(entry) && (!v4vPage || (itemEvent.done && ev && !song)),
   });
   // A song's page reads the filings of its release and of its artist (`match`): its two lists, who else filed
   // the song, and whether its own filing is trusted. Its number, which needs every row, comes only from the
   // Items table's row it was opened from.
+  const songPairs = songMatch(song);
   const songItems = useConceptItems({
-    coord, shared: entry?.sharedCoord || null, person, povParams, match: songMatch(song), enabled: Boolean(entry && song),
+    coord, shared: entry?.sharedCoord || null, person, povParams, match: songPairs, enabled: Boolean(entry && song) && songPairs.length > 0,
   });
   const read = song ? songItems : items;
   const songRows = songItems.data ? v4vRows(songItems.data.items) : null;

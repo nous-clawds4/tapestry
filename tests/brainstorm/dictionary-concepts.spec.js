@@ -1509,6 +1509,8 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
         properties: { t, artist, url, duration, feedId: guid === R1 ? '7769268' : '7769267', feedGuid: guid, artwork },
       })),
       { id: idOf(5), address: null, kind: 9999, author: B, name: 'Not a song', title: 'Not a song', createdAt: 5, description: null, properties: {} },
+      // A song filed with neither a release nor an artist: anyone may publish one.
+      { id: idOf(6), address: null, kind: 9999, author: A, name: 'Bare', title: 'Bare', createdAt: 6, description: null, properties: { url: 'https://media.example/track/bare.mp3' } },
     ];
     const eventOf = (it) => ({
       id: it.id, kind: 9999, pubkey: it.author, created_at: it.createdAt, content: '',
@@ -1578,9 +1580,9 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByRole('heading', { level: 1, name: 'V4V Song' })).toBeVisible();
     await expect(page.locator('.dict-entry-titlerow .dict-entry-mark')).toBeVisible();
     const card = page.locator('.dict-items');
-    await expect(card.locator('.dict-items-count')).toHaveText('4 items');
+    await expect(card.locator('.dict-items-count')).toHaveText('5 items');
     const rows = card.locator('.dict-items-row--link');
-    await expect(rows).toHaveCount(4);
+    await expect(rows).toHaveCount(5);
     await expect(rows.nth(0).locator('.dict-items-item-link'), 'two filings of one song are one row').toHaveText('Donde No Llega el Comercio');
     await expect(rows.nth(0).locator('.dict-v4v-item-artist')).toHaveText('Musica Ancap');
     await expect(rows.nth(0).locator('.dict-v4v-item-time')).toHaveText('3:39');
@@ -1687,6 +1689,14 @@ test.describe('/dictionary — the same dictionary in the design’s styling', (
     await expect(page.getByRole('heading', { level: 1, name: 'Not a song' })).toBeVisible();
     await expect(page.getByText('Item 4 in V4V Song')).toBeVisible();
     expect(itemsAsked.slice(asked)).toEqual([[]]);
+    // A song with neither a release nor an artist asks for its own url: still never the whole list.
+    asked = itemsAsked.length;
+    await page.goto(`${entryPath}/items/${idOf(6)}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Bare' })).toBeVisible();
+    await expect(page.getByText('Filed under V4V Song')).toBeVisible();
+    await expect(page.locator('.dict-v4v-list')).toHaveCount(0);
+    await expect(page.getByText(/These lists show/)).toHaveCount(0);
+    expect(itemsAsked.slice(asked), 'its own url, never an empty match').toEqual([['url:https://media.example/track/bare.mp3']]);
 
     // Once no player is shown, the page's own referrer policy is back: moving within the app, not reloading.
     await page.locator('.dict-back').click();

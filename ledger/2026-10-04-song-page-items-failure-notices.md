@@ -20,4 +20,4 @@ the lede ("… is one of the …") after the failed read.
 
 **Pointer:** `ui/src/pages/dictionary/Item.jsx` (`readError`, `songListsError`); D43.
 
-**Resolution.** A failed read now gets one notice: the lists' when the page was opened from the Items table, else one sentence for both what the page can't say and what it can't list (D43 checks there is exactly one). The lede half no longer applies: the "is one of the" sentence is gone (ledger row `2026-10-04-generic-item-lede-lowercases-plural`).
+**Resolution.** A failed read now gets one notice: the lists' when the page was opened from a row (the Items table's or the page's lists'), else one sentence for both what the page can't say and what it can't list (D43 checks there is exactly one). The lede half no longer applies: the "is one of the" sentence is gone (ledger row `2026-10-04-generic-item-lede-lowercases-plural`).

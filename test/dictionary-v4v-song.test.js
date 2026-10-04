@@ -212,6 +212,12 @@ test('V10: the server checks `match`: a property name and a value, at most four'
   eq(parseItemMatch(['feedGuid: ABC-1 ', 'artist:Musica Ancap']), [['feedGuid', 'abc-1'], ['artist', 'musica ancap']], 'trimmed and lower-cased');
   eq(parseItemMatch('t:4d33'), [['t', '4d33']], 't is a property; one value may come alone');
   eq(parseItemMatch(`artist:${'x'.repeat(400)}`)[0][1].length, 300, 'bounded as the properties are');
+  const long = `${'x'.repeat(299)} and the rest`;
+  eq(parseItemMatch(`artist:${long}`)[0][1], 'x'.repeat(299), 'and trimmed again after the cut, as a property is compared');
+  const { trustedItems, itemCarrier } = lib();
+  const ev = itemCarrier({ id: 'f'.repeat(64), kind: 9999, pubkey: 'a'.repeat(64), created_at: 1, content: '', tags: [['z', H], ['artist', long]] });
+  eq(trustedItems({ zCarriers: [ev], coords: [H], qualifying: ['a'.repeat(64)], match: parseItemMatch(`artist:${long}`) }).items.length, 1,
+    'so an artist cut at a space still finds its own filing');
   for (const bad of ['artist', 'artist:', 'artist:  ', ':x', 'title:x', 'description:x', 'e:x', 'has space:x', ['a1:x', 'b1:x', 'c1:x', 'd1:x', 'e1:x'], [42]]) {
     assert(parseItemMatch(bad) instanceof Error, `refused: ${JSON.stringify(bad)}`);
   }
@@ -221,7 +227,7 @@ test('V11: a song asks for its release and its artist', async () => {
   const { songMatch, songOf } = await v4v();
   eq(songMatch(songOf(sample())), [`feedGuid:${GUID}`, 'artist:Musica Ancap'], 'both, when it has both');
   eq(songMatch(songOf({ tags: [['title', 'x'], ['url', URL_], ['artist', 'Solo']] })), ['artist:Solo'], 'what it has');
-  eq(songMatch(songOf({ tags: [['title', 'x'], ['url', URL_]] })), [], 'nothing to ask for');
+  eq(songMatch(songOf({ tags: [['title', 'x'], ['url', URL_]] })), [`url:${URL_}`], 'neither: its own url, so its own filing comes back, never the whole list');
   eq(songMatch(null), [], 'no song');
 });
 
@@ -230,9 +236,10 @@ test('S1: the page is chosen by the shared concept; a song reads only its releas
   assert(/const v4vPage = isV4vSongs\(pageConcepts\);/.test(page), 'recognised by its shared concept, as the GitHub page is');
   assert(/const song = !v4vPage \? null : ev \? songOf\(ev\) : passed\?\.item\?\.song \|\| null;/.test(page),
     'a song only on the V4V Songs DList: the event\'s, or until it arrives, the row\'s it was opened from');
-  assert(/enabled: !passed && Boolean\(entry\) && \(!v4vPage \|\| \(itemEvent\.done && !song\)\),/.test(page),
-    'the whole Items: a direct visit only, and on this DList only once the event is known not to be a song');
-  assert(/match: songMatch\(song\), enabled: Boolean\(entry && song\),/.test(page), 'a song asks for its release and its artist only');
+  assert(/enabled: !passed && Boolean\(entry\) && \(!v4vPage \|\| \(itemEvent\.done && ev && !song\)\),/.test(page),
+    'the whole Items: a direct visit only, and on this DList only once the event is known, and known not to be a song');
+  assert(/const songPairs = songMatch\(song\);/.test(page) && /match: songPairs, enabled: Boolean\(entry && song\) && songPairs\.length > 0,/.test(page),
+    'a song asks for its release and its artist only, and never with no match (which would be the whole list)');
   assert(/: song \? \(songRow && \{ \.\.\.songRow, n: null \}\)/.test(page), 'that read\'s rows are not the table\'s, so they give no number');
   assert(/state: \{ item: \{ \.\.\.row, n: null \},/.test(page), 'nor do the lists\' rows passed on');
   assert(/const subtitle = listed\?\.n \? `Item \$\{listed\.n\} in \$\{concept\}` : listed \|\| filedHere \? `Filed under \$\{concept\}` : null;/.test(page),

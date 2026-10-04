@@ -10,8 +10,8 @@
  *                                              doc comment, further down)
  * recognitionByConcept({sharedCoords, pointers, ownersOf, exclude, influence})
  *   → Map coord → { gum2, recognizedBy, recognizers } — GUM₂ (its own doc comment)
- * trustedItems({zCarriers, coords, qualifying, own, limit})
- *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items
+ * trustedItems({zCarriers, coords, qualifying, own, limit, match})
+ *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items (or, with match, the matching ones)
  * itemCarrier(ev)                           — a z-carrier as the Items read's scan keeps it
  * parseItemMatch(raw)                        — the Items read's `match` parameter, checked
  * usageByHeader(…)                          — the counting rule both share
@@ -320,7 +320,8 @@ function parseItemMatch(raw) {
     if (!(name === 't' || MATCH_NAME.test(name)) || NOT_PROPERTIES.has(name) || !value) {
       return new Error('match must be name:value, the name an item property tag (not a naming tag) and the value not blank');
     }
-    out.push([name, value.slice(0, MAX_ITEM_TEXT).toLowerCase()]);
+    // Bounded and trimmed again, as a property is (trimmed, bounded) and then compared (trimmed).
+    out.push([name, value.slice(0, MAX_ITEM_TEXT).trim().toLowerCase()]);
   }
   return out;
 }
