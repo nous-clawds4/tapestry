@@ -1,10 +1,10 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
-> **Sources:** the Tapestry Dictionary's GitHub Accounts views (staging, 2026-10-03: `ui/src/pages/dictionary/github.js`, `useGithubAccount.js`, `GithubAccount.jsx`, `Item.jsx`; design record `docs/DICTIONARY_PAGE_HANDOFF.md`, the 2026-10-03 bullet); the owner's notes to the Brainstorm team (2026-10-03); the V4V Songs community header and three sample items, supplied by the owner (Appendix B); [Content Categories](./content-categories.md); [Shared Concepts](./shared-concepts.md) § Declared affiliation; NIP-89 (prior art).
+> **Sources:** the Tapestry Dictionary's GitHub Accounts views (staging, 2026-10-03: `ui/src/pages/dictionary/github.js`, `useGithubAccount.js`, `GithubAccount.jsx`, `Item.jsx`; design record `docs/DICTIONARY_PAGE_HANDOFF.md`, the 2026-10-03 bullet); the owner's notes to the Brainstorm team (2026-10-03); the V4V Songs community header and three sample items, supplied by the owner (Appendix B), and Tapestry's build from it (staging, 2026-10-04); [Content Categories](./content-categories.md); [Shared Concepts](./shared-concepts.md) § Declared affiliation; NIP-89 (prior art).
 > **Why this exists:** Brainstorm is about to show DList items in its search results, starting with GitHub Accounts, and Tapestry has built the first such view. This draft names the parts, so that each platform can build its own views for the same categories. It also sets out how views could later be shared as nostr events.
 > **Boundary note:** §§ 1–6 are a convention with no wire format: each platform's views stay in its own code. They live here because § 7's wire format builds on them, and because two independent codebases (Tapestry and Brainstorm) share them. Tapestry's own view code belongs in the BIBLE once it settles.
-> **State (2026-10-03):** §§ 1–6 are ready for phase-1 builds, starting with Brainstorm's GitHub Accounts views. Appendix B (V4V Songs, playback only) is the first brief written before any build. § 7 and open questions 1 and 3–7 wait until a second platform has built from a brief. Questions about how DList items get into search results at all are out of scope; they are worksheet [W26](../worksheet.md#w26--dlist-items-in-search-results).
+> **State (2026-10-03):** §§ 1–6 are ready for phase-1 builds, starting with Brainstorm's GitHub Accounts views. Appendix B (V4V Songs, playback only) is the first brief written before any build; Tapestry built from it on 2026-10-04, and its findings are in Appendix B's Changes. § 7 and open questions 1 and 3–7 wait until a second platform has built from a brief. Questions about how DList items get into search results at all are out of scope; they are worksheet [W26](../worksheet.md#w26--dlist-items-in-search-results).
 > **Related:** the uppercase `Z` tag idea (auxiliary events of a DList header) is worksheet [W25](../worksheet.md#w25--uppercase-z-auxiliary-events-of-a-dlist-header). This draft doesn't depend on it.
 
 ---
@@ -368,7 +368,7 @@ Read, don't run:
 
 ## Appendix B — View brief: V4V Songs
 
-*Written before any platform built it (2026-10-03), from the community header and three sample items. Playback only: paying the artist is left for a later version (see "Not in this version").*
+*Written before any platform built it (2026-10-03), from the community header and three sample items. Playback only: paying the artist is left for a later version (see "Not in this version"). Tapestry built its `page` and `row` from it on 2026-10-04; what that build needed and the brief didn't say is now in it (see Changes).*
 
 **Why this category needs a view.** Without one, a V4V Song gets the default DList card (§ 2.1): its title, then "t: 4d338528-…", "artist: …" and a long `op3.dev` link. With one, it gets cover art, the artist and a play button, and every surface still costs no API reads: the item carries everything a player needs.
 
@@ -384,6 +384,7 @@ Read, don't run:
   ["required", "feedId"], ["required", "feedGuid"], ["required", "artwork"], ["required", "alt"]
   ```
 - The sample items are kind `9999`, so they are referenced by event id, not by address. Each `z`-points straight at H.
+- **It is large.** One deployment's relay held 22,556 items under H in October 2026. Expect list reads that stop short (Sources).
 
 ### The fields
 
@@ -394,34 +395,43 @@ Read, don't run:
 | `url` | the audio file (MP3 in the samples), usually behind an OP3 prefix: `https://op3.dev/e,pg=<feedGuid>/<file URL>` | `https://` only. Use it exactly as given: the prefix counts plays for the artist |
 | `duration` | the length in whole seconds, as a string (`"219"`) | a non-negative integer. Show it as `m:ss` (`3:39`), or `h:mm:ss` from an hour up |
 | `artwork` | the cover image | `https://` only |
-| `t` | the track's ID. In every sample it equals the file name in `url` (`…/track/<t>.mp3`) | an opaque string; never shown |
-| `feedGuid` | the release's feed GUID (Podcasting 2.0 `podcast:guid`); also the `pg=` value in the OP3 prefix | an opaque string |
+| `t` | the track's ID. In every sample it equals the file name in `url` (`…/track/<t>.mp3`) | an opaque string, compared exactly after trimming; never shown |
+| `feedGuid` | the release's feed GUID (Podcasting 2.0 `podcast:guid`); also the `pg=` value in the OP3 prefix | an opaque string, compared exactly after trimming |
 | `feedId` | Podcast Index's numeric ID for the release's feed | a positive integer |
 | `alt` | NIP-31 text: "Song: ⟨title⟩ by ⟨artist⟩" | text. Use it as the accessible name |
 
-A **release** is the set of items sharing a `feedGuid`: an album, an EP or a single.
+Where an item repeats a tag, read its first non-blank value, as § 2.1 does. A **release** is the set of items sharing a `feedGuid`: an album, an EP or a single.
 
 ### Subject key
 
 - **Use the view** when the item has a `title` and an `https://` `url`. Otherwise it gets the default card (§ 2.1).
-- **Identity:** `feedGuid` plus `t`, the pair Podcasting 2.0 uses to name one track. Filings with the same pair are one song: the earliest stands for the entry, and the entry names every filer (§ 5, rule 1). An item missing either value stands alone.
+- **Identity:** `feedGuid` plus `t`, the pair Podcasting 2.0 uses to name one track, each compared exactly after trimming. Filings with the same pair are one song: the earliest stands for the entry, and the entry names every filer (§ 5, rule 1). An item missing either value stands alone.
 - **By the DList NIP,** `["required", "t"]` makes each item a *string* item, so the subject is the `t` value (Content Categories § 5.1).
 
 ### Sources
 
 **Nostr, from the item:** every field above, the filer, and the raw event. Displaying a song needs nothing else.
 
+**What a row needs from a list read.** A row (in the Items table, or in the page's lists) is drawn from the platform's read of the category's items, not from each event. That read must carry each item's `title`, `artist`, `url`, `artwork`, `duration`, `feedGuid` and `t`.
+
+- **Keep `t`.** List reads often drop single-letter tags, as index tags or hashtags. Here `t` is the item's own key: without it, no row can tell two filings of one song apart.
+- **Keep `title` as itself.** A read that folds it into a general display name (name, else title, else `d`, …) can't tell an item with a title from one showing a fallback.
+- **Never play or load a link the read may have cut.** If the read bounds the length of values, a `url` or `artwork` value at that bound may be cut, and a cut link is a wrong one. Treat it as missing on that surface; the item's page, which reads the whole event, has it.
+
 **From the Items read (no external reads):**
 
 - *From this release:* other items with the same `feedGuid`.
-- *More by this artist:* other items whose `artist` matches, compared case-insensitively.
+- *More by this artist:* other items whose `artist` matches, compared case-insensitively after trimming.
 
 Both come from the active point of view's read, like the Items table. They never search beyond it.
+
+- **In the Items' order** (§ 5, rule 1). Show ten of each, then the rest on request: one artist can have hundreds (one deployment's first 1,000 V4V Songs held 173 by one artist).
+- **When the read stops short.** A list read is often capped (that deployment's returns the first 1,000 of 22,556). The lists then cover only what it returned, and the page says so: "Songs from this release and by this artist are found among the first ⟨1,000⟩ of the ⟨22,556⟩ items."
 
 **Contacted by the listener's browser:**
 
 - **The artwork's host,** when the image loads. Load it lazily.
-- **The audio's hosts, only when the listener presses play.** With an OP3 prefix, that is first `op3.dev`, which counts the play and redirects, then the file's own host. Set the player to load nothing in advance (`preload="none"` on an HTML `<audio>` element). That way a page of twenty cards contacts no audio host, and counts no plays that never happened.
+- **The audio's hosts, only when the listener presses play.** With an OP3 prefix, that is first `op3.dev`, which counts the play and redirects, then the file's own host. Set the player to load nothing in advance (`preload="none"` on an HTML `<audio>` element). That way a page of twenty cards contacts no audio host, and counts no plays that never happened. `preload` is only a hint, so a row's player MAY be left without its source until play is pressed.
 
 **Link out:** Podcast Index's page for the release, `https://podcastindex.org/podcast/<feedId>`.
 
@@ -439,17 +449,21 @@ Both come from the active point of view's read, like the Items table. They never
 2. **Player.**
    - Play / pause, a seek bar, and the elapsed and total time. A platform's native audio controls are enough.
    - Never autoplay.
-   - Where the platform supports it, give the device the song's title, artist and artwork (the Media Session API in browsers), so lock-screen and headset controls show and control it.
+   - Where the platform supports it, give the device the song's title, artist and artwork (the Media Session API in browsers), so lock-screen and headset controls show and control it. When the player leaves the page, clear it.
 3. **From this release:** the release's other songs, each a `row`, when the Items read has any.
 4. **More by ⟨artist⟩:** the same, by artist, leaving out songs already listed above.
+   - Both lists keep the Items' order and show ten, then "Show all ⟨N⟩"; when the read stopped short, a line says how far they reach (Sources).
+   - A song opened from these lists opens its own page at the top.
 5. **Link:** "This release on Podcast Index".
 6. **The Nostr record**, quiet, below a divider: "Filed by ⟨name⟩ · View Nostr profile"; "Also filed by ⟨names⟩"; a disclosure, "Raw Nostr event" (§ 5, rule 3).
 
 **`row`** (one line in the Items table, or in the page's lists):
 
-- The artwork at about 40 px, with a play / pause button over it.
+- The artwork at about 40 px, with a play / pause button over it. The artwork is decorative here (the title is beside it); the button is named "Play ⟨title⟩ by ⟨artist⟩", and "Pause ⟨title⟩" while playing.
 - The title, linking to the item's page, with the artist beneath.
 - The duration, at the end of the line.
+- Pressing play plays the song in place. Where the whole row opens the item, the play button doesn't.
+- In the Items table: "+N more" when others filed the same song, with their names readable by screen readers; search matches the title, the artist and every filer; A→Z sorts by title; and a note under the table: "Cover art is loaded from each song's host by your browser, and pressing play loads the song from its host."
 
 **`card`** (a search result):
 
@@ -466,7 +480,7 @@ Both come from the active point of view's read, like the Items table. They never
 ### Idiom
 
 - **The look of a music player:** square cover art, a round play button, times written `m:ss`.
-- **The category mark:** a music note. Leave the lightning bolt, the usual value-for-value sign, for the version that can pay: showing it now would promise something the view can't do.
+- **The category mark:** a music note, by the category's name and in place of missing artwork. Any music-note glyph will do; Tapestry draws its own (a stem, a flag and a head), so there is no license to carry. Leave the lightning bolt, the usual value-for-value sign, for the version that can pay: showing it now would promise something the view can't do.
 
 ### Failures
 
@@ -474,14 +488,19 @@ Both come from the active point of view's read, like the Items table. They never
 |---|---|
 | no `title`, or a `url` that isn't `https://` | the default card (§ 2.1) |
 | the audio fails to load or play | "Couldn't play this song: its host didn't answer." Keep the rest of the page, plus a plain link to the file |
+| a row's song fails to load or play | the play button becomes a failure mark, named and titled "Couldn't play this song: its host didn't answer."; pressing it tries again |
 | the artwork fails to load | a music-note placeholder, in the same square |
 | `duration` isn't a whole number | leave the duration out; the player shows the file's own length once it loads |
+| the list read stopped short | the page's lists say how far they reach (Sources) |
 
 ### Privacy and safety
 
 - **Before play:** a viewer's browser contacts only the artwork's host.
-- **On play:** it contacts `op3.dev` (when the URL carries the prefix) and the file's host. Both see the listener's IP address, so the page says so near the player: "Playing loads the song from its host."
-- **Referrers:** send no referrer where the platform can. An `<audio>` element has no setting of its own for this, so use a page-wide referrer policy.
+- **On play:** it contacts `op3.dev` (when the URL carries the prefix) and the file's host. Both see the listener's IP address, so the page says so near the player: "Playing loads the song from its host." So does the Items table, under its rows (`row`).
+- **Referrers:** send no referrer where the platform can.
+  - The artwork can carry its own policy (`referrerpolicy="no-referrer"` on the image).
+  - An `<audio>` element has no setting of its own for this, so use a page-wide referrer policy.
+  - In a single-page app, "page-wide" means the whole app. Either set `no-referrer` for all of it, or set it while a player is shown (a `<meta name="referrer">`, the last of which wins) and set the app's own policy again when the last player goes: removing that meta doesn't undo it.
 - **Links:** accept only `https://` for `url` and `artwork`. Never strip or rewrite the OP3 prefix.
 - **Text:** `title`, `artist` and `alt` are shown as text, never as HTML.
 
@@ -496,8 +515,23 @@ Until then, a view MUST NOT suggest that playing pays anyone.
 
 ### Reference
 
-None yet. The first platform to build from this brief adds its files here.
+Read, don't run. Tapestry (staging, 2026-10-04) built the `page` and the `row`; its `card` and `thumbnail` aren't built yet.
+
+- `ui/src/pages/dictionary/v4v.js`: the pure rules (recognising H, each field's check, the duration, one row per song, the page's two lists).
+- `V4vSong.jsx`: the head, the player, the lists and the row; one song at a time; the Media Session; the referrer policy while a player is shown.
+- `Item.jsx`: choosing the view. `ui/src/pages/dictionaries/ConceptEntry.jsx`: the Items table's rows.
+- `src/lib/trustedDictionary.js` (`itemProperties`, `trustedItems`): the list read, carrying `t` and `title`.
+- Tests: `test/dictionary-v4v-song.test.js`; the browser test D43 in `tests/brainstorm/dictionary-concepts.spec.js`.
 
 ### Changes
 
 - **2026-10-03:** first version, from the community header and three sample items (Musica Ancap, Tilted Halo, sabu). Playback only.
+- **2026-10-04:** Tapestry built the `page` and `row` from this brief alone (Reference). What the build needed that the brief didn't say, now added:
+  1. **A list read must carry `t` and `title`** (Sources). Tapestry's Items read dropped every single-letter tag, so none of the first 1,000 rows on staging had `t`, and no row could tell two filings of one song apart. It also folded `title` into a display name.
+  2. **A link a bounded read may have cut is never played or loaded** (Sources). Tapestry's read bounds each value at 300 characters.
+  3. **A capped list read:** the page's lists say how far they reach (Sources, Failures). Staging returns the first 1,000 of 22,556 items.
+  4. **The page's lists:** in the Items' order, ten, then the rest on request; a song opened from them opens at the top (Sources, Surfaces).
+  5. **How the pair and the artist are compared** (The fields, Subject key, Sources), and first non-blank values (The fields).
+  6. **The `row`:** play plays in place, the button's accessible names, its failure, "+N more", search and sort, and the note under the table (Surfaces, Failures, Privacy and safety).
+  7. **The referrer policy in a single-page app** (Privacy and safety).
+  8. **Smaller points:** the music note's source and where it shows (Idiom); `preload` is a hint (Sources); clearing the Media Session (Surfaces); H's size (Category).
