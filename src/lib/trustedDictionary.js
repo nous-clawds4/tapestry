@@ -10,8 +10,10 @@
  *                                              doc comment, further down)
  * recognitionByConcept({sharedCoords, pointers, ownersOf, exclude, influence})
  *   → Map coord → { gum2, recognizedBy, recognizers } — GUM₂ (its own doc comment)
- * trustedItems({zCarriers, coords, qualifying, own, limit})
- *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items
+ * trustedItems({zCarriers, coords, qualifying, own, limit, match})
+ *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items (or, with match, the matching ones)
+ * itemCarrier(ev)                           — a z-carrier as the Items read's scan keeps it
+ * parseItemMatch(raw)                        — the Items read's `match` parameter, checked
  * usageByHeader(…)                          — the counting rule both share
  *
  * Headers arrive PRE-CLASSIFIED at the handler seam
@@ -265,6 +267,82 @@ function itemName(ev) {
 /** The most items one read returns; the counts still cover every item. */
 const ITEMS_LIMIT = 1000;
 
+// An item's own words, bounded: its description, its title, and the property tags its header's Item
+// Property Tags (required / optional / recommended) name. A property is any tag but a single-letter
+// (indexed) one and those that name or describe the item; the first of each name counts. `t` is the one
+// single-letter tag kept, on every item: on most events it is a hashtag, but a header that names it in
+// `required` makes it the item's own string key (Content Categories § 5.1), as V4V Songs' track ID is.
+const NOT_PROPERTIES = new Set(['names', 'name', 'title', 'description', 'json', 'alt', 'client']);
+const MAX_ITEM_PROPERTIES = 20;
+const MAX_ITEM_TEXT = 300;
+const textTag = (t) => Array.isArray(t) && typeof t[0] === 'string' && typeof t[1] === 'string' && t[1].trim() !== '';
+
+/** The item's own tag of that name (its first non-blank one), trimmed and bounded, else null. */
+function itemText(ev, name) {
+  const t = (ev.tags || []).find((x) => textTag(x) && x[0] === name);
+  return t ? t[1].trim().slice(0, MAX_ITEM_TEXT) : null;
+}
+const itemDescription = (ev) => itemText(ev, 'description');
+
+/** The item's property tags as {name: value}: what it carries, for a DList's own page to show. */
+function itemProperties(ev) {
+  const out = {};
+  let n = 0;
+  for (const t of ev.tags || []) {
+    if (n >= MAX_ITEM_PROPERTIES) break;
+    if (!textTag(t) || (t[0].length < 2 && t[0] !== 't') || t[0].length > 64 || NOT_PROPERTIES.has(t[0])) continue;
+    if (Object.prototype.hasOwnProperty.call(out, t[0])) continue;
+    out[t[0]] = t[1].trim().slice(0, MAX_ITEM_TEXT);
+    n += 1;
+  }
+  return out;
+}
+
+// `match` on the Items read: at most this many name:value pairs (a song's page sends two: its release and its artist).
+const MAX_ITEM_MATCHES = 4;
+const MATCH_NAME = /^[^\s:]{2,64}$/;
+
+/**
+ * The Items read's `match` parameter (a string or a list of them), each "name:value": an item is kept
+ * when any named property (itemProperties) equals its value, trimmed and in any case. Returns the pairs
+ * as [name, value] with the value trimmed, bounded as properties are and lower-cased; null when there are
+ * none; an Error saying what is wrong when one isn't a property name and a value.
+ */
+function parseItemMatch(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const list = Array.isArray(raw) ? raw : [raw];
+  if (list.length > MAX_ITEM_MATCHES) return new Error(`match takes at most ${MAX_ITEM_MATCHES} name:value pairs`);
+  const out = [];
+  for (const m of list) {
+    const i = typeof m === 'string' ? m.indexOf(':') : -1;
+    const name = i > 0 ? m.slice(0, i) : '';
+    const value = i > 0 ? m.slice(i + 1).trim() : '';
+    if (!(name === 't' || MATCH_NAME.test(name)) || NOT_PROPERTIES.has(name) || !value) {
+      return new Error('match must be name:value, the name an item property tag (not a naming tag) and the value not blank');
+    }
+    // Bounded and trimmed again, as a property is (trimmed, bounded) and then compared (trimmed).
+    out.push([name, value.slice(0, MAX_ITEM_TEXT).trim().toLowerCase()]);
+  }
+  return out;
+}
+
+// The tags trustedItems reads off a z-carrier: its filing, its address, its name, and a curation copy's q.
+const ITEM_CARRIER_TAGS = ['z', 'd', 'names', 'name', 'title', 'q'];
+
+/**
+ * A z-carrier as the Items read keeps it from the scan (assembleConceptItems): only the tags
+ * trustedItems reads, with the item's own words (itemDescription, itemProperties) computed and bounded
+ * here, from all its tags, so a scan never holds every tag of every event.
+ */
+function itemCarrier(ev) {
+  return {
+    id: ev.id, kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at,
+    tags: (ev.tags || []).filter((t) => Array.isArray(t) && ITEM_CARRIER_TAGS.includes(t[0])),
+    description: itemDescription(ev),
+    properties: itemProperties(ev),
+  };
+}
+
 /** A curation copy (assistant-designation.md § Curation copies): a kind-39999 item whose d is "copy-<sha256>". */
 const isCurationCopy = (ev) => ev.kind === 39999
   && (ev.tags || []).some((t) => t && t[0] === 'd' && typeof t[1] === 'string' && t[1].startsWith('copy-'));
@@ -282,11 +360,18 @@ const isCurationCopy = (ev) => ev.kind === 39999
  * are one item too (assistant-designation.md: "a reader merging items across
  * related lists … treats a copy and its original as one item"): the original
  * stays when its filer is kept, else the copy does. Items are in filing order,
- * oldest first, so an item keeps its number as new ones arrive. At most
+ * oldest first, so an item keeps its number as new ones arrive. Each carries
+ * its name, its own title and description, and its property tags (itemProperties). At most
  * `limit` are returned (`truncated` says when more were kept); `filerCount`
  * and `totalCount` (every distinct item before the trust filter) cover all.
+ *
+ * `match` (parseItemMatch's pairs) keeps only the items with a matching
+ * property, before the cap: then `items`, `keptCount` and `truncated` cover
+ * the matching items alone, so a page that needs a few items (a song's
+ * release, its artist) never reads them all. `filerCount` and `totalCount`
+ * still cover every item.
  */
-function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT } = {}) {
+function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT, match = null } = {}) {
   const cs = new Set((Array.isArray(coords) ? coords : []).filter((c) => typeof c === 'string' && c));
   const q = qualifying instanceof Set ? qualifying : new Set(Array.isArray(qualifying) ? qualifying : []);
   const mine = new Set(Array.isArray(own) ? own : []);
@@ -320,19 +405,28 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
     else all.delete(original);
   }
 
+  const pairs = Array.isArray(match) && match.length ? match : null;
+  const wanted = (it) => !pairs || pairs.some(([name, value]) => typeof it.properties[name] === 'string'
+    && it.properties[name].trim().toLowerCase() === value);
   const items = [];
   const filers = new Set();
   for (const [key, ev] of all) {
     if (!kept(ev)) continue;
     filers.add(ev.pubkey);
-    items.push({
+    const item = {
       id: ev.id,
       address: key === ev.id ? null : key,
       kind: ev.kind,
       author: ev.pubkey,
       name: itemName(ev),
+      // Its own title tag, which `name` may pass over for a names or name tag (a DList's own look reads it).
+      title: itemText(ev, 'title'),
+      // As itemCarrier computed them in the scan, else from the event's own tags.
+      description: ev.description !== undefined ? ev.description : itemDescription(ev),
+      properties: ev.properties !== undefined ? ev.properties : itemProperties(ev),
       createdAt: ev.created_at || 0,
-    });
+    };
+    if (wanted(item)) items.push(item);
   }
   items.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
 
@@ -346,4 +440,6 @@ function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT 
   };
 }
 
-module.exports = { computeDictionary, computeConceptDictionary, usageByHeader, trustedItems, recognitionByConcept };
+module.exports = {
+  computeDictionary, computeConceptDictionary, usageByHeader, trustedItems, itemCarrier, parseItemMatch, recognitionByConcept,
+};
