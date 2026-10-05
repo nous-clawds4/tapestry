@@ -35,15 +35,15 @@ export default function InformationForAgents() {
 
   return (
     <DevPage title="The Technology Behind Brainstorm" back={false}>
-      <p style={S.p}>
+      <p style={{ ...S.p, margin: '0 0 0.8rem' }}>
         Building something on nostr? Brainstorm's web-of-trust scores and the protocols behind them are open, and you
         can use them in your own project. The fastest way to find out how is to ask your AI agent.
       </p>
-      <p style={S.p}>
+      <p style={{ ...S.p, margin: 0 }}>
         Describe your project below, copy the prompt, and paste it into any agent that can read web pages.
       </p>
 
-      <label htmlFor="ifa-project" style={{ ...S.h2, display: 'block', marginBottom: '0.5rem' }}>
+      <label htmlFor="ifa-project" style={{ ...S.h2, display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>
         What are you building?
       </label>
       <textarea
