@@ -1,6 +1,6 @@
 # Story 1: Information for agents — the page and the briefing
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-05
 **Type:** Feature
 
@@ -76,10 +76,12 @@ None. Like `llms-txt` #1, this sits at the HTTP and page layer: the briefing and
 
 ## Open questions
 
-1. **Naming the whitelist endpoint.** The briefing names `GET https://api.brainstorm.world/whitelisted/<observer>` as the relay-whitelist API. `developers-pages` #2 (open question 2) held the Relay Tools page back from naming any host "without operator confirmation of the host." The endpoint is in the production API's public OpenAPI document and answered live on 2026-10-05. Needs the operator's yes before ship.
-2. **Briefing content review.** The draft at `docs/information-for-agents.md` was written from the specs and the live API on 2026-10-05. Two facts were checked live: the API's ORE `rank` is a 0–1 decimal (NIP-85's `rank` tag is an integer 0–100), and `wss://tapestry.brainstorm.world/relay` answers a WebSocket upgrade. Operator to review.
+None outstanding. Resolved with the operator at Planning on 2026-10-05:
+
+1. **Naming the whitelist endpoint** → approved. The briefing names `GET https://api.brainstorm.world/whitelisted/<observer>`. This lifts `developers-pages` #2's hold (its open question 2) for the briefing only; the `/developers/relay-tools` placeholder is unchanged by this story.
+2. **Briefing content** → approved as drafted at `docs/information-for-agents.md` (no edits). Facts checked live on 2026-10-05: the API's ORE `rank` is a 0–1 decimal while NIP-85's `rank` tag is an integer 0–100, and `wss://tapestry.brainstorm.world/relay` answers a WebSocket upgrade.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/information-for-agents/0001-serve-the-briefing-and-build-the-page.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
