@@ -112,6 +112,7 @@ import BrainstormAbout from './pages/BrainstormAbout';
 import BrainstormAboutSearch from './pages/BrainstormAboutSearch';
 import BrainstormSkill from './pages/BrainstormSkill';
 import DevelopersHub from './pages/developers/Hub';
+import InformationForAgents from './pages/InformationForAgents';
 import DevelopersNip50 from './pages/developers/Nip50';
 import DevelopersOpenRanking from './pages/developers/OpenRanking';
 import DevelopersTrustedAssertions from './pages/developers/TrustedAssertions';
@@ -219,6 +220,12 @@ const router = createBrowserRouter([
   {
     path: '/brainstorm-skill',
     element: <BrainstormSkill />,
+  },
+  {
+    // "The Technology Behind Brainstorm": a prompt for the builder's own AI agent, pointing at the plain-text
+    // briefing the server serves at /information-for-agents.md (information-for-agents #1).
+    path: '/information-for-agents',
+    element: <InformationForAgents />,
   },
   {
     path: '/feed',

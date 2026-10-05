@@ -102,6 +102,8 @@ Spec: [Open Ranking](https://raw.githubusercontent.com/Open-Ranking/protocol/mai
 
 `GET https://api.brainstorm.world/whitelisted/<observer hex pubkey>?threshold=0.02` returns `{"data": {"observerPubkey", "numPubkeys", "pubkeys": [...]}}`, which lists every account trusted from that observer's point of view. `threshold` is the minimum score (0.02 to 1, default 0.02). A relay can use the list to accept events only from accounts its operator's web of trust vouches for. [Relay Tools](https://relay.tools) relays screen out spam with a Brainstorm whitelist like this one.
 
+Reference: the [OpenAPI document](https://api.brainstorm.world/openapi.json), under `/whitelisted/{observer_pubkey}`.
+
 ### 4. People search over a nostr relay: NIP-50 with web-of-trust extensions
 
 *R&D. The search extensions are Tapestry's own, not a NIP.*
