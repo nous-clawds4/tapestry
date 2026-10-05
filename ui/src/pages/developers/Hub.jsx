@@ -14,6 +14,13 @@ export default function DevelopersHub() {
       back={false}
       intro={<>Integrate this Brainstorm instance's web-of-trust features into your nostr client. Pick a feature below.</>}
     >
+      <Link to="/information-for-agents" style={card}>
+        <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>Ask your AI agent →</div>
+        <div style={{ ...S.p, opacity: 0.7, marginTop: '0.25rem' }}>
+          Describe your project and get a prompt for your agent, backed by a briefing on all of Brainstorm's scores and protocols.
+        </div>
+      </Link>
+
       <Link to="/developers/nip-50" style={card}>
         <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>NIP-50 relay search →</div>
         <div style={{ ...S.p, opacity: 0.7, marginTop: '0.25rem' }}>
