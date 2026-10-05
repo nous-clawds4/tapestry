@@ -1,6 +1,6 @@
 # Story 1: Information for agents — the page and the briefing
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-05
 **Type:** Feature
 
@@ -84,4 +84,4 @@ None outstanding. Resolved with the operator at Planning on 2026-10-05:
 ## Linked artifacts
 - ADR: `engineering-team/decisions/information-for-agents/0001-serve-the-briefing-and-build-the-page.md`
 - Test plan: `engineering-team/stories/information-for-agents/1-information-for-agents-page-and-briefing.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/information-for-agents/1-information-for-agents-page-and-briefing.md`
