@@ -1,6 +1,6 @@
 # ADR 0001: Serve the briefing from its markdown file, and build the page from a pure prompt builder
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-05
 **Story:** `engineering-team/stories/information-for-agents/1-information-for-agents-page-and-briefing.md`
 
