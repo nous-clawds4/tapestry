@@ -83,5 +83,5 @@ None outstanding. Resolved with the operator at Planning on 2026-10-05:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/information-for-agents/0001-serve-the-briefing-and-build-the-page.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/information-for-agents/1-information-for-agents-page-and-briefing.test-plan.md`
 - Review: (filled in after Review phase)
