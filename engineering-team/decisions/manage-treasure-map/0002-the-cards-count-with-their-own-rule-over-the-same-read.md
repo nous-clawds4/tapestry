@@ -238,12 +238,15 @@ C10 (sign out and back in → closed) stays as it is.
 was never forgotten on sign-out, so *X → signed out → Y* counted as a switch, and a raw viewer that Y opened while their
 sign-in settled snapped shut. The round also found the case the counter exists for unreachable on this page:
 
-- every way to sign in on `/treasure-map` (the page's own button, the top bar's) renders only while nobody is signed in;
+- every way to sign in on `/treasure-map` (the page's own button, the top bar's) renders only while there's no session
+  user. *Corrected after round 3: that includes the page-load sign-in check, while an existing session is still being
+  read; see the correction below;*
 - the session's user changes only when the page loads, after a sign-in, or on sign-out (`ui/src/context/AuthContext.jsx`:
   `checkStatus` on mount and after `runLogin`, `logout`). Nothing polls the session or follows other tabs, and
   `refreshUser` keeps the same pubkey.
 
-So the viewer can't go from one known person to another without passing through signed-out.
+So the viewer can't go from one known person to another without passing through signed-out, **with one narrow
+exception found in round 3**, below.
 
 **Decision.** `RawViewer` is rendered without a key. It resets in exactly one way: **signing out**, which replaces it with
 the sign-in prompt and unmounts it; the next sign-in, as anyone, mounts it fresh and closed. Sign-in settling (`null →
@@ -254,6 +257,16 @@ the viewer then, and add a browser case for that switch.
 **Tests (Phase 3).** A browser case signs in as one person, signs out, signs in as a second person with
 `/api/auth/status` held, opens the raw viewer while that sign-in settles, releases it, and checks the viewer is still
 open with the second person's Map. It fails against `84fad91`. C10 and C14 stay as they are.
+
+**Correction (review 1, round 3, non-blocking 1).** The premise has one exception. The top bar's **Sign in with nostr**
+(`ui/src/components/BrainstormUserMenu.jsx`, `if (!user)`) also renders while the page-load sign-in check is still
+reading an existing session. With session X and a signer holding Y, a click in that window, then opening the raw viewer
+on X's Map, then finishing the sign-in, changes the person X → Y without the signed-out prompt ever rendering, and the
+viewer stays open on Y's own Map (round 3's probe P4). Nothing is lost, signed or published, and the path needs an
+existing session, a signer on another account, a click during the load check and the signer's prompt, so the decision
+stands. The cause is shared top-bar behaviour that predates this book; its fix belongs there
+(`ledger/2026-10-07-top-bar-sign-in-while-loading.md`). If that isn't fixed, this ADR's own contingency applies:
+key the viewer on the person, with a browser case for the switch.
 
 ## Out of scope
 

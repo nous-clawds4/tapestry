@@ -1,6 +1,6 @@
 # Story 2: The Assistants by category cards — who looks after your Scores, Lists and Concepts
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-07
 **Type:** Feature
 **Epic:** `manage-treasure-map`
@@ -170,7 +170,8 @@ Small judgment calls made in Implementation (2026-10-07):
 After review 1 (2026-10-07):
 
 - **The raw viewer has no key** (ADR 0002 Amendment 2, after round 2; Amendment 1's switch counter is gone). It starts
-  closed for each viewer because signing out unmounts it, and on this page the viewer can't change any other way. A
+  closed for each viewer because signing out unmounts it, and on this page the viewer can't otherwise change, except on
+  one narrow top-bar path found in review round 3 (ADR 0002 Amendment 2's correction; a ledger row). A
   viewer opened while sign-in settles, after page load (C14) or after someone else signed out (C15), stays open.
 - **A mixed card's assignee row is a `div`, not a `span`,** so the hidden name list inside it is valid HTML (review 1,
   non-blocking 5).

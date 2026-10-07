@@ -376,3 +376,137 @@ is left to the launching session.
 One blocking item remains. The raw viewer still closes when a different person's sign-in settles after a sign-out
 (`Index.jsx:254–257`), contrary to ADR 0002 Amendment 1's own rule. Otherwise, round 1's blocking finding is fixed, and
 the gate and the browser runs are stable.
+
+## Re-review, round 3 (2026-10-07)
+
+**Diff:** `git diff 17956b6 fbf99d7` on `staging`: 5 files, 84 insertions, 23 deletions. Commits:
+- `4761311`: ADR 0002 Amendment 2. `RawViewer` has no key and resets only by unmounting on sign-out; Amendment 1's
+  switch counter is superseded.
+- `7fe68ca`: the Tester's Amendment 3. C15 is new, and the spec's mocks follow the session's person.
+- `fbf99d7`: the `{ viewer, switches }` state and the key are removed. The two comments and the story's § Deviations
+  now describe the unmount.
+
+Also, `17956b6` corrected the ledger row's wording (round 2, non-blocking 2).
+
+**In short:** round 2's blocking item is fixed. A viewer opened while a second person's sign-in settles, after a
+sign-out, now stays open.
+- C15 pins it. It fails 5/5 on `84fad91` and passes 5/5 now.
+- The gate passes, and the four browser suites pass in all 12 runs, idle and under load.
+- One finding is left, and it isn't blocking. Amendment 2 says a direct switch from one person to another can't happen
+  on this page. It can, through the top bar's Sign in during the page-load sign-in check (probe P4). On that narrow
+  path, the viewer stays open across the change of person. The record should be corrected, and the top bar's
+  behaviour filed.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test`: **PASS**. `npm run -s gate:status`:
+  `20261007T123158Z-5495-7775 started 2026-10-07T12:31:58.640Z on fbf99d75 — PASS, exit 0, 4970 passed, 0 failed, 581 skipped, 271/271 suites · /home/user/tapestry/tmp/gate-runs/20261007T123158Z-5495-7775.json`
+  - **The record:** `git: { commit: fbf99d75…, branch: staging, dirty: false }`, no stray errors, Node v22.22.0.
+  - **Per suite:**
+    - `manage-treasure-map-cards` 31/0;
+    - `manage-treasure-map-page` 22/0 (2 skipped, the live tests);
+    - `my-assistants-page` 50/0 (2 skipped);
+    - `my-assistants-actions` 29/0;
+    - `my-assistants-map` 14/0;
+    - `my-assistants-nip05` 13/0.
+- [x] **The served UI is HEAD.** A fresh build of `fbf99d7` (`git archive` into scratch) is byte-identical (sha1,
+  28 files) to the `dist/` that :7799 serves (`index-DLphTZg2.js`).
+- [x] **Playwright** (chromium; the four suites, now 57 tests with C15):
+  - idle, `--workers=4`: 5 runs, **57/57 each**;
+  - with `npm test` running alongside (load average 8–13), `--workers=4`: 3 runs, **57/57 each**;
+  - with four CPU-bound processes on the 4-CPU machine (load average 12–16), `--workers=4`: 3 runs, **57/57 each**;
+  - under the same load, the two treasure-map specs at `--repeat-each=3 --workers=6`: **90/90**.
+- [x] **C15 catches the bug.** Against the scratch build of `84fad91` (served on :7798) at `--repeat-each=5`: 5 failed,
+  each on "the viewer is still open, with the second person’s Map — element(s) not found", as Amendment 3 says.
+  Against HEAD: 5 passed.
+  - The whole cards spec on `84fad91` gives 14 passed with only C15 failed, which confirms Amendment 3's claim about
+    the other tests.
+- [x] _Lint, typecheck and build not configured — skipped._
+
+### Round 2's blocking item, re-checked
+
+- **The code.** `RawViewer` renders without a key (`Index.jsx:268`). Its only reset is the signed-out branch, which
+  replaces it with the sign-in prompt (`Index.jsx:262–266`). No render-time state is left, so StrictMode's double
+  render has nothing to count twice. A user object that changes identity with the same pubkey has nothing to reset, and
+  `useTreasureMap` still keys on the pubkey string.
+- **The paths:**
+  - the page-load settle: C14;
+  - sign out and back in as the same person: closed, through the unmount (C10);
+  - sign out, then a second person signs in and opens the viewer while that settles: it stays open, with their own Map
+    (C15).
+
+  All pass in every run above.
+
+### Amendment 2's reachability claim, re-checked
+
+I checked `ui/src/context/AuthContext.jsx` and every sign-in entry point that is mounted on `/treasure-map`.
+
+- **These parts are true.**
+  - `setUser` is called only in `checkStatus` (`:66`, `:73`, `:77`), in `refreshUser` (`:166`, which keeps the user
+    unless the pubkey is the same) and in `logout` (`:180`).
+  - `checkStatus` runs only on mount (`:33`) and after a sign-in (`:143`).
+  - There is no polling, no `storage` or `visibilitychange` listener, and no `BroadcastChannel`.
+  - `LoginErrorModal` only closes.
+  - `/treasure-map` is a top-level route (`App.jsx:311`), outside `Layout` (`:335`), so the Tapestry `Header`, which
+    can also sign in, isn't mounted. The other `login()` callers (Tag, TagNotesView, Pins, setup, the assistant pages)
+    are on other routes.
+  - The page's own button (`Index.jsx:265`) renders only in the `signed-out` phase, which needs `!authLoading`.
+- **One part is false.** The top bar's "Sign in with nostr" (`BrainstormUserMenu.jsx:87–88`) renders whenever `user`
+  is null. That includes the page-load sign-in check, when a session may already exist.
+  - **Probe P4** (scratch, not committed). The session is X and the signer holds Y.
+    - Load `/treasure-map`, and click the top bar's Sign in while `/api/auth/status` is held.
+    - Release the hold. X arrives; open the raw viewer on X's Map.
+    - Let the sign-in finish. The session becomes Y.
+  - **Result on HEAD (3/3):** the person changed from X to Y and the signed-out prompt never rendered. The raw viewer
+    stayed open, now showing Y's Map.
+  - **On `84fad91`:** Amendment 1's counter closed the viewer on that switch, which is AC-5's "signing in as someone
+    else … shows the raw Treasure Map closed".
+  - So the case Amendment 2 says can't happen is reachable today, and Amendment 2 removed the one thing that handled
+    it.
+
+### New findings
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **Amendment 2's premise is false on one path.** The false sentences are ADR 0002 `:241` ("renders only while nobody
+   is signed in") and `:246`, the `RawViewer` comment at `Index.jsx:126`, and the story's § Deviations (`:173`), each
+   saying the viewer "can't change any other way".
+   - Through the top bar's Sign in during the page-load check, a direct X → Y switch happens with no sign-out. The raw
+     viewer then stays open across the change of person (P4), so AC-5's "signing in as someone else" doesn't close it
+     on that path.
+   - **Why it isn't blocking:**
+     - It needs four things together: an existing session, a signer set to another account, a click in the window
+       while the page-load check runs (status, classification and own-profile requests), and the signer's prompt.
+     - The outcome is the new person's own Map in a viewer left open. Nothing is lost, signed or published.
+     - The cause is shared top-bar behaviour that predates this story.
+   - **Asked follow-up:**
+     - Correct the four sentences to name this path.
+     - File a ledger row: `BrainstormUserMenu.jsx:87–88` offers Sign in while the page-load check is still reading an
+       existing session, and on any Brainstorm page that lets the session switch people with no sign-out.
+     - The fix at the source is to show no Sign in in the top bar while `loading`; that covers every page. For this
+       page alone, Amendment 2's own contingency already says what to do (key the viewer on the viewer, plus a browser
+       case). Either is a separate change.
+2. **Round 1's non-blocking 6 (duplicate live regions)** is still open and still non-blocking.
+
+#### Harness friction
+
+1. None new.
+
+### Close-out
+
+As the launching session instructed, the Reviewer doesn't flip the story's status or commit. The coordinator flips
+the story to `Done` and runs completion detection. Until the story says `Done`, `bash scripts/harness-lint.sh` reports
+L1 for this file, which is expected.
+
+### Verdict (round 3)
+
+**PASS**
+
+Round 2's blocking item is fixed and pinned by C15, which fails on `84fad91`. The gate is green, and the browser suites
+passed all 12 runs, idle and under load. The one new finding is a false premise in Amendment 2 on a narrow,
+pre-existing top-bar path. It is non-blocking, and the record correction and the ledger row are the follow-ups to
+settle before the book closes.
