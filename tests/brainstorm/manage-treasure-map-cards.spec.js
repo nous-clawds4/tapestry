@@ -16,7 +16,7 @@ const { nip19 } = require('nostr-tools');
  *   C1 — the section sits between the FAQ and the raw Treasure Map; heading; three cards in order with their
  *        descriptions; the Mixed line and its link; no edit controls.                                      [AC-1]
  *   C2 — found: Scores mixed (rank → Ava, all Scores → Bea), Lists single (your own Assistant, purple), Concepts not
- *        assigned yet (`*:tag` never reaches Concepts).                                              [AC-2, AC-3]
+ *        assigned yet (`*:tag` is ignored, treasure-map-edit #2).                                    [AC-2, AC-3]
  *   C3 — `*` → an Assistant with no profile: all three cards name it by shortened npub, navy avatar.  [AC-2, AC-3]
  *   C4 — four Assistants on Scores: three avatars, "· 4 Assistants", every name readable.                   [AC-3]
  *   C5 — no Treasure Map (strict none): three "Not assigned yet", no "Assigned to".                         [AC-4]
@@ -52,8 +52,8 @@ const NAVY = 'rgb(43, 23, 79)';
 const npubShort = (pk) => { const n = nip19.npubEncode(pk); return `${n.slice(0, 12)}…${n.slice(-6)}`; };
 const mapOf = (entries) => ({ id: '9'.repeat(64), pubkey: VIEWER, created_at: 1790121600, kind: 10040, content: '', tags: entries.map(([k, pk]) => [k, pk, R]), sig: 'f'.repeat(128) });
 
-// Scores: rank → A and all Scores → B (mixed). Lists: your own Assistant twice (single). `*:tag` → D is covered on
-// Scores by 3038x and on Lists by 3039x:tag, and never reaches Concepts, which stay unassigned.
+// Scores: rank → A and all Scores → B (mixed). Lists: your own Assistant twice (single). `*:tag` → D counts on no card
+// (treasure-map-edit #2, book decision 11), so Concepts stay unassigned.
 const MAIN = mapOf([['30382:rank', A], ['3038x', B], ['30392', LOCAL], ['3039x:tag', LOCAL], ['*:tag', D]]);
 const EVERYTHING = mapOf([['*', D]]);
 const FOUR = mapOf([['30382:rank', A], ['30382:followers', B], ['30382:hops', C], ['3038x', D]]);

@@ -105,5 +105,5 @@ Approved as drafted, 2026-10-07, verbatim: "Ready for architecture."
 - Ledger it settles: `ledger/2026-10-07-card-rule-star-metric-reaches-lists.md`
 - Replaces in part: `engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.md` AC-1 and AC-2
 - ADR: `engineering-team/decisions/treasure-map-edit/0002-only-a-bare-star-counts.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.test-plan.md`
 - Review: (filled in after Review phase)

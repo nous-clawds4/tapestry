@@ -277,6 +277,7 @@ const suites = [
   { file: 'manage-treasure-map-page.test.js' },
   { file: 'manage-treasure-map-cards.test.js' },
   { file: 'treasure-map-card-rule-edges.test.js' },
+  { file: 'treasure-map-star-scopes-ignored.test.js' },
   { file: 'list-headers-author-options.test.js' },
   { file: 'list-headers-disposition-column.test.js' },
   { file: 'list-headers-my-assistant-disposition.test.js', skipNote: 'control panel not reachable (live refusals)' },

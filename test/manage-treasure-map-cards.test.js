@@ -15,6 +15,9 @@
  *   S — source sentinels on the JSX this runner can't execute, and the one export the ADR adds (sub-decisions 5, 6, 8).
  *                                                                                                 [AC-3, AC-4, AC-5]
  *
+ * Re-aimed by treasure-map-edit #2 (book decision 11; ADR treasure-map-edit/0002): K9 and K16, whose `*:tag` entry now
+ * counts on no card. That story's test plan records both changes.
+ *
  * Everything FAILS against the current code: manageTreasureMap.js has no categoryAssistants, categoryCards or new
  * words; myAssistants.js doesn't export cardFields; the page reads no profiles and its <pre> isn't focusable.
  */
@@ -102,8 +105,8 @@ test('K7: rank → A, followers → A, `3038x` → A — Scores: A, once', () =>
   expectCats([['30382:rank', A], ['30382:followers', A], ['3038x', A]], { scores: [A] }, 'K7'));
 test('K8: `*` → C — C on all three cards', () =>
   expectCats([['*', C]], { scores: [C], lists: [C], concepts: [C] }, 'K8'));
-test('K9: `*:tag` → D and nothing else — D on Scores and Lists; nothing on Concepts', () =>
-  expectCats([['*:tag', D]], { scores: [D], lists: [D], concepts: [] }, 'K9'));
+test('K9 (treasure-map-edit #2): `*:tag` → D and nothing else is ignored — nothing on any card', () =>
+  expectCats([['*:tag', D]], { scores: [], lists: [], concepts: [] }, 'K9'));
 test('K10: Concepts — `39998:dog-breed` → A, `39998:dlist-header` → B, `*` → C: A and B', () =>
   expectCats([['39998:dog-breed', A], ['39998:dlist-header', B], ['*', C]], { concepts: [A, B], scores: [C], lists: [C] }, 'K10'));
 test('K11: nothing that applies — all three empty', () =>
@@ -135,11 +138,11 @@ test('K14: the kind ranges — 30380 and 30389 are Scores, 30390 and 30399 Lists
 test('K15: bare `39998` counts for Concepts and covers them completely, so `*` doesn’t reach Concepts (but still Scores and Lists)', () =>
   expectCats([['39998', A], ['*', C]], { concepts: [A], scores: [C], lists: [C] }, 'K15'));
 
-test('K16: `*:tag` is covered for Scores by `3038x:tag` or `3038x`, not by `3038x:dlist`; likewise for Lists', async () => {
-  await expectCats([['3038x:tag', B], ['*:tag', D]], { scores: [B], lists: [D] }, 'K16a');
-  await expectCats([['3038x', B], ['*:tag', D]], { scores: [B], lists: [D] }, 'K16b');
-  await expectCats([['3038x:dlist', B], ['*:tag', D]], { scores: [B, D], lists: [D] }, 'K16c');
-  await expectCats([['3039x:tag', B], ['*:tag', D]], { lists: [B], scores: [D] }, 'K16d');
+test('K16 (treasure-map-edit #2): `*:tag` is ignored beside `3038x:tag`, `3038x`, `3038x:dlist` or `3039x:tag` — only the family entry counts', async () => {
+  await expectCats([['3038x:tag', B], ['*:tag', D]], { scores: [B], lists: [] }, 'K16a');
+  await expectCats([['3038x', B], ['*:tag', D]], { scores: [B], lists: [] }, 'K16b');
+  await expectCats([['3038x:dlist', B], ['*:tag', D]], { scores: [B], lists: [] }, 'K16c');
+  await expectCats([['3039x:tag', B], ['*:tag', D]], { lists: [B], scores: [] }, 'K16d');
 });
 
 test('K17: Lists — own, family-wide and everything together: `30396:tag:x` → A, `3039x` → B, `*` → C gives A and B', () =>
