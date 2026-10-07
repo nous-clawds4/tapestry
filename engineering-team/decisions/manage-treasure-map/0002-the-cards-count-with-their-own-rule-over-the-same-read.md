@@ -151,7 +151,8 @@ Sub-decisions:
    - `localPubkey` is `user.assistantPubkey || null` from `useAuth()`. Never `taPubkey`, never a literal.
 6. **Story 1's findings (AC-5):**
    - the raw viewer becomes a `RawViewer` component holding its own `open` state, keyed so it mounts closed for each
-     viewer. *Amended (Amendment 1): keyed on a count of switches between two known people, not on `viewer` itself.*
+     viewer. *Amended twice: Amendment 1 keyed it on switches between two known people; Amendment 2 drops the key,
+     since signing out (which unmounts it) is the only way the viewer can change on this page.*
    - `Faq`'s hide sets `open` back to `null`;
    - the `<pre>` gets `tabIndex={0}`, `role="region"` and `aria-label={COPY.rawBoxLabel}`, with a visible
      `:focus-visible` outline; the browser's own arrow-key scrolling of a focused scroll box does the rest.
@@ -205,7 +206,7 @@ Sub-decisions:
   - **Must stay green:** all of `test/manage-treasure-map-page.test.js` and `tests/brainstorm/manage-treasure-map
     .spec.js` (story 1), and the `/assistants` suites (the `cardFields` export).
 
-## Amendment 1 — the raw viewer resets on a switch between two known people, not on sign-in settling (2026-10-07)
+## Amendment 1 — the raw viewer resets on a switch between two known people, not on sign-in settling (2026-10-07; superseded by Amendment 2)
 
 **Why.** Review 1 (blocking 1) found that `key={viewer}` closes the raw viewer when sign-in *settles*. While
 `useAuth().loading` is true the page is in `loading` (story 1's `mapPanelPhase`), so the raw viewer is shown, and can be
@@ -230,6 +231,29 @@ So `null → X` (sign-in settling, or a first sign-in) keeps the viewer as it is
 **Tests (Phase 3).** A browser case holds `/api/auth/status`, opens the raw viewer while sign-in is settling, releases
 it, and checks the viewer is still open once the session's user has arrived. It fails against the `key={viewer}` build.
 C10 (sign out and back in → closed) stays as it is.
+
+## Amendment 2 — the raw viewer resets only by unmounting on sign-out; no key (2026-10-07)
+
+**Why.** Review 1's round 2 (blocking 1) found Amendment 1's mechanism contradicting its own rule. The last known viewer
+was never forgotten on sign-out, so *X → signed out → Y* counted as a switch, and a raw viewer that Y opened while their
+sign-in settled snapped shut. The round also found the case the counter exists for unreachable on this page:
+
+- every way to sign in on `/treasure-map` (the page's own button, the top bar's) renders only while nobody is signed in;
+- the session's user changes only when the page loads, after a sign-in, or on sign-out (`ui/src/context/AuthContext.jsx`:
+  `checkStatus` on mount and after `runLogin`, `logout`). Nothing polls the session or follows other tabs, and
+  `refreshUser` keeps the same pubkey.
+
+So the viewer can't go from one known person to another without passing through signed-out.
+
+**Decision.** `RawViewer` is rendered without a key. It resets in exactly one way: **signing out**, which replaces it with
+the sign-in prompt and unmounts it; the next sign-in, as anyone, mounts it fresh and closed. Sign-in settling (`null →
+X`, on page load or after a sign-in) keeps it as it is. The `{ viewer, switches }` state goes. **If a later change lets
+the session switch people without a sign-out** (session polling, cross-tab sync, an account switcher), key the viewer on
+the viewer then, and add a browser case for that switch.
+
+**Tests (Phase 3).** A browser case signs in as one person, signs out, signs in as a second person with
+`/api/auth/status` held, opens the raw viewer while that sign-in settles, releases it, and checks the viewer is still
+open with the second person's Map. It fails against `84fad91`. C10 and C14 stay as they are.
 
 ## Out of scope
 
