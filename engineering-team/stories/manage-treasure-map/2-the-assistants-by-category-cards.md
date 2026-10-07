@@ -154,5 +154,5 @@ the category has nothing of its own.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md`
 - Review: (filled in after Review phase)
