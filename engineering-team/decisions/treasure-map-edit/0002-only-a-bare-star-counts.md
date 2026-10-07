@@ -1,6 +1,6 @@
 # ADR 0002: Only a bare `*` counts; the family-word rule and segment coverage come out
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-07
 **Story:** `engineering-team/stories/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`
 **Supersedes in part:** ADR treasure-map-edit/0001 sub-decisions 2 (the `*` branch of "which categories an entry

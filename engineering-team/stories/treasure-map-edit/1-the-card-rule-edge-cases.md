@@ -6,6 +6,9 @@
 **Epic:** `treasure-map-edit`
 **Book:** `engineering-team/audits/treasure-map-edit/book.md`
 
+> **Replaced in part (2026-10-07):** the rows of AC-1 and AC-2 that name a `*:…` entry. By book decision 11 such an entry
+> counts on no card; see story 2, `2-the-cards-ignore-scoped-star-entries.md`.
+
 ## Background
 
 The **Assistants by category** cards on `/treasure-map` (manage-treasure-map #2) list every Assistant a person's

@@ -1,9 +1,13 @@
 # ADR 0001: The card rule compares keys segment by segment, after folding each key's spellings into one
 
-**Status:** Accepted
+**Status:** Accepted (sub-decisions 2–3 superseded in part by `treasure-map-edit` ADR 0002)
 **Date:** 2026-10-07
 **Story:** `engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.md`
 **Supersedes in part:** ADR manage-treasure-map/0002 sub-decisions 1 (key parsing) and 2 (applies, shadowed, per key)
+
+> **Superseded in part (2026-10-07):** by book decision 11, a `*:…` entry that names anything after the `*` reaches no
+> category, so the system-word branch of sub-decision 2 and the segment coverage of sub-decision 3 are gone; only a
+> bare `*` counts, hidden only by a bare family entry or `39998` — `treasure-map-edit` ADR 0002.
 
 ## Context
 
