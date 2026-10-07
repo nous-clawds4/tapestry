@@ -1,6 +1,6 @@
 # ADR 0002: The cards count with their own pure rule over the page's one Map read; names from the shared profile lookup
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-07
 **Story:** `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.md`
 

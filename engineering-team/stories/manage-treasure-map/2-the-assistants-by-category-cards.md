@@ -153,6 +153,6 @@ insight in the category (AC-2; book decision 9). This departs from the design, w
 the category has nothing of its own.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

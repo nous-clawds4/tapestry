@@ -20,7 +20,7 @@ together.
 1. `1-the-manage-your-treasure-map-page.md`: the page, the menu links, the FAQ, the raw Treasure Map, the Advanced
    management placeholder, and the My Assistants page's links. It reads. It publishes nothing.
 2. `2-the-assistants-by-category-cards.md`: the **Assistants by category** cards (Scores, Lists, Concepts), each with
-   the Assistant, "Mixed · N Assistants" or "Not assigned yet" the Map gives it (book decisions 7–8); plus story 1's
+   the Assistant, "Mixed · N Assistants" or "Not assigned yet" the Map gives it (book decisions 7–9); plus story 1's
    review findings 1, 2 and 4. Read-only. Depends on #1.
 
 Queued for a later book, by the owner's decision at intake (book decision 1): the design's **Edit** mode (assign an
