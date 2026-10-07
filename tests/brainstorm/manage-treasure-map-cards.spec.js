@@ -30,6 +30,8 @@ const { nip19 } = require('nostr-tools');
  *   C12 — the raw Treasure Map box is reached with Tab, named "Raw Treasure Map", and scrolls with the arrow keys.
  *                                                                                                               [AC-5]
  *   C13 — across the states, nothing is signed or published and no socket opens.                           [AC-5]
+ *   C14 — a raw viewer opened while sign-in is still settling stays open once the session's user arrives (review 1,
+ *         blocking 1; ADR 0002 Amendment 1).                                                                    [AC-5]
  */
 
 const VIEWER = 'a1'.repeat(32);
@@ -69,7 +71,7 @@ function deferred() { let resolve; const promise = new Promise((r) => { resolve 
 
 async function setup(page, {
   signedIn = true, mapLocal = MAIN, mapHold = null, relayAnswers = [{ success: true, events: [] }], relayList = ['wss://one.example'],
-  profiles = PROFILES, profilesHold = null,
+  profiles = PROFILES, profilesHold = null, authHold = null,
 } = {}) {
   const state = { ws: 0, writes: [], mapFilters: [], relayUrls: [], profileAsks: [], session: signedIn };
   await page.routeWebSocket(/.*/, (ws) => { state.ws++; ws.close(); });
@@ -128,7 +130,10 @@ async function setup(page, {
     ? { success: true, signedIn: true, hasAssistant: false, actions: {} }
     : { success: true, signedIn: false }));
   await page.route('**/api/assistant/roster', (r) => json(r, { success: true, assistants: [], viewer: null }));
-  await page.route('**/api/auth/status', (r) => json(r, state.session ? { authenticated: true, pubkey: VIEWER } : { authenticated: false, pubkey: null }));
+  await page.route('**/api/auth/status', async (r) => {
+    if (authHold) await authHold;
+    return json(r, state.session ? { authenticated: true, pubkey: VIEWER } : { authenticated: false, pubkey: null });
+  });
   await page.route('**/api/auth/user-classification', (r) => json(r, {
     success: true,
     classification: state.session ? 'customer' : 'unauthenticated',
@@ -352,6 +357,19 @@ test.describe('/treasure-map — Assistants by category', () => {
     expect(await box.evaluate((el) => el.scrollWidth > el.clientWidth), 'the fixture overflows sideways').toBe(true);
     for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowRight');
     await expect.poll(() => box.evaluate((el) => el.scrollLeft), { message: 'the box scrolled right' }).toBeGreaterThan(0);
+  });
+
+  test('C14: a raw viewer opened while sign-in is still settling stays open once the session’s user arrives', async ({ page }) => {
+    const auth = deferred();
+    await setup(page, { authHold: auth.promise });
+    await page.goto('/treasure-map');
+    await expect(rawButton(page), 'while sign-in settles, the raw viewer is offered').toBeVisible();
+    await rawButton(page).click();
+    await expect(rawButton(page)).toHaveAttribute('aria-expanded', 'true');
+    auth.resolve();
+    await cardsReady(page);
+    await expect(main(page).locator('pre'), 'the Map shows in the still-open viewer').toBeVisible();
+    await expect(rawButton(page), 'sign-in settling is not a new viewer').toHaveAttribute('aria-expanded', 'true');
   });
 
   test('C13: across the states, nothing is signed or published and no socket opens', async ({ page }) => {

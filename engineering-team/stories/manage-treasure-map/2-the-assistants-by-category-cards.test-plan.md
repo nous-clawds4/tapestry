@@ -130,3 +130,13 @@ and fail on Playwright's strict mode, not on a defect. They now look inside the 
 innermost element holding its button). The assertions are unchanged; the section's own lines are covered by this
 story's C6, C7 and C13. Re-run against the build of `ccece6b` (story 1's code): 15/15 pass. Committed on its own,
 before any implementation change.
+
+## Amendment 2 — after review 1 (2026-10-07)
+
+- **C14 (new, `tests/brainstorm/manage-treasure-map-cards.spec.js`)** — AC-5, ADR 0002 Amendment 1: `/api/auth/status`
+  is held, the raw viewer is opened while sign-in is settling, the hold is released, and the viewer must still be open
+  with the Map in it once the session's user has arrived. Against the build of `06c4738` (`key={viewer}`) it fails for
+  that reason: `expect(locator('pre')).toBeVisible()` — "the Map shows in the still-open viewer", element not found.
+- **Two of Amendment 1's lines go back to page-wide** (review 1, non-blocking 4): T5's closing "no error line" and T6's
+  closing "no loading line" (`tests/brainstorm/manage-treasure-map.spec.js`) are end-state `toHaveCount(0)` checks
+  that can't double-match, so they check the whole page again. T5 and T6 pass against `06c4738` with them.

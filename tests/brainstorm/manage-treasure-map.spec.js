@@ -270,7 +270,7 @@ test.describe('/treasure-map — Manage your Treasure Map', () => {
     await expect(pre(page)).toBeVisible();
     expect(JSON.parse(await pre(page).textContent())).toEqual(MAP);
     expect(state.relayUrls.length, 'Try again read again').toBeGreaterThan(asked);
-    await expect(rawBox(page).getByText(WORDS.error)).toHaveCount(0);
+    await expect(main(page).getByText(WORDS.error)).toHaveCount(0);
   });
 
   test('T5b: no general-purpose relay to ask and a local miss — can’t read, never none', async ({ page }) => {
@@ -292,7 +292,7 @@ test.describe('/treasure-map — Manage your Treasure Map', () => {
     await expect(pre(page)).toHaveCount(0);
     hold.resolve();
     await expect(pre(page)).toBeVisible();
-    await expect(rawBox(page).getByText(WORDS.loading, { exact: true })).toHaveCount(0);
+    await expect(main(page).getByText(WORDS.loading, { exact: true })).toHaveCount(0);
   });
 
   test('T7: whose Map — a relay answering with someone else’s 10040 shows none, never theirs', async ({ page }) => {
