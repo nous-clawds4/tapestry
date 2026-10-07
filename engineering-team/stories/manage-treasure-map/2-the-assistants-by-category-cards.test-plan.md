@@ -120,3 +120,13 @@ C13         waiting for getByRole('button', { name: 'Try again' }) — no sectio
 ```
 
 Story 1's Node suite (`manage-treasure-map-page`): 22 passed, 0 failed, 2 skipped, unchanged.
+
+## Amendment — story 1's raw-panel checks scoped to the raw viewer (2026-10-07, at the start of Implementation)
+
+Missed at Test Design: with ADR 0002 sub-decision 5, the section above the raw viewer shows the same loading line,
+error line and **Try again** as the raw viewer does. Four story 1 tests looked for those page-wide
+(`tests/brainstorm/manage-treasure-map.spec.js` T5, T5b, T6, T13), so with the raw viewer open they would match twice
+and fail on Playwright's strict mode, not on a defect. They now look inside the raw viewer's own box (`rawBox`: the
+innermost element holding its button). The assertions are unchanged; the section's own lines are covered by this
+story's C6, C7 and C13. Re-run against the build of `ccece6b` (story 1's code): 15/15 pass. Committed on its own,
+before any implementation change.

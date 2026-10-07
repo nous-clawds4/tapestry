@@ -158,6 +158,12 @@ const advancedHeading = (page) => page.getByRole('heading', { level: 1, name: 'A
 const faqButton = (page) => main(page).getByRole('button', { name: 'Frequently asked questions' });
 const rawButton = (page) => main(page).getByRole('button', { name: /^(View|Hide) the raw Treasure Map/ });
 const pre = (page) => main(page).locator('pre');
+/**
+ * The raw viewer's own box: the innermost element holding its button. Its state lines are scoped here because, since
+ * manage-treasure-map #2, the Assistants by category section shows the same loading and error lines (and its own Try
+ * again) above it; page-wide queries would match both (re-aimed by manage-treasure-map #2, Implementation).
+ */
+const rawBox = (page) => main(page).locator('div').filter({ has: page.getByRole('button', { name: /^(View|Hide) the raw Treasure Map/ }) }).last();
 async function openRaw(page) {
   await expect(rawButton(page)).toHaveAttribute('aria-expanded', 'false');
   await rawButton(page).click();
@@ -255,23 +261,23 @@ test.describe('/treasure-map — Manage your Treasure Map', () => {
     });
     await page.goto(NEW_PAGE);
     await openRaw(page);
-    await expect(main(page).getByText(WORDS.error)).toBeVisible();
-    await expect(main(page).getByRole('alert')).toContainText(WORDS.error);
+    await expect(rawBox(page).getByText(WORDS.error)).toBeVisible();
+    await expect(rawBox(page).getByRole('alert')).toContainText(WORDS.error);
     await expect(main(page).getByText(WORDS.noneTitle)).toHaveCount(0);
     await expect(pre(page)).toHaveCount(0);
     const asked = state.relayUrls.length;
-    await main(page).getByRole('button', { name: 'Try again' }).click();
+    await rawBox(page).getByRole('button', { name: 'Try again' }).click();
     await expect(pre(page)).toBeVisible();
     expect(JSON.parse(await pre(page).textContent())).toEqual(MAP);
     expect(state.relayUrls.length, 'Try again read again').toBeGreaterThan(asked);
-    await expect(main(page).getByText(WORDS.error)).toHaveCount(0);
+    await expect(rawBox(page).getByText(WORDS.error)).toHaveCount(0);
   });
 
   test('T5b: no general-purpose relay to ask and a local miss — can’t read, never none', async ({ page }) => {
     await setup(page, { mapLocal: null, relayList: [] });
     await page.goto(NEW_PAGE);
     await openRaw(page);
-    await expect(main(page).getByText(WORDS.error)).toBeVisible();
+    await expect(rawBox(page).getByText(WORDS.error)).toBeVisible();
     await expect(main(page).getByText(WORDS.noneTitle)).toHaveCount(0);
   });
 
@@ -280,13 +286,13 @@ test.describe('/treasure-map — Manage your Treasure Map', () => {
     await setup(page, { mapHold: hold.promise });
     await page.goto(NEW_PAGE);
     await openRaw(page);
-    await expect(main(page).getByText(WORDS.loading, { exact: true })).toBeVisible();
-    await expect(main(page).getByRole('status')).toContainText(WORDS.loading);
+    await expect(rawBox(page).getByText(WORDS.loading, { exact: true })).toBeVisible();
+    await expect(rawBox(page).getByRole('status')).toContainText(WORDS.loading);
     await expect(main(page).getByText(WORDS.noneTitle)).toHaveCount(0);
     await expect(pre(page)).toHaveCount(0);
     hold.resolve();
     await expect(pre(page)).toBeVisible();
-    await expect(main(page).getByText(WORDS.loading, { exact: true })).toHaveCount(0);
+    await expect(rawBox(page).getByText(WORDS.loading, { exact: true })).toHaveCount(0);
   });
 
   test('T7: whose Map — a relay answering with someone else’s 10040 shows none, never theirs', async ({ page }) => {
@@ -401,7 +407,7 @@ test.describe('/treasure-map — Manage your Treasure Map', () => {
     await page.goto(NEW_PAGE);
     await faqButton(page).click();
     await openRaw(page);
-    await main(page).getByRole('button', { name: 'Try again' }).click();
+    await rawBox(page).getByRole('button', { name: 'Try again' }).click();
     await expect(pre(page)).toBeVisible();
     await main(page).getByRole('link', { name: /Advanced management/ }).click();
     await expect(advancedHeading(page)).toBeVisible();
