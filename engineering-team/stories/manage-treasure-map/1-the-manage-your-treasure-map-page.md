@@ -1,6 +1,6 @@
 # Story 1: The Manage your Treasure Map page, its menu links, and the Advanced placeholder
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-07
 **Type:** Feature
 **Epic:** `manage-treasure-map`
@@ -162,4 +162,4 @@ Small judgment calls made in Implementation (2026-10-07):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
 - Test plan: `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/manage-treasure-map/1-the-manage-your-treasure-map-page.md`

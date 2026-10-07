@@ -16,6 +16,11 @@ The My Assistants page (`/assistants`, my-assistants #3) is the first caller to 
 hook's other callers (`MyCuratedDLists.jsx`, `CuratedDListDetail.jsx`) offer none. The owner chose at review 1's gate
 (2026-10-01) not to fix it in that pass.
 
+**Second affected page (2026-10-07):** `/treasure-map` (manage-treasure-map #1) offers the same Try again on the same
+hook, so a failed relay-list read sticks there too until reload. Found by that story's review 1, non-blocking 3
+(`engineering-team/reviews/manage-treasure-map/1-the-manage-your-treasure-map-page.md`). The fix shape below covers
+both pages.
+
 **Fix shape.** Have `refresh` also refetch the relay list when it errored (additive, harmless to the other callers),
 with a browser case: the Cypher read fails once, then Try again finds the Treasure Map.
 
