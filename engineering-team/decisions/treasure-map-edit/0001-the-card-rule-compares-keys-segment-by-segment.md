@@ -1,6 +1,6 @@
 # ADR 0001: The card rule compares keys segment by segment, after folding each key's spellings into one
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-07
 **Story:** `engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.md`
 **Supersedes in part:** ADR manage-treasure-map/0002 sub-decisions 1 (key parsing) and 2 (applies, shadowed, per key)

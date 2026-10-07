@@ -1,8 +1,12 @@
 # ADR 0002: The cards count with their own pure rule over the page's one Map read; names from the shared profile lookup
 
-**Status:** Accepted
+**Status:** Accepted (sub-decisions 1–2 superseded in part by `treasure-map-edit` ADR 0001)
 **Date:** 2026-10-07
 **Story:** `engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.md`
+
+> **Superseded in part (2026-10-07):** the card rule now compares keys segment by segment, reads a `*:` entry's system
+> word for its families, and folds each key's spellings into one (`39998:dlist-header` is `39998`; empty segments at
+> the end don't count) — `treasure-map-edit` ADR 0001.
 
 ## Context
 
