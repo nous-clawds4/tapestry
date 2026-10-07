@@ -122,9 +122,9 @@ function RawPanel({ phase, map }) {
 }
 
 /**
- * The raw Treasure Map, behind its button. It starts closed for each viewer: signing out unmounts it, and the page
- * re-keys it on a switch from one known person to another (ADR 0002 Amendment 1). Sign-in settling isn't a new viewer,
- * so a viewer opened meanwhile stays open.
+ * The raw Treasure Map, behind its button. It starts closed for each viewer because signing out replaces it with the
+ * sign-in prompt, which unmounts it; on this page the viewer can't change any other way (ADR 0002 Amendment 2). So it
+ * has no key, and sign-in settling, which isn't a new viewer, leaves a viewer opened meanwhile open.
  */
 function RawViewer({ phase, map }) {
   const [open, setOpen] = useState(false);
@@ -248,13 +248,6 @@ export default function ManageTreasureMapPage() {
   const phase = mapPanelPhase({ authLoading, user, status: map.status });
   // The viewer's own Assistant on this instance, from the session (never the instance owner's TA, never a literal).
   const localPubkey = (user && user.assistantPubkey) || null;
-  // Switches from one known person to another, which re-key the raw viewer (ADR 0002 Amendment 1). Adjusted while
-  // rendering, so the switch never commits with the old viewer's panel open. null → someone (sign-in settling, or a
-  // first sign-in) isn't a switch.
-  const [known, setKnown] = useState({ viewer: null, switches: 0 });
-  if (viewer && viewer !== known.viewer) {
-    setKnown({ viewer, switches: known.viewer ? known.switches + 1 : known.switches });
-  }
 
   return (
     <BrainstormDesignShell>
@@ -272,7 +265,7 @@ export default function ManageTreasureMapPage() {
           <button type="button" className="bsd-ma-btn is-primary" onClick={() => login().catch(() => {})}>{COPY.signInButton}</button>
         </div>
       ) : (
-        <RawViewer key={known.switches} phase={phase} map={map} />
+        <RawViewer phase={phase} map={map} />
       )}
 
       <div className="bsd-tm-advanced">

@@ -169,9 +169,9 @@ Small judgment calls made in Implementation (2026-10-07):
 
 After review 1 (2026-10-07):
 
-- **The raw viewer is keyed on switches between two known people** (ADR 0002 Amendment 1), not on the viewer, so a
-  viewer opened while sign-in settles stays open. The switch count is adjusted while rendering, React's pattern for
-  state derived from a changing value.
+- **The raw viewer has no key** (ADR 0002 Amendment 2, after round 2; Amendment 1's switch counter is gone). It starts
+  closed for each viewer because signing out unmounts it, and on this page the viewer can't change any other way. A
+  viewer opened while sign-in settles, after page load (C14) or after someone else signed out (C15), stays open.
 - **A mixed card's assignee row is a `div`, not a `span`,** so the hidden name list inside it is valid HTML (review 1,
   non-blocking 5).
 
