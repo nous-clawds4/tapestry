@@ -212,7 +212,3 @@ Amendment
 
 ## Verdict
 **CHANGES_REQUESTED**
-
-## On PASS (same commit)
-- [ ] Story `**Status:**` flipped to `Done` in place. Not applicable: changes requested.
-- [ ] Completion detection: not applicable until this story passes.
