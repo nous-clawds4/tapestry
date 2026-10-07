@@ -1,0 +1,134 @@
+# Story 2: The Assistants by category cards — who looks after your Scores, Lists and Concepts
+
+**Status:** Draft
+**Created:** 2026-10-07
+**Type:** Feature
+**Epic:** `manage-treasure-map`
+**Book:** `engineering-team/audits/manage-treasure-map/book.md`
+
+## Background
+
+Story 1 built `/treasure-map`: the heading, the FAQ, the raw Treasure Map and the Advanced management placeholder. The
+blueprint's centre of the page is still missing: **Assistants by category**, three cards that say which Assistant your
+Treasure Map names for your **Scores**, your **Lists** and your **Concepts**. Without them, the only way to see that is
+to read the raw event.
+
+This story adds the cards, view-only, as the blueprint draws them outside Edit mode (blueprint `treasure-map-screen
+.html.txt`, the `tmbCats` cards; `treasure-map-logic.js.txt`, `tmbCats` and `TMB_CAT_KEYS`). It changes the design in
+one place, by the owner's decision: a category the Map doesn't cover says it **hasn't been assigned yet**, where the
+design would show your own Assistant (book decision 7). It counts the Map's broad entries (**everything**, **all
+Scores**, **all Lists**) as the design does (book decision 8).
+
+It also folds in three small fixes from story 1's review (non-blocking 1, 2 and 4), all on the same page.
+
+Nothing here signs or publishes. Editing remains a later book (decision 1).
+
+## User-facing description
+
+As a signed-in person with a Treasure Map, I want to see at a glance which Assistant looks after my Scores, my Lists
+and my Concepts, and which of those aren't assigned to anyone yet, so I know what other apps will find for me without
+reading the raw event.
+
+## Acceptance criteria
+
+- [ ] **AC-1: the section.** Given a signed-in person, on `/treasure-map`, between the FAQ and the raw Treasure Map:
+  - the heading **Assistants by category**, and under it three cards in this order: **Scores**, **Lists**,
+    **Concepts**, each with its description from § Copy and, on the right, who it's assigned to (AC-3);
+  - under the cards, the line **Mixed assignments can be reviewed on the Advanced page.**, whose **Advanced page**
+    opens `/treasure-map/advanced`.
+
+  There is still no **Edit**, no **Choose an Assistant**, no **Assign to all**, no **All duties** row and no **Save
+  changes**. Signed out, the section isn't shown at all; the page is as story 1 left it.
+- [ ] **AC-2: which entries count for a category.** A Map entry counts only when it names a valid Assistant (a 64-hex
+  pubkey), as on the My Assistants page's Duties tab. For each category, the card looks at the Map's entries in three
+  levels, most specific first, and uses **the first level that has any entry for that category**:
+  1. **The category's own entries.**
+     - Scores: any entry for a Score kind, 30380–30389, bare or named (`30382`, `30382:rank`, `30386:…`).
+     - Lists: any entry for a List kind, 30390–30399 (`30392`, `30396:…`).
+     - Concepts: any entry for kind 39998 or 39999 (`39998`, `39998:dlist-header`, `39998:<d-tag>`, `39999:<d-tag>`).
+  2. **The category's family-wide entries** (the draft Treasure Maps grammar, `protocols/drafts/treasure-maps.md`):
+     `3038x` and `3038x:…` for Scores; `3039x` and `3039x:…` for Lists. Concepts have none.
+  3. **Everything:** `*`, and `*:…` for Scores and Lists only (the draft: `*:tag` and `*:dlist` never match a Concept).
+
+  Within that level, the category's Assistants are **the first-listed Assistant of each distinct entry key**, in the
+  order the Map first names them, without repeats. (A key's later Assistants are alternates; they don't count, as in
+  the design.) Entries of any other kind (for example `99999`, or a bare `30000`) count for no category.
+
+  *See Open question 1 for the one case this rule may need to change.*
+- [ ] **AC-3: what a card says.**
+  - **One Assistant:** "Assigned to", its avatar (the first letter of its name) and its name.
+  - **Several:** "Assigned to", up to three overlapping avatars, then **Mixed** and **· N Assistants**, where N counts
+    them all.
+  - **None** (no level has an entry for the category): **Not assigned yet**, with no avatar.
+
+  An Assistant's name is its profile's display name, else its name; with neither, or if its profile can't be found,
+  its shortened npub. The signed-in person's own Assistant on this instance (the one `/assistants` marks Local) has
+  the blueprint's purple avatar; every other Assistant has the navy one. A long name wraps or is cut short without
+  pushing the page sideways at 375 px.
+- [ ] **AC-4: the section's other states.** The cards claim nothing until the Map has been read:
+  - **still reading:** the loading line of § Copy in place of the cards; never "Not assigned yet";
+  - **can't read** (as story 1 AC-4 defines it): the error line and **Try again** in place of the cards; never "Not
+    assigned yet". Try again reads the Map again, as the raw viewer's does;
+  - **no Treasure Map** (the strict "none" of story 1 AC-4): all three cards say **Not assigned yet**.
+- [ ] **AC-5: story 1's review findings.**
+  - **The raw viewer starts closed for each viewer.** Signing out and back in, or signing in as someone else, without
+    leaving the page, shows the raw Treasure Map closed. *(review non-blocking 1)*
+  - **Hiding the FAQ closes its open answer.** Showing it again lists the four questions, each closed. *(review
+    non-blocking 2; AC-3 of story 1, read strictly)*
+  - **The raw Treasure Map can be scrolled from the keyboard.** The JSON box takes keyboard focus, has an accessible
+    name, and scrolls sideways with the arrow keys. *(review non-blocking 4)*
+
+  In no state does the page publish, sign or store anything.
+
+## Copy
+
+From the blueprint unless marked **new**. Curly apostrophes, as in story 1.
+
+| Element | Text |
+|---|---|
+| Section heading | Assistants by category |
+| Scores card | **Scores** · Trust scores for profiles and content, one at a time. |
+| Lists card | **Lists** · Curated lists of profiles and content. |
+| Concepts card | **Concepts** · Structured datasets your community organizes together. |
+| Assigned label | Assigned to |
+| Mixed | Mixed · N Assistants (N ≥ 2) |
+| Not assigned | **new**: Not assigned yet |
+| Mixed line | Mixed assignments can be reviewed on the [Advanced page]. |
+| Loading line (cards) | Loading your Treasure Map… (story 1's) |
+| Error line (cards) | Couldn’t read your Treasure Map. · Try again (story 1's) |
+| Raw JSON box's accessible name | **new**: Raw Treasure Map |
+
+## Concepts touched
+
+The stack wasn't running at drafting, so these are named in plain language; the Architect should resolve handles if
+any are needed.
+
+- **Treasure Map** — the person's kind 10040, read as story 1 reads it. Its entries' grammar follows NIP-85, extended
+  by the draft `protocols/drafts/treasure-maps.md` (the family wildcards and `*`).
+- **Tapestry Assistant / "Local" Assistant** — the person's own Assistant on this instance, which gets the purple
+  avatar.
+- **nostr user** — each named Assistant's kind 0 profile, for its name.
+
+## Out of scope
+
+- **A later book (decision 1):** everything behind **Edit**: the **All duties** row, the pickers, the override
+  switches, **Unsaved** / **Undo**, **Save changes**, the "edited" raw preview, publishing a kind 10040; and the full
+  Advanced page the Mixed line points to.
+- **Not here:** marking which listed Assistants are tagged as yours (the My Assistants page does that); verifying an
+  Assistant's NIP-05; the Try again bug in the shared Map read (`ledger/2026-10-01-treasure-map-retry-skips-relay-list
+  .md`, its own fix); listing individual duties (the Duties tab on `/assistants`, and later the Advanced page).
+
+## Open questions
+
+Raised with the draft, 2026-10-07. Resolve before approving.
+
+1. **A category with both its own entries and a broad one.** Say your Map gives **rank** to Assistant A
+   (`30382:rank`) and **all Scores** to Assistant B (`3038x`). AC-2 as drafted follows the design: the Scores card
+   shows **A** only, because the category has its own entry. Strictly, B still looks after every *other* Score, so the
+   card could instead say **Mixed · 2 Assistants** (A and B). The same goes for **everything** (`*`) under any
+   category. Keep the design's rule (as drafted), or show the broad entry's Assistant alongside, as Mixed?
+
+## Linked artifacts
+- ADR: (filled in after Architecture phase)
+- Test plan: (filled in after Test Design phase)
+- Review: (filled in after Review phase)

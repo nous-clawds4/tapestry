@@ -59,6 +59,19 @@ At story 1's gate, the same day (approved as drafted, "Ready for architecture.")
 5. **The Advanced placeholder points to the TA Treasure Map page** until the Advanced page is built.
 6. **Two stories, then ship once:** the page (story 1), then the Assistants by category cards (story 2).
 
+At story 1's review gate, the same day, verbatim:
+
+> If my Map doesn’t cover a category, it should indicate that category has not yet been assigned.
+>
+> Yes, let’s count broad entries.
+>
+> Proceed.
+
+7. **A category the Map doesn't cover says it hasn't been assigned yet.** The design shows your own Assistant there
+   instead; story 2 departs from it.
+8. **Broad entries count.** `*` (everything) and the family wildcards `3038x` / `3039x` (all Scores / all Lists, from
+   the draft Treasure Maps grammar) cover a category that has nothing more specific, as the design does.
+
 ## Epics in this book
 - `manage-treasure-map` — the Manage your Treasure Map page and its Advanced placeholder.
 
