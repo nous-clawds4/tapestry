@@ -121,7 +121,11 @@ function RawPanel({ phase, map }) {
   return <div className="bsd-ma-status bsd-tm-raw-state" role="status"><p>{COPY.loading}</p></div>;
 }
 
-/** The raw Treasure Map, behind its button. Keyed on the viewer by the page, so it starts closed for each one. */
+/**
+ * The raw Treasure Map, behind its button. It starts closed for each viewer: signing out unmounts it, and the page
+ * re-keys it on a switch from one known person to another (ADR 0002 Amendment 1). Sign-in settling isn't a new viewer,
+ * so a viewer opened meanwhile stays open.
+ */
 function RawViewer({ phase, map }) {
   const [open, setOpen] = useState(false);
   return (
@@ -160,7 +164,7 @@ function CategoryCard({ card }) {
                 <span className="bsd-tm-cat-name">{card.people[0].name}</span>
               </span>
             ) : (
-              <span className="bsd-tm-cat-assignee">
+              <div className="bsd-tm-cat-assignee">
                 <span className="bsd-tm-cat-avatars">
                   {card.avatars.map((person) => <Avatar key={person.pubkey} person={person} />)}
                 </span>
@@ -170,7 +174,7 @@ function CategoryCard({ card }) {
                 <ul className="bs-sr-only">
                   {card.people.map((person) => <li key={person.pubkey}>{person.name}</li>)}
                 </ul>
-              </span>
+              </div>
             )}
           </>
         )}
@@ -244,6 +248,13 @@ export default function ManageTreasureMapPage() {
   const phase = mapPanelPhase({ authLoading, user, status: map.status });
   // The viewer's own Assistant on this instance, from the session (never the instance owner's TA, never a literal).
   const localPubkey = (user && user.assistantPubkey) || null;
+  // Switches from one known person to another, which re-key the raw viewer (ADR 0002 Amendment 1). Adjusted while
+  // rendering, so the switch never commits with the old viewer's panel open. null → someone (sign-in settling, or a
+  // first sign-in) isn't a switch.
+  const [known, setKnown] = useState({ viewer: null, switches: 0 });
+  if (viewer && viewer !== known.viewer) {
+    setKnown({ viewer, switches: known.viewer ? known.switches + 1 : known.switches });
+  }
 
   return (
     <BrainstormDesignShell>
@@ -261,7 +272,7 @@ export default function ManageTreasureMapPage() {
           <button type="button" className="bsd-ma-btn is-primary" onClick={() => login().catch(() => {})}>{COPY.signInButton}</button>
         </div>
       ) : (
-        <RawViewer key={viewer || 'no-viewer'} phase={phase} map={map} />
+        <RawViewer key={known.switches} phase={phase} map={map} />
       )}
 
       <div className="bsd-tm-advanced">

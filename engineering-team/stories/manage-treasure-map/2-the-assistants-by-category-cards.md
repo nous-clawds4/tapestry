@@ -167,6 +167,14 @@ Small judgment calls made in Implementation (2026-10-07):
 - **The name lookup has a `.catch` that falls back to npubs,** although `fetchProfilesChunked` never rejects today.
   The ADR says a failed lookup must never fail the section.
 
+After review 1 (2026-10-07):
+
+- **The raw viewer is keyed on switches between two known people** (ADR 0002 Amendment 1), not on the viewer, so a
+  viewer opened while sign-in settles stays open. The switch count is adjusted while rendering, React's pattern for
+  state derived from a changing value.
+- **A mixed card's assignee row is a `div`, not a `span`,** so the hidden name list inside it is valid HTML (review 1,
+  non-blocking 5).
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
 - Test plan: `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md`
