@@ -140,3 +140,15 @@ before any implementation change.
 - **Two of Amendment 1's lines go back to page-wide** (review 1, non-blocking 4): T5's closing "no error line" and T6's
   closing "no loading line" (`tests/brainstorm/manage-treasure-map.spec.js`) are end-state `toHaveCount(0)` checks
   that can't double-match, so they check the whole page again. T5 and T6 pass against `06c4738` with them.
+
+## Amendment 3 — after review 1, round 2 (2026-10-07)
+
+- **C15 (new, `tests/brainstorm/manage-treasure-map-cards.spec.js`)** — AC-5, ADR 0002 Amendment 2: signed in as one
+  person, Sign out from the menu, then a second person signs in with `/api/auth/status` held; they open the raw viewer
+  while their sign-in settles; the hold is released; the viewer must still be open, showing the second person's Map.
+  Against the build of `84fad91` (Amendment 1's switch counter) it fails for that reason:
+  `expect(locator('pre')).toBeVisible()` — "the viewer is still open, with the second person's Map", element not found.
+- **The spec's mocks follow the session's person.** `window.nostr` answers with `window.__pubkey` when a test sets it,
+  `/api/auth/status` and `/api/auth/user-classification` answer with `state.sessionPubkey`, the session check waits on
+  `state.authHold` (C14's option, now on `state`), and the local Map read answers each person with their own Map. Every
+  other test leaves these at the first person: on `84fad91` the other 14 tests, C10 and C14 among them, still pass.

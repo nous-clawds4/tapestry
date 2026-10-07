@@ -32,6 +32,8 @@ const { nip19 } = require('nostr-tools');
  *   C13 — across the states, nothing is signed or published and no socket opens.                           [AC-5]
  *   C14 — a raw viewer opened while sign-in is still settling stays open once the session's user arrives (review 1,
  *         blocking 1; ADR 0002 Amendment 1).                                                                    [AC-5]
+ *   C15 — the same after one person signs out and another signs in: the viewer the second person opened while their
+ *         sign-in settled stays open, with their own Map (review 1 round 2, blocking 1; ADR 0002 Amendment 2). [AC-5]
  */
 
 const VIEWER = 'a1'.repeat(32);
@@ -40,6 +42,7 @@ const A = 'c1'.repeat(32);
 const B = 'c2'.repeat(32);
 const C = 'c3'.repeat(32);
 const D = 'd1'.repeat(32);
+const SECOND = 'b7'.repeat(32); // a second person who signs in after the first signs out (C15)
 const R = 'wss://relay.example';
 // The Assistants the fixtures' Maps name; the frame's own profile reads (the viewer's, the instance's) are other keys.
 const CARD_KEYS = new Set([LOCAL, A, B, C, D]);
@@ -73,13 +76,13 @@ async function setup(page, {
   signedIn = true, mapLocal = MAIN, mapHold = null, relayAnswers = [{ success: true, events: [] }], relayList = ['wss://one.example'],
   profiles = PROFILES, profilesHold = null, authHold = null,
 } = {}) {
-  const state = { ws: 0, writes: [], mapFilters: [], relayUrls: [], profileAsks: [], session: signedIn };
+  const state = { ws: 0, writes: [], mapFilters: [], relayUrls: [], profileAsks: [], session: signedIn, sessionPubkey: VIEWER, authHold };
   await page.routeWebSocket(/.*/, (ws) => { state.ws++; ws.close(); });
   await page.addInitScript((viewer) => {
     window.__signCalls = 0;
     window.nostr = {
-      getPublicKey: async () => viewer,
-      signEvent: async (u) => { window.__signCalls++; return { ...u, pubkey: viewer, id: '7'.repeat(64), sig: 'f'.repeat(128) }; },
+      getPublicKey: async () => window.__pubkey || viewer,
+      signEvent: async (u) => { window.__signCalls++; return { ...u, pubkey: window.__pubkey || viewer, id: '7'.repeat(64), sig: 'f'.repeat(128) }; },
     };
   }, VIEWER);
   page.on('request', (req) => {
@@ -97,7 +100,10 @@ async function setup(page, {
     if (Array.isArray(filter.kinds) && filter.kinds.includes(10040)) {
       state.mapFilters.push(filter);
       if (mapHold) await mapHold;
-      return json(r, { success: true, events: mapLocal ? [mapLocal] : [] });
+      // Each person's own Map: the fixture, re-authored for whoever the read asks about.
+      const author = Array.isArray(filter.authors) ? filter.authors[0] : VIEWER;
+      const ev = mapLocal && author !== VIEWER ? { ...mapLocal, pubkey: author, id: '8'.repeat(64) } : mapLocal;
+      return json(r, { success: true, events: ev ? [ev] : [] });
     }
     return json(r, { success: true, events: [] });
   });
@@ -131,13 +137,13 @@ async function setup(page, {
     : { success: true, signedIn: false }));
   await page.route('**/api/assistant/roster', (r) => json(r, { success: true, assistants: [], viewer: null }));
   await page.route('**/api/auth/status', async (r) => {
-    if (authHold) await authHold;
-    return json(r, state.session ? { authenticated: true, pubkey: VIEWER } : { authenticated: false, pubkey: null });
+    if (state.authHold) await state.authHold;
+    return json(r, state.session ? { authenticated: true, pubkey: state.sessionPubkey } : { authenticated: false, pubkey: null });
   });
   await page.route('**/api/auth/user-classification', (r) => json(r, {
     success: true,
     classification: state.session ? 'customer' : 'unauthenticated',
-    pubkey: state.session ? VIEWER : null,
+    pubkey: state.session ? state.sessionPubkey : null,
     assistantPubkey: state.session ? LOCAL : null,
   }));
   // Sign out and sign in (C10 only drives them).
@@ -370,6 +376,32 @@ test.describe('/treasure-map — Assistants by category', () => {
     await cardsReady(page);
     await expect(main(page).locator('pre'), 'the Map shows in the still-open viewer').toBeVisible();
     await expect(rawButton(page), 'sign-in settling is not a new viewer').toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('C15: after one person signs out, a viewer the next person opens while their sign-in settles stays open', async ({ page }) => {
+    const state = await setup(page);
+    await page.goto('/treasure-map');
+    await cardsReady(page);
+
+    await page.locator('.bs-usermenu-avatar-btn').first().click();
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(main(page).getByRole('button', { name: 'Sign in with nostr' })).toBeVisible();
+
+    // A second person signs in; their session check is held so the page is still settling when they open the viewer.
+    const auth = deferred();
+    state.authHold = auth.promise;
+    state.sessionPubkey = SECOND;
+    await page.evaluate((pk) => { window.__pubkey = pk; }, SECOND);
+    await main(page).getByRole('button', { name: 'Sign in with nostr' }).click();
+    await expect(rawButton(page), 'while the second sign-in settles, the raw viewer is offered').toBeVisible();
+    await rawButton(page).click();
+    await expect(rawButton(page)).toHaveAttribute('aria-expanded', 'true');
+
+    auth.resolve();
+    await cardsReady(page);
+    await expect(main(page).locator('pre'), 'the viewer is still open, with the second person’s Map').toBeVisible();
+    await expect(main(page).locator('pre')).toContainText(SECOND);
+    await expect(rawButton(page), 'a sign-in after a sign-out is not a switch').toHaveAttribute('aria-expanded', 'true');
   });
 
   test('C13: across the states, nothing is signed or published and no socket opens', async ({ page }) => {
