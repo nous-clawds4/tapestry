@@ -18,10 +18,14 @@ raw Treasure Map. Save signs a new kind 10040 with the person's own signer and p
 
 1. **The cards' counting rule, fixed for the draft grammar's three edge cases** (bug; ledger
    `2026-10-07-treasure-map-card-rule-edge-cases`): `1-the-card-rule-edge-cases.md`. Done.
-2. **The cards ignore an everything entry that goes beyond `*`** (change; book decision 11): a `*:…` entry counts for
-   no category, `*:` alone is still `*`, and the draft grammar records the open question. Depends on #1.
+2. **The cards ignore an everything entry that goes beyond `*`** (bug; book decision 11): a `*:…` entry counts for
+   no category, `*:` alone is still `*`, and the draft grammar records the open question:
+   `2-the-cards-ignore-scoped-star-entries.md`. Done.
 3. **Edit mode** (feature). Its Planning decides whether it's one story or more (for example, edit controls and
-   preview, then Save). Depends on #2.
+   preview, then Save). Depends on #2. Carries story 2's review non-blocking 1 and 3 (the `categoryAssistants` JSDoc's
+   "a `*:…` entry never counts" should say "that names anything after the `*`"; H1–H5's names in
+   `test/treasure-map-card-rule-edges.test.js` still say "covers") into the first story that touches that module and
+   suite.
 
 ## Key facts / guardrails
 

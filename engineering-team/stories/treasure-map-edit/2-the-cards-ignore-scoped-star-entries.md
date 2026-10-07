@@ -1,6 +1,6 @@
 # Story 2: The cards ignore an everything entry that goes beyond `*`
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-07
 **Type:** Bug
 **Epic:** `treasure-map-edit`
@@ -106,4 +106,4 @@ Approved as drafted, 2026-10-07, verbatim: "Ready for architecture."
 - Replaces in part: `engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.md` AC-1 and AC-2
 - ADR: `engineering-team/decisions/treasure-map-edit/0002-only-a-bare-star-counts.md`
 - Test plan: `engineering-team/stories/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`

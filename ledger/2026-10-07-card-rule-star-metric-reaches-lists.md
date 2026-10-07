@@ -3,8 +3,11 @@
 **Id:** 2026-10-07-card-rule-star-metric-reaches-lists
 **Type:** bug
 **Opened:** 2026-10-07 (treasure-map-edit #1 review, non-blocking 1)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-07 — settled by the owner's book decision 11: the page ignores every `*:…` entry that names
+anything after the `*`, so these keys count nowhere. Built by treasure-map-edit #2 (ADR treasure-map-edit/0002), review
+PASS: `engineering-team/reviews/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`. Ships to staging with the
+book's PR.
 
 The cards' rule (`categoryAssistants`, `ui/src/pages/treasure-map/manageTreasureMap.js`, ADR treasure-map-edit/0001
 sub-decision 2) decides which families a `*:…` entry reaches from its first word only: `tag`, `pin` and `dlist` reach
