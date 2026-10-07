@@ -3,8 +3,9 @@
 **Id:** 2026-10-07-treasure-map-card-rule-edge-cases
 **Type:** bug
 **Opened:** 2026-10-07 (manage-treasure-map #2 review 1, non-blocking 1–3)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-07 — fixed by treasure-map-edit #1 (ADR treasure-map-edit/0001), review PASS:
+`engineering-team/reviews/treasure-map-edit/1-the-card-rule-edge-cases.md`. Ships to staging with the book's PR.
 
 `categoryAssistants` (`ui/src/pages/treasure-map/manageTreasureMap.js`, ADR manage-treasure-map/0002 sub-decision 2)
 follows the story's enumeration literally. Against the draft grammar (`protocols/drafts/treasure-maps.md` §4.3, §4.7,

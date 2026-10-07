@@ -1,6 +1,6 @@
 # Story 1: The cards' counting rule follows the draft grammar in three edge cases
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-07
 **Type:** Bug
 **Epic:** `treasure-map-edit`
@@ -123,4 +123,4 @@ Approved as drafted, 2026-10-07, verbatim: "Ready for Architecture."
   non-blocking 1–3
 - ADR: `engineering-team/decisions/treasure-map-edit/0001-the-card-rule-compares-keys-segment-by-segment.md`
 - Test plan: `engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/treasure-map-edit/1-the-card-rule-edge-cases.md`

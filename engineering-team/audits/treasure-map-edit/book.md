@@ -28,7 +28,7 @@ says it has.
 
 *Proposed 2026-10-07 at intake; confirmed by the owner the same day ("3. Confirmed.", below).*
 
-- [ ] **The cards count the draft grammar's edge cases right** (ledger `2026-10-07-treasure-map-card-rule-edge-cases`):
+- [x] **The cards count the draft grammar's edge cases right** (ledger `2026-10-07-treasure-map-card-rule-edge-cases`):
       a broad entry that a more specific one covers completely doesn't count, a system word counts only for the
       family it belongs to, and two spellings of one key count once. Edit mode's preview is built on this rule.
 - [ ] **Edit on `/treasure-map`, per the blueprint.** A signed-in person whose Map has been read presses **Edit**, then

@@ -6,7 +6,7 @@
 
 > **Superseded in part (2026-10-07):** the card rule now compares keys segment by segment, reads a `*:` entry's system
 > word for its families, and folds each key's spellings into one (`39998:dlist-header` is `39998`; empty segments at
-> the end don't count) — `treasure-map-edit` ADR 0001.
+> the end don't count, except in a Concept key) — `treasure-map-edit` ADR 0001.
 
 ## Context
 

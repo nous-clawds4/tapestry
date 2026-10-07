@@ -32,12 +32,12 @@ Facts from the code this decision rests on:
 
 - **The rule is three module-private helpers and one export** in `ui/src/pages/treasure-map/manageTreasureMap.js`
   (ADR manage-treasure-map/0002 sub-decisions 1–2):
-  - `entryOf(tag)` (line ~113) splits the key at its first colon into `slot` and `rest`;
-  - `appliesTo(category, entry)` (line ~124) decides which categories an entry can reach, and lets any `*:…` reach
+  - `entryOf(tag)` (line 107) splits the key at its first colon into `slot` and `rest`;
+  - `appliesTo(category, entry)` (line 117) decides which categories an entry can reach, and lets any `*:…` reach
     Scores and Lists (case 2);
-  - `shadowed(category, entry, keys)` (line ~141) hides a `*` entry only behind an exact `3038x:<rest>` /
+  - `shadowed(category, entry, keys)` (line 134) hides a `*` entry only behind an exact `3038x:<rest>` /
     `3039x:<rest>` string in a `Set` of raw keys (case 1), and checks `39998` and `39998:dlist-header` by hand;
-  - `categoryAssistants(event)` (line ~160) groups by the raw `tag[0]` (case 3).
+  - `categoryAssistants(event)` (line 151) groups by the raw `tag[0]` (case 3).
 - **Only the page calls it.** `categoryAssistants` is imported by `ui/src/pages/treasure-map/Index.jsx:9` and nowhere
   else. Edit mode, later in this book, is to reuse it for its preview.
 - **No existing test pins the wrong behaviour.** `test/manage-treasure-map-cards.test.js` K1–K20 and the browser

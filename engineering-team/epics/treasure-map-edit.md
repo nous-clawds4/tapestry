@@ -17,7 +17,7 @@ raw Treasure Map. Save signs a new kind 10040 with the person's own signer and p
 ## Stories
 
 1. **The cards' counting rule, fixed for the draft grammar's three edge cases** (bug; ledger
-   `2026-10-07-treasure-map-card-rule-edge-cases`). Not yet written.
+   `2026-10-07-treasure-map-card-rule-edge-cases`): `1-the-card-rule-edge-cases.md`. Done.
 2. **Edit mode** (feature). Its Planning decides whether it's one story or more (for example, edit controls and
    preview, then Save). Depends on #1.
 
