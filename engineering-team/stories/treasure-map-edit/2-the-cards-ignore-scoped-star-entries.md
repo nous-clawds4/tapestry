@@ -1,6 +1,6 @@
 # Story 2: The cards ignore an everything entry that goes beyond `*`
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-07
 **Type:** Bug
 **Epic:** `treasure-map-edit`
@@ -95,6 +95,10 @@ The stack wasn't running in this session, so no concept handles were checked. No
 ## Open questions
 
 None.
+
+## Resolved at the story gate
+
+Approved as drafted, 2026-10-07, verbatim: "Ready for architecture."
 
 ## Linked artifacts
 - Book decision: `engineering-team/audits/treasure-map-edit/book.md`, decision 11
