@@ -528,6 +528,7 @@ The mock's "Nostr Event ID" and "Nostr Event Address" rows are read here as "eve
 9. **Named variants of one list.** The mock's DList-based stored methods put a score name on the List key (`30397:<DList>:<score>`). This draft drops it: one list per exact key. If two lists for one DList are ever needed, that means a new system word, not a trailing name.
 10. **Scorecards.** Kinds and addressing (subject plus context) to be defined (§ 10.13).
 11. ~~Mixed-item DLists~~ — resolved: `30396` holds `39999` and `9999` items in one list.
+12. **Is `*:<scope>` needed?** A `*:…` key never reaches a Concept (§ 4.5), so `*:<scope>` reaches exactly what `3038x:<scope>` and `3039x:<scope>` reach together. Dropping it would leave a bare `*` as the only key for everything, and remove the precedence cases between a family key and a `*` key with the same scope (§ 6). For now, Brainstorm's Treasure Map page reads only a bare `*` (`*:` with nothing after it is the same key) and ignores any other `*:…` entry.
 
 ## 14. A complete Map
 

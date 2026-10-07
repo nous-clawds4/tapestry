@@ -96,14 +96,13 @@ export function mapPanelPhase({ authLoading, user, status }) {
 
 // ── The Assistants by category cards (manage-treasure-map #2, ADR manage-treasure-map/0002) ─────────────────────────
 // The rule reads keys by the draft Treasure Maps grammar's segments since treasure-map-edit #1 (ADR treasure-map-edit/
-// 0001, which supersedes ADR 0002 sub-decisions 1–2 in part): it folds each key's spellings into one, reads a `*:`
-// entry's system word for its families, and hides a `*` entry only behind a family entry that covers it.
+// 0001, which supersedes ADR 0002 sub-decisions 1–2 in part): it folds each key's spellings into one. Since
+// treasure-map-edit #2 (book decision 11, ADR treasure-map-edit/0002) only a bare `*` counts: a `*:…` entry that names
+// anything after the `*` is ignored, and a bare `*` is hidden only by a bare family entry, or `39998`.
 
 const CATEGORIES = ['scores', 'lists', 'concepts'];
 const HEX64 = /^[0-9a-f]{64}$/i;
 const KIND = /^\d{5}$/;
-// System words that reach both Scores and Lists; `contexts` is Lists-only; any other word is a Score metric.
-const BOTH_FAMILIES = new Set(['tag', 'pin', 'dlist']);
 
 /**
  * One Map tag as the cards read it (ADR treasure-map-edit/0001 sub-decision 1): its key, its delegate (lowercased),
@@ -132,9 +131,9 @@ function entryOf(tag) {
 }
 
 /**
- * Does this entry apply to the category? Own kinds, the family wildcard, or everything (sub-decision 2). A bare `*`
- * reaches all three; a `*:…` never a Concept, and its system word decides: `tag`, `pin`, `dlist` (and an empty
- * system slot, as before) reach Scores and Lists, `contexts` only Lists, and any other word is a metric, Scores only.
+ * Does this entry apply to the category? Own kinds, the family wildcard, or everything (ADR treasure-map-edit/0002
+ * sub-decision 1). A bare `*` (`*:` and `*::` too) reaches all three; a `*:…` that names anything after the `*` reaches
+ * none, since the page doesn't support it for now (book decision 11).
  */
 function appliesTo(category, { slot, segments }) {
   if (KIND.test(slot)) {
@@ -145,51 +144,38 @@ function appliesTo(category, { slot, segments }) {
   }
   if (slot === '3038x') return category === 'scores';
   if (slot === '3039x') return category === 'lists';
-  if (slot !== '*') return false;
-  if (segments.length === 0) return true;
-  if (category === 'concepts') return false;
-  const word = segments[0];
-  if (word === '' || BOTH_FAMILIES.has(word)) return true;
-  if (word === 'contexts') return category === 'lists';
-  return category === 'scores';
-}
-
-/** Does family entry `family` reach everything `star` reaches? Every segment it names is named the same in `star`. */
-function covers(family, star) {
-  return family.segments.every((segment, i) => segment === '' || star.segments[i] === segment);
+  return slot === '*' && segments.length === 0;
 }
 
 /**
- * Does a more specific entry cover this `*` entry completely for the category, so no insight there would reach it
- * (sub-decision 3)? Only `*` entries are hidden: for Scores by a `3038x` entry that covers it, for Lists by a `3039x`
- * one, for Concepts (bare `*` only) by `39998` in either spelling. `families` and `conceptNorms` come from entries
- * with a valid delegate only.
+ * Does a more specific entry cover this bare `*` completely for the category, so no insight there would reach it (ADR
+ * treasure-map-edit/0002 sub-decision 2)? Only a bare `*` counts, so only it is hidden: for Scores by a bare `3038x`,
+ * for Lists by a bare `3039x`, for Concepts by `39998`, each in any spelling. `norms` holds the `norm` of every entry
+ * with a valid delegate.
  */
-function shadowed(category, entry, families, conceptNorms) {
-  if (entry.slot !== '*') return false;
-  if (category === 'concepts') return conceptNorms.has('39998');
-  const family = category === 'scores' ? '3038x' : '3039x';
-  return families.some((f) => f.slot === family && covers(f, entry));
+function shadowed(category, entry, norms) {
+  if (entry.norm !== '*') return false;
+  return norms.has(category === 'scores' ? '3038x' : category === 'lists' ? '3039x' : '39998');
 }
 
 /**
  * Which Assistants the Map gives each category (AC-2): every Assistant it would ask for some insight there. Per key,
  * however it's spelled, the first valid delegate counts (later ones are alternates); a `*` entry that a more specific
- * entry covers completely doesn't count (ADR treasure-map-edit/0001). Each list is in the order the Map first names its
- * Assistants, without repeats. Never throws: no event, no tags, or garbage give three empty lists.
+ * entry covers completely doesn't count, and a `*:…` entry never counts (ADR treasure-map-edit/0001, 0002). Each list
+ * is in the order the Map first names its Assistants, without repeats. Never throws: no event, no tags, or garbage
+ * give three empty lists.
  * @returns {{ scores: string[], lists: string[], concepts: string[] }}
  */
 export function categoryAssistants(event) {
   const tags = event && typeof event === 'object' && Array.isArray(event.tags) ? event.tags : [];
   const entries = tags.map(entryOf).filter(Boolean);
-  const families = entries.filter((e) => e.slot === '3038x' || e.slot === '3039x');
-  const conceptNorms = new Set(entries.filter((e) => e.concept).map((e) => e.norm));
+  const norms = new Set(entries.map((e) => e.norm));
   const out = { scores: [], lists: [], concepts: [] };
   for (const category of CATEGORIES) {
     const seenKeys = new Set();
     for (const entry of entries) {
       if (seenKeys.has(entry.norm) || !appliesTo(category, entry)) continue;
-      if (shadowed(category, entry, families, conceptNorms)) continue;
+      if (shadowed(category, entry, norms)) continue;
       seenKeys.add(entry.norm);
       if (!out[category].includes(entry.pubkey)) out[category].push(entry.pubkey);
     }
