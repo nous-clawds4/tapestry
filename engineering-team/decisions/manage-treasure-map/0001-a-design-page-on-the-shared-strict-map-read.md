@@ -1,6 +1,6 @@
 # ADR 0001: The page is a design-shell page on the shared strict Treasure Map read; the menu picks its target by shell
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-07
 **Story:** `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.md`
 

@@ -143,6 +143,6 @@ drafted answers, so each stands as drafted:
 3. **Two stories, shipped together:** this one, then the category cards (epic file).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
