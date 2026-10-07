@@ -104,6 +104,6 @@ Approved as drafted, 2026-10-07, verbatim: "Ready for architecture."
 - Book decision: `engineering-team/audits/treasure-map-edit/book.md`, decision 11
 - Ledger it settles: `ledger/2026-10-07-card-rule-star-metric-reaches-lists.md`
 - Replaces in part: `engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.md` AC-1 and AC-2
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/treasure-map-edit/0002-only-a-bare-star-counts.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
