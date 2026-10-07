@@ -1,6 +1,6 @@
 # Story 1: The cards' counting rule follows the draft grammar in three edge cases
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-07
 **Type:** Bug
 **Epic:** `treasure-map-edit`
@@ -112,6 +112,10 @@ The stack wasn't running in this session, so no concept handles were checked. No
 ## Open questions
 
 None.
+
+## Resolved at the story gate
+
+Approved as drafted, 2026-10-07, verbatim: "Ready for Architecture."
 
 ## Linked artifacts
 - Ledger: `ledger/2026-10-07-treasure-map-card-rule-edge-cases.md`
