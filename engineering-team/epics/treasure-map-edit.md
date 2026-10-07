@@ -18,8 +18,10 @@ raw Treasure Map. Save signs a new kind 10040 with the person's own signer and p
 
 1. **The cards' counting rule, fixed for the draft grammar's three edge cases** (bug; ledger
    `2026-10-07-treasure-map-card-rule-edge-cases`): `1-the-card-rule-edge-cases.md`. Done.
-2. **Edit mode** (feature). Its Planning decides whether it's one story or more (for example, edit controls and
-   preview, then Save). Depends on #1.
+2. **The cards ignore an everything entry that goes beyond `*`** (change; book decision 11): a `*:…` entry counts for
+   no category, `*:` alone is still `*`, and the draft grammar records the open question. Depends on #1.
+3. **Edit mode** (feature). Its Planning decides whether it's one story or more (for example, edit controls and
+   preview, then Save). Depends on #2.
 
 ## Key facts / guardrails
 
@@ -36,6 +38,8 @@ raw Treasure Map. Save signs a new kind 10040 with the person's own signer and p
   replaced (book decision 9).
 - **The backup switch reaches the whole Map** (book decision 8): switched on, Save keeps only each key's first
   Assistant, on every key, including keys this page doesn't show.
+- **`*:…` entries are ignored, never removed** (book decision 11): they count for no category and are never an
+  individually assigned duty, and an edit keeps them as they are. Only the backup switch can drop their backups.
 - **No key on the raw viewer.** Its open state survives sign-in settling (ADR manage-treasure-map/0002 Amendment 2).
 - **For Architecture:** the legacy generators (the legacy customer page and the NIP-85 control panel) own the `30382:*`
   rows and replace them as one block when they regenerate (`src/lib/treasureMapMerge.js`). An edit that writes those

@@ -96,6 +96,24 @@ then Edit mode).
 10. **The frame and the order are confirmed.** The blueprint is the version kept in
     `engineering-team/audits/manage-treasure-map/blueprint/`; the owner didn't say the live artifact has changed.
 
+At story 1's review gate, the same day. The review's non-blocking finding 1 (a `*:` key that ends in a metric still
+counts on Lists) prompted the owner's question, verbatim:
+
+> Regarding finding 1: my inclination is that at least for now, we ignore and / or simply do not support an everything entry that goes beyond the “*”. Meaning we would treat “*:tag:<category>:<Tag>:confidence” as if it were broken, and we simply ignore it. We could decide later to support it. But the idea would be that at least for now, if you want something more specific, you specify the more specific duty in a different fashion, not using “*”. Would this be a reasonable way to proceed for now?
+
+And, after the session's answer (ignored means counted for nothing and never removed; `*:` and `*::`, with nothing
+after them, still mean `*`; a story before Edit mode; a note in the draft grammar), verbatim:
+
+> I confirm the decision and story 2 before Edit mode. Yes, let’s add the protocol note.
+
+11. **For now, the page ignores an everything entry that goes beyond `*`.** A `*:…` entry that names anything after
+    the `*` counts for no category, on the cards and in Edit mode's preview and override switches. It is never removed
+    or rewritten by an edit; only the backup switch (decision 8), which reaches every key, can drop its backups.
+    `*:` and `*::` are plain `*`. A more specific duty is written with the family keys instead (`3038x:<scope>` and
+    `3039x:<scope>` together reach what `*:<scope>` would). Support may come later. This replaces story 1's family-word
+    rule for `*:` entries and the manage-treasure-map book's counting of `*:…` (its story 2, AC-2), and it records an
+    open question in the draft grammar. Built by story 2, before Edit mode.
+
 ## Epics in this book
 - `treasure-map-edit` — Edit mode on the Manage your Treasure Map page, and the card-rule fix it builds on.
 
