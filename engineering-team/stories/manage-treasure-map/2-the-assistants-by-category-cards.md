@@ -1,6 +1,6 @@
 # Story 2: The Assistants by category cards — who looks after your Scores, Lists and Concepts
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-07
 **Type:** Feature
 **Epic:** `manage-treasure-map`
@@ -15,9 +15,10 @@ to read the raw event.
 
 This story adds the cards, view-only, as the blueprint draws them outside Edit mode (blueprint `treasure-map-screen
 .html.txt`, the `tmbCats` cards; `treasure-map-logic.js.txt`, `tmbCats` and `TMB_CAT_KEYS`). It changes the design in
-one place, by the owner's decision: a category the Map doesn't cover says it **hasn't been assigned yet**, where the
-design would show your own Assistant (book decision 7). It counts the Map's broad entries (**everything**, **all
-Scores**, **all Lists**) as the design does (book decision 8).
+two places, by the owner's decisions: a category the Map doesn't cover says it **hasn't been assigned yet**, where the
+design would show your own Assistant (book decision 7); and a broad entry (**everything**, **all Scores**, **all
+Lists**) counts alongside a category's own entries wherever it still reaches part of the category, where the design
+looks at broad entries only when the category has nothing of its own (book decisions 8–9).
 
 It also folds in three small fixes from story 1's review (non-blocking 1, 2 and 4), all on the same page.
 
@@ -39,22 +40,41 @@ reading the raw event.
 
   There is still no **Edit**, no **Choose an Assistant**, no **Assign to all**, no **All duties** row and no **Save
   changes**. Signed out, the section isn't shown at all; the page is as story 1 left it.
-- [ ] **AC-2: which entries count for a category.** A Map entry counts only when it names a valid Assistant (a 64-hex
-  pubkey), as on the My Assistants page's Duties tab. For each category, the card looks at the Map's entries in three
-  levels, most specific first, and uses **the first level that has any entry for that category**:
-  1. **The category's own entries.**
-     - Scores: any entry for a Score kind, 30380–30389, bare or named (`30382`, `30382:rank`, `30386:…`).
-     - Lists: any entry for a List kind, 30390–30399 (`30392`, `30396:…`).
-     - Concepts: any entry for kind 39998 or 39999 (`39998`, `39998:dlist-header`, `39998:<d-tag>`, `39999:<d-tag>`).
-  2. **The category's family-wide entries** (the draft Treasure Maps grammar, `protocols/drafts/treasure-maps.md`):
-     `3038x` and `3038x:…` for Scores; `3039x` and `3039x:…` for Lists. Concepts have none.
-  3. **Everything:** `*`, and `*:…` for Scores and Lists only (the draft: `*:tag` and `*:dlist` never match a Concept).
+- [ ] **AC-2: which Assistants a card counts.** A card lists **every Assistant your Map would ask for some insight in
+  that category** (book decision 9). An entry counts only when it names a valid Assistant (a 64-hex pubkey), as on the
+  My Assistants page's Duties tab.
+  - **Entries that apply to a category:**
+    - **its own entries.** Scores: any entry for a Score kind, 30380–30389, bare or named (`30382`, `30382:rank`,
+      `30386:…`). Lists: any entry for a List kind, 30390–30399 (`30392`, `30396:…`). Concepts: any entry for kind
+      39998 or 39999 (`39998`, `39998:dlist-header`, `39998:<d-tag>`, `39999:<d-tag>`);
+    - **its family-wide entries** (the draft Treasure Maps grammar, `protocols/drafts/treasure-maps.md`): `3038x` and
+      `3038x:…` for Scores; `3039x` and `3039x:…` for Lists. Concepts have none;
+    - **everything:** `*` for all three; `*:…` for Scores and Lists only (the draft: `*:tag` and `*:dlist` never
+      match a Concept).
+  - **A broad entry that a more specific entry covers completely doesn't count**, because no insight in the category
+    would ever reach it: `*` doesn't count for Scores when the Map has `3038x`, for Lists when it has `3039x`, or for
+    Concepts when it has `39998` or `39998:dlist-header`; `*:<system>` doesn't count for Scores when the Map has
+    `3038x` or `3038x:<same system>` (likewise `3039x…` for Lists). Every other applicable entry counts, however many
+    more specific entries the category also has.
+  - **Per entry key, only the first-listed Assistant counts.** A key's later Assistants are alternates, as in the
+    design. The card's Assistants are in the order the Map first names them, without repeats.
+  - Entries of any other kind (for example `99999`, or a bare `30000`) count for no category.
 
-  Within that level, the category's Assistants are **the first-listed Assistant of each distinct entry key**, in the
-  order the Map first names them, without repeats. (A key's later Assistants are alternates; they don't count, as in
-  the design.) Entries of any other kind (for example `99999`, or a bare `30000`) count for no category.
+  Examples, for the Scores card unless noted (A, B, C, D are Assistants):
 
-  *See Open question 1 for the one case this rule may need to change.*
+  | Map entries | Card |
+  |---|---|
+  | `30382:rank` → A | A |
+  | `30382:rank` → A, `3038x` → B | Mixed · 2 Assistants (A, B) |
+  | `30382:rank` → A, `*` → C | Mixed · 2 Assistants (A, C) |
+  | `30382:rank` → A, `3038x` → B, `*` → C | Mixed · 2 Assistants (A, B); `*` reaches no Score |
+  | `3038x:tag` → B, `*` → C | Mixed · 2 Assistants (B, C); `*` still covers Scores that aren't tag-based |
+  | `30382:rank` → A, then `30382:rank` → B | A (B is an alternate) |
+  | `30382:rank` → A, `30382:followers` → A, `3038x` → A | A |
+  | `*` → C | C, on all three cards |
+  | `*:tag` → D, nothing else | D on Scores and Lists; **Not assigned yet** on Concepts |
+  | Concepts: `39998:dog-breed` → A, `39998:dlist-header` → B, `*` → C | Mixed · 2 Assistants (A, B) |
+  | nothing that applies | **Not assigned yet** |
 - [ ] **AC-3: what a card says.**
   - **One Assistant:** "Assigned to", its avatar (the first letter of its name) and its name.
   - **Several:** "Assigned to", up to three overlapping avatars, then **Mixed** and **· N Assistants**, where N counts
@@ -120,13 +140,17 @@ any are needed.
 
 ## Open questions
 
-Raised with the draft, 2026-10-07. Resolve before approving.
+None open. The one raised with the draft was answered by the owner, below.
 
-1. **A category with both its own entries and a broad one.** Say your Map gives **rank** to Assistant A
-   (`30382:rank`) and **all Scores** to Assistant B (`3038x`). AC-2 as drafted follows the design: the Scores card
-   shows **A** only, because the category has its own entry. Strictly, B still looks after every *other* Score, so the
-   card could instead say **Mixed · 2 Assistants** (A and B). The same goes for **everything** (`*`) under any
-   category. Keep the design's rule (as drafted), or show the broad entry's Assistant alongside, as Mixed?
+## Resolved at the story gate
+
+The owner's answer, 2026-10-07, verbatim:
+
+> If the Map gives rank to Assistant A and all Scores to Assistant B, then it is mixed.
+
+So a broad entry's Assistant counts alongside the category's own entries, wherever the broad entry still reaches some
+insight in the category (AC-2; book decision 9). This departs from the design, which looks at broad entries only when
+the category has nothing of its own.
 
 ## Linked artifacts
 - ADR: (filled in after Architecture phase)

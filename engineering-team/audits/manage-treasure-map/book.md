@@ -72,6 +72,14 @@ At story 1's review gate, the same day, verbatim:
 8. **Broad entries count.** `*` (everything) and the family wildcards `3038x` / `3039x` (all Scores / all Lists, from
    the draft Treasure Maps grammar) cover a category that has nothing more specific, as the design does.
 
+At story 2's gate, the same day, verbatim:
+
+> If the Map gives rank to Assistant A and all Scores to Assistant B, then it is mixed.
+
+9. **A card lists every Assistant the Map would ask for some insight in the category.** A broad entry counts alongside
+   the category's own entries unless a more specific entry covers it completely (story 2 AC-2). This refines decision
+   8, which followed the design's "only when nothing more specific".
+
 ## Epics in this book
 - `manage-treasure-map` — the Manage your Treasure Map page and its Advanced placeholder.
 
