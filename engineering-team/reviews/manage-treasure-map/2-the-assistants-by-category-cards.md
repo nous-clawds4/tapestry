@@ -212,3 +212,167 @@ Amendment
 
 ## Verdict
 **CHANGES_REQUESTED**
+
+## Re-review, round 2 (2026-10-07)
+
+**Diff:** `git diff 80168e3 84fad91` on `staging`: 6 files, 83 insertions, 10 deletions. Commits:
+- `e858930`: ADR 0002 Amendment 1 (the raw viewer resets on a switch between two known people);
+- `02c3880`: the Tester's Amendment 2. C14 is new, and T5's and T6's closing count-zero checks go back to page-wide
+  (round 1, non-blocking 4);
+- `84fad91`: `Index.jsx` keys `RawViewer` on `known.switches`, adjusted during render; the mixed card's assignee row is
+  a `div` (round 1, non-blocking 5); the story's § Deviations.
+
+Also since round 1, `3471472` filed two ledger rows: the meta row, and the card rule's edge cases.
+
+**In short:** round 1's blocking finding is fixed on the path it named, and the browser runs are now stable.
+- C14 fails 5/5 on `06c4738` and passes 5/5 now.
+- The four browser suites pass 56/56 in 5 idle runs and in 3 runs under load. The two treasure-map specs ×3 at
+  6 workers under load pass 87/87.
+- StrictMode (a React development-runtime build) changes nothing.
+
+One blocking item remains, on a path C14 doesn't reach. Signed in as X, sign out, sign in as Y, and open the raw
+viewer while Y's sign-in settles: it snaps shut, round 1's symptom.
+- Amendment 1 says this shouldn't happen ("exactly two cases"; "`null → X` … keeps the viewer as it is").
+- But its own mechanism (the "last known pubkey", never cleared on sign-out), which the code follows, counts it as a
+  switch.
+- On this page every change of person passes through signed-out. So this is the only reachable case where the new
+  counter does anything visible.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test`: **PASS**. `npm run -s gate:status`:
+  `20261007T051223Z-16884-ac97 started 2026-10-07T05:12:23.151Z on 84fad918 — PASS, exit 0, 4970 passed, 0 failed, 581 skipped, 271/271 suites · /home/user/tapestry/tmp/gate-runs/20261007T051223Z-16884-ac97.json`
+  - **The record:** `git: { commit: 84fad918…, branch: staging, dirty: false }`, no stray errors, Node v22.22.0.
+  - **Per suite:**
+    - `manage-treasure-map-cards` 31/0;
+    - `manage-treasure-map-page` 22/0 (2 skipped, the live tests);
+    - `my-assistants-page` 50/0 (2 skipped);
+    - `my-assistants-actions` 29/0;
+    - `my-assistants-map` 14/0;
+    - `my-assistants-nip05` 13/0.
+  - The totals are the same as round 1's; this round adds no Node test.
+- [x] **The served UI is HEAD.** A fresh build of `84fad91` (`git archive` into scratch) is byte-identical (sha1,
+  28 files) to the `dist/` that :7799 serves (`index-3flYujU4.js`).
+- [x] **Playwright** (chromium; the four suites, now 56 tests with C14):
+  - idle, `--workers=4`: 5 runs, **56/56 each**;
+  - under load (four CPU-bound processes on a 4-CPU machine, load average about 14), `--workers=4`: 3 runs,
+    **56/56 each**;
+  - under the same load, the two treasure-map specs at `--repeat-each=3 --workers=6`: **87/87**.
+  - Round 1 had 4 runs out of 7 with a failure. This round has none out of 9.
+- [x] **C14 catches the bug.** Against a scratch build of `06c4738` (served on :7798) at `--repeat-each=5`: 5 failed,
+  each on "the Map shows in the still-open viewer — element(s) not found", as Amendment 2 says. Against HEAD: 5 passed.
+- [x] **Amendment 2's other claim.** HEAD's T5 and T6, with their page-wide end checks, pass 6/6 (×3) against
+  `06c4738`.
+- [x] **StrictMode.** The page runs under `<StrictMode>` (`ui/src/main.jsx:11`, React 19). A production build doesn't
+  double-render, so I built HEAD with React's development runtime (`NODE_ENV=development vite build --mode development`
+  into a scratch outDir) and served it.
+  - The two treasure-map specs: 29/29.
+  - My switch probe (below) gives the same results as on the production build.
+  - There was no React warning and no page error in the console through sign-out and sign-in.
+  - The Vite dev server itself can't serve the scratch tree: `src/lib/broadcastOutcome.js` is CommonJS, and only the
+    build's commonjs plugin resolves it. That isn't this story's concern.
+- [x] _Lint, typecheck and build not configured — skipped._
+
+### Blocking 1, re-checked: the sign-in settle
+
+- **The first-load settle is fixed.** `known` starts as `{ viewer: null, switches: 0 }`. When sign-in settles to X,
+  `known.viewer` was null, so `switches` stays 0 and `RawViewer` keeps its state (`Index.jsx:254–257`). C14 pins this,
+  and my round-1 race probe passes 3/3.
+- **Signing out and back in as the same person** still closes the viewer through the unmount (C10). A viewer opened
+  during that second sign-in's settle stays open (probe P1-X).
+- **The mechanism is sound React.**
+  - It's the documented "adjusting state while rendering" pattern. The update is conditional, so it can't loop, and
+    React re-renders before committing, so the old key never commits with the new viewer.
+  - Under StrictMode's double render, the update is idempotent. It sets an absolute value (`known.switches + 1`, from
+    the same render's `known`), not an updater function, so a second invocation can't count twice. Once
+    `known.viewer === viewer`, the branch is skipped. The development build above confirms it.
+  - A user object that changes identity with the same pubkey doesn't touch `known`. That covers `refreshUser`
+    (`AuthContext.jsx:163–170`) and a re-run of `checkStatus`. The comparison is on the `user.pubkey` string, and
+    `useTreasureMap` keys on the same string.
+- **But signing out, then in as someone else, still closes a viewer opened during the settle.** See New findings,
+  Blocking 1.
+
+### Round 1's non-blocking items and harness friction
+
+1. **Non-blocking 1–3 (the card rule's draft-grammar edge cases):** filed as
+   `ledger/2026-10-07-treasure-map-card-rule-edge-cases.md`. The row is accurate except for one slip: its item 2 calls
+   `rank` "a Score-only system (§4.7)". `rank` is a metric; §4.7's `scope = metric` is the Score-only alternative
+   (Non-blocking 2 below).
+2. **Non-blocking 4 (two narrowed end-state checks):** fixed. `tests/brainstorm/manage-treasure-map.spec.js:273` and
+   `:295` are page-wide again, and pass on both HEAD and `06c4738`.
+3. **Non-blocking 5 (a `<ul>` inside a `<span>`):** fixed. `Index.jsx:167` is now a `div` with the same class, so the
+   flex layout is unchanged. C2, C4 and C9 (375 px) pass.
+4. **Non-blocking 6 (duplicate live regions):** not addressed. It stays non-blocking.
+5. **Non-blocking 7:** noted only, as before.
+6. **Harness friction 1:** filed as `ledger/2026-10-07-neighbour-suite-duplicate-roles.md` (meta). The row is
+   accurate.
+7. **This round's process:** each change came from its own role, in order. The ADR was amended first (`e858930`). The
+   test change came from the Tester (`02c3880`, Amendment 2), and the code after both (`84fad91`).
+
+### New findings
+
+#### Blocking
+
+1. **A viewer opened while a *different* person's sign-in settles still snaps shut.** The code is at
+   `ui/src/pages/treasure-map/Index.jsx:254–257`; the rule it breaks is ADR 0002 Amendment 1
+   (`0002-…md:217`, `:221`, `:227`).
+   - **Repro** (my probe, on HEAD; production and development builds alike):
+     - sign in as X, then Sign out from the menu;
+     - set the signer to Y and press Sign in with nostr;
+     - while `/api/auth/status` is held, open the raw viewer, then release.
+
+     The viewer is closed (`aria-expanded="false"`). The same sequence signing back in as X leaves it open.
+   - **Cause:** `known.viewer` is never cleared on sign-out. So Y's arrival after a signed-out render counts as a
+     switch from X. It bumps the key and remounts the viewer the person just opened.
+   - **What the record says:**
+     - Amendment 1: the viewer "resets in exactly two cases": sign-out, and a switch from one known person to another
+       "without passing through signed-out". It also says "`null → X` (sign-in settling, or a first sign-in) keeps the
+       viewer as it is".
+     - The comments at `Index.jsx:126–127` ("Sign-in settling isn't a new viewer, so a viewer opened meanwhile stays
+       open") and `:252–253` ("null → someone … isn't a switch") say the same, as does the story's § Deviations
+       (`:172–173`).
+     - The amendment's mechanism sentence (the "`<last known pubkey>`", `:222`) is what the code implements, and it
+       contradicts that rule.
+   - **Reachability.** On this page, every change of person passes through signed-out.
+     - The page's and the menu's sign-in buttons render only when there's no user (`Index.jsx:269–273`,
+       `BrainstormUserMenu.jsx:87–88`).
+     - `checkStatus` keeps the old user until the new one arrives.
+     - So the direct X → Y switch the counter exists for can't happen here, and this is the counter's only visible
+       effect in a reachable flow.
+     - The window is narrow (three sequential requests after the signer step), but it is round 1's defect on a second
+       path.
+   - My round-1 wording ("reset it only on sign-out, or when the viewer changes from one known person to another")
+     didn't separate X → signed-out → Y from a direct switch. The amendment's rule does, and the code should follow
+     the rule.
+   - **Asked change:**
+     - Make the behaviour match Amendment 1's rule: a sign-in that settles after a signed-out render isn't a switch.
+       For example, forget the last known viewer whenever the page renders signed-out. Or, since every change of person
+       here passes through signed-out, drop the counter and rely on the unmount. Either way, make the mechanism
+       sentence (`:222`) and the two code comments agree with the result.
+     - Pin it in Phase 3, the Tester's lane. The test is C14's sequence after signing out as one person and signing in
+       as another, with the hold on the second sign-in's `/api/auth/status`. It must fail on `84fad91`, and C10 and C14
+       must stay green.
+
+#### Non-blocking
+
+1. **The direct X → Y switch is untested and, on this page, unreachable.** If the counter stays (the first option
+   above), the ADR should say so, so a later reader doesn't take C14 or C10 as covering it.
+2. **`ledger/2026-10-07-treasure-map-card-rule-edge-cases.md:16`** calls `rank` "a Score-only system". It's a metric
+   (§4.7 `scope = metric`, "NIP-85 native, Score kinds only"). That's a one-word fix.
+
+#### Harness friction
+
+1. None new. Round 1's note about the "×3 repeats" is answered: this round's load runs are recorded above.
+
+### Close-out
+
+Not applicable this round. The story stays `Approved`, and there is no completion detection. Committing this section
+is left to the launching session.
+
+### Verdict (round 2)
+
+**CHANGES_REQUESTED**
+
+One blocking item remains. The raw viewer still closes when a different person's sign-in settles after a sign-out
+(`Index.jsx:254–257`), contrary to ADR 0002 Amendment 1's own rule. Otherwise, round 1's blocking finding is fixed, and
+the gate and the browser runs are stable.

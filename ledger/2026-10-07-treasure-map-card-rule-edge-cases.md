@@ -13,7 +13,7 @@ follows the story's enumeration literally. Against the draft grammar (`protocols
 1. **Prefix shadowing.** A `*:<rest>` entry is shadowed only by an exact `3038x:<rest>` (or `3039x:<rest>`). With
    `3038x:tag` → B and `*:tag:<X>` → D, Scores reads Mixed (B, D), though under §6 D reaches no Score. A trailing
    empty segment (`3038x:tag:`) has the same gap.
-2. **System words by family.** `*:rank` (a Score-only system, §4.7) counts on Lists, and `*:contexts` (Lists-only,
+2. **System words by family.** `*:rank` (`rank` is a Score metric, §4.7, so it reaches only Scores) counts on Lists, and `*:contexts` (Lists-only,
    §4.3) counts on Scores.
 3. **Two spellings of one key.** `39998` and `39998:dlist-header` (and `*` and `*:`) count as separate keys, so both
    first Assistants count.
