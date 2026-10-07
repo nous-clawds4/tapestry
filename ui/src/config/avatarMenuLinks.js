@@ -8,10 +8,13 @@
  * reason a user could see. This module is the single list both menus render, so
  * they can't drift again.
  *
- * The one deliberate difference is where "My Profile" points: the Main menu
- * sends you to `/user/<pubkey>` (the same profile page search results link to),
- * the Tapestry menu to `/tapestry/users/<pubkey>`. That's the caller's
- * `profileBase`. "My Assistant's Profile" opens the one Edit Assistant Profile
+ * There are two deliberate differences, both keyed on the caller's
+ * `profileBase`, which says which shell the menu is in. "My Profile": the Main
+ * menu sends you to `/user/<pubkey>` (the same profile page search results link
+ * to), the Tapestry menu to `/tapestry/users/<pubkey>`. "My Treasure Map": the
+ * Main menus open the Manage your Treasure Map page, the Tapestry menu the TA
+ * Treasure Map page (manage-treasure-map #1, ADR manage-treasure-map/0001
+ * sub-decision 2). "My Assistant's Profile" opens the one Edit Assistant Profile
  * page from both (assistant-profile #4; moved by assistant-management #1), and
  * "Assistant Management" opens the Assistant Management page.
  *
@@ -49,6 +52,19 @@ export const MY_ASSISTANT_PATH = `${ASSISTANT_MANAGEMENT_PATH}/profile/edit`;
  * (my-assistants #1, ADR my-assistants/0001). Not to be confused with ASSISTANT_MANAGEMENT_PATH (/assistant).
  */
 export const MY_ASSISTANTS_PATH = '/assistants';
+
+/**
+ * The Manage your Treasure Map page and its Advanced management placeholder, on the Brainstorm side, and the TA
+ * Treasure Map page the Tapestry side keeps (manage-treasure-map #1, ADR manage-treasure-map/0001 sub-decision 1).
+ */
+export const MANAGE_TREASURE_MAP_PATH = '/treasure-map';
+export const TREASURE_MAP_ADVANCED_PATH = `${MANAGE_TREASURE_MAP_PATH}/advanced`;
+export const TA_TREASURE_MAP_PATH = '/tapestry/grapevine/treasure-map';
+
+/** Is this the Tapestry header's menu? Its profile pages live under /tapestry/; the Main menus' don't. */
+function isTapestryMenu(profileBase) {
+  return typeof profileBase === 'string' && profileBase.startsWith('/tapestry/');
+}
 
 /**
  * May this signed-in user create an assistant of their own here? An Admin or an
@@ -99,8 +115,8 @@ export function personalLinks({ pubkey, assistantPubkey, classification, profile
       key: 'my-treasure-map',
       icon: '🗺️',
       label: 'My Treasure Map',
-      // Already per-viewer: the page filters kind 10040 on the signed-in pubkey.
-      to: '/tapestry/grapevine/treasure-map',
+      // Already per-viewer: both pages read the signed-in pubkey's kind 10040. Which page depends on the shell.
+      to: isTapestryMenu(profileBase) ? TA_TREASURE_MAP_PATH : MANAGE_TREASURE_MAP_PATH,
     },
     {
       // Every Assistant the viewer has tagged as theirs, in the Brainstorm design's styling (the mock's account menu

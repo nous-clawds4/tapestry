@@ -10154,3 +10154,65 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .bsd-ma-profile-link:hover { color: var(--accent-hover); }
 .bsd-ma-profile-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .bsd-ma-maponly-actions { align-items: center; }
+
+/* ── /treasure-map — Manage your Treasure Map (manage-treasure-map #1, ADR 0001 sub-decision 8) ────────────────────
+   The blueprint's measurements (engineering-team/audits/manage-treasure-map/blueprint/). The sign-in, Try again and
+   status lines reuse .bsd-ma-btn / .bsd-ma-status as they are. */
+.bsd-tm-card {
+  border-radius: 16px; border: 1px solid var(--border); background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); overflow: hidden;
+}
+.bsd-tm-text-btn {
+  display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 14px; font-weight: 600; color: var(--accent);
+}
+.bsd-tm-text-btn:hover { color: var(--accent-hover); }
+.bsd-tm-chevron { flex-shrink: 0; transition: transform 0.2s; }
+.bsd-tm-chevron.is-open { transform: rotate(180deg); }
+
+.bsd-tm-faq { margin-top: 28px; }
+.bsd-tm-faq-list { margin: 12px 0 0; padding: 0; list-style: none; }
+.bsd-tm-faq-item + .bsd-tm-faq-item { border-top: 1px solid var(--bsd-line); }
+.bsd-tm-faq-q {
+  display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; padding: 14px 18px;
+  cursor: pointer; text-align: left;
+}
+.bsd-tm-faq-q:hover { background: #fafaf9; }
+.bsd-tm-faq-q span { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.bsd-tm-faq-q .bsd-tm-chevron { width: 16px; height: 16px; color: #9aa1ac; }
+.bsd-tm-faq-a { margin: 0; padding: 0 18px 16px; font-size: 14px; line-height: 1.6; color: var(--bsd-ink-2); text-wrap: pretty; }
+
+.bsd-tm-signed-out { margin-top: 28px; }
+.bsd-tm-raw { margin-top: 28px; box-shadow: none; }
+.bsd-tm-raw-toggle {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; background: none; border: none;
+  padding: 14px 18px; cursor: pointer; text-align: left;
+}
+.bsd-tm-raw-toggle:hover { background: #fafaf9; }
+.bsd-tm-raw-icon { flex-shrink: 0; color: var(--accent); }
+.bsd-tm-raw-label { flex: 1; font-size: 14px; font-weight: 600; color: var(--accent); }
+.bsd-tm-chip { font-family: var(--bsd-mono); font-size: 11px; font-weight: 600; color: var(--bsd-faint); }
+.bsd-tm-raw-pre {
+  margin: 0; padding: 16px 18px; max-width: 100%; overflow-x: auto; white-space: pre;
+  background: #151c2a; color: #e2e8f0; font-family: var(--bsd-mono); font-size: 12px; line-height: 1.6;
+}
+.bsd-tm-raw-none { border-top: 1px solid var(--bsd-line); padding: 16px 18px; display: flex; align-items: flex-start; gap: 10px; }
+.bsd-tm-none-icon { flex-shrink: 0; margin-top: 2px; color: #9aa1ac; }
+.bsd-tm-raw-none > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bsd-tm-raw-none-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.bsd-tm-raw-none-line { font-size: 13px; line-height: 1.55; color: var(--text-muted); text-wrap: pretty; }
+.bsd-tm-raw-state { margin: 0; border-top: 1px solid var(--bsd-line); padding: 14px 18px; }
+
+.bsd-tm-advanced {
+  margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--bsd-line);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap;
+  font-size: 14px; color: var(--text-muted);
+}
+
+/* /treasure-map/advanced: the way back, above the kicker. */
+.bsd-tm-back {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 18px; white-space: nowrap;
+  font-size: 13px; font-weight: 600;
+}
+.bsd-page a.bsd-tm-back { color: var(--text-muted); }
+.bsd-page a.bsd-tm-back:hover { color: var(--text); }

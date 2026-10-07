@@ -142,6 +142,23 @@ drafted answers, so each stands as drafted:
 2. **The Advanced placeholder points to the TA Treasure Map page** until the Advanced page is built (§ Copy).
 3. **Two stories, shipped together:** this one, then the category cards (epic file).
 
+## Deviations
+
+Small judgment calls made in Implementation (2026-10-07):
+
+- **The Advanced placeholder's line sits in the blueprint's introduction slot.** The blueprint's Advanced screen has an
+  introduction ("Your trusted community helps you to know…"); § Copy doesn't list it, so the placeholder line takes
+  its place under the heading.
+- **`COPY.advanced` holds the placeholder line in three parts** (`placeholderBefore`, `placeholderLink`,
+  `placeholderAfter`), so its **TA Treasure Map** link can sit inside the sentence. The ADR asked only for "every
+  string in § Copy, keyed by element".
+- **The raw viewer's card has no drop shadow; the FAQ card has one.** That's how the blueprint draws them.
+- **The back link's colour is muted grey, as in the blueprint,** so it needs a `.bsd-page a.bsd-tm-back` rule to beat
+  the frame's accent colour for links.
+- **The browser specs were run against the built UI served statically, with every API mocked,** because no stack was
+  running in this session (test plan § Test infrastructure). The same setup runs the existing `/assistants` specs
+  green.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
 - Test plan: `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md`
