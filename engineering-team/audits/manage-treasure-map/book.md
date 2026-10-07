@@ -30,7 +30,7 @@ from (https://claude.ai/artifact/SiFE8XoAbC3KH5TQbG4Y8m). The artifact can chang
 
 ### Acceptance frame
 
-*Proposed 2026-10-07 with story 1. It's confirmed when the owner approves story 1.*
+*Proposed 2026-10-07 with story 1; confirmed when the owner approved story 1 the same day.*
 
 - [ ] **My Treasure Map** in the search landing page's and the Brainstorm top bar's avatar menus opens
       `/treasure-map`. In the Tapestry header's menu it still opens the TA Treasure Map page.
@@ -51,6 +51,13 @@ from (https://claude.ai/artifact/SiFE8XoAbC3KH5TQbG4Y8m). The artifact can chang
 3. **Brainstorm-side links move; Tapestry-side links stay.** The My Assistants page's three Treasure Map links (the
    introduction's, each row's **Manage**, the Duties tab's) open the new page. The Tapestry sidebar's **TA Treasure
    Map** and the My Curated DLists page's links keep opening the TA Treasure Map page.
+
+At story 1's gate, the same day (approved as drafted, "Ready for architecture."):
+
+4. **The blueprint's words stay**, including the lines that run ahead of the app (the introduction's "Brainstorm keeps
+   it up to date for you"; the FAQ's setup and Advanced-page answers).
+5. **The Advanced placeholder points to the TA Treasure Map page** until the Advanced page is built.
+6. **Two stories, then ship once:** the page (story 1), then the Assistants by category cards (story 2).
 
 ## Epics in this book
 - `manage-treasure-map` — the Manage your Treasure Map page and its Advanced placeholder.

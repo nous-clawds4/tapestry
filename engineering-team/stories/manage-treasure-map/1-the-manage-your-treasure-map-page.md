@@ -1,6 +1,6 @@
 # Story 1: The Manage your Treasure Map page, its menu links, and the Advanced placeholder
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-07
 **Type:** Feature
 **Epic:** `manage-treasure-map`
@@ -130,15 +130,17 @@ the Concept Graph if any are needed.
 
 ## Open questions
 
-Raised with the draft, 2026-10-07. Resolve before approving.
+None open. The three raised with the draft were settled at the story gate, below.
 
-1. **Copy that runs ahead of the app.** Two lines describe things the app doesn't do yet: the introduction's
-   "Brainstorm keeps it up to date for you" and A2's "Brainstorm creates your Treasure Map during setup and keeps it
-   current" (the setup page's Activate step is still a placeholder). A4 describes the Advanced page, which is a
-   placeholder in this book. Keep the blueprint's words as they are (drafted that way), or soften those lines?
-2. **The Advanced placeholder points to the TA Treasure Map page** for now (§ Copy). Keep that pointer, or show the
-   placeholder line alone?
-3. **Two stories, shipped together.** This story is the page; story 2 is the category cards (epic file). OK?
+## Resolved at the story gate
+
+The owner approved the story as drafted on 2026-10-07 ("Ready for architecture."), without changing any of the three
+drafted answers, so each stands as drafted:
+
+1. **The blueprint's words stay as they are**, including the introduction's "Brainstorm keeps it up to date for you",
+   A2, and A4 (§ Copy).
+2. **The Advanced placeholder points to the TA Treasure Map page** until the Advanced page is built (§ Copy).
+3. **Two stories, shipped together:** this one, then the category cards (epic file).
 
 ## Linked artifacts
 - ADR: (filled in after Architecture phase)
