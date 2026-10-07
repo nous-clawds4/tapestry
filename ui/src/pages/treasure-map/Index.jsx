@@ -123,8 +123,9 @@ function RawPanel({ phase, map }) {
 
 /**
  * The raw Treasure Map, behind its button. It starts closed for each viewer because signing out replaces it with the
- * sign-in prompt, which unmounts it; on this page the viewer can't change any other way (ADR 0002 Amendment 2). So it
- * has no key, and sign-in settling, which isn't a new viewer, leaves a viewer opened meanwhile open.
+ * sign-in prompt, which unmounts it; on this page the viewer can't otherwise change, apart from one narrow top-bar path
+ * (ADR 0002 Amendment 2 and its correction; ledger 2026-10-07-top-bar-sign-in-while-loading). So it has no key, and
+ * sign-in settling, which isn't a new viewer, leaves a viewer opened meanwhile open.
  */
 function RawViewer({ phase, map }) {
   const [open, setOpen] = useState(false);
