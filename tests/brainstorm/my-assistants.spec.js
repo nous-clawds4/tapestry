@@ -187,7 +187,8 @@ test.describe('/assistants — the My Assistants page', () => {
     await expect(page.getByRole('link', { name: 'Brainstorm home' })).toHaveAttribute('href', '/');
     await expect(main(page).getByText('My Assistants', { exact: true })).toBeVisible();
     await expect(main(page)).toContainText(WORDS.intro);
-    await expect(main(page).getByRole('link', { name: 'Treasure Map', exact: true })).toHaveAttribute('href', '/tapestry/grapevine/treasure-map');
+    // Re-aimed by manage-treasure-map #1 (ADR manage-treasure-map/0001 sub-decision 3): the Brainstorm side's Treasure Map page.
+    await expect(main(page).getByRole('link', { name: 'Treasure Map', exact: true })).toHaveAttribute('href', '/treasure-map');
     await expect(main(page).getByText(WORDS.signedOut, { exact: true })).toBeVisible();
     await expect(main(page).getByRole('button', { name: 'Sign in with nostr' })).toBeVisible();
     await expect(list(page)).toHaveCount(0);

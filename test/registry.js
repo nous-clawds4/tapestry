@@ -274,6 +274,7 @@ const suites = [
   { file: 'my-assistants-actions.test.js' },
   { file: 'my-assistants-map.test.js' },
   { file: 'my-assistants-nip05.test.js' },
+  { file: 'manage-treasure-map-page.test.js' },
   { file: 'list-headers-author-options.test.js' },
   { file: 'list-headers-disposition-column.test.js' },
   { file: 'list-headers-my-assistant-disposition.test.js', skipNote: 'control panel not reachable (live refusals)' },

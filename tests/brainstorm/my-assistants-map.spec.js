@@ -172,7 +172,8 @@ test.describe('/assistants — the Treasure Map', () => {
     await expect(ava.getByText('Lists', { exact: true })).toHaveCount(0);
     await expect(ava.getByText('rank', { exact: true })).toBeVisible();
     await expect(ava.getByText('Curated DList: dog-breed', { exact: true })).toBeVisible();
-    await expect(ava.getByRole('link', { name: 'Manage on Treasure Map' })).toHaveAttribute('href', '/tapestry/grapevine/treasure-map');
+    // Re-aimed by manage-treasure-map #1 (ADR manage-treasure-map/0001 sub-decision 3): the Brainstorm side's Treasure Map page.
+    await expect(ava.getByRole('link', { name: 'Manage on Treasure Map' })).toHaveAttribute('href', '/treasure-map');
     expect(state.relayUrls, 'found locally: no relay read').toEqual([]);
     await noSockets(state);
   });
@@ -374,7 +375,8 @@ test.describe('/assistants — the Treasure Map', () => {
     await expect(rank.getByText('Alternate', { exact: true })).toBeVisible();
     await expect(rank).toContainText(re("I entrust Ava to publish and maintain a rank for every profile, as seen from my trusted community. If it can't, ask Bea."));
     await expect(rank).toContainText(A);
-    await expect(rank.getByRole('link', { name: /Manage on Treasure Map/ })).toHaveAttribute('href', '/tapestry/grapevine/treasure-map');
+    // Re-aimed by manage-treasure-map #1 (ADR manage-treasure-map/0001 sub-decision 3).
+    await expect(rank.getByRole('link', { name: /Manage on Treasure Map/ })).toHaveAttribute('href', '/treasure-map');
     await expect(main(page).getByText('99999', { exact: true }), 'an entry the app cannot place is not a duty').toHaveCount(0);
     await noSockets(state);
   });

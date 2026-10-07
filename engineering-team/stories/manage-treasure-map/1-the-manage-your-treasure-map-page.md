@@ -144,5 +144,5 @@ drafted answers, so each stands as drafted:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md`
 - Review: (filled in after Review phase)
