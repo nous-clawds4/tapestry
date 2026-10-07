@@ -43,7 +43,7 @@ Facts from the code this decision rests on:
   headers") their meaning.
 - **The Duties tab's conventions match AC-2 where they overlap:** an entry counts only with a 64-hex delegate
   (lowercased); a key's first valid delegate is Preferred, the rest Alternates.
-- **Names and avatar letters already have one rule.** `cardFields(pubkey, found)` (`myAssistants.js:140`, not exported
+- **Names and avatar letters already have one rule.** `cardFields(pubkey, found)` (`myAssistants.js:139`, not exported
   today) gives display name → name → `npubShort`, skipping non-text fields, and a whole-character `initial`
   (`Array.from`). It reads `fetchProfilesChunked`'s answer (`ui/src/utils/profileBatch.js:43`), which never throws: a
   failed batch marks its pubkeys `PROFILE_LOOKUP_FAILED`, which `cardFields` treats as "no profile".
@@ -181,7 +181,7 @@ Sub-decisions:
   React, `fetch`, signing and storage (story 1's V7).
 - `ui/src/pages/treasure-map/Index.jsx` — sub-decisions 5–6. New imports: `fetchProfilesChunked` from
   `'../../utils/profileBatch'`, `useEffect`. The page still publishes, signs and stores nothing.
-- `ui/src/pages/assistants/myAssistants.js:140` — sub-decision 8.
+- `ui/src/pages/assistants/myAssistants.js:139` — sub-decision 8.
 - `ui/src/styles.css` — sub-decision 7.
 - **For the Tester (Phase 3):**
   - **Node, the rule:** `categoryAssistants` over every row of the story's example table, plus: invalid and uppercase
