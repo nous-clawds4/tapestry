@@ -170,4 +170,4 @@ Small judgment calls made in Implementation (2026-10-07):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
 - Test plan: `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/manage-treasure-map/2-the-assistants-by-category-cards.md`
