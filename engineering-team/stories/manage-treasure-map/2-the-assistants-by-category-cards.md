@@ -152,6 +152,21 @@ So a broad entry's Assistant counts alongside the category's own entries, wherev
 insight in the category (AC-2; book decision 9). This departs from the design, which looks at broad entries only when
 the category has nothing of its own.
 
+## Deviations
+
+Small judgment calls made in Implementation (2026-10-07):
+
+- **Four of story 1's browser tests were narrowed to the raw viewer before any code changed** (T5, T5b, T6, T13 in
+  `tests/brainstorm/manage-treasure-map.spec.js`; commit `f393b21`, logged in the test plan's Amendment). The section
+  now shows the same loading and error lines, and its own Try again, as the raw viewer, so page-wide queries matched
+  twice. Their assertions are unchanged; the section's lines are covered by C6, C7 and C13.
+- **The section heading is an `h2`, and the section is labelled by it.** The blueprint draws it as a styled label; a
+  heading gives the page a usable outline. It looks the same.
+- **The mixed card's name list reuses the app's global `.bs-sr-only` class**, and the card is `position: relative` so
+  that hidden list stays inside it.
+- **The name lookup has a `.catch` that falls back to npubs,** although `fetchProfilesChunked` never rejects today.
+  The ADR says a failed lookup must never fail the section.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
 - Test plan: `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md`

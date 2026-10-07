@@ -136,7 +136,7 @@ function textOf(v) {
  * the NIP-05 itself, or null when there is none, apart from the '—' shown in its place (my-assistants #4): a NIP-05 is
  * checked only when there is one.
  */
-function cardFields(pubkey, found) {
+export function cardFields(pubkey, found) {
   const profile = found && found !== PROFILE_LOOKUP_FAILED && typeof found === 'object' ? found : {};
   const short = npubShort(pubkey);
   const name = textOf(profile.display_name) || textOf(profile.name) || short;
