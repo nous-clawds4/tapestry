@@ -26,7 +26,7 @@ says it has.
 
 ### Acceptance frame
 
-*Proposed 2026-10-07 at intake; awaiting the owner's confirmation.*
+*Proposed 2026-10-07 at intake; confirmed by the owner the same day ("3. Confirmed.", below).*
 
 - [ ] **The cards count the draft grammar's edge cases right** (ledger `2026-10-07-treasure-map-card-rule-edge-cases`):
       a broad entry that a more specific one covers completely doesn't count, a system word counts only for the
@@ -43,8 +43,9 @@ says it has.
       page says so and the edit isn't lost.
 - [ ] **Everything the edit doesn't change stays as it was,** in its place, including entries this page doesn't show.
       Only the override switches and the backup switch, when on, remove anything.
-- [ ] **Nothing is offered before the Map has been read:** no Save while the read is loading or has failed. With no
-      Map yet: *(the owner's answer at intake)*.
+- [ ] **Nothing is offered before the Map has been read:** no Save while the read is loading or has failed.
+- [ ] **With no Map yet, Edit creates one,** after a warning that the relays read held no Treasure Map, so one kept on
+      a relay that wasn't read would be replaced (decision 9).
 - [ ] **Shipped to staging.** Production gets this book and the manage-treasure-map book together, only on the owner's
       explicit go.
 
@@ -59,7 +60,8 @@ Carried from the handoff (§ 1), as it records them:
    In the draft grammar (`protocols/drafts/treasure-maps.md` § 7) the first entry of a key is its Preferred provider
    and the rest are Alternates, so switched on, Save keeps only the first entry of each key. *Reading to confirm at
    intake: "in the Map" includes keys this page doesn't show.* The switch's words are new (the blueprint has none);
-   they're proposed in Edit mode's story for the owner to approve.
+   they're proposed in Edit mode's story for the owner to approve. *Confirmed at intake: the literal reading
+   (decision 8).*
 3. **Still binding from the manage-treasure-map book:** the blueprint's words stay, even where they run ahead of the
    app (that book's decision 4); the cards' counting rule (its decisions 7–9: "Not assigned yet", broad entries
    count, a broad entry next to a specific one reads Mixed).
@@ -74,6 +76,25 @@ At intake, by this session:
 7. **A feature branch, `feat/treasure-map-edit`,** shipped to staging through a PR (`/cycle-staging`), so Phase-3
    failing tests and unapproved drafts stay off the shared `staging` branch (ledger
    `2026-10-07-staging-sessions-push-red-tests`, fix shape (a)).
+
+The owner's answers to the three intake questions the same day, verbatim:
+
+> 1. Literal reading.
+> 2. Yes, let’s create a new one, but display the relevant warning.
+> 3. Confirmed.
+
+The questions they answer: (1) does the backup switch reach every key in the Map, including keys this page doesn't
+show; (2) with no Map yet, does Edit offer to create one; (3) the acceptance frame and the order (the card-rule fix,
+then Edit mode).
+
+8. **The backup switch reaches the whole Map.** Switched on, Save keeps only the first Assistant of every key in the
+   Map, including keys this page doesn't show. Its words must say it reaches beyond the three cards (proposed in Edit
+   mode's story).
+9. **With no Map yet, Edit creates one, with a warning.** "No Treasure Map found" means only that the relays read held
+   none, so a Map kept on a relay that wasn't read would be replaced. The warning's words are proposed in Edit mode's
+   story. This changes the handoff's default (no Save for a person with no Map).
+10. **The frame and the order are confirmed.** The blueprint is the version kept in
+    `engineering-team/audits/manage-treasure-map/blueprint/`; the owner didn't say the live artifact has changed.
 
 ## Epics in this book
 - `treasure-map-edit` — Edit mode on the Manage your Treasure Map page, and the card-rule fix it builds on.

@@ -32,7 +32,10 @@ raw Treasure Map. Save signs a new kind 10040 with the person's own signer and p
 - **"Local" means the viewer's own Assistant on this instance** (`user.assistantPubkey`), never `taPubkey` and never a
   literal (CLAUDE.md, per-deployment TA pubkey).
 - **Nothing before the read.** Nothing is claimed or saved before the Map has been read, nor while the read is loading
-  or has failed.
+  or has failed. With no Map found, Edit creates one, after a warning that a Map on a relay that wasn't read would be
+  replaced (book decision 9).
+- **The backup switch reaches the whole Map** (book decision 8): switched on, Save keeps only each key's first
+  Assistant, on every key, including keys this page doesn't show.
 - **No key on the raw viewer.** Its open state survives sign-in settling (ADR manage-treasure-map/0002 Amendment 2).
 - **For Architecture:** the legacy generators (the legacy customer page and the NIP-85 control panel) own the `30382:*`
   rows and replace them as one block when they regenerate (`src/lib/treasureMapMerge.js`). An edit that writes those
