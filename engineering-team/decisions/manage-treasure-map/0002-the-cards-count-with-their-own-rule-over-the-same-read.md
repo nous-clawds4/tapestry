@@ -150,8 +150,8 @@ Sub-decisions:
      readers (a visually-hidden list), since only initials show.
    - `localPubkey` is `user.assistantPubkey || null` from `useAuth()`. Never `taPubkey`, never a literal.
 6. **Story 1's findings (AC-5):**
-   - the raw viewer becomes a `RawViewer` component holding its own `open` state, rendered with `key={viewer}`, so it
-     mounts closed for each viewer (signing out unmounts it already; switching accounts remounts it);
+   - the raw viewer becomes a `RawViewer` component holding its own `open` state, keyed so it mounts closed for each
+     viewer. *Amended (Amendment 1): keyed on a count of switches between two known people, not on `viewer` itself.*
    - `Faq`'s hide sets `open` back to `null`;
    - the `<pre>` gets `tabIndex={0}`, `role="region"` and `aria-label={COPY.rawBoxLabel}`, with a visible
      `:focus-visible` outline; the browser's own arrow-key scrolling of a focused scroll box does the rest.
@@ -204,6 +204,32 @@ Sub-decisions:
     every answer closed, and focusing the raw box with Tab and scrolling it with the arrow keys.
   - **Must stay green:** all of `test/manage-treasure-map-page.test.js` and `tests/brainstorm/manage-treasure-map
     .spec.js` (story 1), and the `/assistants` suites (the `cardFields` export).
+
+## Amendment 1 — the raw viewer resets on a switch between two known people, not on sign-in settling (2026-10-07)
+
+**Why.** Review 1 (blocking 1) found that `key={viewer}` closes the raw viewer when sign-in *settles*. While
+`useAuth().loading` is true the page is in `loading` (story 1's `mapPanelPhase`), so the raw viewer is shown, and can be
+opened, before the session's user exists; `viewer` is null then. When the user arrives, the key changes from the
+placeholder to the pubkey, React remounts the viewer, and a viewer the person had opened snaps shut. That isn't a new
+viewer, so it misreads AC-5, and it regressed story 1 (its viewer stayed open). It is also what made the browser runs
+flaky under load.
+
+**Decision.** The viewer resets in exactly two cases:
+
+- **Sign-out.** No key is needed: signed out, the page renders the sign-in prompt in place of the raw viewer, so the
+  component unmounts, and a later sign-in (as anyone) mounts it fresh, closed.
+- **A switch from one known person to another** without passing through signed-out. The page keeps
+  `{ viewer: <last known pubkey>, switches: <count> }` in state and, during render, when `viewer` is non-null and
+  differs from the last known one, records it and adds one to `switches` **only if a previous known viewer existed**
+  (React's "adjusting state while rendering" pattern, so no extra commit flashes the old viewer open). `RawViewer` is
+  keyed on `switches`.
+
+So `null → X` (sign-in settling, or a first sign-in) keeps the viewer as it is; `X → Y` remounts it closed; `X → null
+→ X` unmounts and remounts it through the signed-out prompt.
+
+**Tests (Phase 3).** A browser case holds `/api/auth/status`, opens the raw viewer while sign-in is settling, releases
+it, and checks the viewer is still open once the session's user has arrived. It fails against the `key={viewer}` build.
+C10 (sign out and back in → closed) stays as it is.
 
 ## Out of scope
 
