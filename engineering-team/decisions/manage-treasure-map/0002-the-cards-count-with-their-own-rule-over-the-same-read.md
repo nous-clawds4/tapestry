@@ -38,7 +38,7 @@ Facts from the code this decision rests on:
   parses only `^\d{5}(:…)?$`, so `*`, `3038x` and `3039x` are `other`; and a **bare** `39998` is deliberately `other`
   ("a bare kind (no d-tag) stays `other`, as the story-2 pins require", dlist-curation ADR 0006). The TA Treasure Map
   page, the curation panels and `/assistants`' Duties tab (`treasureMapDuties`, `ui/src/pages/assistants/
-  myAssistants.js:320`) all rely on that classification. The draft grammar (`protocols/drafts/treasure-maps.md` §4.2,
+  myAssistants.js:324`) all rely on that classification. The draft grammar (`protocols/drafts/treasure-maps.md` §4.2,
   §4.5, §6) is what gives `*`, the family wildcards, `*:<system>` and bare `39998` ("all of the observer's Concept
   headers") their meaning.
 - **The Duties tab's conventions match AC-2 where they overlap:** an entry counts only with a 64-hex delegate
