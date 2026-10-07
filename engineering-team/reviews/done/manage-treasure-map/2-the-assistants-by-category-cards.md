@@ -4,10 +4,10 @@
 **Date:** 2026-10-07
 **Diff:** `git diff 90e6a78 06c4738`, made up of the failing tests (`ccece6b`), the test-only amendment
 (`git diff ccece6b f393b21`) and the implementation (`git diff f393b21 06c4738`). Branch `staging`.
-**Story:** `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.md`
-**ADR:** `engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
+**Story:** `engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.md`
+**ADR:** `engineering-team/decisions/done/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
 (story 1's ADR 0001 for context)
-**Test plan:** `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md`, with its
+**Test plan:** `engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md`, with its
 Amendment
 **Book:** `engineering-team/audits/manage-treasure-map/book.md` (decisions 7–9); blueprint in `blueprint/`
 

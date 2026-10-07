@@ -177,6 +177,6 @@ After review 1 (2026-10-07):
   non-blocking 5).
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
-- Test plan: `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md`
-- Review: `engineering-team/reviews/manage-treasure-map/2-the-assistants-by-category-cards.md`
+- ADR: `engineering-team/decisions/done/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
+- Test plan: `engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md`
+- Review: `engineering-team/reviews/done/manage-treasure-map/2-the-assistants-by-category-cards.md`

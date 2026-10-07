@@ -1,9 +1,9 @@
 # Book of Work: Manage your Treasure Map — `/treasure-map`, built to the Claude Design blueprint
 
 **Slug:** manage-treasure-map
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-07
-**Closed:** —
+**Closed:** 2026-10-07
 
 ## Intent anchor
 
@@ -32,15 +32,15 @@ from (https://claude.ai/artifact/SiFE8XoAbC3KH5TQbG4Y8m). The artifact can chang
 
 *Proposed 2026-10-07 with story 1; confirmed when the owner approved story 1 the same day.*
 
-- [ ] **My Treasure Map** in the search landing page's and the Brainstorm top bar's avatar menus opens
+- [x] **My Treasure Map** in the search landing page's and the Brainstorm top bar's avatar menus opens
       `/treasure-map`. In the Tapestry header's menu it still opens the TA Treasure Map page.
-- [ ] `/treasure-map` is in the Brainstorm design's styling and follows the blueprint, view-only: heading,
+- [x] `/treasure-map` is in the Brainstorm design's styling and follows the blueprint, view-only: heading,
       introduction, FAQ, which Assistant the person's Treasure Map names for Scores, Lists and Concepts, the raw
       Treasure Map, and the "No Treasure Map found" state.
-- [ ] **Advanced management** opens a placeholder page at `/treasure-map/advanced`.
-- [ ] The My Assistants page's Treasure Map links open `/treasure-map`.
-- [ ] Nothing in the book signs or publishes. Editing is a later book.
-- [ ] The book is shipped to staging. Production only on the owner's explicit go.
+- [x] **Advanced management** opens a placeholder page at `/treasure-map/advanced`.
+- [x] The My Assistants page's Treasure Map links open `/treasure-map`.
+- [x] Nothing in the book signs or publishes. Editing is a later book.
+- [x] The book is shipped to staging. Production only on the owner's explicit go.
 
 ## Decisions at intake
 
@@ -85,7 +85,8 @@ At story 2's gate, the same day, verbatim:
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high (every capability traces to an approved story, ADR and reviewed diff; the owner's
+  decisions are quoted). Production promotion awaits the owner's go.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/manage-treasure-map/audit.md`

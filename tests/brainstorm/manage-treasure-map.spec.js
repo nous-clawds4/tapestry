@@ -4,9 +4,9 @@ const { test, expect } = require('@playwright/test');
  * manage-treasure-map #1 — the Manage your Treasure Map page, its menu links, and the Advanced placeholder. What a
  * viewer SEES.
  *
- * Story: engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.md
- * ADR:   engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md
- * Plan:  engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md
+ * Story: engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.md
+ * ADR:   engineering-team/decisions/done/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md
+ * Plan:  engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md
  * Node half: test/manage-treasure-map-page.test.js (the menu targets, the words, the panel's phases, the raw text).
  *
  * The Treasure Map is read as the shared hook reads it (ADR 0001, after ADR my-assistants/0003): local strfry first

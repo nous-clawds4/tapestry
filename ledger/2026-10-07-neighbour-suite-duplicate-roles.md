@@ -18,5 +18,5 @@ button), Test Design greps the neighbour suites for page-wide queries of those w
 them in Phase 3 or lists them in the test plan as Phase-3 re-aims. A line in `engineering-team/workflows/3-test-design.md`
 § Common pitfalls would carry it.
 
-**Pointer:** `engineering-team/reviews/manage-treasure-map/2-the-assistants-by-category-cards.md` § Harness friction;
-`engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md` § Amendment.
+**Pointer:** `engineering-team/reviews/done/manage-treasure-map/2-the-assistants-by-category-cards.md` § Harness friction;
+`engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md` § Amendment.

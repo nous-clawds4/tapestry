@@ -23,5 +23,5 @@ system and category segments), apply the system words' family limits, and normal
 Node cases for each. Worth doing before the Edit book reuses `categoryAssistants` to preview assignments. If the draft
 grammar is ratified first, fold this into the single parser ADR 0002's Consequences anticipates.
 
-**Pointer:** `engineering-team/reviews/manage-treasure-map/2-the-assistants-by-category-cards.md` § Findings,
+**Pointer:** `engineering-team/reviews/done/manage-treasure-map/2-the-assistants-by-category-cards.md` § Findings,
 non-blocking 1–3.

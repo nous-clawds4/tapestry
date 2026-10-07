@@ -3,9 +3,9 @@
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-10-07
 **Diff:** `git diff d489ea6 58bed35` (tests `33977a6` + implementation `58bed35`); implementation alone `git diff 33977a6 58bed35`; story base `dcddbe4`. Branch `staging`.
-**Story:** `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.md`
-**ADR:** `engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
-**Test plan:** `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md`
+**Story:** `engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.md`
+**ADR:** `engineering-team/decisions/done/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
+**Test plan:** `engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md`
 **Book:** `engineering-team/audits/manage-treasure-map/book.md` (decisions 1–6; blueprint in `blueprint/`)
 
 ## Quality gates (run by reviewer, not trusted)

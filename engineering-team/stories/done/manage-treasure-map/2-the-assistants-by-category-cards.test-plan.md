@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — The Assistants by category cards
 
-**Story:** `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.md`
-**ADR:** `engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
+**Story:** `engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.md`
+**ADR:** `engineering-team/decisions/done/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md`
 **Date:** 2026-10-07
 
 Two files, split as story 1's were:

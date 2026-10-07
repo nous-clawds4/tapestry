@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — The Manage your Treasure Map page, its menu links, and the Advanced placeholder
 
-**Story:** `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.md`
-**ADR:** `engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
+**Story:** `engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.md`
+**ADR:** `engineering-team/decisions/done/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
 **Date:** 2026-10-07
 
 Two files, split as the my-assistants book split them:

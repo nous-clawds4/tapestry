@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-07
-**Story:** `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.md`
+**Story:** `engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.md`
 
 ## Context
 

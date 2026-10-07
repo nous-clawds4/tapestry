@@ -160,6 +160,6 @@ Small judgment calls made in Implementation (2026-10-07):
   green.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
-- Test plan: `engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md`
-- Review: `engineering-team/reviews/manage-treasure-map/1-the-manage-your-treasure-map-page.md`
+- ADR: `engineering-team/decisions/done/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md`
+- Test plan: `engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md`
+- Review: `engineering-team/reviews/done/manage-treasure-map/1-the-manage-your-treasure-map-page.md`

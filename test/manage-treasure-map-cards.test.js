@@ -2,9 +2,9 @@
 /**
  * manage-treasure-map #2: the Assistants by category cards on /treasure-map, and story 1's review findings 1, 2, 4.
  *
- * Story: engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.md
- * ADR:   engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md
- * Plan:  engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md
+ * Story: engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.md
+ * ADR:   engineering-team/decisions/done/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md
+ * Plan:  engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md
  * Browser half: tests/brainstorm/manage-treasure-map-cards.spec.js (what a viewer SEES).
  *
  * Classes:

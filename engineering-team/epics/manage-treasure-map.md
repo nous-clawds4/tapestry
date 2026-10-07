@@ -1,6 +1,6 @@
 # Epic: manage-treasure-map — the Manage your Treasure Map page at `/treasure-map`
 
-**Status:** Active
+**Status:** Done
 **Created:** 2026-10-07
 **Book:** `engineering-team/audits/manage-treasure-map/book.md` (no PRD — acceptance frame)
 **Blueprint:** the Claude Design artifact's "Manage your Treasure Map" screen, kept as it stood at intake in

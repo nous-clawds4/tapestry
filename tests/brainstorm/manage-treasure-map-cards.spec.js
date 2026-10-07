@@ -5,9 +5,9 @@ const { nip19 } = require('nostr-tools');
  * manage-treasure-map #2 — the Assistants by category cards on /treasure-map, and story 1's review findings 1, 2, 4.
  * What a viewer SEES.
  *
- * Story: engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.md
- * ADR:   engineering-team/decisions/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md
- * Plan:  engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md
+ * Story: engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.md
+ * ADR:   engineering-team/decisions/done/manage-treasure-map/0002-the-cards-count-with-their-own-rule-over-the-same-read.md
+ * Plan:  engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md
  * Node half: test/manage-treasure-map-cards.test.js (the rule over the story's example table, the cards, the words).
  *
  * Mocks as story 1's spec (tests/brainstorm/manage-treasure-map.spec.js): the Map read local-first, then the strict

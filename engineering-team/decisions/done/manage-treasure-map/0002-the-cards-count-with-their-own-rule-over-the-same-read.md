@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-07
-**Story:** `engineering-team/stories/manage-treasure-map/2-the-assistants-by-category-cards.md`
+**Story:** `engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.md`
 
 ## Context
 

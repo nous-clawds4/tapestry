@@ -19,5 +19,5 @@ as `Header.jsx` already does with its `…` while loading. A browser case: hold 
 offered, release, check the avatar. Then `/treasure-map`'s comment and ADR manage-treasure-map/0002 Amendment 2's
 correction can drop the exception.
 
-**Pointer:** `engineering-team/reviews/manage-treasure-map/2-the-assistants-by-category-cards.md` § Re-review, round 3;
+**Pointer:** `engineering-team/reviews/done/manage-treasure-map/2-the-assistants-by-category-cards.md` § Re-review, round 3;
 ADR manage-treasure-map/0002 Amendment 2, Correction.

@@ -2,9 +2,9 @@
 /**
  * manage-treasure-map #1: the Manage your Treasure Map page, its menu links, and the Advanced placeholder.
  *
- * Story: engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.md
- * ADR:   engineering-team/decisions/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md
- * Plan:  engineering-team/stories/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md
+ * Story: engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.md
+ * ADR:   engineering-team/decisions/done/manage-treasure-map/0001-a-design-page-on-the-shared-strict-map-read.md
+ * Plan:  engineering-team/stories/done/manage-treasure-map/1-the-manage-your-treasure-map-page.test-plan.md
  * Browser half: tests/brainstorm/manage-treasure-map.spec.js (what a viewer SEES: the pages, the panel's phases, the
  * FAQ, the menus, direct loads, 375 px).
  *
