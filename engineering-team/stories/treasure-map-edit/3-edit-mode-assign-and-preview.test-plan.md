@@ -137,3 +137,18 @@ four neighbours: **18 failed, 55 passed**.
 and `COPY.edit`, not committed), the Node suite passes 45 of 47. The two left are S2 and S3, which need the real hook
 file and page wiring. The browser spec can't be checked before there is a page. If a locator proves wrong against a
 correct page, the Implementer kicks it back here and the plan records the amendment.
+
+## Amendment 1 — Phase 4, 2026-10-08 (made in the Tester's role, in its own commit)
+
+Running the new spec against the first build of the page, and the gate against the new page source, showed four faults
+in the tests. None was in the page. Each fix keeps the test's intent; no assertion is weakened.
+
+| Test | Fault | Fix |
+|---|---|---|
+| `test/manage-treasure-map-cards.test.js` S3 | It required exactly one `<pre>` in the page. ADR 0003 sub-decision 4 adds a second, the edited viewer's box, so it failed: "want one <pre> … got 2". A neighbour-suite assertion the Phase-3 grep missed, because it searched for words, not structure (ledger `2026-10-07-neighbour-suite-duplicate-roles`, "Seen again"). | The raw box is the `<pre>` named by `COPY.rawBoxLabel`, exactly once. Every `<pre>` on the page has `tabIndex` 0, role region and a name from `COPY`. |
+| spec helpers `editedPre`, and E9's `allRow` | Their `has` filters used locators that start from `<main>` (`editedButton(page)`, `assignAll(page)`). Playwright looks for a `has` locator inside each candidate, so these looked for a `<main>` inside the candidates and never matched. E9 and E11–E15 failed with "element(s) not found". | The inner locators start from the page (`page.getByRole(…)`), as `editCard` already did. |
+| spec E7 | It opened the Lists list while the Scores list was open. The Scores list drops down over the Lists card's button (absolute, as the blueprint draws it), so the click never landed. | Each second toggle is one the open list doesn't cover: Scores, then Assign to all (above the cards); Lists closed by its own button; Concepts, then Assign to all. The same three behaviours are checked: one list at a time, `aria-expanded`, and the button closing its own list. |
+| spec E9 | After Assign to all → Bea it picked **Ava** for Scores and expected "Will be assigned to Ava". Ava is Scores' current Assistant, and AC-2 says picking the current one removes the card's change. | It picks **Cy**. "Will be assigned to Cy", then "4 unsaved changes", as before. |
+
+After the amendment, against the build of the implementation: the new spec passes 16/16, and with the four neighbour
+specs, 73/73.

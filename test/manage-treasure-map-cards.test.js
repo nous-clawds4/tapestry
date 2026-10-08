@@ -298,21 +298,30 @@ test('S2: the page reads names through the shared profile lookup, and its own As
   assert(!hex, `${rel(PAGE)} contains a 64-hex literal (${hex && hex[0].slice(0, 12)}…)`);
 });
 
-test('S3: the raw Treasure Map box is keyboard-reachable — tabIndex 0, role region, named by COPY.rawBoxLabel (story 1 review, non-blocking 4)', () => {
+test('S3: the raw Treasure Map box is keyboard-reachable — tabIndex 0, role region, named by COPY.rawBoxLabel (story 1 review, non-blocking 4); so is every other box on the page (treasure-map-edit #3)', () => {
   const sf = parse(PAGE);
   assert(sf, `${rel(PAGE)} does not exist`);
   const pres = [];
   walk(sf, (n) => {
     if ((ts().isJsxOpeningElement(n) || ts().isJsxSelfClosingElement(n)) && n.tagName.getText() === 'pre') pres.push(n);
   });
-  assert(pres.length === 1, `want one <pre> in ${rel(PAGE)}, got ${pres.length}`);
-  const attrs = {};
-  for (const a of pres[0].attributes.properties) if (a.name) attrs[a.name.getText()] = a.initializer ? a.initializer.getText() : 'true';
+  // treasure-map-edit #3 adds the edited viewer's box (ADR treasure-map-edit/0003 sub-decision 4): the raw box is the
+  // one named by COPY.rawBoxLabel, exactly once, and every box keeps the same keyboard access with a name from COPY.
+  const attrsOf = (pre) => {
+    const attrs = {};
+    for (const a of pre.attributes.properties) if (a.name) attrs[a.name.getText()] = a.initializer ? a.initializer.getText() : 'true';
+    return attrs;
+  };
+  const raw = pres.filter((pre) => /COPY\.rawBoxLabel/.test(attrsOf(pre)['aria-label'] || ''));
+  assert(raw.length === 1, `want one <pre> named by COPY.rawBoxLabel in ${rel(PAGE)}, got ${raw.length} of ${pres.length}`);
   const wrong = [];
-  if (!/^\{\s*0\s*\}$|^["']0["']$/.test(attrs.tabIndex || '')) wrong.push(`tabIndex ${show(attrs.tabIndex)}, want {0}`);
-  if (!/^["']region["']$/.test(attrs.role || '')) wrong.push(`role ${show(attrs.role)}, want "region"`);
-  if (!/COPY\.rawBoxLabel/.test(attrs['aria-label'] || '')) wrong.push(`aria-label ${show(attrs['aria-label'])}, want {COPY.rawBoxLabel}`);
-  assert(wrong.length === 0, `the raw box: ${wrong.join('; ')}`);
+  pres.forEach((pre, i) => {
+    const attrs = attrsOf(pre);
+    if (!/^\{\s*0\s*\}$|^["']0["']$/.test(attrs.tabIndex || '')) wrong.push(`<pre> ${i + 1}: tabIndex ${show(attrs.tabIndex)}, want {0}`);
+    if (!/^["']region["']$/.test(attrs.role || '')) wrong.push(`<pre> ${i + 1}: role ${show(attrs.role)}, want "region"`);
+    if (!/^\{\s*COPY\./.test(attrs['aria-label'] || '')) wrong.push(`<pre> ${i + 1}: aria-label ${show(attrs['aria-label'])}, want a COPY word`);
+  });
+  assert(wrong.length === 0, `the raw boxes: ${wrong.join('; ')}`);
 });
 
 async function run() {

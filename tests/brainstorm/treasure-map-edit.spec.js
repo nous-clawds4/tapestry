@@ -187,8 +187,13 @@ const saveNote = (page, text) => section(page).getByText(text, { exact: true });
 // The raw viewer's toggle (its name also holds the "kind 10040" chip), never the edited one.
 const rawButton = (page) => main(page).getByRole('button', { name: /^(View|Hide) the raw Treasure Map(?! —)/ });
 const editedButton = (page) => main(page).getByRole('button', { name: /^(View|Hide) the raw Treasure Map — edited/ });
-/** The edited viewer's <pre>: inside the innermost element holding its toggle and a <pre>. */
-const editedPre = (page) => main(page).locator('*').filter({ has: editedButton(page) }).filter({ has: page.locator('pre') }).last().locator('pre');
+/** The edited viewer's <pre>: inside the innermost element holding its toggle and a <pre>. A `has` locator is looked
+ * for inside each candidate, so it starts from the page, never from <main> (story 3 test plan, Amendment 1). */
+const editedPre = (page) => main(page).locator('*')
+  .filter({ has: page.getByRole('button', { name: /^(View|Hide) the raw Treasure Map — edited/ }) })
+  .filter({ has: page.locator('pre') })
+  .last()
+  .locator('pre');
 async function startEditing(page) {
   await expect(editButton(page)).toHaveText(/^Edit$/);
   await editButton(page).click();
@@ -331,16 +336,23 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     await setup(page);
     await page.goto('/treasure-map');
     await startEditing(page);
+    // An open list drops down over the cards below it, as in the blueprint, so the second toggle each time is one the
+    // open list doesn't cover: Assign to all sits above the cards (story 3 test plan, Amendment 1).
     const scores = await openList(page, pickerButton(page, 'Scores'));
-    const lists = await openList(page, pickerButton(page, 'Lists'));
+    const all = await openList(page, assignAll(page));
     await expect(scores).toBeHidden();
     await expect(pickerButton(page, 'Scores')).toHaveAttribute('aria-expanded', 'false');
+    await assignAll(page).click();
+    await expect(all).toBeHidden();
+    await expect(assignAll(page)).toHaveAttribute('aria-expanded', 'false');
+    const lists = await openList(page, pickerButton(page, 'Lists'));
     await pickerButton(page, 'Lists').click();
     await expect(lists).toBeHidden();
     await expect(pickerButton(page, 'Lists')).toHaveAttribute('aria-expanded', 'false');
-    const all = await openList(page, assignAll(page));
-    await openList(page, pickerButton(page, 'Concepts'));
-    await expect(all).toBeHidden();
+    const concepts = await openList(page, pickerButton(page, 'Concepts'));
+    await openList(page, assignAll(page));
+    await expect(concepts).toBeHidden();
+    await expect(pickerButton(page, 'Concepts')).toHaveAttribute('aria-expanded', 'false');
   });
 
   test('E8: the list’s states — loading; can’t load, then Try again; no Assistants, with the My Assistants link', async ({ page }) => {
@@ -373,7 +385,7 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     expect(state.myAsks, 'the first page asked for the Assistants once').toBe(1);
   });
 
-  test('E9: Assign to all — every card pending to Bea, "All duties → Bea"; a card changed after; the card’s and the row’s Undo', async ({ page }) => {
+  test('E9: Assign to all — every card pending to Bea, "All duties → Bea"; a card changed after (to Cy); the card’s and the row’s Undo', async ({ page }) => {
     await setup(page);
     await page.goto('/treasure-map');
     await startEditing(page);
@@ -383,10 +395,13 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
       await expect(editCard(page, title)).toContainText('Bea');
     }
     await expect(saveNote(page, 'All duties → Bea')).toBeVisible();
-    const allRow = section(page).locator('*').filter({ hasText: WORDS.allDutiesLine }).filter({ has: assignAll(page) }).last();
+    const allRow = section(page).locator('*').filter({ hasText: WORDS.allDutiesLine })
+      .filter({ has: page.getByRole('button', { name: 'Assign to all', exact: true }) }).last();
     await expect(allRow).toContainText('Bea');
-    await pick(page, pickerButton(page, 'Scores'), 'Ava');
-    await expect(editCard(page, 'Scores').getByText('Will be assigned to Ava', { exact: true })).toBeVisible();
+    // Cy, not Ava: Ava is Scores' current Assistant, and picking the current one removes the card's change (AC-2;
+    // story 3 test plan, Amendment 1).
+    await pick(page, pickerButton(page, 'Scores'), 'Cy');
+    await expect(editCard(page, 'Scores').getByText('Will be assigned to Cy', { exact: true })).toBeVisible();
     await expect(editCard(page, 'Lists').getByText('Will be assigned to Bea', { exact: true })).toBeVisible();
     await expect(saveNote(page, '4 unsaved changes')).toBeVisible();
     await editCard(page, 'Lists').getByRole('button', { name: 'Undo', exact: true }).click();
