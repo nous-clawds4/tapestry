@@ -2,12 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BrainstormDesignShell, { Eyebrow } from '../../components/BrainstormDesignShell';
 import { useAuth } from '../../context/AuthContext';
+import { useConfig } from '../../context/ConfigContext';
 import useTreasureMap from '../../hooks/useTreasureMap';
-import { TREASURE_MAP_ADVANCED_PATH } from '../../config/avatarMenuLinks';
+import { MY_ASSISTANTS_PATH, TREASURE_MAP_ADVANCED_PATH } from '../../config/avatarMenuLinks';
 import { fetchProfilesChunked } from '../../utils/profileBatch';
+import { cardFields } from '../assistants/myAssistants';
 import {
   COPY, FAQS, mapPanelPhase, rawMapText, categoryAssistants, categoryCards,
 } from './manageTreasureMap';
+import {
+  editedDraft, makeRelayFor, saveNote, currentOf, currentAll, pickerRows,
+} from './editTreasureMap';
+import useMapEdit from './useMapEdit';
 
 /**
  * /treasure-map — Manage your Treasure Map (manage-treasure-map #1, ADR manage-treasure-map/0001): the signed-in
@@ -24,7 +30,10 @@ import {
  * Map, from the same `map`: who the Map gives Scores, Lists and Concepts to, named through the profile lookup every page
  * shares. It also starts the raw viewer closed for each viewer, closes the FAQ's answer when the FAQ is hidden, and
  * lets the keyboard reach and scroll the raw box (story 1's review, non-blocking 1, 2 and 4).
- * The design's Edit mode is a later book: this page signs, publishes and stores nothing.
+ * treasure-map-edit #3 (ADR treasure-map-edit/0003) adds the design's Edit mode without Save: Edit beside the section's
+ * heading, a list of the person's Assistants per card and for All duties, Undo, the save note, the cards previewing the
+ * edited Map, and "View the raw Treasure Map — edited" under the raw viewer. The rules are the pure edit model
+ * (editTreasureMap.js); the state is useMapEdit. This page still signs, publishes and stores nothing.
  */
 
 function Chevron({ open }) {
@@ -58,6 +67,31 @@ function ArrowIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 12h14" />
       <path d="m12 5 7 7-7 7" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg className="bsd-tm-edit-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function SmallChevron() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
     </svg>
   );
 }
@@ -145,10 +179,10 @@ function Avatar({ person }) {
   return <span className={`bsd-tm-cat-avatar${person.local ? ' is-local' : ''}`} aria-hidden="true">{person.initial}</span>;
 }
 
-/** One card: what the category is, and who the Map gives it to. */
-function CategoryCard({ card }) {
+/** One card: what the category is, and who the Map gives it to; in Edit mode, its picker row under it. */
+function CategoryCard({ card, pending, children }) {
   return (
-    <li className="bsd-tm-cat-card">
+    <li className={`bsd-tm-cat-card${pending ? ' is-pending' : ''}`}>
       <div className="bsd-tm-cat-what">
         <span className="bsd-tm-cat-title">{card.title}</span>
         <span className="bsd-tm-cat-desc">{card.description}</span>
@@ -180,7 +214,84 @@ function CategoryCard({ card }) {
           </>
         )}
       </div>
+      {children}
     </li>
+  );
+}
+
+/**
+ * A list of the person's Assistants behind a button (story 3 AC-2, AC-3): its loading, error and empty states, or the
+ * rows, Local first, with Local, Current and a check on the selected one. Picking a row calls onPick.
+ */
+function Picker({ id, label, filled, open, onToggle, assistants, onRetry, rows, onPick, align }) {
+  let body;
+  if (assistants.phase === 'ready') {
+    body = rows.length === 0 ? (
+      <p className="bsd-tm-edit-list-state">
+        {COPY.edit.emptyBefore}
+        <Link to={MY_ASSISTANTS_PATH}>{COPY.edit.emptyLink}</Link>
+        {COPY.edit.emptyAfter}
+      </p>
+    ) : (
+      <ul className="bsd-tm-edit-rows">
+        {rows.map((row) => (
+          <li key={row.pubkey}>
+            <button
+              type="button"
+              className={`bsd-tm-edit-row${row.selected ? ' is-on' : ''}`}
+              aria-pressed={row.selected ? 'true' : 'false'}
+              onClick={() => onPick(row.pubkey)}
+            >
+              <span className={`bsd-tm-cat-avatar bsd-tm-edit-avatar${row.local ? ' is-local' : ''}`} aria-hidden="true">{row.initial}</span>
+              <span className="bsd-tm-edit-row-text">
+                <span className="bsd-tm-edit-row-name">
+                  <span className="bsd-tm-edit-name">{row.name}</span>
+                  {row.local && <span className="bsd-tm-edit-badge is-local">{COPY.edit.local}</span>}
+                  {row.current && <span className="bsd-tm-edit-badge">{COPY.edit.current}</span>}
+                </span>
+                <span className="bsd-tm-edit-row-detail">{row.detail}</span>
+              </span>
+              {row.selected && <CheckIcon />}
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+  } else if (assistants.phase === 'error') {
+    body = (
+      <div className="bsd-ma-status is-error bsd-tm-edit-list-state" role="alert">
+        <p>{COPY.edit.error}</p>
+        <button type="button" className="bsd-ma-btn" onClick={onRetry}>{COPY.retry}</button>
+      </div>
+    );
+  } else {
+    body = <div className="bsd-ma-status bsd-tm-edit-list-state" role="status"><p>{COPY.edit.loading}</p></div>;
+  }
+  return (
+    <div className="bsd-tm-edit-picker">
+      <button
+        type="button"
+        className={`bsd-tm-edit-pick${filled ? ' is-filled' : ''}`}
+        aria-expanded={open ? 'true' : 'false'}
+        aria-controls={id}
+        onClick={onToggle}
+      >
+        {label}
+        <SmallChevron />
+      </button>
+      {open && <div id={id} className={`bsd-tm-edit-list${align === 'end' ? ' is-end' : ''}`}>{body}</div>}
+    </div>
+  );
+}
+
+/** Pending: the Unsaved chip, who the change goes to, and Undo. */
+function PendingNote({ name, onUndo }) {
+  return (
+    <>
+      <span className="bsd-tm-edit-chip">{COPY.edit.unsaved}</span>
+      <span className="bsd-tm-edit-will">{COPY.edit.assignedTo(name)}</span>
+      <button type="button" className="bsd-tm-edit-undo" onClick={onUndo}>{COPY.edit.undo}</button>
+    </>
   );
 }
 
@@ -188,8 +299,13 @@ function CategoryCard({ card }) {
  * Assistants by category (story 2, ADR 0002 sub-decision 5): nothing is claimed until the Map has been read and its
  * Assistants' names have been looked up, so the cards appear once, already named. A failed name lookup falls back to
  * npubs; it never fails the section.
+ *
+ * Edit mode (treasure-map-edit #3, ADR 0003 sub-decision 4): once the cards are shown, Edit sits beside the heading.
+ * On, the section shows the no-Map warning (no Map read), the All duties row, a picker row on each card and the save
+ * note, and the cards preview the edited Map. Names come from the published Map's lookup and the person's Assistants'
+ * profiles, so a preview never goes back to the loading line.
  */
-function CategoryCards({ phase, map, localPubkey }) {
+function CategoryCards({ phase, map, localPubkey, edit, draft }) {
   const settled = phase === 'found' || phase === 'none';
   const event = phase === 'found' ? map.event : null;
   const assistants = useMemo(() => categoryAssistants(event), [event]);
@@ -208,6 +324,10 @@ function CategoryCards({ phase, map, localPubkey }) {
     return () => { cancelled = true; };
   }, [settled, wantedKey]);
 
+  const editing = edit.editing && Boolean(draft);
+  const profiles = useMemo(() => ({ ...edit.assistants.profiles, ...names.profiles }), [edit.assistants.profiles, names.profiles]);
+  const draftAssistants = useMemo(() => (draft ? categoryAssistants(draft) : null), [draft]);
+
   const namesReady = !wantedKey || names.key === wantedKey;
   let body;
   if (phase === 'error') {
@@ -220,12 +340,72 @@ function CategoryCards({ phase, map, localPubkey }) {
   } else if (!settled || !namesReady) {
     body = <div className="bsd-ma-status bsd-tm-cat-state" role="status"><p>{COPY.loading}</p></div>;
   } else {
-    const cards = categoryCards({ assistants, profiles: names.profiles, localPubkey });
+    const published = categoryCards({ assistants, profiles, localPubkey });
+    const cards = editing ? categoryCards({ assistants: draftAssistants, profiles, localPubkey }) : published;
+    const nameOf = (pubkey) => {
+      const row = edit.assistants.rows.find((r) => r.pubkey === pubkey);
+      return row ? row.name : cardFields(pubkey, profiles[pubkey]).name;
+    };
+    const allCurrent = currentAll(published);
+    const { pending } = edit;
     body = (
       <>
+        {editing && phase === 'none' && (
+          <div className="bsd-tm-edit-warning" role="note"><p>{COPY.edit.noMap}</p></div>
+        )}
+        {editing && (
+          <div className="bsd-tm-edit-all">
+            <div className="bsd-tm-edit-all-text">
+              <span className="bsd-tm-edit-all-title">{COPY.edit.allDuties}</span>
+              <span className="bsd-tm-edit-all-line">{COPY.edit.allDutiesLine}</span>
+            </div>
+            <div className="bsd-tm-edit-all-actions">
+              {pending.everything && (
+                <>
+                  <span className="bsd-tm-edit-will">{nameOf(pending.everything)}</span>
+                  <button type="button" className="bsd-tm-edit-undo" onClick={edit.undoEveryone}>{COPY.edit.undo}</button>
+                </>
+              )}
+              <Picker
+                id="bsd-tm-edit-list-all"
+                label={COPY.edit.assignAll}
+                filled
+                align="end"
+                open={edit.openPicker === 'all'}
+                onToggle={() => edit.togglePicker('all')}
+                assistants={edit.assistants}
+                onRetry={edit.retryAssistants}
+                rows={pickerRows(edit.assistants.rows, { current: allCurrent, selected: pending.everything })}
+                onPick={(pubkey) => edit.pickEveryone(pubkey, allCurrent)}
+              />
+            </div>
+          </div>
+        )}
         <ul className="bsd-tm-cat-list">
-          {cards.map((card) => <CategoryCard key={card.key} card={card} />)}
+          {cards.map((card, i) => {
+            if (!editing) return <CategoryCard key={card.key} card={card} />;
+            const current = currentOf(published[i]);
+            const chosen = pending[card.key];
+            return (
+              <CategoryCard key={card.key} card={card} pending={Boolean(chosen)}>
+                <div className="bsd-tm-edit-cardrow">
+                  <Picker
+                    id={`bsd-tm-edit-list-${card.key}`}
+                    label={chosen ? COPY.edit.change : COPY.edit.choose}
+                    open={edit.openPicker === card.key}
+                    onToggle={() => edit.togglePicker(card.key)}
+                    assistants={edit.assistants}
+                    onRetry={edit.retryAssistants}
+                    rows={pickerRows(edit.assistants.rows, { current, selected: chosen })}
+                    onPick={(pubkey) => edit.pick(card.key, pubkey, current)}
+                  />
+                  {chosen && <PendingNote name={nameOf(chosen)} onUndo={() => edit.undo(card.key)} />}
+                </div>
+              </CategoryCard>
+            );
+          })}
         </ul>
+        {editing && <p className="bsd-tm-edit-note">{saveNote(pending, nameOf)}</p>}
         <p className="bsd-tm-cat-mixed-line">
           {COPY.mixedLineBefore}
           <Link to={TREASURE_MAP_ADVANCED_PATH}>{COPY.mixedLineLink}</Link>
@@ -234,21 +414,65 @@ function CategoryCards({ phase, map, localPubkey }) {
       </>
     );
   }
+  const showEdit = settled && namesReady;
   return (
     <section className="bsd-tm-cat" aria-labelledby="bsd-tm-cat-heading">
-      <h2 id="bsd-tm-cat-heading" className="bsd-tm-cat-heading">{COPY.categoriesHeading}</h2>
+      <div className="bsd-tm-cat-head">
+        <h2 id="bsd-tm-cat-heading" className="bsd-tm-cat-heading">{COPY.categoriesHeading}</h2>
+        {showEdit && (
+          <button
+            type="button"
+            className={`bsd-tm-edit-toggle${edit.editing ? ' is-on' : ''}`}
+            aria-pressed={edit.editing ? 'true' : 'false'}
+            onClick={edit.toggleEditing}
+          >
+            <PencilIcon />
+            {edit.editing ? COPY.edit.buttonOn : COPY.edit.button}
+          </button>
+        )}
+      </div>
       {body}
     </section>
   );
 }
 
+/**
+ * The edited Map, behind its own button under the raw viewer (story 3 AC-6). Rendered only in Edit mode, so it starts
+ * closed each time Edit turns on. It shows the Map exactly as Save would sign it, with no id or signature yet.
+ */
+function EditedRawViewer({ draft }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bsd-tm-card bsd-tm-raw bsd-tm-edit-raw">
+      <button type="button" className="bsd-tm-raw-toggle" aria-expanded={open ? 'true' : 'false'} onClick={() => setOpen(!open)}>
+        <CodeIcon />
+        <span className="bsd-tm-raw-label">{open ? COPY.edit.rawHide : COPY.edit.rawShow}</span>
+        <span className="bsd-tm-edit-chip">{COPY.edit.draftChip}</span>
+      </button>
+      {open && (
+        <pre className="bsd-tm-raw-pre" tabIndex={0} role="region" aria-label={COPY.edit.draftBoxLabel}>{rawMapText(draft)}</pre>
+      )}
+    </div>
+  );
+}
+
 export default function ManageTreasureMapPage() {
   const { user, loading: authLoading, login } = useAuth();
+  const { aRelays } = useConfig();
   const viewer = user ? user.pubkey : null;
   const map = useTreasureMap(viewer, { strict: true });
   const phase = mapPanelPhase({ authLoading, user, status: map.status });
   // The viewer's own Assistant on this instance, from the session (never the instance owner's TA, never a literal).
   const localPubkey = (user && user.assistantPubkey) || null;
+  const edit = useMapEdit({ viewer });
+  const relayFor = useMemo(() => makeRelayFor({ localPubkey, aRelays }), [localPubkey, aRelays]);
+  // The edited Map, while Edit is on and the Map has been read (found, or none: then a new Map).
+  const editable = phase === 'found' || phase === 'none';
+  const event = phase === 'found' ? map.event : null;
+  const draft = useMemo(
+    () => (edit.editing && editable && viewer ? editedDraft({ event, viewer, pending: edit.pending, relayFor }) : null),
+    [edit.editing, editable, viewer, event, edit.pending, relayFor],
+  );
 
   return (
     <BrainstormDesignShell>
@@ -258,7 +482,7 @@ export default function ManageTreasureMapPage() {
 
       <Faq />
 
-      {phase !== 'signed-out' && <CategoryCards phase={phase} map={map} localPubkey={localPubkey} />}
+      {phase !== 'signed-out' && <CategoryCards phase={phase} map={map} localPubkey={localPubkey} edit={edit} draft={draft} />}
 
       {phase === 'signed-out' ? (
         <div className="bsd-ma-status bsd-tm-signed-out">
@@ -268,6 +492,8 @@ export default function ManageTreasureMapPage() {
       ) : (
         <RawViewer phase={phase} map={map} />
       )}
+
+      {draft && <EditedRawViewer draft={draft} />}
 
       <div className="bsd-tm-advanced">
         <span>{COPY.advancedPrompt}</span>

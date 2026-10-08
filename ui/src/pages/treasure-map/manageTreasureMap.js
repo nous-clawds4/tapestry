@@ -44,6 +44,36 @@ export const COPY = {
   mixedLineLink: 'Advanced page',
   mixedLineAfter: '.',
   rawBoxLabel: 'Raw Treasure Map',
+  // Edit mode (treasure-map-edit #3, ADR treasure-map-edit/0003 sub-decision 1): the blueprint's words, the no-Map
+  // warning (book decision 14), and the picker's states.
+  edit: {
+    button: 'Edit',
+    buttonOn: 'Editing',
+    noMap: 'We didn’t find a Treasure Map on your relays, so saving will publish a new one. If you already have one on a relay we couldn’t check, the new one will replace it.',
+    allDuties: 'All duties',
+    allDutiesLine: 'Assign one Assistant to Scores, Lists, Concepts, and everything else.',
+    assignAll: 'Assign to all',
+    choose: 'Choose an Assistant',
+    change: 'Change',
+    unsaved: 'Unsaved',
+    assignedTo: (name) => `Will be assigned to ${name}`,
+    undo: 'Undo',
+    local: 'Local',
+    current: 'Current',
+    noChanges: 'No changes yet',
+    allDutiesTo: (name) => `All duties → ${name}`,
+    unsavedChanges: (n) => `${n} unsaved ${n === 1 ? 'change' : 'changes'}`,
+    rawShow: 'View the raw Treasure Map — edited',
+    rawHide: 'Hide the raw Treasure Map — edited',
+    draftChip: 'Unsaved draft',
+    draftBoxLabel: 'Raw Treasure Map — edited',
+    loading: 'Loading your Assistants…',
+    error: 'Couldn’t load your Assistants.',
+    // The empty state, around its link to the My Assistants page.
+    emptyBefore: 'You have no Assistants yet. Add one on the ',
+    emptyLink: 'My Assistants',
+    emptyAfter: ' page.',
+  },
   advanced: {
     back: 'Manage your Treasure Map',
     kicker: 'Treasure Map · Advanced',
@@ -111,7 +141,7 @@ const KIND = /^\d{5}$/;
  * and compared by: `39998:dlist-header` is `39998`, `*:` is `*`, `3038x:tag:` is `3038x:tag`. null when the tag can't
  * count: no string key, or no valid 64-hex delegate.
  */
-function entryOf(tag) {
+export function entryOf(tag) {
   if (!Array.isArray(tag) || typeof tag[0] !== 'string' || typeof tag[1] !== 'string' || !HEX64.test(tag[1])) return null;
   const key = tag[0];
   const colon = key.indexOf(':');
@@ -135,7 +165,7 @@ function entryOf(tag) {
  * sub-decision 1). A bare `*` (`*:` and `*::` too) reaches all three; a `*:…` that names anything after the `*` reaches
  * none, since the page doesn't support it for now (book decision 11).
  */
-function appliesTo(category, { slot, segments }) {
+export function appliesTo(category, { slot, segments }) {
   if (KIND.test(slot)) {
     const kind = Number(slot);
     if (category === 'scores') return kind >= 30380 && kind <= 30389;
@@ -161,8 +191,8 @@ function shadowed(category, entry, norms) {
 /**
  * Which Assistants the Map gives each category (AC-2): every Assistant it would ask for some insight there. Per key,
  * however it's spelled, the first valid delegate counts (later ones are alternates); a `*` entry that a more specific
- * entry covers completely doesn't count, and a `*:…` entry never counts (ADR treasure-map-edit/0001, 0002). Each list
- * is in the order the Map first names its Assistants, without repeats. Never throws: no event, no tags, or garbage
+ * entry covers completely doesn't count, and a `*:…` entry that names anything after the `*` never counts (ADR
+ * treasure-map-edit/0001, 0002). Each list is in the order the Map first names its Assistants, without repeats. Never throws: no event, no tags, or garbage
  * give three empty lists.
  * @returns {{ scores: string[], lists: string[], concepts: string[] }}
  */

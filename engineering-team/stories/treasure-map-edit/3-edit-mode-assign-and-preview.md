@@ -164,6 +164,17 @@ it.
    designed for experimentation, so that’s what this is." An assignment writes the family entries as AC-5 says, and
    adds nothing else.
 
+## Deviations
+
+- **The edited box's name** is "Raw Treasure Map — edited" (`COPY.edit.draftBoxLabel`), not the raw box's own name. ADR
+  0003 sub-decision 4 says "named like the raw box"; a different name lets a screen reader, and the tests, tell the two
+  boxes apart when both are open.
+- **The lists' loading, error and empty states render inside the list,** as the test plan pins: the element the
+  toggle's `aria-controls` names.
+- **An open list covers the cards below it,** as the blueprint's absolute lists do. A covered button is reached by
+  closing the list first (its own button, or a pick). Nothing in the story asks for click-outside or Escape to close a
+  list, so neither was added.
+
 ## Linked artifacts
 - Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 1, 3, 9, 11, 12 and 14
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` and
