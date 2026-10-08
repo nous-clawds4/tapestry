@@ -23,5 +23,5 @@ runs a load gate on purpose sees a red suite that isn't theirs.
 wall-clock checks as load-sensitive in the suite's header, so a review's load run can tell them apart from real
 failures. Never skip them.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Quality gates and
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Quality gates and
 § Harness friction 3; `engineering-team/reviews/done/my-assistants/1-the-my-assistants-page.md` § Harness friction 2.

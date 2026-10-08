@@ -2,7 +2,7 @@
 
 **Status:** Accepted (sub-decisions 2–3 superseded in part by `treasure-map-edit` ADR 0002)
 **Date:** 2026-10-07
-**Story:** `engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/1-the-card-rule-edge-cases.md`
 **Supersedes in part:** ADR manage-treasure-map/0002 sub-decisions 1 (key parsing) and 2 (applies, shadowed, per key)
 
 > **Superseded in part (2026-10-07):** by book decision 11, a `*:…` entry that names anything after the `*` reaches no

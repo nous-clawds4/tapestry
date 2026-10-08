@@ -5,9 +5,9 @@ const { nip19 } = require('nostr-tools');
  * treasure-map-edit #5 — Edit mode on /treasure-map: Save signs and publishes the edited Map. What a viewer sees and
  * does.
  *
- * Story: engineering-team/stories/treasure-map-edit/5-save-the-edited-map.md
- * ADR:   engineering-team/decisions/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md
- * Plan:  engineering-team/stories/treasure-map-edit/5-save-the-edited-map.test-plan.md
+ * Story: engineering-team/stories/done/treasure-map-edit/5-save-the-edited-map.md
+ * ADR:   engineering-team/decisions/done/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md
+ * Plan:  engineering-team/stories/done/treasure-map-edit/5-save-the-edited-map.test-plan.md
  * Node half: test/treasure-map-save.test.js (the save sequence, every refusal and outcome, the words, the wiring).
  *
  * Mocks and helpers as story 4's spec (tests/brainstorm/treasure-map-switches.spec.js), copied, plus:

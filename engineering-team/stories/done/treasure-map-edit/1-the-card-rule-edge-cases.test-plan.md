@@ -1,7 +1,7 @@
 # Test Plan: Story 1 — The cards' counting rule follows the draft grammar in three edge cases
 
-**Story:** `engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.md`
-**ADR:** `engineering-team/decisions/treasure-map-edit/0001-the-card-rule-compares-keys-segment-by-segment.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/1-the-card-rule-edge-cases.md`
+**ADR:** `engineering-team/decisions/done/treasure-map-edit/0001-the-card-rule-compares-keys-segment-by-segment.md`
 **Date:** 2026-10-07
 
 ## Coverage map

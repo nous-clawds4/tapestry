@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10-07
-**Story:** `engineering-team/stories/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`
 **Supersedes in part:** ADR treasure-map-edit/0001 sub-decisions 2 (the `*` branch of "which categories an entry
 reaches") and 3 (when a `*` entry is hidden)
 

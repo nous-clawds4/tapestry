@@ -1,7 +1,7 @@
 # Test Plan: Story 5 — Edit mode: Save signs and publishes the edited Map
 
-**Story:** `engineering-team/stories/treasure-map-edit/5-save-the-edited-map.md`
-**ADR:** `engineering-team/decisions/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/5-save-the-edited-map.md`
+**ADR:** `engineering-team/decisions/done/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md`
 **Date:** 2026-10-08
 
 ## Coverage map

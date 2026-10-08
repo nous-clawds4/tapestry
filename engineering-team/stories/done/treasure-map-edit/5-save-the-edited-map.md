@@ -177,9 +177,9 @@ Recorded at review round 1 (review non-blocking 5; ADR 0005 Amendment 1, item 5)
 - Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 3, 9, 12, 14, 15, 17, 18 and 19
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` (the save bar) and
   `treasure-map-logic.js.txt` (`tmbSave`, `tmbSaveDisabled`, the toast)
-- Stories 3–4 and their reviews: `engineering-team/stories/treasure-map-edit/`,
-  `engineering-team/reviews/treasure-map-edit/`
+- Stories 3–4 and their reviews: `engineering-team/stories/done/treasure-map-edit/`,
+  `engineering-team/reviews/done/treasure-map-edit/`
 - Epic: `engineering-team/epics/treasure-map-edit.md`, story 5
-- ADR: `engineering-team/decisions/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md`
-- Test plan: `engineering-team/stories/treasure-map-edit/5-save-the-edited-map.test-plan.md`
-- Review: `engineering-team/reviews/treasure-map-edit/5-save-the-edited-map.md`
+- ADR: `engineering-team/decisions/done/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md`
+- Test plan: `engineering-team/stories/done/treasure-map-edit/5-save-the-edited-map.test-plan.md`
+- Review: `engineering-team/reviews/done/treasure-map-edit/5-save-the-edited-map.md`

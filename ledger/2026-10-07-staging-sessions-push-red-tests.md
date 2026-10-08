@@ -19,4 +19,8 @@ names `staging` (the brief's branch is then the merge target), or (b) the Test D
 branch the failing tests are committed locally and pushed together with the implementation. (a) also keeps drafts off
 the shared line.
 
+**Fix shape (a) in practice, 2026-10-08 (treasure-map-edit).** That book ran on `feat/treasure-map-edit` (its book
+decision 7) and shipped through `/cycle-staging` as PR #821. Five stories' failing tests and every draft stayed off
+`origin/staging`, and the PR's CI passed on its first run. Nothing in the harness yet tells a session to do this.
+
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7; this book's commits `33977a6` and `ccece6b`.

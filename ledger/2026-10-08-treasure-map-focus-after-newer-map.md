@@ -22,5 +22,5 @@ Both are rare. A keyboard or screen-reader person then has to find their place a
   mounted while names load.
 - Add a browser test for each case.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/5-save-the-edited-map.md` § Round 2, Non-blocking 1;
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/5-save-the-edited-map.md` § Round 2, Non-blocking 1;
 `ui/src/pages/treasure-map/Index.jsx` (the focus effect in `CategoryCards`, and the names-ready rule).

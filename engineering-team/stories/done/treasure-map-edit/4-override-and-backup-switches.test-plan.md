@@ -1,7 +1,7 @@
 # Test Plan: Story 4 — Edit mode: the override switches and the backup switch
 
-**Story:** `engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.md`
-**ADR:** `engineering-team/decisions/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/4-override-and-backup-switches.md`
+**ADR:** `engineering-team/decisions/done/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md`
 **Date:** 2026-10-08
 
 ## Coverage map

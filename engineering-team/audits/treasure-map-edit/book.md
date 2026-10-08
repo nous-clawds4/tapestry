@@ -1,9 +1,9 @@
 # Book of Work: Treasure Map Edit mode — assign Assistants on `/treasure-map`, then Save
 
 **Slug:** treasure-map-edit
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-07
-**Closed:** —
+**Closed:** 2026-10-08
 
 ## Intent anchor
 
@@ -50,8 +50,10 @@ says it has.
       3 and 5.
 - [x] **With no Map yet, Edit creates one,** after a warning that the relays read held no Treasure Map, so one kept on
       a relay that wasn't read would be replaced (decision 9). Stories 3 and 5.
-- [ ] **Shipped to staging.** Production gets this book and the manage-treasure-map book together, only on the owner's
-      explicit go.
+- [x] **Shipped to staging.** Production gets this book and the manage-treasure-map book together, only on the owner's
+      explicit go. *Shipped 2026-10-08: PR #821, merged to `staging` as `f0a4c59d`, deploy run 37850176311, smoke test
+      clean. The owner then saved their own Map there, verbatim: "I have edited my Treasure Map on stating and can
+      confirm that it worked as intended. Ready to close the book." Production still waits for the owner's go.*
 
 ## Decisions at intake
 
@@ -224,7 +226,8 @@ It recommended A. The owner's answer, verbatim:
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high. Every frame bullet is met and traced to a reviewed story; the owner confirmed Save on
+  staging (audit § 5).
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/treasure-map-edit/audit.md`

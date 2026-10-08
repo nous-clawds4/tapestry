@@ -2,9 +2,9 @@
 /**
  * treasure-map-edit #4: Edit mode — the override switches and the backup switch.
  *
- * Story: engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.md
- * ADR:   engineering-team/decisions/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md
- * Plan:  engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.test-plan.md
+ * Story: engineering-team/stories/done/treasure-map-edit/4-override-and-backup-switches.md
+ * ADR:   engineering-team/decisions/done/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md
+ * Plan:  engineering-team/stories/done/treasure-map-edit/4-override-and-backup-switches.test-plan.md
  * Browser half: tests/brainstorm/treasure-map-switches.spec.js (what a viewer sees and does).
  *
  * Classes (pure unless noted; the edit model is ui/src/pages/treasure-map/editTreasureMap.js):

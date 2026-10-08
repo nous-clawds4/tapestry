@@ -23,5 +23,5 @@ header on `/tapestry` pages.
 **Fix shape.** Let the top bar's right-hand group shrink at the narrowest widths, for example by shortening the pill
 or letting its label truncate. Then extend B9, or the page's own 320 px check, to `/treasure-map` and `/assistants`.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Round 2, Findings
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Round 2, Findings
 (round 2), non-blocking 2.

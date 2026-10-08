@@ -85,5 +85,7 @@ Promoted from audit §6:
 - [ ] Is "Not assigned yet" the right words for an uncovered category, and should it link somewhere (setup, or Edit)?
 - [ ] Should the cards ever show alternates, or a hint that a category has backups?
 - [ ] Does the TA Treasure Map page stay for operators once Edit and Advanced exist here?
-- [ ] What should a person with no Treasure Map be offered on this page?
+- [x] What should a person with no Treasure Map be offered on this page? *Answered 2026-10-08 by the owner: Edit
+  creates one, after a warning that a Map on a relay that wasn't read would be replaced (treasure-map-edit book
+  decisions 9 and 14).*
 - [ ] Keep, or revise, the introduction and FAQ lines that describe behaviour the app doesn't have yet?

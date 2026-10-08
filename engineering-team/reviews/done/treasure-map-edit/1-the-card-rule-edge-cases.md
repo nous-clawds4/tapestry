@@ -186,7 +186,7 @@ None.
 3. **`engineering-team/decisions/done/manage-treasure-map/0002-…md:8–9`. The note says "empty segments at the end
    don't count", but a Concept key keeps its `d` tag as written.** So `39998:dog-breed:` stays distinct (AC-3, N5).
    Optional: add "(except in a Concept key)".
-4. **`engineering-team/decisions/treasure-map-edit/0001-…md:35–40`. The Facts' line numbers are off by 6–9.**
+4. **`engineering-team/decisions/done/treasure-map-edit/0001-…md:35–40`. The Facts' line numbers are off by 6–9.**
    - The ADR gives `~113`, `~124`, `~141` and `~160`.
    - In the pre-change file (`d14bbcf`, the same as `547ff7d`), `entryOf`, `appliesTo`, `shadowed` and
      `categoryAssistants` are at lines 107, 117, 134 and 151.

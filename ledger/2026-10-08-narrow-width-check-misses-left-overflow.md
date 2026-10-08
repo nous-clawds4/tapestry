@@ -17,5 +17,5 @@ by measuring.
 asserts each positioned or popped-over element's bounding box lies inside the viewport (`x ≥ 0`, `x + width ≤ vw`), in
 every state that moves it, not only that the page doesn't scroll sideways.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Findings, Blocking 1, and
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Findings, Blocking 1, and
 § Harness friction 2.

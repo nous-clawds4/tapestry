@@ -1,6 +1,6 @@
 # Epic: treasure-map-edit — Edit mode on the Manage your Treasure Map page
 
-**Status:** Active
+**Status:** Done
 **Created:** 2026-10-07
 **Book:** `engineering-team/audits/treasure-map-edit/book.md` (no PRD — acceptance frame)
 **Blueprint:** the Claude Design artifact's "Manage your Treasure Map" screen and its Edit mode, kept as it stood at

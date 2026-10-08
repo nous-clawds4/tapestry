@@ -25,5 +25,5 @@ about getting *past* a refusal the way it tells you to.
 
 A line in `engineering-team/workflows/3-test-design.md` § Common pitfalls would carry the first.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/5-save-the-edited-map.md` § Findings, Blocking 1, and
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/5-save-the-edited-map.md` § Findings, Blocking 1, and
 § Harness friction 1.

@@ -1,7 +1,7 @@
 # Test Plan: Story 3 — Edit mode: assign Assistants and preview the result
 
-**Story:** `engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md`
-**ADR:** `engineering-team/decisions/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.md`
+**ADR:** `engineering-team/decisions/done/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md`
 **Date:** 2026-10-08
 
 ## Coverage map
@@ -155,7 +155,7 @@ specs, 73/73.
 
 ## Amendment 2 — Review round 1, 2026-10-08 (made in the Tester's role, in its own commit)
 
-Story 3's review (round 1, `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md`) found the
+Story 3's review (round 1, `engineering-team/reviews/done/treasure-map-edit/3-edit-mode-assign-and-preview.md`) found the
 All duties list hanging off the left edge of the screen at phone widths (Blocking 1), and E16 couldn't see it. It also
 listed non-blocking findings 1–3, 6 and 7, which the owner approved folding into the fix round ("Proceed.", 2026-10-08,
 after the round-1 summary). The tests change in this commit, before any code:
