@@ -173,3 +173,4 @@ defaults below, and the singular label in § Copy are approved with it.
 - Story 3's review: `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md` (round 1
   non-blocking 5; round 2 non-blocking 1)
 - Epic: `engineering-team/epics/treasure-map-edit.md`, story 4
+- ADR: `engineering-team/decisions/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md`

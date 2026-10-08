@@ -1,8 +1,9 @@
 # ADR 0004: The override and backup switches are part of the one pending edit, planned by one pure function
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-08
 **Story:** `engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.md`
+**Approved:** by the owner, 2026-10-08, verbatim: "Ready for test design."
 **Builds on:** ADR 0003 (the pure edit model, `useMapEdit`, the page). It supersedes ADR 0003 sub-decision 2's
 `undoCategory` and `pickCategory` in part (book decision 16).
 

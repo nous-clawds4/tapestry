@@ -1,8 +1,12 @@
 # ADR 0003: Edit mode is a pure edit model beside the card rule, driven by one page-level edit state
 
-**Status:** Accepted
+**Status:** Accepted (sub-decision 2's `undoCategory` and `pickCategory` superseded in part by ADR 0004)
 **Date:** 2026-10-08
 **Story:** `engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md`
+
+> **Superseded in part (2026-10-08):** by book decision 16 and ADR 0004 (story 4), `undoCategory`, and `pickCategory`
+> picking a card's current Assistant, also cancel the everything entry's change. So after Assign to all, a card's Undo
+> no longer leaves `*` pending. ADR 0004 also adds the override and backup switches to `pending`.
 
 ## Context
 
