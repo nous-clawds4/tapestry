@@ -21,11 +21,17 @@ raw Treasure Map. Save signs a new kind 10040 with the person's own signer and p
 2. **The cards ignore an everything entry that goes beyond `*`** (bug; book decision 11): a `*:…` entry counts for
    no category, `*:` alone is still `*`, and the draft grammar records the open question:
    `2-the-cards-ignore-scoped-star-entries.md`. Done.
-3. **Edit mode** (feature). Its Planning decides whether it's one story or more (for example, edit controls and
-   preview, then Save). Depends on #2. Carries story 2's review non-blocking 1 and 3 (the `categoryAssistants` JSDoc's
-   "a `*:…` entry never counts" should say "that names anything after the `*`"; H1–H5's names in
-   `test/treasure-map-card-rule-edges.test.js` still say "covers") into the first story that touches that module and
-   suite.
+Edit mode is three stories (planned 2026-10-08), shipped to staging together with #1–#2:
+
+3. **Edit mode: assign Assistants and preview the result** (feature): the Edit button, the per-card pickers, All
+   duties, Undo, the save note, the cards' preview and "View the raw Treasure Map — edited", the no-Map warning (book
+   decisions 12, 14). Signs nothing. Depends on #2. Carries story 2's review non-blocking 1 and 3 (the
+   `categoryAssistants` JSDoc's "a `*:…` entry never counts" should say "that names anything after the `*`"; H1–H5's
+   names in `test/treasure-map-card-rule-edges.test.js` still say "covers").
+4. **The override switches and the backup switch** (feature): what each removes, previewed (book decisions 8, 12, 13).
+   Depends on #3.
+5. **Save** (feature): Save changes signs the edited Map with the person's own signer and publishes it, "Treasure Map
+   updated", the failure states, and a new Map when none was found (book decisions 9, 14). Depends on #4.
 
 ## Key facts / guardrails
 

@@ -114,6 +114,34 @@ after them, still mean `*`; a story before Edit mode; a note in the draft gramma
     rule for `*:` entries and the manage-treasure-map book's counting of `*:…` (its story 2, AC-2), and it records an
     open question in the draft grammar. Built by story 2, before Edit mode.
 
+At Edit mode's planning, 2026-10-08. The session asked three questions (what assigning a category changes on a real
+Map, and the words of the backup switch and the no-Map warning) with a recommended answer for each, and listed the
+defaults it would assume. The owner's answer, verbatim:
+
+> These three are right as proposed. Ready to proceed.
+
+12. **What assigning a category to an Assistant changes.** The Assistant takes over, in place, every entry that covers a
+    whole kind, a whole family, or one standard score: for Scores the score rows setup writes (`30382:rank` and the
+    rest), any bare Score kind and `3038x`; for Lists any bare List kind and `3039x`; for Concepts `39998`. The family
+    entry (`3038x`, `3039x`, `39998`) is added when the Map lacks it. The narrower entries, such as a score for one Tag,
+    a list for one DList, or a curator for one list (`39998:<d-tag>`), are the category's "individually assigned
+    duties": kept as they are unless that category's override switch is on, which removes them. Lists and Concepts work
+    the same way. The older Tapestry-side generators (the NIP-85 control panel and the legacy customer page) rewrite the
+    `30382:*` rows to the person's Assistant here when they regenerate; that is accepted for now and recorded as ledger
+    `2026-10-08-legacy-generators-overwrite-edited-scores`.
+13. **The backup switch's words.** In Edit mode, below the cards, shown only when the Map has at least one backup:
+    "Remove N backup Assistants"; off: "Kept as they are. Apps use a backup when an entry's first Assistant can't be
+    reached."; on: "Every entry keeps only its first Assistant, including entries not shown on this page." Turning it
+    on counts as one unsaved change.
+14. **The no-Map warning's words.** With no Map found, Edit works as usual and shows at its top: "We didn't find a
+    Treasure Map on your relays, so saving will publish a new one. If you already have one on a relay we couldn't
+    check, the new one will replace it."
+
+The defaults the session listed, accepted with them: "Assign to all" also sets the plain everything entry (`*`), as
+the blueprint does; leaving Edit discards what's unsaved; each picker row shows the Assistant's name and website (or
+NIP-05), the Assistant here first and marked **Local**, the category's current Assistant marked **Current**; if the My
+Assistants list can't load, the pickers say so and offer Try again.
+
 ## Epics in this book
 - `treasure-map-edit` — Edit mode on the Manage your Treasure Map page, and the card-rule fix it builds on.
 
