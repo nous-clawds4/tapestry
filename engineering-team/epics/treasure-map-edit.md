@@ -25,13 +25,21 @@ Edit mode is three stories (planned 2026-10-08), shipped to staging together wit
 
 3. **Edit mode: assign Assistants and preview the result** (feature): the Edit button, the per-card pickers, All
    duties, Undo, the save note, the cards' preview and "View the raw Treasure Map — edited", the no-Map warning (book
-   decisions 12, 14). Signs nothing. Depends on #2. Carries story 2's review non-blocking 1 and 3 (the
+   decisions 12, 14, 15). Signs nothing. Depends on #2. Carries story 2's review non-blocking 1 and 3 (the
    `categoryAssistants` JSDoc's "a `*:…` entry never counts" should say "that names anything after the `*`"; H1–H5's
    names in `test/treasure-map-card-rule-edges.test.js` still say "covers").
 4. **The override switches and the backup switch** (feature): what each removes, previewed (book decisions 8, 12, 13).
-   Depends on #3.
+   Depends on #3. A question for the owner at planning, from story 3's review (non-blocking 5): after Assign to all,
+   a card's Undo (or picking its current Assistant) can leave the card reading Mixed with no Unsaved marker, because
+   the pending `*` entry still reaches it. The preview is honest, but it may read as a glitch.
 5. **Save** (feature): Save changes signs the edited Map with the person's own signer and publishes it, "Treasure Map
-   updated", the failure states, and a new Map when none was found (book decisions 9, 14). Depends on #4.
+   updated", the failure states, and a new Map when none was found (book decisions 9, 14). Depends on #4. Carries
+   story 3's review non-blocking 4 and 9:
+   - A pick can be pending while the edited Map is byte-identical to the published one, for example a Mixed card
+     given the Assistant its own entry already names. Compare the draft with the published tags before counting
+     changes or enabling Save, so Save never re-publishes an identical Map.
+   - `useMapEdit` resets on a new viewer in an effect, one render late. Save checks the viewer when clicked, or the
+     edit state is keyed by viewer.
 
 ## Key facts / guardrails
 

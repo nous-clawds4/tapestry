@@ -10275,7 +10275,12 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .bsd-tm-edit-all-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 240px; }
 .bsd-tm-edit-all-title { font-size: 14px; font-weight: 700; color: var(--text); }
 .bsd-tm-edit-all-line { font-size: 13px; line-height: 1.5; color: var(--text-muted); text-wrap: pretty; }
-.bsd-tm-edit-all-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px 12px; flex-wrap: wrap; flex-shrink: 0; max-width: 100%; }
+/* margin-left: auto keeps the actions at the row's end when the row wraps (phones), so the list, anchored to Assign to
+   all's right edge, opens inside the column, not off the left edge (story 3 review round 1). */
+.bsd-tm-edit-all-actions {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px 12px; flex-wrap: wrap; flex-shrink: 0;
+  max-width: 100%; margin-left: auto;
+}
 .bsd-tm-cat-card.is-pending { border: 1.5px solid var(--accent); background: #faf8ff; }
 .bsd-tm-edit-cardrow {
   flex: 1 1 100%; display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap;

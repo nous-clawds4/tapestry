@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import BrainstormDesignShell, { Eyebrow } from '../../components/BrainstormDesignShell';
 import { useAuth } from '../../context/AuthContext';
@@ -179,12 +179,17 @@ function Avatar({ person }) {
   return <span className={`bsd-tm-cat-avatar${person.local ? ' is-local' : ''}`} aria-hidden="true">{person.initial}</span>;
 }
 
+// Ids the Edit controls point at, so a screen reader hears which card a button belongs to (story 3 review round 1).
+const titleId = (key) => `bsd-tm-cat-title-${key}`;
+const willId = (key) => `bsd-tm-edit-will-${key}`;
+const ALL_TITLE_ID = 'bsd-tm-edit-all-title';
+
 /** One card: what the category is, and who the Map gives it to; in Edit mode, its picker row under it. */
 function CategoryCard({ card, pending, children }) {
   return (
     <li className={`bsd-tm-cat-card${pending ? ' is-pending' : ''}`}>
       <div className="bsd-tm-cat-what">
-        <span className="bsd-tm-cat-title">{card.title}</span>
+        <span id={titleId(card.key)} className="bsd-tm-cat-title">{card.title}</span>
         <span className="bsd-tm-cat-desc">{card.description}</span>
       </div>
       <div className="bsd-tm-cat-who">
@@ -222,16 +227,49 @@ function CategoryCard({ card, pending, children }) {
 /**
  * A list of the person's Assistants behind a button (story 3 AC-2, AC-3): its loading, error and empty states, or the
  * rows, Local first, with Local, Current and a check on the selected one. Picking a row calls onPick.
+ *
+ * An open list closes on Escape, on a press outside it, and when focus moves to something outside it, so it never
+ * covers the control focus lands on. A pick, Try again and Escape put focus back on the button (story 3 review round 1).
+ * The button names its list in aria-controls only while the list exists.
  */
-function Picker({ id, label, filled, open, onToggle, assistants, onRetry, rows, onPick, align }) {
+function Picker({ id, label, filled, open, onToggle, onClose, assistants, onRetry, rows, onPick, align, buttonRef, describedBy }) {
+  const wrapper = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      onClose();
+      if (buttonRef.current) buttonRef.current.focus();
+    };
+    const onPress = (e) => { if (wrapper.current && !wrapper.current.contains(e.target)) onClose(); };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPress);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPress);
+    };
+  }, [open, onClose, buttonRef]);
+
+  // A blur with no new target (a click on nothing focusable, or a row removed) is left to the press-outside rule.
+  const onBlur = (e) => {
+    if (open && e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) onClose();
+  };
+  const andFocus = (action) => () => {
+    action();
+    if (buttonRef.current) buttonRef.current.focus();
+  };
+
   let body;
   if (assistants.phase === 'ready') {
     body = rows.length === 0 ? (
-      <p className="bsd-tm-edit-list-state">
-        {COPY.edit.emptyBefore}
-        <Link to={MY_ASSISTANTS_PATH}>{COPY.edit.emptyLink}</Link>
-        {COPY.edit.emptyAfter}
-      </p>
+      <div className="bsd-ma-status bsd-tm-edit-list-state">
+        <p>
+          {COPY.edit.emptyBefore}
+          <Link to={MY_ASSISTANTS_PATH}>{COPY.edit.emptyLink}</Link>
+          {COPY.edit.emptyAfter}
+        </p>
+      </div>
     ) : (
       <ul className="bsd-tm-edit-rows">
         {rows.map((row) => (
@@ -240,7 +278,7 @@ function Picker({ id, label, filled, open, onToggle, assistants, onRetry, rows, 
               type="button"
               className={`bsd-tm-edit-row${row.selected ? ' is-on' : ''}`}
               aria-pressed={row.selected ? 'true' : 'false'}
-              onClick={() => onPick(row.pubkey)}
+              onClick={andFocus(() => onPick(row.pubkey))}
             >
               <span className={`bsd-tm-cat-avatar bsd-tm-edit-avatar${row.local ? ' is-local' : ''}`} aria-hidden="true">{row.initial}</span>
               <span className="bsd-tm-edit-row-text">
@@ -261,19 +299,21 @@ function Picker({ id, label, filled, open, onToggle, assistants, onRetry, rows, 
     body = (
       <div className="bsd-ma-status is-error bsd-tm-edit-list-state" role="alert">
         <p>{COPY.edit.error}</p>
-        <button type="button" className="bsd-ma-btn" onClick={onRetry}>{COPY.retry}</button>
+        <button type="button" className="bsd-ma-btn" onClick={andFocus(onRetry)}>{COPY.retry}</button>
       </div>
     );
   } else {
     body = <div className="bsd-ma-status bsd-tm-edit-list-state" role="status"><p>{COPY.edit.loading}</p></div>;
   }
   return (
-    <div className="bsd-tm-edit-picker">
+    <div className="bsd-tm-edit-picker" ref={wrapper} onBlur={onBlur}>
       <button
         type="button"
+        ref={buttonRef}
         className={`bsd-tm-edit-pick${filled ? ' is-filled' : ''}`}
         aria-expanded={open ? 'true' : 'false'}
-        aria-controls={id}
+        aria-controls={open ? id : undefined}
+        aria-describedby={describedBy}
         onClick={onToggle}
       >
         {label}
@@ -284,13 +324,13 @@ function Picker({ id, label, filled, open, onToggle, assistants, onRetry, rows, 
   );
 }
 
-/** Pending: the Unsaved chip, who the change goes to, and Undo. */
-function PendingNote({ name, onUndo }) {
+/** Pending: the Unsaved chip, who the change goes to, and Undo, described by its card's title. */
+function PendingNote({ cardKey, name, onUndo }) {
   return (
     <>
       <span className="bsd-tm-edit-chip">{COPY.edit.unsaved}</span>
-      <span className="bsd-tm-edit-will">{COPY.edit.assignedTo(name)}</span>
-      <button type="button" className="bsd-tm-edit-undo" onClick={onUndo}>{COPY.edit.undo}</button>
+      <span id={willId(cardKey)} className="bsd-tm-edit-will">{COPY.edit.assignedTo(name)}</span>
+      <button type="button" className="bsd-tm-edit-undo" aria-describedby={titleId(cardKey)} onClick={onUndo}>{COPY.edit.undo}</button>
     </>
   );
 }
@@ -314,6 +354,9 @@ function CategoryCards({ phase, map, localPubkey, edit, draft }) {
     [assistants],
   );
   const [names, setNames] = useState({ key: null, profiles: {} });
+  // Each list's button, for focus after an Undo, which removes the focused button.
+  const buttons = { all: useRef(null), scores: useRef(null), lists: useRef(null), concepts: useRef(null) };
+  const focusButton = (key) => { if (buttons[key].current) buttons[key].current.focus(); };
 
   useEffect(() => {
     if (!settled || !wantedKey) return undefined;
@@ -356,14 +399,21 @@ function CategoryCards({ phase, map, localPubkey, edit, draft }) {
         {editing && (
           <div className="bsd-tm-edit-all">
             <div className="bsd-tm-edit-all-text">
-              <span className="bsd-tm-edit-all-title">{COPY.edit.allDuties}</span>
+              <span id={ALL_TITLE_ID} className="bsd-tm-edit-all-title">{COPY.edit.allDuties}</span>
               <span className="bsd-tm-edit-all-line">{COPY.edit.allDutiesLine}</span>
             </div>
             <div className="bsd-tm-edit-all-actions">
               {pending.everything && (
                 <>
                   <span className="bsd-tm-edit-will">{nameOf(pending.everything)}</span>
-                  <button type="button" className="bsd-tm-edit-undo" onClick={edit.undoEveryone}>{COPY.edit.undo}</button>
+                  <button
+                    type="button"
+                    className="bsd-tm-edit-undo"
+                    aria-describedby={ALL_TITLE_ID}
+                    onClick={() => { edit.undoEveryone(); focusButton('all'); }}
+                  >
+                    {COPY.edit.undo}
+                  </button>
                 </>
               )}
               <Picker
@@ -373,6 +423,8 @@ function CategoryCards({ phase, map, localPubkey, edit, draft }) {
                 align="end"
                 open={edit.openPicker === 'all'}
                 onToggle={() => edit.togglePicker('all')}
+                onClose={edit.closePicker}
+                buttonRef={buttons.all}
                 assistants={edit.assistants}
                 onRetry={edit.retryAssistants}
                 rows={pickerRows(edit.assistants.rows, { current: allCurrent, selected: pending.everything })}
@@ -394,18 +446,27 @@ function CategoryCards({ phase, map, localPubkey, edit, draft }) {
                     label={chosen ? COPY.edit.change : COPY.edit.choose}
                     open={edit.openPicker === card.key}
                     onToggle={() => edit.togglePicker(card.key)}
+                    onClose={edit.closePicker}
+                    buttonRef={buttons[card.key]}
+                    describedBy={chosen ? `${titleId(card.key)} ${willId(card.key)}` : titleId(card.key)}
                     assistants={edit.assistants}
                     onRetry={edit.retryAssistants}
                     rows={pickerRows(edit.assistants.rows, { current, selected: chosen })}
                     onPick={(pubkey) => edit.pick(card.key, pubkey, current)}
                   />
-                  {chosen && <PendingNote name={nameOf(chosen)} onUndo={() => edit.undo(card.key)} />}
+                  {chosen && (
+                    <PendingNote
+                      cardKey={card.key}
+                      name={nameOf(chosen)}
+                      onUndo={() => { edit.undo(card.key); focusButton(card.key); }}
+                    />
+                  )}
                 </div>
               </CategoryCard>
             );
           })}
         </ul>
-        {editing && <p className="bsd-tm-edit-note">{saveNote(pending, nameOf)}</p>}
+        {editing && <p className="bsd-tm-edit-note" aria-live="polite">{saveNote(pending, nameOf)}</p>}
         <p className="bsd-tm-cat-mixed-line">
           {COPY.mixedLineBefore}
           <Link to={TREASURE_MAP_ADVANCED_PATH}>{COPY.mixedLineLink}</Link>

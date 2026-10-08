@@ -55,6 +55,7 @@ export default function useMapEdit({ viewer }) {
   }, [editing, assistants.phase, loadAssistants]);
 
   const togglePicker = useCallback((which) => setOpenPicker((open) => (open === which ? null : which)), []);
+  const closePicker = useCallback(() => setOpenPicker(null), []);
 
   const pick = useCallback((category, pubkey, current) => {
     setPending((p) => pickCategory(p, category, pubkey, current));
@@ -69,6 +70,6 @@ export default function useMapEdit({ viewer }) {
 
   return {
     editing, pending, openPicker, assistants,
-    toggleEditing, togglePicker, retryAssistants: loadAssistants, pick, undo, pickEveryone, undoEveryone,
+    toggleEditing, togglePicker, closePicker, retryAssistants: loadAssistants, pick, undo, pickEveryone, undoEveryone,
   };
 }

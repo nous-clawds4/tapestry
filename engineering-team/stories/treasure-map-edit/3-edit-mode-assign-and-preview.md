@@ -171,12 +171,24 @@ it.
   boxes apart when both are open.
 - **The lists' loading, error and empty states render inside the list,** as the test plan pins: the element the
   toggle's `aria-controls` names.
-- **An open list covers the cards below it,** as the blueprint's absolute lists do. A covered button is reached by
-  closing the list first (its own button, or a pick). Nothing in the story asks for click-outside or Escape to close a
-  list, so neither was added.
+- **An open list covers the cards below it,** as the blueprint's absolute lists do. It closes on Escape, on a press
+  outside it, and when focus moves out of it. So a button it covers is never focused or clicked while hidden under it
+  (review round 1, non-blocking 2; WCAG 2.2 SC 2.4.11). A list's button names it in `aria-controls` only while the list
+  exists (non-blocking 7).
+- **On phones the All duties actions keep to the row's end when the row wraps** (`margin-left: auto`). The blueprint
+  puts them at the start of the wrapped line, which left the list, anchored to **Assign to all**'s right edge, half off
+  the left of the screen (review round 1, Blocking 1). Every open list now lies inside the screen at 375 and 430 px.
+- **Focus and screen-reader context**, which the blueprint doesn't cover (review round 1, non-blocking 1 and 3):
+  - A pick, an Undo, **Try again** and Escape put focus back on the list's button.
+  - Each card's button and **Undo** keep the blueprint's words as their names. The card's title is their accessible
+    description, plus "Will be assigned to *name*" on the button while the card is pending. The All duties **Undo** is
+    described by "All duties".
+  - The save note is a polite live region, so each change is announced.
+- **The lists' empty state uses the page's status style** (`.bsd-ma-status`), as its loading and error states do (ADR
+  0003 sub-decision 4; review round 1, non-blocking 6).
 
 ## Linked artifacts
-- Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 1, 3, 9, 11, 12 and 14
+- Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 1, 3, 9, 11, 12, 14 and 15
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` and
   `treasure-map-logic.js.txt`, the `tmbEdit` blocks
 - ADR: `engineering-team/decisions/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md`
