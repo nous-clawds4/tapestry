@@ -1,11 +1,23 @@
 # Treasure Map Edit mode — Session Handoff (2026-10-07)
 
-**Status:** 🔴 OPEN: picked up 2026-10-07. The book `treasure-map-edit` is open (`engineering-team/audits/treasure-map-edit/book.md`), on branch `feat/treasure-map-edit`; this doc is addressed when Edit mode ships.
+**Status:** ✅ ADDRESSED 2026-10-08: the book `treasure-map-edit` built Edit mode (stories 1–5), shipped it to staging (PR #821) and closed (`engineering-team/audits/treasure-map-edit/audit.md`, `prd-seed.md`). The body below is kept for history; § 0 says what is true now.
 
 > **Audience:** the session that builds Edit mode.
 > **Source session:** the manage-treasure-map book (opened and closed 2026-10-07; on staging, not on main).
 
 ## 0. Where things stand
+
+**Now (2026-10-08, at the book's close):**
+- **On staging:** `/treasure-map` with Edit mode and Save, plus the card-rule fixes. The owner edited and saved their
+  own Map there. Record: `engineering-team/audits/treasure-map-edit/` (`book.md`, `audit.md`, `prd-seed.md`).
+- **The close commit is on `feat/treasure-map-edit`.** It reaches `staging` through a docs-only PR (ledger
+  `2026-10-08-treasure-map-close-awaits-staging`).
+- **Production:** this book and manage-treasure-map go to `main` together, only on the owner's explicit go.
+- **What's next:** the audit's § 6 and the seed's § 7. They cover Save's hardening
+  (`2026-10-08-treasure-map-save-hardening`), focus after a newer Map (`2026-10-08-treasure-map-focus-after-newer-map`),
+  the Advanced page, and whether assignments should also write the NIP-85 keys today's apps read.
+
+**As it stood when this handoff was written (2026-10-07):**
 
 - **Shipped to staging:** `/treasure-map` (Manage your Treasure Map, view-only: introduction, FAQ, the Assistants by
   category cards, the raw Treasure Map viewer, the Advanced management link) and the `/treasure-map/advanced`
@@ -128,5 +140,8 @@ http.createServer((req, res) => {
   clear-all switch; per-entry control goes to Advanced). Whether the cards ever *show* backups is still open.
 
 ## 8. Start the next session with
+
+*Done: the book was started and closed.* The next Treasure Map work starts from
+`engineering-team/audits/treasure-map-edit/prd-seed.md` § 7 (product questions) or audit § 6 (engineering follow-ups).
 
 > Read `docs/TREASURE_MAP_EDIT_HANDOFF.md` and start the Treasure Map Edit mode book.
