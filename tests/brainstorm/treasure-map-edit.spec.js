@@ -21,7 +21,8 @@ const { nip19 } = require('nostr-tools');
  *   E5 — pick another: Unsaved, "Will be assigned to", Undo, Change, the preview; pick the current: cleared. [AC-2, AC-6]
  *   E6 — a card's Undo removes its change.                                                                   [AC-2]
  *   E7 — one list open at a time; the button closes its own list.                                            [AC-2]
- *   E8 — the list's states: loading, can't load with Try again, none (with the My Assistants link).          [AC-2]
+ *   E8 — the list's states: loading, can't load with Try again, none (with the My Assistants link, in the
+ *        page's status style).                                                                                [AC-2]
  *   E9 — Assign to all: every card pending, "All duties → name"; a card changed after; both Undos.     [AC-3, AC-4]
  *   E10 — Current in the All duties list only when all three cards name one Assistant; picking it clears.   [AC-3]
  *   E11 — the edited raw viewer: closed at first, "Unsaved draft", the Map exactly as Save would sign it; the raw
@@ -30,7 +31,15 @@ const { nip19 } = require('nostr-tools');
  *   E13 — no Map: the draft holds only the new entry.                                                  [AC-5, AC-6]
  *   E14 — leaving Edit closes the edited viewer and drops the changes; Edit again starts fresh.         [AC-1, AC-6]
  *   E15 — a whole edit session signs nothing, publishes nothing, opens no socket; no Save changes.     [AC-4, AC-6]
- *   E16 — at 375 px, with a list open, nothing pushes the page sideways.                                    [AC-2]
+ *   E16 — at 375 and 430 px, every open list lies inside the screen, with nothing pending and with a name
+ *         pending, and nothing pushes the page sideways.                                                 [AC-2, AC-3]
+ *   E17 — after a pick, an Undo or Try again, focus goes back to the list's button.                     [AC-2, AC-3]
+ *   E18 — an open list closes on Escape, when focus leaves it and on a click outside it; a closed list's
+ *         button never names a missing element.                                                                [AC-2]
+ *   E19 — each card's button and Undo say which card they belong to; the All duties Undo says All duties; the
+ *         save note is announced.                                                                    [AC-2, AC-3, AC-4]
+ *
+ * E8's status-style check, E16's bounds and E17–E19 are Amendment 2 (story 3's review, round 1).
  */
 
 const VIEWER = 'a1'.repeat(32);
@@ -184,6 +193,9 @@ async function pick(page, toggle, name) {
   await expect(list).toBeHidden();
 }
 const saveNote = (page, text) => section(page).getByText(text, { exact: true });
+/** The All duties row: the innermost element holding its line and its Assign to all button. */
+const allRow = (page) => section(page).locator('*').filter({ hasText: WORDS.allDutiesLine })
+  .filter({ has: page.getByRole('button', { name: 'Assign to all', exact: true }) }).last();
 // The raw viewer's toggle (its name also holds the "kind 10040" chip), never the edited one.
 const rawButton = (page) => main(page).getByRole('button', { name: /^(View|Hide) the raw Treasure Map(?! —)/ });
 const editedButton = (page) => main(page).getByRole('button', { name: /^(View|Hide) the raw Treasure Map — edited/ });
@@ -382,6 +394,8 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     list = await openList(page, pickerButton(page, 'Scores'));
     await expect(list).toContainText(WORDS.empty);
     await expect(list.getByRole('link', { name: 'My Assistants', exact: true })).toHaveAttribute('href', '/assistants');
+    // In the page's status style, as the loading and error lines (ADR 0003 sub-decision 4; Amendment 2).
+    await expect(list.locator('.bsd-ma-status')).toContainText(WORDS.empty);
     expect(state.myAsks, 'the first page asked for the Assistants once').toBe(1);
   });
 
@@ -506,17 +520,115 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     await safe(page, state);
   });
 
-  test('E16: at 375 px, with a list open, nothing pushes the page sideways', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 800 });
+  // At phone widths the All duties row wraps, which once left its list hanging off the left edge: "no sideways scroll"
+  // can't see that, so each open list's box is checked against the screen (story 3 test plan, Amendment 2).
+  for (const width of [375, 430]) {
+    test(`E16: at ${width} px, every open list lies inside the screen, with nothing pending and with a name pending`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await setup(page);
+      await page.goto('/treasure-map');
+      await startEditing(page);
+      async function inside(toggle, what) {
+        const list = await openList(page, toggle);
+        const box = await list.boundingBox();
+        expect(box, `${what}: the open list has a box`).toBeTruthy();
+        expect(box.x, `${what}: the list's left edge is on screen`).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width, `${what}: the list's right edge is on screen`).toBeLessThanOrEqual(width);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        expect(overflow, `${what}: no sideways scroll`).toBeLessThanOrEqual(0);
+        return list;
+      }
+      async function closeWith(toggle, list) {
+        await toggle.click();
+        await expect(list).toBeHidden();
+      }
+      for (const title of ['Scores', 'Lists', 'Concepts']) {
+        await closeWith(pickerButton(page, title), await inside(pickerButton(page, title), `${title}, nothing pending`));
+      }
+      const all = await inside(assignAll(page), 'All duties, nothing pending');
+      await row(all, 'Bea').click();
+      await expect(all).toBeHidden();
+      await expect(allRow(page)).toContainText('Bea');
+      await closeWith(assignAll(page), await inside(assignAll(page), 'All duties, Bea pending'));
+      for (const title of ['Scores', 'Lists', 'Concepts']) {
+        await expect(editCard(page, title).getByText('Will be assigned to Bea', { exact: true })).toBeVisible();
+        await closeWith(pickerButton(page, title), await inside(pickerButton(page, title), `${title}, Bea pending`));
+      }
+    });
+  }
+
+  test('E17: after a pick, an Undo or Try again, focus goes back to the list’s button', async ({ page }) => {
     await setup(page);
     await page.goto('/treasure-map');
     await startEditing(page);
-    await openList(page, pickerButton(page, 'Concepts'));
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow, 'no sideways scroll').toBeLessThanOrEqual(0);
-    await pickerButton(page, 'Concepts').click();
-    await openList(page, assignAll(page));
-    const overflowAll = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflowAll, 'no sideways scroll with the All duties list open').toBeLessThanOrEqual(0);
+    await pick(page, pickerButton(page, 'Scores'), 'Bea');
+    await expect(pickerButton(page, 'Scores'), 'after a card’s pick').toBeFocused();
+    await editCard(page, 'Scores').getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(pickerButton(page, 'Scores'), 'after a card’s Undo').toBeFocused();
+    await pick(page, assignAll(page), 'Cy');
+    await expect(assignAll(page), 'after Assign to all').toBeFocused();
+    await allRow(page).getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(assignAll(page), 'after the All duties Undo').toBeFocused();
+
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    const failing = await setup(page, { myFail: true });
+    await page.goto('/treasure-map');
+    await startEditing(page);
+    const list = await openList(page, pickerButton(page, 'Lists'));
+    await expect(list.getByText(WORDS.error, { exact: true })).toBeVisible();
+    failing.myFail = false;
+    await list.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(row(list, 'Bea')).toBeVisible();
+    await expect(pickerButton(page, 'Lists'), 'after Try again, with the list still open').toBeFocused();
+  });
+
+  test('E18: an open list closes on Escape, when focus leaves it and on a click outside it; a closed list’s button never names a missing element', async ({ page }) => {
+    await setup(page);
+    await page.goto('/treasure-map');
+    await startEditing(page);
+    const scores = pickerButton(page, 'Scores');
+    let list = await openList(page, scores);
+    await row(list, 'Bea').focus();
+    await page.keyboard.press('Escape');
+    await expect(list, 'Escape closes the list').toBeHidden();
+    await expect(scores).toHaveAttribute('aria-expanded', 'false');
+    await expect(scores, 'Escape puts focus back on the list’s button').toBeFocused();
+
+    list = await openList(page, scores);
+    await row(list, 'Zed Local').focus();
+    await page.keyboard.press('Shift+Tab');
+    await expect(scores).toBeFocused();
+    await expect(list, 'focus moving from a row to its own button keeps the list open').toBeVisible();
+    await row(list, 'Cy').focus();
+    await page.keyboard.press('Tab');
+    await expect(list, 'tabbing past the last row closes the list').toBeHidden();
+    await expect(scores).toHaveAttribute('aria-expanded', 'false');
+    await expect(pickerButton(page, 'Lists'), 'focus lands on the next card’s button, no longer covered').toBeFocused();
+
+    list = await openList(page, assignAll(page));
+    await page.getByRole('heading', { level: 1 }).click();
+    await expect(list, 'a click outside closes the list').toBeHidden();
+    await expect(assignAll(page)).toHaveAttribute('aria-expanded', 'false');
+    await expect(saveNote(page, 'No changes yet'), 'closing a list picks nothing').toBeVisible();
+
+    for (const toggle of [scores, pickerButton(page, 'Lists'), pickerButton(page, 'Concepts'), assignAll(page)]) {
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      const id = await toggle.getAttribute('aria-controls');
+      if (id) await expect(page.locator(`[id="${id}"]`), `a closed list’s aria-controls (${id}) names an element`).toHaveCount(1);
+    }
+  });
+
+  test('E19: each card’s button and Undo say which card they belong to; the All duties Undo says All duties; the save note is announced', async ({ page }) => {
+    await setup(page);
+    await page.goto('/treasure-map');
+    await startEditing(page);
+    for (const title of ['Scores', 'Lists', 'Concepts']) await expect(pickerButton(page, title)).toHaveAccessibleDescription(title);
+    await pick(page, pickerButton(page, 'Scores'), 'Bea');
+    await expect(pickerButton(page, 'Scores')).toHaveAccessibleDescription('Scores Will be assigned to Bea');
+    await expect(editCard(page, 'Scores').getByRole('button', { name: 'Undo', exact: true })).toHaveAccessibleDescription('Scores');
+    await expect(saveNote(page, '1 unsaved change')).toHaveAttribute('aria-live', 'polite');
+    await pick(page, assignAll(page), 'Cy');
+    await expect(allRow(page).getByRole('button', { name: 'Undo', exact: true })).toHaveAccessibleDescription('All duties');
+    await expect(saveNote(page, 'All duties → Cy')).toHaveAttribute('aria-live', 'polite');
   });
 });

@@ -152,3 +152,30 @@ in the tests. None was in the page. Each fix keeps the test's intent; no asserti
 
 After the amendment, against the build of the implementation: the new spec passes 16/16, and with the four neighbour
 specs, 73/73.
+
+## Amendment 2 — Review round 1, 2026-10-08 (made in the Tester's role, in its own commit)
+
+Story 3's review (round 1, `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md`) found the
+All duties list hanging off the left edge of the screen at phone widths (Blocking 1), and E16 couldn't see it. It also
+listed non-blocking findings 1–3, 6 and 7, which the owner approved folding into the fix round ("Proceed.", 2026-10-08,
+after the round-1 summary). The tests change in this commit, before any code:
+
+| Test | Change | Why |
+|---|---|---|
+| E16 | Now one test per width, 375 and 430 px. At each width it opens every list (Scores, Lists, Concepts, All duties), once with nothing pending and once with Bea pending (via Assign to all). Each open list's box must lie inside the screen (`x ≥ 0`, `x + width ≤` the viewport), and the page must not scroll sideways. | Review Blocking 1b. Content pushed off the *left* edge adds no scroll width, so "no sideways scroll" alone passed with the list at x = −148 (ledger `2026-10-08-narrow-width-check-misses-left-overflow`). 430 px is the widest width the review measured the wrapped row at. |
+| E8 | Adds one check: the empty state sits in a `.bsd-ma-status` element, as the loading and error states do. | Non-blocking 6: ADR 0003 sub-decision 4 names the page's status style for the lists' states. |
+| E17 (new) | After a card's pick, the card's Undo, Assign to all's pick, the All duties Undo, and Try again, the list's own button has focus. After Try again the list stays open. | Non-blocking 1: each of these removes the focused element, and focus fell to `<body>`. |
+| E18 (new) | Escape closes an open list and puts focus back on its button. Shift+Tab from the first row to the button keeps it open. Tabbing past the last row closes it, so focus lands on the next card's button, no longer covered. A click outside (the page heading) closes it, and closing picks nothing. A closed list's button has no `aria-controls`, or one that names an element on the page. | Non-blocking 2 (WCAG 2.2 SC 2.4.11, Focus Not Obscured) and 7. This replaces the story's Deviation 3, which had left closing on Escape or a click outside out. |
+| E19 (new) | Each card's button has the card's title as its accessible description, plus "Will be assigned to *name*" while the card is pending. A card's Undo is described by the card's title, and the All duties Undo by "All duties". The save note is `aria-live="polite"`. | Non-blocking 3. The visible words, and so the buttons' names, stay the blueprint's (book decision 3). The card goes in the description, so the existing tests' exact-name locators still hold. The live note tells a screen-reader user what a pick did. |
+
+No assertion is weakened, and E1–E7 and E9–E15 are unchanged.
+
+**Verification.** Run against the build of story 3's reviewed code (`243483b`, bundle `index-6ILgIfjj.js`), the
+amended spec gives **6 failed, 14 passed**. Each failure is the reason above:
+- **E16, both widths:** "All duties, nothing pending: the list's left edge is on screen", received −147.67.
+- **E8:** no `.bsd-ma-status` element around the empty state.
+- **E17:** "after a card's pick", the Scores button isn't focused.
+- **E18:** "Escape closes the list", but it stays visible.
+- **E19:** the Scores button's description is `""`.
+
+The 14 that pass are E1–E7 and E9–E15.
