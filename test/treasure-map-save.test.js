@@ -263,10 +263,13 @@ test('Q5: the signer on another account — "mismatch", with the app\'s own word
   assert(late.got.outcome === 'not-sent' && late.got.reason === 'mismatch', `a signer that signs as someone else: ${show({ outcome: late.got.outcome, reason: late.got.reason })}`);
   assert(!late.calls.includes('publish'), `a signer that signs as someone else must not publish: ${show(late.calls)}`);
 });
-test('Q6: a newer Map since the page read it — "changed", the story\'s words; nothing signed or published', async () => {
+// Re-aimed at Amendment 1 (book decision 19): the answer carries the newer Map, which the page then shows.
+test('Q6: a newer Map since the page read it — "changed", the story\'s words, and the newer Map itself; nothing signed or published', async () => {
   const e = await words();
-  const { got, calls } = await save({ latest: { ...BASE, id: '8'.repeat(64), created_at: BASE.created_at + 30 } });
+  const newer = { ...BASE, id: '8'.repeat(64), created_at: BASE.created_at + 30 };
+  const { got, calls } = await save({ latest: newer });
   assert(got.outcome === 'not-sent' && got.reason === 'changed', `got ${show({ outcome: got.outcome, reason: got.reason })}`);
+  assert(got.latest && got.latest.id === newer.id, `the answer carries the newer Map: ${show(got.latest)}`);
   assert(got.message === e.changedSince && typeof e.changedSince === 'string', `message ${show(got.message)}; COPY.edit.changedSince is ${show(e.changedSince)}`);
   assert(!calls.includes('sign') && !calls.includes('publish'), `calls: ${show(calls)}`);
   const none = await save({ latest: BASE }, { base: null, draft: { ...DRAFT } });
@@ -317,6 +320,23 @@ test('Q11: with no Map found — a new Map, stamped now, holding only what the e
   const { got, signed } = await save({}, { base: null, draft });
   assert(got.outcome === 'saved', `outcome ${show(got.outcome)}`);
   assert(show(signed[0]) === show({ kind: 10040, pubkey: VIEWER, created_at: NOW, content: '', tags: [['3038x', B, '']] }), `signed ${show(signed)}`);
+});
+
+test('Q12: a save no longer current (isCurrent false) — "stale", checked just before signing and again just before publishing; nothing after it runs (Amendment 1)', async () => {
+  const saveTreasureMap = await saveFn('saveTreasureMap');
+  const wrong = [];
+  for (const [failAt, label, mustNot] of [[1, 'before signing', ['sign', 'publish']], [2, 'before publishing', ['publish']]]) {
+    const f = fakes();
+    let asks = 0;
+    f.deps.isCurrent = () => { asks++; return asks < failAt; };
+    let got;
+    try { got = await saveTreasureMap({ viewer: VIEWER, base: BASE, draft: DRAFT, relays: RELAYS, deps: f.deps }); } catch (err) { got = { threw: err.message }; }
+    if (!got || got.outcome !== 'not-sent' || got.reason !== 'stale') wrong.push(`${label}: ${show(got)}`);
+    for (const call of mustNot) if (f.calls.includes(call)) wrong.push(`${label}: still called ${call}`);
+  }
+  const omitted = await save();
+  if (omitted.got.outcome !== 'saved') wrong.push(`no isCurrent given: want saved, got ${show(omitted.got.outcome)}`);
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -391,7 +411,7 @@ test('W1: Save\'s words, exactly (apostrophes curly, as the page\'s other words)
     saving: 'Saving…',
     saved: 'Treasure Map updated',
     reportSubject: 'Your Treasure Map',
-    changedSince: 'Couldn’t save: your Treasure Map changed since this page read it. Reload the page to see the new one; these changes will be lost.',
+    changedSince: 'Your Treasure Map changed since this page read it. The page now shows the new one, with your changes on top; check them and save again.',
     noSigner: 'Couldn’t save: no Nostr signer was found in this browser.',
     declined: 'Couldn’t save: the signature was declined.',
   };
@@ -423,6 +443,7 @@ test('S2: useMapSave wires the real effects — the signer check, window.nostr.s
   if (!/assertSignerMatches/.test(src)) wrong.push('it doesn\'t check the signed event\'s pubkey with assertSignerMatches');
   if (!/window\.nostr\.signEvent/.test(src)) wrong.push('it doesn\'t sign with window.nostr.signEvent');
   if (!/publishEverywhere/.test(src)) wrong.push('it doesn\'t publish with publishEverywhere');
+  if (!/getSessionPubkey/.test(src)) wrong.push('it doesn\'t check the session is still the viewer\'s (getSessionPubkey; Amendment 1)');
   if (!/from\s+['"]\.\/saveTreasureMap(\.js)?['"]/.test(src)) wrong.push('it doesn\'t take the sequence from ./saveTreasureMap');
   if (/\btaPubkey\b/.test(src)) wrong.push('it uses taPubkey');
   if (/[0-9a-f]{64}/i.test(src)) wrong.push('it contains a 64-hex literal');

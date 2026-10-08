@@ -30,6 +30,14 @@ const { nip19 } = require('nostr-tools');
  *   SV9 — no Map: a new Map with only the edit's entries; the warning goes.                                   [AC-8]
  *   SV10 — book decision 18: a card switch described by its card; All turns on only cards with duties.         [AC-9]
  *   SV11 — at 375 and 430 px, Save changes, the alert and the confirmation fit.                              [AC-10]
+ *
+ * Amendment 1 (review round 1; book decision 19; ADR 0005 Amendment 1): SV4 re-aimed, and
+ *   SV12 — an outside relay holds a newer Map than this instance's: the newer Map is shown, the changes kept on top,
+ *          and the next Save goes through.                                                               [AC-5]
+ *   SV13 — a save only the outside relays took, then a reload: no dead end.                                  [AC-5]
+ *   SV14 — signing out while the signer prompt is open: nothing signed or published.                        [AC-2]
+ *   SV15 — "Saving…" is in a live region while saving.                                                      [AC-10]
+ *   SV16 — two clicks in one go sign once.                                                                  [AC-4]
  */
 
 const VIEWER = 'a1'.repeat(32);
@@ -80,7 +88,7 @@ const WORDS = {
     Concepts: 'Structured datasets your community organizes together.',
   },
   allDutiesLine: 'Assign one Assistant to Scores, Lists, Concepts, and everything else.',
-  changedSince: 'Couldn’t save: your Treasure Map changed since this page read it. Reload the page to see the new one; these changes will be lost.',
+  changedSince: 'Your Treasure Map changed since this page read it. The page now shows the new one, with your changes on top; check them and save again.',
   noSigner: 'Couldn’t save: no Nostr signer was found in this browser.',
   declined: 'Couldn’t save: the signature was declined.',
   noMap: 'We didn’t find a Treasure Map on your relays, so saving will publish a new one. If you already have one on a relay we couldn’t check, the new one will replace it.',
@@ -100,15 +108,17 @@ const npubShort = (pk) => { const n = nip19.npubEncode(pk); return `${n.slice(0,
 async function setup(page, {
   signedIn = true, mapLocal = MAIN, mapHold = null, relayAnswers = [{ success: true, events: [] }], relayList = ['wss://one.example'],
   myRows = MY_ROWS, myHold = null, myFail = false,
-  // Story 5: the signer ('viewer' | 'none' | 'other' | 'decline'), this instance's relay ('ok' | 'fail' | 'hold'), the
-  // outside relays ('accept' | 'refuse' | 'drop' | { url: mode }), and the publish policy ('external' | 'local-only').
-  signer = 'viewer', local = 'ok', relay = 'drop', policy = 'local-only',
+  // Story 5: the signer ('viewer' | 'none' | 'other' | 'decline' | 'hold'), this instance's relay ('ok' | 'fail' |
+  // 'hold'), the outside relays ('accept' | 'refuse' | 'drop' | { url: mode }), and the publish policy ('external' |
+  // 'local-only'). Amendment 1: `relayHolds` is a Map the general-purpose relays answer with; `relayHoldsSent` makes
+  // them answer with the newest event the outside relays accepted.
+  signer = 'viewer', local = 'ok', relay = 'drop', policy = 'local-only', relayHolds = null, relayHoldsSent = false,
 } = {}) {
   let releaseLocal;
   const localHeld = new Promise((r) => { releaseLocal = r; });
   const state = {
     ws: 0, writes: [], session: signedIn, myAsks: 0, myRows, myHold, myFail,
-    local, relay, newer: null, published: [], relayEvents: [], releaseLocal,
+    local, relay, newer: null, published: [], relayEvents: [], releaseLocal, relayHolds, relayHoldsSent,
   };
   const modeFor = (url) => (typeof state.relay === 'object' ? (state.relay[url.replace(/\/$/, '')] || 'accept') : state.relay);
   await page.routeWebSocket(/.*/, (ws) => {
@@ -129,8 +139,9 @@ async function setup(page, {
     window.__decline = signer === 'decline';
     if (signer === 'none') return;
     const who = signer === 'other' ? other : viewer;
+    window.__keyHeld = signer === 'hold' ? new Promise((resolve) => { window.__releaseKey = resolve; }) : null;
     window.nostr = {
-      getPublicKey: async () => who,
+      getPublicKey: async () => { if (window.__keyHeld) await window.__keyHeld; return who; },
       signEvent: async (u) => {
         window.__signCalls++;
         if (window.__decline) throw new Error('User rejected the request');
@@ -162,6 +173,9 @@ async function setup(page, {
   await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: relayList.map((url, i) => ({ name: `relay ${i}`, json: JSON.stringify({ nostrRelay: { websocketUrl: url } }) })) }));
   let relayAsks = 0;
   await page.route('**/api/relay/external**', (r) => {
+    const accepted = state.relayEvents.filter((e) => modeFor(e.url) === 'accept').map((e) => e.event);
+    if (state.relayHoldsSent && accepted.length > 0) return json(r, { success: true, events: [accepted[accepted.length - 1]] });
+    if (state.relayHolds) return json(r, { success: true, events: [state.relayHolds] });
     relayAsks++;
     const a = relayAnswers[Math.min(relayAsks - 1, relayAnswers.length - 1)];
     return json(r, a, a.success === false ? 500 : 200);
@@ -181,6 +195,7 @@ async function setup(page, {
       : { success: true, signedIn: false });
   });
   await page.route('**/api/relays', (r) => json(r, { success: true, aRelays: A_RELAYS }));
+  await page.route('**/api/auth/logout', (r) => { state.session = false; return json(r, { success: true }); });
   await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: policy === 'external' }));
   await page.route('**/api/strfry/publish', async (r) => {
     const body = JSON.parse(r.request().postData() || '{}');
@@ -358,20 +373,31 @@ test.describe('/treasure-map — Edit mode: Save', () => {
     await expect(editButton(page)).toHaveAttribute('aria-pressed', 'false');
   });
 
-  test('SV4: a newer Map since the page read it — nothing signed or published; the story\'s words; Edit and the changes stay; focus on Save', async ({ page }) => {
+  // Re-aimed at Amendment 1 (book decision 19): a newer Map is shown with the changes on top, and the next Save goes
+  // through; it used to stop with a reload message.
+  test('SV4: a newer Map since the page read it — nothing signed yet; the newer Map shown with the changes on top; the words; the next Save saves on top of it', async ({ page }) => {
     const state = await setup(page, { policy: 'external', relay: 'accept' });
     await page.goto('/treasure-map');
     await startEditing(page);
     await pick(page, pickerButton(page, 'Scores'), 'Bea');
-    state.newer = { ...MAIN, id: '8'.repeat(64), created_at: MAIN.created_at + 60, tags: [['30382:rank', C, R]] };
+    const NEWER = { ...MAIN, id: '8'.repeat(64), created_at: MAIN.created_at + 60, tags: [...MAIN_TAGS, ['30385:new', C, R]] };
+    state.newer = NEWER;
     await saveButton(page).click();
     await expect(alertLine(page)).toContainText(WORDS.changedSince);
     expect(await signed(page), 'nothing signed').toEqual([]);
     expect(state.published, 'nothing published').toEqual([]);
     expect(state.relayEvents, 'nothing sent').toEqual([]);
     await expect(editButton(page)).toHaveAttribute('aria-pressed', 'true');
-    await expect(editCard(page, 'Scores').getByText('Will be assigned to Bea', { exact: true })).toBeVisible();
+    await expect(editCard(page, 'Scores').getByText('Will be assigned to Bea', { exact: true }), 'the change is kept').toBeVisible();
+    expect(await publishedTags(page), 'the raw viewer shows the newer Map').toEqual(NEWER.tags);
+    expect((await draftTags(page)).filter((t) => t[0] === '30385:new'), 'the edited Map is built on the newer one').toEqual([['30385:new', C, R]]);
     await expect(saveButton(page)).toBeFocused();
+    await saveButton(page).click();
+    await expect(toast(page)).toBeVisible();
+    const s = await signed(page);
+    expect(s.length, 'signed once, on the second press').toBe(1);
+    expect(s[0].created_at, 'newer than the newer Map').toBeGreaterThan(NEWER.created_at);
+    expect(s[0].tags.filter((t) => t[0] === '30385:new' || t[0] === '30382:rank')).toEqual([['30382:rank', B, ''], ['30385:new', C, R]]);
   });
 
   test('SV5: kept on this instance\'s relay by the publish policy — Edit ends, no "Treasure Map updated", the report says where it went until Edit turns on again', async ({ page }) => {
@@ -502,4 +528,84 @@ test.describe('/treasure-map — Edit mode: Save', () => {
       expect(state.published.length).toBe(1);
     });
   }
+
+  test('SV12: an outside relay holds a newer Map than this instance\'s relay — it is shown with the changes on top, and the next Save goes through (review H3)', async ({ page }) => {
+    const NEWER = { ...MAIN, id: '8'.repeat(64), created_at: MAIN.created_at + 60, tags: [...MAIN_TAGS, ['30385:new', C, R]] };
+    const state = await setup(page, { policy: 'external', relay: 'accept', relayHolds: NEWER });
+    await page.goto('/treasure-map');
+    await startEditing(page);
+    expect(await publishedTags(page), 'the page reads this instance\'s relay first').toEqual(MAIN_TAGS);
+    await pick(page, pickerButton(page, 'Lists'), 'Cy');
+    await saveButton(page).click();
+    await expect(alertLine(page)).toContainText(WORDS.changedSince);
+    expect(await publishedTags(page), 'the newer Map is shown').toEqual(NEWER.tags);
+    await expect(editCard(page, 'Lists').getByText('Will be assigned to Cy', { exact: true })).toBeVisible();
+    await saveButton(page).click();
+    await expect(toast(page), 'no dead end: the second Save goes through').toBeVisible();
+    expect(state.published.length).toBe(1);
+    expect(state.published[0].tags.some((t) => t[0] === '30385:new'), 'saved on top of the newer Map').toBe(true);
+  });
+
+  test('SV13: a save only the outside relays took, then a reload and another edit — the newer Map is shown once, then the save goes through (review H4)', async ({ page }) => {
+    const state = await setup(page, { policy: 'external', relay: 'accept', local: 'fail', relayHoldsSent: true });
+    await page.goto('/treasure-map');
+    await startEditing(page);
+    await pick(page, pickerButton(page, 'Scores'), 'Bea');
+    await saveButton(page).click();
+    await expect(report(page)).toContainText('could not be saved on this instance');
+    state.local = 'ok';
+    await page.reload();
+    await startEditing(page);
+    expect(await publishedTags(page), 'after the reload, this instance\'s relay still has the old Map').toEqual(MAIN_TAGS);
+    await pick(page, pickerButton(page, 'Lists'), 'Cy');
+    await saveButton(page).click();
+    await expect(alertLine(page)).toContainText(WORDS.changedSince);
+    await saveButton(page).click();
+    await expect(toast(page)).toBeVisible();
+    const tags = state.published[state.published.length - 1].tags;
+    expect(tags.find((t) => t[0] === '30382:rank'), 'the earlier save\'s Scores → Bea is kept').toEqual(['30382:rank', B, '']);
+    expect(tags.some((t) => t[0] === '3039x' && t[1] === C), 'and Lists → Cy is added on top').toBe(true);
+  });
+
+  test('SV14: signing out while the signer prompt is open — nothing is signed or published when it answers (review H5)', async ({ page }) => {
+    const state = await setup(page, { signer: 'hold', policy: 'external', relay: 'accept' });
+    await page.goto('/treasure-map');
+    await startEditing(page);
+    await pick(page, pickerButton(page, 'Scores'), 'Bea');
+    await saveButton(page).click();
+    await expect(saveButton(page)).toHaveText('Saving…');
+    await page.locator('.bs-usermenu-avatar-btn').click();
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await expect(main(page).getByText(/sign in/i).first()).toBeVisible();
+    await page.evaluate(() => window.__releaseKey());
+    await page.waitForTimeout(1500);
+    expect(await page.evaluate(() => window.__signCalls), 'nothing signed').toBe(0);
+    expect(state.published, 'nothing published').toEqual([]);
+    expect(state.relayEvents, 'nothing sent').toEqual([]);
+  });
+
+  test('SV15: "Saving…" is announced — a live region that is there before the save says it while saving', async ({ page }) => {
+    const state = await setup(page, { local: 'hold', policy: 'local-only' });
+    await page.goto('/treasure-map');
+    await startEditing(page);
+    await pick(page, pickerButton(page, 'Scores'), 'Bea');
+    const region = section(page).locator('[aria-live="polite"]').filter({ hasText: /^Saving…$/ });
+    await expect(region, 'not saying it before the save').toHaveCount(0);
+    await saveButton(page).click();
+    await expect(region).toHaveCount(1);
+    state.releaseLocal();
+    await expect(editButton(page)).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('SV16: two clicks in one go sign and publish once (review H1)', async ({ page }) => {
+    const state = await setup(page, { policy: 'external', relay: 'accept' });
+    await page.goto('/treasure-map');
+    await startEditing(page);
+    await pick(page, pickerButton(page, 'Scores'), 'Bea');
+    await saveButton(page).evaluate((button) => { button.click(); button.click(); });
+    await expect(toast(page)).toBeVisible();
+    await page.waitForTimeout(500);
+    expect((await signed(page)).length, 'signed once').toBe(1);
+    expect(state.published.length, 'published once').toBe(1);
+  });
 });

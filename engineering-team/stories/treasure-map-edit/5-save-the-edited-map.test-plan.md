@@ -143,3 +143,37 @@ commit `2d438e05` plus this phase's uncommitted test changes:
 
   The re-aimed tests among them pass now because they check behaviour that hasn't changed: the row's Undo still
   clears everything, and a session that never saves signs nothing.
+
+## Amendment 1 — review round 1, 2026-10-08 (made in the Tester's role, in its own commit)
+
+Story 5's review, round 1, found three blocking problems. Book decision 19 (the owner's "Let’s do 1 A.") and ADR 0005
+Amendment 1 settle them. The story's AC-2, AC-5 and AC-10 are amended. The tests change in this commit, before any code:
+
+| Test | Change | Why |
+|---|---|---|
+| Node Q6 | The `'changed'` answer must also carry `latest`, the newer Map. | Decision 19: the page shows it. |
+| Node Q12 (new) | With `deps.isCurrent()` false, checked just before signing and again just before publishing, the answer is `'stale'` and nothing after the check runs. With no `isCurrent`, a save goes through. | Blocking 3. |
+| Node W1 | `changedSince` is decision 19's words. | Decision 19. |
+| Node S2 | `useMapSave` also checks the session with `getSessionPubkey`. | Blocking 3. |
+| SV4 | A newer Map is shown with the change kept. The raw viewer shows it, the edited Map is built on it, and the new words appear. A second Save saves on top of it, newer than it. | Re-aimed from "reload, changes lost" (decision 19). |
+| SV12 (new) | An outside relay holds a newer Map than this instance's relay. The page reads this instance's first. Save shows the newer Map, and the second Save goes through. | Blocking 1, review H3: the remedy now clears the refusal (ledger `2026-10-08-refusal-remedy-never-tested`). |
+| SV13 (new) | A save only the outside relays took, then a reload. The page shows the old Map from this instance's relay. An edit and Save show the newer Map once, and then the save goes through. Both edits are in the published Map. | Blocking 1, review H4. |
+| SV14 (new) | The signer prompt is held, the person signs out, then the prompt answers. Nothing is signed, published or sent. | Blocking 3, review H5. |
+| SV15 (new) | A polite live region in the section, there before the save, reads "Saving…" while saving. | Blocking 2. |
+| SV16 (new) | Two clicks in one script task sign and publish once. | Review non-blocking 2 (H1). |
+
+The setup gains:
+- a held `getPublicKey` (`signer: 'hold'`);
+- outside relays that answer the page's relay read with a given Map (`relayHolds`), or with the newest event they
+  accepted (`relayHoldsSent`);
+- the logout route.
+
+No assertion is weakened. SV1–SV3 and SV5–SV11 are unchanged.
+
+**Verification.** Against the build of story 5's reviewed code (`8536ae26`, `index-pOBamNJw.js`):
+- **The Node suite:** 20 passed, 4 failed (Q6, Q12, W1, S2), each for the reason above.
+- **The browser spec:** 6 failed, 13 passed. The 6:
+  - SV4, SV12 and SV13 receive the old reload words where the new words should be;
+  - SV14 signed 1, want 0;
+  - SV16 signed 2, want 1;
+  - SV15 found no live region saying "Saving…".
