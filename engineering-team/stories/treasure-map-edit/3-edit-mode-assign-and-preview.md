@@ -1,6 +1,6 @@
 # Story 3: Edit mode — assign Assistants and preview the result
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-08
 **Type:** Feature
 **Epic:** `treasure-map-edit`
@@ -149,6 +149,11 @@ The stack wasn't running in this session, so no concept handles were checked. No
 ## Open questions
 
 None.
+
+## Resolved at the story gate
+
+Approved as drafted, 2026-10-08, verbatim: "Ready for Architecture." The § Copy lines new here are approved with
+it.
 
 ## Resolved while drafting
 
