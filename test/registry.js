@@ -280,6 +280,7 @@ const suites = [
   { file: 'treasure-map-star-scopes-ignored.test.js' },
   { file: 'treasure-map-edit-mode.test.js' },
   { file: 'treasure-map-switches.test.js' },
+  { file: 'treasure-map-save.test.js' },
   { file: 'list-headers-author-options.test.js' },
   { file: 'list-headers-disposition-column.test.js' },
   { file: 'list-headers-my-assistant-disposition.test.js', skipNote: 'control panel not reachable (live refusals)' },

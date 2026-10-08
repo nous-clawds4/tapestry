@@ -358,7 +358,9 @@ test('D3: the pages read their addresses from the menu module — no re-typed /t
     `${rel(ADVANCED)} should link back to MANAGE_TREASURE_MAP_PATH and on to TA_TREASURE_MAP_PATH`);
 });
 
-test('D4: neither page signs, publishes or stores anything', () => {
+// D4's title narrowed at treasure-map-edit #5's Test Design: Save (story 5) signs and publishes through useMapSave
+// (ADR treasure-map-edit/0005), so the page files themselves still never do.
+test('D4: neither page file signs, publishes or stores anything itself', () => {
   const wrong = [];
   for (const file of [PAGE, ADVANCED]) {
     const src = codeOnly(safeRead(file));
@@ -372,7 +374,9 @@ test('D4: neither page signs, publishes or stores anything', () => {
   assert(wrong.length === 0, `AC-6: in no state does either page publish, sign or store anything — ${wrong.join('; ')}`);
 });
 
-test('D5 (treasure-map-edit #3): the page offers no Save changes yet — Edit mode arrives without it; Save is story 5', () => {
+// Re-aimed at treasure-map-edit #5's Test Design: Save changes arrives with story 5, in COPY.edit like Edit mode's
+// other words, so the page offers it through COPY.edit.save and never types it itself.
+test('D5 (treasure-map-edit #5): the page offers Save changes through COPY.edit.save, never as its own literal', () => {
   const sf = parse(PAGE);
   assert(sf, `${rel(PAGE)} does not exist`);
   const texts = [];
@@ -381,7 +385,8 @@ test('D5 (treasure-map-edit #3): the page offers no Save changes yet — Edit mo
     if (ts().isStringLiteral(n) || ts().isNoSubstitutionTemplateLiteral(n)) texts.push(n.text.trim());
   });
   const bad = texts.filter((t) => /^Save changes$/.test(t));
-  assert(bad.length === 0, `${rel(PAGE)} carries the design's Save changes ${show(bad)}; it is treasure-map-edit #5`);
+  assert(bad.length === 0, `${rel(PAGE)} types Save changes itself ${show(bad)}; the words live in COPY.edit`);
+  assert(/COPY\.edit\.save\b/.test(safeRead(PAGE)), `${rel(PAGE)} doesn't offer COPY.edit.save (treasure-map-edit #5)`);
 });
 
 test('D6: both pages sit in the shared Brainstorm design frame, in its default (720 px) column', () => {

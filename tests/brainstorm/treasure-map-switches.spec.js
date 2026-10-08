@@ -242,12 +242,14 @@ test.describe('/treasure-map — Edit mode: the override switches and the backup
     // 3038x:tag:X1 names Cy: counted. 30382:tag:X2 names only Bea: not counted.
     await expect(sw).toHaveAccessibleName('Override 1 individually assigned duty');
     await expect(sw).toHaveAttribute('aria-checked', 'false');
-    await expect(sw).toHaveAccessibleDescription(WORDS.overrideOff);
+    // Re-aimed at treasure-map-edit #5's Test Design (book decision 18): a card's switch is described by its card's
+    // title, then its note.
+    await expect(sw).toHaveAccessibleDescription(`Scores ${WORDS.overrideOff}`);
     await expect(editCard(page, 'Scores'), 'off: Cy’s duty stays, so the card reads Mixed').toContainText('Mixed');
     expect((await draftTags(page)).some((t) => t[0] === '3038x:tag:X1')).toBe(true);
     await sw.click();
     await expect(sw).toHaveAttribute('aria-checked', 'true');
-    await expect(sw).toHaveAccessibleDescription(WORDS.overrideOn);
+    await expect(sw).toHaveAccessibleDescription(`Scores ${WORDS.overrideOn}`);
     await expect(editCard(page, 'Scores'), 'on: only Bea is left').not.toContainText('Mixed');
     await expect(editCard(page, 'Scores')).toContainText('Bea');
     const tags = await draftTags(page);
@@ -446,7 +448,8 @@ test.describe('/treasure-map — Edit mode: the override switches and the backup
     }
   });
 
-  test('V10: after a pick, an Undo or Try again, focus arrives once the button already reads its new words (story 3 review round 2)', async ({ page }) => {
+  // Title narrowed at treasure-map-edit #5's Test Design (story 4 review, non-blocking 4): Try again's focus is story 3's E17.
+  test('V10: after a pick or an Undo, focus arrives once the button already reads its new words (story 3 review round 2)', async ({ page }) => {
     await page.addInitScript(() => {
       window.__focusLog = [];
       document.addEventListener('focusin', (e) => {
@@ -495,7 +498,9 @@ test.describe('/treasure-map — Edit mode: the override switches and the backup
     });
   }
 
-  test('V12: a session with every switch signs nothing, publishes nothing, opens no socket, and offers no Save changes', async ({ page }) => {
+  // Re-aimed at treasure-map-edit #5's Test Design: Save changes now exists (story 5). An edit session that never
+  // presses it still signs, publishes and opens nothing.
+  test('V12: a session with every switch, never pressing Save changes, signs nothing, publishes nothing, and opens no socket', async ({ page }) => {
     const state = await setup(page, { mapLocal: SW_MAP });
     await page.goto('/treasure-map');
     await startEditing(page);
@@ -503,7 +508,6 @@ test.describe('/treasure-map — Edit mode: the override switches and the backup
     await allSwitch(page).click();
     await backupSwitch(page).click();
     await draftTags(page);
-    await expect(main(page).getByRole('button', { name: /^Save changes$/ })).toHaveCount(0);
     await editButton(page).click();
     await safe(page, state);
   });

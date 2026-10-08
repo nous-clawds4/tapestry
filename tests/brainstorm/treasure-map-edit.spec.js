@@ -426,7 +426,10 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     await expect(editCard(page, 'Concepts').getByText('Will be assigned to Bea', { exact: true })).toBeVisible();
     await expect(allRow).not.toContainText('Bea');
     await expect(allRow.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(0);
+    // The row's Undo after a card was changed following Assign to all (story 4 review, non-blocking 4; added at
+    // treasure-map-edit #5's Test Design): every change goes, the changed card's included.
     await pick(page, assignAll(page), 'Bea');
+    await pick(page, pickerButton(page, 'Scores'), 'Cy');
     await allRow.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(saveNote(page, 'No changes yet')).toBeVisible();
     await expect(section(page).getByText('Unsaved', { exact: true })).toHaveCount(0);
@@ -513,7 +516,9 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     expect(JSON.parse(await editedPre(page).innerText()).tags, 'a fresh draft is the published Map').toEqual(MAIN_TAGS);
   });
 
-  test('E15: a whole edit session signs nothing, publishes nothing, opens no socket, and offers no Save changes', async ({ page }) => {
+  // Re-aimed at treasure-map-edit #5's Test Design: Save changes now exists (story 5). An edit session that never
+  // presses it still signs, publishes and opens nothing.
+  test('E15: a whole edit session, never pressing Save changes, signs nothing, publishes nothing, and opens no socket', async ({ page }) => {
     const state = await setup(page);
     await page.goto('/treasure-map');
     await startEditing(page);
@@ -521,7 +526,6 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     await pick(page, pickerButton(page, 'Lists'), 'Cy');
     await editedButton(page).click();
     await expect(editedPre(page)).toBeVisible();
-    await expect(main(page).getByRole('button', { name: /^Save changes$/ })).toHaveCount(0);
     await editButton(page).click();
     await safe(page, state);
   });

@@ -325,9 +325,12 @@ test('T1: setOverride, setOverrideAll, setBackups — on sets, off deletes; no e
   assert(sameObj(start, { scores: B }), 'setOverride changed its input');
   const b = call(setOverride, a, 'scores', false);
   assert(sameObj(b, { scores: B }), `setOverride off, the last one: want no override key, got ${show(b)}`);
-  const all = call(setOverrideAll, { everything: B, backups: true }, true);
-  assert(sameObj(all, { everything: B, backups: true, override: { scores: true, lists: true, concepts: true } }), `setOverrideAll on: ${show(all)}`);
-  const allOff = call(setOverrideAll, all, false);
+  // Re-aimed at treasure-map-edit #5's Test Design (book decision 18, ADR 0005 sub-decision 4): on turns on only the
+  // cards with duties to override; off still clears all three.
+  const duties = { scores: ['3038x:tag:X'], lists: ['30396:tag:X:T'], concepts: [] };
+  const all = call(setOverrideAll, { everything: B, backups: true }, true, duties);
+  assert(sameObj(all, { everything: B, backups: true, override: { scores: true, lists: true } }), `setOverrideAll on, Concepts without duties: ${show(all)}`);
+  const allOff = call(setOverrideAll, { ...all, override: { scores: true, lists: true, concepts: true } }, false, duties);
   assert(sameObj(allOff, { everything: B, backups: true }), `setOverrideAll off: ${show(allOff)}`);
   const on = call(setBackups, {}, true);
   assert(sameObj(on, { backups: true }), `setBackups on: ${show(on)}`);
