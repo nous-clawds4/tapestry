@@ -121,9 +121,10 @@ defaults it would assume. The owner's answer, verbatim:
 > These three are right as proposed. Ready to proceed.
 
 12. **What assigning a category to an Assistant changes.** The Assistant takes over, in place, every entry that covers a
-    whole kind, a whole family, or one standard score: for Scores the score rows setup writes (`30382:rank` and the
-    rest), any bare Score kind and `3038x`; for Lists any bare List kind and `3039x`; for Concepts `39998`. The family
-    entry (`3038x`, `3039x`, `39998`) is added when the Map lacks it. The narrower entries, such as a score for one Tag,
+    whole kind, a whole family, or one standard score: for Scores the standard score rows (`30382:rank` and the other
+    `30382:<metric>` rows the Treasure Map generators write), any bare Score kind and `3038x`; for Lists any bare List
+    kind and `3039x`; for Concepts `39998`. The family entry (`3038x`, `3039x`, `39998`) is added when the Map lacks
+    it. The narrower entries, such as a score for one Tag,
     a list for one DList, or a curator for one list (`39998:<d-tag>`), are the category's "individually assigned
     duties": kept as they are unless that category's override switch is on, which removes them. Lists and Concepts work
     the same way. The older Tapestry-side generators (the NIP-85 control panel and the legacy customer page) rewrite the
