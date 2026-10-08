@@ -1,6 +1,6 @@
 # Story 4: Edit mode — the override switches and the backup switch
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-08
 **Type:** Feature
 **Epic:** `treasure-map-edit`
@@ -57,7 +57,7 @@ curators for one list.
     switches on or off. Each card's switch still works on its own.
   - Picking an Assistant in **Assign to all** turns every override switch off, as the blueprint does. The All duties
     **Undo** removes every pending assignment and turns every override switch off.
-- [ ] **AC-3: a card's Undo after Assign to all** (open question 1, as recommended). While **Assign to all** is
+- [ ] **AC-3: a card's Undo after Assign to all** (book decision 16). While **Assign to all** is
   pending, a card's **Undo**, or picking that card's current Assistant, also cancels the everything entry's change
   (`*`), as the blueprint's Undo does.
   - The All duties row then shows no name and no **Undo**. The other cards keep their changes.
@@ -140,13 +140,19 @@ The stack wasn't running in this session, so no concept handles were checked. No
 
 ## Open questions
 
-1. **After Assign to all, what does one card's Undo do?** Recommended: it also cancels the everything entry's change,
-   as the blueprint's Undo does (AC-3). Today the everything entry stays pending to that Assistant. On a Map with no
-   bare `3038x`, the undone Scores card then reads "Mixed · 2 Assistants" with no **Unsaved** marker (story 3 review
-   round 1, non-blocking 5). The alternative is to keep today's behaviour, which is an honest preview but reads like
-   a glitch.
+None.
 
-## Defaults assumed (to approve with this story)
+## Resolved at the story gate
+
+Approved as drafted, 2026-10-08, verbatim: "Approved." The draft's recommendation for its one open question, the five
+defaults below, and the singular label in § Copy are approved with it.
+
+1. **After Assign to all, a card's Undo also cancels the everything entry's change** (book decision 16), as the
+   blueprint's Undo does. Picking the card's current Assistant does the same. Both remove the card's change (AC-3).
+   This fixes story 3's review round 1, non-blocking 5: the undone card no longer reads "Mixed" with no **Unsaved**
+   marker.
+
+## Defaults approved with the story
 
 1. **What the override counts and removes (blueprint):** a duty counts when it names any Assistant other than the
    pending one. On, it's removed whole, every Assistant on it included. A duty naming only the pending Assistant
@@ -160,7 +166,7 @@ The stack wasn't running in this session, so no concept handles were checked. No
    turns it off.
 
 ## Linked artifacts
-- Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 2, 3, 8, 11, 12 and 13
+- Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 2, 3, 8, 11, 12, 13 and 16
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` (the `c.ovToggle`
   and `tmbAllOvToggle` switches) and `treasure-map-logic.js.txt` (`tmbConflicts`, `tmbPendDel`, the card Undo)
 - Story 3: `engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md`

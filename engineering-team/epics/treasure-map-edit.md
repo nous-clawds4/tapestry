@@ -29,9 +29,9 @@ Edit mode is three stories (planned 2026-10-08), shipped to staging together wit
    `categoryAssistants` JSDoc's "a `*:…` entry never counts" should say "that names anything after the `*`"; H1–H5's
    names in `test/treasure-map-card-rule-edges.test.js` still say "covers").
 4. **The override switches and the backup switch** (feature): what each removes, previewed (book decisions 8, 12, 13).
-   Depends on #3. A question for the owner at planning, from story 3's review (non-blocking 5): after Assign to all,
-   a card's Undo (or picking its current Assistant) can leave the card reading Mixed with no Unsaved marker, because
-   the pending `*` entry still reaches it. The preview is honest, but it may read as a glitch. Also carries story 3's
+   Depends on #3: `4-override-and-backup-switches.md`. It answers story 3's review round 1, non-blocking 5 (a card
+   left reading Mixed with no Unsaved marker after Assign to all): a card's Undo also cancels the everything entry's
+   change (book decision 16). Also carries story 3's
    review round 2, non-blocking 1: a pick or Undo moves focus to the list's button before the re-render, so a screen
    reader may read the button's old words and description, and moving a pending card from one Assistant to another
    leaves the live save note unchanged, so it isn't announced. Move focus after the render when story 4 touches

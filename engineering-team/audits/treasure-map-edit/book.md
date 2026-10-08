@@ -155,6 +155,18 @@ The owner's answer, verbatim:
     legacy-spelling entries the Map lacks. Readers that don't read the draft grammar yet won't see an assignment
     written only as a family entry. That's accepted while the standards may change.
 
+At story 4's draft, the same day. The draft asked one question: after **Assign to all**, what does one card's Undo do?
+It recommended the blueprint's answer and listed five defaults: what an override counts and removes; overrides not
+counting as changes; the backup switch counted on the edited Map; the note counting while the backup switch is on; the
+All duties Undo leaving the backup switch as it is. The owner's answer, verbatim:
+
+> Approved.
+
+16. **A card's Undo after Assign to all also cancels the everything entry's change** (`*`), as the blueprint's Undo
+    does. Picking that card's current Assistant does the same. The other cards keep their changes. This is story 4's
+    AC-3; it answers story 3's review round 1, non-blocking 5. Story 4's five defaults are approved with it (story 4,
+    § Defaults approved with the story).
+
 ## Epics in this book
 - `treasure-map-edit` — Edit mode on the Manage your Treasure Map page, and the card-rule fix it builds on.
 
