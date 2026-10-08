@@ -15,6 +15,12 @@
  *   S — source sentinels on the JSX this runner can't execute, and the one export the ADR adds (sub-decisions 5, 6, 8).
  *                                                                                                 [AC-3, AC-4, AC-5]
  *
+ * S2 re-aimed by treasure-map-edit #3 (ADR treasure-map-edit/0003): the page may take aRelays, and only aRelays, from
+ * useConfig() for the relay an edited entry names; taPubkey stays banned.
+ *
+ * Re-aimed by treasure-map-edit #2 (book decision 11; ADR treasure-map-edit/0002): K9 and K16, whose `*:tag` entry now
+ * counts on no card. That story's test plan records both changes.
+ *
  * Everything FAILS against the current code: manageTreasureMap.js has no categoryAssistants, categoryCards or new
  * words; myAssistants.js doesn't export cardFields; the page reads no profiles and its <pre> isn't focusable.
  */
@@ -102,8 +108,8 @@ test('K7: rank → A, followers → A, `3038x` → A — Scores: A, once', () =>
   expectCats([['30382:rank', A], ['30382:followers', A], ['3038x', A]], { scores: [A] }, 'K7'));
 test('K8: `*` → C — C on all three cards', () =>
   expectCats([['*', C]], { scores: [C], lists: [C], concepts: [C] }, 'K8'));
-test('K9: `*:tag` → D and nothing else — D on Scores and Lists; nothing on Concepts', () =>
-  expectCats([['*:tag', D]], { scores: [D], lists: [D], concepts: [] }, 'K9'));
+test('K9 (treasure-map-edit #2): `*:tag` → D and nothing else is ignored — nothing on any card', () =>
+  expectCats([['*:tag', D]], { scores: [], lists: [], concepts: [] }, 'K9'));
 test('K10: Concepts — `39998:dog-breed` → A, `39998:dlist-header` → B, `*` → C: A and B', () =>
   expectCats([['39998:dog-breed', A], ['39998:dlist-header', B], ['*', C]], { concepts: [A, B], scores: [C], lists: [C] }, 'K10'));
 test('K11: nothing that applies — all three empty', () =>
@@ -135,11 +141,11 @@ test('K14: the kind ranges — 30380 and 30389 are Scores, 30390 and 30399 Lists
 test('K15: bare `39998` counts for Concepts and covers them completely, so `*` doesn’t reach Concepts (but still Scores and Lists)', () =>
   expectCats([['39998', A], ['*', C]], { concepts: [A], scores: [C], lists: [C] }, 'K15'));
 
-test('K16: `*:tag` is covered for Scores by `3038x:tag` or `3038x`, not by `3038x:dlist`; likewise for Lists', async () => {
-  await expectCats([['3038x:tag', B], ['*:tag', D]], { scores: [B], lists: [D] }, 'K16a');
-  await expectCats([['3038x', B], ['*:tag', D]], { scores: [B], lists: [D] }, 'K16b');
-  await expectCats([['3038x:dlist', B], ['*:tag', D]], { scores: [B, D], lists: [D] }, 'K16c');
-  await expectCats([['3039x:tag', B], ['*:tag', D]], { lists: [B], scores: [D] }, 'K16d');
+test('K16 (treasure-map-edit #2): `*:tag` is ignored beside `3038x:tag`, `3038x`, `3038x:dlist` or `3039x:tag` — only the family entry counts', async () => {
+  await expectCats([['3038x:tag', B], ['*:tag', D]], { scores: [B], lists: [] }, 'K16a');
+  await expectCats([['3038x', B], ['*:tag', D]], { scores: [B], lists: [] }, 'K16b');
+  await expectCats([['3038x:dlist', B], ['*:tag', D]], { scores: [B], lists: [] }, 'K16c');
+  await expectCats([['3039x:tag', B], ['*:tag', D]], { lists: [B], scores: [] }, 'K16d');
 });
 
 test('K17: Lists — own, family-wide and everything together: `30396:tag:x` → A, `3039x` → B, `*` → C gives A and B', () =>
@@ -277,32 +283,45 @@ test('S1: /assistants’ view-model exports cardFields — the one name rule bot
   assert(f && f.name === 'Ava' && f.initial === 'A', `cardFields(A, {display_name:'Ava'}) should give name Ava, initial A; got ${show(f)}`);
 });
 
-test('S2: the page reads names through the shared profile lookup, and its own Assistant from the session — never taPubkey or a literal key', () => {
+test('S2: the page reads names through the shared profile lookup, and its own Assistant from the session — never taPubkey or a literal key (useConfig only for aRelays, treasure-map-edit #3)', () => {
   const src = codeOnly(safeRead(PAGE));
   assert(src, `${rel(PAGE)} does not exist`);
   assert(/import\s*\{[^}]*\bfetchProfilesChunked\b[^}]*\}\s*from\s*['"][^'"]*utils\/profileBatch(\.js)?['"]/.test(src), `${rel(PAGE)} should import fetchProfilesChunked from utils/profileBatch (ADR 0002 sub-decision 5)`);
   assert(/\bassistantPubkey\b/.test(src), `${rel(PAGE)} should take the local Assistant from user.assistantPubkey`);
-  const bad = src.match(/\btaPubkey\b|\buseConfig\b/);
+  const bad = src.match(/\btaPubkey\b/);
   assert(!bad, `${rel(PAGE)} uses ${bad && bad[0]}; the local Assistant is the session's own, never the instance owner's`);
+  // treasure-map-edit #3 (ADR 0003): the page may read the relay settings from the config, and nothing else from it.
+  const uses = src.match(/[^\n]*\buseConfig\s*\(\s*\)[^\n]*/g) || [];
+  const other = uses.filter((line) => !/\{\s*aRelays\s*\}\s*=\s*useConfig\s*\(\s*\)/.test(line));
+  assert(other.length === 0, `${rel(PAGE)} reads more than aRelays from useConfig(): ${show(other)}`);
   const hex = src.match(/[0-9a-f]{64}/i);
   assert(!hex, `${rel(PAGE)} contains a 64-hex literal (${hex && hex[0].slice(0, 12)}…)`);
 });
 
-test('S3: the raw Treasure Map box is keyboard-reachable — tabIndex 0, role region, named by COPY.rawBoxLabel (story 1 review, non-blocking 4)', () => {
+test('S3: the raw Treasure Map box is keyboard-reachable — tabIndex 0, role region, named by COPY.rawBoxLabel (story 1 review, non-blocking 4); so is every other box on the page (treasure-map-edit #3)', () => {
   const sf = parse(PAGE);
   assert(sf, `${rel(PAGE)} does not exist`);
   const pres = [];
   walk(sf, (n) => {
     if ((ts().isJsxOpeningElement(n) || ts().isJsxSelfClosingElement(n)) && n.tagName.getText() === 'pre') pres.push(n);
   });
-  assert(pres.length === 1, `want one <pre> in ${rel(PAGE)}, got ${pres.length}`);
-  const attrs = {};
-  for (const a of pres[0].attributes.properties) if (a.name) attrs[a.name.getText()] = a.initializer ? a.initializer.getText() : 'true';
+  // treasure-map-edit #3 adds the edited viewer's box (ADR treasure-map-edit/0003 sub-decision 4): the raw box is the
+  // one named by COPY.rawBoxLabel, exactly once, and every box keeps the same keyboard access with a name from COPY.
+  const attrsOf = (pre) => {
+    const attrs = {};
+    for (const a of pre.attributes.properties) if (a.name) attrs[a.name.getText()] = a.initializer ? a.initializer.getText() : 'true';
+    return attrs;
+  };
+  const raw = pres.filter((pre) => /COPY\.rawBoxLabel/.test(attrsOf(pre)['aria-label'] || ''));
+  assert(raw.length === 1, `want one <pre> named by COPY.rawBoxLabel in ${rel(PAGE)}, got ${raw.length} of ${pres.length}`);
   const wrong = [];
-  if (!/^\{\s*0\s*\}$|^["']0["']$/.test(attrs.tabIndex || '')) wrong.push(`tabIndex ${show(attrs.tabIndex)}, want {0}`);
-  if (!/^["']region["']$/.test(attrs.role || '')) wrong.push(`role ${show(attrs.role)}, want "region"`);
-  if (!/COPY\.rawBoxLabel/.test(attrs['aria-label'] || '')) wrong.push(`aria-label ${show(attrs['aria-label'])}, want {COPY.rawBoxLabel}`);
-  assert(wrong.length === 0, `the raw box: ${wrong.join('; ')}`);
+  pres.forEach((pre, i) => {
+    const attrs = attrsOf(pre);
+    if (!/^\{\s*0\s*\}$|^["']0["']$/.test(attrs.tabIndex || '')) wrong.push(`<pre> ${i + 1}: tabIndex ${show(attrs.tabIndex)}, want {0}`);
+    if (!/^["']region["']$/.test(attrs.role || '')) wrong.push(`<pre> ${i + 1}: role ${show(attrs.role)}, want "region"`);
+    if (!/^\{\s*COPY\./.test(attrs['aria-label'] || '')) wrong.push(`<pre> ${i + 1}: aria-label ${show(attrs['aria-label'])}, want a COPY word`);
+  });
+  assert(wrong.length === 0, `the raw boxes: ${wrong.join('; ')}`);
 });
 
 async function run() {

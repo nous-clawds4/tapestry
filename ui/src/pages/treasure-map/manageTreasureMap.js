@@ -44,6 +44,53 @@ export const COPY = {
   mixedLineLink: 'Advanced page',
   mixedLineAfter: '.',
   rawBoxLabel: 'Raw Treasure Map',
+  // Edit mode (treasure-map-edit #3, ADR treasure-map-edit/0003 sub-decision 1): the blueprint's words, the no-Map
+  // warning (book decision 14), and the picker's states.
+  edit: {
+    button: 'Edit',
+    buttonOn: 'Editing',
+    noMap: 'We didn’t find a Treasure Map on your relays, so saving will publish a new one. If you already have one on a relay we couldn’t check, the new one will replace it.',
+    allDuties: 'All duties',
+    allDutiesLine: 'Assign one Assistant to Scores, Lists, Concepts, and everything else.',
+    assignAll: 'Assign to all',
+    choose: 'Choose an Assistant',
+    change: 'Change',
+    unsaved: 'Unsaved',
+    assignedTo: (name) => `Will be assigned to ${name}`,
+    undo: 'Undo',
+    local: 'Local',
+    current: 'Current',
+    noChanges: 'No changes yet',
+    allDutiesTo: (name) => `All duties → ${name}`,
+    unsavedChanges: (n) => `${n} unsaved ${n === 1 ? 'change' : 'changes'}`,
+    rawShow: 'View the raw Treasure Map — edited',
+    rawHide: 'Hide the raw Treasure Map — edited',
+    draftChip: 'Unsaved draft',
+    draftBoxLabel: 'Raw Treasure Map — edited',
+    loading: 'Loading your Assistants…',
+    error: 'Couldn’t load your Assistants.',
+    // The empty state, around its link to the My Assistants page.
+    emptyBefore: 'You have no Assistants yet. Add one on the ',
+    emptyLink: 'My Assistants',
+    emptyAfter: ' page.',
+    // Story 4's switches: the blueprint's override words, and the owner's backup words (book decision 13).
+    override: (n) => `Override ${n} individually assigned ${n === 1 ? 'duty' : 'duties'}`,
+    overrideAll: (n) => `Override ${n} individually assigned ${n === 1 ? 'duty' : 'duties'} across all categories`,
+    overrideOff: 'Kept as they are; they take priority over this assignment.',
+    overrideOn: 'These will be removed from your Treasure Map.',
+    backups: (n) => `Remove ${n} backup ${n === 1 ? 'Assistant' : 'Assistants'}`,
+    backupsOff: 'Kept as they are. Apps use a backup when an entry’s first Assistant can’t be reached.',
+    backupsOn: 'Every entry keeps only its first Assistant, including entries not shown on this page.',
+    // Story 5's Save: the blueprint's button and confirmation, and the owner-approved refusals (book decisions 3, 17).
+    save: 'Save changes',
+    saving: 'Saving…',
+    saved: 'Treasure Map updated',
+    reportSubject: 'Your Treasure Map',
+    // Book decision 19: a newer Map found at Save is shown, with the changes kept on top of it.
+    changedSince: 'Your Treasure Map changed since this page read it. The page now shows the new one, with your changes on top; check them and save again.',
+    noSigner: 'Couldn’t save: no Nostr signer was found in this browser.',
+    declined: 'Couldn’t save: the signature was declined.',
+  },
   advanced: {
     back: 'Manage your Treasure Map',
     kicker: 'Treasure Map · Advanced',
@@ -95,26 +142,47 @@ export function mapPanelPhase({ authLoading, user, status }) {
 }
 
 // ── The Assistants by category cards (manage-treasure-map #2, ADR manage-treasure-map/0002) ─────────────────────────
+// The rule reads keys by the draft Treasure Maps grammar's segments since treasure-map-edit #1 (ADR treasure-map-edit/
+// 0001, which supersedes ADR 0002 sub-decisions 1–2 in part): it folds each key's spellings into one. Since
+// treasure-map-edit #2 (book decision 11, ADR treasure-map-edit/0002) only a bare `*` counts: a `*:…` entry that names
+// anything after the `*` is ignored, and a bare `*` is hidden only by a bare family entry, or `39998`.
 
 const CATEGORIES = ['scores', 'lists', 'concepts'];
 const HEX64 = /^[0-9a-f]{64}$/i;
 const KIND = /^\d{5}$/;
 
 /**
- * One Map tag as the cards read it (sub-decision 1): its key, its delegate (lowercased), and its kind slot and the rest
- * of the key, split at the first colon. null when the tag can't count: no string key, or no valid 64-hex delegate.
+ * One Map tag as the cards read it (ADR treasure-map-edit/0001 sub-decision 1): its key, its delegate (lowercased),
+ * its kind slot and the rest of the key, split at the first colon. A Concept key (`39998`, `39999`) keeps its `d` tag
+ * whole; every other key also gets its `segments`, with empty ones at the end dropped. `norm` is the key it's grouped
+ * and compared by: `39998:dlist-header` is `39998`, `*:` is `*`, `3038x:tag:` is `3038x:tag`. null when the tag can't
+ * count: no string key, or no valid 64-hex delegate.
  */
-function entryOf(tag) {
+export function entryOf(tag) {
   if (!Array.isArray(tag) || typeof tag[0] !== 'string' || typeof tag[1] !== 'string' || !HEX64.test(tag[1])) return null;
   const key = tag[0];
   const colon = key.indexOf(':');
   const slot = colon < 0 ? key : key.slice(0, colon);
   const rest = colon < 0 ? '' : key.slice(colon + 1);
-  return { key, slot, rest, pubkey: tag[1].toLowerCase() };
+  const concept = slot === '39998' || slot === '39999';
+  let segments = [];
+  let norm;
+  if (concept) {
+    norm = slot === '39998' && rest === 'dlist-header' ? '39998' : key;
+  } else {
+    segments = rest === '' ? [] : rest.split(':');
+    while (segments.length > 0 && segments[segments.length - 1] === '') segments.pop();
+    norm = [slot, ...segments].join(':');
+  }
+  return { key, slot, rest, concept, segments, norm, pubkey: tag[1].toLowerCase() };
 }
 
-/** Does this entry apply to the category? Own kinds, the family wildcard, or everything (`*:…` never a Concept). */
-function appliesTo(category, { slot, rest }) {
+/**
+ * Does this entry apply to the category? Own kinds, the family wildcard, or everything (ADR treasure-map-edit/0002
+ * sub-decision 1). A bare `*` (`*:` and `*::` too) reaches all three; a `*:…` that names anything after the `*` reaches
+ * none, since the page doesn't support it for now (book decision 11).
+ */
+export function appliesTo(category, { slot, segments }) {
   if (KIND.test(slot)) {
     const kind = Number(slot);
     if (category === 'scores') return kind >= 30380 && kind <= 30389;
@@ -123,41 +191,39 @@ function appliesTo(category, { slot, rest }) {
   }
   if (slot === '3038x') return category === 'scores';
   if (slot === '3039x') return category === 'lists';
-  if (slot === '*') return category !== 'concepts' || rest === '';
-  return false;
+  return slot === '*' && segments.length === 0;
 }
 
 /**
- * Does a more specific entry cover this `*` entry completely for the category, so no insight there would reach it?
- * `keys` holds every key that has a valid delegate.
+ * Does a more specific entry cover this bare `*` completely for the category, so no insight there would reach it (ADR
+ * treasure-map-edit/0002 sub-decision 2)? Only a bare `*` counts, so only it is hidden: for Scores by a bare `3038x`,
+ * for Lists by a bare `3039x`, for Concepts by `39998`, each in any spelling. `norms` holds the `norm` of every entry
+ * with a valid delegate.
  */
-function shadowed(category, { slot, rest }, keys) {
-  if (slot !== '*') return false;
-  const family = category === 'scores' ? '3038x' : category === 'lists' ? '3039x' : null;
-  if (rest === '') {
-    if (family) return keys.has(family);
-    return keys.has('39998') || keys.has('39998:dlist-header');
-  }
-  return family !== null && (keys.has(family) || keys.has(`${family}:${rest}`));
+function shadowed(category, entry, norms) {
+  if (entry.norm !== '*') return false;
+  return norms.has(category === 'scores' ? '3038x' : category === 'lists' ? '3039x' : '39998');
 }
 
 /**
- * Which Assistants the Map gives each category (AC-2): every Assistant it would ask for some insight there. Per entry
- * key, the first valid delegate counts (later ones are alternates); a `*` entry that a more specific entry covers
- * completely doesn't count. Each list is in the order the Map first names its Assistants, without repeats. Never
- * throws: no event, no tags, or garbage give three empty lists.
+ * Which Assistants the Map gives each category (AC-2): every Assistant it would ask for some insight there. Per key,
+ * however it's spelled, the first valid delegate counts (later ones are alternates); a `*` entry that a more specific
+ * entry covers completely doesn't count, and a `*:…` entry that names anything after the `*` never counts (ADR
+ * treasure-map-edit/0001, 0002). Each list is in the order the Map first names its Assistants, without repeats. Never throws: no event, no tags, or garbage
+ * give three empty lists.
  * @returns {{ scores: string[], lists: string[], concepts: string[] }}
  */
 export function categoryAssistants(event) {
   const tags = event && typeof event === 'object' && Array.isArray(event.tags) ? event.tags : [];
   const entries = tags.map(entryOf).filter(Boolean);
-  const keys = new Set(entries.map((e) => e.key));
+  const norms = new Set(entries.map((e) => e.norm));
   const out = { scores: [], lists: [], concepts: [] };
   for (const category of CATEGORIES) {
     const seenKeys = new Set();
     for (const entry of entries) {
-      if (seenKeys.has(entry.key) || !appliesTo(category, entry) || shadowed(category, entry, keys)) continue;
-      seenKeys.add(entry.key);
+      if (seenKeys.has(entry.norm) || !appliesTo(category, entry)) continue;
+      if (shadowed(category, entry, norms)) continue;
+      seenKeys.add(entry.norm);
       if (!out[category].includes(entry.pubkey)) out[category].push(entry.pubkey);
     }
   }

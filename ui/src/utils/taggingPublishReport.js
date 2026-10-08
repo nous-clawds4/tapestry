@@ -32,14 +32,15 @@ export function relayLine(row) {
 }
 
 /**
- * @param {{ name: string, local: ?{ success?: boolean, error?: string }, external: ?Object, relays: string[] }} input
- *   `name` the tagging's name (the summary's subject, in quotes); `local` and `external` from publishEverywhere;
+ * @param {{ name: string, subject?: string, local: ?{ success?: boolean, error?: string }, external: ?Object, relays: string[] }} input
+ *   `name` the tagging's name (the summary's subject, in quotes) or `subject`, used as written; `local` and `external`
+ *   from publishEverywhere;
  *   `relays` the outside relays the publish was given, in order.
  * @returns {{ ok: boolean, outcome: 'published'|'kept-local'|'not-delivered', message: string,
  *             rows: Array<{ relay: string, status: string, reason: string }>, accepted: number, tried: number }}
  *   `ok`: the local write succeeded or at least one relay accepted (the tagging exists somewhere).
  */
-export function describeTaggingPublish({ name, local, external, relays }) {
+export function describeTaggingPublish({ name, subject: given, local, external, relays }) {
   const list = Array.isArray(relays) ? relays : [];
   const ext = external && typeof external === 'object' ? external : {};
   const skipped = ext.skippedByGate === true;
@@ -57,7 +58,8 @@ export function describeTaggingPublish({ name, local, external, relays }) {
   const localReason = (local && local.error) ? String(local.error) : NO_LOCAL_REASON;
   const outcome = skipped || n === 0 ? 'kept-local' : accepted > 0 ? 'published' : 'not-delivered';
   const ok = localOk || accepted > 0;
-  const subject = `"${name}"`;
+  // A caller may name the subject outright (treasure-map-edit #5: "Your Treasure Map"); otherwise the quoted name.
+  const subject = typeof given === 'string' && given ? given : `"${name}"`;
 
   let message;
   if (localOk) {

@@ -1,6 +1,6 @@
 # Treasure Map Edit mode — Session Handoff (2026-10-07)
 
-**Status:** 🔴 OPEN: not picked up yet. The next session builds Edit mode on `/treasure-map`, starting a new book.
+**Status:** 🔴 OPEN: picked up 2026-10-07. The book `treasure-map-edit` is open (`engineering-team/audits/treasure-map-edit/book.md`), on branch `feat/treasure-map-edit`; this doc is addressed when Edit mode ships.
 
 > **Audience:** the session that builds Edit mode.
 > **Source session:** the manage-treasure-map book (opened and closed 2026-10-07; on staging, not on main).

@@ -18,5 +18,12 @@ button), Test Design greps the neighbour suites for page-wide queries of those w
 them in Phase 3 or lists them in the test plan as Phase-3 re-aims. A line in `engineering-team/workflows/3-test-design.md`
 § Common pitfalls would carry it.
 
+**Seen again, 2026-10-08 (treasure-map-edit #3).** This time Test Design did grep the neighbour suites for the story's
+new words and wiring (Edit, Save changes, `useConfig`, signing), and re-aimed four tests in Phase 3. It still missed a
+*structural* assertion: `test/manage-treasure-map-cards.test.js` S3 requires exactly one `<pre>` on the page, and the
+story's ADR adds a second one (the edited raw viewer). Phase 4 found it, and the Tester amended S3 in a separate commit,
+recorded as Amendment 1 in that story's test plan. So the grep should cover structure the ADR adds (element counts,
+new landmarks or regions), not only words and roles.
+
 **Pointer:** `engineering-team/reviews/done/manage-treasure-map/2-the-assistants-by-category-cards.md` § Harness friction;
 `engineering-team/stories/done/manage-treasure-map/2-the-assistants-by-category-cards.test-plan.md` § Amendment.
