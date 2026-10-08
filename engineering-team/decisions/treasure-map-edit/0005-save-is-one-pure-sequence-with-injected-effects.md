@@ -1,8 +1,9 @@
 # ADR 0005: Save is one pure sequence with its effects injected, and the page shows what it signed
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-08
 **Story:** `engineering-team/stories/treasure-map-edit/5-save-the-edited-map.md`
+**Approved:** by the owner, 2026-10-08, verbatim: "Ready for test design"
 **Builds on:** ADR 0003 (the edit model, `useMapEdit`, the page) and ADR 0004 (`planEdit`, the switches). It changes
 ADR 0004's `setOverrideAll` (book decision 18).
 

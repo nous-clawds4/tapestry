@@ -162,3 +162,4 @@ words new in § Copy are approved with it.
 - Stories 3–4 and their reviews: `engineering-team/stories/treasure-map-edit/`,
   `engineering-team/reviews/treasure-map-edit/`
 - Epic: `engineering-team/epics/treasure-map-edit.md`, story 5
+- ADR: `engineering-team/decisions/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md`

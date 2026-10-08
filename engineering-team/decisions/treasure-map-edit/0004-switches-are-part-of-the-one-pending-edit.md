@@ -1,11 +1,15 @@
 # ADR 0004: The override and backup switches are part of the one pending edit, planned by one pure function
 
-**Status:** Accepted
+**Status:** Accepted (sub-decision 1's `setOverrideAll` superseded in part by ADR 0005)
 **Date:** 2026-10-08
 **Story:** `engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.md`
 **Approved:** by the owner, 2026-10-08, verbatim: "Ready for test design."
 **Builds on:** ADR 0003 (the pure edit model, `useMapEdit`, the page). It supersedes ADR 0003 sub-decision 2's
 `undoCategory` and `pickCategory` in part (book decision 16).
+
+> **Superseded in part (2026-10-08):** by book decision 18 and ADR 0005 (story 5), `setOverrideAll(pending, on,
+> duties)` turns on only the categories with duties to override (off still clears all three), and a card's override
+> switch is described by its card's title, then its note.
 
 ## Context
 
