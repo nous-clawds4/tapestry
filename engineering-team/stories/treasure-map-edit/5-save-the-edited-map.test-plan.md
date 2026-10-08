@@ -177,3 +177,12 @@ No assertion is weakened. SV1–SV3 and SV5–SV11 are unchanged.
   - SV14 signed 1, want 0;
   - SV16 signed 2, want 1;
   - SV15 found no live region saying "Saving…".
+
+**Correction in Phase 4** (Tester's role, in the implementation round's test commit). SV4's newer Map first added
+`30385:new`, but that is a Scores entry (a score kind and one metric), so the pending "Scores → Bea" rightly moved it to
+Bea, and the test's expectation was wrong. SV4 now uses `31234:new`, a key the page doesn't read, which the edit leaves
+as it is. The assertion is unchanged in kind: the newer Map's own entry reaches the edited and the signed Map
+untouched. SV12 and SV13 keep `30385:new` and `30382:rank` respectively; their edits don't touch Scores in a way their
+assertions depend on.
+SV4's focus check also moved. The re-aim had placed it after the two raw viewers were opened, and opening them moves
+focus, so the check tested the test's own clicks. It now runs right after the alert, as round 1's SV4 did.

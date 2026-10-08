@@ -380,24 +380,24 @@ test.describe('/treasure-map — Edit mode: Save', () => {
     await page.goto('/treasure-map');
     await startEditing(page);
     await pick(page, pickerButton(page, 'Scores'), 'Bea');
-    const NEWER = { ...MAIN, id: '8'.repeat(64), created_at: MAIN.created_at + 60, tags: [...MAIN_TAGS, ['30385:new', C, R]] };
+    const NEWER = { ...MAIN, id: '8'.repeat(64), created_at: MAIN.created_at + 60, tags: [...MAIN_TAGS, ['31234:new', C, R]] };
     state.newer = NEWER;
     await saveButton(page).click();
     await expect(alertLine(page)).toContainText(WORDS.changedSince);
+    await expect(saveButton(page), 'focus stays on Save changes (checked before the viewers are opened)').toBeFocused();
     expect(await signed(page), 'nothing signed').toEqual([]);
     expect(state.published, 'nothing published').toEqual([]);
     expect(state.relayEvents, 'nothing sent').toEqual([]);
     await expect(editButton(page)).toHaveAttribute('aria-pressed', 'true');
     await expect(editCard(page, 'Scores').getByText('Will be assigned to Bea', { exact: true }), 'the change is kept').toBeVisible();
     expect(await publishedTags(page), 'the raw viewer shows the newer Map').toEqual(NEWER.tags);
-    expect((await draftTags(page)).filter((t) => t[0] === '30385:new'), 'the edited Map is built on the newer one').toEqual([['30385:new', C, R]]);
-    await expect(saveButton(page)).toBeFocused();
+    expect((await draftTags(page)).filter((t) => t[0] === '31234:new'), 'the edited Map is built on the newer one').toEqual([['31234:new', C, R]]);
     await saveButton(page).click();
     await expect(toast(page)).toBeVisible();
     const s = await signed(page);
     expect(s.length, 'signed once, on the second press').toBe(1);
     expect(s[0].created_at, 'newer than the newer Map').toBeGreaterThan(NEWER.created_at);
-    expect(s[0].tags.filter((t) => t[0] === '30385:new' || t[0] === '30382:rank')).toEqual([['30382:rank', B, ''], ['30385:new', C, R]]);
+    expect(s[0].tags.filter((t) => t[0] === '31234:new' || t[0] === '30382:rank'), 'Scores → Bea, and the newer Map\'s own entry kept').toEqual([['30382:rank', B, ''], ['31234:new', C, R]]);
   });
 
   test('SV5: kept on this instance\'s relay by the publish policy — Edit ends, no "Treasure Map updated", the report says where it went until Edit turns on again', async ({ page }) => {
