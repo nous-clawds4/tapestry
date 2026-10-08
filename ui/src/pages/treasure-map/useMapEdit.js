@@ -61,6 +61,12 @@ export default function useMapEdit({ viewer }) {
   }, [editing, assistants.phase, loadAssistants]);
 
   const togglePicker = useCallback((which) => setOpenPicker((open) => (open === which ? null : which)), []);
+  // After a save that reached somewhere (story 5): Edit off, the changes gone, any list closed; nothing reloads.
+  const finish = useCallback(() => {
+    setEditing(false);
+    setPending({});
+    setOpenPicker(null);
+  }, []);
   const closePicker = useCallback(() => setOpenPicker(null), []);
 
   const pick = useCallback((category, pubkey, current) => {
@@ -74,12 +80,13 @@ export default function useMapEdit({ viewer }) {
   }, []);
   const undoEveryone = useCallback(() => setPending((p) => undoAll(p)), []);
   const setOverride = useCallback((category, on) => setPending((p) => overrideStep(p, category, on)), []);
-  const setOverrideAll = useCallback((on) => setPending((p) => overrideAllStep(p, on)), []);
+  // duties: planEdit's, so the All duties switch turns on only the cards with duties (book decision 18).
+  const setOverrideAll = useCallback((on, duties) => setPending((p) => overrideAllStep(p, on, duties)), []);
   const setBackups = useCallback((on) => setPending((p) => backupsStep(p, on)), []);
 
   return {
     editing, pending, openPicker, assistants,
     toggleEditing, togglePicker, closePicker, retryAssistants: loadAssistants, pick, undo, pickEveryone, undoEveryone,
-    setOverride, setOverrideAll, setBackups,
+    setOverride, setOverrideAll, setBackups, finish,
   };
 }

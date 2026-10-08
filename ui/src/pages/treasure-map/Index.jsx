@@ -14,6 +14,8 @@ import {
   planEdit, overrideAllState, makeRelayFor, saveNote, currentOf, currentAll, pickerRows,
 } from './editTreasureMap';
 import useMapEdit from './useMapEdit';
+import useMapSave from './useMapSave';
+import { reportLines } from './saveTreasureMap';
 
 /**
  * /treasure-map — Manage your Treasure Map (manage-treasure-map #1, ADR manage-treasure-map/0001): the signed-in
@@ -233,7 +235,7 @@ function CategoryCard({ card, pending, children }) {
  * once the page has re-rendered, so the button already reads its new words (story 4 AC-6). The button names its list
  * in aria-controls only while the list exists.
  */
-function Picker({ id, label, filled, open, onToggle, onClose, assistants, onRetry, rows, onPick, align, buttonRef, describedBy }) {
+function Picker({ id, label, filled, open, onToggle, onClose, assistants, onRetry, rows, onPick, align, buttonRef, describedBy, disabled }) {
   const wrapper = useRef(null);
   const focusNext = useRef(false);
 
@@ -323,6 +325,7 @@ function Picker({ id, label, filled, open, onToggle, onClose, assistants, onRetr
         aria-expanded={open ? 'true' : 'false'}
         aria-controls={open ? id : undefined}
         aria-describedby={describedBy}
+        disabled={disabled}
         onClick={onToggle}
       >
         {label}
@@ -334,17 +337,19 @@ function Picker({ id, label, filled, open, onToggle, onClose, assistants, onRetr
 }
 
 /**
- * A switch (story 4 AC-6, ADR 0004 sub-decision 4): its label is its name and its note its description. It stays
- * mounted while shown, so focus stays on it as it turns; Space and Enter turn it, as a button's click.
+ * A switch (story 4 AC-6, ADR 0004 sub-decision 4): its label is its name and its note its description, after
+ * `describedBy` when given (a card's title, book decision 18). It stays mounted while shown, so focus stays on it as it
+ * turns; Space and Enter turn it, as a button's click.
  */
-function Switch({ id, label, note, on, onToggle }) {
+function Switch({ id, label, note, on, onToggle, describedBy, disabled }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on ? 'true' : 'false'}
       aria-labelledby={`${id}-label`}
-      aria-describedby={`${id}-note`}
+      aria-describedby={describedBy ? `${describedBy} ${id}-note` : `${id}-note`}
+      disabled={disabled}
       className={`bsd-tm-edit-switch${on ? ' is-on' : ''}`}
       onClick={onToggle}
     >
@@ -358,13 +363,28 @@ function Switch({ id, label, note, on, onToggle }) {
 }
 
 /** Pending: the Unsaved chip, who the change goes to, and Undo, described by its card's title. */
-function PendingNote({ cardKey, name, onUndo }) {
+function PendingNote({ cardKey, name, onUndo, disabled }) {
   return (
     <>
       <span className="bsd-tm-edit-chip">{COPY.edit.unsaved}</span>
       <span id={willId(cardKey)} className="bsd-tm-edit-will">{COPY.edit.assignedTo(name)}</span>
-      <button type="button" className="bsd-tm-edit-undo" aria-describedby={titleId(cardKey)} onClick={onUndo}>{COPY.edit.undo}</button>
+      <button type="button" className="bsd-tm-edit-undo" aria-describedby={titleId(cardKey)} disabled={disabled} onClick={onUndo}>{COPY.edit.undo}</button>
     </>
+  );
+}
+
+/**
+ * What a save did, in the app's publish words (story 5 AC-6): the summary, then one line per relay. A partial save's
+ * report is a status; a failed one is an alert.
+ */
+function SaveReport({ report, role, className }) {
+  return (
+    <div className={`bsd-ma-status ${className}`} role={role}>
+      <p>{report.message}</p>
+      <ul className="bsd-tm-save-relays">
+        {reportLines(report).map((line) => <li key={line}>{line}</li>)}
+      </ul>
+    </div>
   );
 }
 
@@ -378,8 +398,20 @@ function PendingNote({ cardKey, name, onUndo }) {
  * note, and the cards preview the edited Map. Names come from the published Map's lookup and the person's Assistants'
  * profiles, so a preview never goes back to the loading line.
  */
-function CategoryCards({ phase, map, localPubkey, edit, plan }) {
+function CategoryCards({ phase, map, localPubkey, edit, plan, save, onSave }) {
   const draft = plan ? plan.draft : null;
+  const busy = Boolean(save && save.busy);
+  const editButton = useRef(null);
+  const saveButton = useRef(null);
+  // After each save's outcome renders, focus goes to Edit when Edit mode ended, else back to Save changes (AC-10).
+  const seenSeq = useRef(save ? save.seq : 0);
+  useEffect(() => {
+    if (!save || save.seq === seenSeq.current) return;
+    seenSeq.current = save.seq;
+    const ended = save.outcome === 'saved' || save.outcome === 'partial';
+    const target = ended ? editButton.current : saveButton.current;
+    if (target) target.focus();
+  }, [save]);
   const settled = phase === 'found' || phase === 'none';
   const event = phase === 'found' ? map.event : null;
   const assistants = useMemo(() => categoryAssistants(event), [event]);
@@ -413,7 +445,11 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
   const profiles = useMemo(() => ({ ...edit.assistants.profiles, ...names.profiles }), [edit.assistants.profiles, names.profiles]);
   const draftAssistants = useMemo(() => (draft ? categoryAssistants(draft) : null), [draft]);
 
-  const namesReady = !wantedKey || names.key === wantedKey;
+  // The first lookup holds the cards back, so they appear once, already named. After that (a save, story 5), a Map
+  // whose Assistants were all looked up before, or are the person's Assistants, shows at once while the lookup runs.
+  const known = new Set([...(names.key ? names.key.split(',') : []), ...edit.assistants.rows.map((row) => row.pubkey)]);
+  const namesReady = !wantedKey || names.key === wantedKey
+    || (names.key !== null && wantedKey.split(',').every((pubkey) => known.has(pubkey)));
   let body;
   if (phase === 'error') {
     body = (
@@ -437,6 +473,9 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
     const allState = plan ? overrideAllState(plan.duties, pending) : { count: 0, on: false };
     body = (
       <>
+        {!edit.editing && save && save.outcome === 'partial' && save.report && (
+          <SaveReport report={save.report} role="status" className="bsd-tm-save-report" />
+        )}
         {editing && phase === 'none' && (
           <div className="bsd-tm-edit-warning" role="note"><p>{COPY.edit.noMap}</p></div>
         )}
@@ -454,6 +493,7 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
                     type="button"
                     className="bsd-tm-edit-undo"
                     aria-describedby={ALL_TITLE_ID}
+                    disabled={busy}
                     onClick={() => { edit.undoEveryone(); focusButton('all'); }}
                   >
                     {COPY.edit.undo}
@@ -469,6 +509,7 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
                 onToggle={() => edit.togglePicker('all')}
                 onClose={edit.closePicker}
                 buttonRef={buttons.all}
+                disabled={busy}
                 assistants={edit.assistants}
                 onRetry={edit.retryAssistants}
                 rows={pickerRows(edit.assistants.rows, { current: allCurrent, selected: pending.everything })}
@@ -481,7 +522,8 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
                 label={COPY.edit.overrideAll(allState.count)}
                 note={allState.on ? COPY.edit.overrideOn : COPY.edit.overrideOff}
                 on={allState.on}
-                onToggle={() => edit.setOverrideAll(!allState.on)}
+                onToggle={() => edit.setOverrideAll(!allState.on, plan.duties)}
+                disabled={busy}
               />
             )}
           </div>
@@ -501,6 +543,7 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
                     onToggle={() => edit.togglePicker(card.key)}
                     onClose={edit.closePicker}
                     buttonRef={buttons[card.key]}
+                    disabled={busy}
                     describedBy={chosen ? `${titleId(card.key)} ${willId(card.key)}` : titleId(card.key)}
                     assistants={edit.assistants}
                     onRetry={edit.retryAssistants}
@@ -512,6 +555,7 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
                       cardKey={card.key}
                       name={nameOf(chosen)}
                       onUndo={() => { edit.undo(card.key); focusButton(card.key); }}
+                      disabled={busy}
                     />
                   )}
                 </div>
@@ -522,6 +566,8 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
                     note={override[card.key] ? COPY.edit.overrideOn : COPY.edit.overrideOff}
                     on={Boolean(override[card.key])}
                     onToggle={() => edit.setOverride(card.key, !override[card.key])}
+                    describedBy={titleId(card.key)}
+                    disabled={busy}
                   />
                 )}
               </CategoryCard>
@@ -536,10 +582,30 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
               note={pending.backups ? COPY.edit.backupsOn : COPY.edit.backupsOff}
               on={Boolean(pending.backups)}
               onToggle={() => edit.setBackups(!pending.backups)}
+              disabled={busy}
             />
           </div>
         )}
-        {editing && <p className="bsd-tm-edit-note" aria-live="polite">{saveNote(plan.pending, nameOf)}</p>}
+        {editing && (
+          <div className="bsd-tm-edit-savebar">
+            <p className="bsd-tm-edit-note" aria-live="polite">{saveNote(plan.changed ? plan.pending : {}, nameOf)}</p>
+            <button
+              type="button"
+              ref={saveButton}
+              className="bsd-tm-edit-save"
+              disabled={!plan.changed || busy}
+              onClick={onSave}
+            >
+              {busy ? COPY.edit.saving : COPY.edit.save}
+            </button>
+          </div>
+        )}
+        {editing && save && save.outcome === 'not-sent' && save.message && (
+          <div className="bsd-ma-status is-error bsd-tm-edit-save-alert" role="alert"><p>{save.message}</p></div>
+        )}
+        {editing && save && save.outcome === 'failed' && save.report && (
+          <SaveReport report={save.report} role="alert" className="is-error bsd-tm-edit-save-alert" />
+        )}
         <p className="bsd-tm-cat-mixed-line">
           {COPY.mixedLineBefore}
           <Link to={TREASURE_MAP_ADVANCED_PATH}>{COPY.mixedLineLink}</Link>
@@ -556,9 +622,11 @@ function CategoryCards({ phase, map, localPubkey, edit, plan }) {
         {showEdit && (
           <button
             type="button"
+            ref={editButton}
             className={`bsd-tm-edit-toggle${edit.editing ? ' is-on' : ''}`}
             aria-pressed={edit.editing ? 'true' : 'false'}
-            onClick={edit.toggleEditing}
+            disabled={busy}
+            onClick={() => { if (save) save.clear(); edit.toggleEditing(); }}
           >
             <PencilIcon />
             {edit.editing ? COPY.edit.buttonOn : COPY.edit.button}
@@ -594,7 +662,14 @@ export default function ManageTreasureMapPage() {
   const { user, loading: authLoading, login } = useAuth();
   const { aRelays } = useConfig();
   const viewer = user ? user.pubkey : null;
-  const map = useTreasureMap(viewer, { strict: true });
+  const read = useTreasureMap(viewer, { strict: true });
+  const save = useMapSave({ viewer, relays: read.relays });
+  // The Map shown (story 5, ADR treasure-map-edit/0005 sub-decision 6): after a save that reached somewhere, the signed
+  // Map itself, until a read finds a newer one or the viewer changes, even when only an outside relay took it.
+  const saved = save.saved && save.saved.pubkey === viewer ? save.saved : null;
+  const map = saved && !(read.event && (read.event.created_at || 0) > (saved.created_at || 0))
+    ? { ...read, status: 'found', event: saved }
+    : read;
   const phase = mapPanelPhase({ authLoading, user, status: map.status });
   // The viewer's own Assistant on this instance, from the session (never the instance owner's TA, never a literal).
   const localPubkey = (user && user.assistantPubkey) || null;
@@ -610,6 +685,14 @@ export default function ManageTreasureMapPage() {
   );
   const draft = plan ? plan.draft : null;
 
+  /** Save changes: sign and publish the edited Map; Edit mode ends when it reached somewhere (story 5 AC-6). */
+  async function onSave() {
+    if (!plan || !plan.changed || save.busy) return;
+    edit.closePicker();
+    const answer = await save.save({ base: event, draft: plan.draft });
+    if (answer && (answer.outcome === 'saved' || answer.outcome === 'partial')) edit.finish();
+  }
+
   return (
     <BrainstormDesignShell>
       <Eyebrow>{COPY.kicker}</Eyebrow>
@@ -618,7 +701,7 @@ export default function ManageTreasureMapPage() {
 
       <Faq />
 
-      {phase !== 'signed-out' && <CategoryCards phase={phase} map={map} localPubkey={localPubkey} edit={edit} plan={plan} />}
+      {phase !== 'signed-out' && <CategoryCards phase={phase} map={map} localPubkey={localPubkey} edit={edit} plan={plan} save={save} onSave={onSave} />}
 
       {phase === 'signed-out' ? (
         <div className="bsd-ma-status bsd-tm-signed-out">
@@ -630,6 +713,8 @@ export default function ManageTreasureMapPage() {
       )}
 
       {draft && <EditedRawViewer draft={draft} />}
+
+      {save.toast && <div className="bsd-tm-toast" role="status">{COPY.edit.saved}</div>}
 
       <div className="bsd-tm-advanced">
         <span>{COPY.advancedPrompt}</span>

@@ -81,6 +81,14 @@ export const COPY = {
     backups: (n) => `Remove ${n} backup ${n === 1 ? 'Assistant' : 'Assistants'}`,
     backupsOff: 'Kept as they are. Apps use a backup when an entry’s first Assistant can’t be reached.',
     backupsOn: 'Every entry keeps only its first Assistant, including entries not shown on this page.',
+    // Story 5's Save: the blueprint's button and confirmation, and the owner-approved refusals (book decisions 3, 17).
+    save: 'Save changes',
+    saving: 'Saving…',
+    saved: 'Treasure Map updated',
+    reportSubject: 'Your Treasure Map',
+    changedSince: 'Couldn’t save: your Treasure Map changed since this page read it. Reload the page to see the new one; these changes will be lost.',
+    noSigner: 'Couldn’t save: no Nostr signer was found in this browser.',
+    declined: 'Couldn’t save: the signature was declined.',
   },
   advanced: {
     back: 'Manage your Treasure Map',

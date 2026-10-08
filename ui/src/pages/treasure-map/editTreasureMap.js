@@ -50,9 +50,12 @@ export function entryRole(category, tag) {
  * The Map's tags with the pending assignments made (story 3 AC-5). For each category with a pending Assistant B, each
  * own key's first valid tag (its Preferred one) names B, in place, keeping its key's spelling and any extra elements;
  * its other tags (backups) stay. The family entry is appended when no valid tag has it. `everything` does the same for
- * the plain `*` entry, with relay ''. Every other tag is copied as it is. The input is never changed.
+ * the plain `*` entry, with relay ''. Then story 4's switches remove tags: a pending card's override removes its counted
+ * individually assigned duties whole, and `backups` leaves each draft-grammar key its first entry. Every other tag is
+ * copied as it is, in its place. The input is never changed.
  * @param {Array} tags
- * @param {{ scores?: string, lists?: string, concepts?: string, everything?: string }} pending  lowercase hex pubkeys
+ * @param {{ scores?: string, lists?: string, concepts?: string, everything?: string,
+ *           override?: { scores?: true, lists?: true, concepts?: true }, backups?: true }} pending  pubkeys lowercase hex
  * @param {(pubkey: string, category: string) => string} relayFor
  */
 export function editedTags(tags, pending, relayFor) {
@@ -161,7 +164,7 @@ export function editedDraft({ event, viewer, pending, relayFor }) {
 /**
  * Everything the page shows of an edit, in one pass (ADR 0004 sub-decision 2): each pending card's duties, the backups
  * left after the assignments and overrides, the pending that takes effect (without `backups` when none are left to
- * remove), and the draft as Save would sign it.
+ * remove), the draft as Save would sign it, and whether it differs from the published Map (`changed`, ADR 0005).
  * @param {{ event: ?object, viewer: string, pending: object, relayFor: Function }} input
  */
 export function planEdit({ event, viewer, pending, relayFor }) {
@@ -173,7 +176,12 @@ export function planEdit({ event, viewer, pending, relayFor }) {
   delete rest.backups;
   const backups = backupCount(editedTags(tags, rest, relayFor));
   const effective = backups > 0 ? want : rest;
-  return { duties, backups, pending: effective, draft: editedDraft({ event, viewer, pending: effective, relayFor }) };
+  const draft = editedDraft({ event, viewer, pending: effective, relayFor });
+  // Story 5 AC-1: Save is on only when the edited Map differs from the published one, or, with none, adds an entry.
+  const changed = event
+    ? draft.content !== (typeof event.content === 'string' ? event.content : '') || JSON.stringify(draft.tags) !== JSON.stringify(tags)
+    : draft.tags.length > 0;
+  return { duties, backups, pending: effective, draft, changed };
 }
 
 /**
@@ -256,9 +264,14 @@ export function setOverride(pending, category, on) {
   return withOverride({ ...pending }, category, on);
 }
 
-/** Turn the All duties override switch on or off: all three cards' switches with it, as the blueprint does. */
-export function setOverrideAll(pending, on) {
-  return CATEGORIES.reduce((next, category) => withOverride(next, category, on), { ...pending });
+/**
+ * Turn the All duties override switch on or off (book decision 18, ADR 0005 sub-decision 4): on, only the cards with
+ * duties to override turn on, so a card without any never starts a later pick already on; off, all three turn off.
+ * @param {{ scores?: string[], lists?: string[], concepts?: string[] }} duties  planEdit's
+ */
+export function setOverrideAll(pending, on, duties) {
+  const has = (category) => Boolean(duties && Array.isArray(duties[category]) && duties[category].length > 0);
+  return CATEGORIES.reduce((next, category) => withOverride(next, category, on && has(category)), { ...pending });
 }
 
 /** Turn the backup switch on or off. */
