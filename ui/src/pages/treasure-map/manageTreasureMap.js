@@ -73,6 +73,14 @@ export const COPY = {
     emptyBefore: 'You have no Assistants yet. Add one on the ',
     emptyLink: 'My Assistants',
     emptyAfter: ' page.',
+    // Story 4's switches: the blueprint's override words, and the owner's backup words (book decision 13).
+    override: (n) => `Override ${n} individually assigned ${n === 1 ? 'duty' : 'duties'}`,
+    overrideAll: (n) => `Override ${n} individually assigned ${n === 1 ? 'duty' : 'duties'} across all categories`,
+    overrideOff: 'Kept as they are; they take priority over this assignment.',
+    overrideOn: 'These will be removed from your Treasure Map.',
+    backups: (n) => `Remove ${n} backup ${n === 1 ? 'Assistant' : 'Assistants'}`,
+    backupsOff: 'Kept as they are. Apps use a backup when an entry’s first Assistant can’t be reached.',
+    backupsOn: 'Every entry keeps only its first Assistant, including entries not shown on this page.',
   },
   advanced: {
     back: 'Manage your Treasure Map',

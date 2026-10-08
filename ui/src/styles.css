@@ -10335,3 +10335,26 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .bsd-tm-edit-undo:hover { color: var(--text); }
 .bsd-tm-edit-note { margin: 0; text-align: right; font-size: 13px; color: var(--bsd-faint); }
 .bsd-tm-edit-raw { margin-top: 12px; }
+/* Story 4's switches (ADR treasure-map-edit/0004 sub-decision 5): a full-width row, label and note wrapping, a
+   36×20 track with a 16 px knob, as the blueprint draws them. */
+.bsd-tm-edit-switch {
+  flex: 1 1 100%; display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 10px 12px;
+  border-radius: 12px; border: 1px solid #e8eae7; background: #ffffff; cursor: pointer; font-family: inherit;
+  text-align: left;
+}
+.bsd-tm-edit-switch:hover { background: #fafaf9; }
+.bsd-tm-edit-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bsd-tm-edit-switch-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.bsd-tm-edit-switch-label { font-size: 13px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.bsd-tm-edit-switch-note { font-size: 12px; line-height: 1.45; color: var(--text-muted); overflow-wrap: anywhere; }
+.bsd-tm-edit-switch-track {
+  position: relative; flex-shrink: 0; width: 36px; height: 20px; border-radius: 999px; background: #d6d9db;
+  transition: background 0.15s;
+}
+.bsd-tm-edit-switch.is-on .bsd-tm-edit-switch-track { background: var(--accent); }
+.bsd-tm-edit-switch-knob {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: left 0.15s;
+}
+.bsd-tm-edit-switch.is-on .bsd-tm-edit-switch-knob { left: 18px; }
+.bsd-tm-edit-backups { margin-top: 12px; display: flex; }

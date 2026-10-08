@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchProfilesChunked } from '../../utils/profileBatch';
 import { buildRows } from '../assistants/myAssistants';
-import { pickCategory, undoCategory, pickAll, undoAll } from './editTreasureMap';
+import {
+  pickCategory, undoCategory, pickAll, undoAll, setOverride as overrideStep, setOverrideAll as overrideAllStep,
+  setBackups as backupsStep,
+} from './editTreasureMap';
 
 /**
  * Edit mode's state on the Manage your Treasure Map page (treasure-map-edit #3, ADR treasure-map-edit/0003 sub-decision
@@ -11,6 +14,9 @@ import { pickCategory, undoCategory, pickAll, undoAll } from './editTreasureMap'
  * session-shaped endpoint, then the profiles, then its row order (Local first, then by name). Turning Edit off drops the
  * pending changes and closes any list. A change of viewer resets everything, Assistants included, so one person's
  * choices never reach another person's Map. Nothing here signs, publishes or stores.
+ *
+ * Story 4's switches live in `pending` too (ADR treasure-map-edit/0004 sub-decision 3), so Edit off and a new viewer
+ * reset them with everything else.
  */
 
 const IDLE = { phase: 'idle', rows: [], profiles: {} };
@@ -66,10 +72,14 @@ export default function useMapEdit({ viewer }) {
     setPending((p) => pickAll(p, pubkey, current));
     setOpenPicker(null);
   }, []);
-  const undoEveryone = useCallback(() => setPending(undoAll()), []);
+  const undoEveryone = useCallback(() => setPending((p) => undoAll(p)), []);
+  const setOverride = useCallback((category, on) => setPending((p) => overrideStep(p, category, on)), []);
+  const setOverrideAll = useCallback((on) => setPending((p) => overrideAllStep(p, on)), []);
+  const setBackups = useCallback((on) => setPending((p) => backupsStep(p, on)), []);
 
   return {
     editing, pending, openPicker, assistants,
     toggleEditing, togglePicker, closePicker, retryAssistants: loadAssistants, pick, undo, pickEveryone, undoEveryone,
+    setOverride, setOverrideAll, setBackups,
   };
 }

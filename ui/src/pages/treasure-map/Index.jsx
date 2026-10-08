@@ -11,7 +11,7 @@ import {
   COPY, FAQS, mapPanelPhase, rawMapText, categoryAssistants, categoryCards,
 } from './manageTreasureMap';
 import {
-  editedDraft, makeRelayFor, saveNote, currentOf, currentAll, pickerRows,
+  planEdit, overrideAllState, makeRelayFor, saveNote, currentOf, currentAll, pickerRows,
 } from './editTreasureMap';
 import useMapEdit from './useMapEdit';
 
@@ -229,18 +229,27 @@ function CategoryCard({ card, pending, children }) {
  * rows, Local first, with Local, Current and a check on the selected one. Picking a row calls onPick.
  *
  * An open list closes on Escape, on a press outside it, and when focus moves to something outside it, so it never
- * covers the control focus lands on. A pick, Try again and Escape put focus back on the button (story 3 review round 1).
- * The button names its list in aria-controls only while the list exists.
+ * covers the control focus lands on. A pick, Try again and Escape put focus back on the button (story 3 review round 1)
+ * once the page has re-rendered, so the button already reads its new words (story 4 AC-6). The button names its list
+ * in aria-controls only while the list exists.
  */
 function Picker({ id, label, filled, open, onToggle, onClose, assistants, onRetry, rows, onPick, align, buttonRef, describedBy }) {
   const wrapper = useRef(null);
+  const focusNext = useRef(false);
+
+  // Each action that asks for focus also changes state, so a render follows; focus moves after it.
+  useEffect(() => {
+    if (!focusNext.current) return;
+    focusNext.current = false;
+    if (buttonRef.current) buttonRef.current.focus();
+  });
 
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
+      focusNext.current = true;
       onClose();
-      if (buttonRef.current) buttonRef.current.focus();
     };
     const onPress = (e) => { if (wrapper.current && !wrapper.current.contains(e.target)) onClose(); };
     document.addEventListener('keydown', onKey);
@@ -256,8 +265,8 @@ function Picker({ id, label, filled, open, onToggle, onClose, assistants, onRetr
     if (open && e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) onClose();
   };
   const andFocus = (action) => () => {
+    focusNext.current = true;
     action();
-    if (buttonRef.current) buttonRef.current.focus();
   };
 
   let body;
@@ -324,6 +333,30 @@ function Picker({ id, label, filled, open, onToggle, onClose, assistants, onRetr
   );
 }
 
+/**
+ * A switch (story 4 AC-6, ADR 0004 sub-decision 4): its label is its name and its note its description. It stays
+ * mounted while shown, so focus stays on it as it turns; Space and Enter turn it, as a button's click.
+ */
+function Switch({ id, label, note, on, onToggle }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on ? 'true' : 'false'}
+      aria-labelledby={`${id}-label`}
+      aria-describedby={`${id}-note`}
+      className={`bsd-tm-edit-switch${on ? ' is-on' : ''}`}
+      onClick={onToggle}
+    >
+      <span className="bsd-tm-edit-switch-text">
+        <span id={`${id}-label`} className="bsd-tm-edit-switch-label">{label}</span>
+        <span id={`${id}-note`} className="bsd-tm-edit-switch-note">{note}</span>
+      </span>
+      <span className="bsd-tm-edit-switch-track" aria-hidden="true"><span className="bsd-tm-edit-switch-knob" /></span>
+    </button>
+  );
+}
+
 /** Pending: the Unsaved chip, who the change goes to, and Undo, described by its card's title. */
 function PendingNote({ cardKey, name, onUndo }) {
   return (
@@ -345,7 +378,8 @@ function PendingNote({ cardKey, name, onUndo }) {
  * note, and the cards preview the edited Map. Names come from the published Map's lookup and the person's Assistants'
  * profiles, so a preview never goes back to the loading line.
  */
-function CategoryCards({ phase, map, localPubkey, edit, draft }) {
+function CategoryCards({ phase, map, localPubkey, edit, plan }) {
+  const draft = plan ? plan.draft : null;
   const settled = phase === 'found' || phase === 'none';
   const event = phase === 'found' ? map.event : null;
   const assistants = useMemo(() => categoryAssistants(event), [event]);
@@ -354,9 +388,17 @@ function CategoryCards({ phase, map, localPubkey, edit, draft }) {
     [assistants],
   );
   const [names, setNames] = useState({ key: null, profiles: {} });
-  // Each list's button, for focus after an Undo, which removes the focused button.
+  // Each list's button, for focus after an Undo, which removes the focused button. Focus moves after the render, so
+  // the button already reads its new words (story 4 AC-6).
   const buttons = { all: useRef(null), scores: useRef(null), lists: useRef(null), concepts: useRef(null) };
-  const focusButton = (key) => { if (buttons[key].current) buttons[key].current.focus(); };
+  const focusAfter = useRef(null);
+  useEffect(() => {
+    const key = focusAfter.current;
+    if (!key) return;
+    focusAfter.current = null;
+    if (buttons[key].current) buttons[key].current.focus();
+  });
+  const focusButton = (key) => { focusAfter.current = key; };
 
   useEffect(() => {
     if (!settled || !wantedKey) return undefined;
@@ -391,6 +433,8 @@ function CategoryCards({ phase, map, localPubkey, edit, draft }) {
     };
     const allCurrent = currentAll(published);
     const { pending } = edit;
+    const override = pending.override || {};
+    const allState = plan ? overrideAllState(plan.duties, pending) : { count: 0, on: false };
     body = (
       <>
         {editing && phase === 'none' && (
@@ -431,6 +475,15 @@ function CategoryCards({ phase, map, localPubkey, edit, draft }) {
                 onPick={(pubkey) => edit.pickEveryone(pubkey, allCurrent)}
               />
             </div>
+            {pending.everything && allState.count > 0 && (
+              <Switch
+                id="bsd-tm-edit-override-all"
+                label={COPY.edit.overrideAll(allState.count)}
+                note={allState.on ? COPY.edit.overrideOn : COPY.edit.overrideOff}
+                on={allState.on}
+                onToggle={() => edit.setOverrideAll(!allState.on)}
+              />
+            )}
           </div>
         )}
         <ul className="bsd-tm-cat-list">
@@ -462,11 +515,31 @@ function CategoryCards({ phase, map, localPubkey, edit, draft }) {
                     />
                   )}
                 </div>
+                {chosen && plan.duties[card.key].length > 0 && (
+                  <Switch
+                    id={`bsd-tm-edit-override-${card.key}`}
+                    label={COPY.edit.override(plan.duties[card.key].length)}
+                    note={override[card.key] ? COPY.edit.overrideOn : COPY.edit.overrideOff}
+                    on={Boolean(override[card.key])}
+                    onToggle={() => edit.setOverride(card.key, !override[card.key])}
+                  />
+                )}
               </CategoryCard>
             );
           })}
         </ul>
-        {editing && <p className="bsd-tm-edit-note" aria-live="polite">{saveNote(pending, nameOf)}</p>}
+        {editing && plan.backups > 0 && (
+          <div className="bsd-tm-edit-backups">
+            <Switch
+              id="bsd-tm-edit-backups"
+              label={COPY.edit.backups(plan.backups)}
+              note={pending.backups ? COPY.edit.backupsOn : COPY.edit.backupsOff}
+              on={Boolean(pending.backups)}
+              onToggle={() => edit.setBackups(!pending.backups)}
+            />
+          </div>
+        )}
+        {editing && <p className="bsd-tm-edit-note" aria-live="polite">{saveNote(plan.pending, nameOf)}</p>}
         <p className="bsd-tm-cat-mixed-line">
           {COPY.mixedLineBefore}
           <Link to={TREASURE_MAP_ADVANCED_PATH}>{COPY.mixedLineLink}</Link>
@@ -527,13 +600,15 @@ export default function ManageTreasureMapPage() {
   const localPubkey = (user && user.assistantPubkey) || null;
   const edit = useMapEdit({ viewer });
   const relayFor = useMemo(() => makeRelayFor({ localPubkey, aRelays }), [localPubkey, aRelays]);
-  // The edited Map, while Edit is on and the Map has been read (found, or none: then a new Map).
+  // The edit as the page shows it, while Edit is on and the Map has been read (found, or none: then a new Map): each
+  // switch's count, the pending that takes effect, and the edited Map (ADR treasure-map-edit/0004 sub-decision 2).
   const editable = phase === 'found' || phase === 'none';
   const event = phase === 'found' ? map.event : null;
-  const draft = useMemo(
-    () => (edit.editing && editable && viewer ? editedDraft({ event, viewer, pending: edit.pending, relayFor }) : null),
+  const plan = useMemo(
+    () => (edit.editing && editable && viewer ? planEdit({ event, viewer, pending: edit.pending, relayFor }) : null),
     [edit.editing, editable, viewer, event, edit.pending, relayFor],
   );
+  const draft = plan ? plan.draft : null;
 
   return (
     <BrainstormDesignShell>
@@ -543,7 +618,7 @@ export default function ManageTreasureMapPage() {
 
       <Faq />
 
-      {phase !== 'signed-out' && <CategoryCards phase={phase} map={map} localPubkey={localPubkey} edit={edit} draft={draft} />}
+      {phase !== 'signed-out' && <CategoryCards phase={phase} map={map} localPubkey={localPubkey} edit={edit} plan={plan} />}
 
       {phase === 'signed-out' ? (
         <div className="bsd-ma-status bsd-tm-signed-out">
