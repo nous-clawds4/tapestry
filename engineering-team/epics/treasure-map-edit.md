@@ -35,7 +35,7 @@ Edit mode is three stories (planned 2026-10-08), shipped to staging together wit
    review round 2, non-blocking 1: a pick or Undo moves focus to the list's button before the re-render, so a screen
    reader may read the button's old words and description, and moving a pending card from one Assistant to another
    leaves the live save note unchanged, so it isn't announced. Move focus after the render when story 4 touches
-   these controls.
+   these controls. Done.
 5. **Save** (feature): Save changes signs the edited Map with the person's own signer and publishes it, "Treasure Map
    updated", the failure states, and a new Map when none was found (book decisions 9, 14). Depends on #4. Carries
    story 3's review non-blocking 4 and 9:
@@ -44,6 +44,18 @@ Edit mode is three stories (planned 2026-10-08), shipped to staging together wit
      changes or enabling Save, so Save never re-publishes an identical Map.
    - `useMapEdit` resets on a new viewer in an effect, one render late. Save checks the viewer when clicked, or the
      edit state is keyed by viewer.
+
+   It also carries story 4's review non-blocking 1–4:
+   - **For the owner:** the three card switches have the same name ("Override 1 individually assigned duty"), and
+     nothing says which card each belongs to. Story 3's fix (the card title in `aria-describedby`) would change AC-6's
+     "the note as its description".
+   - **For the owner:** the All duties switch also turns on the override of a card that has no duties (as the
+     blueprint does), so a later pick there shows the switch already on and removes that card's duties at once. The
+     preview shows it.
+   - `editedTags`' JSDoc predates story 4: it still says every other tag is copied, and lists only the four assignment
+     keys.
+   - V10's title promises Try again without the step, and E9 no longer covers the row's Undo after a card was changed.
+     Both are covered elsewhere (E17, P5).
 
 ## Key facts / guardrails
 

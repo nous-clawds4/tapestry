@@ -31,10 +31,11 @@ says it has.
 - [x] **The cards count the draft grammar's edge cases right** (ledger `2026-10-07-treasure-map-card-rule-edge-cases`):
       a broad entry that a more specific one covers completely doesn't count, a system word counts only for the
       family it belongs to, and two spellings of one key count once. Edit mode's preview is built on this rule.
-- [ ] **Edit on `/treasure-map`, per the blueprint.** A signed-in person whose Map has been read presses **Edit**, then
+- [x] **Edit on `/treasure-map`, per the blueprint.** A signed-in person whose Map has been read presses **Edit**, then
       assigns Scores, Lists or Concepts each to one Assistant, or **All duties** to one Assistant. Each pending change
       reads Unsaved, with Undo. A category with individually assigned duties offers the blueprint's override switch.
       The save note counts the changes, and "View the raw Treasure Map — edited" shows exactly the Map Save would sign.
+      Stories 3 (`3-edit-mode-assign-and-preview.md`) and 4 (`4-override-and-backup-switches.md`).
 - [x] **Only the person's own Assistants can be picked:** the ones on the My Assistants page (`/assistants`).
       Story 3 (`3-edit-mode-assign-and-preview.md`).
 - [ ] **One backup switch, off by default.** Switched on, Save keeps only the first Assistant of each entry and drops

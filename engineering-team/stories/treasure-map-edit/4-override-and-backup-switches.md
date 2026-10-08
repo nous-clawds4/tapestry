@@ -1,6 +1,6 @@
 # Story 4: Edit mode — the override switches and the backup switch
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-08
 **Type:** Feature
 **Epic:** `treasure-map-edit`
@@ -175,3 +175,4 @@ defaults below, and the singular label in § Copy are approved with it.
 - Epic: `engineering-team/epics/treasure-map-edit.md`, story 4
 - ADR: `engineering-team/decisions/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md`
 - Test plan: `engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.test-plan.md`
+- Review: `engineering-team/reviews/treasure-map-edit/4-override-and-backup-switches.md`
