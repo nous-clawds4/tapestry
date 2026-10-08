@@ -4,7 +4,8 @@
  * (test/treasure-map-save.test.js). Pure apart from what it's given, with only `.js`-suffixed imports.
  *
  * In order: the Map is the viewer's; the signer is there and on the viewer's account; no newer Map has appeared since
- * the page read it (book decision 17); sign exactly the draft, stamped to replace the published Map; publish. The
+ * the page read it (book decisions 17 and 19: a newer one comes back for the page to show, with the changes on top);
+ * the save is still current; sign exactly the draft, stamped to replace the published Map; still current; publish. The
  * outcome is "saved" only when this instance's relay and every outside relay tried accepted it; "partial" when it went
  * somewhere; "failed" when nowhere. useMapSave wires in the real effects.
  */
@@ -59,10 +60,13 @@ const isMismatch = (err) => Boolean(err) && err.code === SIGNER_MISMATCH;
 /**
  * Save the edited Map (story 5 AC-2 to AC-8). Never throws: every case answers with an outcome.
  * @param {{ viewer: ?string, base: ?object, draft: ?object, relays: string[],
- *           deps: { readLatest: Function, activeSigner: Function, sign: Function, publish: Function, now: Function } }} input
+ *           deps: { readLatest: Function, activeSigner: Function, sign: Function, publish: Function, now: Function,
+ *                   isCurrent?: Function } }} input
  *   `base` the Map the page read (null when none was found); `draft` planEdit's; `relays` the outside relays the
- *   publish is given, for the report.
- * @returns {Promise<{ outcome: 'not-sent', reason: 'viewer'|'no-signer'|'mismatch'|'changed'|'declined', message?: string }
+ *   publish is given, for the report. `isCurrent` (ADR 0005 Amendment 1): false once the person signed out or changed,
+ *   or a newer save started; checked just before signing and just before publishing.
+ * @returns {Promise<{ outcome: 'not-sent', reason: 'viewer'|'no-signer'|'mismatch'|'changed'|'stale'|'declined',
+ *                     message?: string, latest?: object }
  *                  | { outcome: 'saved'|'partial'|'failed', signed: object, report: object }>}
  */
 export async function saveTreasureMap({ viewer, base, draft, relays, deps }) {
@@ -79,7 +83,9 @@ export async function saveTreasureMap({ viewer, base, draft, relays, deps }) {
   // 3. No newer Map since the page read it (book decision 17). A read that answers nothing doesn't block.
   let latest = null;
   try { latest = await deps.readLatest(); } catch { latest = null; }
-  if (isNewer(latest, base)) return notSent('changed', COPY.edit.changedSince);
+  if (isNewer(latest, base)) return { ...notSent('changed', COPY.edit.changedSince), latest };
+  const current = typeof deps.isCurrent === 'function' ? deps.isCurrent : () => true;
+  if (!current()) return notSent('stale');
 
   // 4. Sign exactly the draft, stamped to replace the published Map.
   const unsigned = {
@@ -96,7 +102,8 @@ export async function saveTreasureMap({ viewer, base, draft, relays, deps }) {
     return isMismatch(err) ? notSent('mismatch', err.message) : notSent('declined', COPY.edit.declined);
   }
 
-  // 5. Publish, and say where it went.
+  // 5. Publish, and say where it went; never for a save that is no longer current.
+  if (!current()) return notSent('stale');
   let result;
   try {
     result = await deps.publish(signed);

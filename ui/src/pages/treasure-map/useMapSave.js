@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { queryRelay } from '../../api/relay';
-import { getActiveSignerOrThrow, assertSignerMatches } from '../../utils/signerGuard';
+import { getActiveSignerOrThrow, assertSignerMatches, getSessionPubkey } from '../../utils/signerGuard';
 import { publishEverywhere, PUBLISH_RELAYS } from '../../utils/nostrPublish';
 import { saveTreasureMap } from './saveTreasureMap';
 
@@ -15,11 +15,13 @@ import { saveTreasureMap } from './saveTreasureMap';
  *   publish policy.
  *
  * It holds whether a save is running, its outcome (message or report), the brief "Treasure Map updated", and the Map
- * just signed, which the page shows after a save that reached somewhere. A new viewer resets everything, and an older
- * save's answer never lands on a newer one.
+ * the page shows in place of the read one (`shown`): the Map just signed after a save that reached somewhere, or a newer
+ * Map the check found (book decision 19). A new viewer resets everything. A save runs one at a time, and an answer that
+ * is no longer current (the person signed out or changed, or a newer save started) signs, publishes and changes nothing
+ * (ADR 0005 Amendment 1).
  */
 
-const IDLE = { busy: false, outcome: null, message: null, report: null, toast: false, saved: null, seq: 0 };
+const IDLE = { busy: false, outcome: null, message: null, report: null, toast: false, shown: null, seq: 0 };
 const TOAST_MS = 4000;
 const KIND_TREASURE_MAP = 10040;
 
@@ -42,17 +44,23 @@ async function readLatestMap(viewer, relays) {
 export default function useMapSave({ viewer, relays }) {
   const [state, setState] = useState(IDLE);
   const latest = useRef(0);
+  const running = useRef(false);
   const toastTimer = useRef(null);
 
   useEffect(() => {
     latest.current++;
+    running.current = false;
     clearTimeout(toastTimer.current);
     setState(IDLE);
   }, [viewer]);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   const save = useCallback(async ({ base, draft }) => {
+    // One save at a time, decided synchronously so two clicks in one go can't both start one.
+    if (running.current) return { outcome: 'not-sent', reason: 'busy', current: false };
+    running.current = true;
     const mine = ++latest.current;
+    const isCurrent = () => mine === latest.current && getSessionPubkey() === viewer;
     clearTimeout(toastTimer.current);
     setState((s) => ({ ...s, busy: true, outcome: null, message: null, report: null, toast: false }));
     const answer = await saveTreasureMap({
@@ -70,9 +78,16 @@ export default function useMapSave({ viewer, relays }) {
         },
         publish: (signed) => publishEverywhere(signed),
         now: () => Math.floor(Date.now() / 1000),
+        isCurrent,
       },
     });
-    if (mine !== latest.current) return answer;
+    const current = mine === latest.current && answer.reason !== 'stale';
+    if (mine === latest.current) running.current = false;
+    if (!current) {
+      // The person signed out or changed mid-save: nothing to show, but the save is over.
+      if (mine === latest.current) setState((s) => ({ ...s, busy: false }));
+      return { ...answer, current: false };
+    }
     const reached = answer.outcome === 'saved' || answer.outcome === 'partial';
     setState((s) => ({
       busy: false,
@@ -80,13 +95,13 @@ export default function useMapSave({ viewer, relays }) {
       message: answer.message || null,
       report: answer.report || null,
       toast: answer.outcome === 'saved',
-      saved: reached ? answer.signed : s.saved,
+      shown: reached ? answer.signed : answer.reason === 'changed' ? answer.latest : s.shown,
       seq: s.seq + 1,
     }));
     if (answer.outcome === 'saved') {
       toastTimer.current = setTimeout(() => setState((s) => ({ ...s, toast: false })), TOAST_MS);
     }
-    return answer;
+    return { ...answer, current: true };
   }, [viewer, relays]);
 
   /** Clear the outcome and the report (Edit turned on again); the Map just signed stays shown. */

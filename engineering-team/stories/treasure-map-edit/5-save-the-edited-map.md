@@ -162,6 +162,15 @@ words new in § Copy are approved with it.
    - V10's title no longer promises Try again;
    - E9 again covers the All duties Undo after a card was changed.
 
+## Deviations
+
+Recorded at review round 1 (review non-blocking 5; ADR 0005 Amendment 1, item 5):
+- **The report's relay lines come from `reportLines` in `saveTreasureMap.js`,** not straight from the publish-report
+  module. The page imports no module whose file name matches the page suite's publish check (D4).
+- **The cards don't flash the loading line after a save.** After the first name lookup, cards whose Assistants were
+  all looked up before, or are the person's Assistants, show at once while a new lookup runs. Story 2's "cards appear
+  once, already named" still holds, including after a viewer change.
+
 ## Linked artifacts
 - Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 3, 9, 12, 14, 15, 17 and 18
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` (the save bar) and

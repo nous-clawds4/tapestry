@@ -473,9 +473,6 @@ function CategoryCards({ phase, map, localPubkey, edit, plan, save, onSave }) {
     const allState = plan ? overrideAllState(plan.duties, pending) : { count: 0, on: false };
     body = (
       <>
-        {!edit.editing && save && save.outcome === 'partial' && save.report && (
-          <SaveReport report={save.report} role="status" className="bsd-tm-save-report" />
-        )}
         {editing && phase === 'none' && (
           <div className="bsd-tm-edit-warning" role="note"><p>{COPY.edit.noMap}</p></div>
         )}
@@ -589,6 +586,8 @@ function CategoryCards({ phase, map, localPubkey, edit, plan, save, onSave }) {
         {editing && (
           <div className="bsd-tm-edit-savebar">
             <p className="bsd-tm-edit-note" aria-live="polite">{saveNote(plan.changed ? plan.pending : {}, nameOf)}</p>
+            {/* "Saving…" is the disabled button's label, which a screen reader doesn't hear; this region says it. */}
+            <span className="bs-sr-only" aria-live="polite">{busy ? COPY.edit.saving : ''}</span>
             <button
               type="button"
               ref={saveButton}
@@ -633,6 +632,12 @@ function CategoryCards({ phase, map, localPubkey, edit, plan, save, onSave }) {
           </button>
         )}
       </div>
+      {/* Always in the section, so a partial save's report is announced when it arrives (ADR 0005 Amendment 1). */}
+      <div aria-live="polite">
+        {!edit.editing && save && save.outcome === 'partial' && save.report && (
+          <SaveReport report={save.report} role="status" className="bsd-tm-save-report" />
+        )}
+      </div>
       {body}
     </section>
   );
@@ -664,11 +669,12 @@ export default function ManageTreasureMapPage() {
   const viewer = user ? user.pubkey : null;
   const read = useTreasureMap(viewer, { strict: true });
   const save = useMapSave({ viewer, relays: read.relays });
-  // The Map shown (story 5, ADR treasure-map-edit/0005 sub-decision 6): after a save that reached somewhere, the signed
-  // Map itself, until a read finds a newer one or the viewer changes, even when only an outside relay took it.
-  const saved = save.saved && save.saved.pubkey === viewer ? save.saved : null;
-  const map = saved && !(read.event && (read.event.created_at || 0) > (saved.created_at || 0))
-    ? { ...read, status: 'found', event: saved }
+  // The Map shown (story 5, ADR treasure-map-edit/0005 sub-decision 6 and Amendment 1): the signed Map after a save that
+  // reached somewhere, even when only an outside relay took it, or a newer Map Save found (book decision 19), until a
+  // read finds a newer one or the viewer changes.
+  const shown = save.shown && save.shown.pubkey === viewer ? save.shown : null;
+  const map = shown && !(read.event && (read.event.created_at || 0) > (shown.created_at || 0))
+    ? { ...read, status: 'found', event: shown }
     : read;
   const phase = mapPanelPhase({ authLoading, user, status: map.status });
   // The viewer's own Assistant on this instance, from the session (never the instance owner's TA, never a literal).
@@ -690,7 +696,8 @@ export default function ManageTreasureMapPage() {
     if (!plan || !plan.changed || save.busy) return;
     edit.closePicker();
     const answer = await save.save({ base: event, draft: plan.draft });
-    if (answer && (answer.outcome === 'saved' || answer.outcome === 'partial')) edit.finish();
+    // Only the current save's answer acts (ADR 0005 Amendment 1); after a newer Map, Edit and the changes stay.
+    if (answer && answer.current && (answer.outcome === 'saved' || answer.outcome === 'partial')) edit.finish();
   }
 
   return (
@@ -714,7 +721,10 @@ export default function ManageTreasureMapPage() {
 
       {draft && <EditedRawViewer draft={draft} />}
 
-      {save.toast && <div className="bsd-tm-toast" role="status">{COPY.edit.saved}</div>}
+      {/* Always on the page, so the confirmation's arrival is announced (ADR 0005 Amendment 1). */}
+      <div className="bsd-tm-toast-region" aria-live="polite" aria-atomic="true">
+        {save.toast && <div className="bsd-tm-toast" role="status">{COPY.edit.saved}</div>}
+      </div>
 
       <div className="bsd-tm-advanced">
         <span>{COPY.advancedPrompt}</span>

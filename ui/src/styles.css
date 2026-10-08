@@ -10375,6 +10375,7 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .bsd-tm-edit-toggle:disabled, .bsd-tm-edit-pick:disabled, .bsd-tm-edit-undo:disabled, .bsd-tm-edit-switch:disabled {
   opacity: 0.55; cursor: not-allowed;
 }
+.bsd-tm-toast-region { position: fixed; left: 0; right: 0; bottom: 0; height: 0; z-index: 50; pointer-events: none; }
 .bsd-tm-toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; max-width: calc(100vw - 32px);
   padding: 10px 18px; border-radius: 999px; background: var(--text); color: #ffffff; font-size: 14px; font-weight: 600;

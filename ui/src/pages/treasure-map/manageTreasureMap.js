@@ -86,7 +86,8 @@ export const COPY = {
     saving: 'Saving…',
     saved: 'Treasure Map updated',
     reportSubject: 'Your Treasure Map',
-    changedSince: 'Couldn’t save: your Treasure Map changed since this page read it. Reload the page to see the new one; these changes will be lost.',
+    // Book decision 19: a newer Map found at Save is shown, with the changes kept on top of it.
+    changedSince: 'Your Treasure Map changed since this page read it. The page now shows the new one, with your changes on top; check them and save again.',
     noSigner: 'Couldn’t save: no Nostr signer was found in this browser.',
     declined: 'Couldn’t save: the signature was declined.',
   },
