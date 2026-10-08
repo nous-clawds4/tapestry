@@ -196,6 +196,27 @@ The owner's answer, verbatim:
 
     This is story 5's AC-9, and it answers story 4's review, non-blocking 1–2.
 
+At story 5's review, round 1, the same day. The review found that the newer-Map check of decision 17 can refuse for
+good. The check reads this instance's relay and the outside relays, but the page shows this instance's relay's Map
+whenever it has one. So a newer Map held only by outside relays (for example, after a save only they accepted) blocks
+every save, and the reload it asks for shows the same old Map. The session offered three ways out:
+- **A:** show the newer Map and keep the changes on top of it, to check and save again;
+- **B:** the same, but drop the changes;
+- **C:** check only what the page shows.
+
+It recommended A. The owner's answer, verbatim:
+
+> Let’s do 1 A.
+
+19. **A newer Map found at Save is shown, with the person's changes on top, to check and save again.** Just before
+    signing, if a newer Map has appeared, nothing is signed. The page shows that Map in place of the one it read, keeps
+    every pending change on top of it (assignments, overrides and the backup switch are choices, so they apply to the
+    newer Map), and says "Your Treasure Map changed since this page read it. The page now shows the new one, with your
+    changes on top; check them and save again."
+    - This replaces decision 17's "asked to reload" and its "these changes will be lost" words.
+    - It brings forward the "rebuild the edit on the newer Map" that decision 17 set aside for later.
+    - This is story 5's AC-5, as amended at its review round 1.
+
 ## Epics in this book
 - `treasure-map-edit` — Edit mode on the Manage your Treasure Map page, and the card-rule fix it builds on.
 

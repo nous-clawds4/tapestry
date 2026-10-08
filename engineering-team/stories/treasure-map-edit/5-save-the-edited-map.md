@@ -48,17 +48,22 @@ they reached my relays, so that my Assistants and other apps follow the new Map.
 
   The person's own signer signs it, and only when the signer's account is the signed-in person (the app's existing
   signer check). Nothing is signed for any other Map or account, nor when the signed-in person has changed since the
-  Map was read (story 3 review, non-blocking 9).
+  Map was read (story 3 review, non-blocking 9). Nor is anything signed or published once the person has signed out
+  or changed while the save was running; that save's answer is ignored (review round 1, Blocking 3).
 - [ ] **AC-3: where it goes.** The signed Map is published to this instance's relay and to the outside relays the
   instance publishes to, under the instance's publish policy. With outside publishing off, it stays on this
   instance's relay.
 - [ ] **AC-4: while saving.** The button reads **Saving…** and is off. The edit can't change until the save ends:
   pickers, switches, Undo, Assign to all and Edit itself are off.
-- [ ] **AC-5: a Map changed since it was read** (book decision 17). Just before signing, the page reads
-  the Map again. If a newer Map has appeared since the page read it, nothing is signed. The page then:
-  - says "Couldn’t save: your Treasure Map changed since this page read it. Reload the page to see the new one; these
-    changes will be lost.";
-  - keeps Edit mode and the changes as they are.
+- [ ] **AC-5: a Map changed since it was read** (book decisions 17 and 19). Just before signing, the page reads
+  the Map again, from this instance's relay and the outside relays it reads. If a newer Map has appeared since the
+  page read it, nothing is signed. The page then:
+  - shows that newer Map in place of the one it read: the cards, the raw viewer, and the edited Map built on it;
+  - keeps Edit mode and every pending change on top of it;
+  - says "Your Treasure Map changed since this page read it. The page now shows the new one, with your changes on
+    top; check them and save again.";
+  - lets **Save changes** save on top of the newer Map. A reload is never needed to get past this, even when only an
+    outside relay holds the newer Map (review round 1, Blocking 1).
 - [ ] **AC-6: the outcomes** (book decision 17).
   - **Accepted everywhere** (this instance's relay, and every outside relay that was tried):
     - Edit mode ends.
@@ -89,7 +94,8 @@ they reached my relays, so that my Assistants and other apps follow the new Map.
     story 4's AC-2, which follows the blueprint in turning all three.
 - [ ] **AC-10: keyboard and screen readers.**
   - **Save changes** is a button in the Tab order.
-  - "Saving…", the outcome messages and the report are announced.
+  - "Saving…", the outcome messages and the report are announced: each in a live region that is on the page before
+    its words arrive (review round 1, Blocking 2).
   - After a save that ends Edit mode, focus goes to the **Edit** button. After one that doesn't, focus stays on **Save
     changes**.
   - Everything new lies inside the screen at 375 px.
@@ -104,8 +110,8 @@ The app's own words, reused:
 
 New here, to approve with this story:
 - **Saving…**
-- "Couldn’t save: your Treasure Map changed since this page read it. Reload the page to see the new one; these changes
-  will be lost."
+- "Your Treasure Map changed since this page read it. The page now shows the new one, with your changes on top; check
+  them and save again." (book decision 19, replacing decision 17's reload words)
 - "Couldn’t save: no Nostr signer was found in this browser."
 - "Couldn’t save: the signature was declined."
 
@@ -118,8 +124,8 @@ The stack wasn't running in this session, so no concept handles were checked. No
 
 ## Out of scope
 
-- **Merging a newer Map into the edit** (the alternative book decision 17 set aside): this story stops and asks for
-  a reload.
+- **Merging a newer Map entry by entry.** Since book decision 19, a newer Map found at Save is shown with the
+  pending choices on top of it. Nothing beyond those choices is merged.
 - **The legacy generators rewriting the `30382:*` rows** after a save (ledger
   `2026-10-08-legacy-generators-overwrite-edited-scores`, book decision 12): accepted for now.
 - **Teaching other readers the family entries** (book decision 15).
@@ -138,7 +144,8 @@ words new in § Copy are approved with it.
 1. **"Treasure Map updated" only for a publish accepted everywhere it was tried.** Anything less ends Edit mode and
    shows the app's publish report instead (book decision 17).
 2. **A Map changed since the page read it:** checked just before signing. If it changed, nothing is signed and the
-   person is asked to reload (book decision 17).
+   person is asked to reload (book decision 17). *Superseded at review round 1 by book decision 19: the page shows the
+   newer Map with the changes on top, to check and save again.*
 3. **A pick that changes nothing:** Save stays off and the note says "No changes yet" (book decision 17).
 4. **Each card's override switch is described by its card's title, then its note** (book decision 18).
 5. **The All duties switch turns on only the cards that have duties** (book decision 18).
