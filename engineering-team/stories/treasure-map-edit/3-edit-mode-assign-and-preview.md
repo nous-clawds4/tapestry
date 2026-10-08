@@ -181,4 +181,4 @@ it.
   `treasure-map-logic.js.txt`, the `tmbEdit` blocks
 - ADR: `engineering-team/decisions/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md`
 - Test plan: `engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md`
