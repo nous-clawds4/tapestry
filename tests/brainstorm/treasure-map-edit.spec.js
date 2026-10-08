@@ -23,7 +23,8 @@ const { nip19 } = require('nostr-tools');
  *   E7 — one list open at a time; the button closes its own list.                                            [AC-2]
  *   E8 — the list's states: loading, can't load with Try again, none (with the My Assistants link, in the
  *        page's status style).                                                                                [AC-2]
- *   E9 — Assign to all: every card pending, "All duties → name"; a card changed after; both Undos.     [AC-3, AC-4]
+ *   E9 — Assign to all: every card pending, "All duties → name"; a card changed after; a card's Undo also
+ *        cancels the everything change (book decision 16, re-aimed at story 4); the row's Undo.          [AC-3, AC-4]
  *   E10 — Current in the All duties list only when all three cards name one Assistant; picking it clears.   [AC-3]
  *   E11 — the edited raw viewer: closed at first, "Unsaved draft", the Map exactly as Save would sign it; the raw
  *         viewer still shows the published Map.                                                       [AC-5, AC-6]
@@ -399,7 +400,7 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     expect(state.myAsks, 'the first page asked for the Assistants once').toBe(1);
   });
 
-  test('E9: Assign to all — every card pending to Bea, "All duties → Bea"; a card changed after (to Cy); the card’s and the row’s Undo', async ({ page }) => {
+  test('E9: Assign to all — every card pending to Bea, "All duties → Bea"; a card changed after (to Cy); a card’s Undo then also cancels the everything change (book decision 16); the row’s Undo', async ({ page }) => {
     await setup(page);
     await page.goto('/treasure-map');
     await startEditing(page);
@@ -419,8 +420,13 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     await expect(editCard(page, 'Lists').getByText('Will be assigned to Bea', { exact: true })).toBeVisible();
     await expect(saveNote(page, '4 unsaved changes')).toBeVisible();
     await editCard(page, 'Lists').getByRole('button', { name: 'Undo', exact: true }).click();
-    await expect(saveNote(page, '3 unsaved changes')).toBeVisible();
+    // Re-aimed at treasure-map-edit #4's Test Design (book decision 16, ADR 0004): after Assign to all, a card's Undo
+    // also cancels the everything change, so the row names no one and has no Undo; Scores (Cy) and Concepts (Bea) stay.
+    await expect(saveNote(page, '2 unsaved changes')).toBeVisible();
     await expect(editCard(page, 'Concepts').getByText('Will be assigned to Bea', { exact: true })).toBeVisible();
+    await expect(allRow).not.toContainText('Bea');
+    await expect(allRow.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(0);
+    await pick(page, assignAll(page), 'Bea');
     await allRow.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(saveNote(page, 'No changes yet')).toBeVisible();
     await expect(section(page).getByText('Unsaved', { exact: true })).toHaveCount(0);

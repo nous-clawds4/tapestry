@@ -174,3 +174,4 @@ defaults below, and the singular label in § Copy are approved with it.
   non-blocking 5; round 2 non-blocking 1)
 - Epic: `engineering-team/epics/treasure-map-edit.md`, story 4
 - ADR: `engineering-team/decisions/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md`
+- Test plan: `engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.test-plan.md`

@@ -301,12 +301,14 @@ test('P2: pickCategory on a card with no single current Assistant (null) — eve
   const got = pickCategory({}, 'concepts', A, null);
   assert(sameObj(got, { concepts: A }), `got ${show(got)}`);
 });
-test('P3: undoCategory — removes only that card\'s change, the everything entry\'s included', async () => {
+// Re-aimed at treasure-map-edit #4's Test Design (book decision 16, ADR 0004 sub-decision 1): after Assign to all, a
+// card's Undo also cancels the everything entry's change. It used to keep it.
+test('P3: undoCategory — removes that card\'s change and, by book decision 16, the everything entry\'s; the other cards keep theirs', async () => {
   const undoCategory = await fn('undoCategory');
   const all = { scores: B, lists: B, concepts: B, everything: B };
   const got = undoCategory(all, 'lists');
-  assert(sameObj(got, { scores: B, concepts: B, everything: B }), `got ${show(got)}`);
-  assert(all.lists === B, 'undoCategory changed its input');
+  assert(sameObj(got, { scores: B, concepts: B }), `got ${show(got)}`);
+  assert(all.lists === B && all.everything === B, 'undoCategory changed its input');
 });
 test('P4: pickAll — all three cards and the everything entry to one Assistant; picking the current-all Assistant clears everything', async () => {
   const pickAll = await fn('pickAll');
