@@ -9420,12 +9420,6 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 /* Create New Concept from the finder: the shared concept the new header is wired to. */
 .dict-new-wired { margin-top: 18px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
 .dict-new-wired-name { font-size: 15px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
-/* The item page's "Filed by" card (the design's Dictionary item screen). */
-.dict-filed-by { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
-.dict-avatar--lg { width: 40px; height: 40px; font-size: 14px; }
-.dict-filed-by-name { font-size: 15px; font-weight: 600; color: var(--text); }
-.dict-filed-by-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap; font-size: 12px; font-weight: 600; }
-.dict-filed-by-link:hover { border-color: var(--accent); color: var(--accent); }
 .dict-switches { margin-top: 12px; display: flex; flex-direction: column; }
 .dict-switch-row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; }
 .dict-switch-row + .dict-switch-row { border-top: 1px solid var(--border); }
@@ -9760,11 +9754,160 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .dict-skin-light .dict-author-text strong { color: var(--text-primary); }
 .dict-skin-light .dict-avatar--soft { border-color: var(--bsd-line); }
 .dict-skin-light .dict-items-row--link:hover { background: #fafaf9; }
-.dict-skin-light .dict-filed-by + .dict-disclosure { margin-top: 12px; }
+/* The item page's Nostr record, below a divider and quieter than what's above: the filer in a line, the raw event flat. */
+.dict-item-foot { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--bsd-line); }
+.dict-item-filer { margin: 0; font-size: 13px; line-height: 1.6; color: var(--bsd-faint); overflow-wrap: anywhere; }
+.dict-item-filer-name { font-weight: 600; color: var(--bsd-ink-2); }
+.dict-item-filer a { font-weight: 600; color: var(--accent); text-decoration: none; }
+.dict-skin-light .dict-item-filer a:hover { color: var(--accent-hover); text-decoration: underline; }
+.dict-skin-light .dict-item-foot .dict-disclosure {
+  margin-top: 12px; padding: 12px 16px; border-color: var(--bsd-line); background: transparent; box-shadow: none;
+}
 .dict-skin-light .dict-switch-row + .dict-switch-row { border-top-color: var(--bsd-hairline); }
 .dict-skin-light .dict-switch { background: var(--border); opacity: 1; }
 .dict-skin-light .dict-shared-coord { color: var(--bsd-navy); }
 .dict-skin-light .dict-disclosure-text { color: var(--text-primary); }
+/* The GitHub Accounts DList's item page (pages/dictionary/GithubAccount.jsx): the account as GitHub shows it. */
+.dict-gh-head { display: flex; align-items: center; gap: 14px 20px; flex-wrap: wrap; margin-top: 6px; }
+.dict-gh-avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+.dict-gh-badge {
+  position: absolute; right: -2px; bottom: -2px; display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 999px; background: #1f2328; color: #ffffff; box-shadow: 0 0 0 3px #ffffff;
+}
+.dict-gh-avatar {
+  width: 88px; height: 88px; flex-shrink: 0; border-radius: 999px; object-fit: cover; background: var(--bsd-hairline);
+  border: 1px solid var(--bsd-line); box-shadow: 0 0 0 4px #ffffff, 0 2px 8px rgba(10, 14, 24, 0.12);
+}
+.dict-gh-avatar--none {
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  background: rgba(114, 55, 255, 0.08); color: var(--accent); font-size: 34px; font-weight: 700;
+}
+.dict-gh-head-text { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.dict-skin-light .dict-gh-head h1.dict-entry-title { margin: 0; }
+.dict-gh-login {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; overflow-wrap: anywhere;
+  font-size: 17px; font-weight: 500; color: var(--bsd-ink-2); text-decoration: none;
+}
+.dict-skin-light .dict-gh-login:hover { color: var(--text); text-decoration: underline; }
+.dict-skin-light .dict-gh-head .dict-entry-sub { margin: 6px 0 0; }
+.dict-gh-btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: var(--dict-tap); padding: 0 18px; border-radius: 999px;
+  background: #1f2328; color: #ffffff; font-size: 13px; font-weight: 600; white-space: nowrap; text-decoration: none;
+  box-shadow: 0 1px 2px rgba(10, 14, 24, 0.2);
+}
+.dict-skin-light .dict-gh-btn:hover { background: #32383f; color: #ffffff; }
+.dict-skin-light .dict-gh-head + .dict-lede { margin-top: 16px; max-width: 620px; font-size: 16px; color: var(--bsd-ink-2); text-wrap: pretty; }
+.dict-gh-reading { margin: 22px 0 0; font-size: 14px; }
+.dict-skin-light .dict-gh-profile { margin-top: 22px; padding: 18px 20px; }
+.dict-gh-bio { margin: 0 0 12px; font-size: 16px; line-height: 1.5; color: var(--text); text-wrap: pretty; overflow-wrap: anywhere; }
+.dict-gh-meta {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--bsd-ink-2);
+}
+.dict-gh-meta li { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.dict-gh-meta a { color: var(--text-primary); text-decoration: none; }
+.dict-skin-light .dict-gh-meta a:hover { color: var(--accent); text-decoration: underline; }
+.dict-gh-glyph { flex-shrink: 0; color: var(--bsd-faint); }
+.dict-gh-stats {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--bsd-hairline); font-size: 14px; color: var(--bsd-faint);
+}
+.dict-gh-stats > .dict-gh-glyph { margin-right: -10px; }
+.dict-gh-stat { color: var(--bsd-ink-2); text-decoration: none; white-space: nowrap; }
+.dict-gh-stat strong { font-weight: 700; color: var(--text); }
+.dict-skin-light .dict-gh-stat:hover,
+.dict-skin-light .dict-gh-stat:hover strong { color: var(--accent); }
+.dict-gh-source { margin: 12px 0 0; font-size: 12px; color: var(--bsd-faint); }
+.dict-gh-repos { margin-top: 26px; }
+.dict-gh-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.dict-gh-all { font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.dict-skin-light .dict-gh-all:hover { text-decoration: underline; }
+.dict-gh-repo-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dict-skin-light .dict-gh-repo { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; }
+.dict-gh-repo-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dict-gh-repo-name { min-width: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 700; color: var(--accent); text-decoration: none; }
+.dict-skin-light .dict-gh-repo-name:hover { color: var(--accent-hover); text-decoration: underline; }
+.dict-gh-tag {
+  flex-shrink: 0; padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 11px; font-weight: 600; color: var(--bsd-faint);
+}
+.dict-gh-repo-desc {
+  margin: 0; font-size: 13px; line-height: 1.5; color: var(--bsd-ink-2); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.dict-gh-repo-foot { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--bsd-faint); }
+.dict-gh-repo-foot > span { display: inline-flex; align-items: center; gap: 5px; }
+.dict-gh-repo-foot .dict-gh-glyph { width: 13px; height: 13px; }
+.dict-gh-lang { display: inline-block; width: 10px; height: 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(10, 14, 24, 0.12); }
+/* The GitHub Accounts DList's entry page (ConceptEntry.jsx, dlistViews): its mark by the title, one row per account. */
+.dict-entry-mark { display: inline-flex; flex-shrink: 0; color: #1f2328; }
+.dict-skin-light .dict-entry-mark { margin-top: 10px; } /* level with the title, which has this margin */
+.dict-gh-item { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dict-skin-light .dict-gh-avatar--sm { width: 32px; height: 32px; border-color: var(--bsd-line); box-shadow: none; }
+.dict-skin-light .dict-gh-avatar--sm.dict-gh-avatar--none { font-size: 13px; }
+.dict-gh-item-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dict-gh-item-desc {
+  font-size: 12px; font-weight: 500; color: var(--bsd-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dict-items-more { font-size: 12px; color: var(--bsd-faint); white-space: nowrap; }
+.dict-item-filer a.dict-item-filer-other { color: var(--bsd-ink-2); }
+@media (max-width: 600px) {
+  .dict-gh-avatar { width: 64px; height: 64px; }
+  .dict-gh-avatar--none { font-size: 26px; }
+  .dict-gh-badge { width: 24px; height: 24px; }
+  .dict-gh-head-text { flex-basis: 0; }
+  .dict-gh-btn { width: 100%; justify-content: center; }
+  .dict-gh-repo-grid { grid-template-columns: minmax(0, 1fr); }
+}
+/* The V4V Songs DList's views (pages/dictionary/V4vSong.jsx): a song as a music player shows it, playback only. */
+.dict-v4v-head { display: flex; align-items: center; gap: 16px 24px; flex-wrap: wrap; margin-top: 6px; }
+.dict-v4v-art {
+  display: block; flex-shrink: 0; width: 40px; height: 40px; border-radius: 6px; object-fit: cover;
+  background: var(--bsd-hairline); border: 1px solid var(--bsd-line); box-sizing: border-box;
+}
+.dict-v4v-art--lg { width: 200px; height: 200px; border-radius: 12px; box-shadow: 0 6px 20px rgba(10, 14, 24, 0.16); }
+.dict-v4v-art--none { display: flex; align-items: center; justify-content: center; background: rgba(114, 55, 255, 0.08); color: var(--accent); }
+.dict-v4v-head-text { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.dict-skin-light .dict-v4v-head h1.dict-entry-title { margin: 0; overflow-wrap: anywhere; }
+.dict-v4v-artist { margin: 6px 0 0; font-size: 18px; font-weight: 500; color: var(--bsd-ink-2); overflow-wrap: anywhere; }
+.dict-skin-light .dict-v4v-head .dict-entry-sub { margin: 8px 0 0; }
+.dict-v4v-time { margin: 4px 0 0; font-size: 14px; color: var(--bsd-faint); font-variant-numeric: tabular-nums; }
+.dict-skin-light .dict-v4v-head + .dict-lede { margin-top: 16px; max-width: 620px; font-size: 16px; color: var(--bsd-ink-2); text-wrap: pretty; }
+.dict-skin-light .dict-v4v-player { margin-top: 22px; padding: 16px 18px; }
+.dict-v4v-audio { display: block; width: 100%; }
+.dict-v4v-player .dict-notice { margin: 12px 0 0; }
+.dict-v4v-player .dict-notice a { font-weight: 600; color: var(--accent); }
+.dict-v4v-source { margin: 10px 0 0; font-size: 12px; color: var(--bsd-faint); }
+.dict-v4v-item { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dict-v4v-item-text { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dict-v4v-item-text .dict-items-item-link { overflow-wrap: anywhere; }
+.dict-v4v-item-artist { font-size: 12px; font-weight: 500; color: var(--bsd-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dict-v4v-item-time { flex-shrink: 0; margin-left: auto; font-size: 13px; color: var(--bsd-faint); font-variant-numeric: tabular-nums; }
+.dict-v4v-artplay { position: relative; display: inline-flex; flex-shrink: 0; }
+.dict-v4v-artplay audio { display: none; }
+.dict-v4v-play {
+  position: absolute; inset: 0; margin: auto; display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+  background: rgba(17, 20, 28, 0.72); color: #ffffff; box-shadow: 0 1px 3px rgba(10, 14, 24, 0.3);
+}
+.dict-v4v-play:hover { background: var(--accent); }
+.dict-v4v-play:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dict-v4v-play.is-playing { background: var(--accent); }
+.dict-v4v-play.is-failed { background: #b42318; }
+.dict-v4v-more { margin-top: 4px; }
+.dict-v4v-list { margin-top: 26px; }
+.dict-v4v-list-title { display: block; margin: 0 0 10px; }
+.dict-skin-light .dict-v4v-rows { list-style: none; margin: 0; padding: 4px 16px; }
+.dict-v4v-row { padding: 10px 0; }
+.dict-v4v-row + .dict-v4v-row { border-top: 1px solid var(--bsd-hairline); }
+.dict-v4v-all { margin-top: 8px; }
+.dict-v4v-release { margin: 22px 0 0; font-size: 14px; }
+.dict-v4v-release a { font-weight: 600; color: var(--accent); text-decoration: none; }
+.dict-skin-light .dict-v4v-release a:hover { color: var(--accent-hover); text-decoration: underline; }
+.dict-v4v-more > .dict-v4v-source { margin-top: 12px; }
+@media (max-width: 600px) {
+  .dict-v4v-art--lg { width: 132px; height: 132px; }
+  .dict-v4v-head-text { flex-basis: 0; }
+}
 
 @media (max-width: 680px) {
   .bsd-nav-inner { padding: 10px 12px; gap: 8px; }
@@ -10011,3 +10154,233 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .bsd-ma-profile-link:hover { color: var(--accent-hover); }
 .bsd-ma-profile-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .bsd-ma-maponly-actions { align-items: center; }
+
+/* ── /treasure-map — Manage your Treasure Map (manage-treasure-map #1, ADR 0001 sub-decision 8) ────────────────────
+   The blueprint's measurements (engineering-team/audits/manage-treasure-map/blueprint/). The sign-in, Try again and
+   status lines reuse .bsd-ma-btn / .bsd-ma-status as they are. */
+.bsd-tm-card {
+  border-radius: 16px; border: 1px solid var(--border); background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); overflow: hidden;
+}
+.bsd-tm-text-btn {
+  display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 14px; font-weight: 600; color: var(--accent);
+}
+.bsd-tm-text-btn:hover { color: var(--accent-hover); }
+.bsd-tm-chevron { flex-shrink: 0; transition: transform 0.2s; }
+.bsd-tm-chevron.is-open { transform: rotate(180deg); }
+
+.bsd-tm-faq { margin-top: 28px; }
+.bsd-tm-faq-list { margin: 12px 0 0; padding: 0; list-style: none; }
+.bsd-tm-faq-item + .bsd-tm-faq-item { border-top: 1px solid var(--bsd-line); }
+.bsd-tm-faq-q {
+  display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none; padding: 14px 18px;
+  cursor: pointer; text-align: left;
+}
+.bsd-tm-faq-q:hover { background: #fafaf9; }
+.bsd-tm-faq-q span { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.bsd-tm-faq-q .bsd-tm-chevron { width: 16px; height: 16px; color: #9aa1ac; }
+.bsd-tm-faq-a { margin: 0; padding: 0 18px 16px; font-size: 14px; line-height: 1.6; color: var(--bsd-ink-2); text-wrap: pretty; }
+
+.bsd-tm-signed-out { margin-top: 28px; }
+.bsd-tm-raw { margin-top: 28px; box-shadow: none; }
+.bsd-tm-raw-toggle {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; background: none; border: none;
+  padding: 14px 18px; cursor: pointer; text-align: left;
+}
+.bsd-tm-raw-toggle:hover { background: #fafaf9; }
+.bsd-tm-raw-icon { flex-shrink: 0; color: var(--accent); }
+.bsd-tm-raw-label { flex: 1; font-size: 14px; font-weight: 600; color: var(--accent); }
+.bsd-tm-chip { font-family: var(--bsd-mono); font-size: 11px; font-weight: 600; color: var(--bsd-faint); }
+.bsd-tm-raw-pre {
+  margin: 0; padding: 16px 18px; max-width: 100%; overflow-x: auto; white-space: pre;
+  background: #151c2a; color: #e2e8f0; font-family: var(--bsd-mono); font-size: 12px; line-height: 1.6;
+}
+.bsd-tm-raw-none { border-top: 1px solid var(--bsd-line); padding: 16px 18px; display: flex; align-items: flex-start; gap: 10px; }
+.bsd-tm-none-icon { flex-shrink: 0; margin-top: 2px; color: #9aa1ac; }
+.bsd-tm-raw-none > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bsd-tm-raw-none-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.bsd-tm-raw-none-line { font-size: 13px; line-height: 1.55; color: var(--text-muted); text-wrap: pretty; }
+.bsd-tm-raw-state { margin: 0; border-top: 1px solid var(--bsd-line); padding: 14px 18px; }
+
+.bsd-tm-advanced {
+  margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--bsd-line);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap;
+  font-size: 14px; color: var(--text-muted);
+}
+
+/* /treasure-map/advanced: the way back, above the kicker. */
+.bsd-tm-back {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 18px; white-space: nowrap;
+  font-size: 13px; font-weight: 600;
+}
+.bsd-page a.bsd-tm-back { color: var(--text-muted); }
+.bsd-page a.bsd-tm-back:hover { color: var(--text); }
+
+/* ── /treasure-map — Assistants by category (manage-treasure-map #2, ADR 0002 sub-decision 7) ──────────────────────
+   The blueprint's tmbCats cards, view-only. */
+.bsd-tm-cat { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
+.bsd-tm-cat-heading,
+.bsd-tm-cat-label {
+  margin: 0; font-size: 11px; font-weight: 700; color: var(--bsd-faint); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.bsd-tm-cat-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.bsd-tm-cat-card {
+  position: relative; /* holds the visually-hidden name list */
+  display: flex; align-items: center; justify-content: space-between; gap: 10px 20px; flex-wrap: wrap;
+  border-radius: 16px; border: 1px solid var(--border); background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); padding: 16px 18px;
+}
+.bsd-tm-cat-what { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 260px; }
+.bsd-tm-cat-title { font-size: 17px; font-weight: 700; color: var(--text); }
+.bsd-tm-cat-desc { font-size: 13px; line-height: 1.5; color: var(--text-muted); text-wrap: pretty; }
+.bsd-tm-cat-who { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; max-width: 100%; }
+.bsd-tm-cat-assignee { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; flex-wrap: wrap; }
+.bsd-tm-cat-avatars { display: flex; align-items: center; }
+.bsd-tm-cat-avatar {
+  display: flex; width: 22px; height: 22px; flex-shrink: 0; align-items: center; justify-content: center;
+  border-radius: 999px; background: var(--bsd-navy); color: #ffffff; font-size: 11px; font-weight: 700;
+}
+.bsd-tm-cat-avatar.is-local { background: var(--accent); }
+.bsd-tm-cat-avatars .bsd-tm-cat-avatar + .bsd-tm-cat-avatar { margin-left: -6px; box-shadow: 0 0 0 2px #ffffff; }
+.bsd-tm-cat-name { min-width: 0; font-size: 14px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.bsd-tm-cat-count { font-size: 13px; color: var(--text-muted); }
+.bsd-tm-cat-none { font-size: 14px; font-weight: 600; color: var(--bsd-faint); }
+.bsd-tm-cat-state { margin-top: 0; }
+.bsd-tm-cat-mixed-line { margin: 0; font-size: 13px; line-height: 1.5; color: var(--bsd-faint); }
+.bsd-tm-cat-mixed-line a { font-weight: 600; }
+
+/* The raw box takes keyboard focus (manage-treasure-map #2, AC-5). */
+.bsd-tm-raw-pre:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ── /treasure-map — Edit mode (treasure-map-edit #3, ADR treasure-map-edit/0003 sub-decision 5) ────────────────────
+   The blueprint's tmbEdit controls: the Edit button, the All duties row, the pickers and their lists, the pending card,
+   the save note and the edited raw viewer. */
+.bsd-tm-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.bsd-tm-edit-toggle {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: #ffffff; color: var(--text);
+}
+.bsd-tm-edit-toggle:hover { border-color: var(--accent); }
+.bsd-tm-edit-toggle.is-on { border-color: var(--accent); background: var(--accent); color: #ffffff; }
+.bsd-tm-edit-warning {
+  border-radius: 12px; border: 1px solid var(--border); background: #fafaf9; padding: 12px 14px;
+  font-size: 13px; line-height: 1.55; color: var(--bsd-ink-2);
+}
+.bsd-tm-edit-warning p { margin: 0; }
+.bsd-tm-edit-all {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap;
+  border-radius: 16px; border: 1px dashed #c4b5fd; background: #faf8ff; padding: 14px 18px;
+}
+.bsd-tm-edit-all-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 240px; }
+.bsd-tm-edit-all-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.bsd-tm-edit-all-line { font-size: 13px; line-height: 1.5; color: var(--text-muted); text-wrap: pretty; }
+/* margin-left: auto keeps the actions at the row's end when the row wraps (phones), so the list, anchored to Assign to
+   all's right edge, opens inside the column, not off the left edge (story 3 review round 1). */
+.bsd-tm-edit-all-actions {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px 12px; flex-wrap: wrap; flex-shrink: 0;
+  max-width: 100%; margin-left: auto;
+}
+.bsd-tm-cat-card.is-pending { border: 1.5px solid var(--accent); background: #faf8ff; }
+.bsd-tm-edit-cardrow {
+  flex: 1 1 100%; display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap;
+  padding-top: 12px; border-top: 1px solid #f0f1ee; min-width: 0;
+}
+.bsd-tm-edit-picker { position: relative; }
+.bsd-tm-edit-pick {
+  white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--accent); background: #ffffff; color: var(--accent); cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+}
+.bsd-tm-edit-pick:hover { background: #f4efff; }
+.bsd-tm-edit-pick.is-filled { border: none; background: var(--accent); color: #ffffff; }
+.bsd-tm-edit-pick.is-filled:hover { background: var(--accent-hover); }
+.bsd-tm-edit-list {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: 300px; max-width: calc(100vw - 48px);
+  border-radius: 14px; border: 1px solid var(--border); background: #ffffff; box-shadow: 0 8px 24px rgba(10, 14, 24, 0.12);
+  overflow: hidden;
+}
+.bsd-tm-edit-list.is-end { left: auto; right: 0; }
+.bsd-tm-edit-rows { margin: 0; padding: 0; list-style: none; }
+.bsd-tm-edit-rows li + li .bsd-tm-edit-row { border-top: 1px solid #f0f1ee; }
+.bsd-tm-edit-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: none; background: #ffffff;
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.bsd-tm-edit-row:hover { background: #fafaf9; }
+.bsd-tm-edit-row.is-on { background: #faf8ff; }
+.bsd-tm-edit-avatar { width: 28px; height: 28px; font-size: 13px; }
+.bsd-tm-edit-row-text { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.bsd-tm-edit-row-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bsd-tm-edit-name { font-size: 13px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.bsd-tm-edit-row-detail { font-size: 12px; color: var(--bsd-faint); overflow-wrap: anywhere; }
+.bsd-tm-edit-badge {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px;
+  padding: 2px 7px; background: #f0f1ee; color: var(--text-muted);
+}
+.bsd-tm-edit-badge.is-local { background: rgba(114, 55, 255, 0.10); color: #5b21d6; }
+.bsd-tm-edit-check { flex-shrink: 0; color: var(--accent); }
+.bsd-tm-edit-list-state { margin: 0; padding: 12px 14px; font-size: 13px; color: var(--bsd-ink-2); }
+.bsd-tm-edit-list-state p { margin: 0; }
+.bsd-tm-edit-list-state a { font-weight: 600; }
+.bsd-tm-edit-chip {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px;
+  padding: 3px 8px; background: rgba(114, 55, 255, 0.12); color: #5b21d6; white-space: nowrap;
+}
+.bsd-tm-edit-will { font-size: 13px; color: var(--bsd-ink-2); overflow-wrap: anywhere; min-width: 0; }
+.bsd-tm-edit-undo {
+  background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600;
+  color: var(--text-muted);
+}
+.bsd-tm-edit-undo:hover { color: var(--text); }
+.bsd-tm-edit-note { margin: 0; text-align: right; font-size: 13px; color: var(--bsd-faint); }
+.bsd-tm-edit-raw { margin-top: 12px; }
+/* Story 4's switches (ADR treasure-map-edit/0004 sub-decision 5): a full-width row, label and note wrapping, a
+   36×20 track with a 16 px knob, as the blueprint draws them. */
+.bsd-tm-edit-switch {
+  flex: 1 1 100%; display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 10px 12px;
+  border-radius: 12px; border: 1px solid #e8eae7; background: #ffffff; cursor: pointer; font-family: inherit;
+  text-align: left;
+}
+.bsd-tm-edit-switch:hover { background: #fafaf9; }
+.bsd-tm-edit-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bsd-tm-edit-switch-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.bsd-tm-edit-switch-label { font-size: 13px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.bsd-tm-edit-switch-note { font-size: 12px; line-height: 1.45; color: var(--text-muted); overflow-wrap: anywhere; }
+.bsd-tm-edit-switch-track {
+  position: relative; flex-shrink: 0; width: 36px; height: 20px; border-radius: 999px; background: #d6d9db;
+  transition: background 0.15s;
+}
+.bsd-tm-edit-switch.is-on .bsd-tm-edit-switch-track { background: var(--accent); }
+.bsd-tm-edit-switch-knob {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: left 0.15s;
+}
+.bsd-tm-edit-switch.is-on .bsd-tm-edit-switch-knob { left: 18px; }
+.bsd-tm-edit-backups { margin-top: 12px; display: flex; }
+/* Story 5's Save (ADR treasure-map-edit/0005 sub-decision 8): the save bar, the blueprint's button, the refusal or
+   failure line, the partial report, and the brief "Treasure Map updated". */
+.bsd-tm-edit-savebar { display: flex; align-items: center; justify-content: flex-end; gap: 8px 14px; flex-wrap: wrap; margin-top: 12px; }
+.bsd-tm-edit-savebar .bsd-tm-edit-note { margin: 0; }
+.bsd-tm-edit-save {
+  height: 40px; padding: 0 20px; border-radius: 999px; border: none; font-family: inherit; font-size: 14px; font-weight: 600;
+  background: var(--accent); color: #ffffff; cursor: pointer;
+}
+.bsd-tm-edit-save:hover:not(:disabled) { background: var(--accent-hover); }
+.bsd-tm-edit-save:disabled { background: #e8eae7; color: #9aa1ac; cursor: not-allowed; }
+.bsd-tm-edit-save:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bsd-tm-edit-save-alert, .bsd-tm-save-report { margin-top: 12px; flex-direction: column; align-items: flex-start; min-width: 0; }
+.bsd-tm-save-report { margin-top: 0; margin-bottom: 12px; }
+.bsd-tm-save-relays { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.bsd-tm-edit-toggle:disabled, .bsd-tm-edit-pick:disabled, .bsd-tm-edit-undo:disabled, .bsd-tm-edit-switch:disabled {
+  opacity: 0.55; cursor: not-allowed;
+}
+.bsd-tm-toast-region { position: fixed; left: 0; right: 0; bottom: 0; height: 0; z-index: 50; pointer-events: none; }
+.bsd-tm-toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; max-width: calc(100vw - 32px);
+  padding: 10px 18px; border-radius: 999px; background: var(--text); color: #ffffff; font-size: 14px; font-weight: 600;
+  box-shadow: 0 8px 24px rgba(10, 14, 24, 0.18); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  animation: bsd-tm-toast-in 0.2s ease-out;
+}
+@keyframes bsd-tm-toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .bsd-tm-toast { animation: none; } }

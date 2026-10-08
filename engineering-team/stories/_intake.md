@@ -2711,3 +2711,27 @@ how the hub orders or groups actions as the list grows past ten ("8 or 9 (and gr
 
 **Classification:** feature. The per-action checks can follow the `/setup` status pattern (Standard,
 all phases). Each action page leans **Product Team** first, as the `/setup` step pages do.
+
+---
+
+## 2026-10-03 — The V4V Songs item page and rows in Tapestry's Dictionary, built from its view brief (feature)
+
+**PICKED UP** 2026-10-04 → built directly on `staging`, as the GitHub Accounts views were (fa6d37b, with 1b696ff for the brief; reviewed by a fresh Reviewer: review 1 CHANGES_REQUESTED, answered in deb7f11; review 2 PASS). Record: `docs/DICTIONARY_PAGE_HANDOFF.md` (the 2026-10-04 bullet). The brief's findings: `protocols/drafts/opinionated-views.md` Appendix B § Changes (2026-10-04). Loose ends: ledger rows `2026-10-04-*`.
+
+**Origin:** the Opinionated Views session of 2026-10-03, which wrote `protocols/drafts/opinionated-views.md` and its two view briefs: Appendix A (GitHub Accounts, from Tapestry's build) and Appendix B (V4V Songs, written before any build).
+
+**Raw request (verbatim, 2026-10-03):**
+
+> Giving V4V Songs the same treatment as GitHub Accounts is an excellent idea; it will help the rest of the team understand the big picture.
+
+> Let's include only playback. We can consider payments on a future version.
+
+**The plan the owner accepted:** write the brief first, then build Tapestry's V4V Songs views *from the brief alone*. That is how Brainstorm's team will use a brief, so the build doubles as a test of the brief. Anything the build needed that Appendix B didn't say is a finding: fix the brief, and note it in its Changes.
+
+**Scope:** the item page, and the Items table rows on `/dictionary/:coord`, for items of the V4V Songs DList (bound by its shared concept, opinionated-views § 4.2). Playback only: no payments, no lightning mark (Appendix B § Not in this version).
+
+**What exists to build on:** the GitHub Accounts views (`ui/src/pages/dictionary/github.js`, `GithubAccount.jsx`, `Item.jsx`; rows in `ui/src/pages/dictionaries/ConceptEntry.jsx` behind `dlistViews`); `docs/DICTIONARY_PAGE_HANDOFF.md` § "Adding the next DList"; tests `test/dictionary-github-account.test.js` as the pattern.
+
+**Environment:** the session that wrote the brief couldn't reach `staging.brainstorm.world` or `dcosl.brainstorm.world` (egress policy). The owner has since allowed both in the Default Cloud Environment, so a new session can smoke-test on staging.
+
+**Classification:** feature, with a settled design (the brief). Standard; a direct build like GitHub Accounts' is the precedent.

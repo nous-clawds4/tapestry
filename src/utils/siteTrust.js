@@ -6,7 +6,15 @@
  *
  * Kept out of bin/control-panel.js so the document builders are unit-testable
  * without booting Express.
+ *
+ * Also owns the agent-facing documents that ride on the same plumbing:
+ * llms.txt (story llms-txt #1) and the information-for-agents briefing
+ * (story information-for-agents #1), so their paths, their robots.txt
+ * exemptions, and the llms.txt link between them live in one place.
  */
+
+const fs = require('fs');
+const path = require('path');
 
 /**
  * The estate attestation. Every official hostname across all four fleets, so a
@@ -131,12 +139,14 @@ function buildSecurityTxt(opts = {}) {
  * stops a new sandbox from competing with production in search results before
  * anyone remembers to configure it.
  *
- * The non-indexing branch carves out one exemption: `LLMS_TXT_PATH` (story
- * llms-txt #1). `llms.txt` is a deliberate-agent affordance, not a
- * search-indexing signal, so a sandbox opting out of indexing should not also
- * hide it from an agent that fetches it by name. The indexing branch is
- * untouched — production's robots.txt stays byte-identical to before this
- * story (ADR llms-txt/0001, "behavior unchanged").
+ * The non-indexing branch carves out two exemptions: `LLMS_TXT_PATH` (story
+ * llms-txt #1) and `INFORMATION_FOR_AGENTS_PATH` (story information-for-agents
+ * #1). Both are deliberate-agent affordances, not search-indexing signals, so
+ * a sandbox opting out of indexing should not also hide them from an agent
+ * that fetches them by name — some AI fetchers honor robots.txt, and the
+ * briefing is exactly what a pasted prompt sends them to. The indexing branch
+ * is untouched — production's robots.txt stays byte-identical (ADR
+ * llms-txt/0001, "behavior unchanged").
  *
  * @param {{allowIndexing?: boolean}} [opts]
  * @returns {string}
@@ -145,7 +155,7 @@ function buildRobotsTxt(opts = {}) {
   const allowIndexing = Boolean(opts && opts.allowIndexing);
   return allowIndexing
     ? 'User-agent: *\nAllow: /\n'
-    : `User-agent: *\nAllow: ${LLMS_TXT_PATH}\nDisallow: /\n`;
+    : `User-agent: *\nAllow: ${LLMS_TXT_PATH}\nAllow: ${INFORMATION_FOR_AGENTS_PATH}\nDisallow: /\n`;
 }
 
 /**
@@ -153,8 +163,11 @@ function buildRobotsTxt(opts = {}) {
  * Story: engineering-team/stories/done/llms-txt/1-serve-llms-txt-on-the-fleet.md
  * ADR:   engineering-team/decisions/done/llms-txt/0001-serve-llms-txt-on-the-fleet.md
  *
- * Static and identical on every host — unlike security.txt's Canonical, there
- * is no per-deployment field, so this takes no options.
+ * Static and identical on every host, with one exception: given the
+ * deployment's domain, it opens with a "## Start here" section linking that
+ * host's information-for-agents briefing (ADR information-for-agents/0001,
+ * amending llms-txt/0001's "takes no options"). Without a domain it is
+ * byte-identical to the original.
  *
  * Content is pointers only (mostly into NosFabrica/protocols): the estate
  * discrepancy rule applies — ECOSYSTEM.md is canonical, this file only
@@ -195,10 +208,56 @@ Notes for agents:
 `;
 
 /**
+ * The "## Start here" section, inserted ahead of "## Protocols" when the
+ * deployment's domain is known.
+ *
+ * @param {string} domain
  * @returns {string}
  */
-function buildLlmsTxt() {
-  return LLMS_TXT;
+function llmsTxtStartHere(domain) {
+  return '## Start here\n\n' +
+    `- [Information for agents](https://${domain}${INFORMATION_FOR_AGENTS_PATH}): what Brainstorm offers a nostr project — trust scores as NIP-85 events and over HTTP, relay whitelists, web-of-trust search, Decentralized Lists, Trusted Lists — with each piece's maturity and where to start.\n\n`;
+}
+
+/**
+ * The domain comes from DOMAIN_NAME, never the request's Host header (same
+ * rule, same normalization, as buildSecurityTxt's Canonical): empty and
+ * `localhost` mean "unknown", and an unknown host gets no link rather than a
+ * guessed one.
+ *
+ * @param {{domain?: string}} [opts]
+ * @returns {string}
+ */
+function buildLlmsTxt(opts = {}) {
+  const domain = opts && typeof opts.domain === 'string' ? opts.domain.trim() : '';
+  if (!domain || domain === 'localhost') return LLMS_TXT;
+  const at = LLMS_TXT.indexOf('## Protocols');
+  return LLMS_TXT.slice(0, at) + llmsTxtStartHere(domain) + LLMS_TXT.slice(at);
+}
+
+/**
+ * The information-for-agents briefing — a markdown explainer of Brainstorm's
+ * scores and protocols, written for an AI agent helping someone build on
+ * nostr. The page at /information-for-agents hands people a prompt that
+ * sends their agent here.
+ * Story: engineering-team/stories/information-for-agents/1-information-for-agents-page-and-briefing.md
+ * ADR:   engineering-team/decisions/information-for-agents/0001-serve-the-briefing-and-build-the-page.md
+ *
+ * The source is an ordinary markdown file so it stays editable and readable
+ * on GitHub; it is read on every request (about 15 KB, low traffic) so an
+ * edit is live without a restart. `.md` is not a blocked probe extension, so
+ * a missing or late route would not 404 — it would fall through to the SPA
+ * shell with a 200. The route must precede the catch-all.
+ */
+const INFORMATION_FOR_AGENTS_PATH = '/information-for-agents.md';
+
+const INFORMATION_FOR_AGENTS_SOURCE = path.join(__dirname, '../../docs/information-for-agents.md');
+
+/**
+ * @returns {Promise<string>} the briefing, verbatim
+ */
+function readInformationForAgents() {
+  return fs.promises.readFile(INFORMATION_FOR_AGENTS_SOURCE, 'utf8');
 }
 
 /**
@@ -268,6 +327,9 @@ module.exports = {
   isBlockedProbePath,
   buildLlmsTxt,
   LLMS_TXT_PATH,
+  INFORMATION_FOR_AGENTS_PATH,
+  INFORMATION_FOR_AGENTS_SOURCE,
+  readInformationForAgents,
   // Exported for the test suite. NOTE: the sibling fleets (Brainstorm-UI, the
   // strfry relays) carry their own COPIES of this text — they are separate
   // repositories and cannot import it. Any edit here must be mirrored there.

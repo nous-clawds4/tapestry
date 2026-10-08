@@ -1,0 +1,179 @@
+<section data-screen-label="Manage your Treasure Map" style="flex:1;width:100%;">
+      <main style="max-width:720px;margin:0 auto;padding:40px 24px 120px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.25em;color:#13d2e5;text-transform:uppercase;">Treasure Map</span>
+          <div style="height:1px;width:48px;background:rgba(19,210,229,.4);"></div>
+        </div>
+        <h1 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-0.02em;line-height:1.1;color:#0a0e18;">Manage your <span style="color:#7237ff;">Treasure Map</span>.</h1>
+        <p style="margin:14px 0 0;max-width:620px;font-size:16px;color:#555d69;line-height:1.6;text-wrap:pretty;">Your Treasure Map tells other apps where to find the insights your Assistant gathers from your trusted community — who to trust, what’s worth your attention, and how your community organizes ideas. Brainstorm keeps it up to date for you.</p>
+        <div style="margin-top:28px;">
+          <button sc-camel-on-click="{{ tmbToggleFaq }}" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:#7237ff;" style-hover="color:#612fd9;">Frequently asked questions <svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="{{ tmbFaqChev }}"><path d="m6 9 6 6 6-6"></path></svg></button>
+          <sc-if value="{{ tmbFaqShown }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;border-radius:16px;border:1px solid #d6d9db;background:#ffffff;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden;">
+            <sc-for list="{{ tmbFaqs }}" as="f" hint-placeholder-count="4">
+              <div style="{{ f.rowStyle }}">
+                <button sc-camel-on-click="{{ f.toggle }}" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;background:none;border:none;padding:14px 18px;cursor:pointer;font-family:inherit;text-align:left;" style-hover="background:#fafaf9;">
+                  <span style="flex:1;font-size:15px;font-weight:600;color:#0a0e18;">{{ f.q }}</span>
+                  <svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#9aa1ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="{{ f.chevStyle }}"><path d="m6 9 6 6 6-6"></path></svg>
+                </button>
+                <sc-if value="{{ f.open }}" hint-placeholder-val="{{ false }}">
+                  <p style="margin:0;padding:0 18px 16px;font-size:14px;color:#555d69;line-height:1.6;text-wrap:pretty;">{{ f.a }}</p>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+          </sc-if>
+        </div>
+        <div style="margin-top:28px;display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;">
+            <span style="font-size:11px;font-weight:700;color:#8c929e;text-transform:uppercase;letter-spacing:.06em;">Assistants by category</span>
+            <button sc-camel-on-click="{{ tmbToggleEdit }}" aria-pressed="{{ tmbEdit }}" style="{{ tmbEditBtn }}"><svg width="13" height="13" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>{{ tmbEditLabel }}</button>
+          </div>
+          <sc-if value="{{ tmbEdit }}" hint-placeholder-val="{{ false }}">
+            <div style="border-radius:16px;border:1px dashed #c4b5fd;background:#faf8ff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;">
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 240px;">
+                <span style="font-size:14px;font-weight:700;color:#0a0e18;">All duties</span>
+                <span style="font-size:13px;color:#6b7480;line-height:1.5;text-wrap:pretty;">Assign one Assistant to Scores, Lists, Concepts, and everything else.</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px 12px;flex-wrap:wrap;flex-shrink:0;">
+                <sc-if value="{{ tmbAllPending }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:13px;color:#555d69;white-space:nowrap;">{{ tmbAllName }}</span>
+                  <button sc-camel-on-click="{{ tmbAllUndo }}" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#6b7480;" style-hover="color:#0a0e18;">Undo</button>
+                </sc-if>
+                <div style="position:relative;">
+                  <button sc-camel-on-click="{{ tmbAllToggle }}" aria-expanded="{{ tmbAllOpen }}" style="white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;border:none;background:#7237ff;color:#ffffff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;" style-hover="background:#612fd9;">Assign to all<svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+                  <sc-if value="{{ tmbAllOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:calc(100% + 6px);right:0;width:300px;max-width:calc(100vw - 48px);z-index:20;border-radius:14px;border:1px solid #d6d9db;background:#ffffff;box-shadow:0 8px 24px rgba(10,14,24,.12);overflow:hidden;">
+                      <sc-for list="{{ tmbAllOpts }}" as="o" hint-placeholder-count="3">
+                        <button sc-camel-on-click="{{ o.pick }}" style="{{ o.rowStyle }}" style-hover="background:#fafaf9;">
+                          <span style="{{ o.avStyle }}">{{ o.initial }}</span>
+                          <span style="min-width:0;flex:1;display:flex;flex-direction:column;">
+                            <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:13px;font-weight:600;color:#0a0e18;">{{ o.name }}</span><sc-if value="{{ o.local }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 7px;background:rgba(114,55,255,.10);color:#5b21d6;">Local</span></sc-if><sc-if value="{{ o.isCur }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 7px;background:#f0f1ee;color:#6b7480;">Current</span></sc-if></span>
+                            <span style="font-size:12px;color:#8c929e;overflow-wrap:anywhere;">{{ o.url }}</span>
+                          </span>
+                          <sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#7237ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+              <sc-if value="{{ tmbAllHasConf }}" hint-placeholder-val="{{ false }}">
+                <button sc-camel-on-click="{{ tmbAllOvToggle }}" role="switch" aria-checked="{{ tmbAllOvOnStr }}" style="flex:1 1 100%;display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:12px;border:1px solid #e8eae7;background:#ffffff;cursor:pointer;font-family:inherit;text-align:left;" style-hover="background:#fafaf9;">
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:13px;font-weight:600;color:#0a0e18;">{{ tmbAllOvLabel }}</span>
+                    <span style="font-size:12px;color:#6b7480;line-height:1.5;">{{ tmbAllOvNote }}</span>
+                  </span>
+                  <span style="{{ tmbAllOvTrack }}"><span style="{{ tmbAllOvKnob }}"></span></span>
+                </button>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-for list="{{ tmbCats }}" as="c" hint-placeholder-count="3">
+            <div style="{{ c.cardStyle }}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px 20px;flex-wrap:wrap;">
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 260px;">
+                <span style="font-size:17px;font-weight:700;color:#0a0e18;">{{ c.title }}</span>
+                <span style="font-size:13px;color:#6b7480;line-height:1.5;text-wrap:pretty;">{{ c.desc }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;">
+                <span style="font-size:11px;font-weight:700;color:#8c929e;text-transform:uppercase;letter-spacing:.06em;">Assigned to</span>
+                <sc-if value="{{ c.single }}" hint-placeholder-val="{{ true }}">
+                  <span style="display:flex;align-items:center;gap:8px;min-width:0;"><span style="{{ c.avStyle }}">{{ c.initial }}</span><span style="font-size:14px;font-weight:600;color:#0a0e18;">{{ c.name }}</span></span>
+                </sc-if>
+                <sc-if value="{{ c.mixed }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:flex;align-items:center;gap:8px;min-width:0;">
+                    <span style="display:flex;align-items:center;">
+                      <sc-for list="{{ c.avs }}" as="v" hint-placeholder-count="2"><span style="{{ v.avStyle }}">{{ v.initial }}</span></sc-for>
+                    </span>
+                    <span style="font-size:14px;font-weight:600;color:#0a0e18;">Mixed</span>
+                    <span style="font-size:13px;color:#6b7480;">· {{ c.mixedNote }}</span>
+                  </span>
+                </sc-if>
+              </div>
+            </div>
+            <sc-if value="{{ tmbEdit }}" hint-placeholder-val="{{ false }}">
+              <div style="padding-top:12px;border-top:1px solid #f0f1ee;display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;">
+                <div style="position:relative;">
+                  <button sc-camel-on-click="{{ c.togglePick }}" aria-expanded="{{ c.pickOpen }}" style="white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;border:1px solid #7237ff;background:#ffffff;color:#7237ff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;" style-hover="background:#f4efff;">{{ c.pickLabel }}<svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+                  <sc-if value="{{ c.pickOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:calc(100% + 6px);left:0;width:300px;max-width:calc(100vw - 48px);z-index:20;border-radius:14px;border:1px solid #d6d9db;background:#ffffff;box-shadow:0 8px 24px rgba(10,14,24,.12);overflow:hidden;">
+                      <sc-for list="{{ c.pickOpts }}" as="o" hint-placeholder-count="3">
+                        <button sc-camel-on-click="{{ o.pick }}" style="{{ o.rowStyle }}" style-hover="background:#fafaf9;">
+                          <span style="{{ o.avStyle }}">{{ o.initial }}</span>
+                          <span style="min-width:0;flex:1;display:flex;flex-direction:column;">
+                            <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:13px;font-weight:600;color:#0a0e18;">{{ o.name }}</span><sc-if value="{{ o.local }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 7px;background:rgba(114,55,255,.10);color:#5b21d6;">Local</span></sc-if><sc-if value="{{ o.isCur }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 7px;background:#f0f1ee;color:#6b7480;">Current</span></sc-if></span>
+                            <span style="font-size:12px;color:#8c929e;overflow-wrap:anywhere;">{{ o.url }}</span>
+                          </span>
+                          <sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#7237ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 6 9 17l-5-5"></path></svg></sc-if>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ c.pending }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:3px 8px;background:rgba(114,55,255,.12);color:#5b21d6;">Unsaved</span>
+                  <span style="font-size:13px;color:#555d69;">Will be assigned to {{ c.pendingName }}</span>
+                  <button sc-camel-on-click="{{ c.undo }}" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#6b7480;" style-hover="color:#0a0e18;">Undo</button>
+                </sc-if>
+              </div>
+              <sc-if value="{{ c.hasConflicts }}" hint-placeholder-val="{{ false }}">
+                <button sc-camel-on-click="{{ c.ovToggle }}" role="switch" aria-checked="{{ c.ovOnStr }}" style="margin-top:10px;display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:12px;border:1px solid #e8eae7;background:#ffffff;cursor:pointer;font-family:inherit;text-align:left;" style-hover="background:#fafaf9;">
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:13px;font-weight:600;color:#0a0e18;">{{ c.ovLabel }}</span>
+                    <span style="font-size:12px;color:#6b7480;line-height:1.5;">{{ c.ovNote }}</span>
+                  </span>
+                  <span style="{{ c.ovTrack }}"><span style="{{ c.ovKnob }}"></span></span>
+                </button>
+              </sc-if>
+            </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ tmbEdit }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px 14px;flex-wrap:wrap;">
+              <span style="font-size:13px;color:#8c929e;">{{ tmbSaveNote }}</span>
+              <button sc-camel-on-click="{{ tmbSave }}" disabled="{{ tmbSaveDisabled }}" style="{{ tmbSaveStyle }}">Save changes</button>
+            </div>
+          </sc-if>
+          <span style="font-size:13px;color:#8c929e;line-height:1.5;">Mixed assignments can be reviewed on the <button sc-camel-on-click="{{ goTreasure }}" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#7237ff;" style-hover="color:#612fd9;">Advanced page</button>.</span>
+        </div>
+        <div style="margin-top:28px;border-radius:16px;border:1px solid #d6d9db;background:#ffffff;overflow:hidden;">
+          <button sc-camel-on-click="{{ tmbToggleRaw }}" aria-expanded="{{ tmbRawOpen }}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;background:none;border:none;padding:14px 18px;cursor:pointer;font-family:inherit;text-align:left;" style-hover="background:#fafaf9;">
+            <svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#7237ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            <span style="flex:1;font-size:14px;font-weight:600;color:#7237ff;">{{ tmbRawLabel }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#8c929e;">kind 10040</span>
+          </button>
+          <sc-if value="{{ tmbRawOpen }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ tmbFound }}" hint-placeholder-val="{{ true }}">
+              <pre style="margin:0;padding:16px 18px;background:#151c2a;color:#e2e8f0;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.6;overflow-x:auto;white-space:pre;">{{ tmbRaw }}</pre>
+            </sc-if>
+            <sc-if value="{{ tmbMissing }}" hint-placeholder-val="{{ false }}">
+              <div style="border-top:1px solid #e8eae7;padding:16px 18px;display:flex;align-items:flex-start;gap:10px;">
+                <svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#9aa1ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span style="font-size:14px;font-weight:600;color:#0a0e18;">No Treasure Map found</span>
+                  <span style="font-size:13px;color:#6b7480;line-height:1.55;text-wrap:pretty;">We couldn’t locate a kind 10040 event for your profile on your relays.</span>
+                </div>
+              </div>
+            </sc-if>
+          </sc-if>
+        </div>
+        <sc-if value="{{ tmbEdit }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:12px;border-radius:16px;border:1px solid #d6d9db;background:#ffffff;overflow:hidden;">
+            <button sc-camel-on-click="{{ tmbToggleRawEd }}" aria-expanded="{{ tmbRawEdOpen }}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;background:none;border:none;padding:14px 18px;cursor:pointer;font-family:inherit;text-align:left;" style-hover="background:#fafaf9;">
+              <svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#7237ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              <span style="flex:1;font-size:14px;font-weight:600;color:#7237ff;">{{ tmbRawEdLabel }}</span>
+              <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:3px 8px;background:rgba(114,55,255,.12);color:#5b21d6;">Unsaved draft</span>
+            </button>
+            <sc-if value="{{ tmbRawEdOpen }}" hint-placeholder-val="{{ false }}">
+              <pre style="margin:0;padding:16px 18px;background:#151c2a;color:#e2e8f0;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.6;overflow-x:auto;white-space:pre;">{{ tmbRawEd }}</pre>
+            </sc-if>
+          </div>
+        </sc-if>
+        <div style="margin-top:40px;padding-top:18px;border-top:1px solid #e8eae7;display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;">
+          <span style="font-size:14px;color:#6b7480;">Need fine-grained control over every entry?</span>
+          <button sc-camel-on-click="{{ goTreasure }}" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:#7237ff;" style-hover="color:#612fd9;">Advanced management<svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button>
+        </div>
+      </main>
+    </section>
+  </sc-if>

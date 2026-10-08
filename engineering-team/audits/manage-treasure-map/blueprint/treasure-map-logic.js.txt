@@ -1,0 +1,138 @@
+// ── Sample Assistants, catch-all rows and the local Assistant ───────────────────────────────────────────
+const TM_CATCH_ROWS = [{ key: "*", label: "Everything" }, { key: "3038x", label: "All Scores" }, { key: "3039x", label: "All Lists" }, { key: "3038x:tag", label: "All Tag-based Scores" }, { key: "3038x:dlist", label: "All DList-based Scores" }, { key: "3039x:tag", label: "All Tag-based Lists" }, { key: "3039x:dlist", label: "All DList-based Lists" }, { key: "39998", label: "All Concepts" }];
+const TM_CATCH_DEFAULT = { "*": ["brainstorm", ""] };
+const MA_TAGS = { b: "My Brainstorm Assistant", t: "My Tapestry Assistant" };
+const MA_LOCAL = "brainstorm";
+const MA_POOL = { ...TM_ASSIST, old: { name: "Alice's old Assistant", url: "old.brainstorm.world", pk: "9b4e2a7c1f6d3085e9b4c2a7f1d6e30b8c5a2f9e4d1b7c6a3e0f8d2b5c9a1e4f" } };
+
+// ── Score/List/Concept kinds (TMK_KINDS) ────────────────────────────────────────────────────────────────
+const TMK_KINDS = {
+  "30382": { cls: "score", about: "profiles", one: "profile", cat: "none" }, "30383": { cls: "score", about: "events", one: "event", cat: "kind" },
+  "30384": { cls: "score", about: "addressable events", one: "addressable event", cat: "kind" }, "30385": { cls: "score", about: "external things", one: "external thing", cat: "type" },
+  "30386": { cls: "score", about: "DList items", one: "DList item", cat: "dlist" },
+  "30392": { cls: "list", about: "profiles", one: "profile", cat: "none" }, "30393": { cls: "list", about: "events", one: "event", cat: "kind" },
+  "30394": { cls: "list", about: "addressable events", one: "addressable event", cat: "kind" }, "30395": { cls: "list", about: "external things", one: "external thing", cat: "type" },
+  "30396": { cls: "list", about: "DList items", one: "DList item", cat: "dlist" },
+  "30387": { cls: "score", about: "lists", one: "list", cat: "dlist" },
+  "30397": { cls: "list", about: "lists", one: "list", cat: "dlist" },
+  "39998": { cls: "concept" }, "39999": { cls: "concept" },
+};
+
+// ── The categories' keys and this screen's FAQ ──────────────────────────────────────────────────────────
+const TMB_CAT_KEYS = {
+  scores: ["3038x", "30382", "30383", "30384", "30385", "30386", "30387", "30382:rank", "30382:followers", "30382:reporters", "30382:hops"],
+  lists: ["3039x", "30392", "30393", "30394", "30395", "30396", "30397"],
+  concepts: ["39998", "39999"],
+  all: ["*"],
+};
+const TMB_FAQS = [
+  { q: "What is a Treasure Map?", a: "A public record that points other nostr apps to the insights your Assistant calculates for you, so every app you use can benefit from your trusted community." },
+  { q: "Do I need to do anything?", a: "Not usually. Brainstorm creates your Treasure Map during setup and keeps it current. You only need to sign again when something important changes." },
+  { q: "Who can see it?", a: "Anyone. It's published to relays like any other nostr event, so any app can read it." },
+  { q: "What's on the Advanced page?", a: "Every individual entry in your Treasure Map — scores, lists, and concepts — along with which Assistant provides each one. Most people never need it." },
+];
+
+// ── tmbConflicts, tmbPendDel, tmEntries: the Map's entries as the screen reads them ─────────────────────
+  tmbConflicts(E0, sec, id) {
+    const keys = TMB_CAT_KEYS[sec] || []; const fam = { scores: "3038x:", lists: "3039x:" }[sec];
+    const micro = e => !keys.includes(e.key) && (e.sec === sec || (fam && e.sec === "catch" && String(e.key).startsWith(fam)));
+    const out = []; E0.forEach(e => { if (micro(e) && e.id !== id && !out.includes(e.key)) out.push(e.key); }); return out;
+  }
+
+  tmbPendDel(s, E0) { const pend = s.tmbPending || {}, ov = s.tmbOver || {}; const out = [];
+    ["scores", "lists", "concepts"].forEach(sec => { if (pend[sec] && ov[sec]) this.tmbConflicts(E0, sec, pend[sec]).forEach(k => { if (!out.includes(k)) out.push(k); }); }); return out; }
+
+  tmEntries(s, extra, extraDel) {
+    const out = [];
+    const add = (sec, A, list) => { const tags = []; list.forEach(id => A[id].scores.forEach(t => { if (!tags.includes(t)) tags.push(t); }));
+      tags.forEach(t => list.filter(id => A[id].scores.includes(t)).forEach(id => out.push({ sec, key: t, a: A[id], id }))); };
+    const ca = s.tmCatch ?? TM_CATCH_DEFAULT;
+    TM_CATCH_ROWS.forEach(r => (ca[r.key] || []).filter(Boolean).forEach(id => { if (TM_ASSIST[id]) out.push({ sec: "catch", key: r.key, a: TM_ASSIST[id], id }); }));
+    add("scores", { ...TA_ASSISTANTS, ...(s.taCustom || {}) }, s.taList ?? TA_PRESETS[s.taView ?? "multi"]);
+    add("lists", { ...TL_BASE, ...(s.tlCustom || {}) }, s.tlList ?? TL_PRESETS[s.tlView ?? "multi"]);
+    const cc = this.ccSets(s); add("concepts", cc.A, cc.list);
+    const ov = s.tmOrder || {}; let res = out;
+    Object.keys(ov).forEach(k => { const grp = res.filter(e => e.key === k); if (!grp.length) return; const ord = ov[k].map(x => typeof x === "string" ? x : x.id);
+      const rk = e => { const i = ord.indexOf(e.id); return i < 0 ? 1000 + grp.indexOf(e) : i; };
+      const sorted = grp.slice().sort((a, b) => rk(a) - rk(b)); let j = 0; res = res.map(e => e.key === k ? sorted[j++] : e); });
+    const asg = { ...(s.tmbAssigned || {}), ...(extra || {}) };
+    Object.keys(asg).forEach(sec => { const id = asg[sec]; const a = MA_POOL[id]; const keys = TMB_CAT_KEYS[sec]; if (!a || !keys) return;
+      const hit = e => keys.includes(e.key); const at = res.findIndex(e => hit(e) || e.sec === sec);
+      res = res.filter(e => !hit(e)); const repl = keys.map(key => ({ sec: /x$|^\*$/.test(key) ? "catch" : sec, key, a, id }));
+      res.splice(at < 0 ? res.length : Math.min(at, res.length), 0, ...repl); });
+    const del = [...(s.tmbDeleted || []), ...(extraDel || [])]; if (del.length) res = res.filter(e => !del.includes(e.key));
+    return res;
+  }
+
+// ── tmRaw: the raw Treasure Map text ────────────────────────────────────────────────────────────────────
+  tmRaw(s, extra, extraDel) {
+    const rows = this.tmEntries(s, extra, extraDel).map(x => [x.key, x.a.pk, "wss://nip85." + x.a.url]);
+    return '{\n  "kind": 10040,\n  "pubkey": "e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f",\n  "created_at": 1790121600,\n  "tags": [\n' + rows.map(r => "    " + JSON.stringify(r)).join(",\n") + '\n  ],\n  "content": "",\n  "id": "b1c7…",\n  "sig": "9f3a…"\n}';
+  }
+
+// ── The screen's values (tmb*), from the component's render values ──────────────────────────────────────
+      isTreasureBasic: s.screen === "treasure-basic",
+      tmbEdit: !!s.tmbEdit, tmbToggleEdit: () => this.setState({ tmbEdit: !s.tmbEdit, tmbPending: {}, tmbOver: {}, tmbRawEdOpen: false }),
+      tmbEditBtn: { display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 14px", borderRadius: 999, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, border: s.tmbEdit ? "1px solid #7237ff" : "1px solid #d6d9db", background: s.tmbEdit ? "#7237ff" : "#ffffff", color: s.tmbEdit ? "#ffffff" : "#0a0e18" },
+      tmbEditLabel: s.tmbEdit ? "Editing" : "Edit",
+      ...(() => { const pend = s.tmbPending || {}; const dirty = Object.keys(pend).length > 0; const pDel = this.tmbPendDel(s, this.tmEntries(s));
+        return { tmbDirty: dirty, tmbSaveDisabled: !dirty, tmbSaveStyle: { height: 40, padding: "0 20px", borderRadius: 999, border: "none", fontFamily: "inherit", fontSize: 14, fontWeight: 600, cursor: dirty ? "pointer" : "not-allowed", background: dirty ? "#7237ff" : "#e8eae7", color: dirty ? "#ffffff" : "#9aa1ac" },
+          tmbSaveNote: dirty ? (pend.all ? "All duties → " + MA_POOL[pend.all].name : Object.keys(pend).length + " unsaved change" + (Object.keys(pend).length > 1 ? "s" : "")) : "No changes yet",
+          tmbSave: () => { if (!dirty) return; this.setState({ tmbAssigned: { ...(s.tmbAssigned || {}), ...pend }, tmbDeleted: [...new Set([...(s.tmbDeleted || []), ...pDel])], tmbPending: {}, tmbOver: {}, tmbEdit: false, tmbRawEdOpen: false }); this.showToast("Treasure Map updated"); },
+          tmbRawEdOpen: !!s.tmbRawEdOpen, tmbToggleRawEd: () => this.setState({ tmbRawEdOpen: !s.tmbRawEdOpen }),
+          tmbRawEdLabel: (s.tmbRawEdOpen ? "Hide" : "View") + " the raw Treasure Map — edited",
+          tmbRawEd: this.tmRaw(s, pend, pDel) }; })(),
+      ...(() => { const pend = s.tmbPending || {}; const E0 = this.tmEntries(s);
+        const av = id => ({ display: "flex", width: 28, height: 28, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 999, background: id === MA_LOCAL ? "#7237ff" : "#2b174f", color: "#ffffff", fontSize: 13, fontWeight: 700 });
+        const ini = a => a.name.replace(/^Alice's /, "")[0];
+        const prim = {}; E0.forEach(e => { if (!(e.key in prim)) prim[e.key] = e.id; });
+        const allKeys = Object.values(TMB_CAT_KEYS).flat(); const cur0 = prim["*"]; const curAll = cur0 && allKeys.every(k => prim[k] === cur0) ? cur0 : null;
+        const maT = s.maTags ?? MA_DEFAULT; const opIds = Object.keys(maT).filter(id => MA_POOL[id]).sort((a, b) => (b === MA_LOCAL) - (a === MA_LOCAL)); if (!opIds.includes(MA_LOCAL)) opIds.unshift(MA_LOCAL);
+        const open = s.tmbPick === "all"; const sel = pend.all || curAll;
+        const ovr = s.tmbOver || {}; const cs = pend.all ? ["scores", "lists", "concepts"].filter(sec => this.tmbConflicts(E0, sec, pend[sec] || pend.all).length) : [];
+        const cn = pend.all ? ["scores", "lists", "concepts"].reduce((n, sec) => n + this.tmbConflicts(E0, sec, pend[sec] || pend.all).length, 0) : 0;
+        const aOn = cs.length > 0 && cs.every(sec => ovr[sec]);
+        return { tmbAllHasConf: cn > 0, tmbAllOvOnStr: String(aOn), tmbAllOvLabel: "Override " + cn + " individually assigned dut" + (cn === 1 ? "y" : "ies") + " across all categories",
+          tmbAllOvNote: aOn ? "These will be removed from your Treasure Map." : "Kept as they are; they take priority over this assignment.",
+          tmbAllOvToggle: () => this.setState({ tmbOver: { ...ovr, scores: !aOn, lists: !aOn, concepts: !aOn } }),
+          tmbAllOvTrack: { position: "relative", flexShrink: 0, width: 36, height: 20, borderRadius: 999, background: aOn ? "#7237ff" : "#d6d9db", transition: "background .15s" },
+          tmbAllOvKnob: { position: "absolute", top: 2, left: aOn ? 18 : 2, width: 16, height: 16, borderRadius: 999, background: "#ffffff", boxShadow: "0 1px 2px rgba(0,0,0,.2)", transition: "left .15s" },
+          tmbAllOpen: open, tmbAllToggle: () => this.setState({ tmbPick: open ? null : "all" }), tmbAllPending: !!pend.all, tmbAllName: pend.all ? MA_POOL[pend.all].name : "",
+          tmbAllUndo: () => this.setState({ tmbPending: {}, tmbOver: {} }),
+          tmbAllOpts: opIds.map((id, i) => { const o = MA_POOL[id]; const isCur = id === curAll, on = id === sel; return { name: o.name, url: o.url, initial: ini(o), local: id === MA_LOCAL, on, isCur, avStyle: av(id),
+            rowStyle: { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", border: "none", borderTop: i ? "1px solid #f0f1ee" : "none", background: on ? "#faf8ff" : "#ffffff", cursor: "pointer", fontFamily: "inherit", textAlign: "left" },
+            pick: () => this.setState({ tmbPending: isCur ? {} : { scores: id, lists: id, concepts: id, all: id }, tmbOver: {}, tmbPick: null }) }; }) }; })(),
+      tmbCats: (() => { const pend = s.tmbPending || {}; const E0 = this.tmEntries(s); const E = this.tmEntries(s, pend, this.tmbPendDel(s, E0)); const ovr = s.tmbOver || {}; const ca = s.tmCatch ?? TM_CATCH_DEFAULT;
+        const av = (id, i) => ({ display: "flex", width: 22, height: 22, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 999, background: id === MA_LOCAL ? "#7237ff" : "#2b174f", color: "#ffffff", fontSize: 11, fontWeight: 700, marginLeft: i ? -6 : 0, boxShadow: i ? "0 0 0 2px #ffffff" : "none" });
+        const ini = a => a.name.replace(/^Alice's /, "")[0];
+        return [["scores", "Scores", "3038x", "Trust scores for profiles and content, one at a time."], ["lists", "Lists", "3039x", "Curated lists of profiles and content."], ["concepts", "Concepts", null, "Structured datasets your community organizes together."]].map(([sec, title, ck, desc]) => {
+          const idsOf = L => { const seen = {}, ids = []; L.filter(e => e.sec === sec || (ck && e.sec === "catch" && String(e.key).startsWith(ck) && !L.some(x => x.sec === sec))).forEach(e => { if (seen[e.key]) return; seen[e.key] = 1; if (!ids.includes(e.id)) ids.push(e.id); });
+            if (!ids.length) { const fb = (ck && ca[ck] && ca[ck][0]) || (ca["*"] && ca["*"][0]) || MA_LOCAL; ids.push(fb); } return ids; };
+          const ids = idsOf(E); const c0 = idsOf(E0); const curSole = c0.length === 1 ? c0[0] : null; const pending = !!pend[sec];
+          const maT = s.maTags ?? MA_DEFAULT; const opIds = Object.keys(maT).filter(id => MA_POOL[id]).sort((a, b) => (b === MA_LOCAL) - (a === MA_LOCAL)); if (!opIds.includes(MA_LOCAL)) opIds.unshift(MA_LOCAL);
+          const pickOpen = s.tmbPick === sec; const sel = pend[sec] || curSole;
+          const extra = { pending, pendingName: pending ? MA_POOL[pend[sec]].name : "", pickOpen, pickLabel: pending ? "Change" : "Choose an Assistant",
+            togglePick: () => this.setState({ tmbPick: pickOpen ? null : sec }),
+            pickOpts: opIds.map((id, i) => { const o = MA_POOL[id]; const isCur = id === curSole, on = id === sel; return { name: o.name, url: o.url, initial: ini(o), local: id === MA_LOCAL, on, isCur,
+              avStyle: { ...av(id, 0), width: 28, height: 28, fontSize: 13 },
+              rowStyle: { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", border: "none", borderTop: i ? "1px solid #f0f1ee" : "none", background: on ? "#faf8ff" : "#ffffff", cursor: "pointer", fontFamily: "inherit", textAlign: "left" },
+              pick: () => { const n = { ...pend }; if (isCur) delete n[sec]; else n[sec] = id; this.setState({ tmbPending: n, tmbPick: null }); } }; }),
+            undo: () => { const n = { ...pend }; delete n[sec]; delete n.all; this.setState({ tmbPending: n, tmbOver: { ...ovr, [sec]: false } }); },
+            ...(() => { const cf = pending ? this.tmbConflicts(E0, sec, pend[sec]) : []; const on = !!ovr[sec];
+              return { hasConflicts: cf.length > 0, ovOn: on, ovOnStr: String(on), ovLabel: "Override " + cf.length + " individually assigned dut" + (cf.length === 1 ? "y" : "ies"),
+                ovNote: on ? "These will be removed from your Treasure Map." : "Kept as they are; they take priority over this assignment.",
+                ovToggle: () => this.setState({ tmbOver: { ...ovr, [sec]: !on } }),
+                ovTrack: { position: "relative", flexShrink: 0, width: 36, height: 20, borderRadius: 999, background: on ? "#7237ff" : "#d6d9db", transition: "background .15s" },
+                ovKnob: { position: "absolute", top: 2, left: on ? 18 : 2, width: 16, height: 16, borderRadius: 999, background: "#ffffff", boxShadow: "0 1px 2px rgba(0,0,0,.2)", transition: "left .15s" } }; })(),
+            cardStyle: { borderRadius: 16, border: pending ? "1.5px solid #7237ff" : "1px solid #d6d9db", background: pending ? "#faf8ff" : "#ffffff", boxShadow: "0 1px 3px rgba(0,0,0,.06)", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 } };
+          const a = MA_POOL[ids[0]] || MA_POOL[MA_LOCAL];
+          return { ...extra, title, desc, single: ids.length === 1, mixed: ids.length > 1, name: a.name, initial: ini(a), avStyle: av(ids[0], 0),
+            mixedNote: ids.length + " Assistants", avs: ids.slice(0, 3).map((id, i) => ({ initial: ini(MA_POOL[id] || a), avStyle: av(id, i) })) }; }); })(),
+      tmbRawOpen: !!s.tmbRawOpen, tmbToggleRaw: () => this.setState({ tmbRawOpen: !s.tmbRawOpen }),
+      tmbRawLabel: s.tmbRawOpen ? "Hide the raw Treasure Map" : "View the raw Treasure Map",
+      tmbFound: this.isActivated(), tmbMissing: !this.isActivated(),
+      tmbRaw: this.tmRaw(s),
+      tmbFaqShown: !!s.tmbFaqShown, tmbToggleFaq: () => this.setState({ tmbFaqShown: !s.tmbFaqShown }),
+      tmbFaqChev: { transition: "transform .2s", transform: s.tmbFaqShown ? "rotate(180deg)" : "none" },
+      tmbFaqs: TMB_FAQS.map((f, i) => { const open = s.tmbFaqOpen === i; return { q: f.q, a: f.a, open, toggle: () => this.setState({ tmbFaqOpen: open ? null : i }), rowStyle: { borderTop: i ? "1px solid #e8eae7" : "none" }, chevStyle: { flexShrink: 0, transition: "transform .2s", transform: open ? "rotate(180deg)" : "none" } }; }),
+

@@ -104,8 +104,12 @@ export const TAG_NAMES = { brainstorm: 'My Brainstorm Assistant', tapestry: 'My 
 /** The accessible name of the list of rows. */
 export const LIST_LABEL = 'Your Assistants';
 
-/** Where the introduction's "Treasure Map" goes: wherever the avatar menus' My Treasure Map goes. */
-export const TREASURE_MAP_PATH = personalLinks({ pubkey: '', assistantPubkey: null, classification: null, profileBase: '' })
+/**
+ * Where the introduction's "Treasure Map", each row's Manage and the Duties tab go: wherever the Brainstorm menus' My
+ * Treasure Map goes, since this page is on the Brainstorm side (`profileBase: '/user'`; ADR manage-treasure-map/0001
+ * sub-decision 3).
+ */
+export const TREASURE_MAP_PATH = personalLinks({ pubkey: '', assistantPubkey: null, classification: null, profileBase: '/user' })
   .find((link) => link.key === 'my-treasure-map').to;
 
 /** Where the untagged Local row's prompt goes: the Identification Tags action's own page. */
@@ -132,7 +136,7 @@ function textOf(v) {
  * the NIP-05 itself, or null when there is none, apart from the '—' shown in its place (my-assistants #4): a NIP-05 is
  * checked only when there is one.
  */
-function cardFields(pubkey, found) {
+export function cardFields(pubkey, found) {
   const profile = found && found !== PROFILE_LOOKUP_FAILED && typeof found === 'object' ? found : {};
   const short = npubShort(pubkey);
   const name = textOf(profile.display_name) || textOf(profile.name) || short;

@@ -243,14 +243,17 @@ export function itemsPovLine(pov) {
  * GET /api/dictionaries/concepts/items: an entry's Items, filed under its own header (`coord`) and
  * the shared concept it points to (`shared`), by people trusted from the active point of view, plus
  * the person's own filings. Returns { data: { items, keptCount, truncated, filerCount, totalCount, pov } | null,
- * error }. Pass enabled:false until `shared` is known, so the page asks once.
+ * error }. Pass enabled:false until `shared` is known, so the page asks once. With `match` (["name:value", …]),
+ * only the items with a matching property come back, and `keptCount` and `truncated` count those.
  */
-export function useConceptItems({ coord, shared, person, povParams, enabled = true }) {
+export function useConceptItems({ coord, shared, person, povParams, match = null, enabled = true }) {
   const [state, setState] = useState({ data: null, error: null });
   const authors = person?.loading ? '' : (person?.authors || []).join(',');
   const settled = Boolean(person) && !person.loading;
   const wotPov = povParams?.wotPov;
   const userPubkey = povParams?.userPubkey;
+  // `match` (name:value pairs) asks for the matching items only; a string key, so a new array doesn't read again.
+  const matchKey = Array.isArray(match) && match.length ? JSON.stringify(match) : '';
 
   useEffect(() => {
     if (!enabled || !settled || !coord) return undefined;
@@ -263,6 +266,7 @@ export function useConceptItems({ coord, shared, person, povParams, enabled = tr
         if (shared && shared !== coord) params.set('shared', shared);
         if (wotPov) params.set('wotPov', wotPov);
         if (userPubkey) params.set('userPubkey', userPubkey);
+        if (matchKey) for (const m of JSON.parse(matchKey)) params.append('match', m);
         const resp = await fetch(`/api/dictionaries/concepts/items?${params}`);
         const json = await resp.json();
         if (!resp.ok || json.success === false) throw new Error(json.error || `HTTP ${resp.status}`);
@@ -285,7 +289,7 @@ export function useConceptItems({ coord, shared, person, povParams, enabled = tr
       }
     })();
     return () => { cancelled = true; };
-  }, [coord, shared, authors, settled, wotPov, userPubkey, enabled]);
+  }, [coord, shared, authors, settled, wotPov, userPubkey, matchKey, enabled]);
 
   return state;
 }

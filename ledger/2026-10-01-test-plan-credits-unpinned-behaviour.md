@@ -20,5 +20,18 @@ line) that pins it. The Reviewer's checklist gains one line: spot-check two edge
 assertions. This is related to row `2026-09-29-test-plan-misses-injected-seams`, which covers real modules behind
 injected seams, not prose claims.
 
+**Seen again, 2026-10-08 (treasure-map-edit #5).** The test plan's coverage map credited AC-10 ("'Saving…', the
+outcome messages and the report are announced") to the browser specs. No test checked that "Saving…" is announced, and
+it isn't: it is only the disabled button's label, and focus falls to `<body>`. The review found it hands-on (Blocking
+2). Here the unpinned claim was in the coverage map rather than § Edge cases, so the spot-check should cover the
+coverage map's rows too.
+
+**Seen again, 2026-10-08 (treasure-map-edit #5, round 2).** Two titles claim more than their tests check, and the
+Reviewer showed it with mutation builds that still pass:
+- SV15 says the "Saving…" region is there before the save, but doesn't check that it exists before busy.
+- Q12 says the second current-save check comes after signing, but a build that moves it before signing passes.
+
+No test covers the toast or partial-report live containers. The code is right today.
+
 **Pointer:** `engineering-team/reviews/tagging-edges/4-tagging-pipeline-panel.md` § Harness friction 1 (round 1) and
 § Re-review, round 2; `engineering-team/stories/tagging-edges/4-tagging-pipeline-panel.test-plan.md` § Edge cases.

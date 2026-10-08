@@ -54,7 +54,10 @@ const api = require('../src/api');
 
 // Import centralized configuration utility
 const { getConfigFromFile } = require('../src/utils/config');
-const { buildSecurityTxt, buildRobotsTxt, isBlockedProbePath, buildLlmsTxt, LLMS_TXT_PATH } = require('../src/utils/siteTrust');
+const {
+    buildSecurityTxt, buildRobotsTxt, isBlockedProbePath, buildLlmsTxt, LLMS_TXT_PATH,
+    INFORMATION_FOR_AGENTS_PATH, readInformationForAgents,
+} = require('../src/utils/siteTrust');
 
 // Determine if we should use HTTPS (local development) or HTTP (behind proxy)
 let useHTTPS = process.env.USE_HTTPS === 'true';
@@ -179,7 +182,9 @@ app.use('/libs/chartjs-adapter-date-fns', express.static(path.join(__dirname, '.
 // hardcoded host. llms.txt has no dotfile problem, but stays here too (story
 // llms-txt #1, ADR llms-txt/0001) so one module and one registration block
 // owns every well-known root document, rather than splitting them across a
-// static file and this file.
+// static file and this file. The information-for-agents briefing joins them
+// for the same reason (story information-for-agents #1, ADR
+// information-for-agents/0001).
 app.get('/.well-known/security.txt', (req, res) => {
     res.set('Content-Type', 'text/plain; charset=utf-8');
     res.send(buildSecurityTxt({ domain: process.env.DOMAIN_NAME }));
@@ -197,7 +202,24 @@ app.get('/robots.txt', (req, res) => {
 // '/robots.txt' — see ADR llms-txt/0001).
 app.get(LLMS_TXT_PATH, (req, res) => {
     res.set('Content-Type', 'text/plain; charset=utf-8');
-    res.send(buildLlmsTxt());
+    res.send(buildLlmsTxt({ domain: process.env.DOMAIN_NAME }));
+});
+
+// The information-for-agents briefing, read from docs/information-for-agents.md.
+// Served as text/plain (like llms.txt and raw.githubusercontent.com) so every
+// browser shows it inline; some download text/markdown. Placement matters in a
+// different way from the .txt routes: `.md` is NOT a blocked extension, so a
+// missing or late route would not 404 — the request would fall through to the
+// SPA catch-all below and return the empty HTML shell with a 200.
+app.get(INFORMATION_FOR_AGENTS_PATH, async (req, res) => {
+    try {
+        const body = await readInformationForAgents();
+        res.set('Content-Type', 'text/plain; charset=utf-8');
+        res.send(body);
+    } catch (err) {
+        console.error('information-for-agents.md: could not read the briefing:', err.message);
+        res.status(500).type('text/plain').send('The briefing is temporarily unavailable.\n');
+    }
 });
 
 // Session middleware — Redis-backed so sessions survive Docker rebuilds.

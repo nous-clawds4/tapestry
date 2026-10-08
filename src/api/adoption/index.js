@@ -19,7 +19,9 @@
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { strfryScanStream } = require('../concept/bDisposition');
 const { computeQueue, computePublishCandidates, bestName } = require('../../lib/adoptionQueue');
-const { computeDictionary, computeConceptDictionary, trustedItems, recognitionByConcept } = require('../../lib/trustedDictionary');
+const {
+  computeDictionary, computeConceptDictionary, trustedItems, itemCarrier, parseItemMatch, recognitionByConcept,
+} = require('../../lib/trustedDictionary');
 const { resolveOwners, parts: scanParts } = require('./assistantOwners');
 const { classifyBValue, dispositionOf } = require('../../lib/bValueForms');
 const { runCypher } = require('../../lib/neo4j-driver');
@@ -484,18 +486,17 @@ const COORD = /^\d+:[0-9a-f]{64}:.+$/;
  * when the filer is trusted from the active point of view or is the reader
  * (`authors`, as the dictionary read takes them). The rule is trustedItems in
  * src/lib/trustedDictionary.js; the trusted set resolves here, as GUM₁'s does.
+ * `match` (parseItemMatch's pairs) answers with the matching items only.
  */
-async function assembleConceptItems({ coord, shared, authors, wotPov, userPubkey } = {}) {
+async function assembleConceptItems({ coord, shared, authors, wotPov, userPubkey, match = null } = {}) {
   const cutoff = parseFloat(getConfigFromFile('VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF', 0.01));
   const coords = [...new Set([coord, shared].filter(Boolean))];
-  const zCarriers = await strfryScanStream({ '#z': coords }, (ev) => ({
-    id: ev.id, kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at,
-    tags: keepTags(ev, ['z', 'd', 'names', 'name', 'title', 'q']),
-  }));
+  // Each carrier keeps the tags trustedItems reads, and its description and property tags, bounded.
+  const zCarriers = await strfryScanStream({ '#z': coords }, (ev) => itemCarrier(ev));
   const own = new Set(authors);
   const filers = [...new Set(zCarriers.map((ev) => ev.pubkey))].filter((p) => p && !own.has(p));
   const { qualifying, branch, observer, fellBackToHouse } = await resolveQualifying({ wotPov, userPubkey, authors: filers, cutoff });
-  const out = trustedItems({ zCarriers, coords, qualifying, own: authors });
+  const out = trustedItems({ zCarriers, coords, qualifying, own: authors, match });
   return { ...out, pov: { branch, observer, fellBackToHouse, cutoff, computedAt: new Date().toISOString() } };
 }
 
@@ -512,7 +513,9 @@ async function handleConceptItems(req, res) {
         error: 'authors must be one or two comma-separated hex pubkeys: a person’s account, and their assistant when they have one',
       });
     }
-    const out = await assembleConceptItems({ coord, shared, authors, wotPov, userPubkey });
+    const match = parseItemMatch(req.query && req.query.match);
+    if (match instanceof Error) return res.status(400).json({ success: false, error: match.message });
+    const out = await assembleConceptItems({ coord, shared, authors, wotPov, userPubkey, match });
     return res.json({ success: true, ...out });
   } catch (error) {
     console.error('concept-items error:', error);
