@@ -168,6 +168,6 @@ it.
 - Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 1, 3, 9, 11, 12 and 14
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` and
   `treasure-map-logic.js.txt`, the `tmbEdit` blocks
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
