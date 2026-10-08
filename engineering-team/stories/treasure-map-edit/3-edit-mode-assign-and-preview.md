@@ -90,7 +90,7 @@ Assistant here.
   | `30392` → A, `30396:tag:<X>:<T>` → C | Lists → B | `30392` → B, `30396:tag:<X>:<T>` → C, and `3039x` → B added |
   | `39998:dlist-header` → A, `39998:<d>` → C | Concepts → B | `39998:dlist-header` → B (the family entry, in its own spelling), `39998:<d>` → C |
   | `*:tag` → D, `30382:rank` → A | Assign to all → B | `*:tag` → D, `30382:rank` → B, and `3038x`, `3039x`, `39998` and `*` → B added |
-  | no Map | Scores → B | a new Map: `3038x` → B *(see Open question 1)* |
+  | no Map | Scores → B | a new Map: `3038x` → B, nothing else (book decision 15) |
 
 - [ ] **AC-6: the preview.** In Edit mode, what the page shows follows the pending changes:
   - **The cards** show what the Map would say after saving, by the same counting rule as now. Taking the first
@@ -140,18 +140,24 @@ The stack wasn't running in this session, so no concept handles were checked. No
 - **Changing the older Tapestry-side generators,** which rewrite the `30382:*` rows (ledger
   `2026-10-08-legacy-generators-overwrite-edited-scores`).
 - **Remembering unsaved changes** across leaving Edit mode, reloading or leaving the page.
+- **Teaching today's readers the family entries.** A Map whose only Scores entry is `3038x` → B gives B no Scores in
+  readers that don't read the draft grammar yet. That includes apps that read only NIP-85, and this app's own setup
+  check (`30382:rank`, `30382:followers`) and Trusted List readers (`30392`). It's the experiment the owner chose (book
+  decision 15); those readers learn the grammar if the standards change (ADR manage-treasure-map/0002 Consequences: two
+  parsers until the draft is ratified).
 
 ## Open questions
 
-1. **Should an assignment also add the entries today's apps read, when the Map lacks them?** Apps that read only
-   NIP-85 look for exact keys such as `30382:rank`, and this app's own readers look for `30392` and
-   `39998:dlist-header`. None of them reads `3038x`, `3039x` or bare `39998` (the draft grammar's § 13, item 7, says
-   writers SHOULD also write the explicit entries). So a new Map with only `3038x` → B would give B no Scores in those
-   apps. **Recommended:** when the Map lacks them, assigning a category also adds those entries, naming the new
-   Assistant:
-   - Scores: the standard score rows (the eleven `30382:<metric>` rows the Treasure Map generators write);
-   - Lists: `30392`;
-   - Concepts: `39998:dlist-header`, the spelling today's readers use, written in place of a bare `39998`.
+None.
+
+## Resolved while drafting
+
+1. **Should an assignment also add the entries today's apps read when the Map lacks them** (exact NIP-85 keys such as
+   `30382:rank`, `30392`, `39998:dlist-header`)? **No** (book decision 15). The owner, verbatim: "On the topic of
+   entries such as 3038x that do not follow the NIP-85 or other current standard: the intention is that we might edit
+   those standards in the future. In the interim, entries such as 3038x will not cause any harm. The Tapestry repo is
+   designed for experimentation, so that’s what this is." An assignment writes the family entries as AC-5 says, and
+   adds nothing else.
 
 ## Linked artifacts
 - Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 1, 3, 9, 11, 12 and 14

@@ -143,6 +143,17 @@ the blueprint does; leaving Edit discards what's unsaved; each picker row shows 
 NIP-05), the Assistant here first and marked **Local**, the category's current Assistant marked **Current**; if the My
 Assistants list can't load, the pickers say so and offer Try again.
 
+At story 3's draft, the same day. The draft asked whether an assignment should also add the entries today's apps
+read (exact NIP-85 keys such as `30382:rank`, `30392`, `39998:dlist-header`) when the Map lacks them, recommending yes.
+The owner's answer, verbatim:
+
+> On the topic of entries such as 3038x that do not follow the NIP-85 or other current standard: the intention is that we might edit those standards in the future. In the interim, entries such as 3038x will not cause any harm. The Tapestry repo is designed for experimentation, so that’s what this is.
+
+15. **Family entries are the experiment; no compatibility entries are added.** An assignment writes the family entries
+    of decision 12 (`3038x`, `3039x`, `39998`, and `*` for Assign to all) and doesn't also add exact NIP-85 or
+    legacy-spelling entries the Map lacks. Readers that don't read the draft grammar yet won't see an assignment
+    written only as a family entry. That's accepted while the standards may change.
+
 ## Epics in this book
 - `treasure-map-edit` — Edit mode on the Manage your Treasure Map page, and the card-rule fix it builds on.
 
