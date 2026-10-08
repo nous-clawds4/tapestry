@@ -2,9 +2,9 @@
 /**
  * treasure-map-edit #5: Edit mode — Save signs and publishes the edited Map.
  *
- * Story: engineering-team/stories/treasure-map-edit/5-save-the-edited-map.md
- * ADR:   engineering-team/decisions/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md
- * Plan:  engineering-team/stories/treasure-map-edit/5-save-the-edited-map.test-plan.md
+ * Story: engineering-team/stories/done/treasure-map-edit/5-save-the-edited-map.md
+ * ADR:   engineering-team/decisions/done/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md
+ * Plan:  engineering-team/stories/done/treasure-map-edit/5-save-the-edited-map.test-plan.md
  * Browser half: tests/brainstorm/treasure-map-save.spec.js (what a viewer sees and does).
  *
  * Classes (pure; the save sequence is ui/src/pages/treasure-map/saveTreasureMap.js, driven with fakes):

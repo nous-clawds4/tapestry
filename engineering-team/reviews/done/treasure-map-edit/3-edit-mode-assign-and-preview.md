@@ -249,7 +249,7 @@ copy of the input, then compared the output index by index.
 7. **`aria-controls` can name a missing element** (`Index.jsx:276`): the list's id exists only while the list is open.
    Browsers tolerate this. Optional: render the list always and use `hidden`.
 8. **Two docs leave out decision 15:** the story's § Linked artifacts
-   (`engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md:179`) and the epic's story-3 line
+   (`engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.md:179`) and the epic's story-3 line
    (`engineering-team/epics/treasure-map-edit.md:28`). The story rests on decision 15 (AC-5 row 7, § Resolved while
    drafting, § Out of scope). Add it.
 9. **For story 5:** `useMapEdit` resets on a new viewer in an effect (`useMapEdit.js:41–47`). So for one render after a
@@ -423,7 +423,7 @@ None.
 #### Non-blocking
 
 1. **Two places where § Deviations says more than the code does, or less than the record needs**
-   (`engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md:176–177`, `:186`).
+   (`engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.md:176–177`, `:186`).
    - **"The save note is a polite live region, so each change is announced" overstates it.**
      - Changing a card that is already pending (Bea → Cy) leaves the note at "1 unsaved change", so the live region
        says nothing.

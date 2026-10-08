@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — The cards ignore an everything entry that goes beyond `*`
 
-**Story:** `engineering-team/stories/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`
-**ADR:** `engineering-team/decisions/treasure-map-edit/0002-only-a-bare-star-counts.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`
+**ADR:** `engineering-team/decisions/done/treasure-map-edit/0002-only-a-bare-star-counts.md`
 **Date:** 2026-10-07
 
 ## Coverage map

@@ -2,9 +2,9 @@
 /**
  * treasure-map-edit #2: the cards ignore an everything entry that goes beyond `*` (book decision 11).
  *
- * Story: engineering-team/stories/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md
- * ADR:   engineering-team/decisions/treasure-map-edit/0002-only-a-bare-star-counts.md
- * Plan:  engineering-team/stories/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.test-plan.md
+ * Story: engineering-team/stories/done/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md
+ * ADR:   engineering-team/decisions/done/treasure-map-edit/0002-only-a-bare-star-counts.md
+ * Plan:  engineering-team/stories/done/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.test-plan.md
  *
  * Classes:
  *   I — a `*:…` entry that names anything after the `*` counts on no card (categoryAssistants, pure).          [AC-1]

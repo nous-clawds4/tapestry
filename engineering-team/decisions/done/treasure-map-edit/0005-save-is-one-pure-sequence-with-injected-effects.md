@@ -2,7 +2,7 @@
 
 **Status:** Accepted (Amendment 1, review round 1: a newer Map is shown with the changes on top; stale saves; live regions)
 **Date:** 2026-10-08
-**Story:** `engineering-team/stories/treasure-map-edit/5-save-the-edited-map.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/5-save-the-edited-map.md`
 **Approved:** by the owner, 2026-10-08, verbatim: "Ready for test design"
 **Builds on:** ADR 0003 (the edit model, `useMapEdit`, the page) and ADR 0004 (`planEdit`, the switches). It changes
 ADR 0004's `setOverrideAll` (book decision 18).
@@ -269,7 +269,7 @@ the page show what it signed.
 
 ## Amendment 1 — review round 1 (2026-10-08)
 
-Story 5's review, round 1 (`engineering-team/reviews/treasure-map-edit/5-save-the-edited-map.md`), found three blocking
+Story 5's review, round 1 (`engineering-team/reviews/done/treasure-map-edit/5-save-the-edited-map.md`), found three blocking
 problems. The owner chose option A for the first (book decision 19, verbatim "Let’s do 1 A."). The story's AC-2, AC-5
 and AC-10 are amended to match. This amendment changes sub-decisions 1, 3 and 6. Everything else stands.
 

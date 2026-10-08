@@ -2,7 +2,7 @@
 
 **Status:** Accepted (sub-decision 1's `setOverrideAll` superseded in part by ADR 0005)
 **Date:** 2026-10-08
-**Story:** `engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.md`
+**Story:** `engineering-team/stories/done/treasure-map-edit/4-override-and-backup-switches.md`
 **Approved:** by the owner, 2026-10-08, verbatim: "Ready for test design."
 **Builds on:** ADR 0003 (the pure edit model, `useMapEdit`, the page). It supersedes ADR 0003 sub-decision 2's
 `undoCategory` and `pickCategory` in part (book decision 16).
@@ -227,7 +227,7 @@ gives preview and Save one function.
   - the focus-after-render ref and effect, replacing the synchronous `focus()` calls in `Picker`'s `andFocus` and
     the Undo handlers.
 - **`ui/src/styles.css`:** `.bsd-tm-edit-switch` and its parts.
-- **`engineering-team/decisions/treasure-map-edit/0003-…md`:** a supersession note under its Status. It says that
+- **`engineering-team/decisions/done/treasure-map-edit/0003-…md`:** a supersession note under its Status. It says that
   sub-decision 2's `undoCategory`, and `pickCategory` picking the current Assistant, now also cancel the everything
   entry's change (book decision 16, this ADR).
 - **Test re-aims for Phase 3** (the Tester's lane, before any code):

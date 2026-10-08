@@ -19,4 +19,4 @@ Rows 124, 226 and 253 cover the bind mount and `docker cp`, not this.
 read into a `<meta name="build-commit">` in `dist/index.html`. Then make the browser recipe print it before the specs
 run, as `gate:status` does for Node runs (`… on <sha>+dirty`). Reviews then quote it beside the pass count.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md` § Harness friction 3.
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md` § Harness friction 3.

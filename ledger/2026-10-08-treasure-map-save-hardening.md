@@ -19,6 +19,6 @@ Story 5's review found these. ADR 0005 Amendment 1 left them out of the fix roun
 5. **A save that finishes after the page is left** starts a toast timer that nothing clears. It's harmless today (no
    console errors). Fix shape: skip the timer when unmounted.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/5-save-the-edited-map.md` § Findings, Non-blocking 1, 3, 4,
-7 and 8, and § Round 2; ADR `engineering-team/decisions/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md`
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/5-save-the-edited-map.md` § Findings, Non-blocking 1, 3, 4,
+7 and 8, and § Round 2; ADR `engineering-team/decisions/done/treasure-map-edit/0005-save-is-one-pure-sequence-with-injected-effects.md`
 Amendment 1, "Not taken this round".

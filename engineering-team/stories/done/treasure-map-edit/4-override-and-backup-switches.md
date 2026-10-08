@@ -169,10 +169,10 @@ defaults below, and the singular label in § Copy are approved with it.
 - Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 2, 3, 8, 11, 12, 13 and 16
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` (the `c.ovToggle`
   and `tmbAllOvToggle` switches) and `treasure-map-logic.js.txt` (`tmbConflicts`, `tmbPendDel`, the card Undo)
-- Story 3: `engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md`
-- Story 3's review: `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md` (round 1
+- Story 3: `engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.md`
+- Story 3's review: `engineering-team/reviews/done/treasure-map-edit/3-edit-mode-assign-and-preview.md` (round 1
   non-blocking 5; round 2 non-blocking 1)
 - Epic: `engineering-team/epics/treasure-map-edit.md`, story 4
-- ADR: `engineering-team/decisions/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md`
-- Test plan: `engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.test-plan.md`
-- Review: `engineering-team/reviews/treasure-map-edit/4-override-and-backup-switches.md`
+- ADR: `engineering-team/decisions/done/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md`
+- Test plan: `engineering-team/stories/done/treasure-map-edit/4-override-and-backup-switches.test-plan.md`
+- Review: `engineering-team/reviews/done/treasure-map-edit/4-override-and-backup-switches.md`

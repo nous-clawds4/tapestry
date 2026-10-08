@@ -5,9 +5,9 @@ const { nip19 } = require('nostr-tools');
  * treasure-map-edit #3 — Edit mode on /treasure-map: assign Assistants and preview the result. What a viewer sees and
  * does.
  *
- * Story: engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md
- * ADR:   engineering-team/decisions/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md
- * Plan:  engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md
+ * Story: engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.md
+ * ADR:   engineering-team/decisions/done/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md
+ * Plan:  engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md
  * Node half: test/treasure-map-edit-mode.test.js (the edit model, the words, the wiring).
  *
  * Mocks as the cards spec (tests/brainstorm/manage-treasure-map-cards.spec.js): the Map read local-first, then the

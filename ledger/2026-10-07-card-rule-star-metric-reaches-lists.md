@@ -6,7 +6,7 @@
 **Status:** DONE
 **Done:** 2026-10-07 — settled by the owner's book decision 11: the page ignores every `*:…` entry that names
 anything after the `*`, so these keys count nowhere. Built by treasure-map-edit #2 (ADR treasure-map-edit/0002), review
-PASS: `engineering-team/reviews/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`. Ships to staging with the
+PASS: `engineering-team/reviews/done/treasure-map-edit/2-the-cards-ignore-scoped-star-entries.md`. Ships to staging with the
 book's PR.
 
 The cards' rule (`categoryAssistants`, `ui/src/pages/treasure-map/manageTreasureMap.js`, ADR treasure-map-edit/0001
@@ -28,4 +28,4 @@ only, and nothing in the app writes these keys today.
 than two, reaches Scores only. Add Node cases beside `test/treasure-map-card-rule-edges.test.js`'s F class. Fix it before
 Edit mode relies on the rule for "individually assigned duties", or fold it into that story.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/1-the-card-rule-edge-cases.md` § Findings, non-blocking 1.
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/1-the-card-rule-edge-cases.md` § Findings, non-blocking 1.

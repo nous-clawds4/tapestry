@@ -103,17 +103,20 @@ book's own files are the ADR-named re-aims (story 1) and the recorded Amendment 
 
 ## 6. Carry-forward register
 
-- [ ] The design's Edit mode: All duties, per-category pickers, override switches, Save → a newly signed kind 10040
-  (§4 #3; book decision 1).
+- [x] The design's Edit mode: All duties, per-category pickers, override switches, Save → a newly signed kind 10040
+  (§4 #3; book decision 1). *Done 2026-10-08 by the treasure-map-edit book (stories 3–5), on staging; its audit
+  `engineering-team/audits/treasure-map-edit/audit.md`.*
 - [ ] The full Advanced page: every entry and its Assistants (§4 #4).
 - [ ] Copy that runs ahead of the app: revisit the introduction and FAQ answers once setup publishes the Map and the
   Advanced page exists (§4 #5).
-- [ ] The cards' rule edge cases, before the Edit book reuses `categoryAssistants` (§4 #9; ledger
-  `2026-10-07-treasure-map-card-rule-edge-cases`).
+- [x] The cards' rule edge cases, before the Edit book reuses `categoryAssistants` (§4 #9; ledger
+  `2026-10-07-treasure-map-card-rule-edge-cases`). *Done 2026-10-07 by treasure-map-edit #1, with #2 (book decision 11).*
 - [ ] The top bar's sign-in while the session check runs (§4 #8; ledger `2026-10-07-top-bar-sign-in-while-loading`).
 - [ ] Duplicate live regions when the raw viewer is open (§5).
 - [ ] Fold the two 10040 key parsers into one when the draft Treasure Maps grammar is ratified (ADR 0002).
 - [ ] A signed-in click-through on staging, then production on the owner's go (book acceptance frame, last bullet).
+  *Staging done 2026-10-08: the owner edited and saved their Map there (treasure-map-edit audit § 5). Production still
+  waits for the owner's go, together with treasure-map-edit.*
 
 ## 7. Process findings (harness)
 

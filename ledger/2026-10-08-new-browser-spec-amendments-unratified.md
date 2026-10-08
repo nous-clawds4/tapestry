@@ -30,5 +30,5 @@ surfaced only against the fixed page, and the Tester's role corrected them in Ph
 again. Its newer-Map fixture used `30385:new`, a Scores entry that the pending Scores pick rightly moved. Its focus check
 ran after the test had clicked other buttons. Round 2's Reviewer judged both genuine test faults.
 
-**Pointer:** `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Harness friction 1;
-`engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md` § Amendment 1.
+**Pointer:** `engineering-team/reviews/done/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Harness friction 1;
+`engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md` § Amendment 1.

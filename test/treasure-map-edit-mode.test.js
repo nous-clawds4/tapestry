@@ -2,9 +2,9 @@
 /**
  * treasure-map-edit #3: Edit mode on /treasure-map — assign Assistants and preview the result.
  *
- * Story: engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md
- * ADR:   engineering-team/decisions/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md
- * Plan:  engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md
+ * Story: engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.md
+ * ADR:   engineering-team/decisions/done/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md
+ * Plan:  engineering-team/stories/done/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md
  * Browser half: tests/brainstorm/treasure-map-edit.spec.js (what a viewer sees and does).
  *
  * Classes (pure unless noted; the edit model is ui/src/pages/treasure-map/editTreasureMap.js):

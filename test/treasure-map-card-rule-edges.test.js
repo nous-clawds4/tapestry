@@ -2,9 +2,9 @@
 /**
  * treasure-map-edit #1: the cards' counting rule follows the draft Treasure Maps grammar in three edge cases.
  *
- * Story: engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.md
- * ADR:   engineering-team/decisions/treasure-map-edit/0001-the-card-rule-compares-keys-segment-by-segment.md
- * Plan:  engineering-team/stories/treasure-map-edit/1-the-card-rule-edge-cases.test-plan.md
+ * Story: engineering-team/stories/done/treasure-map-edit/1-the-card-rule-edge-cases.md
+ * ADR:   engineering-team/decisions/done/treasure-map-edit/0001-the-card-rule-compares-keys-segment-by-segment.md
+ * Plan:  engineering-team/stories/done/treasure-map-edit/1-the-card-rule-edge-cases.test-plan.md
  *
  * Re-aimed by treasure-map-edit #2 (book decision 11; ADR treasure-map-edit/0002): a `*:…` entry that names anything
  * after the `*` counts on no card. H6–H8, F1–F5, X3, X6, X7 and X10 now expect that; story 2's plan records each change.

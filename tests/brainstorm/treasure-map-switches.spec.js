@@ -5,9 +5,9 @@ const { nip19 } = require('nostr-tools');
  * treasure-map-edit #4 — Edit mode on /treasure-map: the override switches and the backup switch. What a viewer sees
  * and does.
  *
- * Story: engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.md
- * ADR:   engineering-team/decisions/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md
- * Plan:  engineering-team/stories/treasure-map-edit/4-override-and-backup-switches.test-plan.md
+ * Story: engineering-team/stories/done/treasure-map-edit/4-override-and-backup-switches.md
+ * ADR:   engineering-team/decisions/done/treasure-map-edit/0004-switches-are-part-of-the-one-pending-edit.md
+ * Plan:  engineering-team/stories/done/treasure-map-edit/4-override-and-backup-switches.test-plan.md
  * Node half: test/treasure-map-switches.test.js (the switch rules, the steps, the words, the wiring).
  *
  * Mocks and helpers as story 3's spec (tests/brainstorm/treasure-map-edit.spec.js), copied, plus story 4's Maps.
