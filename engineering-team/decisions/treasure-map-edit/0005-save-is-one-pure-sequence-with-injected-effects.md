@@ -1,6 +1,6 @@
 # ADR 0005: Save is one pure sequence with its effects injected, and the page shows what it signed
 
-**Status:** Accepted
+**Status:** Accepted (Amendment 1, review round 1: a newer Map is shown with the changes on top; stale saves; live regions)
 **Date:** 2026-10-08
 **Story:** `engineering-team/stories/treasure-map-edit/5-save-the-edited-map.md`
 **Approved:** by the owner, 2026-10-08, verbatim: "Ready for test design"
@@ -266,3 +266,72 @@ the page show what it signed.
 - **Changing `PUBLISH_RELAYS`,** or the relays the read uses.
 - **The legacy generators rewriting `30382:*` rows** (ledger `2026-10-08-legacy-generators-overwrite-edited-scores`).
 - **Any change to `useTreasureMap`.**
+
+## Amendment 1 — review round 1 (2026-10-08)
+
+Story 5's review, round 1 (`engineering-team/reviews/treasure-map-edit/5-save-the-edited-map.md`), found three blocking
+problems. The owner chose option A for the first (book decision 19, verbatim "Let’s do 1 A."). The story's AC-2, AC-5
+and AC-10 are amended to match. This amendment changes sub-decisions 1, 3 and 6. Everything else stands.
+
+1. **A newer Map is shown, not a dead end** (Blocking 1, book decision 19).
+   - **The sequence (sub-decision 1, step 3):** the `'changed'` answer carries the newer Map,
+     `{ outcome: 'not-sent', reason: 'changed', message: COPY.edit.changedSince, latest }`. `COPY.edit.changedSince`
+     becomes decision 19's words.
+   - **The hook (sub-decision 3):** `useMapSave`'s `saved` becomes `shown`, the newest Map the save flow knows: the Map
+     just signed after `'saved'` or `'partial'`, or `latest` after `'changed'`.
+   - **The page (sub-decision 6):**
+     - It shows `shown` in place of the read Map unless the read finds a newer one, exactly as it showed the signed
+       Map before.
+     - After `'changed'` it doesn't call `finish()`, so Edit mode and `pending` stay, and `planEdit` builds the
+       edited Map on the newer Map.
+     - The next Save reads the same newer Map, which `isNewer` no longer counts as newer, and saves.
+
+   The check still reads both sources, which keeps its protection; the page now shows what the check found.
+2. **A save that's no longer current signs and publishes nothing** (Blocking 3).
+   - **The sequence:** `deps` gains `isCurrent()`, true when omitted. It is checked twice:
+     - after the newer-Map read, just before signing;
+     - after signing, just before publishing.
+
+     `false` returns `{ outcome: 'not-sent', reason: 'stale' }`, with no message.
+   - **`useMapSave`:**
+     - `isCurrent = () => mine === latest.current && getSessionPubkey() === viewer`, using `getSessionPubkey` from
+       `signerGuard`. The viewer-reset effect already moves `latest`.
+     - `save` returns `{ ...answer, current }`. It changes its state only for a current answer.
+   - **The page:** it acts on an answer (`finish()` and focus) only when `answer.current`. This is the fix shape of
+     ledger `2026-10-01-me-disposition-inflight-signer-prompt`.
+3. **Announcements in live regions that exist before their words** (Blocking 2; review non-blocking 6).
+   - **"Saving…":** a visually hidden `aria-live="polite"` span in the save bar, always there in Edit mode, which
+     reads `COPY.edit.saving` while `busy` and is otherwise empty. The button's label still reads "Saving…".
+   - **"Treasure Map updated":** an always-mounted `aria-live="polite" aria-atomic="true"` container at page level. The
+     pill (`role="status"`, as before) appears inside it.
+   - **The partial report:** an always-mounted `aria-live="polite"` container at the top of the section. The report
+     block (`role="status"`, as before) appears inside it.
+
+   The containers carry no role, so page-wide role queries in neighbour suites see nothing new.
+4. **One save at a time** (review non-blocking 2). `useMapSave` keeps a `busy` ref, set synchronously, so a second
+   `save` while one is running returns `{ outcome: 'not-sent', reason: 'busy', current: false }` at once, before any
+   effect.
+5. **Recorded deviations** (review non-blocking 5), accepted:
+   - **`reportLines(report)`** lives in `saveTreasureMap.js`, giving the report's relay lines in the app's words, so
+     the page imports no module whose file name matches the page suite's publish check (D4).
+   - **The names-ready rule** in `CategoryCards`: after the first lookup, cards whose Assistants were all looked up
+     before, or are the person's Assistants, show at once while a new lookup runs. So a save never flashes the loading
+     line, and story 2's "cards appear once, already named" still holds.
+
+**Not taken this round** (review non-blocking 1, 3, 4, 7 and 8; carried in the epic for later):
+- a timeout on a signer prompt that never answers;
+- telling a refused `getPublicKey` apart from no signer;
+- refusing a signer that alters the event (it needs words the owner hasn't approved);
+- a Map stamped far in the future;
+- the toast timer after the page is left.
+
+**Test re-aims for the Tester** (Phase 3 lane, before code):
+- SV4 now expects the newer Map shown, the changes kept, the new words, and a second Save that succeeds.
+- Story 5's W1 takes the new `changedSince`, and Q6 expects `latest` on the answer.
+
+**New tests the Tester adds:**
+- an outside relay holding a newer Map than this instance's relay (review H3);
+- a relays-only save, then a reload and a save (H4);
+- sign-out during a pending signer prompt (H5);
+- "Saving…" in a live region;
+- the double call (H1).
