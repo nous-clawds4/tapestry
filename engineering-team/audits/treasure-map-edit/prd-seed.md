@@ -102,7 +102,7 @@ phase ever stated
 ## 6. Carry-forward & open questions
 
 Promoted from audit §6:
-- **Production:** this book and manage-treasure-map go to `main` together, on the owner's go.
+- **Production:** done 2026-10-08. This book and manage-treasure-map reached `main` together (PR #823).
 - **Save's hardening:**
   - a timeout or Cancel for a signer that never answers;
   - telling a declined account prompt from a missing signer;

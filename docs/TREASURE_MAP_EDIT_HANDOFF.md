@@ -1,18 +1,18 @@
 # Treasure Map Edit mode — Session Handoff (2026-10-07)
 
-**Status:** ✅ ADDRESSED 2026-10-08: the book `treasure-map-edit` built Edit mode (stories 1–5), shipped it to staging (PR #821) and closed (`engineering-team/audits/treasure-map-edit/audit.md`, `prd-seed.md`). The body below is kept for history; § 0 says what is true now.
+**Status:** ✅ ADDRESSED 2026-10-08: the book `treasure-map-edit` built Edit mode (stories 1–5), shipped it to staging (PR #821) and production (PR #823), and closed (`engineering-team/audits/treasure-map-edit/audit.md`, `prd-seed.md`). The body below is kept for history; § 0 says what is true now.
 
 > **Audience:** the session that builds Edit mode.
 > **Source session:** the manage-treasure-map book (opened and closed 2026-10-07; on staging, not on main).
 
 ## 0. Where things stand
 
-**Now (2026-10-08, at the book's close):**
-- **On staging:** `/treasure-map` with Edit mode and Save, plus the card-rule fixes. The owner edited and saved their
-  own Map there. Record: `engineering-team/audits/treasure-map-edit/` (`book.md`, `audit.md`, `prd-seed.md`).
-- **The close commit is on `feat/treasure-map-edit`.** It reaches `staging` through a docs-only PR (ledger
-  `2026-10-08-treasure-map-close-awaits-staging`).
-- **Production:** this book and manage-treasure-map go to `main` together, only on the owner's explicit go.
+**Now (2026-10-08, after the book's close and the promotion to `main`):**
+- **In production:** `/treasure-map` with Edit mode and Save, plus the card-rule fixes, and the view-only page from
+  manage-treasure-map. The owner edited and saved their own Map on staging first. The close reached `staging` in PR
+  #822. Both books reached `main` together in the promotion PR #823 (2026-10-08, deploy run 37860767117, smoke test
+  clean). Record: `engineering-team/audits/treasure-map-edit/` (`book.md`, `audit.md`, `prd-seed.md`).
+- **`feat/treasure-map-edit` is deleted,** locally and on `origin`.
 - **What's next:** the audit's § 6 and the seed's § 7. They cover Save's hardening
   (`2026-10-08-treasure-map-save-hardening`), focus after a newer Map (`2026-10-08-treasure-map-focus-after-newer-map`),
   the Advanced page, and whether assignments should also write the NIP-85 keys today's apps read.

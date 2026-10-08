@@ -114,9 +114,9 @@ book's own files are the ADR-named re-aims (story 1) and the recorded Amendment 
 - [ ] The top bar's sign-in while the session check runs (§4 #8; ledger `2026-10-07-top-bar-sign-in-while-loading`).
 - [ ] Duplicate live regions when the raw viewer is open (§5).
 - [ ] Fold the two 10040 key parsers into one when the draft Treasure Maps grammar is ratified (ADR 0002).
-- [ ] A signed-in click-through on staging, then production on the owner's go (book acceptance frame, last bullet).
-  *Staging done 2026-10-08: the owner edited and saved their Map there (treasure-map-edit audit § 5). Production still
-  waits for the owner's go, together with treasure-map-edit.*
+- [x] A signed-in click-through on staging, then production on the owner's go (book acceptance frame, last bullet).
+  *Staging done 2026-10-08: the owner edited and saved their Map there (treasure-map-edit audit § 5). Production done
+  the same day on the owner's go, together with treasure-map-edit: PR #823 (`4c91c9f3`).*
 
 ## 7. Process findings (harness)
 
