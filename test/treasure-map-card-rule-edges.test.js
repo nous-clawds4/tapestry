@@ -8,6 +8,7 @@
  *
  * Re-aimed by treasure-map-edit #2 (book decision 11; ADR treasure-map-edit/0002): a `*:…` entry that names anything
  * after the `*` counts on no card. H6–H8, F1–F5, X3, X6, X7 and X10 now expect that; story 2's plan records each change.
+ * H1–H5 renamed by treasure-map-edit #3 (story 2's review, non-blocking 3): their names no longer say "covers".
  *
  * Classes (all pure: categoryAssistants(event) in ui/src/pages/treasure-map/manageTreasureMap.js):
  *   H — a broad entry is hidden only where a family entry covers it, segment by segment; since story 2, a `*:…`
@@ -81,15 +82,15 @@ async function expectCards(entries, want) {
 // H — AC-1: a broad entry counts only where nothing more specific covers it
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-test('H1: `3038x:tag` → B covers `*:tag:<X>` → D for Scores — Scores: B', () =>
+test('H1 (story 3): `3038x:tag` → B and `*:tag:<X>` → D, which is ignored (story 2) — Scores: B', () =>
   expectCards([['3038x:tag', B], [`*:tag:${X}`, D]], { scores: [B] }));
-test('H2: `3038x:tag:` (an empty last segment) → B covers `*:tag:<X>` → D — Scores: B', () =>
+test('H2 (story 3): `3038x:tag:` (an empty last segment) → B and `*:tag:<X>` → D, which is ignored — Scores: B', () =>
   expectCards([['3038x:tag:', B], [`*:tag:${X}`, D]], { scores: [B] }));
-test('H3: `3038x:tag::<T>` (an empty middle segment means any category) → B covers `*:tag:<X>:<T>` → D — Scores: B', () =>
+test('H3 (story 3): `3038x:tag::<T>` → B and `*:tag:<X>:<T>` → D, which is ignored — Scores: B', () =>
   expectCards([[`3038x:tag::${T}`, B], [`*:tag:${X}:${T}`, D]], { scores: [B] }));
-test('H4: Lists — `3039x:dlist` → B covers `*:dlist:<X>` → D — Lists: B', () =>
+test('H4 (story 3): Lists — `3039x:dlist` → B and `*:dlist:<X>` → D, which is ignored — Lists: B', () =>
   expectCards([['3039x:dlist', B], [`*:dlist:${X}`, D]], { lists: [B] }));
-test('H5: `3038x:tag` → B covers `*:tag` → D — Scores: B (as today)', () =>
+test('H5 (story 3): `3038x:tag` → B and `*:tag` → D, which is ignored — Scores: B', () =>
   expectCards([['3038x:tag', B], ['*:tag', D]], { scores: [B] }));
 test('H6 (story 2): `3038x:tag:<X>` → B and `*:tag` → D, which is ignored — Scores: B', () =>
   expectCards([[`3038x:tag:${X}`, B], ['*:tag', D]], { scores: [B] }));

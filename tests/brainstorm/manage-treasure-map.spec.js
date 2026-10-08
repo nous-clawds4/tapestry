@@ -17,7 +17,8 @@ const { test, expect } = require('@playwright/test');
  * counted (it must never be called); every non-GET request other than the read-only Cypher POST is recorded (there
  * must be none).
  *
- *   T1 — the page: under the Brainstorm top bar; kicker, heading, introduction; no Edit, no Save changes.   [AC-2]
+ *   T1 — the page: under the Brainstorm top bar; kicker, heading, introduction; Edit offered but not on (since
+ *        treasure-map-edit #3), no edit controls before it's pressed, no Save changes.                     [AC-2]
  *   T2 — the FAQ: closed; four questions in order; one answer at a time; closes again.                       [AC-3]
  *   T3 — found locally: the raw viewer is closed, labelled, with the kind 10040 chip; open, it shows the whole event
  *        as indented JSON; its label flips; it closes again; the read asked for the viewer's 10040 only.  [AC-4]
@@ -176,7 +177,7 @@ async function safe(page, state) {
 }
 
 test.describe('/treasure-map — Manage your Treasure Map', () => {
-  test('T1: under the Brainstorm top bar — kicker, heading, introduction; no Edit, no Save changes', async ({ page }) => {
+  test('T1: under the Brainstorm top bar — kicker, heading, introduction; Edit offered but off, no Save changes (treasure-map-edit #3)', async ({ page }) => {
     const state = await setup(page);
     await page.goto(NEW_PAGE);
     await expect(heading(page)).toBeVisible();
@@ -184,7 +185,9 @@ test.describe('/treasure-map — Manage your Treasure Map', () => {
     await expect(page.locator('.bsd-eyebrow').first()).toHaveText(/^\s*Treasure Map\s*$/);
     await expect(main(page).getByText(WORDS.intro)).toBeVisible();
     await expect(heading(page).locator('.bsd-title-accent')).toHaveText('Treasure Map');
-    for (const name of [/^Edit(ing)?$/, /^Save changes$/, /^Assign to all/, /^Choose an Assistant/]) {
+    // treasure-map-edit #3: the Map is read, so Edit is offered, not pressed; nothing of Edit mode shows before it is.
+    await expect(main(page).getByRole('button', { name: 'Edit', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    for (const name of [/^Editing$/, /^Save changes$/, /^Assign to all/, /^Choose an Assistant/]) {
       await expect(main(page).getByRole('button', { name })).toHaveCount(0);
     }
     await safe(page, state);

@@ -15,6 +15,9 @@
  *   S — source sentinels on the JSX this runner can't execute, and the one export the ADR adds (sub-decisions 5, 6, 8).
  *                                                                                                 [AC-3, AC-4, AC-5]
  *
+ * S2 re-aimed by treasure-map-edit #3 (ADR treasure-map-edit/0003): the page may take aRelays, and only aRelays, from
+ * useConfig() for the relay an edited entry names; taPubkey stays banned.
+ *
  * Re-aimed by treasure-map-edit #2 (book decision 11; ADR treasure-map-edit/0002): K9 and K16, whose `*:tag` entry now
  * counts on no card. That story's test plan records both changes.
  *
@@ -280,13 +283,17 @@ test('S1: /assistants’ view-model exports cardFields — the one name rule bot
   assert(f && f.name === 'Ava' && f.initial === 'A', `cardFields(A, {display_name:'Ava'}) should give name Ava, initial A; got ${show(f)}`);
 });
 
-test('S2: the page reads names through the shared profile lookup, and its own Assistant from the session — never taPubkey or a literal key', () => {
+test('S2: the page reads names through the shared profile lookup, and its own Assistant from the session — never taPubkey or a literal key (useConfig only for aRelays, treasure-map-edit #3)', () => {
   const src = codeOnly(safeRead(PAGE));
   assert(src, `${rel(PAGE)} does not exist`);
   assert(/import\s*\{[^}]*\bfetchProfilesChunked\b[^}]*\}\s*from\s*['"][^'"]*utils\/profileBatch(\.js)?['"]/.test(src), `${rel(PAGE)} should import fetchProfilesChunked from utils/profileBatch (ADR 0002 sub-decision 5)`);
   assert(/\bassistantPubkey\b/.test(src), `${rel(PAGE)} should take the local Assistant from user.assistantPubkey`);
-  const bad = src.match(/\btaPubkey\b|\buseConfig\b/);
+  const bad = src.match(/\btaPubkey\b/);
   assert(!bad, `${rel(PAGE)} uses ${bad && bad[0]}; the local Assistant is the session's own, never the instance owner's`);
+  // treasure-map-edit #3 (ADR 0003): the page may read the relay settings from the config, and nothing else from it.
+  const uses = src.match(/[^\n]*\buseConfig\s*\(\s*\)[^\n]*/g) || [];
+  const other = uses.filter((line) => !/\{\s*aRelays\s*\}\s*=\s*useConfig\s*\(\s*\)/.test(line));
+  assert(other.length === 0, `${rel(PAGE)} reads more than aRelays from useConfig(): ${show(other)}`);
   const hex = src.match(/[0-9a-f]{64}/i);
   assert(!hex, `${rel(PAGE)} contains a 64-hex literal (${hex && hex[0].slice(0, 12)}…)`);
 });

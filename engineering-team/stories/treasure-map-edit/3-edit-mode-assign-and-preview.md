@@ -169,5 +169,5 @@ it.
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` and
   `treasure-map-logic.js.txt`, the `tmbEdit` blocks
 - ADR: `engineering-team/decisions/treasure-map-edit/0003-a-pure-edit-model-beside-the-card-rule.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md`
 - Review: (filled in after Review phase)

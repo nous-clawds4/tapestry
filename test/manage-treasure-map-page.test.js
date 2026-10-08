@@ -372,7 +372,7 @@ test('D4: neither page signs, publishes or stores anything', () => {
   assert(wrong.length === 0, `AC-6: in no state does either page publish, sign or store anything — ${wrong.join('; ')}`);
 });
 
-test('D5: the page offers no Edit and no Save changes (book decision 1)', () => {
+test('D5 (treasure-map-edit #3): the page offers no Save changes yet — Edit mode arrives without it; Save is story 5', () => {
   const sf = parse(PAGE);
   assert(sf, `${rel(PAGE)} does not exist`);
   const texts = [];
@@ -380,8 +380,8 @@ test('D5: the page offers no Edit and no Save changes (book decision 1)', () => 
     if (ts().isJsxText(n)) texts.push(n.getText().trim());
     if (ts().isStringLiteral(n) || ts().isNoSubstitutionTemplateLiteral(n)) texts.push(n.text.trim());
   });
-  const bad = texts.filter((t) => /^(Edit|Editing|Save changes|Assign to all|Choose an Assistant)$/.test(t));
-  assert(bad.length === 0, `${rel(PAGE)} carries the design's edit controls ${show(bad)}; they are a later book`);
+  const bad = texts.filter((t) => /^Save changes$/.test(t));
+  assert(bad.length === 0, `${rel(PAGE)} carries the design's Save changes ${show(bad)}; it is treasure-map-edit #5`);
 });
 
 test('D6: both pages sit in the shared Brainstorm design frame, in its default (720 px) column', () => {
