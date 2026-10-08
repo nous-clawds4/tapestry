@@ -1,6 +1,6 @@
 # ADR 0003: Edit mode is a pure edit model beside the card rule, driven by one page-level edit state
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-08
 **Story:** `engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md`
 
