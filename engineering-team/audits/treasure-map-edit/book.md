@@ -53,7 +53,8 @@ says it has.
 - [x] **Shipped to staging.** Production gets this book and the manage-treasure-map book together, only on the owner's
       explicit go. *Shipped 2026-10-08: PR #821, merged to `staging` as `f0a4c59d`, deploy run 37850176311, smoke test
       clean. The owner then saved their own Map there, verbatim: "I have edited my Treasure Map on stating and can
-      confirm that it worked as intended. Ready to close the book." Production still waits for the owner's go.*
+      confirm that it worked as intended. Ready to close the book." Production followed the same day on the owner's go: PR
+      #823 (`4c91c9f3`), deploy run 37860767117.*
 
 ## Decisions at intake
 

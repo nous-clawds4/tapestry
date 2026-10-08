@@ -78,7 +78,7 @@ Promoted from audit §6:
 - **Copy that runs ahead of the app:** "Brainstorm keeps it up to date for you", "Brainstorm creates your Treasure Map
   during setup", and the Advanced-page FAQ answer.
 - **The top bar's sign-in during the session check** (ledger `2026-10-07-top-bar-sign-in-while-loading`).
-- **Production:** shipped to staging; production waits for the owner's go.
+- **Production:** done 2026-10-08, together with the treasure-map-edit book (PR #823).
 
 ## 7. What product must validate
 
