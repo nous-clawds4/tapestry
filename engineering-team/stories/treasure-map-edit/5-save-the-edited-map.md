@@ -118,7 +118,8 @@ The stack wasn't running in this session, so no concept handles were checked. No
 
 ## Out of scope
 
-- **Merging a newer Map into the edit** (open question 2's alternative): this story stops and asks for a reload.
+- **Merging a newer Map into the edit** (the alternative book decision 17 set aside): this story stops and asks for
+  a reload.
 - **The legacy generators rewriting the `30382:*` rows** after a save (ledger
   `2026-10-08-legacy-generators-overwrite-edited-scores`, book decision 12): accepted for now.
 - **Teaching other readers the family entries** (book decision 15).
