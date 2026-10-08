@@ -168,6 +168,34 @@ All duties Undo leaving the backup switch as it is. The owner's answer, verbatim
     AC-3; it answers story 3's review round 1, non-blocking 5. Story 4's five defaults are approved with it (story 4,
     § Defaults approved with the story).
 
+At story 5's draft, the same day. The draft asked five questions, each with a recommended answer, and listed five
+defaults:
+1. what counts as "Treasure Map updated";
+2. what happens if the Map changed since the page read it;
+3. a pick that changes nothing;
+4. the card switches' names (story 4 review, non-blocking 1);
+5. the All duties switch and cards with no duties (story 4 review, non-blocking 2).
+
+The owner's answer, verbatim:
+
+> Approved.
+
+17. **Save is honest about where the Map went, and never overwrites a newer one.**
+    - "Treasure Map updated" appears only when every relay tried accepted it. A partial result, or the publish policy
+      keeping the Map on this instance's relay, ends Edit mode and shows the app's publish report instead. A Map
+      accepted nowhere keeps Edit mode and the changes.
+    - Just before signing, the Map is read again. If a newer one has appeared, nothing is signed and the person is
+      asked to reload.
+    - Save is on only when the edited Map differs from the published one; otherwise the note says "No changes yet".
+
+    This is story 5's AC-1, AC-5 and AC-6.
+18. **Two changes to story 4's switches.**
+    - Each card's override switch is described by its card's title, then its note, which amends story 4's AC-6.
+    - The All duties switch turns on only the cards that have duties to override, which amends story 4's AC-2 and
+      departs from the blueprint, which turns all three.
+
+    This is story 5's AC-9, and it answers story 4's review, non-blocking 1–2.
+
 ## Epics in this book
 - `treasure-map-edit` — Edit mode on the Manage your Treasure Map page, and the card-rule fix it builds on.
 

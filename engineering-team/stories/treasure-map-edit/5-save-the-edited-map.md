@@ -1,6 +1,6 @@
 # Story 5: Edit mode — Save signs and publishes the edited Map
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-08
 **Type:** Feature
 **Epic:** `treasure-map-edit`
@@ -36,7 +36,7 @@ they reached my relays, so that my Assistants and other apps follow the new Map.
 "The published Map" is the one the page read. "The edited Map" is the one "View the raw Treasure Map — edited" shows.
 
 - [ ] **AC-1: Save changes.** In Edit mode, the save note has a **Save changes** button beside it (blueprint).
-  - It is on only when the edited Map differs from the published Map (open question 3). Otherwise it is off, and the
+  - It is on only when the edited Map differs from the published Map (book decision 17). Otherwise it is off, and the
     note reads "No changes yet", even if a card shows a pick. That happens when, for example, a Mixed card is given
     the Assistant its own entry already names (story 3 review, non-blocking 4).
   - With no Map found, any change turns it on. The edit then makes a new Map.
@@ -54,12 +54,12 @@ they reached my relays, so that my Assistants and other apps follow the new Map.
   instance's relay.
 - [ ] **AC-4: while saving.** The button reads **Saving…** and is off. The edit can't change until the save ends:
   pickers, switches, Undo, Assign to all and Edit itself are off.
-- [ ] **AC-5: a Map changed since it was read** (open question 2, as recommended). Just before signing, the page reads
+- [ ] **AC-5: a Map changed since it was read** (book decision 17). Just before signing, the page reads
   the Map again. If a newer Map has appeared since the page read it, nothing is signed. The page then:
   - says "Couldn’t save: your Treasure Map changed since this page read it. Reload the page to see the new one; these
     changes will be lost.";
   - keeps Edit mode and the changes as they are.
-- [ ] **AC-6: the outcomes** (open question 1, as recommended).
+- [ ] **AC-6: the outcomes** (book decision 17).
   - **Accepted everywhere** (this instance's relay, and every outside relay that was tried):
     - Edit mode ends.
     - The cards and the raw Treasure Map show the new Map, signed.
@@ -80,7 +80,7 @@ they reached my relays, so that my Assistants and other apps follow the new Map.
   - **The person declines to sign:** "Couldn’t save: the signature was declined."
 - [ ] **AC-8: with no Map found** (book decisions 9, 14, 15). Save publishes a new Map holding only what the edit
   added. Afterwards the page shows it, and the no-Map warning is gone.
-- [ ] **AC-9: story 4's switches, as the owner decides** (open questions 4 and 5, as recommended).
+- [ ] **AC-9: story 4's switches, as the owner decides** (book decision 18).
   - **Each card's override switch is described by its card's title, then its note.** A screen reader hears, for
     example, "Override 1 individually assigned duty, switch, off, Scores. Kept as they are; …". This amends story 4's
     AC-6, which had the note alone.
@@ -127,30 +127,22 @@ The stack wasn't running in this session, so no concept handles were checked. No
 
 ## Open questions
 
-Each has a recommended answer, which the acceptance criteria above follow.
+None.
 
-1. **What counts as "Treasure Map updated"?**
-   - **Recommended:** only a publish accepted everywhere it was tried. Anything less ends Edit mode, because the Map
-     now exists, but shows the app's publish report instead, so a partial result never reads as a clean success (the
-     app's rule for publishes).
-   - **The alternative:** show "Treasure Map updated" whenever the Map was saved anywhere, as the blueprint does.
-2. **What if the Map changed on the relays since the page read it?** For example, an Assistant or another app
-   published a newer one.
-   - **Recommended:** check just before signing. If it changed, don't sign, and ask for a reload (the changes are
-     lost), so Save never silently overwrites a newer Map.
-   - **The alternatives:**
-     - rebuild the edit on the newer Map and show the preview again; that's a later story;
-     - don't check, so the newer Map is replaced.
-3. **A pick that changes nothing** (story 3 review, non-blocking 4).
-   - **Recommended:** Save stays off and the note says "No changes yet" whenever the edited Map would be exactly the
-     published one.
-   - **The alternative:** keep counting picks and let Save re-publish an identical Map.
-4. **The card switches' names** (story 4 review, non-blocking 1). Recommended: describe each by its card's title, then
-   its note (AC-9).
-5. **The All duties switch and cards with no duties** (story 4 review, non-blocking 2). Recommended: it turns on only
-   the cards that have duties (AC-9).
+## Resolved at the story gate
 
-## Defaults assumed (to approve with this story)
+Approved as drafted, 2026-10-08, verbatim: "Approved." The draft's five recommendations, its five defaults and the
+words new in § Copy are approved with it.
+
+1. **"Treasure Map updated" only for a publish accepted everywhere it was tried.** Anything less ends Edit mode and
+   shows the app's publish report instead (book decision 17).
+2. **A Map changed since the page read it:** checked just before signing. If it changed, nothing is signed and the
+   person is asked to reload (book decision 17).
+3. **A pick that changes nothing:** Save stays off and the note says "No changes yet" (book decision 17).
+4. **Each card's override switch is described by its card's title, then its note** (book decision 18).
+5. **The All duties switch turns on only the cards that have duties** (book decision 18).
+
+## Defaults approved with the story
 
 1. **Where it's published:** this instance's relay and the outside relays the instance publishes to, under its
    publish policy (AC-3). These are the same places the app's other signed publishes go.
@@ -163,7 +155,7 @@ Each has a recommended answer, which the acceptance criteria above follow.
    - E9 again covers the All duties Undo after a card was changed.
 
 ## Linked artifacts
-- Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 3, 9, 12, 14 and 15
+- Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 3, 9, 12, 14, 15, 17 and 18
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` (the save bar) and
   `treasure-map-logic.js.txt` (`tmbSave`, `tmbSaveDisabled`, the toast)
 - Stories 3–4 and their reviews: `engineering-team/stories/treasure-map-edit/`,
