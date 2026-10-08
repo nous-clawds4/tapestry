@@ -25,13 +25,17 @@ Edit mode is three stories (planned 2026-10-08), shipped to staging together wit
 
 3. **Edit mode: assign Assistants and preview the result** (feature): the Edit button, the per-card pickers, All
    duties, Undo, the save note, the cards' preview and "View the raw Treasure Map — edited", the no-Map warning (book
-   decisions 12, 14, 15). Signs nothing. Depends on #2. Carries story 2's review non-blocking 1 and 3 (the
+   decisions 12, 14, 15). Signs nothing. Done. Depends on #2. Carries story 2's review non-blocking 1 and 3 (the
    `categoryAssistants` JSDoc's "a `*:…` entry never counts" should say "that names anything after the `*`"; H1–H5's
    names in `test/treasure-map-card-rule-edges.test.js` still say "covers").
 4. **The override switches and the backup switch** (feature): what each removes, previewed (book decisions 8, 12, 13).
    Depends on #3. A question for the owner at planning, from story 3's review (non-blocking 5): after Assign to all,
    a card's Undo (or picking its current Assistant) can leave the card reading Mixed with no Unsaved marker, because
-   the pending `*` entry still reaches it. The preview is honest, but it may read as a glitch.
+   the pending `*` entry still reaches it. The preview is honest, but it may read as a glitch. Also carries story 3's
+   review round 2, non-blocking 1: a pick or Undo moves focus to the list's button before the re-render, so a screen
+   reader may read the button's old words and description, and moving a pending card from one Assistant to another
+   leaves the live save note unchanged, so it isn't announced. Move focus after the render when story 4 touches
+   these controls.
 5. **Save** (feature): Save changes signs the edited Map with the person's own signer and publishes it, "Treasure Map
    updated", the failure states, and a new Map when none was found (book decisions 9, 14). Depends on #4. Carries
    story 3's review non-blocking 4 and 9:

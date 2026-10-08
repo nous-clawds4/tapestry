@@ -35,7 +35,8 @@ says it has.
       assigns Scores, Lists or Concepts each to one Assistant, or **All duties** to one Assistant. Each pending change
       reads Unsaved, with Undo. A category with individually assigned duties offers the blueprint's override switch.
       The save note counts the changes, and "View the raw Treasure Map — edited" shows exactly the Map Save would sign.
-- [ ] **Only the person's own Assistants can be picked:** the ones on the My Assistants page (`/assistants`).
+- [x] **Only the person's own Assistants can be picked:** the ones on the My Assistants page (`/assistants`).
+      Story 3 (`3-edit-mode-assign-and-preview.md`).
 - [ ] **One backup switch, off by default.** Switched on, Save keeps only the first Assistant of each entry and drops
       every backup. Finer control of backups belongs to the Advanced page, a later book.
 - [ ] **Save changes** signs a new Treasure Map with the person's own signer and publishes it. The page says

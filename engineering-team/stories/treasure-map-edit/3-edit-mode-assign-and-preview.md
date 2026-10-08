@@ -1,6 +1,6 @@
 # Story 3: Edit mode — assign Assistants and preview the result
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-08
 **Type:** Feature
 **Epic:** `treasure-map-edit`
@@ -174,16 +174,20 @@ it.
 - **An open list covers the cards below it,** as the blueprint's absolute lists do. It closes on Escape, on a press
   outside it, and when focus moves out of it. So a button it covers is never focused or clicked while hidden under it
   (review round 1, non-blocking 2; WCAG 2.2 SC 2.4.11). A list's button names it in `aria-controls` only while the list
-  exists (non-blocking 7).
+  exists (non-blocking 7). Rendering every list hidden instead, so the button could always name it, would put the
+  rows' names into the cards' text, which the cards' preview tests read.
 - **On phones the All duties actions keep to the row's end when the row wraps** (`margin-left: auto`). The blueprint
   puts them at the start of the wrapped line, which left the list, anchored to **Assign to all**'s right edge, half off
   the left of the screen (review round 1, Blocking 1). Every open list now lies inside the screen at 375 and 430 px.
 - **Focus and screen-reader context**, which the blueprint doesn't cover (review round 1, non-blocking 1 and 3):
-  - A pick, an Undo, **Try again** and Escape put focus back on the list's button.
+  - A pick, an Undo, **Try again** and Escape put focus back on the list's button. Focus moves before the page
+    re-renders, so for a moment the button still has its old words and description; a screen reader may read those
+    (review round 2, non-blocking 1; carried to story 4 in the epic).
   - Each card's button and **Undo** keep the blueprint's words as their names. The card's title is their accessible
     description, plus "Will be assigned to *name*" on the button while the card is pending. The All duties **Undo** is
     described by "All duties".
-  - The save note is a polite live region, so each change is announced.
+  - The save note is a polite live region, so a change that alters the note is announced. Moving a pending card
+    from one Assistant to another leaves "1 unsaved change" as it was, so that change isn't.
 - **The lists' empty state uses the page's status style** (`.bsd-ma-status`), as its loading and error states do (ADR
   0003 sub-decision 4; review round 1, non-blocking 6).
 

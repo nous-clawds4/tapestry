@@ -285,8 +285,193 @@ blocking issue remains: on phone widths the All duties list is half off-screen, 
 Assistants they're choosing. E16 can't see it. Fix the layout (Blocking 1a), and have the Tester strengthen E16 in a
 recorded amendment (Blocking 1b). Non-blocking 1–3 are cheap to fold into the same round.
 
+## Round 2 (2026-10-08)
+
+**Diff:** `git diff 4733672a..HEAD` (head `18ff6f92`; 2 commits, 7 files), reviewed on a clean tree at `18ff6f92`.
+- `e76b66fb` is the Tester's Amendment 2: the spec and the test plan.
+- `18ff6f92` is the Implementer's fix: `Index.jsx`, `useMapEdit.js`, `styles.css`, the story's § Deviations and
+  § Linked artifacts, and the epic.
+
+### Gate results (run by reviewer, not trusted)
+
+- [x] `GATE_LABEL=tme3-review-r2 npm test`, alone on the machine, read with
+  `npm run -s gate:status -- --label tme3-review-r2`:
+
+  ```
+  20261008T025945Z-9855-e929 [tme3-review-r2] started 2026-10-08T02:59:45.907Z on 18ff6f92 — PASS, exit 0, 5063 passed, 0 failed, 581 skipped, 274/274 suites
+  ```
+
+  - The totals are round 1's, because this round changes only the page and a browser spec.
+  - Per suite: `treasure-map-edit-mode` 47/47, `manage-treasure-map-cards` 31/31, `manage-treasure-map-page` 22 passed
+    and 2 live skips, `treasure-map-card-rule-edges` 29/29.
+  - The Implementer's cited run, `20261008T025403Z-13312-55b9 [tme3-r2-p4]`, exists and ran on `e76b66fb+dirty`, before
+    the fix was committed. The run above is the one tied to the commit.
+- [x] Build: `npm run build` in `ui/` from the clean tree gave the same bundle, `index-DKaCUHQW.js`, that :7799 serves.
+  So the browser runs test `18ff6f92`.
+- [x] Browser, the five specs, `--project=chromium`, against :7799, with nothing else running:
+  - one run: 77 passed (46.1s);
+  - `--repeat-each=3`: 231 passed (2.3m).
+
+  77 is round 1's 73, plus E16's second width and E17–E19.
+- [x] `bash scripts/harness-lint.sh` reported `harness-lint: clean (0 violations)` before this section was added.
+
+### Carve-out and Amendment 2
+
+- **The carve-out holds.**
+  - `e76b66fb` touches only `tests/brainstorm/treasure-map-edit.spec.js` and the test plan.
+  - `18ff6f92` touches no test file.
+  - The amendment came first, in the Tester's lane, as Blocking 1b asked. The owner approved its scope ("Proceed."),
+    so it isn't self-ratified, unlike Amendment 1.
+- **It weakens nothing.**
+  - E1–E7 and E9–E15 are byte-identical.
+  - E8 gains one line.
+  - E16 keeps the old no-sideways-scroll check, now for every list at both widths.
+  - `allRow` is a new helper.
+- **Its recorded run reproduces.**
+  - I built `4733672a`'s `ui/` in a scratch tree. It gave round 1's bundle, `index-6ILgIfjj.js`, which I served on
+    :7800.
+  - The amended spec there: 6 failed, 14 passed. Each failure is the plan's stated reason:
+    - E16 at both widths: "All duties, nothing pending: the list's left edge is on screen", received −147.67;
+    - E8: no `.bsd-ma-status` element;
+    - E17: "after a card's pick", the button isn't focused;
+    - E18: "Escape closes the list", but it stays visible;
+    - E19: the Scores button's description is `""`.
+
+### Round-1 findings, re-checked
+
+I drove the built page with a scratch Playwright script (not committed; its fixtures are the spec's, copied verbatim).
+Each claim below was measured on `18ff6f92` and, where it says so, on round 1's build.
+
+- **Blocking 1, fixed.**
+  - **The fix:** `styles.css:10278–10283` adds `margin-left: auto`, which keeps the All duties actions at the row's end
+    when the row wraps. **Assign to all** sits at the right edge, so its right-anchored list opens inside the column.
+  - **Measured:** I checked 320, 360, 375, 390, 414, 430, 768 and 1024 px.
+    - The states: each of the four lists, with nothing pending, with a name pending through Assign to all, and with a
+      card pending.
+    - Two name sets: the spec's names, and one 78-character name whose first word is 46 characters with no break.
+    - Every list box lies inside the screen, and so do the rows, avatars, names and detail lines inside it.
+    - For example, the All duties list spans 40…340 at 375 px and 13…285 at 320 px, the same with a name pending.
+  - **Sweep:** 320–800 px in 10 px steps, 882 open lists, and none lies outside the screen. The same sweep on round 1's
+    build puts the All duties list at −148…152 from 350 to 440 px, so the sweep can see the bug.
+  - **The desktop layout is unchanged.** At 600, 768 and 1024 px, in five states, the boxes match round 1's to the
+    pixel: the All duties row and its actions, every toggle and list, the pending lines, the Undos and the save note.
+    The section screenshots are byte-identical.
+  - **(b), the test:** E16 (`treasure-map-edit.spec.js:523–558`) checks each open list's box against the viewport at
+    375 and 430 px. It covers the three card lists and All duties, with nothing pending and with Bea pending.
+- **Non-blocking 1 (focus), fixed:** `Index.jsx:258–261` (`andFocus`), `:413` and `:461`. Besides E17, I checked by hand:
+  - a mouse pick, Enter and Space on a row, a card's Undo and the All duties Undo by keyboard;
+  - Try again by keyboard, after which the list stays open;
+  - Escape from a row and from the open list's button.
+
+  Each time, focus is on the list's button. Escape with no list open leaves focus where it was.
+- **Non-blocking 2 (closing), fixed:** `Index.jsx:238–257`.
+  - **Closes:** Escape; a press on the page heading or on blank page space; Tab past the last row; Shift+Tab from the
+    open list's button; Tab from the button while only the loading line shows; focus moved by script. Closing picks
+    nothing.
+  - **Stays open:** a press on the loading line inside the list, and Shift+Tab from a row to its own button.
+  - **No close-before-click race.** A press inside the picker is ignored. A blur closes the list only when the new
+    focus target is outside the picker, so a blur with `relatedTarget` null never closes it. I simulated Safari two
+    ways: a mousedown that never moves focus, and one that blurs the focused toggle with `relatedTarget` null. Both
+    times the click still picked and focus landed on the button.
+  - **Other clicks:** with focus on one row, a click on another row picks the one clicked. With focus in the All
+    duties list, a click on the Concepts button closes All duties and opens Concepts.
+  - **Edit off with a list open is clean,** by mouse, by keyboard, and by a synthetic click (as assistive tech sends,
+    with no pointerdown and no focus move). The list goes, nothing reaches the console, and Edit on again starts with
+    every list closed.
+  - **The document listeners are removed.** I counted the document's `keydown` and `pointerdown` listeners: none with
+    every list closed, and one each with a list open. Toggle, pick, Escape, an outside press, focus leaving, Edit off
+    (all three ways) and leaving the page each bring the count back to none. Moving from one list to another keeps it
+    at one.
+- **Non-blocking 3 (which card a button belongs to), fixed:** `Index.jsx:192`, `:316`, `:332–333`, `:412` and `:451`.
+  - The names are still the blueprint's: "Choose an Assistant", "Change", "Undo", "Assign to all".
+  - The descriptions are "Scores", "Scores Will be assigned to Bea", a card's Undo "Concepts", and the All duties
+    Undo "All duties".
+  - No duplicate ids and no id reference that names nothing, in four Edit states and with Edit off.
+  - The save note is `aria-live="polite"` (`:469`).
+- **Non-blocking 6 (status style), fixed:** `Index.jsx:266–272`.
+  - The text has the same computed font, colour, margin, padding and box as round 1's `<p>`.
+  - A screenshot of the open empty list is byte-identical to round 1's.
+- **Non-blocking 7: done differently from the plan, and acceptable.** `aria-controls` is set only while the list
+  exists (`Index.jsx:315`).
+  - **The stated reason holds.** E5's `scores` is the card's `<li>` (spec `:180–183`). `toContainText` reads
+    `textContent`, which includes hidden elements, so a hidden list's "Ava" row would fail E5 at spec `:322`.
+  - **It also stands on its own.** `aria-controls` is optional on a disclosure button. The defect was a reference to
+    nothing, and none is left (checked above). E18's last loop holds this either way.
+- **Non-blocking 8 (decision 15), fixed:** the story's § Linked artifacts (`:191`) and the epic's story-3 line (`:28`).
+- **Non-blocking 4, 5 and 9, carried** (`epics/treasure-map-edit.md:31–42`), each true to round 1's finding:
+  - 5 is a question for the owner at story 4's planning;
+  - 4 and 9 are asks on story 5.
+- **The docs:**
+  - The story's § Deviations are accurate except for non-blocking 1 below.
+  - The test plan's Amendment 2 is accurate (6 failed, 14 passed, reproduced above).
+  - The spec's header matches its tests.
+- **House rules:**
+  - The source diff has no `taPubkey` and no 64-hex literal. `useConfig()` is still only `const { aRelays }`
+    (`Index.jsx:522`).
+  - Nothing signs or publishes, and there's no new request. E15 still passes: no sign call, no write, no socket.
+  - Only the viewer's own Map: nothing that picks the Map or the draft's author changed.
+  - The copy is unchanged. `COPY` and `editTreasureMap.js` are untouched, and no visible text was added. The section's
+    accessibility snapshot shows the blueprint's names.
+  - No new dependency or tooling.
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **Two places where § Deviations says more than the code does, or less than the record needs**
+   (`engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.md:176–177`, `:186`).
+   - **"The save note is a polite live region, so each change is announced" overstates it.**
+     - Changing a card that is already pending (Bea → Cy) leaves the note at "1 unsaved change", so the live region
+       says nothing.
+     - Focus goes back to the button inside the click handler (`Index.jsx:258–261`), before React re-renders. Measured
+       at the focus event, the button's description still reads "Will be assigned to Bea", and it reads Cy only after
+       the render.
+     - Whether a screen reader speaks the old or the new text depends on its timing. I didn't check with one.
+     - Optional: reword it ("so a change to the count is announced"), or move focus after the render.
+   - **The `aria-controls` line doesn't say why the planned approach was dropped.** The approved plan said the button
+     points at its list even while it's closed. The Deviation records only what was built. One clause would do: the
+     specs read the card's text content, and hidden rows would be in it.
+2. **Outside this diff: at 320 px the top bar scrolls the page sideways by 24 px.**
+   - The top bar's avatar menu (`.bs-usermenu`, from `ui/src/components/BrainstormUserMenu.jsx`) ends at x = 344 when
+     the Assistant pill shows.
+   - It's the same with Edit off, on `/assistants`, and on round 1's build. This page's own contract is 375 px (ADR
+     0003 sub-decision 5), and nothing scrolls at 360 px or wider.
+   - `assistant-alert` B9 checks 320 px, but only on `/`, `/tags`, `/about`, `/settings`, `/developers` and
+     `/tapestry/`, none of them pages built on this design shell.
+   - No ledger row covers it, and a `bug` row is warranted.
+
+#### Harness friction
+
+None new.
+- Round 1's three rows exist: `2026-10-08-new-browser-spec-amendments-unratified`,
+  `2026-10-08-narrow-width-check-misses-left-overflow` and `2026-10-08-realtime-wrapper-timing-flake-under-load`. The
+  last didn't trip this round, because the gate ran alone.
+- The Implementer's gate and build came from an uncommitted tree. My clean rebuild matched, so existing row
+  `2026-10-07-built-ui-records-no-commit` covers it and adds nothing.
+
+### Verdict
+
+Blocking 1 is fixed at its cause. Every open list stays inside the screen from 320 to 1024 px, in every pending state
+and with a long name. The desktop layout is identical to round 1's, and E16 now checks the list boxes. It fails on
+round 1's build for the reason given and passes now.
+
+The folded non-blocking findings (1–3 and 6–8) are done, and I checked each by hand as well as by the specs. That
+includes the Safari-like click, which still picks, and listeners that come and go with the list. Non-blocking 7's
+change of approach is sound.
+
+The committed tree passes the gate (5063 passed, 0 failed) and the five browser specs (77, and 231 over three
+repeats). What remains is a Deviation wording point and a top-bar issue that isn't this story's.
+
+**PASS** — the round-1 blocking finding is resolved, and no blocking issue remains.
+
 ## Close-out on a pass
 
-- [ ] Story `**Status:**` flipped to `Done` in place. Not this round; the orchestrator does it in the review commit
-  when a later round passes.
-- [ ] Completion detection: not this round. The orchestrator records it in the chat, not here.
+- [x] Story `**Status:**` flipped to `Done` in place, in round 2's review commit. Round 2's non-blocking 1 is fixed
+  in the story's § Deviations wording and carried to story 4 in the epic. Non-blocking 2 is ledger
+  `2026-10-08-top-bar-scrolls-sideways-at-320`.
+- [x] Completion detection: run. The book isn't complete, because stories 4 (the override and backup switches) and 5
+  (Save) remain. The acceptance frame's "Only the person's own Assistants can be picked" is ticked.
