@@ -340,7 +340,353 @@ Three things block a story that signs and publishes:
 
 Each has a concrete fix and a test to pin it.
 
+## Round 2 (2026-10-08)
+
+**Diff:** `git diff 8e78767c..HEAD` (head `c41c171f`; 5 commits, 11 files), reviewed on a clean tree at `c41c171f`.
+- `901132eb` is the book and the story:
+  - book decision 19, with the owner's "Let’s do 1 A.";
+  - the story's AC-2, AC-5, AC-10, § Copy and § Out of scope;
+  - a superseded note on gate item 2.
+- `1a5abeb4` is ADR 0005 Amendment 1.
+- `5de101f6` is the Tester's Amendment 1, before code: Q6, Q12, W1 and S2 in the Node suite; SV4 re-aimed and SV12–SV16
+  in the spec; the plan.
+- `3dea23f9` is the Tester's two corrections to SV4, found in Phase 4, and the plan's note on them.
+- `c41c171f` is the Implementer's fix: `saveTreasureMap.js`, `useMapSave.js`, `Index.jsx`, `manageTreasureMap.js` (the
+  words), one rule in `styles.css`, and the story's § Deviations.
+
+I reran round 1's probes against the fixed page and added probes for book decision 19's edges. I also made two mutation
+builds. None of this is committed.
+
+### Gate results (run by reviewer, not trusted)
+
+- [x] `GATE_LABEL=tme5-review-r2 npm test`, alone on the machine, read with
+  `npm run -s gate:status -- --label tme5-review-r2`:
+
+  ```
+  20261008T212125Z-5503-a3f6 [tme5-review-r2] started 2026-10-08T21:21:25.064Z on c41c171f — PASS, exit 0, 5121 passed, 0 failed, 581 skipped, 276/276 suites
+  ```
+
+  - 5121 is round 1's 5120 plus Q12.
+  - Per suite:
+    - `treasure-map-save` 24/24, `treasure-map-switches` 34/34, `treasure-map-edit-mode` 47/47;
+    - `manage-treasure-map-page` 22 passed and 2 live skips;
+    - `manage-treasure-map-cards` 31/31, `treasure-map-card-rule-edges` 29/29.
+  - The report's other callers: `my-assistants-map` 14/14, `assistant-taggings-publish` 19 passed and 1 live skip,
+    `assistant-identification-tags-page` 16/16.
+  - The Implementer's cited run, `20261008T211515Z-8568-f755 [tme5-r2-p4]`, exists. It passed with 5121, but on
+    `5de101f6+dirty`, before the corrections and the fix were committed. The run above is the one tied to the commit.
+- [x] **Build tied to the commit.** `npm run build` in `ui/`, from the clean tree at `c41c171f`, gave `index-k4iWpdGU.js`.
+  That's the bundle `dist/index.html` names and :7799 serves. The tree was still clean afterwards.
+- [x] **Browser,** the seven specs, `--project=chromium`, against :7799, with nothing else running:
+  - one run: **109 passed (1.1m)**, which is round 1's 104 plus SV12–SV16;
+  - `--repeat-each=3`: **327 passed (3.1m)**.
+- [x] **The report's other callers in the browser:** `my-assistants-actions`, `assistant-identification-tags-page` and
+  `assistant-taggings-publish` give **44 passed (54.1s)**. `taggingPublishReport.js` is untouched this round.
+- [x] **The Tester's recorded verification reproduces.** I built `8536ae26`'s `ui/` in a scratch tree. It gave round 1's
+  bundle, `index-pOBamNJw.js`, which I served on :7801.
+  - **The Node suite** at `HEAD`, against `8536ae26`'s source: 20 passed, 4 failed. Each failure is the plan's reason:
+    - Q6: no `latest` on the answer;
+    - Q12: `saved` where `stale` is due;
+    - W1: the old words;
+    - S2: no `getSessionPubkey`.
+  - **The spec** at `HEAD`: 6 failed, 13 passed.
+    - SV4, SV12 and SV13 get the old reload words.
+    - SV14 signed 1, want 0. SV16 signed 2, want 1.
+    - SV15 finds no region saying "Saving…".
+    - The plan's run used `5de101f6`'s SV4. `3dea23f9`'s SV4 fails at the same line.
+- [x] `bash scripts/harness-lint.sh` reported `harness-lint: clean (0 violations)` before this section was added.
+
+### Carve-out and the Phase-4 corrections
+
+- **The carve-out holds.**
+  - `5de101f6` touches only `test/treasure-map-save.test.js`, `tests/brainstorm/treasure-map-save.spec.js` and the
+    test plan.
+  - `3dea23f9` touches only the spec and the plan.
+  - `c41c171f` touches no test file.
+- **Amendment 1 weakens nothing.**
+  - The spec's removed lines are:
+    - the old words;
+    - setup lines that grew: the signer modes, the state, and the `getPublicKey` stub;
+    - SV4's re-aimed lines.
+
+    SV4's "Will be assigned to Bea" check is back with a message, and its focus check moved (below).
+  - SV1–SV3 and SV5–SV11 are byte-identical.
+  - In the Node suite, Q6 and S2 only gain checks, and W1 takes decision 19's words.
+- **SV4's two corrections are genuine test faults.**
+  - **`30385:new` is a Scores entry.**
+    - `appliesTo` reads slot `30385` as a Scores kind, 30380–30389 (`manageTreasureMap.js:188`).
+    - `roleOf` makes a key with one segment that isn't a system word `own` (`editTreasureMap.js:30–37`).
+    - So the pending Scores → Bea moves it to Bea, and the first SV4 asserted the wrong behaviour.
+    - `31234` is in no category's range, so `31234:new` has no role and must survive untouched. That keeps the test's
+      intent. The signed-tags check still pins the order and Scores → Bea.
+  - **The focus check had moved after the test's own clicks.**
+    - `publishedTags` and `draftTags` click the viewers' toggles, which takes focus.
+    - My first probe of a second "changed" made the same mistake and read focus on "Hide the raw Treasure Map".
+    - Read before any viewer opens, focus is on Save changes (E4b below). Moving the check back to round 1's place
+      weakens nothing.
+  - Who ratifies them is ledger `2026-10-08-new-browser-spec-amendments-unratified` again (Harness friction 1).
+
+### Round-1 findings, re-checked
+
+Each was measured on `c41c171f`, with round 1's probes rerun and new ones added.
+
+- **Blocking 1, fixed** (book decision 19; ADR 0005 Amendment 1, item 1).
+  - **The fix:**
+    - the `'changed'` answer carries the newer Map (`saveTreasureMap.js:86`);
+    - `useMapSave` keeps it as `shown` (`useMapSave.js:98`);
+    - the page shows `shown` and builds the edit on it (`Index.jsx:675–678`);
+    - `onSave` doesn't finish the edit on `'changed'` (`:700`).
+  - **H3, in round 1's shape.** An outside relay holds a newer Map that names Cy for Scores. This instance's relay holds
+    the old one.
+    - **The first Save** signs, writes and sends nothing.
+      - The alert reads decision 19's words exactly.
+      - Edit stays on, and focus is on Save changes.
+    - **The newer Map is shown.**
+      - The raw viewer shows it.
+      - With Edit off, the cards show it too: Scores is Cy; Lists and Concepts are not assigned.
+      - The edited Map is built on it: `30382:rank` → Bea, with `3038x` → Bea appended.
+      - The Scores card still reads "Will be assigned to Bea", and Save is on.
+    - **The second Save** signs once, stamped now, which is later than the newer Map. It goes to this instance's relay
+      and all five outside relays.
+    - **After a reload,** the page shows the signed Map, and a further edit saves straight away.
+  - **H4, in round 1's shape.** A relays-only save, then a reload with this instance's relay healthy, an edit, and Save.
+    - After the reload, the page shows the old Map.
+    - Save shows the relays-only Map once, with Lists → Cy kept.
+    - The next Save signs on top of it, later than it. It keeps Scores → Bea and adds Lists → Cy.
+    - Without a reload, a second edit saves straight away (H4b).
+  - **SV12 and SV13** drive `readLatestMap`'s relay branch, as round 1 asked.
+- **Blocking 2, fixed** (Amendment 1, item 3).
+  - **Before Save, the page has four `aria-live` regions,** none with a role:
+    - the partial-report container (`Index.jsx:636`);
+    - the save note;
+    - the "Saving…" span (`:590`);
+    - the toast container (`:725`).
+
+    All are empty except the save note.
+  - **Each existed before its words.** I tagged every region before pressing Save. Afterwards:
+    - "Saving…" is in the tagged span;
+    - "Treasure Map updated" is in the tagged toast container;
+    - a partial report is in the tagged section container.
+  - Focus still falls to `<body>` while busy, because the button is disabled. The span now announces "Saving…".
+  - **No new roles.** Round 1's build and this one have the same counts of `status`, `alert`, `region`, `note` and
+    `switch` in four states: loaded, editing, toast and partial.
+    - Only the `aria-live` count grows: 0 → 2 when loaded, 1 → 4 while editing.
+    - The neighbour suites pass.
+- **Blocking 3, fixed** (Amendment 1, item 2).
+  - **The check.** `isCurrent` is `mine === latest.current && getSessionPubkey() === viewer` (`useMapSave.js:63`). It is
+    checked after the newer-Map read (`saveTreasureMap.js:87–88`) and again after signing (`:106`).
+  - **The session mirror.** `getSessionPubkey` returns AuthContext's copy of `user.pubkey` (`AuthContext.jsx:39–41`).
+    It's set in the same commit as the viewer change, so it is never null while someone is signed in.
+  - **H5a:** sign out while `getPublicKey` is held, then release it.
+    - `signEvent` is never called.
+    - Nothing is written or sent, no toast shows, and the console has no errors.
+  - **H5b:** sign out while `signEvent` is held (after the first check), then release it.
+    - The signer signs, because its prompt was already open.
+    - The page drops the signature: nothing is written or sent.
+  - **H5c:** with the first prompt held, sign out and back in as the same person, then Edit, pick and Save. Then
+    release the old prompt.
+    - One Map is signed and written, with no alert, and Edit is unchanged.
+    - The viewer change resets the `running` ref (`useMapSave.js:52`), so the old save doesn't block the new one.
+  - **`onSave` acts only on `answer.current`** (`Index.jsx:700`).
+- **Non-blocking 2 (the double call), fixed** (item 4). H1 tried a real double click, and three `click()` calls in one
+  script task.
+  - Each gives one `getPublicKey`, one `signEvent` and one write.
+  - Edit is usable afterwards.
+- **Non-blocking 5 (deviations), fixed.** The story's § Deviations (`:165–172`) records `reportLines` and the
+  names-ready rule, accurately. ADR Amendment 1, item 5, accepts both.
+- **Non-blocking 6 (live regions), fixed** with Blocking 2.
+- **Non-blocking 1, 3, 4, 7 and 8:** not taken, as the ADR amendment says (ADR 0005 `:321–326`). Nothing carries them, though
+  (non-blocking 3 below).
+
+### Book decision 19's edges
+
+- **The newer Map makes the change a no-op** (E1: it already gives Scores and its family to Bea).
+  - Nothing is signed, and the alert reads decision 19's words.
+  - Save is off, and the note says "No changes yet".
+  - Focus is on `<body>` (non-blocking 1).
+- **An override whose duties are gone in the newer Map** (E2).
+  - The Scores switch disappears, and Save stays on for the assignment.
+  - The signed Map is the newer one with Scores → Bea. Nothing else is removed.
+- **An override, and the newer Map has more duties** (E2c).
+  - The switch, still on, now reads "Override 3 individually assigned duties", and the save removes all three.
+  - That's decision 19's "overrides … apply to the newer Map", and the new count shows before the second Save.
+- **The backup switch, and no backups are left** (E2b): the switch disappears, and the edit becomes a no-op, as in E1.
+- **The person's own relays-only save as the newer Map:** H4 above.
+- **A second "changed" in a row** (E4, E4b).
+  - The second newer Map is shown.
+  - The alert is a new node each time, so it's announced again, and focus is on Save changes each time.
+  - The third press saves, later than the second newer Map and keeping its own entry.
+- **No Map found, and one appears at Save** (E7).
+  - The page shows it, the no-Map warning goes, and the change is kept.
+  - The next Save signs on top of it.
+- **A newer 10040 by someone else on an outside relay** is ignored, and Save goes straight through (E9).
+- **Two Maps at the same second** (E5): the sort is stable, so this instance's relay's Map comes first. That's the one
+  the page shows, so Save goes straight through.
+- **A newer Map that names an Assistant never looked up** (E6, E6b).
+  - The section drops to the loading line while the names are looked up. That unmounts Save, and focus falls to
+    `<body>` (non-blocking 1).
+  - If the Assistant is one of the person's, focus is right (E6c).
+- **Widths.** Decision 19's longer words fit. The alert spans 16…304 at 320 px and 16…359 at 375 px. The 24 px of
+  sideways scroll at 320 px is ledger `2026-10-08-top-bar-scrolls-sideways-at-320`.
+- **Signatures.**
+  - The non-strict read of `/api/relay/external` uses nostr-tools 2.10.4's `SimplePool`, whose constructor always
+    passes `verifyEvent`.
+  - strfry checks signatures on write.
+  - So a relay can't forge a "newer Map" for the page to adopt.
+
+### Amendment 1, item by item
+
+| Item | Code | Holds? |
+|---|---|---|
+| 1. `latest` on the `'changed'` answer | `saveTreasureMap.js:86` | Yes (Q6) |
+| 1. `saved` becomes `shown` | `useMapSave.js:24`, `:98`; `Index.jsx:675–678` | Yes |
+| 1. No `finish()` after `'changed'` | `Index.jsx:700` | Yes |
+| 2. `isCurrent`, checked twice | `saveTreasureMap.js:87–88`, `:106` | Yes (H5a, H5b) |
+| 2. `isCurrent`'s definition | `useMapSave.js:63` | Yes, word for word |
+| 2. Only current answers act | `useMapSave.js:84–90`, `:104`; `Index.jsx:700` | Yes, with one unrecorded deviation (non-blocking 4) |
+| 3. The "Saving…" span, always there in Edit mode | `Index.jsx:589–590` | Yes |
+| 3. The toast container: page level, polite, atomic | `Index.jsx:724–727`, `styles.css:10378` | Yes. Its zero-height class isn't in the ADR, and it's harmless. |
+| 3. The partial-report container, at the top of the section | `Index.jsx:635–640` | Yes |
+| 3. The containers carry no role | — | Yes (role counts above) |
+| 4. The busy ref | `useMapSave.js:47`, `:52`, `:59–61` | Yes. It's named `running`, and a viewer change also resets it, which H5c needs. |
+| 5. The recorded deviations | story `:165–172` | Yes |
+
+### House rules
+
+- **No `taPubkey` and no 64-hex literal** in the source diff (grepped; S2 checks `useMapSave.js`).
+- **Only the viewer's Map.** Step 1 of the sequence is unchanged, and `readLatestMap` keeps only the viewer's 10040s
+  (E9).
+- **Nothing signs without a click.** `'changed'` signs nothing, and the next Save takes a second click. E15 and V12
+  still pass.
+- **CLAUDE.md principle 4, now with the newer Map as the base** (E8).
+  - **The setup:** an outside relay holds a newer Map in round 1's H8 shape. It has 24 tags:
+    - eleven `30382:<metric>` rows;
+    - a backup with extra elements;
+    - `alt`, `p`, `e`, `client` and `emoji` tags;
+    - an invalid delegate.
+
+    It also has content. The edit is Lists → Bea, then Save, then Save.
+  - **The signed Map** differs from the newer one only at index 13 (`30392` → Bea) and in the appended `3039x`. The
+    content is kept.
+  - This instance's relay and all five outside relays got exactly the signed tags.
+- **The words** are book decision 19's and the story's § Copy, exactly. I checked them with a wrap-normalised script and
+  against the alert's text in H3.
+- No new dependency or tooling.
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **After "changed", focus can fall to `<body>`** (`Index.jsx:406–414`, against `:461–462` and `:595`; AC-10).
+   - The focus effect runs once, at the outcome's render, and focuses Save changes. Two of decision 19's states leave it
+     nothing to focus:
+     - **The newer Map makes the change a no-op** (E1, E2b). Save is off. The alert still says "check them and save
+       again", beside "No changes yet".
+     - **The newer Map names an Assistant that is neither in the old Map nor one of the person's** (E6).
+       - The names-ready rule (`:450–452`) sends the section to the loading line, which unmounts Save.
+       - When the cards return, the outcome has already been seen, so nothing moves focus.
+       - One Tab then lands on Assign to all.
+   - Either way the alert is announced, nothing is lost, and Save still works.
+   - AC-10's "focus stays on Save changes" can't hold in the first state, and is missed in the second.
+   - Optional fixes:
+     - focus Edit, or the alert, when Save is off;
+     - run the focus effect when Save next mounts.
+   - Story 5 is the epic's last, so a ledger `bug` row is warranted.
+2. **Three of the amendment's guarantees have no test that would catch their loss.** I checked each by hand above, so
+   today's code is right.
+   - **SV15 doesn't pin "there before the save"** (`treasure-map-save.spec.js:587–598`), though its title and the plan's
+     row (`5-save-the-edited-map.test-plan.md:162`) say it does.
+     - It counts regions whose text is exactly "Saving…", which is 0 before Save on any build.
+     - I built a mutation that mounts the span only while busy (`{busy && <span aria-live="polite">…}`). SV15 and SV3
+       both pass on it.
+   - **Nothing tests the toast and partial-report containers.** Round 1's build has neither, and SV2, SV5 and SV6 pass
+     on it.
+   - **Q12 doesn't pin that the second `isCurrent` check comes after signing** (`test/treasure-map-save.test.js:325–340`).
+     - With both checks moved before `sign`, the whole Node suite passes.
+     - No browser case holds `signEvent`; SV14 holds `getPublicKey`.
+   - Optional fixes:
+     - SV15 tags the region before Save and checks that the same node says "Saving…". The toast and the partial report
+       get the same check.
+     - Q12 records the call order (`sign` before the second `isCurrent`), or a browser case holds `signEvent`, as H5b
+       did.
+3. **Four places where the docs say more than the code or the record.**
+   - **The ADR says round 1's non-blocking 1, 3, 4, 7 and 8 are "carried in the epic for later"** (ADR 0005 `:321`).
+     The epic wasn't touched this round, and story 5 is its last story. Round 1's findings record them, but no open
+     surface does.
+   - **The story's § Linked artifacts** lists book decisions 3, 9, 12, 14, 15, 17 and 18 (story `:175`), but not 19.
+   - **AC-10 says every outcome message is "in a live region that is on the page before its words arrive"** (story `:97–98`).
+     - The refusal alerts and the failed report mount with their words as `role="alert"` (`Index.jsx:602–607`). Screen
+       readers announce those on insertion.
+     - The amendment's item 3 lists only the three status regions.
+     - The behaviour is sound; the sentence claims more than the design does.
+   - **AC-2 says nothing is signed once the person has signed out mid-save** (story `:51–52`). A `signEvent` prompt that is
+     already open can still be approved in the extension after sign-out. The page then drops the signature (H5b), as
+     the amendment's item 2 designs.
+   - **Asked in the close-out commit:**
+     - carry the five items not taken, as ledger rows or in the epic;
+     - add decision 19 to § Linked artifacts;
+     - narrow the AC-10 and AC-2 sentences, or record them in § Deviations.
+4. **One unrecorded deviation from the amendment's item 2** (`useMapSave.js:86–88`).
+   - The ADR says `save` "changes its state only for a current answer".
+   - The code also clears `busy` for a stale answer that is still the latest save. That happens only if the session
+     pubkey changes without a viewer change.
+   - It's sound, since otherwise Save would read "Saving…" for good. It's also practically unreachable, because
+     AuthContext sets both in one commit.
+   - One line in § Deviations would do.
+
+#### Harness friction
+
+1. **Phase-4 corrections to a spec were self-ratified again.**
+   - `3dea23f9`'s two SV4 fixes were found against the fixed page, made in the Tester's role during Phase 4.
+   - Both are genuine faults, and I ratify them by the audit above.
+   - This is ledger `2026-10-08-new-browser-spec-amendments-unratified` again, now for an amendment's new cases rather
+     than a new page. It warrants a "Seen again" line.
+2. **A test's title and its plan row claim what its assertion doesn't pin** (non-blocking 2: SV15's "there before the
+   save", and Q12's "after signing").
+   - This is ledger `2026-10-01-test-plan-credits-unpinned-behaviour`, its third sighting, now in test titles.
+   - It warrants a "Seen again" line. The fix shape's spot-check could cover an amendment's new tests too.
+3. **Already covered, nothing new.**
+   - The Implementer's gate ran on an uncommitted tree (`5de101f6+dirty`), and my clean rebuild matched. Existing row
+     `2026-10-07-built-ui-records-no-commit` covers it.
+   - The timing-flake row didn't trip, because everything ran alone.
+
+### Verdict
+
+All three round-1 blocking findings are fixed at their cause. I reproduced each the way round 1 found it.
+- A newer Map held only by outside relays, or by the person's own relays-only save, is shown with the changes on top.
+  The next Save succeeds, and no reload is needed.
+- "Saving…", "Treasure Map updated" and the partial report each arrive in a live region that was already on the page,
+  and no new roles appear.
+- Signing out mid-save signs and publishes nothing from the `getPublicKey` prompt. From an open `signEvent` prompt,
+  nothing is published. A stale answer never acts.
+
+Book decision 19 behaves as the owner chose, through its edges. Principle 4 holds with the newer Map as the base. The
+code follows the ADR amendment item by item, with one small unrecorded deviation. The carve-out holds, and SV4's two
+corrections fix genuine test faults.
+
+The committed tree passes the gate (5121 passed, 0 failed) and the seven browser specs (109 once, and 327 over three
+repeats). What remains is non-blocking:
+- focus in two edge states;
+- three test gaps, behind behaviour I verified by hand;
+- doc wording for the close-out commit.
+
+**PASS** — the round-1 blocking findings are resolved, and no blocking issue remains.
+
 ## Close-out on a pass
 
-- [ ] Story Status flipped to Done (the orchestrator does it in the review commit)
-- [ ] Completion detection (the orchestrator)
+- [x] Story Status flipped to Done, in round 2's review commit. Round 2's non-blocking findings are handled there:
+  - 1 is ledger `2026-10-08-treasure-map-focus-after-newer-map`;
+  - 2 is a "Seen again" on `2026-10-01-test-plan-credits-unpinned-behaviour`;
+  - 3's wording is fixed in the story (AC-2, AC-10, linked decision 19) and the ADR (the carry now names ledger
+    `2026-10-08-treasure-map-save-hardening`);
+  - 4 is recorded here.
+
+  Round 1's non-blocking 1, 3, 4, 7 and 8 are ledger `2026-10-08-treasure-map-save-hardening`. The Phase-4 SV4
+  corrections are a "Seen again" on `2026-10-08-new-browser-spec-amendments-unratified`.
+- [x] Completion detection: run. Every story in the book is Done (1–5), and every acceptance-frame item but one is
+  met. "Shipped to staging" remains, so the book closes after the staging ship (`/cycle-staging`), on the owner's
+  go.

@@ -25,5 +25,10 @@ Phase-4 locator-fix allowance: fixes that keep each test's intent and weaken no 
 amendment in their own commit, and the Reviewer ratifies them by auditing that amendment. A fix that changes what a
 test asserts still goes back to the owner.
 
+**Seen again, 2026-10-08 (treasure-map-edit #5).** Two faults in the round-1 amendment's own browser test (SV4)
+surfaced only against the fixed page, and the Tester's role corrected them in Phase 4 (`3dea23f9`), self-ratified
+again. Its newer-Map fixture used `30385:new`, a Scores entry that the pending Scores pick rightly moved. Its focus check
+ran after the test had clicked other buttons. Round 2's Reviewer judged both genuine test faults.
+
 **Pointer:** `engineering-team/reviews/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Harness friction 1;
 `engineering-team/stories/treasure-map-edit/3-edit-mode-assign-and-preview.test-plan.md` § Amendment 1.

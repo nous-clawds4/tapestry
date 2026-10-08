@@ -1,6 +1,6 @@
 # Story 5: Edit mode — Save signs and publishes the edited Map
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-08
 **Type:** Feature
 **Epic:** `treasure-map-edit`
@@ -48,8 +48,10 @@ they reached my relays, so that my Assistants and other apps follow the new Map.
 
   The person's own signer signs it, and only when the signer's account is the signed-in person (the app's existing
   signer check). Nothing is signed for any other Map or account, nor when the signed-in person has changed since the
-  Map was read (story 3 review, non-blocking 9). Nor is anything signed or published once the person has signed out
-  or changed while the save was running; that save's answer is ignored (review round 1, Blocking 3).
+  Map was read (story 3 review, non-blocking 9). Once the person has signed out or changed while the save was
+  running, nothing more is asked of the signer, nothing is published, and that save's answer is ignored (review round 1,
+  Blocking 3). A signer prompt already open can still be approved in the extension, but that signature is never
+  published.
 - [ ] **AC-3: where it goes.** The signed Map is published to this instance's relay and to the outside relays the
   instance publishes to, under the instance's publish policy. With outside publishing off, it stays on this
   instance's relay.
@@ -94,8 +96,8 @@ they reached my relays, so that my Assistants and other apps follow the new Map.
     story 4's AC-2, which follows the blueprint in turning all three.
 - [ ] **AC-10: keyboard and screen readers.**
   - **Save changes** is a button in the Tab order.
-  - "Saving…", the outcome messages and the report are announced: each in a live region that is on the page before
-    its words arrive (review round 1, Blocking 2).
+  - "Saving…", "Treasure Map updated" and the report are announced, each in a live region that is on the page before
+    its words arrive (review round 1, Blocking 2). Refusals and failures are alerts, announced as they appear.
   - After a save that ends Edit mode, focus goes to the **Edit** button. After one that doesn't, focus stays on **Save
     changes**.
   - Everything new lies inside the screen at 375 px.
@@ -172,7 +174,7 @@ Recorded at review round 1 (review non-blocking 5; ADR 0005 Amendment 1, item 5)
   once, already named" still holds, including after a viewer change.
 
 ## Linked artifacts
-- Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 3, 9, 12, 14, 15, 17 and 18
+- Book decisions: `engineering-team/audits/treasure-map-edit/book.md`, decisions 3, 9, 12, 14, 15, 17, 18 and 19
 - Blueprint: `engineering-team/audits/manage-treasure-map/blueprint/treasure-map-screen.html.txt` (the save bar) and
   `treasure-map-logic.js.txt` (`tmbSave`, `tmbSaveDisabled`, the toast)
 - Stories 3–4 and their reviews: `engineering-team/stories/treasure-map-edit/`,

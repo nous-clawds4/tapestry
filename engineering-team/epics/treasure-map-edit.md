@@ -38,7 +38,8 @@ Edit mode is three stories (planned 2026-10-08), shipped to staging together wit
    these controls. Done.
 5. **Save** (feature): Save changes signs the edited Map with the person's own signer and publishes it, "Treasure Map
    updated", the failure states, and a new Map when none was found (book decisions 9, 14, 17, 18). Depends on #4:
-   `5-save-the-edited-map.md`. The owner answered the questions below at its gate (decisions 17–18). Carries
+   `5-save-the-edited-map.md`. Done. The owner answered the questions below at its gate (decisions 17–18), and
+   decision 19 at its review. Carries
    story 3's review non-blocking 4 and 9:
    - A pick can be pending while the edited Map is byte-identical to the published one, for example a Mixed card
      given the Assistant its own entry already names. Compare the draft with the published tags before counting

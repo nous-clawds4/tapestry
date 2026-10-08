@@ -318,7 +318,7 @@ and AC-10 are amended to match. This amendment changes sub-decisions 1, 3 and 6.
      before, or are the person's Assistants, show at once while a new lookup runs. So a save never flashes the loading
      line, and story 2's "cards appear once, already named" still holds.
 
-**Not taken this round** (review non-blocking 1, 3, 4, 7 and 8; carried in the epic for later):
+**Not taken this round** (review non-blocking 1, 3, 4, 7 and 8; carried as ledger row `2026-10-08-treasure-map-save-hardening`):
 - a timeout on a signer prompt that never answers;
 - telling a refused `getPublicKey` apart from no signer;
 - refusing a signer that alters the event (it needs words the owner hasn't approved);

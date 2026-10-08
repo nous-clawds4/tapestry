@@ -38,16 +38,18 @@ says it has.
       Stories 3 (`3-edit-mode-assign-and-preview.md`) and 4 (`4-override-and-backup-switches.md`).
 - [x] **Only the person's own Assistants can be picked:** the ones on the My Assistants page (`/assistants`).
       Story 3 (`3-edit-mode-assign-and-preview.md`).
-- [ ] **One backup switch, off by default.** Switched on, Save keeps only the first Assistant of each entry and drops
-      every backup. Finer control of backups belongs to the Advanced page, a later book.
-- [ ] **Save changes** signs a new Treasure Map with the person's own signer and publishes it. The page says
+- [x] **One backup switch, off by default.** Switched on, Save keeps only the first Assistant of each entry and drops
+      every backup. Finer control of backups belongs to the Advanced page, a later book. Stories 4–5.
+- [x] **Save changes** signs a new Treasure Map with the person's own signer and publishes it. The page says
       "Treasure Map updated", and the cards and the raw viewer show the new Map. If signing or publishing fails, the
-      page says so and the edit isn't lost.
-- [ ] **Everything the edit doesn't change stays as it was,** in its place, including entries this page doesn't show.
-      Only the override switches and the backup switch, when on, remove anything.
-- [ ] **Nothing is offered before the Map has been read:** no Save while the read is loading or has failed.
-- [ ] **With no Map yet, Edit creates one,** after a warning that the relays read held no Treasure Map, so one kept on
-      a relay that wasn't read would be replaced (decision 9).
+      page says so and the edit isn't lost. Story 5 (`5-save-the-edited-map.md`), with decisions 17 and 19.
+- [x] **Everything the edit doesn't change stays as it was,** in its place, including entries this page doesn't show.
+      Only the override switches and the backup switch, when on, remove anything. Stories 3–5; checked byte for byte in
+      each story's review, and on a signed Map in story 5's.
+- [x] **Nothing is offered before the Map has been read:** no Save while the read is loading or has failed. Stories
+      3 and 5.
+- [x] **With no Map yet, Edit creates one,** after a warning that the relays read held no Treasure Map, so one kept on
+      a relay that wasn't read would be replaced (decision 9). Stories 3 and 5.
 - [ ] **Shipped to staging.** Production gets this book and the manage-treasure-map book together, only on the owner's
       explicit go.
 
