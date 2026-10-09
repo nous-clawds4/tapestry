@@ -21,6 +21,13 @@
  * it, or held none and at least one outside relay answered. The action is `done` when every tagging is finished and
  * present, and `pending` — what the Assistant Alert counts — when at least one finished check found a tagging missing.
  *
+ * Since assistant-trusted-content-status #1 (ADR 0001) three more actions are checked: Scores, Lists and Concepts
+ * (`trusted-assertions`, `trusted-lists`, `dlists`), each done when the viewer's newest Treasure Map gives that category
+ * to their own assistant here, alone or beside others, read through the Treasure Map page's category rule
+ * (src/api/assistant/trustedContent.js). Otherwise each is pending with a reason (`no-map`, `not-assigned`,
+ * `other-assistants-only`), or unfinished with /setup's lookup reason. That check runs beside Identification Tags and is
+ * isolated from it: if it throws, the three answer `check-failed` and the rest of the answer stands.
+ *
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored anywhere.
  *
  *   no session          → { success: true, signedIn: false }
@@ -50,6 +57,11 @@ function defaultDeps() {
     readRelay: (url, filter) => require('../_shared/relaySource').readRelayEvents(url, filter),
     readConfiguredRelays: (categories) => require('./profilePublish').readConfiguredRelays(categories),
     getConfigFromFile: (key, fallback) => require('../../utils/config').getConfigFromFile(key, fallback),
+    // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001): the server's Map relays, the category rule,
+    // and the check itself, which tests replace.
+    mapDefaultRelays: () => require('../export/nip85/currentMap').defaultRelays(),
+    loadCategoryRule: () => require('./trustedContent').loadCategoryRule(),
+    checkTrustedContent: (input, d) => require('./trustedContent').checkTrustedContent(input, d),
   };
 }
 
@@ -204,6 +216,22 @@ async function checkIdentificationTags({ viewer, assistantPubkey }, deps) {
   return evaluateIdentificationTags({ entries });
 }
 
+/**
+ * The three Scores/Lists/Concepts actions from their settled check: its answer, or — when it threw — each one
+ * unfinished with reason `check-failed`, logged (ADR assistant-trusted-content-status/0001 sub-decision 6).
+ */
+function trustedContentActions(settled) {
+  if (settled.status === 'fulfilled') return settled.value;
+  const err = settled.reason;
+  console.error('[assistant/attention] the Scores/Lists/Concepts check failed:', err && err.message ? err.message : err);
+  const { TRUSTED_CONTENT_ACTIONS } = require('./trustedContent');
+  const out = {};
+  for (const [key, category] of Object.entries(TRUSTED_CONTENT_ACTIONS)) {
+    out[key] = { category, finished: false, done: false, pending: false, reason: 'check-failed', source: null };
+  }
+  return out;
+}
+
 async function handleAssistantAttention(req, res, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const session = req && req.session;
@@ -216,8 +244,17 @@ async function handleAssistantAttention(req, res, deps = {}) {
     const answered = await d.getAssistantPubkeyFor(viewer);
     const assistantPubkey = typeof answered === 'string' && HEX64.test(answered) ? answered.toLowerCase() : null;
     if (!assistantPubkey) return res.json({ success: true, signedIn: true, hasAssistant: false, actions: {} });
-    const identificationTags = await checkIdentificationTags({ viewer, assistantPubkey }, d);
-    return res.json({ success: true, signedIn: true, hasAssistant: true, actions: { [IDENTIFICATION_TAGS]: identificationTags } });
+    const [identificationTags, trustedContent] = await Promise.allSettled([
+      checkIdentificationTags({ viewer, assistantPubkey }, d),
+      d.checkTrustedContent({ viewer, assistantPubkey }, d),
+    ]);
+    if (identificationTags.status === 'rejected') throw identificationTags.reason;
+    return res.json({
+      success: true,
+      signedIn: true,
+      hasAssistant: true,
+      actions: { [IDENTIFICATION_TAGS]: identificationTags.value, ...trustedContentActions(trustedContent) },
+    });
   } catch (err) {
     console.error('[assistant/attention] could not check assistant attention:', err && err.message ? err.message : err);
     return res.status(500).json({ success: false, error: 'Could not check assistant attention' });

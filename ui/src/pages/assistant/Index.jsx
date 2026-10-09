@@ -20,24 +20,31 @@ import {
  *   - sign-in still resolving: the cards, unmarked, and no line;
  *   - signed out: the cards, unmarked, and a line asking the visitor to sign in;
  *   - signed in with no assistant here: the cards, unmarked, and a line pointing to Account Setup;
- *   - signed in with an assistant: every card marked "Needs attention", and the count.
+ *   - signed in with an assistant: each card marked "Needs attention" unless its check says done, and the count.
+ * A checked action that is done shows the Done look instead — a ✓ marker and a green "Done" badge, as the
+ * Identification Tags page's cards do (assistant-profile-checklist ADR 0001 sub-decision 7; Scores, Lists and Concepts
+ * since assistant-trusted-content-status #1). A placeholder is never done.
  */
 
 /**
  * One action's card. The title is the card's link, stretched over the whole card (its ::after), so a click
  * anywhere opens the action's page; the description's NIP links sit above it (ADR 0001 sub-decision 4).
  */
-function ActionCard({ action, marked }) {
+function ActionCard({ action, marked, done }) {
+  // A card is never both: marked wins, which cannot happen because `done` implies not in `needsAttention`.
+  const isDone = done && !marked;
   return (
-    <div className={`bs-assistant-hub-card${marked ? ' needs-attention' : ''}`}>
-      <span className="bs-assistant-hub-card-marker" aria-hidden="true">{marked ? '!' : ''}</span>
+    <div className={`bs-assistant-hub-card${marked ? ' needs-attention' : ''}${isDone ? ' is-done' : ''}`}>
+      <span className="bs-assistant-hub-card-marker" aria-hidden="true">{marked ? '!' : isDone ? '✓' : ''}</span>
       <div className="bs-assistant-hub-card-body">
         <div className="bs-assistant-hub-card-head">
           <Link to={action.path} className="bs-assistant-hub-card-link">
             {marked && <span className="bs-sr-only">{ASSISTANT_COPY.needsAttentionSrPrefix}</span>}
+            {isDone && <span className="bs-sr-only">{ASSISTANT_COPY.doneSrPrefix}</span>}
             {action.title}
           </Link>
           {marked && <span className="bs-setup-step-badge" aria-hidden="true">{ASSISTANT_COPY.needsAttention}</span>}
+          {isDone && <span className="bs-setup-step-badge is-done" aria-hidden="true">{ASSISTANT_COPY.done}</span>}
         </div>
         <p className="bs-assistant-hub-card-text"><ActionText parts={action.description} /></p>
       </div>
@@ -49,10 +56,11 @@ function ActionCard({ action, marked }) {
 export default function AssistantManagementPage() {
   const { user, loading, login } = useAuth();
   const attention = useAssistantAttention();
-  const { hasAssistant, needsAttention, count } = assistantAttention(user, attention);
+  const { hasAssistant, needsAttention, done, count } = assistantAttention(user, attention);
   const signedIn = !loading && !!user;
   const signedOut = !loading && !user;
   const marked = (action) => signedIn && needsAttention.includes(action.key);
+  const isDone = (action) => signedIn && done.includes(action.key);
 
   return (
     <div className="bsp-page">
@@ -107,7 +115,7 @@ export default function AssistantManagementPage() {
             <ul className="bs-assistant-hub-cards">
               {ASSISTANT_ACTIONS.filter((action) => action.section === section.key).map((action) => (
                 <li key={action.key}>
-                  <ActionCard action={action} marked={marked(action)} />
+                  <ActionCard action={action} marked={marked(action)} done={isDone(action)} />
                 </li>
               ))}
             </ul>

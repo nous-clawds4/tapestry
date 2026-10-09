@@ -139,6 +139,18 @@ The Treasure Map is a kind 10040 event, not a concept-graph node. No concept cha
    →", on each of the three pages would give them the path. *Recommended: yes, that one link and nothing more.*
    *Settled 2026-10-08 at approval: yes, that one link and nothing more.*
 
+## Deviations
+
+- **The hub's Done look was built here first** (Phase 4, 2026-10-09). assistant-profile-checklist #1 hadn't been
+  implemented yet, so this story added `assistantAttention`'s `done`, `ActionCard`'s `done` prop and marks,
+  `ASSISTANT_COPY.done` / `doneSrPrefix` and the `.bs-assistant-hub-card.is-done` rule to that ADR's text (sub-decision
+  7). Its suite's C4, D1 and D2 pass on this branch; its other tests wait for its own check.
+- **`evaluateTrustedContent` defaults an unfinished lookup with no reason to `outside-unreachable`**, the same default
+  `evaluateIdentificationTags` uses; `lookupNewest` always gives a reason, so it doesn't happen in practice.
+- **`tests/brainstorm/assistant-attention.spec.js` B4 (the fetch fails) expects five placeholders,** the count once this
+  story and assistant-profile-checklist #1 have both landed. On this branch alone it reads six (the profile is still a
+  placeholder), as it failed against its expected eight before this story. It passes once that book's check lands.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-trusted-content-status/0001-scores-lists-and-concepts-join-the-one-attention-answer.md`

@@ -8851,6 +8851,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   background: rgba(210,153,34,0.12);
   color: #e3b341;
 }
+/* A checked action that is done: the Identification Tags page's done marker (assistant-profile-checklist ADR 0001 § 7). */
+.bs-assistant-hub-card.is-done .bs-assistant-hub-card-marker {
+  border-color: var(--green, #3fb950);
+  background: var(--green, #3fb950);
+  color: #fff;
+}
 .bs-assistant-hub-card-body {
   flex: 1;
   min-width: 0;
