@@ -1,6 +1,6 @@
 # Story 1: The profile check — which items of your Assistant's profile need attention — and the hub's Done mark
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-profile-checklist`
