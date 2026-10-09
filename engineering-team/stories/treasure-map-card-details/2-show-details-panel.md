@@ -100,7 +100,32 @@ None — page UI only. Reads the kind-10040 Map (and in Edit mode the draft) the
   are deferred; the owner picked the key as written.
 
 ## AC→handle lines
-*(Tester fills at J2. U* = behavioural, S* = source sentinels, B* = browser spec, R* = regression.)*
+- AC-1 → D1, S5
+- AC-2 → U1, U3, U4, U5, U6, U7, U10, D2, D7
+- AC-3 → U8, U9, S4, D2
+- AC-4 → U2, D3
+- AC-5 → S2, D5
+- AC-6 → S3, D4
+- AC-7 → A1, S1, D6
+- AC-8 → S5, D7, D8
+- AC-9 → D9, R
+- E1 → D4, S3 · E2 → U4 · E3 → U5 · E4 → U6 (incl. the J1 advisory: a key's first spelling on a tag with no valid
+  Assistant) · E5 → U7 · E6 → D5 · E7 → D5 · E8 → U8, D2
+
+U*, A1, W1, S* = `test/treasure-map-card-details.test.js` (Node: `categoryEntries` behaviour, its agreement with
+`categoryAssistants` over every Map the card-rule suites use, the words, the wiring). D* =
+`tests/brainstorm/treasure-map-card-details.spec.js` (browser). R = the existing Treasure Map suites in the scoped gate
+(the card rule's K/X/N/H classes pin `categoryAssistants` unchanged through the rewrite) and the existing browser
+specs, unchanged.
+
+**Fails before the work** (checked 2026-10-08 against the pre-story code and build): all 17 Node tests fail; all ten
+browser tests fail at the missing toggle.
+
+**How to run**
+- Node (the scoped gate, J3): the command in this file's header.
+- Browser (Gate B evidence), against the branch's built UI on :7799 (`vite build`, then `vite preview --port 7799`
+  from `ui/`): `BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/treasure-map-needs-attention.spec.js tests/brainstorm/treasure-map-card-details.spec.js tests/brainstorm/treasure-map-save.spec.js tests/brainstorm/treasure-map-switches.spec.js tests/brainstorm/treasure-map-edit.spec.js tests/brainstorm/manage-treasure-map.spec.js tests/brainstorm/manage-treasure-map-cards.spec.js tests/brainstorm/my-assistants.spec.js tests/brainstorm/my-assistants-map.spec.js --project=chromium`
+  (the two new specs, and the seven existing Treasure Map / My Assistants specs as regression, R2).
 
 ## Linked artifacts
 - ADR: — (no irreversibility trigger: a pure read of tags the page already holds, and markup)

@@ -81,7 +81,29 @@ None — page UI only. Reads the kind-10040 Map the page already reads.
   should *do* when pressed (it's a label, as on `/assistant`, not a control).
 
 ## AC→handle lines
-*(Tester fills at J2. U* = behavioural, S* = source sentinels, B* = browser spec, R* = regression.)*
+- AC-1 → N1, N2, N3, R1
+- AC-2 → N4, N5
+- AC-3 → N6 (regression sentinel: passes before and after)
+- AC-4 → N7, S2
+- AC-5 → N8, S3
+- AC-6 → W1, S1
+- AC-7 → S4 (negative pin), R2
+- E1 → N3, R1 · E2 → N3, R1 · E3 → R1 · E4 → N4 · E5 → N4
+
+N* = `tests/brainstorm/treasure-map-needs-attention.spec.js` (browser, what a viewer sees). W*, S*, R1 =
+`test/treasure-map-needs-attention.test.js` (Node: the words, the wiring, the CSS rule, the alert's negative pin; R1 the
+card states the pill follows, which pass before and after). R2 = the existing Treasure Map suites in the scoped gate and
+the existing browser specs below, unchanged.
+
+**Fails before the work** (checked 2026-10-08 against the pre-story code and build): Node W1, S1, S2, S3 fail, S4 and R1
+pass (sentinels); browser N1–N5, N7, N8 fail at the missing pill, and N6 fails only at its last step (the pill once the
+Map has loaded). Its loading, error and signed-out checks pass, as sentinels.
+
+**How to run**
+- Node (the scoped gate, J3): the command in this file's header.
+- Browser (Gate B evidence), against the branch's built UI on :7799 (`vite build`, then `vite preview --port 7799`
+  from `ui/`): `BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/treasure-map-needs-attention.spec.js tests/brainstorm/treasure-map-card-details.spec.js tests/brainstorm/treasure-map-save.spec.js tests/brainstorm/treasure-map-switches.spec.js tests/brainstorm/treasure-map-edit.spec.js tests/brainstorm/manage-treasure-map.spec.js tests/brainstorm/manage-treasure-map-cards.spec.js tests/brainstorm/my-assistants.spec.js tests/brainstorm/my-assistants-map.spec.js --project=chromium`
+  (the two new specs, and the seven existing Treasure Map / My Assistants specs as regression, R2).
 
 ## Linked artifacts
 - ADR: — (no irreversibility trigger: page markup and one CSS rule)
