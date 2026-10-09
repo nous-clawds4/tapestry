@@ -230,8 +230,9 @@ test('S3: the proxy fetch is bounded — timeout, image-only, size cap', () => {
   assert(/content-length|byteLength|maxBytes|MAX_[A-Z_]*BYTES|5\s*\*\s*1024/i.test(src),
     'the download needs a size cap. Checking content-length alone is not enough — a chunked response ' +
     'declares none, so the streamed body must be bounded too (ADR 0003 D2).');
-  assert(/https?:/.test(src),
-    'only http(s) URLs may be fetched; a file:// or other scheme from a kind 0 must be refused.');
+  assert(/https?:/.test(src) || /guardedFetch/.test(src),
+    'only http(s) URLs may be fetched; a file:// or other scheme from a kind 0 must be refused. (Since ' +
+    'assistant-profile-checklist ADR 0003 sub-decision 3 the fetch goes through guardedFetch, which refuses anything but https.)');
 });
 
 test('S4: nothing in the storage path deletes a previously stored composite (ADR D3)', () => {
