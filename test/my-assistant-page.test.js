@@ -507,34 +507,16 @@ test('E1: an array-shaped customerPubkey is refused with 400 by the publish hand
 
 /* ───────────────────────── A — the avatar proxy ───────────────────────── */
 
-test('A1: when the owner has no profile picture, the avatar proxy says so in a machine-readable code — { code: "no-picture" } — beside its words', async () => {
-  // Everything avatar.js loads is loaded first, with the real config, so only avatar.js itself — loaded
-  // below — can see the stand-in; nothing else in this process keeps it.
-  require('multer');
-  require(path.join(REPO, 'src/middleware/auth.js'));
-  require(ASSISTANT_SRC);
-  const config = require(CONFIG);
-  const savedGet = config.getConfigFromFile;
-  const key = require.resolve(AVATAR);
-  const savedModule = require.cache[key];
-  delete require.cache[key];
-  // avatar.js takes getConfigFromFile when it loads, so a fresh copy loaded now sees this owner. strfry is
-  // absent here (and holds no kind 0 by this fixture key anywhere), so the owner has no picture.
-  config.getConfigFromFile = (name, fallback) => (name === 'BRAINSTORM_OWNER_PUBKEY' ? OWNER : fallback);
-  let avatar;
-  try { avatar = require(AVATAR); } finally { config.getConfigFromFile = savedGet; }
-  try {
-    const res = fakeRes();
-    await avatar.handleOwnerAvatar({ localTrusted: true }, res);
-    assert(res.statusCode === 404 && res.body && res.body.success === false && /no profile picture/i.test(res.body.error || ''),
-      `precondition: the owner has no picture — expected the proxy's 404 "no picture" answer, got ${res.statusCode} ${j(res.body)}`);
-    assert(res.body.code === 'no-picture',
-      `ADR 0004 sub-decision 5: the "no picture" answer carries code: 'no-picture', so the editor can tell it from a refusal or a ` +
-      `broken picture host — got ${j(res.body)}`);
-  } finally {
-    delete require.cache[key];
-    if (savedModule) require.cache[key] = savedModule;
-  }
+test('A1: when the person has no profile picture, the avatar proxy says so in a machine-readable code — { code: "no-picture" } — beside its words (re-aimed by assistant-profile-checklist #3: the proxy is handleMyPicture, the signed-in person\'s own picture)', async () => {
+  const avatar = require(AVATAR);
+  assert(typeof avatar.handleMyPicture === 'function', 'src/api/assistant/avatar.js must export handleMyPicture (assistant-profile-checklist ADR 0003 sub-decision 2; it was handleOwnerAvatar)');
+  const res = fakeRes();
+  await avatar.handleMyPicture({ avatarPerson: OWNER }, res, { getPersonPictureUrl: async () => null });
+  assert(res.statusCode === 404 && res.body && res.body.success === false && /no picture/i.test(res.body.error || ''),
+    `precondition: the person has no picture — expected the proxy's 404 "no picture" answer, got ${res.statusCode} ${j(res.body)}`);
+  assert(res.body.code === 'no-picture',
+    `ADR 0004 sub-decision 5: the "no picture" answer carries code: 'no-picture', so the editor can tell it from a refusal or a ` +
+    `broken picture host — got ${j(res.body)}`);
 });
 
 /* ───────────────────────── W — the browser code, by source (the CI backstop) ───────────────────────── */
@@ -667,9 +649,9 @@ test('W15: on an instance that is not public, the editor says no NIP-05 is publi
     'the "NIP-05: none — … no NIP-05 is published" line, shown when status.isPublicInstance === false, is missing (ledger 2026-09-21-status-no-key-relay-gate-unpinned, item 2)');
 });
 
-test('W16: "Use this avatar" returns before touching the picture when the upload offers no public url (guard — the CI counterpart of story 3\'s B3)', () => {
+test('W16: "Use this avatar" returns before touching the picture when the upload offers no public url (guard — the CI counterpart of story 3\'s B3; since assistant-profile-checklist #3 the shared flow says so as reason "no-public-address")', () => {
   const body = codeOnly(functionText(parse(EDITOR), 'useComposite'));
-  const check = body.search(/if\s*\(\s*!\s*data\??\.url\s*\)/);
+  const check = body.search(/if\s*\(\s*(?:!\s*data\??\.url|!\s*stored\.ok\s*&&\s*stored\.reason\s*===\s*['"]no-public-address['"])\s*\)/);
   const use = body.search(/updateField\(\s*['"]picture['"]/);
   assert(check >= 0 && use > check && /return\b/.test(body.slice(check, use)),
     'useComposite must return early when data.url is empty — before any updateField(\'picture\', …) (ledger 2026-09-21-status-no-key-relay-gate-unpinned, item 2)');
@@ -723,11 +705,10 @@ test('W19: after an assistant is created the app is told — the page hands the 
     `ADR 0004 sub-decision 7: refreshUser must set assistantPubkey from the answer (data.assistantPubkey), so the menus and the dashboard see the new assistant — got ${body.replace(/\s+/g, ' ').slice(0, 300)}`);
 });
 
-test('W20: the "no profile picture" copy shows only for the proxy\'s 404 that says code "no-picture" — both conditions, not either one (guard — the CI counterpart of B16)', () => {
-  const status = renderedOnlyWhen(EDITOR, /no profile picture to stamp/i, ['res.status===404']);
-  const code = renderedOnlyWhen(EDITOR, /no profile picture to stamp/i, ["body.code==='no-picture'", 'body.code==="no-picture"']);
-  assert(status.ok && code.ok,
-    `AC4 (ADR 0004 sub-decision 5: "only for res.status === 404 && body?.code === 'no-picture'") — ${[status, code].filter((v) => !v.ok).map((v) => v.why).join('; ')}`);
+test('W20: the "no picture" copy shows only for the proxy\'s answer that says code "no-picture" (guard — the CI counterpart of B16; re-aimed by assistant-profile-checklist #3: the shared flow reads the code into stamped.reason, and the words are story 3\'s)', () => {
+  const code = renderedOnlyWhen(EDITOR, /no picture to stamp yet/i, ["stamped.reason==='no-picture'", 'stamped.reason==="no-picture"']);
+  assert(code.ok,
+    `AC4 (ADR 0004 sub-decision 5, as assistant-profile-checklist ADR 0003 sub-decision 8 carries it: only when the proxy says code 'no-picture') — ${code.why}`);
 });
 
 async function run() {

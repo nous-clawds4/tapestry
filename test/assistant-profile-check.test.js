@@ -701,9 +701,9 @@ test('S1: the profile check never writes — no strfry import, no signing, no pu
 
 test('S2: the route\'s documents say it checks the profile — openapi.yaml\'s /api/assistant/attention entry and BIBLE §11\'s row name the profile action and this book\'s ADR (ADR 0001 § Implementation notes 6)', () => {
   const yaml = safeRead(OPENAPI);
-  const start = yaml.search(/^\s*\/api\/assistant\/attention:\s*$/m);
+  const start = yaml.search(/^ {2}\/api\/assistant\/attention:[ \t]*$/m);
   assert(start >= 0, 'openapi.yaml documents /api/assistant/attention');
-  const rest = yaml.slice(start + 1);
+  const rest = yaml.slice(yaml.indexOf('\n', start) + 1);
   const next = rest.search(/^ {2}\/api\//m);
   const entry = next >= 0 ? rest.slice(0, next) : rest;
   const row = safeRead(BIBLE).split(NL).find((l) => l.includes('`/api/assistant/attention`') && l.startsWith('|')) || '';

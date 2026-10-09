@@ -282,8 +282,10 @@ test('N1: a stored composite is named by 32 hex characters of its SHA-256 — ta
   assert(out && out.filename === want, `want ${want}, got ${show(out && out.filename)}`);
 });
 
-async function upload(person, buf, { baseDir, now } = {}) {
-  const handle = need(avatarModule(), 'handleUploadAvatar');
+// The handler's limit lives in its module, so a sequence of uploads must go through ONE loaded module: each test loads it
+// once and hands it in (re-requiring per upload would start every upload with an empty limit).
+async function upload(person, buf, { baseDir, now, mod = avatarModule() } = {}) {
+  const handle = need(mod, 'handleUploadAvatar');
   const res = fakeRes();
   await handle({ avatarPerson: person, session: { authenticated: true, pubkey: person }, file: { buffer: buf } }, res, { baseDir, now });
   return res;
@@ -298,16 +300,16 @@ test('N2: at most MAX_NEW_AVATARS_PER_DAY (20) new files per person in a rolling
   const t0 = Date.now();
   const wrong = [];
   for (let i = 0; i < 20; i += 1) {
-    const r = await upload(who, makePng(`${who}-${i}`), { baseDir: dir, now: () => t0 + i });
+    const r = await upload(who, makePng(`${who}-${i}`), { mod, baseDir: dir, now: () => t0 + i });
     if (r.statusCode !== 200 || !r.body || r.body.success !== true) { wrong.push(`new file ${i + 1}: want 200, got ${r.statusCode} ${show(r.body)}`); break; }
   }
-  const over = await upload(who, makePng(`${who}-20`), { baseDir: dir, now: () => t0 + 100 });
+  const over = await upload(who, makePng(`${who}-20`), { mod, baseDir: dir, now: () => t0 + 100 });
   if (over.statusCode !== 429 || !over.body || over.body.code !== 'too-many') wrong.push(`the 21st new file: want 429 too-many, got ${over.statusCode} ${show(over.body)}`);
-  const again = await upload(who, makePng(`${who}-3`), { baseDir: dir, now: () => t0 + 200 });
+  const again = await upload(who, makePng(`${who}-3`), { mod, baseDir: dir, now: () => t0 + 200 });
   if (again.statusCode !== 200) wrong.push(`re-storing bytes already there, at the limit: want 200 (nothing written, not counted), got ${again.statusCode} ${show(again.body)}`);
-  const theirs = await upload(other, makePng(`${other}-0`), { baseDir: dir, now: () => t0 + 300 });
+  const theirs = await upload(other, makePng(`${other}-0`), { mod, baseDir: dir, now: () => t0 + 300 });
   if (theirs.statusCode !== 200) wrong.push(`another person: want 200, got ${theirs.statusCode}`);
-  const later = await upload(who, makePng(`${who}-21`), { baseDir: dir, now: () => t0 + 24 * 3600 * 1000 + 1000 });
+  const later = await upload(who, makePng(`${who}-21`), { mod, baseDir: dir, now: () => t0 + 24 * 3600 * 1000 + 1000 });
   if (later.statusCode !== 200) wrong.push(`a day later: want 200, got ${later.statusCode} ${show(later.body)}`);
   if (fs.readdirSync(dir).length !== 22) wrong.push(`files written: want 22 (20 + another person's + a day later), got ${fs.readdirSync(dir).length}`);
   assert(wrong.length === 0, wrong.join('; '));
