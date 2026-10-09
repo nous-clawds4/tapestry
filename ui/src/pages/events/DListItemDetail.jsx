@@ -10,7 +10,9 @@ function getTag(event, name, index = 1) {
 
 export default function DListItemDetail() {
   const { id } = useParams();
-  const decodedId = decodeURIComponent(id);
+  // The router has decoded it already; decode again only if it still decodes, so a "%" in a d-tag can't crash the page.
+  let decodedId = id;
+  try { decodedId = decodeURIComponent(id); } catch { /* already decoded */ }
 
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);

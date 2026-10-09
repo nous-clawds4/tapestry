@@ -291,3 +291,44 @@ Tags need parent–child relationships in which the child's domain is a subset o
   The owner's inclination is a **third party**. That argues against `s`, which is authorship-gated, and for a community-curated relationship list, judged per point of view like any other list. To be discussed.
 
 **Refs:** [class-thread-relationships](./drafts/class-thread-relationships.md); [stamping](./drafts/stamping.md) (breadth queries must expand); tags review point 8; pins § 6.2; [W14](#w14--subsetancestor-stamping-z-expansion-across-class-thread-structure).
+
+## W25 — Uppercase `Z`: auxiliary events of a DList header
+
+**Status:** Open · raised 2026-10-03
+
+A DList header grows up. It starts with items only, then gains subsets, a JSON Schema, opinionated view briefs and other structural nodes. Those events are *about* the header, but they aren't items of it:
+
+- A `z` tag makes an event an item, so `z` can't carry this.
+- Tapestry's core nodes ([tapestry-concepts](./drafts/tapestry-concepts.md) § Core nodes of a concept) are tied to their header by deterministic `d` tags and by their payload (`word.coreMemberOf`). That works only when the header's own author publishes them. A third party's JSON Schema or view brief for someone else's header has no dedicated, relay-indexed way to say which header it serves.
+
+**Suggested (owner, 2026-10-03):** lowercase `z` marks items of the DList; uppercase `Z` marks auxiliary events specific to it, with the event's role as the third element:
+
+```json
+["Z", "<a-tag of the DList header>", "opinionated-view"]
+```
+
+A `#Z` query would then find every auxiliary event of a header at once.
+
+**To settle before drafting:**
+
+- **Earlier rejections.** `Z` was rejected twice on 2026-09-27: as a descriptor on Trusted Lists and pinning contexts (W18), and as a category hint on taggings (W21). Both meant "this event is about category X but isn't a member of it", which is close to this meaning. A draft must say what is different here (for example, structural events written *for* a concept, against hints attached to assertions), and whether the reasons for those rejections still apply.
+- **The direction convention.** Class Thread Relationships (a pre-NIP; the convention isn't adopted, but is worth weighing) reserves uppercase letters for parent-claims-child inverses, and says not to assign them speculatively. This `Z` points the other way: the auxiliary event names its header. NIP-22's convention, where uppercase marks the root scope, fits it better. Either one convention gives way, or the letter needs another rationale. Record the outcome in the W2 registry.
+- **The need.** Opinionated Views works without `Z`: briefs are items of an *Opinionated Views* DList (`z`), name their category in a plain tag, and are filtered client-side (opinionated-views § 7.2). So `Z` has to earn its place in the general case, such as third-party core nodes for any header, where client-side filtering doesn't scale. The alternative that needs no new letter is an `a` tag with a role marker. Relays index it today, but `a` already means many things, so `#a` also returns every mention of the header.
+- **Roles.** Is the role (the third element) free text, or the coordinate of the role's own concept (`39998:<pubkey>:opinionated-view`), so that roles can be curated like everything else?
+
+**Refs:** [opinionated-views](./drafts/opinionated-views.md) § 7.2; [tapestry-concepts](./drafts/tapestry-concepts.md) § Core nodes of a concept; [class-thread-relationships](./drafts/class-thread-relationships.md) (direction principle); [W2](#w2--single-char-tag-namespace-registry); [W18](#w18--descriptor-tag-letters-k--z--t); [W21](#w21--category-hints-on-taggings-z--k).
+
+## W26 — DList items in search results
+
+**Status:** Open · raised 2026-10-03
+
+[Opinionated Views](./drafts/opinionated-views.md) says how a DList item looks once it is in a search result. Nothing yet says whether it gets there. Four questions, raised while scoping that draft and deliberately left out of it (owner, 2026-10-03):
+
+1. **Which DLists are searched?** Every header on the relay, the House's Dictionary, or the viewer's own Dictionary.
+2. **What does a query match?** The item's name, its description, its field values, or the header's names ("GitHub Accounts" matching "github").
+3. **How do results rank from the viewer's point of view?** By the number of trusted filers, or by membership in a Trusted List spawned from the DList ([spawning](./drafts/spawning.md)).
+4. **Where do they appear?** A chip per DList, or one "Lists" chip. [content-categories](./drafts/content-categories.md) § 3.2 says the chips come from a display Pin, `search-chips`, but [pins](./drafts/pins.md) § 8.2 doesn't define it: its only display Pin is `profile-page-tags`.
+
+Parts exist: content-categories (the categories and the chip idea), [filters-on-dlists](./drafts/filters-on-dlists.md) (a stub proposing a `dlists` field on relay filters, with the viewer passed for trust filtering), spawning and [trusted-lists](./drafts/trusted-lists.md) (ranked lists). Nothing ties them together for search. It is as much a product question (what's in the first version, and for whom) as a protocol one.
+
+**Refs:** opinionated-views § 2.1 (the default DList card) and its State line; content-categories § 3.2; pins § 8.2; filters-on-dlists; spawning.

@@ -1842,6 +1842,8 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 **Phase path:** Planning → Architecture (the route inventory + guard strategy is the real design work) → Test Design → Implementation → Review.
 **References:** `engineering-team/audits/security-auth-exposure/audit.md` §5–6 + `prd-seed.md` §7 Q4; this session's `src/api/strfry/wipe.js` (in-handler template) + `test/strfry-wipe-owner-gate.test.js`; `src/middleware/auth.js` (default-deny + `req.localTrusted`); the ~19 existing `requireOwner` routes as the pattern to extend; `src/api/admin/index.js` (`requireOwnerOnly` vs `requireOwnerOrAdmin` distinction).
 
+**Addendum (2026-09-30, `tagging-edges` #4 Planning):** two more members of the exposed set, not named above, both already described in public docs (`docs/TAGGING_EDGES_HANDOFF.md` §2.3; ADR `tagging-edges/0002` § Context, "Who can reach what"). The owner placed `POST /api/streaming-etl/control` (start / stop / restart of the follows `stream-consumer`) here. The Product Owner adds `POST /api/scheduled-tasks/create`, `/update` and `/delete`, which are open the same way. The Settings page shows both sets of controls only to the owner and admins, so owner-or-admin is a *proposed* guard for this sweep's Architecture to decide. `tagging-edges` stories 4 and 5 change neither.
+
 ## 2026-07-28 — Harness story proposal: Direction-mode blinding rebuild (OPEN.md #117, #119)
 
 **PICKED UP** 2026-08-04 → book `engineering-team/audits/blinding-rebuild/book.md` (epic `harness-gate-integrity` reactivation, story #2; branch `harness/blinding-rebuild`; book opened eagerly at intake per OPEN.md #29/#78/#110). Scope note at pickup: the "frame-only reads" bullet is partially delivered by the 2026-08-04 ratification of pinned line-range judge reads (OPEN.md #133, rows 132/133 commit `e189d471`) — Architecture decides whether that closes the channel or a generated frame excerpt is still warranted.
@@ -2669,6 +2671,8 @@ Team** first.
 
 ## 2026-09-21 — The Assistant Management page, the rest of the way: real "needs attention" answers and the ten action pages (feature; deferred at intake)
 
+**PICKED UP** (partial) 2026-10-09 → `engineering-team/audits/assistant-profile-checklist/book.md` — the profile action page (`/assistant/profile`, the checklist) and its real "needs attention" answer. Eight actions and the DMs remain.
+
 **PICKED UP** (partial) 2026-09-22 → `engineering-team/audits/assistant-identification-tags/book.md` — the identification-tags action page and its real "needs attention" answer (item 1 for that action, item 2 for that page). The other nine pages, their answers, and the DMs stay open. **Book closed 2026-09-22** (on `feat/assistant-identification-tags`, unmerged at the close); nine actions and the DMs remain.
 
 **Origin:** the owner's ask behind book `assistant-management`
@@ -2709,3 +2713,27 @@ how the hub orders or groups actions as the list grows past ten ("8 or 9 (and gr
 
 **Classification:** feature. The per-action checks can follow the `/setup` status pattern (Standard,
 all phases). Each action page leans **Product Team** first, as the `/setup` step pages do.
+
+---
+
+## 2026-10-03 — The V4V Songs item page and rows in Tapestry's Dictionary, built from its view brief (feature)
+
+**PICKED UP** 2026-10-04 → built directly on `staging`, as the GitHub Accounts views were (fa6d37b, with 1b696ff for the brief; reviewed by a fresh Reviewer: review 1 CHANGES_REQUESTED, answered in deb7f11; review 2 PASS). Record: `docs/DICTIONARY_PAGE_HANDOFF.md` (the 2026-10-04 bullet). The brief's findings: `protocols/drafts/opinionated-views.md` Appendix B § Changes (2026-10-04). Loose ends: ledger rows `2026-10-04-*`.
+
+**Origin:** the Opinionated Views session of 2026-10-03, which wrote `protocols/drafts/opinionated-views.md` and its two view briefs: Appendix A (GitHub Accounts, from Tapestry's build) and Appendix B (V4V Songs, written before any build).
+
+**Raw request (verbatim, 2026-10-03):**
+
+> Giving V4V Songs the same treatment as GitHub Accounts is an excellent idea; it will help the rest of the team understand the big picture.
+
+> Let's include only playback. We can consider payments on a future version.
+
+**The plan the owner accepted:** write the brief first, then build Tapestry's V4V Songs views *from the brief alone*. That is how Brainstorm's team will use a brief, so the build doubles as a test of the brief. Anything the build needed that Appendix B didn't say is a finding: fix the brief, and note it in its Changes.
+
+**Scope:** the item page, and the Items table rows on `/dictionary/:coord`, for items of the V4V Songs DList (bound by its shared concept, opinionated-views § 4.2). Playback only: no payments, no lightning mark (Appendix B § Not in this version).
+
+**What exists to build on:** the GitHub Accounts views (`ui/src/pages/dictionary/github.js`, `GithubAccount.jsx`, `Item.jsx`; rows in `ui/src/pages/dictionaries/ConceptEntry.jsx` behind `dlistViews`); `docs/DICTIONARY_PAGE_HANDOFF.md` § "Adding the next DList"; tests `test/dictionary-github-account.test.js` as the pattern.
+
+**Environment:** the session that wrote the brief couldn't reach `staging.brainstorm.world` or `dcosl.brainstorm.world` (egress policy). The owner has since allowed both in the Default Cloud Environment, so a new session can smoke-test on staging.
+
+**Classification:** feature, with a settled design (the brief). Standard; a direct build like GitHub Accounts' is the precedent.

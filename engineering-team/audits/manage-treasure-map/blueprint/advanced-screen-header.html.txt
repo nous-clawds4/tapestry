@@ -1,0 +1,9 @@
+<section data-screen-label="Treasure Map — Advanced" style="flex:1;width:100%;">
+      <main style="max-width:720px;margin:0 auto;padding:40px 24px 120px;">
+        <button sc-camel-on-click="{{ goTreasureBasic }}" style="display:inline-flex;white-space:nowrap;align-items:center;gap:6px;background:none;border:none;padding:0;margin-bottom:18px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#6b7480;" style-hover="color:#0a0e18;"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Manage your Treasure Map</button>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.25em;color:#13d2e5;text-transform:uppercase;">Treasure Map · Advanced</span>
+          <div style="height:1px;width:48px;background:rgba(19,210,229,.4);"></div>
+        </div>
+        <h1 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-0.02em;line-height:1.1;color:#0a0e18;">Advanced <span style="color:#7237ff;">Treasure Map</span> management.</h1>
+        <p style="margin:14px 0 0;max-width:620px;font-size:16px;color:#555d69;line-height:1.6;text-wrap:pretty;">Your trusted community helps you to know which profiles, and which pieces of content, are most worthy of your attention for any particular context of interest. Your Assistant publishes their insights and recommendations in three different formats: Scores, Lists, and Concepts.</p>

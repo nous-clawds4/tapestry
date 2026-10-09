@@ -15,6 +15,9 @@
  *   S1..S6  — structural pins, read off comment-stripped source: the route and its seam, the pages'
  *            data source, the one shared definition of "Mine", the restored FAQ wording, the routes
  *            and the untouched Dictionaries index prose (moved here from trusted-dictionary S6).
+ *   S7..S9  — /dictionary, the same list in the Brainstorm design's styling: its routes, that it
+ *            renders the control panel pages' own bodies rather than a second copy, and its avatar
+ *            menu item beside Dictionaries.
  *   H1..H3  — live, against the stack at :7778 (SKIP when it is down): the rows equal the Active
  *            b-tags rule for the owner's pair, computed independently from strfry; bad `authors`
  *            are refused; each row's gum agrees with the trusted dictionary from the same point of
@@ -37,6 +40,9 @@ const DICT_CONCEPTS_JSX = path.join(UI, 'pages/dictionaries/Concepts.jsx');
 const DICT_ENTRY_JSX = path.join(UI, 'pages/dictionaries/ConceptEntry.jsx');
 const DICT_HELPERS_JS = path.join(UI, 'pages/dictionaries/conceptsDictionary.js');
 const DICT_PLACEHOLDERS_JSX = path.join(UI, 'pages/dictionaries/Placeholders.jsx');
+const DICTIONARY_PAGE_JSX = path.join(UI, 'pages/dictionary/Index.jsx');
+const DICTIONARY_ENTRY_JSX = path.join(UI, 'pages/dictionary/Entry.jsx');
+const MENU_LINKS_JS = path.join(UI, 'config/avatarMenuLinks.js');
 const APP_JSX = path.join(UI, 'App.jsx');
 
 const HOST_BASE = `http://localhost:${process.env.TAPESTRY_PORT || '7778'}`;
@@ -332,7 +338,7 @@ test('S1: the route, its validation, and the seam it shares with the trusted dic
     'Firmware: the row is a firmware concept or points at one');
   assert(/computeConceptDictionary\(/.test(s), 'the arithmetic is delegated to the pure core');
   const uses = (s.match(/await resolveQualifying\(/g) || []).length;
-  assert(uses === 2, `both dictionary reads resolve the qualifying set through one seam (resolveQualifying), found ${uses} calls`);
+  assert(uses === 3, `the three dictionary reads (trusted dictionary, a person's dictionary, an entry's Items) resolve the qualifying set through one seam (resolveQualifying), found ${uses} calls`);
 });
 
 test('S2: the pages read the person\'s dictionary, not the trusted dictionary', () => {
@@ -389,10 +395,68 @@ test('S5: routes, placeholders, and the Dictionaries index prose (from trusted-d
     "the Dictionaries index keeps the owner's verbatim model statement (do not edit it)");
 });
 
-test('S6: Add to Dictionary is offered only to a signed-in owner (the b-disposition writes are owner-only)', () => {
+test('S6: Add to Dictionary is offered to any signed-in reader; only the owner gets the twin picker (the b-disposition writes are owner-only)', () => {
   const page = flat(code(src(DICT_CONCEPTS_JSX)));
-  assert(/canAdd=\{signedIn && person\.isOwner\}/.test(page), 'the finder gets canAdd = signed in AND the owner');
-  assert(/\{canAdd && \(\s*<button/.test(page), 'the Add to Dictionary button renders only when canAdd');
+  assert(/canAdd=\{signedIn && !managed\}/.test(page) && /isOwner=\{person\.isOwner\}/.test(page),
+    'the finder gets canAdd = signed in, on the reader\'s own list (dictionary-managed-by S3), and whether they own the instance (dictionary-wired-create)');
+  assert(/\{canAdd && lookupable\(r\.uuid\) && \(\s*<button/.test(page),
+    'the Add to Dictionary button renders only when canAdd (and for an address the relay can look up: dictionary-wired-create S4)');
+  assert(/if \(!isOwner\) return undefined;/.test(page) && /if \(!isOwner\) \{ return \(/.test(page),
+    'a reader who isn\'t the owner reads no twins and gets no picker, only Create New Concept, wired to the result');
+});
+
+// ═══ S7..S9 — /dictionary: the same list in the design's styling ═══════════════
+
+test('S7: /dictionary and /dictionary/:coord are top-level routes, outside the control panel', () => {
+  const app = src(APP_JSX);
+  const top = app.slice(app.indexOf('createBrowserRouter(['), app.indexOf("path: '/tapestry'"));
+  assert(/path:\s*['"`]\/dictionary['"`],\s*element:\s*<DictionaryPage\s*\/>/.test(top),
+    'App.jsx must route /dictionary to DictionaryPage, above the /tapestry layout');
+  assert(/path:\s*['"`]\/dictionary\/:coord['"`],\s*element:\s*<DictionaryEntryPage\s*\/>/.test(top),
+    'App.jsx must route /dictionary/:coord to DictionaryEntryPage, above the /tapestry layout');
+  assert(/import DictionaryPage from ['"]\.\/pages\/dictionary\/Index['"]/.test(app)
+    && /import DictionaryEntryPage from ['"]\.\/pages\/dictionary\/Entry['"]/.test(app),
+    'the two routes render pages/dictionary/Index and pages/dictionary/Entry');
+});
+
+test('S8: /dictionary renders the control panel pages\' own bodies, so the two cannot drift', () => {
+  const page = flat(code(src(DICTIONARY_PAGE_JSX)));
+  const entry = flat(code(src(DICTIONARY_ENTRY_JSX)));
+  const concepts = flat(code(src(DICT_CONCEPTS_JSX)));
+  const conceptEntry = flat(code(src(DICT_ENTRY_JSX)));
+  assert(/import \{ ConceptsDictionaryBody \} from ['"]\.\.\/dictionaries\/Concepts['"]/.test(page)
+    && /<ConceptsDictionaryBody entryHref=\{dictionaryEntryPath\}( managed=\{managed\})?( newConceptHref=\{DICTIONARY_NEW_PATH\})? \/>/.test(page),
+    '/dictionary renders ConceptsDictionaryBody from the control panel page, its rows opening /dictionary/:coord');
+  assert(/import \{ ConceptEntryBody \} from ['"]\.\.\/dictionaries\/ConceptEntry['"]/.test(entry)
+    && /<ConceptEntryBody (key=\{coord\} )?listHref=\{DICTIONARY_PATH\}/.test(entry),
+    '/dictionary/:coord renders ConceptEntryBody, its back link going to /dictionary');
+  assert(/export function ConceptsDictionaryBody\(/.test(concepts) && /<ConceptsDictionaryBody \/>/.test(concepts),
+    'the control panel list renders the same exported body');
+  assert(/export function ConceptEntryBody\(/.test(conceptEntry) && /<ConceptEntryBody \/>/.test(conceptEntry),
+    'the control panel entry renders the same exported body');
+  assert(/to=\{entryHref\(e\.coord\)\}/.test(concepts), 'a row links through entryHref, never a fixed path');
+  for (const [file, s] of [['pages/dictionary/Index.jsx', page], ['pages/dictionary/Entry.jsx', entry]]) {
+    assert(!/fetch\(/.test(s) && !/\/api\//.test(s), `${file} reads nothing itself: the shared body does`);
+    assert(!/qualifyingAuthorCount|\.gum\b/.test(s), `${file} must not touch the metric: the shared body renders it`);
+  }
+  const helpers = code(src(DICT_HELPERS_JS));
+  assert(/export const DICTIONARY_PATH = ['"]\/dictionary['"]/.test(helpers)
+    && /export const dictionaryEntryPath = \(coord\) => `\$\{DICTIONARY_PATH\}\/\$\{encodeURIComponent\(coord\)\}`/.test(helpers),
+    'conceptsDictionary.js names /dictionary and its entry path once');
+});
+
+test('S9: the avatar menus offer Dictionary (/dictionary), right after Dictionaries', async () => {
+  const { personalLinks } = await import(pathToFileURL(MENU_LINKS_JS).href);
+  assert(typeof personalLinks === 'function', 'avatarMenuLinks.js must export personalLinks');
+  for (const profileBase of ['/user', '/tapestry/users']) {
+    const links = personalLinks({ pubkey: CUST, assistantPubkey: CUST_TA, classification: 'customer', profileBase });
+    const i = links.findIndex((l) => l && l.key === 'dictionaries');
+    assert(i >= 0, 'Dictionaries is still offered');
+    const next = links[i + 1];
+    assert(next && next.key === 'dictionary' && next.label === 'Dictionary' && next.to === '/dictionary',
+      `the link after Dictionaries must be Dictionary → /dictionary (profileBase ${profileBase})`);
+    assert(links.filter((l) => l && l.to === '/dictionary').length === 1, 'offered once');
+  }
 });
 
 // ═══ H — live (read-only; SKIP when the stack is down) ═══════════════════════

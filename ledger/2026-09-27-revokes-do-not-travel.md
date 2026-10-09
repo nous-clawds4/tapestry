@@ -49,3 +49,22 @@ tagging-edges story 2's ADR should name where kind 5 comes from, next to where t
 **Pointer:** ADR `engineering-team/decisions/tagging-edges/0001-tagging-edge-contract.md` § New debt / follow-ups
 item 5; census in `engineering-team/epics/tagging-edges.md` § Key facts; OPEN.md row 25 (the runbook and the
 `#z`-scoped sync plan).
+
+**Update 2026-09-30 (my-assistants #2, ADR my-assistants/0002 Amendment 1): a partial fix, not yet shipped.**
+- **Withdrawals carry `k` 39999.** The My Assistants page's Remove and Change publish a kind 5 with `e` (every id),
+  `a` (every address) and `k` `39999`, and send it to `wss://dcosl.brainstorm.world` as well as `PUBLISH_RELAYS`.
+- **A stream is planned.** The book's § Before shipping turns on a `tagDeletions` router stream (`both`,
+  `{"kinds":[5],"#k":["39999"]}`) on each instance, documented in `docs/TAG_FEDERATION_OPS.md`.
+- **What it leaves open.** Review 2 found the stream live-only, so a deletion published during a router restart never
+  arrives. dcosl's strfry 1.0.4 honours `e` deletions only. UI revokes without `k` still don't ride it. This row
+  stays open for the catch-up.
+
+**Update 2026-10-01 (my-assistants book close): the partial fix is shipped and proven.**
+- **The stream:** `tagDeletions` is on for staging, tags.brainstorm.world, production and the Mac Studio.
+- **The page:** the My Assistants page that publishes these withdrawals is on staging (PRs #795 and #797), not yet
+  in production.
+- **The proof:** a withdrawal pressed on staging's `/assistants` (kind 5 `8b08e444…`) reached every instance and
+  both dcosl relays. The Mac Studio's router log shows it deleting the tagging `c18e7de0…` by `e` and by `a` on
+  arrival (`engineering-team/audits/my-assistants/book.md` § Before shipping).
+- **Still open:** the catch-up for deletions missed while a router restarts, and UI revokes that carry no `k` (row
+  `2026-09-27-ui-revoke-names-id-only`).

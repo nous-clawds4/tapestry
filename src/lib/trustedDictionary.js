@@ -8,6 +8,12 @@
  * computeConceptDictionary({rows, zCarriers, qualifying, taPubkey})
  *   → { entries, metric }                   — Dictionary › Concepts (its own
  *                                              doc comment, further down)
+ * recognitionByConcept({sharedCoords, pointers, ownersOf, exclude, influence})
+ *   → Map coord → { gum2, recognizedBy, recognizers } — GUM₂ (its own doc comment)
+ * trustedItems({zCarriers, coords, qualifying, own, limit, match})
+ *   → { items, keptCount, truncated, filerCount, totalCount } — one entry's Items (or, with match, the matching ones)
+ * itemCarrier(ev)                           — a z-carrier as the Items read's scan keeps it
+ * parseItemMatch(raw)                        — the Items read's `match` parameter, checked
  * usageByHeader(…)                          — the counting rule both share
  *
  * Headers arrive PRE-CLASSIFIED at the handler seam
@@ -42,11 +48,11 @@
 
 'use strict';
 
-// TODO(GUM₂ / GUM₃ — handoff SPEC § 4, version 2): add them here, still
+// GUM₂ is recognitionByConcept, below (2026-10-02). TODO(GUM₃ — handoff SPEC § 4): add it here, still
 // server-side, each with its inputs resolved at the handler seam (as the
 // qualifying set is) and its own cutoff (default 1.50) as the membership test:
-//   gum2 — the sum of rank scores (Trusted Assertions, active POV) of trusted
-//          users whose Assistants' headers b-point to the shared concept;
+//   gum2 — built: recognitionByConcept sums the trusted recognizers' influence
+//          (0–1; a Trusted Assertions rank is influence × 100) from the active POV;
 //   gum3 — the rank-weighted sum of `add-to-dictionary` pinnings (apply +,
 //          dispute −), once the Pins wire format lands.
 // The owner picks the metric and cutoff (Automated Assistant Tasks); `metric`
@@ -138,7 +144,9 @@ const sortName = (e) => (e.name || String(e.coord).split(':').slice(2).join(':')
  * 2026-09-29). Rows arrive PRE-CLASSIFIED at the handler seam: the person's
  * concept headers that carry a real b-tag, as
  * {coord, name, plural, description, author, selfDeclared, targets,
- *  scoreCoords, isFirmware}. `scoreCoords` are the shared concepts the row
+ *  scoreCoords, isFirmware, firmwareHeader}. `isFirmware` marks a row that is a
+ * firmware concept or points at one; `firmwareHeader` only a row whose own
+ * header a firmware reinstall rebuilds. `scoreCoords` are the shared concepts the row
  * points to by coordinate — itself when self-declared.
  *
  * Each entry's `gum` is GUM₁ of the best-scoring of its scoreCoords: the
@@ -149,7 +157,7 @@ const sortName = (e) => (e.name || String(e.coord).split(':').slice(2).join(':')
  * z-filed under the row's OWN header. No threshold: the score describes an
  * entry, it does not admit one. Sorted by name.
  */
-function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey } = {}) {
+function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey, recognition } = {}) {
   const list = (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r.coord === 'string' && r.coord);
   const coords = new Set();
   for (const r of list) {
@@ -182,12 +190,15 @@ function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey } = {}
       targets: Array.isArray(r.targets) ? [...r.targets] : [],
       selfDeclared: !!r.selfDeclared,
       isFirmware: !!r.isFirmware,
+      firmwareHeader: !!r.firmwareHeader,
       itemCount: items.has(r.coord) ? items.get(r.coord).size : 0,
       sharedCoord: best ? best.coord : null,
       gum: best ? best.gum : 0, // GUM₁ of the shared concept
       totalAuthorCount: best && best.u ? best.u.aa.size : 0,
       totalEventCount: best && best.u ? best.u.ev.size : 0,
       override: null, // version 2: the owner's add-to-dictionary pinning
+      // GUM₂ of the same shared concept, when the seam resolved recognition (recognitionByConcept).
+      ...(recognition instanceof Map ? recognitionFields(best ? recognition.get(best.coord) : null) : {}),
     };
   });
   entries.sort((a, b) => sortName(a).localeCompare(sortName(b)) || a.coord.localeCompare(b.coord));
@@ -195,4 +206,240 @@ function computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey } = {}
   return { entries, metric: METRIC };
 }
 
-module.exports = { computeDictionary, computeConceptDictionary, usageByHeader };
+const recognitionFields = (r) => ({ gum2: r ? r.gum2 : 0, recognizedBy: r ? r.recognizedBy : 0 });
+
+/**
+ * GUM₂ (handoff SPEC § 4, owner's rules of 2026-10-02): for each shared concept, the trusted members
+ * who recognize it — whose own concept header, or one of whose Assistants' headers, carries a `b`
+ * pointing at it — each counted once by their influence from the active point of view (0–1, so the
+ * sum is a decimal). `recognizedBy` is how many of them there are: the design's "Recognized by N
+ * members".
+ *
+ * Inputs arrive resolved at the handler seam, as GUM₁'s qualifying set does:
+ *   sharedCoords — the concepts to score;
+ *   pointers     — newest kind-39998 headers, as { coord, pubkey, b: [values] };
+ *   ownersOf     — Map signer → its owners (who tagged it as their Assistant, or own it on this
+ *                  instance's roster). A header stands for its signer AND the signer's owners: a
+ *                  person's own header counts as theirs, and nobody's claim can take that away
+ *                  (anyone can publish a "My Assistant" tag, so a claim only ever adds);
+ *   exclude      — the reader (their account and Assistant): recognition is other people's;
+ *   influence    — Map pubkey → influence, holding only the trusted (above the verified cutoff).
+ * Also never counted: the concept's own header, and its author with that author's owners (the
+ * author recognizing their own concept is not community recognition). `recognizers` counts every
+ * distinct recognizer before the trust filter.
+ */
+function recognitionByConcept({ sharedCoords, pointers, ownersOf, exclude, influence } = {}) {
+  const owners = (pk) => {
+    const o = ownersOf instanceof Map ? ownersOf.get(pk) : null;
+    return [pk, ...(Array.isArray(o) ? o.filter((x) => x !== pk) : [])];
+  };
+  const inf = influence instanceof Map ? influence : new Map();
+  const reader = new Set(Array.isArray(exclude) ? exclude : []);
+  const out = new Map();
+  for (const c of new Set((Array.isArray(sharedCoords) ? sharedCoords : []).filter((x) => typeof x === 'string' && x))) {
+    const author = coordAuthor(c);
+    const excluded = new Set([...reader, author, ...owners(author)]);
+    const recognizers = new Set();
+    for (const p of Array.isArray(pointers) ? pointers : []) {
+      if (!p || p.coord === c || !Array.isArray(p.b) || !p.b.includes(c)) continue;
+      for (const o of owners(p.pubkey)) if (!excluded.has(o)) recognizers.add(o);
+    }
+    let sum = 0;
+    let trusted = 0;
+    for (const o of recognizers) {
+      const v = inf.get(o);
+      if (typeof v === 'number' && Number.isFinite(v)) { sum += v; trusted += 1; }
+    }
+    out.set(c, { gum2: Math.round(sum * 100) / 100, recognizedBy: trusted, recognizers: recognizers.size });
+  }
+  return out;
+}
+
+/** The item's display name: its names, else name, else title, else d-tag, else a short id. */
+function itemName(ev) {
+  for (const n of ['names', 'name', 'title', 'd']) {
+    const t = (ev.tags || []).find((x) => x && x[0] === n && typeof x[1] === 'string' && x[1].trim() !== '');
+    if (t) return t[1];
+  }
+  return `${String(ev.id || '').slice(0, 8)}…`;
+}
+
+/** The most items one read returns; the counts still cover every item. */
+const ITEMS_LIMIT = 1000;
+
+// An item's own words, bounded: its description, its title, and the property tags its header's Item
+// Property Tags (required / optional / recommended) name. A property is any tag but a single-letter
+// (indexed) one and those that name or describe the item; the first of each name counts. `t` is the one
+// single-letter tag kept, on every item: on most events it is a hashtag, but a header that names it in
+// `required` makes it the item's own string key (Content Categories § 5.1), as V4V Songs' track ID is.
+const NOT_PROPERTIES = new Set(['names', 'name', 'title', 'description', 'json', 'alt', 'client']);
+const MAX_ITEM_PROPERTIES = 20;
+const MAX_ITEM_TEXT = 300;
+const textTag = (t) => Array.isArray(t) && typeof t[0] === 'string' && typeof t[1] === 'string' && t[1].trim() !== '';
+
+/** The item's own tag of that name (its first non-blank one), trimmed and bounded, else null. */
+function itemText(ev, name) {
+  const t = (ev.tags || []).find((x) => textTag(x) && x[0] === name);
+  return t ? t[1].trim().slice(0, MAX_ITEM_TEXT) : null;
+}
+const itemDescription = (ev) => itemText(ev, 'description');
+
+/** The item's property tags as {name: value}: what it carries, for a DList's own page to show. */
+function itemProperties(ev) {
+  const out = {};
+  let n = 0;
+  for (const t of ev.tags || []) {
+    if (n >= MAX_ITEM_PROPERTIES) break;
+    if (!textTag(t) || (t[0].length < 2 && t[0] !== 't') || t[0].length > 64 || NOT_PROPERTIES.has(t[0])) continue;
+    if (Object.prototype.hasOwnProperty.call(out, t[0])) continue;
+    out[t[0]] = t[1].trim().slice(0, MAX_ITEM_TEXT);
+    n += 1;
+  }
+  return out;
+}
+
+// `match` on the Items read: at most this many name:value pairs (a song's page sends two: its release and its artist).
+const MAX_ITEM_MATCHES = 4;
+const MATCH_NAME = /^[^\s:]{2,64}$/;
+
+/**
+ * The Items read's `match` parameter (a string or a list of them), each "name:value": an item is kept
+ * when any named property (itemProperties) equals its value, trimmed and in any case. Returns the pairs
+ * as [name, value] with the value trimmed, bounded as properties are and lower-cased; null when there are
+ * none; an Error saying what is wrong when one isn't a property name and a value.
+ */
+function parseItemMatch(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const list = Array.isArray(raw) ? raw : [raw];
+  if (list.length > MAX_ITEM_MATCHES) return new Error(`match takes at most ${MAX_ITEM_MATCHES} name:value pairs`);
+  const out = [];
+  for (const m of list) {
+    const i = typeof m === 'string' ? m.indexOf(':') : -1;
+    const name = i > 0 ? m.slice(0, i) : '';
+    const value = i > 0 ? m.slice(i + 1).trim() : '';
+    if (!(name === 't' || MATCH_NAME.test(name)) || NOT_PROPERTIES.has(name) || !value) {
+      return new Error('match must be name:value, the name an item property tag (not a naming tag) and the value not blank');
+    }
+    // Bounded and trimmed again, as a property is (trimmed, bounded) and then compared (trimmed).
+    out.push([name, value.slice(0, MAX_ITEM_TEXT).trim().toLowerCase()]);
+  }
+  return out;
+}
+
+// The tags trustedItems reads off a z-carrier: its filing, its address, its name, and a curation copy's q.
+const ITEM_CARRIER_TAGS = ['z', 'd', 'names', 'name', 'title', 'q'];
+
+/**
+ * A z-carrier as the Items read keeps it from the scan (assembleConceptItems): only the tags
+ * trustedItems reads, with the item's own words (itemDescription, itemProperties) computed and bounded
+ * here, from all its tags, so a scan never holds every tag of every event.
+ */
+function itemCarrier(ev) {
+  return {
+    id: ev.id, kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at,
+    tags: (ev.tags || []).filter((t) => Array.isArray(t) && ITEM_CARRIER_TAGS.includes(t[0])),
+    description: itemDescription(ev),
+    properties: itemProperties(ev),
+  };
+}
+
+/** A curation copy (assistant-designation.md § Curation copies): a kind-39999 item whose d is "copy-<sha256>". */
+const isCurationCopy = (ev) => ev.kind === 39999
+  && (ev.tags || []).some((t) => t && t[0] === 'd' && typeof t[1] === 'string' && t[1].startsWith('copy-'));
+
+/**
+ * A Dictionary entry's Items: the events z-filed under the entry's concept
+ * (its own header and the shared concept it points to, `coords`) by people the
+ * active point of view trusts. `qualifying` is the trusted set resolved at the
+ * handler seam (resolveQualifying: influence above the verified cutoff), the
+ * same one GUM₁ counts. `own` is the reader (their account and assistant):
+ * their own filings always stay, since a point of view trusts itself.
+ *
+ * An addressable item (kind 30000–39999) is one item however many versions
+ * arrive: the newest wins. A curation copy and the original its `q` tags name
+ * are one item too (assistant-designation.md: "a reader merging items across
+ * related lists … treats a copy and its original as one item"): the original
+ * stays when its filer is kept, else the copy does. Items are in filing order,
+ * oldest first, so an item keeps its number as new ones arrive. Each carries
+ * its name, its own title and description, and its property tags (itemProperties). At most
+ * `limit` are returned (`truncated` says when more were kept); `filerCount`
+ * and `totalCount` (every distinct item before the trust filter) cover all.
+ *
+ * `match` (parseItemMatch's pairs) keeps only the items with a matching
+ * property, before the cap: then `items`, `keptCount` and `truncated` cover
+ * the matching items alone, so a page that needs a few items (a song's
+ * release, its artist) never reads them all. `filerCount` and `totalCount`
+ * still cover every item.
+ */
+function trustedItems({ zCarriers, coords, qualifying, own, limit = ITEMS_LIMIT, match = null } = {}) {
+  const cs = new Set((Array.isArray(coords) ? coords : []).filter((c) => typeof c === 'string' && c));
+  const q = qualifying instanceof Set ? qualifying : new Set(Array.isArray(qualifying) ? qualifying : []);
+  const mine = new Set(Array.isArray(own) ? own : []);
+  const kept = (ev) => q.has(ev.pubkey) || mine.has(ev.pubkey);
+
+  const all = new Map(); // item key → newest event
+  for (const ev of Array.isArray(zCarriers) ? zCarriers : []) {
+    if (!ev || typeof ev.pubkey !== 'string' || typeof ev.id !== 'string') continue;
+    if (!(ev.tags || []).some((t) => t && t[0] === 'z' && cs.has(t[1]))) continue;
+    const d = (ev.tags || []).find((t) => t && t[0] === 'd')?.[1];
+    const addressable = ev.kind >= 30000 && ev.kind < 40000 && typeof d === 'string';
+    const key = addressable ? `${ev.kind}:${ev.pubkey}:${d}` : ev.id;
+    const prev = all.get(key);
+    if (!prev || (ev.created_at || 0) > (prev.created_at || 0)) all.set(key, ev);
+  }
+
+  // A copy names its original by address (a kind-39999 original) and by version id.
+  const keyOf = new Map(); // address or id → item key
+  for (const [key, ev] of all) {
+    keyOf.set(ev.id, key);
+    keyOf.set(key, key);
+  }
+  for (const [key, ev] of [...all]) {
+    if (!all.has(key) || !isCurationCopy(ev)) continue;
+    const original = (ev.tags || [])
+      .filter((t) => t && t[0] === 'q' && typeof t[1] === 'string')
+      .map((t) => keyOf.get(t[1]))
+      .find((k) => k && k !== key && all.has(k));
+    if (!original) continue;
+    if (kept(all.get(original)) || !kept(ev)) all.delete(key);
+    else all.delete(original);
+  }
+
+  const pairs = Array.isArray(match) && match.length ? match : null;
+  const wanted = (it) => !pairs || pairs.some(([name, value]) => typeof it.properties[name] === 'string'
+    && it.properties[name].trim().toLowerCase() === value);
+  const items = [];
+  const filers = new Set();
+  for (const [key, ev] of all) {
+    if (!kept(ev)) continue;
+    filers.add(ev.pubkey);
+    const item = {
+      id: ev.id,
+      address: key === ev.id ? null : key,
+      kind: ev.kind,
+      author: ev.pubkey,
+      name: itemName(ev),
+      // Its own title tag, which `name` may pass over for a names or name tag (a DList's own look reads it).
+      title: itemText(ev, 'title'),
+      // As itemCarrier computed them in the scan, else from the event's own tags.
+      description: ev.description !== undefined ? ev.description : itemDescription(ev),
+      properties: ev.properties !== undefined ? ev.properties : itemProperties(ev),
+      createdAt: ev.created_at || 0,
+    };
+    if (wanted(item)) items.push(item);
+  }
+  items.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+
+  const cap = Number.isFinite(limit) && limit > 0 ? limit : ITEMS_LIMIT;
+  return {
+    items: items.slice(0, cap),
+    keptCount: items.length,
+    truncated: items.length > cap,
+    filerCount: filers.size,
+    totalCount: all.size,
+  };
+}
+
+module.exports = {
+  computeDictionary, computeConceptDictionary, usageByHeader, trustedItems, itemCarrier, parseItemMatch, recognitionByConcept,
+};

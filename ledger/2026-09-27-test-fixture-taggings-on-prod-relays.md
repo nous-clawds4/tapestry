@@ -92,3 +92,26 @@ So a full local `npm test` on the Mac Studio sends the tag suites' fixtures to t
 Dictionary › Concepts fix ran only its own suites there. `dictionary-concepts` publishes nothing. The
 `trusted-dictionary` fixtures are kind 39998 headers and kind 39999 items whose `z` points at those headers, and no
 enabled stream matches them.
+
+**Update 2026-09-30: it happened again, 6 more fixtures.** In my-assistants #1's Implementation phase, a session
+started the full `npm test` on the Mac Studio (with `BRAINSTORM_PUBLISH_LOCAL_ONLY=true`, which, as above, does
+not govern the router) and stopped it at suite 5 of 245 once it recalled this row. Gate run
+`20260930T205145Z-52141-32fb`, INTERRUPTED at 4/245.
+- **What it stored locally** (read-only `strfry scan` since 20:51:40Z):
+  - `profile-tags-publish` stored the tag element `test-tag-1790801508978-c4wvi8`, four taggings of it
+    (`profile-tag-test-tag-1790801508978-c4wvi8-…`) and one kind 5, all signed by `9c416f3a…`. That's the first
+    committed dev key in `test/helpers/livePov.js` (`AUTHOR_POOL[0]`), so these five can be retracted with a kind 5;
+  - `tag-detail-publish` stored the tag element `tagdetail-s2-1790801523159-jaxgr2`, signed by `9bf41bc0…`, a
+    per-run `nak key generate` key that was not kept, then was stopped. That one cannot be retracted.
+- **What reached outside:** a read-only REQ by id to `wss://dcosl.brainstorm.world` found **all six kind 39999
+  events**. It did not find the kind 5: no stream carries kind 5, so the relay keeps the tagging the suite retracted
+  locally.
+- **No cleanup was done.** Publishing deletions is the owner's call.
+
+**Update 2026-10-01 (my-assistants book close): kind 5s from this machine now travel.** The Mac Studio's router has
+a `tagDeletions` stream (`both`, kind 5 with `#k` 39999, to both dcosl relays). From now on, a suite's own retraction
+reaches dcosl *if* it carries `k` 39999. The six fixtures already there are unchanged, and retracting the five signed
+with the committed dev key is still the owner's call.
+
+The session's instructions (Implementer role, workflow 4) say to run `npm test`. On this machine that instruction
+and this row conflict, and nothing in the workflow points here.

@@ -19,6 +19,12 @@ const broadcastOutcomeCore = fileURLToPath(new URL('../src/lib/broadcastOutcome.
 // author, one definition for the server's check and the Identification Tags page (ADR
 // assistant-identification-tags/0001 sub-decision 1). Same cross-boundary CJS treatment as the two above.
 const identificationTagsCore = fileURLToPath(new URL('../src/lib/identification-tags', import.meta.url))
+// Editing a Dictionary concept's header (src/lib/conceptHeaderEdit.js): the server's edit endpoint and the edit
+// page's preview compose with the same code. Same cross-boundary CJS treatment as the three above.
+const conceptHeaderEditCore = fileURLToPath(new URL('../src/lib/conceptHeaderEdit.js', import.meta.url))
+// Create New Concept from the finder copies the shared header's tags (src/lib/conceptHeaderCopy.js): the server
+// and the page's preview compose with the same code, as above.
+const conceptHeaderCopyCore = fileURLToPath(new URL('../src/lib/conceptHeaderCopy.js', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
@@ -28,13 +34,15 @@ export default defineConfig({
       '@tapestry/event-tagging': eventTaggingCore,
       '@tapestry/broadcast-outcome': broadcastOutcomeCore,
       '@tapestry/identification-tags': identificationTagsCore,
+      '@tapestry/concept-header-edit': conceptHeaderEditCore,
+      '@tapestry/concept-header-copy': conceptHeaderCopyCore,
     },
   },
   build: {
     outDir: '../dist',
     emptyOutDir: true,
     commonjsOptions: {
-      include: [/src\/lib\/event-tagging/, /src\/lib\/broadcastOutcome/, /src\/lib\/identification-tags/, /node_modules/],
+      include: [/src\/lib\/event-tagging/, /src\/lib\/broadcastOutcome/, /src\/lib\/identification-tags/, /src\/lib\/conceptHeaderEdit/, /src\/lib\/conceptHeaderCopy/, /node_modules/],
     },
   },
   server: {

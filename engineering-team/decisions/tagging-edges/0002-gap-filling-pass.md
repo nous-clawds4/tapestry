@@ -546,7 +546,10 @@ wait; the re-run then fails `RESOURCE_CLASS_WAIT_TIMEOUT` (OPERATIONS §10.6), a
 pass does the work. *(Amended in review round 3, 2026-09-28: waiters poll on their own, with no queue order
 (`resourceSemaphore.js` `acquire`, `ACQUIRE_LUA`), and the re-run's wait began after the dead pass took its lease.)*
 The Tester does not pin "restart → stopped". On SIGTERM or SIGINT the pass stops at the next batch boundary and
-writes `failed`, `stopped: true`, `reasonCode: 'signal'` (story 4's Stop can use this).
+writes `failed`, `stopped: true`, `reasonCode: 'signal'` (story 4's Stop can use this). *(Since story 4's Planning,
+2026-09-30, the controls, Stop included, are story 5's. Noted at story 4's review, round 1.)* *(Since story 5's
+Planning, 2026-10-01, the pass's controls, Stop included, are story 6's; story 5 is the real-time path's switch.
+Amended at story 5's Architecture, from story 4's review, round 2, R2-8; ADR `tagging-edges/0005`.)*
 
 **Who reads it.** `GET /api/tagging-edges/status` returns `{ reportVersion, running, latest, previous,
 confirmationPending }` (the pending record without its nonce); `GET /api/tagging-edges/held?runId=&offset=&limit≤1000`
@@ -813,7 +816,9 @@ Each goes into ADR 0001 in the same commit as this ADR, with an "Amended by `tag
     from the handoff's mutation template.
 14. **Until story 4:** AC-7's "read its report on the instance" is met by the JSON status URL, and AC-5's
     confirmation is a signed-in `fetch` from the owner's browser (OPERATIONS carries the snippet). The alternative is
-    a minimal button on a legacy page (about 40 lines).
+    a minimal button on a legacy page (about 40 lines). *(Amended at story 5's Architecture, 2026-10-01, from story
+    4's review, round 2, R2-8; ADR `tagging-edges/0005`. Since story 4 the panel shows the report. Until story 6,
+    AC-5's confirmation is a signed-in `fetch` from the owner's browser.)*
 15. **A start refused because another pass holds the lock writes no report**; it emits `TASK_ERROR` / `TASK_END`
     (`not-started`) and the running pass's report stays latest.
 
@@ -1234,6 +1239,8 @@ only be present), C12 and C13 as written:
 ## Out of scope
 
 - The real-time path (story 3) and any control-panel page or button (story 4), except the bindings for story 3 above.
+  *(Amended at story 5's Architecture, 2026-10-01, from story 4's review, round 2, R2-8; ADR `tagging-edges/0005`:
+  the panel is story 4's, the path's switch on it story 5's, and the pass's run, stop and confirm story 6's.)*
 - Carrying revokes between instances (row `2026-09-27-revokes-do-not-travel`) and the UI revoke naming the address (row
   `2026-09-27-ui-revoke-names-id-only`).
 - Cleaning test-fixture taggings off the relays; it will trip the limit and go through on a confirmed run.

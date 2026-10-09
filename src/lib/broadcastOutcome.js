@@ -57,6 +57,20 @@ const MESSAGES = {
       already: "Already saved here, but the re-broadcast didn't reach the community relay — try again.",
     },
   },
+  save: {
+    published: {
+      fresh: 'Saved — broadcast to the community relay.',
+      already: 'No changes to save — re-broadcast to the community relay.',
+    },
+    'kept-local': {
+      fresh: 'Saved here. External publishing is off for this deployment, so it was not sent onward.',
+      already: 'No changes to save. External publishing is off for this deployment, so nothing was sent onward.',
+    },
+    'not-delivered': {
+      fresh: "Saved here, but it didn't reach the community relay — try again.",
+      already: "No changes to save, and the re-broadcast didn't reach the community relay — try again.",
+    },
+  },
   wire: {
     published: {
       fresh: 'Wired — broadcast to the community relay.',
@@ -77,7 +91,7 @@ const MESSAGES = {
  * The human-readable outcome.
  * @param {object}  input
  * @param {string}  input.outcome  from classifyBroadcast
- * @param {string}  input.verb     'submit' | 'wire'
+ * @param {string}  input.verb     'submit' | 'wire' | 'save'
  * @param {boolean} input.already  the action was already recorded before this call
  */
 function outcomeMessage({ outcome, verb, already } = {}) {

@@ -8,7 +8,9 @@
 
 Story 2's gap-filling pass (ADR `tagging-edges/0002`) writes `TAGS` only when it runs: on demand, or from a schedule
 entry that no public host has. Story 3 makes a tagging change that reaches this instance's relay, by any way in,
-show up within a minute, catch up by itself after downtime, and ship turned off behind an owner-only switch. The
+show up within a minute, catch up by itself after downtime, and ship turned off behind an owner-only switch *(owner or
+admin since story 5: enforced by the server, last change wins, each change recording who and when; ADR
+`tagging-edges/0005`)*. The
 story's seven criteria, and its settled and confirmed items 1–15, are the requirements. In short:
 
 - **AC-1** — a stored tagging is reflected within 1 minute, whatever way it came in and whatever its `created_at`.
@@ -20,7 +22,7 @@ story's seven criteria, and its settled and confirmed items 1–15, are the requ
 - **AC-4** — after any downtime the path catches up within 5 minutes, back-dated history included. No start ever
   creates a relationship for a version held since before the first start. A lost record is never treated as a
   first start.
-- **AC-5** — it ships off. The owner-only switch survives deploys, and off means off. It recovers alone, is
+- **AC-5** — it ships off. The owner-only switch *(owner or admin since story 5, ADR `tagging-edges/0005`)* survives deploys, and off means off. It recovers alone, is
   independent of follows, and never refuses or blocks a pass. The graph never goes back to an older relay read,
   except in ADR 0002's two accepted interleavings.
 - **AC-6** — a status, readable without a shell, at most a minute stale, that never shows a credential or a
@@ -199,7 +201,9 @@ and the ADR review's probes. The strfry facts come from the 1.1.0 source in the 
 ### D8 — Status and switch
 
 - **A. Files in `<stateDir>/realtime/`, and two new routes.** A public `GET …/realtime/status` and an owner-only
-  `POST …/realtime/switch`. The Node process polls the switch file. Error text is fixed text only.
+  `POST …/realtime/switch`. The Node process polls the switch file. Error text is fixed text only. *(Since story 5
+  the POST is owner or admin, and a gated GET on the same path serves who changed it; ADR `tagging-edges/0005` D5,
+  D6.)*
 - **B. A `realtime` key in `GET /api/tagging-edges/status`.** It changes story 2's pinned response.
 - **C. The route signals the process by pid.** That risks pid reuse and cross-process coupling, to gain about 3 s.
 
@@ -223,7 +227,8 @@ supervisord [program:tagging-edges-realtime]
                    ─► writes through graph.js (≤ 25 rows / tx) ─► journal ─► post-pass re-look check
             every 1 s: switch poll (off ⇒ flush, exit within 5 s) · every 10 min: safety diff · ≤ 30 s: status.json
 GET  /api/tagging-edges/realtime/status          public
-POST /api/tagging-edges/realtime/switch {on}     owner only → switch.json
+POST /api/tagging-edges/realtime/switch {on}     owner or admin → switch.json, switch-history.json (story 5)
+GET  /api/tagging-edges/realtime/switch          owner or admin: who changed it and when (story 5)
 ```
 
 ### What it hears (D1-A, D5-A)
@@ -363,10 +368,11 @@ never touches it.
 
 | File | Shape | Written |
 |---|---|---|
-| `switch.json` | `{"version":1,"on":true,"changedAt":ISO,"changedBy":"<8-char prefix>"}`, canonical compact form | by the owner route only |
+| `switch.json` | `{"version":1,"on":true,"changedAt":ISO,"changedBy":"<8-char prefix>"}`, canonical compact form. *(Version 2 since story 5 adds `role` and `onSince`; a version 1 record reads as the owner's change. ADR `tagging-edges/0005` D1.)* | by the owner route only *(owner or admin since story 5)* |
+| `switch-history.json` | `{version:1, changes:[{on, at, role, key}]}`, newest first, at most 10; null `at`, `role` and `key` mark a change not recorded. *(Story 5, ADR `tagging-edges/0005` D1.)* | by the switch route: first a best-effort pre-fold of changes already made, then the new change, only after `switch.json` is written (ADR `tagging-edges/0005` D2) |
 | `started.json` | `{version:1, firstStartedAt}` | once, after `record.json` |
 | `record.json` | `{version:1, firstStartedAt, identities:{canonical, local}, compactedAt, seen:[[id, address]], heard:[[id, address]], baseline:[ids ⊆ seen], refusedSeen:[[id, address]], pending:[{address, lane, prompts, attempts, notBefore}], rechecks:[{address, runId, prompts}], deadSeenAt:{runId: at}, parked:[…], sha256}` | at compaction, atomically |
-| `journal.jsonl` | one line per fact (below) | flushed and fsynced by a 250 ms timer whenever lines are buffered, in every state including the waiting ones; also at round end, on switch-off and on SIGTERM. `b` lines are fsynced at once. |
+| `journal.jsonl` | one line per fact (below) | flushed and fsynced by a 250 ms timer whenever lines are buffered, in every state including the waiting ones; also at round end, on switch-off and on SIGTERM. `b` lines are fsynced at once. While appends keep failing (a full data volume), lines, `b` lines included, wait in memory: § Failure handling, "Journal appends that keep failing". |
 | `status.json` | § Status | by the path |
 | `daemon.lock` | the single-instance flock file | by the wrapper |
 
@@ -618,11 +624,31 @@ Each failure is contained to what it touches:
 - **A crash or OOM.** The wrapper backs off ≤ 30 s, then the journal restores pending entries, and the catch-up runs.
   - A version heard in the last flush interval before a crash, and revoked by id before the restart, leaves nothing to
     find. It waits for the pass (owner decision 5).
-  - Switch-off and SIGTERM flush the journal first, so an off or a deploy never opens that window.
-- **Journal appends that keep failing** (a full disk, say). Lines wait in memory, unbounded, and rounds keep writing
-  to the graph; the status shows `lastError` with stage `journal`. The operator frees space or turns the switch off. A
-  crash meanwhile loses the lines not yet written (owner decision 5's second corner). *(Added at story 3's review,
-  round 2.)*
+  - Switch-off and SIGTERM flush the journal first, so while journal appends succeed an off or a deploy never opens
+    that window. While they keep failing, that flush fails too and the path exits anyway (next bullet). *(Qualified at
+    story 4's Architecture, 2026-09-30, from story 3's review, round 3, carry-forward C7.)*
+- **Journal appends that keep failing** (a full data volume, say). Lines wait in memory, unbounded, and rounds keep
+  writing to the graph. A flush appends every waiting line or none (a failed append is cut back off; should the
+  cut-back itself fail, the next start drops the torn tail or skips the damaged line), so the spell ends at the first
+  append, or the first compaction, that succeeds. While the journal is past the compaction cadence, a compaction is
+  retried at every round end and idle tick, and each failure is the status's `record` error. The operator frees space
+  on the volume, which keeps every line.
+  - A crash, a switch-off or a SIGTERM (a restart or a deploy) during the spell loses every line not yet written, not
+    only the last flush interval's. The next start restores the state as of the last append or compaction that
+    succeeded, and its catch-up finds again what the relay still holds. What it cannot find waits for the pass: owner
+    decision 5's second corner covers the whole spell. The lost lines also add occasions for decision 11's lost-notice
+    removal (a lineage learning lost); it is not a new kind of removal, and the next pass would make the same one
+    (A1-16 (5) and (11)). An off still takes effect within 5 s.
+  - A version held at the first start that came back with the same id and was heard during the spell, at an address
+    the graph does not hold, and not yet written to the graph when the path ended, counts as held again at the next
+    start (its `b` line was lost) and waits for the pass. This widens decision 5's third corner: the path may have read
+    the address in between. At an address the graph holds, the restarted path still writes the update or move.
+  - `lastError` names the stage that last failed (`journal`; `record` after a failed compaction; `status` after a
+    failed status write) only while `status.json` can still be written. Once the volume is out of space it cannot,
+    and the route shows the status `stale` once its last write is over 60 s old while the process that last wrote it
+    runs, then `running` false once that process has ended, even while a restarted path runs.
+  *(Added at story 3's review, round 2. Widened at story 4's Architecture, 2026-09-30, from story 3's review, round 3,
+  carry-forward C7; the owner accepted the widening on 2026-09-30.)*
 - **A first start whose baseline keeps failing.** Every stamped version delivered since the REQ waits in its buffer,
   bounded only by how long the baseline takes; the 20,000-target cap covers kind-5s only. Versions cannot be dropped,
   since a dropped one would count as held since before the first start. Turning the switch off ends it, and the next
@@ -705,12 +731,27 @@ three. Neither path contains an `ownerOnlyEndpoints` substring.
 - If the atomic write for `{on:false}` fails (for example ENOSPC), it unlinks `switch.json`, which needs no free
   space and reads as off, and answers accordingly.
 
+*(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D2, D4, D5, D6, D9, D11.)* Since story 5:
+- **Who.** The POST is registered with `adminApi.requireOwnerOrAdmin`, and re-checked through `ownerOrAdmin(req, d)`
+  (`src/api/tagging-edges/index.js`): an authenticated session whose pubkey is the configured owner or an admin. It
+  returns the caller's role.
+- **What it writes.** In one serialised step it writes the canonical `switch.json`, version 2: the state, the change's
+  `changedAt`, `changedBy` (the caller's 8-character prefix) and `role`, and `onSince`, the last off-to-on time, which
+  an on while on keeps. A best-effort pre-fold first brings `switch-history.json` up to date with changes already
+  made. The new change joins the history (the last 10) only after `switch.json` is written.
+- **What it answers.** `recorded: true`, or `recorded: false` for an off that fell back to the unlink. A failed on,
+  or a read error on the current switch for an on, answers 500 with an allow-listed `code`.
+- **`GET /api/tagging-edges/realtime/switch`,** behind the same gate with `sameHost` included, serves the switch's
+  record: `{success, on, switchUnreadable, historyUnreadable, state, latest, history}`. It writes nothing. The public
+  status never carries who.
+
 **Off means off within 5 s.** Node checks `switch.json` every 1 s and at every round boundary. On off it:
 
 1. stops scheduling;
 2. SIGKILLs its own strfry child (a read);
 3. gives an in-flight port call up to 2 s;
-4. flushes the journal and writes the status;
+4. flushes the journal and writes the status (while the data volume is full, either may fail, and the exit goes ahead:
+   § Failure handling, "Journal appends that keep failing");
 5. calls `process.exit(0)`.
 
 Neo4j rolls back any uncommitted transaction; a commit already sent may finish. The wrapper does not restart Node
@@ -723,7 +764,8 @@ while the switch is off, and turning it back on catches up (AC-4). A missing or 
 `state.isAlive(process)`. It returns:
 
 - `statusVersion`; `on` and `onSince` (from `switch.json`, so the answer says off at once); `running` and
-  `runningSince`;
+  `runningSince`; *(since story 5, `onSince` is the last off-to-on time, and the route also derives `inStartWindow`;
+  ADR `tagging-edges/0005` D4, D7)*
 - `state`: `off | starting | waiting-setup | waiting-graph | waiting-relay | catching-up | live | stopped`;
 - `firstStartedAt`;
 - `relay {lastReadOkAt}`, `subscription {connected, since, lastEventAt}`, `lastReflectedAt`, `lastRound {ms,
@@ -893,7 +935,13 @@ and 11).
 
 - **Enables.**
   - Real-time `TAGS` on every host once the owner turns it on, with no strfry change and no schema change.
-  - Story 4's page reads two public routes and posts to one owner route.
+  - Story 4's page reads two public routes and posts to one owner route. *(Since story 4's Planning, 2026-09-30, the
+    split: story 4's panel only reads; the owner-route post, the switch, is story 5's. Noted at story 4's review,
+    round 1.)* *(Amended at story 5's Architecture, 2026-10-01, from story 4's review, round 2, R2-8; ADR
+    `tagging-edges/0005`: story 4's panel reads five routes and posts nothing. They are three public tagging-edges
+    reads (`status`, `realtime/status`, `held`), the schedule list (`/api/scheduled-tasks/list`), and the gated
+    `drift-counts`. Story 5 adds the switch's POST, widened to owner or admin, and its gated GET of who changed it.
+    The pass's run, stop and confirm are story 6's.)*
   - The pass's two race residuals shrink from "until the next pass" to about a minute after each pass.
 - **Constrains.**
   - The path depends on the pass's port and pure modules staying the single place for `TAGS` Cypher and decisions.
@@ -940,11 +988,15 @@ gate.*
    arrival, look-only prompt or safety diff. This keeps a flood of other people's kind-5s to one map lookup per target.
    The story allows either reading ("a look one of them prompts can still …").
 4. **Off within 5 s** (a 1 s poll, then up to a 2 s grace for an in-flight transaction, a journal flush, then exit).
-5. **Corners that wait for the pass.** *(Reworded by A1-16.)*
+5. **Corners that wait for the pass.** *(Reworded by A1-16. Its second and third corners widened at story 4's
+   Architecture: § Failure handling, "Journal appends that keep failing".)*
    - A version stored and revoked by id before the relay announced it (story item 7, unchanged).
-   - A version heard in the last ≤ 250 ms before a crash, and revoked by id before the restart.
+   - A version heard in the last ≤ 250 ms before a crash, and revoked by id before the restart; while journal appends
+     keep failing, the whole spell since the last append or compaction that succeeded, ended by a crash, a switch-off
+     or a SIGTERM (§ Failure handling).
    - A version held at the first start that left the relay and came back with the same id, with no read of its
-     address by the path in between, at an address the graph does not hold.
+     address by the path in between, at an address the graph does not hold; or one heard during a spell of failing
+     journal appends whose `b` line was lost (§ Failure handling).
    - Taggings stored between the owner's first switch-on and the first subscription's snapshot. Normally that is
      seconds; it lasts as long as an identity stays bad or the relay is unavailable at the very first start. They
      count as pre-existing. OPERATIONS runs the extra pass after the status shows `firstStartedAt`.
@@ -1030,6 +1082,8 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
   app.get('/api/tagging-edges/realtime/status', taggingEdgesRealtime.handleRealtimeStatus);
   app.post('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOnly, taggingEdgesRealtime.handleRealtimeSwitch);
   ```
+  *(Since story 5 the POST is mounted with `adminApi.requireOwnerOrAdmin`, and `app.get` on the same path serves the
+  switch's record behind the same gate; ADR `tagging-edges/0005` D5, D6.)*
 - `docker/supervisord.conf`: the program block (§ Where it runs).
 
 **Docs (story docs tasks, plus these)**
@@ -1041,7 +1095,9 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
   - §16 entry;
   - the Last-updated line.
 - **OPERATIONS:** a new §12.9 covering:
-  - the switch snippet: a signed-in `fetch` from the owner's browser;
+  - the switch snippet: a signed-in `fetch` from the owner's browser; *(since story 5 the panel's control is the way
+    to switch, for the owner or an admin, and the snippet still works for both and is recorded the same; ADR
+    `tagging-edges/0005`)*
   - the status fields;
   - deploy behaviour;
   - the order: backfill → add and enable the daily schedule → turn on → one more pass;
@@ -1070,7 +1126,8 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
   - SWR13 gains `READ_KEYS`; SWR14/15 still hold;
   - new sentinels: the program block (the `stdout_logfile_maxbytes` names); a wrapper that never exits and re-sources
     per start; no path file or argv matching the pass's pgrep pattern; no `pass.lock` / `neo4j-heavy` / `writeReport`
-    in realtime code; the two routes, with owner-only on the POST.
+    in realtime code; the two routes, with owner-only on the POST. *(Since story 5: `requireOwnerOrAdmin` on the
+    POST and on the new GET of the switch path; SWR67 revised. ADR `tagging-edges/0005` D5, D6.)*
 - `test/strfry-scan-strict.test.js`:
   - `onEvent`, array filters, `\/` escaping, `filter-too-large`;
   - the widened redactor (`neo4j.internal:7687`, `neo4j:7687`, `[::1]:7687`, `localhost:7687`);
@@ -1106,7 +1163,9 @@ The Implementer reads this section. Test-file changes are Phase 3's (the Tester)
     - Journal torn-tail recovery.
     - The 250 ms flush timer in a waiting state.
   - **The routes.** The auth matrix (loopback 401, admin 403, cross-site 403, non-JSON 415), the unlink on a failed
-    off-write, and the error-code allow-list (`err.code = 'neo4j.internal'` → `'error'`).
+    off-write, and the error-code allow-list (`err.code = 'neo4j.internal'` → `'error'`). *(Since story 5 an admin
+    is admitted. The refused callers are loopback with no session (401), a stranger or `authenticated !== true`
+    (403), cross-site (403) and non-JSON (415); ADR `tagging-edges/0005` D5.)*
 - An opt-in live suite: read-only checks of `readAt` and `readKeys`, and a `limit:0` websocket smoke test against the
   local relay.
 - `test/registry.js` registrations.
@@ -1314,7 +1373,10 @@ never the number of ticks.
 **T21 — The store.** `src/pipeline/tagging-edges/realtime/store.js` exports `createStore({ dir })`.
 - `dir` defaults to `path.join(state.stateDir(), 'realtime')`.
 - It returns:
-  - `readSwitch()` → `{ on, changedAt, changedBy }`, `null` when missing, or `{ unreadable: true }`;
+  - `readSwitch()` → `{ on, changedAt, changedBy }`, `null` when missing, or `{ unreadable: true }`; *(since story 5
+    it also gives `version`, `role`, `onSince` and, on a read error, `readError`. The store adds
+    `readSwitchHistory()`, `writeSwitchHistory(obj)` and the pure `parseSwitchHistory(text)`; ADR
+    `tagging-edges/0005` D1)*
   - `writeSwitch(record)` writes it atomically, in the canonical compact form;
   - `unlinkSwitch()`;
   - `readStarted()` / `writeStarted(obj)`;
@@ -1330,13 +1392,16 @@ never the number of ticks.
 - Whole-file writes go through `state.writeAtomic`.
 
 **T22 — The routes module.** `src/api/tagging-edges/realtime.js` exports `{ computeRealtimeStatus, validateSwitch,
-handleRealtimeStatus, handleRealtimeSwitch }`.
+handleRealtimeStatus, handleRealtimeSwitch }`. *(Story 5 adds `switchEntry`, `switchRecord`, `foldHistory` and
+`handleRealtimeSwitchRecord`; ADR `tagging-edges/0005` D3, D6.)*
 - `validateSwitch(body)` → `{ ok: true, on }` or `{ ok: false, status: 400, error }`.
 - The handlers take `(req, res, deps)`. `deps` defaults like `index.js`'s `withDeps`:
 
   ```
   { readFile, stateDir, isAlive, now, ownerPubkey | getOwnerPubkey, writeSwitch(record), unlinkSwitch() }
   ```
+  *(Story 5 adds `getAdminPubkeys`, `readSwitch()`, `readSwitchHistory()` and `writeSwitchHistory(obj)`; ADR
+  `tagging-edges/0005` D2, D5.)*
 - The status handler reads `realtime/switch.json` and `realtime/status.json` under `stateDir()` through `readFile`.
 - `computeRealtimeStatus` returns the fields in § Status. `on` and `onSince` come from `switchRecord`, `running` from
   `alive`, and `stale` is `alive && now - Date.parse(status.updatedAt) > 60000`.
@@ -1386,6 +1451,10 @@ The suite writers' questions are settled here (T25–T31). They refine T1–T24 
 - **Methods** are synchronous (awaiting works).
 - **`switch.json`'s canonical form** is compact JSON with the keys in the order `version, on, changedAt, changedBy`.
 - **`readSwitch`** gives `{ unreadable: true }` unless the file parses to an object whose `on` is a boolean.
+- *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D1.)* `switch.json` is version 2 since story 5, with the keys in the order `version, on,
+  changedAt, changedBy, role, onSince`. A version 1 record keeps its four keys and reads as the owner's change. No key
+  but `on` may hold the text `"on":true`, because the wrapper matches that substring anywhere on the line
+  (`run.sh:44`). A read error other than `ENOENT` adds `readError`.
 - **The record's `sha256`** is taken over `JSON.stringify` of the record without `sha256`, with object keys sorted
   recursively.
 - **`readStarted()` and `readStatus()`** give `null` for a missing file.
@@ -1406,6 +1475,15 @@ The suite writers' questions are settled here (T25–T31). They refine T1–T24 
 - **`session.authenticated !== true`** with the owner's pubkey answers 403.
 - **The default `writeSwitch`** is the store's, at `<stateDir>/realtime`.
 - **The routes module** imports `allowErrorCode` from `src/lib/tagging-edges/realtime.js`.
+- *(Amended at story 5's Architecture, 2026-10-01; ADR `tagging-edges/0005` D2, D4, D5, D7, D11.)* Since story 5:
+  - a failed off-write answers 200 `{ success: true, on: false, recorded: false }` when the unlink succeeds;
+  - a failed on-write answers 500 with an allow-listed `code`, and so does a read error on the current switch for an
+    on;
+  - `onSince` is the switch's `onSince` (its `changedAt` for a version 1 record) while on, and `null` when off;
+  - `inStartWindow` is true when the path is on, within 60 s of `onSince` by the route's clock, and no process started
+    at or after `onSince` is alive;
+  - `session.authenticated !== true` answers 403 for the owner's or an admin's pubkey;
+  - the default record methods are the store's, at `<stateDir>/realtime`.
 
 **T28 — Wrapper details.**
 - **PATH lookups.** `run.sh` calls `flock` and `sleep` through `PATH` (bare names), as it does `node`.
@@ -1429,6 +1507,7 @@ The suite writers' questions are settled here (T25–T31). They refine T1–T24 
   - `process`, `updatedAt` (ISO).
 
   The route derives `statusVersion`, `on`, `onSince`, `running`, `runningSince`, `switchUnreadable` and `stale`.
+  *(Story 5 adds `inStartWindow`; ADR `tagging-edges/0005` D7.)*
 - **`handleSignal('SIGTERM')`** leads to `{ exit: 0 }` within 5 s.
 - **Row order.** Creates, updates and moves are sorted by the desired edge's `(from, to)`; removals by the snapshot's
   ends.
@@ -1656,10 +1735,13 @@ Journal lines. **Every line that changes a lineage is absolute and self-containe
   state built so far stands, and the start reports `journal-unreadable`.
 - An absolute line never splits one change across two lines, so a torn append cannot invert a lineage by itself.
 - A replayed journal that lost lines can still leave a lineage behind the store order: the last flush interval
-  before a crash, a torn or damaged line, or a read that failed part-way. A stale top can then let clause (ii) act
-  on a stale deletion (decision 11's journal-fault triggers).
+  before a crash, the lines a spell of failing appends still held when a crash, a switch-off or a SIGTERM ended the
+  path (§ Failure handling), a torn or damaged line, or a read that failed part-way. A stale top can then let clause
+  (ii) act on a stale deletion (decision 11's journal-fault triggers).
 - A start whose journal was not read whole (`journal-unreadable`) therefore demotes every restored top into its
-  `older`. The start catch-up's stamp scan re-learns the tops of addresses still on the relay within seconds.
+  `older`. The start catch-up's stamp scan re-learns the tops of addresses still on the relay within seconds. Lines
+  never written leave the journal whole (a failed append is cut back off), so they cause no demotion. *(The spell
+  and this sentence added at story 4's Architecture, 2026-09-30, from story 3's review, round 3, carry-forward C7.)*
 
 **Compaction cadence.** A round-end compaction runs once the journal passes the larger of 1 MB and a quarter of
 `record.json`'s size. Absolute lines are larger (up to about 0.8 KB with eight older ids), and this bounds how often
@@ -1876,7 +1958,10 @@ These wait for the pass:
   relay's ~100 ms change notice (story item 7)."
 - **The second corner becomes:** "A version stored or learned in the last flush interval (≤ 250 ms) before a crash,
   and revoked by id before the restart; or a revoke drained in that interval, when its kind-5 then leaves the relay
-  before the restart." A lineage learning lost in that interval can also end in a decision-11 removal.
+  before the restart." A lineage learning lost in that interval can also end in a decision-11 removal. While journal
+  appends keep failing (a full data volume), the interval runs from the last append or compaction that succeeded,
+  and a switch-off or a SIGTERM (a restart or a deploy) ends it as a crash does. *(Widened at story 4's
+  Architecture, 2026-09-30, from story 3's review, round 3, carry-forward C7; the owner accepted it on 2026-09-30.)*
 - **The fourth corner adds:** "At a first start the census can hold the REQ back by up to 10 s (normally tens of
   milliseconds), which widens this window by as much."
 - **The first start adds:** "A revoke stored between the first REQ and the baseline scan, naming a version the path
@@ -1941,10 +2026,13 @@ How notices are lost:
 - while the path is not running;
 - within the relay's ~100 ms change notice around a read;
 - through strfry's delete-hides-next-write defect;
-- through a journal fault: a delivery drained but its journal line lost (the last flush interval before a crash, a
-  torn or damaged line, a journal read failing part-way), so the restart restores a lineage behind the store order.
-  A start that reports `journal-unreadable` demotes its restored tops (A1-6), so only a crash's last flush interval
-  and a damaged line remain.
+- through a journal fault: a delivery drained but its journal line lost (the last flush interval before a crash; the
+  lines a spell of failing journal appends still held when a crash, a switch-off or a SIGTERM ended the path; a torn
+  or damaged line; a journal read failing part-way), so the restart restores a lineage behind the store order. A
+  start that reports `journal-unreadable` demotes its restored tops (A1-6), so only a crash's last flush interval, a
+  failing spell's unwritten lines and a damaged line remain. The spell adds occasions, not a new kind of removal.
+  *(The spell added at story 4's Architecture, 2026-09-30, from story 3's review, round 3, carry-forward C7; the
+  owner accepted it on 2026-09-30.)*
 
 In every shape, the relay then holds nothing the path or the pass can read at the address, and the next pass makes the
 same removal. These are
@@ -2242,6 +2330,9 @@ Test Design gate on 2026-09-29.
 16. **The corners, as the property suite's classifier reads them.**
     - Decision 5's first corner includes a notice cut off by a dropped connection, the relay going down, or a SIGTERM.
     - Its second corner combines with the first: a crash in the flush interval, followed by a reconnect gap.
+    - A spell of failing journal appends is outside the suite's model; its widening (§ Failure handling) is pinned, if
+      at all, by an engine test. *(Added at story 4's Architecture, 2026-09-30, from story 3's review, round 3,
+      carry-forward C7.)*
     - The widened lost-record corner applies where the re-baseline's scan found nothing at the address.
     - Decision 2's upper-case case is judged when a first start's buffered deletion is drained.
 17. **The property suite** is registered in the default gate for its fast part: the fixtures plus a few seeds per mode,
@@ -2289,22 +2380,37 @@ and 25 correct statements of fact.
       So kind-5s, replaced versions and expiry never lower it.
     - **What does.** An operator's `strfry delete` or a wipe can. The next writes then re-use ids: at least one per
       newest event deleted, and more where earlier deletions left gaps below them.
-    - **Who misses a re-used-id write.** The relay's live monitor lowers its cursor to the new largest id when it
-      next wakes (`src/apps/relay/RelayReqMonitor.cpp`). Each subscription then skips an event whose id is at or below
-      the highest id its own monitor has passed (`src/ActiveMonitors.h`). That is the last event sent to it, the last
-      event carrying its filter's index key (for the path, a stamp `z` tag or kind 5), or the relay's newest event
-      when it subscribed. So such a write is missed by the subscriptions that had passed its id, and delivered to the
-      others.
-    - **The debounce race.** The monitor lowers its cursor on every wake, whatever woke it. If a write lands within
-      its 100 ms change debounce of the delete, and nothing else (a REQ, a CLOSE, a closed connection) woke the monitor
-      in between, it never lowers its cursor for that write, and every live subscription on that monitor misses it.
+    - **Who misses a re-used-id write.** strfry runs three monitor threads (`reqMonitor = 3`,
+      `setup/strfry.conf.template`). Each lowers its cursor to the largest id present when it next wakes
+      (`src/apps/relay/RelayReqMonitor.cpp`), so a thread that wakes after the delete and before the write still visits
+      a write that re-uses an id (the debounce race below covers a thread that does not). But strfry keeps its skip
+      marks per filter and index-key value, not per subscription alone (`src/ActiveMonitors.h`). A filter is indexed by its ids,
+      else its authors, else its tags, else its kinds, with one mark for each value, and a write is checked only under
+      the values it carries itself. A subscription skips a write whose id is at or below the last event sent to it,
+      the relay's newest event when it subscribed, or the last event visited that carries the write's own index-key
+      value, sent or not (a write carrying several such values is skipped this way only when each has been passed). So
+      such a write is missed by the subscriptions that had passed its id, and delivered to the others. The path's
+      filters are indexed by the stamps' `z` values and by kind 5 (`subscriptionFilters`): a stamped tagging is also
+      hidden by the last event of any kind carrying its stamp, and a kind-5 only by the other two.
+    - **The debounce race.** A thread lowers its cursor at every wake, whatever woke it, but only to the largest id
+      present then. A database change wakes all three threads about 100 ms after the first change since the last
+      change notice, and that first change may precede the delete
+      (`golpe/external/hoytech-cpp/hoytech/file_change_monitor.h`); a busy thread wakes later. Three other messages
+      each wake only the thread serving their connection (`src/ThreadPool.h`): a REQ, at its EOSE
+      (`src/apps/relay/RelayReqWorker.cpp`), a CLOSE, and a closed connection. A write that re-uses a freed id and is
+      stored after the delete but before its thread next wakes is seen with the delete: at that wake the largest id
+      already includes the write, so the thread's visit starts above it, and every live subscription on that thread
+      misses it. A wake helps only when it falls between the delete and the write, and only for the subscriptions on
+      the thread it woke.
     - **After a wipe,** a subscription misses writes until the ids pass the point its own monitor had reached, at most
       the old largest id. A new REQ starts from the relay as it is, so re-subscribing ends it.
     - **For the path,** what it misses is reflected at the next safety diff (≤ 10 min), except a version both stored
       and revoked by id while missed (decision 5's first corner). OPERATIONS tells the operator to restart the path
       after a relay wipe or a bulk delete.
     - *(Rewritten at story 3's review, round 2. Round 1's version overstated it to every subscription and to exactly
-      K writes.)*
+      K writes. The "Who misses" and debounce bullets corrected at story 4's Architecture, 2026-09-30, from story 3's
+      review, round 3, carry-forwards C1–C3: the marks are per index-key value, and a wake spares only the
+      subscriptions on the thread it woke.)*
 25. **A bad identity: no subscription.**
     - With a bad identity the path starts and waits in `waiting-setup` without subscribing, since its filter needs
       both identities.
@@ -2317,10 +2423,28 @@ and 25 correct statements of fact.
     - A catch-up's work at an address parked for a database refusal lifts the park when it carries a version id or a
       revoke the parked entry does not already hold. That is a new event at the address (§ Failure handling, "at once
       on a new event at that address").
-    - Work that brings nothing new merges into the parked entry. So the same refused version, found again at every
-      safety diff, costs no write.
+    - "Does not already hold" is read by effect, as `mergePrompt` would merge it (`bringsNew`; story 3 § Deviations):
+      a version id other than the entry's, or a revoke for a (by, target) the entry keeps none for, or keeps one for
+      with an earlier `created_at`. A revoke for a (by, target) the entry keeps one for at least as late is held,
+      whichever kind-5 it came from. So a second kind-5 with a `created_at` no later, found by a catch-up, waits for
+      what else lifts the park (its timer, a start, the next successful write, a pass's re-look, or a live event
+      there), though live it
+      lifts the park at once (every live revoke that prompts at the address does).
+    - Work that brings nothing new merges into the parked entry, which keeps its schedule.
+    - A parked version never enters `S`, so every catch-up, the safety diff included, finds the refused version again.
+      When the parked entry holds its id, that costs no write. When it does not (the park came from a revoke, a look,
+      or another version's prompt), the first catch-up that finds it lifts the park, and the address is retried as any
+      lifted park is. If the database refuses it with the park's own code, and T29's systemic case does not hold (two
+      or more refused rows, one code, none landed), the address is parked again at once, one level higher (the 6 h
+      level stays at 6 h) and not counted again, and its entry now holds the id, so later catch-ups merge. A row that
+      lands in the same round lifts that park at once, as the next successful write lifts every refusal park (§ Failure
+      handling); that retry is the write's, not the catch-up's. A refusal with another code is retried after 5 s and
+      parks, counted, on the second. Where T29's systemic case holds, the addresses back off 5→60 s instead, until a
+      round in which it no longer holds. So a catch-up that finds the refused version again costs one write attempt
+      per park; T29's systemic case retries until it no longer holds.
     - A time-out park merges either way (clarification 12). A live revoke still lifts it (clarification 21).
-    - *(A reading of the approved text, made at story 3's review, round 2.)*
+    - *(A reading of the approved text, made at story 3's review, round 2. The effect reading and the one-attempt
+      bound adopted at story 4's Architecture, 2026-09-30, from story 3's review, round 3, carry-forward C5.)*
 
 ## Out of scope
 

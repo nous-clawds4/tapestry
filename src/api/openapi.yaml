@@ -352,6 +352,66 @@ paths:
                                   address: { type: string }
         '500':
           description: The check could not run
+  /api/assistant/my-assistants:
+    get:
+      tags: [Auth]
+      summary: The signed-in viewer's Assistants, for the My Assistants page
+      description: >-
+        Read-only. Answers for the session's viewer and takes no parameters. `rows` holds one entry per profile the
+        viewer has tagged My Brainstorm Assistant or My Tapestry Assistant, whoever authored the tag's definition:
+        their newest stance on that profile under that tag applies it and is not retracted (NIP-09). Taggings are read
+        from this instance's relay and the configured tag-federation relays. The Assistant this instance holds for the
+        viewer is `local`; its row is marked `local` and is listed even when untagged (`tags` empty). Rows come in no
+        promised order. Each row's `retract` names, for each tag it carries, every one of the viewer's tagging events for
+        that profile under that tag (ids and addresses): what a withdrawal publishes. `definitions` gives each tag's
+        definition at its author's address, from the same relays, with the event id a new tagging points at
+        (my-assistants #2, ADR 0002). Without a session it answers `{ success: true, signedIn: false }`.
+      responses:
+        '200':
+          description: The viewer's Assistants, or signedIn false without a session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signedIn:
+                    type: boolean
+                  local:
+                    type: string
+                    nullable: true
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pubkey: { type: string }
+                        local: { type: boolean }
+                        tags:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              key: { type: string, enum: [brainstorm, tapestry] }
+                              name: { type: string }
+                        retract:
+                          type: object
+                          additionalProperties:
+                            type: object
+                            properties:
+                              ids: { type: array, items: { type: string } }
+                              addresses: { type: array, items: { type: string } }
+                  definitions:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        address: { type: string }
+                        found: { type: boolean }
+                        eventId: { type: string, nullable: true }
+        '500':
+          description: The local relay could not be read
   /api/assistant/identification-tags/publish:
     post:
       tags: [Auth]
@@ -1999,6 +2059,43 @@ paths:
   # ──────────────────────────────────────────────
   # Search / Profiles
   # ──────────────────────────────────────────────
+  /api/nip05/verify:
+    get:
+      tags: [Profiles]
+      summary: Whether a NIP-05 identifier's own domain confirms it for a pubkey
+      description: >-
+        Public, read-only. Fetches the identifier's `https://<domain>/.well-known/nostr.json?name=<name>` from the
+        server, through the address guard (a non-public host is refused, redirects are not followed, 5-second timeout).
+        `status` says what was found (my-assistants #4, ADR 0004): `verified` when the domain lists this pubkey for the
+        name; `invalid` when the identifier is malformed, or the domain served a listing that doesn't list this pubkey
+        for it; `unchecked` when no readable listing was reached (a refused host, a network error, a timeout, a non-2xx
+        or 3xx answer, a body that isn't a NIP-05 listing) or the `pubkey` parameter is missing or malformed. `verified`
+        is true exactly when `status` is `verified`. Not cached (`Cache-Control: no-store`).
+      parameters:
+        - name: nip05
+          in: query
+          required: true
+          schema: { type: string }
+          description: The identifier, `name@domain` or a bare domain (the `_` name)
+        - name: pubkey
+          in: query
+          required: true
+          schema: { type: string }
+          description: The 64-hex pubkey the identifier should belong to
+      responses:
+        '200':
+          description: The check's answer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verified:
+                    type: boolean
+                  status:
+                    type: string
+                    enum: [verified, invalid, unchecked]
+
   /api/search/profiles/meili:
     get:
       tags: [Search]

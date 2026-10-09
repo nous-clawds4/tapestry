@@ -439,14 +439,20 @@ container (commit `f31a1b9`).
    stale. It files the loss under decision 5's second corner, which the owner ratified as ≤ 250 ms before a crash, yet
    the loss window here is the whole failing spell. And an off meanwhile also loses the unwritten lines. **This widens
    an owner-ratified corner without ratification**, so the owner should acknowledge the widening or ask for a bound.
-   The Architect then rewords the bullet.
+   The Architect then rewords the bullet. *(Owner decision 2026-09-30: the widening is accepted. The rewording is a
+   docs task of story 4.)*
 8. **C8: SL19 has never run.** The relay smoke test skips from the host, because the relay answers only inside the
    container. Both local end-to-end runs used the real subscription and filters against the real relay (EOSE and
    deliveries), which is evidence for the same claim. Run SL19 once inside the container, or retire it in favour of
-   the end-to-end evidence.
+   the end-to-end evidence. *(Done 2026-09-30: SL19 passed inside the local container; story 3 § Evidence, "SL19,
+   the relay smoke test".)*
 9. **C9: harness friction.** In one Node process, SS36 fails after the routes suite has loaded, because its
    `forget()` list lacks `src/lib/strfryScanStrict.js` (first seen at Implementation). The registry's order avoids it
    in the real gate. The Tester adds the file to the routes suite's FORGET list.
+
+**Placement (the owner, 2026-09-30).** All nine are placed under story 4: `epics/tagging-edges.md` item 4,
+"Carry-forwards from story 3's review". C2's ledger half was fixed at once and C8 is done; the other seven are story
+4's docs or test tasks.
 
 ### Verdict (round 3)
 

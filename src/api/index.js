@@ -522,13 +522,23 @@ async function register(app) {
     app.get('/api/tagging-edges/held', taggingEdges.handleHeld);
     app.post('/api/tagging-edges/confirm-held-removals', adminApi.requireOwnerOnly, taggingEdges.handleConfirmHeldRemovals);
 
-    // ── The tagging real-time path (tagging-edges #3, ADR tagging-edges/0003 § "Status and switch") ──
+    // ── The tagging real-time path (tagging-edges #3, ADR tagging-edges/0003 § "Status and switch"; #5, ADR 0005) ──
     // One public status read — fixed text and allow-listed error codes only, from realtime/status.json and
-    // switch.json — and one owner-only switch (no admins, no loopback) that writes realtime/switch.json; it sends no
-    // signal and enqueues nothing. Neither path contains an ownerOnlyEndpoints substring.
+    // switch.json, never who switched it — and, on the switch path, an owner-or-admin switch (no loopback; the handler
+    // re-checks: signed in, owner or admin, same host) that writes realtime/switch.json with who and when, plus the
+    // history file, and an owner-or-admin read of that record (who and when, the last 10 changes). The switch sends
+    // no signal and enqueues nothing. Neither path contains an ownerOnlyEndpoints substring.
     const taggingEdgesRealtime = require('./tagging-edges/realtime');
     app.get('/api/tagging-edges/realtime/status', taggingEdgesRealtime.handleRealtimeStatus);
-    app.post('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOnly, taggingEdgesRealtime.handleRealtimeSwitch);
+    app.post('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOrAdmin, taggingEdgesRealtime.handleRealtimeSwitch);
+    app.get('/api/tagging-edges/realtime/switch', adminApi.requireOwnerOrAdmin, taggingEdgesRealtime.handleRealtimeSwitchRecord);
+
+    // ── The tagging pipeline panel's drift count (tagging-edges #4, ADR tagging-edges/0004 § Server) ──
+    // One owner-or-admin read (the handler re-checks: signed in, owner or admin, same host) that counts the relay
+    // taggings and the graph's TAGS relationships; it reads only and never starts a pass. A failed or timed-out count
+    // answers { known: false, code }, never 0. The path contains no auth-middleware endpoint substring.
+    const taggingEdgesDrift = require('./tagging-edges/drift');
+    app.get('/api/tagging-edges/drift-counts', adminApi.requireOwnerOrAdmin, taggingEdgesDrift.handleDriftCounts);
 
     // ── BullBoard (task queue operations UI) — owner+admin at /admin/queues ──
     // Story #13 / ADR 0010 (mount). Story #18 / ADR 0016 widened the gate from
@@ -576,6 +586,9 @@ async function register(app) {
     // Alert and the action pages (assistant-identification-tags #1, ADR 0001). Session-shaped, read-only.
     const assistantAttentionApi = require('./assistant/attention');
     app.get('/api/assistant/attention', assistantAttentionApi.handleAssistantAttention);
+    // The viewer's Assistants — every profile they tagged My Brainstorm / My Tapestry Assistant, and their Assistant
+    // here — for the My Assistants page (my-assistants #1, ADR 0001). Session-shaped, read-only, no parameters.
+    app.get('/api/assistant/my-assistants', require('./assistant/myAssistants').handleMyAssistants);
     // Your Assistant signs its two identification taggings of you — a narrow, session-bound route in the shape of
     // publish-profile; the generic signer is unchanged (assistant-identification-tags #3, ADR 0003).
     const identificationTaggingsApi = require('./assistant/identificationTaggings');
@@ -638,6 +651,12 @@ async function register(app) {
     //    gated in-handler like its b-disposition siblings below (ADR shared-concepts-adoption/0001) ──
     const { handleConceptSelfDeclare } = require('./concept/selfDeclare.js');
     app.post('/api/concept/:handle/self-declare', handleConceptSelfDeclare);
+    // epic: list-headers-disposition — Story 3: the same actions on List Headers, signed only by the
+    // caller's own Assistant (ADR list-headers-disposition/0003).
+    require('./list-headers/myAssistantDisposition').register(app);
+    // Story 5: the same actions on the account's own headers — the server prepares, the person's browser
+    // signer signs, the server takes back only that exact change (ADR list-headers-disposition/0005).
+    require('./list-headers/meDisposition').register(app);
 
     // ── b-disposition: wire-external + keep-private (ADR shared-concepts-adoption/0001) — owner-only,
     //    gated in-handler (isOwner || localTrusted — the publishEvent.js:37 pattern) so loopback

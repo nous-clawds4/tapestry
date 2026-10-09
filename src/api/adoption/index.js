@@ -19,7 +19,10 @@
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { strfryScanStream } = require('../concept/bDisposition');
 const { computeQueue, computePublishCandidates, bestName } = require('../../lib/adoptionQueue');
-const { computeDictionary, computeConceptDictionary } = require('../../lib/trustedDictionary');
+const {
+  computeDictionary, computeConceptDictionary, trustedItems, itemCarrier, parseItemMatch, recognitionByConcept,
+} = require('../../lib/trustedDictionary');
+const { resolveOwners, parts: scanParts } = require('./assistantOwners');
 const { classifyBValue, dispositionOf } = require('../../lib/bValueForms');
 const { runCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
@@ -155,6 +158,7 @@ async function resolveQualifying({ wotPov, userPubkey, authors, cutoff }) {
   let fellBackToHouse = false;
   let observer = null;
   let qualifying = new Set();
+  let influence = new Map(); // the qualifying set's influence (0–1), for GUM₂
   if (wantPersonalized) {
     // Availability probe: personalized scoring exists only for observers this
     // instance holds metrics cards for (W12's stance) — else house, disclosed.
@@ -172,16 +176,17 @@ async function resolveQualifying({ wotPov, userPubkey, authors, cutoff }) {
   if (authors.length) {
     const rows = branch === 'personalized'
       ? await runCypher(
-        'MATCH (c:NostrUserWotMetricsCard {observer_pubkey: $observer}) WHERE c.observee_pubkey IN $authors AND c.influence > $cutoff RETURN c.observee_pubkey AS pubkey',
+        'MATCH (c:NostrUserWotMetricsCard {observer_pubkey: $observer}) WHERE c.observee_pubkey IN $authors AND c.influence > $cutoff RETURN c.observee_pubkey AS pubkey, c.influence AS influence',
         { observer: userPubkey, authors, cutoff },
       )
       : await runCypher(
-        'MATCH (u:NostrUser) WHERE u.pubkey IN $authors AND u.influence > $cutoff RETURN u.pubkey AS pubkey',
+        'MATCH (u:NostrUser) WHERE u.pubkey IN $authors AND u.influence > $cutoff RETURN u.pubkey AS pubkey, u.influence AS influence',
         { authors, cutoff },
       );
     qualifying = new Set(rows.map((r) => r.pubkey));
+    influence = new Map(rows.map((r) => [r.pubkey, Number(r.influence)]));
   }
-  return { qualifying, branch, observer, fellBackToHouse };
+  return { qualifying, influence, branch, observer, fellBackToHouse };
 }
 
 /**
@@ -362,6 +367,8 @@ async function assembleConceptDictionary({ authors, wotPov, userPubkey } = {}) {
       scoreCoords: [...(disp.selfDeclared ? [coord] : []), ...targets.filter((v) => classifyBValue(v) === 'a-tag')],
       // Firmware: the row is a firmware concept, or points at one.
       isFirmware: firmware.has(coord) || targets.some((v) => firmware.has(v)),
+      // The row's own header is one a firmware reinstall rebuilds (the edit page warns of it).
+      firmwareHeader: firmware.has(coord),
     });
   }
 
@@ -373,15 +380,76 @@ async function assembleConceptDictionary({ authors, wotPov, userPubkey } = {}) {
     })
     : [];
   const zAuthors = [...new Set(zCarriers.map((ev) => ev.pubkey))].filter((p) => p && p !== taPubkey);
-  const { qualifying, branch, observer, fellBackToHouse } = await resolveQualifying({ wotPov, userPubkey, authors: zAuthors, cutoff });
 
-  const { entries, metric } = computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey });
+  // GUM₂'s inputs (recognitionByConcept): the headers that b-point at each concept these rows are
+  // scored for, and who owns their signers. A failure here leaves GUM₂ out rather than the dictionary.
+  let gum2Inputs = null;
+  try {
+    gum2Inputs = await recognitionInputs({ rows, authors });
+  } catch (err) {
+    console.error('concept-dictionary: GUM₂ inputs unavailable:', err && err.message ? err.message : err);
+  }
+
+  // One trust read for both metrics: GUM₁'s filers and GUM₂'s recognizers.
+  const asked = [...new Set([...zAuthors, ...(gum2Inputs ? gum2Inputs.candidates : [])])];
+  const { qualifying, influence, branch, observer, fellBackToHouse } = await resolveQualifying({ wotPov, userPubkey, authors: asked, cutoff });
+
+  const recognition = gum2Inputs
+    ? recognitionByConcept({ ...gum2Inputs, influence })
+    : null;
+  const { entries, metric } = computeConceptDictionary({ rows, zCarriers, qualifying, taPubkey, recognition });
 
   return {
     entries,
     metric,
     pov: { branch, observer, fellBackToHouse, cutoff, threshold, computedAt: new Date().toISOString() },
   };
+}
+
+/** GUM₂'s real reads: this instance's strfry, the canonical nostr-user-tag z, and the roster. */
+function recognitionDeps() {
+  return {
+    scan: strfryScanStream,
+    zTag: () => require('../profile-tags').NOSTR_USER_TAG_Z_TAG,
+    // Not admins: this read is public, and the admin list is the owner's to read (ADR author-scoped-inspection/0001).
+    roster: () => require('../../utils/assistantKeys').listInstanceAssistants({ includeAdmins: false }),
+  };
+}
+
+
+/**
+ * What GUM₂ needs, read from this instance's relay: the newest kind-39998 headers whose `b` points
+ * at a concept the rows are scored for, the owners of their signers (assistantOwners), the reader to
+ * leave out, and every recognizer whose trust must be read. `deps` are the reads (tests pass fakes):
+ * { scan(filter, project), zTag(), roster() }.
+ */
+async function recognitionInputs({ rows, authors }, deps = recognitionDeps()) {
+  const sharedCoords = [...new Set(rows.flatMap((r) => r.scoreCoords))];
+  if (!sharedCoords.length) return { sharedCoords, pointers: [], ownersOf: new Map(), exclude: authors, candidates: [] };
+  const found = [];
+  // In parts by count and bytes: strfry takes a filter as one command-line argument (assistantOwners parts).
+  for (const part of scanParts(sharedCoords)) {
+    found.push(...await deps.scan({ kinds: [39998], '#b': part }, (ev) => ({
+      kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at, tags: keepTags(ev, ['d', 'b']),
+    })));
+  }
+  const newest = new Map();
+  for (const ev of found) {
+    const d = ev.tags.find((t) => t[0] === 'd')?.[1];
+    if (d == null) continue;
+    const coord = `${ev.kind}:${ev.pubkey}:${d}`;
+    const prev = newest.get(coord);
+    if (!prev || (ev.created_at || 0) > (prev.created_at || 0)) newest.set(coord, ev);
+  }
+  const pointers = [...newest].map(([coord, ev]) => ({ coord, pubkey: ev.pubkey, b: ev.tags.filter((t) => t[0] === 'b').map((t) => t[1]) }));
+  const signers = [...new Set(pointers.map((p) => p.pubkey))];
+  const conceptAuthors = sharedCoords.map((c) => String(c).split(':')[1]);
+  const ownersOf = await resolveOwners([...signers, ...conceptAuthors, ...authors], deps);
+  // As recognitionByConcept reads it: a pubkey stands for itself and whoever owns it.
+  const ownersList = (pk) => [pk, ...((ownersOf.get(pk) || []).filter((x) => x !== pk))];
+  const exclude = [...new Set(authors.flatMap((a) => [a, ...ownersList(a)]))];
+  const candidates = [...new Set(pointers.flatMap((p) => ownersList(p.pubkey)))];
+  return { sharedCoords, pointers, ownersOf, exclude, candidates };
 }
 
 /** `authors`: one person, as one or two hex pubkeys (their account, then their assistant if any). */
@@ -406,6 +474,51 @@ async function handleConceptDictionary(req, res) {
     return res.json({ success: true, metric: out.metric, authors, entries: out.entries, pov: out.pov });
   } catch (error) {
     console.error('concept-dictionary error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+const COORD = /^\d+:[0-9a-f]{64}:.+$/;
+
+/**
+ * One Dictionary entry's Items: what is z-filed under the entry's own header
+ * (`coord`) and the shared concept it points to (`shared`, optional), kept
+ * when the filer is trusted from the active point of view or is the reader
+ * (`authors`, as the dictionary read takes them). The rule is trustedItems in
+ * src/lib/trustedDictionary.js; the trusted set resolves here, as GUM₁'s does.
+ * `match` (parseItemMatch's pairs) answers with the matching items only.
+ */
+async function assembleConceptItems({ coord, shared, authors, wotPov, userPubkey, match = null } = {}) {
+  const cutoff = parseFloat(getConfigFromFile('VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF', 0.01));
+  const coords = [...new Set([coord, shared].filter(Boolean))];
+  // Each carrier keeps the tags trustedItems reads, and its description and property tags, bounded.
+  const zCarriers = await strfryScanStream({ '#z': coords }, (ev) => itemCarrier(ev));
+  const own = new Set(authors);
+  const filers = [...new Set(zCarriers.map((ev) => ev.pubkey))].filter((p) => p && !own.has(p));
+  const { qualifying, branch, observer, fellBackToHouse } = await resolveQualifying({ wotPov, userPubkey, authors: filers, cutoff });
+  const out = trustedItems({ zCarriers, coords, qualifying, own: authors, match });
+  return { ...out, pov: { branch, observer, fellBackToHouse, cutoff, computedAt: new Date().toISOString() } };
+}
+
+async function handleConceptItems(req, res) {
+  try {
+    const { coord, shared, wotPov, userPubkey } = req.query || {};
+    const authors = parseAuthors(req.query && req.query.authors);
+    if (typeof coord !== 'string' || !COORD.test(coord) || (shared != null && (typeof shared !== 'string' || !COORD.test(shared)))) {
+      return res.status(400).json({ success: false, error: 'coord (and shared, when given) must be concept coordinates: kind:pubkey:d' });
+    }
+    if (!authors) {
+      return res.status(400).json({
+        success: false,
+        error: 'authors must be one or two comma-separated hex pubkeys: a person’s account, and their assistant when they have one',
+      });
+    }
+    const match = parseItemMatch(req.query && req.query.match);
+    if (match instanceof Error) return res.status(400).json({ success: false, error: match.message });
+    const out = await assembleConceptItems({ coord, shared, authors, wotPov, userPubkey, match });
+    return res.json({ success: true, ...out });
+  } catch (error) {
+    console.error('concept-items error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -455,11 +568,36 @@ async function handleAdoptionTwins(req, res) {
   }
 }
 
+/**
+ * GET /api/dictionaries/concepts/firmware?coord=… — is this header one a firmware reinstall rebuilds?
+ * Decided from the address (firmwareCoords), so the edit page can warn for any header, a Dictionary row
+ * or not. A public read: the firmware manifest is the instance's own published firmware.
+ */
+function handleConceptFirmware(req, res) {
+  const coord = typeof req.query.coord === 'string' ? req.query.coord : '';
+  if (!/^39998:[0-9a-f]{64}:.+$/.test(coord)) {
+    return res.status(400).json({ success: false, error: "coord must be a list header's address (39998:pubkey:d-tag)" });
+  }
+  const taPubkey = getOwnerAssistantPubkey();
+  return res.json({ success: true, coord, firmware: Boolean(taPubkey) && firmwareCoords(taPubkey).has(coord) });
+}
+
 function registerAdoptionRoutes(app) {
   app.get('/api/adoption-queue', handleAdoptionQueue);
   app.get('/api/trusted-dictionary', handleTrustedDictionary);
   app.get('/api/dictionaries/concepts', handleConceptDictionary);
+  app.get('/api/dictionaries/concepts/items', handleConceptItems);
+  app.get('/api/dictionaries/concepts/firmware', handleConceptFirmware);
   app.get('/api/adoption-twins', handleAdoptionTwins);
+  // Create New Concept, signed by the caller's own Assistant (./newConcept.js).
+  require('./newConcept').register(app);
+  // Edit a concept: a new version of a header the caller's own Assistant wrote (./editConcept.js).
+  require('./editConcept').register(app);
+  // Re-Sync a concept from the shared concept it is wired to (./resyncConcept.js).
+  require('./resyncConcept').register(app);
 }
 
-module.exports = { registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary };
+module.exports = {
+  registerAdoptionRoutes, assembleTrustedDictionary, assembleConceptDictionary, assembleConceptItems, recognitionInputs,
+  firmwareCoords, handleConceptFirmware,
+};

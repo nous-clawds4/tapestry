@@ -112,18 +112,29 @@ import BrainstormAbout from './pages/BrainstormAbout';
 import BrainstormAboutSearch from './pages/BrainstormAboutSearch';
 import BrainstormSkill from './pages/BrainstormSkill';
 import DevelopersHub from './pages/developers/Hub';
+import InformationForAgents from './pages/InformationForAgents';
 import DevelopersNip50 from './pages/developers/Nip50';
 import DevelopersOpenRanking from './pages/developers/OpenRanking';
 import DevelopersTrustedAssertions from './pages/developers/TrustedAssertions';
 import DevelopersRelayTools from './pages/developers/RelayTools';
 import SetupIndex from './pages/setup/Index';
 import { SetupCreateAccount, SetupFollow, SetupActivate } from './pages/setup/Placeholders';
+import DictionaryPage from './pages/dictionary/Index';
+import DictionaryEntryPage from './pages/dictionary/Entry';
+import DictionaryItemPage from './pages/dictionary/Item';
+import DictionaryNewConceptPage from './pages/dictionary/NewConcept';
+import DictionaryEditConceptPage from './pages/dictionary/EditConcept';
+import MyAssistantsPage from './pages/assistants/Index';
+import ManageTreasureMapPage from './pages/treasure-map/Index';
+import TreasureMapAdvancedPage from './pages/treasure-map/Advanced';
 import AssistantManagementPage from './pages/assistant/Index';
 import EditAssistantProfilePage from './pages/assistant/EditProfile';
 import AssistantActionPage from './pages/assistant/ActionPage';
 import IdentificationTagsPage from './pages/assistant/IdentificationTags';
 import { ASSISTANT_ACTIONS } from './pages/assistant/actions';
-import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH } from './config/avatarMenuLinks';
+import {
+  ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MY_ASSISTANTS_PATH, MANAGE_TREASURE_MAP_PATH, TREASURE_MAP_ADVANCED_PATH,
+} from './config/avatarMenuLinks';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
@@ -215,6 +226,12 @@ const router = createBrowserRouter([
     element: <BrainstormSkill />,
   },
   {
+    // "The Technology Behind Brainstorm": a prompt for the builder's own AI agent, pointing at the plain-text
+    // briefing the server serves at /information-for-agents.md (information-for-agents #1).
+    path: '/information-for-agents',
+    element: <InformationForAgents />,
+  },
+  {
     path: '/feed',
     element: <BrainstormFeed />,
   },
@@ -257,6 +274,47 @@ const router = createBrowserRouter([
   {
     path: '/setup/activate',
     element: <SetupActivate />,
+  },
+  {
+    // The Concepts dictionary in the Brainstorm design's styling; same list as /tapestry/dictionaries/concepts.
+    path: '/dictionary',
+    element: <DictionaryPage />,
+  },
+  {
+    // Create New Concept, as the design's screen: a shared DList header (pages/dictionary/NewConcept.jsx).
+    path: '/dictionary/new',
+    element: <DictionaryNewConceptPage />,
+  },
+  {
+    path: '/dictionary/:coord',
+    element: <DictionaryEntryPage />,
+  },
+  {
+    // One item of an entry's Items, as the design's "Dictionary item" screen (by address or event id).
+    path: '/dictionary/:coord/items/:item',
+    element: <DictionaryItemPage />,
+  },
+  {
+    // Edit a concept: its names, description and Item Property Tags, signed by the reader's own Assistant.
+    path: '/dictionary/:coord/edit',
+    element: <DictionaryEditConceptPage />,
+  },
+  {
+    // My Assistants: every profile the viewer tagged as one of their Assistants, in the Brainstorm design's styling
+    // (my-assistants #1, ADR 0001).
+    path: MY_ASSISTANTS_PATH,
+    element: <MyAssistantsPage />,
+  },
+  {
+    // Manage your Treasure Map, view-only, in the Brainstorm design's styling; the Brainstorm menus' My Treasure Map
+    // (manage-treasure-map #1, ADR 0001). The Tapestry menu keeps the TA Treasure Map page.
+    path: MANAGE_TREASURE_MAP_PATH,
+    element: <ManageTreasureMapPage />,
+  },
+  {
+    // Its Advanced management placeholder (manage-treasure-map #1, ADR 0001 sub-decision 6).
+    path: TREASURE_MAP_ADVANCED_PATH,
+    element: <TreasureMapAdvancedPage />,
   },
   {
     // The Assistant Management page (assistant-management #1, ADR 0001).
