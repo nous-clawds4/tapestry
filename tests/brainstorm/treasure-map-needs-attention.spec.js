@@ -225,19 +225,29 @@ test.describe('/treasure-map — the Needs attention pill', () => {
     await undoOf(page, 'Lists').click();
     await expect(pill(page, 'Lists')).toBeVisible();
 
+    // Each "no pill" check waits for the redraw it follows (an auto-waiting assertion, not a snapshot), so it can't
+    // pass before React has drawn the click's result (J3 advisory).
+    const allPills = section(page).getByText(PILL, { exact: true });
     await pick(page, assignAll(page), 'Bea');
-    expect(await pills(page), 'Assign to all').toEqual([]);
+    await expect(card(page, 'Lists')).toContainText('Will be assigned to Bea');
+    await expect(allPills, 'Assign to all').toHaveCount(0);
     await undoOf(page, 'Scores').click();
-    expect(await pills(page), 'Scores was assigned before, so its Undo brings no pill').toEqual([]);
+    await expect(undoOf(page, 'Scores')).toHaveCount(0);
+    await expect(allPills, 'Scores was assigned before, so its Undo brings no pill').toHaveCount(0);
     await undoOf(page, 'Lists').click();
     await expect(pill(page, 'Lists')).toBeVisible();
-    expect(await pills(page), 'only Lists was unassigned').toEqual(['Lists']);
+    await expect(allPills, 'only Lists was unassigned').toHaveCount(1);
 
     // E5: the backup switch and Scores' override switch never make a card unassigned.
     await pick(page, pickerButton(page, 'Scores'), 'Bea');
-    await section(page).getByRole('switch', { name: /^Remove \d+ backup Assistants?$/ }).click();
-    await card(page, 'Scores').getByRole('switch').click();
-    expect(await pills(page), 'E5').toEqual(['Lists']);
+    const backups = section(page).getByRole('switch', { name: /^Remove \d+ backup Assistants?$/ });
+    await backups.click();
+    await expect(backups).toHaveAttribute('aria-checked', 'true');
+    const override = card(page, 'Scores').getByRole('switch');
+    await override.click();
+    await expect(override).toHaveAttribute('aria-checked', 'true');
+    await expect(allPills, 'E5').toHaveCount(1);
+    await expect(pill(page, 'Lists')).toBeVisible();
   });
 
   test('N5: Save — the picked card is assigned and has no pill once the save goes through', async ({ page }) => {
