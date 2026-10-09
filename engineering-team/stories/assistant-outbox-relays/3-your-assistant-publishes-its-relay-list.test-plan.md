@@ -85,3 +85,13 @@ Before the fix: A1, A2, A3, A4, A6, A7 fail ("isPlainlyPrivateHost" not exported
 200 and sent to); G5 and the page suite's C1 (the new refusal line) fail; A5 passes already (with no guard every relay is
 sent and counted, so its count matches either way, and after the fix it pins that not-sent rows are not counted).
 `fakes()` now injects `isPublicHostname` (every host public unless listed), so no test reaches real DNS.
+
+### Round 3 (review round 2's finding, ADR 0003 Amendment 2), 2026-10-09
+
+| Criterion | Test | File | Level |
+|---|---|---|---|
+| AC-4 bounded time, AC-6 | A8 a lookup that never answers costs only `LOOKUP_BUDGET_MS` (3 s): the press answers, that relay is `not-sent`, the others are sent | publish | unit (DI) |
+| AC-6 off the threadpool | A9 `isPublicRelayHostWithin` with an injected Resolver: literals and private names unqueried; public only when A and AAAA finished, one answered, all public; a hung resolver is not public within the budget and cancelled; `{ timeout, tries: 1 }`; A10 the module uses a `dns.promises` Resolver, never `lookup(` or `ssrfGuard.isPublicHostname` | publish | unit, source |
+
+A7 is re-aimed to the amended design (the default lookup is `isPublicRelayHostWithin`, not `ssrfGuard.isPublicHostname`).
+Before the fix: A7, A8 (no `LOOKUP_BUDGET_MS`; the press would otherwise wait for the resolver), A9 and A10 fail.

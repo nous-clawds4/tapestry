@@ -160,6 +160,7 @@ function fakes(opts = {}) {
     // The send-time lookup (ADR 0003 Amendment 1): every host public unless named in opts.notPublic — no real DNS here.
     isPublicHostname: async (host) => {
       calls.isPublicHostname.push(host);
+      if ((opts.hangHosts || []).includes(host)) return new Promise(() => {});
       return !(opts.notPublic || []).includes(host);
     },
   };
@@ -437,11 +438,89 @@ test('A6: the page words — the not-public refusal and the not-sent line (story
   assert(line === O.PUBLISH.notSent.line, `relayLine: want ${show(O.PUBLISH.notSent.line)}, got ${show(line)}`);
 });
 
-test('A7: the route uses src/utils/ssrfGuard.js — isPublicAddress and hasPrivateHostSuffix at entry, isPublicHostname at send time (ADR 0003 Amendment 1)', () => {
+test('A7: the route classifies with src/utils/ssrfGuard.js — isPublicAddress and hasPrivateHostSuffix — at entry and at send time, where its default lookup is isPublicRelayHostWithin (ADR 0003 Amendments 1 and 2)', () => {
   const src = codeOnly(safeRead(MODULE));
   const wrong = [];
   if (!/ssrfGuard/.test(src)) wrong.push('requires ../../utils/ssrfGuard');
-  for (const name of ['isPublicAddress', 'hasPrivateHostSuffix', 'isPublicHostname']) if (!new RegExp(`\\b${name}\\b`).test(src)) wrong.push(`uses ${name}`);
+  for (const name of ['isPublicAddress', 'hasPrivateHostSuffix', 'isPublicRelayHostWithin']) if (!new RegExp(`\\b${name}\\b`).test(src)) wrong.push(`uses ${name}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ── review round 2 (ADR 0003 Amendment 2): bounded lookups, off the threadpool ── */
+
+async function within(promise, ms) {
+  let timer;
+  const hung = new Promise((resolve) => { timer = setTimeout(() => resolve('HUNG'), ms); });
+  try { return await Promise.race([promise, hung]); } finally { clearTimeout(timer); }
+}
+
+test('A8: a lookup that never answers costs only the 3 s lookup budget — the press answers in time, that relay reads not-sent, the others are sent (AC-4, AC-6; ADR 0003 Amendment 2)', async () => {
+  const mod = publishModule();
+  assert(mod.LOOKUP_BUDGET_MS === 3000, `exports LOOKUP_BUDGET_MS = 3000, got ${show(mod.LOOKUP_BUDGET_MS)}`);
+  const started = Date.now();
+  const got = await within(answer({ hangHosts: ['never-answers.example'] }, signedInReq([NEW, 'wss://never-answers.example'])), mod.LOOKUP_BUDGET_MS + 2000);
+  assert(got !== 'HUNG', `the press must answer within the lookup budget, not wait for the resolver (waited ${Date.now() - started} ms)`);
+  const rows = (got.result && got.result.relays && got.result.relays.results) || [];
+  const row = rows.find((x) => x.relay === 'wss://never-answers.example');
+  assert(row && row.status === O.PUBLISH.notSent.status, `the unanswered relay is not-sent: ${show(row)}`);
+  const sent = got.calls.publishToRelays[0] ? got.calls.publishToRelays[0].relays : [];
+  assert(sent.includes(NEW) && !sent.includes('wss://never-answers.example'), `the others are sent, the unanswered one is not: ${show(sent)}`);
+});
+
+/** A stand-in for dns.promises.Resolver: answers per host from `table`; 'hang' never answers; an Error rejects. */
+function fakeResolverClass(table, seen) {
+  return class {
+    constructor(opts) { seen.opts.push(opts); }
+    cancel() { seen.cancelled += 1; }
+    resolve4(host) { return this.answer(table[host] && table[host].a, host); }
+    resolve6(host) { return this.answer(table[host] && table[host].aaaa, host); }
+    answer(v, host) {
+      seen.queried.push(host);
+      if (v === 'hang') return new Promise(() => {});
+      if (v instanceof Error) return Promise.reject(v);
+      if (v === undefined) { const e = new Error('ENODATA'); e.code = 'ENODATA'; return Promise.reject(e); }
+      return Promise.resolve(v);
+    }
+  };
+}
+
+test('A9: isPublicRelayHostWithin — an IP literal and a private-by-construction name need no query; a name is public only when its A and AAAA answers finished, at least one exists, and every address is public; a resolver that hangs is not public within the budget and is cancelled (AC-6; ADR 0003 Amendment 2)', async () => {
+  const check = need(publishModule(), 'isPublicRelayHostWithin', 'src/api/assistant/relayListPublish.js');
+  const nodata = () => { const e = new Error('ENODATA'); e.code = 'ENODATA'; return e; };
+  const servfail = () => { const e = new Error('ESERVFAIL'); e.code = 'ESERVFAIL'; return e; };
+  const table = {
+    'public.example': { a: ['93.184.216.34'], aaaa: nodata() },
+    'dual.example': { a: ['93.184.216.34'], aaaa: ['2606:4700::1111'] },
+    'private.example': { a: ['10.0.0.5'], aaaa: nodata() },
+    'mixed.example': { a: ['93.184.216.34'], aaaa: ['fd00::1'] },
+    'nothing.example': { a: nodata(), aaaa: nodata() },
+    'broken.example': { a: servfail(), aaaa: nodata() },
+    'slow.example': { a: 'hang', aaaa: 'hang' },
+  };
+  const seen = { opts: [], queried: [], cancelled: 0 };
+  const Resolver = fakeResolverClass(table, seen);
+  const run = (host) => check(host, { timeoutMs: 300, Resolver });
+  const wrong = [];
+  for (const [host, want] of [['public.example', true], ['dual.example', true], ['private.example', false], ['mixed.example', false],
+    ['nothing.example', false], ['broken.example', false], ['8.8.8.8', true], ['10.1.2.3', false], ['[::1]', false], ['tapestry-redis', false], ['box.local', false]]) {
+    const got = await within(run(host), 2000);
+    if (got !== want) wrong.push(`${host}: want ${want}, got ${show(got)}`);
+  }
+  for (const literal of ['8.8.8.8', '10.1.2.3', '[::1]', 'tapestry-redis', 'box.local']) if (seen.queried.includes(literal) || seen.queried.includes(literal.replace(/[[\]]/g, ''))) wrong.push(`${literal} must not be queried`);
+  const started = Date.now();
+  const slow = await within(run('slow.example'), 2000);
+  if (slow !== false) wrong.push(`slow.example: want false within the budget, got ${show(slow)} after ${Date.now() - started} ms`);
+  if (seen.cancelled < 1) wrong.push('the hung resolver is cancelled');
+  if (!seen.opts.every((o) => o && o.tries === 1 && o.timeout === 300)) wrong.push(`each Resolver gets { timeout, tries: 1 }: ${show(seen.opts)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('A10: the route\'s default lookup stays off the threadpool — a dns.promises Resolver, never dns.lookup or ssrfGuard.isPublicHostname (ADR 0003 Amendment 2)', () => {
+  const src = codeOnly(safeRead(MODULE));
+  const wrong = [];
+  if (!/\bResolver\b/.test(src)) wrong.push('uses dns.promises Resolver');
+  if (/\.lookup\s*\(|\blookup\s*\(/.test(src)) wrong.push('must not call lookup(');
+  if (/ssrfGuard['"]\)\.isPublicHostname|\{[^}]*\bisPublicHostname\b[^}]*\}\s*=\s*require\(['"][^'"]*ssrfGuard/.test(src)) wrong.push('must not take isPublicHostname from ssrfGuard');
   assert(wrong.length === 0, wrong.join('; '));
 });
 
