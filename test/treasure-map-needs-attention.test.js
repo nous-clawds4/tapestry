@@ -13,7 +13,8 @@
  *        the title span, which still holds only the title.                                            [AC-1, AC-4]
  *   S3 — the pill's CSS: the /assistant badge's shape, the light-page amber (#b45309, or the page's --orange
  *        token resolved to it), contrast at least 4.5:1.                                                     [AC-5]
- *   S4 — the Assistant top-bar alert and its count don't read the Treasure Map (negative pin).                  [AC-7]
+ *   S4 — the Assistant top-bar alert and its count don't read the Treasure Map themselves (negative pin; since
+ *        assistant-trusted-content-status #1 the provider may re-ask the server after the viewer saves a Map). [AC-7]
  *   R1 — regression sentinel: the card states the pill follows, for the story's edge-case Maps E1–E3 — a card is
  *        'none' exactly when no Assistant counts. Passes before and after.                                [AC-1, E1–E3]
  *
@@ -166,13 +167,27 @@ test('S3: .bsd-tm-cat-attention — the /assistant badge\'s pill shape, amber #b
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('S4: the Assistant top-bar alert and its count read nothing of the Treasure Map (AC-7, negative pin)', () => {
+// Re-aimed by assistant-trusted-content-status #1 (its story AC-5/AC-6, ADR 0001 sub-decision 9; owner-approved
+// 2026-10-08): the Assistant alert's count now covers Scores, Lists and Concepts, which the SERVER answers from the
+// Treasure Map in the one attention answer — this story's AC-7 kept the count out of it only for its own scope. What
+// still holds: the alert files never read or interpret the Map themselves. The provider may only re-ask the server after
+// the viewer saves a Map (a kind 10040 by the viewer); nothing else of the Treasure Map is allowed there.
+test('S4: the Assistant top-bar alert and its count read nothing of the Treasure Map themselves — the provider only re-asks the server after the viewer saves one (AC-7, negative pin; re-aimed by assistant-trusted-content-status #1)', () => {
   const wrong = [];
   for (const file of ALERT_FILES) {
     const src = codeOnly(safeRead(file));
     if (!src) { wrong.push(`${rel(file)} does not exist`); continue; }
-    const hit = src.match(/treasure|categoryAssistants|categoryCards|manageTreasureMap|10040/i);
+    const hit = src.match(/treasure|categoryAssistants|categoryCards|categoryEntries|manageTreasureMap|treasureMapCategories/i);
     if (hit) wrong.push(`${rel(file)} mentions ${show(hit[0])}`);
+    const kinds = src.match(/10040/g) || [];
+    const isProvider = /AssistantAttentionContext\.jsx$/.test(file);
+    if (!isProvider && kinds.length > 0) wrong.push(`${rel(file)} mentions "10040"`);
+    if (isProvider) {
+      if (kinds.length > 1) wrong.push(`${rel(file)} mentions "10040" more than once (only the re-ask after a save is allowed)`);
+      if (kinds.length === 1 && !/ev\.kind\s*===\s*10040\s*&&\s*ev\.pubkey\s*===\s*pubkey\s*\)\s*\{\s*refresh\(\);/.test(src)) {
+        wrong.push(`${rel(file)}: its one 10040 must be the re-ask after the viewer's own save — if (ev.kind === 10040 && ev.pubkey === pubkey) { refresh(); …`);
+      }
+    }
   }
   assert(wrong.length === 0, wrong.join('; '));
 });

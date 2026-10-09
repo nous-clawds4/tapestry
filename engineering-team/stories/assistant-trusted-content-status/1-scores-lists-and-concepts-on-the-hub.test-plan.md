@@ -65,6 +65,12 @@ the save flow's signer, relay and publish mocks). Shared words and answer shapes
   policy, whose ending is the kept-local report, not the "Treasure Map updated" confirmation it waited for — it now saves
   as SV2 does. SV17 was then confirmed to fail on a build without the 10040 re-check, at "the attention answer is asked
   again after the save".
+- *Added at Phase 4 (Tester lane, its own commit), found by the full gate:* `test/treasure-map-needs-attention.test.js`
+  S4 is treasure-map-card-details #1's negative pin for its AC-7 ("the count doesn't learn about the Treasure Map"), a
+  scope boundary for that story which this owner-approved story supersedes (the pill now agrees with the Scores, Lists
+  and Concepts marks). Narrowed, not removed: the alert files still never read or interpret the Map themselves, and the
+  provider's only 10040 is the re-ask after the viewer's own save. Verified to fail on a second 10040 use and on a
+  `useTreasureMap` import in the provider.
 
 ## Test infrastructure
 
