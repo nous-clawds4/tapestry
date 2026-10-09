@@ -1,6 +1,6 @@
 # ADR 0003: Negentropy-sync presets, run by one scheduled task through the control panel
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-09
 **Story:** `engineering-team/stories/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md`
 
