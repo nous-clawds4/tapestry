@@ -932,6 +932,12 @@ function NegentropySync({ settings }) {
   const [checking, setChecking] = useState(false);
   const [counting, setCounting] = useState(false);
   const [counts, setCounts] = useState(null); // { local, remote, localError, remoteError }
+  // Saved presets, run by the "Sync Negentropy Presets" scheduled task (ADR relay-stream-gaps/0003)
+  const [presets, setPresets] = useState([]);
+  const [presetName, setPresetName] = useState('');
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [presetError, setPresetError] = useState(null);
+  const [scheduledPreset, setScheduledPreset] = useState(null); // name of the scheduled preset holding the slot
 
   // Check for active sync on mount
   useEffect(() => {
@@ -942,11 +948,41 @@ function NegentropySync({ settings }) {
         if (d.active) {
           setRunning(true);
           setOutput(d.recentLines?.map(text => ({ text })) || []);
+          if (d.source === 'preset') setScheduledPreset(d.presetName || '');
         }
       })
       .catch(() => {})
       .finally(() => setChecking(false));
   }, []);
+
+  const loadPresets = useCallback(() => {
+    fetch('/api/strfry/negentropy-presets')
+      .then(r => r.json())
+      .then(d => { if (d.success) setPresets(d.presets || []); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { loadPresets(); }, [loadPresets]);
+
+  // While a scheduled preset holds the slot, follow it until the slot frees, then show the presets' new last runs.
+  useEffect(() => {
+    if (scheduledPreset === null) return undefined;
+    const timer = setInterval(() => {
+      fetch('/api/strfry/negentropy-sync/status')
+        .then(r => r.json())
+        .then(d => {
+          if (d.active && d.source === 'preset') {
+            setScheduledPreset(d.presetName || '');
+            return;
+          }
+          setScheduledPreset(null);
+          setRunning(!!d.active);
+          loadPresets();
+        })
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [scheduledPreset, loadPresets]);
 
   const effectiveRelay = relay === '__custom__' ? customRelay.trim() : relay;
 
@@ -1067,6 +1103,85 @@ function NegentropySync({ settings }) {
     } finally {
       setCounting(false);
     }
+  }
+
+  // AC-2's floor, checked again by the server: a preset must narrow what it syncs.
+  const presetFloorMet = effectiveKinds.length > 0 || effectiveAuthors.length > 0 || tagFilters.length > 0;
+
+  async function postPreset(path, body) {
+    const res = await fetch(`/api/strfry/negentropy-presets${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!data.success) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  async function handleSavePreset() {
+    const name = presetName.trim();
+    const taken = presets.some(p => p.name.toLowerCase() === name.toLowerCase());
+    if (taken && !window.confirm(`Replace preset "${name}"?`)) return;
+    setSavingPreset(true);
+    setPresetError(null);
+    try {
+      // The server drops since/until: the schedule's window sets them.
+      await postPreset('', { name, relay: effectiveRelay, dir, filter: filterObj });
+      loadPresets();
+    } catch (e) {
+      setPresetError(e.message);
+    } finally {
+      setSavingPreset(false);
+    }
+  }
+
+  async function handleTogglePreset(preset, enabled) {
+    setPresetError(null);
+    try {
+      await postPreset('/toggle', { id: preset.id, enabled });
+    } catch (e) {
+      setPresetError(e.message);
+    }
+    loadPresets();
+  }
+
+  async function handleDeletePreset(preset) {
+    if (!window.confirm(`Delete preset "${preset.name}"?`)) return;
+    setPresetError(null);
+    try {
+      await postPreset('/delete', { id: preset.id });
+    } catch (e) {
+      setPresetError(e.message);
+    }
+    loadPresets();
+  }
+
+  // Load a preset into the form, to run it once or to change and re-save it. Since/Until are
+  // cleared, so Start syncs everything the preset's filter matches.
+  function handleLoadPreset(preset) {
+    const f = preset.filter || {};
+    if (allRelays.includes(preset.relay)) {
+      setRelay(preset.relay);
+    } else {
+      setRelay('__custom__');
+      setCustomRelay(preset.relay);
+    }
+    setDir(preset.dir || 'down');
+    const kinds = Array.isArray(f.kinds) ? f.kinds : [];
+    const kindIndex = KIND_PRESETS.findIndex(k => k.kinds.join(',') === kinds.join(','));
+    if (kindIndex !== -1) {
+      setUseCustomKinds(false);
+      setKindPreset(kindIndex);
+    } else {
+      setUseCustomKinds(true);
+      setCustomKinds(kinds.join(', '));
+    }
+    setAuthors((f.authors || []).join(', '));
+    setTagFilters(tagFiltersFromFilter(f));
+    setSince(null);
+    setUntil(null);
+    setPresetName(preset.name);
   }
 
   const inputStyle = {
@@ -1237,7 +1352,9 @@ function NegentropySync({ settings }) {
           disabled={running || !effectiveRelay || checking}
           style={{ flex: 1, padding: '0.6rem', fontSize: '0.9rem' }}
         >
-          {running ? '⏳ Sync in progress…' : checking ? 'Checking status…' : '▶️ Start Negentropy Sync'}
+          {running
+            ? (scheduledPreset !== null ? `⏳ Scheduled preset "${scheduledPreset}" is syncing…` : '⏳ Sync in progress…')
+            : checking ? 'Checking status…' : '▶️ Start Negentropy Sync'}
         </button>
       </div>
 
@@ -1313,7 +1430,96 @@ function NegentropySync({ settings }) {
           </div>
         </div>
       )}
+
+      {/* Presets: the form saved under a name, switched on for the scheduled task (ADR relay-stream-gaps/0003) */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Presets</label>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input
+            type="text"
+            value={presetName}
+            onChange={e => setPresetName(e.target.value)}
+            placeholder="Preset name"
+            maxLength={80}
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button
+            className="btn-small"
+            onClick={handleSavePreset}
+            disabled={savingPreset || !presetName.trim() || !isValidRelay(effectiveRelay) || !presetFloorMet}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {savingPreset ? '⏳ Saving…' : '💾 Save as preset'}
+          </button>
+        </div>
+        {!presetFloorMet && (
+          <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#fbbf24' }}>
+            A preset must narrow what it syncs: add event kinds, authors or a tag filter.
+          </div>
+        )}
+        {presetError && (
+          <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#ef4444' }}>❌ {presetError}</div>
+        )}
+
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', margin: '1rem 0 0.4rem' }}>Saved presets</label>
+        <p className="settings-hint" style={{ marginTop: 0 }}>
+          Switched-on presets run with the "Sync Negentropy Presets" task in Scheduled Tasks (off until you turn it on).
+          Each run covers events since that preset's last successful run, less an hour; the first run covers the last 7 days.
+          Load a preset and press Start for a one-off full sync.
+        </p>
+        {presets.length === 0 ? (
+          <div style={{ fontSize: '0.85rem', opacity: 0.6 }}>No saved presets yet.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {presets.map(p => (
+              <div key={p.id} style={{
+                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem',
+                borderRadius: '6px', backgroundColor: 'rgba(0, 0, 0, 0.2)',
+              }}>
+                <ToggleSwitch enabled={!!p.enabled} onChange={on => handleTogglePreset(p, on)} />
+                <div style={{ flex: 1, minWidth: 0, fontSize: '0.85rem' }}>
+                  <div style={{ fontWeight: 600 }}>{p.name}</div>
+                  <div style={{ opacity: 0.75, wordBreak: 'break-all' }}>
+                    {p.relay} · {DIR_LABELS[p.dir] || p.dir} · {presetFilterSummary(p.filter)}
+                  </div>
+                  <div style={{ opacity: 0.75 }}><PresetLastRun lastRun={p.lastRun} /></div>
+                </div>
+                <button className="btn-small" onClick={() => handleLoadPreset(p)} disabled={running}>Load</button>
+                <button className="btn-small" onClick={() => handleDeletePreset(p)}>🗑 Delete</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+/** A saved preset's filter in one line: kinds, author count, #x: values. */
+function presetFilterSummary(filter) {
+  const f = filter || {};
+  const parts = [];
+  if (Array.isArray(f.kinds) && f.kinds.length > 0) parts.push(`kinds ${f.kinds.join(', ')}`);
+  if (Array.isArray(f.authors) && f.authors.length > 0) parts.push(`${f.authors.length} author${f.authors.length === 1 ? '' : 's'}`);
+  for (const { letter, values } of tagFiltersFromFilter(f)) parts.push(`#${letter}: ${values.join(', ')}`);
+  return parts.join(' · ');
+}
+
+/** A saved preset's last scheduled run (lastRun times are unix seconds). */
+function PresetLastRun({ lastRun }) {
+  if (!lastRun) return <span>Not run yet</span>;
+  const when = new Date(lastRun.startedAt * 1000).toLocaleString();
+  return (
+    <span>
+      Last run {when}:{' '}
+      {lastRun.skipped ? (
+        <span style={{ color: '#fbbf24' }}>skipped: {lastRun.skipped}</span>
+      ) : lastRun.ok ? (
+        <span style={{ color: '#22c55e' }}>✓ {lastRun.added ?? 0} in, {lastRun.sent ?? 0} out</span>
+      ) : (
+        <span style={{ color: '#ef4444' }}>✗ {lastRun.error}</span>
+      )}
+    </span>
   );
 }
 

@@ -172,6 +172,7 @@ const suites = [
   { file: 'strfry-router-saved-state.test.js' },
   { file: 'router-config-reload-in-place.test.js' },
   { file: 'router-stream-limit-on-connect.test.js' },
+  { file: 'negentropy-sync-presets.test.js' },
   { file: 'relationship-primitives.test.js', skipNote: 'preconditions not met' },
   { file: 'relationship-primitives-probe.test.js', skipNote: 'preconditions not met' },
   { file: 'event-less-create-set.test.js', skipNote: 'preconditions not met' },

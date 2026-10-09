@@ -531,6 +531,11 @@ Base URL: `http://localhost:8080`
 | POST | `/api/strfry/router-toggle` | Enable/disable a sync stream. Owner/local-trusted only, like `router-config`, `router-restart` and `router-restore-defaults`. Rebuilds the router config from saved state: an enabled stream whose saved plugin, URL, name or direction fails the checks is left out and listed in the response's `skipped` ([docs/CONFIGURATION.md § Checks on router values](docs/CONFIGURATION.md#checks-on-router-values)). |
 | POST | `/api/strfry/router-restart` | Rebuild the router config from saved state (same checks as `router-toggle`), then restart strfry-router. Owner/local-trusted only. |
 | POST | `/api/strfry/negentropy-sync` | Trigger negentropy sync from a relay |
+| GET | `/api/strfry/negentropy-presets` | Saved negentropy-sync presets (relay, direction, filter, on/off switch, last run) and whether a presets run is going. Stored in `/var/lib/brainstorm/negentropy-presets.json` (ADR relay-stream-gaps/0003) |
+| POST | `/api/strfry/negentropy-presets` | Save a preset (`{ name, relay, dir, filter }`), or replace the one with the same name. Needs event kinds, authors or a tag filter; since/until aren't saved. Owner/local-trusted only |
+| POST | `/api/strfry/negentropy-presets/toggle` | Switch a preset on or off (`{ id, enabled }`). Owner/local-trusted only |
+| POST | `/api/strfry/negentropy-presets/delete` | Delete a preset (`{ id }`). Owner/local-trusted only |
+| POST | `/api/strfry/negentropy-presets/run` | Sync every switched-on preset, one at a time in the one-shot sync's slot, from its last successful run less an hour (7 days on a first run); 409 `alreadyRunning` while a run is going. Called over loopback by the `syncNegentropyPresets` scheduled task. Owner/local-trusted only |
 | POST | `/api/strfry/wipe` | Wipe all strfry events (dangerous!) |
 
 ### Auth (NIP-07)

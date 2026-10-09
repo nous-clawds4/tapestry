@@ -471,6 +471,9 @@ async function register(app) {
 
     const { registerNegentropySyncRoutes } = require('./strfry/negentropySync');
     registerNegentropySyncRoutes(app);
+    // Saved negentropy-sync presets, run by the syncNegentropyPresets task (ADR relay-stream-gaps/0003)
+    const { registerNegentropyPresetRoutes } = require('./strfry/negentropyPresets');
+    registerNegentropyPresetRoutes(app);
 
     // ── Streaming ETL Control API ──
     const streamingETL = require('./streaming-etl');

@@ -44,11 +44,10 @@ upstream events reach both staging and production, median latency about 1 s.
    newest matching events from each relay whenever it connects (operator's choice over
    removing the field, 2026-10-09). Bug.
 
-Queued (the book's acceptance frame; stories are drafted when picked up):
-- Saved negentropy-sync presets, each switchable on or off, with the enabled ones run on a
-  schedule as a Scheduled Task. This is the catch-up that closes deploy holes and covers
-  content no stream carries. It is the "saved presets" item the retired `relay-management`
-  epic queued.
+3. `3-scheduled-negentropy-sync-presets.md` — saved negentropy-sync presets, each switchable on
+   or off, with the enabled ones run on a schedule as a Scheduled Task: the catch-up that closes
+   deploy holes and covers content no stream carries. It is the "saved presets" item the retired
+   `relay-management` epic queued. Feature.
 
 ## Key facts / guardrails
 
