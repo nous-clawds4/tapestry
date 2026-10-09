@@ -115,4 +115,4 @@ None. Resolved at approval (2026-10-09):
 
 - ADR: `engineering-team/decisions/assistant-outbox-relays/0003-the-assistant-signs-its-relay-list-through-one-narrow-route.md`
 - Test plan: `engineering-team/stories/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.md`
