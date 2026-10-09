@@ -5,7 +5,7 @@ const { nip19 } = require('nostr-tools');
  * treasure-map-card-details #1 — a Needs attention pill on an unassigned category card on /treasure-map. What a viewer
  * sees and does.
  *
- * Story: engineering-team/stories/treasure-map-card-details/1-needs-attention-pill.md (Light profile; the test plan
+ * Story: engineering-team/stories/done/treasure-map-card-details/1-needs-attention-pill.md (Light profile; the test plan
  *        is the story's Edge cases and AC→handle lines)
  * Node half: test/treasure-map-needs-attention.test.js (the words, the wiring, the CSS rule, the alert's negative pin).
  *

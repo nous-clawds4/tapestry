@@ -2,7 +2,7 @@
 /**
  * treasure-map-card-details #1: a Needs attention pill on an unassigned category card on /treasure-map.
  *
- * Story: engineering-team/stories/treasure-map-card-details/1-needs-attention-pill.md (Light profile; the test plan
+ * Story: engineering-team/stories/done/treasure-map-card-details/1-needs-attention-pill.md (Light profile; the test plan
  *        is the story's Edge cases and AC→handle lines)
  * Browser half: tests/brainstorm/treasure-map-needs-attention.spec.js (what a viewer sees and does).
  *

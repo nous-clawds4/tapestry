@@ -6,7 +6,7 @@
 including the named one-step change to `tests/brainstorm/treasure-map-edit.spec.js` E18. Commit `2d09809e` changes only
 the story file. Reviewed at HEAD `64998621`. The hotfix commits `b84484c8` and `2447d98a` ride the branch and are not
 under review here.
-**Story:** `engineering-team/stories/treasure-map-card-details/2-show-details-panel.md` (no ADR: Design note)
+**Story:** `engineering-team/stories/done/treasure-map-card-details/2-show-details-panel.md` (no ADR: Design note)
 
 ## Quality gates (run by reviewer, not trusted)
 

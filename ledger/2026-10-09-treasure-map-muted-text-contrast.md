@@ -19,5 +19,5 @@ to 4.5:1 (4.84:1). **Fix shape:** darken the chip text, or lighten its backgroun
 carries words, page-wide in one pass. Check the other Brainstorm-design pages that share the tokens before changing
 them globally.
 
-**Pointer:** `engineering-team/reviews/treasure-map-card-details/2-show-details-panel.md` (non-blocking 2);
+**Pointer:** `engineering-team/reviews/done/treasure-map-card-details/2-show-details-panel.md` (non-blocking 2);
 `ui/src/styles.css` `.bsd-tm-edit-badge`, `.bsd-tm-cat-details-tag`, `.bsd-tm-cat-none`, `.bsd-tm-cat-details-none`.

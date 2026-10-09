@@ -14,5 +14,5 @@ Both reviews in this book recorded the scoped gates' exit codes and counts inste
 Light form ("scoped gate: command, exit code, TOTAL_FAIL; full suite: deferred to book close"), or have Light Gate B
 always run the full suite. Belongs with the standing harness-story grouping.
 
-**Pointer:** `engineering-team/reviews/treasure-map-card-details/1-needs-attention-pill.md` and
+**Pointer:** `engineering-team/reviews/done/treasure-map-card-details/1-needs-attention-pill.md` and
 `2-show-details-panel.md` (§ Harness friction).

@@ -5,7 +5,7 @@
 **Diff:** `git diff origin/staging...HEAD` on `feat/treasure-map-card-details`. Story 1's code is commit `9c2e3c54`, plus the
 test-only follow-up `64998621` (N4 auto-waits). Reviewed at HEAD `64998621`. The hotfix commits `b84484c8` and
 `2447d98a` ride the branch and are not under review here.
-**Story:** `engineering-team/stories/treasure-map-card-details/1-needs-attention-pill.md` (no ADR: Design note)
+**Story:** `engineering-team/stories/done/treasure-map-card-details/1-needs-attention-pill.md` (no ADR: Design note)
 
 ## Quality gates (run by reviewer, not trusted)
 

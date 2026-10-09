@@ -1,6 +1,6 @@
 # Epic: treasure-map-card-details — Needs attention and details on the Treasure Map cards
 
-**Status:** Active
+**Status:** Done
 **Created:** 2026-10-08
 **Book:** `engineering-team/audits/treasure-map-card-details/book.md` (no PRD — acceptance frame; Light trial)
 **Builds on:** the closed `manage-treasure-map` (the cards) and `treasure-map-edit` (Edit mode) epics, both in
@@ -14,6 +14,8 @@ listing the Map entries, Assistants, relays and backups that make up its assignm
 
 ## Stories
 
-1. **A Needs attention pill on an unassigned category** (feature): `1-needs-attention-pill.md`.
+1. **A Needs attention pill on an unassigned category** (feature): `1-needs-attention-pill.md`. Done.
 2. **Show details: each card's assignments, entry by entry** (feature): `2-show-details-panel.md`. Depends on #1 only
-   for file order (both touch `CategoryCard`).
+   for file order (both touch `CategoryCard`). Done.
+
+Closed with the book on 2026-10-08: `engineering-team/audits/treasure-map-card-details/audit.md`.

@@ -119,6 +119,6 @@ legs, the alert and Edit and the pick staying, pass).
 ## Linked artifacts
 - ADR: — (no irreversibility trigger: page markup and one CSS rule)
 - Test suite: `test/treasure-map-needs-attention.test.js`, `tests/brainstorm/treasure-map-needs-attention.spec.js`
-- Review: `engineering-team/reviews/treasure-map-card-details/1-needs-attention-pill.md`
+- Review: `engineering-team/reviews/done/treasure-map-card-details/1-needs-attention-pill.md`
 
 Link by path only — never record verdicts or round history in this file.

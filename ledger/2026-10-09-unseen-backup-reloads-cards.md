@@ -18,4 +18,4 @@ Found by reading the code at review; not exercised. Rare, and low impact: the pa
 *refresh* lookup runs (gate only the first draw on names), or hold each card's open state in `CategoryCards`, which
 stays mounted.
 
-**Pointer:** `engineering-team/reviews/treasure-map-card-details/2-show-details-panel.md` (non-blocking 3).
+**Pointer:** `engineering-team/reviews/done/treasure-map-card-details/2-show-details-panel.md` (non-blocking 3).

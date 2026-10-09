@@ -2,7 +2,7 @@
 /**
  * treasure-map-card-details #2: Show details — each card's assignments on /treasure-map, entry by entry.
  *
- * Story: engineering-team/stories/treasure-map-card-details/2-show-details-panel.md (Light profile; the test plan is
+ * Story: engineering-team/stories/done/treasure-map-card-details/2-show-details-panel.md (Light profile; the test plan is
  *        the story's Edge cases and AC→handle lines)
  * Browser half: tests/brainstorm/treasure-map-card-details.spec.js (what a viewer sees and does).
  *

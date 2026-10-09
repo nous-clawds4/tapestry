@@ -137,6 +137,6 @@ browser tests (D1–D10, D8 at two widths) fail at the missing toggle.
 ## Linked artifacts
 - ADR: — (no irreversibility trigger: a pure read of tags the page already holds, and markup)
 - Test suite: `test/treasure-map-card-details.test.js`, `tests/brainstorm/treasure-map-card-details.spec.js`
-- Review: `engineering-team/reviews/treasure-map-card-details/2-show-details-panel.md`
+- Review: `engineering-team/reviews/done/treasure-map-card-details/2-show-details-panel.md`
 
 Link by path only — never record verdicts or round history in this file.

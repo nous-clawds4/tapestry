@@ -5,7 +5,7 @@ const { nip19 } = require('nostr-tools');
  * treasure-map-card-details #2 — Show details: each card's assignments on /treasure-map, entry by entry. What a viewer
  * sees and does.
  *
- * Story: engineering-team/stories/treasure-map-card-details/2-show-details-panel.md (Light profile; the test plan is
+ * Story: engineering-team/stories/done/treasure-map-card-details/2-show-details-panel.md (Light profile; the test plan is
  *        the story's Edge cases and AC→handle lines)
  * Node half: test/treasure-map-card-details.test.js (categoryEntries, its agreement with the card, words, wiring).
  *
