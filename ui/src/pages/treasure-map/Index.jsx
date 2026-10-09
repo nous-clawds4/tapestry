@@ -186,12 +186,22 @@ const titleId = (key) => `bsd-tm-cat-title-${key}`;
 const willId = (key) => `bsd-tm-edit-will-${key}`;
 const ALL_TITLE_ID = 'bsd-tm-edit-all-title';
 
-/** One card: what the category is, and who the Map gives it to; in Edit mode, its picker row under it. */
+/**
+ * One card: what the category is, and who the Map gives it to; in Edit mode, its picker row under it. A card with no
+ * Assistant is marked "Needs attention" as on /assistant (treasure-map-card-details #1). Screen readers hear the prefix
+ * before the title, outside the title span, which the Edit controls' descriptions point at. Edit mode draws the card
+ * from the draft, so a pending pick removes the mark and Undo brings it back.
+ */
 function CategoryCard({ card, pending, children }) {
+  const attention = card.state === 'none';
   return (
     <li className={`bsd-tm-cat-card${pending ? ' is-pending' : ''}`}>
       <div className="bsd-tm-cat-what">
-        <span id={titleId(card.key)} className="bsd-tm-cat-title">{card.title}</span>
+        <span className="bsd-tm-cat-title-row">
+          {attention && <span className="bs-sr-only">{COPY.needsAttentionSrPrefix}</span>}
+          <span id={titleId(card.key)} className="bsd-tm-cat-title">{card.title}</span>
+          {attention && <span className="bsd-tm-cat-attention" aria-hidden="true">{COPY.needsAttention}</span>}
+        </span>
         <span className="bsd-tm-cat-desc">{card.description}</span>
       </div>
       <div className="bsd-tm-cat-who">

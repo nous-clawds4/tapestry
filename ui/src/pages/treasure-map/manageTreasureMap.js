@@ -11,6 +11,8 @@
 
 // The one name rule both design pages use: display name, else name, else the shortened npub (ADR 0002 sub-decision 8).
 import { cardFields } from '../assistants/myAssistants.js';
+// /assistant's "Needs attention" words, shared so the two pages can't drift (treasure-map-card-details #1).
+import { ASSISTANT_COPY } from '../assistant/actions.js';
 
 export const COPY = {
   kicker: 'Treasure Map',
@@ -39,6 +41,9 @@ export const COPY = {
   mixed: 'Mixed',
   mixedCount: (n) => `· ${n} Assistants`,
   notAssigned: 'Not assigned yet',
+  // The pill on a card with no Assistant (treasure-map-card-details #1): /assistant's words.
+  needsAttention: ASSISTANT_COPY.needsAttention,
+  needsAttentionSrPrefix: ASSISTANT_COPY.needsAttentionSrPrefix,
   // The Mixed line, around its link to the Advanced page.
   mixedLineBefore: 'Mixed assignments can be reviewed on the ',
   mixedLineLink: 'Advanced page',
