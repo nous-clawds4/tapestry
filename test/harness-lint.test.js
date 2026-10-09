@@ -391,6 +391,176 @@ test('L10 reports INFO and skips when the def-paths data file is missing', () =>
   assert.doesNotMatch(out, /VIOLATION L10/, out);
 });
 
+// ---------- shallow clones (harness-gate-integrity #3) ----------
+// A shallow clone's oldest fetched commit, the boundary, has no parents in the
+// clone, so git shows it adding every file. L10 and L9 read history; neither may
+// take the boundary for a real change. Ledger row 2026-10-07-shallow-clone-trips-lint-l10.
+
+const FIXTURE_CHANGELOG = cleanFiles()['engineering-team/CHANGELOG.md'];
+
+/** Commit `files` into `dir`, git-initing it first if needed, dated `date` (author and committer). */
+function commitAt(dir, files, msg, date) {
+  for (const [rel, content] of Object.entries(files)) {
+    const p = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, content);
+  }
+  if (!fs.existsSync(path.join(dir, '.git'))) execSync('git init -q', { cwd: dir });
+  execSync(
+    `git add -A && git -c user.email=fixture@test -c user.name=fixture commit -qm '${msg}'`,
+    { cwd: dir, shell: '/bin/bash', env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } }
+  );
+}
+
+function headSha(dir) {
+  return execSync('git rev-parse HEAD', { cwd: dir, encoding: 'utf8' }).trim();
+}
+
+/** A shallow clone of fixture `src`, `depth` commits deep. (A plain local path ignores --depth; file:// honours it.) */
+function shallowClone(src, depth) {
+  const dest = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-lint-shallow-'));
+  execSync(`git clone -q --depth ${depth} "file://${src}" "${dest}"`, { stdio: 'pipe' });
+  assert.strictEqual(
+    execSync('git rev-parse --is-shallow-repository', { cwd: dest, encoding: 'utf8' }).trim(), 'true',
+    'fixture setup: the clone must be shallow');
+  return dest;
+}
+
+/** The first INFO line that mentions `check` (e.g. 'L10'), or undefined. */
+function infoLine(out, check) {
+  return out.split('\n').find((l) => l.startsWith('INFO') && new RegExp(`\\b${check}\\b`).test(l));
+}
+
+test('L10 in a shallow clone: a boundary commit is not read as a harness change — no violation, and an INFO line names L10, the commit, the shallow history and `git fetch --unshallow`', () => {
+  const src = withClean({});
+  addCommit(src, { 'protocols/notes.md': 'a docs change outside the harness definition\n' }, 'docs: outside the harness');
+  const boundary = headSha(src);
+  const dir = shallowClone(src, 1);
+  const { code, out } = lint(dir);
+  assert.doesNotMatch(out, /VIOLATION L10/,
+    `the boundary commit touched no harness-definition path; a shallow clone cannot show otherwise\n${out}`);
+  const info = infoLine(out, 'L10');
+  assert.ok(info, `expected an INFO line naming L10 — the lint must say it could not judge, not stay silent\n${out}`);
+  assert.ok(info.includes(boundary.slice(0, 7)), `the INFO line must name the boundary commit ${boundary.slice(0, 7)}\n${info}`);
+  assert.match(info, /shallow/i, `the INFO line must say the history is shallow\n${info}`);
+  assert.ok(info.includes('git fetch --unshallow'), `the INFO line must name the remedy\n${info}`);
+  assert.strictEqual(code, 0, `nothing else is wrong with this tree, so the lint must exit 0\n${out}`);
+});
+
+test('L10 in a shallow clone deeper than one commit: the boundary below HEAD is not read as a harness change either', () => {
+  const src = withClean({});
+  addCommit(src, { 'protocols/a.md': 'first docs change\n' }, 'docs: one');
+  const boundary = headSha(src);
+  addCommit(src, { 'protocols/b.md': 'second docs change\n' }, 'docs: two');
+  const dir = shallowClone(src, 2);
+  const { code, out } = lint(dir);
+  assert.doesNotMatch(out, /VIOLATION L10/, out);
+  const info = infoLine(out, 'L10');
+  assert.ok(info && info.includes(boundary.slice(0, 7)),
+    `expected an INFO line naming L10 and the boundary ${boundary.slice(0, 7)} (HEAD is not the boundary here)\n${out}`);
+  assert.strictEqual(code, 0, out);
+});
+
+test('L10 in a shallow clone still catches a real violation: a harness change inside the fetched history without a CHANGELOG row is reported, naming that commit', () => {
+  const src = withClean({});
+  addCommit(src, { 'protocols/a.md': 'docs change\n' }, 'docs: becomes the boundary');
+  addCommit(src, {
+    'engineering-team/roles/reviewer.md': 'Verdict: **PASS** or **CHANGES_REQUESTED**. Amended rule.\n',
+  }, 'harness change without changelog');
+  const offender = headSha(src);
+  const dir = shallowClone(src, 2);
+  const { code, out } = lint(dir);
+  assert.strictEqual(code, 1, `a shallow clone must not excuse a commit whose parent it holds\n${out}`);
+  assert.match(out, new RegExp(`VIOLATION L10 commit:${offender.slice(0, 7)}`), out);
+});
+
+test('L10 never says "shallow" about a full clone', () => {
+  const { out } = lint(withClean({}));
+  assert.doesNotMatch(out, /shallow/i,
+    `a full clone's first commit has no parents too, but its history is complete — saying "shallow" would be false\n${out}`);
+});
+
+test('L10: a large harness commit that touched the CHANGELOG is satisfied — the check reads the whole file list, not just up to the first match', () => {
+  const src = withClean({
+    'scripts/harness-def-paths.txt':
+      '# harness-definition paths (fixture)\nengineering-team/roles\n.claude/commands\nengineering-team/CHANGELOG.md\nscripts/harness-def-paths.txt\nzz-harness-bulk\n',
+    'zz-harness-bulk/seed.txt': 'seed\n',
+  });
+  // `zz-` sorts after engineering-team/CHANGELOG.md, so the changelog comes early
+  // in the commit's file list and several hundred KB of names follow it.
+  const bulk = {};
+  const pad = 'x'.repeat(120);
+  for (let i = 0; i < 2000; i++) bulk[`zz-harness-bulk/file-${String(i).padStart(5, '0')}-${pad}.txt`] = `${i}\n`;
+  bulk['engineering-team/CHANGELOG.md'] = `${FIXTURE_CHANGELOG}| 2026-10-09 | bulk harness change | test | fixture |\n`;
+  addCommit(src, bulk, 'large harness change with changelog row');
+  const { code, out } = lint(src);
+  assert.doesNotMatch(out, /VIOLATION L10/,
+    `the commit touched engineering-team/CHANGELOG.md; the size of its file list must not change the answer\n${out}`);
+  assert.strictEqual(code, 0, out);
+});
+
+test('L9 in a shallow clone: a header checked against the boundary commit is not called stale — INFO says it could not be checked', () => {
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-lint-'));
+  commitAt(src, { ...cleanFiles(), 'BIBLE.md': '# BIBLE\n\n**Last updated:** 2020-01-01\n' },
+    'seed: BIBLE correct as of its last change', '2020-01-01T12:00:00Z');
+  commitAt(src, { 'protocols/notes.md': 'a later change elsewhere\n' }, 'docs: later', '2026-10-09T12:00:00Z');
+  // Full history: the header matches BIBLE.md's real last change, so this tree is L9-clean.
+  const full = lint(src);
+  assert.doesNotMatch(full.out, /VIOLATION L9/, `fixture setup: the full clone must be L9-clean\n${full.out}`);
+  const dir = shallowClone(src, 1);
+  const { code, out } = lint(dir);
+  assert.doesNotMatch(out, /VIOLATION L9/,
+    `BIBLE.md's only visible change is the boundary commit, which is not its real last change\n${out}`);
+  const info = infoLine(out, 'L9');
+  assert.ok(info, `expected an INFO line naming L9\n${out}`);
+  assert.ok(info.includes('BIBLE.md'), `the INFO line must name the file it could not check\n${info}`);
+  assert.match(info, /shallow/i, `the INFO line must say the history is shallow\n${info}`);
+  assert.strictEqual(code, 0, out);
+});
+
+test('L9 in a shallow clone still catches a stale header when the file\'s last change is inside the fetched history', () => {
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-lint-'));
+  commitAt(src, { ...cleanFiles() }, 'seed', '2020-01-01T12:00:00Z');
+  commitAt(src, { 'protocols/notes.md': 'becomes the boundary\n' }, 'docs: boundary', '2026-09-01T12:00:00Z');
+  commitAt(src, { 'BIBLE.md': '# BIBLE\n\n**Last updated:** 2020-01-01\n' },
+    'BIBLE changed, header left stale', '2026-10-09T12:00:00Z');
+  const dir = shallowClone(src, 2);
+  const { code, out } = lint(dir);
+  assert.strictEqual(code, 1, out);
+  assert.match(out, /VIOLATION L9 .*BIBLE\.md/, `the clone holds BIBLE.md's real last change, so L9 must still judge it\n${out}`);
+});
+
+/** A shallow copy of this repo's HEAD, `depth` commits deep; removed by the caller. */
+function shallowCopyOfRepo(depth) {
+  const dest = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-lint-real-shallow-'));
+  const gitDir = execSync('git rev-parse --path-format=absolute --git-common-dir', { cwd: REPO_ROOT, encoding: 'utf8' }).trim();
+  execSync(
+    `git init -q && git fetch -q --depth=${depth} "file://${gitDir}" ${headSha(REPO_ROOT)} && git checkout -q FETCH_HEAD`,
+    { cwd: dest, shell: '/bin/bash', stdio: 'pipe' }
+  );
+  return dest;
+}
+
+test('the real repo lints clean from a shallow clone, 50 commits deep and 1 commit deep (the cloud-session case)', () => {
+  const dir = shallowCopyOfRepo(50);
+  try {
+    const assertClean = (depth) => {
+      const { code, out } = lint(dir);
+      const bad = out.split('\n').filter((l) => /^VIOLATION/.test(l)).join('\n');
+      assert.strictEqual(code, 0, `real repo not lint-clean from a depth-${depth} clone:\n${bad || out}`);
+    };
+    assertClean(50);
+    // .git/shallow lists the boundary commits. Making HEAD the only one gives the
+    // depth-1 view without a second fetch and checkout of the whole tree.
+    fs.writeFileSync(path.join(dir, '.git', 'shallow'), `${headSha(dir)}\n`);
+    assert.strictEqual(execSync('git rev-list --count HEAD', { cwd: dir, encoding: 'utf8' }).trim(), '1',
+      'fixture setup: the clone must now show one commit');
+    assertClean(1);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ---------- L11: line budgets (story 7, ADR 0007) ----------
 // scripts/harness-budgets.txt caps the always-loaded files (CLAUDE.md,
 // AGENTS.md) at their post-restructure sizes. Over-cap → violation quoting the
