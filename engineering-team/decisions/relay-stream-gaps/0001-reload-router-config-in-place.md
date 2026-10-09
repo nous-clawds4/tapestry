@@ -282,7 +282,11 @@ lock only made log windows disjoint by timing, not by construction.
      (`… It is still running the previous streams; nothing was changed.`), and now true by
      construction.
    - `'timeout'`, or the rollback itself rejected: restart the router. The file on disk is the
-     previous config, so the restarted router runs the previous streams. Then throw
+     previous config, so the restarted router runs the previous streams. *(Correction, review
+     round 2, R2-1: if the rollback itself was rejected, the previous config holds a value strfry
+     rejects, and a restarted strfry exits on its first load. The restart then fails and the
+     restart-failed error below is what the operator sees. See OPEN.md row
+     `2026-10-09-router-accepts-values-strfry-rejects`.)* Then throw
      `RouterRejectedError(reason, { restarted: true })` with the message
      `The router rejected the new configuration (<reason>). It was restarted to put the previous streams back; nothing was changed.`
    - The restart fails: throw an error saying `The router rejected the new configuration

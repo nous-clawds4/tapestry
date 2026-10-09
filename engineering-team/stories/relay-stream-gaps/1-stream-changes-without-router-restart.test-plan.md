@@ -160,7 +160,7 @@ npm test
 node test/router-config-reload-in-place.test.js        # just this suite
 ```
 
-Since 2026-10-09 this checkout has root `node_modules` installed (`npm ci`, as CI does), so `npm test` runs every suite. On a checkout without it, The new suite doesn't need it (auth stub), but many
+Since 2026-10-09 this checkout has root `node_modules` installed (`npm ci`, as CI does), so `npm test` runs every suite. On a checkout without it, the new suite doesn't need it (auth stub), but many
 pre-existing suites do. For a fuller run without touching the repo, install the locked deps
 elsewhere and point `NODE_PATH` at them (ESM `import`s ignore `NODE_PATH`, so a few suites still
 fail to import `nostr-tools`):

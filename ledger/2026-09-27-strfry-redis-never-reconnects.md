@@ -42,8 +42,8 @@ goes with it.
 
 **Update 2026-10-09 (relay-stream-gaps #1, ADR relay-stream-gaps/0001):** one of the two recoveries above is
 gone. A router-config change no longer restarts the router: toggles, saves and Restore Defaults rewrite the config in
-place and strfry reloads it, and they restart the router only as a fallback (router not running, or no reload logged
-within 3 s). After `docker restart tapestry-redis`, press **Restart** on the Router Management tab
+place and strfry reloads it, and they restart the router only as a fallback (router not running, no reload logged
+within 3 s, or a rejected change's rollback not confirmed). After `docker restart tapestry-redis`, press **Restart** on the Router Management tab
 (`/tapestry/settings/relays`), or deploy, to give the router a fresh Redis connection. The fix shape above is unchanged.
 
 **Pointer:** epic `engineering-team/epics/tagging-edges.md` § Key facts / guardrails (the "Known defects in the

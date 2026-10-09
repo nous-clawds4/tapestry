@@ -59,9 +59,12 @@ const STRING_ARRAY_FILTER_KEYS = ['ids', 'authors'];
  * Non-object input (null, arrays, strings, …) → undefined, so the stream
  * persists with no filter and generateConfig omits the line. Empty kinds []
  * is preserved — the UI emits {"kinds":[],"limit":500} and the deployed
- * parser accepts it (byte-compat). A negative `limit` is dropped: the image's
- * patched router sends the limit upstream on connect (ADR relay-stream-gaps/0002),
- * so it must be 0 (live only) or more. Pure: never mutates its input.
+ * parser accepts it (byte-compat). A negative `limit` is dropped: strfry 1.1.0
+ * rejects the whole router config on one ("error parsing limit"), and the image's
+ * patched router sends the limit upstream on connect (ADR relay-stream-gaps/0002), so it
+ * must be 0 (live only) or more. Negative since/until break the config the same way and
+ * are still kept (OPEN.md row `2026-10-09-router-accepts-values-strfry-rejects`).
+ * Pure: never mutates its input.
  */
 function sanitizeStreamFilter(filter) {
   if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return undefined;
@@ -361,14 +364,16 @@ function buildConfigFromState(state) {
 // its config file with inotify (IN_MODIFY on the file's inode, 50 ms debounce). On each change
 // reconcileConfig() logs "Loading router config file: <path>" and reconnects only the streams
 // whose dir or filter changed; the others keep their sockets. A config it cannot parse is
-// logged as "Failed to parse router config: <reason>" and the running streams are kept.
+// logged as "Failed to parse router config: <reason>". It configures stream groups in name
+// order and stops at the failing one, so earlier groups may already run the rejected config:
+// a rejected change is rolled back and that rollback confirmed (applyConfig).
 // Its log goes to stderr, which supervisord writes to ROUTER_LOG_PATH.
 //
 // So a change is applied by rewriting the config IN PLACE (fs.writeFileSync on the same
 // path) — never temp + rename or delete + create: a new inode is picked up once and then
 // silently ends reloads until the next restart — and confirmed from the log written after
 // the rewrite. A restart (which disconnects every stream) is only the fallback: the router is
-// not running, or no reload shows up in time. A strfry bump must re-verify the two strings and
+// not running, no reload shows up in time, or a rejected change's rollback isn't confirmed. A strfry bump must re-verify the two strings and
 // the log path; if they drift, every change falls back to a restart, never a false success.
 const ROUTER_LOG_PATH = '/var/log/supervisor/strfry-router-error.log';
 const RELOAD_LOADED_MARK = 'Loading router config file';
@@ -485,7 +490,8 @@ function restartRouter() {
  * RouterRejectedError is thrown once the router is confirmed back on `prev`. strfry 1.1.0
  * may have half-applied the rejected config (it configures stream groups in name order and
  * stops at the failing one), so the rollback's own reload is awaited; if it isn't seen, the
- * router is restarted on `prev`. Either way the caller's lock is released only after the
+ * router is restarted on `prev`; if that restart fails, an Error says so. Either way the
+ * caller's lock is released only after the
  * router has settled, so the next change's log window can't contain this one's reload
  * (ADR relay-stream-gaps/0001 Amendment 1).
  */
