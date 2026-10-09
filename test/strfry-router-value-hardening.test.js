@@ -18,6 +18,8 @@
  *
  * Stack-free: child_process.exec is stubbed BEFORE routerConfig.js loads (it destructures
  * exec at require time), and fs.writeFileSync is intercepted for the router's two paths.
+ * Plugin paths must name an existing file since the saved-state follow-up, so the suite
+ * points BRAINSTORM_ROUTER_PLUGINS_DIR at a temp dir holding brainstorm.js for its run.
  */
 
 const fs = require('fs');
@@ -26,8 +28,10 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const ROUTER = path.join(ROOT, 'src/api/strfry/routerConfig.js');
 const ROUTER_PATHS = ['/etc/strfry-router-tapestry.config', '/var/lib/brainstorm/router-state.json'];
-const PLUGINS_DIR = '/usr/local/lib/strfry/plugins';
+const os = require('os');
+const PLUGINS_DIR = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'router-plugins-')));
 const GOOD_PLUGIN = `${PLUGINS_DIR}/brainstorm.js`;
+fs.writeFileSync(GOOD_PLUGIN, '// test plugin\n');
 
 function assert(cond, msg) { if (!cond) throw new Error(msg); }
 
@@ -132,6 +136,9 @@ async function run() {
   console.log('\n--- strfry router value-hardening tests ---');
   let pass = 0, fail = 0, skipped = 0;
   const failures = [];
+  const prevDir = process.env.BRAINSTORM_ROUTER_PLUGINS_DIR;
+  process.env.BRAINSTORM_ROUTER_PLUGINS_DIR = PLUGINS_DIR;
+  try {
   for (const [name, fn] of tests) {
     try {
       const r = await fn();
@@ -142,6 +149,11 @@ async function run() {
       failures.push({ name, message: err.message });
       fail++;
     }
+  }
+  } finally {
+    if (prevDir === undefined) delete process.env.BRAINSTORM_ROUTER_PLUGINS_DIR;
+    else process.env.BRAINSTORM_ROUTER_PLUGINS_DIR = prevDir;
+    fs.rmSync(PLUGINS_DIR, { recursive: true, force: true });
   }
   console.log(`\nstrfry-router-value-hardening: ${pass} passed, ${fail} failed, ${skipped} skipped`);
   return { pass, fail, failures, skipped };

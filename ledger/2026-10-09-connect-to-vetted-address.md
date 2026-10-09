@@ -14,4 +14,4 @@ ADR assistant-outbox-relays/0003 Amendment 1 and in `src/utils/ssrfGuard.js`'s h
 `GET /api/nip05/verify` makes uncapped `dns.lookup` calls on user-supplied names already. Fix shape, codebase-wide:
 connect to the address the check approved (a pinned lookup for `ws`, a pinned dispatcher for `fetch`), which closes both.
 
-**Pointer:** `engineering-team/reviews/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.md` § Round 3
+**Pointer:** `engineering-team/reviews/done/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.md` § Round 3

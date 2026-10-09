@@ -26,12 +26,16 @@ const P = require('../../test/helpers/profileChecklistFixtures');
  *   C11 — a dev box: no NIP-05 / website / client-tag fix, and the no-public-address line.                      [#2 AC-4]
  *   C12 — a refused local write: the writer's own words, nothing reads as success; the answer asked again.     [#2 AC-5, AC-6]
  *   C13 — 375 px: no sideways scroll.                                                                           [#2 AC-1]
+ *   C14 — the press-time read finds no profile: Set website posts nothing, says so, and asks again.            [#2 AC-4; ADR 0002 Amendment 1]
+ *   C15 — the press-time read finds a profile: Publish the default profile posts nothing, says so, asks again. [#2 AC-4; ADR 0002 Amendment 1]
+ *   C16 — the press-time read found only an older outside copy: Publish to outside relays posts nothing.       [#2 AC-4; ADR 0002 Amendment 2]
  *   AV1 — Make my personalized avatar: the person's picture stamped and previewed; nothing stored or published. [#3 AC-2]
  *   AV2 — Publish this avatar: stored, then the profile republished with only the picture changed.              [#3 AC-3]
  *   AV3 — Not now: the preview goes; nothing sent.                                                              [#3 AC-2]
  *   AV4 — no picture / can't fetch / not stampable: story 3's words, no publish.                                [#3 AC-5]
  *   AV5 — a dev box: the preview, but no publish — the no-public-address line.                                  [#3 AC-6]
  *   AV6 — the editor shows the stamped-avatar section to a Customer.                                            [#3 AC-4]
+ *   AV7 — Publish this avatar when the press-time read finds no profile: no profile is published.               [#3 AC-3; ADR 0002 Amendment 1]
  *
  * Panels are found as regions named by their titles (a <section> labelled by its heading, as the Identification
  * Tags page's cards are).
@@ -343,5 +347,63 @@ test.describe('The checklist page and its one-click fixes (assistant-profile-che
     await mock(page);
     await open(page, P.EDITOR);
     await expect(page.locator('main').getByRole('button', { name: /Generate badged avatar/ })).toBeVisible();
+  });
+
+  // ── Review round 1 (story 2 B1, story 3 B1; ADR 0002 Amendment 1) ──
+  // The press-time status read uses the non-strict local scan, so a failed scan reads as "no profile". A press must
+  // publish only when that read agrees with what the page offered; otherwise nothing is posted and the page re-asks.
+
+  test('C14: Set website when the press-time read finds no profile — nothing is published, the panel says so, and the answer is asked again (#2 AC-4; ADR 0002 Amendment 1)', async ({ page }) => {
+    const log = await mock(page, { status: P.statusAnswer({ hasProfile: false }) });
+    await open(page);
+    const before = log.attention;
+    const panel = panelOf(page, 'website');
+    await panel.getByRole('button', { name: P.PANELS.website.fix({ url: P.PUBLIC_INSTANCE.website }), exact: true }).click();
+    await expect(panel.getByText(P.PAGE_COPY.requestFailed, { exact: false })).toBeVisible();
+    await expect.poll(() => log.attention, { timeout: 10000 }).toBeGreaterThan(before);
+    expect(log.status.length, 'the press read the status').toBeGreaterThan(0);
+    expect(log.publish, 'no profile was published over the real one').toEqual([]);
+  });
+
+  test('C15: Publish the default profile when the press-time read finds a profile — nothing is published, the notice says so, and the answer is asked again (#2 AC-4; ADR 0002 Amendment 1)', async ({ page }) => {
+    const log = await mock(page, { attention: P.withProfile(P.PROFILE_NONE, ID_DONE), status: P.statusAnswer({ hasProfile: true }) });
+    await open(page);
+    const before = log.attention;
+    const notice = page.locator('main .bs-profile-check-notice');
+    await notice.getByRole('button', { name: P.PAGE_COPY.noProfileFix, exact: true }).click();
+    await expect(notice.getByText(P.PAGE_COPY.requestFailed, { exact: false })).toBeVisible();
+    await expect.poll(() => log.attention, { timeout: 10000 }).toBeGreaterThan(before);
+    expect(log.status.length, 'the press read the status').toBeGreaterThan(0);
+    expect(log.publish, 'the default was not published over a profile the read found').toEqual([]);
+  });
+
+  test('AV7: Publish this avatar when the press-time read finds no profile — no profile is published, and the panel says so (#3 AC-3; ADR 0002 Amendment 1)', async ({ page }) => {
+    const log = await mock(page, { status: P.statusAnswer({ hasProfile: false }) });
+    await open(page);
+    const before = log.attention;
+    const panel = panelOf(page, 'avatar');
+    await panel.getByRole('button', { name: P.AVATAR_COPY.fix, exact: true }).click();
+    await panel.getByRole('button', { name: P.AVATAR_COPY.accept, exact: true }).click();
+    await expect(panel.getByText(P.PAGE_COPY.requestFailed, { exact: false })).toBeVisible();
+    await expect.poll(() => log.attention, { timeout: 10000 }).toBeGreaterThan(before);
+    expect(log.status.length, 'the press read the status').toBeGreaterThan(0);
+    expect(log.publish, 'no profile was published over the real one').toEqual([]);
+  });
+
+  // ── Review round 2 (R2-1; ADR 0002 Amendment 2) ──
+  // "Only here" means no outside copy at least as new as this instance's; an outside relay may hold an older one. When
+  // the local read fails at press time, the status read falls back to it and answers hasProfile true, source 'relay'.
+
+  test('C16: Publish to outside relays when the press-time read found only an older outside copy — nothing is published, the panel says so, and the answer is asked again (#2 AC-4; ADR 0002 Amendment 2)', async ({ page }) => {
+    const older = { ...P.PUBLISHED, name: 'Alice Bot (before the latest edit)', about: 'An older About text.' };
+    const log = await mock(page, { status: { ...P.statusAnswer({ profile: older }), profileSource: 'relay' } });
+    await open(page);
+    const before = log.attention;
+    const panel = panelOf(page, 'visible');
+    await panel.getByRole('button', { name: P.PANELS.visible.fix(), exact: true }).click();
+    await expect(panel.getByText(P.PAGE_COPY.requestFailed, { exact: false })).toBeVisible();
+    await expect.poll(() => log.attention, { timeout: 10000 }).toBeGreaterThan(before);
+    expect(log.status.length, 'the press read the status').toBeGreaterThan(0);
+    expect(log.publish, 'the older outside copy was not republished over this instance\'s newer one').toEqual([]);
   });
 });

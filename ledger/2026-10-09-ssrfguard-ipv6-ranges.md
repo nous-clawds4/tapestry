@@ -11,4 +11,4 @@ the deprecated site-local `fec0::/10` or the discard-only `100::/64`. Add both, 
 `src/lib/relay-list` in step: the drift test `test/assistant-relay-list-publish.test.js` A1 compares the two, so it fails
 until both change.
 
-**Pointer:** `engineering-team/reviews/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.md` § Round 2
+**Pointer:** `engineering-team/reviews/done/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.md` § Round 2

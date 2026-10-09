@@ -7,7 +7,13 @@
  * main→delegate mapping; for the Owner the instance TA), and no request parameter can change whose state is read or
  * which relays are asked.
  *
- * Two actions are checked. `identification-tags`: the OFFERED taggings that make the handshake between a person and
+ * Three actions are checked, side by side; a check that throws becomes its action's `check-failed` answer and never
+ * takes another action with it (except identification-tags, whose failure still fails the answer, as it always has).
+ *
+ * `profile` (assistant-profile-checklist #1, ADR 0001): seven items of the Assistant's published profile, computed by
+ * ./profileChecklist.js.
+ *
+ * `identification-tags`: the OFFERED taggings that make the handshake between a person and
  * their assistant (src/lib/identification-tags — today "My Tapestry Assistant" and "My Tapestry Owner"; "My Agent" and
  * "My Human" are listed but parked and never looked up, identification-tags-authorship #1). Each is looked up by its
  * replaceable address — the publisher's
@@ -36,7 +42,7 @@
  *
  *   no session          → { success: true, signedIn: false }
  *   no assistant here   → { success: true, signedIn: true, hasAssistant: false, actions: {} }
- *   an assistant        → { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': { … }, 'outbox-relays': { … } } }
+ *   an assistant        → { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': { … }, 'outbox-relays': { … }, profile: { … } } }
  *   a throw             → 500 { success: false, error: 'Could not check assistant attention' }
  */
 
@@ -53,11 +59,15 @@ const TAG_RELAY_CATEGORIES = ['aTagFederationRelays'];
 /** The action keys in the answer's map, as ui/src/pages/assistant/actions.js names them. */
 const IDENTIFICATION_TAGS = 'identification-tags';
 const OUTBOX_RELAYS = 'outbox-relays';
+const PROFILE = 'profile';
 
 /** What the answer says for the outbox action when its check threw (assistant-outbox-relays ADR 0001 sub-decision 5). */
 const OUTBOX_CHECK_FAILED = Object.freeze({
   finished: false, done: false, pending: false, reason: 'check-failed', source: null, createdAt: null, outbox: [], inboxOnlyCount: 0, suggestions: [],
 });
+
+/** What the profile action answers when its check threw (ADR assistant-profile-checklist/0001 sub-decision 6). */
+const PROFILE_CHECK_FAILED = Object.freeze({ finished: false, done: false, pending: false, reason: 'check-failed', items: [] });
 
 /** The real dependencies, required lazily so the module loads in a bare checkout. */
 function defaultDeps() {
@@ -69,6 +79,7 @@ function defaultDeps() {
     getConfigFromFile: (key, fallback) => require('../../utils/config').getConfigFromFile(key, fallback),
     getConfiguredPublishRelays: () => require('./profilePublish').getConfiguredPublishRelays(),
     checkOutboxRelays: (input, d) => require('./outboxRelays').checkOutboxRelays(input, d),
+    checkProfile: (input, deps) => require('./profileChecklist').checkProfile(input, deps),
     // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001): the server's Map relays, the category rule,
     // and the check itself, which tests replace.
     mapDefaultRelays: () => require('../export/nip85/currentMap').defaultRelays(),
@@ -287,17 +298,22 @@ async function handleAssistantAttention(req, res, deps = {}) {
     const assistantPubkey = typeof answered === 'string' && HEX64.test(answered) ? answered.toLowerCase() : null;
     if (!assistantPubkey) return res.json({ success: true, signedIn: true, hasAssistant: false, actions: {} });
     // Side by side; one check's failure is its own (assistant-outbox-relays ADR 0001 sub-decision 5;
-    // assistant-trusted-content-status ADR 0001 sub-decision 6). A failing identification-tags check still fails the
-    // answer, as it always has.
-    const [identificationTags, outboxRelays, trustedContent] = await Promise.allSettled([
+    // assistant-profile-checklist ADR 0001 sub-decision 6; assistant-trusted-content-status ADR 0001 sub-decision 6). A
+    // failing identification-tags check still fails the answer, as it always has.
+    const [identificationTags, outboxRelays, profile, trustedContent] = await Promise.allSettled([
       checkIdentificationTags({ viewer, assistantPubkey }, d),
       Promise.resolve().then(() => d.checkOutboxRelays({ assistantPubkey }, d)),
+      Promise.resolve().then(() => d.checkProfile({ assistantPubkey }, d)),
       Promise.resolve().then(() => d.checkTrustedContent({ viewer, assistantPubkey }, d)),
     ]);
     if (identificationTags.status === 'rejected') throw identificationTags.reason;
     if (outboxRelays.status === 'rejected') {
       const why = outboxRelays.reason;
       console.error('[assistant/attention] the outbox check failed:', why && why.message ? why.message : why);
+    }
+    if (profile.status === 'rejected') {
+      const err = profile.reason;
+      console.error('[assistant/attention] could not check the assistant profile:', err && err.message ? err.message : err);
     }
     return res.json({
       success: true,
@@ -306,6 +322,7 @@ async function handleAssistantAttention(req, res, deps = {}) {
       actions: {
         [IDENTIFICATION_TAGS]: identificationTags.value,
         [OUTBOX_RELAYS]: outboxRelays.status === 'fulfilled' ? outboxRelays.value : { ...OUTBOX_CHECK_FAILED },
+        [PROFILE]: profile.status === 'fulfilled' ? profile.value : { ...PROFILE_CHECK_FAILED },
         ...trustedContentActions(trustedContent),
       },
     });
@@ -325,4 +342,5 @@ module.exports = {
   TAG_RELAY_CATEGORIES,
   IDENTIFICATION_TAGS,
   OUTBOX_RELAYS,
+  PROFILE,
 };

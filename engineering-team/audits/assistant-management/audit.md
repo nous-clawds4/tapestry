@@ -191,6 +191,8 @@ Reconciled against the diff.
       (story 2 § Out of scope; §4 #13)
 - [ ] **5. Two product questions from intake.** Whether the pill stays persistent once its count is real, and how the
       hub groups its actions past ten ("8 or 9 (and growing)"). (intake "Product questions")
+      *2026-10-09 (book `assistant-outbox-relays`): the hub now has eleven actions; Outbox Relays is the third persona
+      card, with its real answer. Grouping past ten is still undecided (`assistant-outbox-relays` prd-seed § 7).*
 - [ ] **6. The pill's name and visible words at phone widths:** label in name, WCAG 2.5.3. (§4 #11)
       *2026-09-22: the Setup Alert no longer "does the same" (§4 #11). Book `setup-status-and-alert` #3 names it by
       what it shows at each width, with no `aria-label` (its ADR 0003). This pill's own name is unchanged.*

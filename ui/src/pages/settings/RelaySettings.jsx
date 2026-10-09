@@ -33,8 +33,12 @@ const DIR_LABELS = {
   down: '⬇️ Download',
 };
 
+// How many of each relay's newest matching events a download stream re-fetches every time it
+// connects (ADR relay-stream-gaps/0002; the image's patched strfry router honors it).
+const DEFAULT_STREAM_LIMIT = 500;
+
 function emptyStream() {
-  return { name: '', dir: 'both', filter: { kinds: [], limit: 5 }, urls: [], pluginDown: '', pluginUp: '', enabled: true };
+  return { name: '', dir: 'both', filter: { kinds: [], limit: DEFAULT_STREAM_LIMIT }, urls: [], pluginDown: '', pluginUp: '', enabled: true };
 }
 
 /* ── Stream Editor (used for both Add and Edit) ── */
@@ -148,11 +152,18 @@ function StreamEditor({ stream, plugins, onSave, onCancel, isNew }) {
         />
       </div>
 
-      {/* Limit */}
+      {/* Limit — re-fetched on every connect (ADR relay-stream-gaps/0002) */}
       <div style={{ marginBottom: '0.75rem' }}>
-        <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Limit</label>
+        <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+          Limit <span style={{ fontWeight: 400, opacity: 0.6 }}>(fetched on connect)</span>
+        </label>
         <input type="number" value={form.filter.limit || ''} onChange={e => updateFilter('limit', parseInt(e.target.value) || 0)}
-          placeholder="5" style={{ ...inputStyle, width: '100px' }} />
+          placeholder={String(DEFAULT_STREAM_LIMIT)} style={{ ...inputStyle, width: '100px' }} />
+        <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
+          {form.dir === 'up'
+            ? 'Not used: upload-only streams send new local events as they arrive.'
+            : 'Each time this stream connects, every relay re-sends up to this many of its newest matching events, then streams live. Downloads only. Blank or 0 = live only (nothing fetched on connect). strfry relays send at most 500.'}
+        </div>
       </div>
 
       {/* Relay URLs */}
@@ -337,7 +348,7 @@ function RouterStatus() {
 
   function handleDeleteStream(idx) {
     const name = data.streams[idx].name;
-    if (!confirm(`Delete stream "${name}"? This will restart the router.`)) return;
+    if (!confirm(`Delete stream "${name}"?`)) return;
     const updated = data.streams.filter((_, i) => i !== idx);
     saveStreams(updated);
   }
@@ -623,7 +634,7 @@ function RouterStatus() {
                   <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.4rem', marginLeft: '3.25rem' }}>
                     Filter:
                     {stream.filter.kinds?.length > 0 ? ` kinds ${stream.filter.kinds.join(', ')}` : ''}
-                    {stream.filter.limit ? ` (limit: ${stream.filter.limit})` : ''}
+                    {stream.dir === 'up' ? '' : stream.filter.limit > 0 ? ` (fetches up to ${stream.filter.limit} on connect)` : ' (live only: nothing fetched on connect)'}
                     {tagFiltersFromFilter(stream.filter).map(f => ` #${f.letter}: ${f.values.join(', ')}`).join('')}
                   </div>
                 )}

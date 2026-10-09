@@ -21,28 +21,36 @@ function loadState() {
   return null;
 }
 
+/**
+ * The strfry-router process state from supervisord: { status, uptime?, detail? },
+ * status one of running / stopped / fatal / unknown. Never rejects.
+ * Also used by routerConfig.js to decide between an in-place reload and a restart.
+ */
+function getRouterProcessStatus() {
+  return new Promise((resolve) => {
+    exec('supervisorctl status strfry-router', { timeout: 5000 }, (err, stdout) => {
+      if (err && !stdout) {
+        resolve({ status: 'unknown', detail: err.message });
+        return;
+      }
+      const line = (stdout || '').trim();
+      if (line.includes('RUNNING')) {
+        const uptimeMatch = line.match(/uptime\s+(\S+)/);
+        resolve({ status: 'running', uptime: uptimeMatch ? uptimeMatch[1] : null });
+      } else if (line.includes('STOPPED')) {
+        resolve({ status: 'stopped' });
+      } else if (line.includes('FATAL')) {
+        resolve({ status: 'fatal', detail: line });
+      } else {
+        resolve({ status: 'unknown', detail: line });
+      }
+    });
+  });
+}
+
 async function handleRouterStatus(req, res) {
   try {
-    // Get supervisor status
-    const processStatus = await new Promise((resolve) => {
-      exec('supervisorctl status strfry-router', { timeout: 5000 }, (err, stdout) => {
-        if (err && !stdout) {
-          resolve({ status: 'unknown', detail: err.message });
-          return;
-        }
-        const line = (stdout || '').trim();
-        if (line.includes('RUNNING')) {
-          const uptimeMatch = line.match(/uptime\s+(\S+)/);
-          resolve({ status: 'running', uptime: uptimeMatch ? uptimeMatch[1] : null });
-        } else if (line.includes('STOPPED')) {
-          resolve({ status: 'stopped' });
-        } else if (line.includes('FATAL')) {
-          resolve({ status: 'fatal', detail: line });
-        } else {
-          resolve({ status: 'unknown', detail: line });
-        }
-      });
-    });
+    const processStatus = await getRouterProcessStatus();
 
     // Read state file for streams
     const state = loadState();
@@ -63,4 +71,4 @@ async function handleRouterStatus(req, res) {
   }
 }
 
-module.exports = { handleRouterStatus };
+module.exports = { handleRouterStatus, getRouterProcessStatus };

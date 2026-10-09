@@ -1,6 +1,6 @@
 # ADR 0002: Honor a stream's configured limit when the router connects
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-09
 **Story:** `engineering-team/stories/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.md`
 
@@ -125,8 +125,10 @@ Option C is the backstop (story 3), not a substitute.
   strfry 1.1.0's shipped `strfry.conf`). A relay that rejects a high limit outright would
   close the subscription. The operator lowers that stream's limit; the story makes N
   per-stream for this reason.
-- **A negative limit becomes meaningful,** where it was harmless before. Ingress now drops a
-  negative `limit` (a slice of OPEN.md row 31(b), limited to `limit`).
+- **A negative limit is dropped at ingress** (a slice of OPEN.md row 31(b), limited to `limit`).
+  *(Correction, story 2 review, non-blocking 1: a negative limit was never harmless. strfry 1.1.0
+  rejects the whole router config on one (`error parsing limit`), and negative `since`/`until`
+  likewise. See OPEN.md row `2026-10-09-router-accepts-values-strfry-rejects`.)*
 - **The patch set grows to two directories.** A `STRFRY_REF` bump re-verifies both; the
   Dockerfile comment says so.
 - **Not fixed:** gaps larger than N, backdated events, kinds no stream covers, and the upload

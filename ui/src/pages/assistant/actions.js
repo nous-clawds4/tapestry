@@ -26,7 +26,7 @@ import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MANAGE_TREASURE_MAP_PATH 
 /** The link on the Scores, Lists and Concepts pages (assistant-trusted-content-status #1 § Copy). */
 const TREASURE_MAP_LINK = { text: 'Manage your Treasure Map →', to: MANAGE_TREASURE_MAP_PATH };
 
-/** The profile action's page — the checklist to come, and the editor's parent. */
+/** The profile action's page — the checklist (assistant-profile-checklist #2), and the editor's parent. */
 export const ASSISTANT_PROFILE_PATH = `${ASSISTANT_MANAGEMENT_PATH}/profile`;
 
 /** The NIPs the action descriptions link to (story 1 § Copy; NIP-65 from assistant-outbox-relays #1). */
@@ -240,12 +240,12 @@ export function plainText(parts) {
 
 /**
  * The actions whose "needs attention" answer is real — computed by GET /api/assistant/attention for the viewer's own
- * assistant (ADR assistant-identification-tags/0001 sub-decision 6) — as opposed to the placeholders, which count
- * everywhere until their check is built. An action joins this list when its check ships, in ASSISTANT_ACTIONS order:
- * Identification Tags (assistant-identification-tags #1), Outbox Relays (assistant-outbox-relays #1), then Scores, Lists
- * and Concepts (assistant-trusted-content-status #1).
+ * assistant (ADR assistant-identification-tags/0001 sub-decision 6; the profile since ADR assistant-profile-checklist/0001,
+ * the outbox relays since assistant-outbox-relays #1, Scores, Lists and Concepts since assistant-trusted-content-status
+ * #1) — as opposed to the placeholders, which count everywhere until their check is built. An action joins this list
+ * when its check ships, in ASSISTANT_ACTIONS order.
  */
-export const CHECKED_ACTIONS = ['identification-tags', 'outbox-relays', 'trusted-assertions', 'trusted-lists', 'dlists'];
+export const CHECKED_ACTIONS = ['profile', 'identification-tags', 'outbox-relays', 'trusted-assertions', 'trusted-lists', 'dlists'];
 
 /**
  * Which of the viewer's actions need attention (story 1 AC-2; the pill counts the same answer, story 2 AC-5), in the
