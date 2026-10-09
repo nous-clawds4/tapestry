@@ -14,4 +14,4 @@ lane in its own `test:` commit. Proposed: one line in the command file. A relate
 suites read a `/*` inside a string (for example `'/api/settings/*'` in `src/api/index.js`) as the start of a block
 comment.
 
-**Pointer:** `engineering-team/reviews/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md` § Findings
+**Pointer:** `engineering-team/reviews/done/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md` § Findings

@@ -23,4 +23,11 @@ the shared line.
 decision 7) and shipped through `/cycle-staging` as PR #821. Five stories' failing tests and every draft stayed off
 `origin/staging`, and the PR's CI passed on its first run. Nothing in the harness yet tells a session to do this.
 
+**Consequence seen 2026-10-09 (book `assistant-outbox-relays` close).** Book `assistant-profile-checklist`'s Phase-3
+tests (six suites, intentionally failing) sit on `origin/staging` while its implementation is pending. The `staging` →
+`main` promotion PR #829 needs the `stack-free` check, which they turn red, so a finished book (`assistant-outbox-relays`)
+and a security hotfix (`95876ca`, ledger `2026-10-09-negentropy-sync-hotfix-prod`) cannot reach production through the
+normal path. The hotfix reached production the same day through its own `hotfix/negentropy-sync-input` PR (#830, merge
+`14e140b`); the book still waits on PR #829.
+
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7; this book's commits `33977a6` and `ccece6b`.
