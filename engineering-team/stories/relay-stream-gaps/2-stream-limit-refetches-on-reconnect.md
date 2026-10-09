@@ -1,7 +1,7 @@
 # Story 2: A stream's Limit refetches recent events whenever it connects
 
 **Epic:** relay-stream-gaps
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Bug
 
@@ -86,4 +86,4 @@ None.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-stream-gaps/0002-honor-stream-limit-on-connect.md`
 - Test plan: `engineering-team/stories/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.md`
