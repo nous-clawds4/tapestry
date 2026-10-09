@@ -247,7 +247,7 @@ was false.
 **Decision.**
 1. **One lookup budget, failing closed.** `LOOKUP_BUDGET_MS = 3000` from the start of the lookups. Each list relay's
    lookup races it, and one that has not answered by then counts as not public: `not-sent`. The 8 s publish deadline
-   then applies to the sends as before, so a press answers in at most about 11 s, well inside nginx's 60 s.
+   then applies to the sends as before. With the newest-list read before signing (up to 8 s on a first publish when an outside relay hangs), a press answers in at most about 19 s, well inside nginx's 60 s (corrected at review round 3, R3-2).
 2. **Off the threadpool.** The route's default check, `isPublicRelayHostWithin(host, { timeoutMs })` in
    `relayListPublish.js`, keeps `ssrfGuard`'s rule:
    - an IP literal → `isPublicAddress`;
