@@ -270,6 +270,7 @@ const suites = [
   { file: 'assistant-attention.test.js' },
   { file: 'assistant-identification-tags-page.test.js' },
   { file: 'assistant-taggings-publish.test.js' },
+  { file: 'negentropy-sync-input.test.js' },
   { file: 'my-assistants-page.test.js' },
   { file: 'my-assistants-actions.test.js' },
   { file: 'my-assistants-map.test.js' },
