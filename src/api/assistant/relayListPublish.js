@@ -25,7 +25,8 @@
  * Only public relays (ADR 0003 Amendment 1, review round 1): a request naming a relay that is plainly not on the public
  * internet — by src/utils/ssrfGuard.js's synchronous rule (isPublicAddress for an IP literal, hasPrivateHostSuffix for a
  * name) — is refused 400 before any key is read. At send time every relay that comes from a relay list (the new one and
- * the previous one) is resolved with isPublicHostname, which needs every answer public and fails closed; one that fails
+ * the previous one) is resolved with isPublicRelayHostWithin — off the threadpool, within one 3 s lookup budget (ADR 0003
+ * Amendment 2) — which needs every answer public and fails closed; one that fails
  * is never connected to and reads `not-sent: not a public address`. Relay Settings' own relays are owner-set and sent
  * to as every profile publish sends to them.
  *
@@ -88,11 +89,59 @@ function defaultDeps() {
     finalizeEvent: (template, privkeyBytes) => getNostrTools().finalizeEvent(template, privkeyBytes),
     getPublicKey: (privkeyBytes) => getNostrTools().getPublicKey(privkeyBytes),
     now: () => Date.now(),
-    isPublicHostname: (host) => require('../../utils/ssrfGuard').isPublicHostname(host),
+    isPublicHostname: (host) => isPublicRelayHostWithin(host, { timeoutMs: LOOKUP_BUDGET_MS }),
   };
 }
 
 const hostOf = (url) => new URL(url).hostname;
+
+/** The whole time the send-time lookups may take, from their start (ADR 0003 Amendment 2). */
+const LOOKUP_BUDGET_MS = 3000;
+
+/** Resolve within `ms` or give `fallback` — clearing the timer either way. */
+async function within(promise, ms, fallback) {
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(fallback), Math.max(0, ms)); });
+  try { return await Promise.race([promise, late]); } finally { clearTimeout(timer); }
+}
+
+/**
+ * Does this relay host resolve to public addresses only? ssrfGuard's rule, off libuv's threadpool and within a time
+ * limit (ADR 0003 Amendment 2): an IP literal is classified by isPublicAddress; a private-by-construction name is not
+ * public; any other name is asked for its A and AAAA records through a c-ares Resolver ({ timeout, tries: 1 }, on the
+ * event loop, not dns.lookup). Public only when both queries finished, at least one address came back, and every
+ * address is public. A timeout, an error or an empty answer is not public; the resolver is cancelled at the limit.
+ * @param {string} host - as URL gives it
+ * @param {{ timeoutMs?: number, Resolver?: Function }} [options] - Resolver for tests; default dns.promises.Resolver
+ * @returns {Promise<boolean>} never rejects
+ */
+async function isPublicRelayHostWithin(host, { timeoutMs = LOOKUP_BUDGET_MS, Resolver } = {}) {
+  const name = String(host || '').trim().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+  if (!name) return false;
+  if (net.isIP(name)) return isPublicAddress(name);
+  if (hasPrivateHostSuffix(name)) return false;
+  const ResolverClass = Resolver || require('dns').promises.Resolver;
+  let resolver;
+  try { resolver = new ResolverClass({ timeout: timeoutMs, tries: 1 }); } catch { return false; }
+  // An answer with no records of that type (ENODATA, ENOTFOUND) is an empty list; anything else is a failure (null).
+  const settle = (query) => Promise.resolve().then(query).then(
+    (addresses) => (Array.isArray(addresses) ? addresses : null),
+    (err) => (err && (err.code === 'ENODATA' || err.code === 'ENOTFOUND') ? [] : null),
+  );
+  const answers = await within(
+    Promise.all([settle(() => resolver.resolve4(name)), settle(() => resolver.resolve6(name))]),
+    timeoutMs,
+    null,
+  );
+  if (!answers) {
+    try { resolver.cancel(); } catch { /* going away either way */ }
+    return false;
+  }
+  const [v4, v6] = answers;
+  if (v4 === null || v6 === null) return false;
+  const all = [...v4, ...v6];
+  return all.length > 0 && all.every((address) => isPublicAddress(String(address)));
+}
 
 /** ssrfGuard's synchronous rule for one hostname: a non-public IP literal, or a private-by-construction name. */
 function isPlainlyPrivate(hostname) {
@@ -147,10 +196,13 @@ async function publishAssistantRelayListFor({ viewer, relays }, deps = {}) {
     rows = set.map((relay) => ({ relay, status: 'skipped', reason: 'local-only publish mode' }));
   } else {
     // Every relay that came from a relay list is resolved before it is connected to; the configured ones are owner-set.
+    // All lookups share one budget; one that has not answered by then is not public (ADR 0003 Amendment 2).
     const owned = new Set(configured.map((url) => normalizeRelayUrl(url)).filter(Boolean));
+    const deadline = Date.now() + LOOKUP_BUDGET_MS;
     const checks = await Promise.all(set.map(async (relay) => {
       if (owned.has(normalizeRelayUrl(relay))) return true;
-      try { return (await d.isPublicHostname(hostOf(relay))) === true; } catch { return false; }
+      const lookup = Promise.resolve().then(() => d.isPublicHostname(hostOf(relay))).then((ok) => ok === true, () => false);
+      return within(lookup, deadline - Date.now(), false);
     }));
     const toSend = set.filter((_, i) => checks[i]);
     const sent = toSend.length > 0 ? await d.publishToRelays(signed, toSend) : [];
@@ -207,4 +259,6 @@ module.exports = {
   CODES,
   WORDS,
   NOT_SENT,
+  LOOKUP_BUDGET_MS,
+  isPublicRelayHostWithin,
 };
