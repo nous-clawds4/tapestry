@@ -196,7 +196,8 @@ should clear it (and `useProfiles` caches `null` for the page session).
 - **Auto-republishing existing profiles** to adopt the new default.
 - **A "needs attention" state** for a published-but-stale profile (for example a NIP-05 on a domain
   that no longer serves it) — a candidate follow-up to story 1.
-- **A kind 10002 relay list** for assistants.
+- **A kind 10002 relay list** for assistants. → picked up 2026-10-09 by book `assistant-outbox-relays`
+  (`audits/assistant-outbox-relays/book.md`).
 - **Unifying in-app display fallbacks** for assistants with no profile.
 - **Customer-assistant composites and badging** (ta-avatar carry-forward).
 - **Admins minting any TA-signed event** through the generic endpoint → OPEN.md #269.
