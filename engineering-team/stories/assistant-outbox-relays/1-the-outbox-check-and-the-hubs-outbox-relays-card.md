@@ -112,6 +112,6 @@ None.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-outbox-relays/0001-the-outbox-check-joins-the-one-attention-answer.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
