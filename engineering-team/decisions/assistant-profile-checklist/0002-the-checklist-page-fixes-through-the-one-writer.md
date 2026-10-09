@@ -245,7 +245,8 @@ and the action's description. At 375 px wide, there is no horizontal scroll.
 **Why.** Round 1's review (story 2 B1, story 3 B1) found that sub-decision 6, step 2, trusts the press-time
 `GET /api/assistant/status` read's `hasProfile` to choose each fix's base. That read resolves the profile with the
 non-strict local scan (`src/api/assistant/profileState.js`): a failed or timed-out `strfry scan` reads as "no local
-profile", and for an `only-here` profile the publish relays hold nothing either. The read then answers
+profile", and for an `only-here` profile the publish relays hold nothing either *(wrong: they may hold an older
+copy — corrected by Amendment 2)*. The read then answers
 `hasProfile: false`, sub-decision 5 takes `status.defaults` as the base, and a press of any panel fix posts the default
 name, About, picture, banner and lightning address. The one writer replaces the kind 0 here and on every outside relay,
 and that cannot be undone. It breaks story 2 AC-4 ("a fix never changes a field its item is not about") and story 3
@@ -272,3 +273,29 @@ specific sentence would be a story 2 § Copy change for the Product Owner.
 **Pinned by** a browser case in `tests/brainstorm/assistant-profile-checklist-page.spec.js`: **Set website** meets a
 status answer with `hasProfile: false`, posts nothing to `/api/assistant/publish-profile`, shows the line on the
 website panel, and asks for the attention answer again. Also **Publish the default profile** meets `hasProfile: true`.
+
+## Amendment 2 — the read must be this instance's own (2026-10-09, review round 2)
+
+**Why.** Round 2's review (R2-1) found Amendment 1's premise false. `only-here` means no outside relay answered with a
+copy *at least as new* as this instance's (`readVisibility` in `src/api/assistant/profileChecklist.js`); an outside relay
+can still hold an **older** one. When the non-strict local scan fails at press time, the status read falls back to the
+publish relays, finds that older copy and answers `hasProfile: true`, `profileSource: 'relay'`. Amendment 1's guard lets
+it through, and any panel fix, `set-picture` included, republishes the older fields over the newer profile, here and on
+every outside relay. The same harm as round 1's, by the second way in. Amendment 1 took its premise from round 1's
+review text without checking it against the code.
+
+**Decision.** Amendment 1's rule gains one condition. Every fix except `publish-default` needs both
+`status.hasProfile === true` **and** `status.profileSource === 'local'`: the base must be this instance's own copy, the
+one the check read (ADR 0001 reads the local relay first and strictly). A profile read only from an outside relay, or
+with no source named, stops the press as Amendment 1 says: nothing is posted, the panel shows the nothing-published
+line, `fixing` is cleared and the answer is asked again. `publish-default` is unchanged (`hasProfile === false`).
+
+**What it costs.** When the local relay fails to answer but the outside relays hold the same, current copy, the press is
+refused too, though publishing would have been harmless. Pressing again once the local relay answers works. Matching
+the checked event's id, or
+a strict press-time read on the server, would be narrower; both need more than this page, and the source check closes
+the path with a field the status answer already carries.
+
+**Pinned by** C16 in `tests/brainstorm/assistant-profile-checklist-page.spec.js`: the status answer has
+`hasProfile: true`, `profileSource: 'relay'` and an older profile; **Publish to outside relays** posts nothing, the panel
+says so, and the answer is asked again.
