@@ -94,5 +94,5 @@ None.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-stream-gaps/0003-negentropy-sync-presets.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/relay-stream-gaps/3-scheduled-negentropy-sync-presets.test-plan.md`
 - Review: (filled in after Review phase)
