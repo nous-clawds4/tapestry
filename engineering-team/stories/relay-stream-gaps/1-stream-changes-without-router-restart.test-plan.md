@@ -294,3 +294,15 @@ Mutants of that implementation were each caught:
 | temp file + rename instead of in-place write | 15 |
 | no settle wait | J4 |
 | no rollback | 5 (J x3, J4, Q2) |
+
+## Amendment (2026-10-09): PR #787's restart-counting assertions
+
+The operator chose to land PR #787 (router hardening) before this story, so its suite
+`test/strfry-router-saved-state.test.js` reached this branch after test design. Three of its
+assertions counted every `exec` call and expected exactly one, the restart (P, V2, V6). Under
+ADR 0001 a stream change first asks supervisord for the router's status, and that suite's stub
+never answers RUNNING, so the change is applied by the not-running restart: one status call
+plus one restart. The three assertions now count `supervisorctl restart strfry-router`
+commands (exactly one) instead of all exec calls. Their intent, "config written once, then the
+router restarted", is unchanged, and they pass on #787's code as well. The "no exec at all"
+assertions (refused requests, `initRouter`) and V3 (the Restart button) are untouched.
