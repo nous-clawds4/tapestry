@@ -603,9 +603,9 @@ test('W7: every avatar menu tells personalLinks who the viewer is — the classi
   assert(wrong.length === 0, `AC3: an Admin with no assistant yet must find the item enabled, so each menu passes classification — missing in ${wrong.join('; ')}`);
 });
 
-test('W8: the editor offers the badged-avatar generator only when status.isOwner — an Admin would be stamped with the Owner\'s face, and a Customer is refused', () => {
+test('W8: the editor offers the badged-avatar generator to everyone with an assistant — not only when status.isOwner (re-aimed by assistant-profile-checklist #3, ADR 0003 sub-decision 8: each person stamps their own picture)', () => {
   const verdict = renderedOnlyWhen(EDITOR, /Generate badged avatar/, ['status.isOwner']);
-  assert(verdict.ok, `AC4 (ADR 0004 sub-decision 4): ${verdict.why}`);
+  assert(!verdict.ok && /without a/.test(verdict.why || ''), `the generator must be rendered without a status.isOwner guard; ${verdict.ok ? 'it is still the Owner\'s only' : verdict.why}`);
 });
 
 test('W9: when the generator fails, only the proxy\'s "no-picture" answer reads as "no profile picture" — every other failure shows what the server said', () => {
@@ -615,7 +615,7 @@ test('W9: when the generator fails, only the proxy\'s "no-picture" answer reads 
   const copy = body.search(/no profile picture/i);
   assert(code >= 0, 'AC4: generateComposite must tell the proxy\'s "no-picture" answer apart — it never mentions that code');
   assert(copy < 0 || code < copy, 'the "no profile picture" copy must sit behind the no-picture check');
-  assert(/\.error\b/.test(body), 'AC4 ("any failure says what actually happened"): the other failures must show the server\'s own error');
+  assert(/\.(error|message)\b/.test(body), 'AC4 ("any failure says what actually happened"): the other failures must show the server\'s own error (its error, or the shared flow\'s message carrying it — assistant-profile-checklist ADR 0003 sub-decision 7)');
 });
 
 test('W10: with no key, only someone who may create an assistant is offered "Create my Tapestry Assistant key" — and the Owner is told the instance\'s key is missing', () => {

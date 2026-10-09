@@ -94,5 +94,5 @@ ADR ta-avatar/0003). No firmware reinstall.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile-checklist/0003-the-stamped-avatar-for-the-signed-in-persons-own-assistant.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-profile-checklist/3-a-personalized-avatar-for-every-assistant.test-plan.md`
 - Review: (filled in after Review phase)

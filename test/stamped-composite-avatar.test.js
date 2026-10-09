@@ -30,6 +30,11 @@
  * of an unlink, which proves nothing about behavior.
  *
  * These FAIL against current code: src/api/assistant/avatar.js does not exist.
+ *
+ * Re-aimed 2026-10-09 by assistant-profile-checklist #3 (its story, ADR 0003 and plan): the proxy is
+ * GET /api/assistant/my-picture and serves the signed-in person's own picture; both routes are gated by one middleware,
+ * requireOwnAssistant (no longer isOwner in each handler); composite names carry 32 hex characters. U2, U6, S1, S2, S6
+ * and the H probes pin it; test/assistant-stamped-avatar-for-everyone.test.js pins the rest.
  */
 
 const fs = require('fs');
@@ -56,7 +61,7 @@ let featureLive = null;
 async function featureAvailable() {
   if (featureLive !== null) return featureLive;
   try {
-    const r = await fetch(`${HOST_BASE}/api/assistant/owner-avatar`, { signal: AbortSignal.timeout(8000) });
+    const r = await fetch(`${HOST_BASE}/api/assistant/my-picture`, { signal: AbortSignal.timeout(8000) });
     // 401/403 means the route exists and is gated — that is "deployed".
     // 404 means the route is absent (an instance predating this story).
     featureLive = r.status !== 404;
@@ -114,8 +119,8 @@ test('U2: storing a composite writes exactly one content-addressed PNG', () => {
   assert(out && typeof out === 'object', 'storeCompositeAvatar must return a descriptor object.');
   assert(typeof out.filename === 'string' && out.filename,
     `the descriptor must name the file it wrote. Got ${JSON.stringify(out)}`);
-  assert(/^ta-avatar-[0-9a-f]{8}\.png$/.test(out.filename),
-    `ADR 0003: the filename is content-addressed — ta-avatar-<hash8>.png — which is what lets a ` +
+  assert(/^ta-avatar-[0-9a-f]{32}\.png$/.test(out.filename),
+    `ADR 0003 (32 hex since assistant-profile-checklist ADR 0003 sub-decision 5): the filename is content-addressed — ta-avatar-<hash32>.png — which is what lets a ` +
     `regenerate produce a NEW url instead of a stale cached one. Got ${JSON.stringify(out.filename)}.`);
   const files = fs.readdirSync(dir);
   assert(files.length === 1, `exactly one file should have been written; found ${JSON.stringify(files)}`);
@@ -176,9 +181,9 @@ test('U6: the stored name is derived from the content, so two different owners c
   const dir = freshDir();
   const buf = makePng('gamma');
   const out = storeCompositeAvatar(buf, { baseDir: dir });
-  const hash = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);
+  const hash = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 32);
   assert(out.filename.includes(hash),
-    `the name should be the content hash (sha256, first 8 hex) so identical input is stable across ` +
+    `the name should be the content hash (sha256, first 32 hex) so identical input is stable across ` +
     `restarts and different input never overwrites. Expected a name containing ${hash}, got ` +
     `${JSON.stringify(out.filename)}. (If you chose a different digest, say so in the ADR and update this.)`);
 });
@@ -187,24 +192,24 @@ test('U6: the stored name is derived from the content, so two different owners c
 // S — the guards a unit test cannot reach
 // ─────────────────────────────────────────────────────────────────────────
 
-test('S1: both new endpoints are owner-gated (AC6)', () => {
+test('S1: both endpoints are gated — by requireOwnAssistant, ahead of each handler (AC6; re-aimed by assistant-profile-checklist #3: signed in with an assistant here, not only the owner)', () => {
   const src = safeRead(AVATAR_SRC);
   assert(src, 'src/api/assistant/avatar.js missing — see U1.');
-  assert(/isOwner\s*\(/.test(src),
-    'AC6: the generate and store operations must be refused to anyone but the owner. Use the established ' +
-    'gate — isOwner(req) from src/middleware/auth.js, as src/api/strfry/commands/publishEvent.js:34-38 does.');
-  const gates = (src.match(/!\s*isOwner\s*\(\s*req\s*\)/g) || []).length;
-  assert(gates >= 2,
-    `both handlers need their own gate; found ${gates} owner check(s). The proxy leaks the owner's ` +
-    'avatar URL and the upload writes to a publicly-served directory — neither may be open.');
-  assert(/\b403\b/.test(src), 'an unauthorised caller must be refused with 403.');
+  assert(/requireOwnAssistant/.test(src),
+    'assistant-profile-checklist ADR 0003 sub-decision 1: one gate for both routes, requireOwnAssistant — signed in, with an ' +
+    'assistant on this instance. The proxy reads a person\'s own picture and the upload writes to a publicly-served directory — ' +
+    'neither may be open to a visitor.');
+  const index = safeRead(API_INDEX);
+  const gated = (index.match(/requireOwnAssistant\s*,/g) || []).length;
+  assert(gated >= 2, `both routes must be registered behind requireOwnAssistant; found ${gated} in src/api/index.js.`);
+  assert(/\b401\b/.test(src) && /\b403\b/.test(src), 'a visitor is refused with 401, a person with no assistant here with 403.');
 });
 
 test('S2: the proxy takes no URL from the request (ADR D2)', () => {
   const src = safeRead(AVATAR_SRC);
   assert(src, 'src/api/assistant/avatar.js missing — see U1.');
-  const proxy = (src.match(/function handleOwnerAvatar[\s\S]*?\n\}/) || [''])[0];
-  assert(proxy, 'src/api/assistant/avatar.js must define handleOwnerAvatar (ADR 0003 §Implementation notes).');
+  const proxy = (src.match(/(?:function\s+handleMyPicture|handleMyPicture\s*=\s*async)[\s\S]*?\n\}/) || [''])[0];
+  assert(proxy, 'src/api/assistant/avatar.js must define handleMyPicture (assistant-profile-checklist ADR 0003 sub-decision 2; it was handleOwnerAvatar).');
   assert(!/req\.(query|body|params)\s*\.\s*(url|src|picture|image|href)/.test(proxy),
     'ADR 0003 D2: the proxy must NOT accept a URL from the caller — that would make it a general-purpose ' +
     'arbitrary-fetch primitive. It reads the picture URL from the owner\'s own kind 0, server-side, so its ' +
@@ -252,8 +257,8 @@ test('S5: the generated directory is served, and only that directory', () => {
 
 test('S6: both routes are registered', () => {
   const src = safeRead(API_INDEX);
-  assert(/\/api\/assistant\/owner-avatar/.test(src),
-    'src/api/index.js must register GET /api/assistant/owner-avatar beside the other assistant routes (:528-532).');
+  assert(/\/api\/assistant\/my-picture/.test(src),
+    'src/api/index.js must register GET /api/assistant/my-picture beside the other assistant routes (it was /api/assistant/owner-avatar; assistant-profile-checklist ADR 0003 sub-decision 2).');
   assert(/\/api\/assistant\/avatar/.test(src),
     'src/api/index.js must register POST /api/assistant/avatar.');
 });
@@ -274,7 +279,7 @@ test('S7: the publishable URL reuses story 2\'s reachability rule rather than a 
 test('H1: an unauthenticated caller is refused the proxy and the upload (AC6)', async () => {
   if (!(await featureAvailable())) { hSkipped += 1; return 'SKIP'; }
   hExecuted += 1;
-  const get = await fetch(`${HOST_BASE}/api/assistant/owner-avatar`, { signal: AbortSignal.timeout(15000) });
+  const get = await fetch(`${HOST_BASE}/api/assistant/my-picture`, { signal: AbortSignal.timeout(15000) });
   assert(get.status === 401 || get.status === 403,
     `AC6: an anonymous caller must be refused the proxy; got HTTP ${get.status}.`);
   const post = await fetch(`${HOST_BASE}/api/assistant/avatar`, { method: 'POST', signal: AbortSignal.timeout(15000) });
