@@ -193,8 +193,9 @@ Every test edit outside the book's own suites is a re-aim the test plans record.
 
 ## 6. Carry-forward register
 
-- [ ] **Production.** This book and manage-treasure-map go to `main` together, only on the owner's explicit go (book
-  decision 4).
+- [x] **Production.** This book and manage-treasure-map go to `main` together, only on the owner's explicit go (book
+  decision 4). *Done 2026-10-08 on the owner's go: promotion PR #823 (`4c91c9f3`), deploy run 37860767117, smoke test
+  clean on all five tiers.*
 - [ ] **Save's hardening:** a timeout or Cancel for a signer that never answers; telling a declined account prompt from
   a missing signer; checking a returned event's whole content; a late toast timer (§4 #12; ledger
   `2026-10-08-treasure-map-save-hardening`).
