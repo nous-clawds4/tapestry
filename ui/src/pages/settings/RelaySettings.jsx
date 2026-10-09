@@ -337,7 +337,7 @@ function RouterStatus() {
 
   function handleDeleteStream(idx) {
     const name = data.streams[idx].name;
-    if (!confirm(`Delete stream "${name}"? This will restart the router.`)) return;
+    if (!confirm(`Delete stream "${name}"?`)) return;
     const updated = data.streams.filter((_, i) => i !== idx);
     saveStreams(updated);
   }
