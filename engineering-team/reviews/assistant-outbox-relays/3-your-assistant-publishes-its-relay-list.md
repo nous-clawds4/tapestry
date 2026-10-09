@@ -201,3 +201,77 @@ Not applicable: no PRD. The report's words come from `summarizePublish` / `local
 ### Story status and completion (round 2)
 - [ ] Story `**Status:**` not flipped: it stays `Approved`.
 - [ ] Completion detection: the book's "One publish" bullet still waits on this story. Recorded in the chat, not here.
+
+## Round 3 (2026-10-09): R2-1, re-reviewed as fresh claims
+
+**Diff:** `git diff 2129810..7352810`. It holds `f8808b4` (ADR 0003 Amendment 2), `8bcd24a` (the failing tests: A8, A9, A10, A7 re-aimed, plus the plan's round-3 record) and `7352810` (the fix in `relayListPublish.js`, plus BIBLE §11). `8ba7b78`, the ledger commit, predates round 2's review commit and was noted there. `origin/staging` is now `b4fefe7`, an empty "redeploy staging" commit. `git merge-tree --write-tree HEAD origin/staging` is clean (exit 0).
+
+### What I re-ran
+- **Commit hygiene:** the ADR commit is docs only, `8bcd24a` touches only `test/` and the plan, and `7352810` touches no test. `ui/` and `tests/` are unchanged since round 2 (`git diff --stat 38c00dd..7352810 -- ui tests` is empty), and `src/utils/ssrfGuard.js` is unchanged by this book.
+- **The tests failed first.** In a worktree at `8bcd24a`: A7, A8, A9 and A10 fail; 28/4/1.
+- **The suites alone, on HEAD:**
+  - `assistant-relay-list-publish` **32 passed, 0 failed, 1 skipped** (H1, live);
+  - `assistant-outbox-relays-page` 18/0/0;
+  - `assistant-outbox-check` 29/0/0;
+  - `assistant-publish-relays` 39/0/0;
+  - `assistant-taggings-publish` 19/0/1;
+  - `assistant-identification-tags-page` 16/0/0;
+  - `nip05-ssrf-guard` 21/0/0.
+- **`npm test`.** `npm run gate:status -- --label reviewer-outbox-relays-r3`:
+
+  > `20261009T141024Z-14530-8c35 [reviewer-outbox-relays-r3] started 2026-10-09T14:10:24.970Z on 73528100 — FAIL, exit 1, 5221 passed, 74 failed, 582 skipped, 285/285 suites; failed: harness-lint, stamped-composite-avatar, my-assistant-page, one-writer-assistant-profile, assistant-profile-check, assistant-profile-checklist-page, assistant-stamped-avatar-for-everyone, tagging-edges-realtime-wrapper`
+
+  - The first seven failing suites have exactly round 2's counts, which round 2 matched against a clean `origin/staging` (assistant-profile-check +3 for the Done badge).
+  - `tagging-edges-realtime-wrapper` RW7 failed again with the same early second start (0.72 s against a floor of 0.8 s). That is the known flake in `ledger/2026-10-08-realtime-wrapper-timing-flake-under-load.md`.
+  - Alone it passes **24/0/0, three runs out of three this round** (six of six across rounds 2 and 3). This book touches none of its files (`run.sh`, `taggingEdgesFixtures.js`, the suite).
+  - Without that flake the counts match the coordinator's run.
+- **Playwright, chromium:** `assistant-outbox-relays.spec.js` **12 passed** (B6b–B9 included). It ran against round 2's `vite build`, which is HEAD's UI byte for byte because no `ui/` file changed. Every `/api` route is mocked, so the server change cannot reach it. The preview server was stopped.
+- **`bash scripts/harness-lint.sh`:** only the pre-existing L10.
+- **My probe of the real c-ares path** (scratch; a local UDP DNS server; `isPublicRelayHostWithin` with a `Resolver` subclass pointed at it; Node 22.22.0):
+
+  | Name served as | Result | Time |
+  |---|---|---|
+  | public A, AAAA NODATA | `true` | 16 ms |
+  | private A (`10.0.0.5`) | `false` | 3 ms |
+  | NXDOMAIN | `false` | 2 ms |
+  | never answered (budget 1500 ms) | `false` | 1501 ms |
+
+  Then 50 never-answered lookups (budget 3000 ms) ran in parallel with 8 `crypto.pbkdf2` threadpool jobs. **The threadpool jobs finished at 39 ms; all 50 lookups returned `false` at 3005 ms.** The guard's lookups are off the threadpool and bounded.
+- **The three ledger rows in `8ba7b78`, read as invited:** accurate. The negentropy row's "related, not fixed" paragraph states the remaining exposure correctly.
+
+### Each Amendment 2 claim, checked with its own command
+| Claim | Command | Result |
+|---|---|---|
+| One `LOOKUP_BUDGET_MS = 3000` from the start of the lookups; an unanswered one is `not-sent` | `relayListPublish.js:99`, `:201-205`; A8 | **True** |
+| The default check keeps ssrfGuard's rule (literal → `isPublicAddress`; private-by-construction name → not public) and resolves A + AAAA through a c-ares `Resolver({ timeout, tries: 1 })`, off the threadpool | `:118-144`, `:92`; A9, A10; the c-ares probe | **True** |
+| Public only when both queries finished, at least one address came back, and every address is public; a timeout, error or empty answer is not public; cancelled at the limit | A9; the probe (NODATA → empty list, NXDOMAIN → `false`, hung → `false` at the limit, `cancel()` at `:137`) | **True** |
+| `ssrfGuard.js` is unchanged; its other callers keep `dns.lookup` | `git diff --stat 50a6103..HEAD -- src/utils/ssrfGuard.js` (empty) | **True** |
+| c-ares does not read `/etc/hosts`; a hosts-file name can only be set by the operator | the container's Docker-managed entries are `localhost`, the `ip6-*` names and the container hostname, all bare labels refused at entry | **True** (accepted limit) |
+| Amendment 1 point 3 corrected: configured relays skip the guard and may be private | the round-2 table | **True.** Closes R2-3. |
+| **"a press answers in at most about 11 s, well inside nginx's 60 s"** (`0003-…md:250`) | `relayListPublish.js:166` → `lookupNewestReplaceable` → `readWithinBudget` (`RELAY_BUDGET_MS = 8000`, `src/api/setup/status.js:33`) | **The bound is right in kind, wrong in number.** The newest-list read before signing can itself take up to 8 s when this instance's relay holds no list (every Assistant's first press) and an outside relay hangs. The worst case is therefore about 8 + 3 + 8 ≈ 19 s, still well inside nginx's 60 s, so AC-4's "bounded time" holds. Non-blocking R3-2. |
+
+### Findings
+
+#### Blocking
+None. R2-1 is resolved. The send-time lookups are bounded (3 s, failing closed) and run on c-ares, off the threadpool. A press always answers well before nginx's 60 s, so the false "nothing was published" can no longer occur. The amendment records the change.
+
+#### Non-blocking
+- **R3-1. `relayListPublish.js:208` → `profilePublish.js:140` (`new WebSocketImpl(relay)`): the socket still resolves through `dns.lookup`, on the threadpool.**
+  - **The gap.** After a relay passes the c-ares check, the connect resolves its name again (confirmed: `dns.lookup` is called for the passed host). A name whose nameserver answers the c-ares query and then stays silent for the socket's query holds one of the four threadpool threads until the resolver gives up. That is past the 8 s send budget, which only ends the row.
+  - **Why not blocking.**
+    - It is DNS rebinding's two-query class, which Amendment 1 accepted.
+    - The report stays bounded.
+    - A cheaper version already exists: the unauthenticated `GET /api/nip05/verify` runs `ssrfGuard.isPublicHostname` and its fetch through `dns.lookup` with no timeout (`src/api/nip05.js`, whose header says the route is unauthenticated).
+  - **Candidate ledger row (codebase-wide, not this book):** server-side lookups of user-supplied names run `getaddrinfo` on the 4-thread pool with no timeout. Pinning the vetted address into the socket (for example a `lookup` option on the connection, or the dispatcher `ssrfGuard`'s header defers) would close this and DNS rebinding together.
+- **R3-2. `decisions/assistant-outbox-relays/0003-…md:250`:** "at most about 11 s" leaves out the publish-time newest-list read (up to 8 s on a local miss). Worst case is about 19 s. Correct the number when the book closes; the conclusion it supports ("well inside nginx's 60 s") stands.
+- **R2-2** is stated as accepted in Amendment 2 (it would need new copy). **R2-4, R2-5 and R2-6** stand as written in round 2; none blocks.
+
+#### Harness friction
+- `ledger/2026-10-08-realtime-wrapper-timing-flake-under-load.md` says the flake shows "when two gates share the machine". This round's run had no deliberate load from me, though another session may have shared the machine. Candidate: append this occurrence (`20261009T141024Z-14530-8c35`, RW7, 0.72 s) and round 2's (`20261009T134224Z-32038-d116`) to that row.
+
+### Story status and completion (round 3)
+- [x] Story `**Status:**` flipped to `Done` in place (`stories/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.md:3`). Its Review link already points here.
+- [x] Completion detection performed; the result is in the chat, not here.
+
+### Verdict (round 3)
+**PASS**

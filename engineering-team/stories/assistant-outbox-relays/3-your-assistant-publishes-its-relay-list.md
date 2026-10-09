@@ -1,6 +1,6 @@
 # Story 3: Your Assistant publishes its relay list
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-outbox-relays`
