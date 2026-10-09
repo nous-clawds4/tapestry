@@ -137,5 +137,5 @@ The profile is a kind 0, the NIP-05 a `.well-known` listing and the avatar a fil
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile-checklist/0001-the-profile-check-joins-the-one-attention-answer.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-profile-checklist/1-the-profile-check-and-the-hubs-done-mark.test-plan.md`
 - Review: (filled in after Review phase)

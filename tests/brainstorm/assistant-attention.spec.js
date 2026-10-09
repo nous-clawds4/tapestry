@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const X = require('../../test/helpers/assistantManagementFixtures');
 const T = require('../../test/helpers/identificationTagsFixtures');
+const P = require('../../test/helpers/profileChecklistFixtures');
 
 /**
  * assistant-identification-tags #1: the one answer, and the hub's first real mark — the browser class.
@@ -15,7 +16,8 @@ const T = require('../../test/helpers/identificationTagsFixtures');
  *        attention" on the hub, and 9 in the pill.                                                  [AC-5]
  *   B2 — a pending answer: ten marks, "10 actions", 10 in the pill.                                 [AC-5]
  *   B3 — an unfinished answer: the hub marks ten and says "10 actions"; the pill says 9.            [AC-5]
- *   B4 — the fetch fails: the hub marks ten; the pill says 9.                                       [AC-5]
+ *   B4 — the fetch fails: the hub marks ten; the pill says 8 (the placeholders; re-aimed by
+ *        assistant-profile-checklist #1, which checks the profile too).                               [AC-5]
  *   B5 — while the answer is on its way, no pill (setup done); the pill then shows with the
  *        answer's count, never a count that changes under the viewer.                               [AC-5]
  *   B6 — read-only: one GET of /api/assistant/attention per full load, with no parameters, and
@@ -53,6 +55,17 @@ const pillOf = (page) => page.getByRole('link', { name: X.ALERT.name, exact: tru
 const setupPillOf = (page) => page.locator('a.bs-setup-alert[href="/setup"]');
 const cardOf = (page, title) => page.locator('.bs-assistant-hub-card').filter({ has: page.getByRole('link', { name: new RegExp(`${title}$`) }) });
 
+/**
+ * Re-aimed by assistant-profile-checklist #1 (ADR 0001 sub-decision 7): the profile action is checked now, so it counts in
+ * the pill only from an answer that finished and found something. Every answer here also carries a pending profile
+ * action, so the counts this class pins for Identification Tags stay as they were; tests/brainstorm/assistant-profile-check.spec.js
+ * pins the profile's own answers.
+ */
+function withPendingProfile(answer) {
+  if (!answer || typeof answer !== 'object' || !answer.actions || answer.actions.profile) return answer;
+  return { ...answer, actions: { ...answer.actions, profile: P.PROFILE_PENDING } };
+}
+
 /** Mock every route. `attention` is the /api/assistant/attention answer: an object, 'hang', 'error', or { delayMs, body }. */
 async function mock(page, { who = CUSTOMER_USER, attention = T.PENDING } = {}) {
   const log = { attentionCalls: [], api: [], nonGet: [] };
@@ -81,9 +94,9 @@ async function mock(page, { who = CUSTOMER_USER, attention = T.PENDING } = {}) {
     if (attention === 'error') return r.fulfill(json({ success: false, error: 'fixture failure' }, 500));
     if (attention && attention.delayMs !== undefined) {
       await wait(attention.delayMs);
-      try { return await r.fulfill(json(attention.body)); } catch { return undefined; }
+      try { return await r.fulfill(json(withPendingProfile(attention.body))); } catch { return undefined; }
     }
-    return r.fulfill(json(attention));
+    return r.fulfill(json(withPendingProfile(attention)));
   });
   return log;
 }
@@ -171,11 +184,11 @@ test.describe('The one answer, and the hub\'s first real mark (assistant-identif
     expect(await pillCount(page), 'the pill counts a checked action only from a finished, missing answer').toBe(9);
   });
 
-  test('B4: the fetch fails — the hub marks ten; the pill says 9 (AC-5)', async ({ page }) => {
+  test('B4: the fetch fails — the hub marks ten; the pill counts only the eight placeholders (AC-5; re-aimed by assistant-profile-checklist #1: the profile is checked too)', async ({ page }) => {
     await mock(page, { attention: 'error' });
     const hub = await hubState(page);
     expect(hub).toEqual({ marks: 10, count: 10, idMarked: true });
-    expect(await pillCount(page)).toBe(9);
+    expect(await pillCount(page)).toBe(8);
   });
 
   test('B5: while the answer is on its way no pill shows (setup done); it then shows with the answer\'s count, which never changes under the viewer (ADR 0001 sub-decision 8)', async ({ page }) => {

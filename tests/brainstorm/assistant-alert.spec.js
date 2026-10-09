@@ -1,6 +1,10 @@
 const { test, expect } = require('@playwright/test');
 const X = require('../../test/helpers/assistantManagementFixtures');
-const { PENDING: ATTENTION_PENDING } = require('../../test/helpers/identificationTagsFixtures');
+const { PENDING: ID_TAGS_PENDING } = require('../../test/helpers/identificationTagsFixtures');
+const { PROFILE_PENDING } = require('../../test/helpers/profileChecklistFixtures');
+// Every checked action pending (assistant-identification-tags #1; the profile since assistant-profile-checklist #1), so
+// every count this class pins stays ten: a checked action counts in the pill only from a finished answer that found something.
+const ATTENTION_PENDING = { ...ID_TAGS_PENDING, actions: { ...ID_TAGS_PENDING.actions, profile: PROFILE_PENDING } };
 
 /**
  * assistant-management #2: the Assistant Alert — the browser class.

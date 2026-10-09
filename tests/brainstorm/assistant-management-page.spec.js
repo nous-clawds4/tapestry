@@ -1,6 +1,10 @@
 const { test, expect } = require('@playwright/test');
 const X = require('../../test/helpers/assistantManagementFixtures');
-const { PENDING: ATTENTION_PENDING } = require('../../test/helpers/identificationTagsFixtures');
+const { PENDING: ID_TAGS_PENDING } = require('../../test/helpers/identificationTagsFixtures');
+const { PROFILE_PENDING } = require('../../test/helpers/profileChecklistFixtures');
+// Every checked action pending (assistant-identification-tags #1; the profile since assistant-profile-checklist #1), so
+// every count this class pins stays ten: a checked action counts in the pill only from a finished answer that found something.
+const ATTENTION_PENDING = { ...ID_TAGS_PENDING, actions: { ...ID_TAGS_PENDING.actions, profile: PROFILE_PENDING } };
 
 /**
  * assistant-management #1: the Assistant Management page, its FAQ and ten placeholder action pages, and the
@@ -358,6 +362,8 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
     test(`B8 ${a.path}: a placeholder page with the title, "Placeholder page.", the description, the alert criteria${a.planningNotes ? ', the planning notes' : ''}${a.editLink ? ', a link to the editor' : ''} and a way back (AC-5)`, async ({ page }) => {
       // assistant-identification-tags #2 builds this action's page; tests/brainstorm/assistant-identification-tags-page.spec.js pins it.
       if (a.path === '/assistant/identification-tags') test.skip(true, 'no longer a placeholder (assistant-identification-tags #2)');
+      // assistant-profile-checklist #2 builds the profile's page; tests/brainstorm/assistant-profile-checklist-page.spec.js pins it.
+      if (a.path === '/assistant/profile') test.skip(true, 'no longer a placeholder (assistant-profile-checklist #2)');
       await mock(page, { who: CUSTOMER_USER });
       const main = await open(page, a.path);
       await expect(page.getByRole('heading', { name: 'Page not found' }), `${a.path} is a page`).toHaveCount(0);
