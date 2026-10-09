@@ -1,13 +1,14 @@
 /**
- * Build the Tapestry Assistant's stamped avatar: the owner's picture with the
- * brand mark on one corner (ta-avatar #3, ADR 0003).
+ * Build the Tapestry Assistant's stamped avatar: its person's picture with the
+ * brand mark on one corner (ta-avatar #3, ADR 0003; every person's since
+ * assistant-profile-checklist ADR 0003).
  *
  * This runs in the owner's browser rather than on the server so the preview and
  * the published artefact are literally the same pixels — the canvas that is shown
  * is the canvas that gets uploaded — and so no native image library has to enter
  * the Docker image.
  *
- * The source image arrives from /api/assistant/owner-avatar, which is same-origin,
+ * The source image arrives from /api/assistant/my-picture, which is same-origin,
  * so the canvas is never tainted and toBlob() always succeeds.
  */
 

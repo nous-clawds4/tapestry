@@ -570,12 +570,13 @@ async function register(app) {
     // No middleware entry: the handler shapes its own content by session. Its path deliberately
     // contains no protectedGetEndpoints substring — that list matches with .includes().
     app.get('/api/assistant/roster', assistantApi.handleGetAssistantRoster);
-    // The composite avatar (ta-avatar #3, ADR 0003). Both are owner-only: the
-    // first reveals the owner's picture URL, the second writes into a directory
-    // that is served publicly.
+    // The composite avatar (ta-avatar #3, ADR 0003; every person's since assistant-profile-checklist ADR 0003): the
+    // signed-in person's own picture, for stamping, and the store, which writes into a directory that is served
+    // publicly. Both sit behind one gate — signed in, with an assistant here — which runs before multer, so a refused
+    // body is never parsed.
     const assistantAvatarApi = require('./assistant/avatar');
-    app.get('/api/assistant/owner-avatar', assistantAvatarApi.handleOwnerAvatar);
-    app.post('/api/assistant/avatar', assistantAvatarApi.uploadMiddleware, assistantAvatarApi.handleUploadAvatar);
+    app.get('/api/assistant/my-picture', assistantAvatarApi.requireOwnAssistant, assistantAvatarApi.handleMyPicture);
+    app.post('/api/assistant/avatar', assistantAvatarApi.requireOwnAssistant, assistantAvatarApi.uploadMiddleware, assistantAvatarApi.handleUploadAvatar);
 
     // ── /setup: the signed-in viewer's three setup steps (ADR setup-status-and-alert/0001) ──
     // No middleware entry: the handler reads the session itself and answers signedIn:false without

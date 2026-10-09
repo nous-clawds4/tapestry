@@ -121,6 +121,23 @@ No concept changes; no firmware reinstall.
 
 None beyond story 1's.
 
+## Deviations
+
+*The Implementer's log (Phase 4, 2026-10-09): judgment calls too small for an ADR amendment, for the book-close audit.*
+
+1. **The panels reuse the Identification Tags page's `.bs-idtags-card*` classes as they are** (ADR 0002 sub-decision 7
+   left generalize-or-copy to the smaller diff; reuse is smaller than either). New `.bs-profile-check-*` rules cover only
+   what that page has no need of: the description and line, the preview, the neutral "Coming soon" badge.
+2. **The screen-reader prefix ("Needs attention: " / "Done: ") sits beside each panel's heading, not inside it**, so
+   each panel's region is named by its title alone (the browser suite finds panels that way).
+3. **The NIP-05 panel's description fills `{domain}` with "This instance"** until the answer names the domain (a visitor,
+   or while checking).
+4. **`summaryText(action, phase)` also takes the provider's phase**, so a failed fetch reads "Could not check: this
+   instance did not answer." rather than "Checking…". The one-argument calls the suite makes are unchanged.
+5. **Tester-lane re-aims the Phase 3 list missed**, committed on their own as `test:` (ef81af6): one-writer W5 now
+   allows the checklist page as the one writer's second caller — ADR 0002's Option A, which keeps the server's one
+   writer and adds a caller.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-profile-checklist/0002-the-checklist-page-fixes-through-the-one-writer.md`

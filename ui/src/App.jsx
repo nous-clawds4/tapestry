@@ -132,6 +132,7 @@ import EditAssistantProfilePage from './pages/assistant/EditProfile';
 import AssistantActionPage from './pages/assistant/ActionPage';
 import IdentificationTagsPage from './pages/assistant/IdentificationTags';
 import OutboxRelaysPage from './pages/assistant/OutboxRelays';
+import ProfileChecklistPage from './pages/assistant/ProfileChecklist';
 import { ASSISTANT_ACTIONS } from './pages/assistant/actions';
 import {
   ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MY_ASSISTANTS_PATH, MANAGE_TREASURE_MAP_PATH, TREASURE_MAP_ADVANCED_PATH,
@@ -144,8 +145,10 @@ import BrainstormFeed from './pages/BrainstormFeed';
 import BrainstormEvent from './pages/BrainstormEvent';
 import NotFound from './pages/NotFound';
 // The action pages that are built, by action key; every other action routes to the placeholder
-// (assistant-identification-tags #2, ADR 0002 sub-decision 1; Outbox Relays: assistant-outbox-relays #2, ADR 0002).
+// (assistant-identification-tags #2, ADR 0002 sub-decision 1; Outbox Relays: assistant-outbox-relays #2, ADR 0002; the
+// profile's checklist: assistant-profile-checklist #2, ADR 0002).
 const ACTION_PAGES = {
+  profile: <ProfileChecklistPage />,
   'identification-tags': <IdentificationTagsPage />,
   'outbox-relays': <OutboxRelaysPage />,
 };
