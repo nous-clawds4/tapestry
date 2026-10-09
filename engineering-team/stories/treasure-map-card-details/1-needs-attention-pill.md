@@ -1,6 +1,6 @@
 # Story 1: A Needs attention pill on an unassigned category
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-08
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-10-08 by the owner ("Approved for both stories, go ahead"); scoped gate (named at Gate A):
 `node -e "Promise.all(['./test/treasure-map-needs-attention.test.js','./test/manage-treasure-map-cards.test.js','./test/manage-treasure-map-page.test.js','./test/treasure-map-edit-mode.test.js'].map(p=>require(p).run())).then(rs=>{const f=rs.reduce((s,r)=>s+r.fail,0);console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})"`
