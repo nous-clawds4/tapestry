@@ -18,6 +18,11 @@
  * fakes() stubs so these suites stay about Identification Tags. C2 and C3 pin it; test/assistant-profile-check.test.js pins
  * the profile.
  *
+ * Re-aimed 2026-10-08 by assistant-trusted-content-status #1 (its story, ADR 0001 and plan): Scores, Lists and Concepts
+ * are checked too, and the handler runs their check, which reads the viewer's Treasure Map; fakes() stubs it so these
+ * suites stay about Identification Tags (and never read a relay U3 says is not read). C2 and C3 already derive the
+ * placeholders from CHECKED_ACTIONS; test/assistant-trusted-content.test.js pins the three.
+ *
  * Classes:
  *   L — the shared library src/lib/identification-tags (pure CommonJS): the list (offered and parked), each
  *       definition's author and address, the d-tag composer, the polarity reader.                                            [AC-1, AC-3]
@@ -226,6 +231,8 @@ function fakes(opts = {}) {
     getConfigFromFile: (key, dflt) => (opts.config && Object.prototype.hasOwnProperty.call(opts.config, key) ? opts.config[key] : dflt),
     // The profile check (assistant-profile-checklist ADR 0001), stubbed: this suite is about Identification Tags.
     checkProfile: async () => ({ finished: true, done: true, pending: false, items: [] }),
+    // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001), stubbed for the same reason.
+    checkTrustedContent: async () => ({}),
   };
   return { deps, calls };
 }

@@ -38,7 +38,14 @@ const { nip19 } = require('nostr-tools');
  *   SV14 — signing out while the signer prompt is open: nothing signed or published.                        [AC-2]
  *   SV15 — "Saving…" is in a live region while saving.                                                      [AC-10]
  *   SV16 — two clicks in one go sign once.                                                                  [AC-4]
+ *
+ * assistant-trusted-content-status #1 (its story AC-6, ADR 0001 sub-decision 9; plan
+ * engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.test-plan.md) adds:
+ *   SV17 — after a save, the Assistant Management page catches up without a reload: the attention answer is asked
+ *          again and the Scores card turns Done. setup() takes `attention`, the answers /api/assistant/attention
+ *          gives in turn (the last one repeats); without it the route answers as before.
  */
+const TC = require('../../test/helpers/trustedContentFixtures');
 
 const VIEWER = 'a1'.repeat(32);
 const LOCAL = 'a2'.repeat(32);
@@ -113,12 +120,15 @@ async function setup(page, {
   // 'local-only'). Amendment 1: `relayHolds` is a Map the general-purpose relays answer with; `relayHoldsSent` makes
   // them answer with the newest event the outside relays accepted.
   signer = 'viewer', local = 'ok', relay = 'drop', policy = 'local-only', relayHolds = null, relayHoldsSent = false,
+  // assistant-trusted-content-status #1: the /api/assistant/attention answers, in turn (the last repeats); null = as before.
+  attention = null,
 } = {}) {
   let releaseLocal;
   const localHeld = new Promise((r) => { releaseLocal = r; });
   const state = {
     ws: 0, writes: [], session: signedIn, myAsks: 0, myRows, myHold, myFail,
     local, relay, newer: null, published: [], relayEvents: [], releaseLocal, relayHolds, relayHoldsSent,
+    attentionCalls: 0,
   };
   const modeFor = (url) => (typeof state.relay === 'object' ? (state.relay[url.replace(/\/$/, '')] || 'accept') : state.relay);
   await page.routeWebSocket(/.*/, (ws) => {
@@ -212,9 +222,13 @@ async function setup(page, {
   await page.route('**/api/setup/status**', (r) => json(r, state.session
     ? { success: true, signedIn: true, steps: { account: { done: true }, follow: { done: true }, activate: { done: true } } }
     : { success: true, signedIn: false }));
-  await page.route('**/api/assistant/attention**', (r) => json(r, state.session
-    ? { success: true, signedIn: true, hasAssistant: false, actions: {} }
-    : { success: true, signedIn: false }));
+  await page.route('**/api/assistant/attention**', (r) => {
+    state.attentionCalls += 1;
+    if (Array.isArray(attention) && state.session) return json(r, attention[Math.min(state.attentionCalls - 1, attention.length - 1)]);
+    return json(r, state.session
+      ? { success: true, signedIn: true, hasAssistant: false, actions: {} }
+      : { success: true, signedIn: false });
+  });
   await page.route('**/api/assistant/roster', (r) => json(r, { success: true, assistants: [], viewer: null }));
   await page.route('**/api/auth/status', (r) => json(r, state.session ? { authenticated: true, pubkey: VIEWER } : { authenticated: false, pubkey: null }));
   await page.route('**/api/auth/user-classification', (r) => json(r, {
@@ -608,5 +622,35 @@ test.describe('/treasure-map — Edit mode: Save', () => {
     await page.waitForTimeout(500);
     expect((await signed(page)).length, 'signed once').toBe(1);
     expect(state.published.length, 'published once').toBe(1);
+  });
+
+  test('SV17: after a save, the Assistant Management page catches up without a reload — the attention answer is asked again and the Scores card turns Done (assistant-trusted-content-status #1 AC-6)', async ({ page }) => {
+    const ID_DONE = { finished: true, done: true, pending: false, taggings: [] };
+    const before = { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': ID_DONE, ...TC.trio((c) => TC.pending(c, 'other-assistants-only', 'local')) } };
+    const after = { ...before, actions: { ...before.actions, 'trusted-assertions': TC.done('scores') } };
+    const state = await setup(page, { policy: 'local-only', attention: [before, after] });
+    const hubCard = (title) => page.locator('.bs-assistant-hub-card').filter({ has: page.locator('.bs-assistant-hub-card-link', { hasText: new RegExp(`${title}$`) }) });
+
+    await page.goto('/assistant');
+    await expect(hubCard('Scores').getByText('Needs attention', { exact: true }), 'Scores needs attention before the save').toBeVisible();
+    await page.evaluate(() => { window.__sameDocument = true; });
+    const asked = state.attentionCalls;
+
+    // In the app, never a reload: the Scores card → its page → Manage your Treasure Map →.
+    await hubCard('Scores').locator('.bs-assistant-hub-card-link').click();
+    await page.getByRole('link', { name: TC.MAP_LINK.text, exact: true }).click();
+    await expect(page).toHaveURL(/\/treasure-map$/);
+    await startEditing(page);
+    await pick(page, pickerButton(page, 'Scores'), 'Zed');
+    await saveButton(page).click();
+    await expect(toast(page)).toBeVisible();
+    await expect.poll(() => state.attentionCalls, { message: 'the attention answer is asked again after the save', timeout: 10000 }).toBeGreaterThan(asked);
+
+    await page.goBack();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/assistant$/);
+    expect(await page.evaluate(() => window.__sameDocument), 'the same document: no reload').toBe(true);
+    await expect(hubCard('Scores').getByText('Done', { exact: true }), 'Scores is Done after the save').toBeVisible();
+    await expect(hubCard('Scores').getByText('Needs attention', { exact: true })).toHaveCount(0);
   });
 });

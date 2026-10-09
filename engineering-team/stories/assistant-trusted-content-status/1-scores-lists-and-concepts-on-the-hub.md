@@ -142,5 +142,5 @@ The Treasure Map is a kind 10040 event, not a concept-graph node. No concept cha
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-trusted-content-status/0001-scores-lists-and-concepts-join-the-one-attention-answer.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.test-plan.md`
 - Review: (filled in after Review phase)

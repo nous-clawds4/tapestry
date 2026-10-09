@@ -9,7 +9,15 @@
  * engineering-team/stories/done/assistant-management/2-the-assistant-alert.md § Copy (approved 2026-09-21), with the
  * display fixes story 1 lists: straight apostrophes, first letters capitalized, "(link to …)" made into the link
  * it asks for, and "follows (kind 3)". Change a word there first, then here.
+ *
+ * Re-aimed 2026-10-08 by assistant-trusted-content-status #1 (its story § Copy, approved 2026-10-08): the first three
+ * Publication of Trusted Content cards are Scores, Lists and Concepts, with their rule as alert criteria and a link to
+ * the Treasure Map page. Keys, addresses, descriptions and NIP links are unchanged. Their words come from
+ * test/helpers/trustedContentFixtures.js.
  */
+
+const TC = require('./trustedContentFixtures');
+const tc = (key) => TC.CARDS.find((c) => c.key === key);
 
 // ─── Addresses (story 1 § Copy; ADR assistant-management/0001) ───────────────────────────────
 const HUB = '/assistant';
@@ -59,29 +67,32 @@ const ACTIONS = [
   {
     section: 'trusted-content',
     path: '/assistant/trusted-assertions',
-    title: 'Trusted Assertions',
+    title: tc('trusted-assertions').title,
     text: 'Enable Tapestry to broadcast trust scores using NIP-85 Trusted Assertions, curated by your trusted and extended community. This includes trust scores for pubkeys as well as for other categories of content. From a technical standpoint, this means your Assistant will publish kinds 3038x events on your behalf.',
     link: { text: 'NIP-85 Trusted Assertions', href: NIP_LINKS.trustedAssertions },
-    alertCriteria: null,
+    alertCriteria: tc('trusted-assertions').alertCriteria,
     planningNotes: null,
+    editLink: TC.MAP_LINK,
   },
   {
     section: 'trusted-content',
     path: '/assistant/trusted-lists',
-    title: 'Trusted Lists',
+    title: tc('trusted-lists').title,
     text: 'Enable Tapestry to broadcast lists, curated by your trusted and extended community. This includes Trusted Lists of pubkeys as well as Trusted Lists of other categories of content. From a technical standpoint, this means your Assistant will publish kinds 3039x events on your behalf, according to the Trusted Lists NIP.',
     link: { text: 'Trusted Lists NIP', href: NIP_LINKS.trustedLists },
-    alertCriteria: null,
+    alertCriteria: tc('trusted-lists').alertCriteria,
     planningNotes: null,
+    editLink: TC.MAP_LINK,
   },
   {
     section: 'trusted-content',
     path: '/assistant/dlists',
-    title: 'Decentralized Lists',
+    title: tc('dlists').title,
     text: 'Enable your Tapestry Assistant to manage Decentralized Lists in a way that is more detailed than Trusted Lists. From a technical standpoint, this means your Assistant will publish kinds 39998 and 39999 events on your behalf according to the Decentralized Lists NIP.',
     link: { text: 'Decentralized Lists NIP', href: NIP_LINKS.decentralizedLists },
-    alertCriteria: null,
+    alertCriteria: tc('dlists').alertCriteria,
     planningNotes: null,
+    editLink: TC.MAP_LINK,
   },
   {
     section: 'trusted-content',

@@ -271,6 +271,7 @@ const suites = [
   { file: 'assistant-identification-tags-page.test.js' },
   { file: 'assistant-taggings-publish.test.js' },
   { file: 'assistant-profile-check.test.js' },
+  { file: 'assistant-trusted-content.test.js' },
   { file: 'assistant-profile-checklist-page.test.js' },
   { file: 'assistant-stamped-avatar-for-everyone.test.js' },
   { file: 'my-assistants-page.test.js' },
