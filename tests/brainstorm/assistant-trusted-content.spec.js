@@ -142,7 +142,8 @@ test.describe('Scores, Lists and Concepts on the hub (assistant-trusted-content-
     await mock(page, answerWith({ 'trusted-assertions': TC.done('scores'), 'trusted-lists': TC.pending('lists', 'not-assigned', 'local'), dlists: TC.done('concepts') }));
     await open(page, X.HUB);
     await expect(page.getByRole('link', { name: `${TC.DONE_COPY.doneSrPrefix}Scores`, exact: true })).toHaveAttribute('href', TC.CARDS[0].path);
-    await expect(page.getByRole('link', { name: `${X.COPY.needsAttentionSrPrefix}Lists`, exact: true })).toHaveAttribute('href', TC.CARDS[1].path);
+    // The shared fixture's prefix is "Needs attention:" (no trailing space); the accessible name reads "Needs attention: Lists".
+    await expect(page.getByRole('link', { name: `${X.COPY.needsAttentionSrPrefix} Lists`, exact: true })).toHaveAttribute('href', TC.CARDS[1].path);
     await expect(page.getByRole('link', { name: `${TC.DONE_COPY.doneSrPrefix}Concepts`, exact: true })).toHaveAttribute('href', TC.CARDS[2].path);
   });
 

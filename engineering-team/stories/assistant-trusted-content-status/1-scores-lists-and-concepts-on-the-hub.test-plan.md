@@ -59,6 +59,12 @@ the save flow's signer, relay and publish mocks). Shared words and answer shapes
   `test/treasure-map-card-details.test.js` S1 read `categoryAssistants`' JSDoc and body from the *source* of
   `manageTreasureMap.js`; they now read `src/lib/treasureMapCategories.mjs`, where the rule moved. The ADR's § For the
   Tester named this class of pin; Phase 3 missed these two.
+- *Corrected at Phase 4 (Tester lane, its own commit), two bugs in this plan's own browser tests, found on the first run
+  against the implementation:* TC4 built the marked card's accessible name as `Needs attention:Lists` (the shared
+  fixture's prefix has no trailing space; the page reads `Needs attention: Lists`); SV17 saved under the local-only
+  policy, whose ending is the kept-local report, not the "Treasure Map updated" confirmation it waited for — it now saves
+  as SV2 does. SV17 was then confirmed to fail on a build without the 10040 re-check, at "the attention answer is asked
+  again after the save".
 
 ## Test infrastructure
 

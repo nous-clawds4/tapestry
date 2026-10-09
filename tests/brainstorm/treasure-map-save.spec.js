@@ -628,7 +628,8 @@ test.describe('/treasure-map — Edit mode: Save', () => {
     const ID_DONE = { finished: true, done: true, pending: false, taggings: [] };
     const before = { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': ID_DONE, ...TC.trio((c) => TC.pending(c, 'other-assistants-only', 'local')) } };
     const after = { ...before, actions: { ...before.actions, 'trusted-assertions': TC.done('scores') } };
-    const state = await setup(page, { policy: 'local-only', attention: [before, after] });
+    // Published everywhere, as SV2, so the save ends with the "Treasure Map updated" confirmation.
+    const state = await setup(page, { policy: 'external', relay: 'accept', attention: [before, after] });
     const hubCard = (title) => page.locator('.bs-assistant-hub-card').filter({ has: page.locator('.bs-assistant-hub-card-link', { hasText: new RegExp(`${title}$`) }) });
 
     await page.goto('/assistant');
