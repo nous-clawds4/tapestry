@@ -256,7 +256,7 @@ test('S2: the first card publishes through the publisher\'s report-returning var
   assert(wrong.length === 0, `ADR 0002 sub-decision 6: ${wrong.join('; ')}`);
 });
 
-test('S3: App.jsx routes this one action to the page through an override map, and the other nine to the placeholder (AC-6; ADR 0002 sub-decision 1)', () => {
+test('S3: App.jsx routes this action to the page through an override map, and every action without a built page to the placeholder (AC-6; ADR 0002 sub-decision 1; re-aimed by assistant-outbox-relays #2, whose page joins the map)', () => {
   const app = codeOnly(safeRead(APP));
   const wrong = [];
   if (!/import\s+IdentificationTagsPage\s+from\s+['"]\.\/pages\/assistant\/IdentificationTags(?:\.jsx?)?['"]/.test(app)) wrong.push('no default import from ./pages/assistant/IdentificationTags');
@@ -264,8 +264,10 @@ test('S3: App.jsx routes this one action to the page through an override map, an
   if (!/ASSISTANT_ACTIONS\.map\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\(\s*\{\s*path:\s*\1\.path\s*,\s*element:\s*ACTION_PAGES\[\s*\1\.key\s*\]\s*\?\?\s*<AssistantActionPage\b[^>]*\baction=\{\s*\1\s*\}/.test(app)) {
     wrong.push('the routes are not ...ASSISTANT_ACTIONS.map((a) => ({ path: a.path, element: ACTION_PAGES[a.key] ?? <AssistantActionPage action={a} /> }))');
   }
-  const keys = (app.match(/const\s+ACTION_PAGES\s*=\s*\{([^}]*)\}/) || ['', ''])[1].match(/['"]([a-z-]+)['"]\s*:/g) || [];
-  if (keys.length !== 1) wrong.push(`ACTION_PAGES names exactly one action in this story; got ${show(keys)}`);
+  // Each key in the map is an action with its own built page; the rest route to the placeholder through the map's ??.
+  const keys = ((app.match(/const\s+ACTION_PAGES\s*=\s*\{([^}]*)\}/) || ['', ''])[1].match(/['"]([a-z-]+)['"]\s*:/g) || []).map((k) => k.replace(/['":\s]/g, ''));
+  const built = ['identification-tags', 'outbox-relays'];
+  if (!keys.includes('identification-tags') || keys.some((k) => !built.includes(k))) wrong.push(`ACTION_PAGES names the built action pages only (${show(built)}); got ${show(keys)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 

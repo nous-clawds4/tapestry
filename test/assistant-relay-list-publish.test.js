@@ -375,7 +375,9 @@ test('R1: describeServerPublish (shipped) already draws the route\'s answer shap
 /* ───────────────────────── S — sentinels ───────────────────────── */
 
 test('S1: the route POST /api/assistant/outbox-relays/publish is registered and documented; BIBLE §11 has its row and §14 says an assistant\'s key signs its relay list through it (ADR 0003 § Implementation notes)', () => {
-  const index = codeOnly(safeRead(API_INDEX));
+  // Raw source, as the identification-tags route's S1 reads it: codeOnly() mistakes the '/api/settings/*' route string
+  // in src/api/index.js for the start of a block comment and blanks the rest of the file.
+  const index = safeRead(API_INDEX);
   assert(/app\.post\(\s*['"]\/api\/assistant\/outbox-relays\/publish['"]/.test(index), 'src/api/index.js registers app.post(\'/api/assistant/outbox-relays/publish\', …)');
   assert(/^\s*\/api\/assistant\/outbox-relays\/publish:\s*$/m.test(safeRead(OPENAPI)), 'openapi.yaml documents /api/assistant/outbox-relays/publish');
   const bible = safeRead(BIBLE);

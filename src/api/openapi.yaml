@@ -294,8 +294,14 @@ paths:
       summary: Which of the signed-in viewer's Assistant Management actions need attention
       description: >-
         Read-only. Answers for the session's viewer and the assistant this instance holds for them, and takes
-        no parameters. `actions` maps each action that has a real check to its answer; today only
-        `identification-tags`, the offered taggings between a person and their assistant: My Tapestry Assistant (by
+        no parameters. `actions` maps each action that has a real check to its answer. `outbox-relays`
+        (assistant-outbox-relays ADR 0001): the outbox relays (an `r` tag with no marker or `write`) the assistant's
+        newest NIP-65 relay list (kind 10002) names, looked up on the local relay first and on the configured
+        general-purpose, profile and WoT relays only on a local miss; `done` with at least one, `pending` when a finished
+        check found none; `inboxOnlyCount` counts the `read` entries; `suggestions` are the relays the Outbox Relays page
+        offers (this instance's relay at its public address, then the general-purpose, trusted-assertion, trusted-list,
+        DList and outbox relay settings); a failing outbox check answers `reason: check-failed` without failing the
+        others. `identification-tags`, the offered taggings between a person and their assistant: My Tapestry Assistant (by
         the person) and My Tapestry Owner (by the assistant); My Agent and My Human are listed but parked, and never
         looked up. Each tagging is looked up by its
         replaceable address on the local relay first and on the configured tag-federation relays only on a local
@@ -327,6 +333,12 @@ paths:
                         finished: { type: boolean }
                         done: { type: boolean }
                         pending: { type: boolean }
+                        reason: { type: string, nullable: true, description: 'outbox-relays: why the check did not finish' }
+                        source: { type: string, nullable: true, description: 'outbox-relays: local or relay' }
+                        createdAt: { type: integer, nullable: true, description: 'outbox-relays: the relay list created_at' }
+                        outbox: { type: array, items: { type: string }, description: 'outbox-relays: the outbox relays, in the list order' }
+                        inboxOnlyCount: { type: integer, description: 'outbox-relays: how many read-only entries the list names' }
+                        suggestions: { type: array, items: { type: string }, description: 'outbox-relays: the relays the page suggests' }
                         taggings:
                           type: array
                           items:
@@ -478,6 +490,75 @@ paths:
                                   reason: { type: string }
         '400':
           description: The body is not a non-empty list of the Assistant-signed required keys (code not-an-assistant-tagging)
+        '401':
+          description: No signed-in session (code not-signed-in)
+        '403':
+          description: No Assistant on this instance for the viewer (code no-assistant)
+        '500':
+          description: The publish could not run
+  /api/assistant/outbox-relays/publish:
+    post:
+      tags: [Auth]
+      summary: Have the signed-in viewer's own Assistant sign and publish its NIP-65 relay list
+      description: >-
+        A narrow, session-bound route in the shape of the identification-tags publish (assistant-outbox-relays ADR 0003):
+        the signed-in person's own Assistant signs a kind 10002 relay list built from the Outbox Relays page's draft.
+        The body names relays only; whose Assistant comes from the session (the Owner's is the instance TA; anyone
+        else's their own). Refused before any key is read: no session (401 not-signed-in), a body whose `relays` is not
+        a list of up to 50 ws/wss addresses with none twice (400 not-a-relay-list), no Assistant on this instance (403
+        no-assistant). The event: the draft's relays in order, each keeping its marker from the Assistant's newest relay
+        list (none stays none, write stays write, read becomes both), others marked write; then the newest list's
+        read-only entries the draft does not name; a removed relay is dropped. An empty list is allowed. It is written
+        to this instance's relay first (a failed write sends it nowhere and says so), then to every relay the new and
+        previous lists name and the configured general-purpose, profile and WoT relays, each once and each reported
+        (accepted, refused, unreachable, timeout; skipped in local-only mode). Nothing calls this when an Assistant is
+        created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [relays]
+              properties:
+                relays:
+                  type: array
+                  maxItems: 50
+                  description: The outbox relays, in order (ws:// or wss://)
+                  items: { type: string }
+      responses:
+        '200':
+          description: The report, whatever the relays did
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  result:
+                    type: object
+                    properties:
+                      ok: { type: boolean }
+                      outcome: { type: string, enum: [published, kept-local, not-delivered] }
+                      message: { type: string }
+                      localOnly: { type: boolean }
+                      stage: { type: string, enum: [local] }
+                      outbox: { type: array, items: { type: string } }
+                      relays:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          success: { type: integer }
+                          results:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                relay: { type: string }
+                                status: { type: string, enum: [accepted, refused, unreachable, timeout, skipped] }
+                                reason: { type: string }
+        '400':
+          description: The body is not a list of relay addresses (code not-a-relay-list)
         '401':
           description: No signed-in session (code not-signed-in)
         '403':
