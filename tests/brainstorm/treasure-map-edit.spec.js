@@ -614,7 +614,9 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     await page.keyboard.press('Tab');
     await expect(list, 'tabbing past the last row closes the list').toBeHidden();
     await expect(scores).toHaveAttribute('aria-expanded', 'false');
-    await expect(pickerButton(page, 'Lists'), 'focus lands on the next card’s button, no longer covered').toBeFocused();
+    // The next control in tab order is the card's own Show details button since treasure-map-card-details #2; the
+    // property is unchanged: leaving the list closes it, and focus lands on the next control, no longer covered.
+    await expect(editCard(page, 'Scores').getByRole('button', { name: 'Show details', exact: true }), 'focus lands on the next control, no longer covered').toBeFocused();
 
     list = await openList(page, assignAll(page));
     await page.getByRole('heading', { level: 1 }).click();

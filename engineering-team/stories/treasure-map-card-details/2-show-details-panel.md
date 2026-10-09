@@ -75,6 +75,11 @@ None — page UI only. Reads the kind-10040 Map (and in Edit mode the draft) the
   directly above `export function categoryAssistants`. The rewrite keeps that JSDoc where it is. *(J1 advisory.)*
   **Not consumers** (grep-verified 2026-10-08): nothing outside `Index.jsx` imports `categoryAssistants` or
   `categoryCards`.
+- **Outside the declared blast radius (named at implementation, for Gate B):** one step of an existing browser test,
+  `tests/brainstorm/treasure-map-edit.spec.js` E18. It tabbed past the Scores list's last row and expected focus on
+  the Lists card's picker. The Scores card's new "Show details" button now sits between them in tab order (AC-1 puts
+  it at the card's foot, below the picker row), so focus lands there. The step now expects that button. The property
+  E18 pins is unchanged: leaving the list closes it, and focus lands on the next control, no longer covered.
 - **Wire fidelity:** none — nothing is signed, published or read differently.
 
 ## Edge cases & not-covered

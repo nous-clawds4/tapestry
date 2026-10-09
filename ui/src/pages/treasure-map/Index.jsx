@@ -8,10 +8,10 @@ import { MY_ASSISTANTS_PATH, TREASURE_MAP_ADVANCED_PATH } from '../../config/ava
 import { fetchProfilesChunked } from '../../utils/profileBatch';
 import { cardFields } from '../assistants/myAssistants';
 import {
-  COPY, FAQS, mapPanelPhase, rawMapText, categoryAssistants, categoryCards,
+  COPY, FAQS, mapPanelPhase, rawMapText, categoryAssistants, categoryCards, categoryEntries,
 } from './manageTreasureMap';
 import {
-  planEdit, overrideAllState, makeRelayFor, saveNote, currentOf, currentAll, pickerRows,
+  planEdit, overrideAllState, makeRelayFor, saveNote, currentOf, currentAll, pickerRows, entryRole,
 } from './editTreasureMap';
 import useMapEdit from './useMapEdit';
 import useMapSave from './useMapSave';
@@ -192,8 +192,12 @@ const ALL_TITLE_ID = 'bsd-tm-edit-all-title';
  * before the title, outside the title span, which the Edit controls' descriptions point at. Edit mode draws the card
  * from the draft, so a pending pick removes the mark and Undo brings it back.
  */
-function CategoryCard({ card, pending, children }) {
+function CategoryCard({ card, pending, entries, profiles, localPubkey, children }) {
   const attention = card.state === 'none';
+  // Show details (treasure-map-card-details #2): closed at first. The card keeps its place in the list when Edit
+  // starts or ends, so an open panel stays open.
+  const [open, setOpen] = useState(false);
+  const detailsId = `bsd-tm-cat-details-${card.key}`;
   return (
     <li className={`bsd-tm-cat-card${pending ? ' is-pending' : ''}`}>
       <div className="bsd-tm-cat-what">
@@ -232,7 +236,75 @@ function CategoryCard({ card, pending, children }) {
         )}
       </div>
       {children}
+      <div className="bsd-tm-cat-details">
+        <button
+          type="button"
+          className="bsd-tm-cat-details-toggle"
+          aria-expanded={open ? 'true' : 'false'}
+          aria-controls={open ? detailsId : undefined}
+          onClick={() => setOpen(!open)}
+        >
+          {open ? COPY.hideDetails : COPY.showDetails}
+          <Chevron open={open} />
+        </button>
+        {open && (
+          <CategoryDetails
+            id={detailsId}
+            category={card.key}
+            title={card.title}
+            entries={entries || []}
+            profiles={profiles || {}}
+            localPubkey={localPubkey}
+          />
+        )}
+      </div>
     </li>
+  );
+}
+
+/**
+ * One card's details panel (treasure-map-card-details #2): each key behind the card, in the order the Map first names
+ * it, shown as written, with every Assistant it names: avatar and name (the cards' name rule), relay, and Backup after
+ * the key's first. A key that is one of the category's individually assigned duties, or the everything entry `*`, says
+ * so. `entries` is categoryEntries' list for the category: from the published Map, or in Edit mode from the draft.
+ */
+function CategoryDetails({ id, category, title, entries, profiles, localPubkey }) {
+  return (
+    <div id={id} className="bsd-tm-cat-details-panel" role="region" aria-label={COPY.detailsLabel(title)}>
+      {entries.length === 0 ? (
+        <p className="bsd-tm-cat-details-none">{COPY.noEntries}</p>
+      ) : (
+        <ul className="bsd-tm-cat-details-list">
+          {entries.map((entry) => {
+            const label = entry.norm === '*'
+              ? COPY.everythingElse
+              : entryRole(category, [entry.key, entry.tags[0].pubkey]) === 'individual' ? COPY.individual : null;
+            return (
+              <li key={entry.norm} className="bsd-tm-cat-details-entry">
+                <div className="bsd-tm-cat-details-key">
+                  <code>{entry.key}</code>
+                  {label && <span className="bsd-tm-cat-details-tag">{label}</span>}
+                </div>
+                <ul className="bsd-tm-cat-details-rows">
+                  {entry.tags.map((tag, i) => {
+                    const { name, initial } = cardFields(tag.pubkey, profiles[tag.pubkey]);
+                    // A key may name one Assistant twice, so a row's place is its identity.
+                    return (
+                      <li key={i} className="bsd-tm-cat-details-row">
+                        <Avatar person={{ initial, local: Boolean(localPubkey) && tag.pubkey === localPubkey }} />
+                        <span className="bsd-tm-cat-details-name">{name}</span>
+                        <span className="bsd-tm-cat-details-relay">{tag.relay || COPY.noRelay}</span>
+                        {i > 0 && <span className="bsd-tm-cat-details-tag">{COPY.backup}</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -425,9 +497,11 @@ function CategoryCards({ phase, map, localPubkey, edit, plan, save, onSave }) {
   const settled = phase === 'found' || phase === 'none';
   const event = phase === 'found' ? map.event : null;
   const assistants = useMemo(() => categoryAssistants(event), [event]);
+  const entries = useMemo(() => categoryEntries(event), [event]);
+  // Every Assistant a card or its details panel names, backups included (treasure-map-card-details #2).
   const wantedKey = useMemo(
-    () => [...new Set([...assistants.scores, ...assistants.lists, ...assistants.concepts])].join(','),
-    [assistants],
+    () => [...new Set(Object.values(entries).flat().flatMap((entry) => entry.tags.map((tag) => tag.pubkey)))].join(','),
+    [entries],
   );
   const [names, setNames] = useState({ key: null, profiles: {} });
   // Each list's button, for focus after an Undo, which removes the focused button. Focus moves after the render, so
@@ -454,6 +528,7 @@ function CategoryCards({ phase, map, localPubkey, edit, plan, save, onSave }) {
   const editing = edit.editing && Boolean(draft);
   const profiles = useMemo(() => ({ ...edit.assistants.profiles, ...names.profiles }), [edit.assistants.profiles, names.profiles]);
   const draftAssistants = useMemo(() => (draft ? categoryAssistants(draft) : null), [draft]);
+  const draftEntries = useMemo(() => (draft ? categoryEntries(draft) : null), [draft]);
 
   // The first lookup holds the cards back, so they appear once, already named. After that (a save, story 5), a Map
   // whose Assistants were all looked up before, or are the person's Assistants, shows at once while the lookup runs.
@@ -537,11 +612,12 @@ function CategoryCards({ phase, map, localPubkey, edit, plan, save, onSave }) {
         )}
         <ul className="bsd-tm-cat-list">
           {cards.map((card, i) => {
-            if (!editing) return <CategoryCard key={card.key} card={card} />;
+            const details = { entries: (editing ? draftEntries : entries)[card.key], profiles, localPubkey };
+            if (!editing) return <CategoryCard key={card.key} card={card} {...details} />;
             const current = currentOf(published[i]);
             const chosen = pending[card.key];
             return (
-              <CategoryCard key={card.key} card={card} pending={Boolean(chosen)}>
+              <CategoryCard key={card.key} card={card} pending={Boolean(chosen)} {...details}>
                 <div className="bsd-tm-edit-cardrow">
                   <Picker
                     id={`bsd-tm-edit-list-${card.key}`}

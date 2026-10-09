@@ -44,6 +44,15 @@ export const COPY = {
   // The pill on a card with no Assistant (treasure-map-card-details #1): /assistant's words.
   needsAttention: ASSISTANT_COPY.needsAttention,
   needsAttentionSrPrefix: ASSISTANT_COPY.needsAttentionSrPrefix,
+  // Each card's details panel (treasure-map-card-details #2).
+  showDetails: 'Show details',
+  hideDetails: 'Hide details',
+  detailsLabel: (title) => `${title} details`,
+  backup: 'Backup',
+  individual: 'Individually assigned',
+  everythingElse: 'Everything else',
+  noRelay: 'No relay',
+  noEntries: 'No entries yet.',
   // The Mixed line, around its link to the Advanced page.
   mixedLineBefore: 'Mixed assignments can be reviewed on the ',
   mixedLineLink: 'Advanced page',
@@ -211,6 +220,39 @@ function shadowed(category, entry, norms) {
 }
 
 /**
+ * The entries behind each card (treasure-map-card-details #2): the card rule's one walk, keeping everything the cards
+ * sum up, so a card and its details panel can't disagree. Per category, each key that counts, in the order the Map
+ * first names it with a valid delegate: `key` (that tag's spelling), `norm`, and `tags`, every tag for the key with a
+ * valid delegate, in Map order, as { pubkey (lowercased), relay (as written, else '') }. A key's first tag is its
+ * Preferred Assistant and the rest are its backups. What counts is categoryAssistants' rule below. Never throws.
+ * @returns {{ scores: Array, lists: Array, concepts: Array }}
+ */
+export function categoryEntries(event) {
+  const tags = event && typeof event === 'object' && Array.isArray(event.tags) ? event.tags : [];
+  const found = [];
+  for (const tag of tags) {
+    const entry = entryOf(tag);
+    if (entry) found.push({ entry, relay: typeof tag[2] === 'string' ? tag[2] : '' });
+  }
+  const norms = new Set(found.map(({ entry }) => entry.norm));
+  const out = { scores: [], lists: [], concepts: [] };
+  for (const category of CATEGORIES) {
+    const byNorm = new Map();
+    for (const { entry, relay } of found) {
+      if (!appliesTo(category, entry) || shadowed(category, entry, norms)) continue;
+      let group = byNorm.get(entry.norm);
+      if (!group) {
+        group = { key: entry.key, norm: entry.norm, tags: [] };
+        byNorm.set(entry.norm, group);
+        out[category].push(group);
+      }
+      group.tags.push({ pubkey: entry.pubkey, relay });
+    }
+  }
+  return out;
+}
+
+/**
  * Which Assistants the Map gives each category (AC-2): every Assistant it would ask for some insight there. Per key,
  * however it's spelled, the first valid delegate counts (later ones are alternates); a `*` entry that a more specific
  * entry covers completely doesn't count, and a `*:…` entry that names anything after the `*` never counts (ADR
@@ -219,17 +261,12 @@ function shadowed(category, entry, norms) {
  * @returns {{ scores: string[], lists: string[], concepts: string[] }}
  */
 export function categoryAssistants(event) {
-  const tags = event && typeof event === 'object' && Array.isArray(event.tags) ? event.tags : [];
-  const entries = tags.map(entryOf).filter(Boolean);
-  const norms = new Set(entries.map((e) => e.norm));
+  // Each key's first delegate, from the one walk (treasure-map-card-details #2).
+  const entries = categoryEntries(event);
   const out = { scores: [], lists: [], concepts: [] };
   for (const category of CATEGORIES) {
-    const seenKeys = new Set();
-    for (const entry of entries) {
-      if (seenKeys.has(entry.norm) || !appliesTo(category, entry)) continue;
-      if (shadowed(category, entry, norms)) continue;
-      seenKeys.add(entry.norm);
-      if (!out[category].includes(entry.pubkey)) out[category].push(entry.pubkey);
+    for (const { tags } of entries[category]) {
+      if (!out[category].includes(tags[0].pubkey)) out[category].push(tags[0].pubkey);
     }
   }
   return out;
