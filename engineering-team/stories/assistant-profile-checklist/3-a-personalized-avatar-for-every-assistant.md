@@ -1,6 +1,6 @@
 # Story 3: A personalized avatar for every Assistant, and the avatar panel's fix
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-profile-checklist`
@@ -91,8 +91,30 @@ ADR ta-avatar/0003). No firmware reinstall.
    per-person quota in this story; the Architect weighs a simple rate limit and records it in the ADR.*
    *Settled 2026-10-09 at approval: as recommended.*
 
+## Deviations
+
+*The Implementer's log (Phase 4, 2026-10-09): judgment calls too small for an ADR amendment, for the book-close audit.*
+
+1. **On a dev box the "no public address" line is said once.** The avatar panel's own line already says it, so the
+   preview does not repeat it when the store comes back with no URL; "Not now" stays, so the preview can be dismissed.
+   The browser suite's AV5 (a strict single match) found the repeat.
+2. **The gate lowercases the session pubkey it names as `req.avatarPerson`**, as the attention handler does, and a
+   key-store failure answers 500 — still a refusal (AC-6), but not mistaken for "no Assistant here".
+3. **The daily limit is asked inside `storeCompositeAvatar`**, through an `allowNew` hook called only when the name is
+   new, so bytes already stored are never counted. A store that is admitted and then fails to write still counts —
+   the conservative side of a 2 MB-per-file cap.
+4. **A local kind 0 with no picture means no picture**: the profile relays are asked only when the local relay holds no
+   kind 0 by the person (AC-1, "when it holds none").
+5. **The editor's no-picture line sits in the guarded branch itself**, not a module constant, so the source guard (W20)
+   can see that only the proxy's `no-picture` answer shows it.
+6. **Tester-lane corrections after the first run against the implementation**, each committed on its own as `test:`:
+   ac4ffbc — N2 loaded the module afresh per upload (an empty limit every time), and stamped-composite S3 looked for a
+   literal scheme check that now lives in `guardedFetch`; ef81af6 — my-assistant-page A1 (the renamed proxy), W16 (the
+   shared flow's no-public-address return) and W20 (story 3's line behind `stamped.reason`), which the Phase 3 re-aim
+   list missed.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/assistant-profile-checklist/0003-the-stamped-avatar-for-the-signed-in-persons-own-assistant.md`
+- Test plan: `engineering-team/stories/assistant-profile-checklist/3-a-personalized-avatar-for-every-assistant.test-plan.md`
+- Review: `engineering-team/reviews/assistant-profile-checklist/3-a-personalized-avatar-for-every-assistant.md`

@@ -22,5 +22,12 @@ After `git fetch --unshallow origin`, the same tree lints clean (0 violations) a
 `scripts/session-start.sh` unshallows (or deepens until the latest harness commit has its parents) before linting. The
 first is cheaper and needs no network.
 
+**Occurrence 2026-10-09 (book `assistant-outbox-relays`).** L10 named `commit:f932e16`, again the clone's boundary
+(listed in `.git/shallow`). All three of the book's reviews recorded it as "a pre-existing L10 violation (another
+session's docs commit)", and that reading travelled into the promotion status ("PR #829 blocked by … the pre-existing
+harness-lint L10"). At the book close, `git fetch --unshallow origin` made `bash scripts/harness-lint.sh` report
+"clean (0 violations)". CI checks out with `fetch-depth: 0`, so it should not see it. The fix shape above would have kept
+a reviewer from misdiagnosing it.
+
 **Pointer:** this session's gate run `20261007T141651Z-14068-c873` (`tme1-phase3`): FAIL in `harness-lint` and the new
 suite; after unshallowing, `bash scripts/harness-lint.sh` reports clean.

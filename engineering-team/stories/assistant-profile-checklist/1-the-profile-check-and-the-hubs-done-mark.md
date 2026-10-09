@@ -1,6 +1,6 @@
 # Story 1: The profile check — which items of your Assistant's profile need attention — and the hub's Done mark
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-profile-checklist`
@@ -134,8 +134,20 @@ The profile is a kind 0, the NIP-05 a `.well-known` listing and the avatar a fil
 2. **Does "visible" need every outside relay, or one?** This draft says one is enough, and the panel says how
    many have it (story 2). *Recommended: one.* *Settled 2026-10-09 at approval: one.*
 
+## Deviations
+
+*The Implementer's log (Phase 4, 2026-10-09): judgment calls too small for an ADR amendment, for the book-close audit.*
+
+1. **`hasProfile` is `null` when this instance's relay could not be read** (`profile-unreadable`): neither "has a profile"
+   nor "has none", so the page never offers "Publish the default profile" on a read failure.
+2. **A NIP-05 lookup that answers `malformed` reads as `other-domain`.** The host is checked first, so it can only happen
+   for an identifier the lookup itself refuses; the panel then says the address is not on this instance's domain.
+3. **One Tester-lane correction after the first run against the implementation**, committed on its own as `test:`
+   (eea477f): S2 sliced the OpenAPI entry from a line-start pattern that swallowed the blank line before it, so it read
+   an empty entry; it now anchors on the route's own line.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/assistant-profile-checklist/0001-the-profile-check-joins-the-one-attention-answer.md`
+- Test plan: `engineering-team/stories/assistant-profile-checklist/1-the-profile-check-and-the-hubs-done-mark.test-plan.md`
+- Review: `engineering-team/reviews/assistant-profile-checklist/1-the-profile-check-and-the-hubs-done-mark.md`

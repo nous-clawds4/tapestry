@@ -15,19 +15,21 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Redis patches first (before strfry clone, for Docker layer caching)
+# Copy strfry patches first (before strfry clone, for Docker layer caching)
 COPY patches/strfry-redis/ /tmp/strfry-redis-patches/
+COPY patches/strfry-router/ /tmp/strfry-router-patches/
 
-# Compile strfry from source with Redis integration.
-# Pinned to a specific tag so the Redis patch is applied against a known
-# upstream signature. Bumping this requires verifying patches/strfry-redis/
-# still applies cleanly (the apply-patches.sh validation will fail loudly
-# at build time if a sed pattern stops matching).
+# Compile strfry from source with Redis integration and the router limit patch.
+# Pinned to a specific tag so the patches are applied against a known
+# upstream signature. Bumping this requires verifying that patches/strfry-redis/
+# and patches/strfry-router/ still apply cleanly (each apply-patches.sh fails
+# the build loudly if a sed pattern stops matching).
 ARG STRFRY_REF=1.1.0
 RUN git clone --branch "$STRFRY_REF" --depth 1 https://github.com/hoytech/strfry.git /usr/local/src/strfry \
     && cd /usr/local/src/strfry \
     && git submodule update --init \
     && bash /tmp/strfry-redis-patches/apply-patches.sh /usr/local/src/strfry \
+    && bash /tmp/strfry-router-patches/apply-patches.sh /usr/local/src/strfry \
     && make setup-golpe \
     && make -j$(nproc) \
     && cp strfry /usr/local/bin/strfry

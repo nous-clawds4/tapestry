@@ -1,7 +1,7 @@
 # Story 1: Changing streams doesn't interrupt the other streams
 
 **Epic:** relay-stream-gaps
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Bug
 
@@ -88,5 +88,5 @@ being told it worked.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-stream-gaps/0001-reload-router-config-in-place.md`
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- Test plan: `engineering-team/stories/relay-stream-gaps/1-stream-changes-without-router-restart.test-plan.md`
+- Review: `engineering-team/reviews/relay-stream-gaps/1-stream-changes-without-router-restart.md`

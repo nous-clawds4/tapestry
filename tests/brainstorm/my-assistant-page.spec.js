@@ -27,7 +27,8 @@ const zlib = require('zlib');
  *   B12 — an Admin with no assistant creates one on the page, reached from the menu,
  *         and the app knows about it at once.                                          [AC3]
  *   B13 — an Owner whose TA key is missing gets the Owner's words, and no create.      [AC3, AC4]
- *   B14 — only the Owner is offered the badged-avatar generator.                        [AC4]
+ *   B14 — everyone with an assistant is offered the badged-avatar generator (re-aimed by
+ *         assistant-profile-checklist #3: each stamps their own picture).            [AC4]
  *   B15 — a refused badged-avatar request says what the server said.                   [AC4]
  *   B16 — a picture host that fails says why, in the server's words.                   [AC4]
  *   B17 — an Owner with genuinely no picture is told so, and offered the branded image. [AC4]
@@ -159,7 +160,8 @@ async function mock(page, { who = null, hasProfile = false, ownerAvatar = 'ok' }
     if (viewer) viewer.assistantPubkey = NEW_ADMIN_ASSISTANT;
     return r.fulfill(json({ success: true, pubkey: NEW_ADMIN_ASSISTANT, npub: 'npub1fixture' }));
   });
-  await page.route('**/api/assistant/owner-avatar', (r) => (ownerAvatar === 'ok'
+  // The proxy's route since assistant-profile-checklist #3 (ADR 0003 sub-decision 2): the signed-in person's own picture.
+  await page.route('**/api/assistant/my-picture', (r) => (ownerAvatar === 'ok'
     ? r.fulfill({ status: 200, contentType: 'image/png', body: solidPng(64, 64, [255, 255, 255]) })
     : r.fulfill(json(ownerAvatar.body, ownerAvatar.status))));
   await page.route('**/ta-avatar.png', (r) => r.fulfill({ status: 200, contentType: 'image/png', body: solidPng(64, 64, [0x95, 0x46, 0xed]) }));
@@ -426,9 +428,9 @@ test.describe('One place — the My Assistant page (assistant-profile #4)', () =
       'AC4: provisioning cannot restore the instance TA — a new key would go to a slot nothing reads').toHaveCount(0);
   });
 
-  /* ───────── B14 — AC4: the generator is the Owner's ───────── */
-  test('B14: only the Owner is offered the badged-avatar generator — not an Admin, whose assistant would wear the Owner\'s face, and not a Customer, whom the server refuses', async ({ page }) => {
-    for (const [who, want] of [[OWNER_USER, 1], [ADMIN_USER, 0], [CUSTOMER_USER, 0]]) {
+  /* ───────── B14 — the generator is everyone's (re-aimed by assistant-profile-checklist #3, ADR 0003 sub-decision 8) ───────── */
+  test('B14: the Owner, an Admin and a Customer are each offered the badged-avatar generator — each stamps their own picture for their own assistant', async ({ page }) => {
+    for (const [who, want] of [[OWNER_USER, 1], [ADMIN_USER, 1], [CUSTOMER_USER, 1]]) {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await mock(page, { who });
       await openEditorOnPage(page);
@@ -442,7 +444,7 @@ test.describe('One place — the My Assistant page (assistant-profile #4)', () =
       { status: 403, body: { success: false, error: 'Owner authentication required' } }, 'Owner authentication required', /no profile picture/i],
     ['B16', 'when the Owner\'s picture cannot be fetched, the page says why, in the server\'s words — not "you have no profile picture"',
       { status: 404, body: { success: false, error: 'The owner picture host answered 500' } }, 'The owner picture host answered 500', /no profile picture/i],
-    ['B17', 'an Owner who really has no profile picture is told exactly that, and offered the branded image instead',
+    ['B17', 'an Owner who really has no profile picture is told exactly that (story 3\'s words since assistant-profile-checklist #3), and offered the branded image instead',
       { status: 404, body: { success: false, code: 'no-picture', error: 'The owner has no profile picture' } }, null, null],
   ]) {
     test(`${id}: ${title}`, async ({ page }) => {
@@ -453,7 +455,7 @@ test.describe('One place — the My Assistant page (assistant-profile #4)', () =
       const text = await editorText(page);
       if (expectText) expect(text, `AC4: "any failure says what actually happened" — the server said "${expectText}"`).toContain(expectText);
       if (forbid) expect(text, 'AC4: never "you have no profile picture" for this failure').not.toMatch(forbid);
-      if (!expectText) expect(text, 'the proxy\'s no-picture answer: the Owner has no picture to stamp').toMatch(/no profile picture/i);
+      if (!expectText) expect(text, 'the proxy\'s no-picture answer, in assistant-profile-checklist #3 § Copy\'s words').toContain('Your nostr profile has no picture to stamp yet. Add one in your nostr app, then come back.');
     });
   }
 });

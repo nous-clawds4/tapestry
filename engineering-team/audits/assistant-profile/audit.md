@@ -206,6 +206,9 @@ none of that is this book's. **Changed from outside this book:** PR #722 (`navig
       carry-forward. (§4 #15)
 - [ ] **10. A kind 10002 relay list for assistants; unifying in-app display fallbacks for assistants with no
       profile.** (epic Deferred)
+      *2026-10-09 (book `assistant-outbox-relays`, closed 2026-10-09, on staging, production pending): the relay-list
+      half is built. A person edits their Assistant's outbox relays on `/assistant/outbox-relays` and has it publish a
+      NIP-65 kind 10002 on a press (no creation-time publish). The display-fallback half is still open.*
 - [ ] **11. The legacy pages** (`/legacy/nip85.html`, `/legacy/customer.html`) — remove them, or keep them
       read-only; and the April build under `public/kg/` (OPEN.md #68). (§4 #18)
 - [ ] **12. The about text's kind 10040 sentence** can be false for an owner with assistants on several

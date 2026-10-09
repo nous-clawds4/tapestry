@@ -27,6 +27,8 @@ export function relayLine(row) {
     case 'unreachable': return reason ? `unreachable: ${reason}` : 'unreachable';
     case 'timeout': return reason ? `timed out: ${reason}` : 'timed out';
     case 'skipped': return `skipped (${LOCAL_ONLY_REASON})`;
+    // A relay the server would not connect to (assistant-outbox-relays ADR 0003 Amendment 1).
+    case 'not-sent': return reason ? `not sent: ${reason}` : 'not sent';
     default: return String(row && row.status);
   }
 }
