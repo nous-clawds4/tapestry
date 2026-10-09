@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 const X = require('../../test/helpers/assistantManagementFixtures');
 const T = require('../../test/helpers/identificationTagsFixtures');
 const P = require('../../test/helpers/profileChecklistFixtures');
+const TC = require('../../test/helpers/trustedContentFixtures');
 
 /**
  * assistant-identification-tags #1: the one answer, and the hub's first real mark — the browser class.
@@ -16,8 +17,9 @@ const P = require('../../test/helpers/profileChecklistFixtures');
  *        attention" on the hub, and 9 in the pill.                                                  [AC-5]
  *   B2 — a pending answer: eleven marks, "11 actions", 10 in the pill.                              [AC-5]
  *   B3 — an unfinished answer: the hub marks eleven and says "11 actions"; the pill says 9.         [AC-5]
- *   B4 — the fetch fails: the hub marks eleven; the pill says 8 (the placeholders; re-aimed by
- *        assistant-profile-checklist #1, which checks the profile too).                               [AC-5]
+ *   B4 — the fetch fails: the hub marks eleven; the pill says 5 (the placeholders; re-aimed by
+ *        assistant-profile-checklist #1, which checks the profile too, and by
+ *        assistant-trusted-content-status #1, which checks Scores, Lists and Concepts).              [AC-5]
  *   Re-aimed by assistant-outbox-relays #1: these answers carry no outbox-relays key, so the hub marks the Outbox Relays
  *   card (marked until proven done) and the pill does not count it (counted only from a finished, missing answer).
  *   B5 — while the answer is on its way, no pill (setup done); the pill then shows with the
@@ -64,8 +66,10 @@ const cardOf = (page, title) => page.locator('.bs-assistant-hub-card').filter({ 
  * pins the profile's own answers.
  */
 function withPendingProfile(answer) {
-  if (!answer || typeof answer !== 'object' || !answer.actions || answer.actions.profile) return answer;
-  return { ...answer, actions: { ...answer.actions, profile: P.PROFILE_PENDING } };
+  // Re-aimed by assistant-trusted-content-status #1: Scores, Lists and Concepts are checked too; each answer carries them
+  // pending (no Map), which marks and counts them as the placeholders were, so the counts below stay as they were.
+  if (!answer || typeof answer !== 'object' || !answer.actions || answer.actions.profile) return TC.withTrio(answer);
+  return TC.withTrio({ ...answer, actions: { ...answer.actions, profile: P.PROFILE_PENDING } });
 }
 
 /** Mock every route. `attention` is the /api/assistant/attention answer: an object, 'hang', 'error', or { delayMs, body }. */
@@ -186,11 +190,11 @@ test.describe('The one answer, and the hub\'s first real mark (assistant-identif
     expect(await pillCount(page), 'the pill counts a checked action only from a finished, missing answer').toBe(9);
   });
 
-  test('B4: the fetch fails — the hub marks eleven; the pill counts only the eight placeholders (AC-5; re-aimed by assistant-profile-checklist #1 and assistant-outbox-relays #1)', async ({ page }) => {
+  test('B4: the fetch fails — the hub marks eleven; the pill counts only the five placeholders (AC-5; re-aimed by assistant-profile-checklist #1, assistant-outbox-relays #1 and assistant-trusted-content-status #1: the profile, Outbox Relays, Scores, Lists and Concepts are checked too)', async ({ page }) => {
     await mock(page, { attention: 'error' });
     const hub = await hubState(page);
     expect(hub).toEqual({ marks: 11, count: 11, idMarked: true });
-    expect(await pillCount(page)).toBe(8);
+    expect(await pillCount(page)).toBe(5);
   });
 
   test('B5: while the answer is on its way no pill shows (setup done); it then shows with the answer\'s count, which never changes under the viewer (ADR 0001 sub-decision 8)', async ({ page }) => {

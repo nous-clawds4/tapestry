@@ -219,10 +219,13 @@ test('W1: COPY holds the panel\'s words — Show details, Hide details, "<Title>
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 test('S1: categoryAssistants is a projection of categoryEntries (one walk of the card rule), and keeps its JSDoc', () => {
-  const src = codeOnly(safeRead(VIEW_MODEL));
-  const raw = safeRead(VIEW_MODEL);
+  // Re-aimed by assistant-trusted-content-status #1 (ADR 0001 sub-decision 1): the rule moved to its one home in src/lib;
+  // the view model re-exports it.
+  const RULE_MODULE = path.join(__dirname, '..', 'src/lib/treasureMapCategories.mjs');
+  const src = codeOnly(safeRead(RULE_MODULE));
+  const raw = safeRead(RULE_MODULE);
   const start = src.indexOf('export function categoryAssistants(');
-  assert(start >= 0, `${rel(VIEW_MODEL)} has no categoryAssistants`);
+  assert(start >= 0, `${rel(RULE_MODULE)} has no categoryAssistants`);
   const body = src.slice(start, src.indexOf(NL + '}', start));
   const wrong = [];
   if (!/\bcategoryEntries\s*\(/.test(body)) wrong.push('categoryAssistants doesn\'t call categoryEntries');
@@ -230,7 +233,7 @@ test('S1: categoryAssistants is a projection of categoryEntries (one walk of the
   if (!/that names anything after the `\*`[\s\S]{0,600}\*\/\s*export function categoryAssistants\(/.test(raw)) {
     wrong.push('the JSDoc directly above categoryAssistants lost "that names anything after the `*`" (treasure-map-edit-mode W4)');
   }
-  assert(wrong.length === 0, `${rel(VIEW_MODEL)}: ${wrong.join('; ')}`);
+  assert(wrong.length === 0, `${rel(RULE_MODULE)}: ${wrong.join('; ')}`);
 });
 
 test('S2: the page reads categoryEntries — from the published Map, and from the draft in Edit mode (AC-5)', () => {

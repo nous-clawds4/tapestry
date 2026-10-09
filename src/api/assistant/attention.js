@@ -32,6 +32,12 @@
  * to (lookupNewestReplaceable below; the check itself is src/api/assistant/outboxRelays.js). The checks run side by side,
  * and a failing outbox check becomes a `check-failed` action instead of failing the answer.
  *
+ * Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001): `trusted-assertions`, `trusted-lists` and
+ * `dlists`, each done when the viewer's newest Treasure Map gives that category to their own assistant here, alone or
+ * beside others, read through the Treasure Map page's category rule (src/api/assistant/trustedContent.js). Otherwise each
+ * is pending with a reason (`no-map`, `not-assigned`, `other-assistants-only`), or unfinished with /setup's lookup
+ * reason. It runs beside the others and is isolated the same way: if it throws, the three answer `check-failed`.
+ *
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored anywhere.
  *
  *   no session          → { success: true, signedIn: false }
@@ -74,6 +80,11 @@ function defaultDeps() {
     getConfiguredPublishRelays: () => require('./profilePublish').getConfiguredPublishRelays(),
     checkOutboxRelays: (input, d) => require('./outboxRelays').checkOutboxRelays(input, d),
     checkProfile: (input, deps) => require('./profileChecklist').checkProfile(input, deps),
+    // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001): the server's Map relays, the category rule,
+    // and the check itself, which tests replace.
+    mapDefaultRelays: () => require('../export/nip85/currentMap').defaultRelays(),
+    loadCategoryRule: () => require('./trustedContent').loadCategoryRule(),
+    checkTrustedContent: (input, d) => require('./trustedContent').checkTrustedContent(input, d),
   };
 }
 
@@ -258,6 +269,22 @@ async function checkIdentificationTags({ viewer, assistantPubkey }, deps) {
   return evaluateIdentificationTags({ entries });
 }
 
+/**
+ * The three Scores/Lists/Concepts actions from their settled check: its answer, or — when it threw — each one
+ * unfinished with reason `check-failed`, logged (ADR assistant-trusted-content-status/0001 sub-decision 6).
+ */
+function trustedContentActions(settled) {
+  if (settled.status === 'fulfilled') return settled.value;
+  const err = settled.reason;
+  console.error('[assistant/attention] the Scores/Lists/Concepts check failed:', err && err.message ? err.message : err);
+  const { TRUSTED_CONTENT_ACTIONS } = require('./trustedContent');
+  const out = {};
+  for (const [key, category] of Object.entries(TRUSTED_CONTENT_ACTIONS)) {
+    out[key] = { category, finished: false, done: false, pending: false, reason: 'check-failed', source: null };
+  }
+  return out;
+}
+
 async function handleAssistantAttention(req, res, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const session = req && req.session;
@@ -271,12 +298,13 @@ async function handleAssistantAttention(req, res, deps = {}) {
     const assistantPubkey = typeof answered === 'string' && HEX64.test(answered) ? answered.toLowerCase() : null;
     if (!assistantPubkey) return res.json({ success: true, signedIn: true, hasAssistant: false, actions: {} });
     // Side by side; one check's failure is its own (assistant-outbox-relays ADR 0001 sub-decision 5;
-    // assistant-profile-checklist ADR 0001 sub-decision 6). A failing identification-tags check still fails the answer,
-    // as it always has.
-    const [identificationTags, outboxRelays, profile] = await Promise.allSettled([
+    // assistant-profile-checklist ADR 0001 sub-decision 6; assistant-trusted-content-status ADR 0001 sub-decision 6). A
+    // failing identification-tags check still fails the answer, as it always has.
+    const [identificationTags, outboxRelays, profile, trustedContent] = await Promise.allSettled([
       checkIdentificationTags({ viewer, assistantPubkey }, d),
       Promise.resolve().then(() => d.checkOutboxRelays({ assistantPubkey }, d)),
       Promise.resolve().then(() => d.checkProfile({ assistantPubkey }, d)),
+      Promise.resolve().then(() => d.checkTrustedContent({ viewer, assistantPubkey }, d)),
     ]);
     if (identificationTags.status === 'rejected') throw identificationTags.reason;
     if (outboxRelays.status === 'rejected') {
@@ -295,6 +323,7 @@ async function handleAssistantAttention(req, res, deps = {}) {
         [IDENTIFICATION_TAGS]: identificationTags.value,
         [OUTBOX_RELAYS]: outboxRelays.status === 'fulfilled' ? outboxRelays.value : { ...OUTBOX_CHECK_FAILED },
         [PROFILE]: profile.status === 'fulfilled' ? profile.value : { ...PROFILE_CHECK_FAILED },
+        ...trustedContentActions(trustedContent),
       },
     });
   } catch (err) {

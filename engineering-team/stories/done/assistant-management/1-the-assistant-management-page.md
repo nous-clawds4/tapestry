@@ -107,6 +107,11 @@ each part will happen. For now the page checks nothing, and every action shows a
 
 ## Copy
 
+> **2026-10-09 — moved on (assistant-trusted-content-status #1):** the first three Publication of Trusted Content
+> actions are now **Scores**, **Lists** and **Concepts**, with alert criteria and a link to `/treasure-map`; their words
+> live in `engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Copy.
+> Their descriptions and NIP links below are unchanged.
+
 New unless marked **owner** (the ask, in the book). The owner's words are kept as typed, with these
 display fixes:
 

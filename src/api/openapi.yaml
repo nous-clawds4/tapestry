@@ -319,7 +319,13 @@ paths:
         be completed (`reason`). The action is `done` when every tagging is finished and present, and `pending`
         (what the Assistant Alert counts) when a finished check found one missing. Each row's `definition` says
         whether the tag's definition was found at its own author's address (Nous for My Tapestry Assistant, Nous'
-        Tapestry Assistant for My Tapestry Owner). Without a session it answers
+        Tapestry Assistant for My Tapestry Owner). Scores, Lists and Concepts are checked too, under their action keys
+        `trusted-assertions`, `trusted-lists` and `dlists` (assistant-trusted-content-status ADR 0001): each is `done`
+        when the viewer's newest Treasure Map (kind 10040, local relay first, then the outside relays a Map is
+        published to) gives that `category` (`scores`, `lists`, `concepts`) to the viewer's own assistant here, alone
+        or beside others, read through the Treasure Map page's category rule; otherwise `pending` with `reason`
+        `no-map`, `not-assigned` or `other-assistants-only`, or unfinished with the lookup's `reason` (`check-failed`
+        when the check itself failed). `source` says where the Map was found. Without a session it answers
         `{ success: true, signedIn: false }`; with a session but no assistant here, `hasAssistant: false`.
       responses:
         '200':
@@ -343,8 +349,9 @@ paths:
                         finished: { type: boolean }
                         done: { type: boolean }
                         pending: { type: boolean }
-                        reason: { type: string, nullable: true, description: 'why the check did not finish (outbox-relays), or check-failed (any action)' }
-                        source: { type: string, nullable: true, description: 'outbox-relays: local or relay' }
+                        category: { type: string, enum: [scores, lists, concepts], description: 'trusted-assertions, trusted-lists, dlists: the Treasure Map category' }
+                        reason: { type: string, nullable: true, description: 'why the check did not finish (outbox-relays), or check-failed (any action); trusted-assertions, trusted-lists, dlists: why not done' }
+                        source: { type: string, nullable: true, description: 'outbox-relays: local or relay; trusted-assertions, trusted-lists, dlists: where the Map was found (local, relay, or null)' }
                         createdAt: { type: integer, nullable: true, description: 'outbox-relays: the relay list created_at' }
                         outbox: { type: array, items: { type: string }, description: 'outbox-relays: the outbox relays, in the list order' }
                         inboxOnlyCount: { type: integer, description: 'outbox-relays: how many read-only entries the list names' }
