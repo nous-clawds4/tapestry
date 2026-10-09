@@ -239,3 +239,36 @@ and the action's description. At 375 px wide, there is no horizontal scroll.
 - The avatar's fix (ADR 0003).
 - Changing the editor, or the one writer.
 - A "fix everything" button.
+
+## Amendment 1 — a press publishes only when the read agrees with the panel (2026-10-09, review round 1)
+
+**Why.** Round 1's review (story 2 B1, story 3 B1) found that sub-decision 6, step 2, trusts the press-time
+`GET /api/assistant/status` read's `hasProfile` to choose each fix's base. That read resolves the profile with the
+non-strict local scan (`src/api/assistant/profileState.js`): a failed or timed-out `strfry scan` reads as "no local
+profile", and for an `only-here` profile the publish relays hold nothing either. The read then answers
+`hasProfile: false`, sub-decision 5 takes `status.defaults` as the base, and a press of any panel fix posts the default
+name, About, picture, banner and lightning address. The one writer replaces the kind 0 here and on every outside relay,
+and that cannot be undone. It breaks story 2 AC-4 ("a fix never changes a field its item is not about") and story 3
+AC-3. ADR 0001 sub-decision 2 made the check's own scan strict for this very reason; the press path is the second read
+and needs the same care.
+
+**Decision.** Sub-decision 6, step 2, gains a second stop. After a successful status read and before
+`applyProfileFix`, the press goes on only when the read agrees with what the page offered:
+
+- every fix except `publish-default` needs `status.hasProfile === true`, since those panels are offered only for a
+  profile the check read;
+- `publish-default` needs `status.hasProfile === false`, since the notice offers it only when the check found none.
+
+Anything else (`false`, `true`, or a missing field) stops the press with the same result as a failed read: nothing is
+posted, the panel (or the notice) shows "This instance did not answer; nothing was published.", `fixing` is cleared and
+`attention.refresh()` runs (step 6). If the profile really has gone, the refreshed answer shows the no-profile notice,
+and its **Publish the default profile** is the way back.
+
+Sub-decision 5 is unchanged: `applyProfileFix` stays pure, and its default base remains for callers that have already
+established there is no profile. The guard lives in the page's `runFix`, the one place a press reaches the writer, so
+story 3's `set-picture` publish is covered by the same line. The result line is the existing approved words; a more
+specific sentence would be a story 2 § Copy change for the Product Owner.
+
+**Pinned by** a browser case in `tests/brainstorm/assistant-profile-checklist-page.spec.js`: **Set website** meets a
+status answer with `hasProfile: false`, posts nothing to `/api/assistant/publish-profile`, shows the line on the
+website panel, and asks for the attention answer again. Also **Publish the default profile** meets `hasProfile: true`.
