@@ -55,6 +55,10 @@ the save flow's signer, relay and publish mocks). Shared words and answer shapes
   assistant-profile-checklist #1 have both landed.
 - `tests/brainstorm/treasure-map-save.spec.js`: `setup()` takes `attention` (answers in turn); without it the route answers
   as before.
+- *Added at Phase 4 (Tester lane, its own commit):* `test/treasure-map-edit-mode.test.js` W4 and
+  `test/treasure-map-card-details.test.js` S1 read `categoryAssistants`' JSDoc and body from the *source* of
+  `manageTreasureMap.js`; they now read `src/lib/treasureMapCategories.mjs`, where the rule moved. The ADR's § For the
+  Tester named this class of pin; Phase 3 missed these two.
 
 ## Test infrastructure
 
