@@ -639,7 +639,7 @@ function filesUnder(dir, re, skip = []) {
   return out;
 }
 
-test('W5: in the app, one thing posts to /api/assistant/publish-profile — the My Assistant page\'s editor; nothing else under ui/src or public/ does (the April build in public/kg aside: OPEN.md #68, and the server refuses its kind 0)', () => {
+test('W5: in the app, two pages post to /api/assistant/publish-profile — the My Assistant page\'s editor and, since assistant-profile-checklist #2 (ADR 0002), the checklist\'s one-click fixes; nothing else under ui/src or public/ does (the April build in public/kg aside: OPEN.md #68, and the server refuses its kind 0)', () => {
   const candidates = [
     ...filesUnder(UI_SRC, /\.(jsx?|mjs)$/),
     ...filesUnder(PUBLIC_DIR, /\.(html?|jsx?|mjs)$/, [path.join(PUBLIC_DIR, 'kg')]),
@@ -651,8 +651,9 @@ test('W5: in the app, one thing posts to /api/assistant/publish-profile — the 
     })
     .map(rel)
     .sort();
-  assert(j(posters) === j([rel(EDITOR)]),
-    `AC1 + AC2 + AC3 — one writer: expected only [${rel(EDITOR)}] to post publish-profile — got ${j(posters)}`);
+  const allowed = [rel(EDITOR), 'ui/src/pages/assistant/ProfileChecklist.jsx'].sort();
+  assert(j(posters) === j(allowed),
+    `AC1 + AC2 + AC3 — one writer: expected only ${j(allowed)} to post publish-profile — got ${j(posters)}`);
 });
 
 test('W6: the one writer sends what the server now requires — the signed-in person\'s own pubkey, and the form as content (guard)', () => {
