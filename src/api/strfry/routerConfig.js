@@ -58,8 +58,10 @@ const STRING_ARRAY_FILTER_KEYS = ['ids', 'authors'];
  * of the router's legal filter vocabulary; everything else is dropped.
  * Non-object input (null, arrays, strings, …) → undefined, so the stream
  * persists with no filter and generateConfig omits the line. Empty kinds []
- * is preserved — today's UI emits {"kinds":[],"limit":5} and the deployed
- * parser accepts it (byte-compat). Pure: never mutates its input.
+ * is preserved — the UI emits {"kinds":[],"limit":500} and the deployed
+ * parser accepts it (byte-compat). A negative `limit` is dropped: the image's
+ * patched router sends the limit upstream on connect (ADR relay-stream-gaps/0002),
+ * so it must be 0 (live only) or more. Pure: never mutates its input.
  */
 function sanitizeStreamFilter(filter) {
   if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return undefined;
@@ -74,7 +76,7 @@ function sanitizeStreamFilter(filter) {
         if (values.length > 0) out[key] = values;
       }
     } else if (SCALAR_INT_FILTER_KEYS.includes(key)) {
-      if (Number.isInteger(val)) out[key] = val;
+      if (Number.isInteger(val) && (key !== 'limit' || val >= 0)) out[key] = val;
     } else if (TAG_FILTER_KEY_RE.test(key)) {
       if (Array.isArray(val)) {
         const values = val.filter(v => typeof v === 'string' && v.length > 0);
