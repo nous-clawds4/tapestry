@@ -121,9 +121,7 @@ U*, A1, W1, S* = `test/treasure-map-card-details.test.js` (Node: `categoryEntrie
 specs, unchanged.
 
 **Fails before the work** (checked 2026-10-08 against the pre-story code and build): all 17 Node tests fail; all ten
-browser tests fail at the missing toggle. *(J2 confirmed both counts independently. Its advisories were folded in
-afterwards, before any implementation: D2's monospace check, D3's read-error check, D5's placement and Undo checks, and
-the new D10. Re-run afterwards: all 11 browser tests fail at the missing toggle.)*
+browser tests (D1–D10, D8 at two widths) fail at the missing toggle.
 
 **How to run**
 - Node (the scoped gate, J3): the command in this file's header.

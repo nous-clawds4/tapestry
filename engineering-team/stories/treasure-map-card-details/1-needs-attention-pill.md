@@ -83,7 +83,9 @@ None — page UI only. Reads the kind-10040 Map the page already reads.
 - **Not covered:** counting unassigned categories into the Assistant top-bar alert (out of scope, AC-7); what the pill
   should *do* when pressed (it's a label, as on `/assistant`, not a control); the other ways a Save can fail (no
   signer, a declined signature, a save gone stale). They end on the same path as N9 (Edit mode and the pick stay, so
-  the card is drawn from the draft), and `treasure-map-save.spec.js` covers each of them, unchanged by this story.
+  the card is drawn from the draft), and `treasure-map-save.spec.js` covers each of them, unchanged by this story. A
+  partial Save (some relays accept) ends Edit mode and shows the signed Map, which is N5's path. If the person's
+  Assistants can't be loaded in Edit mode, no pick can be made, so the card stays as published (N1's state).
 
 ## AC→handle lines
 - AC-1 → N1, N2, N3, R1
@@ -105,15 +107,14 @@ the existing browser specs below, unchanged.
 S2, S3 fail; S4 and R1 pass (sentinels). Browser: N6b and N6c pass (sentinels: no pill after a read error, or signed
 out). Every other test fails at the missing pill: N1, N2, N3, N4, N5, N7, N8 (×2), and N6e at their first pill check;
 N6a and N6d only after their loading legs (which pass); N9 only at its last step, the pill after Undo (its failed-save
-legs, the alert and Edit and the pick staying, pass). *(J2 round 1 kicked back: the names lookup and a failed Save
-had no handles, and the old single N6 stopped at its second step before the work, so its error and signed-out legs
-had never run. N6 is now N6a–c, and N6d, N6e and N9 are new.)*
+legs, the alert and Edit and the pick staying, pass).
 
 **How to run**
 - Node (the scoped gate, J3): the command in this file's header.
 - Browser (Gate B evidence), against the branch's built UI on :7799 (`vite build`, then `vite preview --port 7799`
-  from `ui/`): `BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/treasure-map-needs-attention.spec.js tests/brainstorm/treasure-map-card-details.spec.js tests/brainstorm/treasure-map-save.spec.js tests/brainstorm/treasure-map-switches.spec.js tests/brainstorm/treasure-map-edit.spec.js tests/brainstorm/manage-treasure-map.spec.js tests/brainstorm/manage-treasure-map-cards.spec.js tests/brainstorm/my-assistants.spec.js tests/brainstorm/my-assistants-map.spec.js --project=chromium`
-  (the two new specs, and the seven existing Treasure Map / My Assistants specs as regression, R2).
+  from `ui/`): `BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/treasure-map-needs-attention.spec.js tests/brainstorm/treasure-map-save.spec.js tests/brainstorm/treasure-map-switches.spec.js tests/brainstorm/treasure-map-edit.spec.js tests/brainstorm/manage-treasure-map.spec.js tests/brainstorm/manage-treasure-map-cards.spec.js tests/brainstorm/my-assistants.spec.js tests/brainstorm/my-assistants-map.spec.js --project=chromium`
+  (this story's spec, and the seven existing Treasure Map / My Assistants specs as regression, R2; story 2's spec
+  is story 2's).
 
 ## Linked artifacts
 - ADR: — (no irreversibility trigger: page markup and one CSS rule)
