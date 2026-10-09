@@ -410,7 +410,7 @@ tests.push(['L3: readLogSince — a missing log returns empty text and size 0, n
     if (/not implemented yet/.test(e.message)) throw e;
     throw new Error(`readLogSince must never throw on a missing log; it threw: ${e.message}`);
   }
-  eq({ text: r.text, size: r.size }, { text: '', size: 0 }, 'a missing log');
+  eq(r, { text: '', size: 0 }, 'a missing log');
 }]);
 
 tests.push(['L4: readLogSince — an unreadable log (here a directory) returns empty text and size 0, never throws', () => {
@@ -421,15 +421,16 @@ tests.push(['L4: readLogSince — an unreadable log (here a directory) returns e
     if (/not implemented yet/.test(e.message)) throw e;
     throw new Error(`readLogSince must never throw on an unreadable log; it threw: ${e.message}`);
   }
-  eq({ text: r.text, size: r.size }, { text: '', size: 0 }, 'an unreadable log');
+  eq(r, { text: '', size: 0 }, 'an unreadable log');
 }]);
 
 tests.push(['L5: readLogSince marks a failed read (ok: false), so a caller can keep its read position; a good read is not marked failed (Amendment 1)', () => {
-  const missing = readSince(path.join(TMP, 'does-not-exist-either.log'), 7);
+  const readRaw = needFn(needRouter(), 'readLogSince', 'routerConfig.js'); // readSince() strips to text + size
+  const missing = readRaw(path.join(TMP, 'does-not-exist-either.log'), 7);
   assert(missing.ok === false, `a failed read must carry ok: false; got ${JSON.stringify(missing)}`);
   const f = path.join(TMP, 'good.log');
   fs.writeFileSync(f, 'abc');
-  const good = readSince(f, 0);
+  const good = readRaw(f, 0);
   assert(good.ok !== false && good.text === 'abc' && good.size === 3, `a good read must return its text and size and not be marked failed; got ${JSON.stringify(good)}`);
 }]);
 

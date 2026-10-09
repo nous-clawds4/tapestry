@@ -317,7 +317,7 @@ for ADR 0001 Amendment 1. All in `test/router-config-reload-in-place.test.js`:
 | AC-3 (review 1, blocking 1) | K1: A rejected, B queued and also rejected → both HTTP 500, state and config back to the previous streams, no restart. Fails on the round-1 code: B returns `success: true, applied: "reloaded"` | handler |
 | AC-3 (Amendment 1 item 1) | K ×2: the rollback's reload is never logged, or is itself rejected → exactly one restart (after the in-place rollback write), HTTP 500 with `It was restarted to put the previous streams back; nothing was changed.` | handler |
 | Amendment 1 item 2 | W1: the first log read after the write fails (EMFILE) → the read position is kept, so the old Loading + Failed pair before the offset is not read; the toggle succeeds by reload | handler |
-| Amendment 1 item 2 | L5: `readLogSince` marks a failed read with `ok: false`; a good read isn't marked failed. L3/L4 now compare `text` and `size` only, since the return value gains `ok` | unit |
+| Amendment 1 item 2 | L5: `readLogSince` marks a failed read with `ok: false`; a good read isn't marked failed. It calls the export directly, because the suite's `readSince()` helper compares only `text` and `size`. That is also why L3/L4 are unchanged | unit |
 | Review 1, non-blocking 6 | G4 (guard): #787's `skipped` reporting on the reload path. An invalid saved stream is left out of the config and listed, and the change still applies by reload | handler |
 | Review 1, blocking 2 | D1 also requires BIBLE §14 to mention the fallback restart. D2: `docs/CONFIGURATION.md` no longer says toggling restarts the router or "restarts as usual", and its Router Management paragraph mentions in place, reload, fallback and Restart | source |
 
