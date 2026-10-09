@@ -233,6 +233,76 @@ function handleNegentropySyncStatus(req, res) {
     elapsed: Date.now() - activeSync.startedAt,
     lineCount: activeSync.lines.length,
     recentLines: activeSync.lines.slice(-20),
+    // A scheduled preset holding the slot (ADR relay-stream-gaps/0003), so the tab can name it.
+    ...(activeSync.source ? { source: activeSync.source, presetName: activeSync.presetName } : {}),
+  });
+}
+
+/** True while any sync (one-shot or scheduled preset) holds the single slot. */
+function isSyncActive() {
+  return activeSync !== null;
+}
+
+/**
+ * Run one `strfry sync` in the same single slot as the one-shot handlers, for the
+ * negentropy-sync presets runner (ADR relay-stream-gaps/0003). Rejects with
+ * { code: 'BUSY' } while the slot is taken; otherwise takes it, spawns buildCommand's
+ * argv, kills strfry after timeoutMs (the one-shot's 10 minutes), frees the slot and
+ * resolves { exitCode, output, timedOut } once strfry exits. strfry logs to stderr.
+ */
+function runStrfrySync(relay, dir, filter, { timeoutMs = 600000, presetName = null } = {}) {
+  return new Promise((resolve, reject) => {
+    if (activeSync) {
+      const err = new Error('A sync is already in progress');
+      err.code = 'BUSY';
+      reject(err);
+      return;
+    }
+
+    const { cmd, args } = buildCommand(relay, dir, filter);
+    const preview = buildPreviewCommand(relay, dir, filter);
+    console.log(`[negentropy-sync] Starting preset ${JSON.stringify(presetName)}: ${preview}`);
+
+    let output = '';
+    let timedOut = false;
+    const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const slot = {
+      relay, dir, filter, preview,
+      startedAt: Date.now(),
+      pid: proc.pid,
+      lines: [],
+      source: 'preset',
+      presetName,
+    };
+    activeSync = slot;
+
+    function onData(chunk) {
+      const text = chunk.toString();
+      output += text;
+      slot.lines.push(...text.split('\n').filter(Boolean));
+    }
+    proc.stdout.on('data', onData);
+    proc.stderr.on('data', onData);
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      proc.kill('SIGTERM');
+    }, timeoutMs);
+
+    function release() {
+      clearTimeout(timeout);
+      if (activeSync === slot) activeSync = null;
+    }
+
+    proc.on('close', (code) => {
+      release();
+      resolve({ exitCode: code, output, timedOut });
+    });
+
+    proc.on('error', (err) => {
+      release();
+      reject(err);
+    });
   });
 }
 
@@ -360,4 +430,6 @@ function registerNegentropySyncRoutes(app) {
 
 // Pure helpers exported for direct execution by the test runner
 // (test/sync-panel-tag-filters.test.js, ADR relay-management/0001).
-module.exports = { registerNegentropySyncRoutes, buildFilterObj, buildCommand, buildPreviewCommand };
+// isSyncActive/runStrfrySync: the presets runner's way into the one slot
+// (negentropyPresets.js, ADR relay-stream-gaps/0003).
+module.exports = { registerNegentropySyncRoutes, buildFilterObj, buildCommand, buildPreviewCommand, isSyncActive, runStrfrySync };

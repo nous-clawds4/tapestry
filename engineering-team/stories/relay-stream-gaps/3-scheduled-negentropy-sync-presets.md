@@ -92,6 +92,23 @@ synced.
 
 None.
 
+## Deviations
+
+Implementation judgment calls (Implementer, 2026-10-09); none changes the ADR's design.
+
+- `runStrfrySync` also takes `presetName` in its options and resolves `{ exitCode, output, timedOut }`, so a sync killed at 10 minutes is recorded as "did not finish within 10 minutes and was stopped" (AC-4's "why it failed"), not "exited with code null".
+- `/status` also returns `source: 'preset'` and `presetName` while a scheduled preset holds the slot; the tab's status line reads the name there (the test plan left the source open).
+- `failed` counts presets that ran and failed. A preset skipped because a manual sync held the slot for 10 minutes is reported as `skipped`, not failed, so the operator's own manual sync doesn't fail the task in history (open in the test plan).
+- A create honors `enabled: true` in the body (the ADR lists `enabled?`); without it a new preset starts off. A replace ignores it and keeps the switch.
+- An unreadable or unparseable presets file is never overwritten: every endpoint answers 500 naming the problem (the corrupt-file case was unspecified; BIBLE §30, local state is not disposable).
+- A successful run doesn't set `lastSuccessAt` when the preset was re-saved with another relay, direction or filter during the run (the ADR's own "a changed target clears `lastSuccessAt`" rule).
+- Unknown id on toggle or delete answers 404. Empty kinds/authors/tag arrays count as absent, so the floor applies; numeric-string kinds are refused. A reordered kinds list counts as a change (it only widens the next window).
+- `#p/#P/#e/#E` values are accepted as 64-character hex in either case, as the ADR words it; authors must be lowercase, as the ADR words it.
+- `parseSyncOutput` sums `UP:`, `DOWN:` and `Writer: added:` lines across strfry's batches. Exit 0 without the reconcile line reads "strfry sync exited with code 0 without completing the reconcile".
+- The task script appends to `${BRAINSTORM_LOG_DIR}/syncNegentropyPresets.log`, the file the registry's new `monitoring.logFiles` entry names.
+- The tab polls `/status` every 5 s only while a scheduled preset holds the slot, so the status line clears and the last-run lines refresh when it ends. Load picks the matching kinds radio (or Custom) and also fills the preset name, so a re-save replaces it.
+- The fresh-install seed is written compactly on two lines: `applicability-republish` BK1 matches `freshInstallEntries` within 1,800 characters, and the function is now 1,757.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-stream-gaps/0003-negentropy-sync-presets.md`
 - Test plan: `engineering-team/stories/relay-stream-gaps/3-scheduled-negentropy-sync-presets.test-plan.md`

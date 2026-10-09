@@ -57,6 +57,13 @@ export default function AddOrEditEntryModal({ entry, onClose, onSaved }) {
       }
     }
     setArgs(defaults);
+    // A new entry starts at the task's suggested interval, when the registry gives one
+    // (ADR relay-stream-gaps/0003); editing keeps the entry's own schedule.
+    if (!isEdit && task.suggestedIntervalHours) {
+      setIntervalDays(0);
+      setIntervalHours(task.suggestedIntervalHours);
+      setIntervalMinutes(0);
+    }
   }, [taskId, tasks, isEdit, entry?.taskId]);
 
   // Compute the list of missing required arguments. Save is disabled
