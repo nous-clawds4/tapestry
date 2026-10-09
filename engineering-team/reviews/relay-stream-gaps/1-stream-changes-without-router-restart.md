@@ -130,3 +130,139 @@ Story status stays `Approved`.
 ## On PASS (same commit)
 - [ ] Story `**Status:**` flipped to `Done` in place. *(not applicable: CHANGES_REQUESTED)*
 - [ ] Completion detection: not run (no PASS).
+
+---
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-10-09
+**Diff:** `git diff 843c299b..92d44995` (HEAD `92d44995`):
+- `bdc45e38`: ADR 0001 Amendment 1 and Verified evidence 5.
+- `cc159a18` and `86ec0492`: tests (test plan Amendment 2).
+- `92d44995`: impl (`routerConfig.js`, `BIBLE.md` §14, `docs/CONFIGURATION.md`, the Redis ledger row).
+
+Each commit stays in its lane. The ADR commit touches only the ADR, the test commits only the suite and the plan, and the impl commit no test file.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test` (root `node_modules` installed, as in CI). `npm run gate:status -- --label reviewer-rsg1-r2`:
+  `20261009T044542Z-29808-8d09 [reviewer-rsg1-r2] started 2026-10-09T04:45:42.219Z on 92d44995 — PASS, exit 0, 5184 passed, 0 failed, 590 skipped, 278/278 suites`.
+  This matches the Implementer's recorded run (`20261009T044052Z-31706-e218`, same totals).
+- [x] Router suites run directly: `router-config-reload-in-place` 40/0, `strfry-router-saved-state` 32/0, `strfry-router-owner-gate` 10/0, `strfry-router-value-hardening` 14/0, `router-stream-tag-filters` 21/0.
+- [x] `bash scripts/harness-lint.sh`: `harness-lint: clean (0 violations)`.
+- [ ] `npm run test:playwright`: not applicable (no UI change this round).
+
+Extra evidence gathered by the reviewer (session scratchpad, not committed):
+- **Test plan Amendment 2's "fails on round-1 code" claim, checked.** I ran the current suite against `843c299b`'s `routerConfig.js`, `BIBLE.md` and `CONFIGURATION.md`. Result: 33 passed, 7 failed, exactly L5, K1, K ×2, W1, D1 and D2.
+  - K1 fails with my round-1 probe's symptom. B returned `{"success":true,"message":"Stream \"beta\" disabled.","applied":"reloaded",…}`.
+  - W1 fails on the stale reason from before the offset (`stale reason from an earlier edit`).
+- **Probe suite.** A copy of the suite with a failing-restart seam and a reload logged 2 s late. 46/0 on `92d44995`:
+  - **Order.** When the rollback's reload is never logged, or is rejected, the single restart comes after the *last* config write (the rollback). There are exactly 2 config writes.
+  - **Restart fails.** The rollback's reload is never logged and `supervisorctl restart` exits 1. The response is HTTP 500 `…, and restarting it to put the previous streams back failed (strfry-router: stopped / ERROR (spawn error)). Press Restart…`. State and config are back on the previous streams. A following toggle runs and succeeds by reload, so the lock is not poisoned.
+  - **The same, with B queued behind A.** B runs after A's throw and is judged on its own reload (rejected, so 500).
+  - **Slow rollback.** A is rejected and its rollback reload is logged 2 s late. B, queued and rejected, still gets 500, with no restart: A held the lock across its slow rollback.
+  - **A rejected, B fine.** B is queued and its config reloads fine. B succeeds by reload, and the state holds only B's change.
+- **strfry and supervisor sources, for the restart paths.**
+  - strfry 1.1.0's router constructor calls `reconcileConfig()` (`cmd_router.cpp:295`). So a restarted router logs a `Loading` line at startup. A parse failure on that first load is `::exit(1)` (`:350–351`).
+  - supervisor 4.2.x `startProcess` waits until the process is RUNNING, meaning up longer than `startsecs` (default 1 s; `strfry-router` sets none, `docker/supervisord.conf:33–41`). If the process dies first, it raises `ABNORMAL_TERMINATION`/`SPAWN_ERROR`, and `supervisorctl`'s `do_start` sets a non-zero exit status.
+  - So by the time `restartRouter()` resolves, the startup `Loading` line is already in the log. A router that won't start makes it reject.
+- **A value strfry rejects passes our checks.** `sanitizeStreamFilter` and `vetStreamsForConfig` both pass `{"kinds":[7],"authors":["nothex"]}` (Evidence 5's value) unchanged. This is the premise of R2-1.
+
+### Round-1 blocking findings
+
+1. **The rollback reload is now awaited (AC-3). Resolved by construction.**
+   - **What changed.** `applyConfig` (`routerConfig.js:508–517`) restores the state, takes a fresh offset (`:509`), rewrites the previous config in place (`:510`) and awaits `waitForReload` on it (`:511`), all inside the lock. Each way out of the rejection path:
+     - The rollback's own `Loading` line was read, plus the 300 ms settle. It throws `RouterRejectedError` with the round-1 message, which is now checked rather than assumed.
+     - A restart completed. The old process is gone, and the startup `Loading` line is already logged (supervisord `startsecs`, above).
+     - The restart failed. It throws a plain `Error`. The next mutation then finds the router not running and takes the restart path, which reads no log window.
+   - In every case, the next mutation's offset is taken after everything this one caused. Nothing relies on a timing margin beyond the 300 ms settle the success path already uses.
+   - K1, the round-1 probe case, fails on round-1 code and passes now. My probes cover the slow-rollback and restart-failure variants.
+   - **Lock.** `withRouterLock` (`:531–535`) is unchanged. A throw from `restartRouter` is caught and rethrown as an `Error` (`:512–516`), which rejects `run`; `routerLock = run.catch(() => {})` keeps the chain alive. The probe shows the next toggle succeeding.
+   - **`prev` is always defined.** The `if (prev)` guard is gone, and every caller passes `prev`: `handleUpdateRouterConfig` `:612`/`:615`, `handleToggleStream` `:637`/`:647` and `handleRestoreDefaults` `:750`/`:752`. Each passes `cloneState(ensureState())`, and `ensureState` (`:277–298`) always returns an object with `streams`. `applyConfig` is not exported.
+2. **The operator docs now match the code on every path a stream change normally takes. Resolved.**
+   - `CONFIGURATION.md:175` and `:190` no longer say stream changes restart the router.
+   - `BIBLE.md:1155` names the fallback.
+   - The remaining gap is a corner branch (Non-blocking R2-2).
+
+### Docs: fresh-claim check (reviewer rule 10)
+
+The BIBLE sentence is my own round-1 suggested wording, so I re-derived it from the code, along with the CONFIGURATION.md and ledger wording:
+
+| Claim | Evidence | Holds |
+|---|---|---|
+| Stream changes rewrite the config in place and strfry reloads it | `:500`, `:510` `fs.writeFileSync(ROUTER_CONFIG_PATH, …)`; no restart on `'loaded'` (`:502`) | yes |
+| Restarted by the Restart button, or as a fallback when the router isn't running | `handleRestartRouter` `:706–721`; `:493–496` (`status !== 'running'`, which includes `unknown`) | yes |
+| …or when it logs no reload within 3 s | `RELOAD_TIMEOUT_MS = 3000` (`:374`), deadline loop `:438–457`, restart at `:503–505`; rollback timeout at `:511–513` | yes |
+| …and *only* those | a rejected rollback also restarts (`:511–513`), a third trigger the list doesn't name | **no** (R2-2) |
+| "the response then says so" | not running `:523`; no reload `:524`; rollback restarted `:463`; restart failed `:515` | yes |
+| "a change strfry rejects is rolled back and reported" (CONFIGURATION.md) | `:508–517`; K1, J ×3, Q2 | yes |
+| The **🔄 Restart** button | `RelaySettings.jsx:480` | yes |
+| Ledger: one of the two recoveries is gone; press Restart or deploy | stream changes no longer restart; Restart rebuilds and restarts (`:706–721`) | yes |
+
+### Spec / ADR adherence (changes since round 1)
+- [x] AC-3 now holds by construction (above). The other ACs are as in round 1.
+- [x] The code matches Amendment 1 items 1–2: the message variants (`:460–467`), the rejection path (`:508–517`), `readLogSince`'s `ok` flag (`:404–420`) and `pull` (`:441–446`). The docs and ledger match items 3–4.
+- [x] Files changed match the amended file list. No new dependencies.
+- [x] Concept graph not touched; no firmware reinstall.
+- [x] No secrets, no new `console.*`, no commented-out code.
+
+### Round-1 non-blocking items
+
+| # | Item | Status |
+|---|---|---|
+| 1 | The ADR's two wrong strfry claims | **Addressed.** Corrected inline (ADR :43–46, :137–140), and Verified evidence 5 matches my round-1 sandbox. Residue: the module comment still states the old claim (R2-3). |
+| 2 | A transient read error re-reads the whole log | **Addressed** in `waitForReload` (W1, L5). Residue: `logSize` (`:422–428`) still returns 0 on a stat failure for the offsets at `:499`/`:509`. That is benign: `statSync` holds no fd, so EMFILE can't hit it, and a missing log correctly gives 0. No action. |
+| 3 | The router's Redis client no longer gets an incidental restart | **Addressed.** Dated update in `ledger/2026-09-27-strfry-redis-never-reconnects.md:43–47`. |
+| 4 | Extra not-running message | Unchanged; accepted in round 1. |
+| 5 | AC-1/AC-2 10 s live behaviour and AC-5 deploy behaviour | **Remains.** Already tracked by the book's acceptance frame ("Each of the above is verified on staging before production", `engineering-team/audits/relay-stream-gaps/book.md`), so it needs no OPEN.md row. Use test plan § Live verification steps 1–5. |
+| 6 | `skipped` reporting on the reload path | **Addressed** by G4. |
+| 7 | Stale "How to run" note | **Addressed**, with a typo (R2-6). |
+
+### Findings (round 2)
+
+#### Blocking
+None.
+
+#### Non-blocking
+
+1. **R2-1. ADR 0001 Amendment 1 :284–285: when the rollback is itself rejected, the restart cannot put the previous streams back.**
+   - **The claim.** "The file on disk is the previous config, so the restarted router runs the previous streams." That holds when the rollback's reload is never seen (timeout), but not when it is rejected. strfry has just refused that file, and a parse failure on first load is `::exit(1)` (`cmd_router.cpp:350–351`).
+   - **What happens instead.** The restart at `routerConfig.js:513` normally fails and supervisorctl exits non-zero. The operator gets the `:515` message. Its "Press Restart on the Router Management tab" can't help, because Restart rebuilds the same saved config.
+   - **The code is still honest.** `:463` ("It was restarted to put the previous streams back") is returned only if the restart succeeded, which means strfry parsed `prev` on first load. Otherwise `:515` says the restart failed.
+   - **No worse than before the story,** when every change restarted the router.
+   - **Reachable only when the saved state already holds something strfry rejects.** Our checks let such values through (see the extra evidence). An example is legacy state whose reload strfry refused after a deploy (`initRouter`).
+   - **Test note.** The K "is itself rejected" test pins the code's logic with a fake restart that always succeeds. That is fine, but the message it expects is practically unreachable.
+   - **Suggest.** The Architect corrects :284–285. Optionally, the Implementer makes `:515` point at strfry's reason as the thing to fix when it was the rollback that was rejected.
+2. **R2-2. `BIBLE.md:1155`, `docs/CONFIGURATION.md:175`, `ledger/2026-09-27-strfry-redis-never-reconnects.md:45–46`: the list of restart triggers omits the rejected rollback.**
+   - The docs say the router is "restarted only by … or as a fallback when it isn't running or logs no reload within 3 s". They don't name the restart after a rejected rollback (`routerConfig.js:511–513`).
+   - My round-1 wording predates Amendment 1, which added that trigger.
+   - The response says so when it happens, and CONFIGURATION.md adds "a change strfry rejects is rolled back and reported", so an operator isn't misled at that moment.
+   - **Suggest:** "…or as a fallback when it isn't running, logs no reload within 3 s, or rejects the rollback of a refused change". It keeps D1's regexes. Per rule 10, whoever adopts it checks it as a fresh claim.
+3. **R2-3. `routerConfig.js:361–362`: the module comment still says a config strfry can't parse leaves "the running streams kept".**
+   - This is the claim Amendment 1 corrected, and it contradicts the file's own `applyConfig` JSDoc (`:483–485`).
+   - That JSDoc's "thrown once the router is confirmed back on `prev`" (`:482–483`) also leaves out the restart-failed `Error` (`:515`).
+   - **Suggest:** align both comments with Evidence 5.
+4. **R2-4. `docs/CONFIGURATION.md:190`: the new parenthetical "(an in-place reload, or a restart only as a fallback)" fits only some of the row's triggers.**
+   - It fits toggle and restore-defaults.
+   - It does not fit "restart", which is the Restart button and always restarts, or "startup", where `initRouter` writes the config without confirming.
+   - **Suggest:** "applied as usual for that path".
+5. **R2-5. Test coverage of the new branches.**
+   - K ×2 call `assertWriteBeforeRestart` (`test/router-config-reload-in-place.test.js:304–308`). It compares the *first* config write with the restart, so the plan row's "after the in-place rollback write" is not literally pinned. The code is right; my probe's order check shows it.
+   - The restart-failure branch (`routerConfig.js:514–516`) has no committed test. I verified it by probe only.
+   - **Optional (Tester):** check the last write's index, and add a failing-restart seam.
+6. **R2-6. Test plan `:163`: "On a checkout without it, The new suite…" has a stray capital.** Cosmetic.
+
+**OPEN.md.** R2-1 to R2-4 are small doc and comment corrections in one area. I recommend **one OPEN.md row** (type `doc`) so they aren't lost if no later story in this epic touches `routerConfig.js`. Story 2 is mid-review in its own worktree, so they can't be folded into it. R2-5 and R2-6 don't need a row.
+
+#### Harness friction
+1. none
+
+### Verdict
+**PASS**
+
+Both round-1 blocking findings are resolved. AC-3's "never a false done" now holds by construction, and the docs describe what the code does on every path a stream change normally takes. The gate is green: run `20261009T044542Z-29808-8d09`, PASS, 5184 passed, 0 failed, 590 skipped, 278/278 suites. What remains is non-blocking: doc and comment precision in one corner branch (R2-1 to R2-4) and optional test tightening (R2-5).
+
+### On PASS
+- [x] Story `**Status:**` flipped to `Done` in place, and its Linked artifacts "Review:" line points to this file. Commit left to the caller.
+- [x] Completion detection performed. The result is reported in the chat, not here.
