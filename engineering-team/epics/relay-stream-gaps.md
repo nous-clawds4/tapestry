@@ -42,7 +42,9 @@ upstream events reach both staging and production, median latency about 1 s.
    tab no longer restarts the router or interrupts the other streams. Bug.
 
 Queued (the book's acceptance frame; stories are drafted when picked up):
-- The stream editor's Limit setting: make it work, or stop presenting it as if it did.
+- The stream editor's Limit setting: make it work (operator's choice, 2026-10-09). strfry's
+  router overwrites it with 0 today; the image already patches strfry (Redis), so honoring
+  the configured limit is a change to that patch set.
 - Saved negentropy-sync presets, each switchable on or off, with the enabled ones run on a
   schedule as a Scheduled Task. This is the catch-up that closes deploy holes and covers
   content no stream carries. It is the "saved presets" item the retired `relay-management`

@@ -1,7 +1,7 @@
 # Story 1: Changing streams doesn't interrupt the other streams
 
 **Epic:** relay-stream-gaps
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-09
 **Type:** Bug
 
@@ -71,8 +71,8 @@ never costs me events on all the others.
 
 - **Holes left by deploys and container restarts.** The router process necessarily restarts
   with the container. The book's scheduled negentropy-sync story closes those holes.
-- **The Limit setting** in the stream editor: its own story in this book, pending the
-  operator's choice.
+- **The Limit setting** in the stream editor: its own story in this book (the operator chose
+  to make it work).
 - **Upstream disconnects**, and how quickly the router reconnects after one.
 - **Recovering what was already missed.** A manual negentropy sync does that today, and the
   scheduled sync will do it going forward.
