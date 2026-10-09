@@ -108,7 +108,7 @@ const STATUS_LINES = {
   STOPPED: 'strfry-router                    STOPPED   Oct 09 03:00 AM',
   FATAL: 'strfry-router                    FATAL     Exited too quickly (process log may have details)',
 };
-const env = { status: 'RUNNING', events: [], failLogReads: 0 }; // events: exec commands and router-path fs calls, in call order
+const env = { status: 'RUNNING', events: [], failLogReads: 0, failRestart: false }; // events: exec commands and router-path fs calls, in call order
 
 function fakeExec(cmd, opts, cb) {
   const done = typeof opts === 'function' ? opts : cb;
@@ -122,6 +122,10 @@ function fakeExec(cmd, opts, cb) {
     if (env.status !== 'RUNNING') err = Object.assign(new Error(`Command failed: ${c}`), { code: 3 });
   } else if (/supervisorctl\s+restart\s+strfry-router/.test(c)) {
     out = 'strfry-router: stopped\nstrfry-router: started\n';
+    if (env.failRestart) {
+      out = 'strfry-router: stopped\nstrfry-router: ERROR (spawn error)\n';
+      err = Object.assign(new Error(`Command failed: ${c}`), { code: 7 });
+    }
   }
   if (done) process.nextTick(() => done(err, out, ''));
   return { pid: 0, stdout: null, stderr: null, on() { return this; }, once() { return this; }, kill() {} };
@@ -267,6 +271,7 @@ function freshEnv({ state = BASE_STATE, log = STALE_LOG, status = 'RUNNING', pla
   strfry.plan = plan.slice(); strfry.fallback = fallback;
   env.status = status;
   env.failLogReads = 0;
+  env.failRestart = false;
   REAL.writeFileSync(T.state, JSON.stringify(state, null, 2), 'utf8');
   REAL.writeFileSync(T.config, r.generateConfig(state.streams), 'utf8');
   if (log === null) { try { REAL.unlinkSync(T.log); } catch { /* already absent */ } } else REAL.writeFileSync(T.log, log, 'utf8');
@@ -305,6 +310,12 @@ function assertWriteBeforeRestart(what) {
   const iw = env.events.findIndex(isConfigWrite);
   const ir = env.events.findIndex((e) => e.kind === 'exec' && /supervisorctl\s+restart\s+strfry-router/.test(e.cmd));
   assert(iw !== -1 && ir !== -1 && iw < ir, `${what}: the new config must be written before the router is restarted, so the restarted router loads it (write #${iw}, restart #${ir}).`);
+}
+// The restart must come after the LAST config write (the rollback), so it loads the previous config.
+function assertRollbackBeforeRestart(what) {
+  const writes = env.events.map((e, i) => (isConfigWrite(e) ? i : -1)).filter((i) => i !== -1);
+  const ir = env.events.findIndex((e) => e.kind === 'exec' && /supervisorctl\s+restart\s+strfry-router/.test(e.cmd));
+  assert(writes.length >= 2 && ir !== -1 && writes[writes.length - 1] < ir, `${what}: the rollback (the last config write) must come before the restart, so the restarted router loads the previous config (writes ${JSON.stringify(writes)}, restart #${ir}).`);
 }
 function streamBlock(config, name) {
   const start = config.indexOf(`\n    ${name} {\n`);
@@ -625,11 +636,25 @@ for (const [label, plan] of [['is never logged', ['reject', 'silent']], ['is its
     assert(e.includes(ROLLBACK_RESTARTED_TAIL), `the error must say "${ROLLBACK_RESTARTED_TAIL}"; got ${JSON.stringify(e)}`);
     assert(!e.includes(REJECTED_TAIL), 'the error must not claim the router kept running the previous streams by itself when it had to be restarted.');
     assert(restarts() === 1, `the router must be restarted exactly once to load the previous config; saw ${restarts()}.`);
-    assertWriteBeforeRestart(`rollback whose reload ${label}`);
+    assertRollbackBeforeRestart(`rollback whose reload ${label}`);
     assertWrittenInPlace(seed, BASE_STATE.streams, `rollback whose reload ${label}`);
     eq(readState(), BASE_STATE, 'the state file is rolled back');
   }]);
 }
+
+tests.push(['K3: when the restart after an unconfirmed rollback fails, the 500 says so and points at Restart — and the next change still runs (the lock is released) (Amendment 1, review round 2 R2-5)', async () => {
+  freshEnv({ plan: ['reject', 'silent'] });
+  env.failRestart = true;
+  const res = await dilated(() => call('handleToggleStream', { name: 'beta', enabled: false }));
+  assert(res.statusCode === 500 && res.body.success === false, `expected HTTP 500; got ${res.statusCode} ${JSON.stringify(res.body)}`);
+  const e = String(res.body.error || '');
+  assert(e.includes(REJECTED_HEAD) && e.includes(REASON) && e.includes('restarting it to put the previous streams back failed') && e.includes('Press Restart'), `the error must name the rejection and the failed restart, and point at Restart; got ${JSON.stringify(e)}`);
+  assert(restarts() === 1, `one restart was attempted; saw ${restarts()}.`);
+  eq(readState(), BASE_STATE, 'the state file is rolled back');
+  env.failRestart = false;
+  const next = await call('handleToggleStream', { name: 'alpha', enabled: false });
+  assert(okStatus(next) && next.body.success === true && next.body.applied === 'reloaded', `the next change must run (the lock is not left held); got ${next.statusCode} ${JSON.stringify(next.body)}`);
+}]);
 
 tests.push(['W1: a transient failure reading the log keeps the read position — an old rejection earlier in the log is not mistaken for this change\'s (Amendment 1, review 1 non-blocking 2)', async () => {
   freshEnv({ plan: ['read-error-reload'] }); // the stale log holds an old Loading + Failed pair before the offset
