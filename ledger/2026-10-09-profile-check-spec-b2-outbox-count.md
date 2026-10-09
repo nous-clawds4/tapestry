@@ -3,8 +3,8 @@
 **Id:** 2026-10-09-profile-check-spec-b2-outbox-count
 **Type:** bug
 **Opened:** 2026-10-09 (assistant-trusted-content-status #1, review)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-09 — already fixed on staging by `fabd2cb5` (assistant-profile-checklist #1: every mocked answer carries an Outbox Relays answer), merged into feat/assistant-trusted-content-status at `b3f9d615`; B2 passes there (merge re-review addendum).
 
 `tests/brainstorm/assistant-profile-check.spec.js` B2 expects the pill at `PLACEHOLDERS + 1`, with `PLACEHOLDERS =
 X.ACTIONS.length − 2`. Its mocked attention answers carry no `outbox-relays` key. Outbox Relays has been a checked

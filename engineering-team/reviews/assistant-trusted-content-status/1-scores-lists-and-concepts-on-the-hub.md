@@ -170,3 +170,116 @@ None.
 ## On PASS (same commit)
 - [x] Story `**Status:**` flipped to `Done` in place.
 - [x] Completion detection performed; the result and any book arithmetic recorded in the run journal (Direction) or the chat (human-gated) — never in this file. `/close-book` offered if the book looks complete.
+
+## Addendum — merge of assistant-profile-checklist (b3f9d615), 2026-10-09
+
+**Reviewer:** Claude (acting as Reviewer), fresh context.
+**Scope:** the merge commit `b3f9d615` only. Its parents are `131fdd94`, this branch at the PASS above, and `1229c154`, origin/staging. The staging parent brought assistant-profile-checklist #1–#3, and also relay-stream-gaps, the router-hardening follow-up and the assistant-outbox-relays book close. `git ls-remote origin refs/heads/staging` is still `1229c154`, so HEAD contains all of staging. The worktree was clean before and after, and nothing was committed.
+
+### What the resolution touched
+- `git merge-tree --write-tree --name-only 131fdd94 1229c154` lists exactly five conflicted files: `BIBLE.md`, `src/api/assistant/attention.js`, `src/api/openapi.yaml`, `tests/brainstorm/assistant-profile-check.spec.js` and `ui/src/pages/assistant/actions.js`.
+- `git diff --name-only <that auto-merge tree 55301941> b3f9d615` lists the same five. Its `-U0` diff shows every change sitting inside a conflict hunk. There is no evil merge: every other file is git's own automatic merge.
+- No conflict markers anywhere: `git grep -n -e '^<<<<<<< ' -e '^>>>>>>> '` is empty, and so is `^=======$` outside Markdown.
+
+### The five, one by one
+1. **`attention.js`**
+   - `defaultDeps()` (`:73-89`) carries every book's dependencies: `checkOutboxRelays`, `checkProfile`, `mapDefaultRelays`, `loadCategoryRule` and `checkTrustedContent`. No key is duplicated.
+   - No dependency names collide on the shared `d`. `profileChecklist.js` and `outboxRelays.js` read none of the trio's names. The trusted path (`setup/status` `lookupNewest`/`treasureMapRelays`) reads only `scanLocal`, `readRelay`, `getConfigFromFile`, `readConfiguredRelays` and `mapDefaultRelays`.
+   - `:303-308` settles four checks with one `Promise.allSettled`. An identification-tags rejection is still rethrown (`:309`), and outbox, profile and the trio each fall back on their own.
+   - **Probe:** a scratch script drove the merged handler with fakes.
+     - All fulfilled: 200, six keys.
+     - Only outbox rejects: only `outbox-relays` is `check-failed`.
+     - Only profile rejects: only `profile` is `check-failed`.
+     - Only the trio rejects: only its three keys are `check-failed`.
+     - All three reject: each answers its own `check-failed`, and identification-tags is intact.
+     - Identification-tags rejects: 500.
+2. **`actions.js:248`**
+   - `CHECKED_ACTIONS` is `profile, identification-tags, outbox-relays, trusted-assertions, trusted-lists, dlists`.
+   - Imported in Node, it equals `ASSISTANT_ACTIONS` filtered to the checked keys: in order, with no duplicates.
+   - `assistantAttention` with all six done gives count 5, alertCount 5 (the five real placeholders), and all six in `done`.
+3. **`openapi.yaml`**
+   - js-yaml parses it, and js-yaml throws on duplicate mapping keys. The action item schema has 14 distinct properties.
+   - The `reason` description joins both sides' wording. `source` keeps this branch's wording, a superset of staging's.
+4. **`BIBLE.md`**
+   - There is one "Last updated" line. A programmatic check confirms it equals this story's entry, then `; prior: `, then staging's whole line body.
+   - It has 23 `prior:` (staging's 22 plus one). The trusted-content, profile-checklist, outbox-relays and tagging-edges #5 entries each appear once.
+   - The §11 attention row is staging's row plus the Scores/Lists/Concepts clause.
+5. **`assistant-profile-check.spec.js`**
+   - `:38-39` are staging's `CHECKED` (with `outbox-relays`) and `OTHERS_DONE`. `:72` wraps them as `TC.withTrio({ ...attention, actions: { ...OTHERS_DONE, ...attention.actions } })`.
+   - A pending trio entry marks and counts exactly as a placeholder does. So `PLACEHOLDERS` (11 − 3 = 8) still equals the five real placeholders plus the trio, and the profile book keeps the counts it intended.
+
+### Silent-merge collisions outside the five
+- **Files both sides changed:** only the five, plus `test/registry.js`. The registry auto-merged cleanly: 292 entries, none duplicated, none missing on disk, every `test/*.test.js` registered.
+- **Hub code:** the merge did not change `Index.jsx`, `AssistantAttentionContext.jsx` or `ActionPage.jsx`.
+  - The new profile page uses the provider's `refresh()` (`ProfileChecklist.jsx:84,132`).
+  - The provider's 10040 re-ask (`AssistantAttentionContext.jsx:77`) is untouched.
+- **Fixtures:**
+  - `assistantManagementFixtures.js` and `trustedContentFixtures.js` changed on this side only, and `profileChecklistFixtures.js` on staging's side only.
+  - The profile page spec mocks attention without the trio, but it judges no hub or pill count.
+  - No staging-side test or UI file names the trio's old card titles.
+- **Build config:** the profile book's new Vite alias (`@tapestry/assistant-profile-items`) leaves the relative `.mjs` import alone.
+- **Renamed route:** nothing on this branch's side refers to the old `/api/assistant/owner-avatar` route, now `/api/assistant/my-picture`.
+
+### Evidence
+- **Node suites,** each run with `require('./test/<f>.test.js').run()` in the worktree: 25 suites, **603 passed, 0 failed**:
+  - this branch's suite: `assistant-trusted-content` 30;
+  - the hub and outbox suites: `assistant-attention` 39, `assistant-management-page` 24, `assistant-alert` 15, `assistant-identification-tags-page` 16, `assistant-outbox-check` 29, `assistant-outbox-relays-page` 18;
+  - the profile book's suites: `assistant-profile-check` 33 (3/30 at the PASS above), `assistant-profile-checklist-page` 14, `assistant-stamped-avatar-for-everyone` 19, `my-assistant-page` 31, `one-writer-assistant-profile` 17, `stamped-composite-avatar` 13;
+  - the twelve `treasure-map-*` / `manage-treasure-map-*` suites: 31, 24, 17, 29, 48, 6, 18, 35, 22, 24, 17 and 34.
+- **`npm test`,** worktree at `b3f9d615`, label `review-merge2`. `npm run gate:status -- --label review-merge2`:
+
+  > `20261009T200711Z-77634-0a9c [review-merge2] started 2026-10-09T20:07:11.491Z on b3f9d615 — FAIL, exit 1, 5743 passed, 83 failed, 127 skipped, 289/289 suites` (34 suites failed)
+
+  **Compared suite by suite with `20261009T162409Z-77985-ea65 [review-tcs1]`** (39 failed):
+  - 28 suites fail on both runs.
+  - **11 no longer fail.**
+    - Six are the profile book's suites, now implemented.
+    - Five are live-stack drift: `capture-a-goal-and-see-it`, `the-brain-survives`, `not-yet-shared-filter`, `concept-count-canonical` and `summaries-element-count`.
+  - **6 newly fail. None is caused by this merge.**
+    - `router-stream-limit-on-connect` is a new suite from staging's relay-stream-gaps.
+      - P1–P3 fail with `sed: … invalid command code f`: `patches/strfry-router/apply-patches.sh:25` uses GNU `sed -i` on a macOS host.
+      - A fresh `git archive 1229c154` export fails it the same way (23 passed, 3 failed, same tests).
+    - Five live suites drive the :7778 stack, which serves the main checkout: `store-the-four-when-a-goal-is-captured-or-updated`, `b-coverage-audit-and-disposition`, `adoption-candidates-queue`, `inverse-queue-publish-candidates` and `publish-time-default-stamping`.
+      - Their test files and helpers are byte-identical to the prior run's and to staging's.
+      - Another session's gate (`hgi3-impl-baseline`, PID 82558) ran against the same stack throughout. The failures are fixture "already exists" collisions, a Neo4j `UpdateLock` conflict, `fetch failed` and timeouts.
+      - Re-run one at a time after that gate ended: `store-the-four` passes 40/0. The other four fail one test each, but not the same tests as in the gate (`fetch failed`, timeouts, a failed `docker exec … curl`). The `tapestry` container was at 147% CPU at the time.
+  - Every suite this branch or the merge touches has the same counts as before, except the profile book's six, which now pass: `gate-result-record` 34/0, `stack-free-npm-test` 6/0/1, `strfry-router-saved-state` 32/0, `router-config-reload-in-place` 41/0.
+  - **No regression.**
+- **Playwright, chromium,** at :4173.
+  - **The served build is `b3f9d615`'s:**
+    - the preview process is `vite preview --outDir <worktree>/dist`;
+    - `dist/index.html` is dated 14:54:48, 22 s after the merge commit, and no `src/` or `ui/src/` file is newer;
+    - the served `index-Dka3zj2z.js` contains the six-key `CHECKED_ACTIONS` literal, `dlist-header` (the moved rule) and `/api/assistant/my-picture`.
+  - **Results:** `assistant-profile-check`, `assistant-attention`, `assistant-trusted-content`, `assistant-management-page`, `assistant-alert`, `assistant-profile-checklist-page` and `treasure-map-save` gave **93 passed, 0 failed, 3 skipped**.
+    - The skips are `assistant-management-page` B8 for the three built pages: profile, identification-tags and outbox-relays.
+    - The four failures the PASS above recorded as pre-existing (`assistant-attention` B4, `assistant-profile-check` B1, B2 and B5) now pass.
+- `bash scripts/harness-lint.sh`: clean (0 violations).
+
+### Findings
+
+#### Blocking
+None.
+
+#### Non-blocking
+1. **`ledger/2026-10-09-profile-check-spec-b2-outbox-count.md:6` is still `**Status:** OPEN`, but its bug no longer exists.**
+   - Staging's `fabd2cb5` (assistant-profile-checklist #1) gave the spec `outbox-relays` in `CHECKED` and an `OTHERS_DONE` answer, and this merge brought that in. B2 passes on the `b3f9d615` build.
+   - Shipped as it is, this row would land on staging as an open bug that isn't there. It is the stale-record failure that `2026-10-09-merge-stale-story-deviations` describes.
+   - Flip it to DONE, pointing at `fabd2cb5` and this addendum, in the commit that records this addendum.
+2. **`src/api/assistant/attention.js:10` reads "Three actions are checked, side by side".** That is staging's sentence, and the merge left it stale: there are now six actions from four checks.
+   - The response-shape line at `:45` now lists `profile` and `outbox-relays` but not the trio.
+   - Fold both into `ledger/2026-10-09-trusted-content-review-followups.md`, whose third bullet (`:17`) is half-stale now ("doesn't list `outbox-relays`").
+3. **`src/api/openapi.yaml:297-298`:** "`actions` maps each action that has a real check to its answer: `profile`, `outbox-relays` and `identification-tags`."
+   - Git auto-merged this from staging, and the enumerated list reads as exhaustive. The trio is described later in the same description (`:322`).
+   - A doc nit.
+
+Unchanged by the merge and still open as ledgered: Non-blocking 2 above (`trustedContentActions`' fallback re-`require`, now `attention.js:280`) and Non-blocking 3 (D1's loose regex).
+
+#### Harness friction
+1. **Two gates ran on one stack at once.** Another session's `npm test` (label `hgi3-impl-baseline`, worktree `.claude/worktrees/jolly-roentgen-e3780d`) started about three minutes after this one and shared the :7778 stack for the whole run. This is already known: ledger `2026-10-08-realtime-wrapper-timing-flake-under-load` and OPEN #194. No new row is needed.
+2. **`router-stream-limit-on-connect` P1–P3 cannot pass on a macOS host.**
+   - The cause is `patches/strfry-router/apply-patches.sh:25`, GNU `sed -i`. The image applies the patch on Linux (`Dockerfile:32`), so production is unaffected, but the suite fails here rather than skipping.
+   - It belongs to relay-stream-gaps, not this book. Candidate row: a portable in-place edit (`perl -pi`, or `sed -i.bak` then remove the backup), or a skip with a reason when not on Linux.
+3. **The scratch-baseline recipe can write into the main checkout.** `ln -s <main>/node_modules <dir>/node_modules` puts the link *inside* the main checkout's `node_modules` when `<dir>/node_modules` already exists. A self-referencing `/Users/clawds4/repos/nous-clawds4/tapestry/node_modules/node_modules` symlink is there now, dated 11:26 today, before this review. My own attempt into the shared scratchpad's existing `base/` hit it and failed with "File exists", creating nothing. Related: ledger `2026-10-09-judge-workspace-and-served-build` (judges share one scratchpad). Candidate fix: always use a fresh directory, and guard with `[ -e … ] ||`.
+
+### Verdict
+**PASS**
