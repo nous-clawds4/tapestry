@@ -25,6 +25,10 @@ const conceptHeaderEditCore = fileURLToPath(new URL('../src/lib/conceptHeaderEdi
 // Create New Concept from the finder copies the shared header's tags (src/lib/conceptHeaderCopy.js): the server
 // and the page's preview compose with the same code, as above.
 const conceptHeaderCopyCore = fileURLToPath(new URL('../src/lib/conceptHeaderCopy.js', import.meta.url))
+// The NIP-65 relay-list library (src/lib/relay-list): the server's outbox check and relay-list publish, and the Outbox
+// Relays page's draft rules, compare relays by the same one spelling (ADR assistant-outbox-relays/0001 sub-decision 1).
+// Same cross-boundary CJS treatment as the ones above.
+const relayListCore = fileURLToPath(new URL('../src/lib/relay-list', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
@@ -36,13 +40,14 @@ export default defineConfig({
       '@tapestry/identification-tags': identificationTagsCore,
       '@tapestry/concept-header-edit': conceptHeaderEditCore,
       '@tapestry/concept-header-copy': conceptHeaderCopyCore,
+      '@tapestry/relay-list': relayListCore,
     },
   },
   build: {
     outDir: '../dist',
     emptyOutDir: true,
     commonjsOptions: {
-      include: [/src\/lib\/event-tagging/, /src\/lib\/broadcastOutcome/, /src\/lib\/identification-tags/, /src\/lib\/conceptHeaderEdit/, /src\/lib\/conceptHeaderCopy/, /node_modules/],
+      include: [/src\/lib\/event-tagging/, /src\/lib\/broadcastOutcome/, /src\/lib\/identification-tags/, /src\/lib\/conceptHeaderEdit/, /src\/lib\/conceptHeaderCopy/, /src\/lib\/relay-list/, /node_modules/],
     },
   },
   server: {

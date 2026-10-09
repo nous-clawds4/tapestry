@@ -28,6 +28,8 @@ const RELAY_STATUS = {
   UNREACHABLE: 'unreachable',
   TIMEOUT: 'timeout',
   SKIPPED: 'skipped',
+  // Never connected to: an address that is not public (assistant-outbox-relays ADR 0003 Amendment 1).
+  NOT_SENT: 'not-sent',
 };
 
 // ─── Real helpers (used when no deps are injected) ──────────────────────────────
@@ -221,7 +223,7 @@ function localFailureMessage(subject, reason) {
 function summarizePublish({ subject, rows, localOnly } = {}) {
   const list = Array.isArray(rows) ? rows : [];
   const acceptedRelays = list.filter((row) => row && row.status === RELAY_STATUS.ACCEPTED).map((row) => row.relay);
-  const attempted = list.filter((row) => row && row.status !== RELAY_STATUS.SKIPPED).length;
+  const attempted = list.filter((row) => row && row.status !== RELAY_STATUS.SKIPPED && row.status !== RELAY_STATUS.NOT_SENT).length;
   const accepted = acceptedRelays.length;
   const { classifyBroadcast } = require('../../lib/broadcastOutcome');
   const outcome = classifyBroadcast({

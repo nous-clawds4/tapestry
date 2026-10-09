@@ -1,6 +1,6 @@
 # ADR 0001: The profile check joins the one attention answer — seven items, checked on the server for the viewer's own Assistant, and a Done badge on the hub
 
-**Status:** Proposed
+**Status:** Accepted (approved 2026-10-09)
 **Date:** 2026-10-09
 **Story:** `engineering-team/stories/assistant-profile-checklist/1-the-profile-check-and-the-hubs-done-mark.md`
 

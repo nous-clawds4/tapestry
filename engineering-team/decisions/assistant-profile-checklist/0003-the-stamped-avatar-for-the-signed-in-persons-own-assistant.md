@@ -1,6 +1,6 @@
 # ADR 0003: The stamped avatar becomes the signed-in person's own: their picture, their Assistant, every role, fetched through the SSRF guard
 
-**Status:** Proposed
+**Status:** Accepted (approved 2026-10-09)
 **Date:** 2026-10-09
 **Story:** `engineering-team/stories/assistant-profile-checklist/3-a-personalized-avatar-for-every-assistant.md`
 **Amends:** ADR ta-avatar/0003 (*who* may stamp and store, and how the picture is fetched; its D2–D4 stand)

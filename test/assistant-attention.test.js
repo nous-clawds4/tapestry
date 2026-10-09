@@ -13,6 +13,11 @@
  * 1-two-authored-tags-and-two-parked-taggings.md, its ADR 0001 and plan): each offered definition has its own author,
  * My Agent and My Human are parked, and the answer carries the two offered rows only. L2, L3, U3–U14 and U18 pin it.
  *
+ * Re-aimed 2026-10-09 by assistant-profile-checklist #1 (its story, ADR 0001 and plan): the profile action is checked too
+ * (CHECKED_ACTIONS includes it), so the pill counts one placeholder fewer; the handler also runs the profile check, which
+ * fakes() stubs so these suites stay about Identification Tags. C2 and C3 pin it; test/assistant-profile-check.test.js pins
+ * the profile.
+ *
  * Classes:
  *   L — the shared library src/lib/identification-tags (pure CommonJS): the list (offered and parked), each
  *       definition's author and address, the d-tag composer, the polarity reader.                                            [AC-1, AC-3]
@@ -219,6 +224,11 @@ function fakes(opts = {}) {
       return (opts.configured || [DCOSL]).slice();
     },
     getConfigFromFile: (key, dflt) => (opts.config && Object.prototype.hasOwnProperty.call(opts.config, key) ? opts.config[key] : dflt),
+    // The profile check (assistant-profile-checklist ADR 0001), stubbed: this suite is about Identification Tags.
+    checkProfile: async () => ({ finished: true, done: true, pending: false, items: [] }),
+    // assistant-outbox-relays ADR 0001 § Implementation notes 2: the outbox check is injected, so these identification-tags
+    // tests never see its scan or its relay reads (test/assistant-outbox-check.test.js drives the real one).
+    checkOutboxRelays: async () => ({ finished: true, done: true, pending: false, reason: null, source: 'local', createdAt: 1, outbox: ['wss://fixture.example'], inboxOnlyCount: 0, suggestions: [] }),
   };
   return { deps, calls };
 }
@@ -587,11 +597,11 @@ test('C1: summarizeAttention — a signed-in answer is answered with its actions
   }
 });
 
-test('C2: CHECKED_ACTIONS names exactly the identification-tags action, and every checked key is a real action (ADR 0001 sub-decision 6)', async () => {
+test('C2: CHECKED_ACTIONS includes the identification-tags action, and every checked key is a real action (ADR 0001 sub-decision 6; the profile and Outbox Relays joined it with assistant-profile-checklist #1 and assistant-outbox-relays #1)', async () => {
   const mod = await actionsModule();
-  assert(sameJson(mod.CHECKED_ACTIONS, [ACTION]), `CHECKED_ACTIONS: want ${show([ACTION])}, got ${show(mod.CHECKED_ACTIONS)}`);
+  assert(Array.isArray(mod.CHECKED_ACTIONS) && mod.CHECKED_ACTIONS.includes(ACTION), `CHECKED_ACTIONS must include ${show(ACTION)}, got ${show(mod.CHECKED_ACTIONS)}`);
   const keys = mod.ASSISTANT_ACTIONS.map((a) => a.key);
-  assert(mod.CHECKED_ACTIONS.every((k) => keys.includes(k)), 'every checked key is one of the ten actions');
+  assert(mod.CHECKED_ACTIONS.every((k) => keys.includes(k)), 'every checked key is one of the actions');
 });
 
 test('C3: the two readings — with no answer a checked action is marked but not counted; done unmarks and uncounts it; pending marks and counts; unfinished marks only; placeholders always both (AC-5)', async () => {
@@ -601,13 +611,16 @@ test('C3: the two readings — with no answer a checked action is marked but not
   const user = { pubkey: 'cc'.repeat(32), classification: 'customer', assistantPubkey: 'c1'.repeat(32) };
   const all = mod.ASSISTANT_ACTIONS.map((a) => a.key);
   const nine = all.filter((k) => k !== ACTION);
+  // The placeholders: every action without a check (re-aimed by assistant-profile-checklist #1, which checks the profile).
+  // These answers carry no profile action, so the profile is marked and not counted, like any checked action unanswered.
+  const placeholders = all.filter((k) => !mod.CHECKED_ACTIONS.includes(k)).length;
   const cases = [
-    ['no answer (undefined)', undefined, all, 9],
-    ['not answered (failed)', summarize(null), all, 9],
-    ['checking (phase only)', { phase: 'checking', answered: false, actions: {} }, all, 9],
-    ['done', summarize(X.DONE), nine, 9],
-    ['pending', summarize(X.PENDING), all, 10],
-    ['unfinished', summarize(X.UNFINISHED), all, 9],
+    ['no answer (undefined)', undefined, all, placeholders],
+    ['not answered (failed)', summarize(null), all, placeholders],
+    ['checking (phase only)', { phase: 'checking', answered: false, actions: {} }, all, placeholders],
+    ['done', summarize(X.DONE), nine, placeholders],
+    ['pending', summarize(X.PENDING), all, placeholders + 1],
+    ['unfinished', summarize(X.UNFINISHED), all, placeholders],
   ];
   const wrong = [];
   for (const [label, att, wantMarked, wantAlert] of cases) {

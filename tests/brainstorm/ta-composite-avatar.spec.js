@@ -105,7 +105,8 @@ test.describe('The stamped composite avatar (ta-avatar #3)', () => {
     })));
 
     // The proxy (ADR D2). 'missing' is AC5's trigger and must not read as an error.
-    await page.route('**/api/assistant/owner-avatar', (r) => (ownerAvatar === 'ok'
+    // The proxy's route since assistant-profile-checklist #3 (ADR 0003 sub-decision 2): the signed-in person's own picture.
+    await page.route('**/api/assistant/my-picture', (r) => (ownerAvatar === 'ok'
       ? r.fulfill({ status: 200, contentType: 'image/png', body: solidPng(256, 256, SOURCE_RGB) })
       : r.fulfill(json({ success: false, code: 'no-picture', error: 'owner has no picture' }, 404))));
 

@@ -184,3 +184,84 @@ tagging route does.
 - Publishing at Assistant creation; republishing on Relay Settings changes; retries.
 - Making the other publishers follow the list.
 - A common module for assistant-signed publishes.
+
+## Amendment 1 — the server connects only to public relays (2026-10-09, review round 1)
+
+**Why.** Round 1's review found that the fan-out connects to whatever relays the request names, filtered only by
+`outsideOnly`, which drops loopback and this instance's own host. Any nostr key can sign in and self-register as a
+Customer, so anyone could make this server open sockets to private addresses (RFC1918, link-local
+`169.254.169.254`, Docker service names, the rest of `127.0.0.0/8`) and read each socket's error text back: a server-side
+request forgery and an internal port oracle. The Security bullet above covered what the route signs, never where it
+connects. A NIP-65 list naming a private address is useless to every other client, so nothing is lost by guarding.
+The owner chose both layers below (2026-10-09).
+
+**Decision.** `src/utils/ssrfGuard.js` is the authority, as it is for every other user-supplied address.
+
+1. **At entry, refuse a relay that is plainly not on the public internet.** Plainly = without a DNS lookup: an IP
+   literal that `isPublicAddress` rejects (private, loopback, link-local, CGNAT, unspecified, multicast, reserved,
+   IPv4-mapped private), or a name that `hasPrivateHostSuffix` rejects (`localhost`, `.local`, `.internal`,
+   `.home.arpa`, `.localhost`, `.lan`, `.intranet`, `.private`, or a bare label with no dot).
+   - **Server (authoritative).** After `validateRelayListRequest`, the handler checks each relay's hostname that way.
+     One plainly-private relay refuses the whole request, before any key is read: 400, code `not-a-public-relay`,
+     "That relay is not on the public internet."
+   - **Page (convenience).** `src/lib/relay-list` gains `isPlainlyPrivateHost(hostname)`, a dependency-free copy of
+     the same rule for the browser. `addRelay` returns the error `'not-public'` for such a relay, and the page shows
+     the same sentence. The server never trusts the page's copy. A drift test pins the two rules to the same answers
+     over a table of hosts.
+   - **Suggestions.** `outboxSuggestions` leaves out plainly-private relays from Relay Settings too, since the page
+     would refuse them.
+2. **At send time, never connect to a non-public address.** Each relay that comes from a relay list — the new list
+   and the previous list — is checked with `isPublicHostname`, which resolves it and needs every answer public, and
+   fails closed. A relay that fails is not passed to `publishToRelays`. Its row is `{ relay, status: 'not-sent',
+   reason: 'not a public address' }`, and the page shows "not sent: not a public address". The configured profile
+   publish relays are owner-set, like every other publish to them (ADR assistant-profile/0002), so they are sent to
+   as before. `summarizePublish` counts a `not-sent` row as neither attempted nor accepted, like `skipped`.
+   `relayLine` in `ui/src/utils/taggingPublishReport.js` gains the `not-sent` wording.
+3. **Socket error text.** Rows for relays that pass the guard keep their reason text. Those hosts are public, so the
+   text tells the caller nothing about this server's network.
+
+**Accepted limits.**
+- DNS rebinding: a name can resolve public for the check and private for the socket. This is `ssrfGuard`'s own
+  documented limit, and closing it would need a pinned-address dispatcher.
+- Which internal names resolve can be inferred from which relays come back "not sent". That reveals only that a name
+  exists, never anything from a connection.
+- One press can still reach about 150 relays (50 new, up to 100 previous, plus the configured set), each looked up
+  first, all within the 8 s publish budget.
+
+**Also recorded here.** The page asks for the answer again only after the server answered success with `result.ok`
+true (a list was written). A refusal or a failed local write changed nothing, so the person's draft stays for another
+try. This is within sub-decision 7's intent: the refresh is there "so … all reflect the new list".
+
+**Story impact.** Story 3 gains AC-6, which carries the refusal and not-sent words and the new copy. Story 2 is not
+reopened: its page gains one refusal line under story 3's AC-6.
+
+## Amendment 2 — the send-time lookups are bounded and stay off the threadpool (2026-10-09, review round 2)
+
+**Why.** Round 2 found that Amendment 1's lookups had no time limit and ran before the 8 s publish deadline started.
+`ssrfGuard.isPublicHostname` uses `dns.lookup`, which runs on libuv's threadpool (four threads by default). One request
+naming 50 relays on a domain whose nameserver never answers could hold that pool for a minute or more, so the server's
+other threadpool work would queue behind it. Past nginx's 60 s timeout, the page would also say "nothing was
+published" for a list already saved here. Amendment 1's line "each looked up first, all within the 8 s publish budget"
+was false.
+
+**Decision.**
+1. **One lookup budget, failing closed.** `LOOKUP_BUDGET_MS = 3000` from the start of the lookups. Each list relay's
+   lookup races it, and one that has not answered by then counts as not public: `not-sent`. The 8 s publish deadline
+   then applies to the sends as before. With the newest-list read before signing (up to 8 s on a first publish when an outside relay hangs), a press answers in at most about 19 s, well inside nginx's 60 s (corrected at review round 3, R3-2).
+2. **Off the threadpool.** The route's default check, `isPublicRelayHostWithin(host, { timeoutMs })` in
+   `relayListPublish.js`, keeps `ssrfGuard`'s rule:
+   - an IP literal → `isPublicAddress`;
+   - a private-by-construction name → `hasPrivateHostSuffix` → not public;
+   - any other name is resolved with `dns.promises.Resolver({ timeout, tries: 1 })`, which runs on c-ares on the event
+     loop rather than the threadpool, querying A and AAAA. It is public only when both queries finished, at least one
+     answered, and every address is public by `isPublicAddress`. A timeout, an error or an empty answer is not public,
+     and the resolver is cancelled when the budget ends.
+   - `ssrfGuard.js` is unchanged; its other callers keep `dns.lookup`.
+   - Accepted: c-ares does not read `/etc/hosts`. A hosts-file name can only be set by the operator, and the socket's
+     own lookup is DNS rebinding's already-accepted limit.
+3. **Wording corrected.** Amendment 1 point 3 says the hosts that pass the guard "are public". The configured relays
+   skip the guard: they are owner-set and may be private, for example an owner's LAN relay. Their reason text still
+   reaches the caller. Relay Settings are already public through `GET /api/relays`, so this tells a caller little.
+
+**Not changed.** The summary when every list relay is `not-sent` and Relay Settings is empty still blames missing
+settings (round 2 non-blocking R2-2). The rows underneath are right; a sentence of its own would need new approved copy.
