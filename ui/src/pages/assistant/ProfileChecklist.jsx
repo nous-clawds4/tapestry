@@ -107,9 +107,12 @@ export default function ProfileChecklistPage() {
     try {
       const statusRes = await fetch(`/api/assistant/status?customerPubkey=${user.pubkey}`);
       const status = await statusRes.json().catch(() => null);
-      // Publish only when this read agrees with what the page offered (ADR 0002 Amendment 1): its scan is not strict, so
-      // a failed read also says "no profile", and the default would replace a real one everywhere.
-      const agrees = status && (fix === 'publish-default' ? status.hasProfile === false : status.hasProfile === true);
+      // Publish only when this read agrees with what the page offered (ADR 0002 Amendments 1 and 2): its scan is not
+      // strict, so a failed read also says "no profile", or falls back to an older copy on an outside relay. Either
+      // would replace the real profile everywhere, so a fix needs this instance's own copy as its base.
+      const agrees = status && (fix === 'publish-default'
+        ? status.hasProfile === false
+        : status.hasProfile === true && status.profileSource === 'local');
       if (!status || status.success !== true || !agrees) {
         report = describeProfilePublish(null);
       } else {
