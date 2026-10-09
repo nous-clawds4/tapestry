@@ -169,6 +169,7 @@ const suites = [
   { file: 'strfry-wipe-owner-gate.test.js' },
   { file: 'strfry-router-owner-gate.test.js' },
   { file: 'strfry-router-value-hardening.test.js' },
+  { file: 'strfry-router-saved-state.test.js' },
   { file: 'relationship-primitives.test.js', skipNote: 'preconditions not met' },
   { file: 'relationship-primitives-probe.test.js', skipNote: 'preconditions not met' },
   { file: 'event-less-create-set.test.js', skipNote: 'preconditions not met' },

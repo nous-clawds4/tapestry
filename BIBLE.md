@@ -528,7 +528,8 @@ Base URL: `http://localhost:8080`
 | POST | `/api/assistant/identification-tags/publish` | Have the signed-in viewer's own assistant sign and publish its offered identification tagging of them (today "My Tapestry Owner"; "My Human" is parked and a body naming it is refused): session-bound, refusals before any key is read, the definition looked up first at its author's address, local relay first, each relay reported. Another narrow, session-bound route in the shape of `publish-profile`; the generic signer and the other assistant-key signers are unchanged (§14 Assistant Keys; ADR assistant-identification-tags/0003) |
 | POST | `/api/assistant/outbox-relays/publish` | Have the signed-in viewer's own assistant sign and publish its NIP-65 relay list (kind 10002) from the Outbox Relays page's draft: session-bound, the body names relays only (up to 50), refusals before any key is read; each relay keeps its marker from the newest list, added ones are `write`, read-only entries are kept, removed ones dropped; local relay first, then every relay the new and previous lists name plus the general-purpose, profile and WoT relays, each reported. Only public relays: a plainly-private one is refused at entry, and every list relay is checked by `src/utils/ssrfGuard.js`'s rule and resolved off the threadpool within a 3 s budget before it is connected to (ADR 0003 Amendments 1 and 2). Another narrow, session-bound route in the shape of `publish-profile`; the generic signer and the other assistant-key signers are unchanged (§14 Assistant Keys; ADR assistant-outbox-relays/0003) |
 | GET | `/api/strfry/router-status` | Router sync status |
-| POST | `/api/strfry/router-toggle` | Enable/disable a sync stream. Owner/local-trusted only, like `router-config`, `router-restart` and `router-restore-defaults`. |
+| POST | `/api/strfry/router-toggle` | Enable/disable a sync stream. Owner/local-trusted only, like `router-config`, `router-restart` and `router-restore-defaults`. Rebuilds the router config from saved state: an enabled stream whose saved plugin, URL, name or direction fails the checks is left out and listed in the response's `skipped` ([docs/CONFIGURATION.md § Checks on router values](docs/CONFIGURATION.md#checks-on-router-values)). |
+| POST | `/api/strfry/router-restart` | Rebuild the router config from saved state (same checks as `router-toggle`), then restart strfry-router. Owner/local-trusted only. |
 | POST | `/api/strfry/negentropy-sync` | Trigger negentropy sync from a relay |
 | POST | `/api/strfry/wipe` | Wipe all strfry events (dangerous!) |
 
@@ -1154,7 +1155,7 @@ Nothing in the protocol *requires* an instance to sync with another instance to 
 
 #### Presets are opt-in cross-instance mirroring
 
-Router presets exist so an operator can *choose* to share or pull state with other relays. Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
+Router presets exist so an operator can *choose* to share or pull state with other relays. Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. A preset must pass the same checks as a saved stream (plugin in `/usr/local/lib/strfry/plugins`, `ws(s)://` URLs; [docs/CONFIGURATION.md § Checks on router values](docs/CONFIGURATION.md#checks-on-router-values)); one that fails is ignored with a warning. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
 
 | Preset | Direction | Kinds | Relays | Purpose |
 |--------|-----------|-------|--------|---------|
