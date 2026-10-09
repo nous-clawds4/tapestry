@@ -39,7 +39,7 @@ The owner's earlier words for this page (book `assistant-management`, 2026-09-21
 
 ### Acceptance frame
 
-*Drafted 2026-10-09. To be confirmed when the owner approves stories 1–3.*
+*Confirmed 2026-10-09, when the owner approved stories 1–3 with the recommended answers to their open questions.*
 
 - [ ] **The page** at `/assistant/profile` replaces its placeholder with seven panels, styled like the cards
       on `/assistant`: a personalized avatar, a personalized background image (a placeholder), a working

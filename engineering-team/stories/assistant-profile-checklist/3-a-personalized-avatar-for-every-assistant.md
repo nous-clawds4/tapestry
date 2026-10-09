@@ -89,6 +89,7 @@ ADR ta-avatar/0003). No firmware reinstall.
    content, so re-storing the same picture is free. The server cannot tell a stamped PNG from any other PNG,
    though: a signed-in person could store any PNG up to 2 MB, as the Owner can today. *Recommended: no
    per-person quota in this story; the Architect weighs a simple rate limit and records it in the ADR.*
+   *Settled 2026-10-09 at approval: as recommended.*
 
 ## Linked artifacts
 

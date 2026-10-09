@@ -130,8 +130,9 @@ The profile is a kind 0, the NIP-05 a `.well-known` listing and the avatar a fil
    reason "this instance has no public web address" (and story 2 offers no fix), so the hub never calls a dev
    box's profile complete. The alternative is to drop them from the count there, so a dev box can reach Done.
    *Recommended: needs attention, as drafted — the profile really is not reachable by strangers.*
+   *Settled 2026-10-09 at approval: needs attention, as drafted.*
 2. **Does "visible" need every outside relay, or one?** This draft says one is enough, and the panel says how
-   many have it (story 2). *Recommended: one.*
+   many have it (story 2). *Recommended: one.* *Settled 2026-10-09 at approval: one.*
 
 ## Linked artifacts
 
