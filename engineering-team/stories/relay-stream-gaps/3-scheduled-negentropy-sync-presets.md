@@ -1,7 +1,7 @@
 # Story 3: Saved negentropy-sync presets, run on a schedule
 
 **Epic:** relay-stream-gaps
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-09
 **Type:** Feature
 
@@ -40,7 +40,7 @@ synced.
       the same checks a one-shot sync applies. Saved presets are listed on the tab with name,
       relay, direction, a filter summary and an on/off switch. The operator can load a preset
       into the form (to run it once, or to change and re-save it) and delete it. Since/until
-      aren't saved, because the schedule's window sets them (Open question 1). Presets are this
+      aren't saved, because the schedule's window sets them (Product decision 1). Presets are this
       instance's own and survive restarts and deploys.
 - [ ] **AC-2 (no runaway presets):** A preset must narrow what it syncs. It needs at least
       event kinds, authors or a tag filter, so an unfiltered "everything from this relay"
@@ -48,7 +48,7 @@ synced.
       says why when it refuses.
 - [ ] **AC-3 (the scheduled task):** The Scheduled Tasks panel offers a **Negentropy Sync
       presets** task. When it fires, it syncs every switched-on preset with that preset's
-      relay, direction and filter, over the window in Open question 1. Presets run one at a
+      relay, direction and filter, over the window in Product decision 1. Presets run one at a
       time, switched-off presets are skipped, and a run that is still going when the next one
       is due is not started twice. Its runs appear in the panel's history like any other
       task's.
@@ -79,20 +79,18 @@ synced.
 - **Fixing which relays support negentropy.** A failing relay is reported (AC-4), not worked
   around.
 
+## Product decisions (settled at Planning, 2026-10-09)
+
+1. **Each scheduled run looks back to that preset's last successful run, with an hour's
+   overlap.** A preset's first run (or any run with no earlier success) covers the last 7
+   days. It's cheap on both relays, and nothing is skipped as long as the task keeps running.
+2. **The task ships switched off.** The operator turns it on in Scheduled Tasks and picks the
+   cadence; the panel suggests every 6 hours.
+3. **A preset needs at least one of: event kinds, authors, a tag filter** (AC-2's floor).
+
 ## Open questions
 
-1. **How far back each scheduled run looks.** A full sync of a broad filter (e.g. kind 0
-   from purplepag.es) is heavy on both relays. Options:
-   - (a) **Since that preset's last successful run, with an hour's overlap**, and the first
-     run covering the last 7 days. *(Proposed: cheap, and nothing is skipped as long as the
-     task keeps running.)*
-   - (b) A fixed look-back per preset (e.g. 24 h).
-   - (c) Everything matching the filter, every run. Simplest and heaviest.
-2. **The task's default schedule.** Proposed: the task ships switched **off**. The operator
-   turns it on in Scheduled Tasks and picks the cadence; the panel suggests every 6 hours.
-   Alternative: ship it on, every 6 hours.
-3. **AC-2's floor.** Proposed: at least one of kinds, authors or a tag filter. Alternative: be
-   stricter (e.g. always require kinds), or don't require a filter at all.
+None.
 
 ## Linked artifacts
 - ADR: (filled in after Architecture phase)
