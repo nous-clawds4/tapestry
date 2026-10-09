@@ -1,6 +1,6 @@
 # Epic: assistant-outbox-relays — your Assistant's outbox relays, and the hub's third persona card
 
-**Status:** Done (book closed 2026-10-09; the folders sit under `done/`; on staging, production pending)
+**Status:** Done (book closed 2026-10-09; the folders sit under `done/`; in production 2026-10-09 via PR #829)
 **Created:** 2026-10-09
 **Book:** `engineering-team/audits/assistant-outbox-relays/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-09, quoted verbatim in the book, settled through four questions
