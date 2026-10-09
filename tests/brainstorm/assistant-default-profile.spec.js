@@ -161,7 +161,8 @@ async function mockEditor(page, { isPublic = true, picture, ownerAvatar = 'ok', 
     computedNip05: isPublic ? { localPart: NIP05.split('@')[0], domain: PUBLIC_DOMAIN, address: NIP05 } : null,
     defaults: defaultsFor({ isPublic, picture }),
   })));
-  await page.route('**/api/assistant/owner-avatar', (r) => (ownerAvatar === 'ok'
+  // The proxy's route since assistant-profile-checklist #3 (ADR 0003 sub-decision 2): the signed-in person's own picture.
+  await page.route('**/api/assistant/my-picture', (r) => (ownerAvatar === 'ok'
     ? r.fulfill({ status: 200, contentType: 'image/png', body: solidPng(256, 256, SOURCE_RGB) })
     : r.fulfill(json({ success: false, code: 'no-picture', error: 'The owner has no profile picture' }, 404))));
   await page.route('**/api/assistant/avatar', (r) => (r.request().method() === 'POST'

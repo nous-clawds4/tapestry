@@ -2737,3 +2737,21 @@ all phases). Each action page leans **Product Team** first, as the `/setup` step
 **Environment:** the session that wrote the brief couldn't reach `staging.brainstorm.world` or `dcosl.brainstorm.world` (egress policy). The owner has since allowed both in the Default Cloud Environment, so a new session can smoke-test on staging.
 
 **Classification:** feature, with a settled design (the brief). Standard; a direct build like GitHub Accounts' is the precedent.
+
+## 2026-10-08 — The Treasure Map cards: a Needs attention pill, and a details panel per card (feature)
+
+**PICKED UP** 2026-10-08 at intake → book `engineering-team/audits/treasure-map-card-details/book.md`, epic
+`treasure-map-card-details`, stories 1–2. **Strictness:** Light (trial) — workflows/light-profile.md (the owner's
+choice).
+
+**Raw request (verbatim, 2026-10-08):**
+
+> First: on the Assistant Management page, http://localhost:7778/assistant or https://staging.brainstorm.world/assistant, there is a "Needs attention" pill that is displayed when we want to prompt the user to take an action. I would like to us a similarly styled pill on the Treasure Map page, in each of the panels for the three categories: Scores, Lists, and Concepts, when there is no Assistant who is assigned for that category.
+>
+> Second: I would like the ability to toggle a "show details" panel below each of the three category panels (Scores, Lists, and Concepts), that shows the details of the existing assignments for that category.
+
+**Classification:** two features, page-only (no event shape, auth default, schema, dependency or routing change), so
+the Light Feature lane: Gate A → J1 → J2 → J3 → Gate B per story. The owner's four intake decisions are recorded in the
+book. Asked in the same session as the Concepts `39998`+`39999` hotfix (ledger row
+`2026-10-08-concepts-assignment-adds-39999`), and "before shipping to staging", so the book's branch carries that
+hotfix too.

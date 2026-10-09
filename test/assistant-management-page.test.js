@@ -171,9 +171,9 @@ test('D1: the page has three sections, in the approved order: Public Persona, Tr
   assert(j(got) === j(X.SECTIONS), `expected ${j(X.SECTIONS)}, got ${j(got)}`);
 });
 
-test('D2: the ten actions, in the approved order and sections, with their approved titles, addresses and descriptions (AC-1, AC-3)', async () => {
+test('D2: the eleven actions, in the approved order and sections, with their approved titles, addresses and descriptions (AC-1, AC-3; re-aimed by assistant-outbox-relays #1 AC-1)', async () => {
   const actions = need(await actionsModule(), 'ASSISTANT_ACTIONS');
-  assert(Array.isArray(actions) && actions.length === 10, `expected exactly 10 actions (the ask lists two, six and two), got ${j(actions && actions.length)}`);
+  assert(Array.isArray(actions) && actions.length === 11, `expected exactly 11 actions (the ask listed two, six and two; assistant-outbox-relays #1 adds a third persona card), got ${j(actions && actions.length)}`);
   const wrong = [];
   X.ACTIONS.forEach((want, i) => {
     const got = actions[i] || {};
@@ -191,7 +191,7 @@ test('D2: the ten actions, in the approved order and sections, with their approv
   assert(wrong.length === 0, `story 1 § Copy: ${wrong.join('; ')}`);
 });
 
-test('D3: exactly three descriptions carry a link — the NIP each names, at the approved address — and the other seven carry none (AC-3)', async () => {
+test('D3: exactly four descriptions carry a link — the NIP each names, at the approved address — and the other seven carry none (AC-3; re-aimed by assistant-outbox-relays #1: NIP-65)', async () => {
   const mod = await actionsModule();
   const actions = need(mod, 'ASSISTANT_ACTIONS');
   const wrong = [];
@@ -257,11 +257,11 @@ test('D7: every action needs attention for a viewer who has an assistant here, a
   const wrong = [];
   for (const [who, user, has] of cases) {
     const got = attention(user);
-    const want = { hasAssistant: has, needsAttention: has ? allKeys : [], count: has ? 10 : 0 };
+    const want = { hasAssistant: has, needsAttention: has ? allKeys : [], count: has ? allKeys.length : 0 };
     const shaped = got && { hasAssistant: got.hasAssistant, needsAttention: got.needsAttention, count: got.count };
     if (j(shaped) !== j(want)) wrong.push(`${who}: want ${j(want)}, got ${j(got)}`);
   }
-  assert(wrong.length === 0, `ADR 0001 sub-decision 1 (a scaffold: all ten, for exactly the viewers with an assistant): ${wrong.join('; ')}`);
+  assert(wrong.length === 0, `ADR 0001 sub-decision 1 (with no answer: every action, for exactly the viewers with an assistant): ${wrong.join('; ')}`);
 });
 
 test('D8: every action lives under the hub\'s address, and the profile page is ASSISTANT_PROFILE_PATH, /assistant/profile (AC-3, AC-5)', async () => {
@@ -501,7 +501,7 @@ test('O4: nothing user-facing still sends people to "the My Assistant page (/ass
 
 /* ───────────────────────── H — the live server (a guard) ───────────────────────── */
 
-test('H1: the reachable instance serves the app for all twelve addresses — the hub, the ten action pages and the editor (AC-7; guard)', async () => {
+test('H1: the reachable instance serves the app for all thirteen addresses — the hub, the eleven action pages and the editor (AC-7; guard)', async () => {
   const addresses = [X.HUB, ...X.ACTIONS.map((a) => a.path), X.EDITOR];
   let first;
   try {

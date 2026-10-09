@@ -304,12 +304,13 @@ const PUBLISH_RELAYS = ['wss://purplepag.es', 'wss://wot.grapevine.network', 'ws
 
 test.describe('/treasure-map — Edit mode: Save', () => {
   test('SV1: Save changes beside the note — off with nothing to save, and for a pick that leaves the Map unchanged; on for a real change', async ({ page }) => {
-    await setup(page);
+    // MAIN plus `39999` → yours, so both Concepts family entries (owner's request, 2026-10-08) already name you.
+    await setup(page, { mapLocal: mapOf([...MAIN_TAGS, ['39999', LOCAL, R]]) });
     await page.goto('/treasure-map');
     await startEditing(page);
     await expect(saveButton(page)).toHaveText('Save changes');
     await expect(saveButton(page)).toBeDisabled();
-    // Concepts reads Mixed (Zed Local, Cy); its own entry already names Zed Local and 39998 is there: nothing changes.
+    // Concepts reads Mixed (Zed Local, Cy); its own entries already name Zed Local, 39998 and 39999: nothing changes.
     await pick(page, pickerButton(page, 'Concepts'), 'Zed Local');
     await expect(saveNote(page, 'No changes yet'), 'a pick that changes nothing (story 3 review, non-blocking 4)').toBeVisible();
     await expect(saveButton(page)).toBeDisabled();
