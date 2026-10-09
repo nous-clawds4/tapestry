@@ -14,6 +14,8 @@
  *       scanLocal, readRelay, getConfiguredPublishRelays, getConfigFromFile, importEvent, isLocalOnly, publishToRelays,
  *       now). Stack-free; the events are really signed and verified with nostr-tools.                    [AC-2 … AC-5]
  *   C — the page's publish words (outboxRelaysCopy.js).                                                       [AC-1, AC-5]
+ *   A — story 3 AC-6 (ADR 0003 Amendment 1, review round 1): plainly-private relays refused at entry (the library's
+ *       copy pinned to src/utils/ssrfGuard.js), and the send-time lookup that never connects to a non-public address.
  *   R — a regression that passes before and after: the shipped report util draws the route's answer shape, so the
  *       page reuses it unchanged (ADR 0003 sub-decision 7).                                                  [AC-1]
  *   S — source sentinels: the route registered and documented, the signing helper shared, no creation path, the
@@ -121,7 +123,7 @@ function fakes(opts = {}) {
   const n = nt();
   const sk = n.generateSecretKey();
   const assistantPubkey = n.getPublicKey(sk);
-  const calls = { getAssistantKeys: [], scanLocal: [], readRelay: [], importEvent: [], publishToRelays: [], order: [] };
+  const calls = { getAssistantKeys: [], scanLocal: [], readRelay: [], importEvent: [], publishToRelays: [], order: [], isPublicHostname: [] };
   const deps = {
     getAssistantKeys: async (pubkey) => {
       calls.getAssistantKeys.push(pubkey);
@@ -155,6 +157,11 @@ function fakes(opts = {}) {
       return rows(relays);
     },
     now: () => (opts.now === undefined ? NOW_MS : opts.now),
+    // The send-time lookup (ADR 0003 Amendment 1): every host public unless named in opts.notPublic — no real DNS here.
+    isPublicHostname: async (host) => {
+      calls.isPublicHostname.push(host);
+      return !(opts.notPublic || []).includes(host);
+    },
   };
   if (opts.throwOn === 'getAssistantKeys') deps.getAssistantKeys = async () => { throw new Error('fixture: the key store exploded'); };
   return { deps, calls, assistantPubkey };
@@ -349,6 +356,93 @@ test('P12: the request names relays only — a kind, a pubkey or tags in the bod
 test('P13: an unexpected throw answers 500 with the approved error (ADR 0003 sub-decision 5)', async () => {
   const got = await answer({ throwOn: 'getAssistantKeys' });
   assert(got.res.statusCode === 500 && sameJson(got.body, { success: false, error: O.PUBLISH.failed }), `got ${got.res.statusCode} ${show(got.body)}`);
+});
+
+/* ───────────────────────── A — only public relays (story 3 AC-6) ───────────────────────── */
+
+const PLAINLY_PRIVATE = ['ws://10.0.0.5:6379', 'ws://169.254.169.254/latest', 'ws://tapestry-redis:6379', 'ws://127.0.0.2:7687',
+  'ws://[::1]:7777', 'wss://box.local', 'ws://0.0.0.0', 'ws://192.168.1.20/relay', 'wss://relay.internal', 'ws://[fd00::1]', 'ws://100.64.0.1'];
+
+test('A1: isPlainlyPrivateHost answers as src/utils/ssrfGuard.js does without DNS — isPublicAddress for an IP literal, hasPrivateHostSuffix for a name — over a table of hosts (AC-6; ADR 0003 Amendment 1, the drift guard)', () => {
+  const lib = libModule();
+  assert(typeof lib.isPlainlyPrivateHost === 'function', 'src/lib/relay-list exports isPlainlyPrivateHost(hostname)');
+  const guard = require(path.join(REPO, 'src/utils/ssrfGuard.js'));
+  const net = require('net');
+  const hosts = ['10.0.0.5', '172.16.3.4', '172.32.0.1', '192.168.1.1', '127.0.0.2', '169.254.169.254', '100.64.0.1', '0.0.0.0',
+    '224.0.0.1', '8.8.8.8', '1.1.1.1', '::1', 'fe80::1', 'fd00::1', '::ffff:10.0.0.1', '2606:4700::1111', 'localhost', 'tapestry-redis',
+    'box.local', 'relay.internal', 'nas.lan', 'x.home.arpa', 'a.localhost', 'relay.damus.io', 'nos.lol', 'staging.brainstorm.world'];
+  const wrong = [];
+  for (const h of hosts) {
+    const guardSaysPrivate = net.isIP(h) ? !guard.isPublicAddress(h) : guard.hasPrivateHostSuffix(h);
+    const libSays = lib.isPlainlyPrivateHost(net.isIP(h) === 6 ? `[${h}]` : h);
+    if (libSays !== guardSaysPrivate) wrong.push(`${h}: guard ${guardSaysPrivate}, library ${libSays}`);
+  }
+  assert(wrong.length === 0, `the two rules disagree: ${wrong.join('; ')}`);
+});
+
+test('A2: addRelay refuses a plainly-private relay with not-public, and the draft is unchanged; a public one is still added (AC-6)', () => {
+  const addRelay = libModule().addRelay;
+  const wrong = [];
+  for (const url of PLAINLY_PRIVATE) {
+    const got = addRelay([NEW], url);
+    if (!sameJson(got, { draft: [NEW], error: 'not-public' })) wrong.push(`${url}: ${show(got)}`);
+  }
+  if (addRelay([], 'wss://relay.damus.io').error !== null) wrong.push('a public relay must still be added');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('A3: a request naming a plainly-private relay is refused 400 not-a-public-relay, in the approved words, before any key is read (AC-6)', async () => {
+  const wrong = [];
+  for (const url of PLAINLY_PRIVATE) {
+    const got = await answer({}, signedInReq([NEW, url]));
+    if (got.res.statusCode !== 400 || !sameJson(got.body, { success: false, code: O.PUBLISH.codes.notAPublicRelay, error: O.PUBLISH.refusals['not-a-public-relay'] })) wrong.push(`${url} → ${got.res.statusCode} ${show(got.body)}`);
+    if (got.calls.getAssistantKeys.length || got.calls.publishToRelays.length) wrong.push(`${url}: a key was read or something was sent`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('A4: at send time every relay from the new and the previous list is looked up; one that does not resolve public is never sent to and reads not-sent: not a public address; the configured relays are not looked up (AC-6)', async () => {
+  const hidden = 'wss://resolves-private.example';
+  const oldHidden = 'wss://old-private.example';
+  const local = (pk) => [relayList(pk, 1000, [['r', KEEP_WRITE, 'write'], ['r', oldHidden, 'write']])];
+  const got = await answer({ local, notPublic: ['resolves-private.example', 'old-private.example'] }, signedInReq([NEW, hidden]));
+  const r = got.result || {};
+  const sent = got.calls.publishToRelays[0] ? got.calls.publishToRelays[0].relays : [];
+  const wrong = [];
+  if (sent.includes(hidden) || sent.includes(oldHidden)) wrong.push(`a non-public relay was sent to: ${show(sent)}`);
+  if (!sent.includes(NEW) || !sent.includes(KEEP_WRITE) || !sent.includes(PUB1)) wrong.push(`the public relays are still sent to: ${show(sent)}`);
+  const rows = (r.relays && r.relays.results) || [];
+  for (const url of [hidden, oldHidden]) {
+    const row = rows.find((x) => x.relay === url);
+    if (!row || row.status !== O.PUBLISH.notSent.status || row.reason !== O.PUBLISH.notSent.reason) wrong.push(`${url}: want a not-sent row, got ${show(row)}`);
+  }
+  const looked = got.calls.isPublicHostname.slice().sort();
+  if (!sameJson(looked, ['keep-write.example', 'new.example', 'old-private.example', 'resolves-private.example'])) wrong.push(`looked up: want the list relays only, got ${show(looked)}`);
+  if (!got.signed || !got.signed.tags.some((t) => t[1] === hidden)) wrong.push('the signed list still names the relay the person chose; only the connection is withheld');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('A5: a not-sent row counts as neither tried nor accepted — the summary counts only the relays that were sent to (AC-6; ADR 0003 Amendment 1)', async () => {
+  const got = await answer({ notPublic: ['resolves-private.example'] }, signedInReq([NEW, 'wss://resolves-private.example']));
+  const r = got.result || {};
+  const n = (got.calls.publishToRelays[0] || { relays: [] }).relays.length;
+  assert(r.outcome === 'published' && r.message === O.PUBLISH.published(n, n), `want ${show(O.PUBLISH.published(n, n))}, got ${show(r.message)}`);
+});
+
+test('A6: the page words — the not-public refusal and the not-sent line (story 3 § Copy)', async () => {
+  const copy = (await esm(COPY_MOD, 'ADR 0002 sub-decision 3 creates it.')).OUTBOX_RELAYS_COPY || {};
+  assert(copy.refusals && copy.refusals['not-public'] === O.PAGE.refusals['not-public'], `refusals['not-public']: want ${show(O.PAGE.refusals['not-public'])}, got ${show(copy.refusals && copy.refusals['not-public'])}`);
+  const { relayLine } = await esm(REPORT_MOD, 'It exists since assistant-identification-tags #2.');
+  const line = relayLine({ relay: NEW, status: O.PUBLISH.notSent.status, reason: O.PUBLISH.notSent.reason });
+  assert(line === O.PUBLISH.notSent.line, `relayLine: want ${show(O.PUBLISH.notSent.line)}, got ${show(line)}`);
+});
+
+test('A7: the route uses src/utils/ssrfGuard.js — isPublicAddress and hasPrivateHostSuffix at entry, isPublicHostname at send time (ADR 0003 Amendment 1)', () => {
+  const src = codeOnly(safeRead(MODULE));
+  const wrong = [];
+  if (!/ssrfGuard/.test(src)) wrong.push('requires ../../utils/ssrfGuard');
+  for (const name of ['isPublicAddress', 'hasPrivateHostSuffix', 'isPublicHostname']) if (!new RegExp(`\\b${name}\\b`).test(src)) wrong.push(`uses ${name}`);
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 /* ───────────────────────── C — the page's words and report ───────────────────────── */

@@ -19,6 +19,7 @@ const O = require('../../test/helpers/outboxRelaysFixtures');
  *   B4  — the page, done: the list with Remove buttons, the Done mark, the inbox line, nothing to publish. [#2 AC-1, AC-2]
  *   B5  — the page, pending: none yet; suggestions one at a time, back on Remove, then Add all.      [#2 AC-2, AC-4, AC-5]
  *   B6  — adding by hand: the two refusals, a relay added in its one spelling, Enter adds.          [#2 AC-3]
+ *   B6b — a plainly-private relay is refused where it is typed (review round 1).                     [#3 AC-6]
  *   B7  — the publish: one POST of the draft, the report, the answer asked again.                    [#3 AC-1, AC-2]
  *   B8  — an empty outbox: the POST of [], the empty-outbox line.                                    [#3 AC-5]
  *   B9  — a refusal is one line saying why; a request that fails says nothing was published.         [#3 AC-1]
@@ -242,6 +243,16 @@ test.describe('Outbox Relays — the hub card, the page and the publish (assista
     expect(await listedRelays(page)).toEqual([O.OUT_A, O.OUT_B, 'wss://hand.typed.example']);
     await expect(field).toHaveValue('');
     await expect(main.getByText(O.PAGE.refusals['already-listed'], { exact: true })).toHaveCount(0);
+  });
+
+  test('B6b: a relay that is plainly not on the public internet is refused where it is typed, with a line, and not added (#3 AC-6)', async ({ page }) => {
+    await mock(page, { attention: O.attentionWith({ outbox: O.OUTBOX.DONE }) });
+    const main = await open(page);
+    const field = main.getByLabel(O.PAGE.fieldLabel);
+    await field.fill('ws://192.168.1.20:7777');
+    await field.press('Enter');
+    await expect(main.getByText(O.PAGE.refusals['not-public'], { exact: true })).toBeVisible();
+    expect(await listedRelays(page)).toEqual([O.OUT_A, O.OUT_B]);
   });
 
   test('B7: the publish — one POST of the draft as { relays }; Publishing… while it runs; the summary and one line per relay; then the answer is asked again and the list rebuilt from it (#3 AC-1, AC-2)', async ({ page }) => {

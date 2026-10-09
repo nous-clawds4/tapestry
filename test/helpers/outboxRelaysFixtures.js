@@ -64,6 +64,8 @@ const PAGE = {
     'not-a-relay': 'A relay address starts with wss:// (or ws://).',
     'already-listed': 'That relay is already on the list.',
     'too-many': 'A relay list here holds at most 50 relays.',
+    // story 3 AC-6 (ADR 0003 Amendment 1).
+    'not-public': 'That relay is not on the public internet.',
   },
   suggestionsHeading: 'Suggested relays',
   suggestionsExplainer: "Relays your Assistant already publishes to, from this instance's relay settings.",
@@ -84,12 +86,15 @@ const PUBLISH = {
   emptyOutbox: 'Your Assistant now has no outbox relays.',
   requestFailed: 'This instance did not answer; nothing was published.',
   failed: "Could not publish your Assistant's relay list",
-  codes: { notSignedIn: 'not-signed-in', notARelayList: 'not-a-relay-list', noAssistant: 'no-assistant' },
+  codes: { notSignedIn: 'not-signed-in', notARelayList: 'not-a-relay-list', noAssistant: 'no-assistant', notAPublicRelay: 'not-a-public-relay' },
   refusals: {
     'not-signed-in': 'Sign in to have your Assistant publish its relay list.',
     'no-assistant': "You don't have a Tapestry Assistant on this instance yet.",
     'not-a-relay-list': 'That is not a list of relay addresses.',
+    'not-a-public-relay': 'That relay is not on the public internet.',
   },
+  // A relay the server would not connect to (story 3 AC-6): its row, and its line on the page.
+  notSent: { status: 'not-sent', reason: 'not a public address', line: 'not sent: not a public address' },
   // The profile publish's sentence shapes (src/api/assistant/profilePublish.js summarizePublish), with this subject.
   published: (a, n) => `${SUBJECT} was saved on this instance's relay and accepted by ${a} of ${n} relays.${a < n ? ` ${n - a} did not accept it; see below.` : ''}`,
   noneAccepted: (n) => `${SUBJECT} was saved on this instance's relay, but none of the ${n} relays accepted it; see below.`,

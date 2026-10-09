@@ -194,6 +194,13 @@ test('G4: the attention answer carries the suggestions even when the check did n
   assert(done && done.done === true && done.suggestions.includes('wss://nos.lol'), `a published relay stays among the suggestions (the page filters by its draft): ${show(done)}`);
 });
 
+test('G5: the suggestions leave out plainly-private relays from Relay Settings too, since the page would refuse them (story 3 AC-6; ADR 0003 Amendment 1)', () => {
+  const outboxSuggestions = need(outboxModule(), 'outboxSuggestions', 'src/api/assistant/outboxRelays.js');
+  const settings = { aPopularGeneralPurposeRelays: ['wss://nos.lol', 'ws://10.0.0.9:7777', 'ws://tapestry-relay'], aDListRelays: ['wss://box.local', 'wss://dcosl.example'] };
+  const got = outboxSuggestions(suggestionDeps({ settings }).deps);
+  assert(sameJson(got, ['wss://nos.lol', 'wss://dcosl.example']), `want only the public ones, got ${show(got)}`);
+});
+
 /* ───────────────────────── C — the page's words ───────────────────────── */
 
 test('C1: the copy module is pure — no imports — and holds the approved words (story 2 § Copy; ADR 0002 § Consequences for the 50-relay line)', async () => {

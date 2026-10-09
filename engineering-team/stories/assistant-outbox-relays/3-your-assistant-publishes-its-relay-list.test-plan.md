@@ -20,8 +20,12 @@ browser suite `tests/brainstorm/assistant-outbox-relays.spec.js` (B7–B9).
 | Docs | S1 route registered and documented; BIBLE §11 row and §14 sentence | publish | source |
 | Live | H1 an anonymous POST answers 401 (skips with no stack) | publish | live |
 | Errors | P13 an unexpected throw → 500 with the approved error | publish | unit (DI) |
+| AC-6 only public relays (review round 1, ADR 0003 Amendment 1) | A1 the library's `isPlainlyPrivateHost` answers as `ssrfGuard` does without DNS (drift guard); A2 `addRelay` refuses `not-public`; A3 a request naming one → 400 `not-a-public-relay` before any key; A4 send-time lookup of the new and previous lists' relays, non-public ones never sent and reported `not-sent`, configured relays not looked up, the signed list unchanged; A5 a not-sent row is neither tried nor accepted; A6 the words and `relayLine`; A7 the route uses `ssrfGuard`; G5 (page suite) suggestions leave out plainly-private relays; B6b the page refuses a private address where it is typed | publish, page, spec | unit, unit (DI), source, browser |
 
 ## Edge cases
+
+- [x] A private, loopback, link-local, CGNAT, unique-local or IPv4-mapped address; `localhost`; a local-network suffix; a bare Docker service name (A1–A3).
+- [x] A public-looking name that resolves private (A4, through the injected `isPublicHostname`).
 
 - [x] Duplicate relays in the request, by spelling (P2, L3).
 - [x] 51 relays (P2, L3).
@@ -74,3 +78,10 @@ assistant-attention.spec.js:         B1–B4 fail (the hub marks one card fewer 
 assistant-alert.spec.js:             B1, B5, B6 fail (the pill says 10, not 11)
 24 failed, 2 skipped, 26 passed
 ```
+
+### Round 2 (review round 1's finding, ADR 0003 Amendment 1), 2026-10-09
+
+Before the fix: A1, A2, A3, A4, A6, A7 fail ("isPlainlyPrivateHost" not exported; a private relay is added, accepted with
+200 and sent to); G5 and the page suite's C1 (the new refusal line) fail; A5 passes already (with no guard every relay is
+sent and counted, so its count matches either way, and after the fix it pins that not-sent rows are not counted).
+`fakes()` now injects `isPublicHostname` (every host public unless listed), so no test reaches real DNS.
