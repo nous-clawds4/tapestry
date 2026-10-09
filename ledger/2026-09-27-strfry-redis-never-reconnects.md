@@ -40,6 +40,12 @@ rebuild on every host (`Dockerfile:19`, `:26-33`). Correct `BIBLE.md:936` in the
 `2026-09-27-strfry-redis-misses-websocket-writes` is fixed by retiring the patch for a websocket subscriber, this row
 goes with it.
 
+**Update 2026-10-09 (relay-stream-gaps #1, ADR relay-stream-gaps/0001):** one of the two recoveries above is
+gone. A router-config change no longer restarts the router: toggles, saves and Restore Defaults rewrite the config in
+place and strfry reloads it, and they restart the router only as a fallback (router not running, or no reload logged
+within 3 s). After `docker restart tapestry-redis`, press **Restart** on the Router Management tab
+(`/tapestry/settings/relays`), or deploy, to give the router a fresh Redis connection. The fix shape above is unchanged.
+
 **Pointer:** epic `engineering-team/epics/tagging-edges.md` § Key facts / guardrails (the "Known defects in the
 follows pipeline" bullet: "the Redis client that never reconnects"); review
 `engineering-team/reviews/tagging-edges/1-tagging-edge-contract.md` Blocking 4; `patches/strfry-redis/redis.cpp`.

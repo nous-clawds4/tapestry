@@ -398,13 +398,14 @@ function classifyReloadLog(text) {
 /**
  * The text appended to a log since byte `offset`, and the file's current size. A file
  * smaller than `offset` was rotated by supervisord, so it is read from the start. Never
- * throws: a missing or unreadable log reads as { text: '', size: 0 }.
+ * throws: a missing or unreadable log reads as { text: '', size: 0, ok: false }, so a
+ * caller can keep its read position instead of starting over from byte 0.
  */
 function readLogSince(logPath, offset) {
   try {
     const { size } = fs.statSync(logPath);
     const start = size < offset ? 0 : offset;
-    if (size <= start) return { text: '', size };
+    if (size <= start) return { text: '', size, ok: true };
     const buf = Buffer.alloc(size - start);
     const fd = fs.openSync(logPath, 'r');
     try {
@@ -412,9 +413,9 @@ function readLogSince(logPath, offset) {
     } finally {
       fs.closeSync(fd);
     }
-    return { text: buf.toString('utf8'), size };
+    return { text: buf.toString('utf8'), size, ok: true };
   } catch {
-    return { text: '', size: 0 };
+    return { text: '', size: 0, ok: false };
   }
 }
 
@@ -439,6 +440,7 @@ async function waitForReload(offset) {
   let text = '';
   const pull = () => {
     const more = readLogSince(ROUTER_LOG_PATH, pos);
+    if (!more.ok) return; // keep the position; a transient failure must not rewind to byte 0
     text += more.text;
     pos = more.size;
   };
@@ -456,8 +458,10 @@ async function waitForReload(offset) {
 }
 
 class RouterRejectedError extends Error {
-  constructor(reason) {
-    super(`The router rejected the new configuration (${reason}). It is still running the previous streams; nothing was changed.`);
+  constructor(reason, { restarted = false } = {}) {
+    super(restarted
+      ? `The router rejected the new configuration (${reason}). It was restarted to put the previous streams back; nothing was changed.`
+      : `The router rejected the new configuration (${reason}). It is still running the previous streams; nothing was changed.`);
     this.reason = reason;
   }
 }
@@ -475,8 +479,13 @@ function restartRouter() {
  * Apply `state` to the running router. Resolves { applied, why?, skipped }:
  * applied 'reloaded' (strfry took the in-place rewrite) or 'restarted' (why: 'not-running'
  * or 'no-reload'); skipped lists streams re-validation left out (usually empty).
- * If strfry rejects the config, `prev` (the state the router is still running) is written
- * back — state file and config — and a RouterRejectedError is thrown.
+ * If strfry rejects the config, `prev` is written back — state file and config — and a
+ * RouterRejectedError is thrown once the router is confirmed back on `prev`. strfry 1.1.0
+ * may have half-applied the rejected config (it configures stream groups in name order and
+ * stops at the failing one), so the rollback's own reload is awaited; if it isn't seen, the
+ * router is restarted on `prev`. Either way the caller's lock is released only after the
+ * router has settled, so the next change's log window can't contain this one's reload
+ * (ADR relay-stream-gaps/0001 Amendment 1).
  */
 async function applyConfig(state, prev) {
   const { configText, skipped } = buildConfigFromState(state);
@@ -496,11 +505,16 @@ async function applyConfig(state, prev) {
     return { applied: 'restarted', why: 'no-reload', skipped };
   }
 
-  if (prev) {
-    saveState(prev);
-    fs.writeFileSync(ROUTER_CONFIG_PATH, buildConfigFromState(prev).configText, 'utf8');
+  saveState(prev);
+  const rollbackOffset = logSize(ROUTER_LOG_PATH);
+  fs.writeFileSync(ROUTER_CONFIG_PATH, buildConfigFromState(prev).configText, 'utf8'); // in place
+  if ((await waitForReload(rollbackOffset)) === 'loaded') throw new RouterRejectedError(outcome.rejected);
+  try {
+    await restartRouter();
+  } catch (err) {
+    throw new Error(`The router rejected the new configuration (${outcome.rejected}), and restarting it to put the previous streams back failed (${err.message}). Press Restart on the Router Management tab.`);
   }
-  throw new RouterRejectedError(outcome.rejected);
+  throw new RouterRejectedError(outcome.rejected, { restarted: true });
 }
 
 /** A handler's success message for how the change was applied. `base` has no final period. */
