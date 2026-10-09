@@ -46,6 +46,7 @@ const ROUTER_STATUS = path.join(ROOT, 'src/api/strfry/routerStatus.js');
 const AUTH = path.join(ROOT, 'src/middleware/auth.js');
 const RELAY_SETTINGS = path.join(ROOT, 'ui/src/pages/settings/RelaySettings.jsx');
 const BIBLE = path.join(ROOT, 'BIBLE.md');
+const CONFIGURATION_DOC = path.join(ROOT, 'docs/CONFIGURATION.md');
 const PRESETS = path.join(ROOT, 'setup/router-presets.json');
 
 const CONFIG_PATH = '/etc/strfry-router-tapestry.config';
@@ -59,6 +60,8 @@ const STALE_REASON = 'stale reason from an earlier edit';
 const RESTART_CLAUSE = 'did not pick it up by itself, so it was restarted';
 const REJECTED_HEAD = 'The router rejected the new configuration';
 const REJECTED_TAIL = 'It is still running the previous streams; nothing was changed.';
+// ADR 0001 Amendment 1: the rollback's own reload was not seen, so the router was restarted on the previous config.
+const ROLLBACK_RESTARTED_TAIL = 'It was restarted to put the previous streams back; nothing was changed.';
 
 const REAL_SET_TIMEOUT = global.setTimeout;
 
@@ -105,7 +108,7 @@ const STATUS_LINES = {
   STOPPED: 'strfry-router                    STOPPED   Oct 09 03:00 AM',
   FATAL: 'strfry-router                    FATAL     Exited too quickly (process log may have details)',
 };
-const env = { status: 'RUNNING', events: [] }; // events: exec commands and router-path fs calls, in call order
+const env = { status: 'RUNNING', events: [], failLogReads: 0 }; // events: exec commands and router-path fs calls, in call order
 
 function fakeExec(cmd, opts, cb) {
   const done = typeof opts === 'function' ? opts : cb;
@@ -156,6 +159,12 @@ function installFsRedirect() {
     obj[name] = function redirected(...args) {
       const hit = args.slice(0, nPaths).filter(routed);
       if (hit.length === 0) return orig.apply(this, args);
+      // A transient failure on the log (Amendment 1 item 2), armed by the fake strfry.
+      if (env.failLogReads > 0 && hit.includes(LOG_PATH) && /^(stat|open|readFile|createReadStream)/.test(name)) {
+        env.failLogReads--;
+        env.events.push({ kind: 'fs', fn: label + name, paths: hit, failed: true });
+        throw Object.assign(new Error(`EMFILE: too many open files, ${name} '${LOG_PATH}'`), { code: 'EMFILE' });
+      }
       env.events.push({ kind: 'fs', fn: label + name, paths: hit });
       for (let i = 0; i < nPaths; i++) args[i] = target(args[i]);
       const out = orig.apply(this, args);
@@ -186,6 +195,8 @@ const strfry = {
     else if (reaction === 'reject') later(50, () => append(LOADING + FAILED(REASON)));
     else if (reaction === 'reject-late') { later(50, () => append(LOADING)); later(150, () => append(FAILED(REASON))); }
     else if (reaction === 'rotate-reload') later(50, () => { REAL.writeFileSync(T.log, ''); append(LOADING); });
+    // The next read of the log fails once (EMFILE), then the reload is logged.
+    else if (reaction === 'read-error-reload') { env.failLogReads = 1; later(50, () => append(LOADING + NOISE)); }
     // 'silent': the watch is gone or the router is stuck, so nothing is logged.
   },
 };
@@ -255,6 +266,7 @@ function freshEnv({ state = BASE_STATE, log = STALE_LOG, status = 'RUNNING', pla
   strfry.generation++;
   strfry.plan = plan.slice(); strfry.fallback = fallback;
   env.status = status;
+  env.failLogReads = 0;
   REAL.writeFileSync(T.state, JSON.stringify(state, null, 2), 'utf8');
   REAL.writeFileSync(T.config, r.generateConfig(state.streams), 'utf8');
   if (log === null) { try { REAL.unlinkSync(T.log); } catch { /* already absent */ } } else REAL.writeFileSync(T.log, log, 'utf8');
@@ -398,7 +410,7 @@ tests.push(['L3: readLogSince — a missing log returns empty text and size 0, n
     if (/not implemented yet/.test(e.message)) throw e;
     throw new Error(`readLogSince must never throw on a missing log; it threw: ${e.message}`);
   }
-  eq(r, { text: '', size: 0 }, 'a missing log');
+  eq({ text: r.text, size: r.size }, { text: '', size: 0 }, 'a missing log');
 }]);
 
 tests.push(['L4: readLogSince — an unreadable log (here a directory) returns empty text and size 0, never throws', () => {
@@ -409,7 +421,16 @@ tests.push(['L4: readLogSince — an unreadable log (here a directory) returns e
     if (/not implemented yet/.test(e.message)) throw e;
     throw new Error(`readLogSince must never throw on an unreadable log; it threw: ${e.message}`);
   }
-  eq(r, { text: '', size: 0 }, 'an unreadable log');
+  eq({ text: r.text, size: r.size }, { text: '', size: 0 }, 'an unreadable log');
+}]);
+
+tests.push(['L5: readLogSince marks a failed read (ok: false), so a caller can keep its read position; a good read is not marked failed (Amendment 1)', () => {
+  const missing = readSince(path.join(TMP, 'does-not-exist-either.log'), 7);
+  assert(missing.ok === false, `a failed read must carry ok: false; got ${JSON.stringify(missing)}`);
+  const f = path.join(TMP, 'good.log');
+  fs.writeFileSync(f, 'abc');
+  const good = readSince(f, 0);
+  assert(good.ok !== false && good.text === 'abc' && good.size === 3, `a good read must return its text and size and not be marked failed; got ${JSON.stringify(good)}`);
 }]);
 
 // ═══ P: router process status (the branch applyConfig takes) ═══════════════════════════
@@ -575,6 +596,49 @@ tests.push(['Q2: a rejected toggle\'s rollback does not undo an overlapping togg
   eq(readConfig(), router.generateConfig(final.streams), 'the config matches the state file');
 }]);
 
+// ═══ K: the rollback is confirmed before the next change runs (ADR 0001 Amendment 1) ══
+tests.push(['K1: a change queued behind a rejected one is judged on its own reload — A rejected, B queued and also rejected → both HTTP 500, nothing changed, no restart (review 1, blocking 1)', async () => {
+  // Writes, in order: A's config (rejected), A's rollback (reloads), B's config (rejected), B's rollback (reloads).
+  freshEnv({ plan: ['reject', 'reload', 'reject', 'reload'] });
+  const [ra, rb] = await Promise.all([
+    call('handleToggleStream', { name: 'alpha', enabled: false }),
+    call('handleToggleStream', { name: 'beta', enabled: false }),
+  ]);
+  for (const [r, n] of [[ra, 'A (alpha)'], [rb, 'B (beta)']]) {
+    assert(r.statusCode === 500 && r.body.success === false, `${n}'s config was rejected, so it must report HTTP 500 — never take the previous rollback's reload as its own confirmation; got ${r.statusCode} ${JSON.stringify(r.body)}`);
+    const e = String(r.body.error || '');
+    assert(e.includes(REJECTED_HEAD) && e.includes(REASON) && e.includes(REJECTED_TAIL), `${n}'s error must name strfry's reason and say the previous streams still run; got ${JSON.stringify(e)}`);
+  }
+  assertNoRestart('two rejected toggles');
+  eq(readState(), BASE_STATE, 'both toggles are rolled back');
+  eq(readConfig(), router.generateConfig(BASE_STATE.streams), 'the config is the previous one');
+}]);
+
+for (const [label, plan] of [['is never logged', ['reject', 'silent']], ['is itself rejected', ['reject', 'reject']]]) {
+  tests.push([`K: when the rollback's reload ${label}, the router is restarted on the previous config and the 500 says so (Amendment 1)`, async () => {
+    const seed = freshEnv({ plan });
+    const res = await dilated(() => call('handleToggleStream', { name: 'beta', enabled: false }));
+    assert(res.statusCode === 500 && res.body.success === false, `the change was rejected, so HTTP 500; got ${res.statusCode} ${JSON.stringify(res.body)}`);
+    const e = String(res.body.error || '');
+    assert(e.includes(REJECTED_HEAD) && e.includes(REASON), `the error must name strfry's reason; got ${JSON.stringify(e)}`);
+    assert(e.includes(ROLLBACK_RESTARTED_TAIL), `the error must say "${ROLLBACK_RESTARTED_TAIL}"; got ${JSON.stringify(e)}`);
+    assert(!e.includes(REJECTED_TAIL), 'the error must not claim the router kept running the previous streams by itself when it had to be restarted.');
+    assert(restarts() === 1, `the router must be restarted exactly once to load the previous config; saw ${restarts()}.`);
+    assertWriteBeforeRestart(`rollback whose reload ${label}`);
+    assertWrittenInPlace(seed, BASE_STATE.streams, `rollback whose reload ${label}`);
+    eq(readState(), BASE_STATE, 'the state file is rolled back');
+  }]);
+}
+
+tests.push(['W1: a transient failure reading the log keeps the read position — an old rejection earlier in the log is not mistaken for this change\'s (Amendment 1, review 1 non-blocking 2)', async () => {
+  freshEnv({ plan: ['read-error-reload'] }); // the stale log holds an old Loading + Failed pair before the offset
+  const res = await call('handleToggleStream', { name: 'beta', enabled: false });
+  assert(okStatus(res) && res.body.success === true, `the reload was logged, so the toggle must succeed; got ${res.statusCode} ${JSON.stringify(res.body)}`);
+  eq(res.body.applied, 'reloaded', 'applied by reload');
+  assert(env.events.some((ev) => ev.failed), 'the injected log-read failure must have happened (test self-check).');
+  assertNoRestart('transient log-read failure');
+}]);
+
 // ═══ G: guards, behavior the ADR keeps unchanged (pass before and after) ══════════════
 tests.push(['G1: the Restart button still restarts the router — handleRestartRouter runs supervisorctl restart strfry-router (AC-4)', async () => {
   freshEnv();
@@ -600,6 +664,18 @@ tests.push(['G3: GET /api/strfry/router-status answers as before — process sta
   eq(res.body.router, { process: { status: 'running', uptime: '0:42:17' }, configPath: CONFIG_PATH, statePath: STATE_PATH, streams: BASE_STATE.streams }, 'the router-status response must be unchanged');
 }]);
 
+tests.push(['G4: PR #787\'s skipped reporting survives on the reload path — an invalid saved stream is left out and listed, and the change is still applied by reload', async () => {
+  const BAD = { name: 'delta', description: 'invalid saved url', dir: 'down', filter: { kinds: [1] }, urls: ['https://not-a-relay.example'], pluginDown: '', pluginUp: '', enabled: true };
+  freshEnv({ state: { streams: [...BASE_STATE.streams, BAD] } });
+  const res = await call('handleToggleStream', { name: 'beta', enabled: false });
+  assert(okStatus(res) && res.body.success === true, `expected success; got ${res.statusCode} ${JSON.stringify(res.body)}`);
+  eq(res.body.applied, 'reloaded', 'applied by reload');
+  const names = (res.body.skipped || []).map((x) => x && x.name);
+  assert(names.includes('delta'), `the invalid saved stream must be listed under skipped; got ${JSON.stringify(res.body.skipped)}`);
+  assert(!/delta \{/.test(readConfig()), 'the invalid stream must be left out of the config');
+  assertNoRestart('reload with a skipped stream');
+}]);
+
 // ═══ U / D / S: wording and source sentinels ══════════════════════════════════════════
 tests.push(['U1: the Router Management tab no longer warns that deleting a stream restarts the router, and no stream-change confirmation mentions a restart (AC-4)', () => {
   const src = fs.readFileSync(RELAY_SETTINGS, 'utf8');
@@ -621,8 +697,20 @@ tests.push(['D1: BIBLE §14 says stream changes rewrite the router config in pla
   const end = src.indexOf('| Preset |', start);
   const para = src.slice(start, end === -1 ? start + 2000 : end);
   assert(para.includes('Toggle via'), 'the "Toggle via …" sentence must remain.');
-  for (const [re, what] of [[/in place/i, '"in place"'], [/reload/i, 'that the router reloads the config'], [/reconnect/i, 'that only changed streams reconnect'], [/Restart button/i, 'the Restart button'], [/\bonly\b/i, '"only"']]) {
+  for (const [re, what] of [[/in place/i, '"in place"'], [/reload/i, 'that the router reloads the config'], [/reconnect/i, 'that only changed streams reconnect'], [/Restart button/i, 'the Restart button'], [/\bonly\b/i, '"only"'], [/fallback/i, 'the fallback restart (Amendment 1)']]) {
     assert(re.test(para), `BIBLE §14 must gain the ADR's sentence; it doesn't mention ${what} (${ADR} § Implementation notes).`);
+  }
+}]);
+
+tests.push(['D2: docs/CONFIGURATION.md no longer says stream changes restart the router — they rewrite the config in place and strfry reloads it, with a restart only as a fallback (Amendment 1, review 1 blocking 2)', () => {
+  const src = fs.readFileSync(CONFIGURATION_DOC, 'utf8');
+  assert(!/toggling enabled\/disabled rewrites the daemon config and restarts/i.test(src), 'CONFIGURATION.md still says toggling restarts strfry-router.');
+  assert(!/the router restarts as usual/i.test(src), 'CONFIGURATION.md still says "the router restarts as usual".');
+  const start = src.indexOf('The Router Management tab at `/tapestry/settings/relays`');
+  assert(start !== -1, 'the Router Management paragraph is missing; unexpected.');
+  const para = src.slice(start, src.indexOf('\n\n', start));
+  for (const [re, what] of [[/in place/i, '"in place"'], [/reload/i, 'the reload'], [/fallback/i, 'the fallback restart'], [/Restart/, 'the Restart button']]) {
+    assert(re.test(para), `the Router Management paragraph must mention ${what}.`);
   }
 }]);
 

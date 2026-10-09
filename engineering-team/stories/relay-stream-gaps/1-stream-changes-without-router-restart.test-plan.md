@@ -160,7 +160,7 @@ npm test
 node test/router-config-reload-in-place.test.js        # just this suite
 ```
 
-This environment has no `node_modules`. The new suite doesn't need it (auth stub), but many
+Since 2026-10-09 this checkout has root `node_modules` installed (`npm ci`, as CI does), so `npm test` runs every suite. On a checkout without it, The new suite doesn't need it (auth stub), but many
 pre-existing suites do. For a fuller run without touching the repo, install the locked deps
 elsewhere and point `NODE_PATH` at them (ESM `import`s ignore `NODE_PATH`, so a few suites still
 fail to import `nostr-tools`):
@@ -306,3 +306,24 @@ plus one restart. The three assertions now count `supervisorctl restart strfry-r
 commands (exactly one) instead of all exec calls. Their intent, "config written once, then the
 router restarted", is unchanged, and they pass on #787's code as well. The "no exec at all"
 assertions (refused requests, `initRouter`) and V3 (the Restart button) are untouched.
+
+## Amendment 2 (2026-10-09): tests for ADR 0001 Amendment 1
+
+Added after review 1 (`engineering-team/reviews/relay-stream-gaps/1-stream-changes-without-router-restart.md`),
+for ADR 0001 Amendment 1. All in `test/router-config-reload-in-place.test.js`:
+
+| Criterion | Test | Level |
+|---|---|---|
+| AC-3 (review 1, blocking 1) | K1: A rejected, B queued and also rejected → both HTTP 500, state and config back to the previous streams, no restart. Fails on the round-1 code: B returns `success: true, applied: "reloaded"` | handler |
+| AC-3 (Amendment 1 item 1) | K ×2: the rollback's reload is never logged, or is itself rejected → exactly one restart (after the in-place rollback write), HTTP 500 with `It was restarted to put the previous streams back; nothing was changed.` | handler |
+| Amendment 1 item 2 | W1: the first log read after the write fails (EMFILE) → the read position is kept, so the old Loading + Failed pair before the offset is not read; the toggle succeeds by reload | handler |
+| Amendment 1 item 2 | L5: `readLogSince` marks a failed read with `ok: false`; a good read isn't marked failed. L3/L4 now compare `text` and `size` only, since the return value gains `ok` | unit |
+| Review 1, non-blocking 6 | G4 (guard): #787's `skipped` reporting on the reload path. An invalid saved stream is left out of the config and listed, and the change still applies by reload | handler |
+| Review 1, blocking 2 | D1 also requires BIBLE §14 to mention the fallback restart. D2: `docs/CONFIGURATION.md` no longer says toggling restarts the router or "restarts as usual", and its Router Management paragraph mentions in place, reload, fallback and Restart | source |
+
+New seams:
+- **Log-read failure.** `env.failLogReads` arms a one-shot EMFILE on the next stat/open/read of the log path.
+- **Fake strfry reaction `read-error-reload`.** It arms that failure on a config write, then logs the reload 50 ms later.
+
+Against the round-1 code: 33 passed, 7 failed (L5, K1, K ×2, W1, D1, D2), each for the defect it targets.
+
