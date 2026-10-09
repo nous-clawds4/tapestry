@@ -88,5 +88,5 @@ being told it worked.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-stream-gaps/0001-reload-router-config-in-place.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/relay-stream-gaps/1-stream-changes-without-router-restart.test-plan.md`
 - Review: (filled in after Review phase)

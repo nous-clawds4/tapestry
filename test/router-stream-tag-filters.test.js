@@ -26,6 +26,8 @@
  * message naming the missing export or wiring — the modules themselves load
  * fine, so there are no import crashes) and PASS once built. R* are
  * regression sentinels (additive change) — they PASS before AND after.
+ * R1 was later re-aimed by relay-stream-gaps #1 (ADR relay-stream-gaps/0001),
+ * which replaced the restart-on-every-save contract; see the R section.
  */
 
 const fs = require('fs');
@@ -370,18 +372,32 @@ test('S5: the server reconstructs stream filters at the client-JSON ingress only
 });
 
 // ===========================================================================
-// R: regression sentinels — PASS before AND after (additive change)
+// R: regression sentinels — PASS before AND after (additive change).
+// Exception: R1 was re-aimed by relay-stream-gaps #1 (ADR relay-stream-gaps/0001),
+// which reverses the "every save restarts the router" contract R1 used to pin. R1 now
+// pins the new contract and FAILS until that story is implemented.
 // ===========================================================================
 
-test('R1: routerConfig.js keeps its existing exports and the existing save/apply → supervisorctl-restart mechanics — no new steps or restart behavior (AC-3)', () => {
+test('R1 (re-aimed by relay-stream-gaps #1, ADR relay-stream-gaps/0001): routerConfig.js keeps its existing exports; the save/apply path writes the config in place and confirms the reload from the router log, restarting only when the router is not running or no reload is logged; the Restart button keeps its supervisorctl restart', () => {
   const be = loadBackend();
   assert(be, 'src/api/strfry/routerConfig.js must load.');
   for (const name of ['generateConfig', 'handleUpdateRouterConfig', 'handleToggleStream', 'handleGetPresets', 'handleListPlugins', 'handleRestartRouter', 'handleRestoreDefaults', 'initRouter']) {
     assert(typeof be[name] === 'function', `routerConfig.js must keep exporting ${name} — AC-3 rides the existing flow.`);
   }
   const src = safeRead(ROUTER_CONFIG);
-  assert(src.includes('supervisorctl restart strfry-router'),
-    'applyConfig must still restart the router via supervisorctl — the panel\'s existing restart mechanics are the contract tag filters ride on.');
+  // Source sentinel only; the behavior (no restart when the reload is logged, restart on the
+  // fallback, rollback on a rejection) is pinned in test/router-config-reload-in-place.test.js.
+  const apply = sliceSection(src, 'async function applyConfig', ['\n/**', '\nmodule.exports', '\n// ──']);
+  assert(apply.length > 0, 'applyConfig must still exist — every router mutation (tag-filtered saves included) rides it.');
+  assert(/getRouterProcessStatus\s*\(/.test(apply) && /waitForReload\s*\(/.test(apply),
+    'applyConfig must check the router process (getRouterProcessStatus) and confirm the in-place reload from the router log (waitForReload) instead of always restarting — relay-stream-gaps #1 not implemented yet (ADR relay-stream-gaps/0001).');
+  assert(/fs\.writeFileSync\(\s*ROUTER_CONFIG_PATH/.test(src),
+    'the router config must be written in place with fs.writeFileSync(ROUTER_CONFIG_PATH, …) (ADR relay-stream-gaps/0001 in-place invariant).');
+  assert(!/\b(?:renameSync|rename|copyFileSync|copyFile|unlinkSync|unlink|rmSync|rm)\s*\([^)]*ROUTER_CONFIG_PATH/.test(src),
+    'the router config must never be replaced (rename/copy/unlink): a new inode silently ends strfry\'s reloads (ADR relay-stream-gaps/0001 § Consequences).');
+  const restart = sliceSection(src, 'async function handleRestartRouter', ['\n/**', '\nmodule.exports', '\n// ──']);
+  assert(restart.includes('supervisorctl restart strfry-router'),
+    'the Restart button (handleRestartRouter) must still restart the router via supervisorctl restart strfry-router (relay-stream-gaps #1 AC-4).');
 });
 
 test('R2: generateConfig still emits today\'s exact text for a kinds/limit-only stream — the frozen baseline AC-2\'s byte-identity guard measures against', () => {
