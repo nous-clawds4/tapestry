@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { buildCompositeAvatar } from '../utils/compositeAvatar';
+import { stampMyPicture, storeStampedAvatar } from '../utils/stampedAvatar';
 
 // Story 2's branded image, served from the instance root — for the in-app preview
 // only. The picture VALUE the editor offers is always the server's absolute
@@ -129,7 +129,7 @@ export default function AssistantProfileEditor({ customerPubkey, canCreateAssist
   }
 
   /**
-   * Build the stamped avatar and show it. Deliberately stores nothing: the owner
+   * Build the stamped avatar and show it. Deliberately stores nothing: the person
    * sees the composite first and accepts it (AC1 — "before anything is published").
    */
   async function generateComposite() {
@@ -138,26 +138,26 @@ export default function AssistantProfileEditor({ customerPubkey, canCreateAssist
     setOfferFallback(false);
     setComposite(null);
     try {
-      // Same-origin proxy, so the canvas is not tainted. Its 404 with code 'no-picture' means the
-      // owner has no picture — the fallback path, not an error. Any other failure (a refusal, a picture
-      // host that failed) is reported in the server's own words (assistant-profile #4, AC4).
-      const res = await fetch('/api/assistant/owner-avatar');
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
+      // The shared flow (ui/src/utils/stampedAvatar.js): the person's own picture through the same-origin proxy, so
+      // the canvas is not tainted, then stamped. Its 'no-picture' answer means the person has no picture — the
+      // fallback path, not an error. Any other failure (a refusal, a picture host that failed, a picture that cannot
+      // be stamped) is reported in the server's own words (assistant-profile #4, AC4).
+      const stamped = await stampMyPicture();
+      if (!stamped.ok) {
         setOfferFallback(true);
-        if (res.status === 404 && body?.code === 'no-picture') {
-          setCompositeNotice(
-            'You have no profile picture to stamp yet, so there is nothing to composite. '
-            + 'You can use the branded Tapestry image instead, or set a picture on your own profile and try again.');
+        if (stamped.reason === 'no-picture') {
+          // The checklist's avatar panel's words (assistant-profile-checklist #3 § Copy).
+          setCompositeNotice('Your nostr profile has no picture to stamp yet. Add one in your nostr app, then come back.');
+        } else if (stamped.stage === 'build') {
+          setCompositeNotice(`Could not build the composite (${stamped.message}). You can use the branded image instead.`);
         } else {
           setCompositeNotice(
-            `Could not get your profile picture to stamp: ${body?.error || `the server answered ${res.status}`}. `
+            `Could not get your profile picture to stamp: ${stamped.message}. `
             + 'You can use the branded Tapestry image instead.');
         }
         return;
       }
-      const built = await buildCompositeAvatar(await res.blob());
-      setComposite(built);
+      setComposite(stamped.composite);
     } catch (err) {
       setOfferFallback(true);
       setCompositeNotice(`Could not build the composite (${err.message}). You can use the branded image instead.`);
@@ -172,21 +172,18 @@ export default function AssistantProfileEditor({ customerPubkey, canCreateAssist
     setGenerating(true);
     setCompositeNotice(null);
     try {
-      const body = new FormData();
-      body.append('avatar', composite.blob, 'ta-avatar.png');
-      const res = await fetch('/api/assistant/avatar', { method: 'POST', body });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Upload failed');
+      const stored = await storeStampedAvatar(composite.blob);
       // Only a publishable URL goes into the picture. With no public address the
       // instance returns none, and its relative path would be dead for everyone else.
-      if (!data.url) {
+      if (!stored.ok && stored.reason === 'no-public-address') {
         setComposite(null);
         setOfferFallback(true);
         setCompositeNotice('This instance has no public web address, so nostr clients elsewhere could not load '
           + 'an avatar stored here. Use the branded image instead.');
         return;
       }
-      updateField('picture', data.url);
+      if (!stored.ok) throw new Error(stored.message || 'Upload failed');
+      updateField('picture', stored.url);
       setCompositeNotice('Saved. Publish the profile to point your assistant at it.');
       setComposite(null);
     } catch (err) {
@@ -377,61 +374,59 @@ export default function AssistantProfileEditor({ customerPubkey, canCreateAssist
         </div>
       </div>
 
-      {/* The stamped composite: your avatar, wearing the mark (ta-avatar #3). The Owner's only
-          (assistant-profile #4, AC4): the proxy reads the OWNER's picture, so an Admin's assistant would
-          wear the Owner's face, and a Customer is refused. */}
-      {status.isOwner && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              className="settings-action-btn settings-action-btn-secondary"
-              onClick={generateComposite}
-              disabled={generating || publishing}
-            >
-              {generating ? 'Working…' : '🎨 Generate badged avatar'}
-            </button>
-            <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>
-              Stamps your own profile picture with the Tapestry mark.
-            </span>
-          </div>
-
-          {composite && (
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <img
-                className="ta-composite-preview"
-                src={composite.dataUrl}
-                alt="Preview of the assistant avatar: your picture with the Tapestry mark"
-                width={96}
-                height={96}
-                style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
-              />
-              <button className="settings-action-btn" onClick={useComposite} disabled={generating}>
-                Use this avatar
-              </button>
-            </div>
-          )}
-
-          {offerFallback && (
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <img
-                className="ta-composite-fallback"
-                src={BRANDED_FALLBACK_SRC}
-                alt="The branded Tapestry Assistant image"
-                width={96}
-                height={96}
-                style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
-              />
-              <button className="settings-action-btn" onClick={useBrandedFallback} disabled={generating}>
-                Use the branded image instead
-              </button>
-            </div>
-          )}
-
-          {compositeNotice && (
-            <div style={{ fontSize: '0.8rem', opacity: 0.85 }}>{compositeNotice}</div>
-          )}
+      {/* The stamped composite: your avatar, wearing the mark (ta-avatar #3). Everyone's since
+          assistant-profile-checklist #3 (ADR 0003 sub-decision 8): the proxy reads the signed-in person's OWN
+          picture, so each person stamps their own picture for their own assistant. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="settings-action-btn settings-action-btn-secondary"
+            onClick={generateComposite}
+            disabled={generating || publishing}
+          >
+            {generating ? 'Working…' : '🎨 Generate badged avatar'}
+          </button>
+          <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>
+            Stamps your own profile picture with the Tapestry mark.
+          </span>
         </div>
-      )}
+
+        {composite && (
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <img
+              className="ta-composite-preview"
+              src={composite.dataUrl}
+              alt="Preview of the assistant avatar: your picture with the Tapestry mark"
+              width={96}
+              height={96}
+              style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
+            />
+            <button className="settings-action-btn" onClick={useComposite} disabled={generating}>
+              Use this avatar
+            </button>
+          </div>
+        )}
+
+        {offerFallback && (
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <img
+              className="ta-composite-fallback"
+              src={BRANDED_FALLBACK_SRC}
+              alt="The branded Tapestry Assistant image"
+              width={96}
+              height={96}
+              style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
+            />
+            <button className="settings-action-btn" onClick={useBrandedFallback} disabled={generating}>
+              Use the branded image instead
+            </button>
+          </div>
+        )}
+
+        {compositeNotice && (
+          <div style={{ fontSize: '0.8rem', opacity: 0.85 }}>{compositeNotice}</div>
+        )}
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {PROFILE_FIELDS.map(field => (

@@ -15,6 +15,12 @@ on the same machine, and each time in a different wall-clock timing check. Neith
 - **2026-10-08:** RW7 failed in `20261008T022115Z-4735-50c7 [tme3-review-load]`. The second start came 0.64 s after
   the first, against a floor of 0.8 s. That gate ran while the treasure-map-edit browser specs repeated three times.
   The same commit's unloaded gate, `20261008T021451Z-5442-8438`, passed 22/0/0.
+- **2026-10-09:** RW7 failed in `20261009T134224Z-32038-d116 [reviewer-outbox-relays-r2]` (a `vite build` and the
+  browser specs ran beside it) and again in `20261009T141024Z-14530-8c35 [reviewer-outbox-relays-r3]`, with no
+  deliberate load from that session (another session may have shared the machine). Both times the second start came
+  0.72 s after the first, against the 0.8 s floor; alone the suite passed 24/0/0 six times out of six. A third time in
+  that book's close gate, `20261009T165915Z-27122-2892 [book-close-assistant-outbox-relays]`, again with nothing else
+  from that session running: 0.77 s.
 
 The CI workflow's comment claims a zero-flake record with no retries. That holds on an idle runner, but a reviewer who
 runs a load gate on purpose sees a red suite that isn't theirs.

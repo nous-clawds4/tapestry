@@ -17,4 +17,8 @@ every CHANGES_REQUESTED, or lint lies.
 the my-assistants reviews already did by hand), or move it above `## Verdict`; and add a lint fixture: a template-shaped
 CHANGES_REQUESTED review must read `CR`.
 
+**Third occurrence, 2026-10-09 (book `assistant-outbox-relays`, story 3 review round 2).** The reviewer ended round 2's
+section with an `### On PASS` heading after a CHANGES_REQUESTED verdict; harness-lint L1 reported the story as
+"PASS-final but status 'Approved'" until the heading was renamed (`### Story status and completion (round 2)`).
+
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7.

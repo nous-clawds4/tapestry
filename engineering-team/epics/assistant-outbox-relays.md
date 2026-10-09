@@ -1,6 +1,6 @@
 # Epic: assistant-outbox-relays — your Assistant's outbox relays, and the hub's third persona card
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-09; the folders sit under `done/`; in production 2026-10-09 via PR #829)
 **Created:** 2026-10-09
 **Book:** `engineering-team/audits/assistant-outbox-relays/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-09, quoted verbatim in the book, settled through four questions
@@ -20,7 +20,7 @@ hand, add suggested relays one at a time or all at once, remove — and have the
 
 ## Stories
 
-`stories/assistant-outbox-relays/`. All three are features, so all three take all five phases (Standard).
+`stories/done/assistant-outbox-relays/`. All three are features, so all three take all five phases (Standard).
 They travel through each phase together.
 
 1. `1-the-outbox-check-and-the-hubs-outbox-relays-card.md`: the action entry, the server's answer for the
@@ -70,4 +70,4 @@ They travel through each phase together.
 
 ## ADRs
 
-`decisions/assistant-outbox-relays/`, created per story at Architecture.
+`decisions/done/assistant-outbox-relays/`, created per story at Architecture.

@@ -1,9 +1,9 @@
 # Book of Work: Outbox Relays — your Assistant's relay list, and the hub's third persona card
 
 **Slug:** assistant-outbox-relays
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-09
-**Closed:** —
+**Closed:** 2026-10-09 (on `staging`, deployed to staging.brainstorm.world; production 2026-10-09: PR #829 merged 2026-10-09 as `cfcd83c4`, deploy run 140, production smoke clean)
 
 ## Intent anchor
 
@@ -49,24 +49,24 @@ Decided when the owner approved stories 1–3 (2026-10-09):
 
 *Confirmed 2026-10-09, when the owner approved stories 1–3.*
 
-- [ ] **A third persona card.** The "Your Assistant's Public Persona" section on `/assistant` ends with an
+- [x] **A third persona card.** The "Your Assistant's Public Persona" section on `/assistant` ends with an
       **Outbox Relays** card, after Identification Tags. It leads to a new page at
       `/assistant/outbox-relays`.
-- [ ] **One real answer.** For a signed-in viewer with an Assistant on this instance, the instance says
+- [x] **One real answer.** For a signed-in viewer with an Assistant on this instance, the instance says
       which outbox relays that viewer's own Assistant's newest kind 10002 names, read from this instance's
       relay first and then the outside relays a relay list is published to.
-- [ ] **The hub tells the truth for this action.** The card shows **Needs attention** until the
+- [x] **The hub tells the truth for this action.** The card shows **Needs attention** until the
       Assistant's relay list names at least one outbox relay, and is complete once it does. The hub's
       count line and the Assistant Alert count it the same way.
-- [ ] **The page**, styled like the Assistant Management page, shows the Assistant's outbox relays and
+- [x] **The page**, styled like the Assistant Management page, shows the Assistant's outbox relays and
       lets the person remove any of them, add one by hand, and add suggested relays one at a time or all
       at once. The suggestions are where the Assistant already publishes (Decision 2).
-- [ ] **One publish.** One button has this instance sign the whole list as the person's own Assistant, a
+- [x] **One publish.** One button has this instance sign the whole list as the person's own Assistant, a
       NIP-65 kind 10002 with the relays it adds marked `write`, keeping inbox-only entries the person did
       not remove. It is
       written to this instance's relay first, then sent out, each relay's answer shown; the page and the
       hub re-check afterwards.
-- [ ] **Nothing else changes:** no relay list is published at Assistant creation, nothing else gains the
+- [x] **Nothing else changes:** no relay list is published at Assistant creation, nothing else gains the
       power to sign as an Assistant, the inbox side of the list is not managed, and no other action page
       changes.
 
@@ -95,8 +95,11 @@ the hub's actions and attention answer (`ui/src/pages/assistant/actions.js`,
 ## Provenance
 
 - **Mode:** Acceptance-frame
+- **Confidence at close:** high for what the code does (every frame bullet traces to a story; all three passed
+  review, story 3 in round 3); medium for the frame as a person meets it (deployed to staging and checked there
+  anonymously, but the signed-in publish has not been exercised on any live instance, and production is pending).
 
 ## Close artifacts *(filled by `/close-book`)*
 
-- Build audit: —
-- Product feedback: —
+- Build audit: `engineering-team/audits/assistant-outbox-relays/audit.md`
+- Product feedback: `engineering-team/audits/assistant-outbox-relays/prd-seed.md`
