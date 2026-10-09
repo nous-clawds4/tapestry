@@ -234,3 +234,34 @@ try. This is within sub-decision 7's intent: the refresh is there "so … all re
 
 **Story impact.** Story 3 gains AC-6, which carries the refusal and not-sent words and the new copy. Story 2 is not
 reopened: its page gains one refusal line under story 3's AC-6.
+
+## Amendment 2 — the send-time lookups are bounded and stay off the threadpool (2026-10-09, review round 2)
+
+**Why.** Round 2 found that Amendment 1's lookups had no time limit and ran before the 8 s publish deadline started.
+`ssrfGuard.isPublicHostname` uses `dns.lookup`, which runs on libuv's threadpool (four threads by default). One request
+naming 50 relays on a domain whose nameserver never answers could hold that pool for a minute or more, so the server's
+other threadpool work would queue behind it. Past nginx's 60 s timeout, the page would also say "nothing was
+published" for a list already saved here. Amendment 1's line "each looked up first, all within the 8 s publish budget"
+was false.
+
+**Decision.**
+1. **One lookup budget, failing closed.** `LOOKUP_BUDGET_MS = 3000` from the start of the lookups. Each list relay's
+   lookup races it, and one that has not answered by then counts as not public: `not-sent`. The 8 s publish deadline
+   then applies to the sends as before, so a press answers in at most about 11 s, well inside nginx's 60 s.
+2. **Off the threadpool.** The route's default check, `isPublicRelayHostWithin(host, { timeoutMs })` in
+   `relayListPublish.js`, keeps `ssrfGuard`'s rule:
+   - an IP literal → `isPublicAddress`;
+   - a private-by-construction name → `hasPrivateHostSuffix` → not public;
+   - any other name is resolved with `dns.promises.Resolver({ timeout, tries: 1 })`, which runs on c-ares on the event
+     loop rather than the threadpool, querying A and AAAA. It is public only when both queries finished, at least one
+     answered, and every address is public by `isPublicAddress`. A timeout, an error or an empty answer is not public,
+     and the resolver is cancelled when the budget ends.
+   - `ssrfGuard.js` is unchanged; its other callers keep `dns.lookup`.
+   - Accepted: c-ares does not read `/etc/hosts`. A hosts-file name can only be set by the operator, and the socket's
+     own lookup is DNS rebinding's already-accepted limit.
+3. **Wording corrected.** Amendment 1 point 3 says the hosts that pass the guard "are public". The configured relays
+   skip the guard: they are owner-set and may be private, for example an owner's LAN relay. Their reason text still
+   reaches the caller. Relay Settings are already public through `GET /api/relays`, so this tells a caller little.
+
+**Not changed.** The summary when every list relay is `not-sent` and Relay Settings is empty still blames missing
+settings (round 2 non-blocking R2-2). The rows underneath are right; a sentence of its own would need new approved copy.
