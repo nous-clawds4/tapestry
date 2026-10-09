@@ -114,5 +114,5 @@ None. Resolved at approval (2026-10-09):
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-outbox-relays/0003-the-assistant-signs-its-relay-list-through-one-narrow-route.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.test-plan.md`
 - Review: (filled in after Review phase)

@@ -323,13 +323,13 @@ test('R1: the publisher\'s callers keep their contract: publishProfileTagAsserti
   assert(/\bpublishOrThrow\b/.test(pin), 'publishTagPin imports publishOrThrow');
 });
 
-test('R2: actions.js is unchanged by this story — the identification-tags entry still carries the owner\'s description, and there are still ten actions', async () => {
-  const mod = await esm(ACTIONS_MOD, 'It holds the ten actions.');
+test('R2: actions.js is unchanged by this story — the identification-tags entry still carries the owner\'s description, and the hub holds every action of its fixture (re-aimed by assistant-outbox-relays #1: eleven)', async () => {
+  const mod = await esm(ACTIONS_MOD, 'It holds the actions.');
   const entry = mod.ASSISTANT_ACTIONS.find((a) => a.key === X.CHECKED_ACTION);
   assert(entry && entry.path === X.PAGE, `the action's path is ${X.PAGE}`);
   const hubEntry = H.ACTIONS.find((a) => a.path === X.PAGE);
   assert(mod.plainText(entry.description) === hubEntry.text, 'the description is the owner\'s');
-  assert(mod.ASSISTANT_ACTIONS.length === 10, 'ten actions');
+  assert(mod.ASSISTANT_ACTIONS.length === H.ACTIONS.length, `${H.ACTIONS.length} actions, as the hub fixture lists them`);
 });
 
 async function run() {

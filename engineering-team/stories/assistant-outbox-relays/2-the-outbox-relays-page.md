@@ -113,5 +113,5 @@ None.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-outbox-relays/0002-the-outbox-relays-page-reads-the-one-answer.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-outbox-relays/2-the-outbox-relays-page.test-plan.md`
 - Review: (filled in after Review phase)

@@ -113,5 +113,5 @@ None.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-outbox-relays/0001-the-outbox-check-joins-the-one-attention-answer.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.test-plan.md`
 - Review: (filled in after Review phase)
