@@ -41,8 +41,9 @@ tag; the version is `STRFRY_REF=1.1.0` in `Dockerfile:26`):
   missing from it; erasing a group closes its sockets. Streams that didn't change keep their
   sockets.
 - If parsing fails after a successful first load, it logs `Failed to parse router config:
-  <reason>` (ERROR) and **keeps the running config**. Only a failure on the very first load
-  exits the process.
+  <reason>` (ERROR) and keeps running. Only a failure on the very first load exits the
+  process. *(Corrected by Amendment 1: it does **not** always keep the running config; a
+  failure in a later stream group leaves earlier groups changed.)*
 - strfry logs through loguru to **stderr**. supervisord sends that to
   `/var/log/supervisor/strfry-router-error.log` (`docker/supervisord.conf:39`). Seen in the
   field: `_intake.md:50–52` and ADR relay-management/0002 § Verified evidence 1 and 4 show
@@ -134,8 +135,9 @@ the replacement for the log reader, not a reason to drop confirmation.
   constants with a comment naming strfry 1.1.0. A strfry bump must re-verify them. If they
   drift, the fallback restarts on every change: today's behavior, not a silent failure.
 - **A rejected change is rolled back** (state file and config file). The tab, the state file
-  and the running router then agree. Rolling the config back fires one more reload of
-  identical content, which strfry applies with no reconnects.
+  and the running router then agree. *(Corrected by Amendment 1: the rollback is
+  load-bearing, since strfry may have half-applied the rejected config, and its reload can
+  reconnect streams. The lock is held until that reload is confirmed.)*
 - **Mutations are serialized.** One router mutation runs at a time: read state, modify, save,
   write, confirm, and roll back if needed. That keeps rollback correct and log windows
   disjoint. Two concurrent toggles can no longer lose an update, a latent read-modify-write
@@ -251,4 +253,85 @@ strfry behavior this ADR relies on:
    `ROUTER_LOG_PATH`. Line shape: `2026-10-09 03:12:45.823 (   0.036s) [main thread     ]INFO|
    Loading router config file: <path>`. The path is printed as given on the command line;
    in the image that is `/etc/strfry-router-tapestry.config`.
+
+## Amendment 1 (2026-10-09): the rollback waits for its own reload
+
+Review 1 of this story (`engineering-team/reviews/relay-stream-gaps/1-stream-changes-without-router-restart.md`)
+found two gaps, both confirmed. This amendment changes the design for them; the decision
+(Option A) stands.
+
+**Facts corrected (Verified evidence 5 below).** strfry 1.1.0's `reconcileConfig()` configures
+stream groups one by one in name order (a `std::map`), and stops at the first group whose
+filter it can't parse. Groups before the failing one have already taken their new settings,
+and new groups have been created and connected. So a rejected config can leave the router
+running a mix of old and new streams. Our save-time checks enforce a filter's shape, not its
+values, so strfry can reject a config our checks let through (Evidence 5 uses an `authors`
+value that isn't hex). The rollback is therefore what restores the previous streams, and its
+reload can reconnect streams.
+
+**The defect.** `applyConfig` wrote the rollback and threw at once, releasing the lock before
+strfry logged the rollback's reload. A mutation queued behind could take its log offset before
+that `Loading` line, bind to it, and report success for a config strfry then rejected. The
+lock only made log windows disjoint by timing, not by construction.
+
+**Changed design.**
+1. **The rollback is confirmed before the lock is released.** On a rejection, `applyConfig`
+   restores the previous state file, notes the log offset, writes the previous config in
+   place, and awaits `waitForReload` on it, all still inside the lock:
+   - `'loaded'`: throw `RouterRejectedError(reason)` as before. The message is unchanged
+     (`… It is still running the previous streams; nothing was changed.`), and now true by
+     construction.
+   - `'timeout'`, or the rollback itself rejected: restart the router. The file on disk is the
+     previous config, so the restarted router runs the previous streams. *(Correction, review
+     round 2, R2-1: if the rollback itself was rejected, the previous config holds a value strfry
+     rejects, and a restarted strfry exits on its first load. The restart then fails and the
+     restart-failed error below is what the operator sees. See OPEN.md row
+     `2026-10-09-router-accepts-values-strfry-rejects`.)* Then throw
+     `RouterRejectedError(reason, { restarted: true })` with the message
+     `The router rejected the new configuration (<reason>). It was restarted to put the previous streams back; nothing was changed.`
+   - The restart fails: throw an error saying `The router rejected the new configuration
+     (<reason>), and restarting it to put the previous streams back failed (<error>). Press
+     Restart on the Router Management tab.`
+   Every path out of the lock therefore leaves the router either confirmed on a known config
+   or freshly restarted, so the next mutation's log window starts after anything this one
+   caused.
+2. **A failed log read keeps the read position.** `readLogSince` marks a failed read
+   (`ok: false`, still `{ text: '', size: 0 }` for callers that only read those).
+   `waitForReload` ignores a failed read instead of resetting its position to 0. A file that
+   reappears smaller than the position is still read from the start (rotation).
+3. **Docs say what the code does.** BIBLE §14's sentence becomes: changing streams rewrites the
+   config in place and strfry's router reloads it, reconnecting only the streams whose
+   direction, filter or relays changed; the router is restarted only by the Restart button,
+   or as a fallback when it isn't running or logs no reload within 3 s (the response then says
+   so). `docs/CONFIGURATION.md` (`:175`, `:190`, from PR #787) is corrected to the same
+   effect. It joins this ADR's file list.
+4. **Operator note.** The open ledger row
+   `ledger/2026-09-27-strfry-redis-never-reconnects.md` counts "a router-config change restarts
+   it" as one way the router's dead Redis client recovers. That path is gone. The row gains a
+   dated line: after `docker restart tapestry-redis`, press Restart on the Router Management tab
+   (or deploy).
+
+**Tests (Phase 3, Tester's lane).**
+- A regression for the review's case: A rejected, B queued behind it and also rejected; B must
+  get HTTP 500.
+- The rollback's reload not logged: a restart happens, and the restart message is returned.
+- A failed log read keeps the position.
+- #787's `skipped` reporting on the reload path.
+- Fix the stale "How to run" note in the test plan.
+
+## Verified evidence 5 (2026-10-09, review sandbox; re-run by the Architect)
+
+Same strfry 1.1.0 build and setup as Evidence 1–4 (an upstream relay on `127.0.0.1`, `strfry
+router` writing to a separate DB), with two down streams `a1` `{"kinds":[1]}` and `b2`
+`{"kinds":[7]}`. A baseline kind-1 event arrived (local 1).
+
+1. **In-place write of a config with a valid change and an invalid one.** `a1` became
+   `{"kinds":[30000]}` (valid), and `b2` gained `"authors":["nothex"]`. Log: `Loading router
+   config file`, `a1: Disconnected / Connecting`, `ERR| Failed to parse router config: error
+   parsing authors: unexpected character in from_hex: 110`, `a1: Connected`. A new kind-1
+   published upstream did **not** arrive (local stayed 1): `a1` was running the rejected
+   config's filter. The process stayed up.
+2. **Rollback, in place.** Writing the previous config logged `Loading router config file`,
+   then `a1` and `b2` each `Disconnected / Connecting / Connected`. The next kind-1 arrived
+   (local 2).
 

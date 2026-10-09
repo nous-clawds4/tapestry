@@ -62,8 +62,14 @@ const GOOD = path.join(PLUGINS, 'good.js');
 const cp = require('child_process');
 const realExec = cp.exec;
 let execCalls = 0;
+// Restarts counted apart from other supervisorctl calls: since relay-stream-gaps #1
+// (ADR relay-stream-gaps/0001) a stream change first asks for the router's status and
+// restarts only when it is not running (this stub never answers RUNNING) or no reload is
+// logged — so "applied by restart" is one restart, not one exec.
+let restartCalls = 0;
 cp.exec = function (cmd, opts, cb) {
   execCalls++;
+  if (/supervisorctl\s+restart\s+strfry-router/.test(cmd)) restartCalls++;
   const done = typeof opts === 'function' ? opts : cb;
   if (done) process.nextTick(() => done(null, 'strfry-router: started', ''));
 };
@@ -105,7 +111,7 @@ function removeStubs() {
 function reset(state, presets) {
   savedState = state === undefined ? null : JSON.parse(JSON.stringify(state));
   presetsText = presets === undefined ? null : JSON.stringify(presets);
-  configWrites = []; stateWrites = []; warnings = []; execCalls = 0;
+  configWrites = []; stateWrites = []; warnings = []; execCalls = 0; restartCalls = 0;
 }
 
 function mkRes() {
@@ -203,7 +209,7 @@ T('P: POST /router-config with an existing plugin succeeds and writes it', async
   await router.handleUpdateRouterConfig(local({ streams: [STREAM_OK] }), res);
   assert(res.statusCode === null && res.body && res.body.success === true, `expected success, got ${res.statusCode} ${JSON.stringify(res.body)}`);
   assert(!('skipped' in res.body), 'a clean save reports nothing skipped');
-  assert(configWrites.length === 1 && configWrites[0].includes(`pluginDown = ${JSON.stringify(GOOD)}`) && execCalls === 1, 'config written with the plugin and the router restarted');
+  assert(configWrites.length === 1 && configWrites[0].includes(`pluginDown = ${JSON.stringify(GOOD)}`) && restartCalls === 1, 'config written with the plugin and the router restarted');
 });
 
 // ── V: saved state is re-validated whenever the config is rebuilt ────────────
@@ -219,7 +225,7 @@ T('V2: toggle rebuilds from saved state, leaves invalid streams out, keeps the r
   await router.handleToggleStream(local({ name: 'good', enabled: true }), res);
   assert(res.statusCode === null, `expected success, got ${res.statusCode} ${JSON.stringify(res.body)}`);
   assertSkippedReported(res.body);
-  assert(configWrites.length === 1 && execCalls === 1, 'config written once and the router restarted');
+  assert(configWrites.length === 1 && restartCalls === 1, 'config written once and the router restarted');
   assertOnlyGoodInConfig(configWrites[0]);
   assertWarned();
   const after = stateWrites[stateWrites.length - 1];
@@ -259,7 +265,7 @@ T('V6: restore-defaults applies presets through the same checks (an invalid pres
   const restored = stateWrites[stateWrites.length - 1].streams.map((s) => s.name);
   assert(!restored.includes('badPreset'), 'an invalid preset must not be restored into state');
   assert(restored.length === presets.length - 1, `every valid preset is restored (${restored.length} of ${presets.length - 1})`);
-  assert(!configWrites[0].includes('elsewhere.js') && execCalls === 1, 'config written without it and the router restarted');
+  assert(!configWrites[0].includes('elsewhere.js') && restartCalls === 1, 'config written without it and the router restarted');
   assert(warnings.some((w) => w.includes('"badPreset"')), 'a warning names the ignored preset');
 });
 T('V7: first boot (no router-state.json) seeds state from presets through the same checks', async () => {

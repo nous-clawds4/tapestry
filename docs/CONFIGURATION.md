@@ -172,7 +172,7 @@ The strfry-router daemon syncs configurable streams of nostr events between this
 | `/var/lib/brainstorm/router-state.json` | Per-instance enabled/disabled state for each stream (on the `tapestry-data` Docker volume — persists across container rebuilds). |
 | `/etc/strfry-router-tapestry.config` | Generated config consumed by the strfry-router daemon. Rewritten from `router-state.json` on every save, toggle, restore-defaults, restart and startup, after the checks below. |
 
-The Router Management tab at `/tapestry/settings/relays` is the UI: it shows configured streams from `router-state.json`, and a **📋 Presets** button reveals additional presets from `router-presets.json` that haven't been added yet. Clicking "+ Add" on a preset inserts it into the operator's state with `enabled` matching its `defaultEnabled`; toggling enabled/disabled rewrites the daemon config and restarts `strfry-router` via `supervisorctl`.
+The Router Management tab at `/tapestry/settings/relays` is the UI: it shows configured streams from `router-state.json`, and a **📋 Presets** button reveals additional presets from `router-presets.json` that haven't been added yet. Clicking "+ Add" on a preset inserts it into the operator's state with `enabled` matching its `defaultEnabled`; toggling enabled/disabled, saving streams and Restore Defaults rewrite the daemon config in place and `strfry-router` reloads it, reconnecting only the streams that changed. The router is restarted only by the **🔄 Restart** button, or as a fallback when it isn't running, logs no reload within 3 s, or must restart to put the previous streams back after a rejected change (the response then says so); a change strfry rejects is rolled back and reported (ADR relay-stream-gaps/0001).
 
 ### Checks on router values
 
@@ -187,7 +187,7 @@ Where a value fails:
 | Where it comes from | What happens |
 |---|---|
 | Saving streams (`POST /api/strfry/router-config`) | Refused with 400. Nothing is written and the router is not restarted. |
-| Saved state (`router-state.json`), when the config is rebuilt on toggle, restore-defaults, restart or startup | That stream is left out of the config, as if disabled, and the server log names it and the reason (`[router] Leaving stream …`). The toggle/restart/restore response lists it under `skipped`. The other streams are written and the router restarts as usual. `router-state.json` is not rewritten, so the stream still shows as saved until you fix or re-save it. |
+| Saved state (`router-state.json`), when the config is rebuilt on toggle, restore-defaults, restart or startup | That stream is left out of the config, as if disabled, and the server log names it and the reason (`[router] Leaving stream …`). The toggle/restart/restore response lists it under `skipped`. The other streams are written and applied as usual: on a toggle or restore-defaults by an in-place reload (a restart only as a fallback), on restart by the restart, and at startup by the router loading the file. `router-state.json` is not rewritten, so the stream still shows as saved until you fix or re-save it. |
 | Presets (`setup/router-presets.json`) | The preset is ignored with a warning (`[router] Ignoring preset …`): it is not listed, restored or seeded on first boot. |
 
 A router restart (`POST /api/strfry/router-restart`) rebuilds the config from saved state before restarting.
