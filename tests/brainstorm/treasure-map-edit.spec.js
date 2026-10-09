@@ -488,6 +488,7 @@ test.describe('/treasure-map — Edit mode: assign and preview', () => {
     expect(draft.tags).toEqual([
       ['30382:rank', LOCAL, 'wss://ta.example'], ['30382:followers', LOCAL, 'wss://ta.example'], ['30392', LOCAL, R],
       ['39998:dlist-header', B, ''], ['39998:restaurants', C, R], ['*:tag', D, R], ['3038x', LOCAL, 'wss://ta.example'],
+      ['39999', B, ''],
     ]);
   });
 
