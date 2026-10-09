@@ -224,3 +224,71 @@ On that last row:
 - The guard's coverage of `set-picture`, AV7 and the stored-but-unpublished behaviour are verified above and stand.
 
 **CHANGES_REQUESTED**
+
+## Round 3 (2026-10-09): R2-1 through `set-picture`, re-reviewed as fresh claims
+
+**Diff:** `git diff 18cddc6c..f3666583`, the same three commits as story 2's round 3:
+- `e1750e00`, ADR 0002 Amendment 2;
+- `b5ce4a2d`, the pin C16, the status-read assertions in C15 and AV7, and both plans' records;
+- `f3666583`, the condition in `ui/src/pages/assistant/ProfileChecklist.jsx`.
+
+No story-3 file changed. `src/api/assistant/avatar.js`, `src/utils/ssrfGuard.js`, `bin/control-panel.js`, `src/api/openapi.yaml`, `BIBLE.md`, `ui/src/utils/stampedAvatar.js` and `ui/src/components/AssistantProfileEditor.jsx` have no diff since `18cddc6c`. `origin/staging` is still `0ee7e350`, an ancestor of HEAD, and `git merge-tree` is clean.
+
+### What I re-ran
+- **The pre-fix build** (a scratch worktree at `b5ce4a2d`, built into `<scratch>/dist-pre` and served on 7801; since removed and stopped):
+  - C16 **fails** and AV7 passes. AV7 is round 1's `hasProfile: false` pin, which Amendment 1 already closed.
+  - Round 3's fail-first pin is C16, through the visible panel's republish. Round 2 allowed one pin through any `runFix` caller, so no avatar pin was required.
+- **Browser on HEAD.** `dist/` is byte-identical to a fresh build of `f3666583`'s `ui/`. The five specs, chromium, gave **59 passed, 0 failed**. For this story:
+  - `assistant-profile-checklist-page.spec.js` AV1–AV7;
+  - `my-assistant-page.spec.js` 18;
+  - `ta-composite-avatar.spec.js` 5;
+  - `assistant-default-profile.spec.js` 8.
+- **`npm test`.** `npm run gate:status -- --label reviewer-profile-checklist-r3`:
+
+  ```
+  20261009T194027Z-7490-ea43 [reviewer-profile-checklist-r3] started 2026-10-09T19:40:27.637Z on f3666583 — FAIL, exit 1, 5393 passed, 1 failed, 582 skipped, 288/288 suites; failed: harness-lint · /home/user/tapestry/tmp/gate-runs/20261009T194027Z-7490-ea43.json
+  ```
+
+  - The only failure is `harness-lint`, with only `VIOLATION L10 commit:695fac48` (confirmed with `bash scripts/harness-lint.sh | grep VIOLATION`).
+  - This story's suites: `assistant-stamped-avatar-for-everyone` 19/0/0, `stamped-composite-avatar` 13/0/2 (live-probe skips) and `my-assistant-page` 31/0/0.
+- **A `set-picture` probe on HEAD** (scratch spec, the spec's own `mock()`). It makes the avatar, then presses "Publish this avatar" against a status answer with `hasProfile: true`, `profileSource: 'relay'` and an older profile.
+  - The composite is stored (`store: 1`) and nothing is posted to the writer.
+  - The avatar panel shows the nothing-published line, the status was read, and the attention answer is asked again.
+
+### The fix, for this story's path
+| Claim | Command | Result |
+|---|---|---|
+| The new condition covers `set-picture` | `publishAvatar` → `runFix('avatar', 'set-picture', { url })` at `ProfileChecklist.jsx:158`. The check at `:113-117` comes before the page's only POST at `:120`, and `set-picture` takes the `hasProfile === true && profileSource === 'local'` branch (`:115`). My probe. | **True** |
+| "story 2's C16 covers R2-1 for it too" (story 3 plan, `:102-105`) | C16 presses the visible panel's republish, not `set-picture`. The condition is one expression for every fix but `publish-default`, so the line C16 pins is the line `set-picture` passes through. My probe exercises `set-picture` itself. | **True at the line level.** The plan's sentence is accurate about the guard, and round 2 asked for no more |
+| AV7 now asserts that the press read the status, and that assertion is not vacuous | `spec.js:389`. Nothing on the page reads `/api/assistant/status` before a press (story 2's round-3 probe: 0 reads before, 1 after) | **True** |
+| A stopped press is still safe for the avatar's file | the store (`:150`) runs before the status read, so the composite stays stored but unpublished (probe: `store: 1`, no POST) | **True, and immaterial,** as in round 2: ADR 0003 sub-decision 9 allows it, and a same-bytes retry reuses the 32-hex name |
+| AC-3, "every other field as it is published now", on the R2-1 path | with a non-local read the press posts nothing. With a local read, the base is this instance's single kind 0 (story 2's round-3 audit, rows 4–6) | **True** |
+
+### Findings
+
+#### Blocking
+- None. R2-1 through `set-picture` is closed by the same condition (`ProfileChecklist.jsx:115`), which C16 pins and my probe confirms for this caller.
+
+#### Non-blocking
+- **An avatar-specific relay-source pin** is still optional. My `set-picture` probe shows the behaviour, and round 2 asked for one pin through any caller.
+- **Story 2's round-3 R3-1 to R3-3 apply here too:** Amendment 2's "the one the check read", the cost paragraph, and the one writer's same-second `created_at`.
+- **Round 1's non-blocking 1–6 stand as written,** and none got worse (no diff in their files).
+  - 1: `avatar.js` body read with no time limit.
+  - 2: the ssrfGuard header.
+  - 3–4: `bin/control-panel.js`'s comment and `nosniff`.
+  - 5: the OpenAPI 500.
+  - 6: `BIBLE.md:8`.
+- **Story 2's R2-2 to R2-4:** R2-2 stands (slightly better now). R2-3 is partly addressed, since AV7 now asserts the status read. R2-4 is addressed, since the plan's round-1 record names `97d69cf4`.
+
+#### Harness friction
+- None beyond story 2's round-3 note (the brief's `dist/` freshness check was vacuous; verified by content instead).
+
+### Story status and completion (round 3)
+- [ ] Story `**Status:**` not flipped here. Per the brief, the main session flips it to Done, and commits, after the user's gate.
+- [x] Completion detection performed. The result is in the hand-off message, not in this file (template rule).
+
+### Verdict (round 3)
+- The one ask, R2-1 through `set-picture`, is closed: the condition at `ProfileChecklist.jsx:113-115` comes before the only POST, and `publishAvatar` reaches the writer only through it.
+- C16 failed first and passes on HEAD. My probe confirms the `set-picture` caller. The five specs (59/0/0) and the gate (only the pre-existing `harness-lint` L10) are clean.
+
+**PASS**

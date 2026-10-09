@@ -1,6 +1,6 @@
 # Story 2: The checklist page at `/assistant/profile`, and its one-click fixes
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-profile-checklist`

@@ -291,3 +291,138 @@ One ask: R2-1. Close the relay-fallback path at `ProfileChecklist.jsx:112` (Arch
 - Round 3 needs the new pin failing first, then the five specs and the gate.
 
 **CHANGES_REQUESTED**
+
+## Round 3 (2026-10-09): R2-1, re-reviewed as fresh claims
+
+**Diff:** `git diff 18cddc6c..f3666583`, three commits on top of round 2's review commit:
+- `e1750e00`, ADR 0002 Amendment 2, with Amendment 1's false premise marked in place (`0002-…md:248-249`);
+- `b5ce4a2d`, the pin C16, `log.status` assertions added to C15 (`spec.js:376`) and AV7 (`:389`), and both plans' records;
+- `f3666583`, the condition: +6/−3 in `ui/src/pages/assistant/ProfileChecklist.jsx`.
+
+HEAD is `f3666583`. `git fetch origin staging` leaves `origin/staging` at `0ee7e350`: `git log HEAD..origin/staging` is empty, it is an ancestor of HEAD, and `git merge-tree --write-tree HEAD origin/staging` is clean (the book's "Shared lines" check).
+
+### What I re-ran
+- **Commit hygiene and scope.**
+  - `e1750e00` touches only the ADR. `b5ce4a2d` touches only the spec and the two test plans. `f3666583` touches only `ProfileChecklist.jsx`, and no test.
+  - `git diff --name-only 18cddc6c HEAD` lists exactly those five files. Nothing in `src/`, `bin/`, `BIBLE.md`, `test/` or any other `ui/` file changed.
+  - The added lines have no `console.`, `debugger`, `TODO` or `.only(`.
+- **C16 failed first.**
+  - Setup: a scratch worktree at `b5ce4a2d`, with `node_modules` and `ui/node_modules` symlinked; `npx vite build --outDir <scratch>/dist-pre`, served on 7801 with the scratch static server. The pre-fix bundle has no `profileSource==="local"`.
+  - Chromium, `-g "C14|C15|C16|AV7"`: **C16 fails** at `spec.js:404`, where the nothing-published line on the visible panel is never shown. C14, C15 and AV7 pass (1 failed, 3 passed). This matches the plan's record (`test-plan.md:95-105`).
+  - A scratch probe on the same build (the spec's own `mock()`, C16's fixture) shows what it posted: `{"name":"Alice Bot (before the latest edit)","about":"An older About text.",…}`. That is the older copy, as the record says.
+  - In the same worktree, `f3666583`'s `ui/` built into `<scratch>/dist-head` is **byte-identical** to `/home/user/tapestry/dist` (sha256 of every file).
+  - The worktree is removed (`git worktree list` shows only the main checkout), both scratch builds are deleted and the 7801 server is stopped. `/home/user/tapestry/dist` was not rebuilt.
+- **Browser on HEAD.**
+  - **`dist/` freshness.** `dist/` (mtime 19:19:16) predates the impl commit (19:19:25), and `git diff f3666583 HEAD -- ui/` is empty only because HEAD *is* `f3666583`. So I checked the content:
+    - the bundle has the new condition (`M.hasProfile===!0&&M.profileSource==="local"`);
+    - it is byte-identical to a fresh build of HEAD's `ui/`.
+  - The five specs, chromium, against `http://localhost:7799`: **59 passed, 0 failed, 0 skipped**. By spec:
+    - `assistant-profile-checklist-page` 23 (C1–C16, AV1–AV7);
+    - `assistant-profile-check` 5;
+    - `my-assistant-page` 18;
+    - `ta-composite-avatar` 5;
+    - `assistant-default-profile` 8.
+- **`npm test`.** `npm run gate:status -- --label reviewer-profile-checklist-r3`:
+
+  ```
+  20261009T194027Z-7490-ea43 [reviewer-profile-checklist-r3] started 2026-10-09T19:40:27.637Z on f3666583 — FAIL, exit 1, 5393 passed, 1 failed, 582 skipped, 288/288 suites; failed: harness-lint · /home/user/tapestry/tmp/gate-runs/20261009T194027Z-7490-ea43.json
+  ```
+
+  - `bash scripts/harness-lint.sh | grep VIOLATION` prints only `VIOLATION L10 commit:695fac48`, another session's harness commit. The run record's only non-PASS/SKIP suite is `harness-lint.test.js`. `strayErrors` is empty.
+  - This book's suites:
+    - `assistant-profile-checklist-page` 14/0/0;
+    - `one-writer-assistant-profile` 17/0/0;
+    - `assistant-profile-check` 33/0/0;
+    - `my-assistant-page` 31/0/0;
+    - `assistant-stamped-avatar-for-everyone` 19/0/0;
+    - `stamped-composite-avatar` 13/0/2 (live-probe skips, no stack).
+  - The totals equal round 2's, as expected: the round-3 diff adds no node test.
+- **My probes on HEAD** (scratch, outside the repo; the spec's `mock()` and `open()` copied verbatim; nothing real published): 15 passed.
+  - **Every `runFix` caller stops on a non-local read.** For each of `nip05` republish, `client-tag` republish, `set-website` and `fill-name-about`, a status answer with `profileSource` `'relay'`, missing, or `null` (each with `hasProfile: true` and an older profile) posts nothing. The panel shows the line, the attention answer is asked again, and the status was read.
+  - **The visible panel's republish** (C16's fixture) logs 0 status reads before the press and 1 after. `log.publish` and every non-GET `/api/` request are empty, 1.5 s after the refresh.
+  - **`set-picture`** ("Publish this avatar") with `'relay'`: the composite is stored (`store: 1`) and nothing is posted.
+  - **Positive control:** with `'local'`, the visible panel's republish posts the published fields unchanged.
+- **The real status handler, branch by branch** (node, scratch). It drives `createAssistantStatusHandler` with the real `resolveAssistantProfileState`, stubbing only strfry, the relays and the key store, then applies HEAD's guard expression. See the table below.
+
+### Each changed claim, checked with its own command
+| Claim (ADR 0002 Amendment 2, the fix, and the plans) | Command | Result |
+|---|---|---|
+| "`only-here` means no outside relay answered with a copy *at least as new* as this instance's (`readVisibility`); an outside relay can still hold an older one" | `profileChecklist.js:132-134` (`created_at >= since`), `:200-201` (no answer gives `unreachable`; else `only-here` when `holding === 0`) | **True** |
+| "When the non-strict local scan fails at press time, the status read falls back to the publish relays, finds that older copy and answers `hasProfile: true`, `profileSource: 'relay'`" | `profileState.js:45-46` (failure → `null`), `:155-168`, `:183`; `index.js:432`; the handler probe (local `null`, relays `[v1]` → `{hasProfile:true, profileSource:"relay", name:"v1 older"}`) | **True** |
+| "Amendment 1's guard lets it through, and any panel fix, `set-picture` included, republishes the older fields … here and on every outside relay" | the pre-fix build posted the older copy (probe); the writer signs with `created_at` = now (`index.js:264`) and imports it locally first (`:276-287`), so the newer local kind 0 is replaced | **True** (at `b5ce4a2d`) |
+| The status answer's `profileSource` in every branch | the handler probe: a local hit → `'local'`; local fails, relays hold v1 → `'relay'` (also when the copy home throws); relays empty → `null`; the negative memo → `null`; no relay key → `null` (`index.js:406`); an anonymous read → `null` (`profileState.js:146`); the key store or the scan throws → `success: false` (`index.js:446-447`) | `'local'` comes **only** from a successful local scan (`profileState.js:142-143`). There is no positive cache or memo: the only memo is the miss memo (`:149-150`), which answers `null` |
+| `'local'` never accompanies content other than this instance's newest kind 0 | `profile` and `profileSource` come from one `state` (`index.js:431-432`). strfry keeps one kind 0 per author: an older import is refused, and a `created_at` tie keeps the lowest id (the repo's own record, `src/api/concept/bDisposition.js:140-143`) | **True** by strfry's rule. Two edges: a same-second tie (R3-3) and a wiped or restored local relay. In the restored case the check reads the same local copy, so base and panels agree, which is principle 4's local-first rule. Neither edge is this diff's |
+| "the base must be this instance's own copy, the one the check read (ADR 0001 reads the local relay first and strictly)" | `profileChecklist.js:246-251` (the resolver with `strictNewestKind0`, `:65-71`), `:248` (`allowRelayFallback: true`) | **True in the steady state; imprecise at two safe edges.** (1) When the local relay held no kind 0, the check read the relays' copy and copied it home (`profileState.js:177-182`). The press's `'local'` base is that copy, and if the copy home failed the press is refused. (2) A profile published from another tab between the check and the press becomes the base (the accepted race). Its fields are newer than the check's, never older. R3-1 |
+| Every fix but `publish-default` needs `hasProfile === true && profileSource === 'local'`; `publish-default` needs `hasProfile === false`; a relay or missing source stops the press | `ProfileChecklist.jsx:113-117`; the handler probe's guard column; my probes (`'relay'`, missing, `null`) | **True** |
+| A stopped press: nothing posted, the line, `fixing` cleared, the answer asked again | `:116-117`, `:130-132` on every path; C14, C15, C16, AV7 and my probes | **True** |
+| "What it costs": a local failure with a current outside copy is refused too, and a later press works | the handler probe (a `'relay'` answer is refused whatever its age); the next read's local hit is `'local'` | **True as far as it goes.** It leaves out the cost round 2 named: a copy home that keeps failing, so the check offers fixes the press refuses. That costs nothing in practice, because the writer's own local-first write (`index.js:276-287`) would fail in that state too. R3-2 |
+| "Matching the checked event's id, or a strict press-time read on the server … both need more than this page" | the attention answer carries no event id or `created_at` (`profileChecklist.js:226-233`); the status read's scan is non-strict (`profileState.js:38-56`) | **True** |
+| Amendment 1's premise "marked where it stands" | `0002-…md:248-249`: "*(wrong: they may hold an older copy — corrected by Amendment 2)*" | **True.** The rest of Amendment 1 holds. Its "the press path is the second read and needs the same care" is now met in effect: a failed non-strict scan can no longer pass as `'local'` |
+| The plans' records: C16 failed "on `18cddc6c`", C14, C15 and AV7 passed; round 1's `dc67d8e` maps to `844911e2` / `97d69cf4` | `git diff 18cddc6c b5ce4a2d -- ui/ src/lib/` and `git diff 844911e2 97d69cf4 -- ui/ src/lib/` are both empty; my pre-fix run | **True** |
+
+### The guard, for every caller, and a hunt for a third way in
+- **Every path to the writer is behind it.** The page's only `fetch('/api/assistant/publish-profile')` is `ProfileChecklist.jsx:120`, after the check at `:113-117`.
+  - Its callers: `fixButton` (`:164`; republish ×3, set-website, fill-name-about), the notice (`:244`; publish-default) and `publishAvatar` → `runFix('avatar', 'set-picture', …)` (`:158`).
+  - `makeAvatar` and the store only call `my-picture` and `avatar`.
+  - Repo-wide, the only other UI caller is the editor (`AssistantProfileEditor.jsx:241`), which W5 allows and ADR 0002 leaves unchanged.
+- **Can the base still differ from what the check evaluated?** I checked each route the brief names.
+  - **A local event that is not the newest.** strfry holds one kind 0 per author (row 5 above). The `limit: 1` first line (`profileState.js:39`, `:50`) is therefore that event.
+    - The outside relays can only hold copies this instance signed. The writer imports locally first and sends outward only on success (`index.js:276-287`). So a newer outside copy with an older local one needs a wipe, a restore or a same-second tie.
+    - On a restore, the check also evaluates the local copy (`profileChecklist.js:65-71`), so base and panels agree.
+  - **strfry's replaceable kind 0.** The copy home (`profileState.js:177-182`) of an older relay copy is refused while the newer one is held. If the newer one is really gone (a wipe), the refused press's refresh re-checks against what is now local, so panels and base agree again. A wipe itself is BIBLE §30's concern, not this page's.
+  - **A republish from another tab or the editor between check and press.** The status read returns the newer local copy and the fix changes only its own field. The base is newer than the panels, never older. That is narrower than the editor's own race, which uses a base read at page load.
+  - **The copy-home race with a later read.** A press-time read that falls back answers `'relay'` and is refused, whether or not its copy home lands. The next read is `'local'` only if strfry now holds a kind 0, and that kind 0 is what the refreshed check reads.
+  - **The one writer.** It merges nothing. It takes the seven string fields as sent (`index.js:249`), drops `nip05` and empties, then sets the NIP-05 and client tag (`profileDefaults.js:226-234`). The page's base is the whole profile, which is why the source check matters. With it, the base is always this instance's own copy.
+  - **An HTTP-cached status answer.** Nothing sets freshness headers on `/api` (`docker/nginx.conf`, `src/api/index.js`), so a cached answer is only ever revalidated.
+  - **The same Assistant everywhere.** The check (`attention.js:270` → `getAssistantPubkeyFor` → `getAssistantKeys`), the status read and the writer resolve the Assistant from the same session pubkey.
+  - **`publish-default`'s own edge.** A transient scan failure *and* a profile published from another tab, both inside the press window, would let the default through (the handler probe's "relays empty" row). That is two independent events inside the accepted cross-tab race. Far-fetched, and not worse than the editor's "Reset to defaults".
+- **Result:** I found no remaining realistic path. The two far-fetched ones are noted (R3-3, and `publish-default`'s edge above).
+
+### C16, audited
+- **It proves nothing was posted.** `log.publish` records every request to the page's only writer URL, whose route is registered after the catch-all.
+  - On the guard path `runFix` makes no second fetch: the line is rendered, then `refresh()` runs (`:116-117`, `:130-132`). So no POST can follow the line, and the `toEqual([])` at `:407` runs after both.
+  - My probe also saw no non-GET `/api/` request at all, 1.5 s after the refresh.
+- **"The press read the status" is not vacuous.** Nothing on `/assistant/profile` reads `/api/assistant/status` before a press. `useAssistantSetupState` is mounted only by the Dashboard. The probe logged 0 status reads before the press and 1 after. The same holds for the assertions added to C15 (`:376`) and AV7 (`:389`).
+- **The fixture is realistic.** `{ ...statusAnswer({ profile: older }), profileSource: 'relay' }` gives `success: true`, `hasRelayKey: true`, `hasProfile: true`, the older profile and the defaults. That is the real handler's relay branch (`index.js:425-435`), apart from `computedNip05`, which no `statusAnswer` carries and `applyProfileFix` never reads. The attention answer is `PROFILE_ALL_FIXABLE`, whose visible row is `only-here` with 3 answered and 0 holding: R2-1's state.
+
+### Findings
+
+#### Blocking
+- None. R2-1 is closed: `ProfileChecklist.jsx:113-115` refuses any base that is not this instance's own copy. C16 failed first and now passes, and every caller is covered (probes).
+
+#### Non-blocking
+- **R3-1. `0002-…md:288-289`, "the one the check read".**
+  - This holds in the steady state.
+  - When the local relay held no kind 0, the check read the relays' copy and copied it home. When another tab republished in between, the base is newer than what the check read.
+  - Both edges are safe: a refusal, or a newer base. Optional: "this instance's own copy, which is what the check reads when the local relay holds one".
+- **R3-2. `0002-…md:293-297`, the cost paragraph.**
+  - It leaves out the cost round 2 asked to have stated: a copy home that keeps failing, where the panels offer fixes the press refuses. That costs nothing in practice, because the writer's local-first write would fail too.
+  - The paragraph also has a stray hard-wrap ("Matching / the checked event's id, or / a strict…"). Optional.
+- **R3-3. `src/api/assistant/index.js:264`, pre-existing and not this diff's.**
+  - The one writer signs with `created_at = floor(now/1000)` and no `prev + 1` skew. Compare `bDisposition.js:140-144`, which records strfry's lowest-id tie-break for exactly this reason.
+  - Two publishes in the same second can leave the later one dropped locally. I could not check whether `strfry import` then exits non-zero: there is no stack here.
+  - Through this page it needs two full press round-trips inside one second, and the re-check would show the item still unfinished. The editor has the same property. An OPEN.md candidate, at most.
+- **R2-2** (the reused line) still stands, and is slightly better: in R2-1's case the local relay really did not answer, so "This instance did not answer" is now accurate there too.
+- **R2-3** is partly addressed: C15 and AV7 now assert the status read. A missing `hasProfile` and a press-time `success: false` still have no pin. Optional.
+- **R2-4** is addressed: both plans now map `dc67d8e` to its post-rebase commits.
+- **Round 1's non-blocking 1–3 stand unchanged,** and none got worse.
+  - 1: `profileChecklistCopy.js:177`, no diff.
+  - 2: now `ProfileChecklist.jsx:189-197`, three lines lower.
+  - 3: the editor's duplicates.
+
+#### Harness friction
+- **The brief's freshness check for `dist/` was vacuous here.** It asked for `git diff f3666583 HEAD -- ui/` plus `dist/`'s mtime, but HEAD is `f3666583`, and `dist/` was built nine seconds *before* the impl commit. Taken literally, the mtime reads as stale. A content check (grep the bundle for the changed expression, or a hash-identical scratch rebuild) is the reliable test. A note for future hand-off briefs; no repo doc is wrong.
+
+### Story status and completion (round 3)
+- [ ] Story `**Status:**` not flipped here. Per the brief, the main session flips it to Done, and commits, after the user's gate.
+- [x] Completion detection performed. The result is in the hand-off message, not in this file (template rule).
+
+### Verdict (round 3)
+- R2-1 is closed by `ProfileChecklist.jsx:113-115`, with Amendment 2 recording it.
+  - Amendment 1's premise is corrected in place.
+  - C16 failed first, against `b5ce4a2d`'s build, and passes on HEAD.
+  - My probes cover every `runFix` caller.
+- The five specs (59/0/0) and the gate (only the pre-existing `harness-lint` L10) are clean.
+- The remaining notes (R3-1 to R3-3) are wording or pre-existing, and none blocks.
+
+**PASS**
