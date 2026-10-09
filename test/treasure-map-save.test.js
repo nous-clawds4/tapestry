@@ -351,7 +351,7 @@ test('P1: changed — false with nothing pending, and for a pick that leaves the
   const wrong = [];
   const cases = [
     [{}, false, 'nothing pending'],
-    [{ concepts: VIEWER }, false, 'Concepts → the Assistant its own entry already names (story 3 review, non-blocking 4)'],
+    [{ concepts: VIEWER }, true, 'Concepts → the Assistant its own entry already names, on a Map without 39999: 39999 is added'],
     [{ scores: B }, true, 'Scores → B'],
     [{ backups: true }, false, 'the backup switch on a Map with no backups'],
   ];
@@ -359,6 +359,10 @@ test('P1: changed — false with nothing pending, and for a pick that leaves the
     const got = plan(pending).changed;
     if (got !== want) wrong.push(`${label}: want ${want}, got ${show(got)}`);
   }
+  // Story 3 review, non-blocking 4: a pick that leaves the Map byte-identical changes nothing — for Concepts, once both
+  // of its family entries (39998 and 39999, owner's request 2026-10-08) already name the pick.
+  const same = plan({ concepts: VIEWER }, { ...MAP, tags: [...MAP.tags, ['39999', VIEWER, R0]] }).changed;
+  if (same !== false) wrong.push(`Concepts → the Assistant both its family entries already name: want false, got ${show(same)}`);
   const withBackup = plan({ backups: true }, { ...MAP, tags: [...MAP.tags, ['30382:rank', C, R0]] }).changed;
   if (withBackup !== true) wrong.push(`the backup switch on a Map with a backup: want true, got ${show(withBackup)}`);
   assert(wrong.length === 0, wrong.join('; '));

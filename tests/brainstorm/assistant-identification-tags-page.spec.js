@@ -21,7 +21,7 @@ const T = require('../../test/helpers/identificationTagsFixtures');
  *         Missing with a checked box and its button.                                                     [AC-2, AC-5]
  *   B6  — signed out, no Assistant, and while sign-in resolves: parked rows say so, offered rows say nothing. [AC-1]
  *   B7  — the publish: one signature against Nous' definition, one local write, the kept-local summary
- *         and five skipped lines, then the row flips and the hub counts nine.                            [AC-4; authorship AC-4]
+ *         and five skipped lines, then the row flips and the hub counts every other card (ten).                            [AC-4; authorship AC-4]
  *   B8  — the extension declines: nothing published, the refusal line.                                   [AC-4]
  *   B9  — no extension: the line, nothing signed, nothing sent.                                           [AC-4]
  *   B10 — the local write fails: the failed-local line (ADR 0002 sub-decision 5), the row unchanged.       [AC-4]
@@ -317,7 +317,7 @@ test.describe('The Identification Tags page, and your taggings (assistant-identi
     expect(early).not.toContain(X.COPY.noAssistantLine);
   });
 
-  test('B7: the publish — one signature against Nous\' definition, one local write, the kept-local summary with five skipped lines; then the row flips and the hub counts nine (AC-4; authorship AC-4)', async ({ page }) => {
+  test('B7: the publish — one signature against Nous\' definition, one local write, the kept-local summary with five skipped lines; then the row flips and the hub counts every other card (ten) (AC-4; authorship AC-4)', async ({ page }) => {
     await stubSigner(page, 'ok');
     const log = await mock(page, { attention: [T.MISSING_ALL, T.DONE] });
     await open(page);
@@ -346,7 +346,9 @@ test.describe('The Identification Tags page, and your taggings (assistant-identi
     await page.goto(X.HUB);
     await page.locator('main').first().waitFor({ timeout: 20000 });
     await page.waitForTimeout(1500);
-    expect(squash(await textOf(page.locator('main').first()))).toContain(X.countText(9));
+    // Every card but Identification Tags (done) stays marked: the placeholders, and the checked Outbox Relays card, whose
+    // answer this mock does not carry (re-aimed by assistant-outbox-relays #1: ten).
+    expect(squash(await textOf(page.locator('main').first()))).toContain(X.countText(X.ACTIONS.length - 1));
   });
 
   test('B8: the extension declines — nothing is published, the refusal line names the tagging (AC-4)', async ({ page }) => {

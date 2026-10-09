@@ -5,8 +5,9 @@
  *
  * It reads keys with the card rule's own reader (entryOf, appliesTo), so a key that counts on a card is the key an edit
  * rewrites. What an assignment changes is the owner's book decisions 12 and 15: the category's own entries move to the
- * new Assistant in place, their backups stay, the family entry is added when the Map has none, and everything else keeps
- * its bytes and its place. Nothing here reads, signs, publishes or stores.
+ * new Assistant in place, their backups stay, each family entry is added when the Map has none, and everything else
+ * keeps its bytes and its place. Concepts has two family entries, `39998` and `39999` (owner's request, 2026-10-08).
+ * Nothing here reads, signs, publishes or stores.
  *
  * Story 4 (ADR treasure-map-edit/0004) adds the switches to the same pending value: `override` ({ scores?, lists?,
  * concepts?: true }) removes a pending card's individually assigned duties, and `backups` (true) leaves every
@@ -15,8 +16,11 @@
 
 import { COPY, entryOf, appliesTo } from './manageTreasureMap.js';
 
-/** Each category's family entry: added when an assignment finds the Map has none (book decision 12). */
-export const FAMILY = { scores: '3038x', lists: '3039x', concepts: '39998' };
+/**
+ * Each category's family entries, in the order an assignment adds the ones the Map has none of (book decision 12).
+ * Concepts names both of its kinds, `39998` and `39999` (owner's request, 2026-10-08).
+ */
+export const FAMILY = { scores: ['3038x'], lists: ['3039x'], concepts: ['39998', '39999'] };
 
 const CATEGORIES = ['scores', 'lists', 'concepts'];
 const PENDING_KEYS = ['scores', 'lists', 'concepts', 'everything'];
@@ -49,7 +53,7 @@ export function entryRole(category, tag) {
 /**
  * The Map's tags with the pending assignments made (story 3 AC-5). For each category with a pending Assistant B, each
  * own key's first valid tag (its Preferred one) names B, in place, keeping its key's spelling and any extra elements;
- * its other tags (backups) stay. The family entry is appended when no valid tag has it. `everything` does the same for
+ * its other tags (backups) stay. Each family entry is appended when no valid tag has it. `everything` does the same for
  * the plain `*` entry, with relay ''. Then story 4's switches remove tags: a pending card's override removes its counted
  * individually assigned duties whole, and `backups` leaves each draft-grammar key its first entry. Every other tag is
  * copied as it is, in its place. The input is never changed.
@@ -74,8 +78,8 @@ export function editedTags(tags, pending, relayFor) {
       seen.add(entry.norm);
       if (entry.pubkey !== pubkey) out[i] = moved(i, pubkey, relayFor(pubkey, category));
     });
-    if (!entries.some((entry) => entry && entry.norm === FAMILY[category])) {
-      out.push([FAMILY[category], pubkey, relayFor(pubkey, category)]);
+    for (const family of FAMILY[category]) {
+      if (!entries.some((entry) => entry && entry.norm === family)) out.push([family, pubkey, relayFor(pubkey, category)]);
     }
   }
 

@@ -15,7 +15,7 @@ const T = require('../../test/helpers/identificationTagsFixtures');
  *   B1 — a pending answer: the second card's button, enabled, its offered box checked, the parked box
  *        inert; the first card's button stays disabled (done).                                          [AC-5]
  *   B2 — the press: one POST with the one checked key, the row's summary and relay lines, the row flips
- *        to Present, the hub counts nine.                                                              [AC-1, AC-4, AC-5]
+ *        to Present, the hub counts every other card.                                                              [AC-1, AC-4, AC-5]
  *   B3 — a failed local write, then a tag not found, each on the row; the tone rule.                    [AC-4, AC-6]
  *   B4 — a whole-request refusal (no Assistant) shows its words; a request that never answers shows
  *        the notice; nothing else changes.                                                             [AC-2, AC-5]
@@ -168,7 +168,7 @@ test.describe("Your Assistant's taggings (assistant-identification-tags #3, re-a
     if (await personButton.count()) await expect(personButton, "the first card's button, nothing to publish").toBeDisabled();
   });
 
-  test('B2: the press — one POST with the one checked key; the row\'s summary and relay lines; then the row flips and the hub counts nine (AC-1, AC-4, AC-5)', async ({ page }) => {
+  test('B2: the press — one POST with the one checked key; the row\'s summary and relay lines; then the row flips and the hub counts every other card (ten) (AC-1, AC-4, AC-5)', async ({ page }) => {
     const log = await mock(page, { attention: [ASSISTANT_MISSING, T.DONE] });
     await open(page);
     const card = assistantCard(page);
@@ -187,7 +187,9 @@ test.describe("Your Assistant's taggings (assistant-identification-tags #3, re-a
     await page.goto(X.HUB);
     await page.locator('main').first().waitFor({ timeout: 20000 });
     await page.waitForTimeout(1500);
-    expect(squash(await textOf(page.locator('main').first()))).toContain(X.countText(9));
+    // Every card but Identification Tags (done) stays marked: the placeholders, and the checked Outbox Relays card, whose
+    // answer this mock does not carry (re-aimed by assistant-outbox-relays #1: ten).
+    expect(squash(await textOf(page.locator('main').first()))).toContain(X.countText(X.ACTIONS.length - 1));
   });
 
   test('B3: a failed local write, then a tag not found — each on the row, with the error tone; the card stays marked (AC-4, AC-6)', async ({ page }) => {

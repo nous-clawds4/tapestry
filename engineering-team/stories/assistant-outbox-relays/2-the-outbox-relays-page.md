@@ -1,6 +1,6 @@
 # Story 2: The Outbox Relays page — your Assistant's outbox relays, adding by hand, suggestions, removing
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-outbox-relays`
@@ -112,6 +112,6 @@ None.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/assistant-outbox-relays/0002-the-outbox-relays-page-reads-the-one-answer.md`
+- Test plan: `engineering-team/stories/assistant-outbox-relays/2-the-outbox-relays-page.test-plan.md`
+- Review: `engineering-team/reviews/assistant-outbox-relays/2-the-outbox-relays-page.md`

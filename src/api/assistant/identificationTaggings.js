@@ -242,6 +242,8 @@ module.exports = {
   handlePublishIdentificationTaggings,
   publishAssistantTaggingsFor,
   buildAssistantTagging,
+  // Shared with the relay-list publish (assistant-outbox-relays ADR 0003 sub-decision 6), so one helper reads a stored key.
+  privkeyBytesOf,
   TAGGING_PUBLISH_CATEGORIES,
   CODES,
 };

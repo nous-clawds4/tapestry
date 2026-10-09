@@ -593,6 +593,9 @@ async function register(app) {
     // publish-profile; the generic signer is unchanged (assistant-identification-tags #3, ADR 0003).
     const identificationTaggingsApi = require('./assistant/identificationTaggings');
     app.post('/api/assistant/identification-tags/publish', identificationTaggingsApi.handlePublishIdentificationTaggings);
+    // Your Assistant signs its NIP-65 relay list (kind 10002) from the Outbox Relays page's draft — another narrow,
+    // session-bound route in the same shape; the generic signer is unchanged (assistant-outbox-relays #3, ADR 0003).
+    app.post('/api/assistant/outbox-relays/publish', require('./assistant/relayListPublish').handlePublishRelayList);
 
     // ── Owner pubkey (public) ──
     const ownerApi = require('./owner');

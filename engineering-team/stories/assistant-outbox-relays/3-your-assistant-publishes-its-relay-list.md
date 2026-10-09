@@ -1,6 +1,6 @@
 # Story 3: Your Assistant publishes its relay list
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-outbox-relays`
@@ -65,6 +65,13 @@ Assistant publishes, and I know when they can't.
     line and nothing else; the person gets the report within a bounded time.
 - [ ] **AC-5: an empty outbox.** Publishing a list with no outbox relays is allowed, with no confirmation
       step (book Decision 7). The report says so, and the hub card then needs attention.
+- [ ] **AC-6: only public relays** (added at review round 1, ADR 0003 Amendment 1, chosen by the owner
+      2026-10-09). A relay that is plainly not on the public internet — a private, loopback or link-local
+      address, `localhost`, a local-network name (`.local`, `.lan`, `.internal`, …), or a name with no dot —
+      cannot be added on the page: the field and a suggestion's Add both refuse it with a line. A request
+      naming one is refused before any key is read. At send time, each relay the new or the previous list
+      names is looked up, and the server never connects to one whose address is not public; its line in the
+      report says so. Relay Settings' own relays are sent to as before.
 
 ## Copy
 
@@ -84,6 +91,8 @@ Assistant publishes, and I know when they can't.
   Assistant on this instance yet." / "That is not a list of relay addresses." / and, for a request that
   fails or never answers: "This instance did not answer; nothing was published."
 - Per-relay lines: the Identification Tags page's (`relayLine`).
+- Not public (AC-6), on the page and as the request's refusal: "That relay is not on the public internet."
+- A relay not connected to (AC-6), its line: "not sent: not a public address".
 
 ## Concepts touched
 
@@ -111,8 +120,16 @@ None. Resolved at approval (2026-10-09):
 2. **Publishing an empty outbox:** allowed, with no confirmation step; the report and the card's mark say
    what happened (book Decision 7).
 
+## Deviations
+
+- **Refresh only after a write** (Implementation, recorded in ADR 0003 Amendment 1): the page asks for the
+  answer again only when a list was written, so a refusal or a failed local write keeps the person's draft.
+- **Phase-4 test corrections** (Implementation): the route sentinel reads `src/api/index.js` raw; two sibling
+  guards and two hub-count pins were re-aimed. Each fixes a test defect; the review of round 1 judged none
+  weakens a judge. They landed in the `impl:` commit; later test changes go in their own `test:` commit.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/assistant-outbox-relays/0003-the-assistant-signs-its-relay-list-through-one-narrow-route.md`
+- Test plan: `engineering-team/stories/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.test-plan.md`
+- Review: `engineering-team/reviews/assistant-outbox-relays/3-your-assistant-publishes-its-relay-list.md`
