@@ -45,8 +45,9 @@ None — page UI only. Reads the kind-10040 Map the page already reads.
   the title span (outside it, so `aria-describedby={titleId(key)}` on the pickers and switches keeps reading only the
   title) and `<span className="bsd-tm-cat-attention" aria-hidden="true">{COPY.needsAttention}</span>` after it.
   `COPY` in `manageTreasureMap.js` gains `needsAttention` and `needsAttentionSrPrefix`, taken from `ASSISTANT_COPY`
-  (`ui/src/pages/assistant/actions.js`, a pure `.js` module, so the Node suites still load `manageTreasureMap.js` as
-  they are). No new state: Edit mode already draws its cards from the edited draft (`categoryCards({ assistants:
+  through `import { ASSISTANT_COPY } from '../assistant/actions.js'`. The import keeps its `.js` suffix, as the
+  page's suites require of these modules, so Node still loads `manageTreasureMap.js` as it is. `actions.js` is
+  already in that module graph through `myAssistants.js`. No new state: Edit mode already draws its cards from the edited draft (`categoryCards({ assistants:
   draftAssistants })`), so a pending pick makes the card `single` and the pill goes, and Undo brings it back. That
   is decision 2, with nothing extra to keep in sync. New CSS rule `.bsd-tm-cat-attention` copies
   `.bs-setup-step-badge`'s shape (padding `0.1rem 0.55rem`, radius 999px, 1px border, 0.72rem, weight 700) with the
@@ -59,7 +60,10 @@ None — page UI only. Reads the kind-10040 Map the page already reads.
   one import), `ui/src/styles.css` (one new rule, plus a title-row rule), new `test/treasure-map-needs-attention.test.js`
   (+ `test/registry.js`), new `tests/brainstorm/treasure-map-needs-attention.spec.js`. **Not consumers** (grep-verified
   2026-10-08): `ui/src/utils/topBarAlert.js` and `ui/src/context/AssistantAttentionContext.jsx` reference neither the
-  Treasure Map nor `categoryAssistants`; `categoryAssistants`/`categoryCards` have no consumer outside `Index.jsx`.
+  Treasure Map nor `categoryAssistants`. In `ui/src`, `categoryAssistants`/`categoryCards` have no consumer outside
+  `Index.jsx`. Four suites import them (`manage-treasure-map-cards`, `treasure-map-card-rule-edges`,
+  `treasure-map-star-scopes-ignored`, `treasure-map-edit-mode`), and this story changes neither function. *(J1
+  advisory.)*
 - **Wire fidelity:** none — nothing is signed, published or read differently.
 
 ## Edge cases & not-covered

@@ -62,13 +62,17 @@ None — page UI only. Reads the kind-10040 Map (and in Edit mode the draft) the
   `.bsd-tm-cat-details*`.
 - **Rejected alternative:** let the panel walk the tags with its own filter. Rejected because two copies of the card
   rule can drift: the card could say "Ava" while the panel lists Cy first, which is exactly what AC-7 forbids. The
-  rule has already changed three times in treasure-map-edit (stories 1, 2 and the `39999` hotfix). Also rejected:
+  rule has already changed twice in treasure-map-edit (stories 1 and 2). Also rejected:
   putting the breakdown on the Advanced page. The owner asked for it per card, and the Advanced page is still a
   placeholder.
 - **Blast radius:** `manageTreasureMap.js` (new export; `categoryAssistants` re-expressed, same answers),
   `ui/src/pages/treasure-map/Index.jsx` (`CategoryCard`, new `CategoryDetails`, the `wantedKey` set, passing entries),
   `ui/src/styles.css` (new rules), new `test/treasure-map-card-details.test.js` (+ `test/registry.js`), new
   `tests/brainstorm/treasure-map-card-details.spec.js`. `editTreasureMap.js` is consumed (`entryRole`), not changed.
+  **Test consumers of `categoryAssistants`, all in the scoped gate, none edited:** `test/manage-treasure-map-cards.test.js`
+  (K), `test/treasure-map-card-rule-edges.test.js` (X/N/H), `test/treasure-map-star-scopes-ignored.test.js`, and
+  `test/treasure-map-edit-mode.test.js`, whose W4 pins the JSDoc sentence "that names anything after the `*`"
+  directly above `export function categoryAssistants`. The rewrite keeps that JSDoc where it is. *(J1 advisory.)*
   **Not consumers** (grep-verified 2026-10-08): nothing outside `Index.jsx` imports `categoryAssistants` or
   `categoryCards`.
 - **Wire fidelity:** none — nothing is signed, published or read differently.
