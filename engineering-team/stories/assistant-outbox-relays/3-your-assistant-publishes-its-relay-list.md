@@ -113,6 +113,6 @@ None. Resolved at approval (2026-10-09):
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-outbox-relays/0003-the-assistant-signs-its-relay-list-through-one-narrow-route.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
