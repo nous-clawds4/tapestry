@@ -1,6 +1,6 @@
 # Story 1: The outbox check — which outbox relays your Assistant's relay list names — and the hub's Outbox Relays card
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-outbox-relays`
@@ -114,4 +114,4 @@ None.
 
 - ADR: `engineering-team/decisions/assistant-outbox-relays/0001-the-outbox-check-joins-the-one-attention-answer.md`
 - Test plan: `engineering-team/stories/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md`
