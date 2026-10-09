@@ -1,6 +1,6 @@
 # Story 1: The profile check — which items of your Assistant's profile need attention — and the hub's Done mark
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-profile-checklist`
@@ -150,4 +150,4 @@ The profile is a kind 0, the NIP-05 a `.well-known` listing and the avatar a fil
 
 - ADR: `engineering-team/decisions/assistant-profile-checklist/0001-the-profile-check-joins-the-one-attention-answer.md`
 - Test plan: `engineering-team/stories/assistant-profile-checklist/1-the-profile-check-and-the-hubs-done-mark.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-profile-checklist/1-the-profile-check-and-the-hubs-done-mark.md`
