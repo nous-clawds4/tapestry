@@ -1,8 +1,8 @@
 # Story 2: Show details — each card's assignments, entry by entry
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-08
-**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A pending; scoped gate (proposed at Gate A):
+**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-10-08 by the owner ("Approved for both stories, go ahead"); scoped gate (named at Gate A):
 `node -e "Promise.all(['./test/treasure-map-card-details.test.js','./test/manage-treasure-map-cards.test.js','./test/treasure-map-card-rule-edges.test.js','./test/treasure-map-star-scopes-ignored.test.js','./test/manage-treasure-map-page.test.js','./test/treasure-map-edit-mode.test.js','./test/treasure-map-switches.test.js','./test/treasure-map-save.test.js','./test/treasure-map-needs-attention.test.js'].map(p=>require(p).run())).then(rs=>{const f=rs.reduce((s,r)=>s+r.fail,0);console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})"`
 — the card-rule suites are in because this story moves the rule into one shared walk; no guard suite: nothing here
 signs, publishes or touches strfry)*
