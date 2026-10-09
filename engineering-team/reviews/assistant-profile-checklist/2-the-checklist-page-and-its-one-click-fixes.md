@@ -156,3 +156,138 @@ and results are `aria-live="polite"` (`:163`).
 
 ## Verdict
 **CHANGES_REQUESTED**
+
+## Round 2 (2026-10-09): B1, re-reviewed as fresh claims
+
+**Diff:** `git diff fabd2cb5..323140e2`. It holds:
+- `844911e2`, round 1's review commit (with story 1's Done flip);
+- `23673871`, ADR 0002 Amendment 1;
+- `97d69cf4`, the Tester's pins C14, C15 and AV7, plus both plans' round-1 records;
+- `323140e2`, the guard: +4/−1 in `ui/src/pages/assistant/ProfileChecklist.jsx`.
+
+HEAD is `323140e2`. The branch was rebased onto `origin/staging` `0ee7e350`. `git range-diff 03e7e66..d5aa730 0ee7e350..fabd2cb5` shows both round-1 commits as `=` (`224ea3b` → `4850c93f`, `d5aa730` → `fabd2cb5`), so the rebase changed nothing I reviewed.
+
+### What I re-ran
+- **Commit hygiene and scope.**
+  - `23673871` touches only the ADR. `97d69cf4` touches only the spec and the two test plans. `323140e2` touches only `ProfileChecklist.jsx`, and no test.
+  - `git diff --stat fabd2cb5 HEAD`, excluding reviews, stories, decisions, the spec and the page, is empty. Nothing in `src/`, `bin/` or `BIBLE.md` changed, and no other `ui/` file.
+  - The added lines have no `console.`, `debugger`, `TODO` or `.only(`.
+- **The pins failed first.**
+  - Setup: a worktree at `97d69cf4`, with `node_modules` and `ui/node_modules` symlinked; `npx vite build --outDir <scratch>/dist-pre`, served on 7801 with the scratch static server. `/home/user/tapestry/dist` was untouched (mtime 18:43:41 before and after).
+  - Chromium: C14, C15 and AV7 **fail**, each on the nothing-published line, because the pre-fix page published and reported success. Their positive siblings C6, C10 and AV2 pass (3 failed, 3 passed).
+  - The worktree is removed and the 7801 server stopped.
+  - The plans' records name `dc67d8e`, which is the pre-rebase review commit. Its `ui/` differs from `97d69cf4`'s only by the rebase base (`ui/src/pages/settings/RelaySettings.jsx`), so the record holds.
+- **Browser on HEAD.**
+  - `dist/` was built at 18:43:41, a minute after `323140e2` (18:42:43). `git diff 323140e2 HEAD -- ui/ src/lib/` is empty, and the bundle contains the guard (`hasProfile===!1` / `hasProfile===!0`).
+  - The five specs, chromium, against `http://localhost:7799`: **58 passed, 0 failed**. By spec:
+    - `assistant-profile-checklist-page` 22 (C1–C15, AV1–AV7);
+    - `assistant-profile-check` 5;
+    - `my-assistant-page` 18;
+    - `ta-composite-avatar` 5;
+    - `assistant-default-profile` 8.
+- **`npm test`.** `npm run gate:status -- --label reviewer-profile-checklist-r2`:
+
+  ```
+  20261009T185827Z-7445-b6b9 [reviewer-profile-checklist-r2] started 2026-10-09T18:58:27.150Z on 323140e2 — FAIL, exit 1, 5393 passed, 1 failed, 582 skipped, 288/288 suites; failed: harness-lint · /home/user/tapestry/tmp/gate-runs/20261009T185827Z-7445-b6b9.json
+  ```
+
+  - `bash scripts/harness-lint.sh | grep VIOLATION` prints only `VIOLATION L10 commit:695fac48`, another session's harness commit. No other suite fails.
+  - This book's suites:
+    - `assistant-profile-checklist-page` 14/0/0;
+    - `one-writer-assistant-profile` 17/0/0;
+    - `assistant-profile-check` 33/0/0;
+    - `my-assistant-page` 31/0/0;
+    - `assistant-stamped-avatar-for-everyone` 19/0/0;
+    - `stamped-composite-avatar` 13/0/2 (live-probe skips, no stack).
+  - The totals grew from round 1's 285 suites with the rebase base.
+- **The guard's expression, evaluated** over twelve inputs (a node one-liner copying `:112-113`):
+  - It stops on `hasProfile` false, missing, `null` or the string `"true"`, on `success: false`, and on no answer.
+  - It stops `publish-default` on `hasProfile: true`.
+  - It posts on `{ success: true, hasProfile: true, profileSource: 'relay' }`. See R2-1.
+- **My probes** (scratch; nothing published):
+  - **Node.** It runs the real `readVisibility` and `evaluateProfileItems` (`src/api/assistant/profileChecklist.js`) and the real `resolveAssistantProfileState` (`src/api/assistant/profileState.js`), with the local scan stubbed to fail, then HEAD's guard expression and the real `applyProfileFix`.
+    - **Setup:** this instance holds v2 (created_at 2000); one outside relay holds v1 (created_at 1000).
+    - **The check:** `visible` is `only-here` with `relaysHolding: 0`.
+    - **The press-time read:** `hasProfile: true`, `profileSource: 'relay'`, `profile` = v1.
+    - **The result:** the guard posts, and `republish` and `set-website` compose v1's fields.
+  - **Browser** (a scratch spec outside the repo, against HEAD's build on 7799). The attention answer has `visible: only-here`. The status answer has `hasProfile: true`, `profileSource: 'relay'` and an older profile. "Publish to outside relays" **posted** `{"name":"Old Bot (before the latest edit)","about":"old about",…}`.
+
+### Each changed claim, checked with its own command
+| Claim (ADR 0002 Amendment 1, and the fix) | Command | Result |
+|---|---|---|
+| The press-time read "resolves the profile with the non-strict local scan … a failed or timed-out `strfry scan` reads as 'no local profile'" | `profileState.js:41-47` (`exec`, 10 s timeout; an error or empty output → `null`), `:143` | **True** |
+| "for an `only-here` profile the publish relays hold nothing either" | `profileChecklist.js:132-134` (`holding` counts only relays answering with a kind 0 **at least as new as** this instance's), `:201` (`only-here` = `holding === 0`); the node probe | **False.** An `only-here` profile can have an older copy on every outside relay. The sentence is round 1's own (B1: "the relays hold nothing by definition"), carried into the amendment (roles/reviewer.md step 10). See R2-1. |
+| "The read then answers `hasProfile: false`, sub-decision 5 takes `status.defaults` …" | `profileState.js:150`, `:166-171`, `:183` | **Partly true.** That holds when the outside relays hold nothing or the 5-minute negative memo answers. When they hold an older copy, the read answers `hasProfile: true` with that copy (`:183`, source `'relay'`). |
+| Every fix but `publish-default` needs `hasProfile === true`; `publish-default` needs `=== false`; anything else stops | `ProfileChecklist.jsx:112-113`; the input table | **True** |
+| Stopped: nothing posted, the line on the panel or notice, `fixing` cleared, `attention.refresh()` | `:114` (`describeProfilePublish(null)`), `:127-129` (after the `try`/`catch`, on every path); C14, C15, AV7 | **True** |
+| "The guard lives in the page's `runFix`, the one place a press reaches the writer", so `set-picture` is covered | The page's only POST to `/api/assistant/publish-profile` is `:117`, after the guard. Its callers: `fixButton` `:161`, the notice `:241`, and `publishAvatar` `:155`. AV7. | **True** |
+| "Sub-decision 5 is unchanged" | `profileChecklistCopy.js` has no diff since round 1 | **True.** The default base at `:225` is now reached from `runFix` only by `publish-default`, which returns the defaults anyway. That is consistent with "callers that have already established there is no profile". |
+| "the press path is the second read and needs the same care" as ADR 0001 sub-decision 2's strict scan | `:108-113`: the read is still non-strict, and the guard reads only `hasProfile` | **Not yet true.** A read that fell back to the outside relays is still trusted. R2-1. |
+| No contradiction with sub-decisions 5 and 6 | the ADR text | **True.** It adds one stop to 6, step 2. Sub-decision 4's "when `action.hasProfile === false` … the notice" is consistent with it. |
+
+### The pins, audited
+- **`log.publish` sees every POST the page can make to the writer.** The route `**/api/assistant/publish-profile` is the page's only writer URL. It is registered after the catch-all, so it handles the request (Playwright matches the last-registered route first).
+- **No late-POST window.** `runFix` awaits the POST's answer before `setResults` and `refresh()` (`:117-129`). So any POST from the press is logged before the result line renders and before `log.attention` can rise, and the `toEqual([])` runs after both.
+- **C14 also asserts that the press read the status.** C15 and AV7 do not. Their nothing-published line and refresh still prove nothing was posted.
+- **C15's notice locator** is `main .bs-profile-check-notice`, a class hook that only the notice carries (`:239`). If the class is renamed, the test fails rather than passing falsely, so the locator is acceptable.
+
+### The reused line, judged
+"This instance did not answer; nothing was published." for a read that answered but disagreed:
+- The first clause is imprecise. The second is honest: nothing is published, and the refresh then corrects the panels.
+- In B1's own case, this instance's relay really did fail to answer.
+- C15's realistic case is a profile that appeared between the answer and the press (another tab, an accepted race). There the refresh removes the notice.
+- It does not mislead about the outcome, so it is non-blocking. A dedicated line is a story 2 § Copy change for the Product Owner, as the amendment says.
+
+### Findings
+
+#### Blocking
+1. **R2-1. `ui/src/pages/assistant/ProfileChecklist.jsx:112`: the guard trusts a press-time read that fell back to the outside relays. A transient local-scan failure can therefore still overwrite the Assistant's newest profile, here and everywhere, now with an older copy rather than the default.**
+
+   **Failure path:**
+   - **The state.** The check marks `visible` `only-here` when no outside relay that answered holds a kind 0 at least as new as this instance's (`src/api/assistant/profileChecklist.js:132-134`, `:201`). Suppose an Assistant was published once and edited since, and that edit's outside publish failed (or local-only mode was on). Then the outside relays hold the older copy. That is exactly the state in which the panel offers "Publish to outside relays". The other panel fixes and `set-picture` can be pressed in the same state.
+   - **The read.** At the press, the status read's non-strict local scan fails (`src/api/assistant/profileState.js:45` → `null`). The read asks the publish relays (`:151-163`). No negative memo applies, because the relays are not empty. It finds the older copy and answers `hasProfile: true`, `profileSource: 'relay'` (`src/api/assistant/index.js:430-432`), with the older content as `profile`.
+   - **The publish.** The guard sees `hasProfile === true` and goes on. `applyProfileFix` composes from the older copy (`profileChecklistCopy.js:225`). The one writer signs it with the current time (`index.js:264`) and writes it here first (`:277`). Because a kind 0 is replaceable, that replaces the newer profile on this instance's relay. The writer then sends it to every outside relay.
+   - **Shown by my probes above,** node and browser.
+   - **The same risk as B1.** It needs B1's precondition (a transient failure of the non-strict scan at press time). It is just as irreversible, and reaches as far.
+
+   **Why it blocks:**
+   - **Story 2 AC-4.** "with every field as it is published now … A fix never changes a field its item is not about": the panels read the newer profile, and the press reverts fields to the older copy.
+   - **BIBLE §14's sentence** (`BIBLE.md:1128`, "only their own field changed") is again untrue on this path.
+   - **Principle 4 / BIBLE §30.** An outside copy replaces this instance's own.
+   - **The amendment.** Its premise (the second row above) and its closing claim (the eighth row) are not true.
+
+   **Asked change:**
+   1. **Architect:** correct Amendment 1's account of what `only-here` means, and close the relay-fallback path.
+      - The smallest shape: every fix except `publish-default` also needs `status.profileSource === 'local'`, a field the status answer already carries (`index.js:432`).
+      - B1's `hasProfile: false` has a `null` source, so B1 stays closed.
+      - Alternatives the Architect may prefer:
+        - a strict press-time read (a server change);
+        - the attention answer carrying the checked event's id or `created_at`, for the press to match.
+      - State the cost: if a profile's copy home keeps failing, it can't be fixed from this page. The one writer's local-first write would most likely fail then too.
+   2. **Tester:** a failing browser pin, in its own `test:` commit.
+      - For example: the attention answer has `visible: only-here`; the status answers `hasProfile: true`, `profileSource: 'relay'`, with an older profile. Then "Publish to outside relays" posts nothing, shows the line, and asks again.
+      - `statusAnswer` already sets `profileSource: 'local'` whenever `hasProfile` (`test/helpers/profileChecklistFixtures.js:288`), so C6–C8, C12 and AV2 keep their positive path.
+   3. **Implementer:** the condition at `:112`.
+
+#### Non-blocking
+- **R2-2. The reused line** (judged above): honest about the outcome. Optional Product Owner copy.
+- **R2-3. Pins.** C15 and AV7 do not assert that the status was read. Two inputs stop correctly (the input table) but have no pin: a missing `hasProfile`, and `success: false` at press time. Optional.
+- **R2-4. The plans' round-1 records** name `dc67d8e`, which no longer exists on the branch, instead of `97d69cf4`. Re-confirmed above. Optional.
+- **Round 1's non-blocking 1–3 stand unchanged,** and none got worse.
+  - 1: `profileChecklistCopy.js:177`.
+  - 2: now `ProfileChecklist.jsx:186-194`, three lines lower.
+  - 3: the editor's duplicates.
+
+#### Harness friction
+- **Step 10 did its job here.** Round 1's failure path asserted a definition ("by definition") without citing the line that defines it, and the amendment copied it. A failure path's premises are claims too, so cite their source line when writing them. No new rule is needed.
+
+### Story status and completion (round 2)
+- [ ] Story `**Status:**` not flipped: it stays `Approved`.
+- [ ] Completion detection not performed: stories 2 and 3 are not Done.
+
+### Verdict (round 2)
+One ask: R2-1. Close the relay-fallback path at `ProfileChecklist.jsx:112` (Architect, then Tester, then Implementer), and correct Amendment 1's `only-here` premise.
+- Everything else in the fix is verified above and stands: the `hasProfile` stop, the line, the refresh, the coverage of `set-picture`, and the three pins.
+- Round 3 needs the new pin failing first, then the five specs and the gate.
+
+**CHANGES_REQUESTED**

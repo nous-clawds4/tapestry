@@ -150,3 +150,77 @@ Copy verbatim. The editor's no-picture line (`ui/src/components/AssistantProfile
 
 ## Verdict
 **CHANGES_REQUESTED**
+
+## Round 2 (2026-10-09): B1, re-reviewed as fresh claims
+
+**Diff:** `git diff fabd2cb5..323140e2`, the same four commits as story 2's round 2:
+- `844911e2`, the round-1 review commit;
+- `23673871`, ADR 0002 Amendment 1;
+- `97d69cf4`, the pins C14, C15 and AV7, and both plans' records;
+- `323140e2`, the guard in `ui/src/pages/assistant/ProfileChecklist.jsx`.
+
+No story-3 file changed. `src/`, `bin/`, `BIBLE.md`, `src/api/openapi.yaml`, `ui/src/utils/stampedAvatar.js` and `ui/src/components/AssistantProfileEditor.jsx` have no diff since round 1. `git range-diff 03e7e66..d5aa730 0ee7e350..fabd2cb5` shows both round-1 commits as `=`, so the rebase onto `0ee7e350` changed nothing I reviewed.
+
+### What I re-ran
+- **AV7 failed first.**
+  - Setup: a worktree at `97d69cf4`, built with `npx vite build --outDir <scratch>/dist-pre` and served on 7801.
+  - On that build, AV7 fails on the nothing-published line, because the pre-fix page published the picture. AV2 (the positive path) passes.
+  - The worktree is removed and the server stopped.
+- **Browser on HEAD** (`dist/` built from `323140e2`; `git diff 323140e2 HEAD -- ui/ src/lib/` is empty), chromium, the five specs: **58 passed, 0 failed**. For this story:
+  - `assistant-profile-checklist-page.spec.js` AV1–AV7;
+  - `my-assistant-page.spec.js` 18;
+  - `ta-composite-avatar.spec.js` 5;
+  - `assistant-default-profile.spec.js` 8.
+- **`npm test`.** `npm run gate:status -- --label reviewer-profile-checklist-r2`:
+
+  ```
+  20261009T185827Z-7445-b6b9 [reviewer-profile-checklist-r2] started 2026-10-09T18:58:27.150Z on 323140e2 — FAIL, exit 1, 5393 passed, 1 failed, 582 skipped, 288/288 suites; failed: harness-lint · /home/user/tapestry/tmp/gate-runs/20261009T185827Z-7445-b6b9.json
+  ```
+
+  - The only failure is `harness-lint`, with only `VIOLATION L10 commit:695fac48` (confirmed with `bash scripts/harness-lint.sh | grep VIOLATION`).
+  - This story's suites: `assistant-stamped-avatar-for-everyone` 19/0/0, `stamped-composite-avatar` 13/0/2 (live-probe skips) and `my-assistant-page` 31/0/0.
+
+### The fix, for this story's path
+| Claim | Command | Result |
+|---|---|---|
+| The guard covers `set-picture` | `publishAvatar` → `runFix('avatar', 'set-picture', { url })` at `ProfileChecklist.jsx:155`; the guard at `:112-113` comes before the only POST at `:117`; AV7 | **True** |
+| A stopped press clears `fixing` and asks again | `:127-129` on every path; AV7 asserts the refresh | **True** |
+| No story-3 path to the writer bypasses `runFix` | the page's only `publish-profile` fetch is `:117`. The editor's own publish is the editor's (unchanged) | **True** |
+| The stopped press is safe for the avatar's file | the store (`:147`) runs before the status read, so the composite stays stored but unpublished | **True, and it does not matter.** |
+
+On that last row:
+- ADR 0003 sub-decision 9 already allows a stored-but-unpublished composite.
+- The preview is cleared before the press (`:154`), so a retry re-stamps.
+- If the re-stamped bytes are the same, the 32-hex name is reused and not counted (`src/api/assistant/avatar.js:127-133`, `:394`). Any other retry costs one of the person's 20 new files a day.
+- That is not material.
+
+### Findings
+
+#### Blocking
+1. **R2-1, through `set-picture`: `ProfileChecklist.jsx:155` → `:112`.**
+   - **The path.** This is story 2's round-2 R2-1. Suppose this instance holds a newer profile than every outside relay (the check's `only-here`, `src/api/assistant/profileChecklist.js:132-134`), and the press-time status read's non-strict local scan fails. The read then answers `hasProfile: true`, `profileSource: 'relay'`, with the older outside copy. The guard goes on.
+   - **The result.** "Publish this avatar" then publishes the new picture with every other field reverted to the older copy, here and on every outside relay.
+   - **Why it blocks.** That breaks AC-3 ("every other field as it is published now"), and the loss is irreversible.
+   - **Asked change.** The change asked in story 2's review, R2-1. No story-3 file needs to change. On round 3 I will check that the new condition sits before the only POST (so `set-picture` is covered by the same line), and that a pin fails first. One pin through any `runFix` caller is enough; an avatar case is optional.
+
+#### Non-blocking
+- **Round 1's non-blocking 1–6 stand as written,** and none got worse (no diff in their files).
+  - 1: `avatar.js` body read with no time limit.
+  - 2: the ssrfGuard header.
+  - 3–4: `bin/control-panel.js`'s comment and `nosniff`.
+  - 5: the OpenAPI 500.
+  - 6: `BIBLE.md:8`.
+- **Story 2's R2-2 to R2-4 apply here too:** the reused line, AV7 not asserting the status read, and the plans' `dc67d8e`.
+
+#### Harness friction
+- None beyond story 2's round-2 note.
+
+### Story status and completion (round 2)
+- [ ] Story `**Status:**` not flipped: it stays `Approved`.
+- [ ] Completion detection not performed: stories 2 and 3 are not Done.
+
+### Verdict (round 2)
+- One ask, shared with story 2: R2-1, the relay-fallback path through `set-picture`.
+- The guard's coverage of `set-picture`, AV7 and the stored-but-unpublished behaviour are verified above and stand.
+
+**CHANGES_REQUESTED**
