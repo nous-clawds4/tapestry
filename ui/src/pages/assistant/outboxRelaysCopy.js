@@ -9,7 +9,8 @@
  *
  * The words were approved with the stories; change them there first:
  * engineering-team/stories/assistant-outbox-relays/2-the-outbox-relays-page.md § Copy (and the 50-relay line, approved
- * with ADR 0002 § Consequences), and 3-your-assistant-publishes-its-relay-list.md § Copy.
+ * with ADR 0002 § Consequences), and 3-your-assistant-publishes-its-relay-list.md § Copy (the not-public line from its
+ * AC-6, ADR 0003 Amendment 1).
  */
 
 export const OUTBOX_RELAYS_COPY = {
@@ -31,6 +32,7 @@ export const OUTBOX_RELAYS_COPY = {
     'not-a-relay': 'A relay address starts with wss:// (or ws://).',
     'already-listed': 'That relay is already on the list.',
     'too-many': 'A relay list here holds at most 50 relays.',
+    'not-public': 'That relay is not on the public internet.',
   },
   suggestionsHeading: 'Suggested relays',
   suggestionsExplainer: "Relays your Assistant already publishes to, from this instance's relay settings.",

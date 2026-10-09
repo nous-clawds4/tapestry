@@ -15,12 +15,15 @@
  * The suggestions are where the Assistant already publishes (book Decision 2): this instance's own relay at its public
  * address, then Relay Settings' General Purpose, Trusted Assertion, Trusted List, DList and Outbox lists, each relay once
  * in its one spelling. They do not depend on the lookup, so an unfinished check still carries them; the page leaves out
- * the ones already in its draft.
+ * the ones already in its draft. A relay that is plainly not on the public internet is left out too, since the page
+ * would refuse it (ADR 0003 Amendment 1).
  *
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored anywhere.
  */
 
+const net = require('net');
 const { normalizeRelayUrl, parseRelayList, MAX_RELAYS } = require('../../lib/relay-list');
+const { isPublicAddress, hasPrivateHostSuffix } = require('../../utils/ssrfGuard');
 
 /** NIP-65's relay list. */
 const RELAY_LIST_KIND = 10002;
@@ -71,6 +74,12 @@ function evaluateOutboxRelays({ lookup } = {}) {
   };
 }
 
+/** ssrfGuard's synchronous rule for a relay's host: a non-public IP literal, or a private-by-construction name. */
+function isPlainlyPrivateRelay(url) {
+  const bare = new URL(url).hostname.replace(/^\[|\]$/g, '');
+  return net.isIP(bare) ? !isPublicAddress(bare) : hasPrivateHostSuffix(bare);
+}
+
 /** The suggestions, in order, each once in its one spelling, at most MAX_RELAYS (ADR 0002 sub-decision 1). */
 function outboxSuggestions(deps = {}) {
   const d = { ...defaultDeps(), ...deps };
@@ -78,7 +87,7 @@ function outboxSuggestions(deps = {}) {
   const seen = new Set();
   const add = (raw) => {
     const url = normalizeRelayUrl(raw);
-    if (!url || seen.has(url) || out.length >= MAX_RELAYS) return;
+    if (!url || seen.has(url) || out.length >= MAX_RELAYS || isPlainlyPrivateRelay(url)) return;
     seen.add(url);
     out.push(url);
   };

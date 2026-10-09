@@ -505,13 +505,16 @@ paths:
         the signed-in person's own Assistant signs a kind 10002 relay list built from the Outbox Relays page's draft.
         The body names relays only; whose Assistant comes from the session (the Owner's is the instance TA; anyone
         else's their own). Refused before any key is read: no session (401 not-signed-in), a body whose `relays` is not
-        a list of up to 50 ws/wss addresses with none twice (400 not-a-relay-list), no Assistant on this instance (403
-        no-assistant). The event: the draft's relays in order, each keeping its marker from the Assistant's newest relay
+        a list of up to 50 ws/wss addresses with none twice (400 not-a-relay-list), a relay that is plainly not on the
+        public internet (a private, loopback or link-local address, localhost, a local-network name, a name with no dot;
+        400 not-a-public-relay), no Assistant on this instance (403 no-assistant). The event: the draft's relays in order, each keeping its marker from the Assistant's newest relay
         list (none stays none, write stays write, read becomes both), others marked write; then the newest list's
         read-only entries the draft does not name; a removed relay is dropped. An empty list is allowed. It is written
         to this instance's relay first (a failed write sends it nowhere and says so), then to every relay the new and
         previous lists name and the configured general-purpose, profile and WoT relays, each once and each reported
-        (accepted, refused, unreachable, timeout; skipped in local-only mode). Nothing calls this when an Assistant is
+        (accepted, refused, unreachable, timeout; skipped in local-only mode). Every relay from a relay list is resolved
+        first and never connected to unless every address is public; such a relay reads not-sent (assistant-outbox-relays
+        ADR 0003 Amendment 1). Nothing calls this when an Assistant is
         created.
       requestBody:
         required: true
@@ -555,10 +558,10 @@ paths:
                               type: object
                               properties:
                                 relay: { type: string }
-                                status: { type: string, enum: [accepted, refused, unreachable, timeout, skipped] }
+                                status: { type: string, enum: [accepted, refused, unreachable, timeout, skipped, not-sent] }
                                 reason: { type: string }
         '400':
-          description: The body is not a list of relay addresses (code not-a-relay-list)
+          description: The body is not a list of relay addresses (code not-a-relay-list), or names a relay that is not on the public internet (code not-a-public-relay)
         '401':
           description: No signed-in session (code not-signed-in)
         '403':

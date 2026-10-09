@@ -22,10 +22,19 @@
  * publishes Assistant profiles to, each once, this instance's own left out; in local-only mode it stays here. Each relay
  * is reported in the profile publish's words (accepted | refused | unreachable | timeout, or skipped).
  *
+ * Only public relays (ADR 0003 Amendment 1, review round 1): a request naming a relay that is plainly not on the public
+ * internet — by src/utils/ssrfGuard.js's synchronous rule (isPublicAddress for an IP literal, hasPrivateHostSuffix for a
+ * name) — is refused 400 before any key is read. At send time every relay that comes from a relay list (the new one and
+ * the previous one) is resolved with isPublicHostname, which needs every answer public and fails closed; one that fails
+ * is never connected to and reads `not-sent: not a public address`. Relay Settings' own relays are owner-set and sent
+ * to as every profile publish sends to them.
+ *
  * Nothing calls this at Assistant creation.
  */
 
-const { validateRelayListRequest, buildRelayListTags, parseRelayList } = require('../../lib/relay-list');
+const net = require('net');
+const { validateRelayListRequest, buildRelayListTags, parseRelayList, normalizeRelayUrl } = require('../../lib/relay-list');
+const { isPublicAddress, hasPrivateHostSuffix } = require('../../utils/ssrfGuard');
 
 const HEX64 = /^[0-9a-f]{64}$/i;
 const RELAY_LIST_KIND = 10002;
@@ -37,13 +46,18 @@ const CODES = {
   NOT_SIGNED_IN: 'not-signed-in',
   NOT_A_RELAY_LIST: 'not-a-relay-list',
   NO_ASSISTANT: 'no-assistant',
+  NOT_A_PUBLIC_RELAY: 'not-a-public-relay',
 };
+
+/** A relay the server would not connect to: its row (ADR 0003 Amendment 1). */
+const NOT_SENT = { status: 'not-sent', reason: 'not a public address' };
 
 /** The refusal words (story 3 § Copy). */
 const WORDS = {
   [CODES.NOT_SIGNED_IN]: 'Sign in to have your Assistant publish its relay list.',
   [CODES.NOT_A_RELAY_LIST]: 'That is not a list of relay addresses.',
   [CODES.NO_ASSISTANT]: "You don't have a Tapestry Assistant on this instance yet.",
+  [CODES.NOT_A_PUBLIC_RELAY]: 'That relay is not on the public internet.',
   failed: "Could not publish your Assistant's relay list",
 };
 
@@ -74,7 +88,16 @@ function defaultDeps() {
     finalizeEvent: (template, privkeyBytes) => getNostrTools().finalizeEvent(template, privkeyBytes),
     getPublicKey: (privkeyBytes) => getNostrTools().getPublicKey(privkeyBytes),
     now: () => Date.now(),
+    isPublicHostname: (host) => require('../../utils/ssrfGuard').isPublicHostname(host),
   };
+}
+
+const hostOf = (url) => new URL(url).hostname;
+
+/** ssrfGuard's synchronous rule for one hostname: a non-public IP literal, or a private-by-construction name. */
+function isPlainlyPrivate(hostname) {
+  const bare = String(hostname || '').replace(/^\[|\]$/g, '');
+  return net.isIP(bare) ? !isPublicAddress(bare) : hasPrivateHostSuffix(bare);
 }
 
 /**
@@ -119,9 +142,21 @@ async function publishAssistantRelayListFor({ viewer, relays }, deps = {}) {
   }
 
   const set = d.outsideOnly([...entries.map((e) => e.url), ...previous.map((e) => e.url), ...configured], d);
-  const rows = localOnly
-    ? set.map((relay) => ({ relay, status: 'skipped', reason: 'local-only publish mode' }))
-    : await d.publishToRelays(signed, set);
+  let rows;
+  if (localOnly) {
+    rows = set.map((relay) => ({ relay, status: 'skipped', reason: 'local-only publish mode' }));
+  } else {
+    // Every relay that came from a relay list is resolved before it is connected to; the configured ones are owner-set.
+    const owned = new Set(configured.map((url) => normalizeRelayUrl(url)).filter(Boolean));
+    const checks = await Promise.all(set.map(async (relay) => {
+      if (owned.has(normalizeRelayUrl(relay))) return true;
+      try { return (await d.isPublicHostname(hostOf(relay))) === true; } catch { return false; }
+    }));
+    const toSend = set.filter((_, i) => checks[i]);
+    const sent = toSend.length > 0 ? await d.publishToRelays(signed, toSend) : [];
+    const byRelay = new Map((Array.isArray(sent) ? sent : []).map((row) => [row.relay, row]));
+    rows = set.map((relay, i) => (checks[i] ? byRelay.get(relay) || { relay, status: 'unreachable', reason: 'no answer' } : { relay, ...NOT_SENT }));
+  }
   const { outcome, message, accepted } = summarizePublish({ subject: RELAY_LIST_SUBJECT, rows, localOnly });
   return { result: { ok: true, outcome, message, localOnly, outbox, relays: { total: rows.length, success: accepted, results: rows } } };
 }
@@ -142,6 +177,9 @@ function createPublishRelayListHandler(deps = {}) {
 
     const checked = validateRelayListRequest(req && req.body ? req.body.relays : undefined);
     if (!checked.ok) return res.status(400).json({ success: false, code: CODES.NOT_A_RELAY_LIST, error: WORDS[CODES.NOT_A_RELAY_LIST] });
+    if (checked.relays.some((relay) => isPlainlyPrivate(hostOf(relay)))) {
+      return res.status(400).json({ success: false, code: CODES.NOT_A_PUBLIC_RELAY, error: WORDS[CODES.NOT_A_PUBLIC_RELAY] });
+    }
 
     try {
       const out = await publishAssistantRelayListFor({ viewer, relays: checked.relays }, d);
@@ -168,4 +206,5 @@ module.exports = {
   RELAY_LIST_SUBJECT,
   CODES,
   WORDS,
+  NOT_SENT,
 };
