@@ -85,5 +85,5 @@ None.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-stream-gaps/0002-honor-stream-limit-on-connect.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.test-plan.md`
 - Review: (filled in after Review phase)
