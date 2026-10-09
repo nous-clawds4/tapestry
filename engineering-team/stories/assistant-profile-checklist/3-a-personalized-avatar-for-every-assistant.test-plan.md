@@ -96,5 +96,10 @@ assistant-default-profile B3 fail because today's build still asks /api/assistan
 ### Review round 1 (2026-10-09)
 
 AV7 was added for story 3 B1, the same defect as story 2 B1 reached through the `set-picture` press. It was confirmed
-failing against the built UI on `dc67d8e` (chromium): the avatar panel never shows "This instance did not answer;
+failing against the built UI on `dc67d8e` (chromium; pre-rebase — `97d69cf4` after the rebase): the avatar panel never shows "This instance did not answer;
 nothing was published." because the profile is published. See story 2's test plan, § Review round 1.
+
+### Review round 2 (2026-10-09)
+
+Story 3's `set-picture` press goes through the same guard, so story 2's C16 covers R2-1 for it too (ADR 0002
+Amendment 2). AV7 now also asserts that the press read the status.

@@ -28,6 +28,7 @@ const P = require('../../test/helpers/profileChecklistFixtures');
  *   C13 — 375 px: no sideways scroll.                                                                           [#2 AC-1]
  *   C14 — the press-time read finds no profile: Set website posts nothing, says so, and asks again.            [#2 AC-4; ADR 0002 Amendment 1]
  *   C15 — the press-time read finds a profile: Publish the default profile posts nothing, says so, asks again. [#2 AC-4; ADR 0002 Amendment 1]
+ *   C16 — the press-time read found only an older outside copy: Publish to outside relays posts nothing.       [#2 AC-4; ADR 0002 Amendment 2]
  *   AV1 — Make my personalized avatar: the person's picture stamped and previewed; nothing stored or published. [#3 AC-2]
  *   AV2 — Publish this avatar: stored, then the profile republished with only the picture changed.              [#3 AC-3]
  *   AV3 — Not now: the preview goes; nothing sent.                                                              [#3 AC-2]
@@ -372,6 +373,7 @@ test.describe('The checklist page and its one-click fixes (assistant-profile-che
     await notice.getByRole('button', { name: P.PAGE_COPY.noProfileFix, exact: true }).click();
     await expect(notice.getByText(P.PAGE_COPY.requestFailed, { exact: false })).toBeVisible();
     await expect.poll(() => log.attention, { timeout: 10000 }).toBeGreaterThan(before);
+    expect(log.status.length, 'the press read the status').toBeGreaterThan(0);
     expect(log.publish, 'the default was not published over a profile the read found').toEqual([]);
   });
 
@@ -384,6 +386,24 @@ test.describe('The checklist page and its one-click fixes (assistant-profile-che
     await panel.getByRole('button', { name: P.AVATAR_COPY.accept, exact: true }).click();
     await expect(panel.getByText(P.PAGE_COPY.requestFailed, { exact: false })).toBeVisible();
     await expect.poll(() => log.attention, { timeout: 10000 }).toBeGreaterThan(before);
+    expect(log.status.length, 'the press read the status').toBeGreaterThan(0);
     expect(log.publish, 'no profile was published over the real one').toEqual([]);
+  });
+
+  // ── Review round 2 (R2-1; ADR 0002 Amendment 2) ──
+  // "Only here" means no outside copy at least as new as this instance's; an outside relay may hold an older one. When
+  // the local read fails at press time, the status read falls back to it and answers hasProfile true, source 'relay'.
+
+  test('C16: Publish to outside relays when the press-time read found only an older outside copy — nothing is published, the panel says so, and the answer is asked again (#2 AC-4; ADR 0002 Amendment 2)', async ({ page }) => {
+    const older = { ...P.PUBLISHED, name: 'Alice Bot (before the latest edit)', about: 'An older About text.' };
+    const log = await mock(page, { status: { ...P.statusAnswer({ profile: older }), profileSource: 'relay' } });
+    await open(page);
+    const before = log.attention;
+    const panel = panelOf(page, 'visible');
+    await panel.getByRole('button', { name: P.PANELS.visible.fix(), exact: true }).click();
+    await expect(panel.getByText(P.PAGE_COPY.requestFailed, { exact: false })).toBeVisible();
+    await expect.poll(() => log.attention, { timeout: 10000 }).toBeGreaterThan(before);
+    expect(log.status.length, 'the press read the status').toBeGreaterThan(0);
+    expect(log.publish, 'the older outside copy was not republished over this instance\'s newer one').toEqual([]);
   });
 });
