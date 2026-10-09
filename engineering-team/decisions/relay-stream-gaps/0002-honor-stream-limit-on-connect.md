@@ -1,6 +1,6 @@
 # ADR 0002: Honor a stream's configured limit when the router connects
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-09
 **Story:** `engineering-team/stories/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.md`
 
