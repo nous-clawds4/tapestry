@@ -321,3 +321,291 @@ None.
 - [x] Story `**Status:**` flipped to `Done` in place, and this review linked in its Linked
       artifacts. Left uncommitted, per the brief.
 - [x] Completion detection performed; the result is reported in the hand-off, not here.
+
+## Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-10-09
+**Diff:** `git diff abd62917..a6597121`, the implementation commit `a6597121`. It touches
+`src/api/strfry/negentropySync.js`, `src/api/strfry/negentropyPresets.js` and the story's
+Deviations, and nothing under `test/`.
+- It rests on ADR 0003 Amendment 2 (`4b90d70d`, approved by the owner) and the Tester's 23 new
+  tests (`abd62917`).
+- This round fixes round-1 findings 1 and 3. The other six are covered in the table below.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test`: **FAIL, the baseline's red only.** `npm run gate:status -- --label rsg3-review-r2`:
+      `20261009T203009Z-5726-d2a7 [rsg3-review-r2] started 2026-10-09T20:30:09.342Z on a6597121 — FAIL, exit 1, 5408 passed, 72 failed, 591 skipped, 289/289 suites; failed: stamped-composite-avatar, my-assistant-page, one-writer-assistant-profile, assistant-profile-check, assistant-profile-checklist-page, assistant-stamped-avatar-for-everyone`.
+  - The record shows a clean tree on `a6597121` (`dirty: false`) and no stray errors.
+  - **Per-suite comparison** with round 1's run `20261009T185907Z-29733-9632` (on `ffda8152`):
+    the only difference is `negentropy-sync-presets`, PASS 72/0/0 → PASS 95/0/0.
+  - The six failing suites have the same counts as in round 1: 8/5/2, 28/3/0, 16/1/0, 3/30/0,
+    0/14/0 and 0/19/0. They belong to another book.
+  - Every suite also matches the Implementer's run `20261009T201509Z-18922-9c3f`. That run was
+    recorded on `abd62917` with the implementation uncommitted (`dirty: true`, 2 files).
+- [x] **The neighbouring suites that load these modules are unchanged from round 1.**
+  - `negentropy-sync-input` 5/0/0, `router-stream-tag-filters` 21/0/0 and
+    `sync-panel-tag-filters` 20/0/0 all pass, and each exits 0 when run directly.
+  - `nip51-list-export-from-pins` skips 0/0/8 for want of a stack, as in round 1.
+- [x] **Flakiness.** The suite has dilated timers, so I ran it repeatedly. Every run gave
+      95 passed, 0 failed:
+  - 5 of 5 standalone runs, in sequence, each in about 9.5 s;
+  - 6 of 6 copies run at once with four CPU burners on a 4-core sandbox.
+- [x] **The Tester's red claim holds.** I ran the suite against a `git archive abd62917` export:
+  - 76 passed, 19 failed;
+  - the 19 failures are exactly M1–M4, O9–O12, O14, N4–N6, N8 and R13–R18;
+  - the four guards O13, N7, R19 and G4 pass.
+- [x] `bash scripts/harness-lint.sh`: clean (0 violations).
+- [x] `git diff --check 59adeaab..a6597121`: clean. The added lines carry no debug output, no
+      TODOs and no 64-hex literals.
+- [ ] `npm run test:playwright`: not applicable (no UI change this round).
+
+### Live check against real strfry (reviewer's sandbox, not committed)
+
+- **Setup.** Patched strfry 1.1.0, with the same Redis patch as `patches/strfry-redis/`, and no
+  Redis in the sandbox.
+- **Relays:**
+  - an upstream strfry relay with 130 kind-1 events (`:7821`);
+  - a strfry relay with `relay.negentropy.enabled = false` (`:7825`);
+  - the Architect's fake relays: NOTICE then proxy, silent, NOTICE then close, CLOSED.
+- **What the probes run.** They call the committed `runStrfrySync` and `parseSyncOutput`, which
+  spawn `strfry` through `buildCommand`, as the panel does.
+
+| Relay | Options | Result | `error` |
+|---|---|---|---|
+| negentropy off (`:7825`) | `stallMs: 5000` | stopped at 5.1 s, exit `null`, `stalled: true`, slot freed | `relay said "ERROR: bad msg: negentropy disabled"; nothing followed for 60 s, so strfry sync was stopped` |
+| NOTICE on connect, then a normal relay | `stallMs: 5000` | exit 0 at 0.17 s, not stalled | none; `ok`, need 130, down 130, added 130 |
+| NOTICE, then the relay closes | `stallMs: 5000` | exit 1 at 1.09 s | `relay said "ERROR: bad msg: negentropy disabled"` |
+| CLOSED `auth-required` | `stallMs: 5000` | stopped at 5.1 s, `stalled: true` | `relay said "auth-required: sign in to sync"; nothing followed for 60 s, …` |
+| ignores NEG-OPEN | `timeoutMs: 8000` | killed at 8.0 s, `timedOut: true` | `Redis error: Connection refused; strfry sync did not finish within 10 minutes and was stopped` (R2-2) |
+| negentropy off, no `stallMs` | `timeoutMs: 8000` | killed at 8.0 s, `timedOut: true`, not stalled | `relay said "…negentropy disabled"; strfry sync did not finish within 10 minutes …` |
+
+- **SIGTERM ends strfry.** No `strfry sync` process was left after the six cases.
+- **The runner (`runEnabledPresets`), with the real 60-s `RELAY_STALL_MS`.** Four presets ran in
+  name order. Ten seconds in, the probe rewrote the file by rename, as `saveStore` does. It
+  switched `b-withdrawn` (an `up` preset) off. It re-saved `c-resaved` from the CLOSED relay to
+  `:7821`, with another filter and name case, and cleared its `lastSuccessAt`.
+  - `a-noneg` stopped at **60.1 s**, not 10 minutes. Its error is the table's first row, and
+    its `lastSuccessAt` is kept.
+  - `b-withdrawn` had no strfry run, and the withdrawal line was logged. Its stored record is
+    unchanged, and it is absent from `results`.
+  - `C-Resaved` ran against `:7821` with kinds `[1]` and `since` = its turn's start − 7 days, and
+    added 130. `lastSuccessAt` was set, and the result carries the re-read name.
+  - `d-good` ran normally. Result: `failed: 1`.
+
+### Round-1 finding 1: a relay without negentropy. Resolved.
+
+- **The stall rule** (`negentropySync.js:310–340`) matches Amendment 2, item 1:
+  - **Opt-in.** `if (!stallMs) return` (`:328`) comes after `output`/`slot.lines` are updated as
+    before. Without `stallMs` nothing changes except the additive `stalled: false` (N7, G4).
+  - **Whole lines, per stream.** `partial[stream]` keeps the unfinished tail (`:298`, `:329–331`).
+    N8 covers a notice split across two chunks.
+  - **Start, cancel, no restart.** A relay line starts the timer only when none is running
+    (`:315`), so repeated notices can't push the stop back (N6). Any other non-blank line
+    cancels it (`:312–314`, N5).
+  - **One SIGTERM.** The stall callback clears the 10-minute timer (`:318`), and the 10-minute
+    callback clears the stall timer (`:338`). Clearing a Node timer inside another timer's
+    callback removes it even when both are due in the same tick. `onLine` ignores every line
+    once either stop has fired (`:311`). N4 counts one kill past `timeoutMs`, and the live
+    probe left no process behind.
+  - **Initialization order.** The stall callback reads `timeout`, which is declared at `:336`.
+    That is safe: data events arrive only after the executor has finished.
+  - **The SIGTERM-ignored case.** A strfry that ignored SIGTERM after a stall stop would have no
+    backstop, because the 10-minute timer is cleared. That matches the 10-minute stop, which
+    never had a second kill either. strfry 1.1.0 dies on SIGTERM (live, and
+    `Loguru caught a signal: SIGTERM`).
+- **`relayMessageOf`** (`:257–267`) matches item 1 and choice 20:
+  - **NOTICE and CLOSED.** Element 1 or element 2 (`:264`). Every other array gives `null`
+    (`:263`), including AUTH and COUNT (M2).
+  - **Cap.** 300 characters plus `…` (`:266`, M3).
+  - **Fallback.** The raw text after the mark (`:265`, M4).
+  - **The non-array deviation is harmless.** strfry prints `msg` as reserialized tao JSON
+    (`cmd_sync.cpp:261`). A non-array message would throw at `msg.at(0)` first and log
+    `ERR| Error processing websocket message` instead. So the branch can't be reached from
+    strfry 1.1.0, and returning the raw text is the sensible reading of "doesn't parse".
+- **`parseSyncOutput`** (`negentropyPresets.js:135–175`):
+  - **Candidates.** Relay lines are candidates in the `relay said "<text>"` form, ahead of the
+    lowercase-`error`/`ERR|` test, so a notice holding `error` takes the relay form (O14).
+  - **The table is exact.** It is at `:159–173` (O9–O12).
+  - **The runner no longer overrides it.** It passes `stalled`/`timedOut` as the third argument
+    (`:267`), and the old `:226` override is gone.
+  - **`ok` and the counts** are computed as before (O13), with the caveat in R2-1.
+- **The one-shot paths are untouched.** The diff has no hunk in `handleNegentropySync` or
+  `handleNegentropySyncStream`. `runStrfrySync` has no other caller (grep), and G1 and G4 pass.
+- **AC-4's named case is now met in substance.** "The relay doesn't support negentropy" is
+  recorded in the relay's own words, after about a minute (live, 60.1 s).
+
+### Round-1 finding 3: a preset switched off or deleted mid-run. Resolved.
+
+- **The re-read is in the same synchronous step as the slot take.**
+  - `syncInSlot` (`:237–246`) runs `storedSwitchedOn(id)`, a synchronous `loadStore`, then
+    `isSyncActive()`, then `start(current)`.
+  - `start` calls `runStrfrySync`, whose Promise executor checks and sets `activeSync` before
+    returning.
+  - Nothing can run in between. The re-read happens on every poll, and withdrawal is checked
+    before the deadline, so a preset withdrawn as its wait runs out is withdrawn, not skipped.
+- **Withdrawn** (`:241`, `:260–263`, `:310–313`):
+  - nothing is written;
+  - `runPreset` returns `null`, so the preset is out of `results` and not in `failed`;
+  - the ADR's log line is printed with the `JSON.stringify`-quoted snapshot name.
+
+  R14–R16 cover this, and so does the live probe.
+- **Re-saved** (`:255–259`, `:286`, `:293`):
+  - `ran` and `since` come from the re-read record;
+  - the argv comes from `current`;
+  - `sameTarget(stored, ran)` decides `lastSuccessAt`;
+  - the result's `name` is `ran.name`.
+
+  R17 covers this, and so does the live probe.
+- **An unreadable store fails closed, during polls too. This is right.**
+  - `storedSwitchedOn` wraps the error (`:220–229`). The throw rejects `syncInSlot`, and
+    `runPreset`'s existing catch (`:269–271`) records `Could not read the presets: …`, counted
+    in `failed`.
+  - The record step's `loadStore` then throws inside the lock and is only logged, so the file
+    is never overwritten.
+  - Applying this to the polls isn't an extension beyond the ADR. Item 1 puts a re-read at
+    every poll, and item 4 says what a throwing re-read does.
+  - Ending the wait at once, rather than polling on, is the fail-closed choice for an `up`
+    preset. The next scheduled run retries.
+  - A missing file (`ENOENT`) reads as no presets, so every preset is withdrawn. That is also
+    right: nothing the owner switched on remains.
+- **Deviation 3 (a skipped preset records the snapshot) is accepted.**
+  - Only `lastRun.since` and the result's `name` differ from the last re-read, and only if the
+    preset was re-saved during the wait.
+  - `windowSince` reads only `lastSuccessAt` (`:118–121`), and the tab never shows
+    `lastRun.since` (`RelaySettings.jsx:1509–1520`).
+  - A same-name re-save can change the name only in letter case.
+
+### Spec / ADR adherence (changes since round 1)
+
+- [x] The code matches Amendment 2's file list exactly, and nothing else changed. There is no
+      UI, route, registry, script or doc change. The BIBLE rows (`BIBLE.md:534–538`) and
+      CONFIGURATION.md (`:174`) make no timing claim the stall rule contradicts.
+- [x] Test plan choices 4–7, 20 and 21 are followed (above). There are no new dependencies.
+- [x] Story Deviations, round 2: all three lines are accurate against the code and within the
+      amendment's intent.
+- [x] The concept graph is not touched, so no firmware reinstall is needed. There are no
+      secrets and no TA-pubkey literal, and the `LEGACY_*` constants are untouched.
+
+### Round-1 non-blocking items
+
+| # | Item | Status |
+|---|---|---|
+| 1 | A relay without negentropy costs 10 minutes and is reported as a timeout | **Resolved** (above) |
+| 2 | Scheduled Tasks history never shows a script task failed | Open: ledger `2026-10-09-task-history-misses-script-failures`. It still matters for AC-5 step 5: judge the staging check by the preset's last-run line |
+| 3 | A queued preset syncs after a switch-off or delete | **Resolved** (above) |
+| 4 | Presets' POSTs gated only in the handler | Unchanged, optional. I found no row |
+| 5 | ADR "signed-in" should be "anyone" | Unchanged. Correct it at book close. I found no row |
+| 6 | BK1 has 45 characters left | Open: ledger `2026-10-09-bk1-seed-match-char-window` |
+| 7 | The tab follows only a scheduled run it saw on opening | Unchanged, optional. Less likely now that a refused relay holds the slot about a minute. I found no row |
+| 8 | The pre-filled interval sticks | Unchanged, trivial |
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **R2-1. The relay's text is now decoded, but it isn't cleaned, and relay lines still feed
+   the counts.**
+   - **(a) A relay can write lines into the panel log.** `relayMessageOf` JSON-decodes the
+     relay's text (`negentropySync.js:262–265`), so a `\n` or a terminal escape in a NOTICE
+     becomes a raw character in `error`.
+     - `negentropyPresets.js:276` prints `failed: ${lastRun.error}` unescaped into the panel's
+       log, so a relay can forge a `[negentropy-presets] …` line. A probe confirmed it.
+     - The presets file and the `/run` body carry the text JSON-encoded, the task script logs
+       that body (`syncPresets.sh:45`), and the tab renders through React. Those paths are
+       safe.
+     - In round 1 the recorded text was a strfry line, split on newlines, so it could hold no
+       newline.
+   - **(b) A relay can inflate the counts.** `parseSyncOutput` still runs the count regexes on
+     relay lines (`:143–153`, before the relay check at `:154`). A NOTICE reading
+     `DOWN: 900 events …` or `Writer: added: 900` inflates `down`/`added` on a successful sync.
+     A probe recorded 902 for a real 2.
+     - This predates the round.
+     - But test plan choice 7 now states that a relay line doesn't change `ok` or the counts
+       (O13), and that holds only for harmless text.
+   - **Impact is low.**
+     - The owner chose the relay.
+     - The text is capped at 300 characters.
+     - It reaches only the owner's own log and count display.
+   - **Optional fix:**
+     - in `relayMessageOf`, replace control characters with spaces before the cap;
+     - in `parseSyncOutput`, `continue` once a line is recorded as a relay line;
+     - the Tester can turn both probes into tests.
+2. **R2-2. The Tester's `Redis error: Connection refused` flag: acceptable, not a defect of
+   this round.**
+   - **Production prints the same line.** It is unprefixed (`patches/strfry-redis/redis.cpp:11`),
+     and strfry prints it only when Redis can't be reached at startup. With Redis up it prints
+     `Redis connected to …`, which doesn't match the rule.
+   - **When it wins.** Only when nothing later in the output is a candidate. In practice that
+     is a relay that ignores NEG-OPEN, or a strfry that dies with no error line. The record
+     then reads
+     `Redis error: Connection refused; strfry sync did not finish within 10 minutes and was stopped`
+     (reproduced live).
+   - **Why that is acceptable:**
+     - The timeout clause still says what happened.
+     - Redis being down is a real fault on that instance. While it lasts, the sync's kinds 3,
+       10000 and 1984 also miss the streaming ETL.
+     - Round 1 already named this line for exit-code failures. This round adds the timeout
+       row, where round 1's override used to hide it.
+   - **Not pinned by a test.** Evidence 12's fixture deliberately leaves the Redis line out
+     (`test/negentropy-sync-presets.test.js:1573`).
+   - **Optional (Architect):** take no candidates from strfry's startup lines (everything before
+     `Connected to`).
+3. **R2-3. The literals "60 s" and "10 minutes" (`negentropyPresets.js:162–163`, `:166–167`)
+   are not built from `RELAY_STALL_MS`/`SYNC_TIMEOUT_MS` (`:45–46`). This is harmless today.**
+   - The texts are exact by the ADR's table and test plan choice 7 (O9–O12). `parseSyncOutput`
+     is pure, and the ADR gives it only the kind of stop.
+   - **The hazard is a future change.** R13 accepts a stop 50–150 s after the notice, so moving
+     `RELAY_STALL_MS` to 90 or 120 s would pass while the record still says 60 s.
+   - **Optional:** a comment at `:46` naming the texts, or texts built from the constants. The
+     tests pass either way at 60 000 and 600 000.
+4. **R2-4. ADR 0003 Amendment 2 (`:386`, `:537`) names the wrong-stop risk too narrowly.**
+   - It calls the risk "a relay that sends an unrelated notice and then reconciles silently for
+     more than 60 s".
+   - Any silence after a notice counts, not only during the reconcile. strfry logs `UP:`/`DOWN:`
+     per batch (`cmd_sync.cpp:292`, `:303`) and `Writer: added` per flush. So a relay that
+     sends a rate-limit NOTICE and then holds a download batch, or an upload batch's OKs, for
+     more than 60 s is also stopped.
+   - The consequences are the ADR's: the relay's words are recorded, the window isn't
+     advanced, and the next run retries.
+   - **Suggest:** widen the sentence at book close. Watch for it on staging.
+5. **R2-5. Test plan `:410` says the suite runs "about 4.5 s once implemented". It now runs in
+   about 9.5 s.** Cosmetic.
+
+**OPEN.md.** I recommend one OPEN.md row (type `cleanup`), "presets' reading of relay text":
+- R2-1 (a) and (b);
+- R2-2's optional startup-line exclusion.
+
+R2-3 to R2-5 are wording and comments the book close can absorb. I did not edit OPEN.md or the
+ledger.
+
+#### Harness friction
+
+1. A recurrence of OPEN.md row 316. The role and workflow 5 say the Reviewer commits, but this
+   brief reserved the commit. I followed the brief: this round's section is uncommitted.
+
+### Verdict
+
+**PASS**
+
+Both fixes do what Amendment 2 says, in the code and against real strfry:
+- **Finding 1.** A relay that refuses negentropy is stopped after a minute and named in its own
+  words.
+- **Finding 3.** A preset switched off or deleted before its turn, or while it waits, is not
+  synced. A re-saved one runs as saved.
+
+The gate shows only the baseline's six unrelated suites failing: run `20261009T203009Z-5726-d2a7`,
+FAIL, 5408 passed, 72 failed, 591 skipped, 289/289 suites. It differs from round 1 only in this
+suite, 72/0/0 → 95/0/0, and the suite is stable under load. What remains is non-blocking: relay
+text hygiene (R2-1), the Redis-line corner (R2-2) and wording (R2-3 to R2-5).
+
+### On PASS
+
+- [x] The story's `**Status:**` stays `Done`, as round 1 set it. Its Linked artifacts already
+      point to this file. The commit is left to the caller.
+- [x] Completion detection performed. The result is reported in the hand-off, not here.
