@@ -118,3 +118,86 @@ Not applicable: no PRD. The report's words come from `summarizePublish` / `local
 
 ## Verdict
 **CHANGES_REQUESTED**
+
+## Round 2 (2026-10-09): the round-1 blocking finding, re-reviewed as fresh claims
+
+**Diff:** `git diff a03f8ec..38c00dd`. It holds `e21d334` (ADR 0003 Amendment 1, story 3 AC-6, its § Copy lines and § Deviations), `99ffb6d` (the Tester's failing tests A1–A7, G5 and B6b, plus the plan's round-2 record) and `38c00dd` (the fix). HEAD is `8ba7b78`, a ledger-only commit (three `ledger/` files) after the fix. The branch was rebased onto `origin/staging` `95876ca`. `git range-diff 50a6103..a57ff75 95876ca..a03f8ec` shows all five round-1 commits as `=`, so the rebase changed nothing I reviewed. `git merge-tree --write-tree HEAD origin/staging` is clean (exit 0).
+
+### What I re-ran
+- **Commit hygiene, fixed this round.** `e21d334` touches only the ADR and the story. `99ffb6d` touches only `test/`, `tests/` and the plan. `38c00dd` touches no test file. Round 1's non-blocking 2 is closed. Round 1's non-blocking 1 is closed by story § Deviations and the amendment's "Also recorded here".
+- **The tests failed first.** In a worktree at `99ffb6d`: A1, A2, A3, A4, A6, A7, G5 and the page suite's C1 fail. A5 passes, as the plan records. After the fix A5 still has teeth: if `summarizePublish` counted a `not-sent` row, its message would read "n of n+1" and the test would fail.
+- **The suites alone, on HEAD:**
+  - `assistant-relay-list-publish` **29 passed, 0 failed, 1 skipped** (H1, live);
+  - `assistant-outbox-relays-page` 18/0/0;
+  - `assistant-outbox-check` 29/0/0;
+  - `assistant-taggings-publish` 19/0/1;
+  - `assistant-identification-tags-page` 16/0/0.
+- **`npm test`.** `npm run gate:status -- --label reviewer-outbox-relays-r2`:
+
+  > `20261009T134224Z-32038-d116 [reviewer-outbox-relays-r2] started 2026-10-09T13:42:24.742Z on 8ba7b788 — FAIL, exit 1, 5218 passed, 74 failed, 582 skipped, 285/285 suites; failed: harness-lint, stamped-composite-avatar, my-assistant-page, one-writer-assistant-profile, assistant-profile-check, assistant-profile-checklist-page, assistant-stamped-avatar-for-everyone, tagging-edges-realtime-wrapper`
+
+  I compared suite by suite with a clean `origin/staging` (`95876ca`) worktree:
+  - `stamped-composite-avatar` 8/5/2, `my-assistant-page` 28/3/0, `one-writer-assistant-profile` 16/1/0, `assistant-profile-checklist-page` 0/14 and `assistant-stamped-avatar-for-everyone` 0/19 are identical.
+  - `assistant-profile-check` is 0/33 there and 3/30 here (the Done badge, as in round 1).
+  - `harness-lint` has the same single L10 (`f932e16`) on both.
+  - `tagging-edges-realtime-wrapper` (RW7, 23/1) is a load flake. That test times restart backoff against wall-clock windows, and I was running a `vite build` and Playwright beside the gate. Alone it passes **24/0/0, three runs out of three**, and this book touches no tagging-edges code. Without it the counts match the coordinator's run (5219 / 73).
+- **Playwright, chromium,** against a fresh `vite build` of HEAD served by `vite preview`: **70 passed, 3 skipped, 1 failed**. B6b passes. The failure is the parallel book's `assistant-attention` B4 (8 vs 9), unchanged from round 1. The preview server was stopped.
+- **`bash scripts/harness-lint.sh`:** only the pre-existing L10. The story's new § Deviations passes L14.
+- **`src/api/openapi.yaml` parses** (`js-yaml`). The status enum gains `not-sent`, and the 400 text names `not-a-public-relay`.
+- **My own probes** (scratch scripts; nothing sent; DNS is unavailable in this sandbox, so `dns.promises.lookup` is stubbed *beneath* the real `ssrfGuard`):
+  - **Entry.** Round 1's probe (`ws://10.0.0.5:6379`, `ws://169.254.169.254/…`, `ws://tapestry-redis:6379`, `ws://[::1]:7777`, `ws://127.0.0.2:7687`) is now **400 `not-a-public-relay`, and nothing is sent**. So are `ws://2130706433`, `ws://[::ffff:a00:5]` and `ws://localhost.`.
+  - **URL rewriting.** WHATWG URL turns `2130706433`, `0x7f000001`, `127.1`, `0177.0.0.1` and `%31%32%37.0.0.1` all into `127.0.0.1` before the check runs.
+  - **No drift.** Over 31 hosts (encoded IPv4 forms, IPv4-mapped and NAT64 IPv6, trailing dots, `.internal`, `[::]`, multicast), the page's `isPlainlyPrivateHost` and the server's `ssrfGuard` rule give the same answer every time.
+  - **Send time.** List relays that resolve to `10.1.2.3`, to `169.254.169.254`, to a mix of `8.8.8.8` and `192.168.0.9`, or to `fd00::5`, or that don't resolve at all, are all `not-sent: not a public address` and never handed to `publishToRelays`. A public one, and both Relay Settings relays (one of them an owner LAN name), are sent.
+  - **Previous list.** Its `ws://10.0.0.9:7777` (write) and `ws://192.168.5.5` (read) are `not-sent`.
+- **The negentropy-sync hotfix `95876ca`, looked at as invited.** It uses `execFile` with an argument list. The relay is `URL.href` (ws/wss only), so it can never pose as a flag. The filter is re-serialized from a parsed JSON object as one argument. The sibling stream route already uses `spawn` with an argument list. I saw no problem.
+
+### Each amendment claim, checked with its own command
+| Claim (ADR 0003 Amendment 1) | Command | Result |
+|---|---|---|
+| `isPublicAddress` rejects private, loopback, link-local, CGNAT, unspecified, multicast, reserved and IPv4-mapped private | the entry probe and the drift table | **True** |
+| `hasPrivateHostSuffix` rejects `localhost`, `.local`, `.internal`, `.home.arpa`, `.localhost`, `.lan`, `.intranet`, `.private`, or a bare label | `src/utils/ssrfGuard.js` `PRIVATE_SUFFIXES`, `PRIVATE_EXACT`, the bare-label return | **True** |
+| One plainly-private relay refuses the whole request, before any key is read: 400 `not-a-public-relay` | A3, plus the probe (`getAssistantKeys` never called) | **True** (`relayListPublish.js:180-182`) |
+| The server never trusts the page's copy | the route requires `ssrfGuard` itself (`relayListPublish.js:37`); A7 | **True** |
+| A drift test pins the two rules over a table | A1, plus my 31-host extension | **True** |
+| `outboxSuggestions` leaves plainly-private relays out | G5; `outboxRelays.js:78-81`, `:90` | **True** |
+| Each relay from the new and previous lists is checked with `isPublicHostname`, fails closed, is never passed to `publishToRelays`, and gets the row `not-sent` / `not a public address` | A4, plus the send-time and previous-list probes | **True.** A list relay that *is* a Relay Settings relay (same one spelling) is not looked up. That matches "configured relays are sent to as before" (A4 pins it). |
+| `summarizePublish` counts `not-sent` as neither attempted nor accepted | `profilePublish.js:226`; A5 | **True** |
+| `relayLine` gains the `not-sent` wording | `taggingPublishReport.js:31`; A6 | **True** |
+| (3) Rows for relays that pass the guard keep their reason text; "those hosts are public" | the send-time probe | **True for list relays.** Relay Settings relays bypass the guard rather than pass it, and can be private (an owner's LAN relay). Their socket text reaches any caller. Low sensitivity, because Relay Settings are already public through `GET /api/relays`. Wording only (non-blocking R2-3). |
+| "Which internal names resolve can be inferred … reveals only that a name exists" | the send-time probe | **True, if anything an overstatement.** `not-sent` covers "resolves private" and "does not resolve" alike, so only "resolves public or not" is revealed. |
+| **"One press can still reach about 150 relays …, each looked up first, all within the 8 s publish budget"** | `relayListPublish.js:151-156`; `profilePublish.js:197`; `ssrfGuard.js:233`; the slow-resolver probe | **False.** The lookups have no timeout. They run *before* `publishToRelays` starts its 8 s deadline (`profilePublish.js:197`), and *after* the local write. Probe with a 10 s resolver: local write at 0.2 s, the budget starts at 10.2 s, the report arrives at 10.2 s. See blocking R2-1. |
+
+### Findings
+
+#### Blocking
+1. **R2-1. `src/api/assistant/relayListPublish.js:151-156`: the send-time lookups are unbounded in time and concurrency, sit outside the publish budget, and run after the local write.**
+   - **No time limit.** Every list relay that is not a Relay Settings relay goes through `isPublicHostname` → `dns.promises.lookup` (`src/utils/ssrfGuard.js:233`), which has no timeout. `publishToRelays`' 8 s deadline begins only after every lookup has settled (`profilePublish.js:197`).
+   - **Threadpool exhaustion.** `dns.lookup` runs `getaddrinfo` on libuv's threadpool (Node's default is 4 threads, and the repo sets no `UV_THREADPOOL_SIZE`). A request may name 50 relays, and the previous list adds its own. Anyone with a domain whose nameserver never answers can submit 50 names under it. With glibc's default resolver timeouts (about 5 s × 2 attempts), each press then holds the threadpool for roughly ⌈50/4⌉ = 13 waves, a minute or two. Meanwhile the control panel's other threadpool work (async fs for static assets, every other lookup, zlib, async crypto) queues behind it. Any self-registered Customer can repeat this. Exact numbers depend on the container's resolver; the code imposes no bound at all.
+   - **A false report.** Past nginx's default 60 s (`docker/nginx.conf`'s `location /` sets no `proxy_read_timeout`), the browser gets a 504 page. The page then says "This instance did not answer; nothing was published." But the list was already written to this instance's relay, which happens before the lookups, and the fan-out continues.
+   - **What it breaks.** It contradicts story 3 AC-4 ("Slow, down or broken relays cost their own line and nothing else; the person gets the report within a bounded time"), AC-1's honest report, and the amendment's own claim, checked above as false.
+
+   **Asked change:**
+   1. **Architect:** correct Amendment 1's sentence and decide the bound, failing closed. One shape: each lookup races the *same* 8 s budget the sends use, and a lookup that has not settled reads `not-sent`. Lookups in flight per press are capped, because a race alone does not free a threadpool thread. Alternatively, resolve off the threadpool (a `dns.promises.Resolver` with a timeout) if the guard grows such a function.
+   2. **Tester:** a failing test with an injected slow `isPublicHostname`, pinning that the report arrives within the budget and that the slow relay is `not-sent`, plus the cap if one is chosen. Own `test:` commit.
+   3. **Implementer:** the change.
+
+   Everything else in the fix (entry refusal, send-time partition, rows, summary, words, suggestions, docs) is verified above and stands.
+
+#### Non-blocking
+- **R2-2. `relayListPublish.js:160` with `profilePublish.js:238`:** when every list relay is `not-sent` and Relay Settings has none, the summary reads "…saved on this instance's relay only: no general-purpose, profile or WoT relays are configured.". Accurate about the settings, misleading about why nothing went out; the rows below do say "not sent". A rare edge (the default lists are not empty).
+- **R2-3. Amendment decision 3's wording:** "those hosts are public" holds for list relays, not for the owner-set Relay Settings relays, which skip the guard (see the table). Fold a word into the R2-1 correction.
+- **R2-4. `relayListPublish.js:180-182`:** the refusal does not name the relay. That matters only for a draft seeded from a list published elsewhere, since the page refuses such a relay where it is typed. Optional.
+- **R2-5. Duplication:** `outboxRelays.js:78-81` (`isPlainlyPrivateRelay`) and `relayListPublish.js:98-101` (`isPlainlyPrivate`) are the same ssrfGuard-backed wrapper twice; one export would do. The library's browser copy is by design and drift-tested.
+- **R2-6. Outside this book, `src/utils/ssrfGuard.js`:** `isPublicAddress` treats `fec0::/10` (deprecated site-local, RFC 3879) and `100::/64` (discard-only, RFC 6666) as public. That table is shared by every caller. Candidate ledger row for the guard's owner, not this book.
+- Round 1's non-blocking 3 (fan-out volume) is now recorded in the amendment's Accepted limits. R2-1 asks only that its timing claim be made true.
+
+#### Harness friction
+- None new. The two harness rows filed from round 1 (`ledger/2026-10-09-architecture-misses-outbound-connections.md`, `ledger/2026-10-09-phase4-test-fixes-own-commit.md`) match its findings. R2-1 is the same class one step on: an outbound-connection fix still needs its own bounds stated and checked.
+
+### Verdict (round 2)
+**CHANGES_REQUESTED.** One ask: bound the send-time lookups in time and concurrency within the publish budget, failing closed, and correct Amendment 1's "all within the 8 s publish budget". Round 3 needs the story suite, the new slow-lookup test, `harness-lint`, and B6b–B9 in the browser. The rest of the gate showed nothing this book moved.
+
+### Story status and completion (round 2)
+- [ ] Story `**Status:**` not flipped: it stays `Approved`.
+- [ ] Completion detection: the book's "One publish" bullet still waits on this story. Recorded in the chat, not here.
