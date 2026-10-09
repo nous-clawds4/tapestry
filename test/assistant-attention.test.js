@@ -231,6 +231,9 @@ function fakes(opts = {}) {
     getConfigFromFile: (key, dflt) => (opts.config && Object.prototype.hasOwnProperty.call(opts.config, key) ? opts.config[key] : dflt),
     // The profile check (assistant-profile-checklist ADR 0001), stubbed: this suite is about Identification Tags.
     checkProfile: async () => ({ finished: true, done: true, pending: false, items: [] }),
+    // assistant-outbox-relays ADR 0001 § Implementation notes 2: the outbox check is injected, so these identification-tags
+    // tests never see its scan or its relay reads (test/assistant-outbox-check.test.js drives the real one).
+    checkOutboxRelays: async () => ({ finished: true, done: true, pending: false, reason: null, source: 'local', createdAt: 1, outbox: ['wss://fixture.example'], inboxOnlyCount: 0, suggestions: [] }),
     // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001), stubbed for the same reason.
     checkTrustedContent: async () => ({}),
   };
@@ -601,11 +604,11 @@ test('C1: summarizeAttention — a signed-in answer is answered with its actions
   }
 });
 
-test('C2: CHECKED_ACTIONS includes the identification-tags action, and every checked key is a real action (ADR 0001 sub-decision 6; the profile joined it with assistant-profile-checklist #1)', async () => {
+test('C2: CHECKED_ACTIONS includes the identification-tags action, and every checked key is a real action (ADR 0001 sub-decision 6; the profile and Outbox Relays joined it with assistant-profile-checklist #1 and assistant-outbox-relays #1)', async () => {
   const mod = await actionsModule();
   assert(Array.isArray(mod.CHECKED_ACTIONS) && mod.CHECKED_ACTIONS.includes(ACTION), `CHECKED_ACTIONS must include ${show(ACTION)}, got ${show(mod.CHECKED_ACTIONS)}`);
   const keys = mod.ASSISTANT_ACTIONS.map((a) => a.key);
-  assert(mod.CHECKED_ACTIONS.every((k) => keys.includes(k)), 'every checked key is one of the ten actions');
+  assert(mod.CHECKED_ACTIONS.every((k) => keys.includes(k)), 'every checked key is one of the actions');
 });
 
 test('C3: the two readings — with no answer a checked action is marked but not counted; done unmarks and uncounts it; pending marks and counts; unfinished marks only; placeholders always both (AC-5)', async () => {

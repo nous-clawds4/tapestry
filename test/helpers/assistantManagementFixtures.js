@@ -29,6 +29,8 @@ const NIP_LINKS = {
   trustedAssertions: 'https://github.com/nostr-protocol/nips/blob/master/85.md',
   trustedLists: 'https://nostrhub.io/naddr1qvzqqqrcvypzpef89h53f0fsza2ugwdc3e54nfpun5nxfqclpy79r6w8nxsk5yp0qqxhgun4wd6x2epdd35hxarn9c5yqp',
   decentralizedLists: 'https://nostrhub.io/naddr1qvzqqqrcvypzpef89h53f0fsza2ugwdc3e54nfpun5nxfqclpy79r6w8nxsk5yp0qqfkgetrv4h8gunpd35h5ety94kxjum5wvzg04gg',
+  // assistant-outbox-relays #1 (story § Copy; ADR 0001 sub-decision 6).
+  relayList: 'https://github.com/nostr-protocol/nips/blob/master/65.md',
 };
 
 // ─── Sections, in order (story 1 AC-1; keys from ADR 0001 sub-decision 1) ──────────────────
@@ -41,7 +43,7 @@ const SECTIONS = [
 const NOT_YET_DEFINED = 'Not yet defined.';
 
 /**
- * The ten actions, in order. `text` is the description as a reader sees it (links as their words); `link` is the
+ * The eleven actions, in order (ten from assistant-management #1; Outbox Relays from assistant-outbox-relays #1). `text` is the description as a reader sees it (links as their words); `link` is the
  * one NIP link inside it, or null; `alertCriteria` / `planningNotes` are null where the owner gave none.
  */
 const ACTIONS = [
@@ -62,6 +64,16 @@ const ACTIONS = [
     text: "Part of the Assistant's identity is its relationship to you. A handful of Tags will be used to broadcast this relationship between you and your Tapestry Assistant to outside clients, applications and services.",
     link: null,
     alertCriteria: 'If any of the required Taggings are missing. Taggings that you will use on your Assistant include: "My Tapestry Assistant", "My Agent"; Taggings that your Assistant will use on you: "My Tapestry Owner" and "My Owner". More may be added later when we flesh this out in detail.',
+    planningNotes: null,
+  },
+  // The eleventh action, the third persona card (assistant-outbox-relays #1 AC-1 and § Copy).
+  {
+    section: 'persona',
+    path: '/assistant/outbox-relays',
+    title: 'Outbox Relays',
+    text: 'Let other clients and apps know where to find the events your Assistant publishes. Your Assistant lists its outbox relays in a relay list (kind 10002), according to NIP-65.',
+    link: { text: 'NIP-65', href: NIP_LINKS.relayList },
+    alertCriteria: "If your Assistant's relay list (kind 10002) names no outbox relay.",
     planningNotes: null,
   },
   {

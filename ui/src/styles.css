@@ -8851,7 +8851,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   background: rgba(210,153,34,0.12);
   color: #e3b341;
 }
-/* A checked action that is done: the Identification Tags page's done marker (assistant-profile-checklist ADR 0001 § 7). */
+/* A checked action that is done: the Identification Tags page's done marker (ADR assistant-profile-checklist/0001
+   sub-decision 7; assistant-outbox-relays #1). */
 .bs-assistant-hub-card.is-done .bs-assistant-hub-card-marker {
   border-color: var(--green, #3fb950);
   background: var(--green, #3fb950);
@@ -9025,6 +9026,53 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bs-idtags-card { gap: 0.6rem; padding: 0.8rem; }
   .bs-idtags-row { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
   .bs-idtags-publish { width: 100%; }
+}
+/* The Outbox Relays page (assistant-outbox-relays #2, ADR 0002 sub-decision 3): the Identification Tags cards, plus
+   relay rows, the add field and note lines, in the same tokens. */
+.bs-outbox-note { margin: 0.6rem 0 0; font-size: 0.85rem; line-height: 1.5; opacity: 0.75; }
+.bs-outbox-note.is-unpublished { color: #e3b341; opacity: 0.95; }
+.bs-outbox-relays { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.bs-outbox-relay { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; font-size: 0.9rem; }
+.bs-outbox-relay code { min-width: 0; word-break: break-all; }
+.bs-outbox-relay-remove,
+.bs-outbox-relay-add,
+.bs-outbox-add-button,
+.bs-outbox-add-all {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bs-outbox-relay-remove:hover:not(:disabled),
+.bs-outbox-relay-add:hover:not(:disabled),
+.bs-outbox-add-button:hover:not(:disabled),
+.bs-outbox-add-all:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.bs-outbox-relay-remove:disabled,
+.bs-outbox-relay-add:disabled,
+.bs-outbox-add-button:disabled,
+.bs-outbox-add-all:disabled { opacity: 0.5; cursor: not-allowed; }
+.bs-outbox-add { margin-top: 0.9rem; }
+.bs-outbox-add-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; }
+.bs-outbox-add-row { display: flex; gap: 0.5rem; }
+.bs-outbox-add-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.2);
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+}
+.bs-outbox-refusal { margin: 0.4rem 0 0; font-size: 0.85rem; color: #f85149; }
+@media (max-width: 480px) {
+  .bs-outbox-relay { align-items: flex-start; }
 }
 .bs-topbar-pill:focus-visible {
   outline: 2px solid #a5b4fc;

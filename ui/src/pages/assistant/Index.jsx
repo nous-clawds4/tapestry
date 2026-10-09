@@ -20,10 +20,9 @@ import {
  *   - sign-in still resolving: the cards, unmarked, and no line;
  *   - signed out: the cards, unmarked, and a line asking the visitor to sign in;
  *   - signed in with no assistant here: the cards, unmarked, and a line pointing to Account Setup;
- *   - signed in with an assistant: each card marked "Needs attention" unless its check says done, and the count.
- * A checked action that is done shows the Done look instead — a ✓ marker and a green "Done" badge, as the
- * Identification Tags page's cards do (assistant-profile-checklist ADR 0001 sub-decision 7; Scores, Lists and Concepts
- * since assistant-trusted-content-status #1). A placeholder is never done.
+ *   - signed in with an assistant: every card marked "Needs attention" until its answer says done, and the count; a
+ *     checked action that is done shows a "Done" badge instead (ADR assistant-profile-checklist/0001 sub-decision 7,
+ *     first built by assistant-outbox-relays #1).
  */
 
 /**
@@ -31,7 +30,6 @@ import {
  * anywhere opens the action's page; the description's NIP links sit above it (ADR 0001 sub-decision 4).
  */
 function ActionCard({ action, marked, done }) {
-  // A card is never both: marked wins, which cannot happen because `done` implies not in `needsAttention`.
   const isDone = done && !marked;
   return (
     <div className={`bs-assistant-hub-card${marked ? ' needs-attention' : ''}${isDone ? ' is-done' : ''}`}>

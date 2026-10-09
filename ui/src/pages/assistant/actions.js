@@ -1,6 +1,6 @@
 /**
  * The Assistant Management page, as data (assistant-management #1, ADR 0001 sub-decision 1): its three
- * sections, its ten actions, its FAQ and its words — and the one answer to "which of the viewer's actions
+ * sections, its eleven actions (Outbox Relays since assistant-outbox-relays #1), its FAQ and its words — and the one answer to "which of the viewer's actions
  * need attention", which the page's marks, its count line and the Assistant Alert (story 2) all read. Since
  * assistant-identification-tags #1 that answer merges the server's real checks (GET /api/assistant/attention,
  * the actions in CHECKED_ACTIONS) with the placeholders, in two readings: the page's and the pill's.
@@ -13,11 +13,12 @@
  * (test/assistant-management-page.test.js, test/assistant-alert.test.js).
  *
  * The words were approved with the stories; change them there first:
- * engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md § Copy, and
- * engineering-team/stories/done/assistant-management/2-the-assistant-alert.md § Copy. Since assistant-trusted-content-
- * status #1 the first three Publication of Trusted Content actions are Scores, Lists and Concepts, the Treasure Map's
- * categories, with that story's § Copy: engineering-team/stories/assistant-trusted-content-status/
- * 1-scores-lists-and-concepts-on-the-hub.md.
+ * engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md § Copy,
+ * engineering-team/stories/done/assistant-management/2-the-assistant-alert.md § Copy,
+ * engineering-team/stories/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md § Copy, and
+ * engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md § Copy (since
+ * then the first three Publication of Trusted Content actions are Scores, Lists and Concepts, the Treasure Map's
+ * categories).
  */
 
 import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MANAGE_TREASURE_MAP_PATH } from '../../config/avatarMenuLinks.js';
@@ -28,11 +29,12 @@ const TREASURE_MAP_LINK = { text: 'Manage your Treasure Map →', to: MANAGE_TRE
 /** The profile action's page — the checklist to come, and the editor's parent. */
 export const ASSISTANT_PROFILE_PATH = `${ASSISTANT_MANAGEMENT_PATH}/profile`;
 
-/** The three NIPs the action descriptions link to (story 1 § Copy). */
+/** The NIPs the action descriptions link to (story 1 § Copy; NIP-65 from assistant-outbox-relays #1). */
 export const NIP_LINKS = {
   trustedAssertions: 'https://github.com/nostr-protocol/nips/blob/master/85.md',
   trustedLists: 'https://nostrhub.io/naddr1qvzqqqrcvypzpef89h53f0fsza2ugwdc3e54nfpun5nxfqclpy79r6w8nxsk5yp0qqxhgun4wd6x2epdd35hxarn9c5yqp',
   decentralizedLists: 'https://nostrhub.io/naddr1qvzqqqrcvypzpef89h53f0fsza2ugwdc3e54nfpun5nxfqclpy79r6w8nxsk5yp0qqfkgetrv4h8gunpd35h5ety94kxjum5wvzg04gg',
+  relayList: 'https://github.com/nostr-protocol/nips/blob/master/65.md',
 };
 
 /** The page's sections, in order. */
@@ -65,6 +67,19 @@ export const ASSISTANT_ACTIONS = [
     title: 'Identification Tags',
     description: ["Part of the Assistant's identity is its relationship to you. A handful of Tags will be used to broadcast this relationship between you and your Tapestry Assistant to outside clients, applications and services."],
     alertCriteria: 'If any of the required Taggings are missing. Taggings that you will use on your Assistant include: "My Tapestry Assistant", "My Agent"; Taggings that your Assistant will use on you: "My Tapestry Owner" and "My Owner". More may be added later when we flesh this out in detail.',
+    planningNotes: null,
+  },
+  {
+    key: 'outbox-relays',
+    section: 'persona',
+    path: `${ASSISTANT_MANAGEMENT_PATH}/outbox-relays`,
+    title: 'Outbox Relays',
+    description: [
+      'Let other clients and apps know where to find the events your Assistant publishes. Your Assistant lists its outbox relays in a relay list (kind 10002), according to ',
+      { text: 'NIP-65', href: NIP_LINKS.relayList },
+      '.',
+    ],
+    alertCriteria: "If your Assistant's relay list (kind 10002) names no outbox relay.",
     planningNotes: null,
   },
   {
@@ -192,7 +207,8 @@ export const ASSISTANT_COPY = {
   noAssistantLink: 'Go to Account Setup →',
   needsAttention: 'Needs attention',
   needsAttentionSrPrefix: 'Needs attention: ',
-  // The hub's Done look (assistant-profile-checklist #1 § Copy; reused by assistant-trusted-content-status #1).
+  // The hub's Done badge for a checked action that is done (assistant-outbox-relays #1 § Copy, as
+  // ADR assistant-profile-checklist/0001 sub-decision 7 specifies it).
   done: 'Done',
   doneSrPrefix: 'Done: ',
   faqToggle: 'Frequently asked questions',
@@ -225,10 +241,11 @@ export function plainText(parts) {
 /**
  * The actions whose "needs attention" answer is real — computed by GET /api/assistant/attention for the viewer's own
  * assistant (ADR assistant-identification-tags/0001 sub-decision 6) — as opposed to the placeholders, which count
- * everywhere until their check is built. An action joins this list when its check ships: Identification Tags
- * (assistant-identification-tags #1), then Scores, Lists and Concepts (assistant-trusted-content-status #1).
+ * everywhere until their check is built. An action joins this list when its check ships, in ASSISTANT_ACTIONS order:
+ * Identification Tags (assistant-identification-tags #1), Outbox Relays (assistant-outbox-relays #1), then Scores, Lists
+ * and Concepts (assistant-trusted-content-status #1).
  */
-export const CHECKED_ACTIONS = ['identification-tags', 'trusted-assertions', 'trusted-lists', 'dlists'];
+export const CHECKED_ACTIONS = ['identification-tags', 'outbox-relays', 'trusted-assertions', 'trusted-lists', 'dlists'];
 
 /**
  * Which of the viewer's actions need attention (story 1 AC-2; the pill counts the same answer, story 2 AC-5), in the
@@ -237,9 +254,9 @@ export const CHECKED_ACTIONS = ['identification-tags', 'trusted-assertions', 'tr
  *     unless its answer says `done` — so while the answer is on its way, when the fetch failed, and when the check
  *     did not finish, it stays marked, as /setup shows a step as not done until it knows;
  *   - the pill reading, `alertCount`: a placeholder always counts; a checked action counts only when its answer says
- *     `pending` (a finished check found something missing) — the confident reading, as the Setup Alert counts.
- * `done` lists the checked actions whose answer says `done` — never a placeholder, never a marked one — for the hub's
- * Done look (assistant-profile-checklist ADR 0001 sub-decision 7).
+ *     `pending` (a finished check found something missing) — the confident reading, as the Setup Alert counts;
+ * and the hub's Done list, `done`: the checked actions whose answer says `done` (never a placeholder), which the hub
+ * badges "Done" (ADR assistant-profile-checklist/0001 sub-decision 7; assistant-outbox-relays #1 AC-4).
  * All are about a viewer who has an assistant on this instance — sign-in's user.assistantPubkey, the
  * getAssistantPubkeyFor answer that also marks /setup's first step done — and empty for anyone else.
  * @param {?{ assistantPubkey?: ?string }} user
