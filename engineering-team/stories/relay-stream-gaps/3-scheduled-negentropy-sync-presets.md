@@ -1,7 +1,7 @@
 # Story 3: Saved negentropy-sync presets, run on a schedule
 
 **Epic:** relay-stream-gaps
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Feature
 
@@ -112,4 +112,4 @@ Implementation judgment calls (Implementer, 2026-10-09); none changes the ADR's 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-stream-gaps/0003-negentropy-sync-presets.md`
 - Test plan: `engineering-team/stories/relay-stream-gaps/3-scheduled-negentropy-sync-presets.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md`
