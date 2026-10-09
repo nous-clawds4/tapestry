@@ -1352,6 +1352,13 @@ test('T9: the Add dialog pre-fills 0 days, <suggestedIntervalHours> hours, 0 min
   assert(/useState\(\s*entry\?\.intervalHours\s*\?\?\s*24\s*\)/.test(src), 'the 24-hour default for tasks without a hint must stay.');
 });
 
+test('T10: the task may run for 6 hours, as long as the script\'s curl, before the scheduler kills it; without this the registry default kills a presets run at 30 minutes (ADR 0003 Amendment 1)', () => {
+  const t = taskEntry();
+  const timeout = (((t.options || {}).completion || {}).failure || {}).timeout;
+  assert(timeout && typeof timeout === 'object', `tasks.${TASK}.options.completion.failure.timeout must be set; the registry default (options_default) is ${show(registry().options_default.completion.failure.timeout.duration)} ms`);
+  eq({ duration: timeout.duration, forceKill: timeout.forceKill }, { duration: 21600000, forceKill: true }, `tasks.${TASK}'s timeout`);
+});
+
 // ═══ U: the Negentropy Sync tab (source; house style: region-scoped, visible text) ═══
 /** NegentropySync, any RelaySettings.jsx top-level declaration whose name contains preset or negentropy (any case), and any local module it imports whose file name does. */
 function presetUiScope() {

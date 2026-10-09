@@ -4,8 +4,8 @@
 **ADR:** `engineering-team/decisions/relay-stream-gaps/0003-negentropy-sync-presets.md`
 **Date:** 2026-10-09
 
-All new tests are in one stack-free suite, `test/negentropy-sync-presets.test.js`. It has 71
-tests: 68 fail now, and 3 guards (G1–G3) pass before and after. It is registered in
+All new tests are in one stack-free suite, `test/negentropy-sync-presets.test.js`. It has 72
+tests: 69 fail now, and 3 guards (G1–G3) pass before and after. It is registered in
 `test/registry.js` right after `router-stream-limit-on-connect`. No fixtures, dependencies or test
 infrastructure are added, and no existing test changes.
 
@@ -60,6 +60,7 @@ Levels:
 | AC-3 | T7: fresh install seeds `seed:syncNegentropyPresets` disabled at 0 d 6 h 0 m after the existing seeds, valid as shipped and switched on; seeds only when the file is absent | child |
 | AC-3 | T8: `filterSchedulableTasks` passes `suggestedIntervalHours` only when it's a positive integer, and offers the task with 6 | unit |
 | AC-3 | T9: the Add dialog pre-fills 0 d / N h / 0 m for a new entry, with edits left alone; the 24 h default stays | source |
+| AC-3 | T10: the registry entry's `options.completion.failure.timeout` is `{ duration: 21600000, forceKill: true }`, so a long run isn't killed at the 30-minute default (ADR 0003 Amendment 1) | source |
 | AC-3 | U6: the explainer's three sentences, verbatim | source |
 | AC-3 | U7: `Scheduled preset "<name>" is syncing…` | source |
 | AC-4 | O1–O4: `parseSyncOutput` reads have/need/UP/DOWN/Writer for down, up, both and nothing-to-do (Evidence 1, 2, 3, 5) | unit |
@@ -249,11 +250,13 @@ bullet.
 19. **Atomic write.** Never write, append, truncate, open-for-write or copy onto the final
     path. Rename a temp file onto it (sync or `fs.promises` both work).
 
-**Note for the Architect and Implementer (not tested).** The ADR's registry entry sets no
-`options`. So `launchChildTask.sh` applies `options_default.completion.failure.timeout`:
-30 minutes with `forceKill: true`. A presets run longer than that has its script killed (exit
-124, a timeout in the history), while the server-side run carries on and the next trigger sees
-`alreadyRunning`. The script's 6-hour curl only takes effect if the entry raises that timeout.
+**The task's timeout (ADR 0003 Amendment 1; T10).** At Test Design the ADR's registry entry set
+no `options`, so `launchChildTask.sh` would apply `options_default.completion.failure.timeout`:
+30 minutes with `forceKill: true`. A presets run longer than that would have its script killed
+(exit 124, a timeout in the history) while the server-side run carried on. The gate (2026-10-09)
+approved Amendment 1: the entry sets a 6-hour timeout with `forceKill: true`, matching the
+script's `curl -m 21600`. T10 checks it. T10 was added at the gate, after the runs recorded under
+Verification, so those show 71 tests; with T10 the suite is 3 passed, 69 failed.
 
 ## Test infrastructure
 

@@ -240,7 +240,9 @@ C splits logic into untestable bash.
   - `arguments: false`, `scope: "system"`, `priority: "normal"`, `frequency: "periodic"`,
     `status: "active"`, `structuredLogging: true`;
   - a description naming this ADR;
-  - `suggestedIntervalHours: 6`.
+  - `suggestedIntervalHours: 6`;
+  - `options.completion.failure.timeout` of `{ "duration": 21600000, "forceKill": true }`
+    (6 hours, matching the script's curl `-m`). *(Added by Amendment 1.)*
 - Add a log-file mapping where the registry maps other sync tasks.
 
 **`src/api/scheduled-tasks/index.js`**
@@ -287,6 +289,27 @@ C splits logic into untestable bash.
   - the modal pre-fill (source-level);
   - the tab's wording (source-level, house style).
 - AC-5 is the staging verification step.
+
+## Amendment 1 (2026-10-09): the task's timeout matches the run's length
+
+The Tester found a gap at Test Design (test plan § "One gap for the Architect"). The registry
+entry above set no `options`. The scheduler runs every task through `launchChildTask.sh`
+(`src/manage/taskQueue/queue/processor.js`, the same way as `runTask.js`). A task without
+options gets the registry's `options_default.completion.failure.timeout` of 30 minutes with
+`forceKill: true` (`taskRegistry.json:40`, enforced at `launchChildTask.sh:370–403`).
+
+A presets run can legitimately take longer than that. Each preset can wait up to about 10 minutes
+for a manual sync to finish, then sync for up to 10 minutes. With two or three slow presets the
+script would be killed while the control panel carried on with the run, and the panel's history
+would show a timeout for a run that went fine. The script's 6-hour curl only matters if the
+task's own timeout is at least as long.
+
+**Changed design.** The `syncNegentropyPresets` registry entry carries
+`"options": { "completion": { "failure": { "timeout": { "duration": 21600000, "forceKill": true } } } }`:
+6 hours, the same as the script's `curl -m 21600`, in the shape `syncWoT` and
+`reconcileRecent` use. `forceKill` stays true: a script still running at 6 hours is stuck,
+and killing it frees the panel's slot. The decision (Option A) is unchanged. The test plan adds
+T10 for this.
 
 ## Verified evidence (2026-10-09, sandbox; strfry 1.1.0 build from ADR 0001/0002)
 
