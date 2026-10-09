@@ -28,6 +28,8 @@
  * regression sentinels (additive change) — they PASS before AND after.
  * R1 was later re-aimed by relay-stream-gaps #1 (ADR relay-stream-gaps/0001),
  * which replaced the restart-on-every-save contract; see the R section.
+ * S3's Limit marker was re-aimed by relay-stream-gaps #2 (ADR relay-stream-gaps/0002),
+ * which relabels the field "Limit (fetched on connect)"; S3 still passes before and after.
  */
 
 const fs = require('fs');
@@ -341,7 +343,9 @@ test('S3: the Tag Filters field block sits inside the stream editor between Even
   assert(editor.length > 0, 'StreamEditor must exist — unexpected regression.');
   const kindsIdx = editor.indexOf('Event Kinds');
   const tagIdx = editor.indexOf('Tag Filters');
-  const limitIdx = editor.indexOf('>Limit<');
+  // Re-aimed by relay-stream-gaps #2 (ADR relay-stream-gaps/0002): the label becomes
+  // "Limit (fetched on connect)", so match the label text's start, not the exact ">Limit<".
+  const limitIdx = editor.search(/>\s*Limit\b/);
   assert(kindsIdx !== -1 && limitIdx !== -1, 'Event Kinds / Limit blocks vanished from StreamEditor — unexpected regression.');
   assert(tagIdx !== -1, NOT_IMPL('StreamEditor must render a \'Tag Filters\' field block'));
   assert(kindsIdx < tagIdx && tagIdx < limitIdx,

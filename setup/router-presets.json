@@ -3,7 +3,7 @@
     "name": "dcosl",
     "description": "DCoSL: Decentralized Lists — dedicated DCoSL relays",
     "dir": "both",
-    "filter": { "kinds": [9998, 9999, 39998, 39999], "limit": 5 },
+    "filter": { "kinds": [9998, 9999, 39998, 39999], "limit": 500 },
     "urls": [
       "wss://dcosl.brainstorm.world",
       "wss://dcosl.brainstorm.social/relay"
@@ -16,7 +16,7 @@
     "name": "dcosl2",
     "description": "General purpose relays that might have DCoSL data (download only)",
     "dir": "down",
-    "filter": { "kinds": [9998, 9999, 39998, 39999], "limit": 5 },
+    "filter": { "kinds": [9998, 9999, 39998, 39999], "limit": 500 },
     "urls": [
       "wss://relay.damus.io"
     ],
@@ -28,7 +28,7 @@
     "name": "userProfiles",
     "description": "Continuous kind 0 profile sync — keeps local user profiles up to date from profile-aggregating relays",
     "dir": "down",
-    "filter": { "kinds": [0], "limit": 5 },
+    "filter": { "kinds": [0], "limit": 500 },
     "urls": [
       "wss://wot.grapevine.network",
       "wss://profiles.nostr1.com",
@@ -42,7 +42,7 @@
     "name": "trustedLists",
     "description": "Relays that maintain Trusted Lists (NIP-85 custom NIP)",
     "dir": "both",
-    "filter": { "kinds": [30392, 30393, 30394, 30395], "limit": 5 },
+    "filter": { "kinds": [30392, 30393, 30394, 30395], "limit": 500 },
     "urls": [
       "wss://nip85.brainstorm.world",
       "wss://nip85.nostr1.com",
@@ -56,7 +56,7 @@
     "name": "WoT",
     "description": "Relays that maintain Web of Trust (WoT) data (follows, reports, mutes)",
     "dir": "both",
-    "filter": { "kinds": [3, 1984, 10000], "limit": 5 },
+    "filter": { "kinds": [3, 1984, 10000], "limit": 500 },
     "urls": [
       "wss://wot.grapevine.network"
     ],
@@ -68,7 +68,7 @@
     "name": "trustedAssertions",
     "description": "Relays that maintain Trusted Assertions (NIP-85 custom NIP)",
     "dir": "up",
-    "filter": { "kinds": [30382], "limit": 5 },
+    "filter": { "kinds": [30382], "limit": 500 },
     "urls": [
       "wss://nip85.brainstorm.world"
     ],
@@ -80,7 +80,7 @@
     "name": "treasureMaps",
     "description": "Bidirectional sync of kind 10040 (TA Treasure Maps) with popular general-purpose relays",
     "dir": "both",
-    "filter": { "kinds": [10040] },
+    "filter": { "kinds": [10040], "limit": 500 },
     "urls": [
       "wss://relay.damus.io",
       "wss://nos.lol",
