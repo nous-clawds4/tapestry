@@ -53,7 +53,8 @@ says it has.
 - [x] **Shipped to staging.** Production gets this book and the manage-treasure-map book together, only on the owner's
       explicit go. *Shipped 2026-10-08: PR #821, merged to `staging` as `f0a4c59d`, deploy run 37850176311, smoke test
       clean. The owner then saved their own Map there, verbatim: "I have edited my Treasure Map on stating and can
-      confirm that it worked as intended. Ready to close the book." Production still waits for the owner's go.*
+      confirm that it worked as intended. Ready to close the book." Production followed the same day on the owner's go: PR
+      #823 (`4c91c9f3`), deploy run 37860767117.*
 
 ## Decisions at intake
 
@@ -136,6 +137,9 @@ defaults it would assume. The owner's answer, verbatim:
     the same way. The older Tapestry-side generators (the NIP-85 control panel and the legacy customer page) rewrite the
     `30382:*` rows to the person's Assistant here when they regenerate; that is accepted for now and recorded as ledger
     `2026-10-08-legacy-generators-overwrite-edited-scores`.
+    *Amended 2026-10-08, after the close, at the owner's request:* Concepts has two family entries, `39998` and
+    `39999`; an assignment moves or adds each (this decision and decision 15). Ledger row
+    `2026-10-08-concepts-assignment-adds-39999`.
 13. **The backup switch's words.** In Edit mode, below the cards, shown only when the Map has at least one backup:
     "Remove N backup Assistants"; off: "Kept as they are. Apps use a backup when an entry's first Assistant can't be
     reached."; on: "Every entry keeps only its first Assistant, including entries not shown on this page." Turning it

@@ -10232,7 +10232,20 @@ body:has(.bsd-page) { background: #f2f3f0; }
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); padding: 16px 18px;
 }
 .bsd-tm-cat-what { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 260px; }
+.bsd-tm-cat-title-row { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; min-width: 0; }
 .bsd-tm-cat-title { font-size: 17px; font-weight: 700; color: var(--text); }
+/* "Needs attention" on a card with no Assistant (treasure-map-card-details #1): /assistant's badge
+   (.bs-setup-step-badge) in this light page's amber, --orange (#b45309) on #fffbeb, 4.84:1. */
+.bsd-tm-cat-attention {
+  padding: 0.1rem 0.55rem;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 999px;
+  background: #fffbeb;
+  color: var(--orange);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .bsd-tm-cat-desc { font-size: 13px; line-height: 1.5; color: var(--text-muted); text-wrap: pretty; }
 .bsd-tm-cat-who { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; max-width: 100%; }
 .bsd-tm-cat-assignee { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; flex-wrap: wrap; }
@@ -10249,6 +10262,40 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .bsd-tm-cat-state { margin-top: 0; }
 .bsd-tm-cat-mixed-line { margin: 0; font-size: 13px; line-height: 1.5; color: var(--bsd-faint); }
 .bsd-tm-cat-mixed-line a { font-weight: 600; }
+
+/* Each card's Show details panel (treasure-map-card-details #2): a full-width row at the card's foot, below the picker
+   row in Edit mode. Keys and relays are long and unbroken, so they may break anywhere rather than push the page
+   sideways. */
+.bsd-tm-cat-details { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.bsd-tm-cat-details-toggle {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; border: none;
+  background: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--accent);
+}
+.bsd-tm-cat-details-toggle:hover { text-decoration: underline; }
+.bsd-tm-cat-details-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.bsd-tm-cat-details-panel { min-width: 0; padding-top: 12px; border-top: 1px solid #f0f1ee; }
+.bsd-tm-cat-details-none { margin: 0; font-size: 13px; color: var(--bsd-faint); }
+.bsd-tm-cat-details-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.bsd-tm-cat-details-entry { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bsd-tm-cat-details-key { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; min-width: 0; }
+.bsd-tm-cat-details-key code {
+  min-width: 0; font-family: var(--bsd-mono); font-size: 12px; font-weight: 600; color: var(--text);
+  overflow-wrap: anywhere; word-break: break-all;
+}
+.bsd-tm-cat-details-tag {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px;
+  padding: 2px 7px; background: #f0f1ee; color: var(--text-muted); white-space: nowrap;
+}
+.bsd-tm-cat-details-rows {
+  margin: 0; padding: 0 0 0 12px; list-style: none; display: flex; flex-direction: column; gap: 6px;
+  border-left: 2px solid #f0f1ee; min-width: 0;
+}
+.bsd-tm-cat-details-row { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; min-width: 0; }
+.bsd-tm-cat-details-name { min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.bsd-tm-cat-details-relay {
+  min-width: 0; font-family: var(--bsd-mono); font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere;
+  word-break: break-all;
+}
 
 /* The raw box takes keyboard focus (manage-treasure-map #2, AC-5). */
 .bsd-tm-raw-pre:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
