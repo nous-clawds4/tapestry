@@ -14,7 +14,7 @@ Node suite `test/assistant-stamped-avatar-for-everyone.test.js` (registered); br
 |---|---|---|---|
 | AC-1 your own picture, your own Assistant | G1 a Customer, an Admin and the Owner pass the gate, named as `req.avatarPerson` · P1 the picture is the person's own newest kind 0's: local first; the profile relays only when the local relay holds no kind 0; another author's ignored · M1 the proxy serves the session person's picture, never a URL or pubkey from the request, with its image type | `test/assistant-stamped-avatar-for-everyone.test.js` | unit (DI) |
 | AC-2 preview first | AV1 Make my personalized avatar: a stamped preview, Publish this avatar / Not now; nothing stored or published · AV3 Not now: nothing sent | `tests/brainstorm/…-page.spec.js` | browser |
-| AC-3 the panel's fix publishes it | AV2 stored, then the profile republished with only the picture changed, and the answer asked again · D4 the page uses the shared flow and the `set-picture` fix | spec · `test/…-everyone.test.js` | browser · source |
+| AC-3 the panel's fix publishes it | AV2 stored, then the profile republished with only the picture changed, and the answer asked again · AV7 the press-time read finds no profile: no profile is published, the panel says so (ADR 0002 Amendment 1) · D4 the page uses the shared flow and the `set-picture` fix | spec · `test/…-everyone.test.js` | browser · source |
 | AC-4 the editor offers it to everyone | AV6 a Customer sees "Generate badged avatar" · D3 the editor uses `stampMyPicture` / `storeStampedAvatar`, not `/api/assistant/owner-avatar`, with story 3's "no picture" line | spec · node | browser · source |
 | AC-5 no picture, or none that can be stamped | M2 no picture → 404 `no-picture` · M5 a host that fails → `unfetchable` · M6 HTML, SVG, over 5 MB → `not-stampable` · U1 `reasonOf` maps the codes; 401/403 refused; else failed · AV4 the three lines on the panel, no publish · D4 story 3's words in the copy module | node · spec | unit (DI, ESM) · browser |
 | AC-6 the same safety rules, for more people | G2 refused before anything else: 401 `not-signed-in`, 403 `no-assistant`, a throwing key store · G3 the in-container operator acts as the Owner · G4 the exported gate refuses a visitor · M3 internal addresses and non-https are `unfetchable` with **no request leaving** (the real SSRF guard, global fetch stubbed) · M4 a redirect is followed once and through the guard; a public host redirecting to 127.0.0.1 makes one request only; two redirects refused · N1 32-hex content names · N2 at most 20 new files per person per rolling day; an existing name not counted; another person unaffected; a day later allowed · N3 older composites kept, PNG by its bytes, the path under `/generated/` · D1 the gate runs **before** multer on the store; the old route gone · D2 no `!isOwner(req)`, `guardedFetch`, no plain `fetch(` or request parameter in the proxy · AV5 a dev box: previewed and stored, not published, the no-public-address line | node · spec | unit (DI, temp dir) · source · browser |
@@ -92,3 +92,9 @@ Browser (chromium, built UI, all /api mocked): AV1–AV6 fail — the profile pa
 the generator from a Customer; the re-aimed my-assistant-page B14–B17, ta-composite-avatar B1–B3 and
 assistant-default-profile B3 fail because today's build still asks /api/assistant/owner-avatar.
 ```
+
+### Review round 1 (2026-10-09)
+
+AV7 was added for story 3 B1, the same defect as story 2 B1 reached through the `set-picture` press. It was confirmed
+failing against the built UI on `dc67d8e` (chromium): the avatar panel never shows "This instance did not answer;
+nothing was published." because the profile is published. See story 2's test plan, § Review round 1.
