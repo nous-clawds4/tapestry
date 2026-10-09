@@ -107,7 +107,10 @@ export default function ProfileChecklistPage() {
     try {
       const statusRes = await fetch(`/api/assistant/status?customerPubkey=${user.pubkey}`);
       const status = await statusRes.json().catch(() => null);
-      if (!status || status.success !== true) {
+      // Publish only when this read agrees with what the page offered (ADR 0002 Amendment 1): its scan is not strict, so
+      // a failed read also says "no profile", and the default would replace a real one everywhere.
+      const agrees = status && (fix === 'publish-default' ? status.hasProfile === false : status.hasProfile === true);
+      if (!status || status.success !== true || !agrees) {
         report = describeProfilePublish(null);
       } else {
         const content = applyProfileFix(fix, { status, instance, fields: PROFILE_CONTENT_FIELDS, ...extra });
