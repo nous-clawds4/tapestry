@@ -16,6 +16,7 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { isOwner } = require('../../middleware/auth');
+const { getRouterProcessStatus } = require('./routerStatus');
 
 // The router decides what this instance mirrors to and from other relays, so every
 // router mutation is owner-grade. Require the owner OR a genuinely-local operator
@@ -352,22 +353,174 @@ function buildConfigFromState(state) {
   return { configText: generateConfig(streams), skipped };
 }
 
-/**
- * Write the strfry config from current state and restart the router.
- * Resolves to the list of streams left out by re-validation (usually empty).
- */
-async function applyConfig(state) {
-  const { configText, skipped } = buildConfigFromState(state);
-  fs.writeFileSync(ROUTER_CONFIG_PATH, configText, 'utf8');
+// ── Applying a change: in-place reload, confirmed from the router's log ──
+//
+// ADR relay-stream-gaps/0001. strfry 1.1.0's router (src/apps/mesh/cmd_router.cpp) watches
+// its config file with inotify (IN_MODIFY on the file's inode, 50 ms debounce). On each change
+// reconcileConfig() logs "Loading router config file: <path>" and reconnects only the streams
+// whose dir or filter changed; the others keep their sockets. A config it cannot parse is
+// logged as "Failed to parse router config: <reason>" and the running streams are kept.
+// Its log goes to stderr, which supervisord writes to ROUTER_LOG_PATH.
+//
+// So a change is applied by rewriting the config IN PLACE (fs.writeFileSync on the same
+// path) — never temp + rename or delete + create: a new inode is picked up once and then
+// silently ends reloads until the next restart — and confirmed from the log written after
+// the rewrite. A restart (which disconnects every stream) is only the fallback: the router is
+// not running, or no reload shows up in time. A strfry bump must re-verify the two strings and
+// the log path; if they drift, every change falls back to a restart, never a false success.
+const ROUTER_LOG_PATH = '/var/log/supervisor/strfry-router-error.log';
+const RELOAD_LOADED_MARK = 'Loading router config file';
+const RELOAD_FAILED_MARK = 'Failed to parse router config';
+const RELOAD_TIMEOUT_MS = 3000;
+const RELOAD_POLL_MS = 100;
+const RELOAD_SETTLE_MS = 300;
 
-  await new Promise((resolve, reject) => {
+/**
+ * Read a log written since a router config write. The first Loading line is the reload;
+ * a Failed line after it (and before any later Loading line) is its rejection.
+ * Returns { loaded, error }: error is strfry's reason, or null.
+ */
+function classifyReloadLog(text) {
+  const lines = String(text || '').split('\n');
+  const first = lines.findIndex((l) => l.includes(RELOAD_LOADED_MARK));
+  if (first === -1) return { loaded: false, error: null };
+  for (let i = first + 1; i < lines.length; i++) {
+    if (lines[i].includes(RELOAD_LOADED_MARK)) break;
+    const at = lines[i].indexOf(RELOAD_FAILED_MARK);
+    if (at !== -1) {
+      const reason = lines[i].slice(at + RELOAD_FAILED_MARK.length).replace(/^\s*:\s*/, '').trim();
+      return { loaded: true, error: reason || 'no reason given' };
+    }
+  }
+  return { loaded: true, error: null };
+}
+
+/**
+ * The text appended to a log since byte `offset`, and the file's current size. A file
+ * smaller than `offset` was rotated by supervisord, so it is read from the start. Never
+ * throws: a missing or unreadable log reads as { text: '', size: 0 }.
+ */
+function readLogSince(logPath, offset) {
+  try {
+    const { size } = fs.statSync(logPath);
+    const start = size < offset ? 0 : offset;
+    if (size <= start) return { text: '', size };
+    const buf = Buffer.alloc(size - start);
+    const fd = fs.openSync(logPath, 'r');
+    try {
+      fs.readSync(fd, buf, 0, buf.length, start);
+    } finally {
+      fs.closeSync(fd);
+    }
+    return { text: buf.toString('utf8'), size };
+  } catch {
+    return { text: '', size: 0 };
+  }
+}
+
+function logSize(logPath) {
+  try {
+    return fs.statSync(logPath).size;
+  } catch {
+    return 0;
+  }
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Wait for the router to log a reload after byte `offset` of its log. Resolves 'loaded',
+ * { rejected: reason }, or 'timeout' after RELOAD_TIMEOUT_MS. After the Loading line it
+ * waits RELOAD_SETTLE_MS more, so a Failed line from the same reload is not missed.
+ */
+async function waitForReload(offset) {
+  const deadline = Date.now() + RELOAD_TIMEOUT_MS;
+  let pos = offset;
+  let text = '';
+  const pull = () => {
+    const more = readLogSince(ROUTER_LOG_PATH, pos);
+    text += more.text;
+    pos = more.size;
+  };
+  while (Date.now() < deadline) {
+    await sleep(RELOAD_POLL_MS);
+    pull();
+    if (classifyReloadLog(text).loaded) {
+      await sleep(RELOAD_SETTLE_MS);
+      pull();
+      const { error } = classifyReloadLog(text);
+      return error ? { rejected: error } : 'loaded';
+    }
+  }
+  return 'timeout';
+}
+
+class RouterRejectedError extends Error {
+  constructor(reason) {
+    super(`The router rejected the new configuration (${reason}). It is still running the previous streams; nothing was changed.`);
+    this.reason = reason;
+  }
+}
+
+function restartRouter() {
+  return new Promise((resolve, reject) => {
     exec('supervisorctl restart strfry-router', { timeout: 10000 }, (err, stdout) => {
       if (err) reject(new Error(stdout || err.message));
       else resolve(stdout);
     });
   });
-  return skipped;
 }
+
+/**
+ * Apply `state` to the running router. Resolves { applied, why?, skipped }:
+ * applied 'reloaded' (strfry took the in-place rewrite) or 'restarted' (why: 'not-running'
+ * or 'no-reload'); skipped lists streams re-validation left out (usually empty).
+ * If strfry rejects the config, `prev` (the state the router is still running) is written
+ * back — state file and config — and a RouterRejectedError is thrown.
+ */
+async function applyConfig(state, prev) {
+  const { configText, skipped } = buildConfigFromState(state);
+  const proc = await getRouterProcessStatus();
+  if (proc.status !== 'running') {
+    fs.writeFileSync(ROUTER_CONFIG_PATH, configText, 'utf8');
+    await restartRouter();
+    return { applied: 'restarted', why: 'not-running', skipped };
+  }
+
+  const offset = logSize(ROUTER_LOG_PATH);
+  fs.writeFileSync(ROUTER_CONFIG_PATH, configText, 'utf8'); // in place: see the comment above
+  const outcome = await waitForReload(offset);
+  if (outcome === 'loaded') return { applied: 'reloaded', skipped };
+  if (outcome === 'timeout') {
+    await restartRouter();
+    return { applied: 'restarted', why: 'no-reload', skipped };
+  }
+
+  if (prev) {
+    saveState(prev);
+    fs.writeFileSync(ROUTER_CONFIG_PATH, buildConfigFromState(prev).configText, 'utf8');
+  }
+  throw new RouterRejectedError(outcome.rejected);
+}
+
+/** A handler's success message for how the change was applied. `base` has no final period. */
+function appliedMessage(base, { applied, why }) {
+  if (applied !== 'restarted') return `${base}.`;
+  if (why === 'not-running') return `${base}; the router was not running, so it was started.`;
+  return `${base}; the router did not pick it up by itself, so it was restarted.`;
+}
+
+// One router mutation at a time (read state → modify → save → apply → roll back), in the
+// order the requests arrived, so a rollback never undoes another change and two quick
+// toggles never lose one of them. Handlers call this before their first await.
+let routerLock = Promise.resolve();
+function withRouterLock(fn) {
+  const run = routerLock.then(fn, fn);
+  routerLock = run.catch(() => {});
+  return run;
+}
+
+const cloneState = (state) => JSON.parse(JSON.stringify(state));
 
 /** The part of a response that reports streams re-validation left out. */
 function skippedReport(skipped) {
@@ -441,11 +594,13 @@ async function handleUpdateRouterConfig(req, res) {
     });
 
     // Update state
-    const state = { streams: sanitizedStreams };
-    saveState(state);
-    const skipped = await applyConfig(state);
-
-    res.json({ success: true, message: 'Router config updated and restarted.', ...skippedReport(skipped) });
+    await withRouterLock(async () => {
+      const prev = cloneState(ensureState());
+      const state = { streams: sanitizedStreams };
+      saveState(state);
+      const result = await applyConfig(state, prev);
+      res.json({ success: true, message: appliedMessage('Router config updated', result), applied: result.applied, ...skippedReport(result.skipped) });
+    });
   } catch (err) {
     console.error('handleUpdateRouterConfig error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -464,21 +619,26 @@ async function handleToggleStream(req, res) {
     if (!name) return res.status(400).json({ success: false, error: 'Missing stream name' });
     if (typeof enabled !== 'boolean') return res.status(400).json({ success: false, error: 'enabled must be a boolean' });
 
-    const state = ensureState();
-    const stream = state.streams.find(s => s.name === name);
-    if (!stream) {
-      return res.status(404).json({ success: false, error: `Stream "${name}" not found` });
-    }
+    await withRouterLock(async () => {
+      const prev = cloneState(ensureState());
+      const state = cloneState(prev);
+      const stream = state.streams.find(s => s.name === name);
+      if (!stream) {
+        res.status(404).json({ success: false, error: `Stream "${name}" not found` });
+        return;
+      }
 
-    stream.enabled = enabled;
-    saveState(state);
-    const skipped = await applyConfig(state);
+      stream.enabled = enabled;
+      saveState(state);
+      const result = await applyConfig(state, prev);
 
-    res.json({
-      success: true,
-      message: `Stream "${name}" ${enabled ? 'enabled' : 'disabled'}.`,
-      stream: { name, enabled },
-      ...skippedReport(skipped),
+      res.json({
+        success: true,
+        message: appliedMessage(`Stream "${name}" ${enabled ? 'enabled' : 'disabled'}`, result),
+        applied: result.applied,
+        stream: { name, enabled },
+        ...skippedReport(result.skipped),
+      });
     });
   } catch (err) {
     console.error('handleToggleStream error:', err);
@@ -572,14 +732,18 @@ async function handleRestoreDefaults(req, res) {
       })),
     };
 
-    saveState(state);
-    const skipped = await applyConfig(state);
+    await withRouterLock(async () => {
+      const prev = cloneState(ensureState());
+      saveState(state);
+      const result = await applyConfig(state, prev);
 
-    const enabledCount = state.streams.filter(s => s.enabled).length;
-    res.json({
-      success: true,
-      message: `Restored ${state.streams.length} preset stream(s) (${enabledCount} enabled).`,
-      ...skippedReport(skipped),
+      const enabledCount = state.streams.filter(s => s.enabled).length;
+      res.json({
+        success: true,
+        message: appliedMessage(`Restored ${state.streams.length} preset stream(s) (${enabledCount} enabled)`, result),
+        applied: result.applied,
+        ...skippedReport(result.skipped),
+      });
     });
   } catch (err) {
     console.error('handleRestoreDefaults error:', err);
@@ -614,7 +778,10 @@ module.exports = {
   handleRestartRouter,
   handleRestoreDefaults,
   initRouter,
-  // Exposed for the stack-free suites (test/strfry-router-saved-state.test.js).
+  // Exposed for the stack-free suites (test/strfry-router-saved-state.test.js,
+  // test/router-config-reload-in-place.test.js).
+  classifyReloadLog,
+  readLogSince,
   pluginPathProblem,
   relayUrlProblem,
   vetStreamsForConfig,
