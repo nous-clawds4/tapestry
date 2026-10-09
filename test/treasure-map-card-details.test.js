@@ -284,6 +284,8 @@ test('S5: the toggle is a real disclosure button — type="button", aria-expande
     if (!/type="button"/.test(button)) wrong.push('the toggle has no type="button"');
     if (!/aria-expanded=/.test(button)) wrong.push('the toggle has no aria-expanded');
     if (!/aria-controls=/.test(button)) wrong.push('the toggle has no aria-controls');
+    // Gate B finding 1: three toggles share one name, so each is described by its card's title.
+    if (!/aria-describedby=\{titleId\(card\.key\)\}/.test(button)) wrong.push('the toggle isn\'t described by its card\'s title');
   }
   const region = src.match(/<[a-z]+\b(?:(?!<[a-z])[\s\S]){0,300}?aria-label=\{COPY\.detailsLabel\(/);
   if (!region || !/role="region"/.test(region[0])) wrong.push('no role="region" named by COPY.detailsLabel(…)');

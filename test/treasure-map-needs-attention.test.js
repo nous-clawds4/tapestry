@@ -11,7 +11,8 @@
  *        `.js` suffix the page's Node suites need), never retyped.                                          [AC-6]
  *   S2 — CategoryCard draws the pill from COPY, hidden from screen readers, and the screen-reader prefix outside
  *        the title span, which still holds only the title.                                            [AC-1, AC-4]
- *   S3 — the pill's CSS: the /assistant badge's shape, the light-page amber, contrast at least 4.5:1.          [AC-5]
+ *   S3 — the pill's CSS: the /assistant badge's shape, the light-page amber (#b45309, or the page's --orange
+ *        token resolved to it), contrast at least 4.5:1.                                                     [AC-5]
  *   S4 — the Assistant top-bar alert and its count don't read the Treasure Map (negative pin).                  [AC-7]
  *   R1 — regression sentinel: the card states the pill follows, for the story's edge-case Maps E1–E3 — a card is
  *        'none' exactly when no Assistant counts. Passes before and after.                                [AC-1, E1–E3]
@@ -143,7 +144,14 @@ test('S3: .bsd-tm-cat-attention — the /assistant badge\'s pill shape, amber #b
   const rule = cssRule(css, '.bsd-tm-cat-attention');
   assert(rule, `${rel(STYLES)} has no .bsd-tm-cat-attention rule`);
   const wrong = [];
-  const color = declaration(rule, 'color').toLowerCase();
+  // The colour may be the page's --orange token (Gate B finding 4). It is resolved where the pill meets it: in the
+  // .bsd-page rule, which the light design pages sit in. The stylesheet's root value (#d29922) is the dark pages'.
+  let color = declaration(rule, 'color').toLowerCase();
+  const token = color.match(/^var\(\s*(--[a-z0-9-]+)\s*\)$/);
+  if (token) {
+    const def = declaration(cssRule(css, '.bsd-page'), token[1]).toLowerCase();
+    color = def || `${color} (not defined in .bsd-page)`;
+  }
   const bg = (declaration(rule, 'background-color') || declaration(rule, 'background')).toLowerCase();
   if (color !== '#b45309') wrong.push(`color is ${show(color)}, want #b45309`);
   if (bg !== '#fffbeb') wrong.push(`background is ${show(bg)}, want #fffbeb`);

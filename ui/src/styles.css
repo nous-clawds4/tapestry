@@ -10235,13 +10235,13 @@ body:has(.bsd-page) { background: #f2f3f0; }
 .bsd-tm-cat-title-row { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; min-width: 0; }
 .bsd-tm-cat-title { font-size: 17px; font-weight: 700; color: var(--text); }
 /* "Needs attention" on a card with no Assistant (treasure-map-card-details #1): /assistant's badge
-   (.bs-setup-step-badge) in this light page's amber, 4.84:1 (.bsd-page .bs-usermenu-role-badge's colours). */
+   (.bs-setup-step-badge) in this light page's amber, --orange (#b45309) on #fffbeb, 4.84:1. */
 .bsd-tm-cat-attention {
   padding: 0.1rem 0.55rem;
   border: 1px solid rgba(217, 119, 6, 0.35);
   border-radius: 999px;
   background: #fffbeb;
-  color: #b45309;
+  color: var(--orange);
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;

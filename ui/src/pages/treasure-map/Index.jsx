@@ -242,6 +242,7 @@ function CategoryCard({ card, pending, entries, profiles, localPubkey, children 
           className="bsd-tm-cat-details-toggle"
           aria-expanded={open ? 'true' : 'false'}
           aria-controls={open ? detailsId : undefined}
+          aria-describedby={titleId(card.key)}
           onClick={() => setOpen(!open)}
         >
           {open ? COPY.hideDetails : COPY.showDetails}

@@ -382,6 +382,8 @@ test.describe('/treasure-map — Show details', () => {
     await page.goto('/treasure-map');
     await cardsDrawn(page);
     await expect(toggle(page, 'Lists')).toHaveAttribute('type', 'button');
+    // Gate B finding 1: the three buttons share a name, so each says which card it belongs to.
+    for (const title of TITLES) await expect(toggle(page, title)).toHaveAccessibleDescription(title);
     await toggle(page, 'Lists').focus();
     await page.keyboard.press('Enter');
     await expect(toggle(page, 'Lists')).toHaveAttribute('aria-expanded', 'true');
