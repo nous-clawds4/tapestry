@@ -1,6 +1,6 @@
 # Story 1: Scores, Lists and Concepts on the hub — renamed to the Treasure Map's categories, each Done when your Map gives it to your Tapestry Assistant
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-08
 **Type:** Feature
 **Epic:** `assistant-trusted-content-status`
@@ -141,10 +141,14 @@ The Treasure Map is a kind 10040 event, not a concept-graph node. No concept cha
 
 ## Deviations
 
-- **The hub's Done look was built here first** (Phase 4, 2026-10-09). assistant-profile-checklist #1 hadn't been
-  implemented yet, so this story added `assistantAttention`'s `done`, `ActionCard`'s `done` prop and marks,
-  `ASSISTANT_COPY.done` / `doneSrPrefix` and the `.bs-assistant-hub-card.is-done` rule to that ADR's text (sub-decision
-  7). Its suite's C4, D1 and D2 pass on this branch; its other tests wait for its own check.
+- **The hub's Done look is assistant-outbox-relays #1's build, not this story's** (corrected at Review, 2026-10-09).
+  Phase 4 built the look to ADR assistant-profile-checklist/0001 sub-decision 7 first. assistant-outbox-relays #1 then
+  landed the identical build on staging, and the merge (`ed58fc80`) took staging's side. Since then this diff adds
+  none of it: Scores, Lists and Concepts only join `CHECKED_ACTIONS` and so use the shared look.
+- **The pill's count now learns about the Treasure Map**, through the server's one answer. That supersedes
+  treasure-map-card-details #1 AC-7, a "nothing else moves" boundary for that story. Its negative pin
+  (`test/treasure-map-needs-attention.test.js` S4) was narrowed, not removed: the alert files still never read the Map
+  themselves (`3274f627`; the review judged it a legitimate re-aim).
 - **`evaluateTrustedContent` defaults an unfinished lookup with no reason to `outside-unreachable`**, the same default
   `evaluateIdentificationTags` uses; `lookupNewest` always gives a reason, so it doesn't happen in practice.
 - **`tests/brainstorm/assistant-attention.spec.js` B4 (the fetch fails) expects five placeholders,** the count once this
@@ -155,4 +159,4 @@ The Treasure Map is a kind 10040 event, not a concept-graph node. No concept cha
 
 - ADR: `engineering-team/decisions/assistant-trusted-content-status/0001-scores-lists-and-concepts-join-the-one-attention-answer.md`
 - Test plan: `engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md`

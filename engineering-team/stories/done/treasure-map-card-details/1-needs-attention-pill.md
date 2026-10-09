@@ -35,6 +35,9 @@ attention", so that I notice the gap and assign one.
       `ASSISTANT_COPY`, so the two can't drift apart.
 - [ ] AC-7: Nothing else moves: the cards' Assistant lines and Mixed line, Edit mode and Save; `/assistant`, the
       Assistant top-bar alert and its count are untouched (the count doesn't learn about the Treasure Map).
+      *Superseded in part 2026-10-09 by assistant-trusted-content-status #1 (owner-approved): the count now covers
+      Scores, Lists and Concepts, answered by the server from the Treasure Map; the alert files still read nothing of
+      the Map themselves (S4, narrowed).*
 
 ## Concepts touched
 None — page UI only. Reads the kind-10040 Map the page already reads.
