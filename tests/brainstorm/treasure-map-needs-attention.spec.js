@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { nip19 } = require('nostr-tools');
 
 /**
  * treasure-map-card-details #1 — a Needs attention pill on an unassigned category card on /treasure-map. What a viewer
@@ -18,10 +19,15 @@ const { test, expect } = require('@playwright/test');
  *   N4 — Edit: a pick hides the card's pill, its Undo brings it back; Assign to all hides all, one card's Undo brings
  *        back only that card's (E4); the switches never bring one (E5).                                 [AC-2, E4, E5]
  *   N5 — Save: the picked card is assigned and has no pill once the save goes through.                          [AC-2]
- *   N6 — no pill while the Map loads, after a read error, or signed out.                                         [AC-3]
+ *   N6a–e — no pill while the Map loads (a), after a read error (b), signed out (c), or while the names load (d);
+ *        a failed names lookup still draws the cards, pill included (e).                                       [AC-3]
  *   N7 — screen readers: "Needs attention: " is heard before the title, the pill is hidden from them; the Edit
  *        controls' descriptions still read just the category name.                                             [AC-4]
  *   N8 — the light-page amber, a pill; at 375 and 430 px it stays in its card and nothing scrolls sideways.      [AC-5]
+ *   N9 — a Save accepted nowhere: Edit and the pick stay, so the card shows no pill; Undo brings it back.        [AC-2]
+ *
+ * N6 was one test with four legs until J2 (round 1): before the work it stopped at its second step, so its error and
+ * signed-out legs never ran. Split into N6a–c, with N6d–e and N9 added for the names lookup and a failed Save.
  */
 
 const VIEWER = 'a1'.repeat(32);
@@ -56,11 +62,14 @@ const PILL = 'Needs attention';
 const SR_PREFIX = 'Needs attention: ';
 
 const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+const npubShort = (pk) => { const n = nip19.npubEncode(pk); return `${n.slice(0, 12)}…${n.slice(-6)}`; };
 function deferred() { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; }
 
 async function setup(page, {
   signedIn = true, mapLocal = NO_LISTS, mapHold = null, relayAnswers = [{ success: true, events: [] }],
-  relayList = ['wss://one.example'], myRows = MY_ROWS,
+  relayList = ['wss://one.example'], myRows = MY_ROWS, profilesHold = null, profilesFail = false,
+  // A Save's two ends: this instance's relay ('ok' | 'fail') and the outside relays ('accept' | 'refuse').
+  local = 'ok', relay = 'accept',
 } = {}) {
   const state = { session: signedIn, published: [], relayEvents: [] };
   await page.routeWebSocket(/.*/, (ws) => {
@@ -69,7 +78,8 @@ async function setup(page, {
       try { m = JSON.parse(String(raw)); } catch { return; }
       if (m[0] !== 'EVENT') return;
       state.relayEvents.push({ url: ws.url(), event: m[1] });
-      ws.send(JSON.stringify(['OK', m[1].id, true, '']));
+      const ok = relay === 'accept';
+      ws.send(JSON.stringify(['OK', m[1].id, ok, ok ? '' : 'blocked: test relay']));
     });
   });
   await page.addInitScript((viewer) => {
@@ -94,7 +104,9 @@ async function setup(page, {
     const a = relayAnswers[Math.min(relayAsks - 1, relayAnswers.length - 1)];
     return json(r, a, a.success === false ? 500 : 200);
   });
-  await page.route('**/api/profiles**', (r) => {
+  await page.route('**/api/profiles**', async (r) => {
+    if (profilesHold) await profilesHold;
+    if (profilesFail) return json(r, { success: false, error: 'lookup failed' }, 500);
     const keys = (new URL(r.request().url()).searchParams.get('pubkeys') || '').split(',').filter(Boolean);
     const out = {};
     for (const k of keys) if (Object.prototype.hasOwnProperty.call(PROFILES, k)) out[k] = PROFILES[k];
@@ -106,6 +118,7 @@ async function setup(page, {
   await page.route('**/api/relays', (r) => json(r, { success: true, aRelays: A_RELAYS }));
   await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: true }));
   await page.route('**/api/strfry/publish', (r) => {
+    if (local === 'fail') return json(r, { success: false, error: 'disk full' }, 500);
     const body = JSON.parse(r.request().postData() || '{}');
     state.published.push(body.event);
     return json(r, { success: true });
@@ -243,7 +256,7 @@ test.describe('/treasure-map — the Needs attention pill', () => {
     expect(await pills(page)).toEqual([]);
   });
 
-  test('N6: no pill while the Map loads, after a read error, or signed out', async ({ page }) => {
+  test('N6a: no pill while the Map loads; once it has loaded, the unassigned card carries one', async ({ page }) => {
     const hold = deferred();
     await setup(page, { mapHold: hold.promise });
     await page.goto('/treasure-map');
@@ -251,18 +264,39 @@ test.describe('/treasure-map — the Needs attention pill', () => {
     await expect(main(page).getByText(PILL, { exact: true })).toHaveCount(0);
     hold.resolve();
     await expect(pill(page, 'Lists')).toBeVisible();
+  });
 
-    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  test('N6b: no pill after a read error (sentinel: passes before and after)', async ({ page }) => {
     await setup(page, { mapLocal: null, relayAnswers: [{ success: false, error: 'no relay reached' }] });
     await page.goto('/treasure-map');
     await expect(section(page).getByText(/Couldn['’]t read your Treasure Map\./)).toBeVisible();
     await expect(main(page).getByText(PILL, { exact: true })).toHaveCount(0);
+  });
 
-    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  test('N6c: no pill signed out (sentinel: passes before and after)', async ({ page }) => {
     await setup(page, { signedIn: false });
     await page.goto('/treasure-map');
     await expect(main(page).getByText('Sign in to see your Treasure Map.')).toBeVisible();
     await expect(main(page).getByText(PILL, { exact: true })).toHaveCount(0);
+  });
+
+  test('N6d: no pill while the names load (the cards wait for them); once they have, the unassigned card carries one', async ({ page }) => {
+    const hold = deferred();
+    await setup(page, { profilesHold: hold.promise });
+    await page.goto('/treasure-map');
+    await expect(section(page).getByText('Loading your Treasure Map…')).toBeVisible();
+    await expect(main(page).getByText(PILL, { exact: true })).toHaveCount(0);
+    hold.resolve();
+    await expect(card(page, 'Scores')).toContainText('Ava');
+    await expect(pill(page, 'Lists')).toBeVisible();
+  });
+
+  test('N6e: the names lookup fails — the cards still appear, with fallback names, and the unassigned card carries the pill', async ({ page }) => {
+    await setup(page, { profilesFail: true });
+    await page.goto('/treasure-map');
+    await cardsDrawn(page);
+    await expect(card(page, 'Scores')).toContainText(npubShort(A));
+    expect(await pills(page)).toEqual(['Lists']);
   });
 
   test('N7: screen readers hear "Needs attention: " before the title; the pill is hidden from them; the Edit controls still name just the category', async ({ page }) => {
@@ -315,4 +349,20 @@ test.describe('/treasure-map — the Needs attention pill', () => {
       expect(overflow, 'nothing scrolls sideways').toBeLessThanOrEqual(0);
     });
   }
+
+  test('N9: a Save accepted nowhere — Edit and the pick stay, so the card shows no pill; Undo brings it back', async ({ page }) => {
+    const state = await setup(page, { local: 'fail', relay: 'refuse' });
+    await page.goto('/treasure-map');
+    await cardsDrawn(page);
+    await startEditing(page);
+    await pick(page, pickerButton(page, 'Lists'), 'Bea');
+    await saveButton(page).click();
+    await expect(section(page).getByRole('alert')).toContainText('could not be saved');
+    expect(state.published.length, 'nothing written here').toBe(0);
+    await expect(editButton(page), 'Edit mode stays').toHaveAttribute('aria-pressed', 'true');
+    await expect(card(page, 'Lists')).toContainText('Will be assigned to Bea');
+    await expect(pill(page, 'Lists')).toHaveCount(0);
+    await undoOf(page, 'Lists').click();
+    await expect(pill(page, 'Lists')).toBeVisible();
+  });
 });

@@ -31,6 +31,10 @@ const { nip19 } = require('nostr-tools');
  *   D8 — at 375 and 430 px, with every panel open, long keys and relays wrap inside the cards; nothing scrolls
  *        sideways.                                                                                            [AC-8]
  *   D9 — story 1's pill is still there with a panel open; the raw viewer is untouched.                         [AC-9]
+ *   D10 — Save: Edit ends, the open panel stays open and lists the signed Map.                                  [AC-5]
+ *
+ * J2 advisories folded in before implementation: D2 checks the keys are monospace (AC-2); D3 the Map read error (no
+ * cards, so no panels); D5 the panel below the picker row in Edit mode (AC-1) and a card's Undo (AC-5); D10 (AC-5).
  */
 
 const VIEWER = 'a1'.repeat(32);
@@ -100,9 +104,16 @@ const PUBLISHED = {
 const json = (r, body, status = 200) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 const npubShort = (pk) => { const n = nip19.npubEncode(pk); return `${n.slice(0, 12)}…${n.slice(-6)}`; };
 
-async function setup(page, { signedIn = true, mapLocal = DETAILS, profilesFail = false } = {}) {
-  const state = { session: signedIn };
-  await page.routeWebSocket(/.*/, (ws) => { ws.close(); });
+async function setup(page, { signedIn = true, mapLocal = DETAILS, profilesFail = false, readFail = false } = {}) {
+  const state = { session: signedIn, published: [] };
+  // Outside relays accept whatever is sent (D10's Save); nothing else is ever sent.
+  await page.routeWebSocket(/.*/, (ws) => {
+    ws.onMessage((raw) => {
+      let m;
+      try { m = JSON.parse(String(raw)); } catch { return; }
+      if (m[0] === 'EVENT') ws.send(JSON.stringify(['OK', m[1].id, true, '']));
+    });
+  });
   await page.addInitScript((viewer) => {
     window.nostr = {
       getPublicKey: async () => viewer,
@@ -111,11 +122,16 @@ async function setup(page, { signedIn = true, mapLocal = DETAILS, profilesFail =
   }, VIEWER);
   await page.route('**/api/strfry/scan**', (r) => {
     const filter = JSON.parse(new URL(r.request().url()).searchParams.get('filter') || '{}');
-    if (Array.isArray(filter.kinds) && filter.kinds.includes(10040)) return json(r, { success: true, events: mapLocal ? [mapLocal] : [] });
+    if (Array.isArray(filter.kinds) && filter.kinds.includes(10040)) {
+      const saved = state.published[state.published.length - 1];
+      return json(r, { success: true, events: saved ? [saved] : mapLocal ? [mapLocal] : [] });
+    }
     return json(r, { success: true, events: [] });
   });
   await page.route('**/api/neo4j/query', (r) => json(r, { success: true, data: [{ name: 'relay 0', json: JSON.stringify({ nostrRelay: { websocketUrl: 'wss://one.example' } }) }] }));
-  await page.route('**/api/relay/external**', (r) => json(r, { success: true, events: [] }));
+  await page.route('**/api/relay/external**', (r) => (readFail
+    ? json(r, { success: false, error: 'no relay reached' }, 500)
+    : json(r, { success: true, events: [] })));
   await page.route('**/api/profiles**', (r) => {
     if (profilesFail) return json(r, { success: false, error: 'lookup failed' }, 500);
     const keys = (new URL(r.request().url()).searchParams.get('pubkeys') || '').split(',').filter(Boolean);
@@ -127,7 +143,11 @@ async function setup(page, { signedIn = true, mapLocal = DETAILS, profilesFail =
     ? { success: true, signedIn: true, local: LOCAL, rows: MY_ROWS, definitions: {} }
     : { success: true, signedIn: false }));
   await page.route('**/api/relays', (r) => json(r, { success: true, aRelays: A_RELAYS }));
-  await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: false }));
+  await page.route('**/api/publish-policy', (r) => json(r, { success: true, allowExternalPublish: true }));
+  await page.route('**/api/strfry/publish', (r) => {
+    state.published.push(JSON.parse(r.request().postData() || '{}').event);
+    return json(r, { success: true });
+  });
   await page.route('**/api/assistant/pubkey', (r) => json(r, { success: true, pubkey: '2'.repeat(64) }));
   await page.route('**/api/owner/pubkey', (r) => json(r, { success: true, pubkey: '1'.repeat(64) }));
   await page.route('**/api/status', (r) => json(r, { success: true }));
@@ -244,6 +264,10 @@ test.describe('/treasure-map — Show details', () => {
       await expect(panel(page, title)).toContainText(PUBLISHED[title][0][1][0].split(' ')[0]);
       expect(await model(page, title), title).toEqual(PUBLISHED[title]);
     }
+    const fonts = await main(page).getByRole('region', { name: / details$/ }).locator('code')
+      .evaluateAll((codes) => codes.map((c) => getComputedStyle(c).fontFamily));
+    expect(fonts.length, 'one <code> per key').toBe(9);
+    for (const font of fonts) expect(font, 'keys are shown in monospace').toMatch(/mono/i);
     const all = (await main(page).getByRole('region', { name: / details$/ }).allTextContents()).join(' ');
     for (const absent of ['*:tag', '99999', 'client']) expect(all, `${absent} is listed nowhere`).not.toContain(absent);
   });
@@ -256,6 +280,14 @@ test.describe('/treasure-map — Show details', () => {
       await open(page, title);
       expect(await model(page, title), title).toBe('No entries yet.');
     }
+
+    // The Map can't be read: no cards, so no buttons and no panels (unchanged).
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await setup(page, { mapLocal: null, readFail: true });
+    await page.goto('/treasure-map');
+    await expect(section(page).getByText(/Couldn['’]t read your Treasure Map\./)).toBeVisible();
+    await expect(section(page).getByRole('button', { name: /^(Show|Hide) details$/ })).toHaveCount(0);
+    await expect(main(page).getByRole('region', { name: / details$/ })).toHaveCount(0);
   });
 
   test('D4: a backup-only Assistant is named (AC-6); with the name lookup failing, the cards still appear and she falls back to her shortened npub (E1)', async ({ page }) => {
@@ -283,6 +315,9 @@ test.describe('/treasure-map — Show details', () => {
     await startEditing(page);
     await expect(panel(page, 'Scores'), 'still open in Edit mode').toBeVisible();
     expect(await model(page, 'Scores'), 'Edit alone changes nothing').toEqual(PUBLISHED.Scores);
+    const pickerBox = await pickerButton(page, 'Scores').boundingBox();
+    const panelBox = await panel(page, 'Scores').boundingBox();
+    expect(panelBox.y, 'AC-1: in Edit mode the panel sits below the picker row').toBeGreaterThanOrEqual(pickerBox.y + pickerBox.height);
 
     await pick(page, pickerButton(page, 'Scores'), 'Bea');
     // The own rows move to Bea in place (another Assistant: no relay); 3038x → Bea is added, which covers the `*`.
@@ -312,6 +347,8 @@ test.describe('/treasure-map — Show details', () => {
       ['39998:restaurants Individually assigned', [`Cy ${R}`]],
       ['39999', ['Bea No relay']],
     ]);
+    await card(page, 'Concepts').getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect.poll(() => model(page, 'Concepts'), 'a card\'s Undo').toEqual(PUBLISHED.Concepts);
 
     await editButton(page).click();
     await expect(editButton(page)).toHaveAttribute('aria-pressed', 'false');
@@ -390,6 +427,26 @@ test.describe('/treasure-map — Show details', () => {
       expect(overflow, 'nothing scrolls sideways').toBeLessThanOrEqual(0);
     });
   }
+
+  test('D10: Save — Edit ends, and the open panel stays open and lists the signed Map', async ({ page }) => {
+    const state = await setup(page);
+    await page.goto('/treasure-map');
+    await cardsDrawn(page);
+    await open(page, 'Lists');
+    await startEditing(page);
+    await pick(page, pickerButton(page, 'Lists'), 'Bea');
+    await section(page).getByRole('button', { name: 'Save changes', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: /^Treasure Map updated$/ })).toBeVisible();
+    expect(state.published.length, 'saved once').toBe(1);
+    await expect(editButton(page)).toHaveText(/^Edit$/);
+    await expect(panel(page, 'Lists'), 'still open after the save').toBeVisible();
+    // 30392 moves to Bea; 3039x → Bea is added, which covers the `*`; the individually assigned list stays.
+    await expect.poll(() => model(page, 'Lists')).toEqual([
+      ['30392', ['Bea No relay']],
+      [`${LONG_KEY} Individually assigned`, [`Dee ${R}`]],
+      ['3039x', ['Bea No relay']],
+    ]);
+  });
 
   test('D9: story 1\'s pill stays with a panel open; the raw viewer still shows the published Map', async ({ page }) => {
     await setup(page, { mapLocal: mapOf([['30382:rank', A, R]]) });

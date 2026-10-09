@@ -95,19 +95,21 @@ None — page UI only. Reads the kind-10040 Map (and in Edit mode the draft) the
   hotfix this book rides with).
 - E8: `*` → A reaching all three cards shows as an "Everything else" group in each panel it reaches, and in none whose
   family entry covers it.
+- E9: the Map can't be read: no cards are drawn, so there are no buttons and no panels (D3; the cards' own error
+  state is `manage-treasure-map-cards.spec.js` C7's).
 - **Not covered:** entries that belong to no category (unknown kinds, `*:…`). They are on no card and so in no panel.
   The raw viewer shows them, and the Advanced page is meant to. Plain-language names for keys (`30382:rank` → "Rank")
   are deferred; the owner picked the key as written.
 
 ## AC→handle lines
-- AC-1 → D1, S5
-- AC-2 → U1, U3, U4, U5, U6, U7, U10, D2, D7
-- AC-3 → U8, U9, S4, D2
-- AC-4 → U2, D3
-- AC-5 → S2, D5
+- AC-1 → D1, D5 (below the picker row in Edit mode), S5, W1
+- AC-2 → U1, U3, U4, U5, U6, U7, U10, D2 (incl. monospace keys), D7, W1
+- AC-3 → U8, U9, S4, D2, W1
+- AC-4 → U2, D3, W1
+- AC-5 → S2, D5 (a pick, a card's Undo, the switches, leaving Edit), D10 (a Save)
 - AC-6 → S3, D4
 - AC-7 → A1, S1, D6
-- AC-8 → S5, D7, D8
+- AC-8 → S5, D7, D8, W1
 - AC-9 → D9, R
 - E1 → D4, S3 · E2 → U4 · E3 → U5 · E4 → U6 (incl. the J1 advisory: a key's first spelling on a tag with no valid
   Assistant) · E5 → U7 · E6 → D5 · E7 → D5 · E8 → U8, D2
@@ -119,7 +121,9 @@ U*, A1, W1, S* = `test/treasure-map-card-details.test.js` (Node: `categoryEntrie
 specs, unchanged.
 
 **Fails before the work** (checked 2026-10-08 against the pre-story code and build): all 17 Node tests fail; all ten
-browser tests fail at the missing toggle.
+browser tests fail at the missing toggle. *(J2 confirmed both counts independently. Its advisories were folded in
+afterwards, before any implementation: D2's monospace check, D3's read-error check, D5's placement and Undo checks, and
+the new D10. Re-run afterwards: all 11 browser tests fail at the missing toggle.)*
 
 **How to run**
 - Node (the scoped gate, J3): the command in this file's header.

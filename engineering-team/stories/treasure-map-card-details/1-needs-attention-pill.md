@@ -77,13 +77,19 @@ None — page UI only. Reads the kind-10040 Map the page already reads.
   cards, still pending, show none.
 - E5: the backup switch and the override switches never change whether a card is assigned (the first Assistant of an own
   key always stays), so they never make a pill appear.
+- E6: the names lookup is a second wait before the cards draw (`namesReady`): no pill until it settles (N6d). Its
+  failure still draws the cards with fallback names, and so the pill (N6e).
+- E7: a failed Save keeps Edit mode and the pick, so the card stays pending and pill-free until Undo (N9).
 - **Not covered:** counting unassigned categories into the Assistant top-bar alert (out of scope, AC-7); what the pill
-  should *do* when pressed (it's a label, as on `/assistant`, not a control).
+  should *do* when pressed (it's a label, as on `/assistant`, not a control); the other ways a Save can fail (no
+  signer, a declined signature, a save gone stale). They end on the same path as N9 (Edit mode and the pick stay, so
+  the card is drawn from the draft), and `treasure-map-save.spec.js` covers each of them, unchanged by this story.
 
 ## AC→handle lines
 - AC-1 → N1, N2, N3, R1
-- AC-2 → N4, N5
-- AC-3 → N6 (regression sentinel: passes before and after)
+- AC-2 → N4, N5 (a Save that goes through), N9 (a Save accepted nowhere)
+- AC-3 → N6a (the Map loading), N6b (a read error), N6c (signed out), N6d (the names loading), N6e (the names lookup
+  failing: the cards still draw, pill included)
 - AC-4 → N7, S2
 - AC-5 → N8, S3
 - AC-6 → W1, S1
@@ -95,9 +101,13 @@ N* = `tests/brainstorm/treasure-map-needs-attention.spec.js` (browser, what a vi
 card states the pill follows, which pass before and after). R2 = the existing Treasure Map suites in the scoped gate and
 the existing browser specs below, unchanged.
 
-**Fails before the work** (checked 2026-10-08 against the pre-story code and build): Node W1, S1, S2, S3 fail, S4 and R1
-pass (sentinels); browser N1–N5, N7, N8 fail at the missing pill, and N6 fails only at its last step (the pill once the
-Map has loaded). Its loading, error and signed-out checks pass, as sentinels.
+**Fails before the work** (checked 2026-10-08 against the pre-story code and build, one result per test): Node W1, S1,
+S2, S3 fail; S4 and R1 pass (sentinels). Browser: N6b and N6c pass (sentinels: no pill after a read error, or signed
+out). Every other test fails at the missing pill: N1, N2, N3, N4, N5, N7, N8 (×2), and N6e at their first pill check;
+N6a and N6d only after their loading legs (which pass); N9 only at its last step, the pill after Undo (its failed-save
+legs, the alert and Edit and the pick staying, pass). *(J2 round 1 kicked back: the names lookup and a failed Save
+had no handles, and the old single N6 stopped at its second step before the work, so its error and signed-out legs
+had never run. N6 is now N6a–c, and N6d, N6e and N9 are new.)*
 
 **How to run**
 - Node (the scoped gate, J3): the command in this file's header.
