@@ -1,6 +1,6 @@
 # ADR 0001: Apply stream changes by in-place config reload, confirmed from the router's log
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-09
 **Story:** `engineering-team/stories/relay-stream-gaps/1-stream-changes-without-router-restart.md`
 

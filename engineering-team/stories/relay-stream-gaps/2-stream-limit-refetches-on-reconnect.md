@@ -1,7 +1,7 @@
 # Story 2: A stream's Limit refetches recent events whenever it connects
 
 **Epic:** relay-stream-gaps
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-09
 **Type:** Bug
 
@@ -64,23 +64,24 @@ restarts, dropped connections) refill themselves, and I can set the number per s
 - **The upload direction.** The router still never uploads local events written while it was
   down.
 - **Changing streams already saved on each instance.** Each instance's streams are its own
-  state; the operator raises their limits in the editor (Open question 2).
+  state; the operator raises their limits in the editor (decision 2).
 - **How often the router reconnects** after an upstream drop.
+
+## Product decisions (settled at Planning, 2026-10-09)
+
+1. **Default limit for new streams and presets: 500.** strfry relays cap a request at 500 by
+   default (`maxFilterLimit` in strfry 1.1.0's shipped `strfry.conf`), so a higher number buys
+   nothing from them. On the busiest streams (kinds 0/3 at about 20 events a minute), 500
+   covers about 25 minutes of outage. Each reconnect re-sends up to 500 events per relay, and
+   the local relay discards the ones it already has.
+2. **Streams already saved on each instance are not changed.** Saved limits of 5 stay 5
+   until the operator raises them in the editor after this ships.
+3. **Blank or 0 limit = live only** (AC-5), as today. `treasureMaps` and staging's
+   `userProfiles` keep losing deploy gaps until the operator gives them a limit.
 
 ## Open questions
 
-1. **Default limit for new streams and presets.** Proposed: **500**. strfry relays cap a
-   request at 500 by default, so a higher number buys nothing from them. On the busiest
-   streams (kinds 0/3 at about 20 events a minute), 500 covers about 25 minutes of outage.
-   Each reconnect re-sends up to 500 events per relay, and the local relay discards the ones
-   it already has.
-2. **Existing saved streams on staging and production** keep their limit of 5 unless the
-   operator edits them. Proposed: you raise them in the editor after this ships (a few
-   clicks per instance). The alternative is for the story to raise every saved limit of 5
-   to the default once, on each instance.
-3. **Blank limit = live only** (AC-5) keeps today's behavior for `treasureMaps` and for staging's
-   `userProfiles`, which have no limit. Proposed: yes. Those streams would still lose deploy
-   gaps until a limit is set.
+None.
 
 ## Linked artifacts
 - ADR: (filled in after Architecture phase)
