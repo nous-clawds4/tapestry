@@ -243,14 +243,42 @@ function isSyncActive() {
   return activeSync !== null;
 }
 
+// strfry logs each relay message it doesn't handle, NOTICE and CLOSED included, as
+// `WARN| Unexpected message from relay: <json>` and carries on waiting (ADR
+// relay-stream-gaps/0003 Amendment 2, Verified evidence 9–10).
+const RELAY_MESSAGE_MARK = 'Unexpected message from relay: ';
+const RELAY_TEXT_MAX = 300; // the text is the relay's; the cap keeps a long notice out of the presets file
+
+/**
+ * The relay's words in one strfry output line (no newline): a NOTICE's text (element 1) or a
+ * CLOSED's reason (element 2), else null. When the array doesn't parse or the text isn't a
+ * string, the raw text after "relay: ". Cut to 300 characters plus "…".
+ */
+function relayMessageOf(line) {
+  const at = String(line).indexOf(RELAY_MESSAGE_MARK);
+  if (at === -1) return null;
+  const raw = String(line).slice(at + RELAY_MESSAGE_MARK.length);
+  let msg = null;
+  try { msg = JSON.parse(raw); } catch { /* the raw text below */ }
+  if (Array.isArray(msg) && msg[0] !== 'NOTICE' && msg[0] !== 'CLOSED') return null;
+  const text = Array.isArray(msg) ? msg[msg[0] === 'NOTICE' ? 1 : 2] : undefined;
+  const said = typeof text === 'string' ? text : raw;
+  return said.length > RELAY_TEXT_MAX ? `${said.slice(0, RELAY_TEXT_MAX)}…` : said;
+}
+
 /**
  * Run one `strfry sync` in the same single slot as the one-shot handlers, for the
  * negentropy-sync presets runner (ADR relay-stream-gaps/0003). Rejects with
  * { code: 'BUSY' } while the slot is taken; otherwise takes it, spawns buildCommand's
  * argv, kills strfry after timeoutMs (the one-shot's 10 minutes), frees the slot and
- * resolves { exitCode, output, timedOut } once strfry exits. strfry logs to stderr.
+ * resolves { exitCode, output, timedOut, stalled } once strfry exits. strfry logs to stderr.
+ *
+ * stallMs (opt-in, Amendment 2): a relay NOTICE or CLOSED line followed by stallMs with no
+ * other line from strfry stops it, since strfry waits for an answer that never comes after a
+ * relay refuses negentropy. Lines are read whole, per stream. A repeated notice doesn't push
+ * the stop back; any other line is progress and cancels it. Only the first stop is reported.
  */
-function runStrfrySync(relay, dir, filter, { timeoutMs = 600000, presetName = null } = {}) {
+function runStrfrySync(relay, dir, filter, { timeoutMs = 600000, stallMs = null, presetName = null } = {}) {
   return new Promise((resolve, reject) => {
     if (activeSync) {
       const err = new Error('A sync is already in progress');
@@ -265,6 +293,9 @@ function runStrfrySync(relay, dir, filter, { timeoutMs = 600000, presetName = nu
 
     let output = '';
     let timedOut = false;
+    let stalled = false;
+    let stallTimer = null;
+    const partial = { stdout: '', stderr: '' }; // each stream's unfinished last line
     const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     const slot = {
       relay, dir, filter, preview,
@@ -276,27 +307,47 @@ function runStrfrySync(relay, dir, filter, { timeoutMs = 600000, presetName = nu
     };
     activeSync = slot;
 
-    function onData(chunk) {
+    function onLine(line) {
+      if (timedOut || stalled) return;
+      if (relayMessageOf(line) === null) {
+        clearTimeout(stallTimer);
+        stallTimer = null;
+      } else if (!stallTimer) {
+        stallTimer = setTimeout(() => {
+          stalled = true;
+          clearTimeout(timeout);
+          proc.kill('SIGTERM');
+        }, stallMs);
+      }
+    }
+
+    function onData(stream, chunk) {
       const text = chunk.toString();
       output += text;
       slot.lines.push(...text.split('\n').filter(Boolean));
+      if (!stallMs) return;
+      const lines = (partial[stream] + text).split('\n');
+      partial[stream] = lines.pop();
+      for (const line of lines) if (line) onLine(line);
     }
-    proc.stdout.on('data', onData);
-    proc.stderr.on('data', onData);
+    proc.stdout.on('data', (chunk) => onData('stdout', chunk));
+    proc.stderr.on('data', (chunk) => onData('stderr', chunk));
 
     const timeout = setTimeout(() => {
       timedOut = true;
+      clearTimeout(stallTimer);
       proc.kill('SIGTERM');
     }, timeoutMs);
 
     function release() {
       clearTimeout(timeout);
+      clearTimeout(stallTimer);
       if (activeSync === slot) activeSync = null;
     }
 
     proc.on('close', (code) => {
       release();
-      resolve({ exitCode: code, output, timedOut });
+      resolve({ exitCode: code, output, timedOut, stalled });
     });
 
     proc.on('error', (err) => {
@@ -431,5 +482,6 @@ function registerNegentropySyncRoutes(app) {
 // Pure helpers exported for direct execution by the test runner
 // (test/sync-panel-tag-filters.test.js, ADR relay-management/0001).
 // isSyncActive/runStrfrySync: the presets runner's way into the one slot
-// (negentropyPresets.js, ADR relay-stream-gaps/0003).
-module.exports = { registerNegentropySyncRoutes, buildFilterObj, buildCommand, buildPreviewCommand, isSyncActive, runStrfrySync };
+// (negentropyPresets.js, ADR relay-stream-gaps/0003); relayMessageOf: its reading of
+// a relay's NOTICE or CLOSED (Amendment 2).
+module.exports = { registerNegentropySyncRoutes, buildFilterObj, buildCommand, buildPreviewCommand, isSyncActive, runStrfrySync, relayMessageOf };

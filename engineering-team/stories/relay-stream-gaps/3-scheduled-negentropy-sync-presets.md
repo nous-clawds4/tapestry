@@ -109,6 +109,12 @@ Implementation judgment calls (Implementer, 2026-10-09); none changes the ADR's 
 - The tab polls `/status` every 5 s only while a scheduled preset holds the slot, so the status line clears and the last-run lines refresh when it ends. Load picks the matching kinds radio (or Custom) and also fills the preset name, so a re-save replaces it.
 - The fresh-install seed is written compactly on two lines: `applicability-republish` BK1 matches `freshInstallEntries` within 1,800 characters, and the function is now 1,757.
 
+ADR 0003 Amendment 2 fix round (Implementer, 2026-10-09); none changes the amendment's design.
+
+- `relayMessageOf` treats valid JSON that isn't an array like an array that doesn't parse: it returns the raw text after `relay: ` (the ADR was silent; the test plan's throwaway did the same). The 300-character cap applies to that raw text too.
+- The stall rule ignores blank lines: a blank line neither starts nor cancels the timer (`slot.lines` already drops them; it isn't progress). Once either stop has fired, later lines are ignored, so a notice in strfry's dying output can't start a second stop.
+- A preset skipped after its 10-minute wait records the run's snapshot (its window and name), since nothing ran. Only a preset that takes the slot uses the re-read record. The withdrawal log line also names the preset as the snapshot had it.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/relay-stream-gaps/0003-negentropy-sync-presets.md`
 - Test plan: `engineering-team/stories/relay-stream-gaps/3-scheduled-negentropy-sync-presets.test-plan.md`

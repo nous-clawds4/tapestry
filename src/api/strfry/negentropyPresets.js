@@ -23,7 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { isSyncActive, runStrfrySync } = require('./negentropySync');
+const { isSyncActive, runStrfrySync, relayMessageOf } = require('./negentropySync');
 const { relayUrlProblem, requireOwnerOrLocal } = require('./routerConfig');
 
 // On the data volume, so presets survive restarts and deploys. Env override for the stack-free suite.
@@ -43,6 +43,7 @@ const FIRST_RUN_SECONDS = 7 * 86400;
 const SLOT_POLL_MS = 5000;
 const SLOT_WAIT_MS = 10 * 60 * 1000;
 const SYNC_TIMEOUT_MS = 10 * 60 * 1000;
+const RELAY_STALL_MS = 60 * 1000; // a relay notice, then this long with no other line, stops strfry (Amendment 2)
 const MANUAL_SYNC_SKIP = 'a manual sync was running';
 
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -126,10 +127,12 @@ const LOG_PREFIX_RE = /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d+ \([^)]*\) \[[^\]]*\]
  * Read `strfry sync`'s output (all on stderr): "Set reconcile complete. Have H need N",
  * "UP: n events (r remaining)", "DOWN: n events (r remaining)" and "Writer: added: a …"
  * (batch lines are summed). ok needs exit 0 and the reconcile line; otherwise error is the
- * last line containing "error" or "ERR|", without the log prefix, or the exit code.
+ * cause, the last of: a line containing "error" or "ERR|", without the log prefix, or a relay
+ * NOTICE/CLOSED, as `relay said "<text>"`. With no cause, the exit code. stop ('stalled' or
+ * 'timeout', Amendment 2) says runStrfrySync stopped strfry, and joins why to the cause.
  * → { ok, have, need, up, down, added, error }
  */
-function parseSyncOutput(text, exitCode) {
+function parseSyncOutput(text, exitCode, stop) {
   const result = { ok: false, have: null, need: null, up: 0, down: 0, added: 0, error: null };
   let reconciled = false;
   let lastError = null;
@@ -148,13 +151,25 @@ function parseSyncOutput(text, exitCode) {
     } else if ((m = /Writer: added: (\d+)/.exec(msg))) {
       result.added += Number(m[1]);
     }
-    if (/error/.test(line) || line.includes('ERR|')) lastError = msg;
+    const said = relayMessageOf(line);
+    if (said !== null) lastError = `relay said "${said}"`;
+    else if (/error/.test(line) || line.includes('ERR|')) lastError = msg;
   }
   result.ok = exitCode === 0 && reconciled;
   if (!result.ok) {
-    result.error = lastError || (exitCode === 0
-      ? 'strfry sync exited with code 0 without completing the reconcile'
-      : `strfry sync exited with code ${exitCode}`);
+    if (stop === 'stalled') {
+      result.error = lastError
+        ? `${lastError}; nothing followed for 60 s, so strfry sync was stopped`
+        : 'strfry sync made no progress for 60 s and was stopped';
+    } else if (stop === 'timeout') {
+      result.error = lastError
+        ? `${lastError}; strfry sync did not finish within 10 minutes and was stopped`
+        : 'strfry sync did not finish within 10 minutes and was stopped';
+    } else {
+      result.error = lastError || (exitCode === 0
+        ? 'strfry sync exited with code 0 without completing the reconcile'
+        : `strfry sync exited with code ${exitCode}`);
+    }
   }
   return result;
 }
@@ -195,35 +210,61 @@ function withPresetsLock(fn) {
 // ── Runner ───────────────────────────────────────────────────
 
 let runInProgress = false;
+const WITHDRAWN = Symbol('withdrawn');
 
 /**
- * Wait (polling) for the one-shot's slot, then sync in it; the check and the start happen in
- * one synchronous step. → runStrfrySync's { exitCode, output, timedOut }, or null when a
- * manual sync still held the slot after 10 minutes.
+ * The preset as stored now, or null when it was deleted or switched off. Read without the
+ * lock: saves rename a whole file into place. Throws when the presets can't be read, so the
+ * preset fails closed (an upload isn't run when the owner's switch can't be confirmed).
  */
-async function syncInSlot(preset, since) {
+function storedSwitchedOn(id) {
+  let store;
+  try {
+    store = loadStore();
+  } catch (err) {
+    throw new Error(`Could not read the presets: ${err.message}`);
+  }
+  const stored = store.presets.find((p) => p && p.id === id);
+  return stored && stored.enabled === true ? stored : null;
+}
+
+/**
+ * Wait (polling) for the one-shot's slot, then start(<the preset as stored now>) in it. The
+ * preset is re-read at every check, and the re-read, the check and the start happen in one
+ * synchronous step (Amendment 2). → start's result; WITHDRAWN when the preset was switched off
+ * or deleted meanwhile; or null when a manual sync still held the slot after 10 minutes.
+ */
+async function syncInSlot(id, start) {
   const deadline = Date.now() + SLOT_WAIT_MS;
   for (;;) {
-    if (!isSyncActive()) {
-      return runStrfrySync(preset.relay, preset.dir, { ...preset.filter, since }, { timeoutMs: SYNC_TIMEOUT_MS, presetName: preset.name });
-    }
+    const current = storedSwitchedOn(id);
+    if (!current) return WITHDRAWN;
+    if (!isSyncActive()) return start(current);
     if (Date.now() >= deadline) return null;
     await sleep(SLOT_POLL_MS);
   }
 }
 
-/** Sync one preset and record its lastRun. → its entry in the run's results */
+/** Sync one preset and record its lastRun. → its entry in the run's results, or null when it was withdrawn */
 async function runPreset(preset) {
   const startedAt = nowSec();
-  const since = windowSince(preset, startedAt);
+  let ran = preset; // the record that ran: the one re-read as it took the slot, so a re-save before its turn runs as saved
+  let since = windowSince(preset, startedAt);
   let outcome;
   try {
-    const synced = await syncInSlot(preset, since);
+    const synced = await syncInSlot(preset.id, (current) => {
+      ran = current;
+      since = windowSince(current, startedAt);
+      return runStrfrySync(current.relay, current.dir, { ...current.filter, since }, { timeoutMs: SYNC_TIMEOUT_MS, stallMs: RELAY_STALL_MS, presetName: current.name });
+    });
+    if (synced === WITHDRAWN) {
+      console.log(`[negentropy-presets] ${JSON.stringify(preset.name)}: not run, switched off or deleted since the run began`);
+      return null;
+    }
     if (!synced) {
       outcome = { ok: false, skipped: MANUAL_SYNC_SKIP };
     } else {
-      outcome = parseSyncOutput(synced.output, synced.exitCode);
-      if (synced.timedOut && !outcome.ok) outcome.error = 'strfry sync did not finish within 10 minutes and was stopped';
+      outcome = parseSyncOutput(synced.output, synced.exitCode, synced.stalled ? 'stalled' : synced.timedOut ? 'timeout' : undefined);
     }
   } catch (err) {
     outcome = { ok: false, error: (err && err.message) || String(err) };
@@ -232,7 +273,7 @@ async function runPreset(preset) {
   const lastRun = { startedAt, finishedAt: nowSec(), since, ok: outcome.ok === true, added: outcome.added ?? null, sent: outcome.up ?? null };
   if (outcome.error) lastRun.error = outcome.error;
   if (outcome.skipped) lastRun.skipped = outcome.skipped;
-  console.log(`[negentropy-presets] ${JSON.stringify(preset.name)}: ${lastRun.ok ? `${lastRun.added} in, ${lastRun.sent} out` : lastRun.skipped ? `skipped: ${lastRun.skipped}` : `failed: ${lastRun.error}`}`);
+  console.log(`[negentropy-presets] ${JSON.stringify(ran.name)}: ${lastRun.ok ? `${lastRun.added} in, ${lastRun.sent} out` : lastRun.skipped ? `skipped: ${lastRun.skipped}` : `failed: ${lastRun.error}`}`);
 
   try {
     await withPresetsLock(() => {
@@ -242,20 +283,21 @@ async function runPreset(preset) {
       stored.lastRun = lastRun;
       // The run's start, so events published during the sync fall inside the next window.
       // Not when the preset was re-saved with another relay, direction or filter meanwhile.
-      if (lastRun.ok && sameTarget(stored, preset)) stored.lastSuccessAt = startedAt;
+      if (lastRun.ok && sameTarget(stored, ran)) stored.lastSuccessAt = startedAt;
       saveStore(store);
     });
   } catch (err) {
-    console.error(`[negentropy-presets] Could not record the run of ${JSON.stringify(preset.name)}: ${err.message}`);
+    console.error(`[negentropy-presets] Could not record the run of ${JSON.stringify(ran.name)}: ${err.message}`);
   }
 
-  return { id: preset.id, name: preset.name, ok: lastRun.ok, added: lastRun.added, sent: lastRun.sent, error: lastRun.error || null, skipped: lastRun.skipped || null };
+  return { id: preset.id, name: ran.name, ok: lastRun.ok, added: lastRun.added, sent: lastRun.sent, error: lastRun.error || null, skipped: lastRun.skipped || null };
 }
 
 /**
  * Sync every switched-on preset, one at a time, in name order. A second call while one runs
  * returns { alreadyRunning: true }. A failed preset doesn't stop the others; failed counts the
- * presets that ran and failed (a skipped preset is reported as skipped, not failed).
+ * presets that ran and failed (a skipped preset is reported as skipped, not failed). A preset
+ * switched off or deleted before its turn is left out (Amendment 2).
  */
 async function runEnabledPresets() {
   if (runInProgress) return { alreadyRunning: true };
@@ -265,7 +307,10 @@ async function runEnabledPresets() {
       .filter((p) => p && p.enabled === true)
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
     const results = [];
-    for (const preset of enabled) results.push(await runPreset(preset));
+    for (const preset of enabled) {
+      const result = await runPreset(preset);
+      if (result) results.push(result);
+    }
     return { success: true, results, failed: results.filter((r) => !r.ok && !r.skipped).length };
   } finally {
     runInProgress = false;
