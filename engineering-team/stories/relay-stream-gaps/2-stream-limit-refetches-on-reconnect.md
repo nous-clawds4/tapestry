@@ -84,6 +84,6 @@ restarts, dropped connections) refill themselves, and I can set the number per s
 None.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/relay-stream-gaps/0002-honor-stream-limit-on-connect.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

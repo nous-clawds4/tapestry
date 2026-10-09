@@ -226,3 +226,29 @@ the replacement for the log reader, not a reason to drop confirmation.
 - strfry changes, including Option C.
 - The router's reconnect cadence after an upstream drop.
 - Showing reload status or history in the UI beyond the existing flash and error messages.
+
+## Verified evidence (added 2026-10-09, after acceptance; the decision is unchanged)
+
+This is the same sandbox run recorded in ADR relay-stream-gaps/0002 § Verified evidence: strfry
+built from tag `1.1.0` with the image's patch sets, an upstream strfry relay, and `strfry
+router` writing into a separate DB, with two down streams `s1` and `s2`. It confirms every
+strfry behavior this ADR relies on:
+
+1. **In-place rewrite reloads, and only the changed stream reconnects.** `fs.writeFileSync`
+   changed `s1`'s filter. Log: `INFO| Loading router config file: router.conf`, then `s1:
+   Disconnected / Connecting / Connected`. Nothing for `s2`. The router process kept its PID.
+2. **A rejected config keeps the running streams.** An in-place write with an unknown filter key
+   logged `INFO| Loading router config file: …` then `ERR| Failed to parse router config:
+   unrecognised filter item: bogusfield`. The process stayed up, and a new upstream event still
+   arrived through `s1`.
+3. **Replacing the file ends reloads, after one last pickup.** A temp-file + `mv` replacement
+   produced one `Loading` line: deleting the watched inode wakes the watcher once. A
+   **later in-place write produced none**: the watch is gone. So the in-place invariant
+   (§ Consequences) is confirmed, with a nuance: a replacement looks like it works once, then
+   reloads stop silently.
+4. **Every router log line goes to stderr** (36 lines on stderr, 0 on stdout). That is the
+   supervisord `stderr_logfile`, `/var/log/supervisor/strfry-router-error.log`, which is
+   `ROUTER_LOG_PATH`. Line shape: `2026-10-09 03:12:45.823 (   0.036s) [main thread     ]INFO|
+   Loading router config file: <path>`. The path is printed as given on the command line;
+   in the image that is `/etc/strfry-router-tapestry.config`.
+
