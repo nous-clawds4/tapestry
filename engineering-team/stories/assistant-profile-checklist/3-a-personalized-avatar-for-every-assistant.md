@@ -1,6 +1,6 @@
 # Story 3: A personalized avatar for every Assistant, and the avatar panel's fix
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-09
 **Type:** Feature
 **Epic:** `assistant-profile-checklist`
