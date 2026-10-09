@@ -123,7 +123,7 @@ U*, A1, W1, S* = `test/treasure-map-card-details.test.js` (Node: `categoryEntrie
 `categoryAssistants` over every Map the card-rule suites use, the words, the wiring). D* =
 `tests/brainstorm/treasure-map-card-details.spec.js` (browser). R = the existing Treasure Map suites in the scoped gate
 (the card rule's K/X/N/H classes pin `categoryAssistants` unchanged through the rewrite) and the existing browser
-specs, unchanged.
+specs, unchanged apart from E18's one tab-order step (named in the Design note).
 
 **Fails before the work** (checked 2026-10-08 against the pre-story code and build): all 17 Node tests fail; all ten
 browser tests (D1–D10, D8 at two widths) fail at the missing toggle.
