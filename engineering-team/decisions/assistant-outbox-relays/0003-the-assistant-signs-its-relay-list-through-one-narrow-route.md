@@ -184,3 +184,53 @@ tagging route does.
 - Publishing at Assistant creation; republishing on Relay Settings changes; retries.
 - Making the other publishers follow the list.
 - A common module for assistant-signed publishes.
+
+## Amendment 1 — the server connects only to public relays (2026-10-09, review round 1)
+
+**Why.** Round 1's review found that the fan-out connects to whatever relays the request names, filtered only by
+`outsideOnly`, which drops loopback and this instance's own host. Any nostr key can sign in and self-register as a
+Customer, so anyone could make this server open sockets to private addresses (RFC1918, link-local
+`169.254.169.254`, Docker service names, the rest of `127.0.0.0/8`) and read each socket's error text back: a server-side
+request forgery and an internal port oracle. The Security bullet above covered what the route signs, never where it
+connects. A NIP-65 list naming a private address is useless to every other client, so nothing is lost by guarding.
+The owner chose both layers below (2026-10-09).
+
+**Decision.** `src/utils/ssrfGuard.js` is the authority, as it is for every other user-supplied address.
+
+1. **At entry, refuse a relay that is plainly not on the public internet.** Plainly = without a DNS lookup: an IP
+   literal that `isPublicAddress` rejects (private, loopback, link-local, CGNAT, unspecified, multicast, reserved,
+   IPv4-mapped private), or a name that `hasPrivateHostSuffix` rejects (`localhost`, `.local`, `.internal`,
+   `.home.arpa`, `.localhost`, `.lan`, `.intranet`, `.private`, or a bare label with no dot).
+   - **Server (authoritative).** After `validateRelayListRequest`, the handler checks each relay's hostname that way.
+     One plainly-private relay refuses the whole request, before any key is read: 400, code `not-a-public-relay`,
+     "That relay is not on the public internet."
+   - **Page (convenience).** `src/lib/relay-list` gains `isPlainlyPrivateHost(hostname)`, a dependency-free copy of
+     the same rule for the browser. `addRelay` returns the error `'not-public'` for such a relay, and the page shows
+     the same sentence. The server never trusts the page's copy. A drift test pins the two rules to the same answers
+     over a table of hosts.
+   - **Suggestions.** `outboxSuggestions` leaves out plainly-private relays from Relay Settings too, since the page
+     would refuse them.
+2. **At send time, never connect to a non-public address.** Each relay that comes from a relay list — the new list
+   and the previous list — is checked with `isPublicHostname`, which resolves it and needs every answer public, and
+   fails closed. A relay that fails is not passed to `publishToRelays`. Its row is `{ relay, status: 'not-sent',
+   reason: 'not a public address' }`, and the page shows "not sent: not a public address". The configured profile
+   publish relays are owner-set, like every other publish to them (ADR assistant-profile/0002), so they are sent to
+   as before. `summarizePublish` counts a `not-sent` row as neither attempted nor accepted, like `skipped`.
+   `relayLine` in `ui/src/utils/taggingPublishReport.js` gains the `not-sent` wording.
+3. **Socket error text.** Rows for relays that pass the guard keep their reason text. Those hosts are public, so the
+   text tells the caller nothing about this server's network.
+
+**Accepted limits.**
+- DNS rebinding: a name can resolve public for the check and private for the socket. This is `ssrfGuard`'s own
+  documented limit, and closing it would need a pinned-address dispatcher.
+- Which internal names resolve can be inferred from which relays come back "not sent". That reveals only that a name
+  exists, never anything from a connection.
+- One press can still reach about 150 relays (50 new, up to 100 previous, plus the configured set), each looked up
+  first, all within the 8 s publish budget.
+
+**Also recorded here.** The page asks for the answer again only after the server answered success with `result.ok`
+true (a list was written). A refusal or a failed local write changed nothing, so the person's draft stays for another
+try. This is within sub-decision 7's intent: the refresh is there "so … all reflect the new list".
+
+**Story impact.** Story 3 gains AC-6, which carries the refusal and not-sent words and the new copy. Story 2 is not
+reopened: its page gains one refusal line under story 3's AC-6.
