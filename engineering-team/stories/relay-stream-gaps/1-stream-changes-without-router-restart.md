@@ -87,6 +87,6 @@ After this story the router would keep its previous streams. AC-3 keeps the oper
 being told it worked.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/relay-stream-gaps/0001-reload-router-config-in-place.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
