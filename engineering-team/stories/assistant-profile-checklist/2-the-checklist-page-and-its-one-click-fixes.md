@@ -123,6 +123,6 @@ None beyond story 1's.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-profile-checklist/0002-the-checklist-page-fixes-through-the-one-writer.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

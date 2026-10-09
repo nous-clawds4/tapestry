@@ -1,6 +1,6 @@
 # ADR 0002: The checklist page reads the one answer, and each fix is a republish through the one writer, composed in the browser
 
-**Status:** Proposed
+**Status:** Accepted (approved 2026-10-09)
 **Date:** 2026-10-09
 **Story:** `engineering-team/stories/assistant-profile-checklist/2-the-checklist-page-and-its-one-click-fixes.md`
 
