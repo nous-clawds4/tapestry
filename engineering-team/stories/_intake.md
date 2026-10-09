@@ -2671,6 +2671,8 @@ Team** first.
 
 ## 2026-09-21 — The Assistant Management page, the rest of the way: real "needs attention" answers and the ten action pages (feature; deferred at intake)
 
+**PICKED UP** (partial) 2026-10-09 → `engineering-team/audits/assistant-profile-checklist/book.md` — the profile action page (`/assistant/profile`, the checklist) and its real "needs attention" answer. Eight actions and the DMs remain.
+
 **PICKED UP** (partial) 2026-09-22 → `engineering-team/audits/assistant-identification-tags/book.md` — the identification-tags action page and its real "needs attention" answer (item 1 for that action, item 2 for that page). The other nine pages, their answers, and the DMs stay open. **Book closed 2026-09-22** (on `feat/assistant-identification-tags`, unmerged at the close); nine actions and the DMs remain.
 
 **Origin:** the owner's ask behind book `assistant-management`
