@@ -71,6 +71,11 @@ the save flow's signer, relay and publish mocks). Shared words and answer shapes
   and Concepts marks). Narrowed, not removed: the alert files still never read or interpret the Map themselves, and the
   provider's only 10040 is the re-ask after the viewer's own save. Verified to fail on a second 10040 use and on a
   `useTreasureMap` import in the provider.
+- *After merging assistant-outbox-relays #1–#3 (Tester lane, its own commit):* `tests/brainstorm/assistant-trusted-content.spec.js`'s
+  answers carry Outbox Relays pending too (marked and counted, so the counts stay "every other action");
+  `test/assistant-outbox-check.test.js`'s fakes stub `checkTrustedContent`, so that suite stays about Outbox Relays. The
+  shared mocks the merge combined (`assistant-alert`, `assistant-management-page`, `assistant-attention` specs and the
+  attention suite's fakes) carry both books; `assistant-attention.spec` B4 now reads eleven marks and five placeholders.
 
 ## Test infrastructure
 
