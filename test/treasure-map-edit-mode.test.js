@@ -141,9 +141,11 @@ test('R-invalid: a tag with no valid 64-hex Assistant, or not a tag at all, has 
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('R-family: FAMILY names each category\'s family entry — 3038x, 3039x, 39998', async () => {
+// Owner's request, 2026-10-08: assigning Concepts writes both of its kinds, `39998` and `39999`.
+test('R-family: FAMILY names each category\'s family entries — 3038x; 3039x; 39998 and 39999', async () => {
   const mod = await esm(EDIT_MODEL, 'The edit model (ADR 0003 sub-decision 2).');
-  assert(show(mod.FAMILY) === show({ scores: '3038x', lists: '3039x', concepts: '39998' }), `FAMILY is ${show(mod.FAMILY)}`);
+  const want = { scores: ['3038x'], lists: ['3039x'], concepts: ['39998', '39999'] };
+  assert(show(mod.FAMILY) === show(want), `FAMILY is ${show(mod.FAMILY)}`);
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -162,13 +164,13 @@ test('E3: AC-5 row 3 — 3038x → A, 3038x:tag:<X> → C; Scores → B: 3038x m
 test('E4: AC-5 row 4 — 30392 → A, 30396:tag:<X>:<T> → C; Lists → B: 30392 moves, the duty stays, 3039x → B added', () =>
   expectEdited([['30392', A], ['30396:tag:X:T', C]], { lists: B },
     [['30392', B, rf(B, 'lists')], ['30396:tag:X:T', C, R0], ['3039x', B, rf(B, 'lists')]], 'E4'));
-test('E5: AC-5 row 5 — 39998:dlist-header → A, 39998:<d> → C; Concepts → B: the family entry moves in its own spelling, nothing added', () =>
+test('E5: AC-5 row 5 — 39998:dlist-header → A, 39998:<d> → C; Concepts → B: the family entry moves in its own spelling, 39999 → B added', () =>
   expectEdited([['39998:dlist-header', A], ['39998:d', C]], { concepts: B },
-    [['39998:dlist-header', B, rf(B, 'concepts')], ['39998:d', C, R0]], 'E5'));
-test('E6: AC-5 row 6 — *:tag → D, rank → A; Assign to all → B: *:tag stays, rank moves, then 3038x, 3039x, 39998 and * → B added in that order', () =>
+    [['39998:dlist-header', B, rf(B, 'concepts')], ['39998:d', C, R0], ['39999', B, rf(B, 'concepts')]], 'E5'));
+test('E6: AC-5 row 6 — *:tag → D, rank → A; Assign to all → B: *:tag stays, rank moves, then 3038x, 3039x, 39998, 39999 and * → B added in that order', () =>
   expectEdited([['*:tag', D], ['30382:rank', A]], { scores: B, lists: B, concepts: B, everything: B },
     [['*:tag', D, R0], ['30382:rank', B, rf(B, 'scores')], ['3038x', B, rf(B, 'scores')], ['3039x', B, rf(B, 'lists')],
-      ['39998', B, rf(B, 'concepts')], ['*', B, '']], 'E6'));
+      ['39998', B, rf(B, 'concepts')], ['39999', B, rf(B, 'concepts')], ['*', B, '']], 'E6'));
 test('E7: AC-5 row 7 — no Map; Scores → B: a new Map with 3038x → B, nothing else (book decision 15)', () =>
   expectEdited([], { scores: B }, [['3038x', B, rf(B, 'scores')]], 'E7'));
 
@@ -223,6 +225,13 @@ test('E15: a category with only individually assigned duties — they stay, and 
     [['3038x:tag:X', C, R0], ['30392:rank', C, R0], ['3038x', B, rf(B, 'scores')], ['3039x', B, rf(B, 'lists')]], 'E15'));
 test('E16: nothing pending — the tags come back unchanged (a copy)', () =>
   expectEdited([['30382:rank', A], ['*:tag', D]], {}, [['30382:rank', A, R0], ['*:tag', D, R0]], 'E16'));
+test('E18: Concepts → B — each of 39998 and 39999 moves in place when the Map has it, and is added when it doesn\'t', async () => {
+  await expectEdited([['39999', A]], { concepts: B }, [['39999', B, rf(B, 'concepts')], ['39998', B, rf(B, 'concepts')]], 'E18a');
+  await expectEdited([['39998', A], ['39999', C]], { concepts: B },
+    [['39998', B, rf(B, 'concepts')], ['39999', B, rf(B, 'concepts')]], 'E18b');
+  await expectEdited([['39998', B], ['39999', B]], { concepts: B }, [['39998', B, R0], ['39999', B, R0]], 'E18c');
+  await expectEdited([], { concepts: B }, [['39998', B, rf(B, 'concepts')], ['39999', B, rf(B, 'concepts')]], 'E18d');
+});
 test('E17: a bare * is no category\'s own entry — Scores → B leaves it; and the other categories\' entries stay', () =>
   expectEdited([['*', A], ['30392', A], ['39998', A]], { scores: B },
     [['*', A, R0], ['30392', A, R0], ['39998', A, R0], ['3038x', B, rf(B, 'scores')]], 'E17'));

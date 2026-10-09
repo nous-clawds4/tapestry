@@ -160,10 +160,10 @@ test('O2: AC-4 rows 2–3 — Lists → B: the duty naming C goes, the one namin
   { lists: B, override: { lists: true } },
   [['30392', B, 'wss://lists.B'], ['30396:tag:Y:T', B], ['3039x', B, 'wss://lists.B']],
   'row 3'));
-test('O3: AC-4 row 4 — Concepts → B: both `39998:<d>` entries go (one names C)', () => expectEdited(
+test('O3: AC-4 row 4 — Concepts → B: both `39998:<d>` entries go (one names C); `39999` → B is added', () => expectEdited(
   [['39998', A], ['39998:d', C], ['39998:d', B]],
   { concepts: B, override: { concepts: true } },
-  [['39998', B, 'wss://concepts.B']],
+  [['39998', B, 'wss://concepts.B'], ['39999', B, 'wss://concepts.B']],
   'row 4'));
 test('O4: AC-4 row 5 — a `*:…` entry is never a duty: it stays, in its place', () => expectEdited(
   [['*:tag', D], ['3038x:tag:X', C]],

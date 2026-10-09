@@ -137,6 +137,9 @@ defaults it would assume. The owner's answer, verbatim:
     the same way. The older Tapestry-side generators (the NIP-85 control panel and the legacy customer page) rewrite the
     `30382:*` rows to the person's Assistant here when they regenerate; that is accepted for now and recorded as ledger
     `2026-10-08-legacy-generators-overwrite-edited-scores`.
+    *Amended 2026-10-08, after the close, at the owner's request:* Concepts has two family entries, `39998` and
+    `39999`; an assignment moves or adds each (this decision and decision 15). Ledger row
+    `2026-10-08-concepts-assignment-adds-39999`.
 13. **The backup switch's words.** In Edit mode, below the cards, shown only when the Map has at least one backup:
     "Remove N backup Assistants"; off: "Kept as they are. Apps use a backup when an entry's first Assistant can't be
     reached."; on: "Every entry keeps only its first Assistant, including entries not shown on this page." Turning it
