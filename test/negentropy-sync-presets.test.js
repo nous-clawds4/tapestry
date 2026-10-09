@@ -28,6 +28,12 @@
  * Before the implementation every test fails on a missing module, export, route, file or a
  * contract assertion (never a load error of this suite), except the G* guards, which pin behavior
  * the ADR keeps unchanged and pass before and after.
+ *
+ * ADR 0003 Amendment 2 (review findings 1 and 3) adds M1–M4, O9–O14, N4–N8, R13–R19 and G4, after G3.
+ * For them the fake strfry also lets a test write stderr when it chooses (entry.emit), print its
+ * output and then hang ('emit-hold'), and end a killed strfry with strfry 1.1.0's own last line
+ * (killOut); it records when and how often strfry was killed. The fixtures are the Architect's
+ * captures of strfry against relays that refuse negentropy (ADR § Verified evidence 7–14).
  */
 
 const fs = require('fs');
@@ -146,7 +152,7 @@ function fakeSpawn(cmd, args) {
   child.stdin = null;
   child.pid = 41000 + fake.log.length;
   child.killed = false;
-  const entry = { cmd: String(cmd), args: argv, relay, at: REAL.dateNow(), startTick: ++fake.tick, closed: false, closedAt: null, closeTick: null, killedWith: null, released: false };
+  const entry = { cmd: String(cmd), args: argv, relay, at: REAL.dateNow(), startTick: ++fake.tick, closed: false, closedAt: null, closeTick: null, killedWith: null, released: false, killedAt: null, kills: 0, outAt: null };
   fake.log.push(entry);
   const finish = (code, signal) => {
     if (entry.closed) return;
@@ -155,24 +161,34 @@ function fakeSpawn(cmd, args) {
     child.emit('exit', code, signal);
     child.emit('close', code, signal);
   };
+  // Amendment 2: a test writes strfry's stderr when it chooses (a relay's NOTICE, then silence or progress).
+  entry.emit = (text) => { if (!entry.closed && text) child.stderr.emit('data', Buffer.from(text)); };
   entry.release = () => {
     if (entry.closed || entry.released) return;
     entry.released = true;
     REAL.setTimeout(() => {
       if (entry.closed) return;
-      if (b.out) child.stderr.emit('data', Buffer.from(b.out));
+      if (b.out && entry.outAt === null) { entry.outAt = REAL.dateNow(); child.stderr.emit('data', Buffer.from(b.out)); }
       REAL.setTimeout(() => finish(b.code, null), 1);
     }, 1);
   };
   child.kill = (sig = 'SIGTERM') => {
+    entry.kills++;
+    if (entry.killedAt === null) entry.killedAt = REAL.dateNow();
     entry.killedWith = sig; child.killed = true;
+    // What strfry prints as it dies: by default an ordinary line; Amendment 2's fixtures use strfry 1.1.0's own.
+    const tail = b.killOut !== undefined ? b.killOut : L('INFO', 'Filter matches 4 events');
     REAL.setTimeout(() => {
-      if (!entry.closed) child.stderr.emit('data', Buffer.from(L('INFO', 'Filter matches 4 events')));
+      if (!entry.closed && tail) child.stderr.emit('data', Buffer.from(tail));
       REAL.setTimeout(() => finish(null, sig), 1);
     }, 1);
     return true;
   };
   if (b.mode === 'auto') REAL.setTimeout(entry.release, b.delayMs);
+  // Amendment 2: print `out` (e.g. a relay's NOTICE) and then hang, as strfry does after a refusal (Evidence 10, 13).
+  if (b.mode === 'emit-hold') {
+    REAL.setTimeout(() => { if (!entry.closed && b.out) { entry.outAt = REAL.dateNow(); child.stderr.emit('data', Buffer.from(b.out)); } }, b.delayMs);
+  }
   return child;
 }
 
@@ -1508,6 +1524,534 @@ test('G3: the fixed syncWoT and syncProfiles tasks are unchanged (story: out of 
     eq({ script: t.script, frequency: t.frequency, scope: t.scope, priority: t.priority }, { script: `$BRAINSTORM_MODULE_SRC_DIR/manage/negentropySync/${id}.sh`, frequency: 'daily', scope: 'system', priority: 'high' }, `the ${id} entry`);
   }
 });
+
+// ═══ Amendment 2 (ADR 0003, 2026-10-09): a relay that refuses negentropy; a preset withdrawn mid-run ═══
+// Review findings 1 and 3. Statements 1–17 are the amendment's "New behaviors, as testable statements".
+//
+// strfry 1.1.0 `strfry sync` stderr as the Architect captured it against relays that refuse negentropy
+// (ADR § Verified evidence 7–14): loguru's header and startup lines, the unprefixed "Redis error" line this
+// patched build prints when Redis is absent (Evidence 14), and each relay message strfry doesn't handle,
+// logged as `WARN| Unexpected message from relay: <json>`. A killed strfry ends with SIGTERM_TAIL.
+const NOT_IMPL2 = (what) => `${what}: not implemented yet (${ADR} Amendment 2).`;
+const NEG_OFF = 'ERROR: bad msg: negentropy disabled';
+const STALLED_ERROR = `relay said "${NEG_OFF}"; nothing followed for 60 s, so strfry sync was stopped`;
+const TIMEOUT_TEXT = 'strfry sync did not finish within 10 minutes and was stopped';
+const STALL_NO_CAUSE = 'strfry sync made no progress for 60 s and was stopped';
+const WITHDRAWN = 'not run, switched off or deleted since the run began';
+const SIGTERM_TAIL = '\nLoguru caught a signal: SIGTERM\n';
+const REDIS_LINE = 'Redis error: Connection refused\n';
+const relayLine = (json) => L('WARN', `Unexpected message from relay: ${json}`);
+const oneLine = (s) => s.replace(/\n$/, '');
+const WRITER = (n) => L('INFO', `Writer: added: ${n} dups: 0 replaced: 0 deleted: 0`, 'Writer          ');
+function strfryStart(port, { redis = true } = {}) {
+  const url = `ws://127.0.0.1:${port}`;
+  return 'date       time         ( uptime  ) [ thread name/id ]   v| \n'
+    + L('INFO', `arguments: strfry --config local.conf sync ${url} --filter {"kinds":[1]} --dir down`)
+    + L('INFO', 'CONFIG: successfully installed')
+    + (redis ? REDIS_LINE + L('WARN', 'Failed to connect to Redis — streaming ETL disabled') : '')
+    + L('INFO', 'Filter matches 0 events')
+    + L('INFO', `Attempting to connect to ${url}`)
+    + L('INFO', `Connected to ${url} (127.0.0.1)`);
+}
+const NOTICE_WELCOME = relayLine('["NOTICE","welcome: this relay keeps logs for 30 days"]');
+const NOTICE_RATE = relayLine('["NOTICE","rate-limited: slow down a little"]');
+const NOTICE_OFF = relayLine(`["NOTICE","${NEG_OFF}"]`);
+const EV = {
+  // 7: a NOTICE on connect, then a normal relay; exit 0.
+  noticeOnConnect: strfryStart(7831) + NOTICE_WELCOME + L('INFO', 'Set reconcile complete. Have 0 need 130')
+    + L('INFO', 'DOWN: 50 events (80 remaining)') + L('INFO', 'DOWN: 50 events (30 remaining)') + L('INFO', 'DOWN: 30 events (0 remaining)') + WRITER(130) + L('INFO', 'atexit'),
+  // 8: a NOTICE mid-download; exit 0.
+  noticeMidDownload: strfryStart(7832) + L('INFO', 'Set reconcile complete. Have 0 need 130') + L('INFO', 'DOWN: 50 events (80 remaining)')
+    + NOTICE_RATE + L('INFO', 'DOWN: 50 events (30 remaining)') + L('INFO', 'DOWN: 30 events (0 remaining)') + WRITER(130) + L('INFO', 'atexit'),
+  // 9: a CLOSED in answer to NEG-OPEN, then nothing until the kill.
+  closedAuth: strfryStart(7833) + relayLine('["CLOSED","N","auth-required: sign in to sync"]'),
+  // 10: a strfry relay with negentropy off: its NOTICE, then nothing until the kill (Evidence 13: 75 s of silence).
+  negOff: strfryStart(7825) + NOTICE_OFF,
+  // 11: the same NOTICE, then the relay closes the socket after 1 s; exit 1.
+  negOffThenClose: strfryStart(7837) + NOTICE_OFF + L('INFO', 'Disconnected from ws://127.0.0.1:7837 : 0/-') + WRITER(0) + L('INFO', 'atexit'),
+  // 12: a relay that ignores NEG-OPEN: nothing after Connected (here without the Redis line, as with Redis present).
+  ignored: strfryStart(7836, { redis: false }),
+};
+const PRIOR_RUN = { startedAt: T0, finishedAt: T0 + 3, since: T0 - WEEK, ok: true, added: 1, sent: 0 };
+
+/** Key-order-free JSON, to compare a stored record before and after. */
+function canon(v) {
+  return JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((key) => [key, x[key]])) : x));
+}
+function storedOf(h, id) { const f = h.fileJson(); return f && Array.isArray(f.presets) ? f.presets.find((p) => p && p.id === id) : undefined; }
+/** Record console output (still printed) while a run goes, to see the runner's log lines. */
+function captureConsole() {
+  const lines = [];
+  const saved = {};
+  for (const k of ['log', 'info', 'warn', 'error']) {
+    saved[k] = console[k];
+    console[k] = (...args) => { lines.push(args.map((a) => (typeof a === 'string' ? a : util.inspect(a))).join(' ')); saved[k].apply(console, args); };
+  }
+  return { lines, restore() { for (const k of Object.keys(saved)) console[k] = saved[k]; } };
+}
+function assertWithdrawnLogged(logs, name) {
+  const want = `[negentropy-presets] ${JSON.stringify(name)}: ${WITHDRAWN}`;
+  assert(logs.lines.some((l) => l.includes(want)), `one line must be logged: ${want}\n        logged: ${show(logs.lines.filter((l) => l.includes('negentropy-presets')))}`);
+}
+function relayMessageOfFn() {
+  const mods = loadModules(path.join(TMP, 'unused.json'));
+  if (mods.syncError) throw new Error(`src/api/strfry/negentropySync.js failed to load: ${mods.syncError.message}`);
+  assert(typeof mods.sync.relayMessageOf === 'function', NOT_IMPL2('negentropySync.js must export relayMessageOf(line)'));
+  return mods.sync.relayMessageOf;
+}
+/** parseSyncOutput with Amendment 2's optional third argument ('stalled' | 'timeout'). */
+function parse3() {
+  const mods = loadModules(path.join(TMP, 'unused.json'));
+  if (mods.presetsError) throw new Error(`src/api/strfry/negentropyPresets.js failed to load: ${mods.presetsError.message}`);
+  assert(mods.presets && typeof mods.presets.parseSyncOutput === 'function', NOT_IMPL('negentropyPresets.js must export parseSyncOutput(text, exitCode)'));
+  return (text, code, stop) => {
+    const r = stop === undefined ? mods.presets.parseSyncOutput(text, code) : mods.presets.parseSyncOutput(text, code, stop);
+    assert(r && typeof r === 'object' && typeof r.ok === 'boolean', `parseSyncOutput must return { ok, have, need, up, down, added, error }; got ${show(r)}`);
+    return r;
+  };
+}
+/** runStrfrySync against a fake strfry that prints only what the test writes, and then hangs until killed. */
+function stallRig(name) {
+  const h = harness();
+  const sync = h.syncModule();
+  assert(typeof sync.runStrfrySync === 'function', NOT_IMPL('negentropySync.js must export runStrfrySync(relay, dir, filter, opts)'));
+  const relay = h.relay(name);
+  fake.on(relay, { mode: 'hold', out: '', killOut: SIGTERM_TAIL });
+  return {
+    h, sync, relay,
+    async start(opts) {
+      const p = Promise.resolve().then(() => (opts === undefined ? sync.runStrfrySync(relay, 'down', { kinds: [1] }) : sync.runStrfrySync(relay, 'down', { kinds: [1] }, opts)));
+      p.catch(() => {}); // awaited by the test; never an unhandled rejection
+      await until(() => h.spawnsOf(name).length === 1, 2000, 'runStrfrySync to start strfry');
+      const e = h.spawnsOf(name)[0];
+      e.emit(strfryStart(7825, { redis: false }));
+      await sleep(5);
+      return { p, e };
+    },
+  };
+}
+const dilatedS = (realMs, factor) => Math.round((realMs * factor) / 1000);
+
+// ── Statement 1: relayMessageOf (pure, negentropySync.js) ──
+test('M1: relayMessageOf reads the relay\'s words from strfry\'s "Unexpected message from relay" line: a NOTICE\'s text (element 1) and a CLOSED\'s reason (element 2), loguru prefix and all (Amendment 2, statement 1)', () => {
+  const relayMessageOf = relayMessageOfFn();
+  eq(relayMessageOf(oneLine(NOTICE_OFF)), NEG_OFF, 'Evidence 10: a strfry relay with negentropy off');
+  eq(relayMessageOf(oneLine(relayLine('["NOTICE","ERROR: bad msg: unknown cmd"]'))), 'ERROR: bad msg: unknown cmd', 'Evidence 10: a relay that predates NIP-77');
+  eq(relayMessageOf(oneLine(NOTICE_WELCOME)), 'welcome: this relay keeps logs for 30 days', 'Evidence 7: a harmless notice is the relay\'s words too');
+  eq(relayMessageOf(oneLine(relayLine('["CLOSED","N","auth-required: sign in to sync"]'))), 'auth-required: sign in to sync', 'Evidence 9: a CLOSED\'s element 2');
+});
+
+test('M2: relayMessageOf is null for every other line: an AUTH or other unexpected message, a NEG-ERR, "Websocket connection error", the "Redis error" line and strfry\'s own lines (Amendment 2, statement 1)', () => {
+  const relayMessageOf = relayMessageOfFn();
+  const cases = [
+    ['an AUTH challenge', relayLine('["AUTH","challenge-7a1c"]')],
+    ['another unexpected message type', relayLine('["COUNT","N",{"count":3}]')],
+    ['a NEG-ERR (Evidence 14; the existing rule records it)', L('ERR', 'Got NEG-ERR response from relay: ["NEG-ERR","N","blocked: too many records"]')],
+    ['an unreachable relay (Evidence 6)', L('INFO', 'Websocket connection error')],
+    ['the unprefixed Redis line (Evidence 14)', REDIS_LINE],
+    ['the relay closing the socket (Evidence 11)', L('INFO', 'Disconnected from ws://127.0.0.1:7837 : 0/-')],
+    ['the reconcile line', L('INFO', 'Set reconcile complete. Have 0 need 130')],
+    ['a DOWN batch', L('INFO', 'DOWN: 50 events (80 remaining)')],
+    ['strfry being stopped', 'Loguru caught a signal: SIGTERM'],
+  ];
+  for (const [what, l] of cases) eq(relayMessageOf(oneLine(l)), null, `relayMessageOf(${what})`);
+});
+
+test('M3: relay text longer than 300 characters comes back as its first 300 characters and "…", so a long notice stays out of the presets file (Amendment 2, statement 1)', () => {
+  const relayMessageOf = relayMessageOfFn();
+  const t300 = 'n'.repeat(300);
+  eq(relayMessageOf(oneLine(relayLine(`["NOTICE","${t300}"]`))), t300, 'a 300-character notice (kept whole)');
+  const long = `${'a'.repeat(250)}${'b'.repeat(150)}`;
+  const cut = `${'a'.repeat(250)}${'b'.repeat(50)}…`;
+  eq(relayMessageOf(oneLine(relayLine(`["NOTICE","${long}"]`))), cut, 'a 400-character notice');
+  eq(relayMessageOf(oneLine(relayLine(`["CLOSED","N","${long}"]`))), cut, 'a 400-character CLOSED reason');
+});
+
+test('M4: when the relay\'s array doesn\'t parse, or its text isn\'t a string, relayMessageOf returns the raw text after "relay: " (Amendment 2, Finding 1 item 1)', () => {
+  const relayMessageOf = relayMessageOfFn();
+  eq(relayMessageOf(oneLine(relayLine('["NOTICE","ERROR: bad msg: negent'))), '["NOTICE","ERROR: bad msg: negent', 'an array that does not parse');
+  eq(relayMessageOf(oneLine(relayLine('["NOTICE",42]'))), '["NOTICE",42]', 'a NOTICE whose text is not a string');
+});
+
+// ── Statements 2–6: parseSyncOutput's relay candidates and its third argument ──
+test('O9: a relay that refused negentropy and was stopped by the stall rule (Evidence 10) reads `relay said "ERROR: bad msg: negentropy disabled"; nothing followed for 60 s, so strfry sync was stopped`, though an earlier "Redis error" line is in the output (Amendment 2, statement 2)', () => {
+  const r = parse3()(EV.negOff + SIGTERM_TAIL, null, 'stalled');
+  eq({ ok: r.ok, error: r.error }, { ok: false, error: STALLED_ERROR }, "parseSyncOutput(<Evidence 10>, null, 'stalled')");
+});
+
+test('O10: a relay that refused negentropy and then closed the socket (Evidence 11, exit 1) reads `relay said "ERROR: bad msg: negentropy disabled"`, not the earlier "Redis error" line (Amendment 2, statement 3)', () => {
+  const r = parse3()(EV.negOffThenClose, 1);
+  eq({ ok: r.ok, error: r.error }, { ok: false, error: `relay said "${NEG_OFF}"` }, 'parseSyncOutput(<Evidence 11>, 1)');
+});
+
+test('O11: a sync stopped at 10 minutes joins its cause to the timeout text, and with no cause reads exactly the timeout text (Amendment 2, statement 4)', () => {
+  const parse = parse3();
+  const closed = parse(EV.closedAuth + SIGTERM_TAIL, null, 'timeout');
+  eq({ ok: closed.ok, error: closed.error }, { ok: false, error: `relay said "auth-required: sign in to sync"; ${TIMEOUT_TEXT}` }, 'Evidence 9 (a CLOSED, then nothing) stopped at 10 minutes');
+  const ignored = parse(EV.ignored + SIGTERM_TAIL, null, 'timeout');
+  eq({ ok: ignored.ok, error: ignored.error }, { ok: false, error: TIMEOUT_TEXT }, 'Evidence 12 (a relay that ignores NEG-OPEN; no cause) stopped at 10 minutes');
+  const other = parse(EV.ignored + L('ERR', 'Websocket send failed: broken pipe') + SIGTERM_TAIL, null, 'timeout');
+  eq(other.error, `Websocket send failed: broken pipe; ${TIMEOUT_TEXT}`, 'the table\'s "<cause>; …" row with an ordinary ERR| line as the cause');
+});
+
+test('O12: a stall with no cause found reads exactly "strfry sync made no progress for 60 s and was stopped" (Amendment 2, the table\'s defensive row)', () => {
+  const r = parse3()(EV.ignored + SIGTERM_TAIL, null, 'stalled');
+  eq({ ok: r.ok, error: r.error }, { ok: false, error: STALL_NO_CAUSE }, "parseSyncOutput(<no candidate>, null, 'stalled')");
+});
+
+test('O13: a harmless NOTICE before or during a sync that then completes (Evidence 7, 8; exit 0) is still a success, with no error and the same counts (Amendment 2, statement 5)', () => {
+  const parse = parse3();
+  const counts = (r) => ({ have: r.have, need: r.need, up: r.up, down: r.down, added: r.added });
+  for (const [what, text, notice] of [['Evidence 7, a NOTICE on connect', EV.noticeOnConnect, NOTICE_WELCOME], ['Evidence 8, a NOTICE mid-download', EV.noticeMidDownload, NOTICE_RATE]]) {
+    const r = parse(text, 0);
+    assert(r.ok === true && !r.error, `${what}: must parse as ok with no error; got ${show(r)}`);
+    eq(counts(r), counts(parse(text.replace(notice, ''), 0)), `${what}: the counts (as without the NOTICE)`);
+    eq({ have: r.have, need: r.need, added: r.added }, { have: 0, need: 130, added: 130 }, `${what}: have, need and added`);
+  }
+});
+
+test('O14: the last cause wins, and a relay line is one: a NOTICE then an ERR| line records the ERR| message; an ERR| line then a NOTICE records relay said "…"; a NOTICE whose text holds "error" is recorded as relay said "…" (Amendment 2, statement 6)', () => {
+  const parse = parse3();
+  const start = strfryStart(7834, { redis: false });
+  const NEG_ERR = 'Got NEG-ERR response from relay: ["NEG-ERR","N","blocked: too many records"]';
+  eq(parse(start + NOTICE_RATE + L('ERR', NEG_ERR) + WRITER(0) + L('INFO', 'atexit'), 1).error, NEG_ERR, 'a NOTICE, then an ERR| line');
+  eq(parse(start + L('ERR', 'Websocket send failed: broken pipe') + NOTICE_OFF + WRITER(0), 1).error, `relay said "${NEG_OFF}"`, 'an ERR| line, then a NOTICE');
+  eq(parse(start + relayLine('["NOTICE","ERROR: negentropy error: filter too big"]') + WRITER(0), 1).error, 'relay said "ERROR: negentropy error: filter too big"', 'a NOTICE whose text contains "error"');
+});
+
+// ── Statements 7–10: runStrfrySync's opt-in stall rule ──
+test('N4: with stallMs, a relay NOTICE and then nothing gets strfry stopped (SIGTERM) stallMs after the notice; it resolves stalled: true, timedOut: false, frees the slot, and is not killed again by the 10-minute timer (time dilated ×300) (Amendment 2, statement 7)', async () => {
+  const F = 300;
+  const rig = stallRig('n4');
+  clock.dilate(F);
+  const { p, e } = await rig.start({ stallMs: 60000, timeoutMs: 180000 });
+  const t0 = REAL.dateNow();
+  e.emit(NOTICE_OFF);
+  const r = await withTimeout(p, 5000, 'runStrfrySync');
+  assert(e.killedWith === 'SIGTERM', `strfry must be stopped with SIGTERM; killedWith ${show(e.killedWith)}`);
+  const after = (e.killedAt - t0) * F;
+  assert(after >= 50000 && after <= 150000, `strfry must be stopped about stallMs (60 s) after the relay's NOTICE, well before timeoutMs (180 s); it was stopped ${Math.round(after / 1000)} s (dilated) after it`);
+  assert(r && typeof r.output === 'string' && r.output.includes(NEG_OFF), `the output must carry the relay's line; got ${show(r && r.output)}`);
+  eq({ stalled: r.stalled, timedOut: r.timedOut }, { stalled: true, timedOut: false }, 'the stop that is reported');
+  eq(rig.sync.isSyncActive(), false, 'isSyncActive() after the stall stop');
+  await sleep(Math.max(0, e.at + 180000 / F + 150 - REAL.dateNow())); // past timeoutMs
+  eq(e.kills, 1, 'kills of strfry (the 10-minute timer is cleared once the stall rule stopped it)');
+}, { timeoutMs: 15000 });
+
+test('N5: with stallMs, any other line after a relay NOTICE means strfry is making progress: it is not stopped at stallMs; if it then hangs, it is killed at timeoutMs with timedOut: true, stalled: false (time dilated ×300) (Amendment 2, statement 8)', async () => {
+  const F = 300;
+  const rig = stallRig('n5');
+  clock.dilate(F);
+  const { p, e } = await rig.start({ stallMs: 60000, timeoutMs: 240000 });
+  const t0 = REAL.dateNow();
+  e.emit(NOTICE_RATE);
+  await sleep(30); // 9 s dilated
+  e.emit(L('INFO', 'DOWN: 50 events (30 remaining)'));
+  await sleep(Math.max(0, t0 + 450 - REAL.dateNow())); // 135 s dilated after the notice: past stallMs, before timeoutMs
+  assert(!e.killedWith, `strfry must not be stopped at stallMs once another line followed the relay's NOTICE; it was stopped ${dilatedS(e.killedAt - t0, F)} s (dilated) after the notice`);
+  const r = await withTimeout(p, 5000, 'runStrfrySync');
+  const ran = (e.killedAt - e.at) * F;
+  assert(e.killedWith && ran >= 230000, `a hung strfry must be killed at timeoutMs (240 s); it ran ${Math.round(ran / 1000)} s (dilated)`);
+  eq({ timedOut: r.timedOut, stalled: r.stalled }, { timedOut: true, stalled: false }, 'the stop that is reported');
+}, { timeoutMs: 15000 });
+
+test('N6: with stallMs, a relay repeating its NOTICE can\'t keep a dead sync alive: the stop comes stallMs after the FIRST notice (time dilated ×300) (Amendment 2, statement 9)', async () => {
+  const F = 300;
+  const rig = stallRig('n6');
+  clock.dilate(F);
+  const { p, e } = await rig.start({ stallMs: 60000, timeoutMs: 600000 });
+  const t0 = REAL.dateNow();
+  e.emit(NOTICE_RATE);
+  while (!e.killedWith && !e.closed && REAL.dateNow() - t0 < 1500) { // a notice every 15 s (dilated) for up to 450 s
+    await sleep(50);
+    if (!e.killedWith) e.emit(NOTICE_RATE);
+  }
+  const r = await withTimeout(p, 5000, 'runStrfrySync');
+  const after = (e.killedAt - t0) * F;
+  assert(e.killedWith && after >= 50000 && after <= 150000, `repeated notices must not push the stop back: it must come about 60 s after the first notice; it came ${Math.round(after / 1000)} s (dilated) after it`);
+  eq({ stalled: r.stalled, timedOut: r.timedOut }, { stalled: true, timedOut: false }, 'the stop that is reported');
+}, { timeoutMs: 15000 });
+
+test('N7: without stallMs there is no stall rule: a relay NOTICE and then silence runs to the 10-minute kill, as today (time dilated ×1200) (Amendment 2, statement 10)', async () => {
+  const F = 1200;
+  const rig = stallRig('n7');
+  clock.dilate(F);
+  const { p, e } = await rig.start(undefined); // the call the one-shot paths would make: no options
+  const t0 = REAL.dateNow();
+  e.emit(NOTICE_OFF);
+  await sleep(150); // 180 s dilated
+  assert(!e.killedWith, `without stallMs a relay NOTICE must not stop strfry early; it was stopped ${dilatedS(e.killedAt - t0, F)} s (dilated) after the notice`);
+  const r = await withTimeout(p, 5000, 'runStrfrySync');
+  const ran = (e.killedAt - e.at) * F;
+  assert(e.killedWith && ran >= 570000, `the kill must come at the 10-minute default; strfry ran ${Math.round(ran / 1000)} s (dilated)`);
+  assert(r.timedOut === true && !r.stalled, `it must resolve timedOut: true and not stalled; got ${show({ timedOut: r.timedOut, stalled: r.stalled })}`);
+}, { timeoutMs: 15000 });
+
+test('N8: the stall rule reads whole lines: a relay NOTICE that arrives in two pieces still starts the stall timer, its second half not taken for progress (time dilated ×300) (Amendment 2, Finding 1 item 1)', async () => {
+  const F = 300;
+  const rig = stallRig('n8');
+  clock.dilate(F);
+  const { p, e } = await rig.start({ stallMs: 60000, timeoutMs: 240000 });
+  const cutAt = NOTICE_OFF.indexOf('bad msg');
+  const t0 = REAL.dateNow();
+  e.emit(NOTICE_OFF.slice(0, cutAt));
+  await sleep(10);
+  e.emit(NOTICE_OFF.slice(cutAt));
+  const r = await withTimeout(p, 5000, 'runStrfrySync');
+  const after = (e.killedAt - t0) * F;
+  assert(e.killedWith && after >= 50000 && after <= 150000, `a NOTICE line split across two chunks must start the stall timer once its newline arrives; strfry was stopped ${Math.round(after / 1000)} s (dilated) after it`);
+  eq({ stalled: r.stalled, timedOut: r.timedOut }, { stalled: true, timedOut: false }, 'the stop that is reported');
+}, { timeoutMs: 15000 });
+
+// ── Statement 11: the runner stops a relay that refused negentropy within about a minute ──
+test('R13: a preset whose relay refuses negentropy (Evidence 10: a NOTICE, then silence) is stopped about 60 s after the notice, not at 10 minutes; its lastRun.error gives the relay\'s words, it counts in failed, its last success is kept, and the next preset runs (time dilated ×300) (Amendment 2, statement 11)', async () => {
+  const F = 300;
+  const h0 = harness();
+  const seq = SEQ + 1;
+  const h = harness({ presets: [
+    h0.preset('alpha', { relay: `wss://t${seq}-alpha.example`, lastSuccessAt: T0, lastRun: PRIOR_RUN }),
+    h0.preset('bravo', { relay: `wss://t${seq}-bravo.example` }),
+  ] });
+  h.presetsModule();
+  fake.on(h.relay('alpha'), { mode: 'emit-hold', out: EV.negOff, killOut: SIGTERM_TAIL });
+  fake.on(h.relay('bravo'), { out: OUT.down12, code: 0 });
+  clock.dilate(F);
+  const res = await h.run(15000);
+  clock.normal();
+  const body = okRun(res, 'a run with a relay that refuses negentropy');
+  const a = h.spawnsOf('alpha')[0];
+  assert(a && a.outAt !== null && a.killedWith, `alpha's strfry must print the relay's NOTICE and be stopped; got ${show(a && { outAt: a.outAt, killedWith: a.killedWith })}`);
+  const after = (a.killedAt - a.outAt) * F;
+  assert(after >= 50000 && after <= 150000, `alpha must be stopped about 60 s (RELAY_STALL_MS) after the relay's NOTICE, not at the 10-minute kill; it was stopped ${Math.round(after / 1000)} s (dilated) after it`);
+  const ra = body.results.find((x) => x && x.name === 'alpha');
+  eq({ ok: ra && ra.ok, error: ra && ra.error }, { ok: false, error: STALLED_ERROR }, "alpha's result");
+  eq(body.failed, 1, 'failed');
+  const alpha = await h.byName('alpha');
+  eq({ ok: alpha.lastRun && alpha.lastRun.ok, error: alpha.lastRun && alpha.lastRun.error }, { ok: false, error: STALLED_ERROR }, "alpha's lastRun");
+  eq(alpha.lastSuccessAt, T0, "alpha's lastSuccessAt (kept, so the next run retries the same window)");
+  const extra = Object.keys(alpha.lastRun).filter((k) => !['startedAt', 'finishedAt', 'since', 'ok', 'added', 'sent', 'error', 'skipped'].includes(k));
+  eq(extra, [], "alpha's lastRun fields beyond the ADR's (lastRun keeps no output tail, Finding 1 item 4)");
+  const b = h.spawnsOf('bravo');
+  assert(b.length === 1 && b[0].startTick > a.closeTick, 'bravo must run after alpha was stopped');
+  const rb = body.results.find((x) => x && x.name === 'bravo');
+  assert(rb && rb.ok === true, `bravo must succeed; got ${show(rb)}`);
+}, { timeoutMs: 30000 });
+
+// ── Statements 12–17: each preset is re-read from the store before the runner acts on it ──
+test('R14: a preset switched off while an earlier preset syncs is not synced: no strfry run for it, its stored record left exactly as the switch-off wrote it, and it is out of results and failed (Amendment 2, statement 12)', async () => {
+  const h0 = harness();
+  const seq = SEQ + 1;
+  const a = h0.preset('alpha', { relay: `wss://t${seq}-alpha.example` });
+  const b = h0.preset('bravo', { relay: `wss://t${seq}-bravo.example`, dir: 'up', lastSuccessAt: T0, lastRun: PRIOR_RUN });
+  const h = harness({ presets: [a, b] });
+  h.presetsModule();
+  fake.on(h.relay('alpha'), { mode: 'hold', out: OUT.down12, code: 0 });
+  const logs = captureConsole();
+  let body;
+  let afterOff;
+  try {
+    const run = h.begin('POST', `${BASE}/run`);
+    await until(() => h.spawnsOf('alpha').length === 1, 3000, 'the run to start alpha');
+    const off = await h.req('POST', `${BASE}/toggle`, { id: b.id, enabled: false }, 'local', 2000);
+    assert(off.body && off.body.success === true, `switching bravo off must answer during alpha's sync; got ${show(off.body)}`);
+    afterOff = canon(storedOf(h, b.id));
+    h.spawnsOf('alpha')[0].release();
+    body = okRun(await withTimeout(run.done, 5000, 'the run'), 'the run');
+  } finally { logs.restore(); }
+  eq(h.spawnsOf('bravo').length, 0, 'strfry runs for bravo, switched off before its turn (an up preset: an upload the owner stopped)');
+  eq(body.results.map((x) => x && x.name), ['alpha'], 'the results (bravo is left out)');
+  eq(body.failed, 0, 'failed (bravo is not counted)');
+  eq(canon(storedOf(h, b.id)), afterOff, "bravo's stored record, lastRun included (as the switch-off left it)");
+  const listed = await h.byName('bravo');
+  eq({ enabled: listed.enabled, lastRun: listed.lastRun, lastSuccessAt: listed.lastSuccessAt }, { enabled: false, lastRun: PRIOR_RUN, lastSuccessAt: T0 }, 'bravo as listed');
+  assertWithdrawnLogged(logs, 'bravo');
+});
+
+test('R15: a preset deleted while an earlier preset syncs is not synced, is out of results and failed, and stays deleted (Amendment 2, statement 13)', async () => {
+  const h0 = harness();
+  const seq = SEQ + 1;
+  const a = h0.preset('alpha', { relay: `wss://t${seq}-alpha.example` });
+  const b = h0.preset('bravo', { relay: `wss://t${seq}-bravo.example`, dir: 'both' });
+  const h = harness({ presets: [a, b] });
+  h.presetsModule();
+  fake.on(h.relay('alpha'), { mode: 'hold', out: OUT.down12, code: 0 });
+  const logs = captureConsole();
+  let body;
+  try {
+    const run = h.begin('POST', `${BASE}/run`);
+    await until(() => h.spawnsOf('alpha').length === 1, 3000, 'the run to start alpha');
+    const del = await h.req('POST', `${BASE}/delete`, { id: b.id }, 'local', 2000);
+    assert(del.body && del.body.success === true, `deleting bravo must answer during alpha's sync; got ${show(del.body)}`);
+    h.spawnsOf('alpha')[0].release();
+    body = okRun(await withTimeout(run.done, 5000, 'the run'), 'the run');
+  } finally { logs.restore(); }
+  eq(h.spawnsOf('bravo').length, 0, 'strfry runs for bravo, deleted before its turn');
+  eq(body.results.map((x) => x && x.name), ['alpha'], 'the results (bravo is left out)');
+  eq(body.failed, 0, 'failed (bravo is not counted)');
+  eq((await h.list()).map((p) => p.id), [a.id], 'presets after the run (bravo stays deleted)');
+  assert(!h.fileJson().presets.some((p) => p.id === b.id), 'the deleted preset must not be written back to the file');
+  assertWithdrawnLogged(logs, 'bravo');
+});
+
+test('R16: a preset switched off while it waits for a manual sync stops waiting within a poll: it is not synced, not recorded skipped, and the run ends without waiting out the 10 minutes (time dilated ×20) (Amendment 2, statement 14)', async () => {
+  const F = 20;
+  const h0 = harness();
+  const seq = SEQ + 1;
+  const a = h0.preset('alpha', { relay: `wss://t${seq}-alpha.example`, lastSuccessAt: T0, lastRun: PRIOR_RUN });
+  const h = harness({ presets: [a] });
+  h.presetsModule();
+  fake.on(h.relay('manual'), { mode: 'hold' });
+  const manual = h.oneShot('manual');
+  await until(() => h.spawnsOf('manual').length === 1, 2000, 'the manual sync to start');
+  clock.dilate(F);
+  const run = h.begin('POST', `${BASE}/run`);
+  let answered = false;
+  run.done.then(() => { answered = true; });
+  const logs = captureConsole();
+  let res = null;
+  let waited = null;
+  try {
+    await sleep(600); // 12 s dilated: alpha has found the slot busy and polled it about twice
+    assert(!answered, `the run must still be waiting for the manual sync; it answered ${show(run.body)}`);
+    const off = await h.req('POST', `${BASE}/toggle`, { id: a.id, enabled: false }, 'local', 2000);
+    assert(off.body && off.body.success === true, `switching alpha off must answer while it waits; got ${show(off.body)}`);
+    const tOff = REAL.dateNow();
+    try {
+      res = await withTimeout(run.done, 2500, 'the run');
+    } catch {
+      throw new Error(`alpha was switched off while it waited for the manual sync, but the run was still waiting ${dilatedS(2500, F)} s (dilated) later; it must stop waiting within a poll (5 s)`);
+    }
+    waited = (REAL.dateNow() - tOff) * F;
+  } finally {
+    logs.restore();
+    if (!answered) { // leave nothing behind: free the slot so this run can end
+      h.spawnsOf('manual')[0].release();
+      await withTimeout(run.done, 3000, 'the run, after the manual sync ended').catch(() => {});
+    }
+    clock.normal();
+  }
+  assert(waited <= 10000, `the wait must end within a poll (5 s) of the switch-off; it ended ${Math.round(waited / 1000)} s (dilated) after`);
+  const body = okRun(res, 'the run');
+  eq(h.spawnsOf('alpha').length, 0, 'strfry runs for alpha');
+  eq({ results: body.results, failed: body.failed }, { results: [], failed: 0 }, 'the run result (alpha withdrawn, not skipped)');
+  const p = await h.byName('alpha');
+  eq({ enabled: p.enabled, lastRun: p.lastRun, lastSuccessAt: p.lastSuccessAt }, { enabled: false, lastRun: PRIOR_RUN, lastSuccessAt: T0 }, 'alpha keeps its previous last run (not recorded skipped)');
+  const st = await h.status();
+  assert(st.active === true && st.relay === h.relay('manual') && !h.spawnsOf('manual')[0].closed, `the manual sync must be untouched; got ${show(st)}`);
+  assertWithdrawnLogged(logs, 'alpha');
+  h.spawnsOf('manual')[0].release();
+  await withTimeout(manual.done, 3000, 'the manual sync');
+}, { timeoutMs: 30000 });
+
+test('R17: a preset re-saved with another relay while an earlier preset syncs runs as re-saved: the new relay, direction, filter and name, since = its turn\'s start − 7 days (the change cleared its last success), and its lastRun records that run (Amendment 2, statement 15)', async () => {
+  const h0 = harness();
+  const seq = SEQ + 1;
+  const a = h0.preset('alpha', { relay: `wss://t${seq}-alpha.example` });
+  const b = h0.preset('bravo', { relay: `wss://t${seq}-bravo.example`, dir: 'down', filter: { kinds: [39998] }, lastSuccessAt: T0, lastRun: PRIOR_RUN });
+  const h = harness({ presets: [a, b] });
+  h.presetsModule();
+  const moved = h.relay('bravo-moved');
+  const newFilter = { kinds: [1], '#t': ['nostr'] };
+  fake.on(h.relay('alpha'), { mode: 'hold', out: OUT.down12, code: 0 });
+  fake.on(moved, { out: OUT.up3, code: 0 });
+  const before = Math.floor(Date.now() / 1000);
+  const run = h.begin('POST', `${BASE}/run`);
+  await until(() => h.spawnsOf('alpha').length === 1, 3000, 'the run to start alpha');
+  const save = await h.req('POST', BASE, { name: 'Bravo', relay: moved, dir: 'up', filter: newFilter }, 'local', 2000);
+  assert(save.body && save.body.success === true, `re-saving bravo must answer during alpha's sync; got ${httpCode(save)} ${show(save.body)}`);
+  h.spawnsOf('alpha')[0].release();
+  const body = okRun(await withTimeout(run.done, 5000, 'the run'), 'the run');
+  const after = Math.ceil(Date.now() / 1000);
+  eq(h.spawnsOf('bravo').length, 0, "strfry runs against bravo's old relay");
+  const e = h.spawnsOf('bravo-moved');
+  eq(e.length, 1, "strfry runs against bravo's new relay");
+  const since = filterOf(e[0]).since;
+  eq(e[0].args, h.syncModule().buildCommand(moved, 'up', { ...newFilter, since }).args, "bravo's argv: the re-saved relay, direction and filter, plus since");
+  const p = storedOf(h, b.id) || {};
+  const lr = p.lastRun || {};
+  assert(Number.isInteger(lr.startedAt) && lr.startedAt >= before - 1 && lr.startedAt <= after + 1, `bravo's lastRun.startedAt must be within the run (${before}…${after}); got ${show(lr)}`);
+  eq(since, lr.startedAt - WEEK, "since = the start of bravo's turn − 7 days (the re-save cleared its last success)");
+  eq({ since: lr.since, ok: lr.ok, sent: lr.sent }, { since, ok: true, sent: 3 }, "bravo's lastRun (the run against the new relay)");
+  eq(p.lastSuccessAt, lr.startedAt, "bravo's lastSuccessAt (the target that ran is the stored one)");
+  const rb = body.results.find((x) => x && x.id === b.id);
+  assert(rb && rb.name === 'Bravo' && rb.ok === true && rb.sent === 3, `bravo's result must carry the re-read name "Bravo" and the new run; got ${show(rb)}`);
+  eq(body.failed, 0, 'failed');
+});
+
+test('R18: a preset whose presets file can\'t be read at its turn fails closed: it is not synced, it is in results with ok: false and "Could not read the presets: …", and failed counts it; the unreadable file is left as it is (Amendment 2, statement 16)', async () => {
+  const h0 = harness();
+  const seq = SEQ + 1;
+  const a = h0.preset('alpha', { relay: `wss://t${seq}-alpha.example` });
+  const b = h0.preset('bravo', { relay: `wss://t${seq}-bravo.example`, dir: 'up' });
+  const h = harness({ presets: [a, b] });
+  h.presetsModule();
+  fake.on(h.relay('alpha'), { mode: 'hold', out: OUT.down12, code: 0 });
+  const run = h.begin('POST', `${BASE}/run`);
+  await until(() => h.spawnsOf('alpha').length === 1, 3000, 'the run to start alpha');
+  const garbage = '{ "version": 1, "presets": [ { "id": "cut off mid-wri';
+  fs.writeFileSync(h.file, garbage);
+  h.spawnsOf('alpha')[0].release();
+  const body = okRun(await withTimeout(run.done, 5000, 'the run'), 'the run');
+  eq(h.spawnsOf('bravo').length, 0, "strfry runs for bravo (an up preset whose switch can't be confirmed)");
+  const rb = body.results.find((x) => x && x.id === b.id);
+  assert(rb && rb.ok === false && typeof rb.error === 'string' && rb.error.startsWith('Could not read the presets:'),
+    `bravo must be in results, failed, with an error starting "Could not read the presets:"; got ${show(rb)}`);
+  const ra = body.results.find((x) => x && x.id === a.id);
+  assert(ra && ra.ok === true, `alpha's sync succeeded; its result stays ok though its record can't be written (as now); got ${show(ra)}`);
+  eq(body.failed, 1, 'failed (bravo)');
+  eq(h.fileText(), garbage, 'the unreadable presets file (never overwritten)');
+});
+
+test('R19: a preset switched off during its own sync is not stopped; its run is recorded normally and its switch stays off (Amendment 2, statement 17)', async () => {
+  const h0 = harness();
+  const seq = SEQ + 1;
+  const a = h0.preset('alpha', { relay: `wss://t${seq}-alpha.example`, lastSuccessAt: T0, lastRun: PRIOR_RUN });
+  const h = harness({ presets: [a] });
+  h.presetsModule();
+  fake.on(h.relay('alpha'), { mode: 'hold', out: OUT.down12, code: 0 });
+  const run = h.begin('POST', `${BASE}/run`);
+  await until(() => h.spawnsOf('alpha').length === 1, 3000, 'the run to start alpha');
+  const off = await h.req('POST', `${BASE}/toggle`, { id: a.id, enabled: false }, 'local', 2000);
+  assert(off.body && off.body.success === true, `switching alpha off must answer during its sync; got ${show(off.body)}`);
+  await sleep(50);
+  const e = h.spawnsOf('alpha')[0];
+  assert(!e.killedWith && !e.closed, `alpha's running sync must not be stopped by the switch-off; killedWith ${show(e.killedWith)}`);
+  e.release();
+  const body = okRun(await withTimeout(run.done, 5000, 'the run'), 'the run');
+  eq(body.results.map((x) => x && [x.name, x.ok, x.added]), [['alpha', true, 12]], 'the results');
+  eq(body.failed, 0, 'failed');
+  const p = await h.byName('alpha');
+  const lr = p.lastRun || {};
+  assert(p.enabled === false && lr.ok === true && lr.added === 12 && lr.startedAt > T0 && p.lastSuccessAt === lr.startedAt,
+    `alpha must stay switched off with this run recorded normally (ok, added 12, lastSuccessAt = its start); got ${show({ enabled: p.enabled, lastRun: p.lastRun, lastSuccessAt: p.lastSuccessAt })}`);
+});
+
+// ── Guard: the one-shot Start keeps no stall rule (Finding 1, item 3) ──
+test('G4: the one-shot Start has no stall rule: after a relay NOTICE and silence, POST /api/strfry/negentropy-sync and GET …/stream both run on to the 10-minute kill (time dilated ×1200) (Amendment 2, Finding 1 item 3, statement 10)', async () => {
+  const F = 1200;
+  const h = harness();
+  const out = strfryStart(7825, { redis: false }) + NOTICE_OFF;
+  fake.on(h.relay('g4'), { mode: 'emit-hold', out, killOut: SIGTERM_TAIL });
+  fake.on(h.relay('g4s'), { mode: 'emit-hold', out, killOut: SIGTERM_TAIL });
+  clock.dilate(F);
+  const post = h.begin('POST', ONE_SHOT, { relay: h.relay('g4'), dir: 'down', filter: { kinds: [1] } });
+  const stream = h.route('GET', `${ONE_SHOT}/stream`);
+  const sres = mkRes();
+  const sreq = { method: 'GET', path: `${ONE_SHOT}/stream`, body: {}, headers: {}, session: {}, localTrusted: true, query: { relay: h.relay('g4s'), dir: 'down', filter: JSON.stringify({ kinds: [1] }) }, on() {} };
+  for (const [what, name, done, start] of [
+    ['POST /api/strfry/negentropy-sync', 'g4', post.done, () => {}],
+    ['GET /api/strfry/negentropy-sync/stream', 'g4s', sres.done, () => { Promise.resolve().then(() => stream.handlers[stream.handlers.length - 1](sreq, sres)); }],
+  ]) {
+    start();
+    await until(() => h.spawnsOf(name).length === 1 && h.spawnsOf(name)[0].outAt !== null, 2000, `${what} to start strfry and print the notice`);
+    const e = h.spawnsOf(name)[0];
+    await sleep(150); // 180 s dilated: three times the presets' stall time
+    assert(!e.killedWith, `${what}: the one-shot must not stop strfry after a relay NOTICE (no stall rule on this path)`);
+    await withTimeout(done, 5000, what);
+    const ran = (e.killedAt - e.at) * F;
+    assert(e.killedWith && ran >= 570000, `${what}: strfry must run to the 10-minute kill; it ran ${Math.round(ran / 1000)} s (dilated)`);
+  }
+}, { timeoutMs: 30000 });
 
 // ── runner ──────────────────────────────────────────────────────────────────────────────
 async function run() {

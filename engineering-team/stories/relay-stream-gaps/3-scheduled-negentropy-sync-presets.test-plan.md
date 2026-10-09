@@ -4,10 +4,17 @@
 **ADR:** `engineering-team/decisions/relay-stream-gaps/0003-negentropy-sync-presets.md`
 **Date:** 2026-10-09
 
-All new tests are in one stack-free suite, `test/negentropy-sync-presets.test.js`. It has 72
-tests: 69 fail now, and 3 guards (G1–G3) pass before and after. It is registered in
-`test/registry.js` right after `router-stream-limit-on-connect`. No fixtures, dependencies or test
-infrastructure are added, and no existing test changes.
+All new tests are in one stack-free suite, `test/negentropy-sync-presets.test.js`. It has 95
+tests. It is registered in `test/registry.js` right after `router-stream-limit-on-connect`. No
+fixture files, dependencies or test frameworks are added (the fixtures and the fake live in the
+suite), and no existing test changes.
+
+- **The story's 72 (V1–G3).** At Test Design, 69 failed and 3 guards (G1–G3) passed. All 72 pass
+  against the story's implementation (`ffda8152`).
+- **ADR 0003 Amendment 2's 23 (M1–M4, O9–O14, N4–N8, R13–R19, G4)**, added after review findings
+  1 and 3. 19 fail now. 4 guards (O13, N7, R19, G4) pin behavior the amendment keeps, and pass before
+  and after. None of the 72 changed. The fake strfry gained additive controls; its existing
+  behavior is the same.
 
 ## Coverage map
 
@@ -77,6 +84,29 @@ Levels:
 | ADR § Implementation notes (`negentropySync.js`) | N1: `isSyncActive()`; N2: `runStrfrySync` spawns `buildCommand`'s argv, holds the slot (`/status` shows it) and resolves `{ exitCode, output }`; N3: refuses with `code: 'BUSY'` while a one-shot runs | handler |
 | ADR constraint (owner gate) | P11: save/toggle/delete/run from a signed-in non-owner or an anonymous caller → 403 before any write or strfry run | handler |
 | Guards | G1: the one-shot POST runs and answers as before and refuses a second start; G2: existing seeds keep their order; G3: `syncWoT`/`syncProfiles` unchanged | handler / child / source |
+| AC-4 (Amendment 2, statement 1) | M1: `relayMessageOf` returns a NOTICE's text (Evidence 10, both wordings; Evidence 7) and a CLOSED's element 2 (Evidence 9), loguru prefix included | unit |
+| AC-4 (statement 1) | M2: `null` for AUTH, another unexpected type, NEG-ERR, `Websocket connection error`, `Redis error: …`, `Disconnected …`, reconcile, DOWN and the SIGTERM line | unit |
+| AC-4 (statement 1) | M3: text over 300 characters → first 300 + `…` (NOTICE and CLOSED); exactly 300 is kept whole | unit |
+| AC-4 (Finding 1 item 1) | M4: an array that doesn't parse, or a non-string text → the raw text after `relay: ` | unit |
+| AC-4 (statement 2) | O9: Evidence 10, `null`, `'stalled'` → exactly `relay said "ERROR: bad msg: negentropy disabled"; nothing followed for 60 s, so strfry sync was stopped`, though the `Redis error` line comes earlier | unit |
+| AC-4 (statement 3) | O10: Evidence 11, exit 1 → `relay said "ERROR: bad msg: negentropy disabled"` | unit |
+| AC-4 (statement 4) | O11: `'timeout'` with a CLOSED → `relay said "auth-required: sign in to sync"; strfry sync did not finish within 10 minutes and was stopped`; with no cause (Evidence 12) → exactly the timeout text; with an ordinary `ERR|` line → `<cause>; …` | unit |
+| AC-4 (the table's defensive row) | O12: `'stalled'` with no cause → exactly `strfry sync made no progress for 60 s and was stopped` | unit |
+| AC-4 (statement 5) | O13 (guard): a harmless NOTICE before or during a completed sync (Evidence 7, 8; exit 0) → `ok`, no error, the same counts as without it | unit |
+| AC-4 (statement 6) | O14: the last cause wins: a NOTICE then `ERR|` → the `ERR|` message; `ERR|` then a NOTICE → `relay said "…"`; a NOTICE whose text holds `error` → `relay said "…"` | unit |
+| ADR § Consequences, shared slot (statement 7) | N4: with `stallMs`, a NOTICE then silence → SIGTERM about `stallMs` after the notice; resolves `stalled: true, timedOut: false`; slot freed; not killed again by the 10-minute timer (×300) | handler |
+| (statement 8) | N5: a NOTICE then any other line → not stopped at `stallMs`; a hang is killed at `timeoutMs` with `timedOut: true, stalled: false` (×300) | handler |
+| (statement 9) | N6: a NOTICE repeated every 15 s → the stop still comes about 60 s after the first (×300) | handler |
+| (statement 10) | N7 (guard): no `stallMs` → a NOTICE then silence runs to the 10-minute kill, `timedOut: true`, not stalled (×1200) | handler |
+| (Finding 1 item 1) | N8: a NOTICE line split across two chunks starts the stall timer when its newline arrives (×300) | handler |
+| AC-4, ADR § Consequences (statement 11; Finding 1 item 4) | R13: a preset whose strfry prints Evidence 10 and hangs is stopped about 60 s after the notice, not at 10 minutes; `lastRun.error` and its result are O9's text; `failed: 1`; earlier `lastSuccessAt` kept; `lastRun` holds only the ADR's fields (no output tail); the next preset runs (×300) | handler |
+| AC-1, AC-3 (statement 12) | R14: a preset switched off while an earlier one syncs → no strfry run, stored record exactly as the switch-off left it, absent from `results`, not in `failed`, the withdrawal line logged | handler |
+| AC-1, AC-3 (statement 13) | R15: a preset deleted while an earlier one syncs → no strfry run, absent from `results`/`failed`, stays deleted, the withdrawal line logged | handler |
+| AC-1, AC-3 (statement 14) | R16: a preset switched off while it waits for a manual sync → the run ends within a poll (≤ 10 s dilated), no strfry run, not recorded skipped (previous `lastRun` kept), `results: []`, the manual sync untouched (×20) | handler |
+| AC-1 (statement 15) | R17: a preset re-saved with another relay, direction, filter and name-case while an earlier one syncs → synced with the re-saved target (argv = `buildCommand`), `since = startedAt − 7 days`, `lastRun` and `lastSuccessAt` record it, the result carries the re-read name | handler |
+| ADR constraint, fail closed (statement 16) | R18: the presets file made unreadable mid-run → the next preset is not synced, is in `results` with `ok: false` and `Could not read the presets: …`, `failed: 1`; the file is not overwritten | handler |
+| AC-3 (statement 17) | R19 (guard): a preset switched off during its own sync is not stopped; its run is recorded normally and it stays off | handler |
+| Guards (Finding 1 item 3, statement 10) | G4: the one-shot POST and `/stream` keep no stall rule: a NOTICE then silence runs to their 10-minute kill (×1200) | handler |
 
 ### AC-5: verified on staging (manual; not `npm test`)
 
@@ -125,18 +155,29 @@ bullet.
 - [x] Nothing to run (R12). A fresh install with no file (P1).
 - [x] The task script's answers: success, failures, overlap, empty, down, 500, 403, non-JSON (T3–T6).
 - [x] Non-owner and anonymous POSTs (P11). A non-owner GET (P12).
-- [ ] A corrupt presets file. The ADR doesn't say what happens, so it isn't tested.
-- [ ] A toggle of a preset while it's mid-run. The snapshot semantics aren't pinned beyond R10's
-  delete.
-- [ ] A relay that doesn't support negentropy. Its real stderr wasn't captured in the ADR's
-  evidence. O8 pins the general rule (last `error`/`ERR|` line), and AC-5/staging covers it live.
+- [ ] A corrupt presets file. Amendment 2 pins one case: a file made unreadable mid-run, at a
+  preset's re-check (R18). The endpoints' answers to a corrupt file at rest (the Implementer's 500,
+  story Deviations) are still not in the ADR, so they aren't tested.
+- [x] A toggle of a preset while it's mid-run (Amendment 2). It is switched off or deleted before its
+  turn (R14, R15) or while it waits for a manual sync (R16), re-saved before its turn (R17), or
+  switched off during its own sync (R19, not stopped). R10 still covers a delete during its own sync.
+- [x] A relay that doesn't support negentropy (Amendment 2). This is now stack-free, using the
+  Architect's strfry 1.1.0 stderr (ADR § Verified evidence 7–14). Covered:
+  - negentropy off, both wordings, and a CLOSED `auth-required` (M1, O9–O11, R13);
+  - the relay closing after its notice (O10);
+  - a relay that ignores NEG-OPEN, which still costs 10 minutes and has no cause (O11);
+  - a harmless NOTICE on connect or mid-download (O13, N5);
+  - repeated notices (N6) and a notice split across chunks (N8);
+  - NEG-ERR, unchanged (M2, O14);
+  - the one-shot, unchanged (G4).
 - [ ] Concept Graph API unavailable / handle not found: not applicable, no concepts change.
 
 ## Choices the ADR left open (the Implementer must follow these)
 
 1. **Seams.**
    - `negentropyPresets.js` takes strfry only through `negentropySync.js`
-     (`runStrfrySync`/`isSyncActive`), so it shares the one `activeSync` slot.
+     (`runStrfrySync`/`isSyncActive`), so it shares the one `activeSync` slot. *(Amendment 2:)* It
+     also imports `relayMessageOf` from `negentropySync.js`.
    - It takes `relayUrlProblem` and `requireOwnerOrLocal` from `routerConfig.js`, which must
      **export** `requireOwnerOrLocal`.
    - From `src/middleware/auth.js` (stubbed in the suite) only `isOwner` may be used.
@@ -150,7 +191,13 @@ bullet.
    `lastSuccessAt` (R5, R8).
 4. **Lock scope.** The read-modify-write lock must not be held across a strfry sync. A
    delete (or toggle) must answer while a preset is syncing (R10). A deleted preset's result is
-   dropped. Whether it still appears in `results` is open.
+   dropped.
+   - *(Amendment 2:)* The re-read happens without the lock. Toggles, deletes and saves answer while
+     an earlier preset syncs (R14, R15, R17) and while a preset waits for the slot (R16).
+   - *(Amendment 2, now pinned:)* A preset withdrawn **before** its strfry start is left out of
+     `results` and not counted in `failed` (R14–R16).
+   - Whether a preset deleted **during** its own sync appears in `results` stays open (R10 doesn't
+     look).
 5. **Waiting for the slot.**
    - Wait with `setTimeout`/`setInterval`/`timers/promises` or `Date.now` deadlines; all are
      dilated.
@@ -158,6 +205,10 @@ bullet.
    - A skipped preset gets `lastRun.skipped` as a string containing
      `a manual sync was running`, and `lastRun.ok` not true.
    - Whether a skip counts in `failed` is open.
+   - *(Amendment 2:)* When the preset is withdrawn, the wait ends early, within one poll. R16
+     asserts the run answers no more than 10 s (dilated) after the switch-off answers: one 5-s poll
+     plus one of slack for timers. A withdrawn preset is never recorded `skipped`: its stored
+     `lastRun` stays as it was (R16).
 6. **`runStrfrySync`.**
    - It rejects (or throws) an error whose `.code === 'BUSY'`.
    - It spawns exactly `buildCommand(...).args` with program `strfry`.
@@ -165,11 +216,38 @@ bullet.
      `/status` keeps working.
    - It kills via a `setTimeout` of `timeoutMs` (default 600000) and resolves once the child
      closes.
+   - *(Amendment 2)* `stallMs` is an option (default off: N7 calls it with no options at all),
+     and the stall timer works as in Finding 1, item 1:
+     - The timer starts when a relay line's newline arrives. Lines are buffered per stream, so a
+       relay line split across chunks counts once whole, and its tail isn't taken for progress
+       (N8).
+     - Any other complete line cancels it (N5). A relay line while it runs doesn't restart it
+       (N6).
+     - It runs on a clock the suite dilates (`setTimeout`/`setInterval`/`timers/promises`, or
+       `Date.now` deadlines checked by one of those). The stop must come between 50 s and 150 s
+       (dilated) after the relay line arrives, for `stallMs: 60000` (N4, N6, N8, R13).
+     - The stall stop is `kill('SIGTERM')` (or `kill()`) (N4).
+   - *(Amendment 2)* Only the first of the two stops is reported, and the other timer is cleared or
+     neutralized. After a stall stop, strfry is killed **once** (N4 counts kills past
+     `timeoutMs`).
+   - *(Amendment 2)* The resolve gains `stalled`. When `stallMs` is set, `stalled` and `timedOut`
+     are both booleans, `false` when not the cause (N4, N5). Without `stallMs`, `stalled` must
+     not be true (N7). N2's `{ exitCode, output }` still holds.
 7. **`parseSyncOutput`.**
    - Counts strfry didn't print (no UP, DOWN or Writer line) may be `0` or `null`.
    - The error is the message after the loguru `| `, trimmed, matched on lowercase `error` or
      `ERR|`.
    - `error` is falsy on success.
+   - *(Amendment 2)* The candidates add relay NOTICE and CLOSED lines, by `relayMessageOf`, recorded
+     as `relay said "<text>"` with straight double quotes. A relay line that also holds lowercase
+     `error` is recorded in that form (O14). The last candidate is the cause (O14).
+   - *(Amendment 2)* It takes the third argument, `'stalled'`, `'timeout'` or absent, and the
+     amendment's table texts are exact (O9–O12). The `<cause>; …` rows apply to any cause,
+     including an ordinary `ERR|` line (O11). The runner passes
+     `runStrfrySync`'s `stalled`/`timedOut` through this argument. A runner that keeps a timeout
+     override of its own fails R13.
+   - *(Amendment 2)* O5–O8 stay valid as written. A relay line doesn't change `ok` or the counts
+     (O13).
 8. **Responses.**
    - Save/replace: 200 `{ success: true, … }`.
    - Validation: 400 `{ success: false, error }`, where `error` is a string containing the
@@ -249,6 +327,45 @@ bullet.
       and defines no `requireOwnerOrLocal` of its own.
 19. **Atomic write.** Never write, append, truncate, open-for-write or copy onto the final
     path. Rename a temp file onto it (sync or `fs.promises` both work).
+20. **Amendment 2: `relayMessageOf` details.**
+    - It takes one line without its newline (M1–M4 pass lines that way). The runner's own line
+      splitting decides the rest.
+    - Its fallback is exactly the text after `relay: ` (M4).
+    - The 300-character cap applies to NOTICE and CLOSED text alike. 300 is kept whole, and 301 or
+      more is cut to 300 plus `…` (U+2026) (M3).
+    - `null` for every non-NOTICE/CLOSED array, including AUTH and `COUNT` (M2).
+21. **Amendment 2: the runner's re-read.**
+    - **The log line.** A withdrawn preset logs one line containing
+      `[negentropy-presets] "<name>": not run, switched off or deleted since the run began`, with
+      the name `JSON.stringify`-quoted like the existing per-preset line. Any of
+      `console.log/info/warn/error` works (R14–R16).
+    - **What a re-saved preset runs (R17).** Everything comes from the re-read record:
+      - the argv;
+      - `since = windowSince(current, startedAt)`;
+      - the result's `name`.
+
+      `startedAt` is still the start of its turn, and `lastRun.since` equals the `since` sent to
+      strfry. On success `lastSuccessAt = lastRun.startedAt`, because `sameTarget` compares the
+      stored record with the one that ran.
+    - **Unreadable at the re-check (R18).**
+      - The failed preset's result keeps the snapshot's `id`, and its `error` starts
+        `Could not read the presets:`.
+      - The earlier preset, whose record couldn't be written, stays `ok: true` in `results`, as now.
+        So `failed` is 1.
+      - The unreadable file is never overwritten.
+    - **The record step (R19).** It writes only `lastRun`/`lastSuccessAt` onto the stored record. A
+      switch-off during the preset's own sync stays off.
+
+**What Amendment 2 leaves untested (stack-free tests can't reach it cleanly, or the ADR is
+silent):**
+- **The re-read is synchronous with the slot take** (Finding 3, item 1). There is no observable
+  gap without an intrusive seam.
+- **A preset withdrawn just as its 10-minute wait runs out** is withdrawn, not skipped. This is a
+  race at the deadline. R16 covers the withdrawal during the wait.
+- **An unreadable store during the 5-s polls** (as opposed to at the take). R18 covers the take
+  step.
+- **`relayMessageOf` given valid JSON that isn't an array** (e.g. `relay: "text"`). The ADR's
+  "doesn't parse" doesn't say. A throwaway implementation returned the raw text.
 
 **The task's timeout (ADR 0003 Amendment 1; T10).** At Test Design the ADR's registry entry set
 no `options`, so `launchChildTask.sh` would apply `options_default.completion.failure.timeout`:
@@ -271,12 +388,29 @@ Verification, so those show 71 tests; with T10 the suite is 3 passed, 69 failed.
     hold or kill);
   - a stub `src/middleware/auth.js` (`isOwner` true only for the test's owner session);
   - `NEGENTROPY_PRESETS_PATH` set to a temp file per test;
-  - a time-dilation clock for the 10-minute waits (×20, ×60, ×600).
+  - a time-dilation clock for the 10-minute waits (×20, ×60, ×600), and for Amendment 2's stall
+    timings (×20, ×300, ×1200).
+- **Amendment 2 additions to the fake strfry** (additive; the existing behaviors are unchanged):
+  - `entry.emit(text)` writes stderr when the test chooses;
+  - mode `'emit-hold'` prints `out` and then hangs, as strfry does after a refusal;
+  - `killOut` sets what a killed strfry prints last (the fixtures use strfry's own
+    `Loguru caught a signal: SIGTERM`);
+  - each entry records `killedAt`, `kills` and `outAt`.
+
+  The new fixtures are built from the Architect's captures of strfry 1.1.0 against relays that
+  refuse negentropy (ADR § Verified evidence 7–14). They include the loguru header and the
+  unprefixed `Redis error: Connection refused` line.
+- **Timing bounds.** The stall tests check a two-sided window (50–150 s dilated around a 60-s
+  stall, with the wrong outcome at ≥ 177 s), and R16 checks ≤ 10 s dilated for one poll. These
+  passed 12 of 12 runs with four copies of the suite running at once on a 4-core sandbox
+  (Verification).
 - Host tools: `bash` and `curl` for T2–T6. T3–T6 **skip** (counted as skipped, not failed) if
   `/etc/brainstorm.conf` exists, because the script sources it and could reach a real control
   panel; they also skip if `curl` is missing. Neither is the case in CI or this sandbox.
 - The suite runs in about 1 s while failing and about 4.5 s once implemented. A broken runner
-  that never frees the slot costs up to 10 s per test (the per-test cap).
+  that never frees the slot costs up to 10 s per test (the per-test cap). *(With Amendment 2:)*
+  about 17 s now, because the new stall tests wait out the old 10-minute kill (dilated), and about
+  9.5 s once implemented.
 - Temp files are under `os.tmpdir()` and are removed when the suite ends.
 - **Reachability check (done once, not committed).** The ADR was applied to a throwaway copy
   of the tree outside the repo. The suite passed 71/71 there. The copy's full gate,
@@ -485,3 +619,141 @@ verdict and counts. The baseline was already red: the six failing suites are the
 assistant-profile-checklist epic's own red-phase suites. They are unrelated to this story and
 unchanged by it.
 
+
+### Amendment 2 (ADR 0003, review findings 1 and 3)
+
+The 23 new tests were checked against the story implementation, on commit `4b90d70d` (the
+implementation is `ffda8152`; only docs changed since). They ran with Node v22, no stack, and the
+test changes uncommitted.
+- **The 19 failures** are each a missing `relayMessageOf` export, the old error text, a stop at
+  the 10-minute kill instead of about 60 s, a missing `stalled` field, or a withdrawn or
+  re-saved preset synced from the run's snapshot. None is a load error.
+- **All 72 earlier tests pass**, unchanged.
+- **The 4 guards pass**: O13, N7, R19 and G4.
+
+`node test/negentropy-sync-presets.test.js` (the 72 PASS lines and the runner's log lines
+omitted):
+
+```
+  FAIL  M1: relayMessageOf reads the relay's words from strfry's "Unexpected message from relay" line: a NOTICE's text (element 1) and a CLOSED's reason (element 2), loguru prefix and all (Amendment 2, statement 1)
+        negentropySync.js must export relayMessageOf(line): not implemented yet (ADR relay-stream-gaps/0003 Amendment 2).
+  FAIL  M2: relayMessageOf is null for every other line: an AUTH or other unexpected message, a NEG-ERR, "Websocket connection error", the "Redis error" line and strfry's own lines (Amendment 2, statement 1)
+        negentropySync.js must export relayMessageOf(line): not implemented yet (ADR relay-stream-gaps/0003 Amendment 2).
+  FAIL  M3: relay text longer than 300 characters comes back as its first 300 characters and "…", so a long notice stays out of the presets file (Amendment 2, statement 1)
+        negentropySync.js must export relayMessageOf(line): not implemented yet (ADR relay-stream-gaps/0003 Amendment 2).
+  FAIL  M4: when the relay's array doesn't parse, or its text isn't a string, relayMessageOf returns the raw text after "relay: " (Amendment 2, Finding 1 item 1)
+        negentropySync.js must export relayMessageOf(line): not implemented yet (ADR relay-stream-gaps/0003 Amendment 2).
+  FAIL  O9: a relay that refused negentropy and was stopped by the stall rule (Evidence 10) reads `relay said "ERROR: bad msg: negentropy disabled"; nothing followed for 60 s, so strfry sync was stopped`, though an earlier "Redis error" line is in the output (Amendment 2, statement 2)
+        parseSyncOutput(<Evidence 10>, null, 'stalled')
+        expected: {"ok":false,"error":"relay said \"ERROR: bad msg: negentropy disabled\"; nothing followed for 60 s, so strfry sync was stopped"}
+        actual:   {"ok":false,"error":"Redis error: Connection refused"}
+  FAIL  O10: a relay that refused negentropy and then closed the socket (Evidence 11, exit 1) reads `relay said "ERROR: bad msg: negentropy disabled"`, not the earlier "Redis error" line (Amendment 2, statement 3)
+        parseSyncOutput(<Evidence 11>, 1)
+        expected: {"ok":false,"error":"relay said \"ERROR: bad msg: negentropy disabled\""}
+        actual:   {"ok":false,"error":"Redis error: Connection refused"}
+  FAIL  O11: a sync stopped at 10 minutes joins its cause to the timeout text, and with no cause reads exactly the timeout text (Amendment 2, statement 4)
+        Evidence 9 (a CLOSED, then nothing) stopped at 10 minutes
+        expected: {"ok":false,"error":"relay said \"auth-required: sign in to sync\"; strfry sync did not finish within 10 minutes and was stopped"}
+        actual:   {"ok":false,"error":"Redis error: Connection refused"}
+  FAIL  O12: a stall with no cause found reads exactly "strfry sync made no progress for 60 s and was stopped" (Amendment 2, the table's defensive row)
+        parseSyncOutput(<no candidate>, null, 'stalled')
+        expected: {"ok":false,"error":"strfry sync made no progress for 60 s and was stopped"}
+        actual:   {"ok":false,"error":"strfry sync exited with code null"}
+  PASS  O13: a harmless NOTICE before or during a sync that then completes (Evidence 7, 8; exit 0) is still a success, with no error and the same counts (Amendment 2, statement 5)
+  FAIL  O14: the last cause wins, and a relay line is one: a NOTICE then an ERR| line records the ERR| message; an ERR| line then a NOTICE records relay said "…"; a NOTICE whose text holds "error" is recorded as relay said "…" (Amendment 2, statement 6)
+        an ERR| line, then a NOTICE
+        expected: "relay said \"ERROR: bad msg: negentropy disabled\""
+        actual:   "Websocket send failed: broken pipe"
+  FAIL  N4: with stallMs, a relay NOTICE and then nothing gets strfry stopped (SIGTERM) stallMs after the notice; it resolves stalled: true, timedOut: false, frees the slot, and is not killed again by the 10-minute timer (time dilated ×300) (Amendment 2, statement 7)
+        strfry must be stopped about stallMs (60 s) after the relay's NOTICE, well before timeoutMs (180 s); it was stopped 177 s (dilated) after it
+  FAIL  N5: with stallMs, any other line after a relay NOTICE means strfry is making progress: it is not stopped at stallMs; if it then hangs, it is killed at timeoutMs with timedOut: true, stalled: false (time dilated ×300) (Amendment 2, statement 8)
+        the stop that is reported
+        expected: {"timedOut":true,"stalled":false}
+        actual:   {"timedOut":true}
+  FAIL  N6: with stallMs, a relay repeating its NOTICE can't keep a dead sync alive: the stop comes stallMs after the FIRST notice (time dilated ×300) (Amendment 2, statement 9)
+        repeated notices must not push the stop back: it must come about 60 s after the first notice; it came 597 s (dilated) after it
+  PASS  N7: without stallMs there is no stall rule: a relay NOTICE and then silence runs to the 10-minute kill, as today (time dilated ×1200) (Amendment 2, statement 10)
+  FAIL  N8: the stall rule reads whole lines: a relay NOTICE that arrives in two pieces still starts the stall timer, its second half not taken for progress (time dilated ×300) (Amendment 2, Finding 1 item 1)
+        a NOTICE line split across two chunks must start the stall timer once its newline arrives; strfry was stopped 237 s (dilated) after it
+  FAIL  R13: a preset whose relay refuses negentropy (Evidence 10: a NOTICE, then silence) is stopped about 60 s after the notice, not at 10 minutes; its lastRun.error gives the relay's words, it counts in failed, its last success is kept, and the next preset runs (time dilated ×300) (Amendment 2, statement 11)
+        alpha must be stopped about 60 s (RELAY_STALL_MS) after the relay's NOTICE, not at the 10-minute kill; it was stopped 596 s (dilated) after it
+  FAIL  R14: a preset switched off while an earlier preset syncs is not synced: no strfry run for it, its stored record left exactly as the switch-off wrote it, and it is out of results and failed (Amendment 2, statement 12)
+        strfry runs for bravo, switched off before its turn (an up preset: an upload the owner stopped)
+        expected: 0
+        actual:   1
+  FAIL  R15: a preset deleted while an earlier preset syncs is not synced, is out of results and failed, and stays deleted (Amendment 2, statement 13)
+        strfry runs for bravo, deleted before its turn
+        expected: 0
+        actual:   1
+  FAIL  R16: a preset switched off while it waits for a manual sync stops waiting within a poll: it is not synced, not recorded skipped, and the run ends without waiting out the 10 minutes (time dilated ×20) (Amendment 2, statement 14)
+        alpha was switched off while it waited for the manual sync, but the run was still waiting 50 s (dilated) later; it must stop waiting within a poll (5 s)
+  FAIL  R17: a preset re-saved with another relay while an earlier preset syncs runs as re-saved: the new relay, direction, filter and name, since = its turn's start − 7 days (the change cleared its last success), and its lastRun records that run (Amendment 2, statement 15)
+        strfry runs against bravo's old relay
+        expected: 0
+        actual:   1
+  FAIL  R18: a preset whose presets file can't be read at its turn fails closed: it is not synced, it is in results with ok: false and "Could not read the presets: …", and failed counts it; the unreadable file is left as it is (Amendment 2, statement 16)
+        strfry runs for bravo (an up preset whose switch can't be confirmed)
+        expected: 0
+        actual:   1
+  PASS  R19: a preset switched off during its own sync is not stopped; its run is recorded normally and its switch stays off (Amendment 2, statement 17)
+  PASS  G4: the one-shot Start has no stall rule: after a relay NOTICE and silence, POST /api/strfry/negentropy-sync and GET …/stream both run on to the 10-minute kill (time dilated ×1200) (Amendment 2, Finding 1 item 3, statement 10)
+negentropy-sync-presets: 76 passed, 19 failed, 0 skipped
+```
+
+**The full gate**, read with `npm run gate:status`. The baseline is the review's run on
+`ffda8152`; only docs have changed since.
+
+```
+20261009T185907Z-29733-9632 [rsg3-review] started 2026-10-09T18:59:07.535Z on ffda8152 — FAIL, exit 1, 5385 passed, 72 failed, 591 skipped, 289/289 suites; failed: stamped-composite-avatar, my-assistant-page, one-writer-assistant-profile, assistant-profile-check, assistant-profile-checklist-page, assistant-stamped-avatar-for-everyone
+20261009T200331Z-22126-f0c2 [rsg3-a2-tester-red-final2] started 2026-10-09T20:03:31.094Z on 4b90d70d+dirty — FAIL, exit 1, 5389 passed, 91 failed, 591 skipped, 289/289 suites; failed: negentropy-sync-presets, stamped-composite-avatar, my-assistant-page, one-writer-assistant-profile, assistant-profile-check, assistant-profile-checklist-page, assistant-stamped-avatar-for-everyone
+```
+
+**Per-suite comparison of the two records.** The only difference is
+`negentropy-sync-presets.test.js`, which went from PASS 72/0/0 to FAIL 76/19/0. Its 19 failures are
+M1–M4, O9–O12, O14, N4–N6, N8 and R13–R18. Every other suite has the same verdict and counts. The
+six failing suites are the assistant-profile-checklist epic's red-phase suites, unrelated to this
+story.
+
+Two earlier runs gave the same totals and the same one-suite difference:
+- `20261009T195055Z-30934-76a6 [rsg3-a2-tester-red]` ran before O11's `<cause>; …` fixture was
+  changed from the `Redis error` line to an `ERR|` line;
+- `20261009T195606Z-26394-70ef [rsg3-a2-tester-red-final]` ran before R13 gained its no-tail check.
+
+**Reachability check (done once, not committed).** A plain Amendment 2 implementation was applied
+to a throwaway export of `HEAD` outside the repo:
+- `relayMessageOf`;
+- `stallMs` with per-stream line buffering;
+- the `parseSyncOutput` table;
+- a re-read at every slot check, with withdrawal, and running the re-read record.
+
+Results there:
+- **This suite** passed 95/95 three times, in about 9.3 s each, and once more after O11's fixture
+  change.
+- **Under load** it passed 12 of 12 runs, with four copies running at once on 4 cores.
+- **Neighbouring suites.** `negentropy-sync-input` (5/0/0), `router-stream-tag-filters` (21/0),
+  `sync-panel-tag-filters` (20/0) and `nip51-list-export-from-pins` (0/0/8 skipped) give the same
+  results as on `HEAD`. These are the suites that load the two changed modules.
+- **23 mutations, all caught:**
+  - an output tail kept in `lastRun` (R13);
+  - no line buffering (N8);
+  - a repeated notice restarting the stall timer (N6);
+  - another line not cancelling it (N5);
+  - the stall rule on by default (N7);
+  - a stall rule in the one-shot handler (G4);
+  - no 300-character cap (M3);
+  - a CLOSED read at element 1 (M1, M3, O11);
+  - AUTH not `null` (M2);
+  - the `error` match tried before the relay match (O14);
+  - a re-read only once, before the wait (R16);
+  - a withdrawn preset recorded skipped (R14–R16);
+  - no withdrawal log line (R14–R16);
+  - the snapshot's target synced (R17);
+  - the snapshot's name in results (R17);
+  - an unreadable store failing open (R18);
+  - an unreadable store treated as withdrawn (R18);
+  - the 10-minute timer left running after a stall stop (N4, a second kill);
+  - `stalled` left `undefined` (N5);
+  - a 30-s stall (R13);
+  - SIGKILL (N4);
+  - no cause in the stalled text (O9, R13);
+  - the runner keeping its own timeout override (R13).
