@@ -30,4 +30,11 @@ and a security hotfix (`95876ca`, ledger `2026-10-09-negentropy-sync-hotfix-prod
 normal path. The hotfix reached production the same day through its own `hotfix/negentropy-sync-input` PR (#830, merge
 `14e140b`); the book still waits on PR #829.
 
+**How it ended, 2026-10-09 (book `assistant-profile-checklist` close).** That book's Phase-3 tests were pushed at Test
+Design (04:19–04:37 UTC) and its implementation at 19:48, about 15 hours later. The owner had chosen to hold the
+implementation locally until Review passed, to keep unreviewed code off `staging`. Two review rounds sent it back, so
+the hold, made for a good reason, lengthened the red window, because the failing tests were already on the shared
+line. PR #829 went green on the implementation's push and merged at 20:13 (`cfcd83c4`). Fix shape (a) above would have
+avoided both: the failing tests and the held implementation would have lived on one feature branch.
+
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7; this book's commits `33977a6` and `ccece6b`.

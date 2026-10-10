@@ -149,8 +149,10 @@ All three merged to `staging`: PR #504 (`2f13856d`), PR #506 (`ea80dd02`), PR #5
 - [ ] **Retention policy for accumulated composites** — kept deliberately (§4 #5); bounded in practice
       by how rarely an owner regenerates, but unbounded in principle.
 - [ ] **Automatic regeneration when the owner's avatar changes** — task-scheduler territory (§4 #8).
-- [ ] **Customer-assistant composites and badging** — deferred by stories 1 and 3; the proxy is defined
+- [x] **Customer-assistant composites and badging** — deferred by stories 1 and 3; the proxy is defined
       in terms of *the owner's* kind-0, so generalizing is not free.
+      *Resolved 2026-10-09 by book `assistant-profile-checklist` story 3 (ADR 0003): the proxy reads the signed-in
+      person's own kind 0, and every role stamps a composite for their own Assistant.*
 - [ ] **Migrate the remaining one-off avatar `<img>` sites** to the shared component (NoteCard,
       BrainstormProfile, search, user menu, TagChip, PinnedListPanel) — ADR 0001 §Consequences.
 - [x] **The customer branch's `'a customer'` name fallback** publishes *"a customer's Tapestry

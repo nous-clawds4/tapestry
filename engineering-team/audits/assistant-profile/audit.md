@@ -194,16 +194,23 @@ none of that is this book's. **Changed from outside this book:** PR #722 (`navig
       included. OPEN.md #269 (dated note 2026-09-21). (§4 #5)
 - [ ] **3. Dead or broken relays in the default lists.** OPEN.md #270. (§4 #13)
 - [ ] **4. `/api/profiles` skips its local fallback when its relay race times out.** OPEN.md #273. (§4 #17)
-- [ ] **5. A "needs attention" state** for a published-but-stale profile — e.g. production's customer assistant,
+- [x] **5. A "needs attention" state** for a published-but-stale profile — e.g. production's customer assistant,
       whose NIP-05 on `@brainstorm.world` stopped verifying at the domain cutover. (epic Deferred; §4 #11)
-- [ ] **6. Existing profiles still carry older defaults** until each user republishes (staging's TA: "Tapestry
+      *Resolved 2026-10-09 by book `assistant-profile-checklist` (story 1): the profile check marks a NIP-05 that does not
+      resolve to the Assistant on this instance's domain **Needs attention**, and `/assistant/profile` offers a republish.*
+- [x] **6. Existing profiles still carry older defaults** until each user republishes (staging's TA: "Tapestry
       Assistant", no picture, from before ta-avatar). Whether to *prompt* anyone to republish is a product
       question; auto-republishing is deliberately out (epic guardrail). (§4 #1, #20)
+      *Resolved 2026-10-09 by book `assistant-profile-checklist`: the owner chose to prompt. A profile missing its
+      personalized avatar, NIP-05, website, name and About, client tag or outside copy reads **Needs attention** on the hub
+      and the pill, and each panel offers a one-click republish. Nothing republishes on its own.*
 - [ ] **7. Key lifecycle** — Admin auto-provisioning, deprovisioning, the Owner's TA slot re-key.
       `stories/_intake.md` 2026-08-10. (§4 #16)
 - [ ] **8. The TA ↔ owner two-way handshake.** `stories/_intake.md` 2026-08-09.
-- [ ] **9. Badged avatars for Admins' and Customers' assistants** (the generator is Owner-only). ta-avatar
+- [x] **9. Badged avatars for Admins' and Customers' assistants** (the generator is Owner-only). ta-avatar
       carry-forward. (§4 #15)
+      *Resolved 2026-10-09 by book `assistant-profile-checklist` story 3 (ADR 0003): every signed-in person with an
+      Assistant stamps their own picture for their own Assistant, behind `GET /api/assistant/my-picture`.*
 - [ ] **10. A kind 10002 relay list for assistants; unifying in-app display fallbacks for assistants with no
       profile.** (epic Deferred)
       *2026-10-09 (book `assistant-outbox-relays`, closed 2026-10-09, on staging, production pending): the relay-list
