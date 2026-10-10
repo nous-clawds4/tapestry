@@ -22,6 +22,8 @@
 #                        scripts/harness-def-paths.txt) also touches
 #                        engineering-team/CHANGELOG.md; a missing CHANGELOG is
 #                        itself a violation; waiver shape: commit:<short-sha>
+#                        (L9 and L10 print INFO instead of judging when the commit
+#                        they land on is a shallow clone's boundary — harness-gate-integrity #3)
 #   L11 line-budgets     always-loaded files hold the caps in scripts/harness-budgets.txt
 #   L12 def-paths-exist  every def-path row names something present on disk
 #   L13 adr-consequences active ADR (decisions/, not done/) carries ## Consequences
@@ -224,21 +226,42 @@ check_L8() {
   done
 }
 
+# ---------- shallow clones: the boundary is not a change (L9, L10) ----------
+# A shallow clone's boundary commits have no parents in the clone, so git shows
+# each one adding every file in the tree. A history check that lands on one has
+# learned nothing about the real change, and says so instead of judging.
+# Cloud sessions clone shallow (ledger/2026-10-07-shallow-clone-trips-lint-l10.md).
+SHALLOW_FILE=""
+[ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = true ] \
+  && SHALLOW_FILE=$(git rev-parse --git-path shallow 2>/dev/null)
+is_shallow_boundary() { # <full-sha>
+  [ -n "$SHALLOW_FILE" ] && [ -f "$SHALLOW_FILE" ] && grep -qx "$1" "$SHALLOW_FILE"
+}
+
 # ---------- L9: hand-maintained freshness headers ----------
 check_L9() {
   git rev-parse --git-dir >/dev/null 2>&1 || return 0
-  local f hdr gitd hs gs days
+  local f hdr last gitd sha short hs gs days
   for f in BIBLE.md OPERATIONS.md; do
     [ -f "$f" ] || continue
     hdr=$(grep -m1 -E '^\*\*Last updated:\*\*' "$f" | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
     [ -n "$hdr" ] || continue
-    gitd=$(git log -1 --format=%ad --date=short -- "$f" 2>/dev/null)
-    [ -n "$gitd" ] || continue
+    last=$(git log -1 --format='%ad %H %h' --date=short -- "$f" 2>/dev/null)
+    [ -n "$last" ] || continue
+    read -r gitd sha short <<<"$last"
     hs=$(date_to_epoch "$hdr") || continue
     gs=$(date_to_epoch "$gitd") || continue
     days=$(( (gs - hs) / 86400 ))
-    [ "$days" -gt 14 ] \
-      && violation L9 "$f" "'Last updated: $hdr' lags the last git change ($gitd) by ${days}d (>14)"
+    [ "$days" -gt 14 ] || continue
+    # A boundary is newer than the file's real last change, so its date is
+    # normally no earlier and a pass against it is a real pass; only a would-be
+    # violation is undecidable. (Author dates can run backwards after a rebase;
+    # the full-history gate in CI still judges those.)
+    if is_shallow_boundary "$sha"; then
+      echo "INFO L9 $f — its last visible change is this shallow clone's boundary commit $short ($gitd), which may not be its real last change, so 'Last updated: $hdr' can't be checked (run \`git fetch --unshallow\` to check it)"
+    else
+      violation L9 "$f" "'Last updated: $hdr' lags the last git change ($gitd) by ${days}d (>14)"
+    fi
   done
 }
 
@@ -251,7 +274,7 @@ check_L10() {
     echo "INFO $DEF_PATHS_FILE missing — L10 (changelog-touch) skipped; the convention isn't adopted in this tree"
     return 0
   fi
-  local def_paths=() p latest
+  local def_paths=() p latest sha short
   while IFS= read -r p; do
     case "$p" in \#*|"") continue ;; esac
     [ -e "$p" ] && def_paths+=("$p")
@@ -261,10 +284,18 @@ check_L10() {
     violation L10 "$CHANGELOG" "harness-definition paths exist but the changelog is missing (the touch-rule can't be satisfied)"
     return 0
   fi
-  latest=$(git log -1 --no-merges --format=%h -- "${def_paths[@]}" 2>/dev/null)
+  latest=$(git log -1 --no-merges --format='%H %h' -- "${def_paths[@]}" 2>/dev/null)
   [ -n "$latest" ] || return 0
-  git show --name-only --format= "$latest" 2>/dev/null | grep -qx "$CHANGELOG" \
-    || violation L10 "commit:$latest" "latest harness-definition commit ($(git show -s --format=%s "$latest" | cut -c1-60)…) did not touch $CHANGELOG — add the row (one per logical change)"
+  read -r sha short <<<"$latest"
+  if is_shallow_boundary "$sha"; then
+    echo "INFO L10 commit:$short is this shallow clone's boundary — git shows it adding every file, so whether it changed the harness definition can't be told; L10 skipped (run \`git fetch --unshallow\` to check it)"
+    return 0
+  fi
+  # Ask git for the changelog alone. Piping the whole file list into `grep -q`
+  # fails under pipefail once the list outgrows the pipe: grep exits at its
+  # match and git dies of SIGPIPE.
+  [ -n "$(git show --name-only --format= "$sha" -- "$CHANGELOG" 2>/dev/null)" ] \
+    || violation L10 "commit:$short" "latest harness-definition commit ($(git show -s --format=%s "$sha" | cut -c1-60)…) did not touch $CHANGELOG — add the row (one per logical change)"
 }
 
 # ---------- L12: every def-path row names something that exists ----------

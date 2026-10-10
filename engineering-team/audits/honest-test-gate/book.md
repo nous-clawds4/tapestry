@@ -34,6 +34,11 @@ exit code is always true, and a red result always means signal.*
   that fits a session, environment-aware skips. New epic opened for this book.
 - `test-suite-hermeticity` (`epics/test-suite-hermeticity.md`) — joins with its assertion sweep
   (#2). Its #1 (OPEN.md row 150, Done) is this book's model fix.
+- `harness-gate-integrity` (`epics/harness-gate-integrity.md`) — joins 2026-10-09 with story #3
+  (`history-checks-honest-in-a-shallow-clone`): in a shallow clone, `harness-lint`'s history checks
+  say they can't judge instead of reporting a false violation. It falls under the frame's "a suite
+  the environment can't run says SKIP and why". Closes ledger row
+  `2026-10-07-shallow-clone-trips-lint-l10`.
 
 ## Provenance
 

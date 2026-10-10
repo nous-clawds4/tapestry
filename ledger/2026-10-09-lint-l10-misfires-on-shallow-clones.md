@@ -3,8 +3,8 @@
 **Id:** 2026-10-09-lint-l10-misfires-on-shallow-clones
 **Type:** meta
 **Opened:** 2026-10-09 (worksheet W25/W2 session; diagnosis corrected 2026-10-10 after review)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-09 (story `harness-gate-integrity` #3) — both halves of the fix shape below, closed with its duplicate OPEN.md row `2026-10-07-shallow-clone-trips-lint-l10`: L10 asks git for the CHANGELOG path alone (no early-exit pipe), and prints INFO for a shallow boundary instead of a verdict; L9 gets the same boundary treatment. The `a04f95a` question is answered: yes, the same misfire (a merge commit at a shallow boundary has no visible parents, so `--no-merges` keeps it). Review: `engineering-team/reviews/done/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`.
 
 `check_L10` (`scripts/harness-lint.sh:264-267`) picks the latest commit touching a harness-definition path, then pipes
 `git show --name-only --format= <commit>` into `grep -qx engineering-team/CHANGELOG.md`. The script runs under
