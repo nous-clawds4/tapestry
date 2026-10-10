@@ -3,7 +3,7 @@
 **Slug:** assistant-trusted-content-status
 **Status:** Closed
 **Opened:** 2026-10-08
-**Closed:** 2026-10-09 (on staging, PR #832 merged as `17243cdf`; production pending the owner's next promotion)
+**Closed:** 2026-10-09 (on staging, PR #832 merged as `17243cdf`; production 2026-10-10: PR #838 merged as `94cb6d3e`, deploy run 142, production smoke clean)
 
 ## Intent anchor
 

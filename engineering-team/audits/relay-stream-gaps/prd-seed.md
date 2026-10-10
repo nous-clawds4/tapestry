@@ -38,7 +38,7 @@
 - **A preset must narrow.** It needs kinds, authors or a tag filter, which guards against importing the dcosl junk stream (story 3 decision 3).
 - **Saved limits are not migrated.** An instance improves only once its operator raises its streams' limits (story 2 decision 2).
 
-`[FROM FRAME]` Production: stories 1–2 reached it with a full staging promotion (PR #829) before their staging checks finished, and with its saved limits still at 5, 0 or none. Story 3 has not been promoted.
+`[FROM FRAME]` Production: stories 1–2 reached it with a full staging promotion (PR #829) before their staging checks finished, and with its saved limits still at 5, 0 or none. Story 3 reached production on 2026-10-10 (PR #838), after its staging checks.
 
 ## 4. Domain model
 
@@ -63,7 +63,7 @@
 ## 6. Carry-forward & open questions
 
 Promoted from the build audit §6:
-1. **Production** and the per-instance setup it needs: raise its saved limits now (stories 1–2 are there), promote story 3, then add and switch on the presets task and save presets (audit §6 #1).
+1. **Production** and the per-instance setup it needs: raise its saved limits now (stories 1–2 are there; done 2026-10-10), promote story 3 (done 2026-10-10, PR #838), then add and switch on the presets task and save presets (audit §6 #1).
 2. **Visible completeness.** Today a preset's productive run disappears at the next quiet run, and the Scheduled Tasks history shows failures as successes. The operator can't tell "nothing was missing" from "it worked" (audit §6 #5, #6).
 3. **Deploy holes.** The router boots with no streams until the control panel starts, and one stream connected minutes late for an unknown reason. Limits of 500 hide the effect at staging's rates (audit §6 #3).
 4. **What still slips through:** events backdated before a preset's window, the upload direction after a router restart, and content nothing is configured to carry (audit §6 #11).

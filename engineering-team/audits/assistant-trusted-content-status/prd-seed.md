@@ -31,7 +31,7 @@
 
 ## 3. Scope (as-built)
 
-`[FROM FRAME]` On `staging` (PR #832); production pending:
+`[FROM FRAME]` On `staging` (PR #832) and in production (2026-10-10, PR #838):
 
 - **The names.** Scores, Lists, Concepts open the section, in that order. Descriptions, NIP links and page addresses are unchanged.
 - **The answer.** Each category is Done when the person's newest Treasure Map gives it to their Tapestry Assistant here, alone or beside other Assistants. Otherwise it needs attention, with one of three reasons: no Map, not assigned, or other Assistants only. When the Map couldn't be read it is "not known yet", and stays marked but uncounted.

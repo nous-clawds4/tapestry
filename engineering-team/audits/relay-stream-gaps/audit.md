@@ -14,15 +14,15 @@
 - **Merge resolutions.** None changed the book's code. The book's files are identical between each branch's last commit before its PR merged and the merged tree: `36600afd` against `49427c29` for stories 1–2, and `8dab8bc6` against `4487a3f0` for story 3.
 - **After the PASS, before the PR.** Stories 1–2 gained two commits with no further review round, both sweeping that round's non-blocking findings: `1fdef447` (two additive tests, R2-5) and `36600afd` (comments, docs and ledger rows; its message records gate `20261009T045855Z-7286-5d26` PASS).
 - **Staging: deployed and verified** (§5, and `book.md` § Staging verification).
-- **Production: stories 1–2 only.**
+- **Production: all three stories** (story 3 since 2026-10-10).
   - **How they got there.** PR #829 promoted `staging` to `main` at 20:13Z on 2026-10-09, carrying #787 and #826. `deploy-tapestry` run #140 succeeded; production's router has been up since about 20:23Z.
   - **Before their staging check finished.** At that point bullet 1 had not been checked live, and bullet 2 was still at limit 5 (§4 #11).
   - **Its limits.** Production's saved stream limits are 5, 0 or none (read from `GET /api/strfry/router-status` on 2026-10-10), so the patched router refetches at most 5 per connect there.
-  - **Not promoted:** story 3 (#831, merged to `staging` 41 minutes after #829) and #834.
+  - **Story 3 and #834:** not in PR #829 (#831 merged to `staging` 41 minutes after it). They reached production in the next full promotion, PR #838 merged 2026-10-10 as `94cb6d3e`, deploy run 142; production smoke clean (the bundle carries the Negentropy Sync presets, the presets list answers, and an anonymous run is refused 401). The **Sync Negentropy Presets** task is not yet added there, and no presets are saved.
 
 **Provenance:** Acceptance-frame. There is no PRD. The operator's ask was restated at kickoff on 2026-10-09 as four bullets and confirmed by the operator the same day (`book.md`).
 
-**Confidence:** **high** for what the code does, **medium** for the frame as it plays out on staging, **none** for production: stories 1–2 run there unverified, and story 3 isn't there.
+**Confidence:** **high** for what the code does, **medium** for the frame as it plays out on staging, **none** for production: all three run there (story 3 since 2026-10-10, PR #838), smoke-tested anonymously but not verified.
 - **Code.** Every story passed review by a fresh reviewer: story 1 in two rounds, story 2 in one, story 3 in two. Each strfry 1.1.0 behaviour the ADRs rely on was run in a sandbox build of the real binary, not assumed:
   - an in-place reload, and that a replaced file ends reloads;
   - a rejected config, half-applied;
@@ -135,7 +135,7 @@ Derived from what PRs #826 and #831 brought into `staging`:
 | 8 | Story 3 AC-4: "why it failed (e.g. the relay doesn't support negentropy …)" | After review: stopped about 60 s after a relay's NOTICE or CLOSED, and named in its words. Still not covered: a relay that ignores `NEG-OPEN` costs 10 minutes and reads as a timeout. The one-shot Start has no stall rule. A relay's notice text reaches the log raw and can inflate the counts | deferred | ADR 0003 Amendment 2 ("Not changed"); review 3 round 2, R2-1 and R2-2; OPEN.md rows `2026-10-10-negentropy-silent-or-refusing-relays` and `2026-10-09-presets-relay-text-handling` | A silent relay holds the slot for 10 minutes per run. A hostile relay could forge a line in the owner's own log | §6 #7, #8 |
 | 9 | ADR 0003 (as accepted): the presets list is "readable by any signed-in user" | It is readable by anyone who can reach the API, as the router config and the sync status already are. The ADR was corrected at #834 | interpretation | Review 3 round 1, finding 5 | Relay URLs, filters and last-run errors are public. A relay URL with a token in its query string would be exposed | — |
 | 10 | Story 2 AC-4: "A blank or 0 limit is shown as 'live only'" | It is, in the hint and on the card. But a blank field shows a grey "500" placeholder, which the ADR mandated | interpretation | Review 2, non-blocking 4 | Someone skimming may read 500 as the value that applies | §6 #13 |
-| 11 | Frame bullet 4: "Each of the above is verified on staging before production" | All three are now verified on staging: bullets 1–2 observed, bullet 3 inferred (§5). But stories 1–2 reached production first. PR #829 (staging → `main`, 20:13Z 2026-10-09) carried #826 about six hours before bullets 1–2 were checked on staging (2026-10-10, about 02:05–02:33Z). Story 3 is not promoted | interpretation | The owner chose a full promotion (PR #829's body lists "Book `relay-stream-gaps` (#826; stories 1–2 reviewed PASS; book still Open)"). Whether that was meant to waive this bullet for stories 1–2 is not recorded | Production ran the in-place reload and the limit patch before they were seen working live. Nothing has been observed going wrong there; nothing has been observed at all | §6 #1 |
+| 11 | Frame bullet 4: "Each of the above is verified on staging before production" | All three are now verified on staging: bullets 1–2 observed, bullet 3 inferred (§5). But stories 1–2 reached production first. PR #829 (staging → `main`, 20:13Z 2026-10-09) carried #826 about six hours before bullets 1–2 were checked on staging (2026-10-10, about 02:05–02:33Z). Story 3 was not promoted at this close; it reached production 2026-10-10 (PR #838), after its staging verification | interpretation | The owner chose a full promotion (PR #829's body lists "Book `relay-stream-gaps` (#826; stories 1–2 reviewed PASS; book still Open)"). Whether that was meant to waive this bullet for stories 1–2 is not recorded | Production ran the in-place reload and the limit patch before they were seen working live. Nothing has been observed going wrong there; nothing has been observed at all | §6 #1 |
 
 **Undocumented work.** The book's own diff has none. Every file in PRs #826, #831 and #834 traces to a story, an ADR or amendment, a test plan, or a review finding swept in a named commit. Examples of the last two: `docs/TAG_FEDERATION_OPS.md` and the row-25 note come from the review 2 sweep `36600afd`, and the `requireOwnerOrLocal` export from test plan choice 1. One piece of code in the book's sequence has no story, ADR or review:
 - **PR #787** — `src/api/strfry/routerConfig.js` and docs, +689 −62, no story/ADR provenance and no review. It is router hardening written on 2026-09-30 against ledger row `2026-09-30-router-saved-state-revalidation`. It was merged into `staging` on 2026-10-09 (`ff3d4e6c`) as the base the book built on.
@@ -178,7 +178,7 @@ Derived from what PRs #826 and #831 brought into `staging`:
     - Staging had lacked 3 of the 392 dcosl kind-39998 headers (20:58Z on 2026-10-09). Afterwards it held all 393.
     - The dcosl kind-9999 items the preset doesn't cover (4 from the last week) were still missing. That suggests the headers came from the preset and not from some other path.
     - The first run's count wasn't kept (§4 #6).
-  - **Bullet 4.** Staging is verified for all three. Stories 1–2 had already reached production (PR #829, 20:13Z 2026-10-09) before the staging checks of bullets 1–2; story 3 has not been promoted (§4 #11).
+  - **Bullet 4.** Staging is verified for all three. Stories 1–2 had already reached production (PR #829, 20:13Z 2026-10-09) before the staging checks of bullets 1–2; story 3 had not been promoted at this close, and reached production 2026-10-10 via PR #838, after its staging checks (§4 #11).
 - **Known open issues.** These ledger rows, all OPEN:
   - `2026-10-09-router-accepts-values-strfry-rejects`, `2026-10-09-task-history-misses-script-failures`, `2026-10-09-presets-relay-text-handling`, `2026-10-09-bk1-seed-match-char-window`;
   - `2026-10-09-router-patch-sed-macos` (filed by `assistant-trusted-content-status`, in this book's lane);
@@ -194,9 +194,9 @@ Derived from what PRs #826 and #831 brought into `staging`:
 
 ## 6. Carry-forward register
 
-- [ ] **1. Production.** Stories 1–2 are already there (PR #829) but have not been checked there.
+- [ ] **1. Production.** All three stories are there (stories 1–2 by PR #829, story 3 by PR #838 on 2026-10-10) but have not been checked there.
   - **Now:** raise production's saved stream limits so the patched router has something to refetch (`tag`-family and `tagDeletions` 5, WoT 0, `userProfiles` and `treasureMaps` none, read 2026-10-10). **Done 2026-10-10:** the owner raised them; at 03:17Z all 14 production streams read limit 500, and the router's uptime ran unbroken from the 2026-10-09 20:23Z deploy through the edits, so story 1's in-place reload also holds on production.
-  - **Story 3:** promote it on the owner's go (`/cycle-prod`), then add the **Sync Negentropy Presets** task, switch it on at 6 hours, and save the presets wanted.
+  - **Story 3:** promoted on the owner's go — PR #838 merged 2026-10-10 as `94cb6d3e`, deploy run 142, production smoke clean. **Still to do:** add the **Sync Negentropy Presets** task, switch it on at 6 hours, and save the presets wanted.
   - **Verify:** run the staging checks on production. (§4 #1, #11)
 - [ ] **2. Staging's presets task.** It is switched off at a 10-minute interval (02:42Z). Set it to 6 hours, then switch it on; at 10 minutes it blocks the safe-to-merge check (row `2026-10-10-ten-minute-schedule-blocks-merges`).
 - [ ] **3. Streams up with the router after a deploy,** and why WoT connected minutes late. Render the config from `router-state.json` in the entrypoint, and read the router's log after a deploy. (§4 #2; row `2026-10-10-router-boots-with-empty-streams`; recipe row `2026-10-10-staging-delivery-check-recipe`)
