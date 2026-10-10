@@ -1,6 +1,6 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 💭 proposal — amendments to existing drafts, for review
-> **Found:** `b` tags → `inherit-from.md` § "The `b` tag" and `shared-concepts.md`; `z` tags → `nips/decentralized-lists.md` (parent pointer) and `tapestry-concepts.md` (the a-tag form, concept anatomy); `n` / `s` tags → `class-thread-relationships.md`. None of them defines a self-pointing `b`; the worksheet (b-coverage discipline) mentions "self-declared" headers without a wire form.
+> **Found:** `b` tags → `inherit-from.md` § "The `b` tag" and `shared-concepts.md`; `z` tags → `nips/decentralized-lists.md` (parent pointer) and `tapestry-concepts.md` (the a-tag form, concept anatomy); `n` / `s` tags → `class-thread-relationships.md`. None of them defines a self-pointing `b` (true when proposed; § 3 has since landed); the worksheet (b-coverage discipline) mentions "self-declared" headers without a wire form.
 
 ---
 
@@ -32,7 +32,9 @@ A DList header is an event of kind `39998`, so it is already an item of an event
 
 Consequence: Supported DLists and Supported Concepts are (Pin, kind-`39998` category) lists. Their members are headers **used as lists**, so they are kind **`30397`** with `z` members, one list holding headers of all four kinds (Spawning § 3.3).
 
-## 3. A self-pointing `b` declares a header canonical
+## 3. ~~A self-pointing `b` declares a header canonical~~ — applied
+
+**Applied 2026-10-10** (`duty-menus-and-self-maps` #1, ADR 0001): now normative in [inherit-from.md](./inherit-from.md) § "The `b` tag" (Self-declaration), with the policy line in [shared-concepts.md](./shared-concepts.md) § "Declared affiliation", reworded under the D2 vocabulary policy. The proposal below is kept for history.
 
 **Proposed addition to `inherit-from.md` § "The `b` tag"** (and a matching line in `shared-concepts.md` § Declared affiliation):
 
