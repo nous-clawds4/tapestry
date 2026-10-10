@@ -76,6 +76,10 @@ for more members.
    firmware-install bridge (ADR `security-auth-exposure/0002`).
 5. **The point-of-view sync stays open to signed-in people, narrowly** *(owner; book `negentropy-sync-access`
    decision 2)*. **Task control is for the owner, admins and direct-local callers** *(owner; same book, decision 7)*.
+6. **Batch 0, shipped ahead of the Architecture gate.** While sizing the inventory, the Architect found request values
+   reaching a shell string in a few handlers. The owner chose a hotfix everywhere at once, and the Architecture gate
+   waited for it. It shipped 2026-10-10 to `staging`, production (PR #844), `feat/tags` (#845) and
+   `feature-magic-carpet` (#846). Record: ledger `2026-10-10-request-values-reached-a-shell`. *(Owner, 2026-10-10.)*
 
 ## Decisions to take (owner)
 
