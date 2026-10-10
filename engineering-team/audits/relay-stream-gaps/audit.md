@@ -195,7 +195,7 @@ Derived from what PRs #826 and #831 brought into `staging`:
 ## 6. Carry-forward register
 
 - [ ] **1. Production.** Stories 1–2 are already there (PR #829) but have not been checked there.
-  - **Now:** raise production's saved stream limits so the patched router has something to refetch (`tag`-family and `tagDeletions` 5, WoT 0, `userProfiles` and `treasureMaps` none, read 2026-10-10).
+  - **Now:** raise production's saved stream limits so the patched router has something to refetch (`tag`-family and `tagDeletions` 5, WoT 0, `userProfiles` and `treasureMaps` none, read 2026-10-10). **Done 2026-10-10:** the owner raised them; at 03:17Z all 14 production streams read limit 500, and the router's uptime ran unbroken from the 2026-10-09 20:23Z deploy through the edits, so story 1's in-place reload also holds on production.
   - **Story 3:** promote it on the owner's go (`/cycle-prod`), then add the **Sync Negentropy Presets** task, switch it on at 6 hours, and save the presets wanted.
   - **Verify:** run the staging checks on production. (§4 #1, #11)
 - [ ] **2. Staging's presets task.** It is switched off at a 10-minute interval (02:42Z). Set it to 6 hours, then switch it on; at 10 minutes it blocks the safe-to-merge check (row `2026-10-10-ten-minute-schedule-blocks-merges`).
