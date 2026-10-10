@@ -68,3 +68,12 @@ item 5; census in `engineering-team/epics/tagging-edges.md` § Key facts; OPEN.m
   arrival (`engineering-team/audits/my-assistants/book.md` § Before shipping).
 - **Still open:** the catch-up for deletions missed while a router restarts, and UI revokes that carry no `k` (row
   `2026-09-27-ui-revoke-names-id-only`).
+
+**Update 2026-10-10 (book `relay-stream-gaps` close): the catch-up has its tools, on staging.**
+- Stream changes no longer restart the router (relay-stream-gaps #1), and a stream's Limit is refetched on every
+  connect (#2). Staging's `tagDeletions` is at limit 500, so a deploy's hole in it refills when it reconnects.
+- A scheduled negentropy preset (#3) with `{"kinds":[5],"#k":["39999"]}` can cover gaps larger than the Limit. No
+  instance runs one yet.
+- **Still open:** production has the router changes since PR #829 (2026-10-09), but its `tagDeletions` is saved at limit 5
+  (read 2026-10-10), so a reconnect refetches only 5 until the owner raises it, and the presets (#3) are not promoted
+  there. Also open: a kind-5 preset on each instance if wanted, and UI revokes without `k`, which ride neither.

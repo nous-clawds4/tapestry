@@ -1,6 +1,6 @@
 # Epic: assistant-profile-checklist — Your Tapestry Assistant's Profile, as a checklist with one-click fixes
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-10; the folders sit under `done/`; in production 2026-10-09 via PR #829)
 **Created:** 2026-10-09
 **Book:** `engineering-team/audits/assistant-profile-checklist/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-09, quoted verbatim in the book, with three decisions taken at

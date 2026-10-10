@@ -183,9 +183,16 @@ Reconciled against the diff.
       item 1; §4 #4)
       *2026-09-22: the identification-tags action has its real answer (book `assistant-identification-tags`, closed
       2026-09-22, unmerged at its close); nine actions still count as placeholders.*
+      *2026-10-09: the profile (book `assistant-profile-checklist`), Outbox Relays (book `assistant-outbox-relays`, an
+      eleventh action) and Scores, Lists and Concepts (book `assistant-trusted-content-status`, which also renamed those
+      three) have real answers too. Five placeholders remain: Bounties, Pins, Tags, Notifications and Alerts,
+      Preferences.*
 - [ ] **2. The ten action pages,** each with its own action cards, starting with the profile checklist that points to
       the editor for what is wrong. (intake item 2)
       *2026-09-22: one of the ten, `/assistant/identification-tags`, is built (the same book); nine remain.*
+      *2026-10-09: `/assistant/profile` is built as that checklist, with one-click fixes rather than links to the editor
+      (book `assistant-profile-checklist`), and `/assistant/outbox-relays` as an eleventh action (book
+      `assistant-outbox-relays`).*
 - [ ] **3. The assistant's DMs,** the FAQ's "Coming soon". (intake item 3)
 - [ ] **4. Whether the pill should reach production while every action counts.** Held by the owner at this close.
       (story 2 § Out of scope; §4 #13)

@@ -35,7 +35,7 @@
 
 ## 3. Scope (as-built)
 
-`[FROM FRAME]` On `staging` and deployed there; production pending:
+`[FROM FRAME]` On `staging` and in production (2026-10-09, PR #829):
 
 - **The card and its answer.** The eleventh hub action, after Identification Tags, with a NIP-65 link.
   - The answer is for the viewer's own Assistant only: the outbox relays its newest kind 10002 names, read from this instance's relay first, then the configured outside relays.

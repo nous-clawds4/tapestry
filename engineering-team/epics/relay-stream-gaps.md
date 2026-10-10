@@ -1,7 +1,7 @@
 # Epic: relay-stream-gaps
 
 **Created:** 2026-10-09
-**Status:** Active
+**Status:** Done (book closed 2026-10-10; the story, ADR and review folders sit under `done/`; on staging via PRs #826, #831 and #834; stories 1–2 also on production via PR #829, story 3 pending)
 **Book:** `engineering-team/audits/relay-stream-gaps/book.md` (acceptance-frame)
 **Provenance:** Operator report 2026-10-09 (in-session). Content the operator expected on the
 local relay was missing until a manual negentropy sync, while 11 router streams on
@@ -37,18 +37,17 @@ upstream events reach both staging and production, median latency about 1 s.
 
 ## Stories
 
-`stories/relay-stream-gaps/`:
+`stories/done/relay-stream-gaps/`:
 1. `1-stream-changes-without-router-restart.md` — changing streams on the Router Management
    tab no longer restarts the router or interrupts the other streams. Bug.
 2. `2-stream-limit-refetches-on-reconnect.md` — a stream's Limit fetches up to that many of the
    newest matching events from each relay whenever it connects (operator's choice over
    removing the field, 2026-10-09). Bug.
 
-Queued (the book's acceptance frame; stories are drafted when picked up):
-- Saved negentropy-sync presets, each switchable on or off, with the enabled ones run on a
-  schedule as a Scheduled Task. This is the catch-up that closes deploy holes and covers
-  content no stream carries. It is the "saved presets" item the retired `relay-management`
-  epic queued.
+3. `3-scheduled-negentropy-sync-presets.md` — saved negentropy-sync presets, each switchable on
+   or off, with the enabled ones run on a schedule as a Scheduled Task: the catch-up that closes
+   deploy holes and covers content no stream carries. It is the "saved presets" item the retired
+   `relay-management` epic queued. Feature.
 
 ## Key facts / guardrails
 

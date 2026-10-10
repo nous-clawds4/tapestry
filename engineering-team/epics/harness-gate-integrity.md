@@ -1,7 +1,7 @@
 # Epic: Harness Gate-Integrity & Lint Robustness
 
-**Status:** Done *(re-retired 2026-08-04 at the `blinding-rebuild` book close — story #2 Done; reopened earlier the same day from the 2026-07-25 story-#1 close; `stories`/`decisions`/`reviews` folders moved under `done/` at this close per workflow 5 § Epic close-out)*
-**Book:** `engineering-team/audits/harness-gate-integrity/book.md` (story #1, closed 2026-07-25) · `engineering-team/audits/blinding-rebuild/book.md` (story #2, open — acceptance-frame)
+**Status:** Done *(re-retired 2026-10-09 when story #3 shipped; reopened the same day for it under the open book `audits/honest-test-gate/book.md`. Earlier: re-retired 2026-08-04 at the `blinding-rebuild` close after story #2. All three stories, their test plans and reviews are under `done/`.)*
+**Book:** `engineering-team/audits/harness-gate-integrity/book.md` (story #1, closed 2026-07-25) · `engineering-team/audits/blinding-rebuild/book.md` (story #2, closed) · `engineering-team/audits/honest-test-gate/book.md` (story #3 Done; the book stays open — acceptance-frame)
 **Parent lineage:** `harness-self-improvement` (Done) — this epic fixes defects in that epic's own deliverables (the aggregate test runner and `scripts/harness-lint.sh`), rather than adding any new surface.
 
 ## What this is
@@ -16,10 +16,11 @@ The frame's teeth: each defect ships with the regression test that would have ca
 
 ## Stories
 
-`stories/harness-gate-integrity/`:
+`stories/done/harness-gate-integrity/`:
 
 1. **gate-integrity-and-lint-robustness** — the whole batch as one story (#43 gate re-attach + anti-recurrence self-assertion, #58 summary honesty, #46 ADR-`Consequences` invariant, #22 CI-ordering robustness, #21 empty-tree guard). #55 is N/A on staging (contextScopedPins is feat/tags-only), noted and excluded.
 2. **move-gate-history-out-of-judge-read-surfaces** — the blinding rebuild (OPEN.md #117 leak channels + #119 stats tally): gate history leaves every surface a rubric requires a judge to read, and the retro instrument learns to count Direction-mode gate outcomes. Widens the epic's charter from the self-checking machinery to the gate protocol itself. Picked up 2026-08-04 from the 2026-07-28 intake proposal; book `audits/blinding-rebuild/book.md`.
+3. **history-checks-honest-in-a-shallow-clone** — `harness-lint`'s two git-history checks (L10 changelog-touch, L9 stale-headers) stop reading a shallow clone's boundary commit as a real change, and say so with an INFO line; L10 also stops failing a large commit that did touch the CHANGELOG. Closes ledger row `2026-10-07-shallow-clone-trips-lint-l10`. Picked up 2026-10-09; book `audits/honest-test-gate/book.md`.
 
 ## Out of scope (whole epic)
 
@@ -33,4 +34,5 @@ The frame's teeth: each defect ships with the regression test that would have ca
 - `harness-self-improvement` (Done) — the epic whose deliverables this batch repairs.
 - OPEN.md rows #43, #58, #46, #22, #21 (and #55, noted N/A) — the ledger items story #1 closed.
 - OPEN.md rows #117, #119 — the ledger items story #2 closes; rows #132/#133 (DONE 2026-08-04) are the ratified context it builds on.
+- Ledger row `ledger/2026-10-07-shallow-clone-trips-lint-l10.md` — the item story #3 closes.
 - `engineering-team/decisions/harness-self-improvement/0001-harness-lint.md` — the invariant mechanism #46 extends.

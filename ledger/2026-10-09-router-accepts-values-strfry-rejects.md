@@ -31,6 +31,6 @@ config. But the message's advice is wrong in this one case.
   the server log, not "Press Restart".
 - Fold OPEN.md row 31(b) into this row.
 
-**Pointer:** `engineering-team/reviews/relay-stream-gaps/1-stream-changes-without-router-restart.md` § Round 2
-(R2-1); `engineering-team/reviews/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.md` non-blocking 1;
+**Pointer:** `engineering-team/reviews/done/relay-stream-gaps/1-stream-changes-without-router-restart.md` § Round 2
+(R2-1); `engineering-team/reviews/done/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.md` non-blocking 1;
 ADR relay-stream-gaps/0001 Amendment 1 and Verified evidence 5.

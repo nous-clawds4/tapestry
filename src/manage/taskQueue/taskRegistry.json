@@ -267,6 +267,36 @@
       "notes": "Phase 2 structured events implemented - emits TASK_START, PROGRESS (initialization, relay_sync phases), and TASK_END with comprehensive metadata about relay synchronization, filter kinds, and sync status."
     },
 
+    "syncNegentropyPresets": {
+      "name": "Sync Negentropy Presets",
+      "categories": ["network"],
+      "description": "Runs every switched-on negentropy-sync preset (Settings → Relays → Negentropy Sync), one at a time, through the control panel's loopback POST /api/strfry/negentropy-presets/run. Each preset covers events since its last successful run less an hour (the last 7 days on its first run). Fails when any preset failed; each preset's result is on the Negentropy Sync tab. ADR relay-stream-gaps/0003.",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/manage/negentropySync/syncPresets.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/manage/negentropySync/syncPresets.sh",
+      "script_relative_path": "manage/negentropySync/syncPresets.sh",
+      "arguments": false,
+      "scope": "system",
+      "priority": "normal",
+      "frequency": "periodic",
+      "status": "active",
+      "structuredLogging": true,
+      "suggestedIntervalHours": 6,
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "21600000 = 6 hours, the script's curl -m 21600 (ADR relay-stream-gaps/0003 Amendment 1)",
+              "duration": 21600000,
+              "forceKill": true
+            }
+          }
+        }
+      },
+      "notes": "Story relay-stream-gaps #3 / ADR relay-stream-gaps/0003. Presets live in /var/lib/brainstorm/negentropy-presets.json. The task ships with a disabled fresh-install seed every 6 hours; existing instances add it from the Scheduled Tasks Add dialog, which pre-fills suggestedIntervalHours. A trigger while a run is still going exits 0 with a WARN (alreadyRunning)."
+    },
+
     "callBatchTransfer": {
       "name": "Call Batch Transfer",
       "categories": ["network"],
@@ -1620,7 +1650,8 @@
       "calculatePersonalizedGrapeRank": "calculatePersonalizedGrapeRank.log",
       "processFollowsMutesReports": "processFollowsMutesReports.log",
       "syncWoT": "syncWoT.log",
-      "syncProfiles": "syncProfiles.log"
+      "syncProfiles": "syncProfiles.log",
+      "syncNegentropyPresets": "syncNegentropyPresets.log"
     },
     "structuredEvents": {
       "eventsFile": "taskQueue/events.jsonl",

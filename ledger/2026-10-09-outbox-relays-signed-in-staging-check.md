@@ -3,8 +3,8 @@
 **Id:** 2026-10-09-outbox-relays-signed-in-staging-check
 **Type:** cleanup
 **Opened:** 2026-10-09 (book `assistant-outbox-relays` close)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-10 — the owner reported updating their own Assistant's outbox on staging, signed in, and that it worked. The individual steps below were not reported one by one. The production repeat has not been reported.
 
 Book `assistant-outbox-relays` is deployed to `staging.brainstorm.world` (deploy run 541, commit `79f17935`). Its anonymous
 surfaces were checked there at the close: `/assistant/outbox-relays` answers 200, anonymous `GET /api/assistant/attention`

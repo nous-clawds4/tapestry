@@ -3,7 +3,7 @@
 **Slug:** assistant-outbox-relays
 **Status:** Closed
 **Opened:** 2026-10-09
-**Closed:** 2026-10-09 (on `staging`, deployed to staging.brainstorm.world; production pending, PR #829)
+**Closed:** 2026-10-09 (on `staging`, deployed to staging.brainstorm.world; production 2026-10-09: PR #829 merged 2026-10-09 as `cfcd83c4`, deploy run 140, production smoke clean)
 
 ## Intent anchor
 

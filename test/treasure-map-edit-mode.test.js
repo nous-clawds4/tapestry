@@ -464,9 +464,12 @@ test('W3: the card rule exports entryOf and appliesTo, unchanged (ADR 0003 sub-d
   assert(mod.appliesTo('scores', mod.entryOf(['*', A])) === true && mod.appliesTo('scores', mod.entryOf(['*:tag', A])) === false, 'appliesTo: a bare * reaches Scores, a *:… entry doesn\'t');
 });
 test('W4: AC-7 — categoryAssistants\' JSDoc says a `*:…` entry "that names anything after the `*`" never counts', () => {
-  const src = safeRead(VIEW_MODEL);
+  // Re-aimed by assistant-trusted-content-status #1 (ADR 0001 sub-decision 1): the rule, with its JSDoc, moved to its one
+  // home in src/lib; the view model re-exports it.
+  const RULE_MODULE = path.join(__dirname, '..', 'src/lib/treasureMapCategories.mjs');
+  const src = safeRead(RULE_MODULE);
   const at = src.indexOf('export function categoryAssistants');
-  assert(at > 0, `${rel(VIEW_MODEL)} has no categoryAssistants`);
+  assert(at > 0, `${rel(RULE_MODULE)} has no categoryAssistants`);
   const doc = src.slice(src.lastIndexOf('/**', at), at);
   assert(/that names anything after the `\*`/.test(doc.replace(/\s*\n\s*\*\s*/g, ' ')), `the JSDoc above categoryAssistants doesn't say "that names anything after the \`*\`": ${show(doc.slice(0, 400))}`);
 });

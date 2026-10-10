@@ -22,6 +22,13 @@ on the same machine, and each time in a different wall-clock timing check. Neith
   that book's close gate, `20261009T165915Z-27122-2892 [book-close-assistant-outbox-relays]`, again with nothing else
   from that session running: 0.77 s.
 
+- **2026-10-09, book `assistant-trusted-content-status`:** its implementation gate `20261009T140652Z-94503-eca0
+  [atcs-impl-final]` ran beside a UI build and 185 browser tests in the same session. 18 of RW's tests failed ("node was
+  never started within 5000 ms"), and wall-clock checks in four more suites overran by 30–60×
+  (`honest-publish-reporting` B4, `assistant-setup-state` U12, `strfry-count-strict` SC21, `relay-scan-bounds` B3). All
+  four re-run alone passed 24/0, 10/0, 28/0 and 23/0. Its merge re-review gate (`review-merge2`) ran while another
+  session's gate (`hgi3-impl-baseline`) used the same :7778 stack.
+
 The CI workflow's comment claims a zero-flake record with no retries. That holds on an idle runner, but a reviewer who
 runs a load gate on purpose sees a red suite that isn't theirs.
 

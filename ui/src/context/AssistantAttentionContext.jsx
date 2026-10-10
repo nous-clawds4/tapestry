@@ -13,9 +13,11 @@ import { onEventPublished } from '../utils/nostrPublish';
  * signed-in viewer who has an assistant on this instance (user.assistantPubkey — with none there is nothing to
  * check), again when the signed-in account or its assistant changes, on refresh(), and after the app publishes a
  * tagging by the viewer or their assistant (heard through onEventPublished: a kind 39999 whose d starts with
- * `profile-tag-`), so the hub and the alert catch up on their own after the Identification Tags page publishes.
- * The server answers for the session itself, so the request carries no parameters. There is no polling: a tagging
- * published in another app or tab shows on the next full page load, or after refresh().
+ * `profile-tag-`), so the hub and the alert catch up on their own after the Identification Tags page publishes —
+ * and after the viewer saves their Treasure Map on /treasure-map (a kind 10040 by the viewer; Scores, Lists and Concepts
+ * read it, assistant-trusted-content-status #1). The server answers for the session itself, so the request carries no
+ * parameters. There is no polling: a tagging or a Map published in another app or tab shows on the next full page load,
+ * or after refresh().
  *
  * phase: 'idle' (nothing asked, signed out, or no assistant) · 'checking' · 'answered' · 'failed' (a network error,
  * a failure answer, or the server saying the session has expired).
@@ -69,8 +71,12 @@ export function AssistantAttentionProvider({ children }) {
   // Ask again after each announcement of a tagging by the viewer or their assistant reaching a relay. Every one
   // counts, even for an event heard before: a later import of it can change what the check reads.
   useEffect(() => onEventPublished((ev) => {
-    if (!ev || ev.kind !== 39999) return;
-    if (!pubkey || (ev.pubkey !== pubkey && ev.pubkey !== assistantPubkey)) return;
+    if (!ev || !pubkey) return;
+    // The viewer's own Treasure Map, saved in this app: Scores, Lists and Concepts read it
+    // (assistant-trusted-content-status ADR 0001 sub-decision 9).
+    if (ev.kind === 10040 && ev.pubkey === pubkey) { refresh(); return; }
+    if (ev.kind !== 39999) return;
+    if (ev.pubkey !== pubkey && ev.pubkey !== assistantPubkey) return;
     const d = dTagOf(ev);
     if (typeof d !== 'string' || !d.startsWith(TAGGING_D_PREFIX)) return;
     refresh();

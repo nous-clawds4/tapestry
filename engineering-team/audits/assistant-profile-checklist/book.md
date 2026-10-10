@@ -1,9 +1,9 @@
 # Book of Work: Your Tapestry Assistant's Profile — the checklist at `/assistant/profile`
 
 **Slug:** assistant-profile-checklist
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-09
-**Closed:** —
+**Closed:** 2026-10-10 (on `staging`, deployed to staging.brainstorm.world, run 547; production 2026-10-09: PR #829 merged as `cfcd83c4`, deploy run 140, anonymous smoke clean at this close)
 
 ## Intent anchor
 
@@ -41,23 +41,23 @@ The owner's earlier words for this page (book `assistant-management`, 2026-09-21
 
 *Confirmed 2026-10-09, when the owner approved stories 1–3 with the recommended answers to their open questions.*
 
-- [ ] **The page** at `/assistant/profile` replaces its placeholder with seven panels, styled like the cards
+- [x] **The page** at `/assistant/profile` replaces its placeholder with seven panels, styled like the cards
       on `/assistant`: a personalized avatar, a personalized background image (a placeholder), a working
       NIP-05, the website, name and About, the client tag, and visible to other nostr apps. Each panel is
       **Done** or **Needs attention**, and says why in plain words. The background image is neither: it says
       it is coming, and it does not count.
-- [ ] **One real answer.** For a signed-in viewer with an Assistant on this instance, the instance says which
+- [x] **One real answer.** For a signed-in viewer with an Assistant on this instance, the instance says which
       items are done for that viewer's own Assistant, and only theirs.
-- [ ] **The hub tells the truth for this action.** The "Your Tapestry Assistant's Profile" card on
+- [x] **The hub tells the truth for this action.** The "Your Tapestry Assistant's Profile" card on
       `/assistant` shows **Done** once every counted item is done, and **Needs attention** otherwise. The
       hub's count line and the Assistant Alert count it the same way. The background image never counts.
-- [ ] **One-click fixes.** Each panel that needs attention offers its own fix (where one is possible on this
+- [x] **One-click fixes.** Each panel that needs attention offers its own fix (where one is possible on this
       instance), which republishes the Assistant's profile changing only what that item is about. Each
       relay's answer is shown, and the checklist re-checks afterwards.
-- [ ] **A personalized avatar for every Assistant.** The Owner, an Admin or a Customer can stamp their own
+- [x] **A personalized avatar for every Assistant.** The Owner, an Admin or a Customer can stamp their own
       nostr picture with the Tapestry mark, see a preview, and publish it as their own Assistant's picture,
       hosted by this instance.
-- [ ] **Nothing else changes:** the background-image feature is not built, the kind 0 wire format is not
+- [x] **Nothing else changes:** the background-image feature is not built, the kind 0 wire format is not
       changed, and no other action page is touched.
 
 ## Epics in this book
@@ -80,8 +80,11 @@ the assistant API (`src/api/assistant/`), the profile editor, and the top-bar pi
 ## Provenance
 
 - **Mode:** Acceptance-frame
+- **Confidence at close:** high for what the code does (every frame bullet traces to a story; story 1 passed review in
+  round 1, stories 2 and 3 in round 3); medium for the frame as a person meets it (on staging and in production and
+  checked there anonymously, but the signed-in flow has not been used on any live instance).
 
 ## Close artifacts *(filled by `/close-book`)*
 
-- Build audit: —
-- Product feedback: —
+- Build audit: `engineering-team/audits/assistant-profile-checklist/audit.md`
+- Product feedback: `engineering-team/audits/assistant-profile-checklist/prd-seed.md`

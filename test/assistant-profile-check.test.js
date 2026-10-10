@@ -25,6 +25,9 @@
  * Every test FAILS against the current code: src/lib/assistant-profile-items and src/api/assistant/profileChecklist.js do
  * not exist, the attention answer has no `profile` action, CHECKED_ACTIONS is ['identification-tags'],
  * assistantAttention answers no `done`, and the hub card has no done state.
+ *
+ * Re-aimed 2026-10-08 by assistant-trusted-content-status #1 (its story, ADR 0001 and plan): Trusted Lists is checked
+ * now, so C3's "a placeholder that says done" uses Bounties; attentionFakes() stubs the Scores/Lists/Concepts check.
  */
 
 const fs = require('fs');
@@ -494,6 +497,8 @@ function attentionFakes({ assistant = ASSISTANT, checkProfile } = {}) {
     readRelay: async () => ({ status: 'unreachable', events: [], error: 'fixture' }),
     readConfiguredRelays: () => [],
     getConfigFromFile: (k, d) => d,
+    // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001), stubbed: this suite is about the profile.
+    checkTrustedContent: async () => ({}),
     checkProfile: async (input, d) => {
       calls.checkProfile.push(input);
       if (checkProfile === 'reject') throw new Error('fixture: the profile check exploded');
@@ -625,9 +630,10 @@ test('C3: assistantAttention answers `done`: the checked actions whose answer sa
   const profileOnly = mod.assistantAttention(USER, summarize(X.withProfile(X.PROFILE_DONE, { finished: true, done: false, pending: true, taggings: [] })));
   if (!sameJson(profileOnly.done, [X.ACTION])) wrong.push(`profile done, identification tags pending: want ["profile"], got ${show(profileOnly.done)}`);
   const placeholderSaysDone = summarize(X.withProfile(X.PROFILE_PENDING));
-  placeholderSaysDone.actions['trusted-lists'] = { finished: true, done: true, pending: false };
+  // Bounties: still a placeholder (trusted-lists, this test's first pick, is checked since assistant-trusted-content-status #1).
+  placeholderSaysDone.actions.bounties = { finished: true, done: true, pending: false };
   const p = mod.assistantAttention(USER, placeholderSaysDone);
-  if (p.done.includes('trusted-lists') || p.done.includes(X.ACTION)) wrong.push(`a placeholder or a pending action is never done; got ${show(p.done)}`);
+  if (p.done.includes('bounties') || p.done.includes(X.ACTION)) wrong.push(`a placeholder or a pending action is never done; got ${show(p.done)}`);
   for (const r of [both, profileOnly, p]) if (r.done.some((k) => r.needsAttention.includes(k))) wrong.push(`done and needsAttention overlap: ${show(r)}`);
   const none = mod.assistantAttention(USER);
   if (!sameJson(none.done, [])) wrong.push(`no answer: want [], got ${show(none.done)}`);

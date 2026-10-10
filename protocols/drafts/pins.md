@@ -58,8 +58,7 @@ Two rules follow from the difference:
     ["for", "39999:<TA>:kind-39998"],
     ["for", "39998:<TA>:tag"],
     ["required", "a", "The DList header or Tag being pinned"],
-    ["allowed", "Z", "Content category (DList) this pinning is limited to"],
-    ["allowed", "K", "Content category (event kind) this pinning is limited to"]
+    ["allowed", "context", "Content category this pinning is limited to"]
   ],
   "content": ""
 }

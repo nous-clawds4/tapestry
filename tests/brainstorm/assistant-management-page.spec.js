@@ -3,12 +3,14 @@ const X = require('../../test/helpers/assistantManagementFixtures');
 const { PENDING: ID_TAGS_PENDING, CHECKED_ACTION: IDTAGS } = require('../../test/helpers/identificationTagsFixtures');
 const { PROFILE_PENDING } = require('../../test/helpers/profileChecklistFixtures');
 const O = require('../../test/helpers/outboxRelaysFixtures');
+const TC = require('../../test/helpers/trustedContentFixtures');
 // Every checked action pending — Identification Tags (assistant-identification-tags #1), the profile
-// (assistant-profile-checklist #1) and Outbox Relays (assistant-outbox-relays #1) — so every action is marked AND counted:
-// the hub's count, its marks and the pill all say every action (X.ACTIONS.length). A checked action counts in the pill only
-// from a finished answer that found something.
+// (assistant-profile-checklist #1), Outbox Relays (assistant-outbox-relays #1), and Scores, Lists and Concepts
+// (assistant-trusted-content-status #1) — so every action is marked AND counted: the hub's count, its marks and the pill
+// all say every action (X.ACTIONS.length). A checked action counts in the pill only from a finished answer that found
+// something.
 const ATTENTION_BASE = O.attentionWith({ idtags: ID_TAGS_PENDING.actions[IDTAGS], outbox: O.OUTBOX.PENDING });
-const ATTENTION_PENDING = { ...ATTENTION_BASE, actions: { ...ATTENTION_BASE.actions, profile: PROFILE_PENDING } };
+const ATTENTION_PENDING = TC.withTrio({ ...ATTENTION_BASE, actions: { ...ATTENTION_BASE.actions, profile: PROFILE_PENDING } });
 
 /**
  * assistant-management #1: the Assistant Management page, its FAQ and ten placeholder action pages, and the
@@ -392,8 +394,9 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
       }
       await expect(main.getByRole('link', { name: X.COPY.backToHub, exact: true }), 'the way back').toHaveAttribute('href', X.HUB);
       const toEditor = main.locator(`a[href="${X.EDITOR}"]`);
-      if (a.editLink) await expect(main.getByRole('link', { name: a.editLink.text, exact: true }), 'the profile page links to the editor').toHaveAttribute('href', X.EDITOR);
-      else await expect(toEditor, 'only the profile page links to the editor').toHaveCount(0);
+      // Re-aimed by assistant-trusted-content-status #1: Scores, Lists and Concepts link to the Treasure Map page.
+      if (a.editLink) await expect(main.getByRole('link', { name: a.editLink.text, exact: true }), 'the page\'s one link').toHaveAttribute('href', a.editLink.to);
+      if (!a.editLink || a.editLink.to !== X.EDITOR) await expect(toEditor, 'only the profile page links to the editor').toHaveCount(0);
     });
   }
 
