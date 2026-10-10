@@ -15,4 +15,4 @@ comparison.
 Fix shape (relay-stream-gaps' lane): `sed -i.bak … && rm -f "$TARGET.bak"` (portable to both seds), or write through
 a temp file. Keep the script's own verify step.
 
-**Pointer:** `engineering-team/reviews/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Addendum (merge of assistant-profile-checklist)
+**Pointer:** `engineering-team/reviews/done/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Addendum (merge of assistant-profile-checklist)

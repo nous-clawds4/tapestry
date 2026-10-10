@@ -2755,3 +2755,44 @@ the Light Feature lane: Gate A → J1 → J2 → J3 → Gate B per story. The ow
 book. Asked in the same session as the Concepts `39998`+`39999` hotfix (ledger row
 `2026-10-08-concepts-assignment-adds-39999`), and "before shipping to staging", so the book's branch carries that
 hotfix too.
+
+## 2026-10-10 — Emit and read the `o` tag (feature; parked until the pre-NIP settles)
+
+**Origin:** the DList Auxiliary Events session of 2026-10-09 and 2026-10-10. It graduated worksheet W25 into
+`protocols/drafts/dlist-auxiliary-events.md` and added the core-node rule to `protocols/drafts/tapestry-concepts.md`
+§ Core nodes of a concept. The owner asked for documents only; no code was requested. This entry records what a
+build would touch, so the next session doesn't have to re-derive it.
+
+**What a build would do:**
+
+1. **Emit** `["o", "<header a-tag>", "<role>"]` on new core nodes. Sites: `handleCreateConcept`
+   (`src/api/normalize/index.js`, core-node d-tags at `:1286`–`:1567`) and `handleNormalizeSkeleton` (same file, from
+   `:210`). Firmware core nodes get it through the `handleCreateConcept` change, because the firmware install calls
+   create-concept (`src/firmware/install.js:171`); they then need a reinstall (AGENTS.md §6). Role tables already
+   exist: `coreNodeTypeToRel` (`src/firmware/install.js:272-281`) and `coreNodeFirmwareMappings`
+   (`src/api/normalize/index.js:1702-1710`).
+2. **Read.** Derive each role's core-node wiring edge from `o` at ingest, per `coreNodeTypeToRel`. Two don't follow
+   the `IS_THE_<ROLE>_FOR` pattern: `superset` is `IS_THE_CONCEPT_FOR`, pointing header → superset, and
+   `core-nodes-graph` is `IS_THE_CORE_GRAPH_FOR`. Derive **only from events signed by the author of the header the
+   `o` coordinate names** (DList Auxiliary Events § 6, Derived relationships; acceptance condition); which of a
+   person's and their Assistant's headers governs is a read-time question, not an ingest one. A third party's `o` derives nothing; it is
+   found with `#o` and ranked per point of view. Where a core node's `o` and `word.coreMemberOf` disagree, derive
+   nothing.
+3. **View briefs** with a DList category carry `o` (Opinionated Views § 7.2), but only when § 7 itself goes ahead
+   (it is "proposed, phase 2").
+4. **At ratification** (the docs-mode half): BIBLE §9 names the emitters, §6 says which `o` tags produce wiring,
+   §21 gets an "o tag" glossary row, plus a changelog line.
+
+**Hazards to fold in:**
+
+- OPEN.md row 230: `/api/normalize/skeleton` resolves its header by name with `LIMIT 1`, no author filter and no
+  `ORDER BY` (`src/api/normalize/index.js:221`). An `o`-aware skeleton path must resolve by uuid, or name plus author.
+- Not yet recorded elsewhere: `CORE_NODES_CYPHER` (`src/lib/conceptCoreNodes.js:17-49`) reads each role with an
+  `OPTIONAL MATCH` on the wiring edge, no author filter, and `LIMIT 1` with no `ORDER BY`. That is safe only while one
+  node per role is wired. An ingest that wired third-party `o` events would break it, which is one more reason for
+  the author gate in item 2.
+- Related bug: ledger row `2026-10-10-core-node-dtags-ignore-header-dtag` (the `concept-graph` header tag can name an
+  address where nothing exists).
+
+**Classification:** feature; parked. When picked up: `/plan-feature` (Standard) and an ADR under
+`engineering-team/decisions/<epic>/`, with the pre-NIP's core-node rule ratified into the BIBLE in docs-mode.

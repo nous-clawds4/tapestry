@@ -17,7 +17,7 @@ Tapestry Concepts uses the event kinds and the `z`-tag parent-pointer pattern de
 - the `z` tag value is constrained to the a-tag form;
 - element data is carried in a `json` tag, namespaced by concept;
 - a canonical payload structure (the **word-wrapper** format) for all Tapestry nodes;
-- a scheme of **core nodes** that give every fully-formed concept the same composite anatomy;
+- a scheme of **core nodes** that give every fully-formed concept the same composite anatomy, each new one naming its concept with the `o` tag of [DList Auxiliary Events](./dlist-auxiliary-events.md);
 - a `concept-graph` header tag with a deterministic resolution contract;
 - a principle distinguishing **derived** relationships (computed from event structure) from **explicit** relationship events (reserved for editorial claims).
 
@@ -104,6 +104,7 @@ Field notes:
 - Wherever a `uuid` field appears in a word-wrapper payload, it carries the referenced node's a-tag address (see "Addressing" above).
 - `wordTypes` lists the node's roles, drawn from the same vocabulary as the type-specific section keys and beginning with `word`; a node may also list broader roles it plays (e.g. a superset node carries `["word", "set", "superset"]`). The full value set and its constraints are not yet formalized.
 - `coreMemberOf` is carried by a concept's core nodes and points back at the concept they belong to. The Concept Header itself — the node the others are core members *of* — omits it, as the first example below shows.
+- The `coreNodesGraph.constituents` example below names 7 of the 8 core nodes. The key for the Properties Set is not yet specified: the reference implementation's create-concept path writes `properties`, and its other paths leave the Properties Set out.
 
 ### Example: Concept Header
 
@@ -177,7 +178,10 @@ Each core node (except the Concept Header itself) is a kind 39999 event with:
 
 - A `z` tag pointing to the a-tag of its **well-known core-node concept** (the slugs in the table above), as published by the deployment — see "Concept identity across deployments" below
 - A `json` tag in word-wrapper format
-- Wiring back to its Concept Header, expressed in the payload (`word.coreMemberOf`) and by **deterministic d-tags** derived from the concept's own d-tag (e.g. a concept whose header d-tag is `<d-tag>` has its Concept Graph at `39999:<pubkey>:<d-tag>-concept-graph`)
+- An `o` tag naming its Concept Header, with the node's role from the "Well-known concept" column above: `["o", "<the Concept Header's a-tag>", "<role>"]` ([DList Auxiliary Events](./dlist-auxiliary-events.md)). Publishers SHOULD include it on new core nodes. Core nodes use the a-tag form only.
+- Wiring back to its Concept Header, also expressed in the payload (`word.coreMemberOf`) and, for the Concept Graph, by a **deterministic d-tag** derived from the concept's own d-tag: a concept whose header d-tag is `<d-tag>` has its Concept Graph at `39999:<pubkey>:<d-tag>-concept-graph` (see "The concept-graph header tag" below). The other core nodes' d-tags are not specified here.
+
+**Finding a concept's core nodes.** Query the header author's auxiliary events, `{"kinds": [39999], "authors": ["<header author>"], "#o": ["<header a-tag>"]}`, and pick each core node by its role. For a role with no such event, fall back to `word.coreMemberOf`, then to the Concept Graph's deterministic d-tag. Readers MUST accept core nodes that carry no `o`: older nodes don't, and none needs re-emitting (the same posture as the `concept-graph` tag's compute fallback). Only nodes signed by the Concept Header's author are its core nodes; anyone else's events naming the header in `o` are candidates, weighed per point of view ([DList Auxiliary Events](./dlist-auxiliary-events.md) § 6). If a core node's `o` and its `word.coreMemberOf` disagree, a reader derives no core-node wiring from it.
 
 ## The concept-graph header tag
 
@@ -195,7 +199,7 @@ This tag is defined here for kind-39998 headers. The compute fallback is phrased
 
 ## Derived vs. explicit relationships
 
-**Most relationships are derived** — computed by consumers from event structure (z-tags, kind numbers, naming conventions). Only editorial/provenance relationships (IMPORT, SUPERCEDES, PROVIDED_THE_TEMPLATE_FOR, ENUMERATES) are explicit nostr events.
+**Most relationships are derived** — computed by consumers from event structure (z-tags, `o` tags, kind numbers, naming conventions). Only editorial/provenance relationships (IMPORT, SUPERCEDES, PROVIDED_THE_TEMPLATE_FOR, ENUMERATES) are explicit nostr events.
 
 Do not create explicit relationship events unless the relationship has editorial significance. Do not expect a nostr event for every derived graph relationship.
 

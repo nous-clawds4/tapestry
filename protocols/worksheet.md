@@ -24,20 +24,20 @@ Known candidate directions, none ratified:
 
 **Status:** Open · raised 2026-06-09
 
-Our specs are steadily claiming single-char (NIP-01 relay-indexed) tag letters: `z` (parent pointer), `n` (HAS_ELEMENT-inverse), `s` (IS_A_SUPERSET_OF-inverse), `b` (inherit-from / pointer — element-3 typed, per `community-reference` ADR 0029). The direction principle ([class-thread-relationships spec](./drafts/class-thread-relationships.md), ex-BIBLE §23): lowercase = child-claims-parent; uppercase forms are reserved for parent-claims-child inverses (`B` explicitly reserved, unassigned) and must not be assigned speculatively. The candidate letter for `IS_A_PROPERTY_OF` is TBD (`REFERENCES` no longer needs a letter — it rides `b`'s `"pointer"` type, ADR 0029). **One registry table is needed across all our specs so future ADRs don't collide letters** — and to decide how it composes with letters other NIPs already use.
+Our specs are steadily claiming single-char (NIP-01 relay-indexed) tag letters: `z` (parent pointer), `n` (HAS_ELEMENT-inverse), `s` (IS_A_SUPERSET_OF-inverse), `b` (inherit-from / pointer — element-3 typed, per `community-reference` ADR 0029), `o` (an auxiliary event's pointer to the list it serves — pre-NIP, [DList Auxiliary Events](./drafts/dlist-auxiliary-events.md)). The direction principle ([class-thread-relationships spec](./drafts/class-thread-relationships.md), ex-BIBLE §23): lowercase = child-claims-parent; uppercase forms are reserved for parent-claims-child inverses (`B` and `O` explicitly reserved, unassigned) and must not be assigned speculatively. The candidate letter for `IS_A_PROPERTY_OF` is TBD (`REFERENCES` no longer needs a letter — it rides `b`'s `"pointer"` type, ADR 0029). **One registry table is needed across all our specs so future ADRs don't collide letters** — and to decide how it composes with letters other NIPs already use.
 
-**Proposed (owner, 2026-10-09):** `o`, an auxiliary event's pointer to the DList header it serves ("the JSON Schema *of* Dog"), from [W25](#w25--auxiliary-events-of-a-dlist-header-o). It is lowercase because the auxiliary event names its header. Uppercase `O` is reserved for the inverse, the header naming its auxiliary events, and stays unassigned. Neither is adopted until W25 becomes a draft.
+**Assigned (2026-10-10, pre-NIP):** `o`, an auxiliary event's pointer to the list it serves ("the JSON Schema *of* Dog"), by [DList Auxiliary Events](./drafts/dlist-auxiliary-events.md), graduated from [W25](#w25--auxiliary-events-of-a-dlist-header-o). The letter was suggested in the 2026-10-09 design session and approved by the owner. It is lowercase because the auxiliary event names its list. Uppercase `O` is reserved for the inverse, a header naming its auxiliary events, and stays unassigned.
 
 **Upstream overlap** (checked 2026-10-09 against `nostr-protocol/nips` master, `a79e21d`):
 - `n` is also used by NIP-66 (relay network type), NIP-87 (mint network) and NIP-CC (geocache type modifier).
 - `s` and `z` are also used by NIP-69 (order status, and document type `order`, on kind 38383).
-- `q` is NIP-18's quote tag. [Assistant Designation](./drafts/assistant-designation.md) uses it with that meaning, for a curated copy's pointer to its original.
+- `q` is NIP-18's quote tag. [Assistant Designation](./drafts/assistant-designation.md) uses its NIP-18 form for a different purpose: a curated copy's pointer to its original.
 - `y` is NIP-69's platform tag.
 - `b`, `B`, `o` and `O` appear in no NIP; nor do `j`, `v` or `w`.
 
-A filter that names its kinds isn't affected by the overlap. Only a tag query without `kinds` would mix our events with theirs.
+For `n`, `s`, `z` and `y`, a filter that names its kinds isn't affected: upstream uses each only on its own kinds. `q` is different: NIP-18 puts it on any event that cites another, so even a kind-scoped `#q` query can return quotes along with our copies.
 
-**Refs:** [class-thread-relationships spec](./drafts/class-thread-relationships.md) (direction principle, candidate letters; ex-BIBLE §23) and [inherit-from spec](./drafts/inherit-from.md) (`b`; ex-BIBLE §25); ADRs 0011, 0027, 0029 (community-reference); [W25](#w25--auxiliary-events-of-a-dlist-header-o) (`o`).
+**Refs:** [class-thread-relationships spec](./drafts/class-thread-relationships.md) (direction principle, candidate letters; ex-BIBLE §23) and [inherit-from spec](./drafts/inherit-from.md) (`b`; ex-BIBLE §25); ADRs 0011, 0027, 0029 (community-reference); [DList Auxiliary Events](./drafts/dlist-auxiliary-events.md) and [W25](#w25--auxiliary-events-of-a-dlist-header-o) (`o`).
 
 ## W3 — Polarity valence arc
 
@@ -305,7 +305,7 @@ Tags need parent–child relationships in which the child's domain is a subset o
 
 ## W25 — Auxiliary events of a DList header (`o`)
 
-**Status:** Open — revised 2026-10-09: lowercase `o` replaces uppercase `Z` · raised 2026-10-03
+**Status:** Graduated → [DList Auxiliary Events](./drafts/dlist-auxiliary-events.md) · raised 2026-10-03 · revised 2026-10-09 (lowercase `o` replaces uppercase `Z`) · resolved 2026-10-10
 
 A DList header grows up. It starts with items only, then gains subsets, a JSON Schema, opinionated view briefs and other structural nodes. Those events are *about* the header, but they aren't items of it:
 
@@ -314,7 +314,7 @@ A DList header grows up. It starts with items only, then gains subsets, a JSON S
 
 **First suggestion (owner, 2026-10-03):** lowercase `z` marks items of the DList; uppercase `Z` marks auxiliary events specific to it, with the event's role as the third element: `["Z", "<a-tag of the DList header>", "opinionated-view"]`. Replaced by the revision below.
 
-**Revised (owner, 2026-10-09):** the auxiliary event names its header with a lowercase `o` ("of": the JSON Schema *of* Dog), and its role is the third element:
+**Revised (2026-10-09, owner-approved):** the owner proposed a lowercase back-pointer with the role as the third element, and uppercase for the reverse (first as `y` or `q`; see "Why `o`" below). The letter `o` ("of": the JSON Schema *of* Dog), the role tokens and leaving `O` unassigned were suggested in the session and approved by the owner:
 
 ```json
 ["o", "<a-tag of the DList header>", "json-schema"]
@@ -322,18 +322,18 @@ A DList header grows up. It starts with items only, then gains subsets, a JSON S
 ["o", "<a-tag of the DList header>", "opinionated-view"]
 ```
 
-- **One query finds them all.** `{"#o": ["<a-tag of the DList header>"]}` returns every auxiliary event of a header, whoever published it. Relays index only a tag's first value, so filtering by role happens in the client. A header has few auxiliary events, so that's cheap.
+- **One query finds them all.** `{"kinds": [39999, 9999], "#o": ["<a-tag of the DList header>"]}` returns every auxiliary event of a header that carries `o`, whoever published it (whether the header author's own core nodes carry it was open; see below). Relays index only a tag's first value, so filtering by role happens in the client. A header has few auxiliary events, so that's cheap.
 - **`z` stays.** A JSON Schema node is an item of the `json-schema` concept (its `z`) and auxiliary to Dog (its `o`). `z` says what the event is; `o` says which header it serves.
 - **The role is the role concept's slug:** `superset`, `json-schema`, `primary-property`, `properties-set`, `property-tree-graph`, `concept-graph`, `core-nodes-graph`, `opinionated-view`. It is not free text, and not a coordinate: a coordinate differs on every deployment ([W1](#w1--cross-deployment-concept-identity)), and the slug doesn't. The event's `z` still names the role concept by coordinate.
 - **Anyone can publish one.** A third party's JSON Schema for someone else's header carries the same `o`. Which one counts is decided per point of view when it's read, as for any other assertion.
 - **Uppercase `O` is reserved and unassigned.** It would be the inverse: the header naming its auxiliary events. Nothing needs it yet. The `#o` query, `coreNodesGraph.constituents` and the header's `concept-graph` tag already cover that direction. If it's ever added, it means "the header author's pick": one voice among many, and a header republish each time the pick changes.
-- **Why `o`.** The owner first suggested `y` or `q`. `q` is NIP-18's quote tag, and [Assistant Designation](./drafts/assistant-designation.md) already uses it for a curated copy's pointer to its original, so `#q` on a header would mix quotes, copies and auxiliary events. `y` is NIP-69's platform tag. No NIP uses `o` ([W2](#w2--single-char-tag-namespace-registry) has the check).
+- **Why `o`.** The owner first suggested `y` or `q`. `q` is NIP-18's quote tag, whose form [Assistant Designation](./drafts/assistant-designation.md) already uses for a curated copy's pointer to its original; `#q` on a header would mix quotes and auxiliary events. `y` is NIP-69's platform tag. No NIP uses `o` ([W2](#w2--single-char-tag-namespace-registry) has the check).
 
 **Where the earlier questions stand:**
 
 - **Earlier rejections.** `Z` was rejected twice on 2026-09-27: as a descriptor on Trusted Lists and pinning contexts (W18), and as a category hint on taggings (W21). Both meant "this event is about X but isn't a member of it", which is close to this meaning. A new letter removes the clash over `Z`, but not that question: the draft must still say why this pointer is different. A possible answer: those were hints added to assertions and lists to make browsing cheaper, while an auxiliary event exists to serve its header, so the pointer says what the event is for.
 - **The direction convention.** Answered. Class Thread Relationships reserves uppercase letters for parent-claims-child inverses and says not to assign them speculatively. Lowercase `o` follows the same pattern as `z`, `n`, `s` and `b`: the event names what it belongs to. Recorded in W2.
-- **The need.** Unchanged. Opinionated Views works without it: briefs are items of an *Opinionated Views* DList (`z`), name their category in a plain tag, and are filtered client-side (opinionated-views § 7.2). So `o` has to earn its place in the general case, such as third-party core nodes for any header, where client-side filtering doesn't scale. The alternative that needs no new letter is an `a` tag with a role marker. Relays index it today, but `a` already means many things, so `#a` also returns every mention of the header.
+- **The need.** Open (unchanged). Opinionated Views works without it: briefs are items of an *Opinionated Views* DList (`z`), name their category in a plain tag, and are filtered client-side (opinionated-views § 7.2). So `o` has to earn its place in the general case, such as third-party core nodes for any header, where client-side filtering doesn't scale. The alternative that needs no new letter is an `a` tag with a role marker. Relays index it today, but `a` already means many things, so `#a` also returns every mention of the header.
 - **Roles.** Answered: the role concept's slug (above).
 
 **Still to settle before drafting:**
@@ -341,9 +341,24 @@ A DList header grows up. It starts with items only, then gains subsets, a JSON S
 - Whether the header author's own core nodes also carry `o`, so one query covers every case, or keep relying on deterministic `d` tags and `word.coreMemberOf`.
 - Whether the roles are a closed list, like the `b` tag's types, or any slug; and how a reader treats an absent or unknown role.
 - Which kinds may carry `o`: kind `39999` only, or any event.
+- Whether `o` also takes an event id for kind-`9998` headers, as `z` does.
 - Where the draft lives. [tapestry-concepts](./drafts/tapestry-concepts.md) covers Tapestry's core nodes, but view briefs and other auxiliary events belong to any DList, which argues for a pre-NIP of its own.
 
-**Refs:** [opinionated-views](./drafts/opinionated-views.md) § 7.2; [tapestry-concepts](./drafts/tapestry-concepts.md) § Core nodes of a concept; [class-thread-relationships](./drafts/class-thread-relationships.md) (direction principle); [assistant-designation](./drafts/assistant-designation.md) (`q`); [W1](#w1--cross-deployment-concept-identity); [W2](#w2--single-char-tag-namespace-registry); [W18](#w18--descriptor-tag-letters-k--z--t); [W21](#w21--category-hints-on-taggings-z--k).
+The need and the earlier rejections (above) were also still open.
+
+**Resolution (owner decisions 2026-10-09; graduated 2026-10-10).** The owner agreed ten design points in the session, amending two of them. All are normative in [DList Auxiliary Events](./drafts/dlist-auxiliary-events.md) unless noted.
+
+- **The header author's own core nodes carry `o`** (SHOULD, for new events). Readers fall back to `word.coreMemberOf` and the `d` tag for older ones, the way the `concept-graph` tag works. This rule is in [tapestry-concepts](./drafts/tapestry-concepts.md) § Core nodes of a concept.
+- **Value forms:** any of the three `z` forms: a coordinate, an event id (kind-`9998` and `9999` headers) or a bare name. Bare names are the owner's amendment: a bare-name list has no header to hold a definition, so an auxiliary event is the only way to give it one. A role's own spec may narrow the forms; core nodes use coordinates.
+- **Kinds:** `39999` (preferred) or `9999`, and the event is an item of its role's list by its own `z`: a JSON Schema is an item on the list of JSON Schemas (the owner's amendment). Headers don't carry `o`; other kinds are deferred.
+- **Roles:** an open vocabulary, with the eight roles above as a starting table. An absent or unknown role reads as "role unspecified", like the `b` tag's unknown type.
+- **Several `o` tags per event** are allowed, and `o` is never stamped. **`z` and `o` may name the same list** (owner, 2026-10-10). The session had first agreed that an event never names the same list in both; the draft review found that firmware concepts serve themselves (the `json-schema` concept's own JSON Schema is an item on that list too), and the owner chose to allow both.
+- **Authority:** `o` is a claim. The governing header's author's auxiliary events are its own; everyone else's are candidates, weighed per point of view. A third party's `o` derives no wiring in the author's graph (the class-thread authorship gate).
+- **Inheritance** stays open (the draft's open question 3). **Private** auxiliary events keep `o` inside the encrypted content (W22).
+- **The need and the earlier rejections:** the draft's § 8. The W18/W21 hints sat on events that can be found another way; a third party's JSON Schema or other core node has no other relay-indexed link to its list. View briefs are the exception (a bounded scan already finds them), so for them `o` is a convenience; what sets `o` apart is that it says what the event is for.
+- **Where it lives:** its own pre-NIP, because `o` serves any DList, not only Tapestry concepts.
+
+**Refs:** [opinionated-views](./drafts/opinionated-views.md) § 7.2; [tapestry-concepts](./drafts/tapestry-concepts.md) § Core nodes of a concept; [class-thread-relationships](./drafts/class-thread-relationships.md) (direction principle); [assistant-designation](./drafts/assistant-designation.md) (`q`); [W1](#w1--cross-deployment-concept-identity); [W2](#w2--single-char-tag-namespace-registry); [W18](#w18--descriptor-tag-letters-k--z--t); [W21](#w21--category-hints-on-taggings-z--k); [DList Auxiliary Events](./drafts/dlist-auxiliary-events.md) (the graduated draft).
 
 ## W26 — DList items in search results
 

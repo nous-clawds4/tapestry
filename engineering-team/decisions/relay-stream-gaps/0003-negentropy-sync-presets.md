@@ -36,7 +36,9 @@ The product decisions:
 - **Server-side checks** are only the relay regex `^wss?://.+` (:69). Tag-value checks
   (p/e/a formats) live in the UI's shared `tagFilterValidation` module (relay-management #1).
 - **Access.** These endpoints are open to any signed-in user, not just the owner
-  (`src/middleware/auth.js:369–379`).
+  (`src/middleware/auth.js:369–379`). *(Corrected after review round 1, finding 5: that holds
+  for their POSTs; GETs are open to anyone who can reach the API, signed in or not, because
+  the middleware lets unauthenticated GETs through, `auth.js:511–512`.)*
 
 **The scheduler** (`src/api/scheduled-tasks/index.js`, ADRs 0019–0021 of the
 task-queue-scheduler epic):
@@ -214,7 +216,11 @@ C splits logic into untestable bash.
     `{ success: true, results: [{ id, name, ok, added, sent, error, skipped }], failed: <count> }`.
 - **Handlers, registered by `registerNegentropyPresetRoutes(app)`:**
   - `GET /api/strfry/negentropy-presets` returns `{ success, presets, running }`, readable by
-    any signed-in user, like the other negentropy reads.
+    any signed-in user, like the other negentropy reads. *(Corrected after review round 1,
+    finding 5: readable by anyone who can reach the API, signed in or not, the same as
+    `/negentropy-sync/status` and the router-config GET. Relay URLs, filters and last-run
+    errors are therefore public; a relay URL carrying a token in its query string would be
+    exposed.)*
   - `POST /api/strfry/negentropy-presets` with `{ name, relay, dir, filter, enabled? }` creates
     a preset, or replaces the one with the same name; replacing keeps its id, `enabled`,
     `lastRun` and `lastSuccessAt` unless the relay, direction or filter changed, in which case
@@ -384,7 +390,9 @@ filed elsewhere and are not part of it.
      run, not 10 minutes. A manual Start is refused for about a minute.
    - **Why 60 s.**
      - The one risk is a relay that sends an unrelated notice and then takes more than 60 s to
-       finish the reconcile, which prints nothing.
+       finish the reconcile, which prints nothing. *(Widened after review round 2, R2-4: any
+       silence over 60 s after a notice qualifies, for example a rate-limit notice followed by
+       a held download or upload batch. Watch for it on staging.)*
      - A preset sync is windowed (product decision 1), so its reconcile normally takes seconds.
        In Evidence 7–8 it took under 0.1 s.
      - A wrong stop is recorded with the relay's words and doesn't advance `lastSuccessAt`, so
@@ -535,7 +543,8 @@ runner is about to act on it.
 - **A negentropy-less relay costs about a minute**, not ten, per scheduled run, and its last-run
   line names the relay's reason.
 - **A wrong stop needs two things**: a relay that sends an unrelated notice and then reconciles
-  silently for more than 60 s. It shows the relay's words, doesn't advance the window, and the
+  silently for more than 60 s (or, per R2-4, goes silent for that long for any reason, such as
+  a held batch after a rate-limit notice). It shows the relay's words, doesn't advance the window, and the
   next run retries.
 - **Switching a preset off, or deleting it, takes effect within the current run** for any
   preset not yet syncing, including an `up` or `both` upload.

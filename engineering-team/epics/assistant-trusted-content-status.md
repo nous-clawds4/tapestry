@@ -1,6 +1,6 @@
 # Epic: assistant-trusted-content-status — Scores, Lists and Concepts on the hub, renamed and told true
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-09; the folders sit under `done/`; on staging via PR #832, production pending)
 **Created:** 2026-10-08
 **Book:** `engineering-team/audits/assistant-trusted-content-status/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-08, quoted verbatim in the book, settled through two questions at
@@ -17,7 +17,7 @@ so the hub, its count line and the Assistant Alert tell the truth for them.
 
 ## Stories
 
-`stories/assistant-trusted-content-status/`.
+`stories/done/assistant-trusted-content-status/`.
 
 1. `1-scores-lists-and-concepts-on-the-hub.md` (feature): the three names, the server's answer from the
    viewer's own Treasure Map, and the hub's marks, count line and pill reading it.
@@ -48,4 +48,4 @@ so the hub, its count line and the Assistant Alert tell the truth for them.
 
 ## ADRs
 
-`decisions/assistant-trusted-content-status/`, created at Architecture.
+`decisions/done/assistant-trusted-content-status/`, created at Architecture.

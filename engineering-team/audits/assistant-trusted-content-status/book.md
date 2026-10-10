@@ -1,9 +1,9 @@
 # Book of Work: Scores, Lists and Concepts on the Assistant Management page — renamed, and each told true
 
 **Slug:** assistant-trusted-content-status
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-08
-**Closed:** —
+**Closed:** 2026-10-09 (on staging, PR #832 merged as `17243cdf`; production pending the owner's next promotion)
 
 ## Intent anchor
 
@@ -26,20 +26,20 @@ The ask, verbatim (copied from the session transcript, not retyped):
 
 *Confirmed 2026-10-08, at intake.*
 
-- [ ] **The names.** On `/assistant`, under *Publication of Trusted Content*, the first three items read
+- [x] **The names.** On `/assistant`, under *Publication of Trusted Content*, the first three items read
       **Scores**, **Lists** and **Concepts**, in that order, mirroring the Treasure Map page's three
       categories. Their descriptions, NIP links and page addresses are unchanged.
-- [ ] **One real answer.** For a signed-in person with an Assistant here, each of the three is **completed**
+- [x] **One real answer.** For a signed-in person with an Assistant here, each of the three is **completed**
       when their Treasure Map gives that category to their Tapestry Assistant on this instance (alone or
       among several), read the same way the Treasure Map page's cards read the Map, and **Needs attention**
       otherwise: unassigned, only other Assistants, or no Map found.
-- [ ] **A completed item looks completed:** the `/setup` page's done look, a green ✓ marker and a green
+- [x] **A completed item looks completed:** the `/setup` page's done look, a green ✓ marker and a green
       "Done" badge. This applies to any completed item on the page, so Identification Tags gains it too.
-- [ ] **The count agrees.** The "N actions need attention" line and the Assistant Alert pill agree with the
+- [x] **The count agrees.** The "N actions need attention" line and the Assistant Alert pill agree with the
       marks.
-- [ ] **Unknown is not done.** While the Map is still being read, or cannot be read, the item stays marked on
+- [x] **Unknown is not done.** While the Map is still being read, or cannot be read, the item stays marked on
       the page but is not counted by the alert pill (Identification Tags' existing behaviour).
-- [ ] **It catches up.** After the person saves their Treasure Map in the app, the Assistant page reflects it
+- [x] **It catches up.** After the person saves their Treasure Map in the app, the Assistant page reflects it
       without a reload.
 
 ## Epics in this book
@@ -65,8 +65,9 @@ rule (`ui/src/pages/treasure-map/manageTreasureMap.js`, read, not changed), and 
 ## Provenance
 
 - **Mode:** Acceptance-frame
+- **Confidence at close:** high for the code and its tests; medium for the signed-in experience, which no one has exercised on a live instance yet (audit header)
 
 ## Close artifacts *(filled by `/close-book`)*
 
-- Build audit: —
-- Product feedback: —
+- Build audit: `engineering-team/audits/assistant-trusted-content-status/audit.md`
+- Product feedback: `engineering-team/audits/assistant-trusted-content-status/prd-seed.md`

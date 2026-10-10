@@ -17,4 +17,10 @@ Fix shape: after merging a parallel book into a story branch, re-read the story'
 wording in the test plan) against `git diff origin/staging...HEAD`. One line in workflows/4-implementation.md or in the
 book template's § Shared lines would do.
 
-**Pointer:** `engineering-team/reviews/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Harness friction 1 and Non-blocking 1
+**A second, related gap:** staging moved again while the review ran, and the next merge (of
+`assistant-profile-checklist`) conflicted in five files *after* the PASS. The deploy skill (`cycle-staging`) says to
+surface conflicts, not resolve them. The owner chose to resolve them, re-run the books' suites, and have a fresh
+reviewer audit only the merge (an addendum to the same review file, PASS). Nothing in the harness names that step; it
+worked here and could be the rule whenever a post-review merge changes reviewed lines.
+
+**Pointer:** `engineering-team/reviews/done/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Harness friction 1 and Non-blocking 1

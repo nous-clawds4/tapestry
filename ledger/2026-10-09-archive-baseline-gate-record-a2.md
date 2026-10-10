@@ -12,8 +12,13 @@ into a scratch directory and run `npm test` there (the parallel-session memory r
 the baseline and passes on the branch. The run record also says "on an unknown commit". A reviewer can misread this as
 the branch fixing something, or the baseline breaking.
 
+The same recipe has a second trap: `ln -s <main>/node_modules <dir>/node_modules` into a directory that already holds
+`node_modules` plants the link *inside* the main checkout's `node_modules`, as a self-loop. One was found and
+unlinked on 2026-10-09 (`<main>/node_modules/node_modules → <main>/node_modules`); subagents share the scratchpad,
+so a reused export directory is likely. The agent memory now says to export into a fresh, empty directory.
+
 Fix shape: one line wherever the baseline recipe is written down (engineering-team/README.md § Running and reading the
 test gate, or the reviewer role) naming A2 as an expected baseline-only failure. Or let A2 skip, with a reason, when no
 `.git` is present.
 
-**Pointer:** `engineering-team/reviews/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Harness friction 3
+**Pointer:** `engineering-team/reviews/done/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Harness friction 3

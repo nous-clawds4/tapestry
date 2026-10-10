@@ -16,4 +16,4 @@ its `TC.withTrio` wrapper is count-neutral there, and the staging build fails th
 Fix shape (the profile book's Implementer, or its Tester lane): give `mock()` an Outbox Relays answer, e.g. wrap it as
 `tests/brainstorm/assistant-alert.spec.js` does with `O.attentionWith(...)`, or derive `CHECKED` from the actions.
 
-**Pointer:** `engineering-team/reviews/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Harness friction 2
+**Pointer:** `engineering-team/reviews/done/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Harness friction 2
