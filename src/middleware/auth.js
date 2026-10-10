@@ -332,6 +332,8 @@ async function authMiddleware(req, res, next) {
     // path test below runs on one lowercased copy of the path, against lowercased list entries.
     const reqPath = req.path.toLowerCase();
     const pathHas = (endpoint) => reqPath.includes(endpoint.toLowerCase());
+    // Express answers HEAD by running the route's GET handler, so every GET-only check below covers HEAD too.
+    const isRead = req.method === 'GET' || req.method === 'HEAD';
 
     // Skip auth for static resources, sign-in page and auth-related endpoints
     if (reqPath === '/sign-in.html' || 
@@ -477,7 +479,7 @@ async function authMiddleware(req, res, next) {
             '/personalized-pagerank'
         ];
         const isOwnerGetEndpoint = ownerOnlyGetEndpoints.some(endpoint => 
-            pathHas(endpoint) && req.method === 'GET'
+            pathHas(endpoint) && isRead
         );
         
         // If this is an owner-only endpoint, verify owner status
@@ -516,7 +518,7 @@ async function authMiddleware(req, res, next) {
             '/personalized-pagerank'
         ];
         const isProtectedGetEndpoint = protectedGetEndpoints.some(endpoint =>
-            pathHas(endpoint) && req.method === 'GET'
+            pathHas(endpoint) && isRead
         );
         if (isProtectedGetEndpoint) {
             return res.status(401).json({ error: 'Authentication required for this action' });
