@@ -79,6 +79,9 @@ function freshInstallEntries(registry) {
       intervalMinutes: 0,
       cron: '',
     },
+    // Negentropy-sync presets (ADR relay-stream-gaps/0003): every 6 h once the owner opts in.
+    { id: 'seed:syncNegentropyPresets', taskId: 'syncNegentropyPresets', label: labelOf('syncNegentropyPresets'), args: {},
+      enabled: false, intervalDays: 0, intervalHours: 6, intervalMinutes: 0, cron: '' },
   ];
 }
 
@@ -353,6 +356,11 @@ function filterSchedulableTasks(registry) {
         : {},
       categories: task.categories || [],
       frequency: task.frequency || 'periodic',
+      // The interval the modal pre-fills for a new entry (ADR relay-stream-gaps/0003);
+      // passed only when it is a positive whole number of hours.
+      ...(Number.isInteger(task.suggestedIntervalHours) && task.suggestedIntervalHours > 0
+        ? { suggestedIntervalHours: task.suggestedIntervalHours }
+        : {}),
     });
   }
   return tasks;

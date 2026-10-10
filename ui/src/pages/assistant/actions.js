@@ -14,13 +14,19 @@
  *
  * The words were approved with the stories; change them there first:
  * engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md § Copy,
- * engineering-team/stories/done/assistant-management/2-the-assistant-alert.md § Copy, and
- * engineering-team/stories/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md § Copy.
+ * engineering-team/stories/done/assistant-management/2-the-assistant-alert.md § Copy,
+ * engineering-team/stories/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md § Copy, and
+ * engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md § Copy (since
+ * then the first three Publication of Trusted Content actions are Scores, Lists and Concepts, the Treasure Map's
+ * categories).
  */
 
-import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH } from '../../config/avatarMenuLinks.js';
+import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MANAGE_TREASURE_MAP_PATH } from '../../config/avatarMenuLinks.js';
 
-/** The profile action's page — the checklist to come, and the editor's parent. */
+/** The link on the Scores, Lists and Concepts pages (assistant-trusted-content-status #1 § Copy). */
+const TREASURE_MAP_LINK = { text: 'Manage your Treasure Map →', to: MANAGE_TREASURE_MAP_PATH };
+
+/** The profile action's page — the checklist (assistant-profile-checklist #2), and the editor's parent. */
 export const ASSISTANT_PROFILE_PATH = `${ASSISTANT_MANAGEMENT_PATH}/profile`;
 
 /** The NIPs the action descriptions link to (story 1 § Copy; NIP-65 from assistant-outbox-relays #1). */
@@ -80,40 +86,43 @@ export const ASSISTANT_ACTIONS = [
     key: 'trusted-assertions',
     section: 'trusted-content',
     path: `${ASSISTANT_MANAGEMENT_PATH}/trusted-assertions`,
-    title: 'Trusted Assertions',
+    title: 'Scores',
     description: [
       'Enable Tapestry to broadcast trust scores using ',
       { text: 'NIP-85 Trusted Assertions', href: NIP_LINKS.trustedAssertions },
       ', curated by your trusted and extended community. This includes trust scores for pubkeys as well as for other categories of content. From a technical standpoint, this means your Assistant will publish kinds 3038x events on your behalf.',
     ],
-    alertCriteria: null,
+    alertCriteria: 'Needs attention until your Treasure Map gives Scores to your Tapestry Assistant on this instance, on its own or alongside other Assistants.',
     planningNotes: null,
+    editLink: TREASURE_MAP_LINK,
   },
   {
     key: 'trusted-lists',
     section: 'trusted-content',
     path: `${ASSISTANT_MANAGEMENT_PATH}/trusted-lists`,
-    title: 'Trusted Lists',
+    title: 'Lists',
     description: [
       'Enable Tapestry to broadcast lists, curated by your trusted and extended community. This includes Trusted Lists of pubkeys as well as Trusted Lists of other categories of content. From a technical standpoint, this means your Assistant will publish kinds 3039x events on your behalf, according to the ',
       { text: 'Trusted Lists NIP', href: NIP_LINKS.trustedLists },
       '.',
     ],
-    alertCriteria: null,
+    alertCriteria: 'Needs attention until your Treasure Map gives Lists to your Tapestry Assistant on this instance, on its own or alongside other Assistants.',
     planningNotes: null,
+    editLink: TREASURE_MAP_LINK,
   },
   {
     key: 'dlists',
     section: 'trusted-content',
     path: `${ASSISTANT_MANAGEMENT_PATH}/dlists`,
-    title: 'Decentralized Lists',
+    title: 'Concepts',
     description: [
       'Enable your Tapestry Assistant to manage Decentralized Lists in a way that is more detailed than Trusted Lists. From a technical standpoint, this means your Assistant will publish kinds 39998 and 39999 events on your behalf according to the ',
       { text: 'Decentralized Lists NIP', href: NIP_LINKS.decentralizedLists },
       '.',
     ],
-    alertCriteria: null,
+    alertCriteria: 'Needs attention until your Treasure Map gives Concepts to your Tapestry Assistant on this instance, on its own or alongside other Assistants.',
     planningNotes: null,
+    editLink: TREASURE_MAP_LINK,
   },
   {
     key: 'bounties',
@@ -231,10 +240,12 @@ export function plainText(parts) {
 
 /**
  * The actions whose "needs attention" answer is real — computed by GET /api/assistant/attention for the viewer's own
- * assistant (ADR assistant-identification-tags/0001 sub-decision 6) — as opposed to the placeholders, which count
- * everywhere until their check is built. An action joins this list when its check ships, in ASSISTANT_ACTIONS order.
+ * assistant (ADR assistant-identification-tags/0001 sub-decision 6; the profile since ADR assistant-profile-checklist/0001,
+ * the outbox relays since assistant-outbox-relays #1, Scores, Lists and Concepts since assistant-trusted-content-status
+ * #1) — as opposed to the placeholders, which count everywhere until their check is built. An action joins this list
+ * when its check ships, in ASSISTANT_ACTIONS order.
  */
-export const CHECKED_ACTIONS = ['identification-tags', 'outbox-relays'];
+export const CHECKED_ACTIONS = ['profile', 'identification-tags', 'outbox-relays', 'trusted-assertions', 'trusted-lists', 'dlists'];
 
 /**
  * Which of the viewer's actions need attention (story 1 AC-2; the pill counts the same answer, story 2 AC-5), in the

@@ -10485,3 +10485,19 @@ body:has(.bsd-page) { background: #f2f3f0; }
 }
 @keyframes bsd-tm-toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .bsd-tm-toast { animation: none; } }
+
+/* ── /assistant/profile: the profile checklist (assistant-profile-checklist #2, #3). Its panels are the Identification
+   Tags page's cards (.bs-idtags-card); these are the parts that page has no need of. ── */
+.bs-setup-step-badge.is-neutral {
+  border-color: rgba(148,163,184,0.45);
+  background: rgba(148,163,184,0.12);
+  color: #cbd5e1;
+}
+.bs-profile-check-text { margin: 0.5rem 0 0; font-size: 0.85rem; line-height: 1.6; opacity: 0.7; }
+.bs-profile-check-line { margin: 0.5rem 0 0; font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; }
+.bs-idtags-card.is-done .bs-profile-check-line { color: var(--green, #3fb950); }
+.bs-profile-check-preview { margin-top: 0.9rem; }
+.bs-profile-check-preview img { width: 128px; height: 128px; border-radius: 50%; display: block; }
+.bs-profile-check-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.bs-profile-check-notice { flex-direction: column; align-items: flex-start; }
+.bs-profile-check-editor { margin-top: 1.5rem; }

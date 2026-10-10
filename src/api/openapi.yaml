@@ -294,14 +294,24 @@ paths:
       summary: Which of the signed-in viewer's Assistant Management actions need attention
       description: >-
         Read-only. Answers for the session's viewer and the assistant this instance holds for them, and takes
-        no parameters. `actions` maps each action that has a real check to its answer. `outbox-relays`
+        no parameters. `actions` maps each action that has a real check to its answer: `profile`, `outbox-relays` and
+        `identification-tags`. `outbox-relays`
         (assistant-outbox-relays ADR 0001): the outbox relays (an `r` tag with no marker or `write`) the assistant's
         newest NIP-65 relay list (kind 10002) names, looked up on the local relay first and on the configured
         general-purpose, profile and WoT relays only on a local miss; `done` with at least one, `pending` when a finished
         check found none; `inboxOnlyCount` counts the `read` entries; `suggestions` are the relays the Outbox Relays page
         offers (this instance's relay at its public address, then the general-purpose, trusted-assertion, trusted-list,
         DList and outbox relay settings); a failing outbox check answers `reason: check-failed` without failing the
-        others. `identification-tags`, the offered taggings between a person and their assistant: My Tapestry Assistant (by
+        others. `profile` (assistant-profile-checklist ADR 0001) checks seven items of the assistant's
+        newest kind 0 (local relay first, then the publish relays), in order: `avatar` (a stamped composite this
+        instance still serves, at its own address), `banner` (listed, never checked, never counted: `reason`
+        `not-checked`), `nip05` (on this instance's domain, and that domain's nostr.json lists it for the assistant),
+        `website` (this instance's https address), `name-and-about`, `client-tag` (["client", <this domain>]) and
+        `visible` (at least one outside publish relay holds the profile, at least as new). Each row says `finished`,
+        `done` and a `reason` when not done; the action carries `hasProfile` and this instance's `instance` block, and
+        is `done` when every counted item is finished and done, `pending` when a finished one is not. A profile check
+        that throws answers `reason: check-failed` with no items, and never takes `identification-tags` with it.
+        `identification-tags` checks the offered taggings between a person and their assistant: My Tapestry Assistant (by
         the person) and My Tapestry Owner (by the assistant); My Agent and My Human are listed but parked, and never
         looked up. Each tagging is looked up by its
         replaceable address on the local relay first and on the configured tag-federation relays only on a local
@@ -309,7 +319,13 @@ paths:
         be completed (`reason`). The action is `done` when every tagging is finished and present, and `pending`
         (what the Assistant Alert counts) when a finished check found one missing. Each row's `definition` says
         whether the tag's definition was found at its own author's address (Nous for My Tapestry Assistant, Nous'
-        Tapestry Assistant for My Tapestry Owner). Without a session it answers
+        Tapestry Assistant for My Tapestry Owner). Scores, Lists and Concepts are checked too, under their action keys
+        `trusted-assertions`, `trusted-lists` and `dlists` (assistant-trusted-content-status ADR 0001): each is `done`
+        when the viewer's newest Treasure Map (kind 10040, local relay first, then the outside relays a Map is
+        published to) gives that `category` (`scores`, `lists`, `concepts`) to the viewer's own assistant here, alone
+        or beside others, read through the Treasure Map page's category rule; otherwise `pending` with `reason`
+        `no-map`, `not-assigned` or `other-assistants-only`, or unfinished with the lookup's `reason` (`check-failed`
+        when the check itself failed). `source` says where the Map was found. Without a session it answers
         `{ success: true, signedIn: false }`; with a session but no assistant here, `hasAssistant: false`.
       responses:
         '200':
@@ -333,12 +349,35 @@ paths:
                         finished: { type: boolean }
                         done: { type: boolean }
                         pending: { type: boolean }
-                        reason: { type: string, nullable: true, description: 'outbox-relays: why the check did not finish' }
-                        source: { type: string, nullable: true, description: 'outbox-relays: local or relay' }
+                        category: { type: string, enum: [scores, lists, concepts], description: 'trusted-assertions, trusted-lists, dlists: the Treasure Map category' }
+                        reason: { type: string, nullable: true, description: 'why the check did not finish (outbox-relays), or check-failed (any action); trusted-assertions, trusted-lists, dlists: why not done' }
+                        source: { type: string, nullable: true, description: 'outbox-relays: local or relay; trusted-assertions, trusted-lists, dlists: where the Map was found (local, relay, or null)' }
                         createdAt: { type: integer, nullable: true, description: 'outbox-relays: the relay list created_at' }
                         outbox: { type: array, items: { type: string }, description: 'outbox-relays: the outbox relays, in the list order' }
                         inboxOnlyCount: { type: integer, description: 'outbox-relays: how many read-only entries the list names' }
                         suggestions: { type: array, items: { type: string }, description: 'outbox-relays: the relays the page suggests' }
+                        hasProfile:
+                          type: boolean
+                          nullable: true
+                          description: The profile action only; null when this instance's relay could not be read
+                        instance:
+                          type: object
+                          description: The profile action only — this instance, as its rules read it
+                          properties:
+                            domain: { type: string }
+                            website: { type: string }
+                            isPublic: { type: boolean }
+                        items:
+                          type: array
+                          description: The profile action only — one row per item, in order
+                          items:
+                            type: object
+                            properties:
+                              key: { type: string, enum: [avatar, banner, nip05, website, name-and-about, client-tag, visible] }
+                              counts: { type: boolean }
+                              finished: { type: boolean }
+                              done: { type: boolean }
+                              reason: { type: string, nullable: true }
                         taggings:
                           type: array
                           items:
@@ -364,6 +403,46 @@ paths:
                                   address: { type: string }
         '500':
           description: The check could not run
+  /api/assistant/my-picture:
+    get:
+      tags: [Auth]
+      summary: The signed-in person's own profile picture, same-origin, for stamping
+      description: >-
+        For a signed-in person with an assistant on this instance (the Owner, an Admin or a Customer), it streams the
+        picture on their own newest kind 0 (this instance's relay first, then the profile relays) so their browser can
+        stamp it with the Tapestry mark (assistant-profile-checklist ADR 0003; it was /api/assistant/owner-avatar). It
+        takes no parameters. Every hop of the fetch goes through the SSRF guard: https to a public host only, one
+        redirect at most. Raster images only, at most 5 MB.
+      responses:
+        '200':
+          description: The picture's bytes, with its image type
+        '401':
+          description: 'Not signed in (`code: not-signed-in`)'
+        '403':
+          description: 'No assistant on this instance (`code: no-assistant`)'
+        '404':
+          description: '`code` says which: no-picture, unfetchable, or not-stampable'
+  /api/assistant/avatar:
+    post:
+      tags: [Auth]
+      summary: Store a stamped avatar on this instance
+      description: >-
+        Multipart, field `avatar`: a PNG of at most 2 MB, checked by its bytes, stored under
+        ta-avatar-<32 hex of its SHA-256>.png and served at /generated/. Older composites are never deleted. For a
+        signed-in person with an assistant on this instance; the gate runs before the upload is read. At most 20 new
+        files per person in a rolling day; bytes already stored are not counted. `url` is empty when this instance
+        has no public web address.
+      responses:
+        '200':
+          description: '{ success, filename, path, url }'
+        '400':
+          description: Not a PNG, too large, or no file
+        '401':
+          description: 'Not signed in (`code: not-signed-in`)'
+        '403':
+          description: 'No assistant on this instance (`code: no-assistant`)'
+        '429':
+          description: 'Too many new avatars today (`code: too-many`)'
   /api/assistant/my-assistants:
     get:
       tags: [Auth]

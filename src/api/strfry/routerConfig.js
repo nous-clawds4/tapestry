@@ -808,4 +808,7 @@ module.exports = {
   relayUrlProblem,
   vetStreamsForConfig,
   loadPresets,
+  // The same owner-or-local gate guards the negentropy-sync presets' POSTs
+  // (negentropyPresets.js, ADR relay-stream-gaps/0003).
+  requireOwnerOrLocal,
 };

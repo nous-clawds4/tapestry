@@ -144,6 +144,9 @@ function fakes(opts = {}) {
     },
     isLocalOnly: () => Boolean(opts.localOnly),
     getConfigFromFile: (key, dflt) => (opts.config && Object.prototype.hasOwnProperty.call(opts.config, key) ? opts.config[key] : dflt),
+    // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001), stubbed: this suite is about Outbox Relays,
+    // and the stub keeps the Treasure Map read out of its scans and relay reads.
+    checkTrustedContent: async () => ({}),
   };
   if (opts.checkOutboxRelays) deps.checkOutboxRelays = opts.checkOutboxRelays;
   return { deps, calls };

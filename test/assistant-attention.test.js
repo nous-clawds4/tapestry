@@ -18,6 +18,11 @@
  * fakes() stubs so these suites stay about Identification Tags. C2 and C3 pin it; test/assistant-profile-check.test.js pins
  * the profile.
  *
+ * Re-aimed 2026-10-08 by assistant-trusted-content-status #1 (its story, ADR 0001 and plan): Scores, Lists and Concepts
+ * are checked too, and the handler runs their check, which reads the viewer's Treasure Map; fakes() stubs it so these
+ * suites stay about Identification Tags (and never read a relay U3 says is not read). C2 and C3 already derive the
+ * placeholders from CHECKED_ACTIONS; test/assistant-trusted-content.test.js pins the three.
+ *
  * Classes:
  *   L — the shared library src/lib/identification-tags (pure CommonJS): the list (offered and parked), each
  *       definition's author and address, the d-tag composer, the polarity reader.                                            [AC-1, AC-3]
@@ -229,6 +234,8 @@ function fakes(opts = {}) {
     // assistant-outbox-relays ADR 0001 § Implementation notes 2: the outbox check is injected, so these identification-tags
     // tests never see its scan or its relay reads (test/assistant-outbox-check.test.js drives the real one).
     checkOutboxRelays: async () => ({ finished: true, done: true, pending: false, reason: null, source: 'local', createdAt: 1, outbox: ['wss://fixture.example'], inboxOnlyCount: 0, suggestions: [] }),
+    // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001), stubbed for the same reason.
+    checkTrustedContent: async () => ({}),
   };
   return { deps, calls };
 }
