@@ -18,6 +18,7 @@
  *        isOwnerOrAdmin.
  *   A8 — the three pages that sync a point of view send exactly the POV-sync shape, so the narrow rule keeps them working.
  *   A9 — the default guards use the real isOwnerOrAdmin from src/middleware/auth.js.
+ *   A10 — where the presets module exists, its list GET is behind requireSyncManager (owner decision, 2026-10-10).
  */
 
 const fs = require('fs');
@@ -182,6 +183,18 @@ test('A9: the default guards use the real isOwnerOrAdmin', () => {
   assert(typeof a.requireSyncManager === 'function' && typeof a.requireSyncManagerOrPovSync === 'function', 'default guards exported');
   const user = call(a.requireSyncManager, signedIn());
   assert(!user.nexted && user.status === 403, `the real check refuses an unknown signed-in pubkey: ${show(user)}`);
+});
+
+test('A10: the presets list GET is behind requireSyncManager, where the presets module exists', () => {
+  const PRESETS = path.join(ROOT, 'src/api/strfry/negentropyPresets.js');
+  if (!fs.existsSync(PRESETS)) return; // the module reached staging after main's last promotion
+  const a = access();
+  const routes = {};
+  const app = { get: (p, ...h) => { routes[`GET ${p}`] = h; }, post: (p, ...h) => { routes[`POST ${p}`] = h; } };
+  delete require.cache[require.resolve(PRESETS)];
+  require(PRESETS).registerNegentropyPresetRoutes(app);
+  const h = routes['GET /api/strfry/negentropy-presets'];
+  assert(h && h.length === 2 && h[0] === a.requireSyncManager, 'GET /api/strfry/negentropy-presets is behind requireSyncManager');
 });
 
 async function run() {

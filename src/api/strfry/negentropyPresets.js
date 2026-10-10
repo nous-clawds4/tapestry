@@ -25,6 +25,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { isSyncActive, runStrfrySync, relayMessageOf } = require('./negentropySync');
 const { relayUrlProblem, requireOwnerOrLocal } = require('./routerConfig');
+const { requireSyncManager } = require('./negentropyAccess');
 
 // On the data volume, so presets survive restarts and deploys. Env override for the stack-free suite.
 const PRESETS_PATH = process.env.NEGENTROPY_PRESETS_PATH || '/var/lib/brainstorm/negentropy-presets.json';
@@ -397,7 +398,9 @@ async function handleRunPresets(req, res) {
 }
 
 function registerNegentropyPresetRoutes(app) {
-  app.get('/api/strfry/negentropy-presets', handleListPresets);
+  // The list shows each preset's relays, filters and last results: owner, admins and direct-local callers only,
+  // like the live sync status (owner decision 2026-10-10).
+  app.get('/api/strfry/negentropy-presets', requireSyncManager, handleListPresets);
   app.post('/api/strfry/negentropy-presets', handleSavePreset);
   app.post('/api/strfry/negentropy-presets/toggle', handleTogglePreset);
   app.post('/api/strfry/negentropy-presets/delete', handleDeletePreset);

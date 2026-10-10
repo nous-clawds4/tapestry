@@ -51,6 +51,7 @@ const SYNC = path.join(ROOT, 'src/api/strfry/negentropySync.js');
 const PRESETS_MOD = path.join(ROOT, 'src/api/strfry/negentropyPresets.js');
 const ROUTER = path.join(ROOT, 'src/api/strfry/routerConfig.js');
 const ROUTER_STATUS = path.join(ROOT, 'src/api/strfry/routerStatus.js');
+const SYNC_ACCESS = path.join(ROOT, 'src/api/strfry/negentropyAccess.js');
 const AUTH = path.join(ROOT, 'src/middleware/auth.js');
 const SCHED_TASKS = path.join(ROOT, 'src/api/scheduled-tasks/index.js');
 const SCHED_VALIDATION = path.join(ROOT, 'src/api/scheduled-tasks/validation.js');
@@ -237,7 +238,7 @@ function installAuthStub() {
 
 // ── module loading (one fresh load = one server start) ─────────────────────────────────
 function dropModules() {
-  for (const p of [PRESETS_MOD, SYNC, ROUTER, ROUTER_STATUS]) {
+  for (const p of [PRESETS_MOD, SYNC, ROUTER, ROUTER_STATUS, SYNC_ACCESS]) {
     try { delete require.cache[require.resolve(p)]; } catch { /* not present */ }
   }
 }
@@ -839,15 +840,19 @@ test('P11: every POST — save, toggle, delete and run — from a signed-in non-
   }
 });
 
-test('P12: the owner and a local (loopback) caller pass the gate; any signed-in user can read the list', async () => {
+test('P12: the owner and a local (loopback) caller pass the gate; only they can read the list (owner decision 2026-10-10)', async () => {
   const h = harness();
   h.presetsModule();
   const owner = await h.req('POST', BASE, { name: 'By owner', relay: h.relay('o'), dir: 'down', filter: { kinds: [1] } }, 'owner');
   assert(httpCode(owner) === 200 && owner.body && owner.body.success === true, `the owner's save must succeed; got ${httpCode(owner)} ${show(owner.body)}`);
   const local = await h.req('POST', BASE, { name: 'By loopback', relay: h.relay('l'), dir: 'down', filter: { kinds: [1] } }, 'local');
   assert(httpCode(local) === 200 && local.body && local.body.success === true, `a loopback save must succeed; got ${httpCode(local)} ${show(local.body)}`);
-  const read = await h.req('GET', BASE, {}, 'member');
-  assert(httpCode(read) === 200 && read.body && read.body.success === true && read.body.presets.length === 2, `a signed-in non-owner can list presets; got ${httpCode(read)} ${show(read.body)}`);
+  const read = await h.req('GET', BASE, {}, 'owner');
+  assert(httpCode(read) === 200 && read.body && read.body.success === true && read.body.presets.length === 2, `the owner can list presets; got ${httpCode(read)} ${show(read.body)}`);
+  const member = await h.req('GET', BASE, {}, 'member');
+  assert(httpCode(member) === 403 && member.body && member.body.success === false && !member.body.presets, `a signed-in non-owner is refused the list; got ${httpCode(member)} ${show(member.body)}`);
+  const anon = await h.req('GET', BASE, {}, 'anon');
+  assert(httpCode(anon) === 401 && anon.body && !anon.body.presets, `a visitor who is not signed in is refused the list; got ${httpCode(anon)} ${show(anon.body)}`);
 });
 
 test('P13: presets live in /var/lib/brainstorm/negentropy-presets.json (the data volume) unless NEGENTROPY_PRESETS_PATH is set, and the owner gate is routerConfig\'s requireOwnerOrLocal, reused not copied', () => {
