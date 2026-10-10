@@ -11,7 +11,7 @@
  *   I4 — GET kind 10040 info: a valid pubkey runs strfry with an argument list; no shell.
  *   I5 — POST create (and create-and-publish) kind 10040: a body pubkey that is not 64 hex characters is refused 400 and
  *        nothing runs; a valid one runs node with the script and the pubkey as separate arguments; no shell.
- *   I6 — none of the five files builds a shell command from a template string or a variable: no exec( / execSync( call
+ *   I6 — none of the six files builds a shell command from a template string or a variable: no exec( / execSync( call
  *        is left in them.
  */
 
@@ -31,6 +31,7 @@ const FILES = [
   'src/api/export/nip85/commands/kind10040.js',
   'src/api/export/nip85/commands/create-and-publish-kind10040.js',
   'src/api/profiles/fetchProfiles.js',
+  'src/lib/receiving/resolveProfile.js',
 ];
 
 const tests = [];
@@ -151,7 +152,7 @@ test('I5: POST kind 10040 refuses a bad body pubkey, and runs node with separate
   }
 });
 
-test('I6: none of the five files calls exec( or execSync(', () => {
+test('I6: none of the six files calls exec( or execSync(', () => {
   const wrong = [];
   for (const rel of FILES) {
     const src = fs.readFileSync(path.join(ROOT, rel), 'utf8').split(NL).filter((l) => !/^\s*(\/\/|\*)/.test(l)).join(NL);

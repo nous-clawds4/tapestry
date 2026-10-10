@@ -11,7 +11,7 @@
  * Docker install path; injects a WebSocket global for SimplePool.
  */
 
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { pickNewestEvent } = require('./newest');
 const { getProfileRelays } = require('./publish');
 
@@ -58,7 +58,8 @@ async function queryExternal(pubkeyHex, relays, timeoutMs) {
 function scanLocal(pubkeyHex) {
   try {
     const filter = JSON.stringify({ kinds: [0], authors: [pubkeyHex] });
-    const raw = execSync(`strfry scan '${filter.replace(/'/g, "\\'")}'`, {
+    // An argument list, never a shell string.
+    const raw = execFileSync('strfry', ['scan', filter], {
       timeout: 5000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
     });
     return raw.trim().split('\n').filter(Boolean).map(line => {
