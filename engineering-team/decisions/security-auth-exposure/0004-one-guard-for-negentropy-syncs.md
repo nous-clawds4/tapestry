@@ -6,7 +6,8 @@
 
 ## Context
 
-Eight routes start or inspect a negentropy sync: the strfry family (`POST /api/strfry/negentropy-sync`; `GET …/stream`,
+Eight routes start, count against or inspect a negentropy sync from a caller's request (the registered sync tasks are
+started through the task-control routes; story 6): the strfry family (`POST /api/strfry/negentropy-sync`; `GET …/stream`,
 `…/status`, `…/count` in `src/api/strfry/negentropySync.js`) and four legacy POSTs (`/api/negentropy-sync`, `-wot`,
 `-profiles`, `-personal` in `src/api/index.js`). The central auth middleware (`src/middleware/auth.js`) lets any
 authenticated session through for paths on its `authenticatedEndpoints` list, which names all of them by substring, and

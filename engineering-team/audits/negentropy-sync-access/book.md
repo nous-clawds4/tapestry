@@ -31,10 +31,12 @@ Asked about the saved presets: owner and admins.
 - [x] **Story 6 (found by story 4's review):** starting a registered task and changing what runs on a schedule are for
       the owner, admins and direct-local callers; the saved presets list is guarded like the sync status. Shipped as a
       hotfix (PR #840). With it, bullet 2 holds for the task routes too.
+- [x] **Story 7 (found by story 4's review round 2):** a HEAD request is judged as its GET is. Shipped as a hotfix
+      (PR #841).
 
 ## Epics in this book
 
-- `security-auth-exposure` — stories 4–6 (the epic stays Done; this book carries their active-work signal, as
+- `security-auth-exposure` — stories 4–7 (the epic stays Done; this book carries their active-work signal, as
   `audits/auth-signature-verification/` did for story 3).
 
 ## Decisions taken at intake (2026-10-10)
@@ -51,11 +53,14 @@ Asked about the saved presets: owner and admins.
    routing as a second safeguard is ledger row `2026-10-10-case-sensitive-routing`.
 7. **Task control (story 6): owner, admins and direct-local callers, as a hotfix.** *(Owner, recommended option.)*
 8. **The saved presets list: guarded like the sync status.** *(Owner.)*
+9. **HEAD requests (story 7): hotfix now.** *(Owner, recommended option.)*
+10. **The remaining admin actions with no owner check of their own** (`_intake.md` 2026-07-21): an exhaustive sweep
+    as its own story, not piecemeal hotfixes. *(Owner.)* Not part of this book's frame.
 
 ## Artifacts
 
 - Story: `engineering-team/stories/security-auth-exposure/4-negentropy-sync-owner-and-admins.md` (+ `.test-plan.md`)
 - ADR: `engineering-team/decisions/security-auth-exposure/0004-one-guard-for-negentropy-syncs.md`
-- Stories 5–6: `engineering-team/stories/security-auth-exposure/5-paths-judged-case-insensitively.md`,
-  `6-task-control-owner-and-admins.md` (+ `.test-plan.md` each)
-- Review: `engineering-team/reviews/security-auth-exposure/4-negentropy-sync-owner-and-admins.md`
+- Stories 5–7: `engineering-team/stories/security-auth-exposure/5-paths-judged-case-insensitively.md`,
+  `6-task-control-owner-and-admins.md`, `7-head-judged-as-get.md` (+ `.test-plan.md` each)
+- Reviews: `engineering-team/reviews/security-auth-exposure/4-…`, `5-…`, `6-…` (and `7-…` once written)

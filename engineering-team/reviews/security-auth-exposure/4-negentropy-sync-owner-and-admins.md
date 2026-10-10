@@ -173,3 +173,117 @@ routes and narrowing the claims; either is a small change.
 ## On PASS (same commit)
 - [ ] Story `**Status:**` flipped to `Done` in place. *(Not applicable: CHANGES_REQUESTED.)*
 - [ ] Completion detection: not run, because the verdict is not PASS.
+
+---
+
+# Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-10-10
+**Diff:** `git show 0f028254` (the record corrections: story 4, ADR 0004, the book, relay-stream-gaps ADR 0003's
+access note, the ledger rows), read with `git show 1b3d538f 742a7e32` (story 6's code, which is what closes Blocking 1).
+Read on `staging` at `0f028254`. Code on `staging` and `main` is identical for `src/`, `test/`, `bin/` and `scripts/`
+(`git diff staging origin/main --stat -- src test bin scripts` is empty).
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test` — **PASS.** `npm run gate:status -- --label reviewer-sae4-6-r2`:
+      `20261010T050008Z-10501-dbeb [reviewer-sae4-6-r2] started 2026-10-10T05:00:08.729Z on 0f028254 — PASS, exit 0, 5548 passed, 0 failed, 582 skipped, 293/293 suites`.
+      The `tagging-edges-realtime-wrapper` RW7 flake did not appear.
+- [x] Focused suites: `negentropy-sync-access` 10 passed, 0 failed (A10 is new, from story 6);
+      `negentropy-sync-presets` 95 passed, 0 failed.
+- [x] `bash scripts/harness-lint.sh` — clean (0 violations), exit 0.
+- [x] Live, anonymous, side-effect-free, on production and staging: `GET /api/strfry/negentropy-sync/status` → 401;
+      `GET /api/strfry/negentropy-presets` → 401 (and 401 capitalized).
+- [ ] `npm run test:playwright` — not applicable (no UI change).
+
+## Blocking 1 — resolved
+
+The owner took option (a): bring the task routes inside the rule. I re-derived the claim rather than reading the fix
+as mine.
+
+- **The task routes are closed.** `/run-task`, `/scheduled-tasks/create|update|delete` and
+  `/customer-schedule/update|trigger` are on `ownerOnlyEndpoints` (`src/middleware/auth.js:438-443`). That list
+  admits `isOwner`, which is the owner-or-admin alias (`auth.js:276-293`). Direct-local callers pass earlier
+  (`auth.js:366-369`). Visitors who are not signed in are refused by default-deny. `test/task-routes-owner-admin.test.js`
+  T1–T3 pin this; it fails before the fix (T2, T5) and passes after. Live: anonymous `POST /api/run-task` and
+  `/API/run-task` → 401 on production and staging.
+- **Frame bullet 2 now holds** ("any other signed-in person may run only the point-of-view sync"). I searched for
+  every other way to start a negentropy sync, not only the routes the diffs touched:
+  - Only two modules under `src/api` spawn `strfry sync`: `src/api/strfry/negentropySync.js:47` and
+    `src/api/pipeline/batch/commands/negentropySync.js:66`. They are reached only through the guarded routes and the presets' run POST.
+  - The sync scripts run directly by `/api/negentropy-sync-wot|-profiles|-personal` are behind
+    `requireSyncManager` (`src/api/index.js:297-299`).
+  - The presets' run POST is behind `requireOwnerOrLocal` (`negentropyPresets.js:388`).
+  - The registry's sync tasks (`syncWoT`, `syncProfiles`, `syncNegentropyPresets`, and `processCustomer` →
+    `loadScoresIntoMeilisearch.sh`) start only through the six task routes above, through BullBoard (mounted with
+    `requireOwnerOrAdmin`, `src/manage/taskQueue/queue/bullBoardMount.js:58`), or from the in-process schedulers.
+  - The relay router writes are owner-only (`auth.js:432-435`).
+  - No other route under `src/api` spawns a sync.
+- **Story 4 corrected.** Background (`4-…md:21-24`) now says the presets' four POSTs were guarded and the list GET was
+  not, and that the task routes could start the sync tasks; story 6 closes both. AC-6 covers the list GET. A
+  Deviations entry records the first record's overclaim.
+- **ADR 0004.** A new Consequences bullet (`0004-…md:59-60`) says the registered sync tasks start through the task
+  routes and that story 6 closes them. That is accurate.
+- **Book.** Frame bullets 6–7 and decisions 6–8 were added, and the epic list now names stories 4–6.
+
+## Presets wording — fixed
+
+`4-…md:21-22` now reads "the saved presets' four POSTs … were already guarded by `requireOwnerOrLocal` … their list GET
+was readable by anyone (story 6 guards it)". This is true:
+- the four POST handlers call `requireOwnerOrLocal` (`src/api/strfry/negentropyPresets.js:333`, `:357`, `:373`,
+  `:388`);
+- the list GET is now mounted behind `requireSyncManager` (`:403`);
+- `test/negentropy-sync-access.test.js` A10 and `negentropy-sync-presets` P12 pin it, and both fail on the tree before
+  `742a7e32`.
+
+The "Superseded in part" note added to `decisions/done/relay-stream-gaps/0003-negentropy-sync-presets.md` agrees with
+this.
+
+## Record and ledger accuracy
+
+- Story 4's Deviations: PR #837 merged as `8fbd68d0` (GitHub REST: merged 2026-10-10T03:48:06Z, base `main`), and
+  `staging` has `dc318717`. Deploy run 141 (`8fbd68d0`) completed successfully.
+- `ledger/2026-10-09-negentropy-sync-access-scope.md` is DONE with the same facts. `2026-10-10-pov-sync-relay-scope`
+  now carries round 1's non-blocking 1 and 2. `2026-10-10-case-sensitive-routing` carries non-blocking 6. Round 1's
+  two harness-friction items are `2026-10-10-after-the-fact-record-misses-siblings` and
+  `2026-10-10-frame-ticked-before-review`.
+- Round 1's non-blocking 7, the weakness escalated privately, is story 5 and is now fixed on production (deploy run
+  143). It is reviewed in `5-paths-judged-case-insensitively.md`.
+
+## Findings (round 2)
+
+### Blocking
+None.
+
+### Non-blocking
+1. **`engineering-team/decisions/security-auth-exposure/0004-one-guard-for-negentropy-syncs.md:9`.** The Context still
+   opens "Eight routes start or inspect a negentropy sync". Read with the new Consequences bullet it is no longer
+   misleading. But it is still not literally true: the task routes and BullBoard also start syncs, and two of the eight
+   (`-wot`, `-profiles`) run the same scripts as the registry's `syncWoT` and `syncProfiles`
+   (`src/api/manage/negentropySync/commands/syncWoT.js:21`, `syncProfiles.js:21`). The Consequences bullet's "not these
+   eight" is loose for the same reason. Optional: say "Eight routes start or inspect a sync directly, with a
+   caller-chosen relay, filter or direction".
+2. **`engineering-team/stories/security-auth-exposure/4-negentropy-sync-owner-and-admins.test-plan.md:18`.** The AC-6
+   row still lists only A7, the preset POSTs. AC-6 now includes the list GET, which A10 and P12 cover. Optional: add
+   them to the row.
+3. **`test/negentropy-sync-access.test.js:164`, `:190`.** The guard comments say the presets module "reached staging
+   after main's last promotion". That has been stale since PR #838 (`94cb6d3e`) brought it to `main`. A7 and A10 still
+   return early, and so pass, if the module is ever missing. Optional: drop the existence guards now that both lines
+   carry the module.
+4. Round 1's non-blocking 3 (`relay` type) and 5 (test gaps) were not taken up. Both stay optional.
+
+### Harness friction
+1. The commit that opened `ledger/2026-10-10-frame-ticked-before-review.md` (`0f028254`) also ticked frame bullets 6–7
+   `[x]` before their first review. They are accurate (stories 5 and 6 verified below and in their reviews), but the
+   practice the row asks for was not applied in the same commit. Add it to that row as evidence; no new row needed.
+
+## Verdict
+**PASS**
+
+The record now matches what shipped. The task routes are inside the rule (story 6), so frame bullet 2 holds, and the
+presets sentence is accurate. Story 4 is Done.
+
+## On PASS
+- [x] Story `**Status:**` flipped to `Done` in place (and the epic's line for story 4).
+- [x] Completion detection performed; the result is reported in the hand-off, not in this file.

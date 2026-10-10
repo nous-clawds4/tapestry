@@ -1,6 +1,6 @@
 # Story 5: The auth middleware judges paths case-insensitively, as Express routes them
 
-**Status:** In Progress
+**Status:** Done
 **Created:** 2026-10-10
 **Type:** Bug (security / authentication)
 **Epic:** `security-auth-exposure`
@@ -20,7 +20,7 @@ central auth middleware (`src/middleware/auth.js`, `authMiddleware`) compared `r
 - its list matches (`includes`) were case-sensitive too, so `/api/` followed by a capitalized name slipped past the
   owner-only and protected-GET lists (the default-deny for anonymous mutations still applied there).
 
-nginx's `location /` forwards every path unchanged. Routes with their own guard (story 4's sync guard, `requireOwner`
+nginx's `location /` forwards every path, normalized but with its capitals kept. Routes with their own guard (story 4's sync guard, `requireOwner`
 routes) were not affected.
 
 ## User-facing description

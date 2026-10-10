@@ -1,6 +1,6 @@
 # Story 4: Negentropy syncs are run by the owner and admins; signed-in people keep the POV sync
 
-**Status:** In Progress
+**Status:** Done
 **Created:** 2026-10-10
 **Type:** Bug (security / access control)
 **Epic:** `security-auth-exposure`
