@@ -16,7 +16,7 @@ This is docs-mode work (`engineering-team/workflows/protocol-spec-workflow.md` �
 ## Stories
 
 1. `stories/duty-menus-and-self-maps/1-ratify-self-pointing-b.md` — the self-pointing `b` (self-declared Shared Concepts) in `inherit-from.md`, with a pointer in `shared-concepts.md`.
-2. *(planned)* The Duty Menus pre-NIP: `protocols/drafts/duty-menus.md`, its README row, and the worksheet W1 note. Depends on 1.
+2. `stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` — the Duty Menus pre-NIP: `protocols/drafts/duty-menus.md`, its README row, and the worksheet W1 note. Depends on 1.
 3. *(planned)* Self-Maps in `treasure-maps.md`, and the narrowed sentence in `assistant-designation.md`. Depends on 2, because its relay fallback cites the Duty Menu spec.
 
 ## Not on this epic's path
