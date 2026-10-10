@@ -1,6 +1,6 @@
 # Duty Menus and Self-Maps — Design Handoff
 
-**Status:** 🔴 OPEN — design captured 2026-10-10; nothing ratified into `protocols/` yet. Next: confirm the name (§ 9 Q1), then ratify through the docs-mode flow (§ 8).
+**Status:** 🔴 OPEN — design captured 2026-10-10; name and header model decided (D8–D10); nothing ratified into `protocols/` yet. Next: ratify through the docs-mode flow (§ 8).
 **Created:** 2026-10-10
 **Provenance:** Scoped in one advisory session on 2026-10-10, started by the owner's question about the new external-Assistant support on `/treasure-map`. This is the Capture step of the Protocol-Spec workflow (`engineering-team/workflows/protocol-spec-workflow.md`): what is decided, what is proposed but not yet confirmed, and what is still open. Flip to ✅ SUPERSEDED once the pieces land in `protocols/`.
 
@@ -29,6 +29,9 @@
 | D5 | **No price or tier in the menu.** | the owner, 2026-10-10 |
 | D6 | **No expiration on self-Maps.** | the owner, 2026-10-10 |
 | D7 | **One key per algorithm is acceptable.** NIP-85 requires a separate service key for each algorithm, so a provider offering two algorithms for one metric uses two keys, each with its own menu and self-Map. | the owner, 2026-10-10 |
+| D8 | **The name is "Duty Menu".** | the owner, 2026-10-10 |
+| D9 | **Every menu points at Nous' header:** storefront and per-customer menus alike carry `["z", "39998:<Nous>:duty-menu"]`. One query under that header therefore lists every provider's Assistant keys, per-customer keys included. Accepted: the link between a customer and their Assistant key is already public through the customer's own Map. | the owner, 2026-10-10 |
+| D10 | **Nous proposes the header as a Shared Concept**, declaring it canonical with a pointer-typed `b` that names its own coordinate. People add "Duty Menu" to their own dictionaries by referencing it. That is the existing adoption flow: their Assistant publishes its own header that points `b` at Nous'. No per-deployment firmware copy. | the owner, 2026-10-10 |
 
 ## 3. Considered and set aside
 
@@ -49,19 +52,21 @@ Kept so the reasoning isn't lost.
   - the unsigned 10040 handed to the signer (`buildTreasureMapTemplate`, `src/lib/treasureMapMerge.js`);
   - public methods that others inherit (`trust-determination-methods.md` § 6).
 
-  It also suggests copying a whole Map, while customers pick a different Assistant per card. "Assistant Offer" was also considered, but the `offer` stem is retired (`test/retire-offering-vocabulary.test.js`) and it reads like a one-time deal. See § 9 Q1.
+  It also suggests copying a whole Map, while customers pick a different Assistant per card. "Assistant Offer" was also considered, but the `offer` stem is retired (`test/retire-offering-vocabulary.test.js`) and it reads like a one-time deal. "Duty Menu" was chosen (D8).
+- **A firmware copy of the header in every deployment** (the concept-header precedent, `dlist-header-declaration.md` § 4). Replaced by D10: the header is a Shared Concept that people add to their dictionaries.
 
 ## 4. Proposed: Duty Menus
 
-Proposed in the session; to be confirmed at ratification.
+The name, the publisher and the header model are decided (D4, D8–D10). The shapes below were proposed in the session and are to be confirmed at ratification.
 
 ### 4.1 The header
 
-- One shared header, `39998:<Nous>:duty-menu`, signed by Nous (D4).
+- One shared header, `39998:<Nous>:duty-menu`, signed by Nous (D4), proposed as a Shared Concept (D10).
 - Proposed tags:
   ```
   ["d", "duty-menu"]
   ["names", "duty menu", "duty menus"]
+  ["b", "39998:<Nous>:duty-menu", "pointer"]
   ["description", "What one Assistant key offers to publish: Treasure Map keys and the relay for each. Offered, not active; the key's own kind 10040 says what is active."]
   ["required", "p", "The Assistant: equals the item's author"]
   ["required", "duty", "A Treasure Map key (treasure-maps § 4.7) and the relay this Assistant publishes it to"]
@@ -71,8 +76,11 @@ Proposed in the session; to be confirmed at ratification.
   ["allowed", "json", "Per-duty details: description, update interval, algorithm. No price or tier."]
   ```
 - `required p` makes the item's subject `p` (`content-categories.md` § 5.1). A DList-based list over Duty Menus then reads as "the Assistants my trusted community accepts".
+- The `b` names the header's own coordinate, which declares it canonical: the root other headers affiliate with. That rule is proposed in `amendments-2026-09.md` § 3 and not yet in `inherit-from.md`. The code already writes it: Create New Concept, with no target, points `b` at the new header itself (`src/api/adoption/newConcept.js`).
+- **Publishing it.** Create New Concept with the singular name "duty menu" gives `d` = `duty-menu` (`headerDTag`, `src/lib/dtag.js`). But it writes only `d`, `names`, `description` and `b`. The `required` and `allowed` declarations above have to be added another way: published by hand, or by a later edit to the header.
+- **Adding it to a dictionary** (D10). A person's Assistant publishes its own header, `39998:<their Assistant>:duty-menu`, that copies Nous' tags and points `b` at Nous' header (`copiedHeaderTags`, `src/lib/conceptHeaderCopy.js`). It is the same "Add to My Dictionary" flow as any Shared Concept (`ui/src/pages/dictionaries/Concepts.jsx`). Because the copy keeps the `required`/`allowed` declarations, they must be on Nous' header before people adopt it.
+- **Items point at Nous' header, not at dictionary copies** (D9). A reader that starts from someone's dictionary copy follows its `b` to Nous' header and queries `#z` there.
 - Nous' pubkey is a fixed community constant, like the identification-tag authors, not a per-deployment Tapestry Assistant key. The CLAUDE.md rule against hardcoding the TA pubkey doesn't apply, but the constant should be defined once in shared code.
-- Open: does each deployment also seed a firmware copy that points at Nous' header (`["b", "39998:<Nous>:duty-menu", "pointer"]`, the concept-header precedent in `dlist-header-declaration.md` § 4), or do readers use Nous' header directly? (§ 9 Q2.)
 
 ### 4.2 The item
 
@@ -102,7 +110,7 @@ Proposed in the session; to be confirmed at ratification.
   - Each per-customer key publishes its own menu, with the rows that apply to that customer, and a `q` pointing at the storefront.
 - **Lookup.**
   - One key's menu, knowing only its pubkey: `{"kinds":[39999], "authors":[A], "#d":["duty-menu"]}`.
-  - All menus under the header: `{"kinds":[39999], "#z":["39998:<Nous>:duty-menu"]}`, filtered per point of view. See § 9 Q3 on which items should carry that `z`.
+  - All menus under the header: `{"kinds":[39999], "#z":["39998:<Nous>:duty-menu"]}`, filtered per point of view. Every menu carries this `z` (D9).
 - **Where published:** at least the relays the menu names, and the DList relays (`aDListRelays`, default `wss://dcosl.brainstorm.world`).
 - Reserve `duty-menu` in treasure-maps § 4.6, since `39999:<d-tag>` is also a Concept key (§ 4.5).
 
@@ -178,12 +186,14 @@ Thin story → ADR → Test Design skipped → spec edits → accuracy review �
   - The counting rule.
 - **New `protocols/drafts/duty-menus.md`** (header, item, rules, lookup), plus a row in `protocols/README.md`.
 - **`protocols/drafts/assistant-designation.md`** § Authorship: narrow "A TA cannot designate itself".
-- **`protocols/drafts/amendments-2026-09.md`:** add `duty-menu` to the firmware table (community handle by Nous).
-- **`protocols/worksheet.md` W1:** note the Nous-held community handle.
+- **Self-declaration** (`amendments-2026-09.md` § 3) into `inherit-from.md` § "The `b` tag" and `shared-concepts.md` § Declared affiliation, if it hasn't landed by then. D10 relies on it; the code already writes it.
+- **`protocols/worksheet.md` W1:** note that Nous holds the Duty Menu header, a Shared Concept rather than a per-deployment firmware copy.
 - **BIBLE:** a pointer later, when code ships.
 
+Outside the repo: Nous publishes the header, with its `required`/`allowed` declarations in place before anyone adopts it (§ 4.1). Publishing is the author's act.
+
 Then engineering, roughly:
-1. Nous' header coordinate as one shared constant, and reader helpers: menu lookup, self-Map lookup, and § 6 resolution over both.
+1. Nous' header coordinate as one shared constant, and reader helpers: menu lookup, self-Map lookup, and § 6 resolution over both. A dictionary entry for Duty Menu comes from the existing adoption flow, so no firmware change is needed.
 2. This instance publishes a Duty Menu and a self-Map for each of its Assistant keys (the TA and customer keys). Both must name the relays the insights really go to. Reconcile `BRAINSTORM_NIP85_HOME_RELAY`, `aTrustedAssertionRelays` and the router presets (off by default) first.
 3. `/treasure-map`: the relay fill order, the Offered/Active states, and the "Make preferred" swap (§ 6).
 4. Readers: the empty-relay fallback (§ 7) and the counting rule (§ 5).
@@ -191,11 +201,9 @@ Then engineering, roughly:
 
 ## 9. Open questions
 
-1. **Name.** "Duty Menu" is proposed (§ 3). The owner hasn't confirmed it yet.
-2. **Firmware copy or direct reference** to Nous' header (§ 4.1).
-3. **Per-customer menus and enumeration.** If per-customer items carry `z` = Nous' header, one query lists every provider's customer keys (worksheet W12). Options:
-   - only storefront items carry the `z`, and per-customer items are found by author and `d` alone; or
-   - publish a per-customer item only when it differs from the storefront.
+1. ~~**Name.**~~ Resolved: "Duty Menu" (D8).
+2. ~~**Firmware copy or direct reference** to Nous' header.~~ Resolved: neither. Nous' header is a Shared Concept, and people add it to their dictionaries through the adoption flow (D10).
+3. ~~**Per-customer menus and enumeration.**~~ Resolved: every menu carries the `z` to Nous' header, and per-customer keys being listable is accepted (D9; worksheet W12).
 4. **Private duties** in a self-Map's `.content` (NIP-44)? (treasure-maps § 13 Q8, W22.)
 5. **A bare `["z", "duty-menu"]`**, with no pubkey in it, as a meeting point alongside Nous' handle?
 6. **NosFabrica adoption:** who raises it, and when.
@@ -203,4 +211,4 @@ Then engineering, roughly:
 
 ## 10. Where we paused
 
-2026-10-10: design captured. The owner answered the four open questions of the session (D4–D7) and asked for this doc. Next: confirm the name (Q1), then start the docs-mode ratification (§ 8).
+2026-10-10: design captured. The owner answered the session's four open questions (D4–D7) and asked for this doc, then settled the name and the header model (D8–D10). Next: start the docs-mode ratification (§ 8). Q4–Q7 can be settled along the way.
