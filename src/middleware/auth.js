@@ -432,7 +432,15 @@ async function authMiddleware(req, res, next) {
             '/strfry/router-config',
             '/strfry/router-toggle',
             '/strfry/router-restart',
-            '/strfry/router-restore-defaults'
+            '/strfry/router-restore-defaults',
+            // Task control: starting a registered task, and changing what runs on a schedule
+            // (owner decision 2026-10-10; every caller is an owner page).
+            '/run-task',
+            '/scheduled-tasks/create',
+            '/scheduled-tasks/update',
+            '/scheduled-tasks/delete',
+            '/customer-schedule/update',
+            '/customer-schedule/trigger'
         ];
 
         // Check if this endpoint is for customer or owner only
