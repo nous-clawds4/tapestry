@@ -253,6 +253,7 @@ const suites = [
   { file: 'assistant-setup-state.test.js' },
   { file: 'gate-result-record.test.js' },
   { file: 'negentropy-sync-input.test.js' },
+  { file: 'shell-input-hardening.test.js' },
   { file: 'auth-head-requests.test.js' },
   { file: 'task-routes-owner-admin.test.js' },
   { file: 'auth-path-case.test.js' },

@@ -88,10 +88,11 @@ async function getProfiles(pubkeys) {
     const stillMissing = needed.filter(pk => !results.has(pk));
     if (stillMissing.length > 0) {
       try {
-        const { execSync } = require('child_process');
+        const { execFileSync } = require('child_process');
         const filter = JSON.stringify({ kinds: [0], authors: stillMissing });
         // strfry scan takes a nostr filter as a CLI argument and outputs matching events as JSONL
-        const raw = execSync(`strfry scan '${filter.replace(/'/g, "\\'")}'`, {
+        // An argument list, never a shell string: request values must not reach a shell.
+        const raw = execFileSync('strfry', ['scan', filter], {
           timeout: 5000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']
         });
         const lines = raw.trim().split('\n').filter(Boolean);
