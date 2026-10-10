@@ -82,6 +82,21 @@ address.
 
 None blocking. The Architect settles the rest within the handoff's § 4 shapes.
 
+## Deviations
+
+Small judgment calls by the Implementer (2026-10-10), none outside ADR 0002:
+
+- **§ 9, the provider directory, does not cite the repo's Show and Tell document.** ADR 0002 sub-decision 9 leans on its
+  H3. The spec states the same signals in plain words (what trusted people say, what they do, the reuse questions) instead
+  of linking `design-philosophies/`, because a protocol spec does not cite repo-internal advisory docs
+  (`protocols/README.md`, the boundary rule).
+- **The examples use neutral names and relays** (`Example WoT Service`, `wss://*.example`) rather than a real deployment's
+  relays, following the same boundary rule: deployment details stay out of specs.
+- **§ 6.2 step 4 adds one sentence for a narrower `not-offered` row:** the client says those insights won't come from this
+  key. This follows from ADR 0002 sub-decision 5 ("partly offered") and the worked example.
+- **The vocabulary gate.** Treasure Maps § 4.1's naddr rule is described as "decoded and re-encoded" rather than
+  "canonicalized", so the AC5 grep finds only the metadata label.
+
 ## Linked artifacts
 
 - ADR: [`engineering-team/decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md`](../../decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md)
