@@ -199,3 +199,76 @@ A one-sentence edit (Blocking 1), plus the matching note on the intake entry, fi
 ## Close-out
 - Story status stays In Progress until the record edit is reviewed.
 - Completion detection was not run, because the verdict is not a pass.
+
+# Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-10-10
+**Diff:** `git show d5de18d9`: story 7's corrected Out-of-scope bullet, book decision 11 and two ledger rows. Read on
+`staging` at `d5de18d9`. The commit is docs-only: `git diff --stat deca5b15 d5de18d9 -- src test bin scripts ui public`
+is empty, so round 1's code verdict and gate run stand.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test` — not re-run, because no code changed since round 1's run on `deca5b15`:
+      `20261010T145542Z-14650-1898 [reviewer-sae6r2-7] started 2026-10-10T14:55:42.855Z on deca5b15 — PASS, exit 0, 5553 passed, 0 failed, 582 skipped, 294/294 suites`.
+- [x] `auth-head-requests` re-run as a spot check: 5 passed, 0 failed, 0 skipped.
+- [x] `bash scripts/harness-lint.sh` — clean (0 violations), exit 0.
+- [x] Live, anonymous, side-effect-free: HEAD `/api/personalized-pagerank` with no pubkey → 401 on production and
+      staging.
+
+## Blocking 1 — half resolved
+
+Round 1's asked change had two parts: correct the sentence, and add the same note to the intake entry. I re-derived
+the corrected bullet as a fresh claim.
+
+**The sentence is now true** (`7-head-judged-as-get.md:46-50`).
+- "The owner-only list matches POST only." True (`src/middleware/auth.js:466`).
+- "No owner-only path is registered for PUT, PATCH or DELETE." True. The five PUT and DELETE routes under `src/api`
+  contain no owner-list entry.
+- "One owner-only path is served by a GET that can perform an action, so the list does not cover it." True, and "one"
+  is exact. I matched every owner-list entry against the routes registered for it:
+  - the other entries with GET routes are named by a GET list, or they are reads;
+  - this one is neither.
+- "It belongs to the sweep … by the owner's decision (2026-10-10)." That decision is recorded as book decision 11
+  (`audits/negentropy-sync-access/book.md:59-61`).
+- The bullet does not name the route. That matches round 1, which kept it unnamed as well.
+
+**The intake note is missing.** `stories/_intake.md` is unchanged since `deca5b15`. The entry's Scope still says
+"inventory every mutating endpoint (POST/PUT/PATCH/DELETE)" (`_intake.md:1826`).
+
+This was the reason round 1 gave for blocking. Story 7 and book decision 11 now assign the GET-served path to the
+sweep. But the document the sweep will be planned from still limits its inventory to the four mutating methods. So the
+record contradicts itself across two files, and the sweep's own scope still has the blind spot.
+
+## Findings (round 2)
+
+### Blocking
+1. **`engineering-team/stories/_intake.md:1826` (2026-07-21 entry) — the sweep's scope still excludes GET.**
+   - **Asked change** (one dated addendum, record only). Example: "**Addendum (2026-10-10, story 7 review):** the
+     inventory covers GET routes too, not only POST/PUT/PATCH/DELETE. The middleware's owner-only list matches POST
+     only, and at least one owner-only path is served by a GET that can perform an action (`security-auth-exposure`
+     story 7, Out of scope; book `negentropy-sync-access` decision 11). A GET that starts heavy work belongs in the same
+     inventory."
+   - Every factual clause in that example is checked above. Do not name the route there either.
+   - Nothing else is needed for a pass.
+
+### Non-blocking
+1. **`ledger/2026-10-10-after-the-fact-record-misses-siblings.md:15-16`.** The new paragraph quotes story 6's first
+   record as "cannot … publish signed exports or start syncs" and says other admin actions "could still do so". The
+   "start syncs" part of that record was true: stories 4 and 6 closed it. The false parts were heavy recomputes and
+   signed exports. Optional: quote "cannot run heavy recomputes, publish signed exports" instead.
+
+### Harness friction
+1. None new. `ledger/2026-10-10-review-files-committed-unscreened.md` covers the disclosure, and the
+   after-the-fact-record row now carries stories 6 and 7.
+
+## Verdict
+**CHANGES_REQUESTED**
+
+The story's sentence is now accurate. What remains is the matching one-paragraph note on the intake entry, so the
+sweep's written scope agrees with the assignment this record makes.
+
+## Close-out
+- Story status stays In Progress until the intake note is added.
+- Completion detection was not run, because the verdict is not a pass.

@@ -1846,6 +1846,8 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 
 **Addendum (2026-10-10, book `negentropy-sync-access`):** `security-auth-exposure` story 6 put `/api/run-task`, `/api/scheduled-tasks/create`, `/update`, `/delete` and `/api/customer-schedule/update`, `/trigger` on the middleware's owner-only list (PR #840, in production). Stories 5 and 7 closed two bypasses of the middleware's own checks (capitalized paths, HEAD requests). The rest of this class is still open, including `streaming-etl/control` named above. The owner decided to sweep it exhaustively as its own story rather than hotfix members one by one; that story is the next step for this entry.
 
+**Addendum (2026-10-10, story 7 review):** the inventory covers GET routes too, not only POST/PUT/PATCH/DELETE. The middleware's owner-only list matches POST only, and at least one owner-only path is served by a GET that can perform an action (`security-auth-exposure` story 7, Out of scope; book `negentropy-sync-access` decision 11). A GET that starts heavy work belongs in the same inventory.
+
 ## 2026-07-28 — Harness story proposal: Direction-mode blinding rebuild (OPEN.md #117, #119)
 
 **PICKED UP** 2026-08-04 → book `engineering-team/audits/blinding-rebuild/book.md` (epic `harness-gate-integrity` reactivation, story #2; branch `harness/blinding-rebuild`; book opened eagerly at intake per OPEN.md #29/#78/#110). Scope note at pickup: the "frame-only reads" bullet is partially delivered by the 2026-08-04 ratification of pinned line-range judge reads (OPEN.md #133, rows 132/133 commit `e189d471`) — Architecture decides whether that closes the channel or a generated frame excerpt is still warranted.

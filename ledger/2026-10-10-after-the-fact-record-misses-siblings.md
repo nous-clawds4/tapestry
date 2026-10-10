@@ -12,8 +12,8 @@ start the registered sync tasks (fixed as story 6). Nothing in the hotfix path a
 ways to reach the same effect before the record claims completeness; the Reviewer's audit found it. A lighter version
 of the Architect's survey step for hotfix records ("what else reaches this effect?") would have caught it.
 
-It recurred twice in the same book: story 6's first record said a stranger "cannot … publish signed exports or start
-syncs" while other admin actions could still do so, and story 7's first record said "no other method slips past" the
+It recurred twice in the same book: story 6's first record said a stranger "cannot run heavy recomputes, publish signed
+exports" while other admin actions could still do so, and story 7's first record said "no other method slips past" the
 owner-only list while one owner-only path is served by a GET that acts. Both caught by the Reviewer.
 
 **Pointer:** `engineering-team/reviews/security-auth-exposure/4-negentropy-sync-owner-and-admins.md` Blocking 1.
