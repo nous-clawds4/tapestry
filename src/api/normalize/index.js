@@ -11,6 +11,7 @@ const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 const firmware = require('./firmware');
+const { buildImportCypher, executeCypher } = require('../neo4j/eventSync');
 const dtag = require('../../lib/dtag');
 
 // ── Relationship type aliases from firmware ──────────────────
@@ -4608,6 +4609,101 @@ async function handleForkNode(req, res) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// POST /api/normalize/set-b-tag
+//   Body: { uuid, target, marker? ('pointer' default | 'inherit'), note?, remove? }
+//   Adds, replaces, or removes a `b` tag on a replaceable event — the
+//   authoring surface for the shared-affiliation primitive (ADR 0034).
+//   The import pipeline already derives the edge (eventSync: explicit
+//   'inherit' -> INHERITS_FROM, anything else -> REFERENCES{source:'b-tag'});
+//   until now b tags were only written by the firmware-install and
+//   community-adoption flows, so there was no way to author "this node
+//   points, non-committally, at that node" directly. Mirrors
+//   handleSetJsonTag: rebuild tags from Neo4j, re-sign, republish, import.
+//   One b tag per (event, target); other b tags on the event are preserved.
+//   An optional note rides in the tag's 4th position (stored as value2).
+// ══════════════════════════════════════════════════════════════
+async function handleSetBTag(req, res) {
+  try {
+    // Owner gate (the in-file pattern): the event is signed with the TA key,
+    // so an authenticated non-owner must not be able to author through it.
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { uuid, target, marker, note, remove } = req.body || {};
+    if (!uuid) return res.status(400).json({ success: false, error: 'Missing uuid' });
+    if (!target) return res.status(400).json({ success: false, error: 'Missing target' });
+    const mk = marker || 'pointer';
+    if (mk === 'b-tag-deferred')
+      return res.status(400).json({ success: false, error: 'b-tag-deferred is a reserved sentinel' });
+
+    // Rebuild the event's tag list from the graph, dropping any existing
+    // b tag for this target (idempotent set / clean remove).
+    const tagRows = await runCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
+      RETURN t.type AS type, t.value AS value, t.value1 AS value1, t.value2 AS value2
+      ORDER BY t.uuid
+    `, { uuid });
+    if (!tagRows.length) return res.json({ success: false, error: `Event "${uuid}" not found` });
+
+    // Graphs written by older import paths can hold exact-duplicate tag
+    // rows; dedupe so they are never signed into the rebuilt event.
+    const seen = new Set();
+    const uniqueRows = tagRows.filter(t => {
+      const k = JSON.stringify([t.type, t.value, t.value1, t.value2]);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    const newTags = uniqueRows
+      .filter(t => !(t.type === 'b' && t.value === target))
+      .map(t => {
+        const tag = [t.type, t.value];
+        if (t.value1) tag.push(t.value1);
+        if (t.value2) tag.push(t.value2);
+        return tag;
+      });
+    if (!remove) {
+      const b = ['b', target, mk];
+      if (note) b.push(String(note).slice(0, 500));
+      newTags.push(b);
+    }
+
+    const kind = uuid.startsWith('39998:') ? 39998 : 39999;
+    const evt = signAndFinalize({ kind, tags: newTags, content: '' });
+    await publishToStrfry(evt);
+
+    // Import with the canonical importer (eventSync.buildImportCypher), the
+    // same path firmware install uses when it seeds a pointer-b. It derives
+    // REFERENCES / INHERITS_FROM from the b tags itself, so this handler holds
+    // no edge logic of its own. First clear what the previous version of this
+    // event produced — its tag nodes, and the edges derived from its b tags —
+    // so the result is a pure function of the new event: removal needs no
+    // special case, and stale tags cannot accumulate.
+    await writeCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
+      DETACH DELETE t
+    `, { uuid });
+    await writeCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[r:REFERENCES|INHERITS_FROM]->()
+      WHERE type(r) = 'INHERITS_FROM' OR r.source = 'b-tag'
+      DELETE r
+    `, { uuid });
+    await executeCypher(buildImportCypher(evt));
+
+    return res.json({
+      success: true,
+      message: `b tag (${mk}) ${remove ? 'removed' : 'set'}: ${uuid} -> ${target}`,
+      uuid,
+      target,
+    });
+  } catch (error) {
+    console.error('normalize/set-b-tag error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 // POST /api/normalize/set-json-tag
 //   Body: { uuid, json? (object or string), remove? (bool) }
 //   Updates the json tag on a replaceable event.
@@ -5500,6 +5596,7 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/add-to-set', handleAddToSet);
   app.post('/api/normalize/fork-node', handleForkNode);
   app.post('/api/normalize/set-json-tag', handleSetJsonTag);
+  app.post('/api/normalize/set-b-tag', handleSetBTag);
   app.post('/api/normalize/prune-superset-edges', handlePruneSupersetEdges);
   app.post('/api/normalize/apply-enumerations', handleApplyEnumerations);
   app.post('/api/normalize/wire-implicit-elements', handleWireImplicitElements);
