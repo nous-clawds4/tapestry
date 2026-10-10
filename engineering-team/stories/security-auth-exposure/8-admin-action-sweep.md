@@ -145,7 +145,7 @@ Answered by the owner at the Planning gate (2026-10-10); each answer follows its
   dashboards, and story 6 left them so. They show what the instance runs, when it runs it, and how runs went.
   *Suggestion: no suggestion; this is a product call about how much of the instance's running state strangers may
   see.*
-  **Decided:** keep them public. AC-5's exception list is empty.
+  **Decided:** keep them public. *(AC-5's exception list gained two other reads at the Architecture gate; see below.)*
 - **(d) One release, or batches?** One release keeps every open route unnamed until all of them are fixed, but the worst
   ones wait for the slowest. Batches, most serious first, close the worst sooner, but each batch names its own routes
   when it ships, which tells readers that the rest of the class is still open. *Suggestion: batches by seriousness,
@@ -162,10 +162,18 @@ Answered by the owner at the Planning gate (2026-10-10); each answer follows its
   **Decided:** as suggested: admins equal the owner by default; the Architect flags doubtful actions (the most
   destructive, or those acting with the instance's own identity) for the owner to decide one by one, settling row 269.
 
+### Decided at the Architecture gate (2026-10-10)
+
+The owner approved ADR `security-auth-exposure/0005` (one route table; every action is the owner's side's unless the
+table opens it) and one release. The allowlist was approved entry by entry as proposed (AC-4). Two parameter-level
+rules are owner-only: signing as the instance's assistant (settling OPEN.md row 269) and changing the admin list. The
+judgment calls were accepted as proposed. **AC-5's exception list is no longer empty:** the owner closed two sensitive
+public reads to the owner's side; they are named in the private inventory, committed with the fix.
+
 ## Linked artifacts
 
 - Book: `engineering-team/audits/admin-action-owner-check/book.md`
 - Intake: `engineering-team/stories/_intake.md`, entry 2026-07-21 (security-auth-exposure phase 2) and its addenda
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/security-auth-exposure/0005-one-route-table-default-deny.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

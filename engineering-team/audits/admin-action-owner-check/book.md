@@ -103,6 +103,11 @@ At Architecture:
 - **Approve the classification of anything the Architect marks as a judgment call**: a route whose class isn't clear
   from what it does.
 
+**Answered 2026-10-10** (ADR `security-auth-exposure/0005`, "The owner's decisions at the gate"): ADR 0005 approved,
+one release; all seventeen proposed allowlist entries approved; owner-only for signing as the instance's assistant
+(OPEN.md row 269) and for changing the admin list, admins equal the owner elsewhere; the judgment calls accepted as
+proposed; two sensitive public reads closed to the owner's side.
+
 ## Sources
 
 - `engineering-team/stories/_intake.md`, entry 2026-07-21 "Security: gate authenticated-non-owner access to admin
