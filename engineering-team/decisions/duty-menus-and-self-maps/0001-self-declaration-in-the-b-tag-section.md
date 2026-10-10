@@ -1,6 +1,6 @@
 # ADR 0001: Self-declaration lives in inherit-from's `b` tag section, beside the reserved value
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-10
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/1-ratify-self-pointing-b.md`
 
