@@ -727,3 +727,10 @@ it, under `timeout`.
   tasks.
 - Shipping starter presets; sharing presets between instances.
 - Catching backdated events outside the window.
+
+## Superseded in part (2026-10-10): access
+
+The access statements above (Context § Access; the list GET "readable by anyone who can reach the API") no longer hold.
+By the owner's decision of 2026-10-10 (book `negentropy-sync-access`, ADR security-auth-exposure/0004), every
+negentropy-sync route and the saved presets list are for the owner, admins and direct-local callers; any other signed-in
+person may run only the point-of-view sync. The presets' POSTs keep `requireOwnerOrLocal`, which already admitted admins.

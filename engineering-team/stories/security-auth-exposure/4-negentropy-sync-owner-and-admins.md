@@ -18,8 +18,10 @@ direction (`down`, `up` or both). Before this story the routes that start one we
   `/status` reports the active sync. They are GETs, so the middleware's default-deny for unauthenticated mutations
   (ADR security-auth-exposure/0002) never applied, and no handler checked the caller: **a visitor who was not signed in
   could start a sync, in either direction, with any relay.** Live on staging and production until 2026-10-10.
-- The saved presets (`/api/strfry/negentropy-presets*`, staging only) were already guarded by
-  `requireOwnerOrLocal`, whose `isOwner` is the owner-or-admin alias.
+- The saved presets' four POSTs (`/api/strfry/negentropy-presets*`) were already guarded by `requireOwnerOrLocal`, whose
+  `isOwner` is the owner-or-admin alias; their list GET was readable by anyone (story 6 guards it).
+- The registered sync tasks could also be started or scheduled by any signed-in session through the task-control
+  routes, without choosing a relay or filter; story 6 closes that.
 
 Three pages use `POST /api/strfry/negentropy-sync` for ordinary signed-in people: Brainstorm Search, Search Preferences
 and Brainstorm Settings each download one author's kind 30382 Trusted Assertions from that author's NIP-85 relay, so a
@@ -46,7 +48,8 @@ in to use search should still be able to bring their own point of view's scores 
 - [x] **AC-4** The owner, an admin, or a direct-local caller (`req.localTrusted`, the loopback task scripts) may run
       any sync on every route, as before.
 - [x] **AC-5** The three POV pages keep working for ordinary signed-in people: each sends exactly the AC-3 shape.
-- [x] **AC-6** The saved presets stay managed by the owner and admins (and direct-local callers).
+- [x] **AC-6** The saved presets stay managed by the owner and admins (and direct-local callers); their list GET is
+      guarded the same way (story 6).
 - [x] **AC-7** The OpenAPI entries for the documented sync routes state the rule and the 401/403 refusals.
 
 ## Concepts touched
@@ -65,6 +68,10 @@ None. No concept-graph, event-kind or firmware change.
 None open. Decisions are recorded in the book.
 
 ## Deviations
+
+- **The first record claimed more than shipped.** It said only these eight routes start a sync and ticked "only the POV
+  sync" while the task-control routes could still start the sync tasks, and it said every preset route was guarded.
+  Review round 1 caught both; stories 6 (task control, presets list) and these corrections close them.
 
 - **Shipped before the record.** By the owner's choice the code and tests went out as a hotfix (PR #837, merge
   `8fbd68d0`; `staging` `dc318717`) and this story, its test plan and ADR 0004 were written after, from the shipped

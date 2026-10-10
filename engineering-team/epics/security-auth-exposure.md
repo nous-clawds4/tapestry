@@ -1,7 +1,7 @@
 # Epic: security-auth-exposure
 
 **Created:** 2026-07-19
-**Status:** Done (stories 1–2 retired 2026-07-20 at first book close. Story 3 added 2026-09-11 — a distinct auth-exposure root cause found live on staging + prod; reviewed PASS and shipping under the new open book `audits/auth-signature-verification/`, which carries the active-work signal. The original book `audits/security-auth-exposure/` stays Closed, so this epic stays Done — the new book, not a reopened epic, tracks story 3's deployment. Story 4 added 2026-10-10 the same way, under book `audits/negentropy-sync-access/`.)
+**Status:** Done (stories 1–2 retired 2026-07-20 at first book close. Story 3 added 2026-09-11 — a distinct auth-exposure root cause found live on staging + prod; reviewed PASS and shipping under the new open book `audits/auth-signature-verification/`, which carries the active-work signal. The original book `audits/security-auth-exposure/` stays Closed, so this epic stays Done — the new book, not a reopened epic, tracks story 3's deployment. Stories 4–6 added 2026-10-10 the same way, under book `audits/negentropy-sync-access/`.)
 
 ## Goal
 
@@ -22,6 +22,10 @@ The write surface signs events **as the instance's Tapestry Assistant** and can 
 3. `stories/security-auth-exposure/3-login-signature-verification.md` — the login endpoints (`POST /api/auth/login`, `POST /api/auth/login-user`) grant an authenticated (owner/admin) session on an event whose **signature is never verified** — only `pubkey` + a challenge tag are checked. Anyone who knows an owner/admin *public* key can obtain an owner session with an unsigned event. Require a valid `verifyEvent` signature, correct kind, fresh `created_at`, single-use challenge; regenerate the session on login; stop storing client-supplied `nsec`. Live and identical on staging + prod (2026-09-11). Book: `audits/auth-signature-verification/`. **Done** (review PASS 2026-09-11; shipped to staging, prod promotion in progress).
 
 4. `stories/security-auth-exposure/4-negentropy-sync-owner-and-admins.md` — every negentropy-sync route was open to any signed-in session, and its GET routes (stream, count, status) to visitors who were not signed in. One guard now admits the owner, admins and direct-local callers; other signed-in people keep only the POV sync (one author's kind 30382, downloaded). Shipped 2026-10-10 as an owner-approved hotfix (PR #837) and recorded after. Book: `audits/negentropy-sync-access/`. **In Progress** (review pending).
+
+5. `stories/security-auth-exposure/5-paths-judged-case-insensitively.md` — Express routes case-insensitively, but the auth middleware compared paths case-sensitively, so a capitalized path skipped the central check. Every path test now uses one lowercased copy. Found by story 4's review; hotfix PR #839. Same book. **In Progress** (review pending).
+
+6. `stories/security-auth-exposure/6-task-control-owner-and-admins.md` — any signed-in session could start or schedule any registered task; the six task-control POSTs now join the owner-only list, and the saved presets list is guarded like the sync status. Found by story 4's review; hotfix PR #840. Same book. **In Progress** (review pending).
 
 *(Further stories drawn at Planning as the work proceeds.)*
 
