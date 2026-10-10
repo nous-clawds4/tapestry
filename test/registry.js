@@ -276,6 +276,7 @@ const suites = [
   { file: 'assistant-taggings-publish.test.js' },
   { file: 'negentropy-sync-input.test.js' },
   { file: 'negentropy-sync-access.test.js' },
+  { file: 'auth-path-case.test.js' },
   { file: 'assistant-profile-check.test.js' },
   { file: 'assistant-trusted-content.test.js' },
   { file: 'assistant-profile-checklist-page.test.js' },
