@@ -4,7 +4,7 @@
  */
 
 const path = require('path');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const { getConfigFromFile } = require('../../../../utils/config');
@@ -25,6 +25,9 @@ function handleCreateKind10040(req, res) {
 
     // Get the customer pubkey from the request
     const customerPubkey = req.body.pubkey;
+    if (customerPubkey && (typeof customerPubkey !== 'string' || !/^[0-9a-f]{64}$/i.test(customerPubkey))) {
+        return res.status(400).json({ success: false, message: 'Invalid pubkey' });
+    }
     
     console.log('Creating kind 10040 events...');
     
@@ -35,12 +38,9 @@ function handleCreateKind10040(req, res) {
     const baseDir = getConfigFromFile('BRAINSTORM_MODULE_BASE_DIR', '/usr/local/lib/node_modules/brainstorm');
     
     // Get the full path to the script
-    let scriptName = 'brainstorm-create-kind10040.js';
-    // if customerPubkey is provided, then include customerPubkey as an argument
-    if (customerPubkey) {
-        scriptName = `brainstorm-create-kind10040.js ${customerPubkey}`;
-    }
-    const scriptPath = path.join(baseDir, 'bin', scriptName);
+    // The script runs with an argument list, never a shell string; customerPubkey, if given, is its one argument.
+    const scriptPath = path.join(baseDir, 'bin', 'brainstorm-create-kind10040.js');
+    const scriptArgs = customerPubkey ? [scriptPath, customerPubkey] : [scriptPath];
     console.log('Using script path:', scriptPath);
     
     // Set a timeout to ensure the response doesn't hang
@@ -53,7 +53,7 @@ function handleCreateKind10040(req, res) {
         });
     }, 30000); // 30 seconds timeout
     
-    exec(`node ${scriptPath}`, (error, stdout, stderr) => {
+    execFile('node', scriptArgs, (error, stdout, stderr) => {
         // Clear the timeout if the command completes before the timeout
         clearTimeout(timeoutId);
         
