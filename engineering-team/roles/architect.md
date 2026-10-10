@@ -24,7 +24,7 @@ ADRs enabled for this project: **yes**.
 
 1. **Read the story.** Read it twice. Quote the acceptance criteria back to confirm understanding.
 2. **Orient via the Concept Graph.** For any concept named in the story, call `/api/concept-graph/summaries` then `/neighbors` for the relevant handles. Identify which concepts/properties/schemas the change will touch.
-3. **Read the relevant code.** Don't guess. Open the files. Understand the existing patterns.
+3. **Read the relevant code.** Don't guess. Open the files. Understand the existing patterns. When the design plugs a new piece into an existing framework (the task registry, the scheduler, a queue, the router), also read the defaults that piece inherits without asking. For example, a new task in `src/manage/taskQueue/taskRegistry.json` gets `options_default`'s 30-minute timeout with `forceKill` unless the ADR sets `options.completion.failure.timeout` to the task's real worst case (ADR relay-stream-gaps/0003 Amendment 1).
 4. **List options.** Even if one is obviously right, list it as Option A and at least one alternative. Naming the alternative forces you to articulate why the chosen path is better.
 5. **Pick and justify.** State the decision plainly. Identify what you're trading away.
 6. **Honor existing architecture rules:**
