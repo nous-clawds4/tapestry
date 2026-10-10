@@ -180,3 +180,100 @@ not. Three small edits (Blocking 1 a–c) fix it.
 ## Close-out
 - Story status stays In Progress until the record edit is reviewed.
 - Completion detection was not run, because the verdict is not a pass.
+
+# Round 2
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-10-10
+**Diff:** `git show deca5b15 -- engineering-team/stories/security-auth-exposure/6-task-control-owner-and-admins.md
+engineering-team/stories/_intake.md` (the record correction). Read on `staging` at `deca5b15`. Story 6's code has not
+changed since round 1: `git diff --stat 0f028254 deca5b15 -- src test bin scripts ui public` shows only story 7's fix
+(`src/middleware/auth.js`, `test/auth-head-requests.test.js`, `test/registry.js`) and `50117a3c`
+(`test/negentropy-sync-access.test.js`). The six list entries and the presets mount are as reviewed in round 1.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test` — **PASS.** `npm run gate:status -- --label reviewer-sae6r2-7`:
+      `20261010T145542Z-14650-1898 [reviewer-sae6r2-7] started 2026-10-10T14:55:42.855Z on deca5b15 — PASS, exit 0, 5553 passed, 0 failed, 582 skipped, 294/294 suites`.
+      The `tagging-edges-realtime-wrapper` RW7 flake did not appear.
+- [x] Focused suites: `task-routes-owner-admin` 5 passed, 0 failed; `negentropy-sync-access` 10 passed, 0 failed;
+      `negentropy-sync-presets` 95 passed, 0 failed; `auth-path-case` 5 passed, 0 failed; `auth-head-requests` 5 passed,
+      0 failed.
+- [x] `50117a3c` (A7 and A10 no longer skip). In a scratch worktree at `deca5b15` with
+      `src/api/strfry/negentropyPresets.js` removed, `negentropy-sync-access` gives 8 passed, 2 failed: A7 and A10. The
+      suite as it was before `50117a3c`, on the same tree, gives 10 passed: the old guards hid the missing module. The
+      module is on `origin/main`. This closes story 4's round-2 non-blocking 3. Worktree removed.
+- [x] `bash scripts/harness-lint.sh` — clean (0 violations), exit 0.
+- [x] Live, anonymous, side-effect-free, on production and staging: `POST /api/run-task` with no task name → 401;
+      HEAD `/api/strfry/negentropy-presets` → 401 (the route guard answers HEAD as it answers GET).
+- [ ] `npm run test:playwright` — not applicable (no UI change).
+
+## Blocking 1 — resolved
+
+Blocking 1 asked for two things. The record must not say that signed exports and heavy recomputes are out of a
+signed-in stranger's reach. And a reader weighing the sweep must not be misled. I re-derived each changed statement,
+my own suggested wording included.
+
+- **(a) The "so that" sentence** (`6-…md:33-35`) now reads "cannot start or schedule the instance's registered tasks
+  (recomputes, exports, syncs) through the task routes". This is true:
+  - the six task routes are on `ownerOnlyEndpoints` (`src/middleware/auth.js:440-445`), and T2 pins them under every
+    capitalization;
+  - BullBoard is the only other HTTP path that acts on registered tasks, and it is behind `requireOwnerOrAdmin`
+    (`src/api/index.js:561` → `src/manage/taskQueue/queue/bullBoardMount.js:58`).
+
+  "Through the task routes" limits the claim to what shipped. The sentence no longer says the effects are
+  unreachable. Dropping "signed" from my wording is fine, because the registry also has unsigned exports.
+- **(b) The Out-of-scope bullet** (`6-…md:54-57`) names the class and points at the 2026-07-21 intake entry. It says
+  some members "reach the same effects by other means", and it records the owner's decision to sweep. That sentence is
+  true: at least one open member launches work that a registered task also runs, and others start heavy work (round 1,
+  above; I don't repeat them here).
+
+  The bullet does not name the member I asked for. Deviations (`6-…md:72-73`) records why. I accept this. The point of
+  naming it was that no reader should take those effects as closed, and "reach the same effects by other means" says
+  that. The owner has decided the sweep, so the urgency question that worried round 1 is settled. The bullet does not
+  cite OPEN.md row 276; that is optional.
+- **(c) The intake addendum** (`stories/_intake.md:1847`) is dated. It says which routes story 6 put on the owner-only
+  list. It says `streaming-etl/control` is still open, which I verified: the route at `src/api/index.js:483` has no
+  route guard, its handler has no owner check, and neither middleware list names it. It also records the owner's sweep
+  decision.
+
+  The addendum does not repeat my round-1 phrase "all of which the entry names as exposed". That is good, because the
+  phrase was wrong. The entry names `run-task`, and its 2026-09-30 addendum names `scheduled-tasks/create|update|delete`,
+  but neither names `customer-schedule/update|trigger`.
+
+**Round 1's non-blocking items.**
+1. BullBoard: taken (`6-…md:12`), and verified as above.
+2. The loopback scheduler: taken (`6-…md:25-26`), and verified. `src/api/customer-schedule/index.js:66-68` POSTs to
+   `http://127.0.0.1:7778/api/run-task` with no forwarding header, so it gets `req.localTrusted`
+   (`auth.js:357-371`) before the owner-only list is consulted. T3 pins it.
+
+   "Nothing outside the process calls them" also holds. I searched the repo, outside `test/` and `engineering-team/`,
+   for the six paths. The other hits are the owner pages the Background names, the route registrations, comments,
+   docs and one Playwright spec. No script or cron calls them.
+3. The task explorer pages: unchanged. Out of scope, as round 1 said.
+4. Accepted in round 1.
+
+## Findings (round 2)
+
+### Blocking
+None.
+
+### Non-blocking
+1. **`6-…md:57` — "this story closes only the task routes".** The story also guards the presets list (AC-5). In its
+   bullet ("Other admin actions…") it reads as "of that class", and the presets list is a read, not an admin action.
+   Optional: "of that class, this story closes only the task routes".
+
+### Harness friction
+1. Round 1 asked for this story to be added as evidence on
+   `ledger/2026-10-10-after-the-fact-record-misses-siblings.md`. The row has not changed since `0f028254`. It is still
+   worth doing, and story 7's record is a third instance (review 7, Blocking 1). No new row is needed.
+
+## Verdict
+**PASS**
+
+The record now matches what shipped. The purpose is narrowed to the task routes. The open class is named, with its
+pointer and the owner's decision. BullBoard and the loopback scheduler are described accurately. Story 6 is Done.
+
+## On PASS
+- [x] Story `**Status:**` flipped to `Done` in place (and the epic's line for story 6).
+- [x] Completion detection performed; the result is reported in the hand-off, not in this file.

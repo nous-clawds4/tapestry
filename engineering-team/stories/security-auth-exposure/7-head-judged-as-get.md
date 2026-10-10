@@ -43,9 +43,11 @@ None.
 
 ## Out of scope
 
-- The owner-only list matches POST only; no owner-only path is registered for PUT, PATCH or DELETE today (checked
-  2026-10-10), so no other method slips past it. A route added later under another method would need the list or its
-  own guard.
+- The owner-only list matches POST only. No owner-only path is registered for PUT, PATCH or DELETE (checked
+  2026-10-10), but one owner-only path is served by a GET that can perform an action, so the list does not cover it.
+  By the owner's decision (2026-10-10) it belongs to the sweep of admin actions without an owner check of their own
+  (`_intake.md` 2026-07-21), not to this story. A route added later under another method needs the list or its own
+  guard.
 
 ## Open questions
 

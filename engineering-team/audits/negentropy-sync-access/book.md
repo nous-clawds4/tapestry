@@ -56,6 +56,9 @@ Asked about the saved presets: owner and admins.
 9. **HEAD requests (story 7): hotfix now.** *(Owner, recommended option.)*
 10. **The remaining admin actions with no owner check of their own** (`_intake.md` 2026-07-21): an exhaustive sweep
     as its own story, not piecemeal hotfixes. *(Owner.)* Not part of this book's frame.
+11. **Kept after two more facts** (2026-10-10): story 6's round-1 review, committed in `deca5b15`, names several open
+    members of that class publicly; and one owner-only path is served by a GET that can act. The owner kept the
+    sweep-first plan for both. *(Owner.)*
 
 ## Artifacts
 

@@ -1,6 +1,6 @@
 # Story 6: Task control is for the owner and admins
 
-**Status:** In Progress
+**Status:** Done
 **Created:** 2026-10-10
 **Type:** Bug (security / access control)
 **Epic:** `security-auth-exposure`
@@ -54,7 +54,7 @@ None.
 - **Other admin actions with no owner check of their own** stay reachable by any signed-in session: the class recorded
   in `engineering-team/stories/_intake.md` (2026-07-21, security-auth-exposure phase 2). Some of them reach the same
   effects by other means. The owner decided (2026-10-10) to sweep that class exhaustively as its own story rather than
-  hotfix its members one by one; this story closes only the task routes.
+  hotfix its members one by one; this story closes the task routes and guards the presets list.
 - Whether the neighbouring reads (task status, history, schedules) should also be restricted.
 - `/api/run-task`'s own handler-level checks (none were added: the middleware's owner-only list is the gate, as for the
   other administrative POSTs).
@@ -69,8 +69,9 @@ None.
   skipped: the fix adds six entries to the middleware's existing owner-only list and mounts story 4's existing guard on
   one more route (strictness table, bugs). `negentropy-sync-presets` P12 re-aimed to the decision, and that suite now
   reloads `negentropyAccess.js` under its auth stub.
-- **The out-of-scope bullet names the class, not its open members**, while they are open (review round 1 asked to
-  name one); the sweep story will list them.
+- **The out-of-scope bullet names the class, not its open members** (review round 1 asked to name one); the sweep
+  story will list them. The round-1 review file itself, committed in `deca5b15`, does name several open members; the
+  owner kept the sweep-first plan after learning that (2026-10-10).
 
 ## Linked artifacts
 
