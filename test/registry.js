@@ -279,6 +279,7 @@ const suites = [
   { file: 'auth-path-case.test.js' },
   { file: 'task-routes-owner-admin.test.js' },
   { file: 'auth-head-requests.test.js' },
+  { file: 'shell-input-hardening.test.js' },
   { file: 'assistant-profile-check.test.js' },
   { file: 'assistant-trusted-content.test.js' },
   { file: 'assistant-profile-checklist-page.test.js' },
