@@ -4,7 +4,7 @@
  * handler for /api/get-kind0
  */
 
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const { getConfigFromFile } = require('../../../../utils/config');
 const neo4j = require('neo4j-driver');
 
@@ -33,6 +33,9 @@ function handleGetKind0Event(req, res) {
         message: 'Missing pubkey parameter'
       });
     }
+    if (!/^[0-9a-f]{64}$/i.test(pubkey)) {
+      return res.status(400).json({ success: false, message: 'Invalid pubkey parameter' });
+    }
     
     // Define the relays to query
     const relays = [
@@ -44,9 +47,8 @@ function handleGetKind0Event(req, res) {
     ];
     
     // First try to get the event from our local strfry relay
-    const strfryCommand = `strfry scan '{"kinds":[0],"authors":["${pubkey}"],"limit":1}'`;
-    
-    exec(strfryCommand, (error, stdout, stderr) => {
+    // An argument list, never a shell string: request values must not reach a shell.
+    execFile('strfry', ['scan', JSON.stringify({ kinds: [0], authors: [pubkey], limit: 1 })], (error, stdout, stderr) => {
       if (error) {
         console.log(`Local strfry query failed, trying external relays: ${stderr || error.message}`);
         // If local strfry fails, continue to external relays
